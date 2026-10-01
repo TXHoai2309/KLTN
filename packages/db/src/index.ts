@@ -1,6 +1,7 @@
 import { PrismaNeon } from "@prisma/adapter-neon";
 
 import { PrismaClient } from "../prisma/generated/client";
+export { Prisma } from "../prisma/generated/client";
 import type { DatabaseConfig } from "./config";
 
 export function createPrismaClient(env: DatabaseConfig) {

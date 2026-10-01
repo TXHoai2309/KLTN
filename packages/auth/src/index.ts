@@ -13,6 +13,16 @@ export function createAuth(env: AuthConfig, database: Database) {
     database: prismaAdapter(database, {
       provider: "postgresql",
     }),
+    user: {
+      additionalFields: {
+        role: {
+          type: "string",
+          required: true,
+          defaultValue: "TRAVELER",
+          input: false,
+        },
+      },
+    },
     trustedOrigins: [env.BETTER_AUTH_URL],
     emailAndPassword: { enabled: true },
     secret: env.BETTER_AUTH_SECRET,

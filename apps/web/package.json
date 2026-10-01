@@ -8,7 +8,8 @@
     "check-types": "tsc --noEmit",
     "start": "next start",
     "env:generate": "varlock codegen",
-    "auth:generate": "varlock run -- npx --yes auth@latest generate --config src/services.ts --output ../../packages/db/prisma/schema/auth.prisma --yes"
+    "auth:generate": "varlock run -- npx --yes auth@latest generate --config src/services.ts --output ../../packages/db/prisma/schema/auth.prisma --yes",
+    "auth:bootstrap-admin": "varlock run -- tsx scripts/bootstrap-admin.ts"
   },
   "dependencies": {
     "@KLTN/auth": "*",

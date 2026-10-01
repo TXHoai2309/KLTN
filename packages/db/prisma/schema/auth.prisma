@@ -1,9 +1,15 @@
+enum UserRole {
+  TRAVELER
+  ADMIN
+}
+
 model User {
   id            String    @id
   name          String
   email         String
   emailVerified Boolean   @default(false)
   image         String?
+  role          UserRole  @default(TRAVELER)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   sessions      Session[]

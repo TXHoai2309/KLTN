@@ -1,0 +1,11 @@
+model IdempotencyRecord {
+  id           String   @id @default(cuid())
+  scope        String
+  key          String
+  requestHash  String
+  responseJson String  @db.Text
+  createdAt    DateTime @default(now())
+
+  @@unique([scope, key])
+  @@map("idempotency_record")
+}
