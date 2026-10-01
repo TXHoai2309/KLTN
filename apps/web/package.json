@@ -1,0 +1,41 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "check-types": "tsc --noEmit",
+    "start": "next start",
+    "env:generate": "varlock codegen",
+    "auth:generate": "varlock run -- npx --yes auth@latest generate --config src/services.ts --output ../../packages/db/prisma/schema/auth.prisma --yes"
+  },
+  "dependencies": {
+    "@KLTN/auth": "*",
+    "@KLTN/db": "*",
+    "@KLTN/ui": "*",
+    "@prisma/client": "^7.10.0",
+    "@swc/helpers": "^0.5.23",
+    "@tanstack/react-form": "^1.33.5",
+    "@varlock/nextjs-integration": "1.2.2",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "better-auth": "1.7.5",
+    "lucide-react": "^1.41.0",
+    "next": "^16.3.4",
+    "next-themes": "^0.4.6",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "sonner": "^2.0.8",
+    "varlock": "1.18.0",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@KLTN/config": "*",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.4.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^6.0.3"
+  }
+}

@@ -1,0 +1,3 @@
+{
+  "extends": "@KLTN/config/tsconfig.base.json"
+}

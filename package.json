@@ -1,0 +1,50 @@
+{
+  "name": "KLTN",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "check-types": "turbo run check-types",
+    "dev:web": "turbo run dev -F web --",
+    "db:push": "turbo run db:push -F @KLTN/db --",
+    "db:studio": "turbo run db:studio -F @KLTN/db --",
+    "db:generate": "turbo run db:generate -F @KLTN/db --",
+    "db:migrate": "turbo run db:migrate -F @KLTN/db --",
+    "deploy:setup": "npx --yes vercel link",
+    "dev:vercel": "npx --yes vercel dev -L",
+    "env:preview": "tsx scripts/sync-vercel-env.ts preview",
+    "env:production": "tsx scripts/sync-vercel-env.ts production",
+    "deploy": "npx --yes vercel deploy",
+    "deploy:prod": "npx --yes vercel deploy --prod",
+    "deploy:check": "npx --yes vercel deploy --dry",
+    "env:generate": "varlock codegen --path ./apps/web/ && varlock codegen --path ./packages/db/",
+    "postinstall": "varlock codegen --path ./apps/web/ && varlock codegen --path ./packages/db/",
+    "auth:generate": "cd apps/web && npm run auth:generate"
+  },
+  "dependencies": {
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@KLTN/config": "*",
+    "@types/node": "^26.4.1",
+    "tsx": "^4.23.13",
+    "turbo": "^2.10.12",
+    "typescript": "^6.0.3",
+    "varlock": "1.18.0"
+  },
+  "overrides": {
+    "@next/env": "npm:@varlock/nextjs-integration@1.2.2"
+  },
+  "packageManager": "npm@11.16.0",
+  "allowScripts": {
+    "esbuild": true,
+    "sharp": true,
+    "@prisma/engines": true,
+    "prisma": true
+  }
+}
