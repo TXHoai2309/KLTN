@@ -24,6 +24,7 @@ N/A
 
 - Product Document: section(s)
 - System Specification: section(s)
+- Requirement IDs, when present: `YCCN`, `YCAI`, `QTN`, `YCP`, `NT`
 - UI reference: Figma page/frame, if applicable
 
 ## Dependencies

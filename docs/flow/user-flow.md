@@ -20,11 +20,11 @@ Receive question and optional destination/trip context → retrieve only eligibl
 
 ## Trip requirement capture
 
-Traveler enters a structured form or natural language → AI extracts candidate duration, companions, interests, pace, mode, and constraints → display candidates for review/edit → resolve ambiguous or missing required values → pass confirmed values to the planner. Duration and supported transport are minimum requirements.
+Traveler enters a structured form or natural language → AI extracts candidate duration, companions, interests, pace, mode, and constraints → display candidates for review/edit → resolve ambiguous or missing required values → pass confirmed values to the planner. Duration and supported transport are the minimum inputs for a preliminary proposal. Without a specific start date, use Day 1 / Day 2 / ...; require a start date before final confirmation and official save. A proposal without a start date cannot be finally confirmed.
 
 ## Itinerary generation and validation
 
-Planner proposes ordered visits from eligible existing destinations → validate structure → deterministic Validator checks opening hours, minimum visit duration, travel time, and schedule conflicts → report `PASS`, `VIOLATION`, or `INSUFFICIENT_DATA` for each check. Missing routing/required data is not a pass. Confirm only if every mandatory check passes.
+Planner proposes ordered visits from eligible existing destinations → validate structure → deterministic Validator checks opening hours, minimum visit duration, travel time, and schedule conflicts → report `PASS`, `VIOLATION`, or `INSUFFICIENT_DATA` for each check. Missing required routing data, including a response not received within at most 10 seconds, returns `INSUFFICIENT_DATA` / `CHƯA ĐỦ DỮ LIỆU`, never `PASS`; AI must not guess travel time. Confirm only if every mandatory check passes and a start date is present.
 
 ## Save trip
 

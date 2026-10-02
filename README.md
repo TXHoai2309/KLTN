@@ -4,16 +4,24 @@ KLTN is a responsive web project for a Hà Giang travel assistant. The repositor
 
 ## Quick start
 
-Install dependencies and make a local environment file:
+Install dependencies and create a local environment file only if it does not already exist. These commands preserve any existing `apps/web/.env` and never overwrite it:
 
 ```powershell
 npm install
-Copy-Item apps/web/.env.example apps/web/.env
+if (-not (Test-Path apps/web/.env)) {
+  Copy-Item apps/web/.env.example apps/web/.env
+} else {
+  Write-Output "apps/web/.env already exists; keeping it unchanged."
+}
 ```
 
 ```bash
 npm install
-cp apps/web/.env.example apps/web/.env
+if [ ! -e apps/web/.env ]; then
+  cp apps/web/.env.example apps/web/.env
+else
+  echo "apps/web/.env already exists; keeping it unchanged."
+fi
 ```
 
 Fill in the values needed from `apps/web/.env.example`. Local development must use the Neon `development` branch, never production. Then generate the Prisma client, apply pending development migrations, and start the app:

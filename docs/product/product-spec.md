@@ -32,7 +32,7 @@ The RAG document lifecycle is `UPLOADED → REVIEWING → APPROVED → INDEXED`,
 
 ### Trip requirements and planning
 
-Accept structured form input and natural-language trip needs. AI may extract duration, companions, interests, pace, transport, and mobility constraints, but show extracted values for user review/edit before the planner uses them. Duration and transport are minimum required inputs. Transport is motorcycle or car; ask for clarification for another or ambiguous mode rather than silently substituting.
+Accept structured form input and natural-language trip needs. AI may extract duration, companions, interests, pace, transport, and mobility constraints, but show extracted values for user review/edit before the planner uses them. Duration and supported transport are the minimum inputs to create a preliminary proposal. Without a specific start date, the proposal may use Day 1, Day 2, and so on. A start date is required before the itinerary can be confirmed and officially saved; a proposal without one is not eligible for final confirmation. Transport is motorcycle or car; ask for clarification for another or ambiguous mode rather than silently substituting.
 
 The planner can propose an itinerary only from existing, eligible destinations. Each visit needs a destination, trip day, start time, expected duration, and daily ordering. AI proposes; it does not certify validity.
 
@@ -47,7 +47,7 @@ Every itinerary proposal must be checked for:
 
 Each check returns `PASS` / `ĐÁP ỨNG`, `VIOLATION` / `VI PHẠM`, or `INSUFFICIENT_DATA` / `CHƯA ĐỦ DỮ LIỆU`. `INSUFFICIENT_DATA` is never a pass. The Validator is deterministic: the same input, data, and reference time yields the same result. AI cannot fill missing required data or decide the Validator outcome. Confirm an itinerary only when all mandatory checks pass.
 
-Google Routes travel modes are `DRIVE` and `TWO_WHEELER`. If required route data is missing or unavailable, the travel-time check cannot pass.
+Google Routes travel modes are `DRIVE` and `TWO_WHEELER`. If mandatory route data is missing, unavailable, or not returned within at most 10 seconds, the travel-time check returns `INSUFFICIENT_DATA` / `CHƯA ĐỦ DỮ LIỆU`, never `PASS`. AI must not guess travel time in place of required routing data.
 
 ### Edit, save, and in-trip support
 

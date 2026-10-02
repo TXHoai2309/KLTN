@@ -6,7 +6,9 @@ This document resolves conflicts between the product requirements, historical ar
 
 The supplied **Product document.docx** controls MVP scope, users/roles, business rules, non-functional requirements, RQ1/RQ2, and acceptance intent. The supplied **System Specification.docx** derives testable behavior, inputs/processing/outputs, error cases, ownership, validator behavior, and write semantics from the Product Document. A system detail cannot silently expand the product scope.
 
-For implementation work, cite the relevant document sections in the story. The condensed [product contract](product/product-spec.md) is a navigation aid, not a replacement for either source document.
+A current task instruction sets the scope, method, and goal of that task; it does not automatically override locked product/business invariants. Only an explicitly approved requirement or project decision changes the baseline.
+
+For implementation work, cite the relevant document sections in the story. The condensed [product contract](product/product-spec.md) is a navigation aid, not a replacement for either source document. The repository is implementation truth; accepted decisions in [decisions.md](decisions.md) record implementation decisions. The old Architecture document is historical reference when it conflicts, and Figma is the UI/interaction baseline only.
 
 ## Implementation truth
 
@@ -37,4 +39,4 @@ Figma may define layout, navigation, screen flow, components, and responsive int
 
 ## Conflict handling
 
-Apply this order: current user instruction/approved decision → Product Document → System Specification → current repository for implementation facts → accepted decisions → historical Architecture document. Figma controls presentation details only. If this does not resolve a conflict, document an open question in the story and ask for a decision rather than choosing silently.
+Use the current task instruction to determine task scope, method, and goal, subject to the locked business baseline above. The Product Document remains the product/business source of truth; the System Specification details behavior; the repository is implementation truth; accepted decisions are implementation decisions; the old Architecture document is historical when it conflicts; and Figma controls UI/interaction only. If these sources do not resolve a conflict, document an open question in the story and ask for a decision rather than choosing silently.

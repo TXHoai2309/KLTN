@@ -20,7 +20,7 @@ For a small task, use the relevant subset of product and technical docs. The cur
 ## Development rules
 
 - Keep work within the accepted MVP and current story. Do not invent rules, expand scope, or change architecture without an approved decision.
-- Product requirements come from Product Document and System Specification. The current repository describes implementation. The old Architecture document is historical where it conflicts with the repository.
+- The Product Document is the product/business source of truth; the System Specification details its behavior. The repository is implementation truth, and accepted decisions record implementation decisions. The old Architecture document is historical when it conflicts. A current task instruction sets that task's scope, method, and goal; it does not automatically override locked product/business invariants. Only an explicitly approved requirement or project decision changes the baseline. Figma is the UI/interaction baseline only.
 - Keep App Router Route Handlers thin: parse requests, establish the auth boundary, call a module/service, and map responses/errors. Put business rules and ownership checks in backend modules/services.
 - Enforce authorization and record ownership on the server. Knowing an object URL or ID is not authorization.
 - Use Prisma migrations for schema changes. `db:push` exists as a script but is not the schema workflow for product development.

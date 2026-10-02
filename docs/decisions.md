@@ -101,7 +101,7 @@ This is a lightweight log of decisions that future stories may rely on. “Exist
 ## ADR-13 — Team branch roles
 
 - **Status:** Accepted baseline
-- **Decision:** `TXH` is personal/feature work, `dev` is shared integration/testing, and `master` is production/stable.
+- **Decision:** Each developer uses a separate personal/feature branch. `TXH` is the personal branch of Tô Xuân Hoài, `dev` is shared integration/testing, and `master` is production/stable. Other developers are not expected to work directly on `TXH`; no other personal branch names are prescribed here.
 - **Reason:** This is the team workflow provided for this repository.
-- **Consequence:** Do not auto-merge branches. Follow review and explicit promotion decisions.
+- **Consequence:** Promotion is manual and requires explicit approval. Do not auto-merge branches.
 - **Date:** Existing baseline

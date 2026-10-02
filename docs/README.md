@@ -14,13 +14,16 @@ Follow the required order in `/AGENTS.md`: include [user flows](flow/user-flow.m
 
 ## Source-of-truth hierarchy
 
-1. The user's current task instructions and explicitly approved decisions.
-2. Product Document for product scope, roles, rules, and acceptance intent.
-3. System Specification for testable behavior and edge cases.
-4. The current repository for what is actually implemented.
-5. Accepted decisions in [decisions](decisions.md) for implementation choices already adopted.
-6. The old Architecture document as historical context only.
-7. Figma for UI and interaction only; it cannot override product rules.
+The current task instruction defines the scope, method, and goal of that task. It does not automatically override locked product/business invariants. Only an explicitly approved requirement or project decision changes the baseline.
+
+Within that boundary:
+
+1. The Product Document is the product/business source of truth.
+2. The System Specification details behavior and edge cases.
+3. The current repository is the implementation truth.
+4. Accepted decisions in [decisions](decisions.md) are implementation decisions.
+5. The old Architecture document is historical reference when it conflicts with current sources.
+6. Figma is the UI/interaction baseline only; it cannot override product rules.
 
 When sources conflict and this hierarchy does not resolve the conflict, record the question and get a decision before implementing it.
 

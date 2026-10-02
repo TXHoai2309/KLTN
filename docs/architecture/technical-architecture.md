@@ -64,6 +64,7 @@ The accepted product boundary is:
 - AI/OpenAI: natural-language understanding, RAG answers, and proposals.
 - Constraint Validator: deterministic checks and outcomes, independent from AI.
 - Google Routes: actual route/travel duration for `DRIVE` and `TWO_WHEELER`.
+- If mandatory route data is missing or not returned within at most 10 seconds, the travel-time check is `INSUFFICIENT_DATA` / `CHƯA ĐỦ DỮ LIỆU`, never `PASS`; AI must not guess travel time. This is a behavior requirement, not an implementation in the current repository.
 - PostGIS: stored spatial data and spatial queries.
 - pgvector: embeddings and similarity retrieval.
 - Google Maps Platform: browser map rendering.
