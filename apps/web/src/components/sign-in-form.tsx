@@ -1,18 +1,29 @@
+"use client";
+
 import { Button } from "@KLTN/ui/components/button";
 import { Input } from "@KLTN/ui/components/input";
 import { Label } from "@KLTN/ui/components/label";
 import { useForm } from "@tanstack/react-form";
+import type { Route } from "next";
 import { useRouter } from "next/navigation";
+import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import z from "zod";
 
+import AuthCard from "@/components/auth-card";
 import { authClient } from "@/lib/auth-client";
+import { resolveAuthReturnTo } from "@/lib/auth-return-to";
 
-import Loader from "./loader";
-
-export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () => void }) {
+export default function SignInForm({
+  onSwitchToSignUp,
+  returnTo,
+}: {
+  onSwitchToSignUp: () => void;
+  returnTo: string;
+}) {
   const router = useRouter();
-  const { isPending } = authClient.useSession();
+  const [showPassword, setShowPassword] = useState(false);
 
   const form = useForm({
     defaultValues: {
@@ -27,8 +38,8 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
         },
         {
           onSuccess: () => {
-            router.push("/dashboard");
-            toast.success("Sign in successful");
+            router.push(resolveAuthReturnTo(returnTo) as Route);
+            toast.success("Đăng nhập thành công");
           },
           onError: (error) => {
             toast.error(error.error.message || error.error.statusText);
@@ -38,94 +49,122 @@ export default function SignInForm({ onSwitchToSignUp }: { onSwitchToSignUp: () 
     },
     validators: {
       onSubmit: z.object({
-        email: z.email("Invalid email address"),
-        password: z.string().min(8, "Password must be at least 8 characters"),
+        email: z.email("Địa chỉ email không hợp lệ"),
+        password: z.string().min(8, "Mật khẩu cần có ít nhất 8 ký tự"),
       }),
     },
   });
 
-  if (isPending) {
-    return <Loader />;
-  }
-
   return (
-    <div className="mx-auto w-full mt-10 max-w-md p-6">
-      <h1 className="mb-6 text-center text-3xl font-bold">Welcome Back</h1>
-
+    <AuthCard
+      title="Chào mừng trở lại"
+      subtitle="Đăng nhập để tiếp tục hành trình của bạn."
+      footer={
+        <div className="auth-card-footer">
+          <div className="auth-divider"><span>hoặc</span></div>
+          <p>
+            Chưa có tài khoản?{" "}
+            <button type="button" className="auth-text-button" onClick={onSwitchToSignUp}>
+              Đăng ký
+            </button>
+          </p>
+        </div>
+      }
+    >
       <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
+        onSubmit={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
           form.handleSubmit();
         }}
-        className="space-y-4"
+        className="auth-form"
+        noValidate
       >
-        <div>
-          <form.Field name="email">
-            {(field) => (
-              <div className="space-y-2">
-                <Label htmlFor={field.name}>Email</Label>
-                <Input
-                  id={field.name}
-                  name={field.name}
-                  type="email"
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                />
-                {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
-                    {error?.message}
-                  </p>
-                ))}
+        <form.Field name="email">
+          {(field) => {
+            const hasErrors = field.state.meta.errors.length > 0;
+            const errorId = `${field.name}-error`;
+            return (
+              <div className="auth-field">
+                <Label className="auth-label" htmlFor={field.name}>Email</Label>
+                <div className="auth-input-wrap">
+                  <Mail className="auth-input-icon" size={20} aria-hidden="true" />
+                  <Input
+                    className="auth-input"
+                    id={field.name}
+                    name={field.name}
+                    type="email"
+                    autoComplete="email"
+                    placeholder="Nhập địa chỉ email của bạn"
+                    aria-required="true"
+                    aria-invalid={hasErrors}
+                    aria-describedby={hasErrors ? errorId : undefined}
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                  />
+                </div>
+                {hasErrors && <p id={errorId} role="alert" className="auth-field-error">{field.state.meta.errors.map((error) => error?.message).join(" ")}</p>}
               </div>
-            )}
-          </form.Field>
-        </div>
+            );
+          }}
+        </form.Field>
 
-        <div>
-          <form.Field name="password">
-            {(field) => (
-              <div className="space-y-2">
-                <Label htmlFor={field.name}>Password</Label>
-                <Input
-                  id={field.name}
-                  name={field.name}
-                  type="password"
-                  value={field.state.value}
-                  onBlur={field.handleBlur}
-                  onChange={(e) => field.handleChange(e.target.value)}
-                />
-                {field.state.meta.errors.map((error) => (
-                  <p key={error?.message} className="text-red-500">
-                    {error?.message}
-                  </p>
-                ))}
+        <form.Field name="password">
+          {(field) => {
+            const hasErrors = field.state.meta.errors.length > 0;
+            const errorId = `${field.name}-error`;
+            return (
+              <div className="auth-field">
+                <Label className="auth-label" htmlFor={field.name}>Mật khẩu</Label>
+                <div className="auth-input-wrap">
+                  <LockKeyhole className="auth-input-icon" size={20} aria-hidden="true" />
+                  <Input
+                    className="auth-input auth-input-password"
+                    id={field.name}
+                    name={field.name}
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    placeholder="Nhập mật khẩu của bạn"
+                    aria-required="true"
+                    aria-invalid={hasErrors}
+                    aria-describedby={hasErrors ? errorId : undefined}
+                    value={field.state.value}
+                    onBlur={field.handleBlur}
+                    onChange={(event) => field.handleChange(event.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="auth-password-toggle"
+                    onClick={() => setShowPassword((visible) => !visible)}
+                    aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                    aria-pressed={showPassword}
+                  >
+                    {showPassword ? <EyeOff size={19} /> : <Eye size={19} />}
+                  </button>
+                </div>
+                {hasErrors && <p id={errorId} role="alert" className="auth-field-error">{field.state.meta.errors.map((error) => error?.message).join(" ")}</p>}
               </div>
-            )}
-          </form.Field>
-        </div>
+            );
+          }}
+        </form.Field>
 
         <form.Subscribe
           selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}
         >
           {({ canSubmit, isSubmitting }) => (
-            <Button type="submit" className="w-full" disabled={!canSubmit || isSubmitting}>
-              {isSubmitting ? "Submitting..." : "Sign In"}
+            <Button
+              type="submit"
+              className="auth-submit w-full"
+              disabled={!canSubmit || isSubmitting}
+              aria-busy={isSubmitting}
+            >
+              <span>{isSubmitting ? "Đang đăng nhập…" : "Đăng nhập"}</span>
+              {!isSubmitting && <ArrowRight size={20} aria-hidden="true" />}
             </Button>
           )}
         </form.Subscribe>
       </form>
-
-      <div className="mt-4 text-center">
-        <Button
-          variant="link"
-          onClick={onSwitchToSignUp}
-          className="text-indigo-600 hover:text-indigo-800"
-        >
-          Need an account? Sign Up
-        </Button>
-      </div>
-    </div>
+    </AuthCard>
   );
 }

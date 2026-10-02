@@ -1,7 +1,9 @@
 import { headers } from "next/headers";
+import type { Route } from "next";
 import { redirect } from "next/navigation";
 
 import { auth } from "../../services";
+import { buildAuthLoginHref } from "@/lib/auth-return-to";
 import Dashboard from "./dashboard";
 
 export default async function DashboardPage() {
@@ -10,7 +12,7 @@ export default async function DashboardPage() {
   });
 
   if (!session?.user) {
-    redirect("/login");
+    redirect(buildAuthLoginHref("/dashboard") as Route);
   }
 
   return (
