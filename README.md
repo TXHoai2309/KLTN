@@ -74,15 +74,27 @@ import { Button } from "@KLTN/ui/components/button";
 
 If you want to add app-specific blocks instead of shared primitives, run the shadcn CLI from `apps/web`.
 
-## Environment Configuration
+## Environment setup
 
-Each app owns its environment schema in `.env.schema`. Varlock generates `src/env.ts` during installation; run `npm run env:generate` after changing a schema. Commit schemas, and keep secrets in ignored env files or your deployment platform.
+Create the local web environment file from the example:
 
-Import the generated `ENV` accessor in application code. Shared database and auth packages receive configuration or initialized clients from the application. See [Varlock's monorepo guide](https://varlock.dev/guides/monorepos/).
+```powershell
+Copy-Item apps/web/.env.example apps/web/.env
+```
 
-Bun's automatic env loading is disabled in `bunfig.toml`; the framework integration or server bootstrap loads Varlock. Node deployments must include Varlock and its dependencies alongside the app schema.
+```bash
+cp apps/web/.env.example apps/web/.env
+```
 
-Run standalone Node/Bun tools that use Varlock from the owning app directory so they load that app's schema and env files. `env:generate` only generates TypeScript files; it does not initialize environment values in a subsequent command.
+Fill in the values needed for your work. Local development must use the Neon `development` branch, never the production database. `.env` and `.env.local` are ignored by Git; do not commit credentials or secrets. Preview and Production values are configured directly in Vercel.
+
+`apps/web/.env.example` is the developer setup template. `apps/web/.env.schema` is Varlock's validation and code-generation contract; keep it committed and update it when environment variables change. The local `.env` file is not a replacement for the schema.
+
+`OPENAI_API_KEY`, Google API keys, and `INITIAL_ADMIN_*` can be left empty until needed. To bootstrap the initial Admin, fill in the three `INITIAL_ADMIN_*` values, then run `npm run auth:bootstrap-admin --workspace web`. Clear those values from `.env` after the bootstrap finishes. Never commit secrets.
+
+Varlock generates `apps/web/src/env.ts` from the schema. Run `npm run env:generate` after changing it. Import the generated `ENV` accessor in application code. Shared database and auth packages receive configuration or initialized clients from the application. See [Varlock's monorepo guide](https://varlock.dev/guides/monorepos/).
+
+Bun's automatic env loading is disabled in `bunfig.toml`; the framework integration or server bootstrap loads Varlock. Node deployments must include Varlock and its dependencies alongside the app schema. Run standalone Node/Bun tools that use Varlock from the owning app directory so they load that app's schema and env files. `env:generate` only generates TypeScript files; it does not initialize environment values in a subsequent command.
 
 ## Deployment
 
