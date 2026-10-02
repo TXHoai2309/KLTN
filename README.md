@@ -1,149 +1,56 @@
 # KLTN
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines Next.js, Self, and more.
+KLTN is a responsive web project for a Hà Giang travel assistant. The repository is at the foundation stage: authentication, the health endpoint, persistence setup, and shared API/mutation conventions exist. Product capabilities such as discovery, RAG, trip planning, and validation remain future story work. Read the [documentation entry point](docs/README.md) before implementation.
 
-## Features
+## Quick start
 
-- **TypeScript** - For type safety and improved developer experience
-- **Next.js** - Full-stack React framework
-- **TailwindCSS** - Utility-first CSS for rapid UI development
-- **Shared UI package** - shadcn/ui primitives live in `packages/ui`
-- **Prisma** - TypeScript-first ORM
-- **PostgreSQL** - Database engine
-- **Authentication** - Better-Auth
-- **Turborepo** - Optimized monorepo build system
-
-## Getting Started
-
-First, install the dependencies:
-
-```bash
-npm install
-```
-
-## Database Setup
-
-Generate the Prisma client before development, typechecking, or building, including in CI and deployment builds. Run this again after changing the Prisma schema:
-
-```bash
-npm run db:generate
-```
-
-This project uses PostgreSQL with Prisma.
-
-1. Make sure you have a PostgreSQL database set up.
-2. Update your `apps/web/.env` file with your PostgreSQL connection details.
-
-3. Apply the schema to your database:
-
-```bash
-npm run db:push
-```
-
-Then, run the development server:
-
-```bash
-npm run dev
-```
-
-Open [http://localhost:3001](http://localhost:3001) in your browser to see the fullstack application.
-
-## UI Customization
-
-React web apps in this stack share shadcn/ui primitives through `packages/ui`.
-
-- Change design tokens and global styles in `packages/ui/src/styles/globals.css`
-- Update shared primitives in `packages/ui/src/components/*`
-- Adjust shadcn aliases or style config in `packages/ui/components.json` and `apps/web/components.json`
-
-### Add more shared components
-
-Run this from the project root to add more primitives to the shared UI package:
-
-```bash
-npx shadcn@latest add accordion dialog popover sheet table -c packages/ui
-```
-
-Import shared components like this:
-
-```tsx
-import { Button } from "@KLTN/ui/components/button";
-```
-
-### Add app-specific blocks
-
-If you want to add app-specific blocks instead of shared primitives, run the shadcn CLI from `apps/web`.
-
-## Environment setup
-
-Create the local web environment file from the example:
+Install dependencies and make a local environment file:
 
 ```powershell
+npm install
 Copy-Item apps/web/.env.example apps/web/.env
 ```
 
 ```bash
+npm install
 cp apps/web/.env.example apps/web/.env
 ```
 
-Fill in the values needed for your work. Local development must use the Neon `development` branch, never the production database. `.env` and `.env.local` are ignored by Git; do not commit credentials or secrets. Preview and Production values are configured directly in Vercel.
+Fill in the values needed from `apps/web/.env.example`. Local development must use the Neon `development` branch, never production. Then generate the Prisma client, apply pending development migrations, and start the app:
 
-`apps/web/.env.example` is the developer setup template. `apps/web/.env.schema` is Varlock's validation and code-generation contract; keep it committed and update it when environment variables change. The local `.env` file is not a replacement for the schema.
-
-`OPENAI_API_KEY`, Google API keys, and `INITIAL_ADMIN_*` can be left empty until needed. To bootstrap the initial Admin, fill in the three `INITIAL_ADMIN_*` values, then run `npm run auth:bootstrap-admin --workspace web`. Clear those values from `.env` after the bootstrap finishes. Never commit secrets.
-
-Varlock generates `apps/web/src/env.ts` from the schema. Run `npm run env:generate` after changing it. Import the generated `ENV` accessor in application code. Shared database and auth packages receive configuration or initialized clients from the application. See [Varlock's monorepo guide](https://varlock.dev/guides/monorepos/).
-
-Bun's automatic env loading is disabled in `bunfig.toml`; the framework integration or server bootstrap loads Varlock. Node deployments must include Varlock and its dependencies alongside the app schema. Run standalone Node/Bun tools that use Varlock from the owning app directory so they load that app's schema and env files. `env:generate` only generates TypeScript files; it does not initialize environment values in a subsequent command.
-
-## Deployment
-
-### Vercel Services
-
-- Target: web + server
-- Config: `vercel.json`
-- Link the project first: npm run deploy:setup
-- Local Vercel dev: npm run dev:vercel
-- Sync preview env: npm run env:preview
-- Sync production env: npm run env:production
-- Dry-run check (no upload): npm run deploy:check
-- Preview deploy: npm run deploy
-- Production deploy: npm run deploy:prod
-  Vercel Services share project environment variables, but deploys do not upload local `.env` files automatically. Link the project with `vercel link`, then run the env sync command before your first deploy (otherwise the deployment starts with no env vars), or pass one-off envs with `vercel deploy -e KEY=value`.
-  Pass Vercel CLI flags to the env sync command directly, for example: `npm run env:production --scope your-team`.
-
-For more details, see the guide on [Deploying to Vercel](https://www.better-t-stack.dev/docs/guides/vercel).
-
-## Project Structure
-
-```
-KLTN/
-├── apps/
-│   └── web/         # Fullstack application (Next.js)
-├── packages/
-│   ├── ui/          # Shared shadcn/ui components and styles
-│   ├── auth/        # Authentication configuration & logic
-│   └── db/          # Database schema & queries
+```bash
+npm run env:generate
+npm run db:generate
+npm run db:migrate
+npm run dev
 ```
 
-## Available Scripts
+The app listens at [http://localhost:3001](http://localhost:3001). Prisma schema changes use migrations; `db:push` is not the workflow for feature development.
 
-- `npm run dev`: Start all applications in development mode
-- `npm run build`: Build all applications
-- `npm run dev:web`: Start only the web application
-- `npm run check-types`: Check TypeScript types across all apps
-- `npm run db:push`: Push schema changes to database
-- `npm run db:generate`: Generate database client/types
-- `npm run db:migrate`: Run database migrations
-- `npm run db:studio`: Open database studio UI
-- `npm run deploy:setup`: Link this repo to a Vercel project (first-time setup)
-- `npm run dev:vercel`: Run the Vercel Services dev environment locally
-- `npm run env:preview`: Sync local env files to the Vercel preview environment
-- `npm run env:production`: Sync local env files to the Vercel production environment
-- `npm run deploy`: Create a Vercel preview deployment
-- `npm run deploy:prod`: Deploy to Vercel production
-- `npm run deploy:check`: Dry-run a deploy to preview framework detection and included files without uploading
+## Environment setup
 
-## Better Auth Schema Generation
+`apps/web/.env.schema` is Varlock's validation and code-generation contract. `apps/web/.env.example` is the developer template. `apps/web/.env` contains local values, is ignored by Git, and must never be committed. Do not commit secrets. Preview and Production environment values are configured directly in Vercel; Local and Preview use Neon development, while Production uses Neon production.
 
-After changing auth plugins or schema options, run `npm run auth:generate` from the project root. The script runs the Better Auth CLI through `varlock run` from the owning app directory, loading the auth instance from `src/services.ts`. Review the schema changes, then use your ORM's migration workflow to apply them.
+Optional AI/Google keys may remain blank until those integrations are needed. To create the initial Admin, fill in the `INITIAL_ADMIN_*` fields in the local environment file and run:
+
+```bash
+npm run auth:bootstrap-admin --workspace web
+```
+
+Clear the bootstrap values after the command completes. See [environment and deployment](docs/implementation/environment-deployment.md) for the full variable and migration workflow.
+
+## Common commands
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start workspace development tasks. |
+| `npm run check-types` | Typecheck all workspaces. |
+| `npm run build` | Build the web application. |
+| `npm run env:generate` | Generate Varlock TypeScript accessors from env schemas. |
+| `npm run db:generate` | Generate the Prisma client. |
+| `npm run db:migrate` | Run Prisma development migrations. |
+| `npm run auth:bootstrap-admin --workspace web` | Create the initial Admin using server environment variables. |
+
+## Documentation
+
+Start at [docs/README.md](docs/README.md) for the reading order, source-of-truth hierarchy, story lifecycle, architecture, product contract, and handoff process. Root [AGENTS.md](AGENTS.md) contains project rules for developers and AI agents.
