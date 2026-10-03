@@ -6,7 +6,12 @@ type LoginPageProps = {
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
-  const { returnTo } = await searchParams;
+  const { returnTo, mode } = await searchParams;
 
-  return <AuthModeSwitcher returnTo={resolveAuthReturnTo(returnTo)} />;
+  return (
+    <AuthModeSwitcher
+      initialMode={mode === "signup" ? "signup" : "signin"}
+      returnTo={resolveAuthReturnTo(returnTo)}
+    />
+  );
 }

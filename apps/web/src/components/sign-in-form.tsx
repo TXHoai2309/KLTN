@@ -12,7 +12,10 @@ import { toast } from "sonner";
 import z from "zod";
 
 import AuthCard from "@/components/auth-card";
+import AuthModeLink from "@/components/auth-mode-link";
+import SafeAuthForm from "@/components/safe-auth-form";
 import { authClient } from "@/lib/auth-client";
+import { claimSubmission, releaseSubmission } from "@/lib/auth-submission-guard";
 import { resolveAuthReturnTo } from "@/lib/auth-return-to";
 import { recoverSignInAfterTransportFailure } from "@/lib/sign-in-recovery";
 
@@ -30,9 +33,11 @@ function getSignInErrorMessage(code?: string) {
 
 export default function SignInForm({
   onSwitchToSignUp,
+  signUpHref,
   returnTo,
 }: {
   onSwitchToSignUp: () => void;
+  signUpHref: string;
   returnTo: string;
 }) {
   const router = useRouter();
@@ -103,32 +108,27 @@ export default function SignInForm({
           <div className="auth-divider"><span>hoặc</span></div>
           <p>
             Chưa có tài khoản?{" "}
-            <button type="button" className="auth-text-button" onClick={onSwitchToSignUp}>
+            <AuthModeLink href={signUpHref} onSwitch={onSwitchToSignUp}>
               Đăng ký
-            </button>
+            </AuthModeLink>
           </p>
         </div>
       }
     >
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          if (submissionInProgress.current) return;
+      <SafeAuthForm
+        onSubmit={() => {
+          if (!claimSubmission(submissionInProgress)) return;
 
-          submissionInProgress.current = true;
-          void form.handleSubmit().then(
-            () => {
-              submissionInProgress.current = false;
-            },
-            () => {
-              submissionInProgress.current = false;
+          void (async () => {
+            try {
+              await form.handleSubmit();
+            } catch {
               setAuthError(GENERIC_SIGN_IN_ERROR);
-            },
-          );
+            } finally {
+              releaseSubmission(submissionInProgress);
+            }
+          })();
         }}
-        className="auth-form"
-        noValidate
       >
         <form.Field name="email">
           {(field) => {
@@ -228,7 +228,7 @@ export default function SignInForm({
             </Button>
           )}
         </form.Subscribe>
-      </form>
+      </SafeAuthForm>
     </AuthCard>
   );
 }

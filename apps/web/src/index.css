@@ -192,8 +192,16 @@
 
 /* ─── Form fields ─── */
 .auth-form {
+  margin: 0;
+}
+
+.auth-form-controls {
   display: grid;
   gap: 20px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
 }
 
 .auth-field {
@@ -531,7 +539,7 @@
     font-size: 13.5px;
   }
 
-  .auth-form {
+  .auth-form-controls {
     gap: 18px;
   }
 

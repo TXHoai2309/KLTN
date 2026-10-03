@@ -7,12 +7,15 @@ import { useForm } from "@tanstack/react-form";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, UserRound } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import z from "zod";
 
 import AuthCard from "@/components/auth-card";
+import AuthModeLink from "@/components/auth-mode-link";
+import SafeAuthForm from "@/components/safe-auth-form";
 import { authClient } from "@/lib/auth-client";
+import { claimSubmission, releaseSubmission } from "@/lib/auth-submission-guard";
 import { resolveAuthReturnTo } from "@/lib/auth-return-to";
 
 function getSignUpErrorMessage(code?: string) {
@@ -53,13 +56,16 @@ function getPasswordStrength(password: string): {
 
 export default function SignUpForm({
   onSwitchToSignIn,
+  signInHref,
   returnTo,
 }: {
   onSwitchToSignIn: () => void;
+  signInHref: string;
   returnTo: string;
 }) {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const submissionInProgress = useRef(false);
 
   const form = useForm({
     defaultValues: {
@@ -103,21 +109,27 @@ export default function SignUpForm({
           <div className="auth-divider"><span>hoặc</span></div>
           <p>
             Đã có tài khoản?{" "}
-            <button type="button" className="auth-text-button" onClick={onSwitchToSignIn}>
+            <AuthModeLink href={signInHref} onSwitch={onSwitchToSignIn}>
               Đăng nhập
-            </button>
+            </AuthModeLink>
           </p>
         </div>
       }
     >
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          form.handleSubmit();
+      <SafeAuthForm
+        onSubmit={() => {
+          if (!claimSubmission(submissionInProgress)) return;
+
+          void (async () => {
+            try {
+              await form.handleSubmit();
+            } catch {
+              toast.error("Chưa thể tạo tài khoản lúc này. Vui lòng thử lại.");
+            } finally {
+              releaseSubmission(submissionInProgress);
+            }
+          })();
         }}
-        className="auth-form"
-        noValidate
       >
         <form.Field name="name">
           {(field) => {
@@ -255,7 +267,7 @@ export default function SignUpForm({
             </Button>
           )}
         </form.Subscribe>
-      </form>
+      </SafeAuthForm>
     </AuthCard>
   );
 }

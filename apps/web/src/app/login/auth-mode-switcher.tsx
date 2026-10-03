@@ -4,9 +4,16 @@ import { useState, useRef, useEffect } from "react";
 
 import SignInForm from "@/components/sign-in-form";
 import SignUpForm from "@/components/sign-up-form";
+import { buildAuthModeHref, type AuthMode } from "@/lib/auth-mode-href";
 
-export default function AuthModeSwitcher({ returnTo }: { returnTo: string }) {
-  const [showSignIn, setShowSignIn] = useState(true);
+export default function AuthModeSwitcher({
+  initialMode,
+  returnTo,
+}: {
+  initialMode: AuthMode;
+  returnTo: string;
+}) {
+  const [showSignIn, setShowSignIn] = useState(initialMode === "signin");
   const [animating, setAnimating] = useState(false);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -40,9 +47,17 @@ export default function AuthModeSwitcher({ returnTo }: { returnTo: string }) {
           }`}
         >
           {showSignIn ? (
-            <SignInForm returnTo={returnTo} onSwitchToSignUp={() => switchMode(false)} />
+            <SignInForm
+              returnTo={returnTo}
+              signUpHref={buildAuthModeHref("signup", returnTo)}
+              onSwitchToSignUp={() => switchMode(false)}
+            />
           ) : (
-            <SignUpForm returnTo={returnTo} onSwitchToSignIn={() => switchMode(true)} />
+            <SignUpForm
+              returnTo={returnTo}
+              signInHref={buildAuthModeHref("signin", returnTo)}
+              onSwitchToSignIn={() => switchMode(true)}
+            />
           )}
         </div>
       </div>
