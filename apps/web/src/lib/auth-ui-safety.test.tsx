@@ -8,6 +8,7 @@ import AuthModeLink from "../components/auth-mode-link";
 import SafeAuthForm from "../components/safe-auth-form";
 import { buildAuthModeHref } from "./auth-mode-href";
 import { claimSubmission, releaseSubmission } from "./auth-submission-guard";
+import { isSignOutConfirmed } from "./sign-out-confirmation";
 import { DEFAULT_AUTH_RETURN_TO, resolveAuthReturnTo } from "./auth-return-to";
 
 test("auth form SSR is interactive and uses POST for native submission", () => {
@@ -67,6 +68,43 @@ test("the synchronous submission lock admits one attempt until released", () => 
   releaseSubmission(lock);
   submit();
   assert.equal(requests, 2);
+});
+
+test("logout guards duplicate attempts and only navigates after confirmed success", async () => {
+  const source = await readFile(new URL("../components/user-menu.tsx", import.meta.url), "utf8");
+
+  assert.match(source, /claimSubmission\(signOutInProgress\)/);
+  assert.match(source, /releaseSubmission\(signOutInProgress\)/);
+  assert.match(source, /isSignOutConfirmed\(\(\) =>[\s\S]*?fetch\("\/api\/session\/logout", \{ method: "POST"/);
+  assert.match(source, /if \(!confirmed\)[\s\S]*?return;[\s\S]*?window\.location\.replace\("\/"\)/);
+  assert.match(source, /window\.location\.replace\("\/"\)/);
+  assert.doesNotMatch(source, /authClient\.signOut\(/);
+  assert.match(source, /disabled=\{isSigningOut\}/);
+  assert.match(source, /closeOnClick=\{false\}/);
+  assert.match(source, /role="alert"/);
+  assert.doesNotMatch(source, /\/api\/logout/);
+});
+
+test("logout confirmation distinguishes success, failure, and uncertainty", async () => {
+  assert.equal(
+    await isSignOutConfirmed(async () =>
+      Response.json({ success: true, operationStatus: "SUCCESS" }),
+    ),
+    true,
+  );
+  assert.equal(
+    await isSignOutConfirmed(async () =>
+      Response.json({ success: false, operationStatus: "UNKNOWN" }, { status: 503 }),
+    ),
+    false,
+  );
+  assert.equal(
+    await isSignOutConfirmed(async () =>
+      Response.json({ success: true }, { status: 200 }),
+    ),
+    false,
+  );
+  assert.equal(await isSignOutConfirmed(async () => { throw new Error("transport detail"); }), false);
 });
 
 test("sign-in and sign-up retain keyboard-operable password controls and share the submit lock", async () => {
