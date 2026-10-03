@@ -6,7 +6,7 @@ import SignInForm from "@/components/sign-in-form";
 import SignUpForm from "@/components/sign-up-form";
 
 export default function AuthModeSwitcher({ returnTo }: { returnTo: string }) {
-  const [showSignIn, setShowSignIn] = useState(false);
+  const [showSignIn, setShowSignIn] = useState(true);
   const [animating, setAnimating] = useState(false);
   const [direction, setDirection] = useState<"forward" | "back">("forward");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

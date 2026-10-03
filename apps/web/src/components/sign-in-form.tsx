@@ -7,13 +7,26 @@ import { useForm } from "@tanstack/react-form";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import z from "zod";
 
 import AuthCard from "@/components/auth-card";
 import { authClient } from "@/lib/auth-client";
 import { resolveAuthReturnTo } from "@/lib/auth-return-to";
+import { recoverSignInAfterTransportFailure } from "@/lib/sign-in-recovery";
+
+const GENERIC_SIGN_IN_ERROR = "Không thể đăng nhập lúc này. Vui lòng thử lại.";
+const UNKNOWN_SIGN_IN_ERROR =
+  "Chưa thể xác định trạng thái đăng nhập. Hãy mở /dashboard để kiểm tra phiên trước khi thử lại.";
+
+function getSignInErrorMessage(code?: string) {
+  if (code === "INVALID_EMAIL_OR_PASSWORD") {
+    return "Email hoặc mật khẩu không chính xác.";
+  }
+
+  return GENERIC_SIGN_IN_ERROR;
+}
 
 export default function SignInForm({
   onSwitchToSignUp,
@@ -24,6 +37,8 @@ export default function SignInForm({
 }) {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const submissionInProgress = useRef(false);
 
   const form = useForm({
     defaultValues: {
@@ -31,26 +46,50 @@ export default function SignInForm({
       password: "",
     },
     onSubmit: async ({ value }) => {
-      await authClient.signIn.email(
-        {
-          email: value.email,
-          password: value.password,
-        },
-        {
-          onSuccess: () => {
-            router.push(resolveAuthReturnTo(returnTo) as Route);
-            toast.success("Đăng nhập thành công");
+      setAuthError(null);
+
+      try {
+        await authClient.signIn.email(
+          {
+            email: value.email,
+            password: value.password,
           },
-          onError: (error) => {
-            toast.error(error.error.message || error.error.statusText);
+          {
+            onSuccess: () => {
+              router.push(resolveAuthReturnTo(returnTo) as Route);
+              toast.success("Đăng nhập thành công");
+            },
+            onError: (error) => {
+              setAuthError(getSignInErrorMessage(error.error.code));
+            },
           },
-        },
-      );
+        );
+      } catch {
+        const recovery = await recoverSignInAfterTransportFailure(() => authClient.getSession());
+
+        if (recovery === "authenticated") {
+          router.push(resolveAuthReturnTo(returnTo) as Route);
+          return;
+        }
+
+        if (recovery === "unknown") {
+          setAuthError(UNKNOWN_SIGN_IN_ERROR);
+          return;
+        }
+
+        setAuthError(GENERIC_SIGN_IN_ERROR);
+      }
     },
     validators: {
       onSubmit: z.object({
-        email: z.email("Địa chỉ email không hợp lệ"),
-        password: z.string().min(8, "Mật khẩu cần có ít nhất 8 ký tự"),
+        email: z
+          .string()
+          .min(1, "Vui lòng nhập email.")
+          .pipe(z.email("Email không hợp lệ.")),
+        password: z
+          .string()
+          .min(1, "Vui lòng nhập mật khẩu.")
+          .pipe(z.string().min(8, "Mật khẩu phải có ít nhất 8 ký tự.")),
       }),
     },
   });
@@ -75,7 +114,18 @@ export default function SignInForm({
         onSubmit={(event) => {
           event.preventDefault();
           event.stopPropagation();
-          form.handleSubmit();
+          if (submissionInProgress.current) return;
+
+          submissionInProgress.current = true;
+          void form.handleSubmit().then(
+            () => {
+              submissionInProgress.current = false;
+            },
+            () => {
+              submissionInProgress.current = false;
+              setAuthError(GENERIC_SIGN_IN_ERROR);
+            },
+          );
         }}
         className="auth-form"
         noValidate
@@ -101,7 +151,10 @@ export default function SignInForm({
                     aria-describedby={hasErrors ? errorId : undefined}
                     value={field.state.value}
                     onBlur={field.handleBlur}
-                    onChange={(event) => field.handleChange(event.target.value)}
+                    onChange={(event) => {
+                      setAuthError(null);
+                      field.handleChange(event.target.value);
+                    }}
                   />
                 </div>
                 {hasErrors && <p id={errorId} role="alert" className="auth-field-error">{field.state.meta.errors.map((error) => error?.message).join(" ")}</p>}
@@ -131,7 +184,10 @@ export default function SignInForm({
                     aria-describedby={hasErrors ? errorId : undefined}
                     value={field.state.value}
                     onBlur={field.handleBlur}
-                    onChange={(event) => field.handleChange(event.target.value)}
+                    onChange={(event) => {
+                      setAuthError(null);
+                      field.handleChange(event.target.value);
+                    }}
                   />
                   <button
                     type="button"
@@ -148,6 +204,14 @@ export default function SignInForm({
             );
           }}
         </form.Field>
+
+        <div className="auth-form-feedback">
+          {authError && (
+            <p id="sign-in-error" role="alert" className="auth-form-error">
+              {authError}
+            </p>
+          )}
+        </div>
 
         <form.Subscribe
           selector={(state) => ({ canSubmit: state.canSubmit, isSubmitting: state.isSubmitting })}

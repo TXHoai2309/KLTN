@@ -339,6 +339,20 @@
   color: #b4232c;
 }
 
+.auth-form-feedback {
+  display: flex;
+  min-height: 18px;
+  align-items: center;
+  margin-block: -10px;
+}
+
+.auth-form-error {
+  margin: 0;
+  color: #b4232c;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
 /* ─── Submit button ─── */
 .auth-submit {
   position: relative;
