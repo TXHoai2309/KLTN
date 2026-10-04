@@ -11,6 +11,11 @@ import { claimSubmission, releaseSubmission } from "./auth-submission-guard";
 import { isSignOutConfirmed } from "./sign-out-confirmation";
 import { DEFAULT_AUTH_RETURN_TO, resolveAuthReturnTo } from "./auth-return-to";
 
+test("development hydration does not depend on the one-shot HMR React debug channel", async () => {
+  const config = await readFile(new URL("../../next.config.ts", import.meta.url), "utf8");
+  assert.match(config, /reactDebugChannel:\s*false/);
+});
+
 test("auth form SSR is interactive and uses POST for native submission", () => {
   const html = renderToStaticMarkup(
     createElement(SafeAuthForm, {
@@ -75,7 +80,7 @@ test("logout guards duplicate attempts and only navigates after confirmed succes
 
   assert.match(source, /claimSubmission\(signOutInProgress\)/);
   assert.match(source, /releaseSubmission\(signOutInProgress\)/);
-  assert.match(source, /isSignOutConfirmed\(\(\) =>[\s\S]*?fetch\("\/api\/session\/logout", \{ method: "POST"/);
+  assert.match(source, /isSignOutConfirmed\(\(\) =>[\s\S]*?fetchAuthWithTimeout\("\/api\/session\/logout", \{ method: "POST"/);
   assert.match(source, /if \(!confirmed\)[\s\S]*?return;[\s\S]*?window\.location\.replace\("\/"\)/);
   assert.match(source, /window\.location\.replace\("\/"\)/);
   assert.doesNotMatch(source, /authClient\.signOut\(/);

@@ -17,11 +17,12 @@ import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
 import { claimSubmission, releaseSubmission } from "@/lib/auth-submission-guard";
 import { isSignOutConfirmed } from "@/lib/sign-out-confirmation";
+import { fetchAuthWithTimeout } from "@/lib/auth-fetch";
 
 const SIGN_OUT_ERROR = "Không thể xác nhận đăng xuất. Phiên của bạn có thể vẫn còn hoạt động. Vui lòng thử lại.";
 
 export default function UserMenu() {
-  const { data: session, isPending } = authClient.useSession();
+  const { data: session, isPending, error, refetch } = authClient.useSession();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const signOutInProgress = useRef(false);
@@ -34,7 +35,7 @@ export default function UserMenu() {
 
     try {
       const confirmed = await isSignOutConfirmed(() =>
-        fetch("/api/session/logout", { method: "POST", credentials: "same-origin" }),
+        fetchAuthWithTimeout("/api/session/logout", { method: "POST", credentials: "same-origin" }),
       );
       if (!confirmed) {
         setSignOutError(SIGN_OUT_ERROR);
@@ -52,6 +53,15 @@ export default function UserMenu() {
 
   if (isPending) {
     return <Skeleton className="h-9 w-24" />;
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center gap-2 text-sm" role="alert">
+        <span>Không thể kiểm tra phiên.</span>
+        <Button variant="outline" onClick={() => void refetch()}>Thử lại</Button>
+      </div>
+    );
   }
 
   if (!session) {

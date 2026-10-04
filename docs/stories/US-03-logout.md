@@ -96,6 +96,8 @@ Better Auth kết thúc phiên hiện tại, xóa cookie phiên của browser hi
 - **UNKNOWN:** Session resolution, provider operation, delete, or verification is uncertain; return a generic retryable response with no cookie clearing. The UI stays on the current route and does not claim logout.
 - **Already unauthenticated:** Return idempotent `SUCCESS` as a no-op with no cookie headers and no database mutation.
 - The user can retry from the same menu after the pending attempt settles. Do not automatically repeat the request.
+- Auth/session and strict-logout client requests have a 15-second transport deadline, including response-body consumption. A timeout is unconfirmed, releases the pending submit lock, and permits an explicit retry. It never navigates or reports successful logout.
+- Session lookup errors render safe feedback and a session-refetch button in the menu rather than an endless loading placeholder or an assumed Guest identity. This uses the existing Better Auth session atom.
 
 ## Acceptance Criteria
 
