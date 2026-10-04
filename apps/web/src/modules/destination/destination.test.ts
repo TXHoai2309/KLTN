@@ -294,7 +294,7 @@ test("visibility UI locks pending/UNKNOWN, confirms hide, retries identical atte
   assert.ok(ui.includes('claimSubmission(lock)')); assert.ok(ui.includes('if (!attempt.current && item)'));
   assert.ok(ui.includes('if (uncertain) await loadDestination(current.id)'));
   assert.ok(ui.includes('changeDestinationVisibility(current.id, current.target, current.key)'));
-  assert.ok(ui.includes('if (result.status === "SUCCESS") {\n        onConfirmed(result.data)'));
+  assert.match(ui, /if \(result.status === "SUCCESS"\) \{\s+onConfirmed\(result.data\)/);
   assert.ok(ui.includes('pending || uncertain || confirmation'));
   assert.match(ui, /<dialog.*aria-labelledby=.*aria-describedby=/); assert.match(ui, /onCancel=/); assert.match(ui, /autoFocus/);
   assert.doesNotMatch(ui, /window.confirm|setVisibility/);

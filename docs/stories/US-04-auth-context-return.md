@@ -4,6 +4,13 @@
 
 IN PROGRESS
 
+## 2026-10-04 — Shared UserMenu navigation follow-up
+
+- Manual US-13 test exposed a producer gap: Guest UserMenu used bare `/login`, so the existing login success resolver correctly chose its default `/dashboard` instead of the originating public page.
+- Guest link now captures reactive pathname/query through shared `buildCurrentPageLoginHref`. Every target passes the unchanged canonical resolver; auth-page `/login` targets use plain `/login` to avoid a return loop. No destination-specific routing, external URL allowance, auth/session/role/API or pending-write behavior change. Local Suspense contains useSearchParams without forcing the shared header/page into a loading gate. Return types retain the literal login URL shape for Next typed routes.
+- Added three tests for destination/shared-page capture, query roundtrip, login loop, unsafe fallback and default dashboard. Existing tests still verify successful Sign In/Sign Up call the resolver. Auth36/36, account18/18, destination59/59, check-types/build PASS; tracked/new-file whitespace checks PASS.
+- Actual browser Guest opened a scoped VISIBLE destination with `?view=detail&from=menu`; rendered Sign In href and click produced `/login?returnTo=%2Fdestinations%2Fauth-navigation-smoke-20261004%3Fview%3Ddetail%26from%3Dmenu`. User entered development credentials; after SUCCESS, browser URL was exactly `/destinations/auth-navigation-smoke-20261004?view=detail&from=menu`, with the valid detail and authenticated UserMenu visible, not dashboard. Proof screenshot: `D:/KLTN/auth-navigation-evidence/login-return-success.png`. Scoped development destination/children cleaned with zero residue verified; temporary script removed. No existing destination or Admin profile edits. This follow-up does not change the prior story acceptance status; no commit/push.
+
 ## Epic
 
 Authentication / User Access

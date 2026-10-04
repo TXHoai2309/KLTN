@@ -10,7 +10,7 @@ export function isDestinationPublic(destination: { visibility: string } | null |
 }
 export const isDestinationEligibleForNewItinerary = isDestinationPublic;
 
-/** Persistence proof of existence + visibility. No public HTTP/planner integration yet. */
+/** Persistence proof of existence + visibility for ID candidates; planner integration remains future work. */
 export async function findEligibleDestinationIds(ids: readonly string[], database: Pick<Database, "destination">): Promise<string[]> {
   const rows = await database.destination.findMany({
     where: { ...visibleDestinationWhere, id: { in: [...ids] } }, select: { id: true },

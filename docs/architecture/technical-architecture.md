@@ -37,7 +37,7 @@ The repository is an npm/Turborepo monorepo: `apps/web`, `packages/auth`, `packa
 - `packages/db/`: Neon Prisma adapter, Prisma config, generated client, schema, migrations, and Varlock import.
 - `packages/ui/`: shared React UI primitives/styles.
 
-The UI currently includes a home shell, sign-in/sign-up, a user menu, a session-protected dashboard, self-service account and admin destination list/create/edit. Other product screens await their stories.
+The UI currently includes a home shell, sign-in/sign-up, a user menu, a session-protected dashboard, self-service account, admin destination list/create/edit and public destination detail. Explore, Culture and Maps integrations await their stories.
 
 ## Responsibility boundaries
 
@@ -91,7 +91,9 @@ Mutation responses additionally carry `operationStatus`:
 
 Account name and admin Destination writes use this shared primitive and client contract. Destination update hashes include the target ID; both services recheck trusted role inside the transaction. Future applicable mutations must use it and must not generate a new key when retrying an `UNKNOWN` result.
 
-US-08 adds a separate Admin-only `PATCH /api/admin/destinations/[id]/visibility`, operation `destination:set-visibility`, hashing both ID and target visibility. It updates visibility only (normal updatedAt metadata), rechecks role in the transaction, and preserves schedules/history. Generic detail editing remains unable to publish. `modules/destination/destination-eligibility.ts` is the shared boundary for future public reads and new-itinerary candidates: `visibleDestinationWhere`, predicates on persisted records and `findEligibleDestinationIds` constrain existence plus VISIBLE at persistence. Public UI/API integration remains US-10; Planner integration remains a future Trip story. No public/planner endpoint or schema change is introduced by this boundary.
+US-08 adds a separate Admin-only `PATCH /api/admin/destinations/[id]/visibility`, operation `destination:set-visibility`, hashing both ID and target visibility. It updates visibility only (normal updatedAt metadata), rechecks role in the transaction, and preserves schedules/history. Generic detail editing remains unable to publish. `modules/destination/destination-eligibility.ts` is the shared boundary for public reads and new-itinerary candidates: `visibleDestinationWhere`, predicates on persisted records and `findEligibleDestinationIds` constrain existence plus VISIBLE at persistence. Public detail consumes it in US-13; discovery remains US-10 and Planner integration remains a future Trip story. The helper itself introduces no endpoint or schema change.
+
+US-13 public detail now consumes this canonical filter through one `public-destination-service`, shared by the uncached `/destinations/[id]` server page and thin `GET /api/destinations/[id]`. A separate strict allowlist omits Admin metadata/minimum duration; VISIBLE content is selected at persistence, an ID-only existence query distinguishes unavailable410 from missing404, and system errors remain500. Admin has identical public semantics. Weekly hours and suggested duration reuse US-07 contract. Culture/source/Maps infrastructure is absent: empty relatedCulture and factual location only, story partially accepted pending US-09. Public discovery remains US-10; no Planner endpoint/schema change.
 
 ## Deployment and schema workflow
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import { Button } from "@KLTN/ui/components/button";
 import {
   DropdownMenu,
@@ -13,13 +13,22 @@ import {
 } from "@KLTN/ui/components/dropdown-menu";
 import { Skeleton } from "@KLTN/ui/components/skeleton";
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 
 import { authClient } from "@/lib/auth-client";
 import { claimSubmission, releaseSubmission } from "@/lib/auth-submission-guard";
 import { isSignOutConfirmed } from "@/lib/sign-out-confirmation";
 import { fetchAuthWithTimeout } from "@/lib/auth-fetch";
+import { buildCurrentPageLoginHref } from "@/lib/auth-return-to";
 
 const SIGN_OUT_ERROR = "Không thể xác nhận đăng xuất. Phiên của bạn có thể vẫn còn hoạt động. Vui lòng thử lại.";
+
+function GuestSignInLink() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const search = searchParams.toString();
+  return <Link href={buildCurrentPageLoginHref(pathname, search ? `?${search}` : "")}><Button variant="outline">Sign In</Button></Link>;
+}
 
 export default function UserMenu() {
   const { data: session, isPending, error, refetch } = authClient.useSession();
@@ -66,9 +75,9 @@ export default function UserMenu() {
 
   if (!session) {
     return (
-      <Link href="/login">
-        <Button variant="outline">Sign In</Button>
-      </Link>
+      <Suspense fallback={<Link href="/login"><Button variant="outline">Sign In</Button></Link>}>
+        <GuestSignInLink />
+      </Suspense>
     );
   }
 
