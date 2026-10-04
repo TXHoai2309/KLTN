@@ -74,7 +74,7 @@ export default function UserMenu() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="outline" />}>
+      <DropdownMenuTrigger render={<Button variant="outline" className="max-w-[30vw] truncate sm:max-w-56" />}>
         {session.user.name}
       </DropdownMenuTrigger>
       <DropdownMenuContent className="bg-card">
@@ -82,6 +82,7 @@ export default function UserMenu() {
           <DropdownMenuLabel>My Account</DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuItem>{session.user.email}</DropdownMenuItem>
+          <DropdownMenuItem render={<Link href="/account" />}>Thông tin tài khoản</DropdownMenuItem>
           {signOutError ? (
             <p className="px-2 py-2 text-xs text-destructive" role="alert">
               {signOutError}
