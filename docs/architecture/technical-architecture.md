@@ -9,7 +9,7 @@ Browser
   └─ Next.js / React App Router (apps/web)
        ├─ UI and server-rendered pages
        ├─ Route Handlers (HTTP delivery)
-       ├─ business modules/services (current: system only)
+       ├─ business modules/services (system, auth, account, destination)
        ├─ @KLTN/auth (Better Auth)
        └─ @KLTN/db (Prisma Client + Neon adapter)
             └─ Neon PostgreSQL
@@ -26,10 +26,10 @@ The repository is an npm/Turborepo monorepo: `apps/web`, `packages/auth`, `packa
 
 ## Current repository structure
 
-- `apps/web/src/app/`: App Router pages, auth route, and health route.
+- `apps/web/src/app/`: App Router pages and auth/health/account/admin-destination Route Handlers.
 - `apps/web/src/app/api/auth/[...all]/route.ts`: exports GET and POST handlers from Better Auth's `toNextJsHandler`.
 - `apps/web/src/app/api/health/route.ts`: small GET handler that calls the `system` service and maps through the shared API response/error helpers.
-- `apps/web/src/modules/system/system.service.ts`: currently returns the service health value. No destination, culture, favorite, trip, RAG, Validator, or admin content module exists yet.
+- `apps/web/src/modules/system/system.service.ts`: returns the service health value. Auth/logout, self-service account and admin destination modules are implemented; Culture, Favorite, Trip, RAG and Validator remain future stories.
 - `apps/web/src/server/http/`: shared app error, response mapping, error handling, and idempotency logic.
 - `apps/web/src/lib/`: client mutation contract/helpers and Better Auth client configuration.
 - `apps/web/src/services.ts`: creates the Prisma client from server environment and passes it to Better Auth.
@@ -37,7 +37,7 @@ The repository is an npm/Turborepo monorepo: `apps/web`, `packages/auth`, `packa
 - `packages/db/`: Neon Prisma adapter, Prisma config, generated client, schema, migrations, and Varlock import.
 - `packages/ui/`: shared React UI primitives/styles.
 
-The UI currently includes a home shell, sign-in/sign-up, a user menu, and a session-protected dashboard. These do not constitute the full product UI described by Figma/Product Document.
+The UI currently includes a home shell, sign-in/sign-up, a user menu, a session-protected dashboard, self-service account and admin destination list/create/edit. Other product screens await their stories.
 
 ## Responsibility boundaries
 
@@ -47,11 +47,13 @@ Parse and validate request inputs, establish the authentication boundary, call a
 
 ### Module/service
 
-Own business rules, orchestration, authorization/ownership decisions, and calls to persistence or external services. The `system` module demonstrates this boundary; business modules are future work.
+Own business rules, orchestration, authorization/ownership decisions, and calls to persistence or external services. Account and Destination services implement this boundary behind thin handlers.
 
 ### Database
 
-Prisma/Neon owns persistence and database invariants. Current Prisma models cover Better Auth `User`, `Session`, `Account`, `Verification`, and `IdempotencyRecord`; there are no destination/trip/culture/favorite domain models. `User.role` is enum `TRAVELER | ADMIN`, defaulting to `TRAVELER`. Migrations enable PostGIS and pgvector, but no domain spatial or embedding schema is present.
+Prisma/Neon owns persistence and database invariants. Current models cover Better Auth `User`, `Session`, `Account`, `Verification`, `IdempotencyRecord`, and Destination/OpeningDay/OpeningInterval. Trip/Culture/Favorite are not implemented. `User.role` is enum `TRAVELER | ADMIN`, defaulting to `TRAVELER`. PostGIS and pgvector are enabled; no geometry/embedding column has been added.
+
+US-07 Destination persistence uses stable cuid IDs, normalized open-taxonomy area/category strings and canonical latitude/longitude Doubles. Visibility defaults HIDDEN; generic create/update cannot change it (US-08 boundary). Independent nullable suggested/minimum durations use integer minutes, NULL for missing data. Seven unique weekdays carry explicit OPEN/CLOSED/UNKNOWN status; local-time intervals store minutes since midnight (end may be 1440/24:00). Shared strict validation enforces exactly seven days, status/interval consistency, canonical order and non-overlap; database checks enforce coordinate/duration/time ranges with FK/unique constraints. Schedule replacement and idempotency response commit in one transaction. Imports must reuse the semantic contract rather than writing incomplete schedules. See [US-07](../stories/US-07-admin-destinations.md) for DTO and cross-dev handoff.
 
 ### Auth and authorization
 
@@ -87,7 +89,7 @@ Mutation responses additionally carry `operationStatus`:
 
 `executeIdempotentWrite` scopes a key by JSON `[actorId, operation]`; it hashes canonical JSON request data with SHA-256 (object keys sorted). A unique `(scope, key)` row stores the hash and serialized successful response. Same key and hash replays the stored `SUCCESS`; same key with a different hash returns `IDEMPOTENCY_KEY_REUSED`/409. Write and success response are committed in one database transaction. Known `AppError` failures roll back and are not persisted as success. Unexpected/uncertain outcomes return `UNKNOWN` and tell the caller to retry with the same key and payload. Records have no TTL or cleanup job. External side effects do not belong inside the transaction callback.
 
-The account name update uses this shared primitive and client contract. Future applicable mutations must use it and must not generate a new key when retrying an `UNKNOWN` result.
+Account name and admin Destination writes use this shared primitive and client contract. Destination update hashes include the target ID; both services recheck trusted role inside the transaction. Future applicable mutations must use it and must not generate a new key when retrying an `UNKNOWN` result.
 
 ## Deployment and schema workflow
 
