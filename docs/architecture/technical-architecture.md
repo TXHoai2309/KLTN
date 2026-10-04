@@ -91,6 +91,8 @@ Mutation responses additionally carry `operationStatus`:
 
 Account name and admin Destination writes use this shared primitive and client contract. Destination update hashes include the target ID; both services recheck trusted role inside the transaction. Future applicable mutations must use it and must not generate a new key when retrying an `UNKNOWN` result.
 
+US-08 adds a separate Admin-only `PATCH /api/admin/destinations/[id]/visibility`, operation `destination:set-visibility`, hashing both ID and target visibility. It updates visibility only (normal updatedAt metadata), rechecks role in the transaction, and preserves schedules/history. Generic detail editing remains unable to publish. `modules/destination/destination-eligibility.ts` is the shared boundary for future public reads and new-itinerary candidates: `visibleDestinationWhere`, predicates on persisted records and `findEligibleDestinationIds` constrain existence plus VISIBLE at persistence. Public UI/API integration remains US-10; Planner integration remains a future Trip story. No public/planner endpoint or schema change is introduced by this boundary.
+
 ## Deployment and schema workflow
 
 `vercel.json` configures one `apps/web` Next.js service, workspace install, and a build command that generates the Prisma client before the web build. The repo uses Prisma migration history for shared schema changes. See [environment and deployment](../implementation/environment-deployment.md). The old Architecture document's separate NestJS backend is not part of this topology.

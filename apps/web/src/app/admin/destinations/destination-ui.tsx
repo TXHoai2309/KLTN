@@ -6,7 +6,7 @@ export function SectionHeading({ icon: Icon, title, description }: { icon: Lucid
 }
 export function VisibilityBadge({ visibility }: { visibility: "HIDDEN" | "VISIBLE" }) {
   const Icon = visibility === "VISIBLE" ? Eye : EyeOff;
-  return <span className={`destination-badge ${visibility === "VISIBLE" ? "is-visible" : "is-hidden"}`}><Icon size={14} aria-hidden="true" />{visibility === "VISIBLE" ? "Hiển thị" : "Đang ẩn"}</span>;
+  return <span className={`destination-badge ${visibility === "VISIBLE" ? "is-visible" : "is-hidden"}`}><Icon size={14} aria-hidden="true" />{visibility === "VISIBLE" ? "Đang hiển thị" : "Đang ẩn"}</span>;
 }
 export function LoadingState({ children }: { children: ReactNode }) {
   return <div className="destination-state" role="status"><LoaderCircle size={24} className="destination-spinner" aria-hidden="true" /><p>{children}</p></div>;
