@@ -114,7 +114,7 @@ test("product UI starts in view mode, cancel does not update, UNKNOWN rereads, a
 test("server page redirects guests with canonical account returnTo and API protects origin/private response", async () => {
   const page = await readFile(new URL("../../app/account/page.tsx", import.meta.url), "utf8");
   const route = await readFile(new URL("../../app/api/account/route.ts", import.meta.url), "utf8");
-  assert.match(page, /resolveSession\(await headers\(\)\)/); assert.match(page, /redirect\(buildAuthLoginHref\("\/account"\) as Route\)/);
+  assert.match(page, /getAccount\(await headers\(\), accountDependencies\)/); assert.match(page, /redirect\(buildAuthLoginHref\("\/account"\) as Route\)/);
   assert.match(route, /request.headers.get\("origin"\) !== new URL\(request.url\).origin/);
   assert.match(route, /private, no-store/); assert.doesNotMatch(route, /session.token|session.cookie|account.password/);
 });

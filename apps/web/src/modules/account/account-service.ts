@@ -2,6 +2,7 @@ import type { Database, Prisma } from "@KLTN/db";
 import { AppError } from "@/server/http/app-error";
 import { executeIdempotentWrite } from "@/server/http/idempotency";
 import { updateAccountSchema, type AccountDto } from "./account-contract";
+import { requireActor } from "@/server/authorization/guard";
 
 export const accountSelect = { name: true, email: true, role: true, createdAt: true } satisfies Prisma.UserSelect;
 export type AccountDependencies = {
@@ -9,9 +10,7 @@ export type AccountDependencies = {
   resolveSession: (headers: Headers) => Promise<{ user: { id: string } } | null>;
 };
 export async function requireAccountUser(headers: Headers, dependencies: AccountDependencies) {
-  const session = await dependencies.resolveSession(headers);
-  if (!session?.user.id) throw new AppError("UNAUTHENTICATED", "Vui lòng đăng nhập để tiếp tục.", 401);
-  return session.user.id;
+  return (await requireActor(headers, dependencies, "account:self")).id;
 }
 function toDto(user: { name: string; email: string; role: "TRAVELER" | "ADMIN"; createdAt: Date }): AccountDto {
   // Explicit projection even if an adapter unexpectedly returns extra fields.

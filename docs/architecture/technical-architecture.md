@@ -55,7 +55,7 @@ Prisma/Neon owns persistence and database invariants. Current Prisma models cove
 
 ### Auth and authorization
 
-Better Auth handles email/password and sessions. The role is configured as a non-input additional field; public signup cannot choose `ADMIN`. The server-side bootstrap uses Better Auth to create credentials and then assigns `ADMIN`. The dashboard currently checks for a session and redirects unauthenticated visitors to `/login`. Business authorization and ownership checks still need to be implemented in future modules.
+Better Auth handles email/password and sessions. The role is configured as a non-input additional field; public signup cannot choose `ADMIN`. The server-side bootstrap uses Better Auth to create credentials and then assigns `ADMIN`. Shared `server/authorization` guards resolve an uncached trusted session and current persisted User role. Exact Traveler/Admin permissions have no inheritance; private resource readers must constrain persistence by trusted actor ownership. Account GET/PATCH and page are self-only; dashboard accepts both authenticated roles; the development demo action independently requires Traveler. Denials use 401/403, and non-owned/missing resources use the same 404. Future business modules must integrate the shared ownership scope; their endpoints do not exist yet. See [US-06](../stories/US-06-role-ownership.md) for the permission matrix and integration contract.
 
 ### AI, Validator, maps, and routing
 
@@ -87,7 +87,7 @@ Mutation responses additionally carry `operationStatus`:
 
 `executeIdempotentWrite` scopes a key by JSON `[actorId, operation]`; it hashes canonical JSON request data with SHA-256 (object keys sorted). A unique `(scope, key)` row stores the hash and serialized successful response. Same key and hash replays the stored `SUCCESS`; same key with a different hash returns `IDEMPOTENCY_KEY_REUSED`/409. Write and success response are committed in one database transaction. Known `AppError` failures roll back and are not persisted as success. Unexpected/uncertain outcomes return `UNKNOWN` and tell the caller to retry with the same key and payload. Records have no TTL or cleanup job. External side effects do not belong inside the transaction callback.
 
-This is a shared primitive and client contract; no current business write endpoint uses it. Future applicable mutations must use it and must not generate a new key when retrying an `UNKNOWN` result.
+The account name update uses this shared primitive and client contract. Future applicable mutations must use it and must not generate a new key when retrying an `UNKNOWN` result.
 
 ## Deployment and schema workflow
 

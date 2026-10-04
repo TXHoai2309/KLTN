@@ -1,4 +1,5 @@
 "use client";
+import { authorizationFeedback } from "@/lib/authorization-feedback";
 
 import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
@@ -54,7 +55,7 @@ export default function AccountProfile({ initialAccount }: { initialAccount: Acc
         setAccount(outcome.data); setDraft(outcome.data.name); setEditing(false); setSuccess(true); attempt.current = null;
         void refreshSessionName();
       } else {
-        setError(outcome.status === "UNKNOWN" ? "Chưa thể xác định đã lưu hay chưa. Khi thử lại, hệ thống sẽ đọc lại tài khoản trước." : ACCOUNT_UPDATE_ERROR);
+        setError(outcome.status === "UNKNOWN" ? "Chưa thể xác định đã lưu hay chưa. Khi thử lại, hệ thống sẽ đọc lại tài khoản trước." : authorizationFeedback(outcome.httpStatus) ?? ACCOUNT_UPDATE_ERROR);
         setUncertain(outcome.status === "UNKNOWN");
         if (outcome.status === "FAILED") attempt.current = null;
       }
