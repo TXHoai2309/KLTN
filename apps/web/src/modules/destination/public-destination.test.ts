@@ -10,13 +10,14 @@ import { getPublicDestination, publicDestinationSelect } from "./public-destinat
 import { publicDestinationResponse } from "./public-destination-http";
 import { publicDestinationDetailSchema, formatSuggestedDuration } from "./public-destination-contract";
 import DestinationDetail, { DetailState } from "../../app/destinations/[id]/destination-detail";
+import { visibleCultureWhere, publicCultureSelect } from "../culture/culture-eligibility";
 
 function fixture(visibility = "VISIBLE", duration: number | null = 90) {
   let state: string | null = visibility;
   let reads = 0;
   const row = {
     id: "detail-a", name: "Public destination", description: "Exact factual description", area: "đồng văn", category: "văn hóa", latitude: 23.2, longitude: 105.3,
-    suggestedDurationMinutes: duration,
+    suggestedDurationMinutes: duration, cultureLinks: [],
     openingDays: [...weekdays].reverse().map(dayOfWeek => ({ dayOfWeek, status: dayOfWeek === "MONDAY" ? "OPEN" : dayOfWeek === "TUESDAY" ? "CLOSED" : "UNKNOWN",
       intervals: dayOfWeek === "MONDAY" ? [{ opensAtMinute: 780, closesAtMinute: 1440 }, { opensAtMinute: 420, closesAtMinute: 660 }] : [],
     })),
@@ -123,4 +124,33 @@ test("public delivery uses one service, no auth exception/cache and real retry; 
   assert.match(error, /router.refresh\(\); reset\(\)/); assert.match(error, /disabled=\{pending\}/);
   const css = await readFile(new URL("../../app/destinations/[id]/detail.css", import.meta.url), "utf8");
   assert.match(css, /\.dark \.public-detail/); assert.match(css, /minmax\(0, 1fr\)/); assert.match(css, /focus-visible/);
+});
+
+test("related Culture uses canonical VISIBLE filter and bounded public allowlist; summary has source without dead detail links", async () => {
+  assert.deepEqual(publicDestinationSelect.cultureLinks.where, { culture: visibleCultureWhere });
+  assert.equal(publicDestinationSelect.cultureLinks.take, 20);
+  assert.deepEqual(publicDestinationSelect.cultureLinks.select.culture.select, publicCultureSelect);
+  const f = fixture();
+  (f.row as any).cultureLinks = [{ culture: { id: "culture-a", title: "Related visible Culture", content: "Exact culture content", sourceTitle: "Source document", sourceUrl: "https://example.test/source" } }];
+  const dto = await getPublicDestination("detail-a", f.database);
+  assert.deepEqual(dto.relatedCulture[0], { id: "culture-a", title: "Related visible Culture", excerpt: "Exact culture content", sourceTitle: "Source document", sourceUrl: "https://example.test/source" });
+  const html = renderToStaticMarkup(createElement(DestinationDetail, { destination: dto }));
+  assert.match(html, /Related visible Culture/); assert.match(html, /Source document/); assert.match(html, /rel="noopener noreferrer"/); assert.doesNotMatch(html, /href="\/culture/);
+  for (const extra of [{ visibility: "VISIBLE" }, { updatedAt: "private" }, { content: "full body" }, { sourceUrl: "javascript:alert(1)" }]) assert.equal(publicDestinationDetailSchema.safeParse({ ...dto, relatedCulture: [{ ...dto.relatedCulture[0], ...extra }] }).success, false);
+});
+
+test("relation filtering excludes hidden and unrelated Culture for every public role; hide/show keeps relation", async () => {
+  const contents = [{ id: "a", title: "Visible related", content: "Body", visibility: "VISIBLE", destinationId: "detail-a" }, { id: "b", title: "Hidden related", content: "Hidden", visibility: "HIDDEN", destinationId: "detail-a" }, { id: "c", title: "Visible unrelated", content: "Unrelated", visibility: "VISIBLE", destinationId: "other" }];
+  const f = fixture();
+  const database = { destination: { findUnique: async ({ where, select }: any) => {
+    assert.equal(where.visibility, "VISIBLE");
+    const relation = select.cultureLinks;
+    return { ...f.row, cultureLinks: contents.filter(c => c.destinationId === where.id && c.visibility === relation.where.culture.visibility).slice(0, relation.take).map(({ id, title, content }) => ({ culture: { id, title, content, sourceTitle: null, sourceUrl: null } })) };
+  } } } as unknown as Pick<Database, "destination">;
+  for (const role of ["Guest", "Traveler", "Admin"]) {
+    const response = await publicDestinationResponse(new Request("http://localhost/api/destinations/detail-a", { headers: { "X-Role": role } }), "detail-a", database);
+    assert.deepEqual((await response.json()).data.relatedCulture.map((c: any) => c.id), ["a"]);
+  }
+  contents[0]!.visibility = "HIDDEN"; assert.deepEqual((await getPublicDestination("detail-a", database)).relatedCulture, []);
+  contents[0]!.visibility = "VISIBLE"; assert.equal((await getPublicDestination("detail-a", database)).relatedCulture[0]!.id, "a"); assert.equal(contents[0]!.destinationId, "detail-a");
 });

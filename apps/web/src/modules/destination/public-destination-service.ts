@@ -1,3 +1,4 @@
+import { visibleCultureWhere, publicCultureSelect } from "../culture/culture-eligibility";
 import type { Database, Prisma } from "@KLTN/db";
 import { AppError } from "@/server/http/app-error";
 import { fromMinute } from "./destination-contract";
@@ -8,6 +9,7 @@ import { publicDestinationDetailSchema } from "./public-destination-contract";
 export const publicDestinationSelect = {
   id: true, name: true, description: true, area: true, category: true,
   latitude: true, longitude: true, suggestedDurationMinutes: true,
+  cultureLinks: { where: { culture: visibleCultureWhere }, take: 20, orderBy: { cultureId: "asc" }, select: { culture: { select: publicCultureSelect } } },
   openingDays: { select: { dayOfWeek: true, status: true, intervals: {
     select: { opensAtMinute: true, closesAtMinute: true }, orderBy: { opensAtMinute: "asc" },
   } } },
@@ -28,6 +30,6 @@ export async function getPublicDestination(id: string, database: Pick<Database, 
     openingDays: row.openingDays.map(day => ({ dayOfWeek: day.dayOfWeek, status: day.status,
       intervals: day.intervals.map(interval => ({ opensAt: fromMinute(interval.opensAtMinute), closesAt: fromMinute(interval.closesAtMinute) })),
     })),
-    relatedCulture: [],
+    relatedCulture: row.cultureLinks.map(({ culture }) => ({ id: culture.id, title: culture.title, excerpt: culture.content.replace(/\s+/g, " ").trim().slice(0, 280), sourceTitle: culture.sourceTitle, sourceUrl: culture.sourceUrl })),
   });
 }

@@ -1,0 +1,10 @@
+@import "../destinations/destinations.css";
+.culture-picker { display: grid; gap: .75rem; }
+.culture-picker label { display: flex; align-items: center; gap: .65rem; padding: .65rem; border: 1px solid var(--destination-line); border-radius: .65rem; overflow-wrap: anywhere; }
+.culture-picker input[type="checkbox"] { width: 18px; height: 18px; flex: 0 0 auto; }
+.culture-picker-results { display: grid; gap: .4rem; max-height: 18rem; overflow-y: auto; }
+.culture-selected { display: flex; flex-wrap: wrap; gap: .5rem; }
+.culture-selected button { white-space: normal; overflow-wrap: anywhere; }
+
+.culture-page .destination-mobile-card dt { min-width: 68px; flex-shrink: 0; }
+.culture-page .destination-mobile-card dd { min-width: 0; overflow-wrap: anywhere; }

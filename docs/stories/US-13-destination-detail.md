@@ -2,7 +2,7 @@
 
 ## Status
 
-PARTIALLY ACCEPTED / BLOCKED BY US-09 Culture integration
+PARTIALLY ACCEPTED / Culture integrated; Maps awaits US-12
 
 ## Goal / owner / baseline
 
@@ -50,3 +50,9 @@ Schema change NO. Destination migration NOT REQUIRED. Production untouched. Runt
 - env:generate PASS; destination59/59 (45 existing +14 public), authorization21/21, account18/18, auth33/33 PASS; check-types PASS; production build PASS including both dynamic public routes; tracked/new-file diff-check PASS. Secret-pattern matches0. Existing US-08 source assertion was made newline-independent after committed files checked out CRLF; no behavior changed.
 - No source/provenance/media model, Culture relation, Explore route, Maps provider, Favorite or AI integration exists. `relatedCulture: []` is not integrated retrieval evidence. Map is factual coordinates only; no map runtime claimed. Merge canonical US-09 before Culture integration; integrate US-12 Maps when available and US-10 navigation separately. No invented branch names or source links. Status must remain partial until mandatory dependency is implemented and tested.
 - Schema changed NO; migration NOT REQUIRED; no db push/production/commit/push. Final status/stat reviewed; changes limited to US-13 files, test command, newline-tolerant existing test and documentation.
+
+## 2026-10-05 — US-09 Culture dependency integrated
+
+The US-09 canonical schema/relation and eligibility filter now replace the former empty relatedCulture boundary. Task155 Culture portion PASS: bounded related visible summaries/source fields, hidden/unrelated exclusion and hide/show with preserved links are proven by deterministic tests, actual Admin public browser and Guest/Traveler live HTTP reads. Disposable fixtures cleaned, existing data unchanged. Summary cards have no dead Culture-detail links and external sources are validated http/https with safe attributes.
+
+153/154/156 remain PASS;155 factual location/hours/duration/Culture PASS. Maps provider remains absent and awaits US-12; do not interpret Culture integration as Map runtime or full acceptance of that dependency. Earlier evidence above describes the historical pre-US-09 baseline. No Explore/full Culture detail/Favorite/AI integration claimed.

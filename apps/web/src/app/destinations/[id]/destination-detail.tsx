@@ -44,7 +44,7 @@ export default function DestinationDetail({ destination: d }: { destination: Pub
         </section>
         <section className="public-detail-card" aria-labelledby="culture-title">
           <h2 id="culture-title"><BookOpen size={21} aria-hidden="true" />Nội dung văn hóa liên quan</h2>
-          <p className="public-detail-empty">Chưa có nội dung văn hóa liên quan.</p>
+          {d.relatedCulture.length === 0 ? <p className="public-detail-empty">Chưa có nội dung văn hóa liên quan.</p> : <div className="public-culture-list">{d.relatedCulture.map(item => <article key={item.id}><h3>{item.title}</h3><p>{item.excerpt}</p>{(item.sourceTitle || item.sourceUrl) && <p className="public-detail-muted">Nguồn: {item.sourceUrl ? <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer">{item.sourceTitle || item.sourceUrl}</a> : item.sourceTitle}</p>}</article>)}</div>}
         </section>
       </div>
       <section className="public-detail-card public-detail-hours" aria-labelledby="hours-title">

@@ -34,3 +34,9 @@
 .dark .public-detail { --detail-ink: #e6f0e8; --detail-muted: #b0c1b5; --detail-green: #8dc7a6; --detail-line: #34483a; --detail-surface: #1b2b21; --detail-tint: #263d2d; background: radial-gradient(ellipse at 85% 0, #243c2b, transparent 65%), #142019; }
 @media (max-width: 800px) { .public-detail-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 600px) { .public-detail { padding: 20px 16px 40px; } .public-detail-hero { padding: 26px 22px; border-radius: 16px; } .public-detail-card { padding: 22px; } .public-detail-back { margin-bottom: 16px; } .public-detail-state { padding: 30px 20px; } .public-detail-state h1 { font-size: 24px; } }
+.public-culture-list { display: grid; gap: 1rem; }
+.public-culture-list article { padding-block: .75rem; border-bottom: 1px solid var(--detail-line); overflow-wrap: anywhere; }
+.public-culture-list h3 { font-weight: 650; margin-bottom: .5rem; }
+.public-culture-list p { margin-block: .5rem; }
+.public-culture-list a { text-decoration: underline; text-underline-offset: 3px; }
+.public-culture-list a:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }

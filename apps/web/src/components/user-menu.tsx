@@ -93,6 +93,7 @@ export default function UserMenu() {
           <DropdownMenuItem>{session.user.email}</DropdownMenuItem>
           <DropdownMenuItem render={<Link href="/account" />}>Thông tin tài khoản</DropdownMenuItem>
           {session.user.role === "ADMIN" && <DropdownMenuItem render={<Link href="/admin/destinations" />}>Quản lý điểm đến</DropdownMenuItem>}
+          {session.user.role === "ADMIN" && <DropdownMenuItem render={<Link href="/admin/culture" />}>Quản lý nội dung văn hóa</DropdownMenuItem>}
           {signOutError ? (
             <p className="px-2 py-2 text-xs text-destructive" role="alert">
               {signOutError}

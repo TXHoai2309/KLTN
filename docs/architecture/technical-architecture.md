@@ -9,7 +9,7 @@ Browser
   └─ Next.js / React App Router (apps/web)
        ├─ UI and server-rendered pages
        ├─ Route Handlers (HTTP delivery)
-       ├─ business modules/services (system, auth, account, destination)
+       ├─ business modules/services (system, auth, account, destination, culture)
        ├─ @KLTN/auth (Better Auth)
        └─ @KLTN/db (Prisma Client + Neon adapter)
             └─ Neon PostgreSQL
@@ -26,10 +26,10 @@ The repository is an npm/Turborepo monorepo: `apps/web`, `packages/auth`, `packa
 
 ## Current repository structure
 
-- `apps/web/src/app/`: App Router pages and auth/health/account/admin-destination Route Handlers.
+- `apps/web/src/app/`: App Router pages and auth/health/account/admin-destination/admin-culture Route Handlers.
 - `apps/web/src/app/api/auth/[...all]/route.ts`: exports GET and POST handlers from Better Auth's `toNextJsHandler`.
 - `apps/web/src/app/api/health/route.ts`: small GET handler that calls the `system` service and maps through the shared API response/error helpers.
-- `apps/web/src/modules/system/system.service.ts`: returns the service health value. Auth/logout, self-service account and admin destination modules are implemented; Culture, Favorite, Trip, RAG and Validator remain future stories.
+- `apps/web/src/modules/system/system.service.ts`: returns the service health value. Auth/logout, self-service account and admin destination modules are implemented; Culture administration is implemented in US-09; Favorite, Trip, RAG and Validator remain future stories.
 - `apps/web/src/server/http/`: shared app error, response mapping, error handling, and idempotency logic.
 - `apps/web/src/lib/`: client mutation contract/helpers and Better Auth client configuration.
 - `apps/web/src/services.ts`: creates the Prisma client from server environment and passes it to Better Auth.
@@ -37,7 +37,7 @@ The repository is an npm/Turborepo monorepo: `apps/web`, `packages/auth`, `packa
 - `packages/db/`: Neon Prisma adapter, Prisma config, generated client, schema, migrations, and Varlock import.
 - `packages/ui/`: shared React UI primitives/styles.
 
-The UI currently includes a home shell, sign-in/sign-up, a user menu, a session-protected dashboard, self-service account, admin destination list/create/edit and public destination detail. Explore, Culture and Maps integrations await their stories.
+The UI currently includes a home shell, sign-in/sign-up, a user menu, a session-protected dashboard, self-service account, admin destination list/create/edit and public destination detail. Culture admin and related public summaries are implemented; Explore, full Culture detail and Maps integrations await their stories.
 
 ## Responsibility boundaries
 
@@ -47,11 +47,11 @@ Parse and validate request inputs, establish the authentication boundary, call a
 
 ### Module/service
 
-Own business rules, orchestration, authorization/ownership decisions, and calls to persistence or external services. Account and Destination services implement this boundary behind thin handlers.
+Own business rules, orchestration, authorization/ownership decisions, and calls to persistence or external services. Account, Destination and Culture services implement this boundary behind thin handlers.
 
 ### Database
 
-Prisma/Neon owns persistence and database invariants. Current models cover Better Auth `User`, `Session`, `Account`, `Verification`, `IdempotencyRecord`, and Destination/OpeningDay/OpeningInterval. Trip/Culture/Favorite are not implemented. `User.role` is enum `TRAVELER | ADMIN`, defaulting to `TRAVELER`. PostGIS and pgvector are enabled; no geometry/embedding column has been added.
+Prisma/Neon owns persistence and database invariants. Current models cover Better Auth `User`, `Session`, `Account`, `Verification`, `IdempotencyRecord`, Destination/OpeningDay/OpeningInterval and CultureContent/CultureDestination. Trip/Favorite are not implemented. `User.role` is enum `TRAVELER | ADMIN`, defaulting to `TRAVELER`. PostGIS and pgvector are enabled; no geometry/embedding column has been added.
 
 US-07 Destination persistence uses stable cuid IDs, normalized open-taxonomy area/category strings and canonical latitude/longitude Doubles. Visibility defaults HIDDEN; generic create/update cannot change it (US-08 boundary). Independent nullable suggested/minimum durations use integer minutes, NULL for missing data. Seven unique weekdays carry explicit OPEN/CLOSED/UNKNOWN status; local-time intervals store minutes since midnight (end may be 1440/24:00). Shared strict validation enforces exactly seven days, status/interval consistency, canonical order and non-overlap; database checks enforce coordinate/duration/time ranges with FK/unique constraints. Schedule replacement and idempotency response commit in one transaction. Imports must reuse the semantic contract rather than writing incomplete schedules. See [US-07](../stories/US-07-admin-destinations.md) for DTO and cross-dev handoff.
 
@@ -93,8 +93,14 @@ Account name and admin Destination writes use this shared primitive and client c
 
 US-08 adds a separate Admin-only `PATCH /api/admin/destinations/[id]/visibility`, operation `destination:set-visibility`, hashing both ID and target visibility. It updates visibility only (normal updatedAt metadata), rechecks role in the transaction, and preserves schedules/history. Generic detail editing remains unable to publish. `modules/destination/destination-eligibility.ts` is the shared boundary for public reads and new-itinerary candidates: `visibleDestinationWhere`, predicates on persisted records and `findEligibleDestinationIds` constrain existence plus VISIBLE at persistence. Public detail consumes it in US-13; discovery remains US-10 and Planner integration remains a future Trip story. The helper itself introduces no endpoint or schema change.
 
-US-13 public detail now consumes this canonical filter through one `public-destination-service`, shared by the uncached `/destinations/[id]` server page and thin `GET /api/destinations/[id]`. A separate strict allowlist omits Admin metadata/minimum duration; VISIBLE content is selected at persistence, an ID-only existence query distinguishes unavailable410 from missing404, and system errors remain500. Admin has identical public semantics. Weekly hours and suggested duration reuse US-07 contract. Culture/source/Maps infrastructure is absent: empty relatedCulture and factual location only, story partially accepted pending US-09. Public discovery remains US-10; no Planner endpoint/schema change.
+US-13 public detail now consumes this canonical filter through one `public-destination-service`, shared by the uncached `/destinations/[id]` server page and thin `GET /api/destinations/[id]`. A separate strict allowlist omits Admin metadata/minimum duration; VISIBLE content is selected at persistence, an ID-only existence query distinguishes unavailable410 from missing404, and system errors remain500. Admin has identical public semantics. Weekly hours and suggested duration reuse US-07 contract. US-09 now supplies bounded related VISIBLE Culture summaries and safe source metadata through the canonical relation; factual location remains without Maps integration (US-12). Public discovery remains US-10; no Planner endpoint/schema change.
 
 ## Deployment and schema workflow
 
 `vercel.json` configures one `apps/web` Next.js service, workspace install, and a build command that generates the Prisma client before the web build. The repo uses Prisma migration history for shared schema changes. See [environment and deployment](../implementation/environment-deployment.md). The old Architecture document's separate NestJS backend is not part of this topology.
+
+## US-09 Culture administration
+
+CultureContent owns title/prose, nullable sourceTitle/sourceUrl metadata, HIDDEN/VISIBLE default HIDDEN and timestamps. No RAG/source lifecycle coupling. CultureDestination is the canonical many-to-many join with composite PK, reverse index and restrictive FKs; hiding preserves links. Additive migration20261005021531_add_culture_content_domain applied only on verified development.
+
+Thin /api/admin/culture collection/detail/visibility and destination-lookup handlers reuse exact Admin authorization. Module services validate strict normalized input/all Destination IDs, preserve visibility during generic edits and recheck persisted role in transaction. Content/source/relation replacement and idempotency response commit together under culture:create/update/set-visibility. Admin pages reuse existing UI styling/switch presentation with separate Culture controllers. Public Destination selects at most20 linked Culture rows under canonical visibleCultureWhere, exposing summary allowlist only; source links are http/https and escaped/safe, no dead public Culture route. See [US-09](../stories/US-09-culture-management.md).

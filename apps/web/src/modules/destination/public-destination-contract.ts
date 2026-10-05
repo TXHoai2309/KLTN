@@ -1,11 +1,11 @@
+import { publicCultureSummarySchema } from "../culture/culture-contract";
 import { z } from "zod";
 import { destinationInputSchema } from "./destination-contract";
 
 /** Deliberate public allowlist. No visibility, timestamps or validator minimum. */
 export const publicDestinationDetailSchema = destinationInputSchema.omit({ minimumDurationMinutes: true }).extend({
   id: z.string().min(1),
-  // US-09 has not landed: never fabricate Culture items or competing relations.
-  relatedCulture: z.array(z.never()).max(0),
+  relatedCulture: z.array(publicCultureSummarySchema).max(20),
 }).strict();
 export type PublicDestinationDetail = z.infer<typeof publicDestinationDetailSchema>;
 

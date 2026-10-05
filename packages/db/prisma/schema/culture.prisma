@@ -1,0 +1,30 @@
+enum CultureVisibility {
+  HIDDEN
+  VISIBLE
+}
+
+model CultureContent {
+  id           String               @id @default(cuid())
+  title        String               @db.VarChar(200)
+  content      String               @db.Text
+  sourceTitle  String?              @db.VarChar(300)
+  sourceUrl    String?              @db.VarChar(2000)
+  visibility   CultureVisibility    @default(HIDDEN)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+  destinations CultureDestination[]
+
+  @@index([visibility, title, id])
+  @@map("culture_content")
+}
+
+model CultureDestination {
+  cultureId     String
+  destinationId String
+  culture       CultureContent @relation(fields: [cultureId], references: [id], onDelete: Restrict)
+  destination   Destination    @relation(fields: [destinationId], references: [id], onDelete: Restrict)
+
+  @@id([cultureId, destinationId])
+  @@index([destinationId, cultureId])
+  @@map("culture_destination")
+}

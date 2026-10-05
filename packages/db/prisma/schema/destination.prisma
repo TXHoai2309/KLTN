@@ -33,6 +33,7 @@ model Destination {
   createdAt                DateTime              @default(now())
   updatedAt                DateTime              @updatedAt
   openingDays              OpeningDay[]
+  cultureLinks             CultureDestination[]
 
   @@index([area])
   @@index([category])
