@@ -1,0 +1,14 @@
+model Favorite {
+  id            String         @id @default(cuid())
+  userId        String
+  destinationId String?
+  cultureId     String?
+  createdAt     DateTime       @default(now())
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  destination   Destination?   @relation(fields: [destinationId], references: [id], onDelete: Restrict)
+  culture       CultureContent? @relation(fields: [cultureId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, destinationId])
+  @@unique([userId, cultureId])
+  @@map("favorite")
+}
