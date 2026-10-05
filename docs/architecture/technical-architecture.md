@@ -37,7 +37,7 @@ The repository is an npm/Turborepo monorepo: `apps/web`, `packages/auth`, `packa
 - `packages/db/`: Neon Prisma adapter, Prisma config, generated client, schema, migrations, and Varlock import.
 - `packages/ui/`: shared React UI primitives/styles.
 
-The UI currently includes a home shell, sign-in/sign-up, a user menu, a session-protected dashboard, self-service account, admin destination list/create/edit and public destination detail. Culture admin and related public summaries, minimum unfiltered Explore and shared Explore/Detail maps are implemented; canonical search/filter and full Culture detail await their stories.
+The UI includes the product Home, sign-in/sign-up, user menu, protected dashboard, self-service account, Admin Destination/Culture management, public Destination detail, and public Explore Destination/Culture summaries. Explore uses independent server-rendered sections; canonical search/filter and full Culture detail await US-11/US-14.
 
 ## Responsibility boundaries
 
@@ -111,4 +111,9 @@ Thin /api/admin/culture collection/detail/visibility and destination-lookup hand
 
 MapLibre 6's worker and sibling shared module are copied from the installed npm package into ignored public/maplibre by dev/build preparation, served together from the same origin (no CDN script). Asset HEAD preflight prevents poisoning the library's cached worker initialization when an asset is temporarily missing. Official CSS is imported by App Router layout. No browser Google key/Map ID or Maps JS dependency remains. Stadia domain auth is deployment configuration; Google Routes remains a separate server-side routing decision. No geolocation/routing/schema change.
 
-No US-10/11 canonical implementation existed at baseline. One unfiltered `/explore` and public collection `GET /api/destinations` now share `public-destination-list` service. Canonical VISIBLE persistence and explicit location allowlist,25-row pagination/no-store for every role. List and Map consume identical current-page items; invalid axes become null and cannot project markers. Native history view changes preserve query/mode without a second fetch; unsupported future filters explicitly fail rather than appear ignored. Future US-10/11 must extend this service/state and prove filter synchronization, not create another map dataset. US-12 task149 remains blocked; implementation alone is not real-provider acceptance. See [US-12](../stories/US-12-destination-map.md).
+
+## US-10 Home and public Explore
+
+Home is static product UI with a real `/explore` CTA. Explore uses two independently streamed server sections so Destination and Culture can load, return empty results, or report an error separately. Destination List/Map still consume the shared `listPublicLocations` page from US-12; Culture summaries use the public-only `GET /api/culture` handler and `listPublicCulture`. Both use canonical persisted VISIBLE filters and strict public allowlists for every role, with `no-store` freshness. Culture relations select only VISIBLE Destinations and omit hidden links; source links are safe http/https. Destination `page` and UI `culturePage` state are independent. No Culture detail endpoint/page or US-11 search/filter implementation was added. See [US-10](../stories/US-10-home-explore.md).
+
+US-12 task149 search/filter state remains blocked pending US-11; US-10 does not mark it PASS. See [US-12](../stories/US-12-destination-map.md).

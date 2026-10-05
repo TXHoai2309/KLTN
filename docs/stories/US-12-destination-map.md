@@ -2,13 +2,13 @@
 
 ## Status
 
-PARTIALLY ACCEPTED — implemented map scope verified; task149 BLOCKED BY US-10/US-11
+PARTIALLY ACCEPTED — implemented map scope verified; task149 BLOCKED BY US-11
 
 ## Baseline / references / scope
 
 Clean TXH `4a2a007 feat(culture): add culture content management`, verified before edits. Approved tasks146–152 and minimum US-13 map integration; Product public exploration/MH-03 and consistent list/map requirements, System Specification public availability rules. Accepted US-07 coordinates, US-08 eligibility and US-09 Culture relation remain canonical. No Figma frame inferred.
 
-Audit found no `/explore`, public collection API, search/filter service or US-10/US-11 story implementation. This adds one minimum unfiltered Explore integration boundary, not a competing discovery architecture or an accepted US-10/US-11 implementation. Future stories must extend this same source/state. Task149 cannot PASS until canonical search/filter behavior exists and has runtime evidence.
+At this story's baseline there was no `/explore`, public collection API, search/filter service, or US-10 implementation. The minimal unfiltered Explore boundary was added here and US-10 later extended it with Culture summaries. US-11 still owns canonical search/filter behavior and runtime evidence; task149 cannot PASS until that work is accepted.
 
 No schema/migration, directions/routing/geolocation, public Culture detail, AI, Favorites, media, production or deployment change. Schema changed NO; migration required NO; Production migration NOT RUN.
 
@@ -61,7 +61,7 @@ Evidence screenshots outside Git: `D:/KLTN/us12-evidence/stadia-*`. Scoped clean
 |146 map/markers|PASS|Real Stadia/MapLibre WebGL, visible markers, viewport/themes/responsive|
 |147 public location data|PASS|Unchanged canonical visible query/public allowlist; live Guest/Traveler API + Admin public view|
 |148 List/Map|PASS|Same page dataset, real mode toggle/refresh/Back|
-|149 search/filter sync|BLOCKED|Canonical US-10/US-11 absent; query preserved, unsupported filters rejected|
+|149 search/filter sync|BLOCKED|US-11 search/filter is pending; query preserved, unsupported filters rejected|
 |150 marker → detail|PASS|Real popup CTA → own-coordinate Detail map + Culture|
 |151 loading/error/retry|PASS|Real loading/worker404/error/retry recovery; deterministic style/tile error and timeout|
 |152 regression|PASS for implemented scope|Required suites/build + real provider smoke; task149 dependency excluded explicitly|

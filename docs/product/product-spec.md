@@ -69,7 +69,7 @@ Writes are `SUCCESS`, `FAILED`, or `UNKNOWN`:
 
 Never display a successful save before confirmation. Retry an `UNKNOWN` operation with the same idempotency key and identical request; do not create duplicate trips, favorites, or repeated business writes. Preserve user-entered input when possible, but do not call it saved.
 
-The current shared implementation persists successful results in `idempotency_record` without TTL/cleanup. See [technical architecture](../architecture/technical-architecture.md). No business write route currently exercises this helper.
+The current shared implementation persists successful results in `idempotency_record` without TTL/cleanup; account, Destination, and Culture writes reuse it. See [technical architecture](../architecture/technical-architecture.md).
 
 ## Non-functional and research requirements
 
