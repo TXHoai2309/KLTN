@@ -57,6 +57,7 @@ Clear the bootstrap values after the command completes. See [environment and dep
 | `npm run env:generate` | Generate Varlock TypeScript accessors from env schemas. |
 | `npm run db:generate` | Generate the Prisma client. |
 | `npm run db:migrate` | Run Prisma development migrations. |
+| `npm run db:studio --workspace @KLTN/db` | Open Prisma Studio (database browser UI). |
 | `npm run auth:bootstrap-admin --workspace web` | Create the initial Admin using server environment variables. |
 
 ## Documentation

@@ -1,16 +1,17 @@
-"use client";
+import AuthModeSwitcher from "./auth-mode-switcher";
+import { resolveAuthReturnTo } from "@/lib/auth-return-to";
 
-import { useState } from "react";
+type LoginPageProps = {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+};
 
-import SignInForm from "@/components/sign-in-form";
-import SignUpForm from "@/components/sign-up-form";
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const { returnTo, mode } = await searchParams;
 
-export default function LoginPage() {
-  const [showSignIn, setShowSignIn] = useState(false);
-
-  return showSignIn ? (
-    <SignInForm onSwitchToSignUp={() => setShowSignIn(false)} />
-  ) : (
-    <SignUpForm onSwitchToSignIn={() => setShowSignIn(true)} />
+  return (
+    <AuthModeSwitcher
+      initialMode={mode === "signup" ? "signup" : "signin"}
+      returnTo={resolveAuthReturnTo(returnTo)}
+    />
   );
 }

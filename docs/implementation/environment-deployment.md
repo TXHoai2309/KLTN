@@ -18,11 +18,10 @@ Run `npm run env:generate` after a schema change. Keep example/schema developer-
 | `BETTER_AUTH_SECRET` | Better Auth secret; unique per environment. |
 | `DATABASE_URL` | Neon PostgreSQL connection string. Local must use the development branch. |
 | `OPENAI_API_KEY` | Optional server-side AI/RAG/embedding/planner integration. |
-| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Optional browser Maps key; restrict domains and APIs in Google Cloud. |
 | `GOOGLE_ROUTES_API_KEY` | Optional server-side Routes key; never rename to `NEXT_PUBLIC_*`. |
 | `INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` | Only needed for the bootstrap command. Clear them after use. |
 
-Never put actual connection strings, API keys, bootstrap credentials, or other secrets in committed documentation. OpenAI and Google Routes keys are server-side. The Maps browser key is public by design and must be restricted.
+Never put actual connection strings, API keys, bootstrap credentials, or other secrets in committed documentation. OpenAI and Google Routes keys are server-side. Browser map rendering uses MapLibre/Stadia without a frontend API key.
 
 ## Environment topology
 
@@ -47,3 +46,11 @@ Use migrations for shared schema changes; `db:push` is available but is not the 
 - Build: `vercel.json` runs `npm run db:generate` before the web build; this generates the client and is not a database migration.
 
 Check the target environment and migration SQL before applying. Never include a real `DATABASE_URL` in commands committed to documentation or in logs.
+
+## Stadia Maps deployment authentication
+
+Official [authentication policy](https://docs.stadiamaps.com/authentication/) permits localhost/127.0.0.1 development without a key. Styles are Alidade Smooth and Alidade Smooth Dark from tiles.stadiamaps.com; preserve provider attribution. No local map credential or Google billing is required.
+
+Before production: create a Stadia account/property and register the stable Vercel/custom hostname for domain-based authentication. Preview hostnames need appropriate property/domain configuration; do not assume arbitrary preview URLs are authorized. Keep Origin/Referer available to Stadia requests. Production authentication is not configured or deployed by this task. No frontend key is introduced; Google Routes credentials remain server-only and out of scope.
+
+The web dev/build commands prepare official npm MapLibre worker/shared assets under ignored public/maplibre. Deploy that public directory with the build; do not manually commit vendor bundles. A missing worker asset displays the map error state and can recover by retry after deployment is repaired.

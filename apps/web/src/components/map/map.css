@@ -1,0 +1,15 @@
+.destination-map { position: relative; min-width: 0; }
+.destination-map-canvas { width: 100%; height: 440px; border-radius: 14px; overflow: hidden; }
+.destination-map-state { min-height: 300px; padding: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 12px; background: var(--muted); border-radius: 14px; }
+.destination-map-overlay { position: absolute; inset: 0; }
+.destination-map-state button { padding: 10px 18px; border: 1px solid var(--border); border-radius: 8px; background: var(--background); cursor: pointer; }
+.destination-map-note { margin-top: 12px; }
+.destination-map-popup { color: #17251d; max-width: 240px; font-family: sans-serif; line-height: 1.5; }
+.destination-map-popup strong { display: block; font-size: 16px; }
+.destination-map-popup p { margin: 8px 0; }
+.destination-map-popup a { color: #216145; text-decoration: underline; display: inline-block; padding: 8px 0; }
+.destination-map-marker { width: 36px; height: 36px; border: 3px solid white; border-radius: 50%; background: #306b4f; color: white; font-size: 20px; cursor: pointer; box-shadow: 0 2px 6px #0006; }
+.destination-map .maplibregl-popup-content { background: white; }
+.destination-map .maplibregl-popup-close-button { color: #17251d; padding: 2px 8px; }
+.destination-map button:focus-visible, .destination-map a:focus-visible { outline: 3px solid #43876a; outline-offset: 3px; }
+@media(max-width: 600px) { .destination-map-canvas { height: 360px; } }

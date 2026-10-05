@@ -22,6 +22,18 @@ export function createAuth(env: AuthConfig, database: Database) {
           input: false,
         },
       },
+      validateUserInfo: ({ user, source }) => {
+        if (source.action !== "create-user" || source.method !== "email-password") {
+          return;
+        }
+
+        if (typeof user.name !== "string" || user.name.length < 2) {
+          return {
+            error: "INVALID_NAME",
+            errorDescription: "Name must be at least 2 characters.",
+          };
+        }
+      },
     },
     trustedOrigins: [env.BETTER_AUTH_URL],
     emailAndPassword: { enabled: true },

@@ -1,6 +1,6 @@
 # User flows
 
-These flows condense the Product Document and System Specification. They are target product flows, not proof of implemented pages. In the inspected repository only the basic auth flow, session-protected dashboard, home shell, and health route exist. See [current implementation](../architecture/technical-architecture.md).
+These flows condense the Product Document and System Specification. They describe target behavior; each story records its runtime acceptance evidence. The repository currently implements Home, public Destination/Culture summaries, Explore List/Map and Destination detail alongside auth/account/admin foundations. Search/filter, full Culture detail, Trip, Favorite, and AI flows still await their stories. See [current implementation](../architecture/technical-architecture.md).
 
 ## Public exploration
 

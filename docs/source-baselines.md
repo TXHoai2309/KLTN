@@ -14,7 +14,7 @@ For implementation work, cite the relevant document sections in the story. The c
 
 The checked-out repository controls what is implemented. Accepted choices are summarized in [decisions.md](decisions.md), but a technology choice does not mean its product integration already exists.
 
-The repository currently contains a Next.js App Router application, a Better Auth package, a Prisma/Neon database package, shared API/error and mutation helpers, and a health endpoint. The inspected business module is `system`; there are no destination, culture/RAG, favorite, trip-planning, validator, or admin-content modules yet. The auth tables and idempotency table are modeled. PostGIS and pgvector extensions are enabled by migration. No domain spatial/vector models or OpenAI/Google Routes service implementation were found in this repository snapshot.
+The repository currently contains a Next.js App Router application, Better Auth, Prisma/Neon, shared API/error and idempotency helpers, and `system`, `auth`, `account`, `destination`, `culture`, and `map` modules. Destination/Culture Admin management, public Destination detail, Home, public Explore summaries and shared maps are implemented. Trip/Favorite, RAG, Validator, and OpenAI/Google Routes service implementations remain future work. Auth, idempotency, Destination, and Culture tables are modeled; PostGIS/pgvector extensions are enabled, but no domain spatial/vector model was found in this snapshot.
 
 Therefore, product flows in the Product Document and System Specification are requirements for future stories unless a repository route/module demonstrates otherwise. Do not describe a planned feature as delivered.
 
