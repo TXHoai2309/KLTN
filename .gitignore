@@ -59,3 +59,5 @@ temp
 
 .vercel
 .env*
+# Generated official npm MapLibre worker assets (dev/build preparation).
+apps/web/public/maplibre/

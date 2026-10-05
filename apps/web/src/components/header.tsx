@@ -31,13 +31,14 @@ export default function Header() {
 
   const links = [
     { to: "/", label: "Home" },
+    { to: "/explore", label: "Khám phá" },
     { to: "/dashboard", label: "Dashboard" },
   ] as const;
 
   return (
     <div>
-      <div className="flex flex-row items-center justify-between px-2 py-1">
-        <nav className="flex gap-4 text-lg">
+      <div className="flex flex-row flex-wrap items-center justify-between gap-2 px-2 py-1">
+        <nav className="flex flex-wrap gap-3 text-sm sm:text-lg" aria-label="Điều hướng chính">
           {links.map(({ to, label }) => {
             return (
               <Link key={to} href={to}>

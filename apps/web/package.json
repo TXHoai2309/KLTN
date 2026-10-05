@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3001",
-    "build": "next build",
+    "dev": "node scripts/prepare-map-assets.mjs && next dev --port 3001",
+    "build": "node scripts/prepare-map-assets.mjs && next build",
     "check-types": "tsc --noEmit",
     "test:auth-ui": "tsx --test src/lib/auth-ui-safety.test.tsx src/lib/auth-context-return.test.ts src/lib/auth-fetch.test.ts src/lib/auth-hydration.test.ts src/modules/auth/strict-logout.test.ts",
     "test:account": "tsx --test src/modules/account/account.test.ts",
@@ -14,7 +14,8 @@
     "env:generate": "varlock codegen",
     "auth:generate": "varlock run -- npx --yes auth@latest generate --config src/services.ts --output ../../packages/db/prisma/schema/auth.prisma --yes",
     "auth:bootstrap-admin": "varlock run -- tsx scripts/bootstrap-admin.ts",
-    "test:culture": "tsx --test src/modules/culture/culture.test.ts"
+    "test:culture": "tsx --test src/modules/culture/culture.test.ts",
+    "test:map": "tsx --test src/modules/map/map.test.tsx"
   },
   "dependencies": {
     "@KLTN/auth": "*",
@@ -27,6 +28,7 @@
     "babel-plugin-react-compiler": "^1.0.0",
     "better-auth": "1.7.5",
     "lucide-react": "^1.41.0",
+    "maplibre-gl": "^6.12.0",
     "next": "^16.3.4",
     "next-themes": "^0.4.6",
     "react": "^19.2.8",

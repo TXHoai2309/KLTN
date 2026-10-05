@@ -1,5 +1,6 @@
 import React, { type ReactNode } from "react";
 import Link from "next/link";
+import DestinationMap from "@/components/map/destination-map";
 import { ArrowLeft, BookOpen, Clock, MapPin, Mountain, CalendarDays, Compass } from "lucide-react";
 import { weekdayLabels } from "@/modules/destination/destination-contract";
 import { formatSuggestedDuration, type PublicDestinationDetail } from "@/modules/destination/public-destination-contract";
@@ -41,6 +42,7 @@ export default function DestinationDetail({ destination: d }: { destination: Pub
         <section className="public-detail-card public-detail-location" aria-labelledby="location-title">
           <h2 id="location-title"><MapPin size={21} aria-hidden="true" />Vị trí</h2><p>{d.area}</p>
           <dl className="public-detail-coordinates"><div><dt>Vĩ độ</dt><dd>{d.latitude}</dd></div><div><dt>Kinh độ</dt><dd>{d.longitude}</dd></div></dl>
+          <DestinationMap destinations={[{ id: d.id, name: d.name, area: d.area, category: d.category, latitude: d.latitude, longitude: d.longitude }]} label={`Bản đồ vị trí ${d.name}`} detail />
         </section>
         <section className="public-detail-card" aria-labelledby="culture-title">
           <h2 id="culture-title"><BookOpen size={21} aria-hidden="true" />Nội dung văn hóa liên quan</h2>

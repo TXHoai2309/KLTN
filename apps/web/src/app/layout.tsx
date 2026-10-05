@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 
 import "../index.css";
+import "../components/map/map.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 import Header from "@/components/header";
 import Providers from "@/components/providers";
 

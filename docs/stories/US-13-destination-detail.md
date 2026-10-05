@@ -2,7 +2,7 @@
 
 ## Status
 
-PARTIALLY ACCEPTED / Culture integrated; Maps awaits US-12
+ACCEPTED — tasks153–156 re-evaluated after real MapLibre/Stadia Detail smoke (2026-10-05)
 
 ## Goal / owner / baseline
 
@@ -32,10 +32,10 @@ Consumer-facing text/gradient hero, tags, visit/location/culture cards, weekly h
 | --- | --- | --- |
 |153 public read API|PASS|Strict allowlist/canonical query,200/404/410/500 tests; live Guest/Traveler API and SSR reads|
 |154 detail screen|PASS|Actual Admin-public valid/loading/missing/unavailable browser; SSR error state/real retry contract; light/dark,360/768/1280|
-|155 location/hours/duration/Culture|PARTIAL / BLOCKED BY US-09|Factual coordinates, seven days, multiple intervals/24:00, suggested duration/null PASS; no canonical Culture relation to retrieve|
+|155 location/hours/duration/Culture|PASS|Canonical US-09 summaries/source + shared MapLibre/Stadia own-coordinate map; real browser and regression tests|
 |156 availability|PASS|Live visible and missing; accepted US-08 hide → refresh unavailable/no field leak; injected DB failure500 fixture|
 
-Schema change NO. Destination migration NOT REQUIRED. Production untouched. Runtime scoped cleanup and final validation must be recorded before handoff; do not mark ACCEPTED while Culture dependency remains absent.
+Schema change NO. Destination migration NOT REQUIRED. Production untouched. Earlier baseline/dependency notes below are historical; current acceptance evidence follows.
 
 ## Runtime evidence — 2026-10-04
 
@@ -56,3 +56,24 @@ Schema change NO. Destination migration NOT REQUIRED. Production untouched. Runt
 The US-09 canonical schema/relation and eligibility filter now replace the former empty relatedCulture boundary. Task155 Culture portion PASS: bounded related visible summaries/source fields, hidden/unrelated exclusion and hide/show with preserved links are proven by deterministic tests, actual Admin public browser and Guest/Traveler live HTTP reads. Disposable fixtures cleaned, existing data unchanged. Summary cards have no dead Culture-detail links and external sources are validated http/https with safe attributes.
 
 153/154/156 remain PASS;155 factual location/hours/duration/Culture PASS. Maps provider remains absent and awaits US-12; do not interpret Culture integration as Map runtime or full acceptance of that dependency. Earlier evidence above describes the historical pre-US-09 baseline. No Explore/full Culture detail/Favorite/AI integration claimed.
+
+## Historical — initial US-12 Google prototype (superseded below)
+
+Location now mounts the same Client DestinationMap/official singleton Google Maps loader as Explore, using exact own latitude/longitude and one marker. Existing information/hours/Culture and unavailable boundary preserved. Deterministic SSR/provider/marker/lifecycle tests pass; actual Admin hide → refresh unavailable with no map/location DOM, show → information/Culture restored. Missing-key provider error is readable and does not break detail. Detail360/768/1280 has no overflow in this error state. Disposable fixtures/relations/responses cleaned, existing data unchanged.
+
+Real Google tiles/marker runtime still awaits operator browser-key configuration; this addition does not mark that dependency or US-13 fully ACCEPTED. US-12 search/filter task149 separately awaits US-10/US-11.
+
+## 2026-10-05 — final dependency / acceptance re-evaluation
+
+Current Culture dependency resolved by canonical US-09; current map dependency resolved by shared MapLibre GL JS6.12 + Stadia infrastructure. Google prototype/key/billing wait above is superseded, not current implementation. No Destination/API/Culture business logic changed for provider replacement.
+
+| Task | Final | Re-evaluated evidence |
+| --- | --- | --- |
+|153|PASS|Destination61 tests rerun: public VISIBLE/strict DTO/no role exception,404/410/500; unchanged live Guest/Traveler API evidence|
+|154|PASS|Actual Admin-public and Guest Detail render; light/dark and360/768/1280 without overflow; existing loading/error paths preserved|
+|155|PASS|Real own-coordinate23.16/105.4 marker and Stadia basemap, seven UNKNOWN days/1 giờ; canonical related Culture summary retained. Existing interval/CLOSED/duration/null/source/visibility tests rerun|
+|156|PASS|Guest HIDDEN unavailable with zero map/private name/coordinate DOM, missing distinct not-found; previous hide/show and deterministic500 evidence retained|
+
+Guest real map marker activated by Enter, popup focuses normal detail CTA, Enter opens canonical Detail with Culture intact. Admin public Explore also excludes hidden marker; no bypass. Full Culture detail/Favorite/AI/provenance absent models are still future scope; source rendered only when real Culture source exists. US-12 task149 search/filter dependency remains blocked independently and is not required to falsely implement extra US-13 behavior.
+
+Required regression suites/typecheck/build and clean scoped fixtures verified in ai-progress. With location/map and canonical Culture now genuinely integrated and tasks153–156 rechecked, US-13 is ACCEPTED for its approved functional scope. No commit/push/schema/migration.

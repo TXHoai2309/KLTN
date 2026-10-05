@@ -17,7 +17,7 @@ Browser
                  └─ pgvector extension
 
 Selected integrations for future business stories:
-  OpenAI · Google Maps Platform · Google Routes API
+  OpenAI · MapLibre GL JS / Stadia Maps · Google Routes API
 
 Deployment: Vercel web service
 ```
@@ -37,7 +37,7 @@ The repository is an npm/Turborepo monorepo: `apps/web`, `packages/auth`, `packa
 - `packages/db/`: Neon Prisma adapter, Prisma config, generated client, schema, migrations, and Varlock import.
 - `packages/ui/`: shared React UI primitives/styles.
 
-The UI currently includes a home shell, sign-in/sign-up, a user menu, a session-protected dashboard, self-service account, admin destination list/create/edit and public destination detail. Culture admin and related public summaries are implemented; Explore, full Culture detail and Maps integrations await their stories.
+The UI currently includes a home shell, sign-in/sign-up, a user menu, a session-protected dashboard, self-service account, admin destination list/create/edit and public destination detail. Culture admin and related public summaries, minimum unfiltered Explore and shared Explore/Detail maps are implemented; canonical search/filter and full Culture detail await their stories.
 
 ## Responsibility boundaries
 
@@ -69,9 +69,9 @@ The accepted product boundary is:
 - If mandatory route data is missing or not returned within at most 10 seconds, the travel-time check is `INSUFFICIENT_DATA` / `CHƯA ĐỦ DỮ LIỆU`, never `PASS`; AI must not guess travel time. This is a behavior requirement, not an implementation in the current repository.
 - PostGIS: stored spatial data and spatial queries.
 - pgvector: embeddings and similarity retrieval.
-- Google Maps Platform: browser map rendering.
+- MapLibre GL JS: browser map rendering; Stadia Maps: official Alidade Smooth light/dark styles and basemap.
 
-These are selected project integrations, not present service implementations in the current repository snapshot. OpenAI and Routes secrets remain server-side. The browser Maps key may be `NEXT_PUBLIC_` with Google Cloud domain/API restrictions.
+OpenAI/Routes/spatial/vector business integrations remain future service implementations. US-12 adds browser Maps infrastructure and the public Explore/Detail integration described below. OpenAI and Routes secrets remain server-side. Stadia localhost uses no key; production uses property/domain authentication. Google Routes remains a separate planned server integration.
 
 ## API and error contract
 
@@ -93,7 +93,7 @@ Account name and admin Destination writes use this shared primitive and client c
 
 US-08 adds a separate Admin-only `PATCH /api/admin/destinations/[id]/visibility`, operation `destination:set-visibility`, hashing both ID and target visibility. It updates visibility only (normal updatedAt metadata), rechecks role in the transaction, and preserves schedules/history. Generic detail editing remains unable to publish. `modules/destination/destination-eligibility.ts` is the shared boundary for public reads and new-itinerary candidates: `visibleDestinationWhere`, predicates on persisted records and `findEligibleDestinationIds` constrain existence plus VISIBLE at persistence. Public detail consumes it in US-13; discovery remains US-10 and Planner integration remains a future Trip story. The helper itself introduces no endpoint or schema change.
 
-US-13 public detail now consumes this canonical filter through one `public-destination-service`, shared by the uncached `/destinations/[id]` server page and thin `GET /api/destinations/[id]`. A separate strict allowlist omits Admin metadata/minimum duration; VISIBLE content is selected at persistence, an ID-only existence query distinguishes unavailable410 from missing404, and system errors remain500. Admin has identical public semantics. Weekly hours and suggested duration reuse US-07 contract. US-09 now supplies bounded related VISIBLE Culture summaries and safe source metadata through the canonical relation; factual location remains without Maps integration (US-12). Public discovery remains US-10; no Planner endpoint/schema change.
+US-13 public detail now consumes this canonical filter through one `public-destination-service`, shared by the uncached `/destinations/[id]` server page and thin `GET /api/destinations/[id]`. A separate strict allowlist omits Admin metadata/minimum duration; VISIBLE content is selected at persistence, an ID-only existence query distinguishes unavailable410 from missing404, and system errors remain500. Admin has identical public semantics. Weekly hours and suggested duration reuse US-07 contract. US-09 supplies bounded related VISIBLE Culture summaries and safe source metadata through the canonical relation; US-12 reuses shared browser Maps at the own coordinate. Search/filter discovery remains US-10/11; no Planner endpoint/schema change.
 
 ## Deployment and schema workflow
 
@@ -104,3 +104,11 @@ US-13 public detail now consumes this canonical filter through one `public-desti
 CultureContent owns title/prose, nullable sourceTitle/sourceUrl metadata, HIDDEN/VISIBLE default HIDDEN and timestamps. No RAG/source lifecycle coupling. CultureDestination is the canonical many-to-many join with composite PK, reverse index and restrictive FKs; hiding preserves links. Additive migration20261005021531_add_culture_content_domain applied only on verified development.
 
 Thin /api/admin/culture collection/detail/visibility and destination-lookup handlers reuse exact Admin authorization. Module services validate strict normalized input/all Destination IDs, preserve visibility during generic edits and recheck persisted role in transaction. Content/source/relation replacement and idempotency response commit together under culture:create/update/set-visibility. Admin pages reuse existing UI styling/switch presentation with separate Culture controllers. Public Destination selects at most20 linked Culture rows under canonical visibleCultureWhere, exposing summary allowlist only; source links are http/https and escaped/safe, no dead public Culture route. See [US-09](../stories/US-09-culture-management.md).
+
+## US-12 shared browser Maps / minimum Explore boundary
+
+`modules/map` owns npm MapLibre loading, official Stadia light/dark style selection, longitude-first marker/viewport projection, renderer and cancellable provider lifecycle. `components/map/DestinationMap` is the shared Client boundary for Explore/US-13. Browser APIs run only in effects. Loading waits for MapLibre `load`; error or 15s timeout retains List/information. Retry disposes the old map before initializing a new one; cleanup removes markers/popups/events and calls map.remove(). Theme changes cleanly replace the instance, with stable canonical style selection.
+
+MapLibre 6's worker and sibling shared module are copied from the installed npm package into ignored public/maplibre by dev/build preparation, served together from the same origin (no CDN script). Asset HEAD preflight prevents poisoning the library's cached worker initialization when an asset is temporarily missing. Official CSS is imported by App Router layout. No browser Google key/Map ID or Maps JS dependency remains. Stadia domain auth is deployment configuration; Google Routes remains a separate server-side routing decision. No geolocation/routing/schema change.
+
+No US-10/11 canonical implementation existed at baseline. One unfiltered `/explore` and public collection `GET /api/destinations` now share `public-destination-list` service. Canonical VISIBLE persistence and explicit location allowlist,25-row pagination/no-store for every role. List and Map consume identical current-page items; invalid axes become null and cannot project markers. Native history view changes preserve query/mode without a second fetch; unsupported future filters explicitly fail rather than appear ignored. Future US-10/11 must extend this service/state and prove filter synchronization, not create another map dataset. US-12 task149 remains blocked; implementation alone is not real-provider acceptance. See [US-12](../stories/US-12-destination-map.md).
