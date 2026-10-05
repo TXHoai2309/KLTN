@@ -130,7 +130,8 @@ test("SSR headers/loading visibility, no optimistic publication; UI contracts/ac
   for (const pattern of [/method="post"/, /event.preventDefault\(\)/, /claimSubmission/, /unknown && attempt.current/, /if \(unknown\)/, /disabled=\{saving \|\| unknown \|\| visibilityAction.busy\}/, /markCultureSaved/]) assert.match(form, pattern);
   const picker = await readFile(new URL("../../app/admin/culture/destination-picker.tsx", import.meta.url), "utf8"); assert.match(picker, /type="checkbox"/); assert.match(picker, /lookupDestinations/); assert.match(picker, /Bỏ liên kết/);
   const action = await readFile(new URL("../../app/admin/culture/culture-visibility-action.tsx", import.meta.url), "utf8");
-  for (const pattern of [/if \(uncertain\) await loadCulture/, /current.target, current.key/, /onCancel=/, /autoFocus/, /opener.current\?\.focus/, /cancelConfirmation/, /result.status === "SUCCESS"/]) assert.match(action, pattern);
+  for (const pattern of [/if \(uncertainIdsRef.current.has\(id\)\) await loadCulture\(current.id\)/, /current.target, current.key/, /pendingIds.has\(item.id\)/, /uncertainIds.has\(item.id\)/, /disabled=\{disabled \|\| pending \|\| uncertain\}/, /activeIds.current.has\(id\)/, /onCancel=/, /autoFocus/, /opener.current\?\.focus/, /cancelConfirmation/, /result.status === "SUCCESS"/]) assert.match(action, pattern);
+  assert.doesNotMatch(action, /disabled=\{disabled \|\| busy\}/);
 });
 
 test("visibility mutation rechecks persisted role in transaction; malformed/extra body rejected", async () => {
