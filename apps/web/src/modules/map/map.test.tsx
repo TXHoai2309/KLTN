@@ -30,7 +30,7 @@ test("missing worker preflight fails safely and retry rechecks both npm assets",
 function fixture() {
   const rows = [{ ...a, visibility: "VISIBLE" }, { ...b, visibility: "VISIBLE" }, { ...b, id: "hidden", visibility: "HIDDEN" }];
   let last: any;
-  const database = { destination: { findMany: async (query: any) => { last = query; return rows.filter(row => row.visibility === query.where.visibility).slice(query.skip, query.skip + query.take).map(row => Object.fromEntries(Object.keys(query.select).map(key => [key, (row as any)[key]]))); } } } as unknown as Pick<Database, "destination">;
+  const database = { destination: { findMany: async (query: any) => { if (query.select.id) last = query; return rows.filter(row => row.visibility === query.where.visibility).map(row => Object.fromEntries(Object.keys(query.select).map(key => [key, (row as any)[key]]))); } } } as unknown as Pick<Database, "destination">;
   return { database, rows, query: () => last };
 }
 for (const role of ["Guest", "Traveler", "Admin"]) test(`${role} public list/map source uses canonical visibility/allowlist, no role exception`, async () => {
@@ -44,8 +44,8 @@ for (const role of ["Guest", "Traveler", "Admin"]) test(`${role} public list/map
 });
 test("public reads after hide/show exclude then restore same location", async () => {
   const f = fixture(); f.rows[0]!.visibility = "HIDDEN";
-  assert.deepEqual((await listPublicLocations(1, f.database)).items.map(item => item.id), ["b"]);
-  f.rows[0]!.visibility = "VISIBLE"; assert.deepEqual((await listPublicLocations(1, f.database)).items.map(item => item.id), ["a", "b"]);
+  assert.deepEqual((await listPublicLocations({}, f.database)).items.map(item => item.id), ["b"]);
+  f.rows[0]!.visibility = "VISIBLE"; assert.deepEqual((await listPublicLocations({}, f.database)).items.map(item => item.id), ["a", "b"]);
 });
 test("invalid/missing/nonfinite/out-of-range coordinates never become markers; boundaries are valid", () => {
   const values = [null, undefined, NaN, Infinity, -Infinity, 91, -91, "23"];
@@ -56,29 +56,28 @@ test("invalid/missing/nonfinite/out-of-range coordinates never become markers; b
 });
 test("corrupt legacy coordinate preserves list record with null axis, never crashes entire dataset", async () => {
   const f = fixture(); f.rows[0]!.latitude = NaN;
-  const data = await listPublicLocations(1, f.database); assert.equal(data.items.length, 2); assert.equal(data.items[0]!.latitude, null);
+  const data = await listPublicLocations({}, f.database); assert.equal(data.items.length, 2); assert.equal(data.items[0]!.latitude, null);
   assert.deepEqual(projectMarkers(data.items).map(item => item.id), ["b"]);
   assert.equal(publicLocationSchema.safeParse({ ...a, visibility: "VISIBLE" }).success, false);
 });
-test("bounded public pagination returns25 from26 rows and cannot select Admin metadata", async () => {
+test("MVP collection retains all50 rows and cannot select Admin metadata", async () => {
   let query: any;
-  const database = { destination: { findMany: async (value: any) => { query = value; return Array.from({ length: 26 }, (_, index) => ({ ...a, id: `a-${index}` })); } } } as unknown as Pick<Database, "destination">;
-  const data = await listPublicLocations(2, database); assert.equal(data.items.length, 25); assert.equal(data.hasMore, true); assert.equal(query.skip, 25); assert.equal(query.take, 26);
+  const database = { destination: { findMany: async (value: any) => { if (value.select.id) query = value; return Array.from({ length: 50 }, (_, index) => Object.fromEntries(Object.keys(value.select).map(key => [key, ({ ...a, id: `a-${index}` } as any)[key]]))); } } } as unknown as Pick<Database, "destination">;
+  const data = await listPublicLocations({}, database); assert.equal(data.items.length, 50); assert.equal(query.skip, undefined); assert.equal(query.take, undefined);
   assert.deepEqual(query.orderBy, [{ name: "asc" }, { id: "asc" }]);
-  await assert.rejects(listPublicLocations(0, database));
+  await assert.rejects(listPublicLocations({ q: "a".repeat(201) }, database));
 });
-test("query parser accepts view/page only; absent US-11 filters explicitly rejected, never silently ignored", () => {
-  assert.equal(parsePublicListQuery(new URLSearchParams("page=2&view=map")), 2);
-  assert.equal(parsePublicListQuery(new URLSearchParams()), 1);
-  assert.equal(parsePublicListQuery(new URLSearchParams("page=10000")), 10000);
-  for (const query of ["page=0", "page=-1", "page=10001", "page=1&page=2", "view=evil", "q=abc", "area=x", "role=ADMIN"]) assert.throws(() => parsePublicListQuery(new URLSearchParams(query)));
+test("query parser accepts US-11 filters and existing view, rejects obsolete pagination/forged keys", () => {
+  assert.deepEqual(parsePublicListQuery(new URLSearchParams("q=abc&view=map")), { q: "abc" });
+  assert.deepEqual(parsePublicListQuery(new URLSearchParams()), {});
+  for (const query of ["page=0", "page=2", "page=1&page=2", "view=evil", "area=x", "role=ADMIN"]) assert.throws(() => parsePublicListQuery(new URLSearchParams(query)));
 });
 test("public data error stays500/no-store, no false empty/provider error or internal message", async () => {
   const database = { destination: { findMany: async () => { throw Error("internal-map-fixture"); } } } as unknown as Pick<Database, "destination">;
   const old = console.error; console.error = () => {};
   try { const response = await publicLocationResponse(new Request("http://localhost/api/destinations"), database); assert.equal(response.status, 500); assert.equal(response.headers.get("Cache-Control"), "no-store"); assert.ok(!JSON.stringify(await response.json()).includes("internal-map-fixture")); }
   finally { console.error = old; }
-  assert.equal((await publicLocationResponse(new Request("http://localhost/api/destinations?q=a"), fixture().database)).status, 400);
+  assert.equal((await publicLocationResponse(new Request("http://localhost/api/destinations?role=ADMIN"), fixture().database)).status, 400);
 });
 test("view changes preserve pathname/query filters/page, refresh/default map state and detail path", () => {
   const params = new URLSearchParams("q=đồng văn&area=đồng văn&category=văn hóa&page=2&view=list");
@@ -103,7 +102,7 @@ test("canonical styles/coordinate order, no key; shared provider wiring and reta
  const renderer=await readFile(new URL("./maplibre-renderer.ts",import.meta.url),"utf8");
  for(const pattern of [/library.Marker/,/library.Popup/,/setDOMContent/,/textContent = point.name/,/focusAfterOpen: true/,/map.remove\(\)/,/map.on\("error"/,/map.on\("load"/,/NavigationControl/,/fitBounds/]) assert.match(renderer,pattern);
  assert.doesNotMatch(renderer,/innerHTML|geolocation|Directions/);
- const explore=await readFile(new URL("../../app/explore/explore-results.tsx",import.meta.url),"utf8"); assert.match(explore,/destinations=\{data.items\}/); assert.match(explore,/data.items.map/); assert.match(explore,/window.history.pushState/); assert.match(explore,/aria-pressed/); assert.doesNotMatch(explore,/fetch\(/);
+ const explore=await readFile(new URL("../../app/explore/explore-results.tsx",import.meta.url),"utf8"); assert.match(explore,/destinations=\{data.items\}/); assert.match(explore,/data.items.map/); assert.match(explore,/window.history.pushState/); assert.match(explore,/aria-pressed/);
  const detail=await readFile(new URL("../../app/destinations/[id]/destination-detail.tsx",import.meta.url),"utf8"); assert.match(detail,/DestinationMap/); assert.match(detail,/latitude: d.latitude, longitude: d.longitude/); assert.match(detail,/d.relatedCulture/);
 });
 for(const scenario of ["ready","load-error","timeout","style-error","unmount","mount-error"]) test(`mock provider lifecycle ${scenario}, no late success`,async()=>{
