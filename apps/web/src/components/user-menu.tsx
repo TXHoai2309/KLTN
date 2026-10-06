@@ -92,6 +92,7 @@ export default function UserMenu() {
           <DropdownMenuSeparator />
           <DropdownMenuItem>{session.user.email}</DropdownMenuItem>
           <DropdownMenuItem render={<Link href="/account" />}>Thông tin tài khoản</DropdownMenuItem>
+          {session.user.role === "TRAVELER" && <DropdownMenuItem render={<Link href="/favorites" />}>Yêu thích</DropdownMenuItem>}
           {session.user.role === "ADMIN" && <DropdownMenuItem render={<Link href="/admin/destinations" />}>Quản lý điểm đến</DropdownMenuItem>}
           {session.user.role === "ADMIN" && <DropdownMenuItem render={<Link href="/admin/culture" />}>Quản lý nội dung văn hóa</DropdownMenuItem>}
           {signOutError ? (

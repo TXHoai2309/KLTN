@@ -1,21 +1,43 @@
 "use client";
-import React from "react";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import DestinationCard from "./destination-card";
+import { useSearchParams } from "next/navigation";
 import DestinationMap from "@/components/map/destination-map";
-import type { PublicLocationPage } from "@/modules/destination/public-destination-list";
-import { destinationDetailHref, exploreView, exploreViewHref } from "@/modules/map/map-model";
+import { destinationRequestKey, destinationSearchHref, type PublicLocationList } from "@/modules/destination/public-destination-query";
+import { startDestinationRequest, type DestinationRequestState } from "@/modules/destination/destination-search-client";
+import { DestinationSearchForm, DestinationResultStatus } from "./destination-search-form";
+import { exploreView, exploreViewHref } from "@/modules/map/map-model";
 
-export default function ExploreResults({ data, error }: { data?: PublicLocationPage; error?: string }) {
-  const params = useSearchParams(); const router = useRouter(); const view = exploreView(new URLSearchParams(params));
-  function pageHref(page: number): `/explore?${string}` { const next = new URLSearchParams(params); next.set("page", String(page)); return `/explore?${next}`; }
-  return <section className="explore-domain" aria-labelledby="explore-destination-title"><header><h2 id="explore-destination-title">Điểm đến</h2><p>Chọn điểm đến từ danh sách hoặc xem vị trí trên bản đồ.</p></header>
-    <div className="explore-toolbar"><div role="group" aria-label="Chế độ xem điểm đến">{(["list", "map"] as const).map(mode => <button key={mode} type="button" aria-pressed={view === mode} onClick={() => { if (view !== mode) window.history.pushState(null, "", exploreViewHref(new URLSearchParams(params), mode)); }}>{mode === "list" ? "Danh sách" : "Bản đồ"}</button>)}</div>
-      {data && <p>{data.items.length} điểm đến trên trang {data.page}</p>}
-    </div>
-    {error ? <section className="explore-state" role="alert"><h3>Không thể tải dữ liệu điểm đến</h3><p>{error}</p><button type="button" onClick={() => router.refresh()}>Thử lại dữ liệu</button><Link href="/explore">Về khám phá</Link></section> : data && <>
-      {view === "map" ? <DestinationMap destinations={data.items} /> : data.items.length === 0 ? <section className="explore-state" role="status">Chưa có điểm đến công khai.</section> : <ul className="explore-cards">{data.items.map(item => <li key={item.id}><h3>{item.name}</h3><p>{item.area} · {item.category}</p><Link href={destinationDetailHref(item.id)}>Xem chi tiết</Link></li>)}</ul>}
-      <nav className="explore-pagination" aria-label="Phân trang điểm đến">{data.page > 1 && <Link href={pageHref(data.page - 1)}>Trang trước</Link>}<span>Trang {data.page}</span>{data.hasMore && <Link href={pageHref(data.page + 1)}>Trang sau</Link>}</nav>
-    </>}
+export default function ExploreResults({ data: initialData, error }: { data?: PublicLocationList; error?: string }) {
+  const params = useSearchParams();
+  const view = exploreView(new URLSearchParams(params));
+  const query = destinationRequestKey(new URLSearchParams(params));
+  const [retry, setRetry] = useState(0);
+  const [result, setResult] = useState<{ query: string; state: DestinationRequestState }>(() => ({
+    query, state: initialData ? { status: "ready", data: initialData } : error ? { status: "error" } : { status: "loading" },
+  }));
+  const [filters, setFilters] = useState(initialData?.filters ?? { categories: [], regions: [] });
+  useEffect(() => startDestinationRequest(new URLSearchParams(query), state => {
+    setResult({ query, state });
+    if (state.status === "ready") setFilters(state.data.filters);
+  }), [query, retry]);
+  // Never render the previous query's results during the render before effect cleanup.
+  const state: DestinationRequestState = result.query === query ? result.state : { status: "loading" };
+  const data = state.status === "ready" ? state.data : undefined;
+  const filtered = [...new URLSearchParams(query).values()].some(value => value.trim());
+  function navigate(href: string) {
+    if (`${window.location.pathname}${window.location.search}` !== href) window.history.pushState(null, "", href);
+    else setRetry(value => value + 1);
+  }
+  function clear() { navigate(destinationSearchHref(new URLSearchParams(params), {})); }
+  return <section className="explore-domain destination-results" aria-labelledby="explore-destination-title"><h2 className="sr-only" id="explore-destination-title">Điểm đến</h2>
+    <DestinationSearchForm key={query} params={new URLSearchParams(query)} filters={filters}
+      onSearch={values => navigate(destinationSearchHref(new URLSearchParams(params), values))}
+      onClear={clear}>
+      <div className="destination-view" role="group" aria-label="Chế độ xem điểm đến">{(["list", "map"] as const).map(mode => <button key={mode} className="destination-filter-chip" type="button" aria-pressed={view === mode} onClick={() => { if (view !== mode) window.history.pushState(null, "", exploreViewHref(new URLSearchParams(params), mode)); }}>{mode === "list" ? "Danh sách" : "Bản đồ"}</button>)}</div>
+    </DestinationSearchForm>
+    <p className="destination-count" role="status" aria-live="polite">{data ? `${data.items.length} điểm đến${filtered ? " phù hợp" : ""}` : state.status === "loading" ? "Đang tìm điểm đến…" : ""}</p>
+    <DestinationResultStatus state={state} filtered={filtered} onRetry={() => setRetry(value => value + 1)} onClear={clear} />
+    {data && data.items.length > 0 && (view === "map" ? <DestinationMap destinations={data.items} /> : <ul className="destination-grid">{data.items.map(item => <li key={item.id}><DestinationCard destination={item} /></li>)}</ul>)}
   </section>;
 }
