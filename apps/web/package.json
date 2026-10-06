@@ -14,7 +14,7 @@
     "env:generate": "varlock codegen",
     "auth:generate": "varlock run -- npx --yes auth@latest generate --config src/services.ts --output ../../packages/db/prisma/schema/auth.prisma --yes",
     "auth:bootstrap-admin": "varlock run -- tsx scripts/bootstrap-admin.ts",
-    "test:culture": "tsx --test src/modules/culture/culture.test.ts",
+    "test:culture": "tsx --test src/modules/culture/culture.test.ts src/modules/culture/culture.service.test.ts src/app/culture/culture-page.test.tsx src/app/culture/culture-detail.test.tsx",
     "test:map": "tsx --test src/modules/map/map.test.tsx",
     "test:explore": "tsx --test src/modules/culture/public-culture-list.test.tsx"
   },

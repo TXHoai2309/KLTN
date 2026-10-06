@@ -32,6 +32,7 @@ export default function Header() {
   const links = [
     { to: "/", label: "Trang chủ" },
     { to: "/explore", label: "Khám phá" },
+    { to: "/culture", label: "Văn hóa" },
     { to: "/dashboard", label: "Dashboard" },
   ] as const;
 

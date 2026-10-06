@@ -329,3 +329,133 @@ Append a new entry for each meaningful work session. Keep prior entries as hando
 - **Cleanup:** Removed two Destination fixtures, three Culture fixtures, six links, opening-hour children, disposable Traveler/account/session and four idempotency records scoped to the fixture IDs. Snapshot comparison confirmed pre-existing Destination/Culture/relations/users and Admin name/role unchanged. Temporary smoke script and snapshot removed; no production access, migration, or commit/push. The browser Admin session was signed out during Guest smoke; log in again in the browser if Admin UI is needed.
 - **Acceptance:** US-10 tasks136–140 PASS; story status ACCEPTED. US-12 task149 remains BLOCKED pending US-11, not marked PASS. US-13 remains ACCEPTED.
 - **Validation:** `npm run env:generate`; US-10 14/14, map23/23, Destination61/61, Culture26/26, authorization21/21, account18/18 and auth36/36 (199 total) PASS; `npm run check-types`, `npm run build` and `git diff --check` PASS. No schema change/migration, no secrets or test fixtures retained.
+
+## 2026-10-05 — US-14/US-15 story contracts
+
+- **Branch:** duybinh. Documentation-only task; no commit, push, merge, or branch change.
+- **Story/task:** Created DRAFT contracts for US-14 public Culture browse/detail/source/related Destinations and US-15 Traveler Favorite add/remove for Destination/Culture.
+- **Completed:** Audited current Prisma schema, apps/web modules/routes, public Destination page, Culture public summary, Source representation, Favorite absence, Route Handler session helper, shared HTTP/idempotency helpers, and Node/tsx test framework. Recorded exact implemented/unimplemented dependencies, bounded scope, Vietnamese UX/error states, Given/When/Then acceptance criteria, and required Open Questions (a)–(g); US-15 also records the necessary initial Favorite-state read question.
+- **Files changed:** docs/stories/US-14.md; docs/stories/US-15.md; docs/ai-progress.md.
+- **DB/migration changes:** None. Schema and migration state were inspected only; no Prisma migration, db:push, seed, or development/production data write was performed.
+- **Validation performed:** git diff --check PASS. npm run check-types was attempted and failed in existing web Prisma generated-client typing (Destination/CultureContent models missing from generated client). npm run build was attempted and failed before Next compilation at Varlock environment validation. Relevant workspace suites passed outside sandbox: npm run test:culture -w web 26/26, npm run test:destination -w web 61/61, npm run test:authorization -w web 21/21. Initial sandbox test attempts hit spawn EPERM; rerun with approved elevated execution passed.
+- **Deployment/smoke result:** Not applicable; no application code or database state changed. No production access.
+- **Known issues:** Stories remain DRAFT until Source model/RAG relationship, Culture visibility contract, Favorite Admin policy, Favorite trip boundary, Favorite list scope, destination route, Figma frames, and US-15 initial favorite-state read path are confirmed. check-types/build remain unresolved for the pre-existing environment/generated-client issues above.
+- **Decisions:** Kept Guest/Traveler/Admin public-read parity; Traveler-only Favorite with Admin default 403; no duplicate user+target; remove preserves target; hidden target remains in Favorite but unavailable; no Guest write replay; writes use shared SUCCESS/FAILED/UNKNOWN and same-key/same-payload retry. No unresolved question was silently decided.
+- **Next step:** Resolve story Open Questions and approve the contracts before implementation; then implement only the accepted story scope with Prisma migration review if Favorite/source modeling requires it.
+
+## 2026-10-05 — US-14 P1 schema guard audit
+
+- **Branch:** duybinh. No commit, push, merge, or branch change.
+- **Story/task:** P1 Prisma schema + migration pre-check for US-14.
+- **Completed:** Executed Step 0 and stopped duplicate model creation. Existing Destination, CultureContent, inline Culture source metadata, and CultureDestination were verified. US-09 is ACCEPTED and explicitly chose sourceTitle/sourceUrl on CultureContent with no separate source lifecycle/RAG relation.
+- **Files changed:** docs/stories/US-14.md; docs/ai-progress.md. No Prisma schema, migration, seed, or application code was changed.
+- **DB/migration changes:** None. Existing migration 20261005021531_add_culture_content_domain remains the canonical development migration for CultureContent/CultureDestination; no new migration was generated or applied, and production was not touched.
+- **Validation performed:** npm run db:generate was attempted in sandbox and outside sandbox; sandbox hit Varlock spawn EPERM, elevated retry reached a Windows Node/Prisma assertion failure (exit -1073740791) and generated files remained unchanged. npm run check-types failed on the pre-existing generated Prisma client missing Destination/CultureContent types. npm run build failed at the same Varlock/Node runtime boundary before Next compilation. git diff --check was run; new story files had no trailing whitespace.
+- **Deployment/smoke result:** Not applicable; Step 0 prevented schema change and no database write/migration/seed was performed.
+- **Known issues:** The requested P1 ContentStatus/slug/summary/body/coverImageUrl/CultureSource/CultureContentDestination shape conflicts with existing accepted schema and source decision. It requires an explicit story/architecture decision before any additive migration. Prisma generate/build/typecheck remain environment/generated-client blockers.
+- **Decisions:** No parallel Destination, CultureContent, CultureSource, or join model was created. US-14 Data Contract and Migration Impact now name the real current fields and explain why migration is NO for this task.
+- **Next step:** Confirm whether US-09 inline source/schema is the final baseline. Only after an approved override should a separate schema story define migration, SQL review, seed, and runtime acceptance.
+
+## 2026-10-05 — US-14 public Culture API
+
+- **Branch:** `duybinh`; no commit, push, merge, or branch change.
+- **Story/task:** US14-BE — public list/detail API for Culture content, dependent on the existing US-09 schema baseline.
+- **Completed:** Added thin `GET /api/culture` and `GET /api/culture/[idOrSlug]` handlers for public Guest/Traveler/Admin reads. Added Zod query/identifier/response contracts and a Culture service with canonical VISIBLE Culture/Destination filters, Vietnamese validation errors, stable `updatedAt DESC, id ASC` ordering, `page/pageSize` pagination (default 1/12, maximum 50), case-insensitive q search, destinationId filtering, safe inline-source projection, and the shared API envelope. Hidden/missing Culture detail uses the same `404 CULTURE_CONTENT_UNAVAILABLE` response; hidden Destination relations are excluded. Current accepted schema has no slug/summary/cover/source table, so the compatibility projection uses `slug=id`, content excerpt as summary, `coverImageUrl=null`, and inline source metadata.
+- **Files changed:** `apps/web/src/modules/culture/culture.schema.ts`, `culture.types.ts`, `culture.service.ts`, `culture.service.test.ts`; `apps/web/src/app/api/culture/route.ts`; `apps/web/src/app/api/culture/[idOrSlug]/route.ts`; `apps/web/package.json`; `docs/stories/US-14.md`; `docs/ai-progress.md`. Existing P0 `docs/stories/US-15.md` was preserved and not modified by this task.
+- **DB/migration changes:** None. P1 Step 0 remains authoritative: no duplicate model, migration, seed, `db:push`, or production database access.
+- **Validation performed:** `npm run test:culture -w web` PASS 31/31; `npm run test:explore -w web` PASS 14/14; `git diff --check` PASS. `npm run check-types` remains blocked by the pre-existing generated Prisma client missing `Destination`/`CultureContent` models, affecting existing and new Prisma-typed code. `npm run build` remains blocked before Next compilation by the existing Varlock/Node Windows assertion (`UV_HANDLE_CLOSING`, exit `-1073740791`).
+- **Deployment/smoke result:** Existing local dev server on port 3001 responded `400 VALIDATION_ERROR` for `pageSize=51` and `404 CULTURE_CONTENT_UNAVAILABLE` for an invalid detail identifier. List curl returned `500 INTERNAL_SERVER_ERROR` because the current runtime DB/generated client could not query; seeded-development list/hidden/destination-hidden behavior is therefore not claimed as live acceptance.
+- **Known issues:** US-14 remains DRAFT. No UI was implemented. Runtime acceptance with seed data is pending repair/regeneration of the Prisma client and a usable development DB connection. Existing schema differences and story Open Questions remain unresolved.
+- **Decisions:** Chose `page/pageSize` rather than cursor pagination; reject out-of-range/unknown/repeated query parameters; choose `destinationId` rather than `destinationSlug` because the canonical Destination model has no slug; preserve US-09 inline source metadata; keep Route Handlers session-free and public; use `no-store`.
+- **Next step:** Repair the pre-existing Prisma generated-client/runtime blocker or provide a working Neon development runtime, then rerun seeded curl acceptance. Resolve US-14 Open Questions before FE implementation or changing the canonical schema.
+
+## 2026-10-05 — US-14 culture browse UI
+
+- **Branch:** `duybinh`; no commit, push, merge, or branch change.
+- **Story/task:** US14-FE1 — public `/culture` browse page and navigation entry, dependent on US14-BE.
+- **Completed:** Added a Server Component page that awaits Next 16 `searchParams`, calls `listPublicCulture(query, db)` directly, and keeps query state shareable through `q`, `destination`, and `page`. Added a small Client Component for URL-preserving search/filter, responsive public cards linking to `/culture/[slug]`, cover-image fallback/error handling, pagination, Vietnamese empty states for unfiltered/filtered results, skeleton loading, retryable `error.tsx`, and a `Văn hóa` header link. No Culture detail, Favorite, or Destination page work was added.
+- **Files changed:** `apps/web/src/app/culture/page.tsx`, `culture-filter-bar.tsx`, `culture-cover.tsx`, `culture.css`, `loading.tsx`, `error.tsx`, `culture-page.test.tsx`; `apps/web/src/components/header.tsx`; `apps/web/package.json`; `docs/stories/US-14.md`; `docs/ai-progress.md`.
+- **DB/migration changes:** None. No schema, migration, seed, `db:push`, or production database access.
+- **Validation performed:** `npm run test:culture -w web` PASS 33/33; `npm run test:explore -w web` PASS 14/14; `git diff --check` PASS and new-file whitespace audit PASS. `npm run check-types` remains blocked only by the pre-existing generated Prisma client missing `Destination`/`CultureContent` models; no new typed-route/filter error remains. `npm run build` remains blocked before Next compilation by the existing Varlock/Node Windows assertion (`UV_HANDLE_CLOSING`, exit `-1073740791`).
+- **Deployment/smoke result:** Existing dev server returned HTTP 200 for `/culture` and rendered the Vietnamese header, filter shell, and streamed loading skeleton. The list server component then failed at `cultureContent.findMany` because the current runtime Prisma client has no generated Culture model, so no seeded cards/search result was claimed. Query `/culture?q=le&page=2` reached the same server path. CUA browser smoke could not start because the computer-use kernel assets were unavailable.
+- **Known issues:** Figma frame/image was not supplied or inspectable; the UI is explicitly a simple component-based layout pending Figma comparison. Seeded list/card and 360px browser acceptance remain pending the Prisma generated-client/runtime repair.
+- **Decisions:** Chose page pagination to match US14-BE; used free-form canonical Destination ID for `destination` because no public destination selector/slug contract exists, and recorded that as Open Question (h). Kept all data loading server-side and no login boundary.
+- **Next step:** Repair/regenerate the Prisma client and provide a working development runtime, then verify seeded PUBLISHED cards, search/filter, pagination, empty/error/retry and 360px keyboard/responsive behavior; resolve the destination-filter UX and Figma Open Questions before detail UI.
+
+## 2026-10-06 — US-14 Culture detail UI
+
+- **Branch:** `duybinh`; no commit, push, merge, or branch change.
+- **Story/task:** US14-FE2 — public Culture detail page, dependent on US14-BE and US14-FE1.
+- **Completed:** Added Server Component `/culture/[slug]` using the existing `getPublicCulture` service directly, Next 16 Promise `params`/`searchParams`, dynamic `generateMetadata`, Vietnamese unavailable/not-found and technical-error states, loading skeleton, safe plain-text paragraph rendering, Asia/Ho_Chi_Minh updated time, responsive cover fallback and back-link query preservation. Added empty DOM slots for Source, related Destinations and Favorite only; no feature logic or UI for those out-of-scope sections.
+- **Files changed:** `apps/web/src/app/culture/[slug]/page.tsx`, `culture-detail-cover.tsx`, `culture-detail-slots.tsx`, `culture-detail.css`, `loading.tsx`, `not-found.tsx`, `error.tsx`; `apps/web/src/app/culture/culture-detail.test.tsx`; `apps/web/package.json`; `docs/stories/US-14.md`; `docs/ai-progress.md`.
+- **DB/migration changes:** None. No schema, migration, seed, `db:push`, or database write. Existing accepted inline source/visibility schema remains unchanged.
+- **Validation performed:** `npm run test:culture -w web` PASS 35/35 and `npm run test:explore -w web` PASS 14/14 after elevated reruns (sandbox-only attempts hit `spawn EPERM`); `git diff --check` PASS. `npm run check-types` remains blocked by the pre-existing generated Prisma client missing `Destination`/`CultureContent` models. Root `npm run build` (Turbo, including `web`) was rerun with elevated execution and failed before Next compilation at the existing Varlock/Node Windows assertion (`UV_HANDLE_CLOSING`, exit `3221226505`).
+- **Deployment/smoke result:** Seeded browser/detail smoke is not claimed. Existing local runtime can render the route shell, but the current generated Prisma runtime cannot query `cultureContent`; CUA browser initialization also remains unavailable. No production access.
+- **Known issues:** Story remains DRAFT. Figma frame/image was not supplied or inspectable, so the detail layout is explicitly not Figma-verified. Seeded Published/hidden/missing detail and 360px browser acceptance remain pending Prisma client/runtime and CUA repair. Open Question (i) records that the body is currently rendered as plain text; no Markdown-to-HTML conversion was introduced.
+- **Decisions:** Hidden and missing Culture detail both call `notFound()` and render the same friendly “Nội dung không khả dụng” page, matching the public API contract and preventing private-data disclosure. Metadata also uses generic unavailable text on unavailable/technical lookup. Source, related Destination and Favorite remain structural slots only.
+- **Next step:** Repair/regenerate the Prisma client and provide a working Neon development runtime, then rerun seeded detail/browser acceptance for Published, hidden, missing, back-link query context and 360px overflow/keyboard behavior; resolve remaining US-14 Open Questions before Source/related UI work.
+
+## 2026-10-06 — US15-DB preflight blocked by missing applied migration
+
+- **Branch:** `duybinh`; no commit, push, merge, or branch change.
+- **Story/task:** US15-DB — Favorite relational model and migration for Destination/Culture content.
+- **Completed:** Audited Neon `development` read-only and found an existing `favorite` table plus applied migration `20261005120000_add_favorites` that is absent from the local migration directory. Recorded the exact current shape: `destinationId`/`cultureId`, User CASCADE FK, target RESTRICT FKs, two user+target unique indexes, and a CHECK requiring exactly one target. Updated US-15 Data Contract, Migration Impact, Acceptance Evidence, and Open Questions with the mismatch and safe recovery requirement.
+- **Files changed:** `docs/stories/US-15.md`, `docs/ai-progress.md`. A temporary Prisma model/relation patch was reverted; no application/schema/migration file was retained for this blocked task.
+- **DB/migration changes:** None applied. `migrate dev --create-only --name add_favorite` reached Neon through the repository environment wrapper, then stopped on drift and the missing applied migration; no reset, `db:push`, direct SQL mutation, or production access was performed.
+- **Validation performed:** Read-only database metadata audit completed; `git diff --check` PASS and story/progress whitespace audit PASS. `npm run db:generate` failed at the existing Windows Node/Prisma assertion (`UV_HANDLE_CLOSING`, exit `3221226505`); `npm run check-types` failed on the pre-existing generated Prisma client missing Destination/CultureContent types; `npm run build` failed before Next compilation at the same assertion. Favorite runtime constraint tests were not run because the requested migration was not applied.
+- **Deployment/smoke result:** Not applicable; the requested contract was not applied because reconciling an applied-but-missing migration cannot be done safely by inference.
+- **Known issues:** Local Prisma schema has no Favorite model while Neon development already has a different Favorite shape. The exact missing migration file/checksum cannot be recovered from the current checkout, so Prisma refuses to generate the requested migration without a destructive reset/reconciliation decision.
+- **Decisions:** Do not create a parallel model, silently accept `cultureId`, edit `_prisma_migrations`, reset the public schema, or use `db:push`. Keep US-15 DRAFT until the migration source is restored or a controlled reconciliation plan is explicitly approved.
+- **Next step:** Restore the exact `20261005120000_add_favorites` migration from the authoritative source (or approve a reviewed reconciliation plan), then re-run Prisma migration generation/review and the requested constraint/cascade checks on `development`.
+
+## 2026-10-06 — US-14 Culture sources and related destinations UI
+
+- **Branch:** `duybinh`; no commit, push, merge, or branch change.
+- **Story/task:** US14-FE3 — public Culture detail source references and related public Destinations.
+- **Completed:** Completed the existing FE3 implementation by rendering a truthful source section (including the Vietnamese no-source message), stable `sortOrder`, optional publisher/citation display, HTTP(S)-only external links with `target="_blank"` and `rel="noopener noreferrer"`, and a related Destinations section using the existing `/destinations/[id]` route. Hidden Destinations remain excluded by the public service; an empty related list hides the section. Added trim/safety handling for source URLs and long text wrapping.
+- **Files changed:** `apps/web/src/app/culture/[slug]/culture-source-utils.ts`, `culture-sources.tsx`, `related-destinations.tsx`, `culture-detail-slots.tsx`, `culture-detail.css`, `apps/web/src/app/culture/culture-detail.test.tsx`, `docs/stories/US-14.md`, `docs/ai-progress.md`.
+- **DB/migration changes:** None. Reused the accepted US-09 inline `sourceTitle/sourceUrl` projection; no Source model, RAG relation, Destination route, Favorite control, or schema change was added.
+- **Validation performed:** `npm run test:culture -w web` PASS 37/37; `git diff --check` PASS. `npm run check-types` and `npm run build` remain unresolved due the pre-existing generated Prisma client missing Destination/CultureContent and the Windows Varlock/Node assertion before Next compilation.
+- **Deployment/smoke result:** Seeded browser verification was not claimable because the Prisma runtime/client blocker prevents querying Culture data and CUA browser assets are unavailable. Figma frame/image was not supplied, so the simple component layout is not Figma-verified.
+- **Known issues:** The accepted schema exposes only inline source title/URL; publisher/citation are not currently persisted, so no values were invented. Runtime cases for source/no-source/multiple-or-empty related Destinations and 360px browser overflow remain pending environment repair.
+- **Decisions:** Keep the Sources section visible when empty; hide Related Destinations when empty; link public related Destinations to `/destinations/[id]`; reject unsafe source schemes at render boundary; keep US-14 DRAFT because broader seeded/browser and type/build evidence is incomplete.
+- **Next step:** Repair/regenerate the Prisma client and provide a usable development runtime, then run seeded browser/curl checks for the three FE3 data cases and 360px keyboard/overflow behavior.
+
+## 2026-10-06 — US15-BE preflight blocked by US15-DB
+
+- **Branch:** `duybinh`; no commit, push, merge, or branch change.
+- **Story/task:** US15-BE — Traveler Favorite add/remove/status API with shared idempotency.
+- **Completed:** Audited the existing server boundary and confirmed reusable `requireActor`, Better Auth session resolution, shared API envelopes, `requireIdempotencyKey`, and `executeIdempotentWrite`. Confirmed the repository has no generated Prisma Favorite model and no local Favorite schema while Neon `development` has an incompatible applied Favorite shape.
+- **Files changed:** `docs/stories/US-15.md`, `docs/ai-progress.md`. No Route Handler, module, auth helper, or application code was added.
+- **DB/migration changes:** None. No endpoint or SQL was executed; no Favorite model was created in parallel and no `cultureId`/`cultureContentId` assumption was introduced.
+- **Validation performed:** `git diff --check` remains required after this documentation append. Existing `npm run db:generate`, `npm run check-types`, and `npm run build` results remain blocked by the generated Prisma client/Windows Node assertion documented in the previous US15-DB entry; Favorite curl/runtime tests were not run because the dependency is not resolved.
+- **Deployment/smoke result:** Not applicable; no API was implemented and no database write was performed.
+- **Known issues:** US15-BE cannot safely compile or run until the applied-but-missing Favorite migration is restored or a reviewed reconciliation is approved. The route target segment convention and session-role-vs-persisted-role helper choice are recorded as Open Questions.
+- **Decisions:** Do not create a fake Favorite service against the incompatible database table, do not bypass server authorization/idempotency, and do not add a Favorite list endpoint outside scope. Keep US-15 DRAFT.
+- **Next step:** Resolve US15-DB migration history and confirm the two recorded BE contract choices, then implement only the thin routes and `apps/web/src/modules/favorites/` service against the generated Prisma contract.
+
+## 2026-10-06 — US15-DB continuation re-audit remains blocked
+
+- **Branch:** `duybinh`; no commit, push, merge, or branch change.
+- **Story/task:** US15-DB continuation — re-check the Favorite migration blocker before any schema write.
+- **Completed:** Re-read Neon `development` metadata. The database still has `favorite(id, userId, destinationId, cultureId, createdAt)`, User CASCADE FK, Destination/Culture RESTRICT FKs, unique indexes for user+target, and `favorite_exactly_one_target_check`; `_prisma_migrations` still contains applied `20261005120000_add_favorites` with no matching local migration file. Read-only `prisma migrate status` was also run; it cannot restore the missing migration source.
+- **Files changed:** `docs/stories/US-15.md`, `docs/ai-progress.md`. No Prisma schema/model or application code was added.
+- **DB/migration changes:** None. No `migrate dev`, `migrate deploy`, `db:push`, reset, direct SQL write, or `_prisma_migrations` edit was performed.
+- **Validation performed:** Read-only metadata audit completed; no Favorite migration was generated because the applied-but-missing migration makes reconciliation unsafe. Existing `db:generate`, `check-types`, and `build` blockers remain unchanged from prior entries.
+- **Deployment/smoke result:** Not applicable; the requested contract is still not applied and constraint runtime tests were not run against the incompatible table shape.
+- **Known issues:** The exact applied migration SQL/checksum cannot be reconstructed safely from current schema metadata. The requested `targetType`/`cultureContentId` model therefore remains unimplemented.
+- **Decisions:** Continue to avoid parallel models, guessed migration files, direct database repair, schema reset, and `db:push`.
+- **Next step:** Restore the authoritative `20261005120000_add_favorites/migration.sql` (or approve a reviewed reconciliation plan), then add the requested Prisma model and additive migration with SQL CHECK review.
+
+## 2026-10-06 — US15-DB migration source recovery attempt
+
+- **Branch:** `duybinh`; no commit, push, merge, or branch change.
+- **Story/task:** US15-DB — recover the applied Favorite migration so the requested model/migration can continue.
+- **Completed:** Searched the workspace and Git branches/history/reflog for `20261005120000_add_favorites`, `favorite_exactly_one_target_check`, and the applied Favorite migration content. No authoritative migration file was found.
+- **Files changed:** `docs/stories/US-15.md`, `docs/ai-progress.md` only. No schema, migration, application code, or generated client changes.
+- **DB/migration changes:** None. Neon metadata was read-only; no guessed migration, direct SQL, `_prisma_migrations` edit, reset, or `db:push` was performed.
+- **Validation performed:** Workspace/Git source search completed; exact migration checksum remains unavailable. Existing `db:generate`, `check-types`, and `build` failures remain documented.
+- **Deployment/smoke result:** Not applicable; the requested Favorite contract was not applied.
+- **Known issues:** Restoring only a guessed file could create a checksum mismatch or corrupt migration history. The requested schema still differs from the existing applied table (`cultureId` versus `cultureContentId`, no `targetType`).
+- **Decisions:** Stop before database mutation. Require the authoritative migration file/backup, or an explicit approved reconciliation procedure, before continuing.
+- **Next step:** Provide the original migration file or approve a documented reconciliation plan covering migration ledger recovery, existing-row mapping, `targetType` backfill, `cultureId` rename, and SQL CHECK review.
