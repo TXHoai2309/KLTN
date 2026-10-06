@@ -13,6 +13,7 @@ model CultureContent {
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
   destinations CultureDestination[]
+  favorites    Favorite[]
 
   @@index([visibility, title, id])
   @@map("culture_content")

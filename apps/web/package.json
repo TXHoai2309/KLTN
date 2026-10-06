@@ -16,7 +16,9 @@
     "auth:bootstrap-admin": "varlock run -- tsx scripts/bootstrap-admin.ts",
     "test:culture": "tsx --test src/modules/culture/culture.test.ts",
     "test:map": "tsx --test src/modules/map/map.test.tsx",
-    "test:explore": "tsx --test src/modules/culture/public-culture-list.test.tsx"
+    "test:explore": "tsx --test src/modules/culture/public-culture-list.test.tsx",
+    "test:search": "tsx --test src/modules/destination/destination-search.test.ts src/modules/destination/destination-search-client.test.tsx",
+    "test:favorite": "tsx --test src/modules/favorite/favorite.test.ts src/modules/favorite/favorite-client.test.tsx src/modules/culture/public-culture-detail.test.ts"
   },
   "dependencies": {
     "@KLTN/auth": "*",

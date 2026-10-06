@@ -1,26 +1,55 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowUpRight, ChevronLeft, ChevronRight, List, Map, MapPin, TriangleAlert } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { ArrowUpRight, List, Map, MapPin } from "lucide-react";
 import DestinationMap from "@/components/map/destination-map";
-import type { PublicLocationPage } from "@/modules/destination/public-destination-list";
+import DestinationCard from "./destination-card";
+import {
+  destinationRequestKey,
+  destinationSearchHref,
+  type PublicLocationList,
+} from "@/modules/destination/public-destination-query";
+import { startDestinationRequest, type DestinationRequestState } from "@/modules/destination/destination-search-client";
 import { destinationDetailHref, exploreView, exploreViewHref } from "@/modules/map/map-model";
+import { DestinationResultStatus, DestinationSearchForm } from "./destination-search-form";
 
-export default function ExploreResults({ data, error }: { data?: PublicLocationPage; error?: string }) {
+export default function ExploreResults({ data: initialData, error }: { data?: PublicLocationList; error?: string }) {
   const params = useSearchParams();
-  const router = useRouter();
   const view = exploreView(new URLSearchParams(params));
+  const query = destinationRequestKey(new URLSearchParams(params));
+  const [retry, setRetry] = useState(0);
+  const [result, setResult] = useState<{ query: string; state: DestinationRequestState }>(() => ({
+    query,
+    state: initialData ? { status: "ready", data: initialData } : error ? { status: "error" } : { status: "loading" },
+  }));
+  const [filters, setFilters] = useState(initialData?.filters ?? { categories: [], regions: [] });
 
-  function pageHref(page: number): `/explore?${string}` {
-    const next = new URLSearchParams(params);
-    next.set("page", String(page));
-    return `/explore?${next}`;
+  useEffect(() => startDestinationRequest(new URLSearchParams(query), state => {
+    setResult({ query, state });
+    if (state.status === "ready") setFilters(state.data.filters);
+  }), [query, retry]);
+
+  // Never show results for the previous URL while the next request is starting.
+  const state: DestinationRequestState = result.query === query ? result.state : { status: "loading" };
+  const data = state.status === "ready" ? state.data : undefined;
+  // The request key omits valid view and Culture paging state, but preserves invalid URL state for recovery.
+  const hasSearchState = query.length > 0;
+
+  function navigate(href: string) {
+    const current = `${window.location.pathname}${window.location.search}`;
+    if (current !== href) window.history.pushState(null, "", href);
+    else setRetry(value => value + 1);
   }
 
-  const firstResult = data && data.items.length > 0 ? (data.page - 1) * 25 + 1 : 0;
-  const lastResult = data ? firstResult + data.items.length - 1 : 0;
+  function clear() {
+    navigate(destinationSearchHref(new URLSearchParams(params), {}));
+  }
+
+  function setView(nextView: "list" | "map") {
+    if (view !== nextView) window.history.pushState(null, "", exploreViewHref(new URLSearchParams(params), nextView));
+  }
 
   return (
     <section className="explore-domain explore-destinations" aria-labelledby="explore-destination-title">
@@ -31,34 +60,38 @@ export default function ExploreResults({ data, error }: { data?: PublicLocationP
           <p>Chọn một địa danh để xem thông tin và vị trí trên bản đồ.</p>
         </div>
         <div className="explore-section-tools">
-          {data && <p className="explore-result-count" aria-live="polite">
-            <strong>{data.items.length}</strong> điểm đến <span>·</span> trang {data.page}
-          </p>}
+          <p className="explore-result-count" role="status" aria-live="polite">
+            {data ? <><strong>{data.items.length}</strong> điểm đến{hasSearchState ? " phù hợp" : ""}</> : state.status === "loading" ? "Đang tìm điểm đến…" : null}
+          </p>
           <div className="explore-view-switch" role="group" aria-label="Chế độ xem điểm đến">
-            <button type="button" aria-pressed={view === "list"} onClick={() => {
-              if (view !== "list") window.history.pushState(null, "", exploreViewHref(new URLSearchParams(params), "list"));
-            }}><List aria-hidden="true" size={17} /> Danh sách</button>
-            <button type="button" aria-pressed={view === "map"} onClick={() => {
-              if (view !== "map") window.history.pushState(null, "", exploreViewHref(new URLSearchParams(params), "map"));
-            }}><Map aria-hidden="true" size={17} /> Bản đồ</button>
+            <button type="button" aria-pressed={view === "list"} onClick={() => setView("list")}>
+              <List aria-hidden="true" size={17} /> Danh sách
+            </button>
+            <button type="button" aria-pressed={view === "map"} onClick={() => setView("map")}>
+              <Map aria-hidden="true" size={17} /> Bản đồ
+            </button>
           </div>
         </div>
       </header>
 
-      {error ? <section className="explore-state explore-error" role="alert">
-        <TriangleAlert aria-hidden="true" size={22} />
-        <div><h3>Không thể tải dữ liệu điểm đến</h3><p>{error}</p></div>
-        <button type="button" onClick={() => router.refresh()}>Thử lại</button>
-        <Link href="/explore">Về khám phá</Link>
-      </section> : data && <div key={view} className="explore-view-content">
-        {view === "map" ? <div className="explore-map-workspace">
+      <DestinationSearchForm
+        key={query}
+        params={new URLSearchParams(query)}
+        filters={filters}
+        onSearch={values => navigate(destinationSearchHref(new URLSearchParams(params), values))}
+        onClear={clear}
+      />
+
+      <div key={view} className="explore-view-content">
+        <DestinationResultStatus state={state} filtered={hasSearchState} onRetry={() => setRetry(value => value + 1)} onClear={clear} />
+        {data && view === "map" && <div className="explore-map-workspace">
           <div className="explore-map-panel">
             <div className="explore-map-heading"><Map aria-hidden="true" size={18} /><span>Bản đồ Hà Giang</span><span className="explore-map-meta">{data.items.length} địa danh</span></div>
             <DestinationMap destinations={data.items} />
           </div>
           <aside className="explore-map-results" aria-label="Danh sách điểm đến trên bản đồ">
-            <h3>Địa danh trên trang</h3>
-            {data.items.length === 0 ? <p className="explore-map-empty">Chưa có điểm đến công khai.</p> :
+            <h3>Địa danh trên bản đồ</h3>
+            {data.items.length === 0 ? <p className="explore-map-empty">{hasSearchState ? "Không có điểm đến phù hợp với bộ lọc." : "Chưa có điểm đến công khai."}</p> :
               <ul>{data.items.map(item => <li key={item.id}>
                 <Link href={destinationDetailHref(item.id)} className="explore-map-result">
                   <span className="explore-map-result-mark" aria-hidden="true"><MapPin size={18} /></span>
@@ -67,26 +100,13 @@ export default function ExploreResults({ data, error }: { data?: PublicLocationP
                 </Link>
               </li>)}</ul>}
           </aside>
-        </div> : data.items.length === 0 ? <section className="explore-state explore-empty" role="status">
-          <span className="explore-empty-icon"><MapPin aria-hidden="true" size={22} /></span>
-          <h3>Chưa có điểm đến công khai</h3><p>Các địa danh được hiển thị tại đây khi có dữ liệu công khai.</p>
-        </section> : <ul className={`explore-cards${data.items.length === 1 ? " explore-cards-single" : ""}`}>
-          {data.items.map((item, index) => <li className="explore-destination-card" key={item.id} style={{ "--card-index": index } as React.CSSProperties}>
-            <div className="explore-card-visual" aria-hidden="true"><span className="explore-card-kicker">HỒ SƠ ĐỊA DANH</span><MapPin size={29} strokeWidth={1.6} /><span className="explore-card-area">{item.area}</span></div>
-            <div className="explore-card-body"><span className="explore-category">{item.category}</span><h3>{item.name}</h3><p><MapPin aria-hidden="true" size={15} />{item.area}</p>
-              <Link href={destinationDetailHref(item.id)} className="explore-card-link">Xem chi tiết <ArrowUpRight aria-hidden="true" size={16} /></Link>
-            </div>
+        </div>}
+        {data && view === "list" && data.items.length > 0 && <ul className={`explore-cards destination-grid${data.items.length === 1 ? " explore-cards-single" : ""}`}>
+          {data.items.map((item, index) => <li key={item.id} style={{ "--card-index": index } as React.CSSProperties}>
+            <DestinationCard destination={item} />
           </li>)}
         </ul>}
-
-        <nav className="explore-pagination" aria-label="Phân trang điểm đến">
-          <p>{data.items.length === 0 ? "Không có kết quả trên trang này" : <>Hiển thị <strong>{firstResult}–{lastResult}</strong> điểm đến</>}<span> · Trang {data.page}</span></p>
-          <div>
-            {data.page > 1 ? <Link href={pageHref(data.page - 1)} aria-label="Trang trước"><ChevronLeft aria-hidden="true" size={17} /> Trước</Link> : <span className="explore-page-disabled"><ChevronLeft aria-hidden="true" size={17} /> Trước</span>}
-            {data.hasMore ? <Link href={pageHref(data.page + 1)} aria-label="Trang sau">Sau <ChevronRight aria-hidden="true" size={17} /></Link> : <span className="explore-page-disabled">Sau <ChevronRight aria-hidden="true" size={17} /></span>}
-          </div>
-        </nav>
-      </div>}
+      </div>
     </section>
   );
 }

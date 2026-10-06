@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -13,6 +13,11 @@ import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 require.extensions[".css"] = () => {};
 const Loading = require("../../app/explore/loading").default;
+// Shared UI JSX is preserved by its tsconfig; tsx uses the classic runtime here.
+const jsxGlobal = globalThis as unknown as { React?: typeof React };
+const previousReact = jsxGlobal.React;
+before(() => { jsxGlobal.React = React; });
+after(() => { if (previousReact) jsxGlobal.React = previousReact; else delete jsxGlobal.React; });
 const visible = { id: "culture-a", title: "Văn hóa Hà Giang", content: "Nội dung văn hóa", sourceTitle: "Nguồn", sourceUrl: "https://example.org/source", visibility: "VISIBLE", destinations: [{ destination: { id: "d-visible", name: "Công khai", visibility: "VISIBLE" } }, { destination: { id: "d-hidden", name: "Ẩn", visibility: "HIDDEN" } }] };
 function fixture() {
   const rows = [structuredClone(visible), { ...structuredClone(visible), id: "culture-hidden", visibility: "HIDDEN" }]; let query: any;
@@ -86,7 +91,9 @@ test("Home is product UI; Explore streams independently and exposes no dead Cult
   const headerCss=await readFile(new URL("../../components/header.css",import.meta.url),"utf8"); assert.match(headerCss,/width: min\(1280px, 100%\)/); assert.match(headerCss,/padding: 0 clamp\(16px, 3vw, 36px\)/); assert.match(headerCss,/padding: 8px 14px 0/);
   const page=await readFile(new URL("../../app/explore/page.tsx",import.meta.url),"utf8"); assert.equal((page.match(/<Suspense/g)||[]).length,2); assert.match(page,/params.delete\("culturePage"\)/);
   const culture=await readFile(new URL("../../app/explore/culture-results.tsx",import.meta.url),"utf8"); assert.match(culture,/Chưa có nội dung văn hóa công khai/); assert.match(culture,/router.refresh/); assert.match(culture,/noopener noreferrer/); assert.doesNotMatch(culture,/href=.*\/culture\/|dangerouslySetInnerHTML|fetch\(/);
-  const destination=await readFile(new URL("../../app/explore/explore-results.tsx",import.meta.url),"utf8"); assert.match(destination,/Chưa có điểm đến công khai/); assert.match(destination,/destinations=\{data.items\}/); assert.match(destination,/explore-map-workspace/); assert.match(destination,/explore-map-result/); assert.match(destination,/aria-pressed/); assert.doesNotMatch(destination,/type="search"|<select/);
-  const exploreCss=await readFile(new URL("../../app/explore/explore.css",import.meta.url),"utf8"); assert.match(exploreCss,/explore-cards-single/); assert.match(exploreCss,/explore-map-panel \.destination-map-canvas/); assert.match(exploreCss,/\.dark \.explore-page/); assert.match(exploreCss,/@media \(prefers-reduced-motion: reduce\)/); assert.match(exploreCss,/@media \(max-width: 600px\)/);
+  const destination=await readFile(new URL("../../app/explore/explore-results.tsx",import.meta.url),"utf8");
+  assert.match(destination,/destinations=\{data.items\}/); assert.match(destination,/explore-map-workspace/); assert.match(destination,/explore-map-result/); assert.match(destination,/aria-pressed/); assert.match(destination,/DestinationSearchForm/); assert.match(destination,/DestinationResultStatus/);
+  const searchForm=await readFile(new URL("../../app/explore/destination-search-form.tsx",import.meta.url),"utf8"); assert.match(searchForm,/type="search"/); assert.match(searchForm,/name=\{key\}/);
+  const exploreCss=await readFile(new URL("../../app/explore/explore.css",import.meta.url),"utf8"); assert.match(exploreCss,/explore-cards-single/); assert.match(exploreCss,/explore-map-panel \.destination-map-canvas/); assert.match(exploreCss,/\.dark \.explore-page/); assert.match(exploreCss,/@media \(prefers-reduced-motion: reduce\)/); assert.match(exploreCss,/@media \(max-width: 600px\)/); assert.match(exploreCss,/destination-filter-options/);
   const route=await readFile(new URL("../../app/api/culture/route.ts",import.meta.url),"utf8"); assert.match(route,/publicCultureResponse/); assert.doesNotMatch(route,/requireActor|findMany|admin/);
 });
