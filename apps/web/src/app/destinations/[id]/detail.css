@@ -8,6 +8,10 @@
 .public-detail-tags span { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--detail-green); background: var(--detail-tint); border: 1px solid var(--detail-line); border-radius: 30px; padding: 6px 12px; }
 .public-detail h1 { font-size: clamp(28px, 4vw, 44px); font-weight: 700; line-height: 1.2; letter-spacing: -.025em; }
 .public-detail-description { white-space: pre-wrap; font-size: 16px; line-height: 1.8; max-width: 820px; margin-top: 20px; color: var(--detail-muted); }
+.public-detail-favorite { margin-top: 20px; min-width: 0; }
+.favorite-button-stack { display: grid; justify-items: start; min-width: 0; gap: 8px; }
+.favorite-button { max-width: 100%; overflow-wrap: anywhere; }
+.favorite-button-message { max-width: 100%; color: var(--detail-muted); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; word-break: break-word; }
 .public-detail-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); align-items: start; gap: 24px; }
 .public-detail-main { display: grid; gap: 24px; min-width: 0; }
 .public-detail-card { background: var(--detail-surface); border: 1px solid var(--detail-line); border-radius: 16px; padding: 28px; min-width: 0; overflow-wrap: anywhere; }

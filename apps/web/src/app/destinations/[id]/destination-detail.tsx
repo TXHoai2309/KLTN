@@ -1,6 +1,7 @@
 import React, { type ReactNode } from "react";
 import Link from "next/link";
 import DestinationMap from "@/components/map/destination-map";
+import FavoriteButton from "@/components/favorite-button";
 import { ArrowLeft, BookOpen, Clock, MapPin, Mountain, CalendarDays, Compass } from "lucide-react";
 import { weekdayLabels } from "@/modules/destination/destination-contract";
 import { formatSuggestedDuration, type PublicDestinationDetail } from "@/modules/destination/public-destination-contract";
@@ -31,6 +32,9 @@ export default function DestinationDetail({ destination: d }: { destination: Pub
       <span className="public-detail-eyebrow"><Mountain size={18} aria-hidden="true" />Hà Giang · Điểm đến</span>
       <div className="public-detail-tags"><span><MapPin size={14} aria-hidden="true" />{d.area}</span><span>{d.category}</span></div>
       <h1>{d.name}</h1><p className="public-detail-description">{d.description}</p>
+      <div className="public-detail-favorite">
+        <FavoriteButton targetType="destinations" targetId={d.id} />
+      </div>
     </header>
     <div className="public-detail-grid">
       <div className="public-detail-main">

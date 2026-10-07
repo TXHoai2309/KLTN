@@ -1,14 +1,21 @@
+enum FavoriteTargetType {
+  DESTINATION
+  CULTURE_CONTENT
+}
+
 model Favorite {
-  id            String         @id @default(cuid())
-  userId        String
-  destinationId String?
-  cultureId     String?
-  createdAt     DateTime       @default(now())
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  destination   Destination?   @relation(fields: [destinationId], references: [id], onDelete: Restrict)
-  culture       CultureContent? @relation(fields: [cultureId], references: [id], onDelete: Restrict)
+  id               String             @id @default(cuid())
+  userId           String
+  targetType       FavoriteTargetType
+  destinationId    String?
+  cultureContentId String?
+  createdAt        DateTime           @default(now())
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  destination      Destination?       @relation(fields: [destinationId], references: [id], onDelete: Restrict)
+  cultureContent   CultureContent?    @relation(fields: [cultureContentId], references: [id], onDelete: Restrict)
 
   @@unique([userId, destinationId])
-  @@unique([userId, cultureId])
+  @@unique([userId, cultureContentId])
+  @@index([userId, createdAt])
   @@map("favorite")
 }

@@ -142,6 +142,7 @@ export default async function CultureDetailPage({
           </div>
 
           <CultureDetailSlots
+            cultureId={detail.id}
             sources={detail.sources}
             destinations={detail.destinations}
           />

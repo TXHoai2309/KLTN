@@ -8,11 +8,11 @@ function fixture(role = "TRAVELER", authenticated = true) {
   const destinations = [{ id: "d", name: "Public", visibility: "VISIBLE" }, { id: "hd", name: "Hidden", visibility: "HIDDEN", description: "SECRET" }];
   const cultures = [{ id: "c", title: "Culture", visibility: "VISIBLE" }, { id: "hc", title: "Hidden culture", visibility: "HIDDEN", content: "SECRET" }];
   let rows = [
-    { id: "fd", userId: "a", destination: destinations[0], culture: null },
-    { id: "fhd", userId: "a", destination: destinations[1], culture: null },
-    { id: "fc", userId: "a", destination: null, culture: cultures[0] },
-    { id: "fhc", userId: "a", destination: null, culture: cultures[1] },
-    { id: "foreign", userId: "b", destination: destinations[0], culture: null },
+    { id: "fd", userId: "a", destination: destinations[0], cultureContent: null },
+    { id: "fhd", userId: "a", destination: destinations[1], cultureContent: null },
+    { id: "fc", userId: "a", destination: null, cultureContent: cultures[0] },
+    { id: "fhc", userId: "a", destination: null, cultureContent: cultures[1] },
+    { id: "foreign", userId: "b", destination: destinations[0], cultureContent: null },
   ];
   let queries = 0; let deletes = 0;
   const records = new Map<string, { requestHash: string; responseJson: string }>();
@@ -20,7 +20,7 @@ function fixture(role = "TRAVELER", authenticated = true) {
     user: { findUnique: async () => ({ id: "a", role }) },
     favorite: {
       findMany: async ({ where, select }: { where: { userId: string }; select: Record<string, unknown> }) => {
-        queries++; assert.deepEqual(where, { userId: "a" }); assert.ok(select.destination); assert.ok(select.culture);
+        queries++; assert.deepEqual(where, { userId: "a" }); assert.ok(select.destination); assert.ok(select.cultureContent);
         return rows.filter(row => row.userId === where.userId);
       },
       deleteMany: async ({ where }: { where: { id: string; userId: string } }) => {

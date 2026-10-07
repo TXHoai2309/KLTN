@@ -13,7 +13,7 @@ export type FavoriteDependencies = {
 const favoriteSelect = {
   id: true,
   destination: { select: { id: true, name: true, visibility: true } },
-  culture: { select: { id: true, title: true, visibility: true } },
+  cultureContent: { select: { id: true, title: true, visibility: true } },
 } satisfies Prisma.FavoriteSelect;
 
 export async function getFavorites(headers: Headers, deps: FavoriteDependencies): Promise<FavoriteList> {
@@ -29,10 +29,10 @@ export async function getFavorites(headers: Headers, deps: FavoriteDependencies)
       const available = isDestinationPublic(row.destination);
       data.destinations.push({ favoriteId: row.id, targetId: row.destination.id, title: row.destination.name,
         availability: available ? "AVAILABLE" : "UNAVAILABLE", href: available ? `/destinations/${row.destination.id}` : null });
-    } else if (row.culture) {
-      const available = isCulturePublic(row.culture);
-      data.cultureContents.push({ favoriteId: row.id, targetId: row.culture.id, title: row.culture.title,
-        availability: available ? "AVAILABLE" : "UNAVAILABLE", href: available ? `/culture/${row.culture.id}` : null });
+    } else if (row.cultureContent) {
+      const available = isCulturePublic(row.cultureContent);
+      data.cultureContents.push({ favoriteId: row.id, targetId: row.cultureContent.id, title: row.cultureContent.title,
+        availability: available ? "AVAILABLE" : "UNAVAILABLE", href: available ? `/culture/${row.cultureContent.id}` : null });
     }
   }
   return data;
