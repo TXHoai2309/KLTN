@@ -2,13 +2,13 @@
 
 ## Status
 
-PARTIALLY ACCEPTED — implemented map scope verified; task149 BLOCKED BY US-11
+ACCEPTED / DONE — map scope and task149 search/filter synchronization manually verified (2026-10-07).
 
 ## Baseline / references / scope
 
 Clean TXH `4a2a007 feat(culture): add culture content management`, verified before edits. Approved tasks146–152 and minimum US-13 map integration; Product public exploration/MH-03 and consistent list/map requirements, System Specification public availability rules. Accepted US-07 coordinates, US-08 eligibility and US-09 Culture relation remain canonical. No Figma frame inferred.
 
-At this story's baseline there was no `/explore`, public collection API, search/filter service, or US-10 implementation. The minimal unfiltered Explore boundary was added here and US-10 later extended it with Culture summaries. US-11 still owns canonical search/filter behavior and runtime evidence; task149 cannot PASS until that work is accepted.
+At this story's baseline there was no `/explore`, public collection API, search/filter service, or US-10 implementation. The minimal Explore boundary was added here; US-10 later extended it with Culture summaries, and US-11 now owns canonical search/filter behavior. The later task149 manual verification is recorded below.
 
 No schema/migration, directions/routing/geolocation, public Culture detail, AI, Favorites, media, production or deployment change. Schema changed NO; migration required NO; Production migration NOT RUN.
 
@@ -28,7 +28,7 @@ GET `/api/destinations?page=1`, optional view=list/map; no login. Server Explore
 
 Coordinates finite and in [-90,90]/[-180,180]. Corrupt legacy axes normalize to null in list DTO; projection excludes a record unless both axes valid, shows missing-coordinate count and keeps List usable. Current DB requires valid non-null coordinates, so corrupt/missing cases use deterministic fixtures rather than violating database checks. Hidden data never leaves query; Admin receives no public exception.
 
-`/explore?view=list|map&page=...` uses one immutable `data.items` for cards and markers. Native history view updates integrate with Next searchParams/back/forward without dataset fetch; refresh retains mode. Changing page fetches the same public collection boundary. Toggle copies every current query field, so future filter state is not discarded. Today unsupported keyword/area/category query is explicitly400/data error rather than silently returning an unfiltered map. No search/filter controls or false synchronization evidence.
+`/explore?view=list|map&page=...` uses one immutable `data.items` for cards and markers. Next App Router navigation preserves URL-backed search/filter state and browser history; refresh retains mode. Changing page fetches the same public collection boundary. View switching preserves active query fields, including `q`, `category`, `region`, and `culturePage`. US-11 supplies the canonical search/filter behavior.
 
 ## Markers / UI / Detail
 
@@ -54,6 +54,10 @@ Provider failure smoke temporarily removed only generated local worker asset: HE
 
 Evidence screenshots outside Git: `D:/KLTN/us12-evidence/stadia-*`. Scoped cleanup verified zero fixtures/Culture/join/children and existing Destination snapshot unchanged; temporary runtime script removed. Guest browser then showed only the original public Destination on real Stadia. Guest browser after completed logout renders the same marker set; Enter on marker focuses popup CTA and Enter opens Detail/Culture. HIDDEN Detail has zero canvas/private name/coordinates; missing shows a distinct not-found. Previous live Guest/Traveler API visibility/DTO/no-store checks remain applicable because provider-neutral server code is unchanged.
 
+## 2026-10-07 — Task149 manual acceptance
+
+Starting from filtered Explore URL `/explore?q=Manual&category=v%C4%83n+h%C3%B3a&region=%C4%91%E1%BB%93ng+v%C4%83n`, List showed exactly one matching Destination. Switching to Map preserved `q`, `category`, and `region`, added `view=map`, and showed the same matching marker and side-list result. Returning to List preserved the URL, filter state, and matching result. Task149 PASS; no representative-dataset performance claim is made (EN-02 is deferred to Sprint 3).
+
 ## Task matrix
 
 | Task | Status | Evidence / remaining |
@@ -61,9 +65,9 @@ Evidence screenshots outside Git: `D:/KLTN/us12-evidence/stadia-*`. Scoped clean
 |146 map/markers|PASS|Real Stadia/MapLibre WebGL, visible markers, viewport/themes/responsive|
 |147 public location data|PASS|Unchanged canonical visible query/public allowlist; live Guest/Traveler API + Admin public view|
 |148 List/Map|PASS|Same page dataset, real mode toggle/refresh/Back|
-|149 search/filter sync|BLOCKED|US-11 search/filter is pending; query preserved, unsupported filters rejected|
+|149 search/filter sync|PASS|Manual filtered List → Map → List; q/category/region and matching result preserved|
 |150 marker → detail|PASS|Real popup CTA → own-coordinate Detail map + Culture|
 |151 loading/error/retry|PASS|Real loading/worker404/error/retry recovery; deterministic style/tile error and timeout|
-|152 regression|PASS for implemented scope|Required suites/build + real provider smoke; task149 dependency excluded explicitly|
+|152 regression|PASS|Regression suites/build, real provider smoke, and task149 filtered List/Map manual acceptance|
 
-US-12 remains PARTIALLY ACCEPTED because149 is blocked; no invented search/filter behavior.
+US-12 is ACCEPTED / DONE for its approved functional scope. Representative-dataset performance remains deferred to Sprint 3 / EN-02.

@@ -2,7 +2,7 @@
 
 ## Status
 
-IMPLEMENTED — US-16 scoped acceptance verified with disposable development fixtures, 2026-10-05. READY contract was completed before code. Broader add-favorite/product rollout is not claimed.
+IMPLEMENTED — US-16 scoped acceptance verified with disposable development fixtures, 2026-10-05. US-15 separately owns the implemented add/remove mutations; no broader production-data or product rollout is claimed.
 
 ## Epic
 
@@ -30,7 +30,7 @@ Traveler-only list, original-object navigation and confirmed relation removal.
 
 ## Dependencies
 
-Baseline HEAD `343628a` (done us11), clean working tree. Destination/Culture visibility enums and canonical predicates, Better Auth persisted role guard, Prisma/Neon, shared idempotency and UI components exist. Favorite model/API/UI and public Culture detail do not exist.
+Baseline HEAD `343628a` (done us11), clean working tree. Destination/Culture visibility enums and canonical predicates, Better Auth persisted role guard, Prisma/Neon, shared idempotency and UI components exist. At this initial baseline, Favorite model/API/UI and public Culture detail did not exist; current implementation and contracts are recorded below.
 
 ## In Scope
 
@@ -39,7 +39,7 @@ Baseline HEAD `343628a` (done us11), clean working tree. Destination/Culture vis
 
 ## Out of Scope
 
-Trip favorites, add-favorite flow (separate story), Map/AI/Trip redesign, pagination, sorting controls, bulk actions, folders, caching, global state, new dependencies, snapshot copies.
+Trip favorites, add/remove mutations (owned by US-15), Map/AI/Trip redesign, pagination, sorting controls, bulk actions, folders, caching, global state, new dependencies, snapshot copies.
 
 ## Business Rules
 
@@ -61,7 +61,7 @@ Two local-state group buttons with aria-pressed and labelled section; keyboard f
 
 ## Data Contract
 
-Favorite(id, userId, destinationId?, cultureId?, createdAt): FK user Cascade, targets Restrict, unique(userId,destinationId), unique(userId,cultureId), CHECK exactly one target. No taxonomy/media/trip fields. DTO {favoriteId,targetId,title,availability,href}; no hidden body. Supporting copy is UI description of relation, not fabricated target summary.
+Current canonical contract: `FavoriteTargetType { DESTINATION, CULTURE_CONTENT }`; `Favorite(id, userId, targetType, destinationId?, cultureContentId?, createdAt)`. User FK is Cascade; target FKs are Restrict; unique constraints are `(userId, destinationId)` and `(userId, cultureContentId)`; the database CHECK requires exactly the FK matching `targetType`. Migration `20261006150000_upgrade_favorite_target_contract` renamed legacy `cultureId` to `cultureContentId` and backfilled `targetType`. No taxonomy/media/trip fields. DTO `{favoriteId,targetId,title,availability,href}`; no hidden body. Supporting copy describes the relation and does not fabricate target summaries.
 
 ## API Contract
 
@@ -138,7 +138,7 @@ No new variables/dependencies.
 | Responsive/keyboard | PASS | Browser360/390/768/1024/1440 measurements below; Space/Enter group buttons, semantic links and pending disabled buttons observed |
 | Loading/read error/Retry | PASS | Actual loading AX status, read-only test proxy injecting only GET favorites500; safe error retained title/groups, Retry restored data without reload |
 | Exact shared Header vs Figma | NOT PROVEN | Existing Header intentionally reused; its styling/height differs from MH-10 and was outside redesign scope |
-| Production user dataset/add-to-list flow | NOT PROVEN | No add-favorite flow exists in baseline; no fake permanent favorites or production records created |
+| Production user dataset / broad list-growth behavior | NOT PROVEN | US-15 implements add/remove separately; no representative production favorites or broader rollout evidence was created |
 | Separate Chrome + Edge / assistive-technology suite | NOT PROVEN | Current IAB browser tested; no independent Edge/NVDA run or full WCAG claim |
 
 ### Checks and runtime evidence
@@ -245,11 +245,11 @@ docs/ai-progress.md
 
 ## Open Questions
 
-- No add-favorite flow exists: real favorites depend on upstream add story/import. Tests use disposable fixtures, never production sample favorites.
+- Add/remove mutations are owned by US-15 and are implemented; tests and smoke fixtures are disposable, with no production sample favorites created.
 - Local .fig vs remote version equivalence not independently proven; this implementation uses the directly inspected remote node.
 
 ## Handoff Notes
 
-Header navigation now includes a direct `Yêu thích` link to `/favorites`; the existing Traveler-only UserMenu link remains as a secondary entry point. Server-side Traveler authorization continues to protect the page for Guest/Admin users.
+Header navigation now includes a direct `Yêu thích` link to `/favorites`; the existing Traveler-only UserMenu link remains as a secondary entry point. Server-side Traveler authorization continues to protect the page for Guest/Admin users. The list reads the canonical Favorite schema using `targetType`, `destinationId`, and `cultureContentId`.
 
 No commit or push. Preserve existing Explore/UI implementation.

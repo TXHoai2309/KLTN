@@ -51,4 +51,4 @@ Home is a static Vietnamese product entry with a primary `/explore` CTA and link
 
 Schema changed: NO. Migration: NOT REQUIRED. Production untouched. No commit or push.
 
-US-11 owns keyword search and filters; this story adds no search/filter controls. US-14 owns public Culture detail; Culture cards remain summary-only. US-12 task149 remains BLOCKED pending US-11 and is not marked PASS by US-10. US-13 remains ACCEPTED and its detail behavior was regression-smoked.
+US-11 owns keyword search and filters; this story adds no search/filter controls. US-14 owns public Culture detail; Culture cards remain summary-only. Task149 was blocked at the time of this US-10 acceptance; US-12 records its later manual PASS on 2026-10-07. US-13 remains ACCEPTED and its detail behavior was regression-smoked.
