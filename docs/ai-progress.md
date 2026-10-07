@@ -571,3 +571,8 @@ Append a new entry for each meaningful work session. Keep prior entries as hando
 - **Checks:** `npm run test:search --workspace web` 32/32, `npm run test:explore --workspace web` 14/14, `npm run test:map --workspace web` 24/24, `npm run test:destination --workspace web` 61/61, `npm run check-types`, `npm run build` and `git diff --check` PASS.
 - No production writes, schema changes, migrations, commit or push.
 >>>>>>> 1b74d933e3d23aa240ac245123f05a3d2ddd4973
+## 2026-10-07 — US-16 direct Header link
+
+- Added `Yêu thích` to the shared main Header navigation at `/favorites`.
+- Kept the existing Traveler-only UserMenu entry and server-side authorization unchanged; the page remains protected for Guest/Admin users.
+- Validation: targeted TypeScript check and Favorite regression tests run after the navigation change; `git diff --check` required.

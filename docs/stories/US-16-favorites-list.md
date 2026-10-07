@@ -250,4 +250,6 @@ docs/ai-progress.md
 
 ## Handoff Notes
 
+Header navigation now includes a direct `Yêu thích` link to `/favorites`; the existing Traveler-only UserMenu link remains as a secondary entry point. Server-side Traveler authorization continues to protect the page for Guest/Admin users.
+
 No commit or push. Preserve existing Explore/UI implementation.
