@@ -289,13 +289,16 @@ test("visibility switches render confirmed OFF/ON with text, explicit type and a
   assert.ok(html.includes('Đang ẩn')); assert.ok(html.includes('Đang hiển thị'));
 });
 
-test("visibility UI locks pending/UNKNOWN, confirms hide, retries identical attempt after read; generic detail save stays independent", async () => {
+test("visibility UI tracks pending and UNKNOWN per item, confirms hide, retries identical attempt after read", async () => {
   const ui = await readFile(new URL("../../app/admin/destinations/destination-visibility-action.tsx", import.meta.url), "utf8");
-  assert.ok(ui.includes('claimSubmission(lock)')); assert.ok(ui.includes('if (!attempt.current && item)'));
-  assert.ok(ui.includes('if (uncertain) await loadDestination(current.id)'));
+  assert.ok(ui.includes('claimSubmission(sharedLock)')); assert.ok(ui.includes('attempts.current.set(id'));
+  assert.ok(ui.includes('if (uncertainIdsRef.current.has(id)) await loadDestination(current.id)'));
   assert.ok(ui.includes('changeDestinationVisibility(current.id, current.target, current.key)'));
-  assert.ok(ui.includes('if (result.status === "SUCCESS") {\n        onConfirmed(result.data)'));
-  assert.ok(ui.includes('pending || uncertain || confirmation'));
+  assert.match(ui, /if \(result.status === "SUCCESS"\) \{\s+onConfirmed\(result.data\)/);
+  assert.ok(ui.includes('pendingIds.has(item.id)')); assert.ok(ui.includes('uncertainIds.has(item.id)'));
+  assert.match(ui, /disabled=\{disabled \|\| pending \|\| uncertain\}/);
+  assert.match(ui, /if \(!id \|\| activeIds\.current\.has\(id\)\) return/);
+  assert.doesNotMatch(ui, /disabled=\{disabled \|\| busy\}/);
   assert.match(ui, /<dialog.*aria-labelledby=.*aria-describedby=/); assert.match(ui, /onCancel=/); assert.match(ui, /autoFocus/);
   assert.doesNotMatch(ui, /window.confirm|setVisibility/);
   const list = await readFile(new URL("../../app/admin/destinations/destination-list.tsx", import.meta.url), "utf8");
@@ -315,8 +318,9 @@ test("pending switch stays at the confirmed state and disables clicks without op
     const html = renderToStaticMarkup(createElement(DestinationVisibilitySwitch, { name: "Test", visibility, pending: true, onClick: () => {} }));
     assert.ok(html.includes(`aria-checked="${visibility === "VISIBLE"}"`));
     assert.match(html, /disabled=""/); assert.match(html, /aria-busy="true"/);
-    assert.ok(html.includes(visibility === "VISIBLE" ? "Đang hiển thị" : "Đang ẩn"));
-    assert.ok(html.includes("Đang cập nhật…"));
+    assert.ok(html.includes("Đang cập nhật..."));
+    assert.ok(html.includes("Đang cập nhật..."));
+    assert.match(html, /destination-switch-spinner/); assert.match(html, /role="status"/);
   }
 });
 
@@ -325,7 +329,7 @@ test("switch is presentation only, list places it in status not action column, m
   assert.doesNotMatch(component, /fetch|useState|changeDestinationVisibility|onKeyDown/);
   assert.match(component, /role="switch"/); assert.match(component, /type="button"/);
   const controller = await readFile(new URL("../../app/admin/destinations/destination-visibility-action.tsx", import.meta.url), "utf8");
-  assert.ok(controller.includes('visibility={item.visibility}')); assert.ok(controller.includes('disabled={disabled || busy}'));
+  assert.ok(controller.includes('visibility={item.visibility}')); assert.ok(controller.includes('disabled={disabled || pending || uncertain}'));
   assert.ok(controller.includes('if (show) void execute(item); else setConfirmation(item)'));
   assert.ok(controller.includes('dialog.current?.close(); setConfirmation(null);'));
   assert.ok(controller.includes('void execute(item);'));

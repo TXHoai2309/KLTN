@@ -9,7 +9,7 @@ Browser
   └─ Next.js / React App Router (apps/web)
        ├─ UI and server-rendered pages
        ├─ Route Handlers (HTTP delivery)
-       ├─ business modules/services (system, auth, account, destination)
+       ├─ business modules/services (system, auth, account, destination, culture)
        ├─ @KLTN/auth (Better Auth)
        └─ @KLTN/db (Prisma Client + Neon adapter)
             └─ Neon PostgreSQL
@@ -17,7 +17,7 @@ Browser
                  └─ pgvector extension
 
 Selected integrations for future business stories:
-  OpenAI · Google Maps Platform · Google Routes API
+  OpenAI · MapLibre GL JS / Stadia Maps · Google Routes API
 
 Deployment: Vercel web service
 ```
@@ -26,10 +26,10 @@ The repository is an npm/Turborepo monorepo: `apps/web`, `packages/auth`, `packa
 
 ## Current repository structure
 
-- `apps/web/src/app/`: App Router pages and auth/health/account/admin-destination Route Handlers.
+- `apps/web/src/app/`: App Router pages and auth/health/account/admin-destination/admin-culture Route Handlers.
 - `apps/web/src/app/api/auth/[...all]/route.ts`: exports GET and POST handlers from Better Auth's `toNextJsHandler`.
 - `apps/web/src/app/api/health/route.ts`: small GET handler that calls the `system` service and maps through the shared API response/error helpers.
-- `apps/web/src/modules/system/system.service.ts`: returns the service health value. Auth/logout, self-service account and admin destination modules are implemented; Culture, Favorite, Trip, RAG and Validator remain future stories.
+- `apps/web/src/modules/system/system.service.ts`: returns the service health value. Auth/logout, self-service account and admin destination modules are implemented; Culture administration is implemented in US-09; Favorite, Trip, RAG and Validator remain future stories.
 - `apps/web/src/server/http/`: shared app error, response mapping, error handling, and idempotency logic.
 - `apps/web/src/lib/`: client mutation contract/helpers and Better Auth client configuration.
 - `apps/web/src/services.ts`: creates the Prisma client from server environment and passes it to Better Auth.
@@ -37,7 +37,7 @@ The repository is an npm/Turborepo monorepo: `apps/web`, `packages/auth`, `packa
 - `packages/db/`: Neon Prisma adapter, Prisma config, generated client, schema, migrations, and Varlock import.
 - `packages/ui/`: shared React UI primitives/styles.
 
-The UI currently includes a home shell, sign-in/sign-up, a user menu, a session-protected dashboard, self-service account and admin destination list/create/edit. Other product screens await their stories.
+The UI includes the product Home, sign-in/sign-up, user menu, protected dashboard, self-service account, Admin Destination/Culture management, public Destination detail, and public Explore Destination/Culture summaries. Explore uses independent server-rendered sections; canonical search/filter and full Culture detail await US-11/US-14.
 
 ## Responsibility boundaries
 
@@ -47,11 +47,11 @@ Parse and validate request inputs, establish the authentication boundary, call a
 
 ### Module/service
 
-Own business rules, orchestration, authorization/ownership decisions, and calls to persistence or external services. Account and Destination services implement this boundary behind thin handlers.
+Own business rules, orchestration, authorization/ownership decisions, and calls to persistence or external services. Account, Destination and Culture services implement this boundary behind thin handlers.
 
 ### Database
 
-Prisma/Neon owns persistence and database invariants. Current models cover Better Auth `User`, `Session`, `Account`, `Verification`, `IdempotencyRecord`, and Destination/OpeningDay/OpeningInterval. Trip/Culture/Favorite are not implemented. `User.role` is enum `TRAVELER | ADMIN`, defaulting to `TRAVELER`. PostGIS and pgvector are enabled; no geometry/embedding column has been added.
+Prisma/Neon owns persistence and database invariants. Current models cover Better Auth `User`, `Session`, `Account`, `Verification`, `IdempotencyRecord`, Destination/OpeningDay/OpeningInterval and CultureContent/CultureDestination. Trip/Favorite are not implemented. `User.role` is enum `TRAVELER | ADMIN`, defaulting to `TRAVELER`. PostGIS and pgvector are enabled; no geometry/embedding column has been added.
 
 US-07 Destination persistence uses stable cuid IDs, normalized open-taxonomy area/category strings and canonical latitude/longitude Doubles. Visibility defaults HIDDEN; generic create/update cannot change it (US-08 boundary). Independent nullable suggested/minimum durations use integer minutes, NULL for missing data. Seven unique weekdays carry explicit OPEN/CLOSED/UNKNOWN status; local-time intervals store minutes since midnight (end may be 1440/24:00). Shared strict validation enforces exactly seven days, status/interval consistency, canonical order and non-overlap; database checks enforce coordinate/duration/time ranges with FK/unique constraints. Schedule replacement and idempotency response commit in one transaction. Imports must reuse the semantic contract rather than writing incomplete schedules. See [US-07](../stories/US-07-admin-destinations.md) for DTO and cross-dev handoff.
 
@@ -69,9 +69,9 @@ The accepted product boundary is:
 - If mandatory route data is missing or not returned within at most 10 seconds, the travel-time check is `INSUFFICIENT_DATA` / `CHƯA ĐỦ DỮ LIỆU`, never `PASS`; AI must not guess travel time. This is a behavior requirement, not an implementation in the current repository.
 - PostGIS: stored spatial data and spatial queries.
 - pgvector: embeddings and similarity retrieval.
-- Google Maps Platform: browser map rendering.
+- MapLibre GL JS: browser map rendering; Stadia Maps: official Alidade Smooth light/dark styles and basemap.
 
-These are selected project integrations, not present service implementations in the current repository snapshot. OpenAI and Routes secrets remain server-side. The browser Maps key may be `NEXT_PUBLIC_` with Google Cloud domain/API restrictions.
+OpenAI/Routes/spatial/vector business integrations remain future service implementations. US-12 adds browser Maps infrastructure and the public Explore/Detail integration described below. OpenAI and Routes secrets remain server-side. Stadia localhost uses no key; production uses property/domain authentication. Google Routes remains a separate planned server integration.
 
 ## API and error contract
 
@@ -91,8 +91,29 @@ Mutation responses additionally carry `operationStatus`:
 
 Account name and admin Destination writes use this shared primitive and client contract. Destination update hashes include the target ID; both services recheck trusted role inside the transaction. Future applicable mutations must use it and must not generate a new key when retrying an `UNKNOWN` result.
 
-US-08 adds a separate Admin-only `PATCH /api/admin/destinations/[id]/visibility`, operation `destination:set-visibility`, hashing both ID and target visibility. It updates visibility only (normal updatedAt metadata), rechecks role in the transaction, and preserves schedules/history. Generic detail editing remains unable to publish. `modules/destination/destination-eligibility.ts` is the shared boundary for future public reads and new-itinerary candidates: `visibleDestinationWhere`, predicates on persisted records and `findEligibleDestinationIds` constrain existence plus VISIBLE at persistence. Public UI/API integration remains US-10; Planner integration remains a future Trip story. No public/planner endpoint or schema change is introduced by this boundary.
+US-08 adds a separate Admin-only `PATCH /api/admin/destinations/[id]/visibility`, operation `destination:set-visibility`, hashing both ID and target visibility. It updates visibility only (normal updatedAt metadata), rechecks role in the transaction, and preserves schedules/history. Generic detail editing remains unable to publish. `modules/destination/destination-eligibility.ts` is the shared boundary for public reads and new-itinerary candidates: `visibleDestinationWhere`, predicates on persisted records and `findEligibleDestinationIds` constrain existence plus VISIBLE at persistence. Public detail consumes it in US-13; discovery remains US-10 and Planner integration remains a future Trip story. The helper itself introduces no endpoint or schema change.
+
+US-13 public detail now consumes this canonical filter through one `public-destination-service`, shared by the uncached `/destinations/[id]` server page and thin `GET /api/destinations/[id]`. A separate strict allowlist omits Admin metadata/minimum duration; VISIBLE content is selected at persistence, an ID-only existence query distinguishes unavailable410 from missing404, and system errors remain500. Admin has identical public semantics. Weekly hours and suggested duration reuse US-07 contract. US-09 supplies bounded related VISIBLE Culture summaries and safe source metadata through the canonical relation; US-12 reuses shared browser Maps at the own coordinate. Search/filter discovery remains US-10/11; no Planner endpoint/schema change.
 
 ## Deployment and schema workflow
 
 `vercel.json` configures one `apps/web` Next.js service, workspace install, and a build command that generates the Prisma client before the web build. The repo uses Prisma migration history for shared schema changes. See [environment and deployment](../implementation/environment-deployment.md). The old Architecture document's separate NestJS backend is not part of this topology.
+
+## US-09 Culture administration
+
+CultureContent owns title/prose, nullable sourceTitle/sourceUrl metadata, HIDDEN/VISIBLE default HIDDEN and timestamps. No RAG/source lifecycle coupling. CultureDestination is the canonical many-to-many join with composite PK, reverse index and restrictive FKs; hiding preserves links. Additive migration20261005021531_add_culture_content_domain applied only on verified development.
+
+Thin /api/admin/culture collection/detail/visibility and destination-lookup handlers reuse exact Admin authorization. Module services validate strict normalized input/all Destination IDs, preserve visibility during generic edits and recheck persisted role in transaction. Content/source/relation replacement and idempotency response commit together under culture:create/update/set-visibility. Admin pages reuse existing UI styling/switch presentation with separate Culture controllers. Public Destination selects at most20 linked Culture rows under canonical visibleCultureWhere, exposing summary allowlist only; source links are http/https and escaped/safe, no dead public Culture route. See [US-09](../stories/US-09-culture-management.md).
+
+## US-12 shared browser Maps / minimum Explore boundary
+
+`modules/map` owns npm MapLibre loading, official Stadia light/dark style selection, longitude-first marker/viewport projection, renderer and cancellable provider lifecycle. `components/map/DestinationMap` is the shared Client boundary for Explore/US-13. Browser APIs run only in effects. Loading waits for MapLibre `load`; error or 15s timeout retains List/information. Retry disposes the old map before initializing a new one; cleanup removes markers/popups/events and calls map.remove(). Theme changes cleanly replace the instance, with stable canonical style selection.
+
+MapLibre 6's worker and sibling shared module are copied from the installed npm package into ignored public/maplibre by dev/build preparation, served together from the same origin (no CDN script). Asset HEAD preflight prevents poisoning the library's cached worker initialization when an asset is temporarily missing. Official CSS is imported by App Router layout. No browser Google key/Map ID or Maps JS dependency remains. Stadia domain auth is deployment configuration; Google Routes remains a separate server-side routing decision. No geolocation/routing/schema change.
+
+
+## US-10 Home and public Explore
+
+Home is static product UI with a real `/explore` CTA. Explore uses two independently streamed server sections so Destination and Culture can load, return empty results, or report an error separately. Destination List/Map still consume the shared `listPublicLocations` page from US-12; Culture summaries use the public-only `GET /api/culture` handler and `listPublicCulture`. Both use canonical persisted VISIBLE filters and strict public allowlists for every role, with `no-store` freshness. Culture relations select only VISIBLE Destinations and omit hidden links; source links are safe http/https. Destination `page` and UI `culturePage` state are independent. No Culture detail endpoint/page or US-11 search/filter implementation was added. See [US-10](../stories/US-10-home-explore.md).
+
+US-12 task149 search/filter state remains blocked pending US-11; US-10 does not mark it PASS. See [US-12](../stories/US-12-destination-map.md).

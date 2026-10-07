@@ -61,6 +61,9 @@
 .destination-visibility-switch[aria-checked=true] .destination-switch-track { background: var(--destination-green); }
 .destination-visibility-switch[aria-checked=true] .destination-switch-thumb { transform: translateX(18px); }
 .destination-switch-label { font-size: 12px; line-height: 1.5; }
+.destination-switch-spinner { color: var(--destination-green); }
+.destination-page .destination-visibility-switch[aria-busy=true] { opacity: .8; cursor: progress; }
+.destination-page .destination-visibility-switch:disabled:not([aria-busy=true]) { opacity: .5; }
 .destination-mobile-title .destination-switch-status { justify-self: start; }
 .destination-status-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px; }
 .destination-edit-visibility { display: flex; }

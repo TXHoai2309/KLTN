@@ -4,7 +4,9 @@ import { requirePermission, type Actor, type Permission } from "./policy";
 
 export type AuthorizationDependencies = {
   database: Pick<Database, "user">;
-  resolveSession: (headers: Headers) => Promise<{ user: { id: string } } | null>;
+  resolveSession: (
+    headers: Headers,
+  ) => Promise<{ user: { id: string; role?: string } } | null>;
 };
 
 export async function requireActor(

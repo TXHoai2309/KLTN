@@ -7,9 +7,35 @@ import {
   authorizeAuthContextDemoAction,
   buildAuthContextDemoLoginHref,
 } from "./auth-context-demo";
-import { DEFAULT_AUTH_RETURN_TO, resolveAuthReturnTo, buildAuthLoginHref } from "./auth-return-to";
+import { DEFAULT_AUTH_RETURN_TO, resolveAuthReturnTo, buildAuthLoginHref, buildCurrentPageLoginHref } from "./auth-return-to";
 
 const CONTEXT = "/auth-context-demo?item=sample&view=detail#favorite";
+
+test("shared UserMenu captures safe current destination and query for the login success return", () => {
+  assert.equal(buildCurrentPageLoginHref("/destinations/abc"), "/login?returnTo=%2Fdestinations%2Fabc");
+  const location = "/destinations/abc?view=detail&from=map";
+  const href = buildCurrentPageLoginHref("/destinations/abc", "?view=detail&from=map");
+  assert.equal(new URLSearchParams(href.split("?")[1]).get("returnTo"), location);
+  assert.equal(resolveAuthReturnTo(new URLSearchParams(href.split("?")[1]).get("returnTo")), location);
+  assert.equal(buildCurrentPageLoginHref("/auth-context-demo", "?item=sample"), "/login?returnTo=%2Fauth-context-demo%3Fitem%3Dsample");
+});
+
+test("shared login navigation avoids auth-page loops and preserves the default dashboard fallback", () => {
+  for (const path of ["/login", "/login/", "/%6cogin", "/home/../login"]) assert.equal(buildCurrentPageLoginHref(path, "?mode=signup"), "/login");
+  assert.equal(resolveAuthReturnTo(undefined), "/dashboard");
+  for (const unsafe of ["https://example.com", "//example.com", "/\\example.com", "/%25252fexample.com", "/destinations/abc?password=secret"]) {
+    assert.equal(resolveAuthReturnTo(unsafe), "/dashboard");
+    assert.equal(buildCurrentPageLoginHref(unsafe), "/login?returnTo=%2Fdashboard");
+  }
+});
+
+test("UserMenu uses route-aware shared login capture inside a local Suspense boundary", async () => {
+  const source = await readFile(new URL("../components/user-menu.tsx", import.meta.url), "utf8");
+  assert.match(source, /usePathname\(\)/); assert.match(source, /useSearchParams\(\)/);
+  assert.match(source, /href=\{buildCurrentPageLoginHref\(pathname, search \? `\?\$\{search\}` : ""\)\}/);
+  assert.match(source, /<Suspense fallback=/); assert.match(source, /<GuestSignInLink \/>/);
+  assert.doesNotMatch(source, /destinations\/|window.location.href|localStorage|sessionStorage/);
+});
 
 test("login URL captures pathname, query, and hash through the canonical resolver", () => {
   const href = buildAuthContextDemoLoginHref({

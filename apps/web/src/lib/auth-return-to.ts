@@ -80,6 +80,14 @@ export function resolveAuthReturnTo(value: string | string[] | null | undefined)
   }
 }
 
-export function buildAuthLoginHref(returnTo: string): string {
+export function buildAuthLoginHref(returnTo: string): `/login?returnTo=${string}` {
   return `/login?returnTo=${encodeURIComponent(resolveAuthReturnTo(returnTo))}`;
+}
+
+/** Shared navigation capture; the canonical resolver still owns URL safety. */
+export function buildCurrentPageLoginHref(pathname: string, search = ""): "/login" | `/login?returnTo=${string}` {
+  const safeReturnTo = resolveAuthReturnTo(`${pathname}${search}`);
+  const path = decodeURIComponent(safeReturnTo.split(/[?#]/)[0]!).replace(/\/+$/, "");
+  if (path === "/login") return "/login";
+  return buildAuthLoginHref(safeReturnTo);
 }
