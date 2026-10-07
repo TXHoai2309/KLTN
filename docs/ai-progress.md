@@ -489,6 +489,7 @@ Append a new entry for each meaningful work session. Keep prior entries as hando
 - Runtime: actual dev3001 and local production build3002 HTTP Guest401/Admin403, own groups200, hidden title-only, foreign delete404 and hidden Culture body absent. Browser original Destination/Culture navigation, Space/Enter switching, loading, per-card pending, FAILED retained card, offline UNKNOWN retained across groups then retry SUCCESS, read-only proxy500→safe error→Retry recovery and both independent empty messages verified.360/390/768/1024/1440 measured no horizontal overflow. Initial disposable Destination fixture lacked required seven-day schedule; corrected fixture only, then original detail passed.
 - Cleanup: scoped fixture accounts/sessions/users/relations/targets/idempotency records and secret manifest removed; fixture account logged out; temporary runtime harness removed; viewport restored and test tabs/owned3002 server/3004 fault proxy closed. User dev server3001 preserved. Screenshots remain outside Git at D:/KLTN/us16-ui-evidence/.
 - Limits: add-favorite flow remains absent/outside US-16; production user-data cycle, separate Edge/assistive-technology checks and exact shared Header visual parity NOT PROVEN. Local .fig versus remote version equivalence not independently proven. No commit or push.
+<<<<<<< HEAD
 >>>>>>> 069b7e01f61bdf43bf836b7ab44363a94024204e
 
 ## 2026-10-06 — US15-BE Traveler Favorite API
@@ -560,3 +561,13 @@ Append a new entry for each meaningful work session. Keep prior entries as hando
 - **Validation:** Root `npm run test` via Turbo PASS — Vitest 18/18 plus legacy 265/265, 283 total. Root `npm run check-types` PASS (Turbo 4 tasks). Root `npm run build` PASS — Next compile, TypeScript, static generation 21/21 and route optimization. `git diff --check` PASS with only Git LF→CRLF warnings.
 - **Database evidence:** No live DB was used in CI; US15-DB Neon development evidence remains the source for unique, exact-one CHECK, FK behavior and User cascade. The new fake DB models unique/rollback behavior for stable automation.
 - **Limits/status:** Traveler browser add/remove and network-loss smoke still lacks a real Traveler session; it is not claimed as complete. US-14 and US-15 are marked ACCEPTED for owner review, not IMPLEMENTED. No Favorite list/trip endpoint was added.
+=======
+
+## 2026-10-07 — US-11 Task 144 browser-history regression
+
+- **Fix:** Explore committed search/filter and List/Map changes use Next App Router `router.push(..., { scroll: false })`, preserving normal history entries and URL-backed state. Retry on an unchanged URL still retries the current API read. Destination detail remains a canonical Next `<Link>`; no return URL, storage, schema, or migration was added.
+- **Root-cause confidence:** The reported “Back returns to `/`” could not be reproduced on this branch before the fix in the local Chrome smoke. The implementation mixed native `window.history.pushState` with App Router detail navigation; that was the primary history-stack risk, so committed Explore navigation was made consistent with the router. The original intermittent trigger is not independently proven.
+- **Browser:** Home → Explore → q=Manual → region=đồng văn → category=văn hóa → detail → browser Back once returned `/explore?q=Manual&category=v%C4%83n+h%C3%B3a&region=%C4%91%E1%BB%93ng+v%C4%83n`; input, both filter chips and matching result were restored. Forward returned to the same detail, then Back restored Explore. Reload restored the URL and form. List/Map preserved q/category/region and `culturePage=1`; Culture remained visible and independent.
+- **Checks:** `npm run test:search --workspace web` 32/32, `npm run test:explore --workspace web` 14/14, `npm run test:map --workspace web` 24/24, `npm run test:destination --workspace web` 61/61, `npm run check-types`, `npm run build` and `git diff --check` PASS.
+- No production writes, schema changes, migrations, commit or push.
+>>>>>>> 1b74d933e3d23aa240ac245123f05a3d2ddd4973

@@ -6,7 +6,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { Database } from "@KLTN/db";
 import { listPublicLocations, parsePublicListQuery, publicLocationSelect, publicLocationResponse, publicLocationSchema } from "../destination/public-destination-list";
 import { visibleDestinationWhere } from "../destination/destination-eligibility";
-import { destinationDetailHref, exploreView, exploreViewHref, haGiangViewport, projectMarkers } from "./map-model";
+import { buildExploreReturnTo, resolveExploreReturnTo } from "../destination/destination-detail-navigation";
+import { commitExploreNavigation, destinationDetailHref, exploreView, exploreViewHref, haGiangViewport, projectMarkers } from "./map-model";
 import DestinationMap from "../../components/map/destination-map";
 import { mapStyle, stadiaStyles, verifyMapWorkerAssets } from "./map-config";
 import { startMapSession } from "./map-session";
@@ -80,12 +81,25 @@ test("public data error stays500/no-store, no false empty/provider error or inte
   assert.equal((await publicLocationResponse(new Request("http://localhost/api/destinations?role=ADMIN"), fixture().database)).status, 400);
 });
 test("view changes preserve pathname/query filters/page, refresh/default map state and detail path", () => {
-  const params = new URLSearchParams("q=đồng văn&area=đồng văn&category=văn hóa&page=2&view=list");
+  const params = new URLSearchParams("q=Manual&category=văn hóa&region=đồng văn&culturePage=2&view=list");
   const href = exploreViewHref(params, "map"); const next = new URL(href, "http://localhost");
   assert.equal(next.pathname, "/explore"); assert.equal(exploreView(next.searchParams), "map");
-  for (const key of ["q", "area", "category", "page"]) assert.equal(next.searchParams.get(key), params.get(key));
+  for (const key of ["q", "category", "region", "culturePage"]) assert.equal(next.searchParams.get(key), params.get(key));
   assert.equal(exploreView(new URLSearchParams()), "list"); assert.equal(exploreView(new URLSearchParams("view=unsafe")), "list");
   assert.equal(destinationDetailHref("abc"), "/destinations/abc"); assert.equal(destinationDetailHref("bad/id"), "/destinations/bad%2Fid");
+});
+test("Explore navigation uses push semantics and never replaces filtered history", () => {
+  const stack = ["/", "/explore", "/explore?q=Manual&category=v%C4%83n+h%C3%B3a&region=%C4%91%E1%BB%93ng+v%C4%83n"];
+  const calls: string[] = [];
+  let retry = 0;
+  const router = { push(href: string) { calls.push(href); stack.push(href); } };
+  commitExploreNavigation("/explore?view=map", stack.at(-1)!, () => router.push("/explore?view=map"), () => { retry++; });
+  assert.deepEqual(calls, ["/explore?view=map"]);
+  assert.equal(stack.length, 4);
+  assert.equal(stack[2], "/explore?q=Manual&category=v%C4%83n+h%C3%B3a&region=%C4%91%E1%BB%93ng+v%C4%83n");
+  commitExploreNavigation(stack.at(-1)!, stack.at(-1)!, () => router.push(stack.at(-1)!), () => { retry++; });
+  assert.equal(calls.length, 1);
+  assert.equal(retry, 1);
 });
 test("SSR is safe: provider loading has accessible context, empty/invalid are distinct and no iframe/fake map", () => {
   const html = renderToStaticMarkup(<DestinationMap destinations={[a, b]} />);
@@ -102,7 +116,7 @@ test("canonical styles/coordinate order, no key; shared provider wiring and reta
  const renderer=await readFile(new URL("./maplibre-renderer.ts",import.meta.url),"utf8");
  for(const pattern of [/library.Marker/,/library.Popup/,/setDOMContent/,/textContent = point.name/,/focusAfterOpen: true/,/map.remove\(\)/,/map.on\("error"/,/map.on\("load"/,/NavigationControl/,/fitBounds/]) assert.match(renderer,pattern);
  assert.doesNotMatch(renderer,/innerHTML|geolocation|Directions/);
- const explore=await readFile(new URL("../../app/explore/explore-results.tsx",import.meta.url),"utf8"); assert.match(explore,/destinations=\{data.items\}/); assert.match(explore,/data.items.map/); assert.match(explore,/window.history.pushState/); assert.match(explore,/aria-pressed/);
+ const explore=await readFile(new URL("../../app/explore/explore-results.tsx",import.meta.url),"utf8"); assert.match(explore,/destinations=\{data.items\} returnTo=\{returnTo\}/); assert.match(explore,/destinationDetailHref\(item\.id, returnTo\)/); assert.match(explore,/data.items.map/); assert.match(explore,/commitExploreNavigation\(href, current/); assert.match(explore,/router\.push\(href as Route/); assert.match(explore,/aria-pressed/);
  const detail=await readFile(new URL("../../app/destinations/[id]/destination-detail.tsx",import.meta.url),"utf8"); assert.match(detail,/DestinationMap/); assert.match(detail,/latitude: d.latitude, longitude: d.longitude/); assert.match(detail,/d.relatedCulture/);
 });
 for(const scenario of ["ready","load-error","timeout","style-error","unmount","mount-error"]) test(`mock provider lifecycle ${scenario}, no late success`,async()=>{
@@ -118,8 +132,8 @@ for(const count of [0,1,2]) test(`mock MapLibre ${count} markers, viewport/CTA/c
  const globals=globalThis as any;const old=globals.document;const markers:any[]=[];const popups:any[]=[];let map:any;
  globals.document={createElement:(tag:string)=>({tag,textContent:"",href:"",children:[] as any[],setAttribute(){},append(...items:any[]){this.children.push(...items);}})};
  const library={Map:class{options:any;center:any;bounds:any;removed=false;events:Record<string,()=>void>={};constructor(options:any){this.options=options;map=this;}on(name:string,fn:()=>void){this.events[name]=fn;}off(name:string){delete this.events[name];}addControl(){}jumpTo(value:any){this.center=value;}fitBounds(value:any){this.bounds=value;}remove(){this.removed=true;}},NavigationControl:class{},LngLatBounds:class{points:any[]=[];extend(value:any){this.points.push(value);}},Popup:class{options:any;content:any;removed=false;constructor(options:any){this.options=options;popups.push(this);}setDOMContent(value:any){this.content=value;return this;}remove(){this.removed=true;}},Marker:class{position:any;removed=false;element:any;constructor(options:any){this.element=options.element;markers.push(this);}setLngLat(value:any){this.position=value;return this;}setPopup(){return this;}addTo(){return this;}remove(){this.removed=true;}}} as unknown as typeof MapLibre;
- try{let ready=0,errors=0;const dispose=mountMapLibre({} as HTMLDivElement,library,[a,b].slice(0,count),stadiaStyles.light,false,()=>ready++,()=>errors++);
- assert.equal(markers.length,count);if(count){assert.deepEqual(markers[0].position,[105.36,23.28]);assert.equal(markers[0].element.type,"button");assert.equal(popups[0].options.focusAfterOpen,true);assert.equal(popups[0].content.children[2].href,"/destinations/a");}
+ try{let ready=0,errors=0;const returnTo=buildExploreReturnTo(new URLSearchParams("q=Manual&category=v%C4%83n+h%C3%B3a&region=%C4%91%E1%BB%93ng+v%C4%83n&view=map&culturePage=3"));const dispose=mountMapLibre({} as HTMLDivElement,library,[a,b].slice(0,count),stadiaStyles.light,false,returnTo,()=>ready++,()=>errors++);
+ assert.equal(markers.length,count);if(count){assert.deepEqual(markers[0].position,[105.36,23.28]);assert.equal(markers[0].element.type,"button");assert.equal(popups[0].options.focusAfterOpen,true);const detailHref=popups[0].content.children[2].href;assert.equal(detailHref,destinationDetailHref("a",returnTo));assert.equal(resolveExploreReturnTo(new URL(detailHref,"http://localhost").searchParams.get("returnTo")),returnTo);assert.match(returnTo,/view=map/);assert.match(returnTo,/category=v%C4%83n\+h%C3%B3a/);}
  if(count===0)assert.deepEqual(map.options.center,[104.9836,22.8233]);if(count===1)assert.deepEqual(map.center,{center:[105.36,23.28],zoom:12});if(count===2)assert.equal(map.bounds.points.length,2);
  map.events.load();map.events.error();assert.equal(ready,1);assert.equal(errors,1);dispose();dispose();assert.equal(map.removed,true);assert.ok(markers.every(item=>item.removed));assert.ok(popups.every(item=>item.removed));
  }finally{globals.document=old;}

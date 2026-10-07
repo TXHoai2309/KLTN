@@ -4,10 +4,23 @@
 .destination-map-overlay { position: absolute; inset: 0; }
 .destination-map-state button { padding: 10px 18px; border: 1px solid var(--border); border-radius: 8px; background: var(--background); cursor: pointer; }
 .destination-map-note { margin-top: 12px; }
-.destination-map-popup { color: #17251d; max-width: 240px; font-family: sans-serif; line-height: 1.5; }
-.destination-map-popup strong { display: block; font-size: 16px; }
-.destination-map-popup p { margin: 8px 0; }
-.destination-map-popup a { color: #216145; text-decoration: underline; display: inline-block; padding: 8px 0; }
+.destination-map-popup { color: #20372c; width: max-content; max-width: 250px; font-family: var(--font-be-vietnam), sans-serif; font-size: 12px; line-height: 1.5; }
+.destination-map-popup strong { display: block; color: #183128; font-size: 15px; font-weight: 700; line-height: 1.35; }
+.destination-map-popup p { margin: 6px 0 8px; color: #63746e; font-size: 11px; }
+.destination-map-popup a { color: #216145; text-decoration: none; display: inline-flex; align-items: center; padding: 5px 0 1px; font-size: 12px; font-weight: 700; }
+.destination-map-popup a:hover { text-decoration: underline; }
+.destination-map .maplibregl-popup-content { padding: 12px 15px; border: 1px solid #dce6de; border-radius: 11px; box-shadow: 0 7px 24px #14291b24; }
+.destination-map .maplibregl-popup-tip { border-top-color: white; border-bottom-color: white; }
+.dark .destination-map .maplibregl-popup-content { border-color: #46544a; background: #202a23; }
+.dark .destination-map-popup,
+.dark .destination-map-popup strong { color: #e6eee8; }
+.dark .destination-map-popup p { color: #afbbb2; }
+.dark .destination-map-popup a { color: #a5d5b4; }
+.dark .destination-map .maplibregl-popup-tip { border-top-color: #202a23; border-bottom-color: #202a23; }
+.dark .destination-map .maplibregl-popup-close-button { color: #e6eee8; }
+.destination-map .maplibregl-ctrl-group { overflow: hidden; border: 1px solid #dce6de; border-radius: 9px; box-shadow: 0 2px 8px #14291b14; }
+.destination-map .maplibregl-ctrl-group button { width: 34px; height: 34px; }
+.dark .destination-map .maplibregl-ctrl-group { border-color: #46544a; background: #202a23; }
 .destination-map-marker { width: 36px; height: 36px; border: 3px solid white; border-radius: 50%; background: #306b4f; color: white; font-size: 20px; cursor: pointer; box-shadow: 0 2px 6px #0006; }
 .destination-map .maplibregl-popup-content { background: white; }
 .destination-map .maplibregl-popup-close-button { color: #17251d; padding: 2px 8px; }

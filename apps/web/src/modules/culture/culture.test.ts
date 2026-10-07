@@ -13,6 +13,7 @@ import { saveCulture, changeCultureVisibility, loadCulture, loadCultureList, loo
 import { markCultureSaved, takeCultureSaved } from "../../lib/culture-save-notice";
 import { claimSubmission, releaseSubmission } from "../../lib/auth-submission-guard";
 import CulturePageHeader from "../../app/admin/culture/culture-page-header";
+import DestinationPicker from "../../app/admin/culture/destination-picker";
 import { useCultureVisibility } from "../../app/admin/culture/culture-visibility-action";
 const input = (destinationIds: string[] = []): CultureInput => ({ title: "Văn hóa", content: "Nội dung", sourceTitle: "Tài liệu", sourceUrl: null, destinationIds });
 const headers = new Headers();
@@ -128,7 +129,15 @@ test("SSR headers/loading visibility, no optimistic publication; UI contracts/ac
   assert.match(renderToStaticMarkup(createElement(Demo)), /role="switch"[^>]*aria-checked="false"/);
   const form = await readFile(new URL("../../app/admin/culture/culture-form.tsx", import.meta.url), "utf8");
   for (const pattern of [/method="post"/, /event.preventDefault\(\)/, /claimSubmission/, /unknown && attempt.current/, /if \(unknown\)/, /disabled=\{saving \|\| unknown \|\| visibilityAction.busy\}/, /markCultureSaved/]) assert.match(form, pattern);
-  const picker = await readFile(new URL("../../app/admin/culture/destination-picker.tsx", import.meta.url), "utf8"); assert.match(picker, /type="checkbox"/); assert.match(picker, /lookupDestinations/); assert.match(picker, /Bỏ liên kết/);
+  const initialPicker = renderToStaticMarkup(createElement(DestinationPicker, { selected: [], onChange() {} }));
+  assert.match(initialPicker, /role="combobox"/); assert.match(initialPicker, /aria-expanded="false"/); assert.match(initialPicker, /placeholder="Tìm điểm đến\.\.\."/); assert.doesNotMatch(initialPicker, /Trang trước|Trang sau|Trang 1/);
+  const picker = await readFile(new URL("../../app/admin/culture/destination-picker.tsx", import.meta.url), "utf8");
+  for (const pattern of [/role="combobox"/, /aria-multiselectable="true"/, /ArrowDown/, /ArrowUp/, /event\.key === "Enter"/, /event\.key === "Escape"/, /pointerdown/, /lookupDestinations/, /setTimeout\(\(\) =>/, /loadDestination\(id\)/, /visibility === "HIDDEN"/, /Không tìm thấy điểm đến phù hợp/, /Không thể tải danh sách điểm đến/, /Thử lại/, /Bỏ liên kết/, /Đã chọn/]) assert.match(picker, pattern);
+  assert.doesNotMatch(picker, /Tìm và chọn điểm đến|Điểm đến đã chọn \(\$\{selected\.length\}\)|culture-picker-search/);
+  assert.doesNotMatch(picker, /Trang trước|Trang sau|Trang 1|type="checkbox"/);
+  assert.match(form, /new URL\(anchor\.href, window\.location\.href\)/); assert.match(form, /target\.origin !== window\.location\.origin/); assert.match(form, /beforeunload/); assert.match(form, /showModal\(\)/); assert.match(form, /dirtyRef\.current = false/);
+  const styles = await readFile(new URL("../../app/admin/culture/culture.css", import.meta.url), "utf8");
+  for (const pattern of [/\.culture-picker-panel[^\n]*max-height: min\(320px/, /\.culture-picker-options[^\n]*overflow-y: auto/, /\.dark \.culture-picker-hidden/, /\.culture-form-page \.destination-form-actions/, /@media \(max-width: 600px\)/]) assert.match(styles, pattern);
   const action = await readFile(new URL("../../app/admin/culture/culture-visibility-action.tsx", import.meta.url), "utf8");
   for (const pattern of [/if \(uncertainIdsRef.current.has\(id\)\) await loadCulture\(current.id\)/, /current.target, current.key/, /pendingIds.has\(item.id\)/, /uncertainIds.has\(item.id\)/, /disabled=\{disabled \|\| pending \|\| uncertain\}/, /activeIds.current.has\(id\)/, /onCancel=/, /autoFocus/, /opener.current\?\.focus/, /cancelConfirmation/, /result.status === "SUCCESS"/]) assert.match(action, pattern);
   assert.doesNotMatch(action, /disabled=\{disabled \|\| busy\}/);

@@ -1,7 +1,8 @@
 import type * as MapLibre from "maplibre-gl";
+import type { ExploreReturnHref } from "../destination/destination-detail-navigation";
 import { destinationDetailHref, haGiangViewport, toMapCoordinate, type MapDestination } from "./map-model";
 
-export function mountMapLibre(host: HTMLDivElement, library: typeof MapLibre, points: readonly MapDestination[], style: string, detail: boolean, onReady: () => void, onFailure: () => void) {
+export function mountMapLibre(host: HTMLDivElement, library: typeof MapLibre, points: readonly MapDestination[], style: string, detail: boolean, returnTo: ExploreReturnHref | undefined, onReady: () => void, onFailure: () => void) {
   const map = new library.Map({ container: host, style, center: toMapCoordinate(haGiangViewport.center), zoom: haGiangViewport.zoom, maxZoom: 15, cooperativeGestures: true, attributionControl: { compact: true } });
   const markers: MapLibre.Marker[] = []; const popups: MapLibre.Popup[] = [];
   let disposed = false;
@@ -13,7 +14,7 @@ export function mountMapLibre(host: HTMLDivElement, library: typeof MapLibre, po
       const card = document.createElement("div"); card.className = "destination-map-popup";
       const heading = document.createElement("strong"); heading.textContent = point.name;
       const context = document.createElement("p"); context.textContent = [point.area, point.category].filter(Boolean).join(" · "); card.append(heading, context);
-      if (!detail) { const link = document.createElement("a"); link.textContent = "Xem chi tiết"; link.href = destinationDetailHref(point.id); card.append(link); }
+      if (!detail) { const link = document.createElement("a"); link.textContent = "Xem chi tiết"; link.href = destinationDetailHref(point.id, returnTo); card.append(link); }
       const element = document.createElement("button"); element.type = "button"; element.className = "destination-map-marker"; element.setAttribute("aria-label", `Xem ${point.name}`); element.textContent = "●";
       const popup = new library.Popup({ offset: 24, focusAfterOpen: true }).setDOMContent(card); popups.push(popup);
       const marker = new library.Marker({ element }).setLngLat(toMapCoordinate(point)).setPopup(popup).addTo(map); markers.push(marker);

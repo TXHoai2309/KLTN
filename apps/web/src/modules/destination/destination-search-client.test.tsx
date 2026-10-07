@@ -6,6 +6,8 @@ import { destinationQueryParams, destinationRequestKey, destinationSearchHref, p
 import { startDestinationRequest, type DestinationRequestState } from "./destination-search-client";
 import { DestinationSearchForm, DestinationResultStatus } from "../../app/explore/destination-search-form";
 import DestinationCard from "../../app/explore/destination-card";
+import { buildExploreReturnTo } from "./destination-detail-navigation";
+import { commitExploreNavigation, destinationDetailHref } from "../map/map-model";
 
 // tsx compiles the UI workspace's preserved JSX with the classic runtime.
 // Next supplies the automatic runtime in production; keep this shim test-local.
@@ -25,6 +27,39 @@ test("URL build/clear preserves view/Culture and removes obsolete paging", () =>
   assert.equal(destinationSearchHref(new URLSearchParams("q=x"), {}), "/explore");
   assert.equal(new URL(destinationSearchHref(next.searchParams, { q: "Mèo Vạc", region: "dong-van" }), "http://localhost").searchParams.has("category"), false);
   assert.equal(params.get("q"), "old");
+});
+test("committed combined search pushes a history entry and detail Back returns to the exact URL", () => {
+  const history = ["/", "/explore"];
+  let index = history.length - 1;
+  let retries = 0;
+  const back = () => { index = Math.max(0, index - 1); return history[index]!; };
+  const pushes: { href: string; scroll?: boolean }[] = [];
+  const router = { push(href: string, options?: { scroll?: boolean }) {
+    pushes.push({ href, scroll: options?.scroll });
+    history.splice(index + 1);
+    history.push(href);
+    index++;
+  } };
+  const href = destinationSearchHref(new URLSearchParams("culturePage=2"), { q: "Manual", category: "văn hóa", region: "đồng văn" });
+  commitExploreNavigation(href, history[index]!, () => router.push(href, { scroll: false }), () => { retries++; });
+  assert.equal(href, "/explore?culturePage=2&q=Manual&category=v%C4%83n+h%C3%B3a&region=%C4%91%E1%BB%93ng+v%C4%83n");
+  assert.deepEqual(pushes, [{ href, scroll: false }]);
+  assert.deepEqual(history, ["/", "/explore", href]);
+
+  // Destination links carry the Explore URL; browser Back still returns to the entry it came from.
+  const returnTo = buildExploreReturnTo(new URL(href, "http://localhost").searchParams);
+  const detailHref = destinationDetailHref("cmutr90km00015o9w4t64ozfd", returnTo);
+  history.push(detailHref);
+  index++;
+  assert.equal(history[index], `/destinations/cmutr90km00015o9w4t64ozfd?returnTo=${encodeURIComponent(href)}`);
+  assert.equal(back(), href);
+  assert.deepEqual(Object.fromEntries(new URL(href, "http://localhost").searchParams), {
+    culturePage: "2", q: "Manual", category: "văn hóa", region: "đồng văn",
+  });
+  assert.equal(retries, 0);
+  commitExploreNavigation(href, href, () => router.push(href, { scroll: false }), () => { retries++; });
+  assert.equal(pushes.length, 1);
+  assert.equal(retries, 1);
 });
 test("direct/reloaded/Back URL independently hydrates form including unavailable selected option", () => {
   const original = new URLSearchParams("q=meo-vac&category=heritage&region=dong-van&view=list&culturePage=2");
@@ -51,6 +86,13 @@ test("destination card links to the existing detail and renders public text safe
   assert.match(html, /&lt;script&gt;private&lt;\/script&gt;/);
   assert.doesNotMatch(html, /<script>|<img/);
   assert.match(html, /Xem chi tiết/);
+});
+test("filtered Explore destination card carries exact safe Explore context to Detail", () => {
+  const source = "/explore?q=Manual&category=v%C4%83n+h%C3%B3a&region=%C4%91%E1%BB%93ng+v%C4%83n&view=list&culturePage=2";
+  const returnTo = buildExploreReturnTo(new URL(source, "http://localhost").searchParams);
+  const html = renderToStaticMarkup(<DestinationCard destination={{ id: "destination-a", name: "Điểm đến", area: "Đồng Văn", category: "Văn hóa", latitude: null, longitude: null }} returnTo={returnTo} />);
+  assert.match(html, new RegExp(`href="/destinations/destination-a\\?returnTo=${encodeURIComponent(source)}"`));
+  assert.equal(returnTo, source);
 });
 test("API request sends only search params, no-store and signal; loading then successful empty", async () => {
   const states: DestinationRequestState[] = [];

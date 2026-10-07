@@ -79,9 +79,21 @@ test("loading markup covers both domains, semantic headings, no blank page", () 
   const html=renderToStaticMarkup(<Loading/>); assert.match(html,/Đang tải điểm đến/); assert.match(html,/Đang tải nội dung văn hóa/); assert.equal((html.match(/aria-busy="true"/g)||[]).length,2);
 });
 test("Home is product UI; Explore streams independently and exposes no dead Culture/AI/Trip controls", async () => {
-  const home=await readFile(new URL("../../app/page.tsx",import.meta.url),"utf8"); assert.match(home,/Khám phá Hà Giang theo cách của bạn/); assert.match(home,/href="\/explore"/); assert.doesNotMatch(home,/TITLE_TEXT|API Status|BETTER|\/trips|\/assistant/);
+  const home=await readFile(new URL("../../app/page.tsx",import.meta.url),"utf8");
+  for (const copy of [/Khám phá Hà Giang/, /theo cách của bạn/, /BẮT ĐẦU HÀNH TRÌNH/, /Khám phá điểm đến/, /Tìm hiểu văn hóa/, /Xem vị trí trên bản đồ/]) assert.match(home,copy);
+  for (const href of [/href="\/explore"/, /href="\/explore\?view=map"/]) assert.match(home,href);
+  assert.match(home,/home-hero-visual/); assert.match(home,/home-quick-info/); assert.match(home,/HomeScrollReveal/);
+  assert.doesNotMatch(home,/TITLE_TEXT|API Status|BETTER|\/trips|\/assistant|https?:\/\//);
+  const header=await readFile(new URL("../../components/header.tsx",import.meta.url),"utf8");
+  for (const pattern of [/className="site-header"/, /className="site-brand"/, /aria-label="Điều hướng chính"/, /aria-current=\{active \? "page" : undefined\}/, /<ModeToggle className="site-theme-toggle"/, /<UserMenu \/>/, /pathname\.startsWith\("\/destinations\/"\)/, /pathname === "\/login"/]) assert.match(header,pattern);
+  const reveal=await readFile(new URL("../../components/home-scroll-reveal.tsx",import.meta.url),"utf8"); assert.match(reveal,/IntersectionObserver/); assert.match(reveal,/prefers-reduced-motion/); assert.match(reveal,/observer\.unobserve\(target\)/);
+  const homeCss=await readFile(new URL("../../app/home.css",import.meta.url),"utf8"); assert.match(homeCss,/@media \(prefers-reduced-motion: reduce\)/); assert.match(homeCss,/home-hero-enter/); assert.match(homeCss,/home-card:hover/);
+  const headerCss=await readFile(new URL("../../components/header.css",import.meta.url),"utf8"); assert.match(headerCss,/width: min\(1280px, 100%\)/); assert.match(headerCss,/padding: 0 clamp\(16px, 3vw, 36px\)/); assert.match(headerCss,/padding: 8px 14px 0/);
   const page=await readFile(new URL("../../app/explore/page.tsx",import.meta.url),"utf8"); assert.equal((page.match(/<Suspense/g)||[]).length,2); assert.match(page,/params.delete\("culturePage"\)/);
   const culture=await readFile(new URL("../../app/explore/culture-results.tsx",import.meta.url),"utf8"); assert.match(culture,/Chưa có nội dung văn hóa công khai/); assert.match(culture,/router.refresh/); assert.match(culture,/noopener noreferrer/); assert.doesNotMatch(culture,/href=.*\/culture\/|dangerouslySetInnerHTML|fetch\(/);
-  const destination=await readFile(new URL("../../app/explore/explore-results.tsx",import.meta.url),"utf8"); assert.match(destination,/destinations=\{data.items\}/);
+  const destination=await readFile(new URL("../../app/explore/explore-results.tsx",import.meta.url),"utf8");
+  assert.match(destination,/destinations=\{data.items\}/); assert.match(destination,/explore-map-workspace/); assert.match(destination,/explore-map-result/); assert.match(destination,/aria-pressed/); assert.match(destination,/DestinationSearchForm/); assert.match(destination,/DestinationResultStatus/);
+  const searchForm=await readFile(new URL("../../app/explore/destination-search-form.tsx",import.meta.url),"utf8"); assert.match(searchForm,/type="search"/); assert.match(searchForm,/name=\{key\}/);
+  const exploreCss=await readFile(new URL("../../app/explore/explore.css",import.meta.url),"utf8"); assert.match(exploreCss,/explore-cards-single/); assert.match(exploreCss,/explore-map-panel \.destination-map-canvas/); assert.match(exploreCss,/\.dark \.explore-page/); assert.match(exploreCss,/@media \(prefers-reduced-motion: reduce\)/); assert.match(exploreCss,/@media \(max-width: 600px\)/); assert.match(exploreCss,/destination-filter-options/);
   const route=await readFile(new URL("../../app/api/culture/route.ts",import.meta.url),"utf8"); assert.match(route,/publicCultureResponse/); assert.doesNotMatch(route,/requireActor|findMany|admin/);
 });
