@@ -105,3 +105,33 @@ This is a lightweight log of decisions that future stories may rely on. “Exist
 - **Reason:** This is the team workflow provided for this repository.
 - **Consequence:** Promotion is manual and requires explicit approval. Do not auto-merge branches.
 - **Date:** Existing baseline
+
+## ADR-14 — Vitest unit/route test runner for web
+
+- **Status:** Proposed — awaiting product/technical owner approval
+- **Date:** 2026-10-06
+
+## Context
+
+US14-TEST needs a deterministic automated test entry point for Culture service, public Route Handler contracts, and pure UI safety helpers. The repository already contains useful `tsx --test` suites, but it has no package-level `test` task or unified runner, and there is no need for a browser E2E framework for this story. Tests must not connect to Neon or require secrets.
+
+## Decision
+
+Propose adding Vitest as a development dependency of `apps/web`, with a strict Node environment config and aliases for `@/` and `@KLTN/ui`. Add `apps/web` script `test`, a root `npm run test` delegating to `turbo run test`, and a Turbo `test` task. US14 Vitest tests use injected/mocked database objects and direct Route Handler calls with fake `Request` objects; they do not connect to Neon. Existing `tsx --test` scripts remain during this incremental adoption so unrelated suites are not silently dropped.
+
+For UI, use pure helper/source-contract tests plus a manual checklist in US-14. Do not add Playwright or another heavy E2E framework unless a later decision explicitly requests it.
+
+## Alternatives
+
+- Keep only per-suite `tsx --test` scripts: no new dependency, but no unified Vitest entry point and weaker standardization for future tests.
+- Add Jest: rejected because the repository is ESM/Next 16 and the requested scope does not need Jest-specific integrations.
+- Add Playwright/Cypress: rejected for US14; manual UI checks are sufficient for the current public read flow and avoid browser-runtime/network complexity.
+- Connect tests to Neon: rejected because tests would require secrets, network availability, and disposable-data cleanup.
+
+## Consequences
+
+- `npm run test` becomes a stable root/Turbo entry point for Vitest tests; existing legacy `tsx --test` commands remain explicit regression suites until a separate migration task is approved.
+- Service code must accept its database dependency through parameters/factories; tests can assert visibility, projection, and error behavior with in-memory fakes.
+- Route tests can call `GET` handlers directly while mocking the `db` module; no running server or database is required.
+- Vitest adds a development dependency and lockfile changes. The proposal does not change production runtime or schema/migrations.
+- Approval is still pending. If rejected, remove the Vitest config/script/dependency and retain the existing `tsx --test` suites; no product behavior depends on this choice.

@@ -3,16 +3,24 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3001",
-    "build": "next build",
+    "dev": "node scripts/prepare-map-assets.mjs && next dev --port 3001",
+    "build": "node scripts/prepare-map-assets.mjs && next build",
     "check-types": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.mts && npm run test:legacy",
+    "test:legacy": "npm run test:auth-ui && npm run test:account && npm run test:authorization && npm run test:destination && npm run test:culture && npm run test:map && npm run test:explore && npm run test:search && npm run test:favorite",
     "test:auth-ui": "tsx --test src/lib/auth-ui-safety.test.tsx src/lib/auth-context-return.test.ts src/lib/auth-fetch.test.ts src/lib/auth-hydration.test.ts src/modules/auth/strict-logout.test.ts",
     "test:account": "tsx --test src/modules/account/account.test.ts",
     "test:authorization": "tsx --test src/server/authorization/authorization.test.ts",
+    "test:destination": "tsx --test src/modules/destination/destination.test.ts src/modules/destination/public-destination.test.ts",
     "start": "next start",
     "env:generate": "varlock codegen",
     "auth:generate": "varlock run -- npx --yes auth@latest generate --config src/services.ts --output ../../packages/db/prisma/schema/auth.prisma --yes",
-    "auth:bootstrap-admin": "varlock run -- tsx scripts/bootstrap-admin.ts"
+    "auth:bootstrap-admin": "varlock run -- tsx scripts/bootstrap-admin.ts",
+    "test:culture": "tsx --test src/modules/culture/culture.test.ts src/modules/culture/culture.service.test.ts src/app/culture/culture-page.test.tsx src/app/culture/culture-detail.test.tsx",
+    "test:map": "tsx --test src/modules/map/map.test.tsx",
+    "test:explore": "tsx --test src/modules/culture/public-culture-list.test.tsx",
+    "test:search": "tsx --test src/modules/destination/destination-search.test.ts src/modules/destination/destination-search-client.test.tsx",
+    "test:favorite": "tsx --test src/modules/favorite/favorite.test.ts src/modules/favorite/favorite-client.test.tsx src/modules/culture/public-culture-detail.test.ts src/modules/favorites/favorites.test.ts src/components/favorite-button.test.tsx"
   },
   "dependencies": {
     "@KLTN/auth": "*",
@@ -25,6 +33,7 @@
     "babel-plugin-react-compiler": "^1.0.0",
     "better-auth": "1.7.5",
     "lucide-react": "^1.41.0",
+    "maplibre-gl": "^6.12.0",
     "next": "^16.3.4",
     "next-themes": "^0.4.6",
     "react": "^19.2.8",
@@ -40,6 +49,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "tailwindcss": "^4.3.3",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.3"
   }
 }

@@ -5,6 +5,7 @@ import { Mountain } from "lucide-react";
 
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
+import "./header.css";
 
 export default function Header() {
   const pathname = usePathname();
@@ -30,28 +31,35 @@ export default function Header() {
   }
 
   const links = [
-    { to: "/", label: "Home" },
+    { to: "/", label: "Trang chủ" },
+    { to: "/explore", label: "Khám phá" },
+    { to: "/culture", label: "Văn hóa" },
+    { to: "/favorites", label: "Yêu thích" },
     { to: "/dashboard", label: "Dashboard" },
   ] as const;
 
   return (
-    <div>
-      <div className="flex flex-row items-center justify-between px-2 py-1">
-        <nav className="flex gap-4 text-lg">
+    <header className="site-header">
+      <div className="site-header-inner">
+        <Link className="site-brand" href="/" aria-label="Hà Giang Travel Assistant - Trang chủ">
+          <span className="site-brand-mark" aria-hidden="true"><Mountain size={32} strokeWidth={1.8} /></span>
+          <span className="site-brand-copy"><strong>Hà Giang</strong><span>Travel Assistant</span></span>
+        </Link>
+        <nav className="site-nav" aria-label="Điều hướng chính">
           {links.map(({ to, label }) => {
-            return (
-              <Link key={to} href={to}>
-                {label}
-              </Link>
-            );
+            const active = to === "/"
+              ? pathname === "/"
+              : to === "/explore"
+                ? pathname === "/explore" || pathname.startsWith("/destinations/")
+                : pathname === to || pathname.startsWith(`${to}/`);
+            return <Link key={to} href={to} className="site-nav-link" data-active={active || undefined} aria-current={active ? "page" : undefined}>{label}</Link>;
           })}
         </nav>
-        <div className="flex items-center gap-2">
-          <ModeToggle />
+        <div className="site-header-actions">
+          <ModeToggle className="site-theme-toggle" locale="vi" />
           <UserMenu />
         </div>
       </div>
-      <hr />
-    </div>
+    </header>
   );
 }

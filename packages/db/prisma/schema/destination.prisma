@@ -1,0 +1,66 @@
+enum DestinationVisibility {
+  HIDDEN
+  VISIBLE
+}
+
+enum Weekday {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum OpeningStatus {
+  OPEN
+  CLOSED
+  UNKNOWN
+}
+
+model Destination {
+  id                       String                @id @default(cuid())
+  name                     String                @db.VarChar(200)
+  description              String                @db.Text
+  area                     String                @db.VarChar(100)
+  category                 String                @db.VarChar(100)
+  latitude                 Float
+  longitude                Float
+  suggestedDurationMinutes Int?
+  minimumDurationMinutes   Int?
+  visibility               DestinationVisibility @default(HIDDEN)
+  createdAt                DateTime              @default(now())
+  updatedAt                DateTime              @updatedAt
+  openingDays              OpeningDay[]
+  cultureLinks             CultureDestination[]
+  favorites                Favorite[]
+
+  @@index([area])
+  @@index([category])
+  @@index([visibility])
+  @@map("destination")
+}
+
+model OpeningDay {
+  id            String            @id @default(cuid())
+  destinationId String
+  destination   Destination       @relation(fields: [destinationId], references: [id], onDelete: Cascade)
+  dayOfWeek     Weekday
+  status        OpeningStatus
+  intervals     OpeningInterval[]
+
+  @@unique([destinationId, dayOfWeek])
+  @@map("opening_day")
+}
+
+model OpeningInterval {
+  id             String     @id @default(cuid())
+  openingDayId   String
+  openingDay     OpeningDay @relation(fields: [openingDayId], references: [id], onDelete: Cascade)
+  opensAtMinute  Int
+  closesAtMinute Int
+
+  @@unique([openingDayId, opensAtMinute])
+  @@map("opening_interval")
+}
