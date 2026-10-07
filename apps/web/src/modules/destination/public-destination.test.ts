@@ -9,6 +9,8 @@ import { visibleDestinationWhere } from "./destination-eligibility";
 import { getPublicDestination, publicDestinationSelect } from "./public-destination-service";
 import { publicDestinationResponse } from "./public-destination-http";
 import { publicDestinationDetailSchema, formatSuggestedDuration } from "./public-destination-contract";
+import { resolveExploreReturnTo } from "./destination-detail-navigation";
+import { destinationDetailHref } from "../map/map-model";
 import DestinationDetail, { DetailState } from "../../app/destinations/[id]/destination-detail";
 import { visibleCultureWhere, publicCultureSelect } from "../culture/culture-eligibility";
 
@@ -102,8 +104,29 @@ test("public screen renders factual text, seven weekdays and human hours with no
   const dto = await getPublicDestination("detail-a", fixture().database);
   const html = renderToStaticMarkup(createElement(DestinationDetail, { destination: dto }));
   for (const copy of [dto.name, dto.description, dto.area, dto.category, "Thông tin tham quan", "Thời lượng tham quan gợi ý", "1 giờ 30 phút", "23.2", "105.3", "Nội dung văn hóa liên quan", "Chưa có nội dung văn hóa liên quan.", "07:00 – 11:00", "13:00 – 24:00", "Đóng cửa cả ngày", "Chưa có dữ liệu", "Thứ Hai", "Chủ Nhật"]) assert.ok(html.includes(copy), copy);
-  assert.doesNotMatch(html, />OPEN<|>CLOSED<|>UNKNOWN<|minimumDuration|<img|<iframe|Yêu thích|Hỏi AI|\/explore/);
-  assert.match(html, /href="\/"/); assert.match(html, /aria-labelledby="hours-title"/);
+  assert.doesNotMatch(html, />OPEN<|>CLOSED<|>UNKNOWN<|minimumDuration|<img|<iframe|Yêu thích|Hỏi AI/);
+  assert.match(html, /href="\/explore"/); assert.match(html, /Quay lại Khám phá/); assert.match(html, /aria-labelledby="hours-title"/);
+});
+
+test("filtered Explore detail action returns to the exact safe query context", async () => {
+  const source = "/explore?q=Manual&category=v%C4%83n+h%C3%B3a&region=%C4%91%E1%BB%93ng+v%C4%83n&view=list&culturePage=2";
+  const entry = destinationDetailHref("detail-a", resolveExploreReturnTo(source));
+  const returnTo = resolveExploreReturnTo(new URL(entry, "http://localhost").searchParams.get("returnTo"));
+  const dto = await getPublicDestination("detail-a", fixture().database);
+  const html = renderToStaticMarkup(createElement(DestinationDetail, { destination: dto, returnTo }));
+  assert.equal(returnTo, source);
+  assert.match(html, /Quay lại Khám phá/);
+  assert.ok(html.includes(`href="${source.replaceAll("&", "&amp;")}"`));
+});
+
+test("direct and unsafe/external Detail return targets safely fall back to Explore", async () => {
+  for (const unsafe of [undefined, "https://evil.example/explore?q=x", "//evil.example/explore", "/destinations/other", "/explore?role=ADMIN"]) {
+    assert.equal(resolveExploreReturnTo(unsafe), "/explore");
+  }
+  const dto = await getPublicDestination("detail-a", fixture().database);
+  const unsafeHtml = renderToStaticMarkup(createElement(DestinationDetail, { destination: dto, returnTo: resolveExploreReturnTo("https://evil.example") }));
+  assert.match(unsafeHtml, /href="\/explore"/);
+  assert.doesNotMatch(unsafeHtml, /evil\.example/);
 });
 
 test("separate loading/error/missing/unavailable views never contain destination content", () => {
@@ -118,6 +141,7 @@ test("separate loading/error/missing/unavailable views never contain destination
 test("public delivery uses one service, no auth exception/cache and real retry; responsive dark styles", async () => {
   const page = await readFile(new URL("../../app/destinations/[id]/page.tsx", import.meta.url), "utf8");
   assert.match(page, /getPublicDestination/); assert.match(page, /notFound\(\)/); assert.match(page, /DESTINATION_UNAVAILABLE/); assert.match(page, /force-dynamic/);
+  assert.match(page, /resolveExploreReturnTo\(query\.returnTo\)/); assert.match(page, /returnTo=\{returnTo\}/);
   const route = await readFile(new URL("../../app/api/destinations/[id]/route.ts", import.meta.url), "utf8");
   assert.match(route, /publicDestinationResponse/); assert.doesNotMatch(route, /requireActor|session|admin/);
   const error = await readFile(new URL("../../app/destinations/[id]/error.tsx", import.meta.url), "utf8");

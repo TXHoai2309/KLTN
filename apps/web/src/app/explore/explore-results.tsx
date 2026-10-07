@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import type { Route } from "next";
 import { ArrowUpRight, List, Map, MapPin } from "lucide-react";
 import DestinationMap from "@/components/map/destination-map";
 import DestinationCard from "./destination-card";
@@ -12,11 +13,14 @@ import {
   type PublicLocationList,
 } from "@/modules/destination/public-destination-query";
 import { startDestinationRequest, type DestinationRequestState } from "@/modules/destination/destination-search-client";
-import { destinationDetailHref, exploreView, exploreViewHref } from "@/modules/map/map-model";
+import { buildExploreReturnTo } from "@/modules/destination/destination-detail-navigation";
+import { commitExploreNavigation, destinationDetailHref, exploreView, exploreViewHref } from "@/modules/map/map-model";
 import { DestinationResultStatus, DestinationSearchForm } from "./destination-search-form";
 
 export default function ExploreResults({ data: initialData, error }: { data?: PublicLocationList; error?: string }) {
+  const router = useRouter();
   const params = useSearchParams();
+  const returnTo = buildExploreReturnTo(new URLSearchParams(params));
   const view = exploreView(new URLSearchParams(params));
   const query = destinationRequestKey(new URLSearchParams(params));
   const [retry, setRetry] = useState(0);
@@ -39,8 +43,7 @@ export default function ExploreResults({ data: initialData, error }: { data?: Pu
 
   function navigate(href: string) {
     const current = `${window.location.pathname}${window.location.search}`;
-    if (current !== href) window.history.pushState(null, "", href);
-    else setRetry(value => value + 1);
+    commitExploreNavigation(href, current, () => router.push(href as Route, { scroll: false }), () => setRetry(value => value + 1));
   }
 
   function clear() {
@@ -48,7 +51,7 @@ export default function ExploreResults({ data: initialData, error }: { data?: Pu
   }
 
   function setView(nextView: "list" | "map") {
-    if (view !== nextView) window.history.pushState(null, "", exploreViewHref(new URLSearchParams(params), nextView));
+    if (view !== nextView) navigate(exploreViewHref(new URLSearchParams(params), nextView));
   }
 
   return (
@@ -87,13 +90,13 @@ export default function ExploreResults({ data: initialData, error }: { data?: Pu
         {data && view === "map" && <div className="explore-map-workspace">
           <div className="explore-map-panel">
             <div className="explore-map-heading"><Map aria-hidden="true" size={18} /><span>Bản đồ Hà Giang</span><span className="explore-map-meta">{data.items.length} địa danh</span></div>
-            <DestinationMap destinations={data.items} />
+            <DestinationMap destinations={data.items} returnTo={returnTo} />
           </div>
           <aside className="explore-map-results" aria-label="Danh sách điểm đến trên bản đồ">
             <h3>Địa danh trên bản đồ</h3>
             {data.items.length === 0 ? <p className="explore-map-empty">{hasSearchState ? "Không có điểm đến phù hợp với bộ lọc." : "Chưa có điểm đến công khai."}</p> :
               <ul>{data.items.map(item => <li key={item.id}>
-                <Link href={destinationDetailHref(item.id)} className="explore-map-result">
+                <Link href={destinationDetailHref(item.id, returnTo)} className="explore-map-result">
                   <span className="explore-map-result-mark" aria-hidden="true"><MapPin size={18} /></span>
                   <span className="explore-map-result-copy"><strong>{item.name}</strong><span>{item.area}</span><small>{item.category}</small></span>
                   <ArrowUpRight aria-hidden="true" size={16} />
@@ -103,7 +106,7 @@ export default function ExploreResults({ data: initialData, error }: { data?: Pu
         </div>}
         {data && view === "list" && data.items.length > 0 && <ul className={`explore-cards destination-grid${data.items.length === 1 ? " explore-cards-single" : ""}`}>
           {data.items.map((item, index) => <li key={item.id} style={{ "--card-index": index } as React.CSSProperties}>
-            <DestinationCard destination={item} />
+            <DestinationCard destination={item} returnTo={returnTo} />
           </li>)}
         </ul>}
       </div>

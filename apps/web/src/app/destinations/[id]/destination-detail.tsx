@@ -1,32 +1,34 @@
 import React, { type ReactNode } from "react";
 import Link from "next/link";
+import type { Route } from "next";
 import DestinationMap from "@/components/map/destination-map";
+import { resolveExploreReturnTo, type ExploreReturnHref } from "@/modules/destination/destination-detail-navigation";
 import { ArrowLeft, BookOpen, Clock, MapPin, Mountain, CalendarDays, Compass } from "lucide-react";
 import { weekdayLabels } from "@/modules/destination/destination-contract";
 import { formatSuggestedDuration, type PublicDestinationDetail } from "@/modules/destination/public-destination-contract";
 
-function Shell({ children }: { children: ReactNode }) {
+function Shell({ children, returnTo }: { children: ReactNode; returnTo: ExploreReturnHref }) {
   return <main className="public-detail" lang="vi"><div className="public-detail-container">
-    <Link href="/" className="public-detail-back"><ArrowLeft size={17} aria-hidden="true" />Về trang chủ</Link>
+    <Link href={returnTo as Route} className="public-detail-back"><ArrowLeft size={17} aria-hidden="true" />Quay lại Khám phá</Link>
     {children}
   </div></main>;
 }
 
-export function DetailState({ state, children }: { state: "missing" | "unavailable" | "loading" | "error"; children?: ReactNode }) {
+export function DetailState({ state, children, returnTo }: { state: "missing" | "unavailable" | "loading" | "error"; children?: ReactNode; returnTo?: ExploreReturnHref }) {
   const copy = {
     missing: ["Không tìm thấy điểm đến", "Điểm đến bạn tìm kiếm không tồn tại. Hãy kiểm tra lại đường dẫn."],
     unavailable: ["Điểm đến không còn khả dụng", "Điểm đến này hiện không được hiển thị trong khu vực công khai."],
     loading: ["Đang tải điểm đến…", "Thông tin tham quan sẽ xuất hiện trong giây lát."],
     error: ["Không thể tải thông tin điểm đến", "Không thể tải thông tin điểm đến. Vui lòng thử lại."],
   }[state];
-  return <Shell><section className="public-detail-state" role={state === "loading" ? "status" : state === "error" ? "alert" : undefined} aria-busy={state === "loading"}>
+  return <Shell returnTo={resolveExploreReturnTo(returnTo)}><section className="public-detail-state" role={state === "loading" ? "status" : state === "error" ? "alert" : undefined} aria-busy={state === "loading"}>
     <span className="public-detail-symbol" aria-hidden="true"><Mountain size={32} /></span>
     <h1>{copy[0]}</h1><p>{copy[1]}</p>{children}
   </section></Shell>;
 }
 
-export default function DestinationDetail({ destination: d }: { destination: PublicDestinationDetail }) {
-  return <Shell>
+export default function DestinationDetail({ destination: d, returnTo }: { destination: PublicDestinationDetail; returnTo?: ExploreReturnHref }) {
+  return <Shell returnTo={resolveExploreReturnTo(returnTo)}>
     <header className="public-detail-hero">
       <span className="public-detail-eyebrow"><Mountain size={18} aria-hidden="true" />Hà Giang · Điểm đến</span>
       <div className="public-detail-tags"><span><MapPin size={14} aria-hidden="true" />{d.area}</span><span>{d.category}</span></div>

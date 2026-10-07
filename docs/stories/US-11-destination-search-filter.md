@@ -64,7 +64,7 @@ N/A — public read only.
 ## UX / UI Contract
 
 - Scoped Explore presentation follows the inspected Figma: off-white page, shared Input/Button/Card/Skeleton with local tokens, Be Vietnam Pro body and Noto Serif headings, category/region chip disclosures with native radio choices, Search and contextual Clear. Existing List/Map behavior and independent Culture content are retained; no new content-type search is implied.
-- Submit commits q/category/region to URL using native browser history; initial direct URL, reload and Back hydrate controls from the URL. No global memory/store.
+- Submit commits q/category/region to URL using Next App Router `router.push`, creating a normal history entry; initial direct URL, reload and Back hydrate controls from the URL. No global memory/store.
 - Existing visible detail links keep the list URL as the browser history entry. No new detail shell is needed.
 - Requests begin on committed URL filter changes and on Retry. Abort and ignore completions of obsolete requests.
 - Loading has accessible text/aria-busy, zero matches have a distinct status message, technical/validation failure has an alert and retry/clear recovery. Culture does not depend on Destination filtering.
@@ -221,6 +221,14 @@ Verification:
 - Width/scrollWidth at360/390/768/1024/1440:360/345,390/375,768/753,1024/1009,1440/1425 in the dev browser (scrollbar gutter included). Grid1/1/2/3/3 columns, input48px, card widths305/335/323.84/285.08/330px. Final production360 measured360/360. Dropdown selection was exercised at360. No horizontal overflow observed; no physical touch-device or full assistive-technology audit claimed.
 - Final production failure probe stopped only the owned smoke-server session, submitted q=Manual on the loaded page, and observed the technical error with controls/Culture retained. Restarted the same production build and clicked Retry: one public card returned at the same /explore?q=Manual URL without F5. Cleared filters afterward; viewport reset.
 - Screenshots outside Git: D:/KLTN/us11-ui-evidence/explore-1440.jpg, explore-360.jpg, error-production-360.jpg. Visual comparison checked fonts, colors, control/card geometry, mobile wrapping and state treatment against inspected Figma. Not a pixel-diff equality claim.
+
+## 2026-10-07 — Task 144 browser-history regression hardening
+
+- Explore search/filter submissions and List/Map changes now use Next App Router `router.push(..., { scroll: false })`; no `replace`, custom Back interception or storage was added. Same-URL Retry still reruns the current request. The exact reported return-to-Home symptom did not reproduce on this checkout before the change; the mixed native `pushState` and App Router `Link` history handling was the identified risk and is now consistent.
+- Regression coverage exercises the combined q/category/region URL, push (not replace) semantics, canonical Destination detail href, remount/reload URL hydration, List/Map preservation including `culturePage`, and independent Culture query/request state.
+- Real browser smoke from Home: `/` → `/explore` → `/explore?q=Manual&category=v%C4%83n+h%C3%B3a&region=%C4%91%E1%BB%93ng+v%C4%83n` → `/destinations/cmutr90km00015o9w4t64ozfd` → Back returns to the exact filtered URL and controls/results; Forward returns to detail; Back again restores filtered Explore. Reload restored the same URL/input/chips/result. List/Map preserved q/category/region and `culturePage=1`; Culture remained visible.
+- Regression checks: test:search 32/32, test:explore 14/14, test:map 24/24, test:destination 61/61 PASS. `npm run check-types` PASS after aligning typed-route usage. Build/diff results are recorded in this task's progress entry.
+- No schema/migration change, mutation, database write, commit or push.
 
 Files touched in this UI task:
 - apps/web/src/app/explore/destination-search-form.tsx
