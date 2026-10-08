@@ -185,6 +185,19 @@ describe("Task 195 controller (no persistence or HTTP endpoint)", () => {
 });
 
 describe("Task 195 renderer and production graph", () => {
+  it("keeps demo notice isolated and decorative artwork out of accessible content", () => {
+    const production = renderToStaticMarkup(createElement(AssistantShell, null, createElement(AssistantChat)));
+    const demo = renderToStaticMarkup(createElement(AssistantShell, null, createElement(AssistantChat, { demo: true })));
+    expect(production).toContain("Bạn muốn khám phá điều gì?");
+    expect(production).toContain("Nhập câu hỏi về Hà Giang…");
+    expect(production).not.toContain("Dữ liệu mô phỏng");
+    expect(demo).toContain("Dữ liệu mô phỏng");
+    expect(demo).toContain("không phải thông tin du lịch đã xác minh");
+    const svgs = [...production.matchAll(/<svg\b[^>]*>/g)].map((match) => match[0]);
+    expect(svgs.length).toBeGreaterThan(0);
+    for (const svg of svgs) expect(svg).toContain('aria-hidden="true"');
+    expect(production).not.toContain("<select");
+  });
   it("gives multiple chat instances unique SSR IDs with local label/ARIA references", () => {
     const tree = createElement("div", null, createElement(AssistantChat), createElement(AssistantChat));
     const html = renderToStaticMarkup(tree);
@@ -222,5 +235,5 @@ describe("Task 195 renderer and production graph", () => {
     expect(Object.keys(result.metafile!.inputs).some((path) => path.includes("development/") || path.includes(".vitest.test"))).toBe(false);
     expect(result.outputFiles.map((file) => file.text).join("\n")).not.toContain(DEMO_FIXTURE_MARKER);
     expect(result.outputFiles.map((file) => file.text).join("\n")).not.toContain("source_fixture_only");
-  });
+  }, 15000);
 });

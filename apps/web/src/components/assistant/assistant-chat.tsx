@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { CirclePlus, FileText, Info, Leaf, Send, ShieldCheck, Sparkles } from "lucide-react";
+import { AssistantLandscape } from "./assistant-landscape";
 import type { QaAnswerPart, QaCompletedTurn, QaPublicCitation } from "../../modules/ai/qa-contract";
 import { createIdempotencyKey } from "../../lib/mutation-client";
 import { AssistantController, hasUnresolvedAttempt, shouldSendOnEnter, type AssistantTransport, type ConfirmedTurn } from "./assistant-controller";
@@ -61,15 +63,15 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
   }
   const status = state.validation ?? state.pending?.message ?? (state.turns.length ? "Đã nhận phản hồi. Bạn có thể hỏi tiếp." : "Chưa có lượt hỏi.");
   return <section className="assistant-chat" aria-label="Hội thoại với trợ lý" lang="vi">
-    <div className="assistant-chat-toolbar"><span>Hỏi đáp chung về Hà Giang</span><button type="button" onClick={startNew} disabled={!transport || sending}>Cuộc hội thoại mới</button></div>
+    <div className="assistant-chat-toolbar"><span className="assistant-chat-topic"><Sparkles aria-hidden="true" />Hỏi đáp chung về Hà Giang</span><button type="button" onClick={startNew} disabled={!transport || sending}><CirclePlus aria-hidden="true" />Cuộc hội thoại mới</button></div>
     {!transport && <div className="assistant-notice" role="status"><strong>Trợ lý AI chưa khả dụng</strong><p>Chức năng gửi câu hỏi sẽ mở khi dịch vụ hỏi đáp sẵn sàng.</p></div>}
-    {demo && <div className="assistant-notice assistant-demo-notice"><strong>DEMO / DỮ LIỆU MÔ PHỎNG</strong><p>Các phản hồi và tham chiếu chỉ dùng kiểm thử giao diện, không phải thông tin du lịch đã xác minh.</p></div>}
+    {demo && <div className="assistant-notice assistant-demo-notice"><Info aria-hidden="true" /><div><strong>Dữ liệu mô phỏng</strong><p>Phản hồi chỉ dùng để kiểm thử giao diện, không phải thông tin du lịch đã xác minh.</p></div></div>}
     <div ref={viewport} className="assistant-transcript" tabIndex={0} aria-label="Danh sách tin nhắn" onScroll={() => {
       const el = viewport.current!;
       nearEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 64;
       if (nearEnd.current) setUnseen(false);
     }}>
-      {!state.turns.length && !state.pending && <div className="assistant-empty"><span className="assistant-icon" aria-hidden="true">AI</span><h2>Khám phá qua những câu hỏi</h2><p>Hỏi về văn hóa, lịch sử và điểm đến trong phạm vi dữ liệu Hà Giang.</p><p className="assistant-muted">Câu trả lời cần có nguồn. Khi thiếu dữ liệu, trợ lý sẽ nêu rõ giới hạn.</p></div>}
+      {!state.turns.length && !state.pending && <div className="assistant-empty"><div className="assistant-empty-art"><AssistantLandscape /><Sparkles className="assistant-icon" aria-hidden="true" /></div><h2>Bạn muốn khám phá điều gì?</h2><p>Hỏi về văn hóa, lịch sử và điểm đến tại Hà Giang.</p><p className="assistant-muted">Trợ lý sẽ nêu rõ khi chưa đủ nguồn xác minh.</p></div>}
       {state.turns.map((turn) => <AssistantTurn key={`${turn.response.conversationId}:${turn.response.turnId}`} turn={turn} citationSlot={citationSlot} />)}
       {state.pending && <div className="assistant-local-attempt">
         <article className="assistant-message assistant-user" aria-label="Câu hỏi chưa xác nhận"><p>{state.pending.attempt.payload.question}</p><small>{sending ? "Đang gửi — chưa xác nhận" : "Chưa được xác nhận lưu"}</small></article>
@@ -87,10 +89,11 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
     <div className="assistant-live assistant-muted" role="status" aria-live="polite" aria-atomic="true">{status}</div>
     <form className="assistant-composer" onSubmit={(event) => { event.preventDefault(); submit(); }}>
       <label htmlFor={questionId}>Câu hỏi của bạn</label>
-      <textarea id={questionId} ref={composer} rows={2} placeholder="Nhập câu hỏi…" value={state.draft} disabled={!transport}
+      <div className="assistant-composer-input"><textarea id={questionId} ref={composer} rows={2} placeholder="Nhập câu hỏi về Hà Giang…" value={state.draft} disabled={!transport}
         aria-invalid={!!state.validation} aria-describedby={helpId} onChange={(event) => controller.setDraft(event.target.value)}
         onKeyDown={(event) => { if (shouldSendOnEnter({ key: event.key, shiftKey: event.shiftKey, isComposing: event.nativeEvent.isComposing, keyCode: event.nativeEvent.keyCode })) { event.preventDefault(); submit(); } }} />
-      <div className="assistant-composer-footer"><span id={helpId}>Enter để gửi · Shift+Enter xuống dòng<br />{state.draft.normalize("NFC").trim().length}/2000 UTF-16</span><button type="submit" disabled={!transport || unresolved || !state.draft.trim()} aria-busy={sending}>Gửi</button></div>
+      <button type="submit" disabled={!transport || unresolved || !state.draft.trim()} aria-busy={sending}><Send aria-hidden="true" />Gửi</button></div>
+      <div className="assistant-composer-footer" id={helpId}><span>Enter để gửi · Shift+Enter xuống dòng</span><span>{state.draft.normalize("NFC").trim().length}/2000 UTF-16</span></div>
     </form>
     <dialog ref={dialog} className="assistant-dialog" aria-labelledby={dialogTitleId} aria-describedby={dialogDescriptionId}>
       <h2 id={dialogTitleId}>Bỏ theo dõi lượt chưa xác nhận?</h2>
@@ -102,10 +105,10 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
 
 export function AssistantShell({ children }: { children: ReactNode }) {
   return <main className="assistant-page" lang="vi"><div className="assistant-page-inner">
-    <header className="assistant-page-heading"><h1>Trợ lý AI</h1><p>Không có bối cảnh cụ thể</p></header>
+    <header className="assistant-page-heading"><AssistantLandscape className="assistant-heading-art" /><h1>Trợ lý AI</h1><p>Khám phá Hà Giang qua những câu hỏi</p></header>
     <div className="assistant-page-grid"><div className="assistant-chat-column">{children}</div><aside className="assistant-aside" aria-label="Bối cảnh và nguyên tắc AI">
-      <section className="assistant-context"><h2>Bối cảnh</h2><p>Hỏi đáp chung về Hà Giang.</p><div className="assistant-context-label">Không có bối cảnh cụ thể</div><p className="assistant-muted">Việc xem nội dung khác không tự thay đổi bối cảnh hội thoại.</p></section>
-      <section className="assistant-principles"><h2>Nguyên tắc AI</h2><p>Câu trả lời về thông tin thực tế cần dựa trên nguồn được phép sử dụng.</p><p>Khi chưa đủ dữ liệu được xác minh, trợ lý sẽ nêu rõ thay vì suy đoán.</p></section>
+      <section className="assistant-context"><h2>Bối cảnh</h2><p>Hỏi đáp chung về Hà Giang.</p><span className="assistant-context-badge"><Leaf aria-hidden="true" />Hỏi đáp chung</span><div className="assistant-context-label">Không có bối cảnh cụ thể</div><p className="assistant-context-description assistant-muted">Việc xem nội dung khác không tự thay đổi bối cảnh hội thoại.</p></section>
+      <section className="assistant-principles"><h2>Nguyên tắc AI</h2><div className="assistant-principle"><span><ShieldCheck aria-hidden="true" /></span><div><strong>Thông tin thực tế cần có nguồn</strong><p>Câu trả lời dựa trên thông tin được phép sử dụng và có nguồn xác minh.</p></div></div><div className="assistant-principle"><span><FileText aria-hidden="true" /></span><div><strong>Nêu rõ giới hạn khi thiếu dữ liệu</strong><p>Khi chưa đủ dữ liệu được xác minh, trợ lý sẽ nêu rõ thay vì suy đoán.</p></div></div><AssistantLandscape className="assistant-principles-art" /></section>
     </aside></div>
   </div></main>;
 }

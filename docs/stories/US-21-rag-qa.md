@@ -477,3 +477,42 @@ Browser smoke of the built production page confirms unavailable and disabled sen
   Browser hydration was not separately exercised in this fix.
 - No Task 191 contract, transport/demo isolation, navigation/CSS, API, DB or
   migration changes. No commit/push; wait for owner review, no Task 196.
+
+### Task 195 visual refinement (2026-10-08)
+
+- Owner supplied the cream/forest-green Assistant mockup as this refinement's
+  visual baseline. TXH HEAD `904f32dd2e35936cc2256b9163fa0e96c32724f6`, clean
+  before edits. This does not change product/runtime requirements.
+- Centered 1320px container, 70/30 desktop columns, 22px gap, serif headings,
+  thin borders and subtle shadows. Following owner feedback about broken Vietnamese
+  diacritics, headings use the existing Be Vietnam Pro family (Arial in isolated
+  demo) with normal letter spacing instead of system serif. Empty state is centered with dedicated inline
+  SVG mountain line art; lucide icons reuse the installed dependency. Sidebar
+  retains read-only GENERAL and source/insufficiency principles. No travel facts
+  or citation interactions added.
+- Composer send button sits beside the textarea; helper/counter remain below.
+  Transcript height accounts for page chrome, with independent message scroll;
+  mobile uses one main column and ordinary page scroll. Dark colors and focus
+  rings preserved. Controller, contract, useId generation, retry/identity/head
+  logic and demo transport are unchanged.
+- Development toolbar CSS moved from runner HTML to a dedicated development
+  stylesheet imported only by demo. Runner still serves its in-memory bundle on
+  loopback and rejects production. Production has unavailable/disabled controls
+  and no demo notice/toolbar/fallback.
+- Focused tests PASS 36/36; root regression PASS (153/153 Vitest plus legacy);
+  typecheck PASS (four tasks); production build PASS (22/22 static pages).
+  Import-graph test and actual production JS/HTML/JSON scan exclude demo/fake
+  transport/fixture markers and toolbar. Initial cold import-graph run exceeded
+  5s after lucide inclusion; its timeout is now 15s, assertions unchanged.
+- Browser checks: demo/production at 1440px and 360/390/768px have no horizontal
+  overflow; desktop 1440x900 composer is fully visible. Light/dark, empty/demo
+  sending/completed conversation, reset, mobile input focus and production theme
+  interaction inspected. Production console inspection had no error/warn entries.
+  No complete hydration, screen-reader, physical mobile keyboard, native IME or
+  pixel-perfect acceptance claim. SVG is intentionally simpler than the mockup.
+- Screenshots saved outside Git under the task visualization directory
+  `C:/Users/User/.codex/visualizations/2026/10/07/01a11545-f06e-70a3-af2e-b94559e851dc/task195-refinement/`:
+  desktop-light/dark, desktop-conversation-dark, conversation-360/390/768,
+  mobile-empty-light/dark, production-desktop/dark and production-360/390/768
+  (all .jpg). No provider/database write, dependency/config/navigation change,
+  commit/push or Task 196 work. Wait for owner review.

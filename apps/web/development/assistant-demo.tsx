@@ -1,21 +1,23 @@
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
+import { Moon, Sun } from "lucide-react";
 import { AssistantChat, AssistantShell } from "../src/components/assistant/assistant-chat";
 import { DemoAssistantTransport, DEMO_FIXTURE_MARKER, type DemoScenario } from "./assistant-demo-transport";
 import "../src/components/assistant/assistant.css";
+import "./assistant-demo.css";
 
 function Demo() {
   const [transport] = useState(() => new DemoAssistantTransport());
   const [dark, setDark] = useState(false);
   const [scenario, setScenario] = useState<DemoScenario>("ANSWERED");
   return <div className={dark ? "dark" : ""} data-demo={DEMO_FIXTURE_MARKER}>
-    <div className="demo-controls"><strong>DEMO / DỮ LIỆU MÔ PHỎNG</strong>
+    <div className="demo-controls"><div className="demo-controls-inner"><strong>DEMO / DỮ LIỆU MÔ PHỎNG</strong>
       <label>Nhánh kiểm thử <select value={scenario} onChange={(event) => { const value = event.target.value as DemoScenario; setScenario(value); transport.scenario = value; }}>
         {["ANSWERED", "PARTIAL", "INSUFFICIENT_SOURCE", "CLARIFICATION_REQUIRED", "FAILED", "UNKNOWN", "NETWORK", "MALFORMED"].map((value) => <option key={value}>{value}</option>)}
       </select></label>
       <label>Độ trễ <select defaultValue="600" onChange={(event) => { transport.delayMs = Number(event.target.value); }}><option value="600">600 ms</option><option value="3000">3 giây</option></select></label>
-      <button onClick={() => setDark(!dark)}>Đổi giao diện {dark ? "sáng" : "tối"}</button>
-    </div>
+      <button onClick={() => setDark(!dark)}>{dark ? <Sun aria-hidden="true" /> : <Moon aria-hidden="true" />}Giao diện {dark ? "sáng" : "tối"}</button>
+    </div></div>
     <AssistantShell><AssistantChat transport={transport} identity="demo-local-session" demo /></AssistantShell>
   </div>;
 }
