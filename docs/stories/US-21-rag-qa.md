@@ -516,3 +516,51 @@ Browser smoke of the built production page confirms unavailable and disabled sen
   mobile-empty-light/dark, production-desktop/dark and production-360/390/768
   (all .jpg). No provider/database write, dependency/config/navigation change,
   commit/push or Task 196 work. Wait for owner review.
+
+### Task 196 citation presentation (2026-10-08)
+
+- Owner approved design rounds 1/2 and Task195 visual refinement. Phase A
+  preserved exactly nine approved visual files in local commit
+  `f2731307fd46b59224ed6bc3978fadbfbcbcf7c3` after root tests (153 Vitest
+  plus legacy), typecheck, cached build and diff/scope checks. No push/merge.
+- Shared default citation renderer keeps answerParts and the custom CitationSlot
+  API. Native details/summary chips open independent metadata; accessible names
+  contain number/title. Full title and supplied page/section locators are escaped
+  text. Empty locators and unavailable links are explicit; no preview/download.
+- Current-turn index numbers first references across parts, reuses citation IDs,
+  never merges sourceId aliases, and fails closed for inconsistent references.
+  URL syntax is defensively checked with qaSourceUrlSchema; only valid provided
+  HTTP(S) links open a new tab with noopener/noreferrer. Backend authorization,
+  evidence eligibility, provenance and semantic grounding remain runtime work.
+- Citation CSS is separately scoped, imported through assistant.css rather than
+  the TSX renderer (avoids the existing Vitest PostCSS-loader incompatibility).
+  Future hosts can load this stylesheet without an assistant-page ancestor.
+  Approved Task195 fonts/layout/artwork/composer remain intact.
+- View-layer scroll guard suppresses following the transcript tail while a source
+  is open/focused. Native toggle capture stops following; new content offers the
+  existing new-message button. Controller, reconciliation, contract and retry
+  payload/key semantics remain unchanged. Browser-native scroll anchoring may
+  adjust scrollTop on collapse; no explicit scroll-to-end is performed.
+- Development-only ONE/MULTI/LONG/MANY fixtures cover shared source aliases,
+  reused references, locators, null/HTTPS URLs, 300-unit titles and 50 sources.
+  Existing outcome controls remain; renderer sandbox widths 320/360/420 test
+  future host sizes without building popups. Invalid URL sandbox input bypasses
+  transport deliberately for sink-defense checks, clearly marked as simulation,
+  not a confirmed server turn. UNKNOWN retry preserves its cached fixture result.
+- Validation: citation tests 22/22; Task195 regression 36/36; root tests 175/175
+  Vitest plus legacy suites; root typecheck four tasks; fresh production build
+  22/22 pages. Import-graph test and real production JS/HTML/JSON scan exclude
+  demo transport/fixture/sandbox markers. Built /assistant browser shows
+  unavailable and disabled composer with no demo controls.
+- Browser: desktop 1440 and mobile 360/390/768, independent 320/420 containers,
+  light/dark, long titles and 50-source wrapping inspected without horizontal
+  overflow. Enter/Space toggle, Tab-to-link and independent repeated disclosures
+  checked. New completed response while reading an open source preserved
+  scrollTop=61 and showed the new-message button. Screenshots outside Git in
+  the task visualization directory `task196`: desktop-1440-light.jpg,
+  chat-390-dark.jpg, mobile-390-light.jpg, popup-320-dark.jpg. These are browser
+  smoke checks, not screen-reader audio, physical mobile or full hydration proof.
+- US-21 remains IN PROGRESS. Backend RAG/API is not operational; demo is mock.
+  History, Destination/Culture popups, new contexts and document downloads are
+  not implemented. No Task192/193/194/197, provider call, DB write, schema/env or
+  dependency change. Task196 is uncommitted; owner review required.

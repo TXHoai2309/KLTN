@@ -3,6 +3,8 @@
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { CirclePlus, FileText, Info, Leaf, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { AssistantLandscape } from "./assistant-landscape";
+import { AssistantCitations } from "./assistant-citations";
+import { buildCitationIndex, isReadingCitation } from "./assistant-citation-utils";
 import type { QaAnswerPart, QaCompletedTurn, QaPublicCitation } from "../../modules/ai/qa-contract";
 import { createIdempotencyKey } from "../../lib/mutation-client";
 import { AssistantController, hasUnresolvedAttempt, shouldSendOnEnter, type AssistantTransport, type ConfirmedTurn } from "./assistant-controller";
@@ -12,11 +14,12 @@ export type CitationSlot = (input: { part: QaAnswerPart; citations: QaPublicCita
 export function AssistantAnswer({ turn, citationSlot }: { turn: QaCompletedTurn; citationSlot?: CitationSlot }) {
   if (turn.status === "INSUFFICIENT_SOURCE") return <><strong>Chưa đủ nguồn</strong><p>{turn.message}</p></>;
   if (turn.status === "CLARIFICATION_REQUIRED") return <><strong>Cần làm rõ</strong><p>{turn.clarificationQuestion}</p></>;
+  const citationIndex = buildCitationIndex(turn);
   return <>
     {turn.status === "PARTIAL" && <strong>Câu trả lời một phần</strong>}
     {turn.answerParts.map((part, index) => <div className="assistant-answer-part" key={index}>
       <p>{part.text}</p>
-      <div className="assistant-citation-slot">{citationSlot?.({ part, citations: turn.citations, turn }) ?? <span>Thông tin nguồn chưa được tích hợp.</span>}</div>
+      <div className="assistant-citation-slot">{citationSlot?.({ part, citations: turn.citations, turn }) ?? <AssistantCitations part={part} index={citationIndex} />}</div>
     </div>)}
     {turn.status === "PARTIAL" && <div className="assistant-unanswered"><strong>Phần chưa đủ dữ liệu</strong><ul>{turn.unansweredAspects.map((aspect, index) => <li key={index}>{aspect}</li>)}</ul></div>}
   </>;
@@ -51,7 +54,15 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
   useEffect(() => { controller.changeIdentity(identity); }, [controller, identity]);
   useEffect(() => () => controller.dispose(), [controller]);
   useEffect(() => {
-    if (nearEnd.current && viewport.current) viewport.current.scrollTop = viewport.current.scrollHeight;
+    const el = viewport.current;
+    if (!el) return;
+    const sourceToggled = () => { if (isReadingCitation(el)) nearEnd.current = false; };
+    // Native toggle does not bubble; capture keeps repeated disclosures independent.
+    el.addEventListener("toggle", sourceToggled, true);
+    return () => el.removeEventListener("toggle", sourceToggled, true);
+  }, []);
+  useEffect(() => {
+    if (nearEnd.current && viewport.current && !isReadingCitation(viewport.current)) viewport.current.scrollTop = viewport.current.scrollHeight;
     else setUnseen(true);
   }, [state.turns, state.pending]);
   function submit() {
@@ -68,6 +79,7 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
     {demo && <div className="assistant-notice assistant-demo-notice"><Info aria-hidden="true" /><div><strong>Dữ liệu mô phỏng</strong><p>Phản hồi chỉ dùng để kiểm thử giao diện, không phải thông tin du lịch đã xác minh.</p></div></div>}
     <div ref={viewport} className="assistant-transcript" tabIndex={0} aria-label="Danh sách tin nhắn" onScroll={() => {
       const el = viewport.current!;
+      if (isReadingCitation(el)) { nearEnd.current = false; return; }
       nearEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 64;
       if (nearEnd.current) setUnseen(false);
     }}>

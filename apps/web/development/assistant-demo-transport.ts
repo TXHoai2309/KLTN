@@ -1,5 +1,6 @@
 import { QA_INSUFFICIENT_SOURCE_MESSAGE, qaRequestSchema } from "../src/modules/ai/qa-contract";
 import type { AssistantAttempt, AssistantTransport, AssistantTransportResult } from "../src/components/assistant/assistant-controller";
+import { citationFixture, type CitationFixture } from "./assistant-citation-fixtures";
 
 export const DEMO_FIXTURE_MARKER = "TASK195_DEVELOPMENT_FIXTURE_ONLY";
 export type DemoScenario = "ANSWERED" | "PARTIAL" | "INSUFFICIENT_SOURCE" | "CLARIFICATION_REQUIRED" | "FAILED" | "UNKNOWN" | "NETWORK" | "MALFORMED";
@@ -8,11 +9,13 @@ export type DemoScenario = "ANSWERED" | "PARTIAL" | "INSUFFICIENT_SOURCE" | "CLA
 export class DemoAssistantTransport implements AssistantTransport {
   scenario: DemoScenario = "ANSWERED";
   delayMs = 600;
+  citationScenario: CitationFixture = "ONE";
   private responses = new Map<string, AssistantTransportResult>();
   private seen = new Set<string>();
   private counter = 0;
   async send(attempt: AssistantAttempt, signal: AbortSignal): Promise<AssistantTransportResult> {
     const scenario = this.scenario;
+    const sourceFixture = citationFixture(this.citationScenario);
     if (this.delayMs) await new Promise<void>((resolve, reject) => {
       const done = () => { signal.removeEventListener("abort", aborted); resolve(); };
       const timer = setTimeout(done, this.delayMs);
@@ -27,9 +30,8 @@ export class DemoAssistantTransport implements AssistantTransport {
       turnId: `turn_demo_${index}`, turnState: "COMPLETED", context: { type: "GENERAL" },
     };
     const answered = {
+      ...sourceFixture,
       ...identity, status: "ANSWERED", unansweredAspects: [],
-      answerParts: [{ text: `Phản hồi mô phỏng ${index}. Đây là nội dung kiểm thử giao diện, không phải dữ kiện du lịch.`, citationIds: ["fixture_c1"] }],
-      citations: [{ id: "fixture_c1", sourceId: "source_fixture_only", title: "DỮ LIỆU MÔ PHỎNG — không phải nguồn xác minh", sourceUrl: null, locators: [] }],
     };
     let data: unknown = answered;
     if (scenario === "PARTIAL") data = { ...answered, status: "PARTIAL", unansweredAspects: ["Phần kiểm thử chưa có dữ liệu mô phỏng."] };

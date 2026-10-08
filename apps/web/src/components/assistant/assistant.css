@@ -1,3 +1,4 @@
+@import "./assistant-citations.css";
 .assistant-page { --assistant-green: #214e3c; --assistant-soft: #fafbf7; --assistant-card: #fff; --assistant-sage: #eef1e7; --assistant-user: #eee8dd; --assistant-ink: #203b30; --assistant-muted: #626f70; --assistant-line: #dce4dc; background: #fcfcf8; color: var(--assistant-ink); min-width: 0; font-family: var(--font-be-vietnam, Arial), sans-serif; }
 .assistant-page *, .assistant-page *::before, .assistant-page *::after { box-sizing: border-box; }
 .assistant-page-inner { max-width: 1320px; margin: 0 auto; padding: 28px 28px 32px; }
