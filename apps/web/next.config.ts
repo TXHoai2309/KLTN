@@ -6,6 +6,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   typedRoutes: true,
   reactCompiler: true,
+  // PDF.js resolves its Node worker relative to the installed ESM package.
+  // Turbopack bundling breaks that path; keep this server-only parser external.
+  serverExternalPackages: ["pdfjs-dist"],
   images: {
     unoptimized: true,
   },
