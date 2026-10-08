@@ -564,3 +564,41 @@ Browser smoke of the built production page confirms unavailable and disabled sen
   History, Destination/Culture popups, new contexts and document downloads are
   not implemented. No Task192/193/194/197, provider call, DB write, schema/env or
   dependency change. Task196 is uncommitted; owner review required.
+
+### Owner-authorized real-app development demo integration (2026-10-08)
+
+- Baseline TXH/local/origin `09d85286d46cd56f4c3b1de159e90bd9f847e61f`, clean.
+  Owner authorized local mock interaction on the real /assistant route; this is
+  not Task194 and does not make the production AI service available.
+- /assistant uses a literal NODE_ENV=development server-page branch to import
+  the development-only client host. The host owns one DemoAssistantTransport
+  per mount, reusing existing fixtures, AssistantChat/controller, contract and
+  citation renderer. Production returns the existing unavailable AssistantChat.
+  No query parameter, browser flag or production mock fallback is added.
+- Run the normal Next dev app (`npm run dev:web`, port 3001), open /assistant
+  and type/send directly. MULTI citations are the default. Compact collapsed
+  controls marked DEMO / DỮ LIỆU MÔ PHỎNG select outcomes, sources and delay.
+  Existing standalone port 3002 runner remains optional; it is no longer needed
+  for ordinary local UI testing. Shared page layout/Header/theme stay intact.
+- The future Task194 client host can inject a real AssistantTransport into the
+  same AssistantChat without rewriting controller/citation/layout. It must not
+  use the development host or enable fake answers in production.
+- Validation: 10 focused integration tests, Task195 36, Task196 22 (68 focused
+  total); root 185/185 Vitest plus legacy suites; typecheck four tasks; fresh
+  production build 22/22 pages. Production graph checks now explicitly compile
+  NODE_ENV=production and retain their no-development-input assertions. Actual
+  Next .next/static/.next/server JS/HTML/JSON scan has no development host,
+  demo transport, fixture or control markers.
+- Browser: actual localhost:3001/assistant accepts input, enables Send for a
+  valid draft, Enter submits, Shift+Enter adds a newline, citations disclose and
+  link focus works. Follow-up creates a second turn; reset empties the local
+  session; UNKNOWN/retry completes. Light/dark and 360/390/768/1440 checks show
+  no horizontal overflow (including expanded controls). Built production on
+  port 3003 remains unavailable/disabled with no demo DOM or citations.
+- Screenshots outside Git: assistant-dev-integration/local-desktop-light.jpg,
+  local-desktop-dark.jpg, local-390-light.jpg, production-unavailable.jpg.
+  Physical mobile, screen-reader audio and blanket hydration/pixel-perfect
+  acceptance are not claimed. Refresh/remount loses the in-memory demo session.
+- No OpenAI, Neon write, API, persistence, migration, context extension, popup,
+  dependency/env/config change or Task192/193/194. US-21 IN PROGRESS. No commit,
+  push or merge; stop for owner review.

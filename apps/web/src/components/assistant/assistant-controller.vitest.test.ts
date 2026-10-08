@@ -231,7 +231,7 @@ describe("Task 195 renderer and production graph", () => {
     expect(html).not.toContain("source_fixture_only");
   });
   it("bundles production page without any demo/fixtures/fake transport imports", async () => {
-    const result = await build({ entryPoints: [fileURLToPath(new URL("../../app/assistant/page.tsx", import.meta.url))], bundle: true, write: false, outdir: "in-memory-check", metafile: true, jsx: "automatic", external: ["next"], logLevel: "silent" });
+    const result = await build({ entryPoints: [fileURLToPath(new URL("../../app/assistant/page.tsx", import.meta.url))], bundle: true, write: false, outdir: "in-memory-check", metafile: true, jsx: "automatic", external: ["next"], define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent" });
     expect(Object.keys(result.metafile!.inputs).some((path) => path.includes("development/") || path.includes(".vitest.test"))).toBe(false);
     expect(result.outputFiles.map((file) => file.text).join("\n")).not.toContain(DEMO_FIXTURE_MARKER);
     expect(result.outputFiles.map((file) => file.text).join("\n")).not.toContain("source_fixture_only");
