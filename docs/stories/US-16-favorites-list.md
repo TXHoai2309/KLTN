@@ -253,3 +253,11 @@ docs/ai-progress.md
 Header navigation now includes a direct `Yêu thích` link to `/favorites`; the existing Traveler-only UserMenu link remains as a secondary entry point. Server-side Traveler authorization continues to protect the page for Guest/Admin users. The list reads the canonical Favorite schema using `targetType`, `destinationId`, and `cultureContentId`.
 
 No commit or push. Preserve existing Explore/UI implementation.
+
+## Light/Dark Theme Addendum — 2026-10-08
+
+- **Theme mechanism:** Reused the existing `Providers` → `ThemeProvider` (`next-themes`, `attribute="class"`, `defaultTheme="system"`, `enableSystem`). The existing Light/Dark/System toggle and manual preference precedence remain unchanged; no new provider, hook, or `matchMedia` listener was added.
+- **Light baseline:** Figma MH-10 node `7:158` was inspected directly. `favorites.css` retains its existing layout, type, spacing, and Light values: page `#f7f6f2`, card `#fff`, primary `#24513b`, text `#1d2521`/`#66716b`, border `#dde3de`, Noto Serif and Be Vietnam Pro, and 20px card radius.
+- **Dark theme:** The Favorites scope now uses the same dark palette already used by `.dark .explore-shell` (`#151a17` page, `#1e2621` cards, `#e7eee9` text, `#a4b3aa` muted text, `#39473e` border, and `#91c7a7` primary). Favorites states and controls consume those scoped tokens; skeletons continue to use shared `--muted`. No component or business logic changed.
+- **Checks:** `npm run test:favorite --workspace web` PASS (24/24). `git diff --check` PASS (Git reports only the existing LF→CRLF working-copy notice). Next reported `Compiled successfully`; the build then stopped during TypeScript validation because the installed tree cannot resolve `vitest` and the generated Prisma Client lacks the current `cultureContent`/`targetType` schema fields. `npm run check-types --workspace web` reports the same remaining Vitest/Prisma errors after Next refreshed route types.
+- **Visual evidence:** Opening local `/favorites` redirects to `/login?returnTo=%2Ffavorites`; no Traveler browser session is available. Therefore screenshots/state inspection at 360, 390, 768, 1024, and 1440px in Light and Dark, live system-theme changes, and hydration/flash checks are **NOT VERIFIED**. The Figma Light values and source theme wiring were verified by direct source/design inspection only.

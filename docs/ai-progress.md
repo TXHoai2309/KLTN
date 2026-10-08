@@ -2,6 +2,15 @@
 
 Append a new entry for each meaningful work session. Keep prior entries as handoff history; correct them only when documenting why a previous statement was wrong. Do not include secrets, connection strings, or credentials.
 
+## 2026-10-08 — US-18 review and approval (Task 2)
+
+- **Branch:** `ThaiAnh`; preserved existing uncommitted US-16/US-17 changes. No commit or push.
+- **Story:** Added `docs/stories/US-18-rag-review-approval.md` from MH-16/MH-18, YCCN-88/91/92, QTN-97/98 and NT-170–173. Status: implemented in code; live acceptance pending.
+- **Backend:** Admin-only list/detail services and thin read routes; private original endpoint reused. One server transition function accepts `START_REVIEW` or `APPROVE`, uses status-conditional DB update and shared idempotent write. Approval checks private Blob accessibility before transaction. JSON excludes storage path; UPLOADED/REVIEWING/APPROVED remain ineligible for retrieval.
+- **Frontend:** Admin list and detail pages with current Admin tokens, loading/empty/error states, responsive layout, light/dark styles and success-only status updates; upload success links to detail and Admin menu links to list.
+- **Verification:** `npm run test:rag --workspace=web` 26/26 PASS; root `npm run test`, `npm run check-types`, `npm run build`, `git diff --check` PASS. The initial TDD run failed as expected on missing helper. Build registered all new pages/routes.
+- **NOT PROVEN/BLOCKED:** US-17 migration was not applied here; private Blob token/live Admin session unavailable, so live database, file HEAD/download and visual 360px/light/dark checks are not proven. Exact Figma MH-16/MH-18 frames unavailable: **BLOCKED: FIGMA**. No US-19 indexing or US-20 disable work was started.
+
 ## 2026-10-02 — EN-01 foundation handoff
 
 - **Branch:** `TXH` observed at documentation baseline creation. Team roles are `TXH` feature work → `dev` integration/testing → `master` production/stable; branch promotion is manual.
@@ -581,3 +590,19 @@ Append a new entry for each meaningful work session. Keep prior entries as hando
 - **EN-02:** No EN-02 story exists in this repository. The real Hà Giang dataset (30–50 Destinations with metadata/coordinates/hours/duration and 20–50 Culture/RAG documents, import/seed and QA/versioning) is CARRIED OVER / DEFERRED TO SPRINT 3. Sprint 2 prioritized closing Explore/Map/Culture/Favorites; this dataset is a dependency for RAG/Trip Planning and representative performance validation. The external backlog must move EN-02 to Sprint 3.
 - **Evidence limits:** EN-02-dependent search/filter performance, RAG/Trip acceptance on a real dataset, and the still-unchecked browser/manual/accessibility/other-browser cases are not marked PASS. Historical blockers and results remain chronological and are superseded only where a later entry records successful validation.
 - **ADR-14:** Remains Proposed — awaiting explicit product/technical owner approval. Vitest is present in the merged repository; implementation does not itself constitute approval of the ADR.
+
+## 2026-10-08 — US-16 Light/Dark theme adaptation
+
+- **Scope:** Updated only `apps/web/src/app/favorites/favorites.css` plus this progress log and the US-16 story addendum. Reused the global `next-themes` class provider and the existing Explore Light/Dark palette; retained the Figma Light values and all Favorites behavior. No API, service, schema, migration, auth, or dependency changes.
+- **Validation:** `npm run test:favorite --workspace web` PASS (24/24); `git diff --check` PASS with a Git LF→CRLF notice. Next CSS compilation PASS (`Compiled successfully`). Build and typecheck remain blocked during TypeScript validation by unresolved `vitest` imports and stale generated Prisma Client types (`cultureContent`/`targetType` missing); after Next regenerated route types, these were the remaining errors.
+- **Visual limit:** Local `/favorites` redirects to login because the browser has no Traveler session. Dark/light visual states, live OS theme changes, hydration/flash, and 360/390/768/1024/1440px browser checks remain NOT VERIFIED. Figma MH-10 node `7:158` was inspected; no screenshots of the local Favorites page are claimed.
+- No commit or push.
+
+## 2026-10-08 — US-17 Task 1 RAG document upload foundation
+
+- **Scope:** Implemented only RagDocument status/metadata, private file upload/finalization/read, and Admin upload UI. No review/index/retrieval or US-18–20. Preserved three pre-existing uncommitted US-16 files and did not commit/push.
+- **DB:** Added minimal `RagDocument` enum/model and additive SQL migration with unique `storagePath`. Prisma schema validated and client generated. SQL reviewed; migration **not applied** because a verified development DB target was unavailable.
+- **Storage/API:** Added private Vercel Blob signed PUT URL limited to one actor-scoped path, supported MIME and 20 MiB; finalization reads and validates stored bytes on server before atomic DB + idempotency-result write. Private original-read route streams to Admin. Shared API/authorization/idempotency contracts are reused. `@vercel/blob` and `fflate` are the two necessary dependencies; no serverless 20 MiB request body.
+- **UI:** Added `/admin/rag/upload` and Admin menu entry, source metadata form, file summary, idle/invalid/uploading/success/failed/unknown states. Reused Admin theme and `@KLTN/ui` Button/Input/Attachment. Unknown finalization retries the same payload/key.
+- **Tests/checks:** Red run initially failed on missing RAG modules; `npm run test:rag --workspace web` PASS 15/15; root `npm run test`, `npm run env:generate`, `npm run db:generate`, `npx varlock run -- npx prisma validate`, `npm run check-types`, `npm run build`, `git diff --check` PASS in this workspace.
+- **Evidence limits:** No `BLOB_READ_WRITE_TOKEN` configured locally, so private Blob and Neon end-to-end upload are NOT PROVEN. No Admin browser session was available for light/dark/360px visual verification. Connected Figma file exposes only Components, no MH-17 frame; Admin baseline used. Production RAG corpus not supplied.

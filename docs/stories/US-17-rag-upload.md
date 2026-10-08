@@ -1,0 +1,135 @@
+# US-17 — Tải tài liệu RAG (Task 1)
+
+## Status
+
+IMPLEMENTED — local automated checks pass; live private Blob and Admin browser acceptance NOT PROVEN.
+
+## Epic
+
+Quản trị tri thức RAG.
+
+## Owner
+
+US-17 Task 1 implementation session; no commit/push.
+
+## Goal / User Story
+
+Là Quản trị viên, tôi muốn tải tài liệu tham chiếu lên hệ thống để bổ sung nguồn tri thức phục vụ RAG.
+
+## Outcome
+
+Admin tải PDF/DOCX/TXT hợp lệ tối đa 20 MiB vào kho riêng tư; sau khi server xác thực nội dung và DB xác nhận, một RagDocument ở UPLOADED được tạo. Tài liệu chưa đủ điều kiện retrieval.
+
+## Source References
+
+- Product document.docx đã đọc: MH-17 (chọn file, nguồn, tác giả/chủ đề/địa phương, sáu trạng thái UX), YCCN-89/90, QTN-96/99/104/105, YCP-21, NT-162–169.
+- System Specification.docx mục 12: Admin RAG upload và lifecycle; tài liệu mới chưa được dùng trả lời.
+- Repo architecture/source-baselines/product-spec/decisions; current Next.js full-stack, Prisma/Neon, Better Auth, shared authorization/idempotency.
+- Figma file `oomNsNYfrcjnq2FQnYLOKN`: metadata chỉ trả page `01 – Components`, không có MH-17. **BLOCKED: FIGMA exact MH-17 frame**. Dùng visual language Admin hiện có, không tự nhận pixel match.
+- [Vercel Function limit](https://vercel.com/docs/functions/limitations): request body tối đa 4.5 MB; [Vercel private Blob](https://vercel.com/docs/vercel-blob/private-storage) và [Signed URLs](https://vercel.com/docs/vercel-blob/vercel-signed-urls) hỗ trợ private client upload, scope path/type/size.
+
+## Dependencies
+
+Current branch `ThaiAnh` has unrelated uncommitted US-16 changes, preserved. No RagDocument/storage module exists. Vercel private Blob store/token must be configured separately for live upload.
+
+## In Scope
+
+- Minimal RagDocument metadata/status schema and additive Prisma migration.
+- Admin-only signed private upload URL, server validation/finalization, Admin-only original file read.
+- Admin upload page and upload state feedback.
+- Focused tests for valid/invalid files, auth, failure semantics, status eligibility.
+
+## Out of Scope
+
+Review/approve/index/disable actions, chunking, embeddings, retrieval, OpenAI, pgvector query, US-18–20, generic media system, local production file storage.
+
+## Business Rules
+
+- PDF/DOCX/TXT only; >20×1024×1024 bytes rejected by storage token and finalization.
+- Server compares filename extension, declared MIME, stored MIME, and actual content. DOCX must have Office ZIP structure, PDF signature/content markers, TXT valid UTF-8 plain text.
+- File lives in private Blob before DB insert; no success is shown until both have succeeded.
+- UPLOADED is retrieval-ineligible; only INDEXED can become eligible in later work.
+
+## Roles / Authorization
+
+Admin only via persisted-role `requireActor`. Guest 401, Traveler 403 on token, finalize and read API. Page redirects guest to login and denies Traveler using established Admin pattern.
+
+## Ownership Rules
+
+Blob path contains Admin actor ID and random UUID. Token can PUT only one scoped path; finalization accepts only paths under the current actor's prefix. All reads require Admin role and an existing DB row.
+
+## UX / UI Contract
+
+`/admin/rag/upload`: file chooser, source title required, source URL/author/topic/locality optional; filename, size, type; states idle, validation error, uploading, success, failed, unknown. Unknown retry uses same key/path/metadata. Light/dark and responsive styles inherit existing Admin theme. No fake MH-18 navigation.
+
+## Data Contract
+
+`RagDocument`: id, originalFileName, fileType enum PDF/DOCX/TXT, mimeType, sizeBytes, unique storagePath, sourceTitle, optional sourceUrl/author/topic/locality, status enum UPLOADED/REVIEWING/APPROVED/INDEXED/DISABLED default UPLOADED, uploadedById, timestamps. No file binary in Prisma.
+
+## API Contract
+
+- `POST /api/admin/rag-documents/upload-url` JSON `{fileName, mimeType, sizeBytes}`: validates Admin/metadata, returns shared `apiSuccess({pathname, uploadUrl, contentType})`. Browser `PUT`s file bytes to private Blob URL; max size/content type/path enforced by signed token.
+- `POST /api/admin/rag-documents` JSON `{pathname, originalFileName, mimeType, sizeBytes, sourceTitle, sourceUrl?, author?, topic?, locality?}` + `Idempotency-Key`: server reads private Blob and validates bytes, creates row via `executeIdempotentWrite`, returns shared mutation envelope.
+- `GET /api/admin/rag-documents/[id]/file`: Admin-only stream of recorded private original, no public URL in API DTO.
+- POST JSON requests require same origin; private responses use `Cache-Control: private, no-store`.
+
+## Error / Recovery
+
+Known input/format/size/auth failures return FAILED; unavailable Blob/DB or uncertain commit return UNKNOWN. UI distinguishes failed vs unknown. Invalid upload can leave an unreferenced private blob if cleanup is unavailable; it is never exposed as a successful document.
+
+## Write Semantics / Idempotency
+
+Finalization uses existing `executeIdempotentWrite` scoped by actor and operation; unique storagePath also prevents duplicate rows across keys. Blob read/validation is before DB transaction. Unknown retries reuse identical key/payload and existing Blob, never upload another file or delete the Blob after an uncertain DB write. Successful DB response and idempotency record commit atomically.
+
+## External Services
+
+Vercel private Blob store; `BLOB_READ_WRITE_TOKEN` server-side only. No local production FS.
+
+## Acceptance Criteria
+
+- [x] Service fixtures for PDF/DOCX/TXT ≤20 MiB create UPLOADED rows; live Blob/Neon path NOT PROVEN.
+- [x] Unsupported, oversized, spoofed, or MIME-mismatched file is rejected by server validation.
+- [x] Guest/Traveler are denied at token, finalize and original-read service boundaries; live HTTP/session smoke NOT PROVEN.
+- [x] Storage/DB failures never appear as SUCCESS; same-key retry and unique-path duplicate protection are tested.
+- [x] UPLOADED is not retrieval eligible.
+- [ ] Admin browser UI in light/dark/mobile, live Blob upload and 20 MiB boundary are NOT PROVEN without credentials/session.
+
+## Test Plan
+
+Red → Green → Refactor: focused service/validation/API tests with fixture PDF/DOCX/TXT, authorization, storage/DB failures and idempotent retry; then full repo checks and build. Live private Blob and development DB integration are separately reported if credentials unavailable.
+
+## Expected Modules / Files
+
+Prisma schema/migration; `apps/web/src/modules/rag-document/*`; thin admin API routes; `apps/web/src/app/admin/rag/upload/*`; env schema/example; package dependency only for Blob SDK and small ZIP validator.
+
+## Migration Impact
+
+Additive RagDocument table/enums. SQL reviewed; no DB apply without confirmed development DB.
+
+## Environment Impact
+
+Private Vercel Blob store and server-only `BLOB_READ_WRITE_TOKEN` required for runtime. Deployment configuration outside repo remains an acceptance blocker until configured.
+
+## Implementation Sequence
+
+1. Red tests for validation/service/auth/write semantics.
+2. Minimal schema/migration, storage adapter, validation, service, thin routes.
+3. Admin upload UI and state tests.
+4. Generate, relevant/full tests, typecheck, build, diff check; update evidence.
+
+## Acceptance Evidence
+
+- Initial red test failed on missing RAG modules; implementation and refactor followed. `npm run test:rag --workspace web`: 15/15 PASS for all three formats, spoof/size/mismatch, auth, storage/DB failures, retry, duplicate path, private original read and UPLOADED eligibility.
+- `npm run env:generate`, `npm run db:generate`, `npx varlock run -- npx prisma validate` (from `packages/db`), root `npm run test`, `npm run check-types`, `npm run build`, `git diff --check`: PASS as observed locally. Root test includes US-17 through `test:legacy`.
+- Migration SQL reviewed: two enums, additive `rag_document` table, unique storage path. **Not applied** to development or production DB in this session; target development DB was not established.
+- No `BLOB_READ_WRITE_TOKEN` is set in checked local env sources or current process. Live private Blob upload/read, Admin browser states, mobile/light/dark visual checks and real DB persistence remain NOT PROVEN.
+- Figma remote metadata exposes only `01 – Components`; local `.fig` metadata/thumbnail match this export. Exact MH-17 frame remains BLOCKED: FIGMA.
+
+## Open Questions
+
+- Exact MH-17 Figma frame unavailable in connected file; Admin baseline is used.
+- Live private Blob store/token and production upload acceptance remain unproven until provisioned.
+
+## Handoff Notes
+
+Stop after Task 1. Do not start US-18.
