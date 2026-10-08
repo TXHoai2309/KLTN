@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { QaAnswerPart, QaCompletedTurn, QaPublicCitation } from "../../modules/ai/qa-contract";
 import { createIdempotencyKey } from "../../lib/mutation-client";
 import { AssistantController, hasUnresolvedAttempt, shouldSendOnEnter, type AssistantTransport, type ConfirmedTurn } from "./assistant-controller";
@@ -31,6 +31,11 @@ export function AssistantTurn({ turn, citationSlot }: { turn: ConfirmedTurn; cit
 export function AssistantChat({ transport = null, identity = "unavailable", citationSlot, demo = false }: {
   transport?: AssistantTransport | null; identity?: string; citationSlot?: CitationSlot; demo?: boolean;
 }) {
+  const instanceId = useId();
+  const questionId = `${instanceId}-question`;
+  const helpId = `${instanceId}-input-help`;
+  const dialogTitleId = `${instanceId}-abandon-title`;
+  const dialogDescriptionId = `${instanceId}-abandon-description`;
   // Changing a transport remounts its session; changing identity invalidates it.
   const [controller] = useState(() => new AssistantController(transport, identity, createIdempotencyKey));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
@@ -81,15 +86,15 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
     {unseen && <button className="assistant-new-message" type="button" onClick={() => { nearEnd.current = true; setUnseen(false); viewport.current?.scrollTo({ top: viewport.current.scrollHeight }); }}>Đến tin nhắn mới</button>}
     <div className="assistant-live assistant-muted" role="status" aria-live="polite" aria-atomic="true">{status}</div>
     <form className="assistant-composer" onSubmit={(event) => { event.preventDefault(); submit(); }}>
-      <label htmlFor="assistant-question">Câu hỏi của bạn</label>
-      <textarea id="assistant-question" ref={composer} rows={2} placeholder="Nhập câu hỏi…" value={state.draft} disabled={!transport}
-        aria-invalid={!!state.validation} aria-describedby="assistant-input-help" onChange={(event) => controller.setDraft(event.target.value)}
+      <label htmlFor={questionId}>Câu hỏi của bạn</label>
+      <textarea id={questionId} ref={composer} rows={2} placeholder="Nhập câu hỏi…" value={state.draft} disabled={!transport}
+        aria-invalid={!!state.validation} aria-describedby={helpId} onChange={(event) => controller.setDraft(event.target.value)}
         onKeyDown={(event) => { if (shouldSendOnEnter({ key: event.key, shiftKey: event.shiftKey, isComposing: event.nativeEvent.isComposing, keyCode: event.nativeEvent.keyCode })) { event.preventDefault(); submit(); } }} />
-      <div className="assistant-composer-footer"><span id="assistant-input-help">Enter để gửi · Shift+Enter xuống dòng<br />{state.draft.normalize("NFC").trim().length}/2000 UTF-16</span><button type="submit" disabled={!transport || unresolved || !state.draft.trim()} aria-busy={sending}>Gửi</button></div>
+      <div className="assistant-composer-footer"><span id={helpId}>Enter để gửi · Shift+Enter xuống dòng<br />{state.draft.normalize("NFC").trim().length}/2000 UTF-16</span><button type="submit" disabled={!transport || unresolved || !state.draft.trim()} aria-busy={sending}>Gửi</button></div>
     </form>
-    <dialog ref={dialog} className="assistant-dialog" aria-labelledby="assistant-abandon-title" aria-describedby="assistant-abandon-description">
-      <h2 id="assistant-abandon-title">Bỏ theo dõi lượt chưa xác nhận?</h2>
-      <p id="assistant-abandon-description">Bỏ theo dõi không có nghĩa server đã hủy. Yêu cầu cũ có thể vẫn đang xử lý; thao tác này không xóa dữ liệu server. Khi rời phiên, bạn có thể mất khả năng phục hồi lượt cũ vì chức năng đọc lịch sử và phục hồi chưa sẵn sàng.</p>
+    <dialog ref={dialog} className="assistant-dialog" aria-labelledby={dialogTitleId} aria-describedby={dialogDescriptionId}>
+      <h2 id={dialogTitleId}>Bỏ theo dõi lượt chưa xác nhận?</h2>
+      <p id={dialogDescriptionId}>Bỏ theo dõi không có nghĩa server đã hủy. Yêu cầu cũ có thể vẫn đang xử lý; thao tác này không xóa dữ liệu server. Khi rời phiên, bạn có thể mất khả năng phục hồi lượt cũ vì chức năng đọc lịch sử và phục hồi chưa sẵn sàng.</p>
       <div><button type="button" autoFocus onClick={() => dialog.current?.close()}>Tiếp tục theo dõi</button><button type="button" onClick={() => { controller.newConversation(true); dialog.current?.close(); nearEnd.current = true; setUnseen(false); composer.current?.focus(); }}>Bỏ theo dõi và bắt đầu mới</button></div>
     </dialog>
   </section>;

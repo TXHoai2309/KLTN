@@ -88,12 +88,47 @@ describe("Task 195 controller (no persistence or HTTP endpoint)", () => {
     h.controller.editFailed(); expect(h.controller.getSnapshot().draft).toBe("failed fixture");
     h.controller.submit(); expect(h.calls[1]!.key).not.toBe(h.calls[0]!.key);
   });
-  it("deduplicates replay by conversation and turn IDs", async () => {
+  it("accepts the same committed result on same-key retry exactly once", async () => {
+    const h = harness(); h.controller.setDraft("fixture"); h.controller.submit();
+    const committed = completed();
+    h.resolves[0]!(unknown); await tick();
+    expect(h.controller.getSnapshot().turns).toHaveLength(0);
+    expect(h.controller.retry()).toBe(true);
+    expect(h.calls[1]).toBe(h.calls[0]);
+    h.resolves[1]!(committed); await tick();
+    expect(h.controller.getSnapshot().turns[0]!.response).toEqual((committed.body as { data: unknown }).data);
+    expect(h.controller.getSnapshot().pending).toBeNull();
+    expect(h.controller.retry()).toBe(false);
+    expect(h.controller.getSnapshot().turns).toHaveLength(1);
+  });
+  it.each(["turn_fixture_1", "turn_fixture_2"])("rejects old turn %s for a new-key intent, including on retry", async (oldTurnId) => {
     const h = harness(); h.controller.setDraft("identical fixture"); h.controller.submit();
     h.resolves[0]!(completed()); await tick();
     h.controller.setDraft("identical fixture"); h.controller.submit();
-    h.resolves[1]!(completed()); await tick();
-    expect(h.controller.getSnapshot().turns).toHaveLength(1);
+    h.resolves[1]!(completed("conv_fixture", "turn_fixture_2")); await tick();
+    h.controller.setDraft("identical fixture"); h.controller.submit();
+    const attempt = h.calls[2]!;
+    const confirmed = h.controller.getSnapshot().turns;
+    expect(attempt.key).not.toBe(h.calls[1]!.key);
+    expect(attempt.payload).toMatchObject({ parentTurnId: "turn_fixture_2" });
+    h.resolves[2]!(completed("conv_fixture", oldTurnId)); await tick();
+    expect(h.controller.getSnapshot().pending?.phase).toBe("malformed");
+    expect(h.controller.getSnapshot().pending?.attempt).toBe(attempt);
+    expect(h.controller.getSnapshot().parentTurnId).toBe("turn_fixture_2");
+    expect(h.controller.getSnapshot().turns).toBe(confirmed);
+    expect(h.controller.submit()).toBe(false);
+    expect(h.controller.retry()).toBe(true);
+    expect(h.calls[3]).toBe(attempt);
+    h.resolves[3]!(completed("conv_fixture", oldTurnId)); await tick();
+    expect(h.controller.getSnapshot().pending?.phase).toBe("malformed");
+    expect(h.controller.getSnapshot().turns).toBe(confirmed);
+    expect(h.controller.getSnapshot().parentTurnId).toBe("turn_fixture_2");
+    // A legitimate result for the same unresolved attempt can still reconcile.
+    expect(h.controller.retry()).toBe(true);
+    h.resolves[4]!(completed("conv_fixture", "turn_fixture_3")); await tick();
+    expect(h.controller.getSnapshot().parentTurnId).toBe("turn_fixture_3");
+    expect(h.controller.getSnapshot().turns).toHaveLength(3);
+    expect(h.controller.getSnapshot().pending).toBeNull();
   });
   it.each([
     { kind: "response", httpStatus: 200, body: { answerText: "must not render" } },
@@ -150,6 +185,24 @@ describe("Task 195 controller (no persistence or HTTP endpoint)", () => {
 });
 
 describe("Task 195 renderer and production graph", () => {
+  it("gives multiple chat instances unique SSR IDs with local label/ARIA references", () => {
+    const tree = createElement("div", null, createElement(AssistantChat), createElement(AssistantChat));
+    const html = renderToStaticMarkup(tree);
+    const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
+    expect(ids).toHaveLength(8);
+    expect(new Set(ids).size).toBe(8);
+    const instances = html.split('<section class="assistant-chat"').slice(1);
+    expect(instances).toHaveLength(2);
+    for (const instance of instances) {
+      const localIds = [...instance.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
+      const references = [...instance.matchAll(/(?:for|aria-labelledby|aria-describedby)="([^"]+)"/g)].map((match) => match[1]);
+      expect(references).toHaveLength(4);
+      for (const reference of references) expect(localIds).toContain(reference);
+      expect(instance.match(/<label for="([^"]+)"/)?.[1]).toBe(instance.match(/<textarea id="([^"]+)"/)?.[1]);
+    }
+    // Stable server tree IDs: no random key or process-global counter in the markup.
+    expect(renderToStaticMarkup(tree)).toBe(html);
+  });
   it("escapes AI text and preserves citation associations for the slot", () => {
     const turn = qaCompletedTurnSchema.parse({ conversationId: "conv_fixture", turnId: "turn_fixture", turnState: "COMPLETED", context: { type: "GENERAL" }, status: "ANSWERED", unansweredAspects: [],
       answerParts: [{ text: "<script>alert(1)</script>", citationIds: ["c1"] }],

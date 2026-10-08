@@ -121,10 +121,12 @@ export class AssistantController {
       const turn = response.data;
       if (result.httpStatus !== 200 || (this.state.conversationId && turn.conversationId !== this.state.conversationId) || turn.context.type !== "GENERAL") { this.malformed(); return; }
       const existing = this.state.turns.find((item) => item.response.conversationId === turn.conversationId && item.response.turnId === turn.turnId);
-      // A duplicate may acknowledge only the identical submitted question/head.
-      if (existing && (existing.question !== attempt.payload.question || this.state.parentTurnId !== turn.turnId)) { this.malformed(); return; }
+      const requestedParent = "parentTurnId" in attempt.payload ? attempt.payload.parentTurnId : null;
+      // Retry retains the pending intent/key; its result is not yet confirmed locally.
+      // A confirmed turn (even with identical question text) cannot complete a new intent.
+      if (existing || turn.turnId === requestedParent || requestedParent !== this.state.parentTurnId) { this.malformed(); return; }
       this.update({ ...this.state, conversationId: turn.conversationId, parentTurnId: turn.turnId, pending: null,
-        turns: existing ? this.state.turns : [...this.state.turns, { question: attempt.payload.question, response: turn }] });
+        turns: [...this.state.turns, { question: attempt.payload.question, response: turn }] });
     } else if (response.operationStatus === "UNKNOWN") {
       if (result.httpStatus !== 503) { this.malformed(); return; }
       this.setAttemptPhase("unknown", "Chưa xác định kết quả lưu lượt hỏi. Thử xác nhận lại sẽ giữ nguyên câu hỏi và mã yêu cầu.");

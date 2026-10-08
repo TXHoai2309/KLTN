@@ -361,7 +361,10 @@ No pixel-perfect or full Figma prototype acceptance is claimed.
   unconfirmed and separate from completed turns.
 - The controller validates raw transport responses with `qaResponseSchema` before
   rendering and checks HTTP success, conversation correlation, generation and
-  identity. Completed turns are reconciled/deduplicated by conversationId/turnId.
+  identity. Completed results reconcile only the unresolved intent/key; an already
+  confirmed conversationId/turnId cannot acknowledge a new intent, even when its
+  question text is identical. Returned turnId must differ from the requested parent,
+  and the requested parent must still match the local confirmed head.
   All four completed outcomes advance the head. The displayed user question is
   the acknowledged request snapshot, not data loaded from a history endpoint.
 - Partial displays answer parts and unanswered aspects; insufficient displays
@@ -456,3 +459,21 @@ Browser smoke of the built production page confirms unavailable and disabled sen
   Destination/Culture detail pages and environment files remain unchanged.
 - No OpenAI call, Neon write, API, persistence, Guest bootstrap, popup,
   commit/push/merge. Owner review remains required; stop after Task 195.
+
+### Task 195 owner review fix 1 (2026-10-08)
+
+- Reviewed baseline: `a142de4170533df21668b42a57d258e31ac83f64`, branch TXH,
+  clean before this fix. The prior permissive deduplication test was incorrect:
+  identical question text does not prove two requests represent the same intent.
+- Confirmed turn reuse or requested-parent conflict now leaves the pending attempt
+  in malformed/uncertain state, preserves payload/key and head, and adds no turn.
+  Same-key retries can accept a committed result not yet confirmed locally; after
+  confirmation no pending retry remains. Single-flight is unchanged.
+- Each AssistantChat derives composer/help/dialog IDs from React `useId`, keeping
+  label and ARIA references within its instance without random SSR/client IDs.
+- Focused tests PASS 35/35; regression PASS (152/152 Vitest plus legacy suites);
+  typecheck PASS (four tasks); build PASS (22/22 static pages). Multiple-instance
+  SSR regression checks unique IDs, local references and stable server output.
+  Browser hydration was not separately exercised in this fix.
+- No Task 191 contract, transport/demo isolation, navigation/CSS, API, DB or
+  migration changes. No commit/push; wait for owner review, no Task 196.
