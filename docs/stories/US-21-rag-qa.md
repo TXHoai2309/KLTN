@@ -2,8 +2,9 @@
 
 ## Status
 
-IN PROGRESS — Task 191 contract implementation only; owner review pending.
-No Q&A endpoint, conversation runtime or chat UI is implemented by this task.
+IN PROGRESS — Task 191 contract and Task 195 frontend implemented; owner review pending.
+Task 195 adds chat UI with an isolated local simulation. Production Q&A remains
+unavailable; no real endpoint, conversation persistence or RAG runtime exists.
 Do not mark the whole US-21 IMPLEMENTED, ACCEPTED or DONE from this evidence.
 
 ## Owner / goal
@@ -327,3 +328,131 @@ No deployment/browser/provider/DB smoke is applicable or claimed.
 - No runtime route, persistence, dependency, configuration, schema/migration,
   OpenAI call, Neon write, commit or push. Owner review remains required.
 Stop after Task 191; Task 192 and all runtime work require their own instruction.
+
+## Task 195 — shared Assistant frontend (2026-10-08)
+
+### Authorization / design baseline
+
+Owner Tô Xuân Hoài approved implementation after two design-review rounds.
+Branch `TXH`, reviewed HEAD `1770a1a12781e06dbc813a15ea004af15ff12226` and
+origin/TXH matched; worktree was clean before implementation.
+Figma file `oomNsNYfrcjnq2FQnYLOKN`: desktop MH-05 `6:169`, mobile MH-05
+`111:69`, required AI states `111:208`, verified through the browser during review.
+Layout follows desktop chat-left/context-and-principles-right and mobile one
+column, message bubbles and composer below. Approved deviations: GENERAL only,
+no destination selector, minimal wrapping Header instead of new bottom navigation,
+unavailable production state, explicit retry/abandon states and citation slot.
+No pixel-perfect or full Figma prototype acceptance is claimed.
+
+### Implemented frontend / shared core
+
+- `/assistant` server page supplies no transport: displays **Trợ lý AI chưa khả
+  dụng**, disables question/send/new-conversation controls, and never calls a
+  missing Q&A API or falls back to mock. Header adds **Trợ lý AI** without removing
+  existing entries or changing auth/theme. Mobile navigation may wrap.
+- `components/assistant/assistant-controller.ts` is the single surface-independent
+  in-memory controller and transport contract. `assistant-chat.tsx` provides the
+  reusable chat core, turn/answer presentation and separate page shell. A future
+  popup can use the same core; no popup or global chat provider is introduced.
+- First-turn/follow-up payloads use unchanged Task 191 schemas, NFC/trim and 2000
+  UTF-16 units. Request bodies contain no client history/evidence/identity.
+- Each new intent gets one key and an immutable serialized body. Single-flight
+  guards reject double submission. Pending user messages are local, explicitly
+  unconfirmed and separate from completed turns.
+- The controller validates raw transport responses with `qaResponseSchema` before
+  rendering and checks HTTP success, conversation correlation, generation and
+  identity. Completed turns are reconciled/deduplicated by conversationId/turnId.
+  All four completed outcomes advance the head. The displayed user question is
+  the acknowledged request snapshot, not data loaded from a history endpoint.
+- Partial displays answer parts and unanswered aspects; insufficient displays
+  the server-controlled message; clarification uses its returned turnId as the
+  next parent. Factual parts retain citationIds; React escapes text, no raw HTML.
+- FAILED stays outside completed history with a local edit action. UNKNOWN,
+  network ambiguity and malformed response retain the original body/key and do
+  not advance the head. A malformed response is a technical/protocol problem,
+  not proof that persistence failed. Retry does not use an edited draft.
+- Owner's final decision supersedes Round 2's proposed reset lock: UNKNOWN or
+  malformed response may be abandoned through an accessible confirmation dialog.
+  It explicitly states server cancellation/deletion is not implied and recovery
+  can be lost. Abandon invalidates generation and aborts client waiting; late
+  responses cannot enter the new chat. New/reset is disabled while sending;
+  logout/navigation are not globally blocked.
+- No localStorage/sessionStorage or persisted client history. `identity` is an
+  internal correlation boundary, not anonymous bootstrap or server authorization.
+  Changing identity clears local state and prevents old-attempt replay; runtime
+  integration must supply a trusted identity boundary. Transport changes require
+  remounting the local chat session. Refresh loses in-memory state.
+- Composer supports Enter/Shift+Enter, native IME composition and keyCode 229,
+  labels/live status, focus after reset and keyboard-accessible confirmation.
+  Transcript auto-scrolls only near its end; otherwise offers a new-message action.
+  Scoped styles support light/dark and mobile dynamic viewport dimensions.
+
+### Citation / runtime boundary
+
+`CitationSlot` receives the current part, its citationIds, the turn citations and
+turn identity. Task 195 neither flattens parts nor implements source resolution,
+metadata/URL interactions or downloads. The default slot says source information
+is not integrated. Task 196 must complete citation display before public factual
+Q&A acceptance. No real factual answers are exposed on production here.
+
+Task 194 can inject a real transport returning raw response/status or network
+ambiguity into the same controller. This task does not implement that adapter,
+endpoint, retrieval or provider integration. Conversation persistence, Guest
+bootstrap, history/read/delete, stale-head recovery and retention remain runtime
+dependencies. US-22 adds destination context/popups through an approved contract
+extension; Culture popup is future work. US-23 owns sufficiency/unsupported-claim
+policy; frontend does not decide semantic grounding.
+
+### Isolated interactive local demo
+
+Run from repository root:
+
+```powershell
+node apps/web/scripts/assistant-demo.mjs
+```
+
+Open `http://127.0.0.1:3002`. The runner binds loopback only, bundles in memory
+using already-installed esbuild from the tsx toolchain, and serves HTML/JS/CSS.
+It rejects NODE_ENV=production. No dependency, manifest, production config or
+Next app route is added for the demo. Restart the runner after source edits.
+
+`development/assistant-demo.tsx` imports the shared core and a deterministic fake
+transport. Select ANSWERED/PARTIAL/INSUFFICIENT_SOURCE/CLARIFICATION_REQUIRED,
+FAILED, UNKNOWN, NETWORK or MALFORMED, with 600 ms or 3 s delay. UNKNOWN/network/
+malformed simulate a saved result whose identical-key retry replays completion.
+This is a simulation, not DB/provider behavior. Every view is marked **DEMO /
+DỮ LIỆU MÔ PHỎNG**; texts and source aliases are synthetic, source URL is null,
+and no travel fact or citation is presented as verified evidence.
+
+Production isolation evidence: deterministic esbuild dependency-graph test of
+the real page has no development/test inputs or fixture marker; the real Next
+production build's JS/HTML/JSON under `.next/static` and `.next/server` was scanned
+for demo entry, fake transport, fixture marker and source alias with no matches.
+The production build route list contains `/assistant` and no demo/Q&A endpoint.
+Browser smoke of the built production page confirms unavailable and disabled send.
+
+### Task 195 validation / evidence limits
+
+- Focused `assistant-controller.vitest.test.ts`: PASS 32/32, including request/
+  outcomes, single-flight, retry exact snapshot, edited draft, replay deduplication,
+  malformed responses, identity/generation isolation, confirmation gate, keyboard
+  policy, escaped rendering, preserved citation association and production graph.
+- Root `npm run test`: PASS, 149/149 Vitest and existing legacy regression suites.
+- Root `npm run check-types`: PASS, all four tasks.
+- Root `npm run build`: PASS, compile/TypeScript and 22/22 static pages.
+- Browser: actual demo first/follow-up, pending, four outcomes, FAILED, UNKNOWN
+  retry with edited draft, malformed/retry, confirmation cancel/accept, focus reset,
+  Shift+Enter and rapid Enter checked. Long 2000-unit question wraps; reading old
+  messages preserves scroll with a new-message button. Demo and built production
+  page checked at 360/390/768/1440 px with no horizontal overflow; production
+  Header links/active state and disabled composer verified. Demo light/dark checked.
+- Composer remained visible after focus at a reduced 360x450 browser viewport;
+  this simulates reduced height, **not a real mobile keyboard test**. Physical
+  iOS/Android keyboard, native IME interaction, screen-reader audio, long-answer
+  browser fixture, other browsers and full Sprint 2 visual regression are not
+  claimed PASS. Keyboard/IME policies also have deterministic coverage.
+- Final tracked/untracked whitespace and scope review PASS. Task 191 contract,
+  shared helpers, production config, dependency manifests, schema/migrations,
+  Destination/Culture detail pages and environment files remain unchanged.
+- No OpenAI call, Neon write, API, persistence, Guest bootstrap, popup,
+  commit/push/merge. Owner review remains required; stop after Task 195.
