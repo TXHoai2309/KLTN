@@ -1,0 +1,33 @@
+enum RagDocumentStatus {
+  UPLOADED
+  REVIEWING
+  APPROVED
+  INDEXED
+  DISABLED
+}
+
+enum RagDocumentFileType {
+  PDF
+  DOCX
+  TXT
+}
+
+model RagDocument {
+  id               String              @id @default(cuid())
+  originalFileName String              @db.VarChar(255)
+  fileType         RagDocumentFileType
+  mimeType         String              @db.VarChar(150)
+  sizeBytes        Int
+  storagePath      String              @unique @db.VarChar(500)
+  sourceTitle      String              @db.VarChar(300)
+  sourceUrl        String?             @db.VarChar(2000)
+  author           String?             @db.VarChar(200)
+  topic            String?             @db.VarChar(200)
+  locality         String?             @db.VarChar(200)
+  uploadedById     String
+  status           RagDocumentStatus   @default(UPLOADED)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@map("rag_document")
+}

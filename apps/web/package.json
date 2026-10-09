@@ -7,7 +7,7 @@
     "build": "node scripts/prepare-map-assets.mjs && next build",
     "check-types": "tsc --noEmit",
     "test": "vitest run --config vitest.config.mts && npm run test:legacy",
-    "test:legacy": "npm run test:auth-ui && npm run test:account && npm run test:authorization && npm run test:destination && npm run test:culture && npm run test:map && npm run test:explore && npm run test:search && npm run test:favorite",
+    "test:legacy": "npm run test:auth-ui && npm run test:account && npm run test:authorization && npm run test:destination && npm run test:culture && npm run test:map && npm run test:explore && npm run test:search && npm run test:favorite && npm run test:rag && npm run test:idempotency",
     "test:auth-ui": "tsx --test src/lib/auth-ui-safety.test.tsx src/lib/auth-context-return.test.ts src/lib/auth-fetch.test.ts src/lib/auth-hydration.test.ts src/modules/auth/strict-logout.test.ts",
     "test:account": "tsx --test src/modules/account/account.test.ts",
     "test:authorization": "tsx --test src/server/authorization/authorization.test.ts",
@@ -20,7 +20,9 @@
     "test:map": "tsx --test src/modules/map/map.test.tsx",
     "test:explore": "tsx --test src/modules/culture/public-culture-list.test.tsx",
     "test:search": "tsx --test src/modules/destination/destination-search.test.ts src/modules/destination/destination-search-client.test.tsx",
-    "test:favorite": "tsx --test src/modules/favorite/favorite.test.ts src/modules/favorite/favorite-client.test.tsx src/modules/culture/public-culture-detail.test.ts src/modules/favorites/favorites.test.ts src/components/favorite-button.test.tsx"
+    "test:favorite": "tsx --test src/modules/favorite/favorite.test.ts src/modules/favorite/favorite-client.test.tsx src/modules/culture/public-culture-detail.test.ts src/modules/favorites/favorites.test.ts src/components/favorite-button.test.tsx",
+    "test:rag": "tsx --test src/modules/rag-document/*.test.ts",
+    "test:idempotency": "tsx --test src/server/http/idempotency.test.ts"
   },
   "dependencies": {
     "@KLTN/auth": "*",
@@ -43,7 +45,8 @@
     "react-dom": "^19.2.8",
     "sonner": "^2.0.8",
     "varlock": "1.18.0",
-    "zod": "^4.5.4"
+    "zod": "^4.5.4",
+    "@vercel/blob": "2.8.1"
   },
   "devDependencies": {
     "@KLTN/config": "*",

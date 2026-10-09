@@ -95,6 +95,7 @@ export default function UserMenu() {
           {session.user.role === "TRAVELER" && <DropdownMenuItem render={<Link href="/favorites" />}>Yêu thích</DropdownMenuItem>}
           {session.user.role === "ADMIN" && <DropdownMenuItem render={<Link href="/admin/destinations" />}>Quản lý điểm đến</DropdownMenuItem>}
           {session.user.role === "ADMIN" && <DropdownMenuItem render={<Link href="/admin/culture" />}>Quản lý nội dung văn hóa</DropdownMenuItem>}
+          {session.user.role === "ADMIN" && <DropdownMenuItem render={<Link href={"/admin/rag" as import("next").Route} />}>Quản lý tài liệu RAG</DropdownMenuItem>}
           {signOutError ? (
             <p className="px-2 py-2 text-xs text-destructive" role="alert">
               {signOutError}

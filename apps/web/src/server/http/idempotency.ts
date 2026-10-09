@@ -172,15 +172,10 @@ function isAppError(error: unknown): error is AppError {
   return error instanceof AppError;
 }
 
-/**
- * Runs a database write and its successful response record atomically.
- * Only successful outcomes are persisted; failed transactions can be retried
- * with the same key. Unknown outcomes must also be retried with that same key.
- */
-export async function executeIdempotentWrite<T>(
-  options: IdempotentWriteOptions<T>,
-): Promise<MutationOutcome<T>> {
-  const { database, actorId, operation, key, input, execute } = options;
+type ReplayOptions = Pick<IdempotentWriteOptions<never>, "database" | "actorId" | "operation" | "key" | "input">;
+
+function prepareIdentity({ actorId, operation, key, input }: ReplayOptions):
+  { scope: string; requestHash: string } | MutationOutcome<never> {
   const scope = JSON.stringify([actorId, operation]);
 
   if (
@@ -216,6 +211,36 @@ export async function executeIdempotentWrite<T>(
     if (isAppError(error)) return toKnownFailure(error);
     return unknownOutcome();
   }
+
+  return { scope, requestHash };
+}
+
+/** Caller authenticates and validates ownership first. Lookup errors never mean absence. */
+export async function preflightIdempotentReplay<T>(options: ReplayOptions):
+  Promise<MutationOutcome<T> | { status: "ABSENT" }> {
+  const identity = prepareIdentity(options);
+  if ("status" in identity) return identity;
+  try {
+    const record = await options.database.idempotencyRecord.findUnique({
+      where: { scope_key: { scope: identity.scope, key: options.key } },
+      select: { requestHash: true, responseJson: true },
+    });
+    return record ? resolveExisting<T>(record, identity.requestHash) : { status: "ABSENT" };
+  } catch { return unknownOutcome(); }
+}
+
+/**
+ * Runs a database write and its successful response record atomically.
+ * Only successful outcomes are persisted; failed transactions can be retried
+ * with the same key. Unknown outcomes must also be retried with that same key.
+ */
+export async function executeIdempotentWrite<T>(
+  options: IdempotentWriteOptions<T>,
+): Promise<MutationOutcome<T>> {
+  const { database, actorId, operation, key, input, execute } = options;
+  const identity = prepareIdentity(options);
+  if ("status" in identity) return identity;
+  const { scope, requestHash } = identity;
 
   try {
     const existing = await database.idempotencyRecord.findUnique({
