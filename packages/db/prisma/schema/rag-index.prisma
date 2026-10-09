@@ -1,0 +1,100 @@
+enum RagIndexGenerationState {
+  BUILDING
+  READY
+}
+
+model RagContentVersion {
+  id                    String   @id @default(cuid())
+  ragDocumentId         String
+  originalBytesHash     String   @db.Char(64)
+  normalizedContentHash String   @db.Char(64)
+  extractorVersion      String   @db.VarChar(200)
+  normalizationVersion  String   @db.VarChar(200)
+  identityHash          String   @db.Char(64)
+  createdAt             DateTime @default(now())
+
+  ragDocument RagDocument         @relation(fields: [ragDocumentId], references: [id], onDelete: Restrict)
+  generations RagIndexGeneration[]
+
+  @@unique([ragDocumentId, identityHash])
+  @@unique([ragDocumentId, id])
+  @@map("rag_content_version")
+}
+
+model RagIndexGeneration {
+  id                  String                   @id @default(cuid())
+  ragDocumentId       String
+  contentVersionId   String
+  generationKey      String                   @db.Char(64)
+  chunkerVersion     String                   @db.VarChar(200)
+  chunkOptions       Json
+  embeddingProvider  String                   @db.VarChar(80)
+  embeddingModel     String                   @db.VarChar(120)
+  embeddingDimensions Int
+  tokenizer          String                   @db.VarChar(100)
+  tokenizerVersion   String                   @db.VarChar(100)
+  expectedChunkCount Int
+  expectedTokenCount Int
+  state              RagIndexGenerationState  @default(BUILDING)
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  readyAt            DateTime?
+
+  ragDocument    RagDocument       @relation(fields: [ragDocumentId], references: [id], onDelete: Restrict)
+  contentVersion RagContentVersion @relation(fields: [ragDocumentId, contentVersionId], references: [ragDocumentId, id], onDelete: Restrict)
+  chunks         RagChunk[]
+  publication    RagIndexPublication?
+
+  @@unique([ragDocumentId, generationKey])
+  @@unique([ragDocumentId, id])
+  @@index([state, createdAt])
+  @@map("rag_index_generation")
+}
+
+model RagChunk {
+  id            String   @id @default(cuid())
+  ragDocumentId String
+  generationId  String
+  index         Int
+  text          String   @db.Text
+  refs          Json
+  locators      Json
+  textHash      String   @db.Char(64)
+  chunkHash     String   @db.Char(64)
+  chunkerVersion String  @db.VarChar(200)
+  createdAt     DateTime @default(now())
+
+  generation RagIndexGeneration @relation(fields: [ragDocumentId, generationId], references: [ragDocumentId, id], onDelete: Restrict)
+  embedding  RagChunkEmbedding?
+
+  @@unique([generationId, index])
+  @@unique([generationId, chunkHash])
+  @@map("rag_chunk")
+}
+
+model RagChunkEmbedding {
+  id         String   @id @default(cuid())
+  chunkId    String   @unique
+  inputHash  String   @db.Char(64)
+  vectorHash String   @db.Char(64)
+  tokenCount Int
+  embedding  Unsupported("vector(1536)")
+  createdAt  DateTime @default(now())
+
+  chunk RagChunk @relation(fields: [chunkId], references: [id], onDelete: Restrict)
+
+  @@map("rag_chunk_embedding")
+}
+
+model RagIndexPublication {
+  id            String   @id @default(cuid())
+  ragDocumentId String   @unique
+  generationId  String   @unique
+  publishedAt   DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  generation RagIndexGeneration @relation(fields: [ragDocumentId, generationId], references: [ragDocumentId, id], onDelete: Restrict)
+
+  @@map("rag_index_publication")
+  @@unique([ragDocumentId, generationId])
+}

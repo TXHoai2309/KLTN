@@ -22,6 +22,8 @@
     "test:search": "tsx --test src/modules/destination/destination-search.test.ts src/modules/destination/destination-search-client.test.tsx",
     "test:favorite": "tsx --test src/modules/favorite/favorite.test.ts src/modules/favorite/favorite-client.test.tsx src/modules/culture/public-culture-detail.test.ts src/modules/favorites/favorites.test.ts src/components/favorite-button.test.tsx",
     "test:rag": "tsx --test src/modules/rag-document/*.test.ts",
+    "test:rag-index:postgres": "node scripts/test-rag-index-postgres.mjs",
+    "test:rag-index:postgres:vitest": "vitest run --config vitest.config.mts src/modules/rag-index/rag-index-store.postgres.integration.vitest.test.ts",
     "test:idempotency": "tsx --test src/server/http/idempotency.test.ts"
   },
   "dependencies": {
@@ -32,10 +34,12 @@
     "@swc/helpers": "^0.5.23",
     "@tanstack/react-form": "^1.33.5",
     "@varlock/nextjs-integration": "1.2.2",
+    "@vercel/blob": "2.8.1",
     "babel-plugin-react-compiler": "^1.0.0",
     "better-auth": "1.7.5",
     "fast-xml-parser": "5.11.2",
     "fflate": "0.8.3",
+    "js-tiktoken": "1.0.21",
     "lucide-react": "^1.41.0",
     "maplibre-gl": "^6.12.0",
     "next": "^16.3.4",
@@ -45,15 +49,17 @@
     "react-dom": "^19.2.8",
     "sonner": "^2.0.8",
     "varlock": "1.18.0",
-    "zod": "^4.5.4",
-    "@vercel/blob": "2.8.1"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@KLTN/config": "*",
+    "@prisma/adapter-pg": "7.10.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.4.1",
+    "@types/pg": "8.16.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
+    "pg": "8.16.3",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
     "vitest": "^5.0.3"

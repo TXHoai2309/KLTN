@@ -29,5 +29,8 @@ model RagDocument {
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
 
+  contentVersions  RagContentVersion[]
+  indexGenerations RagIndexGeneration[]
+
   @@map("rag_document")
 }
