@@ -14,9 +14,20 @@ export type EmbeddingJobOptions = {
   signal?: AbortSignal;
   sleep?: (milliseconds: number, signal?: AbortSignal) => Promise<void>;
   random?: () => number;
+  /** Persist a durable marker before each billable provider batch begins. */
+  onBatchStart?: (chunks: readonly DocumentChunk[]) => Promise<void> | void;
+  /** Persist provider output before the next batch can start. */
+  onBatchComplete?: (embeddings: readonly EmbeddedChunk[]) => Promise<void> | void;
 };
 
 type BudgetedChunk = { chunk: DocumentChunk; tokenCount: number };
+
+export class EmbeddingCheckpointError extends Error {
+  constructor(readonly originalError: unknown) {
+    super("EMBEDDING_CHECKPOINT_FAILED");
+    this.name = "EmbeddingCheckpointError";
+  }
+}
 
 function boundedOption(value: number | undefined, fallback: number, ceiling: number, integer = true): number {
   const result = value ?? fallback;
@@ -116,23 +127,29 @@ export async function embedChunks(chunks: readonly DocumentChunk[], provider: Em
     while (true) {
       if (options.signal?.aborted) throw new EmbeddingError("CANCELLED", false);
       if (totalProviderAttempts >= maxJobAttempts) throw new EmbeddingError("ATTEMPT_LIMIT", false);
+      if (attempt === 0) await options.onBatchStart?.(batch.map(item => item.chunk));
       attempt += 1;
       totalProviderAttempts += 1;
       try {
         const providerResult = await provider.embed({ input: batch.map(item => item.chunk.text), signal: options.signal });
         const ordered = validateProviderResponse(providerResult, batch.length);
-        results.push(...ordered.map((item, index) => ({
+        const batchResults = ordered.map((item, index) => ({
           chunkIndex: batch[index]!.chunk.index,
           inputHash: batch[index]!.chunk.textHash,
           tokenCount: batch[index]!.tokenCount,
           vector: item.embedding,
           provenance: EMBEDDING_PROVENANCE,
-        })));
+        }));
+        try { await options.onBatchComplete?.(batchResults); }
+        catch (error) { throw new EmbeddingCheckpointError(error); }
+        results.push(...batchResults);
         break;
       } catch (error) {
+        if (error instanceof EmbeddingCheckpointError) throw error;
         const failure = error instanceof EmbeddingError ? error : new EmbeddingError("PROVIDER_UNAVAILABLE", true);
         if (!failure.retryable) throw failure;
-        if (attempt >= maxBatchAttempts || totalProviderAttempts >= maxJobAttempts) throw new EmbeddingError("ATTEMPT_LIMIT", false);
+        if (attempt >= maxBatchAttempts) throw failure;
+        if (totalProviderAttempts >= maxJobAttempts) throw new EmbeddingError("ATTEMPT_LIMIT", false);
         const backoff = Math.min(EMBEDDING_LIMITS.baseRetryDelayMs * 2 ** (attempt - 1), EMBEDDING_LIMITS.maxRetryDelayMs);
         const jitter = Math.floor(backoff * (0.5 + Math.min(1, Math.max(0, random()))));
         await sleep(failure.retryAfterMs ?? jitter, options.signal);

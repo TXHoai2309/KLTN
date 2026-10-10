@@ -1,0 +1,55 @@
+enum RagIndexJobStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  REJECTED
+  FAILED
+  CANCELLED
+  TIMED_OUT
+  UNKNOWN
+}
+
+enum RagIndexJobPhase {
+  QUEUED
+  ACQUIRING
+  EXTRACTING
+  CHUNKING
+  PERSISTING_CHUNKS
+  EMBEDDING
+  PERSISTING_EMBEDDINGS
+  VERIFYING
+  PUBLISHING
+  COMPLETED
+}
+
+model RagIndexJob {
+  id                String            @id @default(cuid())
+  ragDocumentId     String
+  requestedById     String            @db.VarChar(128)
+  idempotencyScope  String            @db.VarChar(300)
+  idempotencyKey    String            @db.VarChar(200)
+  requestHash       String            @db.Char(64)
+  status            RagIndexJobStatus @default(QUEUED)
+  phase             RagIndexJobPhase  @default(QUEUED)
+  leaseToken        String?           @unique @db.VarChar(36)
+  leaseExpiresAt    DateTime?
+  attemptCount      Int               @default(0)
+  cancelRequestedAt DateTime?
+  contentVersionId  String?           @db.VarChar(30)
+  generationId      String?           @db.VarChar(30)
+  pendingBatchIndexes Json?
+  warningCodes      Json?
+  failureCode       String?           @db.VarChar(80)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  startedAt         DateTime?
+  completedAt       DateTime?
+
+  ragDocument RagDocument @relation(fields: [ragDocumentId], references: [id], onDelete: Restrict)
+
+  @@unique([idempotencyScope, idempotencyKey])
+  @@index([status, createdAt])
+  @@index([status, leaseExpiresAt])
+  @@index([ragDocumentId, status, createdAt])
+  @@map("rag_index_job")
+}

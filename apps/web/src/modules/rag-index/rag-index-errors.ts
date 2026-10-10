@@ -8,7 +8,9 @@ export type RagIndexErrorCode =
   | "GENERATION_NOT_READY"
   | "DOCUMENT_NOT_ELIGIBLE"
   | "CHUNK_CONFLICT"
-  | "EMBEDDING_CONFLICT";
+  | "EMBEDDING_CONFLICT"
+  | "JOB_LEASE_LOST"
+  | "JOB_CANCELLED";
 
 export class RagIndexError extends Error {
   constructor(readonly code: RagIndexErrorCode) {

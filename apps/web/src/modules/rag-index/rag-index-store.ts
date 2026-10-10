@@ -5,6 +5,7 @@ import type { DocumentChunk } from "../rag-processing/chunk-contract";
 import type { EmbeddedChunk } from "../rag-processing/embedding-contract";
 import { RagIndexError } from "./rag-index-errors";
 import { contentVersionIdentity, generationIdentity } from "./rag-index-identity";
+import { lockAndAssertRagIndexJobLease, type RagIndexJobLease } from "./rag-index-job-store";
 import type { ContentVersionInput, GenerationProgress, IndexGenerationInput, PublishedGenerationMetadata } from "./rag-index-contract";
 
 type Transaction = Prisma.TransactionClient;
@@ -74,18 +75,22 @@ async function assertComplete(tx: Transaction, generationId: string, expectedChu
 
 export function createRagIndexStore(database: Database) {
   return {
-    async createOrFindContentVersion(input: ContentVersionInput): Promise<{ id: string; identityHash: string }> {
+    async createOrFindContentVersion(input: ContentVersionInput, lease?: RagIndexJobLease): Promise<{ id: string; identityHash: string }> {
       const identityHash = contentVersionIdentity(input);
       const where = { ragDocumentId_identityHash: { ragDocumentId: input.ragDocumentId, identityHash } };
       const select = { id: true, identityHash: true, originalBytesHash: true, normalizedContentHash: true, extractorVersion: true, normalizationVersion: true } as const;
       let row;
       try {
-        row = await database.ragContentVersion.upsert({
-          where,
-          create: { ...input, identityHash },
-          update: {},
-          select,
+        const upsert = (target: Pick<Database, "ragContentVersion">) => target.ragContentVersion.upsert({
+          where, create: { ...input, identityHash }, update: {}, select,
         });
+        row = lease
+          ? await database.$transaction(async tx => {
+              const locked = await lockAndAssertRagIndexJobLease(tx, lease);
+              if (locked.ragDocumentId !== input.ragDocumentId) throw new RagIndexError("JOB_LEASE_LOST");
+              return tx.ragContentVersion.upsert({ where, create: { ...input, identityHash }, update: {}, select });
+            })
+          : await upsert(database);
       } catch (error) {
         if (!isUniqueConstraintViolation(error)) throw error;
         const raced = await database.ragContentVersion.findUnique({ where, select });
@@ -98,14 +103,14 @@ export function createRagIndexStore(database: Database) {
       return { id: row.id, identityHash };
     },
 
-    async createOrFindGeneration(input: IndexGenerationInput): Promise<{ id: string; generationKey: string; state: "BUILDING" | "READY" }> {
+    async createOrFindGeneration(input: IndexGenerationInput, lease?: RagIndexJobLease): Promise<{ id: string; generationKey: string; state: "BUILDING" | "READY" }> {
       const generationKey = generationIdentity(input);
       const expectedTokenCount = input.embeddings.reduce((sum, item) => sum + item.tokenCount, 0);
       const where = { ragDocumentId_generationKey: { ragDocumentId: input.ragDocumentId, generationKey } };
       const select = { id: true, state: true, contentVersionId: true, chunkerVersion: true, chunkOptions: true, embeddingProvider: true, embeddingModel: true, embeddingDimensions: true, tokenizer: true, tokenizerVersion: true, expectedChunkCount: true, expectedTokenCount: true } as const;
       let row;
       try {
-        row = await database.ragIndexGeneration.upsert({
+        const upsert = (target: Pick<Database, "ragIndexGeneration">) => target.ragIndexGeneration.upsert({
           where,
           create: {
             ragDocumentId: input.ragDocumentId,
@@ -124,6 +129,25 @@ export function createRagIndexStore(database: Database) {
           update: {},
           select,
         });
+        row = lease
+          ? await database.$transaction(async tx => {
+              const locked = await lockAndAssertRagIndexJobLease(tx, lease);
+              if (locked.ragDocumentId !== input.ragDocumentId) throw new RagIndexError("JOB_LEASE_LOST");
+              return tx.ragIndexGeneration.upsert({
+                where,
+                create: {
+                  ragDocumentId: input.ragDocumentId, contentVersionId: input.contentVersionId, generationKey,
+                  chunkerVersion: input.chunkerVersion,
+                  chunkOptions: JSON.parse(JSON.stringify(input.chunkOptions)) as Prisma.InputJsonValue,
+                  embeddingProvider: input.provenance.provider, embeddingModel: input.provenance.model,
+                  embeddingDimensions: input.provenance.dimensions, tokenizer: input.provenance.tokenizer,
+                  tokenizerVersion: input.provenance.tokenizerVersion, expectedChunkCount: input.chunks.length,
+                  expectedTokenCount,
+                },
+                update: {}, select,
+              });
+            })
+          : await upsert(database);
       } catch (error) {
         if (!isUniqueConstraintViolation(error)) throw error;
         const raced = await database.ragIndexGeneration.findUnique({ where, select });
@@ -136,9 +160,13 @@ export function createRagIndexStore(database: Database) {
       return { id: row.id, generationKey, state: row.state };
     },
 
-    async persistChunks(ragDocumentId: string, generationId: string, chunks: readonly DocumentChunk[]): Promise<number> {
+    async persistChunks(ragDocumentId: string, generationId: string, chunks: readonly DocumentChunk[], lease?: RagIndexJobLease): Promise<number> {
       if (!Array.isArray(chunks) || chunks.length === 0 || new Set(chunks.map(chunk => chunk.index)).size !== chunks.length) throw new RagIndexError("INVALID_INDEX_INPUT");
       return database.$transaction(async tx => {
+        if (lease) {
+          const locked = await lockAndAssertRagIndexJobLease(tx, lease);
+          if (locked.ragDocumentId !== ragDocumentId) throw new RagIndexError("JOB_LEASE_LOST");
+        }
         const generation = await lockGeneration(tx, ragDocumentId, generationId);
         for (const chunk of chunks) {
           if (!Number.isInteger(chunk.index) || chunk.index < 0 || chunk.index >= generation.expectedChunkCount || chunk.chunkerVersion !== generation.chunkerVersion ||
@@ -166,9 +194,18 @@ export function createRagIndexStore(database: Database) {
       });
     },
 
-    async persistEmbeddings(ragDocumentId: string, generationId: string, embeddings: readonly EmbeddedChunk[]): Promise<number> {
+    async persistEmbeddings(ragDocumentId: string, generationId: string, embeddings: readonly EmbeddedChunk[], lease?: RagIndexJobLease): Promise<number> {
       if (!Array.isArray(embeddings) || embeddings.length === 0 || embeddings.some(item => !item || !Number.isInteger(item.chunkIndex) || !Array.isArray(item.vector) || !item.provenance) || new Set(embeddings.map(item => item.chunkIndex)).size !== embeddings.length) throw new RagIndexError("INVALID_INDEX_INPUT");
       return database.$transaction(async tx => {
+        let jobId: string | undefined;
+        if (lease) {
+          const locked = await lockAndAssertRagIndexJobLease(tx, lease);
+          if (locked.ragDocumentId !== ragDocumentId) throw new RagIndexError("JOB_LEASE_LOST");
+          const pending = locked.job.pendingBatchIndexes;
+          const expected = [...embeddings.map(item => item.chunkIndex)].sort((a, b) => a - b);
+          if (!Array.isArray(pending) || canonical(pending) !== canonical(expected)) throw new RagIndexError("JOB_LEASE_LOST");
+          jobId = locked.job.id;
+        }
         const generation = await lockGeneration(tx, ragDocumentId, generationId);
         if (generation.embeddingProvider !== "openai" || generation.embeddingModel !== "text-embedding-3-small" || generation.embeddingDimensions !== 1536 || generation.tokenizer !== "cl100k_base") throw new RagIndexError("GENERATION_CONFLICT");
         const indexes = embeddings.map(item => item.chunkIndex);
@@ -193,12 +230,57 @@ export function createRagIndexStore(database: Database) {
           `);
           if (!saved[0] || saved[0].inputHash !== item.inputHash || saved[0].vectorHash !== vectorHash || saved[0].tokenCount !== item.tokenCount) throw new RagIndexError("EMBEDDING_CONFLICT");
         }
+        if (jobId) {
+          await tx.ragIndexJob.update({
+            where: { id: jobId },
+            data: { phase: "PERSISTING_EMBEDDINGS", pendingBatchIndexes: Prisma.DbNull },
+            select: { id: true },
+          });
+        }
         return embeddings.length;
       });
     },
 
-    async verifyGeneration(ragDocumentId: string, generationId: string): Promise<GenerationProgress> {
+    async verifyPersistedEmbeddingMetadata(
+      ragDocumentId: string,
+      generationId: string,
+      expected: readonly { chunkIndex: number; inputHash: string; tokenCount: number }[],
+      lease?: RagIndexJobLease,
+    ): Promise<void> {
+      if (!expected.length || new Set(expected.map(item => item.chunkIndex)).size !== expected.length) throw new RagIndexError("INVALID_INDEX_INPUT");
+      const indexes = expected.map(item => item.chunkIndex);
+      if (indexes.some(index => !Number.isInteger(index) || index < 0)) throw new RagIndexError("INVALID_INDEX_INPUT");
+      if (lease) {
+        await database.$transaction(async tx => {
+          const locked = await lockAndAssertRagIndexJobLease(tx, lease);
+          if (locked.ragDocumentId !== ragDocumentId) throw new RagIndexError("JOB_LEASE_LOST");
+        });
+      }
+      const rows = await database.$queryRaw<Array<{
+        chunkIndex: number; textHash: string; inputHash: string; vectorHash: string; tokenCount: number;
+      }>>(Prisma.sql`
+        SELECT c."index" AS "chunkIndex", c."textHash", e."inputHash", e."vectorHash", e."tokenCount"
+        FROM "rag_chunk" c
+        JOIN "rag_chunk_embedding" e ON e."chunkId" = c."id"
+        WHERE c."ragDocumentId" = ${ragDocumentId} AND c."generationId" = ${generationId}
+          AND c."index" IN (${Prisma.join(indexes)})
+      `);
+      if (rows.length !== expected.length) throw new RagIndexError("EMBEDDING_CONFLICT");
+      const actualByIndex = new Map(rows.map(row => [row.chunkIndex, row]));
+      for (const item of expected) {
+        const row = actualByIndex.get(item.chunkIndex);
+        if (!row || row.textHash !== item.inputHash || row.inputHash !== item.inputHash || row.tokenCount !== item.tokenCount || !/^[a-f0-9]{64}$/u.test(row.vectorHash)) {
+          throw new RagIndexError("EMBEDDING_CONFLICT");
+        }
+      }
+    },
+
+    async verifyGeneration(ragDocumentId: string, generationId: string, lease?: RagIndexJobLease): Promise<GenerationProgress> {
       return database.$transaction(async tx => {
+        if (lease) {
+          const locked = await lockAndAssertRagIndexJobLease(tx, lease);
+          if (locked.ragDocumentId !== ragDocumentId || locked.job.pendingBatchIndexes !== null) throw new RagIndexError("JOB_LEASE_LOST");
+        }
         const generation = await lockGeneration(tx, ragDocumentId, generationId);
         const progress = await assertComplete(tx, generationId, generation.expectedChunkCount, generation.expectedTokenCount);
         if (generation.state === "READY") return { ...progress, state: "READY", complete: progress.complete };
@@ -225,6 +307,36 @@ export function createRagIndexStore(database: Database) {
           update: { generationId, publishedAt: now, updatedAt: now },
           select: { id: true },
         });
+      });
+    },
+
+    async finalizeReadyGeneration(ragDocumentId: string, generationId: string, lease: RagIndexJobLease): Promise<void> {
+      await database.$transaction(async tx => {
+        const locked = await lockAndAssertRagIndexJobLease(tx, lease);
+        if (locked.ragDocumentId !== ragDocumentId || locked.documentStatus !== "APPROVED" && locked.documentStatus !== "INDEXED" || locked.job.pendingBatchIndexes !== null) {
+          throw new RagIndexError("DOCUMENT_NOT_ELIGIBLE");
+        }
+        const generation = await lockGeneration(tx, ragDocumentId, generationId);
+        if (generation.state !== "READY") throw new RagIndexError("GENERATION_NOT_READY");
+        const progress = await assertComplete(tx, generationId, generation.expectedChunkCount, generation.expectedTokenCount);
+        if (!progress.complete) throw new RagIndexError("GENERATION_NOT_COMPLETE");
+        const now = new Date();
+        await tx.ragIndexPublication.upsert({
+          where: { ragDocumentId },
+          create: { ragDocumentId, generationId, publishedAt: now, updatedAt: now },
+          update: { generationId, publishedAt: now, updatedAt: now },
+          select: { id: true },
+        });
+        const transitioned = await tx.$executeRaw(Prisma.sql`
+          UPDATE "rag_document" SET "status" = 'INDEXED', "updatedAt" = ${now}
+          WHERE "id" = ${ragDocumentId} AND "status" IN ('APPROVED', 'INDEXED')
+        `);
+        if (transitioned !== 1) throw new RagIndexError("DOCUMENT_NOT_ELIGIBLE");
+        const completed = await tx.ragIndexJob.updateMany({
+          where: { id: lease.jobId, status: "RUNNING", leaseToken: lease.leaseToken },
+          data: { status: "COMPLETED", phase: "COMPLETED", leaseToken: null, leaseExpiresAt: null, failureCode: null, completedAt: now },
+        });
+        if (completed.count !== 1) throw new RagIndexError("JOB_LEASE_LOST");
       });
     },
 

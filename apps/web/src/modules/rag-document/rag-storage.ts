@@ -25,22 +25,37 @@ export const ragStorage = {
     });
     return { pathname, uploadUrl: presignedUrl, contentType: mimeType };
   },
-  async read(pathname: string) {
+  async read(pathname: string, signal?: AbortSignal) {
+    if (signal?.aborted) throw new AppError("RAG_READ_CANCELLED", "Đã hủy thao tác đọc tệp.", 409);
     const result = await get(pathname, { access: "private", token: storageToken() });
+    if (signal?.aborted) {
+      await result?.stream?.cancel().catch(() => undefined);
+      throw new AppError("RAG_READ_CANCELLED", "Đã hủy thao tác đọc tệp.", 409);
+    }
     if (!result?.stream || !result.blob.size) throw new AppError("RAG_FILE_NOT_FOUND", "Không tìm thấy tệp trong kho riêng tư.", 404);
     if (result.blob.size > MAX_RAG_FILE_BYTES) throw new AppError("RAG_FILE_SIZE", "Tệp vượt giới hạn 20 MB.", 400);
     const chunks: Uint8Array[] = [];
     let size = 0;
     const reader = result.stream.getReader();
+    const cancelOnAbort = () => { void reader.cancel().catch(() => undefined); };
+    signal?.addEventListener("abort", cancelOnAbort, { once: true });
     try {
       while (true) {
+        if (signal?.aborted) {
+          await reader.cancel().catch(() => undefined);
+          throw new AppError("RAG_READ_CANCELLED", "Đã hủy thao tác đọc tệp.", 409);
+        }
         const { done, value } = await reader.read();
+        if (signal?.aborted) throw new AppError("RAG_READ_CANCELLED", "Đã hủy thao tác đọc tệp.", 409);
         if (done) break;
         size += value.byteLength;
         if (size > MAX_RAG_FILE_BYTES) throw new AppError("RAG_FILE_SIZE", "Tệp vượt giới hạn 20 MB.", 400);
         chunks.push(value);
       }
-    } finally { reader.releaseLock(); }
+    } finally {
+      signal?.removeEventListener("abort", cancelOnAbort);
+      reader.releaseLock();
+    }
     const bytes = new Uint8Array(size);
     let offset = 0;
     for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }

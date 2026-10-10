@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,6 +14,8 @@ const image = "pgvector/pgvector:0.8.6-pg16";
 const ownershipLabel = "org.kltn.task=us19-task184-postgres-regression";
 const containerName = `kltn-task184-pgtest-${randomUUID().replaceAll("-", "").slice(0, 20)}`;
 let containerCreated = false;
+let ownedVolumeNames = [];
+let reportDirectory;
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -64,6 +67,9 @@ async function waitUntilReady() {
 }
 
 async function installTask184Schema() {
+  const admissionMigrations = await Promise.all([
+    "20261001115741_init_auth", "20261001130000_add_idempotency_record", "20261001143000_add_user_role",
+  ].map(name => readFile(resolve(repoRoot, `packages/db/prisma/migrations/${name}/migration.sql`), "utf8")));
   const documentMigration = await readFile(
     resolve(repoRoot, "packages/db/prisma/migrations/20261008120000_add_rag_document/migration.sql"),
     "utf8",
@@ -72,7 +78,11 @@ async function installTask184Schema() {
     resolve(repoRoot, "packages/db/prisma/migrations/20261009120000_add_rag_index_generations/migration.sql"),
     "utf8",
   );
-  const setupSql = `CREATE EXTENSION vector;\n${documentMigration}\n${indexMigration}\n`;
+  const jobMigration = await readFile(
+    resolve(repoRoot, "packages/db/prisma/migrations/20261010120000_add_rag_index_jobs/migration.sql"),
+    "utf8",
+  );
+  const setupSql = `CREATE EXTENSION vector;\n${admissionMigrations.join("\n")}\n${documentMigration}\n${indexMigration}\n${jobMigration}\n`;
   const result = run(
     "docker",
     [
@@ -90,7 +100,7 @@ async function installTask184Schema() {
     { input: setupSql },
   );
   if (result.status !== 0) {
-    throw new Error("Could not install the actual RagDocument and Task184 migrations into the isolated database.");
+    throw new Error("Could not install the actual RagDocument and Task184/185 migrations into the isolated database.");
   }
 }
 
@@ -104,17 +114,29 @@ async function cleanupOwnedContainer() {
   );
   if (ownership.status !== 0 || ownership.stdout.trim() !== "us19-task184-postgres-regression") {
     console.error("Container ownership could not be confirmed; leaving it untouched.");
+    process.exitCode = 1;
     return;
   }
   const stopped = docker("stop", "--time", "3", containerName);
-  if (stopped.status !== 0) console.error("The owned test container could not be stopped automatically.");
+  if (stopped.status !== 0) {
+    console.error("The owned test container could not be stopped automatically.");
+    process.exitCode = 1;
+    return;
+  }
+  const remaining = requireSuccess("docker", ["ps", "--all", "--filter", `name=^/${containerName}$`, "--format", "{{.Names}}"]);
+  const existingVolumes = new Set(requireSuccess("docker", ["volume", "ls", "--format", "{{.Name}}"])
+    .split(/\r?\n/u).filter(Boolean));
+  const remainingVolumes = ownedVolumeNames.filter(name => existingVolumes.has(name));
+  if (remaining || remainingVolumes.length) {
+    console.error("Owned test container or its anonymous database volume still exists after cleanup.");
+    process.exitCode = 1;
+  } else console.log(`CLEANUP=PASS: owned disposable container and ${ownedVolumeNames.length} database volume(s) removed.`);
 }
 
 async function main() {
   const info = docker("info", "--format", "{{.ServerVersion}}");
   if (info.status !== 0) {
-    console.log("SKIPPED: Docker Engine is unavailable; real PostgreSQL integration was not run.");
-    return;
+    throw new Error("Docker Engine is unavailable; required PostgreSQL integration was not run.");
   }
 
   const password = randomUUID();
@@ -138,6 +160,8 @@ async function main() {
   );
   if (started.status !== 0) throw new Error("A uniquely named Task184 PostgreSQL container could not be created; no existing container was changed.");
   containerCreated = true;
+  const mounts = JSON.parse(requireSuccess("docker", ["inspect", "--format", "{{json .Mounts}}", containerName]));
+  ownedVolumeNames = mounts.filter(mount => mount.Type === "volume").map(mount => mount.Name);
 
   await waitUntilReady();
   const portMapping = requireSuccess("docker", ["port", containerName, "5432/tcp"]);
@@ -159,12 +183,15 @@ async function main() {
   await installTask184Schema();
 
   const npm = process.platform === "win32" ? "npm.cmd" : "npm";
-  const test = spawnSync(npm, ["run", "test:rag-index:postgres:vitest"], {
+  reportDirectory = await mkdtemp(resolve(tmpdir(), "kltn-postgres-report-"));
+  const reportPath = resolve(reportDirectory, "results.json");
+  const test = spawnSync(npm, ["run", "test:rag-index:postgres:vitest", "--", "--reporter=default", "--reporter=json", `--outputFile=${reportPath}`], {
     cwd: webRoot,
     env: {
       ...process.env,
       US19_TASK184_TEST_DATABASE_URL: connectionString,
       US19_TASK184_TEST_DISPOSABLE: disposableFlag,
+      US19_POSTGRES_REQUIRED: "1",
     },
     stdio: "inherit",
     windowsHide: true,
@@ -172,6 +199,12 @@ async function main() {
   });
   if (test.error) throw new Error(`Vitest could not run: ${test.error.code ?? "unknown"}`);
   if (test.status !== 0) process.exitCode = test.status ?? 1;
+  const report = JSON.parse(await readFile(reportPath, "utf8"));
+  const task185 = report.testResults?.find(suite => suite.name.endsWith("rag-index-job-store.postgres.integration.vitest.test.ts"));
+  if (!task185?.assertionResults?.length || report.numPendingTests !== 0 || report.numTodoTests !== 0 || task185.assertionResults.some(testCase => testCase.status !== "passed")) {
+    throw new Error("Required Task185 PostgreSQL suite did not fully execute and pass; skipped tests cannot count as PASS.");
+  }
+  console.log(`POSTGRES_TESTS=${report.numPassedTests}/${report.numTotalTests}; TASK185_TESTS=${task185.assertionResults.length}; SKIPPED=${report.numPendingTests}`);
 }
 
 try {
@@ -180,5 +213,13 @@ try {
   console.error(error instanceof Error ? error.message : "Task184 PostgreSQL test failed.");
   process.exitCode = 1;
 } finally {
-  await cleanupOwnedContainer();
+  try { await cleanupOwnedContainer(); }
+  finally {
+    if (reportDirectory) {
+      if (!reportDirectory.startsWith(resolve(tmpdir(), "kltn-postgres-report-"))) {
+        throw new Error("Refusing cleanup outside the generated PostgreSQL report directory.");
+      }
+      await rm(reportDirectory, { recursive: true, force: true });
+    }
+  }
 }

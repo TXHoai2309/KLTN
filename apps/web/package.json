@@ -23,7 +23,7 @@
     "test:favorite": "tsx --test src/modules/favorite/favorite.test.ts src/modules/favorite/favorite-client.test.tsx src/modules/culture/public-culture-detail.test.ts src/modules/favorites/favorites.test.ts src/components/favorite-button.test.tsx",
     "test:rag": "tsx --test src/modules/rag-document/*.test.ts",
     "test:rag-index:postgres": "node scripts/test-rag-index-postgres.mjs",
-    "test:rag-index:postgres:vitest": "vitest run --config vitest.config.mts src/modules/rag-index/rag-index-store.postgres.integration.vitest.test.ts",
+    "test:rag-index:postgres:vitest": "vitest run --config vitest.config.mts src/modules/rag-index/rag-index-store.postgres.integration.vitest.test.ts src/modules/rag-index/rag-index-job-store.postgres.integration.vitest.test.ts",
     "test:idempotency": "tsx --test src/server/http/idempotency.test.ts"
   },
   "dependencies": {

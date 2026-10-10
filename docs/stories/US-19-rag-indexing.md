@@ -1,12 +1,21 @@
-# US-19 — RAG indexing: Task181–Task184
+# US-19 — RAG indexing: Task181–Task185
 
-## Status and scope
+## Current status — 2026-10-10
 
-Task181–184 implemented locally for owner review. US-19 remains IN PROGRESS:
-Task185 orchestration, Admin indexing UI and production upload processing are not
-implemented. Owner Tô Xuân Hoài authorized the combined Task183/184 package on TXH,
-baseline `ff638e40ef93197c704cba3c16a0391634b25f74`. No commit/push/branch
-integration or shared-database migration apply is authorized.
+Task181–184 are implemented and committed on TXH through baseline
+`8d077f91561fb6a1356e86ec6ccbe78538c24537`. Owner-confirmed Neon Development
+evidence records all ten migrations applied, and the Task184 PrismaNeon vector
+write smoke and synthetic cleanup passed. Task185 orchestration is now implemented
+locally for review; its additive job migration is not applied to Neon. This working
+tree is uncommitted. US-19 remains IN PROGRESS: isolated PostgreSQL Task185 tests
+could not run because Docker Engine is unavailable; live private Blob Gate C is
+NOT_RUN; live Admin browser Gate D is PARTIAL; and durable worker deployment is a
+prerequisite to any live indexing. Task186 Admin UI and production upload
+processing remain out of scope.
+
+The dated Task181–184 evidence below is retained as historical handoff material.
+Where it says those commits or migrations were pending, the dated owner-confirmed
+Task184 closure and Task185 entry at the end of this story supersede that snapshot.
 
 ## Sources and prerequisites
 
@@ -16,10 +25,54 @@ integration or shared-database migration apply is authorized.
 - Repository AGENTS, source baselines, product contract, architecture and flow.
 - US-21 Task191: PDF physical pages, verified DOCX headings, no assumed TXT/DOCX
   pagination; metadata-only public citations and separate runtime trust boundaries.
-- US-17/18 inspected read-only on ThaiAnh at
-  `4c6df6128c1923369e652eb332eb1b475b50c3fa`. They are not on TXH. Their fixture
-  tests/recorded checks are distinct from applied migration/live private Blob,
-  which were not proven in those stories and were not accessed in this package.
+- US-17/18 originated on ThaiAnh at
+  `4c6df6128c1923369e652eb332eb1b475b50c3fa` and were selectively integrated to
+  TXH before Task185. The owner later confirmed their Development migrations and
+  Task184 vector smoke. That evidence does not prove live private Blob Gate C or
+  Admin browser Gate D; Task185 uses injected storage/provider dependencies locally.
+
+## Task185 architecture decisions — recorded before implementation (2026-10-10)
+
+- Persist indexing work in a dedicated additive `RagIndexJob` table. Keep the
+  existing `RagDocumentStatus` enum unchanged: jobs have their own lifecycle and
+  do not introduce an `INDEXING` document status.
+- Admit jobs only after current Admin authorization and an eligible document
+  lookup. Use the shared idempotent-write contract with actor, operation, key and
+  document payload. Lock the document row while checking for an active job and
+  inserting one, so concurrent processes cannot enqueue duplicate active work.
+- A separately invoked worker claims queued jobs with database row locks,
+  expiring leases and fencing tokens. No HTTP route, `after()` callback, upload
+  hook or fire-and-forget execution starts the worker. There is no durable worker
+  runtime configured in this repository, so live indexing remains disabled until
+  one is deployed and monitored.
+- Persist the current pipeline phase. An expired lease before embedding or after
+  all embeddings are durably saved can be safely requeued. An expired lease while
+  provider output may have been charged but not fully persisted becomes `UNKNOWN`;
+  no automatic provider retry occurs. A new explicit retry must pass the existing
+  per-job token/cost preflight.
+- The worker loads the document row first and reads only its registered private
+  Blob path. It verifies the registered type, MIME and size against the bytes,
+  validates the file, hashes the exact bytes, and injects storage/provider
+  dependencies for offline tests. No URL is fetched and no real Blob/OpenAI call
+  is part of Task185 validation.
+- Recheck document status at admission, acquisition, processing persistence and
+  publication. Database writes use document/job/generation locks and the lease
+  fencing token. `DISABLED` cancels work and cannot publish. The worker stores
+  sanitized warning codes (not excerpts) on the job. The always-emitted
+  `PDF_READING_ORDER_HEURISTIC` is informational and does not alone block indexing;
+  `PAGE_WITHOUT_TEXT` and `UNSUPPORTED_DOCX_REGION` fail closed for possible
+  omissions. `NO_EXTRACTABLE_TEXT` always rejects and remains retrieval-ineligible.
+- Finalization checks READY completeness and updates the publication pointer,
+  `RagDocument.status = INDEXED`, and job completion in one PostgreSQL transaction.
+  Re-indexing keeps the previous pointer until this transaction succeeds; a failed
+  new generation is retained for audit/retry without replacing the old one.
+- Recovery never claims that an uncertain external provider operation completed.
+  Worker cancellation and provider timeouts use `AbortSignal`; a timeout during
+  embedding is `UNKNOWN` because the remote charge/result may be uncertain. No
+  long-running request is used as a substitute for a durable worker.
+- The worker uses one provider attempt per batch. A timeout, transport ambiguity or
+  unpersisted provider response becomes `UNKNOWN`; a new, idempotent Admin retry
+  explicitly requests another cost preflight before any missing chunks are sent.
 
 ## Architecture and entry points
 
@@ -156,10 +209,11 @@ lock the generation row while adding/resuming chunks or vectors, and READY is se
 when the expected chunk count, one embedding per chunk and total token count match.
 Publication is one unique document-to-generation pointer, checked against READY and
 complete state while holding document/generation locks. Old generations are retained.
-The internal publication operation does not change `RagDocument.status`; APPROVED is
-not retrieval-eligible, and metadata reads require both INDEXED and READY. DISABLED
-documents are excluded. No route, Admin UI, retrieval, public projection or Task185
-status transition imports this store.
+Task184's internal publication operation does not change `RagDocument.status`; the
+Task185 guarded finalization boundary performs the `INDEXED` transition only in the
+same transaction as a complete READY publication. APPROVED is not retrieval-eligible,
+and metadata reads require both INDEXED and READY. DISABLED documents are excluded.
+No route, Admin UI, retrieval or public projection imports this store.
 
 ## Resource budgets
 
@@ -179,10 +233,10 @@ counted, including descriptor ZIPs/incorrect header sizes. Only required metadat
 document and styles parts are decompressed; excluded parts receive warnings where
 applicable. Budgets fail closed, never silently truncate into EXTRACTED success.
 These are bounded content/output budgets, not a hard heap or wall-clock guarantee.
-PDF.js can allocate while parsing before text/page guards run. A genuinely
-cancellable worker/execution boundary belongs to Task185 planning. No production
-user-upload execution is enabled here. Synthetic boundary tests are not proof
-of production performance on every hostile or representative real document.
+PDF.js can allocate while parsing before text/page guards run. A cancellable
+durable worker/execution boundary is a Task185 deployment prerequisite. No
+production user-upload execution is enabled here. Synthetic boundary tests are not
+proof of production performance on every hostile or representative real document.
 
 ## Dependency decisions
 
@@ -335,22 +389,109 @@ rows were available to sample. Neon received zero writes; migration #10 remains
 unapplied. PrismaNeon vector WRITE remains NOT_RUN.
 
 US-19 stays IN PROGRESS. Gate C live private Blob verification is NOT_RUN; Gate D
-live Admin browser flow remains PARTIAL; Task185 orchestration is not implemented.
+live Admin browser flow remains PARTIAL. The statement that Task185 was not
+implemented was accurate for this 2026-10-09 handoff and is superseded by the
+Task185 implementation record below.
 
 ## Limitations and next-task handoff
 
-- Task185: approved document acquisition, current eligibility/content identity,
-  immutable approved bytes, worker-level cancellation/timeouts, incomplete-coverage
-  policy, cross-process job idempotency/concurrency and status writes. Only complete
-  indexing may move APPROVED → INDEXED.
+- Historical next-task handoff (2026-10-09): Task185 covered approved document
+  acquisition, eligibility/content identity, worker cancellation, coverage policy,
+  cross-process jobs and status writes. These items are now implemented locally as
+  recorded below; only complete indexing may move APPROVED → INDEXED.
 - No public file download, snippet, private original/path/hash/internal ID
   projection, change to Task191, or citation interaction.
-- US-17/18 branch integration/migration/Blob runtime require separate owner review.
+- US-17/18 integration and Development migrations are complete; live private Blob
+  runtime verification remains unrun (Gate C).
 - Unsupported DOCX parts are not parsed for content; warnings conservatively
   identify coverage gaps. Do not use a warned document as fully extracted evidence.
 - Current embedding and persistence budgets have synthetic functional evidence,
   not a production benchmark or live provider result.
 - Vercel deployment/file tracing of PDF.js worker assets has not been verified;
-  Task185 must test deployment packaging before enabling live document processing.
+  deployment packaging must be tested before enabling live document processing.
 
 Owner review required. No commit, push, merge, OpenAI or Neon write.
+
+## Task185 implementation and local verification — 2026-10-10
+
+Added an additive `RagIndexJob` schema and un-applied migration
+`20261010120000_add_rag_index_jobs`. The job ledger has queue/run/terminal states,
+phase checkpoints, an expiring lease/fencing token, cancellation request, content
+version/generation IDs, sanitized warning/failure codes, and a pending embedding
+batch marker. `RagDocumentStatus` remains unchanged. No migration was applied to
+Neon and no new package dependency was added.
+
+Admin-only enqueue/cancel/explicit-retry service functions use persisted role checks
+and the shared idempotent-write contract. Enqueue locks the document row and
+rejects ineligible documents or existing queued/running/unknown work. A separately
+invoked server-only worker core claims with `FOR UPDATE SKIP LOCKED`, requeues only
+safe expired phases, and fences every result write with the current lease and
+document status. It reads only the registered Blob path, checks MIME/type/size and
+hashes the exact bytes, then reuses Task181 extraction, Task182 chunking, Task183
+token/cost checks and Task184 persistence. The always-emitted PDF reading-order
+heuristic is preserved as informational job provenance; page-without-text and
+unsupported DOCX-region warnings fail closed. No-extractable-text, corrupt and
+password-protected files are rejected before embedding. No request, upload or
+approval flow invokes the worker.
+
+Each embedding batch is marked pending before the provider call. The completed
+batch's vectors and cleared pending marker commit together. Worker recovery that
+finds an expired in-flight batch records `UNKNOWN`; it never repeats that provider
+call automatically. A new Admin retry uses a new idempotency key and reruns the
+existing cost preflight on missing chunks. Provider calls are limited to one attempt
+per batch in this worker. The old active publication survives failure or reindexing;
+the new publication pointer, `INDEXED` document status and job completion commit
+atomically after the READY/completeness check.
+
+Focused Task185/Task181–184 unit and service tests: 24/24 PASS. Prisma schema
+validation and client generation passed. The opt-in PostgreSQL runner was invoked
+but skipped because Docker Engine was unavailable, so real cross-process claim
+behavior and Task185 atomic finalization remain unverified in this run. Root Vitest,
+legacy suites, typecheck, production build, dependency audit delta, production
+client isolation and final diff/secret scans are reported in the Task185 handoff.
+No live OpenAI, Blob or Neon operation was performed. The new migration remains
+unapplied; US-19 remains IN PROGRESS and owner review is required.
+
+## Task185 owner review closure — 2026-10-10
+
+The owner review found that rejecting every extraction warning made all PDFs
+ineligible because Task181 emits `PDF_READING_ORDER_HEURISTIC` for every PDF.
+Product and system requirements in this repository do not require rejecting that
+heuristic. It is now informational and persisted as job provenance. A PDF page
+without text and an unsupported DOCX region still fail closed; image-only,
+no-extractable-text, corrupt, and password-protected inputs never reach embedding
+or publication. No reviewed partial-coverage exception was introduced.
+
+The worker now records warning codes through a lease-guarded job-store transaction.
+It also keeps lease-renewal database uncertainty as `UNKNOWN`, stops before
+verification/publication after runtime abort, and aborts an in-flight Blob stream
+read instead of waiting for the next chunk. Fake-provider worker tests use the
+real Task181 extractor with synthetic PDF/DOCX inputs. A PostgreSQL PDF pipeline
+case asserts the heuristic warning is persisted, but it could not run in this
+environment.
+
+Validation after the correction: focused Task185 and processing tests pass; full
+web Vitest passes 280 tests with four opt-in PostgreSQL tests skipped; all legacy
+suites pass; Prisma validate/generate, typecheck, build and `git diff --check`
+pass. Docker CLI 29.6.2 is installed, but the selected `desktop-linux` Engine is
+unavailable at `npipe:////./pipe/dockerDesktopLinuxEngine`. The Task185 PostgreSQL
+runner exited successfully with SKIPPED and created no resources. No other Docker
+context or database was used. Lease fencing, concurrent enqueue/claim, PostgreSQL
+rollback, cancellation/disable races and atomic publication therefore remain
+unverified against a real Task185 PostgreSQL database.
+
+Minimal deployment proposal: after owner-approved migration and integration
+closure, run one separately deployed server-only worker process on an already
+approved always-on container runtime. It polls the PostgreSQL job ledger with
+bounded concurrency; the ledger and row locks provide queue/claim durability.
+Graceful shutdown stops new claims and aborts current I/O; lease expiry recovers
+safe phases, while uncertain provider batches remain `UNKNOWN`. Use controlled
+server-only Blob/OpenAI credentials, existing cost preflight and one provider
+attempt per batch. Emit sanitized job ID/phase/status/failure-code logs and
+measure queue age, duration, retry and UNKNOWN counts. Validate PDF.js runtime
+assets, Blob reads, resource bounds and operational limits before live enablement.
+No worker host or third-party queue is provisioned or selected by Task185.
+
+No real OpenAI/Blob calls, Neon writes, or migration apply occurred. The job
+migration remains unapplied; durable deployment is blocked; US-19 remains
+IN_PROGRESS and owner review is required.

@@ -135,3 +135,47 @@ For UI, use pure helper/source-contract tests plus a manual checklist in US-14. 
 - Route tests can call `GET` handlers directly while mocking the `db` module; no running server or database is required.
 - Vitest adds a development dependency and lockfile changes. The proposal does not change production runtime or schema/migrations.
 - Approval is still pending. If rejected, remove the Vitest config/script/dependency and retain the existing `tsx --test` suites; no product behavior depends on this choice.
+
+## ADR-15 — US-19 Task185 durable indexing boundary
+
+- **Status:** Accepted for Task185 implementation; live enablement pending worker deployment and owner review
+- **Date:** 2026-10-10
+
+### Context
+
+Tasks181–184 provide bounded extraction, chunking, embedding and versioned
+pgvector persistence, but no job lifecycle or worker runtime. The product only
+allows retrieval from complete `INDEXED` documents; the current document enum has
+no `INDEXING` state, and Vercel request-scoped background callbacks share the
+function timeout rather than providing a durable queue.
+
+### Decision
+
+Task185 adds a durable job ledger and an independently invoked worker core. Job
+admission uses persisted Admin authorization, the shared idempotency contract, and
+a document-row lock to prevent multiple active jobs for one document across
+processes. Worker claims use PostgreSQL row locks, expiring leases and fencing
+tokens. Expired work before external embedding, or after embeddings are durably
+saved, can be safely requeued. Expired work while a provider result may have been
+charged but not durably saved becomes `UNKNOWN` and is not retried automatically.
+
+The publication pointer, `RagDocument.status = INDEXED`, and job completion are
+finalized atomically only after the generation is READY and complete. Existing
+published generations remain active until that transaction commits. The PDF
+reading-order heuristic is informational: retain its warning code in the job
+record but do not block indexing solely for it. `PAGE_WITHOUT_TEXT` and
+`UNSUPPORTED_DOCX_REGION` indicate potential omissions and fail closed;
+`NO_EXTRACTABLE_TEXT` always rejects. Task185 adds no API route, upload/approval
+hook, public retrieval path, or Vercel after-response worker trigger.
+
+### Consequences
+
+- An additive migration is required for the job table; it must be reviewed and
+  separately applied to Development before any deployment uses the worker.
+- Live indexing remains disabled until a durable worker runtime is deployed,
+  configured, monitored, and given controlled Blob/OpenAI credentials. A timed
+  Vercel request or `after()` callback is not that runtime.
+- Admin admission can be wired by the later Admin task without trusting client
+  paths or provider output. No Admin UI or endpoint is introduced by Task185.
+- Worker execution, provider and storage remain injectable so local tests use
+  synthetic documents and deterministic fake embeddings.

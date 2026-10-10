@@ -31,6 +31,7 @@ model RagDocument {
 
   contentVersions  RagContentVersion[]
   indexGenerations RagIndexGeneration[]
+  indexJobs        RagIndexJob[]
 
   @@map("rag_document")
 }

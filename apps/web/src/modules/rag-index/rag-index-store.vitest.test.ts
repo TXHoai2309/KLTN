@@ -36,6 +36,15 @@ function fakeDatabase(options: { contentVersionRaceCall?: number; generationRace
         const generation = generations.get(String(values[0]));
         return generation && generation.ragDocumentId === values[1] ? [{ ...generation }] : [];
       }
+      if (sql.includes('FROM "rag_chunk" c') && sql.includes('JOIN "rag_chunk_embedding" e ON e."chunkId" = c."id"') && !sql.includes("LEFT JOIN")) {
+        const [ragDocumentId, generationId, ...indexes] = values.map(String);
+        return [...chunks.values()]
+          .filter(row => row.ragDocumentId === ragDocumentId && row.generationId === generationId && indexes.includes(String(row.index)))
+          .flatMap(row => {
+            const embedding = embeddings.get(String(row.id));
+            return embedding ? [{ chunkIndex: Number(row.index), textHash: row.textHash, inputHash: embedding.inputHash, vectorHash: embedding.vectorHash, tokenCount: embedding.tokenCount }] : [];
+          });
+      }
       if (sql.includes('FROM "rag_chunk" c')) {
         const generationId = String(values[0]);
         const generationChunks = [...chunks.values()].filter(row => row.generationId === generationId);
@@ -207,6 +216,24 @@ describe("US-19 Task184 versioned RAG persistence", () => {
     await store.persistEmbeddings("doc-1", "gen-1", embeddings.slice(1));
     expect(await store.verifyGeneration("doc-1", "gen-1")).toMatchObject({ state: "READY", actualEmbeddingCount: 2, actualTokenCount: 7, complete: true });
     expect(await store.verifyGeneration("doc-1", "gen-1")).toMatchObject({ state: "READY", complete: true });
+  });
+
+  it("verifies resumed persisted embedding metadata against current chunk identity", async () => {
+    const fake = fakeDatabase(); const store = createRagIndexStore(fake.database);
+    const chunks = chunkInput(["Hà Giang source text"]); const embeddings = embeddedInput(chunks);
+    fake.generations.set("gen-1", {
+      id: "gen-1", ragDocumentId: "doc-1", state: "BUILDING", embeddingProvider: "openai", embeddingModel: "text-embedding-3-small",
+      embeddingDimensions: 1536, tokenizer: "cl100k_base", tokenizerVersion: "js-tiktoken@1.0.21", expectedChunkCount: 1,
+      expectedTokenCount: 3, contentVersionId: "cv-1", generationKey: "g".repeat(64), chunkerVersion: "structure-grapheme-v1",
+    });
+    await store.persistChunks("doc-1", "gen-1", chunks);
+    await store.persistEmbeddings("doc-1", "gen-1", embeddings);
+    await expect(store.verifyPersistedEmbeddingMetadata("doc-1", "gen-1", [{
+      chunkIndex: 0, inputHash: chunks[0]!.textHash, tokenCount: embeddings[0]!.tokenCount,
+    }])).resolves.toBeUndefined();
+    await expect(store.verifyPersistedEmbeddingMetadata("doc-1", "gen-1", [{
+      chunkIndex: 0, inputHash: sha256("different input"), tokenCount: embeddings[0]!.tokenCount,
+    }])).rejects.toMatchObject({ code: "EMBEDDING_CONFLICT" });
   });
 
   it("uses one publication pointer, keeps old generations, and excludes APPROVED or DISABLED documents from retrieval metadata", async () => {
