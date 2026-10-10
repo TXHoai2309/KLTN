@@ -1,0 +1,6 @@
+.rag-index-card { margin-top: 20px; }
+.rag-index-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; margin-top: 18px; }
+.rag-index-toolbar span { font-size: 13px; color: var(--destination-muted); }
+.rag-index-progress { margin-top: 16px; font-size: 13px; }
+.rag-index-progress progress { display: block; width: 100%; height: 12px; margin: 10px 0; accent-color: var(--destination-green); }
+.rag-index-error { margin-top: 14px; color: var(--destination-error); font-size: 13px; }
