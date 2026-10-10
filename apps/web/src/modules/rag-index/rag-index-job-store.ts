@@ -85,9 +85,12 @@ export function createRagIndexJobStore(database: Database) {
       });
     },
 
-    async claimNext(leaseMs = RAG_INDEX_JOB_LEASE_MS): Promise<RagIndexJobRecord | null> {
+    async claimNext(leaseMs = RAG_INDEX_JOB_LEASE_MS, requestedJobId?: string): Promise<RagIndexJobRecord | null> {
       if (!Number.isInteger(leaseMs) || leaseMs < 10_000 || leaseMs > 10 * 60_000) throw new RagIndexError("INVALID_INDEX_INPUT");
       const leaseToken = randomUUID();
+      // A synchronous Admin request must claim only the job it admitted.
+      // With no requestedJobId, retain the existing queue-worker behavior.
+      const targetJobId = requestedJobId ?? null;
       return database.$transaction(async tx => {
         // A crash while an embedding request was in flight can leave a billable
         // provider result unpersisted. Keep that job UNKNOWN for manual review.
@@ -96,6 +99,7 @@ export function createRagIndexJobStore(database: Database) {
           SET "status" = 'UNKNOWN', "failureCode" = 'EMBEDDING_OUTCOME_UNKNOWN',
             "leaseToken" = NULL, "leaseExpiresAt" = NULL, "updatedAt" = now()
           WHERE "status" = 'RUNNING' AND "leaseExpiresAt" <= now() AND "pendingBatchIndexes" IS NOT NULL
+            AND (${targetJobId}::text IS NULL OR "id" = ${targetJobId})
         `);
         await tx.$executeRaw(Prisma.sql`
           UPDATE "rag_index_job"
@@ -106,6 +110,7 @@ export function createRagIndexJobStore(database: Database) {
             "failureCode" = CASE WHEN "cancelRequestedAt" IS NULL THEN NULL ELSE 'CANCEL_REQUESTED' END,
             "updatedAt" = now()
           WHERE "status" = 'RUNNING' AND "leaseExpiresAt" <= now() AND "pendingBatchIndexes" IS NULL
+            AND (${targetJobId}::text IS NULL OR "id" = ${targetJobId})
         `);
         const rows = await tx.$queryRaw<Array<{
           id: string; ragDocumentId: string; requestedById: string; status: string; phase: string;
@@ -115,6 +120,7 @@ export function createRagIndexJobStore(database: Database) {
           WITH candidate AS (
             SELECT "id" FROM "rag_index_job"
             WHERE "status" = 'QUEUED'
+              AND (${targetJobId}::text IS NULL OR "id" = ${targetJobId})
             ORDER BY "createdAt" ASC, "id" ASC
             FOR UPDATE SKIP LOCKED
             LIMIT 1
