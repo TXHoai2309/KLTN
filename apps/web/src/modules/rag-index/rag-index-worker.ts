@@ -32,6 +32,8 @@ export type RagIndexWorkerDependencies = {
   chunk?: typeof chunkDocument;
   signal?: AbortSignal;
   leaseMs?: number;
+  /** When set, claim only this already-admitted job (no queue worker). */
+  jobId?: string;
   embeddingOptions?: Omit<EmbeddingJobOptions, "signal" | "onBatchStart" | "onBatchComplete">;
 };
 
@@ -275,20 +277,21 @@ async function runClaimed(job: RagIndexJobRecord, deps: RagIndexWorkerDependenci
 export function createRagIndexWorker(dependencies: RagIndexWorkerDependencies) {
   return {
     async runNext(): Promise<RagIndexWorkerOutcome> {
-      const job = await dependencies.jobs.claimNext(dependencies.leaseMs);
+      const job = await dependencies.jobs.claimNext(dependencies.leaseMs, dependencies.jobId);
       return job ? runClaimed(job, dependencies) : { status: "IDLE" };
     },
   };
 }
 
 /** Server-only entry point for a separately deployed durable worker process. */
-export async function runNextRagIndexJob(database: Database, options: { signal?: AbortSignal } = {}): Promise<RagIndexWorkerOutcome> {
+export async function runNextRagIndexJob(database: Database, options: { signal?: AbortSignal; jobId?: string } = {}): Promise<RagIndexWorkerOutcome> {
   const worker = createRagIndexWorker({
     jobs: createRagIndexJobStore(database),
     index: createRagIndexStore(database),
     storage: ragStorage,
     provider: createOpenAiEmbeddingProvider(),
     signal: options.signal,
+    jobId: options.jobId,
   });
   return worker.runNext();
 }
