@@ -495,3 +495,11 @@ No worker host or third-party queue is provisioned or selected by Task185.
 No real OpenAI/Blob calls, Neon writes, or migration apply occurred. The job
 migration remains unapplied; durable deployment is blocked; US-19 remains
 IN_PROGRESS and owner review is required.
+
+## 2026-10-10 — Experimental direct API index flow (separate feature branch)
+
+- Owner requested a fast MVP with request-scoped API processing rather than a separately hosted worker. This is a **delivery-path alternative**, not proof of durable execution or a replacement for the committed job-ledger invariants.
+- On feature branch `feat/us19-direct-index-api-progress`, an authenticated Admin-only `POST /api/admin/rag-documents/[id]/index` admits an idempotent job and invokes the existing `runNextRagIndexJob` for **that exact job**, within the same Node.js request. A replayed idempotency key never repeats processing. The `GET` endpoint returns the latest persisted job phase, outcome and counts. The Admin document detail polls every two seconds and shows the actual persisted embeddings/total as progress (no invented extraction percentage).
+- `maxDuration=300` is an upper request setting, not a service guarantee. Deployments with lower configured limits, network interruptions and client disconnects can leave a job QUEUED/RUNNING/UNKNOWN. A request-scoped server function is **not durable**; idle/expired jobs do not progress until an explicit subsequent invocation or a future worker. UI must not treat timeout as confirmed failure or automatically reissue uncertain paid work.
+- No automatic indexing at upload/approval; no public retrieval change, migration apply, Blob live operation, OpenAI live call, or Production write was made by this design change. Migration `20261010120000_add_rag_index_jobs` remains a prerequisite for any runtime test. The separate migration authorization and Dev environment gates remain unchanged.
+- This feature branch has not been validated through local typecheck/build/integration/browser since GitHub file writes do not provide a runnable checkout here. **Do not merge/deploy** until compile/tests (including real disposable PostgreSQL concurrency), packaging and bounded direct-call smoke pass. The initial implementation does not provide a safe explicit in-UI retry of an UNKNOWN job; handle those manually after reconciliation.
