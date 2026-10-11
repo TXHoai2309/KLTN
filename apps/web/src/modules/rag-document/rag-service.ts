@@ -23,7 +23,7 @@ const finalizeRequest = z.object({
   topic: z.string().trim().max(200).optional(),
   locality: z.string().trim().max(200).optional(),
 }).strict();
-const reviewRequest = z.object({ action: z.enum(["START_REVIEW", "APPROVE"]) }).strict();
+const reviewRequest = z.object({ action: z.enum(["START_REVIEW", "APPROVE", "DISABLE"]) }).strict();
 export type RagReviewAction = z.infer<typeof reviewRequest>["action"];
 const listFields = {
   id: true, originalFileName: true, fileType: true, sourceTitle: true,
@@ -39,14 +39,16 @@ function validateId(id: string) {
 }
 
 function allowedActions(status: RagStatus): RagReviewAction[] {
-  if (status === "UPLOADED") return ["START_REVIEW"];
-  if (status === "REVIEWING") return ["APPROVE"];
+  if (status === "UPLOADED") return ["START_REVIEW", "DISABLE"];
+  if (status === "REVIEWING") return ["APPROVE", "DISABLE"];
+  if (status === "APPROVED" || status === "INDEXED") return ["DISABLE"];
   return [];
 }
 
 function nextStatus(status: RagStatus, action: RagReviewAction): RagStatus {
   if (status === "UPLOADED" && action === "START_REVIEW") return "REVIEWING";
   if (status === "REVIEWING" && action === "APPROVE") return "APPROVED";
+  if (action === "DISABLE" && status !== "DISABLED") return "DISABLED";
   throw new AppError("RAG_TRANSITION_INVALID", "Thao tác không hợp lệ ở trạng thái hiện tại.", 409);
 }
 

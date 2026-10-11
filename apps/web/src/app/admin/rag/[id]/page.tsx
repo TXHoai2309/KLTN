@@ -2,6 +2,7 @@ import AccessDenied from "@/components/access-denied";
 import { culturePageAccess } from "../../culture/page-access";
 import { RagDetailView } from "../rag-review-ui";
 import "../rag-review.css";
+import "../rag-index-panel.css";
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

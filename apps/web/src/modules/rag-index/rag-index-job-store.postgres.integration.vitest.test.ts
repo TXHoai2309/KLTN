@@ -9,7 +9,8 @@ import { createRagIndexJobStore } from "./rag-index-job-store";
 import { createRagIndexStore } from "./rag-index-store";
 import { createRagIndexWorker } from "./rag-index-worker";
 import { processIndexRequest, readIndexProgress } from "./rag-index-request-service";
-import { enqueueRagIndexJob, type RagIndexJobServiceDependencies } from "./rag-index-job-service";
+import { enqueueRagIndexJob, retryRagIndexJob, type RagIndexJobServiceDependencies } from "./rag-index-job-service";
+import { transitionRagDocument, type RagDependencies } from "../rag-document/rag-service";
 import { EMBEDDING_PROVENANCE } from "../rag-processing/embedding-contract";
 import { canonical, sha256 } from "../rag-processing/content-hash";
 import { extractDocument } from "../rag-processing/extract-document";
@@ -246,12 +247,32 @@ integrationDescribe("US-19 Task185 durable job persistence (isolated PostgreSQL 
     const ready = await prepareReady(documentId);
     const held = deferred();
     const release = deferred();
-    const change = prisma.$transaction(async tx => {
-      if (action === "cancel") await jobs.requestCancellation(tx, ready.jobId);
-      else await tx.ragDocument.update({ where: { id: documentId }, data: { status: "DISABLED" } });
+    const actorId = "task185-disable-admin-" + randomUUID();
+    actorIds.push(actorId);
+    await prisma.user.create({ data: { id: actorId, name: "Synthetic Admin", email: actorId + "@example.invalid", role: "ADMIN", updatedAt: new Date() } });
+    // Hold the actual US20 service's conditional update until the finalizer
+    // is observed waiting on the document row lock. No replacement write.
+    const paused = prisma.$extends({ query: { ragDocument: { async updateMany({ args, query }) {
+      const result = await query(args);
       held.resolve();
       await release.promise;
-    }, { timeout: 15_000 });
+      return result;
+    } } } });
+    const deps: RagDependencies = { database: paused as unknown as Database,
+      resolveSession: async () => ({ user: { id: actorId } }),
+      storage: {
+        accessible: async () => { throw new Error("DISABLE must not access Blob"); },
+        issue: async () => { throw new Error("DISABLE must not issue an upload"); },
+        read: async () => { throw new Error("DISABLE must not read Blob"); },
+        stream: async () => { throw new Error("DISABLE must not stream Blob"); },
+      } };
+    const change = action === "cancel" ? prisma.$transaction(async tx => {
+      await jobs.requestCancellation(tx, ready.jobId);
+      held.resolve();
+      await release.promise;
+    }, { timeout: 15_000 }) : transitionRagDocument(new Headers(), documentId, { action: "DISABLE" }, "disable-race-key", deps).then(outcome => {
+      expect(outcome.status).toBe("SUCCESS");
+    });
     await held.promise;
     const finishing = index.finalizeReadyGeneration(documentId, ready.generationId, ready.lease)
       .then(() => ({ code: "UNEXPECTED_SUCCESS" }), error => error as { code: string });
@@ -274,6 +295,12 @@ integrationDescribe("US-19 Task185 durable job persistence (isolated PostgreSQL 
     expect(await prisma.ragIndexPublication.count({ where: { ragDocumentId: documentId } })).toBe(0);
     await expect(prisma.ragIndexJob.findUniqueOrThrow({ where: { id: ready.jobId } })).resolves.toMatchObject({ status: "RUNNING" });
     await expect(prisma.ragDocument.findUniqueOrThrow({ where: { id: documentId } })).resolves.toMatchObject({ status: action === "cancel" ? "APPROVED" : "DISABLED" });
+    if (action === "disable") {
+      await expect(transitionRagDocument(new Headers(), documentId, { action: "DISABLE" }, "disable-race-key", deps)).resolves.toMatchObject({ status: "SUCCESS", replayed: true });
+      await expect(enqueueRagIndexJob(new Headers(), documentId, "disabled-reindex-key", deps)).resolves.toMatchObject({ status: "FAILED", error: { code: "RAG_DOCUMENT_NOT_ELIGIBLE" } });
+      await expect(retryRagIndexJob(new Headers(), ready.jobId, "disabled-retry-key", deps)).resolves.toMatchObject({ status: "FAILED", error: { code: "RAG_DOCUMENT_NOT_ELIGIBLE" } });
+      expect(await index.getPublishedGenerationMetadata(documentId)).toBeNull();
+    }
   }, 60_000);
 
   function failingFinalizer() {

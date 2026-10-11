@@ -815,3 +815,50 @@ Append a new entry for each meaningful work session. Keep prior entries as hando
   secret check; typecheck/build/test reruns are unnecessary for this docs-only edit.
 - **Next:** owner-controlled TXH integration review; do not broaden acceptance
   to retrieval/Q&A or start another task.
+
+## 2026-10-08 — US-18 review and approval (Task 2)
+
+- **Branch:** `ThaiAnh`; preserved existing uncommitted US-16/US-17 changes. No commit or push.
+- **Story:** Added `docs/stories/US-18-rag-review-approval.md` from MH-16/MH-18, YCCN-88/91/92, QTN-97/98 and NT-170–173. Status: implemented in code; live acceptance pending.
+- **Backend:** Admin-only list/detail services and thin read routes; private original endpoint reused. One server transition function accepts `START_REVIEW` or `APPROVE`, uses status-conditional DB update and shared idempotent write. Approval checks private Blob accessibility before transaction. JSON excludes storage path; UPLOADED/REVIEWING/APPROVED remain ineligible for retrieval.
+- **Frontend:** Admin list and detail pages with current Admin tokens, loading/empty/error states, responsive layout, light/dark styles and success-only status updates; upload success links to detail and Admin menu links to list.
+- **Verification:** `npm run test:rag --workspace=web` 26/26 PASS; root `npm run test`, `npm run check-types`, `npm run build`, `git diff --check` PASS. The initial TDD run failed as expected on missing helper. Build registered all new pages/routes.
+- **NOT PROVEN/BLOCKED:** US-17 migration was not applied here; private Blob token/live Admin session unavailable, so live database, file HEAD/download and visual 360px/light/dark checks are not proven. Exact Figma MH-16/MH-18 frames unavailable: **BLOCKED: FIGMA**. No US-19 indexing or US-20 disable work was started.
+
+
+## 2026-10-08 — US-16 Light/Dark theme adaptation
+
+- **Scope:** Updated only `apps/web/src/app/favorites/favorites.css` plus this progress log and the US-16 story addendum. Reused the global `next-themes` class provider and the existing Explore Light/Dark palette; retained the Figma Light values and all Favorites behavior. No API, service, schema, migration, auth, or dependency changes.
+- **Validation:** `npm run test:favorite --workspace web` PASS (24/24); `git diff --check` PASS with a Git LF→CRLF notice. Next CSS compilation PASS (`Compiled successfully`). Build and typecheck remain blocked during TypeScript validation by unresolved `vitest` imports and stale generated Prisma Client types (`cultureContent`/`targetType` missing); after Next regenerated route types, these were the remaining errors.
+- **Visual limit:** Local `/favorites` redirects to login because the browser has no Traveler session. Dark/light visual states, live OS theme changes, hydration/flash, and 360/390/768/1024/1440px browser checks remain NOT VERIFIED. Figma MH-10 node `7:158` was inspected; no screenshots of the local Favorites page are claimed.
+- No commit or push.
+
+
+## 2026-10-08 — US-17 Task 1 RAG document upload foundation
+
+- **Scope:** Implemented only RagDocument status/metadata, private file upload/finalization/read, and Admin upload UI. No review/index/retrieval or US-18–20. Preserved three pre-existing uncommitted US-16 files and did not commit/push.
+- **DB:** Added minimal `RagDocument` enum/model and additive SQL migration with unique `storagePath`. Prisma schema validated and client generated. SQL reviewed; migration **not applied** because a verified development DB target was unavailable.
+- **Storage/API:** Added private Vercel Blob signed PUT URL limited to one actor-scoped path, supported MIME and 20 MiB; finalization reads and validates stored bytes on server before atomic DB + idempotency-result write. Private original-read route streams to Admin. Shared API/authorization/idempotency contracts are reused. `@vercel/blob` and `fflate` are the two necessary dependencies; no serverless 20 MiB request body.
+- **UI:** Added `/admin/rag/upload` and Admin menu entry, source metadata form, file summary, idle/invalid/uploading/success/failed/unknown states. Reused Admin theme and `@KLTN/ui` Button/Input/Attachment. Unknown finalization retries the same payload/key.
+- **Tests/checks:** Red run initially failed on missing RAG modules; `npm run test:rag --workspace web` PASS 15/15; root `npm run test`, `npm run env:generate`, `npm run db:generate`, `npx varlock run -- npx prisma validate`, `npm run check-types`, `npm run build`, `git diff --check` PASS in this workspace.
+- **Evidence limits:** No `BLOB_READ_WRITE_TOKEN` configured locally, so private Blob and Neon end-to-end upload are NOT PROVEN. No Admin browser session was available for light/dark/360px visual verification. Connected Figma file exposes only Components, no MH-17 frame; Admin baseline used. Production RAG corpus not supplied.
+
+
+## 2026-10-10 — US-20 Task 3 RAG disable and retrieval eligibility
+
+- **Branch/audit:** `ThaiAnh` was clean before this task; commit `4c6df61` contains US-17/US-18. `master` remains foundation-only. No US-19 story, indexing module, vector query or real retrieval module was found in current source.
+- **Implementation:** Reused `POST /api/admin/rag-documents/:id/actions` and shared idempotent write; added server action `DISABLE` for UPLOADED, REVIEWING, APPROVED and INDEXED. DISABLED is terminal. Existing status-conditional update prevents stale writes; no row, metadata or original file deletion. Admin detail shows a destructive action with confirmation, then a clear DISABLED state only after SUCCESS; Admin list retains the document.
+- **Eligibility:** Retained one canonical predicate `status === INDEXED` for response eligibility. Tests cover all five statuses and the INDEXED → DISABLED change. No fake retrieval/indexing was added.
+- **Verification:** TDD red run had 5 failing cases; `npm run test:rag --workspace=web` PASS 34/34 after implementation. Root `npm run test`, `npm run check-types`, `npm run build`, `git diff --check` PASS. No schema/migration/dependency/env change; no commit or push.
+- **Limits:** NT-252 end-to-end retrieval and QTN-107 history-source exclusion are **BLOCKED BY US-19** because no retrieval query exists. No Admin browser session/live RAG records or inspectable Figma MH-16/MH-18 frame, so light/dark, 360px and real database/Blob UI flow are NOT PROVEN.
+
+
+## 2026-10-11 — ThaiAnh into TXH integration review
+
+- Owner-authorized temporary branch: integrate/thaianh-into-txh-20261011, based on TXH a7c8f1a8dc3e52a3d160fd3f5ec6a6f14771af97. Source ThaiAnh a7a26a026b8940eb5c0e639544fc48b169a0d016 has two exclusive commits; target has 21. Merge base94d685bb1dc0daccfb9d4a08041dbff5da023c96. Fifteen conflicts reviewed individually; this is not a source-directory replacement.
+- Preserved TXH private Blob stream/byte-count/cancellation/error fixes,20MiB limit,DOCX security validator,upload replay and Admin auth,UI single-flight/UNKNOWN/identity guards,US19 accepted request-scoped pipeline and PDF NUL v2,Prisma relations,migration history and pinned dependencies. Task191 contract and Task195/196 Assistant source unchanged. No Task192–194 or Worker WIP integrated.
+- Integrated US20 DISABLE from all four active document states,terminal DISABLED,Admin confirmation and retained list/detail/original file. Status-conditional mutation and shared idempotency remain intact. The indexing completion refresh uses confirmed state and cannot overwrite a confirmed DISABLED with an older INDEXED response.
+- Real disposable PostgreSQL race test now invokes the actual DISABLE service,holds its conditional update and observes finalizer lock waiting. Committed DISABLE prevents publication and rejects Retry/Re-index;same-key disable replay succeeds and eligible publication metadata is null. Cancellation,atomic publication,rollback,reindex preservation and PDF regressions retained. No runtime indexing code was changed.
+- Source Favorites light/dark CSS and US16 addendum also integrated;existing layout/auth/business logic preserved. Source-only progress entries retained as historical evidence. Moved index-panel CSS import to the Admin detail page so the source SSR badge test can execute without a Node CSS loader;the page still loads both review/index styles.
+- Validation:US17/18/20 legacy52/52;root314 Vitest PASS and326 legacy PASS. The regular run intentionally skips16 PostgreSQL cases;two explicit disposable PostgreSQL runs each16/16 PASS,zero skipped,Vitest/outer exit0,container/volume cleanup PASS. Initial strengthened test run exposed a wrong test API name;corrected to the real getPublishedGenerationMetadata method without weakening the assertion. Typecheck and Prisma validate PASS;fresh production build and diff check PASS. No secret matches in added lines;protected source/dependency/schema checks unchanged.
+- No new migration or migration apply;no Neon connection/writes,live OpenAI/Blob calls,push or deployment. Worker stash36584c230110a4aad7879f64ee587a4b0c5249bd remains intact and unrestored. Local merge commit/optional TXH fast-forward only after final gates. Owner must approve push. US20 live Admin/browser/retrieval acceptance is not claimed;US19 MVP acceptance unchanged.
