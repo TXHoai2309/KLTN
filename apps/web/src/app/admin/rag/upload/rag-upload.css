@@ -1,0 +1,17 @@
+@import "../../destinations/destinations.css";
+
+.rag-upload-page .destination-section-heading { margin-bottom: 18px; }
+.rag-upload-page .destination-grid { gap: 0 20px; }
+.rag-upload-page .destination-grid .destination-field:first-child { grid-column: 1 / -1; }
+.rag-upload-page input[type=file] { padding: 9px 12px; cursor: pointer; }
+.rag-upload-page input[type=file]::file-selector-button { margin-right: 14px; border: 0; border-radius: 5px; padding: 5px 10px; background: var(--destination-tint); color: var(--destination-green); font-weight: 650; cursor: pointer; }
+.rag-file-summary { margin-top: 14px; width: 100%; padding: 8px; border-radius: 8px; border-color: var(--destination-line); background: var(--destination-tint); color: var(--destination-ink); }
+.rag-file-summary [data-slot=attachment-description] { color: var(--destination-muted); }
+.rag-upload-message { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px; margin-bottom: 18px; border: 1px solid var(--destination-line); border-radius: 10px; background: var(--destination-tint); color: var(--destination-ink); font-size: 13px; line-height: 1.55; }
+.rag-upload-message svg { flex: 0 0 auto; margin-top: 1px; }
+.rag-upload-message.is-invalid, .rag-upload-message.is-failed { border-color: color-mix(in srgb, var(--destination-error) 35%, var(--destination-line)); color: var(--destination-error); }
+.rag-upload-message.is-unknown { border-color: #b18b43; }
+.rag-upload-result { margin: -4px 0 18px; font-size: 13px; }
+.rag-upload-result a { color: var(--destination-green); text-decoration: underline; }
+.rag-upload-page .destination-form-actions { margin-top: 14px; }
+@media (max-width: 600px) { .rag-upload-page .destination-grid { grid-template-columns: minmax(0, 1fr); } .rag-upload-page .destination-grid .destination-field:first-child { grid-column: auto; } .rag-file-summary { max-width: 100%; } }

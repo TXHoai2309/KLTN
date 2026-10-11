@@ -91,7 +91,7 @@
   .site-header-inner { display: flex; min-height: 0; flex-wrap: wrap; justify-content: space-between; gap: 0 12px; padding: 8px 14px 0; }
   .site-brand { min-height: 44px; }
   .site-header-actions { margin-left: auto; }
-  .site-nav { order: 3; width: 100%; gap: 3px; padding: 4px 0 0; }
+  .site-nav { order: 3; width: 100%; flex-wrap: wrap; gap: 3px; padding: 4px 0 0; }
   .site-nav-link { min-height: 40px; padding: 0 10px; font-size: 13px; }
   .site-nav-link::after { right: 10px; bottom: 1px; left: 10px; }
 }

@@ -172,3 +172,77 @@ The proposed provider call is a direct server-side `fetch` to the OpenAI endpoin
 
 - Current OpenAI Structured Outputs documentation confirms the required closed-object/required-field/null-for-optional pattern: https://developers.openai.com/api/docs/guides/structured-outputs
 - The exact model, timeout/retry policy, sampling setting, max output-token limit, rate limit and relative-date handling remain proposed until the owner approves them.
+## ADR-15 — US-19 Task185 durable indexing boundary
+
+- **Status:** Accepted for Task185 implementation; live enablement pending worker deployment and owner review
+- **Date:** 2026-10-10
+
+### Context
+
+Tasks181–184 provide bounded extraction, chunking, embedding and versioned
+pgvector persistence, but no job lifecycle or worker runtime. The product only
+allows retrieval from complete `INDEXED` documents; the current document enum has
+no `INDEXING` state, and Vercel request-scoped background callbacks share the
+function timeout rather than providing a durable queue.
+
+### Decision
+
+Task185 adds a durable job ledger and an independently invoked worker core. Job
+admission uses persisted Admin authorization, the shared idempotency contract, and
+a document-row lock to prevent multiple active jobs for one document across
+processes. Worker claims use PostgreSQL row locks, expiring leases and fencing
+tokens. Expired work before external embedding, or after embeddings are durably
+saved, can be safely requeued. Expired work while a provider result may have been
+charged but not durably saved becomes `UNKNOWN` and is not retried automatically.
+
+The publication pointer, `RagDocument.status = INDEXED`, and job completion are
+finalized atomically only after the generation is READY and complete. Existing
+published generations remain active until that transaction commits. The PDF
+reading-order heuristic is informational: retain its warning code in the job
+record but do not block indexing solely for it. `PAGE_WITHOUT_TEXT` and
+`UNSUPPORTED_DOCX_REGION` indicate potential omissions and fail closed;
+`NO_EXTRACTABLE_TEXT` always rejects. Task185 adds no API route, upload/approval
+hook, public retrieval path, or Vercel after-response worker trigger.
+
+### Consequences
+
+- An additive migration is required for the job table; it must be reviewed and
+  separately applied to Development before any deployment uses the worker.
+- Live indexing remains disabled until a durable worker runtime is deployed,
+  configured, monitored, and given controlled Blob/OpenAI credentials. A timed
+  Vercel request or `after()` callback is not that runtime.
+- Admin admission can be wired by the later Admin task without trusting client
+  paths or provider output. No Admin UI or endpoint is introduced by Task185.
+- Worker execution, provider and storage remain injectable so local tests use
+  synthetic documents and deterministic fake embeddings.
+
+## 2026-10-10 — Owner-approved US19 direct request indexing MVP
+
+The owner explicitly replaces the earlier separate durable-worker deployment
+prerequisite for the current MVP. Keep the durable database ledger and existing
+worker core, but invoke a single targeted job inside an awaited Node.js Admin
+Route Handler. No separate service, queue, Redis, cron, after() or fire-and-forget
+execution is introduced. The ledger persists; request execution itself is not durable.
+
+POST requires persisted Admin authorization, Origin/JSON validation and the shared
+idempotency contract. INDEX, RESUME and RETRY share the document's operation scope:
+a committed replay does not invoke a provider; changing payload under the same key
+conflicts. RESUME is an explicit new intent for QUEUED or expired work, scoped only
+to this document/job. Existing expired provider-pending recovery remains UNKNOWN.
+RETRY is restricted to known FAILED/TIMED_OUT/CANCELLED outcomes. UNKNOWN is an
+operator reconciliation gate, with no automatic provider retry or public override.
+
+The request has a cooperative 240-second abort budget; the route advertises
+maxDuration=300. Vercel documents 300 seconds for Fluid Compute on Hobby
+(https://vercel.com/docs/functions/limitations). Actual project Fluid Compute and
+runtime packaging must be verified before live acceptance. The timer cannot
+preempt synchronous parsing or a non-abortable database operation. Function kill,
+network loss and disconnect cannot guarantee continued execution: rely on leases,
+fencing, persisted provider-pending markers and explicit recovery, not background
+promises. The 20 MiB upload limit is unchanged and is not a processing-time promise.
+
+Atomic READY verification, publication, INDEXED and COMPLETED remain unchanged.
+Progress is read from a consistent database snapshot. Admission SUCCESS and job
+completion are separate; Admin UI polls, supports safe recovery and refreshes the
+document only after observed COMPLETED. Offline code/test completion does not mean
+live Blob/provider or owner acceptance. US19 remains IN_PROGRESS.

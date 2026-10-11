@@ -35,6 +35,7 @@ export default function Header() {
     { to: "/", label: "Trang chủ" },
     { to: "/explore", label: "Khám phá" },
     { to: "/culture", label: "Văn hóa" },
+    { to: "/assistant", label: "Trợ lý AI" },
     { to: "/favorites", label: "Yêu thích" },
     { to: "/trips/new", label: "Lập hành trình" },
     { to: "/dashboard", label: "Dashboard" },

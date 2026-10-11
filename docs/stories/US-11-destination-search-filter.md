@@ -2,7 +2,7 @@
 
 ## Status
 
-IMPLEMENTED — functional checks and scoped Figma UI refactor PASS; full acceptance remains pending representative dataset/performance evidence. Exact full-screen visual parity is not claimed.
+IMPLEMENTED — search/filter, URL state, List/Map preservation, Detail → Back, and scoped UI functional acceptance PASS. Representative-dataset performance is DEFERRED TO SPRINT 3 / EN-02; exact full-screen visual parity is not claimed.
 
 ## Epic
 
@@ -192,7 +192,7 @@ The direct tsx runs include the expected initial failing stage; final script run
 
 ## Open Questions
 
-- BLOCKED: FIGMA frame/token access; existing styles fallback authorized by prior task.
+- Figma was inspected for the scoped UI refactor. Exact local-export/remote equivalence and pixel-perfect full-page parity are not claimed.
 - Production Destination dataset completeness and supported taxonomy vocabulary remain unproven; options derive only from actual public rows, no fabricated locations.
 - Actual production p95 performance is not established by fixture tests or local development measurements.
 
@@ -253,4 +253,4 @@ Commands (root unless specified):
 - apps/web: npm run dev -- --port 3002 (temporary browser check, stopped)
 - apps/web: npm run start -- --port 3001 (production browser check; restarted for Retry probe)
 
-Acceptance: scoped UI/search/filter/state/responsive regression PASS. NOT PROVEN: identical local-export/remote version; pixel-perfect full Explore; photographed cards/real summaries without public media/excerpt data; realistic30–50 production dataset and deployed/cold/concurrent p95. Earlier functional evidence is retained above as historical evidence; earlier FIGMA BLOCKED statements are superseded by this section.
+Acceptance: scoped UI/search/filter/state/responsive functional regression PASS. NOT PROVEN: identical local-export/remote version; pixel-perfect full Explore; photographed cards/real summaries without public media/excerpt data; realistic30–50 production dataset and deployed/cold/concurrent p95. The representative-dataset performance check is DEFERRED TO SPRINT 3 / EN-02. Earlier functional evidence is retained above as historical evidence; earlier FIGMA BLOCKED statements are superseded by this section.
