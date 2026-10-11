@@ -862,3 +862,242 @@ Append a new entry for each meaningful work session. Keep prior entries as hando
 - Source Favorites light/dark CSS and US16 addendum also integrated;existing layout/auth/business logic preserved. Source-only progress entries retained as historical evidence. Moved index-panel CSS import to the Admin detail page so the source SSR badge test can execute without a Node CSS loader;the page still loads both review/index styles.
 - Validation:US17/18/20 legacy52/52;root314 Vitest PASS and326 legacy PASS. The regular run intentionally skips16 PostgreSQL cases;two explicit disposable PostgreSQL runs each16/16 PASS,zero skipped,Vitest/outer exit0,container/volume cleanup PASS. Initial strengthened test run exposed a wrong test API name;corrected to the real getPublishedGenerationMetadata method without weakening the assertion. Typecheck and Prisma validate PASS;fresh production build and diff check PASS. No secret matches in added lines;protected source/dependency/schema checks unchanged.
 - No new migration or migration apply;no Neon connection/writes,live OpenAI/Blob calls,push or deployment. Worker stash36584c230110a4aad7879f64ee587a4b0c5249bd remains intact and unrestored. Local merge commit/optional TXH fast-forward only after final gates. Owner must approve push. US20 live Admin/browser/retrieval acceptance is not claimed;US19 MVP acceptance unchanged.
+
+## 2026-10-11 — US21 accelerated192/193/194/197 offline batch
+
+- Baseline/local/originTXH8263c94e13cda29cde9f9556d186acc79e75ad44; separate managed
+  worktree `C:/Users/User/.codex/worktrees/us21-rag-qa-batch/KLTN`, feature branch
+  `feat/us21-rag-qa-batch`. Main TXH clean and unchanged; Worker stash
+  36584c230110a4aad7879f64ee587a4b0c5249bd intact. No commit/push/merge/deploy.
+- Implemented actual pgvector question retrieval, conservative extractive OpenAI
+  generation, strict/thin HTTP API, DB-backed Guest identity and durable authorized
+  multi-turn history/reservation/recovery/cleanup. Reuses unchanged Task191 and
+  Task195/196 core/layout/citations; real transport is separate from marked demo.
+- Exact READY publication+INDEXED/model1536 eligibility rechecked before/after model
+  and under completion document locks. Backend citation registry/opaque aliases,
+  metadata-only null URLs, rejected fabricated/unsupported claims and private prose/
+  metadata; no free-knowledge fallback. Exact matching is not perfect semantics.
+- Two additive Guest/conversation migrations tested only on disposable PostgreSQL.
+  Atomic completed result+head commit, same-key replay, principal/key digest, lease
+  fences, bounded recovery/rate settings, ownership FK, deletion/expiry scrub and
+  non-content tombstones; no content in shared indefinite idempotency cache.
+- Final full isolated Vitest459/459,zero skips,26 suites;37 real pgvector/PostgreSQL
+  tests(US21:21,US19:16),child/outer exit0,container/volume cleanupPASS. Legacy326
+  PASS. Root typecheck/Prisma validate/generate/fresh build28/28/diff/secret-pattern/
+  production import-and-artifact isolation PASS. Intermediate failed assertions and
+  two Windows native3221225477 exits are recorded in the story, not counted asPASS;
+  final successful run changed no assertion/pool/cleanup. Native root cause unknown.
+- Browser smoke of built production:unavailable,disabled composer/Send,no demo;
+  actual built ask503 AI_UNAVAILABLE/no-store. Live conversational browser/provider
+  acceptance is NOT RUN. Offline dummy ignored config avoids live credentials.
+- All four tasks PARTIAL pending owner review/corpus relevance+coverage evaluation,
+  public source policy calibration, Guest bootstrap abuse controls and deployed
+  retention cleanup schedule. Production hard unavailable regardless of local flag.
+  Runtime history/read/delete API exists; no dedicated history/deletion UI added.
+  No Neon connection/write,migration apply,live OpenAI/Blob call or production data.
+- Full requested field report,exact31-path manifest,provisional limits,retention/
+  recovery/migration assumptions and acceptance gaps:US21 dated batch handoff.
+  READY_FOR_OWNER_RUNTIME_ACCEPTANCE=NO for Preview/Production;offline code review
+  ready. Owner must review blockers before requesting environment/runtime work.
+
+## 2026-10-11 — US21 accelerated closure hardening
+
+- Append-only closure on feat/us21-rag-qa-batch,HEAD8263c94e13cda29cde9f9556d186acc79e75ad44.
+  Main TXH clean;Worker stash36584c230110a4aad7879f64ee587a4b0c5249bd untouched.
+ 44 changed paths (initial31+13 new),three additive QA migrations,disposable only.
+- Added shared PostgreSQL Guest bootstrap/network/global ask/token/concurrency
+  guards,HMAC network identity,fail-closed trusted ingress configuration and tests.
+  Cookie identity remains server-created/digest-only,HttpOnly/Strict/Secure.
+  Replays do not charge;recovered attempts charge full provisional23K token budget.
+- Retention uses DB clock/test injection,bounded cleanup/time budget,residual-work
+  checks,expired Guest access scrubbing and shared locks. Terminal failures discard
+  content immediately. Fixed identity-deletion orphan race and stale bootstrap
+  readiness;bounded real transport handles timeout without changing retry payload.
+  Protected scheduler endpoint,candidate cron and plan/cost/deployment runbook added;
+  actual scheduler NOT_CONFIGURED and physical retention SLA remains unverified.
+- Repeatable evaluation26technicalcases matched,zero citation/history failures;
+  concrete instruction bypass fixed before provider. Two relevance/coverage probes
+  document remaining semantic limits. REAL_CORPUS_EVALUATION=NOT_EVALUATED;verified
+  Hà Giang provenance/rights corpus absent. No arbitrary quality PASS threshold.
+- Final full disposable runner492/492 PASS,30 suites,zero skipped/todo,child/outer
+  exit0,51 actual PostgreSQL/pgvector cases(US21:35,US19:16),ownedcontainer+volume
+  cleanupPASS. Focused294/294 PASS;legacy all11groups PASS;root typecheck4/4,
+  Prisma validate/generate/offline QA DDL consistency,fresh build29/29,diff/untracked
+  whitespace/secret scan PASS. First closure run had2 invalid-expiry fixture failures
+  (fixed without changing CHECK);second had native threaded-worker3221225477 exit
+  after492assertions (notPASS). Final Windows forked-worker run exited0;native root
+  cause unknown. Premium UI audit retains22 unchanged findings and exits2.
+- Production opt-in remains unavailable:actual built session/ask503AI_UNAVAILABLE,
+  cleanup503disabled,no-store,no demo artifacts. Development browser failure smoke
+  disabled composer/no demo;successful Next.js real-corpus answer browser NOT_RUN.
+  Disposable vertical slice joins server Guest bootstrap,abuse,real HTTP transport,
+  actual pgvector,DTO and atomic completion with injected provider transports only.
+- TASK192_STATUS=PARTIAL;TASK193_STATUS=PARTIAL;TASK194_STATUS=PARTIAL;
+  TASK197_STATUS=PARTIAL. Code review ready;READY_FOR_OWNER_ACCEPTANCE=NO for MVP
+  runtime signoff. RemainingP0 deployed retention scheduling/SLA;remainingP1 corpus/
+  semantic quality,policy/cost/latency/delete-load calibration andmanualacceptance.
+  Full requested field report and prioritized evidence appended to US21 story.
+  No Neon writes/migration apply,live OpenAI/Blob,contract change,commit/push/merge/
+  deploy,stash apply/pop/drop or public activation.
+
+## 2026-10-11 — US-21 independent release-candidate gate review
+
+- Reconfirmed feature branch `feat/us21-rag-qa-batch` at
+  `8263c94e13cda29cde9f9556d186acc79e75ad44`, 44 changed paths (4 modified,
+  40 untracked), three additive migrations; root TXH checkout is clean at the
+  same HEAD. Reviewed all changed paths and migrations. No code was changed and
+  no tests were rerun; 492/492 Vitest and 51/51 disposable PostgreSQL are cited
+  only as prior-run evidence.
+- Release P0 remains scheduler/capacity/physical-retention guarantee: cleanup is
+  disabled and candidate Cron is not configured. Verified current Vercel docs:
+  Hobby is daily/±59 minutes; Pro/Enterprise support minute cadence; Cron is
+  best-effort and Production-only, with missed/duplicate deliveries. Five-minute
+  candidate is 288 invocations/day and uses Function allowance. Pro currently
+  costs USD20/month including USD20 usage credit; owner must verify actual plan,
+  function/database usage and accept that Vercel Cron alone has no hard 24-hour
+  physical deletion SLA. Preview manual invocation must target isolated data.
+- Independent P1 review: expiry time is sampled with PostgreSQL transaction-start
+  `CURRENT_TIMESTAMP` before advisory principal lock; lock contention across the
+  expiry boundary can permit a late replay/completion and retention renewal. Also,
+  citation title/DOCX section projection relies on a denylist and permits some
+  local URI/POSIX path strings; source metadata has no separate public permission
+  flag. Both require owner/runtime follow-up; neither was changed in this review.
+- P1: explicit conversation deletion and Guest session revocation do not have a
+  same-key result-reconciliation path. If the DB commit succeeds but the response
+  is lost, a retry reports NOT_FOUND/UNAUTHENTICATED even though deletion committed.
+- P1: source disable during an in-flight generation prevents final completion but
+  cannot retract evidence already sent to the provider; current race evidence
+  proves response/persistence fencing only. Owner must accept request-start
+  eligibility or select a different privacy boundary.
+- P2: content is scrubbed but minimal tombstone identity/key/hash metadata remains
+  without a compaction horizon. Semantic quality and real Hà Giang corpus remain
+  `NOT_EVALUATED`; no rights/provenance-verified source set was supplied.
+- P2: head/active/parent turn pointers are service-enforced but not FK-constrained;
+  the history anchor also does not assert that its head belongs to the selected
+  conversation. No client-controlled path was found, but DB-level defense is absent.
+- P1: the current real-corpus manifest schema records expected source IDs/claims,
+  but no gold evidence span/locator or real-corpus evaluator exists yet; it cannot
+  produce evidence-recall/citation-locator quality results.
+- Prepared Neon/OpenAI runtime acceptance steps in the appended US-21 story entry.
+  Preview runtime is still disabled by the current development-only feature gate.
+  `TASK192/193/194/197=PARTIAL`; `READY_TO_COMMIT_FEATURE=NO_PENDING_OWNER_REVIEW`,
+  `READY_FOR_PREVIEW=NO`, `READY_FOR_MVP_ACCEPTANCE=NO`. No status promotion,
+migration apply, live provider/database call, commit/push/merge/deploy, or Worker
+stash action.
+
+## 2026-10-11 — US-21 final hardening execution
+
+- Continued directly from the existing implementation on
+  `feat/us21-rag-qa-batch`, HEAD `8263c94e13cda29cde9f9556d186acc79e75ad44`.
+  Feature worktree has 49 changed paths (4 modified, 45 untracked); TXH root
+  checkout is clean at the same HEAD. No commit/push/merge/deploy or stash action.
+- Fixed the reviewed post-lock expiry race by sampling `clock_timestamp()` after
+  acquiring the principal lock. A deterministic disposable-Postgres test proves
+  the exact-boundary same-key replay is denied and content is scrubbed without
+  retention extension.
+- Added a fail-closed server source-ID allowlist for citation title/locator
+  projection and path/URL rejection for file URIs, POSIX/Windows/UNC paths,
+  private Blob references and signed/internal URLs. No new approval column or
+  Task 191 contract change. Empty allowlist exposes no evidence.
+- Made conversation delete safely repeatable for the same owner and session
+  revoke retryable with the same possession-verified Guest cookie after revoke.
+  Foreign owners still receive NOT_FOUND; no content response is cached and no
+  `Idempotency-Key` extension is needed because resource ID/token scopes the same
+  deletion action. Added provider-in-flight eligibility polling with best-effort
+  abort; final locked eligibility still fences response/commit. Evidence already
+  sent to the provider cannot be recalled, and this limitation is documented.
+- Added additive migration `20261011123000_add_qa_cleanup_state`: distributed
+  90-second runner lease, bounded execution metrics (`lastSuccessfulSweep`,
+  backlog, oldest overdue and failure count), failure counter and cleanup scan
+  indexes. Protected route supports manual or scheduled execution. All four QA
+  migrations were installed only in the disposable loopback PG runner; none was
+  applied to Neon.
+- Development/Preview gate now requires explicit opt-in, abuse-control acceptance
+  and exact allowed database host/name; Production is hard-denied. Citation
+  source IDs require explicit owner configuration. Defaults leave QA off.
+- Validation after the initial race-fixture correction: focused hardening
+  79/79; disposable PostgreSQL/pgvector 54/54 with zero skips and owned-container
+  cleanup PASS; full Vitest 517/517 across 32 suites, zero skips/todo, child/outer
+  exit 0; all 11 legacy test groups exit 0; root typecheck 4/4; Prisma generate
+  and validate; fresh build with 29 routes/pages; production/demo isolation;
+  `git diff --check`, 49-path whitespace and secret scans all PASS. First full
+  attempt exposed an incorrect test key/overbroad lock observer in the new test;
+  fixed the fixture and matched the exact PostgreSQL lock hash before rerunning.
+- Cleanup scheduler remains NOT_CONFIGURED. Vercel five-minute Cron is a
+  Pro/Enterprise candidate, Production-only and best-effort with no retry; an
+  external retrying/monitored scheduler remains an owner-selected alternative.
+  The 90-second DB lease makes code vendor-independent but cannot create a hard
+  physical-retention SLA by itself. No plan/provider was selected or configured.
+- Synthetic technical evaluation remains 26/26 matched, with zero tested
+  metadata-authenticity/history-isolation failures and two observed semantic
+  limitations. No rights/provenance-verified Hà Giang corpus was supplied;
+  real-corpus and semantic-quality results remain NOT_EVALUATED. No Neon write,
+  migration apply, cleanup sweep, browser live-answer test or OpenAI/Blob live
+  call occurred.
+- `TASK192_STATUS=PARTIAL; TASK193_STATUS=PARTIAL; TASK194_STATUS=PARTIAL;
+  TASK197_STATUS=PARTIAL`. Code review is ready; MVP runtime signoff is not.
+  `READY_TO_COMMIT_FEATURE=NO_PENDING_OWNER_REVIEW`;
+  `READY_FOR_PREVIEW=NO_UNTIL_OWNER_MIGRATION_AND_ENV_CONFIGURATION`;
+  `READY_FOR_MVP_ACCEPTANCE=NO`. Full field report and Development migration/
+smoke checklist are appended to `docs/stories/US-21-rag-qa.md` and
+`docs/implementation/qa-retention-runbook.md`.
+
+## 2026-10-11 — Final validation after runtime-target guard tightening
+
+The non-production gate was tightened to require a PostgreSQL URL scheme as
+well as exact configured host/database matching. Its focused gate tests passed
+2/2. After that last code change, full isolated Vitest again passed 517/517
+across 32 suites with zero skipped/todo, and the disposable PostgreSQL/pgvector
+runner reported clean container/volume teardown. Legacy tests, root typecheck,
+Prisma generation/validation and a fresh TypeScript-checked production build all
+exited 0. The final 49-path whitespace/secret scans and `git diff --check` passed.
+No runtime flag, migration, scheduler, Neon data, provider, Git history or task
+status was changed as part of this verification.
+
+## 2026-10-11 — US-21 owner decisions A/B/C implemented offline
+
+- Owner approved GitHub Actions cleanup scheduling (`17 * * * *` UTC), an
+  explicit server source-ID allowlist with field-level safe citation projection,
+  and minimal approved provider evidence with best-effort abort/final eligibility
+  fence. Recorded trade-offs and deployment gates in the US-21 story and cleanup
+  runbook; Tasks 192/193/194/197 remain PARTIAL.
+- Added a fixed-path HTTPS GitHub Actions runner with exact host match, secret
+  only from a GitHub Environment, no URL dispatch input, no redirects, 10-second
+  timeout, three bounded retry attempts and an eight-sweep cap. Manual dispatch
+  requires explicit confirmation. A second scheduled workflow checks GitHub's
+  scheduled-run history for a missing/stale (>75-minute) or failed cleanup
+  heartbeat. Both workflows are restricted to the remotely confirmed default
+  branch `master`; nothing was published or activated. Notification routing,
+  environment variables/secrets, and `QA_CLEANUP_ENABLED` are owner gates.
+- Tightened provider payload to four current approved chunks / 3,000 evidence
+  tokens and two prior questions, added `store:false`, and reject unsafe private
+  references/credential patterns before transport. Added payload inspection and
+  deterministic scheduler/watchdog tests. No provider or database live calls.
+- GitHub Actions schedules are default-branch-only and may be delayed/dropped;
+  the same-platform watchdog improves missed-run detection but cannot guarantee
+  delivery or a hard physical-retention SLA. No Development cleanup is run.
+  Vercel candidate is superseded. No migration, commit, push, merge, deploy or
+  Worker stash operation.
+- Validation after this batch is recorded in the story: rerun focused suites,
+  full Vitest, disposable PostgreSQL/pgvector, legacy, typecheck, build, Prisma,
+  workflow static checks, diff/secret scans and production/demo isolation.
+
+### 2026-10-11 — US-21 A/B/C final offline verification
+
+- Full Vitest: 524/524 across 33 files, zero skipped/todo. After the synthetic
+  credential marker was shortened to remove a scanner false positive, affected
+  focused suites passed 60/60; scheduler/watchdog Node tests passed 7/7.
+- Disposable PostgreSQL/pgvector: 54/54, zero skipped, teardown passed. Legacy
+  test groups, root typecheck, production build, Prisma validate/generate and
+  static workflow checks passed. actionlint was unavailable; YAML parsing and
+  structural workflow assertions passed.
+- Changed-path secret scan: zero matches across 55 paths; git diff --check
+  passed. Four tracked modifications, 51 untracked paths, no staged files, four
+  existing additive QA migrations, feature branch HEAD unchanged. No live
+  provider/Blob calls, Neon writes, migration applies, cleanup invocation,
+  workflow publication, or deployment.
+- Cleanup remains disabled pending owner-controlled GitHub Environment and
+  exact database target configuration. GitHub Actions scheduling is best
+  effort, so hard physical deletion within 24 hours is not established. Real
+  Ha Giang corpus evaluation and provider data-control review remain outstanding.
+  Tasks 192/193/194/197 remain PARTIAL; no task was marked DONE.

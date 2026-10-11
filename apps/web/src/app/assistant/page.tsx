@@ -7,6 +7,10 @@ export const metadata: Metadata = { title: "Trợ lý AI | Hà Giang Travel Assi
 export default async function AssistantPage() {
   // Literal build-time gate: production must never import the fake transport.
   if (process.env.NODE_ENV === "development") {
+    if (process.env.QA_RUNTIME_ENABLED === "true") {
+      const { AssistantRuntimeChat } = await import("../../components/assistant/assistant-runtime-chat");
+      return <AssistantShell><AssistantRuntimeChat /></AssistantShell>;
+    }
     const { AssistantDevelopmentChat } = await import("../../../development/assistant-development-chat");
     return <AssistantShell><AssistantDevelopmentChat /></AssistantShell>;
   }

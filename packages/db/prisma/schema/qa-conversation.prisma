@@ -1,0 +1,45 @@
+model QaConversation {
+  id            String   @id
+  principalKind String   @db.VarChar(5)
+  principalId   String
+  headTurnId    String?
+  activeTurnId  String?
+  expiresAt     DateTime @db.Timestamptz(3)
+  deletedAt     DateTime? @db.Timestamptz(3)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  turns         QaTurn[]
+
+  @@index([principalKind, principalId])
+  @@unique([id, principalKind, principalId])
+  @@index([expiresAt])
+  @@index([deletedAt])
+  @@map("qa_conversation")
+}
+
+model QaTurn {
+  id              String   @id
+  conversationId  String
+  principalKind   String   @db.VarChar(5)
+  principalId     String
+  key             String   @db.VarChar(200)
+  requestHash     String   @db.Char(64)
+  parentTurnId    String?
+  state           String   @db.VarChar(12)
+  fence           Int      @default(1)
+  leaseUntil      DateTime @db.Timestamptz(3)
+  question        String?  @db.Text
+  response        Json?
+  provenance      Json?
+  errorCode       String?  @db.VarChar(80)
+  contentExpiresAt DateTime? @db.Timestamptz(3)
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  completedAt     DateTime? @db.Timestamptz(3)
+  conversation    QaConversation @relation(fields: [conversationId, principalKind, principalId], references: [id, principalKind, principalId], onDelete: Restrict)
+
+  @@unique([principalKind, principalId, key])
+  @@index([conversationId, createdAt])
+  @@index([contentExpiresAt])
+  @@index([state, contentExpiresAt])
+  @@index([state, leaseUntil])
+  @@map("qa_turn")
+}
