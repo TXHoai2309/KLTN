@@ -1,9 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { getRagDocument, listRagDocuments, transitionRagDocument } from "./rag-service";
 import { confirmedRagDetail } from "./rag-review-state";
+import { RagStatusBadge } from "../../app/admin/rag/rag-review-ui";
+import { retrievalEligible } from "./rag-file";
 
-type Status = "UPLOADED" | "REVIEWING" | "APPROVED" | "DISABLED";
+type Status = "UPLOADED" | "REVIEWING" | "APPROVED" | "INDEXED" | "DISABLED";
 
 function setup(status: Status = "UPLOADED", role: "ADMIN" | "TRAVELER" | null = "ADMIN") {
   const row = {
@@ -59,7 +63,7 @@ test("Admin list and detail contain metadata and server actions without storage 
   assert.equal(list.items[0].retrievalEligible, false);
   assert.equal("storagePath" in list.items[0], false);
   const detail = await getRagDocument(headers, "rag-1", deps as never);
-  assert.deepEqual(detail.document.allowedActions, ["START_REVIEW"]);
+  assert.deepEqual(detail.document.allowedActions, ["START_REVIEW", "DISABLE"]);
   assert.equal(detail.document.sourceUrl, "https://example.org/source");
   assert.equal("storagePath" in detail.document, false);
 });
@@ -81,7 +85,7 @@ test("REVIEWING to APPROVED succeeds but is not retrieval eligible", async () =>
   assert.equal(row.status, "APPROVED");
   if (outcome.status === "SUCCESS") assert.equal(outcome.data.retrievalEligible, false);
   const detail = await getRagDocument(headers, "rag-1", deps as never);
-  assert.deepEqual(detail.document.allowedActions, []);
+  assert.deepEqual(detail.document.allowedActions, ["DISABLE"]);
   assert.equal(detail.document.retrievalEligible, false);
 });
 
@@ -127,4 +131,64 @@ test("UNKNOWN and FAILED never produce a guessed UI status", () => {
   assert.equal(confirmedRagDetail(previous, { status: "UNKNOWN", error: { code: "UNKNOWN", message: "?" }, retryWithSameKey: true }), previous);
   assert.equal(confirmedRagDetail(previous, { status: "FAILED", error: { code: "CONFLICT", message: "?" } }), previous);
   assert.equal(confirmedRagDetail(previous, { status: "SUCCESS", data: { id: "rag-1", status: "APPROVED" as const } }).status, "APPROVED");
+});
+
+for (const status of ["UPLOADED", "REVIEWING", "APPROVED", "INDEXED"] as const) {
+  test(`${status} can be disabled, remains in Admin reads and same key replays`, async () => {
+    const { deps, row } = setup(status);
+    const before = await getRagDocument(headers, "rag-1", deps as never);
+    assert.ok(before.document.allowedActions.includes("DISABLE"));
+    assert.equal(before.document.retrievalEligible, status === "INDEXED");
+    const outcome = await transitionRagDocument(headers, "rag-1", { action: "DISABLE" }, `disable-${status}`, deps as never);
+    assert.equal(outcome.status, "SUCCESS");
+    assert.equal(row.status, "DISABLED");
+    assert.equal(row.storagePath, "rag/admin-1/file.pdf");
+    const replay = await transitionRagDocument(headers, "rag-1", { action: "DISABLE" }, `disable-${status}`, deps as never);
+    assert.equal(replay.status, "SUCCESS");
+    assert.equal(replay.replayed, true);
+    const list = await listRagDocuments(headers, deps as never);
+    assert.equal(list.items[0].status, "DISABLED");
+    assert.equal(list.items[0].retrievalEligible, false);
+    const detail = await getRagDocument(headers, "rag-1", deps as never);
+    assert.equal(detail.document.status, "DISABLED");
+    assert.deepEqual(detail.document.allowedActions, []);
+    assert.equal(detail.document.sourceTitle, "Tài liệu Hà Giang");
+  });
+}
+
+test("DISABLED is terminal and has no re-enable action", async () => {
+  const { deps, row } = setup("DISABLED");
+  for (const action of ["DISABLE", "START_REVIEW", "APPROVE"] as const) {
+    const outcome = await transitionRagDocument(headers, "rag-1", { action }, `terminal-${action}`, deps as never);
+    assert.equal(outcome.status, "FAILED");
+    assert.equal(row.status, "DISABLED");
+  }
+  const detail = await getRagDocument(headers, "rag-1", deps as never);
+  assert.deepEqual(detail.document.allowedActions, []);
+  const html = renderToStaticMarkup(createElement(RagStatusBadge, { item: { status: "DISABLED", retrievalEligible: false } }));
+  assert.match(html, /Đã vô hiệu hóa/);
+  assert.match(html, /Chưa dùng cho truy xuất/);
+});
+
+test("Guest and Traveler cannot disable", async () => {
+  for (const role of [null, "TRAVELER"] as const) {
+    const { deps, row } = setup("INDEXED", role);
+    await assert.rejects(() => transitionRagDocument(headers, "rag-1", { action: "DISABLE" }, "denied", deps as never), { status: role ? 403 : 401 });
+    assert.equal(row.status, "INDEXED");
+  }
+});
+
+test("only INDEXED is retrieval eligible", () => {
+  for (const status of ["UPLOADED", "REVIEWING", "APPROVED", "INDEXED", "DISABLED"] as const) {
+    assert.equal(retrievalEligible(status), status === "INDEXED");
+  }
+});
+
+test("FAILED and UNKNOWN disable leave the confirmed UI status unchanged", () => {
+  const previous: { id: string; status: Status; retrievalEligible: boolean } = { id: "rag-1", status: "INDEXED", retrievalEligible: true };
+  assert.equal(confirmedRagDetail(previous, { status: "FAILED", error: { code: "CONFLICT", message: "?" } }), previous);
+  assert.equal(confirmedRagDetail(previous, { status: "UNKNOWN", error: { code: "UNKNOWN", message: "?" }, retryWithSameKey: true }), previous);
+  const next = confirmedRagDetail(previous, { status: "SUCCESS", data: { id: "rag-1", status: "DISABLED", retrievalEligible: false } });
+  assert.equal(next.status, "DISABLED");
+  assert.equal(next.retrievalEligible, false);
 });

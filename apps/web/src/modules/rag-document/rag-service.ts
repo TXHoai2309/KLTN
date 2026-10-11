@@ -23,8 +23,8 @@ const finalizeRequest = z.object({
   topic: z.string().trim().max(200).optional(),
   locality: z.string().trim().max(200).optional(),
 }).strict();
-const reviewRequest = z.object({ action: z.enum(["START_REVIEW", "APPROVE"]) }).strict();
-export type RagReviewAction = z.infer<typeof reviewRequest>["action"];
+const actionRequest = z.object({ action: z.enum(["START_REVIEW", "APPROVE", "DISABLE"]) }).strict();
+type RagAction = z.infer<typeof actionRequest>["action"];
 const listFields = {
   id: true, originalFileName: true, fileType: true, sourceTitle: true,
   status: true, createdAt: true, updatedAt: true,
@@ -38,15 +38,17 @@ function validateId(id: string) {
   if (!/^[-\w]{1,100}$/.test(id)) throw new AppError("RAG_DOCUMENT_NOT_FOUND", "Không tìm thấy tài liệu.", 404);
 }
 
-function allowedActions(status: RagStatus): RagReviewAction[] {
-  if (status === "UPLOADED") return ["START_REVIEW"];
-  if (status === "REVIEWING") return ["APPROVE"];
+function allowedActions(status: RagStatus): RagAction[] {
+  if (status === "UPLOADED") return ["START_REVIEW", "DISABLE"];
+  if (status === "REVIEWING") return ["APPROVE", "DISABLE"];
+  if (status === "APPROVED" || status === "INDEXED") return ["DISABLE"];
   return [];
 }
 
-function nextStatus(status: RagStatus, action: RagReviewAction): RagStatus {
+function nextStatus(status: RagStatus, action: RagAction): RagStatus {
   if (status === "UPLOADED" && action === "START_REVIEW") return "REVIEWING";
   if (status === "REVIEWING" && action === "APPROVE") return "APPROVED";
+  if (action === "DISABLE" && status !== "DISABLED") return "DISABLED";
   throw new AppError("RAG_TRANSITION_INVALID", "Thao tác không hợp lệ ở trạng thái hiện tại.", 409);
 }
 
@@ -131,7 +133,7 @@ export async function getRagDocument(headers: Headers, id: string, deps: RagDepe
 export async function transitionRagDocument(headers: Headers, id: string, body: unknown, key: string, deps: RagDependencies) {
   const actor = await requireActor(headers, deps, "admin");
   validateId(id);
-  const { action } = parse(reviewRequest, body);
+  const { action } = parse(actionRequest, body);
   // The external Blob check stays outside the database transaction. A replay
   // after approval skips the check and is resolved by the idempotency record.
   if (action === "APPROVE") {
