@@ -1,21 +1,24 @@
-# US-19 — RAG indexing: Task181–Task185
+# US-19 — RAG indexing: Task181–Task187
 
-## Current status — 2026-10-10
+## Current status — 2026-10-11
 
-Task181–185 core is committed on TXH through f571272ee700a066b5a3d5ddb2b92cd063ac3a3c.
-Owner-confirmed Development migrations are 11/11, independently rechecked read-only
-in this run. Task184 and Task185 real isolated PostgreSQL evidence passed.
+US-19 request-scoped indexing MVP is ACCEPTED by owner Tô Xuân Hoài on
+11 October 2026 against published feature baseline
+`7d366e2cb22fb249bda08a1a39ae2bab207c4691` on
+`feat/us19-direct-index-api-progress`.
 
-The owner-approved current MVP uses a targeted, awaited request-scoped API, replacing
-the prior separate-worker deployment prerequisite. Task185–187 direct API, Admin
-progress/retry UI and offline test closure are implemented locally on
-feat/us19-direct-index-api-progress, baseline 23a399ed47eeca804b6aa44675ed71d2930292cc.
-US19 remains IN_PROGRESS: live Blob/provider runtime and authenticated owner acceptance
-are pending. Nothing is deployed, committed or pushed in this run.
+- Task185: DONE — BE/API Index and atomic INDEXED publication.
+- Task186: DONE — Admin FE Index/Re-index, status and persisted progress.
+- Task187: DONE_WITH_NOTES — successful indexing, failure and explicit Retry tests.
+
+Acceptance covers awaited request-scoped indexing on Next.js/Vercel Preview.
+The database ledger persists; no durable background worker deployment is claimed.
+RAG retrieval and chatbot Q&A are outside this acceptance. TXH/dev/master
+integration and Production publication remain separately authorized steps.
 
 Dated entries below are retained as historical handoff evidence. Current closure
 at the end and the owner-approved decision in docs/decisions.md supersede older
-statements about Docker availability, unapplied migrations or durable hosting.
+statements about pending acceptance, disabled execution or durable hosting.
 
 ## Sources and prerequisites
 
@@ -662,3 +665,76 @@ US19 IN_PROGRESS. No commit,push,merge,deploy,migration apply or Neon writes.
 - No schema/migration/dependency/route/UI changes, live OpenAI/Blob calls, Neon writes, commit/push/deploy. Owner must review and approve Preview publication before manual live retry. Task185–187 remain unaccepted; US19 IN_PROGRESS.
 
 - Final checks:91/91 focused PASS; root314 Vitest PASS (16 disposable PostgreSQL cases intentionally skipped in ordinary runs),317 legacy PASS; explicit isolated PostgreSQL16/16 PASS,zero skips,exit0,owned container/volume cleanup PASS. Fresh production build26/26 pages and final TypeScript PASS. git diff --check PASS. Twelve scoped modified files; zero staged. Exact-owner-file offline success and synthetic regression both verified; Preview retest is pending owner-approved publication.
+
+## 2026-10-11 — Final owner live acceptance: Task185–187
+
+Owner Tô Xuân Hoài accepts Task185 DONE, Task186 DONE and Task187 DONE_WITH_NOTES
+for the request-scoped indexing MVP. Published baseline:
+`7d366e2cb22fb249bda08a1a39ae2bab207c4691`; tested Preview:
+https://kltn-kmlq1s43v-to-xuan-hoai-s-projects.vercel.app.
+Owner browser testing and the subsequent read-only Development audit support
+this decision. This documentation closure performs no additional live calls.
+
+### Live evidence
+
+| Test document | Owner result and database audit |
+| --- | --- |
+| US19_03_Checklist_Ha_Giang_TEST.txt | INDEXED; published generation READY; 3/3 chunks and 3/3 embeddings. Initial Index and Re-index both COMPLETED. |
+| US19_02_Van_hoa_Ha_Giang_TEST.docx | INDEXED; published generation READY; 6/6 chunks and 6/6 embeddings; eligible for retrieval selection. |
+| US19_01_Cao_nguyen_da_Dong_Van_TEST.pdf | Initial FAILED/PERSISTING_CHUNKS due to extracted NUL; explicit retry COMPLETED at attempt2. Published NUL-v2 generation READY with 3/3 chunks and 3/3 embeddings. INDEXED remains after owner reload. |
+
+TXT initial job `cmv395n8b000106le1od5dsu1` completed at 10:17:51 and Re-index
+job `cmv3ac3ey000506l5tak5npfm` completed at 10:50:43 on 11 October 2026 (UTC+7).
+Both have attemptCount1 and generation `cmv395vx7000306leid6sveom`. The new job
+and refreshed publication timestamp prove Re-index ran. Unchanged content reuses
+the complete generation; its three embeddings retain their original 10:17:42
+creation timestamps, without duplicate embeddings.
+
+PDF has one persisted job, `cmv39e5ws000b06leagktjli8`, now COMPLETED/attempt2
+at 10:46:24 (UTC+7), with failureCode cleared. The prior failure is evidenced by
+its earlier audit and exact-file offline reproduction, not by a separate historical
+FAILED job. Generation `cmv39ees7000d06lejmhcjfll` (extractor
+pdfjs-4.10.38-lines-v1) remains BUILDING with zero chunks/embeddings and is not
+published. Generation `cmv3a6lrx000206l566s2nhon` uses
+pdfjs-4.10.38-lines-nul-v2 and is the READY publication. Original byte hash is
+unchanged. PDF_READING_ORDER_HEURISTIC is informational provenance only.
+
+Neon target was verified against owner Console mapping: KLTN project
+summer-unit-95870477, development/br-aged-hat-b3o6hg9p, endpoint
+ep-purple-pond-b3xujb8o, neondb/public. READ ONLY transactions confirmed 11
+completed migrations and zero incomplete. Configured sslmode=require and actual
+secure WebSocket transport to the expected host were verified; pg_stat_ssl=false
+on the backend proxy leg does not mean client WSS was unencrypted.
+No credentials or connection strings are recorded.
+
+All 12 published vectors have 1536 dimensions and positive norm. Chunk indexes
+are contiguous; text hashes, embedding input hashes and token totals match
+(TXT1654, DOCX1701, PDF2124). Publication pointers are consistent. No duplicate
+chunk indexes/hashes or embeddings and no incomplete published generations were
+found. These are final-state findings; atomicity is additionally supported by
+isolated PostgreSQL automated tests.
+
+### Offline evidence and accepted limitations
+
+- Published-baseline validation:91 focused PASS;314 Vitest and317 legacy PASS;
+  explicit disposable PostgreSQL16/16 PASS,zero skipped,exit0,cleanup PASS.
+  Ordinary unit runs intentionally skip those16 opt-in PostgreSQL cases.
+  Typecheck,production build26/26 and diff check PASS. These are prior results,
+  not tests rerun during this documentation closure.
+- UNKNOWN,timeout,concurrency,lease/fencing,rollback and atomic finalization passed
+  offline automated tests. Live UNKNOWN/timeout/concurrency were not directly
+  accepted or newly exercised in this closure.
+- Request execution is bounded by Vercel Function duration:route300s and
+  cooperative budget240s. It is not durable background execution; disconnects or
+  termination can require explicit persisted-state reconciliation.
+- Retrieval eligibility is an index-integrity/metadata result. RAG retrieval and
+  chatbot Q&A are not accepted by this closure.
+- Admin UI still exposes technical warning/failure codes. Some descriptions,
+  including attempt count terminology, could be clearer. No UI change is made.
+- The three documents are test data, not authoritative knowledge sources.
+  Successful indexing does not establish factual accuracy or authenticity.
+
+Backlog remains external per docs/README.md and docs/roadmap.md. No parallel
+backlog is created or external backlog edited; owner updates the three approved
+task statuses there. This run changes documentation only, with no runtime,
+schema,migration,Neon writes,live OpenAI/Blob calls or TXH integration.

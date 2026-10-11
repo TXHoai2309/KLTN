@@ -774,3 +774,44 @@ Append a new entry for each meaningful work session. Keep prior entries as hando
 - No schema/migration/dependency/route/UI changes, live OpenAI/Blob calls, Neon writes, commit/push/deploy. Owner must review and approve Preview publication before manual live retry. Task185–187 remain unaccepted; US19 IN_PROGRESS.
 
 - Final checks:91/91 focused PASS; root314 Vitest PASS (16 disposable PostgreSQL cases intentionally skipped in ordinary runs),317 legacy PASS; explicit isolated PostgreSQL16/16 PASS,zero skips,exit0,owned container/volume cleanup PASS. Fresh production build26/26 pages and final TypeScript PASS. git diff --check PASS. Twelve scoped modified files; zero staged. Exact-owner-file offline success and synthetic regression both verified; Preview retest is pending owner-approved publication.
+
+## 2026-10-11 — US-19 final owner acceptance and task closure
+
+- **Owner decision:** Tô Xuân Hoài accepts Next.js/Vercel Preview request-scoped
+  indexing MVP:Task185 DONE (BE/API and INDEXED publication),Task186 DONE (FE
+  Index/Re-index,status/progress),Task187 DONE_WITH_NOTES (success/failure/Retry).
+  US19_MVP_ACCEPTANCE=ACCEPTED. This supersedes earlier pending acceptance
+  statements without rewriting historical checkpoints.
+- **Baseline:** feature branch feat/us19-direct-index-api-progress at published
+  7d366e2cb22fb249bda08a1a39ae2bab207c4691; local/remote match,initial worktree
+  clean. Scope is only US19 story and this appended progress checkpoint.
+- **Live evidence:** TXT INDEXED/READY,3/3 chunks+embeddings; initial Index and new
+  Re-index job COMPLETED. Re-index at10:50:43 UTC+7 reuses the complete generation
+  and its original three embeddings without duplicates. DOCX INDEXED/READY,6/6
+  chunks+embeddings,eligible for retrieval selection. PDF NUL failure followed by
+  same-job attempt2 COMPLETED; NUL-v2 generation READY,3/3 chunks+embeddings,
+  INDEXED retained after reload. Old v1 BUILDING generation has0 chunks and is
+  unpublished. Reading-order heuristic remains a warning. Failure history comes
+  from prior audit/reproduction; no historical FAILED job is invented.
+- **Development audit evidence:** owner-verified project/branch/endpoint and
+  neondb/public,secure WSS and sslmode=require,explicit READ ONLY transactions;
+  11 completed migrations. All12 vectors1536-dimensional with positive norm;
+  text/input hashes,token totals(TXT1654,DOCX1701,PDF2124) and pointers consistent.
+  No duplicate chunks/embeddings or incomplete publication. No new database
+  connection or live test is performed in this documentation-only run.
+- **Offline-only evidence:** UNKNOWN,timeout,concurrency,fencing,rollback and
+  atomic-finalization cases PASS; not directly live-accepted. Published baseline
+  checks:91 focused,314 Vitest,317 legacy PASS; explicit PostgreSQL16/16,0 skipped,
+  exit0,cleanup PASS; typecheck/build26/26/diff PASS. Prior results are retained
+  evidence,not tests rerun during this closure.
+- **Accepted limits:** bounded request execution(route300s/cooperative240s),no
+  deployed durable background worker; technical UI codes/copy remain. Retrieval
+  and chatbot Q&A are not accepted. Indexed files are test data,not authoritative
+  sources. See US19 final entry for exact identities and live/offline evidence.
+- **Backlog/publication:** backlog external; supply only three approved status
+  lines for owner update,no parallel backlog. Owner authorizes scoped docs
+  commit/push; no TXH/dev/master integration or Production deployment. No runtime,
+  schema,migration changes,Neon writes,OpenAI/Blob calls. Validate scoped diff and
+  secret check; typecheck/build/test reruns are unnecessary for this docs-only edit.
+- **Next:** owner-controlled TXH integration review; do not broaden acceptance
+  to retrieval/Q&A or start another task.
