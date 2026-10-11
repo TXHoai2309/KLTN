@@ -115,7 +115,13 @@ export function RagDetailView({ id }: { id: string }) {
         <a className="destination-button rag-file-link" href={`/api/admin/rag-documents/${encodeURIComponent(id)}/file`}>Tải tài liệu gốc để xem</a>
       </section>
       <section className="destination-card" aria-labelledby="rag-source-title"><h2 id="rag-source-title">Thông tin nguồn</h2><dl className="rag-detail-grid"><div><dt>Nguồn</dt><dd>{item.sourceTitle}</dd></div><div><dt>URL nguồn</dt><dd>{item.sourceUrl ? <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer">Mở trang nguồn</a> : "Chưa khai báo"}</dd></div><div><dt>Tác giả</dt><dd>{item.author || "Chưa khai báo"}</dd></div><div><dt>Chủ đề</dt><dd>{item.topic || "Chưa khai báo"}</dd></div><div><dt>Địa phương</dt><dd>{item.locality || "Chưa khai báo"}</dd></div></dl></section>
-      <RagIndexPanel documentId={id} status={item.status} />
+      <RagIndexPanel key={id} documentId={id} status={item.status} onCompleted={() => {
+        const identity = generation.current;
+        void fetch('/api/admin/rag-documents/' + encodeURIComponent(id), { cache: 'no-store' }).then(async response => {
+          const body = await response.json();
+          if (response.ok && body.success === true && generation.current === identity) setData(body.data);
+        }).catch(() => { if (generation.current === identity) setFeedback('Chỉ mục đã hoàn tất; chưa đọc được trạng thái tài liệu mới. Hãy tải lại chi tiết.'); });
+      }} />
       <section className="destination-card" aria-labelledby="rag-actions-title"><h2 id="rag-actions-title">Kiểm duyệt</h2><p className="destination-helper">Hãy tải và kiểm tra nội dung tệp gốc trước khi phê duyệt. APPROVED chưa đủ điều kiện truy xuất cho đến khi lập chỉ mục thành công.</p>
         <div className="rag-actions">{item.allowedActions.includes("START_REVIEW") && <Button className="destination-primary" disabled={busy || uncertain} onClick={() => void act("START_REVIEW")}>Bắt đầu kiểm duyệt</Button>}{item.allowedActions.includes("APPROVE") && <Button className="destination-primary" disabled={busy || uncertain} onClick={() => void act("APPROVE")}>Phê duyệt</Button>}{item.allowedActions.length === 0 && <p>Không có thao tác kiểm duyệt tiếp theo ở trạng thái này.</p>}</div>
         {feedback && <div className="rag-action-feedback" role={pending.current ? "alert" : "status"}>{feedback}{pending.current && <Button type="button" disabled={busy} onClick={() => { const attempt = pending.current; if (attempt) void act(attempt.action, attempt.key); }}>Thử lại cùng yêu cầu</Button>}</div>}

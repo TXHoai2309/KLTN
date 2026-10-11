@@ -4,3 +4,10 @@
 .rag-index-progress { margin-top: 16px; font-size: 13px; }
 .rag-index-progress progress { display: block; width: 100%; height: 12px; margin: 10px 0; accent-color: var(--destination-green); }
 .rag-index-error { margin-top: 14px; color: var(--destination-error); font-size: 13px; }
+
+.rag-index-steps { padding-left: 22px; display: grid; gap: 8px; margin: 16px 0; }
+.rag-index-steps [aria-current="step"] { color: var(--destination-green); font-weight: 650; }
+.rag-index-card { min-width: 0; overflow-wrap: anywhere; }
+.rag-index-toolbar button { min-height: 44px; white-space: normal; }
+@media (max-width: 480px) { .rag-index-toolbar { align-items: stretch; flex-direction: column; } }
+@media (prefers-reduced-motion: reduce) { .rag-index-card .destination-spinner { animation: none; } }

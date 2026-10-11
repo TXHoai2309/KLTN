@@ -191,3 +191,30 @@ describe("US-19 Task185 indexing worker", () => {
     expect(test.index.finalizeReadyGeneration).toHaveBeenCalledTimes(1);
   });
 });
+
+
+describe("Task187 failure pipeline regressions",()=>{
+ it("valid DOCX completes real extraction/chunking",async()=>{const t=harness({fileType:"DOCX",bytes:syntheticDocx(p("Synthetic valid document"))});expect(await t.worker.runNext()).toMatchObject({status:"COMPLETED"});expect(t.index.finalizeReadyGeneration).toHaveBeenCalledTimes(1);});
+ it("missing Blob fails without provider or publication",async()=>{const t=harness();t.storage.read.mockRejectedValue(new Error("synthetic missing"));expect(await t.worker.runNext()).toMatchObject({status:"FAILED"});expect(t.providerCalls).toBe(0);expect(t.index.finalizeReadyGeneration).not.toHaveBeenCalled();});
+ it("untrusted extractor hash cannot publish",async()=>{const t=harness();const actual=await extractDocument({bytes:new TextEncoder().encode("Synthetic"),format:"TXT"});const replacement={...actual,...("document" in actual?{document:{...actual.document,originalBytesHash:"0".repeat(64)}}:{})};const test=createRagIndexWorker({jobs:t.jobs,index:t.index,storage:t.storage,provider:createFakeEmbeddingProvider().provider,extract:async()=>replacement} as unknown as RagIndexWorkerDependencies);expect(await test.runNext()).toMatchObject({status:"FAILED"});expect(t.index.finalizeReadyGeneration).not.toHaveBeenCalled();});
+ it("provider rejection fails instead of being automatically retried",async()=>{const t=harness({providerFailure:new EmbeddingError("PROVIDER_REJECTED",false)});expect(await t.worker.runNext()).toMatchObject({status:"FAILED"});expect(t.providerCalls).toBe(1);expect(t.index.finalizeReadyGeneration).not.toHaveBeenCalled();});
+ it("generation verification failure prevents publication",async()=>{const t=harness();t.index.verifyGeneration.mockRejectedValue(new Error("synthetic incomplete"));expect(await t.worker.runNext()).toMatchObject({status:"FAILED"});expect(t.index.finalizeReadyGeneration).not.toHaveBeenCalled();});
+});
+
+
+describe("Task187 bounded provider/persistence failures",()=>{
+  it("token ceiling rejects without calling provider",async()=>{
+    const t=harness();const fake=createFakeEmbeddingProvider();
+    const worker=createRagIndexWorker({jobs:t.jobs,index:t.index,storage:t.storage,provider:fake.provider,embeddingOptions:{maxJobTokens:1}} as unknown as RagIndexWorkerDependencies);
+    expect(await worker.runNext()).toMatchObject({status:"FAILED"});expect(fake.calls).toHaveLength(0);expect(t.index.finalizeReadyGeneration).not.toHaveBeenCalled();
+  });
+  it("invalid vector dimensions remains UNKNOWN and never publishes or repeats provider",async()=>{
+    const t=harness();const fake=createFakeEmbeddingProvider(input=>input.map((_,index)=>({index,embedding:[1]})));
+    const worker=createRagIndexWorker({jobs:t.jobs,index:t.index,storage:t.storage,provider:fake.provider} as unknown as RagIndexWorkerDependencies);
+    expect(await worker.runNext()).toMatchObject({status:"UNKNOWN"});expect(fake.calls).toHaveLength(1);expect(t.index.persistEmbeddings).not.toHaveBeenCalled();expect(t.index.finalizeReadyGeneration).not.toHaveBeenCalled();
+  });
+  it("vector persistence uncertainty does not publish or retry external call",async()=>{
+    const t=harness();t.index.persistEmbeddings.mockRejectedValue(new Error("synthetic persistence uncertainty"));
+    expect(await t.worker.runNext()).toMatchObject({status:"UNKNOWN"});expect(t.providerCalls).toBe(1);expect(t.index.finalizeReadyGeneration).not.toHaveBeenCalled();
+  });
+});

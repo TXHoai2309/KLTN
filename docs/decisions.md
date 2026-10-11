@@ -179,3 +179,34 @@ hook, public retrieval path, or Vercel after-response worker trigger.
   paths or provider output. No Admin UI or endpoint is introduced by Task185.
 - Worker execution, provider and storage remain injectable so local tests use
   synthetic documents and deterministic fake embeddings.
+
+## 2026-10-10 — Owner-approved US19 direct request indexing MVP
+
+The owner explicitly replaces the earlier separate durable-worker deployment
+prerequisite for the current MVP. Keep the durable database ledger and existing
+worker core, but invoke a single targeted job inside an awaited Node.js Admin
+Route Handler. No separate service, queue, Redis, cron, after() or fire-and-forget
+execution is introduced. The ledger persists; request execution itself is not durable.
+
+POST requires persisted Admin authorization, Origin/JSON validation and the shared
+idempotency contract. INDEX, RESUME and RETRY share the document's operation scope:
+a committed replay does not invoke a provider; changing payload under the same key
+conflicts. RESUME is an explicit new intent for QUEUED or expired work, scoped only
+to this document/job. Existing expired provider-pending recovery remains UNKNOWN.
+RETRY is restricted to known FAILED/TIMED_OUT/CANCELLED outcomes. UNKNOWN is an
+operator reconciliation gate, with no automatic provider retry or public override.
+
+The request has a cooperative 240-second abort budget; the route advertises
+maxDuration=300. Vercel documents 300 seconds for Fluid Compute on Hobby
+(https://vercel.com/docs/functions/limitations). Actual project Fluid Compute and
+runtime packaging must be verified before live acceptance. The timer cannot
+preempt synchronous parsing or a non-abortable database operation. Function kill,
+network loss and disconnect cannot guarantee continued execution: rely on leases,
+fencing, persisted provider-pending markers and explicit recovery, not background
+promises. The 20 MiB upload limit is unchanged and is not a processing-time promise.
+
+Atomic READY verification, publication, INDEXED and COMPLETED remain unchanged.
+Progress is read from a consistent database snapshot. Admission SUCCESS and job
+completion are separate; Admin UI polls, supports safe recovery and refreshes the
+document only after observed COMPLETED. Offline code/test completion does not mean
+live Blob/provider or owner acceptance. US19 remains IN_PROGRESS.

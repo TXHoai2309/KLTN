@@ -701,3 +701,52 @@ Append a new entry for each meaningful work session. Keep prior entries as hando
 - **Validation:** Focused worker/extraction/store tests pass; full web Vitest PASS (280 tests, four opt-in PostgreSQL cases skipped); all configured legacy suites PASS; Prisma validate/generate, root typecheck, production build and `git diff --check` PASS. The initial full Vitest attempt failed because the new Blob stream test loaded Vercel Blob before its mock under the repository's `isolate:false` test mode; the test now resets/reimports the module, and the final full Vitest run passed. The first legacy run also tried to load that Vitest file through its `*.test.ts` glob; moving it under `rag-index` fixed the overlap, and the final legacy run passed.
 - **PostgreSQL blocker:** `docker version` reports client 29.6.2, but `docker info` cannot reach the `desktop-linux` Engine at `npipe:////./pipe/dockerDesktopLinuxEngine`. `npm run test:rag-index:postgres --workspace apps/web` returned SKIPPED; no container/database was created and no alternative context or Neon target was used. Real Task185 concurrency, fencing, rollback and atomic-publication evidence remains unavailable.
 - **Deployment:** Worker core exists but no durable runtime is configured. Proposed MVP is a separately deployed server-only process on an owner-approved always-on container host, polling the PostgreSQL job ledger with bounded concurrency and graceful shutdown. Keep live execution disabled until PostgreSQL integration, migration approval/application, private Blob/PDF.js runtime checks, credentials, logs/metrics and cost limits are verified. No host/queue was provisioned. US-19 remains IN PROGRESS; no commit/push/migration apply.
+
+## 2026-10-10 — US19 Task185–187 direct API MVP owner-review closure
+
+- Owner explicitly approved request-scoped API execution for this MVP; separate
+  durable-worker hosting is no longer a prerequisite. Preserve ledger, leases,
+  fencing, provider UNKNOWN safety and atomic publication. Current implementation
+  is local on feat/us19-direct-index-api-progress, baseline 23a399ed47eeca804b6aa44675ed71d2930292cc,
+  in an isolated worktree. Existing TXH changes remain untouched.
+- Historical closure evidence: Task185 PostgreSQL 14/14 passed twice; migration#11
+  applied by owner to Development; subsequent read-only schema verification passed.
+  This run independently reads neondb/public, 11 completed / zero pending/failed,
+  checksums matching raw or historical LF, vector0.8.6 and PostGIS3.6.4. No writes.
+- Added thin POST/GET service boundary, exact shared idempotency scope, explicit
+  targeted QUEUED/expired resume, known-failure retry, persisted progress snapshot,
+  cooperative request abort and no-store responses. No background work or new schema.
+- Admin UI: serial polling, stale/unmount guards, same-key UNKNOWN reconciliation,
+  new-key known retry, count-based embedding progress, conservative stage evidence,
+  COMPLETED document refresh, shared controls and mobile/dark/accessibility checks.
+- Root npm test:303 Vitest PASS,15 opt-in skips in regular runs, all legacy suites PASS.
+  Explicit isolated PostgreSQL:15/15 PASS,0 skipped, cleanup PASS. Browser component
+  harness PASS; env generation, Prisma validation/generation, typecheck, build PASS.
+  No live OpenAI/Blob calls, Neon writes, migration apply, deployment or publication.
+- Task185–187 code/offline verification complete; live owner acceptance pending.
+  See current US19 closure and decisions for duration/packaging/UNKNOWN limitations.
+  US19 remains IN_PROGRESS; do not mark ACCEPTED/DONE from offline evidence alone.
+- Final packaging review found PDF.js worker absent from the index route's output
+  trace. Added narrow route-only tracing for the installed legacy pdf.worker.mjs;
+  no parser rewrite/dependency update. Verify the final trace before handoff.
+- Premium UI strict audit:22 existing findings outside touched RAG UI, documented
+  without unrelated changes. Component browser coverage additionally passes stale
+  response isolation and keyboard activation; live authenticated E2E is pending.
+
+## 2026-10-10 — Final publication gate follow-up
+
+- Native failure was observed after passing assertions in the old Windows nested
+  npm/cmd launch path. Exact faulting native module is unknown; no matching Event
+  Viewer record was available. Minimal runner change invokes the same Vitest CLI,
+  config and suites directly via process.execPath/shell:false with exit diagnostics.
+  No assertion/pool/cleanup was disabled. Final standard PostgreSQL command passed
+  twice:15/15,0 skips,child and outer exit0,container/volume cleanup PASS.
+- Changed scope now17 paths (13 modified,4 added), adding only the existing
+  PostgreSQL runner to the prior16. DESIGN.md remains doc-only Admin RAG context.
+- Vercel whoami refreshed expired local credential normally; identity/project/team
+  API reads now200. Fluid Compute true,Hobby default300s,Node24.x,regioniad1;
+  no branch/shared env overrides. Preview has only DATABASE_URL/BETTER_AUTH_SECRET.
+  Preview OpenAI/Blob secrets absent; sensitive DATABASE_URL target cannot be read.
+- READY_TO_PUBLISH_FOR_TEST=NO until owner confirms Development target and supplies
+  Preview-only provider secrets. See story gate follow-up for exact owner checklist.
+  No publication,live calls,migration apply or shared DB writes. US19 IN_PROGRESS.

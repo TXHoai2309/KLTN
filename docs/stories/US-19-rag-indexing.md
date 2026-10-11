@@ -2,20 +2,20 @@
 
 ## Current status — 2026-10-10
 
-Task181–184 are implemented and committed on TXH through baseline
-`8d077f91561fb6a1356e86ec6ccbe78538c24537`. Owner-confirmed Neon Development
-evidence records all ten migrations applied, and the Task184 PrismaNeon vector
-write smoke and synthetic cleanup passed. Task185 orchestration is now implemented
-locally for review; its additive job migration is not applied to Neon. This working
-tree is uncommitted. US-19 remains IN PROGRESS: isolated PostgreSQL Task185 tests
-could not run because Docker Engine is unavailable; live private Blob Gate C is
-NOT_RUN; live Admin browser Gate D is PARTIAL; and durable worker deployment is a
-prerequisite to any live indexing. Task186 Admin UI and production upload
-processing remain out of scope.
+Task181–185 core is committed on TXH through f571272ee700a066b5a3d5ddb2b92cd063ac3a3c.
+Owner-confirmed Development migrations are 11/11, independently rechecked read-only
+in this run. Task184 and Task185 real isolated PostgreSQL evidence passed.
 
-The dated Task181–184 evidence below is retained as historical handoff material.
-Where it says those commits or migrations were pending, the dated owner-confirmed
-Task184 closure and Task185 entry at the end of this story supersede that snapshot.
+The owner-approved current MVP uses a targeted, awaited request-scoped API, replacing
+the prior separate-worker deployment prerequisite. Task185–187 direct API, Admin
+progress/retry UI and offline test closure are implemented locally on
+feat/us19-direct-index-api-progress, baseline 23a399ed47eeca804b6aa44675ed71d2930292cc.
+US19 remains IN_PROGRESS: live Blob/provider runtime and authenticated owner acceptance
+are pending. Nothing is deployed, committed or pushed in this run.
+
+Dated entries below are retained as historical handoff evidence. Current closure
+at the end and the owner-approved decision in docs/decisions.md supersede older
+statements about Docker availability, unapplied migrations or durable hosting.
 
 ## Sources and prerequisites
 
@@ -503,3 +503,147 @@ IN_PROGRESS and owner review is required.
 - `maxDuration=300` is an upper request setting, not a service guarantee. Deployments with lower configured limits, network interruptions and client disconnects can leave a job QUEUED/RUNNING/UNKNOWN. A request-scoped server function is **not durable**; idle/expired jobs do not progress until an explicit subsequent invocation or a future worker. UI must not treat timeout as confirmed failure or automatically reissue uncertain paid work.
 - No automatic indexing at upload/approval; no public retrieval change, migration apply, Blob live operation, OpenAI live call, or Production write was made by this design change. Migration `20261010120000_add_rag_index_jobs` remains a prerequisite for any runtime test. The separate migration authorization and Dev environment gates remain unchanged.
 - This feature branch has not been validated through local typecheck/build/integration/browser since GitHub file writes do not provide a runnable checkout here. **Do not merge/deploy** until compile/tests (including real disposable PostgreSQL concurrency), packaging and bounded direct-call smoke pass. The initial implementation does not provide a safe explicit in-UI retry of an UNKNOWN job; handle those manually after reconciliation.
+
+## 2026-10-10 — Task185–187 direct API closure, owner review pending
+
+Owner-authorized baseline: feature branch feat/us19-direct-index-api-progress at
+23a399ed47eeca804b6aa44675ed71d2930292cc. Changes are in the isolated Codex worktree;
+pre-existing TXH worker-preparation changes are preserved. No commit/push/merge.
+
+The current MVP supersedes the historical separate-worker prerequisite: awaited,
+targeted request-scoped Node API, durable job ledger, no background deployment.
+Thin POST/GET handlers delegate to the server-only request service. INDEX admission,
+explicit QUEUED/expired RESUME and known-failure RETRY use persisted Admin guards,
+document locking and shared idempotency. Same-key replay does not invoke processing;
+UNKNOWN processing is never automatically retried. Invalid cross-document recovery
+and provider uncertainty are rejected safely. Publication core is reused unchanged.
+
+Task186 panel uses serial 2s polling (5s read-error / 15s terminal backoff), stale
+identity and abort guards, synchronous double-submit guard, preserved same-key
+uncertain mutation reconciliation and new-key known retry. Counts are persisted;
+embedding percentage is not total completion. Stage completion is conservative.
+COMPLETED refreshes the document from the server. Existing Admin tokens, shared
+Button, accessible labels, reduced-motion and mobile wrap are preserved.
+
+Validation: root npm test PASS, 303 Vitest tests passed and 15 opt-in PostgreSQL
+cases skipped only in the ordinary run; all legacy suites passed. Separately the
+explicit disposable PostgreSQL runner passed 15/15 with zero skipped assertions:
+14 Task185 and one Task184 concurrency regression, PostgreSQL16.15/pgvector0.8.6.
+Two successful runs include the new HTTP-service recovery regression (final run
+includes shared INDEX/RESUME/RETRY operation scope). Cleanup removed the owned
+container and its database volume. Tests cover real locks/fencing, cancellation,
+UNKNOWN, rollback, atomic finalization, old-publication preservation, targeted
+recovery, committed replay, payload conflict and known retry. Added fake-provider
+worker tests cover valid DOCX, missing Blob, hash mismatch, token budget, provider
+rejection, invalid dimensions, uncertain vector save and verification failure.
+
+Browser component harness passes admission/double-submit, progress/counts, UNKNOWN,
+retry keys, reconciliation, queued resume, completed callback, read errors, serial
+polling, unmount, keyboard and 1440/360 light/dark checks. Screenshots are ignored
+under apps/web/.cache/rag-index-ui. This is not authenticated full-app/live E2E.
+Env generation, Prisma validate/generate, typecheck and production build pass.
+The isolation assertion now distinguishes UI rag-index-panel names from real
+src/modules/rag-index backend imports; provider/parser/tokenizer/fixtures remain
+forbidden in client graphs. No dependency or historical migration changes.
+
+Read-only Neon Development recheck: verified configured owner-confirmed endpoint,
+neondb/public, 11 completed migrations, zero failed/pending; all checksums match
+raw or historical LF normalization; pgvector0.8.6 and PostGIS3.6.4. No shared writes.
+PrismaNeon raw PostgreSQL name values require ::text casts for this read-only query.
+No migration apply, live OpenAI or live Blob operation in this run.
+
+Task185/186/187 implementation and offline validation are complete for owner review;
+NOT ACCEPTED/DONE. Owner live acceptance must verify persisted Admin/denied roles,
+registered small PDF/DOCX/TXT private Blob, real bounded embeddings, runtime PDF.js
+packaging, actual function duration configuration, disconnect/resume/retry and
+refresh/reload. Larger files may exceed request duration. UNKNOWN requires manual
+reconciliation; no automatic charge-producing override exists. US19 IN_PROGRESS.
+
+Production packaging correction: the final index-route trace initially omitted
+PDF.js's dynamically loaded pdf.worker.mjs. Added route-scoped
+outputFileTracingIncludes in next.config.ts while preserving the external parser,
+images/typedRoutes/reactCompiler/varlock settings. The final build trace must
+contain both legacy pdf.mjs and pdf.worker.mjs. This packages assets; live Vercel
+PDF runtime acceptance remains pending.
+
+Strict UI skill audit:22 existing findings outside touched RAG UI (4 unresolved
+ownership,18 violations); no repository-wide UI audit PASS claimed.
+
+Final production build PASS (26/26 static pages): inspected the actual index-route
+.nft.json and confirmed both pdf.mjs and pdf.worker.mjs. Client static asset scan
+found no worker/provider/tokenizer/fixture markers. Final changed scope is16 paths:
+12 modified,4 added. Existing migration and dependency files are unchanged.
+
+Scope inventory (repository-relative):
+- apps/web/next.config.ts: narrow PDF worker tracing.
+- apps/web/src/app/admin/rag/rag-index-panel.tsx: safe progress/action lifecycle.
+- apps/web/src/app/admin/rag/rag-index-panel.css: responsive/accessibility presentation.
+- apps/web/src/app/admin/rag/rag-review-ui.tsx: completed document refresh.
+- apps/web/src/app/api/admin/rag-documents/[id]/index/route.ts: thin no-store HTTP boundary.
+- apps/web/src/modules/rag-index/rag-index-request-service.ts (added): targeted request orchestration.
+- apps/web/src/modules/rag-index/rag-index-route.vitest.test.ts (added): HTTP regression.
+- apps/web/src/modules/rag-index/rag-index-job-service.vitest.test.ts: request lifecycle regression.
+- apps/web/src/modules/rag-index/rag-index-job-store.postgres.integration.vitest.test.ts: real recovery/replay regression.
+- apps/web/src/modules/rag-index/rag-index-worker.vitest.test.ts: deterministic pipeline failures.
+- apps/web/src/modules/rag-processing/isolation.vitest.test.ts: actual backend graph boundary.
+- apps/web/scripts/test-rag-index-ui.mjs (added): browser component regression/screenshots.
+- DESIGN.md (added): existing Admin canonical design and indexing UX contract.
+- docs/decisions.md: owner-approved direct-request MVP decision.
+- docs/stories/US-19-rag-indexing.md: current status, evidence and scope inventory.
+- docs/ai-progress.md: verified closure and pending live gates.
+
+Final PrismaNeon read-only RepeatableRead snapshot PASS on verified Development:
+neondb, RagIndexJob count0, RagDocument count0. Transaction explicitly READ ONLY;
+no synthetic records, provider calls or Blob operations.
+
+## 2026-10-10 — Final publication gate diagnosis
+
+Baseline remains23a399ed47eeca804b6aa44675ed71d2930292cc on the owner-selected
+feature branch. One additional scoped test-runner modification brings the scope
+to17 paths (13 modified,4 added). No application feature/persistence change in this
+closure. Root DESIGN.md is retained as scoped Admin RAG design/UX documentation;
+it is not a runtime dependency and does not override other screens' styling.
+
+Gate A: Node22.19.0/npm11.16.0/Vitest5.0.3/Prisma+PrismaPg7.10.0. The old nested
+npm.cmd/cmd.exe invocation reported native exit3221225477 after all15 assertions
+passed; the outer runner correctly failed and still cleaned its disposable DB.
+Both Prisma suites await disconnect in afterAll. No relevant node crash entry was
+available in the queried Windows Application event log, so the precise native
+faulting module is not established. Direct Node invocation of the same Vitest
+CLI/config/test files with unchanged threads pool passed twice diagnostically;
+a forks comparison also passed, so no pool or assertion was removed.
+
+The runner now invokes Vitest using process.execPath with shell:false, bypassing
+the nested Windows lifecycle. It logs each child PID/exitCode/signal without
+arguments, connection strings or secrets, and still propagates nonzero exits and
+requires a complete non-skipped JSON assertion report. Final regular
+npm run test:rag-index:postgres --workspace web passed twice consecutively:
+15/15,0 skipped,node/Vitest exit0,outer command exit0,owned container and one
+volume removed each time. Initial pg_isready exit1/2 during container startup is
+expected and precedes readiness exit0; it is not a passing assertion substitute.
+This resolves the observed launch-path failure; no claim is made about a proved
+native-library fault or universal absence of future native runtime errors.
+
+Gate B: initial expired Vercel access credential (2026-10-01) caused403 Not authorized
+on user/teams/project queries. Running cached Vercel CLI62.2.0 whoami refreshed it
+through the normal CLI flow and returned txhoai2309. Subsequent read-only API calls
+returned200 for identity,team,project and env metadata. Project kltn is
+prj_tyylPlLvhAvbkdyXHPPQCLgkZvlO in team_lFpdLI4GaW49ylVsGPbT0qUX
+(to-xuan-hoai-s-projects). Services framework uses web/Next.js; Node24.x,
+Fluid Compute=true,default timeout300s,Hobby,default regioniad1. Repository service
+build/install settings remain unchanged. Route source maxDuration300 and240s
+cooperative abort remain. The unpublished changes have no deployed runtime proof.
+
+Only DATABASE_URL and BETTER_AUTH_SECRET are assigned to Preview. No gitBranch or
+custom-environment override is present and no shared project env exists. Preview
+OPENAI_API_KEY and BLOB_READ_WRITE_TOKEN are absent. DATABASE_URL is sensitive;
+both list/decrypt and single-env read APIs omit its value. Therefore Preview DB
+target is UNVERIFIED, not Development PASS from key presence. No connection was
+attempted using an uncertain Preview value; no Production DB access or shared writes.
+
+Publication remains BLOCKED until owner sets/verifies Preview DATABASE_URL from
+Neon development/br-aged-hat-b3o6hg9p,endpointep-purple-pond-b3xujb8o,neondb,TLS;
+configures Preview-only private Blob/OpenAI credentials; and approves publication.
+Do not disclose secret values when confirming these actions. Live provider/Blob,
+authenticated Preview E2E and effective deployed function packaging remain pending.
+US19 IN_PROGRESS. No commit,push,merge,deploy,migration apply or Neon writes.

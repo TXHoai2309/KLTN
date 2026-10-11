@@ -27,6 +27,7 @@ function run(command, args, options = {}) {
     windowsHide: true,
     shell: false,
   });
+  console.log(JSON.stringify({ subprocess: command, pid: result.pid, exitCode: result.status, signal: result.signal }));
   if (result.error) throw new Error(`${command} could not run: ${result.error.code ?? "unknown"}`);
   return result;
 }
@@ -182,10 +183,15 @@ async function main() {
 
   await installTask184Schema();
 
-  const npm = process.platform === "win32" ? "npm.cmd" : "npm";
   reportDirectory = await mkdtemp(resolve(tmpdir(), "kltn-postgres-report-"));
   const reportPath = resolve(reportDirectory, "results.json");
-  const test = spawnSync(npm, ["run", "test:rag-index:postgres:vitest", "--", "--reporter=default", "--reporter=json", `--outputFile=${reportPath}`], {
+  // Avoid the nested npm.cmd/cmd.exe lifecycle on Windows. Run the same Vitest
+  // CLI/config/suites with the current Node executable and preserve its status.
+  const test = spawnSync(process.execPath, [resolve(repoRoot, "node_modules/vitest/vitest.mjs"),
+    "run", "--config", "vitest.config.mts",
+    "src/modules/rag-index/rag-index-store.postgres.integration.vitest.test.ts",
+    "src/modules/rag-index/rag-index-job-store.postgres.integration.vitest.test.ts",
+    "--reporter=default", "--reporter=json", `--outputFile=${reportPath}`], {
     cwd: webRoot,
     env: {
       ...process.env,
@@ -195,8 +201,9 @@ async function main() {
     },
     stdio: "inherit",
     windowsHide: true,
-    shell: process.platform === "win32",
+    shell: false,
   });
+  console.log(JSON.stringify({ subprocess: "node/vitest", pid: test.pid, exitCode: test.status, signal: test.signal }));
   if (test.error) throw new Error(`Vitest could not run: ${test.error.code ?? "unknown"}`);
   if (test.status !== 0) process.exitCode = test.status ?? 1;
   const report = JSON.parse(await readFile(reportPath, "utf8"));

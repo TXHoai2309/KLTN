@@ -14,7 +14,7 @@ describe("RAG processing import boundaries", () => {
     expect(entries.length).toBeGreaterThan(0);
     const result = await build({ entryPoints: entries, absWorkingDir: web, bundle: true, write: false, metafile: true, outdir: "unused-isolation-output", platform: "browser", packages: "external", define: { "process.env.NODE_ENV": '"production"' }, loader: { ".css": "empty", ".svg": "dataurl" }, alias: { "@": resolve(web, "src") } });
     const inputs = Object.keys(result.metafile!.inputs).join("\n");
-    expect(inputs).not.toMatch(/rag-processing|rag-index|openai-embedding-provider|js-tiktoken|pdfjs-dist|fast-xml-parser|synthetic-documents/);
+    expect(inputs).not.toMatch(/rag-processing|src\/modules\/rag-index\/|openai-embedding-provider|js-tiktoken|pdfjs-dist|fast-xml-parser|synthetic-documents/);
     expect(result.outputFiles.every(file => !/pdfjs-4\.10\.38-lines-v1|DOCX_ZIP_CHECKSUM_INVALID/.test(file.text))).toBe(true);
   });
   it("processing has no storage/database/provider/UI dependency", async () => {

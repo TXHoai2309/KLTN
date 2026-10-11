@@ -8,6 +8,7 @@ import { syntheticPdf } from "../rag-processing/__fixtures__/synthetic-documents
 import { createRagIndexJobStore } from "./rag-index-job-store";
 import { createRagIndexStore } from "./rag-index-store";
 import { createRagIndexWorker } from "./rag-index-worker";
+import { processIndexRequest, readIndexProgress } from "./rag-index-request-service";
 import { enqueueRagIndexJob, type RagIndexJobServiceDependencies } from "./rag-index-job-service";
 import { EMBEDDING_PROVENANCE } from "../rag-processing/embedding-contract";
 
@@ -402,4 +403,32 @@ integrationDescribe("US-19 Task185 durable job persistence (isolated PostgreSQL 
     expect(await prisma.ragChunkEmbedding.count({ where: { chunk: { generationId: generation.id } } })).toBe(generation.expectedChunkCount);
     expect(fake.calls).toHaveLength(1);
   }, 60_000);
+  it("request recovery is document scoped, idempotent, and blocks UNKNOWN provider repetition",async()=>{
+    const doc="task187-recovery-"+randomUUID(); const other="task187-other-"+randomUUID();
+    await createDocument(doc);await createDocument(other);
+    const actor="task187-admin-"+randomUUID();actorIds.push(actor);
+    await prisma.user.create({data:{id:actor,name:"Synthetic",email:actor+"@example.invalid",role:"ADMIN",updatedAt:new Date()}});
+    const deps={database:prisma as unknown as Database,resolveSession:async()=>({user:{id:actor}})};
+    const run=vi.fn(async (_db, options)=>{const claimed=await jobs.claimNext(undefined,options?.jobId);return claimed?{status:"UNKNOWN" as const,jobId:claimed.id}:{status:"IDLE" as const};});
+    const admitted=await processIndexRequest(new Headers(),doc,"lost-key",{action:"INDEX"},deps,{signal:AbortSignal.abort(),run});
+    expect(admitted.status).toBe("SUCCESS");if(admitted.status!=="SUCCESS")throw Error("admission");
+    const otherJob="task187-otherjob-"+randomUUID();await createJob(otherJob,other);
+    await expect(processIndexRequest(new Headers(),doc,"resume-key",{action:"RESUME",jobId:admitted.data.jobId},deps,{run})).resolves.toMatchObject({status:"SUCCESS"});
+    expect(run).toHaveBeenCalledTimes(1);
+    await expect(prisma.ragIndexJob.findUniqueOrThrow({where:{id:otherJob}})).resolves.toMatchObject({status:"QUEUED",attemptCount:0});
+    await expect(processIndexRequest(new Headers(),doc,"resume-key",{action:"RESUME",jobId:admitted.data.jobId},deps,{run})).resolves.toMatchObject({status:"SUCCESS",replayed:true});
+    expect(run).toHaveBeenCalledTimes(1);
+    await expect(processIndexRequest(new Headers(),doc,"resume-key",{action:"RETRY",jobId:admitted.data.jobId},deps,{run})).resolves.toMatchObject({status:"FAILED",error:{code:"IDEMPOTENCY_KEY_REUSED"}});
+    await prisma.ragIndexJob.update({where:{id:admitted.data.jobId},data:{status:"UNKNOWN",leaseToken:null,leaseExpiresAt:null}});
+    await expect(processIndexRequest(new Headers(),doc,"retry-unknown",{action:"RETRY",jobId:admitted.data.jobId},deps,{run})).resolves.toMatchObject({status:"FAILED",error:{code:"RAG_INDEX_JOB_NOT_RETRYABLE"}});
+    await expect(processIndexRequest(new Headers(),doc,"foreign",{action:"RESUME",jobId:otherJob},deps,{run})).resolves.toMatchObject({status:"FAILED",error:{code:"RAG_INDEX_JOB_NOT_FOUND"}});
+    expect(run).toHaveBeenCalledTimes(1);
+    const progress=await readIndexProgress(new Headers(),doc,deps);
+    expect(progress.job).toMatchObject({jobId:admitted.data.jobId,status:"UNKNOWN",chunksPersisted:0,embeddingsPersisted:0,totalChunks:null});
+    expect(JSON.stringify(progress)).not.toMatch(/storagePath|leaseToken|requestedById|generationId/);
+    await prisma.ragIndexJob.update({where:{id:admitted.data.jobId},data:{status:"FAILED"}});
+    await expect(processIndexRequest(new Headers(),doc,"retry-known",{action:"RETRY",jobId:admitted.data.jobId},deps,{run})).resolves.toMatchObject({status:"SUCCESS"});
+    expect(run).toHaveBeenCalledTimes(2);
+  });
+
 });

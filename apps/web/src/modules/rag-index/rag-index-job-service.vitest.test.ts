@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { parseIndexAction, processIndexRequest } from "./rag-index-request-service";
 import { enqueueRagIndexJob, type RagIndexJobServiceDependencies } from "./rag-index-job-service";
 
 vi.mock("server-only", () => ({}));
@@ -67,5 +68,36 @@ describe("US-19 Task185 job admission boundary", () => {
     const result = await enqueueRagIndexJob(new Headers(), "doc-1", "request-key", adminDeps as unknown as RagIndexJobServiceDependencies);
     expect(result).toMatchObject({ status: "FAILED", error: { code: "RAG_DOCUMENT_NOT_ELIGIBLE" } });
     expect(uploaded.createdJobs).toHaveLength(0);
+  });
+});
+
+
+describe("request-scoped execution boundary", () => {
+  it("executes only newly admitted job and replay never calls provider runner", async () => {
+    const fake=fakeDatabase("ADMIN"); const run=vi.fn(async()=>({status:"IDLE" as const}));
+    const deps={database:fake.database,resolveSession:async()=>({user:{id:"admin-1"}})} as RagIndexJobServiceDependencies;
+    await processIndexRequest(new Headers(),"doc-1","key",{action:"INDEX"},deps,{run});
+    expect(run).toHaveBeenCalledWith(fake.database,{jobId:"job-1",signal:expect.any(AbortSignal)});
+    await processIndexRequest(new Headers(),"doc-1","key",{action:"INDEX"},deps,{run});
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+  it("lost request after enqueue remains resumable without an external call", async () => {
+    const fake=fakeDatabase("ADMIN");const run=vi.fn();const signal=AbortSignal.abort();
+    const deps={database:fake.database,resolveSession:async()=>({user:{id:"admin-1"}})} as RagIndexJobServiceDependencies;
+    expect(await processIndexRequest(new Headers(),"doc-1","key",{action:"INDEX"},deps,{run,signal})).toMatchObject({status:"SUCCESS"});
+    expect(fake.createdJobs[0].status).toBe("QUEUED");expect(run).not.toHaveBeenCalled();
+  });
+  it("aborts request budget and returns UNKNOWN on infrastructure uncertainty", async () => {
+    const fake=fakeDatabase("ADMIN");
+    const deps={database:fake.database,resolveSession:async()=>({user:{id:"admin-1"}})} as RagIndexJobServiceDependencies;
+    const run=vi.fn(async (_db,options)=>{await new Promise(resolve=>options!.signal!.addEventListener("abort",resolve,{once:true}));throw new Error("synthetic");});
+    expect(await processIndexRequest(new Headers(),"doc-1","key",{action:"INDEX"},deps,{run,budgetMs:5})).toMatchObject({status:"UNKNOWN"});
+  });
+  it.each([null,[],{action:"UNKNOWN"},{action:"RESUME",jobId:"../bad"},{action:"INDEX",storagePath:"private"}])("rejects client-controlled or malformed action %j",body=>{
+    expect(()=>parseIndexAction(body)).toThrow();
+  });
+  it("accepts bounded explicit actions",()=>{
+    expect(parseIndexAction({})).toEqual({action:"INDEX"});
+    expect(parseIndexAction({action:"RESUME",jobId:"job-1"})).toEqual({action:"RESUME",jobId:"job-1"});
   });
 });
