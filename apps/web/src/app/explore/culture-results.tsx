@@ -19,8 +19,7 @@ export default function CultureResults({ data, error }: { data?: PublicCulturePa
   return (
     <section aria-labelledby="explore-culture-title" className="explore-domain explore-culture">
       <header className="explore-section-heading">
-        <div><span className="explore-eyebrow">NỘI DUNG VĂN HÓA</span><h2 id="explore-culture-title">Những câu chuyện vùng cao</h2>
-          <p>Tư liệu và câu chuyện về con người, phong tục, nghề truyền thống Hà Giang.</p></div>
+        <div><h2 id="explore-culture-title">Câu chuyện văn hóa</h2></div>
         {data && <p className="explore-result-count"><strong>{data.items.length}</strong> nội dung <span>·</span> trang {data.page}</p>}
       </header>
 
@@ -31,7 +30,7 @@ export default function CultureResults({ data, error }: { data?: PublicCulturePa
         {data.items.length === 0 ? <div className="explore-state explore-empty" role="status">
           <span className="explore-empty-icon explore-book-icon"><BookOpen aria-hidden="true" size={22} /></span>
           <h3>Chưa có nội dung văn hóa công khai</h3><p>Các câu chuyện văn hóa sẽ xuất hiện tại đây khi được công khai.</p>
-        </div> : <ul className={`explore-cards explore-culture-cards${data.items.length === 1 ? " explore-cards-single" : ""}`}>
+        </div> : <ul className="explore-cards explore-culture-cards">
           {data.items.map((item, index) => <li className="explore-culture-card" key={item.id} style={{ "--card-index": index } as React.CSSProperties}>
             <div className="explore-culture-art" aria-hidden="true"><BookOpen size={25} strokeWidth={1.6} /><span>TƯ LIỆU VĂN HÓA</span><i /><i /><i /></div>
             <div className="explore-culture-card-body"><h3>{item.title}</h3><p className="explore-culture-excerpt">{item.excerpt}</p>

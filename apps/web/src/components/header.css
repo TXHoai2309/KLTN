@@ -11,12 +11,12 @@
 
 .site-header-inner {
   display: grid;
-  width: min(1280px, 100%);
-  min-height: 68px;
+  width: min(1280px, calc(100% - 2 * clamp(16px, 3vw, 40px)));
+  min-height: 76px;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: clamp(20px, 4vw, 56px);
-  padding: 0 clamp(16px, 3vw, 36px);
+  padding: 0;
   margin: 0 auto;
 }
 
@@ -88,7 +88,7 @@
 .site-header button:focus-visible { outline: 3px solid color-mix(in srgb, #287c61 45%, transparent); outline-offset: 3px; }
 
 @media (max-width: 760px) {
-  .site-header-inner { display: flex; min-height: 0; flex-wrap: wrap; justify-content: space-between; gap: 0 12px; padding: 8px 14px 0; }
+  .site-header-inner { display: flex; width: 100%; min-height: 0; flex-wrap: wrap; justify-content: space-between; gap: 0 12px; padding: 8px 14px 0; }
   .site-brand { min-height: 44px; }
   .site-header-actions { margin-left: auto; }
   .site-nav { order: 3; width: 100%; gap: 3px; padding: 4px 0 0; }
