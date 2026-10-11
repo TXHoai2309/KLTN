@@ -1,0 +1,13 @@
+body { margin: 0; font-family: Arial, sans-serif; }
+[data-demo] .assistant-transcript { height: clamp(160px, calc(100dvh - 590px), 360px); }
+.demo-controls { background: #fcf5e6; color: #513916; border-bottom: 1px solid #f1e8d5; }
+.demo-controls-inner { box-sizing: border-box; max-width: 1320px; padding: 12px 44px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; font-size: 13px; }
+.demo-controls strong { font-size: 14px; padding-right: 20px; border-right: 1px solid #d9cbae; }
+.demo-controls label { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.demo-controls select, .demo-controls button { box-sizing: border-box; font: inherit; max-width: 100%; padding: 10px 12px; min-height: 44px; border: 1px solid #d6d6c7; border-radius: 6px; background: #fffefa; color: inherit; }
+.demo-controls button { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; }
+.demo-controls button svg { width: 17px; height: 17px; }
+.demo-controls :is(button, select):focus-visible { outline: 3px solid #7fa98a; outline-offset: 3px; }
+.dark .demo-controls { background: #2c291f; color: #f0dbb7; border-color: #514936; }
+.dark .demo-controls :is(button, select) { background: #353325; border-color: #736549; }
+@media (max-width: 600px) { [data-demo] .assistant-transcript { height: clamp(150px, 34dvh, 290px); } .demo-controls-inner { padding: 12px 14px; gap: 10px 14px; } .demo-controls strong { width: 100%; border-right: 0; padding: 0; font-size: 12px; } .demo-controls label { font-size: 12px; gap: 6px; } .demo-controls select { padding: 8px; } }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { ArrowLeft, FileText, UploadCloud, ShieldCheck, AlertTriangle, LoaderCircle } from "lucide-react";
 import { Button } from "@KLTN/ui/components/button";
@@ -33,6 +33,10 @@ export default function RagUploadForm() {
   const [result, setResult] = useState<Result | null>(null);
   const pending = useRef<{ body: FinalizeBody; key: string } | null>(null);
 
+  const flight = useRef(false);
+  const generation = useRef(0);
+  useEffect(() => () => { generation.current++; }, []);
+
   const busy = status === "uploading";
   const locked = busy || status === "unknown";
   const update = (field: keyof Metadata, value: string) => {
@@ -40,11 +44,12 @@ export default function RagUploadForm() {
     if (status === "invalid" || status === "failed") { setStatus("idle"); setMessage(""); }
   };
 
-  async function finalize(body: FinalizeBody, key: string) {
+  async function finalize(body: FinalizeBody, key: string, requestGeneration: number) {
     const outcome = await sendIdempotentMutation<Result>("/api/admin/rag-documents", {
       idempotencyKey: key,
       init: { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
     });
+    if (generation.current !== requestGeneration) return;
     if (outcome.status === "SUCCESS") {
       pending.current = null; setResult(outcome.data); setStatus("success");
       setMessage("Tài liệu đã được tải lên. Trạng thái UPLOADED, chưa tham gia RAG.");
@@ -57,47 +62,56 @@ export default function RagUploadForm() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (status === "unknown" && pending.current) {
-      setStatus("uploading"); await finalize(pending.current.body, pending.current.key); return;
-    }
-    const validation = validateSelection(file);
-    if (validation || !metadata.sourceTitle.trim()) {
-      setStatus("invalid"); setMessage(validation || "Hãy nhập tên nguồn tài liệu."); return;
-    }
-    if (metadata.sourceUrl.trim()) {
-      try { const url = new URL(metadata.sourceUrl.trim()); if (!["http:", "https:"].includes(url.protocol)) throw new Error(); }
-      catch { setStatus("invalid"); setMessage("URL nguồn phải bắt đầu bằng http:// hoặc https://."); return; }
-    }
-    const selected = file!;
-    const mimeType = mimeByExtension[selected.name.split(".").pop()!.toLowerCase()];
-    setStatus("uploading"); setMessage("Đang tải tệp lên kho riêng tư…"); setResult(null);
+    if (flight.current) return;
+    flight.current = true;
+    const requestGeneration = generation.current;
     try {
-      const ticketResponse = await fetch("/api/admin/rag-documents/upload-url", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fileName: selected.name, mimeType, sizeBytes: selected.size }),
-      });
-      const ticket = await ticketResponse.json();
-      if (!ticketResponse.ok || ticket.success !== true) throw new Error(ticket.error?.message || "Không thể chuẩn bị tải tệp.");
-      const body: FinalizeBody = {
-        pathname: ticket.data.pathname, originalFileName: selected.name, mimeType, sizeBytes: selected.size,
-        sourceTitle: metadata.sourceTitle.trim(), sourceUrl: metadata.sourceUrl.trim(),
-        author: metadata.author.trim(), topic: metadata.topic.trim(), locality: metadata.locality.trim(),
-      };
-      const key = createIdempotencyKey();
-      pending.current = { body, key };
-      let put: Response;
-      try { put = await fetch(ticket.data.uploadUrl, { method: "PUT", headers: { "Content-Type": mimeType }, body: selected }); }
-      catch {
-        setStatus("unknown");
-        setMessage("Chưa xác định tệp đã tới kho riêng tư hay chưa. Thử xác nhận lại với cùng yêu cầu.");
-        return;
+      if (status === "unknown" && pending.current) {
+        setStatus("uploading"); await finalize(pending.current.body, pending.current.key, requestGeneration); return;
       }
-      if (!put.ok) { pending.current = null; throw new Error("Không thể tải tệp lên kho riêng tư. Hãy thử lại."); }
-      setMessage("Đang kiểm tra tệp và xác nhận bản ghi…");
-      await finalize(body, key);
-    } catch (error) {
-      setStatus("failed"); setMessage(error instanceof Error ? error.message : "Không thể tải tệp. Hãy thử lại.");
-    }
+      const validation = validateSelection(file);
+      if (validation || !metadata.sourceTitle.trim()) {
+        setStatus("invalid"); setMessage(validation || "Hãy nhập tên nguồn tài liệu."); return;
+      }
+      if (metadata.sourceUrl.trim()) {
+        try { const url = new URL(metadata.sourceUrl.trim()); if (!["http:", "https:"].includes(url.protocol)) throw new Error(); }
+        catch { setStatus("invalid"); setMessage("URL nguồn phải bắt đầu bằng http:// hoặc https://."); return; }
+      }
+      const selected = file!;
+      const mimeType = mimeByExtension[selected.name.split(".").pop()!.toLowerCase()];
+      setStatus("uploading"); setMessage("Đang tải tệp lên kho riêng tư…"); setResult(null);
+      try {
+        const ticketResponse = await fetch("/api/admin/rag-documents/upload-url", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fileName: selected.name, mimeType, sizeBytes: selected.size }),
+        });
+        const ticket = await ticketResponse.json();
+        if (generation.current !== requestGeneration) return;
+        if (!ticketResponse.ok || ticket.success !== true) throw new Error(ticket.error?.message || "Không thể chuẩn bị tải tệp.");
+        const body: FinalizeBody = {
+          pathname: ticket.data.pathname, originalFileName: selected.name, mimeType, sizeBytes: selected.size,
+          sourceTitle: metadata.sourceTitle.trim(), sourceUrl: metadata.sourceUrl.trim(),
+          author: metadata.author.trim(), topic: metadata.topic.trim(), locality: metadata.locality.trim(),
+        };
+        const key = createIdempotencyKey();
+        pending.current = { body, key };
+        let put: Response;
+        try { put = await fetch(ticket.data.uploadUrl, { method: "PUT", headers: { "Content-Type": mimeType }, body: selected }); }
+        catch {
+          if (generation.current !== requestGeneration) return;
+          setStatus("unknown");
+          setMessage("Chưa xác định tệp đã tới kho riêng tư hay chưa. Thử xác nhận lại với cùng yêu cầu.");
+          return;
+        }
+        if (generation.current !== requestGeneration) return;
+        if (!put.ok) { pending.current = null; throw new Error("Không thể tải tệp lên kho riêng tư. Hãy thử lại."); }
+        setMessage("Đang kiểm tra tệp và xác nhận bản ghi…");
+        await finalize(body, key, requestGeneration);
+      } catch (error) {
+        if (generation.current !== requestGeneration) return;
+        setStatus("failed"); setMessage(error instanceof Error ? error.message : "Không thể tải tệp. Hãy thử lại.");
+      }
+    } finally { flight.current = false; }
   }
 
   const fields: { key: keyof Metadata; label: string; placeholder: string; maxLength: number }[] = [

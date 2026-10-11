@@ -2,15 +2,6 @@
 
 Append a new entry for each meaningful work session. Keep prior entries as handoff history; correct them only when documenting why a previous statement was wrong. Do not include secrets, connection strings, or credentials.
 
-## 2026-10-08 — US-18 review and approval (Task 2)
-
-- **Branch:** `ThaiAnh`; preserved existing uncommitted US-16/US-17 changes. No commit or push.
-- **Story:** Added `docs/stories/US-18-rag-review-approval.md` from MH-16/MH-18, YCCN-88/91/92, QTN-97/98 and NT-170–173. Status: implemented in code; live acceptance pending.
-- **Backend:** Admin-only list/detail services and thin read routes; private original endpoint reused. One server transition function accepts `START_REVIEW` or `APPROVE`, uses status-conditional DB update and shared idempotent write. Approval checks private Blob accessibility before transaction. JSON excludes storage path; UPLOADED/REVIEWING/APPROVED remain ineligible for retrieval.
-- **Frontend:** Admin list and detail pages with current Admin tokens, loading/empty/error states, responsive layout, light/dark styles and success-only status updates; upload success links to detail and Admin menu links to list.
-- **Verification:** `npm run test:rag --workspace=web` 26/26 PASS; root `npm run test`, `npm run check-types`, `npm run build`, `git diff --check` PASS. The initial TDD run failed as expected on missing helper. Build registered all new pages/routes.
-- **NOT PROVEN/BLOCKED:** US-17 migration was not applied here; private Blob token/live Admin session unavailable, so live database, file HEAD/download and visual 360px/light/dark checks are not proven. Exact Figma MH-16/MH-18 frames unavailable: **BLOCKED: FIGMA**. No US-19 indexing or US-20 disable work was started.
-
 ## 2026-10-02 — EN-01 foundation handoff
 
 - **Branch:** `TXH` observed at documentation baseline creation. Team roles are `TXH` feature work → `dev` integration/testing → `master` production/stable; branch promotion is manual.
@@ -591,12 +582,257 @@ Append a new entry for each meaningful work session. Keep prior entries as hando
 - **Evidence limits:** EN-02-dependent search/filter performance, RAG/Trip acceptance on a real dataset, and the still-unchecked browser/manual/accessibility/other-browser cases are not marked PASS. Historical blockers and results remain chronological and are superseded only where a later entry records successful validation.
 - **ADR-14:** Remains Proposed — awaiting explicit product/technical owner approval. Vitest is present in the merged repository; implementation does not itself constitute approval of the ADR.
 
+## 2026-10-08 — US-21 Task 191 RAG multi-turn contract
+
+- **Owner/scope:** Tô Xuân Hoài; branch `TXH`, baseline HEAD `94d685bb1dc0daccfb9d4a08041dbff5da023c96`, initially clean worktree. Design rounds 1–3 and owner product decisions authorize contract, deterministic tests and documentation only. Task 191 is implemented for owner review; US-21 remains IN PROGRESS.
+- **Contract:** Added pure `apps/web/src/modules/ai/qa-contract.ts` with strict first/follow-up requests, NFC/trim and JavaScript UTF-16 question bounds, GENERAL-only context, scalar Idempotency-Key validation and a 16 KiB HTTP-boundary requirement. Follow-up IDs are references; omitted context inherits the server-owned context, while explicit changes require a new conversation at runtime.
+- **Response/citations:** Four COMPLETED content outcomes, shared-compatible SUCCESS/FAILED/UNKNOWN envelopes, constant server-controlled insufficient-source message, bounded clarification syntax, public metadata-only citations and deterministic duplicate/dangling/unreferenced citation checks. HTTP 202/admission success is excluded from the active response contract. URL syntax does not establish public access; Zod does not prove source authenticity or semantic grounding.
+- **Future runtime invariants:** Server-managed PostgreSQL/Neon history interprets questions but is never factual evidence; every factual turn must use currently eligible INDEXED evidence, excluding DISABLED records. Ownership applies each turn; Guest identity is server-established, login does not migrate Guest history and logout isolates user history. Guest/user retention is 7/30 days, with rolling last-authorized-activity expiry explicitly an assumption; failed turns expire within 24 hours. Delete/cleanup must remove related records and cached idempotency content and prevent in-flight resurrection.
+- **Tests:** Added `apps/web/src/modules/ai/qa-contract.vitest.test.ts`, 99 deterministic fixture tests. Focused tests PASS 99/99; root `npm run test` PASS including 117/117 Vitest tests and existing legacy suites; root `npm run check-types` PASS (four Turbo tasks); root `npm run build` PASS (Next compile, TypeScript, 21/21 static pages). Final `git diff --check` and untracked-file whitespace review PASS.
+- **Documentation/backlog:** Added `docs/stories/US-21-rag-qa.md` covering active contracts, trust boundaries, lifecycle/errors/retention and US-17–23 dependencies. Proposed gaps, without invented IDs: conversation/history/delete; anonymous Guest bootstrap/isolation; lifecycle/concurrency/idempotency/recovery; multi-turn authorization/security tests; retention cleanup including cached responses.
+- **Scope/limits:** No API route, conversation persistence, OpenAI/retrieval integration, Neon write, anonymous session, worker, UI, dependency/configuration, shared helper, schema or migration change; no commit/push/merge. Pure tests establish structural/reference invariants only. Owner review is required; stop after Task 191, without starting Task 192.
+
+## 2026-10-08 — US-21 Task 195 shared Assistant frontend
+
+- **Owner/baseline:** Tô Xuân Hoài authorized implementation after two design rounds. Branch TXH, HEAD and origin/TXH `1770a1a12781e06dbc813a15ea004af15ff12226`, clean worktree before. Figma reviewed: desktop 6:169, mobile 111:69, required states 111:208. Owner approved GENERAL, minimal Header wrapping, no bottom navigation and citation integration slot.
+- **Delivered:** `/assistant` page, shared surface-independent controller/transport interface, reusable chat/turn/answer presentation and separate page shell. Production has no transport and displays unavailable with disabled composer; no Q&A request/mock fallback. Header adds Trợ lý AI and retains all existing entries/auth/theme. No popup/global provider.
+- **Semantics:** Unchanged Task 191 schema validates requests/responses. Pending remains unconfirmed; only validated completed outcomes update head/IDs. Four outcomes render distinctly; parts retain citationIds for Task 196; text is escaped. Single-flight and conversation/turn deduplication prevent duplicate UI. UNKNOWN/network/malformed retain exact serialized body/key despite edited draft. Owner-approved abandon confirmation states cancellation/deletion are not implied and recovery may be lost, then invalidates generation; late/other-identity responses are excluded.
+- **Demo:** `node apps/web/scripts/assistant-demo.mjs` from root, open http://127.0.0.1:3002. Separate development entry uses the same core and deterministic fake transport, marked DEMO / DỮ LIỆU MÔ PHỎNG. Existing esbuild bundles in memory; loopback-only server, no dependency/config/package change, no API/DB/provider. Production NODE_ENV is rejected. Restart after source edits.
+- **Isolation:** Production-page esbuild import-graph test excludes development/tests and fixture markers. Real Next production JS/HTML/JSON scan under .next/static and .next/server found no fake transport, demo entry, fixture marker or synthetic source alias. Production route list has /assistant and no demo or Q&A API. Built-page browser smoke confirms disabled unavailable state.
+- **Validation:** Focused 32/32 PASS; root tests PASS (149/149 Vitest plus legacy suites), root typecheck PASS (four tasks), build PASS (22/22 static pages), final tracked/untracked diff whitespace review PASS. Browser demo covers first/follow-up, pending, all outcomes, FAILED, UNKNOWN exact retry with edited draft, malformed retry, confirmation cancel/accept, focus, Shift+Enter, rapid Enter, 2000-unit question and non-forced message scroll. Demo/production at 360/390/768/1440 px have no horizontal overflow; demo light/dark and production Header/active link/disabled controls checked.
+- **Limits/handoff:** Reduced 360x450 viewport keeps focused composer visible, but physical mobile keyboard, native IME, screen-reader audio, long-answer browser fixture, other browsers and complete Sprint 2 visual regression are not verified. Refresh loses in-memory attempts/history. Task 196 citation interactions, real transport/API, Guest bootstrap, conversation/history/recovery/retention, destination/culture popups and US-22/23 runtime remain future work. US-21 stays IN PROGRESS; Task 195 ready for owner review. No Task 191 contract/config/shared helper/dependency/schema/migration/environment change, OpenAI/Neon write, commit/push/merge. Stop after Task 195.
+
+## 2026-10-08 — Task 195 owner review fix 1
+
+- **Baseline/scope:** TXH at reviewed commit `a142de4170533df21668b42a57d258e31ac83f64`, clean before fix. Only controller, chat, focused regression tests and story/progress documentation changed.
+- **Turn reconciliation:** Removed acceptance of an old confirmed turn for a new key, even with identical question text. Check requested parent against current head and returned turnId. Protocol-invalid replay preserves pending uncertainty, original payload/key and confirmed history/head. Same-key retry accepts the previously committed but locally unconfirmed result once; legitimate new turn advances head. Single-flight unchanged.
+- **DOM IDs:** React useId gives each chat instance composer/help/dialog IDs with consistent label/ARIA references and deterministic SSR tree IDs. No UI/CSS/navigation or transport isolation change.
+- **Validation:** Focused PASS 35/35; root regression PASS (152/152 Vitest plus legacy suites); root typecheck PASS (four tasks); build PASS (22/22 static pages). Tests distinguish same-intent retry, new-key old-parent/older-turn replay rejection including retries, legitimate head advance, and multiple-instance SSR unique/local references. Browser hydration not separately exercised for this fix.
+- **Handoff:** No Task 191 contract, API, DB/migrations, provider call or Task 196 work. No commit/push. Wait for owner review.
+
+## 2026-10-08 — Task 195 visual refinement
+
+- **Baseline:** Owner authorized visual refinement against supplied mockup; TXH `904f32dd2e35936cc2256b9163fa0e96c32724f6`, clean before. No product/runtime extension.
+- **Presentation:** Cream/forest-green/sage palette, centered 1320px 70/30 desktop grid, icons, centered empty state, dedicated decorative mountain SVG component, read-only context badge and principles rows. Composer send button beside input; scoped responsive/dark styles. No external fonts/images or dependencies added.
+- **Demo/isolation:** Toolbar presentation uses development-only CSS; removed former inline styles from runner HTML. In-memory bundling/loopback server and production guard unchanged. Actual production build and import graph contain no demo/fake transport/fixtures/toolbar; production unavailable/disabled checked. Controller/qa-contract/demo transport untouched; useId and ARIA references preserved.
+- **Validation:** Focused 36/36 PASS, root tests PASS (153/153 Vitest plus legacy), typecheck four tasks PASS, build 22/22 pages PASS. Cold graph test initially exceeded 5s after icon imports; allowed 15s for that bundling test only, no assertion weakening. Browser demo/production have no horizontal overflow at 1440/360/390/768; 1440x900 composer fully visible. Empty, sending/completed demo, reset, mobile input focus, light/dark checked. Production theme interaction and console checked; no blanket hydration claim.
+- **Artifacts/limits:** Screenshots outside repository in `C:/Users/User/.codex/visualizations/2026/10/07/01a11545-f06e-70a3-af2e-b94559e851dc/task195-refinement/`. Mountain SVG simpler than mockup; no pixel-perfect, physical keyboard, native IME or screen-reader acceptance. No API/DB/schema/env/navigation change, Task 196, commit or push. Wait for owner review.
+
+- **Owner typography feedback:** Replaced system-serif headings and tightened spacing with existing Be Vietnam Pro/Arial sans-serif and normal spacing. Demo browser screenshot confirms Vietnamese title diacritics display together. Conversation history is still unimplemented; no history UI/persistence added in response to the owner's question.
+
+## 2026-10-08 — US-21 Task196 citation presentation
+
+- **Owner/baseline:** Design rounds approved; Task195 visual approved. Phase A verified TXH/remote `904f32dd2e35936cc2256b9163fa0e96c32724f6`, exactly nine visual files, tests/typecheck/build/diff and scope. Local visual-only commit `f2731307fd46b59224ed6bc3978fadbfbcbcf7c3`; no push. Task196 starts from that clean commit.
+- **Presentation:** Shared default renderer with native disclosures, per-turn first-occurrence numbering, independent reused sources, supplied title/locators, safe separate external links and null/invalid URL no-anchor behavior. Custom CitationSlot API retained; no flattening/sourceId merging. Citation CSS has page-independent light/dark fallbacks and wraps narrow/long metadata.
+- **Scroll/security:** View-only open/focus guard stops forced tail following and preserves existing new-message affordance; controller/useId/contract untouched. URL syntax checked with Task191 schema; no private URLs fabricated, HTML injection, fetch/preview/download. Frontend does not establish public eligibility/provenance/semantic grounding.
+- **Demo:** Development-only deterministic source fixtures and renderer sandbox, marked simulation. Invalid URL checked directly in sandbox; not smuggled through successful transport parsing. Existing failure/UNKNOWN/outcome controls and cached same-key result preserved. Production remains unavailable/disabled, graph and real build scan exclude mocks.
+- **Validation:** Focused citation 22/22, Task195 36/36, root 175/175 Vitest plus legacy suites, typecheck four tasks, fresh build 22/22 pages. Initial CSS-in-TSX test load failed existing PostCSS config; resolved by stylesheet import through assistant.css without test/config changes. Initial React onToggleCapture typing corrected to a native captured toggle listener. Final checks pass.
+- **Browser:** 1440/360/390/768 and 320/420 standalone renderer containers; light/dark, long titles, 50 sources, keyboard toggling, Tab link focus and independent disclosures. No horizontal overflow observed. New response while reading source held scrollTop=61 and showed new-message button. Native collapse anchoring can adjust position, without explicit tail jump. Screenshots in task196 visualization folder outside repository.
+- **Limits/handoff:** No screen-reader audio, physical mobile, blanket hydration/pixel-perfect claim. Backend RAG/API, history, popup hosts and eligibility runtime still absent; US-21 IN PROGRESS. No provider/Neon write, migration, dependency/env/context change or other tasks. Task196 not committed/pushed; stop for owner review.
+
+## 2026-10-08 — Owner-authorized /assistant local demo integration
+
+- **Baseline/scope:** TXH/local/origin `09d85286d46cd56f4c3b1de159e90bd9f847e61f`, initially clean. Owner requested testing on localhost:3001/assistant rather than requiring the standalone 3002 demo. No real AI/API task.
+- **Implementation:** Server page conditionally imports development client host only for literal NODE_ENV=development. Host creates one existing deterministic demo transport and renders shared AssistantChat. MULTI sources default, collapsed scenario/source/delay controls and visible simulation notices. Production uses unchanged unavailable chat. No layout/theme/citation/controller/contract duplication.
+- **Isolation/compatibility:** Explicit production compilation in import-graph test excludes development inputs. Fresh actual Next production JS/HTML/JSON scan excludes host/transport/fixtures/control markers; built browser confirms disabled composer/no demo DOM. Future Task194 adapter connects through the existing transport interface and client host boundary; no endpoint invented now.
+- **Validation:** Focused integration 10/10, Task195 36/36, citation 22/22; root 185/185 Vitest plus legacy, typecheck four tasks, fresh build 22/22 pages. Browser real app input/send/Enter/Shift+Enter, citations, follow-up/reset and UNKNOWN replay checked. Expanded controls and conversation wrap at 360/390/768/1440; light/dark checked without horizontal overflow. Screenshots outside repo in assistant-dev-integration visualization folder.
+- **Limits/handoff:** Mock responses are synthetic, not factual travel guidance; in-memory session is lost on reload. No real API, persistence, history/popups, OpenAI/DB write, schema/env/dependency change or other tasks. US-21 remains IN PROGRESS. No blanket hydration/screen-reader/physical device acceptance claim. No commit/push/merge; owner review required.
+
+## 2026-10-08 — US-19 combined Task181 extraction / Task182 chunking
+
+- **Owner/baseline:** Tô Xuân Hoài authorized implementation after review PASS WITH CONDITIONS. TXH/local/origin `ed4442280e00ce730440e3f7e7267b04599156af`, initially clean. ThaiAnh `4c6df6128c1923369e652eb332eb1b475b50c3fa` remained read-only reference; no merge/cherry-pick/migration/Blob runtime access. US-19 remains IN PROGRESS; no production upload processing activated.
+- **Task181:** Pure/reusable Node modules take file bytes plus format. Typed controlled extraction states, byte/content hashes, versioned normalization, stable segments/origins and coverage warnings. Strict UTF-8/NFC TXT with original lines; physical PDF pages, textless-page warnings/no OCR/password classification/resource cleanup; bounded OOXML body/runs/inherited outline headings/tables, no invented DOCX pages. Excluded text-bearing regions/relationships warned. No raw exceptions/text logging, file fetching or status writes.
+- **Task181 safety/evidence:** 39 extraction tests PASS using real parseable synthetic PDF/OOXML (not mere signature fixtures), Vietnamese text, images/mixed pages, actual Standard R2 password fixture, corrupt files, unsafe entities/DTD/namespaces/style cycles/checksums, entry/depth/input/text/segment budgets and actual ZIP expansion including descriptor ZIP/lying headers. fflate wraps callback exceptions; ProcessingError is preserved so resource failures retain RESOURCE_LIMIT instead of being misclassified.
+- **Task182:** 22 chunk tests PASS. Defaults1600/200 UTF-16, validated limits, paragraph/section/sentence/word/grapheme boundaries, progress/no cross-section overlap, preserved repeated paragraphs, exact normalized source slices and contributing origins including noncontiguous PDF pages. Canonical SHA-256 separates bytes/content/text/chunk identity; versions/options/index/provenance participate. Empty and over-budget results are explicit and contain no partial chunks.
+- **Dependencies/compatibility:** Exact pdfjs-dist4.10.38 (engineNode>=20), fflate0.8.3, fast-xml-parser5.11.2. Node22.19.0 import + actual synthetic Unicode PDF extraction PASS. Isolated Next16.3.8/Turbopack server prerender probe initially reproduced PDF_PARSER_FAILED under bundling, passed after externalizing only pdfjs-dist. Added serverExternalPackages with other config preserved. Probe outside repo at D:/KLTN/rag-processing-next-compat-0c2a5eb34b4141fc8fca39347897fe7f; no product route/API created.
+- **Validation:** 63 focused tests (39extraction/22chunk/2isolation), root248/248 Vitest plus existing legacy suites PASS; root check-types four tasks PASS; fresh `npm run build -- --force` PASS, 22/22 static pages. Actual production-mode client graphs exclude processing/parsers/fixtures; processing graph excludes DB/Blob/OpenAI/UI. Fresh production artifact marker scan PASS. No old assertions weakened. A final typecheck encountered malformed generated dev types after config reload; only those generated files removed, native next typegen regenerated types, and final typecheck/build PASS.
+- **Audit/scope:** npm audit exits1 with ten HIGH existing Prisma/shadcn-chain package findings; baseline lockfile audit has identical affected packages. No old resolved package version changed; no finding for the three new direct parser dependencies in this run. Audit is NOT CLEAN; no automatic unrelated upgrades. git diff --check/scope/secret-pattern scan PASS. Changes only rag-processing modules/tests/fixture generators, US-19 story, progress, web package/lockfile and justified Next externalization.
+- **Limits/handoff:** Budgets20MiB input/500PDF pages/100ksegments/5million UTF-16/10kchunks/2048ZIP entries/32MiB selected XML total/16MiB per part/depth128. No hard timeout or heap guarantee; workers/cancellation and incomplete-coverage indexing policy belong to Task185. PDF reading order remains heuristic; unsupported DOCX content warned. Live Vercel worker packaging, real dataset performance, US-17/18 migration/Blob integration not proven. Task183 embedding/184 persistence/185 orchestration and approved-state/runtime provenance remain future work. No Assistant/QA contract/API/DB/env change, OpenAI/Neon write, commit/push/merge. Owner review required.
+
+
+## 2026-10-09 — TXH selective US17/US18 integration (owner-authorized)
+
+- Source ownership: selectively imported US17/18 from ThaiAnh commit `4c6df6128c1923369e652eb332eb1b475b50c3fa` onto TXH baseline `256584d831c72858f07e3231ce88dfb5b568f871`. No branch merge/cherry-pick; Favorites, Assistant, Task191/181/182 and Next config preserved. Historical evidence above belongs to the original ThaiAnh sessions; it is not evidence of current live acceptance.
+- DOCX mandatory correction: upload-only validator independently validates central/local ZIP metadata, entry bounds/paths/duplicates, supported stored/deflate archives (including checked data descriptors), actual decompression counts and CRC32 for the three required XML parts. OOXML root namespaces, content type and internal officeDocument relationship/body are verified. DTD/custom entities, invalid numeric entities, deep XML and corrupt XML fail closed. No external fetch or embedded execution; no extractDocument call.
+- Limits: original upload remains 20 MiB inclusive. Required XML parts retain 1 MiB each; aggregate ceiling is 3 MiB for those three parts. Explicit structural bounds: 2048 ZIP entries, XML depth128; ZIP64, encrypted/multi-disk/unsupported forms rejected. Not a full OOXML conformance, malware scan or hard heap/time guarantee. PDF remains marker validation; accepted upload does not prove extractability.
+- Replay mandatory correction: current actor and syntax/owned path validated first, then shared preflight uses the exact existing identity/hash/resolution functions. Confirmed replay/conflict requires no Blob read; lookup failure is UNKNOWN, never ABSENT. New writes still validate Blob outside executeIdempotentWrite's atomic transaction. No global change to write semantics.
+- UI: synchronous single-flight refs, aborted/stale-read guard and unmount generation checks preserve confirmed state; keyed detail identity isolates old mutations. UNKNOWN retries retain identical payload/key; known failed retry releases uncertainty. No indexing or disable action.
+- Validation in this integration: US17 15/15 + US18 11/11, DOCX security8/8, finalize replay9/9 and shared helper4/4 PASS. Independent python-docx-produced document outside repository also accepted. Task181/18263/63 PASS; root Vitest248/248 and all legacy suites317/317 PASS on the successful root run. First root run reported248 passed then native Windows process exit3221225477 during shutdown; unchanged retry completed normally. No assertions/config weakened.
+- Prisma7.10.0 schema validate/client generation and env codegen PASS; additive canonical rag_document SQL preserved exactly. Typecheck and fresh production build PASS. Blob SDK pinned2.8.1; all pre-existing lockfile package versions preserved. Before/after npm audit advisory objects identical:10HIGH/0CRITICAL, no new advisories, audit is not clean. No audit fix.
+- Browser evidence: actual React components in an isolated synthetic harness outside repo, mocked fetch only and Link shim (not the authenticated Next app).13 controlled checks cover upload/review SUCCESS/FAILED/UNKNOWN, identical retry, double-submit, old mutation isolation, empty/error. Desktop1440 and mobile360 light/dark component checks; no horizontal overflow observed. This does not prove auth routing, DB persistence, real Blob/CORS or full-app visual acceptance. Evidence at D:/KLTN/us19-smoke-20261009/ui/. No harness/mock imports in product.
+- Gate A: code checks pass with noted native runner instability. Gate B Development migration NOT RUN/not authorized. Gate C real private Blob NOT RUN/not authorized. Gate D controlled component checks only; live Admin end-to-end NOT RUN. Figma frame matching remains unproven.
+- Handoff: canonical RagDocument source now available for future Task184 FK design, but no vectors/schema184 or processing orchestration added. Task183/184/185 not started. Approval still checks original accessibility, not immutable approved bytes; that future boundary remains to be reviewed. No DB writes, real Blob records, Production access, OpenAI calls, commit/push/merge. Owner review required.
+
+## 2026-10-09 — US-19 combined Task183 embeddings / Task184 versioned persistence
+
+- **Owner/baseline:** Tô Xuân Hoài authorized implementation on TXH at `ff638e40ef93197c704cba3c16a0391634b25f74`; local and `origin/TXH` still match that baseline. Work remains local/uncommitted. US-19 remains IN PROGRESS. No Task185 orchestration, API, Admin UI, status transition, commit or push.
+- **Task183:** Added exact `cl100k_base` token counting using pinned `js-tiktoken@1.0.21`, fixed OpenAI `text-embedding-3-small` / 1536-dimension provider, server-only HTTP adapter and deterministic fixture provider. Task182 chunk text is passed unchanged after hash/order validation. Limits: 8192 tokens/input, 32 chunks and 16000 tokens/request, sequential concurrency 1, 10000 chunks/200000 tokens/job, at most 3 attempts/batch and 939 attempts/job. The cost preflight reserves all three attempts at $0.02/1M tokens against a $0.01/job cap, so that stricter cap can reject jobs below the nominal 200000-token ceiling. Retryable network, timeout, 408/429/5xx use bounded exponential jitter and bounded Retry-After. Responses require exact count, indexes, dimensions, finite components and nonzero norm. Structured errors omit source text, credentials and provider bodies. No live OpenAI requests.
+- **Task184:** Added versioned `RagContentVersion`, `RagIndexGeneration`, `RagChunk`, `RagChunkEmbedding` and `RagIndexPublication`, with an additive migration `20261009120000_add_rag_index_generations`. Original/content hashes and parser versions, chunker/options/chunk hashes, model/tokenizer provenance, expected totals and input/vector hashes are retained. Vectors use `vector(1536)` via parameterized SQL at the server-only store. Unique identity/replay checks, resumable chunk/vector writes, generation locks, completeness checks and a one-row document publication pointer preserve old generations. Disabled documents cannot publish or be selected; metadata reads require INDEXED plus READY. Store never writes RagDocument.status and no retrieval/public route is wired.
+- **Validation:** Focused Task183/184 plus Task181/182 regression 78/78 PASS; full web Vitest 263/263 PASS; all configured legacy suites PASS. Root typecheck four tasks PASS. Prisma 7.10.0 validate/generate PASS; `npm run build` PASS with TypeScript and 26/26 static pages. Production client graph and built static chunks contain no tokenizer, provider, persistence, vector or fake fixture marker. `git diff --check` and credential/connection-string pattern scan PASS. No lint script is configured.
+- **Dependency audit:** `npm audit` exits 1 for the existing 10 HIGH / 0 CRITICAL advisories. Final advisory IDs match the pre-change audit; no new advisories from `js-tiktoken@1.0.21` / `base64-js@1.5.1`. No `npm audit fix` was run.
+- **Database boundary:** Applied all ten historical/current migrations to a disposable loopback PostgreSQL 16.9 container with PostGIS 3.5.2 and pgvector 0.8.6; Prisma migration status and schema diff were clean. The real store/generated client passed synthetic persistence, vector round-trip, constraint, rollback, replay and concurrency checks through test-only `PrismaPg`; production `PrismaNeon` transport was not exercised locally. The container was removed. The additive migration is NOT APPLIED to shared Neon; no Neon connection/read/write occurred. No Blob writes or production access.
+- **Review correction:** Isolated PostgreSQL exposed concurrent generation `upsert` P2002 for the losing caller. Both content-version and generation creation now recover only by reading back the same unique identity and validating it; regression coverage passes. No other blocking findings.
+- **Handoff:** Gate A code validation is complete. Gate B remains the owner-verified prerequisite from the previous package; this migration still requires separate authorization and is unapplied. Gate C live Blob and provider verification remain NOT RUN; Gate D remains partial. Owner review required before Task185 planning.
+
+## 2026-10-09 — US-19 Task184 real PostgreSQL concurrency closure
+
+- Added opt-in `apps/web/src/modules/rag-index/rag-index-store.postgres.integration.vitest.test.ts` and runner `apps/web/scripts/test-rag-index-postgres.mjs`; command: `npm run test:rag-index:postgres --workspace apps/web`. It creates a fresh, uniquely named Docker container from `pgvector/pgvector:0.8.6-pg16`, binds an ephemeral port to loopback, creates synthetic credentials, checks `current_database()` before schema setup, applies the actual RagDocument and Task184 migration SQL, and stops only its own ownership-labeled container. It never falls back to `DATABASE_URL`. Direct Vitest execution without `US19_TASK184_TEST_DATABASE_URL` and the explicit disposable confirmation reports SKIPPED.
+- The regression invokes the real `createRagIndexStore` and generated Prisma Client through test-only `@prisma/adapter-pg`. PostgreSQL 16.15 / pgvector 0.8.6 passed twice on the final test version. Barrier-started requests created identical content-version and generation identities concurrently; instrumentation confirmed real P2002 errors for both unique constraints and successful subsequent read-backs. Since the store performs those calls outside `$transaction`, PostgreSQL's successful read after a real uniqueness error confirms recovery is outside an aborted transaction. Persisted identity/provenance matches, mismatched stored provenance conflicts, replays return the same records, and no duplicate identities or orphan rows remain. No live OpenAI request was made.
+- The earlier isolated PostgreSQL run remains separate evidence: all ten migrations were applied to a disposable PostgreSQL 16.9 / PostGIS 3.5.2 / pgvector 0.8.6 database; schema diff, vector round-trip, rollback, concurrency and atomic publication passed. The checked-in runner intentionally applies only the two RagDocument/Task184 SQL migrations needed by this focused regression.
+- Neon Development read-only recheck matched owner-verified project `summer-unit-95870477`, branch `development` (`br-aged-hat-b3o6hg9p`), endpoint `ep-purple-pond-b3xujb8o`, and database `neondb`. Nine migrations completed; zero failed/incomplete; only `20261009120000_add_rag_index_generations` is pending. Ledger checksums match after CRLF→LF normalization; seven raw checkout hashes differ because `core.autocrlf=true`; historical migration files remain unchanged. Neon has pgvector 0.8.6 and PostGIS 3.6.4. Production PrismaNeon read-only identity/count/metadata queries passed; RagDocument count was zero. No Neon writes occurred and migration #10 remains unapplied.
+- Full web Vitest passed 263 tests with the opt-in integration test explicitly skipped in the normal suite; legacy suites, Prisma validate/generate, root typecheck and production build passed. The dependency audit remains 10 HIGH / 0 CRITICAL with no new advisory IDs after adding test-only adapter/driver dependencies. `git diff --check` is required after documentation edits.
+- Limitations as of that 2026-10-09 handoff: PrismaNeon vector WRITE NOT_RUN; live private Blob Gate C NOT_RUN; live Admin browser Gate D PARTIAL; Task185 not yet implemented. The later owner-confirmed Task184 closure and 2026-10-10 Task185 entry supersede that snapshot. US-19 remains IN PROGRESS.
+
+## 2026-10-10 — US-19 Task185 indexing orchestration (local owner review)
+
+- **Historical-state correction:** The 2026-10-09 Task183/184 and US17/18 handoff entries above are preserved as dated evidence. Their statements that commits/schema were uncommitted or migrations were pending describe the state at that earlier time and are superseded by the owner-confirmed TXH baseline `8d077f91561fb6a1356e86ec6ccbe78538c24537` and Neon Development post-apply verification. All ten migrations through Task184 were applied to Development; the Task184 PrismaNeon vector write smoke and synthetic cleanup passed. This Task185 migration is new and remains unapplied.
+- **Baseline/scope:** Started at TXH HEAD and `origin/TXH` `8d077f91561fb6a1356e86ec6ccbe78538c24537` with a clean worktree. Changes are local and uncommitted. No API route, Admin UI, public retrieval, migration apply, Neon write, Blob operation, live OpenAI request, commit, push or merge.
+- **Design and persistence:** Added additive `RagIndexJob` schema/migration `20261010120000_add_rag_index_jobs`; `RagDocumentStatus` stays unchanged. Admin enqueue/cancel/explicit retry use the persisted role guard and shared idempotent-write helper. Enqueue locks the document row and rejects non-APPROVED/INDEXED documents and queued/running/UNKNOWN jobs. Worker claims use PostgreSQL `FOR UPDATE SKIP LOCKED`, expiring leases and fencing tokens. Safe stale phases requeue; a pending provider batch with uncertain output becomes UNKNOWN.
+- **Pipeline/safety:** The server-only worker reads only the registered private Blob path, verifies registered file type/MIME/size and exact-byte hash, then reuses Task181 extraction, Task182 chunking, Task183 token/cost preflight and Task184 versioned vector store. Extraction warnings fail closed and persist warning codes only. Provider batches are marked pending before external calls and vector writes clear that marker atomically; automatic provider retry is disabled in the worker. Explicit Admin retry uses a new idempotency key and reruns cost preflight. Publication pointer, document INDEXED state and job completion are one transaction after READY completeness; previous publication remains active until commit.
+- **Tests/checks:** Focused Task185/service and Task181–184 unit tests passed 24/24. Full web Vitest passed 272 tests with four opt-in PostgreSQL cases skipped. All configured legacy suites passed. The first combined `npm test --workspace apps/web` wrapper printed all Vitest tests as passing, then exited with Windows native code `3221225477`; running Vitest alone subsequently exited 0, and the legacy suite passed separately. Prisma validation/client generation and root typecheck passed; the production build compiled and generated 26/26 static pages. The opt-in real PostgreSQL runner was invoked but skipped because Docker Engine is unavailable, so cross-process claims and Task185 PostgreSQL atomic finalization remain unverified.
+- **Isolation/audit:** Existing processing-isolation tests passed; source and built-client scans found no Task185 worker/job/provider markers in app routes, components or production client assets. No dependency versions or `package-lock.json` changed; current audit reports 10 HIGH / 0 CRITICAL, matching the baseline dependency graph, with no new advisories. No automatic audit fix was run.
+- **Deployment gates:** No durable worker/queue is configured. Vercel request-scoped work remains bounded by function duration and is not durable; Task185 does not invoke it from a route or `after()`. Do not enable live indexing until the migration is separately approved/applied, a durable worker is deployed and observed, and Blob/PDF.js runtime packaging and controlled server credentials are verified. Gate C remains NOT_RUN; Gate D remains PARTIAL; US-19 remains IN PROGRESS.
+- **Owner review:** Required before any migration apply or live worker deployment. No Task186 or Task183/184 follow-up was started.
+
+## 2026-10-10 — US-19 Task185 owner review correction
+
+- **PDF warning policy:** Review confirmed the Task181 PDF extractor always emits `PDF_READING_ORDER_HEURISTIC`. Rejecting all warnings would reject every PDF. The repository's product/system requirements do not mandate that. Treat this warning as informational, persist its code on the job, and continue. `PAGE_WITHOUT_TEXT` and `UNSUPPORTED_DOCX_REGION` remain fail-closed; `NO_EXTRACTABLE_TEXT`, corrupt, and password-protected documents are rejected. No partial-coverage exception was added.
+- **Worker corrections:** Warning codes are persisted under the active lease. Lease-renewal database uncertainty now remains `UNKNOWN`; runtime abort is checked after generation verification and before publication. Private Blob reads cancel the active stream when their `AbortSignal` fires. Added synthetic PDF/DOCX worker regressions and an opt-in PostgreSQL PDF pipeline assertion for persisted heuristic provenance.
+- **Validation:** Focused worker/extraction/store tests pass; full web Vitest PASS (280 tests, four opt-in PostgreSQL cases skipped); all configured legacy suites PASS; Prisma validate/generate, root typecheck, production build and `git diff --check` PASS. The initial full Vitest attempt failed because the new Blob stream test loaded Vercel Blob before its mock under the repository's `isolate:false` test mode; the test now resets/reimports the module, and the final full Vitest run passed. The first legacy run also tried to load that Vitest file through its `*.test.ts` glob; moving it under `rag-index` fixed the overlap, and the final legacy run passed.
+- **PostgreSQL blocker:** `docker version` reports client 29.6.2, but `docker info` cannot reach the `desktop-linux` Engine at `npipe:////./pipe/dockerDesktopLinuxEngine`. `npm run test:rag-index:postgres --workspace apps/web` returned SKIPPED; no container/database was created and no alternative context or Neon target was used. Real Task185 concurrency, fencing, rollback and atomic-publication evidence remains unavailable.
+- **Deployment:** Worker core exists but no durable runtime is configured. Proposed MVP is a separately deployed server-only process on an owner-approved always-on container host, polling the PostgreSQL job ledger with bounded concurrency and graceful shutdown. Keep live execution disabled until PostgreSQL integration, migration approval/application, private Blob/PDF.js runtime checks, credentials, logs/metrics and cost limits are verified. No host/queue was provisioned. US-19 remains IN PROGRESS; no commit/push/migration apply.
+
+## 2026-10-10 — US19 Task185–187 direct API MVP owner-review closure
+
+- Owner explicitly approved request-scoped API execution for this MVP; separate
+  durable-worker hosting is no longer a prerequisite. Preserve ledger, leases,
+  fencing, provider UNKNOWN safety and atomic publication. Current implementation
+  is local on feat/us19-direct-index-api-progress, baseline 23a399ed47eeca804b6aa44675ed71d2930292cc,
+  in an isolated worktree. Existing TXH changes remain untouched.
+- Historical closure evidence: Task185 PostgreSQL 14/14 passed twice; migration#11
+  applied by owner to Development; subsequent read-only schema verification passed.
+  This run independently reads neondb/public, 11 completed / zero pending/failed,
+  checksums matching raw or historical LF, vector0.8.6 and PostGIS3.6.4. No writes.
+- Added thin POST/GET service boundary, exact shared idempotency scope, explicit
+  targeted QUEUED/expired resume, known-failure retry, persisted progress snapshot,
+  cooperative request abort and no-store responses. No background work or new schema.
+- Admin UI: serial polling, stale/unmount guards, same-key UNKNOWN reconciliation,
+  new-key known retry, count-based embedding progress, conservative stage evidence,
+  COMPLETED document refresh, shared controls and mobile/dark/accessibility checks.
+- Root npm test:303 Vitest PASS,15 opt-in skips in regular runs, all legacy suites PASS.
+  Explicit isolated PostgreSQL:15/15 PASS,0 skipped, cleanup PASS. Browser component
+  harness PASS; env generation, Prisma validation/generation, typecheck, build PASS.
+  No live OpenAI/Blob calls, Neon writes, migration apply, deployment or publication.
+- Task185–187 code/offline verification complete; live owner acceptance pending.
+  See current US19 closure and decisions for duration/packaging/UNKNOWN limitations.
+  US19 remains IN_PROGRESS; do not mark ACCEPTED/DONE from offline evidence alone.
+- Final packaging review found PDF.js worker absent from the index route's output
+  trace. Added narrow route-only tracing for the installed legacy pdf.worker.mjs;
+  no parser rewrite/dependency update. Verify the final trace before handoff.
+- Premium UI strict audit:22 existing findings outside touched RAG UI, documented
+  without unrelated changes. Component browser coverage additionally passes stale
+  response isolation and keyboard activation; live authenticated E2E is pending.
+
+## 2026-10-10 — Final publication gate follow-up
+
+- Native failure was observed after passing assertions in the old Windows nested
+  npm/cmd launch path. Exact faulting native module is unknown; no matching Event
+  Viewer record was available. Minimal runner change invokes the same Vitest CLI,
+  config and suites directly via process.execPath/shell:false with exit diagnostics.
+  No assertion/pool/cleanup was disabled. Final standard PostgreSQL command passed
+  twice:15/15,0 skips,child and outer exit0,container/volume cleanup PASS.
+- Changed scope now17 paths (13 modified,4 added), adding only the existing
+  PostgreSQL runner to the prior16. DESIGN.md remains doc-only Admin RAG context.
+- Vercel whoami refreshed expired local credential normally; identity/project/team
+  API reads now200. Fluid Compute true,Hobby default300s,Node24.x,regioniad1;
+  no branch/shared env overrides. Preview has only DATABASE_URL/BETTER_AUTH_SECRET.
+  Preview OpenAI/Blob secrets absent; sensitive DATABASE_URL target cannot be read.
+- READY_TO_PUBLISH_FOR_TEST=NO until owner confirms Development target and supplies
+  Preview-only provider secrets. See story gate follow-up for exact owner checklist.
+  No publication,live calls,migration apply or shared DB writes. US19 IN_PROGRESS.
+
+## 2026-10-11 — US17 Preview 404 adapter fix awaiting owner review
+
+- Baseline: feat/us19-direct-index-api-progress at 90a77e11e13529d4b875a95955ee305db7048b7b. Five scoped paths; no commit/push/deploy.
+- Confirmed offline: @vercel/blob 2.8.1 returns HTTP200/stream/size0 when Content-Length is absent. The adapter incorrectly interpreted zero metadata as NOT_FOUND. Real SDK/undici MockAgent test has networking disabled. Synthetic upload-ticket/PUT/finalize regression reproduces the old 404 and now confirms UPLOADED; review/index reader reuses the exact private pathname.
+- Fix: classify null/NOT_FOUND, unexpected bodyless response and access/network failure separately; count actual bytes, retain 20 MiB/content/MIME checks, reject truly empty files and cancel failed reads. No public storage, weakened auth or verification bypass.
+- Owner object pathname has the expected shape; live finalize payload unavailable. Store metadata verifies private kltn-blob/project connection. Local read-only head/get probe is blocked by environment-scoped OIDC authorization; the Preview Sensitive read-write token is not retrievable. Do not claim live pathname equality, token equality, response headers or final incident resolution.
+- Validation: 47 focused tests/exit0; full root and legacy tests PASS; typecheck PASS; fresh production build PASS (26/26 pages); diff check PASS. One initial focused invocation printed passing assertions but exited1; rerun explicitly verified child exit0 and full root run exited0.
+- No Neon writes, real uploads or OpenAI calls. Owner must approve publication and retest Preview. US19 remains IN_PROGRESS; no DONE/ACCEPTED claim.
+
+
+## 2026-10-11 — PDF NUL persistence fix awaiting owner review
+
+- Baseline: 63a4b9cb15c810fe8df9975682615e6f045fe8bc on feat/us19-direct-index-api-progress. No publication in this run.
+- Development audit used guarded TLS endpoint/database and an explicitly READ ONLY PrismaNeon transaction. The failed PDF remains APPROVED; its job is FAILED/PERSISTING_CHUNKS, attempt1, generation BUILDING/expected3, actual chunks0. Local owner test PDF SHA-256 matches its saved content version. No live retry or document mutation.
+- Exact local PDF extraction reproduced three chunks, with three U+0000 characters in chunk0. Against disposable PostgreSQL16.15/pgvector0.8.6, ragChunk.createMany throws Prisma P2039/SQLSTATE22021 (NUL encoding), rolls back all chunks and makes zero fake-provider calls. refs/locators are valid JSON; the failure is PostgreSQL text encoding, not the heuristic warning.
+- Preview request logs around the failure were read safely. They contain four PDF.js canvas/polyfill warnings, but no original persistence exception: the old worker swallowed it into INDEXING_FAILED. Exact-file reproduction plus matching bytes provides root-cause evidence; no claim of a captured live SQL exception.
+- PDF extraction now removes NUL placeholders before segment collection, hashes and refs/locators, consistent with installed PDF.js viewer text-copy cleanup. Original bytes/hash stay unchanged; PDF extractor identity is bumped to pdfjs-4.10.38-lines-nul-v2. TXT/DOCX normalization, coverage gates, authorization, leases, idempotency and atomic publication remain unchanged. NUL-only PDF pages still fail the existing incomplete-coverage gate.
+- Persistence rejects unsupported NUL text before starting a transaction (UNSUPPORTED_CHUNK_TEXT). Unexpected chunk-write exceptions map to CHUNK_PERSISTENCE_FAILED; server logs contain only constant phase/failure code and allowlisted Prisma code, never exception messages/meta, text, credentials or URLs. Existing domain/abort error codes remain intact.
+- The exact owner PDF completed offline after the fix:3 chunks/3 fake embeddings/READY publication/INDEXED document/COMPLETED job. No owner document is added to the repository. Permanent regression uses a synthetic three-page PDF with NUL placeholders and verifies canonical JSON, text/hash, version identity and complete atomic publication. The test-only generator supports multiple physical text lines.
+- Final validation and runner caveats are recorded in the owner handoff. Intermediate fixture count assertions were corrected by adjusting synthetic content, not weakening assertions; one disposable Docker initialization failed before tests and cleaned up. Those attempts are not counted as integration PASS.
+- No schema/migration/dependency/route/UI changes, live OpenAI/Blob calls, Neon writes, commit/push/deploy. Owner must review and approve Preview publication before manual live retry. Task185–187 remain unaccepted; US19 IN_PROGRESS.
+
+- Final checks:91/91 focused PASS; root314 Vitest PASS (16 disposable PostgreSQL cases intentionally skipped in ordinary runs),317 legacy PASS; explicit isolated PostgreSQL16/16 PASS,zero skips,exit0,owned container/volume cleanup PASS. Fresh production build26/26 pages and final TypeScript PASS. git diff --check PASS. Twelve scoped modified files; zero staged. Exact-owner-file offline success and synthetic regression both verified; Preview retest is pending owner-approved publication.
+
+## 2026-10-11 — US-19 final owner acceptance and task closure
+
+- **Owner decision:** Tô Xuân Hoài accepts Next.js/Vercel Preview request-scoped
+  indexing MVP:Task185 DONE (BE/API and INDEXED publication),Task186 DONE (FE
+  Index/Re-index,status/progress),Task187 DONE_WITH_NOTES (success/failure/Retry).
+  US19_MVP_ACCEPTANCE=ACCEPTED. This supersedes earlier pending acceptance
+  statements without rewriting historical checkpoints.
+- **Baseline:** feature branch feat/us19-direct-index-api-progress at published
+  7d366e2cb22fb249bda08a1a39ae2bab207c4691; local/remote match,initial worktree
+  clean. Scope is only US19 story and this appended progress checkpoint.
+- **Live evidence:** TXT INDEXED/READY,3/3 chunks+embeddings; initial Index and new
+  Re-index job COMPLETED. Re-index at10:50:43 UTC+7 reuses the complete generation
+  and its original three embeddings without duplicates. DOCX INDEXED/READY,6/6
+  chunks+embeddings,eligible for retrieval selection. PDF NUL failure followed by
+  same-job attempt2 COMPLETED; NUL-v2 generation READY,3/3 chunks+embeddings,
+  INDEXED retained after reload. Old v1 BUILDING generation has0 chunks and is
+  unpublished. Reading-order heuristic remains a warning. Failure history comes
+  from prior audit/reproduction; no historical FAILED job is invented.
+- **Development audit evidence:** owner-verified project/branch/endpoint and
+  neondb/public,secure WSS and sslmode=require,explicit READ ONLY transactions;
+  11 completed migrations. All12 vectors1536-dimensional with positive norm;
+  text/input hashes,token totals(TXT1654,DOCX1701,PDF2124) and pointers consistent.
+  No duplicate chunks/embeddings or incomplete publication. No new database
+  connection or live test is performed in this documentation-only run.
+- **Offline-only evidence:** UNKNOWN,timeout,concurrency,fencing,rollback and
+  atomic-finalization cases PASS; not directly live-accepted. Published baseline
+  checks:91 focused,314 Vitest,317 legacy PASS; explicit PostgreSQL16/16,0 skipped,
+  exit0,cleanup PASS; typecheck/build26/26/diff PASS. Prior results are retained
+  evidence,not tests rerun during this closure.
+- **Accepted limits:** bounded request execution(route300s/cooperative240s),no
+  deployed durable background worker; technical UI codes/copy remain. Retrieval
+  and chatbot Q&A are not accepted. Indexed files are test data,not authoritative
+  sources. See US19 final entry for exact identities and live/offline evidence.
+- **Backlog/publication:** backlog external; supply only three approved status
+  lines for owner update,no parallel backlog. Owner authorizes scoped docs
+  commit/push; no TXH/dev/master integration or Production deployment. No runtime,
+  schema,migration changes,Neon writes,OpenAI/Blob calls. Validate scoped diff and
+  secret check; typecheck/build/test reruns are unnecessary for this docs-only edit.
+- **Next:** owner-controlled TXH integration review; do not broaden acceptance
+  to retrieval/Q&A or start another task.
+
+## 2026-10-08 — US-18 review and approval (Task 2)
+
+- **Branch:** `ThaiAnh`; preserved existing uncommitted US-16/US-17 changes. No commit or push.
+- **Story:** Added `docs/stories/US-18-rag-review-approval.md` from MH-16/MH-18, YCCN-88/91/92, QTN-97/98 and NT-170–173. Status: implemented in code; live acceptance pending.
+- **Backend:** Admin-only list/detail services and thin read routes; private original endpoint reused. One server transition function accepts `START_REVIEW` or `APPROVE`, uses status-conditional DB update and shared idempotent write. Approval checks private Blob accessibility before transaction. JSON excludes storage path; UPLOADED/REVIEWING/APPROVED remain ineligible for retrieval.
+- **Frontend:** Admin list and detail pages with current Admin tokens, loading/empty/error states, responsive layout, light/dark styles and success-only status updates; upload success links to detail and Admin menu links to list.
+- **Verification:** `npm run test:rag --workspace=web` 26/26 PASS; root `npm run test`, `npm run check-types`, `npm run build`, `git diff --check` PASS. The initial TDD run failed as expected on missing helper. Build registered all new pages/routes.
+- **NOT PROVEN/BLOCKED:** US-17 migration was not applied here; private Blob token/live Admin session unavailable, so live database, file HEAD/download and visual 360px/light/dark checks are not proven. Exact Figma MH-16/MH-18 frames unavailable: **BLOCKED: FIGMA**. No US-19 indexing or US-20 disable work was started.
+
+
 ## 2026-10-08 — US-16 Light/Dark theme adaptation
 
 - **Scope:** Updated only `apps/web/src/app/favorites/favorites.css` plus this progress log and the US-16 story addendum. Reused the global `next-themes` class provider and the existing Explore Light/Dark palette; retained the Figma Light values and all Favorites behavior. No API, service, schema, migration, auth, or dependency changes.
 - **Validation:** `npm run test:favorite --workspace web` PASS (24/24); `git diff --check` PASS with a Git LF→CRLF notice. Next CSS compilation PASS (`Compiled successfully`). Build and typecheck remain blocked during TypeScript validation by unresolved `vitest` imports and stale generated Prisma Client types (`cultureContent`/`targetType` missing); after Next regenerated route types, these were the remaining errors.
 - **Visual limit:** Local `/favorites` redirects to login because the browser has no Traveler session. Dark/light visual states, live OS theme changes, hydration/flash, and 360/390/768/1024/1440px browser checks remain NOT VERIFIED. Figma MH-10 node `7:158` was inspected; no screenshots of the local Favorites page are claimed.
 - No commit or push.
+
 
 ## 2026-10-08 — US-17 Task 1 RAG document upload foundation
 
@@ -607,6 +843,7 @@ Append a new entry for each meaningful work session. Keep prior entries as hando
 - **Tests/checks:** Red run initially failed on missing RAG modules; `npm run test:rag --workspace web` PASS 15/15; root `npm run test`, `npm run env:generate`, `npm run db:generate`, `npx varlock run -- npx prisma validate`, `npm run check-types`, `npm run build`, `git diff --check` PASS in this workspace.
 - **Evidence limits:** No `BLOB_READ_WRITE_TOKEN` configured locally, so private Blob and Neon end-to-end upload are NOT PROVEN. No Admin browser session was available for light/dark/360px visual verification. Connected Figma file exposes only Components, no MH-17 frame; Admin baseline used. Production RAG corpus not supplied.
 
+
 ## 2026-10-10 — US-20 Task 3 RAG disable and retrieval eligibility
 
 - **Branch/audit:** `ThaiAnh` was clean before this task; commit `4c6df61` contains US-17/US-18. `master` remains foundation-only. No US-19 story, indexing module, vector query or real retrieval module was found in current source.
@@ -614,17 +851,3 @@ Append a new entry for each meaningful work session. Keep prior entries as hando
 - **Eligibility:** Retained one canonical predicate `status === INDEXED` for response eligibility. Tests cover all five statuses and the INDEXED → DISABLED change. No fake retrieval/indexing was added.
 - **Verification:** TDD red run had 5 failing cases; `npm run test:rag --workspace=web` PASS 34/34 after implementation. Root `npm run test`, `npm run check-types`, `npm run build`, `git diff --check` PASS. No schema/migration/dependency/env change; no commit or push.
 - **Limits:** NT-252 end-to-end retrieval and QTN-107 history-source exclusion are **BLOCKED BY US-19** because no retrieval query exists. No Admin browser session/live RAG records or inspectable Figma MH-16/MH-18 frame, so light/dark, 360px and real database/Blob UI flow are NOT PROVEN.
-
-## 2026-10-11 — US-11 Explore MH-02 visual correction
-
-- Inspected Figma node `6:47`; adjusted Explore title/search/filter/card/Culture composition and shared Header spacing without changing the public API, database, URL filters, Map, Detail or auth flow. Removed the result-count-specific centering override that placed a lone Destination or Culture card in the middle.
-- Real browser: the existing one-item Destination and Culture lists start at the same left edge as title/search. A temporary HTML fixture using the compiled page CSS verified 1/2/3 items and 1/2/3 columns across 360/390/768/1024/1440px, with no horizontal overflow; fixture removed afterward. Light/dark page, card and input colors were inspected. Search `q=US09` → Detail → browser Back restored exact query/input/result.
-- Tests/checks: `npm run test:explore --workspace web` 14/14, `npm run test:search --workspace web` 33/33, root `npm run test`, `npm run check-types`, `npm run build` PASS. Final `git diff --check` is recorded at handoff. No schema, dependency, database write, commit or push.
-- Limits: development data had only one public Destination and Culture item, so multi-item evidence is fixture layout geometry. Destination public DTO has no image or summary, and the real 30–50 item dataset is still pending EN-02; exact pixel parity and production performance are not claimed.
-
-## 2026-10-11 — Explore layout from new screenshot
-
-- Received the new 1920×1080 `/explore` screenshot and used it as the layout reference. Added page/section eyebrows, exact descriptive subtitle, a single desktop search/filter surface, content section anchors, and a full-width four-column Destination grid. Existing Figma colors/type, shared Header, URL-driven search, List/Map, Culture, Detail, API and auth remain in place.
-- Browser checked 360/390/768/1024/1280/1440px with no horizontal overflow. Temporary compiled-CSS fixture verified 1/2/4/5 Destination cards with left-aligned partial rows; removed afterward. Light/dark inspected and prior dark preference restored. `/explore?q=US09` → Detail → Back restored URL, input and result.
-- Public Destination DTO has no image/duration/summary; the screenshot's photos and metadata were not invented. The local DB has one public Destination and Culture record, so live multi-item and production dataset/performance evidence remain NOT PROVEN. Final command results are recorded at handoff; no commit/push.
-- Checks: `npm run test:search --workspace web` 33/33, `npm run test:explore --workspace web` 14/14, root `npm run test`, `npm run check-types` and `npm run build` PASS. A light-mode comparison screenshot is at `D:\Bai tap Code\KLTN\explore-screenshot.png` outside the checkout; dark mode and browser viewport were restored.

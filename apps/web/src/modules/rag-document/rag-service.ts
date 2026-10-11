@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Database } from "@KLTN/db";
 import { requireActor, type AuthorizationDependencies } from "@/server/authorization/guard";
 import { AppError } from "@/server/http/app-error";
-import { executeIdempotentWrite } from "@/server/http/idempotency";
+import { executeIdempotentWrite, preflightIdempotentReplay } from "@/server/http/idempotency";
 import { declaredRagFileType, retrievalEligible, validateRagFile, type RagStatus } from "./rag-file";
 import type { ragStorage } from "./rag-storage";
 
@@ -23,8 +23,8 @@ const finalizeRequest = z.object({
   topic: z.string().trim().max(200).optional(),
   locality: z.string().trim().max(200).optional(),
 }).strict();
-const actionRequest = z.object({ action: z.enum(["START_REVIEW", "APPROVE", "DISABLE"]) }).strict();
-type RagAction = z.infer<typeof actionRequest>["action"];
+const reviewRequest = z.object({ action: z.enum(["START_REVIEW", "APPROVE", "DISABLE"]) }).strict();
+export type RagReviewAction = z.infer<typeof reviewRequest>["action"];
 const listFields = {
   id: true, originalFileName: true, fileType: true, sourceTitle: true,
   status: true, createdAt: true, updatedAt: true,
@@ -38,14 +38,14 @@ function validateId(id: string) {
   if (!/^[-\w]{1,100}$/.test(id)) throw new AppError("RAG_DOCUMENT_NOT_FOUND", "Không tìm thấy tài liệu.", 404);
 }
 
-function allowedActions(status: RagStatus): RagAction[] {
+function allowedActions(status: RagStatus): RagReviewAction[] {
   if (status === "UPLOADED") return ["START_REVIEW", "DISABLE"];
   if (status === "REVIEWING") return ["APPROVE", "DISABLE"];
   if (status === "APPROVED" || status === "INDEXED") return ["DISABLE"];
   return [];
 }
 
-function nextStatus(status: RagStatus, action: RagAction): RagStatus {
+function nextStatus(status: RagStatus, action: RagReviewAction): RagStatus {
   if (status === "UPLOADED" && action === "START_REVIEW") return "REVIEWING";
   if (status === "REVIEWING" && action === "APPROVE") return "APPROVED";
   if (action === "DISABLE" && status !== "DISABLED") return "DISABLED";
@@ -76,6 +76,10 @@ export async function finalizeRagUpload(headers: Headers, body: unknown, key: st
     try { const url = new URL(input.sourceUrl); if (!['http:', 'https:'].includes(url.protocol)) throw new Error(); }
     catch { throw new AppError("INVALID_RAG_SOURCE", "URL nguồn không hợp lệ.", 400); }
   }
+  const replay = await preflightIdempotentReplay({
+    database: deps.database, actorId: actor.id, operation: "rag-document:upload", key, input,
+  });
+  if (replay.status !== "ABSENT") return replay;
   const blob = await deps.storage.read(input.pathname);
   if (blob.sizeBytes !== input.sizeBytes || blob.mimeType !== input.mimeType) throw new AppError("INVALID_RAG_FILE", "Tệp trong kho không khớp thông tin khai báo.", 400);
   validateRagFile(input.originalFileName, blob.mimeType, blob.bytes);
@@ -133,7 +137,7 @@ export async function getRagDocument(headers: Headers, id: string, deps: RagDepe
 export async function transitionRagDocument(headers: Headers, id: string, body: unknown, key: string, deps: RagDependencies) {
   const actor = await requireActor(headers, deps, "admin");
   validateId(id);
-  const { action } = parse(actionRequest, body);
+  const { action } = parse(reviewRequest, body);
   // The external Blob check stays outside the database transaction. A replay
   // after approval skips the check and is resolved by the idempotency record.
   if (action === "APPROVE") {

@@ -192,3 +192,16 @@ test("FAILED and UNKNOWN disable leave the confirmed UI status unchanged", () =>
   assert.equal(next.status, "DISABLED");
   assert.equal(next.retrievalEligible, false);
 });
+
+test("an older indexing completion read cannot replace confirmed DISABLED", () => {
+  const previous: { id: string; status: Status; retrievalEligible: boolean; allowedActions: string[] } = {
+    id: "rag-1", status: "DISABLED", retrievalEligible: false, allowedActions: [],
+  };
+  const stale = confirmedRagDetail(previous, { status: "SUCCESS", data: {
+    id: "rag-1", status: "INDEXED", retrievalEligible: true, allowedActions: ["DISABLE"],
+  } });
+  assert.equal(stale, previous);
+  const refreshed = confirmedRagDetail(previous, { status: "SUCCESS", data: { status: "DISABLED", retrievalEligible: false } });
+  assert.equal(refreshed.status, "DISABLED");
+  assert.equal(refreshed.retrievalEligible, false);
+});

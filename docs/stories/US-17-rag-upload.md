@@ -4,6 +4,40 @@
 
 IMPLEMENTED — local automated checks pass; live private Blob and Admin browser acceptance NOT PROVEN.
 
+## 2026-10-11 — Preview upload 404 investigation (unpublished fix)
+
+Owner reports a TXT object exists in the connected private kltn-blob store but
+finalization returns RAG_FILE_NOT_FOUND before creating an UPLOADED record.
+The supplied object pathname matches the actor/UUID/TXT structure; no captured
+finalize payload is available to prove equality with the ticket for that request.
+Read-only Vercel metadata verifies the store is private and linked to kltn.
+Preview Sensitive credentials cannot be retrieved by the local CLI; its local
+OIDC credential is rejected for the store environment. Live head/get on the
+supplied object therefore remain unverified. No private contents were logged,
+no object uploaded and no Neon data modified.
+
+Confirmed offline defect: installed @vercel/blob 2.8.1 reports blob.size=0 when
+HTTP 200 lacks Content-Length, even with a nonempty stream. A real SDK test using
+an undici MockAgent with networking disabled proves this behavior. The old
+adapter's !blob.size check then produces a false 404; the synthetic ticket/PUT/
+finalize regression fails on the old code and passes on the corrected adapter.
+This establishes an adapter defect, not yet a complete live incident attribution.
+
+The fix treats only a missing object as NOT_FOUND; unexpected 304/missing-body
+responses use RAG_STORAGE_RESPONSE, and access/network failures use sanitized
+RAG_STORAGE_UNAVAILABLE. Verification counts actual streamed bytes, enforces the
+20 MiB bound, rejects genuinely empty files and cancels failed/oversized reads.
+Private access, scoped upload ticket, auth, MIME/content validation, exact declared
+size comparison, committed replay and DB-confirmed UPLOADED remain unchanged.
+Review file streaming shares the same response classification; indexing continues
+to use the registered private pathname and bounded reader.
+
+Validation: eight new offline regressions; 47 focused tests pass with process
+exit 0, full root/legacy tests pass, typecheck and fresh production build pass,
+git diff --check passes. The cancellation fixture now includes the SDK's 200
+discriminant. No commit/push/deploy. Owner review and Preview retest are required
+before asserting that this fix resolves the reported live failure.
+
 ## Epic
 
 Quản trị tri thức RAG.
@@ -133,3 +167,17 @@ Private Vercel Blob store and server-only `BLOB_READ_WRITE_TOKEN` required for r
 ## Handoff Notes
 
 Stop after Task 1. Do not start US-18.
+
+
+## 2026-10-09 — TXH selective US17/US18 integration (owner-authorized)
+
+- Source ownership: selectively imported US17/18 from ThaiAnh commit `4c6df6128c1923369e652eb332eb1b475b50c3fa` onto TXH baseline `256584d831c72858f07e3231ce88dfb5b568f871`. No branch merge/cherry-pick; Favorites, Assistant, Task191/181/182 and Next config preserved. Historical evidence above belongs to the original ThaiAnh sessions; it is not evidence of current live acceptance.
+- DOCX mandatory correction: upload-only validator independently validates central/local ZIP metadata, entry bounds/paths/duplicates, supported stored/deflate archives (including checked data descriptors), actual decompression counts and CRC32 for the three required XML parts. OOXML root namespaces, content type and internal officeDocument relationship/body are verified. DTD/custom entities, invalid numeric entities, deep XML and corrupt XML fail closed. No external fetch or embedded execution; no extractDocument call.
+- Limits: original upload remains 20 MiB inclusive. Required XML parts retain 1 MiB each; aggregate ceiling is 3 MiB for those three parts. Explicit structural bounds: 2048 ZIP entries, XML depth128; ZIP64, encrypted/multi-disk/unsupported forms rejected. Not a full OOXML conformance, malware scan or hard heap/time guarantee. PDF remains marker validation; accepted upload does not prove extractability.
+- Replay mandatory correction: current actor and syntax/owned path validated first, then shared preflight uses the exact existing identity/hash/resolution functions. Confirmed replay/conflict requires no Blob read; lookup failure is UNKNOWN, never ABSENT. New writes still validate Blob outside executeIdempotentWrite's atomic transaction. No global change to write semantics.
+- UI: synchronous single-flight refs, aborted/stale-read guard and unmount generation checks preserve confirmed state; keyed detail identity isolates old mutations. UNKNOWN retries retain identical payload/key; known failed retry releases uncertainty. No indexing or disable action.
+- Validation in this integration: US17 15/15 + US18 11/11, DOCX security8/8, finalize replay9/9 and shared helper4/4 PASS. Independent python-docx-produced document outside repository also accepted. Task181/18263/63 PASS; root Vitest248/248 and all legacy suites317/317 PASS on the successful root run. First root run reported248 passed then native Windows process exit3221225477 during shutdown; unchanged retry completed normally. No assertions/config weakened.
+- Prisma7.10.0 schema validate/client generation and env codegen PASS; additive canonical rag_document SQL preserved exactly. Typecheck and fresh production build PASS. Blob SDK pinned2.8.1; all pre-existing lockfile package versions preserved. Before/after npm audit advisory objects identical:10HIGH/0CRITICAL, no new advisories, audit is not clean. No audit fix.
+- Browser evidence: actual React components in an isolated synthetic harness outside repo, mocked fetch only and Link shim (not the authenticated Next app).13 controlled checks cover upload/review SUCCESS/FAILED/UNKNOWN, identical retry, double-submit, old mutation isolation, empty/error. Desktop1440 and mobile360 light/dark component checks; no horizontal overflow observed. This does not prove auth routing, DB persistence, real Blob/CORS or full-app visual acceptance. Evidence at D:/KLTN/us19-smoke-20261009/ui/. No harness/mock imports in product.
+- Gate A: code checks pass with noted native runner instability. Gate B Development migration NOT RUN/not authorized. Gate C real private Blob NOT RUN/not authorized. Gate D controlled component checks only; live Admin end-to-end NOT RUN. Figma frame matching remains unproven.
+- Handoff: canonical RagDocument source now available for future Task184 FK design, but no vectors/schema184 or processing orchestration added. Task183/184/185 not started. Approval still checks original accessibility, not immutable approved bytes; that future boundary remains to be reviewed. No DB writes, real Blob records, Production access, OpenAI calls, commit/push/merge. Owner review required.

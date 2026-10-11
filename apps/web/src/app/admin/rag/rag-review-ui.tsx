@@ -7,6 +7,7 @@ import { ArrowLeft, FileText, Plus, AlertTriangle, LoaderCircle } from "lucide-r
 import { Button } from "@KLTN/ui/components/button";
 import { createIdempotencyKey, sendIdempotentMutation } from "@/lib/mutation-client";
 import { confirmedRagDetail } from "@/modules/rag-document/rag-review-state";
+import { RagIndexPanel } from "./rag-index-panel";
 
 type RagStatus = "UPLOADED" | "REVIEWING" | "APPROVED" | "INDEXED" | "DISABLED";
 type RagAction = "START_REVIEW" | "APPROVE" | "DISABLE";
@@ -36,7 +37,7 @@ function useRagRead<T>(url: string) {
     void fetch(url, { signal: controller.signal, cache: "no-store" }).then(async response => {
       const body = await response.json();
       if (!response.ok || body.success !== true) throw new Error(body.error?.message || "Không thể tải tài liệu.");
-      setData(body.data as T);
+      if (!controller.signal.aborted) setData(body.data as T);
     }).catch((reason: unknown) => {
       if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : "Không thể tải tài liệu.");
     });
@@ -72,27 +73,35 @@ export function RagDetailView({ id }: { id: string }) {
   const { data, setData, error, retry } = useRagRead<{ document: RagDetail }>(`/api/admin/rag-documents/${encodeURIComponent(id)}`);
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState(false);
+  const [uncertain, setUncertain] = useState(false);
+  const flight = useRef(false);
+  const generation = useRef(0);
+  useEffect(() => () => { generation.current++; }, []);
   const pending = useRef<{ action: RagAction; key: string } | null>(null);
 
   async function act(action: RagAction, key = createIdempotencyKey()) {
-    if (busy) return;
+    if (flight.current || pending.current && pending.current.key !== key) return;
+    flight.current = true;
+    const requestGeneration = generation.current;
     setBusy(true); setFeedback(""); pending.current = { action, key };
     try {
       const outcome = await sendIdempotentMutation<RagTransition>(`/api/admin/rag-documents/${encodeURIComponent(id)}/actions`, {
         idempotencyKey: key,
         init: { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) },
       });
+      if (generation.current !== requestGeneration) return;
       if (outcome.status === "SUCCESS") {
         setData(current => current ? { document: confirmedRagDetail(current.document, outcome) } : current);
-        pending.current = null;
+        pending.current = null; setUncertain(false);
         setFeedback(action === "DISABLE" ? "Đã vô hiệu hóa. Tài liệu không còn đủ điều kiện cho lượt truy xuất mới." : action === "APPROVE" ? "Đã phê duyệt. Tài liệu chưa được lập chỉ mục nên chưa dùng cho truy xuất." : "Đã bắt đầu kiểm duyệt.");
       } else if (outcome.status === "FAILED") {
-        pending.current = null;
+        pending.current = null; setUncertain(false);
         setFeedback(outcome.error.message);
       } else {
+        setUncertain(true);
         setFeedback("Chưa xác định được kết quả. Thử lại với cùng yêu cầu hoặc tải lại chi tiết để kiểm tra.");
       }
-    } finally { setBusy(false); }
+    } finally { flight.current = false; if (generation.current === requestGeneration) setBusy(false); }
   }
 
   const item = data?.document;
@@ -105,8 +114,17 @@ export function RagDetailView({ id }: { id: string }) {
         <a className="destination-button rag-file-link" href={`/api/admin/rag-documents/${encodeURIComponent(id)}/file`}>Tải tài liệu gốc để xem</a>
       </section>
       <section className="destination-card" aria-labelledby="rag-source-title"><h2 id="rag-source-title">Thông tin nguồn</h2><dl className="rag-detail-grid"><div><dt>Nguồn</dt><dd>{item.sourceTitle}</dd></div><div><dt>URL nguồn</dt><dd>{item.sourceUrl ? <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer">Mở trang nguồn</a> : "Chưa khai báo"}</dd></div><div><dt>Tác giả</dt><dd>{item.author || "Chưa khai báo"}</dd></div><div><dt>Chủ đề</dt><dd>{item.topic || "Chưa khai báo"}</dd></div><div><dt>Địa phương</dt><dd>{item.locality || "Chưa khai báo"}</dd></div></dl></section>
+      <RagIndexPanel key={id} documentId={id} status={item.status} onCompleted={() => {
+        const identity = generation.current;
+        void fetch('/api/admin/rag-documents/' + encodeURIComponent(id), { cache: 'no-store' }).then(async response => {
+          const body = await response.json();
+          if (response.ok && body.success === true && generation.current === identity) {
+            setData(current => current ? { document: confirmedRagDetail(current.document, { status: "SUCCESS", data: body.data.document }) } : body.data);
+          }
+        }).catch(() => { if (generation.current === identity) setFeedback('Chỉ mục đã hoàn tất; chưa đọc được trạng thái tài liệu mới. Hãy tải lại chi tiết.'); });
+      }} />
       <section className="destination-card" aria-labelledby="rag-actions-title"><h2 id="rag-actions-title">Quản lý trạng thái</h2><p className="destination-helper">{item.status === "DISABLED" ? "Tài liệu đã vô hiệu hóa và không được dùng cho lượt truy xuất mới." : item.status === "INDEXED" ? "Tài liệu đang đủ điều kiện truy xuất. Vô hiệu hóa sẽ loại tài liệu khỏi các lượt mới." : "Hãy kiểm tra nội dung tệp gốc trước khi phê duyệt. APPROVED chưa đủ điều kiện truy xuất cho đến khi lập chỉ mục thành công."}</p>
-        <div className="rag-actions">{item.allowedActions.includes("START_REVIEW") && <Button className="destination-primary" disabled={busy || !!pending.current && feedback.includes("Chưa xác định")} onClick={() => void act("START_REVIEW")}>Bắt đầu kiểm duyệt</Button>}{item.allowedActions.includes("APPROVE") && <Button className="destination-primary" disabled={busy || !!pending.current && feedback.includes("Chưa xác định")} onClick={() => void act("APPROVE")}>Phê duyệt</Button>}{item.allowedActions.includes("DISABLE") && <Button variant="destructive" disabled={busy || !!pending.current && feedback.includes("Chưa xác định")} onClick={() => { if (window.confirm("Vô hiệu hóa tài liệu này? Không thể kích hoạt lại bản ghi trong MVP.")) void act("DISABLE"); }}>Vô hiệu hóa</Button>}{item.allowedActions.length === 0 && <p>{item.status === "DISABLED" ? "Tài liệu đã vô hiệu hóa. Không có thao tác tiếp theo." : "Không có thao tác kiểm duyệt tiếp theo ở trạng thái này."}</p>}</div>
+        <div className="rag-actions">{item.allowedActions.includes("START_REVIEW") && <Button className="destination-primary" disabled={busy || uncertain} onClick={() => void act("START_REVIEW")}>Bắt đầu kiểm duyệt</Button>}{item.allowedActions.includes("APPROVE") && <Button className="destination-primary" disabled={busy || uncertain} onClick={() => void act("APPROVE")}>Phê duyệt</Button>}{item.allowedActions.includes("DISABLE") && <Button variant="destructive" disabled={busy || uncertain} onClick={() => { if (window.confirm("Vô hiệu hóa tài liệu này? Không thể kích hoạt lại bản ghi trong MVP.")) void act("DISABLE"); }}>Vô hiệu hóa</Button>}{item.allowedActions.length === 0 && <p>{item.status === "DISABLED" ? "Tài liệu đã vô hiệu hóa. Không có thao tác tiếp theo." : "Không có thao tác kiểm duyệt tiếp theo ở trạng thái này."}</p>}</div>
         {feedback && <div className="rag-action-feedback" role={pending.current ? "alert" : "status"}>{feedback}{pending.current && <Button type="button" disabled={busy} onClick={() => { const attempt = pending.current; if (attempt) void act(attempt.action, attempt.key); }}>Thử lại cùng yêu cầu</Button>}</div>}
       </section>
     </>}

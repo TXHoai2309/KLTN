@@ -1,4 +1,4 @@
-import { unzipSync } from "fflate";
+import { validateDocxUpload } from "./rag-docx-validation";
 import { AppError } from "@/server/http/app-error";
 
 export const MAX_RAG_FILE_BYTES = 20 * 1024 * 1024;
@@ -29,23 +29,7 @@ export function validateRagFile(fileName: string, mimeType: string, bytes: Uint8
     const end = new TextDecoder().decode(bytes.subarray(Math.max(0, bytes.length - 2048)));
     if (!start.startsWith("%PDF-") || !end.includes("%%EOF")) throw new AppError("INVALID_RAG_FILE", "Nội dung PDF không hợp lệ.", 400);
   } else if (type === "DOCX") {
-    if (bytes[0] !== 0x50 || bytes[1] !== 0x4b) throw new AppError("INVALID_RAG_FILE", "Nội dung DOCX không hợp lệ.", 400);
-    let parts: Record<string, Uint8Array>;
-    let oversized = false;
-    try {
-      parts = unzipSync(bytes, { filter: entry => {
-        if (!["[Content_Types].xml", "_rels/.rels", "word/document.xml"].includes(entry.name)) return false;
-        if (entry.originalSize > 1024 * 1024) { oversized = true; return false; }
-        return true;
-      } });
-    } catch { throw new AppError("INVALID_RAG_FILE", "Nội dung DOCX không hợp lệ.", 400); }
-    if (oversized || !parts["[Content_Types].xml"] || !parts["_rels/.rels"] || !parts["word/document.xml"]) throw new AppError("INVALID_RAG_FILE", "Nội dung DOCX không hợp lệ.", 400);
-    try {
-      const contentTypes = textDecoder.decode(parts["[Content_Types].xml"]);
-      const relations = textDecoder.decode(parts["_rels/.rels"]);
-      const document = textDecoder.decode(parts["word/document.xml"]);
-      if (!contentTypes.includes("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml") || !relations.includes("officeDocument") || !relations.includes("word/document.xml") || !/<w:document\b/.test(document) || !document.includes("http://schemas.openxmlformats.org/wordprocessingml/2006/main")) throw new Error("Missing Office document markers");
-    } catch { throw new AppError("INVALID_RAG_FILE", "Nội dung DOCX không hợp lệ.", 400); }
+    validateDocxUpload(bytes);
   } else {
     let content: string;
     try { content = textDecoder.decode(bytes); } catch { throw new AppError("INVALID_RAG_FILE", "TXT phải là văn bản UTF-8.", 400); }

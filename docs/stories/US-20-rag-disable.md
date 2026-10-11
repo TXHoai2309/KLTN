@@ -2,7 +2,7 @@
 
 ## Status
 
-IMPLEMENTED IN CODE — live retrieval integration blocked by US-19
+IMPLEMENTED IN INTEGRATED CODE — offline integration verified; live Admin disable/retrieval acceptance not yet verified.
 
 ## Epic
 
@@ -28,7 +28,7 @@ Admin có thể chuyển tài liệu từ UPLOADED, REVIEWING, APPROVED hoặc I
 
 ## Dependencies
 
-US-17/US-18 hiện diện trong commit `4c6df61` trên nhánh `ThaiAnh`; working tree sạch trước US-20. Nhánh `master` chỉ chứa foundation cũ. Audit source hiện tại không thấy story/module US-19, indexing hay retrieval query thực tế.
+**Historical ThaiAnh source snapshot:** US-17/US-18 hiện diện trong commit `4c6df61` trên nhánh `ThaiAnh`; working tree sạch trước US-20. Nhánh `master` chỉ chứa foundation cũ. Audit source hiện tại không thấy story/module US-19, indexing hay retrieval query thực tế.
 
 ## In Scope
 
@@ -130,3 +130,14 @@ Không có biến mới.
 ## Handoff Notes
 
 Dừng ở lifecycle disable và eligibility; không tự tạo US-19 hoặc chức năng kích hoạt lại.
+
+
+## 2026-10-11 — ThaiAnh into TXH integration review
+
+- Owner-authorized temporary branch: integrate/thaianh-into-txh-20261011, based on TXH a7c8f1a8dc3e52a3d160fd3f5ec6a6f14771af97. Source ThaiAnh a7a26a026b8940eb5c0e639544fc48b169a0d016 has two exclusive commits; target has 21. Merge base94d685bb1dc0daccfb9d4a08041dbff5da023c96. Fifteen conflicts reviewed individually; this is not a source-directory replacement.
+- Preserved TXH private Blob stream/byte-count/cancellation/error fixes,20MiB limit,DOCX security validator,upload replay and Admin auth,UI single-flight/UNKNOWN/identity guards,US19 accepted request-scoped pipeline and PDF NUL v2,Prisma relations,migration history and pinned dependencies. Task191 contract and Task195/196 Assistant source unchanged. No Task192–194 or Worker WIP integrated.
+- Integrated US20 DISABLE from all four active document states,terminal DISABLED,Admin confirmation and retained list/detail/original file. Status-conditional mutation and shared idempotency remain intact. The indexing completion refresh uses confirmed state and cannot overwrite a confirmed DISABLED with an older INDEXED response.
+- Real disposable PostgreSQL race test now invokes the actual DISABLE service,holds its conditional update and observes finalizer lock waiting. Committed DISABLE prevents publication and rejects Retry/Re-index;same-key disable replay succeeds and eligible publication metadata is null. Cancellation,atomic publication,rollback,reindex preservation and PDF regressions retained. No runtime indexing code was changed.
+- Source Favorites light/dark CSS and US16 addendum also integrated;existing layout/auth/business logic preserved. Source-only progress entries retained as historical evidence. Moved index-panel CSS import to the Admin detail page so the source SSR badge test can execute without a Node CSS loader;the page still loads both review/index styles.
+- Validation:US17/18/20 legacy52/52;root314 Vitest PASS and326 legacy PASS. The regular run intentionally skips16 PostgreSQL cases;two explicit disposable PostgreSQL runs each16/16 PASS,zero skipped,Vitest/outer exit0,container/volume cleanup PASS. Initial strengthened test run exposed a wrong test API name;corrected to the real getPublishedGenerationMetadata method without weakening the assertion. Typecheck and Prisma validate PASS;fresh production build and diff check PASS. No secret matches in added lines;protected source/dependency/schema checks unchanged.
+- No new migration or migration apply;no Neon connection/writes,live OpenAI/Blob calls,push or deployment. Worker stash36584c230110a4aad7879f64ee587a4b0c5249bd remains intact and unrestored. Local merge commit/optional TXH fast-forward only after final gates. Owner must approve push. US20 live Admin/browser/retrieval acceptance is not claimed;US19 MVP acceptance unchanged.

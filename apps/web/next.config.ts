@@ -6,6 +6,16 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   typedRoutes: true,
   reactCompiler: true,
+  // PDF.js resolves its Node worker relative to the installed ESM package.
+  // Turbopack bundling breaks that path; keep this server-only parser external.
+  serverExternalPackages: ["pdfjs-dist"],
+  // PDF.js dynamically loads this relative ESM asset; the route trace cannot
+  // discover it from the external parser's import alone.
+  outputFileTracingIncludes: {
+    "/api/admin/rag-documents/*/index": [
+      "../../node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+    ],
+  },
   images: {
     unoptimized: true,
   },
