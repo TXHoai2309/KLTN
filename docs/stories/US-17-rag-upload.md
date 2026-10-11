@@ -4,6 +4,40 @@
 
 IMPLEMENTED — local automated checks pass; live private Blob and Admin browser acceptance NOT PROVEN.
 
+## 2026-10-11 — Preview upload 404 investigation (unpublished fix)
+
+Owner reports a TXT object exists in the connected private kltn-blob store but
+finalization returns RAG_FILE_NOT_FOUND before creating an UPLOADED record.
+The supplied object pathname matches the actor/UUID/TXT structure; no captured
+finalize payload is available to prove equality with the ticket for that request.
+Read-only Vercel metadata verifies the store is private and linked to kltn.
+Preview Sensitive credentials cannot be retrieved by the local CLI; its local
+OIDC credential is rejected for the store environment. Live head/get on the
+supplied object therefore remain unverified. No private contents were logged,
+no object uploaded and no Neon data modified.
+
+Confirmed offline defect: installed @vercel/blob 2.8.1 reports blob.size=0 when
+HTTP 200 lacks Content-Length, even with a nonempty stream. A real SDK test using
+an undici MockAgent with networking disabled proves this behavior. The old
+adapter's !blob.size check then produces a false 404; the synthetic ticket/PUT/
+finalize regression fails on the old code and passes on the corrected adapter.
+This establishes an adapter defect, not yet a complete live incident attribution.
+
+The fix treats only a missing object as NOT_FOUND; unexpected 304/missing-body
+responses use RAG_STORAGE_RESPONSE, and access/network failures use sanitized
+RAG_STORAGE_UNAVAILABLE. Verification counts actual streamed bytes, enforces the
+20 MiB bound, rejects genuinely empty files and cancels failed/oversized reads.
+Private access, scoped upload ticket, auth, MIME/content validation, exact declared
+size comparison, committed replay and DB-confirmed UPLOADED remain unchanged.
+Review file streaming shares the same response classification; indexing continues
+to use the registered private pathname and bounded reader.
+
+Validation: eight new offline regressions; 47 focused tests pass with process
+exit 0, full root/legacy tests pass, typecheck and fresh production build pass,
+git diff --check passes. The cancellation fixture now includes the SDK's 200
+discriminant. No commit/push/deploy. Owner review and Preview retest are required
+before asserting that this fix resolves the reported live failure.
+
 ## Epic
 
 Quản trị tri thức RAG.

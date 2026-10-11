@@ -750,3 +750,12 @@ Append a new entry for each meaningful work session. Keep prior entries as hando
 - READY_TO_PUBLISH_FOR_TEST=NO until owner confirms Development target and supplies
   Preview-only provider secrets. See story gate follow-up for exact owner checklist.
   No publication,live calls,migration apply or shared DB writes. US19 IN_PROGRESS.
+
+## 2026-10-11 — US17 Preview 404 adapter fix awaiting owner review
+
+- Baseline: feat/us19-direct-index-api-progress at 90a77e11e13529d4b875a95955ee305db7048b7b. Five scoped paths; no commit/push/deploy.
+- Confirmed offline: @vercel/blob 2.8.1 returns HTTP200/stream/size0 when Content-Length is absent. The adapter incorrectly interpreted zero metadata as NOT_FOUND. Real SDK/undici MockAgent test has networking disabled. Synthetic upload-ticket/PUT/finalize regression reproduces the old 404 and now confirms UPLOADED; review/index reader reuses the exact private pathname.
+- Fix: classify null/NOT_FOUND, unexpected bodyless response and access/network failure separately; count actual bytes, retain 20 MiB/content/MIME checks, reject truly empty files and cancel failed reads. No public storage, weakened auth or verification bypass.
+- Owner object pathname has the expected shape; live finalize payload unavailable. Store metadata verifies private kltn-blob/project connection. Local read-only head/get probe is blocked by environment-scoped OIDC authorization; the Preview Sensitive read-write token is not retrievable. Do not claim live pathname equality, token equality, response headers or final incident resolution.
+- Validation: 47 focused tests/exit0; full root and legacy tests PASS; typecheck PASS; fresh production build PASS (26/26 pages); diff check PASS. One initial focused invocation printed passing assertions but exited1; rerun explicitly verified child exit0 and full root run exited0.
+- No Neon writes, real uploads or OpenAI calls. Owner must approve publication and retest Preview. US19 remains IN_PROGRESS; no DONE/ACCEPTED claim.

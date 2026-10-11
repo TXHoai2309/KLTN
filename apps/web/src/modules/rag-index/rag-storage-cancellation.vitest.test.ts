@@ -39,7 +39,7 @@ describe("Task185 private Blob cancellation", () => {
       },
       cancel() { cancelCount += 1; releasePendingPull(); },
     });
-    getMock.mockResolvedValue({ stream, blob: { size: 2, contentType: "text/plain" } });
+    getMock.mockResolvedValue({ statusCode: 200, stream, blob: { size: 2, contentType: "text/plain" } });
 
     const controller = new AbortController();
     const result = ragStorage.read("registered/private/path", controller.signal);
