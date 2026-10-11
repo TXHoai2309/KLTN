@@ -7,7 +7,7 @@ import { NORMALIZATION_VERSION } from "./normalize-text";
 import { extractTxt } from "./extractors/txt";
 import { extractDocx } from "./extractors/docx";
 
-export const EXTRACTOR_VERSIONS = { PDF: "pdfjs-4.10.38-lines-v1", DOCX: "ooxml-body-v1", TXT: "utf8-paragraphs-v1" } as const;
+export const EXTRACTOR_VERSIONS = { PDF: "pdfjs-4.10.38-lines-nul-v2", DOCX: "ooxml-body-v1", TXT: "utf8-paragraphs-v1" } as const;
 
 export async function extractDocument(input: ExtractionInput): Promise<ExtractionResult> {
   if (input.format !== "PDF" && input.format !== "DOCX" && input.format !== "TXT") return { status: "UNSUPPORTED_FORMAT", code: "FORMAT_NOT_SUPPORTED" };

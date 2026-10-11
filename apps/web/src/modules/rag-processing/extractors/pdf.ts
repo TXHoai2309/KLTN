@@ -28,7 +28,10 @@ export async function extractPdf(bytes: Uint8Array) {
           const y = item.transform[5];
           if (previous && Math.abs(previous.y - y) > 2 && line) flush();
           if (line && previous && item.transform[4] - previous.right > 1) line += " ";
-          line += item.str;
+          // PDF.js's viewer removes NUL placeholders from copied text too.
+          // Normalize before collecting segments/hashing/deriving source offsets:
+          // PostgreSQL text cannot represent U+0000. Never rewrite saved chunks.
+          line += item.str.replaceAll("\u0000", "");
           if (line.length > EXTRACTION_LIMITS.textUtf16Units) limit("TEXT_LIMIT");
           previous = { y, right: item.transform[4] + item.width };
           if (item.hasEOL) flush();

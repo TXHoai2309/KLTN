@@ -150,6 +150,16 @@ const embeddedInput = (chunks: DocumentChunk[]): EmbeddedChunk[] => chunks.map((
 }));
 
 describe("US-19 Task184 versioned RAG persistence", () => {
+  it("rejects NUL text before a transaction or write and never silently rewrites chunks", async () => {
+    const fake = fakeDatabase();
+    const transaction = vi.spyOn(fake.database, "$transaction");
+    const store = createRagIndexStore(fake.database);
+    const chunks = chunkInput(["Unsupported\u0000text"]);
+    await expect(store.persistChunks("doc-1", "gen-1", chunks)).rejects.toMatchObject({ code: "UNSUPPORTED_CHUNK_TEXT" });
+    expect(transaction).not.toHaveBeenCalled();
+    expect(fake.chunks.size).toBe(0);
+    expect(chunks[0]!.text).toBe("Unsupported\u0000text");
+  });
   it("creates/finds stable identities and recovers concurrent unique-key races", async () => {
     const fake = fakeDatabase({ contentVersionRaceCall: 2, generationRaceCall: 2 }); const store = createRagIndexStore(fake.database);
     const content = {

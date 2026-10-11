@@ -77,6 +77,19 @@ function harness(options: { status?: string; content?: string; fileType?: "TXT" 
 }
 
 describe("US-19 Task185 indexing worker", () => {
+  it("records a safe chunk persistence failure without leaking Prisma messages or making provider calls", async () => {
+    const test = harness();
+    test.index.persistChunks.mockRejectedValueOnce(Object.assign(new Error("PRIVATE_DOCUMENT_TEXT signed-url credential"), { code: "P2039" }));
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      await expect(test.worker.runNext()).resolves.toEqual({ jobId: "job-1", status: "FAILED" });
+      expect(test.failures[0]).toMatchObject({ status: "FAILED", code: "CHUNK_PERSISTENCE_FAILED" });
+      expect(log).toHaveBeenCalledWith("RAG_INDEX_FAILURE", { phase: "PERSISTING_CHUNKS", failureCode: "CHUNK_PERSISTENCE_FAILED", prismaCode: "P2039" });
+      expect(JSON.stringify(log.mock.calls)).not.toContain("PRIVATE_DOCUMENT_TEXT");
+      expect(test.providerCalls).toBe(0);
+      expect(test.index.finalizeReadyGeneration).not.toHaveBeenCalled();
+    } finally { log.mockRestore(); }
+  });
   it("runs the real extraction/chunking path with a fake provider and finalizes only after a complete generation", async () => {
     const test = harness();
     await expect(test.worker.runNext()).resolves.toEqual({ jobId: "job-1", status: "COMPLETED" });

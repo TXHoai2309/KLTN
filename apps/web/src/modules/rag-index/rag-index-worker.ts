@@ -216,7 +216,19 @@ async function runClaimed(job: RagIndexJobRecord, deps: RagIndexWorkerDependenci
     await deps.jobs.setIdentities(lease, version.id, generation.id);
 
     await deps.jobs.checkpoint(lease, "PERSISTING_CHUNKS", null);
-    await deps.index.persistChunks(document.id, generation.id, chunking.chunks, lease);
+    try {
+      await deps.index.persistChunks(document.id, generation.id, chunking.chunks, lease);
+    } catch (error) {
+      if (error instanceof RagIndexError || error instanceof AppError || error instanceof EmbeddingError) throw error;
+      // Never log the exception message/meta: Prisma may include document text,
+      // query parameters or credentials. Only an allowlisted diagnostic code.
+      const code = typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+      console.error("RAG_INDEX_FAILURE", {
+        phase: "PERSISTING_CHUNKS", failureCode: "CHUNK_PERSISTENCE_FAILED",
+        ...(typeof code === "string" && /^P\d{4}$/.test(code) ? { prismaCode: code } : {}),
+      });
+      throw new AppError("CHUNK_PERSISTENCE_FAILED", "Không thể lưu các đoạn tài liệu.", 500);
+    }
     const persisted = await deps.jobs.listPersistedEmbeddingIndexes(generation.id);
     const expectedIndexes = new Set(chunking.chunks.map(chunk => chunk.index));
     if (persisted.some(index => !expectedIndexes.has(index))) throw new RagIndexError("GENERATION_CONFLICT");

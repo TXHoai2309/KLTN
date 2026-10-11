@@ -34,6 +34,16 @@ describe("Task181 TXT", () => {
 });
 
 describe("Task181 PDF", () => {
+  it("removes NUL placeholders before hashes and offsets without changing source bytes or Vietnamese text", async () => {
+    const bytes = syntheticPdf([{ text: "\u0000Tiếng Việt\u0000: dữ liệu." }, { text: "\u0000" }]);
+    const result = await extract("PDF", bytes);
+    if (result.status !== "EXTRACTED") throw new Error("extraction failed");
+    expect(result.document.segments.map(segment => segment.text)).toEqual(["Tiếng Việt: dữ liệu."]);
+    expect(result.document.extractorVersion).toBe("pdfjs-4.10.38-lines-nul-v2");
+    expect(result.document.originalBytesHash).toBe(sha256(bytes));
+    expect(result.document.warnings).toContainEqual({ code: "PAGE_WITHOUT_TEXT", pageNumber: 2 });
+    expect(await extract("PDF", bytes)).toEqual(result);
+  });
   it("real Unicode text, empty/image pages, and physical page association", async () => {
     const result = await extract("PDF", syntheticPdf([{ text: "Tiếng Việt: dữ liệu tổng hợp." }, {}, { text: "Trang thứ ba.", image: true }, { image: true }]));
     if (result.status !== "EXTRACTED") throw new Error(JSON.stringify(result));

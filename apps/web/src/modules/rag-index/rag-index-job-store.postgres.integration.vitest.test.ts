@@ -11,6 +11,9 @@ import { createRagIndexWorker } from "./rag-index-worker";
 import { processIndexRequest, readIndexProgress } from "./rag-index-request-service";
 import { enqueueRagIndexJob, type RagIndexJobServiceDependencies } from "./rag-index-job-service";
 import { EMBEDDING_PROVENANCE } from "../rag-processing/embedding-contract";
+import { canonical, sha256 } from "../rag-processing/content-hash";
+import { extractDocument } from "../rag-processing/extract-document";
+import { chunkDocument } from "../rag-processing/chunk-document";
 
 vi.mock("server-only", () => ({}));
 
@@ -374,6 +377,40 @@ integrationDescribe("US-19 Task185 durable job persistence (isolated PostgreSQL 
     });
     await expect(jobs.claimNext()).resolves.toMatchObject({ id: recoverableJobId, status: "RUNNING", phase: "PERSISTING_CHUNKS", attemptCount: 2 });
   });
+
+  it("indexes a PDF with NUL placeholders through chunks, embeddings and atomic publication", async () => {
+    const documentId = `task185-pdf-nul-${randomUUID()}`;
+    const bytes = syntheticPdf(Array.from({ length: 3 }, (_, page) => ({ lines: Array.from({ length: 20 }, (_, line) => `\u0000Trang ${page + 1}, dòng ${line + 1}: Kiểm thử văn bản PDF tiếng Việt có nguồn.`) })));
+    await createDocument(documentId);
+    await prisma.ragDocument.update({ where: { id: documentId }, data: { originalFileName: "synthetic-nul.pdf", fileType: "PDF", mimeType: "application/pdf", sizeBytes: bytes.byteLength } });
+    const jobId = `task185-pdf-nul-job-${randomUUID()}`;
+    await createJob(jobId, documentId);
+    const fake = createFakeEmbeddingProvider();
+    const worker = createRagIndexWorker({ jobs, index, storage: { read: async () => ({ bytes, sizeBytes: bytes.byteLength, mimeType: "application/pdf" }) }, provider: fake.provider });
+    await expect(worker.runNext()).resolves.toEqual({ jobId, status: "COMPLETED" });
+    await expect(prisma.ragIndexJob.findUniqueOrThrow({ where: { id: jobId } })).resolves.toMatchObject({ status: "COMPLETED", phase: "COMPLETED", warningCodes: ["PDF_READING_ORDER_HEURISTIC"], failureCode: null });
+    await expect(prisma.ragDocument.findUniqueOrThrow({ where: { id: documentId } })).resolves.toMatchObject({ status: "INDEXED" });
+    const publication = await prisma.ragIndexPublication.findUniqueOrThrow({ where: { ragDocumentId: documentId } });
+    const generation = await prisma.ragIndexGeneration.findUniqueOrThrow({ where: { id: publication.generationId } });
+    const chunks = await prisma.ragChunk.findMany({ where: { generationId: generation.id }, orderBy: { index: "asc" } });
+    expect(generation).toMatchObject({ state: "READY", expectedChunkCount: 3 });
+    expect(chunks).toHaveLength(3);
+    expect(chunks.every(chunk => !chunk.text.includes("\u0000"))).toBe(true);
+    const extraction = await extractDocument({ format: "PDF", bytes });
+    if (extraction.status !== "EXTRACTED") throw new Error("Synthetic PDF extraction failed");
+    const expected = chunkDocument(extraction.document);
+    expect(expected.status).toBe("CHUNKED");
+    for (const [i, chunk] of chunks.entries()) {
+      expect(chunk.text).toBe(expected.chunks[i]!.text);
+      expect(chunk.textHash).toBe(sha256(chunk.text));
+      expect(chunk.chunkHash).toBe(expected.chunks[i]!.chunkHash);
+      expect(canonical(chunk.refs)).toBe(canonical(expected.chunks[i]!.refs));
+      expect(canonical(chunk.locators)).toBe(canonical(expected.chunks[i]!.locators));
+    }
+    await expect(prisma.ragContentVersion.findUniqueOrThrow({ where: { id: generation.contentVersionId } })).resolves.toMatchObject({ originalBytesHash: sha256(bytes), extractorVersion: "pdfjs-4.10.38-lines-nul-v2" });
+    expect(await prisma.ragChunkEmbedding.count({ where: { chunk: { generationId: generation.id } } })).toBe(3);
+    expect(fake.calls).toHaveLength(1);
+  }, 60_000);
 
   it("indexes a synthetic PDF with retained heuristic provenance through real PostgreSQL and atomically publishes INDEXED", async () => {
     const documentId = `task185-pipeline-${randomUUID()}`;

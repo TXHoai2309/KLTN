@@ -24,8 +24,8 @@ function assemblePdf(objects: string[], trailer = "") {
 const stream = (text: string) => `<< /Length ${Buffer.byteLength(text, "latin1")} >>\nstream\n${text}\nendstream`;
 
 // Real PDF object tree/xref, Type0 font and ToUnicode mapping, plus a 1px image.
-export function syntheticPdf(pages: { text?: string; image?: boolean }[]) {
-  const chars = [...new Set(pages.flatMap(page => [...(page.text ?? "")]))];
+export function syntheticPdf(pages: { text?: string; lines?: string[]; image?: boolean }[]) {
+  const chars = [...new Set(pages.flatMap(page => [...[page.text ?? "", ...(page.lines ?? [])].join("")]))];
   const cmap = chars.map((char, i) => `<${(i + 1).toString(16).padStart(4, "0")}> <${Buffer.from(char, "utf16le").swap16().toString("hex")}>`).join("\n");
   const mappings = chars.map((char, i) => [char, (i + 1).toString(16).padStart(4, "0")] as const);
   const encode = (text: string) => [...text].map(char => mappings.find(([key]) => key === char)![1]).join("");
@@ -40,7 +40,8 @@ export function syntheticPdf(pages: { text?: string; image?: boolean }[]) {
   ];
   pages.forEach((page, i) => {
     objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> /XObject << /Im1 7 0 R >> >> /Contents ${9 + i * 2} 0 R >>`);
-    objects.push(stream(`${page.text ? `BT /F1 12 Tf 40 740 Td <${encode(page.text)}> Tj ET\n` : ""}${page.image ? "q 20 0 0 20 40 40 cm /Im1 Do Q" : ""}`));
+    const lines = page.lines ?? (page.text ? [page.text] : []);
+    objects.push(stream(`${lines.map((line, index) => `BT /F1 12 Tf 40 ${740 - index * 20} Td <${encode(line)}> Tj ET\n`).join("")}${page.image ? "q 20 0 0 20 40 40 cm /Im1 Do Q" : ""}`));
   });
   return assemblePdf(objects);
 }

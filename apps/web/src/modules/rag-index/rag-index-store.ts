@@ -162,6 +162,7 @@ export function createRagIndexStore(database: Database) {
 
     async persistChunks(ragDocumentId: string, generationId: string, chunks: readonly DocumentChunk[], lease?: RagIndexJobLease): Promise<number> {
       if (!Array.isArray(chunks) || chunks.length === 0 || new Set(chunks.map(chunk => chunk.index)).size !== chunks.length) throw new RagIndexError("INVALID_INDEX_INPUT");
+      if (chunks.some(chunk => typeof chunk.text === "string" && chunk.text.includes("\u0000"))) throw new RagIndexError("UNSUPPORTED_CHUNK_TEXT");
       return database.$transaction(async tx => {
         if (lease) {
           const locked = await lockAndAssertRagIndexJobLease(tx, lease);
