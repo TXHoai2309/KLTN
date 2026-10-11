@@ -9,6 +9,7 @@ import { countEmbeddingTokens } from "../rag-processing/embedding-tokenizer";
 import { createOpenAiEmbeddingProvider } from "../rag-processing/openai-embedding-provider";
 import { isQaPublicMetadataSafe } from "./qa-public-safety";
 import { qaOrigin, qaProviderInvoked, qaProviderMetadata, qaStage } from "./qa-diagnostics";
+import { destinationEvidenceSentences } from "./qa-destination-context";
 
 type Reader = Pick<Database, "$queryRaw"> & Partial<Pick<Database, "$transaction">>;
 type Row = { documentId: string; generationId: string; contentVersionId: string; chunkId: string;
@@ -104,13 +105,13 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
   const publicSourceIds = options.publicSourceIds ?? new Set<string>();
   if (!Number.isFinite(minScore) || minScore < 0 || minScore > 1) throw new EmbeddingError("INVALID_INPUT", false);
   return {
-    async retrieve(question: string, history: readonly QaHistoryTurn[], signal?: AbortSignal): Promise<QaEvidence[]> {
+    async retrieve(question, history, signal, context = { type: "GENERAL" }): Promise<QaEvidence[]> {
       const normalized = qaQuestionSchema.parse(question);
       if (signal?.aborted) throw new EmbeddingError("CANCELLED", false);
       // Only authorized prior questions help resolve intent. Prior answers/citations
       // are never queried, projected, or returned as current evidence.
       const previousQuestions = history.slice(-2).map(turn => qaQuestionSchema.parse(turn.question));
-      const query = [...previousQuestions, normalized].join("\n");
+      const query = [...(context.type === "DESTINATION" ? [JSON.stringify({ destination: context.name })] : []), ...previousQuestions, normalized].join("\n");
       if (countEmbeddingTokens(query) > 8191) throw new EmbeddingError("RESOURCE_LIMIT", false);
       qaStage("QUESTION_EMBEDDING_STARTED");
       let response;
@@ -129,12 +130,17 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
       qaStage("RETRIEVAL_STARTED");
       if (signal?.aborted) throw new EmbeddingError("CANCELLED", false);
       const vectorLiteral = `[${vector.join(",")}]`;
+      // Literal substring matching avoids wildcard interpretation of metadata.
+      const contextFilter = context.type === "DESTINATION"
+        ? Prisma.sql`AND strpos(lower(normalize(c."text", NFC)), lower(${context.name})) > 0`
+        : Prisma.empty;
       const rows = await boundedRead(database, reader => reader.$queryRaw<Row[]>(Prisma.sql`SELECT d."id" AS "documentId", g."id" AS "generationId",
         g."contentVersionId", c."id" AS "chunkId", c."chunkHash", c."text", e."tokenCount",
         d."sourceTitle", d."fileType"::text AS "fileType", c."locators",
         (1 - (e."embedding" <=> ${vectorLiteral}::vector))::double precision AS "score"
         ${joins} WHERE ${eligible} AND e."tokenCount" > 0
         AND 1 - (e."embedding" <=> ${vectorLiteral}::vector) >= ${minScore}
+        ${contextFilter}
         ORDER BY e."embedding" <=> ${vectorLiteral}::vector, d."id", g."id", c."index", c."id" LIMIT ${topK}`));
       if (signal?.aborted) throw new EmbeddingError("CANCELLED", false);
       const evidence: QaEvidence[] = [];
@@ -142,6 +148,7 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
       for (const row of rows) {
         if (!publicSourceIds.has(row.documentId)) continue;
         if (!Number.isFinite(row.score) || row.score < minScore || !row.text.trim()) continue;
+        if (context.type === "DESTINATION" && !destinationEvidenceSentences(row.text, context.name).length) continue;
         const actualTokens = countEmbeddingTokens(row.text);
         if (!Number.isInteger(row.tokenCount) || actualTokens !== row.tokenCount || usedTokens + actualTokens > maxEvidenceTokens) continue;
         const citationId = `c${evidence.length + 1}`;

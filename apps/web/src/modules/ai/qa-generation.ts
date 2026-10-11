@@ -3,7 +3,7 @@ import { z } from "zod";
 import { countEmbeddingTokens } from "../rag-processing/embedding-tokenizer";
 import { AppError } from "../../server/http/app-error";
 import { QA_INSUFFICIENT_SOURCE_MESSAGE, qaCompletedTurnSchema, qaPublicCitationSchema, qaQuestionSchema, qaReferenceIdSchema } from "./qa-contract";
-import { composeQaPrompt, containsEvidenceInstruction, evidenceSentences, QA_CLARIFICATION_QUESTION, QA_UNANSWERED_ASPECT } from "./qa-prompt";
+import { composeQaPrompt, containsEvidenceInstruction, qaScopedEvidenceSentences, QA_CLARIFICATION_QUESTION, QA_UNANSWERED_ASPECT } from "./qa-prompt";
 import type { QaAnswer, QaGenerationInput, QaGenerator } from "./qa-runtime-contract";
 import { isQaPublicAnswerSafe, isQaPublicMetadataSafe } from "./qa-public-safety";
 import { qaOrigin, qaProviderInvoked, qaProviderMetadata, qaStage, type QaStage, type QaFailureCategory } from "./qa-diagnostics";
@@ -50,7 +50,7 @@ export function validateQaGenerationOutput(output: unknown, input: QaGenerationI
       const evidence = registry.get(id);
       if (!evidence || evidence.citation.id !== id) throw invalid("CITATION_VALIDATION", "CITATION_REFERENCE");
       if (containsEvidenceInstruction(evidence.text)) throw invalid("GROUNDING_VALIDATION", "EVIDENCE_INSTRUCTION");
-      if (!evidenceSentences(evidence.text).includes(text)) throw invalid("GROUNDING_VALIDATION", "UNSUPPORTED_SENTENCE");
+      if (!qaScopedEvidenceSentences(evidence.text, input).includes(text)) throw invalid("GROUNDING_VALIDATION", "UNSUPPORTED_SENTENCE");
       used.add(id);
     }
     return { text, citationIds: part.citationIds };
@@ -97,7 +97,7 @@ export function createQaGenerator(options: { apiKey?: () => string | undefined; 
   if (!/^[a-zA-Z0-9._-]{1,100}$/.test(model) || !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > QA_GENERATION_LIMITS.timeoutMs || !Number.isInteger(maxOutputTokens) || maxOutputTokens < 1 || maxOutputTokens > QA_GENERATION_LIMITS.maxOutputTokens) throw new Error("Invalid QA generation configuration");
   return { async generate(input) {
     qaStage("GENERATION_PREFLIGHT");
-    if (input.context.type !== "GENERAL" || !qaQuestionSchema.safeParse(input.question).success || input.evidence.length > QA_GENERATION_LIMITS.maxEvidence) throw invalid();
+    if ((input.context.type === "DESTINATION" && (!input.context.name.trim() || containsEvidenceInstruction(input.context.name))) || !qaQuestionSchema.safeParse(input.question).success || input.evidence.length > QA_GENERATION_LIMITS.maxEvidence) throw invalid();
     if (input.signal?.aborted) throw unavailable();
     if (input.evidence.length === 0) { qaStage("GENERATION_OUTPUT_VALIDATED"); return insufficientQaAnswer(); }
     const hasInternalEvidenceIdentifier = input.evidence.some(item => [item.documentId, item.generationId, item.contentVersionId, item.chunkId, item.chunkHash]

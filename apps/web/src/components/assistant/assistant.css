@@ -50,7 +50,7 @@
 .assistant-composer { margin-top: auto; border-top: 1px solid var(--assistant-line); padding-top: 12px; }
 .assistant-composer label { display: block; font-size: 12px; margin-bottom: 8px; }
 .assistant-composer-input { display: flex; align-items: flex-end; gap: 8px; border: 1px solid var(--assistant-line); border-radius: 8px; padding: 6px; background: var(--assistant-card); }
-.assistant-composer textarea { display: block; resize: vertical; width: 100%; min-width: 0; min-height: 52px; max-height: 150px; padding: 8px 10px; border: 0; border-radius: 5px; background: transparent; color: inherit; font: inherit; font-size: 16px; line-height: 1.6; }
+.assistant-composer textarea { display: block; resize: none; width: 100%; min-width: 0; min-height: 52px; max-height: 150px; padding: 8px 10px; border: 0; border-radius: 5px; background: transparent; color: inherit; font: inherit; font-size: 16px; line-height: 1.6; }
 .assistant-page .assistant-composer-input button { background: var(--assistant-green); color: #fff; min-width: 82px; flex-shrink: 0; border: 0; }
 .assistant-composer-footer { display: flex; gap: 10px; justify-content: space-between; align-items: center; margin-top: 10px; }
 .assistant-composer-footer span { font-size: 11px; color: var(--assistant-muted); }
@@ -81,3 +81,12 @@
 @media (max-width: 900px) { .assistant-page-grid { grid-template-columns: minmax(0, 1fr); } .assistant-aside { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; } .assistant-principles { margin-top: 0; } }
 @media (max-width: 600px) { .assistant-page-inner { padding: 20px 14px; } .assistant-page-heading { padding: 0; } .assistant-page-heading p { font-size: 14px; } .assistant-heading-art { right: -14px; width: 85%; opacity: .22; } .assistant-page-grid { gap: 18px; } .assistant-chat { padding: 14px; } .assistant-chat-toolbar { font-size: 12px; } .assistant-chat-topic { gap: 8px; } .assistant-aside { grid-template-columns: minmax(0, 1fr); } .assistant-message { max-width: 94%; padding: 13px; } .assistant-transcript { min-height: 150px; height: clamp(150px, 34dvh, 290px); } .assistant-empty-art { height: 70px; } .assistant-empty { padding: 12px 0; } .assistant-empty h2 { font-size: 22px; } .assistant-empty p { font-size: 12px; } .assistant-context, .assistant-principles { padding: 18px; } .assistant-principles { padding-bottom: 88px; } .assistant-composer-footer { align-items: flex-start; } .assistant-composer-footer span:last-child { white-space: nowrap; } .assistant-composer-footer span { font-size: 10px; } .assistant-page .assistant-composer-input button { min-width: 60px; padding: 10px; } }
 @media (prefers-reduced-motion: reduce) { .assistant-page * { scroll-behavior: auto; } }
+.assistant-context-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 14px 0; border-top: 1px solid var(--assistant-line); }
+.assistant-context-controls label { font-weight: 600; }
+.assistant-context-controls select { min-height: 44px; min-width: 0; max-width: 100%; flex: 1 1 180px; padding: 8px; border: 1px solid currentColor; border-radius: 8px; background: inherit; color: inherit; cursor: pointer; }
+.assistant-context-controls button { min-height: 44px; cursor: pointer; }
+.assistant-context-controls small { flex-basis: 100%; overflow-wrap: anywhere; }
+.assistant-context-name { flex-basis: 100%; overflow-wrap: anywhere; }
+.assistant-context-controls select:focus-visible, .assistant-context-controls button:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.assistant-context-controls select:hover:not(:disabled), .assistant-context-controls button:hover:not(:disabled) { background: var(--assistant-sage); }
+.assistant-context-controls :disabled { opacity: .6; cursor: not-allowed; }

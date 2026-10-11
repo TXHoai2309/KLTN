@@ -83,3 +83,33 @@ The premium skill strict audit was run read-only:22 findings (4 unresolved owner
 18 violations), all in unchanged global/demo/shared UI files. No finding targets
 the indexing panel. They are recorded as existing cross-screen debt, not silently
 fixed or represented as a repository-wide audit PASS.
+
+## US-22 public assistant context
+
+The public assistant continues to own its existing visual tokens in
+`apps/web/src/components/assistant/assistant.css` (assistant-green/ink/line/sage
+and existing dark overrides). Destination Detail reuses its public-detail link
+style. This is an additive Vietnamese interaction, not a redesign. The assistant
+toolbar describes destination/general mode; the current verified destination name
+is shown by the labeled context picker. The sidebar describes context behavior
+without claiming every conversation is GENERAL.
+
+Select/Listbox owner: native HTML select in AssistantChat, including the bounded
+server-projected destination choices. Platform popup geometry/appearance is
+accepted; no authored popup styling contract. The offline QA harness uses native
+select for test scenarios too. Controls wrap at 360px, have 44px targets, visible
+focus/hover/disabled styles and textual explanations. Shared AssistantChat owns
+the composer and context controls for runtime, SSR and QA. The existing app-owned
+abandon dialog handles unresolved attempts; context changes are disabled until
+resolution or explicit abandon. Context change starts a new conversation, never
+changes a persisted conversation. Passive browsing sets no shared destination
+state. Auth revalidation preserves intent and disables sending/retry.
+
+The name is verified at server render and again on ask; selected metadata is not
+RAG evidence. No personal history is cached in browser storage. Same-page rerenders
+retain context, explicit assistant destination navigation remounts through its
+context key. Explicit switch/clear replaces the public destination reference in
+the URL; cached page trees reconcile it using server-projected choices. Full reload
+retains only the URL's selected context (US-21 history
+restoration remains outside scope). Verify React StrictMode, browser back, switch,
+clear, UNKNOWN, auth revalidation, mobile and keyboard using the offline fixture.

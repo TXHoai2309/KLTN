@@ -10,6 +10,7 @@ import { createQaHttpHandlers } from "./qa-http";
 import { createQaAbuseGuard, createQaNetworkResolver } from "./qa-abuse";
 import { isQaRuntimeEnabled } from "./qa-runtime-gate";
 import { createQaDiagnostics } from "./qa-diagnostics";
+import { resolveQaContext } from "./qa-destination-context";
 
 // Owner runtime acceptance + cleanup scheduling + abuse review are pending.
 // Preview/local require exact target allowlisting and explicit abuse-control acceptance.
@@ -27,5 +28,5 @@ const publicSourceIds = new Set((process.env.QA_PUBLIC_SOURCE_IDS ?? "").split("
 const abuse = createQaAbuseGuard(db);
 const networkId = createQaNetworkResolver({ secret: () => process.env.QA_NETWORK_HMAC_SECRET, vercel: () => process.env.VERCEL === "1", localIdentity: () => process.env.NODE_ENV === "development" ? process.env.QA_LOCAL_NETWORK_ID : undefined });
 export const qaPrincipalResolver = createQaPrincipalResolver({ database: db, auth: authorizationDependencies, secure: process.env.NODE_ENV !== "development", abuse, networkId });
-export const qaService = createQaService({ store: createQaConversationStore(db, { abuse: abuse.hooks, publicSourceIds }), retriever: createQaRetriever(db, { publicSourceIds, topK: 4, maxEvidenceTokens: 3000 }), generator: createQaGenerator() });
+export const qaService = createQaService({ store: createQaConversationStore(db, { abuse: abuse.hooks, publicSourceIds }), retriever: createQaRetriever(db, { publicSourceIds, topK: 4, maxEvidenceTokens: 3000 }), generator: createQaGenerator(), resolveContext: context => resolveQaContext(db, context) });
 export const qaHttp = createQaHttpHandlers({ diagnostics: createQaDiagnostics({ nodeEnv: process.env.NODE_ENV, vercelEnv: process.env.VERCEL_ENV }), enabled: qaRuntimeEnabled, resolve: qaPrincipalResolver.resolve, ask: qaService.ask, history: qaService.history, delete: qaService.delete });

@@ -84,7 +84,9 @@ async function installTask184Schema() {
     "utf8",
   );
   const qaMigrations = await Promise.all(["20261011120000_add_qa_guest_identity", "20261011121000_add_qa_conversations", "20261011122000_add_qa_abuse_guard", "20261011123000_add_qa_cleanup_state"].map(name => readFile(resolve(repoRoot, `packages/db/prisma/migrations/${name}/migration.sql`), "utf8")));
-  const setupSql = `CREATE EXTENSION vector;\n${admissionMigrations.join("\n")}\n${documentMigration}\n${indexMigration}\n${jobMigration}\n${qaMigrations.join("\n")}\n`;
+  const destinationMigration = await readFile(resolve(repoRoot, "packages/db/prisma/migrations/20261004070249_add_destination_domain/migration.sql"), "utf8");
+  const contextMigration = await readFile(resolve(repoRoot, "packages/db/prisma/migrations/20261012120000_add_qa_destination_context/migration.sql"), "utf8");
+  const setupSql = `CREATE EXTENSION vector;\n${admissionMigrations.join("\n")}\n${destinationMigration}\n${documentMigration}\n${indexMigration}\n${jobMigration}\n${qaMigrations.join("\n")}\n${contextMigration}\n`;
   const result = run(
     "docker",
     [

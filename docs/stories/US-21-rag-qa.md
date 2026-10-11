@@ -2,6 +2,11 @@
 
 ## Status
 
+US-22 extends the active context union to ID-only DESTINATION; see
+[US-22 contract](US-22-destination-context.md) for its implementation and offline
+evidence. GENERAL-only statements below describe the historical US-21 boundary.
+Outcome validation and US-21 acceptance/issues are unchanged.
+
 IN PROGRESS — Tasks 192/193/194/197 integrated in an offline feature worktree;
 owner review and runtime acceptance pending. Production Q&A remains unavailable.
 The dated batch handoff below supersedes earlier statements that no endpoint,

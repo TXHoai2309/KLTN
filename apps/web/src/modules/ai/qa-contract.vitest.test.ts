@@ -118,7 +118,7 @@ describe("Task 191 request contract (no HTTP/session/runtime)", () => {
     });
 
   it.each([
-    { type: "DESTINATION", destinationId: "destination_01" },
+    { type: "DESTINATION", destinationId: "destination_01", name: "Client metadata" },
     { type: "TRIP", tripId: "trip_01" },
     { type: "OTHER" },
     { type: "GENERAL", title: "Client metadata" },
@@ -243,7 +243,7 @@ describe("Task 191 completed outcomes and reference integrity", () => {
     { answerText: "Duplicate text" },
     { notice: null },
     { clarificationQuestion: "Wrong branch" },
-    { context: { type: "DESTINATION", destinationId: "dest_01" } },
+    { context: { type: "DESTINATION", destinationId: "dest_01", name: "Client metadata" } },
     { turnState: "PROCESSING" },
   ])("rejects mixed/inactive response fields %j", (extra) => {
     expect(qaCompletedTurnSchema.safeParse({ ...answered(), ...extra }).success).toBe(false);

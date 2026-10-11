@@ -57,13 +57,13 @@ describe("real /assistant development integration", () => {
     const bundle = await build({
       entryPoints: [fileURLToPath(new URL("../../app/assistant/page.tsx", import.meta.url))],
       bundle: true, write: false, format: "cjs", platform: "node", jsx: "automatic", metafile: true,
-      external: ["react", "react/*", "next"], loader: { ".css": "empty" },
+      external: ["react", "react/*", "next", "./assistant-context-page"], loader: { ".css": "empty" },
       define: { "process.env.NODE_ENV": JSON.stringify(mode) }, logLevel: "silent",
     });
-    const module = { exports: {} as { default: () => Promise<ReactElement> } };
+    const module = { exports: {} as { default: (props: object) => Promise<ReactElement> } };
     // Execute the in-memory server page with the same React instance as the renderer.
     new Function("require", "module", "exports", bundle.outputFiles[0]!.text)(createRequire(import.meta.url), module, module.exports);
-    const html = renderToStaticMarkup(await module.exports.default());
+    const html = renderToStaticMarkup(await module.exports.default({}));
     const textarea = html.match(/<textarea\b[^>]*>/)![0];
     const inputs = Object.keys(bundle.metafile!.inputs);
     if (mode === "development") {

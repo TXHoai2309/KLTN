@@ -64,12 +64,12 @@ integrationDescribe("US21 real pgvector retrieval (explicit disposable database 
     await db.$disconnect();
   });
   async function seed(status: "INDEXED" | "DISABLED" | "APPROVED" = "INDEXED", state: "READY" | "BUILDING" = "READY",
-    publication = true, orthogonal = false, customVector?: number[]) {
+    publication = true, orthogonal = false, customVector?: number[], customText?: string) {
     const id = `qa-retrieval-${randomUUID()}`;
     documentIds.push(id);
     publicSourceIds.add(id); // Synthetic fixture explicitly approved for test DTO projection.
     // Public synthetic prose is separate from internal document identity.
-    const text = `Synthetic retrieval evidence number ${documentIds.length}.`;
+    const text = customText ?? `Synthetic retrieval evidence number ${documentIds.length}.`;
     const tokenCount = countEmbeddingTokens(text);
     await db.ragDocument.create({ data: { id, originalFileName: "synthetic.txt", fileType: "TXT", mimeType: "text/plain", sizeBytes: 50,
       storagePath: `private/${id}`, sourceTitle: "Synthetic integration source", sourceUrl: "https://private.invalid/?token=secret",
@@ -98,6 +98,20 @@ integrationDescribe("US21 real pgvector retrieval (explicit disposable database 
     await db.$executeRaw(Prisma.sql`INSERT INTO qa_guest_identity(id,"expiresAt") VALUES(${id},CURRENT_TIMESTAMP+INTERVAL '7 days')`);
     return { kind: "GUEST", id };
   }
+  it("US22 real SQL selects only eligible named evidence with authentic citations", async () => {
+    const startingCount = documentIds.length;
+    const name = "Điểm Ngữ Cảnh Tổng Hợp";
+    const selected = await seed("INDEXED", "READY", true, false, undefined, `${name} có dữ kiện giả lập.`);
+    await seed("INDEXED", "READY", true, false, undefined, "Một điểm khác có dữ kiện riêng.");
+    await seed("DISABLED", "READY", true, false, undefined, `${name} có dữ kiện đã vô hiệu hóa.`);
+    const retriever = createQaRetriever(db as Database, { provider, publicSourceIds });
+    const evidence = await retriever.retrieve("Nó có gì?", [], undefined, { type: "DESTINATION", destinationId: "synthetic_only", name });
+    expect(evidence.map(item => item.documentId)).toEqual([selected.id]);
+    expect(evidence[0]!.citation.title).toBe("Synthetic integration source");
+    expect(await retriever.recheck(evidence)).toBe(true);
+    expect(await retriever.retrieve("Q", [], undefined, { type: "DESTINATION", destinationId: "synthetic_missing", name: "Tên không có nguồn" })).toEqual([]);
+    await db.ragDocument.updateMany({ where: { id: { in: documentIds.slice(startingCount) } }, data: { status: "DISABLED" } });
+  });
   type Prompt = { HISTORY_QUESTIONS: string[]; CURRENT_EVIDENCE: Array<{ citationId: string; sentences: string[] }> };
   async function vertical(axis: number, respond?: (prompt: Prompt, call: number) => Promise<Response>) {
     const abuse = createQaAbuseGuard(db as Database);

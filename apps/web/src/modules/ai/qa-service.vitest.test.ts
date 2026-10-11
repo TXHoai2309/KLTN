@@ -47,7 +47,7 @@ describe("QA orchestration without external services",()=>{
     t.reservation.history.push({question:"Cũ",response:historical});
     const result=await t.service.ask(principal,"key",request);
     expect(result.data.status).toBe("INSUFFICIENT_SOURCE");
-    expect(t.retriever.retrieve).toHaveBeenCalledWith(request.question,t.reservation.history,undefined);
+    expect(t.retriever.retrieve).toHaveBeenCalledWith(request.question,t.reservation.history,undefined,{type:"GENERAL"});
     expect(t.generator.generate).toHaveBeenCalledWith(expect.objectContaining({history:t.reservation.history,evidence:[]}));
     expect(t.store.complete).toHaveBeenCalledOnce();
   });

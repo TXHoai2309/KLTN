@@ -1,4 +1,5 @@
 import type { QaCompletedTurn, QaPublicCitation } from "./qa-contract";
+import type { QaResolvedContext } from "./qa-destination-context";
 
 // Server-internal only. Never serialize this registry to the browser.
 export type QaEvidence = {
@@ -18,7 +19,7 @@ export type QaGenerationInput = {
   question: string;
   history: readonly QaHistoryTurn[];
   evidence: readonly QaEvidence[];
-  context: { type: "GENERAL" };
+  context: QaResolvedContext;
   signal?: AbortSignal;
 };
 export type QaAnswer =
@@ -27,7 +28,7 @@ export type QaAnswer =
   | Pick<Extract<QaCompletedTurn, { status: "INSUFFICIENT_SOURCE" }>, "status" | "answerParts" | "citations" | "message">
   | Pick<Extract<QaCompletedTurn, { status: "CLARIFICATION_REQUIRED" }>, "status" | "answerParts" | "citations" | "clarificationQuestion">;
 export interface QaRetriever {
-  retrieve(question: string, history: readonly QaHistoryTurn[], signal?: AbortSignal): Promise<QaEvidence[]>;
+  retrieve(question: string, history: readonly QaHistoryTurn[], signal?: AbortSignal, context?: QaResolvedContext): Promise<QaEvidence[]>;
   recheck(evidence: readonly QaEvidence[]): Promise<boolean>;
 }
 export interface QaGenerator { generate(input: QaGenerationInput): Promise<QaAnswer> }

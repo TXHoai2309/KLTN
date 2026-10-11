@@ -4,6 +4,7 @@ model QaConversation {
   principalId   String
   headTurnId    String?
   activeTurnId  String?
+  context       Json     @default("{\"type\":\"GENERAL\"}")
   expiresAt     DateTime @db.Timestamptz(3)
   deletedAt     DateTime? @db.Timestamptz(3)
   createdAt     DateTime @default(now()) @db.Timestamptz(3)

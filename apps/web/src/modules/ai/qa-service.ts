@@ -5,8 +5,10 @@ import type { QaGenerator, QaPrincipal, QaRetriever } from "./qa-runtime-contrac
 import { isQaPublicAnswerSafe } from "./qa-public-safety";
 import { EmbeddingError } from "../rag-processing/embedding-errors";
 import { qaOrigin, qaReportFailure, qaStage } from "./qa-diagnostics";
+import type { QaContext } from "./qa-contract";
+import type { QaResolvedContext } from "./qa-destination-context";
 
-export function createQaService(dependencies: { store: QaConversationStore; retriever: QaRetriever; generator: QaGenerator; eligibilityPollMs?: number }) {
+export function createQaService(dependencies: { store: QaConversationStore; retriever: QaRetriever; generator: QaGenerator; eligibilityPollMs?: number; resolveContext?: (context: QaContext) => Promise<QaResolvedContext> }) {
   const { store, retriever, generator } = dependencies;
   const eligibilityPollMs=dependencies.eligibilityPollMs ?? 1000;
   if(!Number.isInteger(eligibilityPollMs)||eligibilityPollMs<1||eligibilityPollMs>5000) throw new Error("Invalid QA eligibility polling interval");
@@ -30,8 +32,12 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
       let data;
       let evidence;
       try {
+        const context = admission.context ?? { type: "GENERAL" };
+        if (request.data.context?.type === "DESTINATION" && !admission.context) throw new AppError("CONTEXT_UNAVAILABLE", "CONTEXT_UNAVAILABLE", 404);
+        const resolvedContext = dependencies.resolveContext ? await dependencies.resolveContext(context) : context.type === "GENERAL" ? context : undefined;
+        if (!resolvedContext) throw new AppError("CONTEXT_UNAVAILABLE", "CONTEXT_UNAVAILABLE", 404);
         qaStage("RETRIEVAL_STARTED");
-        evidence = await retriever.retrieve(request.data.question, admission.history, signal);
+        evidence = await retriever.retrieve(request.data.question, admission.history, signal, resolvedContext);
         qaStage("RETRIEVAL_COMPLETED", { retrievedChunks: evidence.length });
         qaStage("EVIDENCE_ELIGIBILITY_CHECK");
         if (!await retriever.recheck(evidence)) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "EVIDENCE_ELIGIBILITY_CHECK", "ELIGIBILITY");
@@ -67,7 +73,7 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
           }
         })();
         qaStage("GENERATION_STARTED");
-        const generation=generator.generate({ question: request.data.question, history: admission.history, evidence, context: { type: "GENERAL" }, signal: providerController.signal })
+        const generation=generator.generate({ question: request.data.question, history: admission.history, evidence, context: resolvedContext, signal: providerController.signal })
           .then(value=>{if(invalidationError)throw invalidationError;return value;},failure=>{if(invalidationError)throw invalidationError;throw failure;});
         let answer;
         try { answer=await Promise.race([generation,invalidation]); }
@@ -80,7 +86,7 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
         }
         qaStage("GENERATION_COMPLETED");
         if (!isQaPublicAnswerSafe(answer, evidence)) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "PUBLIC_SAFETY", "PRIVATE_MATERIAL");
-        const parsed = qaCompletedTurnSchema.safeParse({ ...answer, conversationId: admission.conversationId, turnId: admission.turnId, turnState: "COMPLETED", context: { type: "GENERAL" } });
+        const parsed = qaCompletedTurnSchema.safeParse({ ...answer, conversationId: admission.conversationId, turnId: admission.turnId, turnState: "COMPLETED", context });
         if (!parsed.success) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "RESPONSE_VALIDATION", "SCHEMA", parsed.error.issues);
         data = parsed.data;
         for (const citation of data.citations) {

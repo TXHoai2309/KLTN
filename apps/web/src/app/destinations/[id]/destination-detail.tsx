@@ -36,6 +36,7 @@ export default function DestinationDetail({ destination: d, returnTo }: { destin
       <h1>{d.name}</h1><p className="public-detail-description">{d.description}</p>
       <div className="public-detail-favorite">
         <FavoriteButton targetType="destinations" targetId={d.id} />
+        <Link className="public-detail-back" href={`/assistant?destinationId=${encodeURIComponent(d.id)}` as Route}>Hỏi trợ lý AI về điểm đến này</Link>
       </div>
     </header>
     <div className="public-detail-grid">

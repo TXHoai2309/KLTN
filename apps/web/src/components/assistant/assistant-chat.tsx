@@ -5,9 +5,10 @@ import { CirclePlus, FileText, Info, Leaf, Send, ShieldCheck, Sparkles } from "l
 import { AssistantLandscape } from "./assistant-landscape";
 import { AssistantCitations } from "./assistant-citations";
 import { buildCitationIndex, isReadingCitation } from "./assistant-citation-utils";
-import type { QaAnswerPart, QaCompletedTurn, QaPublicCitation } from "../../modules/ai/qa-contract";
+import type { QaContext, QaAnswerPart, QaCompletedTurn, QaPublicCitation } from "../../modules/ai/qa-contract";
 import { createIdempotencyKey } from "../../lib/mutation-client";
 import { AssistantController, hasUnresolvedAttempt, shouldSendOnEnter, type AssistantTransport, type ConfirmedTurn } from "./assistant-controller";
+import { assistantContextFromUrl } from "./assistant-context-navigation";
 
 export type CitationSlot = (input: { part: QaAnswerPart; citations: QaPublicCitation[]; turn: QaCompletedTurn }) => ReactNode;
 
@@ -33,16 +34,18 @@ export function AssistantTurn({ turn, citationSlot }: { turn: ConfirmedTurn; cit
 }
 
 /** Surface-independent chat core: a page or future popup can reuse this component. */
-export function AssistantChat({ transport = null, identity = "unavailable", citationSlot, demo = false, available = true }: {
+export type AssistantContextProps = { initialContext?: QaContext; destinations?: readonly { id: string; name: string }[]; contextError?: string; syncContextUrl?: boolean };
+export function AssistantChat({ transport = null, identity = "unavailable", citationSlot, demo = false, available = true, initialContext, destinations = [], contextError, syncContextUrl = false }: {
   transport?: AssistantTransport | null; identity?: string; citationSlot?: CitationSlot; demo?: boolean; available?: boolean;
-}) {
+} & AssistantContextProps) {
   const instanceId = useId();
   const questionId = `${instanceId}-question`;
   const helpId = `${instanceId}-input-help`;
   const dialogTitleId = `${instanceId}-abandon-title`;
   const dialogDescriptionId = `${instanceId}-abandon-description`;
   // Changing a transport remounts its session; changing identity invalidates it.
-  const [controller] = useState(() => new AssistantController(transport, identity, createIdempotencyKey));
+  const [controller] = useState(() => new AssistantController(transport, identity, createIdempotencyKey,
+    assistantContextFromUrl(initialContext, destinations, syncContextUrl && typeof window !== "undefined" ? window.location.search : undefined)));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const composer = useRef<HTMLTextAreaElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
@@ -66,8 +69,19 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
     else setUnseen(true);
   }, [state.turns, state.pending]);
   function submit() {
-    if (!available) return;
+    if (!available || contextError) return;
     if (!controller.submit()) composer.current?.focus();
+  }
+  function changeContext(context: QaContext) {
+    if (!available || contextError || !controller.changeContext(context)) return;
+    if (syncContextUrl) {
+      // Explicit choices replace the public reference only. No conversation,
+      // question, identity or client metadata is stored in browser history.
+      const url = new URL(window.location.href);
+      url.searchParams.delete("destinationId");
+      if (context.type === "DESTINATION") url.searchParams.set("destinationId", context.destinationId);
+      window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    }
   }
   function startNew() {
     if (!available) return;
@@ -76,7 +90,7 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
   }
   const status = state.validation ?? state.pending?.message ?? (state.turns.length ? "Đã nhận phản hồi. Bạn có thể hỏi tiếp." : "Chưa có lượt hỏi.");
   return <section className="assistant-chat" aria-label="Hội thoại với trợ lý" lang="vi">
-    <div className="assistant-chat-toolbar"><span className="assistant-chat-topic"><Sparkles aria-hidden="true" />Hỏi đáp chung về Hà Giang</span><button type="button" onClick={startNew} disabled={!transport || !available || sending}><CirclePlus aria-hidden="true" />Cuộc hội thoại mới</button></div>
+    <div className="assistant-chat-toolbar"><span className="assistant-chat-topic"><Sparkles aria-hidden="true" />{state.context.type === "DESTINATION" ? "Hỏi đáp về điểm đến" : "Hỏi đáp chung về Hà Giang"}</span><button type="button" onClick={startNew} disabled={!transport || !available || sending}><CirclePlus aria-hidden="true" />Cuộc hội thoại mới</button></div>
     {transport && !available && <p role="status">Đang xác minh phiên — tạm dừng gửi câu hỏi.</p>}
     {!transport && <div className="assistant-notice" role="status"><strong>Trợ lý AI chưa khả dụng</strong><p>Chức năng gửi câu hỏi sẽ mở khi dịch vụ hỏi đáp sẵn sàng.</p></div>}
     {demo && <div className="assistant-notice assistant-demo-notice"><Info aria-hidden="true" /><div><strong>Dữ liệu mô phỏng</strong><p>Phản hồi chỉ dùng để kiểm thử giao diện, không phải thông tin du lịch đã xác minh.</p></div></div>}
@@ -102,12 +116,22 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
     </div>
     {unseen && <button className="assistant-new-message" type="button" onClick={() => { nearEnd.current = true; setUnseen(false); viewport.current?.scrollTo({ top: viewport.current.scrollHeight }); }}>Đến tin nhắn mới</button>}
     <div className="assistant-live assistant-muted" role="status" aria-live="polite" aria-atomic="true">{status}</div>
-    <form className="assistant-composer" onSubmit={(event) => { event.preventDefault(); submit(); }}>
+    {contextError ? <p className="assistant-context-controls" role="alert">{contextError} <a href="/assistant">Quay về hỏi đáp chung</a></p> : <div className="assistant-context-controls">
+      <label htmlFor={`${instanceId}-context`}>Bối cảnh hiện tại</label>
+      {state.context.type === "DESTINATION" && <strong className="assistant-context-name">{destinations.find(destination => state.context.type === "DESTINATION" && destination.id === state.context.destinationId)?.name ?? "Điểm đến đang chọn"}</strong>}
+      <select id={`${instanceId}-context`} value={state.context.type === "DESTINATION" ? state.context.destinationId : ""} disabled={unresolved || !available}
+        onChange={event => changeContext(event.target.value ? { type: "DESTINATION", destinationId: event.target.value } : { type: "GENERAL" })}>
+        <option value="">Hỏi đáp chung</option>{destinations.map(destination => <option key={destination.id} value={destination.id}>{destination.name}</option>)}
+      </select>
+      {state.context.type === "DESTINATION" && <button type="button" disabled={unresolved || !available} onClick={() => changeContext({ type: "GENERAL" })}>Xóa bối cảnh</button>}
+      <small>Đổi hoặc xóa bối cảnh sẽ bắt đầu cuộc hội thoại mới.{unresolved ? " Xác nhận lượt hỏi hoặc bỏ theo dõi trước khi đổi bối cảnh." : ""}</small>
+    </div>}
+    <form noValidate className="assistant-composer" onSubmit={(event) => { event.preventDefault(); submit(); }}>
       <label htmlFor={questionId}>Câu hỏi của bạn</label>
-      <div className="assistant-composer-input"><textarea id={questionId} ref={composer} rows={2} placeholder="Nhập câu hỏi về Hà Giang…" value={state.draft} disabled={!transport || !available}
+      <div className="assistant-composer-input"><textarea className="resize-none" id={questionId} ref={composer} rows={2} placeholder="Nhập câu hỏi về Hà Giang…" value={state.draft} disabled={!transport || !available || !!contextError}
         aria-invalid={!!state.validation} aria-describedby={helpId} onChange={(event) => controller.setDraft(event.target.value)}
         onKeyDown={(event) => { if (shouldSendOnEnter({ key: event.key, shiftKey: event.shiftKey, isComposing: event.nativeEvent.isComposing, keyCode: event.nativeEvent.keyCode })) { event.preventDefault(); submit(); } }} />
-      <button type="submit" disabled={!transport || !available || unresolved || !state.draft.trim()} aria-busy={sending}><Send aria-hidden="true" />Gửi</button></div>
+      <button type="submit" disabled={!transport || !available || !!contextError || unresolved || !state.draft.trim()} aria-busy={sending}><Send aria-hidden="true" />Gửi</button></div>
       <div className="assistant-composer-footer" id={helpId}><span>Enter để gửi · Shift+Enter xuống dòng</span><span>{state.draft.normalize("NFC").trim().length}/2000 UTF-16</span></div>
     </form>
     <dialog ref={dialog} className="assistant-dialog" aria-labelledby={dialogTitleId} aria-describedby={dialogDescriptionId}>
@@ -122,7 +146,7 @@ export function AssistantShell({ children }: { children: ReactNode }) {
   return <main className="assistant-page" lang="vi"><div className="assistant-page-inner">
     <header className="assistant-page-heading"><AssistantLandscape className="assistant-heading-art" /><h1>Trợ lý AI</h1><p>Khám phá Hà Giang qua những câu hỏi</p></header>
     <div className="assistant-page-grid"><div className="assistant-chat-column">{children}</div><aside className="assistant-aside" aria-label="Bối cảnh và nguyên tắc AI">
-      <section className="assistant-context"><h2>Bối cảnh</h2><p>Hỏi đáp chung về Hà Giang.</p><span className="assistant-context-badge"><Leaf aria-hidden="true" />Hỏi đáp chung</span><div className="assistant-context-label">Không có bối cảnh cụ thể</div><p className="assistant-context-description assistant-muted">Việc xem nội dung khác không tự thay đổi bối cảnh hội thoại.</p></section>
+      <section className="assistant-context"><h2>Bối cảnh</h2><p>Bối cảnh hiện tại được hiển thị trong cuộc hội thoại.</p><span className="assistant-context-badge"><Leaf aria-hidden="true" />Hà Giang</span><div className="assistant-context-label">Chọn hoặc xóa bối cảnh tại trợ lý</div><p className="assistant-context-description assistant-muted">Việc xem nội dung khác không tự thay đổi bối cảnh hội thoại.</p></section>
       <section className="assistant-principles"><h2>Nguyên tắc AI</h2><div className="assistant-principle"><span><ShieldCheck aria-hidden="true" /></span><div><strong>Thông tin thực tế cần có nguồn</strong><p>Câu trả lời dựa trên thông tin được phép sử dụng và có nguồn xác minh.</p></div></div><div className="assistant-principle"><span><FileText aria-hidden="true" /></span><div><strong>Nêu rõ giới hạn khi thiếu dữ liệu</strong><p>Khi chưa đủ dữ liệu được xác minh, trợ lý sẽ nêu rõ thay vì suy đoán.</p></div></div><AssistantLandscape className="assistant-principles-art" /></section>
     </aside></div>
   </div></main>;

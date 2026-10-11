@@ -15,15 +15,15 @@ describe("/assistant runtime selection and fail-closed boundary", () => {
     const bundle = await build({
       entryPoints: [fileURLToPath(new URL("../../app/assistant/page.tsx", import.meta.url))],
       bundle: true, write: false, format: "cjs", platform: "node", jsx: "automatic", metafile: true,
-      external: ["react", "react/*", "next"], loader: { ".css": "empty" }, logLevel: "silent",
+      external: ["react", "react/*", "next", "./assistant-context-page"], loader: { ".css": "empty" }, logLevel: "silent",
       define: { "process.env.NODE_ENV": JSON.stringify(nodeEnv), "process.env.QA_RUNTIME_ENABLED": JSON.stringify(qaEnabled) },
     });
     const paths = Object.keys(bundle.metafile!.inputs);
     expect(paths.some(path => path.includes("assistant-runtime-chat.tsx"))).toBe(expected === "REAL");
     expect(paths.some(path => path.includes("assistant-http-transport.ts"))).toBe(expected === "REAL");
-    const module = { exports: {} as { default: () => Promise<ReactElement<{ children: ReactElement }>> } };
+    const module = { exports: {} as { default: (props: object) => Promise<ReactElement<{ children: ReactElement }>> } };
     new Function("require", "module", "exports", bundle.outputFiles[0]!.text)(createRequire(import.meta.url), module, module.exports);
-    const page = await module.exports.default();
+    const page = await module.exports.default({});
     const component = { REAL: "AssistantRuntimeChat", DEMO: "AssistantDevelopmentChat", UNAVAILABLE: "AssistantChat" }[expected];
     expect(page.props.children.type).toHaveProperty("name", component);
     if (expected === "UNAVAILABLE") {

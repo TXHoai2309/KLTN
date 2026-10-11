@@ -1,0 +1,6 @@
+{
+  "scope": "US22 public assistant controls; existing global UI debt is recorded separately",
+  "sourceRoots": ["apps/web/src/components/assistant"],
+  "ownership": { "Select/Listbox": "native" },
+  "evidence": { "failurePaths": "apps/web/src/components/assistant/assistant-context.vitest.test.ts" }
+}

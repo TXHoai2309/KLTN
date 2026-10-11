@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import { authClient } from "../../lib/auth-client";
-import { AssistantChat } from "./assistant-chat";
+import { AssistantChat, type AssistantContextProps } from "./assistant-chat";
 import { AssistantHttpTransport } from "./assistant-http-transport";
 import { assistantRuntimeChatKey } from "./assistant-runtime-chat-key";
 import { assistantAuthBoundary } from "./assistant-auth-boundary";
 
-export function AssistantRuntimeChat() {
+export function AssistantRuntimeChat(contextProps: AssistantContextProps = {}) {
   const { data: session, isPending, error } = authClient.useSession();
   const [confirmedBoundary, setConfirmedBoundary] = useState<string | null>(null);
   const userId = session?.user.id;
@@ -17,13 +17,13 @@ export function AssistantRuntimeChat() {
     if (unauthorized) setConfirmedBoundary(null);
     else if (authReady) setConfirmedBoundary(userId ? `USER:${userId}` : "GUEST");
   }, [authReady, unauthorized, userId]);
-  if (boundary === null) return <AssistantChat key="unresolved" />;
+  if (boundary === null) return <AssistantChat key="unresolved" {...contextProps} />;
   // A transient refetch retains local intent, but cannot authorize another send.
   // Confirmed login/logout/account changes still unmount the old principal.
-  return <AuthenticatedRuntimeChat key={boundary} boundary={boundary} authReady={authReady} />;
+  return <AuthenticatedRuntimeChat key={boundary} boundary={boundary} authReady={authReady} {...contextProps} />;
 }
 
-function AuthenticatedRuntimeChat({ boundary, authReady }: { boundary: string; authReady: boolean }) {
+function AuthenticatedRuntimeChat({ boundary, authReady, ...contextProps }: { boundary: string; authReady: boolean } & AssistantContextProps) {
   const [identity, setIdentity] = useState<string | null>(null);
   const [verified, setVerified] = useState(false);
   const [transport] = useState(() => new AssistantHttpTransport());
@@ -47,6 +47,6 @@ function AuthenticatedRuntimeChat({ boundary, authReady }: { boundary: string; a
       }).catch(() => undefined).finally(() => clearTimeout(timeout));
     return () => { clearTimeout(timeout); controller.abort(); };
   }, [boundary, authReady]);
-  if (!identity) return <AssistantChat key={assistantRuntimeChatKey(boundary, identity)} />;
-  return <AssistantChat key={assistantRuntimeChatKey(boundary, identity)} identity={identity} transport={transport} available={authReady && verified} />;
+  if (!identity) return <AssistantChat key={assistantRuntimeChatKey(boundary, identity)} {...contextProps} />;
+  return <AssistantChat key={assistantRuntimeChatKey(boundary, identity)} identity={identity} transport={transport} available={authReady && verified} {...contextProps} />;
 }

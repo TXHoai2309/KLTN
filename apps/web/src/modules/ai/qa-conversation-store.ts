@@ -1,16 +1,17 @@
 import { createHash, randomUUID } from "node:crypto";
 import { Prisma, type Database } from "@KLTN/db";
 import { AppError } from "../../server/http/app-error";
-import { QA_ERROR_HTTP_STATUS, qaCompletedTurnSchema, type QaCompletedTurn, type QaRequest } from "./qa-contract";
+import { QA_ERROR_HTTP_STATUS, qaCompletedTurnSchema, qaContextSchema, sameQaContext, type QaContext, type QaCompletedTurn, type QaRequest } from "./qa-contract";
+import { resolveQaContext } from "./qa-destination-context";
 import type { QaEvidence, QaHistoryTurn, QaPrincipal } from "./qa-runtime-contract";
 import type { QaAbuseHooks } from "./qa-abuse";
 import { lockQaEvidenceEligibility } from "./qa-retrieval";
 import { qaOrigin } from "./qa-diagnostics";
 
 type Tx = Prisma.TransactionClient;
-type Conversation = { id: string; principalKind: string; principalId: string; headTurnId: string | null; activeTurnId: string | null; expiresAt: Date; deletedAt: Date | null };
+type Conversation = { id: string; context: QaContext; principalKind: string; principalId: string; headTurnId: string | null; activeTurnId: string | null; expiresAt: Date; deletedAt: Date | null };
 type Turn = { id: string; conversationId: string; requestHash: string; state: string; fence: number; leaseUntil: Date; question: string | null; response: unknown; errorCode: string | null; parentTurnId: string | null };
-export type QaReservation = { kind: "RESERVED"; conversationId: string; turnId: string; fence: number; history: QaHistoryTurn[] };
+export type QaReservation = { kind: "RESERVED"; conversationId: string; turnId: string; fence: number; history: QaHistoryTurn[]; context?: QaContext };
 export type QaAdmission = QaReservation | { kind: "REPLAY"; data: QaCompletedTurn };
 export type QaCleanupResult = { processed: number; hasMore: boolean; lockAcquired: boolean; lastSuccessfulSweep: string | null; eligibleBacklogCount: number; oldestOverdueItem: string | null; failureCount: number };
 export interface QaConversationStore {
@@ -23,10 +24,11 @@ export interface QaConversationStore {
   cleanup(): Promise<QaCleanupResult>;
 }
 export function qaRequestHash(request: QaRequest): string {
-  // The validated request has fixed keys; missing follow-up context inherits GENERAL.
+  // Preserve the legacy GENERAL/omission hash. Omitted follow-up context is
+  // resolved separately from the owned conversation; it never resets its context.
   const canonical = "conversationId" in request
-    ? [request.conversationId, request.parentTurnId, request.question, "GENERAL"]
-    : [null, null, request.question, "GENERAL"];
+    ? [request.conversationId, request.parentTurnId, request.question, request.context?.type === "DESTINATION" ? request.context : "GENERAL"]
+    : [null, null, request.question, request.context.type === "DESTINATION" ? request.context : "GENERAL"];
   return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
 }
 function error(code: keyof typeof QA_ERROR_HTTP_STATUS): never {
@@ -122,8 +124,10 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
         await cleanPrincipal(tx, p, now, batchSize);
         const existing = (await tx.$queryRaw<Turn[]>(Prisma.sql`SELECT * FROM qa_turn WHERE "principalKind"=${p.kind} AND "principalId"=${p.id} AND key=${key} FOR UPDATE`))[0];
         if (existing) {
-          await loadOwned(tx, p, existing.conversationId, now); // Authorization precedes replay/hash disclosure.
+          const owned = await loadOwned(tx, p, existing.conversationId, now); // Authorization precedes replay/hash disclosure.
+          await resolveQaContext(tx, owned.context, true);
           if (existing.requestHash !== hash) error("IDEMPOTENCY_KEY_REUSED");
+          if (request.context && !sameQaContext(request.context, owned.context)) error("CONVERSATION_STALE");
           if (existing.state === "COMPLETED") return { kind: "REPLAY", data: qaCompletedTurnSchema.parse(existing.response) };
           if (existing.state === "FAILED") error(existing.errorCode as keyof typeof QA_ERROR_HTTP_STATUS || "INTERNAL_SERVER_ERROR");
           if (existing.state !== "PROCESSING") error("NOT_FOUND");
@@ -132,13 +136,15 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
           await options.abuse?.admit(tx,p,existing.id,existing.fence+1,new Date(now.getTime()+leaseMs));
           // A retry of the identical attempt may acquire an expired lease. Fence rejects the old worker.
           await tx.$executeRaw(Prisma.sql`UPDATE qa_turn SET fence=fence+1, "leaseUntil"=${now}::timestamptz + ${leaseMs} * INTERVAL '1 millisecond' WHERE id=${existing.id}`);
-          return { kind: "RESERVED", conversationId: existing.conversationId, turnId: existing.id, fence: existing.fence+1, history: await loadHistory(tx, existing.conversationId) };
+          return { kind: "RESERVED", conversationId: existing.conversationId, turnId: existing.id, fence: existing.fence+1, history: await loadHistory(tx, existing.conversationId), context: qaContextSchema.parse(owned.context) };
         }
         const counts = (await tx.$queryRaw<{ recent: bigint; daily: bigint }[]>(Prisma.sql`SELECT count(*) FILTER (WHERE "createdAt">${now}::timestamptz-INTERVAL '10 minutes') AS recent,count(*) AS daily FROM qa_turn WHERE "principalKind"=${p.kind} AND "principalId"=${p.id} AND "createdAt">${now}::timestamptz-INTERVAL '1 day'`))[0]!;
         if (Number(counts.recent)>=maxPerTenMinutes || Number(counts.daily)>=maxPerDay) error("RATE_LIMITED");
         let conversation: Conversation;
         if ("conversationId" in request) {
           conversation = await loadOwned(tx, p, request.conversationId, now);
+          if (request.context && !sameQaContext(request.context, conversation.context)) error("CONVERSATION_STALE");
+          await resolveQaContext(tx, conversation.context, true);
           if (conversation.activeTurnId) {
             const active = (await tx.$queryRaw<Turn[]>(Prisma.sql`SELECT * FROM qa_turn WHERE id=${conversation.activeTurnId} FOR UPDATE`))[0];
             if (active && active.leaseUntil.getTime() <= now.getTime()) {
@@ -150,14 +156,15 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
           if (conversation.headTurnId !== request.parentTurnId) error("CONVERSATION_STALE");
         } else {
           const id = randomUUID();
-          const rows = await tx.$queryRaw<Conversation[]>(Prisma.sql`INSERT INTO qa_conversation(id,"principalKind","principalId","expiresAt","createdAt") VALUES(${id},${p.kind},${p.id},${now}::timestamptz + ${p.kind === "GUEST" ? 7 : 30} * INTERVAL '1 day',${now}::timestamptz) RETURNING *`);
+          await resolveQaContext(tx, request.context, true);
+          const rows = await tx.$queryRaw<Conversation[]>(Prisma.sql`INSERT INTO qa_conversation(id,"principalKind","principalId",context,"expiresAt","createdAt") VALUES(${id},${p.kind},${p.id},${JSON.stringify(request.context)}::jsonb,${now}::timestamptz + ${p.kind === "GUEST" ? 7 : 30} * INTERVAL '1 day',${now}::timestamptz) RETURNING *`);
           conversation = rows[0]!;
         }
         const turnId = randomUUID();
         await options.abuse?.admit(tx,p,turnId,1,new Date(now.getTime()+leaseMs));
         await tx.$executeRaw(Prisma.sql`INSERT INTO qa_turn(id,"conversationId","principalKind","principalId",key,"requestHash","parentTurnId",state,"leaseUntil",question,"createdAt") VALUES(${turnId},${conversation.id},${p.kind},${p.id},${key},${hash},${conversation.headTurnId},'PROCESSING',${now}::timestamptz + ${leaseMs} * INTERVAL '1 millisecond',${request.question},${now}::timestamptz)`);
         await tx.$executeRaw(Prisma.sql`UPDATE qa_conversation SET "activeTurnId"=${turnId} WHERE id=${conversation.id}`);
-        return { kind: "RESERVED", conversationId: conversation.id, turnId, fence: 1, history: await loadHistory(tx, conversation.id) };
+        return { kind: "RESERVED", conversationId: conversation.id, turnId, fence: 1, history: await loadHistory(tx, conversation.id), context: qaContextSchema.parse(conversation.context) };
       });
     },
     async complete(p, r, data, evidence) {
@@ -170,6 +177,8 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
         // check and the completed write are one linearization point, not a preflight.
         if (!await lockQaEvidenceEligibility(tx,evidence,options.publicSourceIds ?? new Set())) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "PERSISTENCE_STARTED", "ELIGIBILITY");
         const parsed = qaCompletedTurnSchema.parse(data);
+        await resolveQaContext(tx, conversation.context, true);
+        if (!sameQaContext(parsed.context, conversation.context)) error("CONVERSATION_STALE");
         if (parsed.conversationId !== r.conversationId || parsed.turnId !== r.turnId) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "PERSISTENCE_STARTED", "IDENTITY_MISMATCH");
         const provenance = evidence.map(({ documentId,generationId,contentVersionId,chunkId,chunkHash,citationId })=>({documentId,generationId,contentVersionId,chunkId,chunkHash,citationId}));
         await tx.$executeRaw(Prisma.sql`UPDATE qa_turn SET state='COMPLETED', response=${JSON.stringify(parsed)}::jsonb, provenance=${JSON.stringify(provenance)}::jsonb, "completedAt"=${now}::timestamptz WHERE id=${r.turnId}`);
@@ -187,7 +196,7 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
         if (changed) await tx.$executeRaw(Prisma.sql`UPDATE qa_conversation SET "activeTurnId"=NULL WHERE id=${r.conversationId} AND "activeTurnId"=${r.turnId}`);
       });
     },
-    async history(p,id) { await cleanupAccess(p); return transaction(async (tx)=>{ const now=await lockPrincipal(tx,p,currentTime); await loadOwned(tx,p,id,now); return loadHistory(tx,id); }); },
+    async history(p,id) { await cleanupAccess(p); return transaction(async (tx)=>{ const now=await lockPrincipal(tx,p,currentTime); const owned=await loadOwned(tx,p,id,now); await resolveQaContext(tx,owned.context,true); return loadHistory(tx,id); }); },
     async delete(p,id) {
       await cleanupAccess(p);
       await transaction(async (tx)=>{
