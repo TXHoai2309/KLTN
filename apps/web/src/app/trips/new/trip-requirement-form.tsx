@@ -9,6 +9,17 @@ import { useEffect, useRef, useState } from "react";
 import { claimSubmission, releaseSubmission } from "@/lib/auth-submission-guard";
 import { authorizationFeedback } from "@/lib/authorization-feedback";
 import { buildAuthLoginHref } from "@/lib/auth-return-to";
+import { analyzeTripNeeds } from "@/lib/preference-extraction-client";
+import {
+  applyExtractionToForm,
+  dismissExtractionSuggestion,
+  removeExtractionSuggestion,
+  useExtractionSuggestion,
+  type ExtractionSuggestion,
+  type ExtractionSuggestionField,
+  type ExtractionSuggestions,
+} from "@/modules/preference-extraction/apply-extraction";
+import type { ExtractionResult } from "@/modules/preference-extraction/preference-extraction-contract";
 import {
   COMPANION_OPTIONS,
   INTEREST_OPTIONS,
@@ -23,6 +34,8 @@ import {
   type TripTransport,
 } from "@/modules/trip-requirement/trip-requirement-contract";
 import TripReadinessStatus from "./trip-readiness-status";
+import NaturalLanguageInput, { type NaturalLanguageInputStatus } from "./natural-language-input";
+import ExtractionResultPanel from "./extraction-result-panel";
 import type { TripRequirementReadiness } from "@/modules/trip-requirement/trip-requirement-readiness";
 import {
   buildPayload,
@@ -164,6 +177,26 @@ function FieldError({ field, errors }: { field: string; errors: FieldErrors }) {
   return <p id={fieldErrorId(field)} className="trip-field-error" role="alert">{message}</p>;
 }
 
+function AppliedSuggestionNote({
+  suggestion,
+  onDismiss,
+}: {
+  suggestion: ExtractionSuggestion;
+  onDismiss: () => void;
+}) {
+  return (
+    <div className="trip-ai-suggestion">
+      <div>
+        <strong>AI gợi ý — chưa xác nhận</strong>
+        <small>Bạn viết: “{suggestion.sourceText}”</small>
+      </div>
+      <button type="button" className="trip-extraction-link-button" onClick={onDismiss}>
+        Bỏ gợi ý
+      </button>
+    </div>
+  );
+}
+
 function clearFieldErrors(errors: FieldErrors, field: string): FieldErrors {
   return Object.fromEntries(
     Object.entries(errors).filter(([key]) => key !== field && !key.startsWith(`${field}.`)),
@@ -178,20 +211,33 @@ export default function TripRequirementForm() {
   const [review, setReview] = useState<EvaluationResult | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [touched, setTouched] = useState<Set<string>>(new Set());
+  const [naturalLanguageStatus, setNaturalLanguageStatus] = useState<NaturalLanguageInputStatus>({ kind: "idle" });
+  const [extractionResult, setExtractionResult] = useState<ExtractionResult | null>(null);
+  const [extractionSuggestions, setExtractionSuggestions] = useState<ExtractionSuggestions>({});
   const submissionLock = useRef(false);
+  const naturalLanguageLock = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+  const naturalLanguageAbortRef = useRef<AbortController | null>(null);
   const sequenceRef = useRef(0);
+  const naturalLanguageSequenceRef = useRef(0);
   const mountedRef = useRef(false);
   const focusFirstErrorRef = useRef(false);
   const fieldRefs = useRef<Record<string, HTMLInputElement | HTMLTextAreaElement | null>>({});
+  const extractionHeadingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       abortRef.current?.abort();
+      naturalLanguageAbortRef.current?.abort();
+      naturalLanguageSequenceRef.current += 1;
     };
   }, []);
+
+  useEffect(() => {
+    if (extractionResult) extractionHeadingRef.current?.focus();
+  }, [extractionResult]);
 
   useEffect(() => {
     if (!focusFirstErrorRef.current) return;
@@ -209,6 +255,7 @@ export default function TripRequirementForm() {
   ) {
     const nextFields = { ...fields, [field]: value };
     setFields(nextFields);
+    setExtractionSuggestions((current) => removeExtractionSuggestion(current, errorField));
     if (hasSubmitted) {
       setErrors(validateRequiredFields(nextFields));
     } else if (touched.has(errorField)) {
@@ -251,6 +298,87 @@ export default function TripRequirementForm() {
       ? values.filter((item) => item !== value)
       : [...values, value];
     updateField(field, next, field === "interests" ? "interests" : "mobilityConstraints.flags");
+  }
+
+  function cancelNaturalLanguageAnalysis() {
+    naturalLanguageSequenceRef.current += 1;
+    naturalLanguageAbortRef.current?.abort();
+    naturalLanguageAbortRef.current = null;
+    releaseSubmission(naturalLanguageLock);
+    if (mountedRef.current) setNaturalLanguageStatus({ kind: "idle" });
+  }
+
+  async function analyzeNaturalLanguage(normalizedText: string) {
+    if (!claimSubmission(naturalLanguageLock)) return;
+
+    naturalLanguageAbortRef.current?.abort();
+    const controller = new AbortController();
+    naturalLanguageAbortRef.current = controller;
+    const requestSequence = ++naturalLanguageSequenceRef.current;
+    setNaturalLanguageStatus({ kind: "analyzing", message: "Đang phân tích nhu cầu…" });
+    setExtractionResult(null);
+    setExtractionSuggestions({});
+    setFeedback(null);
+
+    try {
+      const outcome = await analyzeTripNeeds(normalizedText, controller.signal);
+      if (!shouldApplyRequestResponse(requestSequence, naturalLanguageSequenceRef.current, mountedRef.current)) return;
+
+      if (outcome.kind === "SUCCESS") {
+        const count = Object.values(outcome.result.fields).filter((field) => field.status === "EXTRACTED").length;
+        const clarificationText = outcome.result.clarifications.length > 0
+          ? `, ${outcome.result.clarifications.length} mục cần làm rõ`
+          : "";
+        setExtractionResult(outcome.result);
+        setExtractionSuggestions({});
+        setNaturalLanguageStatus({ kind: "success", message: `Đã nhận diện ${count}/7 thông tin${clarificationText}.` });
+        return;
+      }
+
+      if (outcome.kind === "NETWORK_ERROR") {
+        setNaturalLanguageStatus({ kind: "failure", message: "Không thể kết nối tới dịch vụ phân tích. Bạn vẫn có thể nhập vào biểu mẫu bên dưới. Hãy thử lại." });
+        return;
+      }
+
+      if (outcome.status === 401 || outcome.code === "UNAUTHENTICATED") {
+        setNaturalLanguageStatus({ kind: "failure", message: "Phiên đăng nhập không còn hiệu lực. Vui lòng đăng nhập lại; bạn sẽ cần nhập lại nhu cầu." });
+        window.location.assign(buildAuthLoginHref("/trips/new"));
+        return;
+      }
+      if (outcome.status === 403 || outcome.code === "FORBIDDEN") {
+        setNaturalLanguageStatus({ kind: "failure", message: authorizationFeedback(403) ?? outcome.message });
+        return;
+      }
+      if (outcome.status === 400 || outcome.code === "VALIDATION_ERROR") {
+        setNaturalLanguageStatus({ kind: "invalid", message: outcome.fieldErrors?.text ?? outcome.message });
+        return;
+      }
+      setNaturalLanguageStatus({ kind: "failure", message: `${outcome.message} Bạn vẫn có thể nhập vào biểu mẫu bên dưới. Hãy thử lại.` });
+    } finally {
+      releaseSubmission(naturalLanguageLock);
+      if (shouldApplyRequestResponse(requestSequence, naturalLanguageSequenceRef.current, mountedRef.current)) {
+        naturalLanguageAbortRef.current = null;
+      }
+    }
+  }
+
+  function handleFillExtractionForm() {
+    if (!extractionResult) return;
+    const applied = applyExtractionToForm(fields, extractionResult);
+    setFields(applied.fields);
+    setExtractionSuggestions(applied.suggestions);
+  }
+
+  function handleUseExtractionSuggestion(field: ExtractionSuggestionField) {
+    const applied = useExtractionSuggestion(fields, extractionSuggestions, field);
+    setFields(applied.fields);
+    setExtractionSuggestions(applied.suggestions);
+  }
+
+  function handleDismissExtractionSuggestion(field: ExtractionSuggestionField) {
+    const dismissed = dismissExtractionSuggestion(fields, extractionSuggestions, field);
+    setFields(dismissed.fields);
+    setExtractionSuggestions(dismissed.suggestions);
   }
 
   async function submit() {
@@ -352,6 +480,22 @@ export default function TripRequirementForm() {
         <p>Cho chúng tôi biết cách bạn muốn khám phá Hà Giang. Thông tin này chỉ dùng trong phiên hiện tại để tạo đề xuất sơ bộ.</p>
       </div>
 
+      <NaturalLanguageInput
+        status={naturalLanguageStatus}
+        onAnalyze={(text) => { void analyzeNaturalLanguage(text); }}
+        onCancel={cancelNaturalLanguageAnalysis}
+      />
+      {extractionResult && (
+        <ExtractionResultPanel
+          result={extractionResult}
+          suggestions={extractionSuggestions}
+          onFillForm={handleFillExtractionForm}
+          onUseSuggestion={handleUseExtractionSuggestion}
+          onDismissSuggestion={handleDismissExtractionSuggestion}
+          headingRef={extractionHeadingRef}
+        />
+      )}
+
       <form className="trip-form" onSubmit={(event) => { event.preventDefault(); void submit(); }} noValidate>
         {fieldErrorEntries.length > 0 && (
           <div className="trip-error-summary" role="alert" aria-live="polite">
@@ -385,6 +529,7 @@ export default function TripRequirementForm() {
             />
             <p id="trip-start-date-help" className="trip-help">Có thể bỏ trống ở bước đề xuất sơ bộ; cần có trước khi xác nhận và lưu chính thức.</p>
             <FieldError field="startDate" errors={errors} />
+            {extractionSuggestions.startDate?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.startDate} onDismiss={() => handleDismissExtractionSuggestion("startDate")} />}
           </div>
 
           <div className="trip-field">
@@ -405,6 +550,7 @@ export default function TripRequirementForm() {
             />
             <p id="trip-duration-help" className="trip-help">Số ngày từ 1 đến 14.</p>
             <FieldError field="durationDays" errors={errors} />
+            {extractionSuggestions.durationDays?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.durationDays} onDismiss={() => handleDismissExtractionSuggestion("durationDays")} />}
           </div>
         </div>
 
@@ -430,6 +576,7 @@ export default function TripRequirementForm() {
             ))}
           </div>
           <FieldError field="transport" errors={errors} />
+          {extractionSuggestions.transport?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.transport} onDismiss={() => handleDismissExtractionSuggestion("transport")} />}
         </fieldset>
 
         <fieldset id="trip-companion-type" className="trip-fieldset" aria-describedby={errors["companions.type"] || errors["companions.groupSize"] ? [errors["companions.type"] ? fieldErrorId("companions.type") : "", errors["companions.groupSize"] ? fieldErrorId("companions.groupSize") : ""].filter(Boolean).join(" ") : undefined}>
@@ -474,6 +621,8 @@ export default function TripRequirementForm() {
           </div>
           <FieldError field="companions.type" errors={errors} />
           <FieldError field="companions.groupSize" errors={errors} />
+          {extractionSuggestions.companionType?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.companionType} onDismiss={() => handleDismissExtractionSuggestion("companionType")} />}
+          {extractionSuggestions.companionGroupSize?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.companionGroupSize} onDismiss={() => handleDismissExtractionSuggestion("companionGroupSize")} />}
         </fieldset>
 
         <fieldset id="trip-interest-first" className="trip-fieldset" aria-describedby={errors.interests ? fieldErrorId("interests") : undefined}>
@@ -497,6 +646,7 @@ export default function TripRequirementForm() {
             ))}
           </div>
           <FieldError field="interests" errors={errors} />
+          {extractionSuggestions.interests?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.interests} onDismiss={() => handleDismissExtractionSuggestion("interests")} />}
         </fieldset>
 
         <fieldset id="trip-pace" className="trip-fieldset" aria-describedby={errors.pace ? fieldErrorId("pace") : undefined}>
@@ -523,6 +673,7 @@ export default function TripRequirementForm() {
             ))}
           </div>
           <FieldError field="pace" errors={errors} />
+          {extractionSuggestions.pace?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.pace} onDismiss={() => handleDismissExtractionSuggestion("pace")} />}
         </fieldset>
 
         <fieldset id="trip-mobility-first" className="trip-fieldset" aria-describedby={errors["mobilityConstraints.flags"] || errors["mobilityConstraints.note"] ? [errors["mobilityConstraints.flags"] ? fieldErrorId("mobilityConstraints.flags") : "", errors["mobilityConstraints.note"] ? fieldErrorId("mobilityConstraints.note") : ""].filter(Boolean).join(" ") : undefined}>
@@ -563,6 +714,8 @@ export default function TripRequirementForm() {
           </div>
           <FieldError field="mobilityConstraints.flags" errors={errors} />
           <FieldError field="mobilityConstraints.note" errors={errors} />
+          {extractionSuggestions.mobilityFlags?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.mobilityFlags} onDismiss={() => handleDismissExtractionSuggestion("mobilityFlags")} />}
+          {extractionSuggestions.mobilityNote?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.mobilityNote} onDismiss={() => handleDismissExtractionSuggestion("mobilityNote")} />}
         </fieldset>
 
         {feedback && <p className="trip-form-feedback" role="alert">{feedback}</p>}

@@ -21,7 +21,7 @@ export type TripRequirementReadiness = {
   usesRelativeDays: boolean;
 };
 
-function vietnamDateOf(now: Date): string {
+export function vietnamDateOf(now: Date): string {
   if (Number.isNaN(now.getTime())) {
     throw new RangeError("now must be a valid Date");
   }

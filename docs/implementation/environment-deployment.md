@@ -24,7 +24,7 @@ Run `npm run env:generate` after a schema change. Keep example/schema developer-
 
 Never put actual connection strings, API keys, bootstrap credentials, or other secrets in committed documentation. OpenAI and Google Routes keys are server-side. Browser map rendering uses MapLibre/Stadia without a frontend API key.
 
-US-25 adds only the optional `OPENAI_PREFERENCE_MODEL` declaration. It is not a provider integration, is never exposed through `NEXT_PUBLIC_*`, and is intentionally left blank until an owner selects a model. `scripts/sync-vercel-env.ts` already syncs only non-empty keys declared in `.env.schema`; no script change is required. Run `npm run env:generate -w web` after changing the schema so the generated `apps/web/src/env.ts` stays aligned; do not put a real model name or API key in committed files.
+US-25 adds the optional `OPENAI_PREFERENCE_MODEL` declaration and ADR-16 server-boundary documentation. It is not exposed through `NEXT_PUBLIC_*`, and is intentionally left blank until an owner selects a model. `scripts/sync-vercel-env.ts` already syncs only non-empty keys declared in `.env.schema`; no script change is required. Run `npm run env:generate -w web` after changing the schema so the generated `apps/web/src/env.ts` stays aligned; do not put a real model name or API key in committed files.
 
 ## Environment topology
 
