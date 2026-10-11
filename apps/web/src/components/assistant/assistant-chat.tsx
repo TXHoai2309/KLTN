@@ -33,8 +33,8 @@ export function AssistantTurn({ turn, citationSlot }: { turn: ConfirmedTurn; cit
 }
 
 /** Surface-independent chat core: a page or future popup can reuse this component. */
-export function AssistantChat({ transport = null, identity = "unavailable", citationSlot, demo = false }: {
-  transport?: AssistantTransport | null; identity?: string; citationSlot?: CitationSlot; demo?: boolean;
+export function AssistantChat({ transport = null, identity = "unavailable", citationSlot, demo = false, available = true }: {
+  transport?: AssistantTransport | null; identity?: string; citationSlot?: CitationSlot; demo?: boolean; available?: boolean;
 }) {
   const instanceId = useId();
   const questionId = `${instanceId}-question`;
@@ -66,15 +66,18 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
     else setUnseen(true);
   }, [state.turns, state.pending]);
   function submit() {
+    if (!available) return;
     if (!controller.submit()) composer.current?.focus();
   }
   function startNew() {
+    if (!available) return;
     if (unresolved) dialog.current?.showModal();
     else { nearEnd.current = true; setUnseen(false); controller.newConversation(); composer.current?.focus(); }
   }
   const status = state.validation ?? state.pending?.message ?? (state.turns.length ? "Đã nhận phản hồi. Bạn có thể hỏi tiếp." : "Chưa có lượt hỏi.");
   return <section className="assistant-chat" aria-label="Hội thoại với trợ lý" lang="vi">
-    <div className="assistant-chat-toolbar"><span className="assistant-chat-topic"><Sparkles aria-hidden="true" />Hỏi đáp chung về Hà Giang</span><button type="button" onClick={startNew} disabled={!transport || sending}><CirclePlus aria-hidden="true" />Cuộc hội thoại mới</button></div>
+    <div className="assistant-chat-toolbar"><span className="assistant-chat-topic"><Sparkles aria-hidden="true" />Hỏi đáp chung về Hà Giang</span><button type="button" onClick={startNew} disabled={!transport || !available || sending}><CirclePlus aria-hidden="true" />Cuộc hội thoại mới</button></div>
+    {transport && !available && <p role="status">Đang xác minh phiên — tạm dừng gửi câu hỏi.</p>}
     {!transport && <div className="assistant-notice" role="status"><strong>Trợ lý AI chưa khả dụng</strong><p>Chức năng gửi câu hỏi sẽ mở khi dịch vụ hỏi đáp sẵn sàng.</p></div>}
     {demo && <div className="assistant-notice assistant-demo-notice"><Info aria-hidden="true" /><div><strong>Dữ liệu mô phỏng</strong><p>Phản hồi chỉ dùng để kiểm thử giao diện, không phải thông tin du lịch đã xác minh.</p></div></div>}
     <div ref={viewport} className="assistant-transcript" tabIndex={0} aria-label="Danh sách tin nhắn" onScroll={() => {
@@ -91,7 +94,7 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
           <p>{state.pending.message}</p>
           {state.pending.phase === "failed" && <button type="button" onClick={() => { controller.editFailed(); composer.current?.focus(); }}>Sửa câu hỏi</button>}
           {["unknown", "malformed"].includes(state.pending.phase) && <>
-            <button type="button" onClick={() => controller.retry()}>Thử xác nhận lại</button>
+            <button type="button" disabled={!available} onClick={() => { if (available) controller.retry(); }}>Thử xác nhận lại</button>
             <button type="button" className="assistant-abandon" onClick={() => dialog.current?.showModal()}>Bỏ theo dõi và bắt đầu cuộc hội thoại mới</button>
           </>}
         </div>
@@ -101,10 +104,10 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
     <div className="assistant-live assistant-muted" role="status" aria-live="polite" aria-atomic="true">{status}</div>
     <form className="assistant-composer" onSubmit={(event) => { event.preventDefault(); submit(); }}>
       <label htmlFor={questionId}>Câu hỏi của bạn</label>
-      <div className="assistant-composer-input"><textarea id={questionId} ref={composer} rows={2} placeholder="Nhập câu hỏi về Hà Giang…" value={state.draft} disabled={!transport}
+      <div className="assistant-composer-input"><textarea id={questionId} ref={composer} rows={2} placeholder="Nhập câu hỏi về Hà Giang…" value={state.draft} disabled={!transport || !available}
         aria-invalid={!!state.validation} aria-describedby={helpId} onChange={(event) => controller.setDraft(event.target.value)}
         onKeyDown={(event) => { if (shouldSendOnEnter({ key: event.key, shiftKey: event.shiftKey, isComposing: event.nativeEvent.isComposing, keyCode: event.nativeEvent.keyCode })) { event.preventDefault(); submit(); } }} />
-      <button type="submit" disabled={!transport || unresolved || !state.draft.trim()} aria-busy={sending}><Send aria-hidden="true" />Gửi</button></div>
+      <button type="submit" disabled={!transport || !available || unresolved || !state.draft.trim()} aria-busy={sending}><Send aria-hidden="true" />Gửi</button></div>
       <div className="assistant-composer-footer" id={helpId}><span>Enter để gửi · Shift+Enter xuống dòng</span><span>{state.draft.normalize("NFC").trim().length}/2000 UTF-16</span></div>
     </form>
     <dialog ref={dialog} className="assistant-dialog" aria-labelledby={dialogTitleId} aria-describedby={dialogDescriptionId}>

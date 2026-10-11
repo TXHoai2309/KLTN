@@ -1,0 +1,35 @@
+name: US-21 QA retention heartbeat monitor
+
+on:
+  schedule:
+    - cron: "47 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: us21-qa-retention-heartbeat
+  cancel-in-progress: false
+
+jobs:
+  heartbeat:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Check out the protected default-branch implementation
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - name: Detect a missing or failed scheduled cleanup run
+        run: node apps/web/scripts/qa-cleanup-actions.mjs heartbeat
+        env:
+          QA_GITHUB_API_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          QA_DEFAULT_BRANCH: master

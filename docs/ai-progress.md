@@ -862,3 +862,382 @@ Append a new entry for each meaningful work session. Keep prior entries as hando
 - Source Favorites light/dark CSS and US16 addendum also integrated;existing layout/auth/business logic preserved. Source-only progress entries retained as historical evidence. Moved index-panel CSS import to the Admin detail page so the source SSR badge test can execute without a Node CSS loader;the page still loads both review/index styles.
 - Validation:US17/18/20 legacy52/52;root314 Vitest PASS and326 legacy PASS. The regular run intentionally skips16 PostgreSQL cases;two explicit disposable PostgreSQL runs each16/16 PASS,zero skipped,Vitest/outer exit0,container/volume cleanup PASS. Initial strengthened test run exposed a wrong test API name;corrected to the real getPublishedGenerationMetadata method without weakening the assertion. Typecheck and Prisma validate PASS;fresh production build and diff check PASS. No secret matches in added lines;protected source/dependency/schema checks unchanged.
 - No new migration or migration apply;no Neon connection/writes,live OpenAI/Blob calls,push or deployment. Worker stash36584c230110a4aad7879f64ee587a4b0c5249bd remains intact and unrestored. Local merge commit/optional TXH fast-forward only after final gates. Owner must approve push. US20 live Admin/browser/retrieval acceptance is not claimed;US19 MVP acceptance unchanged.
+
+## 2026-10-11 — US21 accelerated192/193/194/197 offline batch
+
+- Baseline/local/originTXH8263c94e13cda29cde9f9556d186acc79e75ad44; separate managed
+  worktree `C:/Users/User/.codex/worktrees/us21-rag-qa-batch/KLTN`, feature branch
+  `feat/us21-rag-qa-batch`. Main TXH clean and unchanged; Worker stash
+  36584c230110a4aad7879f64ee587a4b0c5249bd intact. No commit/push/merge/deploy.
+- Implemented actual pgvector question retrieval, conservative extractive OpenAI
+  generation, strict/thin HTTP API, DB-backed Guest identity and durable authorized
+  multi-turn history/reservation/recovery/cleanup. Reuses unchanged Task191 and
+  Task195/196 core/layout/citations; real transport is separate from marked demo.
+- Exact READY publication+INDEXED/model1536 eligibility rechecked before/after model
+  and under completion document locks. Backend citation registry/opaque aliases,
+  metadata-only null URLs, rejected fabricated/unsupported claims and private prose/
+  metadata; no free-knowledge fallback. Exact matching is not perfect semantics.
+- Two additive Guest/conversation migrations tested only on disposable PostgreSQL.
+  Atomic completed result+head commit, same-key replay, principal/key digest, lease
+  fences, bounded recovery/rate settings, ownership FK, deletion/expiry scrub and
+  non-content tombstones; no content in shared indefinite idempotency cache.
+- Final full isolated Vitest459/459,zero skips,26 suites;37 real pgvector/PostgreSQL
+  tests(US21:21,US19:16),child/outer exit0,container/volume cleanupPASS. Legacy326
+  PASS. Root typecheck/Prisma validate/generate/fresh build28/28/diff/secret-pattern/
+  production import-and-artifact isolation PASS. Intermediate failed assertions and
+  two Windows native3221225477 exits are recorded in the story, not counted asPASS;
+  final successful run changed no assertion/pool/cleanup. Native root cause unknown.
+- Browser smoke of built production:unavailable,disabled composer/Send,no demo;
+  actual built ask503 AI_UNAVAILABLE/no-store. Live conversational browser/provider
+  acceptance is NOT RUN. Offline dummy ignored config avoids live credentials.
+- All four tasks PARTIAL pending owner review/corpus relevance+coverage evaluation,
+  public source policy calibration, Guest bootstrap abuse controls and deployed
+  retention cleanup schedule. Production hard unavailable regardless of local flag.
+  Runtime history/read/delete API exists; no dedicated history/deletion UI added.
+  No Neon connection/write,migration apply,live OpenAI/Blob call or production data.
+- Full requested field report,exact31-path manifest,provisional limits,retention/
+  recovery/migration assumptions and acceptance gaps:US21 dated batch handoff.
+  READY_FOR_OWNER_RUNTIME_ACCEPTANCE=NO for Preview/Production;offline code review
+  ready. Owner must review blockers before requesting environment/runtime work.
+
+## 2026-10-11 — US21 accelerated closure hardening
+
+- Append-only closure on feat/us21-rag-qa-batch,HEAD8263c94e13cda29cde9f9556d186acc79e75ad44.
+  Main TXH clean;Worker stash36584c230110a4aad7879f64ee587a4b0c5249bd untouched.
+ 44 changed paths (initial31+13 new),three additive QA migrations,disposable only.
+- Added shared PostgreSQL Guest bootstrap/network/global ask/token/concurrency
+  guards,HMAC network identity,fail-closed trusted ingress configuration and tests.
+  Cookie identity remains server-created/digest-only,HttpOnly/Strict/Secure.
+  Replays do not charge;recovered attempts charge full provisional23K token budget.
+- Retention uses DB clock/test injection,bounded cleanup/time budget,residual-work
+  checks,expired Guest access scrubbing and shared locks. Terminal failures discard
+  content immediately. Fixed identity-deletion orphan race and stale bootstrap
+  readiness;bounded real transport handles timeout without changing retry payload.
+  Protected scheduler endpoint,candidate cron and plan/cost/deployment runbook added;
+  actual scheduler NOT_CONFIGURED and physical retention SLA remains unverified.
+- Repeatable evaluation26technicalcases matched,zero citation/history failures;
+  concrete instruction bypass fixed before provider. Two relevance/coverage probes
+  document remaining semantic limits. REAL_CORPUS_EVALUATION=NOT_EVALUATED;verified
+  Hà Giang provenance/rights corpus absent. No arbitrary quality PASS threshold.
+- Final full disposable runner492/492 PASS,30 suites,zero skipped/todo,child/outer
+  exit0,51 actual PostgreSQL/pgvector cases(US21:35,US19:16),ownedcontainer+volume
+  cleanupPASS. Focused294/294 PASS;legacy all11groups PASS;root typecheck4/4,
+  Prisma validate/generate/offline QA DDL consistency,fresh build29/29,diff/untracked
+  whitespace/secret scan PASS. First closure run had2 invalid-expiry fixture failures
+  (fixed without changing CHECK);second had native threaded-worker3221225477 exit
+  after492assertions (notPASS). Final Windows forked-worker run exited0;native root
+  cause unknown. Premium UI audit retains22 unchanged findings and exits2.
+- Production opt-in remains unavailable:actual built session/ask503AI_UNAVAILABLE,
+  cleanup503disabled,no-store,no demo artifacts. Development browser failure smoke
+  disabled composer/no demo;successful Next.js real-corpus answer browser NOT_RUN.
+  Disposable vertical slice joins server Guest bootstrap,abuse,real HTTP transport,
+  actual pgvector,DTO and atomic completion with injected provider transports only.
+- TASK192_STATUS=PARTIAL;TASK193_STATUS=PARTIAL;TASK194_STATUS=PARTIAL;
+  TASK197_STATUS=PARTIAL. Code review ready;READY_FOR_OWNER_ACCEPTANCE=NO for MVP
+  runtime signoff. RemainingP0 deployed retention scheduling/SLA;remainingP1 corpus/
+  semantic quality,policy/cost/latency/delete-load calibration andmanualacceptance.
+  Full requested field report and prioritized evidence appended to US21 story.
+  No Neon writes/migration apply,live OpenAI/Blob,contract change,commit/push/merge/
+  deploy,stash apply/pop/drop or public activation.
+
+## 2026-10-11 — US-21 independent release-candidate gate review
+
+- Reconfirmed feature branch `feat/us21-rag-qa-batch` at
+  `8263c94e13cda29cde9f9556d186acc79e75ad44`, 44 changed paths (4 modified,
+  40 untracked), three additive migrations; root TXH checkout is clean at the
+  same HEAD. Reviewed all changed paths and migrations. No code was changed and
+  no tests were rerun; 492/492 Vitest and 51/51 disposable PostgreSQL are cited
+  only as prior-run evidence.
+- Release P0 remains scheduler/capacity/physical-retention guarantee: cleanup is
+  disabled and candidate Cron is not configured. Verified current Vercel docs:
+  Hobby is daily/±59 minutes; Pro/Enterprise support minute cadence; Cron is
+  best-effort and Production-only, with missed/duplicate deliveries. Five-minute
+  candidate is 288 invocations/day and uses Function allowance. Pro currently
+  costs USD20/month including USD20 usage credit; owner must verify actual plan,
+  function/database usage and accept that Vercel Cron alone has no hard 24-hour
+  physical deletion SLA. Preview manual invocation must target isolated data.
+- Independent P1 review: expiry time is sampled with PostgreSQL transaction-start
+  `CURRENT_TIMESTAMP` before advisory principal lock; lock contention across the
+  expiry boundary can permit a late replay/completion and retention renewal. Also,
+  citation title/DOCX section projection relies on a denylist and permits some
+  local URI/POSIX path strings; source metadata has no separate public permission
+  flag. Both require owner/runtime follow-up; neither was changed in this review.
+- P1: explicit conversation deletion and Guest session revocation do not have a
+  same-key result-reconciliation path. If the DB commit succeeds but the response
+  is lost, a retry reports NOT_FOUND/UNAUTHENTICATED even though deletion committed.
+- P1: source disable during an in-flight generation prevents final completion but
+  cannot retract evidence already sent to the provider; current race evidence
+  proves response/persistence fencing only. Owner must accept request-start
+  eligibility or select a different privacy boundary.
+- P2: content is scrubbed but minimal tombstone identity/key/hash metadata remains
+  without a compaction horizon. Semantic quality and real Hà Giang corpus remain
+  `NOT_EVALUATED`; no rights/provenance-verified source set was supplied.
+- P2: head/active/parent turn pointers are service-enforced but not FK-constrained;
+  the history anchor also does not assert that its head belongs to the selected
+  conversation. No client-controlled path was found, but DB-level defense is absent.
+- P1: the current real-corpus manifest schema records expected source IDs/claims,
+  but no gold evidence span/locator or real-corpus evaluator exists yet; it cannot
+  produce evidence-recall/citation-locator quality results.
+- Prepared Neon/OpenAI runtime acceptance steps in the appended US-21 story entry.
+  Preview runtime is still disabled by the current development-only feature gate.
+  `TASK192/193/194/197=PARTIAL`; `READY_TO_COMMIT_FEATURE=NO_PENDING_OWNER_REVIEW`,
+  `READY_FOR_PREVIEW=NO`, `READY_FOR_MVP_ACCEPTANCE=NO`. No status promotion,
+migration apply, live provider/database call, commit/push/merge/deploy, or Worker
+stash action.
+
+## 2026-10-11 — US-21 final hardening execution
+
+- Continued directly from the existing implementation on
+  `feat/us21-rag-qa-batch`, HEAD `8263c94e13cda29cde9f9556d186acc79e75ad44`.
+  Feature worktree has 49 changed paths (4 modified, 45 untracked); TXH root
+  checkout is clean at the same HEAD. No commit/push/merge/deploy or stash action.
+- Fixed the reviewed post-lock expiry race by sampling `clock_timestamp()` after
+  acquiring the principal lock. A deterministic disposable-Postgres test proves
+  the exact-boundary same-key replay is denied and content is scrubbed without
+  retention extension.
+- Added a fail-closed server source-ID allowlist for citation title/locator
+  projection and path/URL rejection for file URIs, POSIX/Windows/UNC paths,
+  private Blob references and signed/internal URLs. No new approval column or
+  Task 191 contract change. Empty allowlist exposes no evidence.
+- Made conversation delete safely repeatable for the same owner and session
+  revoke retryable with the same possession-verified Guest cookie after revoke.
+  Foreign owners still receive NOT_FOUND; no content response is cached and no
+  `Idempotency-Key` extension is needed because resource ID/token scopes the same
+  deletion action. Added provider-in-flight eligibility polling with best-effort
+  abort; final locked eligibility still fences response/commit. Evidence already
+  sent to the provider cannot be recalled, and this limitation is documented.
+- Added additive migration `20261011123000_add_qa_cleanup_state`: distributed
+  90-second runner lease, bounded execution metrics (`lastSuccessfulSweep`,
+  backlog, oldest overdue and failure count), failure counter and cleanup scan
+  indexes. Protected route supports manual or scheduled execution. All four QA
+  migrations were installed only in the disposable loopback PG runner; none was
+  applied to Neon.
+- Development/Preview gate now requires explicit opt-in, abuse-control acceptance
+  and exact allowed database host/name; Production is hard-denied. Citation
+  source IDs require explicit owner configuration. Defaults leave QA off.
+- Validation after the initial race-fixture correction: focused hardening
+  79/79; disposable PostgreSQL/pgvector 54/54 with zero skips and owned-container
+  cleanup PASS; full Vitest 517/517 across 32 suites, zero skips/todo, child/outer
+  exit 0; all 11 legacy test groups exit 0; root typecheck 4/4; Prisma generate
+  and validate; fresh build with 29 routes/pages; production/demo isolation;
+  `git diff --check`, 49-path whitespace and secret scans all PASS. First full
+  attempt exposed an incorrect test key/overbroad lock observer in the new test;
+  fixed the fixture and matched the exact PostgreSQL lock hash before rerunning.
+- Cleanup scheduler remains NOT_CONFIGURED. Vercel five-minute Cron is a
+  Pro/Enterprise candidate, Production-only and best-effort with no retry; an
+  external retrying/monitored scheduler remains an owner-selected alternative.
+  The 90-second DB lease makes code vendor-independent but cannot create a hard
+  physical-retention SLA by itself. No plan/provider was selected or configured.
+- Synthetic technical evaluation remains 26/26 matched, with zero tested
+  metadata-authenticity/history-isolation failures and two observed semantic
+  limitations. No rights/provenance-verified Hà Giang corpus was supplied;
+  real-corpus and semantic-quality results remain NOT_EVALUATED. No Neon write,
+  migration apply, cleanup sweep, browser live-answer test or OpenAI/Blob live
+  call occurred.
+- `TASK192_STATUS=PARTIAL; TASK193_STATUS=PARTIAL; TASK194_STATUS=PARTIAL;
+  TASK197_STATUS=PARTIAL`. Code review is ready; MVP runtime signoff is not.
+  `READY_TO_COMMIT_FEATURE=NO_PENDING_OWNER_REVIEW`;
+  `READY_FOR_PREVIEW=NO_UNTIL_OWNER_MIGRATION_AND_ENV_CONFIGURATION`;
+  `READY_FOR_MVP_ACCEPTANCE=NO`. Full field report and Development migration/
+smoke checklist are appended to `docs/stories/US-21-rag-qa.md` and
+`docs/implementation/qa-retention-runbook.md`.
+
+## 2026-10-11 — Final validation after runtime-target guard tightening
+
+The non-production gate was tightened to require a PostgreSQL URL scheme as
+well as exact configured host/database matching. Its focused gate tests passed
+2/2. After that last code change, full isolated Vitest again passed 517/517
+across 32 suites with zero skipped/todo, and the disposable PostgreSQL/pgvector
+runner reported clean container/volume teardown. Legacy tests, root typecheck,
+Prisma generation/validation and a fresh TypeScript-checked production build all
+exited 0. The final 49-path whitespace/secret scans and `git diff --check` passed.
+No runtime flag, migration, scheduler, Neon data, provider, Git history or task
+status was changed as part of this verification.
+
+## 2026-10-11 — US-21 owner decisions A/B/C implemented offline
+
+- Owner approved GitHub Actions cleanup scheduling (`17 * * * *` UTC), an
+  explicit server source-ID allowlist with field-level safe citation projection,
+  and minimal approved provider evidence with best-effort abort/final eligibility
+  fence. Recorded trade-offs and deployment gates in the US-21 story and cleanup
+  runbook; Tasks 192/193/194/197 remain PARTIAL.
+- Added a fixed-path HTTPS GitHub Actions runner with exact host match, secret
+  only from a GitHub Environment, no URL dispatch input, no redirects, 10-second
+  timeout, three bounded retry attempts and an eight-sweep cap. Manual dispatch
+  requires explicit confirmation. A second scheduled workflow checks GitHub's
+  scheduled-run history for a missing/stale (>75-minute) or failed cleanup
+  heartbeat. Both workflows are restricted to the remotely confirmed default
+  branch `master`; nothing was published or activated. Notification routing,
+  environment variables/secrets, and `QA_CLEANUP_ENABLED` are owner gates.
+- Tightened provider payload to four current approved chunks / 3,000 evidence
+  tokens and two prior questions, added `store:false`, and reject unsafe private
+  references/credential patterns before transport. Added payload inspection and
+  deterministic scheduler/watchdog tests. No provider or database live calls.
+- GitHub Actions schedules are default-branch-only and may be delayed/dropped;
+  the same-platform watchdog improves missed-run detection but cannot guarantee
+  delivery or a hard physical-retention SLA. No Development cleanup is run.
+  Vercel candidate is superseded. No migration, commit, push, merge, deploy or
+  Worker stash operation.
+- Validation after this batch is recorded in the story: rerun focused suites,
+  full Vitest, disposable PostgreSQL/pgvector, legacy, typecheck, build, Prisma,
+  workflow static checks, diff/secret scans and production/demo isolation.
+
+### 2026-10-11 — US-21 A/B/C final offline verification
+
+- Full Vitest: 524/524 across 33 files, zero skipped/todo. After the synthetic
+  credential marker was shortened to remove a scanner false positive, affected
+  focused suites passed 60/60; scheduler/watchdog Node tests passed 7/7.
+- Disposable PostgreSQL/pgvector: 54/54, zero skipped, teardown passed. Legacy
+  test groups, root typecheck, production build, Prisma validate/generate and
+  static workflow checks passed. actionlint was unavailable; YAML parsing and
+  structural workflow assertions passed.
+- Changed-path secret scan: zero matches across 55 paths; git diff --check
+  passed. Four tracked modifications, 51 untracked paths, no staged files, four
+  existing additive QA migrations, feature branch HEAD unchanged. No live
+  provider/Blob calls, Neon writes, migration applies, cleanup invocation,
+  workflow publication, or deployment.
+- Cleanup remains disabled pending owner-controlled GitHub Environment and
+  exact database target configuration. GitHub Actions scheduling is best
+  effort, so hard physical deletion within 24 hours is not established. Real
+  Ha Giang corpus evaluation and provider data-control review remain outstanding.
+  Tasks 192/193/194/197 remain PARTIAL; no task was marked DONE.
+
+
+## 2026-10-11 — US-21 local Varlock configuration and Neon preflight
+
+- Removed only the offline DATABASE_URL override from ignored apps/web/.env.local; preserved its other assignments and the owner-restored .env. Actual Next development env loading now matches the expected Neon hostname/database.
+- Exposed ten server QA runtime/cleanup keys and VERCEL_ENV/VERCEL by removing @internal; kept default sensitivity and NODE_ENV as the only public key. Existing HMAC/cron credentials remain sensitive. Codegen passed; generated env.ts remains ignored. QA/Preview/cleanup and abuse-acceptance flags remain disabled. Missing allowlist, HMAC, local identity, target pins and cron secret are not reported as configured.
+- Effective-config READ ONLY transactions confirmed all expected Neon IDs, 11 complete/checksum-matching ledger entries, four QA migrations pending, vector 0.8.6/PostGIS 3.6.4, three INDEXED plus one DISABLED READY publication, and absent QA schema. Current branch name still requires owner Console confirmation; no management API credentials were available.
+- Focused gates/Task191 contract/HTTP tests: 134/134, zero skipped; root typecheck and fresh offline production build exited 0. Client secret-value scan: 0 matches across 107 assets; public generated schema remains NODE_ENV-only. Diff/check scans passed. Full test suites were not rerun for this configuration-only change.
+- Migration approval remains conditional on current branch-name verification and backup/restore readiness. Live smoke remains blocked by pending migrations, missing runtime configuration and source/corpus approvals. Tasks 192/193/194/197 remain PARTIAL. No commit, push, deployment, database write, live OpenAI/Blob call, cleanup or Worker stash operation.
+
+
+## 2026-10-11 — Owner-authorized US-21 Development migrations applied
+
+Owner explicitly approved Development writes for project summer-unit-95870477, branch development / br-aged-hat-b3o6hg9p, endpoint ep-purple-pond-b3xujb8o, database neondb, and confirmed backup-dev-pre-us21-20261011. Branch name and backup verification are owner-provided; server identity independently matched project/branch/endpoint/database IDs through effective Varlock runtime configuration before writing. Effective runtime was not the offline sentinel.
+
+Immediate gates passed: feature HEAD 53506f67064dbc4eeda6693f3527c79e9d755a00; four migration SQL files match checkpoint; 11 complete checksum-matching ledger entries with no failed/rolled-back entries; exactly four QA migrations pending and no existing QA table collisions. The requested db:migrate script maps to forbidden migrate dev, so the existing db:migrate:deploy workspace script was used from repository root: npm run db:migrate:deploy -w @KLTN/db. Prisma Migrate Deploy exited 0 and applied only 20261011120000_add_qa_guest_identity, 20261011121000_add_qa_conversations, 20261011122000_add_qa_abuse_guard, and 20261011123000_add_qa_cleanup_state.
+
+Post-migration read-only verification: 15 completed migrations, zero failed/rolled-back entries, all ledger checksums match; six QA tables, validated constraints, composite ownership FK, idempotency and active-turn uniqueness indexes present; all six QA tables empty. Prisma migrate diff against repository schema reported no difference, exit 0. Non-QA table column/default/constraint/index catalog fingerprints and row-content/count fingerprints were identical before/after (excluding migration ledger and extension-owned spatial_ref_sys data). pgvector 0.8.6 and PostGIS 3.6.4 passed vector-distance and SRID queries. Documents remain three INDEXED and one DISABLED; publications remain three INDEXED/READY and one DISABLED/READY, with unchanged content fingerprints.
+
+No Production or backup target was contacted for writes. No cleanup, RAG content changes, provider/Blob calls, runtime activation, commit/push/deploy or Worker stash operation. Existing local configuration and earlier candidate-file deletion were preserved. Migration and diff child processes exited 0; their stdin Node wrapper retained Varlock handles after completion and was stopped only after verification output; a final independent read-only QA-count/publication verification exited 0. No offline suite rerun was needed for this migration-only execution. Live smoke still requires approved source allowlist/provider sharing, network HMAC, local identity, runtime target pins and deliberate local runtime gate configuration. Tasks 192/193/194/197 remain PARTIAL.
+
+
+## 2026-10-11 — US-21 local live readiness prepared (no live execution)
+
+Read current QA runtime gates, Guest/Better Auth boundary, allowlist, provider configuration and /assistant HTTP transport. Only ignored apps/web/.env.local configuration was changed: set exact Development hostname/database pins, local runtime/abuse gate true, Preview/cleanup false, empty unapproved source allowlist; generated a cryptographically random local HMAC and stable local network quota identity without displaying either. Existing DATABASE_URL/.env and Better Auth assignments retained. No project/branch/endpoint env pins exist in current code; read-only server IDs were verified against approved target.
+
+Actual Next/Varlock development loading and gate execution confirmed local=true, Production=false, Preview=false, cleanup=false, secret exposure server-only, OpenAI credential present and Better Auth localhost:3001/minimum-length configuration valid. Ledger remains 15 completed, zero incomplete. Three INDEXED US19 TEST sources have READY publications and matching embedding/chunk counts, but ownership/public-display/provider-sharing approvals are not established; none allowlisted.
+
+Created docs/fixtures/us21-local-live-qa-test.txt, clearly TEST/SYNTHETIC with fictional QA-SAOTIM-21 record, and docs/implementation/us21-local-live-readiness.md with exact env requirements, upload/review/approve/index steps, correct RagDocument.id allowlist semantics, TXT citation limitations, and first turn/citation/Traveler/follow-up/insufficient/replay/delete/revoke/disable cases. These are prepared artifacts, not uploaded/indexed/real-corpus evidence. Runtime source approval and live authorization remain owner gates. No server started (real UI bootstrap itself writes), no Neon write, migration, cleanup, OpenAI/Blob call, Production activation, commit/push/deploy or Worker stash action. No application code change; no full regression rerun. Tasks remain PARTIAL.
+
+
+## 2026-10-11 — Owner-approved live acceptance attempted; stopped before review/index
+
+Authorization: owner approved only docs/fixtures/us21-local-live-qa-test.txt for Development Blob/Neon writes and real OpenAI indexing/generation, at most five generation questions. Full fixture review passed: original generated TEST/SYNTHETIC QA record, no personal data, secrets, private information, third-party content or purported real Ha Giang facts. Owner authorization covers public safe metadata and minimal evidence sharing for this fixture only. Expected evidence: confirmation code QA-SAOTIM-21; three steps (doc tai lieu, doi chieu ma xac nhan, ghi ket qua kiem thu); purple label; no actual travel prices/hours. Proposed five questions: confirmation code; same-conversation follow-up asking steps; actual ticket price absent from source; confirmation code plus unsupported price (record actual PARTIAL/clarification outcome); independent label-color check. None sent.
+
+Final write gate passed using effective Next/Varlock configuration and read-only Neon server settings: project summer-unit-95870477, branch br-aged-hat-b3o6hg9p (development per owner), endpoint ep-purple-pond-b3xujb8o, neondb; six QA tables; exact checkpoint/feature branch; port 3001 free before starting. Local runtime enabled, Preview/Production/cleanup disabled. No migration rerun. Owner logged into existing Admin account in in-app browser; no credentials or cookies copied into chat/scripts.
+
+Started npm run dev -w web from feature worktree. Standard upload UI/API successfully uploaded exactly one fixture and finalized document cmv3q1hth00010k9wf74kmio7. Public title: US21 TEST SYNTHETIC - Ho so QA Sao Tim; sourceUrl null; no invented author/locality; topic marks owner-approved technical TEST/SYNTHETIC acceptance. No storage path/URL recorded in this report. Upload-url API HTTP 200 (3.8s server latency); finalize API HTTP 200 (3.7s); Blob PUT duration not captured.
+
+Live blocker: Next 16.3.8 Turbopack returned HTML 404 for existing nested /api/admin/rag-documents/{id}/actions and /index routes. UI START_REVIEW attempt reported UNKNOWN; no repeated write retry was made. Existing production-build manifest includes these routes, while development did not compile them on request. Tried runtime-only npm run dev -w web -- --webpack, without editing code. Webpack served index progress HTTP 200 for authenticated UI / 401 JSON for unauthenticated diagnostic, but page rendering was blocked by Varlock sensitive-config scan: Config item BETTER_AUTH_URL, patched ServerResponse.write, on document detail HTML. Its effective value is the noncredential localhost origin, but remains sensitive by schema default. This is a guard-triggered runtime failure, not evidence that API keys/passwords leaked; no guard disabled or metadata classification changed. Browser received connection reset. Per stop gate, halted writes and stopped the local server. Screenshot of completed upload was not saved before the navigation failure; read-only DB confirmation provides authoritative persistence evidence.
+
+Post-stop read-only reconciliation exited 0: exact target still matched; document UPLOADED, zero fixture jobs/generations/publications/chunks, zero QA turns. Existing documents remain three INDEXED and one DISABLED. No existing source was changed or allowlisted. Allowlist stays empty until this exact fixture is APPROVED/INDEXED/current READY. No OpenAI calls occurred: generation questions 0/5, token usage 0. Upload persistence PASS; review approval, indexing, real HTTP chat, citation authenticity and conversation persistence NOT_EXECUTED/BLOCKED. REAL_HA_GIANG_CORPUS_EVALUATION=NOT_EVALUATED.
+
+FIXTURE_REVIEW=PASS; FIXTURE_APPROVED=OWNER_AUTHORIZED_FOR_TEST; UPLOAD_STATUS=PASS; APPROVAL_STATUS=BLOCKED_UPLOADED; INDEX_STATUS=NOT_STARTED; CHUNKS=0; EMBEDDINGS=0; SOURCE_ALLOWLIST=EMPTY; REAL_HTTP_TRANSPORT=IMPLEMENTED_NOT_LIVE_VERIFIED; OPENAI_LIVE_CALLS=0; QUESTIONS_EXECUTED=0/5; FIRST_TURN=NOT_RUN; FOLLOW_UP=NOT_RUN; INSUFFICIENT_SOURCE=NOT_RUN; CITATION_VALIDATION=NOT_RUN; CONVERSATION_PERSISTENCE=NOT_RUN; TOTAL_TOKEN_USAGE=0; LATENCY=UPLOAD_URL_3.8S_FINALIZE_3.7S; SECURITY_FINDINGS=VARLOCK_BETTER_AUTH_URL_GUARD_BLOCK; TASK192_STATUS=PARTIAL; TASK193_STATUS=PARTIAL; TASK194_STATUS=PARTIAL; TASK197_STATUS=PARTIAL; READY_FOR_OWNER_BROWSER_ACCEPTANCE=NO; BLOCKERS=LOCAL_NESTED_ROUTE_404_AND_VARLOCK_ORIGIN_CLASSIFICATION.
+
+Next work must resolve local route discovery and narrowly classify the known public Better Auth origin without weakening credential sensitivity, then reconcile/resume the existing document review/index (never reupload a duplicate), allowlist the exact returned document ID, and run at most five generation questions under the existing authorization. No disable/delete/revoke/cleanup, Production/backup writes, scheduler activation, migration, contract change, code edit, commit/push/merge/deploy or Worker stash action.
+
+
+## 2026-10-11 — Local route/Varlock remediation and approved fixture indexing
+
+Continued the owner-approved single-fixture live test; no second upload. Verified effective BETTER_AUTH_URL is only the public origin http://localhost:3001: HTTP(S), root path, no username/password/query/fragment and not equal to any credential. Changed only its apps/web/.env.schema decorator to @public @type=url; BETTER_AUTH_SECRET, DATABASE_URL, OPENAI_API_KEY, BLOB_READ_WRITE_TOKEN, QA_NETWORK_HMAC_SECRET and CRON_SECRET remain sensitive. Varlock codegen succeeded.
+
+Exact endpoint behavior: frontend calls POST /api/admin/rag-documents/{id}/actions and GET/POST /api/admin/rag-documents/{id}/index; there is no /actions/index endpoint. Route files exist and are present in production build manifest. Turbopack's dev manifest omitted nested /actions and /index routes and returned HTML 404; Webpack dev registered both (authenticated GET/POST requests returned 200). Webpack no longer reports BETTER_AUTH_URL from the sensitive-response scan. This is a Turbopack development route-registration issue, not a wrong client URL or route handler authorization failure.
+
+Using the already logged-in Admin and standard UI, the existing document cmv3q1hth00010k9wf74kmio7 moved UPLOADED -> REVIEWING -> APPROVED -> INDEXED. The US-19 indexing action made an authorized real OpenAI Embeddings call for this fixture; job succeeded on attempt 1. Read-only Development verification confirmed status INDEXED, current publication READY (generation cmv3wvev70005v89wg0fvv4ty), one expected chunk/one embedding, openai/text-embedding-3-small/1536, safe owner-approved TEST/SYNTHETIC title and null sourceUrl. Existing sources were not changed: counts are now four INDEXED (three prior + fixture), one DISABLED. The exact returned RagDocument.id alone is present in ignored QA_PUBLIC_SOURCE_IDS. Database server identifiers and local gate rechecked; Preview and cleanup remain disabled.
+
+A guard interaction remains when requesting the Admin detail page while the raw allowlist ID is configured: Varlock flags QA_PUBLIC_SOURCE_IDS because that same ID appears in the /admin/rag/{id} request/page context. It remains sensitive/server-only; no public exposure or guard exception was added. Navigate to /assistant to avoid the internal admin-ID path. The assistant page loaded on Webpack and authenticated as ADMIN; its real HTTP transport path was selected. However, browser actions could edit the draft and clear it using “Cuộc hội thoại mới” but submit did not start a turn or produce POST /api/ai/ask. No Generation API calls or QA turns occurred; OpenAI generation remains 0/5 and generation token use is 0. Do not retry blindly. This local browser-submit behavior needs owner interaction/debugging before live questions.
+
+Validation after schema change: Varlock codegen PASS; focused tests 78/78 across runtime gate, HTTP transport, Assistant development integration, QA HTTP and RAG index/action services; web typecheck PASS; fresh Next production build PASS and included nested actions/index routes; diff check PASS, secret-value scans found no matches, .env files remain ignored. Prisma client generation also succeeded. Full regression and PostgreSQL suite not repeated.
+
+FIXTURE_REVIEW=PASS; FIXTURE_APPROVED=OWNER_AUTHORIZED; UPLOAD_STATUS=PASS; APPROVAL_STATUS=PASS; INDEX_STATUS=PASS; CHUNKS=1; EMBEDDINGS=1; SOURCE_ALLOWLIST=EXACT_FIXTURE_ID_ONLY; REAL_HTTP_TRANSPORT=SELECTED; OPENAI_EMBEDDING_CALL=PASS; OPENAI_GENERATION_CALLS=0/5; QUESTIONS_EXECUTED=0/5; FIRST_TURN=NOT_RUN; FOLLOW_UP=NOT_RUN; CITATION=NOT_RUN; CONVERSATION_PERSISTENCE=NOT_RUN; READY_FOR_OWNER_BROWSER_TEST=PARTIAL; BLOCKERS=TURBOPACK_DEV_ROUTE_REGISTRATION (use webpack) + ADMIN DETAIL ALLOWLIST-ID GUARD MATCH + CHAT SUBMIT DOES NOT DISPATCH.
+
+Webpack development server is left running on localhost:3001 with /assistant open and the Admin session intact for owner browser acceptance. No question, deletion, disable, cleanup, migrations, Production/backup write, commit/push/merge/deploy, or Worker stash operation. Tasks 192/193/194/197 remain PARTIAL.
+
+## 2026-10-11 — US-21 Assistant send/session lifecycle fix
+
+- **Root cause:** `AuthenticatedRuntimeChat` first rendered `AssistantChat` without transport under key `USER:<id>`. Successful bootstrap returned the same `USER:<id>` identity, so React reused the child. Its one-time `useState` initializer left `AssistantController.transport` null while the changed prop enabled the composer. `submit()` returned false before transport dispatch, explaining the missing `/api/ai/ask`.
+- **Cancellation:** the bootstrap effect aborts on cleanup when its component/boundary unmounts; development Strict Mode can exercise this path. This accounts for canceled session requests but is separate from the stale controller. The final browser bootstrap succeeded (auth/session HTTP 200 and Admin/composer readiness).
+- **Fix/evidence:** use distinct `bootstrap:` and `ready:` child keys to recreate the controller with `AssistantHttpTransport`. A deterministic regression test failed under the old equal-key behavior and passes with the fix. Focused suite 83/83, typecheck and production build pass. Local browser re-opened `/assistant`; no ask was sent, OpenAI generation remains 0/5.
+- **Scope:** Task 191 contract and Task 195/196 UI semantics unchanged. No fixture upload/index, allowlist change, migration, cleanup, Neon mutation for this debug, provider generation, Production action, commit/push/deploy or Worker stash action. First live ask remains owner-controlled.
+
+### 2026-10-11 — UNKNOWN with no recorded ask: fetch receiver regression
+
+Trace: submit creates the immutable attempt and sets pending sending; controller send calls AssistantHttpTransport.send; read called the native fetch reference as this.fetcher. That supplies the transport object as the native function receiver. A receiver-sensitive browser-fetch mock throws Illegal invocation at this point, before creating a request; transport catch maps it to networkAmbiguity and controller maps that to UNKNOWN. The new pending state proves the prior null-transport submit guard was passed. No wrong URL was found (/api/ai/ask); server-side HMAC/session checks cannot explain a fetch call failing before HTTP dispatch. Aborted signals remain separately tested and unchanged.
+
+Minimal fix: wrap the default fetch dependency with (input, init) => globalThis.fetch(input, init). Keep request URL/body/key, cookies, timeout, abort behavior, Task 191 contract and security unchanged. New deterministic test uses a mocked session 200 with validated USER identity, distinct bootstrap/ready keys, then submit through the real controller and HTTP transport; asserts session -> POST /api/ai/ask, exact key/body, accepted receiver and confirmed FAILED fixture response instead of network UNKNOWN. It failed with the old receiver and passes after the wrapper. This is a deterministic transport/lifecycle test, not a mounted-browser or live provider acceptance test.
+
+Read-only Development target gate matched the approved endpoint, neondb and effective runtime pins. BEGIN READ ONLY returned transaction_read_only=on, zero qa_turn and zero qa_conversation records. Available dev logs show session 200 and no ask. Initial connection attempt with PostgreSQL startup options failed with redacted diagnostics; the subsequent ordinary connection plus explicit read-only transaction completed successfully. No question/content/key/session secrets were read into output. Temporary read-only script was removed. Direct Chrome headless receiver probe was rejected by execution policy before running; no direct exception capture in the existing user tab is claimed.
+
+Validation: focused suite 84/84 PASS (six files), web typecheck PASS, production build PASS; diff/secret checks recorded below in the current session report. Webpack development server restarted on localhost:3001. No live ask/retry, OpenAI/Blob, upload/index, allowlist change, migration/cleanup, database mutation, commit/push/deploy or Worker stash action. Tasks remain PARTIAL. Dispatch is ready for an owner-controlled live check; real browser/provider acceptance remains unexecuted.
+
+### 2026-10-11 — AI_INVALID_RESPONSE diagnosis after owner live asks
+
+Observed dev logs contain two POST /api/ai/ask responses: HTTP 502, 11.4s and 6.9s. Read-only Development verification (approved endpoint/neondb/effective runtime host pin, BEGIN READ ONLY) found two USER/GUEST-owned conversations in aggregate, no active turn/completed head, and two first turns FAILED with errorCode AI_INVALID_RESPONSE, created at 2026-10-11T15:10:37.069Z and 15:11:15.398Z. No principal IDs, keys, credentials or private question/response content were printed. Failed-turn policy correctly scrubbed question/response/provenance; therefore the latest row cannot independently be correlated with the literal question hi. Owner reports that question. Quota counters ask-global=2 and tokens-global=46000 are reserved ceilings, not actual provider usage or confirmation of a generation call.
+
+Trace: qaHttpError maps an AppError AI_INVALID_RESPONSE to HTTP 502 / FAILED with sanitized message. This code can originate in invalid query embeddings (EmbeddingError INVALID_PROVIDER_RESPONSE), retrieval eligibility checks, generation preflight, provider envelope/JSON/schema, outcome consistency, exact sentence/citation grounding, public safety, final response validation or atomic completion eligibility fences. A generic DB completion failure maps UNKNOWN, not this error. HTTP/auth bootstrap failure and previous pre-fetch receiver issue do not explain persisted FAILED turns. Current logs/failed rows retain no stage diagnostics, provider request IDs, finish reason or usage. No provider call or retrieved evidence count for the historical asks can be confirmed from the available evidence. Do not infer calls or token usage from latency/quota.
+
+Current fixture read-only state remains INDEXED/current READY, one published chunk. Offline tests against that in-memory chunk confirm instructionDetected=false and safe text metadata. With question hi and a mock provider, valid empty-parts CLARIFICATION_REQUIRED and INSUFFICIENT_SOURCE both pass generation validation. Existing tests confirm empty evidence returns the contract INSUFFICIENT_SOURCE without a generation fetch; retrieval itself still requires a query embedding. These checks do not reproduce or prove the historical model output or historical source eligibility. Greeting hi is syntactically valid; there is no deterministic greeting branch, and with retrieved evidence the model decides insufficiency/clarification under the existing prompt. No greeting special case or guard relaxation was introduced.
+
+ROOT_CAUSE=UNRESOLVED_INSUFFICIENT_STAGE_EVIDENCE. FIX_APPLIED=NO; no proven implementation bug and no justified red regression case. Next diagnostic step requires content-free stage classification (embedding validation; evidence count; provider HTTP/finish/refusal/output schema; outcome consistency; grounding/citation; final eligibility) plus optional sanitized provider request ID/usage for a future separately authorized ask. Do not log prompt, evidence text, output text, identities, keys, cookie/HMAC or credentials. No automatic live replay was performed. Focused existing suite 161/161 PASS across eight files; typecheck PASS. Build/diff/secret checks recorded in the session report. Tasks remain PARTIAL; not ready to declare the next ask fixed.
+
+No new live ask, embedding/generation/Blob call, upload/index, migration, cleanup, allowlist change, Neon mutation, commit/push/deploy or Worker stash operation. Temporary read-only/offline diagnostic script removed. Only this append-only documentation evidence was added in this diagnosis.
+
+### 2026-10-11 — Development-only AI_INVALID_RESPONSE stage diagnostics prepared
+
+Implemented request-scoped AsyncLocalStorage diagnostics with random server correlation UUIDs, wired only into qaHttp.ask in local development. Production/Preview forced off; Task 191 public body/status/headers, immutable idempotency key and existing security/grounding checks unchanged. Instrumented actual request/principal/admission/query-embedding/retrieval/eligibility/generation/preflight/provider/envelope/JSON/schema/outcome/citation/grounding/public-safety/atomic-completion order. Every known AI_INVALID_RESPONSE throw/mapping site has a specific category/origin. Provider fetch invocation is distinct from remote acceptance/billing. Projected generation HTTP/request-ID/finish/token metadata is available when supplied; embedding HTTP/request ID is available, embedding usage is not exposed by the existing adapter. Missing data remains absent/unknown.
+
+Security projection allows only internal stage/category/code enums, random correlation ID, chunk counts, bounded numeric usage/status, bounded req_ request ID and known finish reasons. Schema issues contain safe code/path only; unknown field names become FIELD. No raw prompt/question/answer/chunk/provider response/error message, identity, cookie/key/HMAC, credential or URL is logged. Diagnostic sink failures do not alter operation behavior; concurrent requests have separate context. Origin tagging uses WeakMap, never database/persistence/public response. See docs/implementation/us21-stage-diagnostics.md for complete rejection-condition inventory, metadata semantics, removal guidance and the one-attempt plan.
+
+Read-only Development endpoint/neondb/runtime host gate PASS; two conversations and two FAILED/AI_INVALID_RESPONSE turns remain, scrubbed=true. Available logs still provide only the earlier two asks/502; no historical stage or generation usage can be recovered. No scrubbed content inspected. Historical root cause remains NOT_IDENTIFIED. No speculative functional fix was made.
+
+Deterministic validation: 17 new diagnostics cases plus existing focused modules/UI regressions, 178/178 PASS across nine files. Empty evidence -> INSUFFICIENT_SOURCE with no generation dispatch; valid evidence -> generation/persistence; unavailable, malformed JSON/schema, outcome inconsistency, citation reference, grounding, invalid embedding, lost eligibility and DB persistence failure each assert exact internal failure origin/public code. Tests also assert content secrecy, schema-path/provider-metadata projection, Production/Preview silence, concurrent isolation and nonthrowing sink behavior. Typecheck PASS. Production build and diff/secret checks recorded in session report. No PostgreSQL integration rerun: no schema or write-policy change, and no live test writes authorized for diagnostics.
+
+One owner-triggered new-conversation question prepared: Ma xac nhan cua ho so QA Sao Tim la gi? Expected approved synthetic evidence sentence: Ma xac nhan cua ho so QA Sao Tim la QA-SAOTIM-21. Do not replay either failed historical key; controller creates the new intent key. Stop after one submit, then inspect US21_QA_DIAGNOSTIC events for its correlation ID and provider usage separately if owner dashboard access is available. Earlier two POSTs are conservatively charged to the five-question budget: 3 remaining before this diagnostic attempt, 2 after it regardless of outcome. Prior generation invocation/billing NOT_CONFIRMED, never claimed zero. No new live provider call, question/retry, fixture upload/index, migration/cleanup, allowlist/env change, Neon mutation, commit/push/deploy, worktree deletion or Worker stash operation. Tasks remain PARTIAL.
+
+### 2026-10-11 — Wrong DEMO transport: wrong local server resolved
+
+Root cause proved by port/process ancestry and both repository page sources: localhost:3001 listener PID 33144 and its Next parent PID 32988 ran from D:\KLTN\KLTN, under the main-repo Turbo dev tree, not the US-21 feature worktree and not Webpack. Main-repo /assistant imports AssistantDevelopmentChat unconditionally in development; it has no real-QA selection branch. The prior feature dev exec had exited. Therefore this owner question executed demo and provides no live retrieval/generation evidence. It is not another POST/ask and does not consume a third live-ask budget slot.
+
+Effective feature-worktree Varlock statuses were read without printing values: QA_RUNTIME_ENABLED=true, abuse accepted, approved endpoint/neondb and runtime pins matched, HMAC/local-network identity/OpenAI present, exact existing fixture-only allowlist, Preview and cleanup disabled. Keys are in ignored .env.local; .env contains no QA keys. Required QA variables are server-exposed, not @internal, and retain sensitive defaults. No env or allowlist modification was needed. Feature /assistant prioritizes AssistantRuntimeChat when development QA flag is true; false selects clearly marked demo. Missing/incorrect backend security configuration closes the real session/API gate; the runtime component never falls back to demo responses. Production selects unavailable and never imports development demo. No application-source mode-selection fix was necessary.
+
+Stopped only the verified main-repo Next dev process serving the conflicting port, then started npm run dev -w web -- --webpack from the feature worktree. Browser verification on /assistant: no DEMO banner or mock controls, existing Admin session, session HTTP 200, text field settable, new-conversation enabled, no turn/pending question. Send is disabled solely because draft is empty. Ready identity uses the real HTTP transport via the existing distinct bootstrap/ready key; no ask was submitted. No cookie/session credential was read or copied.
+
+Added assistant-runtime-mode.vitest.test.ts: builds/executes the actual page selection without mounting or making requests, verifies development true -> AssistantRuntimeChat, false -> AssistantDevelopmentChat, production regardless of QA flag -> unavailable AssistantChat, no demo/fixture dependency in production, and server gate rejects missing pins/database, wrong target, unaccepted abuse or Preview/Production. Development bundles may contain demo definitions; selection tests assert the returned real component, not an unsupported claim that every development bundle excludes demo code. Demo fixture behavior cannot participate in that real execution path.
+
+Validation: focused session/controller/transport/mode/API/runtime suite 89/89 PASS; typecheck PASS. Production build and final diff/secret checks recorded in session report. No application source or ignored env changed; only regression test and append-only docs added. Local Webpack server restored for the owner's single supported diagnostic question. Two historical real POSTs still count against five-question budget; three live-ask slots remain, not a claim of zero historical provider charges. No live ask/provider call, upload/index, migration, cleanup, disable/delete, allowlist change, commit/push/deploy, worktree deletion or Worker stash action. Tasks remain PARTIAL.
+
+### 2026-10-11 — Existing 502 diagnostics and Guest chat lifecycle
+
+Read existing Webpack logs and approved Development database using a target-pinned READ ONLY transaction; no new ask or provider call. Correlation bef508d1-6c53-4487-8e05-17d07571957b: embedding HTTP 200, retrieval 1, eligible evidence 1, generation HTTP 200, finish stop, usage 501 prompt + 18 completion = 519 tokens. Last validated stage GENERATION_OUTPUT_SCHEMA; rejection GENERATION_OUTCOME / OUTCOME_CONSISTENCY, public AI_INVALID_RESPONSE / HTTP 502. Existing combined guard does not identify whether unanswered/status or answerParts/status violated consistency. No raw response was retained or recovered. Strict rejection remains unchanged; split the same predicates only to emit safe custom issue paths unanswered or answerParts. Three diagnostic regression cases were red before this change and green afterward. No proven provider adapter, citation, grounding or persistence defect for this request; rejection precedes citation/grounding and successful completion.
+
+Separate correlation 1f3c94a1-280b-4445-b40d-4a8d4e00f0a0 failed QUESTION_EMBEDDING_STARTED / PROVIDER_FAILURE, AI_UNAVAILABLE, embedding dispatched, generation not dispatched. Browser cancellation does not prove zero provider cost. Four recorded turns are FAILED, all Guest-owned; latest errors AI_INVALID_RESPONSE and AI_UNAVAILABLE. Failed question/response/provenance content is scrubbed; conversations are neither deleted nor expired and have no active turn. Scrubbed content was not recovered.
+
+Proven lifecycle defect: installed Better Auth sets isPending=(current.data===null) during refetch. Settled Guest sessions have null data, so focus/online/session refetch temporarily produces unresolved. Previous AssistantRuntimeChat replaced the keyed authenticated subtree, disposing its memory-only controller and aborting in-flight transport, then rebuilt an empty controller when Guest settled. Transient authenticated-session errors also cleared that subtree. Red tests reproduced both boundary changes. Preserve a confirmed principal boundary during transient refetch/error, disable submit/keyboard/retry until auth and server bootstrap revalidate, and retain the same ready identity key. Confirmed login/logout/account switch or unauthorized response still clears the old identity. Guest cookie identity rotation changes the key. No persistent client cache, automatic POST replay, new idempotency key, restored scrubbed history, or retention change.
+
+This lifecycle defect can occur without HMR. Exact React remount and auth transition of the owner's historical request were not instrumented; timing of session rebootstrap corroborates the path but does not establish exclusive causation. RSC GET and hot-update requests alone are not proof of a reset. No router.refresh/navigation exists in the assistant path. Full page reload/HMR remount can still clear memory-only chat; durable history restoration is not added in this scoped fix.
+
+Validation: 180/180 focused tests across 11 files PASS, including controller UNKNOWN/error handling, HTTP/session key, boundary transitions, real/demo/production selection, server-rendered disabled composer, strict generation and diagnostics. Typecheck PASS; production build PASS; diff check PASS. Full suite and live ask not run. Production/Preview remain disabled, no env/allowlist change. Local feature Webpack restarted on port 3001 after build. Current IAB tab is no longer available, so no fresh browser lifecycle replay is claimed. Conservatively account four admitted attempts against five-question budget: one remaining, earlier provider usage still incomplete. Next supported owner question can diagnose the exact inconsistent field; successful answer remains unverified. Tasks stay PARTIAL. No commit/push/deploy, migrations, cleanup, document change, worktree removal or stash operation.
+
+### 2026-10-11 — Final outcome consistency investigation (offline only)
+
+ROOT_CAUSE=UNRESOLVED for historical correlation bef508d1-6c53-4487-8e05-17d07571957b. Existing evidence proves GENERATION_OUTCOME / OUTCOME_CONSISTENCY after provider HTTP 200, finish_reason=stop, 501+18 tokens and one eligible chunk. It does not identify the rejected field or retain a generation body. Completion token count is not proof of truncation. No historical body recovery, provider call, new ask/retry or database access occurred in this investigation.
+
+Inspected actual prompt, JSON schema, Chat Completions envelope extraction, service mapping, diagnostic projection and Task191 discriminated response schema. Adapter parses message.content once and does not rewrite status/unanswered/parts; NFC/trim of answer text happens after outcome validation. ANSWERED requires nonempty cited parts and no unanswered aspects. PARTIAL requires nonempty cited parts and missing-information notice (provider unanswered=true maps to the existing safe constant notice). INSUFFICIENT_SOURCE and CLARIFICATION_REQUIRED require empty parts/citations and existing notices. Provider unanswered is internal, not a Task191 public field. Two strict predicates enforce unanswered === (status === PARTIAL) and nonempty parts exactly for factual outcomes. Provider JSON schema enforces shape and enum but does not encode these cross-field predicates; system instructions are compatible. No contradictory instruction or reproducible application mapping defect found. No prompt, schema, production code, grounding guard or citation rule changed in this task.
+
+Expanded fake-provider HTTP/service/retrieval/adapter tests: all four valid outcomes produce Task191 SUCCESS only after mock persistence; each status with wrong unanswered and each status with contradictory parts produces HTTP502 at the same historical stage, safe diagnostic field path, failed persistence and no complete call. Valid outputs survive mapping with exact cited fixture text. finish_reason=length is rejected at GENERATION_ENVELOPE, malformed JSON at GENERATION_JSON; existing invalid citation, grounding, provider unavailable and persistence tests remain green. Empty retrieval invokes only the fake embedding request, never generation. Tests invoke handlers directly using Request objects and mocked fetch/store/database; no HTTP request is sent to localhost or an external service.
+
+Guest regressions: UNKNOWN retains its exact pending object/key across repeated same-owner boundary refresh and send count stays one. Offline hook harness executes actual AssistantChat form/Enter/retry handlers: available=false blocks each path; true permits one fake send; subsequent revalidation does not retry UNKNOWN. Existing FAILED-preservation, unauthorized/login/logout boundary, readiness key, disabled-composer, controller disposal and production/demo isolation regressions pass. This is deterministic helper/hook coverage, not a real React/browser remount observation. Retention code unchanged: store checks deletion/expiry before replay/completion; mocked expired/deleted admission blocks retrieval/generation/completion. No persistent client history cache or scrubbed content recovery added. Database retention integration was not rerun because this task prohibits database writes.
+
+Validation: 296/296 tests PASS across 12 focused files, zero skipped; typecheck PASS; production build PASS; diff check PASS; changed/untracked-file credential-pattern scan zero hits. No red application regression/fix pair is claimed: new tests passed against current implementation. Previous session's lifecycle and safe diagnostic fixes remain unchanged. Full suite/live browser/live acceptance not run. Production/Preview remain disabled. Remaining authorized live budget=1, unchanged. Diagnostics are ready for the owner's decision, but successful final live output is not guaranteed and historical field-level cause remains unavailable. Tasks remain PARTIAL. No commit/push/deploy, env/allowlist/document changes, migrations, cleanup, database writes, Worker stash or worktree operations.
