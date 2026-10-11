@@ -17,6 +17,13 @@ function setup(){
   return {store,retriever,generator,reservation,service:createQaService({store,retriever,generator})};
 }
 describe("QA orchestration without external services",()=>{
+  it("does not generate or resurrect a turn when the store rejects a deleted/expired conversation", async () => {
+    const t = setup();
+    vi.mocked(t.store.reserve).mockRejectedValue(new AppError("NOT_FOUND", "unavailable conversation", 404));
+    await expect(t.service.ask(principal, "same_key", { conversationId: "expired_fixture", parentTurnId: null, question: "fixture" })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(t.retriever.retrieve).not.toHaveBeenCalled(); expect(t.generator.generate).not.toHaveBeenCalled();
+    expect(t.store.complete).not.toHaveBeenCalled();
+  });
   const citation={id:"c1",sourceId:"public_fixture",title:"Fixture",sourceUrl:null,locators:[]};
   const evidence:QaEvidence={citationId:"c1",documentId:"private_doc",generationId:"generation",contentVersionId:"version",chunkId:"private_chunk",chunkHash:"hash",text:"Fixture claim",tokenCount:2,score:1,citation};
   it.each<QaAnswer>([

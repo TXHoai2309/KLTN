@@ -8,6 +8,7 @@ import { EmbeddingError } from "../rag-processing/embedding-errors";
 import { countEmbeddingTokens } from "../rag-processing/embedding-tokenizer";
 import { createOpenAiEmbeddingProvider } from "../rag-processing/openai-embedding-provider";
 import { isQaPublicMetadataSafe } from "./qa-public-safety";
+import { qaOrigin, qaProviderInvoked, qaProviderMetadata, qaStage } from "./qa-diagnostics";
 
 type Reader = Pick<Database, "$queryRaw"> & Partial<Pick<Database, "$transaction">>;
 type Row = { documentId: string; generationId: string; contentVersionId: string; chunkId: string;
@@ -86,7 +87,12 @@ export async function lockQaEvidenceEligibility(tx: Prisma.TransactionClient, ev
 }
 
 export function createQaRetriever(database: Reader, options: QaRetrievalOptions = {}): QaRetriever {
-  const provider = options.provider ?? createOpenAiEmbeddingProvider();
+  const provider = options.provider ?? createOpenAiEmbeddingProvider({ fetcher: async (url, init) => {
+    qaProviderInvoked("embedding");
+    const response = await fetch(url, init);
+    qaProviderMetadata("embedding", response);
+    return response;
+  } });
   if (provider.provider !== EMBEDDING_PROVENANCE.provider || provider.model !== EMBEDDING_PROVENANCE.model || provider.dimensions !== 1536) throw new EmbeddingError("INVALID_INPUT", false);
   const topK = boundedInteger(options.topK, 6, 20);
   const maxEvidenceTokens = boundedInteger(options.maxEvidenceTokens, 6000, 12000);
@@ -106,15 +112,21 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
       const previousQuestions = history.slice(-2).map(turn => qaQuestionSchema.parse(turn.question));
       const query = [...previousQuestions, normalized].join("\n");
       if (countEmbeddingTokens(query) > 8191) throw new EmbeddingError("RESOURCE_LIMIT", false);
-      const response = await provider.embed({ input: [query], signal });
+      qaStage("QUESTION_EMBEDDING_STARTED");
+      let response;
+      try { response = await provider.embed({ input: [query], signal }); }
+      catch (error) { throw qaOrigin(error, error instanceof EmbeddingError && error.code === "INVALID_PROVIDER_RESPONSE" ? "QUESTION_EMBEDDING_VALIDATION" : "QUESTION_EMBEDDING_STARTED", error instanceof EmbeddingError && error.code === "INVALID_PROVIDER_RESPONSE" ? "SCHEMA" : "PROVIDER_FAILURE"); }
+      qaStage("QUESTION_EMBEDDING_VALIDATION");
       const vector = response[0]?.embedding;
       if (response.length !== 1 || response[0]?.index !== 0 || !Array.isArray(vector) || vector.length !== 1536 ||
         Array.from(vector).some(value => typeof value !== "number" || !Number.isFinite(value) || !Number.isFinite(Math.fround(value)))) {
-        throw new EmbeddingError("INVALID_PROVIDER_RESPONSE", false);
+        throw qaOrigin(new EmbeddingError("INVALID_PROVIDER_RESPONSE", false), "QUESTION_EMBEDDING_VALIDATION", "EMBEDDING_VECTOR");
       }
       // pgvector stores float32 values; reject vectors that become zero or overflow.
       const squaredNorm = vector.reduce((sum, value) => sum + Math.fround(value) ** 2, 0);
-      if (!Number.isFinite(squaredNorm) || squaredNorm <= 0) throw new EmbeddingError("INVALID_PROVIDER_RESPONSE", false);
+      if (!Number.isFinite(squaredNorm) || squaredNorm <= 0) throw qaOrigin(new EmbeddingError("INVALID_PROVIDER_RESPONSE", false), "QUESTION_EMBEDDING_VALIDATION", "EMBEDDING_VECTOR");
+      qaStage("QUESTION_EMBEDDING_COMPLETED");
+      qaStage("RETRIEVAL_STARTED");
       if (signal?.aborted) throw new EmbeddingError("CANCELLED", false);
       const vectorLiteral = `[${vector.join(",")}]`;
       const rows = await boundedRead(database, reader => reader.$queryRaw<Row[]>(Prisma.sql`SELECT d."id" AS "documentId", g."id" AS "generationId",

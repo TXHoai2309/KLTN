@@ -1,0 +1,11 @@
+US21 TEST SYNTHETIC - Ho so QA Sao Tim
+
+Tai lieu nay la du lieu tong hop phuc vu kiem thu ky thuat. Tai lieu khong mo ta dia diem, dich vu hay su kien du lich Ha Giang co that.
+
+Ho so QA Sao Tim la mot ho so thu nghiem tong hop.
+Ma xac nhan cua ho so QA Sao Tim la QA-SAOTIM-21.
+Ho so QA Sao Tim co ba buoc: doc tai lieu, doi chieu ma xac nhan va ghi ket qua kiem thu.
+Mau nhan cua ho so QA Sao Tim la mau tim.
+Ho so QA Sao Tim khong quy dinh gia ve, thoi gian di chuyen hay gio mo cua cua bat ky dia diem nao.
+
+Tai lieu duoc tao trong phien US-21 de owner review. Tai lieu khong chua thong tin ca nhan, duong dan rieng tu hoac credentials. Quyen upload, hien thi metadata va gui evidence sang OpenAI can owner phe duyet truoc khi su dung live.

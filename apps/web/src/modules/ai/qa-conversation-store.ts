@@ -5,6 +5,7 @@ import { QA_ERROR_HTTP_STATUS, qaCompletedTurnSchema, type QaCompletedTurn, type
 import type { QaEvidence, QaHistoryTurn, QaPrincipal } from "./qa-runtime-contract";
 import type { QaAbuseHooks } from "./qa-abuse";
 import { lockQaEvidenceEligibility } from "./qa-retrieval";
+import { qaOrigin } from "./qa-diagnostics";
 
 type Tx = Prisma.TransactionClient;
 type Conversation = { id: string; principalKind: string; principalId: string; headTurnId: string | null; activeTurnId: string | null; expiresAt: Date; deletedAt: Date | null };
@@ -167,9 +168,9 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
         if (!turn || turn.fence !== r.fence || turn.state !== "PROCESSING" || conversation.activeTurnId !== r.turnId || turn.leaseUntil.getTime() <= now.getTime()) error("CONVERSATION_BUSY");
         // Disable and index publication use the same document row lock. This eligibility
         // check and the completed write are one linearization point, not a preflight.
-        if (!await lockQaEvidenceEligibility(tx,evidence,options.publicSourceIds ?? new Set())) error("AI_INVALID_RESPONSE");
+        if (!await lockQaEvidenceEligibility(tx,evidence,options.publicSourceIds ?? new Set())) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "PERSISTENCE_STARTED", "ELIGIBILITY");
         const parsed = qaCompletedTurnSchema.parse(data);
-        if (parsed.conversationId !== r.conversationId || parsed.turnId !== r.turnId) error("AI_INVALID_RESPONSE");
+        if (parsed.conversationId !== r.conversationId || parsed.turnId !== r.turnId) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "PERSISTENCE_STARTED", "IDENTITY_MISMATCH");
         const provenance = evidence.map(({ documentId,generationId,contentVersionId,chunkId,chunkHash,citationId })=>({documentId,generationId,contentVersionId,chunkId,chunkHash,citationId}));
         await tx.$executeRaw(Prisma.sql`UPDATE qa_turn SET state='COMPLETED', response=${JSON.stringify(parsed)}::jsonb, provenance=${JSON.stringify(provenance)}::jsonb, "completedAt"=${now}::timestamptz WHERE id=${r.turnId}`);
         await tx.$executeRaw(Prisma.sql`UPDATE qa_conversation SET "headTurnId"=${r.turnId}, "activeTurnId"=NULL, "expiresAt"=${now}::timestamptz + ${p.kind === "GUEST" ? 7 : 30} * INTERVAL '1 day' WHERE id=${r.conversationId}`);

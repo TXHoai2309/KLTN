@@ -2,7 +2,8 @@ import type { AssistantAttempt, AssistantTransport, AssistantTransportResult } f
 
 /** No demo fallback. Body and key are immutable snapshots from the controller. */
 export class AssistantHttpTransport implements AssistantTransport {
-  constructor(private fetcher: typeof fetch = fetch, private timeoutMs = 70_000) {}
+  // Keep native browser fetch on its global receiver, never the transport instance.
+  constructor(private fetcher: typeof fetch = (input, init) => globalThis.fetch(input, init), private timeoutMs = 70_000) {}
   async send(attempt: AssistantAttempt, signal: AbortSignal): Promise<AssistantTransportResult> {
     const controller = new AbortController();
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;

@@ -3,6 +3,7 @@ vi.mock("server-only", () => ({}));
 import { createQaGenerator, validateQaGenerationOutput, QA_GENERATION_LIMITS } from "./qa-generation";
 import { composeQaPrompt, QA_CLARIFICATION_QUESTION, QA_UNANSWERED_ASPECT } from "./qa-prompt";
 import type { QaGenerationInput } from "./qa-runtime-contract";
+import { createQaDiagnostics, qaReportFailure, type QaDiagnosticEvent } from "./qa-diagnostics";
 
 const source = "Dinh thự nằm tại Sà Phìn. Tài liệu không xác minh giờ mở cửa.";
 const input = (): QaGenerationInput => ({ question: "Dinh thự nằm ở đâu?", history: [], context: { type: "GENERAL" }, evidence: [{ citationId: "c1", documentId: "private_document", generationId: "private_generation", contentVersionId: "private_version", chunkId: "private_chunk", chunkHash: "hash", text: source, tokenCount: 30, score: 0.9, citation: { id: "c1", sourceId: "public_alias", title: "Nguồn kiểm thử", sourceUrl: null, locators: [{ pageNumber: 1 }] } }] });
@@ -11,6 +12,19 @@ const response = (content: unknown, finish_reason = "stop") => new Response(JSON
 const generator = (fetcher: typeof fetch, extra = {}) => createQaGenerator({ apiKey: () => "fixture-only", fetcher, ...extra });
 
 describe("Task193 grounded generation", () => {
+  it.each([
+    [{ ...answer(), unanswered: true }, "unanswered"],
+    [{ ...answer(), answerParts: [] }, "answerParts"],
+    [{ status: "INSUFFICIENT_SOURCE", answerParts: answer().answerParts, unanswered: false }, "answerParts"],
+  ] as const)("identifies the inconsistent outcome field without logging its value %#", async (output, field) => {
+    const events: QaDiagnosticEvent[] = [];
+    await createQaDiagnostics({ nodeEnv: "development", sink: event => events.push(event) }).run(async () => {
+      try { validateQaGenerationOutput(output, input()); }
+      catch (error) { qaReportFailure(error, "AI_INVALID_RESPONSE"); }
+    });
+    expect(events.at(-1)).toMatchObject({ stage: "GENERATION_OUTCOME", category: "OUTCOME_CONSISTENCY", publicCode: "AI_INVALID_RESPONSE", issues: [{ code: "custom", path: [field] }] });
+    expect(JSON.stringify(events)).not.toContain(source);
+  });
   it.each(["Source file is rag/admin-1/private.pdf.", "Source is https://store.private.blob.vercel-storage.com/file.pdf.", "Original link is /api/admin/rag-documents/private_document/file.", "Private identity is private_document.", 'Embedding: [0.1, 0.2].'])("rejects private material even when copied exactly from current evidence", text => {
     const current=input();current.evidence[0]!.text=text;
     expect(()=>validateQaGenerationOutput({...answer(),answerParts:[{text,citationIds:["c1"]}]},current)).toThrow(expect.objectContaining({code:"AI_INVALID_RESPONSE"}));
