@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
-import { ArrowUpRight, List, Map, MapPin } from "lucide-react";
+import { ArrowUpRight, BookOpen, List, Map, MapPin } from "lucide-react";
 import DestinationMap from "@/components/map/destination-map";
 import DestinationCard from "./destination-card";
 import {
@@ -56,27 +56,6 @@ export default function ExploreResults({ data: initialData, error }: { data?: Pu
 
   return (
     <section className="explore-domain explore-destinations" aria-labelledby="explore-destination-title">
-      <header className="explore-section-heading">
-        <div>
-          <span className="explore-eyebrow">HỒ SƠ ĐỊA DANH</span>
-          <h2 id="explore-destination-title">Điểm đến Hà Giang</h2>
-          <p>Chọn một địa danh để xem thông tin và vị trí trên bản đồ.</p>
-        </div>
-        <div className="explore-section-tools">
-          <p className="explore-result-count" role="status" aria-live="polite">
-            {data ? <><strong>{data.items.length}</strong> điểm đến{hasSearchState ? " phù hợp" : ""}</> : state.status === "loading" ? "Đang tìm điểm đến…" : null}
-          </p>
-          <div className="explore-view-switch" role="group" aria-label="Chế độ xem điểm đến">
-            <button type="button" aria-pressed={view === "list"} onClick={() => setView("list")}>
-              <List aria-hidden="true" size={17} /> Danh sách
-            </button>
-            <button type="button" aria-pressed={view === "map"} onClick={() => setView("map")}>
-              <Map aria-hidden="true" size={17} /> Bản đồ
-            </button>
-          </div>
-        </div>
-      </header>
-
       <DestinationSearchForm
         key={query}
         params={new URLSearchParams(query)}
@@ -84,6 +63,23 @@ export default function ExploreResults({ data: initialData, error }: { data?: Pu
         onSearch={values => navigate(destinationSearchHref(new URLSearchParams(params), values))}
         onClear={clear}
       />
+      <div className="explore-controls-row">
+        <nav className="explore-content-tabs" aria-label="Nội dung khám phá">
+          <a href="#explore-destination-title"><Map aria-hidden="true" size={15} />Điểm đến</a>
+          <a href="#explore-culture-title"><BookOpen aria-hidden="true" size={15} />Nội dung văn hóa</a>
+        </nav>
+        <div className="explore-view-switch" role="group" aria-label="Chế độ xem điểm đến">
+          <button type="button" aria-pressed={view === "list"} onClick={() => setView("list")}>
+            <List aria-hidden="true" size={17} /> Danh sách
+          </button>
+          <button type="button" aria-pressed={view === "map"} onClick={() => setView("map")}>
+            <Map aria-hidden="true" size={17} /> Bản đồ
+          </button>
+        </div>
+      </div>
+      <header className="explore-section-heading">
+        <div><p className="explore-section-eyebrow">HỒ SƠ ĐỊA DANH</p><h2 id="explore-destination-title" aria-live="polite">{data ? `${data.items.length} điểm đến phù hợp` : state.status === "loading" ? "Đang tìm điểm đến…" : "Điểm đến Hà Giang"}</h2></div>
+      </header>
 
       <div key={view} className="explore-view-content">
         <DestinationResultStatus state={state} filtered={hasSearchState} onRetry={() => setRetry(value => value + 1)} onClear={clear} />
@@ -104,7 +100,7 @@ export default function ExploreResults({ data: initialData, error }: { data?: Pu
               </li>)}</ul>}
           </aside>
         </div>}
-        {data && view === "list" && data.items.length > 0 && <ul className={`explore-cards destination-grid${data.items.length === 1 ? " explore-cards-single" : ""}`}>
+        {data && view === "list" && data.items.length > 0 && <ul className="explore-cards destination-grid">
           {data.items.map((item, index) => <li key={item.id} style={{ "--card-index": index } as React.CSSProperties}>
             <DestinationCard destination={item} returnTo={returnTo} />
           </li>)}
