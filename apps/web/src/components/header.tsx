@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { Route } from "next";
 import { Mountain } from "lucide-react";
 
 import { ModeToggle } from "./mode-toggle";
@@ -35,6 +36,7 @@ export default function Header() {
     { to: "/explore", label: "Khám phá" },
     { to: "/culture", label: "Văn hóa" },
     { to: "/favorites", label: "Yêu thích" },
+    { to: "/trips/new", label: "Lập hành trình" },
     { to: "/dashboard", label: "Dashboard" },
   ] as const;
 
@@ -52,7 +54,7 @@ export default function Header() {
               : to === "/explore"
                 ? pathname === "/explore" || pathname.startsWith("/destinations/")
                 : pathname === to || pathname.startsWith(`${to}/`);
-            return <Link key={to} href={to} className="site-nav-link" data-active={active || undefined} aria-current={active ? "page" : undefined}>{label}</Link>;
+            return <Link key={to} href={to as Route} className="site-nav-link" data-active={active || undefined} aria-current={active ? "page" : undefined}>{label}</Link>;
           })}
         </nav>
         <div className="site-header-actions">

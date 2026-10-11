@@ -18,10 +18,13 @@ Run `npm run env:generate` after a schema change. Keep example/schema developer-
 | `BETTER_AUTH_SECRET` | Better Auth secret; unique per environment. |
 | `DATABASE_URL` | Neon PostgreSQL connection string. Local must use the development branch. |
 | `OPENAI_API_KEY` | Optional server-side AI/RAG/embedding/planner integration. |
+| `OPENAI_PREFERENCE_MODEL` | Optional server-side model identifier for US-25 preference extraction; no repository default. Missing value must produce `AI_UNAVAILABLE` when that future integration is enabled. |
 | `GOOGLE_ROUTES_API_KEY` | Optional server-side Routes key; never rename to `NEXT_PUBLIC_*`. |
 | `INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` | Only needed for the bootstrap command. Clear them after use. |
 
 Never put actual connection strings, API keys, bootstrap credentials, or other secrets in committed documentation. OpenAI and Google Routes keys are server-side. Browser map rendering uses MapLibre/Stadia without a frontend API key.
+
+US-25 adds only the optional `OPENAI_PREFERENCE_MODEL` declaration. It is not a provider integration, is never exposed through `NEXT_PUBLIC_*`, and is intentionally left blank until an owner selects a model. `scripts/sync-vercel-env.ts` already syncs only non-empty keys declared in `.env.schema`; no script change is required. Run `npm run env:generate -w web` after changing the schema so the generated `apps/web/src/env.ts` stays aligned; do not put a real model name or API key in committed files.
 
 ## Environment topology
 
