@@ -12,6 +12,16 @@ model CultureContent {
   visibility   CultureVisibility    @default(HIDDEN)
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
+  category String? @db.VarChar(200)
+  shortDescription String? @db.VarChar(1000)
+  geographicScope String? @db.VarChar(2000)
+  contentRevision Int @default(1)
+  areas Area[]
+  communities Community[]
+  sources ContentSource[]
+  media ContentMedia[]
+  ragOrigins RagDomainOrigin[]
+
   destinations CultureDestination[]
   favorites    Favorite[]
 

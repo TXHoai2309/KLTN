@@ -1,3 +1,4 @@
+import { cultureProfileSelect, profileDto, profileWrite } from "@/modules/content-profile/content-profile-service";
 import type { Database, Prisma } from "@KLTN/db";
 import { requireActor, type AuthorizationDependencies } from "@/server/authorization/guard";
 import { AppError } from "@/server/http/app-error";
@@ -6,13 +7,14 @@ import { cultureInputSchema, cultureIdSchema, cultureDtoSchema, cultureListSchem
 
 export type CultureDependencies = AuthorizationDependencies & { database: Database };
 export const cultureSelect = {
+  ...cultureProfileSelect,
   id: true, title: true, content: true, sourceTitle: true, sourceUrl: true, visibility: true, createdAt: true, updatedAt: true,
   destinations: { select: { destination: { select: { id: true, name: true } } }, orderBy: { destinationId: "asc" } },
 } satisfies Prisma.CultureContentSelect;
 type Row = Prisma.CultureContentGetPayload<{ select: typeof cultureSelect }>;
 export function toCultureDto(row: Row) {
   const destinations = row.destinations.map(link => link.destination);
-  return cultureDtoSchema.parse({ id: row.id, title: row.title, content: row.content, sourceTitle: row.sourceTitle, sourceUrl: row.sourceUrl, visibility: row.visibility, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString(), destinationIds: destinations.map(d => d.id), destinations });
+  return cultureDtoSchema.parse({ ...profileDto(row, "culture"), id: row.id, title: row.title, content: row.content, sourceTitle: row.sourceTitle, sourceUrl: row.sourceUrl, visibility: row.visibility, createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString(), destinationIds: destinations.map(d => d.id), destinations });
 }
 export function validateCultureId(id: string) {
   if (!cultureIdSchema.safeParse(id).success) throw new AppError("CULTURE_NOT_FOUND", "Không tìm thấy nội dung văn hóa.", 404);
@@ -48,12 +50,13 @@ export async function writeCulture(headers: Headers, body: unknown, key: string,
   return executeIdempotentWrite({ database: deps.database, actorId: actor.id, operation: id === null ? "culture:create" : "culture:update", key, input: { id, ...input }, execute: async tx => {
     await requireActor(headers, { ...deps, database: tx as unknown as Database }, "admin");
     if (id !== null && !await tx.cultureContent.findUnique({ where: { id }, select: { id: true } })) throw new AppError("CULTURE_NOT_FOUND", "Không tìm thấy nội dung văn hóa.", 404);
-    const { destinationIds, ...fields } = input;
+    const { destinationIds, profile, ...fields } = input;
+    const extension = await profileWrite(tx, profile, actor.id, id !== null);
     const existing = await tx.destination.findMany({ where: { id: { in: destinationIds } }, select: { id: true } });
     if (existing.length !== destinationIds.length) throw new AppError("INVALID_CULTURE_DESTINATIONS", "Có điểm đến không còn tồn tại. Hãy kiểm tra lại liên kết.", 400);
     const links = destinationIds.map(destinationId => ({ destinationId }));
-    if (id === null) return toCultureDto(await tx.cultureContent.create({ data: { ...fields, visibility: "HIDDEN", destinations: { create: links } }, select: cultureSelect }));
-    return toCultureDto(await tx.cultureContent.update({ where: { id }, data: { ...fields, destinations: { deleteMany: {}, create: links } }, select: cultureSelect }));
+    if (id === null) return toCultureDto(await tx.cultureContent.create({ data: { ...fields, ...extension, visibility: "HIDDEN", destinations: { create: links } }, select: cultureSelect }));
+    return toCultureDto(await tx.cultureContent.update({ where: { id }, data: { ...fields, ...extension, contentRevision: { increment: 1 }, destinations: { deleteMany: {}, create: links } }, select: cultureSelect }));
   } });
 }
 export async function setCultureVisibility(headers: Headers, id: string, body: unknown, key: string, deps: CultureDependencies) {

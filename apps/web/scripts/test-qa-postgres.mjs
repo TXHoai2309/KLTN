@@ -86,7 +86,10 @@ async function installTask184Schema() {
   const qaMigrations = await Promise.all(["20261011120000_add_qa_guest_identity", "20261011121000_add_qa_conversations", "20261011122000_add_qa_abuse_guard", "20261011123000_add_qa_cleanup_state"].map(name => readFile(resolve(repoRoot, `packages/db/prisma/migrations/${name}/migration.sql`), "utf8")));
   const destinationMigration = await readFile(resolve(repoRoot, "packages/db/prisma/migrations/20261004070249_add_destination_domain/migration.sql"), "utf8");
   const contextMigration = await readFile(resolve(repoRoot, "packages/db/prisma/migrations/20261012120000_add_qa_destination_context/migration.sql"), "utf8");
-  const setupSql = `CREATE EXTENSION vector;\n${admissionMigrations.join("\n")}\n${destinationMigration}\n${documentMigration}\n${indexMigration}\n${jobMigration}\n${qaMigrations.join("\n")}\n${contextMigration}\n`;
+  const cultureMigration = await readFile(resolve(repoRoot,"packages/db/prisma/migrations/20261005021531_add_culture_content_domain/migration.sql"),"utf8");
+  const profileMigration = await readFile(resolve(repoRoot,"packages/db/prisma/migrations/20261012150000_admin_content_profiles/migration.sql"),"utf8");
+  const legacySeed = `INSERT INTO destination(id,name,description,area,category,latitude,longitude,"updatedAt") VALUES ('af-legacy-destination','Legacy destination','Legacy prose','Test','Test',23,105,CURRENT_TIMESTAMP); INSERT INTO culture_content(id,title,content,"sourceTitle","updatedAt") VALUES('af-legacy-culture','Legacy culture','Legacy prose','Legacy source',CURRENT_TIMESTAMP); INSERT INTO opening_day(id,"destinationId","dayOfWeek",status) SELECT 'af-legacy-day-'||day, 'af-legacy-destination', day::"Weekday", 'UNKNOWN'::"OpeningStatus" FROM unnest(ARRAY['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY']) day;`;
+  const setupSql = `CREATE EXTENSION vector;\n${admissionMigrations.join("\n")}\n${destinationMigration}\n${documentMigration}\n${indexMigration}\n${jobMigration}\n${qaMigrations.join("\n")}\n${contextMigration}\n${cultureMigration}\n${legacySeed}\n${profileMigration}\n`;
   const result = run(
     "docker",
     [
@@ -198,7 +201,7 @@ async function main() {
     ...(process.platform === "win32" ? ["--pool=forks"] : []),
     ...(process.argv.includes("--full") ? [] : ["src/modules/rag-index/rag-index-store.postgres.integration.vitest.test.ts",
     "src/modules/rag-index/rag-index-job-store.postgres.integration.vitest.test.ts",
-    "src/modules/ai/qa-retrieval.postgres.integration.vitest.test.ts", "src/modules/ai/qa-store.postgres.integration.vitest.test.ts", "src/modules/ai/qa-abuse.postgres.integration.vitest.test.ts"]),
+    "src/modules/ai/qa-retrieval.postgres.integration.vitest.test.ts", "src/modules/ai/qa-store.postgres.integration.vitest.test.ts", "src/modules/ai/qa-abuse.postgres.integration.vitest.test.ts", "src/modules/content-profile/content-profile.postgres.integration.vitest.test.ts"]),
     "--reporter=default", "--reporter=json", `--outputFile=${reportPath}`], {
     cwd: webRoot,
     env: {
@@ -217,6 +220,8 @@ async function main() {
   const report = JSON.parse(await readFile(reportPath, "utf8"));
   const qaSuites = report.testResults?.filter(suite => /qa-(retrieval|store|abuse)\.postgres\.integration\.vitest\.test\.ts$/.test(suite.name));
   if (qaSuites?.length !== 3 || qaSuites.some(suite => !suite.assertionResults?.length || suite.assertionResults.some(test => test.status !== "passed"))) throw new Error("Required US21 PostgreSQL suites missing or not passed");
+  const profiles = report.testResults?.find(suite=>suite.name.endsWith("content-profile.postgres.integration.vitest.test.ts"));
+  if(!profiles?.assertionResults?.length || profiles.assertionResults.some(t=>t.status!=="passed"))throw new Error("Required Admin profile integration did not pass");
   const task185 = report.testResults?.find(suite => suite.name.endsWith("rag-index-job-store.postgres.integration.vitest.test.ts"));
   if (!task185?.assertionResults?.length || report.numPendingTests !== 0 || report.numTodoTests !== 0 || task185.assertionResults.some(testCase => testCase.status !== "passed")) {
     throw new Error("Required Task185 PostgreSQL suite did not fully execute and pass; skipped tests cannot count as PASS.");

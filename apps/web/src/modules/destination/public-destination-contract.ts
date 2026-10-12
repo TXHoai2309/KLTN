@@ -3,7 +3,7 @@ import { z } from "zod";
 import { destinationInputSchema } from "./destination-contract";
 
 /** Deliberate public allowlist. No visibility, timestamps or validator minimum. */
-export const publicDestinationDetailSchema = destinationInputSchema.omit({ minimumDurationMinutes: true }).extend({
+export const publicDestinationDetailSchema = destinationInputSchema.omit({ minimumDurationMinutes: true, profile: true }).extend({
   id: z.string().min(1),
   relatedCulture: z.array(publicCultureSummarySchema).max(20),
 }).strict();

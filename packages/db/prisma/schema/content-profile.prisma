@@ -1,0 +1,88 @@
+enum ContentRightsStatus {
+  UNKNOWN
+  APPROVED
+  REJECTED
+}
+
+enum ContentVerificationStatus {
+  UNKNOWN
+  VERIFIED
+  DISPUTED
+}
+
+model Area {
+  id String @id @default(cuid())
+  name String @unique @db.VarChar(200)
+  kind String @default("LOCALITY") @db.VarChar(20)
+  cultures CultureContent[]
+  destinations Destination[]
+  @@map("content_area")
+}
+
+model Community {
+  id String @id @default(cuid())
+  name String @unique @db.VarChar(200)
+  cultures CultureContent[]
+  @@map("content_community")
+}
+
+model ContentSource {
+  id String @id @default(cuid())
+  destinationId String?
+  cultureId String?
+  destination Destination? @relation(fields:[destinationId],references:[id],onDelete:Restrict)
+  culture CultureContent? @relation(fields:[cultureId],references:[id],onDelete:Restrict)
+  title String @db.VarChar(300)
+  url String? @db.VarChar(2000)
+  author String? @db.VarChar(200)
+  publisher String? @db.VarChar(200)
+  publishedOn String? @db.VarChar(10)
+  claim String? @db.VarChar(2000)
+  websiteRights ContentRightsStatus @default(UNKNOWN)
+  indexingRights ContentRightsStatus @default(UNKNOWN)
+  openAiRights ContentRightsStatus @default(UNKNOWN)
+  rightsEvidence String? @db.VarChar(2000)
+  reviewedBy String?
+  reviewedAt DateTime? @db.Timestamptz(3)
+  position Int @default(0)
+  @@index([destinationId,position])
+  @@index([cultureId,position])
+  @@map("content_source")
+}
+
+model ContentMedia {
+  id String @id @default(cuid())
+  destinationId String?
+  cultureId String?
+  destination Destination? @relation(fields:[destinationId],references:[id],onDelete:Restrict)
+  culture CultureContent? @relation(fields:[cultureId],references:[id],onDelete:Restrict)
+  url String @db.VarChar(2000)
+  storageReference String? @db.VarChar(500)
+  alt String @db.VarChar(300)
+  caption String? @db.VarChar(1000)
+  author String? @db.VarChar(200)
+  sourceUrl String? @db.VarChar(2000)
+  websiteRights ContentRightsStatus @default(UNKNOWN)
+  rightsEvidence String? @db.VarChar(2000)
+  reviewedBy String?
+  reviewedAt DateTime? @db.Timestamptz(3)
+  isCover Boolean @default(false)
+  position Int @default(0)
+  @@index([destinationId,position])
+  @@index([cultureId,position])
+  @@map("content_media")
+}
+
+// Interface-only origin boundary: no bridge dispatch/publication in AF-1..AF-6.
+model RagDomainOrigin {
+  id String @id @default(cuid())
+  ragDocumentId String @unique
+  document RagDocument @relation(fields:[ragDocumentId],references:[id],onDelete:Restrict)
+  destinationId String?
+  cultureId String?
+  destination Destination? @relation(fields:[destinationId],references:[id],onDelete:Restrict)
+  culture CultureContent? @relation(fields:[cultureId],references:[id],onDelete:Restrict)
+  revisionHash String @db.Char(64)
+  revokedAt DateTime? @db.Timestamptz(3)
+  @@map("rag_domain_origin")
+}

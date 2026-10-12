@@ -32,6 +32,23 @@ model Destination {
   visibility               DestinationVisibility @default(HIDDEN)
   createdAt                DateTime              @default(now())
   updatedAt                DateTime              @updatedAt
+  aliases String[] @default([])
+  shortDescription String? @db.VarChar(1000)
+  address String? @db.VarChar(1000)
+  googleMapsUrl String? @db.VarChar(2000)
+  locationVerified Boolean @default(false)
+  locationEvidence String? @db.VarChar(2000)
+  ticketPrice String? @db.VarChar(300)
+  ticketVerification ContentVerificationStatus @default(UNKNOWN)
+  ticketEvidence String? @db.VarChar(2000)
+  bestVisitTime String? @db.VarChar(2000)
+  visitNotes String? @db.VarChar(4000)
+  contentRevision Int @default(1)
+  areas Area[]
+  sources ContentSource[]
+  media ContentMedia[]
+  ragOrigins RagDomainOrigin[]
+
   openingDays              OpeningDay[]
   cultureLinks             CultureDestination[]
   favorites                Favorite[]

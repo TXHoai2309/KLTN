@@ -29,6 +29,8 @@ model RagDocument {
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
 
+  domainOrigin RagDomainOrigin?
+
   contentVersions  RagContentVersion[]
   indexGenerations RagIndexGeneration[]
   indexJobs        RagIndexJob[]

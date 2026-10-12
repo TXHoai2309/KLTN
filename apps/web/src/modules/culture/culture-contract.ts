@@ -1,3 +1,4 @@
+import { cultureProfileSchema } from "../content-profile/content-profile-contract";
 import { z } from "zod";
 
 const text = (max: number) => z.string().transform(value => value.normalize("NFC").trim()).pipe(z.string().min(1, "Không được để trống.").max(max, `Tối đa ${max} ký tự.`));
@@ -10,6 +11,7 @@ export const sourceUrlSchema = optionalText(2000).refine(value => {
   catch { return false; }
 }, "Liên kết nguồn phải là URL http/https hợp lệ, không chứa thông tin đăng nhập.");
 export const cultureInputSchema = z.object({
+  profile: cultureProfileSchema.optional(),
   title: text(200), content: text(20000), sourceTitle: optionalText(300), sourceUrl: sourceUrlSchema,
   destinationIds: z.array(cultureIdSchema).max(100).transform(ids => [...new Set(ids)].sort()),
 }).strict();
