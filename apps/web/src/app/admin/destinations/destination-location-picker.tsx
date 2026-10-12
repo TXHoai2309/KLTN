@@ -47,7 +47,7 @@ export default function DestinationLocationPicker({ coordinates, locationVerifie
   }, [coordinates?.latitude, coordinates?.longitude]);
 
   const pinStatus = coordinates
-    ? locationVerified ? "Vị trí hiện được đánh dấu đã xác nhận." : "Pin đang chờ xác nhận. Tọa độ chỉ được lưu khi bạn bấm Lưu thay đổi."
+    ? locationVerified ? "Vị trí hiện được đánh dấu đã xác nhận." : "Pin đang chờ xác nhận. Tọa độ chỉ được lưu khi bạn bấm nút lưu biểu mẫu."
     : "Chưa có pin. Nhấp bản đồ hoặc nhập đủ tọa độ để chọn vị trí.";
 
   return <section className="destination-location-picker" aria-label="Chọn pin điểm đến">
