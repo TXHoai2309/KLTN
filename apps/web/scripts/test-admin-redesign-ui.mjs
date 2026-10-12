@@ -240,10 +240,12 @@ try {
     await page
       .getByRole("textbox", { name: "Nội dung văn hóa", exact: true })
       .fill("Synthetic original content");
+    await page.locator("#cf-geo input[role='combobox']").focus();
     await page.getByLabel("Synthetic locality", { exact: true }).check();
     await page
       .getByLabel("Synthetic region (Vùng văn hóa)", { exact: true })
       .check();
+    await page.locator("#cf-community input[role='combobox']").focus();
     await page.getByLabel("Synthetic community one", { exact: true }).check();
     await page.getByLabel("Synthetic community two", { exact: true }).check();
     const areaSection = page
@@ -278,7 +280,7 @@ try {
     await areaSection
       .getByRole("button", { name: "Thử lại cùng key", exact: true })
       .click();
-    await page.getByLabel("Synthetic new area", { exact: true }).waitFor();
+    await page.getByText("Synthetic new area", { exact: true }).waitFor();
     assert.deepEqual(taxonomyPosts.at(-1), taxonomyLost);
     await page.waitForFunction(
       () => !document.querySelector('button[type="submit"]').disabled,

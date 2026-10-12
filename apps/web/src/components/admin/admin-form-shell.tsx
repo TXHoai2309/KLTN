@@ -1,7 +1,14 @@
 "use client";
 import "./admin-form-shell.css";
 import { useCallback, useEffect, useId, useState, type ReactNode } from "react";
-import { Eye, EyeOff, LoaderCircle, type LucideIcon } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  LoaderCircle,
+  ChevronDown,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 
 /* ── Types ───────────────────────────────────────────────────────────────── */
 export interface NavSection {
@@ -40,6 +47,127 @@ export function AdminSectionHead({
         </span>
       )}
     </div>
+  );
+}
+
+/* ── Collapsible Section Card ────────────────────────────────────────────── */
+export function AdminCollapsibleSection({
+  id,
+  icon: Icon,
+  title,
+  description,
+  badge,
+  summary,
+  isOpen,
+  onToggle,
+  defaultOpen = true,
+  hasError = false,
+  children,
+}: {
+  id: string;
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  badge?: "required" | "optional";
+  summary?: ReactNode;
+  isOpen?: boolean;
+  onToggle?: (open: boolean) => void;
+  defaultOpen?: boolean;
+  hasError?: boolean;
+  children: ReactNode;
+}) {
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const open = isOpen !== undefined ? isOpen : internalOpen;
+  const toggle = useCallback(() => {
+    if (onToggle) onToggle(!open);
+    else setInternalOpen(!open);
+  }, [onToggle, open]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const customEvent = e as CustomEvent<{ id: string }>;
+      if (customEvent.detail?.id === id) {
+        if (onToggle) onToggle(true);
+        else setInternalOpen(true);
+      }
+    };
+    window.addEventListener("admin:expand-section", handler);
+    return () => window.removeEventListener("admin:expand-section", handler);
+  }, [id, onToggle]);
+
+  useEffect(() => {
+    if (hasError) {
+      if (onToggle) onToggle(true);
+      else setInternalOpen(true);
+    }
+  }, [hasError, onToggle]);
+
+  return (
+    <section
+      id={id}
+      className={`af-section af-collapsible-section${open ? " is-expanded" : " is-collapsed"}${hasError ? " has-error" : ""}`}
+      aria-labelledby={`${id}-heading`}
+    >
+      <div className="af-section-header-wrap">
+        <div className="af-section-head">
+          <div className="af-section-icon" aria-hidden="true">
+            <Icon size={22} />
+          </div>
+          <div className="af-section-meta">
+            <h2 id={`${id}-heading`}>{title}</h2>
+            <p>{description}</p>
+          </div>
+          <div className="af-section-head-actions">
+            {badge && (
+              <span className={`af-section-badge is-${badge}`}>
+                {badge === "required" ? "* Bắt buộc" : "Tùy chọn"}
+              </span>
+            )}
+            <button
+              type="button"
+              className="af-section-toggle-btn"
+              onClick={toggle}
+              aria-expanded={open}
+              aria-controls={`${id}-content`}
+              title={open ? "Thu gọn phần này" : "Mở rộng phần này"}
+            >
+              <ChevronDown
+                size={18}
+                className={`af-toggle-icon${open ? " is-rotated" : ""}`}
+                aria-hidden="true"
+              />
+              <span className="sr-only">
+                {open ? "Thu gọn phần này" : "Mở rộng phần này"}
+              </span>
+            </button>
+          </div>
+        </div>
+        {!open && summary && (
+          <div
+            className="af-section-summary"
+            onClick={toggle}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                toggle();
+              }
+            }}
+          >
+            <span className="af-summary-pill">{summary}</span>
+            <span className="af-summary-hint">Bấm để chỉnh sửa</span>
+          </div>
+        )}
+      </div>
+      <div
+        id={`${id}-content`}
+        className="af-section-body"
+        style={{ display: open ? "block" : "none" }}
+      >
+        {children}
+      </div>
+    </section>
   );
 }
 
@@ -276,6 +404,10 @@ export function useSectionNav(sectionIds: string[]) {
   const scrollTo = useCallback((id: string) => {
     const el = document.getElementById(id);
     if (el) {
+      const toggleBtn = el.querySelector<HTMLButtonElement>(
+        ".af-section-toggle-btn[aria-expanded='false']",
+      );
+      toggleBtn?.click();
       el.scrollIntoView({
         behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
           ? "auto"
@@ -399,6 +531,15 @@ export function focusFormError(path: string, prefix: "cf" | "df") {
                   ? "destinations"
                   : "basic";
   const section = document.getElementById(`${prefix}-${field}`);
+  if (section) {
+    const toggleBtn = section.querySelector<HTMLButtonElement>(
+      ".af-section-toggle-btn[aria-expanded='false']",
+    );
+    toggleBtn?.click();
+    section
+      .querySelectorAll<HTMLDetailsElement>("details")
+      .forEach((d) => (d.open = true));
+  }
   const exact = Array.from(
     document.querySelectorAll<HTMLElement>("[data-field-path]"),
   ).find(
@@ -412,13 +553,10 @@ export function focusFormError(path: string, prefix: "cf" | "df") {
     section?.querySelector<HTMLElement>(
       "input:not(:disabled),textarea,select,button",
     );
-  if (section)
-    section
-      .querySelectorAll<HTMLDetailsElement>("details")
-      .forEach((d) => (d.open = true));
   target?.scrollIntoView({ block: "center" });
   target?.focus({ preventScroll: true });
 }
+
 export function AdminValidationSummary({
   errors,
   prefix,
@@ -446,6 +584,7 @@ export function AdminValidationSummary({
     </div>
   );
 }
+
 export function AdminFormProgress({
   complete,
   total,
@@ -463,6 +602,67 @@ export function AdminFormProgress({
         Chỉ kiểm tra các trường bắt buộc; chưa xác nhận nguồn, quyền hoặc tính
         chính xác của dữ liệu.
       </p>
+    </div>
+  );
+}
+
+/* ── Accessible Modal Dialog ──────────────────────────────────────────────── */
+export function AdminModalDialog({
+  isOpen,
+  onClose,
+  title,
+  description,
+  children,
+  maxWidth = 520,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  description?: ReactNode;
+  children: ReactNode;
+  maxWidth?: number;
+}) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="af-modal-backdrop"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        className="af-modal-card"
+        style={{ maxWidth }}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="af-modal-title"
+      >
+        <div className="af-modal-header">
+          <div>
+            <h2 id="af-modal-title">{title}</h2>
+            {description && <div className="af-modal-desc">{description}</div>}
+          </div>
+          <button
+            type="button"
+            className="af-modal-close"
+            onClick={onClose}
+            aria-label="Đóng cửa sổ"
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
+        <div className="af-modal-content">{children}</div>
+      </div>
     </div>
   );
 }

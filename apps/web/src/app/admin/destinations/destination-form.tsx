@@ -61,6 +61,7 @@ import {
   AdminFormProgress,
   focusFormError,
   AdminSectionHead,
+  AdminCollapsibleSection,
   AdminField,
   AdminLabel,
   AdminHelper,
@@ -162,6 +163,30 @@ export default function DestinationForm({ id }: { id: string | null }) {
     dirty,
     saving || unknown || profilePending || visibilityAction.busy,
   );
+
+  const [areaTaxonomyNames, setAreaTaxonomyNames] = useState<
+    Record<string, string>
+  >({});
+
+  useEffect(() => {
+    if (profile.areaIds.length === 0) return;
+    fetch("/api/admin/content-taxonomy?type=AREA")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.data && Array.isArray(data.data)) {
+          const map: Record<string, string> = {};
+          for (const item of data.data) {
+            map[item.id] = item.name;
+          }
+          setAreaTaxonomyNames(map);
+        }
+      })
+      .catch(() => {});
+  }, [profile.areaIds]);
+
+  const suggestedAreaNames = profile.areaIds
+    .map((aid) => areaTaxonomyNames[aid])
+    .filter((n): n is string => Boolean(n && n.trim()));
 
   /* ── Section nav ──────────────────────────────────────────────────────── */
   const sectionIds = SECTION_DEFS.map((s) => s.id);
@@ -544,13 +569,22 @@ export default function DestinationForm({ id }: { id: string | null }) {
                 sectionPrefix="df"
                 leadingSections={
                   <>
-                    <section id="df-basic" className="af-section">
-                      <AdminSectionHead
-                        icon={FileText}
-                        title="Thông tin cơ bản"
-                        description="Tên, mô tả chính thức, khu vực và danh mục của điểm đến."
-                        badge="required"
-                      />
+                    <AdminCollapsibleSection
+                      id="df-basic"
+                      icon={FileText}
+                      title="Thông tin cơ bản"
+                      description="Tên, mô tả chính thức, khu vực và danh mục của điểm đến."
+                      badge="required"
+                      summary={
+                        fields.name
+                          ? `${fields.name}${fields.category ? ` • ${fields.category}` : ""}`
+                          : "Chưa nhập thông tin cơ bản"
+                      }
+                      hasError={
+                        sections.find((s) => s.id === "df-basic")?.status ===
+                        "error"
+                      }
+                    >
                       <div className="af-grid-2">
                         <AdminField error={errors.name} errorId="err-name">
                           <AdminLabel htmlFor="destination-name" required>
@@ -571,8 +605,12 @@ export default function DestinationForm({ id }: { id: string | null }) {
                           />
                         </AdminField>
                         <AdminField error={errors.area} errorId="err-area">
-                          <AdminLabel htmlFor="destination-area" required>
-                            Khu vực
+                          <AdminLabel
+                            htmlFor="destination-area"
+                            required
+                            tooltip="Chuỗi văn bản hiển thị trên thẻ điểm đến và dùng cho bộ lọc nhanh website (ví dụ: Đồng Văn, Mèo Vạc, Hoàng Su Phì)."
+                          >
+                            Khu vực hiển thị / tìm kiếm
                           </AdminLabel>
                           <input
                             id="destination-area"
@@ -587,6 +625,58 @@ export default function DestinationForm({ id }: { id: string | null }) {
                               changeField("area", e.target.value)
                             }
                           />
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              flexWrap: "wrap",
+                              gap: 6,
+                              marginTop: 6,
+                            }}
+                          >
+                            <AdminHelper>
+                              Văn bản tự do cho bộ lọc website. Khác với{" "}
+                              <em>Phạm vi địa lý</em> (chuẩn hóa bên dưới cho
+                              liên kết &amp; AI).
+                            </AdminHelper>
+                            {suggestedAreaNames.length > 0 && (
+                              <div
+                                style={{
+                                  display: "flex",
+                                  gap: 6,
+                                  flexWrap: "wrap",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    fontSize: 11.5,
+                                    color: "var(--af-muted)",
+                                  }}
+                                >
+                                  Gợi ý từ mục địa lý:
+                                </span>
+                                {suggestedAreaNames.map((name) => (
+                                  <button
+                                    key={name}
+                                    type="button"
+                                    className="af-btn"
+                                    style={{
+                                      padding: "2px 8px",
+                                      fontSize: 11,
+                                      minHeight: 24,
+                                      borderRadius: 6,
+                                    }}
+                                    onClick={() => changeField("area", name)}
+                                    title={`Điền nhanh "${name}" vào ô khu vực hiển thị`}
+                                  >
+                                    + Dùng &quot;{name}&quot;
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </AdminField>
                       </div>
                       <AdminField
@@ -641,18 +731,27 @@ export default function DestinationForm({ id }: { id: string | null }) {
                         profile={profile}
                         onChange={changeProfile}
                       />
-                    </section>
+                    </AdminCollapsibleSection>
                   </>
                 }
                 locationSection={
                   <>
-                    <section id="df-location" className="af-section">
-                      <AdminSectionHead
-                        icon={MapPin}
-                        title="Vị trí và bản đồ"
-                        description="Nhập tọa độ GPS và xác nhận pin trên bản đồ. Cần đối chiếu với Google Maps trước khi đánh dấu đã xác minh."
-                        badge="required"
-                      />
+                    <AdminCollapsibleSection
+                      id="df-location"
+                      icon={MapPin}
+                      title="Vị trí và bản đồ"
+                      description="Nhập tọa độ GPS và xác nhận pin trên bản đồ. Cần đối chiếu với Google Maps trước khi đánh dấu đã xác minh."
+                      badge="required"
+                      summary={
+                        fields.latitude && fields.longitude
+                          ? `Tọa độ: ${fields.latitude.slice(0, 7)}, ${fields.longitude.slice(0, 7)} • ${profile.locationVerified ? "Đã xác nhận pin" : "Chưa xác nhận pin"}`
+                          : "Chưa có tọa độ GPS"
+                      }
+                      hasError={
+                        sections.find((s) => s.id === "df-location")?.status ===
+                        "error"
+                      }
+                    >
                       <div className="af-grid-2">
                         <AdminField
                           error={errors.latitude}
@@ -773,18 +872,27 @@ export default function DestinationForm({ id }: { id: string | null }) {
                         profile={profile}
                         onChange={changeProfile}
                       />
-                    </section>
+                    </AdminCollapsibleSection>
                   </>
                 }
                 durationSection={
                   <>
-                    <section id="df-duration" className="af-section">
-                      <AdminSectionHead
-                        icon={Clock3}
-                        title="Thời lượng tham quan"
-                        description="Đơn vị phút. Để trống nếu chưa có dữ liệu. Hai thời lượng được lưu độc lập."
-                        badge="optional"
-                      />
+                    <AdminCollapsibleSection
+                      id="df-duration"
+                      icon={Clock3}
+                      title="Thời lượng tham quan"
+                      description="Đơn vị phút. Để trống nếu chưa có dữ liệu. Hai thời lượng được lưu độc lập."
+                      badge="optional"
+                      summary={
+                        fields.suggestedDurationMinutes
+                          ? `${fields.suggestedDurationMinutes} phút gợi ý${fields.minimumDurationMinutes ? ` • tối thiểu ${fields.minimumDurationMinutes} phút` : ""}`
+                          : "Chưa thiết lập thời lượng"
+                      }
+                      hasError={
+                        sections.find((s) => s.id === "df-duration")?.status ===
+                        "error"
+                      }
+                    >
                       <div className="af-grid-2">
                         <AdminField
                           error={errors.suggestedDurationMinutes}
@@ -861,18 +969,23 @@ export default function DestinationForm({ id }: { id: string | null }) {
                           </AdminHelper>
                         </AdminField>
                       </div>
-                    </section>
+                    </AdminCollapsibleSection>
                   </>
                 }
                 openingHoursSection={
                   <>
-                    <section id="df-hours" className="af-section">
-                      <AdminSectionHead
-                        icon={CalendarDays}
-                        title="Giờ hoạt động"
-                        description="Giờ địa phương Hà Giang (Asia/Ho_Chi_Minh). Không hỗ trợ qua đêm (>24:00). Chưa có dữ liệu ≠ đóng cửa."
-                        badge="optional"
-                      />
+                    <AdminCollapsibleSection
+                      id="df-hours"
+                      icon={CalendarDays}
+                      title="Giờ hoạt động"
+                      description="Giờ địa phương Hà Giang (Asia/Ho_Chi_Minh). Không hỗ trợ qua đêm (>24:00). Chưa có dữ liệu ≠ đóng cửa."
+                      badge="optional"
+                      summary={`${days.filter((d) => d.status === "OPEN").length} ngày mở, ${days.filter((d) => d.status === "CLOSED").length} đóng, ${days.filter((d) => d.status === "UNKNOWN").length} chưa rõ`}
+                      hasError={
+                        sections.find((s) => s.id === "df-hours")?.status ===
+                        "error"
+                      }
+                    >
                       <div id="destination-openingDays" tabIndex={-1}>
                         <OpeningHoursEditor
                           days={days}
@@ -880,32 +993,35 @@ export default function DestinationForm({ id }: { id: string | null }) {
                           onChange={setDays}
                         />
                       </div>
-                    </section>
+                    </AdminCollapsibleSection>
                   </>
                 }
               />
             </div>
 
             {/* ── 8. Xuất bản ──────────────────────────────────────── */}
-            <section id="df-visibility" className="af-section">
-              <AdminSectionHead
-                icon={Eye}
-                title={
-                  isEdit ? "Trạng thái hiển thị" : "Trạng thái sau khi tạo"
-                }
-                description={
-                  isEdit
-                    ? "Ẩn/hiển thị là thao tác riêng, không lưu cùng nội dung biểu mẫu."
-                    : "Điểm đến mới được tạo ở trạng thái ẩn."
-                }
-              />
-              <button
-                type="button"
-                className="af-btn"
-                onClick={() => setPreview((v) => !v)}
-              >
-                {preview ? "Đóng xem trước" : "Xem trước hồ sơ"}
-              </button>
+            <AdminCollapsibleSection
+              id="df-visibility"
+              icon={Eye}
+              title={
+                isEdit ? "Trạng thái hiển thị" : "Trạng thái sau khi tạo"
+              }
+              description={
+                isEdit
+                  ? "Ẩn/hiển thị là thao tác riêng, không lưu cùng nội dung biểu mẫu."
+                  : "Điểm đến mới được tạo ở trạng thái ẩn."
+              }
+              summary={`Trạng thái: ${visibility === "VISIBLE" ? "Đang hiển thị công khai" : "Đang ẩn"}`}
+            >
+              <div style={{ marginBottom: 16 }}>
+                <button
+                  type="button"
+                  className="af-btn"
+                  onClick={() => setPreview((v) => !v)}
+                >
+                  {preview ? "Đóng xem trước" : "Xem trước hồ sơ"}
+                </button>
+              </div>
               {preview && (
                 <AdminContentPreview
                   title={fields.name}
@@ -955,7 +1071,7 @@ export default function DestinationForm({ id }: { id: string | null }) {
                   <AdminVisibilityBadge visibility="HIDDEN" />
                 )}
               </div>
-            </section>
+            </AdminCollapsibleSection>
           </fieldset>
 
           {/* ── Sticky actions ─────────────────────────────────────── */}

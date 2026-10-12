@@ -198,6 +198,61 @@
 .af-section-badge.is-required { background: #fff1f1; color: #c0392b; }
 .af-section-badge.is-optional { background: #f0f6f3; color: #2f7a5a; }
 
+/* ── Collapsible Section ──────────────────────────────────────────────────── */
+.af-collapsible-section.is-collapsed { padding-bottom: 14px; }
+.af-collapsible-section.is-collapsed .af-section-head { margin-bottom: 0; }
+.af-section-head-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.af-section-toggle-btn {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--af-line);
+  background: var(--af-surface);
+  color: var(--af-muted);
+  cursor: pointer;
+  transition: all var(--af-transition);
+  padding: 0;
+  box-shadow: none;
+}
+.af-section-toggle-btn:hover {
+  background: var(--af-tint);
+  color: var(--af-green);
+  border-color: var(--af-green);
+}
+.af-toggle-icon { transition: transform 0.2s ease; }
+.af-toggle-icon.is-rotated { transform: rotate(180deg); }
+.af-section-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 8px 14px;
+  background: var(--af-tint);
+  border: 1px dashed var(--af-line);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background var(--af-transition), border-color var(--af-transition);
+}
+.af-section-summary:hover {
+  background: var(--af-green-light);
+  border-color: var(--af-green);
+}
+.af-summary-pill {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--af-green-hover);
+}
+.dark .af-summary-pill { color: var(--af-green); }
+.af-summary-hint {
+  font-size: 11px;
+  color: var(--af-muted);
+  white-space: nowrap;
+}
+.af-collapsible-section.has-error { border-color: var(--af-error); }
+
 /* ── Fields ───────────────────────────────────────────────────────────────── */
 .af-field { margin-bottom: 16px; min-width: 0; }
 .af-field:last-child { margin-bottom: 0; }
@@ -344,6 +399,84 @@
 .af-dialog p { font-size: 13px; color: var(--af-muted); line-height: 1.65; margin: 0 0 22px; }
 .af-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
 
+/* ── Modal Dialog ─────────────────────────────────────────────────────────── */
+.af-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(15, 25, 20, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow-y: auto;
+}
+.af-modal-card {
+  width: 100%;
+  background: var(--af-surface);
+  color: var(--af-ink);
+  border: 1px solid var(--af-line);
+  border-radius: 14px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
+  padding: 24px;
+  margin: auto;
+  position: relative;
+  animation: afModalIn 0.18s ease-out;
+}
+@keyframes afModalIn {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.af-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.af-modal-header h2 {
+  font-size: 18px;
+  font-weight: 750;
+  margin: 0 0 4px;
+  color: var(--af-ink);
+}
+.af-modal-desc {
+  font-size: 13px;
+  color: var(--af-muted);
+  line-height: 1.5;
+}
+.af-modal-close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--af-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--af-transition);
+  padding: 0;
+  box-shadow: none;
+}
+.af-modal-close:hover {
+  background: var(--af-tint);
+  color: var(--af-ink);
+  border-color: var(--af-line);
+}
+.af-modal-content { font-size: 13.5px; }
+.af-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--af-line);
+}
+
 /* ── Visibility row ───────────────────────────────────────────────────────── */
 .af-visibility-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .af-visibility-info > strong { display: block; font-size: 13px; margin-bottom: 3px; }
@@ -363,8 +496,182 @@
 
 /* ── Media card ───────────────────────────────────────────────────────────── */
 .af-media-card { border: 1px solid var(--af-line); border-radius: 10px; padding: 16px; margin-bottom: 12px; background: var(--af-bg); }
-.af-media-preview { width: 100%; max-height: 180px; object-fit: cover; border-radius: 7px; margin-bottom: 14px; background: var(--af-line); display: block; }
-.af-media-preview-error { display: flex; align-items: center; justify-content: center; height: 90px; border-radius: 7px; background: var(--af-tint); color: var(--af-muted); font-size: 12px; margin-bottom: 14px; border: 1px dashed var(--af-line); }
+.af-media-preview { width: 100%; max-height: 220px; object-fit: cover; border-radius: 8px; margin-bottom: 14px; background: var(--af-line); display: block; border: 1px solid var(--af-line); }
+.af-media-preview-error { display: flex; align-items: center; justify-content: center; height: 90px; border-radius: 8px; background: var(--af-tint); color: var(--af-muted); font-size: 12px; margin-bottom: 14px; border: 1px dashed var(--af-line); }
+
+/* ── Empty states ─────────────────────────────────────────────────────────── */
+.af-empty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  border: 1px dashed var(--af-line);
+  border-radius: 12px;
+  background: var(--af-surface);
+  text-align: center;
+  margin-bottom: 14px;
+}
+.af-empty-card p { margin: 0; }
+
+/* ── Media item cards ─────────────────────────────────────────────────────── */
+.af-media-item-card {
+  border: 1px solid var(--af-line);
+  border-radius: 12px;
+  background: var(--af-surface);
+  margin-bottom: 14px;
+  overflow: hidden;
+  transition: border-color var(--af-transition), box-shadow var(--af-transition);
+}
+.af-media-item-card:hover {
+  border-color: color-mix(in srgb, var(--af-green) 40%, var(--af-line));
+}
+.af-media-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--af-tint);
+  cursor: pointer;
+  user-select: none;
+}
+.af-media-item-header:hover {
+  background: color-mix(in srgb, var(--af-green-light) 60%, var(--af-tint));
+}
+.af-media-item-header-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+.af-media-thumb-mini {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: var(--af-line);
+  flex-shrink: 0;
+}
+.af-media-thumb-placeholder {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  background: var(--af-line);
+  display: grid;
+  place-items: center;
+  color: var(--af-muted);
+  flex-shrink: 0;
+}
+.af-media-item-meta { min-width: 0; }
+.af-media-item-meta strong {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--af-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.af-media-item-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  flex-wrap: wrap;
+}
+.af-media-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.af-media-item-body {
+  padding: 18px 16px;
+  border-top: 1px solid var(--af-line);
+}
+
+/* ── Source item cards ────────────────────────────────────────────────────── */
+.af-source-item-card {
+  border: 1px solid var(--af-line);
+  border-radius: 12px;
+  background: var(--af-surface);
+  margin-bottom: 14px;
+  overflow: hidden;
+  transition: border-color var(--af-transition), box-shadow var(--af-transition);
+}
+.af-source-item-card:hover {
+  border-color: color-mix(in srgb, var(--af-green) 40%, var(--af-line));
+}
+.af-source-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--af-tint);
+  cursor: pointer;
+  user-select: none;
+}
+.af-source-item-header:hover {
+  background: color-mix(in srgb, var(--af-green-light) 60%, var(--af-tint));
+}
+.af-source-item-header-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+.af-source-item-meta { min-width: 0; }
+.af-source-item-meta strong {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--af-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.af-source-item-meta span {
+  font-size: 12px;
+  color: var(--af-muted);
+}
+.af-source-item-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  flex-wrap: wrap;
+}
+.af-source-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.af-source-item-body {
+  padding: 18px 16px;
+  border-top: 1px solid var(--af-line);
+}
+
+/* ── Rights badges ────────────────────────────────────────────────────────── */
+.af-badge-approved {
+  background: var(--af-green-light);
+  color: var(--af-green);
+  border: 1px solid color-mix(in srgb, var(--af-green) 30%, transparent);
+}
+.af-badge-rejected {
+  background: var(--af-error-bg);
+  color: var(--af-error);
+  border: 1px solid color-mix(in srgb, var(--af-error) 30%, transparent);
+}
+.af-badge-unknown {
+  background: var(--af-tint);
+  color: var(--af-muted);
+  border: 1px solid var(--af-line);
+}
 
 /* ── Divider ──────────────────────────────────────────────────────────────── */
 .af-divider { border: 0; border-top: 1px solid var(--af-line); margin: 20px 0; }
@@ -397,6 +704,7 @@
 .dark .af-btn-primary:hover:not(:disabled) { background: var(--af-green-hover); }
 .dark .af-combobox-panel { box-shadow: 0 12px 32px #00000040; }
 .dark .af-dialog { box-shadow: 0 20px 60px #00000060; }
+.dark .af-modal-card { box-shadow: 0 24px 64px #00000080; }
 .dark .af-chip { border-color: #2a5040; background: #1a3028; color: #8bd4ae; }
 .dark .af-chip-remove { color: #8bd4ae; }
 .dark .af-chip-remove:hover { background: #1e3e30; }

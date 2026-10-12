@@ -53,6 +53,7 @@ import {
   AdminFormProgress,
   focusFormError,
   AdminSectionHead,
+  AdminCollapsibleSection,
   AdminField,
   AdminLabel,
   AdminHelper,
@@ -483,14 +484,21 @@ export default function CultureForm({ id }: { id: string | null }) {
             style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}
           >
             {/* ── 1. Thông tin cơ bản ──────────────────────────────────── */}
-            <section id="cf-basic" className="af-section">
-              <AdminSectionHead
-                icon={BookOpen}
-                title="Thông tin cơ bản"
-                description="Tiêu đề, mô tả ngắn và danh mục của hồ sơ văn hóa."
-                badge="required"
-              />
-
+            <AdminCollapsibleSection
+              id="cf-basic"
+              icon={BookOpen}
+              title="Thông tin cơ bản"
+              description="Tiêu đề, mô tả ngắn và danh mục của hồ sơ văn hóa."
+              badge="required"
+              summary={
+                fields.title
+                  ? `${fields.title}${profile.category ? ` • ${profile.category}` : ""}`
+                  : "Chưa nhập thông tin cơ bản"
+              }
+              hasError={
+                sections.find((s) => s.id === "cf-basic")?.status === "error"
+              }
+            >
               <AdminField error={errors.title} errorId="err-title">
                 <AdminLabel htmlFor="cf-title" required>
                   Tiêu đề nội dung văn hóa
@@ -557,7 +565,7 @@ export default function CultureForm({ id }: { id: string | null }) {
                   Chọn loại hình phù hợp nhất. Để trống nếu không rõ phân loại.
                 </AdminHelper>
               </AdminField>
-            </section>
+            </AdminCollapsibleSection>
 
             {/* ── 3–7. Profile sections: ContentProfileEditor renders its own cards */}
             {/* Anchor divs let sidebar nav scroll to geo/media/sources sections */}
@@ -571,13 +579,22 @@ export default function CultureForm({ id }: { id: string | null }) {
               content={
                 <>
                   {/* ── 2. Nội dung biên soạn ────────────────────────────────── */}
-                  <section id="cf-content" className="af-section">
-                    <AdminSectionHead
-                      icon={FilePenLine}
-                      title="Nội dung biên soạn"
-                      description="Toàn văn hồ sơ văn hóa. Được hiển thị khi nội dung được xuất bản. Sử dụng cho AI cần quy trình và quyền duyệt riêng."
-                      badge="required"
-                    />
+                  <AdminCollapsibleSection
+                    id="cf-content"
+                    icon={FilePenLine}
+                    title="Nội dung biên soạn"
+                    description="Toàn văn hồ sơ văn hóa. Được hiển thị khi nội dung được xuất bản. Sử dụng cho AI cần quy trình và quyền duyệt riêng."
+                    badge="required"
+                    summary={
+                      fields.content
+                        ? `Đã nhập nội dung (${fields.content.length} ký tự)`
+                        : "Chưa có nội dung"
+                    }
+                    hasError={
+                      sections.find((s) => s.id === "cf-content")?.status ===
+                      "error"
+                    }
+                  >
                     <AdminField error={errors.content} errorId="err-content">
                       <AdminLabel htmlFor="cf-content-editor" required>
                         Nội dung
@@ -597,76 +614,54 @@ export default function CultureForm({ id }: { id: string | null }) {
                         khác.
                       </AdminHelper>
                     </AdminField>
-                  </section>
+                  </AdminCollapsibleSection>
                 </>
               }
               relatedDestinations={
-                <section
+                <AdminCollapsibleSection
                   id="cf-destinations"
-                  className="destination-card"
-                  style={{ scrollMarginTop: 90 }}
+                  icon={MapPin}
+                  title="Điểm đến liên quan"
+                  description="Không bắt buộc. Chọn điểm đến phù hợp với nội dung văn hóa này. Văn hóa vùng có thể không gắn với điểm đến cụ thể."
+                  badge="optional"
+                  summary={`${selected.length} điểm đến liên quan`}
+                  hasError={Boolean(errors.destinationIds)}
                 >
-                  <div className="destination-section-heading">
-                    <span
-                      className="destination-section-icon"
-                      aria-hidden="true"
-                    >
-                      <MapPin size={21} />
-                    </span>
-                    <div>
-                      <h2>Điểm đến liên quan</h2>
-                      <p>
-                        Không bắt buộc. Chọn điểm đến phù hợp với nội dung văn
-                        hóa này. Văn hóa vùng có thể không gắn với điểm đến cụ
-                        thể.
-                      </p>
-                    </div>
-                  </div>
                   <DestinationPicker
                     selected={selected}
                     onChange={changeSelected}
                   />
                   {errors.destinationIds && (
-                    <p className="destination-error" role="alert">
+                    <p className="af-error" role="alert">
                       {errors.destinationIds}
                     </p>
                   )}
-                  <p className="destination-helper">Tối đa 100 điểm đến.</p>
-                </section>
+                  <AdminHelper>Tối đa 100 điểm đến.</AdminHelper>
+                </AdminCollapsibleSection>
               }
             />
 
             {/* Legacy source fields (edit mode + only if data exists) */}
             {isEdit && (fields.sourceTitle || fields.sourceUrl) && (
-              <section className="destination-card">
-                <div className="destination-section-heading">
-                  <span className="destination-section-icon" aria-hidden="true">
-                    <Link2 size={21} />
-                  </span>
-                  <div>
-                    <h2>Nguồn kế thừa (bản ghi cũ)</h2>
-                    <p>
-                      Giữ thông tin nguồn từ phiên bản trước. Nguồn mới nên thêm
-                      vào mục Nguồn và quyền bên dưới.
-                    </p>
-                  </div>
-                </div>
-                <div className="destination-grid">
-                  <div className="destination-field">
-                    <label htmlFor="cf-sourceTitle">
-                      Tên nguồn{" "}
-                      <span
-                        style={{
-                          fontWeight: 400,
-                          fontSize: 11,
-                          color: "var(--destination-muted)",
-                        }}
-                      >
-                        (tùy chọn)
-                      </span>
-                    </label>
+              <AdminCollapsibleSection
+                id="cf-legacy-sources"
+                icon={Link2}
+                title="Nguồn kế thừa (bản ghi cũ)"
+                description="Giữ thông tin nguồn từ phiên bản trước. Nguồn mới nên thêm vào mục Nguồn và quyền bên dưới."
+                badge="optional"
+                summary={fields.sourceTitle || fields.sourceUrl || "Nguồn cũ"}
+              >
+                <div className="af-grid-2">
+                  <AdminField
+                    error={errors.sourceTitle}
+                    errorId="err-sourceTitle"
+                  >
+                    <AdminLabel htmlFor="cf-sourceTitle" optional>
+                      Tên nguồn
+                    </AdminLabel>
                     <input
                       id="cf-sourceTitle"
+                      className="af-input"
                       value={fields.sourceTitle}
                       maxLength={300}
                       placeholder="Ví dụ: Cổng thông tin du lịch Hà Giang"
@@ -674,27 +669,14 @@ export default function CultureForm({ id }: { id: string | null }) {
                         changeField("sourceTitle", e.target.value)
                       }
                     />
-                    {errors.sourceTitle && (
-                      <p className="destination-error" role="alert">
-                        {errors.sourceTitle}
-                      </p>
-                    )}
-                  </div>
-                  <div className="destination-field">
-                    <label htmlFor="cf-sourceUrl">
-                      Liên kết nguồn{" "}
-                      <span
-                        style={{
-                          fontWeight: 400,
-                          fontSize: 11,
-                          color: "var(--destination-muted)",
-                        }}
-                      >
-                        (tùy chọn)
-                      </span>
-                    </label>
+                  </AdminField>
+                  <AdminField error={errors.sourceUrl} errorId="err-sourceUrl">
+                    <AdminLabel htmlFor="cf-sourceUrl" optional>
+                      Liên kết nguồn
+                    </AdminLabel>
                     <input
                       id="cf-sourceUrl"
+                      className="af-input"
                       value={fields.sourceUrl}
                       maxLength={2000}
                       placeholder="https://..."
@@ -707,37 +689,40 @@ export default function CultureForm({ id }: { id: string | null }) {
                     {errors.sourceUrl && (
                       <p
                         id="err-sourceUrl"
-                        className="destination-error"
+                        className="af-error"
                         role="alert"
                       >
                         {errors.sourceUrl}
                       </p>
                     )}
-                  </div>
+                  </AdminField>
                 </div>
-              </section>
+              </AdminCollapsibleSection>
             )}
 
             {/* ── 8. Xuất bản ──────────────────────────────────────────── */}
-            <section id="cf-visibility" className="af-section">
-              <AdminSectionHead
-                icon={Eye}
-                title={
-                  isEdit ? "Trạng thái hiển thị" : "Trạng thái sau khi tạo"
-                }
-                description={
-                  isEdit
-                    ? "Ẩn/hiển thị là thao tác riêng biệt với nút Lưu. Không ảnh hưởng đến nội dung đã nhập."
-                    : "Nội dung mới tạo sẽ ở trạng thái ẩn. Kiểm tra nội dung trước khi công khai."
-                }
-              />
-              <button
-                type="button"
-                className="af-btn"
-                onClick={() => setPreview((v) => !v)}
-              >
-                {preview ? "Đóng xem trước" : "Xem trước hồ sơ"}
-              </button>
+            <AdminCollapsibleSection
+              id="cf-visibility"
+              icon={Eye}
+              title={
+                isEdit ? "Trạng thái hiển thị" : "Trạng thái sau khi tạo"
+              }
+              description={
+                isEdit
+                  ? "Ẩn/hiển thị là thao tác riêng biệt với nút Lưu. Không ảnh hưởng đến nội dung đã nhập."
+                  : "Nội dung mới tạo sẽ ở trạng thái ẩn. Kiểm tra nội dung trước khi công khai."
+              }
+              summary={`Trạng thái: ${visibility === "VISIBLE" ? "Đang hiển thị công khai" : "Đang ẩn"}`}
+            >
+              <div style={{ marginBottom: 16 }}>
+                <button
+                  type="button"
+                  className="af-btn"
+                  onClick={() => setPreview((v) => !v)}
+                >
+                  {preview ? "Đóng xem trước" : "Xem trước hồ sơ"}
+                </button>
+              </div>
               {preview && (
                 <AdminContentPreview
                   title={fields.title}
@@ -775,7 +760,7 @@ export default function CultureForm({ id }: { id: string | null }) {
                   <AdminVisibilityBadge visibility="HIDDEN" />
                 )}
               </div>
-            </section>
+            </AdminCollapsibleSection>
           </fieldset>
 
           {/* ── Sticky actions ──────────────────────────────────────────── */}
