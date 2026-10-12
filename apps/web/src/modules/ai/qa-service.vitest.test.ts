@@ -17,6 +17,14 @@ function setup(){
   return {store,retriever,generator,reservation,service:createQaService({store,retriever,generator})};
 }
 describe("QA orchestration without external services",()=>{
+  it("passes only an internal conservative decision after successful retrieval and recheck", async () => {
+    const t = setup();
+    await t.service.ask(principal, "policy_key", request);
+    expect(t.generator.generate).toHaveBeenCalledWith(expect.objectContaining({
+      sourceSufficiency: { status: "INSUFFICIENT", reason: "NO_CHUNKS" },
+    }));
+    expect(JSON.stringify(vi.mocked(t.store.complete).mock.calls[0]![2])).not.toContain("sourceSufficiency");
+  });
   it("does not generate or resurrect a turn when the store rejects a deleted/expired conversation", async () => {
     const t = setup();
     vi.mocked(t.store.reserve).mockRejectedValue(new AppError("NOT_FOUND", "unavailable conversation", 404));
@@ -34,6 +42,9 @@ describe("QA orchestration without external services",()=>{
     const t=setup();t.retriever.retrieve.mockResolvedValue([evidence]);t.generator.generate.mockResolvedValue(outcome);
     const result=await t.service.ask(principal,"key",request);
     expect(result.data.status).toBe(outcome.status);
+    expect(t.generator.generate).toHaveBeenCalledWith(expect.objectContaining({
+      sourceSufficiency: { status: "UNCERTAIN", reason: "UNASSESSED" },
+    }));
     expect(JSON.stringify(result.data)).not.toMatch(/private_doc|private_chunk|tokenCount|chunkHash/);
   });
   it("rejects fabricated current-turn citations",async()=>{
