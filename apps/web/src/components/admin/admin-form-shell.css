@@ -23,33 +23,44 @@
   --af-radius-btn: 8px;
   --af-shadow-card: 0 2px 12px #19233709;
   --af-shadow-action: 0 -2px 24px #19233714;
-  --af-sidebar-w: 220px;
+  --af-sidebar-w: 240px;
   --af-transition: 0.15s ease;
   font-family: system-ui, -apple-system, "Inter", sans-serif;
   color: var(--af-ink);
   background: var(--af-bg);
-  min-height: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ── Page Layout ─────────────────────────────────────────────────────────── */
 .af-page {
   display: grid;
   grid-template-columns: var(--af-sidebar-w) minmax(0, 1fr);
-  grid-template-rows: auto 1fr;
-  grid-template-areas: "hd hd" "nav main";
-  min-height: 100%;
-  background: radial-gradient(ellipse at 90% 0%, #dcf0e6 0%, transparent 55%), var(--af-bg);
+  grid-template-rows: auto auto 1fr;
+  grid-template-areas: "hd hd" "progress progress" "nav main";
+  min-height: 100vh;
+  width: 100%;
+  max-width: 1420px;
+  margin: 0 auto;
+  background: var(--af-bg);
+}
+
+@media (min-width: 1421px) {
+  .af-page {
+    border-left: 1px solid var(--af-line);
+    border-right: 1px solid var(--af-line);
+    box-shadow: 0 4px 40px rgba(25, 35, 55, 0.05);
+  }
 }
 
 /* ── Page Header (sticky top) ─────────────────────────────────────────────── */
 .af-page-header {
   grid-area: hd;
-  padding: 20px 28px 16px;
+  padding: 22px 32px 18px;
   border-bottom: 1px solid var(--af-line);
   background: var(--af-surface);
-  position: sticky;
-  top: 0;
-  z-index: 20;
+  position: static;
 }
 .af-breadcrumb {
   display: flex;
@@ -155,9 +166,10 @@
 /* ── Main Content Area ────────────────────────────────────────────────────── */
 .af-main {
   grid-area: main;
-  padding: 24px 32px 120px;
+  padding: 28px 36px 120px;
   min-width: 0;
-  max-width: 820px;
+  max-width: 1120px;
+  width: 100%;
 }
 
 /* ── Section Cards ────────────────────────────────────────────────────────── */
@@ -740,12 +752,40 @@
 }
 
 /* Shared profile controls follow the same form rhythm. */
-.af-page { grid-template-rows: auto auto 1fr; grid-template-areas: "hd hd" "progress progress" "nav main"; background: var(--af-bg); }
-.af-page-header { position: static; }
-.af-progress { grid-area: progress; padding: 12px 28px; border-bottom: 1px solid var(--af-line); background: var(--af-surface); font-size: 13px; }
-.af-progress progress { display: block; accent-color: var(--af-green); width: min(360px, 100%); height: 8px; margin-top: 8px; }
+.af-progress {
+  grid-area: progress;
+  padding: 14px 32px;
+  border-bottom: 1px solid var(--af-line);
+  background: var(--af-surface);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.af-progress > label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-weight: 600;
+  color: var(--af-ink);
+}
+.af-progress progress {
+  display: inline-block;
+  accent-color: var(--af-green);
+  width: 260px;
+  height: 8px;
+  margin: 0;
+  border-radius: 99px;
+  overflow: hidden;
+}
+.af-progress .af-helper {
+  margin: 0;
+  font-size: 12px;
+  color: var(--af-muted);
+}
 .af-mobile-nav { display: none; }
-.af-main { min-width: 0; max-width: 1100px; width: 100%; }
 .af-section { scroll-margin-top: 90px; overflow-wrap: anywhere; }
 .af-root .destination-field input:not([type="checkbox"]), .af-root .destination-field textarea, .af-root .destination-field select, .af-root .destination-day select { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--af-line); border-radius: 8px; padding: 10px 12px; color: var(--af-ink); background: var(--af-surface); font: inherit; font-size: 14px; }
 .af-root .destination-field { margin-bottom: 16px; }
@@ -767,13 +807,32 @@
 .rte-footer { flex-wrap: wrap; }
 .rte-footer-btn { min-height: 44px; }
 @media (max-width: 900px) {
- .af-page { grid-template-areas: "hd" "progress" "nav" "main"; grid-template-rows: auto auto auto 1fr; }
- .af-progress { padding: 12px 20px; }
- .af-sidebar { position: sticky; top: 0; z-index: 18; background: var(--af-surface); }
- .af-sidebar .af-nav-list { display: none; }
- .af-mobile-nav { display: flex; align-items: center; gap: 10px; padding: 0 12px; font-size: 12px; }
- .af-mobile-nav select { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--af-line); border-radius: 8px; padding: 8px; background: var(--af-surface); color: var(--af-ink); }
- .af-root .destination-grid { grid-template-columns: minmax(0, 1fr); }
+  .af-page {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "hd" "progress" "nav" "main";
+    grid-template-rows: auto auto auto 1fr;
+  }
+  .af-progress {
+    padding: 12px 16px;
+    display: block;
+  }
+  .af-progress > label {
+    display: block;
+  }
+  .af-progress progress {
+    display: block;
+    width: 100%;
+    margin-top: 6px;
+  }
+  .af-progress .af-helper {
+    margin-top: 6px;
+  }
+  .af-sidebar { position: sticky; top: 0; z-index: 18; background: var(--af-surface); height: auto; padding: 8px 0; }
+  .af-sidebar .af-nav-list { display: none; }
+  .af-mobile-nav { display: flex; align-items: center; gap: 10px; padding: 0 12px; font-size: 12px; }
+  .af-mobile-nav select { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--af-line); border-radius: 8px; padding: 8px; background: var(--af-surface); color: var(--af-ink); }
+  .af-main { padding: 16px 12px 100px; }
+  .af-root .destination-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 600px) {
  .af-section-head { flex-wrap: wrap; }
