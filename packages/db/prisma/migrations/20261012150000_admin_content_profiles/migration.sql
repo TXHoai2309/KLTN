@@ -200,3 +200,9 @@ ALTER TABLE "content_source" ADD CONSTRAINT "content_source_approved_evidence" C
 ALTER TABLE "content_media" ADD CONSTRAINT "content_media_approved_evidence" CHECK ("websiteRights" <> 'APPROVED' OR (COALESCE(length(trim("rightsEvidence")), 0) > 0 AND "reviewedBy" IS NOT NULL AND "reviewedAt" IS NOT NULL));
 CREATE UNIQUE INDEX "content_media_destination_cover" ON "content_media" ("destinationId") WHERE "isCover";
 CREATE UNIQUE INDEX "content_media_culture_cover" ON "content_media" ("cultureId") WHERE "isCover";
+
+ALTER TABLE "content_area" ADD CONSTRAINT "content_area_kind" CHECK ("kind" IN ('LOCALITY', 'REGION'));
+ALTER TABLE "destination" ADD CONSTRAINT "destination_profile_verification" CHECK ((NOT "locationVerified" OR COALESCE(length(trim("locationEvidence")),0)>0) AND ("ticketVerification"<>'VERIFIED' OR (COALESCE(length(trim("ticketPrice")),0)>0 AND COALESCE(length(trim("ticketEvidence")),0)>0)));
+ALTER TABLE "destination" ADD CONSTRAINT "destination_content_revision" CHECK ("contentRevision">0);
+ALTER TABLE "culture_content" ADD CONSTRAINT "culture_content_revision" CHECK ("contentRevision">0);
+ALTER TABLE "rag_domain_origin" ADD CONSTRAINT "rag_domain_origin_hash" CHECK ("revisionHash" ~ '^[a-f0-9]{64}$');
