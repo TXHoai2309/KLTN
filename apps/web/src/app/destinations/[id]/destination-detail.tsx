@@ -1,3 +1,4 @@
+import PublishedContentProfile from "@/components/published-content-profile";
 import React, { type ReactNode } from "react";
 import Link from "next/link";
 import type { Route } from "next";
@@ -41,6 +42,7 @@ export default function DestinationDetail({ destination: d, returnTo }: { destin
     </header>
     <div className="public-detail-grid">
       <div className="public-detail-main">
+        <PublishedContentProfile profile={d.profile} />
         <section className="public-detail-card" aria-labelledby="visit-title">
           <h2 id="visit-title"><Compass size={21} aria-hidden="true" />Thông tin tham quan</h2>
           <dl className="public-detail-facts"><div><dt>Khu vực</dt><dd>{d.area}</dd></div><div><dt>Danh mục</dt><dd>{d.category}</dd></div>

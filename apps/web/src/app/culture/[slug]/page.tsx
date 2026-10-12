@@ -1,3 +1,4 @@
+import PublishedContentProfile from "@/components/published-content-profile";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -141,6 +142,7 @@ export default async function CultureDetailPage({
             ))}
           </div>
 
+          <PublishedContentProfile profile={detail.profile} />
           <CultureDetailSlots
             cultureId={detail.id}
             sources={detail.sources}

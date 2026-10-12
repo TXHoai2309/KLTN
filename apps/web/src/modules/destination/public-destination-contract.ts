@@ -1,3 +1,4 @@
+import { publicContentProfileSchema } from "@/modules/content-profile/public-content-profile";
 import { publicCultureSummarySchema } from "../culture/culture-contract";
 import { z } from "zod";
 import { destinationInputSchema } from "./destination-contract";
@@ -5,6 +6,7 @@ import { destinationInputSchema } from "./destination-contract";
 /** Deliberate public allowlist. No visibility, timestamps or validator minimum. */
 export const publicDestinationDetailSchema = destinationInputSchema.omit({ minimumDurationMinutes: true, profile: true }).extend({
   id: z.string().min(1),
+  profile: publicContentProfileSchema.optional(),
   relatedCulture: z.array(publicCultureSummarySchema).max(20),
 }).strict();
 export type PublicDestinationDetail = z.infer<typeof publicDestinationDetailSchema>;

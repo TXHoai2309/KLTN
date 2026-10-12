@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { z } from "zod";
+import { Textarea } from "@KLTN/ui/components/textarea";
 import { createIdempotencyKey, sendIdempotentMutation } from "@/lib/mutation-client";
 import { fetchAuthWithTimeout } from "@/lib/auth-fetch";
 import { referenceId, sourceSchema, mediaSchema, type DestinationProfile, type CultureProfile, type ContentSourceInput, type ContentMediaInput } from "@/modules/content-profile/content-profile-contract";
@@ -38,7 +39,7 @@ export function TaxonomyPicker({ type, label, ids, onChange, onPendingChange }: 
         if (!attempt.current || (!uncertain && attempt.current.body !== body))
             attempt.current = { key: createIdempotencyKey(), body };
         const result = await sendIdempotentMutation<Item>("/api/admin/content-taxonomy", { idempotencyKey: attempt.current.key, init: { method: "POST", signal: AbortSignal.timeout(15000), headers: { "Content-Type": "application/json" }, body: attempt.current.body } });
-        if (result.status === "SUCCESS" && z.object({ id: z.string(), name: z.string() }).safeParse(result.data).success) {
+        if (result.status === "SUCCESS" && z.object({ id: referenceId, name: z.string().min(1).max(200) }).safeParse(result.data).success) {
             onChange([...new Set([...ids, result.data.id])]);
             attempt.current = null;
             setName("");
@@ -67,7 +68,7 @@ function TextField({ label, value, onChange, max = 2000, multiline = false }: {
     onChange: (v: string | null) => void;
     max?: number;
     multiline?: boolean;
-}) { const id = useId(); return <div className="destination-field"><label htmlFor={id}>{label}</label>{multiline ? <textarea id={id} rows={3} value={value ?? ""} maxLength={max} onChange={e => onChange(e.target.value || null)}/> : <input id={id} value={value ?? ""} maxLength={max} onChange={e => onChange(e.target.value || null)}/>}</div>; }
+}) { const id = useId(); return <div className="destination-field"><label htmlFor={id}>{label}</label>{multiline ? <Textarea className="content-profile-textarea resize-none" id={id} rows={3} value={value ?? ""} maxLength={max} onChange={e => onChange(e.target.value || null)}/> : <input id={id} value={value ?? ""} maxLength={max} onChange={e => onChange(e.target.value || null)}/>}</div>; }
 function Rights({ label, value, onChange }: {
     label: string;
     value: "UNKNOWN" | "APPROVED" | "REJECTED";

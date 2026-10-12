@@ -1,3 +1,4 @@
+import { publicContentProfileSchema } from "@/modules/content-profile/public-content-profile";
 import { z } from "zod";
 
 import { cultureIdSchema, sourceUrlSchema } from "./culture-contract";
@@ -83,6 +84,7 @@ export const publicCultureListResponseSchema = z
 export const publicCultureDetailSchema = publicCultureListItemSchema
   .extend({
     body: z.string().min(1),
+    profile: publicContentProfileSchema.optional(),
     sources: z.array(publicCultureSourceSchema).max(1),
     destinations: z.array(publicCultureDestinationSchema).max(20),
   })

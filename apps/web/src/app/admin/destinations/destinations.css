@@ -176,3 +176,7 @@
 .content-profile-options input[type=checkbox] { width:auto; flex-shrink:0; }
 .content-profile-entry .destination-action-buttons { flex-wrap:wrap; }
 @media(max-width:640px) { .content-profile-entry { padding:12px; } .content-profile-entry .destination-grid { grid-template-columns:minmax(0,1fr); } }
+
+.destination-page .content-profile-textarea { resize:none; field-sizing:content; max-height:340px; overflow:auto; }
+.content-profile-options label { min-height:44px; align-items:center; }
+.content-profile-entry>label { display:flex; align-items:center; gap:8px; min-height:44px; }

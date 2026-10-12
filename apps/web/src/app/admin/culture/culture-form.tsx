@@ -186,9 +186,9 @@ export default function CultureForm({ id }: { id: string | null }) {
       {visibilityAction.feedback}
       <form method="post" noValidate onSubmit={event => void submit(event)}>
         <fieldset className="destination-form-fields" disabled={saving || unknown || visibilityAction.busy}>
-          
-          
-          
+
+
+
         <ContentProfileEditor basicFields={field("title", "Tiêu đề *", 200)} onPendingChange={setProfilePending} content={<section className="destination-card"><SectionHeading icon={BookOpen} title="Nội dung văn hóa" description="Nội dung gốc được nhập một lần cho website và hồ sơ tái sử dụng." />{field("content", "Nội dung văn hóa *", 20000)}</section>} relatedDestinations={<section className="destination-card culture-destination-section"><SectionHeading icon={MapPin} title="Điểm đến liên quan" description="Chọn một hoặc nhiều điểm đến phù hợp với nội dung. Không bắt buộc." /><DestinationPicker selected={selected} onChange={changeSelected} />{errors.destinationIds && <p className="destination-error" role="alert">{errors.destinationIds}</p>}</section>} legacySources={<section className="destination-card"><SectionHeading icon={Link2} title="Nguồn" description="Nguồn tham khảo hoặc liên kết khi có. Không bắt buộc URL nếu đã có tên nguồn." /><div className="destination-grid">{field("sourceTitle", "Tên nguồn", 300)}{field("sourceUrl", "Liên kết nguồn", 2000)}</div></section>} profile={profile} errors={errors} onChange={p => { dirtyRef.current = true; setProfile(p as CultureProfile); }} />
         </fieldset>
         {id ? <section className="destination-card destination-visibility"><SectionHeading icon={ShieldCheck} title="Trạng thái hiển thị" description="Ẩn/hiển thị là thao tác riêng, không lưu cùng nội dung." />{visibilityAction.action({ id, title: fields.title, visibility }, profilePending || saving || unknown)}</section> : <section className="culture-create-status" aria-label="Trạng thái sau khi tạo">
