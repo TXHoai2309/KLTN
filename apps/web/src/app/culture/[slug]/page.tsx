@@ -1,3 +1,5 @@
+import "@/components/culture-content.css";
+import CultureContent from "@/components/culture-content";
 import PublishedContentProfile from "@/components/published-content-profile";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -63,10 +65,6 @@ function formatUpdatedAt(updatedAt: string): string {
   }).format(new Date(updatedAt));
 }
 
-function bodyParagraphs(body: string): string[] {
-  const normalized = body.replace(/\r\n?/g, "\n").trim();
-  return normalized.split(/\n{2,}/).filter(Boolean);
-}
 
 export async function generateMetadata({
   params,
@@ -137,9 +135,7 @@ export default async function CultureDetailPage({
           </header>
 
           <div className="culture-detail-body" aria-label="Nội dung văn hóa">
-            {bodyParagraphs(detail.body).map((paragraph, index) => (
-              <p key={`${detail.id}-paragraph-${index}`}>{paragraph}</p>
-            ))}
+            <CultureContent content={detail.body} />
           </div>
 
           <PublishedContentProfile profile={detail.profile} />

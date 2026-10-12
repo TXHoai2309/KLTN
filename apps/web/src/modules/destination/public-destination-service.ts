@@ -1,3 +1,4 @@
+import { richContentText } from "@/modules/culture/culture-rich-content";
 import { publicDestinationProfileSelect, publicProfileDto } from "@/modules/content-profile/public-content-profile";
 import { visibleCultureWhere, publicCultureSelect } from "../culture/culture-eligibility";
 import type { Database, Prisma } from "@KLTN/db";
@@ -32,6 +33,6 @@ export async function getPublicDestination(id: string, database: Pick<Database, 
     openingDays: row.openingDays.map(day => ({ dayOfWeek: day.dayOfWeek, status: day.status,
       intervals: day.intervals.map(interval => ({ opensAt: fromMinute(interval.opensAtMinute), closesAt: fromMinute(interval.closesAtMinute) })),
     })),
-    relatedCulture: row.cultureLinks.map(({ culture }) => ({ id: culture.id, title: culture.title, excerpt: culture.content.replace(/\s+/g, " ").trim().slice(0, 280), sourceTitle: culture.sourceTitle, sourceUrl: culture.sourceUrl })),
+    relatedCulture: row.cultureLinks.map(({ culture }) => ({ id: culture.id, title: culture.title, excerpt: richContentText(culture.content).replace(/\s+/g, " ").trim().slice(0, 280), sourceTitle: culture.sourceTitle, sourceUrl: culture.sourceUrl })),
   });
 }

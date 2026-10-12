@@ -1,3 +1,4 @@
+import { canonicalCultureCategory } from "../culture/culture-categories";
 import { z } from "zod";
 const optionalText = (max: number) => z.string().max(max).transform(v => v.normalize("NFC").trim() || null).nullable().default(null);
 export const referenceId = z.string().regex(/^[a-zA-Z0-9_-]{1,128}$/u);
@@ -27,7 +28,7 @@ const coverCheck = (p: {
 export const destinationProfileSchema = z.object({ ...shared, aliases: z.array(z.string().trim().min(1).max(200)).max(20).default([]), shortDescription: optionalText(1000), address: optionalText(1000), googleMapsUrl: optionalUrl.refine(v => v === null || ["google.com", "www.google.com", "maps.google.com", "google.com.vn", "www.google.com.vn", "maps.google.com.vn", "maps.app.goo.gl", "goo.gl"].includes(new URL(v).hostname), "Cần URL Google Maps hợp lệ."), locationVerified: z.boolean().default(false), locationEvidence: optionalText(2000), ticketPrice: optionalText(300), ticketVerification: z.enum(["UNKNOWN", "VERIFIED", "DISPUTED"]).default("UNKNOWN"), ticketEvidence: optionalText(2000), bestVisitTime: optionalText(2000), visitNotes: optionalText(4000), cultureIds: refs }).strict().superRefine((p, ctx) => { coverCheck(p, ctx); if (p.locationVerified && !p.locationEvidence)
     ctx.addIssue({ code: "custom", path: ["locationEvidence"], message: "Vị trí xác minh cần bằng chứng bản đồ." }); if (p.ticketVerification === "VERIFIED" && (!p.ticketPrice || !p.ticketEvidence))
     ctx.addIssue({ code: "custom", path: ["ticketEvidence"], message: "Giá vé xác minh cần giá và nguồn/bằng chứng." }); });
-export const cultureProfileSchema = z.object({ ...shared, category: optionalText(200), shortDescription: optionalText(1000), geographicScope: optionalText(2000), communityIds: refs }).strict().superRefine(coverCheck);
+export const cultureProfileSchema = z.object({ ...shared, category: optionalText(200).transform(canonicalCultureCategory), shortDescription: optionalText(1000), geographicScope: optionalText(2000), communityIds: refs }).strict().superRefine(coverCheck);
 export type DestinationProfile = z.infer<typeof destinationProfileSchema>;
 export type CultureProfile = z.infer<typeof cultureProfileSchema>;
 export type ContentSourceInput = z.infer<typeof sourceSchema>;

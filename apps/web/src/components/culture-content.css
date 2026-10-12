@@ -1,0 +1,8 @@
+.culture-rich-content { line-height: 1.75; overflow-wrap: anywhere; min-width: 0; }
+.culture-rich-content h2 { font-size: 1.4em; font-weight: 700; margin: 1.4em 0 .6em; }
+.culture-rich-content h3 { font-size: 1.15em; font-weight: 650; margin: 1.2em 0 .5em; }
+.culture-rich-content p { margin: .6em 0; }
+.culture-rich-content ul { list-style: disc; padding-left: 1.5em; }
+.culture-rich-content ol { list-style: decimal; padding-left: 1.5em; }
+.culture-rich-content blockquote { border-left: 3px solid #438766; padding-left: 1em; margin: 1em 0; }
+.culture-rich-content a { color: #2f7a5a; text-decoration: underline; }

@@ -1,3 +1,4 @@
+import { richContentText } from "@/modules/culture/culture-rich-content";
 import { z } from "zod";
 import type { Database, Prisma } from "@KLTN/db";
 import { visibleCultureWhere, publicCultureSelect } from "./culture-eligibility";
@@ -18,7 +19,7 @@ export type PublicCulturePage = z.infer<typeof publicCulturePageSchema>;
 
 /** NFC and complete graphemes, bounded to the existing 280 UTF-16 contract. */
 export function cultureExcerpt(content: string) {
-  const text = content.normalize("NFC").replace(/\s+/gu, " ").trim();
+  const text = richContentText(content).normalize("NFC").replace(/\s+/gu, " ").trim();
   let excerpt = "";
   for (const { segment } of new Intl.Segmenter("vi", { granularity: "grapheme" }).segment(text)) {
     if (excerpt.length + segment.length > 280) break;
