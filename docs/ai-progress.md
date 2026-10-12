@@ -1402,3 +1402,16 @@ Standalone helper import and schema-name issues corrected before final probes;
 not product defects, no code change warranted. Full details and unblock sequence:
 docs/implementation/us23-live-acceptance.md. US23 remains NOT_ACCEPTED/BLOCKED for
 live acceptance. Report docs only, no new commit/push/merge/deploy.
+## 2026-10-11 — US-11 Explore MH-02 visual correction
+
+- Inspected Figma node `6:47`; adjusted Explore title/search/filter/card/Culture composition and shared Header spacing without changing the public API, database, URL filters, Map, Detail or auth flow. Removed the result-count-specific centering override that placed a lone Destination or Culture card in the middle.
+- Real browser: the existing one-item Destination and Culture lists start at the same left edge as title/search. A temporary HTML fixture using the compiled page CSS verified 1/2/3 items and 1/2/3 columns across 360/390/768/1024/1440px, with no horizontal overflow; fixture removed afterward. Light/dark page, card and input colors were inspected. Search `q=US09` → Detail → browser Back restored exact query/input/result.
+- Tests/checks: `npm run test:explore --workspace web` 14/14, `npm run test:search --workspace web` 33/33, root `npm run test`, `npm run check-types`, `npm run build` PASS. Final `git diff --check` is recorded at handoff. No schema, dependency, database write, commit or push.
+- Limits: development data had only one public Destination and Culture item, so multi-item evidence is fixture layout geometry. Destination public DTO has no image or summary, and the real 30–50 item dataset is still pending EN-02; exact pixel parity and production performance are not claimed.
+
+## 2026-10-11 — Explore layout from new screenshot
+
+- Received the new 1920×1080 `/explore` screenshot and used it as the layout reference. Added page/section eyebrows, exact descriptive subtitle, a single desktop search/filter surface, content section anchors, and a full-width four-column Destination grid. Existing Figma colors/type, shared Header, URL-driven search, List/Map, Culture, Detail, API and auth remain in place.
+- Browser checked 360/390/768/1024/1280/1440px with no horizontal overflow. Temporary compiled-CSS fixture verified 1/2/4/5 Destination cards with left-aligned partial rows; removed afterward. Light/dark inspected and prior dark preference restored. `/explore?q=US09` → Detail → Back restored URL, input and result.
+- Public Destination DTO has no image/duration/summary; the screenshot's photos and metadata were not invented. The local DB has one public Destination and Culture record, so live multi-item and production dataset/performance evidence remain NOT PROVEN. Final command results are recorded at handoff; no commit/push.
+- Checks: `npm run test:search --workspace web` 33/33, `npm run test:explore --workspace web` 14/14, root `npm run test`, `npm run check-types` and `npm run build` PASS. A light-mode comparison screenshot is at `D:\Bai tap Code\KLTN\explore-screenshot.png` outside the checkout; dark mode and browser viewport were restored.

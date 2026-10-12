@@ -19,11 +19,10 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
   return <main className="explore-page" lang="vi">
     <header className="explore-intro">
       <div className="explore-intro-copy">
-        <span className="explore-eyebrow">HÀ GIANG <i aria-hidden="true">·</i> KHÁM PHÁ</span>
-        <h1>Khám phá điểm đến <span>&amp; văn hóa</span></h1>
-        <p>Tìm những địa danh, xem vị trí trên bản đồ và khám phá câu chuyện văn hóa Hà Giang.</p>
+        <p className="explore-eyebrow">BẢN ĐỒ &amp; HỒ SƠ HÀ GIANG</p>
+        <h1>Khám phá Hà Giang</h1>
+        <p>Tìm điểm đến, khám phá cảnh quan và tìm hiểu những câu chuyện văn hóa phù hợp với điều bạn quan tâm.</p>
       </div>
-      <div className="explore-topography" aria-hidden="true"><span>Những miền đá<br />kể chuyện</span></div>
     </header>
     <Suspense fallback={<SectionLoading label="điểm đến" kind="destination" />}><Destinations query={query} /></Suspense>
     <Suspense fallback={<SectionLoading label="nội dung văn hóa" kind="culture" />}><Culture query={query} /></Suspense>
@@ -32,8 +31,8 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
 
 function SectionLoading({ label, kind }: { label: string; kind: "destination" | "culture" }) {
   return <section className={`explore-domain explore-loading-domain explore-loading-${kind}`} role="status" aria-busy="true" aria-label={`Đang tải ${label}`}>
-    <div className="explore-section-heading"><div><span className="explore-skeleton-line explore-skeleton-eyebrow" /><span className="explore-skeleton-line explore-skeleton-title" /><span className="explore-skeleton-line explore-skeleton-copy" /></div><span className="explore-skeleton-pill" /></div>
-    <div className="explore-skeleton-grid"><span /><span /><span /></div>
+    <div className="explore-section-heading"><div><span className="explore-skeleton-line explore-skeleton-title" /><span className="explore-skeleton-line explore-skeleton-copy" /></div><span className="explore-skeleton-pill" /></div>
+    <div className="explore-skeleton-grid"><span /><span /><span /><span /></div>
   </section>;
 }
 
