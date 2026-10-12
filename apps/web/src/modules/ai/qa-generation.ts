@@ -99,7 +99,7 @@ export function createQaGenerator(options: { apiKey?: () => string | undefined; 
     qaStage("GENERATION_PREFLIGHT");
     if ((input.context.type === "DESTINATION" && (!input.context.name.trim() || containsEvidenceInstruction(input.context.name))) || !qaQuestionSchema.safeParse(input.question).success || input.evidence.length > QA_GENERATION_LIMITS.maxEvidence) throw invalid();
     if (input.signal?.aborted) throw unavailable();
-    if (input.evidence.length === 0) { qaStage("GENERATION_OUTPUT_VALIDATED"); return insufficientQaAnswer(); }
+    if (input.evidence.length === 0 || input.sourceSufficiency?.status === "INSUFFICIENT") { qaStage("GENERATION_OUTPUT_VALIDATED"); return insufficientQaAnswer(); }
     const hasInternalEvidenceIdentifier = input.evidence.some(item => [item.documentId, item.generationId, item.contentVersionId, item.chunkId, item.chunkHash]
       .some(id => id.length >= 8 && item.text.includes(id)));
     if (hasInternalEvidenceIdentifier || !isQaPublicMetadataSafe(input.evidence.map(item => item.text))) throw invalid("GENERATION_PREFLIGHT", "PRIVATE_MATERIAL");

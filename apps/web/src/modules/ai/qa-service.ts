@@ -7,6 +7,7 @@ import { EmbeddingError } from "../rag-processing/embedding-errors";
 import { qaOrigin, qaReportFailure, qaStage } from "./qa-diagnostics";
 import type { QaContext } from "./qa-contract";
 import type { QaResolvedContext } from "./qa-destination-context";
+import { evaluateQaSourceSufficiency } from "./qa-source-sufficiency";
 
 export function createQaService(dependencies: { store: QaConversationStore; retriever: QaRetriever; generator: QaGenerator; eligibilityPollMs?: number; resolveContext?: (context: QaContext) => Promise<QaResolvedContext> }) {
   const { store, retriever, generator } = dependencies;
@@ -42,6 +43,10 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
         qaStage("EVIDENCE_ELIGIBILITY_CHECK");
         if (!await retriever.recheck(evidence)) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "EVIDENCE_ELIGIBILITY_CHECK", "ELIGIBILITY");
         qaStage("EVIDENCE_ELIGIBILITY_CHECKED", { eligibleChunks: evidence.length });
+        // Successful retrieval + current server eligibility only. No model or
+        // client classification is promoted into verified semantic coverage.
+        const sourceSufficiency = evaluateQaSourceSufficiency({ kind: "COMPLETED",
+          eligibility: "CURRENT", input: { question: request.data.question, context: resolvedContext, evidence } });
         const providerController=new AbortController();
         const relayAbort=()=>providerController.abort();
         signal?.addEventListener("abort",relayAbort,{once:true});
@@ -73,7 +78,7 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
           }
         })();
         qaStage("GENERATION_STARTED");
-        const generation=generator.generate({ question: request.data.question, history: admission.history, evidence, context: resolvedContext, signal: providerController.signal })
+        const generation=generator.generate({ question: request.data.question, history: admission.history, evidence, context: resolvedContext, sourceSufficiency, signal: providerController.signal })
           .then(value=>{if(invalidationError)throw invalidationError;return value;},failure=>{if(invalidationError)throw invalidationError;throw failure;});
         let answer;
         try { answer=await Promise.race([generation,invalidation]); }

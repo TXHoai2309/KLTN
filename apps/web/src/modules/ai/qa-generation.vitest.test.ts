@@ -12,6 +12,20 @@ const response = (content: unknown, finish_reason = "stop") => new Response(JSON
 const generator = (fetcher: typeof fetch, extra = {}) => createQaGenerator({ apiKey: () => "fixture-only", fetcher, ...extra });
 
 describe("Task193 grounded generation", () => {
+  it("uses the internal insufficient decision before provider dispatch for out-of-scope evidence", async () => {
+    const fetcher = vi.fn(); const current = input();
+    current.sourceSufficiency = { status: "INSUFFICIENT", reason: "NO_SCOPED_EVIDENCE" };
+    expect((await generator(fetcher).generate(current)).status).toBe("INSUFFICIENT_SOURCE");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it("keeps the internal decision and registry binding out of provider/public DTOs", async () => {
+    const current = input(); current.sourceSufficiency = { status: "UNCERTAIN", reason: "UNASSESSED" };
+    const fetcher = vi.fn<typeof fetch>(async () => response(answer()));
+    const result = await generator(fetcher).generate(current);
+    const body = String(fetcher.mock.calls[0]?.[1]?.body);
+    expect(body).not.toMatch(/sourceSufficiency|UNASSESSED|private_document|private_chunk/);
+    expect(JSON.stringify(result)).not.toMatch(/sourceSufficiency|UNASSESSED/);
+  });
   it.each([
     [{ ...answer(), unanswered: true }, "unanswered"],
     [{ ...answer(), answerParts: [] }, "answerParts"],
