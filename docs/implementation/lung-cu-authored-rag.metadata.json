@@ -1,0 +1,59 @@
+{
+  "documentKind": "AUTHORED_SUMMARY",
+  "authorship": "AI_ASSISTED_KLTN_DRAFT",
+  "thirdPartyOriginal": false,
+  "version": "2026-10-12",
+  "ownerReviewStatus": "PENDING",
+  "rightsReviewStatus": "PENDING",
+  "providerSharingApproval": "NOT_GRANTED",
+  "publicUseApproval": "NOT_GRANTED",
+  "thirdPartyArticlesReproduced": false,
+  "proposedFinalizeMetadata": {
+    "sourceTitle": "Cột cờ Quốc gia Lũng Cú — bản tổng hợp kiến thức pilot do KLTN biên soạn",
+    "author": "KLTN — bản nháp có hỗ trợ AI",
+    "topic": "Cột cờ Quốc gia Lũng Cú",
+    "locality": "Lũng Cú"
+  },
+  "provenance": [
+    {
+      "id": "S1",
+      "url": "https://lungcu.tuyenquang.gov.vn/vi/tin-bai/thieng-lieng-le-ket-nap-doan-vien-duoi-co-to-quoc-tai-cot-co-quoc-gia-lung-cu?id=219248&type=NEWS",
+      "publisher": "UBND xã Lũng Cú / Trang thông tin điện tử xã Lũng Cú",
+      "publishedAt": "2026-03-26 20:32",
+      "author": "Ngọc Đức",
+      "accessedAt": "2026-10-12",
+      "rightsEvidence": "Footer attribution condition; no explicit OpenAI-sharing approval verified"
+    },
+    {
+      "id": "S2",
+      "url": "https://baohagiang.vn/thoi-su-chinh-tri/202402/doan-cong-tac-bo-tong-tham-muu-quan-doi-nhan-dan-viet-nam-du-le-thuong-co-va-tang-qua-tai-dong-van-106205f/",
+      "publisher": "Báo Hà Giang điện tử (publisher at publication)",
+      "publishedAt": "2024-02-26 23:04",
+      "author": "Kim Tiến",
+      "accessedAt": "2026-10-12",
+      "rightsEvidence": "No explicit reuse/provider-sharing license verified"
+    }
+  ],
+  "coordinateProvenance": {
+    "mapUrl": "https://www.google.com/maps/search/?api=1&query=C%E1%BB%99t+c%E1%BB%9D+L%C5%A9ng+C%C3%BA",
+    "entity": "Cột Cờ Lũng Cú",
+    "googleMapsFeature": "0x36cbe1f68a0c33c7:0x302c4d0acbe9911f",
+    "latitude": 23.3634061,
+    "longitude": 105.3163001,
+    "method": "Read landmark !3d/!4d fields after name search; not map viewport center",
+    "crossCheckUrl": "https://mapcarta.com/W504649258",
+    "crossCheckFeature": "OSM way 504649258",
+    "crossCheckPoint": {
+      "latitude": 23.36346,
+      "longitude": 105.31633
+    },
+    "status": "MAP_PIN_VERIFIED_OWNER_APPROVAL_PENDING",
+    "note": "Visitor landmark point, not surveyed extreme-border point or confirmed ticket entrance. Map terms/usage review remains pending; coordinate data is not part of authored RAG body."
+  },
+  "authoredFile": {
+    "fileName": "lung-cu-authored-rag.txt",
+    "mimeType": "text/plain",
+    "sizeBytes": 3184,
+    "sha256": "a8150abccb10ae22112bd9ac4f5c88445f3451259be88d26ca6f5ecceaaa666e"
+  }
+}

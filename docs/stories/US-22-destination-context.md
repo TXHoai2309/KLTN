@@ -143,3 +143,14 @@ Changed files:
 - docs/stories/US-22-destination-context.md
 - packages/db/prisma/migrations/20261012120000_add_qa_destination_context/migration.sql
 - packages/db/prisma/schema/qa-conversation.prisma
+
+### 2026-10-12 — Pilot preparation follow-up
+
+Active sidebar label now mirrors the same controller context as the selector through
+shell-local presentation; no additional persisted/global context. Destination switch,
+clear/GENERAL, long mobile name, verification placeholder and unavailable context
+are handled. Focused 61/61 tests, web typecheck, 29/29-page production local build
+and scoped static assistant audit PASS. Browser offline 360px confirms matching
+labels and no overflow; this does not claim live acceptance. Lũng Cú authored-summary,
+provenance/rights sidecar and validated destination draft are prepared under
+`docs/implementation/`; owner data/rights/provider approval remains pending.

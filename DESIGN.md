@@ -91,8 +91,10 @@ The public assistant continues to own its existing visual tokens in
 and existing dark overrides). Destination Detail reuses its public-detail link
 style. This is an additive Vietnamese interaction, not a redesign. The assistant
 toolbar describes destination/general mode; the current verified destination name
-is shown by the labeled context picker. The sidebar describes context behavior
-without claiming every conversation is GENERAL.
+is shown by the labeled context picker. The sidebar displays the same active
+context label through shell-local presentation from AssistantChat's controller.
+It clears on chat unmount and shows a verification placeholder before resolution;
+it does not maintain a second destination selection or persist browser state.
 
 Select/Listbox owner: native HTML select in AssistantChat, including the bounded
 server-projected destination choices. Platform popup geometry/appearance is
