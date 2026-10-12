@@ -17,6 +17,7 @@ import {
 } from "@/lib/mutation-client";
 import { fetchAuthWithTimeout } from "@/lib/auth-fetch";
 import {
+  publicHttpsUrl,
   referenceId,
   sourceSchema,
   mediaSchema,
@@ -35,7 +36,6 @@ import {
   MapPin,
 } from "lucide-react";
 import { AdminSectionHead, AdminChips } from "./admin-form-shell";
-import { safeContentLink } from "@/modules/culture/culture-rich-content";
 const ProfileErrors = createContext<Record<string, string>>({});
 type Profile = DestinationProfile | CultureProfile;
 const lookupSchema = z.object({
@@ -1004,12 +1004,7 @@ export default function ContentProfileEditor({
 export function AdminImagePreview({ url, alt }: { url: string; alt: string }) {
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [url]);
-  if (
-    !url ||
-    !safeContentLink(url) ||
-    new URL(url).protocol !== "https:" ||
-    failed
-  )
+  if (!url || !publicHttpsUrl.safeParse(url).success || failed)
     return (
       <div className="af-media-preview-error">
         {url

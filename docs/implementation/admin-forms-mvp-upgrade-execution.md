@@ -45,3 +45,8 @@ No credential/storage upgrade is required for the URL MVP. Actual source/media r
 - AF-8 follow-up: final SQL checks, public isolation integration, formatting and this execution record.
 
 No Neon writes/migrations, OpenAI live, RAG upload/index/allowlist change, push or Production deployment. US-22 stays IMPLEMENTED — LIVE ACCEPTANCE PENDING. Pending DESIGN/progress/US-22 story edits, pilot documents, other dev commits and worktrees remain preserved.
+
+
+## UI/UX continuation — 2026-10-12
+
+The subsequent form redesign, versioned rich-content storage/public renderer, shared category contract and offline acceptance evidence are recorded in [Admin forms UI/UX redesign](admin-forms-ux-redesign-execution.md). This is an interface continuation of AF-1–AF-6, without a schema change, live Neon write or AF-7 runtime implementation.
