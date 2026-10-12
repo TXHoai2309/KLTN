@@ -13,7 +13,7 @@ describe("real /assistant development integration", () => {
     const bundle = await build({ entryPoints: [fileURLToPath(new URL("./assistant-chat.tsx", import.meta.url))], bundle: true, write: false, format: "cjs", platform: "node", jsx: "automatic", external: ["react", "react/*"], logLevel: "silent" });
     const require = createRequire(import.meta.url);
     const slots: unknown[] = []; let cursor = 0;
-    const hooks = { ...require("react"), useId: () => "fixture", useRef: () => ({ current: null }), useEffect: () => {},
+    const hooks = { ...require("react"), useContext: () => null, useId: () => "fixture", useRef: () => ({ current: null }), useEffect: () => {},
       useState: (init: unknown) => { const index = cursor++; if (!(index in slots)) slots[index] = typeof init === "function" ? init() : init; return [slots[index], () => {}]; },
       useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot() };
     type Element = { type: unknown; props: Record<string, any> };

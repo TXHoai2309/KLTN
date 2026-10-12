@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { CirclePlus, FileText, Info, Leaf, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { AssistantLandscape } from "./assistant-landscape";
 import { AssistantCitations } from "./assistant-citations";
@@ -11,6 +11,9 @@ import { AssistantController, hasUnresolvedAttempt, shouldSendOnEnter, type Assi
 import { assistantContextFromUrl } from "./assistant-context-navigation";
 
 export type CitationSlot = (input: { part: QaAnswerPart; citations: QaPublicCitation[]; turn: QaCompletedTurn }) => ReactNode;
+
+// Shell-local presentation only; the controller remains the context authority.
+const AssistantContextDisplay = createContext<((label: string | null) => void) | null>(null);
 
 export function AssistantAnswer({ turn, citationSlot }: { turn: QaCompletedTurn; citationSlot?: CitationSlot }) {
   if (turn.status === "INSUFFICIENT_SOURCE") return <><strong>Chưa đủ nguồn</strong><p>{turn.message}</p></>;
@@ -47,6 +50,14 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
   const [controller] = useState(() => new AssistantController(transport, identity, createIdempotencyKey,
     assistantContextFromUrl(initialContext, destinations, syncContextUrl && typeof window !== "undefined" ? window.location.search : undefined)));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
+  const setContextDisplay = useContext(AssistantContextDisplay);
+  const contextLabel = contextError ? "Bối cảnh không khả dụng" : state.context.type === "DESTINATION"
+    ? destinations.find(destination => state.context.type === "DESTINATION" && destination.id === state.context.destinationId)?.name ?? "Điểm đến đang chọn"
+    : "Hỏi đáp chung về Hà Giang";
+  useEffect(() => {
+    setContextDisplay?.(contextLabel);
+    return () => setContextDisplay?.(null);
+  }, [contextLabel, setContextDisplay]);
   const composer = useRef<HTMLTextAreaElement>(null);
   const viewport = useRef<HTMLDivElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -143,11 +154,12 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
 }
 
 export function AssistantShell({ children }: { children: ReactNode }) {
-  return <main className="assistant-page" lang="vi"><div className="assistant-page-inner">
+  const [contextLabel, setContextLabel] = useState<string | null>(null);
+  return <AssistantContextDisplay.Provider value={setContextLabel}><main className="assistant-page" lang="vi"><div className="assistant-page-inner">
     <header className="assistant-page-heading"><AssistantLandscape className="assistant-heading-art" /><h1>Trợ lý AI</h1><p>Khám phá Hà Giang qua những câu hỏi</p></header>
     <div className="assistant-page-grid"><div className="assistant-chat-column">{children}</div><aside className="assistant-aside" aria-label="Bối cảnh và nguyên tắc AI">
-      <section className="assistant-context"><h2>Bối cảnh</h2><p>Bối cảnh hiện tại được hiển thị trong cuộc hội thoại.</p><span className="assistant-context-badge"><Leaf aria-hidden="true" />Hà Giang</span><div className="assistant-context-label">Chọn hoặc xóa bối cảnh tại trợ lý</div><p className="assistant-context-description assistant-muted">Việc xem nội dung khác không tự thay đổi bối cảnh hội thoại.</p></section>
+      <section className="assistant-context"><h2>Bối cảnh hiện tại</h2><p>Bối cảnh đang dùng trong cuộc hội thoại.</p><span className="assistant-context-badge" aria-live="polite"><Leaf aria-hidden="true" />{contextLabel ?? "Đang xác minh bối cảnh"}</span><div className="assistant-context-label">Chọn hoặc xóa bối cảnh tại trợ lý</div><p className="assistant-context-description assistant-muted">Việc xem nội dung khác không tự thay đổi bối cảnh hội thoại.</p></section>
       <section className="assistant-principles"><h2>Nguyên tắc AI</h2><div className="assistant-principle"><span><ShieldCheck aria-hidden="true" /></span><div><strong>Thông tin thực tế cần có nguồn</strong><p>Câu trả lời dựa trên thông tin được phép sử dụng và có nguồn xác minh.</p></div></div><div className="assistant-principle"><span><FileText aria-hidden="true" /></span><div><strong>Nêu rõ giới hạn khi thiếu dữ liệu</strong><p>Khi chưa đủ dữ liệu được xác minh, trợ lý sẽ nêu rõ thay vì suy đoán.</p></div></div><AssistantLandscape className="assistant-principles-art" /></section>
     </aside></div>
-  </div></main>;
+  </div></main></AssistantContextDisplay.Provider>;
 }
