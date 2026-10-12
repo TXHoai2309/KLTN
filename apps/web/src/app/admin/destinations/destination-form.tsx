@@ -1,8 +1,8 @@
 "use client";
-import DestinationMap from "@/components/map/destination-map";
+import DestinationLocationPicker from "./destination-location-picker";
 import ContentProfileEditor from "@/components/admin/content-profile-editor";
 import { destinationProfileSchema, type DestinationProfile } from "@/modules/content-profile/content-profile-contract";
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { destinationInputSchema, unknownSchedule, type DestinationDto, type DestinationInput } from "@/modules/destination/destination-contract";
@@ -19,6 +19,7 @@ import { SectionHeading, VisibilityBadge, LoadingState } from "./destination-ui"
 
 import DestinationPageHeader from "./destination-page-header";
 import { useDestinationVisibility } from "./destination-visibility-action";
+import { parseCoordinateInputs } from "@/modules/map/map-model";
 
 const blank = () => ({ name: "", description: "", area: "", category: "", latitude: "", longitude: "", suggestedDurationMinutes: "", minimumDurationMinutes: "" });
 const fieldsFromDto = (dto: DestinationDto) => ({ name: dto.name, description: dto.description, area: dto.area, category: dto.category, latitude: String(dto.latitude), longitude: String(dto.longitude), suggestedDurationMinutes: dto.suggestedDurationMinutes === null ? "" : String(dto.suggestedDurationMinutes), minimumDurationMinutes: dto.minimumDurationMinutes === null ? "" : String(dto.minimumDurationMinutes) });
@@ -29,10 +30,7 @@ export default function DestinationForm({ id }: { id: string | null }) {
   const [profilePending, setProfilePending] = useState(false);
   const [profile, setProfile] = useState<DestinationProfile>(() => destinationProfileSchema.parse({}));
   const [fields, setFields] = useState(blank);
-  const mapPoints = useMemo(() => {
-    const latitude = fields.latitude.trim() ? Number(fields.latitude) : NaN, longitude = fields.longitude.trim() ? Number(fields.longitude) : NaN;
-    return Number.isFinite(latitude) && Math.abs(latitude) <= 90 && Number.isFinite(longitude) && Math.abs(longitude) <= 180 ? [{ id: id ?? "admin-preview", name: fields.name || "Pin Admin đang xác minh", area: fields.area, category: fields.category, latitude, longitude }] : [];
-  }, [fields.latitude, fields.longitude, fields.name, fields.area, fields.category, id]);
+  const mapCoordinates = parseCoordinateInputs(fields.latitude, fields.longitude);
   const [days, setDays] = useState(unknownSchedule);
   const [visibility, setVisibility] = useState<"HIDDEN" | "VISIBLE">("HIDDEN");
   const [loading, setLoading] = useState(true);
@@ -79,9 +77,13 @@ export default function DestinationForm({ id }: { id: string | null }) {
     finally { if (!completed) { releaseSubmission(lock); setSaving(false); } }
   }
   function changeField(key: Field, value: string) {
-    if (key === "latitude" || key === "longitude") setProfile(p => ({ ...p, locationVerified: false, locationEvidence: null }));
+    if ((key === "latitude" || key === "longitude") && fields[key] !== value) setProfile(p => ({ ...p, locationVerified: false, locationEvidence: null }));
     setFields(current => ({ ...current, [key]: value }));
     setErrors(current => { const next = { ...current }; delete next[key]; return next; });
+  }
+  function changeMapCoordinates(coordinates: { latitude: number; longitude: number }) {
+    changeField("latitude", String(Number(coordinates.latitude.toFixed(6))));
+    changeField("longitude", String(Number(coordinates.longitude.toFixed(6))));
   }
   const inputField = (key: Field, label: string, helper?: string) => <div className="destination-field" key={key}>
     <label htmlFor={`destination-${key}`}>{label}</label>
@@ -100,7 +102,7 @@ export default function DestinationForm({ id }: { id: string | null }) {
 
 
 
-        <ContentProfileEditor basicFields={<div className="destination-grid"><div>{inputField("name", "Tên điểm đến *")}{inputField("description", "Mô tả *")}</div><div>{inputField("area", "Khu vực *")}{inputField("category", "Danh mục *")}<p className="destination-helper">Nhập khu vực và danh mục phù hợp với dữ liệu điểm đến.</p></div></div>} locationFields={<><div className="destination-grid">{inputField("latitude", "Vĩ độ *", "Từ -90 đến 90.")}{inputField("longitude", "Kinh độ *", "Từ -180 đến 180.")}</div><button type="button" className="destination-button" disabled={!mapPoints.length} onClick={() => setShowMap(v => !v)}>{showMap ? "Ẩn bản đồ pin" : "Xem pin cần xác minh"}</button>{showMap && mapPoints.length > 0 && <DestinationMap destinations={mapPoints} detail label="Pin từ tọa độ Admin nhập, cần đối chiếu" />}<a className="destination-button" target="_blank" rel="noopener noreferrer" href={"https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(fields.latitude + "," + fields.longitude)}>Đối chiếu pin trên Google Maps</a><p className="destination-helper">Bản đồ dùng tọa độ Admin nhập; không tự xác nhận vị trí. Ghi bằng chứng và xác nhận trong hồ sơ.</p></>} durationSection={<section className="destination-card"><SectionHeading icon={Clock3} title="Thời lượng tham quan" description="Đơn vị phút. Để trống nếu chưa có dữ liệu; hai thời lượng được lưu độc lập." /><div className="destination-grid">{inputField("suggestedDurationMinutes", "Thời lượng gợi ý", "Khoảng thời gian tham khảo cho người dùng khi khám phá hoặc lập kế hoạch.")}{inputField("minimumDurationMinutes", "Thời lượng tối thiểu", "Thời lượng tối thiểu dùng để kiểm tra tính hợp lệ của hành trình.")}</div></section>} openingHoursSection={<section className="destination-card"><div id="destination-openingDays" tabIndex={-1}><SectionHeading icon={CalendarDays} title="Giờ hoạt động" description="Giờ địa phương Hà Giang (Asia/Ho_Chi_Minh). Không hỗ trợ qua đêm." /></div><OpeningHoursEditor days={days} errors={errors} onChange={setDays} /></section>} onPendingChange={setProfilePending} profile={profile} errors={errors} onChange={p => setProfile(p as DestinationProfile)} />
+        <ContentProfileEditor basicFields={<div className="destination-grid"><div>{inputField("name", "Tên điểm đến *")}{inputField("description", "Mô tả *")}</div><div>{inputField("area", "Khu vực *")}{inputField("category", "Danh mục *")}<p className="destination-helper">Nhập khu vực và danh mục phù hợp với dữ liệu điểm đến.</p></div></div>} locationFields={<><div className="destination-grid">{inputField("latitude", "Vĩ độ *", "Từ -90 đến 90.")}{inputField("longitude", "Kinh độ *", "Từ -180 đến 180.")}</div><button type="button" className="destination-button" aria-expanded={showMap} onClick={() => setShowMap(value => !value)}>{showMap ? "Ẩn bản đồ chọn pin" : "Mở bản đồ chọn pin"}</button>{showMap && <DestinationLocationPicker coordinates={mapCoordinates} locationVerified={profile.locationVerified} onChange={changeMapCoordinates} />}{mapCoordinates ? <a className="destination-button" target="_blank" rel="noopener noreferrer" href={"https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(fields.latitude + "," + fields.longitude)}>Đối chiếu pin trên Google Maps</a> : <p className="destination-helper">Nhập hoặc chọn tọa độ để mở vị trí trong Google Maps.</p>}<p className="destination-helper">Bản đồ tương tác dùng Stadia/MapLibre; Google Maps mở riêng để đối chiếu. Ghi bằng chứng và xác nhận tọa độ trong hồ sơ.</p></>} durationSection={<section className="destination-card"><SectionHeading icon={Clock3} title="Thời lượng tham quan" description="Đơn vị phút. Để trống nếu chưa có dữ liệu; hai thời lượng được lưu độc lập." /><div className="destination-grid">{inputField("suggestedDurationMinutes", "Thời lượng gợi ý", "Khoảng thời gian tham khảo cho người dùng khi khám phá hoặc lập kế hoạch.")}{inputField("minimumDurationMinutes", "Thời lượng tối thiểu", "Thời lượng tối thiểu dùng để kiểm tra tính hợp lệ của hành trình.")}</div></section>} openingHoursSection={<section className="destination-card"><div id="destination-openingDays" tabIndex={-1}><SectionHeading icon={CalendarDays} title="Giờ hoạt động" description="Giờ địa phương Hà Giang (Asia/Ho_Chi_Minh). Không hỗ trợ qua đêm." /></div><OpeningHoursEditor days={days} errors={errors} onChange={setDays} /></section>} onPendingChange={setProfilePending} profile={profile} errors={errors} onChange={p => setProfile(p as DestinationProfile)} />
         </fieldset>
         <section className="destination-card destination-visibility"><div><SectionHeading icon={ShieldCheck} title="Trạng thái hiển thị" description={id ? "Ẩn/hiển thị là thao tác riêng, không lưu cùng nội dung biểu mẫu." : "Điểm đến mới được tạo ở trạng thái ẩn."} /></div><div className="destination-status-actions">{id ? <div className="destination-edit-visibility">{visibilityAction.action({ id, name: fields.name, visibility }, profilePending || saving || unknown)}</div> : <VisibilityBadge visibility={visibility} />}</div></section>
         <div className="destination-form-actions"><p>{saving ? "Đang xác nhận kết quả lưu…" : unknown ? "Nội dung được giữ nguyên để retry an toàn." : "Kiểm tra thông tin trước khi lưu."}</p><div className="destination-action-buttons">{!saving && !unknown && !visibilityAction.busy && <Link className="destination-button" href="/admin/destinations">Hủy</Link>}<button className="destination-primary" type="submit" disabled={profilePending || saving || visibilityAction.busy} aria-busy={saving}>{saving ? <LoaderCircle size={17} className="destination-spinner" aria-hidden="true" /> : id ? <Save size={17} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />}{saving ? "Đang lưu..." : unknown ? "Đọc lại và thử lại" : id ? "Lưu thay đổi" : "Tạo điểm đến"}</button></div></div>

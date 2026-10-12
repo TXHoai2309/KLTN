@@ -93,6 +93,13 @@
 .destination-page input, .destination-page select, .destination-page textarea, #destination-openingDays { scroll-margin-block: 120px; }
 .destination-page [aria-invalid=true] { border-color: var(--destination-error); }
 .destination-helper { color: var(--destination-muted); font-size: 12px; line-height: 1.7; margin-top: 7px; }
+.destination-location-picker { min-width: 0; margin: 14px 0 18px; }
+.destination-location-map .destination-map-canvas { height: 340px; border: 1px solid var(--destination-line); border-radius: 10px; }
+.destination-location-map .destination-map-state { min-height: 340px; border: 1px solid var(--destination-line); background: var(--destination-tint); color: var(--destination-ink); }
+.destination-location-map .destination-map-state p { max-width: 380px; color: var(--destination-muted); font-size: 13px; line-height: 1.6; }
+.destination-location-map .destination-map-state button { min-height: 44px; padding: 10px 14px; background: var(--destination-surface); color: var(--destination-ink); }
+.destination-location-status { margin-top: 10px; color: var(--destination-muted); font-size: 12px; line-height: 1.6; }
+.destination-location-map .maplibregl-marker:focus-visible { outline: 3px solid var(--destination-green); outline-offset: 4px; }
 .destination-error { color: var(--destination-error); margin-top: 8px; font-size: 12px; line-height: 1.7; }
 .destination-form-fields { min-width: 0; border: 0; padding: 0; }
 .destination-form-fields:disabled { opacity: .7; }
@@ -144,6 +151,7 @@
   .destination-page { padding: 24px 16px 36px; }
   .destination-heading { flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 18px; }
   .destination-card { padding: 18px; border-radius: 12px; }
+  .destination-location-map .destination-map-canvas, .destination-location-map .destination-map-state { height: 300px; min-height: 300px; }
   .destination-grid { grid-template-columns: minmax(0, 1fr); gap: 18px; }
   .destination-section-heading { gap: 10px; }
   .destination-section-icon { width: 34px; height: 34px; border-radius: 10px; }
