@@ -1343,3 +1343,32 @@ acceptance. Existing extractive sentence and exact destination-name limitations
 remain. No schema/migration, live OpenAI/Neon/Blob/production DB, flags/env/allowlist,
 push, deployment, local/remote merge or main TXH/unrelated dirty-file change in this
 batch. Selective local feature commit only; SHA supplied in final handoff.
+
+
+### 2026-10-12 — US23 live acceptance readiness blocked by real corpus
+
+At49758c9783dd841e31a1d1edbf5fff2516484a0c on isolated feature branch; no application
+fix or main TXH mutation. Current Neon READ ONLY project/branch/endpoint/neondb
+matched the owner-confirmed Development registry and pins,17 migrations/zero
+unfinished. Seven test-labelled RAG documents, six current INDEXED/READY with24
+1536-dimension embeddings; only existing fictional QA Sao Tim source allowlisted.
+No approved real tourism corpus in current retrieval scope; all five requested
+real-data groups blocked. Existing Lung Cu pilot remains rights/provider approval
+pending and was not ingested. No existing records, flags, allowlist or env changed.
+
+One actual baseline retrieval/assessment/generation adapter probe using the existing
+approved synthetic fixture: three OpenAI POSTs, all200, current code/citation/quote
+checks passed against independent expected QA-SAOTIM-21. No new fake source,
+conversation/session/turn or shared DB write. Pipeline9231ms, assessment2216ms;
+embedding15 tokens, chat1285 input+119 output; estimatedUSD0.00026445 at verified
+standard rates, not billing reconciliation or real-corpus cost. One sample cannot
+establish p50/p95 or acceptance SLA; numeric thresholds PENDING_APPROVAL.
+
+Focused regression243/243; disposable PostgreSQL62/62,zero skips, cleanup PASS.
+Live real-corpus cases0 executed; ten-case register prepared, independent BHG
+mountain reference fetched but not approved/ingested. Government source re-fetch403.
+No live UX/auth/persistence, induced provider outage or shared Neon load claimed.
+Standalone helper import and schema-name issues corrected before final probes;
+not product defects, no code change warranted. Full details and unblock sequence:
+docs/implementation/us23-live-acceptance.md. US23 remains NOT_ACCEPTED/BLOCKED for
+live acceptance. Report docs only, no new commit/push/merge/deploy.

@@ -212,3 +212,15 @@ Final counts and gate evidence are recorded in docs/ai-progress.md. Lint is
 NOT_AVAILABLE (no script/config), not PASS. US23 implementation is ready for live
 acceptance after existing runtime/source/migration readiness prerequisites;
 US21/US22 and all US23 acceptance/backlog statuses are not automatically accepted.
+
+
+## 2026-10-12 live acceptance readiness result
+
+Live acceptance is BLOCKED by missing approved real Ha Giang corpus within the
+current retrieval allowlist. Development identity was verified read-only; existing
+synthetic source passed a three-call real OpenAI adapter smoke only. This is not
+real-corpus or API/UI/persistence acceptance. No product fix or data mutation was
+made. Independent real-case register, measured provider usage/latency/cost and
+remaining gates: [live acceptance report](../implementation/us23-live-acceptance.md).
+US23 remains NOT_ACCEPTED. New focused243/243 and disposable PostgreSQL62/62 passed;
+no acceptance status inferred from those regressions.
