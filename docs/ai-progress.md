@@ -1279,3 +1279,67 @@ Added independently testable server-only source policy with explicit retrieval f
 Important boundary: no generic semantic reviewer exists in the active runtime. Nonempty eligible retrieval is UNCERTAIN/UNASSESSED, not certified sufficient. Complete/partial/unrelated semantic tests use explicitly reviewed synthetic facets; they are not real-corpus quality evidence or automatic semantic detection. Existing US-21 irrelevant-extract and incomplete-ANSWERED characterization probes still hold. Task 203 implements the decision policy/integration, not all of US-23's unsupported-answer prevention. Owner review and real-corpus calibration remain pending; Task 204–207 untouched, no backlog Completed/ACCEPTED update.
 
 Validation: final focused 120/120 (four files; source-policy 27 cases); related offline regression 554 passed/62 initially skipped (before one additional focused client-boundary case); disposable PostgreSQL16.15/pgvector0.8.6 subsequently 62/62, zero skipped, including Task185 15/15 and current-publication/Disable/context/ownership/completion races; owned container/volume cleanup PASS. RAG lifecycle legacy 52/52. Root typecheck force-run 4/4, zero cached. Production Webpack build PASS29/29 using dummy loopback configuration and disabled QA/cleanup, with existing Varlock dynamic-dependency warning. First worktree gates failed because generated env/client were absent, shared package links pointed to concurrent TXH schema work, and Next cross-drive dependency paths failed; local ignored codegen/package links and a local Next package copy fixed the environment, without changing product source. Lint unavailable: npm run lint --workspace web fails Missing script; no linter config exists. Diff/credential checks run at commit handoff. No live OpenAI/Blob/Neon/production DB, deployment, migration, env/allowlist change or Worker stash operation.
+
+
+### 2026-10-12 — US-23 Task203 runtime closure + Tasks204–207 offline implementation
+
+Baseline e2e3aeac6e6e9e5899a4b03427878cfdcc26a839; isolated existing branch
+hoai/us23-task203-source-sufficiency. Owner explicitly authorized closing the
+runtime gap before automatically continuing the integrated batch. Historical
+Task203 note above is superseded: the runtime now creates a real structured
+semantic assessment from current eligible/scoped retrieval, validates quoted
+support/reference/shape, creates its own snapshot binding and invokes the existing
+policy. PhaseA focused161/161, disposable PostgreSQL62/62, web typecheck and build
+29/29 passed before PhaseB. No fixture semantic review in production.
+
+Task204: completed insufficient/clarification/partial/answered results reuse the
+public contract and confirmed persistence; technical 503/502/500 and UNKNOWN stay
+separate. Task206: grounding enforced in generation adapter and service, every
+returned sentence/citation must be reviewed current support, all supported aspects
+must be represented; partial cannot label itself complete or omit supported facets.
+Valid uncertain/nonexhaustive/conflicting review fails closed without factual
+generation. Malformed/unavailable assessment is technical failure. Watcher includes
+assessment; no change to US19 approval/publication or US22 scope/ownership rules.
+
+Two bounded structured provider calls maximum per attempt (assessment15s default,
+generation25s), no automatic retry; existing input8000/output2000/64KiB response
+bounds each. Conservative admission reservation33000 replaces23000 to cover the
+extra call; replay remains uncharged and recovered/failed attempts charged. No new
+similarity floor; existing candidate0.25 is unchanged and not a semantic guarantee.
+
+Task205: exact requested notice with adjustment guidance in shared AssistantAnswer,
+no fabricated facts/citations. Stored public message literal remains compatible.
+Partial visibly separates supported content and missing data; technical errors keep
+existing edit/new-intent path. Browser offline fixture checked desktop and390x844,
+no horizontal overflow, distinct failure, edit/resubmit and follow-up continuity.
+
+Task207: actual assessment+generation adapters through HTTP/service verify factual
+and nonfactual outcomes, citations and persistence, malformed/forged references,
+unsupported/irrelevant exact quotations, incomplete ANSWERED, omitted supported
+facets (including PARTIAL), conflict/uncertainty, provider failures/timeouts,
+revocation, history contamination and Destination scope. Existing retrieval/service
+suites cover real embedding error mapping and database/timeout boundaries. Former
+irrelevant-exact-sentence and incomplete-ANSWERED characterization probes now
+have rejecting regression expectations (2/2), not claims of real-corpus quality.
+
+Validation: final focused11 files243/243; final full
+Vitest43 files669/669 including assessment32 and UI3, zero skips, using disposable
+PostgreSQL16.15/pgvector0.8.6 (Task18515/15; DB suites62/62). Harness owned container
+and volume cleanup PASS. Legacy regression suite exited0 across all11 scripts;
+subsequent lint command fails Missing script and is NOT_AVAILABLE (no config), not
+PASS. Root typecheck force-run4/4 uncached and web typecheck PASS. Production local
+Webpack build29/29 with dummy loopback configuration and QA/cleanup disabled;
+existing Varlock dynamic-dependency warning remains. Scoped strict UI audit reused docs/design/us22-premium-ui.json: zero findings;
+ignored JSON evidence temp/us23-ui-audit.json. DESIGN lint zero errors/four existing
+orphan-token warnings. Final source/document diff check and scoped credential/file
+review at selective commit handoff.
+
+US23 IMPLEMENTATION_READY for live acceptance; NOT ACCEPTED. Semantic relevance,
+exhaustive facet discovery and conflict classification remain probabilistic; server
+traceability does not independently prove semantic truth. Real approved Hà Giang
+corpus coverage/recall, provider runtime/schema behavior, latency/cost, live Guest/
+Destination/ownership/idempotency and deployment readiness still require owner
+acceptance. Existing extractive sentence and exact destination-name limitations
+remain. No schema/migration, live OpenAI/Neon/Blob/production DB, flags/env/allowlist,
+push, deployment, local/remote merge or main TXH/unrelated dirty-file change in this
+batch. Selective local feature commit only; SHA supplied in final handoff.

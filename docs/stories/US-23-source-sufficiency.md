@@ -2,10 +2,11 @@
 
 ## Status and scope
 
-Task 203 internal policy implemented; owner review pending. US-23 is not ACCEPTED
-or Completed. Tasks 204–207 are not implemented in this change. This contract is
-limited to the owner's Task 203 instructions supplied on 2026-10-12; it does not
-invent the acceptance criteria or implementation of the remaining tasks.
+Task 203 runtime semantic assessment and Tasks 204–207 are implemented and
+verified offline as one owner-authorized batch (2026-10-12). US-23 is NOT ACCEPTED;
+real-corpus/provider acceptance remains pending. The original Task 203 audit below
+is historical; the runtime-gap closure section supersedes its open implementation
+gap and instruction to wait before Task 204.
 
 Baseline: `cc119925bd75aaabd6ba3c13a8cbedb8048ff1cf`, branch
 `hoai/us23-task203-source-sufficiency`. Product source grounding and technical
@@ -120,3 +121,94 @@ repository has no linter configuration. Do not treat `git diff --check` as lint.
 PostgreSQL integration tests require the disposable DB harness and are reported
 as skipped when running without it. Real-corpus semantic calibration/verification
 and owner acceptance remain open. Await evaluation before Task 204.
+
+
+## 2026-10-12 runtime-gap closure and integrated Tasks 204–207
+
+Baseline e2e3aeac6e6e9e5899a4b03427878cfdcc26a839 in the existing isolated
+hoai/us23-task203-source-sufficiency worktree. Main TXH has unrelated ongoing
+Admin/pilot work; this batch neither edits nor stages that checkout. No schema,
+migration, public citation, request DTO, runtime flag, model or source allowlist
+change. Owner authorized selective local commit; no push or merge in this batch.
+
+### Semantic assessment and source boundary
+
+The real runtime now calls createQaAssessor after retrieval and snapshot recheck.
+It uses the existing structured ChatCompletions endpoint through shared bounded
+qa-json-provider transport, not a fixture or client-provided classification.
+The response enumerates intent, source relevance and requested factual aspects
+with SUPPORTED/MISSING/CONFLICTING/UNCERTAIN classifications and verbatim support
+pairs. Server Zod validation checks bounded shape; the existing source policy
+checks unique aspect IDs, complete current citation registry, exact scoped whole
+sentences and valid status/support relationships. The server creates the binding
+to the current question/context/document generation/version/chunk/hash/text;
+provider and browser never receive that internal registry/binding. Destination
+scoping uses the existing verified-name sentence boundary. History supplies only
+last two authorized questions to resolve intent, never answers or old citations.
+
+One assessment call (default 15s) and at most one answer call (25s), no automatic
+retries. Each is capped at 8000 input tokens, 2000 output tokens and 64KiB response;
+embedding retains its existing bounds. Conservative per-attempt quota reservation
+increases from 23000 to 33000 to cover the extra bounded call; global budget remains
+unchanged. Failed/recovered attempts are still charged and successful replay does
+not call providers or charge again. Live cost/latency calibration remains pending.
+
+No new similarity threshold: cosine 1-distance and existing candidate floor 0.25
+are unchanged and cannot certify semantic sufficiency. Task203 policy is reused.
+A non-exhaustive but structurally/reference-valid review is safe uncertainty.
+UNCERTAIN, conflict, irrelevant, missing required evidence and empty retrieval
+never enter factual generation. Valid ambiguous intent returns the existing
+clarification question without generation; empty retrieval skips both calls.
+
+### Grounding and API enforcement
+
+For sufficient/partial review, the generation prompt carries only reviewed support
+pairs and the server-expected status alongside scoped current evidence. Server
+validation requires every factual sentence/citation pair to be an exact reviewed
+support pair and every SUPPORTED aspect to appear in the answer. ANSWERED requires
+complete coverage; PARTIAL requires supported plus missing aspects and may omit
+only missing aspects. Copying a real but irrelevant quote, fabricated citations,
+unsupported claims, omitted supported aspects and mismatched coverage statuses
+are rejected with AI_INVALID_RESPONSE, no completed factual turn. Both generation
+adapter and service enforce grounding before confirmed persistence.
+
+Successful no-evidence/uncertainty returns existing HTTP200 SUCCESS completed
+INSUFFICIENT_SOURCE with no parts/citations. Partial/complete supported answers
+retain public citation projection. Provider unavailable/timeout stays 503
+AI_UNAVAILABLE; malformed assessment/answer stays 502 AI_INVALID_RESPONSE;
+unexpected database failures retain existing 500 INTERNAL_ERROR. Revocation/change
+of the snapshot remains the existing 502 eligibility failure, never a fabricated
+answer. Eligibility watcher now also covers assessment, with rechecks after it,
+after generation and during locked completion. Existing ownership, immutable
+conversation context, idempotency, lease/fencing, UNKNOWN persistence and technical
+FAILED recovery contracts remain in force.
+
+### UI and acceptance boundary
+
+AssistantAnswer shows exactly “Chưa đủ dữ liệu được xác minh để trả lời chính xác
+câu hỏi này.”, with guidance to adjust the existing composer and no citation slot.
+The existing stored/public insufficient message literal remains compatible with
+old turns; only presentation uses the requested wording. Partial UI distinguishes
+supported facts from the existing missing-data notice. Technical FAILED retains
+its error view and edit/new-intent recovery; UNKNOWN retries preserve identical
+payload/key. Shared shell/sidebar/context controls and accessibility remain.
+
+Offline browser fixture verified desktop and 390x844: exact notice, no citation,
+no horizontal overflow, separate technical error, edit/resubmit and follow-up
+head retained. No live API/provider/database was used by browser QA.
+
+Two former characterization probes now reject irrelevant exact quotation and
+incomplete ANSWERED respectively; real assessment/generation HTTP tests also
+check response semantics, successful vs failed persistence and public citations.
+Offline assertions cannot prove that an LLM always enumerates every aspect or
+judges relevance/conflict correctly. A syntactically valid incorrect semantic
+review is a remaining probabilistic limitation, not independent evidence.
+Real approved Hà Giang corpus evaluation, ambiguity/recall/coverage/conflict
+accuracy, provider schema/runtime behavior, cost/latency and live Guest/context/
+idempotency scenarios require owner acceptance. Extractive answers and existing
+verified-name scoping conservatively limit paraphrase, aliases/pronoun recall.
+
+Final counts and gate evidence are recorded in docs/ai-progress.md. Lint is
+NOT_AVAILABLE (no script/config), not PASS. US23 implementation is ready for live
+acceptance after existing runtime/source/migration readiness prerequisites;
+US21/US22 and all US23 acceptance/backlog statuses are not automatically accepted.

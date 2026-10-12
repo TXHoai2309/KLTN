@@ -37,6 +37,7 @@ describe("QA trusted network admission boundary",()=>{
   });
   it("rejects unbounded/fractional deployment budgets",()=>{
     const db={} as Database;
+    expect(()=>createQaAbuseGuard(db,{tokensPerAttempt:32_999})).toThrow();
     expect(()=>createQaAbuseGuard(db,{concurrentGlobal:0})).toThrow();
     expect(()=>createQaAbuseGuard(db,{askGlobalDay:Infinity})).toThrow();
     expect(()=>createQaAbuseGuard(db,{askGlobalDay:1.5})).toThrow();

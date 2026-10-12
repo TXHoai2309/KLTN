@@ -1,3 +1,4 @@
+import { fixtureReviewedInput } from "./__fixtures__/qa-reviewed-input";
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import { createQaGenerator, validateQaGenerationOutput, QA_GENERATION_LIMITS } from "./qa-generation";
@@ -6,7 +7,7 @@ import type { QaGenerationInput } from "./qa-runtime-contract";
 import { createQaDiagnostics, qaReportFailure, type QaDiagnosticEvent } from "./qa-diagnostics";
 
 const source = "Dinh thự nằm tại Sà Phìn. Tài liệu không xác minh giờ mở cửa.";
-const input = (): QaGenerationInput => ({ question: "Dinh thự nằm ở đâu?", history: [], context: { type: "GENERAL" }, evidence: [{ citationId: "c1", documentId: "private_document", generationId: "private_generation", contentVersionId: "private_version", chunkId: "private_chunk", chunkHash: "hash", text: source, tokenCount: 30, score: 0.9, citation: { id: "c1", sourceId: "public_alias", title: "Nguồn kiểm thử", sourceUrl: null, locators: [{ pageNumber: 1 }] } }] });
+const input = (): QaGenerationInput => fixtureReviewedInput({ question: "Dinh thự nằm ở đâu?", history: [], context: { type: "GENERAL" }, evidence: [{ citationId: "c1", documentId: "private_document", generationId: "private_generation", contentVersionId: "private_version", chunkId: "private_chunk", chunkHash: "hash", text: source, tokenCount: 30, score: 0.9, citation: { id: "c1", sourceId: "public_alias", title: "Nguồn kiểm thử", sourceUrl: null, locators: [{ pageNumber: 1 }] } }] });
 const answer = () => ({ status: "ANSWERED", answerParts: [{ text: "Dinh thự nằm tại Sà Phìn.", citationIds: ["c1"] }], unanswered: false });
 const response = (content: unknown, finish_reason = "stop") => new Response(JSON.stringify({ choices: [{ finish_reason, message: { content: typeof content === "string" ? content : JSON.stringify(content) } }] }));
 const generator = (fetcher: typeof fetch, extra = {}) => createQaGenerator({ apiKey: () => "fixture-only", fetcher, ...extra });
@@ -56,7 +57,7 @@ describe("Task193 grounded generation", () => {
     expect(JSON.stringify(output)).not.toMatch(/private_|chunkHash|tokenCount|score|embedding/);
   });
   it("supports PARTIAL with a constant safe notice", () => {
-    expect(validateQaGenerationOutput({ ...answer(), status: "PARTIAL", unanswered: true }, input())).toMatchObject({ status: "PARTIAL", unansweredAspects: [QA_UNANSWERED_ASPECT] });
+    expect(validateQaGenerationOutput({ ...answer(), status: "PARTIAL", unanswered: true }, fixtureReviewedInput(input(), true))).toMatchObject({ status: "PARTIAL", unansweredAspects: [QA_UNANSWERED_ASPECT] });
   });
   it.each(["INSUFFICIENT_SOURCE", "CLARIFICATION_REQUIRED"])("supports safe %s", status => {
     const result = validateQaGenerationOutput({ status, answerParts: [], unanswered: false }, input());

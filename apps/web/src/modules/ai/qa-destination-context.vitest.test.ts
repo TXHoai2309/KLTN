@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Database } from "@KLTN/db";
+import { fixtureReviewedInput } from "./__fixtures__/qa-reviewed-input";
 import { qaRequestSchema } from "./qa-contract";
 import { destinationEvidenceSentences, resolveQaContext } from "./qa-destination-context";
 import { composeQaPrompt } from "./qa-prompt";
@@ -13,7 +14,7 @@ const context = { type: "DESTINATION" as const, destinationId: "synthetic_a", na
 const text = "Đỉnh Kiểm Thử có một dữ kiện giả lập. Điểm Khác có dữ kiện riêng.";
 const citation = { id: "c1", sourceId: "source_synthetic", title: "Synthetic context source", sourceUrl: null, locators: [] };
 const evidence: QaEvidence = { citationId: "c1", documentId: "doc_fixture", generationId: "generation_fixture", contentVersionId: "version_fixture", chunkId: "chunk_fixture", chunkHash: "a".repeat(64), text, tokenCount: countEmbeddingTokens(text), score: 1, citation };
-const input: QaGenerationInput = { question: "Nó có gì?", history: [], evidence: [evidence], context };
+const input: QaGenerationInput = fixtureReviewedInput({ question: "Nó có gì?", history: [], evidence: [evidence], context });
 
 describe("US22 trusted destination context and scoped evidence", () => {
   it("accepts ID-only context and rejects client names/permissions/TRIP", () => {

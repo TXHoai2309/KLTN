@@ -11,12 +11,12 @@ export interface QaAbuseHooks {
   release(tx: Tx, turnId: string, fence: number): Promise<void>;
 }
 // Provisional conservative deployment budgets, requiring owner calibration. Each
-// attempt reserves its entire token ceiling, including embedding and generation.
+// attempt reserves its entire token ceiling, including embedding, assessment and generation.
 // No refund: failed calls and recovered same-key attempts still incur cost.
 export const QA_ABUSE_LIMITS = {
   bootstrapNetworkHour: 10, bootstrapGlobalDay: 500,
   askNetworkTenMinutes: 20, askNetworkDay: 100, askGlobalDay: 500,
-  globalTokensDay: 8_000_000, tokensPerAttempt: 23_000,
+  globalTokensDay: 8_000_000, tokensPerAttempt: 33_000,
   concurrentGlobal: 8, concurrentNetwork: 2, concurrentPrincipal: 1,
 } as const;
 export type QaAbuseLimits = { [K in keyof typeof QA_ABUSE_LIMITS]: number };
@@ -50,7 +50,7 @@ export function createQaNetworkResolver(options: { secret: () => string | undefi
 export function createQaAbuseGuard(db: Database, overrides: Partial<QaAbuseLimits> = {}) {
   const limits = { ...QA_ABUSE_LIMITS, ...overrides };
   if (Object.values(limits).some(n => !Number.isSafeInteger(n) || n < 1 || n > 100_000_000)) throw new Error("Invalid QA abuse limit");
-  if (limits.tokensPerAttempt < 23_000) throw new Error("QA cost reservation below provider token ceilings");
+  if (limits.tokensPerAttempt < QA_ABUSE_LIMITS.tokensPerAttempt) throw new Error("QA cost reservation below provider token ceilings");
   const lock = async (tx: Tx) => {
     await tx.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended('qa-abuse-global-v1',0))::text AS locked`);
   };
