@@ -1,4 +1,6 @@
 "use client";
+import ContentProfileEditor from "@/components/admin/content-profile-editor";
+import { cultureProfileSchema, type CultureProfile } from "@/modules/content-profile/content-profile-contract";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Route } from "next";
 import Link from "next/link";
@@ -20,10 +22,12 @@ const blank = () => ({ title: "", content: "", sourceTitle: "", sourceUrl: "" })
 type Fields = ReturnType<typeof blank>;
 type Field = keyof Fields;
 type Selected = CultureDto["destinations"];
-const serializeDraft = (fields: Fields, selected: Selected) => JSON.stringify({ fields, destinationIds: selected.map(destination => destination.id) });
+const serializeDraft = (fields: Fields, selected: Selected, profile: CultureProfile = cultureProfileSchema.parse({})) => JSON.stringify({ fields, profile, destinationIds: selected.map(destination => destination.id) });
 
 export default function CultureForm({ id }: { id: string | null }) {
   const router = useRouter();
+  const [profilePending, setProfilePending] = useState(false);
+  const [profile, setProfile] = useState<CultureProfile>(() => cultureProfileSchema.parse({}));
   const [fields, setFields] = useState<Fields>(blank);
   const [selected, setSelected] = useState<Selected>([]);
   const [visibility, setVisibility] = useState<CultureDto["visibility"]>("HIDDEN");
@@ -42,7 +46,7 @@ export default function CultureForm({ id }: { id: string | null }) {
   const leaveDialog = useRef<HTMLDialogElement>(null);
   const attempt = useRef<{ key: string; input: CultureInput } | null>(null);
   const visibilityAction = useCultureVisibility(dto => setVisibility(dto.visibility), lock);
-  const dirty = initialDraft.current !== null && serializeDraft(fields, selected) !== initialDraft.current;
+  const dirty = initialDraft.current !== null && serializeDraft(fields, selected, profile) !== initialDraft.current;
   useEffect(() => { dirtyRef.current = dirty; }, [dirty]);
 
   useEffect(() => {
@@ -52,9 +56,9 @@ export default function CultureForm({ id }: { id: string | null }) {
     void loadCulture(id).then(dto => {
       if (active) {
         const loadedFields = { title: dto.title, content: dto.content, sourceTitle: dto.sourceTitle ?? "", sourceUrl: dto.sourceUrl ?? "" };
-        initialDraft.current = serializeDraft(loadedFields, dto.destinations);
+        initialDraft.current = serializeDraft(loadedFields, dto.destinations, dto.profile ?? cultureProfileSchema.parse({}));
         dirtyRef.current = false;
-        setFields(loadedFields); setSelected(dto.destinations); setVisibility(dto.visibility); setLoading(false);
+        setProfile(dto.profile ?? cultureProfileSchema.parse({})); setFields(loadedFields); setSelected(dto.destinations); setVisibility(dto.visibility); setLoading(false);
       }
     }).catch(error => { if (active) { setLoadError(error instanceof CultureReadError ? authorizationFeedback(error.status) ?? error.message : "Không thể tải nội dung văn hóa."); setLoading(false); } });
     return () => { active = false; };
@@ -104,7 +108,7 @@ export default function CultureForm({ id }: { id: string | null }) {
     if (!pendingNavigation || savingRef.current) return;
     const destination = pendingNavigation;
     dirtyRef.current = false;
-    initialDraft.current = serializeDraft(fields, selected);
+    initialDraft.current = serializeDraft(fields, selected, profile);
     leaveDialog.current?.close();
     setPendingNavigation(null);
     router.push(destination as Route);
@@ -112,13 +116,13 @@ export default function CultureForm({ id }: { id: string | null }) {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (savingRef.current || visibilityAction.busy || !claimSubmission(lock)) return;
+    if (profilePending || savingRef.current || visibilityAction.busy || !claimSubmission(lock)) return;
     let completed = false;
     try {
       let input: CultureInput;
       if (unknown && attempt.current) input = attempt.current.input;
       else {
-        const parsed = cultureInputSchema.safeParse({ ...fields, destinationIds: selected.map(destination => destination.id) });
+        const parsed = cultureInputSchema.safeParse({ ...fields, profile, destinationIds: selected.map(destination => destination.id) });
         if (!parsed.success) {
           const next: Record<string, string> = {};
           parsed.error.issues.forEach(issue => { next[issue.path.join(".")] = issue.code === "invalid_type" ? "Nhập giá trị hợp lệ." : issue.message; });
@@ -137,7 +141,7 @@ export default function CultureForm({ id }: { id: string | null }) {
       if (result.status === "SUCCESS") {
         completed = true;
         dirtyRef.current = false;
-        initialDraft.current = serializeDraft(fields, selected);
+        initialDraft.current = serializeDraft(fields, selected, profile);
         savingRef.current = false;
         markCultureSaved(id === null);
         router.push("/admin/culture");
@@ -151,7 +155,7 @@ export default function CultureForm({ id }: { id: string | null }) {
 
   function changeField(key: Field, value: string) {
     const nextFields = { ...fields, [key]: value };
-    dirtyRef.current = initialDraft.current !== null && serializeDraft(nextFields, selected) !== initialDraft.current;
+    dirtyRef.current = initialDraft.current !== null && serializeDraft(nextFields, selected, profile) !== initialDraft.current;
     setFields(nextFields);
     setErrors(current => {
       const next = { ...current };
@@ -165,7 +169,7 @@ export default function CultureForm({ id }: { id: string | null }) {
   }
 
   function changeSelected(next: Selected) {
-    dirtyRef.current = initialDraft.current !== null && serializeDraft(fields, next) !== initialDraft.current;
+    dirtyRef.current = initialDraft.current !== null && serializeDraft(fields, next, profile) !== initialDraft.current;
     setSelected(next);
   }
 
@@ -182,15 +186,16 @@ export default function CultureForm({ id }: { id: string | null }) {
       {visibilityAction.feedback}
       <form method="post" noValidate onSubmit={event => void submit(event)}>
         <fieldset className="destination-form-fields" disabled={saving || unknown || visibilityAction.busy}>
-          <section className="destination-card"><SectionHeading icon={BookOpen} title="Nội dung" description="Tiêu đề và nội dung văn hóa. Các trường có * là bắt buộc." />{field("title", "Tiêu đề *", 200)}{field("content", "Nội dung văn hóa *", 20000)}</section>
-          <section className="destination-card culture-destination-section"><SectionHeading icon={MapPin} title="Điểm đến liên quan" description="Chọn một hoặc nhiều điểm đến phù hợp với nội dung. Không bắt buộc." /><DestinationPicker selected={selected} onChange={changeSelected} />{errors.destinationIds && <p className="destination-error" role="alert">{errors.destinationIds}</p>}</section>
-          <section className="destination-card"><SectionHeading icon={Link2} title="Nguồn" description="Nguồn tham khảo hoặc liên kết khi có. Không bắt buộc URL nếu đã có tên nguồn." /><div className="destination-grid">{field("sourceTitle", "Tên nguồn", 300)}{field("sourceUrl", "Liên kết nguồn", 2000)}</div></section>
+          
+          
+          
+        <ContentProfileEditor basicFields={field("title", "Tiêu đề *", 200)} onPendingChange={setProfilePending} content={<section className="destination-card"><SectionHeading icon={BookOpen} title="Nội dung văn hóa" description="Nội dung gốc được nhập một lần cho website và hồ sơ tái sử dụng." />{field("content", "Nội dung văn hóa *", 20000)}</section>} relatedDestinations={<section className="destination-card culture-destination-section"><SectionHeading icon={MapPin} title="Điểm đến liên quan" description="Chọn một hoặc nhiều điểm đến phù hợp với nội dung. Không bắt buộc." /><DestinationPicker selected={selected} onChange={changeSelected} />{errors.destinationIds && <p className="destination-error" role="alert">{errors.destinationIds}</p>}</section>} legacySources={<section className="destination-card"><SectionHeading icon={Link2} title="Nguồn" description="Nguồn tham khảo hoặc liên kết khi có. Không bắt buộc URL nếu đã có tên nguồn." /><div className="destination-grid">{field("sourceTitle", "Tên nguồn", 300)}{field("sourceUrl", "Liên kết nguồn", 2000)}</div></section>} profile={profile} errors={errors} onChange={p => { dirtyRef.current = true; setProfile(p as CultureProfile); }} />
         </fieldset>
-        {id ? <section className="destination-card destination-visibility"><SectionHeading icon={ShieldCheck} title="Trạng thái hiển thị" description="Ẩn/hiển thị là thao tác riêng, không lưu cùng nội dung." />{visibilityAction.action({ id, title: fields.title, visibility }, saving || unknown)}</section> : <section className="culture-create-status" aria-label="Trạng thái sau khi tạo">
+        {id ? <section className="destination-card destination-visibility"><SectionHeading icon={ShieldCheck} title="Trạng thái hiển thị" description="Ẩn/hiển thị là thao tác riêng, không lưu cùng nội dung." />{visibilityAction.action({ id, title: fields.title, visibility }, profilePending || saving || unknown)}</section> : <section className="culture-create-status" aria-label="Trạng thái sau khi tạo">
           <div className="culture-create-status-copy"><span className="culture-create-status-icon"><Eye size={18} aria-hidden="true" /></span><div><strong>Trạng thái sau khi tạo</strong><p>Nội dung mới được tạo ở trạng thái ẩn. Bạn có thể công khai nội dung sau khi tạo.</p></div></div>
           <VisibilityBadge visibility="HIDDEN" />
         </section>}
-        <div className="destination-form-actions"><p>{saving ? id ? "Đang lưu nội dung..." : "Đang tạo nội dung..." : unknown ? "Nội dung được giữ nguyên để thử lại an toàn." : dirty ? "Các thay đổi chưa được lưu." : id ? "Chưa có thay đổi chưa lưu." : "Nội dung mới sẽ được tạo ở trạng thái ẩn."}</p><div className="destination-action-buttons">{!saving && !unknown && !visibilityAction.busy && <Link className="destination-button" href="/admin/culture">Hủy</Link>}<button type="submit" className="destination-primary" disabled={saving || visibilityAction.busy} aria-busy={saving}>{saving ? <LoaderCircle size={17} className="destination-spinner" aria-hidden="true" /> : id ? <Save size={17} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />}{saving ? id ? "Đang lưu..." : "Đang tạo..." : unknown ? "Đọc lại và thử lại" : id ? "Lưu thay đổi" : "Tạo nội dung văn hóa"}</button></div></div>
+        <div className="destination-form-actions"><p>{saving ? id ? "Đang lưu nội dung..." : "Đang tạo nội dung..." : unknown ? "Nội dung được giữ nguyên để thử lại an toàn." : dirty ? "Các thay đổi chưa được lưu." : id ? "Chưa có thay đổi chưa lưu." : "Nội dung mới sẽ được tạo ở trạng thái ẩn."}</p><div className="destination-action-buttons">{!saving && !unknown && !visibilityAction.busy && <Link className="destination-button" href="/admin/culture">Hủy</Link>}<button type="submit" className="destination-primary" disabled={profilePending || saving || visibilityAction.busy} aria-busy={saving}>{saving ? <LoaderCircle size={17} className="destination-spinner" aria-hidden="true" /> : id ? <Save size={17} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />}{saving ? id ? "Đang lưu..." : "Đang tạo..." : unknown ? "Đọc lại và thử lại" : id ? "Lưu thay đổi" : "Tạo nội dung văn hóa"}</button></div></div>
       </form>
     </>}
     <dialog ref={leaveDialog} className="destination-confirm culture-leave-dialog" aria-labelledby="culture-leave-title" aria-describedby="culture-leave-description" onCancel={event => { event.preventDefault(); stayOnForm(); }}>
