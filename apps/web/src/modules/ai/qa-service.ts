@@ -1,16 +1,21 @@
+import { assertQaAnswerGrounding } from "./qa-answer-grounding";
 import { AppError } from "../../server/http/app-error";
 import { qaCompletedTurnSchema, qaIdempotencyKeySchema, qaRequestSchema, type QaRequest } from "./qa-contract";
 import type { QaConversationStore } from "./qa-conversation-store";
-import type { QaGenerator, QaPrincipal, QaRetriever } from "./qa-runtime-contract";
+import type { QaGenerator, QaPrincipal, QaRetriever, QaGenerationInput } from "./qa-runtime-contract";
 import { isQaPublicAnswerSafe } from "./qa-public-safety";
 import { EmbeddingError } from "../rag-processing/embedding-errors";
 import { qaOrigin, qaReportFailure, qaStage } from "./qa-diagnostics";
 import type { QaContext } from "./qa-contract";
 import type { QaResolvedContext } from "./qa-destination-context";
+import { createQaAssessor, type QaAssessor } from "./qa-assessment";
+import { insufficientQaAnswer } from "./qa-generation";
+import { QA_CLARIFICATION_QUESTION } from "./qa-prompt";
 import { evaluateQaSourceSufficiency } from "./qa-source-sufficiency";
 
-export function createQaService(dependencies: { store: QaConversationStore; retriever: QaRetriever; generator: QaGenerator; eligibilityPollMs?: number; resolveContext?: (context: QaContext) => Promise<QaResolvedContext> }) {
+export function createQaService(dependencies: { store: QaConversationStore; retriever: QaRetriever; generator: QaGenerator; assessor?: QaAssessor; eligibilityPollMs?: number; resolveContext?: (context: QaContext) => Promise<QaResolvedContext> }) {
   const { store, retriever, generator } = dependencies;
+  const assessor = dependencies.assessor ?? createQaAssessor();
   const eligibilityPollMs=dependencies.eligibilityPollMs ?? 1000;
   if(!Number.isInteger(eligibilityPollMs)||eligibilityPollMs<1||eligibilityPollMs>5000) throw new Error("Invalid QA eligibility polling interval");
   return {
@@ -43,10 +48,6 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
         qaStage("EVIDENCE_ELIGIBILITY_CHECK");
         if (!await retriever.recheck(evidence)) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "EVIDENCE_ELIGIBILITY_CHECK", "ELIGIBILITY");
         qaStage("EVIDENCE_ELIGIBILITY_CHECKED", { eligibleChunks: evidence.length });
-        // Successful retrieval + current server eligibility only. No model or
-        // client classification is promoted into verified semantic coverage.
-        const sourceSufficiency = evaluateQaSourceSufficiency({ kind: "COMPLETED",
-          eligibility: "CURRENT", input: { question: request.data.question, context: resolvedContext, evidence } });
         const providerController=new AbortController();
         const relayAbort=()=>providerController.abort();
         signal?.addEventListener("abort",relayAbort,{once:true});
@@ -78,8 +79,20 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
           }
         })();
         qaStage("GENERATION_STARTED");
-        const generation=generator.generate({ question: request.data.question, history: admission.history, evidence, context: resolvedContext, sourceSufficiency, signal: providerController.signal })
-          .then(value=>{if(invalidationError)throw invalidationError;return value;},failure=>{if(invalidationError)throw invalidationError;throw failure;});
+        let reviewedInput: QaGenerationInput | undefined;
+        const generation = (async () => {
+          const input = { question: request.data.question, history: admission.history, evidence, context: resolvedContext, signal: providerController.signal };
+          if (!evidence.length) return insufficientQaAnswer();
+          const assessment = await assessor.assess(input);
+          if (!await retriever.recheck(evidence)) throw new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502);
+          if (assessment.intent === "AMBIGUOUS") return { status: "CLARIFICATION_REQUIRED" as const, answerParts: [] as [], citations: [] as [], clarificationQuestion: QA_CLARIFICATION_QUESTION };
+          const sourceSufficiency = evaluateQaSourceSufficiency({ kind: "COMPLETED", eligibility: "CURRENT", input, review: assessment.review });
+          if (!assessment.review.exhaustive) return insufficientQaAnswer();
+          if (sourceSufficiency.reason === "INVALID_REVIEW" || sourceSufficiency.reason === "UNASSESSED") throw new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502);
+          if (sourceSufficiency.status === "INSUFFICIENT" || sourceSufficiency.status === "UNCERTAIN") return insufficientQaAnswer();
+          reviewedInput = { ...input, sourceSufficiency, sourceReview: assessment.review };
+          return generator.generate(reviewedInput);
+        })().then(value=>{if(invalidationError)throw invalidationError;return value;},failure=>{if(invalidationError)throw invalidationError;throw failure;});
         let answer;
         try { answer=await Promise.race([generation,invalidation]); }
         finally {
@@ -90,6 +103,7 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
           await watcher;
         }
         qaStage("GENERATION_COMPLETED");
+        if (reviewedInput) assertQaAnswerGrounding(answer, reviewedInput);
         if (!isQaPublicAnswerSafe(answer, evidence)) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "PUBLIC_SAFETY", "PRIVATE_MATERIAL");
         const parsed = qaCompletedTurnSchema.safeParse({ ...answer, conversationId: admission.conversationId, turnId: admission.turnId, turnState: "COMPLETED", context });
         if (!parsed.success) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "RESPONSE_VALIDATION", "SCHEMA", parsed.error.issues);

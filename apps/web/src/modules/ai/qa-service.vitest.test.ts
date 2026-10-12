@@ -1,3 +1,4 @@
+import { fixtureQaAssessment } from "./__fixtures__/qa-reviewed-input";
 import { describe,expect,it,vi } from "vitest";
 import { createQaService } from "./qa-service";
 import { qaRequestHash, type QaConversationStore, type QaReservation } from "./qa-conversation-store";
@@ -14,17 +15,10 @@ function setup(){
   const store:QaConversationStore={reserve:vi.fn(async()=>reservation),complete:vi.fn(async(_p,_r,data)=>data),fail:vi.fn(async()=>{}),history:vi.fn(async()=>[]),delete:vi.fn(async()=>{}),revokeGuest:vi.fn(async()=>{}),cleanup:vi.fn(async()=>({processed:0,hasMore:false,lockAcquired:true,lastSuccessfulSweep:null,eligibleBacklogCount:0,oldestOverdueItem:null,failureCount:0}))};
   const retriever={retrieve:vi.fn<QaRetriever["retrieve"]>(async()=>[]),recheck:vi.fn(async()=>true)};
   const generator={generate:vi.fn<QaGenerator["generate"]>(async()=>answer)};
-  return {store,retriever,generator,reservation,service:createQaService({store,retriever,generator})};
+  const assessor={assess:vi.fn(async (input: import("./qa-runtime-contract").QaGenerationInput)=>fixtureQaAssessment(input))};
+  return {store,retriever,generator,assessor,reservation,service:createQaService({store,retriever,generator,assessor})};
 }
 describe("QA orchestration without external services",()=>{
-  it("passes only an internal conservative decision after successful retrieval and recheck", async () => {
-    const t = setup();
-    await t.service.ask(principal, "policy_key", request);
-    expect(t.generator.generate).toHaveBeenCalledWith(expect.objectContaining({
-      sourceSufficiency: { status: "INSUFFICIENT", reason: "NO_CHUNKS" },
-    }));
-    expect(JSON.stringify(vi.mocked(t.store.complete).mock.calls[0]![2])).not.toContain("sourceSufficiency");
-  });
   it("does not generate or resurrect a turn when the store rejects a deleted/expired conversation", async () => {
     const t = setup();
     vi.mocked(t.store.reserve).mockRejectedValue(new AppError("NOT_FOUND", "unavailable conversation", 404));
@@ -40,10 +34,11 @@ describe("QA orchestration without external services",()=>{
     {status:"CLARIFICATION_REQUIRED",answerParts:[],citations:[],clarificationQuestion:"Bạn muốn hỏi điều gì?"},
   ])("persists $status only after completion acknowledgement",async outcome=>{
     const t=setup();t.retriever.retrieve.mockResolvedValue([evidence]);t.generator.generate.mockResolvedValue(outcome);
+    if(outcome.status === "PARTIAL") t.assessor.assess.mockImplementation(async input=>fixtureQaAssessment(input,true));
     const result=await t.service.ask(principal,"key",request);
     expect(result.data.status).toBe(outcome.status);
     expect(t.generator.generate).toHaveBeenCalledWith(expect.objectContaining({
-      sourceSufficiency: { status: "UNCERTAIN", reason: "UNASSESSED" },
+      sourceSufficiency: { status: outcome.status === "PARTIAL" ? "PARTIAL" : "SUFFICIENT", reason: outcome.status === "PARTIAL" ? "PARTIAL_COVERAGE" : "COMPLETE_COVERAGE" },
     }));
     expect(JSON.stringify(result.data)).not.toMatch(/private_doc|private_chunk|tokenCount|chunkHash/);
   });
@@ -59,7 +54,7 @@ describe("QA orchestration without external services",()=>{
     const result=await t.service.ask(principal,"key",request);
     expect(result.data.status).toBe("INSUFFICIENT_SOURCE");
     expect(t.retriever.retrieve).toHaveBeenCalledWith(request.question,t.reservation.history,undefined,{type:"GENERAL"});
-    expect(t.generator.generate).toHaveBeenCalledWith(expect.objectContaining({history:t.reservation.history,evidence:[]}));
+    expect(t.generator.generate).not.toHaveBeenCalled();
     expect(t.store.complete).toHaveBeenCalledOnce();
   });
   it("checks current eligibility before invoking generation",async()=>{
@@ -74,13 +69,13 @@ describe("QA orchestration without external services",()=>{
   });
   it("aborts an in-flight provider when a source becomes disabled and never completes the turn",async()=>{
     const t=setup();t.retriever.retrieve.mockResolvedValue([evidence]);
-    t.retriever.recheck.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    t.retriever.recheck.mockResolvedValueOnce(true).mockResolvedValueOnce(true).mockResolvedValueOnce(false);
     let providerSignal:AbortSignal|undefined;
     t.generator.generate.mockImplementation(({signal})=>{
       providerSignal=signal;
       return new Promise<QaAnswer>((_resolve,reject)=>signal?.addEventListener("abort",()=>reject(new AppError("AI_UNAVAILABLE","aborted",503)),{once:true}));
     });
-    const service=createQaService({store:t.store,retriever:t.retriever,generator:t.generator,eligibilityPollMs:1});
+    const service=createQaService({store:t.store,retriever:t.retriever,generator:t.generator,eligibilityPollMs:1,assessor:{assess:async input=>fixtureQaAssessment(input)}});
     await expect(service.ask(principal,"key",request)).rejects.toMatchObject({code:"AI_INVALID_RESPONSE"});
     expect(providerSignal?.aborted).toBe(true);
     expect(t.store.complete).not.toHaveBeenCalled();

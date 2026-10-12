@@ -19,6 +19,7 @@ function Fixture() {
       setRequests(current => [...current, attempt.body]);
       const mode = document.querySelector<HTMLSelectElement>("#fixture-scenario")?.value;
       if (mode === "unknown") return { kind: "networkAmbiguity" };
+      if (mode === "technical") return { kind: "response", httpStatus: 503, body: { success: false, operationStatus: "FAILED", error: { code: "AI_UNAVAILABLE", message: "Dịch vụ AI hiện không khả dụng. Vui lòng thử lại sau." } } };
       if (mode === "failed") return { kind: "response", httpStatus: 404, body: { success: false, operationStatus: "FAILED", error: { code: "CONTEXT_UNAVAILABLE", message: "Bối cảnh điểm đến không còn khả dụng." } } };
       const conversationId = "conversationId" in attempt.payload ? attempt.payload.conversationId : `conv_fixture_${++count}`;
       const context = "conversationId" in attempt.payload ? contexts.get(conversationId)! : attempt.payload.context;
@@ -27,7 +28,7 @@ function Fixture() {
     } };
   });
   return <>
-    <div><strong>US22 — deterministic browser fixture only</strong> <label htmlFor="fixture-scenario">Response</label><select id="fixture-scenario" value={scenario} onChange={event => setScenario(event.target.value)}><option value="success">Success</option><option value="unknown">Unknown</option><option value="failed">Unavailable</option></select>
+    <div><strong>US22/US23 — deterministic browser fixture only</strong> <label htmlFor="fixture-scenario">Response</label><select id="fixture-scenario" value={scenario} onChange={event => setScenario(event.target.value)}><option value="success">Success</option><option value="technical">Technical failure</option><option value="unknown">Unknown</option><option value="failed">Unavailable</option></select>
       <button onClick={() => setAvailable(value => !value)}>Toggle auth revalidation</button>
       <a href="#other-destination">View unrelated content</a>
     </div>

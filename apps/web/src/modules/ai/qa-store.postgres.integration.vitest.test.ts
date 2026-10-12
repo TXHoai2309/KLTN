@@ -219,10 +219,11 @@ suite("US21 real PostgreSQL reservations, retention and completion",()=>{
     const p=await guest(),key=randomUUID();
     const flaky={...store,complete:async(...args:Parameters<typeof store.complete>)=>{await store.complete(...args);throw new Error("lost acknowledgement");}};
     const generate=vi.fn(async():Promise<QaAnswer>=>({status:"INSUFFICIENT_SOURCE",answerParts:[],citations:[],message:QA_INSUFFICIENT_SOURCE_MESSAGE}));
-    const service=createQaService({store:flaky,retriever:{retrieve:async()=>[],recheck:async()=>true},generator:{generate}});
+    const retrieve=vi.fn(async()=>[]);
+    const service=createQaService({store:flaky,retriever:{retrieve,recheck:async()=>true},generator:{generate}});
     const request={question:"x",context:{type:"GENERAL" as const}};
     await expect(service.ask(p,key,request)).rejects.toMatchObject({code:"OPERATION_STATUS_UNKNOWN"});
-    expect((await service.ask(p,key,request)).replayed).toBe(true); expect(generate).toHaveBeenCalledTimes(1);
+    expect((await service.ask(p,key,request)).replayed).toBe(true); expect(generate).not.toHaveBeenCalled(); expect(retrieve).toHaveBeenCalledTimes(1);
   });
   it("persists Traveler/Admin thirty-day history independently of Guest and one another",async()=>{
     const traveler={kind:"USER" as const,id:randomUUID()},admin={kind:"USER" as const,id:randomUUID()},anonymous=await guest();

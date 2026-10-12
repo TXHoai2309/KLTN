@@ -1310,3 +1310,95 @@ TipTap stores edited content as a versioned validated ProseMirror JSON envelope 
 Checks: 672/672 full Vitest/disposable PostgreSQL (45 files, zero skips; owned container/volume cleaned), 328/328 legacy, root typecheck four tasks and production build 30/30 PASS. Real Chromium component fixture with fully intercepted APIs and blocked external network: rich save/reopen/paste/link/undo, legacy preservation, category keyboard search, multi-area/community, optional destinations, rights/UNKNOWN identical-key retry, dirty Cancel/native Back/unload-handler and cleared-after-save checks, first-error focus, previews, 320/360/390/768/1280/1440 light/dark no overflow and reachable final fields. Screenshots/logs under ignored apps/web/.cache/admin-redesign-*. Existing map renderer tests and prior owner live acceptance reused; provider canvas mocked here. No authenticated live Next/Neon, Firefox/Safari or formal screen-reader acceptance claimed. Initial standalone threaded Vitest Windows exit failure was replaced by the successful full isolated runner, not reported as PASS.
 
 Feature commits: 8d3c94a (rich content/shared categories), 048adf4 (forms/shell/navigation/guard/preview). QA/evidence commit adds the repeatable browser fixture, public-URL-only image preview hardening and docs/implementation/admin-forms-ux-redesign-execution.md. Scoped diff/credential checks PASS. No Neon read/write/migration, production operation, OpenAI live, RAG index/allowlist mutation, push/deploy, research edits, reset or worktree operation. US-22 remains IMPLEMENTED — LIVE ACCEPTANCE PENDING. Live DB canary needs separate authorization.
+
+### 2026-10-12 — US-23 Task203 runtime closure + Tasks204–207 offline implementation
+
+Baseline e2e3aeac6e6e9e5899a4b03427878cfdcc26a839; isolated existing branch
+hoai/us23-task203-source-sufficiency. Owner explicitly authorized closing the
+runtime gap before automatically continuing the integrated batch. Historical
+Task203 note above is superseded: the runtime now creates a real structured
+semantic assessment from current eligible/scoped retrieval, validates quoted
+support/reference/shape, creates its own snapshot binding and invokes the existing
+policy. PhaseA focused161/161, disposable PostgreSQL62/62, web typecheck and build
+29/29 passed before PhaseB. No fixture semantic review in production.
+
+Task204: completed insufficient/clarification/partial/answered results reuse the
+public contract and confirmed persistence; technical 503/502/500 and UNKNOWN stay
+separate. Task206: grounding enforced in generation adapter and service, every
+returned sentence/citation must be reviewed current support, all supported aspects
+must be represented; partial cannot label itself complete or omit supported facets.
+Valid uncertain/nonexhaustive/conflicting review fails closed without factual
+generation. Malformed/unavailable assessment is technical failure. Watcher includes
+assessment; no change to US19 approval/publication or US22 scope/ownership rules.
+
+Two bounded structured provider calls maximum per attempt (assessment15s default,
+generation25s), no automatic retry; existing input8000/output2000/64KiB response
+bounds each. Conservative admission reservation33000 replaces23000 to cover the
+extra call; replay remains uncharged and recovered/failed attempts charged. No new
+similarity floor; existing candidate0.25 is unchanged and not a semantic guarantee.
+
+Task205: exact requested notice with adjustment guidance in shared AssistantAnswer,
+no fabricated facts/citations. Stored public message literal remains compatible.
+Partial visibly separates supported content and missing data; technical errors keep
+existing edit/new-intent path. Browser offline fixture checked desktop and390x844,
+no horizontal overflow, distinct failure, edit/resubmit and follow-up continuity.
+
+Task207: actual assessment+generation adapters through HTTP/service verify factual
+and nonfactual outcomes, citations and persistence, malformed/forged references,
+unsupported/irrelevant exact quotations, incomplete ANSWERED, omitted supported
+facets (including PARTIAL), conflict/uncertainty, provider failures/timeouts,
+revocation, history contamination and Destination scope. Existing retrieval/service
+suites cover real embedding error mapping and database/timeout boundaries. Former
+irrelevant-exact-sentence and incomplete-ANSWERED characterization probes now
+have rejecting regression expectations (2/2), not claims of real-corpus quality.
+
+Validation: final focused11 files243/243; final full
+Vitest43 files669/669 including assessment32 and UI3, zero skips, using disposable
+PostgreSQL16.15/pgvector0.8.6 (Task18515/15; DB suites62/62). Harness owned container
+and volume cleanup PASS. Legacy regression suite exited0 across all11 scripts;
+subsequent lint command fails Missing script and is NOT_AVAILABLE (no config), not
+PASS. Root typecheck force-run4/4 uncached and web typecheck PASS. Production local
+Webpack build29/29 with dummy loopback configuration and QA/cleanup disabled;
+existing Varlock dynamic-dependency warning remains. Scoped strict UI audit reused docs/design/us22-premium-ui.json: zero findings;
+ignored JSON evidence temp/us23-ui-audit.json. DESIGN lint zero errors/four existing
+orphan-token warnings. Final source/document diff check and scoped credential/file
+review at selective commit handoff.
+
+US23 IMPLEMENTATION_READY for live acceptance; NOT ACCEPTED. Semantic relevance,
+exhaustive facet discovery and conflict classification remain probabilistic; server
+traceability does not independently prove semantic truth. Real approved Hà Giang
+corpus coverage/recall, provider runtime/schema behavior, latency/cost, live Guest/
+Destination/ownership/idempotency and deployment readiness still require owner
+acceptance. Existing extractive sentence and exact destination-name limitations
+remain. No schema/migration, live OpenAI/Neon/Blob/production DB, flags/env/allowlist,
+push, deployment, local/remote merge or main TXH/unrelated dirty-file change in this
+batch. Selective local feature commit only; SHA supplied in final handoff.
+
+
+### 2026-10-12 — US23 live acceptance readiness blocked by real corpus
+
+At49758c9783dd841e31a1d1edbf5fff2516484a0c on isolated feature branch; no application
+fix or main TXH mutation. Current Neon READ ONLY project/branch/endpoint/neondb
+matched the owner-confirmed Development registry and pins,17 migrations/zero
+unfinished. Seven test-labelled RAG documents, six current INDEXED/READY with24
+1536-dimension embeddings; only existing fictional QA Sao Tim source allowlisted.
+No approved real tourism corpus in current retrieval scope; all five requested
+real-data groups blocked. Existing Lung Cu pilot remains rights/provider approval
+pending and was not ingested. No existing records, flags, allowlist or env changed.
+
+One actual baseline retrieval/assessment/generation adapter probe using the existing
+approved synthetic fixture: three OpenAI POSTs, all200, current code/citation/quote
+checks passed against independent expected QA-SAOTIM-21. No new fake source,
+conversation/session/turn or shared DB write. Pipeline9231ms, assessment2216ms;
+embedding15 tokens, chat1285 input+119 output; estimatedUSD0.00026445 at verified
+standard rates, not billing reconciliation or real-corpus cost. One sample cannot
+establish p50/p95 or acceptance SLA; numeric thresholds PENDING_APPROVAL.
+
+Focused regression243/243; disposable PostgreSQL62/62,zero skips, cleanup PASS.
+Live real-corpus cases0 executed; ten-case register prepared, independent BHG
+mountain reference fetched but not approved/ingested. Government source re-fetch403.
+No live UX/auth/persistence, induced provider outage or shared Neon load claimed.
+Standalone helper import and schema-name issues corrected before final probes;
+not product defects, no code change warranted. Full details and unblock sequence:
+docs/implementation/us23-live-acceptance.md. US23 remains NOT_ACCEPTED/BLOCKED for
+live acceptance. Report docs only, no new commit/push/merge/deploy.

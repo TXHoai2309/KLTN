@@ -115,3 +115,18 @@ the URL; cached page trees reconcile it using server-projected choices. Full rel
 retains only the URL's selected context (US-21 history
 restoration remains outside scope). Verify React StrictMode, browser back, switch,
 clear, UNKNOWN, auth revalidation, mobile and keyboard using the offline fixture.
+
+
+## US-23 source status presentation (2026-10-12)
+
+AssistantAnswer remains the shared status owner for runtime and fixtures. Missing
+verified evidence is a completed conversation result: show the requested plain
+Vietnamese notice and guidance to adjust the existing composer, with no answer
+parts/citation controls. Partial answers show supported content and the separate
+missing-data notice. Technical failures keep the existing pending error/edit
+flow; UNKNOWN keeps same-key retry and abandon behavior. Reuse current assistant
+CSS typography, spacing, muted text, wrapping, live status and native context
+picker; no new design tokens, modal, menu or page layout. Offline browser verified
+390x844 without horizontal overflow and desktop; missing source, technical failure,
+edit/resubmit and follow-up retain context and sidebar behavior. Live acceptance
+is distinct from this mocked-transport UI evidence.

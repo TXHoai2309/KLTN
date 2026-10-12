@@ -1,3 +1,4 @@
+import { fixtureQaAssessment } from "./__fixtures__/qa-reviewed-input";
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import type { Database } from "@KLTN/db";
@@ -31,7 +32,7 @@ async function exercise(mode: Mode, provider?: { output?: unknown; content?: str
   const store = { reserve: vi.fn(async () => ({ kind: "RESERVED" as const, conversationId: "conv", turnId: "turn", fence: 1, history: [] })), complete: vi.fn(async (_p, _r, data) => { if (mode === "persistence") throw new Error("private SQL credential"); return data; }), fail: vi.fn(async () => {}), history: vi.fn(), delete: vi.fn(), revokeGuest: vi.fn(), cleanup: vi.fn() } satisfies QaConversationStore;
   const retriever = createQaRetriever(database, { publicSourceIds: new Set([row.documentId]) });
   if (mode === "eligibility") retriever.recheck = async () => false;
-  const service = createQaService({ store, retriever, generator: createQaGenerator({ apiKey: () => "secret-credential", fetcher }) });
+  const service = createQaService({ store, retriever, assessor: { assess: async input => fixtureQaAssessment(input, (provider?.output as { status?: string } | undefined)?.status === "PARTIAL") }, generator: createQaGenerator({ apiKey: () => "secret-credential", fetcher }) });
   const http = createQaHttpHandlers({ diagnostics: createQaDiagnostics({ nodeEnv: "development", sink: event => events.push(event) }), enabled: () => true, resolve: async () => ({ kind: "USER", id: "private-user" }), ask: service.ask, history: service.history, delete: service.delete });
   const response = await http.ask(new Request("http://localhost:3001/api/ai/ask", { method: "POST", headers: { origin: "http://localhost:3001", "content-type": "application/json", "Idempotency-Key": "private-key", cookie: "private-cookie" }, body: JSON.stringify({ question: "private-question", context: { type: "GENERAL" } }) }));
   return { events, response, body: await response.json(), fetcher, store };

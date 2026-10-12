@@ -1,3 +1,4 @@
+import { fixtureQaAssessment } from "./__fixtures__/qa-reviewed-input";
 import { createHash, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { PrismaPg } from "@prisma/adapter-pg";
@@ -139,7 +140,7 @@ integrationDescribe("US21 real pgvector retrieval (explicit disposable database 
     });
     const retriever = createQaRetriever(db, { provider: createOpenAiEmbeddingProvider({ apiKey: () => "synthetic-test-only", fetcher: embeddingFetch as typeof fetch }), minScore: 0.99, publicSourceIds });
     const store = createQaConversationStore(db as Database, { abuse: abuse.hooks, publicSourceIds });
-    const service = createQaService({ store, retriever, generator: createQaGenerator({ apiKey: () => "synthetic-test-only", fetcher: answerFetch as typeof fetch }) });
+    const service = createQaService({ store, retriever, assessor: { assess: async input => fixtureQaAssessment(input) }, generator: createQaGenerator({ apiKey: () => "synthetic-test-only", fetcher: answerFetch as typeof fetch }) });
     const handlers = createQaHttpHandlers({ enabled: () => true, resolve: resolver.resolve, ...service });
     const ask = (input: unknown, key = randomUUID()) => handlers.ask(new Request("http://localhost/api/ai/ask", {
       method: "POST", body: JSON.stringify(input), headers: { cookie, origin: "http://localhost", "content-type": "application/json", "Idempotency-Key": key },

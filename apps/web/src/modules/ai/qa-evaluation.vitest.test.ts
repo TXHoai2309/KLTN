@@ -3,7 +3,7 @@ vi.mock("server-only", () => ({}));
 import { qaRealCorpusEvaluationManifestSchema, runQaSyntheticEvaluation } from "./qa-evaluation";
 
 describe("US21 repeatable offline technical evaluation", () => {
-  it("reports per-case evidence and semantic limits without declaring real quality PASS", async () => {
+  it("reports enforced semantic regression probes without declaring real quality PASS", async () => {
     const result = await runQaSyntheticEvaluation();
     console.info("US21_EVALUATION_REPORT=" + JSON.stringify(result));
     expect(result.realCorpusEvaluation).toBe("NOT_EVALUATED");
@@ -12,7 +12,7 @@ describe("US21 repeatable offline technical evaluation", () => {
     expect(result.results.filter(item => !item.expectationMatched)).toEqual([]);
     expect(result.metrics.historyIsolationFailures).toBe(0);
     expect(result.metrics.metadataAuthenticityFailures).toBe(0);
-    expect(result.metrics.knownSemanticLimitationsObserved).toBe(2);
+    expect(result.metrics.semanticRegressionProbesPassed).toBe(2);
     expect(result.results.find(item => item.id === "instruction-variant-1")!.providerCalls).toBe(0);
     expect(result.results.find(item => item.id === "provider-unavailable")!.observed).toBe("AI_UNAVAILABLE");
     expect(result.results.find(item => item.id === "source-prompt-injection")!.providerCalls).toBe(0);
