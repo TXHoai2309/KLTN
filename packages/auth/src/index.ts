@@ -35,7 +35,13 @@ export function createAuth(env: AuthConfig, database: Database) {
         }
       },
     },
-    trustedOrigins: [env.BETTER_AUTH_URL],
+    trustedOrigins: Array.from(
+      new Set([
+        env.BETTER_AUTH_URL,
+        env.BETTER_AUTH_URL.replace("localhost", "127.0.0.1"),
+        env.BETTER_AUTH_URL.replace("127.0.0.1", "localhost"),
+      ])
+    ),
     emailAndPassword: { enabled: true },
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,

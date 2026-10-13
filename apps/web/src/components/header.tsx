@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Mountain } from "lucide-react";
+import { BrandLogo } from "./brand-logo";
 
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
@@ -15,7 +15,7 @@ export default function Header() {
       <header className="auth-header">
         <Link className="auth-brand" href="/" aria-label="Hà Giang Travel Assistant - Trang chủ">
           <span className="auth-brand-mark" aria-hidden="true">
-            <Mountain size={36} strokeWidth={1.7} />
+            <BrandLogo size={36} />
           </span>
           <span className="auth-brand-copy">
             <strong>Hà Giang</strong>
@@ -33,7 +33,6 @@ export default function Header() {
   const links = [
     { to: "/", label: "Trang chủ" },
     { to: "/explore", label: "Khám phá" },
-    { to: "/culture", label: "Văn hóa" },
     { to: "/assistant", label: "Trợ lý AI" },
     { to: "/favorites", label: "Yêu thích" },
     { to: "/dashboard", label: "Dashboard" },
@@ -43,7 +42,9 @@ export default function Header() {
     <header className="site-header">
       <div className="site-header-inner">
         <Link className="site-brand" href="/" aria-label="Hà Giang Travel Assistant - Trang chủ">
-          <span className="site-brand-mark" aria-hidden="true"><Mountain size={32} strokeWidth={1.8} /></span>
+          <span className="site-brand-mark" aria-hidden="true">
+            <BrandLogo size={36} />
+          </span>
           <span className="site-brand-copy"><strong>Hà Giang</strong><span>Travel Assistant</span></span>
         </Link>
         <nav className="site-nav" aria-label="Điều hướng chính">

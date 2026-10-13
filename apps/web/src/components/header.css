@@ -24,23 +24,50 @@
   display: inline-flex;
   min-width: 0;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   color: inherit;
   text-decoration: none;
 }
 
 .site-brand-mark {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 40px;
+  height: 40px;
   flex: 0 0 auto;
   place-items: center;
-  color: #287c61;
 }
 
-.site-brand-copy { display: grid; gap: 1px; line-height: 1.15; }
-.site-brand-copy strong { font-size: 16px; font-weight: 760; letter-spacing: -.025em; }
-.site-brand-copy span { color: var(--muted-foreground); font-size: 12px; }
+.brand-logo-mark {
+  display: block;
+  border-radius: 11px;
+  box-shadow: 0 3px 10px -1px rgba(20, 62, 43, 0.22), 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.site-brand:hover .brand-logo-mark {
+  transform: translateY(-1.5px) scale(1.04);
+  box-shadow: 0 8px 18px -2px rgba(20, 62, 43, 0.32), 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.site-brand-copy {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  gap: 1px;
+}
+.site-brand-copy strong {
+  font-size: 16.5px;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  color: var(--foreground);
+}
+.site-brand-copy span {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #287c61;
+  text-transform: uppercase;
+}
 
 .site-nav { display: flex; min-width: 0; align-items: center; gap: clamp(6px, 1.5vw, 22px); }
 .site-nav-link {
@@ -74,12 +101,19 @@
 .site-nav-link:hover { background: color-mix(in srgb, #287c61 7%, transparent); }
 .site-nav-link[data-active="true"]::after { transform: scaleX(1); }
 
-.site-header-actions { display: flex; min-width: 0; align-items: center; justify-content: flex-end; gap: 10px; }
+.site-header-actions { display: flex; min-width: 0; align-items: center; justify-content: flex-end; gap: 8px; }
 .site-header-actions > * { min-width: 0; }
-.site-header .site-theme-toggle { border-color: color-mix(in srgb, var(--border) 80%, transparent); background: var(--card); color: var(--foreground); }
-.site-header .site-theme-toggle:hover { background: color-mix(in srgb, #287c61 8%, var(--card)); }
+.site-header .site-theme-toggle { border-radius: 9999px; width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-color: color-mix(in srgb, var(--border) 80%, transparent); background: var(--card); color: var(--foreground); transition: all 0.15s ease; }
+.site-header .site-theme-toggle:hover { background: color-mix(in srgb, #287c61 8%, var(--card)); border-color: color-mix(in srgb, #287c61 40%, transparent); }
 
 .dark .site-brand-mark { color: #78b79a; }
+.dark .brand-logo-mark {
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.dark .site-brand:hover .brand-logo-mark {
+  box-shadow: 0 8px 24px -2px rgba(52, 211, 153, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.16);
+}
+.dark .site-brand-copy span { color: #6ee7b7; }
 .dark .site-nav-link[data-active="true"],
 .dark .site-nav-link:hover { color: #9bd3b5; }
 .dark .site-nav-link::after { background: #78b79a; }
