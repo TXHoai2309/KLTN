@@ -83,6 +83,23 @@ describe("apply-extraction", () => {
     expect(Object.keys(applied.suggestions)).not.toContain("startDate");
   });
 
+  it.each([
+    ["UNSUPPORTED", "xe đạp"],
+    ["AMBIGUOUS", "grab hoặc xe máy"],
+    ["AMBIGUOUS", "xe máy hoặc ô tô"],
+    ["MISSING", null],
+  ] as const)("keeps transport empty for %s extraction (%s)", (status, sourceText) => {
+    const result = extractionResultSchema.parse({
+      ...fullResult,
+      fields: {
+        ...fullResult.fields,
+        transport: { status, value: null, sourceText, note: null },
+      },
+      missingRequired: ["transport"],
+    });
+    expect(applyExtractionToForm(emptyFields, result).fields.transport).toBe("");
+  });
+
   it("supports explicit use and dismissal of pending or applied suggestions", () => {
     const pending = applyExtractionToForm({ ...emptyFields, durationDays: "5" }, fullResult);
     const used = useExtractionSuggestion(pending.fields, pending.suggestions, "durationDays");

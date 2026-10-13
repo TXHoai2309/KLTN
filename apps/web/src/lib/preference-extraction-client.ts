@@ -1,10 +1,16 @@
+import { z } from "zod";
+
 import {
   extractionResultSchema,
   type ExtractionResult,
 } from "@/modules/preference-extraction/preference-extraction-contract";
+import {
+  clarificationRequestsSchema,
+  type ClarificationRequest,
+} from "@/modules/trip-requirement/trip-clarification-rules";
 
 export type AnalyzeTripNeedsResult =
-  | { kind: "SUCCESS"; result: ExtractionResult }
+  | { kind: "SUCCESS"; result: ExtractionResult; clarificationRequests: ClarificationRequest[] }
   | {
       kind: "FAILED";
       status: number;
@@ -19,6 +25,14 @@ export type AnalyzeTripNeedsResponseInput =
   | { kind: "network" };
 
 const INVALID_RESPONSE_MESSAGE = "Phản hồi phân tích nhu cầu không hợp lệ.";
+
+const analyzeSuccessDataSchema = z
+  .object({
+    result: extractionResultSchema,
+    // Additive US-27 field: old US-25 responses remain readable.
+    clarificationRequests: clarificationRequestsSchema.default([]),
+  })
+  .strict();
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -46,8 +60,14 @@ export function decideAnalyzeTripNeedsResponse(
     input.body.success === true &&
     isRecord(input.body.data)
   ) {
-    const result = extractionResultSchema.safeParse(input.body.data.result);
-    if (result.success) return { kind: "SUCCESS", result: result.data };
+    const result = analyzeSuccessDataSchema.safeParse(input.body.data);
+    if (result.success) {
+      return {
+        kind: "SUCCESS",
+        result: result.data.result,
+        clarificationRequests: result.data.clarificationRequests,
+      };
+    }
     return {
       kind: "FAILED",
       status: 502,

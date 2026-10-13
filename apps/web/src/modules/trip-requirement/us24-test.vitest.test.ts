@@ -365,7 +365,9 @@ describe("US24-TEST form logic and source contracts", () => {
     const sourceRoot = dirname(fileURLToPath(import.meta.url));
     const page = readFileSync(resolve(sourceRoot, "../../app/trips/new/page.tsx"), "utf8");
     const form = readFileSync(resolve(sourceRoot, "../../app/trips/new/trip-requirement-form.tsx"), "utf8");
+    const editors = readFileSync(resolve(sourceRoot, "../../app/trips/new/trip-field-editors.tsx"), "utf8");
     const logic = readFileSync(resolve(sourceRoot, "./trip-requirement-form-logic.ts"), "utf8");
+    const formSurface = `${form}\n${editors}`;
 
     expect(page).toContain('requireActor(await headers(), authorizationDependencies, "traveler")');
     expect(page).toContain('buildAuthLoginHref("/trips/new")');
@@ -378,7 +380,7 @@ describe("US24-TEST form logic and source contracts", () => {
       "trip-interest-first",
       "trip-pace",
       "trip-mobility-first",
-    ]) expect(form).toContain(`id=\"${id}\"`);
+    ]) expect(formSurface).toContain(`id=\"${id}\"`);
     for (const label of [
       "Ngày bắt đầu",
       "Thời lượng chuyến đi",
@@ -387,9 +389,9 @@ describe("US24-TEST form logic and source contracts", () => {
       "Sở thích chuyến đi",
       "Nhịp độ chuyến đi",
       "Ràng buộc di chuyển",
-    ]) expect(form).toContain(label);
-    expect(form).toContain("aria-invalid");
-    expect(form).toContain("aria-describedby");
+    ]) expect(formSurface).toContain(label);
+    expect(formSurface).toContain("aria-invalid");
+    expect(formSurface).toContain("aria-describedby");
     expect(form).not.toMatch(/<Button[^>]*>\s*(?:Lưu|Xác nhận|Tạo hành trình)/);
     expect(form).not.toContain("localStorage");
     expect(form).not.toContain("sessionStorage");

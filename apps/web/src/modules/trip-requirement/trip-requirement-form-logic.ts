@@ -83,6 +83,13 @@ function parseOptionalObjectValue(value: string | null | undefined): string | nu
   return normalizeText(value);
 }
 
+function parseTransportValue(value: string | null | undefined): string | null {
+  const normalized = normalizeText(value);
+  return normalized !== null && TRANSPORT_VALUES.includes(normalized as (typeof TRANSPORT_VALUES)[number])
+    ? normalized
+    : null;
+}
+
 function stableErrorRecord(
   errors: Record<string, string>,
 ): Record<string, string> {
@@ -124,13 +131,13 @@ export function validateRequiredFields(
   }
 
   const transportText = normalizeText(fields.transport);
-  let transportForSchema: (typeof TRANSPORT_VALUES)[number] = TRANSPORT_VALUES[0];
+  let transportForSchema: string | null = transportText;
   if (transportText === null) {
     errors.transport = "Vui lòng chọn phương tiện: xe máy hoặc ô tô.";
   } else if (!TRANSPORT_VALUES.includes(transportText as (typeof TRANSPORT_VALUES)[number])) {
     errors.transport = "Hiện chỉ hỗ trợ xe máy hoặc ô tô. Vui lòng chọn lại.";
   } else {
-    transportForSchema = transportText as (typeof TRANSPORT_VALUES)[number];
+    transportForSchema = transportText;
   }
 
   const contractResult = tripRequirementInputSchema.safeParse({
@@ -156,7 +163,8 @@ export function validateRequiredFields(
 /**
  * Converts the deliberately string-based form state into the API boundary.
  * Only plain integer text is converted to a number. Invalid numeric text is
- * retained so the server contract can return the authoritative field error.
+ * retained for the server contract; invalid transport is kept out of the
+ * candidate entirely while the raw form value still drives the field error.
  */
 export function buildPayload(
   fields: TripRequirementFormFields | TripRequirementValidationFields,
@@ -177,7 +185,9 @@ export function buildPayload(
   return {
     startDate: normalizeText(fields.startDate),
     durationDays: parseIntegerOrKeep(fields.durationDays),
-    transport: parseOptionalObjectValue(fields.transport),
+    // Invalid DOM values are never forwarded as a candidate. The validator
+    // still inspects the raw string above so it can show the field error.
+    transport: parseTransportValue(fields.transport),
     companions,
     interests: [...fields.interests],
     pace: parseOptionalObjectValue(fields.pace),

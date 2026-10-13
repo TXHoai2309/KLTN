@@ -1,5 +1,6 @@
 import type { ExtractionResult } from "./preference-extraction-contract";
 import type { TripRequirementFormFields } from "../trip-requirement/trip-requirement-form-logic";
+import { resolveTransportCandidateFromExtraction } from "../trip-requirement/transport-safety";
 
 export const EXTRACTION_SUGGESTION_FIELDS = [
   "startDate",
@@ -145,8 +146,9 @@ export function applyExtractionToForm(
     addCandidate(fields, suggestions, "durationDays", String(durationDays.value), durationDays.sourceText);
   }
   const transport = result.fields.transport;
-  if (transport.status === "EXTRACTED") {
-    addCandidate(fields, suggestions, "transport", transport.value, transport.sourceText);
+  const transportCandidate = resolveTransportCandidateFromExtraction(transport);
+  if (transportCandidate !== null && transport.status === "EXTRACTED") {
+    addCandidate(fields, suggestions, "transport", transportCandidate, transport.sourceText);
   }
   const companions = result.fields.companions;
   if (companions.status === "EXTRACTED") {

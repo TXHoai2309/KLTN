@@ -8,6 +8,7 @@ import {
 import type { StructuredLlmClient } from "./preference-extraction-client";
 import { buildPreferenceExtractionPrompt } from "./prompt-builder";
 import { verifyProviderExtraction } from "./verify-extraction";
+import { downgradeContradictions } from "../trip-requirement/trip-clarification-rules";
 
 export type PreferenceExtractionDependencies = {
   llm: StructuredLlmClient;
@@ -56,9 +57,13 @@ export async function extractPreferences(
   }
 
   const latencyMs = Math.max(0, Math.round(nowMs() - startedAt));
-  return verifyProviderExtraction(completion.rawText, parsed.data, now(), {
+  const verified = verifyProviderExtraction(completion.rawText, parsed.data, now(), {
     model: completion.model,
     latencyMs,
     inputLength: [...parsed.data].length,
   });
+  // US-27 is the single post-verification clarification seam. It only
+  // downgrades deterministic source contradictions and preserves the
+  // ExtractionResult contract for existing US-25 callers.
+  return downgradeContradictions(verified);
 }

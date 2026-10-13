@@ -30,7 +30,10 @@ describe("preference-extraction-client", () => {
       body: { success: true, data: { result: validResult } },
     });
     expect(decision.kind).toBe("SUCCESS");
-    if (decision.kind === "SUCCESS") expect(decision.result.meta.model).toBe("test-model");
+    if (decision.kind === "SUCCESS") {
+      expect(decision.result.meta.model).toBe("test-model");
+      expect(decision.clarificationRequests).toEqual([]);
+    }
 
     const invalid = decideAnalyzeTripNeedsResponse({
       kind: "http",

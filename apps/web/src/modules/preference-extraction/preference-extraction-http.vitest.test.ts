@@ -177,8 +177,9 @@ describe("US25-API preference extraction HTTP boundary", () => {
 
     expect(response.status).toBe(200);
     expect(body.success).toBe(true);
-    expect(Object.keys(body.data)).toEqual(["result"]);
+    expect(Object.keys(body.data).sort()).toEqual(["clarificationRequests", "result"]);
     expect(extractionResultSchema.safeParse(body.data.result).success).toBe(true);
+    expect(Array.isArray(body.data.clarificationRequests)).toBe(true);
     expect(body.data.result.missingRequired).toEqual([]);
     expect(Object.keys(body.data.result.meta).sort()).toEqual([
       "inputLength",
@@ -201,6 +202,10 @@ describe("US25-API preference extraction HTTP boundary", () => {
       "transport",
     ]);
     expect(Object.values(body.data.result.fields).every((field: any) => field.status === "MISSING")).toBe(true);
+    expect(body.data.clarificationRequests).toMatchObject([
+      { id: "durationDays:MISSING", severity: "BLOCKING" },
+      { id: "transport:MISSING", severity: "BLOCKING" },
+    ]);
   });
 
   it.each([

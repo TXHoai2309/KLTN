@@ -19,6 +19,7 @@ import type {
   ExtractionSuggestionField,
   ExtractionSuggestions,
 } from "@/modules/preference-extraction/apply-extraction";
+import { unresolvedTransportMessage } from "@/modules/trip-requirement/transport-safety";
 
 export type ExtractionResultPanelProps = {
   result: ExtractionResult;
@@ -153,6 +154,11 @@ export default function ExtractionResultPanel({
                 <span className="trip-extraction-status">{statusIcon(extraction.status)} {STATUS_LABELS[extraction.status]}</span>
               </div>
               {formatValue(field, extraction) && <p className="trip-extraction-value">{formatValue(field, extraction)}</p>}
+              {field === "transport" && extraction.status !== "EXTRACTED" && (
+                <p className="trip-extraction-transport-warning" role="status">
+                  {unresolvedTransportMessage(extraction.sourceText)}
+                </p>
+              )}
               {extraction.status !== "EXTRACTED" && extraction.note && <p className="trip-extraction-note">{extraction.note}</p>}
               {extraction.sourceText && <p className="trip-extraction-source">Bạn viết: “{extraction.sourceText}”</p>}
               {extraction.status === "EXTRACTED" && extraction.note && <p className="trip-extraction-note">{extraction.note}</p>}

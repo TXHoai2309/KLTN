@@ -10,11 +10,18 @@ import {
   MIN_GROUP_SIZE,
   MOBILITY_CONSTRAINT_VALUES,
   PACE_VALUES,
-  TRANSPORT_VALUES,
 } from "../trip-requirement/trip-requirement-contract";
+import {
+  SUPPORTED_TRANSPORTS,
+  TRANSPORT_KEYWORDS,
+} from "../trip-requirement/trip-transport-policy";
 
 export const PREFERENCE_INPUT_START_DELIMITER = "<<<KLTN_TRIP_NEEDS_DATA_START>>>";
 export const PREFERENCE_INPUT_END_DELIMITER = "<<<KLTN_TRIP_NEEDS_DATA_END>>>";
+
+const transportKeywordPrompt = Object.entries(TRANSPORT_KEYWORDS)
+  .map(([kind, keywords]) => `${kind}: ${keywords.join(", ")}`)
+  .join("; ");
 
 const extractionSystemPrompt = `Bạn là bộ trích xuất nhu cầu chuyến đi. Chỉ trả về JSON khớp chính xác JSON Schema được cung cấp; không thêm văn bản Markdown.
 
@@ -26,7 +33,7 @@ Quy tắc:
 - startDate chỉ EXTRACTED với ngày tuyệt đối đầy đủ ngày/tháng/năm. Không tính ngày từ “ngày mai”, “cuối tuần”, ngày thiếu năm hoặc mốc tương đối; các trường hợp đó là AMBIGUOUS.
 - Không đổi ý nghĩa câu chữ của người dùng. SourceText phải là đoạn xuất hiện trong dữ liệu đầu vào.
 - durationDays là số nguyên từ ${MIN_DURATION_DAYS} đến ${MAX_DURATION_DAYS}. Ví dụ “3 ngày 2 đêm” có thể lấy 3; “2-3 ngày” là AMBIGUOUS; “một tuần” có thể lấy 7.
-- transport chỉ gồm ${TRANSPORT_VALUES.join(", ")}; xe máy/moto map MOTORCYCLE, ô tô/xe hơi/car map CAR. Xe đạp, taxi, máy bay và đi bộ là UNSUPPORTED; “đi xe” không rõ là AMBIGUOUS.
+- transport chỉ gồm ${SUPPORTED_TRANSPORTS.join(", ")}; bảng từ khóa phân loại PROPOSED dùng chung: ${transportKeywordPrompt}. Không tự ánh xạ hoặc chọn giá trị khi source chưa rõ.
 - companions type chỉ gồm ${COMPANION_TYPE_VALUES.join(", ")}, groupSize là số người ${MIN_GROUP_SIZE}..${MAX_GROUP_SIZE}; mâu thuẫn thì AMBIGUOUS.
 - interests chỉ gồm ${INTEREST_VALUES.join(", ")}, tối đa ${MAX_INTERESTS}; mobility flags chỉ gồm ${MOBILITY_CONSTRAINT_VALUES.join(", ")}, tối đa ${MAX_MOBILITY_FLAGS}, note tối đa ${MAX_NOTE_LENGTH}; pace chỉ gồm ${PACE_VALUES.join(", ")}.
 - Nếu một trường không được nêu, trả MISSING. Mỗi nhánh phải giữ đúng value/sourceText/note theo schema, dùng null khi hợp đồng yêu cầu.

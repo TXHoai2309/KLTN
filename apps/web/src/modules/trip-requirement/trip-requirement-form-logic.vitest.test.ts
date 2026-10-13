@@ -78,6 +78,11 @@ describe("trip requirement form logic", () => {
     expect(buildPayload({ ...completeFields, durationDays: "０２" }).durationDays).toBe("０２");
   });
 
+  it("does not send a DOM-tampered transport as a candidate", () => {
+    expect(buildPayload({ ...completeFields, transport: "BICYCLE" }).transport).toBeNull();
+    expect(buildPayload({ ...completeFields, transport: "CAR" }).transport).toBe("CAR");
+  });
+
   it("maps only the shared fieldErrors detail shape", () => {
     expect(
       mapFieldErrors({

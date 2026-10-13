@@ -15,6 +15,7 @@ import {
   type PreferenceExtractionDependencies,
 } from "./preference-extraction-service";
 import type { PreferenceExtractionServerDependencies } from "./preference-extraction-server";
+import { deriveClarificationsFromExtraction } from "../trip-requirement/trip-clarification-rules";
 
 export const MAX_ANALYZE_BODY_BYTES = 8 * 1024;
 
@@ -155,7 +156,10 @@ export async function analyzePreferencesResponse(
     }
 
     const result = await extractPreferences(parsed.data.text, dependencies);
-    return privateResponse(apiSuccess({ result }));
+    return privateResponse(apiSuccess({
+      result,
+      clarificationRequests: deriveClarificationsFromExtraction(result),
+    }));
   } catch (error) {
     const safeError = publicError(error);
     logSafeError(
