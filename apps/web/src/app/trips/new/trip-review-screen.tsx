@@ -80,7 +80,7 @@ export type TripReviewScreenProps = {
   clarificationRequests?: ClarificationRequest[];
   onBackToForm: (draft: TripRequirementReviewDraft) => void;
   onFillForm?: (draft: TripRequirementReviewDraft) => void;
-  onConfirmed?: (confirmed: ConfirmedTripRequirement) => void;
+  onConfirmed?: (confirmed: ConfirmedTripRequirement, draft: TripRequirementReviewDraft) => void;
   headingRef?: RefObject<HTMLHeadingElement | null>;
 };
 
@@ -482,7 +482,7 @@ export default function TripReviewScreen({
             JSON.stringify(candidate) !== JSON.stringify(confirmed.confirmation.snapshot?.requirement),
           );
           setLiveMessage("Nhu cầu đã được kiểm tra và xác nhận theo phản hồi của máy chủ.");
-          if (confirmed.confirmation.snapshot) onConfirmed?.(confirmed.confirmation.snapshot);
+          if (confirmed.confirmation.snapshot) onConfirmed?.(confirmed.confirmation.snapshot, confirmed.draft);
           focusConfirmation();
         } else {
           const errors = outcome.result.issues.filter((issue) => issue.severity === "ERROR");

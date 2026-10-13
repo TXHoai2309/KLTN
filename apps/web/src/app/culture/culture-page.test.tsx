@@ -34,5 +34,6 @@ test("Culture browse page exposes shareable filters and distinct states", async 
   assert.match(loading, /aria-busy="true"/);
   assert.match(error, /Không thể tải nội dung văn hóa/);
   assert.match(error, /reset\(\)/);
-  assert.match(header, /to: "\/culture", label: "Văn hóa"/);
+  // Owner intentionally removed Culture from the main navigation; browse/detail remain covered above.
+  assert.doesNotMatch(header, /to: "\/culture"/);
 });
