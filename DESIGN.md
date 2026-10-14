@@ -141,3 +141,29 @@ Canonical owners: DestinationForm and destination-v3-form-model for Create/Edit 
 Create success goes to the new Admin Edit route, per V3 specification; Edit success stays editable with the confirmed DTO/baseline and success feedback. This named V3 variant supersedes the older Destination return-to-list flow; Culture behavior remains its existing variant. Publication remains separate and is disabled with unsaved changes. UNKNOWN freezes draft/key and offers exact retry; provider failure preserves legacy data. Location query/commune edits do not run arbitrary source fetches or RAG ingestion. One Culture flag hides independent module entry points without deleting records; two remaining Home cards retain a balanced grid.
 
 Evidence: test-destination-v3-ui.mjs mounts production components/services on isolated disposable in-memory data and blocks external browser traffic. It covers Create/Edit/preview, no-change snapshots, exact UNKNOWN retry, loading/errors/stale Maps, AddressKit fallback, unsaved dialog/Escape, exact first-error focus including hours, native category popup and360/390/768/1440 light/dark screenshots. This is not live authenticated Neon/Google/PostgreSQL acceptance; those gates are stated separately in the V3 report.
+
+## Destination V3.2 optional images (2026-10-14)
+
+The owner-requested image section extends V3 from four to five sections, between
+planning information and sources/publication. DestinationImages owns the shared
+Create/Edit queue, preview, per-file status, keyboard picker/drop alternative and
+metadata controls. It inherits af-root tokens and dark overrides; no new palette,
+font, modal, select or scroll container. Two-column media cards collapse to one
+column at 600px. File sending progress is labeled separately from server verification.
+Existing Admin fields, form validation, unsaved guard and Sonner remain canonical.
+
+Metadata/cover/order/unlink changes use the form's explicit Save and preserve IDs;
+upload and evidence-backed rights review are separate confirmed writes. Create
+persists HIDDEN before any provider call, then uploads sequentially. Partial failure
+retains pending File objects in an in-memory handoff to Edit; successful files are
+skipped on retry. Refresh cannot restore local Files. Review UNKNOWN preserves its
+key/decision and blocks the main Save until reconciliation. Publication remains
+separate. Server-only credentials, byte validation and approved-only public reads
+are owned by destination image services, never by UI state.
+
+Explore uses the approved cover selection and a shared image fallback; public
+gallery uses PublishedMediaImage for provider failure without changing legacy URLs.
+The existing Admin premium manifest remains the native Select/Date ownership
+record. Browser evidence is 17 isolated groups with synthetic provider/persistence,
+360px and desktop light/dark screenshots; no live Cloudinary or authenticated
+Neon write claim. PostgreSQL concurrency evidence is separate and disposable.

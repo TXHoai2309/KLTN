@@ -188,7 +188,7 @@ test("shared compact headers use exact copy and direct navigation actions", () =
 test("form uses the redesigned header and guards unsaved or uncertain navigation", async () => {
   const form = await readFile(new URL("../../app/admin/destinations/destination-form.tsx", import.meta.url), "utf8");
   const list = await readFile(new URL("../../app/admin/destinations/destination-list.tsx", import.meta.url), "utf8");
-  assert.match(form, /AdminPageHeader/); assert.match(form, /useUnsavedChanges\(\s*dirty,\s*saving \|\| unknown \|\| visibilityAction.busy,?\s*\)/);
+  assert.match(form, /AdminPageHeader/); assert.match(form, /useUnsavedChanges\(\s*dirty,\s*saving \|\| unknown \|\| visibilityAction.busy \|\| imageState.busy,?\s*\)/);
   assert.match(list, /DestinationPageHeader mode="list"/);
 });
 

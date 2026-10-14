@@ -16,6 +16,7 @@ import {
 import { listPublicLocations } from "../src/modules/destination/public-destination-list.ts";
 import { unknownSchedule } from "../src/modules/destination/destination-contract.ts";
 import { resolveMapsUrl } from "../src/modules/destination/maps-url-resolver.ts";
+import { createImageIntent, uploadDestinationImage, reviewDestinationImage } from "../src/modules/destination/destination-image-service.ts";
 const require = createRequire(import.meta.url);
 const { chromium } = require(
   require.resolve("playwright", {
@@ -62,6 +63,24 @@ const bundle = await build({
 const store = v3TestStore(),
   headers = new Headers(),
   posts = [];
+const imageAssets = new Map();
+const imageCalls = [];
+let imagesConfigured = false, imageFailure = "", imageLostResponse = false;
+const imageDb = store.deps.database;
+imageDb.$executeRaw = async () => 1;
+imageDb.$queryRaw = async () => [{ count: 0n }];
+imageDb.idempotencyRecord.count = async () => 0;
+const imageProvider = {
+  cloud: "offline-fixture", folderMode: async () => "dynamic", inspect: async () => "png",
+  find: async intent => imageAssets.get(intent.publicId) ?? null,
+  upload: async (intent, bytes) => {
+    imageCalls.push({ key: intent.intentKey, name: intent.name });
+    if (intent.name === imageFailure) throw Error("TEST provider failure");
+    imageAssets.set(intent.publicId, { asset_id: `asset-${intent.intentKey}`, public_id: intent.publicId,
+      secure_url: `https://res.cloudinary.com/offline-fixture/image/upload/v1/${intent.publicId}.png`, resource_type: "image", type: "upload", format: "png", bytes: bytes.length, width: 2, height: 2, version: 1,
+      asset_folder: intent.folder, context: { custom: { kltn_intent: intent.intentKey, kltn_sha256: intent.sha256 } } });
+  },
+};
 const legacy = await writeDestination(
   headers,
   {
@@ -134,6 +153,7 @@ const server = createServer(async (req, res) => {
         });
       }
       if (req.method === "GET") {
+        if (url.pathname === "/api/admin/destination-images/configuration") return send({ success: true, data: { configured: imagesConfigured } });
         if (url.pathname === "/api/destinations")
           return send({
             success: true,
@@ -151,9 +171,20 @@ const server = createServer(async (req, res) => {
                 ),
         });
       }
+      if (url.pathname.endsWith("/images/upload")) {
+        const chunks = []; for await (const part of req) chunks.push(part);
+        const result = await uploadDestinationImage(headers, Buffer.concat(chunks), req.headers["idempotency-key"], url.pathname.split("/")[4], store.deps, imageProvider);
+        if (imageLostResponse) { imageLostResponse = false; return send({ success: false, operationStatus: "UNKNOWN", retryWithSameKey: true }, 503); }
+        return send({ success: result.status === "SUCCESS", operationStatus: result.status, data: result.data, error: result.error }, result.status === "SUCCESS" ? 200 : result.httpStatus ?? 503);
+      }
       let raw = "";
       for await (const part of req) raw += part.toString();
       const body = JSON.parse(raw);
+      if (url.pathname.endsWith("/images/intents") || url.pathname.endsWith("/images/review")) {
+        const result = await (url.pathname.endsWith("/intents") ? createImageIntent(headers, body, req.headers["idempotency-key"], url.pathname.split("/")[4], store.deps, imageProvider)
+          : reviewDestinationImage(headers, body, req.headers["idempotency-key"], url.pathname.split("/")[4], store.deps));
+        return send({ success: result.status === "SUCCESS", operationStatus: result.status, data: result.data, error: result.error }, result.status === "SUCCESS" ? 200 : result.httpStatus ?? 503);
+      }
       if (url.pathname.endsWith("resolve-maps")) {
         const data = await resolveMapsUrl(body.url);
         if (body.url.includes("query=22"))
@@ -250,8 +281,8 @@ try {
       .count(),
     0,
   );
-  assert.equal(await page.getByRole("heading", { level: 2 }).count(), 4);
-  pass("4 sections, removed inputs, 360/390/768/1440 no overflow");
+  assert.equal(await page.getByRole("heading", { level: 2 }).count(), 5);
+  pass("5 sections including optional images, removed inputs, 360/390/768/1440 no overflow");
   await page.getByRole("button", { name: "Tạo điểm đến", exact: true }).click();
   await page.locator("#err-name").waitFor();
   await page.waitForFunction(
@@ -297,7 +328,8 @@ try {
   await page.getByText("Giờ hoạt động",{exact:true}).click();
   pass("opening-hours validation expands disclosure and focuses exact invalid time");
 
-  await page.locator("#destination-commune").selectOption("00691");
+  await page.getByRole("combobox", { name: /Xã\/phường/ }).fill("Ha Giang");
+  await page.getByRole("option", { name: /Phường Hà Giang 2/ }).click();
   await page.locator("#destination-address").fill("Nhà số 1");
   await page.getByRole("link", { name: "Hủy", exact: true }).click();
   await page.getByRole("dialog").waitFor();
@@ -412,6 +444,79 @@ try {
     });
   }
   pass("native category popup keyboard and light/dark screenshots");
+  imagesConfigured = true;
+  imageFailure = "failed.png";
+  await page.evaluate(() => window.mount());
+  await page.getByRole("button", { name: "Tải ảnh lên", exact: true }).waitFor();
+  await page.waitForFunction(() => !document.querySelector('input[type="file"]').disabled);
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l1sAAAAASUVORK5CYII=", "base64");
+  await page.locator('input[type="file"]').setInputFiles([{ name: "success.png", mimeType: "image/png", buffer: png }, { name: "failed.png", mimeType: "image/png", buffer: png }]);
+  assert.equal(imageCalls.length, 0);
+  assert.equal(await page.locator(".dimg-queue-row").count(), 2);
+  await page.locator("#destination-name").fill("TEST Images create");
+  await page.locator("#destination-category").selectOption("chợ phiên");
+  await page.locator("#destination-description").fill("TEST Synthetic image destination.");
+  await page.locator("#destination-googleMapsUrl").fill("https://google.com/maps?q=23,105");
+  await page.getByRole("button", { name: "Tạo điểm đến", exact: true }).click();
+  await page.waitForFunction(() => Boolean(window.mockNavigation));
+  const createdImageId = await page.evaluate(() => window.mockNavigation.split("/")[3]);
+  assert.equal(store.rows().get(createdImageId).visibility, "HIDDEN");
+  assert.equal(store.rows().get(createdImageId).media.length, 1);
+  await page.evaluate(id => window.mount(id), createdImageId);
+  await page.getByRole("heading", { name: "Chỉnh sửa điểm đến" }).waitFor();
+  await page.getByText(/TEST provider failure|Chưa hoàn tất tải ảnh/).waitFor();
+  imageFailure = "";
+  await page.getByRole("button", { name: "Tải ảnh chờ / thử lại", exact: true }).click();
+  await page.waitForFunction(() => document.querySelectorAll(".dimg-card").length === 2);
+  assert.equal(imageCalls.filter(call => call.name === "success.png").length, 1);
+  assert.equal(imageCalls.filter(call => call.name === "failed.png").length, 2);
+  pass("Create queues files until HIDDEN persisted; partial failure hands off to Edit; retry skips success");
+  const mediaBefore = structuredClone(store.rows().get(createdImageId).media);
+  await page.getByRole("button", { name: "Lưu thay đổi", exact: true }).click();
+  await page.waitForFunction(() => !document.querySelector('button[type="submit"]').disabled);
+  assert.deepEqual(store.rows().get(createdImageId).media, mediaBefore);
+  await page.locator('.dimg-card input[id^="media-alt-"]').first().fill("TEST Mountain cover");
+  await page.getByRole("button", { name: "Đặt đại diện", exact: true }).nth(1).click();
+  await page.getByRole("button", { name: "Lưu thay đổi", exact: true }).click();
+  await page.waitForFunction(() => !document.querySelector('button[type="submit"]').disabled);
+  assert.equal(store.rows().get(createdImageId).media[0].alt, "TEST Mountain cover");
+  assert.equal(store.rows().get(createdImageId).media.filter(m => m.isCover).length, 1);
+  assert.equal(store.rows().get(createdImageId).media[1].isCover, true);
+  pass("Edit no-change preserves exact media; metadata and cover save in place");
+  await page.locator(".dimg-card summary").first().click();
+  await page.locator('textarea[id^="media-evidence-"]').first().fill("TEST Owner grant, manual verification");
+  await page.getByRole("button", { name: "Xác nhận duyệt quyền", exact: true }).first().click();
+  await page.waitForFunction(() => [...document.querySelectorAll(".dimg-card-body > p")].some(p => p.textContent.includes("Đã duyệt")));
+  assert.equal(store.rows().get(createdImageId).media[0].reviewedBy, "test-admin");
+  pass("Dedicated Admin rights review records trusted reviewer and explicit evidence");
+  await page.waitForFunction(() => !document.querySelector('input[type="file"]').disabled);
+  imageLostResponse = true;
+  await page.locator('input[type="file"]').setInputFiles([{ name: "unknown.png", mimeType: "image/png", buffer: png }]);
+  await page.getByText("unknown.png", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "Tải ảnh chờ / thử lại", exact: true }).click();
+  await page.getByText(/Chưa xác định kết quả.*cùng file/).waitFor();
+  assert.equal(store.rows().get(createdImageId).media.length, 3);
+  await page.getByRole("button", { name: "Tải ảnh chờ / thử lại", exact: true }).click();
+  await page.waitForFunction(() => document.querySelectorAll(".dimg-card").length === 3);
+  assert.equal(imageCalls.filter(call => call.name === "unknown.png").length, 1);
+  pass("Lost upload response reconciles same key without duplicate asset/media");
+  const transfer = await page.evaluateHandle(bytes => {
+    const dt = new DataTransfer(); dt.items.add(new File([new Uint8Array(bytes)], "dragged.png", { type: "image/png" })); return dt;
+  }, [...png]);
+  await page.locator(".dimg-drop").dispatchEvent("drop", { dataTransfer: transfer });
+  await page.getByText("dragged.png", { exact: true }).waitFor();
+  await page.locator('input[type="file"]').setInputFiles([{ name: "bad.txt", mimeType: "text/plain", buffer: Buffer.from("not an image") }]);
+  await page.getByText(/File “bad.txt” không hợp lệ/).waitFor();
+  pass("Drag/drop picker alternative and invalid file inline feedback");
+  for (const [width, theme] of [[1440, "light"], [360, "light"], [360, "dark"]]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.evaluate(t => document.documentElement.classList.toggle("dark", t === "dark"), theme);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true);
+    await page.screenshot({ path: web + `/.cache/destination-v3/images-${width}-${theme}.png`, fullPage: true });
+  }
+  await page.getByRole("button", { name: "Tải ảnh lên", exact: true }).focus();
+  assert.equal(await page.getByRole("button", { name: "Tải ảnh lên", exact: true }).evaluate(el => el === document.activeElement), true);
+  pass("Images 360px/desktop light/dark screenshots, keyboard focus and no horizontal overflow");
   assert.deepEqual(errors, []);
   console.log(
     JSON.stringify({

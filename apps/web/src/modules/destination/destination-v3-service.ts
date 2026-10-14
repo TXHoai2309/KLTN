@@ -8,6 +8,7 @@ import {
 import {
   destinationV3CreateSchema,
   destinationV3PatchSchema,
+  type DestinationV3Input,
 } from "./destination-v3-contract";
 import {
   DEFAULT_DESTINATION_AREA,
@@ -26,6 +27,8 @@ import {
   type DestinationDto,
 } from "./destination-contract";
 import { admitMapsResolution, resolveMapsUrl } from "./maps-url-resolver";
+import { mediaChanges } from "./destination-media-patch";
+import { recordUnlinkedCloudinaryMedia } from "./destination-media-orphans";
 
 export async function writeDestinationV3(
   headers: Headers,
@@ -48,7 +51,7 @@ export async function writeDestinationV3(
         message: i.message,
       })),
     );
-  const input = parsed.data;
+  const input: DestinationV3Input = parsed.data;
   const before = id
     ? await deps.database.destination.findUnique({
         where: { id },
@@ -145,6 +148,14 @@ export async function writeDestinationV3(
           400,
         );
       const data: Record<string, unknown> = {};
+      if (previous) {
+        const media = mediaChanges(previous.media, input);
+        if (media) data.media = media;
+        const orphanIds = new Set(input.removedMediaIds ?? []);
+        // A URL replacement unlinks the old physical asset too.
+        for (const patch of input.media ?? []) if (patch.url && previous.media.some(m => m.id === patch.id && m.url !== patch.url)) orphanIds.add(patch.id);
+        await recordUnlinkedCloudinaryMedia(tx, actor.id, id!, key, previous.media.filter(m => orphanIds.has(m.id)));
+      }
       for (const key of [
         "name",
         "category",

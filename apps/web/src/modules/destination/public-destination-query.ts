@@ -1,9 +1,11 @@
 import { z } from "zod";
 import { AppError } from "@/server/http/app-error";
+import { publicHttpsUrl } from "../content-profile/content-profile-contract";
 
 export const publicLocationSchema = z.object({
   id: z.string().regex(/^[a-zA-Z0-9_-]{1,128}$/), name: z.string().min(1), area: z.string(), category: z.string(),
   latitude: z.number().min(-90).max(90).nullable(), longitude: z.number().min(-180).max(180).nullable(),
+  image: z.object({ url: publicHttpsUrl, alt: z.string() }).strict().nullable().optional(),
 }).strict();
 export type PublicLocation = z.infer<typeof publicLocationSchema>;
 export const publicLocationListSchema = z.object({

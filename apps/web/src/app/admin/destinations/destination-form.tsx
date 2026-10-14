@@ -2,7 +2,7 @@
 import "./destinations.css";
 import "@/components/admin/admin-form-shell.css";
 import "./destination-v3.css";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -58,6 +58,7 @@ import OpeningHoursEditor from "./opening-hours-editor";
 import { useDestinationVisibility } from "./destination-visibility-action";
 import DestinationAddressField from "./destination-address-field";
 import DestinationMapsField from "./destination-maps-field";
+import DestinationImages, { type DestinationImagesHandle } from "./destination-images";
 import {
   destinationDraft,
   destinationDraftPayload,
@@ -76,6 +77,14 @@ export default function DestinationForm({ id }: { id: string | null }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState("");
   const [preview, setPreview] = useState(false);
+  const images = useRef<DestinationImagesHandle>(null);
+  const [mediaPatch, setMediaPatch] = useState<Partial<DestinationV3Input>>({});
+  const [imageState, setImageState] = useState({ busy: false, pending: false, uncertainReview: false });
+  const imageStateChanged = useCallback((value: { busy: boolean; pending: boolean; uncertainReview: boolean }) => setImageState(value), []);
+  const mediaPatchChanged = useCallback((value: Partial<DestinationV3Input>) => {
+    setMediaPatch(value);
+    setErrors(old => Object.fromEntries(Object.entries(old).filter(([path]) => !path.startsWith("media."))));
+  }, []);
   const lock = useRef(false);
   const attempt = useRef<{ key: string; input: DestinationV3Input } | null>(
     null,
@@ -90,10 +99,10 @@ export default function DestinationForm({ id }: { id: string | null }) {
     lock,
   );
   const baseline = useRef(JSON.stringify(destinationDraft()));
-  const dirty = JSON.stringify(draft) !== baseline.current;
+  const dirty = JSON.stringify(draft) !== baseline.current || Object.keys(mediaPatch).length > 0 || imageState.pending;
   const markSafeToLeave = useUnsavedChanges(
     dirty,
-    saving || unknown || visibilityAction.busy,
+    saving || unknown || visibilityAction.busy || imageState.busy,
   );
   useEffect(() => {
     if (!id) return;
@@ -136,22 +145,35 @@ export default function DestinationForm({ id }: { id: string | null }) {
     );
     setFeedback("");
   }
-  const focusError = (path: string) => focusFormError(path, "dv3");
+  const focusError = (path: string) => {
+    if (path.startsWith("media.")) {
+      const [, mediaId, field] = path.split(".");
+      const control = document.getElementById(`media-${field}-${mediaId}`);
+      const details = control?.closest("details"); if (details) details.open = true;
+      if (control) { control.focus(); control.scrollIntoView({ block: "center" }); return; }
+    }
+    focusFormError(path, "dv3");
+  };
   async function submit(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
+    if (imageState.busy || imageState.uncertainReview) return;
     if (!claimSubmission(lock)) return;
     let completed = false;
     try {
       let input: DestinationV3Input;
       if (unknown && attempt.current) input = attempt.current.input;
       else {
-        const raw = destinationDraftPayload(draft, dto);
+        const raw = { ...destinationDraftPayload(draft, dto), ...(id ? mediaPatch : {}) };
         const parsed = (
           id ? destinationV3PatchSchema : destinationV3CreateSchema
         ).safeParse(raw);
         if (!parsed.success) {
           const paths = parsed.error.issues.map((i) => {
             let path = i.path.join(".");
+            if (i.path[0] === "media" && typeof i.path[1] === "number") {
+              const mediaId = raw.media?.[i.path[1]]?.id;
+              if (mediaId) path = path.replace(/^media\.\d+/u, "media." + mediaId);
+            }
             if (i.path[0] === "sources" && typeof i.path[1] === "number") {
               const source = raw.sources?.[i.path[1]];
               const index = draft.sources.findIndex((s) => s === source);
@@ -183,22 +205,32 @@ export default function DestinationForm({ id }: { id: string | null }) {
       }
       const result = await saveDestination(id, input, attempt.current!.key);
       if (result.status === "SUCCESS") {
-        completed = true;
         toast.dismiss("destination-write");
+        setDto(result.data);
+        setMediaPatch({});
+        const imagesComplete = await images.current?.uploadAll(result.data.id) ?? true;
+        completed = true;
         markSafeToLeave();
         if (id) {
           const savedDraft = destinationDraft(result.data);
           baseline.current = JSON.stringify(savedDraft);
-          setDto(result.data);
           setDraft(savedDraft);
           setUnknown(false);
           attempt.current = null;
           releaseSubmission(lock);
           setSaving(false);
-          toast.success("Đã lưu thay đổi.", {id:"destination-write",position:"bottom-right"});
+          if (imagesComplete) toast.success("Đã lưu thay đổi.", {id:"destination-write",position:"bottom-right"});
+          else {
+            setFeedback("Nội dung đã lưu; còn ảnh chưa hoàn tất. Thử lại các ảnh chờ với cùng file và key.");
+            toast.warning("Đã lưu nội dung; còn ảnh chưa hoàn tất.", { id: "destination-write", position: "bottom-right" });
+          }
         } else {
           baseline.current = JSON.stringify(draft);
-          markDestinationSaved();
+          if (imagesComplete) markDestinationSaved();
+          else {
+            images.current?.handoff(result.data.id);
+            toast.warning("Điểm đến đã tạo ở trạng thái ẩn; còn ảnh chưa hoàn tất. Thử lại tại trang chỉnh sửa.", { id: "destination-write", position: "bottom-right" });
+          }
         }
         router.push(`/admin/destinations/${encodeURIComponent(result.data.id)}/edit`);
         return;
@@ -254,6 +286,11 @@ export default function DestinationForm({ id }: { id: string | null }) {
     label: string,
     required = false,
   ) {
+    const placeholders: Record<string, string> = {
+      name: "Ví dụ: Đèo Mã Pí Lèng, Cột cờ Lũng Cú...",
+      suggestedDurationMinutes: "Ví dụ: 120 (phút)",
+      minimumDurationMinutes: "Ví dụ: 60 (phút)",
+    };
     return (
       <AdminField error={errors[key]} errorId={"err-" + key}>
         <AdminLabel
@@ -267,6 +304,7 @@ export default function DestinationForm({ id }: { id: string | null }) {
           id={"destination-" + key}
           className="af-input"
           value={draft[key]}
+          placeholder={placeholders[key]}
           inputMode={key === "name" ? "text" : "numeric"}
           onChange={(e) => change(key, e.target.value)}
           aria-invalid={Boolean(errors[key])}
@@ -364,6 +402,7 @@ export default function DestinationForm({ id }: { id: string | null }) {
                   id="destination-description"
                   className="af-textarea dv3-description resize-none"
                   value={draft.description}
+                  placeholder="Nhập mô tả chi tiết về cảnh quan, trải nghiệm du lịch, văn hóa và các thông tin cần biết cho du khách..."
                   maxLength={10000}
                   onChange={(e) => {
                     change("description", e.target.value);
@@ -373,10 +412,14 @@ export default function DestinationForm({ id }: { id: string | null }) {
                   aria-invalid={Boolean(errors.description)}
                   aria-describedby="description-help err-description"
                 />
-                <p id="description-help" className="af-helper">
-                  Mô tả đặc điểm, trải nghiệm và thông tin cần biết. Tối đa
-                  10.000 ký tự.
-                </p>
+                <div className="dv3-textarea-meta">
+                  <p id="description-help" className="af-helper">
+                    Mô tả đặc điểm, trải nghiệm và thông tin cần biết.
+                  </p>
+                  <span className="dv3-char-count">
+                    {draft.description.length.toLocaleString("vi-VN")} / 10.000 ký tự
+                  </span>
+                </div>
               </AdminField>
               {summary && (
                 <details className="dv3-disclosure">
@@ -440,13 +483,9 @@ export default function DestinationForm({ id }: { id: string | null }) {
                   onChange={(days) => change("openingDays", days)}
                 />
               </details>
-              {id && dto?.profile?.media.length ? (
-                <p className="af-helper">
-                  Hồ sơ có {dto.profile.media.length} ảnh. Ảnh và metadata hiện
-                  có được bảo toàn khi lưu.
-                </p>
-              ) : null}
             </AdminCollapsibleSection>
+            <DestinationImages ref={images} id={id} dto={dto} disabled={disabled} errors={errors}
+              onConfirmed={setDto} onPatch={mediaPatchChanged} onState={imageStateChanged} />
             <AdminCollapsibleSection
               id="dv3-sources"
               icon={ShieldCheck}
@@ -594,13 +633,18 @@ export default function DestinationForm({ id }: { id: string | null }) {
           </fieldset>
           <AdminStickyActions
             message={
-              unknown
-                ? "Kết quả chưa xác định; giữ nguyên nội dung và key."
-                : dirty
-                  ? "Có thay đổi chưa lưu."
-                  : id
-                    ? "Chưa có thay đổi."
-                    : "Tạo ở trạng thái ẩn."
+              <span className="dv3-sticky-status">
+                <span className={`dv3-status-dot ${dirty ? "is-dirty" : "is-clean"}`} />
+                <span>
+                  {unknown
+                    ? "Kết quả chưa xác định; giữ nguyên nội dung và key."
+                    : dirty
+                      ? "Có thay đổi chưa lưu."
+                      : id
+                        ? "Chưa có thay đổi."
+                        : "Tạo ở trạng thái ẩn."}
+                </span>
+              </span>
             }
           >
             {!disabled && (
@@ -611,7 +655,7 @@ export default function DestinationForm({ id }: { id: string | null }) {
             <button
               type="submit"
               className="af-btn af-btn-primary"
-              disabled={saving || visibilityAction.busy}
+              disabled={saving || visibilityAction.busy || imageState.busy || imageState.uncertainReview}
               aria-busy={saving}
             >
               {saving ? (

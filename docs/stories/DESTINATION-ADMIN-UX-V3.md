@@ -9,3 +9,9 @@ Scope: shared Create/Edit/preview; Destination-only six-category taxonomy; one p
 Acceptance evidence and remaining gates: [implementation report](../implementation/destination-admin-ux-v3-report.md). Offline service/browser preservation is proven with synthetic fixtures; real PostgreSQL acceptance is NOT PROVEN because Docker Desktop could not start. Main localhost:3010 anonymous authorization, Culture redirect and existing Đồng Văn public detail were checked. Owner must still review authenticated Create/Edit locally; no shared Development test writes were performed.
 
 The existing Development region ID is verified by a READ ONLY query. Registry coverage is environment-specific; an unregistered environment fails closed for new Planner candidates. Additional geographic regions require explicit ID review, never a name/category heuristic. VISIBLE is independent from waypoint eligibility.
+
+2026-10-14 follow-up: optional image management is implemented by
+[Destination Cloudinary V3.2](DESTINATION-CLOUDINARY-V3-2.md). The current form has
+five sections. V3's nine original disposable PostgreSQL regression tests now pass
+alongside four image integration tests; this supersedes the earlier Docker-blocked
+PG evidence for those tests only. Owner live Admin/Cloudinary acceptance is pending.

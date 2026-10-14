@@ -59,11 +59,15 @@ TEST_RESULTS: Browser exercised form→server check→CTA→proposal; relative d
 KNOWN_GAPS: Native date-field entry did not persist through this browser automation adapter. Calendar scheduling and all-PASS rendering are covered deterministically; Owner must test the native date picker manually. No claim of complete screen-reader/real provider/terrain visual acceptance.
 READY_FOR_OWNER_REVIEW: YES, with the live limitations below.
 
-## Local manual test
+## Main application and local manual test
 
-1. Offline UI: run `node node_modules/tsx/dist/cli.mjs --tsconfig apps/web/tsconfig.json apps/web/scripts/trip-planner-fixture.mts`; open `http://127.0.0.1:3012/`. Fill duration/transport (optional companions/interests/pace), review/confirm, then generate. Fixture controls affect the next generate/retry; all data is synthetic TEST only.
-2. Real local flow: first independently verify Development DB target, Traveler auth, actual VISIBLE destinations with coordinates/durations/opening intervals, restricted server `GOOGLE_ROUTES_API_KEY`, billing and provider policy prerequisites. Then `npm run dev --workspace web`, log in as Traveler and visit `http://localhost:3010/trips/new`. This delivery did not grant live calls/writes or alter runtime credentials.
-3. Check calendar versus relative days, transport modes, missing data, back/edit/regenerate/retry, day/marker selection, narrow viewports and actual detail links. Inspect constraints before considering final confirmation. No official save CTA exists.
+Owner decision, 2026-10-13: all user-facing KLTN functionality, including US28, uses the main Next.js application at `http://localhost:3010`. The Planner is already integrated into `/trips/new`; its clients use same-origin APIs. No separate Planner frontend/server or 3012 navigation is needed.
+
+1. Run `npm run dev --workspace web`; open `http://localhost:3010/trips/new` and log in as Traveler. Before real generation, independently verify Development DB identity, actual VISIBLE destinations with coordinates/durations/opening intervals, restricted server `GOOGLE_ROUTES_API_KEY`, billing and provider policy prerequisites. Do not use the internal fixture as the user entrypoint. This delivery does not grant live calls/writes or alter runtime credentials.
+2. Check calendar versus relative days, transport modes, missing data, back/edit/regenerate/retry, day/marker selection, narrow viewports and actual detail links. Inspect constraints before considering final confirmation. No official save CTA exists.
+3. Developer-only browser fixture: `apps/web/scripts/trip-planner-fixture.mts` binds loopback3012, rejects production mode and uses explicitly synthetic adapters. It is not a user application, not part of navigation or production imports and cannot demonstrate authenticated/live corpus acceptance. No main-app simulation mode was added.
+
+See [the main-app runtime audit](us28-main-app-runtime-verification.md) for port/auth checks and the remaining live-flow limitation.
 
 FILES_CHANGED: New trip-planner module/contracts/adapters/engine/validator/HTTP/runtime/tests/fixtures; `/api/trip-proposals`; typed client; planner components/CSS/UI tests; itinerary map renderer/tests; disposable test and browser fixture scripts; form/review handoff; Culture assertion; story/progress/this report. No environment, Header or layout change.
 MIGRATIONS: NONE added/changed; four existing relevant migrations installed only in disposable test container.

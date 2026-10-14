@@ -18,6 +18,7 @@ function reconcile<T extends { id: string }>(
   previous: T[],
   items: Record<string, unknown>[],
   actorId: string,
+  isMedia = false,
 ) {
   const remaining = new Map(previous.map((row) => [row.id, row]));
   const create: Record<string, unknown>[] = [],
@@ -59,6 +60,10 @@ function reconcile<T extends { id: string }>(
           reviewedBy: reviewed ? actorId : null,
           reviewedAt: reviewed ? new Date() : null,
         });
+      if (isMedia && changes.url) Object.assign(changes, {
+        storageReference: null, websiteRights: "UNKNOWN", rightsEvidence: null,
+        reviewedBy: null, reviewedAt: null,
+      });
       if (Object.keys(changes).length)
         update.push({ where: { id: old.id }, data: changes });
     } else
@@ -89,6 +94,7 @@ export function legacyProfileChanges(
         (previous[key] ?? []) as (Source | Media)[],
         profile[key] as unknown as Record<string, unknown>[],
         actorId,
+        key === "media",
       );
       if (Object.keys(change).length) data[key] = change;
     } else if (key === "areaIds") {

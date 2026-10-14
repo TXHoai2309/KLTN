@@ -1,6 +1,7 @@
 import { destinationProfileSchema } from "../content-profile/content-profile-contract";
 import { writeDestinationV3 } from "./destination-v3-service";
 import { legacyProfileChanges, openingChanges, equal } from "./destination-safe-write";
+import { recordUnlinkedCloudinaryMedia } from "./destination-media-orphans";
 import { destinationProfileSelect, profileDto, profileWrite } from "@/modules/content-profile/content-profile-service";
 import type { Database, Prisma } from "@KLTN/db";
 import { requireActor, type AuthorizationDependencies } from "@/server/authorization/guard";
@@ -89,6 +90,12 @@ export async function writeDestination(headers: Headers, body: unknown, key: str
         await profileWrite(tx, profile, actor.id, true); // Reference validation only; do not use replacement output.
         const rawKeys = Object.keys((body as {profile: object}).profile);
         Object.assign(data, legacyProfileChanges(previous as unknown as Record<string, unknown>, profile, actor.id, rawKeys));
+        if (rawKeys.includes("media")) {
+          const changes = data.media as { deleteMany?: { id: string }[]; update?: { where: { id: string }; data: Record<string, unknown> }[] } | undefined;
+          const orphanIds = new Set(changes?.deleteMany?.map(m => m.id) ?? []);
+          for (const item of changes?.update ?? []) if (item.data.url) orphanIds.add(item.where.id);
+          await recordUnlinkedCloudinaryMedia(tx, actor.id, id, key, previous.media.filter(m => orphanIds.has(m.id)));
+        }
       }
       if (openingDays) {
         const updates = openingChanges(previous.openingDays, openingDays);

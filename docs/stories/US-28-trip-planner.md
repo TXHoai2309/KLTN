@@ -39,6 +39,8 @@ This is NOT distributed exactly-once billing or cross-instance abuse protection.
 
 ## UI handoff and review
 
+Owner runtime decision, 2026-10-13: the sole user entrypoint is the main Next.js application on `http://localhost:3010/trips/new`. Analyze/evaluate/check/proposal requests use same-origin APIs. Port3012 belongs only to an isolated internal developer fixture; it is not navigation, a separate user frontend or a production dependency. No additional dev simulation mode is required for this integration.
+
 `/trips/new` retains US-24–27. Successful authoritative `/check` passes the exact normalized snapshot plus edited review draft into an in-memory Planner flow; an explicit CTA calls the typed API. Back unmounts/invalidate proposal and reopens review with edits preserved; any edit needs a fresh server check. Same-key retry and regenerate/new-key are distinct, single-flight, abortable and fenced against stale responses. No browser storage or automatic post-auth replay.
 
 Production components render summary chips, actual day tabs, numbered selectable stop timeline, checks and warning disclosures, MapLibre markers with zoom/fit/pan, synchronized destination preview and real detail links. Metrics are nullable and sourced from server output. Missing photo/description/route/candidate and technical states are explicit. Keyboard day tabs, aria-live/focus handling, responsive 360px+ and existing Header are retained. No mockup facts are copied into production.

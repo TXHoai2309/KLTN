@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { destinationInputSchema } from "./destination-contract";
+import { mediaFields } from "./destination-media-contract";
 import {
   publicHttpsUrl,
   referenceId,
@@ -51,6 +52,7 @@ export const destinationV3PatchSchema = z
   .object(fields)
   .partial()
   .extend({
+    ...mediaFields,
     formVersion: z.literal("V3"),
     expectedUpdatedAt: z.iso.datetime().optional(),
   })
