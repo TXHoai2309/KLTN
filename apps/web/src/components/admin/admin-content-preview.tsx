@@ -90,6 +90,7 @@ export default function AdminContentPreview({
   durations,
   hours,
   destinations,
+  simplifiedDestination = false,
 }: {
   title: string;
   content: string;
@@ -102,6 +103,7 @@ export default function AdminContentPreview({
     intervals: { opensAt: string; closesAt: string }[];
   }[];
   destinations?: { id: string; name: string }[];
+  simplifiedDestination?: boolean;
 }) {
   const destination = "aliases" in profile;
   const coordinates = location
@@ -115,11 +117,13 @@ export default function AdminContentPreview({
       </p>
       <h2>{title || "Chưa có tiêu đề"}</h2>
       {profile.shortDescription && <p>{profile.shortDescription}</p>}
+      {!simplifiedDestination && (
       <PreviewNames
         type="AREA"
         ids={profile.areaIds}
         label="Địa phương / vùng văn hóa"
       />
+      )}
       {!destination && (
         <>
           <p>{resolveCategoryLabel(profile.category)}</p>
@@ -138,7 +142,7 @@ export default function AdminContentPreview({
           <p>
             Vị trí: {location?.latitude || "Chưa chọn"},{" "}
             {location?.longitude || "Chưa chọn"} ·{" "}
-            {profile.locationVerified ? "Đã xác nhận" : "Chưa xác nhận"}
+            {simplifiedDestination ? "Tọa độ hiển thị khi URL đã được xác định" : profile.locationVerified ? "Đã xác nhận" : "Chưa xác nhận"}
           </p>
           {safeContentLink(profile.googleMapsUrl) && (
             <a
@@ -168,6 +172,7 @@ export default function AdminContentPreview({
               ? durations.minimum + " phút"
               : "Chưa có dữ liệu"}
           </p>
+          {!simplifiedDestination && (
           <p>
             Giá vé: {profile.ticketPrice || "Chưa có dữ liệu"} ·{" "}
             {profile.ticketVerification === "VERIFIED"
@@ -176,6 +181,7 @@ export default function AdminContentPreview({
                 ? "Có mâu thuẫn"
                 : "Chưa xác minh"}
           </p>
+          )}
           {profile.bestVisitTime && (
             <p>Thời điểm phù hợp: {profile.bestVisitTime}</p>
           )}
@@ -196,11 +202,13 @@ export default function AdminContentPreview({
               ))}
             </ul>
           )}
+          {!simplifiedDestination && (
           <PreviewNames
             type="CULTURE"
             ids={profile.cultureIds}
             label="Văn hóa liên quan"
           />
+          )}
         </>
       )}
       {profile.media.map((m, i) => (
@@ -218,7 +226,7 @@ export default function AdminContentPreview({
       {destinations && destinations.length > 0 && (
         <p>Điểm đến liên quan: {destinations.map((d) => d.name).join(", ")}</p>
       )}
-      <h3>Nguồn kiểm chứng</h3>
+      <h3>{simplifiedDestination ? "Nguồn tham khảo" : "Nguồn kiểm chứng"}</h3>
       {profile.sources.length === 0 && <p>Chưa thêm nguồn.</p>}
       <ul>
         {profile.sources.map((s, i) => (

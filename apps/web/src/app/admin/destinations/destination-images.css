@@ -1,0 +1,21 @@
+.dimg-drop { border: 1px dashed var(--af-line); border-radius: 12px; padding: 20px; text-align: center; background: var(--af-surface); }
+.dimg-drop:focus-within { outline: 2px solid var(--af-green); outline-offset: 3px; }
+.dimg-gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 20px; }
+.dimg-card { border: 1px solid var(--af-line); border-radius: 12px; overflow: hidden; min-width: 0; }
+.dimg-card > a { display: grid; background: var(--af-tint); min-height: 150px; color: var(--af-green); text-decoration: none; }
+.dimg-card > a:hover { color: var(--af-green-hover); }
+.dimg-card > a:focus-visible { outline: 2px solid var(--af-green); outline-offset: -3px; }
+.dimg-card > a img { width: 100%; height: 180px; object-fit: cover; }
+.dimg-card > a span { padding: 12px 16px; font-size: .85rem; min-height: 44px; }
+.dimg-card-body { padding: 16px; display: grid; gap: 10px; }
+.dimg-card-body label { font-size: .85rem; font-weight: 600; display: block; }
+.dimg-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.dimg-actions .af-btn { min-height: 44px; }
+.dimg-card-body .dv3-disclosure input, .dimg-card-body .dv3-disclosure textarea { margin: 6px 0 12px; }
+.dimg-queue { display: grid; gap: 12px; margin-top: 16px; }
+.dimg-queue-row { display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--af-line); border-radius: 8px; }
+.dimg-queue-row img { flex-shrink: 0; object-fit: cover; border-radius: 6px; }
+.dimg-queue-row > div { flex: 1; min-width: 0; }
+.dimg-queue-row strong, .dimg-queue-row p { overflow-wrap: anywhere; font-size: .85rem; }
+.dimg-queue-row progress { width: 100%; accent-color: var(--af-green); }
+@media (max-width: 600px) { .dimg-gallery { grid-template-columns: minmax(0, 1fr); } .dimg-queue-row { flex-wrap: wrap; } .dimg-queue-row img { width: 56px; height: 48px; } }

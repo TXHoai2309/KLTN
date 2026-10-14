@@ -1,3 +1,4 @@
+import { mvpFeatures } from "@/lib/mvp-features";
 import React from "react";
 import "./explore.css";
 
@@ -14,6 +15,6 @@ export default function Loading() {
       <span className="explore-skeleton-line explore-skeleton-eyebrow" /><span className="explore-skeleton-line explore-skeleton-title" /><span className="explore-skeleton-line explore-skeleton-copy" />
     </div></header>
     <LoadingSection label="điểm đến" kind="destination" />
-    <LoadingSection label="nội dung văn hóa" kind="culture" />
+    {mvpFeatures.culture && <LoadingSection label="nội dung văn hóa" kind="culture" />}
   </main>;
 }

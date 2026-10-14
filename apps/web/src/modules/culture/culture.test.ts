@@ -136,7 +136,7 @@ test("SSR headers/loading visibility, no optimistic publication; UI contracts/ac
   assert.doesNotMatch(picker, /Tìm và chọn điểm đến|Điểm đến đã chọn \(\$\{selected\.length\}\)|culture-picker-search/);
   assert.doesNotMatch(picker, /Trang trước|Trang sau|Trang 1|type="checkbox"/);
   const guard = await readFile(new URL("../../components/admin/use-unsaved-changes.ts", import.meta.url), "utf8");
-  assert.match(form, /useUnsavedChanges/); assert.match(guard, /beforeunload/); assert.match(guard, /window.confirm/); assert.match(guard, /navigationType !== "traverse"/); assert.match(form, /markSafeToLeave\(\)/);
+  assert.match(form, /useUnsavedChanges/); assert.match(guard, /beforeunload/); assert.match(guard, /dialog.showModal/); assert.doesNotMatch(guard, /window.confirm|window.alert/); assert.match(guard, /navigationType !== "traverse"/); assert.match(form, /markSafeToLeave\(\)/);
 
   const styles = await readFile(new URL("../../app/admin/culture/culture.css", import.meta.url), "utf8");
   for (const pattern of [/\.culture-picker-panel[^\n]*max-height: min\(320px/, /\.culture-picker-options[^\n]*overflow-y: auto/, /\.dark \.culture-picker-hidden/, /\.culture-form-page \.destination-form-actions/, /@media \(max-width: 600px\)/]) assert.match(styles, pattern);

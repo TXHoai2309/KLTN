@@ -1,4 +1,5 @@
 "use client";
+import { mvpFeatures } from "@/lib/mvp-features";
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
@@ -66,7 +67,7 @@ export default function ExploreResults({ data: initialData, error }: { data?: Pu
       <div className="explore-controls-row">
         <nav className="explore-content-tabs" aria-label="Nội dung khám phá">
           <a href="#explore-destination-title"><Map aria-hidden="true" size={15} />Điểm đến</a>
-          <a href="#explore-culture-title"><BookOpen aria-hidden="true" size={15} />Nội dung văn hóa</a>
+          {mvpFeatures.culture && <a href="#explore-culture-title"><BookOpen aria-hidden="true" size={15} />Nội dung văn hóa</a>}
         </nav>
         <div className="explore-view-switch" role="group" aria-label="Chế độ xem điểm đến">
           <button type="button" aria-pressed={view === "list"} onClick={() => setView("list")}>

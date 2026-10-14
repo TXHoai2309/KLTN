@@ -1,8 +1,10 @@
+import { mvpFeatures } from "@/lib/mvp-features";
 import { Skeleton } from "@KLTN/ui/components/skeleton";
 
 import "./culture.css";
 
 export default function Loading() {
+  if (!mvpFeatures.culture) return <main lang="vi" role="status">Đang chuyển về Khám phá…</main>;
   return (
     <main className="culture-page" lang="vi" aria-busy="true">
       <header className="culture-page-header">

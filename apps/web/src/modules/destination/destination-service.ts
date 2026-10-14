@@ -1,3 +1,7 @@
+import { destinationProfileSchema } from "../content-profile/content-profile-contract";
+import { writeDestinationV3 } from "./destination-v3-service";
+import { legacyProfileChanges, openingChanges, equal } from "./destination-safe-write";
+import { recordUnlinkedCloudinaryMedia } from "./destination-media-orphans";
 import { destinationProfileSelect, profileDto, profileWrite } from "@/modules/content-profile/content-profile-service";
 import type { Database, Prisma } from "@KLTN/db";
 import { requireActor, type AuthorizationDependencies } from "@/server/authorization/guard";
@@ -10,7 +14,7 @@ export const destinationSelect = {
   ...destinationProfileSelect,
   id: true, name: true, description: true, area: true, category: true, latitude: true, longitude: true,
   suggestedDurationMinutes: true, minimumDurationMinutes: true, visibility: true, createdAt: true, updatedAt: true,
-  openingDays: { select: { dayOfWeek: true, status: true, intervals: { select: { opensAtMinute: true, closesAtMinute: true }, orderBy: { opensAtMinute: "asc" } } } },
+  openingDays: { select: { id: true, dayOfWeek: true, status: true, intervals: { select: { id: true, opensAtMinute: true, closesAtMinute: true }, orderBy: { opensAtMinute: "asc" } } } },
 } satisfies Prisma.DestinationSelect;
 type DestinationRow = Prisma.DestinationGetPayload<{ select: typeof destinationSelect }>;
 export function toDestinationDto(row: DestinationRow) {
@@ -52,20 +56,55 @@ export async function getDestination(headers: Headers, id: string, deps: Destina
 export async function writeDestination(headers: Headers, body: unknown, key: string, id: string | null, deps: DestinationDependencies) {
   const actor = await requireActor(headers, deps, "admin");
   if (id !== null) validateDestinationId(id);
-  const input = parseDestinationInput(body);
+  if (body && typeof body === "object" && "formVersion" in body) return writeDestinationV3(headers, body, key, id, deps);
+  const rawProfile = body && typeof body === "object" && "profile" in body ? (body as {profile: unknown}).profile : undefined;
+  const validationBody = id !== null && rawProfile !== undefined ? Object.fromEntries(Object.entries(body as object).filter(([k]) => k !== "profile")) : body;
+  const parsed = (id === null ? destinationInputSchema : destinationInputSchema.partial()).safeParse(validationBody);
+  if (!parsed.success) throw new AppError("INVALID_DESTINATION_INPUT", "Dữ liệu điểm đến không hợp lệ.", 400, parsed.error.issues.map(i => ({path: i.path.join("."), message: i.message})));
+  const input = parsed.data;
   return executeIdempotentWrite({
     database: deps.database, actorId: actor.id, operation: id === null ? "destination:create" : "destination:update",
-    key, input: { id, ...input },
+    key, input: { id, ...input, ...(id !== null && rawProfile !== undefined ? {profile:rawProfile} : {}) },
     execute: async tx => {
       // Recheck current role inside the mutation transaction too.
       await requireActor(headers, { ...deps, database: tx as unknown as Database }, "admin");
-      const { openingDays, profile, ...fields } = input;
-      const extension = await profileWrite(tx, profile, actor.id, id !== null);
-      if (id === null) return toDestinationDto(await tx.destination.create({ data: { ...fields, ...extension, visibility: "HIDDEN", openingDays: { create: openingCreate(openingDays) } }, select: destinationSelect }));
-      const previous = await tx.destination.findUnique({ where: { id }, select: { id: true, latitude: true, longitude: true } });
+      if (id === null) {
+        const full = parseDestinationInput(body);
+        const { openingDays, profile, ...fields } = full;
+        if (profile?.sources.some(s => s.id) || profile?.media.some(m => m.id)) throw new AppError("INVALID_CONTENT_REFERENCES", "Không dùng ID nguồn/ảnh hiện có khi tạo điểm đến mới.", 400);
+        const extension = await profileWrite(tx, profile, actor.id, false);
+        return toDestinationDto(await tx.destination.create({ data: { ...fields, ...extension, visibility: "HIDDEN", openingDays: { create: openingCreate(openingDays) } }, select: destinationSelect }));
+      }
+      const previous = await tx.destination.findUnique({ where: { id }, select: destinationSelect });
       if (!previous) throw new AppError("DESTINATION_NOT_FOUND", "Không tìm thấy điểm đến.", 404);
-      await tx.openingDay.deleteMany({ where: { destinationId: id } });
-      return toDestinationDto(await tx.destination.update({ where: { id }, data: { ...fields, ...extension, ...(!profile && (previous.latitude !== input.latitude || previous.longitude !== input.longitude) ? { locationVerified: false, locationEvidence: null } : {}), contentRevision: { increment: 1 }, openingDays: { create: openingCreate(openingDays) } }, select: destinationSelect }));
+      const { openingDays, profile: ignoredProfile, ...fields } = input;
+      let profile = ignoredProfile;
+      if (rawProfile !== undefined) {
+        if (!rawProfile || typeof rawProfile !== "object" || Array.isArray(rawProfile)) throw new AppError("INVALID_DESTINATION_INPUT", "Profile không hợp lệ.", 400);
+        const validated = destinationProfileSchema.safeParse({...toDestinationDto(previous).profile, ...rawProfile});
+        if (!validated.success) throw new AppError("INVALID_DESTINATION_INPUT", "Profile không hợp lệ.", 400);
+        profile = validated.data;
+      }
+      const data: Record<string, unknown> = Object.fromEntries(Object.entries(fields).filter(([k, v]) => !equal(previous[k as keyof typeof previous], v)));
+      if (profile) {
+        await profileWrite(tx, profile, actor.id, true); // Reference validation only; do not use replacement output.
+        const rawKeys = Object.keys((body as {profile: object}).profile);
+        Object.assign(data, legacyProfileChanges(previous as unknown as Record<string, unknown>, profile, actor.id, rawKeys));
+        if (rawKeys.includes("media")) {
+          const changes = data.media as { deleteMany?: { id: string }[]; update?: { where: { id: string }; data: Record<string, unknown> }[] } | undefined;
+          const orphanIds = new Set(changes?.deleteMany?.map(m => m.id) ?? []);
+          for (const item of changes?.update ?? []) if (item.data.url) orphanIds.add(item.where.id);
+          await recordUnlinkedCloudinaryMedia(tx, actor.id, id, key, previous.media.filter(m => orphanIds.has(m.id)));
+        }
+      }
+      if (openingDays) {
+        const updates = openingChanges(previous.openingDays, openingDays);
+        if (updates.length) data.openingDays = { update: updates.map(u => ({where: {destinationId_dayOfWeek: {destinationId: id, dayOfWeek: u.where.dayOfWeek}}, data: u.data})) };
+      }
+      if (!profile && (data.latitude !== undefined || data.longitude !== undefined)) Object.assign(data, {locationVerified: false, locationEvidence: null});
+      if (!Object.keys(data).length) return toDestinationDto(previous);
+      data.contentRevision = { increment: 1 };
+      return toDestinationDto(await tx.destination.update({ where: { id }, data: data as Prisma.DestinationUpdateInput, select: destinationSelect }));
     },
   });
 }

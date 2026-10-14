@@ -75,8 +75,8 @@ for (const failing of ["Destination","Culture"]) test(`${failing} failure does n
   const [a,b]=await Promise.all([loadPublicSection(async()=>{if(failing==="Destination")throw Error("private");return ["Destination"];},"Destination failed"),loadPublicSection(async()=>{if(failing==="Culture")throw Error("private");return ["Culture"];},"Culture failed")]);
   assert.deepEqual(failing==="Destination"?a:b,{error:`${failing} failed`}); assert.deepEqual(failing==="Destination"?b:a,{data:[failing==="Destination"?"Culture":"Destination"]});
 });
-test("loading markup covers both domains, semantic headings, no blank page", () => {
-  const html=renderToStaticMarkup(<Loading/>); assert.match(html,/Đang tải điểm đến/); assert.match(html,/Đang tải nội dung văn hóa/); assert.equal((html.match(/aria-busy="true"/g)||[]).length,2);
+test("MVP loading markup hides Culture and keeps Destination semantic headings", () => {
+  const html=renderToStaticMarkup(<Loading/>); assert.match(html,/Đang tải điểm đến/); assert.doesNotMatch(html,/Đang tải nội dung văn hóa/); assert.equal((html.match(/aria-busy="true"/g)||[]).length,1);
 });
 test("Home is product UI; Explore streams independently and exposes no dead Culture/AI/Trip controls", async () => {
   const home=await readFile(new URL("../../app/page.tsx",import.meta.url),"utf8");

@@ -1,3 +1,4 @@
+import { mvpFeatures } from "@/lib/mvp-features";
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
@@ -51,7 +52,7 @@ export default function Home() {
           <p>Chọn cách bạn muốn bắt đầu để khám phá những điều đặc biệt của vùng đất địa đầu Tổ quốc.</p>
         </div>
 
-        <div className="home-card-grid">
+        <div className="home-card-grid" data-mvp-columns={mvpFeatures.culture ? undefined : "2"}>
           <article className="home-card" data-home-reveal>
             <div className="home-card-art home-card-art-destination" aria-hidden="true">
               <Image
@@ -70,6 +71,7 @@ export default function Home() {
             </div>
           </article>
 
+          {mvpFeatures.culture && (
           <article className="home-card" data-home-reveal>
             <div className="home-card-art home-card-art-culture" aria-hidden="true">
               <div className="home-culture-photo">
@@ -89,6 +91,7 @@ export default function Home() {
               <Link href="/explore" className="home-card-link">Khám phá văn hóa <ArrowRight size={15} aria-hidden="true" /></Link>
             </div>
           </article>
+          )}
 
           <article className="home-card" data-home-reveal>
             <div className="home-card-art home-card-art-map" aria-hidden="true">

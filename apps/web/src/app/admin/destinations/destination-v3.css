@@ -1,0 +1,107 @@
+/* Destination V3: natural document scrolling; reuse the shared Admin form tokens. */
+.dv3-page {
+  max-width: 1060px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+.dv3-main {
+  padding: 24px 32px 110px;
+  min-width: 0;
+}
+.dv3-fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+.dv3-description {
+  min-height: 180px;
+  resize: none;
+}
+.dv3-page .af-section {
+  margin-bottom: 20px;
+}
+.dv3-disclosure {
+  margin: 14px 0;
+  padding: 14px 16px;
+  border: 1px solid var(--af-line);
+  border-radius: var(--af-radius-input);
+}
+.dv3-disclosure > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--af-ink);
+  min-height: 28px;
+}
+.dv3-disclosure > summary:hover {
+  color: var(--af-green);
+}
+.dv3-disclosure > summary:focus-visible {
+  outline: 2px solid var(--af-green);
+  outline-offset: 4px;
+}
+.dv3-summary {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.65;
+}
+.dv3-location-status {
+  min-height: 82px;
+  padding: 14px 16px;
+  background: var(--af-tint);
+  border: 1px solid var(--af-line);
+  border-radius: var(--af-radius-input);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.dv3-source {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) auto;
+  align-items: start;
+  gap: 12px;
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid var(--af-line);
+  border-radius: var(--af-radius-input);
+}
+.dv3-source > button {
+  margin-top: 26px;
+}
+.dv3-publication {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--af-line);
+}
+.dv3-page .af-sticky-actions {
+  max-width: 1060px;
+  margin-inline: auto;
+}
+.dv3-page button {
+  cursor: pointer;
+}
+.dv3-page button:disabled {
+  cursor: not-allowed;
+}
+@media (max-width: 640px) {
+  .dv3-main {
+    padding: 18px 14px 130px;
+  }
+  .dv3-source {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .dv3-source > button {
+    margin-top: 0;
+    justify-self: start;
+  }
+}
+
+.dv3-search {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.dv3-page .af-sticky-actions .af-btn-primary { min-width: 180px; justify-content: center; }

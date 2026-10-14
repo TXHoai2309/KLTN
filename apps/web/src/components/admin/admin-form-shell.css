@@ -849,3 +849,10 @@
 
 .af-root :focus-visible { outline-color: var(--af-green); }
 .af-root .af-actions-buttons { min-width: 0; }
+
+/* Shared app-owned unsaved-change guard, used by both content forms. */
+.af-leave-dialog { width: min(440px, calc(100vw - 32px)); border: 1px solid var(--af-line); border-radius: var(--af-radius-card); padding: 24px; color: var(--af-ink); background: var(--af-surface); }
+.af-leave-dialog::backdrop { background: #19233780; }
+.af-leave-dialog h2 { font-size: 20px; margin: 0 0 12px; }
+.af-leave-dialog p { line-height: 1.6; margin: 0 0 20px; }
+.af-leave-dialog > div { display: flex; justify-content: flex-end; gap: 10px; }

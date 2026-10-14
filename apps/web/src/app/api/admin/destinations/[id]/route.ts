@@ -1,3 +1,4 @@
+import { destinationResponseDto } from "@/modules/destination/destination-http";
 import { apiSuccess, apiMutationResult } from "@/server/http/api-response";
 import { handleApiError, handleMutationApiError } from "@/server/http/error-handler";
 import { requireIdempotencyKey } from "@/server/http/idempotency";
@@ -7,10 +8,10 @@ import { getDestination, writeDestination } from "@/modules/destination/destinat
 import { destinationJson, noDestinationQuery, privateDestinationResponse as privateResponse } from "@/modules/destination/destination-http";
 type Context = { params: Promise<{ id: string }> };
 export async function GET(request: Request, context: Context) {
-  try { await requireActor(request.headers, deps, "admin"); noDestinationQuery(request); return privateResponse(apiSuccess(await getDestination(request.headers, (await context.params).id, deps))); }
+  try { await requireActor(request.headers, deps, "admin"); noDestinationQuery(request); return privateResponse(apiSuccess(destinationResponseDto(await getDestination(request.headers, (await context.params).id, deps), request))); }
   catch (error) { return privateResponse(handleApiError(error)); }
 }
 export async function PATCH(request: Request, context: Context) {
-  try { await requireActor(request.headers, deps, "admin"); return privateResponse(apiMutationResult(await writeDestination(request.headers, await destinationJson(request), requireIdempotencyKey(request), (await context.params).id, deps))); }
+  try { await requireActor(request.headers, deps, "admin"); const result = await writeDestination(request.headers, await destinationJson(request), requireIdempotencyKey(request), (await context.params).id, deps); if (result.status === "SUCCESS") result.data = destinationResponseDto(result.data, request); return privateResponse(apiMutationResult(result)); }
   catch (error) { return privateResponse(handleMutationApiError(error)); }
 }

@@ -22,6 +22,7 @@ import type { TripRequirementInput } from "@/modules/trip-requirement/trip-requi
 import type { ClarificationRequest } from "@/modules/trip-requirement/trip-clarification-rules";
 import NaturalLanguageInput, { type NaturalLanguageInputStatus } from "./natural-language-input";
 import TripReviewScreen from "./trip-review-screen";
+import TripPlannerFlow from "@/components/trip-planner/trip-planner-screen";
 import type { TripRequirementReadiness } from "@/modules/trip-requirement/trip-requirement-readiness";
 import { evaluateTripRequirement } from "@/modules/trip-requirement/trip-requirement-readiness";
 import {
@@ -30,6 +31,7 @@ import {
   draftToFormFields,
   draftToCandidate,
   type TripRequirementReviewDraft,
+  type ConfirmedTripRequirement,
 } from "@/modules/trip-requirement/trip-requirement-review";
 import {
   buildPayload,
@@ -157,6 +159,7 @@ export default function TripRequirementForm() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [review, setReview] = useState<EvaluationResult | null>(null);
+  const [planner, setPlanner] = useState<ConfirmedTripRequirement | null>(null);
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const [naturalLanguageStatus, setNaturalLanguageStatus] = useState<NaturalLanguageInputStatus>({ kind: "idle" });
@@ -411,6 +414,7 @@ export default function TripRequirementForm() {
   }
 
   const button = getSubmitButtonState(pending);
+  if (planner) return <TripPlannerFlow confirmed={planner} onBack={() => setPlanner(null)} />;
   if (review) {
     return (
       <TripReviewScreen
@@ -423,6 +427,10 @@ export default function TripRequirementForm() {
           setReview(null);
         }}
         onFillForm={review.source === "AI" ? handleFillAndEdit : undefined}
+        onConfirmed={(confirmed, confirmedDraft) => {
+          setReview({ ...review, draft: confirmedDraft });
+          setPlanner(structuredClone(confirmed));
+        }}
       />
     );
   }

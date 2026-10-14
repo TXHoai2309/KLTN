@@ -1,14 +1,15 @@
 {
-  "scope": "AF-5/AF-6 shared profile controls; established Admin form behavior is reused",
+  "scope": "Destination V3 Create/Edit/preview and shared Admin controls; Culture legacy presentation retained",
   "sourceRoots": [
-    "apps/web/src/components/admin"
+    "apps/web/src/components/admin",
+    "apps/web/src/app/admin/destinations"
   ],
   "ownership": {
     "Select/Listbox": "native",
-    "Date": "typed"
+    "Date": "native"
   },
   "evidence": {
-    "crudFullFlow": "apps/web/scripts/test-admin-profiles-ui.mjs",
-    "failurePaths": "apps/web/scripts/test-admin-profiles-ui.mjs"
+    "crudFullFlow": "apps/web/scripts/test-destination-v3-ui.mjs",
+    "failurePaths": "apps/web/scripts/test-destination-v3-ui.mjs"
   }
 }

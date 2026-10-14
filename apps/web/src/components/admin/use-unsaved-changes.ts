@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef } from "react";
 type NavigateEvent = Event & {
-  destination: { url: string };
+  destination: { url: string; key?: string };
   canIntercept: boolean;
   hashChange: boolean;
   userInitiated: boolean;
@@ -11,20 +11,27 @@ export function useUnsavedChanges(dirty: boolean, busy: boolean) {
   const state = useRef({ dirty, busy });
   state.current = { dirty, busy };
   useEffect(() => {
-    const canLeave = () => {
-      if (state.current.busy) {
-        window.alert(
-          "Vui lòng hoàn tất thao tác đang chờ hoặc đọc lại và thử lưu trước khi rời trang.",
-        );
-        return false;
+    let prompt: HTMLDialogElement | null = null;
+    function confirmLeave(resume: () => void) {
+      if (prompt) return;
+      const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      const dialog = document.createElement("dialog");
+      prompt = dialog;
+      dialog.className = "af-leave-dialog";
+      const title = document.createElement("h2"), message = document.createElement("p"), actions = document.createElement("div");
+      title.id = "admin-leave-title"; message.id = "admin-leave-message";
+      title.textContent = state.current.busy ? "Thao tác chưa hoàn tất" : "Rời trang với thay đổi chưa lưu?";
+      message.textContent = state.current.busy ? "Hoàn tất thao tác đang chờ hoặc đọc lại và thử lưu trước khi rời trang." : "Các thay đổi đang nhập sẽ không được lưu.";
+      dialog.setAttribute("aria-labelledby", title.id); dialog.setAttribute("aria-describedby", message.id);
+      const cancel = document.createElement("button"); cancel.type = "button"; cancel.className = "af-btn"; cancel.textContent = "Ở lại"; cancel.autofocus = true;
+      cancel.addEventListener("click", () => dialog.close()); actions.append(cancel);
+      if (!state.current.busy) {
+        const leave = document.createElement("button"); leave.type = "button"; leave.className = "af-btn"; leave.textContent = "Rời trang";
+        leave.addEventListener("click", () => {state.current = {dirty: false,busy: false}; dialog.close(); resume();}); actions.append(leave);
       }
-      return (
-        !state.current.dirty ||
-        window.confirm(
-          "Bạn có thay đổi chưa lưu. Rời trang và bỏ các thay đổi này?",
-        )
-      );
-    };
+      dialog.addEventListener("close", () => {dialog.remove(); prompt = null; opener?.focus();}, {once:true});
+      dialog.append(title,message,actions); (document.querySelector(".af-root") ?? document.body).append(dialog); dialog.showModal();
+    }
     function click(event: MouseEvent) {
       if (
         event.defaultPrevented ||
@@ -50,9 +57,9 @@ export function useUnsavedChanges(dirty: boolean, busy: boolean) {
         url.search === location.search
       )
         return;
-      if (!canLeave()) {
-        event.preventDefault();
-        event.stopPropagation();
+      if (state.current.dirty || state.current.busy) {
+        event.preventDefault(); event.stopPropagation();
+        confirmLeave(() => anchor.click());
       }
     }
     function unload(event: BeforeUnloadEvent) {
@@ -72,12 +79,20 @@ export function useUnsavedChanges(dirty: boolean, busy: boolean) {
         nav.hashChange
       )
         return;
-      if (!canLeave()) nav.preventDefault();
+      if (state.current.dirty || state.current.busy) {
+        nav.preventDefault();
+        confirmLeave(() => {
+          const api = navigation as (EventTarget & {traverseTo?: (key:string)=>unknown}) | undefined;
+          if (nav.destination.key && api?.traverseTo) api.traverseTo(nav.destination.key);
+          else window.history.back();
+        });
+      }
     }
     window.addEventListener("click", click, true);
     window.addEventListener("beforeunload", unload);
     navigation?.addEventListener("navigate", navigate);
     return () => {
+      prompt?.remove();
       window.removeEventListener("click", click, true);
       window.removeEventListener("beforeunload", unload);
       navigation?.removeEventListener("navigate", navigate);

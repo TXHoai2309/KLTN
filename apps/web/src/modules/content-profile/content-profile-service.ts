@@ -13,7 +13,7 @@ export function profileDto(row: unknown, kind: "destination" | "culture") {
         return {};
     const keys = kind === "destination" ? ["aliases", "shortDescription", "address", "googleMapsUrl", "locationVerified", "locationEvidence", "ticketPrice", "ticketVerification", "ticketEvidence", "bestVisitTime", "visitNotes"] : ["category", "shortDescription", "geographicScope"];
     const ids = (name: string, key = "id") => (r[name] as Record<string, string>[]).map(x => x[key]);
-    return { profile: { ...pick(r, keys), areaIds: ids("areas"), sources: (r.sources as Record<string, unknown>[]).map(s => pick(s, sourceKeys)), media: (r.media as Record<string, unknown>[]).map(m => pick(m, mediaKeys)), ...(kind === "destination" ? { cultureIds: ids("cultureLinks", "cultureId") } : { communityIds: ids("communities") }) } };
+    return { profile: { ...pick(r, keys), areaIds: ids("areas"), sources: (r.sources as Record<string, unknown>[]).map(s => pick(s, kind === "destination" ? ["id", ...sourceKeys] : sourceKeys)), media: (r.media as Record<string, unknown>[]).map(m => pick(m, kind === "destination" ? ["id", ...mediaKeys] : mediaKeys)), ...(kind === "destination" ? { cultureIds: ids("cultureLinks", "cultureId") } : { communityIds: ids("communities") }) } };
 }
 export async function profileWrite(tx: Prisma.TransactionClient, profile: DestinationProfile | CultureProfile | undefined, actorId: string, update: boolean) {
     if (!profile)

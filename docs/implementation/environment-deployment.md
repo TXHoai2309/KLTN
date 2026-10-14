@@ -26,6 +26,17 @@ Never put actual connection strings, API keys, bootstrap credentials, or other s
 
 US-25 adds the optional `OPENAI_PREFERENCE_MODEL` declaration and ADR-16 server-boundary documentation. It is not exposed through `NEXT_PUBLIC_*`, and is intentionally left blank until an owner selects a model. `scripts/sync-vercel-env.ts` already syncs only non-empty keys declared in `.env.schema`; no script change is required. Run `npm run env:generate -w web` after changing the schema so the generated `apps/web/src/env.ts` stays aligned; do not put a real model name or API key in committed files.
 
+## Destination image configuration
+
+Destination V3.2 adds optional `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`,
+`CLOUDINARY_API_SECRET`, and `CLOUDINARY_DESTINATION_FOLDER` to the web Varlock
+schema/example. All are internal/server-only; the secret is sensitive. The only
+accepted destination root is `KLTN/destinations`. Blank/incomplete credentials
+disable upload only. The provider reads the configured environment's folder mode
+via the Admin Config API; it never creates an environment, moves assets or deletes
+assets. Set real values in ignored local environment files yourself, then restart
+the local app. See [V3.2 smoke instructions](destination-cloudinary-v3-2-report.md).
+
 ## Environment topology
 
 | Runtime | Application | Database |

@@ -1,3 +1,4 @@
+import { destinationResponseDto } from "@/modules/destination/destination-http";
 import { apiMutationResult } from "@/server/http/api-response";
 import { handleMutationApiError } from "@/server/http/error-handler";
 import { requireIdempotencyKey } from "@/server/http/idempotency";
@@ -9,6 +10,8 @@ import { destinationJson, privateDestinationResponse as privateResponse } from "
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   try {
     await requireActor(request.headers, deps, "admin");
-    return privateResponse(apiMutationResult(await setDestinationVisibility(request.headers, (await context.params).id, await destinationJson(request), requireIdempotencyKey(request), deps)));
+    const result = await setDestinationVisibility(request.headers, (await context.params).id, await destinationJson(request), requireIdempotencyKey(request), deps);
+    if (result.status === "SUCCESS") result.data = destinationResponseDto(result.data, request);
+    return privateResponse(apiMutationResult(result));
   } catch (error) { return privateResponse(handleMutationApiError(error)); }
 }

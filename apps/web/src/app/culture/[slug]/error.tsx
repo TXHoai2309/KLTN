@@ -1,4 +1,5 @@
 "use client";
+import { mvpFeatures } from "@/lib/mvp-features";
 
 import Link from "next/link";
 import { Button } from "@KLTN/ui/components/button";
@@ -6,6 +7,7 @@ import { Button } from "@KLTN/ui/components/button";
 import "./culture-detail.css";
 
 export default function Error({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  if (!mvpFeatures.culture) return <main lang="vi" role="status">Đang chuyển về Khám phá…</main>;
   return (
     <main className="culture-detail-page" lang="vi">
       <div className="culture-detail-shell">

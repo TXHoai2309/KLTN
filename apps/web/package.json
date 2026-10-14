@@ -44,6 +44,7 @@
     "@vercel/blob": "2.8.1",
     "babel-plugin-react-compiler": "^1.0.0",
     "better-auth": "1.7.5",
+    "cloudinary": "^2.11.0",
     "fast-xml-parser": "5.11.2",
     "fflate": "0.8.3",
     "js-tiktoken": "1.0.21",
@@ -54,6 +55,7 @@
     "pdfjs-dist": "4.10.38",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "sharp": "^0.35.5",
     "sonner": "^2.0.8",
     "varlock": "1.18.0",
     "zod": "^4.5.4"

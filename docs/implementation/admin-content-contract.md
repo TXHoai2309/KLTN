@@ -19,3 +19,16 @@ RagDomainOrigin reserves an optional domain identity, immutable canonical revisi
 
 ## Owner approvals
 Review and approve the migration SQL before applying to Development. Confirm operational website/source/media rights individually. Approve a separate AF-7 integration before enabling domain reuse. No Neon migration or external provider operation is performed by this task.
+
+
+## Destination UX V3 — approved owner decision, 2026-10-14
+
+Supersedes Destination form/location/write aspects above only. Create/Edit use a V3 payload on the existing endpoints, with omitted fields preserved. New Destination area defaults to `khu vực hà giang`; legacy area/category/short summary/price/geography/Culture/media remain untouched unless explicitly edited. Six approved Destination categories are independent of Culture taxonomy. Description updates derive a plain summary, bounded by the existing 1,000-character contract.
+
+AddressKit runs through a fixed-host server adapter with TTL and text fallback; only the address string persists. Maps supports explicit point coordinates and bounded safe redirects, with a second server check before V3 writes. Places live is disabled. Legacy Admin coordinate/taxonomy payloads remain compatible; V3 rejects client latitude/longitude, verification and visibility fields. The optional `X-KLTN-Form-Version: V3` header requests child IDs; legacy HTTP responses retain their old shape.
+
+Source title changes preserve ID and review metadata. Changing the URL denotes different evidence and clears that source's approval/reviewer metadata; unchanged sources retain it. Explicit deletion is scoped by Destination ownership. No media/Culture/area/opening-day replacement occurs merely because inputs are hidden. Changed schedules retain day IDs and unchanged intervals. No-change Edit performs no business-record update; the confirmed idempotency response may still be stored.
+
+Culture and ticket-price presentation default OFF in one config. Culture API/service/models/data and Destination RAG knowledge remain intact. Direct public Culture routes redirect to Explore. Publishing stays a separate Admin operation; an information region may remain public while excluded from routing.
+
+No migration or new structured location columns. See the V3 story/report for verified Development registry identity, tests and blocked disposable PostgreSQL acceptance.
