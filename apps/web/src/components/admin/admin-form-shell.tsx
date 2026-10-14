@@ -502,9 +502,12 @@ export function AdminChips({
   );
 }
 
-export function focusFormError(path: string, prefix: "cf" | "df") {
+export function focusFormError(path: string, prefix: "cf" | "df" | "dv3") {
   const base = path.split(".")[0];
-  const direct = document.getElementById(
+  const hourPath = /^openingDays\.(\d+)(?:\.intervals\.(\d+)\.(opensAt|closesAt))?/u.exec(path);
+  const hourId = hourPath ? (hourPath[2] ? `time-${hourPath[1]}-${hourPath[2]}-${hourPath[3]}` : `status-${hourPath[1]}`) : null;
+  const exactId = (hourId ? document.getElementById(hourId) : null) ?? document.getElementById(`destination-${path}`);
+  const direct = exactId ?? document.getElementById(
     prefix === "cf"
       ? base === "content"
         ? "cf-content-editor"
@@ -530,7 +533,8 @@ export function focusFormError(path: string, prefix: "cf" | "df") {
                 : base === "destinationIds"
                   ? "destinations"
                   : "basic";
-  const section = document.getElementById(`${prefix}-${field}`);
+  const v3Field = path.startsWith("sources") ? "sources" : /^(address|googleMapsUrl)/u.test(path) ? "location" : /Duration|openingDays/u.test(path) ? "planning" : "basic";
+  const section = document.getElementById(`${prefix}-${prefix === "dv3" ? v3Field : field}`);
   if (section) {
     const toggleBtn = section.querySelector<HTMLButtonElement>(
       ".af-section-toggle-btn[aria-expanded='false']",
@@ -553,8 +557,7 @@ export function focusFormError(path: string, prefix: "cf" | "df") {
     section?.querySelector<HTMLElement>(
       "input:not(:disabled),textarea,select,button",
     );
-  target?.scrollIntoView({ block: "center" });
-  target?.focus({ preventScroll: true });
+  requestAnimationFrame(() => {target?.scrollIntoView({ block: "center" }); target?.focus({ preventScroll: true });});
 }
 
 export function AdminValidationSummary({
@@ -562,7 +565,7 @@ export function AdminValidationSummary({
   prefix,
 }: {
   errors: Record<string, string>;
-  prefix: "cf" | "df";
+  prefix: "cf" | "df" | "dv3";
 }) {
   if (!Object.keys(errors).length) return null;
   return (

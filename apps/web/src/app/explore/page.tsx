@@ -1,3 +1,4 @@
+import { mvpFeatures } from "@/lib/mvp-features";
 import { db } from "@/services";
 import React, { Suspense } from "react";
 import { listPublicLocations, parsePublicListQuery } from "@/modules/destination/public-destination-list";
@@ -25,7 +26,7 @@ export default async function ExplorePage({ searchParams }: { searchParams: Prom
       </div>
     </header>
     <Suspense fallback={<SectionLoading label="điểm đến" kind="destination" />}><Destinations query={query} /></Suspense>
-    <Suspense fallback={<SectionLoading label="nội dung văn hóa" kind="culture" />}><Culture query={query} /></Suspense>
+    {mvpFeatures.culture && <Suspense fallback={<SectionLoading label="nội dung văn hóa" kind="culture" />}><Culture query={query} /></Suspense>}
   </main>;
 }
 

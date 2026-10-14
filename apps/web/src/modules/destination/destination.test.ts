@@ -28,7 +28,7 @@ function fixture(role: string | null = "ADMIN") {
       findMany: async ({ skip = 0, take = rows.size, where }: any) => [...rows.values()].filter(row => (!where?.visibility || row.visibility === where.visibility) && (!where?.id?.in || where.id.in.includes(row.id))).slice(skip, skip + take).map(({ id, name, area, category, visibility, updatedAt }) => ({ id, name, area, category, visibility, updatedAt })),
       findUnique: async ({ where }: any) => rows.get(where.id) ?? null,
       create: async ({ data }: any) => { writes++; const row = rowFromData(data, `id-${rows.size + 1}`); rows.set(row.id, row); return row; },
-      update: async ({ where, data }: any) => { writes++; if (fail) throw new AppError("TEST_ROLLBACK", "fixture failure", 400); const old = rows.get(where.id); const row = data.openingDays ? rowFromData({ ...old, ...data }, where.id) : { ...old, ...data }; rows.set(row.id, row); return row; },
+      update: async ({ where, data }: any) => { writes++; if (fail) throw new AppError("TEST_ROLLBACK", "fixture failure", 400); const old = rows.get(where.id); const row = { ...old, ...data, openingDays: structuredClone(old.openingDays) }; if(data.openingDays?.update) for(const change of data.openingDays.update){const day=row.openingDays.find((d:any)=>d.dayOfWeek===change.where.destinationId_dayOfWeek.dayOfWeek);day.status=change.data.status;const removed=change.data.intervals.deleteMany.map((i:any)=>i.opensAtMinute);day.intervals=day.intervals.filter((i:any)=>!removed.includes(i.opensAtMinute)).concat(change.data.intervals.create);} rows.set(row.id, row); return row; },
     },
     openingDay: { deleteMany: async ({ where }: any) => { rows.get(where.destinationId).openingDays = []; } },
     idempotencyRecord: {
@@ -107,7 +107,7 @@ test("update full schedule and field values atomic, visibility unchanged", async
   const body = input(); body.name = "Edited"; body.minimumDurationMinutes = null; body.openingDays[0]!.status = "CLOSED";
   const result = await writeDestination(headers, body, "update", "id-1", f.deps); assert.equal(result.status, "SUCCESS"); const dto = await getDestination(headers, "id-1", f.deps); assert.equal(dto.name, "Edited"); assert.equal(dto.visibility, "VISIBLE"); assert.equal(dto.minimumDurationMinutes, null); assert.equal(dto.suggestedDurationMinutes, 90); assert.equal(dto.openingDays[0]!.status, "CLOSED");
 });
-test("transaction failure after schedule deletion restores all prior days and response records", async () => {
+test("transaction failure during schedule update restores all prior days and response records", async () => {
   const f = fixture(); await writeDestination(headers, input(), "create", null, f.deps); const before = await getDestination(headers, "id-1", f.deps); f.failUpdate();
   const result = await writeDestination(headers, { ...input(), name: "not persisted" }, "rollback", "id-1", f.deps); assert.equal(result.status, "FAILED"); assert.deepEqual(await getDestination(headers, "id-1", f.deps), before); assert.equal(f.records(), 1);
 });
@@ -161,7 +161,7 @@ test("native minute time editor supports two intervals and preserves explicit 24
 test("general feedback uses bottom-right Sonner; UNKNOWN remains persistent and field errors remain local", async () => {
   const ui = await readFile(new URL("../../app/admin/destinations/destination-form.tsx", import.meta.url), "utf8");
   const list = await readFile(new URL("../../app/admin/destinations/destination-list.tsx", import.meta.url), "utf8");
-  assert.match(ui, /toast.error/); assert.match(ui, /toast.warning/); assert.match(ui, /unknown && \(\s*<AdminAlert/);
+  assert.match(ui, /toast.error/); assert.match(ui, /toast.warning/); assert.match(ui, /variant=\{unknown\s*\?\s*"warning"\s*:\s*"error"\}/);
   assert.match(ui, /AdminValidationSummary/); assert.ok(list.includes('takeDestinationSaved()) toast.success'));
   assert.match(list, /position: "bottom-right"/); assert.match(ui, /position: "bottom-right"/);
   const editor = await readFile(new URL("../../app/admin/destinations/opening-hours-editor.tsx", import.meta.url), "utf8");
@@ -188,7 +188,7 @@ test("shared compact headers use exact copy and direct navigation actions", () =
 test("form uses the redesigned header and guards unsaved or uncertain navigation", async () => {
   const form = await readFile(new URL("../../app/admin/destinations/destination-form.tsx", import.meta.url), "utf8");
   const list = await readFile(new URL("../../app/admin/destinations/destination-list.tsx", import.meta.url), "utf8");
-  assert.match(form, /AdminPageHeader/); assert.match(form, /useUnsavedChanges\(\s*dirty,\s*saving \|\| unknown \|\| profilePending \|\| visibilityAction.busy,?\s*\)/);
+  assert.match(form, /AdminPageHeader/); assert.match(form, /useUnsavedChanges\(\s*dirty,\s*saving \|\| unknown \|\| visibilityAction.busy,?\s*\)/);
   assert.match(list, /DestinationPageHeader mode="list"/);
 });
 
@@ -304,8 +304,8 @@ test("visibility UI tracks pending and UNKNOWN per item, confirms hide, retries 
   const list = await readFile(new URL("../../app/admin/destinations/destination-list.tsx", import.meta.url), "utf8");
   assert.equal(list.split('visibilityAction.action(item)').length - 1, 2);
   const form = await readFile(new URL("../../app/admin/destinations/destination-form.tsx", import.meta.url), "utf8");
-  assert.match(form, /useDestinationVisibility\(\s*\(dto\) => setVisibility\(dto.visibility\),\s*lock,?\s*\)/);
-  assert.match(form, /isEdit && id/); assert.match(form, /visibilityAction.action/);
+  assert.match(form, /useDestinationVisibility\([\s\S]*?setDto[\s\S]*?,\s*lock,?\s*\)/);
+  assert.match(form, /dto\s*&&\s*visibilityAction.action/); assert.match(form, /visibilityAction.action/);
   const route = await readFile(new URL("../../app/api/admin/destinations/[id]/visibility/route.ts", import.meta.url), "utf8");
   assert.ok(route.includes('requireActor(request.headers, deps, "admin")')); assert.ok(route.includes('requireIdempotencyKey(request)'));
   const service = await readFile(new URL("./destination-visibility.ts", import.meta.url), "utf8");

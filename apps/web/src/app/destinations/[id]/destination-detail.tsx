@@ -1,3 +1,4 @@
+import { mvpFeatures } from "@/lib/mvp-features";
 import PublishedContentProfile from "@/components/published-content-profile";
 import React, { type ReactNode } from "react";
 import Link from "next/link";
@@ -53,10 +54,12 @@ export default function DestinationDetail({ destination: d, returnTo }: { destin
           <dl className="public-detail-coordinates"><div><dt>Vĩ độ</dt><dd>{d.latitude}</dd></div><div><dt>Kinh độ</dt><dd>{d.longitude}</dd></div></dl>
           <DestinationMap destinations={[{ id: d.id, name: d.name, area: d.area, category: d.category, latitude: d.latitude, longitude: d.longitude }]} label={`Bản đồ vị trí ${d.name}`} detail />
         </section>
-        <section className="public-detail-card" aria-labelledby="culture-title">
+        {mvpFeatures.culture && (
+<section className="public-detail-card" aria-labelledby="culture-title">
           <h2 id="culture-title"><BookOpen size={21} aria-hidden="true" />Nội dung văn hóa liên quan</h2>
           {d.relatedCulture.length === 0 ? <p className="public-detail-empty">Chưa có nội dung văn hóa liên quan.</p> : <div className="public-culture-list">{d.relatedCulture.map(item => <article key={item.id}><h3>{item.title}</h3><p>{item.excerpt}</p>{(item.sourceTitle || item.sourceUrl) && <p className="public-detail-muted">Nguồn: {item.sourceUrl ? <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer">{item.sourceTitle || item.sourceUrl}</a> : item.sourceTitle}</p>}</article>)}</div>}
         </section>
+)}
       </div>
       <section className="public-detail-card public-detail-hours" aria-labelledby="hours-title">
         <h2 id="hours-title"><CalendarDays size={21} aria-hidden="true" />Giờ hoạt động</h2>

@@ -1,4 +1,5 @@
 "use client";
+import { mvpFeatures } from "@/lib/mvp-features";
 import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
@@ -13,7 +14,8 @@ import type { FavoriteItem, FavoriteList } from "@/modules/favorite/favorite-con
 
 type Group = keyof FavoriteList;
 type Removed = (id: string, outcome: MutationOutcome<{favoriteId:string}>) => void;
-const groups = [{id:"destinations",label:"Điểm đến"},{id:"cultureContents",label:"Nội dung văn hóa"}] as const;
+const allGroups = [{id:"destinations",label:"Điểm đến"},{id:"cultureContents",label:"Nội dung văn hóa"}] as const;
+const groups = allGroups.filter(group => group.id === "destinations" || mvpFeatures.culture);
 
 export function FavoriteCard({item,group,onRemoved}: {item:FavoriteItem;group:Group;onRemoved:Removed}) {
   const [pending,setPending] = useState(false);

@@ -1,4 +1,5 @@
 "use client";
+import { mvpFeatures } from "@/lib/mvp-features";
 
 import { Suspense, useRef, useState } from "react";
 import { Button } from "@KLTN/ui/components/button";
@@ -144,10 +145,12 @@ export default function UserMenu() {
                 <MapPin className="size-3.5 text-muted-foreground mr-2" />
                 <span>Quản lý điểm đến</span>
               </DropdownMenuItem>
+              {mvpFeatures.culture && (
               <DropdownMenuItem className="cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium" render={<Link href="/admin/culture" />}>
                 <BookOpen className="size-3.5 text-muted-foreground mr-2" />
                 <span>Quản lý nội dung văn hóa</span>
               </DropdownMenuItem>
+              )}
               <DropdownMenuItem className="cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium" render={<Link href={"/admin/rag" as import("next").Route} />}>
                 <FileText className="size-3.5 text-muted-foreground mr-2" />
                 <span>Quản lý tài liệu RAG</span>

@@ -1,3 +1,4 @@
+import { destinationResponseDto } from "@/modules/destination/destination-http";
 import { apiSuccess, apiMutationResult } from "@/server/http/api-response";
 import { handleApiError, handleMutationApiError } from "@/server/http/error-handler";
 import { requireIdempotencyKey } from "@/server/http/idempotency";
@@ -10,6 +11,6 @@ export async function GET(request: Request) {
   catch (error) { return privateResponse(handleApiError(error)); }
 }
 export async function POST(request: Request) {
-  try { await requireActor(request.headers, deps, "admin"); return privateResponse(apiMutationResult(await writeDestination(request.headers, await destinationJson(request), requireIdempotencyKey(request), null, deps))); }
+  try { await requireActor(request.headers, deps, "admin"); const result = await writeDestination(request.headers, await destinationJson(request), requireIdempotencyKey(request), null, deps); if (result.status === "SUCCESS") result.data = destinationResponseDto(result.data, request); return privateResponse(apiMutationResult(result)); }
   catch (error) { return privateResponse(handleMutationApiError(error)); }
 }

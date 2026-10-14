@@ -130,3 +130,14 @@ picker; no new design tokens, modal, menu or page layout. Offline browser verifi
 390x844 without horizontal overflow and desktop; missing source, technical failure,
 edit/resubmit and follow-up retain context and sidebar behavior. Live acceptance
 is distinct from this mocked-transport UI evidence.
+
+
+## Destination V3 Simplified MVP (owner-approved, 2026-10-14)
+
+Vietnamese Admin data entry, four natural-height sections, no long sidebar. Reuse the existing af-root/admin-form-shell semantic tokens (including dark overrides), labels, cards, focus and sticky actions; no new theme/font/framework or generated token owner. The signature is a single concise Destination dossier with location confidence visible beside the Maps link. Category is a native OS-owned select; commune search plus native select keeps administrative identity separate from address text. Single prose textarea is resize-none/auto-grow with a read-only derived summary and shared simplified preview. Source rows expose title/HTTPS URL; backend owns IDs/review metadata. Existing media and historical metadata survive saving.
+
+Canonical owners: DestinationForm and destination-v3-form-model for Create/Edit draft/patch; shared AdminField/AdminValidationSummary/focusFormError for errors (including source and opening-time controls); Sonner for feedback; useUnsavedChanges for app-owned HTML dialog and narrow beforeunload lifecycle guard; OpeningHoursEditor for the existing independent seven-day schedule; destination-maps-field/address-field for fenced async states. Native popup geometry is deliberately platform-owned. Backend V3 schemas/services remain authority for authorization, validation and persistence; missing required data never becomes a pass.
+
+Create success goes to the new Admin Edit route, per V3 specification; Edit success stays editable with the confirmed DTO/baseline and success feedback. This named V3 variant supersedes the older Destination return-to-list flow; Culture behavior remains its existing variant. Publication remains separate and is disabled with unsaved changes. UNKNOWN freezes draft/key and offers exact retry; provider failure preserves legacy data. Location query/commune edits do not run arbitrary source fetches or RAG ingestion. One Culture flag hides independent module entry points without deleting records; two remaining Home cards retain a balanced grid.
+
+Evidence: test-destination-v3-ui.mjs mounts production components/services on isolated disposable in-memory data and blocks external browser traffic. It covers Create/Edit/preview, no-change snapshots, exact UNKNOWN retry, loading/errors/stale Maps, AddressKit fallback, unsaved dialog/Escape, exact first-error focus including hours, native category popup and360/390/768/1440 light/dark screenshots. This is not live authenticated Neon/Google/PostgreSQL acceptance; those gates are stated separately in the V3 report.

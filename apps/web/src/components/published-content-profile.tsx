@@ -1,3 +1,4 @@
+import { mvpFeatures } from "@/lib/mvp-features";
 import { resolveCategoryLabel } from "@/modules/culture/culture-categories";
 import React from "react";
 import type { PublicContentProfile } from "@/modules/content-profile/public-content-profile";
@@ -15,7 +16,7 @@ export default function PublishedContentProfile({ profile: p }: {
             string,
             string | null | undefined
         ]>
-    ] = [["Mô tả ngắn", p.shortDescription], ["Tên gọi khác", p.aliases?.join(", ")], ["Địa chỉ", p.address], ["Danh mục", resolveCategoryLabel(p.category ?? null)], ["Phạm vi địa lý", p.geographicScope], ["Địa phương / vùng văn hóa", p.areas.map(a => a.name).join(", ")], ["Cộng đồng", p.communities?.map(c => c.name).join(", ")], ["Giá vé", p.ticketPrice ? p.ticketPrice + (p.ticketVerification === "VERIFIED" ? " (đã xác minh)" : p.ticketVerification === "DISPUTED" ? " (có mâu thuẫn, cần kiểm tra)" : " (chưa xác minh)") : null], ["Thời điểm phù hợp", p.bestVisitTime], ["Lưu ý tham quan", p.visitNotes]];
+    ] = [["Mô tả ngắn", p.shortDescription], ["Tên gọi khác", p.aliases?.join(", ")], ["Địa chỉ", p.address], ["Danh mục", resolveCategoryLabel(p.category ?? null)], ["Phạm vi địa lý", p.geographicScope], ["Địa phương / vùng văn hóa", p.areas.map(a => a.name).join(", ")], ["Cộng đồng", p.communities?.map(c => c.name).join(", ")], ["Giá vé", mvpFeatures.ticketPrice && p.ticketPrice ? p.ticketPrice + (p.ticketVerification === "VERIFIED" ? " (đã xác minh)" : p.ticketVerification === "DISPUTED" ? " (có mâu thuẫn, cần kiểm tra)" : " (chưa xác minh)") : null], ["Thời điểm phù hợp", p.bestVisitTime], ["Lưu ý tham quan", p.visitNotes]];
     const visible = facts.filter(([, value]) => Boolean(value));
     if (!visible.length && !p.media.length && !p.sources.length && !p.googleMapsUrl)
         return null;

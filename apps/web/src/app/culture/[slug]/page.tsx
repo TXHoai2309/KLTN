@@ -1,3 +1,5 @@
+import { mvpFeatures } from "@/lib/mvp-features";
+import { redirect } from "next/navigation";
 import "@/components/culture-content.css";
 import CultureContent from "@/components/culture-content";
 import PublishedContentProfile from "@/components/published-content-profile";
@@ -71,6 +73,7 @@ export async function generateMetadata({
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
+  if (!mvpFeatures.culture) return {title: "Khám phá Hà Giang | KLTN", robots: {index: false}};
   const { slug } = await params;
 
   try {
@@ -92,6 +95,7 @@ export default async function CultureDetailPage({
   params,
   searchParams,
 }: CultureDetailPageProps) {
+  if (!mvpFeatures.culture) redirect("/explore");
   const [{ slug }, rawSearchParams] = await Promise.all([
     params,
     searchParams,

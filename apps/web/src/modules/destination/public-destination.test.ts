@@ -103,7 +103,7 @@ test("duration formats minutes/hour/mixed/null without a fallback", () => {
 test("public screen renders factual text, seven weekdays and human hours with no fake integrations", async () => {
   const dto = await getPublicDestination("detail-a", fixture().database);
   const html = renderToStaticMarkup(createElement(DestinationDetail, { destination: dto }));
-  for (const copy of [dto.name, dto.description, dto.area, dto.category, "Thông tin tham quan", "Thời lượng tham quan gợi ý", "1 giờ 30 phút", "23.2", "105.3", "Nội dung văn hóa liên quan", "Chưa có nội dung văn hóa liên quan.", "07:00 – 11:00", "13:00 – 24:00", "Đóng cửa cả ngày", "Chưa có dữ liệu", "Thứ Hai", "Chủ Nhật"]) assert.ok(html.includes(copy), copy);
+  for (const copy of [dto.name, dto.description, dto.area, dto.category, "Thông tin tham quan", "Thời lượng tham quan gợi ý", "1 giờ 30 phút", "23.2", "105.3", "07:00 – 11:00", "13:00 – 24:00", "Đóng cửa cả ngày", "Chưa có dữ liệu", "Thứ Hai", "Chủ Nhật"]) assert.ok(html.includes(copy), copy);
   assert.doesNotMatch(html, />OPEN<|>CLOSED<|>UNKNOWN<|minimumDuration|<img|<iframe|Yêu thích|Hỏi AI/);
   assert.match(html, /href="\/explore"/); assert.match(html, /Quay lại Khám phá/); assert.match(html, /aria-labelledby="hours-title"/);
 });
@@ -159,7 +159,7 @@ test("related Culture uses canonical VISIBLE filter and bounded public allowlist
   const dto = await getPublicDestination("detail-a", f.database);
   assert.deepEqual(dto.relatedCulture[0], { id: "culture-a", title: "Related visible Culture", excerpt: "Exact culture content", sourceTitle: "Source document", sourceUrl: "https://example.test/source" });
   const html = renderToStaticMarkup(createElement(DestinationDetail, { destination: dto }));
-  assert.match(html, /Related visible Culture/); assert.match(html, /Source document/); assert.match(html, /rel="noopener noreferrer"/); assert.doesNotMatch(html, /href="\/culture/);
+  assert.doesNotMatch(html, /Related visible Culture|Source document|culture-title/); assert.doesNotMatch(html, /href="\/culture/);
   for (const extra of [{ visibility: "VISIBLE" }, { updatedAt: "private" }, { content: "full body" }, { sourceUrl: "javascript:alert(1)" }]) assert.equal(publicDestinationDetailSchema.safeParse({ ...dto, relatedCulture: [{ ...dto.relatedCulture[0], ...extra }] }).success, false);
 });
 

@@ -1,3 +1,5 @@
+import { mvpFeatures } from "@/lib/mvp-features";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { Route } from "next";
 import { BookOpen, SearchX, ArrowRight } from "lucide-react";
@@ -98,6 +100,7 @@ export default async function CulturePage({
 }: {
   searchParams: CultureSearchParams;
 }) {
+  if (!mvpFeatures.culture) redirect("/explore");
   const rawSearchParams = await searchParams;
   const state = parseCultureSearchParams(rawSearchParams);
 

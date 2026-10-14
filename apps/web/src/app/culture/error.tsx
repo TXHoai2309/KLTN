@@ -1,4 +1,5 @@
 "use client";
+import { mvpFeatures } from "@/lib/mvp-features";
 
 import Link from "next/link";
 import { Button } from "@KLTN/ui/components/button";
@@ -11,6 +12,7 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  if (!mvpFeatures.culture) return <main lang="vi" role="status">Đang chuyển về Khám phá…</main>;
   return (
     <main className="culture-page" lang="vi">
       <section className="culture-state" role="alert">

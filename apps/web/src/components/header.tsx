@@ -1,4 +1,5 @@
 "use client";
+import { mvpFeatures } from "@/lib/mvp-features";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BrandLogo } from "./brand-logo";
@@ -35,6 +36,7 @@ export default function Header() {
   const links = [
     { to: "/", label: "Trang chủ" },
     { to: "/explore", label: "Khám phá" },
+    ...(mvpFeatures.culture ? [{ to: "/culture", label: "Văn hóa" } as const] : []),
     { to: "/assistant", label: "Trợ lý AI" },
     { to: "/favorites", label: "Yêu thích" },
     { to: "/trips/new", label: "Lập hành trình" },

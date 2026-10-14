@@ -1,3 +1,4 @@
+import { DEFAULT_DESTINATION_AREA } from "../destination/destination-categories";
 import type { TripRequirementInput } from "../trip-requirement/trip-requirement-contract";
 import { weekdays } from "../destination/destination-contract";
 import { isDestinationEligibleForNewItinerary } from "../destination/destination-eligibility";
@@ -49,7 +50,7 @@ export function selectPlannerDays(requirement: TripRequirementInput, input: read
         if (!previous) return interest || a.id.localeCompare(b.id, "en");
         const distance = haversine(previous, a) - haversine(previous, b);
         // Same-area preference only breaks nearby ties; Haversine is NOT routing evidence.
-        return distance + (a.area === previous.area ? -2 : 0) - (b.area === previous.area ? -2 : 0) - interest * 5 || a.id.localeCompare(b.id, "en");
+        return distance + (a.area === previous.area && a.area !== DEFAULT_DESTINATION_AREA ? -2 : 0) - (b.area === previous.area && b.area !== DEFAULT_DESTINATION_AREA ? -2 : 0) - interest * 5 || a.id.localeCompare(b.id, "en");
       });
       const chosen = choices[0]; if (!chosen) break;
       today.push(chosen); previous = chosen; visitBudget += visitDuration(chosen)!;

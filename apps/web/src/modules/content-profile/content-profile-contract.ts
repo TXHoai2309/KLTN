@@ -5,7 +5,7 @@ export const referenceId = z.string().regex(/^[a-zA-Z0-9_-]{1,128}$/u);
 export const publicHttpsUrl = z.string().max(2000).refine(value => {
     try {
         const u = new URL(value);
-        return u.protocol === "https:" && !u.username && !u.password && !/[\u0000-\u0020\u007f]/u.test(value) && u.hostname.includes(".") && !/^[\d.]+$|[:]|(^|\.)(localhost|local|internal)$/iu.test(u.hostname);
+        return u.protocol === "https:" && !u.username && !u.password && !/[\u0000-\u0020\u007f]/u.test(value) && u.hostname.includes(".") && !u.hostname.includes("..") && !/^[\d.]+$|[:]|(^|\.)(localhost|local|internal)\.?$/iu.test(u.hostname);
     }
     catch {
         return false;
@@ -25,7 +25,7 @@ const coverCheck = (p: {
     }[];
 }, ctx: z.RefinementCtx) => { if (p.media.filter(m => m.isCover).length > 1)
     ctx.addIssue({ code: "custom", path: ["media"], message: "Chỉ chọn một ảnh đại diện." }); };
-export const destinationProfileSchema = z.object({ ...shared, aliases: z.array(z.string().trim().min(1).max(200)).max(20).default([]), shortDescription: optionalText(1000), address: optionalText(1000), googleMapsUrl: optionalUrl.refine(v => v === null || ["google.com", "www.google.com", "maps.google.com", "google.com.vn", "www.google.com.vn", "maps.google.com.vn", "maps.app.goo.gl", "goo.gl"].includes(new URL(v).hostname), "Cần URL Google Maps hợp lệ."), locationVerified: z.boolean().default(false), locationEvidence: optionalText(2000), ticketPrice: optionalText(300), ticketVerification: z.enum(["UNKNOWN", "VERIFIED", "DISPUTED"]).default("UNKNOWN"), ticketEvidence: optionalText(2000), bestVisitTime: optionalText(2000), visitNotes: optionalText(4000), cultureIds: refs }).strict().superRefine((p, ctx) => { coverCheck(p, ctx); if (p.locationVerified && !p.locationEvidence)
+export const destinationProfileSchema = z.object({ ...shared, sources: z.array(sourceSchema.safeExtend({ id: referenceId.optional() })).max(30).default([]), media: z.array(mediaSchema.safeExtend({ id: referenceId.optional() })).max(20).default([]), aliases: z.array(z.string().trim().min(1).max(200)).max(20).default([]), shortDescription: optionalText(1000), address: optionalText(1000), googleMapsUrl: optionalUrl.refine(v => v === null || ["google.com", "www.google.com", "maps.google.com", "google.com.vn", "www.google.com.vn", "maps.google.com.vn", "maps.app.goo.gl", "goo.gl"].includes(new URL(v).hostname), "Cần URL Google Maps hợp lệ."), locationVerified: z.boolean().default(false), locationEvidence: optionalText(2000), ticketPrice: optionalText(300), ticketVerification: z.enum(["UNKNOWN", "VERIFIED", "DISPUTED"]).default("UNKNOWN"), ticketEvidence: optionalText(2000), bestVisitTime: optionalText(2000), visitNotes: optionalText(4000), cultureIds: refs }).strict().superRefine((p, ctx) => { coverCheck(p, ctx); if (p.locationVerified && !p.locationEvidence)
     ctx.addIssue({ code: "custom", path: ["locationEvidence"], message: "Vị trí xác minh cần bằng chứng bản đồ." }); if (p.ticketVerification === "VERIFIED" && (!p.ticketPrice || !p.ticketEvidence))
     ctx.addIssue({ code: "custom", path: ["ticketEvidence"], message: "Giá vé xác minh cần giá và nguồn/bằng chứng." }); });
 export const cultureProfileSchema = z.object({ ...shared, category: optionalText(200).transform(canonicalCultureCategory), shortDescription: optionalText(1000), geographicScope: optionalText(2000), communityIds: refs }).strict().superRefine(coverCheck);

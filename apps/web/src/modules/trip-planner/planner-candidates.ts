@@ -18,9 +18,9 @@ const select = {
   media: { where: { websiteRights: "APPROVED" as const }, take: 1, orderBy: [{ isCover: "desc" as const }, { position: "asc" as const }, { id: "asc" as const }], select: { url: true, alt: true, author: true, sourceUrl: true } },
   openingDays: { orderBy: { dayOfWeek: "asc" as const }, select: { dayOfWeek: true, status: true, intervals: { orderBy: { opensAtMinute: "asc" as const }, select: { opensAtMinute: true, closesAtMinute: true } } } },
 } satisfies Prisma.DestinationSelect;
-export async function retrievePlannerCandidates(database: Pick<Database, "destination">, ids?: readonly string[]): Promise<PlannerCandidate[]> {
+export async function retrievePlannerCandidates(database: Pick<Database, "destination">, ids?: readonly string[], excludedIds: readonly string[] = []): Promise<PlannerCandidate[]> {
   const rows = await database.destination.findMany({ where: { ...visibleDestinationWhere, ...(ids ? { id: { in: [...ids] } } : {}) }, select, orderBy: { id: "asc" }, take: MAX_CANDIDATES });
-  return rows.filter(row => isDestinationEligibleForNewItinerary(row) && Number.isFinite(row.latitude) && Number.isFinite(row.longitude) && Math.abs(row.latitude) <= 90 && Math.abs(row.longitude) <= 180).map(row => {
+  return rows.filter(row => !excludedIds.includes(row.id) && isDestinationEligibleForNewItinerary(row) && Number.isFinite(row.latitude) && Number.isFinite(row.longitude) && Math.abs(row.latitude) <= 90 && Math.abs(row.longitude) <= 180).map(row => {
     const image = row.media[0];
     return { id: row.id, name: row.name, description: richContentText(row.shortDescription || row.description).slice(0, 1000), area: row.area, category: row.category,
       address: row.address, latitude: row.latitude, longitude: row.longitude, image: image && publicHttpsUrl.safeParse(image.url).success ? { ...image, sourceUrl: image.sourceUrl && publicHttpsUrl.safeParse(image.sourceUrl).success ? image.sourceUrl : null } : null,
@@ -29,11 +29,11 @@ export async function retrievePlannerCandidates(database: Pick<Database, "destin
   });
 }
 export function candidateSnapshot(candidate: PlannerCandidate) { return JSON.stringify(candidate); }
-export async function recheckPlannerCandidates(database: Pick<Database, "destination">, candidates: readonly PlannerCandidate[]): Promise<boolean> {
+export async function recheckPlannerCandidates(database: Pick<Database, "destination">, candidates: readonly PlannerCandidate[], excludedIds: readonly string[] = []): Promise<boolean> {
   const ids = candidates.map(candidate => candidate.id);
   if (!ids.length) return true;
   if ((await findEligibleDestinationIds(ids, database)).length !== ids.length) return false;
-  const current = new Map((await retrievePlannerCandidates(database, ids)).map(candidate => [candidate.id, candidateSnapshot(candidate)]));
+  const current = new Map((await retrievePlannerCandidates(database, ids, excludedIds)).map(candidate => [candidate.id, candidateSnapshot(candidate)]));
   return candidates.every(candidate => current.get(candidate.id) === candidateSnapshot(candidate));
 }
 const normalized = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").toLowerCase();

@@ -630,3 +630,9 @@
   .home-page *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
   .home-reveal-root[data-home-reveal-ready="true"] [data-home-reveal-pending="true"] { opacity: 1; transform: none; }
 }
+
+/* Culture OFF leaves two Destination cards; retain a balanced grid and tablet widths. */
+@media (min-width: 641px) {
+  .home-card-grid[data-mvp-columns="2"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .home-card-grid[data-mvp-columns="2"] .home-card:last-child { width: auto; grid-column: auto; }
+}
