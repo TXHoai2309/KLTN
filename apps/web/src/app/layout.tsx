@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Be_Vietnam_Pro } from "next/font/google";
 
 import "../index.css";
+import "../components/published-content-profile.css";
 import "../components/map/map.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 import Header from "@/components/header";
@@ -37,7 +38,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} ${beVietnamPro.variable} antialiased`}>
         <Providers>
-          <div className="grid grid-rows-[auto_1fr] h-svh">
+          <div className="grid grid-rows-[auto_1fr] min-h-svh">
             <Header />
             {children}
           </div>

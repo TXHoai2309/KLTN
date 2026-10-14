@@ -1,0 +1,42 @@
+name: US-21 QA retention cleanup
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+    inputs:
+      confirm_production_cleanup:
+        description: "Confirm a bounded cleanup against the owner-configured Production endpoint"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: us21-qa-retention-cleanup-production
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: github.ref == 'refs/heads/master' && (github.event_name == 'schedule' || inputs.confirm_production_cleanup == true)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: qa-cleanup-production
+    steps:
+      - name: Check out the protected default-branch implementation
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - name: Run bounded cleanup and record a workflow heartbeat
+        run: node apps/web/scripts/qa-cleanup-actions.mjs cleanup
+        env:
+          QA_CLEANUP_ORIGIN: ${{ vars.QA_CLEANUP_ORIGIN }}
+          QA_CLEANUP_ALLOWED_HOST: ${{ vars.QA_CLEANUP_ALLOWED_HOST }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}

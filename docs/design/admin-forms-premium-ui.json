@@ -1,0 +1,14 @@
+{
+  "scope": "AF-5/AF-6 shared profile controls; established Admin form behavior is reused",
+  "sourceRoots": [
+    "apps/web/src/components/admin"
+  ],
+  "ownership": {
+    "Select/Listbox": "native",
+    "Date": "typed"
+  },
+  "evidence": {
+    "crudFullFlow": "apps/web/scripts/test-admin-profiles-ui.mjs",
+    "failurePaths": "apps/web/scripts/test-admin-profiles-ui.mjs"
+  }
+}

@@ -1,3 +1,5 @@
+import { RICH_CONTENT_PREFIX, parseRichContent, richContentText } from "./culture-rich-content";
+import { cultureProfileSchema } from "../content-profile/content-profile-contract";
 import { z } from "zod";
 
 const text = (max: number) => z.string().transform(value => value.normalize("NFC").trim()).pipe(z.string().min(1, "Không được để trống.").max(max, `Tối đa ${max} ký tự.`));
@@ -10,7 +12,8 @@ export const sourceUrlSchema = optionalText(2000).refine(value => {
   catch { return false; }
 }, "Liên kết nguồn phải là URL http/https hợp lệ, không chứa thông tin đăng nhập.");
 export const cultureInputSchema = z.object({
-  title: text(200), content: text(20000), sourceTitle: optionalText(300), sourceUrl: sourceUrlSchema,
+  profile: cultureProfileSchema.optional(),
+  title: text(200), content: text(20000).superRefine((value, ctx) => { if (value.startsWith(RICH_CONTENT_PREFIX) && (!parseRichContent(value) || !richContentText(value).replace(/^#{2,3} /gm, "").trim())) ctx.addIssue({ code: "custom", message: "Nội dung cần có văn bản và định dạng hợp lệ; hãy kiểm tra bài viết và liên kết." }); }), sourceTitle: optionalText(300), sourceUrl: sourceUrlSchema,
   destinationIds: z.array(cultureIdSchema).max(100).transform(ids => [...new Set(ids)].sort()),
 }).strict();
 export type CultureInput = z.infer<typeof cultureInputSchema>;

@@ -567,6 +567,10 @@ Append a new entry for each meaningful work session. Keep prior entries as hando
 - **Browser:** Home → Explore → q=Manual → region=đồng văn → category=văn hóa → detail → browser Back once returned `/explore?q=Manual&category=v%C4%83n+h%C3%B3a&region=%C4%91%E1%BB%93ng+v%C4%83n`; input, both filter chips and matching result were restored. Forward returned to the same detail, then Back restored Explore. Reload restored the URL and form. List/Map preserved q/category/region and `culturePage=1`; Culture remained visible and independent.
 - **Checks:** `npm run test:search --workspace web` 32/32, `npm run test:explore --workspace web` 14/14, `npm run test:map --workspace web` 24/24, `npm run test:destination --workspace web` 61/61, `npm run check-types`, `npm run build` and `git diff --check` PASS.
 - No production writes, schema changes, migrations, commit or push.
+<<<<<<< HEAD
+>>>>>>> 1b74d933e3d23aa240ac245123f05a3d2ddd4973
+=======
+>>>>>>> 8263c94e13cda29cde9f9556d186acc79e75ad44
 
 ## 2026-10-07 — US-16 direct Header link
 
@@ -574,6 +578,59 @@ Append a new entry for each meaningful work session. Keep prior entries as hando
 - Kept the existing Traveler-only UserMenu entry and server-side authorization unchanged; the page remains protected for Guest/Admin users.
 - Validation: targeted TypeScript check and Favorite regression tests run after the navigation change; `git diff --check` required.
 
+## 2026-10-09 — US24-CONTRACT Trip requirement data contract
+
+- **Story/task:** US24-CONTRACT — shared trip requirement schema/types/constants/labels and contract-only tests.
+- **Implemented:** Added `apps/web/src/modules/trip-requirement/trip-requirement-contract.ts` with strict Zod input/output types, bounds, Vietnamese option metadata, calendar-date validation, NFC/trim/nullable normalization, canonical enum-list deduplication/order, companion cross-field rules and `fieldErrors` mapping for future `VALIDATION_ERROR` responses.
+- **Documentation:** Added `docs/stories/US-24-trip-requirement-form.md` as `DRAFT`, with dependencies, proposed contract, three readiness levels, API/error shape for future tasks, acceptance evidence and all requested Open Questions. Product/System DOCX files were not found in the workspace, so proposed values remain owner-pending. No Trip story existed before this task.
+- **Scope:** No UI, route/API, DB schema/migration, storage, planner, AI extraction or new dependency was added. Existing `docs/ai-progress.md` merge-conflict markers were preserved as instructed.
+- **Validation:** Direct current Vitest suite PASS 26/26, including the new contract 8/8. Direct TypeScript checks for `apps/web`, `packages/db` and `packages/ui` PASS. `git diff --check` PASS. Root `npm run test` and `npm run check-types` were attempted but stopped before execution with `shim integrity check failed` from the local npm shim; they are not claimed as PASS.
+- **Next step:** Owner resolves the proposed limits/enums/date policy/role/route/Figma and provides authoritative Product/System DOCX or IDs before US-24 advances beyond CONTRACT.
+
+## 2026-10-09 — US24-START readiness, evaluate API and status component
+
+- **Story/task:** US24-START — shared start-date readiness/guard, no-write evaluate endpoint and unmounted FE status block.
+- **Implemented:** Added `trip-requirement-readiness.ts` with injectable `now`, Asia/Ho_Chi_Minh calendar-day comparison, `usesRelativeDays`, preliminary/final readiness, missing fields, invalid/past date issues and `assertStartDateForFinalConfirmation`. The future save story is explicitly required to call this guard server-side immediately before final confirmation/save.
+- **API:** Added thin `POST /api/trip-requirements/evaluate` with injected dependencies, Traveler auth before body read, bounded 8KB JSON parsing, shared `VALIDATION_ERROR`/fieldErrors mapping, normalized requirement + readiness response and `private, no-store`; no DB or idempotency write.
+- **FE:** Added unmounted `TripReadinessStatus` and pure `describeReadiness` with text/icon/ARIA branches for final-ready, preliminary-relative-days and insufficient input; no confirmation/save button or form page.
+- **Tests:** Added `us24-start.vitest.test.ts`: readiness/date boundary/guard/API/auth/body-order/JSON/size/field-error/cache and 3 status branches. The US24-START suite is 10/10 PASS; current Vitest suite is 36/36 PASS when invoked directly with the bundled Node runtime. Direct `apps/web` typecheck PASS.
+- **Limits:** Product/System DOCX files remain unavailable; no Traveler cookie curl smoke was available, so real-session HTTP evidence is NOT PROVEN. Root `npm run test`/`npm run check-types` remain blocked before execution by local `shim integrity check failed`; not claimed as PASS. No Trip schema/migration/form/planner/save flow was added.
+
+## 2026-10-09 — US24-FORM Traveler trip requirement form
+
+- **Story/task:** US24-FORM — Traveler-only `/trips/new` form depending on US24-CONTRACT and US24-START. Figma form frame was not supplied; the page uses the existing `/favorites` visual tokens.
+- **Implemented:** Added the guarded Server Component page, Be Vietnam Pro/Noto Serif layout, loading/error states and scoped `trip-` CSS. Guest redirects to the safe `/login?returnTo=%2Ftrips%2Fnew` target, Admin receives `AccessDenied`, and Traveler receives the form. Added the shared Header link `Lập hành trình`, active for `/trips/*`.
+- **Form flow:** Added seven field groups with contract-driven labels/descriptions: optional start date, required duration/transport, companions, interests, pace and mobility constraints. State stays in React memory; `buildPayload` sends only contract fields, converts plain integer text only, maps empty text to null and leaves invalid numeric strings for server validation. One submission lock plus AbortController/sequence checks prevent duplicate/stale responses. Successful evaluation shows the normalized `Nhu cầu của bạn` summary and `TripReadinessStatus`; edit keeps the entered values. No save/confirm/create button was added; the neutral next-step note is shown.
+- **Recovery/accessibility:** 400 `fieldErrors` render beside fields and focus the first errored control; 401 redirects without replay, 403 uses authorization feedback, and network/5xx errors preserve input. Pending submit is disabled with `aria-busy`; fieldsets/legends, 44px controls, focus-visible, reduced-motion and narrow responsive rules are included. No localStorage/sessionStorage/URL persistence.
+- **Tests/docs:** Added `trip-requirement-form-logic.vitest.test.ts` for payload construction, null/numeric normalization, field-error mapping, 200/400/401/403/5xx/network decisions and pending state. Updated `docs/stories/US-24-trip-requirement-form.md` with FORM scope, evidence and manual responsive/browser checklist; story remains DRAFT pending owner decisions.
+- **Validation:** Direct `apps/web` TypeScript check PASS; direct current Vitest suite PASS 42/42 (6 files); `git diff --check` PASS. Root `npm run test`, `npm run check-types` and `npm run build` were attempted after the change but stop before execution with `shim integrity check failed`; they are not claimed as PASS. Real 360/390/768/1280 viewport measurements and Traveler-cookie browser smoke are NOT PROVEN unless a browser/session is available. No Trip schema/migration/planner/persistence was added.
+
+## 2026-10-09 — US24-VALIDATE client required-field validation
+
+- **Story/task:** US24-VALIDATE — client validation for required duration/transport, dependent on US24-FORM. No contract rule was changed.
+- **Implemented:** Added pure `validateRequiredFields(fields)` in `trip-requirement-form-logic.ts`. It uses the contract schema/constants for the final optional-field check, preserves invalid numeric text for authoritative server validation, accepts trimmed ASCII digit input such as `007`, rejects signs/decimal/scientific/full-width/Arabic digits and reports the exact Vietnamese required-field messages, bounds and transport messages requested.
+- **Form UX:** `/trips/new` now validates on submit and on blur/touched changes, rejects invalid required input before `fetch`, shows “Có N trường cần kiểm tra.” with keyboard links, per-field `role="alert"`, `aria-invalid`, `aria-describedby`, stable duration-first focus and `maxLength=3`. Errors clear when the touched value becomes valid. Server `400 fieldErrors` overwrites client errors through the same summary/field mechanism; entered data is preserved.
+- **Tests:** Expanded `trip-requirement-form-logic.vitest.test.ts` to 11 tests covering valid duration table, empty/null, malformed/range/unsafe values, transport variants, both-error order, optional blanks/contract errors and consistency between passed client inputs and `tripRequirementInputSchema`.
+- **Validation:** Direct `apps/web` TypeScript check PASS; direct current Vitest suite PASS 47/47 (6 files); `git diff --check` and trailing-whitespace scan PASS. Root `npm run test`, `npm run check-types` and `npm run build` remain blocked before execution by the local `shim integrity check failed`. Browser verification of blank-submit/no-network, correction, keyboard/ARIA and 360/390/768/1280 viewports is NOT PROVEN in this task.
+
+## 2026-10-09 — US24-TEST deterministic trip requirement coverage
+
+- **Story/task:** US24-TEST — consolidated contract/API/form-logic coverage for full, missing and invalid groups; no DB/Neon/secret/DOM/network dependency.
+- **Tests added:** Added `apps/web/src/modules/trip-requirement/us24-test.vitest.test.ts` with 29 cases. It covers seven-group full normalization and final readiness, preliminary missing-start behavior, missing required field combinations and body shapes, invalid duration/transport/date/optional/strict/prototype-shaped payloads, malformed/oversized JSON, Guest/Admin auth before body read, private no-store, mobility-note log privacy, Asia/Ho_Chi_Minh midnight/leap boundaries, form payload/required messages, submission lock, stale/unmounted response sequence and source contracts for page/form/ARIA/no fake save/storage.
+- **Important normalization evidence:** Duplicate interests/mobility flags are accepted and canonicalized by the existing contract, so the new suite asserts that behavior rather than incorrectly treating duplicates as invalid. Empty `startDate` remains `null`/valid for preliminary proposals; malformed dates are rejected and past dates return `IN_PAST` readiness.
+- **Stability fix:** The new API matrix calls the injectable HTTP module directly with fake authorization/time dependencies. This avoids a shared Route Handler mock collision under the repo’s `isolate: false`; existing US24-START Route Handler tests remain unchanged and still cover the actual route import.
+- **Validation:** Direct current Vitest suite PASS 76/76 across 7 files (29 new cases); direct `apps/web` TypeScript check PASS; `git diff --check` and trailing-whitespace scan PASS. Root `npm run test`, `npm run check-types` and `npm run build` were attempted but stop before execution with local `shim integrity check failed`; not claimed as PASS.
+- **Manual limits:** The story now contains a dated manual checklist. Guest login return/no replay, Admin AccessDenied, blank/no-network submit, preliminary/final review, network retry, four viewport widths, keyboard, screen reader and Back/Forward were NOT PROVEN because no browser/Traveler session was available. Story remains DRAFT; no status promotion was made.
+
+## 2026-10-09 — US25-AI-DESIGN preference-extraction contract
+
+- **Story/task:** US25-AI-DESIGN — documentation, isomorphic data contract, ADR-16 and optional environment declaration only. No OpenAI call, API route, UI, database, migration, SDK or new dependency was added.
+- **Dependencies:** Confirmed US24 contract/readiness/evaluate API and `/trips/new` form/logic exist. Confirmed the repository has Zod 4 and Vitest, but no OpenAI SDK/provider module or rate-limit service. Product/System DOCX source files remain unavailable in the workspace, so proposed extraction/provider values are still owner-pending.
+- **Contract:** Added `apps/web/src/modules/preference-extraction/preference-extraction-contract.ts`. `modelOutputSchema` is a closed raw model shape with required keys and nullable optional values; its Zod 4 JSON Schema is normalized from `const`/`oneOf` output to the OpenAI-compatible `enum`/`anyOf` subset. `extractionResultSchema` enforces status/value/sourceText invariants and `missingRequired`; `verifyModelOutput` checks US24 values/ranges/cross-fields, maps invalid candidates to `AMBIGUOUS`/`UNSUPPORTED`, and creates server-owned clarifications without putting raw text in metadata.
+- **ADR/env/docs:** Added ADR-16 proposing direct server `fetch` with Zod-generated Structured Outputs schema, model from optional `OPENAI_PREFERENCE_MODEL`, no default model, 15s timeout/one retry/low sampling/bounded output proposal, no storage and an explicit rate-limit Open Question. Added `OPENAI_PREFERENCE_MODEL` to `.env.schema`, blank `.env.example`, deployment docs, and ran Varlock codegen; the generated `src/env.ts` intentionally omits optional `@internal` keys just as it does for `OPENAI_API_KEY`.
+- **Tests:** Added `preference-extraction-contract.vitest.test.ts` with 6 deterministic tests for strict schema shape, extra/invalid status/EXTRACTED-null rejection, valid verification, invalid value conversion, status invariants and input limits/normalization.
+- **Validation:** Direct current web Vitest suite PASS 82/82 across 8 files; direct `apps/web` TypeScript check PASS; direct `packages/db` and `packages/ui` TypeScript checks PASS; `git diff --check` PASS with only LF→CRLF warnings. Standard `npm run env:generate -w web` and root `npm run test`/`npm run check-types` remain blocked before execution by the local `shim integrity check failed`; Turbo direct execution also hit Windows Access denied. No secret or network call was used.
+- **Status/next step:** `docs/stories/US-25-natural-language-trip-needs.md` remains DRAFT. Owner must approve the proposed model/provider, retry/timeout, rate-limit/cost, relative-date and phrase/taxonomy rules before a future BE adapter or FE review task. Existing `docs/ai-progress.md` conflict markers were preserved.
 ## 2026-10-07 — Sprint 2 documentation closure
 
 - **Functional closure:** US-07 DONE; US-08 DONE; US-09 ACCEPTED; US-10 ACCEPTED; US-11 IMPLEMENTED / functional acceptance passed; US-12 ACCEPTED / DONE including task149; US-13 ACCEPTED; US-14 ACCEPTED; US-15 ACCEPTED; US-16 IMPLEMENTED with scoped behavior accepted.
@@ -851,3 +908,707 @@ Append a new entry for each meaningful work session. Keep prior entries as hando
 - **Eligibility:** Retained one canonical predicate `status === INDEXED` for response eligibility. Tests cover all five statuses and the INDEXED → DISABLED change. No fake retrieval/indexing was added.
 - **Verification:** TDD red run had 5 failing cases; `npm run test:rag --workspace=web` PASS 34/34 after implementation. Root `npm run test`, `npm run check-types`, `npm run build`, `git diff --check` PASS. No schema/migration/dependency/env change; no commit or push.
 - **Limits:** NT-252 end-to-end retrieval and QTN-107 history-source exclusion are **BLOCKED BY US-19** because no retrieval query exists. No Admin browser session/live RAG records or inspectable Figma MH-16/MH-18 frame, so light/dark, 360px and real database/Blob UI flow are NOT PROVEN.
+<<<<<<< HEAD
+=======
+
+
+## 2026-10-11 — ThaiAnh into TXH integration review
+
+- Owner-authorized temporary branch: integrate/thaianh-into-txh-20261011, based on TXH a7c8f1a8dc3e52a3d160fd3f5ec6a6f14771af97. Source ThaiAnh a7a26a026b8940eb5c0e639544fc48b169a0d016 has two exclusive commits; target has 21. Merge base94d685bb1dc0daccfb9d4a08041dbff5da023c96. Fifteen conflicts reviewed individually; this is not a source-directory replacement.
+- Preserved TXH private Blob stream/byte-count/cancellation/error fixes,20MiB limit,DOCX security validator,upload replay and Admin auth,UI single-flight/UNKNOWN/identity guards,US19 accepted request-scoped pipeline and PDF NUL v2,Prisma relations,migration history and pinned dependencies. Task191 contract and Task195/196 Assistant source unchanged. No Task192–194 or Worker WIP integrated.
+- Integrated US20 DISABLE from all four active document states,terminal DISABLED,Admin confirmation and retained list/detail/original file. Status-conditional mutation and shared idempotency remain intact. The indexing completion refresh uses confirmed state and cannot overwrite a confirmed DISABLED with an older INDEXED response.
+- Real disposable PostgreSQL race test now invokes the actual DISABLE service,holds its conditional update and observes finalizer lock waiting. Committed DISABLE prevents publication and rejects Retry/Re-index;same-key disable replay succeeds and eligible publication metadata is null. Cancellation,atomic publication,rollback,reindex preservation and PDF regressions retained. No runtime indexing code was changed.
+- Source Favorites light/dark CSS and US16 addendum also integrated;existing layout/auth/business logic preserved. Source-only progress entries retained as historical evidence. Moved index-panel CSS import to the Admin detail page so the source SSR badge test can execute without a Node CSS loader;the page still loads both review/index styles.
+- Validation:US17/18/20 legacy52/52;root314 Vitest PASS and326 legacy PASS. The regular run intentionally skips16 PostgreSQL cases;two explicit disposable PostgreSQL runs each16/16 PASS,zero skipped,Vitest/outer exit0,container/volume cleanup PASS. Initial strengthened test run exposed a wrong test API name;corrected to the real getPublishedGenerationMetadata method without weakening the assertion. Typecheck and Prisma validate PASS;fresh production build and diff check PASS. No secret matches in added lines;protected source/dependency/schema checks unchanged.
+- No new migration or migration apply;no Neon connection/writes,live OpenAI/Blob calls,push or deployment. Worker stash36584c230110a4aad7879f64ee587a4b0c5249bd remains intact and unrestored. Local merge commit/optional TXH fast-forward only after final gates. Owner must approve push. US20 live Admin/browser/retrieval acceptance is not claimed;US19 MVP acceptance unchanged.
+
+## 2026-10-11 — US21 accelerated192/193/194/197 offline batch
+
+- Baseline/local/originTXH8263c94e13cda29cde9f9556d186acc79e75ad44; separate managed
+  worktree `C:/Users/User/.codex/worktrees/us21-rag-qa-batch/KLTN`, feature branch
+  `feat/us21-rag-qa-batch`. Main TXH clean and unchanged; Worker stash
+  36584c230110a4aad7879f64ee587a4b0c5249bd intact. No commit/push/merge/deploy.
+- Implemented actual pgvector question retrieval, conservative extractive OpenAI
+  generation, strict/thin HTTP API, DB-backed Guest identity and durable authorized
+  multi-turn history/reservation/recovery/cleanup. Reuses unchanged Task191 and
+  Task195/196 core/layout/citations; real transport is separate from marked demo.
+- Exact READY publication+INDEXED/model1536 eligibility rechecked before/after model
+  and under completion document locks. Backend citation registry/opaque aliases,
+  metadata-only null URLs, rejected fabricated/unsupported claims and private prose/
+  metadata; no free-knowledge fallback. Exact matching is not perfect semantics.
+- Two additive Guest/conversation migrations tested only on disposable PostgreSQL.
+  Atomic completed result+head commit, same-key replay, principal/key digest, lease
+  fences, bounded recovery/rate settings, ownership FK, deletion/expiry scrub and
+  non-content tombstones; no content in shared indefinite idempotency cache.
+- Final full isolated Vitest459/459,zero skips,26 suites;37 real pgvector/PostgreSQL
+  tests(US21:21,US19:16),child/outer exit0,container/volume cleanupPASS. Legacy326
+  PASS. Root typecheck/Prisma validate/generate/fresh build28/28/diff/secret-pattern/
+  production import-and-artifact isolation PASS. Intermediate failed assertions and
+  two Windows native3221225477 exits are recorded in the story, not counted asPASS;
+  final successful run changed no assertion/pool/cleanup. Native root cause unknown.
+- Browser smoke of built production:unavailable,disabled composer/Send,no demo;
+  actual built ask503 AI_UNAVAILABLE/no-store. Live conversational browser/provider
+  acceptance is NOT RUN. Offline dummy ignored config avoids live credentials.
+- All four tasks PARTIAL pending owner review/corpus relevance+coverage evaluation,
+  public source policy calibration, Guest bootstrap abuse controls and deployed
+  retention cleanup schedule. Production hard unavailable regardless of local flag.
+  Runtime history/read/delete API exists; no dedicated history/deletion UI added.
+  No Neon connection/write,migration apply,live OpenAI/Blob call or production data.
+- Full requested field report,exact31-path manifest,provisional limits,retention/
+  recovery/migration assumptions and acceptance gaps:US21 dated batch handoff.
+  READY_FOR_OWNER_RUNTIME_ACCEPTANCE=NO for Preview/Production;offline code review
+  ready. Owner must review blockers before requesting environment/runtime work.
+
+## 2026-10-11 — US21 accelerated closure hardening
+
+- Append-only closure on feat/us21-rag-qa-batch,HEAD8263c94e13cda29cde9f9556d186acc79e75ad44.
+  Main TXH clean;Worker stash36584c230110a4aad7879f64ee587a4b0c5249bd untouched.
+ 44 changed paths (initial31+13 new),three additive QA migrations,disposable only.
+- Added shared PostgreSQL Guest bootstrap/network/global ask/token/concurrency
+  guards,HMAC network identity,fail-closed trusted ingress configuration and tests.
+  Cookie identity remains server-created/digest-only,HttpOnly/Strict/Secure.
+  Replays do not charge;recovered attempts charge full provisional23K token budget.
+- Retention uses DB clock/test injection,bounded cleanup/time budget,residual-work
+  checks,expired Guest access scrubbing and shared locks. Terminal failures discard
+  content immediately. Fixed identity-deletion orphan race and stale bootstrap
+  readiness;bounded real transport handles timeout without changing retry payload.
+  Protected scheduler endpoint,candidate cron and plan/cost/deployment runbook added;
+  actual scheduler NOT_CONFIGURED and physical retention SLA remains unverified.
+- Repeatable evaluation26technicalcases matched,zero citation/history failures;
+  concrete instruction bypass fixed before provider. Two relevance/coverage probes
+  document remaining semantic limits. REAL_CORPUS_EVALUATION=NOT_EVALUATED;verified
+  Hà Giang provenance/rights corpus absent. No arbitrary quality PASS threshold.
+- Final full disposable runner492/492 PASS,30 suites,zero skipped/todo,child/outer
+  exit0,51 actual PostgreSQL/pgvector cases(US21:35,US19:16),ownedcontainer+volume
+  cleanupPASS. Focused294/294 PASS;legacy all11groups PASS;root typecheck4/4,
+  Prisma validate/generate/offline QA DDL consistency,fresh build29/29,diff/untracked
+  whitespace/secret scan PASS. First closure run had2 invalid-expiry fixture failures
+  (fixed without changing CHECK);second had native threaded-worker3221225477 exit
+  after492assertions (notPASS). Final Windows forked-worker run exited0;native root
+  cause unknown. Premium UI audit retains22 unchanged findings and exits2.
+- Production opt-in remains unavailable:actual built session/ask503AI_UNAVAILABLE,
+  cleanup503disabled,no-store,no demo artifacts. Development browser failure smoke
+  disabled composer/no demo;successful Next.js real-corpus answer browser NOT_RUN.
+  Disposable vertical slice joins server Guest bootstrap,abuse,real HTTP transport,
+  actual pgvector,DTO and atomic completion with injected provider transports only.
+- TASK192_STATUS=PARTIAL;TASK193_STATUS=PARTIAL;TASK194_STATUS=PARTIAL;
+  TASK197_STATUS=PARTIAL. Code review ready;READY_FOR_OWNER_ACCEPTANCE=NO for MVP
+  runtime signoff. RemainingP0 deployed retention scheduling/SLA;remainingP1 corpus/
+  semantic quality,policy/cost/latency/delete-load calibration andmanualacceptance.
+  Full requested field report and prioritized evidence appended to US21 story.
+  No Neon writes/migration apply,live OpenAI/Blob,contract change,commit/push/merge/
+  deploy,stash apply/pop/drop or public activation.
+
+## 2026-10-11 — US-21 independent release-candidate gate review
+
+- Reconfirmed feature branch `feat/us21-rag-qa-batch` at
+  `8263c94e13cda29cde9f9556d186acc79e75ad44`, 44 changed paths (4 modified,
+  40 untracked), three additive migrations; root TXH checkout is clean at the
+  same HEAD. Reviewed all changed paths and migrations. No code was changed and
+  no tests were rerun; 492/492 Vitest and 51/51 disposable PostgreSQL are cited
+  only as prior-run evidence.
+- Release P0 remains scheduler/capacity/physical-retention guarantee: cleanup is
+  disabled and candidate Cron is not configured. Verified current Vercel docs:
+  Hobby is daily/±59 minutes; Pro/Enterprise support minute cadence; Cron is
+  best-effort and Production-only, with missed/duplicate deliveries. Five-minute
+  candidate is 288 invocations/day and uses Function allowance. Pro currently
+  costs USD20/month including USD20 usage credit; owner must verify actual plan,
+  function/database usage and accept that Vercel Cron alone has no hard 24-hour
+  physical deletion SLA. Preview manual invocation must target isolated data.
+- Independent P1 review: expiry time is sampled with PostgreSQL transaction-start
+  `CURRENT_TIMESTAMP` before advisory principal lock; lock contention across the
+  expiry boundary can permit a late replay/completion and retention renewal. Also,
+  citation title/DOCX section projection relies on a denylist and permits some
+  local URI/POSIX path strings; source metadata has no separate public permission
+  flag. Both require owner/runtime follow-up; neither was changed in this review.
+- P1: explicit conversation deletion and Guest session revocation do not have a
+  same-key result-reconciliation path. If the DB commit succeeds but the response
+  is lost, a retry reports NOT_FOUND/UNAUTHENTICATED even though deletion committed.
+- P1: source disable during an in-flight generation prevents final completion but
+  cannot retract evidence already sent to the provider; current race evidence
+  proves response/persistence fencing only. Owner must accept request-start
+  eligibility or select a different privacy boundary.
+- P2: content is scrubbed but minimal tombstone identity/key/hash metadata remains
+  without a compaction horizon. Semantic quality and real Hà Giang corpus remain
+  `NOT_EVALUATED`; no rights/provenance-verified source set was supplied.
+- P2: head/active/parent turn pointers are service-enforced but not FK-constrained;
+  the history anchor also does not assert that its head belongs to the selected
+  conversation. No client-controlled path was found, but DB-level defense is absent.
+- P1: the current real-corpus manifest schema records expected source IDs/claims,
+  but no gold evidence span/locator or real-corpus evaluator exists yet; it cannot
+  produce evidence-recall/citation-locator quality results.
+- Prepared Neon/OpenAI runtime acceptance steps in the appended US-21 story entry.
+  Preview runtime is still disabled by the current development-only feature gate.
+  `TASK192/193/194/197=PARTIAL`; `READY_TO_COMMIT_FEATURE=NO_PENDING_OWNER_REVIEW`,
+  `READY_FOR_PREVIEW=NO`, `READY_FOR_MVP_ACCEPTANCE=NO`. No status promotion,
+migration apply, live provider/database call, commit/push/merge/deploy, or Worker
+stash action.
+
+## 2026-10-11 — US-21 final hardening execution
+
+- Continued directly from the existing implementation on
+  `feat/us21-rag-qa-batch`, HEAD `8263c94e13cda29cde9f9556d186acc79e75ad44`.
+  Feature worktree has 49 changed paths (4 modified, 45 untracked); TXH root
+  checkout is clean at the same HEAD. No commit/push/merge/deploy or stash action.
+- Fixed the reviewed post-lock expiry race by sampling `clock_timestamp()` after
+  acquiring the principal lock. A deterministic disposable-Postgres test proves
+  the exact-boundary same-key replay is denied and content is scrubbed without
+  retention extension.
+- Added a fail-closed server source-ID allowlist for citation title/locator
+  projection and path/URL rejection for file URIs, POSIX/Windows/UNC paths,
+  private Blob references and signed/internal URLs. No new approval column or
+  Task 191 contract change. Empty allowlist exposes no evidence.
+- Made conversation delete safely repeatable for the same owner and session
+  revoke retryable with the same possession-verified Guest cookie after revoke.
+  Foreign owners still receive NOT_FOUND; no content response is cached and no
+  `Idempotency-Key` extension is needed because resource ID/token scopes the same
+  deletion action. Added provider-in-flight eligibility polling with best-effort
+  abort; final locked eligibility still fences response/commit. Evidence already
+  sent to the provider cannot be recalled, and this limitation is documented.
+- Added additive migration `20261011123000_add_qa_cleanup_state`: distributed
+  90-second runner lease, bounded execution metrics (`lastSuccessfulSweep`,
+  backlog, oldest overdue and failure count), failure counter and cleanup scan
+  indexes. Protected route supports manual or scheduled execution. All four QA
+  migrations were installed only in the disposable loopback PG runner; none was
+  applied to Neon.
+- Development/Preview gate now requires explicit opt-in, abuse-control acceptance
+  and exact allowed database host/name; Production is hard-denied. Citation
+  source IDs require explicit owner configuration. Defaults leave QA off.
+- Validation after the initial race-fixture correction: focused hardening
+  79/79; disposable PostgreSQL/pgvector 54/54 with zero skips and owned-container
+  cleanup PASS; full Vitest 517/517 across 32 suites, zero skips/todo, child/outer
+  exit 0; all 11 legacy test groups exit 0; root typecheck 4/4; Prisma generate
+  and validate; fresh build with 29 routes/pages; production/demo isolation;
+  `git diff --check`, 49-path whitespace and secret scans all PASS. First full
+  attempt exposed an incorrect test key/overbroad lock observer in the new test;
+  fixed the fixture and matched the exact PostgreSQL lock hash before rerunning.
+- Cleanup scheduler remains NOT_CONFIGURED. Vercel five-minute Cron is a
+  Pro/Enterprise candidate, Production-only and best-effort with no retry; an
+  external retrying/monitored scheduler remains an owner-selected alternative.
+  The 90-second DB lease makes code vendor-independent but cannot create a hard
+  physical-retention SLA by itself. No plan/provider was selected or configured.
+- Synthetic technical evaluation remains 26/26 matched, with zero tested
+  metadata-authenticity/history-isolation failures and two observed semantic
+  limitations. No rights/provenance-verified Hà Giang corpus was supplied;
+  real-corpus and semantic-quality results remain NOT_EVALUATED. No Neon write,
+  migration apply, cleanup sweep, browser live-answer test or OpenAI/Blob live
+  call occurred.
+- `TASK192_STATUS=PARTIAL; TASK193_STATUS=PARTIAL; TASK194_STATUS=PARTIAL;
+  TASK197_STATUS=PARTIAL`. Code review is ready; MVP runtime signoff is not.
+  `READY_TO_COMMIT_FEATURE=NO_PENDING_OWNER_REVIEW`;
+  `READY_FOR_PREVIEW=NO_UNTIL_OWNER_MIGRATION_AND_ENV_CONFIGURATION`;
+  `READY_FOR_MVP_ACCEPTANCE=NO`. Full field report and Development migration/
+smoke checklist are appended to `docs/stories/US-21-rag-qa.md` and
+`docs/implementation/qa-retention-runbook.md`.
+
+## 2026-10-11 — Final validation after runtime-target guard tightening
+
+The non-production gate was tightened to require a PostgreSQL URL scheme as
+well as exact configured host/database matching. Its focused gate tests passed
+2/2. After that last code change, full isolated Vitest again passed 517/517
+across 32 suites with zero skipped/todo, and the disposable PostgreSQL/pgvector
+runner reported clean container/volume teardown. Legacy tests, root typecheck,
+Prisma generation/validation and a fresh TypeScript-checked production build all
+exited 0. The final 49-path whitespace/secret scans and `git diff --check` passed.
+No runtime flag, migration, scheduler, Neon data, provider, Git history or task
+status was changed as part of this verification.
+
+## 2026-10-11 — US-21 owner decisions A/B/C implemented offline
+
+- Owner approved GitHub Actions cleanup scheduling (`17 * * * *` UTC), an
+  explicit server source-ID allowlist with field-level safe citation projection,
+  and minimal approved provider evidence with best-effort abort/final eligibility
+  fence. Recorded trade-offs and deployment gates in the US-21 story and cleanup
+  runbook; Tasks 192/193/194/197 remain PARTIAL.
+- Added a fixed-path HTTPS GitHub Actions runner with exact host match, secret
+  only from a GitHub Environment, no URL dispatch input, no redirects, 10-second
+  timeout, three bounded retry attempts and an eight-sweep cap. Manual dispatch
+  requires explicit confirmation. A second scheduled workflow checks GitHub's
+  scheduled-run history for a missing/stale (>75-minute) or failed cleanup
+  heartbeat. Both workflows are restricted to the remotely confirmed default
+  branch `master`; nothing was published or activated. Notification routing,
+  environment variables/secrets, and `QA_CLEANUP_ENABLED` are owner gates.
+- Tightened provider payload to four current approved chunks / 3,000 evidence
+  tokens and two prior questions, added `store:false`, and reject unsafe private
+  references/credential patterns before transport. Added payload inspection and
+  deterministic scheduler/watchdog tests. No provider or database live calls.
+- GitHub Actions schedules are default-branch-only and may be delayed/dropped;
+  the same-platform watchdog improves missed-run detection but cannot guarantee
+  delivery or a hard physical-retention SLA. No Development cleanup is run.
+  Vercel candidate is superseded. No migration, commit, push, merge, deploy or
+  Worker stash operation.
+- Validation after this batch is recorded in the story: rerun focused suites,
+  full Vitest, disposable PostgreSQL/pgvector, legacy, typecheck, build, Prisma,
+  workflow static checks, diff/secret scans and production/demo isolation.
+
+### 2026-10-11 — US-21 A/B/C final offline verification
+
+- Full Vitest: 524/524 across 33 files, zero skipped/todo. After the synthetic
+  credential marker was shortened to remove a scanner false positive, affected
+  focused suites passed 60/60; scheduler/watchdog Node tests passed 7/7.
+- Disposable PostgreSQL/pgvector: 54/54, zero skipped, teardown passed. Legacy
+  test groups, root typecheck, production build, Prisma validate/generate and
+  static workflow checks passed. actionlint was unavailable; YAML parsing and
+  structural workflow assertions passed.
+- Changed-path secret scan: zero matches across 55 paths; git diff --check
+  passed. Four tracked modifications, 51 untracked paths, no staged files, four
+  existing additive QA migrations, feature branch HEAD unchanged. No live
+  provider/Blob calls, Neon writes, migration applies, cleanup invocation,
+  workflow publication, or deployment.
+- Cleanup remains disabled pending owner-controlled GitHub Environment and
+  exact database target configuration. GitHub Actions scheduling is best
+  effort, so hard physical deletion within 24 hours is not established. Real
+  Ha Giang corpus evaluation and provider data-control review remain outstanding.
+  Tasks 192/193/194/197 remain PARTIAL; no task was marked DONE.
+
+
+## 2026-10-11 — US-21 local Varlock configuration and Neon preflight
+
+- Removed only the offline DATABASE_URL override from ignored apps/web/.env.local; preserved its other assignments and the owner-restored .env. Actual Next development env loading now matches the expected Neon hostname/database.
+- Exposed ten server QA runtime/cleanup keys and VERCEL_ENV/VERCEL by removing @internal; kept default sensitivity and NODE_ENV as the only public key. Existing HMAC/cron credentials remain sensitive. Codegen passed; generated env.ts remains ignored. QA/Preview/cleanup and abuse-acceptance flags remain disabled. Missing allowlist, HMAC, local identity, target pins and cron secret are not reported as configured.
+- Effective-config READ ONLY transactions confirmed all expected Neon IDs, 11 complete/checksum-matching ledger entries, four QA migrations pending, vector 0.8.6/PostGIS 3.6.4, three INDEXED plus one DISABLED READY publication, and absent QA schema. Current branch name still requires owner Console confirmation; no management API credentials were available.
+- Focused gates/Task191 contract/HTTP tests: 134/134, zero skipped; root typecheck and fresh offline production build exited 0. Client secret-value scan: 0 matches across 107 assets; public generated schema remains NODE_ENV-only. Diff/check scans passed. Full test suites were not rerun for this configuration-only change.
+- Migration approval remains conditional on current branch-name verification and backup/restore readiness. Live smoke remains blocked by pending migrations, missing runtime configuration and source/corpus approvals. Tasks 192/193/194/197 remain PARTIAL. No commit, push, deployment, database write, live OpenAI/Blob call, cleanup or Worker stash operation.
+
+
+## 2026-10-11 — Owner-authorized US-21 Development migrations applied
+
+Owner explicitly approved Development writes for project summer-unit-95870477, branch development / br-aged-hat-b3o6hg9p, endpoint ep-purple-pond-b3xujb8o, database neondb, and confirmed backup-dev-pre-us21-20261011. Branch name and backup verification are owner-provided; server identity independently matched project/branch/endpoint/database IDs through effective Varlock runtime configuration before writing. Effective runtime was not the offline sentinel.
+
+Immediate gates passed: feature HEAD 53506f67064dbc4eeda6693f3527c79e9d755a00; four migration SQL files match checkpoint; 11 complete checksum-matching ledger entries with no failed/rolled-back entries; exactly four QA migrations pending and no existing QA table collisions. The requested db:migrate script maps to forbidden migrate dev, so the existing db:migrate:deploy workspace script was used from repository root: npm run db:migrate:deploy -w @KLTN/db. Prisma Migrate Deploy exited 0 and applied only 20261011120000_add_qa_guest_identity, 20261011121000_add_qa_conversations, 20261011122000_add_qa_abuse_guard, and 20261011123000_add_qa_cleanup_state.
+
+Post-migration read-only verification: 15 completed migrations, zero failed/rolled-back entries, all ledger checksums match; six QA tables, validated constraints, composite ownership FK, idempotency and active-turn uniqueness indexes present; all six QA tables empty. Prisma migrate diff against repository schema reported no difference, exit 0. Non-QA table column/default/constraint/index catalog fingerprints and row-content/count fingerprints were identical before/after (excluding migration ledger and extension-owned spatial_ref_sys data). pgvector 0.8.6 and PostGIS 3.6.4 passed vector-distance and SRID queries. Documents remain three INDEXED and one DISABLED; publications remain three INDEXED/READY and one DISABLED/READY, with unchanged content fingerprints.
+
+No Production or backup target was contacted for writes. No cleanup, RAG content changes, provider/Blob calls, runtime activation, commit/push/deploy or Worker stash operation. Existing local configuration and earlier candidate-file deletion were preserved. Migration and diff child processes exited 0; their stdin Node wrapper retained Varlock handles after completion and was stopped only after verification output; a final independent read-only QA-count/publication verification exited 0. No offline suite rerun was needed for this migration-only execution. Live smoke still requires approved source allowlist/provider sharing, network HMAC, local identity, runtime target pins and deliberate local runtime gate configuration. Tasks 192/193/194/197 remain PARTIAL.
+
+
+## 2026-10-11 — US-21 local live readiness prepared (no live execution)
+
+Read current QA runtime gates, Guest/Better Auth boundary, allowlist, provider configuration and /assistant HTTP transport. Only ignored apps/web/.env.local configuration was changed: set exact Development hostname/database pins, local runtime/abuse gate true, Preview/cleanup false, empty unapproved source allowlist; generated a cryptographically random local HMAC and stable local network quota identity without displaying either. Existing DATABASE_URL/.env and Better Auth assignments retained. No project/branch/endpoint env pins exist in current code; read-only server IDs were verified against approved target.
+
+Actual Next/Varlock development loading and gate execution confirmed local=true, Production=false, Preview=false, cleanup=false, secret exposure server-only, OpenAI credential present and Better Auth localhost:3001/minimum-length configuration valid. Ledger remains 15 completed, zero incomplete. Three INDEXED US19 TEST sources have READY publications and matching embedding/chunk counts, but ownership/public-display/provider-sharing approvals are not established; none allowlisted.
+
+Created docs/fixtures/us21-local-live-qa-test.txt, clearly TEST/SYNTHETIC with fictional QA-SAOTIM-21 record, and docs/implementation/us21-local-live-readiness.md with exact env requirements, upload/review/approve/index steps, correct RagDocument.id allowlist semantics, TXT citation limitations, and first turn/citation/Traveler/follow-up/insufficient/replay/delete/revoke/disable cases. These are prepared artifacts, not uploaded/indexed/real-corpus evidence. Runtime source approval and live authorization remain owner gates. No server started (real UI bootstrap itself writes), no Neon write, migration, cleanup, OpenAI/Blob call, Production activation, commit/push/deploy or Worker stash action. No application code change; no full regression rerun. Tasks remain PARTIAL.
+
+
+## 2026-10-11 — Owner-approved live acceptance attempted; stopped before review/index
+
+Authorization: owner approved only docs/fixtures/us21-local-live-qa-test.txt for Development Blob/Neon writes and real OpenAI indexing/generation, at most five generation questions. Full fixture review passed: original generated TEST/SYNTHETIC QA record, no personal data, secrets, private information, third-party content or purported real Ha Giang facts. Owner authorization covers public safe metadata and minimal evidence sharing for this fixture only. Expected evidence: confirmation code QA-SAOTIM-21; three steps (doc tai lieu, doi chieu ma xac nhan, ghi ket qua kiem thu); purple label; no actual travel prices/hours. Proposed five questions: confirmation code; same-conversation follow-up asking steps; actual ticket price absent from source; confirmation code plus unsupported price (record actual PARTIAL/clarification outcome); independent label-color check. None sent.
+
+Final write gate passed using effective Next/Varlock configuration and read-only Neon server settings: project summer-unit-95870477, branch br-aged-hat-b3o6hg9p (development per owner), endpoint ep-purple-pond-b3xujb8o, neondb; six QA tables; exact checkpoint/feature branch; port 3001 free before starting. Local runtime enabled, Preview/Production/cleanup disabled. No migration rerun. Owner logged into existing Admin account in in-app browser; no credentials or cookies copied into chat/scripts.
+
+Started npm run dev -w web from feature worktree. Standard upload UI/API successfully uploaded exactly one fixture and finalized document cmv3q1hth00010k9wf74kmio7. Public title: US21 TEST SYNTHETIC - Ho so QA Sao Tim; sourceUrl null; no invented author/locality; topic marks owner-approved technical TEST/SYNTHETIC acceptance. No storage path/URL recorded in this report. Upload-url API HTTP 200 (3.8s server latency); finalize API HTTP 200 (3.7s); Blob PUT duration not captured.
+
+Live blocker: Next 16.3.8 Turbopack returned HTML 404 for existing nested /api/admin/rag-documents/{id}/actions and /index routes. UI START_REVIEW attempt reported UNKNOWN; no repeated write retry was made. Existing production-build manifest includes these routes, while development did not compile them on request. Tried runtime-only npm run dev -w web -- --webpack, without editing code. Webpack served index progress HTTP 200 for authenticated UI / 401 JSON for unauthenticated diagnostic, but page rendering was blocked by Varlock sensitive-config scan: Config item BETTER_AUTH_URL, patched ServerResponse.write, on document detail HTML. Its effective value is the noncredential localhost origin, but remains sensitive by schema default. This is a guard-triggered runtime failure, not evidence that API keys/passwords leaked; no guard disabled or metadata classification changed. Browser received connection reset. Per stop gate, halted writes and stopped the local server. Screenshot of completed upload was not saved before the navigation failure; read-only DB confirmation provides authoritative persistence evidence.
+
+Post-stop read-only reconciliation exited 0: exact target still matched; document UPLOADED, zero fixture jobs/generations/publications/chunks, zero QA turns. Existing documents remain three INDEXED and one DISABLED. No existing source was changed or allowlisted. Allowlist stays empty until this exact fixture is APPROVED/INDEXED/current READY. No OpenAI calls occurred: generation questions 0/5, token usage 0. Upload persistence PASS; review approval, indexing, real HTTP chat, citation authenticity and conversation persistence NOT_EXECUTED/BLOCKED. REAL_HA_GIANG_CORPUS_EVALUATION=NOT_EVALUATED.
+
+FIXTURE_REVIEW=PASS; FIXTURE_APPROVED=OWNER_AUTHORIZED_FOR_TEST; UPLOAD_STATUS=PASS; APPROVAL_STATUS=BLOCKED_UPLOADED; INDEX_STATUS=NOT_STARTED; CHUNKS=0; EMBEDDINGS=0; SOURCE_ALLOWLIST=EMPTY; REAL_HTTP_TRANSPORT=IMPLEMENTED_NOT_LIVE_VERIFIED; OPENAI_LIVE_CALLS=0; QUESTIONS_EXECUTED=0/5; FIRST_TURN=NOT_RUN; FOLLOW_UP=NOT_RUN; INSUFFICIENT_SOURCE=NOT_RUN; CITATION_VALIDATION=NOT_RUN; CONVERSATION_PERSISTENCE=NOT_RUN; TOTAL_TOKEN_USAGE=0; LATENCY=UPLOAD_URL_3.8S_FINALIZE_3.7S; SECURITY_FINDINGS=VARLOCK_BETTER_AUTH_URL_GUARD_BLOCK; TASK192_STATUS=PARTIAL; TASK193_STATUS=PARTIAL; TASK194_STATUS=PARTIAL; TASK197_STATUS=PARTIAL; READY_FOR_OWNER_BROWSER_ACCEPTANCE=NO; BLOCKERS=LOCAL_NESTED_ROUTE_404_AND_VARLOCK_ORIGIN_CLASSIFICATION.
+
+Next work must resolve local route discovery and narrowly classify the known public Better Auth origin without weakening credential sensitivity, then reconcile/resume the existing document review/index (never reupload a duplicate), allowlist the exact returned document ID, and run at most five generation questions under the existing authorization. No disable/delete/revoke/cleanup, Production/backup writes, scheduler activation, migration, contract change, code edit, commit/push/merge/deploy or Worker stash action.
+
+
+## 2026-10-11 — Local route/Varlock remediation and approved fixture indexing
+
+Continued the owner-approved single-fixture live test; no second upload. Verified effective BETTER_AUTH_URL is only the public origin http://localhost:3001: HTTP(S), root path, no username/password/query/fragment and not equal to any credential. Changed only its apps/web/.env.schema decorator to @public @type=url; BETTER_AUTH_SECRET, DATABASE_URL, OPENAI_API_KEY, BLOB_READ_WRITE_TOKEN, QA_NETWORK_HMAC_SECRET and CRON_SECRET remain sensitive. Varlock codegen succeeded.
+
+Exact endpoint behavior: frontend calls POST /api/admin/rag-documents/{id}/actions and GET/POST /api/admin/rag-documents/{id}/index; there is no /actions/index endpoint. Route files exist and are present in production build manifest. Turbopack's dev manifest omitted nested /actions and /index routes and returned HTML 404; Webpack dev registered both (authenticated GET/POST requests returned 200). Webpack no longer reports BETTER_AUTH_URL from the sensitive-response scan. This is a Turbopack development route-registration issue, not a wrong client URL or route handler authorization failure.
+
+Using the already logged-in Admin and standard UI, the existing document cmv3q1hth00010k9wf74kmio7 moved UPLOADED -> REVIEWING -> APPROVED -> INDEXED. The US-19 indexing action made an authorized real OpenAI Embeddings call for this fixture; job succeeded on attempt 1. Read-only Development verification confirmed status INDEXED, current publication READY (generation cmv3wvev70005v89wg0fvv4ty), one expected chunk/one embedding, openai/text-embedding-3-small/1536, safe owner-approved TEST/SYNTHETIC title and null sourceUrl. Existing sources were not changed: counts are now four INDEXED (three prior + fixture), one DISABLED. The exact returned RagDocument.id alone is present in ignored QA_PUBLIC_SOURCE_IDS. Database server identifiers and local gate rechecked; Preview and cleanup remain disabled.
+
+A guard interaction remains when requesting the Admin detail page while the raw allowlist ID is configured: Varlock flags QA_PUBLIC_SOURCE_IDS because that same ID appears in the /admin/rag/{id} request/page context. It remains sensitive/server-only; no public exposure or guard exception was added. Navigate to /assistant to avoid the internal admin-ID path. The assistant page loaded on Webpack and authenticated as ADMIN; its real HTTP transport path was selected. However, browser actions could edit the draft and clear it using “Cuộc hội thoại mới” but submit did not start a turn or produce POST /api/ai/ask. No Generation API calls or QA turns occurred; OpenAI generation remains 0/5 and generation token use is 0. Do not retry blindly. This local browser-submit behavior needs owner interaction/debugging before live questions.
+
+Validation after schema change: Varlock codegen PASS; focused tests 78/78 across runtime gate, HTTP transport, Assistant development integration, QA HTTP and RAG index/action services; web typecheck PASS; fresh Next production build PASS and included nested actions/index routes; diff check PASS, secret-value scans found no matches, .env files remain ignored. Prisma client generation also succeeded. Full regression and PostgreSQL suite not repeated.
+
+FIXTURE_REVIEW=PASS; FIXTURE_APPROVED=OWNER_AUTHORIZED; UPLOAD_STATUS=PASS; APPROVAL_STATUS=PASS; INDEX_STATUS=PASS; CHUNKS=1; EMBEDDINGS=1; SOURCE_ALLOWLIST=EXACT_FIXTURE_ID_ONLY; REAL_HTTP_TRANSPORT=SELECTED; OPENAI_EMBEDDING_CALL=PASS; OPENAI_GENERATION_CALLS=0/5; QUESTIONS_EXECUTED=0/5; FIRST_TURN=NOT_RUN; FOLLOW_UP=NOT_RUN; CITATION=NOT_RUN; CONVERSATION_PERSISTENCE=NOT_RUN; READY_FOR_OWNER_BROWSER_TEST=PARTIAL; BLOCKERS=TURBOPACK_DEV_ROUTE_REGISTRATION (use webpack) + ADMIN DETAIL ALLOWLIST-ID GUARD MATCH + CHAT SUBMIT DOES NOT DISPATCH.
+
+Webpack development server is left running on localhost:3001 with /assistant open and the Admin session intact for owner browser acceptance. No question, deletion, disable, cleanup, migrations, Production/backup write, commit/push/merge/deploy, or Worker stash operation. Tasks 192/193/194/197 remain PARTIAL.
+
+## 2026-10-11 — US-21 Assistant send/session lifecycle fix
+
+- **Root cause:** `AuthenticatedRuntimeChat` first rendered `AssistantChat` without transport under key `USER:<id>`. Successful bootstrap returned the same `USER:<id>` identity, so React reused the child. Its one-time `useState` initializer left `AssistantController.transport` null while the changed prop enabled the composer. `submit()` returned false before transport dispatch, explaining the missing `/api/ai/ask`.
+- **Cancellation:** the bootstrap effect aborts on cleanup when its component/boundary unmounts; development Strict Mode can exercise this path. This accounts for canceled session requests but is separate from the stale controller. The final browser bootstrap succeeded (auth/session HTTP 200 and Admin/composer readiness).
+- **Fix/evidence:** use distinct `bootstrap:` and `ready:` child keys to recreate the controller with `AssistantHttpTransport`. A deterministic regression test failed under the old equal-key behavior and passes with the fix. Focused suite 83/83, typecheck and production build pass. Local browser re-opened `/assistant`; no ask was sent, OpenAI generation remains 0/5.
+- **Scope:** Task 191 contract and Task 195/196 UI semantics unchanged. No fixture upload/index, allowlist change, migration, cleanup, Neon mutation for this debug, provider generation, Production action, commit/push/deploy or Worker stash action. First live ask remains owner-controlled.
+
+### 2026-10-11 — UNKNOWN with no recorded ask: fetch receiver regression
+
+Trace: submit creates the immutable attempt and sets pending sending; controller send calls AssistantHttpTransport.send; read called the native fetch reference as this.fetcher. That supplies the transport object as the native function receiver. A receiver-sensitive browser-fetch mock throws Illegal invocation at this point, before creating a request; transport catch maps it to networkAmbiguity and controller maps that to UNKNOWN. The new pending state proves the prior null-transport submit guard was passed. No wrong URL was found (/api/ai/ask); server-side HMAC/session checks cannot explain a fetch call failing before HTTP dispatch. Aborted signals remain separately tested and unchanged.
+
+Minimal fix: wrap the default fetch dependency with (input, init) => globalThis.fetch(input, init). Keep request URL/body/key, cookies, timeout, abort behavior, Task 191 contract and security unchanged. New deterministic test uses a mocked session 200 with validated USER identity, distinct bootstrap/ready keys, then submit through the real controller and HTTP transport; asserts session -> POST /api/ai/ask, exact key/body, accepted receiver and confirmed FAILED fixture response instead of network UNKNOWN. It failed with the old receiver and passes after the wrapper. This is a deterministic transport/lifecycle test, not a mounted-browser or live provider acceptance test.
+
+Read-only Development target gate matched the approved endpoint, neondb and effective runtime pins. BEGIN READ ONLY returned transaction_read_only=on, zero qa_turn and zero qa_conversation records. Available dev logs show session 200 and no ask. Initial connection attempt with PostgreSQL startup options failed with redacted diagnostics; the subsequent ordinary connection plus explicit read-only transaction completed successfully. No question/content/key/session secrets were read into output. Temporary read-only script was removed. Direct Chrome headless receiver probe was rejected by execution policy before running; no direct exception capture in the existing user tab is claimed.
+
+Validation: focused suite 84/84 PASS (six files), web typecheck PASS, production build PASS; diff/secret checks recorded below in the current session report. Webpack development server restarted on localhost:3001. No live ask/retry, OpenAI/Blob, upload/index, allowlist change, migration/cleanup, database mutation, commit/push/deploy or Worker stash action. Tasks remain PARTIAL. Dispatch is ready for an owner-controlled live check; real browser/provider acceptance remains unexecuted.
+
+### 2026-10-11 — AI_INVALID_RESPONSE diagnosis after owner live asks
+
+Observed dev logs contain two POST /api/ai/ask responses: HTTP 502, 11.4s and 6.9s. Read-only Development verification (approved endpoint/neondb/effective runtime host pin, BEGIN READ ONLY) found two USER/GUEST-owned conversations in aggregate, no active turn/completed head, and two first turns FAILED with errorCode AI_INVALID_RESPONSE, created at 2026-10-11T15:10:37.069Z and 15:11:15.398Z. No principal IDs, keys, credentials or private question/response content were printed. Failed-turn policy correctly scrubbed question/response/provenance; therefore the latest row cannot independently be correlated with the literal question hi. Owner reports that question. Quota counters ask-global=2 and tokens-global=46000 are reserved ceilings, not actual provider usage or confirmation of a generation call.
+
+Trace: qaHttpError maps an AppError AI_INVALID_RESPONSE to HTTP 502 / FAILED with sanitized message. This code can originate in invalid query embeddings (EmbeddingError INVALID_PROVIDER_RESPONSE), retrieval eligibility checks, generation preflight, provider envelope/JSON/schema, outcome consistency, exact sentence/citation grounding, public safety, final response validation or atomic completion eligibility fences. A generic DB completion failure maps UNKNOWN, not this error. HTTP/auth bootstrap failure and previous pre-fetch receiver issue do not explain persisted FAILED turns. Current logs/failed rows retain no stage diagnostics, provider request IDs, finish reason or usage. No provider call or retrieved evidence count for the historical asks can be confirmed from the available evidence. Do not infer calls or token usage from latency/quota.
+
+Current fixture read-only state remains INDEXED/current READY, one published chunk. Offline tests against that in-memory chunk confirm instructionDetected=false and safe text metadata. With question hi and a mock provider, valid empty-parts CLARIFICATION_REQUIRED and INSUFFICIENT_SOURCE both pass generation validation. Existing tests confirm empty evidence returns the contract INSUFFICIENT_SOURCE without a generation fetch; retrieval itself still requires a query embedding. These checks do not reproduce or prove the historical model output or historical source eligibility. Greeting hi is syntactically valid; there is no deterministic greeting branch, and with retrieved evidence the model decides insufficiency/clarification under the existing prompt. No greeting special case or guard relaxation was introduced.
+
+ROOT_CAUSE=UNRESOLVED_INSUFFICIENT_STAGE_EVIDENCE. FIX_APPLIED=NO; no proven implementation bug and no justified red regression case. Next diagnostic step requires content-free stage classification (embedding validation; evidence count; provider HTTP/finish/refusal/output schema; outcome consistency; grounding/citation; final eligibility) plus optional sanitized provider request ID/usage for a future separately authorized ask. Do not log prompt, evidence text, output text, identities, keys, cookie/HMAC or credentials. No automatic live replay was performed. Focused existing suite 161/161 PASS across eight files; typecheck PASS. Build/diff/secret checks recorded in the session report. Tasks remain PARTIAL; not ready to declare the next ask fixed.
+
+No new live ask, embedding/generation/Blob call, upload/index, migration, cleanup, allowlist change, Neon mutation, commit/push/deploy or Worker stash operation. Temporary read-only/offline diagnostic script removed. Only this append-only documentation evidence was added in this diagnosis.
+
+### 2026-10-11 — Development-only AI_INVALID_RESPONSE stage diagnostics prepared
+
+Implemented request-scoped AsyncLocalStorage diagnostics with random server correlation UUIDs, wired only into qaHttp.ask in local development. Production/Preview forced off; Task 191 public body/status/headers, immutable idempotency key and existing security/grounding checks unchanged. Instrumented actual request/principal/admission/query-embedding/retrieval/eligibility/generation/preflight/provider/envelope/JSON/schema/outcome/citation/grounding/public-safety/atomic-completion order. Every known AI_INVALID_RESPONSE throw/mapping site has a specific category/origin. Provider fetch invocation is distinct from remote acceptance/billing. Projected generation HTTP/request-ID/finish/token metadata is available when supplied; embedding HTTP/request ID is available, embedding usage is not exposed by the existing adapter. Missing data remains absent/unknown.
+
+Security projection allows only internal stage/category/code enums, random correlation ID, chunk counts, bounded numeric usage/status, bounded req_ request ID and known finish reasons. Schema issues contain safe code/path only; unknown field names become FIELD. No raw prompt/question/answer/chunk/provider response/error message, identity, cookie/key/HMAC, credential or URL is logged. Diagnostic sink failures do not alter operation behavior; concurrent requests have separate context. Origin tagging uses WeakMap, never database/persistence/public response. See docs/implementation/us21-stage-diagnostics.md for complete rejection-condition inventory, metadata semantics, removal guidance and the one-attempt plan.
+
+Read-only Development endpoint/neondb/runtime host gate PASS; two conversations and two FAILED/AI_INVALID_RESPONSE turns remain, scrubbed=true. Available logs still provide only the earlier two asks/502; no historical stage or generation usage can be recovered. No scrubbed content inspected. Historical root cause remains NOT_IDENTIFIED. No speculative functional fix was made.
+
+Deterministic validation: 17 new diagnostics cases plus existing focused modules/UI regressions, 178/178 PASS across nine files. Empty evidence -> INSUFFICIENT_SOURCE with no generation dispatch; valid evidence -> generation/persistence; unavailable, malformed JSON/schema, outcome inconsistency, citation reference, grounding, invalid embedding, lost eligibility and DB persistence failure each assert exact internal failure origin/public code. Tests also assert content secrecy, schema-path/provider-metadata projection, Production/Preview silence, concurrent isolation and nonthrowing sink behavior. Typecheck PASS. Production build and diff/secret checks recorded in session report. No PostgreSQL integration rerun: no schema or write-policy change, and no live test writes authorized for diagnostics.
+
+One owner-triggered new-conversation question prepared: Ma xac nhan cua ho so QA Sao Tim la gi? Expected approved synthetic evidence sentence: Ma xac nhan cua ho so QA Sao Tim la QA-SAOTIM-21. Do not replay either failed historical key; controller creates the new intent key. Stop after one submit, then inspect US21_QA_DIAGNOSTIC events for its correlation ID and provider usage separately if owner dashboard access is available. Earlier two POSTs are conservatively charged to the five-question budget: 3 remaining before this diagnostic attempt, 2 after it regardless of outcome. Prior generation invocation/billing NOT_CONFIRMED, never claimed zero. No new live provider call, question/retry, fixture upload/index, migration/cleanup, allowlist/env change, Neon mutation, commit/push/deploy, worktree deletion or Worker stash operation. Tasks remain PARTIAL.
+
+### 2026-10-11 — Wrong DEMO transport: wrong local server resolved
+
+Root cause proved by port/process ancestry and both repository page sources: localhost:3001 listener PID 33144 and its Next parent PID 32988 ran from D:\KLTN\KLTN, under the main-repo Turbo dev tree, not the US-21 feature worktree and not Webpack. Main-repo /assistant imports AssistantDevelopmentChat unconditionally in development; it has no real-QA selection branch. The prior feature dev exec had exited. Therefore this owner question executed demo and provides no live retrieval/generation evidence. It is not another POST/ask and does not consume a third live-ask budget slot.
+
+Effective feature-worktree Varlock statuses were read without printing values: QA_RUNTIME_ENABLED=true, abuse accepted, approved endpoint/neondb and runtime pins matched, HMAC/local-network identity/OpenAI present, exact existing fixture-only allowlist, Preview and cleanup disabled. Keys are in ignored .env.local; .env contains no QA keys. Required QA variables are server-exposed, not @internal, and retain sensitive defaults. No env or allowlist modification was needed. Feature /assistant prioritizes AssistantRuntimeChat when development QA flag is true; false selects clearly marked demo. Missing/incorrect backend security configuration closes the real session/API gate; the runtime component never falls back to demo responses. Production selects unavailable and never imports development demo. No application-source mode-selection fix was necessary.
+
+Stopped only the verified main-repo Next dev process serving the conflicting port, then started npm run dev -w web -- --webpack from the feature worktree. Browser verification on /assistant: no DEMO banner or mock controls, existing Admin session, session HTTP 200, text field settable, new-conversation enabled, no turn/pending question. Send is disabled solely because draft is empty. Ready identity uses the real HTTP transport via the existing distinct bootstrap/ready key; no ask was submitted. No cookie/session credential was read or copied.
+
+Added assistant-runtime-mode.vitest.test.ts: builds/executes the actual page selection without mounting or making requests, verifies development true -> AssistantRuntimeChat, false -> AssistantDevelopmentChat, production regardless of QA flag -> unavailable AssistantChat, no demo/fixture dependency in production, and server gate rejects missing pins/database, wrong target, unaccepted abuse or Preview/Production. Development bundles may contain demo definitions; selection tests assert the returned real component, not an unsupported claim that every development bundle excludes demo code. Demo fixture behavior cannot participate in that real execution path.
+
+Validation: focused session/controller/transport/mode/API/runtime suite 89/89 PASS; typecheck PASS. Production build and final diff/secret checks recorded in session report. No application source or ignored env changed; only regression test and append-only docs added. Local Webpack server restored for the owner's single supported diagnostic question. Two historical real POSTs still count against five-question budget; three live-ask slots remain, not a claim of zero historical provider charges. No live ask/provider call, upload/index, migration, cleanup, disable/delete, allowlist change, commit/push/deploy, worktree deletion or Worker stash action. Tasks remain PARTIAL.
+
+### 2026-10-11 — Existing 502 diagnostics and Guest chat lifecycle
+
+Read existing Webpack logs and approved Development database using a target-pinned READ ONLY transaction; no new ask or provider call. Correlation bef508d1-6c53-4487-8e05-17d07571957b: embedding HTTP 200, retrieval 1, eligible evidence 1, generation HTTP 200, finish stop, usage 501 prompt + 18 completion = 519 tokens. Last validated stage GENERATION_OUTPUT_SCHEMA; rejection GENERATION_OUTCOME / OUTCOME_CONSISTENCY, public AI_INVALID_RESPONSE / HTTP 502. Existing combined guard does not identify whether unanswered/status or answerParts/status violated consistency. No raw response was retained or recovered. Strict rejection remains unchanged; split the same predicates only to emit safe custom issue paths unanswered or answerParts. Three diagnostic regression cases were red before this change and green afterward. No proven provider adapter, citation, grounding or persistence defect for this request; rejection precedes citation/grounding and successful completion.
+
+Separate correlation 1f3c94a1-280b-4445-b40d-4a8d4e00f0a0 failed QUESTION_EMBEDDING_STARTED / PROVIDER_FAILURE, AI_UNAVAILABLE, embedding dispatched, generation not dispatched. Browser cancellation does not prove zero provider cost. Four recorded turns are FAILED, all Guest-owned; latest errors AI_INVALID_RESPONSE and AI_UNAVAILABLE. Failed question/response/provenance content is scrubbed; conversations are neither deleted nor expired and have no active turn. Scrubbed content was not recovered.
+
+Proven lifecycle defect: installed Better Auth sets isPending=(current.data===null) during refetch. Settled Guest sessions have null data, so focus/online/session refetch temporarily produces unresolved. Previous AssistantRuntimeChat replaced the keyed authenticated subtree, disposing its memory-only controller and aborting in-flight transport, then rebuilt an empty controller when Guest settled. Transient authenticated-session errors also cleared that subtree. Red tests reproduced both boundary changes. Preserve a confirmed principal boundary during transient refetch/error, disable submit/keyboard/retry until auth and server bootstrap revalidate, and retain the same ready identity key. Confirmed login/logout/account switch or unauthorized response still clears the old identity. Guest cookie identity rotation changes the key. No persistent client cache, automatic POST replay, new idempotency key, restored scrubbed history, or retention change.
+
+This lifecycle defect can occur without HMR. Exact React remount and auth transition of the owner's historical request were not instrumented; timing of session rebootstrap corroborates the path but does not establish exclusive causation. RSC GET and hot-update requests alone are not proof of a reset. No router.refresh/navigation exists in the assistant path. Full page reload/HMR remount can still clear memory-only chat; durable history restoration is not added in this scoped fix.
+
+Validation: 180/180 focused tests across 11 files PASS, including controller UNKNOWN/error handling, HTTP/session key, boundary transitions, real/demo/production selection, server-rendered disabled composer, strict generation and diagnostics. Typecheck PASS; production build PASS; diff check PASS. Full suite and live ask not run. Production/Preview remain disabled, no env/allowlist change. Local feature Webpack restarted on port 3001 after build. Current IAB tab is no longer available, so no fresh browser lifecycle replay is claimed. Conservatively account four admitted attempts against five-question budget: one remaining, earlier provider usage still incomplete. Next supported owner question can diagnose the exact inconsistent field; successful answer remains unverified. Tasks stay PARTIAL. No commit/push/deploy, migrations, cleanup, document change, worktree removal or stash operation.
+
+### 2026-10-11 — Final outcome consistency investigation (offline only)
+
+ROOT_CAUSE=UNRESOLVED for historical correlation bef508d1-6c53-4487-8e05-17d07571957b. Existing evidence proves GENERATION_OUTCOME / OUTCOME_CONSISTENCY after provider HTTP 200, finish_reason=stop, 501+18 tokens and one eligible chunk. It does not identify the rejected field or retain a generation body. Completion token count is not proof of truncation. No historical body recovery, provider call, new ask/retry or database access occurred in this investigation.
+
+Inspected actual prompt, JSON schema, Chat Completions envelope extraction, service mapping, diagnostic projection and Task191 discriminated response schema. Adapter parses message.content once and does not rewrite status/unanswered/parts; NFC/trim of answer text happens after outcome validation. ANSWERED requires nonempty cited parts and no unanswered aspects. PARTIAL requires nonempty cited parts and missing-information notice (provider unanswered=true maps to the existing safe constant notice). INSUFFICIENT_SOURCE and CLARIFICATION_REQUIRED require empty parts/citations and existing notices. Provider unanswered is internal, not a Task191 public field. Two strict predicates enforce unanswered === (status === PARTIAL) and nonempty parts exactly for factual outcomes. Provider JSON schema enforces shape and enum but does not encode these cross-field predicates; system instructions are compatible. No contradictory instruction or reproducible application mapping defect found. No prompt, schema, production code, grounding guard or citation rule changed in this task.
+
+Expanded fake-provider HTTP/service/retrieval/adapter tests: all four valid outcomes produce Task191 SUCCESS only after mock persistence; each status with wrong unanswered and each status with contradictory parts produces HTTP502 at the same historical stage, safe diagnostic field path, failed persistence and no complete call. Valid outputs survive mapping with exact cited fixture text. finish_reason=length is rejected at GENERATION_ENVELOPE, malformed JSON at GENERATION_JSON; existing invalid citation, grounding, provider unavailable and persistence tests remain green. Empty retrieval invokes only the fake embedding request, never generation. Tests invoke handlers directly using Request objects and mocked fetch/store/database; no HTTP request is sent to localhost or an external service.
+
+Guest regressions: UNKNOWN retains its exact pending object/key across repeated same-owner boundary refresh and send count stays one. Offline hook harness executes actual AssistantChat form/Enter/retry handlers: available=false blocks each path; true permits one fake send; subsequent revalidation does not retry UNKNOWN. Existing FAILED-preservation, unauthorized/login/logout boundary, readiness key, disabled-composer, controller disposal and production/demo isolation regressions pass. This is deterministic helper/hook coverage, not a real React/browser remount observation. Retention code unchanged: store checks deletion/expiry before replay/completion; mocked expired/deleted admission blocks retrieval/generation/completion. No persistent client history cache or scrubbed content recovery added. Database retention integration was not rerun because this task prohibits database writes.
+
+Validation: 296/296 tests PASS across 12 focused files, zero skipped; typecheck PASS; production build PASS; diff check PASS; changed/untracked-file credential-pattern scan zero hits. No red application regression/fix pair is claimed: new tests passed against current implementation. Previous session's lifecycle and safe diagnostic fixes remain unchanged. Full suite/live browser/live acceptance not run. Production/Preview remain disabled. Remaining authorized live budget=1, unchanged. Diagnostics are ready for the owner's decision, but successful final live output is not guaranteed and historical field-level cause remains unavailable. Tasks remain PARTIAL. No commit/push/deploy, env/allowlist/document changes, migrations, cleanup, database writes, Worker stash or worktree operations.
+
+### 2026-10-12 — US-21 final acceptance checkpoint on TXH
+
+TXH is at merge commit `46a86723694aa3aea9a5758531391b2ee4ec6c03`. Read-only Neon Development verification: 15/15 migrations complete, zero failed/incomplete, PostGIS and pgvector available; allowlisted TEST/SYNTHETIC fixture INDEXED/READY with one chunk and embedding. No migration, cleanup, document, or turn-content mutation. The browser's `POST /api/ai/session` may create or reuse a Guest identity row; that row-level side effect was not separately verified. No change to US-19/20 implementation or Task191 contract.
+
+Validation: full Vitest with disposable PostgreSQL/pgvector coverage 573/573, zero skipped; Task185 database cases 15/15; legacy script exit 0; typecheck 4/4; Prisma validate PASS; production build PASS; merge diff check PASS. High-confidence credential scan found no live credentials; DB URL hits were dummy gate-test fixtures or the loopback disposable-test harness. Generated client assets (107 files) contain none of the configured credential values or QA fixture ID. No new provider or Blob call. The prior live-question budget is exhausted per current owner instruction; another provider call requires separate approval.
+
+Reused owner-provided live evidence: embedding HTTP 200, pgvector retrieval, one ANSWERED citation to the synthetic QA fixture, and one INSUFFICIENT_SOURCE HTTP 200. No follow-up was live-accepted. Local browser showed the real non-demo runtime and HTTP 200 auth/session bootstrap, but the fresh anonymous composer remained disabled; no ask was sent. Guest refresh is covered deterministically but browser acceptance remains PARTIAL.
+
+The historical `AI_INVALID_RESPONSE` / `OUTCOME_CONSISTENCY` HTTP 502 remains OPEN because the offending model field was not retained; strict validation is unchanged. Hà Giang real-corpus evaluation is NOT_EVALUATED. Hourly cleanup and heartbeat workflows exist in this local TXH branch and run only on `master`; TXH is three commits ahead of `origin/TXH`, so scheduler activation and the retention SLA are not verified. Production cleanup remains disabled. TASK192/193/194/197 remain PARTIAL; US-21 is not ready to close. No commit, push, deploy, or Worker-stash operation.
+
+### 2026-10-12 — US-21 fast-track closeout
+
+US-21 closure is BLOCKED by outstanding acceptance, not by the offline test gate: 286/286 targeted tests passed, root typecheck passed (4/4), and production build passed (29/29 pages). Reused the existing 573/573 full Vitest/disposable PostgreSQL evidence on the same unchanged application commit; no migration, cleanup, Neon access/write, or live provider call was made. Docs remain append-only. Tasks 192/193/194/197 remain PARTIAL: real Hà Giang corpus evaluation, authenticated live follow-up, stable Guest/browser runtime acceptance, deployed retention SLA, and historical `AI_INVALID_RESPONSE` correlation `bef508d1-6c53-4487-8e05-17d07571957b` remain open. No claim that the transient navigation issue or historical 502 is fixed.
+
+Created actionable follow-ups: GitHub #1 Guest/browser readiness; #2 authenticated multi-turn/idempotency; #3 historical AI_INVALID_RESPONSE; #4 verified Hà Giang corpus evaluation; #5 retention scheduler/SLA; #6 separate GPT-6 Luna configuration evaluation. References: https://github.com/TXHoai2309/KLTN/issues/1 through /issues/6. These do not lower the US-21 acceptance criteria. No task marked Completed; no push, deployment, feature-worktree removal/branch deletion, or Worker-stash operation while closure remains blocked.
+
+### 2026-10-12 — US-22 destination context implemented offline on TXH
+
+Tasks 198–202 IMPLEMENTED; combined live acceptance pending. Started clean at eae6d9301183c734d819fd0f43966e854b3e3020, matching origin/TXH. Reviewed original Product Document §§6.6/10.10/11.22/13.10 and System Specification §§3.4/5.1–5.6. Story contract: docs/stories/US-22-destination-context.md. ID-only DESTINATION extends GENERAL; client metadata and TRIP rejected. Server resolves current VISIBLE destination with safe minimal name projection. Conversation stores immutable context reference; follow-ups inherit it. Explicit mismatch rejects; UI switch/clear starts a new conversation. Owned replay, history and completion recheck context; completion holds a destination share lock. Existing principal/auth, abuse, idempotency, lease/fence, retention and Task191 strict outcomes remain.
+
+Verified name guides retrieval intent, never supplies factual evidence. Existing RAG has no destination relation; bounded name filter plus exact-name complete sentence grounding conservatively excludes unrelated sentences. INDEXED/READY/current publication/server allowlist, source citations and extractive validation remain strict. Alias/pronoun-only source recall and actual Hà Giang corpus quality require live evaluation; synthetic tests prove behavior only. Generation model unchanged; issue #6 stays separate.
+
+Destination Detail links to /assistant?destinationId=...; server verifies it and supplies bounded public choices. Context name wraps on mobile; native picker/clear are disabled during unresolved attempts. Explicit choices update only the public URL reference; cached page trees use server-projected choices, and passive browsing sets no global context. No localStorage/history-content cache. React StrictMode browser fixture verified first/follow-up, switch, clear, passive browsing/back, URL reload, UNKNOWN/abandon, auth revalidation and editable failure. 360x800 scroll width 345px; desktop 1440x1000 checked. This is mocked transport browser evidence, not live Guest/Next/Neon/provider acceptance or durable chat history restoration.
+
+Validation: final full Vitest with disposable PostgreSQL16.15/pgvector0.8.6 605/605, 40 files, zero skipped; Task185 15/15. Includes real Guest/Traveler/Admin context inheritance, SQL constraint, scoped retrieval, concurrent keys, cross-owner denials and hidden context replay/history/completion. Legacy suite exit0; root typecheck4/4; production build29/29; Prisma generate/validate PASS. Scoped strict UI audit zero findings; DESIGN lint zero errors/four existing orphan-token warnings. Initial unconfigured global UI audit22 findings retained as evidence/debt, not global PASS. Diff/secret checks recorded at commit handoff.
+
+Migration 20261012120000_add_qa_destination_context tested only on disposable PostgreSQL (containers/volumes removed). No Development/Production migration, Neon access or cleanup, OpenAI live call, real Development POST/ask, env/allowlist change, push or deployment. Owner-approved migration and existing runtime readiness/source configuration are prerequisites for combined live acceptance. US-21 remains unaccepted and issues #1–6 open. No Worker stash or unrelated worktree operation. Commit authorized by this task after validation; see final handoff SHA.
+
+### 2026-10-12 — Lũng Cú real-destination pilot preparation
+
+Prepared docs/implementation/lung-cu-acceptance-pilot.md: real canonical destination name, required-field draft with coordinates explicitly BLOCKED rather than invented, two official source candidates, provenance/rights gates, five expected-answer/evidence cases and the existing Admin ingestion/review/index/publication/allowlist workflow. UBND xã Lũng Cú source has attribution language but no explicit OpenAI evidence-sharing permission located; newspaper source usage/provider rights remain unverified. No source bytes uploaded or approved; no fake cultural content.
+
+Offline browser at 360/390px verified one-column chat/sidebar, long selected name and no horizontal overflow; 768px retains two informational sidebar cards. Selector changes while sidebar stays generic Hà Giang: presentation consistency gap recorded, no code fix. Global strict static UI audit reports 21 existing findings (6 unresolved/15 violations); no global compliance claim. No full regression/build rerun, migration, Neon operation, OpenAI call, allowlist/env change, fixture deletion, push or deployment. Both stories remain unaccepted. Next: verify point coordinates and source storage/index/public/provider rights, then obtain separate execution approval.
+
+### 2026-10-12 — Finish Lũng Cú pilot package and active-context sidebar
+
+Rechecked official S1/S2. Approximate elevation values are not a verified measurement; exact elevation/distance and operational facts remain UNKNOWN. Original authored UTF-8 RAG summary now contains only supported mountain/position-distinction claims with provenance URLs, explicitly AI-assisted/authored-summary metadata, actual file SHA-256 and owner/rights/provider approvals pending. No third-party article body is reproduced. Destination JSON validates against existing DestinationInput, with real name, seven UNKNOWN days, null durations and Google Maps place pin 23.3634061/105.3163001 (landmark !3d/!4d, feature 0x36cbe1f68a0c33c7:0x302c4d0acbe9911f), cross-checked against Mapcarta/OSM way 504649258 about 7m away. Pin is neither geographic extreme nor surveyed/ticket-entry certification. Owner must review map usage/point suitability and underlying-source/content/provider permissions. Five expected-answer cases no longer force disputed numeric facts. Prepared existing-workflow execution gates in docs/implementation/lung-cu-acceptance-pilot.md.
+
+Fixed active sidebar context presentation only: AssistantChat projects its controller-resolved label into its local Shell, including destination switches, GENERAL clear, unavailable context and initial verification placeholder. No independent context authority, global/browser persistence, retrieval/model change or new function. Long badge names wrap. Existing offline hook harness now stubs the new presentation useContext hook; initial harness failure was due to its missing hook stub, fixed without weakening auth guards.
+
+Verification: focused context/controller/development/runtime tests 61/61 PASS, web typecheck PASS, production local build PASS 29/29, destination JSON schema PASS, scoped strict assistant UI audit zero findings. Offline real browser 360px: initial/switch long destination labels match selector/sidebar, scroll width 345px, auth revalidation preserves label and disables clear, clear returns both to GENERAL. These are mocked browser evidence, not Development live acceptance. No full 605-test rerun, migration, Neon read/write, upload/index, allowlist/env change, OpenAI call, cleanup, fixture deletion, push/deploy or ACCEPTED claim. US-21 open issues remain unchanged.
+
+### 2026-10-12 — Finalize US-22 UI and audit Admin form upgrade
+
+Committed only apps/web/src/components/assistant/assistant-chat.tsx, assistant.css and assistant-development-integration.vitest.test.ts as cc119925bd75aaabd6ba3c13a8cbedb8048ff1cf. Active sidebar context fix, mobile long-name wrapping and hook-harness compatibility retained. Fresh focused 61/61 and web typecheck PASS; previous same-code production build 29/29 and offline browser switch/clear/auth/mobile evidence reused. Staged diff check PASS, credential-pattern scan 3 files/zero hits. No broad regression rerun, push or deployment. Existing DESIGN/story/progress edits and every pilot/research artifact remain outside this UI commit. US-22 IMPLEMENTED — LIVE ACCEPTANCE PENDING; US-21 not ACCEPTED.
+
+Owner assigned factual Hà Giang/DOCX research to another developer; no further factual research performed here. Prepared docs/implementation/admin-forms-mvp-upgrade-plan.md from current schemas/forms/services and owner's Form A/B lists. Culture destination links already optional/multiple; proposed gaps are Culture categories/multiple regions/communities, shared images/provenance, Destination map preview and inverse Culture picker, plus explicit revision-aware domain-to-RAG reuse with existing manual review/index/allowlist gates. Additive schema only in later authorized work. AF-1..AF-8 are planning labels, not implemented tasks. Local DOCX candidates contain populated research, not conclusively the two locked profile templates; exact file/version mapping is an AF-1 checkpoint. No DOCX edited, Neon operation, migration, RAG upload/index/allowlist change, provider/model change or unrelated worktree operation.
+
+### 2026-10-12 — US-23 Task 203 internal source sufficiency policy
+
+Baseline cc119925bd75aaabd6ba3c13a8cbedb8048ff1cf; isolated branch hoai/us23-task203-source-sufficiency. Owner authorized a remote feature branch and later merge into local TXH. Audited actual HTTP/principal/reservation/context/embedding/pgvector/prompt/generation/citation/persistence flow. Existing INDEXED/READY/current publication, embedding provenance, public allowlist, scoped sentences, exact snapshot/hash recheck and completion locks are reused. No schema or migration change. Detailed contract and audit: docs/stories/US-23-source-sufficiency.md.
+
+Added independently testable server-only source policy with explicit retrieval failure, eligibility, no candidates/scoped sentences, unrelated topic, missing evidence, partial/complete reviewed aspect coverage and conflict/uncertainty decisions. Semantic review binds to the current question/context/evidence revision/text; history cannot become evidence. Similarity can exclude only, never certify coverage; no new default threshold or change to existing 0.25 retrieval heuristic. Service passes only an internal decision after successful retrieval/recheck. Generation reuses existing insufficient response for a definite internal INSUFFICIENT decision, with no provider dispatch. Public citation/API/UI/prompt shape, auth, retention, model and runtime settings are unchanged.
+
+Important boundary: no generic semantic reviewer exists in the active runtime. Nonempty eligible retrieval is UNCERTAIN/UNASSESSED, not certified sufficient. Complete/partial/unrelated semantic tests use explicitly reviewed synthetic facets; they are not real-corpus quality evidence or automatic semantic detection. Existing US-21 irrelevant-extract and incomplete-ANSWERED characterization probes still hold. Task 203 implements the decision policy/integration, not all of US-23's unsupported-answer prevention. Owner review and real-corpus calibration remain pending; Task 204–207 untouched, no backlog Completed/ACCEPTED update.
+
+Validation: final focused 120/120 (four files; source-policy 27 cases); related offline regression 554 passed/62 initially skipped (before one additional focused client-boundary case); disposable PostgreSQL16.15/pgvector0.8.6 subsequently 62/62, zero skipped, including Task185 15/15 and current-publication/Disable/context/ownership/completion races; owned container/volume cleanup PASS. RAG lifecycle legacy 52/52. Root typecheck force-run 4/4, zero cached. Production Webpack build PASS29/29 using dummy loopback configuration and disabled QA/cleanup, with existing Varlock dynamic-dependency warning. First worktree gates failed because generated env/client were absent, shared package links pointed to concurrent TXH schema work, and Next cross-drive dependency paths failed; local ignored codegen/package links and a local Next package copy fixed the environment, without changing product source. Lint unavailable: npm run lint --workspace web fails Missing script; no linter config exists. Diff/credential checks run at commit handoff. No live OpenAI/Blob/Neon/production DB, deployment, migration, env/allowlist change or Worker stash operation.
+
+
+### 2026-10-12 — Continue Admin Destination/Culture UI/UX redesign
+
+Baseline 861bee4d818315051607c90ec75c61a5102b9980 on TXH, with the owner's unfinished form/shell/TipTap changes preserved and completed. Delivered shared navigation/section/help/progress/error/action controls; ten Destination and eight Culture sections; local previews; dirty/unresolved write guards; standardized shared Culture categories with exact-equivalent normalization and unknown-legacy support; taxonomy chips/retry/create disclosures; collapsible sources and URL media previews/cover/reorder. Existing server authorization, visibility, independent rights and idempotency remain. Coordinate edits clear confirmation/evidence; UNKNOWN opening days stay unknown and explicitly copying a schedule preserves status. OPEN does not fabricate default hours.
+
+TipTap stores edited content as a versioned validated ProseMirror JSON envelope in the existing TEXT column. Untouched legacy prose is not converted on opening or editing another field. Public Culture detail and admin preview share the escaped React renderer; excerpt/text extraction understands the versioned format. Safe paste/links, H2/H3, emphasis/lists/quotes, undo/redo/clear and outline are covered. AF-7 export/indexing stays separate; no new migration or data backfill.
+
+Checks: 672/672 full Vitest/disposable PostgreSQL (45 files, zero skips; owned container/volume cleaned), 328/328 legacy, root typecheck four tasks and production build 30/30 PASS. Real Chromium component fixture with fully intercepted APIs and blocked external network: rich save/reopen/paste/link/undo, legacy preservation, category keyboard search, multi-area/community, optional destinations, rights/UNKNOWN identical-key retry, dirty Cancel/native Back/unload-handler and cleared-after-save checks, first-error focus, previews, 320/360/390/768/1280/1440 light/dark no overflow and reachable final fields. Screenshots/logs under ignored apps/web/.cache/admin-redesign-*. Existing map renderer tests and prior owner live acceptance reused; provider canvas mocked here. No authenticated live Next/Neon, Firefox/Safari or formal screen-reader acceptance claimed. Initial standalone threaded Vitest Windows exit failure was replaced by the successful full isolated runner, not reported as PASS.
+
+Feature commits: 8d3c94a (rich content/shared categories), 048adf4 (forms/shell/navigation/guard/preview). QA/evidence commit adds the repeatable browser fixture, public-URL-only image preview hardening and docs/implementation/admin-forms-ux-redesign-execution.md. Scoped diff/credential checks PASS. No Neon read/write/migration, production operation, OpenAI live, RAG index/allowlist mutation, push/deploy, research edits, reset or worktree operation. US-22 remains IMPLEMENTED — LIVE ACCEPTANCE PENDING. Live DB canary needs separate authorization.
+
+### 2026-10-12 — US-23 Task203 runtime closure + Tasks204–207 offline implementation
+
+Baseline e2e3aeac6e6e9e5899a4b03427878cfdcc26a839; isolated existing branch
+hoai/us23-task203-source-sufficiency. Owner explicitly authorized closing the
+runtime gap before automatically continuing the integrated batch. Historical
+Task203 note above is superseded: the runtime now creates a real structured
+semantic assessment from current eligible/scoped retrieval, validates quoted
+support/reference/shape, creates its own snapshot binding and invokes the existing
+policy. PhaseA focused161/161, disposable PostgreSQL62/62, web typecheck and build
+29/29 passed before PhaseB. No fixture semantic review in production.
+
+Task204: completed insufficient/clarification/partial/answered results reuse the
+public contract and confirmed persistence; technical 503/502/500 and UNKNOWN stay
+separate. Task206: grounding enforced in generation adapter and service, every
+returned sentence/citation must be reviewed current support, all supported aspects
+must be represented; partial cannot label itself complete or omit supported facets.
+Valid uncertain/nonexhaustive/conflicting review fails closed without factual
+generation. Malformed/unavailable assessment is technical failure. Watcher includes
+assessment; no change to US19 approval/publication or US22 scope/ownership rules.
+
+Two bounded structured provider calls maximum per attempt (assessment15s default,
+generation25s), no automatic retry; existing input8000/output2000/64KiB response
+bounds each. Conservative admission reservation33000 replaces23000 to cover the
+extra call; replay remains uncharged and recovered/failed attempts charged. No new
+similarity floor; existing candidate0.25 is unchanged and not a semantic guarantee.
+
+Task205: exact requested notice with adjustment guidance in shared AssistantAnswer,
+no fabricated facts/citations. Stored public message literal remains compatible.
+Partial visibly separates supported content and missing data; technical errors keep
+existing edit/new-intent path. Browser offline fixture checked desktop and390x844,
+no horizontal overflow, distinct failure, edit/resubmit and follow-up continuity.
+
+Task207: actual assessment+generation adapters through HTTP/service verify factual
+and nonfactual outcomes, citations and persistence, malformed/forged references,
+unsupported/irrelevant exact quotations, incomplete ANSWERED, omitted supported
+facets (including PARTIAL), conflict/uncertainty, provider failures/timeouts,
+revocation, history contamination and Destination scope. Existing retrieval/service
+suites cover real embedding error mapping and database/timeout boundaries. Former
+irrelevant-exact-sentence and incomplete-ANSWERED characterization probes now
+have rejecting regression expectations (2/2), not claims of real-corpus quality.
+
+Validation: final focused11 files243/243; final full
+Vitest43 files669/669 including assessment32 and UI3, zero skips, using disposable
+PostgreSQL16.15/pgvector0.8.6 (Task18515/15; DB suites62/62). Harness owned container
+and volume cleanup PASS. Legacy regression suite exited0 across all11 scripts;
+subsequent lint command fails Missing script and is NOT_AVAILABLE (no config), not
+PASS. Root typecheck force-run4/4 uncached and web typecheck PASS. Production local
+Webpack build29/29 with dummy loopback configuration and QA/cleanup disabled;
+existing Varlock dynamic-dependency warning remains. Scoped strict UI audit reused docs/design/us22-premium-ui.json: zero findings;
+ignored JSON evidence temp/us23-ui-audit.json. DESIGN lint zero errors/four existing
+orphan-token warnings. Final source/document diff check and scoped credential/file
+review at selective commit handoff.
+
+US23 IMPLEMENTATION_READY for live acceptance; NOT ACCEPTED. Semantic relevance,
+exhaustive facet discovery and conflict classification remain probabilistic; server
+traceability does not independently prove semantic truth. Real approved Hà Giang
+corpus coverage/recall, provider runtime/schema behavior, latency/cost, live Guest/
+Destination/ownership/idempotency and deployment readiness still require owner
+acceptance. Existing extractive sentence and exact destination-name limitations
+remain. No schema/migration, live OpenAI/Neon/Blob/production DB, flags/env/allowlist,
+push, deployment, local/remote merge or main TXH/unrelated dirty-file change in this
+batch. Selective local feature commit only; SHA supplied in final handoff.
+
+
+### 2026-10-12 — US23 live acceptance readiness blocked by real corpus
+
+At49758c9783dd841e31a1d1edbf5fff2516484a0c on isolated feature branch; no application
+fix or main TXH mutation. Current Neon READ ONLY project/branch/endpoint/neondb
+matched the owner-confirmed Development registry and pins,17 migrations/zero
+unfinished. Seven test-labelled RAG documents, six current INDEXED/READY with24
+1536-dimension embeddings; only existing fictional QA Sao Tim source allowlisted.
+No approved real tourism corpus in current retrieval scope; all five requested
+real-data groups blocked. Existing Lung Cu pilot remains rights/provider approval
+pending and was not ingested. No existing records, flags, allowlist or env changed.
+
+One actual baseline retrieval/assessment/generation adapter probe using the existing
+approved synthetic fixture: three OpenAI POSTs, all200, current code/citation/quote
+checks passed against independent expected QA-SAOTIM-21. No new fake source,
+conversation/session/turn or shared DB write. Pipeline9231ms, assessment2216ms;
+embedding15 tokens, chat1285 input+119 output; estimatedUSD0.00026445 at verified
+standard rates, not billing reconciliation or real-corpus cost. One sample cannot
+establish p50/p95 or acceptance SLA; numeric thresholds PENDING_APPROVAL.
+
+Focused regression243/243; disposable PostgreSQL62/62,zero skips, cleanup PASS.
+Live real-corpus cases0 executed; ten-case register prepared, independent BHG
+mountain reference fetched but not approved/ingested. Government source re-fetch403.
+No live UX/auth/persistence, induced provider outage or shared Neon load claimed.
+Standalone helper import and schema-name issues corrected before final probes;
+not product defects, no code change warranted. Full details and unblock sequence:
+docs/implementation/us23-live-acceptance.md. US23 remains NOT_ACCEPTED/BLOCKED for
+live acceptance. Report docs only, no new commit/push/merge/deploy.
+## 2026-10-11 — US-11 Explore MH-02 visual correction
+
+- Inspected Figma node `6:47`; adjusted Explore title/search/filter/card/Culture composition and shared Header spacing without changing the public API, database, URL filters, Map, Detail or auth flow. Removed the result-count-specific centering override that placed a lone Destination or Culture card in the middle.
+- Real browser: the existing one-item Destination and Culture lists start at the same left edge as title/search. A temporary HTML fixture using the compiled page CSS verified 1/2/3 items and 1/2/3 columns across 360/390/768/1024/1440px, with no horizontal overflow; fixture removed afterward. Light/dark page, card and input colors were inspected. Search `q=US09` → Detail → browser Back restored exact query/input/result.
+- Tests/checks: `npm run test:explore --workspace web` 14/14, `npm run test:search --workspace web` 33/33, root `npm run test`, `npm run check-types`, `npm run build` PASS. Final `git diff --check` is recorded at handoff. No schema, dependency, database write, commit or push.
+- Limits: development data had only one public Destination and Culture item, so multi-item evidence is fixture layout geometry. Destination public DTO has no image or summary, and the real 30–50 item dataset is still pending EN-02; exact pixel parity and production performance are not claimed.
+
+## 2026-10-11 — Explore layout from new screenshot
+
+- Received the new 1920×1080 `/explore` screenshot and used it as the layout reference. Added page/section eyebrows, exact descriptive subtitle, a single desktop search/filter surface, content section anchors, and a full-width four-column Destination grid. Existing Figma colors/type, shared Header, URL-driven search, List/Map, Culture, Detail, API and auth remain in place.
+- Browser checked 360/390/768/1024/1280/1440px with no horizontal overflow. Temporary compiled-CSS fixture verified 1/2/4/5 Destination cards with left-aligned partial rows; removed afterward. Light/dark inspected and prior dark preference restored. `/explore?q=US09` → Detail → Back restored URL, input and result.
+- Public Destination DTO has no image/duration/summary; the screenshot's photos and metadata were not invented. The local DB has one public Destination and Culture record, so live multi-item and production dataset/performance evidence remain NOT PROVEN. Final command results are recorded at handoff; no commit/push.
+
+## 2026-10-11 — US25-AI-IMPL server extraction core
+
+- **Scope:** Implemented only the server analysis core under the existing US25 contract: `StructuredLlmClient`, safe provider error taxonomy/AppError mapping, direct OpenAI Chat Completions Structured Outputs adapter, pure prompt builder, source/date verification wrapper, dependency-injected extraction service and server defaults. No Route Handler, UI, planner, DB, migration, storage, cache or SDK was added. Existing RAG/embedding internals were not edited.
+- **Provider decision:** Fixed the implementation to `POST /v1/chat/completions` with `response_format.type=json_schema`, the Zod-generated strict schema, `temperature:0`, bounded `max_completion_tokens`, `store:false`, `redirect:error` and no user identifier. Current official OpenAI Structured Outputs, Chat Completions and Responses migration docs were consulted 2026-10-11 and recorded in ADR-16/story. Provider request/response/key content is never logged.
+- **Safety:** Missing key/model fail before network; responses are byte-bounded and timeout-aborted; only network/408/429/5xx retry once with capped `Retry-After`; refusals/incomplete/blocked/invalid outputs fail closed. Prompt delimiters are escaped; source snippets must occur in normalized input; only complete absolute dates are extracted; past dates use Asia/Ho_Chi_Minh and become `UNSUPPORTED`; US24 verifier remains the deterministic authority.
+- **Docs/ADR:** Renamed the US25 design ADR from duplicate ADR-15 to ADR-16 and updated only US25 references; US19 ADR-15 remains unchanged. Story now records the internal service/API contract, provider decision, evidence, out-of-scope live endpoint/rate limit and open owner questions.
+- **Tests:** Added `preference-extraction-server.vitest.test.ts` with 21 deterministic tests; US25 contract 6/6; US24 + US25 relevant Vitest selection 85/85. No secret or real OpenAI call was used. Full direct web Vitest reached 279 passing tests, with 9 unrelated RAG test failures across 8 failed suites/10 test files due the current environment missing `fflate`, `fast-xml-parser`, `@vercel/blob`, `@prisma/adapter-pg` and `js-tiktoken`.
+- **Checks/limits:** `git diff --check` PASS. Direct TypeScript scan showed no new US25 errors, but overall check-types is blocked by the same pre-existing/missing RAG dependency and generated Prisma-client errors. Root `npm run test`, `npm run check-types`, `npm run build` and direct Next build all stop at the local `shim integrity check failed`; no dependency installation or unrelated RAG repair was attempted. Real OpenAI, Traveler auth/route, rate limiting, live deployment and browser UI are NOT PROVEN.
+- Checks: `npm run test:search --workspace web` 33/33, `npm run test:explore --workspace web` 14/14, root `npm run test`, `npm run check-types` and `npm run build` PASS. A light-mode comparison screenshot is at `D:\Bai tap Code\KLTN\explore-screenshot.png` outside the checkout; dark mode and browser viewport were restored.
+
+### 2026-10-13 — US-23 manual QA Preview runtime selection
+
+Baseline `a92ef1b9852bd846ef3caa6a5f98601d6becc34f` on `TXH`. The owner replied “đúng rồi” to the requested confirmation of abuse-control acceptance, bounded OpenAI use, Development Guest/conversation writes, and the Preview-to-Development target. Treat this as owner attestation; the Vercel Preview environment itself was not independently inspected because no Vercel CLI or connector is available in this session.
+
+`/assistant` now uses the existing `isQaRuntimeEnabled` server gate before selecting `AssistantRuntimeChat`. A valid Vercel Preview can select the real HTTP runtime; a closed Preview renders the existing unavailable notice and never falls back to demo transport. The demo is local-development-only. Static deployment guards keep both QA runtime and demo imports out of a Production build; the API gate remains the authorization boundary and still categorically denies Production. No auth, Guest bootstrap, source eligibility, idempotency, rate limit, public citation, API, or environment defaults changed.
+
+Deterministic selection/gate/session-abuse/HTTP/source-status regressions: 83/83 PASS. Web typecheck PASS. Production build PASS with 30/30 generated pages. `git diff --check` PASS. No live Preview request, OpenAI call, Neon read/write, allowlist or environment change, push, or deploy. The actual Preview variables and effective database identity still require a separate read-only deployment verification. US-23 remains NOT ACCEPTED pending live acceptance.
+## 2026-10-11 — US25-API Traveler analyze endpoint
+
+- **Scope:** Added `POST /api/trip-requirements/analyze` as a thin Node.js Route Handler over `preference-extraction-http.ts`. It requires `requireTraveler` before Origin/Content-Type validation, body reads or LLM access; it accepts only strict `{ text: string }`, does not write DB, cache or storage, and returns the verified `ExtractionResult` in the normal success envelope.
+- **Safety:** Extracted the bounded stream JSON reader into `apps/web/src/server/http/read-json-body.ts` and reused it in US24 evaluate without changing its contract. Analyze enforces an 8KB byte limit, 5–1000 Unicode code-point input contract, same-origin `Origin`, optional `Sec-Fetch-Site` limited to `same-origin`/`same-site`, `Cache-Control: private, no-store`, and `runtime = nodejs` with `maxDuration = 20` seconds for the 15s adapter timeout plus buffer.
+- **Errors/privacy:** Provider errors map to safe `AI_UNAVAILABLE`/`AI_INVALID_RESPONSE` responses; malformed/oversized/strict-body failures use `VALIDATION_ERROR` with `fieldErrors.text`/`_form`. Logs contain only code, latency and Unicode input length; tests assert no raw preference text/provider content is logged. No idempotency or rate-limit infrastructure was added; repeated calls are data-safe but cost-bearing.
+- **Tests:** Added `preference-extraction-http.vitest.test.ts`; the focused US24 + US25 selection is 70/70 (US25 API 20, US25 AI-IMPL 21, US24 matrix 29). Coverage includes Guest/Admin auth ordering, full/all-missing success, Unicode limits, malformed/strict/oversized body, provider mapping, same-origin checks, cache headers and safe logging.
+- **Checks/limits:** Direct focused Vitest and targeted TypeScript scan pass. Root `npm run test`, `npm run check-types` and `npm run build` remain blocked by the existing local `shim integrity check failed`; the broader direct web test run still has unrelated missing RAG dependencies. No session, `OPENAI_API_KEY`, `OPENAI_PREFERENCE_MODEL` or deployment platform was used, so real OpenAI execution, abuse protection and effective Vercel `maxDuration` are NOT PROVEN.
+
+## 2026-10-11 — US25-FE-INPUT local natural-language entry
+
+- **Scope:** Added the client-only “Mô tả nhu cầu bằng lời” block above the existing `/trips/new` US-24 form. The two paths remain independent; the new block does not submit the form, call the API, fill deterministic fields or persist drafts.
+- **Contract/UI:** Added `natural-language-input-logic.ts` using the existing `preferenceInputSchema`/`normalizePreferenceInput`, Unicode code-point counting, NFC/control-character normalization, 5–1000 boundaries and Vietnamese messages. The component has a labeled textarea, delayed aria-live counter/error announcements, 4 fill-only examples, privacy note, visible button reasons, `type="button"`, focus-visible styles, reduced-motion handling and `idle | invalid | analyzing | success | failure` status props for US25’s next API task.
+- **Responsive:** Added only `trip-` CSS classes and reused `/trips/new` tokens. Chips wrap and the layout collapses to one column at small widths; real 360/390/768/1280 browser overflow/keyboard/screen-reader checks are NOT PROVEN because no browser session was available.
+- **Tests:** Added `natural-language-input-logic.vitest.test.ts` for emoji/combining marks, 4/5/1000/1001 boundaries, normalization, shared messages, button state and source-contract checks (no fetch/storage, label/aria-describedby/button type). The focused US24 + US25 selection is 114/114 across 8 files after this addition.
+- **Checks/limits:** Targeted TypeScript scan and focused tests pass. Root `npm run test`, `npm run check-types` and `npm run build` remain blocked by the existing `shim integrity check failed`; no API/OpenAI key or provider availability was probed. Review/result UI remains for the next task.
+
+## 2026-10-11 — US25-FE-CONNECT analyze UI and explicit form handoff
+
+- **Scope:** Connected the existing `/trips/new` natural-language block to `POST /api/trip-requirements/analyze` through a browser-safe client adapter. Added single-flight locking, AbortController cancellation, stale/unmounted response protection, 401 login redirect without replay, 403/400/AI/network feedback and explicit retry while preserving the natural-language text and independent US-24 fields.
+- **Result UI:** Added a read-only seven-field `ExtractionResultPanel` with Vietnamese labels, status text/icons, values, source snippets, notes, `N/7`, required-missing summary and clarification list. The heading is focused after success and the result is not treated as confirmed.
+- **Form handoff:** Added pure `apply-extraction.ts`. Only verified `EXTRACTED` values fill empty US-24 controls; duration becomes a string, arrays and companion/mobility values map to the existing field state. Conflicts remain pending with “Dùng gợi ý này/Bỏ gợi ý”; edits remove the “AI gợi ý — chưa xác nhận” marker. No evaluate, confirm, save or browser storage is triggered automatically.
+- **Tests:** Added browser client response/API-shape tests (9), apply/conflict/dismissal tests (5) and source-contract/single-flight tests (3). The relevant US24 + US25 selection is **131/131 across 11 files**; no DB, OpenAI, secret or DOM/browser dependency was used.
+- **Checks/limits:** Targeted TypeScript scan reports no errors in the changed US25 FE-CONNECT files. Full typecheck still reports the pre-existing RAG/generated-Prisma/missing dependency errors; root `npm run test`, `npm run check-types` and `npm run build` remain blocked immediately by `shim integrity check failed`. Real Traveler/OpenAI flow, viewport/accessibility smoke and deployment behavior remain NOT PROVEN. No commit or push.
+
+## 2026-10-11 — US25-TEST fixture corpus, safety matrix and opt-in evaluation
+
+- **Scope:** Added 44 synthetic, non-identifying Vietnamese utterances across all requested groups: full, missing, ambiguous, unsupported, companions, mobility, pace/interests, noise and prompt-injection/delimiter cases. The fixtures carry expected seven-field statuses/values and are reusable by the fake model pipeline.
+- **Automated coverage:** Added a 21-test fixture suite that drives every utterance through the existing extraction verifier/service seam, checks unsafe model outputs fail closed, prevents readiness leakage, checks FE apply/validate/no-overwrite invariants across the corpus, and adds the exact 1000-code-point analyze-API gap. The relevant US24 + US25 selection is **152/152 across 12 files**.
+- **Manual-only evaluation:** Added `apps/web/scripts/eval-preference-extraction.ts` and `npm run eval:preference`. It requires explicit owner permission plus `OPENAI_API_KEY` and `OPENAI_PREFERENCE_MODEL`, caps limit/concurrency, emits aggregate field/status/latency metrics only and writes the report outside Git. A no-credential direct run cleanly skipped without calling OpenAI; real-provider accuracy and model-level prompt-injection resistance remain NOT PROVEN.
+- **Checks/limits:** Targeted TypeScript scan reports no errors in the new fixture/evaluation files. Root `npm run test`, `npm run check-types` and `npm run build` remain blocked by the existing local `shim integrity check failed`; broader direct type/test output still contains unrelated pre-existing RAG/generated-Prisma/missing dependency errors. No browser session, Neon/DB, OpenAI secret, deployment or commit/push was used.
+
+## 2026-10-12 — US26-FE-REVIEW read-only unified trip-needs review
+
+- **Dependency/scope check:** Confirmed the actual US-24 contract/readiness/form/evaluate/status files and US-25 extraction contract/API/client/input/apply/result files before coding. No contract was recreated, and no API, AI call, DB model, migration or new dependency was added.
+- **Implementation:** Added the isomorphic `trip-requirement-review.ts` model and pure converters/counts. `TripReviewScreen` now presents the fixed seven-field review with canonical Vietnamese option labels, AI/user/empty origin, AI status/source/note/clarification, required badges, readiness reuse, heading focus and explicit “Điền gợi ý vào biểu mẫu”/back actions only. US-24 evaluate success and US-25 analyze success both enter this surface; existing `apply-extraction` remains the explicit non-overwriting handoff.
+- **Safety/accessibility:** Unsupported transport remains empty rather than defaulting; AI ambiguous/unsupported/missing values never become canonical values; source/note content is rendered as text. No local/session storage, URL/history state or confirmation/create/save control was added. Responsive `trip-` CSS wraps long text and collapses the review grid at small widths; live browser/360px/screen-reader evidence is NOT PROVEN.
+- **Tests:** Added `trip-requirement-review.vitest.test.ts` with 8 tests for all four extraction statuses across seven fields, form mapping/candidate shape/counts, clarification preservation, unsupported transport and source contracts. Relevant US-24 + US-25 + US26 selection: **13/13 files, 160/160 tests passed**. Targeted TypeScript scan reports no errors in review model/screen/form files.
+- **Checks/limits:** `git diff --check` PASS (only existing LF→CRLF notices). Root `npm run test`, `npm run check-types` and `npm run build` are blocked immediately by the existing local npm `shim integrity check failed`; broader type/test output has pre-existing RAG/generated-Prisma/missing dependency errors. No browser/session/DOCX/Figma review frame was available. Story remains DRAFT with owner-pending questions; no commit or push.
+
+## 2026-10-12 — US26-FE-EDIT in-place review field editing
+
+- **Scope:** Refactored the seven US-24 input groups into `trip-field-editors.tsx` and reused them from both the form and `TripReviewScreen`; the existing IDs, Vietnamese labels, tab order and ARIA/error wiring remain in the shared controls. No API, DB, storage, planner or confirmation action was added.
+- **Review behavior:** Added one-row-at-a-time editing with `Sửa`/`aria-expanded`, autofocus, `Lưu thay đổi`, `Hủy`, Esc cancellation and focus return. Successful edits update only the in-memory draft, recalculate readiness, set origin `USER`/`edited`, preserve `aiValue`/`sourceText` and reset the prepared confirmation state to `NOT_CONFIRMED`. Explicit `Khôi phục gợi ý AI` is available only for `EXTRACTED`; invalid edits keep the previous draft and editor open.
+- **Contract reuse:** `applyFieldEdit`, `clearField`, `restoreAiValue` and `draftToFormFields` are pure/isomorphic. They use the US-24 validator/schema for duration, transport, companions, interests, pace and mobility; start dates allow empty, require a real calendar date when present and reject dates before Asia/Ho_Chi_Minh today. No unsupported transport is silently converted.
+- **Tests:** Updated the US-24 source-contract test to inspect the shared editor file and added edit tests for all seven groups, AI-empty/ambiguous/extracted flows, invalid duration/date/companions/note, list normalization, clear/restore provenance, confirmation reset and no-storage/source safety. Focused selection: **13 files, 165/165 tests passed**. Targeted TypeScript scan: no errors in US26-FE-EDIT files.
+- **Checks/limits:** `git diff --check` passed with existing LF→CRLF notices. Root `npm run test`, `npm run check-types` and `npm run build` each remain blocked immediately by the local `shim integrity check failed`. No real browser/session was available, so keyboard focus, screen reader behavior and 360/390/768/1280px overflow are **NOT PROVEN**. Story remains DRAFT; no commit or push.
+
+## 2026-10-12 — US26-BE-CHECK authoritative trip-requirement validation
+
+- **Scope:** Added isomorphic `checkTripRequirement` and `POST /api/trip-requirements/check`. The pure check reuses `tripRequirementInputSchema`, `tripRequirementFieldErrors` and `evaluateTripRequirement`, returns normalized data plus every ordered issue, and never calls OpenAI, DB, idempotency or persistence. `/evaluate` was not changed.
+- **Contract behavior:** Missing/null `durationDays` and `transport` use `MISSING_REQUIRED`; present invalid values use `INVALID_VALUE` with US-24 Vietnamese messages. Invalid dates use `START_DATE_INVALID`, past dates use `START_DATE_IN_PAST`, empty start date remains relative-day/no-error. Proposed consistency rules are `COMPANIONS_CONFLICT_CHILDREN` ERROR and `PACE_MOBILITY_MISMATCH` WARNING; warnings remain confirmable. Hostile root keys including `__proto__`/`constructor` fail closed without relying on a prototype-sensitive error map.
+- **HTTP boundary:** Traveler authorization runs before Content-Type/body read; JSON body is bounded at 8KB, non-object/array/null/malformed/wrong Content-Type return 400 `VALIDATION_ERROR`; valid-shape business errors return 200 with `issues`. All responses set `Cache-Control: private, no-store`; no request body is logged.
+- **Tests:** Added 29 deterministic domain/HTTP tests for normalization, preliminary/complete candidates, missing-vs-invalid fields, invalid field families, date/time/leap boundaries, SOLO/children and pace/mobility rules, duplicate canonicalization, hostile/non-object input, auth/body-read ordering, 200 issue/warning responses, 400 request errors, cache and no-log behavior. Full US-24/US-25/US-26 selection: **14 files, 194/194 tests passed**. Targeted TypeScript scan: no errors in changed US26 files.
+- **Docs/limits:** Updated US-26 story API contract, acceptance evidence, US-27/US-28 handoff and progress. `git diff --check` passes with existing LF→CRLF notices. Root `npm run test`, `npm run check-types`, `npm run build` each stop at local `shim integrity check failed`; no Traveler session/live curl/browser/deployment evidence, so those are **NOT PROVEN**. Story remains DRAFT; no commit or push.
+
+## 2026-10-12 — US26-FE-API client check and read-only confirmation
+
+- **Scope:** Added `trip-requirement-check-client.ts`, a same-origin JSON adapter for `POST /api/trip-requirements/check` with strict Zod response parsing. Malformed/extra-field success payloads fail closed as technical errors; 401/403/400/5xx/network outcomes use safe Vietnamese feedback and never expose raw response/provider content.
+- **Review integration:** Added `CHECKING`/`CONFIRMED`/`NOT_CONFIRMED` state, acknowledgement checkbox and read-only “Xác nhận nhu cầu” block to `TripReviewScreen`. The request sends only `draftToCandidate` canonical fields; `sourceText`, `aiNote`, `origin` and other review provenance do not cross the boundary. Single-flight, AbortController cancellation, mounted/latest sequence fencing and retry preserve the draft on failure.
+- **Confirmation semantics:** `confirmDraft` synchronizes server-normalized values while preserving AI/user provenance, records `eligibleForFinalConfirmation`, warnings and browser `checkedAt`, and calls optional `onConfirmed`. Any successful edit/clear/AI restore invalidates the in-memory snapshot. No Trip save/create, planner, storage or URL state was added; the UI uses the neutral next-step copy “Bước tạo hành trình sẽ có ở chức năng tiếp theo.”
+- **Tests:** Added strict client response/request tests and review confirmation/invalidation tests. Focused client/check/review selection: **3 files, 53/53 tests passed**; full US-24/US-25/US-26 selection: **15 files, 205/205 tests passed**. `git diff --check` passes with existing LF→CRLF notices.
+- **Limits:** Targeted TypeScript scan has no diagnostics in changed US26 files, but the project-wide command still exits non-zero on pre-existing/missing RAG dependencies and generated Prisma types. Root `npm run test`, `npm run check-types` and `npm run build` remain blocked immediately by local `shim integrity check failed`. No Traveler session/browser was available; responsive, keyboard/screen-reader, real `/check`, retry and stale-response smoke evidence are **NOT PROVEN**. Story remains DRAFT; no commit or push.
+
+## 2026-10-12 — US27-BE-RULES clarification gate and additive requests
+
+- **Branch:** unchanged working branch; no commit, merge or push.
+- **Story/task:** `US27-BE-RULES` / `US-27-clarification-unsupported-data`.
+- **Completed:** Verified the actual US-24/25/26 dependencies. Added isomorphic `ClarificationRequest` schema/rules, stable code-owned Vietnamese questions, reason/issue mapping, exact MOTORCYCLE/CAR choice resolution, deterministic contradiction downgrade after US-25 verification, and server-only `assertTripRequirementClear` returning normalized requirements or safe 422 blockers. Added `clarificationRequests` additively to `/analyze` and `/check`; legacy client responses default to `[]`.
+- **Files changed:** `trip-clarification-rules.ts`, `trip-clarification-server.ts`, `trip-clarification-rules.vitest.test.ts`, US-25 extraction service/http/client, US-26 check http/client/tests, `US-27-clarification-unsupported-data.md` and this progress file.
+- **DB/migration changes:** None.
+- **Validation performed:** New clarification suite 21/21; focused US27/API/client selection 88/88; final relevant US-24/25/26 selection **17 files, 247/247 tests passed** without DB/network/secret/OpenAI. `git diff --check` PASS (only existing LF→CRLF notices). Targeted TypeScript scan exits non-zero project-wide due existing errors but reports no diagnostics in US27-changed files.
+- **Deployment/smoke result:** Root `npm run test`, `npm run check-types` and `npm run build` each exit before project work with `shim integrity check failed`. No live Traveler curl, browser, planner call or real OpenAI request was run.
+- **Known issues:** Browser/API live evidence, route integration with a real session, UI rendering, Vercel behavior and owner approval remain NOT PROVEN. Existing unrelated RAG/generated-Prisma dependency issues remain outside scope.
+- **Decisions:** `ExtractionResult` shape is unchanged; contradiction downgrade is one post-verification seam. API fields are additive and clients accept old responses. Missing optional fields stay quiet, required duration/transport and approved companion conflicts block, warnings remain advisory, and no transport outside MOTORCYCLE/CAR is ever selected/defaulted. US-28 must call both `assertTripRequirementClear` and `assertStartDateForFinalConfirmation` server-side.
+- **Next step:** Owner review of proposed blocker/advisory matrix and wording, then follow-up transport classification task and US-28 planner integration.
+
+## 2026-10-12 — US26-TEST deterministic review/check coverage
+
+- **Scope:** Added `apps/web/src/modules/trip-requirement/us26-test.vitest.test.ts` with 21 deterministic tests. The suite reuses US-25 synthetic utterance fixtures and covers the three required focal groups: correcting wrong/empty/ambiguous/unsupported AI values, invalid start dates, and valid confirmation after authoritative `/check`.
+- **Coverage:** Tests cover all seven edit groups, AI provenance/restore/clear, invalid edit preservation (duration/transport/date/companions/mobility), canonical-only `/check` payloads, normalization, warnings/errors, `NOT_CONFIRMED` invalidation, final start-date guard, leap dates and the Asia/Ho_Chi_Minh midnight boundary. Existing `/check` HTTP tests continue to cover Guest 401/Admin 403 before body reads, Traveler 200, malformed/oversized/wrong-content-type bodies, hostile keys, cache headers, no DB and safe logs.
+- **Source safety:** The new source-contract assertions ensure the confirmation path only uses `/api/trip-requirements/check` and does not use browser storage, IndexedDB, `dangerouslySetInnerHTML`, OpenAI imports, or a create/save action. No existing test was changed for this task; earlier intentional changes remain documented for the shared-editor refactor and FE-API confirmation coverage.
+- **Tests:** `us26-test.vitest.test.ts` is **21/21**. The full relevant US-24/US-25/US-26 Vitest selection is **16 files, 226/226 tests passed**, with no DB, network, secret, OpenAI or machine-clock dependency.
+- **Checks/limits:** `git diff --check` and targeted TypeScript diagnostics for changed US26 files are recorded as PASS/no diagnostics. Root `npm run test`, `npm run check-types` and `npm run build` each exit immediately with the existing local `shim integrity check failed`; no unrelated shim/RAG repair was attempted. Browser/session, live `/check`, DevTools storage/log, responsive, keyboard, screen-reader and Back/Forward evidence remain **NOT PROVEN**. Story stays DRAFT because owner questions and live evidence remain; no commit or push.
+## 2026-10-12 — US27-BE-TRANSPORT centralized transport policy
+
+- **Scope:** Added isomorphic `trip-transport-policy.ts` with one **PROPOSED — pending owner** `TRANSPORT_KEYWORDS` table, canonical values/labels reused from US-24, accent/NFC/word-boundary classification, conservative `NONE`/`AMBIGUOUS`/`CONFLICT` handling, and `assertSupportedTransportValue` returning only `MOTORCYCLE`/`CAR` or `TRANSPORT_UNSUPPORTED` 422. The table is reused by the US-25 extraction prompt; no new transport type or alias-to-canonical mapping was added.
+- **Extraction integration:** The existing US-27 post-verification seam now checks an `EXTRACTED` transport source. Unsupported source downgrades to `UNSUPPORTED`; ambiguous/none downgrades to `AMBIGUOUS`; source conflicts or model/source mismatch downgrade to `AMBIGUOUS` with reason `CONFLICT`; exact source/value matches remain extracted. Source text is preserved and no replacement value is selected. The existing `ExtractionResult` union has no `CONFLICT` status, so that case is explicitly represented as `AMBIGUOUS` + `CONFLICT` reason.
+- **Canonical check:** US-26 `checkTripRequirement` now emits `TRANSPORT_UNSUPPORTED` with the shared MVP message for present invalid transport values; missing/null remains `MISSING_REQUIRED`. Clarification mapping marks it `UNSUPPORTED`/`BLOCKING` and offers exactly canonical `MOTORCYCLE`/`CAR`. Removed implicit `TRANSPORT_VALUES[0]` validation fallback from form/review paths.
+- **Tests:** Added `trip-transport-policy.vitest.test.ts` with **56 tests** for supported/unsupported/ambiguous/conflict/none, normalization/boundaries, homonyms and mobility notes, injection-like text, canonical assertions, extraction downgrade, check mapping and source audit. Full relevant selection: **18 files, 303/303 tests passed** without DB/network/secret/OpenAI/machine-clock dependency. `git diff --check` passed with existing LF→CRLF notices.
+- **Checks/limits:** Targeted TypeScript scan reports no diagnostics in US27-changed files; project-wide direct `tsc` remains non-zero from pre-existing missing RAG dependencies/generated Prisma model errors. Root `npm run test`, `npm run check-types`, `npm run build` and direct workspace script variants stop immediately with existing `shim integrity check failed`. No live OpenAI, Traveler session, browser or deployment evidence was run. Story remains DRAFT because proposed keywords/wording and owner/live evidence remain pending; no commit or push.
+
+## 2026-10-12 — US27-FE-CLARIFY review clarification panel
+
+- **Scope:** Added `trip-clarification-logic.ts` and `trip-clarification-panel.tsx`. The review now merges analyze/check requests by stable ID, lets authoritative check data replace same-ID local data, orders BLOCKING before ADVISORY, removes blocking items only when the current shared-contract field value is valid, and keeps advisory dismissal in memory only. Dismissal is reset when its field changes.
+- **Review integration:** `TripRequirementForm` now passes analyze `clarificationRequests` into `TripReviewScreen`; `/check` responses refresh the server clarification list. The panel separates “Bắt buộc”/“Nên làm rõ”, displays question/hint/plain source text, supports ENTER_VALUE through the existing shared row editor, CHOOSE_ONE radios without a default, and SKIP_ALLOWED only for advisory items. The confirmation button uses `canConfirm` and explains remaining blockers in text. Legacy inline extraction clarification messages are filtered to avoid duplicate display.
+- **Accessibility/responsive:** Added heading and polite live count, text plus icons, field navigation with scroll/focus, keyboard-compatible buttons/radios, `break-word`/wrap styles and reduced-motion-aware navigation. No storage, new API, OpenAI import, HTML injection or create/save UI was added. The browser/opening-focus/360px/screen-reader checklist remains NOT PROVEN.
+- **Tests:** Added `trip-clarification-logic.vitest.test.ts` with **10 tests** for dedupe/order/server precedence, blocking resolution and reappearance, cross-field companion validation, start-date validity, advisory dismissal, confirmation gates and panel source safety/no-default CHOOSE_ONE. The full relevant US24/25/26/27 selection is **19 files, 313/313 tests passed**; prior transport baseline was 18 files, 303/303.
+- **Checks/limits:** Focused clarification/review rules tests passed (36/36 prior regression plus 9/9 new logic tests). Direct TypeScript reports no diagnostics in the changed clarification/review/form files; project-wide output remains blocked by pre-existing RAG missing dependencies/generated Prisma errors. Root scripts still stop at `shim integrity check failed`. No browser session, live Traveler/AI call or deployment evidence was used; story remains DRAFT and no commit/push was made.
+
+## 2026-10-12 — US27-FE-NOSUBST client transport no-substitution guard
+
+- **Scope:** Audited the US-24 form, US-25 extraction/apply/result, US-26 review/editor/check-confirmation and US-27 clarification panel transport touchpoints. Added isomorphic `transport-safety.ts`; `resolveTransportCandidateFromExtraction` returns a value only for non-downgraded `EXTRACTED` `MOTORCYCLE`/`CAR`, otherwise `null`.
+- **Client safety:** `applyExtractionToForm` and `draftFromExtraction` now use the shared resolver only. Invalid/tampered form transport is sent as `null` and remains a validation error. Review transport radios no longer auto-focus the first choice; CHOOSE_ONE remains unselected until an explicit action. A user choice announces `Bạn đã chọn …`. Unsupported/ambiguous/missing extraction keeps plain `sourceText` and shows the fixed self-choice message. Server normalization disagreement keeps the user choice and blocks confirmation instead of silently overwriting it.
+- **Tests:** Added resolver tests, unresolved apply/review cases, tampered payload coverage, server-mismatch coverage and `us27-fe-nosubst-source.vitest.test.ts` for fallback/default/forbidden-word/storage/HTML-injection audits. Relevant regression selection: **21 files, 335/335 tests passed** without DB, network, secret, OpenAI or machine-clock dependency.
+- **Checks/limits:** Targeted TypeScript output has no diagnostics in the changed FE-NOSUBST files; project-wide type output still has unrelated existing RAG/generated-Prisma/missing dependency errors. `git diff --check` is run separately; root `npm run test`, `npm run check-types` and `npm run build` remain blocked by the existing local `shim integrity check failed`. No browser, Traveler session, AI live data or screen-reader evidence was available; radio keyboard behavior, 360px overflow and live extraction fixtures are **NOT PROVEN**. No commit or push.
+
+## 2026-10-12 — US27-TEST cross-layer regression matrix
+
+- **Scope:** Added `us27-test.vitest.test.ts` without DB, network, secret, OpenAI or machine-clock dependence. It reuses `__fixtures__/utterances.ts` and connects the four required focus groups across extraction/clarification, `/analyze` or `/check`, planner gate and FE logic: missing duration, missing transport, unsupported/ambiguous transport, and contradictory data.
+- **Coverage:** The new 13 tests assert blocking questions/hints, stable duration→transport order, CHOOSE_ONE with no default, source preservation, model/source downgrade, `TRANSPORT_UNSUPPORTED`, `TRIP_REQUIREMENT_UNCLEAR` blockers, advisory-vs-blocking confirmation, and the unchanged final start-date guard. Existing US24/25/26/27 tests were reused for role/body-order, legacy response defaults, no-store, stale/network, storage/source-contract and prior API behavior; no unrelated old test was changed.
+- **Tests:** Full relevant selection is **22 files, 348/348 tests passed**. The new suite alone is **13/13**. Test stderr contains only expected safe error-log assertions from existing API boundary cases; no sensitive request body is logged.
+- **Checks/limits:** Root `npm run test`, `npm run check-types` and `npm run build` remain blocked immediately by the existing local `shim integrity check failed`; `git diff --check` remains the relevant repository check. Browser/manual review, responsive overflow, keyboard/screen-reader focus, Guest/Admin live session, and authorized real OpenAI evaluation are **NOT PROVEN**. No commit or push.
+>>>>>>> 8b5ff486267fd66fd6a8418005d8b02b13b49d8c
+
+## 2026-10-14 — US-29A opening hours and minimum duration validator
+
+- Audited the current `ThaiAnh` working tree. Destination already has nullable, distinct minimum/suggested duration and seven-day OPEN/CLOSED/UNKNOWN schedules with minute intervals; no itinerary visit or Validator foundation exists. Added only two pure checks in `apps/web/src/modules/trip-validation/visit-constraints.ts`, their Vitest suite and the US-29A story. No API, UI, DB model, migration, package, route-time or aggregate rule engine change.
+- Outcomes use the product vocabulary `PASS` / `VIOLATION` / `INSUFFICIENT_DATA` with affected visit ID and reason. Opening hours require one complete interval; an explicit CLOSED day violates while UNKNOWN/missing hours are insufficient. Minimum duration is independent of suggested duration. Vietnam-local date and minute inputs make the checks deterministic without a clock or timezone conversion.
+- TDD red stage had 17 expected failing stub tests; final focused 18/18 and related Trip selection 255/255 pass. The project TypeScript scan has no `trip-validation` diagnostics. Root test, typecheck and build were attempted but fail on existing missing declared packages, stale Prisma Client and unrelated RAG/Admin code; see the US-29A story for counts. No commit or push.
+- This file was already unmerged (`UU`) with conflict markers before US-29A. The entry was appended without deleting either side; the owner must resolve the pre-existing merge before the progress document is merge-ready.
+- Root `git diff --check` exits 1 on those existing conflict markers; no US-29A merge resolution was attempted.

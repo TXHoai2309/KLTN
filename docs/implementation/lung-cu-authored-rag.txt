@@ -1,0 +1,28 @@
+Cột cờ Quốc gia Lũng Cú — bản tổng hợp kiến thức pilot do KLTN biên soạn
+
+Loại tài liệu: AUTHORED_SUMMARY, AI_ASSISTED_DRAFT; không phải bản gốc của UBND xã Lũng Cú hoặc Báo Hà Giang.
+Phiên bản: 2026-10-12. Trạng thái: OWNER_REVIEW_PENDING. Chưa được phê duyệt upload, index, sử dụng công khai hoặc gửi evidence sang OpenAI.
+
+DỮ KIỆN ĐƯỢC GIỮ LẠI
+
+F1. Địa hình: Núi Rồng là ngọn núi nơi đặt Cột cờ Quốc gia Lũng Cú.
+Provenance F1: https://lungcu.tuyenquang.gov.vn/vi/tin-bai/thieng-lieng-le-ket-nap-doan-vien-duoi-co-to-quoc-tai-cot-co-quoc-gia-lung-cu?id=219248&type=NEWS
+Đối chiếu F1: https://baohagiang.vn/thoi-su-chinh-tri/202402/doan-cong-tac-bo-tong-tham-muu-quan-doi-nhan-dan-viet-nam-du-le-thuong-co-va-tang-qua-tai-dong-van-106205f/
+
+F2. Vị trí: Cột cờ Quốc gia Lũng Cú và điểm cực Bắc địa lý không phải cùng một địa điểm.
+Provenance F2: https://lungcu.tuyenquang.gov.vn/vi/tin-bai/thieng-lieng-le-ket-nap-doan-vien-duoi-co-to-quoc-tai-cot-co-quoc-gia-lung-cu?id=219248&type=NEWS
+Cơ sở suy luận F2: nguồn mô tả hai vị trí cách nhau; tài liệu này không chốt khoảng cách đo chính xác.
+
+UNKNOWN — DỮ LIỆU CHƯA CHỐT
+
+U1. Độ cao chính xác của vị trí Cột cờ Quốc gia Lũng Cú: UNKNOWN; hai nguồn dùng số gần đúng khác nhau và chưa có phép đo cùng mốc tham chiếu được kiểm chứng.
+Provenance kiểm tra U1: https://lungcu.tuyenquang.gov.vn/vi/tin-bai/thieng-lieng-le-ket-nap-doan-vien-duoi-co-to-quoc-tai-cot-co-quoc-gia-lung-cu?id=219248&type=NEWS
+Provenance đối chiếu U1: https://baohagiang.vn/thoi-su-chinh-tri/202402/doan-cong-tac-bo-tong-tham-muu-quan-doi-nhan-dan-viet-nam-du-le-thuong-co-va-tang-qua-tai-dong-van-106205f/
+
+U2. Chiều cao công trình Cột cờ Quốc gia Lũng Cú: UNKNOWN trong tài liệu pilot này; không sử dụng độ cao địa hình để thay cho chiều cao tháp.
+U3. Khoảng cách đo chính xác từ Cột cờ Quốc gia Lũng Cú đến điểm cực Bắc địa lý: UNKNOWN; chưa kiểm chứng phương pháp đo và mốc đầu/cuối.
+U4. Giá vé hiện tại, giờ mở cửa, thời lượng tham quan và khả năng tiếp cận hiện tại của Cột cờ Quốc gia Lũng Cú: UNKNOWN; không có bằng chứng vận hành đã được xác minh trong corpus pilot.
+Phạm vi kiểm tra U2–U4: https://lungcu.tuyenquang.gov.vn/vi/tin-bai/thieng-lieng-le-ket-nap-doan-vien-duoi-co-to-quoc-tai-cot-co-quoc-gia-lung-cu?id=219248&type=NEWS
+Phạm vi đối chiếu U2–U4: https://baohagiang.vn/thoi-su-chinh-tri/202402/doan-cong-tac-bo-tong-tham-muu-quan-doi-nhan-dan-viet-nam-du-le-thuong-co-va-tang-qua-tai-dong-van-106205f/
+
+UNKNOWN là trạng thái thiếu bằng chứng trong bản tổng hợp, không phải lời khẳng định rằng cơ quan quản lý không có dữ liệu. Các đoạn này không phải nguồn cho một con số, giá vé hoặc lịch hoạt động. Bản tổng hợp chưa cung cấp giá trị được kiểm chứng cho các dữ kiện này.

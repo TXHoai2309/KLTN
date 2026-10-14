@@ -1,0 +1,9 @@
+model QaGuestIdentity {
+  id        String    @id @db.Char(64)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  expiresAt DateTime  @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+
+  @@index([expiresAt])
+  @@map("qa_guest_identity")
+}

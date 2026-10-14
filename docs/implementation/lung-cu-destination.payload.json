@@ -1,0 +1,47 @@
+{
+  "name": "Cột cờ Quốc gia Lũng Cú",
+  "description": "Điểm tham quan Cột cờ Quốc gia Lũng Cú trên núi Rồng. Chưa xác minh giờ mở cửa và thời lượng tham quan.",
+  "area": "lũng cú",
+  "category": "điểm tham quan",
+  "latitude": 23.3634061,
+  "longitude": 105.3163001,
+  "suggestedDurationMinutes": null,
+  "minimumDurationMinutes": null,
+  "openingDays": [
+    {
+      "dayOfWeek": "MONDAY",
+      "status": "UNKNOWN",
+      "intervals": []
+    },
+    {
+      "dayOfWeek": "TUESDAY",
+      "status": "UNKNOWN",
+      "intervals": []
+    },
+    {
+      "dayOfWeek": "WEDNESDAY",
+      "status": "UNKNOWN",
+      "intervals": []
+    },
+    {
+      "dayOfWeek": "THURSDAY",
+      "status": "UNKNOWN",
+      "intervals": []
+    },
+    {
+      "dayOfWeek": "FRIDAY",
+      "status": "UNKNOWN",
+      "intervals": []
+    },
+    {
+      "dayOfWeek": "SATURDAY",
+      "status": "UNKNOWN",
+      "intervals": []
+    },
+    {
+      "dayOfWeek": "SUNDAY",
+      "status": "UNKNOWN",
+      "intervals": []
+    }
+  ]
+}

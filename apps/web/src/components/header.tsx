@@ -1,6 +1,8 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { BrandLogo } from "./brand-logo";
+import type { Route } from "next";
 import { Mountain } from "lucide-react";
 
 import { ModeToggle } from "./mode-toggle";
@@ -15,7 +17,7 @@ export default function Header() {
       <header className="auth-header">
         <Link className="auth-brand" href="/" aria-label="Hà Giang Travel Assistant - Trang chủ">
           <span className="auth-brand-mark" aria-hidden="true">
-            <Mountain size={36} strokeWidth={1.7} />
+            <BrandLogo size={36} />
           </span>
           <span className="auth-brand-copy">
             <strong>Hà Giang</strong>
@@ -33,9 +35,9 @@ export default function Header() {
   const links = [
     { to: "/", label: "Trang chủ" },
     { to: "/explore", label: "Khám phá" },
-    { to: "/culture", label: "Văn hóa" },
     { to: "/assistant", label: "Trợ lý AI" },
     { to: "/favorites", label: "Yêu thích" },
+    { to: "/trips/new", label: "Lập hành trình" },
     { to: "/dashboard", label: "Dashboard" },
   ] as const;
 
@@ -43,7 +45,9 @@ export default function Header() {
     <header className="site-header">
       <div className="site-header-inner">
         <Link className="site-brand" href="/" aria-label="Hà Giang Travel Assistant - Trang chủ">
-          <span className="site-brand-mark" aria-hidden="true"><Mountain size={32} strokeWidth={1.8} /></span>
+          <span className="site-brand-mark" aria-hidden="true">
+            <BrandLogo size={36} />
+          </span>
           <span className="site-brand-copy"><strong>Hà Giang</strong><span>Travel Assistant</span></span>
         </Link>
         <nav className="site-nav" aria-label="Điều hướng chính">
@@ -53,7 +57,7 @@ export default function Header() {
               : to === "/explore"
                 ? pathname === "/explore" || pathname.startsWith("/destinations/")
                 : pathname === to || pathname.startsWith(`${to}/`);
-            return <Link key={to} href={to} className="site-nav-link" data-active={active || undefined} aria-current={active ? "page" : undefined}>{label}</Link>;
+            return <Link key={to} href={to as Route} className="site-nav-link" data-active={active || undefined} aria-current={active ? "page" : undefined}>{label}</Link>;
           })}
         </nav>
         <div className="site-header-actions">

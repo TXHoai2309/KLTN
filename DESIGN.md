@@ -83,3 +83,50 @@ The premium skill strict audit was run read-only:22 findings (4 unresolved owner
 18 violations), all in unchanged global/demo/shared UI files. No finding targets
 the indexing panel. They are recorded as existing cross-screen debt, not silently
 fixed or represented as a repository-wide audit PASS.
+
+## US-22 public assistant context
+
+The public assistant continues to own its existing visual tokens in
+`apps/web/src/components/assistant/assistant.css` (assistant-green/ink/line/sage
+and existing dark overrides). Destination Detail reuses its public-detail link
+style. This is an additive Vietnamese interaction, not a redesign. The assistant
+toolbar describes destination/general mode; the current verified destination name
+is shown by the labeled context picker. The sidebar displays the same active
+context label through shell-local presentation from AssistantChat's controller.
+It clears on chat unmount and shows a verification placeholder before resolution;
+it does not maintain a second destination selection or persist browser state.
+
+Select/Listbox owner: native HTML select in AssistantChat, including the bounded
+server-projected destination choices. Platform popup geometry/appearance is
+accepted; no authored popup styling contract. The offline QA harness uses native
+select for test scenarios too. Controls wrap at 360px, have 44px targets, visible
+focus/hover/disabled styles and textual explanations. Shared AssistantChat owns
+the composer and context controls for runtime, SSR and QA. The existing app-owned
+abandon dialog handles unresolved attempts; context changes are disabled until
+resolution or explicit abandon. Context change starts a new conversation, never
+changes a persisted conversation. Passive browsing sets no shared destination
+state. Auth revalidation preserves intent and disables sending/retry.
+
+The name is verified at server render and again on ask; selected metadata is not
+RAG evidence. No personal history is cached in browser storage. Same-page rerenders
+retain context, explicit assistant destination navigation remounts through its
+context key. Explicit switch/clear replaces the public destination reference in
+the URL; cached page trees reconcile it using server-projected choices. Full reload
+retains only the URL's selected context (US-21 history
+restoration remains outside scope). Verify React StrictMode, browser back, switch,
+clear, UNKNOWN, auth revalidation, mobile and keyboard using the offline fixture.
+
+
+## US-23 source status presentation (2026-10-12)
+
+AssistantAnswer remains the shared status owner for runtime and fixtures. Missing
+verified evidence is a completed conversation result: show the requested plain
+Vietnamese notice and guidance to adjust the existing composer, with no answer
+parts/citation controls. Partial answers show supported content and the separate
+missing-data notice. Technical failures keep the existing pending error/edit
+flow; UNKNOWN keeps same-key retry and abandon behavior. Reuse current assistant
+CSS typography, spacing, muted text, wrapping, live status and native context
+picker; no new design tokens, modal, menu or page layout. Offline browser verified
+390x844 without horizontal overflow and desktop; missing source, technical failure,
+edit/resubmit and follow-up retain context and sidebar behavior. Live acceptance
+is distinct from this mocked-transport UI evidence.

@@ -31,7 +31,10 @@ export const qaIdempotencyKeySchema = z
   .trim()
   .min(1)
   .refine((value) => value.length <= 200, "Idempotency-Key tối đa 200 ký tự.");
-export const qaContextSchema = z.object({ type: z.literal("GENERAL") }).strict();
+export const qaContextSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("GENERAL") }).strict(),
+  z.object({ type: z.literal("DESTINATION"), destinationId: qaReferenceIdSchema }).strict(),
+]);
 
 export const qaFirstTurnRequestSchema = z
   .object({
@@ -237,6 +240,9 @@ export const qaResponseSchema = z.discriminatedUnion("operationStatus", [
 ]);
 
 export type QaContext = z.infer<typeof qaContextSchema>;
+export function sameQaContext(a: QaContext, b: QaContext): boolean {
+  return a.type === b.type && (a.type === "GENERAL" || (b.type === "DESTINATION" && a.destinationId === b.destinationId));
+}
 export type QaRequest = z.infer<typeof qaRequestSchema>;
 export type QaFirstTurnRequest = z.infer<typeof qaFirstTurnRequestSchema>;
 export type QaFollowUpRequest = z.infer<typeof qaFollowUpRequestSchema>;

@@ -1,4 +1,4 @@
-import { qaRequestSchema, qaResponseSchema, type QaCompletedTurn, type QaRequest } from "../../modules/ai/qa-contract";
+import { qaRequestSchema, qaResponseSchema, sameQaContext, type QaContext, type QaCompletedTurn, type QaRequest } from "../../modules/ai/qa-contract";
 
 export type AssistantAttempt = Readonly<{
   id: string;
@@ -17,6 +17,7 @@ export interface AssistantTransport {
 export type AttemptPhase = "sending" | "failed" | "unknown" | "malformed";
 export type ConfirmedTurn = { question: string; response: QaCompletedTurn };
 export type AssistantState = {
+  context: QaContext;
   generation: number;
   identity: string;
   draft: string;
@@ -27,8 +28,8 @@ export type AssistantState = {
   pending: { attempt: AssistantAttempt; phase: AttemptPhase; message: string } | null;
 };
 
-export function initialAssistantState(identity: string, generation = 0): AssistantState {
-  return { generation, identity, draft: "", validation: null, turns: [], conversationId: null, parentTurnId: null, pending: null };
+export function initialAssistantState(identity: string, generation = 0, context: QaContext = { type: "GENERAL" }): AssistantState {
+  return { context, generation, identity, draft: "", validation: null, turns: [], conversationId: null, parentTurnId: null, pending: null };
 }
 export function hasUnresolvedAttempt(state: AssistantState): boolean {
   return !!state.pending && state.pending.phase !== "failed";
@@ -45,8 +46,8 @@ export class AssistantController {
   private listeners = new Set<() => void>();
   private dispatch = 0;
   private abort: AbortController | null = null;
-  constructor(private transport: AssistantTransport | null, identity: string, private makeKey: () => string) {
-    this.state = initialAssistantState(identity);
+  constructor(private transport: AssistantTransport | null, identity: string, private makeKey: () => string, context: QaContext = { type: "GENERAL" }) {
+    this.state = initialAssistantState(identity, 0, context);
   }
   getSnapshot = (): AssistantState => this.state;
   subscribe = (listener: () => void): (() => void) => {
@@ -62,7 +63,7 @@ export class AssistantController {
     if (!this.transport || hasUnresolvedAttempt(this.state)) return false;
     const parsed = qaRequestSchema.safeParse(this.state.conversationId
       ? { question: this.state.draft, conversationId: this.state.conversationId, parentTurnId: this.state.parentTurnId }
-      : { question: this.state.draft, context: { type: "GENERAL" } });
+      : { question: this.state.draft, context: this.state.context });
     if (!parsed.success) {
       this.update({ ...this.state, validation: "Nhập câu hỏi từ 1 đến 2000 ký tự UTF-16 (sau khi bỏ khoảng trắng và chuẩn hóa)." });
       return false;
@@ -88,13 +89,20 @@ export class AssistantController {
   newConversation(confirmedAbandon = false): boolean {
     if (hasUnresolvedAttempt(this.state) && !confirmedAbandon) return false;
     this.invalidate();
-    this.update(initialAssistantState(this.state.identity, this.state.generation + 1));
+    this.update(initialAssistantState(this.state.identity, this.state.generation + 1, this.state.context));
     return true;
   }
   changeIdentity(identity: string) {
     if (identity === this.state.identity) return;
     this.invalidate();
-    this.update(initialAssistantState(identity, this.state.generation + 1));
+    this.update(initialAssistantState(identity, this.state.generation + 1, this.state.context));
+  }
+  changeContext(context: QaContext): boolean {
+    if (hasUnresolvedAttempt(this.state)) return false;
+    if (sameQaContext(context, this.state.context)) return true;
+    this.invalidate();
+    this.update(initialAssistantState(this.state.identity, this.state.generation + 1, context));
+    return true;
   }
   dispose() { this.invalidate(); }
   private invalidate() {
@@ -119,7 +127,7 @@ export class AssistantController {
     const response = parsed.data;
     if (response.operationStatus === "SUCCESS") {
       const turn = response.data;
-      if (result.httpStatus !== 200 || (this.state.conversationId && turn.conversationId !== this.state.conversationId) || turn.context.type !== "GENERAL") { this.malformed(); return; }
+      if (result.httpStatus !== 200 || (this.state.conversationId && turn.conversationId !== this.state.conversationId) || !sameQaContext(turn.context, this.state.context)) { this.malformed(); return; }
       const existing = this.state.turns.find((item) => item.response.conversationId === turn.conversationId && item.response.turnId === turn.turnId);
       const requestedParent = "parentTurnId" in attempt.payload ? attempt.payload.parentTurnId : null;
       // Retry retains the pending intent/key; its result is not yet confirmed locally.

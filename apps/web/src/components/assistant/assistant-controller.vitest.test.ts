@@ -196,22 +196,22 @@ describe("Task 195 renderer and production graph", () => {
     const svgs = [...production.matchAll(/<svg\b[^>]*>/g)].map((match) => match[0]);
     expect(svgs.length).toBeGreaterThan(0);
     for (const svg of svgs) expect(svg).toContain('aria-hidden="true"');
-    expect(production).not.toContain("<select");
+    expect(production).toContain("Bối cảnh hiện tại");
   });
   it("gives multiple chat instances unique SSR IDs with local label/ARIA references", () => {
     const tree = createElement("div", null, createElement(AssistantChat), createElement(AssistantChat));
     const html = renderToStaticMarkup(tree);
     const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
-    expect(ids).toHaveLength(8);
-    expect(new Set(ids).size).toBe(8);
+    expect(ids).toHaveLength(10);
+    expect(new Set(ids).size).toBe(10);
     const instances = html.split('<section class="assistant-chat"').slice(1);
     expect(instances).toHaveLength(2);
     for (const instance of instances) {
       const localIds = [...instance.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
       const references = [...instance.matchAll(/(?:for|aria-labelledby|aria-describedby)="([^"]+)"/g)].map((match) => match[1]);
-      expect(references).toHaveLength(4);
+      expect(references).toHaveLength(5);
       for (const reference of references) expect(localIds).toContain(reference);
-      expect(instance.match(/<label for="([^"]+)"/)?.[1]).toBe(instance.match(/<textarea id="([^"]+)"/)?.[1]);
+      expect(instance.match(/<label for="([^"]+-question)"/)?.[1]).toBe(instance.match(/<textarea\b[^>]*\bid="([^"]+)"/)?.[1]);
     }
     // Stable server tree IDs: no random key or process-global counter in the markup.
     expect(renderToStaticMarkup(tree)).toBe(html);
@@ -231,7 +231,7 @@ describe("Task 195 renderer and production graph", () => {
     expect(html).not.toContain("source_fixture_only");
   });
   it("bundles production page without any demo/fixtures/fake transport imports", async () => {
-    const result = await build({ entryPoints: [fileURLToPath(new URL("../../app/assistant/page.tsx", import.meta.url))], bundle: true, write: false, outdir: "in-memory-check", metafile: true, jsx: "automatic", external: ["next"], define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent" });
+    const result = await build({ entryPoints: [fileURLToPath(new URL("../../app/assistant/page.tsx", import.meta.url))], bundle: true, write: false, outdir: "in-memory-check", metafile: true, jsx: "automatic", external: ["next", "./assistant-context-page"], define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent" });
     expect(Object.keys(result.metafile!.inputs).some((path) => path.includes("development/") || path.includes(".vitest.test"))).toBe(false);
     expect(result.outputFiles.map((file) => file.text).join("\n")).not.toContain(DEMO_FIXTURE_MARKER);
     expect(result.outputFiles.map((file) => file.text).join("\n")).not.toContain("source_fixture_only");

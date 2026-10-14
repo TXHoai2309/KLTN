@@ -1,0 +1,20 @@
+model QaAbuseBucket {
+  scope         String   @db.VarChar(100)
+  windowStart   DateTime @db.Timestamptz(3)
+  windowSeconds Int
+  used          Int
+  expiresAt     DateTime @db.Timestamptz(3)
+  @@id([scope, windowStart, windowSeconds])
+  @@index([expiresAt])
+  @@map("qa_abuse_bucket")
+}
+
+model QaAbuseLease {
+  turnId     String   @id
+  fence      Int
+  principal  String
+  networkId  String   @db.Char(64)
+  leaseUntil DateTime @db.Timestamptz(3)
+  @@index([leaseUntil])
+  @@map("qa_abuse_lease")
+}

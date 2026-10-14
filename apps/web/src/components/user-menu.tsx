@@ -14,6 +14,7 @@ import {
 import { Skeleton } from "@KLTN/ui/components/skeleton";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { BookOpen, ChevronDown, FileText, Heart, LogOut, MapPin, User } from "lucide-react";
 
 import { authClient } from "@/lib/auth-client";
 import { claimSubmission, releaseSubmission } from "@/lib/auth-submission-guard";
@@ -27,7 +28,13 @@ function GuestSignInLink() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const search = searchParams.toString();
-  return <Link href={buildCurrentPageLoginHref(pathname, search ? `?${search}` : "")}><Button variant="outline">Sign In</Button></Link>;
+  return (
+    <Link href={buildCurrentPageLoginHref(pathname, search ? `?${search}` : "")}>
+      <Button variant="outline" className="h-9 rounded-full border-border/80 px-4 text-xs font-semibold hover:border-emerald-700/40 hover:bg-emerald-50 dark:hover:bg-emerald-950/40">
+        Sign In
+      </Button>
+    </Link>
+  );
 }
 
 export default function UserMenu() {
@@ -61,21 +68,21 @@ export default function UserMenu() {
   }
 
   if (isPending) {
-    return <Skeleton className="h-9 w-24" />;
+    return <Skeleton className="h-9 w-24 rounded-full" />;
   }
 
   if (error) {
     return (
       <div className="flex items-center gap-2 text-sm" role="alert">
         <span>Không thể kiểm tra phiên.</span>
-        <Button variant="outline" onClick={() => void refetch()}>Thử lại</Button>
+        <Button variant="outline" className="rounded-full" onClick={() => void refetch()}>Thử lại</Button>
       </div>
     );
   }
 
   if (!session) {
     return (
-      <Suspense fallback={<Link href="/login"><Button variant="outline">Sign In</Button></Link>}>
+      <Suspense fallback={<Link href="/login"><Button variant="outline" className="rounded-full">Sign In</Button></Link>}>
         <GuestSignInLink />
       </Suspense>
     );
@@ -83,32 +90,86 @@ export default function UserMenu() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="outline" className="max-w-[30vw] truncate sm:max-w-56" />}>
-        {session.user.name}
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="outline"
+            className="user-menu-trigger h-9 gap-2 rounded-full border-border/80 bg-card px-2.5 py-1 text-xs font-semibold shadow-xs transition-all hover:border-emerald-700/40 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30"
+          />
+        }
+      >
+        <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-[11px] font-bold text-white shadow-xs">
+          {session.user.name.charAt(0).toUpperCase()}
+        </span>
+        <span className="max-w-[120px] truncate sm:max-w-[160px] text-foreground font-semibold">
+          {session.user.name}
+        </span>
+        <ChevronDown className="size-3.5 opacity-60 transition-transform duration-200" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="bg-card">
+      <DropdownMenuContent align="end" sideOffset={8} className="w-64 rounded-xl border border-border/70 bg-card p-1.5 shadow-xl">
         <DropdownMenuGroup>
-          <DropdownMenuLabel>My Account</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem>{session.user.email}</DropdownMenuItem>
-          <DropdownMenuItem render={<Link href="/account" />}>Thông tin tài khoản</DropdownMenuItem>
-          {session.user.role === "TRAVELER" && <DropdownMenuItem render={<Link href="/favorites" />}>Yêu thích</DropdownMenuItem>}
-          {session.user.role === "ADMIN" && <DropdownMenuItem render={<Link href="/admin/destinations" />}>Quản lý điểm đến</DropdownMenuItem>}
-          {session.user.role === "ADMIN" && <DropdownMenuItem render={<Link href="/admin/culture" />}>Quản lý nội dung văn hóa</DropdownMenuItem>}
-          {session.user.role === "ADMIN" && <DropdownMenuItem render={<Link href={"/admin/rag" as import("next").Route} />}>Quản lý tài liệu RAG</DropdownMenuItem>}
+          <div className="flex items-center gap-2.5 rounded-lg bg-muted/40 p-2.5 mb-1 border border-border/40">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-emerald-700 text-sm font-bold text-white shadow-xs">
+              {session.user.name.charAt(0).toUpperCase()}
+            </span>
+            <div className="flex flex-col min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="font-semibold text-xs text-foreground truncate">{session.user.name}</span>
+                {session.user.role === "ADMIN" && (
+                  <span className="rounded bg-emerald-100 px-1 py-0.2 text-[9px] font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+                    Admin
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] text-muted-foreground truncate">{session.user.email}</span>
+            </div>
+          </div>
+          <DropdownMenuSeparator className="my-1 border-border/40" />
+          <DropdownMenuItem className="cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium" render={<Link href="/account" />}>
+            <User className="size-3.5 text-muted-foreground mr-2" />
+            <span>Thông tin tài khoản</span>
+          </DropdownMenuItem>
+          {session.user.role === "TRAVELER" && (
+            <DropdownMenuItem className="cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium" render={<Link href="/favorites" />}>
+              <Heart className="size-3.5 text-muted-foreground mr-2" />
+              <span>Yêu thích</span>
+            </DropdownMenuItem>
+          )}
+          {session.user.role === "ADMIN" && (
+            <>
+              <div className="px-2.5 pt-2 pb-1 text-[10px] font-semibold tracking-wider text-muted-foreground uppercase">
+                Quản trị hệ thống
+              </div>
+              <DropdownMenuItem className="cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium" render={<Link href="/admin/destinations" />}>
+                <MapPin className="size-3.5 text-muted-foreground mr-2" />
+                <span>Quản lý điểm đến</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium" render={<Link href="/admin/culture" />}>
+                <BookOpen className="size-3.5 text-muted-foreground mr-2" />
+                <span>Quản lý nội dung văn hóa</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium" render={<Link href={"/admin/rag" as import("next").Route} />}>
+                <FileText className="size-3.5 text-muted-foreground mr-2" />
+                <span>Quản lý tài liệu RAG</span>
+              </DropdownMenuItem>
+            </>
+          )}
+          <DropdownMenuSeparator className="my-1 border-border/40" />
           {signOutError ? (
-            <p className="px-2 py-2 text-xs text-destructive" role="alert">
+            <p className="px-2.5 py-1.5 text-xs text-destructive" role="alert">
               {signOutError}
             </p>
           ) : null}
           <DropdownMenuItem
             variant="destructive"
+            className="cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 focus:bg-destructive/10"
             disabled={isSigningOut}
             aria-busy={isSigningOut}
             closeOnClick={false}
             onClick={() => void handleSignOut()}
           >
-            {isSigningOut ? "Đang đăng xuất…" : "Đăng xuất"}
+            <LogOut className="size-3.5 mr-2" />
+            <span>{isSigningOut ? "Đang đăng xuất…" : "Đăng xuất"}</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>

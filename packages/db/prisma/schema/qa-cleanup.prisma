@@ -1,0 +1,14 @@
+model QaCleanupState {
+  id                     Int      @id @db.SmallInt
+  leaseToken             String?
+  leaseUntil             DateTime? @db.Timestamptz(3)
+  lastStartedAt           DateTime? @db.Timestamptz(3)
+  lastSucceededAt         DateTime? @db.Timestamptz(3)
+  lastFailedAt            DateTime? @db.Timestamptz(3)
+  eligibleBacklogCount    BigInt   @default(0)
+  oldestOverdueAt         DateTime? @db.Timestamptz(3)
+  failureCount            Int      @default(0)
+  updatedAt               DateTime @default(now()) @db.Timestamptz(3)
+
+  @@map("qa_cleanup_state")
+}

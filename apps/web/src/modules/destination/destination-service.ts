@@ -1,3 +1,4 @@
+import { destinationProfileSelect, profileDto, profileWrite } from "@/modules/content-profile/content-profile-service";
 import type { Database, Prisma } from "@KLTN/db";
 import { requireActor, type AuthorizationDependencies } from "@/server/authorization/guard";
 import { AppError } from "@/server/http/app-error";
@@ -6,6 +7,7 @@ import { destinationInputSchema, destinationDtoSchema, destinationListSchema, fr
 
 export type DestinationDependencies = AuthorizationDependencies & { database: Database };
 export const destinationSelect = {
+  ...destinationProfileSelect,
   id: true, name: true, description: true, area: true, category: true, latitude: true, longitude: true,
   suggestedDurationMinutes: true, minimumDurationMinutes: true, visibility: true, createdAt: true, updatedAt: true,
   openingDays: { select: { dayOfWeek: true, status: true, intervals: { select: { opensAtMinute: true, closesAtMinute: true }, orderBy: { opensAtMinute: "asc" } } } },
@@ -13,7 +15,7 @@ export const destinationSelect = {
 type DestinationRow = Prisma.DestinationGetPayload<{ select: typeof destinationSelect }>;
 export function toDestinationDto(row: DestinationRow) {
   return destinationDtoSchema.parse({
-    id: row.id, name: row.name, description: row.description, area: row.area, category: row.category,
+    ...profileDto(row, "destination"), id: row.id, name: row.name, description: row.description, area: row.area, category: row.category,
     latitude: row.latitude, longitude: row.longitude, suggestedDurationMinutes: row.suggestedDurationMinutes,
     minimumDurationMinutes: row.minimumDurationMinutes, visibility: row.visibility,
     createdAt: row.createdAt.toISOString(), updatedAt: row.updatedAt.toISOString(),
@@ -57,11 +59,13 @@ export async function writeDestination(headers: Headers, body: unknown, key: str
     execute: async tx => {
       // Recheck current role inside the mutation transaction too.
       await requireActor(headers, { ...deps, database: tx as unknown as Database }, "admin");
-      const { openingDays, ...fields } = input;
-      if (id === null) return toDestinationDto(await tx.destination.create({ data: { ...fields, visibility: "HIDDEN", openingDays: { create: openingCreate(openingDays) } }, select: destinationSelect }));
-      if (!await tx.destination.findUnique({ where: { id }, select: { id: true } })) throw new AppError("DESTINATION_NOT_FOUND", "Không tìm thấy điểm đến.", 404);
+      const { openingDays, profile, ...fields } = input;
+      const extension = await profileWrite(tx, profile, actor.id, id !== null);
+      if (id === null) return toDestinationDto(await tx.destination.create({ data: { ...fields, ...extension, visibility: "HIDDEN", openingDays: { create: openingCreate(openingDays) } }, select: destinationSelect }));
+      const previous = await tx.destination.findUnique({ where: { id }, select: { id: true, latitude: true, longitude: true } });
+      if (!previous) throw new AppError("DESTINATION_NOT_FOUND", "Không tìm thấy điểm đến.", 404);
       await tx.openingDay.deleteMany({ where: { destinationId: id } });
-      return toDestinationDto(await tx.destination.update({ where: { id }, data: { ...fields, openingDays: { create: openingCreate(openingDays) } }, select: destinationSelect }));
+      return toDestinationDto(await tx.destination.update({ where: { id }, data: { ...fields, ...extension, ...(!profile && (previous.latitude !== input.latitude || previous.longitude !== input.longitude) ? { locationVerified: false, locationEvidence: null } : {}), contentRevision: { increment: 1 }, openingDays: { create: openingCreate(openingDays) } }, select: destinationSelect }));
     },
   });
 }

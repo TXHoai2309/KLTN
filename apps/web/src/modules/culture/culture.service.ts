@@ -1,3 +1,4 @@
+import { publicCultureProfileSelect, publicProfileDto } from "@/modules/content-profile/public-content-profile";
 import type { Database, Prisma } from "@KLTN/db";
 import { AppError } from "@/server/http/app-error";
 import { apiSuccess } from "@/server/http/api-response";
@@ -28,6 +29,7 @@ const publicCultureDestinations = {
 } satisfies Prisma.CultureContentSelect["destinations"];
 
 const publicCultureSelect = {
+  ...publicCultureProfileSelect,
   id: true,
   title: true,
   content: true,
@@ -80,6 +82,7 @@ function toListItem(row: PublicCultureRow) {
 function toDetail(row: PublicCultureRow): PublicCultureDetail {
   return publicCultureDetailSchema.parse({
     ...toListItem(row),
+    ...publicProfileDto(row,"culture"),
     body: row.content,
     sources: publicSource(row),
     destinations: row.destinations.map(({ destination }) => ({

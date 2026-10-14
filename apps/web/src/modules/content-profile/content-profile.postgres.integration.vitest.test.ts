@@ -1,0 +1,59 @@
+import { getPublicCulture } from "@/modules/culture/culture.service";
+import { getPublicDestination } from "@/modules/destination/public-destination-service";
+import { randomUUID } from "node:crypto";
+import { afterAll, beforeAll, describe, it, expect } from "vitest";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../../../../../packages/db/prisma/generated/client";
+import type { Database } from "@KLTN/db";
+import { writeCulture, getCulture, setCultureVisibility } from "@/modules/culture/culture-service";
+import { writeDestination, getDestination } from "@/modules/destination/destination-service";
+import { unknownSchedule } from "@/modules/destination/destination-contract";
+import { createTaxonomy, listTaxonomy } from "./taxonomy-service";
+const url = process.env.US19_TASK184_TEST_DATABASE_URL;
+(url ? describe : describe.skip)("Admin profiles on disposable PostgreSQL", () => {
+    let db: PrismaClient, adminId: string, deps: {
+        database: Database;
+        resolveSession: () => Promise<{
+            user: {
+                id: string;
+            };
+        }>;
+    };
+    const headers = new Headers();
+    beforeAll(async () => { const target = new URL(url!); if (!["localhost", "127.0.0.1", "[::1]"].includes(target.hostname) || target.username !== "task184_test" || target.pathname !== "/task184_test" || process.env.US19_TASK184_TEST_DISPOSABLE !== "I_UNDERSTAND_THIS_IS_A_DISPOSABLE_TEST_DATABASE")
+        throw Error("Disposable loopback required"); db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url! }) }); adminId = randomUUID(); await db.user.create({ data: { id: adminId, name: "Synthetic admin", email: adminId + "@example.invalid", role: "ADMIN" } }); deps = { database: db as Database, resolveSession: async () => ({ user: { id: adminId } }) }; });
+    afterAll(async () => { await db?.$disconnect(); });
+    const culture = () => ({ title: "Synthetic independent culture", content: "Synthetic only", sourceTitle: null, sourceUrl: null, destinationIds: [] });
+    const destination = () => ({ name: "Synthetic destination", description: "Synthetic only", area: "Test", category: "Test", latitude: 23, longitude: 105, suggestedDurationMinutes: null, minimumDurationMinutes: null, openingDays: unknownSchedule() });
+    it("actual additive migration preserves pre-migration records and defaults", async () => { const d = await getDestination(headers, "af-legacy-destination", deps), c = await getCulture(headers, "af-legacy-culture", deps); expect(d.description).toBe("Legacy prose"); expect(d.profile?.locationVerified).toBe(false); expect(d.profile?.sources).toEqual([]); expect(c.sourceTitle).toBe("Legacy source"); expect(c.destinationIds).toEqual([]); expect(c.profile?.communityIds).toEqual([]); });
+    it("creates multi-area/community culture, edits with old clients, replays same key", async () => { const a = await db.area.create({ data: { name: randomUUID() } }), b = await db.area.create({ data: { name: randomUUID(), kind: "REGION" } }), c = await db.community.create({ data: { name: randomUUID() } }), e = await db.community.create({ data: { name: randomUUID() } }); const input = { ...culture(), profile: { areaIds: [a.id, b.id], communityIds: [c.id, e.id], sources: [{ title: "Synthetic source", websiteRights: "APPROVED", rightsEvidence: "Synthetic owner grant" }], media: [{ url: "https://example.org/test.jpg", alt: "Synthetic image", isCover: true }] } }; const key = randomUUID(), result = await writeCulture(headers, input, key, null, deps); expect(result.status).toBe("SUCCESS"); if (result.status !== "SUCCESS")
+        throw Error("write failed"); const id = result.data.id; expect(result.data.destinationIds).toEqual([]); expect(result.data.profile?.areaIds).toHaveLength(2); expect(result.data.profile?.communityIds).toHaveLength(2); expect((await db.contentSource.findFirst({ where: { cultureId: id } }))?.reviewedBy).toBe(adminId); expect((await writeCulture(headers, input, key, null, deps)).status).toBe("SUCCESS"); expect(await db.cultureContent.count({ where: { id } })).toBe(1); await writeCulture(headers, { ...culture(), title: "Edited legacy client" }, randomUUID(), id, deps); expect((await getCulture(headers, id, deps)).profile?.sources).toHaveLength(1); await setCultureVisibility(headers, id, { visibility: "VISIBLE" }, randomUUID(), deps); expect((await getCulture(headers, id, deps)).profile?.sources[0].openAiRights).toBe("UNKNOWN"); await writeCulture(headers, { ...culture(), profile: { areaIds: [], communityIds: [], sources: [], media: [] } }, randomUUID(), id, deps); expect((await getCulture(headers, id, deps)).profile?.sources).toEqual([]); });
+    it("destination writes profiles and culture links, updates covers and invalid references roll back", async () => { const c = await db.cultureContent.create({ data: { title: "Synthetic linked", content: "Synthetic" } }); const input = { ...destination(), profile: { cultureIds: [c.id], aliases: ["Synthetic alias"], locationVerified: true, locationEvidence: "Synthetic map check", media: [{ url: "https://example.org/one.jpg", alt: "One", isCover: true }] } }; const r = await writeDestination(headers, input, randomUUID(), null, deps); expect(r.status).toBe("SUCCESS"); if (r.status !== "SUCCESS")
+        throw Error("failed"); const id = r.data.id; expect(r.data.visibility).toBe("HIDDEN"); expect(r.data.profile?.cultureIds).toEqual([c.id]); const next = { ...input, profile: { ...input.profile, media: [{ url: "https://example.org/two.jpg", alt: "Two", isCover: true }] } }; expect((await writeDestination(headers, next, randomUUID(), id, deps)).status).toBe("SUCCESS"); expect((await getDestination(headers, id, deps)).profile?.media[0].url).toContain("two.jpg"); const bad = await writeDestination(headers, { ...input, profile: { cultureIds: ["missing"] } }, randomUUID(), id, deps); expect(bad.status).toBe("FAILED"); expect((await getDestination(headers, id, deps)).profile?.cultureIds).toEqual([c.id]); });
+    it("website reuses approved sources/media without disclosing rights evidence or allowing RAG", async () => {
+        const input = { ...culture(), profile: { category: "Synthetic", sources: [{ title: "Approved website", url: "https://example.org/article", websiteRights: "APPROVED", rightsEvidence: "Private grant" }, { title: "Unreviewed" }], media: [{ url: "https://example.org/approved.jpg", alt: "Approved", websiteRights: "APPROVED", rightsEvidence: "Private image grant" }, { url: "https://example.org/unknown.jpg", alt: "Unreviewed" }] } };
+        const result = await writeCulture(headers, input, randomUUID(), null, deps);
+        if (result.status !== "SUCCESS")
+            throw Error("failed");
+        const id = result.data.id;
+        await setCultureVisibility(headers, id, { visibility: "VISIBLE" }, randomUUID(), deps);
+        const publicRow = await getPublicCulture(id, db as Database);
+        expect(publicRow.profile?.sources.map(s => s.title)).toEqual(["Approved website"]);
+        expect(publicRow.profile?.media).toHaveLength(1);
+        expect(JSON.stringify(publicRow)).not.toContain("Private grant");
+        expect(JSON.stringify(publicRow)).not.toContain("reviewedBy");
+        expect((await getCulture(headers, id, deps)).profile?.sources[0].indexingRights).toBe("UNKNOWN");
+        await writeCulture(headers, { ...input, profile: { ...input.profile, sources: [{ title: "Revoked", websiteRights: "REJECTED" }], media: [] } }, randomUUID(), id, deps);
+        expect((await getPublicCulture(id, db as Database)).profile?.sources).toEqual([]);
+        expect((await db.cultureContent.findUnique({ where: { id } }))?.contentRevision).toBeGreaterThan(1);
+        await setCultureVisibility(headers, id, { visibility: "HIDDEN" }, randomUUID(), deps);
+        await expect(getPublicCulture(id, db as Database)).rejects.toThrow();
+        const d = await writeDestination(headers, { ...destination(), profile: { shortDescription: "Shared website summary" } }, randomUUID(), null, deps);
+        if (d.status !== "SUCCESS")
+            throw Error("failed");
+        await db.destination.update({ where: { id: d.data.id }, data: { visibility: "VISIBLE" } });
+        expect((await getPublicDestination(d.data.id, db as Database)).profile?.shortDescription).toBe("Shared website summary");
+    });
+    it("database rejects ownerless media and approved sources without proof", async () => { await expect(db.contentMedia.create({ data: { url: "https://example.org/a", alt: "a" } })).rejects.toThrow(); await expect(db.contentSource.create({ data: { title: "bad", cultureId: "af-legacy-culture", websiteRights: "APPROVED" } })).rejects.toThrow(); });
+    it("taxonomy is authenticated, bounded and create retry-safe", async () => { const body = { type: "AREA", name: "Synthetic " + randomUUID(), kind: "REGION" }; const key = randomUUID(); expect((await createTaxonomy(headers, body, key, deps)).status).toBe("SUCCESS"); expect((await createTaxonomy(headers, body, key, deps)).status).toBe("SUCCESS"); expect(await db.area.count({ where: { name: body.name } })).toBe(1); expect((await listTaxonomy(headers, new Request("http://localhost/api?type=AREA&q=Synthetic"), deps)).items.length).toBeGreaterThan(0); await expect(listTaxonomy(headers, new Request("http://localhost/api?type=AREA&role=ADMIN"), deps)).rejects.toThrow(); const noAdmin = { ...deps, resolveSession: async () => null }; await expect(createTaxonomy(headers, body, randomUUID(), noAdmin)).rejects.toMatchObject({ code: "UNAUTHENTICATED" }); });
+});

@@ -139,14 +139,14 @@ test("save notice requires a confirmed write and is consumed once, never a URL f
   assert.doesNotMatch(page, /searchParams|saved=/);
 });
 test("UI source contract, independent server page/API guards and no visibility editor", async () => {
-  const ui = await readFile(new URL("../../app/admin/destinations/destination-form.tsx", import.meta.url), "utf8"); assert.match(ui, /method="post"/); assert.ok(ui.includes('disabled={saving || unknown || visibilityAction.busy}')); assert.match(ui, /unknown && attempt.current/); assert.ok(ui.includes('await loadDestination(id)')); assert.ok(ui.includes('attempt.current!.key')); assert.match(ui, /OpeningHoursEditor/); assert.doesNotMatch(ui, /visibility.*onChange/);
+  const ui = await readFile(new URL("../../app/admin/destinations/destination-form.tsx", import.meta.url), "utf8"); assert.match(ui, /method="post"/); assert.ok(ui.includes('const disabled = saving || unknown || visibilityAction.busy')); assert.match(ui, /unknown && attempt.current/); assert.ok(ui.includes('await loadDestination(id)')); assert.ok(ui.includes('attempt.current!.key')); assert.match(ui, /OpeningHoursEditor/); assert.doesNotMatch(ui, /visibility.*onChange/);
   const access = await readFile(new URL("../../app/admin/destinations/page-access.ts", import.meta.url), "utf8"); assert.ok(access.includes('requireActor(await headers(), authorizationDependencies, "admin")'));
   for (const route of ["../../app/api/admin/destinations/route.ts", "../../app/api/admin/destinations/[id]/route.ts"]) assert.ok((await readFile(new URL(route, import.meta.url), "utf8")).includes('requireActor(request.headers, deps, "admin")'));
 });
 test("hours UI has seven explicit status selectors; CLOSED and UNKNOWN stay distinct", () => {
   const days = unknownSchedule(); days[1]!.status = "CLOSED";
   const html = renderToStaticMarkup(createElement(OpeningHoursEditor, { days, errors: {}, onChange: () => {} }));
-  assert.equal((html.match(/<select/g) ?? []).length, 7);
+  assert.equal((html.match(/id="status-\d"/g) ?? []).length, 7);
   assert.match(html, /Điểm đến đóng cửa cả ngày này/); assert.match(html, /Không được coi là ngày đóng cửa/);
   assert.doesNotMatch(html, /type="time"/);
 });
@@ -161,11 +161,11 @@ test("native minute time editor supports two intervals and preserves explicit 24
 test("general feedback uses bottom-right Sonner; UNKNOWN remains persistent and field errors remain local", async () => {
   const ui = await readFile(new URL("../../app/admin/destinations/destination-form.tsx", import.meta.url), "utf8");
   const list = await readFile(new URL("../../app/admin/destinations/destination-list.tsx", import.meta.url), "utf8");
-  assert.match(ui, /toast.error/); assert.match(ui, /toast.warning/); assert.match(ui, /unknown && <div className="destination-uncertain"/);
-  assert.ok(ui.includes('error-${key}')); assert.ok(list.includes('takeDestinationSaved()) toast.success'));
+  assert.match(ui, /toast.error/); assert.match(ui, /toast.warning/); assert.match(ui, /unknown && \(\s*<AdminAlert/);
+  assert.match(ui, /AdminValidationSummary/); assert.ok(list.includes('takeDestinationSaved()) toast.success'));
   assert.match(list, /position: "bottom-right"/); assert.match(ui, /position: "bottom-right"/);
   const editor = await readFile(new URL("../../app/admin/destinations/opening-hours-editor.tsx", import.meta.url), "utf8");
-  assert.match(editor, /onInput=.*updateTime/);
+  assert.match(editor, /onInput=[\s\S]*?updateTime/);
 });
 
 test("shared compact headers use exact copy and direct navigation actions", () => {
@@ -185,10 +185,10 @@ test("shared compact headers use exact copy and direct navigation actions", () =
   assert.doesNotMatch(locked, /Quay lại|<a /);
 });
 
-test("list and form share the header while saving and UNKNOWN still hide back navigation", async () => {
+test("form uses the redesigned header and guards unsaved or uncertain navigation", async () => {
   const form = await readFile(new URL("../../app/admin/destinations/destination-form.tsx", import.meta.url), "utf8");
   const list = await readFile(new URL("../../app/admin/destinations/destination-list.tsx", import.meta.url), "utf8");
-  assert.ok(form.includes('DestinationPageHeader mode={id ? "edit" : "create"} canGoBack={!saving && !unknown && !visibilityAction.busy}'));
+  assert.match(form, /AdminPageHeader/); assert.match(form, /useUnsavedChanges\(\s*dirty,\s*saving \|\| unknown \|\| profilePending \|\| visibilityAction.busy,?\s*\)/);
   assert.match(list, /DestinationPageHeader mode="list"/);
 });
 
@@ -304,8 +304,8 @@ test("visibility UI tracks pending and UNKNOWN per item, confirms hide, retries 
   const list = await readFile(new URL("../../app/admin/destinations/destination-list.tsx", import.meta.url), "utf8");
   assert.equal(list.split('visibilityAction.action(item)').length - 1, 2);
   const form = await readFile(new URL("../../app/admin/destinations/destination-form.tsx", import.meta.url), "utf8");
-  assert.ok(form.includes('useDestinationVisibility(dto => setVisibility(dto.visibility), lock)'));
-  assert.match(form, /id \? <div className="destination-edit-visibility"/);
+  assert.match(form, /useDestinationVisibility\(\s*\(dto\) => setVisibility\(dto.visibility\),\s*lock,?\s*\)/);
+  assert.match(form, /isEdit && id/); assert.match(form, /visibilityAction.action/);
   const route = await readFile(new URL("../../app/api/admin/destinations/[id]/visibility/route.ts", import.meta.url), "utf8");
   assert.ok(route.includes('requireActor(request.headers, deps, "admin")')); assert.ok(route.includes('requireIdempotencyKey(request)'));
   const service = await readFile(new URL("./destination-visibility.ts", import.meta.url), "utf8");

@@ -128,14 +128,16 @@ test("SSR headers/loading visibility, no optimistic publication; UI contracts/ac
   function Demo() { return useCultureVisibility(() => {}).action({ id: "c-1", title: "Culture", visibility: "HIDDEN" }); }
   assert.match(renderToStaticMarkup(createElement(Demo)), /role="switch"[^>]*aria-checked="false"/);
   const form = await readFile(new URL("../../app/admin/culture/culture-form.tsx", import.meta.url), "utf8");
-  for (const pattern of [/method="post"/, /event.preventDefault\(\)/, /claimSubmission/, /unknown && attempt.current/, /if \(unknown\)/, /disabled=\{saving \|\| unknown \|\| visibilityAction.busy\}/, /markCultureSaved/]) assert.match(form, pattern);
+  for (const pattern of [/method="post"/, /event.preventDefault\(\)/, /claimSubmission/, /unknown && attempt.current/, /if \(unknown\)/, /const disabled = saving \|\| unknown \|\| visibilityAction.busy/, /markCultureSaved/]) assert.match(form, pattern);
   const initialPicker = renderToStaticMarkup(createElement(DestinationPicker, { selected: [], onChange() {} }));
   assert.match(initialPicker, /role="combobox"/); assert.match(initialPicker, /aria-expanded="false"/); assert.match(initialPicker, /placeholder="Tìm điểm đến\.\.\."/); assert.doesNotMatch(initialPicker, /Trang trước|Trang sau|Trang 1/);
   const picker = await readFile(new URL("../../app/admin/culture/destination-picker.tsx", import.meta.url), "utf8");
   for (const pattern of [/role="combobox"/, /aria-multiselectable="true"/, /ArrowDown/, /ArrowUp/, /event\.key === "Enter"/, /event\.key === "Escape"/, /pointerdown/, /lookupDestinations/, /setTimeout\(\(\) =>/, /loadDestination\(id\)/, /visibility === "HIDDEN"/, /Không tìm thấy điểm đến phù hợp/, /Không thể tải danh sách điểm đến/, /Thử lại/, /Bỏ liên kết/, /Đã chọn/]) assert.match(picker, pattern);
   assert.doesNotMatch(picker, /Tìm và chọn điểm đến|Điểm đến đã chọn \(\$\{selected\.length\}\)|culture-picker-search/);
   assert.doesNotMatch(picker, /Trang trước|Trang sau|Trang 1|type="checkbox"/);
-  assert.match(form, /new URL\(anchor\.href, window\.location\.href\)/); assert.match(form, /target\.origin !== window\.location\.origin/); assert.match(form, /beforeunload/); assert.match(form, /showModal\(\)/); assert.match(form, /dirtyRef\.current = false/);
+  const guard = await readFile(new URL("../../components/admin/use-unsaved-changes.ts", import.meta.url), "utf8");
+  assert.match(form, /useUnsavedChanges/); assert.match(guard, /beforeunload/); assert.match(guard, /window.confirm/); assert.match(guard, /navigationType !== "traverse"/); assert.match(form, /markSafeToLeave\(\)/);
+
   const styles = await readFile(new URL("../../app/admin/culture/culture.css", import.meta.url), "utf8");
   for (const pattern of [/\.culture-picker-panel[^\n]*max-height: min\(320px/, /\.culture-picker-options[^\n]*overflow-y: auto/, /\.dark \.culture-picker-hidden/, /\.culture-form-page \.destination-form-actions/, /@media \(max-width: 600px\)/]) assert.match(styles, pattern);
   const action = await readFile(new URL("../../app/admin/culture/culture-visibility-action.tsx", import.meta.url), "utf8");

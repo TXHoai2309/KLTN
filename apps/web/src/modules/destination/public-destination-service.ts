@@ -1,3 +1,5 @@
+import { richContentText } from "@/modules/culture/culture-rich-content";
+import { publicDestinationProfileSelect, publicProfileDto } from "@/modules/content-profile/public-content-profile";
 import { visibleCultureWhere, publicCultureSelect } from "../culture/culture-eligibility";
 import type { Database, Prisma } from "@KLTN/db";
 import { AppError } from "@/server/http/app-error";
@@ -7,6 +9,7 @@ import { validateDestinationId } from "./destination-service";
 import { publicDestinationDetailSchema } from "./public-destination-contract";
 
 export const publicDestinationSelect = {
+  ...publicDestinationProfileSelect,
   id: true, name: true, description: true, area: true, category: true,
   latitude: true, longitude: true, suggestedDurationMinutes: true,
   cultureLinks: { where: { culture: visibleCultureWhere }, take: 20, orderBy: { cultureId: "asc" }, select: { culture: { select: publicCultureSelect } } },
@@ -25,11 +28,11 @@ export async function getPublicDestination(id: string, database: Pick<Database, 
     throw new AppError("DESTINATION_NOT_FOUND", "Không tìm thấy điểm đến", 404);
   }
   return publicDestinationDetailSchema.parse({
-    id: row.id, name: row.name, description: row.description, area: row.area, category: row.category,
+    ...publicProfileDto(row,"destination"), id: row.id, name: row.name, description: row.description, area: row.area, category: row.category,
     latitude: row.latitude, longitude: row.longitude, suggestedDurationMinutes: row.suggestedDurationMinutes,
     openingDays: row.openingDays.map(day => ({ dayOfWeek: day.dayOfWeek, status: day.status,
       intervals: day.intervals.map(interval => ({ opensAt: fromMinute(interval.opensAtMinute), closesAt: fromMinute(interval.closesAtMinute) })),
     })),
-    relatedCulture: row.cultureLinks.map(({ culture }) => ({ id: culture.id, title: culture.title, excerpt: culture.content.replace(/\s+/g, " ").trim().slice(0, 280), sourceTitle: culture.sourceTitle, sourceUrl: culture.sourceUrl })),
+    relatedCulture: row.cultureLinks.map(({ culture }) => ({ id: culture.id, title: culture.title, excerpt: richContentText(culture.content).replace(/\s+/g, " ").trim().slice(0, 280), sourceTitle: culture.sourceTitle, sourceUrl: culture.sourceUrl })),
   });
 }

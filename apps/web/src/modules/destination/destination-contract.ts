@@ -1,3 +1,4 @@
+import { destinationProfileSchema } from "../content-profile/content-profile-contract";
 import { z } from "zod";
 
 export const weekdays = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"] as const;
@@ -21,6 +22,7 @@ const scheduleSchema = z.array(daySchema).length(7, "Cần đủ bảy ngày.").
 }).transform(days => [...days].sort((a, b) => weekdays.indexOf(a.dayOfWeek) - weekdays.indexOf(b.dayOfWeek)));
 const duration = z.number().int("Thời lượng phải là phút nguyên.").min(1, "Thời lượng phải lớn hơn 0 phút.").max(10080, "Thời lượng tối đa 10080 phút.").nullable();
 export const destinationInputSchema = z.object({
+  profile: destinationProfileSchema.optional(),
   name: text(200), description: text(10000), area: taxonomy, category: taxonomy,
   latitude: z.number().min(-90, "Vĩ độ phải từ -90 đến 90.").max(90, "Vĩ độ phải từ -90 đến 90."), longitude: z.number().min(-180, "Kinh độ phải từ -180 đến 180.").max(180, "Kinh độ phải từ -180 đến 180."),
   suggestedDurationMinutes: duration, minimumDurationMinutes: duration, openingDays: scheduleSchema,
