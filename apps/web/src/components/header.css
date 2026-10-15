@@ -3,6 +3,7 @@
   top: 0;
   z-index: 40;
   width: 100%;
+  min-width: 0;
   border-bottom: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
   background: color-mix(in srgb, var(--background) 94%, transparent);
   color: var(--foreground);
@@ -11,11 +12,11 @@
 
 .site-header-inner {
   display: grid;
-  width: min(1280px, calc(100% - 2 * clamp(16px, 3vw, 40px)));
+  width: min(1600px, calc(100% - 2 * clamp(16px, 3vw, 40px)));
   min-height: 76px;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: clamp(20px, 4vw, 56px);
+  gap: clamp(12px, 1.5vw, 24px);
   padding: 0;
   margin: 0 auto;
 }
@@ -69,25 +70,27 @@
   text-transform: uppercase;
 }
 
-.site-nav { display: flex; min-width: 0; align-items: center; gap: clamp(6px, 1.5vw, 22px); }
+.site-nav { display: flex; min-width: 0; align-items: center; justify-content: space-evenly; gap: clamp(4px, 0.5vw, 10px); }
 .site-nav-link {
   position: relative;
   display: inline-flex;
+  flex: 0 0 auto;
   min-height: 44px;
   align-items: center;
-  padding: 0 11px;
+  padding: 0 8px;
   border-radius: 10px;
   color: var(--muted-foreground);
   font-size: 14px;
   font-weight: 550;
   text-decoration: none;
+  white-space: nowrap;
   transition: color 180ms ease, background-color 180ms ease;
 }
 .site-nav-link::after {
   position: absolute;
-  right: 11px;
+  right: 8px;
   bottom: 3px;
-  left: 11px;
+  left: 8px;
   height: 2px;
   border-radius: 99px;
   background: #287c61;
@@ -121,11 +124,11 @@
 .site-header a:focus-visible,
 .site-header button:focus-visible { outline: 3px solid color-mix(in srgb, #287c61 45%, transparent); outline-offset: 3px; }
 
-@media (max-width: 1080px) {
+@media (max-width: 1279px) {
   .site-header-inner { display: flex; width: 100%; min-height: 0; flex-wrap: wrap; justify-content: space-between; gap: 0 12px; padding: 8px 14px 0; }
   .site-brand { min-height: 44px; }
   .site-header-actions { margin-left: auto; }
-  .site-nav { order: 3; width: 100%; flex-wrap: wrap; gap: 3px; padding: 4px 0 0; }
+  .site-nav { order: 3; width: 100%; flex-wrap: wrap; justify-content: flex-start; gap: 3px; padding: 4px 0 0; }
   .site-nav-link { min-height: 40px; padding: 0 10px; font-size: 13px; }
   .site-nav-link::after { right: 10px; bottom: 1px; left: 10px; }
 }
