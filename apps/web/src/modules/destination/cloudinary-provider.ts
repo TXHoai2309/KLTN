@@ -19,7 +19,7 @@ export interface DestinationImageProvider {
 }
 const unavailable = () => new AppError("IMAGE_PROVIDER_UNAVAILABLE", "Dịch vụ ảnh chưa sẵn sàng. Giữ ảnh và thử lại.", 503);
 export function cloudinaryConfiguration() {
-  // @internal Varlock variables intentionally are not part of generated browser ENV types.
+  // Runtime values come from Varlock; API credentials remain sensitive/server-only.
   const cloud = process.env.CLOUDINARY_CLOUD_NAME?.trim();
   const api_key = process.env.CLOUDINARY_API_KEY?.trim();
   const api_secret = process.env.CLOUDINARY_API_SECRET?.trim();

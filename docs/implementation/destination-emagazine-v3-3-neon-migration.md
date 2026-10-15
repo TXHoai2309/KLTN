@@ -68,6 +68,15 @@ Existing generated env types remain valid because no env schema changed. Full Vi
 
 Provider configuration was inspected as booleans only: OpenAI key present, `OPENAI_EDITORIAL_MODEL` absent, Cloudinary credentials incomplete. Deterministic/manual layout can be tested now; live AI layout and Cloudinary upload need their missing configuration. No provider call, credential disclosure or provider configuration change occurred. No Luna model identifier was guessed or set.
 
+Provider follow-up later on 2026-10-15 supersedes that runtime diagnosis: the owner
+had filled the values in `.env`, but the new variables' `@internal` annotations
+prevented Varlock injection. Removed those annotations for Cloudinary's four
+settings and Editorial model while retaining credential sensitivity. Real `.env`
+files were not edited. After env codegen/restart, actual configuration functions
+report Cloudinary accepted / Editorial AI configured. The earlier runtime-only
+absence check did not establish that the owner's input was missing. No real
+provider call was used to verify credentials or model availability.
+
 Local ignored evidence: `D:/KLTN/KLTN/apps/web/.cache/editorial-neon-migration/` contains `before.json`, `before-schema-diff.sql`, sanitized `prisma-deploy.log`, `after.json`, `after-schema-diff.log`, `verification.json`, `localhost-smoke.json` and Next startup logs. The read-only before/after evidence contains metadata/counts/hashes, not a recoverable database backup.
 
 **READY_FOR_MANUAL_TEST=YES**

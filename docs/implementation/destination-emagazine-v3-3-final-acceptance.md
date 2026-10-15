@@ -8,8 +8,11 @@ through Prisma migrate deploy after fresh endpoint/database/ledger/schema checks
 All18migrations are complete, schema diff is empty, existing data hashes are unchanged,
 the application Prisma Client reads the new table, and localhost:3010 is running.
 Authenticated UI acceptance is left to the owner; no shared fixture was created.
-Cloudinary remains incompletely configured and the optional Editorial AI model is
-absent; no provider settings were changed. See
+Provider runtime follow-up on 2026-10-15: the owner's `.env` contains the required
+values. Incorrect Varlock `@internal` annotations prevented runtime injection;
+these were corrected, generated types refreshed and Next restarted. Cloudinary
+configuration and Editorial AI configuration now both resolve true. Credentials
+remain sensitive; no provider call or real environment-file edit occurred. See
 [migration verification](destination-emagazine-v3-3-neon-migration.md).
 
 ## Historical final-QA checkpoint — 2026-10-14

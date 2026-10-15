@@ -30,12 +30,22 @@ US-25 adds the optional `OPENAI_PREFERENCE_MODEL` declaration and ADR-16 server-
 
 Destination V3.2 adds optional `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`,
 `CLOUDINARY_API_SECRET`, and `CLOUDINARY_DESTINATION_FOLDER` to the web Varlock
-schema/example. All are internal/server-only; the secret is sensitive. The only
+schema/example. Runtime provider settings must not use Varlock `@internal`: that
+decorator prevents injection into the application and is for interpolation-only
+configuration, not a server-only security boundary. Cloudinary API key/secret and
+`OPENAI_EDITORIAL_MODEL` remain sensitive runtime settings; credentials must never
+be public or `NEXT_PUBLIC_*`. Cloud name/folder are noncredential metadata. The only
 accepted destination root is `KLTN/destinations`. Blank/incomplete credentials
 disable upload only. The provider reads the configured environment's folder mode
 via the Admin Config API; it never creates an environment, moves assets or deletes
 assets. Set real values in ignored local environment files yourself, then restart
 the local app. See [V3.2 smoke instructions](destination-cloudinary-v3-2-report.md).
+
+V3.3's optional `OPENAI_EDITORIAL_MODEL` follows the same runtime rule and uses the
+existing server-side `OPENAI_API_KEY`. After changing schema annotations, regenerate
+env types and restart Next. On 2026-10-15 the owner already had the provider values
+in the ignored `.env`; removing the incorrect `@internal` annotations restored
+runtime loading without editing that file or changing credentials.
 
 ## Environment topology
 
