@@ -121,7 +121,7 @@
 .site-header a:focus-visible,
 .site-header button:focus-visible { outline: 3px solid color-mix(in srgb, #287c61 45%, transparent); outline-offset: 3px; }
 
-@media (max-width: 760px) {
+@media (max-width: 1080px) {
   .site-header-inner { display: flex; width: 100%; min-height: 0; flex-wrap: wrap; justify-content: space-between; gap: 0 12px; padding: 8px 14px 0; }
   .site-brand { min-height: 44px; }
   .site-header-actions { margin-left: auto; }

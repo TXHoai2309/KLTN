@@ -1,0 +1,16 @@
+model DestinationEditorial {
+  destinationId String @id
+  destination Destination @relation(fields: [destinationId], references: [id], onDelete: Restrict)
+  schemaVersion Int @default(1)
+  draftRevision Int @default(0)
+  publishedRevision Int @default(0)
+  draft Json?
+  published Json?
+  previousPublished Json?
+  contentFingerprint String? @db.VarChar(64)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  publishedAt DateTime? @db.Timestamptz(3)
+  updatedBy String
+  publishedBy String?
+  @@map("destination_editorial")
+}
