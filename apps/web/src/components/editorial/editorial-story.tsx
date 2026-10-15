@@ -3,6 +3,7 @@ import DestinationMap from "@/components/map/destination-map";
 import { editorialTitlePhrases, normalizeEditorialText } from "@/modules/destination-editorial/editorial-content";
 import type { EditorialBlock, ResolvedEditorial } from "@/modules/destination-editorial/editorial-contract";
 import type { EditorialPageData } from "./editorial-renderer";
+import { heroDeck } from "@/modules/destination-editorial/editorial-hero";
 
 import { editorialValue, hasEditorialCoordinates, hasEditorialDuration, hasEditorialFacts } from "@/modules/destination-editorial/editorial-display-policy";
 
@@ -11,16 +12,65 @@ export function EditorialProse({ block }: { block: Pick<EditorialBlock, "title" 
   if (!block.title && !block.text.trim()) return null;
   return <div className={`emg-prose ${block.emphasis === "FEATURED" ? "emg-prose-featured" : ""}`}>{block.title && <h2>{block.title}</h2>}{block.text.split(/\n\s*\n/).filter(p => p.trim()).map((p, i) => <p key={i}>{p}</p>)}</div>;
 }
-function HeroTitle({ block, data }: { block: EditorialBlock; data: EditorialPageData }) {
+export function formatHeroLocation(area: string | null | undefined, destinationName: string): string {
+  const val = editorialValue(area);
+  if (!val) return "";
+  const lowerName = destinationName.toLocaleLowerCase("vi");
+  const isDongVan = /đồng văn|dong van|cao nguyên đá/i.test(lowerName);
+  if (isDongVan) {
+    const lowerArea = val.toLocaleLowerCase("vi");
+    if (lowerArea.includes("hà giang") || lowerArea.includes("ha giang")) {
+      return "Tuyên Quang · Vùng Hà Giang trước đây";
+    }
+  }
+  return val
+    .split(/\s+/)
+    .map((word, i) => {
+      const lower = word.toLocaleLowerCase("vi");
+      if (i > 0 && ["và", "của", "tại"].includes(lower)) return lower;
+      return lower.charAt(0).toLocaleUpperCase("vi") + lower.slice(1);
+    })
+    .join(" ");
+}
+
+function HeroTitle({ block, data, intro = "" }: { block: EditorialBlock; data: EditorialPageData; intro?: string }) {
   const title = block.title || data.name;
-  const deck = block.deck || (block.text.length <= 180 ? block.text : "");
+  const deck = heroDeck(block, title, formatHeroLocation(data.area, data.name), data.area, intro);
   const phrases = editorialTitlePhrases(title);
-  return <div className="emg-title" data-title-length={title.length > 32 ? "long" : "short"}><p className="emg-kicker">Hà Giang{editorialValue(data.category) && ` · ${editorialValue(data.category)}`}</p><h1>{phrases.map((p, i) => <React.Fragment key={i}><span>{p}</span>{i < phrases.length - 1 ? " " : null}</React.Fragment>)}</h1>{deck && normalizeEditorialText(deck) !== normalizeEditorialText(title) && <p className="emg-deck">{deck}</p>}{editorialValue(data.area) && <span className="emg-location">{editorialValue(data.area)}</span>}</div>;
+  const locationText = formatHeroLocation(data.area, data.name);
+  const normTitle = normalizeEditorialText(title);
+  const normDeck = normalizeEditorialText(deck);
+  const normLoc = normalizeEditorialText(locationText);
+  const normArea = normalizeEditorialText(data.area ?? "");
+  const isDeckLocationDuplicate = Boolean(
+    normDeck && (
+      normDeck === normLoc ||
+      normDeck === normArea ||
+      normDeck === "khu vuc ha giang" ||
+      normDeck === "ha giang" ||
+      normDeck === "tuyen quang vung ha giang truoc day"
+    )
+  );
+  const showDeck = Boolean(deck && normDeck !== normTitle && !isDeckLocationDuplicate);
+  return (
+    <div className="emg-title" data-title-length={title.length > 32 ? "long" : "short"}>
+      <p className="emg-kicker">Hà Giang{editorialValue(data.category) && ` · ${editorialValue(data.category)}`}</p>
+      <h1>{phrases.map((p, i) => <React.Fragment key={i}><span>{p}</span>{i < phrases.length - 1 ? " " : null}</React.Fragment>)}</h1>
+      {showDeck && <p className="emg-deck">{deck}</p>}
+      {locationText && <span className="emg-location">{locationText}</span>}
+    </div>
+  );
 }
-export function HeroPanorama({ block, data, children }: StoryProps & { data: EditorialPageData }) {
-  return <header className={`emg-hero ${block.mediaIds.length ? "has-image" : "typography-first"}`}><HeroTitle block={block} data={data} />{children}</header>;
+type HeroProps = StoryProps & { data: EditorialPageData; intro?: string; limited?: boolean };
+export function HeroPanorama({ block, data, children, intro }: HeroProps) {
+  return <header className={`emg-hero emg-hero-panorama ${children ? "has-image" : "typography-first"}`} data-composition="PANORAMA"><div className="emg-hero-visual">{children}</div><HeroTitle block={block} data={data} intro={intro} /></header>;
 }
-export const HeroSplit = HeroPanorama;
+export function HeroSplit({ block, data, children, intro, limited }: HeroProps) {
+  return <header className={`emg-hero emg-hero-split ${children ? "has-image" : "typography-first"} ${limited ? "emg-hero-limited" : ""}`} data-composition="SPLIT"><HeroTitle block={block} data={data} intro={intro} />{children && <div className="emg-hero-visual">{children}</div>}</header>;
+}
+export function HeroCover({ block, data, children, intro, limited }: HeroProps) {
+  return <header className={`emg-hero emg-hero-cover ${children ? "has-image" : "typography-first"} ${limited ? "emg-hero-limited" : ""}`} data-composition="EDITORIAL"><HeroTitle block={block} data={data} intro={intro} />{children && <div className="emg-hero-visual">{children}</div>}</header>;
+}
 export function EditorialIntroduction({ block }: StoryProps) { return block.text.trim() || block.title ? <section className="emg-intro"><EditorialProse block={block} /></section> : null; }
 export function TextImageStorySection({ block, children }: StoryProps) {
   if (!block.mediaIds.length) return <section className="emg-text-section"><EditorialProse block={block} /></section>;

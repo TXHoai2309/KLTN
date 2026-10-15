@@ -14,6 +14,8 @@ import { editorialActionSchema, editorialBlockSchema, editorialLayoutSchema, edi
 import { defaultEditorialDesign, typeStyles, typeStyleLabels, colorStyles, colorStyleLabels, rhythms, rhythmLabels, type EditorialDesign } from "@/modules/destination-editorial/editorial-contract";
 import { acceptedEditorialProposal } from "@/modules/destination-editorial/editorial-proposal-result";
 import { AI_LAYOUT_PRESERVED } from "@/modules/destination-editorial/editorial-display-policy";
+import { editorialHeroPlan, heroCompositionLabels, heroFocalLocked } from "@/modules/destination-editorial/editorial-hero";
+import { editorialRetryAfter, editorial429Message } from "@/modules/destination-editorial/editorial-retry-after";
 import "./destination-v3.css";
 import "./editorial-editor.css";
 import "./editorial-actions.css";
@@ -27,7 +29,16 @@ export default function EditorialEditor({ id }: { id: string }) {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [aiMode, setAiMode] = useState<"PROPOSE" | "ALTERNATIVE" | null>(null);
   const [autoDirection, setAutoDirection] = useState(false);
+  const [aiCooldownUntil, setAiCooldownUntil] = useState(0);
+  const [aiClock, setAiClock] = useState(Date.now);
+  const aiWaitSeconds = Math.max(0, Math.ceil((aiCooldownUntil - aiClock) / 1000));
+  useEffect(() => {
+    if (!aiCooldownUntil) return;
+    const timer = setInterval(() => { const now = Date.now(); setAiClock(now); if (now >= aiCooldownUntil) clearInterval(timer); }, 1000);
+    return () => clearInterval(timer);
+  }, [aiCooldownUntil]);
   const [unknown, setUnknown] = useState(false);
   const [reload, setReload] = useState(0);
   const [selected, setSelected] = useState("");
@@ -62,7 +73,10 @@ export default function EditorialEditor({ id }: { id: string }) {
     history.current = [...history.current.slice(-19), layout];
     setLayout(next); setMessage("");
   }
-  function changeBlock(change: Partial<EditorialBlock>) { if (layout) edit({ ...layout, blocks: layout.blocks.map(b => b.id === selected ? { ...b, ...change, ...(change.title !== undefined || change.text !== undefined ? { headingProvenance: undefined } : {}) } : b) }); }
+  function changeBlock(change: Partial<EditorialBlock>) { if (layout) {
+    const focalEdit = layout.blocks.find(b => b.id === selected)?.type === "HERO" && (change.focalX !== undefined || change.focalY !== undefined || change.crop !== undefined);
+    edit({ ...layout, ...(focalEdit ? { hero: { composition: layout.hero?.composition ?? layout.variant, locked: layout.hero?.locked ?? false, focalLocked: true } } : {}), blocks: layout.blocks.map(b => b.id === selected ? { ...b, ...change, ...(change.title !== undefined || change.text !== undefined ? { headingProvenance: undefined } : {}) } : b) });
+  } }
   function changeDesign(change: Partial<EditorialDesign>) { if (layout) edit({ ...layout, design: { ...(layout.design ?? defaultEditorialDesign), ...change } }); }
   function move(index: number, direction: number) {
     if (!layout) return; const next = [...layout.blocks]; const other = index + direction;
@@ -90,21 +104,38 @@ export default function EditorialEditor({ id }: { id: string }) {
       else { setUnknown(false); attempt.current = null; setMessage(result.error.message); }
     } finally { lock.current = false; if (mounted.current) setBusy(false); }
   }
-  async function aiProposal() {
-    if (!state || !layout || lock.current || unknown) return;
-    lock.current = true; setBusy(true); setGenerating(true); request.current = new AbortController(); setMessage("");
+  async function aiProposal(mode: "PROPOSE" | "ALTERNATIVE" = "PROPOSE") {
+    if (!state || !layout || lock.current || unknown || Date.now() < aiCooldownUntil) return;
+    lock.current = true; setBusy(true); setGenerating(true); setAiMode(mode); request.current = new AbortController(); setMessage("");
     try {
-      const r = await fetch(`/api/admin/destinations/${encodeURIComponent(id)}/editorial/propose`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ layout, direction: autoDirection ? "AUTO" : "KEEP" }), signal: AbortSignal.any([request.current.signal, AbortSignal.timeout(40_000)]) });
-      const body = await r.json();
-      if (!r.ok || !body.success) {
-        if (mounted.current) setMessage(AI_LAYOUT_PRESERVED);
+      const r = await fetch(`/api/admin/destinations/${encodeURIComponent(id)}/editorial/propose`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ layout, direction: autoDirection ? "AUTO" : "KEEP", mode, expectedRevision: state.draftRevision }), signal: AbortSignal.any([request.current.signal, AbortSignal.timeout(40_000)]) });
+      const body = await r.json().catch(() => null);
+      if (r.status === 429) {
+        if (mounted.current) {
+          const now = Date.now(), seconds = editorialRetryAfter(r.headers.get("Retry-After"), now);
+          setAiClock(now); setAiCooldownUntil(seconds !== undefined ? now + seconds * 1000 : 0);
+          setMessage(editorial429Message(body?.error?.code, body?.error?.details?.providerCode));
+        }
         return;
       }
-      const next = acceptedEditorialProposal(body.data, layout, state.context, autoDirection ? "AUTO" : "KEEP");
+      if (!r.ok || !body?.success) {
+        if (mounted.current) setMessage(["EDITORIAL_AI_IN_PROGRESS", "EDITORIAL_AI_BUSY"].includes(body?.error?.code) ? body.error.message : AI_LAYOUT_PRESERVED);
+        return;
+      }
+      const data = body.data;
+      if (data.outcome === "PROPOSED_SAME" || data.outcome === "FALLBACK_UNCHANGED") {
+        if (mounted.current) setMessage(data.reason || "Bố cục hiện tại đã tối ưu; giữ nguyên phương án.");
+        return;
+      }
+      if (data.status === "FALLBACK" || ["VALIDATION_FAILED", "PROVIDER_FAILED", "LLM_PROVIDER_ERROR", "INVALID_MODEL_OUTPUT", "TITLE_PROVENANCE", "MEDIA_PROVENANCE", "SCHEMA_VALIDATION", "STALE_LAYOUT"].includes(data.outcome)) {
+        if (mounted.current) setMessage(data.reason || AI_LAYOUT_PRESERVED);
+        return;
+      }
+      const next = acceptedEditorialProposal(data, layout, state.context, autoDirection ? "AUTO" : "KEEP", mode);
       if (!next) { if (mounted.current) setMessage(AI_LAYOUT_PRESERVED); return; }
-      if (mounted.current) { if (layout) history.current = [...history.current.slice(-19), layout]; setLayout(next);   setMessage(body.data.reason); }
+      if (mounted.current) { if (layout) history.current = [...history.current.slice(-19), layout]; setLayout(next); setMessage(data.reason); }
     } catch { if (mounted.current) setMessage(AI_LAYOUT_PRESERVED); }
-    finally { lock.current = false; if (mounted.current) { setBusy(false); setGenerating(false); } }
+    finally { lock.current = false; if (mounted.current) { setBusy(false); setGenerating(false); setAiMode(null); } }
   }
   useEffect(() => {
     const dialog = confirmationDialog.current;
@@ -115,6 +146,8 @@ export default function EditorialEditor({ id }: { id: string }) {
   const disabled = busy || unknown;
   const previewLayout = layout;
   const preview = state && previewLayout ? resolveEditorial(previewLayout, state.context) : null;
+  const heroImage = preview?.media.find(m => m.id === preview.layout.blocks.find(b => b.type === "HERO")?.mediaIds[0]);
+  const heroPlan = layout ? editorialHeroPlan(layout, heroImage) : null;
   const design = layout?.design ?? defaultEditorialDesign;
   const displayIssues = state && layout ? resolveEditorialDisplay(layout, state.context).issues : [];
   const displayReason = { ADMIN_HIDDEN: "Admin chủ động ẩn", EMPTY_CONTENT: "Tự ẩn · Chưa có nội dung hoặc tham chiếu đủ điều kiện", DUPLICATE_BLOCK: "Tự ẩn · Thông tin đã xuất hiện trong block khác" };
@@ -162,7 +195,14 @@ export default function EditorialEditor({ id }: { id: string }) {
               {displayIssues.filter(issue => issue.blockId === active.id).map(issue => <p className="af-helper" key={issue.reason}>{displayReason[issue.reason]}. Block vẫn được giữ để chỉnh sửa; bổ sung dữ liệu hợp lệ để hiện trong Preview/Public.</p>)}
               <label><input type="checkbox" checked={!active.hidden} onChange={e => changeBlock({ hidden: !e.target.checked })} /> Hiển thị block</label>
               <label htmlFor="editorial-title">Tiêu đề phụ</label><input id="editorial-title" className="af-input" maxLength={200} value={active.title} onChange={e => changeBlock({ title: e.target.value })} />
-              {active.type === "HERO" && <><label htmlFor="editorial-deck">Dòng dẫn ngắn dưới tiêu đề</label><textarea id="editorial-deck" className="af-textarea resize-none" rows={3} maxLength={180} value={active.deck ?? ""} onChange={e => changeBlock({ deck: e.target.value })} /></>}
+              {active.type === "HERO" && <>
+                <label htmlFor="editorial-hero-composition">Bố cục mở đầu</label>
+                <select id="editorial-hero-composition" className="af-select" value={layout.hero?.composition ?? layout.variant} onChange={e => edit({ ...layout, hero: { ...layout.hero, composition: e.target.value as EditorialLayout["variant"], locked: true } })}>{variants.map(v => <option key={v} value={v}>{heroCompositionLabels[v]}</option>)}</select>
+                <label><input type="checkbox" checked={layout.hero?.locked ?? false} onChange={e => edit({ ...layout, hero: { ...layout.hero, composition: layout.hero?.composition ?? layout.variant, locked: e.target.checked } })} /> Giữ bố cục mở đầu khi dùng AI</label>
+                <label><input type="checkbox" checked={heroFocalLocked(layout)} onChange={e => edit({ ...layout, hero: { composition: layout.hero?.composition ?? layout.variant, locked: layout.hero?.locked ?? false, focalLocked: e.target.checked } })} /> Giữ ảnh và điểm lấy nét khi dùng AI</label>
+                {heroPlan?.reason && <p className="af-helper" role="note">{heroPlan.reason === "LOW_RESOLUTION" ? `Ảnh gốc ${heroImage?.width} × ${heroImage?.height}px: giới hạn kích thước để giữ nét${heroPlan.composition !== heroPlan.requested ? ", trình bày theo trang bìa" : ""}. Chọn ảnh lớn hơn để mở rộng khung hình.` : heroPlan.reason === "UNKNOWN_RESOLUTION" ? "Chưa có kích thước ảnh gốc; ảnh được giới hạn độ rộng an toàn. Chọn ảnh có thông tin kích thước để tối ưu phần mở đầu." : "Ảnh dọc được trình bày cạnh lời dẫn để giữ chủ thể. Bố cục đã lưu không bị thay đổi."}</p>}
+                <label htmlFor="editorial-deck">Dòng dẫn ngắn dưới tiêu đề</label><textarea id="editorial-deck" className="af-textarea resize-none" rows={3} maxLength={130} value={active.deck ?? ""} onChange={e => changeBlock({ deck: e.target.value })} />
+              </>}
               {["INTRO", "TEXT_SECTION", "IMAGE_TEXT_SPLIT"].includes(active.type) && <label>Nhấn mạnh đoạn<select className="af-select" aria-label="Nhấn mạnh đoạn" value={active.emphasis ?? "STANDARD"} onChange={e => changeBlock({ emphasis: e.target.value as "STANDARD" | "FEATURED" })}><option value="STANDARD">Thông thường</option><option value="FEATURED">Nhấn nhẹ</option></select></label>}
               {!["MAP", "VISIT_INFORMATION", "SOURCES", "HIGHLIGHT_FACTS", "IMAGE_GRID", "IMAGE_GALLERY", "FULL_WIDTH_IMAGE", "TIMELINE"].includes(active.type) && <><label htmlFor="editorial-text">Nội dung editorial</label><textarea id="editorial-text" className="af-textarea resize-none" maxLength={12000} rows={7} value={active.text} onChange={e => changeBlock({ text: e.target.value })} /></>}
               {["HERO", "IMAGE_TEXT_SPLIT", "FULL_WIDTH_IMAGE", "IMAGE_GRID", "IMAGE_GALLERY"].includes(active.type) && <>
@@ -229,9 +269,11 @@ export default function EditorialEditor({ id }: { id: string }) {
                 <label>Sắc độ<select className="af-select" aria-label="Sắc độ" disabled={disabled} value={design.palette} onChange={e => changeDesign({ palette: e.target.value as EditorialDesign["palette"] })}>{colorStyles.map(p => <option key={p} value={p}>{colorStyleLabels[p]}</option>)}</select></label>
                 <label>Nhịp trình bày<select className="af-select" aria-label="Nhịp trình bày" disabled={disabled} value={design.rhythm} onChange={e => changeDesign({ rhythm: e.target.value as EditorialDesign["rhythm"] })}>{rhythms.map(r => <option key={r} value={r}>{rhythmLabels[r]}</option>)}</select></label>
               </div>
+              {aiWaitSeconds > 0 && <p id="editorial-ai-cooldown" className="af-helper" aria-live="off">Có thể thử lại sau {Math.floor(aiWaitSeconds / 3600) > 0 ? `${Math.floor(aiWaitSeconds / 3600)} giờ ` : ""}{Math.floor(aiWaitSeconds % 3600 / 60) > 0 ? `${Math.floor(aiWaitSeconds % 3600 / 60)} phút ` : ""}{aiWaitSeconds % 60} giây. Bạn vẫn có thể chỉnh sửa bài viết.</p>}
               <div className="ed-ai-direction"><label><input type="checkbox" checked={autoDirection} disabled={disabled} onChange={e => setAutoDirection(e.target.checked)} /> Để AI chọn lại nhóm và biến thể</label><p className="af-helper">{autoDirection ? "AI được chọn phong cách mới cho bài viết này." : "AI giữ nhóm và biến thể bạn chọn, tự phối kiểu chữ, sắc độ, ảnh và nhịp trang."}</p></div>
               <div className="ed-compose-actions">
-                <button type="button" className="af-btn af-btn-primary ed-ai-button" disabled={disabled} onClick={() => void aiProposal()} aria-label="AI đề xuất bố cục">{generating ? "AI đang phối trang…" : "AI đề xuất bố cục"}</button>
+                <button type="button" className="af-btn af-btn-primary ed-ai-button" disabled={disabled || aiWaitSeconds > 0} aria-describedby={aiWaitSeconds > 0 ? "editorial-ai-cooldown" : undefined} onClick={() => void aiProposal("PROPOSE")} aria-label="AI đề xuất bố cục">{generating && aiMode === "PROPOSE" ? "AI đang phối trang…" : "AI đề xuất bố cục"}</button>
+                <button type="button" className="af-btn ed-ai-alt-button" disabled={disabled || aiWaitSeconds > 0} aria-describedby={aiWaitSeconds > 0 ? "editorial-ai-cooldown" : undefined} onClick={() => void aiProposal("ALTERNATIVE")} aria-label="Sinh phương án khác">{generating && aiMode === "ALTERNATIVE" ? "Đang tạo phương án…" : "Sinh phương án khác"}</button>
                 <button type="button" className="af-btn" disabled={disabled} onClick={() => edit(autoLayout(state.context, layout))}>Tự động dàn trang</button>
                 <button type="button" className="af-btn" disabled={disabled || !history.current.length} onClick={() => { const old = history.current.pop(); if (old) { setLayout(old); } }}>Hoàn tác</button>
                 <button type="button" className="af-btn" disabled={disabled || !dirty} onClick={() => { setLayout(JSON.parse(baseline)); history.current = []; }}>Hủy thay đổi chưa lưu</button>

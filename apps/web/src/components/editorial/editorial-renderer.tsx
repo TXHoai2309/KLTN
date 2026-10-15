@@ -4,7 +4,9 @@ import type { EditorialContext, ResolvedEditorial } from "@/modules/destination-
 import { defaultEditorialDesign } from "@/modules/destination-editorial/editorial-contract";
 import { editorialVisitData } from "@/modules/destination-editorial/editorial-display-policy";
 import EditorialPhoto from "./editorial-photo";
-import { HeroPanorama, HeroSplit, EditorialIntroduction, EditorialProse, TextImageStorySection, FullBleedImage, StaggeredImageGallery, VisualHighlights, MapSection, SourceAttribution } from "./editorial-story";
+import { HeroPanorama, HeroSplit, HeroCover, formatHeroLocation, EditorialIntroduction, EditorialProse, TextImageStorySection, FullBleedImage, StaggeredImageGallery, VisualHighlights, MapSection, SourceAttribution } from "./editorial-story";
+import { editorialHeroPlan, heroDeck } from "@/modules/destination-editorial/editorial-hero";
+import { normalizeEditorialText } from "@/modules/destination-editorial/editorial-content";
 export type EditorialPageData = Pick<EditorialContext, "id" | "name" | "category" | "area" | "latitude" | "longitude" | "suggestedDurationMinutes" | "openingDays">;
 export function CompactTravelInformation({ data, includeArea = true }: { data: EditorialPageData; includeArea?: boolean }) {
   const visit = editorialVisitData(data);
@@ -26,7 +28,16 @@ export default function EditorialRenderer({ data, editorial }: { data: Editorial
     {!layout.blocks.some(b => b.type === "HERO") && <header className="emg-title"><p>{data.area}</p><h1>{data.name}</h1></header>}
     {layout.blocks.map(block => {
       switch (block.type) {
-        case "HERO": { const Hero = layout.variant === "SPLIT" ? HeroSplit : HeroPanorama; return <React.Fragment key={block.id}><Hero block={block} data={data}>{block.mediaIds[0] && photo(block.mediaIds[0], block, true)}</Hero>{block.text.length > 180 && <EditorialIntroduction block={{ ...block, title: "" }} />}</React.Fragment>; }
+        case "HERO": {
+          const image = media.find(m => m.id === block.mediaIds[0]);
+          const plan = editorialHeroPlan(layout, image);
+          const Hero = plan.composition === "PANORAMA" ? HeroPanorama : plan.composition === "SPLIT" ? HeroSplit : HeroCover;
+          const intro = layout.blocks.find(b => b.type === "INTRO")?.text ?? "";
+          const deck = heroDeck(block, block.title || data.name, formatHeroLocation(data.area, data.name), data.area, intro);
+          const body = normalizeEditorialText(block.text);
+          const showBody = body && ![deck, block.title || data.name, data.area].some(v => normalizeEditorialText(v) === body) && !normalizeEditorialText(intro).includes(body);
+          return <React.Fragment key={block.id}><Hero block={block} data={data} limited={plan.limited} intro={intro}>{image && photo(image.id, block, true)}</Hero>{showBody && <EditorialIntroduction block={{ ...block, title: "" }} />}</React.Fragment>;
+        }
         case "INTRO": return <EditorialIntroduction key={block.id} block={block} />;
         case "TEXT_SECTION": return <section key={block.id} className="emg-text-section"><EditorialProse block={block} /></section>;
         case "IMAGE_TEXT_SPLIT": return <TextImageStorySection key={block.id} block={block}>{block.mediaIds.map(id => photo(id, block))}</TextImageStorySection>;

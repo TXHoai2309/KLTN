@@ -65,7 +65,7 @@ describe("Editorial-only GPT-6 Luna adapter, offline", () => {
     const diagnostics = createEditorialAiDiagnostics(); diagnostics.failure("PROVIDER_REQUEST", error);
     const raw = String(info.mock.calls[0]![0]);
     expect(raw).not.toContain("fixture-private");
-    expect(JSON.parse(raw)).toEqual({ event: "editorial_ai", correlationId: diagnostics.correlationId, phase: "PROVIDER_REQUEST", code: "UNSUPPORTED_PARAMETER", httpStatus: 400, providerCode: null, param: null });
+    expect(JSON.parse(raw)).toEqual({ event: "editorial_ai", correlationId: diagnostics.correlationId, phase: "PROVIDER_REQUEST", stage: "PROVIDER_REQUEST_FAILED", code: "UNSUPPORTED_PARAMETER", httpStatus: 400, providerCode: null, param: null });
   });
   it("bounds a fetch that ignores abort", async () => {
     vi.useFakeTimers(); const fetcher = vi.fn(() => new Promise<Response>(() => {}));
@@ -117,6 +117,9 @@ describe("Editorial proposal through the real Luna adapter with mocked HTTP", ()
     expect(schema.properties.family.enum).toHaveLength(direction === "KEEP" ? 1 : 4);
     expect(schema.properties.variant.enum).toHaveLength(direction === "KEEP" ? 1 : 3);
     expect(schema.required).toContain("design");
+    expect(schema.required).toContain("heroComposition");
+    expect(schema.properties.heroComposition.enum).toEqual(["PANORAMA", "SPLIT", "EDITORIAL"]);
+    expect(schema.properties.blocks.items.required).toEqual(expect.arrayContaining(["focalX", "focalY"]));
     const input = JSON.parse(sent.messages[1].content); expect(input.direction).toBe(direction);
     expect(input.media[0]).toMatchObject({ id:"photo", alt:"Hình ảnh Synthetic", isCover:true });
     expect(sent.messages[1].content).not.toContain("res.cloudinary.com");

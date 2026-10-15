@@ -280,6 +280,7 @@
 }
 
 .dark .ed-col-body {
+  scrollbar-width: thin;
   scrollbar-color: #4a6b57 rgba(255, 255, 255, 0.05);
 }
 .dark .ed-col-body::-webkit-scrollbar-track {
@@ -539,8 +540,20 @@
   justify-content: center;
 }
 .ed-ai-button {
-  grid-column: 1 / -1;
   background: var(--af-green);
+  color: #ffffff;
+}
+.ed-ai-button:hover {
+  background: var(--af-green-hover, #1d5b40);
+  color: #ffffff;
+}
+.ed-ai-alt-button {
+  background: #183126;
+  color: #ffffff;
+  border-color: #183126;
+}
+.ed-ai-alt-button:hover {
+  background: #234737;
   color: #ffffff;
 }
 

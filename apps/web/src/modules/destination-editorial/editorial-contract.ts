@@ -28,7 +28,7 @@ export const editorialBlockSchema = z.object({
   focalX: z.number().min(0).max(100).default(50), focalY: z.number().min(0).max(100).default(50),
   entries: z.array(z.object({ label: plain(100), text: plain(2000), sourceIds: z.array(referenceId).min(1).max(10) }).strict()).max(20).default([]),
 }).strict();
-export const editorialLayoutSchema = z.object({ schemaVersion: z.literal(1), family: z.enum(families), variant: z.enum(variants), design: editorialDesignSchema.optional(), blocks: z.array(editorialBlockSchema).min(1).max(30) }).strict().superRefine((layout, ctx) => {
+export const editorialLayoutSchema = z.object({ schemaVersion: z.literal(1), family: z.enum(families), variant: z.enum(variants), design: editorialDesignSchema.optional(), hero: z.object({ composition: z.enum(variants), locked: z.boolean(), focalLocked: z.boolean().optional() }).strict().optional(), blocks: z.array(editorialBlockSchema).min(1).max(30) }).strict().superRefine((layout, ctx) => {
   if (new Set(layout.blocks.map(b => b.id)).size !== layout.blocks.length) ctx.addIssue({ code: "custom", message: "Block trùng ID." });
   if (layout.blocks.filter(b => b.type === "HERO" && !b.hidden).length > 1) ctx.addIssue({ code: "custom", message: "Chỉ có một hero." });
   const photos = layout.blocks.filter(b => !b.hidden).flatMap(b => b.mediaIds);
@@ -37,7 +37,7 @@ export const editorialLayoutSchema = z.object({ schemaVersion: z.literal(1), fam
 });
 export type EditorialLayout = z.infer<typeof editorialLayoutSchema>;
 export type EditorialBlock = z.infer<typeof editorialBlockSchema>;
-export const editorialProposalInputSchema = z.object({ layout: editorialLayoutSchema.optional(), direction: z.enum(["KEEP", "AUTO"]).default("KEEP") }).strict();
+export const editorialProposalInputSchema = z.object({ layout: editorialLayoutSchema.optional(), direction: z.enum(["KEEP", "AUTO"]).default("KEEP"), mode: z.enum(["PROPOSE", "ALTERNATIVE"]).default("PROPOSE"), expectedRevision: z.number().int().min(0).optional() }).strict();
 export type EditorialContext = {
   id: string; name: string; description: string; category: string; area: string;
   latitude: number; longitude: number; suggestedDurationMinutes: number | null;

@@ -242,3 +242,50 @@ Image arrangement uses verified Cloudinary source dimensions to prefer a suitabl
 landscape cover and warns the editor about missing or small originals. Gallery and
 split compositions keep intrinsic aspect ratios and reserve their space. These
 quality rules are documented in the [V3.5 implementation report](docs/implementation/destination-emagazine-v3-5-design-quality.md).
+
+### Premium E-Magazine Hero (2026-10-15)
+
+The article is a Vietnamese travel feature; the editor remains a utility workspace.
+Keep existing emg semantic tokens as the runtime owner: forest ink #183126, muted
+#60766a, accent #39654e, tint #edf5ef, line #d9e5db and white paper, with existing
+palette/dark overrides. Display uses the selected self-hosted Lora, Geist or
+Be Vietnam Pro; body/captions retain the existing Vietnamese sans. No global theme
+or font changes. Article-relative container units size titles in narrow previews.
+
+HeroPanorama owns a landscape opening with a left-aligned title and location
+colophon beneath it. HeroSplit owns a 44/56 title/photo composition, stacked on
+mobile. HeroCover owns a centered masthead and central photograph. The signature
+is the landscape-to-colophon transition; do not introduce ungrounded cover lines,
+decorative issue numbers or text over photographs with unknown contrast.
+Hero-specific rules have one owner at the end of editorial.css; family styling
+and the rest of the article remain independent. Width/ratio/focal values derive
+from actual media metadata and Admin settings, never from the Destination name.
+
+EditorialRenderer/EditorialPhoto are shared by Preview and Public. Optional V1
+JSON hero settings decouple the opening from the article variant, retain manual
+composition/focal locks, and do not require a database migration. Native OS-owned
+Hero select extends the editor's existing select contract; labels, disabled,
+keyboard, Save/Undo/UNKNOWN semantics remain the existing owners. Low-resolution
+originals never grow beyond source width; small Panorama sources use a read-only
+Cover fallback with an Admin note. The stored composition and asset remain intact.
+No-image openings use typography without an empty image region. The AI selection
+gate preserves manual locks and source eligibility; failed proposals do not apply.
+
+Evidence: test-editorial-premium-hero.mjs renders all compositions in a real browser,
+with a matched pre-change working-tree baseline, six fixture cases and an optional
+cached read-only Owner snapshot. Real Cloudinary image reads are separate from
+synthetic fixtures; no upload, deletion, datasource write or real model request.
+
+### Editorial AI rate-limit feedback (2026-10-15)
+
+EditorialEditor keeps its existing controls and feedback region. A refused AI
+action preserves local work, distinguishes application admission from provider
+limits, and uses only a valid server Retry-After to disable both AI buttons with
+a countdown. Editing and Save remain available. Expiration enables explicit
+retry without dispatching a request. Missing/invalid timing never creates a
+fictional wait. Reuse af-helper/status typography and existing disabled styles;
+there is no new palette, overlay or navigation owner. Owner removed application
+request quotas in Development and Production. Only active work is bounded: one
+action per Admin and four actions per server process; completion/failure releases
+the slot immediately. Duplicate/busy responses use 409/503 without a guessed wait.
+Only provider 429 may carry a provider Retry-After cooldown and safe error code.

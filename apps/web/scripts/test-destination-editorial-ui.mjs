@@ -24,7 +24,7 @@ const journal = new Map();
 const writes = [];
 const aiRequests = [];
 function initial() { const context = editorialFixture(); return {available:true,reason:null,context,draft:null,published:null,previousPublished:null,draftRevision:0,publishedRevision:0,updatedAt:null,publishedAt:null,contentChanged:false,aiConfigured:false}; }
-const bundle = await build({absWorkingDir:web,stdin:{contents:`import React from 'react';import {createRoot} from 'react-dom/client';import EditorialEditor from './src/app/admin/destinations/editorial-editor';import EditorialRenderer from './src/components/editorial/editorial-renderer';import DestinationDetail from './src/app/destinations/[id]/destination-detail';import './src/app/destinations/[id]/detail.css';import './src/components/published-content-profile.css';import {Toaster} from 'sonner';window.mount=(data)=>{window.root?.unmount();window.root=createRoot(document.getElementById('app'));window.root.render(data?<EditorialRenderer {...data}/>:<><EditorialEditor id="fixture"/><Toaster/></>)};window.mountPublic=(data)=>{window.root?.unmount();window.root=createRoot(document.getElementById('app'));window.root.render(<DestinationDetail {...data}/>)};window.mount();`,resolveDir:web,loader:"tsx"},plugins:[{name:"offline-next",setup(b){
+const bundle = await build({absWorkingDir:web,stdin:{contents:`import {resolveEditorial as projectEditorial} from './src/modules/destination-editorial/editorial-engine';window.projectEditorial=projectEditorial;import React from 'react';import {createRoot} from 'react-dom/client';import EditorialEditor from './src/app/admin/destinations/editorial-editor';import EditorialRenderer from './src/components/editorial/editorial-renderer';import DestinationDetail from './src/app/destinations/[id]/destination-detail';import './src/app/destinations/[id]/detail.css';import './src/components/published-content-profile.css';import {Toaster} from 'sonner';window.mount=(data)=>{window.root?.unmount();window.root=createRoot(document.getElementById('app'));window.root.render(data?<EditorialRenderer {...data}/>:<><EditorialEditor id="fixture"/><Toaster/></>)};window.mountPublic=(data)=>{window.root?.unmount();window.root=createRoot(document.getElementById('app'));window.root.render(<DestinationDetail {...data}/>)};window.mount();`,resolveDir:web,loader:"tsx"},plugins:[{name:"offline-next",setup(b){
   b.onResolve({filter:/lib\/auth-client$/},args=>({path:args.path,namespace:"guest"}));
   b.onLoad({filter:/.*/,namespace:"guest"},()=>({loader:"js",contents:"export const authClient={useSession:()=>({data:null,isPending:false,error:null})}"}));
   b.onResolve({filter:/^next\/link$/},args=>({path:args.path,namespace:"mock"}));
@@ -41,6 +41,16 @@ const server=createServer(async(req,res)=>{
   const url=new URL(req.url,"http://localhost");const send=(body,status=200)=>{res.writeHead(status,{"Content-Type":"application/json"});res.end(JSON.stringify(body));};
   if(url.pathname==="/api/admin/destinations/fixture/editorial" && req.method==="GET") return send({success:true,data:state});
   if(url.pathname.endsWith("/propose")) {
+    if(aiMode.startsWith('busy-')) {
+      let raw='';for await(const part of req)raw+=part.toString();aiRequests.push(JSON.parse(raw));
+      return send({success:false,error:{code:aiMode==='busy-admin'?'EDITORIAL_AI_IN_PROGRESS':'EDITORIAL_AI_BUSY',message:'Fixture active action; retry after completion.'}},aiMode==='busy-admin'?409:503);
+    }
+    if(aiMode.startsWith('rate-')) {
+      let raw='';for await(const part of req)raw+=part.toString();aiRequests.push(JSON.parse(raw));
+      const retry=aiMode==='rate-provider'?'2':aiMode==='rate-invalid'?'nonsense':null;
+      res.writeHead(429,{'Content-Type':'application/json',...(retry?{'Retry-After':retry}:{})});
+      return res.end(JSON.stringify({success:false,error:{code:'EDITORIAL_AI_PROVIDER_RATE_LIMIT'}}));
+    }
     if(aiMode.startsWith("atomic-")) {
       let raw="";for await(const part of req)raw+=part.toString();const input=JSON.parse(raw);aiRequests.push(input);
       const mode=aiMode.slice(7),next=structuredClone(input.layout);
@@ -70,7 +80,7 @@ const server=createServer(async(req,res)=>{
   }
   if(url.pathname.startsWith("/photo")){if(photoFailure){res.writeHead(500);return res.end();}res.writeHead(200,{"Content-Type":"image/jpeg"});return res.end(media[Number(url.pathname.split("/").at(-1))%8]);}
   if(/^\/font\/[\w.-]+\.woff2$/.test(url.pathname)){res.writeHead(200,{"Content-Type":"font/woff2"});return res.end(await readFile(`${web}/.next/static/media/${url.pathname.split("/").at(-1)}`));}
-  res.setHeader("Content-Type",url.pathname==="/bundle.js"?"application/javascript":"text/html");res.end(url.pathname==="/bundle.js"?bundle.outputFiles.find(f=>f.path.endsWith(".js")).text:`<!DOCTYPE html><html lang="vi"><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>${fontCss}:root{--font-editorial-serif:'Lora';--font-geist-sans:'Geist';--font-be-vietnam:'Be Vietnam Pro'}html,body{margin:0;font-family:var(--font-be-vietnam),system-ui}*{box-sizing:border-box}dialog{margin:0}button,input,textarea,select{font:inherit}${bundle.outputFiles.filter(f=>f.path.endsWith(".css")).map(f=>f.text).join("\n")}</style></head><body><div id="app"></div><script src="/bundle.js"></script></body></html>`);
+  res.setHeader("Content-Type",url.pathname==="/bundle.js"?"application/javascript":"text/html");res.end(url.pathname==="/bundle.js"?bundle.outputFiles.find(f=>f.path.endsWith(".js")).text:`<!DOCTYPE html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>${fontCss}:root{--font-editorial-serif:'Lora';--font-geist-sans:'Geist';--font-be-vietnam:'Be Vietnam Pro'}html,body{margin:0;font-family:var(--font-be-vietnam),system-ui}*{box-sizing:border-box}dialog{margin:0}button,input,textarea,select{font:inherit}${bundle.outputFiles.filter(f=>f.path.endsWith(".css")).map(f=>f.text).join("\n")}</style></head><body><div id="app"></div><script src="/bundle.js"></script></body></html>`);
 });
 await new Promise(r=>server.listen(0,"127.0.0.1",r));let browser;const checks=[];const pass=name=>{checks.push(name);console.log("PASS "+name);};
 try{
@@ -82,6 +92,21 @@ try{
   assert(state.draft);assert.equal(state.published,null);pass("Auto layout / save draft; draft remains separate from published");
   await page.reload();await page.locator(".ed-page").waitFor();assert.equal(await page.locator(".ed-block-list li").count(),state.draft.blocks.length);pass("Saved layout survives refresh");
   await page.setViewportSize({width:1440,height:1000});
+  await page.getByLabel('Bố cục mở đầu',{exact:true}).selectOption('EDITORIAL');
+  assert(await page.getByLabel('Giữ bố cục mở đầu khi dùng AI',{exact:true}).isChecked());
+  await page.locator('#editorial-focalX').focus();await page.keyboard.press('ArrowRight');
+  assert(await page.getByLabel('Giữ ảnh và điểm lấy nét khi dùng AI',{exact:true}).isChecked());
+  await page.getByRole('button',{name:'Lưu bản nháp',exact:true}).click();await page.getByText('Đã lưu bản nháp.',{exact:true}).first().waitFor();
+  await page.reload();await page.locator('.ed-page').waitFor();
+  assert.equal(await page.getByLabel('Bố cục mở đầu',{exact:true}).inputValue(),'EDITORIAL');
+  assert.equal(await page.locator('#editorial-focalX').inputValue(),'51');
+  assert.equal(state.draft.hero.composition,'EDITORIAL');assert(state.draft.hero.focalLocked);
+  await page.getByLabel('Bố cục mở đầu',{exact:true}).focus();await page.keyboard.press('ArrowUp');await page.keyboard.press('Enter');
+  await page.getByLabel('Bố cục mở đầu',{exact:true}).selectOption(state.draft.variant);
+  await page.getByLabel('Giữ bố cục mở đầu khi dùng AI',{exact:true}).uncheck();
+  await page.getByLabel('Giữ ảnh và điểm lấy nét khi dùng AI',{exact:true}).uncheck();
+  await page.getByRole('button',{name:'Lưu bản nháp',exact:true}).click();await page.getByText('Đã lưu bản nháp.',{exact:true}).first().waitFor();
+  pass('Hero composition native picker/keyboard, manual focal locks, Save/refresh and explicit unlock');
   const beforeConfirmation=writes.length;
   await page.getByRole('navigation',{name:'Quy trình xuất bản',exact:true}).getByRole('button',{name:/Kiểm duyệt/}).click();await page.getByRole('dialog').waitFor();assert.equal(writes.length,beforeConfirmation);await page.getByRole('dialog').getByRole('button',{name:'Hủy',exact:true}).click();assert.equal(state.published,null);
   assert.equal(await page.locator('.ed-quality,.ed-publication,.ed-badge-family,.ed-published-checkbox').count(),0);assert.equal(await page.locator('.ed-actions .ed-action-flow').count(),0);
@@ -103,7 +128,33 @@ try{
   await page.getByRole("button",{name:"Xuất bản bố cục",exact:true}).click();await page.getByRole("dialog").getByRole("button",{name:"Xác nhận",exact:true}).click();await page.getByText(/Đã xuất bản bố cục/).first().waitFor();assert.equal(state.publishedRevision,1);assert.equal(JSON.parse(writes.at(-1).raw).reviewed,true);const originalVariant=state.published.variant;pass("Reorder saved; explicit review then publish");
   await page.getByLabel("Biến thể",{exact:true}).selectOption("SPLIT");await page.getByRole("button",{name:"Lưu bản nháp",exact:true}).click();await page.getByText("Đã lưu bản nháp.",{exact:true}).first().waitFor();await page.getByRole("button",{name:"Xuất bản bố cục",exact:true}).click();await page.getByRole("dialog").getByRole("button",{name:"Xác nhận",exact:true}).click();await page.getByText(/Đã xuất bản bố cục/).first().waitFor();
   await page.getByRole("button",{name:"Thao tác khác",exact:true}).click();await page.getByRole("menuitem",{name:/^Khôi phục bản xuất bản trước/}).click();await page.getByRole("dialog").getByRole("button",{name:"Xác nhận",exact:true}).click();await page.getByText("Đã khôi phục phiên bản.",{exact:true}).first().waitFor();assert.equal(state.published.variant,originalVariant);pass("Published previous-version rollback works independently from draft");
-  await page.getByRole("button",{name:"AI đề xuất bố cục",exact:true}).click();await page.getByText(AI_LAYOUT_PRESERVED,{exact:true}).waitFor();aiMode="invalid";await page.getByRole("button",{name:"AI đề xuất bố cục",exact:true}).click();await page.getByText(AI_LAYOUT_PRESERVED,{exact:true}).waitFor();pass("AI missing/invalid response keeps manual and deterministic editing available");
+  const oldTypography=await page.getByLabel('Kiểu chữ',{exact:true}).inputValue();
+  await page.getByLabel('Kiểu chữ',{exact:true}).selectOption(oldTypography==='MODERN'?'HUMANIST':'MODERN');
+  const rateMarkup=await page.locator('.emg').evaluate(n=>n.outerHTML),rateDraft=JSON.stringify(state.draft),rateWrites=writes.length;
+  for(const mode of ['busy-admin','busy-process']){
+    aiMode=mode;await page.getByRole('button',{name:'AI đề xuất bố cục',exact:true}).click();
+    await page.getByText('Fixture active action; retry after completion.',{exact:true}).waitFor();
+    await page.waitForFunction(()=>!document.querySelector('.ed-toolbar[aria-busy="true"]'));
+    assert.equal(await page.locator('.emg').evaluate(n=>n.outerHTML),rateMarkup);assert.equal(JSON.stringify(state.draft),rateDraft);assert.equal(writes.length,rateWrites);
+    assert(await page.getByRole('button',{name:'AI đề xuất bố cục',exact:true}).isEnabled());assert.equal(await page.locator('#editorial-ai-cooldown').count(),0);
+  }
+  pass('In-flight 409/503 preserves unsaved layout/draft, shows concurrency feedback and never invents a time cooldown');
+  for(const mode of ['rate-provider','rate-invalid','rate-missing']){
+    aiMode=mode;await page.getByRole('button',{name:'AI đề xuất bố cục',exact:true}).click();
+    await page.getByText('OpenAI đang giới hạn yêu cầu AI. Vui lòng đợi trước khi thử lại.',{exact:true}).waitFor();
+    await page.waitForFunction(()=>!document.querySelector('.ed-toolbar[aria-busy="true"]'));
+    assert.equal(await page.locator('.emg').evaluate(n=>n.outerHTML),rateMarkup);assert.equal(JSON.stringify(state.draft),rateDraft);assert.equal(writes.length,rateWrites);
+    if(mode==='rate-provider'){
+      assert(await page.getByRole('button',{name:'AI đề xuất bố cục',exact:true}).isDisabled());assert(await page.getByRole('button',{name:'Sinh phương án khác',exact:true}).isDisabled());
+      assert(await page.getByRole('button',{name:'Tự động dàn trang',exact:true}).isEnabled());
+      const requests=aiRequests.length;await page.screenshot({path:directory+'/ai-429-cooldown.png',fullPage:true});
+      await page.waitForFunction(()=>!document.querySelector('.ed-ai-button').disabled);assert.equal(aiRequests.length,requests,'Cooldown must not auto-retry');
+      assert.equal(await page.locator('#editorial-ai-cooldown').count(),0);
+    }else{assert(await page.getByRole('button',{name:'AI đề xuất bố cục',exact:true}).isEnabled());assert.equal(await page.locator('#editorial-ai-cooldown').count(),0);}
+  }
+  await page.getByLabel('Kiểu chữ',{exact:true}).selectOption(oldTypography);aiMode='fallback';
+  pass('Provider 429 labels, authoritative cooldown, both AI buttons blocked/recovered, absent/invalid header never guessed, no auto-retry or draft/layout/write changes');
+  await page.getByRole("button",{name:"AI đề xuất bố cục",exact:true}).click();await page.getByText("AI chưa cấu hình; dùng đề xuất deterministic.",{exact:true}).waitFor();aiMode="invalid";await page.getByRole("button",{name:"AI đề xuất bố cục",exact:true}).click();await page.getByText(AI_LAYOUT_PRESERVED,{exact:true}).waitFor();pass("AI missing/invalid response keeps manual and deterministic editing available");
   await page.getByLabel("Biến thể",{exact:true}).selectOption("EDITORIAL");lost=true;await page.getByRole("button",{name:"Lưu bản nháp",exact:true}).click();await page.getByRole("button",{name:"Đọc lại và thử lại",exact:true}).waitFor();const uncertain=writes.at(-1);await page.getByRole("button",{name:"Đọc lại và thử lại",exact:true}).click();await page.getByText("Đã lưu bản nháp.",{exact:true}).first().waitFor();assert.deepEqual(writes.at(-1),uncertain);pass("UNKNOWN locks editor; identical body/key retry reconciles confirmed draft");
   for(const width of [360,390,768,1024,1440])for(const theme of ["light","dark"]){await page.setViewportSize({width,height:1000});await page.evaluate(t=>document.documentElement.classList.toggle("dark",t==="dark"),theme);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth));await page.screenshot({ animations: "disabled",path:`${directory}/editor-${width}-${theme}.png`,fullPage:true});}
   await page.getByRole("button",{name:"Tự động dàn trang",exact:true}).focus();assert(await page.getByRole("button",{name:"Tự động dàn trang",exact:true}).evaluate(el=>el===document.activeElement));pass("Editor five viewport widths, light/dark, keyboard focus and no overflow");
@@ -134,7 +185,7 @@ try{
   const atomicBefore=await page.locator('.emg').evaluate(n=>n.outerHTML),atomicControls=await page.locator('.ed-direction-fields select').evaluateAll(nodes=>nodes.map(n=>n.value)),atomicBlocks=await page.locator('.ed-block-list > li').count(),atomicWrites=writes.length;
   let firstAttempt;
   for(const mode of ["fallback","schema","duplicate","media","prose","http401","http403","http429","http500"]) {
-    aiMode=`atomic-${mode}`;await page.getByRole('button',{name:'AI đề xuất bố cục',exact:true}).click();await page.getByText(AI_LAYOUT_PRESERVED,{exact:true}).waitFor();await page.waitForFunction(()=>!document.querySelector('.ed-toolbar[aria-busy="true"]'));
+    aiMode=`atomic-${mode}`;await page.getByRole('button',{name:'AI đề xuất bố cục',exact:true}).click();await page.getByText(mode==='http429'?'Bạn đang yêu cầu AI quá nhanh. Vui lòng đợi trước khi thử lại.':AI_LAYOUT_PRESERVED,{exact:true}).waitFor();await page.waitForFunction(()=>!document.querySelector('.ed-toolbar[aria-busy="true"]'));
     firstAttempt??=structuredClone(aiRequests.at(-1).layout);assert.deepEqual(aiRequests.at(-1).layout,firstAttempt);
     assert.equal(await page.locator('.emg').evaluate(n=>n.outerHTML),atomicBefore);assert.deepEqual(await page.locator('.ed-direction-fields select').evaluateAll(nodes=>nodes.map(n=>n.value)),atomicControls);assert.equal(await page.locator('.ed-block-list > li').count(),atomicBlocks);assert.equal(writes.length,atomicWrites);
   }
@@ -221,6 +272,9 @@ try{
   for(const [slug,context,layout] of visualCases){
     const canonicalBefore=JSON.stringify({context,layout});state={...initial(),context,draft:layout,draftRevision:1};await page.evaluate(()=>window.mount());await page.locator('.ed-preview .emg').waitFor();
     const adminMarkup=await page.locator('.ed-preview .emg').evaluate(n=>n.outerHTML),shared=resolveEditorial(layout,context);
+    const browserShared=await page.evaluate(v=>window.projectEditorial(v.layout,v.context),{layout,context});
+    if(JSON.stringify(browserShared)!==JSON.stringify(shared))await writeFile(web+'/.cache/premium-hero/parity-diagnostic-'+slug+'.json',JSON.stringify({browser:browserShared,node:shared},null,2));
+    assert.deepEqual(browserShared,JSON.parse(JSON.stringify(shared)),'Same canonical projection in browser and server: '+slug);
     if(slug==='sparse'){assert(await page.getByRole('button',{name:/Tự ẩn/}).count()>0);await page.getByRole('button',{name:'Thông tin nổi bật · Tự ẩn',exact:true}).click();await page.getByText(/Tự ẩn · Chưa có nội dung hoặc tham chiếu đủ điều kiện/).waitFor();assert.equal(await page.getByLabel('Hiển thị block',{exact:true}).isChecked(),true)}
     for(const width of [390,768,1440])for(const theme of ['light','dark']){
       await page.setViewportSize({width,height:1000});await page.evaluate(t=>document.documentElement.classList.toggle('dark',t==='dark'),theme);await page.getByRole('button',{name:'Mobile',exact:true}).click();assert.equal(await page.locator('.ed-preview .emg').evaluate(n=>n.outerHTML),adminMarkup);await page.getByRole('button',{name:'Desktop',exact:true}).click();
