@@ -39,6 +39,23 @@ function state(overrides: Partial<FavoriteMutationUiState> = {}): FavoriteMutati
 }
 
 describe("US15 FavoriteButton client mutation logic", () => {
+  it("US-34 retains confirmed Trip state for FAILED/UNKNOWN and retries the identical Trip request", () => {
+    const attempt = createFavoriteMutationAttempt({ targetType: "trips", targetId: "owned-trip", currentIsFavorite: false, idempotencyKey: "trip-key" });
+    expect(attempt).toMatchObject({ url: "/api/favorites/trips/owned-trip", method: "PUT", nextIsFavorite: true });
+    const pending = state({ attempt });
+    expect(canStartFavoriteMutation(true, true)).toBe(false);
+    const failed = reduceFavoriteMutationUiState(pending, { status: "FAILED", error: { code: "FAILED", message: "Retry" } });
+    expect(failed.confirmedIsFavorite).toBe(false);
+    const unknown = reduceFavoriteMutationUiState(pending, { status: "UNKNOWN", error: { code: "UNKNOWN", message: "Retry" }, retryWithSameKey: true });
+    expect(unknown.confirmedIsFavorite).toBe(false);
+    expect(unknown.attempt).toBe(attempt);
+    expect(favoriteMutationRequest(unknown.attempt!)).toEqual(favoriteMutationRequest(attempt));
+    const added = reduceFavoriteMutationUiState(unknown, { status: "SUCCESS", data: { targetType: "trips", targetId: "owned-trip", isFavorite: true, changed: true } });
+    expect(added.confirmedIsFavorite).toBe(true);
+    const remove = createFavoriteMutationAttempt({ targetType: "trips", targetId: "owned-trip", currentIsFavorite: true, idempotencyKey: "remove-key" });
+    expect(remove.method).toBe("DELETE");
+    expect(reduceFavoriteMutationUiState({ ...added, attempt: remove }, { status: "SUCCESS", data: { targetType: "trips", targetId: "owned-trip", isFavorite: false, changed: true } }).confirmedIsFavorite).toBe(false);
+  });
   it("updates confirmed state only after SUCCESS", () => {
     const initial = state();
     const failed: MutationOutcome<FavoriteResult> = {

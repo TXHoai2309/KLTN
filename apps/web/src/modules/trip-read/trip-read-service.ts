@@ -14,6 +14,7 @@ export type TripSummary = {
   durationDays: number;
   transport: "CAR" | "MOTORCYCLE";
   status: TripStatus;
+  isFavorite: boolean;
 };
 
 export type TripDetail = TripSummary & {
@@ -31,9 +32,12 @@ export type TripDetail = TripSummary & {
   }[];
 };
 
-const summarySelect = { id: true, startDate: true, durationDays: true, transport: true } satisfies Prisma.TripSelect;
-const detailSelect = {
-  ...summarySelect,
+const summarySelect = (userId: string) => ({
+  id: true, startDate: true, durationDays: true, transport: true,
+  favorites: { where: { userId }, select: { id: true } },
+} satisfies Prisma.TripSelect);
+const detailSelect = (userId: string) => ({
+  ...summarySelect(userId),
   days: {
     orderBy: [{ dayIndex: "asc" as const }, { id: "asc" as const }],
     select: {
@@ -47,11 +51,11 @@ const detailSelect = {
       },
     },
   },
-} satisfies Prisma.TripSelect;
+} satisfies Prisma.TripSelect);
 
-function summary(row: Prisma.TripGetPayload<{ select: typeof summarySelect }>, referenceDate: string): TripSummary {
+function summary(row: Prisma.TripGetPayload<{ select: ReturnType<typeof summarySelect> }>, referenceDate: string): TripSummary {
   const startDate = row.startDate.toISOString().slice(0, 10);
-  return { id: row.id, startDate, durationDays: row.durationDays, transport: row.transport, ...deriveTripStatus(startDate, row.durationDays, referenceDate) };
+  return { id: row.id, startDate, durationDays: row.durationDays, transport: row.transport, isFavorite: row.favorites.length > 0, ...deriveTripStatus(startDate, row.durationDays, referenceDate) };
 }
 
 export async function listMyTrips(headers: Headers, deps: TripReadDependencies, referenceDate: string): Promise<{ items: TripSummary[] }> {
@@ -59,14 +63,14 @@ export async function listMyTrips(headers: Headers, deps: TripReadDependencies, 
   const rows = await deps.database.trip.findMany({
     where: { userId: actor.userId },
     orderBy: [{ startDate: "asc" }, { id: "asc" }],
-    select: summarySelect,
+    select: summarySelect(actor.userId),
   });
   return { items: rows.map(row => summary(row, referenceDate)) };
 }
 
 export async function getMyTrip(headers: Headers, id: string, deps: TripReadDependencies, referenceDate: string): Promise<TripDetail> {
   const actor = await requireTraveler(headers, deps);
-  const row = await deps.database.trip.findFirst({ where: { id, userId: actor.userId }, select: detailSelect });
+  const row = await deps.database.trip.findFirst({ where: { id, userId: actor.userId }, select: detailSelect(actor.userId) });
   if (!row) throw new AppError("TRIP_NOT_FOUND", "Không tìm thấy chuyến đi.", 404);
   return {
     ...summary(row, referenceDate),

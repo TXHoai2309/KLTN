@@ -29,6 +29,7 @@ const trip = (id: string, userId: string) => ({ id, userId, startDate: new Date(
 
 function fixture() {
   const rows = [trip("mine", "a"), trip("other", "b")];
+  let favoriteOwner = "a";
   let session: { user: { id: string; role: string } } | null = { user: { id: "a", role: "TRAVELER" } };
   let persistedRole = "TRAVELER";
   const calls: { list?: unknown; detail?: unknown } = {};
@@ -37,12 +38,12 @@ function fixture() {
     trip: {
       findMany: async (args: { where: { userId: string }; select: Record<string, unknown> }) => {
         calls.list = args;
-        return rows.filter(row => row.userId === args.where.userId);
+        return rows.filter(row => row.userId === args.where.userId).map(row => ({ ...row, favorites: favoriteOwner === args.where.userId ? [{ id: "favorite" }] : [] }));
       },
       findFirst: async (args: { where: { id: string; userId: string } }) => {
         calls.detail = args;
         const row = rows.find(item => item.id === args.where.id && item.userId === args.where.userId);
-        return row && { ...row, days: [
+        return row && { ...row, favorites: favoriteOwner === args.where.userId ? [{ id: "favorite" }] : [], days: [
           { id: "day-2", dayIndex: 2, localDate: new Date("2026-10-11T00:00:00.000Z"), visits: [
             { id: "visit-2", order: 2, startMinute: 600, plannedDurationMinutes: 60, destination: { id: "d2", name: "B", area: "Đồng Văn", visibility: "VISIBLE" } },
             { id: "visit-1", order: 1, startMinute: 480, plannedDurationMinutes: 90, destination: { id: "d1", name: "A", area: "Mèo Vạc", visibility: "HIDDEN" } },
@@ -53,10 +54,21 @@ function fixture() {
     },
   };
   const dependencies: TripReadDependencies = { database: database as unknown as Database, resolveSession: async () => session };
-  return { dependencies, calls, setSession: (value: typeof session) => { session = value; }, setRole: (value: string) => { persistedRole = value; } };
+  return { dependencies, calls, setFavoriteOwner: (owner: string) => { favoriteOwner = owner; }, setSession: (value: typeof session) => { session = value; }, setRole: (value: string) => { persistedRole = value; } };
 }
 
 describe("US-31 owned Trip reads", () => {
+  it("US-34 includes only the actor's Favorite state in list and detail without per-trip reads", async () => {
+    const test = fixture();
+    expect((await listMyTrips(headers, test.dependencies, "2026-10-10")).items[0]).toHaveProperty("isFavorite", true);
+    expect(await getMyTrip(headers, "mine", test.dependencies, "2026-10-10")).toHaveProperty("isFavorite", true);
+    for (const query of [test.calls.list, test.calls.detail]) {
+      expect(query).toMatchObject({ select: { favorites: { where: { userId: "a" }, select: { id: true } } } });
+    }
+    test.setFavoriteOwner("b");
+    expect((await listMyTrips(headers, test.dependencies, "2026-10-10")).items[0]).toHaveProperty("isFavorite", false);
+    expect(await getMyTrip(headers, "mine", test.dependencies, "2026-10-10")).toHaveProperty("isFavorite", false);
+  });
   it("lists only current Traveler trips and omits visits", async () => {
     const test = fixture();
     const result = await listMyTrips(headers, test.dependencies, "2026-10-09");

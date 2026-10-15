@@ -13,6 +13,7 @@ model Trip {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   days         ItineraryDay[]
+  favorites    Favorite[]
 
   @@index([userId, createdAt])
   @@map("trip")

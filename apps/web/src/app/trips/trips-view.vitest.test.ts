@@ -1,6 +1,8 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh() {} }) }));
 
 import type { TripDetail, TripSummary } from "@/modules/trip-read/trip-read-service";
 import { MyTripsView, TripDetailView } from "./trips-view";
@@ -8,7 +10,7 @@ import MyTripsLoading from "./loading";
 import MyTripsError from "./error";
 
 const sample = (id: string, status: TripSummary["status"]): TripSummary => ({
-  id, status, startDate: "2026-10-10", endDate: "2026-10-11", durationDays: 2, transport: "CAR",
+  id, status, startDate: "2026-10-10", endDate: "2026-10-11", durationDays: 2, transport: "CAR", isFavorite: false,
 });
 
 describe("US-31 Trip views", () => {

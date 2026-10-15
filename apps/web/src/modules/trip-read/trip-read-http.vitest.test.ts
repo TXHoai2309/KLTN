@@ -16,7 +16,7 @@ function fixture(owner = "a", withDetail = false) {
         findMany: async (args: { where: unknown }) => { where.push(args.where); return []; },
         findFirst: async (args: { where: unknown }) => {
           where.push(args.where);
-          return withDetail ? { id: "own", startDate: new Date("2026-10-10T00:00:00.000Z"), durationDays: 1, transport: "CAR", days: [] } : null;
+          return withDetail ? { id: "own", startDate: new Date("2026-10-10T00:00:00.000Z"), durationDays: 1, transport: "CAR", favorites: [], days: [] } : null;
         },
       },
     } as unknown as Database,

@@ -5,6 +5,7 @@ import { Card } from "@KLTN/ui/components/card";
 import { Empty } from "@KLTN/ui/components/empty";
 import type { TripDetail, TripSummary } from "@/modules/trip-read/trip-read-service";
 import type { TripStatus } from "@/modules/trip-read/trip-status";
+import TripFavoriteButton from "./trip-favorite-button";
 
 const groups: { status: TripStatus; label: string }[] = [
   { status: "UPCOMING", label: "Sắp tới" },
@@ -32,11 +33,14 @@ export function MyTripsView({ items }: { items: TripSummary[] }) {
         <div className="my-trips-group-heading"><h2 id={`trips-${group.status}`}>{group.label}</h2><span>{trips.length}</span></div>
         {trips.length === 0 ? <p className="my-trips-group-empty">Chưa có chuyến đi trong nhóm này.</p> : <ul className="my-trips-grid">
           {trips.map(trip => <li key={trip.id}><Card className="my-trips-card">
-            <span className={`my-trips-badge my-trips-badge-${trip.status.toLowerCase()}`}>{group.label}</span>
+            <div className="my-trips-card-actions">
+              <span className={`my-trips-badge my-trips-badge-${trip.status.toLowerCase()}`}>{group.label}</span>
+              <TripFavoriteButton tripId={trip.id} isFavorite={trip.isFavorite} />
+            </div>
             <h3>Chuyến đi {trip.durationDays} ngày</h3>
             <p>{dateLabel(trip.startDate)} – {dateLabel(trip.endDate)}</p>
             <p>{transportLabel(trip.transport)}</p>
-            <Link className="my-trips-open" href={`/trips/${trip.id}` as Route} aria-label={`Mở chuyến đi từ ${dateLabel(trip.startDate)}`}>Xem hành trình <span aria-hidden="true">→</span></Link>
+            <Link className="my-trips-open" prefetch={false} href={`/trips/${trip.id}` as Route} aria-label={`Mở chuyến đi từ ${dateLabel(trip.startDate)}`}>Xem hành trình <span aria-hidden="true">→</span></Link>
           </Card></li>)}
         </ul>}
       </section>;
@@ -47,10 +51,13 @@ export function MyTripsView({ items }: { items: TripSummary[] }) {
 export function TripDetailView({ trip }: { trip: TripDetail }) {
   const statusLabel = groups.find(group => group.status === trip.status)!.label;
   return <main className="my-trips-page my-trips-detail" lang="vi">
-    <Link className="my-trips-back" href={"/trips" as Route}>← Chuyến đi của tôi</Link>
+    <Link className="my-trips-back" prefetch={false} href={"/trips" as Route}>← Chuyến đi của tôi</Link>
     <div className="my-trips-heading">
       <div><p className="my-trips-eyebrow">Hành trình đã lưu</p><h1>Chuyến đi {trip.durationDays} ngày</h1><p>{dateLabel(trip.startDate)} – {dateLabel(trip.endDate)} · {transportLabel(trip.transport)}</p></div>
-      <span className={`my-trips-badge my-trips-badge-${trip.status.toLowerCase()}`}>{statusLabel}</span>
+      <div className="my-trips-detail-actions">
+        <span className={`my-trips-badge my-trips-badge-${trip.status.toLowerCase()}`}>{statusLabel}</span>
+        <TripFavoriteButton tripId={trip.id} isFavorite={trip.isFavorite} />
+      </div>
     </div>
     <p className="my-trips-status-note">Trạng thái chuyến đi được tính theo ngày lịch, không xác nhận các điểm dừng đã được tham quan.</p>
     <div className="my-trips-days">{trip.days.map(day => <section key={day.id} className="my-trips-day" aria-labelledby={`trip-day-${day.dayIndex}`}>

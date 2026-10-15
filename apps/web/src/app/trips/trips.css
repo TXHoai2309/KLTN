@@ -44,6 +44,12 @@
 .my-trips-card { height: 100%; min-width: 0; gap: 9px; padding: 20px; border: 1px solid var(--trip-read-border); border-radius: 14px; background: var(--trip-read-card); color: var(--trip-read-ink); box-shadow: none; --tw-ring-shadow: 0 0 #0000; }
 .my-trips-card h3 { margin: 8px 0 0; font-size: 18px; font-weight: 700; }
 .my-trips-card p { margin: 0; color: var(--trip-read-muted); font-size: 13px; line-height: 1.5; }
+.my-trips-card-actions, .my-trips-detail-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-width: 0; }
+.my-trips-card-actions { justify-content: space-between; }
+.my-trips-page .favorite-button-stack { display: grid; min-width: 0; max-width: 100%; gap: 8px; }
+.my-trips-page .favorite-button { border-color: var(--trip-read-border); background: var(--trip-read-card); color: var(--trip-read-green); }
+.my-trips-page [data-favorite-state="active"] .favorite-button { background: var(--trip-read-soft); border-color: var(--trip-read-green); }
+.my-trips-page .favorite-button-message { color: var(--trip-read-muted); font-size: 12px; line-height: 1.5; }
 .my-trips-card .my-trips-open { align-self: flex-start; margin-top: auto; background: transparent; color: var(--trip-read-green) !important; }
 .my-trips-badge { display: inline-flex; width: fit-content; max-width: 100%; min-height: 27px; align-items: center; padding: 4px 9px; border-radius: 999px; background: var(--trip-read-soft); color: var(--trip-read-green); font-size: 11px; font-weight: 700; }
 .my-trips-badge-completed { background: color-mix(in srgb, var(--trip-read-muted) 15%, var(--trip-read-card)); color: var(--trip-read-muted); }
