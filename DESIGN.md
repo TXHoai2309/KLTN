@@ -167,3 +167,27 @@ The existing Admin premium manifest remains the native Select/Date ownership
 record. Browser evidence is 17 isolated groups with synthetic provider/persistence,
 360px and desktop light/dark screenshots; no live Cloudinary or authenticated
 Neon write claim. PostgreSQL concurrency evidence is separate and disposable.
+
+## Destination V3.3 editorial (2026-10-14)
+
+Destination .dv3-page owns the approved full-width #EDF5EF exterior, white cards,
+#287651 primary, #DCE7DF border and #162B20 ink. Dark overrides are scoped there;
+Header/Explore/Culture tokens remain unchanged. Save actions stay in normal flow
+with a header shortcut, avoiding covered fields. Editor actions are sticky on
+desktop and normal flow on mobile. Cards use the existing af controls/feedback.
+
+EditorialEditor owns draft/undo/UNKNOWN state and native OS template/gallery/crop
+selects; the existing useUnsavedChanges guard and Sonner remain canonical. The
+service owns revisions/review/publication. Missing migration disables persistence
+only. Read-again requires explicit discard of unsaved changes. EditorialRenderer
+is the shared preview/public owner. Nature uses broad mosaic/landscape rhythm,
+Heritage serif/reading measure, Village paired captions and Journey staggered
+gallery/maps/facts. Each has panorama, split and centered editorial hero variants.
+Magazine tokens are local emg variables; no new global font/theme owner.
+
+Only strict JSON/text is stored. Current rights/provenance are filtered at render.
+Pictures reserve ratios, use bounded Cloudinary transformations, eager hero/lazy
+secondary loading and fallback. No-photo typography has no empty photo slots.
+13editorial browser groups and17V3.2 groups exercise five viewport widths/light-dark
+with synthetic media/map. The previously loaded premium audit script disappeared
+after plugin changes; its invocation failed file-not-found, not a static PASS.

@@ -262,6 +262,15 @@ try {
   await page.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => r.abort());
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   await page.getByRole("heading", { name: "Tạo điểm đến mới" }).waitFor();
+  await mkdir(web + "/.cache/destination-v3", { recursive: true });
+  for (const width of [360,390,768,1024,1440]) for (const theme of ["light","dark"]) {
+    await page.setViewportSize({width,height:900}); await page.evaluate(t=>document.documentElement.classList.toggle("dark",t==="dark"),theme);
+    const visual = await page.locator(".dv3-page").evaluate(el=>({width:el.getBoundingClientRect().width,bg:getComputedStyle(el).backgroundColor,card:getComputedStyle(el.querySelector(".af-section")).backgroundColor}));
+    assert.equal(visual.width,width);assert.equal(visual.bg,theme==="light"?"rgb(237, 245, 239)":"rgb(16, 33, 25)");assert.equal(visual.card,theme==="light"?"rgb(255, 255, 255)":"rgb(24, 46, 34)");
+    assert.equal(await page.locator(".af-actions").evaluate(el=>getComputedStyle(el).position),"static");
+    await page.screenshot({ animations: "disabled",path:web+`/.cache/destination-v3/create-${width}-${theme}.png`,fullPage:true});
+  }
+  await page.evaluate(()=>document.documentElement.classList.remove("dark"));
   for (const width of [360, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     assert.equal(
@@ -428,17 +437,14 @@ try {
   await page.keyboard.press("Space");
   await page.keyboard.press("Escape");
   await mkdir(web + "/.cache/destination-v3", { recursive: true });
-  for (const [width, theme] of [
-    [1440, "light"],
-    [390, "light"],
-    [390, "dark"],
-  ]) {
+  for (const width of [360,390,768,1024,1440]) for (const theme of ["light","dark"]) {
     await page.setViewportSize({ width, height: 900 });
     await page.evaluate(
       (t) => document.documentElement.classList.toggle("dark", t === "dark"),
       theme,
     );
-    await page.screenshot({
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth));
+    await page.screenshot({ animations: "disabled",
       path: web + `/.cache/destination-v3/edit-${width}-${theme}.png`,
       fullPage: true,
     });
@@ -512,7 +518,7 @@ try {
     await page.setViewportSize({ width, height: 900 });
     await page.evaluate(t => document.documentElement.classList.toggle("dark", t === "dark"), theme);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true);
-    await page.screenshot({ path: web + `/.cache/destination-v3/images-${width}-${theme}.png`, fullPage: true });
+    await page.screenshot({ animations: "disabled", path: web + `/.cache/destination-v3/images-${width}-${theme}.png`, fullPage: true });
   }
   await page.getByRole("button", { name: "Tải ảnh lên", exact: true }).focus();
   assert.equal(await page.getByRole("button", { name: "Tải ảnh lên", exact: true }).evaluate(el => el === document.activeElement), true);

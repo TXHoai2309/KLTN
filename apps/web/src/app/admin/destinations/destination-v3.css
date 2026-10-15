@@ -1,10 +1,18 @@
 /* Destination V3: natural document scrolling; reuse the shared Admin form tokens. */
 .dv3-page {
-  max-width: 1060px;
+  --af-bg: #edf5ef;
+  --af-surface: #ffffff;
+  --af-green: #287651;
+  --af-line: #dce7df;
+  --af-ink: #162b20;
+  max-width: none;
+  width: 100%;
   margin: 0 auto;
   min-height: 100vh;
 }
 .dv3-main {
+  width: min(100%, 1100px);
+  margin-inline: auto;
   padding: 24px 32px 110px;
   min-width: 0;
 }
@@ -19,8 +27,12 @@
   resize: none;
 }
 .dv3-page .af-section {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  border-radius: 16px;
+  background: var(--af-surface);
 }
+.dv3-page .af-page-header { background: var(--af-bg); width: min(100%, 1100px); margin-inline: auto; border-bottom: 0; }
+.dark .dv3-page { --af-bg: #102119; --af-surface: #182e22; --af-green: #86d5aa; --af-line: #355341; --af-ink: #e8f3ec; }
 .dv3-disclosure {
   margin: 14px 0;
   padding: 14px 16px;
@@ -75,10 +87,17 @@
   padding-top: 20px;
   border-top: 1px solid var(--af-line);
 }
-.dv3-page .af-sticky-actions {
-  max-width: 1060px;
+.dv3-page .af-actions {
+  position: static;
+  bottom: 0;
+  left: auto;
+  right: auto;
+  width: 100%;
+  max-width: none;
+  margin-top: 24px;
   margin-inline: auto;
 }
+.dv3-page input, .dv3-page textarea, .dv3-page select { scroll-margin-block: 120px; }
 .dv3-page button {
   cursor: pointer;
 }
@@ -104,4 +123,4 @@
   align-items: center;
 }
 
-.dv3-page .af-sticky-actions .af-btn-primary { min-width: 180px; justify-content: center; }
+.dv3-page .af-actions .af-btn-primary { min-width: 180px; justify-content: center; }

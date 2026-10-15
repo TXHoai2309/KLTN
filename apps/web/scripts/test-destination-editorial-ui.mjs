@@ -1,0 +1,107 @@
+// Production editor/renderer, isolated transport and synthetic media only. No .env/provider/Neon.
+import { build } from "esbuild";
+import { createServer } from "node:http";
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
+import { mkdir, writeFile } from "node:fs/promises";
+import assert from "node:assert/strict";
+import sharp from "sharp";
+import { editorialFixture } from "../src/modules/destination-editorial/__fixtures__/editorial-fixture.ts";
+import { autoLayout, resolveEditorial, validateLayoutReferences } from "../src/modules/destination-editorial/editorial-engine.ts";
+import { editorialActionSchema, editorialLayoutSchema } from "../src/modules/destination-editorial/editorial-contract.ts";
+const require = createRequire(import.meta.url);
+const { chromium } = require(require.resolve("playwright", { paths: ["C:/Users/User/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules"] }));
+const web = fileURLToPath(new URL("..", import.meta.url));
+const directory = web + "/.cache/editorial-v3-3"; await mkdir(directory,{recursive:true});
+let state = initial(), lost = false, aiMode = "fallback", photoFailure = false;
+const journal = new Map();
+const writes = [];
+function initial() { const context = editorialFixture(); return {available:true,reason:null,context,draft:null,published:null,previousPublished:null,draftRevision:0,publishedRevision:0,updatedAt:null,publishedAt:null,contentChanged:false,aiConfigured:false}; }
+const bundle = await build({absWorkingDir:web,stdin:{contents:`import React from 'react';import {createRoot} from 'react-dom/client';import EditorialEditor from './src/app/admin/destinations/editorial-editor';import EditorialRenderer from './src/components/editorial/editorial-renderer';import DestinationDetail from './src/app/destinations/[id]/destination-detail';import './src/app/destinations/[id]/detail.css';import './src/components/published-content-profile.css';import {Toaster} from 'sonner';window.mount=(data)=>{window.root?.unmount();window.root=createRoot(document.getElementById('app'));window.root.render(data?<EditorialRenderer {...data}/>:<><EditorialEditor id="fixture"/><Toaster/></>)};window.mountPublic=(data)=>{window.root?.unmount();window.root=createRoot(document.getElementById('app'));window.root.render(<DestinationDetail {...data}/>)};window.mount();`,resolveDir:web,loader:"tsx"},plugins:[{name:"offline-next",setup(b){
+  b.onResolve({filter:/lib\/auth-client$/},args=>({path:args.path,namespace:"guest"}));
+  b.onLoad({filter:/.*/,namespace:"guest"},()=>({loader:"js",contents:"export const authClient={useSession:()=>({data:null,isPending:false,error:null})}"}));
+  b.onResolve({filter:/^next\/link$/},args=>({path:args.path,namespace:"mock"}));
+  b.onLoad({filter:/.*/,namespace:"mock"},()=>({loader:"js",resolveDir:web,contents:"import React from 'react';export default function Link(p){return React.createElement('a',p,p.children)}"}));
+  b.onResolve({filter:/components\/map\/destination-map$/},args=>({path:args.path,namespace:"map"}));
+  b.onLoad({filter:/.*/,namespace:"map"},()=>({loader:"js",resolveDir:web,contents:"import React from 'react';export default function Map(p){return React.createElement('div',{className:'destination-map',role:'img','aria-label':p.label,style:{height:300,background:'#b2cab6',display:'grid',placeItems:'center'}},'Bản đồ fixture · Không gọi provider')}"}));
+}}],bundle:true,write:false,outdir:".cache/editorial-bundle",jsx:"automatic",define:{"process.env.NODE_ENV":'"development"'}});
+const media = await Promise.all([0,1,2,3,4,5,6,7].map(async i=>{
+  // Synthetic landscape photograph-like color composition, generated with Sharp; no remote image.
+  const svg=`<svg width="1600" height="1000" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#${["91b7c0","b9cdb4","c9b48e","95b4ae"][i%4]}"/><stop offset="1" stop-color="#e9eed8"/></linearGradient></defs><rect width="1600" height="1000" fill="url(#sky)"/><path d="M0 650 L350 250 L700 640 L1050 170 L1600 720 V1000 H0Z" fill="#5a8069"/><path d="M0 820 L460 500 L820 850 L1250 430 L1600 740 V1000 H0Z" fill="#284e3b"/><path d="M0 950 Q700 650 1600 910 V1000 H0Z" fill="#799365"/></svg>`;
+  return sharp(Buffer.from(svg)).jpeg().toBuffer();
+}));
+const server=createServer(async(req,res)=>{
+  const url=new URL(req.url,"http://localhost");const send=(body,status=200)=>{res.writeHead(status,{"Content-Type":"application/json"});res.end(JSON.stringify(body));};
+  if(url.pathname==="/api/admin/destinations/fixture/editorial" && req.method==="GET") return send({success:true,data:state});
+  if(url.pathname.endsWith("/propose")) return aiMode==="invalid" ? send({success:false,error:{message:"AI JSON không hợp lệ"}},502) : send({success:true,data:{status:"FALLBACK",reason:"AI chưa cấu hình; dùng đề xuất deterministic.",layout:autoLayout(state.context)}});
+  if(url.pathname==="/api/admin/destinations/fixture/editorial" && req.method==="PATCH") {
+    let raw="";for await(const part of req) raw+=part;const key=req.headers["idempotency-key"];writes.push({key,raw});
+    if(journal.has(key)) {const saved=journal.get(key);return saved.raw===raw?send(saved.response):send({success:false,operationStatus:"FAILED",error:{code:"KEY_REUSED",message:"Key reuse"}},409);}
+    const parsed=editorialActionSchema.safeParse(JSON.parse(raw));if(!parsed.success)return send({success:false,operationStatus:"FAILED",error:{code:"VALIDATION",message:"Invalid layout"}},400);
+    const input=parsed.data;if(input.expectedRevision!==state.draftRevision)return send({success:false,operationStatus:"FAILED",error:{code:"EDITORIAL_CHANGED",message:"Bản biên tập đã thay đổi. Đọc lại và đối chiếu."}},409);
+    try {
+      if(input.action==="SAVE"){validateLayoutReferences(input.layout,state.context,false);state.draft=input.layout;}
+      if(input.action==="PUBLISH" || input.action==="ROLLBACK"){const layout=editorialLayoutSchema.parse(input.action==="ROLLBACK"?state.previousPublished:state.draft);validateLayoutReferences(layout,state.context,true);state.previousPublished=state.published;state.published=layout;state.publishedRevision++;state.publishedAt=new Date().toISOString();}
+      if(input.action==="RESTORE_DRAFT")state.draft=state.published;
+      state.draftRevision++;state.updatedAt=new Date().toISOString();const response={success:true,operationStatus:"SUCCESS",data:structuredClone(state)};journal.set(key,{raw,response});
+      if(lost){lost=false;return send({success:false,operationStatus:"UNKNOWN",error:{code:"UNKNOWN",message:"TEST lost result"}},503);}return send(response);
+    }catch{return send({success:false,operationStatus:"FAILED",error:{code:"REFERENCE",message:"Ảnh/nguồn chưa được duyệt"}},400);}
+  }
+  if(url.pathname.startsWith("/photo")){if(photoFailure){res.writeHead(500);return res.end();}res.writeHead(200,{"Content-Type":"image/jpeg"});return res.end(media[Number(url.pathname.split("/").at(-1))%8]);}
+  res.setHeader("Content-Type",url.pathname==="/bundle.js"?"application/javascript":"text/html");res.end(url.pathname==="/bundle.js"?bundle.outputFiles.find(f=>f.path.endsWith(".js")).text:`<!DOCTYPE html><html lang="vi"><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>html,body{margin:0;font-family:system-ui}*{box-sizing:border-box}button,input,textarea,select{font:inherit}${bundle.outputFiles.filter(f=>f.path.endsWith(".css")).map(f=>f.text).join("\n")}</style></head><body><div id="app"></div><script src="/bundle.js"></script></body></html>`);
+});
+await new Promise(r=>server.listen(0,"127.0.0.1",r));let browser;const checks=[];const pass=name=>{checks.push(name);console.log("PASS "+name);};
+try{
+  browser=await chromium.launch({channel:"chrome",headless:true});const page=await browser.newPage();const errors=[];page.on("pageerror",e=>errors.push(e.message));
+  await page.route("https://res.cloudinary.com/**",async route=>{const n=route.request().url().match(/photo-(\d+)/)?.[1]??0;await route.fulfill({status:photoFailure?500:200,contentType:"image/jpeg",body:photoFailure?Buffer.from(""):media[Number(n)%8]});});
+  await page.route(/^https?:\/\/(?!127\.0\.0\.1|res\.cloudinary\.com)/,r=>r.abort());
+  await page.goto(`http://127.0.0.1:${server.address().port}`);await page.getByRole("heading",{name:"Thiết kế trang giới thiệu",exact:true}).waitFor();
+  await page.getByRole("button",{name:"Tự động dàn trang",exact:true}).click();await page.getByRole("button",{name:"Lưu bản nháp",exact:true}).click();await page.getByText("Đã lưu bản nháp.",{exact:true}).first().waitFor();
+  assert(state.draft);assert.equal(state.published,null);pass("Auto layout / save draft; draft remains separate from published");
+  await page.reload();await page.getByRole("heading",{name:"Thiết kế trang giới thiệu",exact:true}).waitFor();assert.equal(await page.locator(".ed-block-list li").count(),state.draft.blocks.length);pass("Saved layout survives refresh");
+  const before=state.draft.blocks.map(b=>b.id);await page.getByRole("button",{name:"Đưa block 2 lên",exact:true}).click();await page.getByRole("button",{name:"Lưu bản nháp",exact:true}).click();await page.getByText("Đã lưu bản nháp.",{exact:true}).first().waitFor();assert.equal(state.draft.blocks[0].id,before[1]);
+  await page.getByLabel("Tôi đã xem trước và kiểm duyệt",{exact:false}).check();await page.getByRole("button",{name:"Xuất bản bố cục",exact:true}).click();await page.getByText(/Đã xuất bản bố cục/).first().waitFor();assert.equal(state.publishedRevision,1);const originalVariant=state.published.variant;pass("Reorder saved; explicit review then publish");
+  await page.getByLabel("Biến thể",{exact:true}).selectOption("SPLIT");await page.getByRole("button",{name:"Lưu bản nháp",exact:true}).click();await page.getByText("Đã lưu bản nháp.",{exact:true}).first().waitFor();await page.getByLabel("Tôi đã xem trước và kiểm duyệt",{exact:false}).check();await page.getByRole("button",{name:"Xuất bản bố cục",exact:true}).click();await page.getByText(/Đã xuất bản bố cục/).first().waitFor();
+  await page.getByLabel("Tôi đã xem trước và kiểm duyệt",{exact:false}).check();await page.getByRole("button",{name:"Khôi phục bản xuất bản trước",exact:true}).click();await page.getByText("Đã khôi phục phiên bản.",{exact:true}).first().waitFor();assert.equal(state.published.variant,originalVariant);pass("Published previous-version rollback works independently from draft");
+  await page.getByRole("button",{name:"AI đề xuất bố cục",exact:true}).click();await page.getByText(/AI chưa cấu hình/).waitFor();aiMode="invalid";await page.getByRole("button",{name:"AI đề xuất bố cục",exact:true}).click();await page.getByText(/Không nhận được đề xuất hợp lệ/).waitFor();pass("AI missing/invalid response keeps manual and deterministic editing available");
+  await page.getByLabel("Biến thể",{exact:true}).selectOption("EDITORIAL");lost=true;await page.getByRole("button",{name:"Lưu bản nháp",exact:true}).click();await page.getByRole("button",{name:"Đọc lại và thử lại",exact:true}).waitFor();const uncertain=writes.at(-1);await page.getByRole("button",{name:"Đọc lại và thử lại",exact:true}).click();await page.getByText("Đã lưu bản nháp.",{exact:true}).first().waitFor();assert.deepEqual(writes.at(-1),uncertain);pass("UNKNOWN locks editor; identical body/key retry reconciles confirmed draft");
+  for(const width of [360,390,768,1024,1440])for(const theme of ["light","dark"]){await page.setViewportSize({width,height:1000});await page.evaluate(t=>document.documentElement.classList.toggle("dark",t==="dark"),theme);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth));await page.screenshot({ animations: "disabled",path:`${directory}/editor-${width}-${theme}.png`,fullPage:true});}
+  await page.getByRole("button",{name:"Tự động dàn trang",exact:true}).focus();assert(await page.getByRole("button",{name:"Tự động dàn trang",exact:true}).evaluate(el=>el===document.activeElement));pass("Editor five viewport widths, light/dark, keyboard focus and no overflow");
+  await page.getByLabel("Thêm block",{exact:true}).selectOption("QUOTE");await page.getByRole("button",{name:"Thêm",exact:true}).click();await page.locator("#editorial-text").fill("Đoạn trích chưa có nguồn");await page.getByRole("button",{name:"Hoàn tác",exact:true}).click();assert.equal(await page.locator("#editorial-text").inputValue(),"");await page.getByRole("button",{name:"Gỡ block",exact:true}).click();pass("Manual add/edit/undo/remove block without saving content upstream");
+  await page.getByLabel("Biến thể",{exact:true}).selectOption("PANORAMA");state.draftRevision++;await page.getByRole("button",{name:"Lưu bản nháp",exact:true}).click();await page.getByText("Bản biên tập đã thay đổi. Đọc lại và đối chiếu.",{exact:true}).waitFor();pass("Optimistic concurrency conflict preserves unsaved layout and exposes read-again");
+  await page.getByRole("button",{name:"Hủy thay đổi chưa lưu",exact:true}).click();await page.getByRole("button",{name:"Đọc lại",exact:true}).click();await page.waitForTimeout(200);state.available=false;state.reason="Cần owner áp dụng migration Editorial.";await page.reload();await page.getByText(/Cần owner áp dụng migration Editorial/).waitFor();assert(await page.getByRole("button",{name:"Lưu bản nháp",exact:true}).isDisabled());assert(await page.getByRole("button",{name:"Tự động dàn trang",exact:true}).isEnabled());pass("Missing migration blocker disables persistence only, keeps preview/auto layout available");
+  const categories=["thiên nhiên – thắng cảnh","di tích lịch sử – kiến trúc","làng du lịch – bản làng","công viên địa chất"];
+  await page.getByRole("button",{name:"Tự động dàn trang",exact:true}).click();
+  await page.getByRole("button",{name:"Thư viện ảnh",exact:true}).click();
+  await page.getByLabel("Ảnh phong cảnh fixture 4 · APPROVED",{exact:true}).uncheck();
+  await page.getByRole("button",{name:"Ảnh mở đầu",exact:true}).click();
+  await page.getByLabel("Ảnh phong cảnh fixture 4 · APPROVED",{exact:true}).check();
+  assert.equal(await page.getByLabel("Ảnh phong cảnh fixture 1 · APPROVED",{exact:true}).isChecked(),false);
+  assert((await page.locator(".emg-hero img").getAttribute("src")).includes("photo-3"));
+  await page.getByRole("button",{name:"Mobile",exact:true}).click();assert.equal(await page.locator(".ed-preview.is-mobile").count(),1);
+  await page.getByRole("button",{name:"Desktop",exact:true}).click();assert.equal(await page.locator(".ed-preview.is-mobile").count(),0);
+  pass("Manual hero replacement uses attached approved media; Desktop/Mobile preview controls work");
+  const geometry=[];
+  for(const category of categories)for(const variant of ["PANORAMA","SPLIT","EDITORIAL"]){const context=editorialFixture(category,8);const layout={...autoLayout(context),variant};const editorial=resolveEditorial(layout,context);await page.evaluate(data=>window.mount(data),{data:context,editorial});await page.locator(".emg").waitFor();
+    for(const width of [360,390,768,1024,1440])for(const theme of ["light","dark"]){await page.setViewportSize({width,height:1000});await page.evaluate(t=>document.documentElement.classList.toggle("dark",t==="dark"),theme);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth));assert.equal(await page.locator(".emg img").count(),8);await page.screenshot({ animations: "disabled",path:`${directory}/${layout.family}-${variant}-${width}-${theme}.png`,fullPage:true});}
+    await page.setViewportSize({width:1440,height:1000});const boxes=await page.locator(".emg-hero > *").evaluateAll(nodes=>nodes.map(n=>({x:n.getBoundingClientRect().x,y:n.getBoundingClientRect().y,w:n.getBoundingClientRect().width})));geometry.push({family:layout.family,variant,boxes});
+  }
+  for(const family of ["NATURE_SHOWCASE","HERITAGE_STORY","VILLAGE_CULTURE","JOURNEY_EDITORIAL"]){const g=geometry.filter(v=>v.family===family);assert.equal(new Set(g.map(v=>JSON.stringify(v.boxes))).size,3);}pass("Twelve actual family/variant compositions, five widths x light/dark, eight photos no duplicates");
+  for(const count of [0,1,2,4]){const context=editorialFixture(undefined,count);const editorial=resolveEditorial(autoLayout(context),context);await page.evaluate(data=>window.mount(data),{data:context,editorial});await page.locator(".emg").waitFor();assert.equal(await page.locator(".emg img").count(),count);for(const width of [360,390,768,1024,1440])for(const theme of ["light","dark"]){await page.setViewportSize({width,height:1000});await page.evaluate(t=>document.documentElement.classList.toggle("dark",t==="dark"),theme);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth));await page.screenshot({ animations: "disabled",path:`${directory}/photos-${count}-${width}-${theme}.png`,fullPage:true});}}pass("Zero/one/two/four images: no empty image slots, no duplicated photos");
+  photoFailure=true;const context=editorialFixture(undefined,1);context.media[0].url += "?failure-test=1";await page.evaluate(data=>window.mount(data),{data:context,editorial:resolveEditorial(autoLayout(context),context)});await page.getByText("Ảnh tạm không khả dụng",{exact:true}).waitFor();pass("Cloudinary image delivery failure retains safe fixed-ratio fallback");
+  photoFailure=false;
+  const publicContext=editorialFixture(undefined,4);
+  const destination={id:publicContext.id,name:publicContext.name,description:publicContext.description,category:publicContext.category,area:publicContext.area,latitude:publicContext.latitude,longitude:publicContext.longitude,suggestedDurationMinutes:publicContext.suggestedDurationMinutes,openingDays:publicContext.openingDays,relatedCulture:[],profile:{shortDescription:"Hồ sơ public fixture",aliases:[],address:"Địa chỉ fixture",googleMapsUrl:null,locationVerified:false,ticketPrice:null,ticketVerification:"UNKNOWN",bestVisitTime:null,visitNotes:null,areas:[],sources:publicContext.sources.map(s=>({title:s.title,url:s.url,author:null,publisher:null,publishedOn:null})),media:publicContext.media.map(({url,alt,caption,author,sourceUrl,isCover})=>({url,alt,caption,author,sourceUrl,isCover}))}};
+  for(const published of [false,true]) {
+    const editorial=published?resolveEditorial(autoLayout(publicContext),publicContext):null;
+    await page.evaluate(data=>window.mountPublic(data),{destination,editorial});await page.locator(".public-detail").waitFor();
+    assert.equal(await page.locator(".emg").count(),published?1:0);
+    await page.getByRole("link",{name:"Quay lại Khám phá"}).waitFor();
+    assert.equal(await page.getByRole("link",{name:/Hỏi trợ lý AI/}).getAttribute("href"),"/assistant?destinationId=fixture");
+    assert.equal(await page.getByRole("heading",{name:destination.name,exact:true}).count(),1);
+    if(!published){await page.getByRole("heading",{name:"Vị trí",exact:true}).waitFor();await page.getByRole("heading",{name:"Thông tin hồ sơ",exact:true}).waitFor();}
+    for(const width of [360,390,768,1024,1440])for(const theme of ["light","dark"]){await page.setViewportSize({width,height:1000});await page.evaluate(t=>document.documentElement.classList.toggle("dark",t==="dark"),theme);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth));await page.screenshot({ animations: "disabled",path:`${directory}/public-${published?"published":"standard-fallback"}-${width}-${theme}.png`,fullPage:true});}
+  }
+  pass("Production public detail shell: standard fallback and published magazine, navigation/AI CTA preserved, five widths x light/dark");
+  assert.deepEqual(errors,[]);await writeFile(`${directory}/results.json`,JSON.stringify({checks,passed:checks.length,geometry,evidence:"Production editor/renderer; mock HTTP, media and map; no live provider/Neon"},null,2));console.log(JSON.stringify({passed:checks.length,screenshots:directory}));
+}finally{await browser?.close();await new Promise(r=>server.close(r));}

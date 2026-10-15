@@ -1,4 +1,6 @@
 import { mvpFeatures } from "@/lib/mvp-features";
+import EditorialRenderer from "@/components/editorial/editorial-renderer";
+import type { ResolvedEditorial } from "@/modules/destination-editorial/editorial-contract";
 import PublishedContentProfile from "@/components/published-content-profile";
 import React, { type ReactNode } from "react";
 import Link from "next/link";
@@ -83,10 +85,16 @@ export function DetailState({
 export default function DestinationDetail({
   destination: d,
   returnTo,
+  editorial,
 }: {
   destination: PublicDestinationDetail;
   returnTo?: ExploreReturnHref;
+  editorial?: ResolvedEditorial | null;
 }) {
+  if (editorial) return <Shell returnTo={resolveExploreReturnTo(returnTo)}>
+    <EditorialRenderer data={d} editorial={editorial} />
+    <div className="public-detail-hero-actions"><Link className="public-detail-ai-btn" href={`/assistant?destinationId=${encodeURIComponent(d.id)}` as Route}><Sparkles size={16} aria-hidden="true" />Hỏi trợ lý AI về điểm đến này</Link><FavoriteButton targetType="destinations" targetId={d.id} /></div>
+  </Shell>;
   return (
     <Shell returnTo={resolveExploreReturnTo(returnTo)}>
       <header className="public-detail-hero">

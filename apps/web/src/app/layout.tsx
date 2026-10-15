@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Be_Vietnam_Pro } from "next/font/google";
 
 import "../index.css";
 import "../components/published-content-profile.css";
+import "../components/editorial/editorial.css";
 import "../components/map/map.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 import Header from "@/components/header";
