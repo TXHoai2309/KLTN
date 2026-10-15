@@ -1,7 +1,7 @@
 import { publicHttpsUrl } from "../content-profile/content-profile-contract";
 import { isDestinationMediaUsable } from "../destination/destination-media-eligibility";
 import { editorialBlockSchema, editorialLayoutSchema, type EditorialLayout, type EditorialContext, type ResolvedEditorial, type EditorialBlock } from "./editorial-contract";
-import { prepareEditorialContent, splitSourcedSection } from "./editorial-content";
+import { groupEditorialSections, prepareEditorialContent, splitSourcedSection, stripMarkdownHeading } from "./editorial-content";
 import { editorialImageDimensions } from "./editorial-image-quality";
 import { heroFocalLocked } from "./editorial-hero";
 import { editorialValue, editorialVisitData, hasEditorialCoordinates, hasEditorialFacts } from "./editorial-display-policy";
@@ -38,12 +38,12 @@ export function autoLayout(context: EditorialContext, seed?: EditorialLayout): E
     const better = images.findIndex(m => (editorialImageDimensions(m).width ?? 0) >= 1200 && landscape(m));
     if (better > 0) images.unshift(...images.splice(better, 1));
   }
-  const paragraphs = context.description.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  const { introText, sections: parsedSections } = groupEditorialSections(context.description, context.category);
   const family = chooseFamily(context.category);
   const variant = !images.length ? "EDITORIAL" : family === "NATURE_SHOWCASE" && (landscape(images[0]!) || images.length >= 4) ? "PANORAMA"
     : family === "HERITAGE_STORY" && context.description.length > 700 ? "EDITORIAL" : family === "JOURNEY_EDITORIAL" && images.length >= 4 ? "EDITORIAL" : "SPLIT";
   const block = (id: string, type: EditorialBlock["type"], extra = {}) => editorialBlockSchema.parse({ id, type, ...extra });
-  const blocks = [block("hero", "HERO", { mediaIds: images[0] ? [images[0].id] : [], title: context.name }), block("intro", "INTRO", { text: paragraphs.shift() ?? "" })];
+  const blocks = [block("hero", "HERO", { mediaIds: images[0] ? [images[0].id] : [], title: context.name }), block("intro", "INTRO", { text: introText })];
   const remaining = images.slice(1);
   const galleryCount = images.length >= 5 ? Math.min(remaining.length - 1, 5) : 0;
   const storyImages = remaining.splice(0, remaining.length - galleryCount);
@@ -51,14 +51,26 @@ export function autoLayout(context: EditorialContext, seed?: EditorialLayout): E
     (["INTRO", "TEXT_SECTION", "IMAGE_TEXT_SPLIT"].includes(b.type) && b.text && !context.description.includes(b.text)));
   // Reserve capacity for every manually authored block before splitting prose.
   const capacity = Math.max(1, 22 - curated.length);
-  const sections = paragraphs.slice(0, Math.min(19, capacity));
-  if (paragraphs.length > sections.length) sections[sections.length - 1] = paragraphs.slice(sections.length - 1).join("\n\n");
-  for (const [index, text] of sections.entries()) {
+  const sections = parsedSections.slice(0, Math.min(19, capacity));
+  if (parsedSections.length > sections.length) {
+    const overflow = parsedSections.slice(sections.length - 1);
+    sections[sections.length - 1] = {
+      ...sections[sections.length - 1]!,
+      text: overflow.map(s => s.text).filter(Boolean).join("\n\n"),
+    };
+  }
+  for (const [index, sec] of sections.entries()) {
     const image = storyImages.shift();
-    const body = splitSourcedSection(text, context.category, index);
     const bleed = image && index % 2 === 1 && landscape(image) && (editorialImageDimensions(image).width ?? 0) >= 1200;
-    const provenance = body.headingProvenance ?? (body.title && (text.includes(body.title) || context.description.includes(body.title)) ? { blockId: `section-${index}`, excerpt: body.title } : undefined);
-    blocks.push(block(`section-${index}`, image && !bleed ? "IMAGE_TEXT_SPLIT" : "TEXT_SECTION", { ...body, ...(provenance ? { headingProvenance: provenance } : {}), mediaIds: image && !bleed ? [image.id] : [], placement: index % 2 ? "right" : "left", crop: image && !landscape(image) ? "portrait" : "wide" }));
+    const provenance = sec.headingProvenance ?? (sec.title && (sec.text.includes(sec.title) || context.description.includes(sec.title)) ? { blockId: `section-${index}`, excerpt: sec.title } : undefined);
+    blocks.push(block(`section-${index}`, image && !bleed ? "IMAGE_TEXT_SPLIT" : "TEXT_SECTION", {
+      title: sec.title,
+      text: sec.text,
+      ...(provenance ? { headingProvenance: provenance } : {}),
+      mediaIds: image && !bleed ? [image.id] : [],
+      placement: index % 2 ? "right" : "left",
+      crop: image && !landscape(image) ? "portrait" : "wide"
+    }));
     if (bleed) blocks.push(block(`image-break-${index}`, "FULL_WIDTH_IMAGE", { mediaIds: [image.id], crop: "wide" }));
   }
   remaining.unshift(...storyImages);
@@ -117,12 +129,21 @@ export function resolveEditorialDisplay(layout: EditorialLayout, context: Editor
   const seenSourceIds = new Set<string>();
   const singletons = new Set<string>();
   const factsShown = layout.blocks.some(b => b.type === "HIGHLIGHT_FACTS" && !b.hidden) && hasEditorialFacts(context);
-  const blocks = layout.blocks.filter(b => !b.hidden).map(b => {
+  const seenDisplayTitles = new Set<string>();
+  const blocks = layout.blocks.filter(b => !b.hidden).map((b, bIdx) => {
     const rawSourceIds = b.type === "SOURCES" && !b.sourceIds.length ? sources.map(s => s.id) : b.sourceIds;
-    let title = editorialValue(b.title);
+    let title = stripMarkdownHeading(editorialValue(b.title));
+    if (title && seenDisplayTitles.has(title.toLowerCase())) {
+      title = "";
+    }
     if (!title && ["TEXT_SECTION", "IMAGE_TEXT_SPLIT"].includes(b.type) && b.text) {
-      const derived = splitSourcedSection(b.text, context.category);
-      if (derived.title) title = derived.title;
+      const derived = splitSourcedSection(b.text, context.category, bIdx, seenDisplayTitles);
+      if (derived.title && !seenDisplayTitles.has(derived.title.toLowerCase())) {
+        title = derived.title;
+      }
+    }
+    if (title) {
+      seenDisplayTitles.add(title.toLowerCase());
     }
     return {
       ...b,

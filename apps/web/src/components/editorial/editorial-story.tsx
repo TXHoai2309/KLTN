@@ -1,16 +1,64 @@
 import React from "react";
 import DestinationMap from "@/components/map/destination-map";
-import { editorialTitlePhrases, normalizeEditorialText } from "@/modules/destination-editorial/editorial-content";
+import { editorialTitlePhrases, normalizeEditorialText, stripMarkdownHeading } from "@/modules/destination-editorial/editorial-content";
 import type { EditorialBlock, ResolvedEditorial } from "@/modules/destination-editorial/editorial-contract";
 import type { EditorialPageData } from "./editorial-renderer";
 import { heroDeck } from "@/modules/destination-editorial/editorial-hero";
 
 import { editorialValue, hasEditorialCoordinates, hasEditorialDuration, hasEditorialFacts } from "@/modules/destination-editorial/editorial-display-policy";
 
+function renderInlineMarkdown(str: string): React.ReactNode {
+  const parts = str.split(/(\*\*[^*]+?\*\*|__[^_]+?__)/g);
+  if (parts.length === 1) return str;
+  return parts.map((part, i) => {
+    if (part.startsWith("**") && part.endsWith("**") && part.length >= 4) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>;
+    }
+    if (part.startsWith("__") && part.endsWith("__") && part.length >= 4) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
+}
+
+export function renderFormattedEditorialText(text: string): React.ReactNode {
+  if (!text) return null;
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+  const isBulletList = lines.length > 1 && lines.every(l => /^[-*•+]\s+/.test(l));
+  if (isBulletList) {
+    return (
+      <ul className="emg-list">
+        {lines.map((line, idx) => (
+          <li key={idx}>
+            {renderInlineMarkdown(line.replace(/^[-*•+]\s+/, ""))}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  const cleanLine = text.replace(/^#{1,6}\s+/, "").trim();
+  return renderInlineMarkdown(cleanLine);
+}
+
 type StoryProps = { block: EditorialBlock; children?: React.ReactNode };
 export function EditorialProse({ block }: { block: Pick<EditorialBlock, "title" | "text" | "emphasis"> }) {
   if (!block.title && !block.text.trim()) return null;
-  return <div className={`emg-prose ${block.emphasis === "FEATURED" ? "emg-prose-featured" : ""}`}>{block.title && <h2>{block.title}</h2>}{block.text.split(/\n\s*\n/).filter(p => p.trim()).map((p, i) => <p key={i}>{p}</p>)}</div>;
+  const cleanTitle = stripMarkdownHeading(block.title);
+  const paragraphs = block.text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  return (
+    <div className={`emg-prose ${block.emphasis === "FEATURED" ? "emg-prose-featured" : ""}`}>
+      {cleanTitle && <h2>{cleanTitle}</h2>}
+      {paragraphs.map((p, i) => {
+        const lines = p.split("\n").map(l => l.trim()).filter(Boolean);
+        const isList = lines.length > 1 && lines.every(l => /^[-*•+]\s+/.test(l));
+        return isList ? (
+          <React.Fragment key={i}>{renderFormattedEditorialText(p)}</React.Fragment>
+        ) : (
+          <p key={i}>{renderFormattedEditorialText(p)}</p>
+        );
+      })}
+    </div>
+  );
 }
 export function formatHeroLocation(area: string | null | undefined, destinationName: string): string {
   const val = editorialValue(area);
@@ -77,8 +125,8 @@ export function TextImageStorySection({ block, children }: StoryProps) {
   const hasCopy = Boolean(block.text.trim() || block.title);
   return <section className={`emg-split emg-image-${block.placement} ${hasCopy ? "" : "emg-photo-only"}`}><EditorialProse block={block} /><div className="emg-story-image">{children}</div></section>;
 }
-export function FullBleedImage({ block, children }: StoryProps) { return <section className="emg-full-image">{block.title && <h2>{block.title}</h2>}{children}</section>; }
-export function StaggeredImageGallery({ block, children }: StoryProps) { return <section className="emg-gallery-section">{block.title && <h2>{block.title}</h2>}<div className={`emg-gallery emg-gallery-${block.gallery}`} data-images={block.mediaIds.length}>{children}</div></section>; }
+export function FullBleedImage({ block, children }: StoryProps) { const title = stripMarkdownHeading(block.title); return <section className="emg-full-image">{title && <h2>{title}</h2>}{children}</section>; }
+export function StaggeredImageGallery({ block, children }: StoryProps) { const title = stripMarkdownHeading(block.title); return <section className="emg-gallery-section">{title && <h2>{title}</h2>}<div className={`emg-gallery emg-gallery-${block.gallery}`} data-images={block.mediaIds.length}>{children}</div></section>; }
 export function VisualHighlights({ data, duration }: { data: EditorialPageData; duration: string }) {
   if (!hasEditorialFacts(data)) return null;
   return <section className="emg-facts" aria-label="Điểm nhấn">{editorialValue(data.area) && <div><span>Khu vực</span><strong>{editorialValue(data.area)}</strong></div>}{editorialValue(data.category) && <div><span>Loại hình</span><strong>{editorialValue(data.category)}</strong></div>}{hasEditorialDuration(data.suggestedDurationMinutes) && <div><span>Nhịp tham quan</span><strong>{duration}</strong></div>}</section>;
