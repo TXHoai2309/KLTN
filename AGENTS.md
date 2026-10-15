@@ -24,7 +24,7 @@ For a small task, use the relevant subset of product and technical docs. The cur
 - Keep App Router Route Handlers thin: parse requests, establish the auth boundary, call a module/service, and map responses/errors. Put business rules and ownership checks in backend modules/services.
 - Enforce authorization and record ownership on the server. Knowing an object URL or ID is not authorization.
 - Use Prisma migrations for schema changes. `db:push` exists as a script but is not the schema workflow for product development.
-- Never commit `.env`, credentials, tokens, or secrets. Never expose server secrets through `NEXT_PUBLIC_`. OpenAI and Google Routes credentials stay server-side; the browser Maps key may use `NEXT_PUBLIC_` and must be restricted in Google Cloud.
+- Never commit `.env`, credentials, tokens, or secrets. Never expose server secrets through `NEXT_PUBLIC_`. OpenAI and Stadia Routing credentials stay server-side. Stadia browser tiles use domain authentication without a frontend key.
 - Keep AI proposal and language tasks separate from deterministic Constraint Validator decisions. Missing required validation data is not a pass.
 - For applicable writes, use the shared `SUCCESS` / `FAILED` / `UNKNOWN` and idempotency contract. Do not report success before the database confirms it; retry `UNKNOWN` with the identical payload and key.
 - Do not merge or push unless the user asks. Do not assume branch promotion is automatic.

@@ -19,10 +19,10 @@ Run `npm run env:generate` after a schema change. Keep example/schema developer-
 | `DATABASE_URL` | Neon PostgreSQL connection string. Local must use the development branch. |
 | `OPENAI_API_KEY` | Optional server-side AI/RAG/embedding/planner integration. |
 | `OPENAI_PREFERENCE_MODEL` | Optional server-side model identifier for US-25 preference extraction; no repository default. Missing value must produce `AI_UNAVAILABLE` when that future integration is enabled. |
-| `GOOGLE_ROUTES_API_KEY` | Optional server-side Routes key; never rename to `NEXT_PUBLIC_*`. |
+| `STADIA_MAPS_API_KEY` | Server-side Stadia Standard Routing key for US-29B; never rename to `NEXT_PUBLIC_*`. |
 | `INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` | Only needed for the bootstrap command. Clear them after use. |
 
-Never put actual connection strings, API keys, bootstrap credentials, or other secrets in committed documentation. OpenAI and Google Routes keys are server-side. Browser map rendering uses MapLibre/Stadia without a frontend API key.
+Never put actual connection strings, API keys, bootstrap credentials, or other secrets in committed documentation. OpenAI and Stadia Routing keys are server-side. Browser map rendering uses MapLibre/Stadia without a frontend API key.
 
 US-25 adds the optional `OPENAI_PREFERENCE_MODEL` declaration and ADR-16 server-boundary documentation. It is not exposed through `NEXT_PUBLIC_*`, and is intentionally left blank until an owner selects a model. `scripts/sync-vercel-env.ts` already syncs only non-empty keys declared in `.env.schema`; no script change is required. Run `npm run env:generate -w web` after changing the schema so the generated `apps/web/src/env.ts` stays aligned; do not put a real model name or API key in committed files.
 
@@ -54,6 +54,6 @@ Check the target environment and migration SQL before applying. Never include a 
 
 Official [authentication policy](https://docs.stadiamaps.com/authentication/) permits localhost/127.0.0.1 development without a key. Styles are Alidade Smooth and Alidade Smooth Dark from tiles.stadiamaps.com; preserve provider attribution. No local map credential or Google billing is required.
 
-Before production: create a Stadia account/property and register the stable Vercel/custom hostname for domain-based authentication. Preview hostnames need appropriate property/domain configuration; do not assume arbitrary preview URLs are authorized. Keep Origin/Referer available to Stadia requests. Production authentication is not configured or deployed by this task. No frontend key is introduced; Google Routes credentials remain server-only and out of scope.
+Before production: create a Stadia account/property and register the stable Vercel/custom hostname in Stadia Dashboard → Manage Properties → Authentication Configuration. Preview hostnames need explicit property/domain configuration; do not assume arbitrary preview URLs are authorized. Keep Origin/Referer available to browser tile requests. Production tile authentication is not configured or deployed by this task. No frontend key is introduced. Configure `STADIA_MAPS_API_KEY` separately in the server runtime for routing; never expose it in tile style URLs or browser bundles.
 
 The web dev/build commands prepare official npm MapLibre worker/shared assets under ignored public/maplibre. Deploy that public directory with the build; do not manually commit vendor bundles. A missing worker asset displays the map error state and can recover by retry after deployment is repaired.

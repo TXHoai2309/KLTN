@@ -142,3 +142,39 @@ test("retry initializes a fresh provider and clears error on success",async()=>{
  let mounts=0;const states:string[]=[];for(const failing of [true,false]){const stop=startMapSession({load:async()=>1,onState:s=>states.push(s),mount:(_lib,ready,fail)=>{mounts++;if(failing)fail();else ready();return()=>{};}});await new Promise<void>(done=>setImmediate(done));stop();}
  assert.equal(mounts,2);assert.deepEqual(states,["loading","error","loading","ready"]);
 });
+
+test("optional normalized route line survives a style switch on the same map instance", () => {
+  const globals = globalThis as any;
+  const previousDocument = globals.document;
+  let map: any; let maps = 0; let exposed: any = null;
+  globals.document = { createElement: (tag: string) => ({ tag, textContent: "", children: [], setAttribute() {}, append() {} }) };
+  const library = { Map: class {
+    events: Record<string, () => void> = {}; sources = new Map<string, unknown>(); layers: unknown[] = []; style = ""; removed = false;
+    constructor(options: any) { this.style = options.style; map = this; maps++; }
+    on(name: string, listener: () => void) { this.events[name] = listener; }
+    off(name: string) { delete this.events[name]; }
+    addControl() {} jumpTo() {} fitBounds() {}
+    getSource(id: string) { return this.sources.get(id); }
+    addSource(id: string, source: unknown) { this.sources.set(id, source); }
+    addLayer(layer: unknown) { this.layers.push(layer); }
+    setStyle(style: string) { this.style = style; this.sources.clear(); this.layers = []; this.events["style.load"]?.(); }
+    remove() { this.removed = true; }
+  }, NavigationControl: class {}, LngLatBounds: class { extend() {} }, Popup: class { setDOMContent() { return this; } remove() {} }, Marker: class {
+    setLngLat() { return this; } setPopup() { return this; } addTo() { return this; } remove() {}
+  } } as unknown as typeof MapLibre;
+  const geometry = { type: "LineString" as const, coordinates: [[105.196944, 23.192222], [105.3163001, 23.3634061]] as [number, number][] };
+  try {
+    const dispose = mountMapLibre({} as HTMLDivElement, library, [a], stadiaStyles.light, false, undefined,
+      () => {}, () => {}, { routeGeometry: geometry, onMap: value => { exposed = value; } });
+    map.events["style.load"]();
+    assert.deepEqual((map.sources.get("destination-route") as any).data.geometry, geometry);
+    assert.equal(map.layers.length, 1);
+    exposed.setStyle(stadiaStyles.dark);
+    assert.equal(maps, 1);
+    assert.equal(map.style, stadiaStyles.dark);
+    assert.deepEqual((map.sources.get("destination-route") as any).data.geometry, geometry);
+    dispose();
+    assert.equal(map.removed, true);
+    assert.equal(exposed, null);
+  } finally { globals.document = previousDocument; }
+});
