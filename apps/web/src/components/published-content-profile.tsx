@@ -1,3 +1,4 @@
+import { editorialValue } from "@/modules/destination-editorial/editorial-display-policy";
 import { mvpFeatures } from "@/lib/mvp-features";
 import PublishedMediaImage from "./published-media-image";
 import { resolveCategoryLabel } from "@/modules/culture/culture-categories";
@@ -46,11 +47,14 @@ function getFactIcon(label: string) {
 }
 
 export default function PublishedContentProfile({
-  profile: p,
+  profile: original,
+  hideEmptyValues = false,
 }: {
   profile?: PublicContentProfile;
+  hideEmptyValues?: boolean;
 }) {
-  if (!p) return null;
+  if (!original) return null;
+  const p = hideEmptyValues ? { ...original, sources: original.sources.filter(s => editorialValue(s.title)) } : original;
   const facts: [
     [string, string | null | undefined],
     ...Array<[string, string | null | undefined]>
@@ -76,7 +80,7 @@ export default function PublishedContentProfile({
     ["Thời điểm phù hợp", p.bestVisitTime],
     ["Lưu ý tham quan", p.visitNotes],
   ];
-  const visible = facts.filter(([, value]) => Boolean(value));
+  const visible = facts.map(([label, value]): [string, string | null | undefined] => [label, hideEmptyValues ? editorialValue(value) : value]).filter(([, value]) => Boolean(value));
   if (
     !visible.length &&
     !p.media.length &&

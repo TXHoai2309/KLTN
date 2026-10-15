@@ -1,0 +1,49 @@
+/* Publication controls share the existing Admin tokens and workflow guards. */
+.ed-topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-shrink: 0; padding: 10px 24px; border-bottom: 1px solid var(--af-line); background: var(--af-surface); }
+.ed-topbar > a { color: var(--af-muted); font-size: .75rem; text-decoration: none; }
+.ed-topbar > a:hover { color: var(--af-green); }
+.ed-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.ed-topbar .ed-action-flow { display: flex; align-items: center; gap: 10px; color: var(--af-muted); font-size: .75rem; }
+.ed-actions { justify-content: flex-start; gap: 20px; padding: 12px 24px; }
+.ed-actions .ed-action-state { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1 1 auto; }
+.ed-action-state strong, .ed-action-state div > span { display: block; }
+.ed-action-state strong { color: var(--af-ink); font-size: .8rem; font-weight: 600; line-height: 1.5; }
+.ed-action-state div > span { color: var(--af-muted); font-size: .7rem; line-height: 1.6; }
+.ed-state-dot { width: 7px; height: 7px; flex: 0 0 7px; border-radius: 50%; background: var(--af-green); }
+.ed-state-dot.is-dirty { background: #b5842d; }
+.ed-state-dot.is-unknown { background: #b45b45; }
+.ed-action-flow > span, .ed-action-flow > button { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.ed-action-flow > button { border: 0; background: none; padding: 8px 0; font-size: inherit; color: inherit; }
+.ed-action-flow > span > span, .ed-action-flow > button > span { display: grid; place-items: center; width: 21px; height: 21px; border-radius: 50%; border: 1px solid var(--af-line); font-size: .65rem; }
+.ed-action-flow > [aria-current="step"] { color: var(--af-green); font-weight: 600; }
+.ed-action-flow > [aria-current="step"] > span, .ed-action-flow > .is-complete > span { background: var(--af-tint); border-color: var(--af-green); color: var(--af-green); }
+.ed-actions .ed-action-buttons { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.ed-action-buttons .af-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 42px; white-space: nowrap; }
+.ed-action-buttons .ed-more-trigger { width: 42px; padding: 8px; }
+.isolate:has(> .ed-overflow-menu) { z-index: 70; isolation: isolate; }
+.af-root.ed-overflow-menu { display: block; width: min(340px, calc(100vw - 28px)); min-width: 0; min-height: 0; max-height: min(70vh, var(--available-height, 70vh)); overflow-y: auto; padding: 6px; border: 1px solid var(--af-line); border-radius: 14px; background: var(--af-surface); color: var(--af-ink); box-shadow: 0 12px 40px #10271b24; font-family: var(--font-be-vietnam), system-ui, sans-serif; }
+.ed-overflow-menu [role="menuitem"] { display: flex; align-items: flex-start; gap: 10px; padding: 11px 12px; border-radius: 9px; font-size: .78rem; line-height: 1.5; cursor: pointer; outline: none; }
+.ed-overflow-menu [role="menuitem"] > svg { flex: 0 0 16px; margin-top: 2px; color: var(--af-muted); }
+.ed-overflow-menu [role="menuitem"] small { display: block; margin-top: 3px; color: var(--af-muted); font-size: .68rem; font-weight: 400; }
+.ed-overflow-menu [role="menuitem"][data-highlighted], .ed-overflow-menu [role="menuitem"]:hover { background: var(--af-tint); }
+.ed-overflow-menu [role="menuitem"][aria-disabled="true"] { opacity: .45; cursor: not-allowed; }
+.ed-overflow-menu [role="separator"] { height: 1px; margin: 5px 8px; background: var(--af-line); }
+.af-root.ed-confirm-dialog { position: fixed; inset: 0; margin: auto; width: min(440px, calc(100vw - 32px)); min-height: 0; max-height: calc(100dvh - 48px); padding: 0; border: 1px solid var(--af-line); border-radius: 18px; background: var(--af-surface); color: var(--af-ink); box-shadow: 0 24px 80px #10271b30; overflow-y: auto; }
+.af-root.ed-confirm-dialog:not([open]) { display: none; }
+.ed-confirm-dialog::backdrop { background: #071b1370; backdrop-filter: blur(3px); }
+.ed-confirm-content { padding: 26px; }
+.ed-confirm-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--af-tint); color: var(--af-green); margin-bottom: 18px; }
+.ed-confirm-content h2 { margin: 0 0 12px; font-size: 1.15rem; font-weight: 650; }
+.ed-confirm-content p { font-size: .85rem; line-height: 1.8; margin: 0; }
+.ed-confirm-content .ed-confirm-note { margin-top: 12px; color: var(--af-muted); font-size: .75rem; }
+.ed-confirm-buttons { display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px; }
+.ed-confirm-buttons .af-btn { min-width: 90px; }
+@media (max-width: 600px) {
+  .ed-topbar { flex-wrap: wrap; gap: 8px; padding: 10px 14px; }
+  .ed-topbar .ed-action-flow { width: 100%; justify-content: center; font-size: .7rem; }
+  .ed-actions { gap: 8px; padding: 10px 14px; }
+  .ed-actions .ed-action-state { flex: 1 1 100%; }
+  .ed-actions .ed-action-buttons { flex: 1 1 100%; width: 100%; }
+  .ed-action-buttons > .af-btn { flex: 1 1 auto; padding-inline: 10px; font-size: .73rem; }
+  .ed-action-buttons .ed-more-trigger { flex: 0 0 42px; }
+}

@@ -16,7 +16,7 @@ export class EditorialAiError extends Error {
     this.providerCode = safeCode(providerCode); this.param = safeParam(param);
   }
 }
-export type EditorialValidationCode = "OUTPUT_SIZE" | "JSON_PARSE" | "SCHEMA" | "DIRECTION" | "BLOCK_IDS" | "TITLE_PROVENANCE" | "HEADING" | "COMPOSITION" | "MEDIA_ROLE" | "HIDDEN_STATE" | "DECK_PROVENANCE" | "LAYOUT_CONTRACT" | "MEDIA_ELIGIBILITY" | "REFERENCES" | "PHOTO_REMOVAL";
+export type EditorialValidationCode = "OUTPUT_SIZE" | "JSON_PARSE" | "SCHEMA" | "DIRECTION" | "BLOCK_IDS" | "TITLE_PROVENANCE" | "HEADING" | "COMPOSITION" | "MEDIA_ROLE" | "HIDDEN_STATE" | "DECK_PROVENANCE" | "LAYOUT_CONTRACT" | "MEDIA_ELIGIBILITY" | "DUPLICATE_MEDIA" | "REFERENCES" | "PHOTO_REMOVAL";
 const fieldNames = new Set(["family", "variant", "design", "typography", "palette", "rhythm", "blocks", "id", "mediaIds", "placement", "title", "crop", "gallery", "deck", "emphasis", "composition", "hidden", "headingProvenance", "sourceIds"]);
 export class EditorialProposalError extends EditorialAiError {
   readonly fieldPath: string;

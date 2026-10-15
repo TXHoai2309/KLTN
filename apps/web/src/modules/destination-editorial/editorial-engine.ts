@@ -32,7 +32,7 @@ export function autoLayout(context: EditorialContext, seed?: EditorialLayout): E
   const remaining = images.slice(1);
   const galleryCount = images.length >= 5 ? Math.min(remaining.length - 1, 5) : 0;
   const storyImages = remaining.splice(0, remaining.length - galleryCount);
-  const curated = (seed?.blocks ?? []).filter(b => ["TIMELINE", "QUOTE"].includes(b.type) ||
+  const curated = (seed?.blocks ?? []).filter(b => b.hidden || !/^(?:hero|intro|section-\d+|image-break-\d+|gallery|facts|visit|map|sources)$/.test(b.id) || ["TIMELINE", "QUOTE"].includes(b.type) ||
     (["INTRO", "TEXT_SECTION", "IMAGE_TEXT_SPLIT"].includes(b.type) && b.text && !context.description.includes(b.text)));
   // Reserve capacity for every manually authored block before splitting prose.
   const capacity = Math.max(1, 22 - curated.length);
@@ -47,19 +47,26 @@ export function autoLayout(context: EditorialContext, seed?: EditorialLayout): E
   }
   remaining.unshift(...storyImages);
   if (remaining.length) blocks.push(block("gallery", remaining.length >= 3 ? "IMAGE_GRID" : "IMAGE_GALLERY", { mediaIds: remaining.map(m => m.id), gallery: family === "HERITAGE_STORY" ? "grid" : family === "JOURNEY_EDITORIAL" ? "strip" : "mosaic" }));
-  // Retain Admin-curated supplementary prose and provenance-backed material.
-  // Reuse only text/citations here: image roles are freshly allocated, never duplicated.
-  for (const b of curated) {
-    const sameId = blocks.findIndex(existing => existing.id === b.id);
-    const retained = { ...b, type: b.type === "IMAGE_TEXT_SPLIT" || b.type === "INTRO" ? "TEXT_SECTION" as const : b.type, mediaIds: [] };
-    if (sameId >= 0) blocks[sameId] = retained;
-    else blocks.push(retained);
-  }
   if (hasEditorialFacts(context)) blocks.push(block("facts", "HIGHLIGHT_FACTS"));
   if (editorialVisitData(context).area || editorialVisitData(context).duration || editorialVisitData(context).hours.length) blocks.push(block("visit", "VISIT_INFORMATION"));
   if (hasEditorialCoordinates(context)) blocks.push(block("map", "MAP"));
   const sources = context.sources.filter(s => s.websiteRights === "APPROVED");
   if (sources.length) blocks.push(block("sources", "SOURCES", { sourceIds: sources.map(s => s.id) }));
+  // Retain Admin-curated supplementary prose and provenance-backed material.
+  // Reuse only text/citations here: image roles are freshly allocated, never duplicated.
+  for (const b of curated) {
+    let sameId = blocks.findIndex(existing => existing.id === b.id);
+    if (sameId < 0 && ["HERO", "HIGHLIGHT_FACTS", "VISIT_INFORMATION", "MAP", "SOURCES"].includes(b.type)) {
+      sameId = blocks.findIndex(existing => existing.type === b.type && ["hero", "facts", "visit", "map", "sources"].includes(existing.id));
+    }
+    const retained = { ...b, type: b.type === "IMAGE_TEXT_SPLIT" || (b.type === "INTRO" && b.id !== "intro") ? "TEXT_SECTION" as const : b.type,
+      mediaIds: b.type === "HERO" && !b.hidden && sameId >= 0 ? blocks[sameId]!.mediaIds : [] };
+    if (sameId >= 0) blocks[sameId] = retained;
+    else if (["INTRO", "TEXT_SECTION", "IMAGE_TEXT_SPLIT", "QUOTE", "TIMELINE"].includes(retained.type)) {
+      const practical = blocks.findIndex(existing => ["HIGHLIGHT_FACTS", "VISIT_INFORMATION", "MAP", "SOURCES"].includes(existing.type));
+      blocks.splice(practical < 0 ? blocks.length : practical, 0, retained);
+    } else blocks.push(retained);
+  }
   // If a manually filled layout reaches the contract ceiling, keep its text and
   // provenance and chosen presentation intact instead of truncating the layout.
   if (blocks.length > 30 && seed) return editorialLayoutSchema.parse(seed);
@@ -84,10 +91,12 @@ export function resolveEditorialDisplay(layout: EditorialLayout, context: Editor
   const sources = context.sources.filter(s => s.websiteRights === "APPROVED" && editorialValue(s.title) && (!s.url || publicHttpsUrl.safeParse(s.url).success));
   const sourceIds = new Set(sources.map(s => s.id));
   const seen = new Set<string>();
+  const seenSourceIds = new Set<string>();
   const singletons = new Set<string>();
+  const factsShown = layout.blocks.some(b => b.type === "HIGHLIGHT_FACTS" && !b.hidden) && hasEditorialFacts(context);
   const blocks = layout.blocks.filter(b => !b.hidden).map(b => ({ ...b, title: editorialValue(b.title), text: editorialValue(b.text), deck: editorialValue(b.deck),
     mediaIds: b.mediaIds.filter(id => media.some(m => m.id === id) && !seen.has(id) && Boolean(seen.add(id))),
-    sourceIds: b.sourceIds.filter(id => sourceIds.has(id)),
+    sourceIds: [...new Set(b.sourceIds)].filter(id => sourceIds.has(id) && (b.type !== "SOURCES" || (!seenSourceIds.has(id) && Boolean(seenSourceIds.add(id))))),
     entries: b.entries.filter(e => editorialValue(e.label) && editorialValue(e.text) && e.sourceIds.length && e.sourceIds.every(id => sourceIds.has(id))),
   })).filter(b => {
     let useful = true;
@@ -98,7 +107,7 @@ export function resolveEditorialDisplay(layout: EditorialLayout, context: Editor
     if (b.type === "SOURCES") useful = b.sourceIds.length > 0;
     if (b.type === "MAP") useful = hasEditorialCoordinates(context);
     if (b.type === "HIGHLIGHT_FACTS") useful = hasEditorialFacts(context);
-    if (b.type === "VISIT_INFORMATION") { const v = editorialVisitData(context); useful = Boolean(v.area || v.duration || v.hours.length); }
+    if (b.type === "VISIT_INFORMATION") { const v = editorialVisitData(context); useful = Boolean((!factsShown && v.area) || v.duration || v.hours.length); }
     if (!useful) { issues.push({ blockId: b.id, reason: "EMPTY_CONTENT" }); return false; }
     // These types render the same canonical fields; repeated blocks add no data.
     if (["HIGHLIGHT_FACTS", "MAP", "VISIT_INFORMATION"].includes(b.type)) {

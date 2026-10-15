@@ -21,7 +21,8 @@ export function validateAiProposal(raw: string, base: EditorialLayout, context: 
   if (!checked.success) throw new EditorialProposalError("SCHEMA", checked.error.issues[0]?.path);
   const proposal = checked.data;
   if (direction === "KEEP" && (proposal.family !== base.family || proposal.variant !== base.variant)) throw new EditorialProposalError("DIRECTION", ["family"]);
-  if (proposal.blocks.length !== base.blocks.length || new Set(proposal.blocks.map(b => b.id)).size !== base.blocks.length) throw new EditorialProposalError("BLOCK_IDS", ["blocks"]);
+  const blockIds = new Set(base.blocks.map(b => b.id));
+  if (proposal.blocks.length !== base.blocks.length || new Set(proposal.blocks.map(b => b.id)).size !== base.blocks.length || proposal.blocks.some(b => !blockIds.has(b.id))) throw new EditorialProposalError("BLOCK_IDS", ["blocks"]);
   const blocks = proposal.blocks.map((p, index) => {
     const original = base.blocks.find(b => b.id === p.id);
     if (!original || (p.title && p.title !== original.title && !original.text.includes(p.title) && !(original.type === "HERO" && p.title === context.name))) throw new EditorialProposalError("TITLE_PROVENANCE", ["blocks", index, "title"]);
@@ -42,6 +43,8 @@ export function validateAiProposal(raw: string, base: EditorialLayout, context: 
   const rank = (type: string) => type === "HERO" ? 0 : type === "INTRO" ? 1 : type === "HIGHLIGHT_FACTS" ? 3 : type === "VISIT_INFORMATION" ? 4 : type === "MAP" ? 5 : type === "SOURCES" ? 6 : 2;
   // The model may pace the story, but cannot put a map/sources before the opening.
   blocks.sort((a, b) => rank(a.type) - rank(b.type));
+  const photos = blocks.filter(b => !b.hidden).flatMap(b => b.mediaIds);
+  if (new Set(photos).size !== photos.length) throw new EditorialProposalError("DUPLICATE_MEDIA", ["blocks"]);
   const parsed = editorialLayoutSchema.safeParse({ ...base, family: proposal.family, variant: proposal.variant, ...(proposal.design ? { design: proposal.design } : {}), blocks });
   if (!parsed.success) throw new EditorialProposalError("LAYOUT_CONTRACT", ["blocks"]);
   const allowed = new Set(usableEditorialMedia(context).map(m => m.id));
@@ -78,8 +81,8 @@ export async function proposeEditorial(headers: Headers, id: string, deps: Desti
     family: { type: "string", enum: direction === "KEEP" ? [base.family] : [...families] }, variant: { type: "string", enum: direction === "KEEP" ? [base.variant] : [...variants] },
     design: { type: "object", additionalProperties: false, required: ["typography", "palette", "rhythm"], properties: { typography: { type: "string", enum: [...typeStyles] }, palette: { type: "string", enum: [...colorStyles] }, rhythm: { type: "string", enum: [...rhythms] } } },
     blocks: { type: "array", items: { type: "object", additionalProperties: false, required: ["id", "mediaIds", "placement", "title", "crop", "gallery", "deck", "emphasis", "composition", "hidden"], properties: {
-      id: { type: "string", enum: base.blocks.map(b => b.id) }, mediaIds: { type: "array", items: allowedMedia.size ? { type: "string", enum: [...allowedMedia] } : { type: "string" }, maxItems: allowedMedia.size ? 20 : 0 }, placement: { type: "string", enum: ["left", "right", "full"] }, title: { type: "string", maxLength: 200 }, crop: { type: "string", enum: ["wide", "portrait", "square", "original"] }, gallery: { type: "string", enum: ["mosaic", "grid", "strip"] },
-      deck: { type: "string", maxLength: 180 }, emphasis: { type: "string", enum: ["STANDARD", "FEATURED"] }, composition: { type: "string", enum: ["KEEP", "TEXT", "SPLIT", "IMAGE_BREAK"] }, hidden: { type: "boolean" },
+      id: { type: "string", enum: base.blocks.map(b => b.id) }, mediaIds: { type: "array", items: allowedMedia.size ? { type: "string", enum: [...allowedMedia] } : { type: "string" } }, placement: { type: "string", enum: ["left", "right", "full"] }, title: { type: "string" }, crop: { type: "string", enum: ["wide", "portrait", "square", "original"] }, gallery: { type: "string", enum: ["mosaic", "grid", "strip"] },
+      deck: { type: "string" }, emphasis: { type: "string", enum: ["STANDARD", "FEATURED"] }, composition: { type: "string", enum: ["KEEP", "TEXT", "SPLIT", "IMAGE_BREAK"] }, hidden: { type: "boolean" },
     } } },
   } };
   let phase: "PROVIDER_REQUEST" | "PROPOSAL_VALIDATION" = "PROVIDER_REQUEST";

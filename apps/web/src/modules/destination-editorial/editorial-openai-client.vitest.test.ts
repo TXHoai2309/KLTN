@@ -137,7 +137,7 @@ describe("Editorial proposal through the real Luna adapter with mocked HTTP", ()
     const fetcher=vi.fn(async()=>new Response(JSON.stringify({error:{code,param:status===400?"temperature":null,message:"fixture-private-provider-message"}}),{status:status as number}));
     const diagnostics=createEditorialAiDiagnostics();
     const result=await proposeEditorial(new Headers(),f.id,f.store.deps,client(fetcher as typeof fetch),{layout:f.layout,diagnostics});
-    expect(result.status).toBe("FALLBACK");expect(result.layout).toEqual(f.layout);expect(result.reason).toContain(diagnostics.correlationId);
+    expect(result.status).toBe("FALLBACK");expect(result.outcome).toBe("PROVIDER_FAILED");expect(result.layout).toEqual(f.layout);expect(result.reason).toContain(diagnostics.correlationId);
     expect(JSON.parse(String(info.mock.calls.at(-1)![0]))).toMatchObject({phase:"PROVIDER_REQUEST",code:category,httpStatus:status,correlationId:diagnostics.correlationId});
     expect(JSON.stringify(info.mock.calls)).not.toContain("fixture-private");expect(fetcher).toHaveBeenCalledOnce();
   });
@@ -146,7 +146,7 @@ describe("Editorial proposal through the real Luna adapter with mocked HTTP", ()
     const fetcher=vi.fn(async (_url:unknown,init:any)=>{requestBody=JSON.parse(init.body);const supplied=JSON.parse(requestBody.messages[1].content);
       return completion(JSON.stringify({family: supplied.base.family,variant:"EDITORIAL",blocks:[...supplied.base.blocks].reverse().map((b:any)=>({id:b.id,mediaIds:b.mediaIds,placement:"right",title:b.title}))}));});
     vi.stubGlobal("fetch",fetcher); const diagnostics=createEditorialAiDiagnostics();
-    const result=await proposeEditorial(new Headers(),f.id,f.store.deps,editorialAiClient(),{layout:f.layout,diagnostics});
+    const result=await proposeEditorial(new Headers(),f.id,f.store.deps,editorialAiClient(),{layout:f.layout,diagnostics,direction:"AUTO"});
     expect(result.status).toBe("PROPOSED"); expect(result.layout).not.toEqual(f.layout);
     expect(result.layout.blocks.map(b=>b.id).sort()).toEqual(f.layout.blocks.map(b=>b.id).sort());
     expect(result.layout.blocks.find(b=>b.id==="manual")?.text).toBe("fixture-private unsaved manual text");
@@ -167,5 +167,34 @@ describe("Editorial proposal through the real Luna adapter with mocked HTTP", ()
     const f=await fixture();const count=vi.spyOn(f.db.idempotencyRecord,"count");
     const result=await proposeEditorial(new Headers(),f.id,f.store.deps,null);
     expect(result.status).toBe("FALLBACK");expect(result.reason).toContain("Chưa cấu hình");expect(count).not.toHaveBeenCalled();
+  });
+  it.each(["schema", "duplicate", "missing", "foreign", "design"])("invalid %s model proposal returns a diagnosed atomic fallback", async mode => {
+    const f = await fixture(), before = structuredClone({ layout: f.layout, row: f.row });
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    const fetcher = vi.fn(async (_url: unknown, init: any) => {
+      const supplied = JSON.parse(JSON.parse(init.body).messages[1].content);
+      const p = { family: supplied.base.family, variant: supplied.base.variant, design: supplied.base.design, blocks: supplied.base.blocks.map((b: any) => ({ id: b.id, title: b.title, mediaIds: b.mediaIds, placement: b.placement })) };
+      if (mode === "schema") return completion("[]");
+      if (mode === "duplicate") p.blocks[1].id = p.blocks[0].id;
+      if (mode === "missing") p.blocks.pop();
+      if (mode === "foreign") p.blocks[0].mediaIds = ["foreign"];
+      if (mode === "design") p.design.typography = "unsafe";
+      return completion(JSON.stringify(p));
+    });
+    const result = await proposeEditorial(new Headers(), f.id, f.store.deps, client(fetcher as typeof fetch), { layout: f.layout });
+    expect(result).toMatchObject({ status: "FALLBACK", outcome: "VALIDATION_FAILED", layout: before.layout });
+    expect({ layout: f.layout, row: f.row }).toEqual(before);
+    const log = JSON.parse(String(info.mock.calls.at(-1)![0]));
+    expect(log).toMatchObject({ phase: "PROPOSAL_VALIDATION", code: "PROPOSAL_INVALID" });
+    expect(log.validationCode).toBeTruthy(); expect(JSON.stringify(info.mock.calls)).not.toContain("fixture-private");
+  });
+  it("a timeout preserves the exact current layout even when the AI input must omit revoked media", async () => {
+    const f = await fixture(); f.row.media[0].websiteRights = "REJECTED";
+    const before = structuredClone({ layout: f.layout, row: f.row });
+    const fetcher = vi.fn(() => new Promise<Response>(() => {}));
+    const result = await proposeEditorial(new Headers(), f.id, f.store.deps, client(fetcher as typeof fetch, 20), { layout: f.layout });
+    expect(result).toMatchObject({ status: "FALLBACK", outcome: "PROVIDER_FAILED", layout: before.layout });
+    expect(result.layout.blocks[0]!.mediaIds).toEqual(["photo"]);
+    expect({ layout: f.layout, row: f.row }).toEqual(before);
   });
 });

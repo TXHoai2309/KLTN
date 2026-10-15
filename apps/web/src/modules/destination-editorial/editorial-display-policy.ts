@@ -15,7 +15,7 @@ export function editorialVisitData(data: Pick<EditorialContext, "area" | "sugges
   const hours = data.openingDays.flatMap(day => {
     if (!dayNames[day.dayOfWeek]) return [];
     if (day.status === "CLOSED") return [{ label: dayNames[day.dayOfWeek]!, value: "Đóng cửa" }];
-    const intervals = day.intervals.filter(i => /^([01]\d|2[0-3]):[0-5]\d$/.test(i.opensAt) && /^([01]\d|2[0-3]):[0-5]\d$/.test(i.closesAt) && i.opensAt < i.closesAt);
+    const intervals = day.intervals.filter(i => /^([01]\d|2[0-3]):[0-5]\d$/.test(i.opensAt) && (/^([01]\d|2[0-3]):[0-5]\d$/.test(i.closesAt) || i.closesAt === "24:00") && i.opensAt < i.closesAt);
     return day.status === "OPEN" && intervals.length ? [{ label: dayNames[day.dayOfWeek]!, value: intervals.map(i => `${i.opensAt}–${i.closesAt}`).join(", ") }] : [];
   });
   return { area: editorialValue(data.area), duration: hasEditorialDuration(data.suggestedDurationMinutes) ? data.suggestedDurationMinutes : null, hours };

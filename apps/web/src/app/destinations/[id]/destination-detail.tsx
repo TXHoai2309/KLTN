@@ -19,7 +19,7 @@ import {
   Sparkles,
   Tag,
 } from "lucide-react";
-import { weekdayLabels } from "@/modules/destination/destination-contract";
+import { editorialValue, editorialVisitData, hasEditorialCoordinates, hasEditorialFacts, hasEditorialDuration } from "@/modules/destination-editorial/editorial-display-policy";
 import { formatSuggestedDuration, type PublicDestinationDetail } from "@/modules/destination/public-destination-contract";
 
 function Shell({ children, returnTo }: { children: ReactNode; returnTo: ExploreReturnHref }) {
@@ -91,6 +91,7 @@ export default function DestinationDetail({
   returnTo?: ExploreReturnHref;
   editorial?: ResolvedEditorial | null;
 }) {
+  const visit = editorialVisitData(d);
   if (editorial) return <Shell returnTo={resolveExploreReturnTo(returnTo)}>
     <EditorialRenderer data={d} editorial={editorial} />
     <div className="public-detail-hero-actions"><Link className="public-detail-ai-btn" href={`/assistant?destinationId=${encodeURIComponent(d.id)}` as Route}><Sparkles size={16} aria-hidden="true" />Hỏi trợ lý AI về điểm đến này</Link><FavoriteButton targetType="destinations" targetId={d.id} /></div>
@@ -134,9 +135,9 @@ export default function DestinationDetail({
 
       <div className="public-detail-grid">
         <div className="public-detail-main">
-          <PublishedContentProfile profile={d.profile} />
+          <PublishedContentProfile profile={d.profile} hideEmptyValues />
 
-          <section className="public-detail-card public-detail-location" aria-labelledby="location-title">
+          {hasEditorialCoordinates(d) && <section className="public-detail-card public-detail-location" aria-labelledby="location-title">
             <div className="public-detail-card-header">
               <h2 id="location-title">
                 <MapPin size={21} aria-hidden="true" />
@@ -161,9 +162,9 @@ export default function DestinationDetail({
                 detail
               />
             </div>
-          </section>
+          </section>}
 
-          {mvpFeatures.culture && (
+          {mvpFeatures.culture && d.relatedCulture.length > 0 && (
 <section className="public-detail-card" aria-labelledby="culture-title">
             <h2 id="culture-title">
               <BookOpen size={21} aria-hidden="true" />
@@ -201,37 +202,37 @@ export default function DestinationDetail({
         </div>
 
         <aside className="public-detail-sidebar">
-          <section className="public-detail-card public-detail-facts-card" aria-labelledby="visit-title">
+          {hasEditorialFacts(d) && <section className="public-detail-card public-detail-facts-card" aria-labelledby="visit-title">
             <h2 id="visit-title">
               <Compass size={21} aria-hidden="true" />
               Thông tin tham quan
             </h2>
             <dl className="public-detail-facts">
-              <div className="public-detail-fact-row">
+              {editorialValue(d.area) && <div className="public-detail-fact-row">
                 <dt>
                   <MapPin size={15} aria-hidden="true" />
                   Khu vực
                 </dt>
-                <dd>{d.area}</dd>
-              </div>
-              <div className="public-detail-fact-row">
+                <dd>{editorialValue(d.area)}</dd>
+              </div>}
+              {editorialValue(d.category) && <div className="public-detail-fact-row">
                 <dt>
                   <Tag size={15} aria-hidden="true" />
                   Danh mục
                 </dt>
-                <dd>{d.category}</dd>
-              </div>
-              <div className="public-detail-fact-row">
+                <dd>{editorialValue(d.category)}</dd>
+              </div>}
+              {hasEditorialDuration(d.suggestedDurationMinutes) && <div className="public-detail-fact-row">
                 <dt>
                   <Clock size={15} aria-hidden="true" />
                   Thời lượng tham quan gợi ý
                 </dt>
                 <dd>{formatSuggestedDuration(d.suggestedDurationMinutes)}</dd>
-              </div>
+              </div>}
             </dl>
-          </section>
+          </section>}
 
-          <section className="public-detail-card public-detail-hours" aria-labelledby="hours-title">
+          {visit.hours.length > 0 && <section className="public-detail-card public-detail-hours" aria-labelledby="hours-title">
             <div className="public-detail-card-header">
               <h2 id="hours-title">
                 <CalendarDays size={21} aria-hidden="true" />
@@ -240,35 +241,9 @@ export default function DestinationDetail({
               <p className="public-detail-muted">Giờ địa phương Hà Giang (Asia/Ho_Chi_Minh)</p>
             </div>
             <dl className="public-detail-schedule-list">
-              {d.openingDays.map((day, index) => (
-                <div
-                  key={day.dayOfWeek}
-                  className={`public-detail-day ${
-                    day.status === "OPEN"
-                      ? "is-open"
-                      : day.status === "CLOSED"
-                      ? "is-closed"
-                      : "is-unknown"
-                  }`}
-                >
-                  <dt>{weekdayLabels[index]}</dt>
-                  <dd>
-                    {day.status === "CLOSED" ? (
-                      <span className="schedule-status-badge closed">Đóng cửa cả ngày</span>
-                    ) : day.status === "UNKNOWN" ? (
-                      <span className="schedule-status-badge unknown">Chưa có dữ liệu</span>
-                    ) : (
-                      day.intervals.map((interval) => (
-                        <span key={interval.opensAt} className="schedule-status-badge open">
-                          {interval.opensAt} – {interval.closesAt}
-                        </span>
-                      ))
-                    )}
-                  </dd>
-                </div>
-              ))}
+              {visit.hours.map(day => <div key={day.label} className="public-detail-day"><dt>{day.label}</dt><dd><span className={`schedule-status-badge ${day.value === "Đóng cửa" ? "closed" : "open"}`}>{day.value === "Đóng cửa" ? "Đóng cửa cả ngày" : day.value.replaceAll("–", " – ")}</span></dd></div>)}
             </dl>
-          </section>
+          </section>}
         </aside>
       </div>
     </Shell>

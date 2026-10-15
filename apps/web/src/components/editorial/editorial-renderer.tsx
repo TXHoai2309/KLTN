@@ -6,8 +6,9 @@ import { editorialVisitData } from "@/modules/destination-editorial/editorial-di
 import EditorialPhoto from "./editorial-photo";
 import { HeroPanorama, HeroSplit, EditorialIntroduction, EditorialProse, TextImageStorySection, FullBleedImage, StaggeredImageGallery, VisualHighlights, MapSection, SourceAttribution } from "./editorial-story";
 export type EditorialPageData = Pick<EditorialContext, "id" | "name" | "category" | "area" | "latitude" | "longitude" | "suggestedDurationMinutes" | "openingDays">;
-export function CompactTravelInformation({ data }: { data: EditorialPageData }) {
+export function CompactTravelInformation({ data, includeArea = true }: { data: EditorialPageData; includeArea?: boolean }) {
   const visit = editorialVisitData(data);
+  if (!includeArea) visit.area = "";
   if (!visit.area && visit.duration === null && !visit.hours.length) return null;
   return <section className="emg-visit" aria-label="Thông tin tham quan"><h2>Chuẩn bị cho chuyến đi</h2>
     {(visit.area || visit.duration !== null) && <dl>{visit.area && <div><dt>Khu vực</dt><dd>{visit.area}</dd></div>}{visit.duration !== null && <div><dt>Thời lượng gợi ý</dt><dd>{formatSuggestedDuration(visit.duration)}</dd></div>}</dl>}
@@ -34,7 +35,7 @@ export default function EditorialRenderer({ data, editorial }: { data: Editorial
         case "HIGHLIGHT_FACTS": return <VisualHighlights key={block.id} data={data} duration={formatSuggestedDuration(data.suggestedDurationMinutes)} />;
         case "TIMELINE": return <section key={block.id} className="emg-timeline"><h2>{block.title || "Dấu mốc"}</h2><ol>{block.entries.map((entry, i) => <li key={i}><strong>{entry.label}</strong><p>{entry.text}</p><span>{entry.sourceIds.map(id => sources.find(s => s.id === id)?.title).filter(Boolean).join(" · ")}</span></li>)}</ol></section>;
         case "QUOTE": return <section key={block.id} className="emg-quote"><blockquote>{block.text}</blockquote><p>{block.sourceIds.map(id => sources.find(s => s.id === id)?.title).filter(Boolean).join(" · ") || "Từ hồ sơ điểm đến"}</p></section>;
-        case "VISIT_INFORMATION": return <EditorialVisitInformation key={block.id} data={data} />;
+        case "VISIT_INFORMATION": return <EditorialVisitInformation key={block.id} data={data} includeArea={!layout.blocks.some(b => b.type === "HIGHLIGHT_FACTS")} />;
         case "MAP": return <MapSection key={block.id} block={block} data={data} />;
         case "SOURCES": return <SourceAttribution key={block.id} block={block} sources={sources} />;
       }
