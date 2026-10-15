@@ -52,6 +52,7 @@ model Destination {
   openingDays              OpeningDay[]
   cultureLinks             CultureDestination[]
   favorites                Favorite[]
+  itineraryVisits          ItineraryVisit[]
 
   @@index([area])
   @@index([category])

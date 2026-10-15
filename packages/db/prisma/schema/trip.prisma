@@ -1,0 +1,46 @@
+enum TripTransport {
+  MOTORCYCLE
+  CAR
+}
+
+model Trip {
+  id           String         @id @default(cuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  startDate    DateTime       @db.Date
+  durationDays Int
+  transport    TripTransport
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  days         ItineraryDay[]
+
+  @@index([userId, createdAt])
+  @@map("trip")
+}
+
+model ItineraryDay {
+  id        String           @id @default(cuid())
+  tripId    String
+  trip      Trip             @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  dayIndex  Int
+  localDate DateTime         @db.Date
+  visits    ItineraryVisit[]
+
+  @@unique([tripId, dayIndex])
+  @@map("itinerary_day")
+}
+
+model ItineraryVisit {
+  id                     String       @id @default(cuid())
+  dayId                  String
+  day                    ItineraryDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  destinationId          String
+  destination            Destination  @relation(fields: [destinationId], references: [id], onDelete: Restrict)
+  startMinute            Int
+  plannedDurationMinutes Int
+  order                  Int
+
+  @@unique([dayId, order])
+  @@index([destinationId])
+  @@map("itinerary_visit")
+}
