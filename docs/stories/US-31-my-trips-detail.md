@@ -2,7 +2,7 @@
 
 ## Status
 
-IMPLEMENTED IN CODE — live DB and MH-07/MH-09 visual acceptance remain blocked/not proven.
+IMPLEMENTED IN CODE — US-30 migration is applied; authenticated Trip UI and MH-07/MH-09 visual acceptance remain NOT PROVEN.
 
 ## Goal / User Story
 
@@ -18,7 +18,7 @@ Traveler xem các chuyến đi đã lưu của chính mình, phân nhóm theo ng
 
 ## Dependencies
 
-US-30 Trip, ItineraryDay and ItineraryVisit exist locally. `20261015000000_us30_trip_save` is not applied to the development DB because the DB has an editorial migration missing locally. Live read verification is blocked until migration history is reconciled.
+US-30 Trip, ItineraryDay and ItineraryVisit exist locally. The development DB migration history was reconciled in `US-30-db-migration-fix.md`; `20261015000000_us30_trip_save` is applied and `prisma migrate status` reports 19 migrations up to date. The development DB currently has zero Trip rows, so authenticated list/detail with saved data still needs live acceptance evidence.
 
 ## In Scope
 
@@ -78,7 +78,7 @@ TDD focused service/status/API/UI tests; US-30 regression; full tests, typecheck
 
 ## Migration Impact
 
-None for US-31. US-30 migration remains pending in the development DB.
+None for US-31. The prerequisite US-30 migration is applied to the configured development DB; US-31 added no schema or migration.
 
 ## Environment Impact
 
@@ -97,9 +97,9 @@ US-31 focused Vitest: 20/20 PASS (service/status 11, HTTP 5, UI 4). Combined US-
 
 The API uses shared read envelopes and `private, no-store`. List selects only Trip summary fields with `where: { userId }`; detail selects ordered days/visits with `where: { id, userId }`. Guest/Admin are rejected before Trip queries. UI has three status sections, a create action, day visit cards following the accessible Figma Itinerary Item example, hidden destinations marked unavailable, and loading/empty/error/not-found states.
 
-Manual authenticated My Trips/Detail, ownership navigation, light/dark and 360px viewport checks are NOT PROVEN: no local app server was running at `localhost:3001`, and the development DB still lacks the US-30 Trip migration. `npx prisma migrate status` reports missing local migration `20261014120000_add_destination_editorial` on the DB and unapplied `20261015000000_us30_trip_save` locally. No migration was applied here. The connected Figma file exposes only `01 – Components`, so MH-07/MH-09 screen fidelity is BLOCKED.
+Follow-up verification on 2026-10-15: US-30/31 targeted tests 37/37 PASS, `npm run check-types` PASS, and `npm run build` PASS. Full `npm test` still fails at the existing Culture header-link assertion. A local Next dev server at `localhost:3010` returned 401 for Guest requests to both Trip APIs; browser navigation to `/trips` showed `/login?returnTo=%2Ftrips`. Read-only development DB query counted zero Trip rows. Therefore authenticated My Trips/Detail with data, ownership navigation between two real Travelers, light/dark and 360px viewport checks remain NOT PROVEN. The connected Figma file metadata still exposes only `01 – Components`, so MH-07/MH-09 frame parity is BLOCKED. No code or schema change was needed for this re-audit.
 
 ## Open Questions
 
 - MH-07/MH-09 screens are absent from the connected Figma file; visual fidelity to those frames is blocked.
-- Development DB migration history must be reconciled before live Trip reads can be proven.
+- A saved Trip and authenticated Traveler session are needed for live list/detail and ownership navigation checks; none was created during this audit.
