@@ -3,6 +3,7 @@ import type { ExploreReturnHref } from "../destination/destination-detail-naviga
 
 export type MapDestination = PublicLocation & { latitude: number; longitude: number };
 export type MapCoordinate = { latitude: number; longitude: number };
+export type RouteGeometry = { type: "LineString"; coordinates: [number, number][] };
 export const haGiangViewport = { center: { lat: 22.8233, lng: 104.9836 }, zoom: 9 };
 export function toMapCoordinate(point: { latitude: number; longitude: number } | { lat: number; lng: number }): [number, number] {
   return "longitude" in point ? [point.longitude, point.latitude] : [point.lng, point.lat];

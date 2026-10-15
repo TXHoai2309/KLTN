@@ -908,6 +908,8 @@ Append a new entry for each meaningful work session. Keep prior entries as hando
 - **Eligibility:** Retained one canonical predicate `status === INDEXED` for response eligibility. Tests cover all five statuses and the INDEXED → DISABLED change. No fake retrieval/indexing was added.
 - **Verification:** TDD red run had 5 failing cases; `npm run test:rag --workspace=web` PASS 34/34 after implementation. Root `npm run test`, `npm run check-types`, `npm run build`, `git diff --check` PASS. No schema/migration/dependency/env change; no commit or push.
 - **Limits:** NT-252 end-to-end retrieval and QTN-107 history-source exclusion are **BLOCKED BY US-19** because no retrieval query exists. No Admin browser session/live RAG records or inspectable Figma MH-16/MH-18 frame, so light/dark, 360px and real database/Blob UI flow are NOT PROVEN.
+<<<<<<< HEAD
+=======
 
 
 ## 2026-10-11 — ThaiAnh into TXH integration review
@@ -1601,6 +1603,7 @@ Deterministic selection/gate/session-abuse/HTTP/source-status regressions: 83/83
 - **Coverage:** The new 13 tests assert blocking questions/hints, stable duration→transport order, CHOOSE_ONE with no default, source preservation, model/source downgrade, `TRANSPORT_UNSUPPORTED`, `TRIP_REQUIREMENT_UNCLEAR` blockers, advisory-vs-blocking confirmation, and the unchanged final start-date guard. Existing US24/25/26/27 tests were reused for role/body-order, legacy response defaults, no-store, stale/network, storage/source-contract and prior API behavior; no unrelated old test was changed.
 - **Tests:** Full relevant selection is **22 files, 348/348 tests passed**. The new suite alone is **13/13**. Test stderr contains only expected safe error-log assertions from existing API boundary cases; no sensitive request body is logged.
 - **Checks/limits:** Root `npm run test`, `npm run check-types` and `npm run build` remain blocked immediately by the existing local `shim integrity check failed`; `git diff --check` remains the relevant repository check. Browser/manual review, responsive overflow, keyboard/screen-reader focus, Guest/Admin live session, and authorized real OpenAI evaluation are **NOT PROVEN**. No commit or push.
+<<<<<<< HEAD
 
 ## 2026-10-13 — US28 preliminary Planner and reference UI
 
@@ -1737,3 +1740,22 @@ Deterministic selection/gate/session-abuse/HTTP/source-status regressions: 83/83
 - **Known issues:** Composed helpers use a test-only caller and do not prove production coordinator/UI wiring, click-only runtime behavior or screen-reader/360px acceptance. Source regex audit scans direct production TS/TSX (currently5files), not transitive imports or runtime data flow/obfuscation; it is not a privacy certification for every dependency. Outside-Ha-Giang/freshness/accuracy policy and Trip/Validator/Planner integration remain unresolved. Shared story/progress docs may conflict with other developers; root typecheck remains red outside scope.
 - **Decisions:** Task285 resolves manual-specificity narrowly as requiring a complete valid coordinate pair; no geofence/geocoding/accuracy/freshness threshold introduced. A valid pair passes shape/range only, not itinerary/regional eligibility. Source audit is intentionally conservative and excludes test fixtures that mention prohibited APIs as negative controls. US-35 stays DRAFT; full-flow ACs are unchecked.
 - **Next step:** Bình runs and records the manual checklist once real UI/caller integration exists; keep blocked/unrun cases NOT PROVEN and resolve owner region policy separately.
+=======
+>>>>>>> 8b5ff486267fd66fd6a8418005d8b02b13b49d8c
+
+## 2026-10-14 — US-29A opening hours and minimum duration validator
+
+- Audited the current `ThaiAnh` working tree. Destination already has nullable, distinct minimum/suggested duration and seven-day OPEN/CLOSED/UNKNOWN schedules with minute intervals; no itinerary visit or Validator foundation exists. Added only two pure checks in `apps/web/src/modules/trip-validation/visit-constraints.ts`, their Vitest suite and the US-29A story. No API, UI, DB model, migration, package, route-time or aggregate rule engine change.
+- Outcomes use the product vocabulary `PASS` / `VIOLATION` / `INSUFFICIENT_DATA` with affected visit ID and reason. Opening hours require one complete interval; an explicit CLOSED day violates while UNKNOWN/missing hours are insufficient. Minimum duration is independent of suggested duration. Vietnam-local date and minute inputs make the checks deterministic without a clock or timezone conversion.
+- TDD red stage had 17 expected failing stub tests; final focused 18/18 and related Trip selection 255/255 pass. The project TypeScript scan has no `trip-validation` diagnostics. Root test, typecheck and build were attempted but fail on existing missing declared packages, stale Prisma Client and unrelated RAG/Admin code; see the US-29A story for counts. No commit or push.
+- This file was already unmerged (`UU`) with conflict markers before US-29A. The entry was appended without deleting either side; the owner must resolve the pre-existing merge before the progress document is merge-ready.
+- Root `git diff --check` exits 1 on those existing conflict markers; no US-29A merge resolution was attempted.
+
+## 2026-10-14 — US-29B Stadia routing and travel-time validator
+
+- Replaced the historical Google Routes provider choice for this task with Stadia Standard Routing. Added a server-only one-leg adapter mapping `CAR` to `auto` and `MOTORCYCLE` to `motorcycle`, with a 10-second maximum, no retry/profile substitution, normalized duration/distance/optional polyline6 line and `unavailable` on missing route/provider data. Added a pure adjacent-visit travel-time check using the US-29A outcome vocabulary; no Trip write/API/model or migration was added.
+- Reused `DestinationMap` and MapLibre. Theme changes now call `setStyle` on the mounted map; an optional normalized route line is re-added after style load. The public map/list fallback remains. `STADIA_MAPS_API_KEY` is documented as server-only, with production tile domains requiring Stadia authentication configuration.
+- Live spike used two visible development Destinations plus the checked-in Lũng Cú coordinate payload. Three pairs × `auto`/`motorcycle` returned six HTTP 200 routes with finite duration, distance and geometry (113–298 ms observed across two runs). One DB point is an unverified manual test record and the payload is not a DB record; production 30–50 destination coverage remains NOT PROVEN. No key or raw provider response was logged.
+- Focused tests: US-29B + US-29A Vitest 31/31 PASS; existing/new map `node:test` 25/25 PASS. Manual `/explore?view=map` loaded tiles/two markers, switched dark/light, and showed no horizontal overflow at 360/390/768/1024/1440px; no browser console or hydration errors. Browser network-level credential inspection was unavailable. `npm run env:generate` and `git diff --check` PASS.
+- Root `npm run test`, `npm run check-types` and `npm run build` were attempted but fail on unrelated missing declared packages, stale generated Prisma members and RAG tests. The targeted changed-file TypeScript diagnostic scan showed no US-29B errors; full type/build PASS and end-to-end Trip integration remain NOT PROVEN. No commit or push.
+>>>>>>> d244d112ee8fe91f0c8d56a9081296133e75cf95

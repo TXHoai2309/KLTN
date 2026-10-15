@@ -52,11 +52,18 @@ This is a lightweight log of decisions that future stories may rely on. “Exist
 
 ## ADR-07 — Separate AI, routing, and deterministic validation responsibilities
 
-- **Status:** Accepted baseline; integrations pending
+- **Status:** Responsibility boundary retained; provider choice superseded by ADR-17
 - **Decision:** OpenAI handles language understanding/proposals and RAG; Google Maps Platform renders maps; Google Routes API supplies route/travel-time data for `DRIVE` and `TWO_WHEELER`; a deterministic server-side Validator decides constraint outcomes.
 - **Reason:** AI output is not a source of truth for deterministic business constraints.
 - **Consequence:** Missing required routing/validator data is not a pass. API keys stay server-side except the restricted browser Maps key. No OpenAI or Routes service module is present yet.
 - **Date:** Existing baseline
+
+## ADR-17 — US-29B MapLibre and Stadia routing provider (2026-10-14)
+
+- **Status:** Accepted for US-29B by the current task instruction, replacing ADR-07's Google map/routing technology choice.
+- **Decision:** Reuse MapLibre GL JS with Stadia Alidade Smooth/Dark vector styles for browser maps. Browser tiles use Stadia domain authentication; the server calls Stadia Standard Routing once per leg. Canonical `CAR` maps to `auto`, `MOTORCYCLE` maps to `motorcycle`. The server-only `STADIA_MAPS_API_KEY` never reaches the browser. A pure check compares the returned duration snapshot with the local visit gap.
+- **Reason:** Keep map presentation separate from required travel-time evidence and deterministic validation while honoring the owner-selected provider.
+- **Consequence:** No Google Maps or Google Routes implementation for US-29B. Route timeout/unavailability remains `INSUFFICIENT_DATA`, with no motorcycle-to-auto substitution. Production tile hostnames must be registered in the Stadia Dashboard; current itinerary persistence/UI are outside this decision.
 
 ## ADR-08 — Shared HTTP response and error conventions
 
