@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, Be_Vietnam_Pro } from "next/font/google";
+import { Geist, Geist_Mono, Be_Vietnam_Pro, Lora } from "next/font/google";
 
 import "../index.css";
 import "../components/published-content-profile.css";
@@ -24,6 +24,7 @@ const beVietnamPro = Be_Vietnam_Pro({
   subsets: ["latin", "vietnamese"],
   weight: ["300", "400", "500", "600", "700", "800", "900"],
 });
+const editorialSerif = Lora({ variable: "--font-editorial-serif", subsets: ["latin", "vietnamese"], display: "swap" });
 
 export const metadata: Metadata = {
   title: "KLTN",
@@ -37,7 +38,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} ${beVietnamPro.variable} antialiased`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${beVietnamPro.variable} ${editorialSerif.variable} antialiased`}>
         <Providers>
           <div className="grid grid-rows-[auto_1fr] min-h-svh">
             <Header />

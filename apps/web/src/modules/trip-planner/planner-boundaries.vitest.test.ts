@@ -1,3 +1,4 @@
+import { destinationMediaWhere } from "../destination/destination-media-eligibility";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Database } from "@KLTN/db";
 import type { AuthorizationDependencies } from "@/server/authorization/guard";
@@ -17,7 +18,7 @@ function request(body: unknown = {requirement}, extra: HeadersInit = {}) {return
 
 describe("US28 candidate persistence boundary",()=>{
   function row(id: string, extra: Record<string,unknown>={}) { const c=candidate(id);return {...c,updatedAt:referenceTime,contentRevision:1,shortDescription:null,media:[],...extra}; }
-  it("uses canonical VISIBLE filter, one bounded nested query and approved media only",async()=>{const findMany=vi.fn(async()=>[row("a"),row("hidden",{visibility:"HIDDEN"}),row("invalid",{latitude:NaN})]);const data=await retrievePlannerCandidates({destination:{findMany}} as unknown as Database);expect(data.map(c=>c.id)).toEqual(["a"]);expect(findMany).toHaveBeenCalledOnce();expect(findMany).toHaveBeenCalledWith(expect.objectContaining({where:{visibility:"VISIBLE"},take:64,select:expect.objectContaining({media:expect.objectContaining({where:{websiteRights:"APPROVED"}}),openingDays:expect.any(Object)})})); });
+  it("uses canonical VISIBLE filter, one bounded nested query and shared Destination media eligibility",async()=>{const findMany=vi.fn(async()=>[row("a"),row("hidden",{visibility:"HIDDEN"}),row("invalid",{latitude:NaN})]);const data=await retrievePlannerCandidates({destination:{findMany}} as unknown as Database);expect(data.map(c=>c.id)).toEqual(["a"]);expect(findMany).toHaveBeenCalledOnce();expect(findMany).toHaveBeenCalledWith(expect.objectContaining({where:{visibility:"VISIBLE"},take:64,select:expect.objectContaining({media:expect.objectContaining({where:destinationMediaWhere}),openingDays:expect.any(Object)})})); });
   it("does not project internal evidence/path and rejects unsafe media URLs",async()=>{const db={destination:{findMany:async()=>[row("a",{media:[{url:"javascript:alert(1)",alt:"x",author:null,sourceUrl:null}],locationEvidence:"private"})]}} as unknown as Database;const rows=await retrievePlannerCandidates(db);expect(rows[0]?.image).toBeNull();expect(JSON.stringify(rows)).not.toContain("private"); });
   it("reuses persisted eligibility and detects revision/schedule revocation",async()=>{const old=candidate("a");let calls=0;const db={destination:{findMany:async()=>++calls===1?[{id:"a"}]:[row("a",{contentRevision:2})]}} as unknown as Database;expect(await recheckPlannerCandidates(db,[old])).toBe(false);expect(calls).toBe(2); });
 });

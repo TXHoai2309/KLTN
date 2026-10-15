@@ -2,6 +2,29 @@
 
 Status: IMPLEMENTED / DEVELOPMENT MIGRATED — READY FOR OWNER MANUAL TEST (2026-10-15).
 
+2026-10-15 Owner-approved presentation refinement: AI can propose safe typography,
+palette, rhythm, crop and gallery direction; default KEEP constrains the chosen
+family/variant in both the provider schema and server validator. Explicit AUTO
+permits reselection. Shared article-relative type scales, Vietnamese Lora headings,
+paragraph rhythm and compact/immersive options replace oversized viewport-driven
+headings. Manual design settings persist in optional v1 JSON fields, without a
+migration or rewriting existing layouts. No new factual prose, image generation,
+auto-save or publication. See [art direction report](../implementation/destination-editorial-art-direction.md).
+
+2026-10-15 GPT-6 Luna follow-up: isolated Editorial adapter uses explicit none
+reasoning, no temperature, strict Structured Outputs,8192token cap and one25s
+deadline/no automatic retry. Current block/prose preservation, safe correlated
+diagnostics and V3.4 image-policy checks are covered by201focused tests plus17
+browser groups. Actual Next3010configuration confirmed; no real OpenAI call,
+Neon write, migration or US25 adapter change. Account access/quota/live proposal
+remain manual acceptance. See [Luna report](../implementation/destination-editorial-gpt6-luna.md).
+
+2026-10-15 Owner-approved Destination image-use simplification replaces the
+original APPROVED-only image gate with shared application-use eligibility across
+picker/engine/AI/public resolution. Source approval, HIDDEN isolation and explicit
+Editorial publication remain unchanged. See
+[current story](DESTINATION-IMAGE-UX-SIMPLIFICATION.md).
+
 Development activation: owner attested the current datasource is Development and
 waived backup/recovery creation. Fresh endpoint/database/ledger/schema checks passed;
 Prisma migrate deploy applied only20261014120000_add_destination_editorial.18finished

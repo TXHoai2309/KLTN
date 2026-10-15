@@ -292,3 +292,9 @@ Progress is read from a consistent database snapshot. Admission SUCCESS and job
 completion are separate; Admin UI polls, supports safe recovery and refreshes the
 document only after observed COMPLETED. Offline code/test completion does not mean
 live Blob/provider or owner acceptance. US19 remains IN_PROGRESS.
+
+## 2026-10-15 — Destination image application-use eligibility
+
+Owner explicitly approved removing Destination per-photo evidence/review steps. Successful new server-verified uploads may be used immediately in Destination and Editorial while legal websiteRights remains UNKNOWN and evidence/reviewer/time remain null. This supersedes the original image approval gate only; Culture, factual sources and RAG permissions are unchanged.
+
+Use a server-owned versioned application-use marker in the existing storageReference JSON, bound to Destination and provider identity/URL. Mint only in verified upload finalization; strip client-minted/copy attempts and remove on URL/rights change or revocation. Consumers share persisted candidate filtering and exact owner/asset validation. Public use still requires VISIBLE Destination and, for magazine composition, published Editorial. No migration is required. Do not backfill untagged legacy UNKNOWN or rewrite existing Đồng Văn photos; their provenance/revocation history needs separate audit before any future activation. No fake legal evidence/APPROVED assignment, new approval loop, shared migration, commit/push/deploy or real-provider automated test.

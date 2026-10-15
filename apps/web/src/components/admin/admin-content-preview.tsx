@@ -112,8 +112,7 @@ export default function AdminContentPreview({
   return (
     <article className="af-preview" aria-label="Xem trước hồ sơ">
       <p className="af-helper">
-        Xem trước dữ liệu đang nhập. Chưa lưu hoặc xuất bản; ảnh và nguồn chỉ
-        được công khai khi quyền website đã được duyệt.
+        {simplifiedDestination ? "Xem trước dữ liệu đang nhập. Nội dung công khai theo trạng thái xuất bản của điểm đến." : "Xem trước dữ liệu đang nhập. Chưa lưu hoặc xuất bản; ảnh và nguồn chỉ được công khai khi quyền website đã được duyệt."}
       </p>
       <h2>{title || "Chưa có tiêu đề"}</h2>
       {profile.shortDescription && <p>{profile.shortDescription}</p>}
@@ -216,10 +215,10 @@ export default function AdminContentPreview({
           <AdminImagePreview url={m.url} alt={m.alt} />
           <figcaption>
             {m.isCover ? "Ảnh đại diện · " : ""}
-            {m.caption || m.alt} ·{" "}
+            {m.caption || m.alt}{!simplifiedDestination && <> ·{" "}
             {m.websiteRights === "APPROVED"
               ? "Đã duyệt website"
-              : "Chưa được phép hiển thị công khai"}
+              : "Chưa được phép hiển thị công khai"}</>}
           </figcaption>
         </figure>
       ))}

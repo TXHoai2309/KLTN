@@ -23,7 +23,7 @@ describe("Content-aware deterministic magazine", () => {
     if (!count) expect(layout.variant).toBe("EDITORIAL");
     if (count === 1) expect(layout.blocks.filter(b => b.mediaIds.length)).toHaveLength(1);
   });
-  it.each([["di tích lịch sử – kiến trúc", "HERITAGE_STORY"], ["thiên nhiên – thắng cảnh", "NATURE_SHOWCASE"], ["làng du lịch – bản làng", "VILLAGE_CULTURE"], ["công viên địa chất", "JOURNEY_EDITORIAL"]])("%s chooses %s", (category, family) => expect(chooseFamily(category)).toBe(family));
+  it.each([["di tích lịch sử – kiến trúc", "HERITAGE_STORY"], ["thiên nhiên – thắng cảnh", "NATURE_SHOWCASE"], ["làng du lịch – bản làng", "VILLAGE_CULTURE"], ["công viên địa chất", "NATURE_SHOWCASE"]])("%s chooses %s", (category, family) => expect(chooseFamily(category)).toBe(family));
   it("all twelve combinations are strict layouts with materially different variant IDs", () => { const base = autoLayout(editorialFixture()); for (const family of families) for (const variant of variants) expect(editorialLayoutSchema.safeParse({ ...base, family, variant }).success).toBe(true); });
   it("filters revoked media and references; does not expose internal identity metadata", () => {
     const context = editorialFixture(); const layout = autoLayout(context); context.media[0]!.websiteRights = "REJECTED";
@@ -61,7 +61,9 @@ describe("AI proposal is constrained presentation only", () => {
   const proposal = () => ({ family: base.family, variant: "SPLIT", blocks: base.blocks.map(b => ({ id: b.id, mediaIds: b.mediaIds, placement: b.placement, title: b.title })) });
   it("accepts reordered known block IDs and leaves prose/source facts unchanged", () => {
     const input = proposal(); input.blocks.reverse(); const result = validateAiProposal(JSON.stringify(input), base, context);
-    expect(result.blocks[0]?.id).toBe(base.blocks.at(-1)?.id); expect(result.blocks.find(b => b.type === "INTRO")?.text).toBe(base.blocks.find(b => b.type === "INTRO")?.text);
+    expect(result.blocks[0]?.type).toBe("HERO"); expect(result.blocks.at(-1)?.type).toBe("SOURCES");
+    expect(result.blocks.filter(b=>["TEXT_SECTION","IMAGE_TEXT_SPLIT","FULL_WIDTH_IMAGE","IMAGE_GRID","IMAGE_GALLERY"].includes(b.type)).map(b=>b.id)).toEqual([...base.blocks].reverse().filter(b=>["TEXT_SECTION","IMAGE_TEXT_SPLIT","FULL_WIDTH_IMAGE","IMAGE_GRID","IMAGE_GALLERY"].includes(b.type)).map(b=>b.id));
+    expect(result.blocks.find(b => b.type === "INTRO")?.text).toBe(base.blocks.find(b => b.type === "INTRO")?.text);
   });
   it.each(["json", "title", "media", "block", "url"])("rejects invalid/forged %s", mode => {
     const input = proposal();

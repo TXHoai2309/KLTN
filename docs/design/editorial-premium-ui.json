@@ -1,0 +1,9 @@
+{
+  "scope": "Destination Editorial workspace and shared public article renderer",
+  "sourceRoots": ["apps/web/src/components/editorial", "apps/web/src/app/admin/destinations"],
+  "ownership": { "Select/Listbox": "native", "Date": "native" },
+  "evidence": {
+    "crudFullFlow": "apps/web/scripts/test-destination-editorial-ui.mjs",
+    "failurePaths": "apps/web/scripts/test-destination-editorial-ui.mjs"
+  }
+}

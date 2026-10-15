@@ -1,22 +1,28 @@
 import { publicHttpsUrl } from "../content-profile/content-profile-contract";
+import { isDestinationMediaUsable } from "../destination/destination-media-eligibility";
 import { editorialBlockSchema, editorialLayoutSchema, type EditorialLayout, type EditorialContext, type ResolvedEditorial, type EditorialBlock } from "./editorial-contract";
+import { prepareEditorialContent, splitSourcedSection } from "./editorial-content";
+import { editorialImageDimensions } from "./editorial-image-quality";
+import { editorialValue, editorialVisitData, hasEditorialCoordinates, hasEditorialFacts } from "./editorial-display-policy";
 export function chooseFamily(category: string): EditorialLayout["family"] {
   const c = category.normalize("NFC").toLocaleLowerCase("vi");
   if (/di tích|lịch sử|kiến trúc/.test(c)) return "HERITAGE_STORY";
   if (/làng|bản làng/.test(c)) return "VILLAGE_CULTURE";
-  if (/thiên nhiên|thắng cảnh/.test(c)) return "NATURE_SHOWCASE";
+  if (/thiên nhiên|thắng cảnh|công viên địa chất/.test(c)) return "NATURE_SHOWCASE";
   return "JOURNEY_EDITORIAL";
 }
-export function approvedMedia(context: EditorialContext) { return context.media.filter(m => m.websiteRights === "APPROVED" && publicHttpsUrl.safeParse(m.url).success); }
+export function usableEditorialMedia(context: EditorialContext) { return context.media.filter(m => isDestinationMediaUsable(m, context.id)); }
 function landscape(media: EditorialContext["media"][number]) {
-  try {
-    const r = JSON.parse(media.storageReference ?? "null");
-    if (r?.provider !== "cloudinary" || !r.assetId || !r.publicId || !r.version || !media.url.startsWith(`https://res.cloudinary.com/${r.cloud}/image/upload/v${r.version}/`) || !Number.isFinite(r.width) || !Number.isFinite(r.height) || r.width < 1 || r.height < 1 || r.width * r.height > 25_000_000) return false;
-    return r.width / r.height >= 1.5;
-  } catch { return false; }
+  const d = editorialImageDimensions(media);
+  return Boolean(d.width && d.height && d.width / d.height >= 1.5);
 }
 export function autoLayout(context: EditorialContext, seed?: EditorialLayout): EditorialLayout {
-  const images = [...approvedMedia(context)].sort((a, b) => Number(b.isCover) - Number(a.isCover) || Number(landscape(b)) - Number(landscape(a)));
+  const images = [...usableEditorialMedia(context)].sort((a, b) => Number(b.isCover) - Number(a.isCover) || Number(landscape(b)) - Number(landscape(a)));
+  const first = images[0] && editorialImageDimensions(images[0]);
+  if (first?.width && first.width < 1000) {
+    const better = images.findIndex(m => (editorialImageDimensions(m).width ?? 0) >= 1200 && landscape(m));
+    if (better > 0) images.unshift(...images.splice(better, 1));
+  }
   const paragraphs = context.description.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
   const family = chooseFamily(context.category);
   const variant = !images.length ? "EDITORIAL" : family === "NATURE_SHOWCASE" && (landscape(images[0]!) || images.length >= 4) ? "PANORAMA"
@@ -24,6 +30,8 @@ export function autoLayout(context: EditorialContext, seed?: EditorialLayout): E
   const block = (id: string, type: EditorialBlock["type"], extra = {}) => editorialBlockSchema.parse({ id, type, ...extra });
   const blocks = [block("hero", "HERO", { mediaIds: images[0] ? [images[0].id] : [], title: context.name }), block("intro", "INTRO", { text: paragraphs.shift() ?? "" })];
   const remaining = images.slice(1);
+  const galleryCount = images.length >= 5 ? Math.min(remaining.length - 1, 5) : 0;
+  const storyImages = remaining.splice(0, remaining.length - galleryCount);
   const curated = (seed?.blocks ?? []).filter(b => ["TIMELINE", "QUOTE"].includes(b.type) ||
     (["INTRO", "TEXT_SECTION", "IMAGE_TEXT_SPLIT"].includes(b.type) && b.text && !context.description.includes(b.text)));
   // Reserve capacity for every manually authored block before splitting prose.
@@ -31,52 +39,77 @@ export function autoLayout(context: EditorialContext, seed?: EditorialLayout): E
   const sections = paragraphs.slice(0, Math.min(19, capacity));
   if (paragraphs.length > sections.length) sections[sections.length - 1] = paragraphs.slice(sections.length - 1).join("\n\n");
   for (const [index, text] of sections.entries()) {
-    const image = remaining.length > (images.length >= 4 ? 2 : 0) ? remaining.shift() : undefined;
-    blocks.push(block(`section-${index}`, image ? "IMAGE_TEXT_SPLIT" : "TEXT_SECTION", { text, mediaIds: image ? [image.id] : [], placement: index % 2 ? "right" : "left" }));
+    const image = storyImages.shift();
+    const body = splitSourcedSection(text);
+    const bleed = image && index % 2 === 1 && landscape(image) && (editorialImageDimensions(image).width ?? 0) >= 1200;
+    blocks.push(block(`section-${index}`, image && !bleed ? "IMAGE_TEXT_SPLIT" : "TEXT_SECTION", { ...body, ...(body.title ? { headingProvenance: { blockId: `section-${index}`, excerpt: body.title } } : {}), mediaIds: image && !bleed ? [image.id] : [], placement: index % 2 ? "right" : "left", crop: image && !landscape(image) ? "portrait" : "wide" }));
+    if (bleed) blocks.push(block(`image-break-${index}`, "FULL_WIDTH_IMAGE", { mediaIds: [image.id], crop: "wide" }));
   }
+  remaining.unshift(...storyImages);
   if (remaining.length) blocks.push(block("gallery", remaining.length >= 3 ? "IMAGE_GRID" : "IMAGE_GALLERY", { mediaIds: remaining.map(m => m.id), gallery: family === "HERITAGE_STORY" ? "grid" : family === "JOURNEY_EDITORIAL" ? "strip" : "mosaic" }));
   // Retain Admin-curated supplementary prose and provenance-backed material.
   // Reuse only text/citations here: image roles are freshly allocated, never duplicated.
-  for (const [index, b] of curated.entries()) blocks.push({ ...b, id: `curated-${index}`,
-    type: b.type === "IMAGE_TEXT_SPLIT" || b.type === "INTRO" ? "TEXT_SECTION" : b.type, mediaIds: [] });
-  if (context.category || context.area) blocks.push(block("facts", "HIGHLIGHT_FACTS"));
-  if (context.suggestedDurationMinutes !== null || context.openingDays.some(d => d.status !== "UNKNOWN")) blocks.push(block("visit", "VISIT_INFORMATION"));
-  if (Number.isFinite(context.latitude) && Number.isFinite(context.longitude)) blocks.push(block("map", "MAP"));
+  for (const b of curated) {
+    const sameId = blocks.findIndex(existing => existing.id === b.id);
+    const retained = { ...b, type: b.type === "IMAGE_TEXT_SPLIT" || b.type === "INTRO" ? "TEXT_SECTION" as const : b.type, mediaIds: [] };
+    if (sameId >= 0) blocks[sameId] = retained;
+    else blocks.push(retained);
+  }
+  if (hasEditorialFacts(context)) blocks.push(block("facts", "HIGHLIGHT_FACTS"));
+  if (editorialVisitData(context).area || editorialVisitData(context).duration || editorialVisitData(context).hours.length) blocks.push(block("visit", "VISIT_INFORMATION"));
+  if (hasEditorialCoordinates(context)) blocks.push(block("map", "MAP"));
   const sources = context.sources.filter(s => s.websiteRights === "APPROVED");
   if (sources.length) blocks.push(block("sources", "SOURCES", { sourceIds: sources.map(s => s.id) }));
   // If a manually filled layout reaches the contract ceiling, keep its text and
-  // provenance intact; only update the template decision instead of truncating it.
-  if (blocks.length > 30 && seed) return editorialLayoutSchema.parse({ ...seed, family, variant });
-  return editorialLayoutSchema.parse({ schemaVersion: 1, family, variant, blocks });
+  // provenance and chosen presentation intact instead of truncating the layout.
+  if (blocks.length > 30 && seed) return editorialLayoutSchema.parse(seed);
+  return editorialLayoutSchema.parse({ schemaVersion: 1, family: seed?.family ?? family, variant: seed?.variant ?? variant, ...(seed?.design ? { design: seed.design } : {}), blocks });
 }
 export function validateLayoutReferences(layout: EditorialLayout, context: EditorialContext, publishing: boolean) {
-  const media = new Set(context.media.filter(m => !publishing || m.websiteRights === "APPROVED").map(m => m.id));
+  const media = new Set(context.media.filter(m => !publishing || isDestinationMediaUsable(m, context.id)).map(m => m.id));
   const sources = new Set(context.sources.filter(s => !publishing || s.websiteRights === "APPROVED").map(s => s.id));
   for (const b of layout.blocks) {
+    if (b.headingProvenance && (b.headingProvenance.blockId !== b.id || b.headingProvenance.excerpt !== b.title || (!b.text.includes(b.title) && !context.description.includes(b.title)))) throw Error("Heading không còn khớp trích đoạn nguồn.");
     if (b.hidden && publishing) continue;
-    if (b.mediaIds.some(id => !media.has(id)) || [...b.sourceIds, ...b.entries.flatMap(e => e.sourceIds)].some(id => !sources.has(id))) throw Error("Ảnh/nguồn không thuộc điểm đến hoặc chưa được duyệt.");
+    if (b.mediaIds.some(id => !media.has(id)) || [...b.sourceIds, ...b.entries.flatMap(e => e.sourceIds)].some(id => !sources.has(id))) throw Error("Ảnh hoặc nguồn không thuộc điểm đến hoặc không còn khả dụng.");
     if (publishing && b.type === "QUOTE" && b.text && !b.sourceIds.length && !context.description.includes(b.text)) throw Error("Trích dẫn cần nguồn được duyệt hoặc đoạn nguyên văn trong mô tả.");
     if (publishing && b.type === "TIMELINE" && b.entries.some(e => !e.label || !e.text || !e.sourceIds.length)) throw Error("Mốc thời gian cần nội dung và nguồn.");
   }
 }
-export function resolveEditorial(layout: EditorialLayout, context: EditorialContext): ResolvedEditorial | null {
-  const media = approvedMedia(context);
-  const sources = context.sources.filter(s => s.websiteRights === "APPROVED" && (!s.url || publicHttpsUrl.safeParse(s.url).success));
+export type EditorialDisplayIssue = { blockId: string; reason: "ADMIN_HIDDEN" | "EMPTY_CONTENT" | "DUPLICATE_BLOCK" };
+export function resolveEditorialDisplay(layout: EditorialLayout, context: EditorialContext) {
+  const issues: EditorialDisplayIssue[] = layout.blocks.filter(b => b.hidden).map(b => ({ blockId: b.id, reason: "ADMIN_HIDDEN" }));
+  layout = prepareEditorialContent(layout, context.description).layout;
+  const media = usableEditorialMedia(context);
+  const sources = context.sources.filter(s => s.websiteRights === "APPROVED" && editorialValue(s.title) && (!s.url || publicHttpsUrl.safeParse(s.url).success));
   const sourceIds = new Set(sources.map(s => s.id));
   const seen = new Set<string>();
-  const blocks = layout.blocks.filter(b => !b.hidden).map(b => ({ ...b,
+  const singletons = new Set<string>();
+  const blocks = layout.blocks.filter(b => !b.hidden).map(b => ({ ...b, title: editorialValue(b.title), text: editorialValue(b.text), deck: editorialValue(b.deck),
     mediaIds: b.mediaIds.filter(id => media.some(m => m.id === id) && !seen.has(id) && Boolean(seen.add(id))),
     sourceIds: b.sourceIds.filter(id => sourceIds.has(id)),
-    entries: b.entries.filter(e => e.sourceIds.length && e.sourceIds.every(id => sourceIds.has(id))),
+    entries: b.entries.filter(e => editorialValue(e.label) && editorialValue(e.text) && e.sourceIds.length && e.sourceIds.every(id => sourceIds.has(id))),
   })).filter(b => {
-    if (["FULL_WIDTH_IMAGE", "IMAGE_GRID", "IMAGE_GALLERY"].includes(b.type)) return b.mediaIds.length > 0;
-    if (["INTRO", "TEXT_SECTION", "IMAGE_TEXT_SPLIT"].includes(b.type)) return Boolean(b.text || b.mediaIds.length);
-    if (b.type === "QUOTE") return Boolean(b.text && (b.sourceIds.length || context.description.includes(b.text)));
-    if (b.type === "TIMELINE") return b.entries.length > 0;
-    if (b.type === "SOURCES") return b.sourceIds.length > 0;
-    if (b.type === "MAP") return Number.isFinite(context.latitude) && Number.isFinite(context.longitude);
+    let useful = true;
+    if (["FULL_WIDTH_IMAGE", "IMAGE_GRID", "IMAGE_GALLERY"].includes(b.type)) useful = b.mediaIds.length > 0;
+    if (["INTRO", "TEXT_SECTION", "IMAGE_TEXT_SPLIT"].includes(b.type)) useful = Boolean(b.title || b.text || b.mediaIds.length);
+    if (b.type === "QUOTE") useful = Boolean(b.text && (b.sourceIds.length || context.description.includes(b.text)));
+    if (b.type === "TIMELINE") useful = b.entries.length > 0;
+    if (b.type === "SOURCES") useful = b.sourceIds.length > 0;
+    if (b.type === "MAP") useful = hasEditorialCoordinates(context);
+    if (b.type === "HIGHLIGHT_FACTS") useful = hasEditorialFacts(context);
+    if (b.type === "VISIT_INFORMATION") { const v = editorialVisitData(context); useful = Boolean(v.area || v.duration || v.hours.length); }
+    if (!useful) { issues.push({ blockId: b.id, reason: "EMPTY_CONTENT" }); return false; }
+    // These types render the same canonical fields; repeated blocks add no data.
+    if (["HIGHLIGHT_FACTS", "MAP", "VISIT_INFORMATION"].includes(b.type)) {
+      if (singletons.has(b.type)) { issues.push({ blockId: b.id, reason: "DUPLICATE_BLOCK" }); return false; }
+      singletons.add(b.type);
+    }
     return true;
   });
-  if (!blocks.length) return null;
-  return { layout: { ...layout, blocks }, media: media.filter(m => seen.has(m.id)).map(({ id, url, alt, caption, author, sourceUrl }) => ({ id, url, alt, caption, author, sourceUrl })), sources: sources.map(({ id, title, url }) => ({ id, title, url })) };
+  const editorial: ResolvedEditorial | null = !blocks.length ? null : { layout: { ...layout, blocks }, media: media.filter(m => seen.has(m.id)).map(m => ({ id: m.id, url: m.url, alt: m.alt, caption: m.caption, author: m.author, sourceUrl: m.sourceUrl, ...editorialImageDimensions(m) })), sources: sources.map(({ id, title, url }) => ({ id, title, url })) };
+  return { editorial, issues };
+}
+export function resolveEditorial(layout: EditorialLayout, context: EditorialContext): ResolvedEditorial | null {
+  return resolveEditorialDisplay(layout, context).editorial;
 }

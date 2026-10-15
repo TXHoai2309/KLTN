@@ -5,10 +5,22 @@ export const variants = ["PANORAMA", "SPLIT", "EDITORIAL"] as const;
 export const blockTypes = ["HERO", "INTRO", "TEXT_SECTION", "IMAGE_TEXT_SPLIT", "FULL_WIDTH_IMAGE", "IMAGE_GRID", "IMAGE_GALLERY", "HIGHLIGHT_FACTS", "TIMELINE", "QUOTE", "VISIT_INFORMATION", "MAP", "SOURCES"] as const;
 export const familyLabels = { NATURE_SHOWCASE: "Thiên nhiên · Nature Showcase", HERITAGE_STORY: "Di sản · Heritage Story", VILLAGE_CULTURE: "Bản làng · Village Culture", JOURNEY_EDITORIAL: "Hành trình · Journey Editorial" };
 export const variantLabels = { PANORAMA: "Toàn cảnh · Hero mở rộng", SPLIT: "Đối thoại · Chữ và ảnh song song", EDITORIAL: "Ấn phẩm · Tiêu đề dẫn chuyện" };
+export const typeStyles = ["LITERARY", "MODERN", "HUMANIST"] as const;
+export const colorStyles = ["FOREST", "SLATE", "EARTH"] as const;
+export const rhythms = ["IMMERSIVE", "COMPACT"] as const;
+export const typeStyleLabels = { LITERARY: "Tạp chí · Chữ có chân", MODERN: "Hiện đại · Chữ không chân", HUMANIST: "Gần gũi · Chữ mềm mại" };
+export const colorStyleLabels = { FOREST: "Xanh rừng", SLATE: "Đá núi", EARTH: "Đất ấm" };
+export const rhythmLabels = { IMMERSIVE: "Khoáng đạt", COMPACT: "Gọn gàng" };
+// Optional in stored v1 JSON: old drafts/revisions keep their IDs and remain valid.
+export const editorialDesignSchema = z.object({ typography: z.enum(typeStyles), palette: z.enum(colorStyles), rhythm: z.enum(rhythms) }).strict();
+export type EditorialDesign = z.infer<typeof editorialDesignSchema>;
+export const defaultEditorialDesign: EditorialDesign = { typography: "LITERARY", palette: "FOREST", rhythm: "IMMERSIVE" };
 const plain = (max: number) => z.string().trim().max(max).refine(v => !/<\/?[a-z][^>]*>/i.test(v), "Chỉ nhập văn bản, không dùng HTML.");
 export const editorialBlockSchema = z.object({
   id: referenceId, type: z.enum(blockTypes), hidden: z.boolean().default(false),
   title: plain(200).default(""), text: plain(12000).default(""), caption: plain(1000).default(""),
+  deck: plain(180).optional(), emphasis: z.enum(["STANDARD", "FEATURED"]).optional(),
+  headingProvenance: z.object({ blockId: referenceId, excerpt: plain(70) }).strict().optional(),
   mediaIds: z.array(referenceId).max(20).default([]), sourceIds: z.array(referenceId).max(30).default([]),
   placement: z.enum(["left", "right", "full"]).default("left"),
   gallery: z.enum(["mosaic", "grid", "strip"]).default("mosaic"),
@@ -16,7 +28,7 @@ export const editorialBlockSchema = z.object({
   focalX: z.number().min(0).max(100).default(50), focalY: z.number().min(0).max(100).default(50),
   entries: z.array(z.object({ label: plain(100), text: plain(2000), sourceIds: z.array(referenceId).min(1).max(10) }).strict()).max(20).default([]),
 }).strict();
-export const editorialLayoutSchema = z.object({ schemaVersion: z.literal(1), family: z.enum(families), variant: z.enum(variants), blocks: z.array(editorialBlockSchema).min(1).max(30) }).strict().superRefine((layout, ctx) => {
+export const editorialLayoutSchema = z.object({ schemaVersion: z.literal(1), family: z.enum(families), variant: z.enum(variants), design: editorialDesignSchema.optional(), blocks: z.array(editorialBlockSchema).min(1).max(30) }).strict().superRefine((layout, ctx) => {
   if (new Set(layout.blocks.map(b => b.id)).size !== layout.blocks.length) ctx.addIssue({ code: "custom", message: "Block trùng ID." });
   if (layout.blocks.filter(b => b.type === "HERO" && !b.hidden).length > 1) ctx.addIssue({ code: "custom", message: "Chỉ có một hero." });
   const photos = layout.blocks.filter(b => !b.hidden).flatMap(b => b.mediaIds);
@@ -25,6 +37,7 @@ export const editorialLayoutSchema = z.object({ schemaVersion: z.literal(1), fam
 });
 export type EditorialLayout = z.infer<typeof editorialLayoutSchema>;
 export type EditorialBlock = z.infer<typeof editorialBlockSchema>;
+export const editorialProposalInputSchema = z.object({ layout: editorialLayoutSchema.optional(), direction: z.enum(["KEEP", "AUTO"]).default("KEEP") }).strict();
 export type EditorialContext = {
   id: string; name: string; description: string; category: string; area: string;
   latitude: number; longitude: number; suggestedDurationMinutes: number | null;
@@ -38,7 +51,7 @@ export const editorialActionSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("RESTORE_DRAFT"), expectedRevision: z.number().int().min(0) }).strict(),
   z.object({ action: z.literal("ROLLBACK"), expectedRevision: z.number().int().min(0), reviewed: z.literal(true) }).strict(),
 ]);
-export const resolvedMediaSchema = z.object({ id: referenceId, url: publicHttpsUrl, alt: z.string(), caption: z.string().nullable(), author: z.string().nullable(), sourceUrl: publicHttpsUrl.nullable() }).strict();
+export const resolvedMediaSchema = z.object({ id: referenceId, url: publicHttpsUrl, alt: z.string(), caption: z.string().nullable(), author: z.string().nullable(), sourceUrl: publicHttpsUrl.nullable(), width: z.number().int().positive().max(25000000).optional(), height: z.number().int().positive().max(25000000).optional() }).strict();
 export const resolvedEditorialSchema = z.object({ layout: editorialLayoutSchema, media: z.array(resolvedMediaSchema), sources: z.array(z.object({ id: referenceId, title: z.string(), url: publicHttpsUrl.nullable() }).strict()) }).strict();
 export type ResolvedEditorial = z.infer<typeof resolvedEditorialSchema>;
 export const editorialContextSchema = z.object({

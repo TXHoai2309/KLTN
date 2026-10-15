@@ -157,7 +157,7 @@ export default function DestinationForm({ id }: { id: string | null }) {
   };
   async function submit(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
-    if (imageState.busy || imageState.uncertainReview) return;
+    if (images.current?.isBusy() || imageState.busy || imageState.uncertainReview) return;
     if (!claimSubmission(lock)) return;
     let completed = false;
     try {

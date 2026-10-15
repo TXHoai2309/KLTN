@@ -1,6 +1,9 @@
 import "server-only";
-import { createOpenAiStructuredClient } from "../preference-extraction/openai-structured-client";
+import { createEditorialOpenAiClient } from "./editorial-openai-client";
 import { editorialAiConfigured } from "./editorial-service";
+import { createEditorialAiDiagnostics } from "./editorial-ai-diagnostics";
+// Safe module-load observation also verifies configuration inside the Next runtime.
+createEditorialAiDiagnostics().configured(Boolean(process.env.OPENAI_API_KEY?.trim()), process.env.OPENAI_EDITORIAL_MODEL);
 export function editorialAiClient() {
-  return editorialAiConfigured() ? createOpenAiStructuredClient({ model: () => process.env.OPENAI_EDITORIAL_MODEL, timeoutMs: 15_000, maxOutputTokens: 1200, maxResponseBytes: 24_000 }) : null;
+  return editorialAiConfigured() ? createEditorialOpenAiClient() : null;
 }

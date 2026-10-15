@@ -3,11 +3,12 @@ import { visibleDestinationWhere } from "./destination-eligibility";
 import { apiSuccess } from "@/server/http/api-response";
 import { handleApiError } from "@/server/http/error-handler";
 import { publicHttpsUrl } from "../content-profile/content-profile-contract";
+import { destinationMediaWhere, isDestinationMediaUsable } from "./destination-media-eligibility";
 
 import { parsePublicListQuery, publicLocationListSchema, type DestinationSearch, type PublicLocationList } from "./public-destination-query";
 export { parsePublicListQuery, publicLocationSchema, type PublicLocation } from "./public-destination-query";
 export const publicLocationSelect = { id: true, name: true, area: true, category: true, latitude: true, longitude: true,
-  media: { where: { websiteRights: "APPROVED" }, take: 1, orderBy: [{ isCover: "desc" }, { position: "asc" }, { id: "asc" }], select: { url: true, alt: true } },
+  media: { where: destinationMediaWhere, take: 20, orderBy: [{ isCover: "desc" }, { position: "asc" }, { id: "asc" }], select: { url: true, alt: true, websiteRights: true, storageReference: true } },
 } satisfies Prisma.DestinationSelect;
 
 export async function listPublicLocations(input: DestinationSearch, database: Pick<Database, "destination">): Promise<PublicLocationList> {
@@ -31,7 +32,7 @@ export async function listPublicLocations(input: DestinationSearch, database: Pi
   // Corrupt legacy coordinates cannot crash the whole list or reach marker projection.
   return publicLocationListSchema.parse({ filters: { categories: unique(options.map(row => row.category)), regions: unique(options.map(row => row.area)) }, items: rows.map(({ media, ...row }) => ({
     ...row, latitude: validAxis(row.latitude, 90), longitude: validAxis(row.longitude, 180),
-    ...(media ? { image: media[0] && publicHttpsUrl.safeParse(media[0].url).success ? { url: media[0].url, alt: media[0].alt } : null } : {}),
+    ...(media ? { image: (() => { const image = media.find(m => isDestinationMediaUsable(m, row.id)); return image ? { url: image.url, alt: image.alt } : null; })() } : {}),
   })) });
 }
 function validAxis(value: unknown, limit: number): number | null {

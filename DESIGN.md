@@ -191,3 +191,54 @@ secondary loading and fallback. No-photo typography has no empty photo slots.
 13editorial browser groups and17V3.2 groups exercise five viewport widths/light-dark
 with synthetic media/map. The previously loaded premium audit script disappeared
 after plugin changes; its invocation failed file-not-found, not a static PASS.
+
+### Owner-approved article art direction (2026-10-15)
+
+Audience: Vietnamese readers discovering a Destination, with a separate Admin
+composition workspace. The article should feel like a considered travel feature:
+landscape opening, a measured title, readable prose and alternating photographic
+pauses. Avoid oversized dashboard headings inside the preview and repeated card
+boxes around every paragraph. The signature is a wide landscape with an inset
+paper title, followed by an intimate reading measure; split and centered openings
+remain available when they suit the material.
+
+Runtime owner remains components/editorial/editorial.css and EditorialRenderer,
+shared by preview and public. Local design tokens are --emg-* only. Forest uses
+#183126 ink, #60766a muted, #39654e accent and #edf5ef tint on white paper. Stone
+uses #263945/#576c79/#44697e/#edf2f5; earth uses
+#493c31/#756455/#885d3b/#f4efe9. Each has explicit dark overrides. These expressive
+article palettes do not change Admin semantic status or brand tokens.
+
+Lora with the Vietnamese subset is self-hosted by the existing next/font pipeline
+through --font-editorial-serif (literary headings/lead); Geist through
+--font-geist-sans is the modern heading option; Be Vietnam Pro through
+--font-be-vietnam is the humanist heading and canonical body/control face.
+Typography never accepts arbitrary font URLs. Heading scales use article cqi,
+not window vw; body measure is 64ch, lead 51ch, line height 1.75–1.9. Reading gaps
+are 48–112px immersive or 32–64px compact, with 24–112px responsive gutters.
+No decorative animation or invented quote/section copy. Keep the no-photo
+typographic composition, reserved image ratios, bounded delivery and fallbacks.
+
+EditorialEditor retains canonical af controls, native OS select popups, Sonner,
+useUnsavedChanges, explicit Save/Publish and exact UNKNOWN recovery. New font,
+palette and rhythm selects share that native ownership. AI respects selected
+family/variant by default; an explicit checkbox permits a new direction. A manual
+family/variant change clears that permission. AI loading belongs to the AI button;
+fallback leaves the current local draft intact. Undo covers successful proposals.
+Optional design enums extend v1 JSON without altering old IDs, URLs or content.
+
+### V3.5 content and composition quality
+
+EditorialRenderer consumes a read-only presentation projection. Long or duplicated
+headings are removed from the visual heading slot while their complete prose stays
+available; exact repeated paragraphs are suppressed only in the rendered article.
+Near duplicates remain visible and are flagged for Admin review. No database text,
+Destination facts or media references are rewritten to improve appearance. AI
+headings/decks must come from the existing block or Destination source, may only
+recompose narrative blocks, and cannot hide populated data or add CSS/fonts/facts.
+The same projection and renderer serve Admin preview and public published articles.
+
+Image arrangement uses verified Cloudinary source dimensions to prefer a suitable
+landscape cover and warns the editor about missing or small originals. Gallery and
+split compositions keep intrinsic aspect ratios and reserve their space. These
+quality rules are documented in the [V3.5 implementation report](docs/implementation/destination-emagazine-v3-5-design-quality.md).

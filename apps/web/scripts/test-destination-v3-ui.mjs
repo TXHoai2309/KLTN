@@ -66,7 +66,16 @@ const store = v3TestStore(),
 const imageAssets = new Map();
 const imageCalls = [];
 let imagesConfigured = false, imageFailure = "", imageLostResponse = false;
+let activeImageUploads = 0, maxImageUploads = 0;
 const imageDb = store.deps.database;
+// Model serialized database transactions; provider work remains concurrent.
+const imageTransaction = imageDb.$transaction;
+let transactionTail = Promise.resolve();
+imageDb.$transaction = fn => {
+  const result = transactionTail.then(() => imageTransaction(fn));
+  transactionTail = result.catch(() => {});
+  return result;
+};
 imageDb.$executeRaw = async () => 1;
 imageDb.$queryRaw = async () => [{ count: 0n }];
 imageDb.idempotencyRecord.count = async () => 0;
@@ -76,6 +85,9 @@ const imageProvider = {
   upload: async (intent, bytes) => {
     imageCalls.push({ key: intent.intentKey, name: intent.name });
     if (intent.name === imageFailure) throw Error("TEST provider failure");
+    activeImageUploads++; maxImageUploads = Math.max(maxImageUploads, activeImageUploads);
+    await new Promise(resolve => setTimeout(resolve, 150));
+    activeImageUploads--;
     imageAssets.set(intent.publicId, { asset_id: `asset-${intent.intentKey}`, public_id: intent.publicId,
       secure_url: `https://res.cloudinary.com/offline-fixture/image/upload/v1/${intent.publicId}.png`, resource_type: "image", type: "upload", format: "png", bytes: bytes.length, width: 2, height: 2, version: 1,
       asset_folder: intent.folder, context: { custom: { kltn_intent: intent.intentKey, kltn_sha256: intent.sha256 } } });
@@ -174,7 +186,9 @@ const server = createServer(async (req, res) => {
       if (url.pathname.endsWith("/images/upload")) {
         const chunks = []; for await (const part of req) chunks.push(part);
         const result = await uploadDestinationImage(headers, Buffer.concat(chunks), req.headers["idempotency-key"], url.pathname.split("/")[4], store.deps, imageProvider);
-        if (imageLostResponse) { imageLostResponse = false; return send({ success: false, operationStatus: "UNKNOWN", retryWithSameKey: true }, 503); }
+        if (imageCalls.some(call => call.key === req.headers["idempotency-key"] && call.name === "auto-first.png")) await new Promise(resolve => setTimeout(resolve, 500));
+        const uploadedName = imageCalls.find(call => call.key === req.headers["idempotency-key"])?.name;
+        if (imageLostResponse === true || imageLostResponse === uploadedName) { imageLostResponse = false; return send({ success: false, operationStatus: "UNKNOWN", retryWithSameKey: true }, 503); }
         return send({ success: result.status === "SUCCESS", operationStatus: result.status, data: result.data, error: result.error }, result.status === "SUCCESS" ? 200 : result.httpStatus ?? 503);
       }
       let raw = "";
@@ -260,6 +274,7 @@ try {
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => r.abort());
+  await page.route("https://res.cloudinary.com/**", route => route.fulfill({status:200,contentType:"image/png",body:Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l1sAAAAASUVORK5CYII=","base64")}));
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   await page.getByRole("heading", { name: "Tạo điểm đến mới" }).waitFor();
   await mkdir(web + "/.cache/destination-v3", { recursive: true });
@@ -481,44 +496,85 @@ try {
   await page.getByRole("button", { name: "Lưu thay đổi", exact: true }).click();
   await page.waitForFunction(() => !document.querySelector('button[type="submit"]').disabled);
   assert.deepEqual(store.rows().get(createdImageId).media, mediaBefore);
-  await page.locator('.dimg-card input[id^="media-alt-"]').first().fill("TEST Mountain cover");
+  await page.locator('.dimg-card input[id^="media-caption-"]').first().fill("TEST Mountain cover");
   await page.getByRole("button", { name: "Đặt đại diện", exact: true }).nth(1).click();
   await page.getByRole("button", { name: "Lưu thay đổi", exact: true }).click();
   await page.waitForFunction(() => !document.querySelector('button[type="submit"]').disabled);
-  assert.equal(store.rows().get(createdImageId).media[0].alt, "TEST Mountain cover");
+  assert.equal(store.rows().get(createdImageId).media[0].caption, "TEST Mountain cover");
   assert.equal(store.rows().get(createdImageId).media.filter(m => m.isCover).length, 1);
   assert.equal(store.rows().get(createdImageId).media[1].isCover, true);
   pass("Edit no-change preserves exact media; metadata and cover save in place");
-  await page.locator(".dimg-card summary").first().click();
-  await page.locator('textarea[id^="media-evidence-"]').first().fill("TEST Owner grant, manual verification");
-  await page.getByRole("button", { name: "Xác nhận duyệt quyền", exact: true }).first().click();
-  await page.waitForFunction(() => [...document.querySelectorAll(".dimg-card-body > p")].some(p => p.textContent.includes("Đã duyệt")));
-  assert.equal(store.rows().get(createdImageId).media[0].reviewedBy, "test-admin");
-  pass("Dedicated Admin rights review records trusted reviewer and explicit evidence");
+  assert.equal(await page.locator('input[id^="media-alt-"]').count(), 0);
+  assert.equal(await page.locator('textarea[id^="media-evidence-"]').count(), 0);
+  assert.equal(await page.getByRole("button", {name:"Xác nhận duyệt quyền",exact:true}).count(), 0);
+  assert.equal(store.rows().get(createdImageId).media[0].websiteRights,"UNKNOWN");
+  assert.equal(store.rows().get(createdImageId).media[0].rightsEvidence,null);
+  await page.locator('.dimg-card input[id^="media-caption-"]').first().fill("");
+  await page.getByRole("button", {name:"Lưu thay đổi",exact:true}).click();
+  await page.waitForFunction(() => !document.querySelector('button[type="submit"]').disabled);
+  assert.equal(store.rows().get(createdImageId).media[0].caption,null);
+  assert.equal(store.rows().get(createdImageId).media[0].alt,"Hình ảnh TEST Images create");
+  pass("No alt/evidence/review UI; empty caption saves and server derives Destination alt with legal UNKNOWN");
   await page.waitForFunction(() => !document.querySelector('input[type="file"]').disabled);
   imageLostResponse = true;
   await page.locator('input[type="file"]').setInputFiles([{ name: "unknown.png", mimeType: "image/png", buffer: png }]);
   await page.getByText("unknown.png", { exact: true }).waitFor();
-  await page.getByRole("button", { name: "Tải ảnh chờ / thử lại", exact: true }).click();
   await page.getByText(/Chưa xác định kết quả.*cùng file/).waitFor();
   assert.equal(store.rows().get(createdImageId).media.length, 3);
   await page.getByRole("button", { name: "Tải ảnh chờ / thử lại", exact: true }).click();
   await page.waitForFunction(() => document.querySelectorAll(".dimg-card").length === 3);
   assert.equal(imageCalls.filter(call => call.name === "unknown.png").length, 1);
   pass("Lost upload response reconciles same key without duplicate asset/media");
+  await page.waitForFunction(() => !document.querySelector('input[type="file"]').disabled);
+  await page.locator("#destination-description").fill("TEST Unsaved prose survives automatic image upload.");
+  const postsBeforeAuto = posts.length;
+  maxImageUploads = 0;
+  imageLostResponse = "auto-first.png";
+  await page.locator('input[type="file"]').setInputFiles(["auto-first.png", "auto-second.png", "auto-third.png"].map(name => ({name, mimeType:"image/png", buffer:png})));
+  await page.waitForFunction(() => document.querySelectorAll(".dimg-card").length === 6 && !document.querySelector('input[type="file"]').disabled);
+  assert.equal(maxImageUploads, 2);
+  assert.equal(posts.length, postsBeforeAuto);
+  assert.equal(store.rows().get(createdImageId).media.length, 6);
+  assert.equal(await page.locator("#destination-description").inputValue(), "TEST Unsaved prose survives automatic image upload.");
+  await page.waitForTimeout(600);
+  assert.equal(await page.locator(".dimg-card").count(), 6);
+  await page.getByRole("button", { name: "Tải ảnh chờ / thử lại", exact: true }).click();
+  await page.locator(".dimg-queue-row").filter({hasText:"auto-first.png"}).getByText("Đã lưu", {exact:true}).waitFor();
+  await page.waitForFunction(() => !document.querySelector('input[type="file"]').disabled);
+  assert.equal(await page.locator(".dimg-card").count(), 6);
+  assert.equal(imageCalls.filter(call => call.name === "auto-first.png").length, 1);
+  assert.equal(posts.length, postsBeforeAuto);
+  pass("Older same-key replay after a lost concurrent response cannot remove newer saved photos");
+  pass("Picker auto uploads two at a time without Save; delayed responses preserve latest gallery and unsaved prose");
   const transfer = await page.evaluateHandle(bytes => {
     const dt = new DataTransfer(); dt.items.add(new File([new Uint8Array(bytes)], "dragged.png", { type: "image/png" })); return dt;
   }, [...png]);
   await page.locator(".dimg-drop").dispatchEvent("drop", { dataTransfer: transfer });
   await page.getByText("dragged.png", { exact: true }).waitFor();
+  await page.waitForFunction(() => document.querySelectorAll(".dimg-card").length === 7 && !document.querySelector('input[type="file"]').disabled);
+  assert.equal(posts.length, postsBeforeAuto);
   await page.locator('input[type="file"]').setInputFiles([{ name: "bad.txt", mimeType: "text/plain", buffer: Buffer.from("not an image") }]);
   await page.getByText(/File “bad.txt” không hợp lệ/).waitFor();
-  pass("Drag/drop picker alternative and invalid file inline feedback");
+  pass("Drag/drop uploads automatically; invalid file inline feedback");
+  const beforeOrder = store.rows().get(createdImageId).media.map(m=>m.id);
+  await page.locator(".dimg-card").first().getByText("Xuống",{exact:true}).click();
+  await page.getByRole("button",{name:"Lưu thay đổi",exact:true}).click();
+  await page.waitForFunction(() => !document.querySelector('button[type="submit"]').disabled);
+  const reordered = [...store.rows().get(createdImageId).media].sort((a,b)=>a.position-b.position).map(m=>m.id);
+  assert.deepEqual(reordered.slice(0,2),[beforeOrder[1],beforeOrder[0]]);
+  const unlinkId = store.rows().get(createdImageId).media[6].id;
+  await page.locator(".dimg-card").last().getByRole("button",{name:"Gỡ ảnh",exact:true}).click();
+  await page.getByRole("button",{name:"Lưu thay đổi",exact:true}).click();
+  await page.waitForFunction(() => document.querySelectorAll(".dimg-card").length===6 && !document.querySelector('button[type="submit"]').disabled);
+  assert.equal(store.rows().get(createdImageId).media.some(m=>m.id===unlinkId),false);
+  assert.equal(imageAssets.size,7);
+  pass("Reorder and unlink persist by ID without deleting Cloudinary assets");
   for (const [width, theme] of [[1440, "light"], [360, "light"], [360, "dark"]]) {
     await page.setViewportSize({ width, height: 900 });
     await page.evaluate(t => document.documentElement.classList.toggle("dark", t === "dark"), theme);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), true);
     await page.screenshot({ animations: "disabled", path: web + `/.cache/destination-v3/images-${width}-${theme}.png`, fullPage: true });
+    await page.locator(".dimg-card").first().screenshot({path:web+`/.cache/destination-v3/image-card-${width}-${theme}.png`});
   }
   await page.getByRole("button", { name: "Tải ảnh lên", exact: true }).focus();
   assert.equal(await page.getByRole("button", { name: "Tải ảnh lên", exact: true }).evaluate(el => el === document.activeElement), true);
