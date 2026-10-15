@@ -78,6 +78,7 @@ export type TripReviewScreenProps = {
   draft: TripRequirementReviewDraft;
   readiness: TripRequirementReadiness;
   clarificationRequests?: ClarificationRequest[];
+  embedded?: boolean;
   onBackToForm: (draft: TripRequirementReviewDraft) => void;
   onFillForm?: (draft: TripRequirementReviewDraft) => void;
   onConfirmed?: (confirmed: ConfirmedTripRequirement, draft: TripRequirementReviewDraft) => void;
@@ -216,6 +217,7 @@ export default function TripReviewScreen({
   draft,
   readiness,
   clarificationRequests,
+  embedded = false,
   onBackToForm,
   onFillForm,
   onConfirmed,
@@ -668,8 +670,10 @@ export default function TripReviewScreen({
         ? "Hãy xác nhận rằng bạn đã kiểm tra các thông tin trên."
         : null;
 
+  const ReviewContainer = embedded ? "div" : "main";
+
   return (
-    <main className="trip-form-page trip-review-page" lang="vi">
+    <ReviewContainer className="trip-form-page trip-review-page" lang="vi">
       <div className="trip-form-intro">
         <p className="trip-eyebrow">Kiểm tra trước khi tiếp tục</p>
         <h1 ref={headingRef} tabIndex={-1}>Kiểm tra nhu cầu chuyến đi</h1>
@@ -919,6 +923,6 @@ export default function TripReviewScreen({
           <ArrowLeft size={17} aria-hidden="true" /> Quay lại chỉnh sửa trong biểu mẫu
         </Button>
       </div>
-    </main>
+    </ReviewContainer>
   );
 }

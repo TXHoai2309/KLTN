@@ -1,8 +1,8 @@
 "use client";
 
 import { Button } from "@KLTN/ui/components/button";
-import { LoaderCircle } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Check, ClipboardCheck, FileText, LoaderCircle, MapPinned, SlidersHorizontal } from "lucide-react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { claimSubmission, releaseSubmission } from "@/lib/auth-submission-guard";
 import { authorizationFeedback } from "@/lib/authorization-feedback";
@@ -18,18 +18,15 @@ import {
   type ExtractionSuggestions,
 } from "@/modules/preference-extraction/apply-extraction";
 import type { ExtractionResult } from "@/modules/preference-extraction/preference-extraction-contract";
-import type { TripRequirementInput } from "@/modules/trip-requirement/trip-requirement-contract";
 import type { ClarificationRequest } from "@/modules/trip-requirement/trip-clarification-rules";
 import NaturalLanguageInput, { type NaturalLanguageInputStatus } from "./natural-language-input";
+import ExtractionResultPanel from "./extraction-result-panel";
 import TripReviewScreen from "./trip-review-screen";
 import TripPlannerFlow from "@/components/trip-planner/trip-planner-screen";
 import type { TripRequirementReadiness } from "@/modules/trip-requirement/trip-requirement-readiness";
-import { evaluateTripRequirement } from "@/modules/trip-requirement/trip-requirement-readiness";
 import {
-  draftFromExtraction,
   draftFromFormFields,
   draftToFormFields,
-  draftToCandidate,
   type TripRequirementReviewDraft,
   type ConfirmedTripRequirement,
 } from "@/modules/trip-requirement/trip-requirement-review";
@@ -52,6 +49,107 @@ import {
 } from "./trip-field-editors";
 
 type FieldErrors = Record<string, string>;
+
+type TripFlowTab = "describe" | "details" | "review" | "planner";
+
+const FLOW_TABS: ReadonlyArray<{
+  id: TripFlowTab;
+  label: string;
+  description: string;
+  icon: typeof FileText;
+}> = [
+  { id: "describe", label: "Mô tả", description: "Viết nhu cầu", icon: FileText },
+  { id: "details", label: "Bổ sung", description: "Điền phần còn thiếu", icon: SlidersHorizontal },
+  { id: "review", label: "Kiểm tra", description: "Xem lại trước khi xác nhận", icon: ClipboardCheck },
+  { id: "planner", label: "Đề xuất", description: "Lịch trình trong phiên", icon: MapPinned },
+];
+
+const FLOW_TAB_INDEX: Record<TripFlowTab, number> = {
+  describe: 0,
+  details: 1,
+  review: 2,
+  planner: 3,
+};
+
+function FlowTabs({
+  activeTab,
+  detailsUnlocked,
+  reviewUnlocked,
+  plannerUnlocked,
+  onChange,
+}: {
+  activeTab: TripFlowTab;
+  detailsUnlocked: boolean;
+  reviewUnlocked: boolean;
+  plannerUnlocked: boolean;
+  onChange: (tab: TripFlowTab) => void;
+}) {
+  const isUnlocked = (tab: TripFlowTab) => tab === "describe"
+    || (tab === "details" && detailsUnlocked)
+    || (tab === "review" && reviewUnlocked)
+    || (tab === "planner" && plannerUnlocked);
+
+  function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, tab: TripFlowTab) {
+    if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+    event.preventDefault();
+    const direction = event.key === "ArrowRight" ? 1 : -1;
+    const start = FLOW_TAB_INDEX[tab];
+    for (let offset = 1; offset <= FLOW_TABS.length; offset += 1) {
+      const candidate = FLOW_TABS[(start + direction * offset + FLOW_TABS.length) % FLOW_TABS.length];
+      if (candidate && isUnlocked(candidate.id)) {
+        onChange(candidate.id);
+        document.getElementById(`trip-tab-${candidate.id}`)?.focus();
+        return;
+      }
+    }
+  }
+
+  return (
+    <nav className="trip-flow-tabs" aria-label="Các bước lập hành trình">
+      <div className="trip-flow-tablist" role="tablist" aria-label="Các bước lập hành trình">
+        {FLOW_TABS.map((tab, index) => {
+          const unlocked = isUnlocked(tab.id);
+          const selected = activeTab === tab.id;
+          const completed = unlocked && !selected && FLOW_TAB_INDEX[tab.id] < FLOW_TAB_INDEX[activeTab];
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              id={`trip-tab-${tab.id}`}
+              className="trip-flow-tab"
+              type="button"
+              role="tab"
+              aria-selected={selected}
+              aria-controls={`trip-tabpanel-${tab.id}`}
+              aria-label={`${index + 1}. ${tab.label}: ${tab.description}`}
+              disabled={!unlocked}
+              tabIndex={selected ? 0 : -1}
+              data-active={selected ? "true" : "false"}
+              data-completed={completed ? "true" : "false"}
+              data-locked={!unlocked ? "true" : "false"}
+              onClick={() => onChange(tab.id)}
+              onKeyDown={(event) => handleKeyDown(event, tab.id)}
+            >
+              <span className="trip-flow-tab-icon" aria-hidden="true">
+                {completed ? <Check size={17} /> : <Icon size={17} />}
+              </span>
+              <span className="trip-flow-tab-copy">
+                <strong><span className="trip-flow-tab-index">0{index + 1}</span>{tab.label}</strong>
+                <small>{tab.description}</small>
+              </span>
+              <span className="trip-flow-tab-state" aria-hidden="true">
+                {selected ? "Đang ở đây" : completed ? "Đã xong" : unlocked ? "Mở" : "Chưa mở"}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <p className="trip-flow-tabs-hint" aria-live="polite">
+        Bước {FLOW_TAB_INDEX[activeTab] + 1}/4 · {FLOW_TABS[FLOW_TAB_INDEX[activeTab]]?.description}
+      </p>
+    </nav>
+  );
+}
 
 type EvaluationResult = {
   draft: TripRequirementReviewDraft;
@@ -160,6 +258,9 @@ export default function TripRequirementForm() {
   const [pending, setPending] = useState(false);
   const [review, setReview] = useState<EvaluationResult | null>(null);
   const [planner, setPlanner] = useState<ConfirmedTripRequirement | null>(null);
+  const [activeTab, setActiveTab] = useState<TripFlowTab>("describe");
+  const [detailsUnlocked, setDetailsUnlocked] = useState(false);
+  const [tabDirection, setTabDirection] = useState<"forward" | "backward">("forward");
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const [naturalLanguageStatus, setNaturalLanguageStatus] = useState<NaturalLanguageInputStatus>({ kind: "idle" });
@@ -175,6 +276,28 @@ export default function TripRequirementForm() {
   const focusFirstErrorRef = useRef(false);
   const fieldRefs = useRef<Record<string, HTMLInputElement | HTMLTextAreaElement | null>>({});
   const reviewHeadingRef = useRef<HTMLHeadingElement>(null);
+  const previousTabRef = useRef<TripFlowTab | null>(null);
+
+  function changeTab(nextTab: TripFlowTab) {
+    if (nextTab === activeTab) return;
+    setTabDirection(FLOW_TAB_INDEX[nextTab] >= FLOW_TAB_INDEX[activeTab] ? "forward" : "backward");
+    setActiveTab(nextTab);
+  }
+
+  function advanceTo(nextTab: TripFlowTab) {
+    setTabDirection(FLOW_TAB_INDEX[nextTab] >= FLOW_TAB_INDEX[activeTab] ? "forward" : "backward");
+    setActiveTab(nextTab);
+  }
+
+  useEffect(() => {
+    const previousTab = previousTabRef.current;
+    previousTabRef.current = activeTab;
+    if (previousTab === null || previousTab === activeTab) return;
+    window.setTimeout(() => {
+      const panel = document.getElementById(`trip-tabpanel-${activeTab}`);
+      panel?.querySelector<HTMLElement>("h1, h2, [data-trip-panel-heading]")?.focus();
+    }, 0);
+  }, [activeTab]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -201,6 +324,10 @@ export default function TripRequirementForm() {
     errorField = String(field),
   ) {
     const nextFields = { ...fields, [field]: value };
+    if (review || planner) {
+      setReview(null);
+      setPlanner(null);
+    }
     setFields(nextFields);
     setExtractionSuggestions((current) => removeExtractionSuggestion(current, errorField));
     if (hasSubmitted) {
@@ -254,6 +381,8 @@ export default function TripRequirementForm() {
     setNaturalLanguageStatus({ kind: "analyzing", message: "Đang phân tích nhu cầu…" });
     setExtractionResult(null);
     setExtractionSuggestions({});
+    setReview(null);
+    setPlanner(null);
     setFeedback(null);
 
     try {
@@ -265,17 +394,12 @@ export default function TripRequirementForm() {
         const clarificationText = outcome.result.clarifications.length > 0
           ? `, ${outcome.result.clarifications.length} mục cần làm rõ`
           : "";
+        const applied = applyExtractionToForm(fields, outcome.result);
         setExtractionResult(outcome.result);
-        setExtractionSuggestions({});
-        const draft = draftFromExtraction(outcome.result);
-        const candidate = draftToCandidate(draft);
-        const readiness = evaluateTripRequirement(candidate as TripRequirementInput, new Date());
-        setReview({
-          draft,
-          readiness,
-          source: "AI",
-          clarificationRequests: outcome.clarificationRequests,
-        });
+        setFields(applied.fields);
+        setExtractionSuggestions(applied.suggestions);
+        setDetailsUnlocked(true);
+        advanceTo("details");
         setNaturalLanguageStatus({ kind: "success", message: `Đã nhận diện ${count}/7 thông tin${clarificationText}.` });
         return;
       }
@@ -328,6 +452,14 @@ export default function TripRequirementForm() {
       handleFillExtractionForm();
     }
     setReview(null);
+    setPlanner(null);
+    setDetailsUnlocked(true);
+    advanceTo("details");
+  }
+
+  function continueWithForm() {
+    setDetailsUnlocked(true);
+    advanceTo("details");
   }
 
   function handleDismissExtractionSuggestion(field: ExtractionSuggestionField) {
@@ -382,6 +514,8 @@ export default function TripRequirementForm() {
           source: "FORM",
           clarificationRequests: [],
         });
+        setPlanner(null);
+        advanceTo("review");
         return;
       }
       if (decision.action === "VALIDATION_ERROR") {
@@ -414,26 +548,6 @@ export default function TripRequirementForm() {
   }
 
   const button = getSubmitButtonState(pending);
-  if (planner) return <TripPlannerFlow confirmed={planner} onBack={() => setPlanner(null)} />;
-  if (review) {
-    return (
-      <TripReviewScreen
-        draft={review.draft}
-        readiness={review.readiness}
-        clarificationRequests={review.clarificationRequests}
-        headingRef={reviewHeadingRef}
-        onBackToForm={(reviewDraft) => {
-          setFields(draftToFormFields(reviewDraft));
-          setReview(null);
-        }}
-        onFillForm={review.source === "AI" ? handleFillAndEdit : undefined}
-        onConfirmed={(confirmed, confirmedDraft) => {
-          setReview({ ...review, draft: confirmedDraft });
-          setPlanner(structuredClone(confirmed));
-        }}
-      />
-    );
-  }
 
   const formError = errors._form;
   const fieldErrorEntries = orderedErrors(errors);
@@ -441,16 +555,63 @@ export default function TripRequirementForm() {
     <main className="trip-form-page" lang="vi">
       <div className="trip-form-intro">
         <p className="trip-eyebrow">Lập hành trình</p>
-        <h1>Chia sẻ nhu cầu chuyến đi</h1>
-        <p>Cho chúng tôi biết cách bạn muốn khám phá Hà Giang. Thông tin này chỉ dùng trong phiên hiện tại để tạo đề xuất sơ bộ.</p>
+        <h1>Lập hành trình theo từng bước</h1>
+        <p>Chia sẻ điều bạn đang hình dung, bổ sung phần còn thiếu, rồi kiểm tra trước khi nhận đề xuất cho phiên hiện tại.</p>
       </div>
 
-      <NaturalLanguageInput
-        status={naturalLanguageStatus}
-        onAnalyze={(text) => { void analyzeNaturalLanguage(text); }}
-        onCancel={cancelNaturalLanguageAnalysis}
+      <FlowTabs
+        activeTab={activeTab}
+        detailsUnlocked={detailsUnlocked}
+        reviewUnlocked={review !== null}
+        plannerUnlocked={planner !== null}
+        onChange={changeTab}
       />
-      <form className="trip-form" onSubmit={(event) => { event.preventDefault(); void submit(); }} noValidate>
+
+      <div className="trip-flow-viewport">
+        <div
+          id="trip-tabpanel-describe"
+          className={`trip-flow-panel trip-flow-panel-${tabDirection}`}
+          role="tabpanel"
+          aria-labelledby="trip-tab-describe"
+          data-active={activeTab === "describe" ? "true" : "false"}
+          hidden={activeTab !== "describe"}
+        >
+          <NaturalLanguageInput
+            status={naturalLanguageStatus}
+            onAnalyze={(text) => { void analyzeNaturalLanguage(text); }}
+            onCancel={cancelNaturalLanguageAnalysis}
+            onContinueManually={continueWithForm}
+          />
+        </div>
+
+        <div
+          id="trip-tabpanel-details"
+          className={`trip-flow-panel trip-flow-panel-${tabDirection}`}
+          role="tabpanel"
+          aria-labelledby="trip-tab-details"
+          data-active={activeTab === "details" ? "true" : "false"}
+          hidden={activeTab !== "details"}
+        >
+          {extractionResult && (
+            <ExtractionResultPanel
+              result={extractionResult}
+              suggestions={extractionSuggestions}
+              onFillForm={handleFillExtractionForm}
+              onUseSuggestion={handleUseExtractionSuggestion}
+              onDismissSuggestion={handleDismissExtractionSuggestion}
+            />
+          )}
+          <section className="trip-details-intro" aria-labelledby="trip-details-title">
+            <div className="trip-section-heading">
+              <div className="trip-heading-icon" aria-hidden="true"><SlidersHorizontal size={20} /></div>
+              <div>
+                <p className="trip-eyebrow">Bước 2 · Bổ sung</p>
+                <h2 id="trip-details-title" data-trip-panel-heading tabIndex={-1}>Điền phần còn thiếu</h2>
+              </div>
+            </div>
+            <p>AI chỉ điền những gì nhận diện được chắc chắn. Trường còn trống hoặc cần làm rõ vẫn do bạn quyết định.</p>
+          </section>
+          <form className="trip-form" onSubmit={(event) => { event.preventDefault(); void submit(); }} noValidate>
         {fieldErrorEntries.length > 0 && (
           <div className="trip-error-summary" role="alert" aria-live="polite">
             <p>Có {fieldErrorEntries.length} trường cần kiểm tra.</p>
@@ -577,6 +738,60 @@ export default function TripRequirementForm() {
           </Button>
         </div>
       </form>
+        </div>
+
+        <div
+          id="trip-tabpanel-review"
+          className={`trip-flow-panel trip-flow-panel-${tabDirection}`}
+          role="tabpanel"
+          aria-labelledby="trip-tab-review"
+          data-active={activeTab === "review" ? "true" : "false"}
+          hidden={activeTab !== "review"}
+        >
+          {review && (
+            <TripReviewScreen
+              embedded
+              draft={review.draft}
+              readiness={review.readiness}
+              clarificationRequests={review.clarificationRequests}
+              headingRef={reviewHeadingRef}
+              onBackToForm={(reviewDraft) => {
+                setFields(draftToFormFields(reviewDraft));
+                setReview(null);
+                setDetailsUnlocked(true);
+                advanceTo("details");
+              }}
+              onFillForm={review.source === "AI" ? handleFillAndEdit : undefined}
+              onConfirmed={(confirmed, confirmedDraft) => {
+                setReview({ ...review, draft: confirmedDraft });
+                setPlanner(structuredClone(confirmed));
+                advanceTo("planner");
+              }}
+            />
+          )}
+        </div>
+
+        <div
+          id="trip-tabpanel-planner"
+          className={`trip-flow-panel trip-flow-panel-${tabDirection}`}
+          role="tabpanel"
+          aria-labelledby="trip-tab-planner"
+          data-active={activeTab === "planner" ? "true" : "false"}
+          hidden={activeTab !== "planner"}
+        >
+          {planner && (
+            <TripPlannerFlow
+              embedded
+              confirmed={planner}
+              onBack={() => {
+                setPlanner(null);
+                if (review) advanceTo("review");
+                else advanceTo("details");
+              }}
+            />
+          )}
+        </div>
+      </div>
     </main>
   );
 }

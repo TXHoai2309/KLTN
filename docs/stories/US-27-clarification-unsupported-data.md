@@ -4,6 +4,8 @@
 
 DRAFT — deterministic clarification rules, transport policy, server gate, additive API fields and review clarification panel are implemented; owner decisions, browser/live evidence and final acceptance remain pending.
 
+Task **229 [TEST]** remains **Ongoing** per Bình's 2026-10-15 request: automated verification is recorded below, while the owner-run browser checklist and US-28 handoff acceptance remain pending. This does not promote the story to ACCEPTED.
+
 ## Epic
 
 Trip planning.
@@ -222,6 +224,8 @@ N/A for US-27. Existing US-25 may call OpenAI before this post-verification down
 - Existing US-26 HTTP/client tests: additive check response, mapped missing/range/warning requests, legacy client response default `[]`, cache/auth behavior unchanged.
 - `trip-clarification-logic.vitest.test.ts`: merge/dedupe/order, server precedence, blocking resolution/reappearance, advisory dismissal, three US-26 confirmation gates and panel source contract.
 - `us27-test.vitest.test.ts`: **13 cross-layer tests** using `__fixtures__/utterances.ts`: missing duration/transport through extraction, `/analyze`, `/check`, planner gate and FE merge; unsupported/ambiguous transport and model/source mismatch; duration/transport/date/companion conflicts; advisory-vs-blocking confirmation and unchanged final start-date guard.
+- Task229 additive coverage in `us27-task229-recovery.vitest.test.ts`: **5 tests** for the missing HTTP-response → strict client parser → explicit review correction → authoritative `/check` → confirmation recovery sequence. Covers the four groups (unsupported and ambiguous separately), partial correction of two simultaneous blockers, source preservation and re-blocking after a later clear. The original suites and production code are unchanged.
+- Owner-run instructions: [Task229 manual checklist](../implementation/us27-task229-manual-checklist.md) has concrete four-group steps plus 360px, focus/keyboard and aria-live/screen-reader checks. Every manual result starts NOT PROVEN; no browser PASS is claimed by the agent.
 - Existing US-24/25/26 tests were not modified for US27-TEST; their existing auth/body-order, API envelope/no-store, legacy `clarificationRequests: []`, client stale/network, and source-contract coverage was reused rather than duplicated.
 - Manual UI checklist (all NOT PROVEN in this environment):
   - [ ] Four groups from natural-language input → review → clarification → confirm.
@@ -278,6 +282,8 @@ The source-contract test also checks all listed files for literal fallback assig
 - `apps/web/src/modules/trip-requirement/trip-clarification-logic.ts`
 - `apps/web/src/modules/trip-requirement/trip-clarification-logic.vitest.test.ts`
 - `apps/web/src/modules/trip-requirement/us27-test.vitest.test.ts`
+- `apps/web/src/modules/trip-requirement/us27-task229-recovery.vitest.test.ts` (Task229, new tests only)
+- `docs/implementation/us27-task229-manual-checklist.md` (owner-run, initially NOT PROVEN)
 - `apps/web/src/app/trips/new/trip-requirement-form.tsx`
 - `docs/stories/US-27-clarification-unsupported-data.md`
 - `docs/ai-progress.md`
@@ -317,11 +323,34 @@ Không. No dependency, secret or environment variable added.
 | Review clarification panel and confirmation gate | PASS (automated) | `trip-clarification-logic.vitest.test.ts` passes merge/dedupe/server precedence, blocking reappearance, advisory dismissal, CHOOSE_ONE no-default source contract; review receives analyze/check requests and uses `canConfirm`. Browser interaction/focus is NOT PROVEN. |
 | No-substitution transport boundary | PASS (automated) | `transport-safety.vitest.test.ts`, apply/review regressions, buildPayload tamper test and `us27-fe-nosubst-source.vitest.test.ts` cover canonical-only extraction, unresolved fixture states, no radio default/auto-focus, source retention and server mismatch protection. |
 | Four US27 focus groups across layers | PASS (automated) | `us27-test.vitest.test.ts` adds 13 tests covering missing duration, missing transport, unsupported/ambiguous transport and contradictions across extraction, analyze/check, gate and FE logic. |
-| Automated relevant tests | PASS | Full relevant selection after US27-TEST: **22 files, 348/348 tests passed**, including US-24/25/26/27 regression suites and source-contract tests. |
-| Root test/typecheck/build | BLOCKED | `npm run test`, `npm run check-types` and `npm run build` each stop immediately with the existing local `shim integrity check failed`; no unrelated shim/RAG repair was attempted. |
+| Automated relevant tests | PASS (2026-10-15, Task229) | Baseline **22 files, 348/348**; after the new recovery suite **23 files, 353/353**, zero failed/skipped. Original `us27-test.vitest.test.ts` remains **13/13**; new file **5/5**. Exact selection/command below; not a full-repository test result. |
+| Task229 correction/recheck sequence | PASS (automated) | Five synthetic-provider cases pass through real HTTP response functions and strict client parsers, remain unconfirmed until every explicit correction is checked, retain source provenance and close both gates again after clearing a required field. No live browser/server session/provider was used. |
+| Root check-types | FAILED outside Task229 (2026-10-15) | Root `npm run check-types` via installed Node22 reaches TypeScript. Final run reports only existing `cloudinary-provider.ts:2` TS2307 (missing `cloudinary`) and `:75` TS7006. No diagnostics remain in the new test file; this is not a project-wide typecheck PASS. Earlier shim failures are historical, not the current blocker. |
+| Root full test/build | NOT RUN in Task229 | Only the requested US-24→27 Vitest selection and root typecheck ran. Prior full-test/build failures remain historical; no shim, dependency, unrelated RAG or production repair was attempted. |
 | Live API/browser/planner/OpenAI evidence | NOT PROVEN | No Traveler session, live curl/browser, planner caller or real OpenAI request was used. |
-| Manual UI/accessibility/provider checklist | NOT PROVEN | No browser, Traveler session, screen reader, responsive viewport or authorized real-provider evaluation was available; checklist remains unticked above. |
+| Manual UI/accessibility/provider checklist | NOT PROVEN | [Owner-run Task229 checklist](../implementation/us27-task229-manual-checklist.md) remains unticked. No Traveler browser interaction, 360px measurement, focus/screen-reader behavior or real-provider evaluation was performed for this task. |
 | US-28 handoff | DEFERRED | Handoff is documented; US-28 must call both server gates before planning/official save. |
+
+### Task229 — four-group coverage audit (2026-10-15)
+
+The existing `us27-test.vitest.test.ts` already covers all four initial problem groups. No missing initial classifier/rule was invented, and none of its tests was edited. Added coverage closes the correction loop through both HTTP response contracts and both client parsers instead of repeating the existing keyword/status matrix.
+
+| Group | Existing coverage in `us27-test.vitest.test.ts` | Additional coverage in the new file | Current result |
+| --- | --- | --- | --- |
+| Missing duration | Extraction/analyze blocker, check/gate rejection, FE merge resolution and invalid duration cases | Explicit duration edit survives actual check response/client parsing, then clear closes confirmation again | PASS automated; browser NOT PROVEN |
+| Missing transport | Missing status/options without defaults, analyze request, required ordering, gate and no auto-fill | Explicit user transport choice through analyze/check parsers and confirmation, then re-block on clear | PASS automated; browser NOT PROVEN |
+| Unsupported / ambiguous transport | Fixture corpus, source/model mismatch downgrade, no substitution, unsupported check/API/gate | Separate unsupported and ambiguous model-CAR cases retain unresolved value until explicit MOTORCYCLE choice survives `/check` | PASS automated; browser NOT PROVEN |
+| Contradictory data | Duration/date/transport contradictions, analyze response, companion error and advisory warning behavior | Two simultaneous blockers: duration correction alone stays unconfirmed; only the second explicit correction permits a checked snapshot | PASS automated; browser NOT PROVEN |
+
+Execution used the existing **Node v22.20.0** binary directly; no install, `nvm use`, shim modification, environment file or configuration change. Working directory for the following command is `apps/web`; `$taskNode` is the already-installed `C:/Users/duybi/AppData/Local/Author Software/nvm/installs/v22.20.0/node.exe`:
+
+```powershell
+& $taskNode ../../node_modules/vitest/vitest.mjs run --config vitest.config.mts src/modules/trip-requirement src/modules/preference-extraction src/lib/preference-extraction-client.vitest.test.ts src/lib/trip-requirement-check-client.vitest.test.ts src/app/trips/new
+```
+
+Baseline exited 0 with 348 tests; the new file alone exited 0 with 5 tests; the final full relevant selection exited 0 with 353 tests. Existing expected auth/validation stderr logs did not fail tests. Test providers and auth/database objects are synthetic; no Neon/OpenAI/Google call or localhost server was used. A first typecheck found an overly direct cast in the new auth fixture; it was corrected only in the new test file. The final root typecheck exits 1 solely for the two Cloudinary diagnostics above. Build/full-repository tests and manual/live acceptance remain NOT PROVEN in this task.
+
+`git diff --check` passes (existing LF→CRLF notices only). Task229 remains Ongoing pending Bình's manual evidence. The original unchecked AC containing both US-28 server gate requirements (`assertTripRequirementClear` and `assertStartDateForFinalConfirmation`) is preserved verbatim and unchecked; direct unit tests of guards are not acceptance of their US-28 integration.
 
 ## Open Questions
 
