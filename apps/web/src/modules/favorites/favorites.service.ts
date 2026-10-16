@@ -47,12 +47,18 @@ async function recheckTraveler(
   return current.userId;
 }
 
-async function assertPublicTarget(
+async function assertAvailableTarget(
+  userId: string,
   target: FavoriteTarget,
   transaction: Prisma.TransactionClient,
 ): Promise<void> {
   const exists =
-    target.targetType === "destinations"
+    target.targetType === "trips"
+      ? await transaction.trip.findFirst({
+          where: { id: target.targetId, userId },
+          select: { id: true },
+        })
+      : target.targetType === "destinations"
       ? await transaction.destination.findFirst({
           where: {
             id: target.targetId,
@@ -81,6 +87,7 @@ function favoriteWhere(
   userId: string,
   target: FavoriteTarget,
 ): Prisma.FavoriteWhereInput {
+  if (target.targetType === "trips") return { userId, targetType: "TRIP", tripId: target.targetId };
   return target.targetType === "destinations"
     ? {
         userId,
@@ -98,6 +105,7 @@ function favoriteCreateData(
   userId: string,
   target: FavoriteTarget,
 ): Prisma.FavoriteCreateManyInput {
+  if (target.targetType === "trips") return { userId, targetType: "TRIP", tripId: target.targetId };
   return target.targetType === "destinations"
     ? {
         userId,
@@ -144,7 +152,7 @@ export async function addFavorite(
         dependencies,
         transaction,
       );
-      await assertPublicTarget(target, transaction);
+      await assertAvailableTarget(userId, target, transaction);
 
       const created = await transaction.favorite.createMany({
         data: favoriteCreateData(userId, target),
@@ -176,6 +184,7 @@ export async function removeFavorite(
         dependencies,
         transaction,
       );
+      if (target.targetType === "trips") await assertAvailableTarget(userId, target, transaction);
       const deleted = await transaction.favorite.deleteMany({
         where: favoriteWhere(userId, target),
       });
@@ -190,6 +199,7 @@ export async function getFavoriteStatus(
   target: FavoriteTarget,
   dependencies: FavoritesDependencies,
 ): Promise<FavoriteResult> {
+  if (target.targetType === "trips") await assertAvailableTarget(userId, target, dependencies.database);
   const favorite = await dependencies.database.favorite.findFirst({
     where: favoriteWhere(userId, target),
     select: { id: true },

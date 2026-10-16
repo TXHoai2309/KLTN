@@ -47,7 +47,7 @@ Every itinerary proposal must be checked for:
 
 Each check returns `PASS` / `ĐÁP ỨNG`, `VIOLATION` / `VI PHẠM`, or `INSUFFICIENT_DATA` / `CHƯA ĐỦ DỮ LIỆU`. `INSUFFICIENT_DATA` is never a pass. The Validator is deterministic: the same input, data, and reference time yields the same result. AI cannot fill missing required data or decide the Validator outcome. Confirm an itinerary only when all mandatory checks pass.
 
-Google Routes travel modes are `DRIVE` and `TWO_WHEELER`. If mandatory route data is missing, unavailable, or not returned within at most 10 seconds, the travel-time check returns `INSUFFICIENT_DATA` / `CHƯA ĐỦ DỮ LIỆU`, never `PASS`. AI must not guess travel time in place of required routing data.
+The US-29B provider decision uses Stadia Standard Routing: car → `auto`, motorcycle → `motorcycle`. If mandatory route data is missing, unavailable, or not returned within at most 10 seconds, the travel-time check returns `INSUFFICIENT_DATA` / `CHƯA ĐỦ DỮ LIỆU`, never `PASS`. AI must not guess travel time in place of required routing data.
 
 ### Edit, save, and in-trip support
 

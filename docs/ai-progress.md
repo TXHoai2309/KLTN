@@ -908,6 +908,8 @@ Append a new entry for each meaningful work session. Keep prior entries as hando
 - **Eligibility:** Retained one canonical predicate `status === INDEXED` for response eligibility. Tests cover all five statuses and the INDEXED → DISABLED change. No fake retrieval/indexing was added.
 - **Verification:** TDD red run had 5 failing cases; `npm run test:rag --workspace=web` PASS 34/34 after implementation. Root `npm run test`, `npm run check-types`, `npm run build`, `git diff --check` PASS. No schema/migration/dependency/env change; no commit or push.
 - **Limits:** NT-252 end-to-end retrieval and QTN-107 history-source exclusion are **BLOCKED BY US-19** because no retrieval query exists. No Admin browser session/live RAG records or inspectable Figma MH-16/MH-18 frame, so light/dark, 360px and real database/Blob UI flow are NOT PROVEN.
+<<<<<<< HEAD
+=======
 
 
 ## 2026-10-11 — ThaiAnh into TXH integration review
@@ -1601,6 +1603,7 @@ Deterministic selection/gate/session-abuse/HTTP/source-status regressions: 83/83
 - **Coverage:** The new 13 tests assert blocking questions/hints, stable duration→transport order, CHOOSE_ONE with no default, source preservation, model/source downgrade, `TRANSPORT_UNSUPPORTED`, `TRIP_REQUIREMENT_UNCLEAR` blockers, advisory-vs-blocking confirmation, and the unchanged final start-date guard. Existing US24/25/26/27 tests were reused for role/body-order, legacy response defaults, no-store, stale/network, storage/source-contract and prior API behavior; no unrelated old test was changed.
 - **Tests:** Full relevant selection is **22 files, 348/348 tests passed**. The new suite alone is **13/13**. Test stderr contains only expected safe error-log assertions from existing API boundary cases; no sensitive request body is logged.
 - **Checks/limits:** Root `npm run test`, `npm run check-types` and `npm run build` remain blocked immediately by the existing local `shim integrity check failed`; `git diff --check` remains the relevant repository check. Browser/manual review, responsive overflow, keyboard/screen-reader focus, Guest/Admin live session, and authorized real OpenAI evaluation are **NOT PROVEN**. No commit or push.
+<<<<<<< HEAD
 
 ## 2026-10-13 — US28 preliminary Planner and reference UI
 
@@ -1917,3 +1920,57 @@ Read-only observations; no AI calls or Destination writes. Screenshots and
 measurements are outside repo in Temp/kltn-editorial-alignment-20261016.
 CSS-only follow-up; no new tests. Production build result recorded in handoff.
 Body-alignment verification: production build PASS; diff check PASS.
+=======
+>>>>>>> 8b5ff486267fd66fd6a8418005d8b02b13b49d8c
+
+## 2026-10-14 — US-29A opening hours and minimum duration validator
+
+- Audited the current `ThaiAnh` working tree. Destination already has nullable, distinct minimum/suggested duration and seven-day OPEN/CLOSED/UNKNOWN schedules with minute intervals; no itinerary visit or Validator foundation exists. Added only two pure checks in `apps/web/src/modules/trip-validation/visit-constraints.ts`, their Vitest suite and the US-29A story. No API, UI, DB model, migration, package, route-time or aggregate rule engine change.
+- Outcomes use the product vocabulary `PASS` / `VIOLATION` / `INSUFFICIENT_DATA` with affected visit ID and reason. Opening hours require one complete interval; an explicit CLOSED day violates while UNKNOWN/missing hours are insufficient. Minimum duration is independent of suggested duration. Vietnam-local date and minute inputs make the checks deterministic without a clock or timezone conversion.
+- TDD red stage had 17 expected failing stub tests; final focused 18/18 and related Trip selection 255/255 pass. The project TypeScript scan has no `trip-validation` diagnostics. Root test, typecheck and build were attempted but fail on existing missing declared packages, stale Prisma Client and unrelated RAG/Admin code; see the US-29A story for counts. No commit or push.
+- This file was already unmerged (`UU`) with conflict markers before US-29A. The entry was appended without deleting either side; the owner must resolve the pre-existing merge before the progress document is merge-ready.
+- Root `git diff --check` exits 1 on those existing conflict markers; no US-29A merge resolution was attempted.
+
+## 2026-10-14 — US-29B Stadia routing and travel-time validator
+
+- Replaced the historical Google Routes provider choice for this task with Stadia Standard Routing. Added a server-only one-leg adapter mapping `CAR` to `auto` and `MOTORCYCLE` to `motorcycle`, with a 10-second maximum, no retry/profile substitution, normalized duration/distance/optional polyline6 line and `unavailable` on missing route/provider data. Added a pure adjacent-visit travel-time check using the US-29A outcome vocabulary; no Trip write/API/model or migration was added.
+- Reused `DestinationMap` and MapLibre. Theme changes now call `setStyle` on the mounted map; an optional normalized route line is re-added after style load. The public map/list fallback remains. `STADIA_MAPS_API_KEY` is documented as server-only, with production tile domains requiring Stadia authentication configuration.
+- Live spike used two visible development Destinations plus the checked-in Lũng Cú coordinate payload. Three pairs × `auto`/`motorcycle` returned six HTTP 200 routes with finite duration, distance and geometry (113–298 ms observed across two runs). One DB point is an unverified manual test record and the payload is not a DB record; production 30–50 destination coverage remains NOT PROVEN. No key or raw provider response was logged.
+- Focused tests: US-29B + US-29A Vitest 31/31 PASS; existing/new map `node:test` 25/25 PASS. Manual `/explore?view=map` loaded tiles/two markers, switched dark/light, and showed no horizontal overflow at 360/390/768/1024/1440px; no browser console or hydration errors. Browser network-level credential inspection was unavailable. `npm run env:generate` and `git diff --check` PASS.
+- Root `npm run test`, `npm run check-types` and `npm run build` were attempted but fail on unrelated missing declared packages, stale generated Prisma members and RAG tests. The targeted changed-file TypeScript diagnostic scan showed no US-29B errors; full type/build PASS and end-to-end Trip integration remain NOT PROVEN. No commit or push.
+
+## 2026-10-15 — US-29C and US-30 ordered implementation
+
+- Restored the existing US-29A/B commits by fast-forwarding local `ThaiAnh` from `8b5ff48` to `d244d11` before writing C/D; no new commit or push. Focused A/B baseline was 31/31 PASS.
+- US-29C adds one shared structural proposal contract, deterministic four-group aggregate with half-open conflict intervals and explicit `timeReference`, and a reusable result component. US-30 reuses those types and checks at the server save boundary. No proposal/planner screen was invented; the user earlier selected save API + component only.
+- US-30 adds minimal Trip/Day/Visit Prisma models and migration, `POST /api/trips`, Traveler ownership from session, visible Destination re-read, Stadia route snapshot, transactional revalidation and nested persistence via the shared idempotent write. Client only claims saved on a valid `SUCCESS`; `UNKNOWN` retains the same key and proposal.
+- Focused A/B/C/D tests 66/66 PASS; env generate, DB generate, Prisma validate, typecheck and build PASS. Root test fails in pre-existing Culture legacy header assertion. Prisma migrate status says US-30 migration is **not applied**, and the DB contains `20261014120000_add_destination_editorial` absent in this checkout. No database migration was applied; live PostgreSQL write, mounted proposal UI and browser interaction remain NOT PROVEN. No commit or push.
+
+## 2026-10-15 — US-31 My Trips and Trip Detail
+
+- Added one pure calendar status function, owner-scoped Trip list/detail services, private read endpoints, `/trips` and `/trips/[id]` server-rendered pages, and loading/empty/error/not-found states. No schema change, Trip write change, editor, AI flow or favorite action.
+- Queries enforce `userId` at the database predicate; detail uses `id + userId`. Guest/Admin cannot query Trip. Status uses the existing Vietnam date helper once per request and counts the end date inclusively. Days/visits are ordered and hidden historical destinations are marked unavailable in the owned detail.
+- US-31 focused tests 20/20 PASS; US-31 + US-30 regression 37/37 PASS; full Vitest 1077 passed/68 skipped. Build/typecheck PASS. Full root test still fails at the pre-existing Culture header-link assertion. `git diff --check` PASS. No commit/push.
+- Development DB remains without the US-30 Trip migration because migration histories diverge; live authenticated UI/API, browser responsive/light-dark checks and MH-07/MH-09 frame parity remain NOT PROVEN. Figma connector exposed the shared Itinerary Item component but not those screens.
+
+## 2026-10-15 — US-30 development DB migration reconciliation
+
+- Audited all disk migrations and queried `_prisma_migrations` in the configured development Neon database. The DB had 18 finished migrations, including an editorial migration missing from this checkout, while US-30 existed only on disk. `destination_editorial` had 2 rows, so the preserve-data path was used.
+- Restored the exact historical editorial migration SQL and Prisma model from Git commit `5dad753`, plus its `Destination.editorial` relation. The restored SQL SHA-256 equals the DB migration checksum. Prisma validate and read-only schema diff showed only the pending US-30 Trip migration; no `migrate resolve` was needed.
+- Applied `20261015000000_us30_trip_save` through `npx prisma migrate dev`. Migration status now reports 19 migrations and an up-to-date schema. Catalog queries verified Trip/Day/Visit tables, four foreign keys, four secondary indexes/unique constraints and three primary keys. Editorial row count remained 2.
+- `npm run db:generate`, focused US-30/31 tests (37/37), `npm run check-types`, and `npm run build` passed. Full `npm test` fails in the existing Culture legacy test expecting a `/culture` header link. Live authenticated Trip save/read remains NOT PROVEN. Details and full Disk vs DB table are in `docs/stories/US-30-db-migration-fix.md`. No reset, `db:push`, manual migration-table edit, migration deletion, commit or push.
+
+## 2026-10-15 — US-31 re-audit after development DB migration
+
+- Re-read the Task 5 request and current Trip read service/API/UI/tests on a clean working tree. US-31 list/detail, owner-scoped database predicates, calendar status, grouped/day UI and loading/empty/error states were already implemented; no duplicate endpoint or code change was needed.
+- The prerequisite US-30 migration is now applied. A read-only development DB check found zero Trip rows. Local browser navigation as Guest from `/trips` reached `/login?returnTo=%2Ftrips`; both `GET /api/trips` and `GET /api/trips/nonexistent` returned 401. No Traveler login or Trip fixture was created.
+- Focused US-30/31 tests 37/37, typecheck and build PASS. Full `npm test` fails at the existing Culture header-link assertion. Authenticated Trip list/detail, cross-owner live navigation, light/dark and responsive visual acceptance remain NOT PROVEN. Figma metadata exposes only `01 – Components`, not MH-07/MH-09. Story evidence updated. No commit or push.
+
+## 2026-10-15 — US-34 Favorite owned saved Trip
+
+- Audited clean `ThaiAnh` at `a5963ab`; extended the existing Favorite table/target API/service/button with TRIP. Added nullable tripId, FK/unique and a three-target CHECK through reviewed migration `20261015160000_us34_trip_favorite`, applied to development via Prisma; status now 20 migrations/up to date. No Trip/Day/Visit persistence/status/Validator change and no dependency added.
+- Trip target add/remove/status query `{id, userId}` using the session actor. Existing Traveler transaction recheck, idempotency, duplicate-safe createMany and SUCCESS/FAILED/UNKNOWN are reused. Trip list/detail select actor-scoped Favorite state within their existing Prisma queries and render the shared heart button. The current two-group `/favorites` page is unchanged; Trip group explicitly deferred by the US-34 scope rule.
+- TDD RED recorded four missing-feature failures; GREEN focused Favorite/Trip regression 54/54 and legacy Favorite 24/24 PASS. Explicit guarded PostgreSQL test 1/1 PASS verifies FK/CHECK/unique/concurrent add/ownership and no-copy counts **2 Trip / 2 Day / 2 Visit before and after**, with original graph/owner unchanged. Prisma generate/validate, root typecheck/build PASS. Full Vitest 1083 passed/68 skipped; root npm test fails at existing Culture header assertion `culture-page.test.tsx:37`.
+- Local browser on the production build with development fixtures verified pending-disabled, confirmed add/remove, list/detail/browser Back consistency, Space/Tab focus, 403 FAILED retaining active heart, and server-unavailable UNKNOWN retaining heart then successful mounted retry after restart. Both pages/themes have no horizontal overflow at 390/768/1024/1440. Screenshots are outside Git and linked from the story. Figma MH-07/MH-09 parity remains BLOCKED; production rollout/post-commit lost-response behavior remains NOT PROVEN.
+- Disposable fixture account/session/Trip/Days/Visits/Destination/Favorites/idempotency records cleaned; read-only verification found zero US34 fixture users/Trips, total Trip count restored to 0. Theme/viewport restored, test tab and owned server closed. Independent review found no correctness/security issue; story/progress evidence updated. No reset, db:push, commit or push. Stop after US-34.
+>>>>>>> 4ae7ffc3a9c2b5cb3e0a0e964079510e5357e236

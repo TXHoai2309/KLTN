@@ -1,14 +1,21 @@
 import type * as MapLibre from "maplibre-gl";
 import type { ExploreReturnHref } from "../destination/destination-detail-navigation";
-import { destinationDetailHref, haGiangViewport, normalizeMapCoordinate, toMapCoordinate, type MapCoordinate, type MapDestination } from "./map-model";
+import { destinationDetailHref, haGiangViewport, normalizeMapCoordinate, toMapCoordinate, type MapCoordinate, type MapDestination, type RouteGeometry } from "./map-model";
 
-export function mountMapLibre(host: HTMLDivElement, library: typeof MapLibre, points: readonly MapDestination[], style: string, detail: boolean, returnTo: ExploreReturnHref | undefined, onReady: () => void, onFailure: () => void) {
+export function mountMapLibre(host: HTMLDivElement, library: typeof MapLibre, points: readonly MapDestination[], style: string, detail: boolean, returnTo: ExploreReturnHref | undefined, onReady: () => void, onFailure: () => void, extras: { routeGeometry?: RouteGeometry; onMap?: (map: MapLibre.Map | null) => void } = {}) {
   const map = new library.Map({ container: host, style, center: toMapCoordinate(haGiangViewport.center), zoom: haGiangViewport.zoom, maxZoom: 15, cooperativeGestures: true, attributionControl: { compact: true } });
   const markers: MapLibre.Marker[] = []; const popups: MapLibre.Popup[] = [];
   let disposed = false;
-  const dispose = () => { if (disposed) return; disposed = true; markers.forEach(item => item.remove()); popups.forEach(item => item.remove()); map.off("load", onReady); map.off("error", onFailure); map.remove(); };
+  const addRoute = () => {
+    if (disposed || !extras.routeGeometry || map.getSource("destination-route")) return;
+    map.addSource("destination-route", { type: "geojson", data: { type: "Feature", properties: {}, geometry: extras.routeGeometry } });
+    map.addLayer({ id: "destination-route-line", type: "line", source: "destination-route", paint: { "line-color": "#327252", "line-width": 4, "line-opacity": 0.85 } });
+  };
+  const dispose = () => { if (disposed) return; disposed = true; extras.onMap?.(null); markers.forEach(item => item.remove()); popups.forEach(item => item.remove()); map.off("load", onReady); map.off("error", onFailure); map.off("style.load", addRoute); map.remove(); };
   try {
     map.on("load", onReady); map.on("error", onFailure);
+    if (extras.routeGeometry) map.on("style.load", addRoute);
+    extras.onMap?.(map);
     map.addControl(new library.NavigationControl({ showCompass: false }), "top-right");
     points.forEach(point => {
       const card = document.createElement("div"); card.className = "destination-map-popup";

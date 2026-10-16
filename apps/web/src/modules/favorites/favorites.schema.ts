@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { AppError } from "@/server/http/app-error";
 
-export const favoriteUrlTargetTypeSchema = z.enum(["destinations", "culture"]);
+export const favoriteUrlTargetTypeSchema = z.enum(["destinations", "culture", "trips"]);
 
 const favoriteTargetIdSchema = z
   .string()

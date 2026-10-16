@@ -17,7 +17,7 @@ Browser
                  └─ pgvector extension
 
 Selected integrations for future business stories:
-  OpenAI · MapLibre GL JS / Stadia Maps · Google Routes API
+  OpenAI · MapLibre GL JS / Stadia Maps tiles · Stadia Routing API
 
 Deployment: Vercel web service
 ```
@@ -65,13 +65,13 @@ The accepted product boundary is:
 
 - AI/OpenAI: natural-language understanding, RAG answers, and proposals.
 - Constraint Validator: deterministic checks and outcomes, independent from AI.
-- Google Routes: actual route/travel duration for `DRIVE` and `TWO_WHEELER`.
+- Stadia Standard Routing: actual route/travel duration for `auto` (car) and `motorcycle` (motorcycle).
 - If mandatory route data is missing or not returned within at most 10 seconds, the travel-time check is `INSUFFICIENT_DATA` / `CHƯA ĐỦ DỮ LIỆU`, never `PASS`; AI must not guess travel time. This is a behavior requirement, not an implementation in the current repository.
 - PostGIS: stored spatial data and spatial queries.
 - pgvector: embeddings and similarity retrieval.
 - MapLibre GL JS: browser map rendering; Stadia Maps: official Alidade Smooth light/dark styles and basemap.
 
-OpenAI/Routes/spatial/vector business integrations remain future service implementations. US-12 adds browser Maps infrastructure and the public Explore/Detail integration described below. OpenAI and Routes secrets remain server-side. Stadia localhost uses no key; production uses property/domain authentication. Google Routes remains a separate planned server integration.
+US-12 supplies browser MapLibre/Stadia maps. US-29B adds a server-only Stadia route boundary and pure travel-time comparison; no itinerary service calls them yet. OpenAI and routing secrets remain server-side. Stadia localhost tiles use no key; production tiles use property/domain authentication. Routing uses a separate server API key.
 
 ## API and error contract
 
@@ -107,9 +107,9 @@ Thin /api/admin/culture collection/detail/visibility and destination-lookup hand
 
 ## US-12 shared browser Maps / minimum Explore boundary
 
-`modules/map` owns npm MapLibre loading, official Stadia light/dark style selection, longitude-first marker/viewport projection, renderer and cancellable provider lifecycle. `components/map/DestinationMap` is the shared Client boundary for Explore/US-13. Browser APIs run only in effects. Loading waits for MapLibre `load`; error or 15s timeout retains List/information. Retry disposes the old map before initializing a new one; cleanup removes markers/popups/events and calls map.remove(). Theme changes cleanly replace the instance, with stable canonical style selection.
+`modules/map` owns npm MapLibre loading, official Stadia light/dark style selection, longitude-first marker/viewport projection, renderer and cancellable provider lifecycle. `components/map/DestinationMap` is the shared Client boundary for Explore/US-13. Browser APIs run only in effects. Loading waits for MapLibre `load`; error or 15s timeout retains List/information. Retry disposes the old map before initializing a new one; cleanup removes markers/popups/events and calls map.remove(). Theme changes update the existing map style; optional normalized route geometry is re-added after style loading.
 
-MapLibre 6's worker and sibling shared module are copied from the installed npm package into ignored public/maplibre by dev/build preparation, served together from the same origin (no CDN script). Asset HEAD preflight prevents poisoning the library's cached worker initialization when an asset is temporarily missing. Official CSS is imported by App Router layout. No browser Google key/Map ID or Maps JS dependency remains. Stadia domain auth is deployment configuration; Google Routes remains a separate server-side routing decision. No geolocation/routing/schema change.
+MapLibre 6's worker and sibling shared module are copied from the installed npm package into ignored public/maplibre by dev/build preparation, served together from the same origin (no CDN script). Asset HEAD preflight prevents poisoning the library's cached worker initialization when an asset is temporarily missing. Official CSS is imported by App Router layout. No browser routing key or Google Maps JS dependency exists. Stadia domain auth is deployment configuration; Stadia Routing is a separate server-only request. No geolocation or schema change.
 
 
 ## US-10 Home and public Explore
