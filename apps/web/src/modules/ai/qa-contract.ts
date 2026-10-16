@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { QA_CONVERSATION_MESSAGES } from "./qa-conversation";
 
 // Pure contracts only. No HTTP parsing, authentication, evidence registry or AI.
 export const QA_QUESTION_MAX_UTF16_UNITS = 2000;
@@ -117,6 +118,13 @@ const completedTurnFields = {
 
 export const qaCompletedTurnSchema = z
   .discriminatedUnion("status", [
+    z.object({
+      ...completedTurnFields,
+      status: z.literal("CONVERSATIONAL"),
+      answerParts: z.array(qaAnswerPartSchema).length(0),
+      citations: z.array(qaPublicCitationSchema).length(0),
+      message: z.enum(Object.values(QA_CONVERSATION_MESSAGES)),
+    }).strict(),
     z.object({
       ...completedTurnFields,
       status: z.literal("ANSWERED"),

@@ -288,12 +288,19 @@
   }
 }
 
+/* Always stack IMAGE_TEXT sections vertically: prose first, illustrative photo below */
+.emg-gen .emg-split {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 24px;
+  align-items: stretch;
+}
+.emg-gen .emg-split .emg-prose { order: 0; width: 100%; }
+.emg-gen .emg-split .emg-story-image { order: 1; width: 100%; }
+
 /* The editor preview can be narrow inside a desktop viewport. */
 @container (max-width: 960px) {
   .emg-gen .emg-gen-grid { grid-template-columns: minmax(0, 1fr); }
-  .emg-gen .emg-split { display: flex; flex-direction: column; align-items: stretch; }
-  .emg-gen .emg-split .emg-prose { order: 0; }
-  .emg-gen .emg-split .emg-story-image { order: 1; width: 100%; }
   .emg-gen .emg-columns-text { column-count: 1; }
 }
 @container (max-width: 640px) {
@@ -316,3 +323,66 @@
 .emg-gen .emg-gen-section > h2 { max-width: none; margin-inline: 0; }
 .emg-gen .emg-grid-cell > .emg-prose,
 .emg-gen .emg-gen-section > .emg-prose { max-width: none; margin-inline: 0; }
+
+/* Generative Facts / Highlights Strip */
+.emg.emg-gen .emg-facts,
+.emg.emg-gen .emg-gen-facts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: clamp(32px, 5cqi, 64px);
+  margin-block: clamp(36px, 5.5cqi, 64px);
+  padding: clamp(28px, 4cqi, 40px) clamp(28px, 4.5cqi, 48px);
+  background: var(--emg-tint);
+  border: 1px solid var(--emg-line);
+  border-radius: 16px;
+  box-shadow: 0 4px 20px -8px rgba(0, 0, 0, 0.04);
+  max-width: 960px;
+}
+
+.emg.emg-gen .emg-facts > div,
+.emg.emg-gen .emg-fact-item {
+  flex: 1 1 180px;
+  min-width: 150px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
+
+.emg.emg-gen .emg-facts span,
+.emg.emg-gen .emg-fact-label {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--emg-muted);
+  line-height: 1.2;
+}
+
+.emg.emg-gen .emg-facts strong,
+.emg.emg-gen .emg-fact-value {
+  display: block;
+  font-family: var(--emg-font-display, var(--emg-display, serif));
+  font-size: clamp(1.1rem, 1.7cqi, 1.35rem);
+  font-weight: 600;
+  color: var(--emg-text);
+  line-height: 1.4;
+  text-transform: capitalize;
+  letter-spacing: -0.01em;
+}
+
+@container (max-width: 640px) {
+  .emg.emg-gen .emg-facts,
+  .emg.emg-gen .emg-gen-facts {
+    gap: 20px;
+    padding: 20px 20px;
+  }
+  .emg.emg-gen .emg-facts > div,
+  .emg.emg-gen .emg-fact-item {
+    flex: 1 1 100%;
+  }
+}

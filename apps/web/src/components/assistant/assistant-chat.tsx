@@ -16,6 +16,7 @@ export type CitationSlot = (input: { part: QaAnswerPart; citations: QaPublicCita
 const AssistantContextDisplay = createContext<((label: string | null) => void) | null>(null);
 
 export function AssistantAnswer({ turn, citationSlot }: { turn: QaCompletedTurn; citationSlot?: CitationSlot }) {
+  if (turn.status === "CONVERSATIONAL") return <p>{turn.message}</p>;
   if (turn.status === "INSUFFICIENT_SOURCE") return <div className="assistant-source-notice"><strong>Chưa đủ dữ liệu được xác minh</strong><p>Chưa đủ dữ liệu được xác minh để trả lời chính xác câu hỏi này.</p><p className="assistant-muted">Bạn có thể nêu rõ điểm đến và thông tin muốn hỏi, hoặc điều chỉnh câu hỏi trong ô bên dưới.</p></div>;
   if (turn.status === "CLARIFICATION_REQUIRED") return <><strong>Cần làm rõ</strong><p>{turn.clarificationQuestion}</p></>;
   const citationIndex = buildCitationIndex(turn);

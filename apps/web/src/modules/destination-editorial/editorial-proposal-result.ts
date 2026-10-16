@@ -5,6 +5,7 @@ import { getAllLayoutNodes, usableEditorialMedia, validateLayoutReferences } fro
 import { isShortEditorialHeading } from "./editorial-content";
 import { compareLayoutSignatures, getLayoutSignature } from "./editorial-signature";
 import { preservesHeroLocks } from "./editorial-hero";
+import { evaluateLayoutQuality } from "./editorial-quality-gate";
 
 /** Client-side atomic commit gate. HTTP success alone never changes local work. */
 export function acceptedEditorialProposal<T extends EditorialLayout>(
@@ -15,7 +16,7 @@ export function acceptedEditorialProposal<T extends EditorialLayout>(
   mode: "PROPOSE" | "ALTERNATIVE" = "PROPOSE"
 ): T | null {
   if (!data || typeof data !== "object" || !("status" in data) || data.status !== "PROPOSED" || !("layout" in data)) return null;
-  if ("outcome" in data && data.outcome !== "PROPOSED" && data.outcome !== "PROPOSED_NEW" && data.outcome !== "ALTERNATIVE_SIGNIFICANT") return null;
+  if ("outcome" in data && data.outcome !== "PROPOSED" && data.outcome !== "PROPOSED_NEW" && data.outcome !== "ALTERNATIVE_SIGNIFICANT" && data.outcome !== "ALTERNATIVE_MINOR") return null;
   const result = editorialLayoutSchema.safeParse(data.layout);
   if (!result.success) return null;
   const next = result.data;
@@ -42,7 +43,8 @@ export function acceptedEditorialProposal<T extends EditorialLayout>(
     if (nodes.some(n => (n.mediaIds ?? []).some(id => !allowed.has(id)))) return null;
   }
 
-  if (mode === "ALTERNATIVE") {
+  if (isV2Layout(next) && evaluateLayoutQuality(next, context).metrics.contentPreservationRatio !== 1) return null;
+  if (mode === "ALTERNATIVE" && isV1Layout(next)) {
     const effective = (layout: EditorialLayout) => isV2Layout(layout)
       ? { ...layout, sections: compileEditorialLayout(layout, context).nodes as EditorialNodeV2[] } : layout;
     const diff = compareLayoutSignatures(getLayoutSignature(effective(current)), getLayoutSignature(effective(next)));

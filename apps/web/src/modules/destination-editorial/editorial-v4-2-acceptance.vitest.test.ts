@@ -5,6 +5,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 vi.mock("server-only", () => ({}));
 vi.mock("@/components/map/destination-map", () => ({ default: () => null }));
 import { bacMeContext, bacMeCandidates } from "./__fixtures__/bac-me-v4";
+import { khauVaiContext } from "./__fixtures__/khau-vai-v4";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { autoLayoutV2, resolveEditorial } from "./editorial-engine";
 import { buildCanonicalContentAst } from "./editorial-ast";
 import { proposeEditorial } from "./editorial-ai";
@@ -30,10 +33,9 @@ function wireResponse(layout: EditorialLayoutV2, schema: any): unknown {
   };
 }
 
-describe("Căng Bắc Mê final offline acceptance", () => {
-  it("V4 generation uses the current tree, renders four fixture compositions, preserves persistence and Undo", async () => {
+describe("V4 repaired generation and three consecutive alternatives", () => {
+  it.each([{ name: "bac-me", ctx: bacMeContext }, { name: "khau-vai", ctx: khauVaiContext }])("$name uses each current tree, repairs semantic errors, renders full content and preserves Undo/persistence", async ({ name, ctx }) => {
     const store = v3TestStore();
-    const ctx = bacMeContext;
     const created = await writeDestination(new Headers(), { name: ctx.name, description: ctx.description, category: ctx.category,
       area: ctx.area, latitude: ctx.latitude, longitude: ctx.longitude, suggestedDurationMinutes: 60, minimumDurationMinutes: 20,
       openingDays: ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"].map(dayOfWeek => ({ dayOfWeek, status: "UNKNOWN", intervals: [] })),
@@ -48,14 +50,17 @@ describe("Căng Bắc Mê final offline acceptance", () => {
     const initial = structuredClone(current), persistedBefore = structuredClone(row);
     const candidates = bacMeCandidates(context);
     const undo: EditorialLayoutV2[] = [];
+    const proposals: unknown[] = [];
     const ajv = new Ajv({ strict: false });
     for (let index = 0; index < 4; index++) {
-      const mode = "PROPOSE";
+      const mode = index === 0 ? "PROPOSE" : "ALTERNATIVE";
       const complete = vi.fn(async (input: any) => {
         const payload = JSON.parse(input.user);
         expect(payload.mode).toBe(mode);
         expect(payload.currentLayout.sections.map((n: any) => n.id)).toEqual(current.sections.map(n => n.id));
-        const output = wireResponse(candidates[index]!, input.jsonSchema);
+        const candidate = structuredClone(candidates[index]!);
+        candidate.sections.push({ id: "recoverable-timeline", type: "TIMELINE", title: "Một lịch sử chưa được xác minh", entries: [{ label: "1777", text: "AI tự tạo một sự kiện không có căn cứ.", sourceIds: [context.sources[0]!.id] }] });
+        const output = wireResponse(candidate, input.jsonSchema);
         const valid = ajv.compile(input.jsonSchema);
         expect(valid(output), JSON.stringify(valid.errors)).toBe(true);
         return { rawText: JSON.stringify(output), model: "gpt-6-luna" };
@@ -66,6 +71,8 @@ describe("Căng Bắc Mê final offline acceptance", () => {
       const accepted = acceptedEditorialProposal(result, current, context, "AUTO", mode);
       expect(accepted).not.toBeNull();
       const next = accepted!;
+      expect(next.metadata?.repairs?.some(action => action.code === "UNVERIFIED_EVENT_DOWNGRADED")).toBe(true);
+      expect(JSON.stringify(next.sections)).not.toMatch(/1777|không có căn cứ/);
       const compiled = compileEditorialLayout(next, context, { ast });
       const quality = evaluateLayoutQuality(next, context, { ast, compiled });
       expect(quality.passed, JSON.stringify(quality.issues)).toBe(true);
@@ -78,10 +85,26 @@ describe("Căng Bắc Mê final offline acceptance", () => {
       const diff = compareLayoutSignatures(getLayoutSignature(effective(current)), getLayoutSignature(effective(next)));
       if (index > 0) expect(diff.level).toBe("SIGNIFICANT");
       undo.push(current); current = next;
+      proposals.push(result);
       expect(row).toEqual(persistedBefore);
     }
+    const minorCandidate = { ...current, design: { ...current.design!, palette: current.design?.palette === "SLATE" ? "EARTH" as const : "SLATE" as const } };
+    const minorClient = { complete: vi.fn().mockResolvedValue({ rawText: JSON.stringify(minorCandidate), model: "gpt-6-luna" }) };
+    const minor = await proposeEditorial(new Headers(), id, store.deps, minorClient, { layout: current, version: 2, mode: "ALTERNATIVE", direction: "AUTO" });
+    expect(minor).toMatchObject({ status: "PROPOSED", outcome: "ALTERNATIVE_MINOR", bodyDiversity: "MINOR" });
+    expect(minorClient.complete).toHaveBeenCalledOnce();
+    expect(acceptedEditorialProposal(minor, current, context, "AUTO", "ALTERNATIVE")).not.toBeNull();
+    (store.deps.database as any).destinationEditorial = { findUnique: vi.fn().mockRejectedValue(new Error("Cannot read revision")) };
+    const noCall = { complete: vi.fn() };
+    await expect(proposeEditorial(new Headers(), id, store.deps, noCall, { layout: current, version: 2, expectedRevision: 0 })).rejects.toMatchObject({ status: 503 });
+    expect(noCall.complete).not.toHaveBeenCalled();
     for (let index = 3; index >= 0; index--) current = undo.pop()!;
     expect(current).toEqual(initial);
     expect(row).toEqual(persistedBefore);
+    const qaDir = process.env.EDITORIAL_REPAIR_QA_DIR;
+    if (qaDir) {
+      mkdirSync(qaDir, { recursive: true });
+      writeFileSync(resolve(qaDir, `${name}-harness.json`), JSON.stringify({ context, initial, proposals }, null, 2));
+    }
   });
 });

@@ -5,9 +5,10 @@ import { z } from "zod";
 import { countEmbeddingTokens } from "../rag-processing/embedding-tokenizer";
 import { AppError } from "../../server/http/app-error";
 import { QA_INSUFFICIENT_SOURCE_MESSAGE, qaCompletedTurnSchema, qaPublicCitationSchema, qaQuestionSchema, qaReferenceIdSchema } from "./qa-contract";
-import { composeQaPrompt, containsEvidenceInstruction, qaScopedEvidenceSentences, QA_CLARIFICATION_QUESTION, QA_UNANSWERED_ASPECT } from "./qa-prompt";
+import { canonicalizeSentence, composeQaPrompt, containsEvidenceInstruction, qaScopedEvidenceSentences, QA_CLARIFICATION_QUESTION, QA_UNANSWERED_ASPECT } from "./qa-prompt";
 import type { QaAnswer, QaGenerationInput, QaGenerator } from "./qa-runtime-contract";
 import { isQaPublicAnswerSafe, isQaPublicMetadataSafe } from "./qa-public-safety";
+import { createQaSynthesisVerifier } from "./qa-synthesis-verification";
 import { qaOrigin, qaStage, type QaStage, type QaFailureCategory } from "./qa-diagnostics";
 
 import { createQaJsonProvider, QA_GENERATION_LIMITS, type QaProviderOptions } from "./qa-json-provider";
@@ -38,11 +39,15 @@ export function assertQaEvidenceInput(input: QaGenerationInput): void {
   if (rawLength > QA_GENERATION_LIMITS.maxInputUtf16) throw invalid();
 }
 
-// Conservative extractive gate, not a semantic verifier. Exact source membership
-// cannot establish question relevance/coverage, source accuracy, implied claims,
-// or detect every instruction. Outcome quality requires representative evaluation.
-// Only the backend retriever may supply this registry and approved public metadata.
+// Synchronous compatibility entry point: no certificate means exact reviewed
+// membership is still mandatory. Runtime synthesis uses the bounded verifier.
 export function validateQaGenerationOutput(output: unknown, input: QaGenerationInput): QaAnswer {
+  return validateCandidate(output, input, false);
+}
+
+// Only the real generator may construct an unverified synthesis candidate.
+// Synchronous callers retain the extractive contract and cannot bypass grounding.
+function validateCandidate(output: unknown, input: QaGenerationInput, synthesis: boolean): QaAnswer {
   qaStage("GENERATION_OUTPUT_SCHEMA");
   const parsed = modelOutput.safeParse(output);
   if (!parsed.success) throw invalid("GENERATION_OUTPUT_SCHEMA", "SCHEMA", parsed.error.issues);
@@ -56,13 +61,17 @@ export function validateQaGenerationOutput(output: unknown, input: QaGenerationI
   if (registry.size !== input.evidence.length) throw invalid("CITATION_VALIDATION", "DUPLICATE_REGISTRY");
   const used = new Set<string>();
   const parts = value.answerParts.map(part => {
-    const text = part.text.normalize("NFC").trim();
+    let text = part.text.normalize("NFC").trim();
     if (new Set(part.citationIds).size !== part.citationIds.length) throw invalid("CITATION_VALIDATION", "DUPLICATE_CITATION");
     for (const id of part.citationIds) {
       const evidence = registry.get(id);
       if (!evidence || evidence.citation.id !== id) throw invalid("CITATION_VALIDATION", "CITATION_REFERENCE");
       if (containsEvidenceInstruction(evidence.text)) throw invalid("GROUNDING_VALIDATION", "EVIDENCE_INSTRUCTION");
-      if (!qaScopedEvidenceSentences(evidence.text, input).includes(text)) throw invalid("GROUNDING_VALIDATION", "UNSUPPORTED_SENTENCE");
+      if (!synthesis) {
+        const available = qaScopedEvidenceSentences(evidence.text, input);
+        text = canonicalizeSentence(text, available);
+        if (!available.includes(text)) throw invalid("GROUNDING_VALIDATION", "UNSUPPORTED_SENTENCE");
+      }
       used.add(id);
     }
     return { text, citationIds: part.citationIds };
@@ -75,16 +84,17 @@ export function validateQaGenerationOutput(output: unknown, input: QaGenerationI
   const answer: QaAnswer = value.status === "ANSWERED"
     ? { status: "ANSWERED", answerParts: parts, citations, unansweredAspects: [] }
     : { status: "PARTIAL", answerParts: parts, citations, unansweredAspects: [QA_UNANSWERED_ASPECT] };
-  assertQaAnswerGrounding(answer, input);
+  if (!synthesis) assertQaAnswerGrounding(answer, input);
   const completed = qaCompletedTurnSchema.safeParse({ ...answer, conversationId: "internal", turnId: "internal", turnState: "COMPLETED", context: { type: "GENERAL" } });
   if (!completed.success) throw invalid("RESPONSE_VALIDATION", "SCHEMA", completed.error.issues);
   if (!isQaPublicAnswerSafe(answer, input.evidence)) throw invalid("PUBLIC_SAFETY", "PRIVATE_MATERIAL");
-  qaStage("GENERATION_OUTPUT_VALIDATED");
+  if (!synthesis) qaStage("GENERATION_OUTPUT_VALIDATED");
   return answer;
 }
 
 export function createQaGenerator(options: QaProviderOptions = {}): QaGenerator {
   const provider = createQaJsonProvider(options);
+  const verifier = createQaSynthesisVerifier(options);
   return { async generate(input) {
     qaStage("GENERATION_PREFLIGHT");
     if ((input.context.type === "DESTINATION" && (!input.context.name.trim() || containsEvidenceInstruction(input.context.name))) || !qaQuestionSchema.safeParse(input.question).success || input.evidence.length > QA_GENERATION_LIMITS.maxEvidence) throw invalid();
@@ -96,6 +106,24 @@ export function createQaGenerator(options: QaProviderOptions = {}): QaGenerator 
     if (decision.status !== "SUFFICIENT" && decision.status !== "PARTIAL") throw invalid("GROUNDING_VALIDATION", "UNSUPPORTED_SENTENCE");
     const messages = composeQaPrompt(input);
     if (countEmbeddingTokens(JSON.stringify(messages)) > QA_GENERATION_LIMITS.maxInputTokens) throw invalid("GENERATION_PREFLIGHT", "TOKEN_LIMIT");
-    return provider.request({ messages, name: "grounded_qa", schema: outputSchema, signal: input.signal }, content => validateQaGenerationOutput(content, input));
+    const answer = await provider.request({ messages, name: "grounded_qa", schema: outputSchema, signal: input.signal }, content => validateCandidate(content, input, true));
+    if (answer.status !== "ANSWERED" && answer.status !== "PARTIAL") return answer;
+    if (input.sourceReview) {
+      const reviewedIds = new Set(input.sourceReview.aspects.filter(a => a.status === "SUPPORTED").flatMap(a => a.supports.map(s => s.citationId)));
+      for (const part of answer.answerParts) {
+        const valid = part.citationIds.filter(id => reviewedIds.has(id));
+        if (valid.length > 0) part.citationIds = valid;
+      }
+      answer.citations = answer.citations.filter(c => answer.answerParts.some(p => p.citationIds.includes(c.id)));
+    }
+    // Preserve the existing one-call generation path for exact reviewed support.
+    // Synthesis needs an independent semantic verdict, never an overlap heuristic.
+    const exact = answer.answerParts.every(part => part.citationIds.every(id =>
+      input.sourceReview?.aspects.some(aspect => aspect.status === "SUPPORTED" &&
+        aspect.supports.some(ref => ref.citationId === id && ref.sentence === part.text))));
+    if (!exact && !await verifier.verify(answer, input)) { qaStage("SYNTHESIS_REJECTED"); return insufficientQaAnswer(); }
+    assertQaAnswerGrounding(answer, input);
+    qaStage("GENERATION_OUTPUT_VALIDATED");
+    return answer;
   } };
 }

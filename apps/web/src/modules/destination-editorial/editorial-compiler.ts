@@ -74,6 +74,7 @@ function groupReadingHeadings(nodes: CompiledNode[]): void {
     const heading = nodes[index]!, following = nodes[index + 1]!;
     if (heading.type === "HEADING" && ["PARAGRAPH", "LEAD"].includes(following.type) && !following.title && following.text) {
       following.title = heading.title || heading.text;
+      if (stripMarkdownHeading(following.text) === stripMarkdownHeading(following.title)) following.text = "";
       nodes.splice(index, 1);
       index--;
     }
@@ -216,11 +217,18 @@ function compileV2Layout(
     if (n.contentRef) {
       const astUnit = ast.units.find(u => u.id === n.contentRef);
       if (astUnit) {
-        if (!text) text = astUnit.text;
+        if (astUnit.type === "CHAPTER_HEADING") {
+          if (!title) title = stripMarkdownHeading(astUnit.title ?? astUnit.text);
+          if (text && stripMarkdownHeading(text) === title) text = "";
+        } else {
+          if (!text) text = astUnit.text;
+        }
         if (!title && astUnit.title) title = stripMarkdownHeading(astUnit.title);
+        if (title && text && stripMarkdownHeading(text) === title) text = "";
       }
     }
 
+    if (title && text && stripMarkdownHeading(text) === title) text = "";
     const validMediaIds = (n.mediaIds ?? []).filter(
       id => eligibleMediaIds.has(id) && !seenMediaIds.has(id) && Boolean(seenMediaIds.add(id))
     );

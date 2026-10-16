@@ -302,9 +302,9 @@ export function autoLayoutV2(context: EditorialContext, seed?: EditorialLayoutV2
   }
 
   const sources = context.sources.filter(isEligibleEditorialSource);
-  if (sources.length) {
+  for (let sourceIndex = 0; sourceIndex < sources.length; sourceIndex += 10) {
     sections.push({
-      id: "sources",
+      id: sourceIndex === 0 ? "sources" : `sources-${sourceIndex}`,
       type: "SOURCES",
       hidden: false,
       locked: false,
@@ -312,7 +312,7 @@ export function autoLayoutV2(context: EditorialContext, seed?: EditorialLayoutV2
       text: "",
       caption: "",
       emphasis: "STANDARD",
-      sourceIds: sources.map(s => s.id),
+      sourceIds: sources.slice(sourceIndex, sourceIndex + 10).map(s => s.id),
       mediaIds: [],
       crop: "wide",
       placement: "full",

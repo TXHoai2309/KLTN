@@ -1,4 +1,5 @@
 import "server-only";
+import { readExtractionDiagnostic } from "./extraction-diagnostic";
 import type { Database } from "@KLTN/db";
 import { requireActor } from "@/server/authorization/guard";
 import { AppError } from "@/server/http/app-error";
@@ -31,7 +32,8 @@ export async function readIndexProgress(headers: Headers, id: string, deps: RagI
     const embeddingsPersisted = job.generationId ? await tx.ragChunkEmbedding.count({ where: { chunk: { generationId: job.generationId } } }) : 0;
     return { job: { jobId: job.id, status: job.status, phase: job.phase, attemptCount: job.attemptCount,
       chunksPersisted, embeddingsPersisted, totalChunks: total?.expectedChunkCount ?? null,
-      failureCode: job.failureCode, warningCodes: job.warningCodes, updatedAt: job.updatedAt, completedAt: job.completedAt,
+      failureCode: job.failureCode, warningCodes: Array.isArray(job.warningCodes) ? job.warningCodes.filter((code): code is string => typeof code === "string") : null,
+      extractionDiagnostic: readExtractionDiagnostic(job.warningCodes), updatedAt: job.updatedAt, completedAt: job.completedAt,
       recoveryRequired: job.status === "QUEUED" || job.status === "RUNNING" && !!job.leaseExpiresAt && job.leaseExpiresAt <= new Date() } };
   }, { isolationLevel: "RepeatableRead" });
 }

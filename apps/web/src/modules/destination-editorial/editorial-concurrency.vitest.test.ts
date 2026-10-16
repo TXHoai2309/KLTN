@@ -103,7 +103,7 @@ describe("Editorial admission, provider evidence and honest 429 UX", () => {
     const r = await f.request(), body = await r.json(); expect(body.data).toMatchObject({ status: "FALLBACK", layout: before });
     expect(logs().map(l => l.stage)).toEqual(expect.arrayContaining(["PROPOSAL_REJECTED", "FALLBACK_USED"])); expect(f.layout).toEqual(before);
   });
-  it.each([["ALTERNATIVE", 2], ["PROPOSE", 1]])("rejects retired mode/version %s/%s before calling the provider", async (mode, version) => {
+  it.each([["PROPOSE", 1]])("rejects retired mode/version %s/%s before calling the provider", async (mode, version) => {
     const f = await fixture(), fetcher = vi.fn(); f.install(fetcher as typeof fetch);
     const r = await f.request(mode as string, version as number);
     expect(r.status).toBe(400);

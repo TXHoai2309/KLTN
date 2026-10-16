@@ -5,6 +5,8 @@ import { countEmbeddingTokens } from "../rag-processing/embedding-tokenizer";
 import { qaOrigin, qaProviderInvoked, qaProviderMetadata, qaStage, type QaStage, type QaFailureCategory } from "./qa-diagnostics";
 
 export type QaProviderOptions = { apiKey?: () => string | undefined; fetcher?: typeof fetch; model?: string; timeoutMs?: number; maxOutputTokens?: number };
+// Owner-selected model for assessment, generation and synthesis verification.
+export const QA_DEFAULT_MODEL = "gpt-6-luna";
 export const QA_GENERATION_LIMITS = { timeoutMs: 25_000, maxInputTokens: 8_000, maxOutputTokens: 2_000, maxResponseBytes: 64 * 1024, maxEvidence: 4, maxInputUtf16: 40_000 } as const;
 const invalid = (stage: QaStage, category: QaFailureCategory, issues?: readonly { code: string; path: readonly PropertyKey[] }[]) =>
   qaOrigin(new AppError("AI_INVALID_RESPONSE", "Phản hồi AI không hợp lệ hoặc không có căn cứ.", 502), stage, category, issues);
@@ -30,7 +32,10 @@ async function readBounded(response: Response): Promise<string> {
 /** One bounded structured call, no automatic retries. Shared by assessment and
  * answer generation; neither invocation retains provider conversation state. */
 export function createQaJsonProvider(options: QaProviderOptions = {}) {
-  const model = options.model ?? "gpt-4o-mini";
+  const model = options.model ?? QA_DEFAULT_MODEL;
+  // Preserve this workload's non-reasoning latency/token role. Luna otherwise
+  // defaults to medium reasoning, incompatible with the existing temperature.
+  const luna = /^gpt-6-luna(?:-|$)/u.test(model);
   const timeoutMs = options.timeoutMs ?? QA_GENERATION_LIMITS.timeoutMs;
   const maxOutputTokens = options.maxOutputTokens ?? QA_GENERATION_LIMITS.maxOutputTokens;
   if (!/^[a-zA-Z0-9._-]{1,100}$/.test(model) || !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > QA_GENERATION_LIMITS.timeoutMs || !Number.isInteger(maxOutputTokens) || maxOutputTokens < 1 || maxOutputTokens > QA_GENERATION_LIMITS.maxOutputTokens) throw new Error("Invalid QA generation configuration");
@@ -47,8 +52,8 @@ export function createQaJsonProvider(options: QaProviderOptions = {}) {
     const deadline = new Promise<never>((_, reject) => { timer = setTimeout(() => { controller.abort(); reject(unavailable()); }, timeoutMs); });
     const cancellation = new Promise<never>((_, reject) => { controller.signal.addEventListener("abort", () => reject(unavailable()), { once: true }); });
     const work = async (): Promise<T> => {
-      qaStage("GENERATION_PROVIDER"); qaProviderInvoked("generation");
-      const response = await (options.fetcher ?? fetch)("https://api.openai.com/v1/chat/completions", { method: "POST", redirect: "error", signal: controller.signal, headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify({ model, messages, store: false, max_completion_tokens: maxOutputTokens, response_format: { type: "json_schema", json_schema: { name: input.name, strict: true, schema: input.schema } } }) });
+      qaStage("GENERATION_PROVIDER"); qaProviderInvoked("generation", model);
+      const response = await (options.fetcher ?? fetch)("https://api.openai.com/v1/chat/completions", { method: "POST", redirect: "error", signal: controller.signal, headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify({ model, messages, store: false, temperature: 0, ...(luna ? { reasoning_effort: "none" } : {}), max_completion_tokens: maxOutputTokens, response_format: { type: "json_schema", json_schema: { name: input.name, strict: true, schema: input.schema } } }) });
       qaProviderMetadata("generation", response);
       if (!response.ok) { await response.body?.cancel().catch(() => undefined); throw unavailable(); }
       let payload: unknown; qaStage("GENERATION_ENVELOPE");

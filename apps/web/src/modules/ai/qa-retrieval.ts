@@ -10,6 +10,7 @@ import { createOpenAiEmbeddingProvider } from "../rag-processing/openai-embeddin
 import { isQaPublicMetadataSafe } from "./qa-public-safety";
 import { qaOrigin, qaProviderInvoked, qaProviderMetadata, qaStage } from "./qa-diagnostics";
 import { destinationEvidenceSentences } from "./qa-destination-context";
+import { qaFactualQuestion, qaIntentHistory } from "./qa-question-understanding";
 
 type Reader = Pick<Database, "$queryRaw"> & Partial<Pick<Database, "$transaction">>;
 type Row = { documentId: string; generationId: string; contentVersionId: string; chunkId: string;
@@ -103,14 +104,18 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
   // Only source IDs explicitly approved by the server-side deployment allowlist
   // can become evidence; the empty default fails closed.
   const publicSourceIds = options.publicSourceIds ?? new Set<string>();
+  const approvedSourceIds = [...publicSourceIds]
+    .filter(id => typeof id === "string" && /^[a-zA-Z0-9_-]{1,128}$/u.test(id))
+    .sort();
   if (!Number.isFinite(minScore) || minScore < 0 || minScore > 1) throw new EmbeddingError("INVALID_INPUT", false);
   return {
     async retrieve(question, history, signal, context = { type: "GENERAL" }): Promise<QaEvidence[]> {
-      const normalized = qaQuestionSchema.parse(question);
+      const validated = qaQuestionSchema.parse(question);
+      const normalized = qaFactualQuestion(validated) || validated;
       if (signal?.aborted) throw new EmbeddingError("CANCELLED", false);
       // Only authorized prior questions help resolve intent. Prior answers/citations
       // are never queried, projected, or returned as current evidence.
-      const previousQuestions = history.slice(-2).map(turn => qaQuestionSchema.parse(turn.question));
+      const previousQuestions = qaIntentHistory(validated, history).map(turn => qaQuestionSchema.parse(turn.question));
       const query = [...(context.type === "DESTINATION" ? [JSON.stringify({ destination: context.name })] : []), ...previousQuestions, normalized].join("\n");
       if (countEmbeddingTokens(query) > 8191) throw new EmbeddingError("RESOURCE_LIMIT", false);
       qaStage("QUESTION_EMBEDDING_STARTED");
@@ -129,20 +134,52 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
       qaStage("QUESTION_EMBEDDING_COMPLETED");
       qaStage("RETRIEVAL_STARTED");
       if (signal?.aborted) throw new EmbeddingError("CANCELLED", false);
+      if (approvedSourceIds.length === 0) {
+        qaStage("RETRIEVAL_COMPLETED", {
+          retrievedChunks: 0,
+          candidateChunks: 0,
+          candidatesBeforeThreshold: 0,
+          candidatesAfterThreshold: 0,
+          topSimilarityScore: null,
+          minScore,
+          allowlistCount: 0,
+          hasDongVanDocument: false,
+          contextType: context.type,
+          firstZeroStage: "I",
+          retrievalReason: "NO_APPROVED_SOURCES",
+        });
+        return [];
+      }
       const vectorLiteral = `[${vector.join(",")}]`;
       // Literal substring matching avoids wildcard interpretation of metadata.
       const contextFilter = context.type === "DESTINATION"
         ? Prisma.sql`AND strpos(lower(normalize(c."text", NFC)), lower(${context.name})) > 0`
         : Prisma.empty;
-      const rows = await boundedRead(database, reader => reader.$queryRaw<Row[]>(Prisma.sql`SELECT d."id" AS "documentId", g."id" AS "generationId",
+      const candidateRows = await boundedRead(database, reader => reader.$queryRaw<Row[]>(Prisma.sql`SELECT d."id" AS "documentId", g."id" AS "generationId",
         g."contentVersionId", c."id" AS "chunkId", c."chunkHash", c."text", e."tokenCount",
         d."sourceTitle", d."fileType"::text AS "fileType", c."locators",
         (1 - (e."embedding" <=> ${vectorLiteral}::vector))::double precision AS "score"
         ${joins} WHERE ${eligible} AND e."tokenCount" > 0
-        AND 1 - (e."embedding" <=> ${vectorLiteral}::vector) >= ${minScore}
+        AND d."id" IN (${Prisma.join(approvedSourceIds)})
         ${contextFilter}
         ORDER BY e."embedding" <=> ${vectorLiteral}::vector, d."id", g."id", c."index", c."id" LIMIT ${topK}`));
       if (signal?.aborted) throw new EmbeddingError("CANCELLED", false);
+      const topSimilarityScore = candidateRows[0]?.score != null && Number.isFinite(candidateRows[0].score)
+        ? Math.round(candidateRows[0].score * 10000) / 10000
+        : null;
+      const candidatesBeforeThreshold = candidateRows.length;
+      const rows = candidateRows.filter(r => Number.isFinite(r.score) && r.score >= minScore);
+      const candidatesAfterThreshold = rows.length;
+
+      let firstZeroStage: string;
+      if (candidateRows.length === 0) {
+        firstZeroStage = context.type === "DESTINATION" ? "K" : "D";
+      } else if (rows.length === 0) {
+        firstZeroStage = "J";
+      } else {
+        firstZeroStage = "NONE";
+      }
+
       const evidence: QaEvidence[] = [];
       let usedTokens = 0;
       for (const row of rows) {
@@ -161,6 +198,26 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
         evidence.push({ citationId, documentId: row.documentId, generationId: row.generationId, contentVersionId: row.contentVersionId,
           chunkId: row.chunkId, chunkHash: row.chunkHash, text: row.text, tokenCount: actualTokens, score: row.score, citation: citation.data });
       }
+      const retrievalReason = candidateRows.length === 0
+        ? "NO_CANDIDATES"
+        : rows.length === 0
+          ? "ALL_CANDIDATES_FILTERED"
+          : evidence.length === 0
+            ? "ALL_CANDIDATES_FILTERED"
+            : "EVIDENCE_RETRIEVED";
+      qaStage("RETRIEVAL_COMPLETED", {
+        retrievedChunks: evidence.length,
+        candidateChunks: rows.length,
+        candidatesBeforeThreshold,
+        candidatesAfterThreshold,
+        topSimilarityScore,
+        minScore,
+        allowlistCount: approvedSourceIds.length,
+        hasDongVanDocument: approvedSourceIds.includes("cmvapg3l0001j7w9w61egpl01"),
+        contextType: context.type,
+        firstZeroStage,
+        retrievalReason,
+      });
       return evidence;
     },
     recheck: evidence => boundedRead(database, reader => recheckWith(reader, evidence, publicSourceIds)),

@@ -60,7 +60,19 @@ export default function EditorialGenerativeRenderer({
     if (node.hidden) return null;
 
     const cleanTitle = stripMarkdownHeading(node.title ?? "");
-    const cleanText = node.text ?? "";
+    let cleanText = node.text ?? "";
+    if (cleanTitle && cleanText) {
+      const normTitle = stripMarkdownHeading(cleanTitle).toLowerCase();
+      const normText = stripMarkdownHeading(cleanText).toLowerCase();
+      if (normTitle === normText) {
+        cleanText = "";
+      } else {
+        const lines = cleanText.split(/\n/);
+        if (lines.length > 1 && stripMarkdownHeading(lines[0]!.trim()).toLowerCase() === normTitle) {
+          cleanText = lines.slice(1).join("\n").trim();
+        }
+      }
+    }
 
     switch (node.type) {
       case "HERO": {
@@ -153,6 +165,15 @@ export default function EditorialGenerativeRenderer({
       case "CONTAINER":
       case "STACK": {
         const hasChildren = Boolean(node.children?.length);
+        const filteredChildren = node.children?.filter((c, idx) => {
+          if (idx === 0 && cleanTitle) {
+            const childTitle = stripMarkdownHeading(c.title ?? "");
+            const childText = stripMarkdownHeading(c.text ?? "");
+            if (c.type === "HEADING" && (childTitle === cleanTitle || childText === cleanTitle)) return false;
+            if (c.type === "PARAGRAPH" && !c.children?.length && (!childText || childText === cleanTitle)) return false;
+          }
+          return true;
+        });
         return (
           <section key={node.id} className="emg-gen-section">
             {cleanTitle && <h2>{cleanTitle}</h2>}
@@ -164,7 +185,7 @@ export default function EditorialGenerativeRenderer({
               </div>
             )}
             {node.mediaIds?.map(id => findPhoto(id, node))}
-            {hasChildren && <div className="emg-gen-children">{node.children!.map((c, i) => renderNode(c, i))}</div>}
+            {hasChildren && <div className="emg-gen-children">{filteredChildren!.map((c, i) => renderNode(c, i))}</div>}
           </section>
         );
       }
@@ -269,13 +290,23 @@ export default function EditorialGenerativeRenderer({
       case "FACTS": {
         if (!hasEditorialFacts(data)) return null;
         return (
-          <section key={node.id} className="emg-facts" aria-label="Điểm nhấn">
-            {data.area && <div><span>Khu vực</span><strong>{data.area}</strong></div>}
-            {data.category && <div><span>Loại hình</span><strong>{data.category}</strong></div>}
+          <section key={node.id} className="emg-facts emg-gen-facts" aria-label="Điểm nhấn">
+            {data.area && (
+              <div className="emg-fact-item">
+                <span className="emg-fact-label">Khu vực</span>
+                <strong className="emg-fact-value">{data.area}</strong>
+              </div>
+            )}
+            {data.category && (
+              <div className="emg-fact-item">
+                <span className="emg-fact-label">Loại hình</span>
+                <strong className="emg-fact-value">{data.category}</strong>
+              </div>
+            )}
             {data.suggestedDurationMinutes && (
-              <div>
-                <span>Nhịp tham quan</span>
-                <strong>{formatSuggestedDuration(data.suggestedDurationMinutes)}</strong>
+              <div className="emg-fact-item">
+                <span className="emg-fact-label">Nhịp tham quan</span>
+                <strong className="emg-fact-value">{formatSuggestedDuration(data.suggestedDurationMinutes)}</strong>
               </div>
             )}
           </section>

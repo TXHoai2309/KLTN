@@ -2,6 +2,7 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { qaScopedEvidenceSentences } from "./qa-prompt";
 import type { QaGenerationInput } from "./qa-runtime-contract";
+import { qaFactualQuestion } from "./qa-question-understanding";
 
 type SourceInput = Pick<QaGenerationInput, "question" | "context" | "evidence">;
 export type QaSourceDecision = {
@@ -30,7 +31,7 @@ export type QaSourceReview = {
  * A resolved follow-up review still binds to this turn's question and sources. */
 export function qaSourceReviewBinding(input: SourceInput): string {
   return createHash("sha256").update(JSON.stringify({
-    question: input.question.normalize("NFC").trim(), context: input.context,
+    question: qaFactualQuestion(input.question), context: input.context,
     evidence: input.evidence.map(item => ({ citationId: item.citationId,
       documentId: item.documentId, generationId: item.generationId,
       contentVersionId: item.contentVersionId, chunkId: item.chunkId,

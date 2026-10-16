@@ -13,7 +13,7 @@ const natural = z.number().int().nonnegative();
 const section = z.object({ id: z.string().min(1), title: z.string().min(1), level: z.number().int().min(1).max(9) }).strict();
 const origin = z.discriminatedUnion("format", [
   z.object({ format: z.literal("PDF"), pageNumber: z.number().int().min(1).max(EXTRACTION_LIMITS.pdfPages), blockIndex: natural }).strict(),
-  z.object({ format: z.literal("DOCX"), blockIndex: natural, section: section.optional(), table: z.object({ index: natural, row: natural, cell: natural }).strict().optional() }).strict(),
+  z.object({ format: z.literal("DOCX"), blockIndex: natural, ooxmlPart: z.string().optional(), section: section.optional(), table: z.object({ index: natural, row: natural, cell: natural }).strict().optional() }).strict(),
   z.object({ format: z.literal("TXT"), lineStart: z.number().int().positive(), lineEnd: z.number().int().positive() }).strict(),
 ]);
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
@@ -21,7 +21,7 @@ const documentSchema = z.object({
   format: z.enum(["PDF", "DOCX", "TXT"]), originalBytesHash: hash,
   extractorVersion: z.string().min(1).max(200), normalizationVersion: z.string().min(1).max(200), normalizedContentHash: hash,
   segments: z.array(z.object({ id: z.string().min(1).max(200), ordinal: natural, kind: z.enum(["heading", "paragraph", "table-cell"]), text: z.string().min(1), origin }).strict()),
-  warnings: z.array(z.object({ code: z.enum(["PAGE_WITHOUT_TEXT", "PDF_READING_ORDER_HEURISTIC", "UNSUPPORTED_DOCX_REGION"]), pageNumber: z.number().int().positive().optional(), region: z.string().optional() }).strict()),
+  warnings: z.array(z.object({ code: z.enum(["PAGE_WITHOUT_TEXT", "PDF_READING_ORDER_HEURISTIC", "UNSUPPORTED_DOCX_REGION"]), pageNumber: z.number().int().positive().optional(), region: z.string().optional(), ooxmlPart: z.string().optional(), unsupportedElement: z.string().optional(), location: z.string().optional() }).strict()),
 }).strict();
 
 type Span = { start: number; end: number; segment: ExtractedSegment };

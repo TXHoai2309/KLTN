@@ -2,7 +2,7 @@ import { fixtureQaAssessment } from "./__fixtures__/qa-reviewed-input";
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import type { Database } from "@KLTN/db";
-import { createQaDiagnostics, qaOrigin, qaProviderMetadata, qaReportFailure, qaStage, type QaDiagnosticEvent } from "./qa-diagnostics";
+import { createQaDiagnostics, qaOrigin, qaProviderMetadata, qaReportFailure, qaRejectSynthesis, qaStage, type QaDiagnosticEvent } from "./qa-diagnostics";
 import { createQaHttpHandlers } from "./qa-http";
 import { createQaService } from "./qa-service";
 import { createQaRetriever } from "./qa-retrieval";
@@ -111,7 +111,7 @@ describe("development QA stage diagnostics with offline providers", () => {
     ["schema", "GENERATION_OUTPUT_SCHEMA", "SCHEMA", "AI_INVALID_RESPONSE", 502],
     ["outcome", "GENERATION_OUTCOME", "OUTCOME_CONSISTENCY", "AI_INVALID_RESPONSE", 502],
     ["citation", "CITATION_VALIDATION", "CITATION_REFERENCE", "AI_INVALID_RESPONSE", 502],
-    ["grounding", "GROUNDING_VALIDATION", "UNSUPPORTED_SENTENCE", "AI_INVALID_RESPONSE", 502],
+    ["grounding", "SYNTHESIS_VERIFICATION", "SCHEMA", "AI_INVALID_RESPONSE", 502],
     ["persistence", "PERSISTENCE_STARTED", "PERSISTENCE", "OPERATION_STATUS_UNKNOWN", 503],
     ["embedding", "QUESTION_EMBEDDING_VALIDATION", "EMBEDDING_VECTOR", "AI_INVALID_RESPONSE", 502],
     ["eligibility", "EVIDENCE_ELIGIBILITY_CHECK", "ELIGIBILITY", "AI_INVALID_RESPONSE", 502],
@@ -137,6 +137,19 @@ describe("development QA stage diagnostics with offline providers", () => {
     });
     expect(events.at(-1)!.issues).toEqual([{ code: "OTHER", path: ["answerParts", 0, "FIELD"] }]);
     expect(JSON.stringify(events)).not.toMatch(/secret|private|https/);
+  });
+  it("records synthesis rejection causes without emitting arbitrary gate/source text", async () => {
+    const events: QaDiagnosticEvent[] = [];
+    await createQaDiagnostics({ nodeEnv: "development", sink: event => events.push(event) }).run(async () => {
+      expect(qaRejectSynthesis("ASPECT_COVERAGE")).toBe(false);
+      qaRejectSynthesis("GATE_REJECTED", "CLAIM_GROUNDING");
+      qaRejectSynthesis("GATE_REJECTED", "private-source-text");
+    });
+    expect(events[0]).toMatchObject({ stage: "SYNTHESIS_REJECTED", synthesisRejection: "ASPECT_COVERAGE" });
+    expect(events[1]).toMatchObject({ synthesisRejection: "GATE_REJECTED", synthesisGate: "CLAIM_GROUNDING" });
+    expect(events[2]).not.toHaveProperty("synthesisGate");
+    expect(JSON.stringify(events)).not.toContain("private-source-text");
+    await expect(createQaDiagnostics({ nodeEnv: "development", sink: () => { throw new Error("sink unavailable"); } }).run(async () => qaRejectSynthesis("SUPPORT_REFERENCE"))).resolves.toBe(false);
   });
   it("keeps correlation state isolated for concurrent requests and ignores sink failures", async () => {
     const events: QaDiagnosticEvent[] = [];

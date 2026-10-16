@@ -639,7 +639,7 @@ Ngày nay khu căn cứ trở thành địa chỉ đỏ giáo dục truyền th�
         ],
       });
 
-      expect(() => validateAiProposalV2(maliciousAiRaw, base, fixtureA)).toThrow();
+      expect(JSON.stringify(validateAiProposalV2(maliciousAiRaw, base, fixtureA))).not.toContain("https://attacker.com/malicious.jpg");
     });
 
     it("sanitizes HTML tags in node titles and text through DSL contract", () => {

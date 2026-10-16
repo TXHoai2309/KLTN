@@ -224,3 +224,93 @@ made. Independent real-case register, measured provider usage/latency/cost and
 remaining gates: [live acceptance report](../implementation/us23-live-acceptance.md).
 US23 remains NOT_ACCEPTED. New focused243/243 and disposable PostgreSQL62/62 passed;
 no acceptance status inferred from those regressions.
+
+## 2026-10-16 — AI Answer Quality V2
+
+Implemented grounded synthesis with bounded independent claim verification,
+required-facet/intent prompt guidance, scope/time/numeric/citation checks and
+server-only answer certificates checked by the service. Exact reviewed answers
+retain their existing path; synthesized answers add at most one provider call.
+Missing support returns INSUFFICIENT_SOURCE; malformed output and provider/source
+failures retain technical error classifications. No retrieval/index/source/DB/UI
+change. Worst-case token admission reservation is now 43000, with the same global
+daily budget. Existing dirty changes were retained.
+
+R01/R02/R04/R05/R06/R07/R08 and adverse regressions are explicit offline fixtures,
+not live corpus acceptance. R05's four-row fixture returns PARTIAL with no common
+ticket, separate fees and unverified current prices. Full audit, limits, files and
+owner live procedure: [Answer Quality V2 handoff](../implementation/us23-answer-quality-v2.md).
+Verification results are recorded in the dated progress entry. US-23 remains
+NOT_ACCEPTED until real corpus/provider owner acceptance.
+
+## 2026-10-16 — punctuation/repetition reliability and basic conversation
+
+Owner explicitly requested fixing inconsistent repeated/punctuated questions and
+adding greetings/basic conversational interactions. Implemented a shared
+interpretation form, selective follow-up question history and temperature zero
+for the current structured provider. Original request storage/idempotency remains
+unchanged. Added server-authored `CONVERSATIONAL` completed responses with strictly
+allowlisted text, no factual parts/citations and normal owned DB completion/replay.
+Mixed greeting/factual requests retain all current-source grounding requirements;
+current-price questions still require current evidence. UI renders social text
+without an insufficient-source notice.
+
+Ten regressions failed before the fix. The completed regression file has 34 tests;
+assistant source-state rendering/controller tests have 5. Root typecheck and
+production build pass. Final full-suite/diff evidence is in `docs/ai-progress.md`.
+Audit, exact scope, limits and manual procedure:
+[conversation reliability handoff](../implementation/us23-conversation-reliability.md).
+No schema/migration/environment/source/index change, live provider/DB test, commit,
+push or deployment. US-23 remains NOT_ACCEPTED pending live corpus acceptance.
+
+## 2026-10-17 — live rejection follow-up after owner retest
+
+Owner retest showed four eligible chunks followed by SYNTHESIS_REJECTED for
+`tôi muốn tìm hiểu về cao nguyên đá đồng văn`. Direct live reproduction isolated
+ASPECT_COVERAGE despite sufficient assessment and eight passing semantic gates;
+a subsequent run isolated SUPPORT_REFERENCE. Verifier coverage IDs are now
+constrained by the per-request JSON Schema, generation receives only reviewed
+scoped sentences, overview-intent guidance is explicit and safe diagnostics
+record individual rejection causes. Existing grounding/source guards remain.
+
+The final isolated live adapter run passed. A real HTTP smoke on localhost:3010
+then confirmed greeting CONVERSATIONAL plus three ANSWERED factual turns (original,
+repeated and punctuated question), each with two citations. History persistence
+and identical-key replay passed. Only the smoke's own Guest/conversation was
+created and subsequently deleted/revoked; the owner's existing history was not
+used. Direct corpus access was READ ONLY. No source/index/schema/environment change.
+
+Full web regression: 1710 Vitest PASS / 98 gated SKIP and 329 legacy PASS; root
+typecheck PASS. Final build/diff results are in the progress entry. Full audit:
+[live synthesis fix](../implementation/us23-live-synthesis-fix.md).
+This is evidence for the reproduced defect, not acceptance of the complete
+US-23 corpus. US-23 remains NOT_ACCEPTED. No commit, push or deployment.
+
+## 2026-10-17 — owner-selected Luna and reference repo review
+
+Owner explicitly requested switching the chatbot to Luna. The shared QA JSON
+provider now defaults to gpt-6-luna for assessment, generation and verification,
+with reasoning none, temperature zero and no silent fallback. Embedding remains
+separate. Diagnostics distinguish requested and actual returned model without
+logging source prose or credentials.
+
+Live migration probes exposed further support-reference failures. Verification
+now selects server-owned exact support handles, with each part index constrained
+to handles from that paragraph's own citations. All semantic gates, source
+eligibility, complete coverage, provenance, public safety and persistence checks
+remain. Initial failed runs are documented rather than counted as passing.
+
+Final direct API matrix: 3/3 ANSWERED for original/repeated/punctuated inputs;
+all nine JSON calls confirmed actual Luna. Final localhost:3010 HTTP: greeting
+CONVERSATIONAL and the three factual turns ANSWERED, four parts/three citations
+each; persisted history, identical-key replay and own-resource cleanup passed.
+Full regression: 1719 Vitest PASS / 100 gated SKIP plus 329 legacy PASS. Live
+matrix ran separately. Root typecheck/build and diff check passed. Details and
+limits: [Luna migration](../implementation/us23-luna-migration.md).
+
+The owner-provided AI Agent ZIP was read without executing its scripts. A static
+[reference comparison](../implementation/ai-agent-reference-review.md) identifies
+selective conversational query rewriting, hybrid candidate retrieval, safe model
+telemetry and possible future interaction/widget features. These proposals do
+not change the approved source policy or introduce new product features.
+US-23 remains NOT_ACCEPTED pending broader corpus owner acceptance.

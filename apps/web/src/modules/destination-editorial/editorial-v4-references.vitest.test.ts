@@ -339,46 +339,18 @@ describe("Task FIX_V4_REFERENCES_VALIDATION — Rigorous Reference & Provenance 
       expect(para1?.text).toContain("Nơi đây từng là đồn binh do thực dân Pháp xây dựng trước năm 1939");
     });
 
-    it("rejects unknown contentRef with exact diagnostics path and invalid reason category", () => {
-      const base = autoLayoutV2(testContext) as EditorialLayoutV2;
-      const malformed = createValidV2ProposalPayload(testContext);
-
-      // Inject hallucinated contentRef
-      malformed.sections[1]!.contentRef = "ast-unknown-unit-999";
-
-      expect(() => {
-        validateAiProposalV2(JSON.stringify(malformed), base, testContext, "AUTO");
-      }).toThrowError(EditorialProposalError);
-
-      try {
-        validateAiProposalV2(JSON.stringify(malformed), base, testContext, "AUTO");
-      } catch (err: any) {
-        expect(err).toBeInstanceOf(EditorialProposalError);
-        expect(err.validationCode).toBe("REFERENCES");
-        expect(err.fieldPath).toBe("sections.1.contentRef");
-        expect(err.referenceDetails?.referenceType).toBe("CONTENT_AST");
-        expect(err.referenceDetails?.invalidReason).toBe("UNKNOWN_REFERENCE");
-        expect(err.referenceDetails?.expectedNamespace).toBe("ast.units");
-      }
+    it("removes unknown contentRef and restores all canonical text with safe diagnostics", () => {
+      const base=autoLayoutV2(testContext),candidate=createValidV2ProposalPayload(testContext);
+      candidate.sections[1]!.contentRef="ast-unknown-unit-999";
+      const next=validateAiProposalV2(JSON.stringify(candidate),base,testContext);
+      expect(next.metadata?.repairs).toContainEqual({code:"CONTENT_REF_REMOVED",nodePath:"sections.1.contentRef"});
+      expect(JSON.stringify(next)).not.toContain("ast-unknown-unit-999");
     });
 
-    it("rejects unknown contentRef nested deeply inside COLUMNS children", () => {
-      const base = autoLayoutV2(testContext) as EditorialLayoutV2;
-      const malformed = createValidV2ProposalPayload(testContext);
-
-      // Inject hallucinated contentRef into child
-      malformed.sections[2]!.children![0]!.contentRef = "ast-fake-para";
-
-      try {
-        validateAiProposalV2(JSON.stringify(malformed), base, testContext, "AUTO");
-        expect.unreachable("Should have thrown");
-      } catch (err: any) {
-        expect(err).toBeInstanceOf(EditorialProposalError);
-        expect(err.validationCode).toBe("REFERENCES");
-        expect(err.fieldPath).toBe("sections.2.children.0.contentRef");
-        expect(err.referenceDetails?.referenceType).toBe("CONTENT_AST");
-        expect(err.referenceDetails?.invalidReason).toBe("UNKNOWN_REFERENCE");
-      }
+    it("repairs unknown contentRef in nested COLUMNS children", () => {
+      const candidate=createValidV2ProposalPayload(testContext);candidate.sections[2]!.children![0]!.contentRef="ast-fake-para";
+      const next=validateAiProposalV2(JSON.stringify(candidate),autoLayoutV2(testContext),testContext);
+      expect(next.metadata?.repairs).toContainEqual({code:"CONTENT_REF_REMOVED",nodePath:"sections.2.children.0.contentRef"});
     });
 
     it("allows null contentRef for layout structural nodes (HERO, SECTION, MOSAIC, SOURCES)", () => {
@@ -397,89 +369,26 @@ describe("Task FIX_V4_REFERENCES_VALIDATION — Rigorous Reference & Provenance 
   });
 
   describe("2. Media & Source Provenance Validation", () => {
-    it("rejects foreign mediaId not belonging to the destination with MEDIA_ELIGIBILITY", () => {
-      const base = autoLayoutV2(testContext) as EditorialLayoutV2;
-      const malformed = createValidV2ProposalPayload(testContext);
-
-      // Inject unowned media ID
-      malformed.sections[0]!.mediaIds = ["foreign-unowned-photo-id"];
-
-      try {
-        validateAiProposalV2(JSON.stringify(malformed), base, testContext, "AUTO");
-        expect.unreachable("Should have thrown");
-      } catch (err: any) {
-        expect(err).toBeInstanceOf(EditorialProposalError);
-        expect(err.validationCode).toBe("MEDIA_ELIGIBILITY");
-        expect(err.fieldPath).toBe("sections.0.mediaIds.0");
-        expect(err.referenceDetails?.referenceType).toBe("MEDIA");
-        expect(err.referenceDetails?.invalidReason).toBe("UNUSABLE_MEDIA");
-      }
+    it("removes foreign media without rendering it or rejecting canonical content", () => {
+      const candidate=createValidV2ProposalPayload(testContext);candidate.sections[0]!.mediaIds=["foreign-unowned-photo-id"];
+      const next=validateAiProposalV2(JSON.stringify(candidate),autoLayoutV2(testContext),testContext);
+      expect(JSON.stringify(next.sections)).not.toContain("foreign-unowned-photo-id");
+      expect(()=>validateLayoutReferences(next,testContext,true)).not.toThrow();
     });
 
-    it("rejects hallucinated or unapproved sourceId with REFERENCES error", () => {
-      const base = autoLayoutV2(testContext) as EditorialLayoutV2;
-      const malformed = createValidV2ProposalPayload(testContext);
-
-      // Inject fake sourceId into section
-      malformed.sections[1]!.sourceIds = ["fabricated-source-id"];
-
-      try {
-        validateAiProposalV2(JSON.stringify(malformed), base, testContext, "AUTO");
-        expect.unreachable("Should have thrown");
-      } catch (err: any) {
-        expect(err).toBeInstanceOf(EditorialProposalError);
-        expect(err.validationCode).toBe("REFERENCES");
-        expect(err.fieldPath).toBe("sections.1.sourceIds.0");
-        expect(err.referenceDetails?.referenceType).toBe("SOURCE");
-        expect(err.referenceDetails?.invalidReason).toBe("REJECTED_SOURCE");
-      }
+    it("removes hallucinated claim references and hydrates canonical SOURCES", () => {
+      const candidate=createValidV2ProposalPayload(testContext);candidate.sections[1]!.sourceIds=["fabricated-source-id"];
+      const next=validateAiProposalV2(JSON.stringify(candidate),autoLayoutV2(testContext),testContext);
+      expect(JSON.stringify(next.sections)).not.toContain("fabricated-source-id");
+      expect(next.sections.find(n=>n.type==="SOURCES")!.sourceIds).toEqual(testContext.sources.map(s=>s.id));
     });
 
-    it("rejects hallucinated sourceId inside TIMELINE entries", () => {
-      const base = autoLayoutV2(testContext) as EditorialLayoutV2;
-      const proposalWithTimeline = createValidV2ProposalPayload(testContext);
-
-      proposalWithTimeline.sections.push({
-        id: "timeline-sec",
-        type: "TIMELINE",
-        contentRef: null,
-        hidden: false,
-        locked: false,
-        title: "Dòng thời gian",
-        text: "",
-        caption: "",
-        deck: null,
-        emphasis: "STANDARD",
-        columns: 1,
-        gap: "MEDIUM",
-        aspectRatio: "16:9",
-        crop: "wide",
-        placement: "full",
-        gallery: "mosaic",
-        mediaIds: [],
-        sourceIds: [],
-        focalX: 50,
-        focalY: 50,
-        entries: [
-          {
-            label: "1938",
-            text: "Xây dựng đồn binh Căng Bắc Mê",
-            sourceIds: ["fake-timeline-source"],
-          },
-        ],
-        children: [],
-      });
-
-      try {
-        validateAiProposalV2(JSON.stringify(proposalWithTimeline), base, testContext, "AUTO");
-        expect.unreachable("Should have thrown");
-      } catch (err: any) {
-        expect(err).toBeInstanceOf(EditorialProposalError);
-        expect(err.validationCode).toBe("REFERENCES");
-        expect(err.fieldPath).toBe("sections.6.entries.0.sourceIds.0");
-        expect(err.referenceDetails?.referenceType).toBe("SOURCE");
-        expect(err.referenceDetails?.invalidReason).toBe("REJECTED_SOURCE");
-      }
+    it("downgrades unsupported TIMELINE entries without inventing event source evidence", () => {
+      const candidate=createValidV2ProposalPayload(testContext);
+      candidate.sections.push({id:"timeline",type:"TIMELINE",entries:[{label:"1938",text:"Sự kiện tự tạo",sourceIds:["fake-timeline-source"]}]});
+      const next=validateAiProposalV2(JSON.stringify(candidate),autoLayoutV2(testContext),testContext);
+      expect(JSON.stringify(next.sections)).not.toMatch(/fake-timeline-source|Sự kiện tự tạo/);
+      expect(next.sections.find(n=>n.id==="timeline")).toBeUndefined();
     });
 
     it("auto-hydrates canonical sources for SOURCES section when empty", () => {
@@ -620,7 +529,7 @@ describe("Task FIX_V4_REFERENCES_VALIDATION — Rigorous Reference & Provenance 
       expect(sentPayload.sources[0].id).toBe("src-bm-1");
     });
 
-    it("proposeEditorial falls back atomically when reference validation fails, preserving draft layout", async () => {
+    it("proposeEditorial repairs recoverable references before atomically returning the proposal", async () => {
       const base = autoLayoutV2(testContext) as EditorialLayoutV2;
       const invalidProposal = createValidV2ProposalPayload(testContext);
       invalidProposal.sections[1]!.contentRef = "hallucinated-unit-id";
@@ -669,13 +578,9 @@ describe("Task FIX_V4_REFERENCES_VALIDATION — Rigorous Reference & Provenance 
         mode: "PROPOSE",
       });
 
-      // Assert atomic fallback: layout is strictly preserved
-      expect(result.status).toBe("FALLBACK");
-      if (result.status === "FALLBACK") {
-        expect(result.outcome).toBe("VALIDATION_FAILED");
-        expect(result.code).toBe("REFERENCES");
-        expect(result.layout).toEqual(base);
-      }
+      expect(result.status).toBe("PROPOSED");
+      expect(JSON.stringify(result.layout)).not.toContain("hallucinated-unit-id");
+      expect(()=>validateLayoutReferences(result.layout,testContext,true)).not.toThrow();
     });
 
     it("acceptedEditorialProposal client gate accepts valid V4 layout and rejects invalid references", () => {

@@ -1974,3 +1974,177 @@ Body-alignment verification: production build PASS; diff check PASS.
 - Local browser on the production build with development fixtures verified pending-disabled, confirmed add/remove, list/detail/browser Back consistency, Space/Tab focus, 403 FAILED retaining active heart, and server-unavailable UNKNOWN retaining heart then successful mounted retry after restart. Both pages/themes have no horizontal overflow at 390/768/1024/1440. Screenshots are outside Git and linked from the story. Figma MH-07/MH-09 parity remains BLOCKED; production rollout/post-commit lost-response behavior remains NOT PROVEN.
 - Disposable fixture account/session/Trip/Days/Visits/Destination/Favorites/idempotency records cleaned; read-only verification found zero US34 fixture users/Trips, total Trip count restored to 0. Theme/viewport restored, test tab and owned server closed. Independent review found no correctness/security issue; story/progress evidence updated. No reset, db:push, commit or push. Stop after US-34.
 >>>>>>> 4ae7ffc3a9c2b5cb3e0a0e964079510e5357e236
+
+## 2026-10-16 — US-23 AI Answer Quality V2
+
+Audited TXH with pre-existing dirty QA, Editorial and RAG extraction/index changes;
+these were preserved. Exact sentence membership in generation AND service grounding,
+plus a verbatim prompt, prevented natural synthesis. Added a private synthesis
+candidate path and at most one bounded independent claim-verification call. All
+claims must partition the answer, cite reviewed current support, cover supported
+facets and pass relevance/scope/time/numeric/citation/language gates. A process-local
+certificate binds content/review/source snapshot for the service's grounding check.
+Exact reviewed answers retain the original fast path. Valid negative verdicts
+abstain with INSUFFICIENT_SOURCE; malformed/provider/revocation failures remain
+technical. No public contract, UI, retrieval policy, source/index data or DB change.
+
+Assessment/generation prompts prioritize current question intent, overview/table
+rows, direct Vietnamese and records-versus-current time. Verifier also sees omitted
+scoped rows to detect incomplete coverage. R05's four-row fixture returns PARTIAL:
+no common ticket, separate fees/conditions and no claim that recorded prices are
+verified today. No destination-specific hardcoded runtime answer was added.
+
+Worst-case admission reservation is 43000 tokens (was 33000), retaining the same
+8000000 daily budget. Extra verification defaults to 10s, shares 8000 input/2000
+output/64KiB bounds, no retry. Eligibility watcher covers verification; cancellation
+on publication revocation is regression tested. Semantic review is probabilistic;
+offline verdict fixtures are not evidence of actual provider/corpus quality.
+
+Final checks: 44 focused V2 tests PASS; full AI 413 PASS/46 PostgreSQL SKIP (included
+in full suite); full web Vitest 1669 PASS/97 gated SKIP, all 329 legacy tests PASS.
+Root typecheck PASS; final production build PASS (44.4s); git diff --check PASS.
+No DB/schema/migration/env/source/embedding write, paid API call, commit/push/deploy.
+Live latency/cost, actual corpus recall/semantics and Owner acceptance remain pending.
+READY_FOR_OWNER_MANUAL_TEST=YES; US-23 remains NOT_ACCEPTED.
+Audit, task-owned file list, limits and manual procedure:
+[Answer Quality V2 handoff](implementation/us23-answer-quality-v2.md).
+
+## 2026-10-16 — QA punctuation/repetition reliability and basic conversation
+
+- **Branch:** TXH; existing dirty working tree retained. No commit or push.
+- **Story/task:** Owner's current troubleshooting request; US-21/US-23 follow-up.
+- **Completed:** Reproduced ten failing input/routing regressions before the fix.
+  Shared question interpretation now normalizes incidental punctuation/whitespace
+  while retaining numeric dates/prices, qualifiers and original admission/storage
+  text. Explicit subjects avoid unrelated prior questions; recognizable follow-ups
+  retain bounded factual intent history across social turns. Existing structured
+  provider uses temperature zero. Added allowlisted server-authored CONVERSATIONAL
+  outcomes for greetings/thanks/help/basic conversation/travel openings, with no
+  factual parts/citations/provider calls, normal owned completion and replay.
+  Mixed factual/social requests still require eligible current sources. Assistant
+  renders conversational text without an insufficient-source notice.
+- **Files changed:** New qa-conversation, qa-question-understanding and integrated
+  reliability tests; contract/runtime types, service/retrieval/source binding,
+  JSON provider, existing retrieval/service/provider tests; AssistantAnswer and
+  source-state/controller tests. Full owned list and audit in
+  [conversation reliability handoff](implementation/us23-conversation-reliability.md).
+- **DB/migration changes:** None by this task. Existing unrelated dirty schema,
+  Editorial, RAG and AI Answer Quality V2 work was not replaced.
+- **Validation performed:** New regression file 34/34; Assistant source-state
+  tests 5/5. Final full web npm run test: 1705 Vitest PASS, 97 existing gated SKIP,
+  all 329 legacy tests PASS. Root npm run check-types PASS; root production build
+  PASS (26.7s). git diff --check PASS. Task-owned file/secret-pattern review PASS.
+  Local logs: %TEMP%/kltn-qa-stability-tests-final.log and
+  %TEMP%/kltn-qa-stability-build.log (outside Git).
+- **Deployment/smoke result:** Offline real assessment/generation adapters with
+  mocked transport, rendered UI and controller smoke PASS. No live OpenAI, live DB,
+  source/index/environment change, browser session or deployment performed.
+- **Known issues:** Intent routing remains bounded; unrecognized chit-chat or
+  complex elliptical follow-ups can need clarification. Temperature zero reduces
+  sampling variation but does not prove deterministic provider semantics. Current
+  factual corpus coverage and live acceptance remain unverified in this task.
+- **Decisions:** The owner's explicit request adds basic conversational replies;
+  factual travel answers retain source grounding, eligibility and safety checks.
+  No arbitrary open-domain factual answer or response-cache bypass was introduced.
+- **Next step:** Owner smoke on the existing enabled development app using the
+  handoff procedure; US-23 remains NOT_ACCEPTED pending live corpus acceptance.
+
+## 2026-10-17 — Live QA synthesis rejection fix after owner retest
+
+- **Branch:** TXH; previous task and unrelated dirty edits preserved.
+- **Story/task:** Continued owner's report that the general Đồng Văn question still
+  failed after the punctuation/history fix. This corrects that earlier fix's
+  incomplete runtime coverage; it does not rewrite its historical test evidence.
+- **Completed:** Real pinned-corpus/provider reproduction found sufficient current
+  sources and eight passing semantic gates, but ASPECT_COVERAGE rejected the reply.
+  After constraining coverage IDs, a second live run exposed SUPPORT_REFERENCE.
+  Added per-request aspect-ID enums/explicit ID guidance, restricted generation
+  evidence to actual reviewed sentence/citation pairs, clarified broad overview
+  intent, and added bounded synthesis-rejection reasons without logging raw claims.
+  Source eligibility, grounding, citations, ownership and persistence remain intact.
+- **Files changed:** qa-synthesis-verification, qa-prompt, qa-assessment,
+  qa-diagnostics, V2/diagnostic regression tests; new opt-in live reliability test
+  and scripts/qa-local-http-smoke.mjs. Added
+  [live synthesis handoff](implementation/us23-live-synthesis-fix.md) and appended
+  US-23/progress evidence. Existing non-task code/source/schema edits retained.
+- **DB/migration changes:** No schema/migration/source/index change. Isolated corpus
+  probes used READ ONLY transactions against the matching development pins. The
+  local HTTP smoke created its own Guest/conversation, confirmed four persisted
+  turns, then deleted its own conversation and revoked its own Guest through APIs.
+  Existing admission counters/non-content tombstones follow normal retention.
+  No owner account/session/history was read or modified.
+- **Validation performed:** Red/green verifier schema regression, missing/renamed/
+  extra aspect rejection and safe diagnostic tests. Full web npm run test: 1710
+  Vitest PASS / 98 SKIP plus all 329 legacy tests PASS. The new gated live test was
+  run separately and PASS. Root typecheck PASS; production build PASS (27.1s);
+  git diff --check PASS. Task-owned secret-pattern/diff review PASS.
+- **Deployment/smoke result:** Final live adapter test: ANSWERED with four eligible
+  chunks and no synthesis rejection. Real localhost:3010 HTTP: hi CONVERSATIONAL;
+  exact general Đồng Văn question, same question repeated and same question with
+  '? ,./' all ANSWERED with two citations. Authorized history matched all four
+  completed turns; same-key/payload replay returned the original turn. Own test
+  resource cleanup confirmed. Existing local dev server loaded the changes.
+- **Known issues:** This validates the reproduced questions, not every corpus query.
+  Semantic gates remain probabilistic and real missing evidence must still abstain.
+  Old insufficient responses remain historical and are not automatically replaced.
+- **Decisions:** Correct model/reference contracts and generation evidence scope;
+  keep the existing verification requirements. Live calls were limited to the
+  reported defect and local repeated/punctuated smoke. Credentials/cookies/private
+  IDs/source prose were not printed or persisted in task diagnostics.
+- **Next step:** User can reload /assistant and submit a new turn. US-23 remains
+  NOT_ACCEPTED pending its broader corpus acceptance. No commit, push or deployment.
+
+## 2026-10-17 — Luna migration, further reference fix and attached repo assessment
+
+- **Branch/task:** TXH; owner explicitly requested Luna and review of the attached
+  AI Agent ZIP. Existing dirty Editorial/RAG/schema and other QA work preserved.
+- **Completed:** QA's shared JSON provider now defaults to gpt-6-luna for source
+  assessment, answer generation and verification; reasoning none, temperature
+  zero, strict JSON and store false retained. No automatic fallback/retry. Added
+  safe requested/actual-model metadata and four model-routing regressions.
+  Embedding remains text-embedding-3-small; social replies remain server-authored.
+- **Reliability follow-up:** Initial real Luna runs confirmed model routing but
+  still failed synthesis intermittently. One intermediate three-case matrix
+  passed only 1/3; failures were SUPPORT_REFERENCE and semantic grounding/citation
+  rejection. Verifier source prose is now selected through server-owned support
+  handles, and per-part schema variants constrain handles to that paragraph's
+  own citations. Source-close concise generation guidance reduces decorative
+  citations. Invalid/no reviewed citation support can reject before a verifier
+  call. Semantic negatives still abstain; no safety gate or timeout was relaxed.
+- **Validation:** Focused model/quality/diagnostic 89/89 PASS. Final full web
+  npm run test: 1719 Vitest PASS / 100 gated SKIP plus all 329 legacy PASS. Three
+  gated live cases were run separately and all PASS. Root check-types PASS;
+  production build PASS (20.2s); git diff --check PASS. No lint script/config is
+  available. One intermediate offline evaluation failure concerned an expected
+  provider-call count (3 vs 2) after earlier rejection; outcome remained correct.
+  Fixture updated to assert the new earlier rejection and the full suite rerun.
+- **Runtime evidence:** Final READ ONLY direct matrix returned ANSWERED for base,
+  repeated and '? ,./' variants, each with four parts, four eligible chunks and
+  all eight verification gates positive. All nine JSON calls asserted both sent
+  Luna and returned Luna/snapshot. Final local HTTP smoke: hi CONVERSATIONAL;
+  three factual turns ANSWERED with four parts/three citations each, approximately
+  21.7s/20.4s/21.0s. Authorized stored history, same-key/payload replay, own Guest
+  revocation and own conversation deletion passed. This is local API evidence,
+  not a new browser/manual UX acceptance run or production deployment.
+- **DB/data:** No schema, migration, environment, source, index or embedding
+  change. Direct corpus queries used READ ONLY transactions. HTTP test created
+  and cleaned only its own resources; owner's Admin session/history untouched.
+- **Reference repo:** Safely extracted a reference reading copy outside this
+  repository; no dependencies installed or scripts/seed/migration run. Static
+  comparison recommends selective query rewriting and hybrid retrieval
+  calibration on the existing stack; distinguishes suggestions/future widgets
+  from delivered code. No reference code/assets imported and no framework,
+  vector database or grounding-policy migration. ZIP provenance/hash, exact
+  source pointers, applicability and limits are in
+  [reference assessment](implementation/ai-agent-reference-review.md).
+- **Files/audit:** Owned migration details, failed and final live observations,
+  source links and local log paths are in
+  [Luna migration handoff](implementation/us23-luna-migration.md). Updated current
+  US-23 story. Task-owned diff/secret-pattern review completed; no credentials
+  added. No commit, push or deployment.
+- **Known limits/next step:** Reload /assistant and submit a new turn to try the
+  running local version. Past completed answers are historical. Finite smoke
+  coverage does not guarantee all semantic judgments or corpus questions;
+  insufficient current facts must still abstain. US-23 remains NOT_ACCEPTED
+  until broader owner corpus acceptance. Future hybrid retrieval/follow-up/
+  widget proposals have not been implemented by this review.

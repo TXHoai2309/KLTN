@@ -128,6 +128,11 @@ export function createEditorialAiDiagnostics() {
     },
     failure(phase: "ADMISSION" | "PROVIDER_REQUEST" | "PROPOSAL_VALIDATION", error: EditorialAiError) { emit(phase, error.code, error, { stage: phase === "ADMISSION" ? "ADMISSION_REJECTED" : phase === "PROPOSAL_VALIDATION" ? "PROPOSAL_REJECTED" : "PROVIDER_REQUEST_FAILED" }); },
     success(outcome = "PROPOSED") { emit("PROPOSAL_VALIDATION", "PROPOSED", undefined, { stage: "PROPOSAL_VALIDATED", outcome }); },
+    repaired(actions: { code: string; nodePath: string }[]) {
+      // Only repair codes and structural paths, never replaced text or raw JSON.
+      const safe = actions.filter(a => /^[A-Z_]{1,64}$/.test(a.code) && /^(sections(?:\.\d+|\.children|\.mediaIds|\.sourceIds|\.entries|\.text|\.title|\.deck|\.caption|\.contentRef|\.id|\.gap|\.crop|\.placement|\.gallery|\.emphasis|\.columnRatio|\.aspectRatio|\.columns|\.focalX|\.focalY|\.locked|\.hidden)*|hero|design|\$)$/.test(a.nodePath)).slice(0, 200);
+      if (safe.length) emit("PROPOSAL_VALIDATION", "PROPOSAL_REPAIRED", undefined, { stage: "PROPOSAL_REPAIR", repairCount: safe.length, repairs: safe });
+    },
   };
 }
 export type EditorialAiDiagnostics = ReturnType<typeof createEditorialAiDiagnostics>;
@@ -160,7 +165,7 @@ export function editorialFallbackReason(error: EditorialAiError, correlationId: 
   const detail = reasons[code] ?? reasons[error.code] ?? reasons.PROPOSAL_INVALID;
   const issues: Record<string, string> = {
     DUPLICATE_NODE_ID: "Có node trùng ID.", DUPLICATE_MEDIA: "Một ảnh xuất hiện nhiều lần.",
-    NODE_LIMIT: "Cây bố cục vượt 50 node.", DEPTH_LIMIT: "Cây bố cục vượt ba cấp.",
+    NODE_LIMIT: "Cây bố cục vượt 50 node.", TREE_LIMIT: "Cây bố cục vượt giới hạn kích thước node.", DEPTH_LIMIT: "Cây bố cục vượt ba cấp.",
     HERO_POSITION: "Hero bị lặp hoặc đặt sai cấp.", CONTENT_LOSS: "Đề xuất chưa giữ đủ nội dung gốc.",
     UNSOURCED_CONTENT: "Đề xuất có nội dung không được chứng minh từ hồ sơ.",
     UNVERIFIED_EVENT_SOURCE: "Sự kiện và nguồn tham khảo chưa có liên kết được kiểm chứng.",

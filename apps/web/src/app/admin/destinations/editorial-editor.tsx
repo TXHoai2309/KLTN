@@ -251,7 +251,7 @@ export default function EditorialEditor({ id }: { id: string }) {
       else { setUnknown(false); attempt.current = null; setMessage(result.error.message); }
     } finally { lock.current = false; if (mounted.current) setBusy(false); }
   }
-  async function aiProposal() {
+  async function aiProposal(mode: "PROPOSE" | "ALTERNATIVE" = "PROPOSE") {
     if (!state || !layout || lock.current || unknown || Date.now() < aiCooldownUntil) return;
     lock.current = true; setBusy(true); setGenerating(true); request.current = new AbortController(); setMessage("");
     try {
@@ -261,7 +261,7 @@ export default function EditorialEditor({ id }: { id: string }) {
         body: JSON.stringify({
           layout,
           direction: "AUTO",
-          mode: "PROPOSE",
+          mode,
           expectedRevision: state.draftRevision,
           version: 2,
         }),
@@ -289,7 +289,7 @@ export default function EditorialEditor({ id }: { id: string }) {
         if (mounted.current) setMessage(data.reason || AI_LAYOUT_PRESERVED);
         return;
       }
-      const next = acceptedEditorialProposal(data, layout, state.context, "AUTO");
+      const next = acceptedEditorialProposal(data, layout, state.context, "AUTO", mode);
       if (!next) { if (mounted.current) setMessage(AI_LAYOUT_PRESERVED); return; }
       if (mounted.current) { if (layout) history.current = [...history.current.slice(-19), layout]; setLayout(next); setMessage(data.reason); }
     } catch { if (mounted.current) setMessage(AI_LAYOUT_PRESERVED); }
@@ -496,6 +496,9 @@ export default function EditorialEditor({ id }: { id: string }) {
                   onClick={() => void aiProposal()}
                 >
                   {generating ? "AI đang dàn trang…" : "AI dàn trang"}
+                </button>
+                <button type="button" className="af-btn" disabled={disabled || aiWaitSeconds > 0} aria-describedby={aiWaitSeconds > 0 ? "editorial-ai-cooldown" : undefined} onClick={() => void aiProposal("ALTERNATIVE")}>
+                  Sinh phương án khác
                 </button>
                 <button type="button" className="af-btn" disabled={disabled || !history.current.length} onClick={() => { const old = history.current.pop(); if (old) { setLayout(old); setMessage("Đã hoàn tác thay đổi bố cục."); } }}>
                   Hoàn tác

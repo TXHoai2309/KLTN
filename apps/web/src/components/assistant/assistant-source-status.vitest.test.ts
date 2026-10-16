@@ -4,10 +4,30 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { AssistantAnswer } from "./assistant-chat";
 import { AssistantController, type AssistantAttempt } from "./assistant-controller";
 import { QA_INSUFFICIENT_SOURCE_MESSAGE, type QaCompletedTurn } from "../../modules/ai/qa-contract";
+import { QA_CONVERSATION_MESSAGES } from "../../modules/ai/qa-conversation";
 
 const turn: QaCompletedTurn = { conversationId: "conv", turnId: "turn", turnState: "COMPLETED", context: { type: "GENERAL" }, status: "INSUFFICIENT_SOURCE", answerParts: [], citations: [], message: QA_INSUFFICIENT_SOURCE_MESSAGE };
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 describe("US23 source status presentation and recovery", () => {
+  it("renders social text without an insufficient-source notice or citation slot", () => {
+    const social: QaCompletedTurn = { ...turn, status: "CONVERSATIONAL", message: QA_CONVERSATION_MESSAGES.greeting };
+    const html = renderToStaticMarkup(createElement(AssistantAnswer, { turn: social, citationSlot: () => { throw new Error("no social citations"); } }));
+    expect(html).toContain("Xin chào!");
+    expect(html).not.toContain("Chưa đủ dữ liệu");
+    expect(html).not.toContain("assistant-citation");
+  });
+
+  it("advances the completed conversation head after social replies", async () => {
+    const calls: AssistantAttempt[] = [];
+    const controller = new AssistantController({ send: async attempt => {
+      calls.push(attempt);
+      return { kind: "response", httpStatus: 200, body: { success: true, operationStatus: "SUCCESS", data: { ...turn, status: "CONVERSATIONAL", message: QA_CONVERSATION_MESSAGES.greeting } } };
+    } }, "GUEST:fixture", () => `social_${calls.length}`);
+    controller.setDraft("hi!"); controller.submit(); await tick();
+    expect(controller.getSnapshot().turns[0]?.response.status).toBe("CONVERSATIONAL");
+    controller.setDraft("Đồng Văn có gì?"); controller.submit(); await tick();
+    expect(calls[1]?.payload).toMatchObject({ conversationId: "conv", parentTurnId: "turn" });
+  });
   it("renders the required safe notice, adjustment guidance and no citation", () => {
     const html = renderToStaticMarkup(createElement(AssistantAnswer, { turn }));
     expect(html).toContain("Chưa đủ dữ liệu được xác minh để trả lời chính xác câu hỏi này.");

@@ -148,6 +148,7 @@ export const editorialLayoutV2Schema = z.object({
     model: z.string().optional(),
     generatedAt: z.string().optional(),
     qualityScore: z.number().optional(),
+    repairs: z.array(z.object({ code: z.string().regex(/^[A-Z_]+$/).max(64), nodePath: z.string().regex(/^[a-zA-Z0-9_.$]+$/).max(240) }).strict()).max(200).optional(),
   }).strict().optional(),
 }).strict().superRefine((layout, ctx) => {
   const ids = new Set<string>(), photos = new Set<string>();
@@ -194,7 +195,7 @@ export function isV2Layout(l: EditorialLayout): l is EditorialLayoutV2 {
 export const editorialProposalInputSchema = z.object({
   layout: editorialLayoutSchema.optional(),
   direction: z.enum(["KEEP", "AUTO"]).default("KEEP"),
-  mode: z.literal("PROPOSE").default("PROPOSE"),
+  mode: z.enum(["PROPOSE", "ALTERNATIVE"]).default("PROPOSE"),
   expectedRevision: z.number().int().min(0).optional(),
   version: z.literal(2).default(2),
   timeoutMs: z.number().int().min(1000).max(90000).optional(),

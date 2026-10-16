@@ -1,3 +1,4 @@
+import { repairEditorialProposal } from "./editorial-proposal-repair";
 import { z } from "zod";
 import type { StructuredLlmClient } from "../preference-extraction/preference-extraction-client";
 import { withEditorialAiConcurrency } from "./editorial-concurrency";
@@ -7,9 +8,7 @@ import type { DestinationDependencies } from "../destination/destination-service
 import {
   editorialLayoutSchema,
   editorialLayoutV1Schema,
-  editorialLayoutV2Schema,
   editorialDesignSchema,
-  editorialDesignV2Schema,
   defaultEditorialDesign,
   families,
   variants,
@@ -30,26 +29,17 @@ import {
   type EditorialLayoutV2,
   type EditorialNodeV2,
 } from "./editorial-contract";
-import { autoLayout, autoLayoutV1, autoLayoutV2, validateLayoutReferences, usableEditorialMedia, getAllLayoutNodes, isEligibleEditorialSource, EditorialReferenceError } from "./editorial-engine";
+import { autoLayout, autoLayoutV1, autoLayoutV2, validateLayoutReferences, usableEditorialMedia, getAllLayoutNodes, isEligibleEditorialSource } from "./editorial-engine";
 import { readEditorialContext } from "./editorial-service";
 import { createEditorialAiDiagnostics, EditorialAiError, EditorialProposalError, editorialFallbackReason, type EditorialAiDiagnostics } from "./editorial-ai-diagnostics";
-import { isShortEditorialHeading, normalizeEditorialText, stripMarkdownHeading } from "./editorial-content";
+import { isShortEditorialHeading, normalizeEditorialText } from "./editorial-content";
 import { AI_LAYOUT_PRESERVED } from "./editorial-display-policy";
 import { editorialImageDimensions } from "./editorial-image-quality";
 import { getLayoutSignature, compareLayoutSignatures } from "./editorial-signature";
 import { editorialHeroPlan, heroFocalLocked, preservesHeroLocks } from "./editorial-hero";
 import { buildCanonicalContentAst, type CanonicalContentAst } from "./editorial-ast";
-import { evaluateLayoutQuality } from "./editorial-quality-gate";
 import { compileEditorialLayout } from "./editorial-compiler";
-import { preservesEditorialNodeLocks } from "./editorial-locks";
 import { resolveEditorialTimeout } from "./editorial-openai-client";
-
-// Shared by the wire grammar and provenance gate: utility labels are UI copy,
-// while narrative headings must come from the canonical story/current draft.
-const v2UtilityTitles: Partial<Record<EditorialNodeV2["type"], string[]>> = {
-  SOURCES: ["Nguồn tham khảo", "Tài liệu lưu trữ & Nguồn tham khảo"],
-  MAP: ["Vị trí tham chiếu"], VISIT_INFORMATION: ["Chuẩn bị cho chuyến đi"], FACTS: ["Điểm nhấn"],
-};
 
 const proposalSchema = z.object({
   family: z.enum(families),
@@ -151,254 +141,8 @@ export function validateAiProposal(raw: string, base: EditorialLayout, context: 
   return parsed.data;
 }
 
-export function validateAiProposalV2(
-  raw: string,
-  base: EditorialLayoutV2,
-  context: EditorialContext,
-  direction: "KEEP" | "AUTO" = "AUTO"
-): EditorialLayoutV2 {
-  if (Buffer.byteLength(raw) > 64 * 1024) throw new EditorialProposalError("OUTPUT_SIZE");
-  let json: unknown;
-  try { json = JSON.parse(raw); } catch { throw new EditorialProposalError("JSON_PARSE"); }
-
-  // 1. Strict parse
-  const checked = editorialLayoutV2Schema.safeParse(json);
-  if (!checked.success) {
-    const issue = checked.error.issues[0]!;
-    const treeCode = issue.code === "custom" ? issue.params?.issueCode : undefined;
-    throw new EditorialProposalError("SCHEMA", issue.path, {
-      validationStage: treeCode ? "TREE_CONTRACT" : "WIRE_SCHEMA",
-      issueCode: typeof treeCode === "string" ? treeCode : issue.code,
-    });
-  }
-  const proposal = checked.data;
-  if (base.hero?.focalLocked !== undefined && proposal.hero) proposal.hero.focalLocked = base.hero.focalLocked;
-  const originalNodes = getAllLayoutNodes(base) as EditorialNodeV2[];
-  for (const node of getAllLayoutNodes(proposal) as EditorialNodeV2[]) {
-    const original = originalNodes.find(n => n.id === node.id);
-    if (original?.headingProvenance && node.title === original.title) node.headingProvenance = original.headingProvenance;
-  }
-  if (direction === "KEEP" && (proposal.family !== base.family || proposal.variant !== base.variant)) {
-    throw new EditorialProposalError("DIRECTION", ["family"], { validationStage: "LOCKS", issueCode: "KEEP_DIRECTION" });
-  }
-
-  // 2. Reference validation (BEFORE Hydration)
-  const ast = buildCanonicalContentAst(context);
-  const validUnitIds = new Set(ast.units.filter(u => u.provenance.sourceField === "description").map(u => u.id));
-  const allowedMedia = new Set(usableEditorialMedia(context).map(m => m.id));
-  const eligibleSources = context.sources.filter(isEligibleEditorialSource);
-  const allContextSources = new Set(context.sources.filter(s => s.websiteRights !== "REJECTED").map(s => s.id));
-
-  const validateNodeReferences = (n: any, path: Array<string | number>) => {
-    // A. Validate contentRef if present
-    if (n.contentRef) {
-      if (!validUnitIds.has(n.contentRef)) {
-        throw new EditorialProposalError("REFERENCES", [...path, "contentRef"], {
-          referenceType: "CONTENT_AST",
-          nodeType: n.type,
-          nodePath: path.join("."),
-          invalidReason: "UNKNOWN_REFERENCE",
-          expectedNamespace: "ast.units",
-        });
-      }
-    }
-
-    // B. Validate mediaIds if present
-    if (Array.isArray(n.mediaIds)) {
-      for (let mIdx = 0; mIdx < n.mediaIds.length; mIdx++) {
-        const mId = n.mediaIds[mIdx];
-        if (!allowedMedia.has(mId)) {
-          throw new EditorialProposalError("MEDIA_ELIGIBILITY", [...path, "mediaIds", mIdx], {
-            referenceType: "MEDIA",
-            nodeType: n.type,
-            nodePath: path.join("."),
-            invalidReason: "UNUSABLE_MEDIA",
-            expectedNamespace: "context.media",
-          });
-        }
-      }
-    }
-
-    // C. Validate sourceIds if present
-    if (Array.isArray(n.sourceIds)) {
-      for (let sIdx = 0; sIdx < n.sourceIds.length; sIdx++) {
-        const sId = n.sourceIds[sIdx];
-        if (!allContextSources.has(sId)) {
-          throw new EditorialProposalError("REFERENCES", [...path, "sourceIds", sIdx], {
-            referenceType: "SOURCE",
-            nodeType: n.type,
-            nodePath: path.join("."),
-            invalidReason: "REJECTED_SOURCE",
-            expectedNamespace: "context.sources",
-          });
-        }
-      }
-    }
-
-    // D. Validate entries sourceIds (e.g. TIMELINE entries)
-    if (Array.isArray(n.entries)) {
-      for (let eIdx = 0; eIdx < n.entries.length; eIdx++) {
-        const entry = n.entries[eIdx];
-        if (Array.isArray(entry.sourceIds)) {
-          for (let esIdx = 0; esIdx < entry.sourceIds.length; esIdx++) {
-            const sId = entry.sourceIds[esIdx];
-            if (!allContextSources.has(sId)) {
-              throw new EditorialProposalError("REFERENCES", [...path, "entries", eIdx, "sourceIds", esIdx], {
-                referenceType: "SOURCE",
-                nodeType: n.type,
-                nodePath: `${path.join(".")}.entries.${eIdx}`,
-                invalidReason: "REJECTED_SOURCE",
-                expectedNamespace: "context.sources",
-              });
-            }
-          }
-        }
-      }
-    }
-
-    // Recursive children validation
-    if (Array.isArray(n.children)) {
-      for (let cIdx = 0; cIdx < n.children.length; cIdx++) {
-        validateNodeReferences(n.children[cIdx], [...path, "children", cIdx]);
-      }
-    }
-  };
-
-  for (let sIdx = 0; sIdx < proposal.sections.length; sIdx++) {
-    validateNodeReferences(proposal.sections[sIdx], ["sections", sIdx]);
-  }
-
-  // 3. Deterministic Hydration
-  const hydrateNode = (n: EditorialNodeV2) => {
-    // Hydrate canonical text & title from AST via contentRef
-    if (n.contentRef) {
-      const u = ast.units.find(unit => unit.id === n.contentRef);
-      if (u) {
-        // Layout references never authorize rewriting canonical prose.
-        n.text = u.type === "CHAPTER_HEADING" ? "" : u.text;
-        if (u.type === "CHAPTER_HEADING") n.title = stripMarkdownHeading(u.title ?? u.text);
-      }
-    }
-
-    // Canonical source hydration for SOURCES node
-    if (n.type === "SOURCES") {
-      if (!Array.isArray(n.sourceIds) || n.sourceIds.length === 0) {
-        n.sourceIds = eligibleSources.map(s => s.id);
-      }
-      if (!n.title || !n.title.trim()) {
-        n.title = "Nguồn tham khảo";
-      }
-    }
-
-    if (Array.isArray(n.children)) {
-      for (const child of n.children) hydrateNode(child);
-    }
-  };
-  for (const s of proposal.sections) hydrateNode(s);
-
-  // Restore omitted canonical chapter labels on the first matching prose unit.
-  // This groups a heading with its paragraph instead of making a sparse cell.
-  const proposalNodes = getAllLayoutNodes(proposal) as EditorialNodeV2[];
-  for (const heading of ast.units.filter(u => u.type === "CHAPTER_HEADING")) {
-    const title = stripMarkdownHeading(heading.title ?? heading.text);
-    if (proposalNodes.some(n => n.title === title || n.text?.includes(title))) continue;
-    const chapter = heading.id.replace("ast-chapter-", "");
-    const firstParagraph = ast.units.find(u => u.id === `ast-para-${chapter}-0`);
-    const target = firstParagraph && proposalNodes.find(n => !n.title && (n.contentRef === firstParagraph.id || n.text?.includes(firstParagraph.text)));
-    if (target) target.title = title;
-  }
-
-  // A source belonging to this Destination is not proof for an invented event.
-  // Preserve only pre-existing reviewed event/source bindings, never infer one.
-  const baseNodes = getAllLayoutNodes(base) as EditorialNodeV2[];
-  const reviewedEntries = baseNodes.flatMap(n => n.entries ?? []);
-  const verifyContent = (n: EditorialNodeV2, path: (string | number)[]) => {
-    const container = ["PAGE", "SECTION", "GRID", "COLUMNS", "STACK", "CONTAINER", "IMAGE_TEXT"].includes(n.type);
-    if (n.mediaIds?.length && !container && !["HERO", "IMAGE", "PANORAMA", "GALLERY", "IMAGE_MOSAIC"].includes(n.type)) throw new EditorialProposalError("MEDIA_ROLE", [...path, "mediaIds"], { validationStage: "HYDRATION", issueCode: "UNRENDERABLE_MEDIA" });
-    if (n.children?.length && !container) throw new EditorialProposalError("COMPOSITION", [...path, "children"], { validationStage: "HYDRATION", issueCode: "UNRENDERABLE_CHILDREN" });
-    if (n.text && !container && !["HEADING", "PARAGRAPH", "LEAD", "QUOTE", "IMAGE", "PANORAMA", "GALLERY", "IMAGE_MOSAIC"].includes(n.type)) throw new EditorialProposalError("COMPOSITION", [...path, "text"], { validationStage: "HYDRATION", issueCode: "UNRENDERABLE_TEXT" });
-    const original = baseNodes.find(node => node.id === n.id);
-    const proseSources = [context.description, context.name, context.category, context.area,
-      ...ast.units.filter(u => u.provenance.sourceField === "description").flatMap(u => [u.text, u.title ?? ""]),
-    ].map(normalizeEditorialText);
-    for (const field of ["text", "title", "deck", "caption"] as const) {
-      const value = n[field]?.trim();
-      if (!value || value === original?.[field]) continue;
-      const norm = normalizeEditorialText(value);
-      const utilityLabel = field === "title" && v2UtilityTitles[n.type]?.includes(value);
-      const caption = field === "caption" && usableEditorialMedia(context).some(m => n.mediaIds?.includes(m.id) && m.caption === value);
-      if (!utilityLabel && !caption && !proseSources.some(source => source.includes(norm))) {
-        throw new EditorialProposalError(field === "title" ? "TITLE_PROVENANCE" : "LAYOUT_CONTRACT", [...path, field], { validationStage: "HYDRATION", issueCode: "UNSOURCED_CONTENT" });
-      }
-    }
-    if (n.type !== "SOURCES" && n.sourceIds?.length && !baseNodes.some(node => node.text === n.text && JSON.stringify(node.sourceIds) === JSON.stringify(n.sourceIds))) {
-      throw new EditorialProposalError("REFERENCES", [...path, "sourceIds"], { validationStage: "HYDRATION", issueCode: "UNVERIFIED_CLAIM_SOURCE" });
-    }
-    for (const [index, entry] of (n.entries ?? []).entries()) {
-      if (!reviewedEntries.some(e => e.label === entry.label && e.text === entry.text && JSON.stringify(e.sourceIds) === JSON.stringify(entry.sourceIds))) {
-        throw new EditorialProposalError("REFERENCES", [...path, "entries", index], { validationStage: "HYDRATION", issueCode: "UNVERIFIED_EVENT_SOURCE" });
-      }
-    }
-    for (const [index, child] of (n.children ?? []).entries()) verifyContent(child, [...path, "children", index]);
-  };
-  proposal.sections.forEach((n, index) => verifyContent(n, ["sections", index]));
-  const hydrated = editorialLayoutV2Schema.safeParse(proposal);
-  if (!hydrated.success) {
-    const issue = hydrated.error.issues[0]!;
-    throw new EditorialProposalError("LAYOUT_CONTRACT", issue.path, { validationStage: "HYDRATION", issueCode: issue.code });
-  }
-
-  // 4. Content preservation check against AST
-  const quality = evaluateLayoutQuality(proposal, context, { ast });
-  if (!quality.passed) {
-    const issue = quality.issues.find(i => i.severity === "ERROR");
-    throw new EditorialProposalError("LAYOUT_CONTRACT", ["content"], { validationStage: "QUALITY_GATE", issueCode: issue?.code ?? "QUALITY_SCORE" });
-  }
-
-  // 5. Media/source provenance, hero check & lock preservation
-  const nodes = getAllLayoutNodes(proposal);
-  const heroNode = nodes.find(n => n.type === "HERO" && !n.hidden);
-  if (!heroNode) {
-    throw new EditorialProposalError("LAYOUT_CONTRACT", ["sections"]);
-  }
-  if (!preservesHeroLocks(base, proposal)) {
-    throw new EditorialProposalError("DIRECTION", ["hero"]);
-  }
-  if (!preservesEditorialNodeLocks(base, proposal)) {
-    throw new EditorialProposalError("DIRECTION", ["sections"], { validationStage: "LOCKS", issueCode: "MANUAL_LOCK" });
-  }
-
-  // Reference validation for publish-readiness
-  try {
-    validateLayoutReferences(proposal, context, false);
-    validateLayoutReferences(proposal, context, true);
-  } catch (err: any) {
-    const details = err instanceof EditorialReferenceError ? err.details : undefined;
-    const path: PropertyKey[] = details?.nodeId ? ["sections", details.nodeId] : ["sections"];
-    if (details?.field) path.push(details.field);
-    throw new EditorialProposalError("REFERENCES", path, {
-      referenceType: details?.field === "mediaIds" ? "MEDIA" : "SOURCE",
-      nodeType: details?.nodeType,
-      nodePath: path.join("."),
-      invalidReason: details?.reason === "UNUSABLE_MEDIA" ? "UNUSABLE_MEDIA" : "REJECTED_SOURCE",
-      expectedNamespace: details?.field === "mediaIds" ? "context.media" : "context.sources",
-    });
-  }
-
-  // 6. Layout compilation verification
-  const compiled = compileEditorialLayout(proposal, context, { ast });
-  if (!compiled || !compiled.nodes.length) {
-    throw new EditorialProposalError("LAYOUT_CONTRACT", ["sections"]);
-  }
-
-  // 7. Quality Gate & Output
-  return {
-    ...proposal,
-    metadata: {
-      generatedAt: new Date().toISOString(),
-      qualityScore: quality.score,
-    },
-  };
+export function validateAiProposalV2(raw: string, base: EditorialLayoutV2, context: EditorialContext, direction: "KEEP" | "AUTO" = "AUTO"): EditorialLayoutV2 {
+  return repairEditorialProposal(raw, base, context, direction);
 }
 
 export const v2EntrySchema = {
@@ -408,11 +152,11 @@ export const v2EntrySchema = {
   properties: {
     label: { type: "string", maxLength: 100 },
     text: { type: "string", maxLength: 2000 },
-    sourceIds: { type: "array", minItems: 1, maxItems: 10, items: { type: "string", minLength: 1, maxLength: 128, pattern: "^[a-zA-Z0-9_-]+$" } },
+    sourceIds: { type: "array", maxItems: 10, items: { type: "string", minLength: 1, maxLength: 128, pattern: "^[a-zA-Z0-9_-]+$" } },
   },
 };
 
-function createV2NodeSchemas(contentRefSchema: Record<string, unknown> = { anyOf: [{ type: "string" }, { type: "null" }] }, context?: EditorialContext, titles?: string[]) {
+function createV2NodeSchemas(contentRefSchema: Record<string, unknown> = { anyOf: [{ type: "string" }, { type: "null" }] }, context?: EditorialContext) {
   const leafNode = {
     type: "object",
     additionalProperties: false,
@@ -427,7 +171,7 @@ function createV2NodeSchemas(contentRefSchema: Record<string, unknown> = { anyOf
       contentRef: contentRefSchema,
       hidden: { type: "boolean" },
       locked: { type: "boolean" },
-      title: { type: "string", maxLength: 200, ...(titles ? { enum: titles } : {}) },
+      title: { type: "string", maxLength: 200 },
       text: { type: "string", maxLength: 12000 },
       caption: { type: "string", maxLength: 1000 },
       deck: { anyOf: [{ type: "string", maxLength: 180 }, { type: "null" }] },
@@ -504,17 +248,7 @@ export function createV2JsonSchema(
     ? { anyOf: [{ type: "string", enum: contentUnits.map(u => u.id) }, { type: "null" }] }
     : { anyOf: [{ type: "string" }, { type: "null" }] };
 
-  // An unconstrained title lets a schema-valid alternative fail only after
-  // hydration (TITLE_PROVENANCE). Offer exact canonical headings, empty titles,
-  // existing draft titles and UI labels instead. Ownership/type/lock checks
-  // still apply at runtime; an existing manual title cannot move to a new ID.
-  const titles = context || contentUnits || base ? [...new Set([
-    "", ...(context ? [context.name, context.category, context.area] : []),
-    ...(contentUnits ?? []).filter(u => u.type === "CHAPTER_HEADING").map(u => stripMarkdownHeading(u.title ?? u.text)),
-    ...(base ? (getAllLayoutNodes(base) as EditorialNodeV2[]).map(n => n.title ?? "") : []),
-    ...Object.values(v2UtilityTitles).flat(),
-  ].filter(title => title.length <= 200))] : undefined;
-  const { sectionNode } = createV2NodeSchemas(contentRefSchema, context, titles);
+  const { sectionNode } = createV2NodeSchemas(contentRefSchema, context);
 
   return {
     type: "object",
@@ -647,7 +381,7 @@ export type EditorialProposalOptions<T extends EditorialLayout = EditorialLayout
 export type EditorialProposalResult<T extends EditorialLayout = EditorialLayout> =
   | {
       status: "PROPOSED";
-      outcome: "PROPOSED" | "PROPOSED_NEW" | "PROPOSED_SAME" | "ALTERNATIVE_SIGNIFICANT";
+      outcome: "PROPOSED" | "PROPOSED_NEW" | "PROPOSED_SAME" | "ALTERNATIVE_SIGNIFICANT" | "ALTERNATIVE_MINOR";
       reason?: string;
       layout: T;
       correlationId: string;
@@ -715,7 +449,6 @@ export async function proposeEditorial(
 ): Promise<any> {
   const diagnostics = options.diagnostics ?? createEditorialAiDiagnostics();
   const actor = await requireActor(headers, deps, "admin");
-  if (options.mode === "ALTERNATIVE") throw new AppError("INVALID_EDITORIAL_AI", "Chỉ hỗ trợ AI dàn trang V4.", 400);
   return withEditorialAiConcurrency(actor.id, async () => {
     const context = await readEditorialContext(id, deps.database);
     const allowedMedia = new Set(usableEditorialMedia(context).map(m => m.id));
@@ -744,13 +477,16 @@ export async function proposeEditorial(
         }
       } catch (e) {
         if (e instanceof EditorialProposalError) throw e;
+        throw new AppError("EDITORIAL_AI_UNAVAILABLE", "Không thể kiểm tra phiên bản bản nháp. Giữ nguyên bố cục và thử lại.", 503);
       }
     }
 
     if (options.layout) {
       const layoutCheck = editorialLayoutSchema.safeParse(options.layout);
       if (!layoutCheck.success) throw new AppError("INVALID_EDITORIAL_LAYOUT", "Bố cục gửi lên không hợp lệ.", 400);
-      try { validateLayoutReferences(options.layout, context, false); }
+      // V4 current drafts may contain revoked media/stale source references.
+      // The repair pipeline removes those after the model designs the tree.
+      try { if (isV1Layout(options.layout)) validateLayoutReferences(options.layout, context, false); }
       catch { throw new AppError("INVALID_EDITORIAL_REFERENCES", "Ảnh hoặc nguồn không thuộc điểm đến này.", 400); }
     }
 
@@ -851,15 +587,25 @@ export async function proposeEditorial(
         phase = "PROPOSAL_VALIDATION";
         const layout = validateAiProposalV2(result.rawText, baseV2, context, direction);
         const diff = compareEffectiveV4Layouts(current, layout, context, ast);
+        diagnostics.repaired(layout.metadata?.repairs ?? []);
+        const repairNote = layout.metadata?.repairs?.length ? ` Đã chuẩn hóa ${layout.metadata.repairs.length} chi tiết; nội dung gốc được bảo toàn.` : "";
+        if (mode === "ALTERNATIVE") {
+          const significant = diff.level === "SIGNIFICANT";
+          const outcome = significant ? "ALTERNATIVE_SIGNIFICANT" as const : "ALTERNATIVE_MINOR" as const;
+          diagnostics.success(outcome);
+          return { status: "PROPOSED" as const, outcome, layout, correlationId: diagnostics.correlationId,
+            bodyDiversity: significant ? "SIGNIFICANT" as const : "MINOR" as const, differences: diff.differences,
+            reason: (significant ? "Đã tạo phương án khác về cấu trúc thân bài." : "Phương án hợp lệ; cấu trúc thân bài chỉ thay đổi ít hoặc tương đồng.") + repairNote + " Đề xuất chưa lưu." };
+        }
 
         // mode === "PROPOSE"
         if (diff.level === "SAME") {
-          diagnostics.success("PROPOSED_SAME");
+          diagnostics.success("PROPOSED");
           return {
             status: "PROPOSED" as const,
-            outcome: "PROPOSED_SAME" as const,
-            reason: "Bố cục V4 hiện tại đã tối ưu theo nội dung và ảnh; giữ nguyên phương án.",
-            layout: current,
+            outcome: "PROPOSED" as const,
+            reason: `Đã tạo bố cục hợp lệ; cấu trúc thân bài tương đồng với hiện tại.${repairNote} Đề xuất chưa lưu.`,
+            layout,
             correlationId: diagnostics.correlationId,
           };
         }
@@ -867,7 +613,7 @@ export async function proposeEditorial(
         return {
           status: "PROPOSED" as const,
           outcome: "PROPOSED_NEW" as const,
-          reason: `AI Generative Engine V4 đã thiết kế cấu trúc trang mới phù hợp đặc trưng điểm đến: ${diff.differences.slice(0, 2).join("; ")}. Đề xuất chưa lưu.`,
+          reason: `AI đã dàn trang: ${diff.differences.slice(0, 2).join("; ")}.${repairNote} Đề xuất chưa lưu.`,
           layout,
           correlationId: diagnostics.correlationId,
           differences: diff.differences,
@@ -959,67 +705,22 @@ Keep hidden blocks hidden; hidden is not a request to auto-hide data-less utilit
 Choose a compelling usable photo for HERO from eligible media (when multiple eligible photos exist, you may choose an alternative striking photo suited to the variant). Do not strip photos from visible image blocks when enough eligible media exists. Use each image at most once and only supplied website-eligible IDs. Keep wide photos wide; do not force landscapes into tall hero crops. Reserve galleries for 3+ pictures where possible. The reading arc should alternate close reading and broad photographic pauses, not identical sections.
 Never invent facts, dates, quotes, promotional claims, sources, URLs, HTML, CSS, JS or fonts. Do not rewrite prose. No publication or saving. Only arrange presentation.`;
 
-const EDITORIAL_GENERATIVE_PROMPT = `You are the generative art director of a high-end Vietnamese travel and cultural publication.
-Your job is to design a unique, expressive Layout DSL v2 specifically tailored to the Destination's character, imagery, and narrative.
+const EDITORIAL_GENERATIVE_PROMPT = `Design a readable, visually compelling Vietnamese travel article using Layout DSL v2. Return only strict schema JSON.
+Use contentRef from ast for narrative units and leave text empty; the server hydrates authentic text and references. Do not invent facts, dates, quotes, citations or image URLs.
+Select mediaIds from eligible media only, each image once. Keep HERO first; preserve currentLayout manual/hidden nodes and Hero locks.
 
-Choose readable composition based on canonical characterCount and wordCount. A one-column narrative is correct when text cannot balance across columns.
-You must design a truly multi-dimensional layout topology by employing structural primitives:
-- Use COLUMNS or GRID only for balanced complete chapter groups. Never put a short HEADING alone beside a long PARAGRAPH. Keep long prose at least 34ch wide; prefer one column when unsuitable.
-- Use alternating IMAGE_TEXT nodes (placement "left" vs "right") to weave photography directly with reading copy.
-- Use IMAGE_MOSAIC for dynamic, asymmetric photographic showcases (or GALLERY for uniform exhibits).
-- Use TIMELINE only to preserve already reviewed entries and source bindings from currentLayout.
+Pacing and visual composition:
+- Weave photographs and prose naturally: use IMAGE_TEXT with alternating left/right placement for dynamic visual storytelling.
+- Use SECTION/STACK for focused narrative reading. Use GALLERY (grid or mosaic) or IMAGE_MOSAIC for 3+ photos to create visual breathing pauses.
+- Use GRID/COLUMNS only for balanced parallel aspects. Preserve image aspect ratios.
+- Aim for a clean, cohesive structure of 7 to 12 sections and 25 to 45 nodes total. Maximum 3 nesting levels.
 
-DESIGN ARCHETYPES:
-1. HISTORICAL_ARCHIVE (For historical monuments, relics, and memory sites):
-   - Hero: EDITORIAL (centered masthead with inset archival image) or SPLIT.
-   - Lead: Generous opening reflection.
-   - Narrative Chapters: Group text into COLUMNS (columns: 2) with child PARAGRAPH nodes or structured paragraphs.
-   - Timeline: Preserve a chronological TIMELINE only when currentLayout already contains reviewed entries.
-   - Documentation Gallery: A 3-column GALLERY showing architectural details, stone walls, artifacts.
-   - Citations: Trailing SOURCES at the end.
+Section titles:
+- Prefer authentic chapter titles from ast units (ast[].title) or evocative headings from the source text.
+- You may also use approved neutral labels: Dấu ấn lịch sử; Không gian văn hóa; Những câu chuyện được lưu truyền; Hành trình khám phá; Giá trị của di sản.
+- Do NOT repeat the exact same title across sections. Every section title must be distinct. Leave deck/caption empty unless preserving exact approved values.
+- TIMELINE is optional. Never infer event/source evidence: only reuse exact reviewed entries from currentLayout. SOURCES may leave sourceIds empty for server hydration.
 
-2. VISUAL_DOCUMENTARY (Ideal for dramatic topography, passes, plateaus like Cao nguyên đá Đồng Văn):
-   - Hero: PANORAMA (cinematic full-width image >=1200x600).
-   - Alternating Narrative: Paired IMAGE_TEXT nodes (first with placement: "right", next with placement: "left").
-   - Landscape Grid: An asymmetric 2-column GRID combining wide landscape images and short descriptive captions.
-   - Citations: Trailing SOURCES at the end.
-
-3. CULTURAL_NARRATIVE (Ideal for heritage villages, ethnic traditions, craft settlements):
-   - Hero: SPLIT (side-by-side title and focal portrait).
-   - Reading Flow: Distinct sections with elegant typography, quotes, and cultural notes.
-   - Visual Showcase: An IMAGE_MOSAIC featuring an asymmetric focal image (span 2x2) accompanied by secondary cultural photos.
-   - Location & References: MAP followed by SOURCES.
-
-Rules:
-- Generate a structured Layout DSL v2. Output only strict JSON conforming to the schema.
-- Hero composition: Choose one of PANORAMA, SPLIT, EDITORIAL.
-  PANORAMA: Wide cinematic header, best for landscape images >=1200x600.
-  SPLIT: Side-by-side title and image.
-  EDITORIAL: Center-aligned magazine cover masthead.
-- Story structure: Organize content units into meaningful, varied sections.
-- Primitives available:
-  - STRUCTURE: SECTION, GRID, STACK, COLUMNS, CONTAINER
-  - CONTENT: HEADING, PARAGRAPH, LEAD, QUOTE, FACTS, TIMELINE
-  - MEDIA: IMAGE, PANORAMA, IMAGE_TEXT, GALLERY, IMAGE_MOSAIC
-  - SPECIAL: HERO, MAP, SOURCES
-- Tokens available:
-  - typography: LITERARY, MODERN, HUMANIST, EDITORIAL_SERIF, GEOMETRIC_SANS
-  - palette: FOREST, SLATE, EARTH, MONOCHROME, TERRACOTTA, INDIGO
-  - rhythm: IMMERSIVE, COMPACT, RELAXED, STACCATO
-  - containerWidth: NARROW, STANDARD, WIDE, FULL
-- Content integrity & Token Efficiency:
-  - For narrative and body content nodes (PARAGRAPH, HEADING, LEAD, QUOTE, FACTS), ALWAYS link the canonical unit by setting "contentRef": "<unitId>" from the provided ast list, and pass "text": "".
-  - ONLY use unit IDs that exist in the provided ast list (e.g. "ast-intro", "ast-chapter-0", "ast-para-0-0"). Never invent fake unit IDs.
-  - Do NOT copy or output full paragraphs of text into "text". The server deterministically resolves and binds 100% of the authentic canonical text from the content AST using "contentRef".
-  - Titles are selections, not creative writing. Use title: "" for narrative nodes; HEADING must reference a CHAPTER_HEADING unit and the server hydrates its exact title. HERO may use the exact destination name. Never paraphrase or invent section headings, even if they sound plausible. Preserve an existing manual title only on its original currentLayout node ID. Utility titles must match their utility node type. The schema lists the only permitted title strings.
-  - Leave deck and caption empty unless preserving an exact existing value or using the exact caption of that node's selected image. Do not write new summaries or image descriptions.
-  - This avoids token timeouts and guarantees 100% Vietnamese text preservation.
-  - Never invent new historical facts, statistics, characters, dates, or place names.
-  - All mediaIds must be selected from the provided eligible images list.
-  - Each image may be used at most once.
-  - All sourceIds must be selected from the provided eligible sources list (never invent source IDs or put URLs into sourceIds).
-  - For SOURCES section, you may set sourceIds from the provided sources list or leave empty for automatic resolution of all destination sources.
-  - Do not create new TIMELINE entries or assign a source to an event. Only preserve existing currentLayout entries and their exact sourceIds. A source listing is not proof of an event.
-  - Keep HERO first. Preserve locked nodes, hidden states, manually authored headings and hero focal locks from currentLayout. IDs do not count toward variation. At most 50 nodes total, depth 3, 10 children per node, 25 sections; no duplicate node IDs or media IDs anywhere. Use columns 1-4 and focal coordinates 0-100.
-  - Place utility sections (MAP, SOURCES) at the end. Do not generate a travel preparation or VISIT_INFORMATION section.
-Never invent HTML, CSS, JS, fake sources, or Markdown formatting.`;
+In ALTERNATIVE mode:
+- Actively explore a noticeably fresh layout pacing and presentation rhythm from currentLayout (e.g., alternate IMAGE_TEXT placements, group photos into a gallery, pair narrative blocks into columns).
+- Harmonize a fresh combination of typography/palette/rhythm/containerWidth tokens. If Hero is unlocked, pick the most striking alternative eligible landscape photo.`;

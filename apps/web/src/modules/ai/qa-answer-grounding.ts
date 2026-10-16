@@ -3,6 +3,7 @@ import { AppError } from "../../server/http/app-error";
 import { evaluateQaSourceSufficiency } from "./qa-source-sufficiency";
 import type { QaAnswer, QaGenerationInput } from "./qa-runtime-contract";
 import { qaOrigin } from "./qa-diagnostics";
+import { hasQaSynthesisCertificate } from "./qa-synthesis-verification";
 
 /** Review is an assessment, not independent evidence. Every accepted sentence/
  * citation pair traces back to current scoped sources. Both adapters and the
@@ -13,6 +14,7 @@ export function assertQaAnswerGrounding(answer: QaAnswer, input: QaGenerationInp
   const decision = evaluateQaSourceSufficiency({ kind: "COMPLETED", eligibility: "CURRENT", input, review: input.sourceReview });
   if (!input.sourceReview || (decision.status !== "SUFFICIENT" && decision.status !== "PARTIAL") ||
     (answer.status === "ANSWERED" ? decision.status !== "SUFFICIENT" : decision.status !== "PARTIAL")) throw reject();
+  if (hasQaSynthesisCertificate(answer, input)) return;
   const aspects = input.sourceReview.aspects.filter(aspect => aspect.status === "SUPPORTED");
   const pair = (id: string, sentence: string) => JSON.stringify([id, sentence.normalize("NFC").trim()]);
   const allowed = new Set(aspects.flatMap(aspect => aspect.supports.map(ref => pair(ref.citationId, ref.sentence))));

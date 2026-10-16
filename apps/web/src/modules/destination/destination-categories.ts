@@ -6,6 +6,7 @@ export const destinationCategories = [
   "làng du lịch – bản làng",
   "chợ phiên",
   "điểm trải nghiệm du lịch",
+  "văn hóa",
 ] as const;
 export const DEFAULT_DESTINATION_AREA = "khu vực hà giang";
 export const isDestinationCategory = (value: string) =>

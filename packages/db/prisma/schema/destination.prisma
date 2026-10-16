@@ -53,7 +53,6 @@ model Destination {
   openingDays              OpeningDay[]
   cultureLinks             CultureDestination[]
   favorites                Favorite[]
-  editorial                DestinationEditorial?
   itineraryVisits          ItineraryVisit[]
 
   @@index([area])

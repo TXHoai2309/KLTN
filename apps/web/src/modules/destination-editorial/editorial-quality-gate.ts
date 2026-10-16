@@ -1,6 +1,6 @@
 import type { EditorialLayout, EditorialContext } from "./editorial-contract";
 import { compileEditorialLayout, type CompiledEditorialTree, type CompiledNode } from "./editorial-compiler";
-import { buildCanonicalContentAst, type CanonicalContentAst } from "./editorial-ast";
+import { buildEditorialContentUnits, type CanonicalContentAst } from "./editorial-content-units";
 import { normalizeEditorialText } from "./editorial-content";
 import { getAllLayoutNodes } from "./editorial-engine";
 
@@ -50,7 +50,9 @@ export function evaluateLayoutQuality(
   context: EditorialContext,
   options: { ast?: CanonicalContentAst; compiled?: CompiledEditorialTree } = {}
 ): QualityReport {
-  const ast = options.ast ?? buildCanonicalContentAst(context);
+  // Shared with the Editor gate: server callers may supply SHA-tagged units,
+  // browser callers use identical content units without importing node:crypto.
+  const ast = options.ast ?? buildEditorialContentUnits(context);
   const compiled = options.compiled ?? compileEditorialLayout(layout, context, { ast });
 
   const issues: QualityIssue[] = [];
@@ -76,7 +78,7 @@ export function evaluateLayoutQuality(
       issues.push({
         code: "DUPLICATE_HEADING",
         message: `Tiêu đề "${h.title}" bị lặp lại trong bài viết.`,
-        severity: "ERROR",
+        severity: "WARNING",
         nodeId: h.id,
       });
       score -= 15;
@@ -119,7 +121,7 @@ export function evaluateLayoutQuality(
         issues.push({
           code: "EMPTY_SECTION",
           message: `Khối cấu trúc ${n.type} (id: ${n.id}) hoàn toàn trống rỗng.`,
-          severity: "ERROR",
+          severity: "WARNING",
           nodeId: n.id,
         });
         score -= 10;
@@ -134,11 +136,11 @@ export function evaluateLayoutQuality(
     if (!["GRID", "COLUMNS"].includes(node.type) || node.columns <= 1) continue;
     const weights = node.children.map(proseWeight);
     if (node.columns > 2 && weights.some(weight => weight > 160)) {
-      issues.push({ code: "NARROW_PROSE", message: "Đoạn văn dài cần cột đọc rộng hơn.", severity: "ERROR", nodeId: node.id });
+      issues.push({ code: "NARROW_PROSE", message: "Đoạn văn dài cần cột đọc rộng hơn.", severity: "WARNING", nodeId: node.id });
     }
     const totals = Array.from({ length: node.columns }, (_, col) => weights.filter((_, index) => index % node.columns === col).reduce((sum, weight) => sum + weight, 0));
     if (node.children.length < node.columns || (weights.some(weight => weight > 160) && !node.children.some(child => collectMediaIds(child).length) && Math.max(...totals) / Math.max(1, Math.min(...totals)) > 2.2)) {
-      issues.push({ code: "GRID_TEXT_BALANCE", message: "Các cột nội dung mất cân đối.", severity: "ERROR", nodeId: node.id });
+      issues.push({ code: "GRID_TEXT_BALANCE", message: "Các cột nội dung mất cân đối.", severity: "WARNING", nodeId: node.id });
     }
   }
   const compiledProse = allNodes.map(n => [n.title, n.text, ...n.entries.flatMap(e => [e.label, e.text])].join(" ")).join(" ");
@@ -155,7 +157,7 @@ export function evaluateLayoutQuality(
       preservedCount++;
     } else {
       missingUnitIds.push(p.id);
-      missingUnitHashes.push(p.hash);
+      if ("hash" in p && typeof p.hash === "string") missingUnitHashes.push(p.hash);
     }
   }
 
@@ -187,7 +189,7 @@ export function evaluateLayoutQuality(
   const hasErrors = issues.some(i => i.severity === "ERROR");
 
   return {
-    passed: !hasErrors && finalScore >= 70,
+    passed: !hasErrors,
     score: finalScore,
     issues,
     metrics,

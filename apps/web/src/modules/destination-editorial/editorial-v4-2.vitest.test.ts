@@ -58,41 +58,23 @@ describe("V4.2 wire/runtime regressions", () => {
     expect(saved).toEqual(before);
   });
 
-  it("blocks unsourced titles at every wire depth, retaining the live HYDRATION rejection as defense in depth", () => {
+  it("repairs an unsourced title at the live nested node path while allowing neutral headings", () => {
     const candidate = wire(base);
-    const invalid = "Một chương lịch sử chưa có trong nội dung nguồn";
-    candidate.sections[2] = { ...candidate.sections[2], children: Array.from({ length: 5 }, (_, index) => ({
-      ...candidate.sections[1], id: `title-regression-${index}`, mediaIds: [], sourceIds: [], children: [],
-    })) };
-    candidate.sections[2].children[4].title = invalid;
-    // Reproduce the safe path from the Owner's log, without claiming to know its raw title.
-    expect(failure(candidate)).toMatchObject({ validationCode: "TITLE_PROVENANCE", fieldPath: "sections.2.children.4.title",
-      referenceDetails: { validationStage: "HYDRATION", issueCode: "UNSOURCED_CONTENT" } });
-    expect(wireCheck(candidate)).toBe(false);
-    expect(wireCheck.errors).toEqual(expect.arrayContaining([expect.objectContaining({ instancePath: "/sections/2/children/4/title", keyword: "enum" })]));
-    for (const shape of [schema.properties.sections.items, schema.properties.sections.items.properties.children.items,
-      schema.properties.sections.items.properties.children.items.properties.children.items]) {
-      const titleCheck = ajv.compile(shape.properties.title);
-      expect(titleCheck(invalid)).toBe(false);
-      expect(titleCheck("")).toBe(true);
-      expect(titleCheck(context.name)).toBe(true);
-    }
+    candidate.sections[2] = {...candidate.sections[2],children:Array.from({length:5},(_,i)=>({...candidate.sections[1],id:'repair-title-'+i,mediaIds:[],sourceIds:[],children:[]}))};
+    candidate.sections[2].children[4].title = "Một khẳng định không có căn cứ";
+    expect(wireCheck(candidate)).toBe(true);
+    const next=validateAiProposalV2(JSON.stringify(candidate),base,context);
+    expect(next.metadata?.repairs).toContainEqual({code:"TITLE_NORMALIZED",nodePath:"sections.2.children.4.title"});
+    expect(JSON.stringify(next)).not.toContain("Một khẳng định không có căn cứ");
   });
 
-  it("offers exact canonical and manual headings without allowing manual title provenance to move to a new node", () => {
-    const manualBase = structuredClone(base);
-    manualBase.sections[1].title = "Tiêu đề do biên tập viên đặt";
-    const manualSchema = createV2JsonSchema("AUTO", manualBase, ast, context);
-    const titles = manualSchema.properties.sections.items.properties.title.enum!;
-    expect(titles).toContain(manualBase.sections[1].title);
-    for (const heading of ast.units.filter(unit => unit.type === "CHAPTER_HEADING")) expect(titles).toContain(heading.title ?? heading.text);
-    const preserved = wire(manualBase);
-    expect(ajv.compile(manualSchema)(preserved)).toBe(true);
-    expect(() => validateAiProposalV2(JSON.stringify(preserved), manualBase, context)).not.toThrow();
-    preserved.sections[1].id = "moved-manual-heading";
-    let rejection: unknown;
-    try { validateAiProposalV2(JSON.stringify(preserved), manualBase, context); } catch (error) { rejection = error; }
-    expect(rejection).toMatchObject({ validationCode: "TITLE_PROVENANCE", fieldPath: "sections.1.title" });
+  it("preserves manual headings and normalizes copied unsourced headings on new IDs", () => {
+    const manual=structuredClone(base);manual.sections[1].title="Tiêu đề biên tập riêng";
+    const next=validateAiProposalV2(JSON.stringify(manual),manual,context);
+    expect(next.sections[1].title).toBe(manual.sections[1].title);
+    manual.sections[1].id="moved-heading";
+    const moved=validateAiProposalV2(JSON.stringify(manual),base,context);
+    expect(JSON.stringify(moved.sections)).not.toContain("Tiêu đề biên tập riêng");
   });
 
   it("accepts a real strict wire response for both generation and a current-V4 alternative", () => {
@@ -115,31 +97,28 @@ describe("V4.2 wire/runtime regressions", () => {
     expect(editorialLayoutV2Schema.safeParse(candidate).success).toBe(false);
   });
 
-  it("reports a duplicate ID with an exact node path instead of the former root custom issue", () => {
-    const candidate = wire(base);
-    candidate.sections[1].id = candidate.sections[0].id;
-    expect(wireCheck(candidate)).toBe(true); // Global uniqueness cannot be encoded by this JSON grammar.
-    const error = failure(candidate);
-    expect(error.fieldPath).toBe("sections.1.id");
-    expect(error.referenceDetails).toMatchObject({ validationStage: "TREE_CONTRACT", issueCode: "DUPLICATE_NODE_ID" });
+  it("repairs duplicate IDs and records the exact node path", () => {
+    const candidate=wire(base);candidate.sections[1].id=candidate.sections[0].id;
+    const next=validateAiProposalV2(JSON.stringify(candidate),base,context);
+    expect(editorialLayoutV2Schema.safeParse(next).success).toBe(true);
+    expect(next.metadata?.repairs).toContainEqual({code:"DUPLICATE_ID_REPAIRED",nodePath:"sections.1.id"});
   });
 
-  it("reports duplicate media without repairing IDs or silently dropping photos", () => {
-    const candidate = wire(base);
-    candidate.sections[1].mediaIds = candidate.sections[0].mediaIds;
-    const error = failure(candidate);
-    expect(error.fieldPath).toBe("sections.1.mediaIds.0");
-    expect(error.referenceDetails?.issueCode).toBe("DUPLICATE_MEDIA");
+  it("repairs duplicate media and restores eligible missing photos", () => {
+    const candidate=wire(base);candidate.sections[1].mediaIds=candidate.sections[0].mediaIds;
+    const next=validateAiProposalV2(JSON.stringify(candidate),base,context);
+    const ids=getAllLayoutNodes(next).flatMap(n=>n.mediaIds??[]);
+    expect(new Set(ids).size).toBe(ids.length);expect(ids).toHaveLength(context.media.length);
+    expect(next.metadata?.repairs?.some(a=>a.code==="MEDIA_REFERENCE_REMOVED")).toBe(true);
   });
 
-  it("logs safe validation stage/code/path, never raw output or arbitrary messages", () => {
-    const spy = vi.spyOn(console, "info").mockImplementation(() => {});
-    const candidate = wire(base);
-    candidate.sections[1].id = candidate.sections[0].id;
-    createEditorialAiDiagnostics().failure("PROPOSAL_VALIDATION", failure(candidate));
-    const log = JSON.parse(spy.mock.calls[0]![0]);
-    expect(log).toMatchObject({ validationStage: "TREE_CONTRACT", issueCode: "DUPLICATE_NODE_ID", nodePath: "sections.1.id" });
-    expect(JSON.stringify(log)).not.toContain(context.description);
+  it("logs safe repair code/path, never raw output or arbitrary messages", () => {
+    const spy=vi.spyOn(console,"info").mockImplementation(()=>{});
+    const candidate=wire(base);candidate.sections[1].id=candidate.sections[0].id;
+    const next=validateAiProposalV2(JSON.stringify(candidate),base,context);
+    createEditorialAiDiagnostics().repaired(next.metadata!.repairs!);
+    expect(JSON.stringify(spy.mock.calls)).toContain("DUPLICATE_ID_REPAIRED");
+    expect(JSON.stringify(spy.mock.calls)).not.toContain(context.description);
   });
 
   it("retains existing AST hashes exactly after separating browser content units", () => {
@@ -156,19 +135,19 @@ describe("V4.2 wire/runtime regressions", () => {
     expect(compareLayoutSignatures(getLayoutSignature(titledStack), getLayoutSignature(equivalent)).level).toBe("SAME");
   });
 
-  it("rejects invented prose and unverified event/source binding even for an owned source", () => {
-    const candidate = structuredClone(base);
-    candidate.sections.push({ id: "invented", type: "PARAGRAPH", text: "Nơi này được xây dựng vào năm 1842." });
-    expect(failure(candidate).referenceDetails?.issueCode).toBe("UNSOURCED_CONTENT");
-    candidate.sections.pop();
-    candidate.sections.push({ id: "event", type: "TIMELINE", entries: [{ label: "1842", text: "Sự kiện không được chứng minh.", sourceIds: [context.sources[0]!.id] }] });
-    expect(failure(candidate).referenceDetails?.issueCode).toBe("UNVERIFIED_EVENT_SOURCE");
+  it("removes invented prose and unsupported event/source binding without rejecting the page", () => {
+    const candidate=structuredClone(base);
+    candidate.sections.push({id:"invented",type:"PARAGRAPH",text:"Nơi này được xây dựng vào năm 1842."});
+    candidate.sections.push({id:"event",type:"TIMELINE",entries:[{label:"1842",text:"Sự kiện không được chứng minh.",sourceIds:[context.sources[0]!.id]}]});
+    const next=validateAiProposalV2(JSON.stringify(candidate),base,context);
+    expect(JSON.stringify(next)).not.toContain("1842");
+    expect(evaluateLayoutQuality(next,context).metrics.contentPreservationRatio).toBe(1);
   });
 
   it("rejects foreign media, partial paragraph loss, and loss of visitor guidance", () => {
     const foreign = structuredClone(base);
     foreign.sections[0]!.mediaIds = ["other-destination-photo"];
-    expect(failure(foreign).validationCode).toBe("MEDIA_ELIGIBILITY");
+    expect(getAllLayoutNodes(validateAiProposalV2(JSON.stringify(foreign),base,context)).flatMap(n=>n.mediaIds??[])).not.toContain("other-destination-photo");
     const truncated = structuredClone(base);
     const intro = truncated.sections.find(n => n.type === "LEAD")!;
     intro.text = intro.text!.slice(0, 45);
@@ -185,7 +164,7 @@ describe("V4.2 wire/runtime regressions", () => {
     locked.sections[1]!.locked = true;
     const changed = structuredClone(locked);
     changed.sections[1]!.emphasis = "ACCENT";
-    expect(() => validateAiProposalV2(JSON.stringify(changed), locked, context)).toThrow();
+    expect(validateAiProposalV2(JSON.stringify(changed), locked, context).sections[1]).toEqual(locked.sections[1]);
     expect(acceptedEditorialProposal({ status: "PROPOSED", layout: changed }, locked, context, "AUTO")).toBeNull();
   });
 });

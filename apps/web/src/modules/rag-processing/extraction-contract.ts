@@ -1,7 +1,7 @@
 export type DocumentFormat = "PDF" | "DOCX" | "TXT";
 export type SegmentOrigin =
   | { format: "PDF"; pageNumber: number; blockIndex: number }
-  | { format: "DOCX"; blockIndex: number; section?: { id: string; title: string; level: number }; table?: { index: number; row: number; cell: number } }
+  | { format: "DOCX"; blockIndex: number; ooxmlPart?: string; section?: { id: string; title: string; level: number }; table?: { index: number; row: number; cell: number } }
   | { format: "TXT"; lineStart: number; lineEnd: number };
 export type ExtractedSegment = {
   id: string;
@@ -14,6 +14,9 @@ export type ExtractionWarning = {
   code: "PAGE_WITHOUT_TEXT" | "PDF_READING_ORDER_HEURISTIC" | "UNSUPPORTED_DOCX_REGION";
   pageNumber?: number;
   region?: string;
+  ooxmlPart?: string;
+  unsupportedElement?: string;
+  location?: string;
 };
 export type ExtractedDocument = {
   format: DocumentFormat;

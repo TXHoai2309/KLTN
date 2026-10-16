@@ -51,9 +51,9 @@ describe("QA orchestration without external services",()=>{
     const t=setup();
     const historical={...answer,conversationId:"conv",turnId:"previous",context:{type:"GENERAL" as const},turnState:"COMPLETED" as const} as QaCompletedTurn;
     t.reservation.history.push({question:"Cũ",response:historical});
-    const result=await t.service.ask(principal,"key",request);
+    const result=await t.service.ask(principal,"key",{...request,question:"Nó ở đâu?"});
     expect(result.data.status).toBe("INSUFFICIENT_SOURCE");
-    expect(t.retriever.retrieve).toHaveBeenCalledWith(request.question,t.reservation.history,undefined,{type:"GENERAL"});
+    expect(t.retriever.retrieve).toHaveBeenCalledWith("nó ở đâu",[{...t.reservation.history[0],question:"cũ"}],undefined,{type:"GENERAL"});
     expect(t.generator.generate).not.toHaveBeenCalled();
     expect(t.store.complete).toHaveBeenCalledOnce();
   });
