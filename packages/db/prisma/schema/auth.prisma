@@ -15,6 +15,7 @@ model User {
   sessions      Session[]
   accounts      Account[]
   favorites     Favorite[]
+  trips         Trip[]
 
   @@unique([email])
   @@map("user")

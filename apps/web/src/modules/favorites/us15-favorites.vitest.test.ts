@@ -14,7 +14,7 @@ vi.mock("@/modules/favorites/favorites-server", () => ({
 
 type Role = "TRAVELER" | "ADMIN";
 type Visibility = "HIDDEN" | "VISIBLE";
-type TargetType = "DESTINATION" | "CULTURE_CONTENT";
+type TargetType = "DESTINATION" | "CULTURE_CONTENT" | "TRIP";
 
 type FavoriteRow = {
   id: string;
@@ -22,6 +22,7 @@ type FavoriteRow = {
   targetType: TargetType;
   destinationId: string | null;
   cultureContentId: string | null;
+  tripId?: string | null;
 };
 
 type IdempotencyRow = {
@@ -35,6 +36,7 @@ type Fixture = {
   dependencies: FavoritesDependencies;
   favorites: FavoriteRow[];
   idempotency: IdempotencyRow[];
+  tripQueries: unknown[];
   databaseCalls: {
     userFindUnique: number;
     targetFindFirst: number;
@@ -59,6 +61,9 @@ type FakeDatabase = {
   };
   cultureContent: {
     findFirst: (input: { where: { id: string } }) => Promise<{ id: string } | null>;
+  };
+  trip: {
+    findFirst: (input: { where: { id: string; userId: string } }) => Promise<{ id: string } | null>;
   };
   favorite: {
     createMany: (input: { data: Omit<FavoriteRow, "id">; skipDuplicates?: boolean }) => Promise<{ count: number }>;
@@ -86,6 +91,7 @@ function createFixture(): Fixture {
   let failCreate = false;
   const favorites: FavoriteRow[] = [];
   const idempotency: IdempotencyRow[] = [];
+  const tripQueries: unknown[] = [];
   const destinationVisibility = new Map<string, Visibility>([
     ["destination-public", "VISIBLE"],
     ["destination-hidden", "HIDDEN"],
@@ -121,6 +127,13 @@ function createFixture(): Fixture {
         return cultureVisibility.get(where.id) === "VISIBLE" ? { id: where.id } : null;
       },
     },
+    trip: {
+      findFirst: async ({ where }) => {
+        tripQueries.push(where);
+        const owner = where.id === "trip-a" ? "traveler-a" : where.id === "trip-b" ? "traveler-b" : null;
+        return owner === where.userId ? { id: where.id } : null;
+      },
+    },
     favorite: {
       createMany: async ({ data }: { data: Omit<FavoriteRow, "id"> }) => {
         databaseCalls.favoriteCreateMany += 1;
@@ -134,7 +147,8 @@ function createFixture(): Fixture {
           (candidate) =>
             candidate.userId === data.userId &&
             candidate.destinationId === data.destinationId &&
-            candidate.cultureContentId === data.cultureContentId,
+            candidate.cultureContentId === data.cultureContentId &&
+            candidate.tripId === data.tripId,
         );
         if (duplicate) return { count: 0 };
 
@@ -208,6 +222,7 @@ function createFixture(): Fixture {
     dependencies,
     favorites,
     idempotency,
+    tripQueries,
     databaseCalls,
     setSession: (nextSession) => {
       session = nextSession;
@@ -228,7 +243,7 @@ function request(path: string, method: "PUT" | "DELETE", key?: string): Request 
   });
 }
 
-function targetParams(targetType: "destinations" | "culture", targetId: string) {
+function targetParams(targetType: "destinations" | "culture" | "trips", targetId: string) {
   return { params: Promise.resolve({ targetType, targetId }) };
 }
 
@@ -241,6 +256,67 @@ async function favoriteRoutes() {
 async function json(response: Response): Promise<Record<string, any>> {
   return (await response.json()) as Record<string, any>;
 }
+
+describe("US-34 owned saved Trip favorites", () => {
+  it("favorites the original owned Trip, makes repeated add a no-op and replays the same key", async () => {
+    const test = createFixture(); dependenciesRef.current = test.dependencies;
+    const { route } = await favoriteRoutes();
+    const add = (key: string) => route.PUT(request("/api/favorites/trips/trip-a", "PUT", key), targetParams("trips", "trip-a"));
+    const response = await add("trip-add");
+    expect(response.status).toBe(200);
+    expect(await json(response)).toMatchObject({ operationStatus: "SUCCESS", data: { targetType: "trips", targetId: "trip-a", isFavorite: true, changed: true } });
+    expect(test.tripQueries).toEqual([{ id: "trip-a", userId: "traveler-a" }]);
+    expect(test.favorites).toEqual([expect.objectContaining({ userId: "traveler-a", targetType: "TRIP", tripId: "trip-a" })]);
+    expect(await json(await add("trip-add-again"))).toMatchObject({ data: { changed: false } });
+    const replay = await add("trip-add");
+    expect(replay.headers.get("Idempotency-Replayed")).toBe("true");
+    expect(await json(replay)).toMatchObject({ operationStatus: "SUCCESS" });
+    expect(test.favorites).toHaveLength(1);
+  });
+
+  it("rejects a directly substituted foreign Trip ID exactly like a missing Trip", async () => {
+    const test = createFixture(); dependenciesRef.current = test.dependencies;
+    const { route } = await favoriteRoutes();
+    const bodies = [];
+    for (const id of ["trip-b", "missing-trip"]) {
+      const response = await route.PUT(request(`/api/favorites/trips/${id}`, "PUT", `key-${id}`), targetParams("trips", id));
+      expect(response.status).toBe(404);
+      bodies.push(await json(response));
+    }
+    expect(bodies[0]).toEqual(bodies[1]);
+    expect(test.tripQueries).toEqual([{ id: "trip-b", userId: "traveler-a" }, { id: "missing-trip", userId: "traveler-a" }]);
+    expect(test.favorites).toHaveLength(0);
+  });
+
+  it("removes only the current actor's Favorite and reports private status", async () => {
+    const test = createFixture(); dependenciesRef.current = test.dependencies;
+    const { route, statusRoute } = await favoriteRoutes();
+    await route.PUT(request("/api/favorites/trips/trip-a", "PUT", "add-a"), targetParams("trips", "trip-a"));
+    test.setSession({ userId: "traveler-b", role: "TRAVELER" });
+    const foreignStatus = await statusRoute.GET(new Request("http://localhost/api/favorites/status?targetType=trips&targetId=trip-a"));
+    expect(foreignStatus.status).toBe(404);
+    const foreignRemove = await route.DELETE(request("/api/favorites/trips/trip-a", "DELETE", "remove-b"), targetParams("trips", "trip-a"));
+    expect(foreignRemove.status).toBe(404);
+    expect(test.favorites).toHaveLength(1);
+    test.setSession({ userId: "traveler-a", role: "TRAVELER" });
+    const status = await statusRoute.GET(new Request("http://localhost/api/favorites/status?targetType=trips&targetId=trip-a"));
+    expect(await json(status)).toMatchObject({ data: { isFavorite: true } });
+    const removed = await route.DELETE(request("/api/favorites/trips/trip-a", "DELETE", "remove-a"), targetParams("trips", "trip-a"));
+    expect(await json(removed)).toMatchObject({ operationStatus: "SUCCESS", data: { isFavorite: false, changed: true } });
+    expect(test.favorites).toHaveLength(0);
+  });
+
+  it("denies Guest and Admin Trip mutations before accessing private data", async () => {
+    const test = createFixture(); dependenciesRef.current = test.dependencies;
+    const { route } = await favoriteRoutes();
+    test.setSession(null);
+    expect((await route.PUT(request("/api/favorites/trips/trip-a", "PUT", "guest"), targetParams("trips", "trip-a"))).status).toBe(401);
+    test.setSession({ userId: "admin", role: "ADMIN" });
+    expect((await route.PUT(request("/api/favorites/trips/trip-a", "PUT", "admin"), targetParams("trips", "trip-a"))).status).toBe(403);
+    expect(test.tripQueries).toEqual([]);
+    expect(test.favorites).toHaveLength(0);
+  });
+});
 
 describe("US15 favorites service and Route Handlers", () => {
   it("rejects Guest/Admin before target, idempotency, or favorite DB work", async () => {

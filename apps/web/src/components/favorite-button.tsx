@@ -48,6 +48,7 @@ export type FavoriteButtonProps = {
     context: FavoriteToggleContext,
   ) => FavoriteToggleOutcome | Promise<FavoriteToggleOutcome>;
   className?: string;
+  onConfirmed?: () => void;
 };
 
 type FavoriteLoadState = "loading" | "ready" | "unknown";
@@ -75,6 +76,7 @@ export default function FavoriteButton({
   initialIsFavorite,
   onToggle,
   className,
+  onConfirmed,
 }: FavoriteButtonProps) {
   const { data: session, isPending: isSessionPending, error: sessionError } =
     authClient.useSession();
@@ -238,8 +240,8 @@ export default function FavoriteButton({
   const label = mutationUnknown
     ? "Thử lại thao tác yêu thích"
     : confirmedIsFavorite
-      ? "Bỏ yêu thích"
-      : "Thêm vào yêu thích";
+      ? targetType === "trips" ? "Bỏ chuyến đi khỏi yêu thích" : "Bỏ yêu thích"
+      : targetType === "trips" ? "Thêm chuyến đi vào yêu thích" : "Thêm vào yêu thích";
   const clickAction = resolveFavoriteClickAction(sessionRole, hasSessionError);
 
   function createMutationAttempt(): FavoriteMutationAttempt {
@@ -370,6 +372,7 @@ export default function FavoriteButton({
         mutationAttemptRef.current = nextState.attempt;
         setMutationUnknown(nextState.mutationUnknown);
         setMessage(nextState.message);
+        onConfirmed?.();
         const nextIsFavorite = nextState.confirmedIsFavorite;
         toast.success(
           nextIsFavorite

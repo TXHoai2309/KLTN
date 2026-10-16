@@ -40,6 +40,7 @@ export default function Header() {
     { to: "/assistant", label: "Trợ lý AI" },
     { to: "/favorites", label: "Yêu thích" },
     { to: "/trips/new", label: "Lập hành trình" },
+    { to: "/trips", label: "Chuyến đi của tôi" },
     { to: "/dashboard", label: "Dashboard" },
   ] as const;
 
@@ -58,6 +59,8 @@ export default function Header() {
               ? pathname === "/"
               : to === "/explore"
                 ? pathname === "/explore" || pathname.startsWith("/destinations/")
+                : to === "/trips"
+                  ? pathname === "/trips" || (pathname.startsWith("/trips/") && !pathname.startsWith("/trips/new"))
                 : pathname === to || pathname.startsWith(`${to}/`);
             return <Link key={to} href={to as Route} className="site-nav-link" data-active={active || undefined} aria-current={active ? "page" : undefined}>{label}</Link>;
           })}
