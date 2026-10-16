@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import React from "react";
 import { editorialFixture } from "./__fixtures__/editorial-fixture";
 import { autoLayout, resolveEditorial } from "./editorial-engine";
-import { editorialLayoutSchema, type EditorialLayout } from "./editorial-contract";
+import { editorialLayoutSchema, type EditorialLayout, type EditorialLayoutV1 } from "./editorial-contract";
 import { editorialHeroPlan, heroDeck, heroFocalLocked, preservesHeroLocks } from "./editorial-hero";
 import { validateAiProposal } from "./editorial-ai";
 import { acceptedEditorialProposal } from "./editorial-proposal-result";
@@ -12,7 +12,7 @@ import EditorialPhoto from "@/components/editorial/editorial-photo";
 import EditorialRenderer from "@/components/editorial/editorial-renderer";
 vi.mock("@/components/map/destination-map", () => ({ default: () => null }));
 
-function proposal(base: EditorialLayout, composition = base.variant) {
+function proposal(base: EditorialLayoutV1, composition = base.variant) {
   return { family: base.family, variant: base.variant, heroComposition: composition, blocks: base.blocks.map(b => ({ id: b.id, mediaIds: b.mediaIds, placement: b.placement, focalX: b.focalX, focalY: b.focalY, crop: b.crop })) };
 }
 describe("Premium Hero safety and backward compatibility", () => {

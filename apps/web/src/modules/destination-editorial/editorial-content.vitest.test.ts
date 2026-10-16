@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { editorialBlockSchema } from "./editorial-contract";
+import { editorialBlockSchema, type EditorialLayoutV1 } from "./editorial-contract";
 import { autoLayout, resolveEditorial, validateLayoutReferences, chooseFamily } from "./editorial-engine";
 import { prepareEditorialContent, nearDuplicateEditorialText, isShortEditorialHeading, editorialTitlePhrases } from "./editorial-content";
 import { editorialImageWarnings } from "./editorial-image-quality";
@@ -7,7 +7,7 @@ import { editorialQualityFixture, legacyDuplicateFixture } from "./__fixtures__/
 import { validateAiProposal } from "./editorial-ai";
 
 const context = () => editorialQualityFixture("Cao nguyên đá Đồng Văn", "công viên địa chất", 3);
-const proposal = (layout: ReturnType<typeof autoLayout>) => ({ family: layout.family, variant: layout.variant, blocks: layout.blocks.map(b => ({ id:b.id,title:b.title,mediaIds:b.mediaIds,placement:b.placement })) });
+const proposal = (layout: EditorialLayoutV1) => ({ family: layout.family, variant: layout.variant, blocks: layout.blocks.map(b => ({ id:b.id,title:b.title,mediaIds:b.mediaIds,placement:b.placement })) });
 describe("V3.5 editorial content projection", () => {
   it("keeps canonical data/draft immutable while eliminating the exact heading/body/lead duplication reported by the owner", () => {
     const c = context(), layout = legacyDuplicateFixture(c), before = structuredClone({ c, layout });

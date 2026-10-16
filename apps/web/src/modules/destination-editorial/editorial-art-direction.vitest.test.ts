@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
 import { autoLayout, resolveEditorial } from "./editorial-engine";
 import { validateAiProposal } from "./editorial-ai";
 import { editorialFixture } from "./__fixtures__/editorial-fixture";

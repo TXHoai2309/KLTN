@@ -1,10 +1,25 @@
 import { publicHttpsUrl } from "../content-profile/content-profile-contract";
 import { isDestinationMediaUsable } from "../destination/destination-media-eligibility";
-import { editorialBlockSchema, editorialLayoutSchema, type EditorialLayout, type EditorialContext, type ResolvedEditorial, type EditorialBlock } from "./editorial-contract";
+import {
+  editorialBlockSchema,
+  editorialLayoutSchema,
+  editorialLayoutV1Schema,
+  editorialLayoutV2Schema,
+  isV1Layout,
+  isV2Layout,
+  type EditorialLayout,
+  type EditorialLayoutV1,
+  type EditorialLayoutV2,
+  type EditorialNodeV2,
+  type EditorialContext,
+  type ResolvedEditorial,
+  type EditorialBlock,
+} from "./editorial-contract";
 import { groupEditorialSections, prepareEditorialContent, splitSourcedSection, stripMarkdownHeading } from "./editorial-content";
 import { editorialImageDimensions } from "./editorial-image-quality";
 import { heroFocalLocked } from "./editorial-hero";
 import { editorialValue, editorialVisitData, hasEditorialCoordinates, hasEditorialFacts } from "./editorial-display-policy";
+import { compileEditorialLayout } from "./editorial-compiler";
 export function chooseFamily(category: string): EditorialLayout["family"] {
   const c = category.normalize("NFC").toLocaleLowerCase("vi");
   if (/di tích|lịch sử|kiến trúc/.test(c)) return "HERITAGE_STORY";
@@ -25,7 +40,7 @@ function landscape(media: EditorialContext["media"][number]) {
   const d = editorialImageDimensions(media);
   return Boolean(d.width && d.height && d.width / d.height >= 1.5);
 }
-export function autoLayout(context: EditorialContext, seed?: EditorialLayout): EditorialLayout {
+export function autoLayoutV1(context: EditorialContext, seed?: EditorialLayoutV1): EditorialLayoutV1 {
   const images = [...usableEditorialMedia(context)].sort((a, b) => Number(b.isCover) - Number(a.isCover) || Number(landscape(b)) - Number(landscape(a)));
   const keepHeroImage = seed && heroFocalLocked(seed);
   if (keepHeroImage) {
@@ -95,9 +110,7 @@ export function autoLayout(context: EditorialContext, seed?: EditorialLayout): E
       blocks.splice(practical < 0 ? blocks.length : practical, 0, retained);
     } else blocks.push(retained);
   }
-  // If a manually filled layout reaches the contract ceiling, keep its text and
-  // provenance and chosen presentation intact instead of truncating the layout.
-  if (blocks.length > 30 && seed) return editorialLayoutSchema.parse(seed);
+  if (blocks.length > 30 && seed) return editorialLayoutV1Schema.parse(seed);
   if (seed) {
     const original = seed.blocks.find(b => b.type === "HERO");
     const generated = blocks.find(b => b.type === "HERO");
@@ -105,32 +118,382 @@ export function autoLayout(context: EditorialContext, seed?: EditorialLayout): E
       generated.crop = original.crop; generated.focalX = original.focalX; generated.focalY = original.focalY;
     }
   }
-  return editorialLayoutSchema.parse({ schemaVersion: 1, family: seed?.family ?? family, variant: seed?.variant ?? variant, ...(seed?.design ? { design: seed.design } : {}), ...(seed?.hero ? { hero: seed.hero } : {}), blocks });
+  return editorialLayoutV1Schema.parse({ schemaVersion: 1, family: seed?.family ?? family, variant: seed?.variant ?? variant, ...(seed?.design ? { design: seed.design } : {}), ...(seed?.hero ? { hero: seed.hero } : {}), blocks });
 }
+
+export function autoLayoutV2(context: EditorialContext, seed?: EditorialLayoutV2): EditorialLayoutV2 {
+  const images = [...usableEditorialMedia(context)].sort((a, b) => Number(b.isCover) - Number(a.isCover) || Number(landscape(b)) - Number(landscape(a)));
+  const { introText, sections: parsedSections } = groupEditorialSections(context.description, context.category);
+  const family = chooseFamily(context.category);
+  const variant = !images.length ? "EDITORIAL" : family === "NATURE_SHOWCASE" && (landscape(images[0]!) || images.length >= 4) ? "PANORAMA"
+    : family === "HERITAGE_STORY" && context.description.length > 700 ? "EDITORIAL" : family === "JOURNEY_EDITORIAL" && images.length >= 4 ? "EDITORIAL" : "SPLIT";
+
+  const heroImage = images[0];
+  const remaining = images.slice(1);
+  const storyImage = remaining.shift();
+
+  const sections: EditorialNodeV2[] = [
+    {
+      id: "hero",
+      type: "HERO",
+      hidden: false,
+      locked: false,
+      title: context.name,
+      text: "",
+      caption: "",
+      emphasis: "STANDARD",
+      mediaIds: heroImage ? [heroImage.id] : [],
+      sourceIds: [],
+      crop: "wide",
+      placement: "full",
+      gallery: "mosaic",
+      focalX: 50,
+      focalY: 50,
+      entries: [],
+      children: [],
+    },
+    {
+      id: "intro",
+      type: "LEAD",
+      hidden: false,
+      locked: false,
+      contentRef: "ast-intro",
+      title: "",
+      text: introText,
+      caption: "",
+      emphasis: "STANDARD",
+      mediaIds: [],
+      sourceIds: [],
+      crop: "wide",
+      placement: "left",
+      gallery: "mosaic",
+      focalX: 50,
+      focalY: 50,
+      entries: [],
+      children: [],
+    },
+  ];
+
+  for (const [index, sec] of parsedSections.entries()) {
+    const isFirstWithImage = index === 0 && storyImage;
+    const cleanTitle = stripMarkdownHeading(sec.title);
+    const provenance = cleanTitle && context.description.includes(cleanTitle)
+      ? { blockId: `section-${index}`, excerpt: cleanTitle }
+      : undefined;
+
+    if (isFirstWithImage) {
+      sections.push({
+        id: `section-${index}`,
+        type: "IMAGE_TEXT",
+        hidden: false,
+        locked: false,
+        title: cleanTitle,
+        text: sec.text,
+        caption: "",
+        emphasis: "FEATURED",
+        placement: "right",
+        columns: 2,
+        gap: "MEDIUM",
+        aspectRatio: landscape(storyImage) ? "16:9" : "4:5",
+        mediaIds: [storyImage.id],
+        sourceIds: [],
+        crop: landscape(storyImage) ? "wide" : "portrait",
+        gallery: "mosaic",
+        focalX: 50,
+        focalY: 50,
+        entries: [],
+        children: [],
+        ...(provenance ? { headingProvenance: provenance } : {}),
+      });
+    } else {
+      sections.push({
+        id: `section-${index}`,
+        type: "SECTION",
+        hidden: false,
+        locked: false,
+        title: cleanTitle,
+        text: sec.text,
+        caption: "",
+        emphasis: "STANDARD",
+        columns: 1,
+        gap: "SMALL",
+        aspectRatio: "16:9",
+        mediaIds: [],
+        sourceIds: [],
+        crop: "wide",
+        placement: "left",
+        gallery: "mosaic",
+        focalX: 50,
+        focalY: 50,
+        entries: [],
+        children: [],
+        ...(provenance ? { headingProvenance: provenance } : {}),
+      });
+    }
+  }
+
+  if (remaining.length >= 2) {
+    sections.push({
+      id: "gallery",
+      type: "IMAGE_MOSAIC",
+      hidden: false,
+      locked: false,
+      title: "",
+      text: "",
+      caption: "",
+      emphasis: "STANDARD",
+      columns: Math.min(remaining.length, 3),
+      gap: "MEDIUM",
+      aspectRatio: "16:9",
+      mediaIds: remaining.map(m => m.id),
+      sourceIds: [],
+      crop: "wide",
+      placement: "full",
+      gallery: "mosaic",
+      focalX: 50,
+      focalY: 50,
+      entries: [],
+      children: [],
+    });
+  }
+
+  if (hasEditorialFacts(context)) {
+    sections.push({
+      id: "facts",
+      type: "FACTS",
+      hidden: false,
+      locked: false,
+      title: "",
+      text: "",
+      caption: "",
+      emphasis: "STANDARD",
+      mediaIds: [],
+      sourceIds: [],
+      crop: "wide",
+      placement: "full",
+      gallery: "mosaic",
+      focalX: 50,
+      focalY: 50,
+      entries: [],
+      children: [],
+    });
+  }
+
+  if (hasEditorialCoordinates(context)) {
+    sections.push({
+      id: "map",
+      type: "MAP",
+      hidden: false,
+      locked: false,
+      title: "Vị trí tham chiếu",
+      text: "",
+      caption: "",
+      emphasis: "STANDARD",
+      mediaIds: [],
+      sourceIds: [],
+      crop: "wide",
+      placement: "full",
+      gallery: "mosaic",
+      focalX: 50,
+      focalY: 50,
+      entries: [],
+      children: [],
+    });
+  }
+
+  const sources = context.sources.filter(isEligibleEditorialSource);
+  if (sources.length) {
+    sections.push({
+      id: "sources",
+      type: "SOURCES",
+      hidden: false,
+      locked: false,
+      title: "Nguồn tham khảo",
+      text: "",
+      caption: "",
+      emphasis: "STANDARD",
+      sourceIds: sources.map(s => s.id),
+      mediaIds: [],
+      crop: "wide",
+      placement: "full",
+      gallery: "mosaic",
+      focalX: 50,
+      focalY: 50,
+      entries: [],
+      children: [],
+    });
+  }
+
+  const designTokens = {
+    typography: family === "HERITAGE_STORY" ? "LITERARY" as const : family === "NATURE_SHOWCASE" ? "MODERN" as const : "HUMANIST" as const,
+    palette: family === "HERITAGE_STORY" ? "FOREST" as const : family === "NATURE_SHOWCASE" ? "SLATE" as const : "EARTH" as const,
+    rhythm: "IMMERSIVE" as const,
+    containerWidth: "STANDARD" as const,
+  };
+
+  return editorialLayoutV2Schema.parse({
+    schemaVersion: 2,
+    mode: "GENERATIVE",
+    family: seed?.family ?? family,
+    variant: seed?.variant ?? variant,
+    design: seed?.design ?? designTokens,
+    hero: seed?.hero ?? { composition: variant, locked: false },
+    sections,
+    metadata: {
+      generatedAt: new Date().toISOString(),
+      qualityScore: 95,
+    },
+  });
+}
+
+export function autoLayout(context: EditorialContext): EditorialLayoutV1;
+export function autoLayout(context: EditorialContext, seed: EditorialLayoutV2): EditorialLayoutV2;
+export function autoLayout(context: EditorialContext, seed: EditorialLayoutV1): EditorialLayoutV1;
+export function autoLayout(context: EditorialContext, seed?: EditorialLayout): EditorialLayout;
+export function autoLayout(context: EditorialContext, seed?: EditorialLayout): EditorialLayout {
+  if (seed && isV2Layout(seed)) {
+    return autoLayoutV2(context, seed);
+  }
+  return autoLayoutV1(context, seed as EditorialLayoutV1 | undefined);
+}
+
+export type LayoutNodeDescriptor = {
+  id: string;
+  type: string;
+  hidden?: boolean;
+  locked?: boolean;
+  title?: string;
+  text?: string;
+  caption?: string;
+  deck?: string;
+  emphasis?: "STANDARD" | "FEATURED" | "ACCENT" | "SUBTLE";
+  placement?: "left" | "right" | "full" | "center";
+  crop?: "wide" | "portrait" | "square" | "original";
+  focalX?: number;
+  focalY?: number;
+  gallery?: "mosaic" | "grid" | "strip" | "masonry";
+  mediaIds?: string[];
+  sourceIds?: string[];
+  entries?: Array<{ label: string; text: string; sourceIds: string[] }>;
+  headingProvenance?: { blockId: string; excerpt: string };
+};
+
+export function getAllLayoutNodes(layout: EditorialLayout): LayoutNodeDescriptor[] {
+  if (isV1Layout(layout)) return layout.blocks;
+  const list: LayoutNodeDescriptor[] = [];
+  const collect = (nodes: any[]) => {
+    for (const n of nodes) {
+      list.push(n);
+      if (n.children?.length) collect(n.children);
+    }
+  };
+  collect(layout.sections);
+  return list;
+}
+
+export class EditorialReferenceError extends Error {
+  constructor(
+    message: string,
+    readonly details?: {
+      nodeId?: string;
+      nodeType?: string;
+      field?: "mediaIds" | "sourceIds" | "headingProvenance" | "entries" | "text";
+      reason?: "UNUSABLE_MEDIA" | "REJECTED_SOURCE" | "HEADING_PROVENANCE" | "QUOTE_SOURCE_REQUIRED" | "TIMELINE_SOURCE_REQUIRED";
+    }
+  ) {
+    super(message);
+    this.name = "EditorialReferenceError";
+  }
+}
+
 export function validateLayoutReferences(layout: EditorialLayout, context: EditorialContext, publishing: boolean) {
   const media = new Set(context.media.filter(m => !publishing || isDestinationMediaUsable(m, context.id)).map(m => m.id));
   const sources = new Set(context.sources.filter(s => !publishing || s.websiteRights !== "REJECTED").map(s => s.id));
-  for (const b of layout.blocks) {
-    if (b.headingProvenance && (b.headingProvenance.blockId !== b.id || b.headingProvenance.excerpt !== b.title || (!b.text.includes(b.title) && !context.description.includes(b.title)))) throw Error("Heading không còn khớp trích đoạn nguồn.");
+  const nodes = getAllLayoutNodes(layout);
+  for (const b of nodes) {
+    if (b.headingProvenance && (b.headingProvenance.blockId !== b.id || b.headingProvenance.excerpt !== b.title || (!b.text?.includes(b.title) && !context.description.includes(b.title)))) {
+      throw new EditorialReferenceError("Heading không còn khớp trích đoạn nguồn.", {
+        nodeId: b.id,
+        nodeType: b.type,
+        field: "headingProvenance",
+        reason: "HEADING_PROVENANCE",
+      });
+    }
     if (b.hidden && publishing) continue;
-    if (b.mediaIds.some(id => !media.has(id)) || [...b.sourceIds, ...b.entries.flatMap(e => e.sourceIds)].some(id => !sources.has(id))) throw Error("Ảnh hoặc nguồn không thuộc điểm đến hoặc không còn khả dụng.");
-    if (publishing && b.type === "QUOTE" && b.text && !b.sourceIds.length && !context.description.includes(b.text)) throw Error("Trích dẫn cần nguồn được duyệt hoặc đoạn nguyên văn trong mô tả.");
-    if (publishing && b.type === "TIMELINE" && b.entries.some(e => !e.label || !e.text || !e.sourceIds.length)) throw Error("Mốc thời gian cần nội dung và nguồn.");
+    if ((b.mediaIds ?? []).some(id => !media.has(id))) {
+      throw new EditorialReferenceError("Ảnh hoặc nguồn không thuộc điểm đến hoặc không còn khả dụng.", {
+        nodeId: b.id,
+        nodeType: b.type,
+        field: "mediaIds",
+        reason: "UNUSABLE_MEDIA",
+      });
+    }
+    if ([...(b.sourceIds ?? []), ...(b.entries ?? []).flatMap(e => e.sourceIds)].some(id => !sources.has(id))) {
+      throw new EditorialReferenceError("Ảnh hoặc nguồn không thuộc điểm đến hoặc không còn khả dụng.", {
+        nodeId: b.id,
+        nodeType: b.type,
+        field: "sourceIds",
+        reason: "REJECTED_SOURCE",
+      });
+    }
+    if (publishing && b.type === "QUOTE" && b.text && !(b.sourceIds ?? []).length && !context.description.includes(b.text)) {
+      throw new EditorialReferenceError("Trích dẫn cần nguồn được duyệt hoặc đoạn nguyên văn trong mô tả.", {
+        nodeId: b.id,
+        nodeType: b.type,
+        field: "sourceIds",
+        reason: "QUOTE_SOURCE_REQUIRED",
+      });
+    }
+    if (publishing && b.type === "TIMELINE" && (b.entries ?? []).some(e => !e.label || !e.text || !e.sourceIds.length)) {
+      throw new EditorialReferenceError("Mốc thời gian cần nội dung và nguồn.", {
+        nodeId: b.id,
+        nodeType: b.type,
+        field: "entries",
+        reason: "TIMELINE_SOURCE_REQUIRED",
+      });
+    }
   }
 }
+
 export type EditorialDisplayIssue = { blockId: string; reason: "ADMIN_HIDDEN" | "EMPTY_CONTENT" | "DUPLICATE_BLOCK" };
-export function resolveEditorialDisplay(layout: EditorialLayout, context: EditorialContext) {
-  const issues: EditorialDisplayIssue[] = layout.blocks.filter(b => b.hidden).map(b => ({ blockId: b.id, reason: "ADMIN_HIDDEN" }));
-  layout = prepareEditorialContent(layout, context.description).layout;
+
+export type ResolvedEditorialT<T extends EditorialLayout> = {
+  layout: T;
+  media: ResolvedEditorial["media"];
+  sources: ResolvedEditorial["sources"];
+};
+
+export function resolveEditorialDisplay<T extends EditorialLayout>(
+  layout: T,
+  context: EditorialContext
+): { editorial: ResolvedEditorialT<T> | null; issues: EditorialDisplayIssue[] } {
+  if (isV2Layout(layout)) {
+    const compiled = compileEditorialLayout(layout, context);
+    const renderNode = (node: typeof compiled.nodes[number]): EditorialNodeV2 => {
+      const { responsiveRules: _responsive, compositionNotes: _notes, children, ...values } = node;
+      return { ...values, type: node.type as EditorialNodeV2["type"], aspectRatio: node.aspectRatio as EditorialNodeV2["aspectRatio"], children: children.map(renderNode) };
+    };
+    const editorial: ResolvedEditorialT<T> = {
+      layout: { ...layout, sections: compiled.nodes.map(renderNode) },
+      media: compiled.media,
+      sources: compiled.sources,
+    };
+    return { editorial, issues: [] };
+  }
+
+  const v1Layout = layout as EditorialLayoutV1;
+  const issues: EditorialDisplayIssue[] = v1Layout.blocks.filter(b => b.hidden).map(b => ({ blockId: b.id, reason: "ADMIN_HIDDEN" }));
+  const prepped = prepareEditorialContent(v1Layout, context.description);
+  const currentV1Layout = prepped.layout;
   const media = usableEditorialMedia(context);
   const sources = context.sources.filter(isEligibleEditorialSource);
   const sourceIds = new Set(sources.map(s => s.id));
   const seen = new Set<string>();
   const seenSourceIds = new Set<string>();
   const singletons = new Set<string>();
-  const factsShown = layout.blocks.some(b => b.type === "HIGHLIGHT_FACTS" && !b.hidden) && hasEditorialFacts(context);
+  const factsShown = currentV1Layout.blocks.some(b => b.type === "HIGHLIGHT_FACTS" && !b.hidden) && hasEditorialFacts(context);
   const seenDisplayTitles = new Set<string>();
-  const blocks = layout.blocks.filter(b => !b.hidden).map((b, bIdx) => {
+  const blocks = currentV1Layout.blocks.filter(b => !b.hidden).map((b, bIdx) => {
     const rawSourceIds = b.type === "SOURCES" && !b.sourceIds.length ? sources.map(s => s.id) : b.sourceIds;
     let title = stripMarkdownHeading(editorialValue(b.title));
     if (title && seenDisplayTitles.has(title.toLowerCase())) {
@@ -191,9 +554,9 @@ export function resolveEditorialDisplay(layout: EditorialLayout, context: Editor
       entries: [],
     });
   }
-  const editorial: ResolvedEditorial | null = !blocks.length ? null : { layout: { ...layout, blocks }, media: media.filter(m => seen.has(m.id)).map(m => ({ id: m.id, url: m.url, alt: m.alt, caption: m.caption, author: m.author, sourceUrl: m.sourceUrl, ...editorialImageDimensions(m) })), sources: sources.map(({ id, title, url }) => ({ id, title, url })) };
+  const editorial: ResolvedEditorialT<T> | null = !blocks.length ? null : ({ layout: { ...currentV1Layout, blocks } as unknown as T, media: media.filter(m => seen.has(m.id)).map(m => ({ id: m.id, url: m.url, alt: m.alt, caption: m.caption, author: m.author, sourceUrl: m.sourceUrl, ...editorialImageDimensions(m) })), sources: sources.map(({ id, title, url }) => ({ id, title, url })) } as ResolvedEditorialT<T>);
   return { editorial, issues };
 }
-export function resolveEditorial(layout: EditorialLayout, context: EditorialContext): ResolvedEditorial | null {
+export function resolveEditorial<T extends EditorialLayout>(layout: T, context: EditorialContext): ResolvedEditorialT<T> | null {
   return resolveEditorialDisplay(layout, context).editorial;
 }

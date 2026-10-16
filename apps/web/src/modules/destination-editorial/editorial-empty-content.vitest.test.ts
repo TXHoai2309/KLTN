@@ -4,7 +4,7 @@ vi.mock("@/components/map/destination-map", () => ({ default: () => null }));
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import EditorialRenderer from "@/components/editorial/editorial-renderer";
-import { editorialBlockSchema, type EditorialBlock, type EditorialContext, type EditorialLayout } from "./editorial-contract";
+import { editorialBlockSchema, type EditorialBlock, type EditorialContext, type EditorialLayout, type EditorialLayoutV1 } from "./editorial-contract";
 import { editorialFixture } from "./__fixtures__/editorial-fixture";
 import { autoLayout, resolveEditorial, resolveEditorialDisplay, validateLayoutReferences } from "./editorial-engine";
 import { editorialValue, editorialVisitData } from "./editorial-display-policy";
@@ -16,9 +16,9 @@ const block = (id: string, type: EditorialBlock["type"], extra = {}) => editoria
 function sparse() {
   return { ...editorialFixture(undefined, 0), area: "", category: "", description: "", suggestedDurationMinutes: null, latitude: NaN, longitude: NaN, sources: [] } satisfies EditorialContext;
 }
-const layoutFor = (c: EditorialContext): EditorialLayout => ({ ...autoLayout(c), blocks: [block("hero", "HERO", { title: c.name }), block("intro", "INTRO"), block("text", "TEXT_SECTION"), block("facts", "HIGHLIGHT_FACTS"), block("visit", "VISIT_INFORMATION"), block("map", "MAP"), block("sources", "SOURCES"), block("photos", "IMAGE_GALLERY"), block("split", "IMAGE_TEXT_SPLIT")] });
+const layoutFor = (c: EditorialContext): EditorialLayoutV1 => ({ ...autoLayout(c), blocks: [block("hero", "HERO", { title: c.name }), block("intro", "INTRO"), block("text", "TEXT_SECTION"), block("facts", "HIGHLIGHT_FACTS"), block("visit", "VISIT_INFORMATION"), block("map", "MAP"), block("sources", "SOURCES"), block("photos", "IMAGE_GALLERY"), block("split", "IMAGE_TEXT_SPLIT")] });
 const htmlFor = (c: EditorialContext, layout: EditorialLayout) => { const editorial = resolveEditorial(layout, c); return editorial ? renderToStaticMarkup(React.createElement(EditorialRenderer, { data: c, editorial })) : ""; };
-const proposal = (base: EditorialLayout) => ({ family: base.family, variant: base.variant, design: { typography: "MODERN", palette: "SLATE", rhythm: "COMPACT" }, blocks: base.blocks.map(b => ({ id: b.id, title: b.title, mediaIds: [...b.mediaIds], placement: b.placement, crop: b.crop, gallery: b.gallery, deck: b.deck ?? "", hidden: b.hidden, composition: "KEEP", emphasis: b.emphasis ?? "STANDARD" })) });
+const proposal = (base: EditorialLayoutV1) => ({ family: base.family, variant: base.variant, design: { typography: "MODERN", palette: "SLATE", rhythm: "COMPACT" }, blocks: base.blocks.map(b => ({ id: b.id, title: b.title, mediaIds: [...b.mediaIds], placement: b.placement, crop: b.crop, gallery: b.gallery, deck: b.deck ?? "", hidden: b.hidden, composition: "KEEP", emphasis: b.emphasis ?? "STANDARD" })) });
 
 describe("Smart empty content is a reversible shared display projection", () => {
   it.each(["", " ", "Chưa có dữ liệu", "Đang cập nhật", "Không có thông tin", "N/A", "undefined", "null"])("recognizes exact optional sentinel %s without stripping prose", value => {
@@ -60,10 +60,11 @@ describe("Smart empty content is a reversible shared display projection", () => 
     expect(resolveEditorial(layout, c)!.layout.blocks.filter(b => b.type === "SOURCES")).toHaveLength(1);
     expect(layout.blocks.filter(b => b.type === "SOURCES")).toHaveLength(2);
   });
-  it("shows known operating days only, labeled by weekday key rather than array index", () => {
+  it("keeps operating-day data available without rendering the retired travel preparation panel", () => {
     const c = sparse(); c.openingDays = [{ dayOfWeek: "SUNDAY", status: "CLOSED", intervals: [] }, { dayOfWeek: "MONDAY", status: "UNKNOWN", intervals: [] }, { dayOfWeek: "TUESDAY", status: "OPEN", intervals: [{ opensAt: "08:00", closesAt: "17:00" }] }];
     const html = htmlFor(c, layoutFor(c));
-    expect(html).toContain("Chủ Nhật"); expect(html).toContain("Thứ Ba"); expect(html).not.toContain("Thứ Hai"); expect(html).toContain("08:00–17:00"); expect(html).not.toContain("Chưa có dữ liệu");
+    expect(editorialVisitData(c).hours.map(day => day.label)).toEqual(["Chủ Nhật", "Thứ Ba"]);
+    expect(html).not.toContain("Chuẩn bị cho chuyến đi"); expect(html).not.toContain("emg-visit"); expect(html).not.toContain("08:00–17:00");
     c.openingDays = [{ dayOfWeek: "MONDAY", status: "OPEN", intervals: [{ opensAt: "25:00", closesAt: "17:00" }] }];
     expect(editorialVisitData(c).hours).toEqual([]);
   });
@@ -124,7 +125,7 @@ describe("AI validation and atomic proposal application", () => {
   });
   it("client gate rejects even a PROPOSED envelope with duplicate IDs, foreign media or changed source prose", () => {
     const c = editorialFixture(), base = autoLayout(c);
-    for (const mutation of [ (b: EditorialLayout) => { b.blocks[1]!.id = b.blocks[0]!.id; }, (b: EditorialLayout) => { b.blocks[0]!.mediaIds = ["foreign"]; }, (b: EditorialLayout) => { b.blocks[1]!.text += " injected"; } ]) {
+    for (const mutation of [ (b: EditorialLayoutV1) => { b.blocks[1]!.id = b.blocks[0]!.id; }, (b: EditorialLayoutV1) => { b.blocks[0]!.mediaIds = ["foreign"]; }, (b: EditorialLayoutV1) => { b.blocks[1]!.text += " injected"; } ]) {
       const next = structuredClone(base); mutation(next);
       expect(acceptedEditorialProposal({ status: "PROPOSED", layout: next }, base, c, "KEEP")).toBeNull();
     }

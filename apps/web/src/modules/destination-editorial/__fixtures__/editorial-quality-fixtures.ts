@@ -1,6 +1,6 @@
 import { editorialFixture } from "./editorial-fixture";
 import { autoLayout } from "../editorial-engine";
-import type { EditorialContext, EditorialLayout } from "../editorial-contract";
+import type { EditorialContext, EditorialLayout, EditorialLayoutV1 } from "../editorial-contract";
 
 // Synthetic acceptance prose, never inserted into a datasource or asserted as travel facts.
 export function editorialQualityFixture(name: string, category: string, count: number) {
@@ -16,7 +16,7 @@ export const qualityCases = [
   ["lo-lo-chai", "Lô Lô Chải", "làng du lịch – bản làng", 8],
   ["no-photo", "Một điểm đến chưa có ảnh", "thiên nhiên – thắng cảnh", 0],
 ] as const;
-export function legacyDuplicateFixture(context: EditorialContext): EditorialLayout {
+export function legacyDuplicateFixture(context: EditorialContext): EditorialLayoutV1 {
   const layout = autoLayout(context);
   const intro = layout.blocks.find(b => b.type === "INTRO")!;
   // Reproduce the owner's failure: a full factual sentence copied into a heading.

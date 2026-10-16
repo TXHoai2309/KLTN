@@ -5,7 +5,7 @@ import { createEditorialProposalHandler } from "./editorial-http";
 import { v3TestStore } from "../destination/__fixtures__/v3-store";
 import { writeDestination } from "../destination/destination-service";
 import { unknownSchedule } from "../destination/destination-contract";
-import { autoLayout } from "./editorial-engine";
+import { autoLayoutV2 } from "./editorial-engine";
 import { readEditorialContext } from "./editorial-service";
 import { createEditorialOpenAiClient } from "./editorial-openai-client";
 import { withEditorialAiConcurrency } from "./editorial-concurrency";
@@ -18,7 +18,7 @@ async function fixture() {
   const f = v3TestStore(), db = f.deps.database as any;
   const created = await writeDestination(new Headers(), { name: "Fixture", description: "Fixture introduction.\n\nFixture body.", area: "Fixture area", category: "thiên nhiên", latitude: 23, longitude: 105, suggestedDurationMinutes: 60, minimumDurationMinutes: 30, openingDays: unknownSchedule() }, "create", null, f.deps);
   if (created.status !== "SUCCESS") throw Error("fixture");
-  const id = created.data.id, layout = autoLayout(await readEditorialContext(id, db));
+  const id = created.data.id, layout = autoLayoutV2(await readEditorialContext(id, db));
   const budgetRead = vi.fn(() => { throw Error("Editorial must not read a historical budget"); });
   db.idempotencyRecord.count = budgetRead;
   db.idempotencyRecord.findMany = budgetRead;
@@ -26,22 +26,22 @@ async function fixture() {
   for (let i = 0; i < 20; i++) f.records().set(`old-budget-${i}`, { scope: JSON.stringify(["test-admin", "destination:editorial-ai-budget"]), key: `old-budget-${i}`, responseJson: '{"admitted":true}', createdAt: new Date() });
   const recordsBefore = structuredClone(f.records());
   const install = (fetcher: typeof fetch) => { http.deps = f.deps; http.client = createEditorialOpenAiClient({ apiKey: () => "private-fixture-key", model: () => "gpt-6-luna", fetcher }); };
-  const request = (mode = "PROPOSE") => createEditorialProposalHandler(http.deps, () => http.client)(new Request("http://localhost/api/admin/destinations/fixture/editorial/propose", { method: "POST", headers: { "content-type": "application/json", origin: "http://localhost" }, body: JSON.stringify({ layout, mode }) }), { params: Promise.resolve({ id }) });
+  const request = (mode = "PROPOSE", version = 2) => createEditorialProposalHandler(http.deps, () => http.client)(new Request("http://localhost/api/admin/destinations/fixture/editorial/propose", { method: "POST", headers: { "content-type": "application/json", origin: "http://localhost" }, body: JSON.stringify({ layout, mode, version }) }), { params: Promise.resolve({ id }) });
   return { ...f, id, db, layout, install, request, budgetRead, recordsBefore };
 }
 function answer(init: any, changed = true) {
-  const input = JSON.parse(JSON.parse(init.body).messages[1].content), base = input.base;
-  return { family: base.family, variant: base.variant, heroComposition: input.hero.composition, design: changed ? { typography: "MODERN", palette: "SLATE", rhythm: "IMMERSIVE" } : base.design, blocks: base.blocks.map((b: any) => ({ id: b.id, mediaIds: b.mediaIds, placement: b.placement, crop: b.crop, focalX: b.focalX, focalY: b.focalY })) };
+  const input = JSON.parse(JSON.parse(init.body).messages[1].content), base = input.currentLayout;
+  return { ...base, design: changed ? { typography: "MODERN", palette: "SLATE", rhythm: "IMMERSIVE", containerWidth: "STANDARD" } : base.design };
 }
 const response = (proposal: unknown) => new Response(JSON.stringify({ model: "gpt-6-luna", usage: { prompt_tokens: 123, completion_tokens: 45 }, choices: [{ finish_reason: "stop", message: { content: JSON.stringify(proposal) } }] }), { headers: { "x-request-id": "req_mock_fixture" } });
 const logs = (): Record<string, any>[] => info.mock.calls.map((c: unknown[]) => JSON.parse(String(c[0])));
 
 describe("Editorial admission, provider evidence and honest 429 UX", () => {
-  it.each([["development", "PROPOSE"], ["development", "ALTERNATIVE"], ["production", "PROPOSE"], ["production", "ALTERNATIVE"]])("allows 25 sequential %s %s actions without minute/day budgets", async (environment, mode) => {
+  it.each([["development", "PROPOSE"], ["production", "PROPOSE"]])("allows 25 sequential %s %s actions without minute/day budgets", async (environment, mode) => {
     vi.stubEnv("NODE_ENV", environment);
     const f = await fixture(), fetcher = vi.fn(async (_url, init) => response(answer(init))); f.install(fetcher as typeof fetch);
     for (let i = 0; i < 25; i++) {
-      const r = await f.request(mode); expect(r.status).toBe(200); expect((await r.json()).data.outcome).toBe("PROPOSED_NEW");
+      const r = await f.request(mode); expect(r.status).toBe(200); expect((await r.json()).data.status).toBe("PROPOSED");
     }
     expect(fetcher).toHaveBeenCalledTimes(25); expect(f.budgetRead).not.toHaveBeenCalled();
     expect(f.records()).toEqual(f.recordsBefore);
@@ -53,7 +53,7 @@ describe("Editorial admission, provider evidence and honest 429 UX", () => {
     const fetcher = vi.fn(async (_url, init) => { started(); await gate; return response(answer(init)); }); f.install(fetcher as typeof fetch);
     const first = f.request(); await entered;
     try {
-      const second = await f.request("ALTERNATIVE"); expect(second.status).toBe(409);
+      const second = await f.request(); expect(second.status).toBe(409);
       expect(await second.json()).toMatchObject({ error: { code: "EDITORIAL_AI_IN_PROGRESS" } });
       expect(second.headers.has("Retry-After")).toBe(false); expect(fetcher).toHaveBeenCalledOnce();
       expect(logs().at(-1)).toMatchObject({ admissionReason: "CONCURRENCY", providerCalled: false });
@@ -94,7 +94,7 @@ describe("Editorial admission, provider evidence and honest 429 UX", () => {
   });
   it("retains provider billing quota codes rather than PROPOSAL_INVALID", async () => {
     const f = await fixture(); f.install(vi.fn(async () => new Response('{"error":{"code":"insufficient_quota"}}', { status: 429 })) as typeof fetch);
-    const r = await f.request("ALTERNATIVE"); expect(r.status).toBe(429);
+    const r = await f.request(); expect(r.status).toBe(429);
     expect(await r.json()).toMatchObject({ error: { code: "EDITORIAL_AI_PROVIDER_QUOTA", details: { source: "PROVIDER", providerCode: "insufficient_quota" } } });
     expect(editorial429Message("EDITORIAL_AI_PROVIDER_QUOTA", "insufficient_quota")).toContain("insufficient_quota");
   });
@@ -103,21 +103,21 @@ describe("Editorial admission, provider evidence and honest 429 UX", () => {
     const r = await f.request(), body = await r.json(); expect(body.data).toMatchObject({ status: "FALLBACK", layout: before });
     expect(logs().map(l => l.stage)).toEqual(expect.arrayContaining(["PROPOSAL_REJECTED", "FALLBACK_USED"])); expect(f.layout).toEqual(before);
   });
-  it("Alternative admits once while making at most two model calls", async () => {
-    const f = await fixture(); let call = 0; const fetcher = vi.fn(async (_url, init) => response(answer(init, ++call === 2))); f.install(fetcher as typeof fetch);
-    const r = await f.request("ALTERNATIVE"); expect((await r.json()).data.outcome).toBe("PROPOSED_NEW");
-    expect(fetcher).toHaveBeenCalledTimes(2);
-    expect(logs().filter(l => l.stage === "ADMISSION_ACCEPTED")).toHaveLength(1);
-    expect(logs().filter(l => l.stage === "PROVIDER_REQUEST_STARTED").map(l => l.attempt)).toEqual([1, 2]);
+  it.each([["ALTERNATIVE", 2], ["PROPOSE", 1]])("rejects retired mode/version %s/%s before calling the provider", async (mode, version) => {
+    const f = await fixture(), fetcher = vi.fn(); f.install(fetcher as typeof fetch);
+    const r = await f.request(mode as string, version as number);
+    expect(r.status).toBe(400);
+    expect(await r.json()).toMatchObject({ error: { code: "INVALID_EDITORIAL_AI" } });
+    expect(fetcher).not.toHaveBeenCalled();
   });
   it("does not fabricate absent or hostile provider evidence", async () => {
     const f = await fixture(); f.install(vi.fn(async (_url, init) => new Response(JSON.stringify({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify(answer(init)) } }] }), { headers: { "x-request-id": "private-fixture-key" } })) as typeof fetch);
     await f.request(); expect(logs().find(l => l.stage === "PROVIDER_RESPONSE_RECEIVED")).toMatchObject({ actualModel: null, providerRequestId: null, inputTokens: null, outputTokens: null });
     expect(JSON.stringify(logs())).not.toContain("private-fixture");
   });
-  it("Alternative stops at one provider 429 without spending a second admission or call", async () => {
+  it("generation stops at one provider 429 without spending a second admission or call", async () => {
     const f = await fixture(), fetcher = vi.fn(async () => new Response('{"error":{"code":"rate_limit_exceeded"}}', { status: 429 })); f.install(fetcher as typeof fetch);
-    const r = await f.request("ALTERNATIVE"); expect(r.status).toBe(429); expect(r.headers.has("Retry-After")).toBe(false);
+    const r = await f.request(); expect(r.status).toBe(429); expect(r.headers.has("Retry-After")).toBe(false);
     expect(fetcher).toHaveBeenCalledOnce();
     expect(logs().filter(l => l.stage === "PROVIDER_REQUEST_FAILED")).toHaveLength(1);
   });

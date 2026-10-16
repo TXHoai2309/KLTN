@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { AI_LAYOUT_PRESERVED } from "./editorial-display-policy";
 
-export type EditorialAiFailure = "MODEL_UNAVAILABLE" | "INVALID_API_KEY" | "FORBIDDEN" | "QUOTA_EXCEEDED" | "RATE_LIMIT" | "UNSUPPORTED_PARAMETER" | "INVALID_SCHEMA" | "INVALID_OUTPUT" | "TOKEN_LIMIT" | "TIMEOUT" | "NETWORK" | "PROVIDER_UNAVAILABLE" | "REFUSAL" | "CANCELLED" | "CONFIGURATION" | "PROPOSAL_INVALID" | "ADMISSION_REJECTED" | "LLM_PROVIDER_ERROR" | "STALE_LAYOUT" | "SCHEMA_VALIDATION" | "MEDIA_PROVENANCE";
+export type EditorialAiFailure = "MODEL_UNAVAILABLE" | "INVALID_API_KEY" | "FORBIDDEN" | "QUOTA_EXCEEDED" | "RATE_LIMIT" | "UNSUPPORTED_PARAMETER" | "INVALID_SCHEMA" | "LOCAL_INVALID_SCHEMA" | "OPENAI_SCHEMA_REJECTED" | "INVALID_OUTPUT" | "TOKEN_LIMIT" | "TIMEOUT" | "NETWORK" | "PROVIDER_UNAVAILABLE" | "REFUSAL" | "CANCELLED" | "CONFIGURATION" | "PROPOSAL_INVALID" | "ADMISSION_REJECTED" | "LLM_PROVIDER_ERROR" | "STALE_LAYOUT" | "SCHEMA_VALIDATION" | "MEDIA_PROVENANCE";
 const providerCodes = new Set(["model_not_found", "invalid_api_key", "insufficient_quota", "billing_hard_limit_reached", "billing_not_active", "unsupported_parameter", "unsupported_value", "invalid_parameter", "invalid_value", "invalid_json_schema", "rate_limit_exceeded", "server_error", "context_length_exceeded"]);
 const parameters = new Set(["model", "temperature", "top_p", "max_completion_tokens", "response_format", "response_format.json_schema", "response_format.json_schema.schema", "reasoning_effort", "messages"]);
 const safeCode = (value: unknown) => typeof value === "string" && providerCodes.has(value) ? value : null;
@@ -17,12 +17,36 @@ export class EditorialAiError extends Error {
   }
 }
 export type EditorialValidationCode = "OUTPUT_SIZE" | "JSON_PARSE" | "SCHEMA" | "DIRECTION" | "BLOCK_IDS" | "TITLE_PROVENANCE" | "HEADING" | "COMPOSITION" | "MEDIA_ROLE" | "HIDDEN_STATE" | "DECK_PROVENANCE" | "LAYOUT_CONTRACT" | "MEDIA_ELIGIBILITY" | "DUPLICATE_MEDIA" | "REFERENCES" | "PHOTO_REMOVAL" | "STALE_LAYOUT" | "INVALID_MODEL_OUTPUT" | "SCHEMA_VALIDATION" | "MEDIA_PROVENANCE";
-const fieldNames = new Set(["family", "variant", "design", "typography", "palette", "rhythm", "blocks", "id", "mediaIds", "placement", "title", "crop", "gallery", "deck", "emphasis", "composition", "hidden", "headingProvenance", "sourceIds"]);
+
+export type ReferenceValidationDetails = {
+  validationStage?: "MODEL_PARSE" | "WIRE_SCHEMA" | "TREE_CONTRACT" | "REFERENCES" | "HYDRATION" | "LOCKS" | "QUALITY_GATE" | "DIVERGENCE";
+  issueCode?: string;
+  referenceType?: "CONTENT_AST" | "MEDIA" | "SOURCE" | "NODE";
+  nodeType?: string;
+  nodePath?: string;
+  invalidReason?: "UNKNOWN_REFERENCE" | "DUPLICATE_REFERENCE" | "UNUSABLE_MEDIA" | "REJECTED_SOURCE" | "MISSING_REQUIRED_SOURCE" | "INVALID_FORMAT";
+  expectedNamespace?: "ast.units" | "context.media" | "context.sources" | "layout.sections";
+};
+
+const fieldNames = new Set([
+  "family", "variant", "design", "typography", "palette", "rhythm",
+  "blocks", "sections", "id", "mediaIds", "placement", "title", "text", "crop",
+  "gallery", "deck", "emphasis", "composition", "hidden", "headingProvenance",
+  "sourceIds", "contentRef", "entries", "children", "columns", "gap", "label",
+  "caption", "hero", "containerWidth", "content", "type", "locked", "aspectRatio", "columnRatio", "focalX", "focalY", "focalLocked", "schemaVersion", "mode"
+]);
+
 export class EditorialProposalError extends EditorialAiError {
   readonly fieldPath: string;
-  constructor(readonly validationCode: EditorialValidationCode, path: readonly PropertyKey[] = []) {
+  readonly referenceDetails?: ReferenceValidationDetails;
+  constructor(
+    readonly validationCode: EditorialValidationCode,
+    path: readonly PropertyKey[] = [],
+    details?: ReferenceValidationDetails
+  ) {
     super("PROPOSAL_INVALID");
-    this.fieldPath = path.slice(0, 6).map(part => typeof part === "number" && Number.isSafeInteger(part) && part >= 0 && part < 100 ? String(part) : typeof part === "string" && fieldNames.has(part) ? part : "field").join(".");
+    this.fieldPath = path.slice(0, 12).map(part => typeof part === "number" && Number.isSafeInteger(part) && part >= 0 && part < 100 ? String(part) : typeof part === "string" && fieldNames.has(part) ? part : "field").join(".") || "$";
+    this.referenceDetails = { validationStage: ["JSON_PARSE", "OUTPUT_SIZE"].includes(validationCode) ? "MODEL_PARSE" : validationCode === "SCHEMA" ? "WIRE_SCHEMA" : validationCode === "DIRECTION" ? "LOCKS" : "REFERENCES", ...details };
   }
 }
 export function editorialHttpError(status: number, payload: unknown, retryAfterSeconds?: number) {
@@ -33,7 +57,7 @@ export function editorialHttpError(status: number, payload: unknown, retryAfterS
     : status === 401 ? "INVALID_API_KEY"
     : ["insufficient_quota", "billing_hard_limit_reached", "billing_not_active"].includes(code ?? "") ? "QUOTA_EXCEEDED" : status === 403 ? "FORBIDDEN"
     : status === 429 ? "RATE_LIMIT" : status === 408 ? "TIMEOUT"
-    : status >= 500 ? "PROVIDER_UNAVAILABLE" : code === "invalid_json_schema" ? "INVALID_SCHEMA"
+    : status >= 500 ? "PROVIDER_UNAVAILABLE" : code === "invalid_json_schema" ? "OPENAI_SCHEMA_REJECTED"
     : code === "context_length_exceeded" ? "TOKEN_LIMIT" : status === 400 ? "UNSUPPORTED_PARAMETER" : "PROVIDER_UNAVAILABLE";
   return new EditorialAiError(category, status, code, param, retryAfterSeconds);
 }
@@ -44,21 +68,60 @@ export function createEditorialAiDiagnostics() {
     // prompts, response bodies, actor/Destination IDs, headers or raw exceptions.
     console.info(JSON.stringify({ event: "editorial_ai", correlationId, phase, code, ...extra,
       httpStatus: error?.httpStatus ?? null, providerCode: error?.providerCode ?? null, param: error?.param ?? null,
-      ...(error instanceof EditorialProposalError ? { validationCode: error.validationCode, fieldPath: error.fieldPath } : {}) }));
+      ...(error instanceof EditorialProposalError ? {
+        validationCode: error.validationCode,
+        fieldPath: error.fieldPath,
+        validationStage: error.referenceDetails?.validationStage ?? "REFERENCES",
+        issueCode: error.referenceDetails?.issueCode ?? error.validationCode,
+        nodePath: error.fieldPath,
+        ...(error.referenceDetails ? {
+          referenceType: error.referenceDetails.referenceType ?? null,
+          nodeType: error.referenceDetails.nodeType ?? null,
+          nodePath: error.referenceDetails.nodePath && /^(?:sections|blocks)(?:\.(?:children|entries|[0-9]{1,2}))*$/.test(error.referenceDetails.nodePath) ? error.referenceDetails.nodePath : error.fieldPath,
+          invalidReason: error.referenceDetails.invalidReason ?? null,
+          expectedNamespace: error.referenceDetails.expectedNamespace ?? null,
+        } : {}),
+      } : {}) }));
   };
   return { correlationId,
     received() { emit("ADMISSION", "APP_REQUEST_RECEIVED", undefined, { stage: "APP_REQUEST_RECEIVED" }); },
     admitted() { emit("ADMISSION", "ADMISSION_ACCEPTED", undefined, { stage: "ADMISSION_ACCEPTED" }); },
     admissionRejected(status: number | null, reason: "CONCURRENCY" | "PREPARATION_FAILED" | "AUTH_OR_INPUT") { emit("ADMISSION", "ADMISSION_REJECTED", new EditorialAiError("ADMISSION_REJECTED", status), { stage: "ADMISSION_REJECTED", outcome: "REJECTED_BEFORE_PROVIDER", providerCalled: false, admissionReason: reason }); },
-    providerStarted(attempt: number) { emit("PROVIDER_REQUEST", "PROVIDER_REQUEST_STARTED", undefined, { stage: "PROVIDER_REQUEST_STARTED", requestedModel: "gpt-6-luna", attempt: attempt === 2 ? 2 : 1 }); },
-    providerResponse(status: number, requestId: unknown, payload: unknown, attempt: number) {
+    providerStarted(attempt: number, configuredTimeoutMs?: number) {
+      emit("PROVIDER_REQUEST", "PROVIDER_REQUEST_STARTED", undefined, {
+        stage: "PROVIDER_REQUEST_STARTED",
+        requestedModel: "gpt-6-luna",
+        attempt: attempt === 2 ? 2 : 1,
+        ...(Number.isSafeInteger(configuredTimeoutMs) ? { configuredTimeoutMs } : {}),
+      });
+    },
+    providerResponse(status: number, requestId: unknown, payload: unknown, attempt: number, elapsedMs?: number, configuredTimeoutMs?: number) {
       const p = payload && typeof payload === "object" ? payload as { model?: unknown; usage?: { prompt_tokens?: unknown; completion_tokens?: unknown } } : {};
       const tokens = (v: unknown) => typeof v === "number" && Number.isSafeInteger(v) && v >= 0 ? v : null;
-      emit("PROVIDER_REQUEST", "PROVIDER_RESPONSE_RECEIVED", new EditorialAiError("PROVIDER_UNAVAILABLE", status), { stage: "PROVIDER_RESPONSE_RECEIVED", requestedModel: "gpt-6-luna", actualModel: typeof p.model === "string" && /^gpt-6-luna(?:-[a-zA-Z0-9.-]+)?$/.test(p.model) && p.model.length <= 100 ? p.model : null,
+      emit("PROVIDER_REQUEST", "PROVIDER_RESPONSE_RECEIVED", new EditorialAiError("PROVIDER_UNAVAILABLE", status), {
+        stage: "PROVIDER_RESPONSE_RECEIVED",
+        requestedModel: "gpt-6-luna",
+        actualModel: typeof p.model === "string" && /^gpt-6-luna(?:-[a-zA-Z0-9.-]+)?$/.test(p.model) && p.model.length <= 100 ? p.model : null,
         providerRequestId: typeof requestId === "string" && /^req_[a-zA-Z0-9_-]{1,160}$/.test(requestId) ? requestId : null,
-        inputTokens: tokens(p.usage?.prompt_tokens), outputTokens: tokens(p.usage?.completion_tokens), attempt: attempt === 2 ? 2 : 1 });
+        providerStatus: status,
+        inputTokens: tokens(p.usage?.prompt_tokens),
+        outputTokens: tokens(p.usage?.completion_tokens),
+        attempt: attempt === 2 ? 2 : 1,
+        ...(Number.isSafeInteger(elapsedMs) ? { elapsedMs } : {}),
+        ...(Number.isSafeInteger(configuredTimeoutMs) ? { configuredTimeoutMs } : {}),
+      });
     },
-    providerFailed(error: EditorialAiError, attempt: number) { emit("PROVIDER_REQUEST", error.code, error, { stage: "PROVIDER_REQUEST_FAILED", attempt: attempt === 2 ? 2 : 1 }); },
+    providerFailed(error: EditorialAiError, attempt: number, elapsedMs?: number, configuredTimeoutMs?: number) {
+      emit("PROVIDER_REQUEST", error.code, error, {
+        stage: "PROVIDER_REQUEST_FAILED",
+        attempt: attempt === 2 ? 2 : 1,
+        outcome: error.code,
+        errorClassification: error.code,
+        providerStatus: error.httpStatus ?? null,
+        ...(Number.isSafeInteger(elapsedMs) ? { elapsedMs } : {}),
+        ...(Number.isSafeInteger(configuredTimeoutMs) ? { configuredTimeoutMs } : {}),
+      });
+    },
     fallback(phase: "ADMISSION" | "PROVIDER_REQUEST" | "PROPOSAL_VALIDATION", error?: EditorialAiError, outcome = "FALLBACK") { emit(phase, error?.code ?? "FALLBACK", error, { stage: "FALLBACK_USED", outcome }); },
     configured(keyPresent: boolean, model: string | undefined) {
       emit("CONFIGURATION", !keyPresent ? "MISSING_API_KEY" : !model?.trim() ? "MISSING_MODEL" : model.trim() === "gpt-6-luna" ? "CONFIGURED_GPT6_LUNA" : "CONFIGURED_OTHER_MODEL");
@@ -75,6 +138,8 @@ const reasons: Record<string, string> = {
   QUOTA_EXCEEDED: "OpenAI báo thiếu quota hoặc cần kiểm tra billing.",
   RATE_LIMIT: "OpenAI đang giới hạn lượt gọi. Thử lại sau.",
   UNSUPPORTED_PARAMETER: "OpenAI từ chối tham số request Editorial. Kiểm tra log theo mã tham chiếu.",
+  LOCAL_INVALID_SCHEMA: "JSON Schema của Editorial không hợp lệ cục bộ trước khi gửi.",
+  OPENAI_SCHEMA_REJECTED: "OpenAI từ chối JSON Schema của Editorial.",
   INVALID_SCHEMA: "OpenAI từ chối JSON Schema của Editorial.",
   INVALID_OUTPUT: "OpenAI trả dữ liệu Structured Output không hợp lệ.",
   TOKEN_LIMIT: "Đề xuất vượt giới hạn token. Giữ bố cục hiện có hoặc thử lại.",
@@ -93,5 +158,15 @@ const reasons: Record<string, string> = {
 export function editorialFallbackReason(error: EditorialAiError, correlationId: string) {
   const code = error instanceof EditorialProposalError ? error.validationCode : error.code;
   const detail = reasons[code] ?? reasons[error.code] ?? reasons.PROPOSAL_INVALID;
-  return `${AI_LAYOUT_PRESERVED} ${detail}${error.providerCode ? ` Mã OpenAI: ${error.providerCode}.` : ""} Mã tham chiếu: ${correlationId}`;
+  const issues: Record<string, string> = {
+    DUPLICATE_NODE_ID: "Có node trùng ID.", DUPLICATE_MEDIA: "Một ảnh xuất hiện nhiều lần.",
+    NODE_LIMIT: "Cây bố cục vượt 50 node.", DEPTH_LIMIT: "Cây bố cục vượt ba cấp.",
+    HERO_POSITION: "Hero bị lặp hoặc đặt sai cấp.", CONTENT_LOSS: "Đề xuất chưa giữ đủ nội dung gốc.",
+    UNSOURCED_CONTENT: "Đề xuất có nội dung không được chứng minh từ hồ sơ.",
+    UNVERIFIED_EVENT_SOURCE: "Sự kiện và nguồn tham khảo chưa có liên kết được kiểm chứng.",
+    UNVERIFIED_CLAIM_SOURCE: "Nguồn chưa được xác nhận cho nội dung này.",
+    MANUAL_LOCK: "Đề xuất thay đổi phần Admin đã khóa hoặc ẩn.",
+  };
+  const issue = error instanceof EditorialProposalError ? issues[error.referenceDetails?.issueCode ?? ""] : undefined;
+  return `${AI_LAYOUT_PRESERVED} ${issue ?? detail}${error.providerCode ? ` Mã OpenAI: ${error.providerCode}.` : ""} Mã tham chiếu: ${correlationId}`;
 }

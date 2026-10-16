@@ -27,6 +27,26 @@ components:
 
 # Admin RAG design context
 
+## V4.2 editorial composition (2026-10-16)
+
+EditorialRenderer and resolveEditorialDisplay remain the shared Preview/Public
+owners. The V4 projection now consumes the compiler's reading groups, column
+count and safe crop. editorial-generative.css extends the existing emg tokens;
+it introduces no global theme or font. V1 styling stays independent. A heading
+travels with its paragraph; long prose uses at most two balanced columns and
+stacks inside previews narrower than 960px. GALLERY and original-ratio mosaics
+must not inherit V1's featured-photo crop. Unknown body originals retain the
+whole image. Hero uses the existing Cover/Split/Panorama quality plan.
+
+Native OS selects remain EditorialEditor's canonical select owner, including V4
+type/palette/rhythm/width controls. Local template conversion is reversible with
+Undo and uses the existing edit history, with no native confirmation dialog.
+Save, Publish, Rollback, UNKNOWN recovery and useUnsavedChanges keep their existing
+owners. Manual prose edits lock the node and detach its canonical reference.
+The V4.2 browser harness mounts production Editor/Renderer components with offline
+service results and real Destination media, at measured iframe viewports of
+390/768/1440px. This is separate from live GPT-6 Luna and published-V4 acceptance.
+
 ## Overview
 
 Scope: Task186 indexing panel in the existing Admin document detail. Audience:
@@ -280,7 +300,7 @@ synthetic fixtures; no upload, deletion, datasource write or real model request.
 
 EditorialEditor keeps its existing controls and feedback region. A refused AI
 action preserves local work, distinguishes application admission from provider
-limits, and uses only a valid server Retry-After to disable both AI buttons with
+limits, and uses only a valid server Retry-After to disable the AI button with
 a countdown. Editing and Save remain available. Expiration enables explicit
 retry without dispatching a request. Missing/invalid timing never creates a
 fictional wait. Reuse af-helper/status typography and existing disabled styles;
@@ -289,3 +309,36 @@ request quotas in Development and Production. Only active work is bounded: one
 action per Admin and four actions per server process; completion/failure releases
 the slot immediately. Duplicate/busy responses use 409/503 without a guessed wait.
 Only provider 429 may carry a provider Retry-After cooldown and safe error code.
+
+### Editorial V4-only workflow (2026-10-16)
+
+Owner retired alternative generation and the V3.6 template controls. The sole AI
+action is “AI dàn trang”, requesting Layout DSL v2. New unsaved layouts start in
+V4. Keep typography/palette/rhythm/width controls, manual locks, exact Undo,
+unsaved-change guard and explicit Save/Publish. Existing V1 data still renders
+without automatic conversion or persistence; no version switch or template
+regeneration is exposed. Reuse existing af controls and feedback; no new styling
+system. Temporary screenshots/harness output belong outside the repository.
+
+The Owner also removed the travel preparation panel from editorial Preview/Public.
+Keep Destination metadata and canonical narrative intact; old VISIT_INFORMATION
+nodes stay storage-compatible but do not render. New V4 generation omits them.
+
+### Editorial reading scale (2026-10-16)
+
+Owner requested a calmer reading scale. Shared editorial.css owns body text at
+16–17px / 1.75, lead text at 17–20px / 1.7 with a 42rem cap and 62ch measure,
+and section headings at 20.8–30px. Reduce the decorative initial to 2.4em and
+Split Hero titles to 32–57.6px (mobile Hero 30.4–44.8px). Keep article-relative
+container sizing, intrinsic image proportions and browser zoom accessibility.
+Preview and Public use the same scale; no stored layout/data conversion.
+
+### Editorial body alignment (2026-10-16)
+
+Owner requested one straight body rail, including the lead, prose, image/text
+rows, maps and references. editorial.css owns --emg-reading-width:48rem with
+existing responsive gutters. Each root body section shares its left/right edge;
+nested V4 wrappers add no gutter. Prose fills its assigned column, paired media
+and copy align at the top, and featured prose no longer adds a left inset.
+Hero remains the distinct article opening. Do not justify text or stretch/crop
+images to force equal heights; preserve natural reading and photo proportions.

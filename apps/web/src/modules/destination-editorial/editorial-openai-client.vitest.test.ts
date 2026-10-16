@@ -43,7 +43,7 @@ describe("Editorial-only GPT-6 Luna adapter, offline", () => {
   });
   it.each([
     [400, "unsupported_parameter", "temperature", "UNSUPPORTED_PARAMETER"],
-    [400, "invalid_json_schema", "response_format", "INVALID_SCHEMA"],
+    [400, "invalid_json_schema", "response_format", "OPENAI_SCHEMA_REJECTED"],
     [401, "invalid_api_key", null, "INVALID_API_KEY"], [403, null, "model", "FORBIDDEN"],
     [404, "model_not_found", "model", "MODEL_UNAVAILABLE"],
     [429, "insufficient_quota", null, "QUOTA_EXCEEDED"], [429, "rate_limit_exceeded", null, "RATE_LIMIT"],
@@ -86,7 +86,7 @@ describe("Editorial-only GPT-6 Luna adapter, offline", () => {
   it("rejects missing configuration, invalid schemas and already-cancelled input without a provider call", async () => {
     const fetcher = vi.fn(async () => completion());
     await expect(createEditorialOpenAiClient({apiKey:()=>undefined,model:()=>"gpt-6-luna",fetcher:fetcher as typeof fetch}).complete(input)).rejects.toMatchObject({code:"CONFIGURATION"});
-    await expect(client(fetcher as typeof fetch).complete({...input,jsonSchema:{type:"object"}})).rejects.toMatchObject({code:"INVALID_SCHEMA"});
+    await expect(client(fetcher as typeof fetch).complete({...input,jsonSchema:{type:"object"}})).rejects.toMatchObject({code:"LOCAL_INVALID_SCHEMA"});
     await expect(client(fetcher as typeof fetch).complete({...input,signal:AbortSignal.abort()})).rejects.toMatchObject({code:"CANCELLED"});
     expect(fetcher).not.toHaveBeenCalled();
     vi.stubEnv("OPENAI_API_KEY", ""); expect(editorialAiClient()).toBeNull();

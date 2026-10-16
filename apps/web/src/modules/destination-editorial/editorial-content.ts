@@ -1,4 +1,5 @@
-import type { EditorialBlock, EditorialLayout } from "./editorial-contract";
+import type { EditorialBlock, EditorialLayout, EditorialLayoutV1, EditorialLayoutV2 } from "./editorial-contract";
+import { isV2Layout } from "./editorial-contract";
 
 export const normalizeEditorialText = (text: string) => text.normalize("NFC").toLocaleLowerCase("vi").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
 export const editorialParagraphs = (text: string) => text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
@@ -43,10 +44,49 @@ export function nearDuplicateEditorialText(a: string, b: string) {
 export type EditorialContentIssue = { code: "LONG_HEADING" | "DUPLICATE_HEADING" | "DUPLICATE_PARAGRAPH" | "NEAR_DUPLICATE"; blockId: string; relatedBlockId?: string };
 const narrative = new Set(["HERO", "INTRO", "TEXT_SECTION", "IMAGE_TEXT_SPLIT"]);
 
+export function prepareEditorialContent(layout: EditorialLayoutV1, canonicalSource?: string): {
+  canonicalSource: string;
+  layout: EditorialLayoutV1;
+  issues: EditorialContentIssue[];
+  heroTitle: string;
+  heroDeck: string;
+  leadParagraphs: string[];
+  sections: Array<{ blockId: string; heading: string; body: string; caption: string; provenance: any }>;
+};
+export function prepareEditorialContent(layout: EditorialLayoutV2, canonicalSource?: string): {
+  canonicalSource: string;
+  layout: EditorialLayoutV2;
+  issues: EditorialContentIssue[];
+  heroTitle: string;
+  heroDeck: string;
+  leadParagraphs: string[];
+  sections: Array<{ blockId: string; heading: string; body: string; caption: string; provenance: any }>;
+};
+export function prepareEditorialContent(layout: EditorialLayout, canonicalSource?: string): {
+  canonicalSource: string;
+  layout: EditorialLayout;
+  issues: EditorialContentIssue[];
+  heroTitle: string;
+  heroDeck: string;
+  leadParagraphs: string[];
+  sections: Array<{ blockId: string; heading: string; body: string; caption: string; provenance: any }>;
+};
 /** A read-only presentation projection. Canonical records and stored draft JSON are never mutated. */
-export function prepareEditorialContent(layout: EditorialLayout, canonicalSource = "") {
+export function prepareEditorialContent(layout: EditorialLayout, canonicalSource = ""): any {
+  if (isV2Layout(layout)) {
+    return {
+      canonicalSource,
+      layout,
+      issues: [],
+      heroTitle: "",
+      heroDeck: "",
+      leadParagraphs: [],
+      sections: [],
+    };
+  }
+  const v1 = layout as EditorialLayoutV1;
   const issues: EditorialContentIssue[] = [];
-  const blocks = layout.blocks.map(b => ({ ...b }));
+  const blocks = v1.blocks.map(b => ({ ...b }));
   const retained: { text: string; normalized: string; blockId: string }[] = [];
   const seenHeadings = new Set<string>();
   // Give the lead ownership of a repeated opening paragraph, regardless of block ordering.
@@ -96,7 +136,7 @@ export function prepareEditorialContent(layout: EditorialLayout, canonicalSource
   const lead = blocks.find(b => b.type === "INTRO" && !b.hidden);
   return {
     canonicalSource,
-    layout: { ...layout, blocks }, issues,
+    layout: { ...v1, blocks }, issues,
     heroTitle: hero?.title ?? "",
     heroDeck: hero?.deck || (hero && hero.text.length <= 180 ? hero.text : ""),
     leadParagraphs: editorialParagraphs(lead?.text ?? ""),

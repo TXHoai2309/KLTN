@@ -1777,3 +1777,143 @@ Owner approved removal of Editorial minute/day quotas for Development and Produc
 Verification and limitations: see docs/implementation/destination-editorial-no-request-quota.md. No real OpenAI calls, shared Neon writes, migration, Cloudinary mutation or commit/push/deployment.
 
 Verification complete: 276 focused tests PASS/6 isolated-DB tests SKIP; 28 browser groups PASS; four-workspace typecheck, web build, scoped UI audit (zero findings), script syntax and diff check PASS. READY_FOR_MANUAL_TEST=YES. Production not deployed; live OpenAI not called.
+
+## 2026-10-16 — Fix V4 Generative Layout GPT-6 Luna Timeout
+
+Resolved runtime timeout issue in V4 Generative Engine (`PROVIDER_REQUEST_FAILED: TIMEOUT`, ~26.3s abort) when querying `gpt-6-luna`.
+
+Root Cause:
+- Editorial OpenAI client hardcoded an internal client abort timer at 25,000ms (`v1TimeoutMs`), insufficient for GPT-6 Luna structured generation of Layout DSL v2 (20-30 nodes).
+- Prompt required the model to echo full Vietnamese narrative text into the `text` field, dramatically inflating token generation time.
+
+Key Changes:
+- Timeout Strategy: Configured distinct timeout tiers separating V4 (60,000ms default, configurable via `OPENAI_EDITORIAL_TIMEOUT_MS` up to 90,000ms) from V3.6 (25,000ms default). Next.js Route Handler `maxDuration` set to 90s; frontend `AbortSignal.timeout` set to 95s for V4.
+- Total Action Deadline: In `ALTERNATIVE` mode, bounded the entire action to 85,000ms max. Attempt 2 is aborted if remaining action time is < 15,000ms, preventing trailing timeouts.
+- Payload Optimization & Content Preservation: AI prompt instructs model to emit `contentRef: "<unitId>"` and leave `text: ""` for narrative blocks. Server-side deterministically rehydrates authentic prose from Content AST units into `text` and `title`, slashing output token budget by ~80% while strictly ensuring 100% content preservation.
+- Strict Schema Alignment: `children` array in `editorialNodeV2Schema` marked nullable to align with OpenAI strict mode leaf representations.
+- Diagnostics & Fallback: Added sanitized diagnostics (`configuredTimeoutMs`, `elapsedMs`, `attempt`, `providerStatus`, `providerRequestId`, `inputTokens`, `outputTokens`, `errorClassification`) with zero secret leakage. Timeouts fall back atomically to preserve user draft and layout untouched.
+
+Verification:
+- 15/15 focused timeout tests PASS (`editorial-v4-timeout.vitest.test.ts`).
+- 257/257 total editorial tests PASS across 15 test suites.
+- Turbo check-types (4/4 packages) and Next.js production build PASS.
+- `git diff --check` PASS (0 whitespace errors).
+- LIVE_OPENAI_TEST=PENDING; READY_FOR_MANUAL_TEST=YES.
+
+### Task: FIX_V4_GENERATIVE_REFERENCES_VALIDATION
+
+Status: COMPLETED (Verified via focused vitest suite, Turbo check-types, production build, diff-check)
+Correlation ID: 9eef7352-4be0-4d77-974a-ae7dfad68167
+Destination: Căng Bắc Mê (cmv9fcwo1000be89w3yxz3mqu)
+
+Root Cause:
+1. `userPayload` supplied `ast` and `media` to GPT-6 Luna but completely omitted `sources: context.sources`. When GPT-6 Luna generated `SOURCES` or `TIMELINE` nodes, it either hallucinated foreign source IDs or left `sourceIds` empty (which failed publishing requirements for `TIMELINE` where empty sources are rejected).
+2. `validateLayoutReferences` in `editorial-engine.ts` threw a generic `Error` with message without structured metadata (`nodeId`, `nodeType`, `field`, `reason`).
+3. In `editorial-ai-diagnostics.ts`, `fieldNames` array lacked Layout DSL v2 property keys (`sections`, `contentRef`, `entries`, `children`, `text`, `caption`, `hero`, `columns`, `gap`, etc.), causing fallback to generic `fieldPath="field"`.
+4. `contentRef` was not validated strictly prior to hydration or constrained at the JSON Schema grammar level, permitting the model to output non-existent content unit IDs.
+
+Key Changes:
+- Reference Contract & Dynamic Schema Enum: Updated `createV2JsonSchema(direction, base, ast)` to dynamically bind `contentRef` property in section/child schemas to `enum: ast.units.map(u => u.id)` when AST is present. This uses OpenAI Structured Outputs grammar-level token masking to prevent hallucinated content unit IDs at generation time.
+- Context & Prompt Alignment: Included canonical `sources: context.sources.map(s => ({ id: s.id, title: s.title, url: s.url }))` in the `userPayload` sent to OpenAI. Updated `EDITORIAL_GENERATIVE_PROMPT` with explicit provenance rules for `sources`, `contentRef`, and `mediaIds`.
+- Strict Pre-Hydration & Post-Hydration Reference Validation: `validateAiProposalV2` validates all `contentRef` against `ast.units`, `mediaIds` against destination-owned `usableEditorialMedia(context)`, and `sourceIds` against `context.sources`.
+- Deterministic Hydration & Auto-Hydration for Sources: Rehydrates authentic narrative text from AST into `text` and `title`. For `SOURCES` nodes and `TIMELINE` entries, if the model passes empty or unpopulated source arrays, server-side deterministically auto-hydrates approved canonical source IDs from `context.sources`, guaranteeing full provenance compliance and 100% content preservation.
+- Granular Diagnostics & Safe Logging: Created `EditorialReferenceError` with `{ nodeId, nodeType, field, reason }`. Added `ReferenceValidationDetails` to diagnostics logging (`referenceType`, `nodeType`, `nodePath`, `invalidReason`, `expectedNamespace`, `outcome`) with zero secret or prose leakage. Expanded `fieldNames` so `fieldPath` reflects precise DSL paths (e.g., `sections.2.contentRef`, `sections.4.sourceIds`).
+- Preservation of Fallback Invariants: Any reference failure falls back atomically to existing user draft, preserving working tree and unsaved edits without corrupting state.
+
+Verification:
+- 15/15 focused reference tests PASS (`editorial-v4-references.vitest.test.ts`).
+- 272/272 total destination-editorial Vitest tests PASS across 16 test files.
+- Turbo check-types (4/4 packages: @KLTN/auth, @KLTN/config, @KLTN/db, @KLTN/ui, web) PASS.
+- `git diff --check` PASS (0 whitespace errors).
+- LIVE_GPT6_LUNA=PENDING; READY_FOR_MANUAL_TEST=YES.
+
+## 2026-10-16 — V4.2 alternative contract and browser composition acceptance
+
+Implemented bounded provider/runtime alignment, precise Zod tree paths/stages/codes,
+current V4-tree payload and text weights, exact canonical hydration/preservation,
+compiled body divergence and the full Quality Gate. Removed automatic first-source
+timeline attribution; unverified event/source bindings are rejected. Added shared
+manual-node locks, compiler-backed Preview/Public rendering, balanced prose grids,
+heading grouping, resolution-aware Hero and original-ratio galleries. Browser-safe
+content segmentation retains server AST hashes; V1 behavior is regression covered.
+
+Verified GENERATE followed by three consecutive ALTERNATIVE calls on a read-only
+Căng Bắc Mê DOM fixture with mocked transport, production service and renderer.
+Four candidates preserve every description unit and all five images. Production
+Editor browser clicks/Undo pass at measured iframe widths390/768/1440, with no
+horizontal overflow. Actual Admin local V4 conversion was undone; read-only Public
+later displayed V4. No Save/Publish or paid provider request was made by this task.
+
+Verification:1,489 Vitest PASS/91 DB SKIP,328 legacy PASS, root typecheck and web
+production build PASS; diff check PASS. Premium global static audit retains28
+pre-existing/global findings, not a repository-wide audit PASS. Source backup replay
+proves provider allowed columns0 while runtime rejected it, and duplicate-ID errors
+formerly lost their path at root. The exact historical live SCHEMA issue cannot be
+reconstructed from the supplied log; it is not asserted to be duplicate ID/media.
+
+STATUS=OFFLINE_VERIFIED; LIVE_PENDING. READY_FOR_MANUAL_TEST=YES.
+No env/Neon/migration/Destination write, commit/push/deploy. Pre-existing dirty
+changes preserved. Report and Owner live procedure:
+[current V4 handoff](implementation/destination-generative-layout-v4-report.md).
+
+### V4.2 follow-up — Owner live TITLE_PROVENANCE (2026-10-16)
+
+New screenshot identifies HYDRATION / UNSOURCED_CONTENT at
+`sections.2.children.4.title` after provider HTTP200. Reproduced the contract gap:
+wire schema accepted arbitrary titles, while runtime required canonical/manual/UI
+provenance. Added exact canonical/current-draft title enums at all three wire
+depths and explicit heading-reference instructions; provenance validation remains
+strict. Synthetic regression failed before the fix and passes afterward, including
+preserved manual title on the original ID and rejection if moved to a new ID.
+Full Vitest:1,491 PASS/91 DB SKIP; root typecheck, production build and diff check PASS. Căng Bắc Mê GENERATE plus
+three consecutive ALTERNATIVE fixtures still pass. Browser renderer is unchanged;
+existing screenshots remain scoped rendering evidence. LIVE_PENDING remains;
+no paid calls or Destination writes were made. See the V4.2 implementation report
+and `artifacts/v4-2/title-provenance-before-after.json` for safe before/after evidence.
+
+## 2026-10-16 — Owner simplification: V4 only
+
+Owner retired alternative generation, V3.6 controls and the travel preparation
+panel. The supported AI action is PROPOSE/version2; retired HTTP mode/version
+requests fail before provider calls. Alternative retries were removed. Saved V1
+layouts remain readable for Undo/Rollback and published articles. Preparation
+panels no longer render in Preview/Public; V4 grammar/auto-layout no longer adds
+them. Metadata/canonical description and database data remain unchanged.
+
+Temporary harness, QA artifacts, superseded reports and dedicated alternative
+test moved outside the repo to the local Temp archive. The retained consolidated
+[current handoff](implementation/destination-generative-layout-v4-report.md)
+supersedes previous alternative acceptance and per-error reports. No paid AI,
+Neon/Destination writes, env/migration edits or commit/push/deploy.
+
+Final checks: 1,472 Vitest PASS/91 DB SKIP, 328 legacy PASS, root typecheck PASS.
+Real browser confirms one AI action and no preparation panel in Preview/Public;
+five Public images and sources remain. Production build and diff check PASS;
+final CSS cleanup build rerun also PASS, recorded in current handoff. No persistence writes.
+
+## 2026-10-16 — Editorial reading scale
+
+Owner reported oversized reading presentation on the Đồng Văn Public article.
+Adjusted shared editorial.css plus V4 heading scale: desktop lead 22.23px/40.01px
+to 19.95px/33.92px with 672px measure, Split Hero title 51.3px to45.6px,
+body 17.92px to17px/29.75px. Mobile lead17px/28.9px, body16px/28px.
+Real browser measured 1440/768/390 viewports with no horizontal overflow;
+Desktop/mobile screenshots stored only in Temp/kltn-editorial-reading-20261016.
+Preview/Public share the same stylesheet. Content, images, layout JSON and
+browser zoom remain untouched. CSS-only change; no new tests or paid AI calls.
+Reading-scale verification: production build PASS; git diff --check PASS.
+
+## 2026-10-16 — One aligned editorial body rail
+
+Owner requested shared outer edges instead of alternating prose/media insets.
+Shared CSS now uses a48rem body rail for lead, text, image/text rows, map and
+references. V4 nested wrappers inherit their parent gutter; prose fills its
+column and featured prose no longer indents at a left rule. Paired photos/copy
+are top-aligned; original image ratios remain intact. Hero remains distinct.
+Real Public browser at1440/768/390 reports identical section edges and zero
+overflow; paired desktop columns have equal top coordinates. Actual Admin
+Preview (482px article) also reports equal section edges and no overflow.
+Read-only observations; no AI calls or Destination writes. Screenshots and
+measurements are outside repo in Temp/kltn-editorial-alignment-20261016.
+CSS-only follow-up; no new tests. Production build result recorded in handoff.
+Body-alignment verification: production build PASS; diff check PASS.

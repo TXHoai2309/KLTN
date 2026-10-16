@@ -14,9 +14,9 @@ return async function POST(request: Request, context: { params: Promise<{ id: st
   diagnostics.received();
   const respond = (response: Response) => { response.headers.set("X-Editorial-Ai-Request-Id", diagnostics.correlationId); return privateResponse(response); };
   try { await requireActor(request.headers, deps, "admin"); const parsed = editorialProposalInputSchema.safeParse(await destinationJson(request)); if (!parsed.success) throw new AppError("INVALID_EDITORIAL_AI", "Yêu cầu không hợp lệ.", 400);
-    const result = await proposeEditorial(request.headers, (await context.params).id, deps, client(), { diagnostics, signal: request.signal, layout: parsed.data.layout, direction: parsed.data.direction, mode: parsed.data.mode, expectedRevision: parsed.data.expectedRevision });
+    const result = await proposeEditorial(request.headers, (await context.params).id, deps, client(), { diagnostics, signal: request.signal, layout: parsed.data.layout, direction: parsed.data.direction, mode: parsed.data.mode, expectedRevision: parsed.data.expectedRevision, version: parsed.data.version, timeoutMs: parsed.data.timeoutMs });
     if ("httpStatus" in result && result.httpStatus === 429) {
-      const response = apiFailure(result.providerLimitCode === "QUOTA_EXCEEDED" ? "EDITORIAL_AI_PROVIDER_QUOTA" : "EDITORIAL_AI_PROVIDER_RATE_LIMIT", result.reason, 429, { source: "PROVIDER", providerCode: result.providerCode });
+      const response = apiFailure(result.providerLimitCode === "QUOTA_EXCEEDED" ? "EDITORIAL_AI_PROVIDER_QUOTA" : "EDITORIAL_AI_PROVIDER_RATE_LIMIT", result.reason || "Lỗi giới hạn lượt gọi từ nhà cung cấp AI", 429, { source: "PROVIDER", providerCode: result.providerCode });
       if (result.retryAfterSeconds !== undefined) response.headers.set("Retry-After", String(result.retryAfterSeconds));
       return respond(response);
     }

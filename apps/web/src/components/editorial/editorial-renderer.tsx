@@ -1,24 +1,17 @@
 import React from "react";
 import { formatSuggestedDuration } from "@/modules/destination/public-destination-contract";
 import type { EditorialContext, ResolvedEditorial } from "@/modules/destination-editorial/editorial-contract";
-import { defaultEditorialDesign } from "@/modules/destination-editorial/editorial-contract";
-import { editorialVisitData } from "@/modules/destination-editorial/editorial-display-policy";
+import { defaultEditorialDesign, isV2Layout } from "@/modules/destination-editorial/editorial-contract";
 import EditorialPhoto from "./editorial-photo";
 import { HeroPanorama, HeroSplit, HeroCover, formatHeroLocation, EditorialIntroduction, EditorialProse, TextImageStorySection, FullBleedImage, StaggeredImageGallery, VisualHighlights, MapSection, SourceAttribution } from "./editorial-story";
 import { editorialHeroPlan, heroDeck } from "@/modules/destination-editorial/editorial-hero";
 import { normalizeEditorialText } from "@/modules/destination-editorial/editorial-content";
+import EditorialGenerativeRenderer from "./editorial-generative-renderer";
 export type EditorialPageData = Pick<EditorialContext, "id" | "name" | "category" | "area" | "latitude" | "longitude" | "suggestedDurationMinutes" | "openingDays">;
-export function CompactTravelInformation({ data, includeArea = true }: { data: EditorialPageData; includeArea?: boolean }) {
-  const visit = editorialVisitData(data);
-  if (!includeArea) visit.area = "";
-  if (!visit.area && visit.duration === null && !visit.hours.length) return null;
-  return <section className="emg-visit" aria-label="Thông tin tham quan"><h2>Chuẩn bị cho chuyến đi</h2>
-    {(visit.area || visit.duration !== null) && <dl>{visit.area && <div><dt>Khu vực</dt><dd>{visit.area}</dd></div>}{visit.duration !== null && <div><dt>Thời lượng gợi ý</dt><dd>{formatSuggestedDuration(visit.duration)}</dd></div>}</dl>}
-    {visit.hours.length > 0 && <details><summary>Giờ hoạt động · Giờ địa phương Hà Giang</summary><dl>{visit.hours.map(day => <div key={day.label}><dt>{day.label}</dt><dd>{day.value}</dd></div>)}</dl></details>}
-  </section>;
-}
-export const EditorialVisitInformation = CompactTravelInformation;
 export default function EditorialRenderer({ data, editorial }: { data: EditorialPageData; editorial: ResolvedEditorial }) {
+  if (isV2Layout(editorial.layout)) {
+    return <EditorialGenerativeRenderer data={data} editorial={editorial} />;
+  }
   const { layout, media, sources } = editorial;
   const design = layout.design ?? defaultEditorialDesign;
   const photo = (id: string, block: typeof layout.blocks[number], priority = false) => {
@@ -46,7 +39,7 @@ export default function EditorialRenderer({ data, editorial }: { data: Editorial
         case "HIGHLIGHT_FACTS": return <VisualHighlights key={block.id} data={data} duration={formatSuggestedDuration(data.suggestedDurationMinutes)} />;
         case "TIMELINE": return <section key={block.id} className="emg-timeline"><h2>{block.title || "Dấu mốc"}</h2><ol>{block.entries.map((entry, i) => <li key={i}><strong>{entry.label}</strong><p>{entry.text}</p><span>{entry.sourceIds.map(id => sources.find(s => s.id === id)?.title).filter(Boolean).join(" · ")}</span></li>)}</ol></section>;
         case "QUOTE": return <section key={block.id} className="emg-quote"><blockquote>{block.text}</blockquote><p>{block.sourceIds.map(id => sources.find(s => s.id === id)?.title).filter(Boolean).join(" · ") || "Từ hồ sơ điểm đến"}</p></section>;
-        case "VISIT_INFORMATION": return <EditorialVisitInformation key={block.id} data={data} includeArea={!layout.blocks.some(b => b.type === "HIGHLIGHT_FACTS")} />;
+        case "VISIT_INFORMATION": return null; // Retired display block; stored legacy layouts remain readable.
         case "MAP": return <MapSection key={block.id} block={block} data={data} />;
         case "SOURCES": return <SourceAttribution key={block.id} block={block} sources={sources} />;
       }
