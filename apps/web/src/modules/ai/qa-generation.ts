@@ -14,7 +14,7 @@ import { qaReviewedSupport } from "./qa-reviewed-support";
 import { qaReviewedExcerptAnswer } from "./qa-reviewed-excerpts";
 import { qaOrigin, qaStage, type QaStage, type QaFailureCategory } from "./qa-diagnostics";
 
-import { createQaJsonProvider, QA_GENERATION_LIMITS, type QaProviderOptions } from "./qa-json-provider";
+import { createQaJsonProvider, QA_ANSWER_MODEL, QA_GENERATION_LIMITS, type QaProviderOptions } from "./qa-json-provider";
 export { QA_GENERATION_LIMITS } from "./qa-json-provider";
 const modelOutput = z.object({
   status: z.enum(["ANSWERED", "PARTIAL", "INSUFFICIENT_SOURCE", "CLARIFICATION_REQUIRED"]),
@@ -104,7 +104,8 @@ function validateCandidate(output: unknown, input: QaGenerationInput, synthesis:
 }
 
 export function createQaGenerator(options: QaProviderOptions = {}): QaGenerator {
-  const provider = createQaJsonProvider(options);
+  // Answer composition and the independent verifier share the owner-selected model.
+  const provider = createQaJsonProvider({ model: QA_ANSWER_MODEL, ...options });
   const verifier = createQaSynthesisVerifier(options);
   return { async generate(input) {
     qaStage("GENERATION_PREFLIGHT");

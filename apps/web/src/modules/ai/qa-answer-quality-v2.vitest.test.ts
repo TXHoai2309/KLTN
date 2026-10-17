@@ -69,7 +69,7 @@ describe("US23 grounded synthesis V2 (mock semantic verdicts, no paid calls)", (
     expect(() => assertQaAnswerGrounding(answer, input)).not.toThrow();
     expect(t.fetcher).toHaveBeenCalledTimes(2); // answer + verifier, assessment is fixture-annotated
     for (const call of t.fetcher.mock.calls) {
-      expect(JSON.parse(String(call[1]?.body))).toMatchObject({ model: "gpt-6-luna", reasoning_effort: "none" });
+      expect(JSON.parse(String(call[1]?.body))).toMatchObject({ model: "gpt-6.1-sol", reasoning_effort: "low" });
     }
     expect(JSON.stringify(answer)).not.toMatch(/binding|chunkHash|fixture_document/);
   });
@@ -273,7 +273,7 @@ describe("US23 grounded synthesis V2 (mock semantic verdicts, no paid calls)", (
     const fetcher = vi.fn<typeof fetch>(async (_url, init) => envelope(fixtureAssessmentWire({ intent: "CLEAR", exhaustive: true, relevance: [{ citationId: "c1", status: "RELATED" }], aspects: [{ id: "current_price", status: "MISSING", supports: [] }] }, JSON.parse(String(init?.body)))));
     await createQaAssessor({ apiKey: () => "offline", fetcher }).assess(input);
     const body = String(fetcher.mock.calls[0]![1]!.body);
-    expect(JSON.parse(body)).toMatchObject({ model: "gpt-6-luna", reasoning_effort: "none" });
+    expect(JSON.parse(body)).toMatchObject({ model: "gpt-6.1-sol", reasoning_effort: "low" });
     expect(body).toContain("requested entity"); expect(body).toContain("registry handles"); expect(body).toContain("entire corpus");
     expect(body).toContain("CLEAR overview intent");
     expect(body).toContain("explicit narrow question");

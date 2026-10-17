@@ -2362,3 +2362,45 @@ Audit, task-owned file list, limits and manual procedure:
   - `npm run check-types` PASS (0 errors).
   - `npm run build` PASS (41/41 routes compiled).
   - `git diff --check` PASS (clean diff, no conflict markers, no secrets).
+
+### 2026-10-17 — reported follow-up failure investigation
+
+- Inspected local development diagnostics: observed GENERATION_PREFLIGHT /
+  PRIVATE_MATERIAL after four eligible chunks, before model dispatch. Exact
+  screenshot-turn correlation and offending source block remain unconfirmed.
+- Fixed bounded other-place follow-up detection so the reported wording retains
+  the previous factual topic; missing context asks for clarification. No safety
+  checks were bypassed and no full incident resolution is claimed.
+- Focused tests 101/101 PASS; root check-types PASS; root build PASS (27.373s).
+  No live provider/DB acceptance, schema/source/env/model change, commit or push.
+- Details and remaining investigation: [incident report](implementation/ai-chat-followup-incident.md).
+  US-23 remains NOT ACCEPTED.
+
+### 2026-10-17 — owner trial: Sol 6.1 answer composition
+
+- Owner requested GPT-6.1 Sol specifically for the answer step. Default answer
+  composition now uses gpt-6.1-sol; source assessment and independent verification
+  retain gpt-6-luna. Explicit test/provider injection remains supported.
+- Sol 6.1 requests use reasoning_effort=low and omit temperature as required by
+  official OpenAI migration guidance. Existing deadlines, token budgets, grounding,
+  persistence and safety gates remain in force.
+- Focused provider/generation/verifier suites: 72/72 PASS; root typecheck PASS.
+- One live synthetic structured-output connection probe: HTTP 200, actual model
+  gpt-6.1-sol, finish_reason=stop, valid JSON, 2321 ms. This confirms API access and
+  parameter compatibility, not live corpus answer quality or incident resolution.
+- No schema/environment changes, commit, push or deployment.
+- Source: https://developers.openai.com/api/docs/guides/latest-model
+  Final verification: root build PASS (25.105s); git diff --check PASS.
+
+### 2026-10-17 — owner expanded Sol trial to reading and generation
+
+- Owner clarified both reading and generation should use Sol. Shared QA default is
+  now gpt-6.1-sol for source assessment, answer generation and independent synthesis
+  verification, using reasoning_effort=low without temperature. Embeddings keep
+  their separate embedding model; no reindexing or schema change is needed.
+- Updated active transport/evaluation assertions to the selected model; explicit
+  legacy-model injection still works. AI suites: 595 PASS / 56 gated SKIP.
+  Root typecheck PASS. Earlier synthetic live Sol compatibility probe remains
+  applicable; no new paid calls or corpus-quality acceptance is claimed.
+- Existing source-safety failure remains unresolved. No commit/push/deployment.
+  Final checks: root build PASS (23.767s), git diff --check PASS.

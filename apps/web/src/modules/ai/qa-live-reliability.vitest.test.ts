@@ -43,20 +43,20 @@ describe.skipIf(process.env.QA_DIAGNOSTIC_LIVE !== "1")("live QA reliability aga
       return tx.$queryRaw(query);
     }, { timeout: 10000 }) } as unknown as Database;
     const events: QaDiagnosticEvent[] = [];
-    const calls: { name: string; requestedLuna: boolean; actualLuna: boolean; totalTokens?: number; parts?: number; claims?: number; matchingParts?: boolean[]; gates?: unknown; aspects?: number; supported?: number; expectedAspectIds?: string[]; coveredAspectIds?: string[] }[] = [];
+    const calls: { name: string; requestedSol: boolean; actualSol: boolean; totalTokens?: number; parts?: number; claims?: number; matchingParts?: boolean[]; gates?: unknown; aspects?: number; supported?: number; expectedAspectIds?: string[]; coveredAspectIds?: string[] }[] = [];
     const fetcher: typeof fetch = async (request, init) => {
       const sent = JSON.parse(String(init?.body));
       const response = await fetch(request, init);
       const raw = await response.clone().json();
       expect(sent.model).toBe(QA_DEFAULT_MODEL);
-      expect(sent.reasoning_effort).toBe("none");
-      expect(raw.model).toMatch(/^gpt-6-luna(?:-[a-zA-Z0-9.-]+)?$/u);
+      expect(sent.reasoning_effort).toBe("low");
+      expect(raw.model).toMatch(/^gpt-6\.1-sol(?:-[a-zA-Z0-9.-]+)?$/u);
       const content = raw.choices?.[0]?.message?.content;
       if (typeof content === "string") {
         const output = JSON.parse(content);
         const payload = JSON.parse(sent.messages[1].content);
         calls.push({ name: sent.response_format.json_schema.name,
-          requestedLuna: sent.model === "gpt-6-luna", actualLuna: /^gpt-6-luna(?:-[a-zA-Z0-9.-]+)?$/u.test(raw.model),
+          requestedSol: sent.model === "gpt-6.1-sol", actualSol: /^gpt-6\.1-sol(?:-[a-zA-Z0-9.-]+)?$/u.test(raw.model),
           totalTokens: Number.isSafeInteger(raw.usage?.total_tokens) ? raw.usage.total_tokens : undefined,
           parts: output.facets ? Object.values(output.facets).flat().length : output.answerParts?.length, claims: output.claims ? Object.keys(output.claims).length : undefined, gates: output.gates,
           aspects: output.aspects?.length, supported: output.aspects?.filter((a: { status: string }) => a.status === "SUPPORTED").length,

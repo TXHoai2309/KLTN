@@ -5,8 +5,9 @@ import { countEmbeddingTokens } from "../rag-processing/embedding-tokenizer";
 import { qaOrigin, qaProviderInvoked, qaProviderMetadata, qaStage, type QaStage, type QaFailureCategory } from "./qa-diagnostics";
 
 export type QaProviderOptions = { apiKey?: () => string | undefined; fetcher?: typeof fetch; model?: string; timeoutMs?: number; maxOutputTokens?: number };
-// Owner-selected model for assessment, generation and synthesis verification.
-export const QA_DEFAULT_MODEL = "gpt-6-luna";
+// Owner-selected model for reading, assessment, answer composition and verification.
+export const QA_DEFAULT_MODEL = "gpt-6.1-sol";
+export const QA_ANSWER_MODEL = QA_DEFAULT_MODEL;
 export const QA_GENERATION_LIMITS = { timeoutMs: 25_000, maxInputTokens: 8_000, maxOutputTokens: 2_000, maxResponseBytes: 64 * 1024, maxEvidence: 4, maxInputUtf16: 40_000 } as const;
 const invalid = (stage: QaStage, category: QaFailureCategory, issues?: readonly { code: string; path: readonly PropertyKey[] }[]) =>
   qaOrigin(new AppError("AI_INVALID_RESPONSE", "Phản hồi AI không hợp lệ hoặc không có căn cứ.", 502), stage, category, issues);
@@ -36,6 +37,7 @@ export function createQaJsonProvider(options: QaProviderOptions = {}) {
   // Preserve this workload's non-reasoning latency/token role. Luna otherwise
   // defaults to medium reasoning, incompatible with the existing temperature.
   const luna = /^gpt-6-luna(?:-|$)/u.test(model);
+  const sol61 = /^gpt-6\.1-sol(?:-|$)/u.test(model);
   const timeoutMs = options.timeoutMs ?? QA_GENERATION_LIMITS.timeoutMs;
   const maxOutputTokens = options.maxOutputTokens ?? QA_GENERATION_LIMITS.maxOutputTokens;
   if (!/^[a-zA-Z0-9._-]{1,100}$/.test(model) || !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > QA_GENERATION_LIMITS.timeoutMs || !Number.isInteger(maxOutputTokens) || maxOutputTokens < 1 || maxOutputTokens > QA_GENERATION_LIMITS.maxOutputTokens) throw new Error("Invalid QA generation configuration");
@@ -56,7 +58,7 @@ export function createQaJsonProvider(options: QaProviderOptions = {}) {
     const cancellation = new Promise<never>((_, reject) => { controller.signal.addEventListener("abort", () => reject(unavailable()), { once: true }); });
     const work = async (): Promise<T> => {
       qaStage("GENERATION_PROVIDER"); qaProviderInvoked("generation", model);
-      const response = await (options.fetcher ?? fetch)("https://api.openai.com/v1/chat/completions", { method: "POST", redirect: "error", signal: controller.signal, headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify({ model, messages, store: false, temperature: 0, ...(luna ? { reasoning_effort: "none" } : {}), max_completion_tokens: maxOutputTokens, response_format: { type: "json_schema", json_schema: { name: input.name, strict: true, schema: input.schema } } }) });
+      const response = await (options.fetcher ?? fetch)("https://api.openai.com/v1/chat/completions", { method: "POST", redirect: "error", signal: controller.signal, headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify({ model, messages, store: false, ...(sol61 ? { reasoning_effort: "low" } : { temperature: 0, ...(luna ? { reasoning_effort: "none" } : {}) }), max_completion_tokens: maxOutputTokens, response_format: { type: "json_schema", json_schema: { name: input.name, strict: true, schema: input.schema } } }) });
       qaProviderMetadata("generation", response);
       if (!response.ok) { await response.body?.cancel().catch(() => undefined); throw unavailable(); }
       let payload: unknown; qaStage("GENERATION_ENVELOPE");

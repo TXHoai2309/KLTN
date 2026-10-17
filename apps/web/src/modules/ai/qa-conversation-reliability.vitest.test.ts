@@ -37,6 +37,18 @@ function setup(history: QaHistoryTurn[] = []) {
 }
 
 describe("question punctuation, repeated intent and social conversation", () => {
+  it.each(["còn các địa điểm khác thì sao", "Vậy những điểm đến khác thì sao?", "thế còn các nơi còn lại"])("preserves the preceding topic for other-place follow-ups: %s", async question => {
+    const prior = { question: "Giá vé tham quan Đồng Văn theo hồ sơ là bao nhiêu?", response };
+    const t = setup([prior]);
+    await t.service.ask(principal, "other_places", { question, context: { type: "GENERAL" } });
+    expect(t.retriever.retrieve.mock.calls[0]?.[1]).toEqual([{ ...prior, question: qaFactualQuestion(prior.question) }]);
+    expect(qaFollowupClarification(question, [], { type: "GENERAL" })).toBe(QA_FOLLOWUP_CLARIFICATIONS.missingSubject);
+  });
+
+  it("does not import the old topic for an explicitly named new destination", () => {
+    expect(qaIntentHistory("còn giá vé Lũng Cú thì sao", [{ question, response }])).toEqual([]);
+  });
+
   it("sends identical retrieval input for punctuation variants and preserves the original admitted request", async () => {
     const t = setup([{ question: "Giá vé hôm nay là bao nhiêu?", response }]);
     const variants = [question, `${question}?`, `${question} ,./?!`, "Cao nguyên đá Đồng Văn, được UNESCO/công nhận là gì."];
@@ -82,7 +94,8 @@ describe("question punctuation, repeated intent and social conversation", () => 
     const fetcher = vi.fn<typeof fetch>(async (_url, init) => {
       const body = JSON.parse(String(init?.body));
       payloads.push(JSON.parse(body.messages[1].content));
-      expect(body.temperature).toBe(0);
+      expect(body).not.toHaveProperty("temperature");
+      expect(body).toMatchObject({ model: "gpt-6.1-sol", reasoning_effort: "low" });
       const output = body.response_format.json_schema.name === "qa_source_assessment"
         ? { intent: "CLEAR", exhaustive: true, relevance: [{ citationId: "c1", status: "RELATED" }], aspects: [{ id: "designation", status: "SUPPORTED", supports: [{ citationId: "c1", sentence }] }] }
         : { status: "ANSWERED", answerParts: [{ text: sentence, citationIds: ["c1"] }], unanswered: false };
