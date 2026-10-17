@@ -190,12 +190,13 @@ test("auth is checked before idempotency and target persistence", async () => {
 
   const admin = fixture("ADMIN");
   const adminResponse = await removeFavoriteResponse(
-    request("/api/favorites/destinations/d-visible", "DELETE"),
+    request("/api/favorites/destinations/d-visible", "DELETE", "admin-remove"),
     { targetType: "destinations", targetId: "d-visible" },
     admin.dependencies,
   );
-  assert.equal(adminResponse.status, 403);
-  assert.equal(admin.idempotencySize(), 0);
+  assert.equal(adminResponse.status, 200);
+  assert.equal((await body(adminResponse)).operationStatus, "SUCCESS");
+  assert.equal(admin.idempotencySize(), 1);
   assert.equal(admin.targetReads(), 0);
 });
 
@@ -296,7 +297,7 @@ test("remove is target-scoped, idempotent and does not require public target", a
   assert.equal(f.favorites().length, 0);
 });
 
-test("status is private, validates the URL contract and denies Guest/Admin", async () => {
+test("status is private, validates the URL contract, denies Guest and accepts Admin", async () => {
   const f = fixture();
   await addFavoriteResponse(
     request("/api/favorites/culture/c-visible", "PUT", "status-seed"),
@@ -341,7 +342,7 @@ test("status is private, validates the URL contract and denies Guest/Admin", asy
         admin.dependencies,
       )
     ).status,
-    403,
+    200,
   );
 });
 

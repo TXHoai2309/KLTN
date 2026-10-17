@@ -9,8 +9,8 @@ import { loadMapLibre, mapStyle } from "@/modules/map/map-config";
 import { startMapSession } from "@/modules/map/map-session";
 import { mountMapLibre } from "@/modules/map/maplibre-renderer";
 
-export default function DestinationMap({ destinations, label = "Bản đồ điểm đến Hà Giang", detail = false, returnTo, routeGeometry }: {
-  destinations: readonly PublicLocation[]; label?: string; detail?: boolean; returnTo?: ExploreReturnHref; routeGeometry?: RouteGeometry;
+export default function DestinationMap({ destinations, label = "Bản đồ điểm đến Hà Giang", detail = false, returnTo, routeGeometry, disableDefaultPopup = false }: {
+  destinations: readonly PublicLocation[]; label?: string; detail?: boolean; returnTo?: ExploreReturnHref; routeGeometry?: RouteGeometry; disableDefaultPopup?: boolean;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibre.Map | null>(null);
@@ -26,10 +26,10 @@ export default function DestinationMap({ destinations, label = "Bản đồ đi�
     const host = container.current;
     return startMapSession({ load: loadMapLibre, onState: setState,
       mount: (library, ready, fail) => mountMapLibre(host, library, points, styleRef.current, detail, returnTo, ready, fail,
-        { routeGeometry, onMap: map => { mapRef.current = map; } }),
+        { routeGeometry, onMap: map => { mapRef.current = map; }, disablePopup: disableDefaultPopup }),
     });
     // points derive only from the same immutable result set used by List View.
-  }, [destinations, attempt, detail, returnTo, routeGeometry]);
+  }, [destinations, attempt, detail, returnTo, routeGeometry, disableDefaultPopup]);
   useEffect(() => { mapRef.current?.setStyle(style); }, [style]);
   if (points.length === 0) return <section className="destination-map" aria-label={label}>
     <div className="destination-map-state" role="status">{destinations.length

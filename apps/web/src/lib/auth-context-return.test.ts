@@ -148,13 +148,14 @@ test("the simulated write stays untouched through auth return until a second exp
   assert.equal(confirmedActions, 1);
 });
 
-test("role authorization uses trusted Better Auth session data and denies Admin/Guest", async () => {
+test("role authorization uses trusted Better Auth data, accepts Admin and denies unsupported roles/Guest", async () => {
   const action = await readFile(new URL("../app/auth-context-demo/actions.ts", import.meta.url), "utf8");
 
   assert.match(action, /requireActor\(await headers\(\), authorizationDependencies, "traveler"\)/);
   assert.match(action, /authorizeAuthContextDemoAction\(actor.role\)/);
   assert.doesNotMatch(action, /export async function confirmAuthContextDemoAction\([^)]/);
   assert.equal(authorizeAuthContextDemoAction("TRAVELER").status, "CONFIRMED");
-  assert.equal(authorizeAuthContextDemoAction("ADMIN").status, "FORBIDDEN");
+  assert.equal(authorizeAuthContextDemoAction("ADMIN").status, "CONFIRMED");
+  assert.equal(authorizeAuthContextDemoAction("ROOT").status, "FORBIDDEN");
   assert.equal(authorizeAuthContextDemoAction(null).status, "UNAUTHENTICATED");
 });

@@ -90,10 +90,14 @@ describe("US-31 owned Trip reads", () => {
     await expect(getMyTrip(headers, "other", test.dependencies, "2026-10-10")).rejects.toMatchObject({ status: 404, code: "TRIP_NOT_FOUND" });
     await expect(getMyTrip(headers, "missing", test.dependencies, "2026-10-10")).rejects.toMatchObject({ status: 404, code: "TRIP_NOT_FOUND" });
   });
-  it("denies Guest and Admin", async () => {
+  it("denies Guest and lets Admin read only owned Trips", async () => {
     const test = fixture(); test.setSession(null);
     await expect(listMyTrips(headers, test.dependencies, "2026-10-10")).rejects.toMatchObject({ status: 401 });
     test.setSession({ user: { id: "a", role: "ADMIN" } }); test.setRole("ADMIN");
-    await expect(getMyTrip(headers, "mine", test.dependencies, "2026-10-10")).rejects.toMatchObject({ status: 403 });
+    expect((await listMyTrips(headers, test.dependencies, "2026-10-10")).items.map(item => item.id)).toEqual(["mine"]);
+    expect(await getMyTrip(headers, "mine", test.dependencies, "2026-10-10")).toHaveProperty("id", "mine");
+    for (const id of ["other", "missing"]) {
+      await expect(getMyTrip(headers, id, test.dependencies, "2026-10-10")).rejects.toMatchObject({ status: 404, code: "TRIP_NOT_FOUND" });
+    }
   });
 });

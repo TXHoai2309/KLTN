@@ -1,19 +1,14 @@
 import { AppError } from "../http/app-error";
+import { hasRolePermission, type Role, type Permission } from "../../lib/authorization-capabilities";
 
-export type Role = "TRAVELER" | "ADMIN";
+export type { Role, Permission } from "../../lib/authorization-capabilities";
 export type Actor = { id: string; role: Role };
-export type Permission = "public" | "account:self" | "traveler" | "admin";
 
-// Exact permissions: ADMIN does not inherit TRAVELER capabilities.
+// ADMIN inherits Traveler capabilities; private resources still require ownership.
 export function requirePermission(actor: Actor | null, permission: Permission): void {
   if (permission === "public") return;
   if (!actor?.id) throw new AppError("UNAUTHENTICATED", "Vui lòng đăng nhập để tiếp tục.", 401);
-  if (actor.role !== "TRAVELER" && actor.role !== "ADMIN") {
-    throw new AppError("FORBIDDEN", "Bạn không có quyền thực hiện thao tác này.", 403);
-  }
-  if (permission === "account:self" ||
-    (permission === "traveler" && actor.role === "TRAVELER") ||
-    (permission === "admin" && actor.role === "ADMIN")) return;
+  if (hasRolePermission(actor.role, permission)) return;
   throw new AppError("FORBIDDEN", "Bạn không có quyền thực hiện thao tác này.", 403);
 }
 

@@ -2,7 +2,7 @@ import type * as MapLibre from "maplibre-gl";
 import type { ExploreReturnHref } from "../destination/destination-detail-navigation";
 import { destinationDetailHref, haGiangViewport, normalizeMapCoordinate, toMapCoordinate, type MapCoordinate, type MapDestination, type RouteGeometry } from "./map-model";
 
-export function mountMapLibre(host: HTMLDivElement, library: typeof MapLibre, points: readonly MapDestination[], style: string, detail: boolean, returnTo: ExploreReturnHref | undefined, onReady: () => void, onFailure: () => void, extras: { routeGeometry?: RouteGeometry; onMap?: (map: MapLibre.Map | null) => void } = {}) {
+export function mountMapLibre(host: HTMLDivElement, library: typeof MapLibre, points: readonly MapDestination[], style: string, detail: boolean, returnTo: ExploreReturnHref | undefined, onReady: () => void, onFailure: () => void, extras: { routeGeometry?: RouteGeometry; onMap?: (map: MapLibre.Map | null) => void; disablePopup?: boolean } = {}) {
   const map = new library.Map({ container: host, style, center: toMapCoordinate(haGiangViewport.center), zoom: haGiangViewport.zoom, maxZoom: 15, cooperativeGestures: true, attributionControl: { compact: true } });
   const markers: MapLibre.Marker[] = []; const popups: MapLibre.Popup[] = [];
   let disposed = false;
@@ -18,14 +18,26 @@ export function mountMapLibre(host: HTMLDivElement, library: typeof MapLibre, po
     extras.onMap?.(map);
     map.addControl(new library.NavigationControl({ showCompass: false }), "top-right");
     points.forEach(point => {
-      const card = document.createElement("div"); card.className = "destination-map-popup";
-      const heading = document.createElement("strong"); heading.textContent = point.name;
-      const context = document.createElement("p"); context.textContent = [point.area, point.category].filter(Boolean).join(" · "); card.append(heading, context);
-      if (!detail) { const link = document.createElement("a"); link.textContent = "Xem chi tiết"; link.href = destinationDetailHref(point.id, returnTo); card.append(link); }
-      const element = document.createElement("button"); element.type = "button"; element.className = "destination-map-marker"; element.setAttribute("aria-label", `Xem ${point.name}`); element.textContent = "●";
-      const popup = new library.Popup({ offset: 24, focusAfterOpen: true }).setDOMContent(card); popups.push(popup);
-      const marker = new library.Marker({ element }).setLngLat(toMapCoordinate(point)).setPopup(popup).addTo(map); markers.push(marker);
-      // MapLibre's setPopup supplies click/Space/Enter handling for this native button.
+      const element = document.createElement("button"); element.type = "button"; element.className = "destination-map-marker"; element.setAttribute("aria-label", `Xem ${point.name}`); element.setAttribute("data-destination-id", point.id); element.textContent = "●";
+      const markerInstance = new library.Marker({ element }).setLngLat(toMapCoordinate(point));
+      if (!extras.disablePopup) {
+        const card = document.createElement("div"); card.className = "destination-map-popup";
+        if (point.image?.url) {
+          const thumb = document.createElement("img");
+          thumb.className = "destination-map-popup-thumb";
+          thumb.src = point.image.url;
+          thumb.alt = point.image.alt || point.name;
+          card.append(thumb);
+        }
+        const heading = document.createElement("strong"); heading.textContent = point.name;
+        const context = document.createElement("p"); context.textContent = [point.area, point.category].filter(Boolean).join(" · "); card.append(heading, context);
+        if (!detail) { const link = document.createElement("a"); link.textContent = "Xem chi tiết"; link.href = destinationDetailHref(point.id, returnTo); card.append(link); }
+        const popup = new library.Popup({ offset: 24, focusAfterOpen: true }).setDOMContent(card);
+        popups.push(popup);
+        markerInstance.setPopup(popup);
+      }
+      const marker = markerInstance.addTo(map);
+      markers.push(marker);
     });
     if (points.length === 1) map.jumpTo({ center: toMapCoordinate(points[0]!), zoom: 12 });
     else if (points.length > 1) { const bounds = new library.LngLatBounds(); points.forEach(point => bounds.extend(toMapCoordinate(point))); map.fitBounds(bounds, { padding: 48, maxZoom: 12, duration: 0 }); }

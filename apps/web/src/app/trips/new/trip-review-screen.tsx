@@ -266,6 +266,8 @@ export default function TripReviewScreen({
   }, [draft, initialClarificationRequests]);
 
   useEffect(() => {
+    // Strict Mode replays setup after cleanup in development.
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       checkInFlightRef.current = false;

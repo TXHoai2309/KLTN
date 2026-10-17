@@ -1,5 +1,10 @@
 # User flows
 
+Owner-approved RBAC V2 (2026-10-17): references to Traveler capabilities below also
+apply to ADMIN acting on their own data. Ownership, validation, confirmed writes,
+feature availability and AI principal isolation remain unchanged. See
+[RBAC V2](../stories/RBAC-V2-admin-inherits-traveler.md).
+
 These flows condense the Product Document and System Specification. They describe target behavior; each story records its runtime acceptance evidence. The repository currently implements Home, public Destination/Culture summaries, Explore List/Map and Destination detail alongside auth/account/admin foundations. Search/filter, full Culture detail, Trip, Favorite, and AI flows still await their stories. See [current implementation](../architecture/technical-architecture.md).
 
 ## Public exploration

@@ -151,7 +151,7 @@ describe("US25-API preference extraction HTTP boundary", () => {
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
   });
 
-  it("rejects Admin before reading the body or calling the LLM", async () => {
+  it("accepts Admin through the same verified extraction pipeline", async () => {
     const dependencies = fakeDependencies("ADMIN");
     const onBodyRead = vi.fn();
     dependencies.onBodyRead = onBodyRead;
@@ -160,10 +160,10 @@ describe("US25-API preference extraction HTTP boundary", () => {
       dependencies,
     );
 
-    expect(response.status).toBe(403);
-    expect((await json(response)).error.code).toBe("FORBIDDEN");
-    expect(onBodyRead).not.toHaveBeenCalled();
-    expect(dependencies.llm.complete).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect((await json(response)).success).toBe(true);
+    expect(onBodyRead).toHaveBeenCalledOnce();
+    expect(dependencies.llm.complete).toHaveBeenCalledOnce();
   });
 
   it("returns a complete verified result and only the public contract", async () => {

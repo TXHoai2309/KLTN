@@ -13,11 +13,11 @@ const request = { confirm: true, proposal: {
 type Row = { id: string; visibility: "VISIBLE" | "HIDDEN"; latitude: number; longitude: number; minimumDurationMinutes: number | null; openingDays: { dayOfWeek: "TUESDAY"; status: "OPEN" | "UNKNOWN"; intervals: { opensAtMinute: number; closesAtMinute: number }[] }[] };
 const destination = (id: string): Row => ({ id, visibility: "VISIBLE", latitude: 23, longitude: 105, minimumDurationMinutes: 30, openingDays: [{ dayOfWeek: "TUESDAY", status: "OPEN", intervals: [{ opensAtMinute: 0, closesAtMinute: 1440 }] }] });
 
-function fixture() {
+function fixture(initialRole = "TRAVELER") {
   const rows = [destination("a"), destination("b")];
   let records: { scope: string; key: string; requestHash: string; responseJson: string }[] = [];
   let trips: unknown[] = [];
-  let role = "TRAVELER";
+  let role = initialRole;
   let failNestedCreate = false;
   const database = {
     user: { findUnique: async () => ({ id: "actor", role }) },
@@ -57,9 +57,10 @@ const twoVisits = () => ({ confirm: true as const, proposal: { ...structuredClon
   { destinationId: "b", startMinute: 600, plannedDurationMinutes: 60, order: 2 },
 ] }] } });
 
-describe("US-30 server save gate", () => {
+describe.each(["TRAVELER", "ADMIN"])("US-30 %s server save gate", role => {
   it("persists one owned trip with days and visits when all four groups satisfy and user confirms", async () => {
-    const test = fixture();
+    const test = fixture(role);
+    test.setRole(role);
     const outcome = await saveTrip(headers, tripSaveRequestSchema.parse(request), "save-1", test.dependencies, timeReference);
     expect(outcome).toMatchObject({ status: "SUCCESS", data: { tripId: "trip-1", validation: { canConfirm: true } } });
     expect(test.trips).toHaveLength(1);
@@ -71,16 +72,16 @@ describe("US-30 server save gate", () => {
     ["minimum", (rows: Row[]) => { rows[0].minimumDurationMinutes = 90; }],
     ["insufficient", (rows: Row[]) => { rows[0].openingDays[0].status = "UNKNOWN"; }],
   ])("rejects %s failure without creating a trip", async (_name, change) => {
-    const test = fixture(); change(test.rows);
+    const test = fixture(role); change(test.rows);
     await expect(saveTrip(headers, tripSaveRequestSchema.parse(request), "save-1", test.dependencies, timeReference)).rejects.toMatchObject({ code: "TRIP_VALIDATION_FAILED" });
     expect(test.trips).toHaveLength(0);
   });
   it("rejects travel violation, conflict, and missing route independently", async () => {
-    const travel = fixture(); travel.dependencies.getRoute = async () => ({ kind: "ok", durationSeconds: 4000 });
+    const travel = fixture(role); travel.dependencies.getRoute = async () => ({ kind: "ok", durationSeconds: 4000 });
     await expect(saveTrip(headers, tripSaveRequestSchema.parse(twoVisits()), "travel", travel.dependencies, timeReference)).rejects.toMatchObject({ code: "TRIP_VALIDATION_FAILED" });
-    const conflict = fixture(); const overlapping = twoVisits(); overlapping.proposal.days[0].visits[1].startMinute = 539;
+    const conflict = fixture(role); const overlapping = twoVisits(); overlapping.proposal.days[0].visits[1].startMinute = 539;
     await expect(saveTrip(headers, tripSaveRequestSchema.parse(overlapping), "conflict", conflict.dependencies, timeReference)).rejects.toMatchObject({ code: "TRIP_VALIDATION_FAILED" });
-    const missing = fixture(); missing.dependencies.getRoute = async () => ({ kind: "unavailable" });
+    const missing = fixture(role); missing.dependencies.getRoute = async () => ({ kind: "unavailable" });
     await expect(saveTrip(headers, tripSaveRequestSchema.parse(twoVisits()), "missing", missing.dependencies, timeReference)).rejects.toMatchObject({ code: "TRIP_VALIDATION_FAILED" });
     expect(travel.trips).toHaveLength(0); expect(conflict.trips).toHaveLength(0); expect(missing.trips).toHaveLength(0);
   });
@@ -90,29 +91,29 @@ describe("US-30 server save gate", () => {
     expect(tripSaveRequestSchema.safeParse({ ...request, validatorPassed: true }).success).toBe(false);
   });
   it("replays the same key and payload without a duplicate", async () => {
-    const test = fixture(); const input = tripSaveRequestSchema.parse(request);
+    const test = fixture(role); const input = tripSaveRequestSchema.parse(request);
     await saveTrip(headers, input, "save-1", test.dependencies, timeReference);
     const replay = await saveTrip(headers, input, "save-1", test.dependencies, timeReference);
     expect(replay).toMatchObject({ status: "SUCCESS", replayed: true });
     expect(test.trips).toHaveLength(1);
   });
-  it("blocks Guest, Admin, and hidden destinations", async () => {
-    const guest = fixture(); guest.dependencies.resolveSession = async () => null;
+  it("blocks Guest, unsupported roles, and hidden destinations", async () => {
+    const guest = fixture(role); guest.dependencies.resolveSession = async () => null;
     await expect(saveTrip(headers, tripSaveRequestSchema.parse(request), "guest", guest.dependencies, timeReference)).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
-    const admin = fixture(); admin.setRole("ADMIN");
+    const admin = fixture(role); admin.setRole("ROOT");
     await expect(saveTrip(headers, tripSaveRequestSchema.parse(request), "admin", admin.dependencies, timeReference)).rejects.toMatchObject({ code: "FORBIDDEN" });
-    const hidden = fixture(); hidden.rows[0].visibility = "HIDDEN";
+    const hidden = fixture(role); hidden.rows[0].visibility = "HIDDEN";
     await expect(saveTrip(headers, tripSaveRequestSchema.parse(request), "hidden", hidden.dependencies, timeReference)).rejects.toMatchObject({ code: "DESTINATION_UNAVAILABLE" });
     expect(guest.trips).toHaveLength(0); expect(admin.trips).toHaveLength(0); expect(hidden.trips).toHaveLength(0);
   });
   it("returns fresh validation and rolls back when business data changes before write", async () => {
-    const test = fixture(); test.dependencies.getRoute = async () => { test.rows[0].minimumDurationMinutes = 90; return { kind: "ok", durationSeconds: 0 }; };
+    const test = fixture(role); test.dependencies.getRoute = async () => { test.rows[0].minimumDurationMinutes = 90; return { kind: "ok", durationSeconds: 0 }; };
     const outcome = await saveTrip(headers, tripSaveRequestSchema.parse(twoVisits()), "changed", test.dependencies, timeReference);
     expect(outcome).toMatchObject({ status: "FAILED", error: { code: "TRIP_VALIDATION_FAILED", details: { validation: { canConfirm: false } } } });
     expect(test.trips).toHaveLength(0); expect(test.records).toHaveLength(0);
   });
   it("does not persist a partial trip or success record when nested creation fails", async () => {
-    const test = fixture(); test.failCreate();
+    const test = fixture(role); test.failCreate();
     const outcome = await saveTrip(headers, tripSaveRequestSchema.parse(request), "broken", test.dependencies, timeReference);
     expect(outcome.status).toBe("UNKNOWN");
     expect(test.trips).toHaveLength(0); expect(test.records).toHaveLength(0);

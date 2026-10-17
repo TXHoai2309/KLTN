@@ -2,6 +2,12 @@
 
 ## Status
 
+**Superseded authorization rule (2026-10-17):** the owner-approved
+[RBAC V2](RBAC-V2-admin-inherits-traveler.md) grants ADMIN the Traveler capability
+for their own resources. The original matrix, denials and acceptance evidence
+below are historical. Current identity, ownership and Admin-only boundaries remain
+in force; current verification is recorded in the RBAC V2 story/report.
+
 ACCEPTED — runtime role browser smoke confirmed by the user; ownership accepted through deterministic fixture tests because production Trip/Favorite resources do not exist yet.
 
 ## Goal / User Story

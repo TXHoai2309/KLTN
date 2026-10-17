@@ -312,3 +312,14 @@ Use a server-owned versioned application-use marker in the existing storageRefer
 Owner explicitly supersedes the Editorial 3 requests/minute/Admin and 20 requests/rolling 24h/Admin policy in both Development and Production. No replacement fixed request quota is authorized. Scope is PROPOSE and ALTERNATIVE only; Better Auth, Traveler AI, RAG and Trip Planner rate limits remain unchanged.
 
 Retain Admin authorization, one active Editorial action/Admin and four active actions/server process, with immediate release on completion/error. This is in-flight protection, not a time allowance; it is not a distributed cluster-wide cap. Retain existing provider deadlines and at most two model calls per Alternative action. Provider 429 and evidence-based Retry-After remain authoritative. Stop reading/writing the obsolete Editorial budget operation; retain historical records unchanged. No migration or shared data cleanup.
+
+
+## 2026-10-17 — Owner-approved RBAC V2 capability inheritance
+
+ADMIN inherits released Traveler capabilities while retaining Admin-only content
+management. The persisted database role remains authoritative after Better Auth
+identity verification. This explicitly supersedes the original US-06/product
+non-inheritance rule, with no role switching, impersonation, ownership bypass or
+hidden-feature activation. Private reads/writes remain scoped by the authenticated
+user ID; Admin cannot access another user's Trips, Favorites or conversations.
+See [RBAC V2](stories/RBAC-V2-admin-inherits-traveler.md) and its acceptance report.

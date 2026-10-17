@@ -2472,3 +2472,32 @@ Audit, task-owned file list, limits and manual procedure:
   excluded and preserved. US-23 still NOT_ACCEPTED pending independent corpus review.
 - [Report](implementation/rag-advanced-reasoning-v2.md),
   [live evidence](implementation/rag-advanced-live-results.json).
+
+
+### 2026-10-17 — RBAC V2: Admin inherits Traveler capabilities
+
+- Owner approved Admin capability inheritance, superseding the old US-06/product
+  non-inheritance rule. Shared typed capability map + policy; requireTraveler
+  delegates to requireActor with persisted-role checks, one User query per guard,
+  and its existing userId contract. Ownership and Admin-only guards remain intact.
+- APIs/pages inherit the guards. UserMenu/FavoriteButton/mutation logic/auth demo
+  accept both roles. Fixed an existing Strict Mode mountedRef issue in Trip Review
+  found by real browser testing. Concurrent Landing/header/map work is preserved.
+- Final full web npm test: 1940 Vitest PASS / 126 gated SKIP + 336 legacy PASS.
+  Root typecheck PASS; build PASS (50.518s); diff-check PASS. No schema/migration
+  change. Premium audit has 29 existing findings; no broad UI compliance claim.
+- Approved Development PostgreSQL RBAC tests: 8/8 PASS and fixture cleanup PASS.
+  Docker Engine unavailable: disposable/broader PostgreSQL QA/RAG/planner suites
+  remain unverified. Real Chromium/Better Auth browser E2E: 12/12 groups PASS,
+  including both-role planner flow, API save/replay/UI reopen/Trip favorites,
+  Destination favorites, cross-user isolation, Admin-only APIs/pages, AI history
+  and Guest denial. Desktop/390px screenshots inspected; final check found zero
+  remaining browser User/Destination fixtures. No quota reset/source changes.
+- Existing planner UI does not mount save panel: save verified through existing
+  API and reopening via UI. Missing routes remain INSUFFICIENT_DATA. AI greeting
+  tests transport/history, not factual RAG quality. No hidden-feature activation.
+- Branch feat/admin-inherits-traveler from TXH/origin TXH a18d54d; HEAD unchanged.
+  No commit/push/merge/deploy or Production/environment/secret changes.
+  [Story](stories/RBAC-V2-admin-inherits-traveler.md),
+  [report](implementation/rbac-v2-admin-inherits-traveler.md),
+  [browser evidence](implementation/rbac-v2-evidence/browser-results.json).

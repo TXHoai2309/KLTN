@@ -31,7 +31,8 @@ test("development DB: FK/one-target/uniqueness/ownership/hidden history/relation
     assert.equal((await removeFavorite(new Headers(),own.id,`${prefix}-remove`,deps)).status,"SUCCESS");
     assert.ok(await db.destination.findUnique({where:{id:ids.d}}));assert.ok(await db.cultureContent.findUnique({where:{id:ids.c}}));assert.ok(await db.favorite.findUnique({where:{id:foreign.id}}));
     const replay=await removeFavorite(new Headers(),own.id,`${prefix}-remove`,deps);assert.equal(replay.status,"SUCCESS");if(replay.status==="SUCCESS")assert.equal(replay.replayed,true);
-    for(const id of [ids.admin,null])await assert.rejects(getFavorites(new Headers(),{database:db,resolveSession:async()=>id?{user:{id}}:null}),{status:id?403:401});
+    assert.deepEqual(await getFavorites(new Headers(),{database:db,resolveSession:async()=>({user:{id:ids.admin}})}),{destinations:[],cultureContents:[]});
+    await assert.rejects(getFavorites(new Headers(),{database:db,resolveSession:async()=>null}),{status:401});
   }finally{
     await db.favorite.deleteMany({where:{userId:{in:[ids.a,ids.b]}}});
     await db.idempotencyRecord.deleteMany({where:{scope:JSON.stringify([ids.a,"favorite:remove"])}});

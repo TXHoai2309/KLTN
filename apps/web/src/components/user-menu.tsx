@@ -1,4 +1,5 @@
 "use client";
+import { hasRolePermission } from "@/lib/authorization-capabilities";
 import { mvpFeatures } from "@/lib/mvp-features";
 
 import { Suspense, useRef, useState } from "react";
@@ -130,7 +131,7 @@ export default function UserMenu() {
             <User className="size-3.5 text-muted-foreground mr-2" />
             <span>Thông tin tài khoản</span>
           </DropdownMenuItem>
-          {session.user.role === "TRAVELER" && (
+          {hasRolePermission(session.user.role, "traveler") && (
             <DropdownMenuItem className="cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium" render={<Link href="/favorites" />}>
               <Heart className="size-3.5 text-muted-foreground mr-2" />
               <span>Yêu thích</span>

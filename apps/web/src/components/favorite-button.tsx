@@ -5,6 +5,7 @@ import { Heart, LoaderCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { hasRolePermission } from "@/lib/authorization-capabilities";
 import { authClient } from "@/lib/auth-client";
 import { buildAuthLoginHref } from "@/lib/auth-return-to";
 import {
@@ -82,6 +83,7 @@ export default function FavoriteButton({
     authClient.useSession();
   const sessionRole = session?.user.role;
   const sessionUserId = session?.user.id;
+  const canUseTraveler = hasRolePermission(sessionRole, "traveler");
   const hasSessionError = Boolean(sessionError);
 
   const [isFavorite, setIsFavorite] = useState<boolean | undefined>(
@@ -173,13 +175,13 @@ export default function FavoriteButton({
     if (
       hasSessionError ||
       !session ||
-      sessionRole !== "TRAVELER" ||
+      !canUseTraveler ||
       initialIsFavorite !== undefined
     ) {
       // Never expose a server-provided private state to a Guest. The optional
       // initial value is meaningful only after the session is confirmed as a
-      // Traveler.
-      setIsFavorite(sessionRole === "TRAVELER" ? initialIsFavorite ?? false : false);
+      // Traveler-capable account.
+      setIsFavorite(canUseTraveler ? initialIsFavorite ?? false : false);
       setLoadState("ready");
       setMessage(null);
       return;
@@ -190,6 +192,7 @@ export default function FavoriteButton({
     return () => controller.abort();
   }, [
     hasSessionError,
+    canUseTraveler,
     initialIsFavorite,
     isSessionPending,
     loadStatus,
@@ -202,15 +205,14 @@ export default function FavoriteButton({
     return <FavoriteButtonSkeleton />;
   }
 
-  // Admin does not inherit Traveler permissions and should not see a control
-  // that can only end in a server-side 403.
-  if (sessionRole === "ADMIN") return null;
+  // Unknown authenticated roles must not expose personal actions.
+  if (sessionRole && !canUseTraveler) return null;
 
-  if (sessionRole === "TRAVELER" && loadState === "loading") {
+  if (canUseTraveler && loadState === "loading") {
     return <FavoriteButtonSkeleton />;
   }
 
-  if (sessionRole === "TRAVELER" && loadState === "unknown") {
+  if (canUseTraveler && loadState === "unknown") {
     return (
       <div className="favorite-button-stack" data-favorite-state="unknown">
         <Button

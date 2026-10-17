@@ -195,10 +195,17 @@
   transition: all 0.15s ease;
 }
 
-.site-header .site-theme-toggle:hover {
-  background: color-mix(in srgb, #287c61 8%, var(--card));
-  border-color: color-mix(in srgb, #287c61 40%, transparent);
+.site-header .site-theme-toggle:hover,
+.site-header .site-theme-toggle[aria-expanded="true"],
+.site-header .site-theme-toggle[data-state="open"] {
+  background: color-mix(in srgb, #287c61 10%, var(--card));
+  border-color: color-mix(in srgb, #287c61 45%, transparent);
   color: #1a5e42;
+}
+
+.site-header .site-theme-toggle[aria-expanded="true"],
+.site-header .site-theme-toggle[data-state="open"] {
+  box-shadow: 0 0 0 3px color-mix(in srgb, #287c61 12%, transparent);
 }
 
 /* Mobile Hamburger Toggle */
@@ -415,10 +422,17 @@
 }
 
 .dark .site-header .site-theme-toggle:hover,
+.dark .site-header .site-theme-toggle[aria-expanded="true"],
+.dark .site-header .site-theme-toggle[data-state="open"],
 .dark .site-mobile-toggle:hover {
   background: color-mix(in srgb, #34d399 12%, var(--card));
   border-color: color-mix(in srgb, #34d399 35%, transparent);
   color: #6ee7b7;
+}
+
+.dark .site-header .site-theme-toggle[aria-expanded="true"],
+.dark .site-header .site-theme-toggle[data-state="open"] {
+  box-shadow: 0 0 0 3px color-mix(in srgb, #34d399 15%, transparent);
 }
 
 .dark .site-mobile-nav-link:hover {

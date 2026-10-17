@@ -69,7 +69,7 @@ test("US-34 development PostgreSQL: owned Trip relation, unique constraint, no c
     actor = null;
     assert.equal((await addFavoriteResponse(request(ids.tripA, "PUT", "guest"), target(ids.tripA), deps)).status, 401);
     actor = { id: ids.admin, role: "ADMIN" };
-    assert.equal((await addFavoriteResponse(request(ids.tripA, "PUT", "admin"), target(ids.tripA), deps)).status, 403);
+    assert.equal((await addFavoriteResponse(request(ids.tripA, "PUT", "admin"), target(ids.tripA), deps)).status, 404);
     actor = { id: ids.a, role: "TRAVELER" };
     const removed = await removeFavoriteResponse(request(ids.tripA, "DELETE", "remove"), target(ids.tripA), deps);
     assert.equal((await removed.json()).operationStatus, "SUCCESS");
