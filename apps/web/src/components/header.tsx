@@ -20,6 +20,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
+import { ProtectedLink } from "./protected-link";
+import type { AuthIntent } from "@/lib/auth-intent-config";
 import "./header.css";
 
 export default function Header() {
@@ -95,6 +97,8 @@ export default function Header() {
     label: string;
     icon: typeof Home;
     isAi?: boolean;
+    protected?: boolean;
+    intent?: AuthIntent;
   }
 
   const links: HeaderNavLink[] = [
@@ -102,10 +106,10 @@ export default function Header() {
     { to: "/explore", label: "Khám phá", icon: Compass },
     ...(mvpFeatures.culture ? [{ to: "/culture", label: "Văn hóa", icon: BookOpen }] : []),
     { to: "/assistant", label: "Trợ lý AI", icon: Sparkles, isAi: true },
-    { to: "/favorites", label: "Yêu thích", icon: Heart },
-    { to: "/trips/new", label: "Lập hành trình", icon: PlusCircle },
-    { to: "/trips", label: "Chuyến đi của tôi", icon: CalendarDays },
-    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/favorites", label: "Yêu thích", icon: Heart, protected: true, intent: "favorites" },
+    { to: "/trips/new", label: "Lập hành trình", icon: PlusCircle, protected: true, intent: "planner" },
+    { to: "/trips", label: "Chuyến đi của tôi", icon: CalendarDays, protected: true, intent: "trips" },
+    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, protected: true, intent: "dashboard" },
   ];
 
   const isLinkActive = (to: string) => {
@@ -131,7 +135,7 @@ export default function Header() {
 
         {/* Center: Desktop Navigation */}
         <nav className="site-nav" aria-label="Điều hướng chính">
-          {links.map(({ to, label, isAi }) => {
+          {links.map(({ to, label, isAi, protected: isProtected, intent }) => {
             const active = to === "/"
               ? pathname === "/"
               : to === "/explore"
@@ -139,6 +143,28 @@ export default function Header() {
                 : to === "/trips"
                   ? pathname === "/trips" || (pathname.startsWith("/trips/") && !pathname.startsWith("/trips/new"))
                 : pathname === to || pathname.startsWith(`${to}/`);
+            const content = (
+              <>
+                <span>{label}</span>
+                {isAi && <span className="site-nav-ai-pill">AI</span>}
+              </>
+            );
+
+            if (isProtected) {
+              return (
+                <ProtectedLink
+                  key={to}
+                  href={to}
+                  intent={intent}
+                  className={`site-nav-link ${isAi ? "site-nav-link-ai" : ""}`}
+                  data-active={active || undefined}
+                  aria-current={active ? "page" : undefined}
+                >
+                  {content}
+                </ProtectedLink>
+              );
+            }
+
             return (
               <Link
                 key={to}
@@ -147,8 +173,7 @@ export default function Header() {
                 data-active={active || undefined}
                 aria-current={active ? "page" : undefined}
               >
-                <span>{label}</span>
-                {isAi && <span className="site-nav-ai-pill">AI</span>}
+                {content}
               </Link>
             );
           })}
@@ -217,8 +242,37 @@ export default function Header() {
         </div>
 
         <nav className="site-mobile-nav" aria-label="Điều hướng di động">
-          {links.map(({ to, label, icon: Icon, isAi }) => {
+          {links.map(({ to, label, icon: Icon, isAi, protected: isProtected, intent }) => {
             const active = isLinkActive(to);
+            const content = (
+              <>
+                <span className="site-mobile-nav-icon">
+                  <Icon className="size-4" />
+                </span>
+                <span className="site-mobile-nav-label">{label}</span>
+                {isAi && <span className="site-mobile-ai-badge">AI</span>}
+              </>
+            );
+
+            if (isProtected) {
+              return (
+                <ProtectedLink
+                  key={to}
+                  href={to}
+                  intent={intent}
+                  className="site-mobile-nav-link"
+                  data-active={active || undefined}
+                  aria-current={active ? "page" : undefined}
+                  onGuestIntercept={() => {
+                    setIsMobileMenuOpen(false);
+                  }}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  {content}
+                </ProtectedLink>
+              );
+            }
+
             return (
               <Link
                 key={to}
@@ -228,11 +282,7 @@ export default function Header() {
                 aria-current={active ? "page" : undefined}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
-                <span className="site-mobile-nav-icon">
-                  <Icon className="size-4" />
-                </span>
-                <span className="site-mobile-nav-label">{label}</span>
-                {isAi && <span className="site-mobile-ai-badge">AI</span>}
+                {content}
               </Link>
             );
           })}
