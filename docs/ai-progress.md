@@ -2404,3 +2404,41 @@ Audit, task-owned file list, limits and manual procedure:
   applicable; no new paid calls or corpus-quality acceptance is claimed.
 - Existing source-safety failure remains unresolved. No commit/push/deployment.
   Final checks: root build PASS (23.767s), git diff --check PASS.
+
+### 2026-10-17 — eMagazine Luna maximum reasoning
+
+- Owner clarified edit means eMagazine. Editorial already pins gpt-6-luna;
+  changed reasoning_effort from none to max, the highest effort documented by
+  OpenAI. Request still omits temperature/top_p and uses existing bounded schema,
+  output budget and deadline. No QA model, database, environment or article edit.
+- Editorial offline suites: 311 PASS / 6 PostgreSQL-gated SKIP; no paid API calls
+  or live layout quality/latency claim. Updated the V4 story configuration record.
+- No commit/push/deploy.
+  Final checks: root typecheck PASS; root build PASS (65.336s);
+  git diff --check PASS. Only Editorial adapter/test and task documentation changed.
+
+### 2026-10-17 — Sol 6.1 medium reasoning
+
+- Owner requested medium effort for Sol. Shared QA transport now sends
+  reasoning_effort=medium for gpt-6.1-sol across assessment, generation and
+  synthesis verification. Updated active model/request assertions accordingly.
+- eMagazine retains the separately requested gpt-6-luna/max configuration.
+  No schema/environment changes, paid calls, commit, push or deployment.
+- Root typecheck PASS. Full QA tests/build and diff-check results recorded below.
+  Final checks: QA suites 595 PASS / 56 gated SKIP; root build PASS (33.553s),
+  root typecheck and git diff --check PASS. No live model-quality test in this change.
+
+### 2026-10-17 — Dynamic Neon RAG retrieval & public QA permission management
+
+- Upgraded RAG retrieval to dynamically discover all eligible RagDocument records in Neon PostgreSQL, removing the need for manual QA_PUBLIC_SOURCE_IDS allowlist in .env and eliminating redeploy requirements when Admin adds/indexes new documents.
+- Schema & Migration: Created additive Prisma migration 20261017150000_add_rag_public_qa_permission adding publicQaApproved Boolean @default(false) and index [status, publicQaApproved] on rag_document. Applied migration to authorized Neon Development database. Initialized existing indexed document cmvapg3l0001j7w9w61egpl01 with publicQaApproved = true.
+- Retrieval & Runtime: Updated qa-retrieval.ts eligible SQL clause to enforce d."status" = 'INDEXED' AND d."publicQaApproved" = true AND g."state" = 'READY' along with embedding dimensions and model checks. When options.publicSourceIds is omitted, retrieval dynamically queries all DB-eligible sources. Strict concurrency linearization point (lockQaEvidenceEligibility with SELECT ... FOR UPDATE) guarantees in-flight completions abort immediately with AI_INVALID_RESPONSE if an Admin disables a document or revokes public QA approval.
+- Admin Backend & Routes: Updated rag-service.ts to compute publicQaEligible and ineligibilityReason (STATUS_NOT_INDEXED, NOT_PUBLIC_APPROVED, NO_READY_INDEX, EMBEDDING_MISMATCH). Supported ENABLE_PUBLIC_QA and DISABLE_PUBLIC_QA actions in transitionRagDocument. Added POST /api/admin/rag-documents/bulk-public-qa supporting ENABLE_ALL_INDEXED, ENABLE_SELECTED, and DISABLE_SELECTED.
+- Admin UI (rag-review-ui.tsx, rag-review.css): Added summary statistics cards (Total, Indexed, Public QA Approved, Ready for AI), a one-click bulk approval banner for all currently indexed unapproved documents, detailed badge representations, and a dedicated Public QA Permission card in the detail view with instant toggle.
+- Verification & Test Results:
+  - Disposable Docker PostgreSQL integration runner (scripts/test-qa-postgres.mjs): 72/72 PASS (0 fail, 0 skip), verifying RAG_PUBLIC_QA_MIGRATION, dynamic multi-document discovery, and permission revocation rejection.
+  - Vitest: 1,900 unit tests PASS (0 fail, 108 skipped).
+  - Node RAG regression tests (npm run test:rag): 56/56 PASS (0 fail).
+  - TypeScript typecheck (npm run check-types): PASS.
+  - Next.js production build (npm run build): PASS in 37.6s, all routes compiled.
+  - git diff --check: PASS. No production database touched; no push/merge performed.

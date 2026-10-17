@@ -58,7 +58,7 @@ export function createQaJsonProvider(options: QaProviderOptions = {}) {
     const cancellation = new Promise<never>((_, reject) => { controller.signal.addEventListener("abort", () => reject(unavailable()), { once: true }); });
     const work = async (): Promise<T> => {
       qaStage("GENERATION_PROVIDER"); qaProviderInvoked("generation", model);
-      const response = await (options.fetcher ?? fetch)("https://api.openai.com/v1/chat/completions", { method: "POST", redirect: "error", signal: controller.signal, headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify({ model, messages, store: false, ...(sol61 ? { reasoning_effort: "low" } : { temperature: 0, ...(luna ? { reasoning_effort: "none" } : {}) }), max_completion_tokens: maxOutputTokens, response_format: { type: "json_schema", json_schema: { name: input.name, strict: true, schema: input.schema } } }) });
+      const response = await (options.fetcher ?? fetch)("https://api.openai.com/v1/chat/completions", { method: "POST", redirect: "error", signal: controller.signal, headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify({ model, messages, store: false, ...(sol61 ? { reasoning_effort: "medium" } : { temperature: 0, ...(luna ? { reasoning_effort: "none" } : {}) }), max_completion_tokens: maxOutputTokens, response_format: { type: "json_schema", json_schema: { name: input.name, strict: true, schema: input.schema } } }) });
       qaProviderMetadata("generation", response);
       if (!response.ok) { await response.body?.cancel().catch(() => undefined); throw unavailable(); }
       let payload: unknown; qaStage("GENERATION_ENVELOPE");

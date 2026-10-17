@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { getRagDocument, listRagDocuments, transitionRagDocument } from "./rag-service";
+import { getRagDocument, listRagDocuments, transitionRagDocument, computeRagEligibility, bulkSetRagPublicQa } from "./rag-service";
 import { confirmedRagDetail } from "./rag-review-state";
 import { RagStatusBadge } from "../../app/admin/rag/rag-review-ui";
 import { retrievalEligible } from "./rag-file";
@@ -14,22 +14,28 @@ function setup(status: Status = "UPLOADED", role: "ADMIN" | "TRAVELER" | null = 
     id: "rag-1", originalFileName: "ha-giang.pdf", fileType: "PDF", mimeType: "application/pdf",
     sizeBytes: 1024, storagePath: "rag/admin-1/file.pdf", sourceTitle: "Tài liệu Hà Giang",
     sourceUrl: "https://example.org/source", author: "Tác giả", topic: "Văn hóa", locality: "Đồng Văn",
-    uploadedById: "admin-1", status, createdAt: new Date("2026-10-01"), updatedAt: new Date("2026-10-02"),
+    uploadedById: "admin-1", status, publicQaApproved: false, createdAt: new Date("2026-10-01"), updatedAt: new Date("2026-10-02"),
   };
   let fileExists = true;
   const idempotency = new Map<string, { requestHash: string; responseJson: string }>();
   const ragDocument = {
     findMany: async () => [row],
     findUnique: async ({ where }: { where: { id: string } }) => where.id === row.id ? { ...row } : null,
+    update: async ({ data }: { data: { publicQaApproved?: boolean } }) => { Object.assign(row, data); return { ...row }; },
     updateMany: async ({ where, data }: { where: { id: string; status: Status }; data: { status: Status } }) => {
       if (where.id !== row.id || where.status !== row.status) return { count: 0 };
       row.status = data.status;
       return { count: 1 };
     },
   };
+  const ragIndexPublication = {
+    findMany: async () => [],
+    findUnique: async () => null,
+  };
   const tx = {
     user: { findUnique: async () => role ? { id: "admin-1", role } : null },
     ragDocument,
+    ragIndexPublication,
     idempotencyRecord: {
       create: async ({ data }: { data: { scope: string; key: string; requestHash: string; responseJson: string } }) => { idempotency.set(`${data.scope}:${data.key}`, { requestHash: data.requestHash, responseJson: data.responseJson }); },
       update: async ({ where, data }: { where: { scope_key: { scope: string; key: string } }; data: { responseJson: string } }) => {
@@ -42,6 +48,7 @@ function setup(status: Status = "UPLOADED", role: "ADMIN" | "TRAVELER" | null = 
     resolveSession: async () => role ? { user: { id: "admin-1" } } : null,
     database: {
       ...tx,
+      ragIndexPublication,
       idempotencyRecord: { ...tx.idempotencyRecord, findUnique: async ({ where }: { where: { scope_key: { scope: string; key: string } } }) => idempotency.get(`${where.scope_key.scope}:${where.scope_key.key}`) ?? null },
       $transaction: async (run: (value: typeof tx) => Promise<unknown>) => {
         const before = row.status;
@@ -204,4 +211,128 @@ test("an older indexing completion read cannot replace confirmed DISABLED", () =
   const refreshed = confirmedRagDetail(previous, { status: "SUCCESS", data: { status: "DISABLED", retrievalEligible: false } });
   assert.equal(refreshed.status, "DISABLED");
   assert.equal(refreshed.retrievalEligible, false);
+});
+
+test("computeRagEligibility evaluates status, permission, and embedding readiness", () => {
+  const readyGen = {
+    state: "READY" as const,
+    embeddingProvider: "openai",
+    embeddingModel: "text-embedding-3-small",
+    embeddingDimensions: 1536,
+  };
+  // Eligible when INDEXED + publicQaApproved + readyGen
+  assert.deepEqual(computeRagEligibility("INDEXED", true, readyGen), {
+    publicQaEligible: true,
+    ineligibilityReason: null,
+  });
+  // Not indexed
+  assert.deepEqual(computeRagEligibility("APPROVED", true, readyGen), {
+    publicQaEligible: false,
+    ineligibilityReason: "STATUS_NOT_INDEXED",
+  });
+  // Not public approved
+  assert.deepEqual(computeRagEligibility("INDEXED", false, readyGen), {
+    publicQaEligible: false,
+    ineligibilityReason: "NOT_PUBLIC_APPROVED",
+  });
+  // No generation or not READY
+  assert.deepEqual(computeRagEligibility("INDEXED", true, null), {
+    publicQaEligible: false,
+    ineligibilityReason: "NO_READY_INDEX",
+  });
+  assert.deepEqual(computeRagEligibility("INDEXED", true, { ...readyGen, state: "BUILDING" }), {
+    publicQaEligible: false,
+    ineligibilityReason: "NO_READY_INDEX",
+  });
+  // Embedding mismatch
+  assert.deepEqual(computeRagEligibility("INDEXED", true, { ...readyGen, embeddingDimensions: 768 }), {
+    publicQaEligible: false,
+    ineligibilityReason: "EMBEDDING_MISMATCH",
+  });
+});
+
+test("ENABLE_PUBLIC_QA and DISABLE_PUBLIC_QA grant and revoke AI access for INDEXED documents", async () => {
+  const { deps, row } = setup("INDEXED");
+  assert.equal(row.publicQaApproved, false);
+
+  // Enable public QA
+  const enable = await transitionRagDocument(headers, "rag-1", { action: "ENABLE_PUBLIC_QA" }, "key-qa-enable", deps as never);
+  assert.equal(enable.status, "SUCCESS");
+  assert.equal(row.publicQaApproved, true);
+  if (enable.status === "SUCCESS") {
+    assert.equal(enable.data.publicQaApproved, true);
+    assert.deepEqual(enable.data.allowedActions, ["DISABLE", "DISABLE_PUBLIC_QA"]);
+  }
+
+  // Disable public QA
+  const disable = await transitionRagDocument(headers, "rag-1", { action: "DISABLE_PUBLIC_QA" }, "key-qa-disable", deps as never);
+  assert.equal(disable.status, "SUCCESS");
+  assert.equal(row.publicQaApproved, false);
+  if (disable.status === "SUCCESS") {
+    assert.equal(disable.data.publicQaApproved, false);
+    assert.deepEqual(disable.data.allowedActions, ["DISABLE", "ENABLE_PUBLIC_QA"]);
+  }
+});
+
+test("ENABLE_PUBLIC_QA is rejected for DISABLED document", async () => {
+  const { deps, row } = setup("DISABLED");
+  const outcome = await transitionRagDocument(headers, "rag-1", { action: "ENABLE_PUBLIC_QA" }, "key-disabled-enable", deps as never);
+  assert.equal(outcome.status, "FAILED");
+  assert.equal(row.publicQaApproved, false);
+});
+
+test("bulkSetRagPublicQa enables all indexed or selected documents", async () => {
+  const docs = [
+    { id: "doc-1", status: "INDEXED", publicQaApproved: false },
+    { id: "doc-2", status: "INDEXED", publicQaApproved: false },
+    { id: "doc-3", status: "UPLOADED", publicQaApproved: false },
+  ];
+  const deps = {
+    resolveSession: async () => ({ user: { id: "admin-1" } }),
+    database: {
+      user: { findUnique: async () => ({ id: "admin-1", role: "ADMIN" }) },
+      ragDocument: {
+        findMany: async ({ where }: { where: { status?: string | { not: string }; publicQaApproved?: boolean; id?: { in: string[] } } }) => {
+          return docs.filter(d => {
+            if (where.status) {
+              if (typeof where.status === "string" && d.status !== where.status) return false;
+              if (typeof where.status === "object" && "not" in where.status && d.status === where.status.not) return false;
+            }
+            if (where.publicQaApproved !== undefined && d.publicQaApproved !== where.publicQaApproved) return false;
+            if (where.id?.in && !where.id.in.includes(d.id)) return false;
+            return true;
+          });
+        },
+        updateMany: async ({ where, data }: { where: { id: { in: string[] } }; data: { publicQaApproved: boolean } }) => {
+          let count = 0;
+          for (const d of docs) {
+            if (where.id.in.includes(d.id)) {
+              d.publicQaApproved = data.publicQaApproved;
+              count++;
+            }
+          }
+          return { count };
+        },
+      },
+    },
+    storage: { accessible: async () => true },
+  };
+
+  // ENABLE_ALL_INDEXED
+  const allResult = await bulkSetRagPublicQa(headers, { action: "ENABLE_ALL_INDEXED" }, deps as never);
+  assert.equal(allResult.updatedCount, 2);
+  assert.deepEqual(allResult.ids, ["doc-1", "doc-2"]);
+  assert.equal(docs[0].publicQaApproved, true);
+  assert.equal(docs[1].publicQaApproved, true);
+  assert.equal(docs[2].publicQaApproved, false);
+
+  // DISABLE_SELECTED
+  const disableResult = await bulkSetRagPublicQa(headers, { action: "DISABLE_SELECTED", documentIds: ["doc-1"] }, deps as never);
+  assert.equal(disableResult.updatedCount, 1);
+  assert.equal(docs[0].publicQaApproved, false);
+
+  // ENABLE_SELECTED
+  const enableResult = await bulkSetRagPublicQa(headers, { action: "ENABLE_SELECTED", documentIds: ["doc-1"] }, deps as never);
+  assert.equal(enableResult.updatedCount, 1);
+  assert.equal(docs[0].publicQaApproved, true);
 });

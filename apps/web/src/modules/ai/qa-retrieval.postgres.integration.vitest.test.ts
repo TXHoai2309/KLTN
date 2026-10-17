@@ -65,7 +65,7 @@ integrationDescribe("US21 real pgvector retrieval (explicit disposable database 
     await db.$disconnect();
   });
   async function seed(status: "INDEXED" | "DISABLED" | "APPROVED" = "INDEXED", state: "READY" | "BUILDING" = "READY",
-    publication = true, orthogonal = false, customVector?: number[], customText?: string) {
+    publication = true, orthogonal = false, customVector?: number[], customText?: string, publicQaApproved: boolean = (status === "INDEXED")) {
     const id = `qa-retrieval-${randomUUID()}`;
     documentIds.push(id);
     publicSourceIds.add(id); // Synthetic fixture explicitly approved for test DTO projection.
@@ -74,7 +74,7 @@ integrationDescribe("US21 real pgvector retrieval (explicit disposable database 
     const tokenCount = countEmbeddingTokens(text);
     await db.ragDocument.create({ data: { id, originalFileName: "synthetic.txt", fileType: "TXT", mimeType: "text/plain", sizeBytes: 50,
       storagePath: `private/${id}`, sourceTitle: "Synthetic integration source", sourceUrl: "https://private.invalid/?token=secret",
-      uploadedById: "synthetic", status } });
+      uploadedById: "synthetic", status, publicQaApproved } });
     const content = await db.ragContentVersion.create({ data: { ragDocumentId: id, originalBytesHash: hash, normalizedContentHash: hash,
       identityHash: hash, extractorVersion: "test", normalizationVersion: "test" } });
     async function generation(key: string, generationState: "READY" | "BUILDING") {
@@ -338,5 +338,28 @@ integrationDescribe("US21 real pgvector retrieval (explicit disposable database 
     expect(rows.every(row => row.state === "FAILED" && row.response === null)).toBe(true);
     expect(h.embeddingFetch).toHaveBeenCalledTimes(2); expect(h.answerFetch).toHaveBeenCalledTimes(2);
     await db.ragDocument.update({ where: { id: source.id }, data: { status: "DISABLED" } });
+  });
+  it("dynamic retrieval discovers all INDEXED and publicQaApproved documents without needing publicSourceIds", async () => {
+    const docA = await seed("INDEXED", "READY", true, false, undefined, "Tài liệu A có dữ kiện hợp lệ.", true);
+    const docB = await seed("INDEXED", "READY", true, false, undefined, "Tài liệu B có dữ kiện thứ hai.", true);
+    const docUnapproved = await seed("INDEXED", "READY", true, false, undefined, "Tài liệu C chưa cấp quyền.", false);
+    const docDisabled = await seed("DISABLED", "READY", true, false, undefined, "Tài liệu D bị vô hiệu hóa.", true);
+
+    // Call retriever with NO publicSourceIds (automatic dynamic database discovery mode)
+    const dynamicRetriever = createQaRetriever(db as Database, { provider, topK: 10 });
+    const evidence = await dynamicRetriever.retrieve("dữ kiện hợp lệ?", []);
+
+    const retrievedIds = evidence.map(e => e.documentId);
+    expect(retrievedIds).toContain(docA.id);
+    expect(retrievedIds).toContain(docB.id);
+    expect(retrievedIds).not.toContain(docUnapproved.id);
+    expect(retrievedIds).not.toContain(docDisabled.id);
+
+    // Revoking publicQaApproved from docA immediately prevents recheck
+    const docAEvidence = evidence.filter(e => e.documentId === docA.id);
+    expect(await dynamicRetriever.recheck(docAEvidence)).toBe(true);
+
+    await db.ragDocument.update({ where: { id: docA.id }, data: { publicQaApproved: false } });
+    expect(await dynamicRetriever.recheck(docAEvidence)).toBe(false);
   });
 });

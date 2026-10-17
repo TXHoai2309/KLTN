@@ -21,14 +21,14 @@ beforeEach(() => { vi.stubEnv("OPENAI_API_KEY", "fixture-private-key"); vi.stubE
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
 describe("Editorial-only GPT-6 Luna adapter, offline", () => {
-  it("sends exact Luna model, none reasoning, strict schema and sufficient tokens; no temperature", async () => {
+  it("sends exact Luna model, maximum reasoning, strict schema and bounded tokens; no temperature", async () => {
     const fetcher = vi.fn(async () => completion());
     expect(await client(fetcher as typeof fetch).complete(input)).toEqual({ rawText: '{"value":"ok"}', model: "gpt-6-luna" });
     expect(fetcher).toHaveBeenCalledOnce();
     const [url, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://api.openai.com/v1/chat/completions");
     const body = JSON.parse(init.body as string);
-    expect(body).toMatchObject({ model: "gpt-6-luna", reasoning_effort: "none", max_completion_tokens: 8192, store: false,
+    expect(body).toMatchObject({ model: "gpt-6-luna", reasoning_effort: "max", max_completion_tokens: 8192, store: false,
       response_format: { type: "json_schema", json_schema: { name: "destination_editorial_layout", strict: true, schema: input.jsonSchema } } });
     expect(body).not.toHaveProperty("temperature"); expect(body).not.toHaveProperty("top_p");
   });

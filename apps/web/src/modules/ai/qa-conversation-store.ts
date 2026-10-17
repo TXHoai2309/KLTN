@@ -222,7 +222,7 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
         if (!turn || turn.fence !== r.fence || turn.state !== "PROCESSING" || conversation.activeTurnId !== r.turnId || turn.leaseUntil.getTime() <= now.getTime()) error("CONVERSATION_BUSY");
         // Disable and index publication use the same document row lock. This eligibility
         // check and the completed write are one linearization point, not a preflight.
-        if (!await lockQaEvidenceEligibility(tx,evidence,options.publicSourceIds ?? new Set())) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "PERSISTENCE_STARTED", "ELIGIBILITY");
+        if (!await lockQaEvidenceEligibility(tx,evidence,options.publicSourceIds)) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "PERSISTENCE_STARTED", "ELIGIBILITY");
         const parsed = qaCompletedTurnSchema.parse(data);
         await resolveQaContext(tx, conversation.context, true);
         if (!sameQaContext(parsed.context, conversation.context)) error("CONVERSATION_STALE");

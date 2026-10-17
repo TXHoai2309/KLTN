@@ -116,7 +116,16 @@ describe("US21 retrieval", () => {
   });
   it("fails closed when a source title and locator lack explicit public metadata approval", async () => {
     const s = setup([row()]);
-    expect(await createQaRetriever(s.db, { provider: s.provider }).retrieve("Q?", [])).toEqual([]);
+    expect(await createQaRetriever(s.db, { provider: s.provider, publicSourceIds: new Set(["other-unrelated-source"]) }).retrieve("Q?", [])).toEqual([]);
+  });
+  it("dynamically queries all database-eligible sources when publicSourceIds is undefined", async () => {
+    const s = setup([row()]);
+    const evidence = await createQaRetriever(s.db, { provider: s.provider }).retrieve("Q?", []);
+    expect(evidence).toHaveLength(1);
+    expect(evidence[0]!.documentId).toBe("private-document-0");
+    const sql = s.query.mock.calls[0]![0] as unknown as { sql: string };
+    expect(sql.sql).toMatch(/publicQaApproved/);
+    expect(sql.sql).not.toMatch(/d\."id" IN/);
   });
   it.each(["file:///private/source.pdf", "C:\\private\\source.pdf", "\\\\nas01\\share\\source.pdf", "/var/private/source.pdf", "https://blob.invalid/file?token=secret"])("excludes approved evidence with unsafe citation metadata: %s", async title => {
     const s=setup([{...row(),sourceTitle:title}]);

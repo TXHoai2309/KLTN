@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { CirclePlus, FileText, Info, Leaf, Loader2, PanelLeft, Send, ShieldCheck, Sparkles } from "lucide-react";
+import { Check, CirclePlus, Copy, FileText, Info, Leaf, Loader2, PanelLeft, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { AssistantLandscape } from "./assistant-landscape";
 import { AssistantCitations } from "./assistant-citations";
 import { buildCitationIndex, isReadingCitation } from "./assistant-citation-utils";
@@ -347,68 +347,28 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
     />
 
     <div className="assistant-chat-main">
-      <header className="assistant-chat-header">
-        <div className="assistant-chat-header-inner">
-          <div className="assistant-header-left">
-            <button
-              type="button"
-              className="assistant-sidebar-toggle-btn"
-              onClick={() => setSidebarOpen(prev => !prev)}
-              aria-label={sidebarOpen ? "Đóng thanh bên lịch sử" : "Mở thanh bên lịch sử"}
-              title={sidebarOpen ? "Đóng thanh bên" : "Mở thanh bên"}
-            >
-              <PanelLeft aria-hidden="true" />
-            </button>
-            <div className="assistant-brand">
-              <span className="assistant-brand-icon"><Sparkles aria-hidden="true" /></span>
-              <h2>{activeTitle || "Trợ lý AI Hà Giang"}</h2>
-            </div>
-          </div>
-
-          <div className="assistant-header-right">
-            {contextError ? (
-              <p className="assistant-context-controls assistant-context-error" role="alert">
-                {contextError} <a href="/assistant">Quay về hỏi đáp chung</a>
-              </p>
-            ) : (
-              <div className="assistant-context-controls">
-                <div className="assistant-context-bar">
-                  <label htmlFor={`${instanceId}-context`} className="assistant-context-label" title="Chọn bối cảnh hội thoại">
-                    <Leaf aria-hidden="true" />
-                    <span className="assistant-sr-only">Bối cảnh hiện tại</span>
-                  </label>
-                  {state.context.type === "DESTINATION" && (
-                    <strong className="assistant-context-name">
-                      {destinations.find(destination => state.context.type === "DESTINATION" && destination.id === state.context.destinationId)?.name ?? "Điểm đến đang chọn"}
-                    </strong>
-                  )}
-                  <select
-                    id={`${instanceId}-context`}
-                    value={state.context.type === "DESTINATION" ? state.context.destinationId : ""}
-                    disabled={unresolved || !available}
-                    onChange={event => changeContext(event.target.value ? { type: "DESTINATION", destinationId: event.target.value } : { type: "GENERAL" })}
-                    className="assistant-context-select"
-                    aria-label="Chọn bối cảnh hỏi đáp"
-                  >
-                    <option value="">Hỏi đáp chung</option>
-                    {destinations.map(destination => <option key={destination.id} value={destination.id}>{destination.name}</option>)}
-                  </select>
-                  {state.context.type === "DESTINATION" && (
-                    <button type="button" className="assistant-context-clear-btn" disabled={unresolved || !available} onClick={() => changeContext({ type: "GENERAL" })}>
-                      Xóa bối cảnh
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <button type="button" className="assistant-new-chat-btn" onClick={startNew} disabled={!transport || !available || sending}>
-              <CirclePlus aria-hidden="true" />
-              <span>Cuộc hội thoại mới</span>
-            </button>
-          </div>
+      {/* Floating toggle button replacing bulky header */}
+      <div className={`assistant-floating-header ${sidebarOpen ? "sidebar-open" : "sidebar-collapsed"}`}>
+        <div className="assistant-header-left">
+          <button
+            type="button"
+            className="assistant-sidebar-toggle-btn"
+            onClick={() => setSidebarOpen(prev => !prev)}
+            aria-label={sidebarOpen ? "Đóng thanh bên lịch sử" : "Mở thanh bên lịch sử"}
+            title={sidebarOpen ? "Đóng thanh bên" : "Mở thanh bên"}
+          >
+            <PanelLeft aria-hidden="true" />
+          </button>
         </div>
-      </header>
+      </div>
+
+      {contextError && (
+        <div className="assistant-notice-banner">
+          <p className="assistant-context-error" role="alert">
+            {contextError} <a href="/assistant">Quay về hỏi đáp chung</a>
+          </p>
+        </div>
+      )}
 
       {conversationLoadNotice && (
         <div className="assistant-notice-banner">
@@ -516,7 +476,7 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
 
       <div className="assistant-bottom-dock">
         <div className="assistant-bottom-dock-inner">
-          <div className="assistant-live assistant-muted" role="status" aria-live="polite" aria-atomic="true">{status}</div>
+          <div className={`assistant-live ${!state.validation && !sending && !state.pending?.message ? "assistant-live-idle" : "assistant-live-active"} ${state.validation ? "assistant-live-error" : ""}`} role="status" aria-live="polite" aria-atomic="true">{status}</div>
 
           <form noValidate className="assistant-composer" onSubmit={(event) => { event.preventDefault(); submit(); }}>
             <label htmlFor={questionId} className="assistant-sr-only">Câu hỏi của bạn</label>
@@ -534,14 +494,49 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
                 onChange={(event) => controller.setDraft(event.target.value)}
                 onKeyDown={(event) => { if (shouldSendOnEnter({ key: event.key, shiftKey: event.shiftKey, isComposing: event.nativeEvent.isComposing, keyCode: event.nativeEvent.keyCode })) { event.preventDefault(); submit(); } }}
               />
-              <button type="submit" disabled={!transport || !available || !!contextError || unresolved || !state.draft.trim()} aria-busy={sending}>
-                <Send aria-hidden="true" />
-                <span>Gửi</span>
-              </button>
+
+              <div className="assistant-composer-bar">
+                {!contextError && (
+                  <div className="assistant-context-controls">
+                    <div className="assistant-context-bar">
+                      <label htmlFor={`${instanceId}-context`} className="assistant-context-label" title="Chọn bối cảnh hỏi đáp">
+                        <Leaf aria-hidden="true" />
+                        <span className="assistant-sr-only">Bối cảnh hiện tại</span>
+                      </label>
+                      {state.context.type === "DESTINATION" && (
+                        <strong className="assistant-context-name">
+                          {destinations.find(destination => state.context.type === "DESTINATION" && destination.id === state.context.destinationId)?.name ?? "Điểm đến đang chọn"}
+                        </strong>
+                      )}
+                      <select
+                        id={`${instanceId}-context`}
+                        value={state.context.type === "DESTINATION" ? state.context.destinationId : ""}
+                        disabled={unresolved || !available}
+                        onChange={event => changeContext(event.target.value ? { type: "DESTINATION", destinationId: event.target.value } : { type: "GENERAL" })}
+                        className="assistant-context-select"
+                        aria-label="Chọn bối cảnh hỏi đáp"
+                      >
+                        <option value="">Hỏi đáp chung</option>
+                        {destinations.map(destination => <option key={destination.id} value={destination.id}>{destination.name}</option>)}
+                      </select>
+                      {state.context.type === "DESTINATION" && (
+                        <button type="button" className="assistant-context-clear-btn" disabled={unresolved || !available} onClick={() => changeContext({ type: "GENERAL" })} title="Xóa bối cảnh">
+                          Xóa bối cảnh
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                <button type="submit" disabled={!transport || !available || !!contextError || unresolved || !state.draft.trim()} aria-busy={sending}>
+                  <Send aria-hidden="true" />
+                  <span>Gửi</span>
+                </button>
+              </div>
             </div>
             <div className="assistant-composer-footer" id={helpId}>
               <span>Enter để gửi · Shift+Enter xuống dòng</span>
-              <span>{state.draft.normalize("NFC").trim().length}/2000 UTF-16</span>
+              <span className="assistant-char-counter">{state.draft.normalize("NFC").trim().length}/2000 ký tự</span>
             </div>
           </form>
 

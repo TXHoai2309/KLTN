@@ -25,7 +25,10 @@ export const qaRuntimeEnabled = () => isQaRuntimeEnabled({
   allowedDatabaseHost: process.env.QA_RUNTIME_ALLOWED_DATABASE_HOST,
   allowedDatabaseName: process.env.QA_RUNTIME_ALLOWED_DATABASE_NAME,
 });
-const publicSourceIds = new Set((process.env.QA_PUBLIC_SOURCE_IDS ?? "").split(",").map(value => value.trim()).filter(value => /^[a-zA-Z0-9_-]{1,128}$/u.test(value)));
+const legacyAllowlistEnabled = process.env.QA_LEGACY_SOURCE_ALLOWLIST_ENABLED === "true";
+const legacySourceIds = legacyAllowlistEnabled && process.env.QA_PUBLIC_SOURCE_IDS
+  ? new Set(process.env.QA_PUBLIC_SOURCE_IDS.split(",").map(value => value.trim()).filter(value => /^[a-zA-Z0-9_-]{1,128}$/u.test(value)))
+  : undefined;
 const abuse = createQaAbuseGuard(db, process.env.NODE_ENV === "development" ? {
   askNetworkTenMinutes: 1000,
   askNetworkDay: 10000,
@@ -38,11 +41,11 @@ export const qaPrincipalResolver = createQaPrincipalResolver({ database: db, aut
 export const qaService = createQaService({
   store: createQaConversationStore(db, {
     abuse: abuse.hooks,
-    publicSourceIds,
+    publicSourceIds: legacySourceIds,
     maxPerTenMinutes: process.env.NODE_ENV === "development" ? 1000 : 10,
     maxPerDay: process.env.NODE_ENV === "development" ? 1000 : 100,
   }),
-  retriever: createQaRetriever(db, { publicSourceIds, topK: 4, maxEvidenceTokens: 3000, hybrid: true }),
+  retriever: createQaRetriever(db, { publicSourceIds: legacySourceIds, topK: 4, maxEvidenceTokens: 3000, hybrid: true }),
   generator: createQaGenerator(),
   assessor: createQaAssessor(),
   resolveContext: context => resolveQaContext(db, context)

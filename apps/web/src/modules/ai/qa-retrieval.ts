@@ -52,7 +52,7 @@ const joins = Prisma.sql`FROM "rag_index_publication" p
   JOIN "rag_index_generation" g ON g."id" = p."generationId" AND g."ragDocumentId" = d."id"
   JOIN "rag_chunk" c ON c."generationId" = g."id" AND c."ragDocumentId" = d."id"
   JOIN "rag_chunk_embedding" e ON e."chunkId" = c."id"`;
-const eligible = Prisma.sql`d."status" = 'INDEXED' AND g."state" = 'READY'
+const eligible = Prisma.sql`d."status" = 'INDEXED' AND d."publicQaApproved" = true AND g."state" = 'READY'
   AND g."embeddingProvider" = ${EMBEDDING_PROVENANCE.provider}
   AND g."embeddingModel" = ${EMBEDDING_PROVENANCE.model}
   AND g."embeddingDimensions" = ${EMBEDDING_PROVENANCE.dimensions}`;
@@ -84,10 +84,10 @@ export function projectQaLocators(fileType: string, raw: unknown): QaPublicCitat
   return result;
 }
 
-async function recheckWith(reader: Reader, evidence: readonly QaEvidence[], publicSourceIds: ReadonlySet<string>): Promise<boolean> {
+async function recheckWith(reader: Reader, evidence: readonly QaEvidence[], publicSourceIds?: ReadonlySet<string>): Promise<boolean> {
   if (evidence.length === 0) return true;
   if (evidence.length > 20) return false;
-  if (evidence.some(item => !publicSourceIds.has(item.documentId))) return false;
+  if (publicSourceIds && evidence.some(item => !publicSourceIds.has(item.documentId))) return false;
   const identities = evidence.map(item => Prisma.sql`(d."id" = ${item.documentId} AND g."id" = ${item.generationId}
     AND g."contentVersionId" = ${item.contentVersionId} AND c."id" = ${item.chunkId} AND c."chunkHash" = ${item.chunkHash})`);
   const rows = await reader.$queryRaw<Array<{ chunkId: string; documentId: string; generationId: string; contentVersionId: string; chunkHash: string }>>(Prisma.sql`SELECT c."id" AS "chunkId", d."id" AS "documentId", g."id" AS "generationId", g."contentVersionId", c."chunkHash" ${joins}
@@ -98,10 +98,10 @@ async function recheckWith(reader: Reader, evidence: readonly QaEvidence[], publ
 
 /** Call inside the same transaction as completion. Disable and index publication
  * use this document lock too, so eligibility stays valid through the commit. */
-export async function lockQaEvidenceEligibility(tx: Prisma.TransactionClient, evidence: readonly QaEvidence[], publicSourceIds: ReadonlySet<string> = new Set()): Promise<boolean> {
+export async function lockQaEvidenceEligibility(tx: Prisma.TransactionClient, evidence: readonly QaEvidence[], publicSourceIds?: ReadonlySet<string>): Promise<boolean> {
   if (evidence.length === 0) return true;
   if (evidence.length > 20) return false;
-  if (evidence.some(item => !publicSourceIds.has(item.documentId))) return false;
+  if (publicSourceIds && evidence.some(item => !publicSourceIds.has(item.documentId))) return false;
   const ids = [...new Set(evidence.map(item => item.documentId))].sort();
   await tx.$queryRaw(Prisma.sql`SELECT "id" FROM "rag_document" WHERE "id" IN (${Prisma.join(ids)}) ORDER BY "id" FOR UPDATE`);
   return recheckWith(tx, evidence, publicSourceIds);
@@ -119,13 +119,14 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
   const maxEvidenceTokens = boundedInteger(options.maxEvidenceTokens, 6000, 12000);
   // This is a retrieval heuristic, not a semantic sufficiency certificate.
   const minScore = options.minScore ?? 0.25;
-  // A database row does not prove that its title or headings may be disclosed.
-  // Only source IDs explicitly approved by the server-side deployment allowlist
-  // can become evidence; the empty default fails closed.
-  const publicSourceIds = options.publicSourceIds ?? new Set<string>();
-  const approvedSourceIds = [...publicSourceIds]
-    .filter(id => typeof id === "string" && /^[a-zA-Z0-9_-]{1,128}$/u.test(id))
-    .sort();
+  // If publicSourceIds is explicitly specified (e.g. testing or scoped deployment),
+  // enforce it fail-closed; if undefined, query all eligible database documents.
+  const restrictBySourceIds = options.publicSourceIds !== undefined;
+  const approvedSourceIds = restrictBySourceIds
+    ? [...options.publicSourceIds!]
+        .filter(id => typeof id === "string" && /^[a-zA-Z0-9_-]{1,128}$/u.test(id))
+        .sort()
+    : [];
   if (!Number.isFinite(minScore) || minScore < 0 || minScore > 1) throw new EmbeddingError("INVALID_INPUT", false);
   return {
     async retrieve(question, history, signal, context = { type: "GENERAL" }): Promise<QaEvidence[]> {
@@ -153,7 +154,7 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
       qaStage("QUESTION_EMBEDDING_COMPLETED");
       qaStage("RETRIEVAL_STARTED");
       if (signal?.aborted) throw new EmbeddingError("CANCELLED", false);
-      if (approvedSourceIds.length === 0) {
+      if (restrictBySourceIds && approvedSourceIds.length === 0) {
         qaStage("RETRIEVAL_COMPLETED", {
           retrievedChunks: 0,
           candidateChunks: 0,
@@ -174,6 +175,9 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
       const contextFilter = context.type === "DESTINATION"
         ? Prisma.sql`AND strpos(lower(normalize(c."text", NFC)), lower(${context.name})) > 0`
         : Prisma.empty;
+      const sourceFilter = restrictBySourceIds
+        ? Prisma.sql`AND d."id" IN (${Prisma.join(approvedSourceIds)})`
+        : Prisma.empty;
       const keywordQuery = options.hybrid ? qaKeywordQuery(normalized) : "";
       const { vectorRows, keywordRows } = await boundedRead(database, async reader => {
       const vectorRows = await reader.$queryRaw<Row[]>(Prisma.sql`SELECT d."id" AS "documentId", g."id" AS "generationId",
@@ -181,7 +185,7 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
         d."sourceTitle", d."fileType"::text AS "fileType", c."locators",
         (1 - (e."embedding" <=> ${vectorLiteral}::vector))::double precision AS "score"
         ${joins} WHERE ${eligible} AND e."tokenCount" > 0
-        AND d."id" IN (${Prisma.join(approvedSourceIds)})
+        ${sourceFilter}
         ${contextFilter}
         ORDER BY e."embedding" <=> ${vectorLiteral}::vector, d."id", g."id", c."index", c."id" LIMIT ${topK}`);
       let keywordRows: Row[] = [];
@@ -193,7 +197,7 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
           d."sourceTitle", d."fileType"::text AS "fileType", c."locators",
           (1 - (e."embedding" <=> ${vectorLiteral}::vector))::double precision AS "score"
           ${joins} WHERE ${eligible} AND e."tokenCount" > 0
-          AND d."id" IN (${Prisma.join(approvedSourceIds)}) ${contextFilter}
+          ${sourceFilter} ${contextFilter}
           AND to_tsvector('simple', ${searchText}) @@ to_tsquery('simple', ${keywordQuery})
           ORDER BY ts_rank_cd(to_tsvector('simple', ${searchText}), to_tsquery('simple', ${keywordQuery})) DESC,
           d."id", g."id", c."index", c."id" LIMIT ${topK}`);
@@ -231,7 +235,7 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
       let usedTokens = 0;
       for (const row of rows) {
         if (evidence.length >= topK) break;
-        if (!publicSourceIds.has(row.documentId)) continue;
+        if (restrictBySourceIds && !options.publicSourceIds!.has(row.documentId)) continue;
         if (!Number.isFinite(row.score) || !row.text.trim()) continue;
         if (context.type === "DESTINATION" && !destinationEvidenceSentences(row.text, context.name).length) continue;
         const actualTokens = countEmbeddingTokens(row.text);
@@ -260,14 +264,14 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
         candidatesAfterThreshold,
         topSimilarityScore,
         minScore,
-        allowlistCount: approvedSourceIds.length,
-        hasDongVanDocument: approvedSourceIds.includes("cmvapg3l0001j7w9w61egpl01"),
+        allowlistCount: restrictBySourceIds ? approvedSourceIds.length : -1,
+        hasDongVanDocument: restrictBySourceIds ? approvedSourceIds.includes("cmvapg3l0001j7w9w61egpl01") : true,
         contextType: context.type,
         firstZeroStage,
         retrievalReason,
       });
       return evidence;
     },
-    recheck: evidence => boundedRead(database, reader => recheckWith(reader, evidence, publicSourceIds)),
+    recheck: evidence => boundedRead(database, reader => recheckWith(reader, evidence, options.publicSourceIds)),
   };
 }

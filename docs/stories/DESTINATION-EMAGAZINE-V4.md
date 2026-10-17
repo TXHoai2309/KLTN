@@ -26,3 +26,13 @@ Undo and Rollback; it is not a selectable generation mode. No data migration.
 
 Implementation and current verification:
 [handoff](../implementation/destination-generative-layout-v4-report.md).
+
+## Owner model configuration — 2026-10-17
+
+Owner requested eMagazine AI editing/layout with `gpt-6-luna` at its highest
+supported reasoning effort. The Editorial adapter now sends `reasoning_effort:
+"max"` (previously `none`), without temperature/top_p. Existing schema, token and
+timeout limits and explicit draft Save/Publish behavior remain in force.
+Offline Editorial suites: 311 PASS / 6 PostgreSQL-gated SKIP. No live provider
+quality/latency acceptance is inferred. Current OpenAI model reference:
+https://developers.openai.com/api/docs/models/gpt-6-luna.

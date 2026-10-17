@@ -95,7 +95,7 @@ describe("question punctuation, repeated intent and social conversation", () => 
       const body = JSON.parse(String(init?.body));
       payloads.push(JSON.parse(body.messages[1].content));
       expect(body).not.toHaveProperty("temperature");
-      expect(body).toMatchObject({ model: "gpt-6.1-sol", reasoning_effort: "low" });
+      expect(body).toMatchObject({ model: "gpt-6.1-sol", reasoning_effort: "medium" });
       const output = body.response_format.json_schema.name === "qa_source_assessment"
         ? { intent: "CLEAR", exhaustive: true, relevance: [{ citationId: "c1", status: "RELATED" }], aspects: [{ id: "designation", status: "SUPPORTED", supports: [{ citationId: "c1", sentence }] }] }
         : { status: "ANSWERED", answerParts: [{ text: sentence, citationIds: ["c1"] }], unanswered: false };

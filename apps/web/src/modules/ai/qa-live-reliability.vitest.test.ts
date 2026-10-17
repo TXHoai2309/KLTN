@@ -49,7 +49,7 @@ describe.skipIf(process.env.QA_DIAGNOSTIC_LIVE !== "1")("live QA reliability aga
       const response = await fetch(request, init);
       const raw = await response.clone().json();
       expect(sent.model).toBe(QA_DEFAULT_MODEL);
-      expect(sent.reasoning_effort).toBe("low");
+      expect(sent.reasoning_effort).toBe("medium");
       expect(raw.model).toMatch(/^gpt-6\.1-sol(?:-[a-zA-Z0-9.-]+)?$/u);
       const content = raw.choices?.[0]?.message?.content;
       if (typeof content === "string") {
