@@ -266,3 +266,52 @@ export type QaAnswerPart = z.infer<typeof qaAnswerPartSchema>;
 export type QaCompletedTurn = z.infer<typeof qaCompletedTurnSchema>;
 export type QaResponse = z.infer<typeof qaResponseSchema>;
 export type QaErrorCode = z.infer<typeof qaErrorCodeSchema>;
+
+export const qaConversationTitleSchema = z
+  .string()
+  .transform((v) => v.normalize("NFC").trim())
+  .pipe(
+    z
+      .string()
+      .min(1, "Tiêu đề không được để trống.")
+      .max(100, "Tiêu đề tối đa 100 ký tự.")
+  );
+
+export const qaRenameConversationSchema = z
+  .object({
+    title: qaConversationTitleSchema,
+  })
+  .strict();
+
+export const qaConversationSummarySchema = z
+  .object({
+    id: qaReferenceIdSchema,
+    title: z.string(),
+    context: qaContextSchema,
+    createdAt: z.string(),
+    lastActivityAt: z.string(),
+  })
+  .strict();
+
+export const qaConversationListResponseSchema = z
+  .object({
+    items: z.array(qaConversationSummarySchema),
+    nextCursor: z.string().nullable(),
+    hasMore: z.boolean(),
+  })
+  .strict();
+
+export const qaConversationDetailMetadataSchema = z
+  .object({
+    id: qaReferenceIdSchema,
+    title: z.string(),
+    context: qaContextSchema,
+    headTurnId: qaReferenceIdSchema.nullable(),
+    createdAt: z.string(),
+    lastActivityAt: z.string(),
+  })
+  .strict();
+
+export type QaRenameConversationInput = z.infer<typeof qaRenameConversationSchema>;
+export type QaConversationSummary = z.infer<typeof qaConversationSummarySchema>;
+export type QaConversationDetailMetadata = z.infer<typeof qaConversationDetailMetadataSchema>;

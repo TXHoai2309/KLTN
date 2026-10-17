@@ -154,6 +154,10 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
         throw qaOrigin(new AppError("OPERATION_STATUS_UNKNOWN", "OPERATION_STATUS_UNKNOWN", 503), "PERSISTENCE_STARTED", "PERSISTENCE");
       }
     },
+    list: (principal: QaPrincipal, options?: { cursor?: string | null; limit?: number; search?: string }) => store.list ? store.list(principal, options) : Promise.resolve({ items: [], nextCursor: null, hasMore: false }),
+    get: (principal: QaPrincipal, id: string) => store.get ? store.get(principal, id) : store.history(principal, id).then(turns => ({ conversation: { id, title: "Cuộc hội thoại", context: { type: "GENERAL" as const }, headTurnId: null, createdAt: new Date().toISOString(), lastActivityAt: new Date().toISOString() }, turns })),
+    rename: (principal: QaPrincipal, id: string, title: string) => store.rename ? store.rename(principal, id, title) : Promise.resolve({ id, title }),
+    turns: (principal: QaPrincipal, id: string, options?: { cursor?: string | null; limit?: number }) => store.turns ? store.turns(principal, id, options) : store.history(principal, id).then(turns => ({ turns, nextCursor: null, hasMore: false })),
     history: (principal: QaPrincipal, id: string) => store.history(principal, id),
     delete: (principal: QaPrincipal, id: string) => store.delete(principal, id),
     revokeGuest: (principal: QaPrincipal) => store.revokeGuest(principal),

@@ -1,17 +1,19 @@
 "use client";
 
 import { createContext, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { CirclePlus, FileText, Info, Leaf, Send, ShieldCheck, Sparkles } from "lucide-react";
+import { CirclePlus, FileText, Info, Leaf, Loader2, PanelLeft, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { AssistantLandscape } from "./assistant-landscape";
 import { AssistantCitations } from "./assistant-citations";
 import { buildCitationIndex, isReadingCitation } from "./assistant-citation-utils";
-import type { QaContext, QaAnswerPart, QaCompletedTurn, QaPublicCitation } from "../../modules/ai/qa-contract";
+import type { QaContext, QaAnswerPart, QaCompletedTurn, QaPublicCitation, QaConversationSummary } from "../../modules/ai/qa-contract";
 import { createIdempotencyKey } from "../../lib/mutation-client";
 import { AssistantController, hasUnresolvedAttempt, shouldSendOnEnter, type AssistantTransport, type ConfirmedTurn } from "./assistant-controller";
 import { assistantContextFromUrl } from "./assistant-context-navigation";
 import { AssistantAnswerContent } from "./assistant-answer-content";
 import { assistantFollowupSuggestions } from "./assistant-followups";
 import { assistantSourceReply } from "./assistant-source-reply";
+import { AssistantSidebar } from "./assistant-sidebar";
+import { fetchConversations, fetchConversationDetail, renameConversation, deleteConversation } from "./assistant-conversation-client";
 
 export type CitationSlot = (input: { part: QaAnswerPart; citations: QaPublicCitation[]; turn: QaCompletedTurn }) => ReactNode;
 
@@ -44,7 +46,13 @@ export function AssistantAnswer({ turn, citationSlot, question }: { turn: QaComp
 export function AssistantTurn({ turn, citationSlot }: { turn: ConfirmedTurn; citationSlot?: CitationSlot }) {
   return <div className="assistant-turn">
     <article className="assistant-message assistant-user" aria-label="Câu hỏi đã được xác nhận"><p>{turn.question}</p><small>Đã xác nhận lượt hỏi</small></article>
-    <article className="assistant-message assistant-answer" aria-label="Phản hồi của trợ lý"><span className="assistant-speaker">Trợ lý AI</span><AssistantAnswer turn={turn.response} question={turn.question} citationSlot={citationSlot} /></article>
+    <article className="assistant-message assistant-answer" aria-label="Phản hồi của trợ lý">
+      <span className="assistant-speaker">
+        <Sparkles className="assistant-speaker-icon" aria-hidden="true" />
+        <span>Trợ lý AI</span>
+      </span>
+      <AssistantAnswer turn={turn.response} question={turn.question} citationSlot={citationSlot} />
+    </article>
   </div>;
 }
 
@@ -89,6 +97,183 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
     : "Cao nguyên đá Đồng Văn";
   const latest = state.turns.at(-1);
   const followups = latest ? assistantFollowupSuggestions(latest.question, latest.response) : [];
+
+  // Conversation history state
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [conversations, setConversations] = useState<QaConversationSummary[]>([]);
+  const [conversationsLoading, setConversationsLoading] = useState(false);
+  const [conversationsLoadingMore, setConversationsLoadingMore] = useState(false);
+  const [historyCursor, setHistoryCursor] = useState<string | null>(null);
+  const [historyHasMore, setHistoryHasMore] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [loadingConversation, setLoadingConversation] = useState(false);
+  const [conversationLoadNotice, setConversationLoadNotice] = useState<string | null>(null);
+  const [pendingSwitchId, setPendingSwitchId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+      setSidebarOpen(true);
+    }
+  }, []);
+
+  async function loadConversationList(search = "", cursor: string | null = null, isMore = false) {
+    if (!available || !transport) return;
+    if (isMore) setConversationsLoadingMore(true);
+    else setConversationsLoading(true);
+    try {
+      const res = await fetchConversations({ search, cursor });
+      setConversations(prev => isMore ? [...prev, ...res.items] : res.items);
+      setHistoryCursor(res.nextCursor);
+      setHistoryHasMore(res.hasMore);
+    } catch {
+      // Network/offline error: fail-safe
+    } finally {
+      if (isMore) setConversationsLoadingMore(false);
+      else setConversationsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadConversationList();
+  }, [available, transport]);
+
+  // Debounced search
+  useEffect(() => {
+    if (!available || !transport) return;
+    const timer = setTimeout(() => {
+      void loadConversationList(searchQuery);
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery, available, transport]);
+
+  const activeFetchRef = useRef<AbortController | null>(null);
+  async function loadConversationById(id: string) {
+    if (activeFetchRef.current) activeFetchRef.current.abort();
+    const abortController = new AbortController();
+    activeFetchRef.current = abortController;
+    setLoadingConversation(true);
+    setConversationLoadNotice(null);
+    try {
+      const detail = await fetchConversationDetail(id, abortController.signal);
+      if (abortController.signal.aborted) return;
+      controller.loadConversation(
+        detail.conversation.id,
+        detail.turns,
+        detail.conversation.headTurnId,
+        detail.conversation.context
+      );
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        if (url.searchParams.get("conversationId") !== id) {
+          url.searchParams.set("conversationId", id);
+          window.history.pushState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+        }
+      }
+      nearEnd.current = true;
+      setUnseen(false);
+    } catch {
+      if (abortController.signal.aborted) return;
+      setConversationLoadNotice("Cuộc trò chuyện không tồn tại hoặc đã hết hạn.");
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("conversationId");
+        window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+      }
+      controller.newConversation(true);
+    } finally {
+      if (activeFetchRef.current === abortController) {
+        setLoadingConversation(false);
+        activeFetchRef.current = null;
+      }
+    }
+  }
+
+  // Deep linking: restore conversation from query param on initial load
+  useEffect(() => {
+    if (typeof window === "undefined" || !available || !transport) return;
+    const params = new URLSearchParams(window.location.search);
+    const convId = params.get("conversationId");
+    if (convId && !state.conversationId) {
+      void loadConversationById(convId);
+    }
+  }, [available, transport, state.conversationId]);
+
+  // Browser Back/Forward navigation
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    function handlePopState() {
+      const params = new URLSearchParams(window.location.search);
+      const convId = params.get("conversationId");
+      if (convId !== state.conversationId) {
+        if (convId) {
+          void loadConversationById(convId);
+        } else {
+          controller.newConversation(true);
+        }
+      }
+    }
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [state.conversationId, controller]);
+
+  // When a newly submitted question confirms into a conversationId, update URL and refresh sidebar
+  const prevConvIdRef = useRef<string | null>(state.conversationId);
+  useEffect(() => {
+    if (state.conversationId && state.conversationId !== prevConvIdRef.current) {
+      prevConvIdRef.current = state.conversationId;
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        if (url.searchParams.get("conversationId") !== state.conversationId) {
+          url.searchParams.set("conversationId", state.conversationId);
+          window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+        }
+      }
+      void loadConversationList(searchQuery);
+    } else if (!state.conversationId && prevConvIdRef.current) {
+      prevConvIdRef.current = null;
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        if (url.searchParams.has("conversationId")) {
+          url.searchParams.delete("conversationId");
+          window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+        }
+      }
+    }
+  }, [state.conversationId, loadConversationList, searchQuery]);
+
+  async function handleRename(id: string, newTitle: string): Promise<boolean> {
+    try {
+      await renameConversation(id, newTitle);
+      setConversations(prev => prev.map(c => c.id === id ? { ...c, title: newTitle } : c));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function handleDelete(id: string): Promise<boolean> {
+    try {
+      await deleteConversation(id);
+      setConversations(prev => prev.filter(c => c.id !== id));
+      if (state.conversationId === id) {
+        startNew();
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  function selectConversation(id: string) {
+    if (id === state.conversationId) return;
+    if (unresolved) {
+      setPendingSwitchId(id);
+      dialog.current?.showModal();
+      return;
+    }
+    void loadConversationById(id);
+  }
+
   useEffect(() => { controller.changeIdentity(identity); }, [controller, identity]);
   useEffect(() => () => controller.dispose(), [controller]);
   useEffect(() => {
@@ -120,182 +305,281 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
   }
   function startNew() {
     if (!available) return;
-    if (unresolved) dialog.current?.showModal();
-    else { nearEnd.current = true; setUnseen(false); controller.newConversation(); composer.current?.focus(); }
+    if (unresolved) {
+      setPendingSwitchId(null);
+      dialog.current?.showModal();
+    } else {
+      nearEnd.current = true;
+      setUnseen(false);
+      controller.newConversation();
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("conversationId");
+        window.history.pushState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+      }
+      composer.current?.focus();
+    }
   }
-  const status = state.validation ?? state.pending?.message ?? (state.turns.length ? "Đã nhận phản hồi. Bạn có thể hỏi tiếp." : "Chưa có lượt hỏi.");
+  const status = state.validation ?? (sending ? "Đang soạn câu trả lời…" : state.pending?.message) ?? (state.turns.length ? "Đã nhận phản hồi. Bạn có thể hỏi tiếp." : "Chưa có lượt hỏi.");
+  const activeTitle = conversations.find(c => c.id === state.conversationId)?.title;
+
   return <section className="assistant-chat" aria-label="Hội thoại với trợ lý" lang="vi">
-    <header className="assistant-chat-header">
-      <div className="assistant-chat-header-inner">
-        <div className="assistant-header-left">
-          <div className="assistant-brand">
-            <span className="assistant-brand-icon"><Sparkles aria-hidden="true" /></span>
-            <h2>Trợ lý AI Hà Giang</h2>
-          </div>
-        </div>
+    <AssistantSidebar
+      conversations={conversations}
+      activeConversationId={state.conversationId}
+      loading={conversationsLoading}
+      loadingMore={conversationsLoadingMore}
+      hasMore={historyHasMore}
+      isOpen={sidebarOpen}
+      onClose={() => setSidebarOpen(false)}
+      onNewChat={startNew}
+      onSelectConversation={selectConversation}
+      onRenameConversation={handleRename}
+      onDeleteConversation={handleDelete}
+      onLoadMore={() => void loadConversationList(searchQuery, historyCursor, true)}
+      searchQuery={searchQuery}
+      onSearchChange={setSearchQuery}
+    />
 
-        <div className="assistant-header-right">
-          {contextError ? (
-            <p className="assistant-context-controls assistant-context-error" role="alert">
-              {contextError} <a href="/assistant">Quay về hỏi đáp chung</a>
-            </p>
-          ) : (
-            <div className="assistant-context-controls">
-              <div className="assistant-context-bar">
-                <label htmlFor={`${instanceId}-context`} className="assistant-context-label" title="Chọn bối cảnh hội thoại">
-                  <Leaf aria-hidden="true" />
-                  <span className="assistant-sr-only">Bối cảnh hiện tại</span>
-                </label>
-                {state.context.type === "DESTINATION" && (
-                  <strong className="assistant-context-name">
-                    {destinations.find(destination => state.context.type === "DESTINATION" && destination.id === state.context.destinationId)?.name ?? "Điểm đến đang chọn"}
-                  </strong>
-                )}
-                <select
-                  id={`${instanceId}-context`}
-                  value={state.context.type === "DESTINATION" ? state.context.destinationId : ""}
-                  disabled={unresolved || !available}
-                  onChange={event => changeContext(event.target.value ? { type: "DESTINATION", destinationId: event.target.value } : { type: "GENERAL" })}
-                  className="assistant-context-select"
-                  aria-label="Chọn bối cảnh hỏi đáp"
-                >
-                  <option value="">Hỏi đáp chung</option>
-                  {destinations.map(destination => <option key={destination.id} value={destination.id}>{destination.name}</option>)}
-                </select>
-                {state.context.type === "DESTINATION" && (
-                  <button type="button" className="assistant-context-clear-btn" disabled={unresolved || !available} onClick={() => changeContext({ type: "GENERAL" })}>
-                    Xóa bối cảnh
-                  </button>
-                )}
+    <div className="assistant-chat-main">
+      <header className="assistant-chat-header">
+        <div className="assistant-chat-header-inner">
+          <div className="assistant-header-left">
+            <button
+              type="button"
+              className="assistant-sidebar-toggle-btn"
+              onClick={() => setSidebarOpen(prev => !prev)}
+              aria-label={sidebarOpen ? "Đóng thanh bên lịch sử" : "Mở thanh bên lịch sử"}
+              title={sidebarOpen ? "Đóng thanh bên" : "Mở thanh bên"}
+            >
+              <PanelLeft aria-hidden="true" />
+            </button>
+            <div className="assistant-brand">
+              <span className="assistant-brand-icon"><Sparkles aria-hidden="true" /></span>
+              <h2>{activeTitle || "Trợ lý AI Hà Giang"}</h2>
+            </div>
+          </div>
+
+          <div className="assistant-header-right">
+            {contextError ? (
+              <p className="assistant-context-controls assistant-context-error" role="alert">
+                {contextError} <a href="/assistant">Quay về hỏi đáp chung</a>
+              </p>
+            ) : (
+              <div className="assistant-context-controls">
+                <div className="assistant-context-bar">
+                  <label htmlFor={`${instanceId}-context`} className="assistant-context-label" title="Chọn bối cảnh hội thoại">
+                    <Leaf aria-hidden="true" />
+                    <span className="assistant-sr-only">Bối cảnh hiện tại</span>
+                  </label>
+                  {state.context.type === "DESTINATION" && (
+                    <strong className="assistant-context-name">
+                      {destinations.find(destination => state.context.type === "DESTINATION" && destination.id === state.context.destinationId)?.name ?? "Điểm đến đang chọn"}
+                    </strong>
+                  )}
+                  <select
+                    id={`${instanceId}-context`}
+                    value={state.context.type === "DESTINATION" ? state.context.destinationId : ""}
+                    disabled={unresolved || !available}
+                    onChange={event => changeContext(event.target.value ? { type: "DESTINATION", destinationId: event.target.value } : { type: "GENERAL" })}
+                    className="assistant-context-select"
+                    aria-label="Chọn bối cảnh hỏi đáp"
+                  >
+                    <option value="">Hỏi đáp chung</option>
+                    {destinations.map(destination => <option key={destination.id} value={destination.id}>{destination.name}</option>)}
+                  </select>
+                  {state.context.type === "DESTINATION" && (
+                    <button type="button" className="assistant-context-clear-btn" disabled={unresolved || !available} onClick={() => changeContext({ type: "GENERAL" })}>
+                      Xóa bối cảnh
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <button type="button" className="assistant-new-chat-btn" onClick={startNew} disabled={!transport || !available || sending}>
-            <CirclePlus aria-hidden="true" />
-            <span>Cuộc hội thoại mới</span>
-          </button>
-        </div>
-      </div>
-    </header>
-
-    {transport && !available && <div className="assistant-notice-banner"><p className="assistant-status-notice" role="status">Đang xác minh phiên — tạm dừng gửi câu hỏi.</p></div>}
-    {!transport && <div className="assistant-notice-banner"><div className="assistant-notice" role="status"><strong>Trợ lý AI chưa khả dụng</strong><p>Chức năng gửi câu hỏi sẽ mở khi dịch vụ hỏi đáp sẵn sàng.</p></div></div>}
-    {demo && <div className="assistant-notice-banner"><div className="assistant-notice assistant-demo-notice"><Info aria-hidden="true" /><div><strong>Dữ liệu mô phỏng</strong><p>Phản hồi chỉ dùng để kiểm thử giao diện, không phải thông tin du lịch đã xác minh.</p></div></div></div>}
-
-    <div ref={viewport} className="assistant-transcript" tabIndex={0} aria-label="Danh sách tin nhắn" onScroll={() => {
-      const el = viewport.current!;
-      if (isReadingCitation(el)) { nearEnd.current = false; return; }
-      nearEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 64;
-      if (nearEnd.current) setUnseen(false);
-    }}>
-      <div className="assistant-transcript-inner">
-        {!state.turns.length && !state.pending && (
-          <div className="assistant-empty">
-            <div className="assistant-empty-art">
-              <AssistantLandscape />
-              <Sparkles className="assistant-icon" aria-hidden="true" />
-            </div>
-            <h2>Bạn muốn khám phá điều gì?</h2>
-            <p>Hỏi về văn hóa, lịch sử và điểm đến tại Hà Giang.</p>
-            <p className="assistant-muted">Trợ lý sẽ nêu rõ khi chưa đủ nguồn xác minh.</p>
-
-            <div className="assistant-suggestions" aria-label="Gợi ý câu hỏi">
-              {PROMPT_SUGGESTIONS.map((item, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  className="assistant-suggestion-chip"
-                  disabled={!transport || !available || !!contextError}
-                  onClick={() => {
-                    controller.setDraft(item.prompt(openingSubject));
-                    composer.current?.focus();
-                  }}
-                >
-                  <span className="assistant-suggestion-icon" aria-hidden="true">{item.icon}</span>
-                  <div className="assistant-suggestion-info">
-                    <span className="assistant-suggestion-title">{item.title}</span>
-                    <span className="assistant-suggestion-prompt">{item.prompt(openingSubject)}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-        {state.turns.map((turn) => <AssistantTurn key={`${turn.response.conversationId}:${turn.response.turnId}`} turn={turn} citationSlot={citationSlot} />)}
-        {!!followups.length && !state.pending && <nav className="assistant-followups" aria-label="Câu hỏi tiếp nối">
-          <p className="assistant-muted">Bạn có thể hỏi tiếp{state.draft.trim() ? " — xóa nội dung ô nhập để chọn gợi ý" : " — chọn để điền vào ô nhập"}:</p>
-          <div>{followups.map(question => <button type="button" key={question} disabled={!available || !!contextError || unresolved || !!state.draft.trim()} onClick={() => {
-            controller.setDraft(question);
-            composer.current?.focus();
-          }}>{question}</button>)}</div>
-        </nav>}
-        {state.pending && <div className="assistant-local-attempt">
-          <article className="assistant-message assistant-user" aria-label="Câu hỏi chưa xác nhận"><p>{state.pending.attempt.payload.question}</p><small>{sending ? "Đang gửi — chưa xác nhận" : "Chưa được xác nhận lưu"}</small></article>
-          <div className="assistant-recovery" data-phase={state.pending.phase}>
-            <p>{state.pending.message}</p>
-            {state.pending.phase === "failed" && <button type="button" onClick={() => { controller.editFailed(); composer.current?.focus(); }}>Sửa câu hỏi</button>}
-            {["unknown", "malformed"].includes(state.pending.phase) && <>
-              <button type="button" disabled={!available} onClick={() => { if (available) controller.retry(); }}>Thử xác nhận lại</button>
-              <button type="button" className="assistant-abandon" onClick={() => dialog.current?.showModal()}>Bỏ theo dõi và bắt đầu cuộc hội thoại mới</button>
-            </>}
-          </div>
-        </div>}
-      </div>
-    </div>
-
-    {unseen && <button className="assistant-new-message" type="button" onClick={() => { nearEnd.current = true; setUnseen(false); viewport.current?.scrollTo({ top: viewport.current.scrollHeight }); }}>Đến tin nhắn mới</button>}
-
-    <div className="assistant-bottom-dock">
-      <div className="assistant-bottom-dock-inner">
-        <div className="assistant-live assistant-muted" role="status" aria-live="polite" aria-atomic="true">{status}</div>
-
-        <form noValidate className="assistant-composer" onSubmit={(event) => { event.preventDefault(); submit(); }}>
-          <label htmlFor={questionId} className="assistant-sr-only">Câu hỏi của bạn</label>
-          <div className="assistant-composer-input">
-            <textarea
-              className="resize-none"
-              id={questionId}
-              ref={composer}
-              rows={2}
-              placeholder="Nhập câu hỏi về Hà Giang…"
-              value={state.draft}
-              disabled={!transport || !available || !!contextError}
-              aria-invalid={!!state.validation}
-              aria-describedby={helpId}
-              onChange={(event) => controller.setDraft(event.target.value)}
-              onKeyDown={(event) => { if (shouldSendOnEnter({ key: event.key, shiftKey: event.shiftKey, isComposing: event.nativeEvent.isComposing, keyCode: event.nativeEvent.keyCode })) { event.preventDefault(); submit(); } }}
-            />
-            <button type="submit" disabled={!transport || !available || !!contextError || unresolved || !state.draft.trim()} aria-busy={sending}>
-              <Send aria-hidden="true" />
-              <span>Gửi</span>
+            <button type="button" className="assistant-new-chat-btn" onClick={startNew} disabled={!transport || !available || sending}>
+              <CirclePlus aria-hidden="true" />
+              <span>Cuộc hội thoại mới</span>
             </button>
           </div>
-          <div className="assistant-composer-footer" id={helpId}>
-            <span>Enter để gửi · Shift+Enter xuống dòng</span>
-            <span>{state.draft.normalize("NFC").trim().length}/2000 UTF-16</span>
-          </div>
-        </form>
+        </div>
+      </header>
 
-        <footer className="assistant-trust-footer">
-          <div className="assistant-trust-item">
-            <ShieldCheck aria-hidden="true" />
-            <span>Thông tin thực tế cần có nguồn</span>
+      {conversationLoadNotice && (
+        <div className="assistant-notice-banner">
+          <div className="assistant-notice" role="alert">
+            <Info aria-hidden="true" />
+            <div>
+              <strong>Thông báo</strong>
+              <p>{conversationLoadNotice}</p>
+            </div>
           </div>
-          <span className="assistant-trust-sep" aria-hidden="true">•</span>
-          <div className="assistant-trust-item">
-            <FileText aria-hidden="true" />
-            <span>Nêu rõ giới hạn khi thiếu dữ liệu</span>
-          </div>
-        </footer>
+        </div>
+      )}
+      {transport && !available && <div className="assistant-notice-banner"><p className="assistant-status-notice" role="status">Đang xác minh phiên — tạm dừng gửi câu hỏi.</p></div>}
+      {!transport && <div className="assistant-notice-banner"><div className="assistant-notice" role="status"><strong>Trợ lý AI chưa khả dụng</strong><p>Chức năng gửi câu hỏi sẽ mở khi dịch vụ hỏi đáp sẵn sàng.</p></div></div>}
+      {demo && <div className="assistant-notice-banner"><div className="assistant-notice assistant-demo-notice"><Info aria-hidden="true" /><div><strong>Dữ liệu mô phỏng</strong><p>Phản hồi chỉ dùng để kiểm thử giao diện, không phải thông tin du lịch đã xác minh.</p></div></div></div>}
+
+      <div ref={viewport} className="assistant-transcript" tabIndex={0} aria-label="Danh sách tin nhắn" onScroll={() => {
+        const el = viewport.current!;
+        if (isReadingCitation(el)) { nearEnd.current = false; return; }
+        nearEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 64;
+        if (nearEnd.current) setUnseen(false);
+      }}>
+        <div className="assistant-transcript-inner">
+          {loadingConversation ? (
+            <div className="assistant-sidebar-loading" role="status" style={{ minHeight: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Loader2 className="assistant-spinner" aria-hidden="true" />
+              <span>Đang mở cuộc trò chuyện…</span>
+            </div>
+          ) : (
+            <>
+              {!state.turns.length && !state.pending && (
+                <div className="assistant-empty">
+                  <div className="assistant-empty-art">
+                    <AssistantLandscape />
+                    <Sparkles className="assistant-icon" aria-hidden="true" />
+                  </div>
+                  <h2>Bạn muốn khám phá điều gì?</h2>
+                  <p>Hỏi về văn hóa, lịch sử và điểm đến tại Hà Giang.</p>
+                  <p className="assistant-muted">Trợ lý sẽ nêu rõ khi chưa đủ nguồn xác minh.</p>
+
+                  <div className="assistant-suggestions" aria-label="Gợi ý câu hỏi">
+                    {PROMPT_SUGGESTIONS.map((item, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        className="assistant-suggestion-chip"
+                        disabled={!transport || !available || !!contextError}
+                        onClick={() => {
+                          controller.setDraft(item.prompt(openingSubject));
+                          composer.current?.focus();
+                        }}
+                      >
+                        <span className="assistant-suggestion-icon" aria-hidden="true">{item.icon}</span>
+                        <div className="assistant-suggestion-info">
+                          <span className="assistant-suggestion-title">{item.title}</span>
+                          <span className="assistant-suggestion-prompt">{item.prompt(openingSubject)}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {state.turns.map((turn) => <AssistantTurn key={`${turn.response.conversationId}:${turn.response.turnId}`} turn={turn} citationSlot={citationSlot} />)}
+              {!!followups.length && !state.pending && <nav className="assistant-followups" aria-label="Câu hỏi tiếp nối">
+                <p className="assistant-muted">Bạn có thể hỏi tiếp{state.draft.trim() ? " — xóa nội dung ô nhập để chọn gợi ý" : " — chọn để điền vào ô nhập"}:</p>
+                <div>{followups.map(question => <button type="button" key={question} disabled={!available || !!contextError || unresolved || !!state.draft.trim()} onClick={() => {
+                  controller.setDraft(question);
+                  composer.current?.focus();
+                }}>{question}</button>)}</div>
+              </nav>}
+              {state.pending && <div className="assistant-local-attempt">
+                <article className="assistant-message assistant-user" aria-label="Câu hỏi chưa xác nhận"><p>{state.pending.attempt.payload.question}</p><small>{sending ? "Đang gửi — chưa xác nhận" : "Chưa được xác nhận lưu"}</small></article>
+                {sending ? (
+                  <article className="assistant-message assistant-answer assistant-pending-answer" aria-label="Phản hồi của trợ lý">
+                    <span className="assistant-speaker">
+                      <Sparkles className="assistant-speaker-icon" aria-hidden="true" />
+                      <span>Trợ lý AI</span>
+                    </span>
+                    <div className="assistant-typing-indicator" role="status" aria-label="Trợ lý AI đang soạn câu trả lời">
+                      <span className="assistant-typing-dots" aria-hidden="true">
+                        <span className="assistant-typing-dot" />
+                        <span className="assistant-typing-dot" />
+                        <span className="assistant-typing-dot" />
+                      </span>
+                      <span className="assistant-typing-label">Đang soạn câu trả lời…</span>
+                    </div>
+                  </article>
+                ) : (
+                  <div className="assistant-recovery" data-phase={state.pending.phase}>
+                    <p>{state.pending.message}</p>
+                    {state.pending.phase === "failed" && <button type="button" onClick={() => { controller.editFailed(); composer.current?.focus(); }}>Sửa câu hỏi</button>}
+                    {["unknown", "malformed"].includes(state.pending.phase) && <>
+                      <button type="button" disabled={!available} onClick={() => { if (available) controller.retry(); }}>Thử xác nhận lại</button>
+                      <button type="button" className="assistant-abandon" onClick={() => dialog.current?.showModal()}>Bỏ theo dõi và bắt đầu cuộc hội thoại mới</button>
+                    </>}
+                  </div>
+                )}
+              </div>}
+            </>
+          )}
+        </div>
       </div>
-    </div>
 
-    <dialog ref={dialog} className="assistant-dialog" aria-labelledby={dialogTitleId} aria-describedby={dialogDescriptionId}>
-      <h2 id={dialogTitleId}>Bỏ theo dõi lượt chưa xác nhận?</h2>
-      <p id={dialogDescriptionId}>Bỏ theo dõi không có nghĩa server đã hủy. Yêu cầu cũ có thể vẫn đang xử lý; thao tác này không xóa dữ liệu server. Khi rời phiên, bạn có thể mất khả năng phục hồi lượt cũ vì chức năng đọc lịch sử và phục hồi chưa sẵn sàng.</p>
-      <div><button type="button" autoFocus onClick={() => dialog.current?.close()}>Tiếp tục theo dõi</button><button type="button" onClick={() => { controller.newConversation(true); dialog.current?.close(); nearEnd.current = true; setUnseen(false); composer.current?.focus(); }}>Bỏ theo dõi và bắt đầu mới</button></div>
-    </dialog>
+      {unseen && <button className="assistant-new-message" type="button" onClick={() => { nearEnd.current = true; setUnseen(false); viewport.current?.scrollTo({ top: viewport.current.scrollHeight }); }}>Đến tin nhắn mới</button>}
+
+      <div className="assistant-bottom-dock">
+        <div className="assistant-bottom-dock-inner">
+          <div className="assistant-live assistant-muted" role="status" aria-live="polite" aria-atomic="true">{status}</div>
+
+          <form noValidate className="assistant-composer" onSubmit={(event) => { event.preventDefault(); submit(); }}>
+            <label htmlFor={questionId} className="assistant-sr-only">Câu hỏi của bạn</label>
+            <div className="assistant-composer-input">
+              <textarea
+                className="resize-none"
+                id={questionId}
+                ref={composer}
+                rows={2}
+                placeholder="Nhập câu hỏi về Hà Giang…"
+                value={state.draft}
+                disabled={!transport || !available || !!contextError}
+                aria-invalid={!!state.validation}
+                aria-describedby={helpId}
+                onChange={(event) => controller.setDraft(event.target.value)}
+                onKeyDown={(event) => { if (shouldSendOnEnter({ key: event.key, shiftKey: event.shiftKey, isComposing: event.nativeEvent.isComposing, keyCode: event.nativeEvent.keyCode })) { event.preventDefault(); submit(); } }}
+              />
+              <button type="submit" disabled={!transport || !available || !!contextError || unresolved || !state.draft.trim()} aria-busy={sending}>
+                <Send aria-hidden="true" />
+                <span>Gửi</span>
+              </button>
+            </div>
+            <div className="assistant-composer-footer" id={helpId}>
+              <span>Enter để gửi · Shift+Enter xuống dòng</span>
+              <span>{state.draft.normalize("NFC").trim().length}/2000 UTF-16</span>
+            </div>
+          </form>
+
+          <footer className="assistant-trust-footer">
+            <div className="assistant-trust-item">
+              <ShieldCheck aria-hidden="true" />
+              <span>Thông tin thực tế cần có nguồn</span>
+            </div>
+            <span className="assistant-trust-sep" aria-hidden="true">•</span>
+            <div className="assistant-trust-item">
+              <FileText aria-hidden="true" />
+              <span>Nêu rõ giới hạn khi thiếu dữ liệu</span>
+            </div>
+          </footer>
+        </div>
+      </div>
+
+      <dialog ref={dialog} className="assistant-dialog" aria-labelledby={dialogTitleId} aria-describedby={dialogDescriptionId}>
+        <h2 id={dialogTitleId}>Bỏ theo dõi lượt chưa xác nhận?</h2>
+        <p id={dialogDescriptionId}>Bỏ theo dõi không có nghĩa server đã hủy. Yêu cầu cũ có thể vẫn đang xử lý; thao tác này không xóa dữ liệu server.</p>
+        <div>
+          <button type="button" autoFocus onClick={() => { setPendingSwitchId(null); dialog.current?.close(); }}>Tiếp tục theo dõi</button>
+          <button type="button" onClick={() => {
+            dialog.current?.close();
+            nearEnd.current = true;
+            setUnseen(false);
+            if (pendingSwitchId) {
+              const targetId = pendingSwitchId;
+              setPendingSwitchId(null);
+              void loadConversationById(targetId);
+            } else {
+              controller.newConversation(true);
+              if (typeof window !== "undefined") {
+                const url = new URL(window.location.href);
+                url.searchParams.delete("conversationId");
+                window.history.pushState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+              }
+              composer.current?.focus();
+            }
+          }}>Bỏ theo dõi và tiếp tục</button>
+        </div>
+      </dialog>
+    </div>
   </section>;
 }
 

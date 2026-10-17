@@ -2302,3 +2302,30 @@ Audit, task-owned file list, limits and manual procedure:
   Final checks: root build PASS (21.058s), root typecheck PASS, diff check and
   credential-pattern scan PASS; localhost assistant HTTP 200. Reviewed final
   mobile screenshots for no-evidence/verification replies. No paid rerun.
+
+### 2026-10-17 — AI Conversation History & Management (ChatGPT-like Sidebar)
+
+- **Branch:** `feat/ai-conversation-history` (from origin/TXH @ `e9f91e38c12dcb8455da9ece3d5d106943b108da`).
+- **Scope & Delivery:** End-to-end implementation of AI conversation history management with a ChatGPT-like responsive sidebar on KLTN Hà Giang Travel Assistant.
+- **Database (Additive Migration):**
+  - Updated `packages/db/prisma/schema/qa-conversation.prisma`: Added `title String? @db.VarChar(120)`, `titleCustomized Boolean @default(false)`, `lastActivityAt DateTime @default(now()) @db.Timestamptz(3)`, and composite index `@@index([principalKind, principalId, deletedAt, lastActivityAt(sort: Desc)])`.
+  - Created additive migration `20261017120000_add_qa_conversation_history/migration.sql` with safe backfill and index creation. Ran `npm run db:generate`.
+- **Backend & APIs:**
+  - Created `qa-conversation-title.ts`: Deterministic Vietnamese title generator from initial question without calling OpenAI.
+  - Implemented `GET /api/ai/conversations` (cursor pagination, title search, principal isolation, sorted by `lastActivityAt DESC`).
+  - Enhanced `GET /api/ai/conversations/:id` (returns full confirmed turns and conversation metadata while preserving backward compatibility with legacy smoke scripts).
+  - Implemented `PATCH /api/ai/conversations/:id` (rename with Unicode NFC normalization, 120-char max, CSRF check, does not advance `lastActivityAt`).
+  - Implemented `DELETE /api/ai/conversations/:id` (soft-delete tombstone with replay safety and principal isolation).
+  - Implemented `GET /api/ai/conversations/:id/turns` (paginated turn fetching).
+- **Frontend & State Management:**
+  - Enhanced `AssistantController`: Added `loadConversation` (atomic state hydration) and `prependTurns` (deduplicated pagination).
+  - Created `AssistantSidebar`: ChatGPT-like sidebar with "Đoạn chat mới" button, real-time debounced search, date grouping ("Hôm nay", "Hôm qua", "7 ngày trước", "Cũ hơn"), active highlighting, 3-dots actions menu with inline rename and delete confirmation, load more button, responsive desktop collapse and mobile drawer overlay.
+  - Updated `AssistantChat`: Integrated sidebar, URL query param sync (`?conversationId=...`), deep link restoration, browser Back/Forward (popstate) handling, race condition cancellation with AbortController, and preserve all recent AI presentation features (typing indicator, structured answer, follow-ups, excerpts, source replies).
+- **Validation & Test Results:**
+  - 153/153 Assistant component tests PASS (`assistant-sidebar`, `assistant-history-controller`, `assistant-conversation-client`, `assistant-conversation-groups`, etc.).
+  - 590/590 AI module tests PASS (`qa-http`, `qa-conversations-route`, `qa-conversation-title`, `qa-service`, `qa-contract`, etc.).
+  - 1894/1894 full Vitest test suite PASS across all web modules.
+  - 52/52 legacy test suites PASS (auth-ui, account, authorization, destination, culture, map, explore, search, favorite, rag, idempotency).
+  - `npm run check-types` PASS (0 errors).
+  - `npm run build` PASS (Turbopack production build with all static/dynamic routes optimized).
+  - `git diff --check` PASS (clean diff, no conflict markers, no secrets).

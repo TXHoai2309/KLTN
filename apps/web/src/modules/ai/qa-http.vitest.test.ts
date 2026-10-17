@@ -93,4 +93,51 @@ describe("QA HTTP contract and identity boundary", () => {
     await expect(resolve.revoke(headers)).resolves.toEqual({kind:"GUEST",id});
     expect(query).toHaveBeenCalledTimes(2);
   });
+  it("supports conversation list with search and cursor pagination", async () => {
+    const deps = dependencies();
+    deps.list = vi.fn(async () => ({ items: [{ id: "c1", title: "Test", context: { type: "GENERAL" }, createdAt: "2026-10-17T00:00:00.000Z", lastActivityAt: "2026-10-17T00:00:00.000Z" }], nextCursor: null, hasMore: false }));
+    const h = createQaHttpHandlers(deps);
+    const res = await h.listConversations(new Request("http://localhost/api/ai/conversations?limit=10&search=h%C3%A0+giang"));
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.success).toBe(true);
+    expect(json.data.items).toHaveLength(1);
+    expect(deps.list).toHaveBeenCalledWith({ kind: "GUEST", id: "digest" }, { cursor: undefined, limit: 10, search: "hà giang" });
+  });
+  it("supports rename conversation with origin protection and title validation", async () => {
+    const deps = dependencies();
+    deps.rename = vi.fn(async (_p, id, title) => ({ id, title }));
+    const h = createQaHttpHandlers(deps);
+    const crossRes = await h.renameConversation(new Request("http://localhost/api/ai/conversations/c1", { method: "PATCH", body: JSON.stringify({ title: "New" }), headers: { origin: "https://attacker.invalid", "content-type": "application/json" } }), "c1");
+    expect(crossRes.status).toBe(403);
+    const emptyRes = await h.renameConversation(new Request("http://localhost/api/ai/conversations/c1", { method: "PATCH", body: JSON.stringify({ title: "   " }), headers: { origin: "http://localhost", "content-type": "application/json" } }), "c1");
+    expect(emptyRes.status).toBe(400);
+    const validRes = await h.renameConversation(new Request("http://localhost/api/ai/conversations/c1", { method: "PATCH", body: JSON.stringify({ title: "Đèo Mã Pí Lèng" }), headers: { origin: "http://localhost", "content-type": "application/json" } }), "c1");
+    expect(validRes.status).toBe(200);
+    expect(await validRes.json()).toEqual({ success: true, operationStatus: "SUCCESS", data: { id: "c1", title: "Đèo Mã Pí Lèng" } });
+  });
+  it("enriches conversation get with metadata and completed turns array", async () => {
+    const deps = dependencies();
+    deps.get = vi.fn(async () => ({
+      conversation: { id: "c1", title: "Title", context: { type: "GENERAL" }, headTurnId: "t1", createdAt: "2026-10-17T00:00:00.000Z", lastActivityAt: "2026-10-17T00:00:00.000Z" },
+      turns: [{ question: "Q1", response: completed }],
+    }));
+    const h = createQaHttpHandlers(deps);
+    const res = await h.conversation(new Request("http://localhost/api/ai/conversations/c1"), "c1", false);
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.success).toBe(true);
+    expect(json.data).toHaveLength(1);
+    expect(json.conversation.id).toBe("c1");
+  });
+  it("supports conversation turns pagination", async () => {
+    const deps = dependencies();
+    deps.turns = vi.fn(async () => ({ turns: [{ question: "Q1", response: completed }], nextCursor: null, hasMore: false }));
+    const h = createQaHttpHandlers(deps);
+    const res = await h.conversationTurns(new Request("http://localhost/api/ai/conversations/c1/turns?limit=5"), "c1");
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.success).toBe(true);
+    expect(json.data.turns).toHaveLength(1);
+  });
 });

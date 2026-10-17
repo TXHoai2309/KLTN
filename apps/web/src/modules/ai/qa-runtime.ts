@@ -47,4 +47,15 @@ export const qaService = createQaService({
   assessor: createQaAssessor(),
   resolveContext: context => resolveQaContext(db, context)
 });
-export const qaHttp = createQaHttpHandlers({ diagnostics: createQaDiagnostics({ nodeEnv: process.env.NODE_ENV, vercelEnv: process.env.VERCEL_ENV }), enabled: qaRuntimeEnabled, resolve: qaPrincipalResolver.resolve, ask: qaService.ask, history: qaService.history, delete: qaService.delete });
+export const qaHttp = createQaHttpHandlers({
+  diagnostics: createQaDiagnostics({ nodeEnv: process.env.NODE_ENV, vercelEnv: process.env.VERCEL_ENV }),
+  enabled: qaRuntimeEnabled,
+  resolve: qaPrincipalResolver.resolve,
+  ask: qaService.ask,
+  history: qaService.history,
+  get: qaService.get,
+  list: qaService.list,
+  rename: qaService.rename,
+  turns: qaService.turns,
+  delete: qaService.delete,
+});
