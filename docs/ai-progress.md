@@ -2561,3 +2561,10 @@ Audit, task-owned file list, limits and manual procedure:
   reopening, master/dev merge/push or Production operation by this task.
   [Report](implementation/us28-stadia-routing-v2.md),
   [browser evidence](implementation/us28-stadia-v2-evidence/browser-results.json).
+
+- Git handoff correction: shared checkout was externally switched to master;
+  routing source commit c9265d6 was retained on the feature branch and pushed
+  there only. Own local-master change was reverted by85b9152 without rewriting
+  history. Local master content matches86bb942; its two local commits remain
+  unpublished. Checkout restored to feat/admin-user-management-be. Report records
+  the correction; no remote master/dev push or Production operation occurred.

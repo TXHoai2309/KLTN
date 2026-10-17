@@ -219,3 +219,15 @@ node_modules/.cache and run on loopback3012, then run
 `node apps/web/scripts/us28-offline-browser.mjs`. Production never uses this alias.
 The fixture is synthetic, has no auth/database and is not live evidence. Stop the
 owned fixture process afterwards.
+
+### Git handoff correction
+
+Source commit: `c9265d60eb3245386629a875695c4bf6b97ea557`, pushed only to
+`feat/admin-user-management-be`. During this task another session switched the
+shared checkout to master. The routing commit was initially created on that local
+branch. To preserve history and remove unintended master content, the feature ref
+was fast-forwarded to retain the commit, then local master received only the own-
+change revert `85b9152`. Local master content exactly matches baseline86bb942;
+its two local commits were NOT pushed. Remote master remains86bb942. The checkout
+was restored to the requested feature branch. No reset, force-push or merge was
+used. A documentation-only follow-up records this correction.
