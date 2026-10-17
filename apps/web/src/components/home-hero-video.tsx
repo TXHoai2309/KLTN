@@ -1,0 +1,91 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { Volume2, VolumeX } from "lucide-react";
+
+interface HomeHeroVideoProps {
+  src: string;
+  poster?: string;
+}
+
+export default function HomeHeroVideo({
+  src,
+  poster = "/images/ha-giang-highland-poster.png",
+}: HomeHeroVideoProps) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isMuted, setIsMuted] = useState(true);
+
+  const toggleSound = () => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (video.muted) {
+      video.muted = false;
+      video.volume = 0.75;
+      video.play().catch(() => {
+        // Autoplay policy fallback
+      });
+      setIsMuted(false);
+    } else {
+      video.muted = true;
+      setIsMuted(true);
+    }
+  };
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleVolumeChange = () => {
+      setIsMuted(video.muted);
+    };
+
+    video.addEventListener("volumechange", handleVolumeChange);
+    return () => {
+      video.removeEventListener("volumechange", handleVolumeChange);
+    };
+  }, []);
+
+  return (
+    <div className="home-hero-visual" aria-hidden="false">
+      <video
+        ref={videoRef}
+        className="home-hero-video"
+        src={src}
+        poster={poster}
+        autoPlay
+        loop
+        muted
+        playsInline
+        preload="metadata"
+      />
+
+      <div className="home-scene-controls">
+        <button
+          type="button"
+          onClick={toggleSound}
+          className={`home-sound-toggle ${isMuted ? "is-muted" : "is-active"}`}
+          aria-label={isMuted ? "Bật âm thanh video flycam" : "Tắt âm thanh video flycam"}
+          title={isMuted ? "Bật âm thanh video" : "Tắt âm thanh video"}
+        >
+          {isMuted ? (
+            <>
+              <VolumeX size={15} aria-hidden="true" />
+              <span className="home-sound-toggle-text">Bật âm thanh</span>
+            </>
+          ) : (
+            <>
+              <span className="home-sound-wave" aria-hidden="true">
+                <span className="wave-bar bar-1" />
+                <span className="wave-bar bar-2" />
+                <span className="wave-bar bar-3" />
+              </span>
+              <Volume2 size={15} aria-hidden="true" />
+              <span className="home-sound-toggle-text">Tắt âm</span>
+            </>
+          )}
+        </button>
+      </div>
+    </div>
+  );
+}

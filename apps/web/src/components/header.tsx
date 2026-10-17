@@ -25,8 +25,20 @@ import "./header.css";
 export default function Header() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const toggleBtnRef = useRef<HTMLButtonElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Detect scroll to toggle transparent crystal top vs elevated opaque frosted glass
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 15);
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   // Close mobile drawer on route change
   useEffect(() => {
@@ -104,7 +116,7 @@ export default function Header() {
   };
 
   return (
-    <header className="site-header">
+    <header className={`site-header ${isScrolled ? "is-scrolled" : "is-top"}`}>
       <div className="site-header-inner">
         {/* Left: Branding */}
         <Link className="site-brand" href="/" aria-label="Hà Giang Travel Assistant - Trang chủ">

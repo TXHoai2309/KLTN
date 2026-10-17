@@ -29,6 +29,8 @@ import {
   type PublicLocation,
 } from "@/modules/destination/public-destination-list";
 import HomeExploreMap from "@/components/home-explore-map";
+import HomeHeroVideo from "@/components/home-hero-video";
+import HomeHeroMetrics from "@/components/home-hero-metrics";
 import "./home.css";
 
 export const metadata: Metadata = {
@@ -71,33 +73,23 @@ export default async function Home() {
 
   return (
     <main className="home-page" lang="vi">
-      {/* SECTION 1: HERO EXPERIENCE */}
+      {/* SECTION 1: HERO EXPERIENCE (Cinematic Highland Drone Video & Editorial Storytelling) */}
       <section className="home-hero" aria-labelledby="home-title">
-        <div className="home-hero-visual" aria-hidden="true">
-          <Image
-            className="home-hero-image"
-            src="/images/ha-giang-hero.webp"
-            alt=""
-            fill
-            priority
-            sizes="(max-width: 640px) 100vw, (max-width: 1352px) calc(100vw - 32px), 1520px"
-          />
-          <div className="home-scene-label">
-            <span aria-hidden="true" />
-            Hoa tam giác mạch · Cao nguyên đá Hà Giang
-          </div>
-        </div>
+        <HomeHeroVideo
+          src="/videos/ha-giang-highland-clouds.mp4"
+          poster="/images/ha-giang-highland-poster.png"
+        />
 
         <div className="home-hero-copy">
           <p className="home-eyebrow home-hero-enter home-delay-0">
             HÀ GIANG <span>·</span> TRAVEL ASSISTANT
           </p>
           <h1 id="home-title" className="home-hero-title home-hero-enter home-delay-1">
-            Khám phá Hà Giang
-            <span>theo cách của bạn</span>
+            Nơi đá nở hoa,
+            <span>nơi mây ôm trọn núi.</span>
           </h1>
           <p className="home-hero-description home-hero-enter home-delay-2">
-            Khám phá những điểm đến đặc sắc, tìm hiểu câu chuyện văn hóa và xây dựng hành trình phù hợp với sở thích của riêng bạn.
+            Từ những tầng ruộng bậc thang kỳ vĩ uốn lượn giữa biển mây Hoàng Su Phì đến hẻm Tu Sản xanh ngọc dòng Nho Quế, trợ lý AI đồng hành giúp bạn tìm hiểu văn hóa bản địa và thiết kế hành trình khám phá trọn vẹn theo cách của riêng bạn.
           </p>
 
           <div className="home-hero-actions home-hero-enter home-delay-3">
@@ -110,8 +102,16 @@ export default async function Home() {
               <CalendarDays size={18} aria-hidden="true" />
               <span>Lập hành trình</span>
             </Link>
+            <Link className="home-cta home-cta-frosted home-cta-hero-map" href={"/explore?view=map" as Route}>
+              <Map size={18} aria-hidden="true" />
+              <span>Mở bản đồ</span>
+            </Link>
           </div>
 
+          {/* UNESCO Geopark & Culture Heritage Metrics Ribbon */}
+          <HomeHeroMetrics />
+
+          {/* AI Feature Trust Chips */}
           <ul className="home-quick-info home-hero-enter home-delay-4" aria-label="Điều bạn có thể khám phá">
             <li className="home-quick-coral">
               <div className="home-quick-icon-wrap" aria-hidden="true">
@@ -145,62 +145,6 @@ export default async function Home() {
       </section>
 
       <HomeScrollReveal>
-        {/* SECTION 2: HIGHLAND EDITORIAL STORYTELLING (Nho Quế Teal & Forest Atmosphere) */}
-        <section className="home-story-section" aria-labelledby="home-story-title">
-          <div className="home-story-card" data-home-reveal>
-            <div className="home-story-art" aria-hidden="true">
-              <Image
-                src="/images/ha-giang-destination-card.webp"
-                alt=""
-                fill
-                sizes="(max-width: 1024px) 100vw, 720px"
-                className="home-story-art-image"
-              />
-              <div className="home-story-ambient-glow" />
-              <div className="home-story-location-badge">
-                <Mountain size={13} aria-hidden="true" />
-                <span>Cột cờ Lũng Cú · Điểm cực Bắc Tổ quốc</span>
-              </div>
-            </div>
-
-            <div className="home-story-copy">
-              <p className="home-eyebrow home-eyebrow-teal">CẢM HỨNG CAO NGUYÊN ĐÁ</p>
-              <h2 id="home-story-title" className="home-story-title">
-                Nơi đá nở hoa,
-                <span>nơi mây ôm trọn núi.</span>
-              </h2>
-              <p className="home-story-prose">
-                Từ những khúc cua ngoạn mục của cung đèo Mã Pí Lèng đến hẻm Tu Sản xanh ngọc dòng Nho Quế, mỗi góc trời Hà Giang là một bản hòa ca giữa sự hùng vĩ của đá karst và sức sống diệu kỳ của con người vùng cao.
-              </p>
-
-              <div className="home-story-metrics">
-                <div className="home-story-metric-item">
-                  <strong>04 huyện</strong>
-                  <span>Công viên địa chất UNESCO</span>
-                </div>
-                <div className="home-story-metric-item">
-                  <strong>550+ triệu năm</strong>
-                  <span>Lịch sử kiến tạo Trái Đất</span>
-                </div>
-                <div className="home-story-metric-item">
-                  <strong>17 dân tộc</strong>
-                  <span>Bản sắc văn hóa đặc sắc</span>
-                </div>
-              </div>
-
-              <div className="home-story-actions">
-                <Link href={"/explore?view=map" as Route} className="home-cta home-cta-primary home-cta-teal">
-                  <Map size={18} aria-hidden="true" />
-                  <span>Mở bản đồ khám phá</span>
-                  <ArrowRight className="home-cta-arrow" size={17} aria-hidden="true" />
-                </Link>
-                <Link href={"/explore?view=map" as Route} className="home-card-link home-story-map-link">
-                  Xem vị trí trên bản đồ <ArrowRight size={15} aria-hidden="true" />
-                </Link>
-              </div>
-            </div>
-          </div>
-        </section>
 
         {/* SECTION 3: HOW IT WORKS / QUY TRÌNH ĐƠN GIẢN */}
         <section className="home-steps-section" aria-labelledby="home-steps-title">
