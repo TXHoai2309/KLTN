@@ -1,0 +1,42 @@
+.picker {
+  display: grid;
+  gap: 1rem;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  color: var(--foreground);
+  overflow-wrap: anywhere;
+}
+
+.title { margin: 0; font-size: 1.125rem; font-weight: 600; }
+.helper { margin: 0; color: var(--muted-foreground); font-size: 0.875rem; line-height: 1.6; }
+.map { position: relative; min-width: 0; height: 320px; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--muted); }
+.canvas { width: 100%; height: 100%; }
+.overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.75rem; padding: 1rem; text-align: center; }
+.overlay p { margin: 0; font-size: 0.875rem; line-height: 1.6; }
+.coordinates { display: grid; gap: 1rem; min-width: 0; margin: 0; padding: 0; border: 0; }
+.legend { margin-bottom: 0.5rem; padding: 0; font-weight: 600; }
+.fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; min-width: 0; }
+.field { display: grid; align-content: start; gap: 0.5rem; min-width: 0; }
+.field label { font-size: 0.875rem; font-weight: 500; }
+.input { box-sizing: border-box; min-height: 44px; width: 100%; min-width: 0; padding: 0.625rem 0.75rem; border: 1px solid var(--input); border-radius: var(--radius); background: var(--background); color: var(--foreground); font: inherit; }
+.input[aria-invalid="true"] { border-color: var(--destructive); }
+.error { margin: 0; color: var(--destructive); font-size: 0.875rem; line-height: 1.6; }
+.apply, .retry { min-height: 44px; max-width: 100%; padding: 0.625rem 1rem; border-radius: var(--radius); font: inherit; white-space: normal; cursor: pointer; }
+.apply { justify-self: start; border: 1px solid transparent; background: var(--primary); color: var(--primary-foreground); }
+.retry { border: 1px solid var(--border); background: var(--background); color: var(--foreground); }
+.apply:hover { filter: brightness(0.95); }
+.retry:hover { background: var(--muted); }
+.apply:active, .retry:active { transform: translateY(1px); }
+.input:focus-visible, .apply:focus-visible, .retry:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+
+@media (max-width: 480px) {
+  .fields { grid-template-columns: minmax(0, 1fr); }
+  .map { height: 280px; }
+  .apply { justify-self: stretch; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .input, .apply, .retry { transition: none; }
+  .apply:active, .retry:active { transform: none; }
+}
