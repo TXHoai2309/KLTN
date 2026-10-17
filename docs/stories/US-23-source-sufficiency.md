@@ -447,3 +447,25 @@ PASS, final build/diff line in report. No live paid run, SQL/schema/model/budget
 credential change or deployment. Premium auditor currently unavailable after
 plugin removal; no new static-audit PASS claimed. US-23 remains NOT_ACCEPTED.
 [Report](../implementation/ai-chatbot-missing-source-replies.md).
+
+## 2026-10-17 — advanced reasoning V2 owner regression fixes
+
+Owner supplied nine explicit cases and authorized bounded multi-document,
+clarification and coverage fixes. Added syntax-based requested subject/facet/year
+obligations, two-subject batched embedding and fair hybrid candidate selection
+within the existing four-chunk/3000-token runtime budget. Source assessment,
+sufficiency, generation and verification share bound obligations; unknown phrasing
+retains semantic assessment and genuine ambiguity. Missing planned facts cannot
+become an unrelated clarification or be inferred from another year/site.
+
+Recorded final nine-case live content review passes after one focused comparison
+repair, with all initial observations retained: 36 calls total, READ ONLY approved
+development target. Offline full suite 1921 PASS / 118 gated SKIP plus 333 legacy;
+disposable PostgreSQL 73/73 PASS including public-approval revocation during
+generation; browser 21/21; root typecheck/build and diff checks PASS. No schema,
+source/env/model change, production access, push, merge or deployment.
+
+This is a finite owner-case regression result. Independent corpus acceptance is
+still pending; US-23 remains NOT_ACCEPTED. Full root causes, file list, cost/latency
+bounds, intermediate failures and remaining limits:
+[advanced reasoning V2](../implementation/rag-advanced-reasoning-v2.md).

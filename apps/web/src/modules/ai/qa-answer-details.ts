@@ -1,4 +1,6 @@
 import type { QaSourceReview } from "./qa-source-sufficiency";
+import type { QaQuestionPlan } from "./qa-question-plan";
+import { isQaPublicMetadataSafe } from "./qa-public-safety";
 
 // Public notices and presentation choices are server-owned, never source prose.
 export const QA_ASPECT_KINDS = ["IDENTITY", "LOCATION", "DESIGNATION", "GEOLOGY", "CULTURE", "ADMISSION", "OPENING_HOURS", "CURRENT_VALIDITY", "ACCESSIBILITY", "OTHER"] as const;
@@ -17,15 +19,20 @@ const notices: Record<QaAspectKind, string> = {
   OTHER: QA_UNANSWERED_ASPECT,
 };
 
-export function qaMissingAspectNotices(review?: QaSourceReview): string[] {
+export function qaMissingAspectNotices(review?: QaSourceReview, plan?: QaQuestionPlan): string[] {
   const missing = review?.aspects.filter(aspect => aspect.status === "MISSING") ?? [];
-  return [...new Set(missing.map(aspect => notices[aspect.kind ?? "OTHER"]))].slice(0, 10);
+  return [...new Set(missing.map(aspect => {
+    const facet = plan?.facets.find(item => item.id === aspect.id);
+    return facet && isQaPublicMetadataSafe(facet.subject)
+      ? `Chưa xác minh được ${facet.attribute} của ${facet.subject}${facet.year ? ` trong năm ${facet.year}` : ""} trong các nguồn truy xuất được.`
+      : notices[aspect.kind ?? "OTHER"];
+  }))].slice(0, 10);
 }
 
 export const QA_ANSWER_PRESENTATIONS = ["PARAGRAPHS", "LIST", "TABLE"] as const;
 export function qaAnswerPresentation(question: string, partCount: number): typeof QA_ANSWER_PRESENTATIONS[number] {
   if (partCount < 2) return "PARAGRAPHS";
-  if (/(?:so sánh|khác nhau|đối chiếu)/iu.test(question)) return "TABLE";
+  if (/(?:so sánh|khác nhau|khác biệt|đối chiếu)/iu.test(question)) return "TABLE";
   if (/(?:liệt kê|những|các đặc điểm|có gì nổi bật|có gì đặc biệt)/iu.test(question)) return "LIST";
   return "PARAGRAPHS";
 }

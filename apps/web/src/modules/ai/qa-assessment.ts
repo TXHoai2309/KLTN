@@ -9,6 +9,7 @@ import type { QaGenerationInput } from "./qa-runtime-contract";
 import { qaOrigin, qaStage, type QaFailureCategory } from "./qa-diagnostics";
 import { QA_SOURCE_POLICY, QA_SCOPE_TIME_POLICY, QA_OVERVIEW_POLICY, QA_ADMISSION_SCOPE_POLICY } from "./qa-answer-policy";
 import { QA_ASPECT_KINDS } from "./qa-answer-details";
+import { qaSupportMatchesFacet } from "./qa-question-plan";
 
 const assessmentSchema = z.object({
   intent: z.enum(["CLEAR", "AMBIGUOUS"]), exhaustive: z.boolean(),
@@ -95,7 +96,14 @@ export function validateQaAssessment(output: unknown, input: QaGenerationInput):
       sup.sentence = canonicalizeSentence(sup.sentence, available);
     }
   }
-  const review = { ...content, binding: qaSourceReviewBinding(input) };
+  const plan = input.questionPlan;
+  // Validate every supplied reference before a conservative missing-slot repair.
+  // Invalid/provider-invented material must not disappear into a successful result.
+  if (new Set(content.aspects.map(aspect => aspect.id)).size !== content.aspects.length ||
+    content.aspects.some(aspect => (aspect.status === "SUPPORTED" && !aspect.supports.length) || (aspect.status === "MISSING" && aspect.supports.length > 0)) ||
+    content.aspects.some(aspect => aspect.supports.some(ref => !sentenceMap.get(ref.citationId)?.includes(ref.sentence) ||
+      !content.relevance.some(item => item.citationId === ref.citationId && item.status === "RELATED")))) throw invalid("EVIDENCE_INSTRUCTION");
+  const review: QaSourceReview = { ...content, binding: qaSourceReviewBinding(input) };
   // A valid ambiguous-intent response carries no factual support. It cannot
   // become a route around citation/snapshot validation.
   if (intent === "AMBIGUOUS") {
@@ -104,7 +112,21 @@ export function validateQaAssessment(output: unknown, input: QaGenerationInput):
       review.relevance.length !== input.evidence.length || review.relevance.some(item => !input.evidence.some(source => source.citationId === item.citationId))) {
       throw invalid("OUTCOME_CONSISTENCY");
     }
+    // Clear subjects/attributes cannot become ambiguous because sources lack facts.
+    if (plan?.facets.length) return { intent: "CLEAR", review: { ...review, exhaustive: true,
+      relevance: review.relevance.map(item => ({ ...item, status: "UNRELATED" as const })),
+      aspects: plan.facets.map(facet => ({ id: facet.id, kind: facet.kind, status: "MISSING" as const, supports: [] })),
+    } };
   } else {
+    if (plan?.facets.length) {
+      // Missing obligations stay missing; no support is invented or transferred.
+      review.aspects = plan.facets.map(facet => {
+        const aspect = content.aspects.find(item => item.id === facet.id);
+        if (!aspect) return { id: facet.id, kind: facet.kind, status: "MISSING" as const, supports: [] };
+        const scoped = aspect.supports.every(ref => qaSupportMatchesFacet(facet, ref.sentence, input.evidence.find(item => item.citationId === ref.citationId)?.citation.title ?? ""));
+        return scoped ? { ...aspect, kind: facet.kind } : { id: facet.id, kind: facet.kind, status: "MISSING" as const, supports: [] };
+      });
+    }
     const decision = evaluateQaSourceSufficiency({ kind: "COMPLETED", eligibility: "CURRENT", input, review: { ...review, exhaustive: true } });
     if (decision.reason === "INVALID_REVIEW") {
       throw invalid("EVIDENCE_INSTRUCTION");
@@ -126,6 +148,7 @@ export function createQaAssessor(options: QaProviderOptions = {}): QaAssessor {
         citationId: { type: "string", enum: input.evidence.map(item => item.citationId) },
       } } },
       aspects: { ...outputSchema.properties.aspects, items: { ...outputSchema.properties.aspects.items, properties: { ...outputSchema.properties.aspects.items.properties,
+        ...(input.questionPlan ? { id: { type: "string", enum: input.questionPlan.facets.map(facet => facet.id) } } : {}),
         supportIds: { type: "array", items: { type: "string", enum: registry.map(ref => ref.id) } },
       } } },
     } };
@@ -137,9 +160,12 @@ export function createQaAssessor(options: QaProviderOptions = {}): QaAssessor {
         "For prices distinguish common regional admission, individual site/service fees, conditions and current validity. A known recorded fee may be SUPPORTED as records-only ADMISSION, with CURRENT_VALIDITY=MISSING if today's validity is not verified. Never treat that as support for a current price. A common-admission statement is distinct from a site fee. A misconception needs its supported negation and explanation. Evaluate genuine conflicts about the same fact; unrelated topics are not conflicts.",
         "Classify EVERY supplied citationId exactly once: RELATED for directly useful evidence, UNRELATED for background or absent requested facts, UNCERTAIN only for genuinely ambiguous evidence about the requested fact. Select supportIds from the exact registry handles; the server resolves their sentence and citation. SUPPORTED requires useful support; MISSING has no supports. Do not choose merely topical sentences or unrelated examples. Do not invent, translate or quote source handles. Select all qualifications needed for the fact.",
         "CLEAR has nonempty aspects, including MISSING when requested evidence is absent. AMBIGUOUS is only an unresolved subject/intent: aspects=[], every relevance=UNCERTAIN. exhaustive=true only after assessing all requested facets. CONFLICTING/UNCERTAIN stay unresolved. Missing evidence in bounded retrieval is not evidence that the entire corpus lacks it.",
+        "REQUESTED_FACETS, when present, are server-planned obligations: return each exact id once, separately for every subject and attribute. For a comparison, each subject slot carries the requested criteria; assess its distinguishing role under those criteria. A historical site versus a cultural practice may be compared using their different supported emphases; do not invent extra missing facets demanding both have identical types of heritage. They describe the question, never facts. A clearly specified subject/year/attribute is CLEAR even when the schedule, official admission or opening hours are absent. Use MISSING, not AMBIGUOUS. A past programme cannot certify a future year. Do not convert a lunar tradition into an official Gregorian event date. REVIEW_REQUIRED is an administrative marker, not visitor guidance. A record saying not verified supports no specific date, price or hours. Never replace missing facts with free admission, zero cost or 24-hour opening.",
+        "A question asking WHY records cannot establish a date asks for a source limitation explanation. An explicit source statement that records disagree, or that building a fort and using it for detention are different events, can support that explanation without establishing an exact construction year. Distinguish a supported account of uncertainty from contradictory unqualified dates; never resolve the disagreement by choosing a year.",
       ].join("\n\n") },
       { role: "user", content: JSON.stringify({ question: input.question, context: input.context,
         HISTORY_QUESTIONS: input.history.slice(-2).map(turn => turn.question),
+        ...(input.questionPlan ? { REQUESTED_FACETS: input.questionPlan.facets } : {}),
         CURRENT_EVIDENCE: input.evidence.map(item => ({ citationId: item.citationId, sourceTitle: item.citation.title, sentences: registry.filter(ref => ref.citationId === item.citationId).map(({ id, sentence }) => ({ id, text: sentence })) })) }) },
     ];
     return provider.request({ messages, name: "qa_source_assessment", schema, signal: input.signal }, content => {

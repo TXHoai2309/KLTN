@@ -27,6 +27,16 @@ components:
 
 # Admin RAG design context
 
+## Assistant missing-source copy (2026-10-17)
+
+`assistantSourceReply` remains the single owner of completed missing-source
+wording, rendered by the existing AssistantTurn paragraphs. For structurally
+explicit comparisons or dated admission/hours/event requests, explain only the
+limits of this retrieval and do not ask the user to restate a known topic/date.
+Verification failure retains distinct wording. PARTIAL uses subject/attribute
+notices from the server coverage plan. No new styling, interactive control,
+scroll owner or navigation behavior is introduced.
+
 ## V4.2 editorial composition (2026-10-16)
 
 EditorialRenderer and resolveEditorialDisplay remain the shared Preview/Public

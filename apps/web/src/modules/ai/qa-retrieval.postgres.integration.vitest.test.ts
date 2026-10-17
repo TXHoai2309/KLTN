@@ -99,6 +99,48 @@ integrationDescribe("US21 real pgvector retrieval (explicit disposable database 
     await db.$executeRaw(Prisma.sql`INSERT INTO qa_guest_identity(id,"expiresAt") VALUES(${id},CURRENT_TIMESTAMP+INTERVAL '7 days')`);
     return { kind: "GUEST", id };
   }
+  it("balances two explicit subjects with real pgvector and dynamic approval, excluding revoked distractors", async () => {
+    const own: string[] = [];
+    const a = "Hồ Thử Nghiệm Alpha";
+    const b = "Đồi Thử Nghiệm Beta";
+    for (let index = 0; index < 5; index++) own.push((await seed("INDEXED", "READY", true, false, undefined, `${a} có cảnh quan thử nghiệm số ${index}.`)).id);
+    const second = await seed("INDEXED", "READY", true, false, undefined, `${b} có cảnh quan riêng.`); own.push(second.id);
+    const revoked = await seed("INDEXED", "READY", true, false, undefined, `${b} có thông tin không được cấp quyền.`, false); own.push(revoked.id);
+    const batchProvider: EmbeddingProvider = { ...provider, embed: async ({ input }) => input.map((_, index) => ({ index, embedding: queryVector })) };
+    // Undefined allowlist is the production dynamic-discovery mode.
+    const retriever = createQaRetriever(db, { provider: batchProvider, hybrid: true, topK: 4, maxEvidenceTokens: 3000 });
+    try {
+      const rows = await retriever.retrieve(`So sánh ${a} với ${b} về cảnh quan`, []);
+      expect(rows).toHaveLength(4);
+      expect(rows.some(item => item.documentId === second.id)).toBe(true);
+      expect(rows.some(item => item.documentId === revoked.id)).toBe(false);
+      expect(new Set(rows.map(item => item.chunkId)).size).toBe(rows.length);
+      expect(await retriever.recheck(rows)).toBe(true);
+      const principal = await guest();
+      let entered!: () => void;
+      const started = new Promise<void>(resolve => { entered = resolve; });
+      const store = createQaConversationStore(db as Database);
+      const service = createQaService({ store, retriever: { retrieve: async () => rows, recheck: retriever.recheck }, eligibilityPollMs: 5,
+        assessor: { assess: async input => fixtureQaAssessment(input) },
+        generator: { generate: async input => {
+          entered();
+          return new Promise((_resolve, reject) => input.signal!.addEventListener("abort", () => reject(new Error("cancelled synthetic generation")), { once: true }));
+        } },
+      });
+      const pending = service.ask(principal, randomUUID(), { question: "Giới thiệu các dữ kiện đã truy xuất", context: { type: "GENERAL" } });
+      // Attach rejection handling before revocation so no unhandled promise races.
+      const rejected = expect(pending).rejects.toMatchObject({ code: "AI_INVALID_RESPONSE" });
+      await started;
+      await db.ragDocument.update({ where: { id: second.id }, data: { publicQaApproved: false } });
+      await rejected;
+      expect(await db.qaTurn.count({ where: { principalId: principal.id, state: "COMPLETED" } })).toBe(0);
+      expect(await db.qaTurn.count({ where: { principalId: principal.id, state: "FAILED" } })).toBe(1);
+      expect(await retriever.recheck(rows)).toBe(false);
+      expect(await db.$transaction(tx => lockQaEvidenceEligibility(tx, rows))).toBe(false);
+    } finally {
+      await db.ragDocument.updateMany({ where: { id: { in: own } }, data: { status: "DISABLED" } });
+    }
+  });
   it("US22 real SQL selects only eligible named evidence with authentic citations", async () => {
     const startingCount = documentIds.length;
     const name = "Điểm Ngữ Cảnh Tổng Hợp";

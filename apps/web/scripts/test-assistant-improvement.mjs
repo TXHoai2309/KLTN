@@ -112,6 +112,19 @@ try {
     await page.screenshot({ path: join(output, `${mode}-360.png`) });
     results.push({ mode, width: 360, passed: true });
   }
+  for (const [caseId, question, expected] of [
+    ["dated-event", "Chợ tình Khâu Vai năm 2027 sẽ tổ chức vào ngày dương lịch nào và có những hoạt động cụ thể gì?", "lịch tổ chức"],
+    ["dated-admission", "Giá vé và giờ mở cửa chính thức năm 2026 của Căng Bắc Mê là bao nhiêu?", "giá vé và giờ mở cửa"],
+  ]) {
+    await load("missing-support", 360); await ask(question);
+    const reply = await page.locator(".assistant-source-reply").textContent();
+    assert.ok(reply.includes(expected)); assert.ok(!reply.includes("?"));
+    assert.ok(!reply.includes("loại vé")); assert.ok(!reply.includes("chọn một ý"));
+    assert.equal(JSON.parse(await page.getByLabel("Recorded requests").textContent()).length, 1);
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+    await page.screenshot({ path: join(output, `${caseId}-360.png`) });
+    results.push({ mode: caseId, width: 360, passed: true, noUnnecessaryQuestion: true });
+  }
   await page.emulateMedia({ reducedMotion: "reduce" });
   await load("list", 390); await ask();
   assert.equal(await page.locator("html").getAttribute("lang"), "vi");

@@ -11,6 +11,7 @@ import { isQaPublicMetadataSafe } from "./qa-public-safety";
 import { qaOrigin, qaProviderInvoked, qaProviderMetadata, qaStage } from "./qa-diagnostics";
 import { destinationEvidenceSentences } from "./qa-destination-context";
 import { qaFactualQuestion, qaIntentHistory } from "./qa-question-understanding";
+import { planQaQuestion } from "./qa-question-plan";
 
 type Reader = Pick<Database, "$queryRaw"> & Partial<Pick<Database, "$transaction">>;
 type Row = { documentId: string; generationId: string; contentVersionId: string; chunkId: string;
@@ -137,20 +138,21 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
       // are never queried, projected, or returned as current evidence.
       const previousQuestions = qaIntentHistory(validated, history).map(turn => qaQuestionSchema.parse(turn.question));
       const query = [...(context.type === "DESTINATION" ? [JSON.stringify({ destination: context.name })] : []), ...previousQuestions, normalized].join("\n");
-      if (countEmbeddingTokens(query) > 8191) throw new EmbeddingError("RESOURCE_LIMIT", false);
+      const plan = planQaQuestion(normalized, history, context);
+      const subjects = plan?.comparison ? plan.subjects : [];
+      const queries = subjects.length ? subjects.map(subject => `${subject}\n${plan!.facets.filter(facet => facet.subject === subject).map(facet => facet.attribute).join(" ")}`) : [query];
+      if (queries.reduce((sum, item) => sum + countEmbeddingTokens(item), 0) > 8191) throw new EmbeddingError("RESOURCE_LIMIT", false);
       qaStage("QUESTION_EMBEDDING_STARTED");
       let response;
-      try { response = await provider.embed({ input: [query], signal }); }
+      try { response = await provider.embed({ input: queries, signal }); }
       catch (error) { throw qaOrigin(error, error instanceof EmbeddingError && error.code === "INVALID_PROVIDER_RESPONSE" ? "QUESTION_EMBEDDING_VALIDATION" : "QUESTION_EMBEDDING_STARTED", error instanceof EmbeddingError && error.code === "INVALID_PROVIDER_RESPONSE" ? "SCHEMA" : "PROVIDER_FAILURE"); }
       qaStage("QUESTION_EMBEDDING_VALIDATION");
-      const vector = response[0]?.embedding;
-      if (response.length !== 1 || response[0]?.index !== 0 || !Array.isArray(vector) || vector.length !== 1536 ||
-        Array.from(vector).some(value => typeof value !== "number" || !Number.isFinite(value) || !Number.isFinite(Math.fround(value)))) {
+      if (response.length !== queries.length || response.some((item, index) => item.index !== index || !Array.isArray(item.embedding) || item.embedding.length !== 1536 ||
+        Array.from(item.embedding).some(value => typeof value !== "number" || !Number.isFinite(value) || !Number.isFinite(Math.fround(value))))) {
         throw qaOrigin(new EmbeddingError("INVALID_PROVIDER_RESPONSE", false), "QUESTION_EMBEDDING_VALIDATION", "EMBEDDING_VECTOR");
       }
       // pgvector stores float32 values; reject vectors that become zero or overflow.
-      const squaredNorm = vector.reduce((sum, value) => sum + Math.fround(value) ** 2, 0);
-      if (!Number.isFinite(squaredNorm) || squaredNorm <= 0) throw qaOrigin(new EmbeddingError("INVALID_PROVIDER_RESPONSE", false), "QUESTION_EMBEDDING_VALIDATION", "EMBEDDING_VECTOR");
+      if (response.some(item => { const norm = item.embedding.reduce((sum, value) => sum + Math.fround(value) ** 2, 0); return !Number.isFinite(norm) || norm <= 0; })) throw qaOrigin(new EmbeddingError("INVALID_PROVIDER_RESPONSE", false), "QUESTION_EMBEDDING_VALIDATION", "EMBEDDING_VECTOR");
       qaStage("QUESTION_EMBEDDING_COMPLETED");
       qaStage("RETRIEVAL_STARTED");
       if (signal?.aborted) throw new EmbeddingError("CANCELLED", false);
@@ -170,7 +172,6 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
         });
         return [];
       }
-      const vectorLiteral = `[${vector.join(",")}]`;
       // Literal substring matching avoids wildcard interpretation of metadata.
       const contextFilter = context.type === "DESTINATION"
         ? Prisma.sql`AND strpos(lower(normalize(c."text", NFC)), lower(${context.name})) > 0`
@@ -178,8 +179,12 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
       const sourceFilter = restrictBySourceIds
         ? Prisma.sql`AND d."id" IN (${Prisma.join(approvedSourceIds)})`
         : Prisma.empty;
-      const keywordQuery = options.hybrid ? qaKeywordQuery(normalized) : "";
-      const { vectorRows, keywordRows } = await boundedRead(database, async reader => {
+      const groups: { vectorRows: Row[]; keywordRows: Row[] }[] = [];
+      for (let qi = 0; qi < queries.length; qi++) {
+      const vectorLiteral = `[${response[qi]!.embedding.join(",")}]`;
+      const keywordQuery = options.hybrid ? qaKeywordQuery(subjects[qi] ? queries[qi]! : normalized) : "";
+      const subjectFilter = subjects[qi] ? Prisma.sql`AND (strpos(lower(normalize(c."text", NFC)), ${subjects[qi]}) > 0 OR strpos(lower(normalize(d."sourceTitle", NFC)), ${subjects[qi]}) > 0)` : Prisma.empty;
+      const group = await boundedRead(database, async reader => {
       const vectorRows = await reader.$queryRaw<Row[]>(Prisma.sql`SELECT d."id" AS "documentId", g."id" AS "generationId",
         g."contentVersionId", c."id" AS "chunkId", c."chunkHash", c."text", e."tokenCount",
         d."sourceTitle", d."fileType"::text AS "fileType", c."locators",
@@ -187,6 +192,7 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
         ${joins} WHERE ${eligible} AND e."tokenCount" > 0
         ${sourceFilter}
         ${contextFilter}
+        ${subjectFilter}
         ORDER BY e."embedding" <=> ${vectorLiteral}::vector, d."id", g."id", c."index", c."id" LIMIT ${topK}`);
       let keywordRows: Row[] = [];
       if (keywordQuery) {
@@ -197,19 +203,23 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
           d."sourceTitle", d."fileType"::text AS "fileType", c."locators",
           (1 - (e."embedding" <=> ${vectorLiteral}::vector))::double precision AS "score"
           ${joins} WHERE ${eligible} AND e."tokenCount" > 0
-          ${sourceFilter} ${contextFilter}
+          ${sourceFilter} ${contextFilter} ${subjectFilter}
           AND to_tsvector('simple', ${searchText}) @@ to_tsquery('simple', ${keywordQuery})
           ORDER BY ts_rank_cd(to_tsvector('simple', ${searchText}), to_tsquery('simple', ${keywordQuery})) DESC,
           d."id", g."id", c."index", c."id" LIMIT ${topK}`);
       }
       return { vectorRows, keywordRows };
       });
+      groups.push(group);
+      }
       // Two independent candidate branches, same eligibility/context. Interleave
       // ranks without adding vector and lexical scores of incompatible units.
       // Keep the same final topK and token budget; dedupe by current chunk ID.
       const seen = new Set<string>();
       const candidateRows: Row[] = [];
-      for (let index = 0; index < topK; index++) for (const row of [vectorRows[index], keywordRows[index]]) {
+      const rankedGroups = groups.map(({ vectorRows, keywordRows }) => Array.from({ length: topK }, (_, index) => [vectorRows[index], keywordRows[index]]).flat().filter((row): row is Row => !!row).filter((row, index, rows) => rows.findIndex(item => item.chunkId === row.chunkId) === index));
+      for (let index = 0; index < topK * 2; index++) for (const ranked of rankedGroups) {
+        const row = ranked[index];
         if (!row || seen.has(row.chunkId)) continue;
         seen.add(row.chunkId); candidateRows.push(row);
       }
@@ -218,7 +228,7 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
         ? Math.round(candidateRows[0].score * 10000) / 10000
         : null;
       const candidatesBeforeThreshold = candidateRows.length;
-      const lexicalIds = new Set(keywordRows.map(row => row.chunkId));
+      const lexicalIds = new Set(groups.flatMap(group => group.keywordRows.map(row => row.chunkId)));
       const rows = candidateRows.filter(r => Number.isFinite(r.score) && (r.score >= minScore || lexicalIds.has(r.chunkId)));
       const candidatesAfterThreshold = rows.length;
 
@@ -233,6 +243,7 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
 
       const evidence: QaEvidence[] = [];
       let usedTokens = 0;
+      const coveredGroups = new Set<number>();
       for (const row of rows) {
         if (evidence.length >= topK) break;
         if (restrictBySourceIds && !options.publicSourceIds!.has(row.documentId)) continue;
@@ -240,6 +251,16 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
         if (context.type === "DESTINATION" && !destinationEvidenceSentences(row.text, context.name).length) continue;
         const actualTokens = countEmbeddingTokens(row.text);
         if (!Number.isInteger(row.tokenCount) || actualTokens !== row.tokenCount || usedTokens + actualTokens > maxEvidenceTokens) continue;
+        const rowGroups = rankedGroups.flatMap((group, index) => group.some(item => item.chunkId === row.chunkId) ? [index] : []);
+        // Reserve enough space for the smallest whole candidate of every still
+        // uncovered subject. A large first chunk must not consume the other side's
+        // entire token allowance. Nothing is truncated or treated as evidence here.
+        const reserveTokens = subjects.length ? rankedGroups.reduce((sum, group, index) => {
+          if (coveredGroups.has(index) || rowGroups.includes(index)) return sum;
+          const fitting = group.filter(item => rows.includes(item) && Number.isInteger(item.tokenCount) && item.tokenCount > 0).map(item => item.tokenCount);
+          return sum + (fitting.length ? Math.min(...fitting) : 0);
+        }, 0) : 0;
+        if (usedTokens + actualTokens + reserveTokens > maxEvidenceTokens) continue;
         const citationId = `c${evidence.length + 1}`;
         const locators=projectQaLocators(row.fileType,row.locators);
         if(!isQaPublicMetadataSafe({title:row.sourceTitle,locators}))continue;
@@ -247,6 +268,7 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
           title: row.sourceTitle, sourceUrl: null, locators });
         if (!citation.success) continue;
         usedTokens += actualTokens;
+        rowGroups.forEach(index => coveredGroups.add(index));
         evidence.push({ citationId, documentId: row.documentId, generationId: row.generationId, contentVersionId: row.contentVersionId,
           chunkId: row.chunkId, chunkHash: row.chunkHash, text: row.text, tokenCount: actualTokens, score: row.score, citation: citation.data });
       }

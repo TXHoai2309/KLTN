@@ -1,6 +1,7 @@
 import type { QaCompletedTurn, QaPublicCitation } from "./qa-contract";
 import type { QaResolvedContext } from "./qa-destination-context";
 import type { QaSourceReview, QaSourceDecision } from "./qa-source-sufficiency";
+import type { QaQuestionPlan } from "./qa-question-plan";
 
 // Server-internal only. Never serialize this registry to the browser.
 export type QaEvidence = {
@@ -24,6 +25,7 @@ export type QaGenerationInput = {
   signal?: AbortSignal;
   sourceSufficiency?: QaSourceDecision;
   sourceReview?: QaSourceReview;
+  questionPlan?: QaQuestionPlan;
 };
 export type QaAnswer =
   | Pick<Extract<QaCompletedTurn, { status: "CONVERSATIONAL" }>, "status" | "answerParts" | "citations" | "message">

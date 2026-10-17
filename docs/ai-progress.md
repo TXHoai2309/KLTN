@@ -2442,3 +2442,33 @@ Audit, task-owned file list, limits and manual procedure:
   - TypeScript typecheck (npm run check-types): PASS.
   - Next.js production build (npm run build): PASS in 37.6s, all routes compiled.
   - git diff --check: PASS. No production database touched; no push/merge performed.
+
+### 2026-10-17 — RAG advanced reasoning V2
+
+- Synced origin/TXH at b75c4b7; branch fix/ai-rag-multisource-reasoning.
+  Owner authorized explicit multi-document/clarification/coverage regression fixes.
+- Added bounded subject/facet/year planning, one batched embedding call for two
+  subjects, fair hybrid candidates and token reservation. Same runtime max four
+  chunks/3000 evidence tokens; no additional planner/generator call or agent layer.
+- Required coverage is checked independently at assessment and source sufficiency,
+  propagated into generation/verifier and bound to the source snapshot. Explicit
+  missing facts no longer trigger irrelevant clarification/templates. Source,
+  temporal, ownership, transaction, revocation and FAILED/UNKNOWN gates retained.
+- Nine offline owner cases and 21 advanced tests PASS. Live content review 9/9:
+  36 calls (10 embedding, 26 chat), 79286 reported tokens, approved Development
+  READ ONLY; no source/history writes. Initial mechanical failures and one genuine
+  over-specified comparison plan were retained and explained; no universal claim.
+- Full web npm test: 1921 Vitest PASS / 118 gated SKIP + 333 legacy PASS.
+  Disposable PostgreSQL/pgvector: 73/73 PASS, including public approval revocation
+  during generation; owned container/volume cleanup PASS. Intermediate simultaneous
+  build/DB run hit two existing 5s test deadlines; isolated final rerun passed.
+- Browser 21/21 groups PASS including both exact dated questions at 360px; source
+  reply screenshot reviewed. Root check-types PASS; final root build PASS (26.508s),
+  after a transient concurrent-build lock rejection. git diff --check PASS.
+- Test-only server-only alias fixes full-suite resolution failures; production
+  imports unchanged. Premium static audit has 29 pre-existing out-of-scope findings;
+  no broad UI compliance claim. No schema/env/model/source change or Production access.
+- Local scoped commit; no push/merge/deploy. Concurrent header UI/scripts are
+  excluded and preserved. US-23 still NOT_ACCEPTED pending independent corpus review.
+- [Report](implementation/rag-advanced-reasoning-v2.md),
+  [live evidence](implementation/rag-advanced-live-results.json).

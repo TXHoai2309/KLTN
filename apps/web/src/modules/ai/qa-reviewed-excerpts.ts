@@ -26,7 +26,7 @@ export function qaReviewedExcerptAnswer(input: QaGenerationInput): QaAnswer | nu
   const used = new Set(answerParts.flatMap(part => part.citationIds));
   const citations = input.evidence.filter(item => used.has(item.citationId)).map(item => item.citation);
   const base = { answerParts, citations, answerMode: "SOURCE_EXCERPTS" as const, presentation: "PARAGRAPHS" as const };
-  const answer: QaAnswer = decision.status === "PARTIAL" ? { ...base, status: "PARTIAL", unansweredAspects: qaMissingAspectNotices(input.sourceReview) } : { ...base, status: "ANSWERED", unansweredAspects: [] };
+  const answer: QaAnswer = decision.status === "PARTIAL" ? { ...base, status: "PARTIAL", unansweredAspects: qaMissingAspectNotices(input.sourceReview, input.questionPlan) } : { ...base, status: "ANSWERED", unansweredAspects: [] };
   if (!isQaPublicAnswerSafe(answer, input.evidence)) return null;
   assertQaAnswerGrounding(answer, input); // Exact membership AND every supported facet.
   return answer;

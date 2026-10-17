@@ -64,7 +64,7 @@ function validateCandidate(output: unknown, input: QaGenerationInput, synthesis:
   if (value.unanswered !== (value.status === "PARTIAL")) throw invalid("GENERATION_OUTCOME", "OUTCOME_CONSISTENCY", [{ code: "custom", path: ["unanswered"] }]);
   if (factual ? value.answerParts.length === 0 : value.answerParts.length !== 0) throw invalid("GENERATION_OUTCOME", "OUTCOME_CONSISTENCY", [{ code: "custom", path: ["answerParts"] }]);
   if (value.status === "INSUFFICIENT_SOURCE") { qaStage("GENERATION_OUTPUT_VALIDATED"); return insufficientQaAnswer(); }
-  if (value.status === "CLARIFICATION_REQUIRED") { qaStage("GENERATION_OUTPUT_VALIDATED"); return { status: value.status, answerParts: [], citations: [], clarificationQuestion: QA_CLARIFICATION_QUESTION }; }
+  if (value.status === "CLARIFICATION_REQUIRED") { qaStage("GENERATION_OUTPUT_VALIDATED"); return input.questionPlan ? insufficientQaAnswer("MISSING_SUPPORT") : { status: value.status, answerParts: [], citations: [], clarificationQuestion: QA_CLARIFICATION_QUESTION }; }
   const registry = new Map(input.evidence.map(item => [item.citationId, item]));
   if (registry.size !== input.evidence.length) throw invalid("CITATION_VALIDATION", "DUPLICATE_REGISTRY");
   const used = new Set<string>();
@@ -91,7 +91,7 @@ function validateCandidate(output: unknown, input: QaGenerationInput, synthesis:
   });
   const answer: QaAnswer = value.status === "ANSWERED"
     ? { status: "ANSWERED", answerParts: parts, citations, unansweredAspects: [] }
-    : { status: "PARTIAL", answerParts: parts, citations, unansweredAspects: qaMissingAspectNotices(input.sourceReview).length ? qaMissingAspectNotices(input.sourceReview) : [QA_UNANSWERED_ASPECT] };
+    : { status: "PARTIAL", answerParts: parts, citations, unansweredAspects: qaMissingAspectNotices(input.sourceReview, input.questionPlan).length ? qaMissingAspectNotices(input.sourceReview, input.questionPlan) : [QA_UNANSWERED_ASPECT] };
   if (synthesis && (answer.status === "ANSWERED" || answer.status === "PARTIAL")) {
     answer.presentation = qaAnswerPresentation(input.question, parts.length);
   }

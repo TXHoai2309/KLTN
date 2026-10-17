@@ -1,5 +1,6 @@
 import type { QaCompletedTurn } from "../../modules/ai/qa-contract";
 import { normalizeQaQuestion } from "../../modules/ai/qa-question-understanding";
+import { planQaQuestion } from "../../modules/ai/qa-question-plan";
 
 type MissingTurn = Extract<QaCompletedTurn, { status: "INSUFFICIENT_SOURCE" }>;
 
@@ -8,6 +9,24 @@ type MissingTurn = Extract<QaCompletedTurn, { status: "INSUFFICIENT_SOURCE" }>;
 // infer travel facts or suggest that the entire corpus has no answer.
 export function assistantSourceReply(turn: MissingTurn, question = ""): { explanation: string; nextStep: string } {
   const text = normalizeQaQuestion(question);
+  const plan = planQaQuestion(question);
+  if (plan) {
+    const admission = plan.facets.some(facet => facet.kind === "ADMISSION");
+    const hours = plan.facets.some(facet => facet.kind === "OPENING_HOURS");
+    const topic = plan.comparison ? "thông tin cho đủ các địa điểm và tiêu chí so sánh bạn hỏi"
+      : admission && hours ? "giá vé và giờ mở cửa chính thức trong thời gian bạn hỏi"
+      : admission ? "giá vé chính thức trong thời gian bạn hỏi"
+      : hours ? "giờ mở cửa chính thức trong thời gian bạn hỏi"
+      : "lịch tổ chức và chương trình hoạt động trong năm bạn hỏi";
+    return {
+      explanation: turn.reason === "ANSWER_VERIFICATION"
+        ? `Mình đã tìm thấy tài liệu liên quan, nhưng chưa kiểm chứng được câu trả lời về ${topic}.`
+        : `Trong các nguồn truy xuất được ở lần hỏi này, mình chưa có đủ căn cứ xác minh ${topic}.`,
+      nextStep: plan.comparison ? "Mình chưa thể kết luận điểm giống hoặc khác nhau khi chưa có đủ chứng cứ cho các bên."
+        : admission || hours ? "Vì vậy, mình chưa thể cung cấp mức giá hoặc khung giờ cụ thể."
+        : "Lịch hoặc chương trình của năm khác không đủ để xác nhận lịch trong năm bạn hỏi.",
+    };
+  }
   const current = /(?:hôm nay|hiện tại|hiện nay|hiện giờ|mới nhất|bây giờ)/u.test(text);
   let topic = "phần thông tin này";
   let nextStep = "Bạn muốn tìm hiểu cụ thể về vị trí, cảnh quan, văn hóa hay chi phí? Bạn có thể chọn một ý để mình tra cứu tiếp.";

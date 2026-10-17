@@ -4,8 +4,9 @@ import { qaScopedEvidenceSentences } from "./qa-prompt";
 import type { QaGenerationInput } from "./qa-runtime-contract";
 import { qaFactualQuestion } from "./qa-question-understanding";
 import type { QaAspectKind } from "./qa-answer-details";
+import { qaSupportMatchesFacet } from "./qa-question-plan";
 
-type SourceInput = Pick<QaGenerationInput, "question" | "context" | "evidence">;
+type SourceInput = Pick<QaGenerationInput, "question" | "context" | "evidence" | "questionPlan">;
 export type QaSourceDecision = {
   status: "SUFFICIENT" | "PARTIAL" | "INSUFFICIENT" | "UNCERTAIN" | "TECHNICAL_FAILURE";
   reason: "RETRIEVAL_FAILED" | "ELIGIBILITY_INVALID" | "NO_CHUNKS" | "NO_SCOPED_EVIDENCE" |
@@ -34,6 +35,7 @@ export type QaSourceReview = {
 export function qaSourceReviewBinding(input: SourceInput): string {
   return createHash("sha256").update(JSON.stringify({
     question: qaFactualQuestion(input.question), context: input.context,
+    ...(input.questionPlan ? { questionPlan: input.questionPlan } : {}),
     evidence: input.evidence.map(item => ({ citationId: item.citationId,
       documentId: item.documentId, generationId: item.generationId,
       contentVersionId: item.contentVersionId, chunkId: item.chunkId,
@@ -73,6 +75,10 @@ export function evaluateQaSourceSufficiency(retrieval: Retrieval, policy: QaSour
     new Set(review.relevance.map(item => item.citationId)).size !== registry.size ||
     review.relevance.some(item => !registry.has(item.citationId) || !["RELATED", "UNRELATED", "UNCERTAIN"].includes(item.status))) return decision("UNCERTAIN", "INVALID_REVIEW");
   const relevance = new Map(review.relevance.map(item => [item.citationId, item.status]));
+  if (input.questionPlan && (review.aspects.length !== input.questionPlan.facets.length || input.questionPlan.facets.some(facet => {
+    const aspect = review.aspects.find(item => item.id === facet.id);
+    return !aspect || aspect.supports.some(ref => !qaSupportMatchesFacet(facet, ref.sentence, registry.get(ref.citationId)?.citation.title ?? ""));
+  }))) return decision("UNCERTAIN", "INVALID_REVIEW");
   for (const aspect of review.aspects) {
     if ((aspect.status === "SUPPORTED") !== (aspect.supports.length > 0) &&
       aspect.status !== "CONFLICTING" && aspect.status !== "UNCERTAIN") return decision("UNCERTAIN", "INVALID_REVIEW");

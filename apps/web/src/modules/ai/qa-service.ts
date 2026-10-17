@@ -14,6 +14,7 @@ import { QA_CLARIFICATION_QUESTION } from "./qa-prompt";
 import { evaluateQaSourceSufficiency } from "./qa-source-sufficiency";
 import { qaFactualQuestion, qaIntentHistory, qaFollowupClarification } from "./qa-question-understanding";
 import { qaConversationMessage } from "./qa-conversation";
+import { planQaQuestion } from "./qa-question-plan";
 
 export function createQaService(dependencies: { store: QaConversationStore; retriever: QaRetriever; generator: QaGenerator; assessor?: QaAssessor; eligibilityPollMs?: number; resolveContext?: (context: QaContext) => Promise<QaResolvedContext> }) {
   const { store, retriever, generator } = dependencies;
@@ -90,20 +91,21 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
         const generation = (async () => {
           if (socialMessage) return { status: "CONVERSATIONAL" as const, answerParts: [] as [], citations: [] as [], message: socialMessage };
           if (clarificationQuestion) return { status: "CLARIFICATION_REQUIRED" as const, answerParts: [] as [], citations: [] as [], clarificationQuestion };
-          const input = { question, history, evidence, context: resolvedContext, signal: providerController.signal };
+          const input = { question, history, evidence, context: resolvedContext, signal: providerController.signal, questionPlan: planQaQuestion(question, history, resolvedContext) };
           if (!evidence.length) return insufficientQaAnswer("NO_EVIDENCE");
           assertQaEvidenceInput(input);
           const preliminary = evaluateQaSourceSufficiency({ kind: "COMPLETED", eligibility: "CURRENT", input });
           if (preliminary.status === "INSUFFICIENT") return insufficientQaAnswer("MISSING_SUPPORT");
           const assessment = await assessor.assess(input);
           if (!await retriever.recheck(evidence)) throw new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502);
-          if (assessment.intent === "AMBIGUOUS") return { status: "CLARIFICATION_REQUIRED" as const, answerParts: [] as [], citations: [] as [], clarificationQuestion: QA_CLARIFICATION_QUESTION };
+          if (assessment.intent === "AMBIGUOUS") return input.questionPlan ? insufficientQaAnswer("MISSING_SUPPORT") : { status: "CLARIFICATION_REQUIRED" as const, answerParts: [] as [], citations: [] as [], clarificationQuestion: QA_CLARIFICATION_QUESTION };
           const sourceSufficiency = evaluateQaSourceSufficiency({ kind: "COMPLETED", eligibility: "CURRENT", input, review: assessment.review });
           if (!assessment.review.exhaustive) return insufficientQaAnswer();
           if (sourceSufficiency.reason === "INVALID_REVIEW" || sourceSufficiency.reason === "UNASSESSED") throw new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502);
           if (sourceSufficiency.status === "INSUFFICIENT" || sourceSufficiency.status === "UNCERTAIN") return insufficientQaAnswer("MISSING_SUPPORT");
           reviewedInput = { ...input, sourceSufficiency, sourceReview: assessment.review };
           const answer = await generator.generate(reviewedInput);
+          if (answer.status === "CLARIFICATION_REQUIRED" && input.questionPlan) return insufficientQaAnswer("MISSING_SUPPORT");
           // Only the server-owned social router can emit this outcome.
           if (answer.status === "CONVERSATIONAL") throw new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502);
           return answer;
