@@ -111,30 +111,30 @@ export default async function Home() {
           {/* UNESCO Geopark & Culture Heritage Metrics Ribbon */}
           <HomeHeroMetrics />
 
-          {/* AI Feature Trust Chips */}
-          <ul className="home-quick-info home-hero-enter home-delay-4" aria-label="Điều bạn có thể khám phá">
+          {/* AI Feature Trust Pills */}
+          <ul className="home-quick-info home-hero-enter home-delay-4" aria-label="Đặc quyền trải nghiệm nền tảng">
             <li className="home-quick-coral">
-              <div className="home-quick-icon-wrap" aria-hidden="true">
-                <MapPin size={17} />
-              </div>
+              <span className="home-quick-icon-wrap" aria-hidden="true">
+                <MapPin size={13} />
+              </span>
               <span>
                 <small>Điểm đến</small>
                 <strong>Đã kiểm chứng</strong>
               </span>
             </li>
             <li className="home-quick-lavender">
-              <div className="home-quick-icon-wrap" aria-hidden="true">
-                <Sparkles size={17} />
-              </div>
+              <span className="home-quick-icon-wrap" aria-hidden="true">
+                <Sparkles size={13} />
+              </span>
               <span>
                 <small>Trợ lý AI</small>
                 <strong>Có dẫn nguồn</strong>
               </span>
             </li>
             <li className="home-quick-teal">
-              <div className="home-quick-icon-wrap" aria-hidden="true">
-                <RouteIcon size={17} />
-              </div>
+              <span className="home-quick-icon-wrap" aria-hidden="true">
+                <RouteIcon size={13} />
+              </span>
               <span>
                 <small>Hành trình</small>
                 <strong>Cá nhân hóa</strong>

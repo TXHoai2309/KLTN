@@ -70,8 +70,10 @@ export default function HomeHeroVideo({
         >
           {isMuted ? (
             <>
+              <span className="home-sound-dot" aria-hidden="true" />
               <VolumeX size={15} aria-hidden="true" />
               <span className="home-sound-toggle-text">Bật âm thanh</span>
+              <span className="home-sound-pulse-ring" aria-hidden="true" />
             </>
           ) : (
             <>
