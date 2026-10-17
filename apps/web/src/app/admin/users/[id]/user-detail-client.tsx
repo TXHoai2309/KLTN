@@ -25,7 +25,7 @@ import type {
 } from "@/modules/admin-users/admin-user-contract";
 import { defaultAdminUserDataSource } from "@/modules/admin-users/admin-user-data-source";
 import { UserRoleBadge, UserStatusBadge } from "../user-badges";
-import { LockAccountDialog, ChangeRoleDialog } from "../user-modals";
+import { LockAccountDialog, ChangeRoleDialog, RevokeSessionsDialog } from "../user-modals";
 import "../users.css";
 
 const formatDateTime = (dateStr: string | null | undefined) => {
@@ -45,16 +45,22 @@ export default function UserDetailClient({ userId }: { userId: string }) {
   const [user, setUser] = useState<AdminUserDetail | null>(null);
   const [auditLogs, setAuditLogs] = useState<AdminUserAuditEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [auditPage, setAuditPage] = useState(1);
+  const [auditMore, setAuditMore] = useState(false);
+  const [auditBusy, setAuditBusy] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
 
   // Modal states
   const [isLockModalOpen, setIsLockModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
-  const [isRevokingSessions, setIsRevokingSessions] = useState(false);
+  const [isRevokeModalOpen, setIsRevokeModalOpen] = useState(false);
 
   useEffect(() => {
     let isCurrent = true;
     setIsLoading(true);
+    setLoadError(null);
 
     Promise.all([
       defaultAdminUserDataSource.getUserById(userId),
@@ -63,21 +69,21 @@ export default function UserDetailClient({ userId }: { userId: string }) {
       .then(([userData, logs]) => {
         if (isCurrent) {
           setUser(userData);
-          setAuditLogs(logs);
+          setAuditLogs(logs); setAuditPage(1); setAuditMore(logs.length === 20);
           setIsLoading(false);
         }
       })
       .catch(() => {
         if (isCurrent) {
           setIsLoading(false);
-          toast.error("Không thể tải thông tin chi tiết người dùng.");
+          setLoadError("Không thể tải hồ sơ hoặc nhật ký. Vui lòng thử lại.");
         }
       });
 
     return () => {
       isCurrent = false;
     };
-  }, [userId]);
+  }, [userId, refreshKey]);
 
   function handleCopyId() {
     if (user?.id) {
@@ -88,16 +94,15 @@ export default function UserDetailClient({ userId }: { userId: string }) {
     }
   }
 
-  async function handleRevokeSessions() {
-    if (!user) return;
-    setIsRevokingSessions(true);
-    try {
-      const res = await defaultAdminUserDataSource.requestRevokeSessions(user.id);
-      toast.info(res.message);
-    } finally {
-      setIsRevokingSessions(false);
-    }
+  function handleRevokeSessions() { setIsRevokeModalOpen(true); }
+  async function loadMoreAudit() {
+    if (auditBusy) return; setAuditBusy(true);
+    try { const rows = await defaultAdminUserDataSource.getUserAuditEvents(userId, auditPage + 1); setAuditLogs(old => [...old, ...rows.filter(row => !old.some(item => item.id === row.id))]); setAuditPage(p => p + 1); setAuditMore(rows.length === 20); }
+    catch { toast.error("Không thể tải thêm nhật ký. Hãy thử lại."); }
+    finally { setAuditBusy(false); }
   }
+  function completed(message: string) { toast.success(message); setRefreshKey(value => value + 1); }
+  if (loadError && !isLoading) return <main className="admin-users-page"><div className="admin-state-container" role="alert"><p>{loadError}</p><button className="admin-btn admin-btn-outline" type="button" onClick={() => setRefreshKey(value => value + 1)}>Thử lại</button></div></main>;
 
   if (isLoading) {
     return (
@@ -267,10 +272,11 @@ export default function UserDetailClient({ userId }: { userId: string }) {
                   Phiên đăng nhập & Xác thực
                 </h3>
                 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                  {user.activeSessions?.length ?? user.sessionCount ?? 0} phiên hoạt động
+                  {user.sessionCount ?? user.activeSessions?.length ?? 0} phiên hoạt động
                 </span>
               </div>
 
+              {(user.sessionCount ?? 0) > (user.activeSessions?.length ?? 0) && <p className="text-xs text-muted-foreground">Hiển thị tối đa 20 phiên đang hoạt động gần nhất.</p>}
               {user.activeSessions && user.activeSessions.length > 0 ? (
                 <div>
                   {user.activeSessions.map((sess) => (
@@ -284,7 +290,7 @@ export default function UserDetailClient({ userId }: { userId: string }) {
                             {sess.userAgent || "Thiết bị không xác định"}
                           </span>
                           <span className="admin-session-meta">
-                            IP: {sess.ipAddress || "Không rõ"} · Tạo lúc: {formatDateTime(sess.createdAt)}
+                            Tạo lúc: {formatDateTime(sess.createdAt)}
                           </span>
                           <span className="admin-session-meta">
                             Hết hạn: {formatDateTime(sess.expiresAt)}
@@ -302,7 +308,7 @@ export default function UserDetailClient({ userId }: { userId: string }) {
                       type="button"
                       className="admin-btn admin-btn-outline text-xs h-9"
                       onClick={handleRevokeSessions}
-                      disabled={isRevokingSessions}
+                      disabled={false}
                     >
                       <KeyRound className="size-3.5" />
                       <span>Thu hồi toàn bộ phiên đăng nhập</span>
@@ -327,6 +333,7 @@ export default function UserDetailClient({ userId }: { userId: string }) {
                 </span>
               </div>
 
+              {auditMore && <button type="button" className="admin-btn admin-btn-outline" disabled={auditBusy} onClick={() => void loadMoreAudit()}>Tải thêm nhật ký</button>}
               {auditLogs.length > 0 ? (
                 <div className="admin-timeline">
                   {auditLogs.map((log) => (
@@ -409,7 +416,7 @@ export default function UserDetailClient({ userId }: { userId: string }) {
                   type="button"
                   className="admin-btn admin-btn-outline w-full justify-start text-xs h-10"
                   onClick={handleRevokeSessions}
-                  disabled={isRevokingSessions}
+                  disabled={false}
                 >
                   <KeyRound className="size-4 mr-1 text-amber-600" />
                   <span>Thu hồi tất cả phiên</span>
@@ -417,26 +424,27 @@ export default function UserDetailClient({ userId }: { userId: string }) {
               </div>
 
               <div className="mt-5 p-3 rounded-lg bg-muted/40 border border-border text-[11.5px] text-muted-foreground leading-relaxed">
-                <strong>An toàn quản trị:</strong> Mọi thao tác quản lý tài khoản ở Phase 1 được bảo vệ ở tầng giao diện và sẵn sàng kết nối API Backend Phase 2.
+                <strong>An toàn quản trị:</strong> Máy chủ kiểm tra quyền hiện hành, bảo vệ Admin cuối cùng và lưu nhật ký cho các thay đổi đã xác nhận.
               </div>
             </article>
           </div>
         </div>
       </div>
 
+      <RevokeSessionsDialog user={user} isOpen={isRevokeModalOpen} onClose={() => setIsRevokeModalOpen(false)} onActionComplete={completed} />
       {/* Dialogs */}
       <LockAccountDialog
         user={user}
         isOpen={isLockModalOpen}
         onClose={() => setIsLockModalOpen(false)}
-        onActionComplete={(msg) => toast.info(msg)}
+        onActionComplete={completed}
       />
 
       <ChangeRoleDialog
         user={user}
         isOpen={isRoleModalOpen}
         onClose={() => setIsRoleModalOpen(false)}
-        onActionComplete={(msg) => toast.info(msg)}
+        onActionComplete={completed}
       />
     </main>
   );

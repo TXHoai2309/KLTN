@@ -2501,3 +2501,37 @@ Audit, task-owned file list, limits and manual procedure:
   [Story](stories/RBAC-V2-admin-inherits-traveler.md),
   [report](implementation/rbac-v2-admin-inherits-traveler.md),
   [browser evidence](implementation/rbac-v2-evidence/browser-results.json).
+
+### 2026-10-17 — Admin User Management CMS V2
+
+- Implemented Phase 2 on `feat/admin-user-management-be` from the pushed Phase 1
+  baseline `e20f444fbb8bf6ce863e2c5d3b8c923d4ec33d59`. Owner follow-up authorizes
+  a scoped CMS commit/push; no merge/deploy. Concurrent Landing source, components
+  and media are preserved and excluded from CMS scope.
+- Added ACTIVE/LOCKED metadata, persistent audit and the versioned session-admission
+  trigger. Eight Admin APIs enforce persisted role/status, strict bounded input,
+  safe DTOs, atomic audit/idempotency, self protection and serialized last-active-
+  Admin checks. Better Auth 1.7.5's verified session-create hook plus DB row locking
+  prevent locked-account login/session races. Cookie cache is disabled.
+- Default datasource is HTTP in Development and Production. Existing Phase 1
+  screens use real search/filter/page/count/detail/session/audit data and confirmed
+  mutations, with safe UNKNOWN retries, errors, refetch and accessible dialogs.
+  RBAC V2 inheritance/private ownership remain intact; only AI account-admission
+  status checks changed, with no retrieval/model/history behavior change.
+- Migration deploy twice on a new disposable PostgreSQL database PASS; CMS real
+  PostgreSQL/Better Auth 8/8 PASS. Exact Development metadata verified, then migration
+  applied: 23 healthy ledger entries; existing counts and ID/role hash unchanged.
+  RBAC real Development PostgreSQL 8/8 PASS; real Chromium E2E 9/9 groups PASS.
+  All owned browser fixtures/test DB/schema removed; no Production access.
+- Full Vitest: 1961 PASS, 134 gated SKIP. Final legacy: 335 PASS, 1 unrelated
+  Landing/Explore source assertion FAIL; stopped chained suites ran separately.
+  Final CMS/fixture rerun: 21/21 PASS. Root typecheck/build and diff-check PASS.
+  Scoped strict CMS UI audit: zero findings. Broader Docker PG regression remains
+  unverified because Docker Engine was unavailable; gated tests are not PASS.
+- CMS-specific acceptance is verified; repository-wide release gate remains
+  non-green. Production requires separately approved migration/backup/deployment
+  and smoke verification. Last login telemetry is absent; session rows cap at 20;
+  UNKNOWN attempt recovery lasts for the current browser runtime.
+  [Story](stories/ADMIN-USER-MANAGEMENT-V2.md),
+  [acceptance report](implementation/admin-user-management-v2.md),
+  [browser evidence](implementation/admin-users-v2-evidence/browser-results.json).

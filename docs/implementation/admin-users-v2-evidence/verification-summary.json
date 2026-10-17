@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-17",
+  "branch": "feat/admin-user-management-be",
+  "baseline_and_current_head": "e20f444fbb8bf6ce863e2c5d3b8c923d4ec33d59",
+  "vitest_full": {
+    "pass": 1961,
+    "fail": 0,
+    "skip": 134
+  },
+  "legacy_final": {
+    "pass": 335,
+    "fail": 1,
+    "skip": 0,
+    "failure": "Landing/Explore home-hero-visual source assertion; outside CMS scope"
+  },
+  "cms_fixture_final_rerun": {
+    "pass": 21,
+    "fail": 0,
+    "skip": 0
+  },
+  "cms_real_postgresql_groups": {
+    "pass": 8,
+    "fail": 0
+  },
+  "rbac_real_postgresql_groups": {
+    "pass": 8,
+    "fail": 0
+  },
+  "real_browser_groups": {
+    "pass": 9,
+    "fail": 0
+  },
+  "root_typecheck": "PASS",
+  "root_build": "PASS",
+  "git_diff_check": "PASS",
+  "cms_strict_ui_audit_findings": 0,
+  "broader_docker_postgresql_regression": "NOT RUN: Docker Engine unavailable",
+  "development_applied_migrations": 23,
+  "owned_fixture_test_database_schema_cleanup": "PASS",
+  "production_touched": false,
+  "repository_release_gate": "NON-GREEN",
+  "commit_push_merge_deploy": false
+}

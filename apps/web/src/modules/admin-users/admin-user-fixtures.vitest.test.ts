@@ -4,7 +4,7 @@ import {
   computeUserStatistics,
   ClientAdminUserDataSource,
   DEV_FIXTURE_USERS,
-} from "./admin-user-data-source";
+} from "./admin-user-fixtures";
 
 describe("Admin User Data Source - Filtering, Sorting & Pagination", () => {
   it("computes accurate statistics from the user list", () => {

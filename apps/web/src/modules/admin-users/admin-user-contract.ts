@@ -5,6 +5,7 @@
 
 export type AdminUserRole = "ADMIN" | "TRAVELER";
 
+// UNKNOWN is a legacy/demo display fallback, never a persisted/API status.
 export type AdminUserStatus = "ACTIVE" | "LOCKED" | "UNKNOWN";
 
 export interface AdminUserSummary {
@@ -88,4 +89,6 @@ export interface AdminUserActionResult {
   success: boolean;
   message: string;
   requiresPhase2Backend?: boolean;
+  operationStatus?: "SUCCESS" | "FAILED" | "UNKNOWN";
+  code?: string;
 }

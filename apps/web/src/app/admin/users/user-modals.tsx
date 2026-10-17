@@ -1,380 +1,76 @@
 "use client";
-
-import React, { useEffect, useState } from "react";
-import { X, AlertTriangle, ShieldAlert, Lock, Unlock } from "lucide-react";
-import type {
-  AdminUserSummary,
-  AdminUserRole,
-} from "@/modules/admin-users/admin-user-contract";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { X, Lock, Unlock, ShieldAlert } from "lucide-react";
+import { toast } from "sonner";
+import type { AdminUserSummary, AdminUserRole } from "@/modules/admin-users/admin-user-contract";
 import { defaultAdminUserDataSource } from "@/modules/admin-users/admin-user-data-source";
 
-interface LockAccountDialogProps {
-  user: AdminUserSummary | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onActionComplete?: (message: string) => void;
+/** Native modal dialog is the existing Destination/Editorial confirmation owner. */
+export function CmsDialog({ open, busy, title, onClose, children }: { open: boolean; busy: boolean; title: string; onClose: () => void; children: ReactNode }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  const titleId = useId(), descriptionId = useId();
+  useLayoutEffect(() => {
+    const element = dialog.current;
+    // Disabling the focused submit during a request can move focus to body.
+    if (open && element?.open && !element.contains(document.activeElement)) {
+      if (busy) element.focus();
+      else element.querySelector<HTMLButtonElement>("[data-cancel]")?.focus();
+    }
+  }, [open, busy]);
+  useEffect(() => {
+    if (!open) return;
+    const element = dialog.current!;
+    const previous = document.activeElement as HTMLElement | null;
+    if (!element.open) element.showModal();
+    element.querySelector<HTMLButtonElement>("[data-cancel]")?.focus();
+    return () => { element.close(); if (previous?.isConnected) previous.focus(); };
+  }, [open]);
+  return <dialog ref={dialog} tabIndex={-1} className="admin-users-dialog" aria-labelledby={titleId} aria-describedby={descriptionId} onKeyDown={event => {
+    if (event.key !== "Tab") return;
+    const controls = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled]),textarea:not([disabled]),select:not([disabled]),a[href]')];
+    const first = controls[0], last = controls.at(-1);
+    if (!first) { event.preventDefault(); event.currentTarget.focus(); return; }
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+  }} onCancel={event => { event.preventDefault(); if (!busy) onClose(); }} onClick={event => { if (event.target === event.currentTarget && !busy) onClose(); }}>
+    <div className="admin-modal-content">
+      <div className="admin-modal-header"><div><h3 id={titleId} className="admin-modal-title">{title}</h3><p id={descriptionId} className="admin-modal-desc">Xác nhận thao tác cho đúng tài khoản. Thay đổi chỉ được áp dụng sau khi máy chủ xác nhận.</p></div><button type="button" className="admin-modal-close" aria-label="Đóng cửa sổ" disabled={busy} onClick={onClose}><X className="size-5" /></button></div>
+      {children}
+    </div>
+  </dialog>;
 }
-
-export function LockAccountDialog({
-  user,
-  isOpen,
-  onClose,
-  onActionComplete,
-}: LockAccountDialogProps) {
+interface Props { user: AdminUserSummary | null; isOpen: boolean; onClose: () => void; onActionComplete?: (message: string) => void }
+function UserMutationDialog({ user, isOpen, onClose, onActionComplete, kind }: Props & { kind: "lock" | "role" | "revoke" }) {
   const [reason, setReason] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<string | null>(null);
-
-  const isLocking = user?.status !== "LOCKED";
-
-  useEffect(() => {
-    if (isOpen) {
-      setReason("");
-      setFeedback(null);
-      setIsSubmitting(false);
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape" && isOpen) {
-        onClose();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
-
-  if (!isOpen || !user) return null;
-
-  async function handleConfirm(e: React.FormEvent) {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setFeedback(null);
-
-    if (!user) return;
+  const [role, setRole] = useState<AdminUserRole>("TRAVELER");
+  const [pending, setPending] = useState(false), [unknown, setUnknown] = useState(false), [feedback, setFeedback] = useState<string | null>(null);
+  const flight = useRef(false);
+  useEffect(() => { if (isOpen) { setReason(""); setRole(user?.role === "ADMIN" ? "TRAVELER" : "ADMIN"); setFeedback(null); setUnknown(false); } }, [isOpen, user?.id]);
+  const locking = user?.status !== "LOCKED";
+  const title = kind === "role" ? "Thay đổi vai trò người dùng" : kind === "revoke" ? "Thu hồi phiên đăng nhập" : locking ? "Khóa tài khoản người dùng" : "Mở khóa tài khoản người dùng";
+  async function confirm(event: FormEvent) {
+    event.preventDefault(); if (!user || flight.current) return;
+    flight.current = true; setPending(true); setFeedback(null);
     try {
-      const res = isLocking
-        ? await defaultAdminUserDataSource.requestLockUser(user.id, reason)
-        : await defaultAdminUserDataSource.requestUnlockUser(user.id);
-
-      setFeedback(res.message);
-      if (onActionComplete) {
-        onActionComplete(res.message);
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
+      const result = kind === "role" ? await defaultAdminUserDataSource.requestChangeRole(user.id, role) : kind === "revoke" ? await defaultAdminUserDataSource.requestRevokeSessions(user.id) : locking ? await defaultAdminUserDataSource.requestLockUser(user.id, reason) : await defaultAdminUserDataSource.requestUnlockUser(user.id);
+      if (result.success) { setUnknown(false); onActionComplete?.(result.message); onClose(); }
+      else { setUnknown(result.operationStatus === "UNKNOWN"); setFeedback(result.message); if (result.operationStatus !== "UNKNOWN") toast.error(result.message); }
+    } finally { flight.current = false; setPending(false); }
   }
-
-  return (
-    <div
-      className="admin-modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="lock-modal-title"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="admin-modal-content">
-        <div className="admin-modal-header">
-          <div>
-            <h3 id="lock-modal-title" className="admin-modal-title">
-              {isLocking ? "Khóa tài khoản người dùng" : "Mở khóa tài khoản người dùng"}
-            </h3>
-            <p className="admin-modal-desc">
-              Xác nhận hành động quản trị đối với tài khoản được chọn.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="admin-modal-close"
-            onClick={onClose}
-            aria-label="Đóng cửa sổ"
-          >
-            <X className="size-5" />
-          </button>
-        </div>
-
-        <form onSubmit={handleConfirm}>
-          <div className="admin-modal-body">
-            {/* Identity info */}
-            <div className="admin-modal-user-box">
-              <div className="admin-avatar size-10 text-xs">
-                {user.name.charAt(0).toUpperCase()}
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="font-semibold text-sm truncate">{user.name}</span>
-                <span className="text-xs text-muted-foreground truncate">{user.email}</span>
-                <span className="text-[11px] text-muted-foreground mt-0.5">ID: {user.id}</span>
-              </div>
-            </div>
-
-            {/* Phase 1 Notice */}
-            <div className="admin-modal-notice">
-              <AlertTriangle className="size-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
-              <div>
-                <span className="font-semibold">Lưu ý Phase 1 (Frontend Only):</span>{" "}
-                Chức năng đang chờ Backend API Phase 2. Khi bấm xác nhận, hệ thống sẽ hiển thị thông báo mô phỏng chính xác và không thay đổi dữ liệu trong cơ sở dữ liệu Neon.
-              </div>
-            </div>
-
-            {isLocking ? (
-              <div className="flex flex-col gap-2">
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Khi tài khoản bị khóa, người dùng sẽ không thể đăng nhập hoặc thực hiện các tác vụ tạo chuyến đi và lưu yêu thích trên hệ thống.
-                </p>
-                <label htmlFor="lock-reason" className="text-xs font-semibold text-foreground">
-                  Lý do khóa tài khoản (Tùy chọn cho Phase 2):
-                </label>
-                <textarea
-                  id="lock-reason"
-                  rows={3}
-                  className="admin-modal-textarea"
-                  placeholder="Nhập lý do vi phạm hoặc yêu cầu khóa tài khoản..."
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                />
-              </div>
-            ) : (
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Khi mở khóa tài khoản, người dùng sẽ được khôi phục quyền đăng nhập và sử dụng hệ thống Hà Giang Travel Assistant bình thường.
-              </p>
-            )}
-
-            {feedback && (
-              <div
-                className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 dark:border-blue-900 dark:bg-blue-950/50 dark:text-blue-200"
-                role="status"
-              >
-                {feedback}
-              </div>
-            )}
-          </div>
-
-          <div className="admin-modal-footer">
-            <button
-              type="button"
-              className="admin-btn admin-btn-outline"
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
-              Hủy bỏ
-            </button>
-            <button
-              type="submit"
-              className={`admin-btn ${isLocking ? "admin-btn-destructive" : "admin-btn-primary"}`}
-              disabled={isSubmitting}
-            >
-              {isLocking ? (
-                <>
-                  <Lock className="size-4" />
-                  <span>Xác nhận khóa</span>
-                </>
-              ) : (
-                <>
-                  <Unlock className="size-4" />
-                  <span>Xác nhận mở khóa</span>
-                </>
-              )}
-            </button>
-          </div>
-        </form>
+  if (!user) return null;
+  return <CmsDialog open={isOpen} busy={pending || unknown} title={title} onClose={onClose}>
+    <form onSubmit={confirm} noValidate aria-busy={pending}>
+      <div className="admin-modal-body">
+        <div className="admin-modal-user-box"><div className="admin-avatar size-10 text-xs">{user.name.charAt(0).toUpperCase()}</div><div className="flex flex-col min-w-0"><strong className="text-sm truncate">{user.name}</strong><span className="text-xs text-muted-foreground truncate">{user.email}</span><span className="text-[11px] text-muted-foreground">ID: {user.id}</span></div></div>
+        <div className="admin-modal-notice"><ShieldAlert className="size-4 shrink-0" /><p>{kind === "role" ? "Quyền quản trị có hiệu lực từ request tiếp theo. Dữ liệu cá nhân và phiên đăng nhập được giữ nguyên. Không được tự đổi quyền hoặc vô hiệu hóa Admin hoạt động cuối cùng." : kind === "revoke" ? "Mọi phiên đang hoạt động sẽ bị thu hồi. Tài khoản không bị khóa; người dùng có thể đăng nhập lại." : locking ? "Tài khoản bị khóa không thể đăng nhập mới; tất cả phiên hiện có sẽ bị thu hồi." : "Người dùng có thể đăng nhập lại bình thường. Các phiên đã thu hồi không được khôi phục."}</p></div>
+        {kind === "role" && <fieldset disabled={pending || unknown}><legend className="text-xs font-semibold">Chọn vai trò mới</legend><div className="admin-modal-role-grid">{(["TRAVELER", "ADMIN"] as const).map(value => <label key={value} className={`admin-modal-role-card ${role === value ? "selected" : ""}`}><span>{value}</span><input type="radio" name="role" value={value} checked={role === value} onChange={() => setRole(value)} /></label>)}</div></fieldset>}
+        {kind === "lock" && locking && <div className="flex flex-col gap-2"><label htmlFor="lock-reason" className="text-xs font-semibold">Lý do khóa tài khoản (tùy chọn, tối đa 500 ký tự)</label><textarea id="lock-reason" className="admin-modal-textarea resize-none" rows={3} maxLength={500} value={reason} disabled={pending || unknown} onChange={event => setReason(event.target.value)} /></div>}
+        {feedback && <p role="alert" className="text-sm text-destructive">{feedback}</p>}
       </div>
-    </div>
-  );
+      <div className="admin-modal-footer"><button data-cancel type="button" className="admin-btn admin-btn-outline" onClick={onClose} disabled={pending || unknown}>Hủy bỏ</button><button type="submit" className={`admin-btn ${kind === "role" || kind === "lock" && !locking ? "admin-btn-primary" : "admin-btn-destructive"}`} disabled={pending || kind === "role" && role === user.role} aria-busy={pending}>{kind === "lock" && (locking ? <Lock className="size-4" /> : <Unlock className="size-4" />)}{pending ? "Đang xác nhận…" : unknown ? "Kiểm tra lại cùng yêu cầu" : kind === "role" ? "Lưu vai trò mới" : kind === "revoke" ? "Xác nhận thu hồi" : locking ? "Xác nhận khóa" : "Xác nhận mở khóa"}</button></div>
+    </form>
+  </CmsDialog>;
 }
-
-interface ChangeRoleDialogProps {
-  user: AdminUserSummary | null;
-  isOpen: boolean;
-  onClose: () => void;
-  onActionComplete?: (message: string) => void;
-}
-
-export function ChangeRoleDialog({
-  user,
-  isOpen,
-  onClose,
-  onActionComplete,
-}: ChangeRoleDialogProps) {
-  const [selectedRole, setSelectedRole] = useState<AdminUserRole>("TRAVELER");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (user) {
-      setSelectedRole(user.role === "ADMIN" ? "TRAVELER" : "ADMIN");
-      setFeedback(null);
-      setIsSubmitting(false);
-    }
-  }, [user, isOpen]);
-
-  useEffect(() => {
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape" && isOpen) {
-        onClose();
-      }
-    }
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
-
-  if (!isOpen || !user) return null;
-
-  async function handleConfirm(e: React.FormEvent) {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setFeedback(null);
-
-    if (!user) return;
-    try {
-      const res = await defaultAdminUserDataSource.requestChangeRole(user.id, selectedRole);
-      setFeedback(res.message);
-      if (onActionComplete) {
-        onActionComplete(res.message);
-      }
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  return (
-    <div
-      className="admin-modal-backdrop"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="role-modal-title"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="admin-modal-content">
-        <div className="admin-modal-header">
-          <div>
-            <h3 id="role-modal-title" className="admin-modal-title">
-              Thay đổi vai trò người dùng
-            </h3>
-            <p className="admin-modal-desc">
-              Chuyển đổi giữa vai trò Quản trị viên (ADMIN) và Du khách (TRAVELER).
-            </p>
-          </div>
-          <button
-            type="button"
-            className="admin-modal-close"
-            onClick={onClose}
-            aria-label="Đóng cửa sổ"
-          >
-            <X className="size-5" />
-          </button>
-        </div>
-
-        <form onSubmit={handleConfirm}>
-          <div className="admin-modal-body">
-            {/* Identity info */}
-            <div className="admin-modal-user-box">
-              <div className="admin-avatar size-10 text-xs">
-                {user.name.charAt(0).toUpperCase()}
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="font-semibold text-sm truncate">{user.name}</span>
-                <span className="text-xs text-muted-foreground truncate">{user.email}</span>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[11px] text-muted-foreground">Vai trò hiện tại:</span>
-                  <span className="text-[11px] font-bold text-foreground">{user.role}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Warning if demoting ADMIN */}
-            {user.role === "ADMIN" && (
-              <div className="admin-modal-notice">
-                <ShieldAlert className="size-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
-                <div>
-                  <span className="font-semibold">Cảnh báo an toàn hệ thống:</span>{" "}
-                  Hạ vai trò của quản trị viên sẽ tước bỏ quyền truy cập vào các phân hệ CMS Quản trị, Quản lý RAG và Quản lý người dùng. Backend tương lai sẽ kiểm tra bảo vệ Admin cuối cùng trong transaction.
-                </div>
-              </div>
-            )}
-
-            {/* Role Options */}
-            <div className="flex flex-col gap-2">
-              <label className="text-xs font-semibold text-foreground">Chọn vai trò mới:</label>
-              <div className="admin-modal-role-grid">
-                <label
-                  className={`admin-modal-role-card ${
-                    selectedRole === "TRAVELER" ? "selected" : ""
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-xs text-foreground">TRAVELER</span>
-                    <input
-                      type="radio"
-                      name="role"
-                      value="TRAVELER"
-                      checked={selectedRole === "TRAVELER"}
-                      onChange={() => setSelectedRole("TRAVELER")}
-                      className="accent-emerald-600"
-                    />
-                  </div>
-                  <span className="text-[11px] text-muted-foreground">
-                    Du khách thông thường, tạo lịch trình và xem địa điểm.
-                  </span>
-                </label>
-
-                <label
-                  className={`admin-modal-role-card ${
-                    selectedRole === "ADMIN" ? "selected" : ""
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="font-semibold text-xs text-foreground">ADMIN</span>
-                    <input
-                      type="radio"
-                      name="role"
-                      value="ADMIN"
-                      checked={selectedRole === "ADMIN"}
-                      onChange={() => setSelectedRole("ADMIN")}
-                      className="accent-emerald-600"
-                    />
-                  </div>
-                  <span className="text-[11px] text-muted-foreground">
-                    Toàn quyền quản trị, quản lý điểm đến, RAG và người dùng.
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            {feedback && (
-              <div
-                className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 dark:border-blue-900 dark:bg-blue-950/50 dark:text-blue-200"
-                role="status"
-              >
-                {feedback}
-              </div>
-            )}
-          </div>
-
-          <div className="admin-modal-footer">
-            <button
-              type="button"
-              className="admin-btn admin-btn-outline"
-              onClick={onClose}
-              disabled={isSubmitting}
-            >
-              Hủy bỏ
-            </button>
-            <button
-              type="submit"
-              className="admin-btn admin-btn-primary"
-              disabled={isSubmitting || selectedRole === user.role}
-            >
-              Lưu vai trò mới
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
+export const LockAccountDialog = (props: Props) => <UserMutationDialog {...props} kind="lock" />;
+export const ChangeRoleDialog = (props: Props) => <UserMutationDialog {...props} kind="role" />;
+export const RevokeSessionsDialog = (props: Props) => <UserMutationDialog {...props} kind="revoke" />;

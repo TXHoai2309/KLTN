@@ -1,0 +1,46 @@
+{
+  "before": {
+    "users": 9,
+    "rolehash": "c25fdbd280ac03450f26fe790365a390",
+    "sessions": 33,
+    "accounts": 9,
+    "trips": 0,
+    "favorites": 1
+  },
+  "after": {
+    "users": 9,
+    "rolehash": "c25fdbd280ac03450f26fe790365a390",
+    "sessions": 33,
+    "accounts": 9,
+    "trips": 0,
+    "favorites": 1
+  },
+  "ledger": [
+    "20261001115741_init_auth",
+    "20261001120226_enable_postgis_pgvector",
+    "20261001130000_add_idempotency_record",
+    "20261001143000_add_user_role",
+    "20261004070249_add_destination_domain",
+    "20261005021531_add_culture_content_domain",
+    "20261005120000_add_favorites",
+    "20261006150000_upgrade_favorite_target_contract",
+    "20261008120000_add_rag_document",
+    "20261009120000_add_rag_index_generations",
+    "20261010120000_add_rag_index_jobs",
+    "20261011120000_add_qa_guest_identity",
+    "20261011121000_add_qa_conversations",
+    "20261011122000_add_qa_abuse_guard",
+    "20261011123000_add_qa_cleanup_state",
+    "20261012120000_add_qa_destination_context",
+    "20261012150000_admin_content_profiles",
+    "20261014120000_add_destination_editorial",
+    "20261015000000_us30_trip_save",
+    "20261015160000_us34_trip_favorite",
+    "20261017120000_add_qa_conversation_history",
+    "20261017150000_add_rag_public_qa_permission",
+    "20261017210000_admin_user_management"
+  ],
+  "backfill": "ALL_EXISTING_USERS_ACTIVE",
+  "status": "UP_TO_DATE",
+  "isolatedTest": "8/8 PostgreSQL + Better Auth PASS before application schema migration"
+}

@@ -60,12 +60,10 @@ export default function UserManagementClient() {
   const pageSize = 6;
 
   // Data state
-  const [stats, setStats] = useState<AdminUserStatistics>({
-    totalUsers: 0,
-    travelerCount: 0,
-    adminCount: 0,
-    lockedCount: 0,
-  });
+  const [stats, setStats] = useState<AdminUserStatistics | null>(null);
+  const [isComposing, setIsComposing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [statsError, setStatsError] = useState(false);
   const [userPage, setUserPage] = useState<AdminUserPage | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -79,24 +77,26 @@ export default function UserManagementClient() {
 
   // Debounce search input
   useEffect(() => {
+    if (isComposing) return;
     const handler = setTimeout(() => {
       setDebouncedSearch(searchInput);
       setPage(1);
     }, 350);
     return () => clearTimeout(handler);
-  }, [searchInput]);
+  }, [searchInput, isComposing]);
 
   // Load stats once or upon refresh
   useEffect(() => {
-    defaultAdminUserDataSource.getStatistics().then((res) => {
-      setStats(res);
-    });
+    let current = true; setStatsError(false); setStats(null);
+    defaultAdminUserDataSource.getStatistics().then(res => { if (current) setStats(res); }).catch(() => { if (current) setStatsError(true); });
+    return () => { current = false; };
   }, [refreshKey]);
 
   // Load users when filters change
   useEffect(() => {
     let isCurrent = true;
     setIsLoading(true);
+    setLoadError(null);
 
     defaultAdminUserDataSource
       .getUsers({
@@ -111,13 +111,14 @@ export default function UserManagementClient() {
       .then((res) => {
         if (isCurrent) {
           setUserPage(res);
+          if (res.page !== page) setPage(res.page);
           setIsLoading(false);
         }
       })
       .catch(() => {
         if (isCurrent) {
           setIsLoading(false);
-          toast.error("Không thể tải danh sách người dùng. Vui lòng thử lại.");
+          setLoadError("Không thể tải danh sách người dùng. Vui lòng thử lại.");
         }
       });
 
@@ -138,7 +139,7 @@ export default function UserManagementClient() {
   function handleRefresh() {
     startTransition(() => {
       setRefreshKey((prev) => prev + 1);
-      toast.info("Đã làm mới danh sách dữ liệu.");
+
     });
   }
 
@@ -179,16 +180,8 @@ export default function UserManagementClient() {
           </div>
         </header>
 
-        {/* Phase 1 Development Notice Banner */}
-        <aside className="admin-phase-banner" role="status">
-          <Info className="size-5" />
-          <div>
-            <strong>Phase 1 — Frontend Only:</strong> Giao diện Quản trị người dùng đang sử dụng dữ liệu minh họa chuẩn bị tích hợp Backend Phase 2. Mọi thao tác quản lý vai trò và khóa tài khoản được kiểm soát giao diện an toàn, không thay đổi cơ sở dữ liệu Neon.
-          </div>
-        </aside>
-
         {/* Dashboard Statistics */}
-        <UserStatsCards stats={stats} />
+        {statsError ? <p role="alert">Không thể tải thống kê. <button type="button" className="admin-btn admin-btn-outline" onClick={handleRefresh}>Thử lại</button></p> : <UserStatsCards stats={stats} />}
 
         {/* User CMS Card */}
         <div className="admin-card">
@@ -201,6 +194,8 @@ export default function UserManagementClient() {
                 className="admin-search-input"
                 placeholder="Tìm theo tên hoặc email..."
                 value={searchInput}
+                onCompositionStart={() => setIsComposing(true)}
+                onCompositionEnd={() => setIsComposing(false)}
                 onChange={(e) => setSearchInput(e.target.value)}
                 aria-label="Tìm kiếm người dùng"
               />
@@ -208,7 +203,7 @@ export default function UserManagementClient() {
                 <button
                   type="button"
                   className="admin-search-clear"
-                  onClick={() => setSearchInput("")}
+                  onClick={() => { setSearchInput(""); setDebouncedSearch(""); setPage(1); }}
                   aria-label="Xóa từ khóa tìm kiếm"
                 >
                   <X className="size-4" />
@@ -245,7 +240,6 @@ export default function UserManagementClient() {
                 <option value="ALL">Tất cả trạng thái</option>
                 <option value="ACTIVE">Đang hoạt động</option>
                 <option value="LOCKED">Đã khóa</option>
-                <option value="UNKNOWN">Chưa xác định</option>
               </select>
 
               {/* Sort By */}
@@ -277,7 +271,7 @@ export default function UserManagementClient() {
               <RotateCw className="size-8 animate-spin text-emerald-600 mb-3" />
               <p className="admin-state-desc">Đang tải danh sách người dùng…</p>
             </div>
-          ) : !userPage || userPage.items.length === 0 ? (
+          ) : loadError ? <div className="admin-state-container" role="alert"><p>{loadError}</p><button type="button" className="admin-btn admin-btn-outline" onClick={handleRefresh}>Thử lại</button></div> : !userPage || userPage.items.length === 0 ? (
             <div className="admin-state-container">
               <div className="admin-state-icon">
                 <UserX className="size-7" />
@@ -520,7 +514,7 @@ export default function UserManagementClient() {
                     type="button"
                     className="admin-pagination-btn"
                     disabled={userPage.page <= 1}
-                    onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                    onClick={() => setPage(Math.max(1, userPage.page - 1))}
                   >
                     <ChevronLeft className="size-4" />
                     <span>Trang trước</span>
@@ -534,7 +528,7 @@ export default function UserManagementClient() {
                     type="button"
                     className="admin-pagination-btn"
                     disabled={!userPage.hasMore}
-                    onClick={() => setPage((prev) => prev + 1)}
+                    onClick={() => setPage(userPage.page + 1)}
                   >
                     <span>Trang sau</span>
                     <ChevronRight className="size-4" />
@@ -554,7 +548,7 @@ export default function UserManagementClient() {
           setIsLockModalOpen(false);
           setSelectedUserForLock(null);
         }}
-        onActionComplete={(msg) => toast.info(msg)}
+        onActionComplete={(msg) => { toast.success(msg); setRefreshKey(value => value + 1); }}
       />
 
       <ChangeRoleDialog
@@ -564,7 +558,7 @@ export default function UserManagementClient() {
           setIsRoleModalOpen(false);
           setSelectedUserForRole(null);
         }}
-        onActionComplete={(msg) => toast.info(msg)}
+        onActionComplete={(msg) => { toast.success(msg); setRefreshKey(value => value + 1); }}
       />
     </main>
   );

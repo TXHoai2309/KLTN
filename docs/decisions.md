@@ -323,3 +323,27 @@ non-inheritance rule, with no role switching, impersonation, ownership bypass or
 hidden-feature activation. Private reads/writes remain scoped by the authenticated
 user ID; Admin cannot access another user's Trips, Favorites or conversations.
 See [RBAC V2](stories/RBAC-V2-admin-inherits-traveler.md) and its acceptance report.
+
+## 2026-10-17 — Owner-approved Admin User Management CMS V2
+
+The owner approves completing the existing Phase 1 CMS with real database-backed
+administration, replacing its draft Phase 2 assumptions with ACTIVE/LOCKED only.
+Use nullable lock metadata and persistent audit; do not invent last-login telemetry
+or a SUSPENDED state. No account deletion or private Traveler-data bypass is added.
+
+Persisted ACTIVE ADMIN authorization is mandatory. Deny self role change, lock,
+unlock and session revocation in CMS; serialize CMS privilege/status mutations,
+recheck the actor and preserve at least one ACTIVE ADMIN. Role change retains
+sessions because current DB role controls every next protected request. Lock
+revokes all stored sessions and prevents new authentication; unlock restores no
+session. Explicit revoke removes active sessions without locking or changing
+credentials. Record one semantic audit event atomically with the mutation and
+idempotency result; lock includes its revocation count in USER_LOCKED details.
+
+Use the installed Better Auth session-create extension with cookie cache disabled
+and a PostgreSQL row-locking session-admission trigger to close sign-in/lock races.
+Default runtime datasource is HTTP in both environments; retain the Phase 1 visual
+system. Development migration/testing are authorized after exact environment
+verification; Production migration/deployment are outside this task's authorization.
+See the [implemented API contract](implementation/admin-user-management-phase2-api-contract.md)
+and [acceptance report](implementation/admin-user-management-v2.md).

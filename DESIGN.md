@@ -417,3 +417,24 @@ strings or treats a question premise as a fact. Context may mention price, openi
 hours, designation, geology, culture, accessibility or location. Generic/old turns
 remain understandable without a question or reason. Factual parts, stored DTO
 message, status, history validation and evidence requirements remain unchanged.
+
+
+## Admin Users backend integration (2026-10-17)
+
+Preserve the Phase 1 CMS layout, users.css palette/type/radius, native filter
+selects and existing statistics/table/mobile-card/detail/timeline owners. Default
+runtime uses HttpAdminUserDataSource in both environments; fixtures are test/demo
+only. Server-confirmed mutations stay on the current screen and refetch detail,
+statistics/list and audit. Failures remain in the dialog; UNKNOWN freezes its
+payload and reconciles with the same key after re-reading state. No visual token
+or landing/header redesign is part of this change.
+
+CMS confirmations reuse the existing Destination/Editorial native modal-dialog
+pattern with Phase 1 content classes, unique accessible IDs, initial Cancel
+focus, explicit Tab boundary handling, Escape/backdrop Cancel and focus restore.
+Pending/UNKNOWN actions cannot dismiss the dialog. Revoke now uses the same
+confirmation owner. Tables use bounded server pagination and NFC case-insensitive
+search with stale-response protection; audit uses bounded Load more. Runtime
+status choices are ACTIVE/LOCKED only. Session details omit IP/token, show actual
+active counts and at most twenty recent active sessions. lastLoginAt remains
+unrecorded, never derived from updatedAt.

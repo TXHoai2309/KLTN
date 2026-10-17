@@ -1,276 +1,147 @@
-# KLTN — Admin User Management Phase 2 API Contract & Backend Specification
+# Admin User Management V2 — implemented API contract
 
-Tài liệu này xác định giao ước API (API Contract) và yêu cầu backend cho Phase 2 của hệ thống **CMS Quản lý người dùng (Admin User Management)** thuộc dự án Hà Giang Travel Assistant.
+Owner-approved Phase 2 implementation, 2026-10-17. Supersedes the Phase 1 proposal
+(including SUSPENDED, speculative lastLoginAt and self-demotion exception).
+See [story](../stories/ADMIN-USER-MANAGEMENT-V2.md) and
+[acceptance report](admin-user-management-v2.md) for actual verification/limits.
 
----
+## Schema and trust
 
-## 1. Tổng quan & Phạm vi
+User keeps ADMIN/TRAVELER. Adds status ACTIVE/LOCKED (existing users default ACTIVE),
+lockedAt and lockReason (500 characters maximum). No lastLoginAt column: DTO returns
+null because reliable login telemetry is absent. Never use User.updatedAt for login.
+AdminAuditEvent persists actor/target FKs with Restrict deletion, event type,
+timestamptz timestamp, optional reason and server-owned JSON details. Composite
+indexes support target/time/ID pagination, actor/time and User role/status filters.
+Migration: `20261017210000_admin_user_management`; Prisma migrate ledger, never push.
 
-Phase 1 đã triển khai toàn bộ giao diện Frontend Admin User Management tại `/admin/users` và `/admin/users/[id]`, bao gồm:
-- Thống kê tài khoản (Total, Traveler, Admin, Locked).
-- Bảng danh sách tài khoản kèm bộ lọc vai trò, trạng thái, tìm kiếm debounced và phân trang.
-- Trang chi tiết hồ sơ tài khoản (User Profile & Session Overview).
-- Dialog khóa/mở khóa tài khoản (Lock/Unlock Account Dialog).
-- Dialog thay đổi vai trò (Change Role Dialog).
-- Dòng thời gian lịch sử thao tác quản trị (Audit Log Timeline).
-- Chặn gọi mutation giả và phân biệt rõ ràng trạng thái chưa kết nối backend.
+## Shared HTTP boundary
 
-Trong Phase 2, backend cần hiện thực các Route Handlers, schema updates và audit persistence để kết nối với Frontend đã chuẩn bị sẵn.
+All eight APIs require current persisted ACTIVE ADMIN via requireActor. Better Auth
+supplies identity; forged headers/body/old cookie role do not grant permission.
+Guest 401; unsupported/Traveler/locked actor 403 (revoked sessions normally 401);
+missing target 404; protected no-op/self/last-Admin conflicts 409. Responses are
+`Cache-Control: private, no-store`. Unknown/duplicate query keys are rejected.
 
----
+Reads: `{ success:true, data:T }`; failures use the project's error envelope.
+Writes: `{ success:true, operationStatus:"SUCCESS", data:T }` only after committed
+DB + audit + idempotency result. FAILED uses known status/code/message; UNKNOWN
+uses 503 and retryWithSameKey=true. Mutation bodies are strict Zod objects, bounded
+4KB JSON, same-origin/fetch-site protected, with required Idempotency-Key. Never
+accept actorId, bypass flags, unrecognized role/status or client-created audit data.
 
-## 2. Đề xuất Schema Database Updates (Prisma)
+## Endpoints
 
-Hiện tại model `User` trong Better Auth (`packages/db/prisma/schema/auth.prisma`) gồm:
-- `id`: String (cuid/uuid)
-- `name`: String
-- `email`: String (unique)
-- `emailVerified`: Boolean
-- `image`: String?
-- `role`: UserRole (`TRAVELER` | `ADMIN`)
-- `createdAt`: DateTime
-- `updatedAt`: DateTime
-- `sessions`: Session[]
-- `accounts`: Account[]
+| Endpoint | Input | data |
+| --- | --- | --- |
+| GET /api/admin/users | search, role, status, sortBy, sortOrder, page, pageSize | UserPage |
+| GET /api/admin/users/statistics | no query | totalUsers, travelerCount, adminCount, lockedCount |
+| GET /api/admin/users/[id] | no query | UserDetail |
+| GET /api/admin/users/[id]/audit-logs | page, pageSize | items, page, pageSize, hasMore |
+| PATCH /api/admin/users/[id]/role | { role: ADMIN or TRAVELER } | userId, action, revokedSessionsCount |
+| POST /api/admin/users/[id]/lock | { reason?: string } | userId, action, revokedSessionsCount |
+| POST /api/admin/users/[id]/unlock | {} | userId, action, revokedSessionsCount |
+| POST /api/admin/users/[id]/revoke-sessions | {} | userId, action, revokedSessionsCount |
 
-### Các trường đề xuất bổ sung cho Phase 2:
-```prisma
-model User {
-  // ... existing fields ...
-  status        UserStatus   @default(ACTIVE)
-  lockedAt      DateTime?
-  lockReason    String?
-  lastLoginAt   DateTime?
+List defaults: search empty, role/status ALL, sortBy createdAt, sortOrder desc,
+page=1, pageSize=6 matching Phase 1. PageSize 1..50, page 1..1,000,000, search at most
+200 characters, NFC normalized and case-insensitive on name/email. Supported status
+filters are ACTIVE/LOCKED/ALL only. DB-side count/filter/order/skip/take, ID tie-break,
+RepeatableRead snapshot and page clamp prevent out-of-range empty pages. Empty
+results have page=1, totalPages=1. No whole-user-table fetch/client filtering.
 
-  auditEvents   AdminAuditEvent[] @relation("TargetUser")
-  actionsDone   AdminAuditEvent[] @relation("ActorAdmin")
-}
+UserSummary: id/name/email/image/role/status/emailVerified, ISO createdAt/updatedAt,
+lastLoginAt=null and exact active sessionCount. UserPage: items,total,page,pageSize,
+totalPages,hasMore,isMockData=false. No password/account credentials are selected.
 
-enum UserStatus {
-  ACTIVE
-  LOCKED
-  SUSPENDED
-}
+UserDetail adds lockReason/lockedAt and at most twenty recent activeSessions:
+id,createdAt,expiresAt,userAgent (bounded 200 characters). SessionCount counts all
+sessions where expiresAt > one request reference time; expired sessions are
+excluded. Snapshot consistency applies to metadata/count/rows. Never return tokens
+or full IP. UI states the twenty-session limit when there are more.
 
-model AdminAuditEvent {
-  id           String             @id @default(cuid())
-  eventType    AdminAuditEventType
-  actorId      String
-  targetUserId String
-  timestamp    DateTime           @default(now())
-  reason       String?
-  details      Json?
+Audit defaults page=1/pageSize=20, max50, ordered timestamp desc then ID asc; it
+returns actor ID/name/email, target ID/name, type, timestamp, optional reason and
+safe details. No endpoint creates an audit record directly. ROLE_CHANGED stores
+oldRole/newRole; lock/unlock stores oldStatus/newStatus and revokedSessionsCount;
+SESSION_REVOKED stores the actual active deleted count. Audit reads never change
+stored logs. No account deletion feature exists.
 
-  actor        User               @relation("ActorAdmin", fields: [actorId], references: [id])
-  targetUser   User               @relation("TargetUser", fields: [targetUserId], references: [id])
+## Transaction and permission invariants
 
-  @@index([targetUserId, timestamp])
-  @@index([actorId, timestamp])
-}
+A global transaction advisory lock serializes CMS role/status/session mutations.
+After acquiring it, re-authenticate/recheck current persisted actor role/status,
+lock the target row FOR UPDATE and count ACTIVE ADMINs before reducing privileges.
+The current Admin cannot self-change role, self-lock or self-revoke through CMS.
+Concurrent mutual demotions cannot remove the last active Admin. Locked Admins do
+not count as available administrators. New intent with unchanged role/status or
+zero active sessions returns409 and creates no audit. Identical successful replay
+returns the original outcome without repeating mutation/audit. Different payload
+under the same key conflicts through the shared idempotency contract.
 
-enum AdminAuditEventType {
-  ROLE_CHANGED
-  USER_LOCKED
-  USER_UNLOCKED
-  SESSION_REVOKED
-}
-```
+Role changes deliberately keep existing sessions. RBAC V2 reads DB role on the
+next request, so ADMIN -> TRAVELER loses Admin APIs immediately and retains owned
+Traveler capabilities. UI refetches after success; denied stale Admin access
+navigates to dashboard, or login on401. No client role/session forgery.
 
----
+Lock updates LOCKED/lockedAt/reason and deletes all stored sessions in the same
+transaction; reported count includes sessions active at that operation. Supported
+Better Auth 1.7.5 databaseHooks.session.create.before rejects non-ACTIVE users.
+The versioned PostgreSQL session INSERT/UPDATE trigger holds a shared User row
+lock and checks ACTIVE, closing the hook's check/insert race with account lock.
+Cookie cache is explicitly disabled. Shared guards and the separate AI principal
+resolver also check persisted status; AI principal transaction admission checks
+ACTIVE without changing RAG/history business logic or ownership.
 
-## 3. Danh sách Endpoints RESTful cho Phase 2
+Unlock clears lockedAt/reason and sets ACTIVE without restoring sessions. A new
+normal login is required. Revoke deletes active Session rows only, does not lock
+User or modify Account/credentials, and records the exact count. A new concurrent
+login after revoke's linearization remains allowed because the account is active.
 
-Tất cả các endpoints này đều yêu cầu bảo mật:
-- Session hợp lệ.
-- Vai trò `ADMIN` được xác thực bởi `requireActor(headers, authorizationDependencies, "admin")`.
-- Trả về mã lỗi chuẩn: `401 Unauthorized`, `403 Forbidden`, `400 Bad Request`, `404 Not Found`, `500 Internal Error`.
+## Frontend integration and recovery
 
-### 3.1. `GET /api/admin/users`
-Lấy danh sách người dùng có phân trang và bộ lọc.
+[Runtime data-source entry](../../apps/web/src/modules/admin-users/admin-user-data-source.ts)
+defaults to HttpAdminUserDataSource in both Development and Production. Fixture data
+is isolated in admin-user-fixtures.ts and imported only by explicit test/demo code.
+The original list/detail, badges, statistics, Session Overview and Audit Timeline
+are retained. No Phase 1 banner or simulated successful mutation remains.
 
-**Query Parameters:**
-- `search` (string, optional): Từ khóa tìm kiếm theo tên hoặc email.
-- `role` (`ADMIN` | `TRAVELER` | `ALL`, optional, default `ALL`).
-- `status` (`ACTIVE` | `LOCKED` | `ALL`, optional, default `ALL`).
-- `sortBy` (`createdAt` | `name`, default `createdAt`).
-- `sortOrder` (`asc` | `desc`, default `desc`).
-- `page` (number, default 1).
-- `pageSize` (number, default 10).
+Reads distinguish loading, error+Retry, missing user and no-results. Search is
+IME-aware/debounced with stale-response rejection and immediate clear. Pagination
+uses the backend's clamped page. List/role/status/statistics/detail/session/audit
+refetch after confirmed success. Audit has bounded Load more with ID deduplication.
 
-**Response (200 OK):**
-```json
-{
-  "items": [
-    {
-      "id": "usr_123",
-      "name": "Nguyễn Văn A",
-      "email": "vana@gmail.com",
-      "image": null,
-      "role": "TRAVELER",
-      "status": "ACTIVE",
-      "emailVerified": true,
-      "createdAt": "2025-05-10T08:00:00Z",
-      "updatedAt": "2025-10-15T12:00:00Z",
-      "lastLoginAt": "2025-10-17T09:00:00Z",
-      "sessionCount": 1
-    }
-  ],
-  "total": 45,
-  "page": 1,
-  "pageSize": 10,
-  "totalPages": 5,
-  "hasMore": true
-}
-```
+Native CMS modal dialogs reuse the Destination/Editorial modal owner and Phase 1
+surface styles. Each has unique accessible IDs, Cancel initial focus, Tab boundary
+handling, Escape/backdrop cancellation and focus restoration. Revoke has explicit
+confirmation. Pending guards prevent duplicate submits and dismissal. Failure
+keeps the dialog open with text and error toast. SUCCESS alone closes/refetches.
+UNKNOWN freezes input and retains the immutable payload/key; retry first rereads
+current state, then reconciles the identical write through the DB idempotency
+record. Read state alone never proves that the original operation succeeded.
 
----
+## Rollout and rollback
 
-### 3.2. `GET /api/admin/users/statistics`
-Lấy số liệu tổng quan người dùng cho dashboard cards.
+Run isolated PostgreSQL migrations twice and integration tests before applying to
+the verified Development project/branch/endpoint/database. Compare existing user
+roles and row counts before/after; inspect migrate status. Deploy the migration
+before application code. No Production migration/deployment is performed here.
+Rollback application code only after reviewing lock behavior; retain additive
+columns, audit records and session guard trigger. Do not drop audit/history or
+restore revoked sessions as rollback. Production promotion requires its own
+migration/backup/deployment approval and smoke checks.
 
-**Response (200 OK):**
-```json
-{
-  "totalUsers": 128,
-  "travelerCount": 122,
-  "adminCount": 6,
-  "lockedCount": 2
-}
-```
 
----
+## Canonical UI Map
 
-### 3.3. `GET /api/admin/users/[id]`
-Lấy chi tiết hồ sơ tài khoản và trạng thái các phiên đăng nhập.
+| Capability | Canonical owner | Source of truth | Allowed variants | Verification |
+| --- | --- | --- | --- | --- |
+| Select/Listbox | Native select in UserManagementClient | Existing Phase 1 filters; this contract | Native operating-system popup | Real browser role/status filters at desktop/mobile |
+| Form | UserMutationDialog and shared Zod inputs | This contract; admin-user-schema.ts | Role, lock/unlock, revoke | PostgreSQL validation and browser dialogs |
+| Dialog | CmsDialog using Destination/Editorial native modal pattern | DESIGN.md; this contract | Pending/UNKNOWN cannot dismiss | Browser Tab/Escape/focus/failed submit |
+| CRUD | HttpAdminUserDataSource and AdminUser services | This contract | Stay on selected screen; refetch after SUCCESS | Real E2E + DB/audit assertions |
+| Toast | Existing Sonner provider | Project shared runtime | Success after commit; failure with inline text | Real failure/UNKNOWN browser cases |
+| Pagination | Server query and existing list footer | This contract | Clamped offset page; audit Load more | Real backend filters/page/count |
 
-**Response (200 OK):**
-```json
-{
-  "id": "usr_123",
-  "name": "Nguyễn Văn A",
-  "email": "vana@gmail.com",
-  "image": null,
-  "role": "TRAVELER",
-  "status": "ACTIVE",
-  "emailVerified": true,
-  "createdAt": "2025-05-10T08:00:00Z",
-  "updatedAt": "2025-10-15T12:00:00Z",
-  "lastLoginAt": "2025-10-17T09:00:00Z",
-  "lockReason": null,
-  "lockedAt": null,
-  "sessionCount": 2,
-  "activeSessions": [
-    {
-      "id": "sess_abc",
-      "createdAt": "2025-10-17T08:00:00Z",
-      "expiresAt": "2025-10-24T08:00:00Z",
-      "ipAddress": "14.232.209.11",
-      "userAgent": "Chrome 129.0 / Windows 11"
-    }
-  ]
-}
-```
-
----
-
-### 3.4. `PATCH /api/admin/users/[id]/role`
-Thay đổi vai trò của người dùng (`ADMIN` <-> `TRAVELER`).
-
-**Yêu cầu an toàn nghiệp vụ (Business Invariants):**
-- Không cho phép admin tự hạ vai trò của chính mình thành Traveler nếu không còn ít nhất 1 admin khác trong hệ thống ("Last Admin Protection"). Phải thực hiện kiểm tra này trong transaction database có lock.
-- Ghi 1 bản ghi vào `AdminAuditEvent` với `eventType: "ROLE_CHANGED"`.
-
-**Request Body:**
-```json
-{
-  "role": "ADMIN"
-}
-```
-
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "user": {
-    "id": "usr_123",
-    "role": "ADMIN"
-  }
-}
-```
-
----
-
-### 3.5. `POST /api/admin/users/[id]/lock`
-Khóa tài khoản người dùng và tự động thu hồi tất cả các phiên đăng nhập còn hiệu lực.
-
-**Request Body:**
-```json
-{
-  "reason": "Vi phạm điều khoản dịch vụ và đăng nhập đáng ngờ"
-}
-```
-
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "status": "LOCKED",
-  "lockedAt": "2025-10-17T15:20:00Z",
-  "revokedSessionsCount": 2
-}
-```
-
----
-
-### 3.6. `POST /api/admin/users/[id]/unlock`
-Mở khóa tài khoản người dùng và chuyển trạng thái về `ACTIVE`.
-
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "status": "ACTIVE"
-}
-```
-
----
-
-### 3.7. `POST /api/admin/users/[id]/revoke-sessions`
-Thu hồi toàn bộ phiên đăng nhập của người dùng mục tiêu mà không khóa tài khoản.
-
-**Response (200 OK):**
-```json
-{
-  "success": true,
-  "revokedCount": 2
-}
-```
-
----
-
-### 3.8. `GET /api/admin/users/[id]/audit-logs`
-Lấy danh sách nhật ký kiểm toán quản trị liên quan đến người dùng này.
-
-**Response (200 OK):**
-```json
-[
-  {
-    "id": "audit_1",
-    "eventType": "USER_LOCKED",
-    "actorId": "usr_admin_01",
-    "actorName": "Trần Xuân Hoài",
-    "actorEmail": "xuanhoai.admin@hagiang.vn",
-    "targetUserId": "usr_123",
-    "targetUserName": "Nguyễn Văn A",
-    "timestamp": "2025-10-17T15:20:00Z",
-    "reason": "Vi phạm điều khoản dịch vụ"
-  }
-]
-```
-
----
-
-## 4. Kiến trúc Frontend Adapter Sẵn Sàng (Frontend Readiness)
-
-Trong Phase 1, `ClientAdminUserDataSource` trong file [admin-user-data-source.ts](file:///d:/KLTN/KLTN/apps/web/src/modules/admin-users/admin-user-data-source.ts) đã được thiết kế sẵn sàng để thay thế bằng `HttpAdminUserDataSource` gọi các API trên khi Phase 2 hoàn thành.
-Không có thay đổi nào về giao diện hay contract cần phải sửa đổi khi kết nối backend thật.
+Phase 1 local filter state remains transient within the CMS screen; this integration
+retains that established behavior rather than introducing a new URL-state system.

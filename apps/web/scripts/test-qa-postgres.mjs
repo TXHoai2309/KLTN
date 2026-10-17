@@ -70,6 +70,7 @@ async function waitUntilReady() {
 async function installTask184Schema() {
   const admissionMigrations = await Promise.all([
     "20261001115741_init_auth", "20261001130000_add_idempotency_record", "20261001143000_add_user_role",
+    "20261017210000_admin_user_management",
   ].map(name => readFile(resolve(repoRoot, `packages/db/prisma/migrations/${name}/migration.sql`), "utf8")));
   const documentMigration = await readFile(
     resolve(repoRoot, "packages/db/prisma/migrations/20261008120000_add_rag_document/migration.sql"),

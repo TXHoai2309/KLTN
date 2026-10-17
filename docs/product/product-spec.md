@@ -14,6 +14,13 @@ Help visitors discover Hà Giang destinations and culture, get source-grounded a
 
 Public signup creates only a Traveler account. Authorization is enforced on the backend before protected data is returned, changed, or supplied to AI. A known URL or ID grants no access. A Traveler may access and edit only their own trips. The MVP does not support shared trip ownership or collaborative editing.
 
+Owner-approved Admin User Management V2 (2026-10-17) additionally permits Admins
+to view approved account metadata, change another account's role/status and revoke
+its sessions through the audited CMS. Locked accounts cannot sign in or use private
+capabilities. Self-demotion/lock/revoke and removal of the last active Admin are
+blocked. This does not authorize reading another user's Trips, Favorites or AI
+history. See [User CMS story](../stories/ADMIN-USER-MANAGEMENT-V2.md).
+
 If a Guest is asked to authenticate from a Traveler-only feature, preserve the prior context when possible and return after authentication. Do not automatically replay the write action; the user must confirm it again.
 
 ## Core capabilities and invariants

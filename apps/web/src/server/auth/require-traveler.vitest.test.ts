@@ -17,7 +17,7 @@ describe("RBAC V2 trusted Traveler capability", () => {
   it.each(["ADMIN", "TRAVELER", "ROOT", undefined])("persisted role authorizes independently of session role %s with one user lookup", async sessionRole => {
     const f = fixture(sessionRole);
     expect(await requireTraveler(new Headers({ "x-user-id": "victim", "x-role": "ROOT" }), f.deps)).toEqual({ userId: "admin-a" });
-    expect(f.findUnique).toHaveBeenCalledExactlyOnceWith({ where: { id: "admin-a" }, select: { id: true, role: true } });
+    expect(f.findUnique).toHaveBeenCalledExactlyOnceWith({ where: { id: "admin-a" }, select: { id: true, role: true, status: true } });
   });
 
   it("reflects promotion/demotion and unsupported-role revocation on the next request", async () => {

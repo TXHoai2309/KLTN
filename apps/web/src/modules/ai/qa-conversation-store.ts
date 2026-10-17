@@ -69,7 +69,7 @@ async function lockPrincipal(tx: Tx, p: QaPrincipal, clock: (tx: Tx) => Promise<
   // principal lock so time spent waiting cannot make an expired conversation live.
   const now = await clock(tx);
   if (p.kind === "USER") {
-    const rows = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM "user" WHERE id=${p.id} AND role IN ('TRAVELER','ADMIN') FOR SHARE`);
+    const rows = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM "user" WHERE id=${p.id} AND role IN ('TRAVELER','ADMIN') AND status='ACTIVE' FOR SHARE`);
     if (!rows.length) error("UNAUTHENTICATED");
   } else {
     const rows = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`SELECT id FROM qa_guest_identity WHERE id=${p.id} AND "expiresAt">${now}::timestamptz AND "revokedAt" IS NULL FOR SHARE`);
