@@ -1,0 +1,23 @@
+{
+  "passed": [
+    "ADMIN inherited Planner MOTORCYCLE, real route and dark mobile layout",
+    "Back/edit preserves review and relative days never confirm",
+    "Regenerate uses another request and same-key replay does not duplicate provider work",
+    "US30 fresh route validation, actual save/replay/read/favorite and ownership",
+    "Guest, locked account and forged role cannot call private Planner"
+  ],
+  "failed": [
+    {
+      "name": "TRAVELER real UI CAR workflow uses live Stadia normalized evidence",
+      "error": "false == true"
+    }
+  ],
+  "cleanup": true,
+  "origin": "http://localhost:3010",
+  "fixturePolicy": "Temporary synthetic hours/durations; coordinates copied from verified existing Destination rows. Existing rows unchanged.",
+  "livePlannerCalls": 3,
+  "coordinateSources": [
+    "cmv97lcrq0016z09ws0o74lqp",
+    "cmv9fcwo1000be89w3yxz3mqu"
+  ]
+}

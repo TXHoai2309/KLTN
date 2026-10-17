@@ -131,3 +131,19 @@ Configure `STADIA_MAPS_API_KEY` on the server for each runtime. No `NEXT_PUBLIC_
 ## Handoff Notes
 
 No commit or push.
+
+## Shared boundary update — 2026-10-18
+
+US-28 now calls the same server-only HTTP implementation as US-29B/30. New
+`requestStadiaRoute` exposes safe failure reasons and supports caller AbortSignal;
+`getTravelRoute` retains the original ok/unavailable shape, unsupported-mode
+rejection, optional distance and optional polyline6 GeoJSON. Distance converts
+kilometers × 1000 without rounding. Fetch/body cancellation and bounded JSON
+reading apply to all consumers. No new vehicle fallback, cache or retry.
+
+Real Development browser verification exercised both profiles and fresh US-30
+save/replay/read/ownership using isolated fixture users and synthetic visit data;
+coordinates came from verified real Destination rows. This proves integration,
+not the completeness of the live tourism corpus or Production hostname admission.
+Earlier evidence/limitations above remain historical. See
+[US-28 migration report](../implementation/us28-stadia-routing-v2.md).

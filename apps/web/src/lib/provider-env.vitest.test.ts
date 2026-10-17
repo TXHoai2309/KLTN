@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-const keys = ["CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET", "CLOUDINARY_DESTINATION_FOLDER", "OPENAI_API_KEY", "OPENAI_EDITORIAL_MODEL"];
+const keys = ["CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SECRET", "CLOUDINARY_DESTINATION_FOLDER", "OPENAI_API_KEY", "OPENAI_EDITORIAL_MODEL", "STADIA_MAPS_API_KEY"];
 const webRoot = fileURLToPath(new URL("../../", import.meta.url));
 const root = resolve(webRoot, "../..");
 
@@ -24,13 +24,13 @@ async function loadFixture(configured: boolean) {
     const fixture = configured ? {
       CLOUDINARY_CLOUD_NAME: "fixturecloud", CLOUDINARY_API_KEY: "fixture-api-key",
       CLOUDINARY_API_SECRET: "fixture-api-secret", CLOUDINARY_DESTINATION_FOLDER: "KLTN/destinations",
-      OPENAI_API_KEY: "fixture-openai-key", OPENAI_EDITORIAL_MODEL: "fixture-model",
+      OPENAI_API_KEY: "fixture-openai-key", OPENAI_EDITORIAL_MODEL: "fixture-model", STADIA_MAPS_API_KEY: "fixture-stadia-key",
     } : {};
     await writeFile(join(directory, ".env"), Object.entries(fixture).map(([key, value]) => `${key}=${value}`).join("\n"));
     const env = { ...process.env };
     for (const key of Object.keys(env)) if (keys.includes(key) || /^_+VARLOCK/.test(key)) delete env[key];
     const auto = pathToFileURL(resolve(root, "node_modules/varlock/dist/auto-load.mjs")).href;
-    const script = `import ${JSON.stringify(auto)}; const keys=${JSON.stringify(keys)}; const config=globalThis.__varlockLoadedEnv.config; console.log(JSON.stringify({present:Object.fromEntries(keys.map(k=>[k,Boolean(process.env[k]?.trim())])),sensitive:Object.fromEntries(['CLOUDINARY_API_KEY','CLOUDINARY_API_SECRET','OPENAI_API_KEY','OPENAI_EDITORIAL_MODEL'].map(k=>[k,config[k]?.isSensitive===true]))}));`;
+    const script = `import ${JSON.stringify(auto)}; const keys=${JSON.stringify(keys)}; const config=globalThis.__varlockLoadedEnv.config; console.log(JSON.stringify({present:Object.fromEntries(keys.map(k=>[k,Boolean(process.env[k]?.trim())])),sensitive:Object.fromEntries(['CLOUDINARY_API_KEY','CLOUDINARY_API_SECRET','OPENAI_API_KEY','OPENAI_EDITORIAL_MODEL','STADIA_MAPS_API_KEY'].map(k=>[k,config[k]?.isSensitive===true]))}));`;
     const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], { cwd: directory, env, encoding: "utf8", windowsHide: true, timeout: 20000 });
     if (result.status !== 0) throw Error("Isolated Varlock load failed; output suppressed");
     return JSON.parse(result.stdout.trim());
@@ -45,7 +45,7 @@ describe("Provider configuration through the actual Varlock schema", () => {
   it("injects configured values into runtime and keeps credentials sensitive", async () => {
     const result = await loadFixture(true);
     expect(result.present).toEqual(Object.fromEntries(keys.map(key => [key, true])));
-    expect(Object.values(result.sensitive)).toEqual([true, true, true, true]);
+    expect(Object.values(result.sensitive)).toEqual([true, true, true, true, true]);
   }, 25000);
   it("permits absent optional providers while retaining the canonical folder default", async () => {
     const result = await loadFixture(false);

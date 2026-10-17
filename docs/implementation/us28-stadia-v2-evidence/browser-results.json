@@ -1,0 +1,25 @@
+{
+  "passed": [
+    "TRAVELER real UI CAR workflow uses live Stadia normalized evidence",
+    "ADMIN inherited Planner MOTORCYCLE, real route and dark mobile layout",
+    "Back/edit preserves review and relative days never confirm",
+    "Regenerate uses another request and same-key replay does not duplicate provider work",
+    "US30 fresh route validation, actual save/replay/read/favorite and ownership",
+    "Guest, locked account and forged role cannot call private Planner"
+  ],
+  "failed": [],
+  "cleanup": true,
+  "origin": "http://localhost:3010",
+  "fixturePolicy": "Temporary synthetic hours/durations; coordinates copied from verified existing Destination rows. Existing rows unchanged.",
+  "livePlannerCalls": 3,
+  "coordinateSources": [
+    "cmv97lcrq0016z09ws0o74lqp",
+    "cmv9fcwo1000be89w3yxz3mqu"
+  ],
+  "notes": [
+    "Regenerate case checks relative-day UI; same-key saved Trip replay is verified in US30 case.",
+    "livePlannerCalls counts inbound legs from completed flow() calls, excludes explicit regenerate/save and earlier attempts.",
+    "Response buffering forwards the actual unmodified Next.js response; no provider response was mocked.",
+    "Screenshots show map loading; DOM markers do not prove external tiles loaded."
+  ]
+}

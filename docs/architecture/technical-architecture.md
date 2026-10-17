@@ -83,7 +83,7 @@ The accepted product boundary is:
 - pgvector: embeddings and similarity retrieval.
 - MapLibre GL JS: browser map rendering; Stadia Maps: official Alidade Smooth light/dark styles and basemap.
 
-US-12 supplies browser MapLibre/Stadia maps. US-29B adds a server-only Stadia route boundary and pure travel-time comparison; no itinerary service calls them yet. OpenAI and routing secrets remain server-side. Stadia localhost tiles use no key; production tiles use property/domain authentication. Routing uses a separate server API key.
+US-12 supplies browser MapLibre/Stadia maps. US-28, US-29B and US-30 share one server-only Stadia Standard Routing HTTP boundary and CAR/auto, MOTORCYCLE/motorcycle mapping. US-28 requires both duration and distance, while US-29B/30 retain duration-only validation. Trip Save fetches fresh routing evidence before transactional revalidation. Planner geometry remains excluded and MapLibre renders Destination markers only. OpenAI and routing secrets remain server-side. Stadia localhost tiles use no key; production tiles use property/domain authentication. Routing uses a separate server API key.
 
 ## API and error contract
 

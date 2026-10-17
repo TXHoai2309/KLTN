@@ -25,11 +25,33 @@ Response is the existing `{ success, data }` envelope with `private, no-store`. 
 
 ## Routing and map decision
 
-Owner explicitly chose on 2026-10-13: keep MapLibre markers from DB; show Google Routes metrics outside the map; do not render Google Routes geometry on MapLibre. No fake straight-line route or map mode is offered.
+**Current provider — owner-approved migration, 2026-10-18:** US-28 routing provider
+migrated from Google Routes to Stadia Standard Routing. US-28, US-29B and US-30
+share a consistent Stadia-based routing architecture. MapLibre remains the map
+renderer. The 2026-10-13 Google metrics-only choice is historical and superseded;
+its original verification remains in the dated implementation report.
 
-Server adapter uses [computeRoutes](https://developers.google.com/maps/documentation/routes/reference/rest/v2/TopLevel/computeRoutes) with CAR→DRIVE, MOTORCYCLE→TWO_WHEELER, TRAFFIC_UNAWARE and fields `routes.duration,routes.distanceMeters`. No geometry requested. Google time is a road-network estimate, not current traffic/weather/road safety. No automatic retry/cross-request provider cache. One 10s deadline for all required routing, at most 27 calls/three concurrent. Missing key, mode/route failure, malformed output or deadline expiry become explicit missing travel data. DB failure remains technical.
+`createStadiaRoutesProvider` delegates to `requestStadiaRoute` in the existing
+server-only Stadia module. CAR → auto; MOTORCYCLE → motorcycle; one POST to
+https://api.stadiamaps.com/route/v1 with a server Authorization header. Seconds
+remain seconds; requested-kilometer distance is multiplied by 1000 without integer
+rounding. Only finite, bounded duration AND distance verify a US-28 leg, whose
+provider is STADIA_MAPS. No missing distance becomes zero or Haversine evidence.
+US-29B/30 keep their existing duration-only success/unavailable contract through
+`getTravelRoute`; the HTTP implementation and transport mapping are shared.
 
-[Routes policies](https://developers.google.com/maps/documentation/routes/policies) require attribution and applicable public terms/privacy. Google metrics are attributed in the text UI; live provider/attribution/legal acceptance and account/billing availability need Owner review before live use. No live Google/OpenAI calls are part of automated tests.
+Keep one 10-second routing deadline, at most 27 directed pairs and three in flight,
+no automatic retry/provider fallback/cross-request cache. Parent abort and local
+timeout abort fetch and cancel its response reader. A 512 KiB body bound, strict
+JSON parsing and safe reason codes handle provider faults. Missing routing remains
+INSUFFICIENT_DATA, never PASS or proof of an impossible trip. Credentials, provider
+responses and geometry do not enter the Planner DTO. Planner MapLibre stays markers
+only; road-network estimates do not certify traffic, weather or road safety.
+
+`STADIA_MAPS_API_KEY` is optional/sensitive runtime configuration, without Varlock's
+interpolation-only `@internal`. No Google key is read by the new runtime. Trip
+records never stored this provider discriminator; no historical Trip or migration
+is changed. See [migration verification](../implementation/us28-stadia-routing-v2.md).
 
 ## Retry and resource boundary
 
@@ -48,3 +70,16 @@ Production components render summary chips, actual day tabs, numbered selectable
 ## Verification evidence
 
 Executed results are recorded in [the verification report](../implementation/us28-planner-verification.md) and `docs/ai-progress.md`. Fixtures are explicitly TEST/synthetic and isolated from runtime; they are not corpus or live Hà Giang/provider acceptance evidence. US-28 is NOT ACCEPTED until Owner reviews official AC/policy tuning, the UI and live data/provider behavior.
+
+## Migration verification — 2026-10-18
+
+Focused adapter/engine/validator/US29B/US30/UI/MapLibre/Varlock tests PASS; real
+PostgreSQL repository 3/3 and RBAC ownership 8/8 PASS. Real Better Auth/Neon/Stadia
+browser groups 6/6 PASS using owned synthetic business fixtures with coordinates
+copied from two verified Destinations, all cleaned. Full Vitest 1992 PASS / 134
+SKIP; legacy 335 PASS / 1 baseline Landing assertion FAIL. Typecheck and production
+build PASS. Production release remains conditional on hostname registration,
+existing candidate eligibility registry and broader release acceptance; no deploy,
+Production data/env change or routing migration. PR #7 was externally merged into
+master while this task ran, so it cannot remain an open Draft. No replacement PR
+was created. See the migration report for all evidence and limits.

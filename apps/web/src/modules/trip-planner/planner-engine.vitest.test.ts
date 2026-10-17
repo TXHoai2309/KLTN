@@ -8,6 +8,12 @@ import { createPlannerService } from "./planner-service";
 import { candidate, candidates, requirement, referenceTime, fakeRoutes } from "./__fixtures__/planner-fixtures";
 
 describe("US28 contract and deterministic engine", () => {
+  it("validator refuses a forged VERIFIED leg with missing distance", () => {
+    const rows=[candidate("a"),candidate("b")];
+    const days=schedulePlannerDays({...requirement,durationDays:1},[rows],new Map());
+    days[0]!.stops[1]!.inbound={fromDestinationId:"a",toDestinationId:"b",status:"VERIFIED",reason:null,durationSeconds:1,distanceMeters:null,provider:"STADIA_MAPS"};
+    expect(validatePlannerDays(requirement,days,rows).checks.find(c=>c.key==="TRAVEL_TIME")?.status).toBe("INSUFFICIENT_DATA");
+  });
   it.each([1,14])("supports %i days and relative proposal contracts", days => { expect(plannerRequestSchema.parse({requirement:{...requirement,durationDays:days,startDate:null}}).requirement.startDate).toBeNull(); });
   it.each([0,15,1.2])("rejects duration %s", durationDays => { expect(plannerRequestSchema.safeParse({requirement:{...requirement,durationDays}}).success).toBe(false); });
   it.each(["BUS", "DRIVE", "", null])("rejects unsupported transport %s", transport => { expect(plannerRequestSchema.safeParse({requirement:{...requirement,transport}}).success).toBe(false); });

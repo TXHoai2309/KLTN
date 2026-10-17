@@ -1,5 +1,9 @@
 # US-28 delivery and offline verification — 2026-10-13
 
+> Historical delivery evidence from 2026-10-13. Its Google provider/env prerequisites
+> are superseded by the [2026-10-18 Stadia migration report](us28-stadia-routing-v2.md).
+> Original test results and decisions below are retained as history.
+
 PREFLIGHT_STATUS: PASS. Clean TXH before work; origin fetched before implementation.
 BASELINE_HEAD: `8b5ff486267fd66fd6a8418005d8b02b13b49d8c`.
 REMOTE_STATUS: origin/TXH matched baseline at preflight; no push/deploy.

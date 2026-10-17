@@ -1,5 +1,6 @@
 import type { Database } from "@KLTN/db";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { getTravelRoute } from "../trip-validation/stadia-route";
 
 import { tripSaveRequestSchema } from "./trip-save-contract";
 import { saveTrip, type TripSaveDependencies } from "./trip-save-service";
@@ -58,6 +59,16 @@ const twoVisits = () => ({ confirm: true as const, proposal: { ...structuredClon
 ] }] } });
 
 describe.each(["TRAVELER", "ADMIN"])("US-30 %s server save gate", role => {
+  it("revalidates through shared motorcycle routing and replays without another provider call", async () => {
+    const test=fixture(role);
+    const fetcher=vi.fn<typeof fetch>(async()=>Response.json({trip:{summary:{time:60}}}));
+    test.dependencies.getRoute=input=>getTravelRoute(input,{apiKey:()=>"fixture",fetcher});
+    const payload=tripSaveRequestSchema.parse(twoVisits()); payload.proposal.transport="MOTORCYCLE";
+    expect(await saveTrip(headers,payload,"shared-stadia",test.dependencies,timeReference)).toMatchObject({status:"SUCCESS"});
+    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body)).costing).toBe("motorcycle");
+    expect(await saveTrip(headers,payload,"shared-stadia",test.dependencies,timeReference)).toMatchObject({status:"SUCCESS",replayed:true});
+    expect(fetcher).toHaveBeenCalledOnce(); expect(test.trips).toHaveLength(1);
+  });
   it("persists one owned trip with days and visits when all four groups satisfy and user confirms", async () => {
     const test = fixture(role);
     test.setRole(role);

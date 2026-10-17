@@ -2535,3 +2535,29 @@ Audit, task-owned file list, limits and manual procedure:
   [Story](stories/ADMIN-USER-MANAGEMENT-V2.md),
   [acceptance report](implementation/admin-user-management-v2.md),
   [browser evidence](implementation/admin-users-v2-evidence/browser-results.json).
+
+### 2026-10-18 — US-28 Stadia Standard Routing V2
+
+- Actual clean baseline86bb942 on feat/admin-user-management-be; preserve hero/CMS/
+  Auth/RBAC/RAG/Editorial/Trip persistence. Replace Google provider with shared
+  server-only Stadia HTTP, CAR/auto and MOTORCYCLE/motorcycle. No migration.
+- US-28 requires finite bounded duration and distance; missing distance never zero.
+  US29B/30 duration-only compatibility retained. One 10s global deadline,27 pairs,
+  three in flight, real fetch/body cancellation,512KiB limit, no retry/fallback/cache.
+- Correct Varlock @internal stripping for optional sensitive Stadia runtime key,
+  regenerate types; actual .env unchanged. Vercel metadata shows sensitive key in
+  Preview/Production, no remote env write.158 built static files:0 credential hits.
+- Final focused192 PASS/3 SKIP; full1992 PASS/134 SKIP. Legacy335 PASS/1 existing
+  Landing assertion FAIL, baseline evidence retained. Root typecheck/build/diff PASS.
+  PostgreSQL disposable US28 3/3 and RBAC8/8 PASS; owned containers cleaned.
+- Real Chrome/Better Auth/Neon/Stadia browser6/6 PASS; CAR/MOTORCYCLE, relative day,
+  save/replay/read/favorite/ownership and locked/Guest checks. TEST hours/durations
+  only; coordinates copied from verified Destinations. All owned fixtures cleaned.
+  Offline failure/empty/browser cases:5/5 PASS, separate synthetic evidence. Screenshots
+  capture map loading; do not claim external tile or Production hostname success.
+- Production still conditional on baseline legacy gate, hostname/corpus registry
+  and pre-existing distributed admission decisions. CMS migration/rollout preserved.
+  PR7 was externally merged at00:45 Asia/Saigon into master; no replacement PR,
+  reopening, master/dev merge/push or Production operation by this task.
+  [Report](implementation/us28-stadia-routing-v2.md),
+  [browser evidence](implementation/us28-stadia-v2-evidence/browser-results.json).
