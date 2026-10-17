@@ -1,0 +1,520 @@
+.page,
+.page * {
+  box-sizing: border-box;
+}
+
+.page {
+  width: min(100%, 1080px);
+  min-width: 0;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  color: var(--foreground);
+}
+
+.backLink {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
+
+.backLink:focus-visible,
+.cancelLink:focus-visible,
+.page button:focus-visible,
+.page input:focus-visible,
+.page select:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.heading,
+.candidateHeading {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.heading {
+  margin: 16px 0 24px;
+}
+
+.headingActions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cancelLink {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--background);
+  padding: 8px 12px;
+  color: var(--foreground);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.cancelLink:hover {
+  text-decoration: underline;
+}
+
+.cancelLink:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.heading h1,
+.heading p,
+.candidateHeading h2,
+.candidateHeading p,
+.day h3 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.heading h1 {
+  margin: 4px 0 8px;
+  font-size: clamp(1.7rem, 5vw, 2.25rem);
+  line-height: 1.15;
+}
+
+.heading p:not(.eyebrow),
+.candidateHeading p {
+  max-width: 62ch;
+  color: var(--muted-foreground);
+  line-height: 1.5;
+}
+
+.eyebrow {
+  color: var(--primary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--muted);
+  padding: 6px 10px;
+  color: var(--muted-foreground);
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.columns {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  align-items: start;
+  gap: 20px;
+}
+
+.panel,
+.candidate {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card);
+  padding: 20px;
+  box-shadow: 0 8px 28px rgb(15 23 42 / 5%);
+}
+
+.panel h2,
+.candidate h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  overflow-wrap: anywhere;
+}
+
+.form {
+  display: grid;
+  min-width: 0;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.formGrid {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.field {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+  color: var(--foreground);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.field input,
+.field select {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid var(--input);
+  border-radius: 9px;
+  background: var(--background);
+  padding: 9px 11px;
+  color: var(--foreground);
+  font: inherit;
+}
+
+.field select {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.field input:disabled,
+.field select:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.requestStatus,
+.announcement,
+.empty {
+  min-height: 1.4em;
+  margin: -6px 0 0;
+  color: var(--muted-foreground);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.primaryButton,
+.removeButton {
+  min-height: 44px;
+  border: 0;
+  border-radius: 9px;
+  padding: 9px 14px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.primaryButton {
+  width: 100%;
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+
+.primaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.candidateHeading {
+  align-items: center;
+}
+
+.candidateHeading p {
+  margin-top: 4px;
+  font-size: 0.9rem;
+}
+
+.announcement {
+  margin: 12px 0;
+}
+
+.previewActions {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  margin: 12px 0 18px;
+}
+
+.previewMessage {
+  min-height: 1.4em;
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.days {
+  display: grid;
+  min-width: 0;
+  gap: 12px;
+}
+
+.day {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.day h3 {
+  margin-bottom: 12px;
+  font-size: 1rem;
+}
+
+.empty {
+  margin: 0;
+}
+
+.visitList {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.previewResults {
+  display: grid;
+  min-width: 0;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.previewSection {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.previewSection h2 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.diffList {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.5;
+}
+
+.diffList li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.visit {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+  border-radius: 9px;
+  background: var(--muted);
+  padding: 10px;
+}
+
+.visitHeader {
+  display: flex;
+  min-width: 0;
+  grid-column: 1 / -1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.visitText {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+
+.visitText span {
+  color: var(--muted-foreground);
+  font-size: 0.86rem;
+}
+
+.orderControls,
+.moveControls {
+  display: flex;
+  min-width: 0;
+  align-items: end;
+  gap: 8px;
+}
+
+.orderControls {
+  flex: 0 0 auto;
+}
+
+.moveControls,
+.timingForm {
+  grid-column: 1 / -1;
+}
+
+.compactField {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 0;
+  gap: 5px;
+  color: var(--muted-foreground);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.compactField input,
+.compactField select {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  border: 1px solid var(--input);
+  border-radius: 8px;
+  background: var(--background);
+  padding: 8px;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.timingForm {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+  gap: 8px;
+}
+
+.timingForm button {
+  grid-column: 1 / -1;
+}
+
+.smallButton {
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--background);
+  padding: 8px 10px;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.smallButton:hover:not(:disabled) {
+  border-color: var(--primary);
+}
+
+.smallButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.removeButton {
+  grid-column: 2;
+  justify-self: end;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.removeButton:hover {
+  border-color: var(--destructive);
+  color: var(--destructive);
+}
+
+@media (max-width: 720px) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 420px) {
+  .page {
+    padding-inline: 12px;
+  }
+
+  .heading {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .panel,
+  .candidate {
+    border-radius: 12px;
+    padding: 14px;
+  }
+
+  .formGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .candidateHeading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .visit {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .visitHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .orderControls,
+  .moveControls,
+  .timingForm {
+    width: 100%;
+  }
+
+  .orderControls > button,
+  .moveControls > button,
+  .timingForm > button {
+    flex: 1 1 0;
+  }
+
+  .timingForm {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .moveControls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .timingForm button,
+  .removeButton {
+    grid-column: 1;
+    width: 100%;
+  }
+
+  .compactField {
+    width: 100%;
+  }
+}
