@@ -83,7 +83,7 @@ async function installTask184Schema() {
     resolve(repoRoot, "packages/db/prisma/migrations/20261010120000_add_rag_index_jobs/migration.sql"),
     "utf8",
   );
-  const qaMigrations = await Promise.all(["20261011120000_add_qa_guest_identity", "20261011121000_add_qa_conversations", "20261011122000_add_qa_abuse_guard", "20261011123000_add_qa_cleanup_state"].map(name => readFile(resolve(repoRoot, `packages/db/prisma/migrations/${name}/migration.sql`), "utf8")));
+  const qaMigrations = await Promise.all(["20261011120000_add_qa_guest_identity", "20261011121000_add_qa_conversations", "20261011122000_add_qa_abuse_guard", "20261011123000_add_qa_cleanup_state", "20261017120000_add_qa_conversation_history"].map(name => readFile(resolve(repoRoot, `packages/db/prisma/migrations/${name}/migration.sql`), "utf8")));
   const destinationMigration = await readFile(resolve(repoRoot, "packages/db/prisma/migrations/20261004070249_add_destination_domain/migration.sql"), "utf8");
   const contextMigration = await readFile(resolve(repoRoot, "packages/db/prisma/migrations/20261012120000_add_qa_destination_context/migration.sql"), "utf8");
   const cultureMigration = await readFile(resolve(repoRoot,"packages/db/prisma/migrations/20261005021531_add_culture_content_domain/migration.sql"),"utf8");
@@ -109,6 +109,21 @@ async function installTask184Schema() {
   if (result.status !== 0) {
     throw new Error("Could not install the actual RagDocument and Task184/185 migrations into the isolated database.");
   }
+  const historyColumns = requireSuccess("docker", [
+    "exec", containerName, "psql", "-At", "-U", databaseUser, "-d", databaseName, "-c",
+    "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'qa_conversation' AND column_name IN ('title', 'titleCustomized', 'lastActivityAt') ORDER BY column_name",
+  ]);
+  if (!historyColumns.includes("title|character varying") || !historyColumns.includes("titleCustomized|boolean") || !historyColumns.includes("lastActivityAt|timestamp with time zone")) {
+    throw new Error(`qa_conversation history columns missing in PostgreSQL schema: ${historyColumns}`);
+  }
+  const historyIndex = requireSuccess("docker", [
+    "exec", containerName, "psql", "-At", "-U", databaseUser, "-d", databaseName, "-c",
+    "SELECT indexname FROM pg_indexes WHERE tablename = 'qa_conversation' AND indexname = 'qa_conversation_principalKind_principalId_deletedAt_lastAct_idx'",
+  ]);
+  if (!historyIndex.includes("qa_conversation_principalKind_principalId_deletedAt_lastAct_idx")) {
+    throw new Error("qa_conversation history index missing in PostgreSQL schema");
+  }
+  console.log("QA_CONVERSATION_HISTORY_MIGRATION=VERIFIED (columns title, titleCustomized, lastActivityAt, index exist)");
 }
 
 async function cleanupOwnedContainer() {

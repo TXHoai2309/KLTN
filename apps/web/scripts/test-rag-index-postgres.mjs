@@ -61,7 +61,7 @@ async function waitUntilReady() {
   const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) {
     const ready = docker("exec", containerName, "pg_isready", "-U", databaseUser, "-d", databaseName);
-    if (ready.status === 0) return;
+    if (ready.status === 0) { const usable = docker("exec", containerName, "psql", "-At", "-U", databaseUser, "-d", databaseName, "-c", "SELECT 1"); if (usable.status === 0 && usable.stdout.trim() === "1") return; }
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 400));
   }
   throw new Error("Isolated PostgreSQL did not become ready within 60 seconds.");

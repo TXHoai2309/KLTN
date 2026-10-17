@@ -111,9 +111,14 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
   const [pendingSwitchId, setPendingSwitchId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.innerWidth >= 1024) {
-      setSidebarOpen(true);
+    function handleResize() {
+      if (typeof window !== "undefined") {
+        setSidebarOpen(window.innerWidth >= 1024);
+      }
     }
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   async function loadConversationList(search = "", cursor: string | null = null, isMore = false) {

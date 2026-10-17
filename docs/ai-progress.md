@@ -2329,3 +2329,36 @@ Audit, task-owned file list, limits and manual procedure:
   - `npm run check-types` PASS (0 errors).
   - `npm run build` PASS (Turbopack production build with all static/dynamic routes optimized).
   - `git diff --check` PASS (clean diff, no conflict markers, no secrets).
+
+### 2026-10-17 — Live Database Integration & Browser E2E Acceptance
+
+- **Branch & Base Commit:** `feat/ai-conversation-history` @ commit `a7ab1367f8cb54b56cbc9241f4a8cb156600beb5`.
+- **Database Migrations (Neon Development & Disposable PG):**
+  - Migration `20261017120000_add_qa_conversation_history` deployed to authorized Neon Development (`neondb`).
+  - Verified on isolated disposable Docker container (`pgvector/pgvector:0.8.6-pg16`): columns `title`, `titleCustomized`, `lastActivityAt`, and composite index `qa_conversation_principalKind_principalId_deletedAt_lastAct_idx` verified.
+  - Production database untouched.
+- **PostgreSQL Integration Tests (10 test files, 94 tests, 0 skipped, 100% PASS):**
+  - `scripts/test-qa-postgres.mjs`: 71/71 tests PASS (includes `qa-store.postgres.integration.vitest.test.ts` with 31 tests covering history listing, cursor pagination, title search, rename, soft delete, cross-principal isolation, and >12 turns persistence).
+  - `scripts/test-destination-images-postgres.mjs`: 20/20 tests PASS (destination-images, editorial, destination-v3).
+  - `scripts/test-trip-planner-postgres.mjs`: 3/3 tests PASS (planner-candidates).
+  - `scripts/test-rag-index-postgres.mjs`: 1/1 test PASS (rag-index-store concurrency).
+- **Live Browser E2E Acceptance on localhost:3010 (14/14 PASS, 0 failures):**
+  - Ran `scripts/qa-browser-e2e-live.mjs` against real running dev server connected to Neon Development.
+  - Test 1 (Desktop Initial Load): Sidebar, composer, and 4 prompt suggestions loaded — PASS.
+  - Test 2 (Send Question & AI Response): Question asked, typing indicator animated dots detected, real OpenAI answer received, DB persisted — PASS.
+  - Test 3 (F5 Refresh & State Restoration): Full page reload properly restores conversation and turns — PASS.
+  - Test 4 (Follow-up Multi-turn): Turn 2 appended successfully in same conversation — PASS.
+  - Test 5 (Rename Conversation): Renamed via inline edit form, persisted to DB — PASS.
+  - Test 6 (Search in Sidebar): Real-time debounced filtering, empty state, and clearing verified — PASS.
+  - Test 7 (Back/Forward Navigation): Seamless popstate history navigation between conv1 and conv2 — PASS.
+  - Test 8 (Delete Conversation): Soft delete removes item from sidebar, resets active conversation and URL — PASS.
+  - Test 9 (Mobile Responsive Drawer <1024px): Toggle button, drawer slide-in, backdrop click dismiss — PASS.
+  - Test 10 (Concurrent Tabs): Independent tab correctly sees and loads conversation history — PASS.
+  - Test 11 (In-Flight Switch Handling): Switching while AI generates prompts abandon dialog and switches safely without corruption — PASS.
+  - Test 12 (History & Turns Pagination API Contract): Limit/cursor pagination and turns limit contract verified — PASS.
+  - Test 13 (Account Switching / Principal Boundary): Fresh incognito session starts with empty history (strict isolation) — PASS.
+  - Test 14 (HEAD TXH AI Improvements): Typing indicator, speaker badge, source citations disclosure ("Xem nguồn (2)⌄"), and follow-up chips preserved — PASS.
+- **Typecheck & Production Build:**
+  - `npm run check-types` PASS (0 errors).
+  - `npm run build` PASS (41/41 routes compiled).
+  - `git diff --check` PASS (clean diff, no conflict markers, no secrets).

@@ -363,4 +363,102 @@ suite("US21 real PostgreSQL reservations, retention and completion",()=>{
     expect(success.eligibleBacklogCount).toBeGreaterThanOrEqual(0);
     expect((await db.$queryRaw<Array<{leaseToken:string|null;lastSucceededAt:Date|null}>>(Prisma.sql`SELECT "leaseToken","lastSucceededAt" FROM qa_cleanup_state WHERE id=1`))[0]).toMatchObject({leaseToken:null});
   });
+  it("US-AI-HISTORY PostgreSQL: lists conversations, respects pagination, searches by title, renames and soft deletes", async () => {
+    const p = await guest();
+    const other = await guest();
+
+    // Create 3 conversations for p
+    const r1 = await reservation(p, randomUUID(), "Kinh nghiệm du lịch Đồng Văn 3 ngày 2 đêm");
+    await store.complete(p, r1, completed(r1), []);
+
+    const r2 = await reservation(p, randomUUID(), "Chi phí đi đèo Mã Pí Lèng bằng xe máy");
+    await store.complete(p, r2, completed(r2), []);
+
+    const r3 = await reservation(p, randomUUID(), "Các món ăn đặc sản ở Hoàng Su Phì");
+    await store.complete(p, r3, completed(r3), []);
+
+    // Create 1 conversation for other
+    const rOther = await reservation(other, randomUUID(), "Chỗ thuê xe máy tại TP Hà Giang");
+    await store.complete(other, rOther, completed(rOther), []);
+
+    // List for p with limit 2: should return 2 items, hasMore true, nextCursor
+    const list1 = await store.list!(p, { limit: 2 });
+    expect(list1.items).toHaveLength(2);
+    expect(list1.hasMore).toBe(true);
+    expect(list1.nextCursor).toBeTruthy();
+    // Most recent first: r3 then r2
+    expect(list1.items[0]!.id).toBe(r3.conversationId);
+    expect(list1.items[1]!.id).toBe(r2.conversationId);
+
+    // Fetch next page
+    const list2 = await store.list!(p, { limit: 2, cursor: list1.nextCursor! });
+    expect(list2.items).toHaveLength(1);
+    expect(list2.items[0]!.id).toBe(r1.conversationId);
+    expect(list2.hasMore).toBe(false);
+
+    // Search by title
+    const searchResult = await store.list!(p, { search: "Mã Pí Lèng" });
+    expect(searchResult.items).toHaveLength(1);
+    expect(searchResult.items[0]!.id).toBe(r2.conversationId);
+
+    // Rename conversation
+    const renamed = await store.rename!(p, r2.conversationId, "Kế hoạch phượt Mã Pí Lèng");
+    expect(renamed.title).toBe("Kế hoạch phượt Mã Pí Lèng");
+    const dbRow = (await db.$queryRaw<Array<{ title: string; titleCustomized: boolean }>>(Prisma.sql`SELECT title, "titleCustomized" FROM qa_conversation WHERE id = ${r2.conversationId}`))[0]!;
+    expect(dbRow.titleCustomized).toBe(true);
+
+    // Cross-principal: other cannot rename p's conversation
+    await expect(store.rename!(other, r2.conversationId, "Hack")).rejects.toMatchObject({ code: "NOT_FOUND" });
+
+    // Soft delete conversation
+    await store.delete(p, r2.conversationId);
+
+    // Listing after delete: r2 should be gone
+    const afterDelete = await store.list!(p, { limit: 10 });
+    expect(afterDelete.items.map(item => item.id)).toEqual([r3.conversationId, r1.conversationId]);
+    expect(afterDelete.items.find(item => item.id === r2.conversationId)).toBeUndefined();
+
+    // other sees only their own conversation
+    const otherList = await store.list!(other);
+    expect(otherList.items).toHaveLength(1);
+    expect(otherList.items[0]!.id).toBe(rOther.conversationId);
+  });
+
+  it("conversation history longer than 12 turns preserves chronological chain and retrieval", async () => {
+    const p = await guest();
+    const store15 = createQaConversationStore(db as Database, { maxPerTenMinutes: 100 });
+    const firstRes = await store15.reserve(p, randomUUID(), { question: "Câu hỏi lượt 1", context: { type: "GENERAL" } });
+    expect(firstRes.kind).toBe("RESERVED");
+    let currentReservation = firstRes as QaReservation;
+    await store15.complete(p, currentReservation, completed(currentReservation), []);
+    const conversationId = currentReservation.conversationId;
+
+    // Build 14 more turns (total 15 turns > 12)
+    for (let i = 2; i <= 15; i++) {
+      const followUp = await store15.reserve(p, randomUUID(), {
+        conversationId,
+        parentTurnId: currentReservation.turnId,
+        question: `Câu hỏi lượt ${i}`,
+        context: { type: "GENERAL" },
+      }) as QaReservation;
+      await store15.complete(p, followUp, completed(followUp), []);
+      currentReservation = followUp;
+    }
+
+    // Retrieve via history / get
+    const detail = await store15.get!(p, conversationId);
+    expect(detail.turns).toHaveLength(15);
+    expect(detail.turns[0]!.question).toBe("Câu hỏi lượt 1");
+    expect(detail.turns[14]!.question).toBe("Câu hỏi lượt 15");
+    expect(detail.conversation.headTurnId).toBe(currentReservation.turnId);
+
+    // Test turns limit pagination (e.g., limit 12)
+    const page1 = await store15.turns!(p, conversationId, { limit: 12 });
+    expect(page1.turns).toHaveLength(12);
+    expect(page1.hasMore).toBe(true);
+
+    const pageAll = await store15.turns!(p, conversationId, { limit: 20 });
+    expect(pageAll.turns).toHaveLength(15);
+    expect(pageAll.hasMore).toBe(false);
+  });
 });
