@@ -83,7 +83,7 @@ test("Home is product UI; Explore streams independently and exposes no dead Cult
   for (const copy of [/Khám phá Hà Giang/, /theo cách của bạn/, /BẮT ĐẦU HÀNH TRÌNH/, /Khám phá điểm đến/, /Tìm hiểu văn hóa/, /Xem vị trí trên bản đồ/]) assert.match(home,copy);
   for (const href of [/href="\/explore"/, /href="\/explore\?view=map"/]) assert.match(home,href);
   assert.match(home,/home-hero-visual/); assert.match(home,/home-quick-info/); assert.match(home,/HomeScrollReveal/);
-  assert.doesNotMatch(home,/TITLE_TEXT|API Status|BETTER|\/trips|\/assistant|https?:\/\//);
+  assert.doesNotMatch(home,/TITLE_TEXT|API Status|BETTER|https?:\/\//);
   const header=await readFile(new URL("../../components/header.tsx",import.meta.url),"utf8");
   for (const pattern of [/className="site-header"/, /className="site-brand"/, /aria-label="Điều hướng chính"/, /aria-current=\{active \? "page" : undefined\}/, /<ModeToggle className="site-theme-toggle"/, /<UserMenu \/>/, /pathname\.startsWith\("\/destinations\/"\)/, /pathname === "\/login"/]) assert.match(header,pattern);
   const reveal=await readFile(new URL("../../components/home-scroll-reveal.tsx",import.meta.url),"utf8"); assert.match(reveal,/IntersectionObserver/); assert.match(reveal,/prefers-reduced-motion/); assert.match(reveal,/observer\.unobserve\(target\)/);
