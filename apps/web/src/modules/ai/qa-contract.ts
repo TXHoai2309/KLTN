@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { QA_CONVERSATION_MESSAGES } from "./qa-conversation";
+import { QA_ANSWER_PRESENTATIONS } from "./qa-answer-details";
 
 // Pure contracts only. No HTTP parsing, authentication, evidence registry or AI.
 export const QA_QUESTION_MAX_UTF16_UNITS = 2000;
@@ -128,6 +129,8 @@ export const qaCompletedTurnSchema = z
     z.object({
       ...completedTurnFields,
       status: z.literal("ANSWERED"),
+      answerMode: z.literal("SOURCE_EXCERPTS").optional(),
+      presentation: z.enum(QA_ANSWER_PRESENTATIONS).optional(),
       answerParts: z.array(qaAnswerPartSchema).min(1),
       citations: z.array(qaPublicCitationSchema).min(1),
       unansweredAspects: z.array(normalizedText()).length(0),
@@ -135,6 +138,8 @@ export const qaCompletedTurnSchema = z
     z.object({
       ...completedTurnFields,
       status: z.literal("PARTIAL"),
+      answerMode: z.literal("SOURCE_EXCERPTS").optional(),
+      presentation: z.enum(QA_ANSWER_PRESENTATIONS).optional(),
       answerParts: z.array(qaAnswerPartSchema).min(1),
       citations: z.array(qaPublicCitationSchema).min(1),
       unansweredAspects: z.array(normalizedText()).min(1),
@@ -142,6 +147,7 @@ export const qaCompletedTurnSchema = z
     z.object({
       ...completedTurnFields,
       status: z.literal("INSUFFICIENT_SOURCE"),
+      reason: z.enum(["NO_EVIDENCE", "MISSING_SUPPORT", "ANSWER_VERIFICATION"]).optional(),
       answerParts: z.array(qaAnswerPartSchema).length(0),
       citations: z.array(qaPublicCitationSchema).length(0),
       message: z.literal(QA_INSUFFICIENT_SOURCE_MESSAGE),

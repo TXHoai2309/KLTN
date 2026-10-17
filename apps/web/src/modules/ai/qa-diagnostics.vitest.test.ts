@@ -6,7 +6,7 @@ import { createQaDiagnostics, qaOrigin, qaProviderMetadata, qaReportFailure, qaR
 import { createQaHttpHandlers } from "./qa-http";
 import { createQaService } from "./qa-service";
 import { createQaRetriever } from "./qa-retrieval";
-import { createQaGenerator } from "./qa-generation";
+import { createFixtureQaGenerator as createQaGenerator } from "./__fixtures__/qa-generation-wire";
 import type { QaConversationStore } from "./qa-conversation-store";
 import { countEmbeddingTokens } from "../rag-processing/embedding-tokenizer";
 import { AppError } from "../../server/http/app-error";
@@ -57,9 +57,8 @@ describe("development QA stage diagnostics with offline providers", () => {
     const call = t.fetcher.mock.calls.find(([url]) => url === "https://api.openai.com/v1/chat/completions")!;
     const sent = JSON.parse(call[1]!.body as string);
     expect(sent.store).toBe(false);
-    expect(sent.response_format.json_schema).toMatchObject({ strict: true, schema: { required: ["status", "answerParts", "unanswered"], additionalProperties: false } });
-    expect(sent.messages[0].content).toContain("unanswered=true only for PARTIAL");
-    expect(sent.messages[0].content).toContain("Empty parts for insufficiency/clarification");
+    expect(sent.response_format.json_schema).toMatchObject({ strict: true, schema: { required: ["status", "facets", "unanswered"], additionalProperties: false } });
+    // Outcome behavior is exercised below; prompt wording is not the contract.
     expect(JSON.stringify(t.events)).not.toContain(text);
   });
   it.each(["ANSWERED", "PARTIAL", "INSUFFICIENT_SOURCE", "CLARIFICATION_REQUIRED"] as const)("rejects contradictory unanswered for %s at the historical stage", async status => {
@@ -74,7 +73,7 @@ describe("development QA stage diagnostics with offline providers", () => {
     const factual = status === "ANSWERED" || status === "PARTIAL";
     const t = await exercise("valid", { output: { status, answerParts: factual ? [] : answered.answerParts, unanswered: status === "PARTIAL" } });
     expect(t.response.status).toBe(502);
-    expect(t.events.at(-1)).toMatchObject({ stage: "GENERATION_OUTCOME", category: "OUTCOME_CONSISTENCY", issues: [{ code: "custom", path: ["answerParts"] }] });
+    expect(t.events.at(-1)).toMatchObject({ stage: "GENERATION_OUTCOME", category: "OUTCOME_CONSISTENCY", issues: [{ code: "custom", path: [factual ? "facets" : "answerParts"] }] });
     expect(t.store.complete).not.toHaveBeenCalled(); expect(t.store.fail).toHaveBeenCalledTimes(1);
   });
   it.each([

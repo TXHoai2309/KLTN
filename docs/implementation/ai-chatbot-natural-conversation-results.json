@@ -1,0 +1,171 @@
+{
+  "date": "2026-10-17",
+  "policyVersion": "qa-policy-2026-10-17.4",
+  "evidenceClass": "BOUNDED_LOCAL_HTTP_NOT_INDEPENDENT_SEMANTIC_ACCEPTANCE",
+  "runs": [
+    {
+      "caseSet": "broad-designation-suggestion",
+      "plannedTurns": 5,
+      "completedTurns": 5,
+      "matched": 4,
+      "sourceExcerptTurns": 0,
+      "rows": [
+        {
+          "index": 0,
+          "status": "CONVERSATIONAL",
+          "answerMode": "NOT_APPLICABLE",
+          "matched": true,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 4026,
+          "recordLedParts": 0,
+          "textCharacters": 0
+        },
+        {
+          "index": 1,
+          "status": "ANSWERED",
+          "answerMode": "SYNTHESIS",
+          "matched": true,
+          "partCount": 3,
+          "citationCount": 2,
+          "elapsedMs": 16641,
+          "recordLedParts": 0,
+          "textCharacters": 525
+        },
+        {
+          "index": 2,
+          "status": "ANSWERED",
+          "answerMode": "SYNTHESIS",
+          "matched": true,
+          "partCount": 2,
+          "citationCount": 1,
+          "elapsedMs": 15539,
+          "recordLedParts": 0,
+          "textCharacters": 449
+        },
+        {
+          "index": 3,
+          "status": "INSUFFICIENT_SOURCE",
+          "answerMode": "SYNTHESIS",
+          "matched": false,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 14385,
+          "recordLedParts": 0,
+          "textCharacters": 0
+        },
+        {
+          "index": 4,
+          "status": "ANSWERED",
+          "answerMode": "SYNTHESIS",
+          "matched": true,
+          "partCount": 1,
+          "citationCount": 1,
+          "elapsedMs": 10787,
+          "recordLedParts": 0,
+          "textCharacters": 136
+        }
+      ],
+      "completion": [
+        {
+          "passed": false,
+          "turns": 5,
+          "replayed": true,
+          "persistedHistoryVerified": true
+        }
+      ],
+      "cleanup": [
+        {
+          "ownedConversationDeleted": true,
+          "ownGuestRevoked": true
+        }
+      ]
+    },
+    {
+      "caseSet": "narrow-unesco-suggestion",
+      "plannedTurns": 5,
+      "completedTurns": 5,
+      "matched": 5,
+      "sourceExcerptTurns": 1,
+      "rows": [
+        {
+          "index": 0,
+          "status": "CONVERSATIONAL",
+          "answerMode": "NOT_APPLICABLE",
+          "matched": true,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 3713,
+          "recordLedParts": 0,
+          "textCharacters": 0
+        },
+        {
+          "index": 1,
+          "status": "ANSWERED",
+          "answerMode": "SOURCE_EXCERPTS",
+          "matched": true,
+          "partCount": 6,
+          "citationCount": 2,
+          "elapsedMs": 13511,
+          "recordLedParts": 0,
+          "textCharacters": 780
+        },
+        {
+          "index": 2,
+          "status": "ANSWERED",
+          "answerMode": "SYNTHESIS",
+          "matched": true,
+          "partCount": 2,
+          "citationCount": 1,
+          "elapsedMs": 12660,
+          "recordLedParts": 0,
+          "textCharacters": 392
+        },
+        {
+          "index": 3,
+          "status": "ANSWERED",
+          "answerMode": "SYNTHESIS",
+          "matched": true,
+          "partCount": 1,
+          "citationCount": 1,
+          "elapsedMs": 12197,
+          "recordLedParts": 0,
+          "textCharacters": 96
+        },
+        {
+          "index": 4,
+          "status": "PARTIAL",
+          "answerMode": "SYNTHESIS",
+          "matched": true,
+          "partCount": 1,
+          "citationCount": 1,
+          "elapsedMs": 11218,
+          "recordLedParts": 0,
+          "textCharacters": 159
+        }
+      ],
+      "completion": [
+        {
+          "passed": true,
+          "turns": 5,
+          "replayed": true,
+          "persistedHistoryVerified": true
+        }
+      ],
+      "cleanup": [
+        {
+          "ownedConversationDeleted": true,
+          "ownGuestRevoked": true
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "The two runs differ in the designation prompt; they are not identical input repetitions.",
+    "The first run changed the conservative history selector to an allowlisted neutral-continuation rule while in progress; the final run uses the final rule.",
+    "Record-led prefix counts are descriptive heuristics, not a naturalness or correctness score.",
+    "The final introduction is an exact reviewed excerpt, not a newly verified paraphrase.",
+    "Latency samples overlap local build/test activity and are not a production benchmark.",
+    "Independent corpus acceptance remains pending; US-23 remains NOT_ACCEPTED."
+  ]
+}

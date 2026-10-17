@@ -14,6 +14,29 @@ const response = (model = "gpt-6-luna") => Response.json({ model,
 });
 
 describe("owner-selected QA Luna provider", () => {
+  it("counts dynamic structured-output schema text in the existing input budget", async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => response());
+    await expect(createQaJsonProvider({ apiKey: () => "fixture-only", fetcher }).request({ ...request, schema: { type: "string", enum: ["bounded ".repeat(6000)] } }, value => value)).rejects.toMatchObject({ code: "AI_INVALID_RESPONSE" });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it("measures each provider call separately from cumulative request time", async () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(500);
+    const events: QaDiagnosticEvent[] = [];
+    let calls = 0;
+    try {
+      const provider = createQaJsonProvider({ apiKey: () => "fixture-only", fetcher: async () => {
+        clock.mockReturnValue(++calls === 1 ? 700 : 1100);
+        return response();
+      } });
+      await createQaDiagnostics({ nodeEnv: "development", sink: event => events.push(event) }).run(async () => {
+        await provider.request(request, value => value);
+        await provider.request(request, value => value);
+      });
+      expect(events).toContainEqual(expect.objectContaining({ elapsedMs: 200, providerElapsedMs: 200, actualModel: "gpt-6-luna" }));
+      expect(events).toContainEqual(expect.objectContaining({ elapsedMs: 600, providerElapsedMs: 400, actualModel: "gpt-6-luna" }));
+      expect(JSON.stringify(events)).not.toContain("fixture-only");
+    } finally { clock.mockRestore(); }
+  });
   it("uses Luna with non-reasoning structured output and records requested and actual model separately", async () => {
     const fetcher = vi.fn<typeof fetch>(async () => response("gpt-6-luna-2026-10-01"));
     const events: QaDiagnosticEvent[] = [];

@@ -10,7 +10,7 @@ import type { Database } from "@KLTN/db";
 import type { QaPrincipal } from "./qa-runtime-contract";
 import { createOpenAiEmbeddingProvider } from "../rag-processing/openai-embedding-provider";
 import { createQaConversationStore } from "./qa-conversation-store";
-import { createQaGenerator } from "./qa-generation";
+import { createFixtureQaGenerator as createQaGenerator } from "./__fixtures__/qa-generation-wire";
 import { createQaService } from "./qa-service";
 import { createQaHttpHandlers } from "./qa-http";
 import { qaCompletedResponseSchema } from "./qa-contract";
@@ -138,7 +138,10 @@ integrationDescribe("US21 real pgvector retrieval (explicit disposable database 
       if (respond) return respond(prompt, prompts.length);
       return modelAnswer(prompt);
     });
-    const retriever = createQaRetriever(db, { provider: createOpenAiEmbeddingProvider({ apiKey: () => "synthetic-test-only", fetcher: embeddingFetch as typeof fetch }), minScore: 0.99, publicSourceIds });
+    // Each test seeds after bootstrap. Recreate the retriever from that test's
+    // updated explicit synthetic allowlist; production configuration is immutable.
+    const currentRetriever = () => createQaRetriever(db, { provider: createOpenAiEmbeddingProvider({ apiKey: () => "synthetic-test-only", fetcher: embeddingFetch as typeof fetch }), minScore: 0.99, publicSourceIds });
+    const retriever: ReturnType<typeof createQaRetriever> = { retrieve: (...args) => currentRetriever().retrieve(...args), recheck: evidence => currentRetriever().recheck(evidence) };
     const store = createQaConversationStore(db as Database, { abuse: abuse.hooks, publicSourceIds });
     const service = createQaService({ store, retriever, assessor: { assess: async input => fixtureQaAssessment(input) }, generator: createQaGenerator({ apiKey: () => "synthetic-test-only", fetcher: answerFetch as typeof fetch }) });
     const handlers = createQaHttpHandlers({ enabled: () => true, resolve: resolver.resolve, ...service });
@@ -155,6 +158,17 @@ integrationDescribe("US21 real pgvector retrieval (explicit disposable database 
     return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ status: "ANSWERED",
       answerParts: [{ text: prompt.CURRENT_EVIDENCE[0]!.sentences[0], citationIds: [citationId] }], unanswered: false }) } }] });
   }
+  it("hybrid SQL recalls a low-vector lexical source and excludes revoked/context-mismatched sources", async () => {
+    const selected = await seed("INDEXED", "READY", true, true, undefined, "Điểm Kiểm Thử có thông tin giá vé theo hồ sơ.");
+    const disabled = await seed("DISABLED", "READY", true, true, undefined, "Điểm Kiểm Thử có giá vé đã thu hồi.");
+    const retriever = createQaRetriever(db, { provider, publicSourceIds: new Set([selected.id, disabled.id]), minScore: .99, hybrid: true, topK: 4 });
+    const evidence = await retriever.retrieve("gia ve?", []);
+    expect(evidence.map(row => row.documentId)).toEqual([selected.id]);
+    expect(evidence[0]!.score).toBeLessThan(.99); expect(await retriever.recheck(evidence)).toBe(true);
+    expect(await retriever.retrieve("giá vé?", [], undefined, { type: "DESTINATION", destinationId: "other", name: "Tên Khác" })).toEqual([]);
+    await db.ragDocument.update({ where: { id: selected.id }, data: { status: "DISABLED" } });
+    expect(await retriever.recheck(evidence)).toBe(false); expect(await retriever.retrieve("giá vé?", [])).toEqual([]);
+  });
   it("real transport joins server bootstrap, durable admission, pgvector, completion and same-key replay", async () => {
     const h = await vertical(106);
     const source = await seed("INDEXED", "READY", true, false, h.vector);
@@ -248,15 +262,15 @@ integrationDescribe("US21 real pgvector retrieval (explicit disposable database 
     expect(first.citations).toHaveLength(1);
     expect(first.citations[0]?.sourceUrl).toBeNull();
     expect(first.citations[0]?.sourceId).not.toContain(source.id);
-    const followResponse = await h.ask({ conversationId: first.conversationId, parentTurnId: first.turnId, question: "What about it?" });
+    const followResponse = await h.ask({ conversationId: first.conversationId, parentTurnId: first.turnId, question: "Nó ở đâu?" });
     expect(followResponse.status).toBe(200);
     const follow = qaCompletedResponseSchema.parse(await followResponse.json()).data;
     expect(follow.status).toBe("ANSWERED");
     expect(follow.turnId).not.toBe(first.turnId);
     expect(h.embeddingFetch).toHaveBeenCalledTimes(2);
     expect(h.answerFetch).toHaveBeenCalledTimes(2);
-    expect(h.embeddingInputs[1]).toEqual(["Synthetic source question?\nWhat about it?"]);
-    expect(h.prompts[1]?.HISTORY_QUESTIONS).toEqual(["Synthetic source question?"]);
+    expect(h.embeddingInputs[1]).toEqual(["synthetic source question\nnó ở đâu"]);
+    expect(h.prompts[1]?.HISTORY_QUESTIONS).toEqual(["synthetic source question"]);
     expect(h.prompts[1]?.CURRENT_EVIDENCE).toHaveLength(1);
     expect(await h.service.history(h.principal, first.conversationId)).toHaveLength(2);
     const other = await guest();

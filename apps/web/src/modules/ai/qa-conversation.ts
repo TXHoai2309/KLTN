@@ -11,20 +11,25 @@ export const QA_CONVERSATION_MESSAGES = {
   wellbeing: "Mình sẵn sàng trò chuyện và hỗ trợ bạn. Hôm nay bạn muốn chia sẻ điều gì hoặc tìm hiểu gì về chuyến đi?",
   travel: "Bạn dự định đi mấy ngày, đi cùng ai và thích trải nghiệm như thế nào? Bạn có thể chia sẻ thêm để mình hỗ trợ cụ thể hơn.",
   acknowledgement: "Mình đang lắng nghe. Bạn muốn hỏi tiếp về điểm đến, văn hóa hay nhu cầu cho chuyến đi?",
+  // Keep the historical travel message above in the public allowlist so old
+  // persisted turns remain readable; new openings ask one focused question.
+  travelDuration: "Bạn dự định đi Hà Giang trong mấy ngày?",
 } as const;
 export type QaConversationMessage = typeof QA_CONVERSATION_MESSAGES[keyof typeof QA_CONVERSATION_MESSAGES];
 
 export function qaConversationMessage(question: string): QaConversationMessage | undefined {
   const text = normalizeQaQuestion(question).normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/gu, "d")
     .replace(/[\p{Extended_Pictographic}\uFE0F]/gu, "").trim()
-    .replace(/\s+(?:nhe|nha|a|nhi)$/u, "");
+    .replace(/\s+(?:nhe|nha|a|nhi|oi)$/u, "");
   // Full-string matches only. "Hi, Đồng Văn ...?" continues through retrieval.
   if (/^(?:hi|hello|hey|xin chao|chao)(?:\s+(?:ban|bot|tro ly|ai|moi nguoi))?$/u.test(text)) return QA_CONVERSATION_MESSAGES.greeting;
-  if (/^(?:(?:cam on|cam on nhieu|thank you|thanks)(?:\s+(?:ban|bot|tro ly))?|minh cam on(?: ban)?)$/u.test(text)) return QA_CONVERSATION_MESSAGES.thanks;
+  if (/^(?:(?:xin )?chao buoi (?:sang|trua|chieu|toi)|alo(?: ban)?)$/u.test(text)) return QA_CONVERSATION_MESSAGES.greeting;
+  if (/^(?:(?:cam on|cam on nhieu|thank you|thanks)(?:\s+(?:ban|bot|tro ly))?(?:\s+(?:nhieu|rat nhieu|a lot))?|minh cam on(?: ban)?)$/u.test(text)) return QA_CONVERSATION_MESSAGES.thanks;
   if (/^(?:tam biet|hen gap lai|bye|goodbye|bai bai)(?: ban)?$/u.test(text)) return QA_CONVERSATION_MESSAGES.goodbye;
   if (/^(?:ban la ai|ban ten (?:la )?gi|ban (?:co the )?(?:lam|giup|ho tro)(?: duoc)? (?:gi|nhung gi)|ban (?:co the )?(?:giup|ho tro) (?:minh|toi)(?: duoc)? khong|giup (?:minh|toi)|huong dan su dung)$/u.test(text)) return QA_CONVERSATION_MESSAGES.help;
   if (/^(?:ban (?:co )?khoe khong|hom nay ban the nao|noi chuyen voi (?:minh|toi)(?: di)?|tro chuyen voi (?:minh|toi))$/u.test(text)) return QA_CONVERSATION_MESSAGES.wellbeing;
-  if (/^(?:(?:minh|toi) (?:muon|dinh|dang muon) (?:(?:di )?(?:du lich|di choi)(?: (?:o |tai )?ha giang)?|di ha giang)|(?:goi y|tu van)(?: cho (?:minh|toi))?(?: (?:di )?du lich)? ha giang)$/u.test(text)) return QA_CONVERSATION_MESSAGES.travel;
+  if (/^(?:(?:minh|toi) (?:muon|dinh|dang muon) (?:(?:di )?(?:du lich|di choi)(?: (?:o |tai )?ha giang)?|di ha giang)|(?:goi y|tu van)(?: cho (?:minh|toi))?(?: (?:di )?du lich)? ha giang)$/u.test(text)) return QA_CONVERSATION_MESSAGES.travelDuration;
+  if (/^(?:ban (?:co )?(?:o do|o day)(?: khong)?|ban con do khong)$/u.test(text)) return QA_CONVERSATION_MESSAGES.acknowledgement;
   if (/^(?:ok|okay|oke|vang|da|duoc|dong y)$/u.test(text)) return QA_CONVERSATION_MESSAGES.acknowledgement;
   return undefined;
 }

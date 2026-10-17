@@ -4,7 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Prisma, PrismaClient } from "../../../../../packages/db/prisma/generated/client";
 import type { Database } from "@KLTN/db";
-import { createQaAbuseGuard } from "./qa-abuse";
+import { createQaAbuseGuard, QA_ABUSE_LIMITS } from "./qa-abuse";
 import { createQaPrincipalResolver, guestToken } from "./qa-principal";
 import { createQaConversationStore, type QaReservation } from "./qa-conversation-store";
 import { createQaService } from "./qa-service";
@@ -61,12 +61,12 @@ suite("US21 durable multi-instance guest/cost admission",()=>{
     await db.$executeRaw(Prisma.sql`UPDATE qa_turn SET "leaseUntil"=CURRENT_TIMESTAMP-INTERVAL '1 second' WHERE id=${r.turnId}`);
     await db.$executeRaw(Prisma.sql`UPDATE qa_abuse_lease SET "leaseUntil"=CURRENT_TIMESTAMP-INTERVAL '1 second' WHERE "turnId"=${r.turnId}`);
     const recovered=await store.reserve(p,key,input) as QaReservation;
-    expect(recovered.fence).toBe(2);expect(await tokenUsage()).toBe(66_000);
+      expect(recovered.fence).toBe(2);expect(await tokenUsage()).toBe(2 * QA_ABUSE_LIMITS.tokensPerAttempt);
     await db.$transaction(tx=>guard.hooks.release(tx,r.turnId,1));
     expect((await db.$queryRaw<{fence:number}[]>(Prisma.sql`SELECT fence FROM qa_abuse_lease WHERE "turnId"=${r.turnId}`))[0]!.fence).toBe(2);
     await store.fail(p,recovered,"AI_UNAVAILABLE");
     expect(await db.$queryRaw(Prisma.sql`SELECT * FROM qa_abuse_lease WHERE "turnId"=${r.turnId}`)).toEqual([]);
-    expect(await tokenUsage()).toBe(66_000);
+      expect(await tokenUsage()).toBe(2 * QA_ABUSE_LIMITS.tokensPerAttempt);
   });
   it("full conservative cost ceiling is enforced globally across networks",async()=>{
     const guard=createQaAbuseGuard(db as Database,{globalTokensDay:43_000});

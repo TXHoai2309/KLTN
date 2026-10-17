@@ -342,3 +342,68 @@ nested V4 wrappers add no gutter. Prose fills its assigned column, paired media
 and copy align at the top, and featured prose no longer adds a left inset.
 Hero remains the distinct article opening. Do not justify text or stretch/crop
 images to force equal heights; preserve natural reading and photo proportions.
+
+## Assistant answer presentation and follow-ups (2026-10-17)
+
+Owner requested completion of the chatbot improvement plan. This extends the
+existing Vietnamese assistant shown in the owner's screenshots; no new page
+frame or visual identity is introduced. Runtime token ownership remains
+components/assistant/assistant.css: assistant-green, ink, muted, line, card and
+sage with existing dark overrides, and the existing Vietnamese body font.
+AssistantAnswerContent is the shared presentation owner: complete verified parts
+render as paragraphs, semantic list items, or a two-column comparison table with
+fixed UI headers. Per-part source mappings use the existing AssistantCitations
+owner inside one answer-level native disclosure, closed by default at the owner's
+request. Tables keep compact source numbers; paragraph/list answers read without
+repeated source pills. The disclosure exposes each part's real sources on demand.
+Emphasis wraps only an existing short colon prefix; all original factual text
+stays present. No Markdown, raw HTML, generated link or extra factual heading.
+The table owns its horizontal overflow; it does not change the transcript's
+vertical scroll owner or the composer. Header controls wrap on narrow screens.
+
+The disclosure's label is “Xem nguồn (n)”; keyboard/touch can open it and each
+existing source card. An open/focused disclosure pauses tail-following like an
+open citation. Invalid registries show the existing source error and no source
+controls. This is presentation only, with no extra source text, provider call,
+storage or weakened backend grounding. PARTIAL stays visibly incomplete with its
+missing facets. Clarification displays its direct question without a status heading.
+
+AssistantChat keeps the existing confirmed-turn controller and native OS context
+select. At most three template follow-ups derive from the latest confirmed
+supported answer. A button only fills/focuses the composer; sending remains the
+normal explicit action. Suggestions are transient, absent for unsupported results
+or unresolved attempts, disabled during auth revalidation and while a draft is
+being written, and never erase that draft. Optional presentation/reason metadata
+keeps old history valid. PARTIAL uses fixed missing-aspect notices; a failed answer
+verification has distinct public copy without exposing internal verdicts. Existing
+SUCCESS/FAILED/UNKNOWN, ownership and same-key retry behavior remain canonical.
+
+An optional SOURCE_EXCERPTS result visibly states that its content is quoted
+verbatim from reviewed documents. It is a distinct exact-source answer, never
+the rejected synthesis or a claim that all synthesis gates passed. Server rules
+exclude explicit/inherited current-time requests and failures of relevance,
+coverage, entity, time or numeric gates. Missing source data stays unresolved.
+
+Verification owner: scripts/test-assistant-improvement.mjs mounts production
+components with an isolated fictional transport, blocks external network traffic,
+and exercises mobile/desktop, themes, keyboard, sources, suggestions, failure,
+slow response and UNKNOWN. This browser evidence is separate from actual Luna,
+approved-source recall measurements and independent corpus acceptance.
+
+### Missing-source conversation (2026-10-17)
+
+Owner requested useful natural replies when there is no supported answer.
+AssistantSourceReply owns this presentation: two ordinary paragraphs compose a
+known reason and a fixed topic from the admitted question. NO_EVIDENCE says this
+search did not find suitable material; MISSING_SUPPORT/legacy replies say support
+is insufficient; ANSWER_VERIFICATION says related material was found but the
+answer was not verified. No warning heading/card, invented source, factual answer,
+automatic follow-up or extra provider call. Existing technical failure and UNKNOWN
+controls remain separate. Each paragraph keeps existing body typography, with
+12px between paragraphs through assistant.css; no new palette/token owner.
+
+Topic detection only selects authored copy and never echoes arbitrary user/source
+strings or treats a question premise as a fact. Context may mention price, opening
+hours, designation, geology, culture, accessibility or location. Generic/old turns
+remain understandable without a question or reason. Factual parts, stored DTO
+message, status, history validation and evidence requirements remain unchanged.

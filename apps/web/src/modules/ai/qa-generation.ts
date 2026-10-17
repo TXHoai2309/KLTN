@@ -5,10 +5,13 @@ import { z } from "zod";
 import { countEmbeddingTokens } from "../rag-processing/embedding-tokenizer";
 import { AppError } from "../../server/http/app-error";
 import { QA_INSUFFICIENT_SOURCE_MESSAGE, qaCompletedTurnSchema, qaPublicCitationSchema, qaQuestionSchema, qaReferenceIdSchema } from "./qa-contract";
-import { canonicalizeSentence, composeQaPrompt, containsEvidenceInstruction, qaScopedEvidenceSentences, QA_CLARIFICATION_QUESTION, QA_UNANSWERED_ASPECT } from "./qa-prompt";
+import { canonicalizeSentence, composeQaPrompt, containsEvidenceInstruction, qaScopedEvidenceSentences, qaHasUnsafeEvidenceContent, QA_CLARIFICATION_QUESTION, QA_UNANSWERED_ASPECT } from "./qa-prompt";
 import type { QaAnswer, QaGenerationInput, QaGenerator } from "./qa-runtime-contract";
 import { isQaPublicAnswerSafe, isQaPublicMetadataSafe } from "./qa-public-safety";
 import { createQaSynthesisVerifier } from "./qa-synthesis-verification";
+import { qaAnswerPresentation, qaMissingAspectNotices } from "./qa-answer-details";
+import { qaReviewedSupport } from "./qa-reviewed-support";
+import { qaReviewedExcerptAnswer } from "./qa-reviewed-excerpts";
 import { qaOrigin, qaStage, type QaStage, type QaFailureCategory } from "./qa-diagnostics";
 
 import { createQaJsonProvider, QA_GENERATION_LIMITS, type QaProviderOptions } from "./qa-json-provider";
@@ -26,15 +29,20 @@ const outputSchema = {
     unanswered: { type: "boolean" },
   },
 };
+const generationPartSchema = z.object({ text: z.string().min(1).max(6000), supportIds: z.array(z.string().regex(/^s[1-9]\d{0,2}$/u)).min(1).max(20) }).strict();
+const generationWireSchema = modelOutput.omit({ answerParts: true }).extend({ facets: z.record(z.string(), z.array(generationPartSchema).max(20)) });
 const invalid = (stage: QaStage = "GENERATION_PREFLIGHT", category: QaFailureCategory = "INPUT_LIMIT", issues?: readonly { code: string; path: readonly PropertyKey[] }[]) => qaOrigin(new AppError("AI_INVALID_RESPONSE", "Phản hồi AI không hợp lệ hoặc không có căn cứ.", 502), stage, category, issues);
 const unavailable = (stage: QaStage = "GENERATION_PROVIDER") => qaOrigin(new AppError("AI_UNAVAILABLE", "Dịch vụ AI hiện không khả dụng.", 503), stage, "PROVIDER_FAILURE");
-export const insufficientQaAnswer = (): QaAnswer => ({ status: "INSUFFICIENT_SOURCE", answerParts: [], citations: [], message: QA_INSUFFICIENT_SOURCE_MESSAGE });
+export const insufficientQaAnswer = (reason?: "NO_EVIDENCE" | "MISSING_SUPPORT" | "ANSWER_VERIFICATION"): QaAnswer => ({ status: "INSUFFICIENT_SOURCE", answerParts: [], citations: [], message: QA_INSUFFICIENT_SOURCE_MESSAGE, ...(reason ? { reason } : {}) });
 
 export function assertQaEvidenceInput(input: QaGenerationInput): void {
   if ((input.context.type === "DESTINATION" && (!input.context.name.trim() || containsEvidenceInstruction(input.context.name))) || !qaQuestionSchema.safeParse(input.question).success || input.evidence.length > QA_GENERATION_LIMITS.maxEvidence) throw invalid();
-  if (input.evidence.some(item => [item.documentId, item.generationId, item.contentVersionId, item.chunkId, item.chunkHash]
-    .some(id => id.length >= 8 && item.text.includes(id))) || !isQaPublicMetadataSafe(input.evidence.map(item => item.text))) throw invalid("GENERATION_PREFLIGHT", "PRIVATE_MATERIAL");
+  if (input.evidence.some(item => qaScopedEvidenceSentences(item.text, input).some(sentence => [item.documentId, item.generationId, item.contentVersionId, item.chunkId, item.chunkHash]
+    .some(id => id.length >= 8 && sentence.includes(id)))) || !isQaPublicMetadataSafe(input.evidence.map(item => qaScopedEvidenceSentences(item.text, input)))) throw invalid("GENERATION_PREFLIGHT", "PRIVATE_MATERIAL");
   if (input.evidence.some(item => containsEvidenceInstruction(item.text))) throw invalid("GENERATION_PREFLIGHT", "EVIDENCE_INSTRUCTION");
+  if (input.evidence.some(item => qaHasUnsafeEvidenceContent(item.text)) || !isQaPublicMetadataSafe(input.evidence.map(item => item.citation)) ||
+      (!input.evidence.some(item => qaScopedEvidenceSentences(item.text, input).length) &&
+       !isQaPublicMetadataSafe(input.evidence.map(item => item.text)))) throw invalid("GENERATION_PREFLIGHT", "PRIVATE_MATERIAL");
   const rawLength = input.question.length + input.history.slice(-6).reduce((sum, turn) => sum + turn.question.length, 0) + input.evidence.reduce((sum, item) => sum + item.text.length, 0);
   if (rawLength > QA_GENERATION_LIMITS.maxInputUtf16) throw invalid();
 }
@@ -83,7 +91,10 @@ function validateCandidate(output: unknown, input: QaGenerationInput, synthesis:
   });
   const answer: QaAnswer = value.status === "ANSWERED"
     ? { status: "ANSWERED", answerParts: parts, citations, unansweredAspects: [] }
-    : { status: "PARTIAL", answerParts: parts, citations, unansweredAspects: [QA_UNANSWERED_ASPECT] };
+    : { status: "PARTIAL", answerParts: parts, citations, unansweredAspects: qaMissingAspectNotices(input.sourceReview).length ? qaMissingAspectNotices(input.sourceReview) : [QA_UNANSWERED_ASPECT] };
+  if (synthesis && (answer.status === "ANSWERED" || answer.status === "PARTIAL")) {
+    answer.presentation = qaAnswerPresentation(input.question, parts.length);
+  }
   if (!synthesis) assertQaAnswerGrounding(answer, input);
   const completed = qaCompletedTurnSchema.safeParse({ ...answer, conversationId: "internal", turnId: "internal", turnState: "COMPLETED", context: { type: "GENERAL" } });
   if (!completed.success) throw invalid("RESPONSE_VALIDATION", "SCHEMA", completed.error.issues);
@@ -106,22 +117,51 @@ export function createQaGenerator(options: QaProviderOptions = {}): QaGenerator 
     if (decision.status !== "SUFFICIENT" && decision.status !== "PARTIAL") throw invalid("GROUNDING_VALIDATION", "UNSUPPORTED_SENTENCE");
     const messages = composeQaPrompt(input);
     if (countEmbeddingTokens(JSON.stringify(messages)) > QA_GENERATION_LIMITS.maxInputTokens) throw invalid("GENERATION_PREFLIGHT", "TOKEN_LIMIT");
-    const answer = await provider.request({ messages, name: "grounded_qa", schema: outputSchema, signal: input.signal }, content => validateCandidate(content, input, true));
+    const { registry: supportRegistry, aspects } = qaReviewedSupport(input);
+    const supported = aspects.filter(aspect => aspect.status === "SUPPORTED");
+    const facetProperties = Object.fromEntries(supported.map(aspect => [aspect.id, { type: "array", items: { type: "object", additionalProperties: false, required: ["text", "supportIds"], properties: {
+      text: { type: "string" }, supportIds: { type: "array", items: { type: "string", enum: aspect.supportIds } },
+    } } }]));
+    const schema = { type: "object", additionalProperties: false, required: ["status", "facets", "unanswered"], properties: {
+      status: outputSchema.properties.status, unanswered: outputSchema.properties.unanswered,
+      facets: { type: "object", additionalProperties: false, required: supported.map(aspect => aspect.id), properties: facetProperties },
+    } };
+    let selectedSupportIds: string[][] = [];
+    const partAspectIds: string[] = [];
+    const answer = await provider.request({ messages, name: "grounded_qa", schema, signal: input.signal }, content => {
+      const parsed = generationWireSchema.safeParse(content);
+      if (!parsed.success) throw invalid("GENERATION_OUTPUT_SCHEMA", "SCHEMA", parsed.error.issues);
+      const { facets, ...value } = parsed.data;
+      if (Object.keys(facets).length !== supported.length || supported.some(aspect => !Object.hasOwn(facets, aspect.id))) throw invalid("GENERATION_OUTCOME", "OUTCOME_CONSISTENCY");
+      const factual = value.status === "ANSWERED" || value.status === "PARTIAL";
+      const parts = supported.flatMap(aspect => {
+        const items = facets[aspect.id]!;
+        if (factual && !items.length) throw invalid("GENERATION_OUTCOME", "OUTCOME_CONSISTENCY", [{ code: "custom", path: ["facets"] }]);
+        for (const part of items) {
+          if (new Set(part.supportIds).size !== part.supportIds.length || part.supportIds.some(id => !supportRegistry.has(id) || !aspect.supportIds.includes(id))) throw invalid("CITATION_VALIDATION", "CITATION_REFERENCE");
+          partAspectIds.push(aspect.id);
+        }
+        return items;
+      });
+      if (parts.length > 20) throw invalid("GENERATION_OUTPUT_SCHEMA", "INPUT_LIMIT");
+      selectedSupportIds = parts.map(part => part.supportIds);
+      return validateCandidate({ ...value, answerParts: parts.map(part => ({ text: part.text, citationIds: [...new Set(part.supportIds.map(id => supportRegistry.get(id)!.citationId))] })) }, input, true);
+    });
     if (answer.status !== "ANSWERED" && answer.status !== "PARTIAL") return answer;
-    if (input.sourceReview) {
-      const reviewedIds = new Set(input.sourceReview.aspects.filter(a => a.status === "SUPPORTED").flatMap(a => a.supports.map(s => s.citationId)));
-      for (const part of answer.answerParts) {
-        const valid = part.citationIds.filter(id => reviewedIds.has(id));
-        if (valid.length > 0) part.citationIds = valid;
-      }
-      answer.citations = answer.citations.filter(c => answer.answerParts.some(p => p.citationIds.includes(c.id)));
-    }
     // Preserve the existing one-call generation path for exact reviewed support.
     // Synthesis needs an independent semantic verdict, never an overlap heuristic.
     const exact = answer.answerParts.every(part => part.citationIds.every(id =>
       input.sourceReview?.aspects.some(aspect => aspect.status === "SUPPORTED" &&
         aspect.supports.some(ref => ref.citationId === id && ref.sentence === part.text))));
-    if (!exact && !await verifier.verify(answer, input)) { qaStage("SYNTHESIS_REJECTED"); return insufficientQaAnswer(); }
+    if (!exact) {
+      const verification = await verifier.verifyOutcome(answer, input, selectedSupportIds, partAspectIds);
+      if (!verification.verified) {
+        qaStage("SYNTHESIS_REJECTED");
+        const excerpts = verification.quoteAllowed ? qaReviewedExcerptAnswer(input) : null;
+        if (excerpts) { qaStage("GENERATION_OUTPUT_VALIDATED"); return excerpts; }
+        return insufficientQaAnswer("ANSWER_VERIFICATION");
+      }
+    }
     assertQaAnswerGrounding(answer, input);
     qaStage("GENERATION_OUTPUT_VALIDATED");
     return answer;

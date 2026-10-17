@@ -30,20 +30,37 @@ try {
   const bootstrap = await request("/api/ai/session", "POST");
   cookie = bootstrap.response.headers.get("set-cookie")?.split(";")[0];
   assert.ok(cookie?.startsWith("kltn_qa_guest="), "Expected a fresh owned guest session");
-  const questions = ["hi", "tôi muốn tìm hiểu về cao nguyên đá đồng văn", "tôi muốn tìm hiểu về cao nguyên đá đồng văn", "tôi muốn tìm hiểu về cao nguyên đá đồng văn? ,./"];
+  const questions = process.env.QA_HTTP_SCENARIO === "natural" ? [
+    { question: "chào bạn nha", statuses: ["CONVERSATIONAL"], factual: false },
+    { question: "Giới thiệu về Cao nguyên đá Đồng Văn", statuses: ["ANSWERED", "PARTIAL"], factual: true },
+    { question: "Ở đó có những đặc điểm địa chất nào nổi bật?", statuses: ["ANSWERED", "PARTIAL"], factual: true },
+    { question: "Địa điểm này được UNESCO công nhận là gì?", statuses: ["ANSWERED", "PARTIAL"], factual: true },
+    { question: "giá vé vào là bao nhiêu", statuses: ["ANSWERED", "PARTIAL"], factual: true },
+  ] : [
+    { question: "Giá vé bao nhiêu?", statuses: ["CLARIFICATION_REQUIRED"], factual: false },
+    { question: "hi", statuses: ["CONVERSATIONAL"], factual: false },
+    { question: "tôi muốn tìm hiểu về cao nguyên đá đồng văn", statuses: ["ANSWERED", "PARTIAL"], factual: true },
+    { question: "tôi muốn tìm hiểu về cao nguyên đá đồng văn", statuses: ["ANSWERED", "PARTIAL"], factual: true },
+    { question: "tôi muốn tìm hiểu về cao nguyên đá đồng văn? ,./", statuses: ["ANSWERED", "PARTIAL"], factual: true },
+    { question: "Cảm ơn, ở đó có gì nổi bật?", statuses: ["ANSWERED", "PARTIAL"], factual: true },
+    { question: "giá vé vào thì sao?", statuses: ["ANSWERED", "PARTIAL"], factual: true },
+  ];
   let lastPayload;
   let lastKey;
-  for (const [index, question] of questions.entries()) {
+  for (const [index, test] of questions.entries()) {
+    const question = test.question;
     const payload = conversationId ? { conversationId, parentTurnId: headTurnId, question } : { question, context: { type: "GENERAL" } };
     const key = `qa-local-smoke-${randomUUID()}`;
     const started = Date.now();
     const { value } = await request("/api/ai/ask", "POST", payload, key);
     conversationId = value.data.conversationId;
     headTurnId = value.data.turnId;
-    results.push({ index, status: value.data.status, partCount: value.data.answerParts.length, citationCount: value.data.citations.length, elapsedMs: Date.now() - started });
+    const prose = value.data.answerParts.map(part => part.text).join("\n");
+    results.push({ index, status: value.data.status, answerMode: test.factual ? value.data.answerMode ?? "SYNTHESIS" : "NOT_APPLICABLE", matched: test.statuses.includes(value.data.status), partCount: value.data.answerParts.length, citationCount: value.data.citations.length, elapsedMs: Date.now() - started,
+      ...(process.env.QA_HTTP_SCENARIO === "natural" ? { recordLedParts: value.data.answerParts.filter(part => /^(?:hồ sơ|theo hồ sơ|tài liệu nêu|hồ sơ ghi)/iu.test(part.text)).length, textCharacters: prose.length } : {}) });
     console.info("QA_LOCAL_HTTP_TURN", JSON.stringify(results.at(-1)));
-    assert.ok(index === 0 ? value.data.status === "CONVERSATIONAL" : ["ANSWERED", "PARTIAL"].includes(value.data.status), "Expected a social greeting or a grounded factual answer");
-    if (index > 0) assert.ok(value.data.citations.length > 0, "Factual reply needs citations");
+    if (test.factual && test.statuses.includes(value.data.status)) assert.ok(value.data.citations.length > 0, "Factual reply needs citations");
+    else assert.equal(value.data.citations.length, 0, "Social/clarification outcomes have no factual citations");
     lastPayload = payload;
     lastKey = key;
   }
@@ -53,7 +70,8 @@ try {
   const history = await request(`/api/ai/conversations/${conversationId}`, "GET");
   assert.equal(history.value.data.length, questions.length);
   assert.deepEqual(history.value.data.map(turn => turn.response.status), results.map(result => result.status));
-  console.info("QA_LOCAL_HTTP_SMOKE", JSON.stringify({ passed: true, turns: results.length, replayed: true, persistedHistoryVerified: true }));
+  console.info("QA_LOCAL_HTTP_SMOKE", JSON.stringify({ passed: results.every(result => result.matched), turns: results.length, replayed: true, persistedHistoryVerified: true }));
+  assert.ok(results.every(result => result.matched), "Some completed turns did not match the annotated outcome; all results above are retained");
 } finally {
   if (cookie) {
     if (conversationId) await request(`/api/ai/conversations/${conversationId}`, "DELETE");

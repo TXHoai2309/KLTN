@@ -2148,3 +2148,157 @@ Audit, task-owned file list, limits and manual procedure:
   insufficient current facts must still abstain. US-23 remains NOT_ACCEPTED
   until broader owner corpus acceptance. Future hybrid retrieval/follow-up/
   widget proposals have not been implemented by this review.
+
+## 2026-10-17 — chatbot improvement plan, batch 1
+
+- **Authorization/scope:** Owner requested implementation of the authored plan.
+  Executed its first batch (stages 0–2 and development measurements) under US-23;
+  no promotion of product requirements or full corpus acceptance. The plan's
+  human-reviewed corpus dataset remains pending, separate from offline fixtures.
+- **Completed:** 40 annotated fictional service/adapter cases, baseline 23/40 →
+  40/40 after routing fixes; shared versioned answer/source/scope/time policy;
+  improved social variants and one-question travel opening with historical text
+  compatibility; mixed greeting/thanks with factual follow-up; uppercase follow-up
+  handling; conservative absent/multiple-subject clarification; short destination
+  replies preserve the requested attribute after clarification. No prior answer
+  becomes evidence. No additional rewrite call, retry, fallback or model change.
+- **Verification:** Existing source/certificate/claim gates remain. Added concise
+  private verifier summary and consistency guidance; summary never overrides a
+  negative gate or enters public output/storage/logs. Regression explicitly checks
+  that positive summary plus negative gate still abstains. Removed raw assessment
+  debug-file writes. Added request/provider elapsed metadata in development only.
+- **Final automated checks:** Full web npm run test PASS: 1767 Vitest PASS / 101
+  gated SKIP and 329 legacy PASS. Root typecheck PASS. Production-build/diff results
+  are recorded in the final check line below. No lint script is available. No UI
+  change/browser QA or schema/migration change by this batch.
+- **Live evidence:** Final direct suite 3/4, all 12 JSON calls confirmed Luna.
+  Base/repeated/punctuated variants ANSWERED; mixed follow-up abstained at negative
+  CLAIM_GROUNDING. HTTP separately passed all six turns (clarification, greeting,
+  base, repeat, punctuated, mixed follow-up), with citations for all four factual
+  responses; stored history, identical-key replay and own-resource cleanup passed.
+  Factual HTTP times ~27.1s/18.6s/14.1s/20.2s. Do not infer latency SLO or full live
+  reliability from these few runs. Earlier direct/HTTP failures remain documented.
+- **Data/operations:** Direct corpus access READ ONLY with matching development
+  pins/allowlist. HTTP used and cleaned only its own Guest/conversation; no owner's
+  session/history read or modified. Started development server on localhost:3010
+  because it was stopped. No corpus/index/schema/env/auth/admission-budget change,
+  commit, push or deployment. Temporary inspection instrumentation removed and its
+  own temporary inspection files cleaned; normal diagnostics contain no raw text.
+- **Handoff:** Updated plan checkboxes/status and US-23; new
+  [batch report](implementation/ai-improvement-batch1.md) and
+  [before/after measurements](implementation/ai-improvement-batch1-results.json).
+  These fixtures test code behavior, not semantic accuracy. Independent corpus
+  review and the remaining semantic rejection are still open. US-23 NOT_ACCEPTED.
+  Hybrid retrieval, rich rendering and suggested questions are later stages,
+  not implemented or inferred approved by this first batch.
+- **Final check line:** Production build PASS (18.8s), root typecheck PASS,
+  git diff --check PASS and task-owned credential-pattern review PASS. No new
+  migration to inspect. Live direct suite remains 3/4; HTTP smoke is 6/6 with
+  confirmed history/replay/cleanup. This discrepancy remains an open quality
+  finding, not a full live PASS or acceptance of US-23.
+
+### 2026-10-17 — follow-up screenshot: entrance-ticket intent
+
+- Reproduced five failing variants of “giá vé vào thì sao?”: the history selector
+  omitted the previous destination because entrance-ticket wording was absent
+  from the anchored attribute pattern. Corrected the pattern; kept explicit
+  destination queries independent and missing-subject clarification deterministic.
+  Seven added cases plus the existing regression pass. No old answer is evidence.
+- Source eligibility, factual/claim checks, all eight synthesis gates and Luna
+  configuration remain unchanged. The screenshot's general introduction instability
+  is still unresolved; negative verifier metadata alone cannot establish a false
+  rejection. Advice is to measure and simplify overlapping checks while retaining
+  grounding, not remove all rules. No semantic-policy weakening implemented.
+- Checks: 1774 Vitest PASS / 101 gated SKIP and 329 legacy PASS; root typecheck
+  PASS; production build PASS (26.142s); diff check PASS. No schema/UI change or
+  fresh paid API/HTTP run. US-23 NOT_ACCEPTED; details/limits appended to the
+  [batch report](implementation/ai-improvement-batch1.md).
+
+### 2026-10-17 — complete remaining chatbot-plan code
+
+- **Request:** owner asked to finish the plan. Shared source handles, facet-bound
+  generation and fixed-part verifier schemas remove model-authored reference/text
+  reconstruction. All eight synthesis gates/certificate guards remain. A narrowly
+  eligible rejected synthesis may instead produce a visibly labeled exact reviewed
+  source answer; it never certifies that synthesis or supplies missing/current-time
+  facts. Source eligibility, safety, scope/time/numeric failures remain blocking.
+- **Retrieval/UI:** measured hybrid FTS + vector, same current-source/context filters,
+  one bounded read transaction and unchanged final context budget. Literal-source
+  recall 36/40 → 38/40 on a fixed 51-chunk snapshot. Controlled paragraph/list/table,
+  specific PARTIAL/verification messages and at most three transient draft-only
+  follow-ups implemented; no extra provider call or auto-send.
+- **Real measurements:** final direct 6/6 (four synthesis + two exact excerpts),
+  18/18 JSON calls actual Luna, observed 51,682 tokens, median 10.1275s / sample p95
+  12.05s. HTTP 7/7, including history/replay/owned cleanup; two factual results exact
+  excerpts, admission follow-up PARTIAL. Earlier failures/rolled-back trials retained.
+  This is not a semantic gold evaluation, account bill or production SLO.
+- **Checks:** 1834 Vitest PASS / 105 gated SKIP + 329 legacy PASS. Disposable
+  PostgreSQL 69/69 PASS and cleanup; root typecheck and production build PASS
+  (32.758s). Browser 17/17 groups PASS; scoped premium audit 0 findings. DESIGN lint
+  0 errors / 4 existing orphan-token warnings. Normal git diff --check PASS;
+  task-added credential-pattern scan found no matches. No lint script, schema or
+  migration change. Corpus reads pinned READ ONLY; only own HTTP Guest data cleaned.
+- **Handoff:** updated plan/code/design/story and generated 60 draft review cases;
+  reviewer/gold fields left empty. Independent source/content acceptance remains
+  pending, US-23 NOT_ACCEPTED. No commit/push/deploy/env/source mutation. Started
+  localhost:3010 development server and left it available for manual testing.
+  [Report](implementation/ai-chatbot-completion.md),
+  [measurements](implementation/ai-chatbot-completion-results.json),
+  [review package](implementation/ai-chatbot-corpus-review.json).
+
+### 2026-10-17 — natural replies, collapsed sources and neutral follow-up chains
+
+- Owner requested conversational Vietnamese and quieter sources; asked about
+  replacing embedding with Luna. Kept model/index roles. Generation policy .4
+  favors plain short prose without repeated administrative leads; verifier still
+  requires every factual claim/qualification. No post-verification text rewriting.
+- Added one closed answer-level native source disclosure, retaining source/part
+  mappings, keyboard/mobile access and reading-source scroll protection. Invalid
+  registries remain visibly unavailable. Missing PARTIAL facts remain separate.
+- Added a red regression for the screenshot's lost subject. At most two provider
+  questions now retain the nearest subject through explicitly unqualified neutral
+  follow-ups; never discard unknown wording/conditions/preferences to make space.
+  Narrowed designation suggestions; Đồng Văn no longer triggers money suggestions.
+- Full first run exposed nine old UI expectations plus an unrelated SDK-import
+  timeout. Fixed source-error presentation; updated intentional UI expectations.
+  SDK test unchanged and passed alone. Final full 1842 Vitest PASS / 105 gated SKIP
+  plus 329 legacy PASS. Browser 17/17 PASS; root typecheck PASS; premium 0 findings;
+  DESIGN lint 0 errors / 4 existing warnings. Build/diff line in linked report.
+- Actual HTTP broad-suggestion sequence 4/5 (negative coverage gate), narrowed
+  UNESCO sequence 5/5: one social, three ANSWERED (one exact excerpt), one PARTIAL.
+  Both runs verify stored history/replay and clean only own Guest/conversation.
+  Descriptive prefix counts are not naturalness/semantic gold. No extra trials to
+  hide the failure, no USD or production SLO claim; no source/schema/env mutation.
+- No commit/push/deploy. Independent corpus acceptance remains pending, US-23
+  NOT_ACCEPTED. [Report](implementation/ai-chatbot-natural-conversation.md),
+  [measurements](implementation/ai-chatbot-natural-conversation-results.json).
+
+  Final follow-up checks: root build PASS (30.198s), root typecheck PASS, diff
+  check and task-added credential-pattern scan PASS; report JSON valid. Current
+  assistant localhost:3010 HTTP 200; reviewed mobile paragraph/table screenshots.
+  No new API trial, schema change or independent corpus acceptance claimed.
+
+### 2026-10-17 — useful replies when evidence is missing
+
+- Owner requested natural explanations/help even when an answer cannot be
+  supported. Replaced the missing-source warning card with two ordinary paragraphs
+  composed from reason + fixed topic. Original confirmed question selects price,
+  hours, designation, geology/culture, accessibility/location or generic copy;
+  no arbitrary text echo, invented claim/citation, auto-send or provider call.
+- Reason distinguishes no material retrieved this turn, insufficient support,
+  and failed answer verification. Old stored literal message/DTO remains valid;
+  renderer accepts optional question. Service records existing MISSING_SUPPORT
+  reason after negative review; PARTIAL/FAILED/UNKNOWN/ownership/replay unchanged.
+- Full web 1862 Vitest PASS / 105 gated SKIP + 329 legacy PASS. Added two service
+  reason/no-extra-call cases afterwards: focused service/reply group 38/38 PASS.
+  Browser 19/19 PASS with blocked external network and mobile screenshots; root
+  typecheck PASS. Build/diff final evidence in the linked report. No fresh paid
+  API or DB benchmark, SQL/schema/source/env/model change, commit/push/deploy.
+- Premium auditor plugin disappeared from its earlier cache path; search found
+  no replacement. No new static-audit PASS claimed. Independent corpus acceptance
+  still pending; US-23 NOT_ACCEPTED.
+  [Report](implementation/ai-chatbot-missing-source-replies.md).
+
+  Final checks: root build PASS (21.058s), root typecheck PASS, diff check and
+  credential-pattern scan PASS; localhost assistant HTTP 200. Reviewed final
+  mobile screenshots for no-evidence/verification replies. No paid rerun.

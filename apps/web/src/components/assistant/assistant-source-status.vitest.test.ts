@@ -28,15 +28,15 @@ describe("US23 source status presentation and recovery", () => {
     controller.setDraft("Đồng Văn có gì?"); controller.submit(); await tick();
     expect(calls[1]?.payload).toMatchObject({ conversationId: "conv", parentTurnId: "turn" });
   });
-  it("renders the required safe notice, adjustment guidance and no citation", () => {
+  it("renders a conversational missing-source reply with guidance and no citation", () => {
     const html = renderToStaticMarkup(createElement(AssistantAnswer, { turn }));
-    expect(html).toContain("Chưa đủ dữ liệu được xác minh để trả lời chính xác câu hỏi này.");
-    expect(html).toContain("điều chỉnh câu hỏi"); expect(html).not.toContain("<details"); expect(html).not.toContain("<a");
+    expect(html).toContain("Mình chưa có đủ căn cứ để trả lời chắc");
+    expect(html).toContain("Bạn muốn tìm hiểu cụ thể"); expect(html).not.toContain("<details"); expect(html).not.toContain("<a");
   });
   it("keeps supported partial facts and missing coverage visibly separate", () => {
     const partial: QaCompletedTurn = { ...turn, status: "PARTIAL", answerParts: [{ text: "Fictional supported fact.", citationIds: ["c1"] }], citations: [{ id: "c1", sourceId: "fixture", title: "Fictional source", sourceUrl: null, locators: [] }], unansweredAspects: ["Missing hours."] };
     const html = renderToStaticMarkup(createElement(AssistantAnswer, { turn: partial }));
-    expect(html).toContain("chỉ những nội dung có nguồn hỗ trợ"); expect(html).toContain("Fictional supported fact."); expect(html).toContain("Phần chưa đủ dữ liệu"); expect(html).toContain("Missing hours.");
+    expect(html).toContain("Mình tìm được một phần thông tin bạn hỏi"); expect(html).toContain("Fictional supported fact."); expect(html).toContain("Phần chưa đủ dữ liệu"); expect(html).toContain("Missing hours.");
   });
   it("technical FAILED is retryable as a new intent; missing source is a completed follow-up head", async () => {
     const calls: AssistantAttempt[] = [];

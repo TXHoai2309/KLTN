@@ -32,19 +32,26 @@ export type QaDiagnosticEvent = {
   synthesisGate?: string;
   requestedModel?: string;
   actualModel?: string;
+  elapsedMs?: number;
+  providerElapsedMs?: number;
 };
-type ProviderMetadata = Pick<QaDiagnosticEvent, "provider" | "httpStatus" | "requestId" | "finishReason" | "promptTokens" | "completionTokens" | "totalTokens" | "requestedModel" | "actualModel">;
+type ProviderMetadata = Pick<QaDiagnosticEvent, "provider" | "httpStatus" | "requestId" | "finishReason" | "promptTokens" | "completionTokens" | "totalTokens" | "requestedModel" | "actualModel" | "providerElapsedMs">;
 type Context = {
   sink: (event: QaDiagnosticEvent) => void;
   state: Pick<QaDiagnosticEvent, "correlationId" | "stage" | "embeddingInvoked" | "generationInvoked" | "retrievedChunks" | "eligibleChunks" | "candidateChunks" | "candidatesBeforeThreshold" | "candidatesAfterThreshold" | "topSimilarityScore" | "minScore" | "contextType" | "firstZeroStage" | "allowlistCount" | "hasDongVanDocument" | "retrievalReason">;
   metadata: Partial<Record<"embedding" | "generation", ProviderMetadata>>;
   failed: boolean;
+  startedAt: number;
+  providerStartedAt: Partial<Record<"embedding" | "generation", number>>;
 };
 const context = new AsyncLocalStorage<Context>();
 const origins = new WeakMap<object, Origin>();
-const safePath = new Set(["choices", "finish_reason", "message", "content", "refusal", "status", "answerParts", "text", "citationIds", "unanswered", "citations", "id", "sourceId", "title", "sourceUrl", "locators", "pageNumber", "section", "conversationId", "turnId", "turnState", "context", "type", "unansweredAspects", "clarificationQuestion", "success", "data"]);
+const safePath = new Set(["choices", "finish_reason", "message", "content", "refusal", "status", "answerParts", "facets", "supportIds", "text", "citationIds", "unanswered", "citations", "id", "sourceId", "title", "sourceUrl", "locators", "pageNumber", "section", "conversationId", "turnId", "turnState", "context", "type", "unansweredAspects", "clarificationQuestion", "success", "data"]);
 const safeIssueCodes = new Set(["invalid_type", "invalid_value", "too_big", "too_small", "invalid_format", "unrecognized_keys", "custom", "invalid_union"]);
-function emit(event: QaDiagnosticEvent) { try { context.getStore()?.sink(event); } catch { /* Diagnostics never change operation semantics. */ } }
+function emit(event: QaDiagnosticEvent) { try {
+  const active = context.getStore();
+  if (active) active.sink({ ...event, elapsedMs: Math.min(1_000_000, Math.max(0, Date.now() - active.startedAt)) });
+} catch { /* Diagnostics never change operation semantics. */ } }
 
 /** Temporary diagnostics: local development only; no public response fields. */
 export function createQaDiagnostics(options: { nodeEnv?: string; vercelEnv?: string; sink?: (event: QaDiagnosticEvent) => void }) {
@@ -61,6 +68,8 @@ export function createQaDiagnostics(options: { nodeEnv?: string; vercelEnv?: str
         } catch { /* ignore in non-local environments */ }
       }),
       failed: false,
+      startedAt: Date.now(),
+      providerStartedAt: {},
       metadata: {},
       state: {
         correlationId: randomUUID(),
@@ -138,12 +147,15 @@ export function qaProviderInvoked(provider: "embedding" | "generation", requeste
   const metadata = { provider, ...(safeModel(requestedModel) ? { requestedModel } : {}) };
   // Reset actual-model/usage data from the previous call of the same provider.
   active.metadata[provider] = metadata;
+  active.providerStartedAt[provider] = Date.now();
   emit({ ...active.state, event: "STAGE", ...metadata });
 }
 /** Project a fixed numeric/enum subset; never copy arbitrary provider properties. */
 export function qaProviderMetadata(provider: "embedding" | "generation", response?: Response, payload?: unknown) {
   const active = context.getStore(); if (!active) return;
   const event: QaDiagnosticEvent = { ...active.state, ...active.metadata[provider], event: "STAGE", provider };
+  const started = active.providerStartedAt[provider];
+  if (started !== undefined) event.providerElapsedMs = Math.min(1_000_000, Math.max(0, Date.now() - started));
   if (response) {
     event.httpStatus = response.status;
     const id = response.headers.get("x-request-id");
@@ -158,8 +170,8 @@ export function qaProviderMetadata(provider: "embedding" | "generation", respons
       const value = p.usage?.[key]; if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value <= 1_000_000) event[target] = value;
     }
   }
-  const { httpStatus, requestId, finishReason, promptTokens, completionTokens, totalTokens, requestedModel, actualModel } = event;
-  active.metadata[provider] = { provider, httpStatus, requestId, finishReason, promptTokens, completionTokens, totalTokens, requestedModel, actualModel };
+  const { httpStatus, requestId, finishReason, promptTokens, completionTokens, totalTokens, requestedModel, actualModel, providerElapsedMs } = event;
+  active.metadata[provider] = { provider, httpStatus, requestId, finishReason, promptTokens, completionTokens, totalTokens, requestedModel, actualModel, providerElapsedMs };
   emit(event);
 }
 export function qaOrigin<T>(error: T, stage: QaStage, category: QaFailureCategory, issues?: Issues): T {

@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { qaScopedEvidenceSentences } from "./qa-prompt";
 import type { QaGenerationInput } from "./qa-runtime-contract";
 import { qaFactualQuestion } from "./qa-question-understanding";
+import type { QaAspectKind } from "./qa-answer-details";
 
 type SourceInput = Pick<QaGenerationInput, "question" | "context" | "evidence">;
 export type QaSourceDecision = {
@@ -22,6 +23,7 @@ export type QaSourceReview = {
   relevance: readonly { citationId: string; status: "RELATED" | "UNRELATED" | "UNCERTAIN" }[];
   aspects: readonly {
     id: string;
+    kind?: QaAspectKind;
     status: "SUPPORTED" | "MISSING" | "CONFLICTING" | "UNCERTAIN";
     supports: readonly { citationId: string; sentence: string }[];
   }[];

@@ -42,7 +42,7 @@ export const qaService = createQaService({
     maxPerTenMinutes: process.env.NODE_ENV === "development" ? 1000 : 10,
     maxPerDay: process.env.NODE_ENV === "development" ? 1000 : 100,
   }),
-  retriever: createQaRetriever(db, { publicSourceIds, topK: 4, maxEvidenceTokens: 3000 }),
+  retriever: createQaRetriever(db, { publicSourceIds, topK: 4, maxEvidenceTokens: 3000, hybrid: true }),
   generator: createQaGenerator(),
   assessor: createQaAssessor(),
   resolveContext: context => resolveQaContext(db, context)

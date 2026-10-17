@@ -1,5 +1,22 @@
 @import "./assistant-citations.css";
 
+.assistant-source-reply p + p { margin-top: 12px; }
+
+.assistant-answer-list { margin: 12px 0; padding-inline-start: 22px; }
+.assistant-answer-list > li { padding-inline-start: 4px; }
+.assistant-answer-table-scroll { max-width: 100%; overflow-x: auto; margin-block: 12px; scrollbar-gutter: stable; }
+.assistant-answer-table { width: 100%; min-width: 28rem; border-collapse: collapse; table-layout: fixed; font-size: inherit; }
+.assistant-answer-table caption { text-align: start; padding-bottom: 10px; font-weight: 600; }
+.assistant-answer-table th, .assistant-answer-table td { text-align: start; vertical-align: top; border: 1px solid var(--assistant-line); padding: 12px; overflow-wrap: anywhere; }
+.assistant-answer-table th { background: var(--assistant-sage); }
+.assistant-answer-table th:first-child { width: 65%; }
+.assistant-followups { max-width: 100%; margin-block: 16px; }
+.assistant-followups p { font-size: 12px; margin: 0 0 8px; }
+.assistant-followups > div { display: flex; flex-wrap: wrap; gap: 8px; }
+.assistant-page .assistant-followups button { text-align: start; justify-content: flex-start; min-height: 44px; white-space: normal; max-width: 100%; border-color: var(--assistant-line); }
+.assistant-page .assistant-followups button:hover:not(:disabled) { background: var(--assistant-sage); border-color: var(--assistant-green); }
+.assistant-page .assistant-followups button:active:not(:disabled) { background: var(--assistant-green-light); }
+
 /* Base variables & tokens */
 .assistant-page {
   --assistant-green: #1e5239;
@@ -853,15 +870,29 @@
 /* Responsive */
 @media (max-width: 768px) {
   .assistant-chat-header {
-    padding: 0 12px;
-    height: 48px;
+    padding: 8px 12px;
+    height: auto;
+    min-height: 52px;
+  }
+  .assistant-chat-header-inner {
+    flex-wrap: wrap;
+  }
+  .assistant-header-right {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+  .assistant-page .assistant-new-chat-btn {
+    height: auto;
+    min-height: 44px;
+    white-space: nowrap;
   }
   .assistant-brand h2 {
     font-size: 14px;
   }
   .assistant-context-bar {
     padding: 0 4px 0 8px;
-    height: 32px;
+    min-height: 44px;
+    height: auto;
   }
   .assistant-context-select {
     max-width: 120px;
@@ -883,6 +914,8 @@
     padding: 12px 14px;
     font-size: 13.5px;
   }
+  .assistant-answer-table { min-width: 0; }
+  .assistant-answer-table th, .assistant-answer-table td { padding: 8px; }
   .assistant-bottom-dock-inner {
     padding: 8px 12px 12px;
   }

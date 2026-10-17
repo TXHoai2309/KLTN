@@ -27,9 +27,9 @@ export type QaGenerationInput = {
 };
 export type QaAnswer =
   | Pick<Extract<QaCompletedTurn, { status: "CONVERSATIONAL" }>, "status" | "answerParts" | "citations" | "message">
-  | Pick<Extract<QaCompletedTurn, { status: "ANSWERED" }>, "status" | "answerParts" | "citations" | "unansweredAspects">
-  | Pick<Extract<QaCompletedTurn, { status: "PARTIAL" }>, "status" | "answerParts" | "citations" | "unansweredAspects">
-  | Pick<Extract<QaCompletedTurn, { status: "INSUFFICIENT_SOURCE" }>, "status" | "answerParts" | "citations" | "message">
+  | Pick<Extract<QaCompletedTurn, { status: "ANSWERED" }>, "status" | "answerParts" | "citations" | "unansweredAspects" | "presentation" | "answerMode">
+  | Pick<Extract<QaCompletedTurn, { status: "PARTIAL" }>, "status" | "answerParts" | "citations" | "unansweredAspects" | "presentation" | "answerMode">
+  | Pick<Extract<QaCompletedTurn, { status: "INSUFFICIENT_SOURCE" }>, "status" | "answerParts" | "citations" | "message" | "reason">
   | Pick<Extract<QaCompletedTurn, { status: "CLARIFICATION_REQUIRED" }>, "status" | "answerParts" | "citations" | "clarificationQuestion">;
 export interface QaRetriever {
   retrieve(question: string, history: readonly QaHistoryTurn[], signal?: AbortSignal, context?: QaResolvedContext): Promise<QaEvidence[]>;

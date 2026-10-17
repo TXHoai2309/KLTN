@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
-import { createQaGenerator, validateQaGenerationOutput } from "./qa-generation";
+import { validateQaGenerationOutput } from "./qa-generation";
+import { createFixtureQaGenerator as createQaGenerator } from "./__fixtures__/qa-generation-wire";
 import { assertQaAnswerGrounding } from "./qa-answer-grounding";
-import { QA_SYNTHESIS_GATES } from "./qa-synthesis-verification";
+import { QA_SYNTHESIS_GATES, hasQaSynthesisCertificate } from "./qa-synthesis-verification";
 import { qaSourceReviewBinding } from "./qa-source-sufficiency";
 import { createQaAssessor, validateQaAssessment } from "./qa-assessment";
 import { createQaService } from "./qa-service";
@@ -10,6 +11,7 @@ import { QA_ABUSE_LIMITS } from "./qa-abuse";
 import type { QaGenerationInput, QaEvidence } from "./qa-runtime-contract";
 import type { QaConversationStore } from "./qa-conversation-store";
 import { composeQaPrompt } from "./qa-prompt";
+import { fixtureAssessmentWire } from "./__fixtures__/qa-assessment-wire";
 
 // Owner-supplied facts transcribed as offline regression data. These are NOT
 // current publication snapshots, live corpus acceptance or current price proof.
@@ -46,7 +48,7 @@ function setup(input: QaGenerationInput, text: string, configure?: (verdict: Ret
   return { fetcher, generator: createQaGenerator({ apiKey: () => "offline-fixture", fetcher }) };
 }
 function verdictFor(input: QaGenerationInput, text: string) {
-  return { gates: QA_SYNTHESIS_GATES.map(name => ({ name, passed: true })), coveredAspects: ["requested_facts"],
+  return { summary: "Offline fixture verdict; not independent evidence.", gates: QA_SYNTHESIS_GATES.map(name => ({ name, passed: true })), coveredAspects: ["requested_facts"],
     claims: [{ partIndex: 0, text, entailed: true, supportIds: input.sourceReview!.aspects[0]!.supports.map((_, index) => `s${index + 1}`) }] };
 }
 
@@ -79,10 +81,15 @@ describe("US23 grounded synthesis V2 (mock semantic verdicts, no paid calls)", (
     expect(answer.citations).toHaveLength(4);
     if (answer.status === "PARTIAL") expect(answer.unansweredAspects).toHaveLength(1);
   });
-  it.each(QA_SYNTHESIS_GATES)("negative %s verdict abstains instead of technical error", async name => {
+  it.each(QA_SYNTHESIS_GATES)("never publishes the rejected synthesis after a negative %s verdict", async name => {
     const input = reviewed("Thông tin về điểm đến?", [facts.flag]);
     const t = setup(input, "Giá vé toàn cao nguyên hôm nay là 40.000 đồng.", verdict => { verdict.gates.find(gate => gate.name === name)!.passed = false; });
-    expect(await t.generator.generate(input)).toMatchObject({ status: "INSUFFICIENT_SOURCE", answerParts: [], citations: [] });
+    const result = await t.generator.generate(input);
+    if (["CLAIM_GROUNDING", "CITATION_VALIDITY", "NATURAL_LANGUAGE_QUALITY"].includes(name)) {
+      expect(result).toMatchObject({ status: "ANSWERED", answerMode: "SOURCE_EXCERPTS", answerParts: [{ text: facts.flag, citationIds: ["c1"] }] });
+      expect(hasQaSynthesisCertificate(result, input)).toBe(false);
+      expect(() => assertQaAnswerGrounding(result, input)).not.toThrow();
+    } else expect(result).toMatchObject({ status: "INSUFFICIENT_SOURCE", answerParts: [], citations: [] });
   });
   it.each([
     ["wrong regional scope", "Vé chung toàn cao nguyên là 40.000 đồng.", "ENTITY_SCOPE"],
@@ -118,17 +125,18 @@ describe("US23 grounded synthesis V2 (mock semantic verdicts, no paid calls)", (
     const body = JSON.parse(String(t.fetcher.mock.calls[1]![1]!.body));
     expect(body.response_format.json_schema.schema.properties.coveredAspects.items.enum).toEqual(["destination_overview"]);
     expect(JSON.parse(body.messages[1].content).REQUIRED_ASPECT_IDS).toEqual(["destination_overview"]);
-    expect(body.response_format.json_schema.schema.properties.claims.items.anyOf[0].properties.supportIds.items.enum).toEqual(["s1", "s2"]);
+    expect(body.response_format.json_schema.schema.properties.claims.required).toEqual(["p0"]);
+    expect(body.response_format.json_schema.schema.properties.claims.properties.p0.required).toEqual(["entailed", "citationsValid"]);
     expect(JSON.parse(body.messages[1].content).SUPPORT_REGISTRY).toEqual([
-      { id: "s1", citationId: "c1", sentence: facts.unesco },
-      { id: "s2", citationId: "c2", sentence: facts.geology },
+      { id: "s1", citationId: "c1", sentence: facts.unesco, sourceTitle: "Hồ sơ kiểm thử" },
+      { id: "s2", citationId: "c2", sentence: facts.geology, sourceTitle: "Hồ sơ kiểm thử" },
     ]);
   });
   it("does not expose unreviewed candidate sentences as generation support", () => {
     const input = reviewed("Danh hiệu?", [facts.unesco]);
     input.evidence = [{ ...input.evidence[0]!, text: `${facts.unesco}\n${facts.geology}` }, evidence(facts.flag, 1)];
     const payload = JSON.parse(composeQaPrompt(input)[1]!.content);
-    expect(payload.CURRENT_EVIDENCE).toEqual([{ citationId: "c1", sentences: [facts.unesco] }]);
+    expect(payload.CURRENT_EVIDENCE).toEqual([{ citationId: "c1", sourceTitle: "Hồ sơ kiểm thử", sentences: [facts.unesco] }]);
     expect(JSON.stringify(payload)).not.toContain(facts.geology);
     expect(JSON.stringify(payload)).not.toContain(facts.flag);
   });
@@ -175,12 +183,12 @@ describe("US23 grounded synthesis V2 (mock semantic verdicts, no paid calls)", (
     const input = reviewed("Danh hiệu và địa chất?", [facts.unesco, facts.geology]);
     const parts = [{ text: "Đây là Công viên địa chất toàn cầu UNESCO.", citationIds: ["c1"] }, { text: "Địa hình là karst đá vôi.", citationIds: ["c2"] }];
     const fetcher = vi.fn<typeof fetch>(async (_url, init) => envelope(JSON.parse(String(init?.body)).response_format.json_schema.name === "qa_claim_verification"
-      ? { gates: QA_SYNTHESIS_GATES.map(name => ({ name, passed: true })), coveredAspects: ["requested_facts"], claims: parts.map((part, partIndex) => ({ partIndex, text: part.text, entailed: true, supportIds: [`s${partIndex + 1}`] })) }
+      ? { summary: "Offline fixture verdict.", gates: QA_SYNTHESIS_GATES.map(name => ({ name, passed: true })), coveredAspects: ["requested_facts"], claims: parts.map((part, partIndex) => ({ partIndex, text: part.text, entailed: true, supportIds: [`s${partIndex + 1}`] })) }
       : { status: "ANSWERED", unanswered: false, answerParts: parts }));
     expect((await createQaGenerator({ apiKey: () => "fixture-only", fetcher }).generate(input)).status).toBe("ANSWERED");
     const body = JSON.parse(String(fetcher.mock.calls[1]![1]!.body));
-    const variants = body.response_format.json_schema.schema.properties.claims.items.anyOf;
-    expect(variants.map((variant: { properties: { partIndex: { enum: number[] }; supportIds: { items: { enum: string[] } } } }) => [variant.properties.partIndex.enum, variant.properties.supportIds.items.enum])).toEqual([[[0], ["s1"]], [[1], ["s2"]]]);
+    expect(body.response_format.json_schema.schema.properties.claims.required).toEqual(["p0", "p1"]);
+    expect(body.response_format.json_schema.schema.properties.claims.properties.p0.additionalProperties).toBe(false);
     expect(JSON.parse(body.messages[1].content).answerParts.map((part: { allowedSupportIds: string[] }) => part.allowedSupportIds)).toEqual([["s1"], ["s2"]]);
   });
   it("deduplicates source sentences without forcing repeated answer fragments", async () => {
@@ -193,8 +201,29 @@ describe("US23 grounded synthesis V2 (mock semantic verdicts, no paid calls)", (
     const answer = await t.generator.generate(input);
     expect(() => assertQaAnswerGrounding(answer, { ...input, question: "Giá vé?" })).toThrow();
     expect(() => assertQaAnswerGrounding({ ...answer }, input)).toThrow();
+    if (answer.status === "ANSWERED") {
+      const presentation = answer.presentation;
+      answer.presentation = "TABLE";
+      expect(() => assertQaAnswerGrounding(answer, input)).toThrow();
+      answer.presentation = presentation;
+    }
     answer.answerParts[0]!.text = "Giá vé là 900.000 đồng.";
     expect(() => assertQaAnswerGrounding(answer, input)).toThrow();
+  });
+  it("keeps private reviewer justification out of the answer and never lets it override a negative gate", async () => {
+    const input = reviewed("Danh hiệu?", [facts.unesco]);
+    const positive = setup(input, "Đây là Công viên địa chất toàn cầu UNESCO.", verdict => { verdict.summary = "private-review-only"; });
+    const answer = await positive.generator.generate(input);
+    expect(answer.status).toBe("ANSWERED");
+    expect(JSON.stringify(answer)).not.toContain("private-review-only");
+    const negative = setup(input, "Đây là Công viên địa chất toàn cầu UNESCO.", verdict => {
+      verdict.summary = "Everything is supported.";
+      verdict.gates.find(gate => gate.name === "CLAIM_GROUNDING")!.passed = false;
+    });
+    const quoted = await negative.generator.generate(input);
+    expect(quoted).toMatchObject({ status: "ANSWERED", answerMode: "SOURCE_EXCERPTS", answerParts: [{ text: facts.unesco }] });
+    expect(hasQaSynthesisCertificate(quoted, input)).toBe(false);
+    expect(JSON.stringify(quoted)).not.toContain("Everything is supported");
   });
   it("has no synchronous bypass for paraphrases or fabricated citations", () => {
     const input = reviewed("Danh hiệu?", [facts.unesco]);
@@ -241,11 +270,11 @@ describe("US23 grounded synthesis V2 (mock semantic verdicts, no paid calls)", (
   });
   it("assessment prompt makes current intent, table coverage and corpus uncertainty explicit", async () => {
     const input = reviewed("Giá hôm nay?", [facts.flag]);
-    const fetcher = vi.fn<typeof fetch>(async () => envelope({ intent: "CLEAR", exhaustive: true, relevance: [{ citationId: "c1", status: "RELATED" }], aspects: [{ id: "current_price", status: "MISSING", supports: [] }] }));
+    const fetcher = vi.fn<typeof fetch>(async (_url, init) => envelope(fixtureAssessmentWire({ intent: "CLEAR", exhaustive: true, relevance: [{ citationId: "c1", status: "RELATED" }], aspects: [{ id: "current_price", status: "MISSING", supports: [] }] }, JSON.parse(String(init?.body)))));
     await createQaAssessor({ apiKey: () => "offline", fetcher }).assess(input);
     const body = String(fetcher.mock.calls[0]![1]!.body);
     expect(JSON.parse(body)).toMatchObject({ model: "gpt-6-luna", reasoning_effort: "none" });
-    expect(body).toContain("main entity"); expect(body).toContain("table rows"); expect(body).toContain("whole corpus");
+    expect(body).toContain("requested entity"); expect(body).toContain("registry handles"); expect(body).toContain("entire corpus");
     expect(body).toContain("CLEAR overview intent");
     expect(body).toContain("explicit narrow question");
   });

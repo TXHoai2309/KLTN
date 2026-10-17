@@ -31,6 +31,6 @@ export function citationSourceHref(value: unknown): string | null {
 /** View-layer guard; opening source metadata must not start following the tail. */
 export function isReadingCitation(viewport: HTMLElement): boolean {
   const focused = viewport.ownerDocument.activeElement;
-  return !!viewport.querySelector(".assistant-citations details[open]") ||
-    !!(focused && viewport.contains(focused) && focused.closest(".assistant-citations"));
+  return !!viewport.querySelector(".assistant-answer-sources[open], .assistant-citations details[open]") ||
+    !!(focused && viewport.contains(focused) && focused.closest(".assistant-answer-sources, .assistant-citations"));
 }

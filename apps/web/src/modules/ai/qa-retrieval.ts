@@ -15,7 +15,26 @@ import { qaFactualQuestion, qaIntentHistory } from "./qa-question-understanding"
 type Reader = Pick<Database, "$queryRaw"> & Partial<Pick<Database, "$transaction">>;
 type Row = { documentId: string; generationId: string; contentVersionId: string; chunkId: string;
   chunkHash: string; text: string; tokenCount: number; score: number; sourceTitle: string; fileType: string; locators: unknown };
-export type QaRetrievalOptions = { provider?: EmbeddingProvider; topK?: number; maxEvidenceTokens?: number; minScore?: number; publicSourceIds?: ReadonlySet<string> };
+export type QaRetrievalOptions = { provider?: EmbeddingProvider; topK?: number; maxEvidenceTokens?: number; minScore?: number; publicSourceIds?: ReadonlySet<string>; hybrid?: boolean };
+
+const searchStopWords = new Set("tôi mình muốn tìm hiểu về ở đâu là của có thì sao vào cho một các những và theo trong được nào bao nhiêu thế này đó nổi bật bạn thể giới thiệu".split(" "));
+export function qaKeywordQuery(question: string): string {
+  const text = qaFactualQuestion(question);
+  const folded = text.normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/g, "d");
+  // Attribute vocabulary only, no destination-specific facts or gold answers.
+  // Keep tsquery operators authored here; user tokens are letters/digits only.
+  if (/gio.*(?:mo|dong|hoat)|mo.*dong.*cua/u.test(folded)) return "gio & (cua | hoat)";
+  if (/dien tich/u.test(folded)) return "dien & tich";
+  if (/nhom dan toc|bao nhieu.*dan toc/u.test(folded)) return "dan & toc";
+  if (/dinh.*cao nhat/u.test(folded)) return "dinh & cao";
+  if (/gioi thieu|tim hieu/u.test(folded) && !/gia|phi|gio mo/u.test(folded)) return "mo & ta";
+  const words = /(?:^|\s)(?:giá|vé|phí|gia|phi)(?:\s|$)/u.test(text)
+    ? ["giá", "vé", "phí"]
+    : (text.match(/[\p{L}\p{N}]+/gu) ?? []).filter(word => !searchStopWords.has(word));
+  // Search form only: original text/negation/numbers still reach embedding and
+  // semantic review. No keyword overlap can certify an answer.
+  return [...new Set(words.map(word => word.normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/g, "d")))].slice(0, 16).join(" | ");
+}
 
 async function boundedRead<T>(database: Reader, work: (reader: Pick<Database, "$queryRaw">) => Promise<T>): Promise<T> {
   // The query-only adapter exists for deterministic tests. Real Prisma readers
@@ -155,20 +174,48 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
       const contextFilter = context.type === "DESTINATION"
         ? Prisma.sql`AND strpos(lower(normalize(c."text", NFC)), lower(${context.name})) > 0`
         : Prisma.empty;
-      const candidateRows = await boundedRead(database, reader => reader.$queryRaw<Row[]>(Prisma.sql`SELECT d."id" AS "documentId", g."id" AS "generationId",
+      const keywordQuery = options.hybrid ? qaKeywordQuery(normalized) : "";
+      const { vectorRows, keywordRows } = await boundedRead(database, async reader => {
+      const vectorRows = await reader.$queryRaw<Row[]>(Prisma.sql`SELECT d."id" AS "documentId", g."id" AS "generationId",
         g."contentVersionId", c."id" AS "chunkId", c."chunkHash", c."text", e."tokenCount",
         d."sourceTitle", d."fileType"::text AS "fileType", c."locators",
         (1 - (e."embedding" <=> ${vectorLiteral}::vector))::double precision AS "score"
         ${joins} WHERE ${eligible} AND e."tokenCount" > 0
         AND d."id" IN (${Prisma.join(approvedSourceIds)})
         ${contextFilter}
-        ORDER BY e."embedding" <=> ${vectorLiteral}::vector, d."id", g."id", c."index", c."id" LIMIT ${topK}`));
+        ORDER BY e."embedding" <=> ${vectorLiteral}::vector, d."id", g."id", c."index", c."id" LIMIT ${topK}`);
+      let keywordRows: Row[] = [];
+      if (keywordQuery) {
+        if (signal?.aborted) throw new EmbeddingError("CANCELLED", false);
+        const searchText = Prisma.sql`regexp_replace(translate(lower(normalize(c."text", NFD)), 'đ', 'd'), '[̀-ͯ]', '', 'g')`;
+        keywordRows = await reader.$queryRaw<Row[]>(Prisma.sql`SELECT d."id" AS "documentId", g."id" AS "generationId",
+          g."contentVersionId", c."id" AS "chunkId", c."chunkHash", c."text", e."tokenCount",
+          d."sourceTitle", d."fileType"::text AS "fileType", c."locators",
+          (1 - (e."embedding" <=> ${vectorLiteral}::vector))::double precision AS "score"
+          ${joins} WHERE ${eligible} AND e."tokenCount" > 0
+          AND d."id" IN (${Prisma.join(approvedSourceIds)}) ${contextFilter}
+          AND to_tsvector('simple', ${searchText}) @@ to_tsquery('simple', ${keywordQuery})
+          ORDER BY ts_rank_cd(to_tsvector('simple', ${searchText}), to_tsquery('simple', ${keywordQuery})) DESC,
+          d."id", g."id", c."index", c."id" LIMIT ${topK}`);
+      }
+      return { vectorRows, keywordRows };
+      });
+      // Two independent candidate branches, same eligibility/context. Interleave
+      // ranks without adding vector and lexical scores of incompatible units.
+      // Keep the same final topK and token budget; dedupe by current chunk ID.
+      const seen = new Set<string>();
+      const candidateRows: Row[] = [];
+      for (let index = 0; index < topK; index++) for (const row of [vectorRows[index], keywordRows[index]]) {
+        if (!row || seen.has(row.chunkId)) continue;
+        seen.add(row.chunkId); candidateRows.push(row);
+      }
       if (signal?.aborted) throw new EmbeddingError("CANCELLED", false);
       const topSimilarityScore = candidateRows[0]?.score != null && Number.isFinite(candidateRows[0].score)
         ? Math.round(candidateRows[0].score * 10000) / 10000
         : null;
       const candidatesBeforeThreshold = candidateRows.length;
-      const rows = candidateRows.filter(r => Number.isFinite(r.score) && r.score >= minScore);
+      const lexicalIds = new Set(keywordRows.map(row => row.chunkId));
+      const rows = candidateRows.filter(r => Number.isFinite(r.score) && (r.score >= minScore || lexicalIds.has(r.chunkId)));
       const candidatesAfterThreshold = rows.length;
 
       let firstZeroStage: string;
@@ -183,8 +230,9 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
       const evidence: QaEvidence[] = [];
       let usedTokens = 0;
       for (const row of rows) {
+        if (evidence.length >= topK) break;
         if (!publicSourceIds.has(row.documentId)) continue;
-        if (!Number.isFinite(row.score) || row.score < minScore || !row.text.trim()) continue;
+        if (!Number.isFinite(row.score) || !row.text.trim()) continue;
         if (context.type === "DESTINATION" && !destinationEvidenceSentences(row.text, context.name).length) continue;
         const actualTokens = countEmbeddingTokens(row.text);
         if (!Number.isInteger(row.tokenCount) || actualTokens !== row.tokenCount || usedTokens + actualTokens > maxEvidenceTokens) continue;

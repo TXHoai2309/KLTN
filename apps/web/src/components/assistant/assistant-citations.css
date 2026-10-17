@@ -16,3 +16,14 @@
 .dark .assistant-citation summary { color: var(--assistant-green, #a2c6aa); background: var(--assistant-sage, #2b382c); border-color: var(--assistant-line, #425147); }
 .dark .assistant-citation-metadata { background: var(--assistant-soft, #1d2a24); border-color: var(--assistant-line, #425147); }
 .dark .assistant-citation-metadata a { color: var(--assistant-green, #a2c6aa); }
+
+/* Quiet answer-level disclosure; existing source metadata keeps its owner. */
+.assistant-answer-sources { margin-top: 12px; border-top: 1px solid var(--assistant-line); padding-top: 4px; }
+.assistant-answer-sources > summary { display: flex; align-items: center; gap: 8px; width: fit-content; max-width: 100%; min-height: 44px; padding: 4px 2px; list-style: none; cursor: pointer; color: var(--assistant-muted); font-size: 12px; }
+.assistant-answer-sources > summary::-webkit-details-marker { display: none; }
+.assistant-answer-sources > summary > svg { width: 14px; height: 14px; flex-shrink: 0; }
+.assistant-answer-sources > summary:focus-visible { outline: 2px solid var(--assistant-green); outline-offset: 2px; border-radius: 4px; }
+.assistant-answer-sources[open] > summary .assistant-sources-chevron { transform: rotate(180deg); }
+.assistant-answer-source-groups { display: grid; gap: 12px; padding-block: 4px; }
+.assistant-answer-source-groups .assistant-source-group-label { margin: 0 0 4px; color: var(--assistant-muted); font-size: 12px; }
+.assistant-source-reference { color: var(--assistant-muted); font-size: 12px; }

@@ -42,7 +42,10 @@ export function createQaJsonProvider(options: QaProviderOptions = {}) {
   return { async request<T>(input: { messages: { role: "system" | "user"; content: string }[]; name: string; schema: object; signal?: AbortSignal }, validate: (value: unknown) => T): Promise<T> {
     if (input.signal?.aborted) throw unavailable();
     const messages = input.messages;
-    if (JSON.stringify(messages).length > QA_GENERATION_LIMITS.maxInputUtf16 || countEmbeddingTokens(JSON.stringify(messages)) > QA_GENERATION_LIMITS.maxInputTokens) throw invalid("GENERATION_PREFLIGHT", "TOKEN_LIMIT");
+    // Dynamic schema enums are also provider input (sentence/part handles and
+    // fixed answer text). Include them in the existing worst-case input budget.
+    const providerInput = JSON.stringify({ messages, schema: input.schema });
+    if (providerInput.length > QA_GENERATION_LIMITS.maxInputUtf16 || countEmbeddingTokens(providerInput) > QA_GENERATION_LIMITS.maxInputTokens) throw invalid("GENERATION_PREFLIGHT", "TOKEN_LIMIT");
     let key: string | undefined;
     try { key = (options.apiKey ?? (() => process.env.OPENAI_API_KEY))(); } catch { throw unavailable("GENERATION_PREFLIGHT"); }
     if (!key) throw unavailable("GENERATION_PREFLIGHT");

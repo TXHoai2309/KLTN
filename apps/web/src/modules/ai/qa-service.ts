@@ -9,10 +9,10 @@ import { qaOrigin, qaReportFailure, qaStage } from "./qa-diagnostics";
 import type { QaContext } from "./qa-contract";
 import type { QaResolvedContext } from "./qa-destination-context";
 import { createQaAssessor, type QaAssessor } from "./qa-assessment";
-import { insufficientQaAnswer } from "./qa-generation";
+import { assertQaEvidenceInput, insufficientQaAnswer } from "./qa-generation";
 import { QA_CLARIFICATION_QUESTION } from "./qa-prompt";
 import { evaluateQaSourceSufficiency } from "./qa-source-sufficiency";
-import { qaFactualQuestion, qaIntentHistory } from "./qa-question-understanding";
+import { qaFactualQuestion, qaIntentHistory, qaFollowupClarification } from "./qa-question-understanding";
 import { qaConversationMessage } from "./qa-conversation";
 
 export function createQaService(dependencies: { store: QaConversationStore; retriever: QaRetriever; generator: QaGenerator; assessor?: QaAssessor; eligibilityPollMs?: number; resolveContext?: (context: QaContext) => Promise<QaResolvedContext> }) {
@@ -47,11 +47,13 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
         const socialMessage = qaConversationMessage(request.data.question);
         const question = qaFactualQuestion(request.data.question) || request.data.question;
         const history = qaIntentHistory(request.data.question, admission.history);
+        const clarificationQuestion = socialMessage ? undefined : qaFollowupClarification(question, history, resolvedContext);
+        const skipEvidence = !!socialMessage || !!clarificationQuestion;
         qaStage("RETRIEVAL_STARTED");
-        evidence = socialMessage ? [] : await retriever.retrieve(question, history, signal, resolvedContext);
+        evidence = skipEvidence ? [] : await retriever.retrieve(question, history, signal, resolvedContext);
         qaStage("RETRIEVAL_COMPLETED", { retrievedChunks: evidence.length });
         qaStage("EVIDENCE_ELIGIBILITY_CHECK");
-        if (!socialMessage && !await retriever.recheck(evidence)) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "EVIDENCE_ELIGIBILITY_CHECK", "ELIGIBILITY");
+        if (!skipEvidence && !await retriever.recheck(evidence)) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "EVIDENCE_ELIGIBILITY_CHECK", "ELIGIBILITY");
         qaStage("EVIDENCE_ELIGIBILITY_CHECKED", { eligibleChunks: evidence.length });
         const providerController=new AbortController();
         const relayAbort=()=>providerController.abort();
@@ -87,15 +89,19 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
         let reviewedInput: QaGenerationInput | undefined;
         const generation = (async () => {
           if (socialMessage) return { status: "CONVERSATIONAL" as const, answerParts: [] as [], citations: [] as [], message: socialMessage };
+          if (clarificationQuestion) return { status: "CLARIFICATION_REQUIRED" as const, answerParts: [] as [], citations: [] as [], clarificationQuestion };
           const input = { question, history, evidence, context: resolvedContext, signal: providerController.signal };
-          if (!evidence.length) return insufficientQaAnswer();
+          if (!evidence.length) return insufficientQaAnswer("NO_EVIDENCE");
+          assertQaEvidenceInput(input);
+          const preliminary = evaluateQaSourceSufficiency({ kind: "COMPLETED", eligibility: "CURRENT", input });
+          if (preliminary.status === "INSUFFICIENT") return insufficientQaAnswer("MISSING_SUPPORT");
           const assessment = await assessor.assess(input);
           if (!await retriever.recheck(evidence)) throw new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502);
           if (assessment.intent === "AMBIGUOUS") return { status: "CLARIFICATION_REQUIRED" as const, answerParts: [] as [], citations: [] as [], clarificationQuestion: QA_CLARIFICATION_QUESTION };
           const sourceSufficiency = evaluateQaSourceSufficiency({ kind: "COMPLETED", eligibility: "CURRENT", input, review: assessment.review });
           if (!assessment.review.exhaustive) return insufficientQaAnswer();
           if (sourceSufficiency.reason === "INVALID_REVIEW" || sourceSufficiency.reason === "UNASSESSED") throw new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502);
-          if (sourceSufficiency.status === "INSUFFICIENT" || sourceSufficiency.status === "UNCERTAIN") return insufficientQaAnswer();
+          if (sourceSufficiency.status === "INSUFFICIENT" || sourceSufficiency.status === "UNCERTAIN") return insufficientQaAnswer("MISSING_SUPPORT");
           reviewedInput = { ...input, sourceSufficiency, sourceReview: assessment.review };
           const answer = await generator.generate(reviewedInput);
           // Only the server-owned social router can emit this outcome.
@@ -122,7 +128,7 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
           if (!mapped.length || mapped.some(e=>JSON.stringify(e.citation)!==JSON.stringify(citation))) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "CITATION_VALIDATION", "CITATION_PROJECTION");
         }
         qaStage("CITATIONS_VERIFIED");
-        if (!socialMessage && !await retriever.recheck(evidence)) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "EVIDENCE_ELIGIBILITY_CHECK", "ELIGIBILITY");
+        if (!skipEvidence && !await retriever.recheck(evidence)) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "EVIDENCE_ELIGIBILITY_CHECK", "ELIGIBILITY");
       } catch (e) {
         const failure = e instanceof AppError ? e : e instanceof EmbeddingError
           ? new AppError(e.code === "INVALID_PROVIDER_RESPONSE" ? "AI_INVALID_RESPONSE" : "AI_UNAVAILABLE", "AI_UNAVAILABLE", e.code === "INVALID_PROVIDER_RESPONSE" ? 502 : 503)

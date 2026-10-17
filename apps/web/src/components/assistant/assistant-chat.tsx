@@ -9,23 +9,34 @@ import type { QaContext, QaAnswerPart, QaCompletedTurn, QaPublicCitation } from 
 import { createIdempotencyKey } from "../../lib/mutation-client";
 import { AssistantController, hasUnresolvedAttempt, shouldSendOnEnter, type AssistantTransport, type ConfirmedTurn } from "./assistant-controller";
 import { assistantContextFromUrl } from "./assistant-context-navigation";
+import { AssistantAnswerContent } from "./assistant-answer-content";
+import { assistantFollowupSuggestions } from "./assistant-followups";
+import { assistantSourceReply } from "./assistant-source-reply";
 
 export type CitationSlot = (input: { part: QaAnswerPart; citations: QaPublicCitation[]; turn: QaCompletedTurn }) => ReactNode;
 
 // Shell-local presentation only; the controller remains the context authority.
 const AssistantContextDisplay = createContext<((label: string | null) => void) | null>(null);
 
-export function AssistantAnswer({ turn, citationSlot }: { turn: QaCompletedTurn; citationSlot?: CitationSlot }) {
+export function AssistantAnswer({ turn, citationSlot, question }: { turn: QaCompletedTurn; citationSlot?: CitationSlot; question?: string }) {
   if (turn.status === "CONVERSATIONAL") return <p>{turn.message}</p>;
-  if (turn.status === "INSUFFICIENT_SOURCE") return <div className="assistant-source-notice"><strong>Chưa đủ dữ liệu được xác minh</strong><p>Chưa đủ dữ liệu được xác minh để trả lời chính xác câu hỏi này.</p><p className="assistant-muted">Bạn có thể nêu rõ điểm đến và thông tin muốn hỏi, hoặc điều chỉnh câu hỏi trong ô bên dưới.</p></div>;
-  if (turn.status === "CLARIFICATION_REQUIRED") return <><strong>Cần làm rõ</strong><p>{turn.clarificationQuestion}</p></>;
+  if (turn.status === "INSUFFICIENT_SOURCE") {
+    const reply = assistantSourceReply(turn, question);
+    return <div className="assistant-source-reply"><p>{reply.explanation}</p><p>{reply.nextStep}</p></div>;
+  }
+  if (turn.status === "CLARIFICATION_REQUIRED") return <p>{turn.clarificationQuestion}</p>;
   const citationIndex = buildCitationIndex(turn);
+  const sources = (part: QaAnswerPart) => citationSlot?.({ part, citations: turn.citations, turn }) ?? <AssistantCitations part={part} index={citationIndex} />;
   return <>
-    {turn.status === "PARTIAL" && <strong>Câu trả lời một phần — chỉ những nội dung có nguồn hỗ trợ</strong>}
-    {turn.answerParts.map((part, index) => <div className="assistant-answer-part" key={index}>
-      <p>{part.text}</p>
-      <div className="assistant-citation-slot">{citationSlot?.({ part, citations: turn.citations, turn }) ?? <AssistantCitations part={part} index={citationIndex} />}</div>
-    </div>)}
+    {turn.answerMode === "SOURCE_EXCERPTS" && <p className="assistant-source-notice">Thông tin dưới đây được trích nguyên văn từ tài liệu đã được đánh giá cho câu hỏi này.</p>}
+    {turn.status === "PARTIAL" && <p className="assistant-muted">Mình tìm được một phần thông tin bạn hỏi:</p>}
+    <AssistantAnswerContent parts={turn.answerParts} presentation={turn.presentation} sources={turn.presentation === "TABLE" ? part => <span className="assistant-source-reference">{part.citationIds.map(id => citationIndex?.get(id)?.number).filter(number => number !== undefined).map(number => `[${number}]`).join(" ") || "Nguồn không khả dụng"}</span> : undefined} />
+    {citationIndex ? <details className="assistant-answer-sources">
+      <summary aria-label={`Xem nguồn tham khảo (${turn.citations.length})`}><FileText aria-hidden="true" /><span>Xem nguồn ({turn.citations.length})</span><span className="assistant-sources-chevron" aria-hidden="true">⌄</span></summary>
+      <div className="assistant-answer-source-groups">{turn.answerParts.map((part, position) => <section key={position} aria-label={`Nguồn cho ý ${position + 1}`}>
+        <p className="assistant-source-group-label">Nguồn cho ý {position + 1}</p>{sources(part)}
+      </section>)}</div>
+    </details> : <p className="assistant-citations-error">Thông tin nguồn không khả dụng.</p>}
     {turn.status === "PARTIAL" && <div className="assistant-unanswered"><strong>Phần chưa đủ dữ liệu</strong><ul>{turn.unansweredAspects.map((aspect, index) => <li key={index}>{aspect}</li>)}</ul></div>}
   </>;
 }
@@ -33,15 +44,15 @@ export function AssistantAnswer({ turn, citationSlot }: { turn: QaCompletedTurn;
 export function AssistantTurn({ turn, citationSlot }: { turn: ConfirmedTurn; citationSlot?: CitationSlot }) {
   return <div className="assistant-turn">
     <article className="assistant-message assistant-user" aria-label="Câu hỏi đã được xác nhận"><p>{turn.question}</p><small>Đã xác nhận lượt hỏi</small></article>
-    <article className="assistant-message assistant-answer" aria-label="Phản hồi của trợ lý"><span className="assistant-speaker">Trợ lý AI</span><AssistantAnswer turn={turn.response} citationSlot={citationSlot} /></article>
+    <article className="assistant-message assistant-answer" aria-label="Phản hồi của trợ lý"><span className="assistant-speaker">Trợ lý AI</span><AssistantAnswer turn={turn.response} question={turn.question} citationSlot={citationSlot} /></article>
   </div>;
 }
 
 const PROMPT_SUGGESTIONS = [
-  { icon: "🗺️", title: "Lịch trình 3N2Đ", prompt: "Gợi ý lịch trình du lịch tự túc Hà Giang 3 ngày 2 đêm tối ưu nhất." },
-  { icon: "🌸", title: "Mùa hoa tam giác mạch", prompt: "Thời điểm nào hoa tam giác mạch Hà Giang nở đẹp nhất và các địa điểm ngắm đẹp nhất?" },
-  { icon: "🏍️", title: "Đèo Mã Pí Lèng & Sông Nho Quế", prompt: "Kinh nghiệm vượt đèo Mã Pí Lèng và chèo thuyền sông Nho Quế an toàn." },
-  { icon: "🍲", title: "Ẩm thực bản địa", prompt: "Những món ăn đặc sản vùng cao Hà Giang nhất định phải thử một lần?" },
+  { icon: "🗺️", title: "Giới thiệu điểm đến", prompt: (subject: string) => `Giới thiệu ngắn gọn về ${subject}.` },
+  { icon: "🏛️", title: "Danh hiệu và xếp hạng", prompt: (subject: string) => `${subject} có danh hiệu hoặc xếp hạng nào?` },
+  { icon: "🏔️", title: "Đặc điểm tự nhiên", prompt: (subject: string) => `${subject} có những đặc điểm tự nhiên nào nổi bật?` },
+  { icon: "🌿", title: "Văn hóa bản địa", prompt: (subject: string) => `${subject} có những nét văn hóa nào đáng chú ý?` },
 ] as const;
 
 /** Surface-independent chat core: a page or future popup can reuse this component. */
@@ -73,6 +84,11 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
   const [unseen, setUnseen] = useState(false);
   const unresolved = hasUnresolvedAttempt(state);
   const sending = state.pending?.phase === "sending";
+  const openingSubject = state.context.type === "DESTINATION"
+    ? destinations.find(destination => state.context.type === "DESTINATION" && destination.id === state.context.destinationId)?.name ?? "điểm đến đang chọn"
+    : "Cao nguyên đá Đồng Văn";
+  const latest = state.turns.at(-1);
+  const followups = latest ? assistantFollowupSuggestions(latest.question, latest.response) : [];
   useEffect(() => { controller.changeIdentity(identity); }, [controller, identity]);
   useEffect(() => () => controller.dispose(), [controller]);
   useEffect(() => {
@@ -192,14 +208,14 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
                   className="assistant-suggestion-chip"
                   disabled={!transport || !available || !!contextError}
                   onClick={() => {
-                    controller.setDraft(item.prompt);
+                    controller.setDraft(item.prompt(openingSubject));
                     composer.current?.focus();
                   }}
                 >
                   <span className="assistant-suggestion-icon" aria-hidden="true">{item.icon}</span>
                   <div className="assistant-suggestion-info">
                     <span className="assistant-suggestion-title">{item.title}</span>
-                    <span className="assistant-suggestion-prompt">{item.prompt}</span>
+                    <span className="assistant-suggestion-prompt">{item.prompt(openingSubject)}</span>
                   </div>
                 </button>
               ))}
@@ -207,6 +223,13 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
           </div>
         )}
         {state.turns.map((turn) => <AssistantTurn key={`${turn.response.conversationId}:${turn.response.turnId}`} turn={turn} citationSlot={citationSlot} />)}
+        {!!followups.length && !state.pending && <nav className="assistant-followups" aria-label="Câu hỏi tiếp nối">
+          <p className="assistant-muted">Bạn có thể hỏi tiếp{state.draft.trim() ? " — xóa nội dung ô nhập để chọn gợi ý" : " — chọn để điền vào ô nhập"}:</p>
+          <div>{followups.map(question => <button type="button" key={question} disabled={!available || !!contextError || unresolved || !!state.draft.trim()} onClick={() => {
+            controller.setDraft(question);
+            composer.current?.focus();
+          }}>{question}</button>)}</div>
+        </nav>}
         {state.pending && <div className="assistant-local-attempt">
           <article className="assistant-message assistant-user" aria-label="Câu hỏi chưa xác nhận"><p>{state.pending.attempt.payload.question}</p><small>{sending ? "Đang gửi — chưa xác nhận" : "Chưa được xác nhận lưu"}</small></article>
           <div className="assistant-recovery" data-phase={state.pending.phase}>

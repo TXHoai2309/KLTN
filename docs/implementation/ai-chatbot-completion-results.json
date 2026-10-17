@@ -1,0 +1,6999 @@
+{
+  "version": 1,
+  "date": "2026-10-17",
+  "ownerCorpusAcceptance": "PENDING",
+  "us23Status": "NOT_ACCEPTED",
+  "limitations": [
+    "Status/citation checks are not independent semantic gold",
+    "All failed and rolled-back measured iterations are retained",
+    "Observed token totals exclude any calls that failed before the per-turn result was logged; this is not an account bill",
+    "No USD conversion without verified current pricing",
+    "Sixty candidate cases (40 literal-recall variants plus 20 dialogue/temporal/adversarial cases) still require independent reviewer annotations"
+  ],
+  "finalLive": {
+    "supportedOutcomes": 6,
+    "exactExcerptOutcomes": 2,
+    "planned": 6,
+    "allObservedCallsLuna": true,
+    "latency": {
+      "sampleCount": 6,
+      "medianMs": 10127.5,
+      "p95NearestRankMs": 12050,
+      "productionSlo": "NOT_ESTABLISHED"
+    }
+  },
+  "liveRuns": [
+    {
+      "phase": "before",
+      "classification": "BASELINE",
+      "file": "kltn-ai-completion-before.log",
+      "planned": 4,
+      "loggedTurns": 4,
+      "unloggedPreGenerationFailures": 0,
+      "supportedOutcomes": 1,
+      "exactExcerptOutcomes": 0,
+      "jsonCallsObserved": 12,
+      "allObservedCallsLuna": true,
+      "observedTotalTokens": 28832,
+      "latency": null,
+      "rows": [
+        {
+          "label": "original",
+          "status": "ANSWERED",
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2438,
+              "aspects": 1,
+              "supported": 1
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 1377,
+              "parts": 2
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2964,
+              "claims": 3,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "overview"
+              ],
+              "coveredAspectIds": [
+                "overview"
+              ],
+              "matchingParts": [
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "repeated",
+          "status": "INSUFFICIENT_SOURCE",
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2438,
+              "aspects": 1,
+              "supported": 1
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 1377,
+              "parts": 2
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2982,
+              "claims": 4,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": false
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": false
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "overview"
+              ],
+              "coveredAspectIds": [
+                "overview"
+              ],
+              "matchingParts": [
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "GATE_REJECTED",
+              "gate": "CLAIM_GROUNDING"
+            }
+          ]
+        },
+        {
+          "label": "punctuated",
+          "status": "INSUFFICIENT_SOURCE",
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2492,
+              "aspects": 1,
+              "supported": 1
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 1546,
+              "parts": 3
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3224,
+              "claims": 5,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": false
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "overview"
+              ],
+              "coveredAspectIds": [
+                "overview"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "GATE_REJECTED",
+              "gate": "REQUIRED_FACETS_COVERAGE"
+            }
+          ]
+        },
+        {
+          "label": "mixed-followup",
+          "status": "INSUFFICIENT_SOURCE",
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2773,
+              "aspects": 1,
+              "supported": 1
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 1745,
+              "parts": 2
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3476,
+              "claims": 6,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": false
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": false
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "notable_features"
+              ],
+              "coveredAspectIds": [
+                "notable_features"
+              ],
+              "matchingParts": [
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "GATE_REJECTED",
+              "gate": "CLAIM_GROUNDING"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "phase": "sentence-handles",
+      "classification": "INTERMEDIATE",
+      "file": "kltn-ai-completion-live.log",
+      "planned": 6,
+      "loggedTurns": 5,
+      "unloggedPreGenerationFailures": 1,
+      "supportedOutcomes": 2,
+      "exactExcerptOutcomes": 0,
+      "jsonCallsObserved": 15,
+      "allObservedCallsLuna": true,
+      "observedTotalTokens": 44021,
+      "latency": {
+        "sampleCount": 5,
+        "medianMs": 10442,
+        "p95NearestRankMs": 12109,
+        "productionSlo": "NOT_ESTABLISHED"
+      },
+      "rows": [
+        {
+          "label": "original",
+          "status": "INSUFFICIENT_SOURCE",
+          "elapsedMs": 12109,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2375,
+              "aspects": 1,
+              "supported": 1
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2166,
+              "parts": 3
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4414,
+              "claims": 3,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": false
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": false
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "overview"
+              ],
+              "coveredAspectIds": [
+                "overview"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "GATE_REJECTED",
+              "gate": "CLAIM_GROUNDING"
+            }
+          ]
+        },
+        {
+          "label": "repeated",
+          "status": "ANSWERED",
+          "elapsedMs": 11017,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2375,
+              "aspects": 1,
+              "supported": 1
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2142,
+              "parts": 4
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4421,
+              "claims": 4,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "overview"
+              ],
+              "coveredAspectIds": [
+                "overview"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "third-repeat",
+          "status": "ANSWERED",
+          "elapsedMs": 10226,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2375,
+              "aspects": 1,
+              "supported": 1
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2150,
+              "parts": 3
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4364,
+              "claims": 3,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "overview"
+              ],
+              "coveredAspectIds": [
+                "overview"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "punctuated",
+          "status": "INSUFFICIENT_SOURCE",
+          "elapsedMs": 10316,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2375,
+              "aspects": 1,
+              "supported": 1
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2162,
+              "parts": 3
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4372,
+              "claims": 3,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": false
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": false
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "overview"
+              ],
+              "coveredAspectIds": [
+                "overview"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "GATE_REJECTED",
+              "gate": "CLAIM_GROUNDING"
+            }
+          ]
+        },
+        {
+          "label": "mixed-followup",
+          "status": "INSUFFICIENT_SOURCE",
+          "elapsedMs": 10442,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2616,
+              "aspects": 1,
+              "supported": 1
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 1895,
+              "parts": 2
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3819,
+              "claims": 2,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": false
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": false
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "overview"
+              ],
+              "coveredAspectIds": [
+                "overview"
+              ],
+              "matchingParts": [
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "GATE_REJECTED",
+              "gate": "CLAIM_GROUNDING"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "phase": "titles-and-hybrid",
+      "classification": "INTERMEDIATE",
+      "file": "kltn-ai-completion-live-final.log",
+      "planned": 6,
+      "loggedTurns": 6,
+      "unloggedPreGenerationFailures": 0,
+      "supportedOutcomes": 3,
+      "exactExcerptOutcomes": 0,
+      "jsonCallsObserved": 18,
+      "allObservedCallsLuna": true,
+      "observedTotalTokens": 56187,
+      "latency": {
+        "sampleCount": 6,
+        "medianMs": 11350,
+        "p95NearestRankMs": 12860,
+        "productionSlo": "NOT_ESTABLISHED"
+      },
+      "rows": [
+        {
+          "label": "original",
+          "status": "INSUFFICIENT_SOURCE",
+          "elapsedMs": 12860,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2709,
+              "aspects": 1,
+              "supported": 1
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2274,
+              "parts": 3
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4518,
+              "claims": 3,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": false
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": false
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "overview"
+              ],
+              "coveredAspectIds": [
+                "overview"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "GATE_REJECTED",
+              "gate": "CLAIM_GROUNDING"
+            }
+          ]
+        },
+        {
+          "label": "repeated",
+          "status": "INSUFFICIENT_SOURCE",
+          "elapsedMs": 11025,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2709,
+              "aspects": 1,
+              "supported": 1
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2223,
+              "parts": 2
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4142,
+              "claims": 2,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": false
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": false
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "overview"
+              ],
+              "coveredAspectIds": [
+                "overview"
+              ],
+              "matchingParts": [
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "GATE_REJECTED",
+              "gate": "CLAIM_GROUNDING"
+            }
+          ]
+        },
+        {
+          "label": "third-repeat",
+          "status": "ANSWERED",
+          "elapsedMs": 11675,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2718,
+              "aspects": 1,
+              "supported": 1
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2417,
+              "parts": 3
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4131,
+              "claims": 3,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "overview"
+              ],
+              "coveredAspectIds": [
+                "overview"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "punctuated",
+          "status": "INSUFFICIENT_SOURCE",
+          "elapsedMs": 11977,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2709,
+              "aspects": 1,
+              "supported": 1
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2281,
+              "parts": 3
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4531,
+              "claims": 3,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": false
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": false
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "overview"
+              ],
+              "coveredAspectIds": [
+                "overview"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "GATE_REJECTED",
+              "gate": "CLAIM_GROUNDING"
+            }
+          ]
+        },
+        {
+          "label": "mixed-followup",
+          "status": "ANSWERED",
+          "elapsedMs": 10104,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2654,
+              "aspects": 1,
+              "supported": 1
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2169,
+              "parts": 2
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3726,
+              "claims": 2,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "overview"
+              ],
+              "coveredAspectIds": [
+                "overview"
+              ],
+              "matchingParts": [
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "entrance-followup",
+          "status": "PARTIAL",
+          "elapsedMs": 10551,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "PARTIAL",
+            "reason": "PARTIAL_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3520,
+              "aspects": 3,
+              "supported": 2
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2301,
+              "parts": 1
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4455,
+              "claims": 1,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "regional_admission",
+                "site_service_fees"
+              ],
+              "coveredAspectIds": [
+                "regional_admission",
+                "site_service_fees"
+              ],
+              "matchingParts": [
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        }
+      ]
+    },
+    {
+      "phase": "minimal-overview",
+      "classification": "INTERMEDIATE",
+      "file": "kltn-ai-completion-live-release.log",
+      "planned": 6,
+      "loggedTurns": 6,
+      "unloggedPreGenerationFailures": 0,
+      "supportedOutcomes": 4,
+      "exactExcerptOutcomes": 0,
+      "jsonCallsObserved": 18,
+      "allObservedCallsLuna": true,
+      "observedTotalTokens": 57067,
+      "latency": {
+        "sampleCount": 6,
+        "medianMs": 10932,
+        "p95NearestRankMs": 12603,
+        "productionSlo": "NOT_ESTABLISHED"
+      },
+      "rows": [
+        {
+          "label": "original",
+          "status": "ANSWERED",
+          "elapsedMs": 12603,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2842,
+              "aspects": 5,
+              "supported": 5
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2314,
+              "parts": 3
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4447,
+              "claims": 3,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "setting",
+                "landscape",
+                "geological-history",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "setting",
+                "landscape",
+                "geological-history",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "repeated",
+          "status": "INSUFFICIENT_SOURCE",
+          "elapsedMs": 10387,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2837,
+              "aspects": 5,
+              "supported": 5
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2061,
+              "parts": 3
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4162,
+              "claims": 3,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "setting",
+                "landscape",
+                "geological_significance",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "setting",
+                "landscape",
+                "geological_significance",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "UNJUSTIFIED_CITATION"
+            }
+          ]
+        },
+        {
+          "label": "third-repeat",
+          "status": "ANSWERED",
+          "elapsedMs": 10867,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2812,
+              "aspects": 4,
+              "supported": 4
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 1953,
+              "parts": 3
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4046,
+              "claims": 3,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "location",
+                "features",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "location",
+                "features",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "punctuated",
+          "status": "ANSWERED",
+          "elapsedMs": 9839,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2829,
+              "aspects": 5,
+              "supported": 5
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2015,
+              "parts": 3
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4146,
+              "claims": 3,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "location",
+                "features",
+                "geology",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "location",
+                "features",
+                "geology",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "mixed-followup",
+          "status": "ANSWERED",
+          "elapsedMs": 10997,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2807,
+              "aspects": 6,
+              "supported": 6
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2457,
+              "parts": 3
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4297,
+              "claims": 3,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "setting",
+                "landscape",
+                "geological-history",
+                "culture",
+                "highlights"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "setting",
+                "landscape",
+                "geological-history",
+                "culture",
+                "highlights"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "entrance-followup",
+          "status": "INSUFFICIENT_SOURCE",
+          "elapsedMs": 12334,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "PARTIAL",
+            "reason": "PARTIAL_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3622,
+              "aspects": 5,
+              "supported": 4
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2531,
+              "parts": 2
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4889,
+              "claims": 2,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": false
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "common_admission",
+                "site_fees",
+                "boat_fee",
+                "fee_exemptions"
+              ],
+              "coveredAspectIds": [
+                "common_admission",
+                "site_fees",
+                "boat_fee",
+                "fee_exemptions"
+              ],
+              "matchingParts": [
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "GATE_REJECTED",
+              "gate": "TEMPORAL_VALIDITY"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "phase": "generation-handles",
+      "classification": "INTERMEDIATE",
+      "file": "kltn-ai-completion-live-handles.log",
+      "planned": 6,
+      "loggedTurns": 6,
+      "unloggedPreGenerationFailures": 0,
+      "supportedOutcomes": 5,
+      "exactExcerptOutcomes": 0,
+      "jsonCallsObserved": 18,
+      "allObservedCallsLuna": true,
+      "observedTotalTokens": 57600,
+      "latency": {
+        "sampleCount": 6,
+        "medianMs": 11245.5,
+        "p95NearestRankMs": 14486,
+        "productionSlo": "NOT_ESTABLISHED"
+      },
+      "rows": [
+        {
+          "label": "original",
+          "status": "ANSWERED",
+          "elapsedMs": 14486,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2839,
+              "aspects": 5,
+              "supported": 5
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2243,
+              "parts": 4
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4466,
+              "claims": 4,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "setting",
+                "landscape",
+                "geological-history",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "setting",
+                "landscape",
+                "geological-history",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "repeated",
+          "status": "ANSWERED",
+          "elapsedMs": 11438,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2829,
+              "aspects": 5,
+              "supported": 5
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2068,
+              "parts": 3
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3998,
+              "claims": 3,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "location",
+                "features",
+                "geology",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "location",
+                "features",
+                "geology",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "third-repeat",
+          "status": "ANSWERED",
+          "elapsedMs": 12652,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2836,
+              "aspects": 5,
+              "supported": 5
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2112,
+              "parts": 4
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4282,
+              "claims": 4,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "setting",
+                "landscape",
+                "geological_history",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "setting",
+                "landscape",
+                "geological_history",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "punctuated",
+          "status": "ANSWERED",
+          "elapsedMs": 10148,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2829,
+              "aspects": 5,
+              "supported": 5
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2112,
+              "parts": 4
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4313,
+              "claims": 4,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "location",
+                "features",
+                "geology",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "location",
+                "features",
+                "geology",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "mixed-followup",
+          "status": "ANSWERED",
+          "elapsedMs": 11053,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2804,
+              "aspects": 6,
+              "supported": 6
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2542,
+              "parts": 2
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4182,
+              "claims": 2,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "setting",
+                "landscape",
+                "geological_history",
+                "culture",
+                "highlights"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "setting",
+                "landscape",
+                "geological_history",
+                "culture",
+                "highlights"
+              ],
+              "matchingParts": [
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "entrance-followup",
+          "status": "INSUFFICIENT_SOURCE",
+          "elapsedMs": 10886,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "PARTIAL",
+            "reason": "PARTIAL_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3611,
+              "aspects": 5,
+              "supported": 4
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2634,
+              "parts": 4
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4900,
+              "claims": 4,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": false
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": false
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "common_admission",
+                "site_fees",
+                "boat_fee",
+                "fee_conditions"
+              ],
+              "coveredAspectIds": [
+                "common_admission",
+                "site_fees",
+                "boat_fee",
+                "fee_conditions"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "GATE_REJECTED",
+              "gate": "CLAIM_GROUNDING"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "phase": "narrow-admission",
+      "classification": "INTERMEDIATE",
+      "file": "kltn-ai-completion-live-acceptance.log",
+      "planned": 6,
+      "loggedTurns": 6,
+      "unloggedPreGenerationFailures": 0,
+      "supportedOutcomes": 5,
+      "exactExcerptOutcomes": 0,
+      "jsonCallsObserved": 18,
+      "allObservedCallsLuna": true,
+      "observedTotalTokens": 58626,
+      "latency": {
+        "sampleCount": 6,
+        "medianMs": 11276.5,
+        "p95NearestRankMs": 13311,
+        "productionSlo": "NOT_ESTABLISHED"
+      },
+      "rows": [
+        {
+          "label": "original",
+          "status": "ANSWERED",
+          "elapsedMs": 13311,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2970,
+              "aspects": 5,
+              "supported": 5
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2269,
+              "parts": 4
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4523,
+              "claims": 4,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "setting",
+                "features",
+                "geological_history",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "setting",
+                "features",
+                "geological_history",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "repeated",
+          "status": "ANSWERED",
+          "elapsedMs": 11236,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2976,
+              "aspects": 5,
+              "supported": 5
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2538,
+              "parts": 4
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4802,
+              "claims": 4,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "location",
+                "landscape",
+                "culture",
+                "geological_significance"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "location",
+                "landscape",
+                "culture",
+                "geological_significance"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "third-repeat",
+          "status": "ANSWERED",
+          "elapsedMs": 11317,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2990,
+              "aspects": 5,
+              "supported": 5
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2832,
+              "parts": 3
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4571,
+              "claims": 3,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity-setting",
+                "location",
+                "natural-features",
+                "cultural-features",
+                "geological-significance"
+              ],
+              "coveredAspectIds": [
+                "identity-setting",
+                "location",
+                "natural-features",
+                "cultural-features",
+                "geological-significance"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "punctuated",
+          "status": "INSUFFICIENT_SOURCE",
+          "elapsedMs": 11828,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2996,
+              "aspects": 5,
+              "supported": 5
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2954,
+              "parts": 3
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4642,
+              "claims": 3,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": false
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": false
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "setting",
+                "landscape",
+                "geological_significance",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "setting",
+                "landscape",
+                "geological_significance",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "GATE_REJECTED",
+              "gate": "ENTITY_SCOPE"
+            }
+          ]
+        },
+        {
+          "label": "mixed-followup",
+          "status": "ANSWERED",
+          "elapsedMs": 9887,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2914,
+              "aspects": 5,
+              "supported": 5
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2395,
+              "parts": 3
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3964,
+              "claims": 3,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "setting",
+                "landscape",
+                "natural_highlights",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "setting",
+                "landscape",
+                "natural_highlights",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "entrance-followup",
+          "status": "ANSWERED",
+          "elapsedMs": 7787,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3632,
+              "aspects": 1,
+              "supported": 1
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 1426,
+              "parts": 1
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3232,
+              "claims": 1,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "regional_admission"
+              ],
+              "coveredAspectIds": [
+                "regional_admission"
+              ],
+              "matchingParts": [
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        }
+      ]
+    },
+    {
+      "phase": "coreference-trial-rolled-back",
+      "classification": "ROLLED_BACK_EXPERIMENT",
+      "file": "kltn-ai-completion-live-final-scope.log",
+      "planned": 6,
+      "loggedTurns": 6,
+      "unloggedPreGenerationFailures": 0,
+      "supportedOutcomes": 3,
+      "exactExcerptOutcomes": 0,
+      "jsonCallsObserved": 18,
+      "allObservedCallsLuna": true,
+      "observedTotalTokens": 53693,
+      "latency": {
+        "sampleCount": 6,
+        "medianMs": 10425,
+        "p95NearestRankMs": 11991,
+        "productionSlo": "NOT_ESTABLISHED"
+      },
+      "rows": [
+        {
+          "label": "original",
+          "status": "ANSWERED",
+          "elapsedMs": 10785,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3101,
+              "aspects": 4,
+              "supported": 4
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2228,
+              "parts": 3
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4111,
+              "claims": 3,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity-setting",
+                "landscape-features",
+                "geological-history",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity-setting",
+                "landscape-features",
+                "geological-history",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "repeated",
+          "status": "INSUFFICIENT_SOURCE",
+          "elapsedMs": 11991,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3078,
+              "aspects": 3,
+              "supported": 3
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 1912,
+              "parts": 2
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3496,
+              "claims": 2,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": false
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity-setting",
+                "landscape-features",
+                "cultural-features"
+              ],
+              "coveredAspectIds": [
+                "identity-setting",
+                "landscape-features",
+                "cultural-features"
+              ],
+              "matchingParts": [
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "GATE_REJECTED",
+              "gate": "CLAIM_GROUNDING"
+            }
+          ]
+        },
+        {
+          "label": "third-repeat",
+          "status": "INSUFFICIENT_SOURCE",
+          "elapsedMs": 10065,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3078,
+              "aspects": 3,
+              "supported": 3
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2076,
+              "parts": 2
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3872,
+              "claims": 2,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": false
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": false
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity-setting",
+                "landscape-geology",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity-setting",
+                "landscape-geology",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "GATE_REJECTED",
+              "gate": "CLAIM_GROUNDING"
+            }
+          ]
+        },
+        {
+          "label": "punctuated",
+          "status": "ANSWERED",
+          "elapsedMs": 11210,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3081,
+              "aspects": 3,
+              "supported": 3
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2074,
+              "parts": 2
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3819,
+              "claims": 2,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity-setting",
+                "landscape-features",
+                "cultural-features"
+              ],
+              "coveredAspectIds": [
+                "identity-setting",
+                "landscape-features",
+                "cultural-features"
+              ],
+              "matchingParts": [
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "mixed-followup",
+          "status": "INSUFFICIENT_SOURCE",
+          "elapsedMs": 9748,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3035,
+              "aspects": 4,
+              "supported": 4
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2137,
+              "parts": 2
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3830,
+              "claims": 2,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "setting",
+                "natural_features",
+                "cultural_features"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "setting",
+                "natural_features",
+                "cultural_features"
+              ],
+              "matchingParts": [
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "ASPECT_SUPPORT"
+            }
+          ]
+        },
+        {
+          "label": "entrance-followup",
+          "status": "PARTIAL",
+          "elapsedMs": 7379,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "PARTIAL",
+            "reason": "PARTIAL_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3801,
+              "aspects": 2,
+              "supported": 1
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 1575,
+              "parts": 1
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3389,
+              "claims": 1,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "regional_admission"
+              ],
+              "coveredAspectIds": [
+                "regional_admission"
+              ],
+              "matchingParts": [
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        }
+      ]
+    },
+    {
+      "phase": "facet-bound-generation",
+      "classification": "INTERMEDIATE",
+      "file": "kltn-ai-completion-live-facets.log",
+      "planned": 6,
+      "loggedTurns": 6,
+      "unloggedPreGenerationFailures": 0,
+      "supportedOutcomes": 6,
+      "exactExcerptOutcomes": 0,
+      "jsonCallsObserved": 18,
+      "allObservedCallsLuna": true,
+      "observedTotalTokens": 59422,
+      "latency": {
+        "sampleCount": 6,
+        "medianMs": 11166.5,
+        "p95NearestRankMs": 13113,
+        "productionSlo": "NOT_ESTABLISHED"
+      },
+      "rows": [
+        {
+          "label": "original",
+          "status": "ANSWERED",
+          "elapsedMs": 13113,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2973,
+              "aspects": 4,
+              "supported": 4
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2981,
+              "parts": 4
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4807,
+              "claims": 4,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity_setting",
+                "landscape_geology",
+                "geological_scientific_value",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity_setting",
+                "landscape_geology",
+                "geological_scientific_value",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "repeated",
+          "status": "ANSWERED",
+          "elapsedMs": 10337,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2961,
+              "aspects": 5,
+              "supported": 5
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2272,
+              "parts": 5
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4003,
+              "claims": 5,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "setting",
+                "landscape",
+                "features",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "setting",
+                "landscape",
+                "features",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "third-repeat",
+          "status": "ANSWERED",
+          "elapsedMs": 10674,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2948,
+              "aspects": 4,
+              "supported": 4
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2301,
+              "parts": 6
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4426,
+              "claims": 6,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "location",
+                "geology",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "location",
+                "geology",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "punctuated",
+          "status": "ANSWERED",
+          "elapsedMs": 11902,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2996,
+              "aspects": 5,
+              "supported": 5
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3281,
+              "parts": 5
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 5151,
+              "claims": 5,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "setting",
+                "natural_features",
+                "geological_significance",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "setting",
+                "natural_features",
+                "geological_significance",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "mixed-followup",
+          "status": "ANSWERED",
+          "elapsedMs": 11659,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2886,
+              "aspects": 3,
+              "supported": 3
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2689,
+              "parts": 4
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 4470,
+              "claims": 4,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity_setting",
+                "natural_features",
+                "cultural_features"
+              ],
+              "coveredAspectIds": [
+                "identity_setting",
+                "natural_features",
+                "cultural_features"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "entrance-followup",
+          "status": "ANSWERED",
+          "elapsedMs": 8255,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3626,
+              "aspects": 1,
+              "supported": 1
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 1387,
+              "parts": 1
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3264,
+              "claims": 1,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "regional_admission"
+              ],
+              "coveredAspectIds": [
+                "regional_admission"
+              ],
+              "matchingParts": [
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        }
+      ]
+    },
+    {
+      "phase": "server-bound-verdicts",
+      "classification": "INTERMEDIATE",
+      "file": "kltn-ai-completion-live-verified.log",
+      "planned": 6,
+      "loggedTurns": 6,
+      "unloggedPreGenerationFailures": 0,
+      "supportedOutcomes": 5,
+      "exactExcerptOutcomes": 0,
+      "jsonCallsObserved": 18,
+      "allObservedCallsLuna": true,
+      "observedTotalTokens": 52336,
+      "latency": {
+        "sampleCount": 6,
+        "medianMs": 11205.5,
+        "p95NearestRankMs": 12459,
+        "productionSlo": "NOT_ESTABLISHED"
+      },
+      "rows": [
+        {
+          "label": "original",
+          "status": "INSUFFICIENT_SOURCE",
+          "elapsedMs": 12459,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2971,
+              "aspects": 4,
+              "supported": 4
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2967,
+              "parts": 4
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3334,
+              "claims": 4,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": false
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity-setting",
+                "landscape-geology",
+                "geological-significance",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity-setting",
+                "landscape-geology",
+                "geological-significance",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "GATE_REJECTED",
+              "gate": "CITATION_VALIDITY"
+            }
+          ]
+        },
+        {
+          "label": "repeated",
+          "status": "ANSWERED",
+          "elapsedMs": 12290,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2959,
+              "aspects": 4,
+              "supported": 4
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2495,
+              "parts": 5
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3170,
+              "claims": 5,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "location",
+                "natural_features",
+                "cultural_features"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "location",
+                "natural_features",
+                "cultural_features"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "third-repeat",
+          "status": "ANSWERED",
+          "elapsedMs": 9948,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2947,
+              "aspects": 4,
+              "supported": 4
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2312,
+              "parts": 5
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3091,
+              "claims": 5,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "location",
+                "features",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "location",
+                "features",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "punctuated",
+          "status": "ANSWERED",
+          "elapsedMs": 11804,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2962,
+              "aspects": 4,
+              "supported": 4
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2554,
+              "parts": 4
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3176,
+              "claims": 4,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity-setting",
+                "landscape-features",
+                "geological-significance",
+                "cultural-features"
+              ],
+              "coveredAspectIds": [
+                "identity-setting",
+                "landscape-features",
+                "geological-significance",
+                "cultural-features"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "mixed-followup",
+          "status": "ANSWERED",
+          "elapsedMs": 10607,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2910,
+              "aspects": 4,
+              "supported": 4
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2993,
+              "parts": 4
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3331,
+              "claims": 4,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity_setting",
+                "landscape_geology",
+                "distinctive_sites",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity_setting",
+                "landscape_geology",
+                "distinctive_sites",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "entrance-followup",
+          "status": "ANSWERED",
+          "elapsedMs": 8347,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3632,
+              "aspects": 1,
+              "supported": 1
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 1487,
+              "parts": 1
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3045,
+              "claims": 1,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "regional_admission"
+              ],
+              "coveredAspectIds": [
+                "regional_admission"
+              ],
+              "matchingParts": [
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        }
+      ]
+    },
+    {
+      "phase": "verified-citation-projection-rolled-back",
+      "classification": "ROLLED_BACK_EXPERIMENT",
+      "file": "kltn-ai-completion-live-projection.log",
+      "planned": 6,
+      "loggedTurns": 5,
+      "unloggedPreGenerationFailures": 1,
+      "supportedOutcomes": 2,
+      "exactExcerptOutcomes": 0,
+      "jsonCallsObserved": 15,
+      "allObservedCallsLuna": true,
+      "observedTotalTokens": 43007,
+      "latency": {
+        "sampleCount": 5,
+        "medianMs": 9776,
+        "p95NearestRankMs": 11415,
+        "productionSlo": "NOT_ESTABLISHED"
+      },
+      "rows": [
+        {
+          "label": "original",
+          "status": "INSUFFICIENT_SOURCE",
+          "elapsedMs": 11415,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2951,
+              "aspects": 4,
+              "supported": 4
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2271,
+              "parts": 4
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3123,
+              "claims": 4,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": false
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "location",
+                "natural_features",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "location",
+                "natural_features",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "GATE_REJECTED",
+              "gate": "CLAIM_GROUNDING"
+            }
+          ]
+        },
+        {
+          "label": "repeated",
+          "status": "INSUFFICIENT_SOURCE",
+          "elapsedMs": 10609,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2950,
+              "aspects": 4,
+              "supported": 4
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2309,
+              "parts": 4
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3190,
+              "claims": 4,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": false
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "location",
+                "natural_features",
+                "cultural_features"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "location",
+                "natural_features",
+                "cultural_features"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "GATE_REJECTED",
+              "gate": "CLAIM_GROUNDING"
+            }
+          ]
+        },
+        {
+          "label": "third-repeat",
+          "status": "ANSWERED",
+          "elapsedMs": 8251,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2959,
+              "aspects": 4,
+              "supported": 4
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2580,
+              "parts": 4
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3151,
+              "claims": 4,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "setting",
+                "features",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "setting",
+                "features",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "mixed-followup",
+          "status": "INSUFFICIENT_SOURCE",
+          "elapsedMs": 9776,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2904,
+              "aspects": 4,
+              "supported": 4
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2758,
+              "parts": 4
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3394,
+              "claims": 4,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": false
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity_setting",
+                "natural_features",
+                "cultural_features",
+                "representative_places"
+              ],
+              "coveredAspectIds": [
+                "identity_setting",
+                "natural_features",
+                "cultural_features",
+                "representative_places"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "GATE_REJECTED",
+              "gate": "CLAIM_GROUNDING"
+            }
+          ]
+        },
+        {
+          "label": "entrance-followup",
+          "status": "ANSWERED",
+          "elapsedMs": 7659,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3664,
+              "aspects": 2,
+              "supported": 2
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 1590,
+              "parts": 2
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3213,
+              "claims": 2,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "regional_admission",
+                "not_all_services_free"
+              ],
+              "coveredAspectIds": [
+                "regional_admission",
+                "not_all_services_free"
+              ],
+              "matchingParts": [
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        }
+      ]
+    },
+    {
+      "phase": "reviewed-excerpt-alternative",
+      "classification": "FINAL_CODE_MATRIX",
+      "file": "kltn-ai-completion-live-excerpts.log",
+      "planned": 6,
+      "loggedTurns": 6,
+      "unloggedPreGenerationFailures": 0,
+      "supportedOutcomes": 6,
+      "exactExcerptOutcomes": 2,
+      "jsonCallsObserved": 18,
+      "allObservedCallsLuna": true,
+      "observedTotalTokens": 51682,
+      "latency": {
+        "sampleCount": 6,
+        "medianMs": 10127.5,
+        "p95NearestRankMs": 12050,
+        "productionSlo": "NOT_ESTABLISHED"
+      },
+      "rows": [
+        {
+          "label": "original",
+          "status": "ANSWERED",
+          "answerMode": "SOURCE_EXCERPTS",
+          "elapsedMs": 12050,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2950,
+              "aspects": 4,
+              "supported": 4
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2309,
+              "parts": 4
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3063,
+              "claims": 4,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": false
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "location",
+                "natural_features",
+                "cultural_features"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "location",
+                "natural_features",
+                "cultural_features"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "GATE_REJECTED",
+              "gate": "CITATION_VALIDITY"
+            }
+          ]
+        },
+        {
+          "label": "repeated",
+          "status": "ANSWERED",
+          "answerMode": "SYNTHESIS",
+          "elapsedMs": 10206,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2971,
+              "aspects": 5,
+              "supported": 5
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2498,
+              "parts": 5
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3216,
+              "claims": 5,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "location",
+                "landscape",
+                "geological-history",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "location",
+                "landscape",
+                "geological-history",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "third-repeat",
+          "status": "ANSWERED",
+          "answerMode": "SYNTHESIS",
+          "elapsedMs": 10049,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2947,
+              "aspects": 4,
+              "supported": 4
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2303,
+              "parts": 5
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3095,
+              "claims": 5,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "location",
+                "features",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "location",
+                "features",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "punctuated",
+          "status": "ANSWERED",
+          "answerMode": "SOURCE_EXCERPTS",
+          "elapsedMs": 11300,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2959,
+              "aspects": 4,
+              "supported": 4
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2506,
+              "parts": 5
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3209,
+              "claims": 5,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": false
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": false
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity",
+                "location",
+                "natural_features",
+                "cultural_features"
+              ],
+              "coveredAspectIds": [
+                "identity",
+                "location",
+                "natural_features",
+                "cultural_features"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": [
+            {
+              "reason": "GATE_REJECTED",
+              "gate": "CLAIM_GROUNDING"
+            }
+          ]
+        },
+        {
+          "label": "mixed-followup",
+          "status": "ANSWERED",
+          "answerMode": "SYNTHESIS",
+          "elapsedMs": 9894,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 2913,
+              "aspects": 4,
+              "supported": 4
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3152,
+              "parts": 4
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3432,
+              "claims": 4,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "identity_setting",
+                "landscape_geology",
+                "distinctive_features",
+                "culture"
+              ],
+              "coveredAspectIds": [
+                "identity_setting",
+                "landscape_geology",
+                "distinctive_features",
+                "culture"
+              ],
+              "matchingParts": [
+                true,
+                true,
+                true,
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        },
+        {
+          "label": "entrance-followup",
+          "status": "ANSWERED",
+          "answerMode": "SYNTHESIS",
+          "elapsedMs": 7107,
+          "evidenceCount": 4,
+          "sourceDecision": {
+            "status": "SUFFICIENT",
+            "reason": "COMPLETE_COVERAGE"
+          },
+          "calls": [
+            {
+              "name": "qa_source_assessment",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3632,
+              "aspects": 1,
+              "supported": 1
+            },
+            {
+              "name": "grounded_qa",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 1487,
+              "parts": 1
+            },
+            {
+              "name": "qa_claim_verification",
+              "requestedLuna": true,
+              "actualLuna": true,
+              "totalTokens": 3040,
+              "claims": 1,
+              "gates": [
+                {
+                  "name": "ANSWER_RELEVANCE",
+                  "passed": true
+                },
+                {
+                  "name": "REQUIRED_FACETS_COVERAGE",
+                  "passed": true
+                },
+                {
+                  "name": "ENTITY_SCOPE",
+                  "passed": true
+                },
+                {
+                  "name": "TEMPORAL_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NUMERIC_FIDELITY",
+                  "passed": true
+                },
+                {
+                  "name": "CLAIM_GROUNDING",
+                  "passed": true
+                },
+                {
+                  "name": "CITATION_VALIDITY",
+                  "passed": true
+                },
+                {
+                  "name": "NATURAL_LANGUAGE_QUALITY",
+                  "passed": true
+                }
+              ],
+              "expectedAspectIds": [
+                "regional_admission"
+              ],
+              "coveredAspectIds": [
+                "regional_admission"
+              ],
+              "matchingParts": [
+                true
+              ]
+            }
+          ],
+          "rejections": []
+        }
+      ]
+    }
+  ],
+  "recall": [
+    {
+      "file": "kltn-ai-completion-recall-before.json",
+      "evidenceClass": "LITERAL_SOURCE_RECALL_NOT_SEMANTIC_ACCEPTANCE",
+      "ownerReview": "PENDING",
+      "hybrid": false,
+      "snapshotSha256": "a92bc63ff954f9afe855e8b6d3fee914efd8f9f5a93dd345c51314fbe7f5806e",
+      "eligibleChunks": 51,
+      "total": 40,
+      "available": 40,
+      "recalled": 36,
+      "results": [
+        {
+          "id": "overview-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1337
+        },
+        {
+          "id": "overview-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 815
+        },
+        {
+          "id": "overview-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 532
+        },
+        {
+          "id": "overview-unaccented",
+          "available": true,
+          "recalled": false,
+          "chunks": 4,
+          "elapsedMs": 641
+        },
+        {
+          "id": "designation-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 689
+        },
+        {
+          "id": "designation-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 532
+        },
+        {
+          "id": "designation-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 517
+        },
+        {
+          "id": "designation-unaccented",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 610
+        },
+        {
+          "id": "common-ticket-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 538
+        },
+        {
+          "id": "common-ticket-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1036
+        },
+        {
+          "id": "common-ticket-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1214
+        },
+        {
+          "id": "common-ticket-unaccented",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 814
+        },
+        {
+          "id": "flag-price-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 814
+        },
+        {
+          "id": "flag-price-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 611
+        },
+        {
+          "id": "flag-price-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 595
+        },
+        {
+          "id": "flag-price-unaccented",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 692
+        },
+        {
+          "id": "palace-price-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 642
+        },
+        {
+          "id": "palace-price-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 540
+        },
+        {
+          "id": "palace-price-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 625
+        },
+        {
+          "id": "palace-price-unaccented",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 876
+        },
+        {
+          "id": "common-hours-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1162
+        },
+        {
+          "id": "common-hours-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 811
+        },
+        {
+          "id": "common-hours-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 974
+        },
+        {
+          "id": "common-hours-unaccented",
+          "available": true,
+          "recalled": false,
+          "chunks": 4,
+          "elapsedMs": 630
+        },
+        {
+          "id": "geology-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 586
+        },
+        {
+          "id": "geology-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 570
+        },
+        {
+          "id": "geology-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 567
+        },
+        {
+          "id": "geology-unaccented",
+          "available": true,
+          "recalled": false,
+          "chunks": 4,
+          "elapsedMs": 607
+        },
+        {
+          "id": "peak-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 596
+        },
+        {
+          "id": "peak-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 815
+        },
+        {
+          "id": "peak-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 949
+        },
+        {
+          "id": "peak-unaccented",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 883
+        },
+        {
+          "id": "communities-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1126
+        },
+        {
+          "id": "communities-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 578
+        },
+        {
+          "id": "communities-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 549
+        },
+        {
+          "id": "communities-unaccented",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 634
+        },
+        {
+          "id": "area-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 566
+        },
+        {
+          "id": "area-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 561
+        },
+        {
+          "id": "area-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 555
+        },
+        {
+          "id": "area-unaccented",
+          "available": true,
+          "recalled": false,
+          "chunks": 4,
+          "elapsedMs": 523
+        }
+      ]
+    },
+    {
+      "file": "kltn-ai-completion-recall-hybrid.json",
+      "evidenceClass": "LITERAL_SOURCE_RECALL_NOT_SEMANTIC_ACCEPTANCE",
+      "ownerReview": "PENDING",
+      "hybrid": true,
+      "snapshotSha256": "a92bc63ff954f9afe855e8b6d3fee914efd8f9f5a93dd345c51314fbe7f5806e",
+      "eligibleChunks": 51,
+      "total": 40,
+      "available": 40,
+      "recalled": 36,
+      "results": [
+        {
+          "id": "overview-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1640
+        },
+        {
+          "id": "overview-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1055
+        },
+        {
+          "id": "overview-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1024
+        },
+        {
+          "id": "overview-unaccented",
+          "available": true,
+          "recalled": false,
+          "chunks": 4,
+          "elapsedMs": 873
+        },
+        {
+          "id": "designation-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 934
+        },
+        {
+          "id": "designation-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1363
+        },
+        {
+          "id": "designation-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1269
+        },
+        {
+          "id": "designation-unaccented",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 989
+        },
+        {
+          "id": "common-ticket-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 904
+        },
+        {
+          "id": "common-ticket-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 920
+        },
+        {
+          "id": "common-ticket-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 977
+        },
+        {
+          "id": "common-ticket-unaccented",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 958
+        },
+        {
+          "id": "flag-price-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 918
+        },
+        {
+          "id": "flag-price-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 905
+        },
+        {
+          "id": "flag-price-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 926
+        },
+        {
+          "id": "flag-price-unaccented",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 934
+        },
+        {
+          "id": "palace-price-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 918
+        },
+        {
+          "id": "palace-price-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 860
+        },
+        {
+          "id": "palace-price-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1024
+        },
+        {
+          "id": "palace-price-unaccented",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 979
+        },
+        {
+          "id": "common-hours-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 994
+        },
+        {
+          "id": "common-hours-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1404
+        },
+        {
+          "id": "common-hours-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 924
+        },
+        {
+          "id": "common-hours-unaccented",
+          "available": true,
+          "recalled": false,
+          "chunks": 4,
+          "elapsedMs": 972
+        },
+        {
+          "id": "geology-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 917
+        },
+        {
+          "id": "geology-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 946
+        },
+        {
+          "id": "geology-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 964
+        },
+        {
+          "id": "geology-unaccented",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 981
+        },
+        {
+          "id": "peak-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 940
+        },
+        {
+          "id": "peak-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1033
+        },
+        {
+          "id": "peak-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1116
+        },
+        {
+          "id": "peak-unaccented",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 957
+        },
+        {
+          "id": "communities-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 982
+        },
+        {
+          "id": "communities-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 975
+        },
+        {
+          "id": "communities-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1020
+        },
+        {
+          "id": "communities-unaccented",
+          "available": true,
+          "recalled": false,
+          "chunks": 4,
+          "elapsedMs": 930
+        },
+        {
+          "id": "area-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 889
+        },
+        {
+          "id": "area-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 946
+        },
+        {
+          "id": "area-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 966
+        },
+        {
+          "id": "area-unaccented",
+          "available": true,
+          "recalled": false,
+          "chunks": 4,
+          "elapsedMs": 895
+        }
+      ]
+    },
+    {
+      "file": "kltn-ai-completion-recall-final.json",
+      "evidenceClass": "LITERAL_SOURCE_RECALL_NOT_SEMANTIC_ACCEPTANCE",
+      "ownerReview": "PENDING",
+      "hybrid": true,
+      "snapshotSha256": "a92bc63ff954f9afe855e8b6d3fee914efd8f9f5a93dd345c51314fbe7f5806e",
+      "eligibleChunks": 51,
+      "total": 40,
+      "available": 40,
+      "recalled": 38,
+      "results": [
+        {
+          "id": "overview-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1325
+        },
+        {
+          "id": "overview-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 904
+        },
+        {
+          "id": "overview-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1744
+        },
+        {
+          "id": "overview-unaccented",
+          "available": true,
+          "recalled": false,
+          "chunks": 4,
+          "elapsedMs": 1288
+        },
+        {
+          "id": "designation-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 947
+        },
+        {
+          "id": "designation-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1220
+        },
+        {
+          "id": "designation-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 912
+        },
+        {
+          "id": "designation-unaccented",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 943
+        },
+        {
+          "id": "common-ticket-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 960
+        },
+        {
+          "id": "common-ticket-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 975
+        },
+        {
+          "id": "common-ticket-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 905
+        },
+        {
+          "id": "common-ticket-unaccented",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 935
+        },
+        {
+          "id": "flag-price-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1039
+        },
+        {
+          "id": "flag-price-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 993
+        },
+        {
+          "id": "flag-price-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1000
+        },
+        {
+          "id": "flag-price-unaccented",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1005
+        },
+        {
+          "id": "palace-price-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1085
+        },
+        {
+          "id": "palace-price-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1774
+        },
+        {
+          "id": "palace-price-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1490
+        },
+        {
+          "id": "palace-price-unaccented",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1358
+        },
+        {
+          "id": "common-hours-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 920
+        },
+        {
+          "id": "common-hours-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1069
+        },
+        {
+          "id": "common-hours-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 902
+        },
+        {
+          "id": "common-hours-unaccented",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 934
+        },
+        {
+          "id": "geology-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1074
+        },
+        {
+          "id": "geology-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 996
+        },
+        {
+          "id": "geology-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 978
+        },
+        {
+          "id": "geology-unaccented",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1014
+        },
+        {
+          "id": "peak-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 869
+        },
+        {
+          "id": "peak-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 911
+        },
+        {
+          "id": "peak-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 916
+        },
+        {
+          "id": "peak-unaccented",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 949
+        },
+        {
+          "id": "communities-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 966
+        },
+        {
+          "id": "communities-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 996
+        },
+        {
+          "id": "communities-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 969
+        },
+        {
+          "id": "communities-unaccented",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1084
+        },
+        {
+          "id": "area-original",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 1000
+        },
+        {
+          "id": "area-punctuated",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 916
+        },
+        {
+          "id": "area-uppercase",
+          "available": true,
+          "recalled": true,
+          "chunks": 4,
+          "elapsedMs": 898
+        },
+        {
+          "id": "area-unaccented",
+          "available": true,
+          "recalled": false,
+          "chunks": 4,
+          "elapsedMs": 985
+        }
+      ]
+    }
+  ],
+  "http": [
+    {
+      "file": "kltn-ai-completion-http-release.log",
+      "matched": 5,
+      "total": 7,
+      "latency": {
+        "sampleCount": 7,
+        "medianMs": 15424,
+        "p95NearestRankMs": 16631,
+        "productionSlo": "NOT_ESTABLISHED"
+      },
+      "completion": {
+        "passed": false,
+        "turns": 7,
+        "replayed": true,
+        "persistedHistoryVerified": true
+      },
+      "cleanup": {
+        "ownedConversationDeleted": true,
+        "ownGuestRevoked": true
+      },
+      "rows": [
+        {
+          "index": 0,
+          "status": "CLARIFICATION_REQUIRED",
+          "matched": true,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 3131,
+          "answerMode": "NOT_APPLICABLE"
+        },
+        {
+          "index": 1,
+          "status": "CONVERSATIONAL",
+          "matched": true,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 4255,
+          "answerMode": "NOT_APPLICABLE"
+        },
+        {
+          "index": 2,
+          "status": "ANSWERED",
+          "matched": true,
+          "partCount": 3,
+          "citationCount": 2,
+          "elapsedMs": 15424
+        },
+        {
+          "index": 3,
+          "status": "ANSWERED",
+          "matched": true,
+          "partCount": 3,
+          "citationCount": 2,
+          "elapsedMs": 16197
+        },
+        {
+          "index": 4,
+          "status": "INSUFFICIENT_SOURCE",
+          "matched": false,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 15766,
+          "answerMode": "NOT_APPLICABLE"
+        },
+        {
+          "index": 5,
+          "status": "INSUFFICIENT_SOURCE",
+          "matched": false,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 16631,
+          "answerMode": "NOT_APPLICABLE"
+        },
+        {
+          "index": 6,
+          "status": "PARTIAL",
+          "matched": true,
+          "partCount": 1,
+          "citationCount": 1,
+          "elapsedMs": 11431
+        }
+      ]
+    },
+    {
+      "file": "kltn-ai-completion-http-final.log",
+      "matched": 6,
+      "total": 7,
+      "latency": {
+        "sampleCount": 7,
+        "medianMs": 14070,
+        "p95NearestRankMs": 15237,
+        "productionSlo": "NOT_ESTABLISHED"
+      },
+      "completion": {
+        "passed": false,
+        "turns": 7,
+        "replayed": true,
+        "persistedHistoryVerified": true
+      },
+      "cleanup": {
+        "ownedConversationDeleted": true,
+        "ownGuestRevoked": true
+      },
+      "rows": [
+        {
+          "index": 0,
+          "status": "CLARIFICATION_REQUIRED",
+          "matched": true,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 2968,
+          "answerMode": "NOT_APPLICABLE"
+        },
+        {
+          "index": 1,
+          "status": "CONVERSATIONAL",
+          "matched": true,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 5292,
+          "answerMode": "NOT_APPLICABLE"
+        },
+        {
+          "index": 2,
+          "status": "ANSWERED",
+          "matched": true,
+          "partCount": 2,
+          "citationCount": 2,
+          "elapsedMs": 14070
+        },
+        {
+          "index": 3,
+          "status": "ANSWERED",
+          "matched": true,
+          "partCount": 3,
+          "citationCount": 2,
+          "elapsedMs": 15237
+        },
+        {
+          "index": 4,
+          "status": "ANSWERED",
+          "matched": true,
+          "partCount": 3,
+          "citationCount": 2,
+          "elapsedMs": 14633
+        },
+        {
+          "index": 5,
+          "status": "INSUFFICIENT_SOURCE",
+          "matched": false,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 15106,
+          "answerMode": "NOT_APPLICABLE"
+        },
+        {
+          "index": 6,
+          "status": "ANSWERED",
+          "matched": true,
+          "partCount": 1,
+          "citationCount": 1,
+          "elapsedMs": 11776
+        }
+      ]
+    },
+    {
+      "file": "kltn-ai-completion-http-facets.log",
+      "matched": 6,
+      "total": 7,
+      "latency": {
+        "sampleCount": 7,
+        "medianMs": 14913,
+        "p95NearestRankMs": 16475,
+        "productionSlo": "NOT_ESTABLISHED"
+      },
+      "completion": {
+        "passed": false,
+        "turns": 7,
+        "replayed": true,
+        "persistedHistoryVerified": true
+      },
+      "cleanup": {
+        "ownedConversationDeleted": true,
+        "ownGuestRevoked": true
+      },
+      "rows": [
+        {
+          "index": 0,
+          "status": "CLARIFICATION_REQUIRED",
+          "matched": true,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 3384,
+          "answerMode": "NOT_APPLICABLE"
+        },
+        {
+          "index": 1,
+          "status": "CONVERSATIONAL",
+          "matched": true,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 4241,
+          "answerMode": "NOT_APPLICABLE"
+        },
+        {
+          "index": 2,
+          "status": "ANSWERED",
+          "matched": true,
+          "partCount": 4,
+          "citationCount": 2,
+          "elapsedMs": 14913
+        },
+        {
+          "index": 3,
+          "status": "ANSWERED",
+          "matched": true,
+          "partCount": 4,
+          "citationCount": 2,
+          "elapsedMs": 14917
+        },
+        {
+          "index": 4,
+          "status": "ANSWERED",
+          "matched": true,
+          "partCount": 5,
+          "citationCount": 2,
+          "elapsedMs": 15305
+        },
+        {
+          "index": 5,
+          "status": "INSUFFICIENT_SOURCE",
+          "matched": false,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 16475,
+          "answerMode": "NOT_APPLICABLE"
+        },
+        {
+          "index": 6,
+          "status": "ANSWERED",
+          "matched": true,
+          "partCount": 1,
+          "citationCount": 1,
+          "elapsedMs": 12420
+        }
+      ]
+    },
+    {
+      "file": "kltn-ai-completion-http-verified.log",
+      "matched": 5,
+      "total": 7,
+      "latency": {
+        "sampleCount": 7,
+        "medianMs": 13709,
+        "p95NearestRankMs": 15315,
+        "productionSlo": "NOT_ESTABLISHED"
+      },
+      "completion": {
+        "passed": false,
+        "turns": 7,
+        "replayed": true,
+        "persistedHistoryVerified": true
+      },
+      "cleanup": {
+        "ownedConversationDeleted": true,
+        "ownGuestRevoked": true
+      },
+      "rows": [
+        {
+          "index": 0,
+          "status": "CLARIFICATION_REQUIRED",
+          "matched": true,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 3184,
+          "answerMode": "NOT_APPLICABLE"
+        },
+        {
+          "index": 1,
+          "status": "CONVERSATIONAL",
+          "matched": true,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 5670,
+          "answerMode": "NOT_APPLICABLE"
+        },
+        {
+          "index": 2,
+          "status": "ANSWERED",
+          "matched": true,
+          "partCount": 4,
+          "citationCount": 2,
+          "elapsedMs": 14175
+        },
+        {
+          "index": 3,
+          "status": "ANSWERED",
+          "matched": true,
+          "partCount": 4,
+          "citationCount": 2,
+          "elapsedMs": 15315
+        },
+        {
+          "index": 4,
+          "status": "INSUFFICIENT_SOURCE",
+          "matched": false,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 13709,
+          "answerMode": "NOT_APPLICABLE"
+        },
+        {
+          "index": 5,
+          "status": "INSUFFICIENT_SOURCE",
+          "matched": false,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 13545,
+          "answerMode": "NOT_APPLICABLE"
+        },
+        {
+          "index": 6,
+          "status": "PARTIAL",
+          "matched": true,
+          "partCount": 1,
+          "citationCount": 1,
+          "elapsedMs": 14400
+        }
+      ]
+    },
+    {
+      "file": "kltn-ai-completion-http-projection.log",
+      "matched": 5,
+      "total": 7,
+      "latency": {
+        "sampleCount": 7,
+        "medianMs": 13524,
+        "p95NearestRankMs": 18313,
+        "productionSlo": "NOT_ESTABLISHED"
+      },
+      "completion": {
+        "passed": false,
+        "turns": 7,
+        "replayed": true,
+        "persistedHistoryVerified": true
+      },
+      "cleanup": {
+        "ownedConversationDeleted": true,
+        "ownGuestRevoked": true
+      },
+      "rows": [
+        {
+          "index": 0,
+          "status": "CLARIFICATION_REQUIRED",
+          "matched": true,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 4988,
+          "answerMode": "NOT_APPLICABLE"
+        },
+        {
+          "index": 1,
+          "status": "CONVERSATIONAL",
+          "matched": true,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 2915,
+          "answerMode": "NOT_APPLICABLE"
+        },
+        {
+          "index": 2,
+          "status": "INSUFFICIENT_SOURCE",
+          "matched": false,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 18313,
+          "answerMode": "NOT_APPLICABLE"
+        },
+        {
+          "index": 3,
+          "status": "INSUFFICIENT_SOURCE",
+          "matched": false,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 14623,
+          "answerMode": "NOT_APPLICABLE"
+        },
+        {
+          "index": 4,
+          "status": "ANSWERED",
+          "matched": true,
+          "partCount": 4,
+          "citationCount": 3,
+          "elapsedMs": 13524
+        },
+        {
+          "index": 5,
+          "status": "ANSWERED",
+          "matched": true,
+          "partCount": 4,
+          "citationCount": 3,
+          "elapsedMs": 13754
+        },
+        {
+          "index": 6,
+          "status": "PARTIAL",
+          "matched": true,
+          "partCount": 1,
+          "citationCount": 1,
+          "elapsedMs": 11542
+        }
+      ]
+    },
+    {
+      "file": "kltn-ai-completion-http-excerpts.log",
+      "matched": 7,
+      "total": 7,
+      "latency": {
+        "sampleCount": 7,
+        "medianMs": 13079,
+        "p95NearestRankMs": 16611,
+        "productionSlo": "NOT_ESTABLISHED"
+      },
+      "completion": {
+        "passed": true,
+        "turns": 7,
+        "replayed": true,
+        "persistedHistoryVerified": true
+      },
+      "cleanup": {
+        "ownedConversationDeleted": true,
+        "ownGuestRevoked": true
+      },
+      "rows": [
+        {
+          "index": 0,
+          "status": "CLARIFICATION_REQUIRED",
+          "answerMode": "NOT_APPLICABLE",
+          "matched": true,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 2943
+        },
+        {
+          "index": 1,
+          "status": "CONVERSATIONAL",
+          "answerMode": "NOT_APPLICABLE",
+          "matched": true,
+          "partCount": 0,
+          "citationCount": 0,
+          "elapsedMs": 3662
+        },
+        {
+          "index": 2,
+          "status": "ANSWERED",
+          "answerMode": "SOURCE_EXCERPTS",
+          "matched": true,
+          "partCount": 6,
+          "citationCount": 2,
+          "elapsedMs": 13250
+        },
+        {
+          "index": 3,
+          "status": "ANSWERED",
+          "answerMode": "SYNTHESIS",
+          "matched": true,
+          "partCount": 4,
+          "citationCount": 2,
+          "elapsedMs": 13825
+        },
+        {
+          "index": 4,
+          "status": "ANSWERED",
+          "answerMode": "SOURCE_EXCERPTS",
+          "matched": true,
+          "partCount": 6,
+          "citationCount": 2,
+          "elapsedMs": 13079
+        },
+        {
+          "index": 5,
+          "status": "ANSWERED",
+          "answerMode": "SYNTHESIS",
+          "matched": true,
+          "partCount": 5,
+          "citationCount": 3,
+          "elapsedMs": 16611
+        },
+        {
+          "index": 6,
+          "status": "PARTIAL",
+          "answerMode": "SYNTHESIS",
+          "matched": true,
+          "partCount": 2,
+          "citationCount": 1,
+          "elapsedMs": 12643
+        }
+      ]
+    }
+  ],
+  "diagnosticRunsExcludedFromAcceptance": [
+    "kltn-ai-completion-case-inspection.log",
+    "kltn-ai-completion-case-inspection-three.log"
+  ]
+}
