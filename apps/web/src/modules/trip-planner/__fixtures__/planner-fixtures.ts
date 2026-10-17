@@ -13,4 +13,4 @@ export function candidate(id: string, overrides: Partial<PlannerCandidate> = {})
     openingDays: weekdays.map(dayOfWeek => ({ dayOfWeek, status: "OPEN", intervals: [{ opensAtMinute: 480, closesAtMinute: 1080 }] })), ...overrides };
 }
 export const candidates = ["a", "bb", "ccc", "dddd", "eeeee", "ffffff"].map(id => candidate(id));
-export const fakeRoutes: RouteProvider = { async route(pair) { return { fromDestinationId: pair.from.id, toDestinationId: pair.to.id, status: "VERIFIED", reason: null, durationSeconds: 1800, distanceMeters: 12_000, provider: "STADIA_MAPS" }; } };
+export const fakeRoutes: RouteProvider = { async route(pair) { return { fromDestinationId: pair.from.id, toDestinationId: pair.to.id, status: "VERIFIED", reason: null, durationSeconds: 1800, distanceMeters: 12_000, provider: "GOOGLE_ROUTES" }; } };

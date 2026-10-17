@@ -28,7 +28,6 @@ describe("real planner UI server rendering", () => {
     expect(html).toContain('role="tablist"'); expect(html).toContain('aria-selected="true"');
     expect(html).toContain('role="tabpanel"'); expect(html).toContain('aria-pressed="true"');
     expect(html).toContain("Đề xuất đáp ứng các kiểm tra hiện tại"); expect(html).toContain("Đáp ứng");
-    expect(html).toContain("Stadia Maps"); expect(html).not.toContain("Google Maps");
     expect(html).toContain('/destinations/a'); expect(html).not.toMatch(/Lưu hành trình|Xác nhận hành trình/);
   });
   it("missing routes display unknown times and missing data rather than zero travel", async () => {
@@ -43,7 +42,7 @@ describe("real planner UI server rendering", () => {
   });
   it("empty candidates render no fabricated destinations or metrics", async () => {
     const proposal = await createPlannerService({ repository: { candidates: async () => [], recheck: async () => true }, routes: fakeRoutes, now: () => referenceTime }).propose("test", "empty-ui-test", requirement);
-    const html = screen(proposal); expect(html).toContain("Chưa đủ điểm đến phù hợp"); expect(html).not.toContain("TEST Điểm đến"); expect(html).not.toContain("Stadia Maps · Ước tính"); expect(html).not.toContain("0 km");
+    const html = screen(proposal); expect(html).toContain("Chưa đủ điểm đến phù hợp"); expect(html).not.toContain("TEST Điểm đến"); expect(html).not.toContain("Google Maps · Ước tính"); expect(html).not.toContain("0 km");
   });
   it("escapes destination text and encodes detail identifiers", () => {
     const proposal = structuredClone(ready); proposal.days[0]!.stops[0]!.destination.name = '<script>alert("x")</script>';

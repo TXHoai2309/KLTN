@@ -27,7 +27,7 @@ The supplied **Architecture (1).docx** is historical context. It describes a Nes
 | NestJS backend; frontend calls a separate NestJS API | Next.js full-stack App Router. API delivery uses Next.js Route Handlers in `apps/web/src/app/api/`. No NestJS application/package is present. |
 | Deployment platform TBD | `vercel.json` configures the `apps/web` Next.js service and the app has Vercel deployment scripts. |
 | Modular backend boundary | Retained as a Modular Monolith principle: Route Handlers are delivery adapters; business rules belong in modules/services. |
-| AI separate from Validator; PostGIS for spatial queries; pgvector for RAG; Google Routes for routing | The responsibility boundary remains. The Google provider choice is historical for US-28/US-29B/US-30; the owner-selected MapLibre/Stadia decisions are recorded in ADR-17 and ADR-18. |
+| AI separate from Validator; PostGIS for spatial queries; pgvector for RAG; Google Routes for routing | The responsibility boundary remains. The Google provider choice is historical for US-29B; the owner-selected MapLibre/Stadia decision is recorded in ADR-17. |
 
 Do not reintroduce NestJS to make current implementation match the historical document.
 

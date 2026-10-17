@@ -1,8 +1,5 @@
 # US28 — Main application runtime audit (2026-10-13)
 
-> Historical runtime audit. Current provider and live Development evidence are in
-> [the 2026-10-18 Stadia migration report](us28-stadia-routing-v2.md).
-
 Baseline: TXH `b91f9c797546cf3aed4fb09a8fa643345cd6c660`. Working tree was clean before this documentation-only audit. No application implementation needed changing.
 
 US28_MAIN_APP_INTEGRATION: VERIFIED in source and production build. Header links to `/trips/new`; its server page authorizes Traveler then renders TripRequirementForm under the main layout. Successful review passes the checked snapshot/draft to TripPlannerFlow. Explicit generation uses `/api/trip-proposals` in the same Next.js app. Timeline, MapLibre, preview, routing adapter and validators are unchanged.

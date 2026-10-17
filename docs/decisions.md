@@ -347,20 +347,3 @@ system. Development migration/testing are authorized after exact environment
 verification; Production migration/deployment are outside this task's authorization.
 See the [implemented API contract](implementation/admin-user-management-phase2-api-contract.md)
 and [acceptance report](implementation/admin-user-management-v2.md).
-
-## ADR-18 — US-28 shares Stadia Standard Routing (2026-10-18)
-
-Owner approves migrating US-28 from Google Routes to Stadia Standard Routing.
-US-28, US-29B and US-30 share a consistent Stadia-based routing architecture.
-MapLibre remains the map renderer. This supersedes ADR-07's routing choice for
-US-28 only; old ADR text and dated delivery evidence remain historical.
-
-Reuse one server-only HTTP boundary, canonical CAR/auto and MOTORCYCLE/motorcycle,
-safe normalization/failure reasons, parent cancellation and per-request timeout.
-Preserve US-28's 27-pair/three-concurrent/10-second budget. Duration plus distance
-are mandatory for US-28 VERIFIED; US-29B/30 retain duration-only checks. Save must
-fetch fresh routing and revalidate current data, never trust a proposal snapshot.
-No Google fallback, guessed distance, provider response/geometry in Planner DTO,
-new dependency, persistent route cache or DB migration. Optional sensitive Stadia
-runtime config must not be annotated @internal; browser tiles keep domain auth.
-No authorization, ownership, business scheduling, UI layout or Production change.
