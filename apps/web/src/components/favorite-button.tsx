@@ -8,6 +8,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { hasRolePermission } from "@/lib/authorization-capabilities";
 import { authClient } from "@/lib/auth-client";
 import { buildAuthLoginHref } from "@/lib/auth-return-to";
+import { useAuthRequired } from "./auth-required-provider";
 import {
   createIdempotencyKey,
   sendIdempotentMutation,
@@ -81,6 +82,7 @@ export default function FavoriteButton({
 }: FavoriteButtonProps) {
   const { data: session, isPending: isSessionPending, error: sessionError } =
     authClient.useSession();
+  const { openAuthModal } = useAuthRequired();
   const sessionRole = session?.user.role;
   const sessionUserId = session?.user.id;
   const canUseTraveler = hasRolePermission(sessionRole, "traveler");
@@ -339,7 +341,11 @@ export default function FavoriteButton({
     if (!canStartFavoriteMutation(isActionPending, mutationInFlightRef.current)) return;
 
     if (clickAction === "LOGIN") {
-      redirectGuestToLogin();
+      const currentPath =
+        typeof window === "undefined"
+          ? "/"
+          : `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      openAuthModal({ intent: "favorites", returnTo: currentPath });
       return;
     }
 
@@ -407,10 +413,11 @@ export default function FavoriteButton({
         setMutationUnknown(false);
 
         if (outcome.httpStatus === 401 || outcome.error.code === "UNAUTHENTICATED") {
-          toast.error("Phiên đăng nhập không còn hiệu lực. Vui lòng đăng nhập lại.", {
-            position: "bottom-right",
-          });
-          redirectGuestToLogin();
+          const currentPath =
+            typeof window === "undefined"
+              ? "/"
+              : `${window.location.pathname}${window.location.search}${window.location.hash}`;
+          openAuthModal({ intent: "session_expired", returnTo: currentPath });
         } else if (outcome.httpStatus === 403 || outcome.error.code === "FORBIDDEN") {
           const errorMessage = "Bạn không có quyền thực hiện thao tác yêu thích này.";
           setMessage(errorMessage);

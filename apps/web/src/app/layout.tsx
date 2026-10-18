@@ -6,6 +6,7 @@ import "../components/published-content-profile.css";
 import "../components/editorial/editorial.css";
 import "../components/editorial/editorial-generative.css";
 import "../components/map/map.css";
+import "../components/auth-required-dialog.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 import Header from "@/components/header";
 import Providers from "@/components/providers";

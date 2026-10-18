@@ -2568,3 +2568,26 @@ Audit, task-owned file list, limits and manual procedure:
   history. Local master content matches86bb942; its two local commits remain
   unpublished. Checkout restored to feat/admin-user-management-be. Report records
   the correction; no remote master/dev push or Production operation occurred.
+
+### 2026-10-18 — Global Guest Access & Authentication UX V2
+
+- **Branch / Worktree:** `feat/global-guest-auth-ux-v2` created in dedicated Git worktree `D:/KLTN/KLTN/.worktrees/feat-global-guest-auth-ux-v2` from `master` at HEAD `86bb942`.
+- **Implementation Scope:**
+  - Upgraded guest experience from abrupt redirect to context-aware explanation dialogs prior to authentication.
+  - Implemented centralized intent configurations in `apps/web/src/lib/auth-intent-config.ts` for `favorites`, `planner`, `trips`, `trip_save`, `dashboard`, `account`, `session_expired`, and `generic`.
+  - Built accessible, responsive `AuthRequiredDialog` (`auth-required-dialog.tsx` / `auth-required-dialog.css`) adhering to WAI-ARIA (`role="dialog"`, `aria-modal="true"`, focus trap, Escape/backdrop dismissal, focus restoration, body scroll-lock management, emerald/gold theme, reduced motion).
+  - Built `AuthRequiredProvider` and `useAuthRequired()` hook managing 8 auth states (`pending`, `traveler`, `admin`, `guest`, `session_expired`, `error`, `locked`, `insufficient_permission`) with safe SSR/non-provider fallback.
+  - Built `ProtectedLink` intercepting guest clicks, preserving new-tab modifier behaviors, and safely closing mobile drawer before dialog opens.
+  - Updated Header (Desktop & Mobile), Landing Page CTAs/footer, and FavoriteButton.
+  - Server RBAC and route guards (`requireActor()`, `requireTraveler()`, `buildAuthLoginHref()`) remain strictly intact.
+  - No automatic mutation replay after login; users must explicitly click the action again.
+- **Validation:**
+  - `npm run check-types` PASSED across all workspace packages.
+  - `npm run build` PASSED (Next.js 16.3.8 Turbopack, 45 pages compiled).
+  - 15 new focused unit tests passed.
+  - 103 US-story tests and 335 legacy tests passed (36 auth-ui, 27 favorite, 21 authorization, 18 account, 4 idempotency, 63 destination, 37 culture, 27 map, 33 search, 56 rag).
+  - Pre-existing regression in `test:explore` (`public-culture-list.test.tsx:85` matching legacy `home-hero-visual`) noted as untouched from `c5ede132`.
+- **Git & Safety:**
+  - `git diff --check` PASSED with 0 warnings/errors.
+  - No merge to master, no push, no deployment, no database migration changes.
+  - [Report](implementation/global-guest-auth-ux-v2.md).

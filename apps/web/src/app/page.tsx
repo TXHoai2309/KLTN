@@ -31,6 +31,7 @@ import {
 import HomeExploreMap from "@/components/home-explore-map";
 import HomeHeroVideo from "@/components/home-hero-video";
 import HomeHeroMetrics from "@/components/home-hero-metrics";
+import { ProtectedLink } from "@/components/protected-link";
 import "./home.css";
 
 export const metadata: Metadata = {
@@ -98,10 +99,10 @@ export default async function Home() {
               <span>Khám phá điểm đến</span>
               <ArrowRight className="home-cta-arrow" size={18} aria-hidden="true" />
             </Link>
-            <Link className="home-cta home-cta-secondary home-cta-hero-secondary" href={"/trips/new" as Route}>
+            <ProtectedLink className="home-cta home-cta-secondary home-cta-hero-secondary" href="/trips/new" intent="planner">
               <CalendarDays size={18} aria-hidden="true" />
               <span>Lập hành trình</span>
-            </Link>
+            </ProtectedLink>
             <Link className="home-cta home-cta-frosted home-cta-hero-map" href={"/explore?view=map" as Route}>
               <Map size={18} aria-hidden="true" />
               <span>Mở bản đồ</span>
@@ -194,10 +195,10 @@ export default async function Home() {
               <p>
                 Cung cấp thời gian, phương tiện và sở thích để nhận đề xuất lộ trình tối ưu đã được kiểm tra tính khả thi.
               </p>
-              <Link href={"/trips/new" as Route} className="home-step-link">
+              <ProtectedLink href="/trips/new" intent="planner" className="home-step-link">
                 <span>Lập hành trình mới</span>
                 <ArrowRight size={14} aria-hidden="true" />
-              </Link>
+              </ProtectedLink>
             </article>
           </div>
         </section>
@@ -433,11 +434,11 @@ export default async function Home() {
               </div>
 
               <div className="home-showcase-cta-group">
-                <Link className="home-cta home-cta-primary home-cta-coral" href={"/trips/new" as Route}>
+                <ProtectedLink className="home-cta home-cta-primary home-cta-coral" href="/trips/new" intent="planner">
                   <CalendarDays size={18} aria-hidden="true" />
                   <span>Tự tạo hành trình của bạn</span>
                   <ArrowRight className="home-cta-arrow" size={17} aria-hidden="true" />
-                </Link>
+                </ProtectedLink>
               </div>
             </div>
 
@@ -541,10 +542,10 @@ export default async function Home() {
                   <span>Khám phá ngay</span>
                   <ArrowRight className="home-cta-arrow" size={17} aria-hidden="true" />
                 </Link>
-                <Link className="home-cta home-cta-secondary home-cta-frosted" href={"/trips/new" as Route}>
+                <ProtectedLink className="home-cta home-cta-secondary home-cta-frosted" href="/trips/new" intent="planner">
                   <PlusCircle size={18} aria-hidden="true" />
                   <span>Lập hành trình</span>
-                </Link>
+                </ProtectedLink>
               </div>
             </div>
           </div>
@@ -572,7 +573,7 @@ export default async function Home() {
                 <ul className="home-footer-links">
                   <li><Link href="/explore">Điểm đến Hà Giang</Link></li>
                   <li><Link href="/explore?view=map">Bản đồ điểm đến</Link></li>
-                  <li><Link href={"/favorites" as Route}>Điểm đến yêu thích</Link></li>
+                  <li><ProtectedLink href="/favorites" intent="favorites">Điểm đến yêu thích</ProtectedLink></li>
                   {mvpFeatures.culture && <li><Link href={"/culture" as Route}>Văn hóa Hà Giang</Link></li>}
                 </ul>
               </div>
@@ -581,9 +582,9 @@ export default async function Home() {
                 <h4 className="home-footer-heading">Tính năng</h4>
                 <ul className="home-footer-links">
                   <li><Link href={"/assistant" as Route}>Trợ lý AI Hà Giang</Link></li>
-                  <li><Link href={"/trips/new" as Route}>Lập hành trình mới</Link></li>
-                  <li><Link href={"/trips" as Route}>Chuyến đi của tôi</Link></li>
-                  <li><Link href={"/dashboard" as Route}>Bảng điều khiển</Link></li>
+                  <li><ProtectedLink href="/trips/new" intent="planner">Lập hành trình mới</ProtectedLink></li>
+                  <li><ProtectedLink href="/trips" intent="trips">Chuyến đi của tôi</ProtectedLink></li>
+                  <li><ProtectedLink href="/dashboard" intent="dashboard">Bảng điều khiển</ProtectedLink></li>
                 </ul>
               </div>
             </div>
