@@ -20,6 +20,7 @@ export const qaRuntimeEnabled = () => isQaRuntimeEnabled({
   vercelEnv: process.env.VERCEL_ENV,
   qaRuntimeEnabled: process.env.QA_RUNTIME_ENABLED,
   qaPreviewRuntimeEnabled: process.env.QA_PREVIEW_RUNTIME_ENABLED,
+  qaProductionRuntimeEnabled: process.env.QA_PRODUCTION_RUNTIME_ENABLED,
   qaAbuseProtectionAccepted: process.env.QA_ABUSE_PROTECTION_ACCEPTED,
   databaseUrl: process.env.DATABASE_URL,
   allowedDatabaseHost: process.env.QA_RUNTIME_ALLOWED_DATABASE_HOST,

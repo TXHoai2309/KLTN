@@ -3,6 +3,7 @@ export type QaRuntimeGateEnvironment = {
   vercelEnv?: string;
   qaRuntimeEnabled?: string;
   qaPreviewRuntimeEnabled?: string;
+  qaProductionRuntimeEnabled?: string;
   qaAbuseProtectionAccepted?: string;
   databaseUrl?: string;
   allowedDatabaseHost?: string;
@@ -23,15 +24,17 @@ function matchesAllowedDatabase(env: QaRuntimeGateEnvironment): boolean {
 }
 
 /** Public QA stays closed unless an owner explicitly accepts abuse controls,
- * opts in the non-production environment, and pins its exact database target. */
+ * opts in the target environment, and pins its exact database target. */
 export function isQaRuntimeEnabled(env: QaRuntimeGateEnvironment): boolean {
   if (env.qaAbuseProtectionAccepted !== "true" || !matchesAllowedDatabase(env)) return false;
-  if (env.vercelEnv === "production") return false;
   if (env.nodeEnv === "development" && (!env.vercelEnv || env.vercelEnv === "development")) {
     return env.qaRuntimeEnabled === "true";
   }
   if (env.nodeEnv === "production" && env.vercelEnv === "preview") {
     return env.qaPreviewRuntimeEnabled === "true";
+  }
+  if (env.nodeEnv === "production" && env.vercelEnv === "production") {
+    return env.qaProductionRuntimeEnabled === "true";
   }
   return false;
 }
