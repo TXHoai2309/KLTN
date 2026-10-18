@@ -25,6 +25,7 @@ export type NaturalLanguageInputProps = {
   status: NaturalLanguageInputStatus;
   onAnalyze: (normalizedText: string) => void;
   onCancel?: () => void;
+  onContinueManually?: () => void;
 };
 
 const EXAMPLE_PROMPTS = [
@@ -42,6 +43,7 @@ export default function NaturalLanguageInput({
   status,
   onAnalyze,
   onCancel,
+  onContinueManually,
 }: NaturalLanguageInputProps) {
   const [rawText, setRawText] = useState("");
   const [announcedLength, setAnnouncedLength] = useState(0);
@@ -77,7 +79,7 @@ export default function NaturalLanguageInput({
         <div className="trip-heading-icon" aria-hidden="true"><Sparkles size={20} /></div>
         <div>
           <p className="trip-eyebrow">Cách khác để bắt đầu</p>
-          <h2 id="trip-natural-language-title">Mô tả nhu cầu bằng lời</h2>
+          <h2 id="trip-natural-language-title" data-trip-panel-heading tabIndex={-1}>Mô tả nhu cầu bằng lời</h2>
         </div>
       </div>
       <p className="trip-natural-language-intro">
@@ -176,6 +178,15 @@ export default function NaturalLanguageInput({
         </Button>
         {displayButtonState.reason && <p className="trip-natural-language-button-reason">{displayButtonState.reason}</p>}
       </div>
+
+      {onContinueManually && (
+        <div className="trip-natural-language-manual-path">
+          <span>Không muốn dùng AI?</span>
+          <button type="button" className="trip-extraction-link-button" onClick={onContinueManually}>
+            Bỏ qua và nhập bằng biểu mẫu
+          </button>
+        </div>
+      )}
 
       <p className="trip-natural-language-contract-note">
         Tối thiểu {MIN_PREFERENCE_INPUT_LENGTH} và tối đa {MAX_PREFERENCE_INPUT_LENGTH} ký tự. Nội dung dài hơn sẽ được báo lỗi để bạn tự chỉnh sửa.
