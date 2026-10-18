@@ -198,7 +198,7 @@ export const editorialProposalInputSchema = z.object({
   mode: z.enum(["PROPOSE", "ALTERNATIVE"]).default("PROPOSE"),
   expectedRevision: z.number().int().min(0).optional(),
   version: z.literal(2).default(2),
-  timeoutMs: z.number().int().min(1000).max(90000).optional(),
+  timeoutMs: z.number().int().min(1000).max(180000).optional(),
 }).strict();
 
 export type EditorialContext = {
