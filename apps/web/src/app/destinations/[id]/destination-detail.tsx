@@ -19,17 +19,29 @@ import {
   Sparkles,
   Tag,
 } from "lucide-react";
+import { DestinationAiFab } from "@/components/destination-ai-fab";
 import { editorialValue, editorialVisitData, hasEditorialCoordinates, hasEditorialFacts, hasEditorialDuration } from "@/modules/destination-editorial/editorial-display-policy";
 import { formatSuggestedDuration, type PublicDestinationDetail } from "@/modules/destination/public-destination-contract";
 
-function Shell({ children, returnTo }: { children: ReactNode; returnTo: ExploreReturnHref }) {
+function Shell({
+  children,
+  returnTo,
+  topActions,
+}: {
+  children: ReactNode;
+  returnTo: ExploreReturnHref;
+  topActions?: ReactNode;
+}) {
   return (
     <main className="public-detail" lang="vi">
       <div className="public-detail-container">
-        <Link href={returnTo as Route} className="public-detail-back">
-          <ArrowLeft size={16} aria-hidden="true" />
-          <span>Quay lại Khám phá</span>
-        </Link>
+        <div className="public-detail-top-bar">
+          <Link href={returnTo as Route} className="public-detail-back">
+            <ArrowLeft size={16} aria-hidden="true" />
+            <span>Quay lại Khám phá</span>
+          </Link>
+          {topActions && <div className="public-detail-top-actions">{topActions}</div>}
+        </div>
         {children}
       </div>
     </main>
@@ -92,12 +104,20 @@ export default function DestinationDetail({
   editorial?: ResolvedEditorial | null;
 }) {
   const visit = editorialVisitData(d);
-  if (editorial) return <Shell returnTo={resolveExploreReturnTo(returnTo)}>
-    <EditorialRenderer data={d} editorial={editorial} />
-    <div className="public-detail-hero-actions"><Link className="public-detail-ai-btn" href={`/assistant?destinationId=${encodeURIComponent(d.id)}` as Route}><Sparkles size={16} aria-hidden="true" />Hỏi trợ lý AI về điểm đến này</Link><FavoriteButton targetType="destinations" targetId={d.id} /></div>
-  </Shell>;
+  if (editorial) return (
+    <Shell
+      returnTo={resolveExploreReturnTo(returnTo)}
+      topActions={<FavoriteButton targetType="destinations" targetId={d.id} />}
+    >
+      <EditorialRenderer data={d} editorial={editorial} />
+      <DestinationAiFab destinationId={d.id} destinationName={d.name} />
+    </Shell>
+  );
   return (
-    <Shell returnTo={resolveExploreReturnTo(returnTo)}>
+    <Shell
+      returnTo={resolveExploreReturnTo(returnTo)}
+      topActions={<FavoriteButton targetType="destinations" targetId={d.id} />}
+    >
       <header className="public-detail-hero">
         <div className="public-detail-hero-top">
           <span className="public-detail-eyebrow">
@@ -118,19 +138,6 @@ export default function DestinationDetail({
 
         <h1>{d.name}</h1>
         <p className="public-detail-description">{d.description}</p>
-
-        <div className="public-detail-hero-actions">
-          <Link
-            className="public-detail-ai-btn"
-            href={`/assistant?destinationId=${encodeURIComponent(d.id)}` as Route}
-          >
-            <Sparkles size={16} aria-hidden="true" />
-            <span>Hỏi trợ lý AI về điểm đến này</span>
-          </Link>
-          <div className="public-detail-favorite">
-            <FavoriteButton targetType="destinations" targetId={d.id} />
-          </div>
-        </div>
       </header>
 
       <div className="public-detail-grid">
@@ -246,6 +253,7 @@ export default function DestinationDetail({
           </section>}
         </aside>
       </div>
+      <DestinationAiFab destinationId={d.id} destinationName={d.name} />
     </Shell>
   );
 }
