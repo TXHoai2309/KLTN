@@ -7,7 +7,10 @@ const fixture = vi.hoisted(() => ({
   findMany: vi.fn(),
   rows: [] as Array<Record<string, unknown>>,
 }));
-vi.mock("next/server", () => ({ connection: fixture.connection }));
+vi.mock("next/server", async importOriginal => ({
+  ...await importOriginal<typeof import("next/server")>(),
+  connection: fixture.connection,
+}));
 vi.mock("./home.css", () => ({}));
 vi.mock("@/services", () => ({ db: { destination: { findMany: fixture.findMany } } }));
 vi.mock("next/link", () => ({ default: ({ children, href, ...props }: any) => React.createElement("a", { href, ...props }, children) }));
