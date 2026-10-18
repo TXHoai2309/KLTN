@@ -47,7 +47,7 @@ certificate, grounding/citations, public safety and eligibility before completio
 ## Safe diagnostics
 
 Fixed providerPhase: ASSESSMENT / GENERATION / SYNTHESIS_VERIFICATION. Fixed reasons:
-PROVIDER_TIMEOUT, REQUEST_DEADLINE, REQUEST_ABORT, NETWORK_ERROR, UPSTREAM_HTTP.
+PROVIDER_TIMEOUT, REQUEST_DEADLINE, REQUEST_ABORT, ELIGIBILITY_ABORT, NETWORK_ERROR, UPSTREAM_HTTP.
 Events include correlationId, providerElapsedMs, effective configuredTimeoutMs,
 HTTP status when received, model and bounded usage/reasoning-token counts. HTTP200
 with a stalled body is distinct from no headers; stream network errors remain503,

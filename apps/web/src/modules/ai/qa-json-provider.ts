@@ -3,7 +3,7 @@ import { z } from "zod";
 import { AppError } from "../../server/http/app-error";
 import { countEmbeddingTokens } from "../rag-processing/embedding-tokenizer";
 import { qaOrigin, qaProviderInvoked, qaProviderMetadata, qaProviderFailure, qaStage, type QaStage, type QaFailureCategory, type QaProviderPhase, type QaProviderFailureReason } from "./qa-diagnostics";
-import { qaRemainingProviderMs, QA_REQUEST_DEADLINE } from "./qa-request-budget";
+import { qaRemainingProviderMs, QA_REQUEST_DEADLINE, QA_ELIGIBILITY_ABORT } from "./qa-request-budget";
 
 export type QaProviderOptions = { apiKey?: () => string | undefined; fetcher?: typeof fetch; model?: string; timeoutMs?: number; maxOutputTokens?: number; providerPhase?: QaProviderPhase };
 // Owner-selected model for reading, assessment, answer composition and verification.
@@ -68,8 +68,9 @@ export function createQaJsonProvider(options: QaProviderOptions = {}) {
     const effectiveTimeoutMs = Math.min(timeoutMs, remainingMs);
     qaStage(failureStage);
     qaProviderInvoked("generation", model, { providerPhase: phase, configuredTimeoutMs: effectiveTimeoutMs, ...(sol61 ? { reasoningEffort: "medium" as const } : luna ? { reasoningEffort: "none" as const } : {}) });
-    const abort = () => { failureReason ??= input.signal?.reason === QA_REQUEST_DEADLINE ? "REQUEST_DEADLINE" : "REQUEST_ABORT"; controller.abort(); };
-    if (input.signal?.aborted) throw fail(input.signal.reason === QA_REQUEST_DEADLINE ? "REQUEST_DEADLINE" : "REQUEST_ABORT");
+    const abortReason = (): QaProviderFailureReason => input.signal?.reason === QA_REQUEST_DEADLINE ? "REQUEST_DEADLINE" : input.signal?.reason === QA_ELIGIBILITY_ABORT ? "ELIGIBILITY_ABORT" : "REQUEST_ABORT";
+    const abort = () => { failureReason ??= abortReason(); controller.abort(); };
+    if (input.signal?.aborted) throw fail(abortReason());
     if (effectiveTimeoutMs <= 0) throw fail("REQUEST_DEADLINE");
     input.signal?.addEventListener("abort", abort, { once: true });
     let timer: ReturnType<typeof setTimeout> | undefined;

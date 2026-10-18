@@ -6,6 +6,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 export const QA_PROVIDER_WORK_BUDGET_MS = 40_000;
 export const QA_RESPONSE_BUDGET_MS = 58_000;
 export const QA_REQUEST_DEADLINE = Symbol("QA_REQUEST_DEADLINE");
+export const QA_ELIGIBILITY_ABORT = Symbol("QA_ELIGIBILITY_ABORT");
 const budgets = new AsyncLocalStorage<{ deadline: number }>();
 export const qaRemainingProviderMs = () => {
   const budget = budgets.getStore();

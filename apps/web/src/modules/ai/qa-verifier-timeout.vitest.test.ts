@@ -49,7 +49,7 @@ it.each(["old-10s-control", "complete", "revoked", "database-unknown", "persiste
   await vi.advanceTimersByTimeAsync(mode === "persistence-deadline" ? 58_000 : 12_000);
   const response = await pending; const body = await response.json();
   if (mode === "old-10s-control") { expect(response.status).toBe(503); expect(body.error.code).toBe("AI_UNAVAILABLE"); expect(store.complete).not.toHaveBeenCalled(); expect(store.fail).toHaveBeenCalledTimes(1); expect(events.find(event => event.event === "FAILURE")).toMatchObject({ providerPhase: "SYNTHESIS_VERIFICATION", timeoutReason: "PROVIDER_TIMEOUT", eligibleChunks: 4, providerElapsedMs: 10_000 }); }
-  else if (mode === "revoked") { expect(response.status).toBe(502); expect(store.complete).not.toHaveBeenCalled(); }
+  else if (mode === "revoked") { expect(response.status).toBe(502); expect(store.complete).not.toHaveBeenCalled(); expect(events.find(event => event.event === "FAILURE")).toMatchObject({ providerFailureReason: "ELIGIBILITY_ABORT", category: "ELIGIBILITY" }); }
   else if (mode === "database-unknown" || mode === "persistence-deadline") { expect(response.status).toBe(503); expect(body).toMatchObject({ operationStatus: "UNKNOWN", retryWithSameKey: true }); expect(store.fail).not.toHaveBeenCalled(); if (mode === "persistence-deadline") { await vi.advanceTimersByTimeAsync(14_000); expect(store.complete).toHaveBeenCalledTimes(1); expect(store.fail).not.toHaveBeenCalled(); } }
   else { expect(response.status).toBe(200); expect(body.data.status).toBe(mode === "negative-verdict" ? "INSUFFICIENT_SOURCE" : "ANSWERED"); expect(store.complete).toHaveBeenCalledTimes(1); }
   expect(fetcher).toHaveBeenCalledTimes(2);

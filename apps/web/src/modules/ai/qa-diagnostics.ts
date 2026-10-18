@@ -10,7 +10,7 @@ type Origin = { stage: QaStage; category: QaFailureCategory; issues?: Issues };
 export type QaRetrievalReason = "NO_APPROVED_SOURCES" | "NO_CANDIDATES" | "ALL_CANDIDATES_FILTERED" | "EVIDENCE_RETRIEVED";
 export type QaSynthesisRejection = "GATE_REJECTED" | "UNENTAILED_CLAIM" | "ASPECT_COVERAGE" | "SUPPORT_REFERENCE" | "NUMERIC_FIDELITY" | "CLAIM_PARTITION" | "UNJUSTIFIED_CITATION" | "ASPECT_SUPPORT";
 export type QaProviderPhase = "ASSESSMENT" | "GENERATION" | "SYNTHESIS_VERIFICATION";
-export type QaProviderFailureReason = "PROVIDER_TIMEOUT" | "REQUEST_DEADLINE" | "REQUEST_ABORT" | "NETWORK_ERROR" | "UPSTREAM_HTTP";
+export type QaProviderFailureReason = "PROVIDER_TIMEOUT" | "REQUEST_DEADLINE" | "REQUEST_ABORT" | "ELIGIBILITY_ABORT" | "NETWORK_ERROR" | "UPSTREAM_HTTP";
 
 export type QaDiagnosticEvent = {
   correlationId: string; stage: QaStage; event: "STAGE" | "FAILURE";

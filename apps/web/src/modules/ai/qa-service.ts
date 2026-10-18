@@ -15,7 +15,7 @@ import { evaluateQaSourceSufficiency } from "./qa-source-sufficiency";
 import { qaFactualQuestion, qaIntentHistory, qaFollowupClarification } from "./qa-question-understanding";
 import { qaConversationMessage } from "./qa-conversation";
 import { planQaQuestion } from "./qa-question-plan";
-import { withinQaResponseBudget } from "./qa-request-budget";
+import { withinQaResponseBudget, QA_ELIGIBILITY_ABORT } from "./qa-request-budget";
 
 export function createQaService(dependencies: { store: QaConversationStore; retriever: QaRetriever; generator: QaGenerator; assessor?: QaAssessor; eligibilityPollMs?: number; resolveContext?: (context: QaContext) => Promise<QaResolvedContext> }) {
   const { store, retriever, generator } = dependencies;
@@ -71,7 +71,7 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
           if(invalidationError)return;
           invalidationError=failure;
           rejectInvalidation(failure);
-          providerController.abort();
+          providerController.abort(QA_ELIGIBILITY_ABORT);
         };
         const watcher=(async()=>{
           while(evidence.length>0&&!stopped){
