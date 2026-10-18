@@ -3022,3 +3022,86 @@ Audit, task-owned file list, limits and manual procedure:
   remains probable timeout; controlled regression confirms the failure mechanism.
 - Focused124 PASS, full regression/typecheck/build evidence and Production GET
   deployment checks: [timeout report](implementation/qa-verifier-timeout.md).
+
+### 2026-10-18 — Bounded performance audit on TXH (no release)
+
+- Owner explicitly selected direct TXH edits, no push/deploy. Started433f264;
+  concurrent Assistant styling/syntax repair advanced HEAD toa18e8be. Preserved
+  that work; Production baseline433f264 and local A/B source context are separate.
+- Collected57 sequential Production Guest GET samples,20 short Chromium route
+  observations, read-only Prisma/EXPLAIN and existing numeric AI diagnostics.
+  Observability duration requires paid plan, field vitals empty, Neon usage403;
+  no fabricated field p95/INP/cost or authenticated workload measurements.
+- Home public read SQL4→2, paired n5 p50222→157ms with identical DTO hashes.
+  Unfiltered list SQL3→2 but p50143→147ms: fewer statements, no latency-win claim.
+  Lossless poster682840→458612B, decoded pixels identical; original retained.
+  No cross-request cache, source/visibility gate, model, Auth, schema/data change.
+- Corrected browser cache instrumentation and verified50 warm hits. Local Home
+ 390/768/1440 A/B retained all observations, including tablet cold LCP regression.
+  Guest browser18 observations+4 API checks PASS; Explore3/Detail1 map markers at
+  all widths. Valid Traveler/Admin sessions and changed-code Preview unavailable.
+- Controlled post-fix theme-menu interaction probes expose mobile CPU4x event
+  duration864/496ms (second:450.5ms presentation); field INP/root render cause
+  unverified. Both samples retained, no interaction speedup/PASS claim.
+- Root tests2333 Vitest+336 legacy PASS;134 gated SKIP; focused53, harness5,
+  root/script typechecks and isolated Next production build PASS. Static premium
+  audit34 existing unresolved/errors, none in changed UI files; no whole-app PASS.
+- [Review package](performance/performance-optimization-report.md): readiness
+  NO_GO/PARTIAL pending Preview, authenticated CMS/Planner/Trip and broader metrics.
+  No new OpenAI/Routes calls, Production mutations, import, push/merge/deploy.
+
+### 2026-10-18 — Neon priority: read latency decomposition and editorial projection
+
+- Continued on TXH a18e8be + existing performance patch. Owner prioritizes Neon;
+  no push/merge/deploy. Current Production domain nowa18e8be from external work;
+  original433f264 baseline retained. No schema/data/Auth/import/index/compute change.
+-12 read flows×5 paired old/new samples, real PrismaNeon/poolmax2/Production RO;
+  checkout/driver/serialization spans separated,12 canonical DTO hashes identical.
+  Separate3-client WS/TCP ×direct/pooled probe measures local creation/warm RTT,
+  not Vercel hop/compute cold. Unknown stages explicitly NOT_MEASURED.
+- Public editorial reused two unused Admin relations. Public-only select removes
+  areas/cultureLinks, keeps all renderer inputs/DTO validation, media/source rights
+  and final visibility race check. Detail18→16 SQL, editorial10→8. Admin untouched.
+- Paired Home p50209.38→149.58ms; three detail medians841.95→777.43,
+  1061.88→830.57,900.14→786.98ms. Some sample p95 maxima regress; retain all results.
+  No all-route/tail-latency PASS. No new persistent cache: immediate next-read CMS
+  freshness, no private/session cache, no invalidation policy bypass.
+- Neon regionAPI confirmsSingapore; latest Vercel180 function artifacts confirm
+  iad1. Historical hkg1 logs remain distinct; current10m empty. Inter-service RTT
+  and region benefit NOT_MEASURED; Preview placement A/B remains a proposed gate.
+- Focused85 PASS; full2337 Vitest+336 legacy PASS,134 gated SKIP; benchmark7,
+  root/script typecheck and isolated production build PASS. New public reader tests
+  cover identical DTO, unchanged Admin select, hide race, publication freshness
+  and invalid schedules/errors. Final receipts linked in Neon report.
+- [Neon report](performance/neon-database-optimization.md),
+  [17-row mandatory-column matrix](performance/evidence/neon-read-comparison.csv):
+  12 paired flows +5 private workloads BLOCKED without valid sessions. Actual
+  original SQL execution/Vercel session/start/materialization/network metrics are
+  NOT_MEASURED. NEON_PERFORMANCE_OPTIMIZED=PARTIAL; Production releaseNO_GO.
+
+## 2026-10-18 — Performance V3, owner-authorized master rollout
+
+Preserved the uncommitted V1/V2 patch and receipts; owner's latest instruction
+selects master and Production-domain map validation (single Stadia domain).
+Root Vercel regions=[sin1], existing Services/build/rewrites unchanged. Both
+Preview artifacts verified180 Node24 functions in iad1 vs sin1.240 alternating
+public GETs,300 authenticated API samples and120 alternating dashboard GETs
+show lower measured medians; public DTO hashes match and dashboard names remain
+isolated. Five private service/repository workload kinds measured using real
+Better Auth Development fixtures. Preview history remains readiness-gated503;
+repository history timing is not HTTP acceptance or live AI validation.
+
+Real Preview CMS fixture passes create/edit/show/hide and publication/rollback;
+2 users,1 Destination and scoped operation records verified fully cleaned.
+Stadia Preview tile401 remains an explicit hostname restriction; actual current
+Production-domain browser loads tile200 with3 markers. Owner explicitly asks to
+push master and finish validation on that sole configured domain. No map key,
+Origin spoofing, readiness/RBAC bypass, Redis, schema/index/driver/pool/model or
+Production database mutation. Production rollout pending commit/push and final
+alias/function/public smoke; do not infer success from Preview READY.
+
+Validation:2337 Vitest PASS/134 gated SKIP;336 legacy PASS;27 focused timeout and
+public-read tests PASS;7 benchmark tests PASS; root/benchmark typecheck PASS;
+two Preview production builds PASS; diff check and secret scan PASS. Full
+methods, raw measurements, rollback baseline and limits are in
+`docs/performance/performance-optimization-v3.md`. New paid model/routing calls0.

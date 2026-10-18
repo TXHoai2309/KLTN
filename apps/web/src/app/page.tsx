@@ -24,11 +24,8 @@ import {
 import HomeScrollReveal from "@/components/home-scroll-reveal";
 import { BrandLogo } from "@/components/brand-logo";
 import { db } from "@/services";
-import {
-  listPublicLocations,
-  parsePublicListQuery,
-  type PublicLocation,
-} from "@/modules/destination/public-destination-list";
+import type { PublicLocation } from "@/modules/destination/public-destination-list";
+import { listPublicHomeDestinations } from "@/modules/destination/public-home-destinations";
 import HomeExploreMap from "@/components/home-explore-map";
 import HomeHeroVideo from "@/components/home-hero-video";
 import HomeHeroMetrics from "@/components/home-hero-metrics";
@@ -48,33 +45,11 @@ export default async function Home() {
   await connection();
   // Fetch verified public destinations from DB via existing service
   let destinations: PublicLocation[] = [];
+  let descriptions: Record<string, string> = {};
   try {
-    const data = await listPublicLocations(
-      parsePublicListQuery(new URLSearchParams()),
-      db,
-    );
-    destinations = data.items;
+    ({ destinations, descriptions } = await listPublicHomeDestinations(db));
   } catch {
     destinations = [];
-  }
-
-  // Pre-fetch concise descriptions for floating map preview & verified highlights
-  const descriptions: Record<string, string> = {};
-  if (destinations.length > 0) {
-    try {
-      const details = await db.destination.findMany({
-        where: { id: { in: destinations.map((d) => d.id) } },
-        select: { id: true, description: true },
-      });
-      for (const d of details) {
-        if (d.description && d.description.trim()) {
-          const raw = d.description.trim().replace(/\s+/g, " ");
-          descriptions[d.id] = raw.length > 130 ? `${raw.slice(0, 127)}...` : raw;
-        }
-      }
-    } catch {
-      // Graceful fallback to default description template
-    }
   }
 
   return (
@@ -83,7 +58,7 @@ export default async function Home() {
       <section className="home-hero" aria-labelledby="home-title">
         <HomeHeroVideo
           src="/videos/ha-giang-highland-clouds.mp4"
-          poster="/images/ha-giang-highland-poster.png"
+          poster="/images/ha-giang-highland-poster.webp"
         />
 
         <div className="home-hero-copy">

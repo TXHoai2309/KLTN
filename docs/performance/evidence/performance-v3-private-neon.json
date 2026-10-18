@@ -1,0 +1,613 @@
+{
+  "measuredAt": "2026-10-18T11:07:58.583Z",
+  "scope": "Local authenticated service/repository reads against DEVELOPMENT, same application PrismaNeon adapter; no API/Vercel timings; no before variant or optimization claim",
+  "productionWrites": 0,
+  "providerCalls": 0,
+  "historyHttpGate": "UNCHANGED_DISABLED_ON_PREVIEW",
+  "fixtureWrites": "Better Auth sign-in sessions; history owned retention maintenance only",
+  "observations": [
+    {
+      "flow": "favorites",
+      "role": "TRAVELER",
+      "cohort": "owned fresh synthetic account; personal lists empty",
+      "samples": [
+        {
+          "sample": 0,
+          "queryCount": 7,
+          "poolCheckoutMs": 191.49309999999969,
+          "driverRoundtripMs": 431.3412000000003,
+          "serviceMs": 507.645,
+          "serializationMs": 0.002199999999902502,
+          "totalMs": 507.6471999999999,
+          "bytes": 40
+        },
+        {
+          "sample": 1,
+          "queryCount": 7,
+          "poolCheckoutMs": 0.3038999999994303,
+          "driverRoundtripMs": 395.59029999999984,
+          "serviceMs": 400.84389999999985,
+          "serializationMs": 0.002599999999802094,
+          "totalMs": 400.84649999999965,
+          "bytes": 40
+        },
+        {
+          "sample": 2,
+          "queryCount": 7,
+          "poolCheckoutMs": 0.27039999999942665,
+          "driverRoundtripMs": 855.1045999999997,
+          "serviceMs": 860.2460000000001,
+          "serializationMs": 0.002800000000206637,
+          "totalMs": 860.2488000000003,
+          "bytes": 40
+        },
+        {
+          "sample": 3,
+          "queryCount": 7,
+          "poolCheckoutMs": 0.3442000000004555,
+          "driverRoundtripMs": 733.6318000000001,
+          "serviceMs": 738.6331,
+          "serializationMs": 0.002199999999902502,
+          "totalMs": 738.6352999999999,
+          "bytes": 40
+        },
+        {
+          "sample": 4,
+          "queryCount": 7,
+          "poolCheckoutMs": 0.24750000000221917,
+          "driverRoundtripMs": 1008.4658999999992,
+          "serviceMs": 1012.5145000000002,
+          "serializationMs": 0.002199999999902502,
+          "totalMs": 1012.5167000000001,
+          "bytes": 40
+        }
+      ],
+      "totalMs": {
+        "n": 5,
+        "p50": 738.6352999999999,
+        "p95": 1012.5167000000001,
+        "min": 400.84649999999965,
+        "max": 1012.5167000000001
+      },
+      "queryCounts": [
+        7
+      ]
+    },
+    {
+      "flow": "my-trips",
+      "role": "TRAVELER",
+      "cohort": "owned fresh synthetic account; personal lists empty",
+      "samples": [
+        {
+          "sample": 0,
+          "queryCount": 5,
+          "poolCheckoutMs": 0.21859999999924185,
+          "driverRoundtripMs": 332.4258000000009,
+          "serviceMs": 337.1151,
+          "serializationMs": 0.002200000000811997,
+          "totalMs": 337.1173000000008,
+          "bytes": 12
+        },
+        {
+          "sample": 1,
+          "queryCount": 5,
+          "poolCheckoutMs": 0.18100000000049477,
+          "driverRoundtripMs": 350.3662000000022,
+          "serviceMs": 354.1392999999989,
+          "serializationMs": 0.002899999999499414,
+          "totalMs": 354.1421999999984,
+          "bytes": 12
+        },
+        {
+          "sample": 2,
+          "queryCount": 5,
+          "poolCheckoutMs": 0.10709999999744468,
+          "driverRoundtripMs": 366.3658000000014,
+          "serviceMs": 369.6203999999998,
+          "serializationMs": 0.002300000000104774,
+          "totalMs": 369.6226999999999,
+          "bytes": 12
+        },
+        {
+          "sample": 3,
+          "queryCount": 5,
+          "poolCheckoutMs": 0.15010000000074797,
+          "driverRoundtripMs": 367.4271000000026,
+          "serviceMs": 372.79309999999896,
+          "serializationMs": 0.01089999999931024,
+          "totalMs": 372.80399999999827,
+          "bytes": 12
+        },
+        {
+          "sample": 4,
+          "queryCount": 5,
+          "poolCheckoutMs": 0.14530000000013388,
+          "driverRoundtripMs": 354.9437999999973,
+          "serviceMs": 358.7013999999999,
+          "serializationMs": 0.00210000000151922,
+          "totalMs": 358.70350000000144,
+          "bytes": 12
+        }
+      ],
+      "totalMs": {
+        "n": 5,
+        "p50": 358.70350000000144,
+        "p95": 372.80399999999827,
+        "min": 337.1173000000008,
+        "max": 372.80399999999827
+      },
+      "queryCounts": [
+        5
+      ]
+    },
+    {
+      "flow": "dashboard-authorization",
+      "role": "TRAVELER",
+      "cohort": "owned fresh synthetic account; personal lists empty",
+      "samples": [
+        {
+          "sample": 0,
+          "queryCount": 3,
+          "poolCheckoutMs": 0.11160000000018044,
+          "driverRoundtripMs": 231.33719999999812,
+          "serviceMs": 235.85819999999876,
+          "serializationMs": 0.004999999999199645,
+          "totalMs": 235.86319999999796,
+          "bytes": 19
+        },
+        {
+          "sample": 1,
+          "queryCount": 3,
+          "poolCheckoutMs": 0.16409999999996217,
+          "driverRoundtripMs": 224.56769999999779,
+          "serviceMs": 228.82680000000073,
+          "serializationMs": 0.0031999999991967343,
+          "totalMs": 228.82999999999993,
+          "bytes": 19
+        },
+        {
+          "sample": 2,
+          "queryCount": 3,
+          "poolCheckoutMs": 0.24640000000181317,
+          "driverRoundtripMs": 427.28859999999986,
+          "serviceMs": 431.5198999999993,
+          "serializationMs": 0.0072000000000116415,
+          "totalMs": 431.52709999999934,
+          "bytes": 19
+        },
+        {
+          "sample": 3,
+          "queryCount": 3,
+          "poolCheckoutMs": 0.10540000000037253,
+          "driverRoundtripMs": 491.8627000000015,
+          "serviceMs": 495.52479999999923,
+          "serializationMs": 0.0059000000001105946,
+          "totalMs": 495.53069999999934,
+          "bytes": 19
+        },
+        {
+          "sample": 4,
+          "queryCount": 3,
+          "poolCheckoutMs": 0.10529999999926076,
+          "driverRoundtripMs": 368.27419999999984,
+          "serviceMs": 371.5536000000011,
+          "serializationMs": 0.003999999998995918,
+          "totalMs": 371.5576000000001,
+          "bytes": 19
+        }
+      ],
+      "totalMs": {
+        "n": 5,
+        "p50": 371.5576000000001,
+        "p95": 495.53069999999934,
+        "min": 228.82999999999993,
+        "max": 495.53069999999934
+      },
+      "queryCounts": [
+        3
+      ]
+    },
+    {
+      "flow": "ai-history-repository-only",
+      "role": "TRAVELER",
+      "cohort": "owned fresh synthetic account; personal lists empty",
+      "samples": [
+        {
+          "sample": 0,
+          "queryCount": 21,
+          "poolCheckoutMs": 0.42220000000270375,
+          "driverRoundtripMs": 2083.9084000000003,
+          "serviceMs": 2105.9221,
+          "serializationMs": 0.005300000000715954,
+          "totalMs": 2105.9274000000005,
+          "bytes": 46
+        },
+        {
+          "sample": 1,
+          "queryCount": 21,
+          "poolCheckoutMs": 0.3507000000008702,
+          "driverRoundtripMs": 1585.8917999999976,
+          "serviceMs": 1604.5353999999988,
+          "serializationMs": 0.005599999996775296,
+          "totalMs": 1604.5409999999956,
+          "bytes": 46
+        },
+        {
+          "sample": 2,
+          "queryCount": 21,
+          "poolCheckoutMs": 0.282999999999447,
+          "driverRoundtripMs": 2234.3907999999974,
+          "serviceMs": 2249.0455999999976,
+          "serializationMs": 0.005300000000715954,
+          "totalMs": 2249.0508999999984,
+          "bytes": 46
+        },
+        {
+          "sample": 3,
+          "queryCount": 21,
+          "poolCheckoutMs": 0.3040000000000873,
+          "driverRoundtripMs": 1644.662899999992,
+          "serviceMs": 1663.300800000001,
+          "serializationMs": 0.006000000001222361,
+          "totalMs": 1663.306800000002,
+          "bytes": 46
+        },
+        {
+          "sample": 4,
+          "queryCount": 21,
+          "poolCheckoutMs": 0.3146000000051572,
+          "driverRoundtripMs": 1499.4974999999904,
+          "serviceMs": 1515.777399999999,
+          "serializationMs": 0.006699999998090789,
+          "totalMs": 1515.7840999999971,
+          "bytes": 46
+        }
+      ],
+      "totalMs": {
+        "n": 5,
+        "p50": 1663.306800000002,
+        "p95": 2249.0508999999984,
+        "min": 1515.7840999999971,
+        "max": 2249.0508999999984
+      },
+      "queryCounts": [
+        21
+      ]
+    },
+    {
+      "flow": "favorites",
+      "role": "ADMIN",
+      "cohort": "owned fresh synthetic account; personal lists empty",
+      "samples": [
+        {
+          "sample": 0,
+          "queryCount": 7,
+          "poolCheckoutMs": 174.20559999999386,
+          "driverRoundtripMs": 480.08060000000114,
+          "serviceMs": 535.2524000000012,
+          "serializationMs": 0.005000000001018634,
+          "totalMs": 535.2574000000022,
+          "bytes": 40
+        },
+        {
+          "sample": 1,
+          "queryCount": 7,
+          "poolCheckoutMs": 0.29320000000006985,
+          "driverRoundtripMs": 443.7341000000015,
+          "serviceMs": 448.0066999999981,
+          "serializationMs": 0.0025000000023283064,
+          "totalMs": 448.0092000000004,
+          "bytes": 40
+        },
+        {
+          "sample": 2,
+          "queryCount": 7,
+          "poolCheckoutMs": 0.436600000004546,
+          "driverRoundtripMs": 443.52570000000924,
+          "serviceMs": 447.9375999999975,
+          "serializationMs": 0.0035000000025320332,
+          "totalMs": 447.9411,
+          "bytes": 40
+        },
+        {
+          "sample": 3,
+          "queryCount": 7,
+          "poolCheckoutMs": 0.3559000000022934,
+          "driverRoundtripMs": 752.9974000000002,
+          "serviceMs": 757.1997999999985,
+          "serializationMs": 0.0034999999988940544,
+          "totalMs": 757.2032999999974,
+          "bytes": 40
+        },
+        {
+          "sample": 4,
+          "queryCount": 7,
+          "poolCheckoutMs": 0.5093000000015309,
+          "driverRoundtripMs": 420.5684000000074,
+          "serviceMs": 424.45969999999943,
+          "serializationMs": 0.0036000000000058208,
+          "totalMs": 424.46329999999944,
+          "bytes": 40
+        }
+      ],
+      "totalMs": {
+        "n": 5,
+        "p50": 448.0092000000004,
+        "p95": 757.2032999999974,
+        "min": 424.46329999999944,
+        "max": 757.2032999999974
+      },
+      "queryCounts": [
+        7
+      ]
+    },
+    {
+      "flow": "my-trips",
+      "role": "ADMIN",
+      "cohort": "owned fresh synthetic account; personal lists empty",
+      "samples": [
+        {
+          "sample": 0,
+          "queryCount": 5,
+          "poolCheckoutMs": 0.22689999999420252,
+          "driverRoundtripMs": 312.34879999999976,
+          "serviceMs": 317.23089999999866,
+          "serializationMs": 0.0033000000003085006,
+          "totalMs": 317.23419999999896,
+          "bytes": 12
+        },
+        {
+          "sample": 1,
+          "queryCount": 5,
+          "poolCheckoutMs": 0.1691000000027998,
+          "driverRoundtripMs": 316.19529999999577,
+          "serviceMs": 319.6438999999991,
+          "serializationMs": 0.0036000000000058208,
+          "totalMs": 319.6474999999991,
+          "bytes": 12
+        },
+        {
+          "sample": 2,
+          "queryCount": 5,
+          "poolCheckoutMs": 0.20929999999862048,
+          "driverRoundtripMs": 329.9367999999995,
+          "serviceMs": 334.0597999999991,
+          "serializationMs": 0.003700000001117587,
+          "totalMs": 334.0635000000002,
+          "bytes": 12
+        },
+        {
+          "sample": 3,
+          "queryCount": 5,
+          "poolCheckoutMs": 0.1496999999981199,
+          "driverRoundtripMs": 334.91179999999804,
+          "serviceMs": 338.73489999999947,
+          "serializationMs": 0.004000000000814907,
+          "totalMs": 338.7389000000003,
+          "bytes": 12
+        },
+        {
+          "sample": 4,
+          "queryCount": 5,
+          "poolCheckoutMs": 0.20869999999922584,
+          "driverRoundtripMs": 337.0924999999952,
+          "serviceMs": 341.46800000000076,
+          "serializationMs": 0.0025000000023283064,
+          "totalMs": 341.4705000000031,
+          "bytes": 12
+        }
+      ],
+      "totalMs": {
+        "n": 5,
+        "p50": 334.0635000000002,
+        "p95": 341.4705000000031,
+        "min": 317.23419999999896,
+        "max": 341.4705000000031
+      },
+      "queryCounts": [
+        5
+      ]
+    },
+    {
+      "flow": "dashboard-authorization",
+      "role": "ADMIN",
+      "cohort": "owned fresh synthetic account; personal lists empty",
+      "samples": [
+        {
+          "sample": 0,
+          "queryCount": 3,
+          "poolCheckoutMs": 0.17160000000149012,
+          "driverRoundtripMs": 177.34469999999783,
+          "serviceMs": 181.23629999999685,
+          "serializationMs": 0.003200000002834713,
+          "totalMs": 181.23949999999968,
+          "bytes": 16
+        },
+        {
+          "sample": 1,
+          "queryCount": 3,
+          "poolCheckoutMs": 0.10840000000098371,
+          "driverRoundtripMs": 193.9357999999993,
+          "serviceMs": 197.17250000000058,
+          "serializationMs": 0.0018999999992956873,
+          "totalMs": 197.17439999999988,
+          "bytes": 16
+        },
+        {
+          "sample": 2,
+          "queryCount": 3,
+          "poolCheckoutMs": 0.10710000000108266,
+          "driverRoundtripMs": 206.7924000000021,
+          "serviceMs": 210.8592000000026,
+          "serializationMs": 0.003099999998084968,
+          "totalMs": 210.8623000000007,
+          "bytes": 16
+        },
+        {
+          "sample": 3,
+          "queryCount": 3,
+          "poolCheckoutMs": 0.11059999999997672,
+          "driverRoundtripMs": 205.86070000000473,
+          "serviceMs": 208.29799999999523,
+          "serializationMs": 0.0011999999987892807,
+          "totalMs": 208.29919999999402,
+          "bytes": 16
+        },
+        {
+          "sample": 4,
+          "queryCount": 3,
+          "poolCheckoutMs": 0.15280000000348082,
+          "driverRoundtripMs": 210.28140000000712,
+          "serviceMs": 213.49899999999616,
+          "serializationMs": 0.015200000001641456,
+          "totalMs": 213.5141999999978,
+          "bytes": 16
+        }
+      ],
+      "totalMs": {
+        "n": 5,
+        "p50": 208.29919999999402,
+        "p95": 213.5141999999978,
+        "min": 181.23949999999968,
+        "max": 213.5141999999978
+      },
+      "queryCounts": [
+        3
+      ]
+    },
+    {
+      "flow": "cms-admin",
+      "role": "ADMIN",
+      "cohort": "owned fresh synthetic account; personal lists empty",
+      "samples": [
+        {
+          "sample": 0,
+          "queryCount": 4,
+          "poolCheckoutMs": 0.14810000000579748,
+          "driverRoundtripMs": 270.58030000000144,
+          "serviceMs": 282.7297999999937,
+          "serializationMs": 0.01929999999993015,
+          "totalMs": 282.74909999999363,
+          "bytes": 2364
+        },
+        {
+          "sample": 1,
+          "queryCount": 4,
+          "poolCheckoutMs": 0.13849999999365536,
+          "driverRoundtripMs": 238.5547000000006,
+          "serviceMs": 243.5066999999981,
+          "serializationMs": 0.023399999998218846,
+          "totalMs": 243.5300999999963,
+          "bytes": 2364
+        },
+        {
+          "sample": 2,
+          "queryCount": 4,
+          "poolCheckoutMs": 0.13659999999799766,
+          "driverRoundtripMs": 274.93960000000516,
+          "serviceMs": 278.67109999999957,
+          "serializationMs": 0.010799999996379483,
+          "totalMs": 278.68189999999595,
+          "bytes": 2364
+        },
+        {
+          "sample": 3,
+          "queryCount": 4,
+          "poolCheckoutMs": 0.12749999999505235,
+          "driverRoundtripMs": 257.56159999999363,
+          "serviceMs": 262.18910000000324,
+          "serializationMs": 0.017699999996693805,
+          "totalMs": 262.20679999999993,
+          "bytes": 2364
+        },
+        {
+          "sample": 4,
+          "queryCount": 4,
+          "poolCheckoutMs": 0.1269999999931315,
+          "driverRoundtripMs": 288.78510000000824,
+          "serviceMs": 292.58460000000196,
+          "serializationMs": 0.01389999999810243,
+          "totalMs": 292.59850000000006,
+          "bytes": 2364
+        }
+      ],
+      "totalMs": {
+        "n": 5,
+        "p50": 278.68189999999595,
+        "p95": 292.59850000000006,
+        "min": 243.5300999999963,
+        "max": 292.59850000000006
+      },
+      "queryCounts": [
+        4
+      ]
+    },
+    {
+      "flow": "ai-history-repository-only",
+      "role": "ADMIN",
+      "cohort": "owned fresh synthetic account; personal lists empty",
+      "samples": [
+        {
+          "sample": 0,
+          "queryCount": 21,
+          "poolCheckoutMs": 0.2859999999855063,
+          "driverRoundtripMs": 2603.683499999992,
+          "serviceMs": 2617.6175999999978,
+          "serializationMs": 0.010499999996682163,
+          "totalMs": 2617.6280999999944,
+          "bytes": 46
+        },
+        {
+          "sample": 1,
+          "queryCount": 21,
+          "poolCheckoutMs": 0.282599999984086,
+          "driverRoundtripMs": 1448.1751000000004,
+          "serviceMs": 1461.008099999999,
+          "serializationMs": 0.0039000000033411197,
+          "totalMs": 1461.0120000000024,
+          "bytes": 46
+        },
+        {
+          "sample": 2,
+          "queryCount": 21,
+          "poolCheckoutMs": 0.23460000000341097,
+          "driverRoundtripMs": 1424.6677999999883,
+          "serviceMs": 1437.7325999999957,
+          "serializationMs": 0.004600000000209548,
+          "totalMs": 1437.737199999996,
+          "bytes": 46
+        },
+        {
+          "sample": 3,
+          "queryCount": 21,
+          "poolCheckoutMs": 0.3035999999992782,
+          "driverRoundtripMs": 1821.4981999999945,
+          "serviceMs": 1835.1895000000004,
+          "serializationMs": 0.0036000000036437996,
+          "totalMs": 1835.193100000004,
+          "bytes": 46
+        },
+        {
+          "sample": 4,
+          "queryCount": 21,
+          "poolCheckoutMs": 0.24380000000383006,
+          "driverRoundtripMs": 2547.3100000000195,
+          "serviceMs": 2559.7713000000003,
+          "serializationMs": 0.0044000000052619725,
+          "totalMs": 2559.7757000000056,
+          "bytes": 46
+        }
+      ],
+      "totalMs": {
+        "n": 5,
+        "p50": 1835.193100000004,
+        "p95": 2617.6280999999944,
+        "min": 1437.737199999996,
+        "max": 2617.6280999999944
+      },
+      "queryCounts": [
+        21
+      ]
+    }
+  ]
+}

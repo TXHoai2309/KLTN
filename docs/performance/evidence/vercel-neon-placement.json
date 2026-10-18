@@ -1,0 +1,58 @@
+{
+  "checkedAt": "2026-10-18T10:11:59.680Z",
+  "projectVerified": "kltn/prj_tyylPlLvhAvbkdyXHPPQCLgkZvlO",
+  "productionCommit": "a18e8be261ea18eadf3d7558e8f7255a09899f29",
+  "productionState": "READY",
+  "projectFunctionRegion": "iad1",
+  "fluid": true,
+  "defaultRegions": [
+    "iad1"
+  ],
+  "deployedFunctionRegions": [
+    "iad1"
+  ],
+  "functionArtifacts": 180,
+  "functionSample": [
+    {
+      "path": "services/web/index",
+      "regions": [
+        "iad1"
+      ],
+      "runtime": "nodejs24.x"
+    },
+    {
+      "path": "services/web/destinations/[id]",
+      "regions": [
+        "iad1"
+      ],
+      "runtime": "nodejs24.x"
+    },
+    {
+      "path": "services/web/explore",
+      "regions": [
+        "iad1"
+      ],
+      "runtime": "nodejs24.x"
+    },
+    {
+      "path": "services/web/api/destinations",
+      "regions": [
+        "iad1"
+      ],
+      "runtime": "nodejs24.x"
+    },
+    {
+      "path": "services/web/api/ai/ask",
+      "regions": [
+        "iad1"
+      ],
+      "runtime": "nodejs24.x"
+    }
+  ],
+  "previousDiagnosticsRegion": "hkg1",
+  "current10mLogRecords": 0,
+  "actualRuntimeReconciliation": "NOT_MEASURED: current window empty; latest deployment artifact region verified, previous logs hkg1 remain historical observation",
+  "vercelToNeonNetworkMs": "NOT_MEASURED",
+  "mutations": 0,
+  "deploymentsByAudit": 0
+}

@@ -1,0 +1,157 @@
+{
+  "checkedAt": "2026-10-18T09:45:40.281Z",
+  "scope": "post-fix loopback Guest; controlled theme-menu click + Escape; no DB/model/routing writes",
+  "fieldInp": null,
+  "observations": [
+    {
+      "width": 390,
+      "status": 200,
+      "cpuSlowdown": 4,
+      "supported": true,
+      "entries": [
+        {
+          "name": "pointerdown",
+          "durationMs": 496,
+          "interactionId": 6654,
+          "inputDelayMs": 30,
+          "processingMs": 15.5,
+          "presentationDelayMs": 450.5
+        },
+        {
+          "name": "pointerup",
+          "durationMs": 496,
+          "interactionId": 6654,
+          "inputDelayMs": 56.899999998509884,
+          "processingMs": 1.7000000029802322,
+          "presentationDelayMs": 437.3999999985099
+        },
+        {
+          "name": "click",
+          "durationMs": 496,
+          "interactionId": 6654,
+          "inputDelayMs": 61.899999998509884,
+          "processingMs": 6.200000002980232,
+          "presentationDelayMs": 427.8999999985099
+        },
+        {
+          "name": "keydown",
+          "durationMs": 128,
+          "interactionId": 6661,
+          "inputDelayMs": 0.5,
+          "processingMs": 104.69999999925494,
+          "presentationDelayMs": 22.800000000745058
+        },
+        {
+          "name": "keyup",
+          "durationMs": 40,
+          "interactionId": 6661,
+          "inputDelayMs": 20,
+          "processingMs": 0.9000000022351742,
+          "presentationDelayMs": 19.099999997764826
+        }
+      ],
+      "sampledMaxEventDurationMs": 496,
+      "interpretation": "Synthetic maximum event duration for theme click/Escape; NOT field INP, no before/after win claim"
+    },
+    {
+      "width": 768,
+      "status": 200,
+      "cpuSlowdown": 1,
+      "supported": true,
+      "entries": [
+        {
+          "name": "pointerdown",
+          "durationMs": 56,
+          "interactionId": 5894,
+          "inputDelayMs": 2.800000000745058,
+          "processingMs": 1,
+          "presentationDelayMs": 52.19999999925494
+        },
+        {
+          "name": "pointerup",
+          "durationMs": 56,
+          "interactionId": 5894,
+          "inputDelayMs": 4.599999997764826,
+          "processingMs": 0,
+          "presentationDelayMs": 51.400000002235174
+        },
+        {
+          "name": "click",
+          "durationMs": 56,
+          "interactionId": 5894,
+          "inputDelayMs": 4.800000000745058,
+          "processingMs": 0.3999999985098839,
+          "presentationDelayMs": 50.80000000074506
+        },
+        {
+          "name": "keydown",
+          "durationMs": 24,
+          "interactionId": 5901,
+          "inputDelayMs": 0.5999999977648258,
+          "processingMs": 7.300000000745058,
+          "presentationDelayMs": 16.100000001490116
+        },
+        {
+          "name": "keyup",
+          "durationMs": 40,
+          "interactionId": 5901,
+          "inputDelayMs": 0.6999999992549419,
+          "processingMs": 0.10000000149011612,
+          "presentationDelayMs": 39.19999999925494
+        }
+      ],
+      "sampledMaxEventDurationMs": 56,
+      "interpretation": "Synthetic maximum event duration for theme click/Escape; NOT field INP, no before/after win claim"
+    },
+    {
+      "width": 1440,
+      "status": 200,
+      "cpuSlowdown": 1,
+      "supported": true,
+      "entries": [
+        {
+          "name": "pointerdown",
+          "durationMs": 88,
+          "interactionId": 5813,
+          "inputDelayMs": 1.800000000745058,
+          "processingMs": 1,
+          "presentationDelayMs": 85.19999999925494
+        },
+        {
+          "name": "pointerup",
+          "durationMs": 88,
+          "interactionId": 5813,
+          "inputDelayMs": 3.5,
+          "processingMs": 0,
+          "presentationDelayMs": 84.5
+        },
+        {
+          "name": "click",
+          "durationMs": 88,
+          "interactionId": 5813,
+          "inputDelayMs": 3.699999999254942,
+          "processingMs": 0.30000000074505806,
+          "presentationDelayMs": 84
+        },
+        {
+          "name": "keydown",
+          "durationMs": 64,
+          "interactionId": 5820,
+          "inputDelayMs": 0.6999999992549419,
+          "processingMs": 6.400000002235174,
+          "presentationDelayMs": 56.899999998509884
+        },
+        {
+          "name": "keyup",
+          "durationMs": 88,
+          "interactionId": 5820,
+          "inputDelayMs": 1.199999999254942,
+          "processingMs": 0.20000000298023224,
+          "presentationDelayMs": 86.59999999776483
+        }
+      ],
+      "sampledMaxEventDurationMs": 88,
+      "interpretation": "Synthetic maximum event duration for theme click/Escape; NOT field INP, no before/after win claim"
+    }
+  ]
+}

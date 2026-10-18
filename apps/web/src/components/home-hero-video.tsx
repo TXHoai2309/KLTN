@@ -10,7 +10,7 @@ interface HomeHeroVideoProps {
 
 export default function HomeHeroVideo({
   src,
-  poster = "/images/ha-giang-highland-poster.png",
+  poster = "/images/ha-giang-highland-poster.webp",
 }: HomeHeroVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isMuted, setIsMuted] = useState(true);

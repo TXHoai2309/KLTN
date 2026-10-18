@@ -8,15 +8,29 @@ import { editorialActionSchema, editorialLayoutSchema, editorialStateSchema, typ
 import { resolveEditorial, validateLayoutReferences } from "./editorial-engine";
 export function editorialMigrationMissing(error: unknown) { return Boolean(error && typeof error === "object" && "code" in error && error.code === "P2021"); }
 export function editorialAiConfigured() { return Boolean(process.env.OPENAI_API_KEY?.trim() && process.env.OPENAI_EDITORIAL_MODEL?.trim()); }
-export async function readEditorialContext(id: string, database: Pick<Database, "destination">): Promise<EditorialContext> {
-  const row = await database.destination.findUnique({ where: { id: validateDestinationId(id) }, select: destinationSelect });
-  if (!row) throw new AppError("DESTINATION_NOT_FOUND", "Không tìm thấy điểm đến.", 404);
+// These relations are not consumed by EditorialContext. Keep every scalar,
+// schedule, source/media field and canonical DTO validation; Admin still reads
+// its full projection. This removes two relation roundtrips on public detail.
+const { areas: _areas, cultureLinks: _cultureLinks, ...publicEditorialContextSelect } = destinationSelect;
+function toEditorialContext(id: string, row: Parameters<typeof toDestinationDto>[0]): EditorialContext {
   const dto = toDestinationDto(row);
   return { id, name: row.name, description: row.description, category: row.category, area: row.area, latitude: row.latitude, longitude: row.longitude,
     suggestedDurationMinutes: row.suggestedDurationMinutes, openingDays: dto.openingDays,
     media: row.media.map(({ id, url, alt, caption, author, sourceUrl, isCover, websiteRights, storageReference }) => ({ id, url, alt, caption, author, sourceUrl, isCover, websiteRights, storageReference })),
     sources: row.sources.map(({ id, title, url, websiteRights }) => ({ id, title, url, websiteRights })),
   };
+}
+export async function readEditorialContext(id: string, database: Pick<Database, "destination">): Promise<EditorialContext> {
+  const row = await database.destination.findUnique({ where: { id: validateDestinationId(id) }, select: destinationSelect });
+  if (!row) throw new AppError("DESTINATION_NOT_FOUND", "Không tìm thấy điểm đến.", 404);
+  return toEditorialContext(id, row);
+}
+async function readPublishedEditorialContext(id: string, database: Pick<Database, "destination">): Promise<EditorialContext> {
+  const row = await database.destination.findUnique({ where: { id: validateDestinationId(id) }, select: publicEditorialContextSelect });
+  if (!row) throw new AppError("DESTINATION_NOT_FOUND", "Không tìm thấy điểm đến.", 404);
+  // Neither omitted relation is exposed by EditorialContext. Empty placeholders
+  // retain the same full validation of all fields actually used by the renderer.
+  return toEditorialContext(id, { ...row, areas: [], cultureLinks: [] });
 }
 const fingerprint = (context: EditorialContext) => createHash("sha256").update(JSON.stringify(context)).digest("hex");
 function state(context: EditorialContext, row: Prisma.DestinationEditorialGetPayload<object> | null, available = true): EditorialState {
@@ -78,7 +92,7 @@ export async function readPublicEditorial(id: string, database: Database) {
     const parsed = editorialLayoutSchema.safeParse(row?.published);
     if (!parsed.success) return null;
     // Recheck visibility/rights with the materialized context to close a hide/revoke race.
-    const context = await readEditorialContext(id, database);
+    const context = await readPublishedEditorialContext(id, database);
     const stillVisible = await database.destination.findUnique({ where: { id, visibility: "VISIBLE" }, select: { id: true } });
     return stillVisible ? resolveEditorial(parsed.data, context) : null;
   } catch { return null; } // Missing table/invalid legacy JSON cannot break standard detail.

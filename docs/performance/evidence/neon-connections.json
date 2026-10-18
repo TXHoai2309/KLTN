@@ -1,0 +1,372 @@
+{
+  "measuredAt": "2026-10-18T09:55:11.931Z",
+  "origin": "local audit host, NOT Vercel",
+  "method": "3 fresh clients per transport/endpoint;3 SELECT1 probes/client; one active connection at a time; TLS+read-only; no suspend/restart/load test",
+  "readOnly": true,
+  "databaseWrites": 0,
+  "computeColdStart": "NOT_MEASURED: compute already active; never forced idle",
+  "observations": [
+    {
+      "transport": "TCP_TLS",
+      "endpoint": "pooled",
+      "trial": 1,
+      "condition": "new-client-first-query",
+      "connectionMs": 781.0276000000003,
+      "roundtripMs": 65.3823999999995
+    },
+    {
+      "transport": "TCP_TLS",
+      "endpoint": "pooled",
+      "trial": 1,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 58.83039999999983
+    },
+    {
+      "transport": "TCP_TLS",
+      "endpoint": "pooled",
+      "trial": 1,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 59.20679999999993
+    },
+    {
+      "transport": "TCP_TLS",
+      "endpoint": "pooled",
+      "trial": 2,
+      "condition": "new-client-first-query",
+      "connectionMs": 341.71280000000024,
+      "roundtripMs": 63.68449999999939
+    },
+    {
+      "transport": "TCP_TLS",
+      "endpoint": "pooled",
+      "trial": 2,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 56.94759999999951
+    },
+    {
+      "transport": "TCP_TLS",
+      "endpoint": "pooled",
+      "trial": 2,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 54.549299999999675
+    },
+    {
+      "transport": "TCP_TLS",
+      "endpoint": "pooled",
+      "trial": 3,
+      "condition": "new-client-first-query",
+      "connectionMs": 363.35109999999986,
+      "roundtripMs": 53.787100000000464
+    },
+    {
+      "transport": "TCP_TLS",
+      "endpoint": "pooled",
+      "trial": 3,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 52.92070000000058
+    },
+    {
+      "transport": "TCP_TLS",
+      "endpoint": "pooled",
+      "trial": 3,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 57.552700000000186
+    },
+    {
+      "transport": "TCP_TLS",
+      "endpoint": "direct",
+      "trial": 1,
+      "condition": "new-client-first-query",
+      "connectionMs": 361.45960000000014,
+      "roundtripMs": 56.47659999999996
+    },
+    {
+      "transport": "TCP_TLS",
+      "endpoint": "direct",
+      "trial": 1,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 56.95089999999982
+    },
+    {
+      "transport": "TCP_TLS",
+      "endpoint": "direct",
+      "trial": 1,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 57.25660000000062
+    },
+    {
+      "transport": "TCP_TLS",
+      "endpoint": "direct",
+      "trial": 2,
+      "condition": "new-client-first-query",
+      "connectionMs": 717.7271000000001,
+      "roundtripMs": 53.9325000000008
+    },
+    {
+      "transport": "TCP_TLS",
+      "endpoint": "direct",
+      "trial": 2,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 91.06890000000021
+    },
+    {
+      "transport": "TCP_TLS",
+      "endpoint": "direct",
+      "trial": 2,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 53.78479999999945
+    },
+    {
+      "transport": "TCP_TLS",
+      "endpoint": "direct",
+      "trial": 3,
+      "condition": "new-client-first-query",
+      "connectionMs": 365.5633999999991,
+      "roundtripMs": 54.39520000000084
+    },
+    {
+      "transport": "TCP_TLS",
+      "endpoint": "direct",
+      "trial": 3,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 54.27809999999954
+    },
+    {
+      "transport": "TCP_TLS",
+      "endpoint": "direct",
+      "trial": 3,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 54.12670000000071
+    },
+    {
+      "transport": "NEON_WEBSOCKET_TLS",
+      "endpoint": "pooled",
+      "trial": 1,
+      "condition": "new-client-first-query",
+      "connectionMs": 203.97440000000097,
+      "roundtripMs": 62.252699999999095
+    },
+    {
+      "transport": "NEON_WEBSOCKET_TLS",
+      "endpoint": "pooled",
+      "trial": 1,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 72.91020000000026
+    },
+    {
+      "transport": "NEON_WEBSOCKET_TLS",
+      "endpoint": "pooled",
+      "trial": 1,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 61.945300000001225
+    },
+    {
+      "transport": "NEON_WEBSOCKET_TLS",
+      "endpoint": "pooled",
+      "trial": 2,
+      "condition": "new-client-first-query",
+      "connectionMs": 193.10319999999956,
+      "roundtripMs": 78.45230000000083
+    },
+    {
+      "transport": "NEON_WEBSOCKET_TLS",
+      "endpoint": "pooled",
+      "trial": 2,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 62.722999999999956
+    },
+    {
+      "transport": "NEON_WEBSOCKET_TLS",
+      "endpoint": "pooled",
+      "trial": 2,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 73.70770000000084
+    },
+    {
+      "transport": "NEON_WEBSOCKET_TLS",
+      "endpoint": "pooled",
+      "trial": 3,
+      "condition": "new-client-first-query",
+      "connectionMs": 195.0006000000012,
+      "roundtripMs": 61.1887999999999
+    },
+    {
+      "transport": "NEON_WEBSOCKET_TLS",
+      "endpoint": "pooled",
+      "trial": 3,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 60.11959999999999
+    },
+    {
+      "transport": "NEON_WEBSOCKET_TLS",
+      "endpoint": "pooled",
+      "trial": 3,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 67.27839999999924
+    },
+    {
+      "transport": "NEON_WEBSOCKET_TLS",
+      "endpoint": "direct",
+      "trial": 1,
+      "condition": "new-client-first-query",
+      "connectionMs": 187.41439999999966,
+      "roundtripMs": 62.304800000001705
+    },
+    {
+      "transport": "NEON_WEBSOCKET_TLS",
+      "endpoint": "direct",
+      "trial": 1,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 63.71299999999974
+    },
+    {
+      "transport": "NEON_WEBSOCKET_TLS",
+      "endpoint": "direct",
+      "trial": 1,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 68.08590000000004
+    },
+    {
+      "transport": "NEON_WEBSOCKET_TLS",
+      "endpoint": "direct",
+      "trial": 2,
+      "condition": "new-client-first-query",
+      "connectionMs": 303.03559999999925,
+      "roundtripMs": 57.74649999999747
+    },
+    {
+      "transport": "NEON_WEBSOCKET_TLS",
+      "endpoint": "direct",
+      "trial": 2,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 146.91200000000026
+    },
+    {
+      "transport": "NEON_WEBSOCKET_TLS",
+      "endpoint": "direct",
+      "trial": 2,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 66.04950000000099
+    },
+    {
+      "transport": "NEON_WEBSOCKET_TLS",
+      "endpoint": "direct",
+      "trial": 3,
+      "condition": "new-client-first-query",
+      "connectionMs": 295.45860000000175,
+      "roundtripMs": 64.66430000000037
+    },
+    {
+      "transport": "NEON_WEBSOCKET_TLS",
+      "endpoint": "direct",
+      "trial": 3,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 58.96299999999974
+    },
+    {
+      "transport": "NEON_WEBSOCKET_TLS",
+      "endpoint": "direct",
+      "trial": 3,
+      "condition": "same-session-warm",
+      "connectionMs": null,
+      "roundtripMs": 69.75580000000264
+    }
+  ],
+  "summary": [
+    {
+      "transport": "TCP_TLS",
+      "endpoint": "pooled",
+      "connectMs": {
+        "n": 3,
+        "p50": 363.35109999999986,
+        "p95": 781.0276000000003,
+        "min": 341.71280000000024,
+        "max": 781.0276000000003
+      },
+      "warmRoundtripMs": {
+        "n": 6,
+        "p50": 56.94759999999951,
+        "p95": 59.20679999999993,
+        "min": 52.92070000000058,
+        "max": 59.20679999999993
+      }
+    },
+    {
+      "transport": "TCP_TLS",
+      "endpoint": "direct",
+      "connectMs": {
+        "n": 3,
+        "p50": 365.5633999999991,
+        "p95": 717.7271000000001,
+        "min": 361.45960000000014,
+        "max": 717.7271000000001
+      },
+      "warmRoundtripMs": {
+        "n": 6,
+        "p50": 54.27809999999954,
+        "p95": 91.06890000000021,
+        "min": 53.78479999999945,
+        "max": 91.06890000000021
+      }
+    },
+    {
+      "transport": "NEON_WEBSOCKET_TLS",
+      "endpoint": "pooled",
+      "connectMs": {
+        "n": 3,
+        "p50": 195.0006000000012,
+        "p95": 203.97440000000097,
+        "min": 193.10319999999956,
+        "max": 203.97440000000097
+      },
+      "warmRoundtripMs": {
+        "n": 6,
+        "p50": 62.722999999999956,
+        "p95": 73.70770000000084,
+        "min": 60.11959999999999,
+        "max": 73.70770000000084
+      }
+    },
+    {
+      "transport": "NEON_WEBSOCKET_TLS",
+      "endpoint": "direct",
+      "connectMs": {
+        "n": 3,
+        "p50": 295.45860000000175,
+        "p95": 303.03559999999925,
+        "min": 187.41439999999966,
+        "max": 303.03559999999925
+      },
+      "warmRoundtripMs": {
+        "n": 6,
+        "p50": 66.04950000000099,
+        "p95": 146.91200000000026,
+        "min": 58.96299999999974,
+        "max": 146.91200000000026
+      }
+    }
+  ]
+}

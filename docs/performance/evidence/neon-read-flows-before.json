@@ -1,0 +1,3955 @@
+{
+  "measuredAt": "2026-10-18T09:55:21.946Z",
+  "mode": "before",
+  "sourceHead": "a18e8be + performance working patch",
+  "scope": "Local service/repository benchmark using pinned Production READ ONLY; not authorized HTTP workload; no provider calls;5 samples, poolmax2, alternating variants",
+  "notMeasured": [
+    "Vercel function start/cold-start",
+    "valid session authentication",
+    "Prisma-only materialization CPU",
+    "actual original SQL server-only execution",
+    "Vercel-to-Neon pure network",
+    "response network/API total"
+  ],
+  "driverRoundtripDefinition": "client.query wait including wire and driver decode; separate pool acquisition; interval union avoids parallel double count",
+  "connectionDefinition": "warm pool checkout wait; fresh connection measured separately by connection probe",
+  "embedding": "stored eligible vector fixture; NOT semantic relevance/provider embedding acceptance",
+  "readOnly": true,
+  "databaseWrites": 0,
+  "openAiCalls": 0,
+  "routingCalls": 0,
+  "summary": [
+    {
+      "flow": "landing",
+      "route": "/",
+      "api": "SERVER_COMPONENT",
+      "before": {
+        "n": 5,
+        "queryCounts": [
+          4
+        ],
+        "connectionMs": {
+          "n": 5,
+          "p50": 0.6616000000003623,
+          "p95": 2.532700000000659,
+          "min": 0.47109999999884167,
+          "max": 2.532700000000659
+        },
+        "driverRoundtripMs": {
+          "n": 5,
+          "p50": 196.0679,
+          "p95": 251.45980000000054,
+          "min": 181.9932000000008,
+          "max": 251.45980000000054
+        },
+        "serializationMs": {
+          "n": 5,
+          "p50": 0.02719999999862921,
+          "p95": 0.03650000000016007,
+          "min": 0.0239000000001397,
+          "max": 0.03650000000016007
+        },
+        "totalMs": {
+          "n": 5,
+          "p50": 199.46709999999894,
+          "p95": 255.29329999999936,
+          "min": 192.28930000000037,
+          "max": 255.29329999999936
+        },
+        "resultHashes": [
+          "7064c8ef6f1a44be82868fa6e814d2f17b076a6ab4c0b18b9d14c34bdfa46b12"
+        ]
+      },
+      "after": {
+        "n": 0,
+        "queryCounts": [],
+        "connectionMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "driverRoundtripMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "serializationMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "totalMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "resultHashes": []
+      }
+    },
+    {
+      "flow": "explore-list",
+      "route": "/explore",
+      "api": "/api/destinations",
+      "before": {
+        "n": 5,
+        "queryCounts": [
+          3
+        ],
+        "connectionMs": {
+          "n": 5,
+          "p50": 0.4404000000013184,
+          "p95": 0.7485999999971682,
+          "min": 0.3930999999993219,
+          "max": 0.7485999999971682
+        },
+        "driverRoundtripMs": {
+          "n": 5,
+          "p50": 123.3648000000012,
+          "p95": 149.0657999999985,
+          "min": 120.0098999999991,
+          "max": 149.0657999999985
+        },
+        "serializationMs": {
+          "n": 5,
+          "p50": 0.023199999999633292,
+          "p95": 0.03889999999955762,
+          "min": 0.01989999999932479,
+          "max": 0.03889999999955762
+        },
+        "totalMs": {
+          "n": 5,
+          "p50": 125.6898999999994,
+          "p95": 150.71939999999995,
+          "min": 122.1320999999989,
+          "max": 150.71939999999995
+        },
+        "resultHashes": [
+          "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909"
+        ]
+      },
+      "after": {
+        "n": 0,
+        "queryCounts": [],
+        "connectionMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "driverRoundtripMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "serializationMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "totalMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "resultHashes": []
+      }
+    },
+    {
+      "flow": "explore-map",
+      "route": "/explore?view=map",
+      "api": "/api/destinations?view=map",
+      "before": {
+        "n": 5,
+        "queryCounts": [
+          3
+        ],
+        "connectionMs": {
+          "n": 5,
+          "p50": 0.43400000000110595,
+          "p95": 0.7240999999976339,
+          "min": 0.2235000000000582,
+          "max": 0.7240999999976339
+        },
+        "driverRoundtripMs": {
+          "n": 5,
+          "p50": 197.8288999999986,
+          "p95": 427.94990000000143,
+          "min": 129.34219999999914,
+          "max": 427.94990000000143
+        },
+        "serializationMs": {
+          "n": 5,
+          "p50": 0.017599999999220017,
+          "p95": 0.025299999999333522,
+          "min": 0.010800000000017462,
+          "max": 0.025299999999333522
+        },
+        "totalMs": {
+          "n": 5,
+          "p50": 199.46420000000035,
+          "p95": 429.7978999999996,
+          "min": 131.17849999999999,
+          "max": 429.7978999999996
+        },
+        "resultHashes": [
+          "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909"
+        ]
+      },
+      "after": {
+        "n": 0,
+        "queryCounts": [],
+        "connectionMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "driverRoundtripMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "serializationMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "totalMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "resultHashes": []
+      }
+    },
+    {
+      "flow": "explore-keyword",
+      "route": "/explore?q=Đồng Văn",
+      "api": "/api/destinations?q=Đồng Văn",
+      "before": {
+        "n": 5,
+        "queryCounts": [
+          3
+        ],
+        "connectionMs": {
+          "n": 5,
+          "p50": 0.4639999999999418,
+          "p95": 0.5280000000002474,
+          "min": 0.265400000000227,
+          "max": 0.5280000000002474
+        },
+        "driverRoundtripMs": {
+          "n": 5,
+          "p50": 125.8150999999998,
+          "p95": 128.02759999999944,
+          "min": 115.0622000000003,
+          "max": 128.02759999999944
+        },
+        "serializationMs": {
+          "n": 5,
+          "p50": 0.015799999999217107,
+          "p95": 0.020399999999426655,
+          "min": 0.009100000001126318,
+          "max": 0.020399999999426655
+        },
+        "totalMs": {
+          "n": 5,
+          "p50": 127.51269999999931,
+          "p95": 131.69150000000081,
+          "min": 116.99779999999919,
+          "max": 131.69150000000081
+        },
+        "resultHashes": [
+          "def3ea3b5318975b879d64c3aeb650cffa5afa8c3151ec43333eaaae23de2658"
+        ]
+      },
+      "after": {
+        "n": 0,
+        "queryCounts": [],
+        "connectionMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "driverRoundtripMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "serializationMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "totalMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "resultHashes": []
+      }
+    },
+    {
+      "flow": "explore-category",
+      "route": "/explore?category=...",
+      "api": "/api/destinations?category=...",
+      "before": {
+        "n": 5,
+        "queryCounts": [
+          3
+        ],
+        "connectionMs": {
+          "n": 5,
+          "p50": 0.38110000000051514,
+          "p95": 0.9246000000021013,
+          "min": 0.29539999999906286,
+          "max": 0.9246000000021013
+        },
+        "driverRoundtripMs": {
+          "n": 5,
+          "p50": 127.74560000000201,
+          "p95": 131.03020000000106,
+          "min": 118.46860000000015,
+          "max": 131.03020000000106
+        },
+        "serializationMs": {
+          "n": 5,
+          "p50": 0.018000000000029104,
+          "p95": 0.01900000000023283,
+          "min": 0.01420000000143773,
+          "max": 0.01900000000023283
+        },
+        "totalMs": {
+          "n": 5,
+          "p50": 129.36609999999928,
+          "p95": 136.61789999999928,
+          "min": 120.13110000000052,
+          "max": 136.61789999999928
+        },
+        "resultHashes": [
+          "def3ea3b5318975b879d64c3aeb650cffa5afa8c3151ec43333eaaae23de2658"
+        ]
+      },
+      "after": {
+        "n": 0,
+        "queryCounts": [],
+        "connectionMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "driverRoundtripMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "serializationMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "totalMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "resultHashes": []
+      }
+    },
+    {
+      "flow": "destination-1",
+      "route": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "api": "SERVER_COMPONENT",
+      "before": {
+        "n": 5,
+        "queryCounts": [
+          18
+        ],
+        "connectionMs": {
+          "n": 5,
+          "p50": 260.9174000000021,
+          "p95": 415.02059999999983,
+          "min": 239.0943000000043,
+          "max": 415.02059999999983
+        },
+        "driverRoundtripMs": {
+          "n": 5,
+          "p50": 650.9554000000026,
+          "p95": 1004.9583999999995,
+          "min": 614.7614999999969,
+          "max": 1004.9583999999995
+        },
+        "serializationMs": {
+          "n": 5,
+          "p50": 0.09389999999984866,
+          "p95": 0.15869999999995343,
+          "min": 0.07949999999982538,
+          "max": 0.15869999999995343
+        },
+        "totalMs": {
+          "n": 5,
+          "p50": 877.1933000000026,
+          "p95": 1346.411500000002,
+          "min": 834.8097000000016,
+          "max": 1346.411500000002
+        },
+        "resultHashes": [
+          "30046b13853050ff684bedea656622f238a88d2a0e0817fc9ef2e8fe9596089c"
+        ]
+      },
+      "after": {
+        "n": 0,
+        "queryCounts": [],
+        "connectionMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "driverRoundtripMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "serializationMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "totalMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "resultHashes": []
+      }
+    },
+    {
+      "flow": "destination-2",
+      "route": "/destinations/cmvanjc6p000f7w9wyuydna52",
+      "api": "SERVER_COMPONENT",
+      "before": {
+        "n": 5,
+        "queryCounts": [
+          18
+        ],
+        "connectionMs": {
+          "n": 5,
+          "p50": 263.51489999999467,
+          "p95": 481.41049999999814,
+          "min": 251.40099999999802,
+          "max": 481.41049999999814
+        },
+        "driverRoundtripMs": {
+          "n": 5,
+          "p50": 704.6180000000095,
+          "p95": 1450.3387999999977,
+          "min": 632.1355000000149,
+          "max": 1450.3387999999977
+        },
+        "serializationMs": {
+          "n": 5,
+          "p50": 0.24950000000171713,
+          "p95": 0.3205000000016298,
+          "min": 0.17419999999765423,
+          "max": 0.3205000000016298
+        },
+        "totalMs": {
+          "n": 5,
+          "p50": 910.6189000000013,
+          "p95": 1802.2507000000041,
+          "min": 829.6836000000003,
+          "max": 1802.2507000000041
+        },
+        "resultHashes": [
+          "1aa477b13e2677519f3e363ef734f89fe448f44b7903b86991dc5d244990bcf5"
+        ]
+      },
+      "after": {
+        "n": 0,
+        "queryCounts": [],
+        "connectionMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "driverRoundtripMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "serializationMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "totalMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "resultHashes": []
+      }
+    },
+    {
+      "flow": "destination-3",
+      "route": "/destinations/cmv9fcwo1000be89w3yxz3mqu",
+      "api": "SERVER_COMPONENT",
+      "before": {
+        "n": 5,
+        "queryCounts": [
+          18
+        ],
+        "connectionMs": {
+          "n": 5,
+          "p50": 255.6471000000165,
+          "p95": 476.17609999999695,
+          "min": 246.32749999999942,
+          "max": 476.17609999999695
+        },
+        "driverRoundtripMs": {
+          "n": 5,
+          "p50": 654.9952000000048,
+          "p95": 1334.869500000008,
+          "min": 617.7406999999985,
+          "max": 1334.869500000008
+        },
+        "serializationMs": {
+          "n": 5,
+          "p50": 0.13850000000093132,
+          "p95": 0.1993000000002212,
+          "min": 0.10380000000441214,
+          "max": 0.1993000000002212
+        },
+        "totalMs": {
+          "n": 5,
+          "p50": 836.7197000000087,
+          "p95": 1675.6799000000028,
+          "min": 819.3547999999937,
+          "max": 1675.6799000000028
+        },
+        "resultHashes": [
+          "89b64dd8f657d852b7801389311c4265debac35fbf2f122ab266b39e1468b39a"
+        ]
+      },
+      "after": {
+        "n": 0,
+        "queryCounts": [],
+        "connectionMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "driverRoundtripMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "serializationMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "totalMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "resultHashes": []
+      }
+    },
+    {
+      "flow": "public-editorial",
+      "route": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "api": "INTERNAL_PUBLIC_EDITORIAL",
+      "before": {
+        "n": 5,
+        "queryCounts": [
+          10
+        ],
+        "connectionMs": {
+          "n": 5,
+          "p50": 204.3449999999939,
+          "p95": 327.4545999999973,
+          "min": 125.37520000000222,
+          "max": 327.4545999999973
+        },
+        "driverRoundtripMs": {
+          "n": 5,
+          "p50": 607.408399999993,
+          "p95": 762.309500000003,
+          "min": 401.64560000001075,
+          "max": 762.309500000003
+        },
+        "serializationMs": {
+          "n": 5,
+          "p50": 0.06220000000030268,
+          "p95": 0.13450000000011642,
+          "min": 0.0385999999998603,
+          "max": 0.13450000000011642
+        },
+        "totalMs": {
+          "n": 5,
+          "p50": 802.6504999999961,
+          "p95": 969.6166000000012,
+          "min": 543.3790000000008,
+          "max": 969.6166000000012
+        },
+        "resultHashes": [
+          "78fcc74a69826ae3f8b26f76b970d9f41574baddbc8f77b0432371f4b93cb404"
+        ]
+      },
+      "after": {
+        "n": 0,
+        "queryCounts": [],
+        "connectionMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "driverRoundtripMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "serializationMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "totalMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "resultHashes": []
+      }
+    },
+    {
+      "flow": "planner-candidates",
+      "route": "/trips/new (repository only)",
+      "api": "INTERNAL_CANDIDATE_READ",
+      "before": {
+        "n": 5,
+        "queryCounts": [
+          4
+        ],
+        "connectionMs": {
+          "n": 5,
+          "p50": 0.3526000000128988,
+          "p95": 0.4348000000027241,
+          "min": 0.21020000000135042,
+          "max": 0.4348000000027241
+        },
+        "driverRoundtripMs": {
+          "n": 5,
+          "p50": 255.4102999999959,
+          "p95": 269.65280000001076,
+          "min": 212.1631999999954,
+          "max": 269.65280000001076
+        },
+        "serializationMs": {
+          "n": 5,
+          "p50": 0.04329999999754364,
+          "p95": 0.10349999999743886,
+          "min": 0.03589999999530846,
+          "max": 0.10349999999743886
+        },
+        "totalMs": {
+          "n": 5,
+          "p50": 257.83759999999893,
+          "p95": 272.4657999999981,
+          "min": 214.48589999999967,
+          "max": 272.4657999999981
+        },
+        "resultHashes": [
+          "d53c411aa8f3a242d1b93cf6cc0b60b4e101c8204f8881c973a09af353faa81f"
+        ]
+      },
+      "after": {
+        "n": 0,
+        "queryCounts": [],
+        "connectionMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "driverRoundtripMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "serializationMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "totalMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "resultHashes": []
+      }
+    },
+    {
+      "flow": "planner-recheck",
+      "route": "/trips/new (repository only)",
+      "api": "INTERNAL_CANDIDATE_RECHECK",
+      "before": {
+        "n": 5,
+        "queryCounts": [
+          5
+        ],
+        "connectionMs": {
+          "n": 5,
+          "p50": 0.43549999999959255,
+          "p95": 0.8230000000039581,
+          "min": 0.3540000000066357,
+          "max": 0.8230000000039581
+        },
+        "driverRoundtripMs": {
+          "n": 5,
+          "p50": 313.9193000000014,
+          "p95": 733.8639000000039,
+          "min": 302.3365999999878,
+          "max": 733.8639000000039
+        },
+        "serializationMs": {
+          "n": 5,
+          "p50": 0.0010000000038417056,
+          "p95": 0.002899999999499414,
+          "min": 0.0005999999993946403,
+          "max": 0.002899999999499414
+        },
+        "totalMs": {
+          "n": 5,
+          "p50": 317.51640000000043,
+          "p95": 738.8948000000091,
+          "min": 309.2111999999979,
+          "max": 738.8948000000091
+        },
+        "resultHashes": [
+          "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b"
+        ]
+      },
+      "after": {
+        "n": 0,
+        "queryCounts": [],
+        "connectionMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "driverRoundtripMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "serializationMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "totalMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "resultHashes": []
+      }
+    },
+    {
+      "flow": "rag-retrieval",
+      "route": "/assistant (retrieval only)",
+      "api": "INTERNAL_RETRIEVAL_NO_MODEL",
+      "before": {
+        "n": 5,
+        "queryCounts": [
+          4
+        ],
+        "connectionMs": {
+          "n": 5,
+          "p50": 0.09619999999995343,
+          "p95": 0.11480000000301516,
+          "min": 0.060299999997369014,
+          "max": 0.11480000000301516
+        },
+        "driverRoundtripMs": {
+          "n": 5,
+          "p50": 393.2754000000132,
+          "p95": 649.8426000000036,
+          "min": 381.7464000000109,
+          "max": 649.8426000000036
+        },
+        "serializationMs": {
+          "n": 5,
+          "p50": 0.04349999999976717,
+          "p95": 0.10299999999551801,
+          "min": 0.03220000000146683,
+          "max": 0.10299999999551801
+        },
+        "totalMs": {
+          "n": 5,
+          "p50": 417.01759999999194,
+          "p95": 696.3567000000039,
+          "min": 396.7202000000034,
+          "max": 696.3567000000039
+        },
+        "resultHashes": [
+          "121c9e81e63cd5a37faa5c21395a4b2a52c07de560db70f78bb27cbe4bf1ba55"
+        ]
+      },
+      "after": {
+        "n": 0,
+        "queryCounts": [],
+        "connectionMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "driverRoundtripMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "serializationMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "totalMs": {
+          "n": 0,
+          "p50": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "resultHashes": []
+      }
+    }
+  ],
+  "observations": [
+    {
+      "flow": "landing",
+      "variant": "before",
+      "sample": 1,
+      "serviceMs": 192.26540000000023,
+      "serializationMs": 0.0239000000001397,
+      "totalMs": 192.28930000000037,
+      "queryCount": 4,
+      "connectionMs": 2.532700000000659,
+      "driverRoundtripMs": 181.9932000000008,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "7064c8ef6f1a44be82868fa6e814d2f17b076a6ab4c0b18b9d14c34bdfa46b12",
+      "resultBytes": 1721
+    },
+    {
+      "flow": "landing",
+      "variant": "before",
+      "sample": 2,
+      "serviceMs": 206.39699999999993,
+      "serializationMs": 0.026400000000649015,
+      "totalMs": 206.42340000000058,
+      "queryCount": 4,
+      "connectionMs": 0.6616000000003623,
+      "driverRoundtripMs": 202.4279000000006,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "7064c8ef6f1a44be82868fa6e814d2f17b076a6ab4c0b18b9d14c34bdfa46b12",
+      "resultBytes": 1721
+    },
+    {
+      "flow": "landing",
+      "variant": "before",
+      "sample": 3,
+      "serviceMs": 255.2567999999992,
+      "serializationMs": 0.03650000000016007,
+      "totalMs": 255.29329999999936,
+      "queryCount": 4,
+      "connectionMs": 0.5682999999999083,
+      "driverRoundtripMs": 251.45980000000054,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "7064c8ef6f1a44be82868fa6e814d2f17b076a6ab4c0b18b9d14c34bdfa46b12",
+      "resultBytes": 1721
+    },
+    {
+      "flow": "landing",
+      "variant": "before",
+      "sample": 4,
+      "serviceMs": 199.4399000000003,
+      "serializationMs": 0.02719999999862921,
+      "totalMs": 199.46709999999894,
+      "queryCount": 4,
+      "connectionMs": 0.47109999999884167,
+      "driverRoundtripMs": 196.0679,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "7064c8ef6f1a44be82868fa6e814d2f17b076a6ab4c0b18b9d14c34bdfa46b12",
+      "resultBytes": 1721
+    },
+    {
+      "flow": "landing",
+      "variant": "before",
+      "sample": 5,
+      "serviceMs": 193.97979999999916,
+      "serializationMs": 0.028599999999642023,
+      "totalMs": 194.0083999999988,
+      "queryCount": 4,
+      "connectionMs": 0.7508000000034372,
+      "driverRoundtripMs": 190.09619999999995,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "7064c8ef6f1a44be82868fa6e814d2f17b076a6ab4c0b18b9d14c34bdfa46b12",
+      "resultBytes": 1721
+    },
+    {
+      "flow": "explore-list",
+      "variant": "before",
+      "sample": 1,
+      "serviceMs": 125.66539999999986,
+      "serializationMs": 0.02449999999953434,
+      "totalMs": 125.6898999999994,
+      "queryCount": 3,
+      "connectionMs": 0.7485999999971682,
+      "driverRoundtripMs": 122.80309999999918,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909",
+      "resultBytes": 1233
+    },
+    {
+      "flow": "explore-list",
+      "variant": "before",
+      "sample": 2,
+      "serviceMs": 150.69950000000063,
+      "serializationMs": 0.01989999999932479,
+      "totalMs": 150.71939999999995,
+      "queryCount": 3,
+      "connectionMs": 0.3930999999993219,
+      "driverRoundtripMs": 149.0657999999985,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909",
+      "resultBytes": 1233
+    },
+    {
+      "flow": "explore-list",
+      "variant": "before",
+      "sample": 3,
+      "serviceMs": 125.27000000000044,
+      "serializationMs": 0.03889999999955762,
+      "totalMs": 125.3089,
+      "queryCount": 3,
+      "connectionMs": 0.43590000000040163,
+      "driverRoundtripMs": 123.3648000000012,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909",
+      "resultBytes": 1233
+    },
+    {
+      "flow": "explore-list",
+      "variant": "before",
+      "sample": 4,
+      "serviceMs": 122.11019999999917,
+      "serializationMs": 0.021899999999732245,
+      "totalMs": 122.1320999999989,
+      "queryCount": 3,
+      "connectionMs": 0.4404000000013184,
+      "driverRoundtripMs": 120.0098999999991,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909",
+      "resultBytes": 1233
+    },
+    {
+      "flow": "explore-list",
+      "variant": "before",
+      "sample": 5,
+      "serviceMs": 129.13470000000052,
+      "serializationMs": 0.023199999999633292,
+      "totalMs": 129.15790000000015,
+      "queryCount": 3,
+      "connectionMs": 0.4580999999998312,
+      "driverRoundtripMs": 126.56880000000092,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909",
+      "resultBytes": 1233
+    },
+    {
+      "flow": "explore-map",
+      "variant": "before",
+      "sample": 1,
+      "serviceMs": 199.45340000000033,
+      "serializationMs": 0.010800000000017462,
+      "totalMs": 199.46420000000035,
+      "queryCount": 3,
+      "connectionMs": 0.7240999999976339,
+      "driverRoundtripMs": 197.8288999999986,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909",
+      "resultBytes": 1233
+    },
+    {
+      "flow": "explore-map",
+      "variant": "before",
+      "sample": 2,
+      "serviceMs": 429.77260000000024,
+      "serializationMs": 0.025299999999333522,
+      "totalMs": 429.7978999999996,
+      "queryCount": 3,
+      "connectionMs": 0.4974000000001979,
+      "driverRoundtripMs": 427.94990000000143,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909",
+      "resultBytes": 1233
+    },
+    {
+      "flow": "explore-map",
+      "variant": "before",
+      "sample": 3,
+      "serviceMs": 198.26549999999952,
+      "serializationMs": 0.014600000000427826,
+      "totalMs": 198.28009999999995,
+      "queryCount": 3,
+      "connectionMs": 0.43400000000110595,
+      "driverRoundtripMs": 196.78589999999895,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909",
+      "resultBytes": 1233
+    },
+    {
+      "flow": "explore-map",
+      "variant": "before",
+      "sample": 4,
+      "serviceMs": 261.32730000000083,
+      "serializationMs": 0.018299999999726424,
+      "totalMs": 261.34560000000056,
+      "queryCount": 3,
+      "connectionMs": 0.2235000000000582,
+      "driverRoundtripMs": 260.15459999999985,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909",
+      "resultBytes": 1233
+    },
+    {
+      "flow": "explore-map",
+      "variant": "before",
+      "sample": 5,
+      "serviceMs": 131.16090000000077,
+      "serializationMs": 0.017599999999220017,
+      "totalMs": 131.17849999999999,
+      "queryCount": 3,
+      "connectionMs": 0.3518999999996595,
+      "driverRoundtripMs": 129.34219999999914,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909",
+      "resultBytes": 1233
+    },
+    {
+      "flow": "explore-keyword",
+      "variant": "before",
+      "sample": 1,
+      "serviceMs": 131.6823999999997,
+      "serializationMs": 0.009100000001126318,
+      "totalMs": 131.69150000000081,
+      "queryCount": 3,
+      "connectionMs": 0.4639999999999418,
+      "driverRoundtripMs": 128.02759999999944,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "def3ea3b5318975b879d64c3aeb650cffa5afa8c3151ec43333eaaae23de2658",
+      "resultBytes": 513
+    },
+    {
+      "flow": "explore-keyword",
+      "variant": "before",
+      "sample": 2,
+      "serviceMs": 124.1820000000007,
+      "serializationMs": 0.015900000000328873,
+      "totalMs": 124.19790000000103,
+      "queryCount": 3,
+      "connectionMs": 0.33549999999740976,
+      "driverRoundtripMs": 122.3792999999987,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "def3ea3b5318975b879d64c3aeb650cffa5afa8c3151ec43333eaaae23de2658",
+      "resultBytes": 513
+    },
+    {
+      "flow": "explore-keyword",
+      "variant": "before",
+      "sample": 3,
+      "serviceMs": 127.4982,
+      "serializationMs": 0.01449999999931606,
+      "totalMs": 127.51269999999931,
+      "queryCount": 3,
+      "connectionMs": 0.265400000000227,
+      "driverRoundtripMs": 125.8150999999998,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "def3ea3b5318975b879d64c3aeb650cffa5afa8c3151ec43333eaaae23de2658",
+      "resultBytes": 513
+    },
+    {
+      "flow": "explore-keyword",
+      "variant": "before",
+      "sample": 4,
+      "serviceMs": 129.45910000000003,
+      "serializationMs": 0.020399999999426655,
+      "totalMs": 129.47949999999946,
+      "queryCount": 3,
+      "connectionMs": 0.5280000000002474,
+      "driverRoundtripMs": 127.15819999999985,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "def3ea3b5318975b879d64c3aeb650cffa5afa8c3151ec43333eaaae23de2658",
+      "resultBytes": 513
+    },
+    {
+      "flow": "explore-keyword",
+      "variant": "before",
+      "sample": 5,
+      "serviceMs": 116.98199999999997,
+      "serializationMs": 0.015799999999217107,
+      "totalMs": 116.99779999999919,
+      "queryCount": 3,
+      "connectionMs": 0.4855999999999767,
+      "driverRoundtripMs": 115.0622000000003,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "def3ea3b5318975b879d64c3aeb650cffa5afa8c3151ec43333eaaae23de2658",
+      "resultBytes": 513
+    },
+    {
+      "flow": "explore-category",
+      "variant": "before",
+      "sample": 1,
+      "serviceMs": 136.59989999999925,
+      "serializationMs": 0.018000000000029104,
+      "totalMs": 136.61789999999928,
+      "queryCount": 3,
+      "connectionMs": 0.9246000000021013,
+      "driverRoundtripMs": 131.03020000000106,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "def3ea3b5318975b879d64c3aeb650cffa5afa8c3151ec43333eaaae23de2658",
+      "resultBytes": 513
+    },
+    {
+      "flow": "explore-category",
+      "variant": "before",
+      "sample": 2,
+      "serviceMs": 120.1168000000016,
+      "serializationMs": 0.014299999998911517,
+      "totalMs": 120.13110000000052,
+      "queryCount": 3,
+      "connectionMs": 0.38110000000051514,
+      "driverRoundtripMs": 118.46860000000015,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "def3ea3b5318975b879d64c3aeb650cffa5afa8c3151ec43333eaaae23de2658",
+      "resultBytes": 513
+    },
+    {
+      "flow": "explore-category",
+      "variant": "before",
+      "sample": 3,
+      "serviceMs": 132.1306999999997,
+      "serializationMs": 0.01809999999932188,
+      "totalMs": 132.14879999999903,
+      "queryCount": 3,
+      "connectionMs": 0.4724000000005617,
+      "driverRoundtripMs": 129.35289999999986,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "def3ea3b5318975b879d64c3aeb650cffa5afa8c3151ec43333eaaae23de2658",
+      "resultBytes": 513
+    },
+    {
+      "flow": "explore-category",
+      "variant": "before",
+      "sample": 4,
+      "serviceMs": 125.96160000000054,
+      "serializationMs": 0.01420000000143773,
+      "totalMs": 125.97580000000198,
+      "queryCount": 3,
+      "connectionMs": 0.29539999999906286,
+      "driverRoundtripMs": 124.59430000000066,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "def3ea3b5318975b879d64c3aeb650cffa5afa8c3151ec43333eaaae23de2658",
+      "resultBytes": 513
+    },
+    {
+      "flow": "explore-category",
+      "variant": "before",
+      "sample": 5,
+      "serviceMs": 129.34709999999905,
+      "serializationMs": 0.01900000000023283,
+      "totalMs": 129.36609999999928,
+      "queryCount": 3,
+      "connectionMs": 0.3583000000035099,
+      "driverRoundtripMs": 127.74560000000201,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "def3ea3b5318975b879d64c3aeb650cffa5afa8c3151ec43333eaaae23de2658",
+      "resultBytes": 513
+    },
+    {
+      "flow": "destination-1",
+      "variant": "before",
+      "sample": 1,
+      "serviceMs": 877.1071000000011,
+      "serializationMs": 0.08620000000155414,
+      "totalMs": 877.1933000000026,
+      "queryCount": 18,
+      "connectionMs": 260.9174000000021,
+      "driverRoundtripMs": 614.7614999999969,
+      "freshConnections": 0,
+      "waitingMax": 4,
+      "resultHash": "30046b13853050ff684bedea656622f238a88d2a0e0817fc9ef2e8fe9596089c",
+      "resultBytes": 15200
+    },
+    {
+      "flow": "destination-1",
+      "variant": "before",
+      "sample": 2,
+      "serviceMs": 1346.3320000000022,
+      "serializationMs": 0.07949999999982538,
+      "totalMs": 1346.411500000002,
+      "queryCount": 18,
+      "connectionMs": 415.02059999999983,
+      "driverRoundtripMs": 1004.9583999999995,
+      "freshConnections": 0,
+      "waitingMax": 4,
+      "resultHash": "30046b13853050ff684bedea656622f238a88d2a0e0817fc9ef2e8fe9596089c",
+      "resultBytes": 15200
+    },
+    {
+      "flow": "destination-1",
+      "variant": "before",
+      "sample": 3,
+      "serviceMs": 1001.2931000000026,
+      "serializationMs": 0.15869999999995343,
+      "totalMs": 1001.4518000000025,
+      "queryCount": 18,
+      "connectionMs": 336.17920000000595,
+      "driverRoundtripMs": 774.2538999999961,
+      "freshConnections": 0,
+      "waitingMax": 4,
+      "resultHash": "30046b13853050ff684bedea656622f238a88d2a0e0817fc9ef2e8fe9596089c",
+      "resultBytes": 15200
+    },
+    {
+      "flow": "destination-1",
+      "variant": "before",
+      "sample": 4,
+      "serviceMs": 847.542300000001,
+      "serializationMs": 0.09389999999984866,
+      "totalMs": 847.6362000000008,
+      "queryCount": 18,
+      "connectionMs": 239.0943000000043,
+      "driverRoundtripMs": 650.9554000000026,
+      "freshConnections": 0,
+      "waitingMax": 4,
+      "resultHash": "30046b13853050ff684bedea656622f238a88d2a0e0817fc9ef2e8fe9596089c",
+      "resultBytes": 15200
+    },
+    {
+      "flow": "destination-1",
+      "variant": "before",
+      "sample": 5,
+      "serviceMs": 834.7003000000004,
+      "serializationMs": 0.10940000000118744,
+      "totalMs": 834.8097000000016,
+      "queryCount": 18,
+      "connectionMs": 243.41430000000037,
+      "driverRoundtripMs": 643.4577999999965,
+      "freshConnections": 0,
+      "waitingMax": 4,
+      "resultHash": "30046b13853050ff684bedea656622f238a88d2a0e0817fc9ef2e8fe9596089c",
+      "resultBytes": 15200
+    },
+    {
+      "flow": "destination-2",
+      "variant": "before",
+      "sample": 1,
+      "serviceMs": 910.2983999999997,
+      "serializationMs": 0.3205000000016298,
+      "totalMs": 910.6189000000013,
+      "queryCount": 18,
+      "connectionMs": 263.51489999999467,
+      "driverRoundtripMs": 704.6180000000095,
+      "freshConnections": 0,
+      "waitingMax": 4,
+      "resultHash": "1aa477b13e2677519f3e363ef734f89fe448f44b7903b86991dc5d244990bcf5",
+      "resultBytes": 39676
+    },
+    {
+      "flow": "destination-2",
+      "variant": "before",
+      "sample": 2,
+      "serviceMs": 1802.0012000000024,
+      "serializationMs": 0.24950000000171713,
+      "totalMs": 1802.2507000000041,
+      "queryCount": 18,
+      "connectionMs": 481.41049999999814,
+      "driverRoundtripMs": 1450.3387999999977,
+      "freshConnections": 0,
+      "waitingMax": 4,
+      "resultHash": "1aa477b13e2677519f3e363ef734f89fe448f44b7903b86991dc5d244990bcf5",
+      "resultBytes": 39676
+    },
+    {
+      "flow": "destination-2",
+      "variant": "before",
+      "sample": 3,
+      "serviceMs": 1478.2321999999986,
+      "serializationMs": 0.2551999999996042,
+      "totalMs": 1478.4873999999982,
+      "queryCount": 18,
+      "connectionMs": 401.7977999999857,
+      "driverRoundtripMs": 1120.4062000000013,
+      "freshConnections": 0,
+      "waitingMax": 4,
+      "resultHash": "1aa477b13e2677519f3e363ef734f89fe448f44b7903b86991dc5d244990bcf5",
+      "resultBytes": 39676
+    },
+    {
+      "flow": "destination-2",
+      "variant": "before",
+      "sample": 4,
+      "serviceMs": 847.2119999999995,
+      "serializationMs": 0.17419999999765423,
+      "totalMs": 847.3861999999972,
+      "queryCount": 18,
+      "connectionMs": 251.40099999999802,
+      "driverRoundtripMs": 645.8141999999971,
+      "freshConnections": 0,
+      "waitingMax": 4,
+      "resultHash": "1aa477b13e2677519f3e363ef734f89fe448f44b7903b86991dc5d244990bcf5",
+      "resultBytes": 39676
+    },
+    {
+      "flow": "destination-2",
+      "variant": "before",
+      "sample": 5,
+      "serviceMs": 829.4520999999986,
+      "serializationMs": 0.23150000000168802,
+      "totalMs": 829.6836000000003,
+      "queryCount": 18,
+      "connectionMs": 252.91719999999623,
+      "driverRoundtripMs": 632.1355000000149,
+      "freshConnections": 0,
+      "waitingMax": 4,
+      "resultHash": "1aa477b13e2677519f3e363ef734f89fe448f44b7903b86991dc5d244990bcf5",
+      "resultBytes": 39676
+    },
+    {
+      "flow": "destination-3",
+      "variant": "before",
+      "sample": 1,
+      "serviceMs": 831.1052000000018,
+      "serializationMs": 0.13850000000093132,
+      "totalMs": 831.2437000000027,
+      "queryCount": 18,
+      "connectionMs": 246.32749999999942,
+      "driverRoundtripMs": 617.7406999999985,
+      "freshConnections": 0,
+      "waitingMax": 4,
+      "resultHash": "89b64dd8f657d852b7801389311c4265debac35fbf2f122ab266b39e1468b39a",
+      "resultBytes": 21635
+    },
+    {
+      "flow": "destination-3",
+      "variant": "before",
+      "sample": 2,
+      "serviceMs": 1675.5691000000006,
+      "serializationMs": 0.11080000000220025,
+      "totalMs": 1675.6799000000028,
+      "queryCount": 18,
+      "connectionMs": 476.17609999999695,
+      "driverRoundtripMs": 1334.869500000008,
+      "freshConnections": 0,
+      "waitingMax": 4,
+      "resultHash": "89b64dd8f657d852b7801389311c4265debac35fbf2f122ab266b39e1468b39a",
+      "resultBytes": 21635
+    },
+    {
+      "flow": "destination-3",
+      "variant": "before",
+      "sample": 3,
+      "serviceMs": 836.6159000000043,
+      "serializationMs": 0.10380000000441214,
+      "totalMs": 836.7197000000087,
+      "queryCount": 18,
+      "connectionMs": 249.80240000000776,
+      "driverRoundtripMs": 654.9952000000048,
+      "freshConnections": 0,
+      "waitingMax": 4,
+      "resultHash": "89b64dd8f657d852b7801389311c4265debac35fbf2f122ab266b39e1468b39a",
+      "resultBytes": 21635
+    },
+    {
+      "flow": "destination-3",
+      "variant": "before",
+      "sample": 4,
+      "serviceMs": 819.1979999999967,
+      "serializationMs": 0.15679999999701977,
+      "totalMs": 819.3547999999937,
+      "queryCount": 18,
+      "connectionMs": 255.6471000000165,
+      "driverRoundtripMs": 625.0480000000098,
+      "freshConnections": 0,
+      "waitingMax": 4,
+      "resultHash": "89b64dd8f657d852b7801389311c4265debac35fbf2f122ab266b39e1468b39a",
+      "resultBytes": 21635
+    },
+    {
+      "flow": "destination-3",
+      "variant": "before",
+      "sample": 5,
+      "serviceMs": 910.3093000000008,
+      "serializationMs": 0.1993000000002212,
+      "totalMs": 910.508600000001,
+      "queryCount": 18,
+      "connectionMs": 257.40439999997034,
+      "driverRoundtripMs": 663.921699999999,
+      "freshConnections": 0,
+      "waitingMax": 4,
+      "resultHash": "89b64dd8f657d852b7801389311c4265debac35fbf2f122ab266b39e1468b39a",
+      "resultBytes": 21635
+    },
+    {
+      "flow": "public-editorial",
+      "variant": "before",
+      "sample": 1,
+      "serviceMs": 790.4112000000023,
+      "serializationMs": 0.13450000000011642,
+      "totalMs": 790.5457000000024,
+      "queryCount": 10,
+      "connectionMs": 133.3060000000114,
+      "driverRoundtripMs": 660.6006999999954,
+      "freshConnections": 0,
+      "waitingMax": 4,
+      "resultHash": "78fcc74a69826ae3f8b26f76b970d9f41574baddbc8f77b0432371f4b93cb404",
+      "resultBytes": 9328
+    },
+    {
+      "flow": "public-editorial",
+      "variant": "before",
+      "sample": 2,
+      "serviceMs": 543.3168000000005,
+      "serializationMs": 0.06220000000030268,
+      "totalMs": 543.3790000000008,
+      "queryCount": 10,
+      "connectionMs": 125.37520000000222,
+      "driverRoundtripMs": 401.64560000001075,
+      "freshConnections": 0,
+      "waitingMax": 4,
+      "resultHash": "78fcc74a69826ae3f8b26f76b970d9f41574baddbc8f77b0432371f4b93cb404",
+      "resultBytes": 9328
+    },
+    {
+      "flow": "public-editorial",
+      "variant": "before",
+      "sample": 3,
+      "serviceMs": 802.5913,
+      "serializationMs": 0.05919999999605352,
+      "totalMs": 802.6504999999961,
+      "queryCount": 10,
+      "connectionMs": 327.4545999999973,
+      "driverRoundtripMs": 562.8714999999866,
+      "freshConnections": 0,
+      "waitingMax": 4,
+      "resultHash": "78fcc74a69826ae3f8b26f76b970d9f41574baddbc8f77b0432371f4b93cb404",
+      "resultBytes": 9328
+    },
+    {
+      "flow": "public-editorial",
+      "variant": "before",
+      "sample": 4,
+      "serviceMs": 815.8499000000011,
+      "serializationMs": 0.0385999999998603,
+      "totalMs": 815.8885000000009,
+      "queryCount": 10,
+      "connectionMs": 204.3449999999939,
+      "driverRoundtripMs": 607.408399999993,
+      "freshConnections": 0,
+      "waitingMax": 4,
+      "resultHash": "78fcc74a69826ae3f8b26f76b970d9f41574baddbc8f77b0432371f4b93cb404",
+      "resultBytes": 9328
+    },
+    {
+      "flow": "public-editorial",
+      "variant": "before",
+      "sample": 5,
+      "serviceMs": 969.5455000000002,
+      "serializationMs": 0.07110000000102445,
+      "totalMs": 969.6166000000012,
+      "queryCount": 10,
+      "connectionMs": 211.3489000000045,
+      "driverRoundtripMs": 762.309500000003,
+      "freshConnections": 0,
+      "waitingMax": 4,
+      "resultHash": "78fcc74a69826ae3f8b26f76b970d9f41574baddbc8f77b0432371f4b93cb404",
+      "resultBytes": 9328
+    },
+    {
+      "flow": "planner-candidates",
+      "variant": "before",
+      "sample": 1,
+      "serviceMs": 214.45000000000437,
+      "serializationMs": 0.03589999999530846,
+      "totalMs": 214.48589999999967,
+      "queryCount": 4,
+      "connectionMs": 0.3526000000128988,
+      "driverRoundtripMs": 212.1631999999954,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "d53c411aa8f3a242d1b93cf6cc0b60b4e101c8204f8881c973a09af353faa81f",
+      "resultBytes": 6984
+    },
+    {
+      "flow": "planner-candidates",
+      "variant": "before",
+      "sample": 2,
+      "serviceMs": 258.1573999999964,
+      "serializationMs": 0.0422000000035041,
+      "totalMs": 258.1995999999999,
+      "queryCount": 4,
+      "connectionMs": 0.37299999999959255,
+      "driverRoundtripMs": 255.4102999999959,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "d53c411aa8f3a242d1b93cf6cc0b60b4e101c8204f8881c973a09af353faa81f",
+      "resultBytes": 6984
+    },
+    {
+      "flow": "planner-candidates",
+      "variant": "before",
+      "sample": 3,
+      "serviceMs": 249.29309999999532,
+      "serializationMs": 0.045700000002398156,
+      "totalMs": 249.33879999999772,
+      "queryCount": 4,
+      "connectionMs": 0.21020000000135042,
+      "driverRoundtripMs": 247.9392999999909,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "d53c411aa8f3a242d1b93cf6cc0b60b4e101c8204f8881c973a09af353faa81f",
+      "resultBytes": 6984
+    },
+    {
+      "flow": "planner-candidates",
+      "variant": "before",
+      "sample": 4,
+      "serviceMs": 272.3623000000007,
+      "serializationMs": 0.10349999999743886,
+      "totalMs": 272.4657999999981,
+      "queryCount": 4,
+      "connectionMs": 0.4348000000027241,
+      "driverRoundtripMs": 269.65280000001076,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "d53c411aa8f3a242d1b93cf6cc0b60b4e101c8204f8881c973a09af353faa81f",
+      "resultBytes": 6984
+    },
+    {
+      "flow": "planner-candidates",
+      "variant": "before",
+      "sample": 5,
+      "serviceMs": 257.7943000000014,
+      "serializationMs": 0.04329999999754364,
+      "totalMs": 257.83759999999893,
+      "queryCount": 4,
+      "connectionMs": 0.2252000000080443,
+      "driverRoundtripMs": 256.0486999999921,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "d53c411aa8f3a242d1b93cf6cc0b60b4e101c8204f8881c973a09af353faa81f",
+      "resultBytes": 6984
+    },
+    {
+      "flow": "planner-recheck",
+      "variant": "before",
+      "sample": 1,
+      "serviceMs": 309.2105999999985,
+      "serializationMs": 0.0005999999993946403,
+      "totalMs": 309.2111999999979,
+      "queryCount": 5,
+      "connectionMs": 0.43549999999959255,
+      "driverRoundtripMs": 302.3365999999878,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+      "resultBytes": 4
+    },
+    {
+      "flow": "planner-recheck",
+      "variant": "before",
+      "sample": 2,
+      "serviceMs": 315.1457999999984,
+      "serializationMs": 0.000999999996565748,
+      "totalMs": 315.146799999995,
+      "queryCount": 5,
+      "connectionMs": 0.8230000000039581,
+      "driverRoundtripMs": 311.39809999999125,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+      "resultBytes": 4
+    },
+    {
+      "flow": "planner-recheck",
+      "variant": "before",
+      "sample": 3,
+      "serviceMs": 317.51490000000194,
+      "serializationMs": 0.0014999999984866008,
+      "totalMs": 317.51640000000043,
+      "queryCount": 5,
+      "connectionMs": 0.4004999999961001,
+      "driverRoundtripMs": 313.9193000000014,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+      "resultBytes": 4
+    },
+    {
+      "flow": "planner-recheck",
+      "variant": "before",
+      "sample": 4,
+      "serviceMs": 722.3810000000012,
+      "serializationMs": 0.002899999999499414,
+      "totalMs": 722.3839000000007,
+      "queryCount": 5,
+      "connectionMs": 0.3540000000066357,
+      "driverRoundtripMs": 718.485299999993,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+      "resultBytes": 4
+    },
+    {
+      "flow": "planner-recheck",
+      "variant": "before",
+      "sample": 5,
+      "serviceMs": 738.8938000000053,
+      "serializationMs": 0.0010000000038417056,
+      "totalMs": 738.8948000000091,
+      "queryCount": 5,
+      "connectionMs": 0.8104000000021188,
+      "driverRoundtripMs": 733.8639000000039,
+      "freshConnections": 0,
+      "waitingMax": 1,
+      "resultHash": "b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+      "resultBytes": 4
+    },
+    {
+      "flow": "rag-retrieval",
+      "variant": "before",
+      "sample": 1,
+      "serviceMs": 696.3245000000024,
+      "serializationMs": 0.03220000000146683,
+      "totalMs": 696.3567000000039,
+      "queryCount": 4,
+      "connectionMs": 0.09339999999792781,
+      "driverRoundtripMs": 649.8426000000036,
+      "freshConnections": 0,
+      "waitingMax": 0,
+      "resultHash": "121c9e81e63cd5a37faa5c21395a4b2a52c07de560db70f78bb27cbe4bf1ba55",
+      "resultBytes": 7704
+    },
+    {
+      "flow": "rag-retrieval",
+      "variant": "before",
+      "sample": 2,
+      "serviceMs": 441.2127000000037,
+      "serializationMs": 0.06820000000152504,
+      "totalMs": 441.2809000000052,
+      "queryCount": 4,
+      "connectionMs": 0.11119999999937136,
+      "driverRoundtripMs": 422.40499999999156,
+      "freshConnections": 0,
+      "waitingMax": 0,
+      "resultHash": "121c9e81e63cd5a37faa5c21395a4b2a52c07de560db70f78bb27cbe4bf1ba55",
+      "resultBytes": 7704
+    },
+    {
+      "flow": "rag-retrieval",
+      "variant": "before",
+      "sample": 3,
+      "serviceMs": 396.6791000000012,
+      "serializationMs": 0.04110000000218861,
+      "totalMs": 396.7202000000034,
+      "queryCount": 4,
+      "connectionMs": 0.060299999997369014,
+      "driverRoundtripMs": 381.7464000000109,
+      "freshConnections": 0,
+      "waitingMax": 0,
+      "resultHash": "121c9e81e63cd5a37faa5c21395a4b2a52c07de560db70f78bb27cbe4bf1ba55",
+      "resultBytes": 7704
+    },
+    {
+      "flow": "rag-retrieval",
+      "variant": "before",
+      "sample": 4,
+      "serviceMs": 408.76520000000164,
+      "serializationMs": 0.04349999999976717,
+      "totalMs": 408.8087000000014,
+      "queryCount": 4,
+      "connectionMs": 0.11480000000301516,
+      "driverRoundtripMs": 393.2754000000132,
+      "freshConnections": 0,
+      "waitingMax": 0,
+      "resultHash": "121c9e81e63cd5a37faa5c21395a4b2a52c07de560db70f78bb27cbe4bf1ba55",
+      "resultBytes": 7704
+    },
+    {
+      "flow": "rag-retrieval",
+      "variant": "before",
+      "sample": 5,
+      "serviceMs": 416.9145999999964,
+      "serializationMs": 0.10299999999551801,
+      "totalMs": 417.01759999999194,
+      "queryCount": 4,
+      "connectionMs": 0.09619999999995343,
+      "driverRoundtripMs": 389.359000000004,
+      "freshConnections": 0,
+      "waitingMax": 0,
+      "resultHash": "121c9e81e63cd5a37faa5c21395a4b2a52c07de560db70f78bb27cbe4bf1ba55",
+      "resultBytes": 7704
+    }
+  ],
+  "plans": [
+    {
+      "flow": "landing",
+      "serverExecutionMs": 0.037,
+      "serverPlanningMs": 0.081,
+      "plan": {
+        "node": "Sort",
+        "rows": 3,
+        "loops": 1,
+        "actualTotalMs": 0.017,
+        "sharedHits": 3,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination",
+            "index": "destination_visibility_idx",
+            "rows": 3,
+            "loops": 1,
+            "actualTotalMs": 0.01,
+            "sharedHits": 3,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "landing",
+      "serverExecutionMs": 0.037,
+      "serverPlanningMs": 0.073,
+      "plan": {
+        "node": "Index Scan",
+        "relation": "destination",
+        "index": "destination_visibility_idx",
+        "rows": 3,
+        "loops": 1,
+        "actualTotalMs": 0.019,
+        "sharedHits": 3,
+        "sharedReads": 0
+      }
+    },
+    {
+      "flow": "landing",
+      "serverExecutionMs": 0.074,
+      "serverPlanningMs": 0.111,
+      "plan": {
+        "node": "Sort",
+        "rows": 13,
+        "loops": 1,
+        "actualTotalMs": 0.051,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Seq Scan",
+            "relation": "content_media",
+            "rows": 13,
+            "loops": 1,
+            "actualTotalMs": 0.029,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "landing",
+      "serverExecutionMs": 0.033,
+      "serverPlanningMs": 0.067,
+      "plan": {
+        "node": "Seq Scan",
+        "relation": "destination",
+        "rows": 3,
+        "loops": 1,
+        "actualTotalMs": 0.014,
+        "sharedHits": 2,
+        "sharedReads": 0
+      }
+    },
+    {
+      "flow": "explore-list",
+      "serverExecutionMs": 0.046,
+      "serverPlanningMs": 0.082,
+      "plan": {
+        "node": "Sort",
+        "rows": 3,
+        "loops": 1,
+        "actualTotalMs": 0.026,
+        "sharedHits": 3,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination",
+            "index": "destination_visibility_idx",
+            "rows": 3,
+            "loops": 1,
+            "actualTotalMs": 0.019,
+            "sharedHits": 3,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "explore-list",
+      "serverExecutionMs": 0.036,
+      "serverPlanningMs": 0.074,
+      "plan": {
+        "node": "Index Scan",
+        "relation": "destination",
+        "index": "destination_visibility_idx",
+        "rows": 3,
+        "loops": 1,
+        "actualTotalMs": 0.019,
+        "sharedHits": 3,
+        "sharedReads": 0
+      }
+    },
+    {
+      "flow": "explore-list",
+      "serverExecutionMs": 0.066,
+      "serverPlanningMs": 0.109,
+      "plan": {
+        "node": "Sort",
+        "rows": 13,
+        "loops": 1,
+        "actualTotalMs": 0.043,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Seq Scan",
+            "relation": "content_media",
+            "rows": 13,
+            "loops": 1,
+            "actualTotalMs": 0.029,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "explore-map",
+      "serverExecutionMs": 0.039,
+      "serverPlanningMs": 0.082,
+      "plan": {
+        "node": "Sort",
+        "rows": 3,
+        "loops": 1,
+        "actualTotalMs": 0.025,
+        "sharedHits": 3,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination",
+            "index": "destination_visibility_idx",
+            "rows": 3,
+            "loops": 1,
+            "actualTotalMs": 0.018,
+            "sharedHits": 3,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "explore-map",
+      "serverExecutionMs": 0.037,
+      "serverPlanningMs": 0.071,
+      "plan": {
+        "node": "Index Scan",
+        "relation": "destination",
+        "index": "destination_visibility_idx",
+        "rows": 3,
+        "loops": 1,
+        "actualTotalMs": 0.019,
+        "sharedHits": 3,
+        "sharedReads": 0
+      }
+    },
+    {
+      "flow": "explore-map",
+      "serverExecutionMs": 0.065,
+      "serverPlanningMs": 0.111,
+      "plan": {
+        "node": "Sort",
+        "rows": 13,
+        "loops": 1,
+        "actualTotalMs": 0.041,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Seq Scan",
+            "relation": "content_media",
+            "rows": 13,
+            "loops": 1,
+            "actualTotalMs": 0.028,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "explore-keyword",
+      "serverExecutionMs": 0.141,
+      "serverPlanningMs": 0.094,
+      "plan": {
+        "node": "Sort",
+        "rows": 1,
+        "loops": 1,
+        "actualTotalMs": 0.121,
+        "sharedHits": 8,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination",
+            "index": "destination_visibility_idx",
+            "rows": 1,
+            "loops": 1,
+            "actualTotalMs": 0.115,
+            "sharedHits": 8,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "explore-keyword",
+      "serverExecutionMs": 0.036,
+      "serverPlanningMs": 0.072,
+      "plan": {
+        "node": "Index Scan",
+        "relation": "destination",
+        "index": "destination_visibility_idx",
+        "rows": 3,
+        "loops": 1,
+        "actualTotalMs": 0.017,
+        "sharedHits": 3,
+        "sharedReads": 0
+      }
+    },
+    {
+      "flow": "explore-keyword",
+      "serverExecutionMs": 0.061,
+      "serverPlanningMs": 0.108,
+      "plan": {
+        "node": "Sort",
+        "rows": 3,
+        "loops": 1,
+        "actualTotalMs": 0.038,
+        "sharedHits": 3,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "content_media",
+            "index": "content_media_destinationId_position_idx",
+            "rows": 3,
+            "loops": 1,
+            "actualTotalMs": 0.029,
+            "sharedHits": 3,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "explore-category",
+      "serverExecutionMs": 0.042,
+      "serverPlanningMs": 0.088,
+      "plan": {
+        "node": "Sort",
+        "rows": 1,
+        "loops": 1,
+        "actualTotalMs": 0.024,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination",
+            "index": "destination_category_idx",
+            "rows": 1,
+            "loops": 1,
+            "actualTotalMs": 0.018,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "explore-category",
+      "serverExecutionMs": 0.041,
+      "serverPlanningMs": 0.075,
+      "plan": {
+        "node": "Index Scan",
+        "relation": "destination",
+        "index": "destination_visibility_idx",
+        "rows": 3,
+        "loops": 1,
+        "actualTotalMs": 0.022,
+        "sharedHits": 3,
+        "sharedReads": 0
+      }
+    },
+    {
+      "flow": "explore-category",
+      "serverExecutionMs": 0.056,
+      "serverPlanningMs": 0.102,
+      "plan": {
+        "node": "Sort",
+        "rows": 3,
+        "loops": 1,
+        "actualTotalMs": 0.032,
+        "sharedHits": 3,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "content_media",
+            "index": "content_media_destinationId_position_idx",
+            "rows": 3,
+            "loops": 1,
+            "actualTotalMs": 0.024,
+            "sharedHits": 3,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-1",
+      "serverExecutionMs": 0.039,
+      "serverPlanningMs": 0.081,
+      "plan": {
+        "node": "Limit",
+        "rows": 1,
+        "loops": 1,
+        "actualTotalMs": 0.018,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination",
+            "index": "destination_pkey",
+            "rows": 1,
+            "loops": 1,
+            "actualTotalMs": 0.017,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-1",
+      "serverExecutionMs": 0.029,
+      "serverPlanningMs": 0.118,
+      "plan": {
+        "node": "Hash Join",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.005,
+        "sharedHits": 0,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Seq Scan",
+            "relation": "content_area",
+            "rows": 0,
+            "loops": 1,
+            "actualTotalMs": 0.004,
+            "sharedHits": 0,
+            "sharedReads": 0
+          },
+          {
+            "node": "Hash",
+            "rows": 0,
+            "loops": 0,
+            "actualTotalMs": 0,
+            "sharedHits": 0,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Bitmap Heap Scan",
+                "relation": "_AreaToDestination",
+                "rows": 0,
+                "loops": 0,
+                "actualTotalMs": 0,
+                "sharedHits": 0,
+                "sharedReads": 0,
+                "children": [
+                  {
+                    "node": "Bitmap Index Scan",
+                    "index": "_AreaToDestination_B_index",
+                    "rows": 0,
+                    "loops": 0,
+                    "actualTotalMs": 0,
+                    "sharedHits": 0,
+                    "sharedReads": 0
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-1",
+      "serverExecutionMs": 0.026,
+      "serverPlanningMs": 0.171,
+      "plan": {
+        "node": "Index Scan",
+        "relation": "content_source",
+        "index": "content_source_destinationId_position_idx",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.008,
+        "sharedHits": 2,
+        "sharedReads": 0
+      }
+    },
+    {
+      "flow": "destination-1",
+      "serverExecutionMs": 0.019,
+      "serverPlanningMs": 0.121,
+      "plan": {
+        "node": "Result",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.001,
+        "sharedHits": 0,
+        "sharedReads": 0
+      }
+    },
+    {
+      "flow": "destination-1",
+      "serverExecutionMs": 0.039,
+      "serverPlanningMs": 0.075,
+      "plan": {
+        "node": "Sort",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.014,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Bitmap Heap Scan",
+            "relation": "opening_interval",
+            "rows": 0,
+            "loops": 1,
+            "actualTotalMs": 0.011,
+            "sharedHits": 2,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Bitmap Index Scan",
+                "index": "opening_interval_openingDayId_opensAtMinute_key",
+                "rows": 0,
+                "loops": 1,
+                "actualTotalMs": 0.006,
+                "sharedHits": 2,
+                "sharedReads": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-1",
+      "serverExecutionMs": 0.037,
+      "serverPlanningMs": 0.076,
+      "plan": {
+        "node": "Limit",
+        "rows": 1,
+        "loops": 1,
+        "actualTotalMs": 0.019,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination",
+            "index": "destination_pkey",
+            "rows": 1,
+            "loops": 1,
+            "actualTotalMs": 0.018,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-1",
+      "serverExecutionMs": 0.034,
+      "serverPlanningMs": 0.058,
+      "plan": {
+        "node": "Limit",
+        "rows": 1,
+        "loops": 1,
+        "actualTotalMs": 0.017,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination_editorial",
+            "index": "destination_editorial_pkey",
+            "rows": 1,
+            "loops": 1,
+            "actualTotalMs": 0.016,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-1",
+      "serverExecutionMs": 0.041,
+      "serverPlanningMs": 0.071,
+      "plan": {
+        "node": "Limit",
+        "rows": 1,
+        "loops": 1,
+        "actualTotalMs": 0.018,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination",
+            "index": "destination_pkey",
+            "rows": 1,
+            "loops": 1,
+            "actualTotalMs": 0.017,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-1",
+      "serverExecutionMs": 0.031,
+      "serverPlanningMs": 0.122,
+      "plan": {
+        "node": "Hash Join",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.006,
+        "sharedHits": 0,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Seq Scan",
+            "relation": "content_area",
+            "rows": 0,
+            "loops": 1,
+            "actualTotalMs": 0.005,
+            "sharedHits": 0,
+            "sharedReads": 0
+          },
+          {
+            "node": "Hash",
+            "rows": 0,
+            "loops": 0,
+            "actualTotalMs": 0,
+            "sharedHits": 0,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Bitmap Heap Scan",
+                "relation": "_AreaToDestination",
+                "rows": 0,
+                "loops": 0,
+                "actualTotalMs": 0,
+                "sharedHits": 0,
+                "sharedReads": 0,
+                "children": [
+                  {
+                    "node": "Bitmap Index Scan",
+                    "index": "_AreaToDestination_B_index",
+                    "rows": 0,
+                    "loops": 0,
+                    "actualTotalMs": 0,
+                    "sharedHits": 0,
+                    "sharedReads": 0
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-1",
+      "serverExecutionMs": 0.048,
+      "serverPlanningMs": 0.071,
+      "plan": {
+        "node": "Index Scan",
+        "relation": "content_source",
+        "index": "content_source_destinationId_position_idx",
+        "rows": 4,
+        "loops": 1,
+        "actualTotalMs": 0.023,
+        "sharedHits": 2,
+        "sharedReads": 0
+      }
+    },
+    {
+      "flow": "destination-1",
+      "serverExecutionMs": 0.037,
+      "serverPlanningMs": 0.074,
+      "plan": {
+        "node": "Sort",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.014,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Bitmap Heap Scan",
+            "relation": "opening_interval",
+            "rows": 0,
+            "loops": 1,
+            "actualTotalMs": 0.011,
+            "sharedHits": 2,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Bitmap Index Scan",
+                "index": "opening_interval_openingDayId_opensAtMinute_key",
+                "rows": 0,
+                "loops": 1,
+                "actualTotalMs": 0.006,
+                "sharedHits": 2,
+                "sharedReads": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-1",
+      "serverExecutionMs": 0.034,
+      "serverPlanningMs": 0.076,
+      "plan": {
+        "node": "Limit",
+        "rows": 1,
+        "loops": 1,
+        "actualTotalMs": 0.016,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination",
+            "index": "destination_pkey",
+            "rows": 1,
+            "loops": 1,
+            "actualTotalMs": 0.015,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-2",
+      "serverExecutionMs": 0.046,
+      "serverPlanningMs": 0.084,
+      "plan": {
+        "node": "Limit",
+        "rows": 1,
+        "loops": 1,
+        "actualTotalMs": 0.023,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination",
+            "index": "destination_pkey",
+            "rows": 1,
+            "loops": 1,
+            "actualTotalMs": 0.022,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-2",
+      "serverExecutionMs": 0.032,
+      "serverPlanningMs": 0.138,
+      "plan": {
+        "node": "Hash Join",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.006,
+        "sharedHits": 0,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Seq Scan",
+            "relation": "content_area",
+            "rows": 0,
+            "loops": 1,
+            "actualTotalMs": 0.005,
+            "sharedHits": 0,
+            "sharedReads": 0
+          },
+          {
+            "node": "Hash",
+            "rows": 0,
+            "loops": 0,
+            "actualTotalMs": 0,
+            "sharedHits": 0,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Bitmap Heap Scan",
+                "relation": "_AreaToDestination",
+                "rows": 0,
+                "loops": 0,
+                "actualTotalMs": 0,
+                "sharedHits": 0,
+                "sharedReads": 0,
+                "children": [
+                  {
+                    "node": "Bitmap Index Scan",
+                    "index": "_AreaToDestination_B_index",
+                    "rows": 0,
+                    "loops": 0,
+                    "actualTotalMs": 0,
+                    "sharedHits": 0,
+                    "sharedReads": 0
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-2",
+      "serverExecutionMs": 0.04,
+      "serverPlanningMs": 0.081,
+      "plan": {
+        "node": "Index Scan",
+        "relation": "content_source",
+        "index": "content_source_destinationId_position_idx",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.02,
+        "sharedHits": 2,
+        "sharedReads": 0
+      }
+    },
+    {
+      "flow": "destination-2",
+      "serverExecutionMs": 0.018,
+      "serverPlanningMs": 0.044,
+      "plan": {
+        "node": "Result",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.001,
+        "sharedHits": 0,
+        "sharedReads": 0
+      }
+    },
+    {
+      "flow": "destination-2",
+      "serverExecutionMs": 0.035,
+      "serverPlanningMs": 0.085,
+      "plan": {
+        "node": "Sort",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.014,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Bitmap Heap Scan",
+            "relation": "opening_interval",
+            "rows": 0,
+            "loops": 1,
+            "actualTotalMs": 0.011,
+            "sharedHits": 2,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Bitmap Index Scan",
+                "index": "opening_interval_openingDayId_opensAtMinute_key",
+                "rows": 0,
+                "loops": 1,
+                "actualTotalMs": 0.006,
+                "sharedHits": 2,
+                "sharedReads": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-2",
+      "serverExecutionMs": 0.035,
+      "serverPlanningMs": 0.078,
+      "plan": {
+        "node": "Limit",
+        "rows": 1,
+        "loops": 1,
+        "actualTotalMs": 0.017,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination",
+            "index": "destination_pkey",
+            "rows": 1,
+            "loops": 1,
+            "actualTotalMs": 0.015,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-2",
+      "serverExecutionMs": 0.036,
+      "serverPlanningMs": 0.06,
+      "plan": {
+        "node": "Limit",
+        "rows": 1,
+        "loops": 1,
+        "actualTotalMs": 0.018,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination_editorial",
+            "index": "destination_editorial_pkey",
+            "rows": 1,
+            "loops": 1,
+            "actualTotalMs": 0.017,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-2",
+      "serverExecutionMs": 0.04,
+      "serverPlanningMs": 0.073,
+      "plan": {
+        "node": "Limit",
+        "rows": 1,
+        "loops": 1,
+        "actualTotalMs": 0.017,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination",
+            "index": "destination_pkey",
+            "rows": 1,
+            "loops": 1,
+            "actualTotalMs": 0.016,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-2",
+      "serverExecutionMs": 0.03,
+      "serverPlanningMs": 0.124,
+      "plan": {
+        "node": "Hash Join",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.005,
+        "sharedHits": 0,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Seq Scan",
+            "relation": "content_area",
+            "rows": 0,
+            "loops": 1,
+            "actualTotalMs": 0.004,
+            "sharedHits": 0,
+            "sharedReads": 0
+          },
+          {
+            "node": "Hash",
+            "rows": 0,
+            "loops": 0,
+            "actualTotalMs": 0,
+            "sharedHits": 0,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Bitmap Heap Scan",
+                "relation": "_AreaToDestination",
+                "rows": 0,
+                "loops": 0,
+                "actualTotalMs": 0,
+                "sharedHits": 0,
+                "sharedReads": 0,
+                "children": [
+                  {
+                    "node": "Bitmap Index Scan",
+                    "index": "_AreaToDestination_B_index",
+                    "rows": 0,
+                    "loops": 0,
+                    "actualTotalMs": 0,
+                    "sharedHits": 0,
+                    "sharedReads": 0
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-2",
+      "serverExecutionMs": 0.044,
+      "serverPlanningMs": 0.07,
+      "plan": {
+        "node": "Index Scan",
+        "relation": "content_source",
+        "index": "content_source_destinationId_position_idx",
+        "rows": 4,
+        "loops": 1,
+        "actualTotalMs": 0.021,
+        "sharedHits": 2,
+        "sharedReads": 0
+      }
+    },
+    {
+      "flow": "destination-2",
+      "serverExecutionMs": 0.035,
+      "serverPlanningMs": 0.076,
+      "plan": {
+        "node": "Sort",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.014,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Bitmap Heap Scan",
+            "relation": "opening_interval",
+            "rows": 0,
+            "loops": 1,
+            "actualTotalMs": 0.011,
+            "sharedHits": 2,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Bitmap Index Scan",
+                "index": "opening_interval_openingDayId_opensAtMinute_key",
+                "rows": 0,
+                "loops": 1,
+                "actualTotalMs": 0.006,
+                "sharedHits": 2,
+                "sharedReads": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-2",
+      "serverExecutionMs": 0.037,
+      "serverPlanningMs": 0.077,
+      "plan": {
+        "node": "Limit",
+        "rows": 1,
+        "loops": 1,
+        "actualTotalMs": 0.018,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination",
+            "index": "destination_pkey",
+            "rows": 1,
+            "loops": 1,
+            "actualTotalMs": 0.017,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-3",
+      "serverExecutionMs": 0.044,
+      "serverPlanningMs": 0.088,
+      "plan": {
+        "node": "Limit",
+        "rows": 1,
+        "loops": 1,
+        "actualTotalMs": 0.02,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination",
+            "index": "destination_pkey",
+            "rows": 1,
+            "loops": 1,
+            "actualTotalMs": 0.019,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-3",
+      "serverExecutionMs": 0.03,
+      "serverPlanningMs": 0.118,
+      "plan": {
+        "node": "Hash Join",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.005,
+        "sharedHits": 0,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Seq Scan",
+            "relation": "content_area",
+            "rows": 0,
+            "loops": 1,
+            "actualTotalMs": 0.004,
+            "sharedHits": 0,
+            "sharedReads": 0
+          },
+          {
+            "node": "Hash",
+            "rows": 0,
+            "loops": 0,
+            "actualTotalMs": 0,
+            "sharedHits": 0,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Bitmap Heap Scan",
+                "relation": "_AreaToDestination",
+                "rows": 0,
+                "loops": 0,
+                "actualTotalMs": 0,
+                "sharedHits": 0,
+                "sharedReads": 0,
+                "children": [
+                  {
+                    "node": "Bitmap Index Scan",
+                    "index": "_AreaToDestination_B_index",
+                    "rows": 0,
+                    "loops": 0,
+                    "actualTotalMs": 0,
+                    "sharedHits": 0,
+                    "sharedReads": 0
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-3",
+      "serverExecutionMs": 0.04,
+      "serverPlanningMs": 0.093,
+      "plan": {
+        "node": "Index Scan",
+        "relation": "content_source",
+        "index": "content_source_destinationId_position_idx",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.02,
+        "sharedHits": 2,
+        "sharedReads": 0
+      }
+    },
+    {
+      "flow": "destination-3",
+      "serverExecutionMs": 0.019,
+      "serverPlanningMs": 0.047,
+      "plan": {
+        "node": "Result",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.001,
+        "sharedHits": 0,
+        "sharedReads": 0
+      }
+    },
+    {
+      "flow": "destination-3",
+      "serverExecutionMs": 0.037,
+      "serverPlanningMs": 0.076,
+      "plan": {
+        "node": "Sort",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.015,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Bitmap Heap Scan",
+            "relation": "opening_interval",
+            "rows": 0,
+            "loops": 1,
+            "actualTotalMs": 0.012,
+            "sharedHits": 2,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Bitmap Index Scan",
+                "index": "opening_interval_openingDayId_opensAtMinute_key",
+                "rows": 0,
+                "loops": 1,
+                "actualTotalMs": 0.007,
+                "sharedHits": 2,
+                "sharedReads": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-3",
+      "serverExecutionMs": 0.036,
+      "serverPlanningMs": 0.078,
+      "plan": {
+        "node": "Limit",
+        "rows": 1,
+        "loops": 1,
+        "actualTotalMs": 0.017,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination",
+            "index": "destination_pkey",
+            "rows": 1,
+            "loops": 1,
+            "actualTotalMs": 0.016,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-3",
+      "serverExecutionMs": 0.036,
+      "serverPlanningMs": 0.063,
+      "plan": {
+        "node": "Limit",
+        "rows": 1,
+        "loops": 1,
+        "actualTotalMs": 0.018,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination_editorial",
+            "index": "destination_editorial_pkey",
+            "rows": 1,
+            "loops": 1,
+            "actualTotalMs": 0.017,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-3",
+      "serverExecutionMs": 0.041,
+      "serverPlanningMs": 0.076,
+      "plan": {
+        "node": "Limit",
+        "rows": 1,
+        "loops": 1,
+        "actualTotalMs": 0.018,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination",
+            "index": "destination_pkey",
+            "rows": 1,
+            "loops": 1,
+            "actualTotalMs": 0.017,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-3",
+      "serverExecutionMs": 0.031,
+      "serverPlanningMs": 0.125,
+      "plan": {
+        "node": "Hash Join",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.005,
+        "sharedHits": 0,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Seq Scan",
+            "relation": "content_area",
+            "rows": 0,
+            "loops": 1,
+            "actualTotalMs": 0.004,
+            "sharedHits": 0,
+            "sharedReads": 0
+          },
+          {
+            "node": "Hash",
+            "rows": 0,
+            "loops": 0,
+            "actualTotalMs": 0,
+            "sharedHits": 0,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Bitmap Heap Scan",
+                "relation": "_AreaToDestination",
+                "rows": 0,
+                "loops": 0,
+                "actualTotalMs": 0,
+                "sharedHits": 0,
+                "sharedReads": 0,
+                "children": [
+                  {
+                    "node": "Bitmap Index Scan",
+                    "index": "_AreaToDestination_B_index",
+                    "rows": 0,
+                    "loops": 0,
+                    "actualTotalMs": 0,
+                    "sharedHits": 0,
+                    "sharedReads": 0
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-3",
+      "serverExecutionMs": 0.044,
+      "serverPlanningMs": 0.07,
+      "plan": {
+        "node": "Index Scan",
+        "relation": "content_source",
+        "index": "content_source_destinationId_position_idx",
+        "rows": 4,
+        "loops": 1,
+        "actualTotalMs": 0.022,
+        "sharedHits": 2,
+        "sharedReads": 0
+      }
+    },
+    {
+      "flow": "destination-3",
+      "serverExecutionMs": 0.035,
+      "serverPlanningMs": 0.078,
+      "plan": {
+        "node": "Sort",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.014,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Bitmap Heap Scan",
+            "relation": "opening_interval",
+            "rows": 0,
+            "loops": 1,
+            "actualTotalMs": 0.01,
+            "sharedHits": 2,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Bitmap Index Scan",
+                "index": "opening_interval_openingDayId_opensAtMinute_key",
+                "rows": 0,
+                "loops": 1,
+                "actualTotalMs": 0.006,
+                "sharedHits": 2,
+                "sharedReads": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "flow": "destination-3",
+      "serverExecutionMs": 0.031,
+      "serverPlanningMs": 0.077,
+      "plan": {
+        "node": "Limit",
+        "rows": 1,
+        "loops": 1,
+        "actualTotalMs": 0.016,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination",
+            "index": "destination_pkey",
+            "rows": 1,
+            "loops": 1,
+            "actualTotalMs": 0.015,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "public-editorial",
+      "serverExecutionMs": 0.026,
+      "serverPlanningMs": 0.078,
+      "plan": {
+        "node": "Limit",
+        "rows": 1,
+        "loops": 1,
+        "actualTotalMs": 0.009,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination",
+            "index": "destination_pkey",
+            "rows": 1,
+            "loops": 1,
+            "actualTotalMs": 0.008,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "public-editorial",
+      "serverExecutionMs": 0.035,
+      "serverPlanningMs": 0.062,
+      "plan": {
+        "node": "Limit",
+        "rows": 1,
+        "loops": 1,
+        "actualTotalMs": 0.017,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination_editorial",
+            "index": "destination_editorial_pkey",
+            "rows": 1,
+            "loops": 1,
+            "actualTotalMs": 0.016,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "public-editorial",
+      "serverExecutionMs": 0.04,
+      "serverPlanningMs": 0.072,
+      "plan": {
+        "node": "Limit",
+        "rows": 1,
+        "loops": 1,
+        "actualTotalMs": 0.018,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination",
+            "index": "destination_pkey",
+            "rows": 1,
+            "loops": 1,
+            "actualTotalMs": 0.016,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "public-editorial",
+      "serverExecutionMs": 0.03,
+      "serverPlanningMs": 0.124,
+      "plan": {
+        "node": "Hash Join",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.006,
+        "sharedHits": 0,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Seq Scan",
+            "relation": "content_area",
+            "rows": 0,
+            "loops": 1,
+            "actualTotalMs": 0.005,
+            "sharedHits": 0,
+            "sharedReads": 0
+          },
+          {
+            "node": "Hash",
+            "rows": 0,
+            "loops": 0,
+            "actualTotalMs": 0,
+            "sharedHits": 0,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Bitmap Heap Scan",
+                "relation": "_AreaToDestination",
+                "rows": 0,
+                "loops": 0,
+                "actualTotalMs": 0,
+                "sharedHits": 0,
+                "sharedReads": 0,
+                "children": [
+                  {
+                    "node": "Bitmap Index Scan",
+                    "index": "_AreaToDestination_B_index",
+                    "rows": 0,
+                    "loops": 0,
+                    "actualTotalMs": 0,
+                    "sharedHits": 0,
+                    "sharedReads": 0
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "flow": "public-editorial",
+      "serverExecutionMs": 0.046,
+      "serverPlanningMs": 0.069,
+      "plan": {
+        "node": "Index Scan",
+        "relation": "content_source",
+        "index": "content_source_destinationId_position_idx",
+        "rows": 4,
+        "loops": 1,
+        "actualTotalMs": 0.022,
+        "sharedHits": 2,
+        "sharedReads": 0
+      }
+    },
+    {
+      "flow": "public-editorial",
+      "serverExecutionMs": 0.037,
+      "serverPlanningMs": 0.074,
+      "plan": {
+        "node": "Sort",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.015,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Bitmap Heap Scan",
+            "relation": "opening_interval",
+            "rows": 0,
+            "loops": 1,
+            "actualTotalMs": 0.011,
+            "sharedHits": 2,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Bitmap Index Scan",
+                "index": "opening_interval_openingDayId_opensAtMinute_key",
+                "rows": 0,
+                "loops": 1,
+                "actualTotalMs": 0.006,
+                "sharedHits": 2,
+                "sharedReads": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "flow": "public-editorial",
+      "serverExecutionMs": 0.036,
+      "serverPlanningMs": 0.081,
+      "plan": {
+        "node": "Limit",
+        "rows": 1,
+        "loops": 1,
+        "actualTotalMs": 0.017,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Index Scan",
+            "relation": "destination",
+            "index": "destination_pkey",
+            "rows": 1,
+            "loops": 1,
+            "actualTotalMs": 0.016,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "planner-candidates",
+      "serverExecutionMs": 0.057,
+      "serverPlanningMs": 0.089,
+      "plan": {
+        "node": "Limit",
+        "rows": 3,
+        "loops": 1,
+        "actualTotalMs": 0.033,
+        "sharedHits": 3,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Sort",
+            "rows": 3,
+            "loops": 1,
+            "actualTotalMs": 0.032,
+            "sharedHits": 3,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Index Scan",
+                "relation": "destination",
+                "index": "destination_visibility_idx",
+                "rows": 3,
+                "loops": 1,
+                "actualTotalMs": 0.023,
+                "sharedHits": 3,
+                "sharedReads": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "flow": "planner-candidates",
+      "serverExecutionMs": 0.062,
+      "serverPlanningMs": 0.12,
+      "plan": {
+        "node": "Sort",
+        "rows": 13,
+        "loops": 1,
+        "actualTotalMs": 0.04,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Seq Scan",
+            "relation": "content_media",
+            "rows": 13,
+            "loops": 1,
+            "actualTotalMs": 0.027,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "planner-candidates",
+      "serverExecutionMs": 0.068,
+      "serverPlanningMs": 0.068,
+      "plan": {
+        "node": "Sort",
+        "rows": 21,
+        "loops": 1,
+        "actualTotalMs": 0.043,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Bitmap Heap Scan",
+            "relation": "opening_day",
+            "rows": 21,
+            "loops": 1,
+            "actualTotalMs": 0.033,
+            "sharedHits": 2,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Bitmap Index Scan",
+                "index": "opening_day_destinationId_dayOfWeek_key",
+                "rows": 42,
+                "loops": 1,
+                "actualTotalMs": 0.017,
+                "sharedHits": 1,
+                "sharedReads": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "flow": "planner-candidates",
+      "serverExecutionMs": 0.037,
+      "serverPlanningMs": 0.077,
+      "plan": {
+        "node": "Sort",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.016,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Bitmap Heap Scan",
+            "relation": "opening_interval",
+            "rows": 0,
+            "loops": 1,
+            "actualTotalMs": 0.013,
+            "sharedHits": 2,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Bitmap Index Scan",
+                "index": "opening_interval_openingDayId_opensAtMinute_key",
+                "rows": 0,
+                "loops": 1,
+                "actualTotalMs": 0.008,
+                "sharedHits": 2,
+                "sharedReads": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "flow": "planner-recheck",
+      "serverExecutionMs": 0.038,
+      "serverPlanningMs": 0.083,
+      "plan": {
+        "node": "Index Scan",
+        "relation": "destination",
+        "index": "destination_visibility_idx",
+        "rows": 3,
+        "loops": 1,
+        "actualTotalMs": 0.02,
+        "sharedHits": 3,
+        "sharedReads": 0
+      }
+    },
+    {
+      "flow": "planner-recheck",
+      "serverExecutionMs": 0.055,
+      "serverPlanningMs": 0.101,
+      "plan": {
+        "node": "Limit",
+        "rows": 3,
+        "loops": 1,
+        "actualTotalMs": 0.032,
+        "sharedHits": 3,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Sort",
+            "rows": 3,
+            "loops": 1,
+            "actualTotalMs": 0.03,
+            "sharedHits": 3,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Index Scan",
+                "relation": "destination",
+                "index": "destination_visibility_idx",
+                "rows": 3,
+                "loops": 1,
+                "actualTotalMs": 0.023,
+                "sharedHits": 3,
+                "sharedReads": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "flow": "planner-recheck",
+      "serverExecutionMs": 0.064,
+      "serverPlanningMs": 0.113,
+      "plan": {
+        "node": "Sort",
+        "rows": 13,
+        "loops": 1,
+        "actualTotalMs": 0.041,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Seq Scan",
+            "relation": "content_media",
+            "rows": 13,
+            "loops": 1,
+            "actualTotalMs": 0.028,
+            "sharedHits": 2,
+            "sharedReads": 0
+          }
+        ]
+      }
+    },
+    {
+      "flow": "planner-recheck",
+      "serverExecutionMs": 0.066,
+      "serverPlanningMs": 0.072,
+      "plan": {
+        "node": "Sort",
+        "rows": 21,
+        "loops": 1,
+        "actualTotalMs": 0.042,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Bitmap Heap Scan",
+            "relation": "opening_day",
+            "rows": 21,
+            "loops": 1,
+            "actualTotalMs": 0.032,
+            "sharedHits": 2,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Bitmap Index Scan",
+                "index": "opening_day_destinationId_dayOfWeek_key",
+                "rows": 42,
+                "loops": 1,
+                "actualTotalMs": 0.016,
+                "sharedHits": 1,
+                "sharedReads": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "flow": "planner-recheck",
+      "serverExecutionMs": 0.039,
+      "serverPlanningMs": 0.081,
+      "plan": {
+        "node": "Sort",
+        "rows": 0,
+        "loops": 1,
+        "actualTotalMs": 0.016,
+        "sharedHits": 2,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Bitmap Heap Scan",
+            "relation": "opening_interval",
+            "rows": 0,
+            "loops": 1,
+            "actualTotalMs": 0.013,
+            "sharedHits": 2,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Bitmap Index Scan",
+                "index": "opening_interval_openingDayId_opensAtMinute_key",
+                "rows": 0,
+                "loops": 1,
+                "actualTotalMs": 0.008,
+                "sharedHits": 2,
+                "sharedReads": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "flow": "rag-retrieval",
+      "serverExecutionMs": 1.45,
+      "serverPlanningMs": 0.993,
+      "plan": {
+        "node": "Limit",
+        "rows": 4,
+        "loops": 1,
+        "actualTotalMs": 1.383,
+        "sharedHits": 1654,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Sort",
+            "rows": 4,
+            "loops": 1,
+            "actualTotalMs": 1.382,
+            "sharedHits": 1654,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Nested Loop",
+                "rows": 137,
+                "loops": 1,
+                "actualTotalMs": 1.319,
+                "sharedHits": 1654,
+                "sharedReads": 0,
+                "children": [
+                  {
+                    "node": "Nested Loop",
+                    "rows": 137,
+                    "loops": 1,
+                    "actualTotalMs": 0.342,
+                    "sharedHits": 558,
+                    "sharedReads": 0,
+                    "children": [
+                      {
+                        "node": "Nested Loop",
+                        "rows": 137,
+                        "loops": 1,
+                        "actualTotalMs": 0.153,
+                        "sharedHits": 147,
+                        "sharedReads": 0,
+                        "children": [
+                          {
+                            "node": "Nested Loop",
+                            "rows": 3,
+                            "loops": 1,
+                            "actualTotalMs": 0.025,
+                            "sharedHits": 8,
+                            "sharedReads": 0,
+                            "children": [
+                              {
+                                "node": "Index Scan",
+                                "relation": "rag_document",
+                                "index": "rag_document_status_publicQaApproved_idx",
+                                "rows": 3,
+                                "loops": 1,
+                                "actualTotalMs": 0.013,
+                                "sharedHits": 2,
+                                "sharedReads": 0
+                              },
+                              {
+                                "node": "Index Only Scan",
+                                "relation": "rag_index_publication",
+                                "index": "rag_index_publication_ragDocumentId_generationId_key",
+                                "rows": 1,
+                                "loops": 3,
+                                "actualTotalMs": 0.003,
+                                "sharedHits": 6,
+                                "sharedReads": 0
+                              }
+                            ]
+                          },
+                          {
+                            "node": "Index Scan",
+                            "relation": "rag_chunk",
+                            "index": "rag_chunk_generationId_index_key",
+                            "rows": 45.67,
+                            "loops": 3,
+                            "actualTotalMs": 0.027,
+                            "sharedHits": 139,
+                            "sharedReads": 0
+                          }
+                        ]
+                      },
+                      {
+                        "node": "Index Scan",
+                        "relation": "rag_chunk_embedding",
+                        "index": "rag_chunk_embedding_chunkId_key",
+                        "rows": 1,
+                        "loops": 137,
+                        "actualTotalMs": 0.001,
+                        "sharedHits": 411,
+                        "sharedReads": 0
+                      }
+                    ]
+                  },
+                  {
+                    "node": "Index Scan",
+                    "relation": "rag_index_generation",
+                    "index": "rag_index_generation_ragDocumentId_id_key",
+                    "rows": 1,
+                    "loops": 137,
+                    "actualTotalMs": 0.001,
+                    "sharedHits": 274,
+                    "sharedReads": 0
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "flow": "rag-retrieval",
+      "serverExecutionMs": 33.871,
+      "serverPlanningMs": 0.913,
+      "plan": {
+        "node": "Limit",
+        "rows": 4,
+        "loops": 1,
+        "actualTotalMs": 33.813,
+        "sharedHits": 979,
+        "sharedReads": 0,
+        "children": [
+          {
+            "node": "Sort",
+            "rows": 4,
+            "loops": 1,
+            "actualTotalMs": 33.811,
+            "sharedHits": 979,
+            "sharedReads": 0,
+            "children": [
+              {
+                "node": "Nested Loop",
+                "rows": 98,
+                "loops": 1,
+                "actualTotalMs": 33.754,
+                "sharedHits": 979,
+                "sharedReads": 0,
+                "children": [
+                  {
+                    "node": "Nested Loop",
+                    "rows": 98,
+                    "loops": 1,
+                    "actualTotalMs": 17.606,
+                    "sharedHits": 367,
+                    "sharedReads": 0,
+                    "children": [
+                      {
+                        "node": "Nested Loop",
+                        "rows": 98,
+                        "loops": 1,
+                        "actualTotalMs": 17.435,
+                        "sharedHits": 171,
+                        "sharedReads": 0,
+                        "children": [
+                          {
+                            "node": "Nested Loop",
+                            "rows": 3,
+                            "loops": 1,
+                            "actualTotalMs": 0.046,
+                            "sharedHits": 8,
+                            "sharedReads": 0,
+                            "children": [
+                              {
+                                "node": "Index Scan",
+                                "relation": "rag_document",
+                                "index": "rag_document_status_publicQaApproved_idx",
+                                "rows": 3,
+                                "loops": 1,
+                                "actualTotalMs": 0.016,
+                                "sharedHits": 2,
+                                "sharedReads": 0
+                              },
+                              {
+                                "node": "Index Only Scan",
+                                "relation": "rag_index_publication",
+                                "index": "rag_index_publication_ragDocumentId_generationId_key",
+                                "rows": 1,
+                                "loops": 3,
+                                "actualTotalMs": 0.008,
+                                "sharedHits": 6,
+                                "sharedReads": 0
+                              }
+                            ]
+                          },
+                          {
+                            "node": "Index Scan",
+                            "relation": "rag_chunk",
+                            "index": "rag_chunk_generationId_index_key",
+                            "rows": 32.67,
+                            "loops": 3,
+                            "actualTotalMs": 5.785,
+                            "sharedHits": 163,
+                            "sharedReads": 0
+                          }
+                        ]
+                      },
+                      {
+                        "node": "Index Scan",
+                        "relation": "rag_index_generation",
+                        "index": "rag_index_generation_ragDocumentId_id_key",
+                        "rows": 1,
+                        "loops": 98,
+                        "actualTotalMs": 0.001,
+                        "sharedHits": 196,
+                        "sharedReads": 0
+                      }
+                    ]
+                  },
+                  {
+                    "node": "Index Scan",
+                    "relation": "rag_chunk_embedding",
+                    "index": "rag_chunk_embedding_chunkId_key",
+                    "rows": 1,
+                    "loops": 98,
+                    "actualTotalMs": 0.001,
+                    "sharedHits": 294,
+                    "sharedReads": 0
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "blocked": [
+    {
+      "id": "favorites",
+      "route": "/favorites",
+      "api": "/api/favorites",
+      "status": "BLOCKED_NO_VALID_SESSION",
+      "metrics": "NOT_MEASURED"
+    },
+    {
+      "id": "my-trips",
+      "route": "/trips",
+      "api": "/api/trips",
+      "status": "BLOCKED_NO_VALID_SESSION",
+      "metrics": "NOT_MEASURED"
+    },
+    {
+      "id": "dashboard",
+      "route": "/dashboard",
+      "api": "SERVER_COMPONENT",
+      "status": "BLOCKED_NO_VALID_SESSION",
+      "metrics": "NOT_MEASURED"
+    },
+    {
+      "id": "cms-admin",
+      "route": "/admin/destinations",
+      "api": "/api/admin/destinations",
+      "status": "BLOCKED_NO_VALID_SESSION",
+      "metrics": "NOT_MEASURED"
+    },
+    {
+      "id": "ai-history",
+      "route": "/assistant",
+      "api": "/api/ai/conversations",
+      "status": "BLOCKED_NO_VALID_SESSION",
+      "metrics": "NOT_MEASURED"
+    }
+  ],
+  "connectionState": [
+    {
+      "state": "active",
+      "count": 1
+    },
+    {
+      "state": "idle",
+      "count": 2
+    }
+  ]
+}

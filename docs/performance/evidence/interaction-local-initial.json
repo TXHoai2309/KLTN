@@ -1,0 +1,102 @@
+{
+  "checkedAt": "2026-10-18T09:45:04.465Z",
+  "scope": "post-fix loopback Guest; controlled theme-menu click + Escape; no DB/model/routing writes",
+  "fieldInp": null,
+  "observations": [
+    {
+      "width": 390,
+      "status": 200,
+      "cpuSlowdown": 4,
+      "supported": true,
+      "entries": [
+        {
+          "name": "pointerdown",
+          "durationMs": 864,
+          "interactionId": 9088
+        },
+        {
+          "name": "pointerup",
+          "durationMs": 864,
+          "interactionId": 9088
+        },
+        {
+          "name": "keydown",
+          "durationMs": 80,
+          "interactionId": 9095
+        }
+      ],
+      "sampledMaxEventDurationMs": 864,
+      "interpretation": "Synthetic maximum event duration for theme click/Escape; NOT field INP, no before/after win claim"
+    },
+    {
+      "width": 768,
+      "status": 200,
+      "cpuSlowdown": 1,
+      "supported": true,
+      "entries": [
+        {
+          "name": "pointerdown",
+          "durationMs": 56,
+          "interactionId": 1555
+        },
+        {
+          "name": "pointerup",
+          "durationMs": 56,
+          "interactionId": 1555
+        },
+        {
+          "name": "click",
+          "durationMs": 56,
+          "interactionId": 1555
+        },
+        {
+          "name": "keydown",
+          "durationMs": 32,
+          "interactionId": 1562
+        },
+        {
+          "name": "keyup",
+          "durationMs": 40,
+          "interactionId": 1562
+        }
+      ],
+      "sampledMaxEventDurationMs": 56,
+      "interpretation": "Synthetic maximum event duration for theme click/Escape; NOT field INP, no before/after win claim"
+    },
+    {
+      "width": 1440,
+      "status": 200,
+      "cpuSlowdown": 1,
+      "supported": true,
+      "entries": [
+        {
+          "name": "pointerdown",
+          "durationMs": 104,
+          "interactionId": 714
+        },
+        {
+          "name": "pointerup",
+          "durationMs": 104,
+          "interactionId": 714
+        },
+        {
+          "name": "click",
+          "durationMs": 104,
+          "interactionId": 714
+        },
+        {
+          "name": "keydown",
+          "durationMs": 96,
+          "interactionId": 721
+        },
+        {
+          "name": "keyup",
+          "durationMs": 88,
+          "interactionId": 721
+        }
+      ],
+      "sampledMaxEventDurationMs": 104,
+      "interpretation": "Synthetic maximum event duration for theme click/Escape; NOT field INP, no before/after win claim"
+    }
+  ]
+}
