@@ -1,0 +1,39 @@
+{
+  "checkedAt": "2026-10-18T04:51:47.883Z",
+  "status": "PASS",
+  "migrationTests": {
+    "pass": 39,
+    "fail": 0,
+    "skip": 0
+  },
+  "ragTests": {
+    "pass": 56,
+    "fail": 0,
+    "skip": 0
+  },
+  "credentialMatches": 0,
+  "syntaxChecks": 9,
+  "planHash": "ff1f1fcc64e6421b6f2a6b9fbc4a87344795b3abbeb95db7c9e66a1c92f1d519",
+  "policy": {
+    "OWNER_BACKUP_WAIVER_ACCEPTED": true,
+    "reason": "SNAPSHOTS_LIMIT_EXCEEDED",
+    "scope": [
+      "cmvapg3l0001j7w9w61egpl01",
+      "cmvc530ki0001ik9wn3ynioi6",
+      "cmvc55mhx000bik9wpn3gtlmn"
+    ],
+    "target": {
+      "project": "summer-unit-95870477",
+      "branch": "br-cold-dew-b3h270wp",
+      "endpoint": "ep-blue-art-b3v3vr4h",
+      "database": "neondb"
+    },
+    "manifestHash": "ff1f1fcc64e6421b6f2a6b9fbc4a87344795b3abbeb95db7c9e66a1c92f1d519",
+    "executionTimestamp": "2026-10-18T04:51:47.517Z",
+    "CURRENT_PRODUCTION_BACKUP": "WAIVED_BY_OWNER",
+    "RECOVERY_POINT_AFTER_DESTINATION_IMPORT": "NOT_AVAILABLE",
+    "backupVerified": false
+  },
+  "expectedInserts": 286,
+  "actualProductionWrites": 0
+}

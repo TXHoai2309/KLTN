@@ -1,0 +1,283 @@
+{
+  "checkedAt": "2026-10-18T04:51:29.460Z",
+  "status": "DRY_RUN_PASS",
+  "schemaEqual": true,
+  "ledgerVerification": {
+    "healthyBoth": true,
+    "semanticSqlEquivalent": true,
+    "rawChecksumsEqual": false,
+    "lineEndingDifferences": [
+      {
+        "migration": "20261004070249_add_destination_domain",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "280dcf73fe94eae23857342ef028aaeb7735c96f558407c8319fa9e8d2c0505d"
+      },
+      {
+        "migration": "20261005021531_add_culture_content_domain",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "b55847c4f67e9d959a55e1c905b125ac40f2177aefd2bba8f5871993740ac735"
+      },
+      {
+        "migration": "20261005120000_add_favorites",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "f9752507794ffb3b458cca0df8d55043833b84916ee8e0d235fb4c79996daae1"
+      },
+      {
+        "migration": "20261006150000_upgrade_favorite_target_contract",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "24aa835a40a16c4a394998e1e5d8c69b72376e972d284dd1da689c05203abf19"
+      },
+      {
+        "migration": "20261008120000_add_rag_document",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "1a5c21e06dafbf96e4399ea85f1941a096a1096f1c48b009000d36cff3b0de17"
+      },
+      {
+        "migration": "20261009120000_add_rag_index_generations",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "4b23a314bed86d26347c067d6b1bc7e241708d764ce4957c4f7aabed7a953921"
+      },
+      {
+        "migration": "20261010120000_add_rag_index_jobs",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "549c135be20cc8da180a3f5c472b4d6984fde9ccb435e744771ad8ee8f6e8316"
+      },
+      {
+        "migration": "20261011120000_add_qa_guest_identity",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "a283b20a746fad476323ebd3112d986e7ad3fa974d110f42ce7778995f79f9c0"
+      },
+      {
+        "migration": "20261011121000_add_qa_conversations",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "fc0a1d2b7c6e7bf9ed6801bbd3dd2f3108dd1d7749a4ecfca524e788a0766272"
+      },
+      {
+        "migration": "20261011122000_add_qa_abuse_guard",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "ad0f5f68b80398ddb5b2aa372aef307d1185e9f57f029efb0aa4a5404c36e2e5"
+      },
+      {
+        "migration": "20261011123000_add_qa_cleanup_state",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "0534357c3ce4d39c393e4f321a7626154b0a899fc3133cfcbcb844d802595640"
+      },
+      {
+        "migration": "20261012120000_add_qa_destination_context",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "53da23cd3fbe6e2d7e2af23e08180be875ace1b7bf458f4398914c4b2e83f36b"
+      },
+      {
+        "migration": "20261012150000_admin_content_profiles",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "8e2cc80e189a657514d4caad7396e61da5c294a483bf63d5893316f4dcae78ae"
+      },
+      {
+        "migration": "20261014120000_add_destination_editorial",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "3a724d9fd6619004a45cd706d8b05e0404f4bea526d668b0bcf64c1319d8bd7b"
+      },
+      {
+        "migration": "20261015000000_us30_trip_save",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "d1e46aeb42e8f98b5fe2a2893768ed18c8deb3c1aced00f60b46fc098740f593"
+      },
+      {
+        "migration": "20261015160000_us34_trip_favorite",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "d7c4c377711bc9c7c125ae92ca5cc2b929d59985c5baef04366e24062fb54996"
+      },
+      {
+        "migration": "20261017120000_add_qa_conversation_history",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "d6ff0e58daedd119beeb42f88cfbeeb97f3b2d27076f23698544059d835bb9ea"
+      },
+      {
+        "migration": "20261017150000_add_rag_public_qa_permission",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "093a5602fe94a3325e3fb7bdd03c5d45322d105e3e1cbf6aaf5a771542a8e098"
+      },
+      {
+        "migration": "20261017210000_admin_user_management",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "c0cd3b65b5d5d670ea320c01c60d898caf74cee82f55d8851abff9d15d1798e2"
+      }
+    ]
+  },
+  "sameStore": true,
+  "privateStore": true,
+  "storeIdentitySha256": "3d89650343cc419fd0f99d9afda5707dd1d38f8ce9bb173b4676c43725d2293b",
+  "productionCredentialValueRedacted": true,
+  "storeProof": "Production BLOB_STORE_ID matches store identity of authenticated SDK token; no secret value exported. Production CMS file read remains a separate server-runtime check.",
+  "metrics": {
+    "SOURCE_DOCUMENTS": 11,
+    "TARGET_DOCUMENTS": 0,
+    "ELIGIBLE_DOCUMENTS": 3,
+    "READY_GENERATIONS": 3,
+    "VALID_EMBEDDINGS": 137,
+    "BLOB_ACCESSIBLE": 3,
+    "INDEX_REUSE_CANDIDATES": 3,
+    "REINDEX_REQUIRED": 0,
+    "RIGHTS_REVIEW_REQUIRED": 3,
+    "ID_CONFLICTS": 0,
+    "EXPECTED_INSERTS": 286,
+    "EXPECTED_UPDATES": 0,
+    "EXPECTED_DELETES": 0
+  },
+  "documents": [
+    {
+      "documentId": "cmvapg3l0001j7w9w61egpl01",
+      "versionId": "cmvaq3vno001s7w9whurnb6op",
+      "generationId": "cmvaq3wc0001t7w9wm3aomjm4",
+      "publicationId": "cmvaq4a94001u7w9wujzyxer1",
+      "chunks": 51,
+      "embeddings": 51,
+      "tokenCount": 13584,
+      "originalSha256": "6f21f0c8f69a4b8e5315299b5a2693518d9ac85c4c116d81d83ec0db14abe6b6",
+      "normalizedContentHash": "4f4a633c3929d7dc09447fe4d520b2b8dccead197011f6571939d6d7fe5055c7",
+      "integrity": "TECHNICALLY_READY",
+      "dimensions": 1536,
+      "allHashesMatch": true,
+      "deterministicExtractionAndChunkReplay": true,
+      "rights": "RIGHTS_REVIEW_REQUIRED",
+      "targetPublicQaApproved": false,
+      "ownerOriginalByteMatch": true
+    },
+    {
+      "documentId": "cmvc530ki0001ik9wn3ynioi6",
+      "versionId": "cmvc53qzp0007ik9wlcrbm8z9",
+      "generationId": "cmvc53rzd0008ik9w236wy37w",
+      "publicationId": "cmvc540l80009ik9wvpmcqlhk",
+      "chunks": 35,
+      "embeddings": 35,
+      "tokenCount": 7815,
+      "originalSha256": "8bb6e92b2b301c01e3bf8ac70ead1c7ed87512f7215cf81e85374335b71e6ad7",
+      "normalizedContentHash": "045e3beb90733c2587ca4cc9945097206a176dc9acbe348a19159bbcb0fc2357",
+      "integrity": "TECHNICALLY_READY",
+      "dimensions": 1536,
+      "allHashesMatch": true,
+      "deterministicExtractionAndChunkReplay": true,
+      "rights": "RIGHTS_REVIEW_REQUIRED",
+      "targetPublicQaApproved": false,
+      "ownerOriginalByteMatch": true
+    },
+    {
+      "documentId": "cmvc55mhx000bik9wpn3gtlmn",
+      "versionId": "cmvc562d3000hik9w3y59c9el",
+      "generationId": "cmvc562ru000iik9w0un4vcp3",
+      "publicationId": "cmvc56d4h000jik9wvdgdomnf",
+      "chunks": 51,
+      "embeddings": 51,
+      "tokenCount": 10225,
+      "originalSha256": "43659cfc3614034bb02987d17f00e1eb97b29f6338546d8d2774b72f5c577fdf",
+      "normalizedContentHash": "31c7a83051a925547f32ece6f182ec81642d2b477793e8a7aa581990aee4a06b",
+      "integrity": "TECHNICALLY_READY",
+      "dimensions": 1536,
+      "allHashesMatch": true,
+      "deterministicExtractionAndChunkReplay": true,
+      "rights": "RIGHTS_REVIEW_REQUIRED",
+      "targetPublicQaApproved": false,
+      "ownerOriginalByteMatch": true
+    }
+  ],
+  "blobReports": [
+    {
+      "documentId": "cmvapg3l0001j7w9w61egpl01",
+      "accessible": true,
+      "private": true,
+      "registeredMimeMatches": true,
+      "size": 57844,
+      "sha256": "6f21f0c8f69a4b8e5315299b5a2693518d9ac85c4c116d81d83ec0db14abe6b6",
+      "anonymousStatus": 403
+    },
+    {
+      "documentId": "cmvc530ki0001ik9wn3ynioi6",
+      "accessible": true,
+      "private": true,
+      "registeredMimeMatches": true,
+      "size": 47146,
+      "sha256": "8bb6e92b2b301c01e3bf8ac70ead1c7ed87512f7215cf81e85374335b71e6ad7",
+      "anonymousStatus": 403
+    },
+    {
+      "documentId": "cmvc55mhx000bik9wpn3gtlmn",
+      "accessible": true,
+      "private": true,
+      "registeredMimeMatches": true,
+      "size": 49644,
+      "sha256": "43659cfc3614034bb02987d17f00e1eb97b29f6338546d8d2774b72f5c577fdf",
+      "anonymousStatus": 403
+    }
+  ],
+  "failures": [],
+  "exclusions": [
+    "cmv38zef0000106jsom7r8yw4",
+    "cmv39a5mx000306jst846ogzz",
+    "cmv39dmdo000306lammu5pp1z",
+    "cmv3dho2r0001049wtqlyhsjz",
+    "cmv3q1hth00010k9wf74kmio7",
+    "cmv44p0ay0001e09wh30ljam7",
+    "cmv4nuy0r000106la7lawevfe",
+    "cmv6wcxb50003zc9wh1vlwv5s"
+  ],
+  "plan": {
+    "rag_document": {
+      "inserts": 3,
+      "replays": 0
+    },
+    "rag_content_version": {
+      "inserts": 3,
+      "replays": 0
+    },
+    "rag_index_generation": {
+      "inserts": 3,
+      "replays": 0
+    },
+    "rag_chunk": {
+      "inserts": 137,
+      "replays": 0
+    },
+    "rag_chunk_embedding": {
+      "inserts": 137,
+      "replays": 0
+    },
+    "rag_index_publication": {
+      "inserts": 3,
+      "replays": 0
+    },
+    "rag_index_job": {
+      "inserts": 0,
+      "replays": 0
+    },
+    "rag_domain_origin": {
+      "inserts": 0,
+      "replays": 0
+    }
+  },
+  "planHash": "ff1f1fcc64e6421b6f2a6b9fbc4a87344795b3abbeb95db7c9e66a1c92f1d519",
+  "publicQaApprovalCopied": false,
+  "jobsCopied": 0,
+  "blobCopies": 0,
+  "openAiCalls": 0,
+  "estimatedOpenAiCostUsd": 0,
+  "productionWrites": 0
+}
