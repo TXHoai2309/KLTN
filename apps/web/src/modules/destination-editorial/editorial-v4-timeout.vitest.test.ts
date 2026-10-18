@@ -146,8 +146,8 @@ describe("Task FIX_V4_GENERATIVE_TIMEOUT — Strict Verification Suite", () => {
       expect(resolveEditorialTimeout()).toBe(25_000);
     });
 
-    it("resolves default V4 timeout to 60,000ms", () => {
-      expect(resolveEditorialTimeout(2)).toBe(60_000);
+    it("resolves default V4 timeout to 180,000ms", () => {
+      expect(resolveEditorialTimeout(2)).toBe(180_000);
     });
 
     it("honors OPENAI_EDITORIAL_TIMEOUT_MS env variable when valid", () => {
@@ -158,17 +158,17 @@ describe("Task FIX_V4_GENERATIVE_TIMEOUT — Strict Verification Suite", () => {
 
     it("clamps invalid or out-of-bound env timeout to default", () => {
       vi.stubEnv("OPENAI_EDITORIAL_TIMEOUT_MS", "999999");
-      expect(resolveEditorialTimeout(2)).toBe(60_000);
+      expect(resolveEditorialTimeout(2)).toBe(180_000);
 
       vi.stubEnv("OPENAI_EDITORIAL_TIMEOUT_MS", "not-a-number");
-      expect(resolveEditorialTimeout(2)).toBe(60_000);
+      expect(resolveEditorialTimeout(2)).toBe(180_000);
     });
 
-    it("respects explicit overrideMs bounded up to maxTimeoutMs (90,000ms)", () => {
+    it("respects explicit overrideMs bounded up to maxTimeoutMs (180,000ms)", () => {
       expect(resolveEditorialTimeout(2, 45_000)).toBe(45_000);
-      expect(resolveEditorialTimeout(2, 90_000)).toBe(90_000);
-      // Beyond 90,000ms is ignored and falls back
-      expect(resolveEditorialTimeout(2, 120_000)).toBe(60_000);
+      expect(resolveEditorialTimeout(2, 180_000)).toBe(180_000);
+      // Beyond 180,000ms is ignored and falls back
+      expect(resolveEditorialTimeout(2, 240_000)).toBe(180_000);
     });
   });
 
