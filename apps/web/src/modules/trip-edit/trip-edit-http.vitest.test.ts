@@ -70,16 +70,17 @@ describe("previewEditResponse", () => {
     expect(response.headers.get("cache-control")).toBe("private, no-store");
   });
 
-  it("blocks Admin before reading the body", async () => {
+  it("accepts Admin capability and validates the body before calling the service", async () => {
     const test = fixture();
     test.setRole("ADMIN");
 
     const response = await previewEditResponse(postRequest("{"), "trip-1", test.dependencies);
     const payload = await response.json();
 
-    expect(response.status).toBe(403);
-    expect(payload.error.code).toBe("FORBIDDEN");
-    expect(test.bodyRead).toBe(false);
+    expect(response.status).toBe(400);
+    expect(payload.error.code).toBe("VALIDATION_ERROR");
+    expect(test.bodyRead).toBe(true);
+    expect(test.serviceCalls).toBe(0);
   });
 
   it("rejects a strict-schema body and does not call the preview service", async () => {

@@ -360,7 +360,7 @@ describe("applyEditResponse authorization and request parsing", () => {
 
   it.each([
     ["Guest", (test: ReturnType<typeof fixture>) => test.removeSession(), 401, "UNAUTHENTICATED"],
-    ["Admin", (test: ReturnType<typeof fixture>) => test.setRole("ADMIN"), 403, "FORBIDDEN"],
+    ["Unsupported role", (test: ReturnType<typeof fixture>) => test.setRole("UNSUPPORTED"), 403, "FORBIDDEN"],
   ] as const)("rejects %s before reading the body", async (_role, configure, status, code) => {
     const test = fixture();
     configure(test);
