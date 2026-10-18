@@ -1,0 +1,36 @@
+{
+  "checkedAt": "2026-10-17T19:09:14.497Z",
+  "surface": "Codex in-app browser",
+  "readOnly": true,
+  "authenticated": false,
+  "landing": {
+    "result": "FAIL_CONTENT_REFRESH",
+    "fallbackStillPresent": true,
+    "consoleErrors": 0
+  },
+  "explore": {
+    "listCount": 3,
+    "search": "Khâu Vai",
+    "searchCount": 1,
+    "detailNavigation": "PASS",
+    "publishedEditorialRendered": true,
+    "imagesInInitialViewportLoaded": 3,
+    "lazyImagesBelowViewportNotAsserted": true,
+    "lightTheme": "PASS_DOM_AND_VISUAL",
+    "darkTheme": "OBSERVED_DOM",
+    "responsive": "NOT_RUN"
+  },
+  "map": {
+    "result": "DEGRADED",
+    "destinationSidebarCount": 3,
+    "alert": "Bản đồ hiện không khả dụng",
+    "styleRequests": "UNVERIFIED",
+    "tileRequests": "UNVERIFIED",
+    "hostnameAuth": "UNVERIFIED",
+    "noStadiaPassClaim": true
+  },
+  "cms": "NOT_RUN_NO_AUTHENTICATED_ADMIN_SESSION",
+  "tripPlanner": "NOT_RUN_AUTHENTICATED_DATA_READ",
+  "ragQaEnabled": false,
+  "consoleWarningsOrErrorsObserved": []
+}

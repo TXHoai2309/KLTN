@@ -1,0 +1,159 @@
+{
+  "checkedAt": "2026-10-17T19:07:09.082Z",
+  "status": "PASS",
+  "foreignKeys": 38,
+  "results": [
+    {
+      "constraint": "_AreaToCultureContent_A_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "_AreaToCultureContent_B_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "_AreaToDestination_A_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "_AreaToDestination_B_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "_CommunityToCultureContent_A_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "_CommunityToCultureContent_B_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "account_userId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "admin_audit_event_actorId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "admin_audit_event_targetUserId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "content_media_cultureId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "content_media_destinationId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "content_source_cultureId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "content_source_destinationId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "culture_destination_cultureId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "culture_destination_destinationId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "destination_editorial_destinationId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "favorite_cultureContentId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "favorite_destinationId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "favorite_tripId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "favorite_userId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "itinerary_day_tripId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "itinerary_visit_dayId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "itinerary_visit_destinationId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "opening_day_destinationId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "opening_interval_openingDayId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "qa_turn_conversationId_principalKind_principalId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "rag_chunk_embedding_chunkId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "rag_chunk_ragDocumentId_generationId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "rag_content_version_ragDocumentId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "rag_domain_origin_cultureId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "rag_domain_origin_destinationId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "rag_domain_origin_ragDocumentId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "rag_index_generation_ragDocumentId_contentVersionId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "rag_index_generation_ragDocumentId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "rag_index_job_ragDocumentId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "rag_index_publication_ragDocumentId_generationId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "session_userId_fkey",
+      "dangling": 0
+    },
+    {
+      "constraint": "trip_userId_fkey",
+      "dangling": 0
+    }
+  ]
+}

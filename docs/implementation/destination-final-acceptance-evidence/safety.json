@@ -1,0 +1,44 @@
+{
+  "checkedAt": "2026-10-18T03:19:31.191Z",
+  "changedTextFiles": 48,
+  "secretHits": [],
+  "trailingWhitespace": [],
+  "builtStaticTextAssets": 102,
+  "builtStaticSecretHits": [],
+  "receiptFilesUnchanged": [
+    {
+      "file": ".cache/destination-sync/backup-receipt.json",
+      "unchanged": true
+    },
+    {
+      "file": ".cache/destination-sync/prepared.json",
+      "unchanged": true
+    },
+    {
+      "file": ".cache/destination-sync/applied.json",
+      "unchanged": true
+    },
+    {
+      "file": ".cache/destination-sync/replay.json",
+      "unchanged": true
+    },
+    {
+      "file": "docs/implementation/destination-sync-evidence/backup.json",
+      "unchanged": true
+    },
+    {
+      "file": "docs/implementation/destination-sync-evidence/import.json",
+      "unchanged": true
+    },
+    {
+      "file": "docs/implementation/destination-sync-evidence/replay.json",
+      "unchanged": true
+    }
+  ],
+  "diffCheck": "PASS",
+  "importRuns": 0,
+  "schemaChanges": 0,
+  "deployments": 0,
+  "merges": 0,
+  "pushes": 0
+}

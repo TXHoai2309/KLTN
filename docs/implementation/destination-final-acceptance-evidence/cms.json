@@ -1,0 +1,46 @@
+{
+  "checkedAt": "2026-10-18T03:16:52.793Z",
+  "origin": "https://kltn-rho.vercel.app",
+  "session": "OWNER_LOGGED_IN_INTERACTIVELY_NO_CREDENTIAL_CAPTURE",
+  "readOnlyInteractions": true,
+  "destinationListCount": 3,
+  "records": [
+    {
+      "id": "cmv97lcrq0016z09ws0o74lqp",
+      "galleryCount": 3,
+      "sourceCount": 4,
+      "draftRevision": 14,
+      "publishedRevision": 8,
+      "editorialPreviewPresent": true,
+      "savedState": true,
+      "hoursEditorPresent": true,
+      "openingHoursData": "7 UNKNOWN weekdays verified by read-only planner repository"
+    },
+    {
+      "id": "cmv9fcwo1000be89w3yxz3mqu",
+      "galleryCount": 5,
+      "sourceCount": 4,
+      "draftRevision": 13,
+      "publishedRevision": 7,
+      "editorialPreviewPresent": true,
+      "savedState": true,
+      "hoursEditorPresent": true,
+      "openingHoursData": "7 UNKNOWN weekdays verified by read-only planner repository"
+    },
+    {
+      "id": "cmvanjc6p000f7w9wyuydna52",
+      "galleryCount": 5,
+      "sourceCount": 4,
+      "draftRevision": 7,
+      "publishedRevision": 4,
+      "editorialPreviewPresent": true,
+      "savedState": true,
+      "hoursEditorPresent": true,
+      "openingHoursData": "7 UNKNOWN weekdays verified by read-only planner repository"
+    }
+  ],
+  "savePublishUploadDeleteReorderActions": 0,
+  "plannerFormAccessibleAsAdmin": true,
+  "ownerLoginMayCreateNormalAuthSession": true,
+  "agentAuthMutations": 0
+}

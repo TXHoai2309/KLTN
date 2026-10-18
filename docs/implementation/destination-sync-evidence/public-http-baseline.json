@@ -1,0 +1,42 @@
+{
+  "checkedAt": "2026-10-17T18:52:00.253Z",
+  "mode": "PUBLIC_HTTP_READ_ONLY_BASELINE",
+  "databaseConnections": 0,
+  "databaseWrites": 0,
+  "providerIdentity": "UNVERIFIED",
+  "backup": "UNVERIFIED",
+  "destinationProductionSync": "NOT_RUN",
+  "checks": [
+    {
+      "path": "/api/health",
+      "status": 200,
+      "contentType": "application/json",
+      "apiSuccess": true
+    },
+    {
+      "path": "/api/destinations",
+      "status": 200,
+      "contentType": "application/json",
+      "apiSuccess": true,
+      "publicDestinationItems": 0
+    },
+    {
+      "path": "/explore?view=list",
+      "status": 200,
+      "contentType": "text/html",
+      "emptyDestinationMessage": true
+    },
+    {
+      "path": "/maplibre/maplibre-gl-worker.mjs",
+      "status": 200,
+      "contentType": "application/javascript"
+    },
+    {
+      "path": "/maplibre/maplibre-gl-shared.mjs",
+      "status": 200,
+      "contentType": "application/javascript"
+    }
+  ],
+  "browserSmoke": "NOT_RUN",
+  "stadiaTileTest": "NOT_RUN"
+}

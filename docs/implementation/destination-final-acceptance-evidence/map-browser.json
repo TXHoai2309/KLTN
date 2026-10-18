@@ -1,0 +1,36 @@
+{
+  "checkedAt": "2026-10-18T03:16:52.794Z",
+  "local": {
+    "origin": "http://localhost:3028",
+    "data": "PINNED_PRODUCTION_READ_ONLY",
+    "markerIds": [
+      "cmv97lcrq0016z09ws0o74lqp",
+      "cmvanjc6p000f7w9wyuydna52",
+      "cmv9fcwo1000be89w3yxz3mqu"
+    ],
+    "canvasCount": 1,
+    "mapUnavailable": false,
+    "popupDestinationId": "cmv97lcrq0016z09ws0o74lqp",
+    "popupDetailLinkPresent": true,
+    "consoleErrorsOrWarnings": [],
+    "tilesVisuallyRendered": true
+  },
+  "production": {
+    "origin": "https://kltn-rho.vercel.app",
+    "mapUnavailable": true,
+    "sidebarDestinationCount": 3,
+    "observedPageResourceUrls": [
+      "/maplibre/maplibre-gl-worker.mjs",
+      "/maplibre/maplibre-gl-shared.mjs",
+      "https://tiles.stadiamaps.com/styles/alidade_smooth.json",
+      "https://tiles.stadiamaps.com/data/openmaptiles.json",
+      "https://tiles.stadiamaps.com/styles/alidade-smooth/sprite.json",
+      "https://tiles.stadiamaps.com/styles/alidade-smooth/sprite.png"
+    ],
+    "workerTileRequestStatusNotExposedByBrowserTool": true,
+    "propertySettingsNotInspected": true,
+    "stadiaConsoleAccess": "LOGIN_REQUIRED",
+    "consoleObservedUrl": "https://client.stadiamaps.com/login/?next=/dashboard/"
+  },
+  "viewportOverrideReset": true
+}

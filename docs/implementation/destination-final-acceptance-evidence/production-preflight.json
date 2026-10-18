@@ -1,0 +1,74 @@
+{
+  "checkedAt": "2026-10-18T02:59:50.618Z",
+  "checks": [
+    {
+      "path": "/",
+      "status": 200,
+      "mime": "text/html; charset=utf-8",
+      "csp": null,
+      "reportOnlyCsp": null,
+      "prerender": "1",
+      "cache": "HIT",
+      "referrerPolicy": null,
+      "hasImportedName": false,
+      "cspMeta": false
+    },
+    {
+      "path": "/api/destinations",
+      "status": 200,
+      "mime": "application/json",
+      "csp": null,
+      "reportOnlyCsp": null,
+      "prerender": null,
+      "cache": "MISS",
+      "referrerPolicy": null,
+      "publicIds": [
+        "cmv97lcrq0016z09ws0o74lqp",
+        "cmvanjc6p000f7w9wyuydna52",
+        "cmv9fcwo1000be89w3yxz3mqu"
+      ]
+    },
+    {
+      "path": "/maplibre/maplibre-gl-worker.mjs",
+      "status": 200,
+      "mime": "application/javascript; charset=utf-8",
+      "csp": null,
+      "reportOnlyCsp": null,
+      "prerender": null,
+      "cache": "MISS",
+      "referrerPolicy": null,
+      "sha256": "1ecca7178f0a496b7980dc7a3c6a8c3575eda673cf3e9fa3324dcce7ef3890c2",
+      "matchesInstalledNpm": true
+    },
+    {
+      "path": "/maplibre/maplibre-gl-shared.mjs",
+      "status": 200,
+      "mime": "application/javascript; charset=utf-8",
+      "csp": null,
+      "reportOnlyCsp": null,
+      "prerender": null,
+      "cache": "HIT",
+      "referrerPolicy": null,
+      "sha256": "df3d0b4ba965ebafd2deae3c568500308be2982d87dadd771ba82dc5a49a4631",
+      "matchesInstalledNpm": true
+    },
+    {
+      "style": "alidade_smooth",
+      "status": 200,
+      "mime": "application/json",
+      "sourceUrls": [
+        "https://tiles.stadiamaps.com/data/openmaptiles.json"
+      ],
+      "probe": "NODE_HTTP_WITH_EXPLICIT_PRODUCTION_ORIGIN_NOT_BROWSER"
+    },
+    {
+      "style": "alidade_smooth_dark",
+      "status": 200,
+      "mime": "application/json",
+      "sourceUrls": [
+        "https://tiles.stadiamaps.com/data/openmaptiles.json"
+      ],
+      "probe": "NODE_HTTP_WITH_EXPLICIT_PRODUCTION_ORIGIN_NOT_BROWSER"
+    }
+  ]
+}

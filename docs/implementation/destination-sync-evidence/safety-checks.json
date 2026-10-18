@@ -1,0 +1,10 @@
+{
+  "checkedAt": "2026-10-17T19:12:32.835Z",
+  "changedFilesChecked": 25,
+  "secretHits": [],
+  "publicScriptTagsChecked": 18,
+  "publicSecretHits": [],
+  "whitespaceIssues": [],
+  "nodeSyntaxIssues": [],
+  "scope": "Changed repository text plus current Explore HTML and directly referenced script tags; not an exhaustive browser chunk audit"
+}

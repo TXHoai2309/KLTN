@@ -1,0 +1,13 @@
+{
+  "testedAt": "2026-10-17T18:53:09.070Z",
+  "command": "node --test scripts/preflight-destination-production-sync.test.mjs",
+  "tests": 7,
+  "pass": 7,
+  "fail": 0,
+  "fixturesOnly": true,
+  "databaseConnections": 0,
+  "databaseWrites": 0,
+  "fullTransferImplemented": false,
+  "historical": true,
+  "supersededBy": "tests.json"
+}

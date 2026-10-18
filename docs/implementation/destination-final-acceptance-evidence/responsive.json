@@ -1,0 +1,130 @@
+{
+  "checkedAt": "2026-10-18T03:16:52.794Z",
+  "cases": [
+    {
+      "page": "explore-list",
+      "requestedViewportWidth": 390,
+      "measuredClientWidth": 375,
+      "scrollWidth": 375,
+      "horizontalOverflow": false,
+      "destinationCount": 3,
+      "imageCount": 3
+    },
+    {
+      "page": "explore-list",
+      "requestedViewportWidth": 768,
+      "measuredClientWidth": 753,
+      "scrollWidth": 753,
+      "horizontalOverflow": false,
+      "destinationCount": 3,
+      "imageCount": 3
+    },
+    {
+      "page": "explore-list",
+      "requestedViewportWidth": 1440,
+      "measuredClientWidth": 1425,
+      "scrollWidth": 1425,
+      "horizontalOverflow": false,
+      "destinationCount": 3,
+      "imageCount": 3
+    },
+    {
+      "page": "production-planner-form",
+      "requestedViewportWidth": 390,
+      "measuredClientWidth": 375,
+      "scrollWidth": 375,
+      "horizontalOverflow": false
+    },
+    {
+      "page": "production-planner-form",
+      "requestedViewportWidth": 768,
+      "measuredClientWidth": 753,
+      "scrollWidth": 753,
+      "horizontalOverflow": false
+    },
+    {
+      "page": "production-planner-form",
+      "requestedViewportWidth": 1440,
+      "measuredClientWidth": 1425,
+      "scrollWidth": 1425,
+      "horizontalOverflow": false
+    },
+    {
+      "page": "production-cms-edit",
+      "requestedViewportWidth": 390,
+      "measuredClientWidth": 375,
+      "scrollWidth": 375,
+      "horizontalOverflow": false
+    },
+    {
+      "page": "production-cms-edit",
+      "requestedViewportWidth": 768,
+      "measuredClientWidth": 753,
+      "scrollWidth": 753,
+      "horizontalOverflow": false
+    },
+    {
+      "page": "production-cms-edit",
+      "requestedViewportWidth": 1440,
+      "measuredClientWidth": 1425,
+      "scrollWidth": 1425,
+      "horizontalOverflow": false
+    },
+    {
+      "page": "local-home-production-readonly",
+      "requestedViewportWidth": 390,
+      "measuredClientWidth": 375,
+      "scrollWidth": 375,
+      "horizontalOverflow": false,
+      "destinationBadge": "3 điểm đến",
+      "emptyFallback": false
+    },
+    {
+      "page": "local-home-production-readonly",
+      "requestedViewportWidth": 768,
+      "measuredClientWidth": 753,
+      "scrollWidth": 753,
+      "horizontalOverflow": false,
+      "destinationBadge": "3 điểm đến",
+      "emptyFallback": false
+    },
+    {
+      "page": "local-home-production-readonly",
+      "requestedViewportWidth": 1440,
+      "measuredClientWidth": 1425,
+      "scrollWidth": 1425,
+      "horizontalOverflow": false,
+      "destinationBadge": "3 điểm đến",
+      "emptyFallback": false
+    },
+    {
+      "page": "local-map-production-readonly",
+      "requestedViewportWidth": 390,
+      "measuredClientWidth": 375,
+      "scrollWidth": 375,
+      "horizontalOverflow": false,
+      "markerCount": 3,
+      "mapUnavailable": false
+    },
+    {
+      "page": "local-map-production-readonly",
+      "requestedViewportWidth": 768,
+      "measuredClientWidth": 753,
+      "scrollWidth": 753,
+      "horizontalOverflow": false,
+      "markerCount": 3,
+      "mapUnavailable": false
+    },
+    {
+      "page": "local-map-production-readonly",
+      "requestedViewportWidth": 1440,
+      "measuredClientWidth": 1425,
+      "scrollWidth": 1425,
+      "horizontalOverflow": false,
+      "markerCount": 3,
+      "mapUnavailable": false
+    }
+  ],
+  "scope": "DOM overflow/content checks; 390 and1440 visual observations; client width excludes15px scrollbar gutter; map/home local results are not deployed Production proof",
+  "viewportReset": true
+}

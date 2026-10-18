@@ -1,5 +1,6 @@
 import { mvpFeatures } from "@/lib/mvp-features";
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import type { Route } from "next";
 import Link from "next/link";
 import Image from "next/image";
@@ -41,6 +42,10 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
+  // Destination content must reflect the current database after CMS/import writes.
+  // Keep this request boundary outside the data fallback so prerender control
+  // flow is not swallowed. Other routes and static assets keep their cache policy.
+  await connection();
   // Fetch verified public destinations from DB via existing service
   let destinations: PublicLocation[] = [];
   try {
