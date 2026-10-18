@@ -1,0 +1,515 @@
+{
+  "checkedAt": "2026-10-18T04:56:13.630Z",
+  "status": "PASS",
+  "mode": "INDEPENDENT_READ_ONLY_AFTER_COMMIT",
+  "identities": [
+    {
+      "side": "source",
+      "project": "summer-unit-95870477",
+      "branch": "br-aged-hat-b3o6hg9p",
+      "endpoint": "ep-purple-pond-b3xujb8o",
+      "database": "neondb",
+      "verified": true
+    },
+    {
+      "side": "target",
+      "project": "summer-unit-95870477",
+      "branch": "br-cold-dew-b3h270wp",
+      "endpoint": "ep-blue-art-b3v3vr4h",
+      "database": "neondb",
+      "verified": true
+    }
+  ],
+  "planHash": "ff1f1fcc64e6421b6f2a6b9fbc4a87344795b3abbeb95db7c9e66a1c92f1d519",
+  "transactionReadOnly": "on",
+  "counts": {
+    "rag_document": 3,
+    "rag_content_version": 3,
+    "rag_index_generation": 3,
+    "rag_chunk": 137,
+    "rag_chunk_embedding": 137,
+    "rag_index_publication": 3,
+    "rag_index_job": 0,
+    "rag_domain_origin": 0
+  },
+  "documents": [
+    {
+      "documentId": "cmvapg3l0001j7w9w61egpl01",
+      "versionId": "cmvaq3vno001s7w9whurnb6op",
+      "generationId": "cmvaq3wc0001t7w9wm3aomjm4",
+      "publicationId": "cmvaq4a94001u7w9wujzyxer1",
+      "chunks": 51,
+      "embeddings": 51,
+      "tokenCount": 13584,
+      "originalSha256": "6f21f0c8f69a4b8e5315299b5a2693518d9ac85c4c116d81d83ec0db14abe6b6",
+      "normalizedContentHash": "4f4a633c3929d7dc09447fe4d520b2b8dccead197011f6571939d6d7fe5055c7",
+      "integrity": "TECHNICALLY_READY",
+      "dimensions": 1536,
+      "allHashesMatch": true,
+      "deterministicExtractionAndChunkReplay": true,
+      "rights": "RIGHTS_REVIEW_REQUIRED",
+      "targetPublicQaApproved": false
+    },
+    {
+      "documentId": "cmvc530ki0001ik9wn3ynioi6",
+      "versionId": "cmvc53qzp0007ik9wlcrbm8z9",
+      "generationId": "cmvc53rzd0008ik9w236wy37w",
+      "publicationId": "cmvc540l80009ik9wvpmcqlhk",
+      "chunks": 35,
+      "embeddings": 35,
+      "tokenCount": 7815,
+      "originalSha256": "8bb6e92b2b301c01e3bf8ac70ead1c7ed87512f7215cf81e85374335b71e6ad7",
+      "normalizedContentHash": "045e3beb90733c2587ca4cc9945097206a176dc9acbe348a19159bbcb0fc2357",
+      "integrity": "TECHNICALLY_READY",
+      "dimensions": 1536,
+      "allHashesMatch": true,
+      "deterministicExtractionAndChunkReplay": true,
+      "rights": "RIGHTS_REVIEW_REQUIRED",
+      "targetPublicQaApproved": false
+    },
+    {
+      "documentId": "cmvc55mhx000bik9wpn3gtlmn",
+      "versionId": "cmvc562d3000hik9w3y59c9el",
+      "generationId": "cmvc562ru000iik9w0un4vcp3",
+      "publicationId": "cmvc56d4h000jik9wvdgdomnf",
+      "chunks": 51,
+      "embeddings": 51,
+      "tokenCount": 10225,
+      "originalSha256": "43659cfc3614034bb02987d17f00e1eb97b29f6338546d8d2774b72f5c577fdf",
+      "normalizedContentHash": "31c7a83051a925547f32ece6f182ec81642d2b477793e8a7aa581990aee4a06b",
+      "integrity": "TECHNICALLY_READY",
+      "dimensions": 1536,
+      "allHashesMatch": true,
+      "deterministicExtractionAndChunkReplay": true,
+      "rights": "RIGHTS_REVIEW_REQUIRED",
+      "targetPublicQaApproved": false
+    }
+  ],
+  "blobs": [
+    {
+      "documentId": "cmvapg3l0001j7w9w61egpl01",
+      "accessible": true,
+      "private": true,
+      "registeredMimeMatches": true,
+      "size": 57844,
+      "sha256": "6f21f0c8f69a4b8e5315299b5a2693518d9ac85c4c116d81d83ec0db14abe6b6",
+      "anonymousStatus": 403
+    },
+    {
+      "documentId": "cmvc530ki0001ik9wn3ynioi6",
+      "accessible": true,
+      "private": true,
+      "registeredMimeMatches": true,
+      "size": 47146,
+      "sha256": "8bb6e92b2b301c01e3bf8ac70ead1c7ed87512f7215cf81e85374335b71e6ad7",
+      "anonymousStatus": 403
+    },
+    {
+      "documentId": "cmvc55mhx000bik9wpn3gtlmn",
+      "accessible": true,
+      "private": true,
+      "registeredMimeMatches": true,
+      "size": 49644,
+      "sha256": "43659cfc3614034bb02987d17f00e1eb97b29f6338546d8d2774b72f5c577fdf",
+      "anonymousStatus": 403
+    }
+  ],
+  "foreignKeys": {
+    "orphanVersions": 0,
+    "orphanGenerations": 0,
+    "orphanChunks": 0,
+    "orphanEmbeddings": 0,
+    "brokenPublications": 0,
+    "invalidVectors": 0
+  },
+  "publicQaApprovedCount": 0,
+  "structurallyVerifiedEmbeddings": 137,
+  "exactManifestMetadataMatches": true,
+  "expectedInsertsRemaining": 0,
+  "protectedTables": [
+    {
+      "table": "_AreaToCultureContent",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    },
+    {
+      "table": "_AreaToDestination",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    },
+    {
+      "table": "_CommunityToCultureContent",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    },
+    {
+      "table": "_prisma_migrations",
+      "before": {
+        "count": 23,
+        "fingerprint": "2fb6733ae2a0077592e21ed649fc3013"
+      },
+      "after": {
+        "count": 23,
+        "fingerprint": "2fb6733ae2a0077592e21ed649fc3013"
+      },
+      "matches": true
+    },
+    {
+      "table": "account",
+      "before": {
+        "count": 1,
+        "fingerprint": "aab8d6e6919d248ad7b9f9e3da620e61"
+      },
+      "after": {
+        "count": 1,
+        "fingerprint": "aab8d6e6919d248ad7b9f9e3da620e61"
+      },
+      "matches": true
+    },
+    {
+      "table": "admin_audit_event",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    },
+    {
+      "table": "content_area",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    },
+    {
+      "table": "content_community",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    },
+    {
+      "table": "content_media",
+      "before": {
+        "count": 13,
+        "fingerprint": "82ee3b7a692e31418a53a0120104001a"
+      },
+      "after": {
+        "count": 13,
+        "fingerprint": "82ee3b7a692e31418a53a0120104001a"
+      },
+      "matches": true
+    },
+    {
+      "table": "content_source",
+      "before": {
+        "count": 12,
+        "fingerprint": "d0f2a222c4a1add40ccfe008eedf6a08"
+      },
+      "after": {
+        "count": 12,
+        "fingerprint": "d0f2a222c4a1add40ccfe008eedf6a08"
+      },
+      "matches": true
+    },
+    {
+      "table": "culture_content",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    },
+    {
+      "table": "culture_destination",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    },
+    {
+      "table": "destination",
+      "before": {
+        "count": 3,
+        "fingerprint": "ac1d69b8d918ab756876b1e918f83789"
+      },
+      "after": {
+        "count": 3,
+        "fingerprint": "ac1d69b8d918ab756876b1e918f83789"
+      },
+      "matches": true
+    },
+    {
+      "table": "destination_editorial",
+      "before": {
+        "count": 3,
+        "fingerprint": "f789a7154959a45ae76cb7502aa5bad2"
+      },
+      "after": {
+        "count": 3,
+        "fingerprint": "f789a7154959a45ae76cb7502aa5bad2"
+      },
+      "matches": true
+    },
+    {
+      "table": "favorite",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    },
+    {
+      "table": "idempotency_record",
+      "before": {
+        "count": 1,
+        "fingerprint": "9641b3546601c4b559233810bee555c2"
+      },
+      "after": {
+        "count": 1,
+        "fingerprint": "9641b3546601c4b559233810bee555c2"
+      },
+      "matches": true
+    },
+    {
+      "table": "itinerary_day",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    },
+    {
+      "table": "itinerary_visit",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    },
+    {
+      "table": "opening_day",
+      "before": {
+        "count": 21,
+        "fingerprint": "c8ac3c37f0924754ee3e5d035510a4a9"
+      },
+      "after": {
+        "count": 21,
+        "fingerprint": "c8ac3c37f0924754ee3e5d035510a4a9"
+      },
+      "matches": true
+    },
+    {
+      "table": "opening_interval",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    },
+    {
+      "table": "qa_abuse_bucket",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    },
+    {
+      "table": "qa_abuse_lease",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    },
+    {
+      "table": "qa_cleanup_state",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    },
+    {
+      "table": "qa_conversation",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    },
+    {
+      "table": "qa_guest_identity",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    },
+    {
+      "table": "qa_turn",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    },
+    {
+      "table": "session",
+      "before": {
+        "count": 3,
+        "fingerprint": "b1099af458730896153484a4ea9b06f5"
+      },
+      "after": {
+        "count": 3,
+        "fingerprint": "b1099af458730896153484a4ea9b06f5"
+      },
+      "matches": true
+    },
+    {
+      "table": "spatial_ref_sys",
+      "before": {
+        "count": 8500,
+        "fingerprint": "209a5c3099201796c99ce255aeb0c406"
+      },
+      "after": {
+        "count": 8500,
+        "fingerprint": "209a5c3099201796c99ce255aeb0c406"
+      },
+      "matches": true
+    },
+    {
+      "table": "trip",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    },
+    {
+      "table": "user",
+      "before": {
+        "count": 1,
+        "fingerprint": "386984d818655c33c1d59df7b90bf3f8"
+      },
+      "after": {
+        "count": 1,
+        "fingerprint": "386984d818655c33c1d59df7b90bf3f8"
+      },
+      "matches": true
+    },
+    {
+      "table": "verification",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    }
+  ],
+  "noProtectedDrift": true,
+  "migrationLedgerHealthy": true,
+  "jobsImported": 0,
+  "fixturesPresent": 0,
+  "openAiCalls": 0,
+  "blobCopies": 0,
+  "productionWrites": 0,
+  "limitations": [
+    "No live OpenAI or Public QA enable action.",
+    "Shared-store SDK proof does not certify the deployed server's credential; authenticated CMS smoke is separate.",
+    "Post-commit rollback/restore is not executed or claimed."
+  ]
+}

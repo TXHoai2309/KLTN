@@ -1,0 +1,782 @@
+{
+  "checkedAt": "2026-10-18T04:38:28.794Z",
+  "readOnly": true,
+  "agentSourceWrites": 0,
+  "agentProductionWrites": 0,
+  "results": {
+    "source": {
+      "ragRowsUnchanged": true,
+      "protectedTables": [
+        {
+          "table": "_AreaToCultureContent",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "_AreaToDestination",
+          "before": {
+            "count": 1,
+            "fingerprint": "b07c9f79e3bbfb84481ab10b9c483773"
+          },
+          "after": {
+            "count": 1,
+            "fingerprint": "b07c9f79e3bbfb84481ab10b9c483773"
+          },
+          "matches": true
+        },
+        {
+          "table": "_CommunityToCultureContent",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "_prisma_migrations",
+          "before": {
+            "count": 23,
+            "fingerprint": "3ad5148f7a7aca78e40dedcf4743cc61"
+          },
+          "after": {
+            "count": 23,
+            "fingerprint": "3ad5148f7a7aca78e40dedcf4743cc61"
+          },
+          "matches": true
+        },
+        {
+          "table": "account",
+          "before": {
+            "count": 10,
+            "fingerprint": "db310f326d1927bcfec9680ea9a74a25"
+          },
+          "after": {
+            "count": 10,
+            "fingerprint": "db310f326d1927bcfec9680ea9a74a25"
+          },
+          "matches": true
+        },
+        {
+          "table": "admin_audit_event",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "content_area",
+          "before": {
+            "count": 1,
+            "fingerprint": "9a3672022ea1e507ae6c18739484dc5f"
+          },
+          "after": {
+            "count": 1,
+            "fingerprint": "9a3672022ea1e507ae6c18739484dc5f"
+          },
+          "matches": true
+        },
+        {
+          "table": "content_community",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "content_media",
+          "before": {
+            "count": 16,
+            "fingerprint": "1dd0ca89bd95a9633aab9e251456195e"
+          },
+          "after": {
+            "count": 16,
+            "fingerprint": "1dd0ca89bd95a9633aab9e251456195e"
+          },
+          "matches": true
+        },
+        {
+          "table": "content_source",
+          "before": {
+            "count": 14,
+            "fingerprint": "0a2b3ce255e054ea26a2ea15f9b7f595"
+          },
+          "after": {
+            "count": 14,
+            "fingerprint": "0a2b3ce255e054ea26a2ea15f9b7f595"
+          },
+          "matches": true
+        },
+        {
+          "table": "culture_content",
+          "before": {
+            "count": 1,
+            "fingerprint": "50ef8ba35c8cbe3cbd56054a60b15b5e"
+          },
+          "after": {
+            "count": 1,
+            "fingerprint": "50ef8ba35c8cbe3cbd56054a60b15b5e"
+          },
+          "matches": true
+        },
+        {
+          "table": "culture_destination",
+          "before": {
+            "count": 1,
+            "fingerprint": "30b1ab05b9a5f936623f578954ca5168"
+          },
+          "after": {
+            "count": 1,
+            "fingerprint": "30b1ab05b9a5f936623f578954ca5168"
+          },
+          "matches": true
+        },
+        {
+          "table": "destination",
+          "before": {
+            "count": 5,
+            "fingerprint": "a137b74e4e6f11d118285564b9e190d7"
+          },
+          "after": {
+            "count": 5,
+            "fingerprint": "a137b74e4e6f11d118285564b9e190d7"
+          },
+          "matches": true
+        },
+        {
+          "table": "destination_editorial",
+          "before": {
+            "count": 4,
+            "fingerprint": "8cb4af5dd5b2a06775a00b16aeec3c41"
+          },
+          "after": {
+            "count": 4,
+            "fingerprint": "8cb4af5dd5b2a06775a00b16aeec3c41"
+          },
+          "matches": true
+        },
+        {
+          "table": "favorite",
+          "before": {
+            "count": 3,
+            "fingerprint": "884883d4f9030ec9fdbd9c4c6f5813b5"
+          },
+          "after": {
+            "count": 3,
+            "fingerprint": "9b1fad93d98b0bfb128d0c3ed70c8160"
+          },
+          "matches": false
+        },
+        {
+          "table": "idempotency_record",
+          "before": {
+            "count": 297,
+            "fingerprint": "9ccf9b93c1c0c03dfadd911c85f88658"
+          },
+          "after": {
+            "count": 299,
+            "fingerprint": "2a5858c802b3101891cab89924304dcf"
+          },
+          "matches": false
+        },
+        {
+          "table": "itinerary_day",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "itinerary_visit",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "opening_day",
+          "before": {
+            "count": 35,
+            "fingerprint": "0bd02294b78fff190a47fc53e6e6f580"
+          },
+          "after": {
+            "count": 35,
+            "fingerprint": "0bd02294b78fff190a47fc53e6e6f580"
+          },
+          "matches": true
+        },
+        {
+          "table": "opening_interval",
+          "before": {
+            "count": 2,
+            "fingerprint": "32771c9e781eacba6cdcf3f6fab12252"
+          },
+          "after": {
+            "count": 2,
+            "fingerprint": "32771c9e781eacba6cdcf3f6fab12252"
+          },
+          "matches": true
+        },
+        {
+          "table": "qa_abuse_bucket",
+          "before": {
+            "count": 6,
+            "fingerprint": "6510d71fb17e3dccbfee34256726a30b"
+          },
+          "after": {
+            "count": 6,
+            "fingerprint": "6510d71fb17e3dccbfee34256726a30b"
+          },
+          "matches": true
+        },
+        {
+          "table": "qa_abuse_lease",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "qa_cleanup_state",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "qa_conversation",
+          "before": {
+            "count": 82,
+            "fingerprint": "4eca90f1613172e1fbdaed4874d7866c"
+          },
+          "after": {
+            "count": 82,
+            "fingerprint": "4eca90f1613172e1fbdaed4874d7866c"
+          },
+          "matches": true
+        },
+        {
+          "table": "qa_guest_identity",
+          "before": {
+            "count": 56,
+            "fingerprint": "9678e7319f37ea65f0ee3532a356e928"
+          },
+          "after": {
+            "count": 56,
+            "fingerprint": "9678e7319f37ea65f0ee3532a356e928"
+          },
+          "matches": true
+        },
+        {
+          "table": "qa_turn",
+          "before": {
+            "count": 260,
+            "fingerprint": "cfc577cca5d57b50a2a804e3e2d387a7"
+          },
+          "after": {
+            "count": 260,
+            "fingerprint": "cfc577cca5d57b50a2a804e3e2d387a7"
+          },
+          "matches": true
+        },
+        {
+          "table": "session",
+          "before": {
+            "count": 34,
+            "fingerprint": "49387434d751a4a01ae73a5aeae31d46"
+          },
+          "after": {
+            "count": 34,
+            "fingerprint": "49387434d751a4a01ae73a5aeae31d46"
+          },
+          "matches": true
+        },
+        {
+          "table": "spatial_ref_sys",
+          "before": {
+            "count": 8500,
+            "fingerprint": "209a5c3099201796c99ce255aeb0c406"
+          },
+          "after": {
+            "count": 8500,
+            "fingerprint": "209a5c3099201796c99ce255aeb0c406"
+          },
+          "matches": true
+        },
+        {
+          "table": "trip",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "user",
+          "before": {
+            "count": 10,
+            "fingerprint": "f0c4ff762e40458e4798f04ab681831f"
+          },
+          "after": {
+            "count": 10,
+            "fingerprint": "f0c4ff762e40458e4798f04ab681831f"
+          },
+          "matches": true
+        },
+        {
+          "table": "verification",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        }
+      ],
+      "counts": {
+        "rag_document": 11,
+        "rag_content_version": 12,
+        "rag_index_generation": 12,
+        "rag_chunk": 169,
+        "rag_chunk_embedding": 169,
+        "rag_index_publication": 11,
+        "rag_index_job": 13,
+        "rag_domain_origin": 0
+      }
+    },
+    "target": {
+      "ragRowsUnchanged": true,
+      "protectedTables": [
+        {
+          "table": "_AreaToCultureContent",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "_AreaToDestination",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "_CommunityToCultureContent",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "_prisma_migrations",
+          "before": {
+            "count": 23,
+            "fingerprint": "2fb6733ae2a0077592e21ed649fc3013"
+          },
+          "after": {
+            "count": 23,
+            "fingerprint": "2fb6733ae2a0077592e21ed649fc3013"
+          },
+          "matches": true
+        },
+        {
+          "table": "account",
+          "before": {
+            "count": 1,
+            "fingerprint": "aab8d6e6919d248ad7b9f9e3da620e61"
+          },
+          "after": {
+            "count": 1,
+            "fingerprint": "aab8d6e6919d248ad7b9f9e3da620e61"
+          },
+          "matches": true
+        },
+        {
+          "table": "admin_audit_event",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "content_area",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "content_community",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "content_media",
+          "before": {
+            "count": 13,
+            "fingerprint": "82ee3b7a692e31418a53a0120104001a"
+          },
+          "after": {
+            "count": 13,
+            "fingerprint": "82ee3b7a692e31418a53a0120104001a"
+          },
+          "matches": true
+        },
+        {
+          "table": "content_source",
+          "before": {
+            "count": 12,
+            "fingerprint": "d0f2a222c4a1add40ccfe008eedf6a08"
+          },
+          "after": {
+            "count": 12,
+            "fingerprint": "d0f2a222c4a1add40ccfe008eedf6a08"
+          },
+          "matches": true
+        },
+        {
+          "table": "culture_content",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "culture_destination",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "destination",
+          "before": {
+            "count": 3,
+            "fingerprint": "ac1d69b8d918ab756876b1e918f83789"
+          },
+          "after": {
+            "count": 3,
+            "fingerprint": "ac1d69b8d918ab756876b1e918f83789"
+          },
+          "matches": true
+        },
+        {
+          "table": "destination_editorial",
+          "before": {
+            "count": 3,
+            "fingerprint": "f789a7154959a45ae76cb7502aa5bad2"
+          },
+          "after": {
+            "count": 3,
+            "fingerprint": "f789a7154959a45ae76cb7502aa5bad2"
+          },
+          "matches": true
+        },
+        {
+          "table": "favorite",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "idempotency_record",
+          "before": {
+            "count": 1,
+            "fingerprint": "9641b3546601c4b559233810bee555c2"
+          },
+          "after": {
+            "count": 1,
+            "fingerprint": "9641b3546601c4b559233810bee555c2"
+          },
+          "matches": true
+        },
+        {
+          "table": "itinerary_day",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "itinerary_visit",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "opening_day",
+          "before": {
+            "count": 21,
+            "fingerprint": "c8ac3c37f0924754ee3e5d035510a4a9"
+          },
+          "after": {
+            "count": 21,
+            "fingerprint": "c8ac3c37f0924754ee3e5d035510a4a9"
+          },
+          "matches": true
+        },
+        {
+          "table": "opening_interval",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "qa_abuse_bucket",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "qa_abuse_lease",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "qa_cleanup_state",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "qa_conversation",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "qa_guest_identity",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "qa_turn",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "session",
+          "before": {
+            "count": 3,
+            "fingerprint": "b1099af458730896153484a4ea9b06f5"
+          },
+          "after": {
+            "count": 3,
+            "fingerprint": "b1099af458730896153484a4ea9b06f5"
+          },
+          "matches": true
+        },
+        {
+          "table": "spatial_ref_sys",
+          "before": {
+            "count": 8500,
+            "fingerprint": "209a5c3099201796c99ce255aeb0c406"
+          },
+          "after": {
+            "count": 8500,
+            "fingerprint": "209a5c3099201796c99ce255aeb0c406"
+          },
+          "matches": true
+        },
+        {
+          "table": "trip",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        },
+        {
+          "table": "user",
+          "before": {
+            "count": 1,
+            "fingerprint": "386984d818655c33c1d59df7b90bf3f8"
+          },
+          "after": {
+            "count": 1,
+            "fingerprint": "386984d818655c33c1d59df7b90bf3f8"
+          },
+          "matches": true
+        },
+        {
+          "table": "verification",
+          "before": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "after": {
+            "count": 0,
+            "fingerprint": "d751713988987e9331980363e24189ce"
+          },
+          "matches": true
+        }
+      ],
+      "counts": {
+        "rag_document": 0,
+        "rag_content_version": 0,
+        "rag_index_generation": 0,
+        "rag_chunk": 0,
+        "rag_chunk_embedding": 0,
+        "rag_index_publication": 0,
+        "rag_index_job": 0,
+        "rag_domain_origin": 0
+      }
+    }
+  }
+}

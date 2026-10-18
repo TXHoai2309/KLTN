@@ -1,0 +1,47 @@
+{
+  "checkedAt": "2026-10-18T04:30:46.391Z",
+  "newSnapshotAttempt": {
+    "status": "REJECTED",
+    "code": "SNAPSHOTS_LIMIT_EXCEEDED",
+    "dataWrites": 0
+  },
+  "snapshots": [
+    {
+      "id": "snap-snowy-rain-b33t352d",
+      "name": "kltn-before-destination-sync-2026-10-17T18-56-56-696Z",
+      "sourceBranchId": "br-cold-dew-b3h270wp",
+      "createdAt": "2026-10-17T18:56:58Z"
+    }
+  ],
+  "productionBranch": {
+    "id": "br-cold-dew-b3h270wp",
+    "projectId": "summer-unit-95870477",
+    "creationSource": "console",
+    "currentState": "ready",
+    "keys": [
+      "id",
+      "project_id",
+      "name",
+      "slug",
+      "project_slug",
+      "current_state",
+      "state_changed_at",
+      "logical_size",
+      "creation_source",
+      "primary",
+      "default",
+      "protected",
+      "cpu_used_sec",
+      "compute_time_seconds",
+      "active_time_seconds",
+      "written_data_bytes",
+      "data_transfer_bytes",
+      "created_at",
+      "updated_at",
+      "created_by",
+      "init_source"
+    ]
+  },
+  "existingSnapshotPredatesDestinationImport": true,
+  "backupGate": "BLOCKED_PENDING_CURRENT_RESTORE_POINT"
+}

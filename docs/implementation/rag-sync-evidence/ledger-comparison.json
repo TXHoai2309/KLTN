@@ -1,0 +1,234 @@
+{
+  "schemaEqual": true,
+  "healthy23Both": true,
+  "differences": [
+    {
+      "migration": "20261004070249_add_destination_domain",
+      "sourceChecksum": "280dcf73fe94eae23857342ef028aaeb7735c96f558407c8319fa9e8d2c0505d",
+      "targetChecksum": "019b038331fc59e627ec3d08259dbb7c1101ddde3ffc9f4c2bdbff11d411ed33",
+      "matchingSource": [
+        "LF"
+      ],
+      "matchingTarget": [
+        "raw",
+        "CRLF"
+      ]
+    },
+    {
+      "migration": "20261005021531_add_culture_content_domain",
+      "sourceChecksum": "b55847c4f67e9d959a55e1c905b125ac40f2177aefd2bba8f5871993740ac735",
+      "targetChecksum": "678dfbc59dd894d87749519ba8f349c63c071a34c8f15715a640d99b9a680e69",
+      "matchingSource": [
+        "LF"
+      ],
+      "matchingTarget": [
+        "raw",
+        "CRLF"
+      ]
+    },
+    {
+      "migration": "20261005120000_add_favorites",
+      "sourceChecksum": "f9752507794ffb3b458cca0df8d55043833b84916ee8e0d235fb4c79996daae1",
+      "targetChecksum": "9fe49b62edb4245471b2ac99093eae1a62077100e10b0f3daab727ce8aa3ed1c",
+      "matchingSource": [
+        "LF"
+      ],
+      "matchingTarget": [
+        "raw",
+        "CRLF"
+      ]
+    },
+    {
+      "migration": "20261006150000_upgrade_favorite_target_contract",
+      "sourceChecksum": "24aa835a40a16c4a394998e1e5d8c69b72376e972d284dd1da689c05203abf19",
+      "targetChecksum": "cfb9955c52507e334b587aa9c60ebad487f9e2abcfe8bf02139f515e7da4d73c",
+      "matchingSource": [
+        "LF"
+      ],
+      "matchingTarget": [
+        "raw",
+        "CRLF"
+      ]
+    },
+    {
+      "migration": "20261008120000_add_rag_document",
+      "sourceChecksum": "1a5c21e06dafbf96e4399ea85f1941a096a1096f1c48b009000d36cff3b0de17",
+      "targetChecksum": "47e609f346f52a3490922b7176fe8f148df32b02275660609e1d083afea2f361",
+      "matchingSource": [
+        "LF"
+      ],
+      "matchingTarget": [
+        "raw",
+        "CRLF"
+      ]
+    },
+    {
+      "migration": "20261009120000_add_rag_index_generations",
+      "sourceChecksum": "4b23a314bed86d26347c067d6b1bc7e241708d764ce4957c4f7aabed7a953921",
+      "targetChecksum": "a574a93732793d85b4961b648a4e76ad69b78c6f2b49d8c67e5bc1e58a64abf5",
+      "matchingSource": [
+        "LF"
+      ],
+      "matchingTarget": [
+        "raw",
+        "CRLF"
+      ]
+    },
+    {
+      "migration": "20261010120000_add_rag_index_jobs",
+      "sourceChecksum": "549c135be20cc8da180a3f5c472b4d6984fde9ccb435e744771ad8ee8f6e8316",
+      "targetChecksum": "ee9ac59a13d8dd154273164b01a4e3819bcea62576a589c993eae14089f812f8",
+      "matchingSource": [
+        "LF"
+      ],
+      "matchingTarget": [
+        "raw",
+        "CRLF"
+      ]
+    },
+    {
+      "migration": "20261011120000_add_qa_guest_identity",
+      "sourceChecksum": "a283b20a746fad476323ebd3112d986e7ad3fa974d110f42ce7778995f79f9c0",
+      "targetChecksum": "6e0d9a514c9e6ad4d02b5b85b672fbe15ed7e425257ea678a4e64a8bb41e0ed4",
+      "matchingSource": [
+        "LF"
+      ],
+      "matchingTarget": [
+        "raw",
+        "CRLF"
+      ]
+    },
+    {
+      "migration": "20261011121000_add_qa_conversations",
+      "sourceChecksum": "fc0a1d2b7c6e7bf9ed6801bbd3dd2f3108dd1d7749a4ecfca524e788a0766272",
+      "targetChecksum": "41c6641a4665d8bd22653c84a1be9c86a786eb6a4752ca9da6d1634ba14bc65a",
+      "matchingSource": [
+        "LF"
+      ],
+      "matchingTarget": [
+        "raw",
+        "CRLF"
+      ]
+    },
+    {
+      "migration": "20261011122000_add_qa_abuse_guard",
+      "sourceChecksum": "ad0f5f68b80398ddb5b2aa372aef307d1185e9f57f029efb0aa4a5404c36e2e5",
+      "targetChecksum": "6fd9bd6792af4ee8554c8ff61e975ad1c16818d3e8184c1bc966ccb7ccd17755",
+      "matchingSource": [
+        "LF"
+      ],
+      "matchingTarget": [
+        "raw",
+        "CRLF"
+      ]
+    },
+    {
+      "migration": "20261011123000_add_qa_cleanup_state",
+      "sourceChecksum": "0534357c3ce4d39c393e4f321a7626154b0a899fc3133cfcbcb844d802595640",
+      "targetChecksum": "3c64717eb5d24667b5a2027e9ec7e71e5659dc8a63e248a7acb0266a15f59009",
+      "matchingSource": [
+        "LF"
+      ],
+      "matchingTarget": [
+        "raw",
+        "CRLF"
+      ]
+    },
+    {
+      "migration": "20261012120000_add_qa_destination_context",
+      "sourceChecksum": "53da23cd3fbe6e2d7e2af23e08180be875ace1b7bf458f4398914c4b2e83f36b",
+      "targetChecksum": "edb6d98eda21b702a6577e79f94ea70c9a88735a84a463b7fbbbaae7c224f57e",
+      "matchingSource": [
+        "LF"
+      ],
+      "matchingTarget": [
+        "raw",
+        "CRLF"
+      ]
+    },
+    {
+      "migration": "20261012150000_admin_content_profiles",
+      "sourceChecksum": "8e2cc80e189a657514d4caad7396e61da5c294a483bf63d5893316f4dcae78ae",
+      "targetChecksum": "5388cae3e4f1c3479d5be4a49fc2255d37c66c86eb3eed553af7755a4609f441",
+      "matchingSource": [
+        "LF"
+      ],
+      "matchingTarget": [
+        "raw",
+        "CRLF"
+      ]
+    },
+    {
+      "migration": "20261014120000_add_destination_editorial",
+      "sourceChecksum": "3a724d9fd6619004a45cd706d8b05e0404f4bea526d668b0bcf64c1319d8bd7b",
+      "targetChecksum": "274b55d9d60f3cbdc81c8ef0bece6878e8b6480055502b1ea73dad6f2fbca758",
+      "matchingSource": [
+        "LF"
+      ],
+      "matchingTarget": [
+        "raw",
+        "CRLF"
+      ]
+    },
+    {
+      "migration": "20261015000000_us30_trip_save",
+      "sourceChecksum": "d1e46aeb42e8f98b5fe2a2893768ed18c8deb3c1aced00f60b46fc098740f593",
+      "targetChecksum": "ca4d278f56c1d45f70469032128d7b1e8b78ee3f3e1d289a085b6aef5b4fbe65",
+      "matchingSource": [
+        "LF"
+      ],
+      "matchingTarget": [
+        "raw",
+        "CRLF"
+      ]
+    },
+    {
+      "migration": "20261015160000_us34_trip_favorite",
+      "sourceChecksum": "d7c4c377711bc9c7c125ae92ca5cc2b929d59985c5baef04366e24062fb54996",
+      "targetChecksum": "927882f0fbc6d9d2810f4506c10ca67b16d2dea580a6bb3c850f28a6342a98e1",
+      "matchingSource": [
+        "LF"
+      ],
+      "matchingTarget": [
+        "raw",
+        "CRLF"
+      ]
+    },
+    {
+      "migration": "20261017120000_add_qa_conversation_history",
+      "sourceChecksum": "d6ff0e58daedd119beeb42f88cfbeeb97f3b2d27076f23698544059d835bb9ea",
+      "targetChecksum": "363582df9aa6248f20794842675d2932cfe27863e4820975ccda8ae2cdbb337a",
+      "matchingSource": [
+        "LF"
+      ],
+      "matchingTarget": [
+        "raw",
+        "CRLF"
+      ]
+    },
+    {
+      "migration": "20261017150000_add_rag_public_qa_permission",
+      "sourceChecksum": "093a5602fe94a3325e3fb7bdd03c5d45322d105e3e1cbf6aaf5a771542a8e098",
+      "targetChecksum": "8408344751c8a204c935baa5819b30e3124af9dc0db3339272d67eda5b5fc869",
+      "matchingSource": [
+        "LF"
+      ],
+      "matchingTarget": [
+        "raw",
+        "CRLF"
+      ]
+    },
+    {
+      "migration": "20261017210000_admin_user_management",
+      "sourceChecksum": "c0cd3b65b5d5d670ea320c01c60d898caf74cee82f55d8851abff9d15d1798e2",
+      "targetChecksum": "14992e8aa2a49b99ac5e264cf15fd52b1e55734a405dc23a6377d39732a328a4",
+      "matchingSource": [
+        "LF"
+      ],
+      "matchingTarget": [
+        "raw",
+        "CRLF"
+      ]
+    }
+  ]
+}

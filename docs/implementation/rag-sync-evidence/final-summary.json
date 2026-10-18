@@ -1,0 +1,95 @@
+{
+  "checkedAt": "2026-10-18T05:01:45.490Z",
+  "RAG_PRODUCTION_SYNC": "PASS",
+  "OWNER_BACKUP_WAIVER": "ACCEPTED_EXACT_THREE_DOCUMENT_SCOPE",
+  "CURRENT_PRODUCTION_BACKUP": "WAIVED_BY_OWNER",
+  "RECOVERY_POINT_AFTER_DESTINATION_IMPORT": "NOT_AVAILABLE",
+  "SOURCE_BRANCH_VERIFIED": true,
+  "TARGET_BRANCH_VERIFIED": true,
+  "MIGRATION_LEDGER_STATUS": "PASS_23_OF_23_BOTH_BRANCHES_LF_CRLF_EXPLAINED_NO_REWRITE",
+  "DRY_RUN_STATUS": "PASS",
+  "MANIFEST_HASH": "ff1f1fcc64e6421b6f2a6b9fbc4a87344795b3abbeb95db7c9e66a1c92f1d519",
+  "EXPECTED_INSERTS": 286,
+  "ACTUAL_INSERTS": 286,
+  "ACTUAL_UPDATES": 0,
+  "ACTUAL_DELETES": 0,
+  "DOCUMENTS_IMPORTED": 3,
+  "CHUNKS_IMPORTED": 137,
+  "EMBEDDINGS_IMPORTED": 137,
+  "PUBLICATIONS_IMPORTED": 3,
+  "PUBLIC_QA_APPROVED_COUNT": 0,
+  "OPENAI_CALLS": 0,
+  "OPENAI_COST": {
+    "amount": 0,
+    "currency": "USD"
+  },
+  "BLOB_COPIES": 0,
+  "PROTECTED_TABLES_PRESERVED": {
+    "status": "PASS",
+    "count": 31,
+    "priorDestinationReceiptsMatched": 7
+  },
+  "TRANSACTION_STATUS": "COMMIT_CONFIRMED",
+  "REPLAY_STATUS": {
+    "status": "PASS",
+    "inserts": 0,
+    "updates": 0,
+    "deletes": 0,
+    "exactExistingRows": 286
+  },
+  "POST_IMPORT_STATUS": "PASS",
+  "CMS_SMOKE_STATUS": {
+    "browser": "BLOCKED",
+    "reason": "CUA Local browser use is disabled in Work settings",
+    "authenticatedAdmin": "UNVERIFIED",
+    "guestPrivateAccessDenied": true,
+    "deployedBlobCredential": "UNVERIFIED"
+  },
+  "TEST_RESULTS": {
+    "migration": {
+      "pass": 39,
+      "fail": 0,
+      "skip": 0
+    },
+    "rag": {
+      "pass": 56,
+      "fail": 0,
+      "skip": 0
+    },
+    "typecheck": "PASS_CACHED",
+    "build": "PASS_CACHED_OFFLINE",
+    "syntaxChecks": 10,
+    "jsonValidated": 15,
+    "credentialMatches": 0,
+    "diffCheck": "PASS",
+    "trailingWhitespace": "PASS",
+    "priorReceipts": "PASS_7_OF_7",
+    "nativeNeonConcurrency": "NOT_TESTED",
+    "postCommitRestore": "NOT_TESTED",
+    "fullRepositorySuite": "NOT_RUN"
+  },
+  "REMAINING_BLOCKERS": {
+    "exactCorpusMigration": [],
+    "cms": [
+      "Browser use disabled; authenticated list/detail/download not verified"
+    ],
+    "assistantRelease": [
+      "RIGHTS_REVIEW_REQUIRED for all three documents",
+      "Public QA remains false",
+      "Provider smoke/runtime enable/release require separate approval"
+    ]
+  },
+  "assistantRuntimeChanged": false,
+  "committedToGit": false,
+  "pushed": false,
+  "merged": false,
+  "deployed": false,
+  "evidence": {
+    "import": "import.json",
+    "firstVerification": "post-first-commit.json",
+    "finalVerification": "post-import.json",
+    "replay": "replay.json",
+    "preflight": "owner-preflight.json",
+    "cms": "cms.json"
+  }
+}
