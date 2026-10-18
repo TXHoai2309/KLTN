@@ -3445,14 +3445,14 @@
   "completedAt": "2026-10-18T10:53:14.660Z",
   "acceptance": {
     "BASELINE_HEAD": "a18e8be261ea18eadf3d7558e8f7255a09899f29",
-    "FINAL_HEAD": "a18e8be261ea18eadf3d7558e8f7255a09899f29",
-    "WORKTREE_STATUS": "DIRTY_TASK_PATCH_OR_POST_RELEASE_EVIDENCE",
+    "FINAL_HEAD": "e5a7e01b3cdfebb94bfe0719cb797f61b6af5f6b",
+    "WORKTREE_STATUS": "CAPTURED_BEFORE_EVIDENCE_COMMIT;REPORT_ONLY_DELTAS",
     "VERCEL_REGION_BEFORE": "iad1",
-    "VERCEL_REGION_AFTER": "sin1 verified Preview; Production pending",
+    "VERCEL_REGION_AFTER": "sin1 Production and Preview",
     "NEON_REGION": "aws-ap-southeast-1",
     "REGION_VERIFIED": {
       "preview": true,
-      "production": false
+      "production": true
     },
     "FUNCTION_REGION_EVIDENCE": "vercel-region-validation.json; actual180 lambda.deployedTo artifacts, not build/CDN PoP",
     "API_P50_P95_BEFORE_AFTER": {
@@ -3851,7 +3851,253 @@
             }
           ]
         }
-      ]
+      ],
+      "production": {
+        "method": "3 public GETs/workload before/after; same Production cohort; complete optimization+region change, NOT isolated region A/B; sample p95=max",
+        "before": [
+          {
+            "path": "/api/destinations",
+            "totalMs": {
+              "n": 3,
+              "p50": 754.6567999999997,
+              "p95": 2382.7577,
+              "min": 741.7745999999997,
+              "max": 2382.7577
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 748.1300999999999,
+              "p95": 2376.7075,
+              "min": 740.5496000000003,
+              "max": 2376.7075
+            }
+          },
+          {
+            "path": "/",
+            "totalMs": {
+              "n": 3,
+              "p50": 1419.5933000000005,
+              "p95": 2689.2258,
+              "min": 1179.6918999999998,
+              "max": 2689.2258
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 1215.5301999999992,
+              "p95": 2477.8192,
+              "min": 982.8888999999999,
+              "max": 2477.8192
+            }
+          },
+          {
+            "path": "/explore",
+            "totalMs": {
+              "n": 3,
+              "p50": 799.3525000000009,
+              "p95": 896.007599999999,
+              "min": 768.4233000000004,
+              "max": 896.007599999999
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 350.7934000000005,
+              "p95": 387.78429999999935,
+              "min": 340.78139999999985,
+              "max": 387.78429999999935
+            }
+          },
+          {
+            "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+            "totalMs": {
+              "n": 3,
+              "p50": 2410.785,
+              "p95": 3228.3372999999992,
+              "min": 2348.8066,
+              "max": 3228.3372999999992
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 418.8903999999966,
+              "p95": 439.1870999999992,
+              "min": 326.5132999999987,
+              "max": 439.1870999999992
+            }
+          },
+          {
+            "path": "/destinations/cmv9fcwo1000be89w3yxz3mqu",
+            "totalMs": {
+              "n": 3,
+              "p50": 2553.0579999999973,
+              "p95": 2599.1008,
+              "min": 2535.7236999999986,
+              "max": 2599.1008
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 335.54449999999997,
+              "p95": 480.97209999999905,
+              "min": 329.9511999999995,
+              "max": 480.97209999999905
+            }
+          },
+          {
+            "path": "/destinations/cmvanjc6p000f7w9wyuydna52",
+            "totalMs": {
+              "n": 3,
+              "p50": 2545.062100000003,
+              "p95": 2641.4683000000005,
+              "min": 2531.495299999995,
+              "max": 2641.4683000000005
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 315.9699000000037,
+              "p95": 320.6996999999974,
+              "min": 308.4201999999932,
+              "max": 320.6996999999974
+            }
+          },
+          {
+            "path": "/assistant",
+            "totalMs": {
+              "n": 3,
+              "p50": 726.5795999999973,
+              "p95": 814.396900000007,
+              "min": 641.6241000000009,
+              "max": 814.396900000007
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 627.8449000000037,
+              "p95": 640.352899999998,
+              "min": 537.5606999999945,
+              "max": 640.352899999998
+            }
+          }
+        ],
+        "after": [
+          {
+            "path": "/api/destinations",
+            "totalMs": {
+              "n": 3,
+              "p50": 612.2714999999998,
+              "p95": 1845.6808999999998,
+              "min": 389.40970000000016,
+              "max": 1845.6808999999998
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 610.4097000000002,
+              "p95": 1826.1103,
+              "min": 388.33200000000033,
+              "max": 1826.1103
+            }
+          },
+          {
+            "path": "/",
+            "totalMs": {
+              "n": 3,
+              "p50": 699.6048000000001,
+              "p95": 1651.0357000000004,
+              "min": 331.1700000000001,
+              "max": 1651.0357000000004
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 694.9519,
+              "p95": 1618.0272000000004,
+              "min": 295.9500000000007,
+              "max": 1618.0272000000004
+            }
+          },
+          {
+            "path": "/explore",
+            "totalMs": {
+              "n": 3,
+              "p50": 166.14539999999943,
+              "p95": 284.5785999999989,
+              "min": 157.23899999999958,
+              "max": 284.5785999999989
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 158.47659999999996,
+              "p95": 231.58579999999893,
+              "min": 148.04910000000018,
+              "max": 231.58579999999893
+            }
+          },
+          {
+            "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+            "totalMs": {
+              "n": 3,
+              "p50": 433.91759999999886,
+              "p95": 486.0727999999999,
+              "min": 206.18799999999828,
+              "max": 486.0727999999999
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 316.72550000000047,
+              "p95": 428.34659999999894,
+              "min": 157.22189999999864,
+              "max": 428.34659999999894
+            }
+          },
+          {
+            "path": "/destinations/cmv9fcwo1000be89w3yxz3mqu",
+            "totalMs": {
+              "n": 3,
+              "p50": 225.82989999999882,
+              "p95": 237.35670000000027,
+              "min": 209.64379999999983,
+              "max": 237.35670000000027
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 160.6237999999994,
+              "p95": 195.15819999999985,
+              "min": 152.6913999999997,
+              "max": 195.15819999999985
+            }
+          },
+          {
+            "path": "/destinations/cmvanjc6p000f7w9wyuydna52",
+            "totalMs": {
+              "n": 3,
+              "p50": 202.50730000000112,
+              "p95": 231.27179999999862,
+              "min": 189.29399999999987,
+              "max": 231.27179999999862
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 144.67220000000088,
+              "p95": 149.1973999999973,
+              "min": 143.33300000000054,
+              "max": 149.1973999999973
+            }
+          },
+          {
+            "path": "/assistant",
+            "totalMs": {
+              "n": 3,
+              "p50": 190.2409000000007,
+              "p95": 240.07330000000002,
+              "min": 177.62079999999696,
+              "max": 240.07330000000002
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 152.00120000000243,
+              "p95": 238.30259999999907,
+              "min": 144.1436999999969,
+              "max": 238.30259999999907
+            }
+          }
+        ],
+        "dtoHashEqual": true
+      }
     },
     "DB_ROUNDTRIP_BEFORE_AFTER": {
       "vercel": "NOT_MEASURED",
@@ -4073,10 +4319,23 @@
       "nativeIntegration": "134_GATED_SKIPS_NOT_PASS",
       "diffCheck": "PASS"
     },
-    "PRODUCTION_DEPLOYMENT_ID": "PENDING",
+    "PRODUCTION_DEPLOYMENT_ID": "dpl_GzwyGGusVRtpU6FnCkUSszTZHuVk",
     "PRODUCTION_SMOKE": {
-      "http": "PENDING",
-      "browser": "PENDING"
+      "http": {
+        "observations": 21,
+        "errors": 0
+      },
+      "browser": "PASS_PRODUCTION_GUEST_SCOPE_ONLY",
+      "mapTiles": "PASS",
+      "logs": {
+        "checkedAt": "2026-10-18T11:20:24.526Z",
+        "deploymentId": "dpl_GzwyGGusVRtpU6FnCkUSszTZHuVk",
+        "window": "last10m; deployment only recently became READY",
+        "runtimeErrorRecords": 0,
+        "http5xxRecords": 0,
+        "scope": "Available Vercel runtime/error and CDN-request datasets only. No conclusion about unobserved user journeys or future errors.",
+        "privateLogMessagesPersisted": false
+      }
     },
     "ROLLBACK_PLAN": {
       "deploymentId": "dpl_6xThmeh8Ra279G7tgf5H8sZ7RouK",
@@ -4104,6 +4363,24 @@
       "commit": "a18e8be261ea18eadf3d7558e8f7255a09899f29"
     },
     "REDIS_ADDED": "NO",
-    "PRODUCTION_PERFORMANCE_STATUS": "READY_FOR_OWNER_AUTHORIZED_MASTER_ROLLOUT;PRODUCTION_UNCHANGED_UNTIL_PUSH"
+    "PRODUCTION_PERFORMANCE_STATUS": "PARTIAL_VERIFIED_PRODUCTION_SIN1_PUBLIC_READS;LIVE_AI_AND_PRODUCTION_AUTH_NOT_MEASURED",
+    "OPTIMIZATION_FILES": [
+      "vercel.json",
+      "apps/web/next.config.ts",
+      "apps/web/tsconfig.json",
+      "apps/web/src/app/page.tsx",
+      "apps/web/src/components/home-hero-video.tsx",
+      "apps/web/public/images/ha-giang-highland-poster.webp",
+      "apps/web/src/modules/destination/public-home-destinations.ts",
+      "apps/web/src/modules/destination/public-destination-list.ts",
+      "apps/web/src/modules/destination-editorial/editorial-service.ts",
+      "scripts/performance/*",
+      "docs/performance/*",
+      "docs/ai-progress.md"
+    ],
+    "FINAL_HEAD_SCOPE": "Verified application optimization commit; a later evidence-only commit may change Git HEAD without changing runtime code.",
+    "PRODUCTION_RELEASE_STATUS": "DEPLOYED_VERIFIED_GUEST_SCOPE_OWNER_SINGLE_DOMAIN_DECISION",
+    "VERCEL_USAGE_IMPACT": "No plan/memory/build-machine change; actual billing NOT_MEASURED; bounded audit/builds consume normal usage",
+    "NEON_USAGE_IMPACT": "Lower SQL counts on public flows; no compute/pool/driver/extension/index change; actual CU/billing NOT_MEASURED"
   }
 }

@@ -1,10 +1,10 @@
 # Performance optimization V3 — Singapore rollout
 
-Updated 2026-10-18T11:14:04.409Z. BASELINE_HEAD=a18e8be261ea18eadf3d7558e8f7255a09899f29; FINAL_HEAD=a18e8be261ea18eadf3d7558e8f7255a09899f29. Branch master (owner's latest explicit instruction supersedes direct-TXH preference). READY_FOR_OWNER_AUTHORIZED_MASTER_ROLLOUT;PRODUCTION_UNCHANGED_UNTIL_PUSH.
+Updated 2026-10-18T11:20:24.653Z. BASELINE_HEAD=a18e8be261ea18eadf3d7558e8f7255a09899f29; FINAL_HEAD=e5a7e01b3cdfebb94bfe0719cb797f61b6af5f6b. Branch master (owner's latest explicit instruction supersedes direct-TXH preference). PARTIAL_VERIFIED_PRODUCTION_SIN1_PUBLIC_READS;LIVE_AI_AND_PRODUCTION_AUTH_NOT_MEASURED.
 
 ## Outcome and release boundary
 
-Two controlled Previews are READY. Production rollout is pending the task commit/push; no claim of Production improvement is made yet.
+Production deployment dpl_GzwyGGusVRtpU6FnCkUSszTZHuVk is READY; exact Function artifacts and public alias are verified separately below.
 
 The owner explicitly requested pushing master and testing maps on the single authorized Production domain. Preview tile401 is a documented environment restriction, not a PASS or a fixed app bug. Actual Production control uses native browser Origin/Referer and returns tile200 with3 markers. No origin spoofing, public provider key, cache/RBAC/readiness bypass or paid plan change. Original broad smoke status covered DOM/Auth only; the strict tile gate in [map evidence](evidence/performance-v3-map-before.json) supersedes any marker-only map conclusion.
 
@@ -96,7 +96,7 @@ No new paid inference, embedding, routing or reindex. Live cap0; incremental Ope
 
 ## Production evidence and remaining limits
 
-PRODUCTION_DEPLOYMENT_ID=PENDING. PRODUCTION_SMOKE={"http":"PENDING","browser":"PENDING"}. Exact final alias/Function evidence is in [region validation](evidence/vercel-region-validation.json). [Production baseline](evidence/performance-v3-production-before.json) uses21 bounded public GETs,n3/workload,0 errors,3 Destinations; this small-sample p95 is the maximum. After-rollout metrics are pending, not inferred from Preview.
+PRODUCTION_DEPLOYMENT_ID=dpl_GzwyGGusVRtpU6FnCkUSszTZHuVk. PRODUCTION_SMOKE={"http":{"observations":21,"errors":0},"browser":"PASS_PRODUCTION_GUEST_SCOPE_ONLY"}. Exact final alias/Function evidence is in [region validation](evidence/vercel-region-validation.json). [Production baseline](evidence/performance-v3-production-before.json) uses21 bounded public GETs,n3/workload,0 errors,3 Destinations; this small-sample p95 is the maximum. After rollout evidence is in performance-v3-production-after.json; compare only the same public cohort and keep this separate from the same-code Preview region experiment.
 
 Remaining: authorized Production private accounts, nonempty large personal datasets, Preview history runtime opt-in with its exact allowed target/abuse readiness, live model phases/tokens/cost, field INP/LCP/p95, true cold starts, Function/SQL-only spans, fleet-wide pool saturation, paid telemetry/Neon consumption and native PostgreSQL-gated integration coverage. No plan/compute/index/driver/model changes are justified by these gaps.
 
@@ -104,6 +104,24 @@ Remaining: authorized Production private accounts, nonempty large personal datas
 
 Runtime/config: vercel.json; apps/web/next.config.ts and tsconfig.json (local benchmark output isolation); app/page.tsx; components/home-hero-video.tsx; public/images/ha-giang-highland-poster.webp; modules/destination/public-home-destinations.ts and public-destination-list.ts; modules/destination-editorial/editorial-service.ts. Regression files: Home/editorial performance Vitest and destination-search.test.ts. Tools/reports: scripts/performance/*, docs/performance/*, docs/ai-progress.md. No package/schema/migration/Auth/AI/US-28 runtime edit.
 
-All requested machine-readable fields (BASELINE_HEAD,FINAL_HEAD,WORKTREE_STATUS,regions,Neon/SQL/HTTP/frontend/AI/Auth metrics,tests,rollback,REDIS_ADDED,release status) are under acceptance in [performance-v3-before-after.json](evidence/performance-v3-before-after.json). Post-release generated evidence can remain a documented working-tree delta after the shipped code commit, avoiding a second Production rebuild solely to update its own deployment ID.
+All requested machine-readable fields (BASELINE_HEAD,FINAL_HEAD,WORKTREE_STATUS,regions,Neon/SQL/HTTP/frontend/AI/Auth metrics,tests,rollback,REDIS_ADDED,release status) are under acceptance in [performance-v3-before-after.json](evidence/performance-v3-before-after.json). FINAL_HEAD identifies the measured application commit. A follow-up evidence-only commit changes no runtime code. The deployment ID in this snapshot identifies the verified code rollout at its recorded time; a later documentation-triggered deployment is verified separately and reported in the final delivery receipt/chat. This avoids claiming a report contains its own future Git hash.
 
 References: [Vercel regions](https://vercel.com/docs/functions/configuring-functions/region), [Services schema](https://vercel.com/docs/services/config-reference), [Stadia domain auth](https://docs.stadiamaps.com/authentication/), [management access is separate from routing keys](https://docs.stadiamaps.com/client-api/).
+
+## Verified Production rollout snapshot
+
+Code commit e5a7e01b3cdfebb94bfe0719cb797f61b6af5f6b; deployment dpl_GzwyGGusVRtpU6FnCkUSszTZHuVk. Alias resolves to that exact commit/deployment at the recorded verification time;180 Node24 functions deploy to sin1. Guest browser18 observations +4 denied private API checks pass at390/768/1440; Explore3 markers and Detail1 marker. [Strict map proof](evidence/performance-v3-production-map.json): actual native-Origin style/sprite/tile200,3 markers. [Runtime/CDN log snapshot](evidence/performance-v3-production-log-scan.json):0 error/fatal records and0 HTTP5xx in the available recent window. These observations do not cover owner-authenticated Production journeys or live model completion.
+
+| Production workload | before p50 / sample p95 ms | after p50 / sample p95 ms |
+| --- | ---: | ---: |
+| /api/destinations | 754.7 / 2382.8 | 612.3 / 1845.7 |
+| / | 1419.6 / 2689.2 | 699.6 / 1651.0 |
+| /explore | 799.4 / 896.0 | 166.1 / 284.6 |
+| /destinations/cmv97lcrq0016z09ws0o74lqp | 2410.8 / 3228.3 | 433.9 / 486.1 |
+| /destinations/cmv9fcwo1000be89w3yxz3mqu | 2553.1 / 2599.1 | 225.8 / 237.4 |
+| /destinations/cmvanjc6p000f7w9wyuydna52 | 2545.1 / 2641.5 | 202.5 / 231.3 |
+| /assistant | 726.6 / 814.4 | 190.2 / 240.1 |
+
+Three samples only per workload; sample p95 is the maximum and initial deployment/connection variance remains. The complete patch+region changes together; do not call this an isolated Production region A/B. Public API canonical DTO hash remains identical and returns3 Destinations. A [bounded5-sample API follow-up](evidence/performance-v3-production-api-followup.json) records remaining variability; it is not substituted into the paired table.
+
+Rollout: VERIFIED_WITHIN_GUEST_PUBLIC_SCOPE. Overall performance readiness stays PARTIAL: live AI/provider stages, Production authenticated/nonempty history and provider-side timing/billing remain unmeasured. No false all-features PASS. Code/model/schema/Auth/US-28 and Production data safety boundaries are retained.

@@ -1665,5 +1665,12 @@
   "productionWrites": 0,
   "failures": 0,
   "status": "PASS_TESTED_SCOPE_HISTORY_BLOCKED",
-  "finishedAt": "2026-10-18T10:55:59.194Z"
+  "finishedAt": "2026-10-18T10:55:59.194Z",
+  "acceptanceReview": {
+    "originalHarness": "Auth/DOM/marker checks; did not require successful tile responses",
+    "strictMapEvidence": "performance-v3-map-before.json",
+    "previewMapTileGate": "FAIL_401_STADIA_HOSTNAME",
+    "ownerDecision": "Single authorized Production domain; owner explicitly requests master rollout and map verification on Production",
+    "authDomStatus": "PASS_TESTED_SCOPE_HISTORY_BLOCKED"
+  }
 }

@@ -271,7 +271,92 @@
   "REGION_VERIFIED": true,
   "buildRegion": "iad1; build log only, not Function execution region",
   "cdnPop": "NOT_USED_AS_FUNCTION_REGION_PROOF",
-  "productionAfter": "NOT_DEPLOYED",
+  "productionAfter": {
+    "id": "dpl_GzwyGGusVRtpU6FnCkUSszTZHuVk",
+    "url": "https://kltn-dom09c9et-to-xuan-hoai-s-projects.vercel.app",
+    "alias": "https://kltn-rho.vercel.app",
+    "aliasDeploymentId": "dpl_GzwyGGusVRtpU6FnCkUSszTZHuVk",
+    "commit": "e5a7e01b3cdfebb94bfe0719cb797f61b6af5f6b",
+    "state": "READY",
+    "functionCount": 180,
+    "allRegions": [
+      "sin1"
+    ],
+    "functionArtifactSha256": "ed78aad99bbb9e1b37e59f2fcbbca904e27932adc2dd670b60c756985dc4da17",
+    "functionEvidence": [
+      {
+        "path": "services/web/index",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/dashboard",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/destinations/[id]",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/explore",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/api/admin/destinations",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/api/ai/conversations",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/api/destinations",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/api/favorites",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/api/trips",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/api/ai/ask",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      }
+    ],
+    "verifiedAt": "2026-10-18T11:17:49.534Z"
+  },
   "paidPlanChanges": 0,
   "redisAdded": false,
   "rollback": {

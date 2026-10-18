@@ -3105,3 +3105,14 @@ public-read tests PASS;7 benchmark tests PASS; root/benchmark typecheck PASS;
 two Preview production builds PASS; diff check and secret scan PASS. Full
 methods, raw measurements, rollback baseline and limits are in
 `docs/performance/performance-optimization-v3.md`. New paid model/routing calls0.
+
+Performance V3 rollout snapshot: master code commit e5a7e01 deployed READY as
+`dpl_GzwyGGusVRtpU6FnCkUSszTZHuVk`; alias and180 sin1 function artifacts verified.
+Read-only Production21 GETs return200 with identical3-Destination API DTO hash;
+Guest browser18 observations +4 denied APIs PASS across390/768/1440. Separate
+actual tile/style/sprite200 and3-marker Production check PASS. Recent available
+runtime error/fatal and CDN5xx log scans each0 records. No paid inference/routing
+or Production DB writes. All new Development fixtures and operation records0
+remaining. Full performance acceptance remains PARTIAL for live AI/history,
+Production owner sessions, native integration/field vitals and detailed provider
+telemetry. Evidence-only follow-up commits preserve the tested runtime tree.
