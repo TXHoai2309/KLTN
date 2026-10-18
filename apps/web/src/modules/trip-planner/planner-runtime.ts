@@ -3,10 +3,11 @@ import { routingRegistry } from "../destination/destination-routing-registry";
 import "server-only";
 import { db } from "@/services";
 import { authorizationDependencies } from "@/server/authorization/server";
-import { retrievePlannerCandidates, recheckPlannerCandidates } from "./planner-candidates";
+import { retrievePlannerCandidates, retrievePlannerCandidateInventory, recheckPlannerCandidates } from "./planner-candidates";
 import { createStadiaRoutesProvider } from "./planner-routes";
 import { createPlannerService } from "./planner-service";
+import { registeredPlannerPropose } from "./planner-registry";
 
 const registry = routingRegistry(ENV.DATABASE_URL);
-const service = createPlannerService({ repository: { candidates: () => registry.verified ? retrievePlannerCandidates(db, undefined, registry.excludedIds) : Promise.resolve([]), recheck: selected => recheckPlannerCandidates(db, selected, registry.excludedIds) }, routes: createStadiaRoutesProvider({ apiKey: () => ENV.STADIA_MAPS_API_KEY }) });
-export const plannerDependencies = { authorization: authorizationDependencies, propose: service.propose };
+const service = createPlannerService({ repository: { candidates: () => retrievePlannerCandidates(db, undefined, registry.excludedIds), inventory: () => retrievePlannerCandidateInventory(db, undefined, registry.excludedIds), recheck: selected => recheckPlannerCandidates(db, selected, registry.excludedIds) }, routes: createStadiaRoutesProvider({ apiKey: () => ENV.STADIA_MAPS_API_KEY }) });
+export const plannerDependencies = { authorization: authorizationDependencies, propose: registeredPlannerPropose(registry, service.propose) };

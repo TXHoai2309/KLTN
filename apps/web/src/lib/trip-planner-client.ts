@@ -26,14 +26,18 @@ export async function requestTripProposal(requirement: TripRequirementInput, key
     if (response.status === 422) return fail("TRIP_REQUIREMENT_UNCLEAR", "Nhu cầu chưa đủ rõ hoặc ngày đã thay đổi. Hãy quay lại kiểm tra nhu cầu.");
     if (response.status === 409) return fail("PLANNER_DATA_CHANGED", "Dữ liệu điểm đến hoặc nhu cầu đã thay đổi. Hãy quay lại kiểm tra trước khi tạo lại.");
     if (response.status === 429) return fail("RATE_LIMITED", "Hãy đợi một chút trước khi tạo lại lịch trình.");
-    if (!response.ok) return fail("PLANNER_UNAVAILABLE", "Dịch vụ lập lịch trình tạm thời không khả dụng. Bạn có thể thử lại.");
+    const unavailable = () => fail("PLANNER_UNAVAILABLE", "Dịch vụ lập lịch trình tạm thời không khả dụng. Bạn có thể thử lại.");
+    if (!response.ok && response.status !== 503) return unavailable();
     reader = response.body?.getReader();
-    if (!reader) return fail("INVALID_RESPONSE", "Không thể xác minh kết quả lập lịch trình.");
+    if (!reader) return response.ok ? fail("INVALID_RESPONSE", "Không thể xác minh kết quả lập lịch trình.") : unavailable();
     let body = "", bytes = 0; const decoder = new TextDecoder();
     const bodyReader = reader;
     try { while (true) { const next = await bodyReader.read(); if (next.done) break; bytes += next.value.byteLength; if (bytes > 512 * 1024) { await bodyReader.cancel(); return fail("INVALID_RESPONSE", "Kết quả vượt giới hạn xử lý."); } body += decoder.decode(next.value, { stream: true }); } }
     finally { bodyReader.releaseLock(); }
-    const raw = JSON.parse(body + decoder.decode()) as { success?: unknown; data?: unknown };
+    let raw: { success?: unknown; data?: unknown; error?: { code?: unknown } };
+    try { raw = JSON.parse(body + decoder.decode()); } catch { return response.ok ? fail("INVALID_RESPONSE", "Không thể xác minh kết quả lập lịch trình.") : unavailable(); }
+    if (!response.ok) return raw?.success === false && raw.error?.code === "PLANNER_NOT_CONFIGURED"
+      ? fail("PLANNER_NOT_CONFIGURED", "Nguồn dữ liệu lập lịch trình chưa được xác minh cho môi trường này. Vui lòng liên hệ quản trị viên.") : unavailable();
     const parsed = plannerResultSchema.safeParse(raw.data);
     if (raw.success !== true || !parsed.success || JSON.stringify(parsed.data.requirement) !== JSON.stringify(requirement)) return fail("INVALID_RESPONSE", "Không thể xác minh đề xuất cho nhu cầu hiện tại.");
     return { ok: true, proposal: parsed.data };

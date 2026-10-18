@@ -6,9 +6,9 @@ import { plannerResultSchema, type PlannerResult } from "./planner-contract";
 import { plannerRoutePairs, schedulePlannerDays, selectPlannerDays } from "./planner-engine";
 import { resolvePlannerRoutes, type RouteProvider } from "./planner-routes";
 import { validatePlannerDays } from "./planner-validator";
-import type { PlannerCandidate } from "./planner-candidates";
+import type { PlannerCandidate, PlannerCandidateInventory } from "./planner-candidates";
 
-export type PlannerRepository = { candidates: () => Promise<PlannerCandidate[]>; recheck: (selected: readonly PlannerCandidate[]) => Promise<boolean> };
+export type PlannerRepository = { candidates: () => Promise<PlannerCandidate[]>; inventory?: () => Promise<PlannerCandidateInventory>; recheck: (selected: readonly PlannerCandidate[]) => Promise<boolean> };
 type Completed = { result: PlannerResult; selected: PlannerCandidate[] };
 export function createPlannerService(deps: { repository: PlannerRepository; routes: RouteProvider; now?: () => Date; id?: () => string; routeTimeoutMs?: number; databaseTimeoutMs?: number }) {
   const entries = new Map<string, { hash: string; expires: number; promise: Promise<Completed> }>();
@@ -42,7 +42,8 @@ export function createPlannerService(deps: { repository: PlannerRepository; rout
     if (recent.length >= 4 || active >= 3 || entries.size >= 64) throw new AppError("RATE_LIMITED", "Bạn đang tạo lịch trình quá nhanh. Hãy đợi một chút rồi thử lại.", 429);
     admissions.set(userId, [...recent, time]); active++;
     const promise = (async (): Promise<Completed> => {
-      const candidates = await dbCall(deps.repository.candidates);
+      const inventory = deps.repository.inventory ? await dbCall(deps.repository.inventory) : null;
+      const candidates = inventory ? inventory.candidates : await dbCall(deps.repository.candidates);
       const selectedDays = selectPlannerDays(requirement, candidates);
       const selected = selectedDays.flat();
       const pairs = plannerRoutePairs(selectedDays, requirement.transport);
@@ -55,12 +56,18 @@ export function createPlannerService(deps: { repository: PlannerRepository; rout
       if (pairs.length) warnings.push({ code: "ROUTE_ESTIMATE", message: "Stadia Maps: thời gian di chuyển là ước tính theo mạng đường, không xác minh giao thông, thời tiết hay điều kiện đường thực tế. Dữ liệu tuyến không hiển thị trên MapLibre.", day: null, destinationId: null });
       if (requirement.transport === "MOTORCYCLE") warnings.push({ code: "MOTORCYCLE_CAUTION", message: "Tuyến xe máy có thể thiếu lối đi hoặc hướng dẫn chính xác; cần kiểm tra điều kiện đường trước chuyến đi.", day: null, destinationId: null });
       if (selected.length < candidates.length) warnings.push({ code: "BOUNDED_SELECTION", message: "Chỉ đề xuất các điểm có tọa độ và thời lượng trong giới hạn kế hoạch; không phải danh sách đầy đủ điểm đến Hà Giang.", day: null, destinationId: null });
+      if (candidates.some(c => c.suggestedDurationMinutes === null && c.minimumDurationMinutes === null)) warnings.push({ code: "MISSING_VISIT_DURATION", message: "Một số điểm đến công khai chưa có thời lượng tham quan và chưa được đưa vào đề xuất. Cần quản trị viên bổ sung dữ liệu đã xác minh.", day: null, destinationId: null });
+      if (inventory?.invalidCoordinateCount) warnings.push({ code: "INVALID_DESTINATION_COORDINATES", message: "Một số điểm đến công khai chưa có tọa độ hợp lệ và đã được loại khỏi đề xuất.", day: null, destinationId: null });
       const violation = checks.some(check => check.status === "VIOLATION"), allPass = checks.every(check => check.status === "PASS");
       let eligibleForFinalConfirmation = false;
       if (allPass) { try { assertStartDateForFinalConfirmation(requirement, now); eligibleForFinalConfirmation = true; } catch { /* still preliminary */ } }
       const result = plannerResultSchema.parse({ proposalId: (deps.id ?? randomUUID)(), phase: "PRELIMINARY_PROPOSAL", status: violation ? "NO_FEASIBLE_ITINERARY" : allPass ? "PROPOSAL_READY" : "INSUFFICIENT_DATA",
         requirement, timezone: "Asia/Ho_Chi_Minh", days, checks, warnings, eligibleForFinalConfirmation,
-        reasonCodes: [...new Set([...(selected.length ? [] : ["NO_ELIGIBLE_CANDIDATES"]), ...checks.flatMap(check => check.issues.map(issue => issue.code))])].slice(0, 30) });
+        reasonCodes: [...new Set([...(selected.length ? [] : ["NO_ELIGIBLE_CANDIDATES",
+          ...(candidates.length ? ["NO_SCHEDULABLE_CANDIDATES"] : []),
+          ...(inventory?.publicRowCount === 0 ? ["NO_PUBLIC_DESTINATIONS"] : []),
+          ...(inventory?.invalidCoordinateCount ? ["INVALID_DESTINATION_COORDINATES"] : []),
+          ...(inventory?.excludedCount ? ["REGISTRY_EXCLUDES_CANDIDATES"] : [])]), ...checks.flatMap(check => check.issues.map(issue => issue.code))])].slice(0, 30) });
       await ensureCurrent(selected);
       return { result, selected };
     })();

@@ -60,4 +60,8 @@ describe("real planner UI server rendering", () => {
     const html = renderToStaticMarkup(createElement(components.PlannerErrorState!, { error: { ok: false, code: "UNAUTHENTICATED", message: "Đăng nhập lại" }, onBack: noop, onRetry: noop }));
     expect(html).toContain("Đăng nhập lại"); expect(html).not.toContain("Thử lại cùng yêu cầu");
   });
+  it("unreviewed database configuration offers guidance without a pointless retry", () => {
+    const html = renderToStaticMarkup(createElement(components.PlannerErrorState!, { error: { ok: false, code: "PLANNER_NOT_CONFIGURED", message: "Liên hệ quản trị viên" }, onBack: noop, onRetry: noop }));
+    expect(html).toContain("Liên hệ quản trị viên"); expect(html).not.toContain("Thử lại cùng yêu cầu");
+  });
 });
