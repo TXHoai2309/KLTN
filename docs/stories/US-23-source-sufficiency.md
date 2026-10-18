@@ -469,3 +469,21 @@ This is a finite owner-case regression result. Independent corpus acceptance is
 still pending; US-23 remains NOT_ACCEPTED. Full root causes, file list, cost/latency
 bounds, intermediate failures and remaining limits:
 [advanced reasoning V2](../implementation/rag-advanced-reasoning-v2.md).
+
+## 2026-10-18 — Production Assistant readiness audit
+
+Owner requested source tracing, read-only Neon inventory and offline acceptance
+before any Production activation. Both page selection and API gate intentionally
+exclude Production; live page disabled and GET conversations503 AI_UNAVAILABLE
+confirmed. Key metadata exists, but no provider validity call was authorized.
+Production inventory:0 RAG documents/chunks/vectors/publications, pgvector0.8.6,
+vector(1536),12 ContentSource rights all UNKNOWN and no RAG origin links.
+
+Relevant offline Vitest919 PASS/89 gated SKIP; legacy RAG56 PASS; root typecheck
+and build PASS. No application gate/config/schema/Auth/source approval change,
+paid OpenAI request, conversation write, push/merge/deploy or import. Snapshot and
+prior receipts preserved. Real corpus/semantic/provider/history acceptance remains
+blocked, not inferred from mocks. AI_ASSISTANT_PRODUCTION=BLOCKED / NO_GO;
+US-23 remains NOT_ACCEPTED. Exact source lines, environment names/statuses,
+checklist and owner approval sequence:
+[Production readiness report](../implementation/assistant-production-readiness.md).

@@ -2888,3 +2888,26 @@ Audit, task-owned file list, limits and manual procedure:
   closed remain. No commit/push/merge/deploy. Current
   [report](implementation/rag-development-production-sync.md) and
   [final summary](implementation/rag-sync-evidence/final-summary.json).
+
+
+### 2026-10-18 — Production Assistant & RAG readiness
+
+- Dedicated codex/assistant-production-readiness worktree from2225030; unrelated
+  primary Editorial edits preserved. Source audit and live page/GET show Production
+  hard-disabled at both UI/runtime gates, independent of credentials/corpus.
+- Neon API verified exact Production branch/endpoint; aggregate REPEATABLE READ
+  READ ONLY inventory confirms0 RAG documents/chunks/vectors/publications/jobs,
+  pgvector0.8.6 and vector(1536). Three VISIBLE Destinations,12 ContentSource rights
+  all UNKNOWN without rights evidence, no RAG origins;23 healthy migrations.
+- Vercel metadata has OPENAI_API_KEY in Preview/Production, QA/HMAC/cleanup settings
+  not listed. Validity/deployed env/model access unverified; no paid provider calls.
+  Checked-out QA default is now gpt-6.1-sol; historical Luna reports not runtime proof.
+- Relevant Vitest919 PASS/0 FAIL/89 gated SKIP; legacy RAG56/56; root typecheck/build
+  PASS (Next16.3.8). Full repo/PG integration/live semantic checks not run. Premium
+  audit30 existing findings; no UI/global compliance claim. Diff/secret/preservation
+  details in report evidence. No application source, remote env, schema or Auth changes.
+- Snapshot retained,7 prior receipts hash-match, read-only business fingerprints
+  preserved. No import, Production data write, conversation creation, cleanup call,
+  push, merge or deployment. AI_ASSISTANT_PRODUCTION=BLOCKED / NO_GO; US-23 NOT_ACCEPTED.
+- [Report](implementation/assistant-production-readiness.md),
+  [evidence](implementation/assistant-production-evidence/).

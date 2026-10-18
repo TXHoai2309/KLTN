@@ -1,0 +1,111 @@
+{
+  "checkedAt": "2026-10-18T04:05:21.976Z",
+  "beforeCheckedAt": "2026-10-18T03:58:15.437Z",
+  "afterCheckedAt": "2026-10-18T04:04:48.259Z",
+  "mode": "AGGREGATE_READ_ONLY_BEFORE_AFTER",
+  "allMatch": true,
+  "tables": [
+    {
+      "table": "destination",
+      "before": {
+        "count": 3,
+        "fingerprint": "ac1d69b8d918ab756876b1e918f83789"
+      },
+      "after": {
+        "count": 3,
+        "fingerprint": "ac1d69b8d918ab756876b1e918f83789"
+      },
+      "matches": true
+    },
+    {
+      "table": "opening_day",
+      "before": {
+        "count": 21,
+        "fingerprint": "c8ac3c37f0924754ee3e5d035510a4a9"
+      },
+      "after": {
+        "count": 21,
+        "fingerprint": "c8ac3c37f0924754ee3e5d035510a4a9"
+      },
+      "matches": true
+    },
+    {
+      "table": "content_source",
+      "before": {
+        "count": 12,
+        "fingerprint": "d0f2a222c4a1add40ccfe008eedf6a08"
+      },
+      "after": {
+        "count": 12,
+        "fingerprint": "d0f2a222c4a1add40ccfe008eedf6a08"
+      },
+      "matches": true
+    },
+    {
+      "table": "content_media",
+      "before": {
+        "count": 13,
+        "fingerprint": "82ee3b7a692e31418a53a0120104001a"
+      },
+      "after": {
+        "count": 13,
+        "fingerprint": "82ee3b7a692e31418a53a0120104001a"
+      },
+      "matches": true
+    },
+    {
+      "table": "destination_editorial",
+      "before": {
+        "count": 3,
+        "fingerprint": "f789a7154959a45ae76cb7502aa5bad2"
+      },
+      "after": {
+        "count": 3,
+        "fingerprint": "f789a7154959a45ae76cb7502aa5bad2"
+      },
+      "matches": true
+    },
+    {
+      "table": "rag_document",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    },
+    {
+      "table": "rag_chunk",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    },
+    {
+      "table": "rag_chunk_embedding",
+      "before": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "after": {
+        "count": 0,
+        "fingerprint": "d751713988987e9331980363e24189ce"
+      },
+      "matches": true
+    }
+  ],
+  "snapshotRetained": true,
+  "healthyMigrations": 23,
+  "agentProductionWrites": 0,
+  "authRecordsReadOrExported": 0,
+  "destinationImports": 0,
+  "providerRequests": 0
+}

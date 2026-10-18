@@ -1,0 +1,14 @@
+{
+  "checkedAt": "2026-10-18T03:58:49.465Z",
+  "path": "/assistant",
+  "method": "GET",
+  "authenticated": false,
+  "status": 200,
+  "headers": {
+    "cache-control": "private, no-cache, no-store, max-age=0, must-revalidate",
+    "x-nextjs-prerender": null,
+    "x-vercel-cache": "MISS"
+  },
+  "unavailableCopy": true,
+  "sendDisabled": true
+}

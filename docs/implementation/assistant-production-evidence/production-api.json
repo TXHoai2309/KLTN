@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-10-18T03:58:50.389Z",
+  "path": "/api/ai/conversations",
+  "method": "GET",
+  "authenticated": false,
+  "status": 503,
+  "headers": {
+    "cache-control": "no-store",
+    "x-nextjs-prerender": null,
+    "x-vercel-cache": "MISS"
+  },
+  "response": {
+    "success": false,
+    "operationStatus": "FAILED",
+    "error": {
+      "code": "AI_UNAVAILABLE",
+      "message": "Không thể xử lý yêu cầu (AI_UNAVAILABLE)."
+    }
+  }
+}
