@@ -82,7 +82,7 @@ test("Home is product UI; Explore streams independently and exposes no dead Cult
   const home=await readFile(new URL("../../app/page.tsx",import.meta.url),"utf8");
   for (const copy of [/Khám phá Hà Giang/, /theo cách của bạn/, /BẮT ĐẦU HÀNH TRÌNH/, /Khám phá điểm đến/, /Tìm hiểu văn hóa/, /Xem vị trí trên bản đồ/]) assert.match(home,copy);
   for (const href of [/href="\/explore"/, /href="\/explore\?view=map"/]) assert.match(home,href);
-  assert.match(home,/<HomeHeroVideo\s*\/>/); assert.match(home,/home-quick-info/); assert.match(home,/HomeScrollReveal/);
+  assert.match(home,/<HomeHeroVideo\b/); assert.match(home,/home-quick-info/); assert.match(home,/HomeScrollReveal/);
   assert.doesNotMatch(home,/TITLE_TEXT|API Status|BETTER|https?:\/\//);
   const header=await readFile(new URL("../../components/header.tsx",import.meta.url),"utf8");
   for (const pattern of [/<header\b[^>]*site-header/, /className="site-brand"/, /aria-label="Điều hướng chính"/, /aria-current=\{active \? "page" : undefined\}/, /<ModeToggle className="site-theme-toggle"/, /<UserMenu \/>/, /pathname\.startsWith\("\/destinations\/"\)/, /pathname === "\/login"/]) assert.match(header,pattern);
