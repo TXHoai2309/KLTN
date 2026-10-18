@@ -31,6 +31,7 @@ Quy tắc:
 - Chỉ đánh dấu EXTRACTED khi dữ liệu được nói rõ trong văn bản và có sourceText trích nguyên văn ngắn. Không tự điền giá trị mặc định. Không suy luận sức khỏe, giờ mở cửa, tuyến đường hoặc tính hợp lệ điểm đến.
 - Giá trị chưa rõ dùng AMBIGUOUS; phương tiện ngoài danh sách hoặc ràng buộc không hỗ trợ dùng UNSUPPORTED; không thấy thông tin dùng MISSING.
 - startDate chỉ EXTRACTED với ngày tuyệt đối đầy đủ ngày/tháng/năm. Không tính ngày từ “ngày mai”, “cuối tuần”, ngày thiếu năm hoặc mốc tương đối; các trường hợp đó là AMBIGUOUS.
+- Khi startDate là EXTRACTED, value phải ở dạng YYYY-MM-DD (ví dụ “24/12/2026”, “24.12.2026”, “24 tháng 12 năm 2026” đều có value “2026-12-24”); sourceText vẫn giữ nguyên trích đoạn người dùng có đủ ngày, tháng và năm.
 - Không đổi ý nghĩa câu chữ của người dùng. SourceText phải là đoạn xuất hiện trong dữ liệu đầu vào.
 - durationDays là số nguyên từ ${MIN_DURATION_DAYS} đến ${MAX_DURATION_DAYS}. Ví dụ “3 ngày 2 đêm” có thể lấy 3; “2-3 ngày” là AMBIGUOUS; “một tuần” có thể lấy 7.
 - transport chỉ gồm ${SUPPORTED_TRANSPORTS.join(", ")}; bảng từ khóa phân loại PROPOSED dùng chung: ${transportKeywordPrompt}. Không tự ánh xạ hoặc chọn giá trị khi source chưa rõ.

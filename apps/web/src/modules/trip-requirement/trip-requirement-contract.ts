@@ -80,7 +80,7 @@ export const TRIP_REQUIREMENT_ERROR_MESSAGES: Record<
 > = {
   VALIDATION_ERROR: "Thông tin nhu cầu chuyến đi chưa hợp lệ.",
   INVALID_FORM: "Vui lòng kiểm tra lại thông tin chuyến đi.",
-  START_DATE_FORMAT: "Ngày bắt đầu phải theo định dạng YYYY-MM-DD.",
+  START_DATE_FORMAT: "Ngày bắt đầu chưa hợp lệ. Vui lòng nhập đủ ngày, tháng và năm.",
   START_DATE_CALENDAR: "Ngày bắt đầu không tồn tại trong lịch.",
   DURATION_REQUIRED: "Vui lòng nhập số ngày chuyến đi.",
   DURATION_RANGE: `Số ngày chuyến đi phải từ ${MIN_DURATION_DAYS} đến ${MAX_DURATION_DAYS} ngày.`,

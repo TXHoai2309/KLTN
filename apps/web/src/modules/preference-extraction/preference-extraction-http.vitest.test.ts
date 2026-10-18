@@ -337,6 +337,22 @@ describe("US25-API preference extraction HTTP boundary", () => {
     );
   });
 
+  it("logs a typed rejection reason and HTTP status without provider content in the API response", async () => {
+    const dependencies = fakeDependencies();
+    dependencies.llm.complete = vi.fn(async () => {
+      throw new PreferenceExtractionError("PROVIDER_REJECTED", false, { providerStatus: 400 });
+    });
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const response = await analyzePreferencesResponse(request({ text: "đi xe máy 3 ngày" }), dependencies);
+    expect(response.status).toBe(503);
+    expect(log.mock.calls[0]?.[1]).toMatchObject({
+      code: "AI_UNAVAILABLE", reasonCode: "PROVIDER_REJECTED", providerStatus: 400,
+    });
+    const body = await json(response);
+    expect(body.error).not.toHaveProperty("providerStatus");
+    expect(body.error).not.toHaveProperty("reasonCode");
+  });
+
   it.each([
     ["https://evil.invalid", "INVALID_ORIGIN"],
     [ORIGIN, "INVALID_ORIGIN"],

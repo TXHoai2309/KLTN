@@ -1,5 +1,6 @@
 import { checkTravelTime } from "./travel-time";
 import { checkMinimumVisitDuration, checkOpeningHours, type VisitCheckStatus } from "./visit-constraints";
+import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
 
 export type ValidationVisit = {
   visitId: string;
@@ -34,6 +35,27 @@ export type TripValidation = {
   canConfirm: boolean;
 };
 
+export type InTripOriginLeg = {
+  toVisitId: string;
+  localDate: string;
+  startMinute: number;
+  route: RouteSnapshot["route"];
+};
+
+export type InTripEndpointConstraint = {
+  visitId: string;
+  localDate: string;
+  startMinute: number;
+  /** Vietnam-local time on the current trip day. */
+  deadline: string;
+};
+
+export type InTripValidationContext = {
+  now: Date;
+  originLeg: InTripOriginLeg | null;
+  mandatoryEndpoint: InTripEndpointConstraint | null;
+};
+
 const groupNames = ["openingHours", "minimumDuration", "travelTime", "scheduleConflict"] as const;
 const messages: Record<string, string> = {
   START_DATE_MISSING: "Cần ngày bắt đầu để kiểm tra giờ hoạt động.",
@@ -47,6 +69,10 @@ const messages: Record<string, string> = {
   TRAVEL_TIME_SHORT: "Không đủ thời gian di chuyển giữa hai lượt.",
   ROUTE_UNAVAILABLE: "Thiếu thời gian di chuyển cho chặng này.",
   VISITS_OVERLAP: "Hai lượt tham quan bị trùng thời gian.",
+  ORIGIN_ROUTE_UNAVAILABLE: "Thiếu thời gian di chuyển từ vị trí hiện tại.",
+  ORIGIN_TRAVEL_TIME_SHORT: "Không đủ thời gian đi từ vị trí hiện tại đến lượt tham quan.",
+  ENDPOINT_DEADLINE_MISSED: "Không thể đến điểm kết thúc trước thời hạn đã chọn.",
+  IN_TRIP_TIME_INVALID: "Thiếu dữ liệu thời gian để kiểm tra phương án trong chuyến đi.",
 };
 
 export function aggregateStatus(statuses: readonly VisitCheckStatus[]): ValidationGroupStatus {
@@ -96,4 +122,68 @@ export function validateItinerary(visits: readonly ValidationVisit[], routes: re
     status: aggregateStatus(findings[group].map(finding => finding.status)), findings: findings[group],
   }])) as TripValidation["groups"];
   return { timeReference: timeReference.toISOString(), groups, canConfirm: groupNames.every(group => groups[group].status === "SATISFIED") };
+}
+
+/** Add in-trip checks to the shared four-group result without changing ordinary previews. */
+export function validateInTripContext(
+  base: TripValidation,
+  context: InTripValidationContext,
+): TripValidation {
+  if (Number.isNaN(context.now.getTime())) throw new RangeError("now must be valid");
+  const groups: TripValidation["groups"] = {
+    openingHours: { ...base.groups.openingHours, findings: [...base.groups.openingHours.findings] },
+    minimumDuration: { ...base.groups.minimumDuration, findings: [...base.groups.minimumDuration.findings] },
+    travelTime: { ...base.groups.travelTime, findings: [...base.groups.travelTime.findings] },
+    scheduleConflict: { ...base.groups.scheduleConflict, findings: [...base.groups.scheduleConflict.findings] },
+  };
+  const add = (
+    status: "VIOLATION" | "INSUFFICIENT_DATA",
+    reasonCode: string,
+    affectedVisitId: string,
+  ) => {
+    groups.travelTime.findings.push({
+      group: "travelTime",
+      status,
+      reasonCode,
+      message: messages[reasonCode]!,
+      affectedVisitId,
+    });
+  };
+  const localInstant = (localDate: string, minute: number): number | null => {
+    if (!/^\d{4}-\d{2}-\d{2}$/u.test(localDate) || !Number.isSafeInteger(minute) || minute < 0 || minute > 1439) return null;
+    const instant = Date.parse(`${localDate}T${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}:00+07:00`);
+    return Number.isFinite(instant) ? instant : null;
+  };
+
+  if (context.originLeg !== null) {
+    const { toVisitId, localDate, startMinute, route } = context.originLeg;
+    const startAt = localInstant(localDate, startMinute);
+    if (startAt === null) {
+      add("INSUFFICIENT_DATA", "IN_TRIP_TIME_INVALID", toVisitId);
+    } else if (route.kind !== "ok" || !Number.isFinite(route.durationSeconds) || route.durationSeconds < 0) {
+      add("INSUFFICIENT_DATA", "ORIGIN_ROUTE_UNAVAILABLE", toVisitId);
+    } else if (context.now.getTime() + route.durationSeconds * 1000 > startAt) {
+      add("VIOLATION", "ORIGIN_TRAVEL_TIME_SHORT", toVisitId);
+    }
+  }
+
+  if (context.mandatoryEndpoint !== null) {
+    const { visitId, localDate, startMinute, deadline } = context.mandatoryEndpoint;
+    const today = vietnamDateOf(context.now);
+    const match = /^(?:([01]\d|2[0-3])):([0-5]\d)$/u.exec(deadline);
+    const startAt = localInstant(localDate, startMinute);
+    const dueAt = match ? localInstant(today, Number(match[1]) * 60 + Number(match[2])) : null;
+    if (startAt === null || dueAt === null) {
+      add("INSUFFICIENT_DATA", "IN_TRIP_TIME_INVALID", visitId);
+    } else if (localDate !== today || dueAt <= context.now.getTime() || startAt > dueAt) {
+      add("VIOLATION", "ENDPOINT_DEADLINE_MISSED", visitId);
+    }
+  }
+
+  groups.travelTime.status = aggregateStatus(groups.travelTime.findings.map((finding) => finding.status));
+  return {
+    timeReference: context.now.toISOString(),
+    groups,
+    canConfirm: groupNames.every((group) => groups[group].status === "SATISFIED"),
+  };
 }

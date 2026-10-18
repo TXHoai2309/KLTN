@@ -26,6 +26,7 @@ Một hợp đồng Zod 4 dùng chung cho server, client và test, server-core a
 - `docs/flow/user-flow.md` — “Trip requirement capture”, “Itinerary generation and validation”, “Auth transition”.
 - `docs/decisions.md` — ADR-07 (AI tách khỏi Validator), ADR-11 (Varlock environment), ADR-14 (Vitest), ADR-16 (provider boundary).
 - OpenAI Structured Outputs documentation, consulted 2026-10-09 and 2026-10-11: [Structured model outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=chat), [Chat Completions create](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create), and [Responses migration notes](https://developers.openai.com/api/docs/guides/migrate-to-responses). These confirm the selected Chat Completions `response_format.json_schema`, strict closed objects, required fields, `store:false`, and `max_completion_tokens`. This is provider guidance, not a product approval.
+- OpenAI model compatibility, consulted 2026-10-17: [Using GPT-6](https://developers.openai.com/api/docs/guides/latest-model) requires removing `temperature` when reasoning effort is not `none`; [GPT-6 Luna](https://developers.openai.com/api/docs/models/gpt-6-luna) supports `none` and defaults to `medium`. The adapter selects `reasoning_effort: "none"` for this model family to retain `temperature: 0` and the existing extraction token limit. Other configured models keep their previous request behavior.
 - Next 16 local Route Segment Config docs (`node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/02-route-segment-config/runtime.md` and `maxDuration.md`) — used to set `runtime = "nodejs"` and `maxDuration = 20`; deployment-platform enforcement remains NOT PROVEN.
 - Product Document/System Specification `.docx`: **NOT FOUND in workspace**, so detailed DOCX rules are not proven.
 - Figma: Chưa có frame cho vùng nhập; US25-FE-INPUT uses the existing `/trips/new` tokens and responsive conventions.
@@ -292,7 +293,7 @@ Không. No Prisma schema, migration, database table or persistence is added.
 
 ## Environment Impact
 
-Adds optional internal `OPENAI_PREFERENCE_MODEL`; no secret/value is committed. `scripts/sync-vercel-env.ts` already filters against `.env.schema` and skips empty values, so no code change is required there. `OPENAI_API_KEY` remains server-only and unused by this task.
+Declares optional server-only `OPENAI_PREFERENCE_MODEL`; no secret/value is committed. It must be injected into the application runtime (no Varlock `@internal` decorator). Model names are non-secret (`@sensitive=false`) since `meta.model` is already part of the response contract; the optional editorial model name is declared likewise to prevent value-match false positives. `scripts/sync-vercel-env.ts` already filters against `.env.schema` and skips empty values. `OPENAI_API_KEY` remains sensitive and server-only.
 
 ## Implementation Sequence
 
@@ -318,7 +319,7 @@ Adds optional internal `OPENAI_PREFERENCE_MODEL`; no secret/value is committed. 
 | Strict model schema | PASS | Zod 4 schema uses strict objects, required keys and nullable branches; `modelOutputJsonSchema` is generated via `z.toJSONSchema` and tested by `assertStrictModelJsonSchema`. |
 | Server verification boundary | PASS | `verifyModelOutput` validates canonical values/ranges/cross-fields and maps invalid candidates to `AMBIGUOUS`/`UNSUPPORTED`. |
 | Clarifications/meta privacy | PASS | Result schema requires server-shaped clarification records and metadata excludes raw text; no provider call or logging was added. |
-| Env declaration | PASS | `.env.schema`, `.env.example` and deployment docs declare optional internal `OPENAI_PREFERENCE_MODEL` with no value; Varlock codegen was run and leaves `src/env.ts` unchanged because optional `@internal` keys are not exposed there, matching existing `OPENAI_API_KEY` behavior. |
+| Env declaration | PASS | `.env.schema`, `.env.example` and deployment docs declare optional server-only `OPENAI_PREFERENCE_MODEL` with no default. The 2026-10-17 bug fix removes `@internal`, which excluded the configured model from runtime injection; regenerated ignored `src/env.ts` now includes the optional sensitive model. A real Varlock loader test with synthetic values verifies runtime key/model availability and the default provider getters with fake fetch. |
 | Automated contract/tests | PASS | The relevant US24 + US25 Vitest selection is 152/152 across 12 files, including the browser client, apply logic, fixture corpus, safety and source-contract tests. |
 | OpenAI documentation alignment | PASS | Official Structured Outputs, Chat Completions reference and Responses migration notes were consulted 2026-10-11 and recorded in Source References/ADR-16. |
 | Server extraction core | PASS | Direct-fetch Chat Completions adapter, injected service, prompt builder, source/date verifier and safe provider-error mapping are implemented; no SDK, UI, migration or persistence was added. |
@@ -335,6 +336,7 @@ Adds optional internal `OPENAI_PREFERENCE_MODEL`; no secret/value is committed. 
 | Real-provider evaluation/AI accuracy/injection resistance | NOT PROVEN | Added opt-in `npm run eval:preference`; it was not run because no explicit OpenAI key/model permission was available. Model-level accuracy and prompt-injection resistance require a permitted manual run. |
 | Manual browser checklist | NOT PROVEN | No real Traveler/Admin browser session or DevTools/viewport/screen-reader run was available in this environment. |
 | Provider safety tests | PASS | 21 US25-AI-IMPL tests cover missing credentials/model, strict request/privacy, retryable/non-retryable HTTP, refusal, bounded output, timeout, network retry, prompt delimiter injection, source fabrication, relative/past dates, prototype pollution and AppError mapping. |
+| GPT-6 Luna request compatibility | PASS | 2026-10-17: a synthetic diagnostic reproduced HTTP 400 / `unsupported_value` / `temperature`; the corrected production adapter and extraction verifier returned duration 3 and MOTORCYCLE for a synthetic Vietnamese request in 2797ms. Added alias/snapshot request tests and safe server-only reason/status logging; broader related suites pass 488 tests across 38 files. This proves one provider smoke, not browser/production behavior or model accuracy across the corpus. |
 | Real OpenAI call/rate limit/live deployment | NOT PROVEN | No key/model/session was used; no abuse rate-limit service was added and Vercel execution limits were not tested in deployment. |
 | Owner decisions and DOCX alignment | NOT PROVEN | Product/System DOCX files were not found; all proposed extraction/provider values remain owner-pending. |
 
@@ -362,3 +364,9 @@ Adds optional internal `OPENAI_PREFERENCE_MODEL`; no secret/value is committed. 
 - `ExtractionResultPanel` is a read-only handoff surface. `applyExtractionToForm` exposes verified suggestions and conflict actions but never calls evaluate, confirm or save. US26 owns review/clarification/presentation evolution; the final save story must still call `assertStartDateForFinalConfirmation` server-side.
 - The future save story must continue to call `assertStartDateForFinalConfirmation` server-side immediately before official save; model extraction never bypasses US24-START.
 - `docs/ai-progress.md` contains pre-existing merge-conflict markers. This task appends only and does not resolve/rewrite them.
+
+## 2026-10-17 — Start-date normalization bug fix
+
+A live synthetic matrix reproduced dates recognized by AI but dropped before form fill: the provider sometimes returned `24/12/2026` as its value while the verifier required ISO; dotted dates and Vietnamese dates without the optional word `ngày` were not parsed. `explicit-trip-date.ts` now shares full-date parsing between verification and contradiction checks. A model EXTRACTED date is normalized to YYYY-MM-DD only when its complete value and one unique valid source date agree; source membership, Vietnam past-date rejection and no-overwrite form behavior remain enforced. The prompt explicitly requests ISO values and original full-date source snippets. No relative-date/year inference or promotion of AMBIGUOUS/MISSING fields was added.
+
+Acceptance evidence: live OpenAI plus extraction-to-form helper passed all 9 synthetic cases after the fix (5 full-date formats filled; missing-year, relative, impossible and past dates stayed empty). The focused suites passed 23 files / 365 tests, including 21 new handoff cases covering formats, trailing punctuation, leap day, conflicts, mismatched/fabricated values and existing user dates. Typecheck still reports only pre-existing Cloudinary TS2307/TS7006; actual browser rendering is NOT PROVEN.

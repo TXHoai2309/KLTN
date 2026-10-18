@@ -422,7 +422,7 @@ export default function TripRequirementForm() {
         setNaturalLanguageStatus({ kind: "invalid", message: outcome.fieldErrors?.text ?? outcome.message });
         return;
       }
-      setNaturalLanguageStatus({ kind: "failure", message: `${outcome.message} Bạn vẫn có thể nhập vào biểu mẫu bên dưới. Hãy thử lại.` });
+      setNaturalLanguageStatus({ kind: "failure", message: `${outcome.message} Hãy thử lại.` });
     } finally {
       releaseSubmission(naturalLanguageLock);
       if (shouldApplyRequestResponse(requestSequence, naturalLanguageSequenceRef.current, mountedRef.current)) {

@@ -15,6 +15,7 @@ import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 
 import { authorizationFeedback } from "@/lib/authorization-feedback";
+import { formatVietnameseDate } from "@/lib/date-only";
 import { buildAuthLoginHref } from "@/lib/auth-return-to";
 import { checkTripRequirement, shouldApplyCheckResponse } from "@/lib/trip-requirement-check-client";
 import TripClarificationPanel from "./trip-clarification-panel";
@@ -156,7 +157,7 @@ function formatValue<K extends ReviewFieldKey>(key: K, value: ReviewValueMap[K] 
 
   switch (key) {
     case "startDate":
-      return String(value);
+      return formatVietnameseDate(String(value));
     case "durationDays":
       return `${String(value)} ngày`;
     case "companions": {

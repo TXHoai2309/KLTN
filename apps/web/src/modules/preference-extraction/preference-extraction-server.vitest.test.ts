@@ -228,6 +228,26 @@ describe("US25 OpenAI structured client", () => {
   });
 
   it.each([
+    "gpt-6-luna",
+    "gpt-6-luna-2026-10-01",
+  ])("uses non-reasoning mode for %s to support temperature and the output budget", async (model) => {
+    const fetcher = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      expect(JSON.parse(String(init?.body))).toMatchObject({
+        model,
+        reasoning_effort: "none",
+        temperature: 0,
+        max_completion_tokens: 1200,
+        store: false,
+      });
+      return completionResponse(validOutput());
+    });
+    const client = createOpenAiStructuredClient({ apiKey: () => "secret", model: () => model, fetcher });
+    await expect(client.complete({ system: "s", user: "u", jsonSchema: modelOutputJsonSchema }))
+      .resolves.toMatchObject({ model });
+    expect(fetcher).toHaveBeenCalledOnce();
+  });
+
+  it.each([
     [429, 2],
     [500, 2],
   ])("retries one time for retryable HTTP status %s", async (status, expectedCalls) => {
@@ -282,7 +302,7 @@ describe("US25 OpenAI structured client", () => {
   it.each([400, 401, 403])("does not retry a non-retryable %s response", async (status) => {
     const fetcher = fakeFetcherFrom([new Response("rejected", { status })]);
     const client = createOpenAiStructuredClient({ apiKey: () => "secret", model: () => "test", fetcher });
-    await expect(client.complete({ system: "s", user: "u", jsonSchema: modelOutputJsonSchema })).rejects.toMatchObject({ code: "PROVIDER_REJECTED" });
+    await expect(client.complete({ system: "s", user: "u", jsonSchema: modelOutputJsonSchema })).rejects.toMatchObject({ code: "PROVIDER_REJECTED", providerStatus: status });
     expect(fetcher).toHaveBeenCalledOnce();
   });
 

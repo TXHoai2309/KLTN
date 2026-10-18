@@ -104,13 +104,17 @@ function publicError(error: unknown): AppError {
   );
 }
 
-function logSafeError(code: string, latencyMs: number, inputLength: number): void {
+function logSafeError(code: string, latencyMs: number, inputLength: number, error: unknown): void {
   // Never pass the request, prompt, provider response or original error to the
   // logger. Those values may contain sensitive trip preferences.
   console.error("Preference extraction request failed", {
     code,
     latencyMs,
     inputLength,
+    ...(isPreferenceExtractionError(error) ? {
+      reasonCode: error.code,
+      ...(error.providerStatus !== undefined ? { providerStatus: error.providerStatus } : {}),
+    } : {}),
   });
 }
 
@@ -168,6 +172,7 @@ export async function analyzePreferencesResponse(
         ? 0
         : Math.max(0, Math.round(clockMs(dependencies) - startedAt)),
       inputLength,
+      error,
     );
     return privateResponse(handleApiError(safeError));
   }

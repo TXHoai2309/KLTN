@@ -46,7 +46,7 @@ export function describeReadiness(
     readiness.startDateIssue === "IN_PAST"
       ? "Ngày bắt đầu không được ở trong quá khứ."
       : readiness.startDateIssue === "INVALID_FORMAT"
-        ? "Ngày bắt đầu cần là ngày lịch hợp lệ theo định dạng YYYY-MM-DD."
+        ? "Ngày bắt đầu cần là ngày lịch hợp lệ theo định dạng dd/mm/yyyy."
         : null;
   const fields = missingLabels(readiness.missing);
   return {

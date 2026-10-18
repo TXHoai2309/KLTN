@@ -1,5 +1,6 @@
 "use client";
 import type { KeyboardEvent } from "react";
+import { formatVietnameseDate } from "@/lib/date-only";
 import { Activity, AlertTriangle, ArrowLeft, ArrowRight, Bike, CalendarDays, Car, CheckCircle2, Clock3, Flag, Heart, MapPin, Mountain, Route, ShieldCheck, Users, XCircle } from "lucide-react";
 import { COMPANION_OPTIONS, INTEREST_OPTIONS, PACE_OPTIONS, type TripRequirementInput } from "@/modules/trip-requirement/trip-requirement-contract";
 import type { CheckStatus, PlannerDay, PlannerResult, PlannerStop } from "@/modules/trip-planner/planner-contract";
@@ -14,10 +15,11 @@ export function DestinationImage({ stop, large = false }: { stop: PlannerStop; l
 }
 export function TripSummaryBar({ requirement, days }: { requirement: TripRequirementInput; days?: PlannerDay[] }) {
   const { durationDays, transport, pace, companions, interests, startDate } = requirement;
+  const endDate = days?.at(-1)?.date;
   return <section className="planner-summary" aria-label="Tóm tắt nhu cầu chuyến đi">
     <div className="planner-summary-title"><span className="planner-summary-mark"><Mountain size={30} aria-hidden="true" /></span><div><p className="planner-eyebrow">Hành trình của bạn</p><h1>Hà Giang · {durationDays} ngày khám phá</h1><p>Đề xuất sơ bộ · Chưa xác nhận hoặc lưu chính thức</p></div></div>
     <div className="planner-summary-chips">
-      <div className="planner-chip"><CalendarDays /><span><strong>{durationDays} ngày</strong><small>{startDate ? `${startDate} – ${days?.at(-1)?.date ?? "theo ngày bắt đầu"}` : `Ngày 1 – Ngày ${durationDays}`}</small></span></div>
+      <div className="planner-chip"><CalendarDays /><span><strong>{durationDays} ngày</strong><small>{startDate ? `${formatVietnameseDate(startDate)} – ${endDate ? formatVietnameseDate(endDate) : "theo ngày bắt đầu"}` : `Ngày 1 – Ngày ${durationDays}`}</small></span></div>
       <div className="planner-chip planner-chip-teal">{transport === "CAR" ? <Car /> : <Bike />}<span><strong>{transport === "CAR" ? "Ô tô" : "Xe máy"}</strong><small>Phương tiện đã chọn</small></span></div>
       <div className="planner-chip planner-chip-sand"><Activity /><span><strong>{pace ? PACE_OPTIONS.find(option => option.value === pace)?.label : "Chưa chọn nhịp độ"}</strong><small>{pace ? "Nhịp độ chuyến đi" : "Đề xuất dùng nhịp vừa phải"}</small></span></div>
       <div className="planner-chip planner-chip-violet"><Users /><span><strong>{companions ? `${companions.groupSize} người` : "Chưa chọn nhóm"}</strong><small>{COMPANION_OPTIONS.find(option => option.value === companions?.type)?.label ?? "Thông tin tùy chọn"}</small></span></div>
@@ -37,7 +39,7 @@ export function ItineraryDayTabs({ days, selectedDay, onChange }: { days: Planne
     (event.currentTarget.parentElement?.children[next] as HTMLButtonElement | undefined)?.focus();
   }
   return <div className="planner-day-tabs" role="tablist" aria-label="Chọn ngày trong lịch trình">{days.map((day, index) => <button id={`planner-tab-${day.day}`} key={day.day} role="tab" aria-selected={selectedDay === day.day} aria-controls="planner-day-panel" tabIndex={selectedDay === day.day ? 0 : -1} onClick={() => onChange(day.day)} onKeyDown={event => navigate(event, index)}>
-    <Mountain size={21} aria-hidden="true" /><span><strong>Ngày {day.day}</strong><small>{day.date ?? "Ngày tương đối"}</small></span></button>)}</div>;
+    <Mountain size={21} aria-hidden="true" /><span><strong>Ngày {day.day}</strong><small>{day.date ? formatVietnameseDate(day.date) : "Ngày tương đối"}</small></span></button>)}</div>;
 }
 export function ItineraryStopCard({ stop, selected, onSelect }: { stop: PlannerStop; selected: boolean; onSelect: (id: string) => void }) {
   return <li className={`planner-stop ${selected ? "is-selected" : ""}`}>
