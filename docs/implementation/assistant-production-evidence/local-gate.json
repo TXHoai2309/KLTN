@@ -1,0 +1,8 @@
+{
+  "checkedAt": "2026-10-18T04:01:53.515Z",
+  "scope": "Existing local ignored development env only; does not prove full runtime readiness",
+  "gateEnabled": true,
+  "providerCalls": 0,
+  "databaseConnections": 0,
+  "valuesExported": false
+}

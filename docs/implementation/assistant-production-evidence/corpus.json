@@ -1,0 +1,169 @@
+{
+  "checkedAt": "2026-10-18T04:04:48.259Z",
+  "pin": {
+    "project": "summer-unit-95870477",
+    "branch": "br-cold-dew-b3h270wp",
+    "endpoint": "ep-blue-art-b3v3vr4h",
+    "database": "neondb",
+    "snapshot": "snap-snowy-rain-b33t352d"
+  },
+  "identity": "VERIFIED_NEON_API",
+  "readOnly": "on",
+  "snapshot": {
+    "id": "snap-snowy-rain-b33t352d",
+    "sourceBranchId": "br-cold-dew-b3h270wp",
+    "retained": true
+  },
+  "documentStates": [
+    {
+      "status": "UPLOADED",
+      "documents": 0,
+      "publicApproved": 0
+    },
+    {
+      "status": "REVIEWING",
+      "documents": 0,
+      "publicApproved": 0
+    },
+    {
+      "status": "APPROVED",
+      "documents": 0,
+      "publicApproved": 0
+    },
+    {
+      "status": "INDEXED",
+      "documents": 0,
+      "publicApproved": 0
+    },
+    {
+      "status": "DISABLED",
+      "documents": 0,
+      "publicApproved": 0
+    }
+  ],
+  "counts": [
+    {
+      "documents": 0,
+      "versions": 0,
+      "generations": 0,
+      "publications": 0,
+      "chunks": 0,
+      "vectors": 0,
+      "origins": 0,
+      "jobs": 0
+    }
+  ],
+  "generationStates": [],
+  "vectorHealth": [
+    {
+      "total": 0,
+      "dimensionNormTokenValid": 0,
+      "invalid": 0
+    }
+  ],
+  "vectorDimensions": [],
+  "extension": [
+    {
+      "extname": "vector",
+      "extversion": "0.8.6"
+    }
+  ],
+  "vectorColumn": [
+    {
+      "type": "vector(1536)"
+    }
+  ],
+  "eligiblePublishedChunks": [
+    {
+      "documents": 0,
+      "chunks": 0
+    }
+  ],
+  "sourceRights": [
+    {
+      "websiteRights": "UNKNOWN",
+      "indexingRights": "UNKNOWN",
+      "openAiRights": "UNKNOWN",
+      "sources": 12,
+      "withEvidence": 0
+    }
+  ],
+  "destinationLinks": [
+    {
+      "id": "cmv97lcrq0016z09ws0o74lqp",
+      "name": "Cao nguyên đá Đồng Văn",
+      "visibility": "VISIBLE",
+      "sources": 4,
+      "ragOrigins": 0
+    },
+    {
+      "id": "cmv9fcwo1000be89w3yxz3mqu",
+      "name": "Di tích lịch sử Căng Bắc Mê",
+      "visibility": "VISIBLE",
+      "sources": 4,
+      "ragOrigins": 0
+    },
+    {
+      "id": "cmvanjc6p000f7w9wyuydna52",
+      "name": "Chợ tình Khâu Vai",
+      "visibility": "VISIBLE",
+      "sources": 4,
+      "ragOrigins": 0
+    }
+  ],
+  "originLinks": [
+    {
+      "total": 0,
+      "active": 0
+    }
+  ],
+  "jobs": [],
+  "migrations": [
+    {
+      "total": 23,
+      "healthy": 23
+    }
+  ],
+  "fingerprints": {
+    "destination": {
+      "count": 3,
+      "fingerprint": "ac1d69b8d918ab756876b1e918f83789"
+    },
+    "opening_day": {
+      "count": 21,
+      "fingerprint": "c8ac3c37f0924754ee3e5d035510a4a9"
+    },
+    "content_source": {
+      "count": 12,
+      "fingerprint": "d0f2a222c4a1add40ccfe008eedf6a08"
+    },
+    "content_media": {
+      "count": 13,
+      "fingerprint": "82ee3b7a692e31418a53a0120104001a"
+    },
+    "destination_editorial": {
+      "count": 3,
+      "fingerprint": "f789a7154959a45ae76cb7502aa5bad2"
+    },
+    "rag_document": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "rag_chunk": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "rag_chunk_embedding": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    }
+  },
+  "providerCalls": 0,
+  "businessWrites": 0,
+  "authReads": 0,
+  "limits": [
+    "Vector health counts are structural, not semantic quality acceptance.",
+    "SQL eligibility is before score, tokenization, metadata safety and question-context filters.",
+    "No private document prose, storage paths, Auth records or history exported."
+  ]
+}

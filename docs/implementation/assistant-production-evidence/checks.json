@@ -1,0 +1,75 @@
+{
+  "checkedAt": "2026-10-18T04:05:21.977Z",
+  "sourceCommit": "2225030",
+  "branch": "codex/assistant-production-readiness",
+  "nextVersion": "16.3.8",
+  "checks": [
+    {
+      "name": "Relevant Vitest",
+      "command": "npx vitest run --config vitest.config.mts src/modules/ai src/modules/rag-processing src/modules/rag-index src/components/assistant src/app/assistant",
+      "cwd": "apps/web",
+      "status": "PASS",
+      "passed": 919,
+      "failed": 0,
+      "skipped": 89
+    },
+    {
+      "name": "Legacy RAG",
+      "command": "npm run test:rag --workspace web",
+      "status": "PASS",
+      "passed": 56,
+      "failed": 0
+    },
+    {
+      "name": "Root typecheck",
+      "command": "npm run check-types",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "name": "Root build",
+      "command": "npm run build",
+      "status": "PASS",
+      "exitCode": 0,
+      "configuration": "Ignored offline dummy credentials and unreachable localhost DB; no live provider key"
+    },
+    {
+      "name": "Strict premium audit",
+      "status": "EXISTING_FINDINGS",
+      "exitCode": 1,
+      "findings": 30,
+      "unresolved": 12,
+      "violations": 18,
+      "noProductUiChanges": true
+    },
+    {
+      "name": "Production Neon aggregate audit",
+      "command": "node --env-file=<ignored-secret-file> scripts/audit-assistant-production-readonly.mjs --report",
+      "status": "PASS",
+      "transactionReadOnly": "on"
+    },
+    {
+      "name": "Prior receipts",
+      "status": "PASS",
+      "files": 7
+    },
+    {
+      "name": "Read-only table preservation",
+      "status": "PASS"
+    }
+  ],
+  "notRun": [
+    "Full repository Vitest/legacy suites",
+    "Disposable PostgreSQL integration",
+    "Live OpenAI/model/quota/semantic evaluation",
+    "Production conversation/history mutation smoke",
+    "Cleanup route or scheduler dispatch"
+  ],
+  "initialPreparationCorrections": [
+    "Vitest config path resolved twice when --root was used; rerun from apps/web succeeded",
+    "Prisma generate required offline DATABASE_URL fixture; no migration command used",
+    "Draft read-only audit table name/ordering corrected after SQL42P01/42703; final audit succeeded",
+    "Local pure gate TS module imported using CJS default wrapper after named import mismatch"
+  ],
+  "limits": "Skipped/metadata/mock results do not constitute Production end-to-end acceptance."
+}

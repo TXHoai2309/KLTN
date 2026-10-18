@@ -1,0 +1,16 @@
+{
+  "checkedAt": "2026-10-18T04:06:34.222Z",
+  "scannedChangedTextFiles": 17,
+  "credentialMatches": 0,
+  "secretMatchFileNames": [],
+  "jsonFilesValidated": 13,
+  "syntaxCheck": "PASS",
+  "diffCheck": "PASS",
+  "unsafeModeGuard": {
+    "exitCode": 1,
+    "rejectedBeforeDatabase": true
+  },
+  "noEnvironmentFilesInChanges": true,
+  "productSourceChanges": [],
+  "pushMergeDeploy": 0
+}
