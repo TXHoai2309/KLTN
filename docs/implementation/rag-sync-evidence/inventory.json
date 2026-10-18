@@ -1,0 +1,667 @@
+{
+  "checkedAt": "2026-10-18T04:50:30.836Z",
+  "identities": [
+    {
+      "side": "source",
+      "project": "summer-unit-95870477",
+      "branch": "br-aged-hat-b3o6hg9p",
+      "endpoint": "ep-purple-pond-b3xujb8o",
+      "database": "neondb",
+      "verified": true
+    },
+    {
+      "side": "target",
+      "project": "summer-unit-95870477",
+      "branch": "br-cold-dew-b3h270wp",
+      "endpoint": "ep-blue-art-b3v3vr4h",
+      "database": "neondb",
+      "verified": true
+    }
+  ],
+  "readOnly": true,
+  "schemaEqual": true,
+  "ledgerEqual": false,
+  "ledgerVerification": {
+    "healthyBoth": true,
+    "semanticSqlEquivalent": true,
+    "rawChecksumsEqual": false,
+    "lineEndingDifferences": [
+      {
+        "migration": "20261004070249_add_destination_domain",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "280dcf73fe94eae23857342ef028aaeb7735c96f558407c8319fa9e8d2c0505d"
+      },
+      {
+        "migration": "20261005021531_add_culture_content_domain",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "b55847c4f67e9d959a55e1c905b125ac40f2177aefd2bba8f5871993740ac735"
+      },
+      {
+        "migration": "20261005120000_add_favorites",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "f9752507794ffb3b458cca0df8d55043833b84916ee8e0d235fb4c79996daae1"
+      },
+      {
+        "migration": "20261006150000_upgrade_favorite_target_contract",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "24aa835a40a16c4a394998e1e5d8c69b72376e972d284dd1da689c05203abf19"
+      },
+      {
+        "migration": "20261008120000_add_rag_document",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "1a5c21e06dafbf96e4399ea85f1941a096a1096f1c48b009000d36cff3b0de17"
+      },
+      {
+        "migration": "20261009120000_add_rag_index_generations",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "4b23a314bed86d26347c067d6b1bc7e241708d764ce4957c4f7aabed7a953921"
+      },
+      {
+        "migration": "20261010120000_add_rag_index_jobs",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "549c135be20cc8da180a3f5c472b4d6984fde9ccb435e744771ad8ee8f6e8316"
+      },
+      {
+        "migration": "20261011120000_add_qa_guest_identity",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "a283b20a746fad476323ebd3112d986e7ad3fa974d110f42ce7778995f79f9c0"
+      },
+      {
+        "migration": "20261011121000_add_qa_conversations",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "fc0a1d2b7c6e7bf9ed6801bbd3dd2f3108dd1d7749a4ecfca524e788a0766272"
+      },
+      {
+        "migration": "20261011122000_add_qa_abuse_guard",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "ad0f5f68b80398ddb5b2aa372aef307d1185e9f57f029efb0aa4a5404c36e2e5"
+      },
+      {
+        "migration": "20261011123000_add_qa_cleanup_state",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "0534357c3ce4d39c393e4f321a7626154b0a899fc3133cfcbcb844d802595640"
+      },
+      {
+        "migration": "20261012120000_add_qa_destination_context",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "53da23cd3fbe6e2d7e2af23e08180be875ace1b7bf458f4398914c4b2e83f36b"
+      },
+      {
+        "migration": "20261012150000_admin_content_profiles",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "8e2cc80e189a657514d4caad7396e61da5c294a483bf63d5893316f4dcae78ae"
+      },
+      {
+        "migration": "20261014120000_add_destination_editorial",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "3a724d9fd6619004a45cd706d8b05e0404f4bea526d668b0bcf64c1319d8bd7b"
+      },
+      {
+        "migration": "20261015000000_us30_trip_save",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "d1e46aeb42e8f98b5fe2a2893768ed18c8deb3c1aced00f60b46fc098740f593"
+      },
+      {
+        "migration": "20261015160000_us34_trip_favorite",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "d7c4c377711bc9c7c125ae92ca5cc2b929d59985c5baef04366e24062fb54996"
+      },
+      {
+        "migration": "20261017120000_add_qa_conversation_history",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "d6ff0e58daedd119beeb42f88cfbeeb97f3b2d27076f23698544059d835bb9ea"
+      },
+      {
+        "migration": "20261017150000_add_rag_public_qa_permission",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "093a5602fe94a3325e3fb7bdd03c5d45322d105e3e1cbf6aaf5a771542a8e098"
+      },
+      {
+        "migration": "20261017210000_admin_user_management",
+        "sourceLineEnding": "LF",
+        "targetLineEnding": "CRLF",
+        "normalizedSqlSha256": "c0cd3b65b5d5d670ea320c01c60d898caf74cee82f55d8851abff9d15d1798e2"
+      }
+    ]
+  },
+  "healthy": true,
+  "schemaHash": "df759a8bc84f0220da91788f907359071addd53209ae8a0e3d7bd47ceaead7fd",
+  "source": [
+    {
+      "id": "cmv38zef0000106jsom7r8yw4",
+      "name": "US19_03_Checklist_Ha_Giang_TEST.txt",
+      "sourceTitle": "US19 TEST - Checklist Hà Giang",
+      "fileType": "TXT",
+      "status": "DISABLED",
+      "sourceUrl": null,
+      "storagePathDigest": "0eef6477e120e9e67e501cbd50a337b0c2728fcb6e1b97600c3e27b42a85e547",
+      "storagePathLocation": "Private ignored inventory contains exact original pathname",
+      "publicQaApproved": false,
+      "actorProvenancePresent": true,
+      "versions": 1,
+      "generations": [
+        {
+          "id": "cmv395vx7000306leid6sveom",
+          "state": "READY",
+          "model": "text-embedding-3-small",
+          "provider": "openai",
+          "dimensions": 1536,
+          "expectedChunks": 3,
+          "expectedTokens": 1654
+        }
+      ],
+      "chunks": 3,
+      "vectors": 3,
+      "validVectors": 3,
+      "vectorHashMatches": 3,
+      "publication": {
+        "id": "cmv396ax9000406le6gkpcoj9",
+        "generationId": "cmv395vx7000306leid6sveom",
+        "ready": true
+      },
+      "jobs": [
+        {
+          "id": "cmv395n8b000106le1od5dsu1",
+          "status": "COMPLETED",
+          "phase": "COMPLETED"
+        },
+        {
+          "id": "cmv3ac3ey000506l5tak5npfm",
+          "status": "COMPLETED",
+          "phase": "COMPLETED"
+        }
+      ],
+      "origins": 0,
+      "classification": "FIXTURE_EXCLUDE"
+    },
+    {
+      "id": "cmv39a5mx000306jst846ogzz",
+      "name": "US19_02_Van_hoa_Ha_Giang_TEST.docx",
+      "sourceTitle": "US19 TEST - Checklist Hà Giang DOC",
+      "fileType": "DOCX",
+      "status": "DISABLED",
+      "sourceUrl": null,
+      "storagePathDigest": "119dc776e8fa1c23b637a52cb0063f0c4c396e956861eb0354724f54febaeee6",
+      "storagePathLocation": "Private ignored inventory contains exact original pathname",
+      "publicQaApproved": false,
+      "actorProvenancePresent": true,
+      "versions": 1,
+      "generations": [
+        {
+          "id": "cmv39b3yb000806letk1n87e6",
+          "state": "READY",
+          "model": "text-embedding-3-small",
+          "provider": "openai",
+          "dimensions": 1536,
+          "expectedChunks": 6,
+          "expectedTokens": 1701
+        }
+      ],
+      "chunks": 6,
+      "vectors": 6,
+      "validVectors": 6,
+      "vectorHashMatches": 6,
+      "publication": {
+        "id": "cmv39bj9e000906lecmbjkma0",
+        "generationId": "cmv39b3yb000806letk1n87e6",
+        "ready": true
+      },
+      "jobs": [
+        {
+          "id": "cmv39aund000606lem3su75ou",
+          "status": "COMPLETED",
+          "phase": "COMPLETED"
+        }
+      ],
+      "origins": 0,
+      "classification": "FIXTURE_EXCLUDE"
+    },
+    {
+      "id": "cmv39dmdo000306lammu5pp1z",
+      "name": "US19_01_Cao_nguyen_da_Dong_Van_TEST.pdf",
+      "sourceTitle": "US19 TEST - Checklist Hà Giang PDF",
+      "fileType": "PDF",
+      "status": "DISABLED",
+      "sourceUrl": null,
+      "storagePathDigest": "3647190d4a7513faf5fedf6f73b55ae773fd9437b17d3ffdbbca8c6a98870b9d",
+      "storagePathLocation": "Private ignored inventory contains exact original pathname",
+      "publicQaApproved": false,
+      "actorProvenancePresent": true,
+      "versions": 2,
+      "generations": [
+        {
+          "id": "cmv39ees7000d06lejmhcjfll",
+          "state": "BUILDING",
+          "model": "text-embedding-3-small",
+          "provider": "openai",
+          "dimensions": 1536,
+          "expectedChunks": 3,
+          "expectedTokens": 2127
+        },
+        {
+          "id": "cmv3a6lrx000206l566s2nhon",
+          "state": "READY",
+          "model": "text-embedding-3-small",
+          "provider": "openai",
+          "dimensions": 1536,
+          "expectedChunks": 3,
+          "expectedTokens": 2124
+        }
+      ],
+      "chunks": 3,
+      "vectors": 3,
+      "validVectors": 3,
+      "vectorHashMatches": 3,
+      "publication": {
+        "id": "cmv3a709l000306l5aok2kmiz",
+        "generationId": "cmv3a6lrx000206l566s2nhon",
+        "ready": true
+      },
+      "jobs": [
+        {
+          "id": "cmv39e5ws000b06leagktjli8",
+          "status": "COMPLETED",
+          "phase": "COMPLETED"
+        }
+      ],
+      "origins": 0,
+      "classification": "FIXTURE_EXCLUDE"
+    },
+    {
+      "id": "cmv3dho2r0001049wtqlyhsjz",
+      "name": "US19_LOCAL_20261011_May_Da_DEMO.txt",
+      "sourceTitle": "US19 TEST - Checklist Hà Giang",
+      "fileType": "TXT",
+      "status": "DISABLED",
+      "sourceUrl": null,
+      "storagePathDigest": "c14af80d86b64ea3e4204ed274763573ee5a12ae3d691e2e99358ae7cccf8f00",
+      "storagePathLocation": "Private ignored inventory contains exact original pathname",
+      "publicQaApproved": false,
+      "actorProvenancePresent": true,
+      "versions": 1,
+      "generations": [
+        {
+          "id": "cmv3dixbr0007049wmsgl9ukv",
+          "state": "READY",
+          "model": "text-embedding-3-small",
+          "provider": "openai",
+          "dimensions": 1536,
+          "expectedChunks": 5,
+          "expectedTokens": 2844
+        }
+      ],
+      "chunks": 5,
+      "vectors": 5,
+      "validVectors": 5,
+      "vectorHashMatches": 5,
+      "publication": {
+        "id": "cmv3dj5q50008049widhhaxkc",
+        "generationId": "cmv3dixbr0007049wmsgl9ukv",
+        "ready": true
+      },
+      "jobs": [
+        {
+          "id": "cmv3diu0f0005049w7166wwqr",
+          "status": "COMPLETED",
+          "phase": "COMPLETED"
+        },
+        {
+          "id": "cmv3dlq5o000a049wi0bow3r0",
+          "status": "COMPLETED",
+          "phase": "COMPLETED"
+        }
+      ],
+      "origins": 0,
+      "classification": "FIXTURE_EXCLUDE"
+    },
+    {
+      "id": "cmv3q1hth00010k9wf74kmio7",
+      "name": "us21-local-live-qa-test.txt",
+      "sourceTitle": "US21 TEST SYNTHETIC - Ho so QA Sao Tim",
+      "fileType": "TXT",
+      "status": "DISABLED",
+      "sourceUrl": null,
+      "storagePathDigest": "6408bdc1db1623950645e68711151a1d0141015e49e56c0e4dc3b40020ad1540",
+      "storagePathLocation": "Private ignored inventory contains exact original pathname",
+      "publicQaApproved": false,
+      "actorProvenancePresent": true,
+      "versions": 1,
+      "generations": [
+        {
+          "id": "cmv3wvev70005v89wg0fvv4ty",
+          "state": "READY",
+          "model": "text-embedding-3-small",
+          "provider": "openai",
+          "dimensions": 1536,
+          "expectedChunks": 1,
+          "expectedTokens": 242
+        }
+      ],
+      "chunks": 1,
+      "vectors": 1,
+      "validVectors": 1,
+      "vectorHashMatches": 1,
+      "publication": {
+        "id": "cmv3wvmby0006v89ww0ih4yiq",
+        "generationId": "cmv3wvev70005v89wg0fvv4ty",
+        "ready": true
+      },
+      "jobs": [
+        {
+          "id": "cmv3wvbz50003v89wmtall6ko",
+          "status": "COMPLETED",
+          "phase": "COMPLETED"
+        }
+      ],
+      "origins": 0,
+      "classification": "FIXTURE_EXCLUDE"
+    },
+    {
+      "id": "cmv44p0ay0001e09wh30ljam7",
+      "name": "US19_LOCAL_20261011_May_Da_DEMO.txt",
+      "sourceTitle": "US19 TEST - Checklist Hà Giang",
+      "fileType": "TXT",
+      "status": "DISABLED",
+      "sourceUrl": null,
+      "storagePathDigest": "b6ac50fa78af6213de79575cb036c6918e1c1f397357136e563c0f8cc20b33c1",
+      "storagePathLocation": "Private ignored inventory contains exact original pathname",
+      "publicQaApproved": false,
+      "actorProvenancePresent": true,
+      "versions": 1,
+      "generations": [
+        {
+          "id": "cmv44plrc0007e09w1nk9t8kp",
+          "state": "READY",
+          "model": "text-embedding-3-small",
+          "provider": "openai",
+          "dimensions": 1536,
+          "expectedChunks": 5,
+          "expectedTokens": 2844
+        }
+      ],
+      "chunks": 5,
+      "vectors": 5,
+      "validVectors": 5,
+      "vectorHashMatches": 5,
+      "publication": {
+        "id": "cmv44ptl80008e09wlohf4vjd",
+        "generationId": "cmv44plrc0007e09w1nk9t8kp",
+        "ready": true
+      },
+      "jobs": [
+        {
+          "id": "cmv44pixb0005e09w0z38ta6v",
+          "status": "COMPLETED",
+          "phase": "COMPLETED"
+        }
+      ],
+      "origins": 0,
+      "classification": "FIXTURE_EXCLUDE"
+    },
+    {
+      "id": "cmv4nuy0r000106la7lawevfe",
+      "name": "US19_02_Van_hoa_Ha_Giang_TEST.docx",
+      "sourceTitle": "US19 TEST - Checklist Hà Giang",
+      "fileType": "DOCX",
+      "status": "DISABLED",
+      "sourceUrl": null,
+      "storagePathDigest": "2a1cdfd1ab3cc3f65d331988d81648ca2810f4ccefa32ebf51f73019fba6ccf5",
+      "storagePathLocation": "Private ignored inventory contains exact original pathname",
+      "publicQaApproved": false,
+      "actorProvenancePresent": true,
+      "versions": 1,
+      "generations": [
+        {
+          "id": "cmv4nwdru000306l5smusd09q",
+          "state": "READY",
+          "model": "text-embedding-3-small",
+          "provider": "openai",
+          "dimensions": 1536,
+          "expectedChunks": 6,
+          "expectedTokens": 1701
+        }
+      ],
+      "chunks": 6,
+      "vectors": 6,
+      "validVectors": 6,
+      "vectorHashMatches": 6,
+      "publication": {
+        "id": "cmv4nwtf1000406l5tajh5s89",
+        "generationId": "cmv4nwdru000306l5smusd09q",
+        "ready": true
+      },
+      "jobs": [
+        {
+          "id": "cmv4nw4l4000106l5pgpuhbso",
+          "status": "COMPLETED",
+          "phase": "COMPLETED"
+        }
+      ],
+      "origins": 0,
+      "classification": "FIXTURE_EXCLUDE"
+    },
+    {
+      "id": "cmv6wcxb50003zc9wh1vlwv5s",
+      "name": "US19_01_Cao_nguyen_da_Dong_Van_TEST.pdf",
+      "sourceTitle": "US19 TEST - Checklist Hà Giang",
+      "fileType": "PDF",
+      "status": "DISABLED",
+      "sourceUrl": null,
+      "storagePathDigest": "18dbabd7b58f9bb41924e4fe876d6e4daa085f64578a39161eaf41b98404dd21",
+      "storagePathLocation": "Private ignored inventory contains exact original pathname",
+      "publicQaApproved": false,
+      "actorProvenancePresent": true,
+      "versions": 1,
+      "generations": [
+        {
+          "id": "cmv6wf9qt0009zc9wwny7yn6i",
+          "state": "READY",
+          "model": "text-embedding-3-small",
+          "provider": "openai",
+          "dimensions": 1536,
+          "expectedChunks": 3,
+          "expectedTokens": 2124
+        }
+      ],
+      "chunks": 3,
+      "vectors": 3,
+      "validVectors": 3,
+      "vectorHashMatches": 3,
+      "publication": {
+        "id": "cmv6wffx2000azc9wkn6lrki6",
+        "generationId": "cmv6wf9qt0009zc9wwny7yn6i",
+        "ready": true
+      },
+      "jobs": [
+        {
+          "id": "cmv6wf6cy0007zc9wgqd25th4",
+          "status": "COMPLETED",
+          "phase": "COMPLETED"
+        }
+      ],
+      "origins": 0,
+      "classification": "FIXTURE_EXCLUDE"
+    },
+    {
+      "id": "cmvapg3l0001j7w9w61egpl01",
+      "name": "Cao_nguyen_da_Dong_Van_RAG_URL_day_du_2026.docx",
+      "sourceTitle": "Hồ sơ dữ liệu Cao nguyên đá Đồng Văn – RAG 2026",
+      "fileType": "DOCX",
+      "status": "INDEXED",
+      "sourceUrl": null,
+      "storagePathDigest": "4f92cbd40731c21d6aa527286d2a565e392ee622af2d36166d4ba9c5fbf56a77",
+      "storagePathLocation": "Private ignored inventory contains exact original pathname",
+      "publicQaApproved": true,
+      "actorProvenancePresent": true,
+      "versions": 1,
+      "generations": [
+        {
+          "id": "cmvaq3wc0001t7w9wm3aomjm4",
+          "state": "READY",
+          "model": "text-embedding-3-small",
+          "provider": "openai",
+          "dimensions": 1536,
+          "expectedChunks": 51,
+          "expectedTokens": 13584
+        }
+      ],
+      "chunks": 51,
+      "vectors": 51,
+      "validVectors": 51,
+      "vectorHashMatches": 51,
+      "publication": {
+        "id": "cmvaq4a94001u7w9wujzyxer1",
+        "generationId": "cmvaq3wc0001t7w9wm3aomjm4",
+        "ready": true
+      },
+      "jobs": [
+        {
+          "id": "cmvapgiq8001n7w9whphsao5q",
+          "status": "COMPLETED",
+          "phase": "COMPLETED"
+        }
+      ],
+      "origins": 0,
+      "classification": "REAL_DOCUMENT_REVIEW_REQUIRED"
+    },
+    {
+      "id": "cmvc530ki0001ik9wn3ynioi6",
+      "name": "Cang_Bac_Me_Ho_so_du_lieu_RAG_nguon_URL_day_du_2026.docx",
+      "sourceTitle": "Hồ sơ RAG Căng Bắc Mê 2026",
+      "fileType": "DOCX",
+      "status": "INDEXED",
+      "sourceUrl": null,
+      "storagePathDigest": "093ce9cf01f97f05cc5b62166aa73d7ceb06edad40a527b1f57d9bc10ebae541",
+      "storagePathLocation": "Private ignored inventory contains exact original pathname",
+      "publicQaApproved": true,
+      "actorProvenancePresent": true,
+      "versions": 1,
+      "generations": [
+        {
+          "id": "cmvc53rzd0008ik9w236wy37w",
+          "state": "READY",
+          "model": "text-embedding-3-small",
+          "provider": "openai",
+          "dimensions": 1536,
+          "expectedChunks": 35,
+          "expectedTokens": 7815
+        }
+      ],
+      "chunks": 35,
+      "vectors": 35,
+      "validVectors": 35,
+      "vectorHashMatches": 35,
+      "publication": {
+        "id": "cmvc540l80009ik9wvpmcqlhk",
+        "generationId": "cmvc53rzd0008ik9w236wy37w",
+        "ready": true
+      },
+      "jobs": [
+        {
+          "id": "cmvc53opn0006ik9wiaotdrdd",
+          "status": "COMPLETED",
+          "phase": "COMPLETED"
+        }
+      ],
+      "origins": 0,
+      "classification": "REAL_DOCUMENT_REVIEW_REQUIRED"
+    },
+    {
+      "id": "cmvc55mhx000bik9wpn3gtlmn",
+      "name": "Khau_Vai_RAG_2026.docx",
+      "sourceTitle": "Hồ sơ RAG Chợ tình Khâu Vai 2026",
+      "fileType": "DOCX",
+      "status": "INDEXED",
+      "sourceUrl": null,
+      "storagePathDigest": "487af8ca81a481ae2f1173b29e561e8f67d58686dfadd8ba5e46aafc457bcd0e",
+      "storagePathLocation": "Private ignored inventory contains exact original pathname",
+      "publicQaApproved": true,
+      "actorProvenancePresent": true,
+      "versions": 1,
+      "generations": [
+        {
+          "id": "cmvc562ru000iik9w0un4vcp3",
+          "state": "READY",
+          "model": "text-embedding-3-small",
+          "provider": "openai",
+          "dimensions": 1536,
+          "expectedChunks": 51,
+          "expectedTokens": 10225
+        }
+      ],
+      "chunks": 51,
+      "vectors": 51,
+      "validVectors": 51,
+      "vectorHashMatches": 51,
+      "publication": {
+        "id": "cmvc56d4h000jik9wvdgdomnf",
+        "generationId": "cmvc562ru000iik9w0un4vcp3",
+        "ready": true
+      },
+      "jobs": [
+        {
+          "id": "cmvc55znv000gik9wb62ffgh1",
+          "status": "COMPLETED",
+          "phase": "COMPLETED"
+        }
+      ],
+      "origins": 0,
+      "classification": "REAL_DOCUMENT_REVIEW_REQUIRED"
+    }
+  ],
+  "target": [],
+  "counts": {
+    "source": {
+      "rag_document": 11,
+      "rag_content_version": 12,
+      "rag_index_generation": 12,
+      "rag_chunk": 169,
+      "rag_chunk_embedding": 169,
+      "rag_index_publication": 11,
+      "rag_index_job": 13,
+      "rag_domain_origin": 0
+    },
+    "target": {
+      "rag_document": 0,
+      "rag_content_version": 0,
+      "rag_index_generation": 0,
+      "rag_chunk": 0,
+      "rag_chunk_embedding": 0,
+      "rag_index_publication": 0,
+      "rag_index_job": 0,
+      "rag_domain_origin": 0
+    }
+  },
+  "extensions": [
+    {
+      "extname": "postgis",
+      "extversion": "3.6.4"
+    },
+    {
+      "extname": "vector",
+      "extversion": "0.8.6"
+    }
+  ],
+  "sourceWrites": 0,
+  "productionWrites": 0,
+  "openAiCalls": 0,
+  "blobOperations": 0
+}

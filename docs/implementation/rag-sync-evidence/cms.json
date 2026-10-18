@@ -1,0 +1,120 @@
+{
+  "checkedAt": "2026-10-18T04:53:41.739Z",
+  "browserSmoke": "BLOCKED",
+  "browserReason": "CUA Local browser use is disabled in Work settings",
+  "adminAuthenticatedListDetailDownload": "UNVERIFIED",
+  "guestReads": [
+    {
+      "path": "/api/admin/rag-documents",
+      "method": "GET",
+      "authenticated": false,
+      "status": 401,
+      "cacheControl": "private, no-store",
+      "redirect": null,
+      "bodyBytes": 108,
+      "errorCode": "UNAUTHENTICATED",
+      "returnedSuccess": false,
+      "documentDataExposed": false
+    },
+    {
+      "path": "/api/admin/rag-documents/cmvapg3l0001j7w9w61egpl01",
+      "method": "GET",
+      "authenticated": false,
+      "status": 401,
+      "cacheControl": "private, no-store",
+      "redirect": null,
+      "bodyBytes": 108,
+      "errorCode": "UNAUTHENTICATED",
+      "returnedSuccess": false,
+      "documentDataExposed": false
+    },
+    {
+      "path": "/api/admin/rag-documents/cmvapg3l0001j7w9w61egpl01/file",
+      "method": "GET",
+      "authenticated": false,
+      "status": 401,
+      "cacheControl": "private, no-store",
+      "redirect": null,
+      "bodyBytes": 108,
+      "errorCode": "UNAUTHENTICATED",
+      "returnedSuccess": false,
+      "documentDataExposed": false
+    },
+    {
+      "path": "/api/admin/rag-documents/cmvc530ki0001ik9wn3ynioi6",
+      "method": "GET",
+      "authenticated": false,
+      "status": 401,
+      "cacheControl": "private, no-store",
+      "redirect": null,
+      "bodyBytes": 108,
+      "errorCode": "UNAUTHENTICATED",
+      "returnedSuccess": false,
+      "documentDataExposed": false
+    },
+    {
+      "path": "/api/admin/rag-documents/cmvc530ki0001ik9wn3ynioi6/file",
+      "method": "GET",
+      "authenticated": false,
+      "status": 401,
+      "cacheControl": "private, no-store",
+      "redirect": null,
+      "bodyBytes": 108,
+      "errorCode": "UNAUTHENTICATED",
+      "returnedSuccess": false,
+      "documentDataExposed": false
+    },
+    {
+      "path": "/api/admin/rag-documents/cmvc55mhx000bik9wpn3gtlmn",
+      "method": "GET",
+      "authenticated": false,
+      "status": 401,
+      "cacheControl": "private, no-store",
+      "redirect": null,
+      "bodyBytes": 108,
+      "errorCode": "UNAUTHENTICATED",
+      "returnedSuccess": false,
+      "documentDataExposed": false
+    },
+    {
+      "path": "/api/admin/rag-documents/cmvc55mhx000bik9wpn3gtlmn/file",
+      "method": "GET",
+      "authenticated": false,
+      "status": 401,
+      "cacheControl": "private, no-store",
+      "redirect": null,
+      "bodyBytes": 108,
+      "errorCode": "UNAUTHENTICATED",
+      "returnedSuccess": false,
+      "documentDataExposed": false
+    },
+    {
+      "path": "/admin/rag",
+      "method": "GET",
+      "authenticated": false,
+      "status": 307,
+      "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+      "redirect": "/login?returnTo=%2Fadmin%2Frag",
+      "bodyBytes": 14273
+    },
+    {
+      "path": "/assistant",
+      "method": "GET",
+      "authenticated": false,
+      "status": 200,
+      "cacheControl": "private, no-cache, no-store, max-age=0, must-revalidate",
+      "redirect": null,
+      "bodyBytes": 46172,
+      "unavailableNotice": true,
+      "submitDisabled": true
+    }
+  ],
+  "guestPrivateApiAccessDenied": true,
+  "sessionCookiesRead": false,
+  "authWrites": 0,
+  "requestMethods": [
+    "GET"
+  ],
+  "mutations": 0,
+  "limitations": "Guest denials and SQL/SDK validation do not substitute for an authenticated Admin CMS browser test or deployed Blob credential verification."
+}

@@ -2591,3 +2591,51 @@ Audit, task-owned file list, limits and manual procedure:
   - `git diff --check` PASSED with 0 warnings/errors.
   - No merge to master, no push, no deployment, no database migration changes.
   - [Report](implementation/global-guest-auth-ux-v2.md).
+
+### 2026-10-18 — RAG Production corpus migration preparation / backup blocker
+
+- Worktree codex/rag-production-sync from0f0426a7; other sessions/checkout preserved.
+  Verified both explicit SYNC_* URLs through Neon project/branch/endpoint metadata.
+  Read-only SQL shows schema equality and23 healthy migrations each;19 raw checksum
+  differences match exact LF/CRLF variants, no ledger/migration rewrite.
+- Development11 docs:8 DISABLED fixtures excluded,3 real DOCX technically ready.
+  Verified3 private Blob originals, MIME/size/hash, owner-original equality and
+  anonymous403; deterministic extraction/chunk replay,137 actual binary vectors,
+  all identity/hash/token/provenance checks. Same Blob store, no copy/reembedding.
+  Manifest286 inserts,0 updates/deletes/jobs/origins; publicQaApproved=false.
+- Fresh snapshot creation rejected SNAPSHOTS_LIMIT_EXCEEDED. Existing snapshot
+  predates Destination sync; retained unchanged. Await current backup method
+  selection; no Production import/write, no new branch or restore/reset performed.
+  CMS smoke blocked by Browser use disabled; owner plans to enable it.
+- Migration28/28 tests (isolated PGlite/pgvector, not native Neon concurrency),
+  CMS RAG56/56. Relevant Vitest initial143 PASS/1 timeout/22 SKIP; isolated rerun
+  PASS. Root typecheck/build PASS. Native Docker engine unresponsive; full repo
+  and Production write tests not run. No paid OpenAI request/cost, push/merge/deploy.
+- Production all protected-table fingerprints unchanged, RAG still0. Source RAG
+  unchanged; Development Favorite/idempotency changed concurrently outside this
+  read-only audit.7 previous receipts hash-match. Assistant gate untouched.
+- RAG_PRODUCTION_SYNC=BLOCKED before write. [Report](implementation/rag-development-production-sync.md),
+  [evidence](implementation/rag-sync-evidence/),
+  [story](stories/RAG-DEVELOPMENT-PRODUCTION-SYNC.md).
+
+### 2026-10-18 — RAG owner-authorized direct Production apply
+
+- Owner waived new backup for exact three-document import after quota refusal.
+  CURRENT_PRODUCTION_BACKUP=WAIVED_BY_OWNER;
+  RECOVERY_POINT_AFTER_DESTINATION_IMPORT=NOT_AVAILABLE. Old snapshot/receipts kept;
+  no branch/reset/restore/endpoint/env change. Default backup gate remains; explicit
+  CLI waiver binds exact scope/hash/verified target, all other preflight gates kept.
+- Refreshed identity/schema/23 migrations/Blob originals/137 actual vectors. Manifest
+  ff1f1fcc64e6421b6f2a6b9fbc4a87344795b3abbeb95db7c9e66a1c92f1d519.
+  COMMIT_CONFIRMED: 286 INSERT, 0 UPDATE/DELETE. Independent read-only post-import
+  and post-replay PASS, exact replay 0/0/0 writes. All 31 protected fingerprints
+  match. Three docs INDEXED/current READY, publicQaApproved=false, 137 chunks/vectors,
+  3 publications, no fixtures/jobs/origins/provider calls/Blob copies.
+- Migration39/39, RAG56/56, root typecheck/build PASS (cached offline). No full suite,
+  native Neon concurrency or post-commit restore claim. CMS browser BLOCKED by
+  disabled Browser use; guest private list/detail/file GETs401; authenticated Admin
+  and deployed Blob credential remain unverified.
+- RAG_PRODUCTION_SYNC=PASS for corpus only. RIGHTS_REVIEW_REQUIRED and Assistant
+  closed remain. No commit/push/merge/deploy. Current
+  [report](implementation/rag-development-production-sync.md) and
+  [final summary](implementation/rag-sync-evidence/final-summary.json).
