@@ -1396,9 +1396,6 @@
    ========================================================================== */
 .assistant-bottom-dock {
   flex-shrink: 0;
-  z-index: 20;
-.assistant-bottom-dock {
-  flex-shrink: 0;
   position: relative;
   z-index: 20;
   background: linear-gradient(180deg, rgba(245, 248, 246, 0) 0%, rgba(245, 248, 246, 0.88) 18%, #f5f8f6 100%);
