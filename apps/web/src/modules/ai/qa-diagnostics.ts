@@ -9,6 +9,8 @@ type Issues = readonly { code: string; path: readonly PropertyKey[] }[];
 type Origin = { stage: QaStage; category: QaFailureCategory; issues?: Issues };
 export type QaRetrievalReason = "NO_APPROVED_SOURCES" | "NO_CANDIDATES" | "ALL_CANDIDATES_FILTERED" | "EVIDENCE_RETRIEVED";
 export type QaSynthesisRejection = "GATE_REJECTED" | "UNENTAILED_CLAIM" | "ASPECT_COVERAGE" | "SUPPORT_REFERENCE" | "NUMERIC_FIDELITY" | "CLAIM_PARTITION" | "UNJUSTIFIED_CITATION" | "ASPECT_SUPPORT";
+export type QaProviderPhase = "ASSESSMENT" | "GENERATION" | "SYNTHESIS_VERIFICATION";
+export type QaProviderFailureReason = "PROVIDER_TIMEOUT" | "REQUEST_DEADLINE" | "REQUEST_ABORT" | "NETWORK_ERROR" | "UPSTREAM_HTTP";
 
 export type QaDiagnosticEvent = {
   correlationId: string; stage: QaStage; event: "STAGE" | "FAILURE";
@@ -34,8 +36,14 @@ export type QaDiagnosticEvent = {
   actualModel?: string;
   elapsedMs?: number;
   providerElapsedMs?: number;
+  providerPhase?: QaProviderPhase;
+  providerFailureReason?: QaProviderFailureReason;
+  timeoutReason?: "PROVIDER_TIMEOUT" | "REQUEST_DEADLINE" | "REQUEST_ABORT";
+  configuredTimeoutMs?: number;
+  reasoningEffort?: "medium" | "none";
+  reasoningTokens?: number;
 };
-type ProviderMetadata = Pick<QaDiagnosticEvent, "provider" | "httpStatus" | "requestId" | "finishReason" | "promptTokens" | "completionTokens" | "totalTokens" | "requestedModel" | "actualModel" | "providerElapsedMs">;
+type ProviderMetadata = Pick<QaDiagnosticEvent, "provider" | "httpStatus" | "requestId" | "finishReason" | "promptTokens" | "completionTokens" | "totalTokens" | "requestedModel" | "actualModel" | "providerElapsedMs" | "providerPhase" | "providerFailureReason" | "timeoutReason" | "configuredTimeoutMs" | "reasoningEffort" | "reasoningTokens">;
 type Context = {
   sink: (event: QaDiagnosticEvent) => void;
   state: Pick<QaDiagnosticEvent, "correlationId" | "stage" | "embeddingInvoked" | "generationInvoked" | "retrievedChunks" | "eligibleChunks" | "candidateChunks" | "candidatesBeforeThreshold" | "candidatesAfterThreshold" | "topSimilarityScore" | "minScore" | "contextType" | "firstZeroStage" | "allowlistCount" | "hasDongVanDocument" | "retrievalReason">;
@@ -53,19 +61,14 @@ function emit(event: QaDiagnosticEvent) { try {
   if (active) active.sink({ ...event, elapsedMs: Math.min(1_000_000, Math.max(0, Date.now() - active.startedAt)) });
 } catch { /* Diagnostics never change operation semantics. */ } }
 
-/** Temporary diagnostics: local development only; no public response fields. */
+/** Fixed enum/numeric telemetry in every runtime; no prompts or response text. */
 export function createQaDiagnostics(options: { nodeEnv?: string; vercelEnv?: string; sink?: (event: QaDiagnosticEvent) => void }) {
-  const enabled = options.nodeEnv === "development" && (!options.vercelEnv || options.vercelEnv === "development");
+  const enabled = options.nodeEnv === "development" || options.nodeEnv === "production";
   return { run<T>(work: () => Promise<T>): Promise<T> {
     if (!enabled) return work();
     return context.run({
       sink: options.sink ?? (event => {
         console.info("US21_QA_DIAGNOSTIC", JSON.stringify(event));
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const fs = require("node:fs");
-          fs.appendFileSync("C:/Users/User/.gemini/antigravity-ide/brain/ffe5930d-65bf-48c5-9020-8e19420a14c0/scratch/qa_live_log.jsonl", JSON.stringify(event) + "\n");
-        } catch { /* ignore in non-local environments */ }
       }),
       failed: false,
       startedAt: Date.now(),
@@ -141,10 +144,10 @@ export function qaStage(
 }
 // Model metadata is diagnostic only. Never copy arbitrary provider strings.
 const safeModel = (value: unknown): value is string => typeof value === "string" && value.length <= 100 && /^(?:gpt-\d|text-embedding-\d)[a-zA-Z0-9._-]*$/u.test(value);
-export function qaProviderInvoked(provider: "embedding" | "generation", requestedModel?: string) {
+export function qaProviderInvoked(provider: "embedding" | "generation", requestedModel?: string, details?: Pick<ProviderMetadata, "providerPhase" | "configuredTimeoutMs" | "reasoningEffort">) {
   const active = context.getStore(); if (!active) return;
   active.state[provider === "embedding" ? "embeddingInvoked" : "generationInvoked"] = true;
-  const metadata = { provider, ...(safeModel(requestedModel) ? { requestedModel } : {}) };
+  const metadata = { provider, ...(safeModel(requestedModel) ? { requestedModel } : {}), ...details };
   // Reset actual-model/usage data from the previous call of the same provider.
   active.metadata[provider] = metadata;
   active.providerStartedAt[provider] = Date.now();
@@ -169,10 +172,21 @@ export function qaProviderMetadata(provider: "embedding" | "generation", respons
     for (const [key, target] of [["prompt_tokens", "promptTokens"], ["completion_tokens", "completionTokens"], ["total_tokens", "totalTokens"]] as const) {
       const value = p.usage?.[key]; if (typeof value === "number" && Number.isSafeInteger(value) && value >= 0 && value <= 1_000_000) event[target] = value;
     }
+    const reasoning = (p.usage?.completion_tokens_details as { reasoning_tokens?: unknown } | undefined)?.reasoning_tokens;
+    if (typeof reasoning === "number" && Number.isSafeInteger(reasoning) && reasoning >= 0 && reasoning <= 1_000_000) event.reasoningTokens = reasoning;
   }
-  const { httpStatus, requestId, finishReason, promptTokens, completionTokens, totalTokens, requestedModel, actualModel, providerElapsedMs } = event;
-  active.metadata[provider] = { provider, httpStatus, requestId, finishReason, promptTokens, completionTokens, totalTokens, requestedModel, actualModel, providerElapsedMs };
+  const { httpStatus, requestId, finishReason, promptTokens, completionTokens, totalTokens, requestedModel, actualModel, providerElapsedMs, providerPhase, configuredTimeoutMs, reasoningEffort, reasoningTokens } = event;
+  active.metadata[provider] = { provider, httpStatus, requestId, finishReason, promptTokens, completionTokens, totalTokens, requestedModel, actualModel, providerElapsedMs, providerPhase, configuredTimeoutMs, reasoningEffort, reasoningTokens };
   emit(event);
+}
+export function qaProviderFailure(reason: QaProviderFailureReason) {
+  const active = context.getStore(); if (!active) return;
+  const metadata = active.metadata.generation;
+  if (!metadata) return;
+  metadata.providerFailureReason = reason;
+  if (reason === "PROVIDER_TIMEOUT" || reason === "REQUEST_DEADLINE" || reason === "REQUEST_ABORT") metadata.timeoutReason = reason;
+  const started = active.providerStartedAt.generation;
+  if (started !== undefined) metadata.providerElapsedMs = Math.min(1_000_000, Math.max(0, Date.now() - started));
 }
 export function qaOrigin<T>(error: T, stage: QaStage, category: QaFailureCategory, issues?: Issues): T {
   if (context.getStore() && error && typeof error === "object") origins.set(error, { stage, category, issues });

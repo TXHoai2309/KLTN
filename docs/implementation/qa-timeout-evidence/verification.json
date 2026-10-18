@@ -1,0 +1,199 @@
+{
+  "checkedAt": "2026-10-18T08:46:05.217Z",
+  "baseline": "42210c8",
+  "status": "OFFLINE_AND_LOCAL_LIVE_VERIFIED_PRODUCTION_RELEASE_PENDING",
+  "ROOT_CAUSE": "Independent synthesis verifier used 10000ms cap; errors were conflated as generation PROVIDER_FAILURE",
+  "TIMEOUT_CAUSE_CONFIRMED": "CONTROLLED_REGRESSION_YES_HISTORICAL_INCIDENT_PROBABLE",
+  "FAILED_PROVIDER_PHASE": "SYNTHESIS_VERIFICATION",
+  "OLD_TIMEOUT_MS": 10000,
+  "NEW_TIMEOUT_MS": 25000,
+  "TOTAL_REQUEST_BUDGET": {
+    "providerWorkMs": 40000,
+    "persistenceAcknowledgementMs": 58000,
+    "vercelMaxDurationMs": 60000,
+    "frontendTimeoutMs": 70000,
+    "leaseMs": 90000
+  },
+  "REGRESSION_TESTS": {
+    "beforeFix": {
+      "pass": 0,
+      "fail": 2,
+      "observedCode": "AI_UNAVAILABLE",
+      "httpStatus": 503,
+      "validVerifierDelayMs": [
+        10500,
+        12000
+      ]
+    },
+    "focusedPass": 124,
+    "fullVitestPass": 2328,
+    "fullVitestSkip": 134,
+    "legacyPass": 336,
+    "fail": 0,
+    "typecheck": "PASS",
+    "build": "PASS_OFFLINE",
+    "nativePostgres": "GATED_NOT_RUN"
+  },
+  "LOCAL_SMOKE": {
+    "mode": "LOCAL_PIPELINE_PRODUCTION_READ_ONLY_MEMORY_PERSISTENCE",
+    "outcomes": [
+      {
+        "questionIndex": 1,
+        "httpStatus": 200,
+        "status": "ANSWERED",
+        "citationCount": 3,
+        "elapsedMs": 25848
+      },
+      {
+        "questionIndex": 2,
+        "httpStatus": 200,
+        "status": "ANSWERED",
+        "citationCount": 3,
+        "elapsedMs": 25637
+      }
+    ],
+    "providerCalls": 8,
+    "calls": [
+      {
+        "questionIndex": 1,
+        "phase": "embedding",
+        "requestedModel": "text-embedding-3-small",
+        "httpStatus": 200,
+        "usage": {
+          "promptTokens": 29,
+          "totalTokens": 29
+        },
+        "actualModel": "text-embedding-3-small",
+        "elapsedMs": 1387
+      },
+      {
+        "questionIndex": 1,
+        "phase": "qa_source_assessment",
+        "requestedModel": "gpt-6.1-sol",
+        "reasoningEffort": "medium",
+        "httpStatus": 200,
+        "usage": {
+          "promptTokens": 4045,
+          "completionTokens": 258,
+          "totalTokens": 4303,
+          "reasoningTokens": 84
+        },
+        "actualModel": "gpt-6.1-sol",
+        "elapsedMs": 6370
+      },
+      {
+        "questionIndex": 1,
+        "phase": "grounded_qa",
+        "requestedModel": "gpt-6.1-sol",
+        "reasoningEffort": "medium",
+        "httpStatus": 200,
+        "usage": {
+          "promptTokens": 2121,
+          "completionTokens": 358,
+          "totalTokens": 2479,
+          "reasoningTokens": 107
+        },
+        "actualModel": "gpt-6.1-sol",
+        "elapsedMs": 10002
+      },
+      {
+        "questionIndex": 1,
+        "phase": "qa_claim_verification",
+        "requestedModel": "gpt-6.1-sol",
+        "reasoningEffort": "medium",
+        "httpStatus": 200,
+        "usage": {
+          "promptTokens": 3559,
+          "completionTokens": 238,
+          "totalTokens": 3797,
+          "reasoningTokens": 0
+        },
+        "actualModel": "gpt-6.1-sol",
+        "elapsedMs": 5754
+      },
+      {
+        "questionIndex": 2,
+        "phase": "embedding",
+        "requestedModel": "text-embedding-3-small",
+        "httpStatus": 200,
+        "usage": {
+          "promptTokens": 23,
+          "totalTokens": 23
+        },
+        "actualModel": "text-embedding-3-small",
+        "elapsedMs": 919
+      },
+      {
+        "questionIndex": 2,
+        "phase": "qa_source_assessment",
+        "requestedModel": "gpt-6.1-sol",
+        "reasoningEffort": "medium",
+        "httpStatus": 200,
+        "usage": {
+          "promptTokens": 3098,
+          "completionTokens": 324,
+          "totalTokens": 3422,
+          "reasoningTokens": 177
+        },
+        "actualModel": "gpt-6.1-sol",
+        "elapsedMs": 9464
+      },
+      {
+        "questionIndex": 2,
+        "phase": "grounded_qa",
+        "requestedModel": "gpt-6.1-sol",
+        "reasoningEffort": "medium",
+        "httpStatus": 200,
+        "usage": {
+          "promptTokens": 1925,
+          "completionTokens": 213,
+          "totalTokens": 2138,
+          "reasoningTokens": 0
+        },
+        "actualModel": "gpt-6.1-sol",
+        "elapsedMs": 6209
+      },
+      {
+        "questionIndex": 2,
+        "phase": "qa_claim_verification",
+        "requestedModel": "gpt-6.1-sol",
+        "reasoningEffort": "medium",
+        "httpStatus": 200,
+        "usage": {
+          "promptTokens": 2785,
+          "completionTokens": 251,
+          "totalTokens": 3036,
+          "reasoningTokens": 18
+        },
+        "actualModel": "gpt-6.1-sol",
+        "elapsedMs": 6634
+      }
+    ],
+    "correlationIds": [
+      "1a931580-0cec-49a5-8265-aae4646469ec",
+      "10981822-0860-4179-acc0-931c5f7db5e1"
+    ],
+    "databaseWrites": 0,
+    "authWrites": 0,
+    "automaticRetries": 0
+  },
+  "PRODUCTION_SMOKE": "PENDING_READ_ONLY_DEPLOY_CHECKS_NO_MORE_PAID_ASKS",
+  "OPENAI_COST": {
+    "chatInputTokens": 17533,
+    "chatCompletionTokens": 1642,
+    "embeddingTokens": 52,
+    "estimatedUsd": 0.051487040000000005,
+    "basis": "Uncached public token rates; actual invoice/cached discount not verified"
+  },
+  "REMAINING_RISKS": [
+    "Historical exception unavailable; same-code timeout mechanism reproduced",
+    "No p95/p99 or effort quality A/B conclusion",
+    "No deployed ask/durable conversation mutation under no-DB-write constraint",
+    "Provider tail latency or DB stalls can still fail or remain UNKNOWN"
+  ],
+  "sourceGatesPreserved": true,
+  "abuseLimitsChanged": false,
+  "modelChanged": false,
+  "reasoningEffort": "medium",
+  "schemaChanged": false
+}

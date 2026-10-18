@@ -105,7 +105,7 @@ function validateCandidate(output: unknown, input: QaGenerationInput, synthesis:
 
 export function createQaGenerator(options: QaProviderOptions = {}): QaGenerator {
   // Answer composition and the independent verifier share the owner-selected model.
-  const provider = createQaJsonProvider({ model: QA_ANSWER_MODEL, ...options });
+  const provider = createQaJsonProvider({ model: QA_ANSWER_MODEL, ...options, providerPhase: "GENERATION" });
   const verifier = createQaSynthesisVerifier(options);
   return { async generate(input) {
     qaStage("GENERATION_PREFLIGHT");

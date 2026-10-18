@@ -136,7 +136,7 @@ export function validateQaAssessment(output: unknown, input: QaGenerationInput):
 }
 
 export function createQaAssessor(options: QaProviderOptions = {}): QaAssessor {
-  const provider = createQaJsonProvider({ timeoutMs: 15_000, ...options });
+  const provider = createQaJsonProvider({ timeoutMs: 15_000, ...options, providerPhase: "ASSESSMENT" });
   return { async assess(input) {
     qaStage("ASSESSMENT_STARTED"); assertQaEvidenceInput(input);
     if (!input.evidence.length) throw invalid();

@@ -4,6 +4,7 @@ import { assertQaSameOrigin } from "./qa-principal";
 import type { QaPrincipal } from "./qa-runtime-contract";
 import type { QaCompletedTurn } from "./qa-contract";
 import { qaReportFailure, qaStage, type QaDiagnostics } from "./qa-diagnostics";
+import { withQaRequestBudget } from "./qa-request-budget";
 
 export type QaHttpDependencies = {
   enabled: () => boolean;
@@ -65,7 +66,7 @@ export function createQaHttpHandlers(deps: QaHttpDependencies) {
   };
   return {
     async ask(request: Request) {
-      const work = async () => {
+      const work = () => withQaRequestBudget(request.signal, async signal => {
       try {
         guard(); assertQaSameOrigin(request);
         const rawKey = request.headers.get("Idempotency-Key");
@@ -76,7 +77,7 @@ export function createQaHttpHandlers(deps: QaHttpDependencies) {
         qaStage("REQUEST_ACCEPTED");
         const principal = await readOnly(() => deps.resolve(request.headers));
         qaStage("PRINCIPAL_RESOLVED");
-        const result = await deps.ask(principal, key.data, input, request.signal);
+        const result = await deps.ask(principal, key.data, input, signal);
         qaStage("HTTP_RESPONSE_VALIDATION");
         const body = qaCompletedResponseSchema.parse({ success: true, operationStatus: "SUCCESS", data: result.data });
         return qaJson(body, 200, result.replayed ? { "Idempotency-Replayed": "true" } : {});
@@ -84,7 +85,7 @@ export function createQaHttpHandlers(deps: QaHttpDependencies) {
         qaReportFailure(error, error instanceof AppError && error.code in QA_ERROR_HTTP_STATUS ? error.code : "OPERATION_STATUS_UNKNOWN");
         return qaHttpError(error);
       }
-      };
+      });
       return deps.diagnostics ? deps.diagnostics.run(work) : work();
     },
     async conversation(request: Request, id: string, remove: boolean) {

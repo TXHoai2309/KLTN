@@ -134,8 +134,9 @@ function validateVerification(output: unknown, answer: QaAnswer, input: QaGenera
   return true;
 }
 
+export const QA_SYNTHESIS_TIMEOUT_MS = 25_000;
 export function createQaSynthesisVerifier(options: QaProviderOptions = {}) {
-  const provider = createQaJsonProvider({ timeoutMs: 10_000, ...options });
+  const provider = createQaJsonProvider({ timeoutMs: QA_SYNTHESIS_TIMEOUT_MS, ...options, providerPhase: "SYNTHESIS_VERIFICATION" });
   const verifyOutcome = async (answer: QaAnswer, input: QaGenerationInput, selectedSupportIds?: readonly (readonly string[])[], partAspectIds?: readonly string[]): Promise<{ verified: boolean; quoteAllowed: boolean }> => {
     qaStage("SYNTHESIS_VERIFICATION");
     const requiredAspectIds = input.sourceReview?.aspects.filter(aspect => aspect.status === "SUPPORTED").map(aspect => aspect.id) ?? [];

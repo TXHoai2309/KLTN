@@ -122,10 +122,11 @@ describe("development QA stage diagnostics with offline providers", () => {
     if (["embedding", "eligibility"].includes(mode)) expect(failures[0]!.generationInvoked).toBe(false);
     expect(JSON.stringify(t.events)).not.toMatch(/private-|secret-|Unsupported private|Fixture confirmation|QA-SAOTIM/);
   });
-  it.each([["production", undefined], ["production", "preview"], ["development", "production"], ["development", "preview"]])("does not emit for NODE_ENV=%s VERCEL_ENV=%s", async (nodeEnv, vercelEnv) => {
+  it.each([["production", undefined], ["production", "preview"], ["development", "production"], ["development", "preview"]])("emits sanitized telemetry for NODE_ENV=%s VERCEL_ENV=%s", async (nodeEnv, vercelEnv) => {
     const sink = vi.fn();
     await createQaDiagnostics({ nodeEnv, vercelEnv, sink }).run(async () => { qaStage("REQUEST_ACCEPTED"); qaReportFailure(new Error("secret"), "AI_INVALID_RESPONSE"); });
-    expect(sink).not.toHaveBeenCalled();
+    expect(sink).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(sink.mock.calls)).not.toContain("secret");
   });
   it("projects validation paths and provider metadata, rejects arbitrary values", async () => {
     const events: QaDiagnosticEvent[] = [];

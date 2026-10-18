@@ -15,6 +15,7 @@ import { evaluateQaSourceSufficiency } from "./qa-source-sufficiency";
 import { qaFactualQuestion, qaIntentHistory, qaFollowupClarification } from "./qa-question-understanding";
 import { qaConversationMessage } from "./qa-conversation";
 import { planQaQuestion } from "./qa-question-plan";
+import { withinQaResponseBudget } from "./qa-request-budget";
 
 export function createQaService(dependencies: { store: QaConversationStore; retriever: QaRetriever; generator: QaGenerator; assessor?: QaAssessor; eligibilityPollMs?: number; resolveContext?: (context: QaContext) => Promise<QaResolvedContext> }) {
   const { store, retriever, generator } = dependencies;
@@ -57,9 +58,9 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
         if (!skipEvidence && !await retriever.recheck(evidence)) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "EVIDENCE_ELIGIBILITY_CHECK", "ELIGIBILITY");
         qaStage("EVIDENCE_ELIGIBILITY_CHECKED", { eligibleChunks: evidence.length });
         const providerController=new AbortController();
-        const relayAbort=()=>providerController.abort();
+        const relayAbort=()=>providerController.abort(signal?.reason);
         signal?.addEventListener("abort",relayAbort,{once:true});
-        if(signal?.aborted) providerController.abort();
+        if(signal?.aborted) providerController.abort(signal.reason);
         let stopped=false;
         let timer:ReturnType<typeof setTimeout>|undefined;
         let wakeWatcher:(()=>void)|undefined;
@@ -79,8 +80,11 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
             wakeWatcher=undefined;
             if(stopped)return;
             try {
-              if(!await retriever.recheck(evidence)) { invalidate(qaOrigin(new AppError("AI_INVALID_RESPONSE","AI_INVALID_RESPONSE",502), "EVIDENCE_ELIGIBILITY_CHECK", "ELIGIBILITY")); return; }
+              const current = await retriever.recheck(evidence);
+              if(stopped)return;
+              if(!current) { invalidate(qaOrigin(new AppError("AI_INVALID_RESPONSE","AI_INVALID_RESPONSE",502), "EVIDENCE_ELIGIBILITY_CHECK", "ELIGIBILITY")); return; }
             } catch {
+              if(stopped)return;
               invalidate(qaOrigin(new AppError("AI_UNAVAILABLE","AI_UNAVAILABLE",503), "EVIDENCE_ELIGIBILITY_CHECK", "ELIGIBILITY"));
               return;
             }
@@ -117,7 +121,10 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
           if(timer)clearTimeout(timer);
           wakeWatcher?.();
           signal?.removeEventListener("abort",relayAbort);
-          await watcher;
+          // A bounded read already in flight may finish independently. It must
+          // not delay the final mandatory recheck/commit or invalidate a later
+          // stage after the watcher has stopped. All watcher failures are caught.
+          void watcher;
         }
         qaStage("GENERATION_COMPLETED");
         if (reviewedInput) assertQaAnswerGrounding(answer, reviewedInput);
@@ -135,20 +142,20 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
         const failure = e instanceof AppError ? e : e instanceof EmbeddingError
           ? new AppError(e.code === "INVALID_PROVIDER_RESPONSE" ? "AI_INVALID_RESPONSE" : "AI_UNAVAILABLE", "AI_UNAVAILABLE", e.code === "INVALID_PROVIDER_RESPONSE" ? 502 : 503)
           : new AppError("INTERNAL_SERVER_ERROR", "INTERNAL_SERVER_ERROR", 500);
-        try { await store.fail(principal, admission, failure.code); }
+        try { await withinQaResponseBudget(() => store.fail(principal, admission, failure.code)); }
         catch { throw qaOrigin(new AppError("OPERATION_STATUS_UNKNOWN", "OPERATION_STATUS_UNKNOWN", 503), "FAILURE_PERSISTENCE", "PERSISTENCE"); }
         qaReportFailure(e, failure.code);
         throw failure;
       }
       try {
         qaStage("PERSISTENCE_STARTED");
-        const completed = await store.complete(principal, admission, data, evidence);
+        const completed = await withinQaResponseBudget(() => store.complete(principal, admission, data, evidence));
         qaStage("PERSISTENCE_COMPLETED");
         return { data: completed, replayed: false };
       } catch (e) {
         if (e instanceof AppError) {
           // Known eligibility/deletion/fence rejection cannot become a successful turn.
-          try { await store.fail(principal, admission, e.code); } catch { /* deletion may already have scrubbed it */ }
+          try { await withinQaResponseBudget(() => store.fail(principal, admission, e.code)); } catch { /* deletion may already have scrubbed it */ }
           qaReportFailure(e, e.code);
           throw e;
         }

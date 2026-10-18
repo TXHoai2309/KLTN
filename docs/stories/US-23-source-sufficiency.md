@@ -487,3 +487,20 @@ blocked, not inferred from mocks. AI_ASSISTANT_PRODUCTION=BLOCKED / NO_GO;
 US-23 remains NOT_ACCEPTED. Exact source lines, environment names/statuses,
 checklist and owner approval sequence:
 [Production readiness report](../implementation/assistant-production-readiness.md).
+
+### 2026-10-18 — QA verifier latency correction
+
+- Owner-reported generation200 followed by verifier503 was reproduced with valid
+  10.5/12s replies against old10s cutoff. New ceiling25s, clipped to shared40s
+  provider budget,58s persistence acknowledgement target. Vercel60/frontend70/
+  lease90 unchanged; UNKNOWN and identical-key reconciliation preserved.
+- Added safe provider phase/deadline/network/upstream/abort diagnostics, including
+  elapsed/status/usage, in every runtime. No prompts/source/PII/raw error logging.
+  Grounding, semantic verification, citations, eligibility/revocation and abuse
+  controls retained. No model/medium/token-limit/schema/Auth/data/US28 change.
+- Two owner-authorized live Local pipelines used Production read-only corpus and
+  memory persistence: both ANSWERED/3 citations,8 provider calls, zero DB writes.
+  Estimated uncached token cost USD0.05148704, not invoice. Historical incident
+  remains probable timeout; controlled regression confirms the failure mechanism.
+- Focused124 PASS, full regression/typecheck/build evidence and Production GET
+  deployment checks: [timeout report](../implementation/qa-verifier-timeout.md).
