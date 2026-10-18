@@ -1,0 +1,23 @@
+{
+  "checkedAt": "2026-10-18T03:15:30.215Z",
+  "readOnly": true,
+  "contentHash": "6f6d179c1d223c70c812ac77aeed53b425e4eddf0aa9cda570c1325f9b6a07b3",
+  "importReceiptSourceHash": "6f6d179c1d223c70c812ac77aeed53b425e4eddf0aa9cda570c1325f9b6a07b3",
+  "allImportedContentUnchanged": true,
+  "counts": {
+    "content_area": 0,
+    "destination": 3,
+    "opening_day": 21,
+    "opening_interval": 0,
+    "content_source": 12,
+    "content_media": 13,
+    "_AreaToDestination": 0,
+    "destination_editorial": 3,
+    "culture_destination": 0
+  },
+  "healthyMigrations": 23,
+  "snapshotPreserved": true,
+  "snapshotId": "snap-snowy-rain-b33t352d",
+  "importRuns": 0,
+  "authTableQueries": 0
+}

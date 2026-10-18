@@ -1,0 +1,23 @@
+{
+  "checkedAt": "2026-10-18T03:11:02.224Z",
+  "rows": [
+    {
+      "origin": "https://kltn-rho.vercel.app",
+      "tile": "https://tiles.stadiamaps.com/data/openmaptiles/8/202/111.pbf",
+      "status": 401,
+      "contentType": "image/png",
+      "bytes": 14885,
+      "cors": "*",
+      "probe": "NODE_HTTP_HEADERS_NOT_BROWSER_REQUEST"
+    },
+    {
+      "origin": "http://localhost:3028",
+      "tile": "https://tiles.stadiamaps.com/data/openmaptiles/8/202/111.pbf",
+      "status": 200,
+      "contentType": "application/vnd.mapbox-vector-tile",
+      "bytes": 51066,
+      "cors": "*",
+      "probe": "NODE_HTTP_HEADERS_NOT_BROWSER_REQUEST"
+    }
+  ]
+}

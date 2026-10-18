@@ -1,0 +1,276 @@
+{
+  "preparedAt": "2026-10-17T19:05:56.018Z",
+  "sourceHash": "6f6d179c1d223c70c812ac77aeed53b425e4eddf0aa9cda570c1325f9b6a07b3",
+  "planHash": "082020d3905145b4478506431bf53770938633bdc26b3e38a3f7f338e553ab5a",
+  "backup": {
+    "id": "snap-snowy-rain-b33t352d",
+    "branch": "br-cold-dew-b3h270wp",
+    "createdAt": "2026-10-17T18:56:58Z",
+    "verifiedAt": "2026-10-17T19:05:48.760Z"
+  },
+  "inserted": {
+    "content_area": 0,
+    "destination": 0,
+    "opening_day": 0,
+    "opening_interval": 0,
+    "content_source": 0,
+    "content_media": 0,
+    "_AreaToDestination": 0,
+    "destination_editorial": 0,
+    "culture_destination": 0
+  },
+  "excludedBefore": {
+    "_AreaToCultureContent": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "_CommunityToCultureContent": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "_prisma_migrations": {
+      "count": 23,
+      "fingerprint": "335b73d652d5d586f455abaadeb033cd"
+    },
+    "account": {
+      "count": 1,
+      "fingerprint": "9eff2aee9e9cdf32f76c3b0cb6db0584"
+    },
+    "admin_audit_event": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "content_community": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "culture_content": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "favorite": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "geography_columns": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "geometry_columns": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "idempotency_record": {
+      "count": 1,
+      "fingerprint": "5a3308bb669c12256b8d1e95977e1727"
+    },
+    "itinerary_day": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "itinerary_visit": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "qa_abuse_bucket": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "qa_abuse_lease": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "qa_cleanup_state": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "qa_conversation": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "qa_guest_identity": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "qa_turn": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "rag_chunk": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "rag_chunk_embedding": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "rag_content_version": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "rag_document": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "rag_index_generation": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "rag_index_job": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "rag_index_publication": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "session": {
+      "count": 2,
+      "fingerprint": "3f794510f059864f5a14e4594ea9b4ee"
+    },
+    "spatial_ref_sys": {
+      "count": 8500,
+      "fingerprint": "77de68fa557f47decc7f208eccf388d7"
+    },
+    "trip": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "user": {
+      "count": 1,
+      "fingerprint": "9d80e4a7987716dea04dbe639a2ea275"
+    },
+    "verification": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    }
+  },
+  "excludedAfter": {
+    "_AreaToCultureContent": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "_CommunityToCultureContent": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "_prisma_migrations": {
+      "count": 23,
+      "fingerprint": "335b73d652d5d586f455abaadeb033cd"
+    },
+    "account": {
+      "count": 1,
+      "fingerprint": "9eff2aee9e9cdf32f76c3b0cb6db0584"
+    },
+    "admin_audit_event": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "content_community": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "culture_content": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "favorite": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "geography_columns": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "geometry_columns": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "idempotency_record": {
+      "count": 1,
+      "fingerprint": "5a3308bb669c12256b8d1e95977e1727"
+    },
+    "itinerary_day": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "itinerary_visit": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "qa_abuse_bucket": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "qa_abuse_lease": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "qa_cleanup_state": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "qa_conversation": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "qa_guest_identity": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "qa_turn": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "rag_chunk": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "rag_chunk_embedding": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "rag_content_version": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "rag_document": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "rag_index_generation": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "rag_index_job": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "rag_index_publication": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "session": {
+      "count": 2,
+      "fingerprint": "3f794510f059864f5a14e4594ea9b4ee"
+    },
+    "spatial_ref_sys": {
+      "count": 8500,
+      "fingerprint": "77de68fa557f47decc7f208eccf388d7"
+    },
+    "trip": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    },
+    "user": {
+      "count": 1,
+      "fingerprint": "9d80e4a7987716dea04dbe639a2ea275"
+    },
+    "verification": {
+      "count": 0,
+      "fingerprint": "d41d8cd98f00b204e9800998ecf8427e"
+    }
+  },
+  "allCanonicalRowsEqual": true,
+  "excludedTablesUnchanged": true
+}

@@ -2535,3 +2535,65 @@ Audit, task-owned file list, limits and manual procedure:
   [Story](stories/ADMIN-USER-MANAGEMENT-V2.md),
   [acceptance report](implementation/admin-user-management-v2.md),
   [browser evidence](implementation/admin-users-v2-evidence/browser-results.json).
+
+### 2026-10-18 — Destination Development to Production sync: blocked preflight
+
+- Isolated codex/destination-production-sync worktree from origin/master86bb942;
+  original checkout/routing untouched. No merge, push, deploy or schema operation.
+- Owner supplied explicit SYNC source/target URLs in the original ignored env file;
+  local URL validation PASS. No DATABASE_URL fallback or secret output/copy.
+- Provider identity remains UNVERIFIED: NEON_API_KEY missing, available Console
+  requires login. Owner-request IV/VIII require trusted identity and a completed
+  Production backup. Requested access/evidence; no DB connections or writes.
+- Read-only preliminary guard plus seven fixture tests PASS. Transfer/apply/verify
+  modes, live inventory and full dry-run are pending; no migration success claim.
+- Public HTTP baseline: APIs/Explore/MapLibre assets200, zero public Destination
+  items. Browser/CMS/Stadia tiles and data integrity/replay are NOT_RUN.
+- [Story](stories/DESTINATION-DEVELOPMENT-PRODUCTION-SYNC.md),
+  [22-item report](implementation/destination-development-production-sync.md).
+  DESTINATION_PRODUCTION_SYNC=NOT_RUN; NO_GO for Production writes.
+
+### 2026-10-18 — Destination migration resumed: data committed, smoke partial
+
+- Owner supplied NEON_API_KEY in ignored env; Neon API verified both pinned
+  branches/endpoints/database.23 healthy migrations and live schema parity PASS.
+- Completed Production snapshot snap-snowy-rain-b33t352d verified. Owner chose
+  three VISIBLE records; excluded explicit US09 fixture and HIDDEN duplicate.
+- Imported3 Destinations,21 UNKNOWN weekdays,12 sources,13 media/3 covers and
+  3 editorials. All52 canonical rows equal source;38 FKs have zero dangling rows.
+  Actual apply replay inserts0; excluded-table counts/fingerprints unchanged.
+- Initial timestamp Date-parsing mismatch rolled back. Preserve raw PostgreSQL
+  timestamps; non-UTC real PostgreSQL regression PASS before successful import.
+-16 unit +3 unique disposable PostgreSQL tests PASS; owned container removed.
+  Public API/filter/detail and browser list/search/detail PASS.16 source images200.
+- Full Production acceptance remains PARTIAL: Landing prerender/cache retains
+  empty fallback; map displays unavailable; authenticated CMS/Planner, responsive
+  and actual Stadia tiles/hostname auth unverified. No app/routing change or deploy.
+  Cloudinary Production cloud redacted; no asset movement or rights escalation.
+- All scripts/evidence remain in isolated worktree, uncommitted/unpushed.
+  [22-item report](implementation/destination-development-production-sync.md).
+  DATA_TRANSFER=PASS; DESTINATION_PRODUCTION_SYNC=PARTIAL.
+
+### 2026-10-18 — Final acceptance: scoped Home fix and direct smoke evidence
+
+- Reused isolated destination-production-sync worktree; original checkout has
+  unrelated staged/unmerged guest-auth work and was not touched.
+- Home uses Next16 connection() outside DB fallback. Build marks / dynamic;
+  local next start reads pinned Production with default_transaction_read_only=on,
+  renders all3 names/no fallback. No Production deployment.
+- Added redacted map load/mount/provider/timeout diagnostics. Worker assets match
+  npm; styles/sprites200. Production-origin vector tile probe401, localhost200;
+  local browser draws tiles/all3 markers and correct detail popup. No key/proxy.
+- Owner signed in interactively. CMS list3, gallery3/5/5, sources4 each and
+  editorial revisions14/8,13/7,7/4 confirmed read-only. No save/publish/upload.
+- Actual planner candidate repository and recheck return3 from Production RO;
+  source registry only covers Development. Two durations missing; all hours
+  UNKNOWN. No proposal/Routes/AI/Trip writes. Admin Planner form access confirmed.
+- 15 scoped responsive cases390/768/1440 pass with viewport override reset.
+  Runtime Cloudinary configured=true; exact cloud identity remains unverified.
+- Typecheck/build PASS; Vitest1966 PASS/134 gated SKIP; legacy Map27,
+  Destination63, Search33 PASS. Strict premium audit30 existing findings,
+  none in changed owned files; no repository-wide audit PASS claim.
+- Canonical52-row hash unchanged;23 migrations; snapshot retained. No reimport,
+  schema/Auth writes, merge, push or deploy. Release NO_GO / sync PARTIAL.
+  [Final report](implementation/destination-production-final-acceptance.md).

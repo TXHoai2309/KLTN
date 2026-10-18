@@ -2,7 +2,7 @@ import type * as MapLibre from "maplibre-gl";
 import type { ExploreReturnHref } from "../destination/destination-detail-navigation";
 import { destinationDetailHref, haGiangViewport, normalizeMapCoordinate, toMapCoordinate, type MapCoordinate, type MapDestination, type RouteGeometry } from "./map-model";
 
-export function mountMapLibre(host: HTMLDivElement, library: typeof MapLibre, points: readonly MapDestination[], style: string, detail: boolean, returnTo: ExploreReturnHref | undefined, onReady: () => void, onFailure: () => void, extras: { routeGeometry?: RouteGeometry; onMap?: (map: MapLibre.Map | null) => void; disablePopup?: boolean } = {}) {
+export function mountMapLibre(host: HTMLDivElement, library: typeof MapLibre, points: readonly MapDestination[], style: string, detail: boolean, returnTo: ExploreReturnHref | undefined, onReady: () => void, onFailure: (error?: unknown) => void, extras: { routeGeometry?: RouteGeometry; onMap?: (map: MapLibre.Map | null) => void; disablePopup?: boolean } = {}) {
   const map = new library.Map({ container: host, style, center: toMapCoordinate(haGiangViewport.center), zoom: haGiangViewport.zoom, maxZoom: 15, cooperativeGestures: true, attributionControl: { compact: true } });
   const markers: MapLibre.Marker[] = []; const popups: MapLibre.Popup[] = [];
   let disposed = false;
