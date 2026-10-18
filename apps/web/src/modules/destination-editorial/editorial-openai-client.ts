@@ -7,9 +7,9 @@ import { editorialRetryAfter } from "./editorial-retry-after";
 export const EDITORIAL_OPENAI_LIMITS = {
   timeoutMs: 25_000,
   v1TimeoutMs: 25_000,
-  v4TimeoutMs: 60_000,
+  v4TimeoutMs: 180_000,
   minTimeoutMs: 1_000,
-  maxTimeoutMs: 90_000,
+  maxTimeoutMs: 180_000,
   maxOutputTokens: 8192,
   maxResponseBytes: 96 * 1024,
 } as const;
