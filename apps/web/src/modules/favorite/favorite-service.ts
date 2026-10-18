@@ -4,6 +4,7 @@ import { AppError } from "../../server/http/app-error";
 import { executeIdempotentWrite } from "../../server/http/idempotency";
 import { isDestinationPublic } from "../destination/destination-eligibility";
 import { isCulturePublic } from "../culture/culture-eligibility";
+import { destinationMediaWhere, isDestinationMediaUsable } from "../destination/destination-media-eligibility";
 import type { FavoriteList } from "./favorite-contract";
 
 export type FavoriteDependencies = {
@@ -12,7 +13,21 @@ export type FavoriteDependencies = {
 };
 const favoriteSelect = {
   id: true,
-  destination: { select: { id: true, name: true, visibility: true } },
+  destination: {
+    select: {
+      id: true,
+      name: true,
+      visibility: true,
+      area: true,
+      category: true,
+      media: {
+        where: destinationMediaWhere,
+        take: 20,
+        orderBy: [{ isCover: "desc" }, { position: "asc" }, { id: "asc" }],
+        select: { url: true, alt: true, websiteRights: true, storageReference: true },
+      },
+    },
+  },
   cultureContent: { select: { id: true, title: true, visibility: true } },
 } satisfies Prisma.FavoriteSelect;
 
@@ -27,8 +42,19 @@ export async function getFavorites(headers: Headers, deps: FavoriteDependencies)
   for (const row of rows) {
     if (row.destination) {
       const available = isDestinationPublic(row.destination);
-      data.destinations.push({ favoriteId: row.id, targetId: row.destination.id, title: row.destination.name,
-        availability: available ? "AVAILABLE" : "UNAVAILABLE", href: available ? `/destinations/${row.destination.id}` : null });
+      const mediaList = (row.destination as { media?: Array<{ url: string; alt: string; websiteRights: string; storageReference?: string | null }> }).media;
+      const usable = mediaList ? mediaList.find(m => isDestinationMediaUsable(m, row.destination!.id)) : null;
+      const image = usable ? { url: usable.url, alt: usable.alt } : null;
+      data.destinations.push({
+        favoriteId: row.id,
+        targetId: row.destination.id,
+        title: row.destination.name,
+        availability: available ? "AVAILABLE" : "UNAVAILABLE",
+        href: available ? `/destinations/${row.destination.id}` : null,
+        image,
+        area: (row.destination as { area?: string }).area,
+        category: (row.destination as { category?: string }).category,
+      });
     } else if (row.cultureContent) {
       const available = isCulturePublic(row.cultureContent);
       data.cultureContents.push({ favoriteId: row.id, targetId: row.cultureContent.id, title: row.cultureContent.title,

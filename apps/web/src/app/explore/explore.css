@@ -192,6 +192,7 @@
   border-radius: 14px;
   background: color-mix(in srgb, var(--muted) 65%, var(--card));
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+  margin-left: auto;
 }
 .explore-view-switch button {
   display: inline-flex;
@@ -653,6 +654,7 @@
 .destination-grid > li { min-width: 0; }
 .explore-page .destination-card,
 .destination-skeleton {
+  position: relative;
   display: flex;
   min-width: 0;
   height: 100%;
@@ -753,6 +755,108 @@
   background: color-mix(in srgb, var(--card) 90%, transparent);
   border-color: color-mix(in srgb, #52755e 35%, var(--border));
   color: var(--explore-ink);
+}
+
+/* Floating favorite button on destination card */
+.destination-card-favorite {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 4;
+}
+
+.destination-card-favorite .favorite-button-stack {
+  display: flex;
+}
+
+.destination-card-favorite .favorite-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  min-height: 38px;
+  min-width: 38px;
+  max-width: 38px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #374151;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.destination-card-favorite .favorite-button:hover {
+  transform: scale(1.12);
+  background: #ffffff;
+  color: #e11d48;
+  border-color: rgba(225, 29, 72, 0.35);
+  box-shadow: 0 6px 18px rgba(225, 29, 72, 0.24);
+}
+
+.destination-card-favorite .favorite-button:active {
+  transform: scale(0.94);
+}
+
+.destination-card-favorite .favorite-button[aria-pressed="true"],
+.destination-card-favorite [data-favorite-state="active"] .favorite-button {
+  background: #ffffff;
+  color: #e11d48;
+  border-color: rgba(225, 29, 72, 0.45);
+  box-shadow: 0 4px 14px rgba(225, 29, 72, 0.28);
+}
+
+.destination-card-favorite .favorite-button[aria-pressed="true"]:hover,
+.destination-card-favorite [data-favorite-state="active"] .favorite-button:hover {
+  background: #fff1f2;
+  color: #be123c;
+  border-color: rgba(225, 29, 72, 0.55);
+  box-shadow: 0 6px 20px rgba(225, 29, 72, 0.35);
+}
+
+.dark .destination-card-favorite .favorite-button {
+  background: rgba(20, 32, 25, 0.88);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #cbd5e1;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.dark .destination-card-favorite .favorite-button:hover {
+  background: #1e3327;
+  color: #fb7185;
+  border-color: rgba(251, 113, 133, 0.45);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+.dark .destination-card-favorite .favorite-button[aria-pressed="true"],
+.dark .destination-card-favorite [data-favorite-state="active"] .favorite-button {
+  background: #1e3327;
+  color: #fb7185;
+  border-color: rgba(251, 113, 133, 0.55);
+  box-shadow: 0 4px 16px rgba(251, 113, 133, 0.3);
+}
+
+.destination-card-favorite .favorite-button > span:not(.sr-only),
+.destination-card-favorite .favorite-button-message {
+  display: none !important;
+}
+
+.destination-card-favorite .favorite-button-skeleton {
+  width: 38px !important;
+  height: 38px !important;
+  min-height: 38px !important;
+  min-width: 38px !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.75) !important;
+  backdrop-filter: blur(8px);
+}
+
+.dark .destination-card-favorite .favorite-button-skeleton {
+  background: rgba(30, 45, 36, 0.8) !important;
 }
 
 .explore-page .destination-card-content {

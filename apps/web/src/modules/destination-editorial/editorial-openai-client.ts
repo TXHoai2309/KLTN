@@ -94,7 +94,7 @@ export function createEditorialOpenAiClient(options: Options = {}): StructuredLl
           body: JSON.stringify({
             model,
             messages: [{ role: "system", content: input.system }, { role: "user", content: input.user }],
-            reasoning_effort: "max",
+            reasoning_effort: "high",
             max_completion_tokens: EDITORIAL_OPENAI_LIMITS.maxOutputTokens,
             response_format: { type: "json_schema", json_schema: { name: "destination_editorial_layout", strict: true, schema: input.jsonSchema } },
             store: false,

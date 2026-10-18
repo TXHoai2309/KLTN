@@ -28,7 +28,7 @@ describe("Editorial-only GPT-6 Luna adapter, offline", () => {
     const [url, init] = fetcher.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("https://api.openai.com/v1/chat/completions");
     const body = JSON.parse(init.body as string);
-    expect(body).toMatchObject({ model: "gpt-6-luna", reasoning_effort: "max", max_completion_tokens: 8192, store: false,
+    expect(body).toMatchObject({ model: "gpt-6-luna", reasoning_effort: "high", max_completion_tokens: 8192, store: false,
       response_format: { type: "json_schema", json_schema: { name: "destination_editorial_layout", strict: true, schema: input.jsonSchema } } });
     expect(body).not.toHaveProperty("temperature"); expect(body).not.toHaveProperty("top_p");
   });
