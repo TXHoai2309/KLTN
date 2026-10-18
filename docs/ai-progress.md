@@ -2973,3 +2973,22 @@ Audit, task-owned file list, limits and manual procedure:
 - Canonical52-row hash unchanged;23 migrations; snapshot retained. No reimport,
   schema/Auth writes, merge, push or deploy. Release NO_GO / sync PARTIAL.
   [Final report](implementation/destination-production-final-acceptance.md).
+
+### 2026-10-18 — Owner-requested branch consolidation and cleanup
+
+- Integrated all missing local/remote branch ancestry into TXH: kduy/duybinh trip
+  editing/location work, Production RAG release, previously uncommitted Destination
+  request-time Home/map diagnostics and Assistant audit. Preserved existing TXH UX
+  changes; retired obsolete local-master rollback without reverting Stadia.
+- Reconciled old trip-edit tests with approved RBAC V2 ownership, retained actual
+  NextResponse in the Home mock and updated stale Home/header source assertions.
+- Final root tests PASS: Vitest2305 and legacy336;134 Vitest skips not counted.
+  Migration55 PASS, root typecheck/build PASS offline. No schema/Production data,
+  provider/rights/runtime activation operation. Native PostgreSQL fixture needs an
+  explicit loopback test port and was not accepted as tested.
+- Verified recovery bundles + ignored-file SHA256 copies outside Git. Archived
+  managed audit worktrees; US19/Guest Git registrations removed. Physical remnants
+  remain where recursive cleanup failed or was rejected by automatic approval
+  review. Keep teammates' personal branches; remove merged feature refs after push.
+- Owner authorized promotion to TXH/dev/master and resulting Production delivery.
+  [Integration report](implementation/branch-consolidation-20261018.md).

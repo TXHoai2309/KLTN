@@ -1,8 +1,8 @@
 # Implementation Report: Global Guest Access & Authentication UX V2
 
-**Document:** `docs/implementation/global-guest-auth-ux-v2.md`  
-**Date:** 2026-10-18  
-**Author:** Principal Frontend Engineer, Senior Next.js Architect & Security QA  
+**Document:** `docs/implementation/global-guest-auth-ux-v2.md`
+**Date:** 2026-10-18
+**Author:** Principal Frontend Engineer, Senior Next.js Architect & Security QA
 **Branch:** `feat/global-guest-auth-ux-v2` (Worktree isolated at base `86bb942`)
 
 ---
