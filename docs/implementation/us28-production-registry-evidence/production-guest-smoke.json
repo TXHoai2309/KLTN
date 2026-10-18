@@ -1,0 +1,19 @@
+{
+  "measuredAt": "2026-10-18T12:21:01.029Z",
+  "productionUnchanged": true,
+  "page": {
+    "path": "/trips/new",
+    "status": 200,
+    "location": null
+  },
+  "guestAPI": {
+    "path": "/api/trip-proposals",
+    "status": 401,
+    "code": "UNAUTHENTICATED",
+    "cacheControl": "private, no-store"
+  },
+  "authenticatedProductionSmoke": "BLOCKED_NO_ACCESSIBLE_EXISTING_SESSION; CUA initialization failed",
+  "productionWrites": 0,
+  "tripWrites": 0,
+  "providerCalls": 0
+}

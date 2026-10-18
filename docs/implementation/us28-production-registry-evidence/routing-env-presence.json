@@ -1,0 +1,23 @@
+{
+  "measuredAt": "2026-10-18T12:09:29.692Z",
+  "projectId": "prj_tyylPlLvhAvbkdyXHPPQCLgkZvlO",
+  "variables": [
+    {
+      "name": "STADIA_MAPS_API_KEY",
+      "target": [
+        "production"
+      ],
+      "type": "sensitive",
+      "present": true
+    },
+    {
+      "name": "STADIA_MAPS_API_KEY",
+      "target": [
+        "preview"
+      ],
+      "type": "sensitive",
+      "present": true
+    }
+  ],
+  "valuesDisclosed": false
+}

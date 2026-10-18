@@ -1,0 +1,13 @@
+{
+  "measuredAt": "2026-10-18T12:32:59.136Z",
+  "origin": "https://kltn-i05mu463a-to-xuan-hoai-s-projects.vercel.app",
+  "passed": [
+    "Back preserves review; edit duration from 1 to 2 invalidates confirmation and requires a new real server check; no automatic proposal",
+    "Confirmed Planner start has no horizontal overflow at 390/768/1440",
+    "Real session of locked Development TEST user gets 403 before parsing/provider work"
+  ],
+  "failed": [],
+  "productionWrites": 0,
+  "tripWrites": 0,
+  "providerCalls": 0
+}

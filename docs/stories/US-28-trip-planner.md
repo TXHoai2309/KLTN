@@ -83,3 +83,23 @@ existing candidate eligibility registry and broader release acceptance; no deplo
 Production data/env change or routing migration. PR #7 was externally merged into
 master while this task ran, so it cannot remain an open Draft. No replacement PR
 was created. See the migration report for all evidence and limits.
+
+## Production registry verification — 2026-10-18
+
+Independent Neon API and read-only PostgreSQL verified the Production endpoint.
+The local TXH fix admits its separately reviewed registry, rejects unsupported
+configuration explicitly, and distinguishes empty, incomplete, excluded and
+invalid-coordinate candidate pools without an extra query. Actual Production
+repository/engine/recheck now reads three public candidates, selects one with
+duration, and truthfully returns INSUFFICIENT_DATA for unknown opening hours.
+No business facts, eligibility checks, provider budgets or persistence changed.
+
+Final focused 477 PASS / 11 SKIP, full Vitest2358 PASS / 134 SKIP, legacy336 PASS,
+typecheck/build PASS. Real Preview Traveler/Admin form/check/proposal, live CAR
+and MOTORCYCLE, regenerate and persisted-role controls pass; an additional
+back/edit/recheck/locked-account/responsive run passes. Preview MapLibre remains
+BLOCKED by actual tile401; the Production Guest control has tile200/three markers.
+Both owned users and both owned TEST Destinations were cleaned from Development.
+No Production writes, push, branch promotion or Production release. Code readiness
+does not imply DATA_READY or full acceptance. See
+[registry report](../implementation/us28-production-registry-fix.md).

@@ -1,0 +1,15 @@
+{
+  "measuredAt": "2026-10-18T12:27:45.274Z",
+  "id": "dpl_Bmy4eCuJVyTS9E2DVvdGhRvbcnso",
+  "url": "kltn-i05mu463a-to-xuan-hoai-s-projects.vercel.app",
+  "target": "preview",
+  "readyState": "READY",
+  "expectedCodeCommit": "f1d414ce1cdb0542b85684f803cf9794b66ceccc",
+  "actualCommit": "f1d414ce1cdb0542b85684f803cf9794b66ceccc",
+  "commitMatched": true,
+  "functionCount": 180,
+  "regions": {
+    "sin1": 180
+  },
+  "fullBrowserE2E": "BLOCKED; no claim of final-code full browser acceptance"
+}

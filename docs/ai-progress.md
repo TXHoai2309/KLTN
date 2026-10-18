@@ -3116,3 +3116,26 @@ or Production DB writes. All new Development fixtures and operation records0
 remaining. Full performance acceptance remains PARTIAL for live AI/history,
 Production owner sessions, native integration/field vitals and detailed provider
 telemetry. Evidence-only follow-up commits preserve the tested runtime tree.
+
+### 2026-10-18 — US-28 verified Production registry fix (TXH; release held)
+
+Code commit f1d414c fixes the Development-only registry and silent empty-candidate
+fallback. Neon API project/branch/endpoint/database identity and read-only real
+Production repository/engine/recheck verified 0→3 public candidates, 1 selectable
+by duration, 0 fully verifiable; both transports correctly return INSUFFICIENT_DATA
+for OPENING_UNKNOWN. Separate environment exclusions and canonical-host/protocol/
+TLS checks retain fail-closed behavior. Single-query inventory distinguishes empty,
+incomplete, invalid-coordinate and registry-excluded data; no filters are relaxed.
+
+Focused 477 PASS / 11 SKIP; full Vitest 2358 PASS / 134 SKIP; legacy 336 PASS;
+typecheck and Production-mode build PASS. Preview real Traveler/Admin
+form→review→check→proposal and bounded live Stadia CAR/MOTORCYCLE pass; regenerate,
+back/edit/recheck, Guest/locked/persisted-role gates and 390/768/1440 start view
+verified. Main browser groups 9 PASS / 1 FAIL (MapLibre tile401); boundary groups
+3 PASS. Production Guest map control has tile200/3 markers and Planner Guest401.
+Existing Production owner session inaccessible via CUA. Owned Development TEST
+users2/Destinations2 cleaned, zero remaining. No Production schema/data/Auth/Trip
+writes, model calls, push, merge or Production deploy; old READY commit70a810f
+retained. Preview map/final E2E block release; business-data gaps separately block
+fully verified proposals. Overall PARTIAL / NO_GO. See
+[full report](implementation/us28-production-registry-fix.md).

@@ -1,0 +1,56 @@
+{
+  "measuredAt": "2026-10-18T12:28:20.722Z",
+  "logs": {
+    "baselineRed": {
+      "sha256": "10ecc65e88ed138b98b05e1f3198ab57165af966d02c396fedb2615bb5294a48",
+      "summary": [
+        " Test Files  1 failed (1)",
+        "      Tests  4 failed | 8 passed (12)",
+        "   Duration  1.26s (worker 43%, transform 29%, import 19%, tests 9%)"
+      ]
+    },
+    "focused": {
+      "sha256": "62998faa68d33ddb38edcbad8914072db8b1622c94dff3a41758708089868a80",
+      "summary": [
+        " Test Files  28 passed | 2 skipped (30)",
+        "      Tests  477 passed | 11 skipped (488)",
+        "   Duration  2.54s (transform 38%, tests 33%, import 28%)"
+      ]
+    },
+    "vitest": {
+      "sha256": "f75d13d7ff086b3bb7692daee0628443b1e0c059b334e3a2407363c6575ca122",
+      "summary": [
+        " Test Files  162 passed | 15 skipped (177)",
+        "      Tests  2358 passed | 134 skipped (2492)",
+        "   Duration  40.73s (tests 60%, import 21%, transform 19%)"
+      ]
+    },
+    "legacy": {
+      "sha256": "e06e04c9330e6722dcc071898a805505b81fc5d7697322dba144570f69e451d0",
+      "summary": {
+        "passed": 336,
+        "failed": 0
+      }
+    },
+    "build": {
+      "sha256": "af86725f45cfd3d8ba41ee3e80d053e89bb16e7a524445cbbd9f432c25851bea",
+      "summary": {
+        "compiled": true,
+        "typecheck": true,
+        "staticGeneration": true
+      }
+    },
+    "typecheck": {
+      "sha256": "a1055ee77bacd35240e824263649a818b70b32ca1057c304e899623d4596e17f",
+      "summary": {
+        "errorDiagnostics": false
+      }
+    }
+  },
+  "secretScan": {
+    "passed": true,
+    "valuesDisclosed": false
+  },
+  "diffCheck": "PASS",
+  "rawLogLocation": "Ignored .cache/us28-production-registry on the owner workstation; only safe summaries and digests are committed."
+}

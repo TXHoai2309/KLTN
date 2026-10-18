@@ -1,0 +1,183 @@
+{
+  "measuredAt": "2026-10-18T12:00:11.337Z",
+  "identities": [
+    {
+      "side": "source",
+      "project": "summer-unit-95870477",
+      "branch": "br-aged-hat-b3o6hg9p",
+      "endpoint": "ep-purple-pond-b3xujb8o",
+      "database": "neondb",
+      "verified": true
+    },
+    {
+      "side": "target",
+      "project": "summer-unit-95870477",
+      "branch": "br-cold-dew-b3h270wp",
+      "endpoint": "ep-blue-art-b3v3vr4h",
+      "database": "neondb",
+      "verified": true
+    }
+  ],
+  "transaction": "REPEATABLE READ READ ONLY; ROLLBACK",
+  "destinations": [
+    {
+      "id": "cmv97lcrq0016z09ws0o74lqp",
+      "name": "Cao nguyên đá Đồng Văn",
+      "visibility": "VISIBLE",
+      "latitude": 23.192222,
+      "longitude": 105.196944,
+      "suggestedDurationMinutes": null,
+      "minimumDurationMinutes": null,
+      "contentRevision": 5
+    },
+    {
+      "id": "cmv9fcwo1000be89w3yxz3mqu",
+      "name": "Di tích lịch sử Căng Bắc Mê",
+      "visibility": "VISIBLE",
+      "latitude": 22.7308573,
+      "longitude": 105.3745508,
+      "suggestedDurationMinutes": 60,
+      "minimumDurationMinutes": 45,
+      "contentRevision": 6
+    },
+    {
+      "id": "cmvanjc6p000f7w9wyuydna52",
+      "name": "Chợ tình Khâu Vai",
+      "visibility": "VISIBLE",
+      "latitude": 23.0936183,
+      "longitude": 105.4917456,
+      "suggestedDurationMinutes": null,
+      "minimumDurationMinutes": null,
+      "contentRevision": 7
+    }
+  ],
+  "openingDays": [
+    {
+      "id": "cmv97lcw0001bz09wxw0lm119",
+      "destinationId": "cmv97lcrq0016z09ws0o74lqp",
+      "dayOfWeek": "MONDAY",
+      "status": "UNKNOWN"
+    },
+    {
+      "id": "cmv97lcyg001cz09wrssohbju",
+      "destinationId": "cmv97lcrq0016z09ws0o74lqp",
+      "dayOfWeek": "TUESDAY",
+      "status": "UNKNOWN"
+    },
+    {
+      "id": "cmv97ld0o001dz09w832ew5a8",
+      "destinationId": "cmv97lcrq0016z09ws0o74lqp",
+      "dayOfWeek": "WEDNESDAY",
+      "status": "UNKNOWN"
+    },
+    {
+      "id": "cmv97ld2v001ez09wfc5e129y",
+      "destinationId": "cmv97lcrq0016z09ws0o74lqp",
+      "dayOfWeek": "THURSDAY",
+      "status": "UNKNOWN"
+    },
+    {
+      "id": "cmv97ld4x001fz09wsjztcxd6",
+      "destinationId": "cmv97lcrq0016z09ws0o74lqp",
+      "dayOfWeek": "FRIDAY",
+      "status": "UNKNOWN"
+    },
+    {
+      "id": "cmv97ld6n001gz09w65utfzez",
+      "destinationId": "cmv97lcrq0016z09ws0o74lqp",
+      "dayOfWeek": "SATURDAY",
+      "status": "UNKNOWN"
+    },
+    {
+      "id": "cmv97ld8j001hz09wq6r9dmaj",
+      "destinationId": "cmv97lcrq0016z09ws0o74lqp",
+      "dayOfWeek": "SUNDAY",
+      "status": "UNKNOWN"
+    },
+    {
+      "id": "cmv9fcwrm000ge89wz4d3bkmz",
+      "destinationId": "cmv9fcwo1000be89w3yxz3mqu",
+      "dayOfWeek": "MONDAY",
+      "status": "UNKNOWN"
+    },
+    {
+      "id": "cmv9fcwtb000he89wk0vfsk4i",
+      "destinationId": "cmv9fcwo1000be89w3yxz3mqu",
+      "dayOfWeek": "TUESDAY",
+      "status": "UNKNOWN"
+    },
+    {
+      "id": "cmv9fcwv1000ie89wrjxvg9e2",
+      "destinationId": "cmv9fcwo1000be89w3yxz3mqu",
+      "dayOfWeek": "WEDNESDAY",
+      "status": "UNKNOWN"
+    },
+    {
+      "id": "cmv9fcwws000je89w2j3chcan",
+      "destinationId": "cmv9fcwo1000be89w3yxz3mqu",
+      "dayOfWeek": "THURSDAY",
+      "status": "UNKNOWN"
+    },
+    {
+      "id": "cmv9fcwyh000ke89wwldyxfra",
+      "destinationId": "cmv9fcwo1000be89w3yxz3mqu",
+      "dayOfWeek": "FRIDAY",
+      "status": "UNKNOWN"
+    },
+    {
+      "id": "cmv9fcx0h000le89w1sctc5dx",
+      "destinationId": "cmv9fcwo1000be89w3yxz3mqu",
+      "dayOfWeek": "SATURDAY",
+      "status": "UNKNOWN"
+    },
+    {
+      "id": "cmv9fcx2c000me89wvbvm4i5t",
+      "destinationId": "cmv9fcwo1000be89w3yxz3mqu",
+      "dayOfWeek": "SUNDAY",
+      "status": "UNKNOWN"
+    },
+    {
+      "id": "cmvanjcd4000k7w9wc170ehhl",
+      "destinationId": "cmvanjc6p000f7w9wyuydna52",
+      "dayOfWeek": "MONDAY",
+      "status": "UNKNOWN"
+    },
+    {
+      "id": "cmvanjcf7000l7w9w7g6ifs1h",
+      "destinationId": "cmvanjc6p000f7w9wyuydna52",
+      "dayOfWeek": "TUESDAY",
+      "status": "UNKNOWN"
+    },
+    {
+      "id": "cmvanjch5000m7w9wkao2g2t6",
+      "destinationId": "cmvanjc6p000f7w9wyuydna52",
+      "dayOfWeek": "WEDNESDAY",
+      "status": "UNKNOWN"
+    },
+    {
+      "id": "cmvanjcis000n7w9wbqok8c4o",
+      "destinationId": "cmvanjc6p000f7w9wyuydna52",
+      "dayOfWeek": "THURSDAY",
+      "status": "UNKNOWN"
+    },
+    {
+      "id": "cmvanjckm000o7w9wq24g9toa",
+      "destinationId": "cmvanjc6p000f7w9wyuydna52",
+      "dayOfWeek": "FRIDAY",
+      "status": "UNKNOWN"
+    },
+    {
+      "id": "cmvanjcmf000p7w9w2nqdegjh",
+      "destinationId": "cmvanjc6p000f7w9wyuydna52",
+      "dayOfWeek": "SATURDAY",
+      "status": "UNKNOWN"
+    },
+    {
+      "id": "cmvanjco0000q7w9w56jgpixv",
+      "destinationId": "cmvanjc6p000f7w9wyuydna52",
+      "dayOfWeek": "SUNDAY",
+      "status": "UNKNOWN"
+    }
+  ],
+  "openingIntervals": []
+}
