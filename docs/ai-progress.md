@@ -2992,3 +2992,16 @@ Audit, task-owned file list, limits and manual procedure:
   review. Keep teammates' personal branches; remove merged feature refs after push.
 - Owner authorized promotion to TXH/dev/master and resulting Production delivery.
   [Integration report](implementation/branch-consolidation-20261018.md).
+
+### 2026-10-18 — AI Assistant Production Activation V1
+
+- Implemented dedicated fail-closed runtime gate `QA_PRODUCTION_RUNTIME_ENABLED` (default false) and synchronized server-side HTTP guard with client-side UI transport selection in `app/assistant/page.tsx`.
+- Verified live Neon Production corpus on branch `br-cold-dew-b3h270wp` / endpoint `ep-blue-art-b3v3vr4h`: exactly 3 `RagDocument` records (Đồng Văn, Căng Bắc Mê, Khâu Vai) with `INDEXED` status, `publicQaApproved=true`, 137 chunks, 137 valid 1536-dim embeddings. Zero mutations or re-indexing performed.
+- Verified OpenAI provider models live: `text-embedding-3-small` (1536 dims) and `gpt-6.1-sol` (strict structured output) responding with HTTP 200.
+- Configured Vercel Production environment variables: `QA_PRODUCTION_RUNTIME_ENABLED=true`, `QA_ABUSE_PROTECTION_ACCEPTED=true`, `QA_RUNTIME_ALLOWED_DATABASE_HOST=ep-blue-art-b3v3vr4h-pooler.c-4.ap-southeast-1.aws.neon.tech`, `QA_RUNTIME_ALLOWED_DATABASE_NAME=neondb`, and a 32-byte cryptographic `QA_NETWORK_HMAC_SECRET`.
+- Production build deployed to Vercel and aliased to `https://kltn-rho.vercel.app` (Deployment ID: `dpl_AvtbhHxAAf76TcYkGX5dJXug32Yq`).
+- Full automated test suite PASS: 775 Vitest AI/assistant tests, 84 RAG tests, 56 legacy tests, root TypeScript typecheck (`tsc --noEmit`), and Next.js production build (`next build`).
+- Live production smoke test passed: Guest bootstrap (HTTP 200 + HttpOnly cookie), Đồng Văn grounded Q&A (HTTP 200, status `ANSWERED`, 2 citations), Căng Bắc Mê grounded Q&A (HTTP 200, status `ANSWERED`, 1 citation), Khâu Vai Q&A (HTTP 200, status `ANSWERED`, 1 citation), Multi-turn follow-up (HTTP 200, status `ANSWERED`), Out-of-scope grounding rejection (HTTP 200, status `INSUFFICIENT_SOURCE`), and Conversation history list (HTTP 200).
+- Immediate kill switch verified (`QA_PRODUCTION_RUNTIME_ENABLED=false` fails closed to HTTP 503 `AI_UNAVAILABLE` and UI notice banner).
+- Final status: `AI_ASSISTANT_PRODUCTION=PASS`.
+- [Activation report](implementation/assistant-production-activation.md).
