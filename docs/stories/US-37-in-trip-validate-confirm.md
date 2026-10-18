@@ -32,7 +32,7 @@ Là Du khách, tôi muốn kiểm tra và xác nhận phương án điều chỉ
 
 - **US-32 — candidate, preview và apply:** `EditCandidate`, `previewEdit` và `apply-edit` đã có trong checkout. Apply hỗ trợ `kind: 'IN_TRIP'`, nhưng route hiện chưa nhận location/mandatory endpoint và hook bảo vệ visit đã hoàn thành là tùy chọn, chưa được nối tại route. Task 296 cần tích hợp tối thiểu với contract dùng chung.
 - **US-36 — candidate In-trip:** cung cấp candidate, danh sách visit đã qua giờ do server tính và `mandatoryEndpoint` nếu có. US-36 không chạy Validator và không ghi DB; US-37 là nơi kiểm tra và áp dụng.
-- **Constraint Validator của Thai Anh:** `validateItinerary(visits, routes, timeReference)` trả bốn nhóm `openingHours`, `minimumDuration`, `travelTime`, `scheduleConflict` và `canConfirm`. Validator hiện không nhận vị trí hiện tại làm origin hoặc `mandatoryEndpoint/deadline`; cần Thai Anh xác nhận hợp đồng mở rộng/tái sử dụng trước task 293–294. Không viết Validator thay thế.
+- **Constraint Validator của Thai Anh:** `validateItinerary(visits, routes, timeReference)` trả bốn nhóm `openingHours`, `minimumDuration`, `travelTime`, `scheduleConflict` và `canConfirm`. Task 293 đã bổ sung `validateInTripContext(base, { now, originLeg, mandatoryEndpoint })` vào cùng module; `previewInTrip` vẫn gọi `previewEdit` để lấy kết quả bốn nhóm gốc rồi gộp kiểm tra chặng từ vị trí hiện tại và deadline vào `travelTime`. API gốc không đổi; phần mở rộng file dùng chung cần được xem xét khi review/hợp nhất.
 - **Trip model:** `Trip.updatedAt` đang được US-32 dùng làm `baseRevision`/CAS token; chưa có cột revision số và visit không có cột completed. US-36 đã chọn suy trạng thái đã qua giờ theo lịch với `Asia/Ho_Chi_Minh`. Nếu contract này đòi tăng revision số hoặc thêm trạng thái, phải có quyết định và schema work riêng theo ADR-10.
 - **UI Validator:** có thể tái dùng `TripValidationPanel` của US-29C Task 251; panel nhận `TripValidation` và khóa nút xác nhận khi `canConfirm` false. Chưa được gắn vào UI In-trip.
 
@@ -181,11 +181,11 @@ Không thêm dependency, client hoặc biến môi trường. Không ghi secret.
 
 ## Acceptance Evidence
 
-2026-10-18: Tạo contract DRAFT theo yêu cầu; chưa triển khai US-37, chưa chạy test/typecheck/build và chưa kiểm chứng browser/GPS/routing thật. Checkout có các module US-32/US-36 và Validator nêu trong Dependencies; một số thay đổi US-36 đang ở working tree chưa commit/merge. Repo cũng đang có draft cùng ID tại `US-37-confirm-in-trip-proposal.md`; cần thống nhất file canonical trước khi chuyển story sang READY.
+2026-10-18: Tạo contract DRAFT theo yêu cầu. Task 293 đã có route POST `/api/trips/[id]/in-trip/preview`, HTTP boundary xác thực Traveler trước khi đọc bounded JSON strict, và `previewInTrip` đọc Trip theo `id AND userId`, so `updatedAt` với `baseRevision`, dùng giờ server để split/preserve completed visits, kiểm tra destination đủ điều kiện và endpoint cuối, rồi dùng `previewEdit` cùng phần mở rộng Validator cho origin/deadline. Response private `no-store` chứa bốn nhóm, `checkedAt`, `completedVisitIds`; không có đường ghi. Focused Vitest (Validator gốc + Task 293 + trip-edit): 4 file / 36 tests PASS với fake database/route/clock, gồm một ca chạy `previewEdit` thật. `npm run check-types` không khởi động được do NVM shim chưa có Node active; direct bundled `tsc` báo hai lỗi ngoài phạm vi ở `destination/cloudinary-provider.ts` (thiếu module `cloudinary`, implicit-any), không báo lỗi Task 293. `git diff --check` PASS. Browser/GPS/Stadia thật là NOT PROVEN. Task 294–297 chưa triển khai; preview không chứng nhận apply. Repo còn draft cùng ID tại `US-37-confirm-in-trip-proposal.md`; cần thống nhất file canonical trước khi chuyển story sang READY.
 
 ## Open Questions
 
-- **OQ-A — Validator input:** Validator có nhận `now`, điểm xuất phát là vị trí hiện tại, và mandatory endpoint/deadline không? Nếu không, Thai Anh chốt adapter/input/result mở rộng thế nào mà không viết lại rule?
+- **OQ-A — Validator input:** Task 293 đã thêm adapter `validateInTripContext` vào Validator hiện có, dùng route snapshot từ vị trí hiện tại và deadline cùng ngày Việt Nam. Contract kỹ thuật cho preview đã có; semantics chặng origin/deadline cần được xem xét khi review chung. Preview không phải xác nhận cuối.
 - **OQ-B — Location freshness:** `capturedAt` cũ bao lâu thì phải từ chối hoặc yêu cầu lấy vị trí lại? Ngưỡng do ai chốt?
 - **OQ-C — Replay:** Cùng Idempotency-Key có replay SUCCESS đã commit mà không chạy lại Validator theo ADR-09 không? Khi location bị loại khỏi hash, xử lý thế nào nếu cùng key được gửi lại với location khác?
 - **OQ-D — Routing timeout khi xác nhận:** Timeout/unavailable được trả như `INSUFFICIENT_DATA` để người dùng thử kiểm tra lại hay thành lỗi kỹ thuật riêng? Không trường hợp nào được coi là PASS.
@@ -196,4 +196,4 @@ Không thêm dependency, client hoặc biến môi trường. Không ghi secret.
 
 ## Handoff Notes
 
-Thiết kế API và mở rộng apply trong story này là **đề xuất**, chưa phải contract được Thai Anh/Hoài xác nhận. Không bắt đầu các phần phụ thuộc Validator in-trip cho đến khi chữ ký/input và policy cần thiết được chốt. Không coi việc tạo story hoặc code hiện có trong working tree là bằng chứng các task 293–297 đã được nghiệm thu.
+Thiết kế API apply trong story này vẫn là **đề xuất**. Bình đã cho phép tự mở rộng Validator để hoàn thành Task 293; phần mở rộng file dùng chung là một rủi ro review/hợp nhất, không đặt thêm điều kiện phê duyệt cho Task 293. Chưa chốt độ cũ của location, replay, hiệu lực preview và contract apply; không coi Task 293 là nghiệm thu các task 294–297.

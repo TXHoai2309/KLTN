@@ -184,6 +184,6 @@ export function validateInTripContext(
   return {
     timeReference: context.now.toISOString(),
     groups,
-    canConfirm: groupNames.every((group) => groups[group].status === "SATISFIED"),
+    canConfirm: base.canConfirm && groupNames.every((group) => groups[group].status === "SATISFIED"),
   };
 }

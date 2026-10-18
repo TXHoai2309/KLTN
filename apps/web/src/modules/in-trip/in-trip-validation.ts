@@ -4,6 +4,7 @@ import { AppError } from "@/server/http/app-error";
 import { findEligibleDestinationIds, visibleDestinationWhere } from "../destination/destination-eligibility";
 import { type EditCandidate, type SavedTripForEdit } from "../trip-edit/edit-candidate";
 import {
+  assertCandidateMatchesTrip,
   previewEdit,
   type PreviewEditResult,
   type TripEditRouteProvider,
@@ -146,6 +147,7 @@ export async function previewInTrip(
   if (trip.updatedAt.toISOString() !== request.baseRevision) {
     throw new AppError("TRIP_REVISION_CONFLICT", "Hành trình đã thay đổi. Hãy tải lại.", 409);
   }
+  assertCandidateMatchesTrip(trip, request.candidate);
 
   const now = dependencies.now();
   const original = savedTrip(trip);
@@ -159,6 +161,9 @@ export async function previewInTrip(
     })),
   }, now);
   const completedVisitIds = split.completed.map((visit) => visit.visitId);
+  if (split.status === "ALL_COMPLETED") {
+    throw new AppError("ALL_COMPLETED", "Chuyến đi không còn lượt nào để đề xuất lại.", 422);
+  }
   try {
     preserveCompleted(original, request.candidate, completedVisitIds);
   } catch (error) {
@@ -171,12 +176,15 @@ export async function previewInTrip(
   const remaining = positionedCandidateVisits(request.candidate).filter(
     (visit) => !completedVisitIds.includes(visit.visitId),
   );
-  const endpoint = endpointConstraint(request.mandatoryEndpoint, remaining, request.candidate);
+  if (remaining.length === 0) {
+    throw new AppError("ALL_COMPLETED", "Phương án không còn lượt nào để kiểm tra.", 422);
+  }
   const ids = [...new Set(positionedCandidateVisits(request.candidate).map((visit) => visit.destinationId))];
   const eligibleIds = await findEligibleDestinationIds(ids, dependencies.database);
   if (eligibleIds.length !== ids.length) {
     throw new AppError("DESTINATION_UNAVAILABLE", "Có điểm đến không còn công khai hoặc không tồn tại.", 422);
   }
+  const endpoint = endpointConstraint(request.mandatoryEndpoint, remaining, request.candidate);
 
   const safeGetRoute = boundedRoute(dependencies);
   const first = remaining[0];

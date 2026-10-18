@@ -248,7 +248,7 @@ export default function TripReviewScreen({
   const checkAbortRef = useRef<AbortController | null>(null);
   const checkInFlightRef = useRef(false);
   const checkSequenceRef = useRef(0);
-  const mountedRef = useRef(true);
+  const mountedRef = useRef(false);
 
   useEffect(() => {
     headingRef?.current?.focus();
@@ -269,6 +269,7 @@ export default function TripReviewScreen({
   }, [draft, initialClarificationRequests]);
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       checkInFlightRef.current = false;
