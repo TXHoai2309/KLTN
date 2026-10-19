@@ -264,8 +264,9 @@ export default function EditorialEditor({ id }: { id: string }) {
           mode,
           expectedRevision: state.draftRevision,
           version: 2,
+          timeoutMs: 240_000,
         }),
-        signal: AbortSignal.any([request.current.signal, AbortSignal.timeout(220_000)])
+        signal: AbortSignal.any([request.current.signal, AbortSignal.timeout(285_000)])
       });
       const body = await r.json().catch(() => null);
       if (r.status === 429) {
