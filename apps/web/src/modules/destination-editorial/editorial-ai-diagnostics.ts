@@ -96,7 +96,7 @@ export function createEditorialAiDiagnostics() {
       });
     },
     providerResponse(status: number, requestId: unknown, payload: unknown, attempt: number, elapsedMs?: number, configuredTimeoutMs?: number) {
-      const p = payload && typeof payload === "object" ? payload as { model?: unknown; usage?: { prompt_tokens?: unknown; completion_tokens?: unknown } } : {};
+      const p = payload && typeof payload === "object" ? payload as { model?: unknown; usage?: { prompt_tokens?: unknown; completion_tokens?: unknown; completion_tokens_details?: { reasoning_tokens?: unknown } } } : {};
       const tokens = (v: unknown) => typeof v === "number" && Number.isSafeInteger(v) && v >= 0 ? v : null;
       emit("PROVIDER_REQUEST", "PROVIDER_RESPONSE_RECEIVED", new EditorialAiError("PROVIDER_UNAVAILABLE", status), {
         stage: "PROVIDER_RESPONSE_RECEIVED",
@@ -106,6 +106,7 @@ export function createEditorialAiDiagnostics() {
         providerStatus: status,
         inputTokens: tokens(p.usage?.prompt_tokens),
         outputTokens: tokens(p.usage?.completion_tokens),
+        reasoningTokens: tokens(p.usage?.completion_tokens_details?.reasoning_tokens),
         attempt: attempt === 2 ? 2 : 1,
         ...(Number.isSafeInteger(elapsedMs) ? { elapsedMs } : {}),
         ...(Number.isSafeInteger(configuredTimeoutMs) ? { configuredTimeoutMs } : {}),
