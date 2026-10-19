@@ -17,6 +17,12 @@ import {
 } from "./trip-edit-service";
 import { tripDayDate } from "../trip-validation/trip-proposal-contract";
 import type { TripValidation } from "../trip-validation/trip-validation";
+import { inTripLocationSchema } from "../in-trip/in-trip-location";
+import { mandatoryEndpointSchema } from "../in-trip/mandatory-endpoint";
+import { previewInTrip } from "../in-trip/in-trip-validation";
+import { recheckInTripTime, type TimeRecheckTrip } from "../in-trip/time-recheck";
+import { preserveCompleted, ReplanCompletedVisitError } from "../in-trip/preserve-completed";
+import { splitCompletedRemaining } from "../in-trip/split-trip";
 
 export const applyEditRequestSchema = z
   .object({
@@ -24,8 +30,18 @@ export const applyEditRequestSchema = z
     candidate: editCandidateSchema,
     confirmed: z.literal(true),
     kind: z.enum(["MANUAL", "AI", "IN_TRIP"]),
+    location: inTripLocationSchema.optional(),
+    mandatoryEndpoint: mandatoryEndpointSchema.nullable().optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((request, context) => {
+    if (request.kind === "IN_TRIP" && request.location === undefined) {
+      context.addIssue({ code: "custom", path: ["location"], message: "Cần vị trí để kiểm tra lại phương án In-trip." });
+    }
+    if (request.kind !== "IN_TRIP" && (request.location !== undefined || request.mandatoryEndpoint !== undefined)) {
+      context.addIssue({ code: "custom", path: ["kind"], message: "Ngữ cảnh vị trí chỉ dùng cho chỉnh sửa In-trip." });
+    }
+  });
 
 export type ApplyEditRequest = z.infer<typeof applyEditRequestSchema>;
 
@@ -96,12 +112,25 @@ function assertInTripVisitsUnchanged(
   timeReference: Date,
   dependencies: ApplyEditDependencies,
 ): void {
-  if (kind !== "IN_TRIP" || !dependencies.assertInTripCompletedVisitsUnchanged) return;
-  dependencies.assertInTripCompletedVisitsUnchanged({
-    original: createEditCandidate(originalTrip),
-    candidate,
-    timeReference,
-  });
+  if (kind !== "IN_TRIP") return;
+  try {
+    if (dependencies.assertInTripCompletedVisitsUnchanged) {
+      dependencies.assertInTripCompletedVisitsUnchanged({
+        original: createEditCandidate(originalTrip),
+        candidate,
+        timeReference,
+      });
+      return;
+    }
+    const trip = timeRecheckTrip(originalTrip);
+    const split = splitCompletedRemaining(trip, timeReference);
+    preserveCompleted(trip, candidate, split.completed.map((visit) => visit.visitId));
+  } catch (error) {
+    if (error instanceof ReplanCompletedVisitError) {
+      throw new AppError("COMPLETED_VISIT_CHANGED", "Phương án thay đổi lượt đã qua giờ theo lịch.", 422);
+    }
+    throw error;
+  }
 }
 
 function assertCandidateCanBeSaved(candidate: EditCandidate): void {
@@ -140,6 +169,19 @@ async function findOwnedTrip(
   });
   if (!trip) throw tripNotFound();
   return trip;
+}
+
+function timeRecheckTrip(trip: TripForApply): TimeRecheckTrip {
+  return {
+    startDate: trip.startDate,
+    durationDays: trip.durationDays,
+    transport: trip.transport,
+    days: trip.days.map((day) => ({
+      dayIndex: day.dayIndex,
+      localDate: tripDayDate(trip.startDate.toISOString().slice(0, 10), day.dayIndex) ?? "",
+      visits: day.visits.map((visit) => ({ ...visit })),
+    })),
+  };
 }
 
 function requireLocalDate(candidate: EditCandidate, dayIndex: number): Date {
@@ -212,7 +254,7 @@ export async function applyEdit(
   request: ApplyEditRequest,
   key: string,
   dependencies: ApplyEditDependencies,
-  timeReference: Date,
+  timeReference: Date | (() => Date),
 ) {
   const parsed = applyEditRequestSchema.safeParse(request);
   if (!parsed.success) {
@@ -230,29 +272,76 @@ export async function applyEdit(
     actorId: userId,
     operation: "trip:apply-edit",
     key,
-    input: { tripId, baseRevision: input.baseRevision, kind: input.kind, candidate },
+    input: {
+      tripId,
+      baseRevision: input.baseRevision,
+      kind: input.kind,
+      candidate,
+      ...(input.kind === "IN_TRIP" ? { mandatoryEndpoint: input.mandatoryEndpoint ?? null } : {}),
+      // Location is intentionally transient and excluded from the idempotency hash.
+    },
   };
   const replay = await preflightIdempotentReplay<ApplyEditResult>(identity);
   if (replay.status !== "ABSENT") return replay;
 
-  assertCandidateCanBeSaved(candidate);
-  assertInTripVisitsUnchanged(input.kind, ownedTrip, candidate, timeReference, dependencies);
+  // Read a fresh server clock only after ownership/replay checks and immediately
+  // before the out-of-transaction revalidation phase.
+  const validationTimeReference = typeof timeReference === "function" ? timeReference() : timeReference;
+  if (Number.isNaN(validationTimeReference.getTime())) throw new RangeError("now must be valid");
 
-  const validationPreview = await previewEdit(
-    tripId,
-    userId,
-    input.baseRevision,
-    candidate,
-    dependencies,
-    timeReference,
-  );
-  if (!validationPreview.validation.canConfirm) {
-    throw new AppError(
-      "TRIP_VALIDATION_FAILED",
-      "Hành trình chưa đạt toàn bộ kiểm tra để áp dụng.",
-      422,
-      { validation: validationPreview.validation },
+  assertCandidateCanBeSaved(candidate);
+  assertInTripVisitsUnchanged(input.kind, ownedTrip, candidate, validationTimeReference, dependencies);
+
+  let validation: TripValidation;
+  if (input.kind === "IN_TRIP") {
+    const checked = await previewInTrip(
+      tripId,
+      userId,
+      {
+        baseRevision: input.baseRevision,
+        candidate,
+        location: input.location!,
+        mandatoryEndpoint: input.mandatoryEndpoint ?? null,
+      },
+      { database: dependencies.database, getRoute: dependencies.getRoute, now: () => validationTimeReference },
     );
+    const recheck = recheckInTripTime({
+      trip: timeRecheckTrip(ownedTrip),
+      candidate,
+      now: new Date(checked.checkedAt),
+      validation: checked.validation,
+    });
+    if (recheck.status === "REJECTED") {
+      const message = recheck.code === "COMPLETED_VISIT_CHANGED"
+        ? "Phương án thay đổi lượt đã qua giờ theo lịch. Hãy kiểm tra lại."
+        : recheck.code === "ALL_COMPLETED"
+          ? "Chuyến đi không còn lượt nào để áp dụng phương án."
+          : "Kết quả kiểm tra In-trip đã thay đổi. Hãy xem lại phương án.";
+      throw new AppError(recheck.code, message, 422, {
+        validation: recheck.validation,
+        checkedAt: recheck.checkedAt,
+        completedVisitIds: recheck.completedVisitIds,
+      });
+    }
+    validation = recheck.validation;
+  } else {
+    const validationPreview = await previewEdit(
+      tripId,
+      userId,
+      input.baseRevision,
+      candidate,
+      dependencies,
+      validationTimeReference,
+    );
+    if (!validationPreview.validation.canConfirm) {
+      throw new AppError(
+        "TRIP_VALIDATION_FAILED",
+        "Hành trình chưa đạt toàn bộ kiểm tra để áp dụng.",
+        422,
+        { validation: validationPreview.validation },
+      );
+    }
+    validation = validationPreview.validation;
   }
 
   const result = await executeIdempotentWrite<ApplyEditResult>({
@@ -273,7 +362,7 @@ export async function applyEdit(
         input.baseRevision,
         candidate,
         input.kind,
-        timeReference,
+        validationTimeReference,
         dependencies,
       );
       return {
@@ -281,7 +370,7 @@ export async function applyEdit(
         baseRevision: nextBaseRevision,
         kind: input.kind,
         candidate,
-        validation: validationPreview.validation,
+        validation,
       };
     },
   });

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { applyEdit, type ApplyEditDependencies, type ApplyEditRequest } from "./apply-edit";
 import type { EditCandidate } from "./edit-candidate";
 import { applyEditResponse, type TripEditApplyHttpDependencies } from "./trip-edit-http";
+import { previewInTrip } from "../in-trip/in-trip-validation";
 
 const oldRevision = new Date("2026-10-15T12:00:00.000Z");
 const timeReference = new Date("2026-10-16T10:00:00.000Z");
@@ -25,11 +26,25 @@ const candidate: EditCandidate = {
   }],
 };
 
-const request = (kind: ApplyEditRequest["kind"] = "MANUAL", value = candidate): ApplyEditRequest => ({
+const request = (
+  kind: ApplyEditRequest["kind"] = "MANUAL",
+  value = candidate,
+  mandatoryEndpoint: { destinationId: "destination-1", deadline: "08:30" } | null = null,
+): ApplyEditRequest => ({
   baseRevision: oldRevision.toISOString(),
   candidate: value,
   confirmed: true,
   kind,
+  ...(kind === "IN_TRIP" ? {
+    location: {
+      source: "MANUAL" as const,
+      latitude: 23.12345,
+      longitude: 105.98765,
+      accuracyMeters: null,
+      capturedAt: "2026-10-20T00:00:00.000Z",
+    },
+    mandatoryEndpoint,
+  } : {}),
 });
 
 function fixture() {
@@ -82,6 +97,10 @@ function fixture() {
         tripExists && trip.id === where.id && trip.userId === where.userId ? structuredClone(trip) : null,
     },
     destination: {
+      findFirst: async ({ where }: { where: { id: string; visibility: string } }) => {
+        const destination = destinations.find((row) => row.id === where.id && row.visibility === where.visibility);
+        return destination ? { latitude: destination.latitude, longitude: destination.longitude } : null;
+      },
       findMany: async ({ where }: { where: { id: { in: string[] }; visibility: string } }) => {
         destinationReads += 1;
         return structuredClone(destinations.filter((row) =>
@@ -226,6 +245,123 @@ describe("applyEdit", () => {
     expect(test.records).toHaveLength(1);
   });
 
+  it("rechecks In-trip validation at apply time and keeps location out of idempotency data", async () => {
+    const test = fixture();
+    const atDeadlineCandidate: EditCandidate = {
+      ...candidate,
+      days: [{
+        dayIndex: 1,
+        visits: [{ ...candidate.days[0]!.visits[0]!, startMinute: 510 }],
+      }],
+    };
+    const inTripRequest = request("IN_TRIP", atDeadlineCandidate);
+    const serverNow = vi.fn(() => new Date("2026-10-20T01:00:00.000Z"));
+    const outcome = await applyEdit(
+      headers, "trip-1", "owner-1", inTripRequest, "in-trip-pass", test.dependencies,
+      serverNow,
+    );
+    expect(outcome).toMatchObject({ status: "SUCCESS", data: { kind: "IN_TRIP", validation: { canConfirm: true } } });
+    expect(JSON.stringify(test.records)).not.toContain("23.12345");
+    expect(JSON.stringify(test.records)).not.toContain("105.98765");
+    expect(test.transactionCount).toBe(1);
+    expect(serverNow).toHaveBeenCalledOnce();
+
+    const replay = await applyEdit(
+      headers,
+      "trip-1",
+      "owner-1",
+      { ...inTripRequest, location: { ...inTripRequest.location!, latitude: 22.45678, longitude: 104.87654 } },
+      "in-trip-pass",
+      test.dependencies,
+      serverNow,
+    );
+    expect(replay).toMatchObject({ status: "SUCCESS", replayed: true });
+    expect(test.transactionCount).toBe(1);
+    expect(JSON.stringify(test.records)).not.toContain("22.45678");
+    expect(JSON.stringify(test.records)).not.toContain("104.87654");
+  });
+
+  it("rejects an endpoint deadline just missed before entering the write transaction", async () => {
+    const test = fixture();
+    await expect(applyEdit(
+      headers, "trip-1", "owner-1", request("IN_TRIP", candidate, { destinationId: "destination-1", deadline: "08:30" }),
+      "in-trip-late", test.dependencies, new Date("2026-10-20T01:30:01.000Z"),
+    )).rejects.toMatchObject({
+      code: "IN_TRIP_VALIDATION_CHANGED", status: 422,
+      details: { checkedAt: "2026-10-20T01:30:01.000Z", validation: { canConfirm: false } },
+    });
+    expect(test.transactionCount).toBe(0);
+    expect(test.records).toHaveLength(0);
+  });
+
+  it("rejects a visit that crossed its scheduled end between preview and apply", async () => {
+    const test = fixture();
+    const changed = { ...candidate, days: [{
+      dayIndex: 1,
+      visits: [{ ...candidate.days[0]!.visits[0]!, startMinute: 500 }],
+    }] };
+    const inTripRequest = request("IN_TRIP", changed, null);
+    const preview = await previewInTrip("trip-1", "owner-1", {
+      baseRevision: inTripRequest.baseRevision,
+      candidate: inTripRequest.candidate,
+      location: inTripRequest.location!,
+      mandatoryEndpoint: null,
+    }, {
+      database: test.dependencies.database,
+      getRoute: test.dependencies.getRoute,
+      now: () => new Date("2026-10-20T00:00:00.000Z"),
+    });
+    expect(preview.validation.canConfirm).toBe(true);
+
+    await expect(applyEdit(
+      headers, "trip-1", "owner-1", inTripRequest, "in-trip-completed", test.dependencies,
+      new Date("2026-10-20T02:00:00.000Z"),
+    )).rejects.toMatchObject({ code: "COMPLETED_VISIT_CHANGED", status: 422 });
+    expect(test.transactionCount).toBe(0);
+    expect(test.records).toHaveLength(0);
+  });
+
+  it("rejects In-trip apply when the fresh route is unavailable", async () => {
+    const test = fixture();
+    test.dependencies.getRoute = async () => ({ kind: "unavailable" });
+    await expect(applyEdit(
+      headers, "trip-1", "owner-1", request("IN_TRIP", candidate, null), "in-trip-timeout", test.dependencies,
+      new Date("2026-10-20T00:00:00.000Z"),
+    )).rejects.toMatchObject({
+      code: "IN_TRIP_VALIDATION_CHANGED", status: 422,
+      details: { validation: { canConfirm: false, groups: { travelTime: { status: "INSUFFICIENT_DATA" } } } },
+    });
+    expect(test.transactionCount).toBe(0);
+    expect(test.records).toHaveLength(0);
+  });
+
+  it.each([
+    ["VIOLATION", (test: ReturnType<typeof fixture>) => test.makeViolation()],
+    ["INSUFFICIENT_DATA", (test: ReturnType<typeof fixture>) => test.makeInsufficient()],
+  ])("does not write In-trip candidates when fresh validation is %s", async (_status, configure) => {
+    const test = fixture();
+    configure(test);
+    await expect(applyEdit(
+      headers,
+      "trip-1",
+      "owner-1",
+      request("IN_TRIP", candidate, null),
+      "in-trip-blocked",
+      test.dependencies,
+      new Date("2026-10-20T00:00:00.000Z"),
+    )).rejects.toMatchObject({
+      code: "IN_TRIP_VALIDATION_CHANGED",
+      status: 422,
+      details: {
+        checkedAt: "2026-10-20T00:00:00.000Z",
+        validation: { canConfirm: false, groups: expect.any(Object) },
+      },
+    });
+    expect(test.transactionCount).toBe(0);
+    expect(test.records).toHaveLength(0);
+    expect(test.trip.days[0]!.visits[0]!.startMinute).toBe(480);
+  });
+
   it("replays the committed response before stale revision or Validator work", async () => {
     const test = fixture();
     const first = await applyEdit(headers, "trip-1", "owner-1", request(), "same-key", test.dependencies, timeReference);
@@ -240,12 +376,12 @@ describe("applyEdit", () => {
 
   it("returns 409 when the same key is reused for a different payload", async () => {
     const test = fixture();
-    await applyEdit(headers, "trip-1", "owner-1", request(), "same-key", test.dependencies, timeReference);
+    await applyEdit(headers, "trip-1", "owner-1", request("IN_TRIP", candidate, null), "same-key", test.dependencies, timeReference);
     const changed = { ...candidate, days: [{
       dayIndex: 1,
       visits: [{ ...candidate.days[0]!.visits[0]!, startMinute: 510 }],
     }] };
-    const outcome = await applyEdit(headers, "trip-1", "owner-1", request("MANUAL", changed), "same-key", test.dependencies, timeReference);
+    const outcome = await applyEdit(headers, "trip-1", "owner-1", request("IN_TRIP", changed, null), "same-key", test.dependencies, timeReference);
 
     expect(outcome).toMatchObject({ status: "FAILED", httpStatus: 409, error: { code: "IDEMPOTENCY_KEY_REUSED" } });
     expect(test.transactionCount).toBe(1);
@@ -257,7 +393,7 @@ describe("applyEdit", () => {
       headers,
       "trip-1",
       "owner-1",
-      { ...request(), baseRevision: "2026-10-14T12:00:00.000Z" },
+      { ...request("IN_TRIP", candidate, null), baseRevision: "2026-10-14T12:00:00.000Z" },
       "stale",
       test.dependencies,
       timeReference,
@@ -322,7 +458,7 @@ describe("applyEdit", () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
     try {
       test.failMidway();
-      const outcome = await applyEdit(headers, "trip-1", "owner-1", request(), "unknown", test.dependencies, timeReference);
+      const outcome = await applyEdit(headers, "trip-1", "owner-1", request("IN_TRIP", candidate, null), "unknown", test.dependencies, new Date("2026-10-20T00:00:00.000Z"));
 
       expect(outcome).toMatchObject({ status: "UNKNOWN", retryWithSameKey: true });
       expect(test.trip.updatedAt).toEqual(oldRevision);
@@ -379,7 +515,7 @@ describe("applyEditResponse authorization and request parsing", () => {
     const test = fixture();
     const http = httpDependencies(test);
     const invalid = await applyEditResponse(
-      httpRequest(JSON.stringify({ ...request(), confirmed: false })),
+      httpRequest(JSON.stringify({ ...request("IN_TRIP", candidate, null), confirmed: false })),
       "trip-1",
       http.dependencies,
     );
@@ -395,5 +531,29 @@ describe("applyEditResponse authorization and request parsing", () => {
     expect(missingKey.status).toBe(400);
     expect((await missingKey.json()).error.code).toBe("IDEMPOTENCY_KEY_REQUIRED");
     expect(test.transactionCount).toBe(0);
+  });
+
+  it("rejects a client clock and applies confirmed In-trip input through the private shared route", async () => {
+    const test = fixture();
+    const http = httpDependencies(test);
+    const requestWithClock = { ...request("IN_TRIP", candidate, null), now: "2000-01-01T00:00:00.000Z" };
+    const invalid = await applyEditResponse(
+      httpRequest(JSON.stringify(requestWithClock)),
+      "trip-1",
+      http.dependencies,
+    );
+    expect(invalid.status).toBe(400);
+    expect((await invalid.json()).error.code).toBe("VALIDATION_ERROR");
+    expect(test.transactionCount).toBe(0);
+
+    const applied = await applyEditResponse(
+      httpRequest(JSON.stringify(request("IN_TRIP", candidate, null))),
+      "trip-1",
+      http.dependencies,
+    );
+    expect(applied.status).toBe(200);
+    expect(applied.headers.get("cache-control")).toBe("private, no-store");
+    expect(await applied.json()).toMatchObject({ operationStatus: "SUCCESS", data: { kind: "IN_TRIP" } });
+    expect(test.transactionCount).toBe(1);
   });
 });

@@ -134,7 +134,7 @@ export async function applyEditResponse(
       parsed.data,
       key,
       dependencies.service,
-      dependencies.now(),
+      dependencies.now,
     );
     return privateResponse(apiMutationResult(result));
   } catch (error) {
