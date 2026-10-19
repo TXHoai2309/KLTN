@@ -4,6 +4,7 @@ import { AppError } from "@/server/http/app-error";
 import { resolveExploreReturnTo } from "@/modules/destination/destination-detail-navigation";
 import { getPublicDestination } from "@/modules/destination/public-destination-service";
 import DestinationDetail, { DetailState } from "./destination-detail";
+import { readPublicEditorial } from "@/modules/destination-editorial/editorial-service";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Chi tiết điểm đến | Hà Giang Travel Assistant" };
@@ -11,7 +12,7 @@ export const metadata = { title: "Chi tiết điểm đến | Hà Giang Travel A
 export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const returnTo = resolveExploreReturnTo(query.returnTo);
-  try { return <DestinationDetail destination={await getPublicDestination(id, db)} returnTo={returnTo} />; }
+  try { const destination = await getPublicDestination(id, db); return <DestinationDetail destination={destination} returnTo={returnTo} editorial={await readPublicEditorial(id, db)} />; }
   catch (error) {
     if (error instanceof AppError) {
       if (error.code === "DESTINATION_NOT_FOUND") notFound();

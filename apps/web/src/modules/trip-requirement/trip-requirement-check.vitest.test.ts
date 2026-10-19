@@ -208,14 +208,14 @@ describe("US26-BE-CHECK HTTP boundary", () => {
     bodyReadCount = 0;
   });
 
-  it("rejects Guest/Admin before reading the body", async () => {
+  it("rejects Guest before body parsing and checks Admin requirements", async () => {
     for (const role of [null, "ADMIN"] as const) {
       const response = await checkTripRequirementResponse(
         request(JSON.stringify(completePayload)),
         fakeDependencies(role, BEFORE_VIETNAM_MIDNIGHT, () => { bodyReadCount += 1; }),
       );
-      expect(response.status).toBe(role === null ? 401 : 403);
-      expect(bodyReadCount).toBe(0);
+      expect(response.status).toBe(role === null ? 401 : 200);
+      expect(bodyReadCount).toBe(role === null ? 0 : 1);
       expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     }
   });

@@ -1,9 +1,10 @@
 import { AppError } from "../../server/http/app-error";
-import { QA_BODY_MAX_BYTES, QA_ERROR_HTTP_STATUS, qaRequestSchema, qaIdempotencyKeySchema, qaCompletedResponseSchema, qaReferenceIdSchema, type QaRequest } from "./qa-contract";
+import { QA_BODY_MAX_BYTES, QA_ERROR_HTTP_STATUS, qaRequestSchema, qaIdempotencyKeySchema, qaCompletedResponseSchema, qaReferenceIdSchema, qaRenameConversationSchema, type QaRequest } from "./qa-contract";
 import { assertQaSameOrigin } from "./qa-principal";
 import type { QaPrincipal } from "./qa-runtime-contract";
 import type { QaCompletedTurn } from "./qa-contract";
 import { qaReportFailure, qaStage, type QaDiagnostics } from "./qa-diagnostics";
+import { withQaRequestBudget } from "./qa-request-budget";
 
 export type QaHttpDependencies = {
   enabled: () => boolean;
@@ -11,6 +12,10 @@ export type QaHttpDependencies = {
   resolve: (headers: Headers) => Promise<QaPrincipal>;
   ask: (principal: QaPrincipal, key: string, request: QaRequest, signal?: AbortSignal) => Promise<{ data: QaCompletedTurn; replayed: boolean }>;
   history: (principal: QaPrincipal, id: string) => Promise<unknown>;
+  get?: (principal: QaPrincipal, id: string) => Promise<{ conversation: unknown; turns: unknown[] }>;
+  list?: (principal: QaPrincipal, options?: { cursor?: string | null; limit?: number; search?: string }) => Promise<unknown>;
+  rename?: (principal: QaPrincipal, id: string, title: string) => Promise<unknown>;
+  turns?: (principal: QaPrincipal, id: string, options?: { cursor?: string | null; limit?: number }) => Promise<unknown>;
   delete: (principal: QaPrincipal, id: string) => Promise<unknown>;
 };
 export function qaJson(body: unknown, status = 200, extra: Record<string, string> = {}) {
@@ -61,7 +66,7 @@ export function createQaHttpHandlers(deps: QaHttpDependencies) {
   };
   return {
     async ask(request: Request) {
-      const work = async () => {
+      const work = () => withQaRequestBudget(request.signal, async signal => {
       try {
         guard(); assertQaSameOrigin(request);
         const rawKey = request.headers.get("Idempotency-Key");
@@ -72,7 +77,7 @@ export function createQaHttpHandlers(deps: QaHttpDependencies) {
         qaStage("REQUEST_ACCEPTED");
         const principal = await readOnly(() => deps.resolve(request.headers));
         qaStage("PRINCIPAL_RESOLVED");
-        const result = await deps.ask(principal, key.data, input, request.signal);
+        const result = await deps.ask(principal, key.data, input, signal);
         qaStage("HTTP_RESPONSE_VALIDATION");
         const body = qaCompletedResponseSchema.parse({ success: true, operationStatus: "SUCCESS", data: result.data });
         return qaJson(body, 200, result.replayed ? { "Idempotency-Replayed": "true" } : {});
@@ -80,7 +85,7 @@ export function createQaHttpHandlers(deps: QaHttpDependencies) {
         qaReportFailure(error, error instanceof AppError && error.code in QA_ERROR_HTTP_STATUS ? error.code : "OPERATION_STATUS_UNKNOWN");
         return qaHttpError(error);
       }
-      };
+      });
       return deps.diagnostics ? deps.diagnostics.run(work) : work();
     },
     async conversation(request: Request, id: string, remove: boolean) {
@@ -89,8 +94,55 @@ export function createQaHttpHandlers(deps: QaHttpDependencies) {
         if (remove) assertQaSameOrigin(request);
         if (!qaReferenceIdSchema.safeParse(id).success) throw new AppError("NOT_FOUND", "Not found", 404);
         const principal = await readOnly(() => deps.resolve(request.headers));
-        const data = remove ? await deps.delete(principal, id) : await readOnly(() => deps.history(principal, id));
-        return qaJson({ success: true, ...(remove ? { operationStatus: "SUCCESS" } : {}), data });
+        if (remove) {
+          const data = await deps.delete(principal, id);
+          return qaJson({ success: true, operationStatus: "SUCCESS", data });
+        }
+        if (deps.get) {
+          const result = (await readOnly(() => deps.get!(principal, id))) as { conversation: unknown; turns: unknown[] };
+          return qaJson({ success: true, data: result.turns, conversation: result.conversation });
+        }
+        const data = await readOnly(() => deps.history(principal, id));
+        return qaJson({ success: true, data });
+      } catch (error) { return qaHttpError(error); }
+    },
+    async listConversations(request: Request) {
+      try {
+        guard();
+        const url = new URL(request.url);
+        const cursor = url.searchParams.get("cursor") || undefined;
+        const limitParam = url.searchParams.get("limit");
+        const limit = limitParam && /^\d+$/.test(limitParam) ? Number(limitParam) : undefined;
+        const search = url.searchParams.get("search") || url.searchParams.get("q") || undefined;
+        const principal = await readOnly(() => deps.resolve(request.headers));
+        const data = await readOnly(async () => deps.list ? deps.list(principal, { cursor, limit, search }) : { items: [], nextCursor: null, hasMore: false });
+        return qaJson({ success: true, data });
+      } catch (error) { return qaHttpError(error); }
+    },
+    async renameConversation(request: Request, id: string) {
+      try {
+        guard(); assertQaSameOrigin(request);
+        if (!qaReferenceIdSchema.safeParse(id).success) throw new AppError("NOT_FOUND", "Not found", 404);
+        let json: unknown;
+        try { json = await request.json(); } catch { throw new AppError("INVALID_REQUEST", "Invalid JSON", 400); }
+        const parsed = qaRenameConversationSchema.safeParse(json);
+        if (!parsed.success) throw new AppError("INVALID_REQUEST", "Invalid title", 400);
+        const principal = await readOnly(() => deps.resolve(request.headers));
+        const data = deps.rename ? await deps.rename(principal, id, parsed.data.title) : { id, title: parsed.data.title };
+        return qaJson({ success: true, operationStatus: "SUCCESS", data });
+      } catch (error) { return qaHttpError(error); }
+    },
+    async conversationTurns(request: Request, id: string) {
+      try {
+        guard();
+        if (!qaReferenceIdSchema.safeParse(id).success) throw new AppError("NOT_FOUND", "Not found", 404);
+        const url = new URL(request.url);
+        const cursor = url.searchParams.get("cursor") || undefined;
+        const limitParam = url.searchParams.get("limit");
+        const limit = limitParam && /^\d+$/.test(limitParam) ? Number(limitParam) : undefined;
+        const principal = await readOnly(() => deps.resolve(request.headers));
+        const data = await readOnly(async () => deps.turns ? deps.turns(principal, id, { cursor, limit }) : { turns: [], nextCursor: null, hasMore: false });
+        return qaJson({ success: true, data });
       } catch (error) { return qaHttpError(error); }
     },
   };

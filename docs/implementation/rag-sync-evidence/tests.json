@@ -1,0 +1,49 @@
+{
+  "checkedAt": "2026-10-18T04:38:45.407Z",
+  "migrationTests": {
+    "command": "node --test scripts/rag-sync.test.mjs",
+    "pass": 28,
+    "fail": 0,
+    "skip": 0,
+    "isolatedEngine": "PGlite WASM PostgreSQL with pgvector; not native Neon concurrency testing",
+    "initialCorrections": [
+      "Compare decoded vector bytes rather than base64 line wrapping",
+      "Normalize synthetic PGlite timestamp parser to UTC; migration pg parsers retain raw PostgreSQL timestamps"
+    ]
+  },
+  "ragProcessingIndex": {
+    "pass": 143,
+    "fail": 1,
+    "skip": 22,
+    "success": false,
+    "isolatedRerun": {
+      "file": "src/modules/rag-processing/isolation.vitest.test.ts",
+      "passed": 2,
+      "failed": 0,
+      "skipped": 0,
+      "success": true
+    }
+  },
+  "ragCmsReadRegression": {
+    "command": "npm run test:rag --workspace web",
+    "pass": 56,
+    "fail": 0,
+    "skip": 0
+  },
+  "notRun": [
+    "Native PostgreSQL Docker integration: daemon unresponsive after desktop startup",
+    "Production import/replay/rollback: blocked before backup",
+    "Production CMS smoke: local browser use disabled",
+    "OpenAI live calls: prohibited and unnecessary"
+  ],
+  "rootTypecheck": {
+    "status": "PASS",
+    "exitCode": 0
+  },
+  "rootBuild": {
+    "status": "PASS",
+    "exitCode": 0,
+    "nextVersion": "16.3.8",
+    "offlineConfig": true
+  }
+}

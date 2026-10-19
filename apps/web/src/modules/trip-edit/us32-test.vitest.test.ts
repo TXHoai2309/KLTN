@@ -367,8 +367,9 @@ function applyRequest(
 }
 
 describe("US-32 combined edit, cancel, and apply acceptance", () => {
-  it("previews a valid edit as PASS, then applies it and advances the revision", async () => {
+  it.each(["TRAVELER", "ADMIN"])("previews and applies an owned valid edit as %s", async role => {
     const test = fixture();
+    test.setActor(ownerId, role);
     const preview = await previewEditResponse(
       previewRequest(),
       tripId,
@@ -434,7 +435,7 @@ describe("US-32 combined edit, cancel, and apply acceptance", () => {
 
   it.each([
     ["Guest", (test: ReturnType<typeof fixture>) => test.setGuest(), 401, "UNAUTHENTICATED"],
-    ["Admin", (test: ReturnType<typeof fixture>) => test.setActor("admin-user", "ADMIN"), 403, "FORBIDDEN"],
+    ["Admin without ownership", (test: ReturnType<typeof fixture>) => test.setActor("admin-user", "ADMIN"), 404, "TRIP_NOT_FOUND"],
   ] as const)("rejects %s from the protected preview endpoint", async (_role, configure, status, code) => {
     const test = fixture();
     configure(test);

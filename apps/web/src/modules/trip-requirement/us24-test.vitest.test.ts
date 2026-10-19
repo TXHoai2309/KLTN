@@ -296,9 +296,9 @@ describe("US24-TEST contract, evaluate API and form-logic matrix", () => {
     let adminRead = false;
     dependencyHolder.current = fakeDependencies("ADMIN", NOW, () => { adminRead = true; });
     const admin = await POST(request(fullPayload));
-    expect(admin.status).toBe(403);
+    expect(admin.status).toBe(200);
     expect(admin.headers.get("Cache-Control")).toBe("private, no-store");
-    expect(adminRead).toBe(false);
+    expect(adminRead).toBe(true);
   });
 
   it("does not log mobility note content when an unexpected API error occurs", async () => {

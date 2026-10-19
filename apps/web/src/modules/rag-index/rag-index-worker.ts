@@ -1,4 +1,6 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
+import { extractionDiagnostic, parserExtractionDiagnostic } from "./extraction-diagnostic";
 
 import type { Database } from "@KLTN/db";
 import { AppError } from "@/server/http/app-error";
@@ -186,12 +188,17 @@ async function runClaimed(job: RagIndexJobRecord, deps: RagIndexWorkerDependenci
     if (controller.signal.aborted) throw new EmbeddingError("CANCELLED", false);
     const warnings = "document" in extraction ? warningCodes(extraction.document) : [];
     if (extraction.status !== "EXTRACTED") {
-      if (warnings.length) await deps.jobs.recordWarnings(lease, warnings);
-      throw new AppError(`EXTRACTION_${extraction.status}`, "Không thể trích xuất nội dung đầy đủ từ tài liệu.", 422);
+      const diagnostic = parserExtractionDiagnostic("code" in extraction ? extraction.code : "NO_TEXT", randomUUID());
+      console.warn("RAG_EXTRACTION_FAILURE", diagnostic);
+      await deps.jobs.markFailure(lease, "FAILED", `EXTRACTION_${extraction.status}`, { warningCodes: warnings, extractionDiagnostic: diagnostic });
+      return { jobId: job.id, status: "FAILED" };
     }
     if (extraction.document.originalBytesHash !== sha256(blob.bytes)) throw new AppError("RAG_ORIGINAL_MISMATCH", "Hash tệp gốc không khớp nội dung trích xuất.", 409);
     if (incompleteCoverageWarningCodes(warnings).length) {
-      await deps.jobs.markFailure(lease, "FAILED", "INCOMPLETE_COVERAGE", { warningCodes: warnings });
+      const warning = extraction.document.warnings.find(w => w.code !== "PDF_READING_ORDER_HEURISTIC")!;
+      const diagnostic = extractionDiagnostic(warning, randomUUID());
+      console.warn("RAG_EXTRACTION_COVERAGE_FAILURE", diagnostic);
+      await deps.jobs.markFailure(lease, "FAILED", "INCOMPLETE_COVERAGE", { warningCodes: warnings, extractionDiagnostic: diagnostic });
       return { jobId: job.id, status: "FAILED" };
     }
     await deps.jobs.recordWarnings(lease, warnings);

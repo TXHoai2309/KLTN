@@ -27,6 +27,36 @@ components:
 
 # Admin RAG design context
 
+## Assistant missing-source copy (2026-10-17)
+
+`assistantSourceReply` remains the single owner of completed missing-source
+wording, rendered by the existing AssistantTurn paragraphs. For structurally
+explicit comparisons or dated admission/hours/event requests, explain only the
+limits of this retrieval and do not ask the user to restate a known topic/date.
+Verification failure retains distinct wording. PARTIAL uses subject/attribute
+notices from the server coverage plan. No new styling, interactive control,
+scroll owner or navigation behavior is introduced.
+
+## V4.2 editorial composition (2026-10-16)
+
+EditorialRenderer and resolveEditorialDisplay remain the shared Preview/Public
+owners. The V4 projection now consumes the compiler's reading groups, column
+count and safe crop. editorial-generative.css extends the existing emg tokens;
+it introduces no global theme or font. V1 styling stays independent. A heading
+travels with its paragraph; long prose uses at most two balanced columns and
+stacks inside previews narrower than 960px. GALLERY and original-ratio mosaics
+must not inherit V1's featured-photo crop. Unknown body originals retain the
+whole image. Hero uses the existing Cover/Split/Panorama quality plan.
+
+Native OS selects remain EditorialEditor's canonical select owner, including V4
+type/palette/rhythm/width controls. Local template conversion is reversible with
+Undo and uses the existing edit history, with no native confirmation dialog.
+Save, Publish, Rollback, UNKNOWN recovery and useUnsavedChanges keep their existing
+owners. Manual prose edits lock the node and detach its canonical reference.
+The V4.2 browser harness mounts production Editor/Renderer components with offline
+service results and real Destination media, at measured iframe viewports of
+390/768/1440px. This is separate from live GPT-6 Luna and published-V4 acceptance.
+
 ## Overview
 
 Scope: Task186 indexing panel in the existing Admin document detail. Audience:
@@ -171,3 +201,243 @@ Neon write claim. PostgreSQL concurrency evidence is separate and disposable.
 ## Traveler trip date presentation (2026-10-17)
 
 Vietnamese trip UI displays date-only values as `dd/mm/yyyy` through `src/lib/date-only.ts` without timezone conversion. The reusable `VietnameseDateInput` is the typed date owner for the shared StartDateEditor in the creation and review flows. It deliberately uses a text input with a written format/example rather than an OS-owned calendar popup whose closed format depends on the user's browser locale. Valid complete entries become canonical ISO `yyyy-mm-dd` in existing form state; incomplete/invalid text stays visible for the existing field validation. Clearing remains optional at the preliminary step. API schemas, confirmation rules and date-only persistence remain ISO. Extraction cards, review values/announcements and preliminary itinerary summary/day tabs use the same formatter. Existing trip form tokens, labels, focus/error associations and natural-height mobile layout remain the styling owners; no new theme tokens or calendar dependencies.
+## Destination V3.3 editorial (2026-10-14)
+
+Destination .dv3-page owns the approved full-width #EDF5EF exterior, white cards,
+#287651 primary, #DCE7DF border and #162B20 ink. Dark overrides are scoped there;
+Header/Explore/Culture tokens remain unchanged. Save actions stay in normal flow
+with a header shortcut, avoiding covered fields. Editor actions are sticky on
+desktop and normal flow on mobile. Cards use the existing af controls/feedback.
+
+EditorialEditor owns draft/undo/UNKNOWN state and native OS template/gallery/crop
+selects; the existing useUnsavedChanges guard and Sonner remain canonical. The
+service owns revisions/review/publication. Missing migration disables persistence
+only. Read-again requires explicit discard of unsaved changes. EditorialRenderer
+is the shared preview/public owner. Nature uses broad mosaic/landscape rhythm,
+Heritage serif/reading measure, Village paired captions and Journey staggered
+gallery/maps/facts. Each has panorama, split and centered editorial hero variants.
+Magazine tokens are local emg variables; no new global font/theme owner.
+
+Only strict JSON/text is stored. Current rights/provenance are filtered at render.
+Pictures reserve ratios, use bounded Cloudinary transformations, eager hero/lazy
+secondary loading and fallback. No-photo typography has no empty photo slots.
+13editorial browser groups and17V3.2 groups exercise five viewport widths/light-dark
+with synthetic media/map. The previously loaded premium audit script disappeared
+after plugin changes; its invocation failed file-not-found, not a static PASS.
+
+### Owner-approved article art direction (2026-10-15)
+
+Audience: Vietnamese readers discovering a Destination, with a separate Admin
+composition workspace. The article should feel like a considered travel feature:
+landscape opening, a measured title, readable prose and alternating photographic
+pauses. Avoid oversized dashboard headings inside the preview and repeated card
+boxes around every paragraph. The signature is a wide landscape with an inset
+paper title, followed by an intimate reading measure; split and centered openings
+remain available when they suit the material.
+
+Runtime owner remains components/editorial/editorial.css and EditorialRenderer,
+shared by preview and public. Local design tokens are --emg-* only. Forest uses
+#183126 ink, #60766a muted, #39654e accent and #edf5ef tint on white paper. Stone
+uses #263945/#576c79/#44697e/#edf2f5; earth uses
+#493c31/#756455/#885d3b/#f4efe9. Each has explicit dark overrides. These expressive
+article palettes do not change Admin semantic status or brand tokens.
+
+Lora with the Vietnamese subset is self-hosted by the existing next/font pipeline
+through --font-editorial-serif (literary headings/lead); Geist through
+--font-geist-sans is the modern heading option; Be Vietnam Pro through
+--font-be-vietnam is the humanist heading and canonical body/control face.
+Typography never accepts arbitrary font URLs. Heading scales use article cqi,
+not window vw; body measure is 64ch, lead 51ch, line height 1.75–1.9. Reading gaps
+are 48–112px immersive or 32–64px compact, with 24–112px responsive gutters.
+No decorative animation or invented quote/section copy. Keep the no-photo
+typographic composition, reserved image ratios, bounded delivery and fallbacks.
+
+EditorialEditor retains canonical af controls, native OS select popups, Sonner,
+useUnsavedChanges, explicit Save/Publish and exact UNKNOWN recovery. New font,
+palette and rhythm selects share that native ownership. AI respects selected
+family/variant by default; an explicit checkbox permits a new direction. A manual
+family/variant change clears that permission. AI loading belongs to the AI button;
+fallback leaves the current local draft intact. Undo covers successful proposals.
+Optional design enums extend v1 JSON without altering old IDs, URLs or content.
+
+### V3.5 content and composition quality
+
+EditorialRenderer consumes a read-only presentation projection. Long or duplicated
+headings are removed from the visual heading slot while their complete prose stays
+available; exact repeated paragraphs are suppressed only in the rendered article.
+Near duplicates remain visible and are flagged for Admin review. No database text,
+Destination facts or media references are rewritten to improve appearance. AI
+headings/decks must come from the existing block or Destination source, may only
+recompose narrative blocks, and cannot hide populated data or add CSS/fonts/facts.
+The same projection and renderer serve Admin preview and public published articles.
+
+Image arrangement uses verified Cloudinary source dimensions to prefer a suitable
+landscape cover and warns the editor about missing or small originals. Gallery and
+split compositions keep intrinsic aspect ratios and reserve their space. These
+quality rules are documented in the [V3.5 implementation report](docs/implementation/destination-emagazine-v3-5-design-quality.md).
+
+### Premium E-Magazine Hero (2026-10-15)
+
+The article is a Vietnamese travel feature; the editor remains a utility workspace.
+Keep existing emg semantic tokens as the runtime owner: forest ink #183126, muted
+#60766a, accent #39654e, tint #edf5ef, line #d9e5db and white paper, with existing
+palette/dark overrides. Display uses the selected self-hosted Lora, Geist or
+Be Vietnam Pro; body/captions retain the existing Vietnamese sans. No global theme
+or font changes. Article-relative container units size titles in narrow previews.
+
+HeroPanorama owns a landscape opening with a left-aligned title and location
+colophon beneath it. HeroSplit owns a 44/56 title/photo composition, stacked on
+mobile. HeroCover owns a centered masthead and central photograph. The signature
+is the landscape-to-colophon transition; do not introduce ungrounded cover lines,
+decorative issue numbers or text over photographs with unknown contrast.
+Hero-specific rules have one owner at the end of editorial.css; family styling
+and the rest of the article remain independent. Width/ratio/focal values derive
+from actual media metadata and Admin settings, never from the Destination name.
+
+EditorialRenderer/EditorialPhoto are shared by Preview and Public. Optional V1
+JSON hero settings decouple the opening from the article variant, retain manual
+composition/focal locks, and do not require a database migration. Native OS-owned
+Hero select extends the editor's existing select contract; labels, disabled,
+keyboard, Save/Undo/UNKNOWN semantics remain the existing owners. Low-resolution
+originals never grow beyond source width; small Panorama sources use a read-only
+Cover fallback with an Admin note. The stored composition and asset remain intact.
+No-image openings use typography without an empty image region. The AI selection
+gate preserves manual locks and source eligibility; failed proposals do not apply.
+
+Evidence: test-editorial-premium-hero.mjs renders all compositions in a real browser,
+with a matched pre-change working-tree baseline, six fixture cases and an optional
+cached read-only Owner snapshot. Real Cloudinary image reads are separate from
+synthetic fixtures; no upload, deletion, datasource write or real model request.
+
+### Editorial AI rate-limit feedback (2026-10-15)
+
+EditorialEditor keeps its existing controls and feedback region. A refused AI
+action preserves local work, distinguishes application admission from provider
+limits, and uses only a valid server Retry-After to disable the AI button with
+a countdown. Editing and Save remain available. Expiration enables explicit
+retry without dispatching a request. Missing/invalid timing never creates a
+fictional wait. Reuse af-helper/status typography and existing disabled styles;
+there is no new palette, overlay or navigation owner. Owner removed application
+request quotas in Development and Production. Only active work is bounded: one
+action per Admin and four actions per server process; completion/failure releases
+the slot immediately. Duplicate/busy responses use 409/503 without a guessed wait.
+Only provider 429 may carry a provider Retry-After cooldown and safe error code.
+
+### Editorial V4-only workflow (2026-10-16)
+
+Owner retired alternative generation and the V3.6 template controls. The sole AI
+action is “AI dàn trang”, requesting Layout DSL v2. New unsaved layouts start in
+V4. Keep typography/palette/rhythm/width controls, manual locks, exact Undo,
+unsaved-change guard and explicit Save/Publish. Existing V1 data still renders
+without automatic conversion or persistence; no version switch or template
+regeneration is exposed. Reuse existing af controls and feedback; no new styling
+system. Temporary screenshots/harness output belong outside the repository.
+
+The Owner also removed the travel preparation panel from editorial Preview/Public.
+Keep Destination metadata and canonical narrative intact; old VISIT_INFORMATION
+nodes stay storage-compatible but do not render. New V4 generation omits them.
+
+### Editorial reading scale (2026-10-16)
+
+Owner requested a calmer reading scale. Shared editorial.css owns body text at
+16–17px / 1.75, lead text at 17–20px / 1.7 with a 42rem cap and 62ch measure,
+and section headings at 20.8–30px. Reduce the decorative initial to 2.4em and
+Split Hero titles to 32–57.6px (mobile Hero 30.4–44.8px). Keep article-relative
+container sizing, intrinsic image proportions and browser zoom accessibility.
+Preview and Public use the same scale; no stored layout/data conversion.
+
+### Editorial body alignment (2026-10-16)
+
+Owner requested one straight body rail, including the lead, prose, image/text
+rows, maps and references. editorial.css owns --emg-reading-width:48rem with
+existing responsive gutters. Each root body section shares its left/right edge;
+nested V4 wrappers add no gutter. Prose fills its assigned column, paired media
+and copy align at the top, and featured prose no longer adds a left inset.
+Hero remains the distinct article opening. Do not justify text or stretch/crop
+images to force equal heights; preserve natural reading and photo proportions.
+
+## Assistant answer presentation and follow-ups (2026-10-17)
+
+Owner requested completion of the chatbot improvement plan. This extends the
+existing Vietnamese assistant shown in the owner's screenshots; no new page
+frame or visual identity is introduced. Runtime token ownership remains
+components/assistant/assistant.css: assistant-green, ink, muted, line, card and
+sage with existing dark overrides, and the existing Vietnamese body font.
+AssistantAnswerContent is the shared presentation owner: complete verified parts
+render as paragraphs, semantic list items, or a two-column comparison table with
+fixed UI headers. Per-part source mappings use the existing AssistantCitations
+owner inside one answer-level native disclosure, closed by default at the owner's
+request. Tables keep compact source numbers; paragraph/list answers read without
+repeated source pills. The disclosure exposes each part's real sources on demand.
+Emphasis wraps only an existing short colon prefix; all original factual text
+stays present. No Markdown, raw HTML, generated link or extra factual heading.
+The table owns its horizontal overflow; it does not change the transcript's
+vertical scroll owner or the composer. Header controls wrap on narrow screens.
+
+The disclosure's label is “Xem nguồn (n)”; keyboard/touch can open it and each
+existing source card. An open/focused disclosure pauses tail-following like an
+open citation. Invalid registries show the existing source error and no source
+controls. This is presentation only, with no extra source text, provider call,
+storage or weakened backend grounding. PARTIAL stays visibly incomplete with its
+missing facets. Clarification displays its direct question without a status heading.
+
+AssistantChat keeps the existing confirmed-turn controller and native OS context
+select. At most three template follow-ups derive from the latest confirmed
+supported answer. A button only fills/focuses the composer; sending remains the
+normal explicit action. Suggestions are transient, absent for unsupported results
+or unresolved attempts, disabled during auth revalidation and while a draft is
+being written, and never erase that draft. Optional presentation/reason metadata
+keeps old history valid. PARTIAL uses fixed missing-aspect notices; a failed answer
+verification has distinct public copy without exposing internal verdicts. Existing
+SUCCESS/FAILED/UNKNOWN, ownership and same-key retry behavior remain canonical.
+
+An optional SOURCE_EXCERPTS result visibly states that its content is quoted
+verbatim from reviewed documents. It is a distinct exact-source answer, never
+the rejected synthesis or a claim that all synthesis gates passed. Server rules
+exclude explicit/inherited current-time requests and failures of relevance,
+coverage, entity, time or numeric gates. Missing source data stays unresolved.
+
+Verification owner: scripts/test-assistant-improvement.mjs mounts production
+components with an isolated fictional transport, blocks external network traffic,
+and exercises mobile/desktop, themes, keyboard, sources, suggestions, failure,
+slow response and UNKNOWN. This browser evidence is separate from actual Luna,
+approved-source recall measurements and independent corpus acceptance.
+
+### Missing-source conversation (2026-10-17)
+
+Owner requested useful natural replies when there is no supported answer.
+AssistantSourceReply owns this presentation: two ordinary paragraphs compose a
+known reason and a fixed topic from the admitted question. NO_EVIDENCE says this
+search did not find suitable material; MISSING_SUPPORT/legacy replies say support
+is insufficient; ANSWER_VERIFICATION says related material was found but the
+answer was not verified. No warning heading/card, invented source, factual answer,
+automatic follow-up or extra provider call. Existing technical failure and UNKNOWN
+controls remain separate. Each paragraph keeps existing body typography, with
+12px between paragraphs through assistant.css; no new palette/token owner.
+
+Topic detection only selects authored copy and never echoes arbitrary user/source
+strings or treats a question premise as a fact. Context may mention price, opening
+hours, designation, geology, culture, accessibility or location. Generic/old turns
+remain understandable without a question or reason. Factual parts, stored DTO
+message, status, history validation and evidence requirements remain unchanged.
+
+
+## Admin Users backend integration (2026-10-17)
+
+Preserve the Phase 1 CMS layout, users.css palette/type/radius, native filter
+selects and existing statistics/table/mobile-card/detail/timeline owners. Default
+runtime uses HttpAdminUserDataSource in both environments; fixtures are test/demo
+only. Server-confirmed mutations stay on the current screen and refetch detail,
+statistics/list and audit. Failures remain in the dialog; UNKNOWN freezes its
+payload and reconciles with the same key after re-reading state. No visual token
+or landing/header redesign is part of this change.
+
+CMS confirmations reuse the existing Destination/Editorial native modal-dialog
+pattern with Phase 1 content classes, unique accessible IDs, initial Cancel
+focus, explicit Tab boundary handling, Escape/backdrop Cancel and focus restore.
+Pending/UNKNOWN actions cannot dismiss the dialog. Revoke now uses the same
+confirmation owner. Tables use bounded server pagination and NFC case-insensitive
+search with stale-response protection; audit uses bounded Load more. Runtime
+status choices are ACTIVE/LOCKED only. Session details omit IP/token, show actual
+active counts and at most twenty recent active sessions. lastLoginAt remains
+unrecorded, never derived from updatedAt.

@@ -1,0 +1,121 @@
+{
+  "measuredAt": "2026-10-18T12:32:49.229Z",
+  "origin": "https://kltn-i05mu463a-to-xuan-hoai-s-projects.vercel.app",
+  "passed": [
+    "TRAVELER real persisted Development credentials sign in",
+    "TRAVELER US24 form → review → check → proposal CAR",
+    "TRAVELER persisted CMS authorization",
+    "ADMIN real persisted Development credentials sign in",
+    "ADMIN US24 form → review → check → proposal MOTORCYCLE",
+    "ADMIN persisted CMS authorization",
+    "regenerate sends a new key and preserves requirement",
+    "back preserves review; changing the form requires a fresh check",
+    "Guest planner rejects before requirement/provider processing"
+  ],
+  "failed": [
+    {
+      "name": "MapLibre renders two proposal markers; tile authorization reported separately",
+      "error": "The two expected proposal markers never appeared because the current Preview hostname receives Stadia tile HTTP 401; a checker canvas/marker DOM was not counted as pass."
+    }
+  ],
+  "proposals": [
+    {
+      "transport": "CAR",
+      "status": "PROPOSAL_READY",
+      "checks": [
+        {
+          "key": "OPENING_HOURS",
+          "status": "PASS"
+        },
+        {
+          "key": "MINIMUM_DURATION",
+          "status": "PASS"
+        },
+        {
+          "key": "TRAVEL_TIME",
+          "status": "PASS"
+        },
+        {
+          "key": "SCHEDULE_CONFLICTS",
+          "status": "PASS"
+        },
+        {
+          "key": "MOBILITY",
+          "status": "PASS"
+        }
+      ],
+      "stopCount": 2,
+      "stopIds": [
+        "000-us28-registry-651f4c97-7c75-40e9-b6b9-f78a844a0822-0",
+        "test_planner_nha_vuong"
+      ],
+      "usesOnlyOwnedTestDestinations": false,
+      "routing": {
+        "provider": "STADIA_MAPS",
+        "durationSeconds": 599.412,
+        "distanceMeters": 13944
+      },
+      "requirementSnapshotMatched": true,
+      "checkHttpStatus": 200,
+      "checkConfirmable": true
+    },
+    {
+      "transport": "MOTORCYCLE",
+      "status": "PROPOSAL_READY",
+      "checks": [
+        {
+          "key": "OPENING_HOURS",
+          "status": "PASS"
+        },
+        {
+          "key": "MINIMUM_DURATION",
+          "status": "PASS"
+        },
+        {
+          "key": "TRAVEL_TIME",
+          "status": "PASS"
+        },
+        {
+          "key": "SCHEDULE_CONFLICTS",
+          "status": "PASS"
+        },
+        {
+          "key": "MOBILITY",
+          "status": "PASS"
+        }
+      ],
+      "stopCount": 2,
+      "stopIds": [
+        "000-us28-registry-651f4c97-7c75-40e9-b6b9-f78a844a0822-0",
+        "test_planner_nha_vuong"
+      ],
+      "usesOnlyOwnedTestDestinations": false,
+      "routing": {
+        "provider": "STADIA_MAPS",
+        "durationSeconds": 599.412,
+        "distanceMeters": 13944
+      },
+      "requirementSnapshotMatched": true,
+      "checkHttpStatus": 200,
+      "checkConfirmable": true
+    },
+    {
+      "transport": "CAR",
+      "purpose": "regenerate",
+      "status": "PROPOSAL_READY",
+      "newIdempotencyKey": true
+    }
+  ],
+  "tileStatuses": [
+    401
+  ],
+  "productionWrites": 0,
+  "tripWrites": 0,
+  "fixturePolicy": "TEST durations/hours on verified Development only, real source coordinates. Unique local Development-only credentials prove Preview account-store binding after real sign-in. Not factual Production tourism data.",
+  "mapBasemapStatus": "BLOCKED_PREVIEW_HOSTNAME_AUTHORIZATION",
+  "mainGroups": {
+    "passed": 9,
+    "failed": 1
+  },
+  "mapGate": "BLOCKED_TILE_HTTP_401"
+}

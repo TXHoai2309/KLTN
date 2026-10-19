@@ -1,0 +1,397 @@
+{
+  "checkedAt": "2026-10-18T10:50:20.694Z",
+  "baselineHead": "a18e8be261ea18eadf3d7558e8f7255a09899f29",
+  "project": "kltn",
+  "projectId": "prj_tyylPlLvhAvbkdyXHPPQCLgkZvlO",
+  "team": "to-xuan-hoai-s-projects",
+  "neonRegion": "aws-ap-southeast-1",
+  "projectFunctionDefaultRegionBefore": "iad1",
+  "projectSettingsChanged": false,
+  "config": {
+    "regions": [
+      "sin1"
+    ],
+    "level": "root",
+    "servicesAndRewritesPreserved": true,
+    "rootRegionsSupportedByFetchedSchema": true,
+    "serviceRegionsSupportedByFetchedSchema": false
+  },
+  "productionBefore": {
+    "id": "dpl_6xThmeh8Ra279G7tgf5H8sZ7RouK",
+    "url": "https://kltn-35aec67pp-to-xuan-hoai-s-projects.vercel.app",
+    "target": "production",
+    "state": "READY",
+    "commit": "a18e8be261ea18eadf3d7558e8f7255a09899f29",
+    "functionCount": 180,
+    "allRegions": [
+      "iad1"
+    ],
+    "functionEvidence": [
+      {
+        "path": "services/web/index",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "iad1"
+        ]
+      },
+      {
+        "path": "services/web/dashboard",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "iad1"
+        ]
+      },
+      {
+        "path": "services/web/destinations/[id]",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "iad1"
+        ]
+      },
+      {
+        "path": "services/web/explore",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "iad1"
+        ]
+      },
+      {
+        "path": "services/web/api/admin/destinations",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "iad1"
+        ]
+      },
+      {
+        "path": "services/web/api/ai/conversations",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "iad1"
+        ]
+      },
+      {
+        "path": "services/web/api/destinations",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "iad1"
+        ]
+      },
+      {
+        "path": "services/web/api/favorites",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "iad1"
+        ]
+      },
+      {
+        "path": "services/web/api/trips",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "iad1"
+        ]
+      },
+      {
+        "path": "services/web/api/ai/ask",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "iad1"
+        ]
+      }
+    ],
+    "functionArtifactSha256": "418333d8788404415c20be237b5c7b4b559c15619f8838fa2409c8c6a86df785"
+  },
+  "previewBefore": {
+    "id": "dpl_EbGLaTS1mErnokNHZMqjtUtkkbgz",
+    "url": "https://kltn-p2o4djrsz-to-xuan-hoai-s-projects.vercel.app",
+    "target": "preview",
+    "state": "READY",
+    "commit": null,
+    "functionCount": 180,
+    "allRegions": [
+      "iad1"
+    ],
+    "functionEvidence": [
+      {
+        "path": "services/web/index",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "iad1"
+        ]
+      },
+      {
+        "path": "services/web/dashboard",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "iad1"
+        ]
+      },
+      {
+        "path": "services/web/destinations/[id]",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "iad1"
+        ]
+      },
+      {
+        "path": "services/web/explore",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "iad1"
+        ]
+      },
+      {
+        "path": "services/web/api/admin/destinations",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "iad1"
+        ]
+      },
+      {
+        "path": "services/web/api/ai/conversations",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "iad1"
+        ]
+      },
+      {
+        "path": "services/web/api/destinations",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "iad1"
+        ]
+      },
+      {
+        "path": "services/web/api/favorites",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "iad1"
+        ]
+      },
+      {
+        "path": "services/web/api/trips",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "iad1"
+        ]
+      },
+      {
+        "path": "services/web/api/ai/ask",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "iad1"
+        ]
+      }
+    ],
+    "functionArtifactSha256": "418333d8788404415c20be237b5c7b4b559c15619f8838fa2409c8c6a86df785"
+  },
+  "previewAfter": {
+    "id": "dpl_2TBQA4jzJpUWw3H3hUKubnrRUafT",
+    "url": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+    "target": "preview",
+    "state": "READY",
+    "commit": null,
+    "functionCount": 180,
+    "allRegions": [
+      "sin1"
+    ],
+    "functionEvidence": [
+      {
+        "path": "services/web/index",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/dashboard",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/destinations/[id]",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/explore",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/api/admin/destinations",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/api/ai/conversations",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/api/destinations",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/api/favorites",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/api/trips",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/api/ai/ask",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      }
+    ],
+    "functionArtifactSha256": "ed78aad99bbb9e1b37e59f2fcbbca904e27932adc2dd670b60c756985dc4da17"
+  },
+  "REGION_VERIFIED": true,
+  "buildRegion": "iad1; build log only, not Function execution region",
+  "cdnPop": "NOT_USED_AS_FUNCTION_REGION_PROOF",
+  "productionAfter": {
+    "id": "dpl_GzwyGGusVRtpU6FnCkUSszTZHuVk",
+    "url": "https://kltn-dom09c9et-to-xuan-hoai-s-projects.vercel.app",
+    "alias": "https://kltn-rho.vercel.app",
+    "aliasDeploymentId": "dpl_GzwyGGusVRtpU6FnCkUSszTZHuVk",
+    "commit": "e5a7e01b3cdfebb94bfe0719cb797f61b6af5f6b",
+    "state": "READY",
+    "functionCount": 180,
+    "allRegions": [
+      "sin1"
+    ],
+    "functionArtifactSha256": "ed78aad99bbb9e1b37e59f2fcbbca904e27932adc2dd670b60c756985dc4da17",
+    "functionEvidence": [
+      {
+        "path": "services/web/index",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/dashboard",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/destinations/[id]",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/explore",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/api/admin/destinations",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/api/ai/conversations",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/api/destinations",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/api/favorites",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/api/trips",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      },
+      {
+        "path": "services/web/api/ai/ask",
+        "runtime": "nodejs24.x",
+        "regions": [
+          "sin1"
+        ]
+      }
+    ],
+    "verifiedAt": "2026-10-18T11:17:49.534Z"
+  },
+  "paidPlanChanges": 0,
+  "redisAdded": false,
+  "rollback": {
+    "deploymentId": "dpl_6xThmeh8Ra279G7tgf5H8sZ7RouK",
+    "url": "https://kltn-35aec67pp-to-xuan-hoai-s-projects.vercel.app",
+    "config": {
+      "$schema": "https://openapi.vercel.sh/vercel.json",
+      "services": {
+        "web": {
+          "root": "apps/web",
+          "framework": "nextjs",
+          "installCommand": "cd ../.. && npm install",
+          "buildCommand": "cd ../.. && npm run db:generate && cd apps/web && npm run build"
+        }
+      },
+      "rewrites": [
+        {
+          "source": "/(.*)",
+          "destination": {
+            "service": "web"
+          }
+        }
+      ]
+    },
+    "method": "Before rollout leave alias unchanged. If rollout is approved, vercel rollback exact baseline deployment; restore root regions to previous value/absence for subsequent builds. Rollback disables auto-assignment until explicit promotion.",
+    "commit": "a18e8be261ea18eadf3d7558e8f7255a09899f29"
+  },
+  "references": [
+    "https://openapi.vercel.sh/vercel.json",
+    "https://vercel.com/docs/functions/configuring-functions/region",
+    "https://vercel.com/docs/services/config-reference"
+  ],
+  "ownerException": {
+    "instruction": "Owner explicitly requested pushing master and validating on the existing Production domain because only one Stadia domain is available.",
+    "previewTileGate": "Known401 hostname authentication restriction; retained as FAIL, never relabeled PASS",
+    "productionControl": "PASS"
+  }
+}

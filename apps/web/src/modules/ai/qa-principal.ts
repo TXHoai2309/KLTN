@@ -31,7 +31,8 @@ export function createQaPrincipalResolver(deps: Dependencies) {
   async function user(headers: Headers): Promise<QaPrincipal | null> {
     const session = await deps.auth.resolveSession(headers);
     if (!session) return null;
-    const actor = await deps.auth.database.user.findUnique({ where: { id: session.user.id }, select: { id: true, role: true } });
+    const actor = await deps.auth.database.user.findUnique({ where: { id: session.user.id }, select: { id: true, role: true, status: true } });
+    if (actor?.status === "LOCKED") throw new AppError("UNAUTHENTICATED", "Vui lòng xác thực lại.", 401);
     if (!actor || !["TRAVELER", "ADMIN"].includes(actor.role)) throw new AppError("UNAUTHENTICATED", "Vui lòng xác thực lại.", 401);
     return { kind: "USER", id: actor.id };
   }

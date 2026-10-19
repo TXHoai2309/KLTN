@@ -8,6 +8,8 @@ import { imageIntentInput, imageIntentSchema, mediaReviewSchema, MAX_IMAGE_BYTES
 import { destinationSelect, toDestinationDto, validateDestinationId, type DestinationDependencies } from "./destination-service";
 import type { DestinationDto } from "./destination-contract";
 import type { DestinationImageProvider, ImageAsset } from "./cloudinary-provider";
+import type {ImageUploadDiagnostics} from "./destination-image-diagnostics";
+import { ADMIN_IMAGE_USE, defaultDestinationImageAlt, withoutWebsiteUse } from "./destination-media-eligibility";
 
 const operation = (kind: string, id: string) => `destination:media-${kind}:${id}`;
 const scope = (actor: string, kind: string, id: string) => JSON.stringify([actor, operation(kind, id)]);
@@ -59,19 +61,23 @@ export function verifyImageAsset(asset: ImageAsset, intent: ImageIntent, format:
   let url: URL;
   try { url = new URL(asset.secure_url); } catch { throw invalid(); }
   const context = asset.context?.custom;
+  // Cloudinary reports JPEG as "jpg"; Sharp's decoded format is "jpeg".
+  const decodedAssetFormat = asset.format === "jpg" ? "jpeg" : asset.format;
   if (asset.public_id !== intent.publicId || asset.resource_type !== "image" || asset.type !== "upload" ||
-      !asset.asset_id || asset.format !== format || asset.bytes !== intent.size || asset.bytes > MAX_IMAGE_BYTES ||
+      !asset.asset_id || decodedAssetFormat !== format || asset.bytes !== intent.size || asset.bytes > MAX_IMAGE_BYTES ||
       !Number.isSafeInteger(asset.version) || asset.version < 1 || asset.width < 1 || asset.height < 1 || asset.width * asset.height > 25_000_000 ||
       context?.kltn_intent !== intent.intentKey || context?.kltn_sha256 !== intent.sha256 ||
       (intent.mode === "dynamic" ? asset.asset_folder !== intent.folder : asset.public_id !== `${intent.folder}/${asset.public_id.split("/").pop()}`) ||
       url.protocol !== "https:" || url.hostname !== "res.cloudinary.com" || url.username || url.password ||
       !url.pathname.startsWith(`/${intent.cloud}/image/upload/`)) throw invalid();
   const storageReference = JSON.stringify({ provider: "cloudinary", cloud: intent.cloud, assetId: asset.asset_id,
-    publicId: asset.public_id, version: asset.version, format: asset.format, bytes: asset.bytes, width: asset.width, height: asset.height });
+    publicId: asset.public_id, version: asset.version, format: asset.format, bytes: asset.bytes, width: asset.width, height: asset.height,
+    websiteUse: ADMIN_IMAGE_USE, destinationId: intent.destinationId });
   if (storageReference.length > 500 || asset.secure_url.length > 2000) throw invalid();
   return { url: asset.secure_url, storageReference };
 }
-export async function uploadDestinationImage(headers: Headers, bytes: Buffer, key: string, id: string, deps: DestinationDependencies, provider: DestinationImageProvider, now = Date.now()) {
+export async function uploadDestinationImage(headers: Headers, bytes: Buffer, key: string, id: string, deps: DestinationDependencies, provider: DestinationImageProvider, now = Date.now(), diagnostics?:ImageUploadDiagnostics) {
+  diagnostics?.setPhase("INTENT_VALIDATION");
   const actor = await requireActor(headers, deps, "admin");
   if (!referenceId.safeParse(key).success) throw invalid();
   await destination(deps.database, id);
@@ -81,9 +87,12 @@ export async function uploadDestinationImage(headers: Headers, bytes: Buffer, ke
   const sha256 = createHash("sha256").update(bytes).digest("hex");
   if (intent.actorId !== actor.id || intent.destinationId !== id || intent.intentKey !== key || intent.sha256 !== sha256 || intent.size !== bytes.length || intent.cloud !== provider.cloud || intent.folder !== `KLTN/destinations/${id}`) throw invalid();
   const identity = { database: deps.database, actorId: actor.id, operation: operation("upload", id), key, input: { id, intentKey: key, sha256 } };
+  diagnostics?.setPhase("IDEMPOTENCY_REPLAY");
   const replay = await preflightIdempotentReplay<DestinationDto>(identity);
   if (replay.status !== "ABSENT") return replay;
+  diagnostics?.setPhase("INTENT_VALIDATION");
   if (intent.expiresAt <= now) throw invalid();
+  diagnostics?.setPhase("ATTEMPT_ADMISSION");
   const admission = await executeIdempotentWrite({ database: deps.database, actorId: actor.id,
     operation: operation("attempt", id), key: randomUUID(), input: { id, intentKey: key, now }, execute: async tx => {
       await requireActor(headers, { ...deps, database: tx as unknown as Database }, "admin");
@@ -95,27 +104,37 @@ export async function uploadDestinationImage(headers: Headers, bytes: Buffer, ke
       return { admitted: true };
     } });
   if (admission.status !== "SUCCESS") return admission;
+  diagnostics?.setPhase("INSPECT_BYTES");
   const format = await provider.inspect(bytes);
   const expectedMime = format === "jpeg" ? "image/jpeg" : `image/${format}`;
   if (intent.mime !== expectedMime) throw new AppError("INVALID_IMAGE", "Loại ảnh thực tế không khớp file đã chọn.", 400);
+  diagnostics?.setPhase("FIND_BEFORE_UPLOAD");
   let asset = await provider.find(intent);
   if (!asset) {
-    try { await provider.upload(intent, bytes); }
-    catch { // A timed-out upload may have succeeded; reconcile only this exact server-owned identity.
+    diagnostics?.setPhase("UPLOAD");
+    // The authenticated Upload API response has the same identity metadata.
+    // Validate it below; only missing/uncertain responses need an Admin read-back.
+    try { asset = await provider.upload(intent, bytes) || null; }
+    catch (error) { // A timed-out upload may have succeeded; reconcile only this exact server-owned identity.
+      diagnostics?.recovering(error);
+      diagnostics?.setPhase("FIND_AFTER_UPLOAD");
       asset = await provider.find(intent);
       if (!asset) throw new AppError("IMAGE_UPLOAD_RETRY", "Chưa hoàn tất tải ảnh. Giữ nguyên file và thử lại.", 503);
     }
+    diagnostics?.setPhase("FIND_AFTER_UPLOAD");
     asset ??= await provider.find(intent);
   }
   if (!asset) throw new AppError("IMAGE_UPLOAD_RETRY", "Chưa xác minh được ảnh đã tải. Thử lại với cùng file.", 503);
+  diagnostics?.setPhase("VERIFY_ASSET");
   const verified = verifyImageAsset(asset, intent, format);
+  diagnostics?.setPhase("FINALIZE");
   return executeIdempotentWrite({ ...identity, execute: async tx => {
     await requireActor(headers, { ...deps, database: tx as unknown as Database }, "admin");
     await lock(tx, `destination-media:${id}`);
     const row = await destination(tx as unknown as Database, id);
     if (row.media.length >= 20) throw new AppError("IMAGE_LIMIT", "Điểm đến đã có 20 ảnh. Gỡ ảnh trước khi thêm.", 409);
     return toDestinationDto(await tx.destination.update({ where: { id, updatedAt: row.updatedAt },
-      data: { contentRevision: { increment: 1 }, media: { create: [{ ...verified, alt: intent.name, websiteRights: "UNKNOWN", isCover: row.media.length === 0,
+      data: { contentRevision: { increment: 1 }, media: { create: [{ ...verified, alt: defaultDestinationImageAlt(row.name), caption: null, websiteRights: "UNKNOWN", isCover: row.media.length === 0,
         position: row.media.length ? Math.max(...row.media.map(m => m.position)) + 1 : 0 }] } }, select: destinationSelect }));
   }});
 }
@@ -135,6 +154,7 @@ export async function reviewDestinationImage(headers: Headers, body: unknown, ke
     return toDestinationDto(await tx.destination.update({ where: { id, updatedAt: row.updatedAt }, data: {
       contentRevision: { increment: 1 }, media: { update: [{ where: { id: input.id }, data: {
         websiteRights: input.decision, rightsEvidence: input.evidence,
+        storageReference: withoutWebsiteUse(media.storageReference),
         reviewedBy: input.decision === "UNKNOWN" ? null : actor.id, reviewedAt: input.decision === "UNKNOWN" ? null : new Date(),
       } }] },
     }, select: destinationSelect }));

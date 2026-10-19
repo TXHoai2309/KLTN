@@ -1,0 +1,181 @@
+{
+  "checkedAt": "2026-10-18T11:18:39.381Z",
+  "origin": "https://kltn-rho.vercel.app",
+  "mode": "independent Guest browser; no credentials; all non-GET/HEAD blocked; no app mutations; normal network, no CPU throttle; map readiness allowed20s",
+  "observations": [
+    {
+      "route": "/",
+      "width": 390,
+      "status": 200,
+      "markersReady": null,
+      "overflow": false,
+      "mapMarkers": 0,
+      "mapUnavailable": false
+    },
+    {
+      "route": "/",
+      "width": 390,
+      "check": "theme-menu-keyboard-open-escape",
+      "pass": true
+    },
+    {
+      "route": "/explore?view=map",
+      "width": 390,
+      "status": 200,
+      "markersReady": true,
+      "overflow": false,
+      "mapMarkers": 3,
+      "mapUnavailable": false
+    },
+    {
+      "route": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "width": 390,
+      "status": 200,
+      "markersReady": true,
+      "overflow": false,
+      "mapMarkers": 1,
+      "mapUnavailable": false
+    },
+    {
+      "route": "/",
+      "width": 768,
+      "status": 200,
+      "markersReady": null,
+      "overflow": false,
+      "mapMarkers": 0,
+      "mapUnavailable": false
+    },
+    {
+      "route": "/",
+      "width": 768,
+      "check": "theme-menu-keyboard-open-escape",
+      "pass": true
+    },
+    {
+      "route": "/explore?view=map",
+      "width": 768,
+      "status": 200,
+      "markersReady": true,
+      "overflow": false,
+      "mapMarkers": 3,
+      "mapUnavailable": false
+    },
+    {
+      "route": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "width": 768,
+      "status": 200,
+      "markersReady": true,
+      "overflow": false,
+      "mapMarkers": 1,
+      "mapUnavailable": false
+    },
+    {
+      "route": "/",
+      "width": 1440,
+      "status": 200,
+      "markersReady": null,
+      "overflow": false,
+      "mapMarkers": 0,
+      "mapUnavailable": false
+    },
+    {
+      "route": "/",
+      "width": 1440,
+      "check": "theme-menu-keyboard-open-escape",
+      "pass": true
+    },
+    {
+      "route": "/explore?view=map",
+      "width": 1440,
+      "status": 200,
+      "markersReady": true,
+      "overflow": false,
+      "mapMarkers": 3,
+      "mapUnavailable": false
+    },
+    {
+      "route": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "width": 1440,
+      "status": 200,
+      "markersReady": true,
+      "overflow": false,
+      "mapMarkers": 1,
+      "mapUnavailable": false
+    },
+    {
+      "route": "/login",
+      "width": 1440,
+      "status": 200,
+      "finalPath": "/login",
+      "role": "GUEST",
+      "authorizedWorkloadVerified": false
+    },
+    {
+      "route": "/favorites",
+      "width": 1440,
+      "status": 200,
+      "finalPath": "/login",
+      "role": "GUEST",
+      "authorizedWorkloadVerified": false
+    },
+    {
+      "route": "/trips/new",
+      "width": 1440,
+      "status": 200,
+      "finalPath": "/login",
+      "role": "GUEST",
+      "authorizedWorkloadVerified": false
+    },
+    {
+      "route": "/trips",
+      "width": 1440,
+      "status": 200,
+      "finalPath": "/login",
+      "role": "GUEST",
+      "authorizedWorkloadVerified": false
+    },
+    {
+      "route": "/admin/destinations",
+      "width": 1440,
+      "status": 200,
+      "finalPath": "/login",
+      "role": "GUEST",
+      "authorizedWorkloadVerified": false
+    },
+    {
+      "route": "/admin/rag",
+      "width": 1440,
+      "status": 200,
+      "finalPath": "/login",
+      "role": "GUEST",
+      "authorizedWorkloadVerified": false
+    }
+  ],
+  "api": [
+    {
+      "route": "/api/favorites",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "route": "/api/trips",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "route": "/api/admin/destinations",
+      "status": 401,
+      "expected": 401
+    },
+    {
+      "route": "/api/admin/rag-documents",
+      "status": 401,
+      "expected": 401
+    }
+  ],
+  "writesBlocked": [],
+  "failures": 0,
+  "traveler": "NOT_TESTED_IN_THIS_GUEST_SMOKE",
+  "admin": "NOT_TESTED_IN_THIS_GUEST_SMOKE",
+  "status": "PASS_PRODUCTION_GUEST_SCOPE_ONLY"
+}

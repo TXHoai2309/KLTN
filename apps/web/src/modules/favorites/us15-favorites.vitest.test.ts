@@ -306,20 +306,20 @@ describe("US-34 owned saved Trip favorites", () => {
     expect(test.favorites).toHaveLength(0);
   });
 
-  it("denies Guest and Admin Trip mutations before accessing private data", async () => {
+  it("denies Guest and returns scoped 404 for an Admin targeting a foreign Trip", async () => {
     const test = createFixture(); dependenciesRef.current = test.dependencies;
     const { route } = await favoriteRoutes();
     test.setSession(null);
     expect((await route.PUT(request("/api/favorites/trips/trip-a", "PUT", "guest"), targetParams("trips", "trip-a"))).status).toBe(401);
     test.setSession({ userId: "admin", role: "ADMIN" });
-    expect((await route.PUT(request("/api/favorites/trips/trip-a", "PUT", "admin"), targetParams("trips", "trip-a"))).status).toBe(403);
-    expect(test.tripQueries).toEqual([]);
+    expect((await route.PUT(request("/api/favorites/trips/trip-a", "PUT", "admin"), targetParams("trips", "trip-a"))).status).toBe(404);
+    expect(test.tripQueries).toEqual([{ id: "trip-a", userId: "admin" }]);
     expect(test.favorites).toHaveLength(0);
   });
 });
 
 describe("US15 favorites service and Route Handlers", () => {
-  it("rejects Guest/Admin before target, idempotency, or favorite DB work", async () => {
+  it("rejects Guest before DB work and permits Admin owned mutations", async () => {
     const fixture = createFixture();
     dependenciesRef.current = fixture.dependencies;
     const { route } = await favoriteRoutes();
@@ -332,18 +332,24 @@ describe("US15 favorites service and Route Handlers", () => {
     expect(guest.status).toBe(401);
     expect((await json(guest)).error.code).toBe("UNAUTHENTICATED");
 
+    expect(fixture.databaseCalls.targetFindFirst).toBe(0);
+    expect(fixture.databaseCalls.favoriteCreateMany).toBe(0);
+    expect(fixture.databaseCalls.idempotencyCreate).toBe(0);
     fixture.setSession({ userId: "admin-1", role: "ADMIN" });
     const admin = await route.PUT(
       request("/api/favorites/destinations/destination-public", "PUT", "admin-key"),
       targetParams("destinations", "destination-public"),
     );
-    expect(admin.status).toBe(403);
-    expect((await json(admin)).error.code).toBe("FORBIDDEN");
+    expect(admin.status).toBe(200);
+    expect((await json(admin)).operationStatus).toBe("SUCCESS");
+    expect(fixture.favorites).toMatchObject([{ userId: "admin-1", destinationId: "destination-public" }]);
+    expect(fixture.idempotency).toHaveLength(1);
+    expect(fixture.databaseCalls.targetFindFirst).toBe(1);
+    expect(fixture.databaseCalls.favoriteCreateMany).toBe(1);
+    expect(fixture.databaseCalls.idempotencyCreate).toBe(1);
+    const removed = await route.DELETE(request("/api/favorites/destinations/destination-public", "DELETE", "admin-remove"), targetParams("destinations", "destination-public"));
+    expect((await json(removed)).operationStatus).toBe("SUCCESS");
     expect(fixture.favorites).toHaveLength(0);
-    expect(fixture.idempotency).toHaveLength(0);
-    expect(fixture.databaseCalls.targetFindFirst).toBe(0);
-    expect(fixture.databaseCalls.favoriteCreateMany).toBe(0);
-    expect(fixture.databaseCalls.idempotencyCreate).toBe(0);
   });
 
   it("adds only public targets and keeps duplicate additions idempotent", async () => {

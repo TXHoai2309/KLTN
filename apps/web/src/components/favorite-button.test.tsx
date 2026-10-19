@@ -52,7 +52,7 @@ test("FavoriteButton fetches private status and sends Guests through safe return
   assert.match(component, /credentials: "same-origin"/);
   assert.match(component, /buildAuthLoginHref\(currentPath\)/);
   assert.match(component, /window\.location\.hash/);
-  assert.match(component, /sessionRole === "ADMIN"\) return null/);
+  assert.match(component, /hasRolePermission\(sessionRole, "traveler"\)/);
   assert.match(component, /data-favorite-state="unknown"/);
   assert.match(component, /statusErrorMessage/);
 });

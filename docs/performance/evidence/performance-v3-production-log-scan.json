@@ -1,0 +1,9 @@
+{
+  "checkedAt": "2026-10-18T11:20:24.526Z",
+  "deploymentId": "dpl_GzwyGGusVRtpU6FnCkUSszTZHuVk",
+  "window": "last10m; deployment only recently became READY",
+  "runtimeErrorRecords": 0,
+  "http5xxRecords": 0,
+  "scope": "Available Vercel runtime/error and CDN-request datasets only. No conclusion about unobserved user journeys or future errors.",
+  "privateLogMessagesPersisted": false
+}

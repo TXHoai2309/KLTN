@@ -10,6 +10,7 @@ type RuntimeEnvironment = {
   VERCEL_ENV: string;
   QA_RUNTIME_ENABLED: string;
   QA_PREVIEW_RUNTIME_ENABLED: string;
+  QA_PRODUCTION_RUNTIME_ENABLED?: string;
   QA_ABUSE_PROTECTION_ACCEPTED: string;
   DATABASE_URL: string;
   QA_RUNTIME_ALLOWED_DATABASE_HOST: string;
@@ -21,6 +22,7 @@ const baseEnvironment: RuntimeEnvironment = {
   VERCEL_ENV: "preview",
   QA_RUNTIME_ENABLED: "false",
   QA_PREVIEW_RUNTIME_ENABLED: "true",
+  QA_PRODUCTION_RUNTIME_ENABLED: "false",
   QA_ABUSE_PROTECTION_ACCEPTED: "true",
   DATABASE_URL: "postgresql://qa@dev.example/neondb?sslmode=require",
   QA_RUNTIME_ALLOWED_DATABASE_HOST: "dev.example",
@@ -40,7 +42,11 @@ const selectionCases = [
   { name: "Preview remains unavailable when the pinned database differs", env: withEnvironment({ QA_RUNTIME_ALLOWED_DATABASE_HOST: "other.example" }), expected: "UNAVAILABLE" },
   { name: "Preview remains unavailable without a database URL", env: withEnvironment({ DATABASE_URL: "" }), expected: "UNAVAILABLE" },
   { name: "a development NODE_ENV cannot enable a Preview demo", env: withEnvironment({ NODE_ENV: "development", VERCEL_ENV: "preview", QA_PREVIEW_RUNTIME_ENABLED: "false" }), expected: "UNAVAILABLE" },
-  { name: "Production remains unavailable even when both opt-ins are true", env: withEnvironment({ VERCEL_ENV: "production", QA_RUNTIME_ENABLED: "true" }), expected: "UNAVAILABLE" },
+  { name: "Production remains unavailable by default", env: withEnvironment({ VERCEL_ENV: "production" }), expected: "UNAVAILABLE" },
+  { name: "Production remains unavailable even when QA_RUNTIME_ENABLED is true", env: withEnvironment({ VERCEL_ENV: "production", QA_RUNTIME_ENABLED: "true" }), expected: "UNAVAILABLE" },
+  { name: "Production uses the shared gate when explicitly enabled", env: withEnvironment({ VERCEL_ENV: "production", QA_PRODUCTION_RUNTIME_ENABLED: "true" }), expected: "REAL" },
+  { name: "Production remains unavailable when enabled but abuse protection is not accepted", env: withEnvironment({ VERCEL_ENV: "production", QA_PRODUCTION_RUNTIME_ENABLED: "true", QA_ABUSE_PROTECTION_ACCEPTED: "false" }), expected: "UNAVAILABLE" },
+  { name: "Production remains unavailable when enabled but database host differs", env: withEnvironment({ VERCEL_ENV: "production", QA_PRODUCTION_RUNTIME_ENABLED: "true", QA_RUNTIME_ALLOWED_DATABASE_HOST: "other.example" }), expected: "UNAVAILABLE" },
 ] as const;
 
 describe("/assistant runtime selection and fail-closed boundary", () => {
@@ -54,8 +60,10 @@ describe("/assistant runtime selection and fail-closed boundary", () => {
     const paths = Object.keys(bundle.metafile!.inputs);
     const localDevelopment = env.NODE_ENV === "development" && (!env.VERCEL_ENV || env.VERCEL_ENV === "development");
     const previewDeployment = env.NODE_ENV === "production" && env.VERCEL_ENV === "preview";
-    expect(paths.some(path => path.includes("assistant-runtime-chat.tsx"))).toBe(localDevelopment || previewDeployment);
-    expect(paths.some(path => path.includes("assistant-http-transport.ts"))).toBe(localDevelopment || previewDeployment);
+    const productionDeployment = env.NODE_ENV === "production" && env.VERCEL_ENV === "production" && env.QA_PRODUCTION_RUNTIME_ENABLED === "true";
+    const realTransportExpected = localDevelopment || previewDeployment || productionDeployment;
+    expect(paths.some(path => path.includes("assistant-runtime-chat.tsx"))).toBe(realTransportExpected);
+    expect(paths.some(path => path.includes("assistant-http-transport.ts"))).toBe(realTransportExpected);
     expect(paths.some(path => path.includes("development/"))).toBe(localDevelopment);
     const module = { exports: {} as { default: (props: object) => Promise<ReactElement<{ children: ReactElement }>> } };
     new Function("require", "module", "exports", bundle.outputFiles[0]!.text)(createRequire(import.meta.url), module, module.exports);
@@ -63,7 +71,9 @@ describe("/assistant runtime selection and fail-closed boundary", () => {
     const component = { REAL: "AssistantRuntimeChat", DEMO: "AssistantDevelopmentChat", UNAVAILABLE: "AssistantChat" }[expected];
     expect(page.props.children.type).toHaveProperty("name", component);
     if (env.VERCEL_ENV === "production") {
-      expect(paths.some(path => path.includes("assistant-runtime-chat.tsx"))).toBe(false);
+      if (env.QA_PRODUCTION_RUNTIME_ENABLED !== "true") {
+        expect(paths.some(path => path.includes("assistant-runtime-chat.tsx"))).toBe(false);
+      }
       expect(paths.some(path => path.includes("development/"))).toBe(false);
       expect(paths.some(path => path.includes("assistant-citation-fixtures"))).toBe(false);
     }
@@ -80,5 +90,11 @@ describe("/assistant runtime selection and fail-closed boundary", () => {
     expect(isQaRuntimeEnabled(preview)).toBe(true);
     expect(isQaRuntimeEnabled({ ...preview, vercelEnv: "production" })).toBe(false);
     expect(isQaRuntimeEnabled({ ...preview, allowedDatabaseName: "production" })).toBe(false);
+    const prod = { ...valid, nodeEnv: "production", vercelEnv: "production", qaProductionRuntimeEnabled: "true" };
+    expect(isQaRuntimeEnabled(prod)).toBe(true);
+    expect(isQaRuntimeEnabled({ ...prod, qaProductionRuntimeEnabled: "false" })).toBe(false);
+    expect(isQaRuntimeEnabled({ ...prod, qaAbuseProtectionAccepted: "false" })).toBe(false);
+    expect(isQaRuntimeEnabled({ ...prod, allowedDatabaseHost: "other.invalid" })).toBe(false);
+    expect(isQaRuntimeEnabled({ ...prod, nodeEnv: "development" })).toBe(false);
   });
 });

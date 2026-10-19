@@ -57,7 +57,19 @@ US-07 Destination persistence uses stable cuid IDs, normalized open-taxonomy are
 
 ### Auth and authorization
 
-Better Auth handles email/password and sessions. The role is configured as a non-input additional field; public signup cannot choose `ADMIN`. The server-side bootstrap uses Better Auth to create credentials and then assigns `ADMIN`. Shared `server/authorization` guards resolve an uncached trusted session and current persisted User role. Exact Traveler/Admin permissions have no inheritance; private resource readers must constrain persistence by trusted actor ownership. Account GET/PATCH and page are self-only; dashboard accepts both authenticated roles; the development demo action independently requires Traveler. Denials use 401/403, and non-owned/missing resources use the same 404. Future business modules must integrate the shared ownership scope; their endpoints do not exist yet. See [US-06](../stories/US-06-role-ownership.md) for the permission matrix and integration contract.
+Better Auth handles email/password and sessions. The role is configured as a non-input additional field; public signup cannot choose `ADMIN`. The server-side bootstrap uses Better Auth to create credentials and then assigns `ADMIN`. Shared `server/authorization` guards resolve an uncached trusted session and current persisted User role. Under owner-approved [RBAC V2](../stories/RBAC-V2-admin-inherits-traveler.md), ADMIN inherits Traveler capabilities while Admin-only operations still require ADMIN. `requireTraveler` delegates to `requireActor(..., "traveler")`, preserving its `{ userId }` API with one persisted-role lookup per guard invocation. Private resource readers and transactional writes remain scoped by authenticated ownership, with no Admin bypass. Account GET/PATCH and page are self-only; dashboard accepts both roles; the development demo uses the same Traveler capability. Denials use 401/403, and non-owned/missing resources use the same 404. Trip Read/Save and Favorites now exist and consume these guards. See [US-06](../stories/US-06-role-ownership.md) for the original contract and RBAC V2 for the superseding permission matrix.
+
+Admin User Management V2 adds ACTIVE/LOCKED persisted account status and restrictive
+FK audit events. Better Auth 1.7.5's supported session-create hook rejects locked
+accounts; a migration-owned session INSERT/UPDATE trigger shares the User row lock
+to close races with lock/revocation transactions. Cookie cache is disabled. Shared
+guards and the separate AI principal admission check account status. CMS mutations
+serialize with an advisory transaction lock, recheck the actor, lock the target,
+protect active Admin availability and atomically commit mutation/audit/idempotency.
+Role changes keep sessions and take effect through persisted-role authorization;
+lock revokes all sessions, unlock restores none, and explicit revoke removes active
+sessions only. Read DTOs never include credentials/session tokens/full IP or infer
+last login from updatedAt. See the [implemented API contract](../implementation/admin-user-management-phase2-api-contract.md).
 
 ### AI, Validator, maps, and routing
 
@@ -71,7 +83,7 @@ The accepted product boundary is:
 - pgvector: embeddings and similarity retrieval.
 - MapLibre GL JS: browser map rendering; Stadia Maps: official Alidade Smooth light/dark styles and basemap.
 
-US-12 supplies browser MapLibre/Stadia maps. US-29B adds a server-only Stadia route boundary and pure travel-time comparison; no itinerary service calls them yet. OpenAI and routing secrets remain server-side. Stadia localhost tiles use no key; production tiles use property/domain authentication. Routing uses a separate server API key.
+US-12 supplies browser MapLibre/Stadia maps. US-28, US-29B and US-30 share one server-only Stadia Standard Routing HTTP boundary and CAR/auto, MOTORCYCLE/motorcycle mapping. US-28 requires both duration and distance, while US-29B/30 retain duration-only validation. Trip Save fetches fresh routing evidence before transactional revalidation. Planner geometry remains excluded and MapLibre renders Destination markers only. OpenAI and routing secrets remain server-side. Stadia localhost tiles use no key; production tiles use property/domain authentication. Routing uses a separate server API key.
 
 ## API and error contract
 

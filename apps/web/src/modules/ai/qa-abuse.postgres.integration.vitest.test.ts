@@ -4,7 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Prisma, PrismaClient } from "../../../../../packages/db/prisma/generated/client";
 import type { Database } from "@KLTN/db";
-import { createQaAbuseGuard } from "./qa-abuse";
+import { createQaAbuseGuard, QA_ABUSE_LIMITS } from "./qa-abuse";
 import { createQaPrincipalResolver, guestToken } from "./qa-principal";
 import { createQaConversationStore, type QaReservation } from "./qa-conversation-store";
 import { createQaService } from "./qa-service";
@@ -42,18 +42,18 @@ suite("US21 durable multi-instance guest/cost admission",()=>{
     expect(results.filter(r=>r.status==='fulfilled')).toHaveLength(1);
     expect(results.find(r=>r.status==='rejected')).toMatchObject({reason:{code:"RATE_LIMITED"}});
     const rows=await db.$queryRaw<{n:bigint}[]>(Prisma.sql`SELECT count(*) AS n FROM qa_turn WHERE "principalId" IN (${Prisma.join(principals.map(p=>p.id))})`);
-    expect(Number(rows[0]!.n)).toBe(1);expect(await tokenUsage()).toBe(33_000);
+    expect(Number(rows[0]!.n)).toBe(1);expect(await tokenUsage()).toBe(43_000);
   });
   it("same-key replay does not charge; cookie/principal rotation cannot evade network quota or call providers",async()=>{
     const guard=createQaAbuseGuard(db as Database,{askNetworkDay:1});
     const store=createQaConversationStore(db as Database,{abuse:guard.hooks});
     const p=await guest(),key=randomUUID(),r=await store.reserve(p,key,input) as QaReservation;
     const data=await store.complete(p,r,completed(r),[]);
-    expect(await store.reserve(p,key,input)).toEqual({kind:"REPLAY",data});expect(await tokenUsage()).toBe(33_000);
+    expect(await store.reserve(p,key,input)).toEqual({kind:"REPLAY",data});expect(await tokenUsage()).toBe(43_000);
     const retrieve=vi.fn(),generate=vi.fn();
     const service=createQaService({store,assessor:{assess:async input=>fixtureQaAssessment(input)},retriever:{retrieve,recheck:async()=>true},generator:{generate}});
     await expect(service.ask(await guest(),randomUUID(),input)).rejects.toMatchObject({code:"RATE_LIMITED"});
-    expect(retrieve).not.toHaveBeenCalled();expect(generate).not.toHaveBeenCalled();expect(await tokenUsage()).toBe(33_000);
+    expect(retrieve).not.toHaveBeenCalled();expect(generate).not.toHaveBeenCalled();expect(await tokenUsage()).toBe(43_000);
   });
   it("charges recovered same-key attempts and expired leases cannot release the new fence",async()=>{
     const guard=createQaAbuseGuard(db as Database),store=createQaConversationStore(db as Database,{abuse:guard.hooks});
@@ -61,20 +61,20 @@ suite("US21 durable multi-instance guest/cost admission",()=>{
     await db.$executeRaw(Prisma.sql`UPDATE qa_turn SET "leaseUntil"=CURRENT_TIMESTAMP-INTERVAL '1 second' WHERE id=${r.turnId}`);
     await db.$executeRaw(Prisma.sql`UPDATE qa_abuse_lease SET "leaseUntil"=CURRENT_TIMESTAMP-INTERVAL '1 second' WHERE "turnId"=${r.turnId}`);
     const recovered=await store.reserve(p,key,input) as QaReservation;
-    expect(recovered.fence).toBe(2);expect(await tokenUsage()).toBe(66_000);
+      expect(recovered.fence).toBe(2);expect(await tokenUsage()).toBe(2 * QA_ABUSE_LIMITS.tokensPerAttempt);
     await db.$transaction(tx=>guard.hooks.release(tx,r.turnId,1));
     expect((await db.$queryRaw<{fence:number}[]>(Prisma.sql`SELECT fence FROM qa_abuse_lease WHERE "turnId"=${r.turnId}`))[0]!.fence).toBe(2);
     await store.fail(p,recovered,"AI_UNAVAILABLE");
     expect(await db.$queryRaw(Prisma.sql`SELECT * FROM qa_abuse_lease WHERE "turnId"=${r.turnId}`)).toEqual([]);
-    expect(await tokenUsage()).toBe(66_000);
+      expect(await tokenUsage()).toBe(2 * QA_ABUSE_LIMITS.tokensPerAttempt);
   });
   it("full conservative cost ceiling is enforced globally across networks",async()=>{
-    const guard=createQaAbuseGuard(db as Database,{globalTokensDay:33_000});
+    const guard=createQaAbuseGuard(db as Database,{globalTokensDay:43_000});
     const store=createQaConversationStore(db as Database,{abuse:guard.hooks});
     const p=await guest(),r=await store.reserve(p,randomUUID(),input) as QaReservation;
     await store.fail(p,r,"AI_UNAVAILABLE");
     await expect(store.reserve(await guest("b".repeat(64)),randomUUID(),input)).rejects.toMatchObject({code:"RATE_LIMITED"});
-    expect(await tokenUsage()).toBe(33_000);
+    expect(await tokenUsage()).toBe(43_000);
   });
   it("global concurrency cannot be bypassed by using another principal and network",async()=>{
     const guard=createQaAbuseGuard(db as Database,{concurrentGlobal:1});

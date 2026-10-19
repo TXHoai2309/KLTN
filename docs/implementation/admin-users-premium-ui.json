@@ -1,0 +1,11 @@
+{
+  "profile": "product-admin",
+  "sourceRoots": ["apps/web/src/app/admin/users"],
+  "locale": "vi-VN",
+  "canonicalMap": "docs/implementation/admin-user-management-phase2-api-contract.md",
+  "requiredCapabilities": ["Select/Listbox"],
+  "ownership": { "Select/Listbox": "native" },
+  "requiredCommands": [],
+  "commands": {},
+  "evidence": { "crudFullFlow": "apps/web/scripts/admin-users-browser-e2e.mjs", "failurePaths": "apps/web/src/modules/admin-users/admin-users.vitest.test.ts" }
+}

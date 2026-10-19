@@ -1,4 +1,5 @@
 import "server-only";
+import { readExtractionDiagnostic, type ExtractionDiagnostic } from "./extraction-diagnostic";
 
 import { randomUUID } from "node:crypto";
 import { Prisma, type Database } from "@KLTN/db";
@@ -211,7 +212,7 @@ export function createRagIndexJobStore(database: Database) {
       return rows.map(row => row.chunk.index).sort((a, b) => a - b);
     },
 
-    async markFailure(lease: RagIndexJobLease, status: "FAILED" | "CANCELLED" | "TIMED_OUT" | "UNKNOWN", failureCode: string, options: { preservePendingBatch?: boolean; warningCodes?: string[] } = {}) {
+    async markFailure(lease: RagIndexJobLease, status: "FAILED" | "CANCELLED" | "TIMED_OUT" | "UNKNOWN", failureCode: string, options: { preservePendingBatch?: boolean; warningCodes?: string[]; extractionDiagnostic?: ExtractionDiagnostic } = {}) {
       return database.$transaction(async tx => {
         const { job } = await lockAndAssertRagIndexJobLease(tx, lease, { allowCancelRequested: true, allowIneligibleDocument: true });
         const safeCode = /^[A-Z0-9_]{1,80}$/u.test(failureCode) ? failureCode : "INDEXING_FAILED";
@@ -224,7 +225,10 @@ export function createRagIndexJobStore(database: Database) {
             failureCode: safeCode,
             completedAt: new Date(),
             ...(options.preservePendingBatch ? {} : { pendingBatchIndexes: Prisma.DbNull }),
-            ...(options.warningCodes ? { warningCodes: options.warningCodes as Prisma.InputJsonValue } : {}),
+            ...(options.warningCodes ? { warningCodes: [
+              ...options.warningCodes,
+              ...(options.extractionDiagnostic && readExtractionDiagnostic([options.extractionDiagnostic]) ? [options.extractionDiagnostic] : []),
+            ] as Prisma.InputJsonValue } : {}),
           },
           select: { id: true, status: true, failureCode: true },
         });

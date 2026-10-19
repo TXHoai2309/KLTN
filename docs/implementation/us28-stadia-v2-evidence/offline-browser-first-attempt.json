@@ -1,0 +1,15 @@
+{
+  "kind": "OFFLINE_SYNTHETIC_COMPONENT_SERVICE_BROWSER; NOT FULL-STACK",
+  "passed": [
+    "Missing key remains NOT_CONFIGURED, missing clocks and no confirmation",
+    "Unavailable route remains insufficient, never zero guessed travel",
+    "Empty Destination source shows real empty state without fake destinations",
+    "Technical error shows retry and remains separate from missing data"
+  ],
+  "failed": [
+    {
+      "name": "14 relative-day tabs retain keyboard navigation and mobile bounds",
+      "error": "Expected values to be strictly equal:\n\n0 !== 14\n"
+    }
+  ]
+}

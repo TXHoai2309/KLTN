@@ -14,7 +14,7 @@ for (const actor of [null, traveler, admin]) {
   for (const permission of ["public", "account:self", "traveler", "admin"] as const) {
     test(`matrix ${actor?.role ?? "GUEST"} / ${permission}`, () => {
       const allowed = permission === "public" || Boolean(actor && (permission === "account:self" ||
-        permission === "traveler" && actor.role === "TRAVELER" || permission === "admin" && actor.role === "ADMIN"));
+        permission === "traveler" || permission === "admin" && actor.role === "ADMIN"));
       if (allowed) requirePermission(actor, permission);
       else assert.throws(() => requirePermission(actor, permission), { status: actor ? 403 : 401 });
     });
@@ -69,9 +69,9 @@ test("Traveler lookup scopes URL ID by trusted user ID; wrong ID and missing ID 
   const b: Actor = { id: "traveler-b", role: "TRAVELER" };
   await assert.rejects(readOwnedTravelerResource(b, "trip-a", findOwned), { status: 404 });
 });
-test("Guest/Admin never invoke Traveler resource reader or mutation callback", async () => {
+test("Guest/unsupported role never invoke Traveler resource reader or mutation callback", async () => {
   let reads = 0; let writes = 0;
-  for (const actor of [null, admin]) {
+  for (const actor of [null, { id: "unknown", role: "ROOT" } as unknown as Actor]) {
     await assert.rejects(async () => {
       await readOwnedTravelerResource(actor, "trip-a", async () => { reads++; return { id: "trip-a" }; });
       writes++;
@@ -87,7 +87,7 @@ test("account remains self-only despite forged request identity; unknown role ca
   await assert.rejects(updateAccount(new Headers(), { name: "Change" }, "key", fixture("unknown", "ROOT").dependencies), { status: 403 });
 });
 test("API failures use 401/403/404 and writes are FAILED, with no resource data", async () => {
-  for (const [actor, permission] of [[null, "account:self"], [traveler, "admin"], [admin, "traveler"]] as [Actor | null, Permission][]) {
+  for (const [actor, permission] of [[null, "account:self"], [traveler, "admin"], [{ id: "unknown", role: "ROOT" }, "traveler"]] as [Actor | null, Permission][]) {
     let error: unknown;
     try { requirePermission(actor, permission); } catch (caught) { error = caught; }
     const response = handleApiError(error);

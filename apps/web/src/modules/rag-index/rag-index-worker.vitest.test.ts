@@ -1,3 +1,7 @@
+import { researchDocx } from "../rag-processing/__fixtures__/research-docx";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { chunkDocument } from "../rag-processing/chunk-document";
 import { describe, expect, it, vi } from "vitest";
 import { createFakeEmbeddingProvider } from "../rag-processing/__fixtures__/fake-embedding-provider";
 import { EmbeddingError } from "../rag-processing/embedding-errors";
@@ -77,6 +81,14 @@ function harness(options: { status?: string; content?: string; fileType?: "TXT" 
 }
 
 describe("US-19 Task185 indexing worker", () => {
+  it.each(["Cao nguyên đá Đồng Văn", "Di tích Căng Bắc Mê", "Chợ tình Khâu Vai"])("indexes research fixture %s through the full mocked pipeline", async title => {
+    const test = harness({fileType:"DOCX", bytes:researchDocx(title)});
+    await expect(test.worker.runNext()).resolves.toMatchObject({status:"COMPLETED"});
+    expect(test.failures).toEqual([]);
+    expect(test.providerCalls).toBeGreaterThan(0);
+    expect(test.index.persistChunks).toHaveBeenCalledTimes(1);
+    expect(test.index.finalizeReadyGeneration).toHaveBeenCalledTimes(1);
+  });
   it("records a safe chunk persistence failure without leaking Prisma messages or making provider calls", async () => {
     const test = harness();
     test.index.persistChunks.mockRejectedValueOnce(Object.assign(new Error("PRIVATE_DOCUMENT_TEXT signed-url credential"), { code: "P2039" }));
@@ -113,7 +125,7 @@ describe("US-19 Task185 indexing worker", () => {
   it("fails closed when a text PDF has a page without text", async () => {
     const test = harness({ fileType: "PDF", bytes: syntheticPdf([{ text: "Page one." }, {}, { text: "Page three." }]) });
     await expect(test.worker.runNext()).resolves.toEqual({ jobId: "job-1", status: "FAILED" });
-    expect(test.failures).toEqual([{ status: "FAILED", code: "INCOMPLETE_COVERAGE", options: { warningCodes: ["PAGE_WITHOUT_TEXT", "PDF_READING_ORDER_HEURISTIC"] } }]);
+    expect(test.failures).toMatchObject([{ status: "FAILED", code: "INCOMPLETE_COVERAGE", options: { warningCodes: ["PAGE_WITHOUT_TEXT", "PDF_READING_ORDER_HEURISTIC"], extractionDiagnostic: { coverageFailureReason: "PAGE_WITHOUT_TEXT", recoverable: false } } }]);
     expect(test.providerCalls).toBe(0);
     expect(test.index.finalizeReadyGeneration).not.toHaveBeenCalled();
   });
@@ -121,7 +133,7 @@ describe("US-19 Task185 indexing worker", () => {
   it("rejects image-only PDFs with no extractable text", async () => {
     const test = harness({ fileType: "PDF", bytes: syntheticPdf([{ image: true }]) });
     await expect(test.worker.runNext()).resolves.toEqual({ jobId: "job-1", status: "FAILED" });
-    expect(test.jobs.recordWarnings).toHaveBeenCalledWith(expect.anything(), ["PAGE_WITHOUT_TEXT", "PDF_READING_ORDER_HEURISTIC"]);
+    expect(test.failures[0]).toMatchObject({options:{warningCodes:["PAGE_WITHOUT_TEXT", "PDF_READING_ORDER_HEURISTIC"]}});
     expect(test.failures[0]).toMatchObject({ status: "FAILED", code: "EXTRACTION_NO_EXTRACTABLE_TEXT" });
     expect(test.providerCalls).toBe(0);
     expect(test.index.finalizeReadyGeneration).not.toHaveBeenCalled();
@@ -131,7 +143,7 @@ describe("US-19 Task185 indexing worker", () => {
     const bytes = syntheticDocx(p("Readable body") + "<w:p><w:r><w:drawing><w:txbxContent>Omitted text</w:txbxContent></w:drawing></w:r></w:p>");
     const test = harness({ fileType: "DOCX", bytes });
     await expect(test.worker.runNext()).resolves.toEqual({ jobId: "job-1", status: "FAILED" });
-    expect(test.failures).toEqual([{ status: "FAILED", code: "INCOMPLETE_COVERAGE", options: { warningCodes: ["UNSUPPORTED_DOCX_REGION"] } }]);
+    expect(test.failures).toMatchObject([{ status: "FAILED", code: "INCOMPLETE_COVERAGE", options: { warningCodes: ["UNSUPPORTED_DOCX_REGION"], extractionDiagnostic: { ooxmlPart: "word/document.xml", unsupportedElement: "drawing", recoverable: false } } }]);
     expect(test.providerCalls).toBe(0);
     expect(test.index.finalizeReadyGeneration).not.toHaveBeenCalled();
   });
@@ -229,5 +241,24 @@ describe("Task187 bounded provider/persistence failures",()=>{
   it("vector persistence uncertainty does not publish or retry external call",async()=>{
     const t=harness();t.index.persistEmbeddings.mockRejectedValue(new Error("synthetic persistence uncertainty"));
     expect(await t.worker.runNext()).toMatchObject({status:"UNKNOWN"});expect(t.providerCalls).toBe(1);expect(t.index.finalizeReadyGeneration).not.toHaveBeenCalled();
+  });
+});
+
+const docxQaDir = process.env.RAG_DOCX_QA_DIR;
+describe.skipIf(!docxQaDir)("US-19 original research DOCX offline pipeline", () => {
+  it.each(["Cao_nguyen_da_Dong_Van_RAG_URL_day_du_2026.docx", "Cang_Bac_Me_Ho_so_du_lieu_RAG_nguon_URL_day_du_2026.docx", "Khau_Vai_RAG_2026.docx"])("publishes complete mocked generation: %s", async name => {
+    const oracle = JSON.parse(readFileSync(join(docxQaDir!, "oracle.json"),"utf8"))[name];
+    const bytes = new Uint8Array(readFileSync(oracle.path));
+    const extracted = await extractDocument({format:"DOCX",bytes});
+    if (extracted.status !== "EXTRACTED") throw new Error(extracted.status);
+    const chunks = chunkDocument(extracted.document);
+    if (chunks.status !== "CHUNKED") throw new Error(chunks.status);
+    const test = harness({fileType:"DOCX",bytes});
+    await expect(test.worker.runNext()).resolves.toMatchObject({status:"COMPLETED"});
+    expect(test.failures).toEqual([]);
+    expect(test.index.persistChunks).toHaveBeenCalledWith("doc-1", "generation-1", chunks.chunks, expect.anything());
+    expect(test.persistedEmbeddingBatches.flat()).toEqual(chunks.chunks.map(c=>c.index));
+    expect(test.index.finalizeReadyGeneration).toHaveBeenCalledTimes(1);
+    expect(test.jobs.recordWarnings).toHaveBeenCalledWith(expect.anything(), []);
   });
 });

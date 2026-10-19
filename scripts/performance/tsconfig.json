@@ -1,0 +1,10 @@
+{
+  "extends": "../../apps/web/tsconfig.json",
+  "compilerOptions": { "incremental": false, "plugins": [], "paths": {
+    "@/*": ["../../apps/web/src/*"],
+    "@KLTN/ui/*": ["../../packages/ui/src/*"],
+    "server-only": ["../../apps/web/src/test/server-only-stub.ts"]
+  } },
+  "include": ["./*.ts"],
+  "exclude": ["../../node_modules"]
+}

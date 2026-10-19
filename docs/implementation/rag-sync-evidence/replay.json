@@ -1,0 +1,362 @@
+{
+  "checkedAt": "2026-10-18T04:55:56.027Z",
+  "status": "COMMIT_CONFIRMED",
+  "identities": [
+    {
+      "side": "source",
+      "project": "summer-unit-95870477",
+      "branch": "br-aged-hat-b3o6hg9p",
+      "endpoint": "ep-purple-pond-b3xujb8o",
+      "database": "neondb",
+      "verified": true
+    },
+    {
+      "side": "target",
+      "project": "summer-unit-95870477",
+      "branch": "br-cold-dew-b3h270wp",
+      "endpoint": "ep-blue-art-b3v3vr4h",
+      "database": "neondb",
+      "verified": true
+    }
+  ],
+  "planHash": "ff1f1fcc64e6421b6f2a6b9fbc4a87344795b3abbeb95db7c9e66a1c92f1d519",
+  "backupPolicy": {
+    "OWNER_BACKUP_WAIVER_ACCEPTED": true,
+    "reason": "SNAPSHOTS_LIMIT_EXCEEDED",
+    "scope": [
+      "cmvapg3l0001j7w9w61egpl01",
+      "cmvc530ki0001ik9wn3ynioi6",
+      "cmvc55mhx000bik9wpn3gtlmn"
+    ],
+    "target": {
+      "project": "summer-unit-95870477",
+      "branch": "br-cold-dew-b3h270wp",
+      "endpoint": "ep-blue-art-b3v3vr4h",
+      "database": "neondb"
+    },
+    "manifestHash": "ff1f1fcc64e6421b6f2a6b9fbc4a87344795b3abbeb95db7c9e66a1c92f1d519",
+    "executionTimestamp": "2026-10-18T04:55:24.633Z",
+    "CURRENT_PRODUCTION_BACKUP": "WAIVED_BY_OWNER",
+    "RECOVERY_POINT_AFTER_DESTINATION_IMPORT": "NOT_AVAILABLE",
+    "backupVerified": false
+  },
+  "inserted": 0,
+  "replayedRows": 286,
+  "updates": 0,
+  "deletes": 0,
+  "protectedTables": 31,
+  "protectedBefore": {
+    "_AreaToCultureContent": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "_AreaToDestination": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "_CommunityToCultureContent": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "_prisma_migrations": {
+      "count": 23,
+      "fingerprint": "2fb6733ae2a0077592e21ed649fc3013"
+    },
+    "account": {
+      "count": 1,
+      "fingerprint": "aab8d6e6919d248ad7b9f9e3da620e61"
+    },
+    "admin_audit_event": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "content_area": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "content_community": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "content_media": {
+      "count": 13,
+      "fingerprint": "82ee3b7a692e31418a53a0120104001a"
+    },
+    "content_source": {
+      "count": 12,
+      "fingerprint": "d0f2a222c4a1add40ccfe008eedf6a08"
+    },
+    "culture_content": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "culture_destination": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "destination": {
+      "count": 3,
+      "fingerprint": "ac1d69b8d918ab756876b1e918f83789"
+    },
+    "destination_editorial": {
+      "count": 3,
+      "fingerprint": "f789a7154959a45ae76cb7502aa5bad2"
+    },
+    "favorite": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "idempotency_record": {
+      "count": 1,
+      "fingerprint": "9641b3546601c4b559233810bee555c2"
+    },
+    "itinerary_day": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "itinerary_visit": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "opening_day": {
+      "count": 21,
+      "fingerprint": "c8ac3c37f0924754ee3e5d035510a4a9"
+    },
+    "opening_interval": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "qa_abuse_bucket": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "qa_abuse_lease": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "qa_cleanup_state": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "qa_conversation": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "qa_guest_identity": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "qa_turn": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "session": {
+      "count": 3,
+      "fingerprint": "b1099af458730896153484a4ea9b06f5"
+    },
+    "spatial_ref_sys": {
+      "count": 8500,
+      "fingerprint": "209a5c3099201796c99ce255aeb0c406"
+    },
+    "trip": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "user": {
+      "count": 1,
+      "fingerprint": "386984d818655c33c1d59df7b90bf3f8"
+    },
+    "verification": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    }
+  },
+  "protectedAfter": {
+    "_AreaToCultureContent": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "_AreaToDestination": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "_CommunityToCultureContent": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "_prisma_migrations": {
+      "count": 23,
+      "fingerprint": "2fb6733ae2a0077592e21ed649fc3013"
+    },
+    "account": {
+      "count": 1,
+      "fingerprint": "aab8d6e6919d248ad7b9f9e3da620e61"
+    },
+    "admin_audit_event": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "content_area": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "content_community": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "content_media": {
+      "count": 13,
+      "fingerprint": "82ee3b7a692e31418a53a0120104001a"
+    },
+    "content_source": {
+      "count": 12,
+      "fingerprint": "d0f2a222c4a1add40ccfe008eedf6a08"
+    },
+    "culture_content": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "culture_destination": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "destination": {
+      "count": 3,
+      "fingerprint": "ac1d69b8d918ab756876b1e918f83789"
+    },
+    "destination_editorial": {
+      "count": 3,
+      "fingerprint": "f789a7154959a45ae76cb7502aa5bad2"
+    },
+    "favorite": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "idempotency_record": {
+      "count": 1,
+      "fingerprint": "9641b3546601c4b559233810bee555c2"
+    },
+    "itinerary_day": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "itinerary_visit": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "opening_day": {
+      "count": 21,
+      "fingerprint": "c8ac3c37f0924754ee3e5d035510a4a9"
+    },
+    "opening_interval": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "qa_abuse_bucket": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "qa_abuse_lease": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "qa_cleanup_state": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "qa_conversation": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "qa_guest_identity": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "qa_turn": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "session": {
+      "count": 3,
+      "fingerprint": "b1099af458730896153484a4ea9b06f5"
+    },
+    "spatial_ref_sys": {
+      "count": 8500,
+      "fingerprint": "209a5c3099201796c99ce255aeb0c406"
+    },
+    "trip": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    },
+    "user": {
+      "count": 1,
+      "fingerprint": "386984d818655c33c1d59df7b90bf3f8"
+    },
+    "verification": {
+      "count": 0,
+      "fingerprint": "d751713988987e9331980363e24189ce"
+    }
+  },
+  "publicQaApproved": 0,
+  "documents": [
+    {
+      "documentId": "cmvapg3l0001j7w9w61egpl01",
+      "versionId": "cmvaq3vno001s7w9whurnb6op",
+      "generationId": "cmvaq3wc0001t7w9wm3aomjm4",
+      "publicationId": "cmvaq4a94001u7w9wujzyxer1",
+      "chunks": 51,
+      "embeddings": 51,
+      "tokenCount": 13584,
+      "originalSha256": "6f21f0c8f69a4b8e5315299b5a2693518d9ac85c4c116d81d83ec0db14abe6b6",
+      "normalizedContentHash": "4f4a633c3929d7dc09447fe4d520b2b8dccead197011f6571939d6d7fe5055c7",
+      "integrity": "TECHNICALLY_READY",
+      "dimensions": 1536,
+      "allHashesMatch": true,
+      "deterministicExtractionAndChunkReplay": true,
+      "rights": "RIGHTS_REVIEW_REQUIRED",
+      "targetPublicQaApproved": false,
+      "ownerOriginalByteMatch": true
+    },
+    {
+      "documentId": "cmvc530ki0001ik9wn3ynioi6",
+      "versionId": "cmvc53qzp0007ik9wlcrbm8z9",
+      "generationId": "cmvc53rzd0008ik9w236wy37w",
+      "publicationId": "cmvc540l80009ik9wvpmcqlhk",
+      "chunks": 35,
+      "embeddings": 35,
+      "tokenCount": 7815,
+      "originalSha256": "8bb6e92b2b301c01e3bf8ac70ead1c7ed87512f7215cf81e85374335b71e6ad7",
+      "normalizedContentHash": "045e3beb90733c2587ca4cc9945097206a176dc9acbe348a19159bbcb0fc2357",
+      "integrity": "TECHNICALLY_READY",
+      "dimensions": 1536,
+      "allHashesMatch": true,
+      "deterministicExtractionAndChunkReplay": true,
+      "rights": "RIGHTS_REVIEW_REQUIRED",
+      "targetPublicQaApproved": false,
+      "ownerOriginalByteMatch": true
+    },
+    {
+      "documentId": "cmvc55mhx000bik9wpn3gtlmn",
+      "versionId": "cmvc562d3000hik9w3y59c9el",
+      "generationId": "cmvc562ru000iik9w0un4vcp3",
+      "publicationId": "cmvc56d4h000jik9wvdgdomnf",
+      "chunks": 51,
+      "embeddings": 51,
+      "tokenCount": 10225,
+      "originalSha256": "43659cfc3614034bb02987d17f00e1eb97b29f6338546d8d2774b72f5c577fdf",
+      "normalizedContentHash": "31c7a83051a925547f32ece6f182ec81642d2b477793e8a7aa581990aee4a06b",
+      "integrity": "TECHNICALLY_READY",
+      "dimensions": 1536,
+      "allHashesMatch": true,
+      "deterministicExtractionAndChunkReplay": true,
+      "rights": "RIGHTS_REVIEW_REQUIRED",
+      "targetPublicQaApproved": false,
+      "ownerOriginalByteMatch": true
+    }
+  ],
+  "openAiCalls": 0,
+  "openAiCostUsd": 0,
+  "blobCopies": 0,
+  "jobsImported": 0,
+  "actorIdsPreserved": true
+}

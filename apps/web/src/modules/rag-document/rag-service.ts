@@ -23,11 +23,25 @@ const finalizeRequest = z.object({
   topic: z.string().trim().max(200).optional(),
   locality: z.string().trim().max(200).optional(),
 }).strict();
-const reviewRequest = z.object({ action: z.enum(["START_REVIEW", "APPROVE", "DISABLE"]) }).strict();
+const reviewRequest = z.object({
+  action: z.enum(["START_REVIEW", "APPROVE", "DISABLE", "ENABLE_PUBLIC_QA", "DISABLE_PUBLIC_QA"]),
+}).strict();
 export type RagReviewAction = z.infer<typeof reviewRequest>["action"];
+
+const bulkRequest = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("ENABLE_ALL_INDEXED"),
+  }).strict(),
+  z.object({
+    action: z.enum(["ENABLE_SELECTED", "DISABLE_SELECTED"]),
+    documentIds: z.array(z.string().min(1).max(100)).min(1).max(200),
+  }).strict(),
+]);
+export type RagBulkPublicQaRequest = z.infer<typeof bulkRequest>;
+
 const listFields = {
   id: true, originalFileName: true, fileType: true, sourceTitle: true,
-  status: true, createdAt: true, updatedAt: true,
+  status: true, publicQaApproved: true, createdAt: true, updatedAt: true,
 } as const;
 const detailFields = {
   ...listFields, mimeType: true, sizeBytes: true, sourceUrl: true, author: true,
@@ -38,10 +52,50 @@ function validateId(id: string) {
   if (!/^[-\w]{1,100}$/.test(id)) throw new AppError("RAG_DOCUMENT_NOT_FOUND", "Không tìm thấy tài liệu.", 404);
 }
 
-function allowedActions(status: RagStatus): RagReviewAction[] {
+export type RagIneligibilityReason =
+  | "STATUS_NOT_INDEXED"
+  | "NOT_PUBLIC_APPROVED"
+  | "NO_READY_INDEX"
+  | "EMBEDDING_MISMATCH";
+
+type GenerationSubset = {
+  state: "BUILDING" | "READY";
+  embeddingProvider: string;
+  embeddingModel: string;
+  embeddingDimensions: number;
+} | null | undefined;
+
+export function computeRagEligibility(
+  status: RagStatus,
+  publicQaApproved: boolean,
+  generation: GenerationSubset,
+): { publicQaEligible: boolean; ineligibilityReason: RagIneligibilityReason | null } {
+  if (status !== "INDEXED") {
+    return { publicQaEligible: false, ineligibilityReason: "STATUS_NOT_INDEXED" };
+  }
+  if (!publicQaApproved) {
+    return { publicQaEligible: false, ineligibilityReason: "NOT_PUBLIC_APPROVED" };
+  }
+  if (!generation || generation.state !== "READY") {
+    return { publicQaEligible: false, ineligibilityReason: "NO_READY_INDEX" };
+  }
+  if (
+    generation.embeddingProvider !== "openai" ||
+    generation.embeddingModel !== "text-embedding-3-small" ||
+    generation.embeddingDimensions !== 1536
+  ) {
+    return { publicQaEligible: false, ineligibilityReason: "EMBEDDING_MISMATCH" };
+  }
+  return { publicQaEligible: true, ineligibilityReason: null };
+}
+
+function allowedActions(status: RagStatus, publicQaApproved = false): RagReviewAction[] {
   if (status === "UPLOADED") return ["START_REVIEW", "DISABLE"];
   if (status === "REVIEWING") return ["APPROVE", "DISABLE"];
-  if (status === "APPROVED" || status === "INDEXED") return ["DISABLE"];
+  if (status === "APPROVED") return ["DISABLE"];
+  if (status === "INDEXED") {
+    return ["DISABLE", publicQaApproved ? "DISABLE_PUBLIC_QA" : "ENABLE_PUBLIC_QA"];
+  }
   return [];
 }
 
@@ -93,8 +147,9 @@ export async function finalizeRagUpload(headers: Headers, body: unknown, key: st
         sizeBytes: input.sizeBytes, storagePath: input.pathname, sourceTitle: input.sourceTitle,
         sourceUrl: input.sourceUrl || null, author: input.author || null, topic: input.topic || null,
         locality: input.locality || null, uploadedById: actor.id, status: "UPLOADED",
+        publicQaApproved: false,
       } });
-      return { id: row.id, originalFileName: row.originalFileName, sourceTitle: row.sourceTitle, status: row.status, retrievalEligible: false };
+      return { id: row.id, originalFileName: row.originalFileName, sourceTitle: row.sourceTitle, status: row.status, retrievalEligible: false, publicQaApproved: false, publicQaEligible: false, ineligibilityReason: "STATUS_NOT_INDEXED" as const };
     },
   });
 }
@@ -109,28 +164,67 @@ export async function getRagOriginal(headers: Headers, id: string, deps: RagDepe
 
 export async function listRagDocuments(headers: Headers, deps: RagDependencies) {
   await requireActor(headers, deps, "admin");
-  const rows = await deps.database.ragDocument.findMany({
-    select: listFields, orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-  });
-  return { items: rows.map(row => ({
-    id: row.id, originalFileName: row.originalFileName, sourceTitle: row.sourceTitle,
-    fileType: row.fileType, status: row.status, retrievalEligible: retrievalEligible(row.status),
-    createdAt: row.createdAt, updatedAt: row.updatedAt,
-  })) };
+  const [rows, publications] = await Promise.all([
+    deps.database.ragDocument.findMany({
+      select: listFields, orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    }),
+    deps.database.ragIndexPublication.findMany({
+      select: {
+        ragDocumentId: true,
+        generation: {
+          select: {
+            state: true,
+            embeddingProvider: true,
+            embeddingModel: true,
+            embeddingDimensions: true,
+          },
+        },
+      },
+    }),
+  ]);
+  const pubMap = new Map(publications.map(p => [p.ragDocumentId, p.generation]));
+  return { items: rows.map(row => {
+    const gen = pubMap.get(row.id);
+    const { publicQaEligible, ineligibilityReason } = computeRagEligibility(row.status, row.publicQaApproved, gen);
+    return {
+      id: row.id, originalFileName: row.originalFileName, sourceTitle: row.sourceTitle,
+      fileType: row.fileType, status: row.status, publicQaApproved: row.publicQaApproved,
+      publicQaEligible, ineligibilityReason,
+      retrievalEligible: retrievalEligible(row.status),
+      createdAt: row.createdAt, updatedAt: row.updatedAt,
+    };
+  }) };
 }
 
 export async function getRagDocument(headers: Headers, id: string, deps: RagDependencies) {
   await requireActor(headers, deps, "admin");
   validateId(id);
-  const row = await deps.database.ragDocument.findUnique({ where: { id }, select: detailFields });
+  const [row, pub] = await Promise.all([
+    deps.database.ragDocument.findUnique({ where: { id }, select: detailFields }),
+    deps.database.ragIndexPublication.findUnique({
+      where: { ragDocumentId: id },
+      select: {
+        generation: {
+          select: {
+            state: true,
+            embeddingProvider: true,
+            embeddingModel: true,
+            embeddingDimensions: true,
+          },
+        },
+      },
+    }),
+  ]);
   if (!row) throw new AppError("RAG_DOCUMENT_NOT_FOUND", "Không tìm thấy tài liệu.", 404);
+  const { publicQaEligible, ineligibilityReason } = computeRagEligibility(row.status, row.publicQaApproved, pub?.generation);
   return { document: {
     id: row.id, originalFileName: row.originalFileName, fileType: row.fileType,
     mimeType: row.mimeType, sizeBytes: row.sizeBytes, sourceTitle: row.sourceTitle,
     sourceUrl: row.sourceUrl, author: row.author, topic: row.topic,
     locality: row.locality, uploadedById: row.uploadedById, status: row.status,
+    publicQaApproved: row.publicQaApproved, publicQaEligible, ineligibilityReason,
     createdAt: row.createdAt, updatedAt: row.updatedAt,
-    retrievalEligible: retrievalEligible(row.status), allowedActions: allowedActions(row.status),
+    retrievalEligible: retrievalEligible(row.status), allowedActions: allowedActions(row.status, row.publicQaApproved),
   } };
 }
 
@@ -156,11 +250,79 @@ export async function transitionRagDocument(headers: Headers, id: string, body: 
       await requireActor(headers, { ...deps, database: tx as unknown as Database }, "admin");
       const current = await tx.ragDocument.findUnique({ where: { id }, select: { status: true } });
       if (!current) throw new AppError("RAG_DOCUMENT_NOT_FOUND", "Không tìm thấy tài liệu.", 404);
-      const status = nextStatus(current.status, action);
-      const updated = await tx.ragDocument.updateMany({ where: { id, status: current.status }, data: { status } });
-      if (updated.count !== 1) throw new AppError("RAG_TRANSITION_INVALID", "Trạng thái tài liệu đã thay đổi. Hãy tải lại.", 409);
-      const saved = await tx.ragDocument.findUnique({ where: { id }, select: { updatedAt: true } });
-      return { id, status, updatedAt: saved!.updatedAt, retrievalEligible: retrievalEligible(status), allowedActions: allowedActions(status) };
+      if (action === "ENABLE_PUBLIC_QA") {
+        if (current.status === "DISABLED") throw new AppError("RAG_TRANSITION_INVALID", "Không thể cấp quyền cho tài liệu đã bị vô hiệu hóa.", 409);
+        await tx.ragDocument.update({ where: { id }, data: { publicQaApproved: true } });
+      } else if (action === "DISABLE_PUBLIC_QA") {
+        await tx.ragDocument.update({ where: { id }, data: { publicQaApproved: false } });
+      } else {
+        const status = nextStatus(current.status, action);
+        const updated = await tx.ragDocument.updateMany({ where: { id, status: current.status }, data: { status } });
+        if (updated.count !== 1) throw new AppError("RAG_TRANSITION_INVALID", "Trạng thái tài liệu đã thay đổi. Hãy tải lại.", 409);
+      }
+      const saved = await tx.ragDocument.findUnique({ where: { id }, select: { status: true, publicQaApproved: true, updatedAt: true } });
+      const pub = await tx.ragIndexPublication.findUnique({
+        where: { ragDocumentId: id },
+        select: {
+          generation: {
+            select: {
+              state: true,
+              embeddingProvider: true,
+              embeddingModel: true,
+              embeddingDimensions: true,
+            },
+          },
+        },
+      });
+      const { publicQaEligible, ineligibilityReason } = computeRagEligibility(saved!.status, saved!.publicQaApproved, pub?.generation);
+      return {
+        id,
+        status: saved!.status,
+        publicQaApproved: saved!.publicQaApproved,
+        publicQaEligible,
+        ineligibilityReason,
+        updatedAt: saved!.updatedAt,
+        retrievalEligible: retrievalEligible(saved!.status),
+        allowedActions: allowedActions(saved!.status, saved!.publicQaApproved),
+      };
     },
   });
+}
+
+export async function bulkSetRagPublicQa(headers: Headers, body: unknown, deps: RagDependencies) {
+  await requireActor(headers, deps, "admin");
+  const input = parse(bulkRequest, body);
+  if (input.action === "ENABLE_ALL_INDEXED") {
+    const indexedDocs = await deps.database.ragDocument.findMany({
+      where: { status: "INDEXED", publicQaApproved: false },
+      select: { id: true },
+    });
+    const ids = indexedDocs.map(d => d.id);
+    if (ids.length > 0) {
+      await deps.database.ragDocument.updateMany({
+        where: { id: { in: ids } },
+        data: { publicQaApproved: true },
+      });
+    }
+    return { updatedCount: ids.length, ids };
+  }
+  if (input.action === "ENABLE_SELECTED") {
+    const docs = await deps.database.ragDocument.findMany({
+      where: { id: { in: input.documentIds }, status: { not: "DISABLED" } },
+      select: { id: true },
+    });
+    const ids = docs.map(d => d.id);
+    if (ids.length > 0) {
+      await deps.database.ragDocument.updateMany({
+        where: { id: { in: ids } },
+        data: { publicQaApproved: true },
+      });
+    }
+    return { updatedCount: ids.length, ids };
+  }
+  const res = await deps.database.ragDocument.updateMany({
+    where: { id: { in: input.documentIds } },
+    data: { publicQaApproved: false },
+  });
+  return { updatedCount: res.count, ids: input.documentIds };
 }

@@ -25,7 +25,7 @@ async function authorizeMutation(
   rawTarget: unknown,
   dependencies: FavoritesDependencies,
 ): Promise<{ actor: { userId: string }; target: FavoriteTarget; key: string }> {
-  // Auth is intentionally first: a Guest/Admin must not touch idempotency or
+  // Auth is intentionally first: an unauthenticated/unsupported actor must not touch idempotency or
   // target persistence, even when the key or target is malformed.
   const actor = await requireTraveler(
     request.headers,

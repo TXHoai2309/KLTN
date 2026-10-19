@@ -1,0 +1,21 @@
+{
+  "passed": [
+    "ADMIN real Better Auth UI login",
+    "TRAVELER real Better Auth UI login",
+    "Admin Home and shared menu retain personal/admin/logout links",
+    "Admin Favorites browser add/list/remove confirmed by PostgreSQL",
+    "ADMIN API save/replay + browser own list/detail",
+    "TRAVELER API save/replay + browser own list/detail",
+    "Admin and Traveler cross-Trip/Favorite IDs denied with no existence leak",
+    "Admin APIs/pages remain Admin-only; account remains self-only",
+    "Admin AI turn, refresh, rename/delete and cross-user history isolation",
+    "Guest private APIs deny; narrow Admin menu keeps traveler/admin links"
+  ],
+  "failed": [
+    {
+      "name": "Admin Trip form, review, authoritative check and real planner endpoint",
+      "error": "locator.click: Timeout 20000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Tạo lịch trình đề xuất', exact: true })\u001b[22m\n"
+    }
+  ],
+  "cleanup": true
+}

@@ -3,6 +3,18 @@ enum UserRole {
   ADMIN
 }
 
+enum UserStatus {
+  ACTIVE
+  LOCKED
+}
+
+enum AdminAuditEventType {
+  ROLE_CHANGED
+  USER_LOCKED
+  USER_UNLOCKED
+  SESSION_REVOKED
+}
+
 model User {
   id            String    @id
   name          String
@@ -10,15 +22,37 @@ model User {
   emailVerified Boolean   @default(false)
   image         String?
   role          UserRole  @default(TRAVELER)
+  status        UserStatus @default(ACTIVE)
+  lockedAt      DateTime?
+  lockReason    String? @db.VarChar(500)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
   favorites     Favorite[]
   trips         Trip[]
+  auditEvents   AdminAuditEvent[] @relation("TargetUser")
+  actionsDone   AdminAuditEvent[] @relation("ActorAdmin")
 
   @@unique([email])
+  @@index([role, status])
   @@map("user")
+}
+
+model AdminAuditEvent {
+  id           String @id @default(cuid())
+  eventType    AdminAuditEventType
+  actorId      String
+  targetUserId String
+  timestamp    DateTime @default(now()) @db.Timestamptz(3)
+  reason       String? @db.VarChar(500)
+  details      Json?
+  actor        User @relation("ActorAdmin", fields: [actorId], references: [id], onDelete: Restrict)
+  targetUser   User @relation("TargetUser", fields: [targetUserId], references: [id], onDelete: Restrict)
+
+  @@index([targetUserId, timestamp(sort: Desc), id])
+  @@index([actorId, timestamp(sort: Desc)])
+  @@map("admin_audit_event")
 }
 
 model Session {

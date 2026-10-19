@@ -1,0 +1,46 @@
+{
+  "baseline": "86bb9422e552c50226882dc4b602f8865e9c8112",
+  "branch": "feat/admin-user-management-be",
+  "focused": {
+    "pass": 192,
+    "fail": 0,
+    "skip": 3
+  },
+  "vitest": {
+    "pass": 1992,
+    "fail": 0,
+    "skip": 134
+  },
+  "legacy": {
+    "pass": 335,
+    "fail": 1,
+    "skip": 0,
+    "failure": "Existing Landing home-hero-visual assertion; identical failure in unchanged baseline source"
+  },
+  "postgresPlanner": {
+    "pass": 3,
+    "fail": 0
+  },
+  "postgresRbac": {
+    "pass": 8,
+    "fail": 0
+  },
+  "realBrowser": {
+    "pass": 6,
+    "fail": 0,
+    "cleanup": true
+  },
+  "offlineSyntheticBrowser": {
+    "pass": 5,
+    "fail": 0
+  },
+  "typecheck": "PASS",
+  "build": "PASS 1m10.525s",
+  "envGenerate": "PASS",
+  "productionOperations": 0,
+  "routingMigrations": 0,
+  "repositoryReleaseGate": "NON_GREEN",
+  "productionReadiness": "CONDITIONAL",
+  "hostnameRegistration": "UNVERIFIED",
+  "pr7": "MERGED_EXTERNALLY_INTO_MASTER; no new PR created"
+}

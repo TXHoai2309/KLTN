@@ -112,7 +112,7 @@ describe("Maps URL resolver without Places", () => {
   });
   it("registry isolates reviewed region ID by actual environment; POI still eligible", () => {
     const reg = routingRegistry(
-      "postgresql://test@ep-purple-pond-b3xujb8o-pooler.example.invalid/neondb",
+      "postgresql://test@ep-purple-pond-b3xujb8o-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require",
     );
     expect(routingCandidateAllowed("cmv7kc5eu0003209w9ggzpolq", reg)).toBe(
       false,

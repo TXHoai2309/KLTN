@@ -1,0 +1,18 @@
+{
+  "measuredAt": "2026-10-18T09:22:41.527Z",
+  "readOnly": true,
+  "projectMetadataHttp": 200,
+  "endpointMetadataHttp": 200,
+  "compute": {
+    "currentState": "active",
+    "autoscalingMinCu": 0.25,
+    "autoscalingMaxCu": 2,
+    "suspendTimeoutSeconds": 0
+  },
+  "consumption": {
+    "httpStatus": 403,
+    "available": false,
+    "window": "last24h",
+    "reason": "Provider did not grant consumption history; no zero-usage inference"
+  }
+}

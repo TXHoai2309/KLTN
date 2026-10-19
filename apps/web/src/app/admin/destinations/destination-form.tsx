@@ -4,6 +4,7 @@ import "@/components/admin/admin-form-shell.css";
 import "./destination-v3.css";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
+import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import {
   FileText,
@@ -156,7 +157,7 @@ export default function DestinationForm({ id }: { id: string | null }) {
   };
   async function submit(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault();
-    if (imageState.busy || imageState.uncertainReview) return;
+    if (images.current?.isBusy() || imageState.busy || imageState.uncertainReview) return;
     if (!claimSubmission(lock)) return;
     let completed = false;
     try {
@@ -342,9 +343,10 @@ export default function DestinationForm({ id }: { id: string | null }) {
         breadcrumb={<Link href="/admin/destinations">← Quản lý điểm đến</Link>}
         title={id ? "Chỉnh sửa điểm đến" : "Tạo điểm đến mới"}
         subtitle="Một hồ sơ ngắn gọn để khám phá và lập hành trình Hà Giang."
-        meta={<AdminVisibilityBadge visibility={dto?.visibility ?? "HIDDEN"} />}
+        meta={<><AdminVisibilityBadge visibility={dto?.visibility ?? "HIDDEN"} /><a className="af-btn" href="#destination-save">Đi tới nút lưu</a></>}
       />
       <main className="dv3-main">
+        {id && <div style={{ marginBottom: 20 }}><Link className="af-btn" href={`/admin/destinations/${encodeURIComponent(id)}/editorial` as Route}>Thiết kế trang giới thiệu</Link></div>}
         <form method="post" noValidate onSubmit={(e) => void submit(e)}>
           {feedback && (
             <AdminAlert variant={unknown ? "warning" : "error"}>
@@ -653,6 +655,7 @@ export default function DestinationForm({ id }: { id: string | null }) {
               </Link>
             )}
             <button
+              id="destination-save"
               type="submit"
               className="af-btn af-btn-primary"
               disabled={saving || visibilityAction.busy || imageState.busy || imageState.uncertainReview}

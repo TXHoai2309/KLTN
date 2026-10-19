@@ -567,10 +567,6 @@ Append a new entry for each meaningful work session. Keep prior entries as hando
 - **Browser:** Home → Explore → q=Manual → region=đồng văn → category=văn hóa → detail → browser Back once returned `/explore?q=Manual&category=v%C4%83n+h%C3%B3a&region=%C4%91%E1%BB%93ng+v%C4%83n`; input, both filter chips and matching result were restored. Forward returned to the same detail, then Back restored Explore. Reload restored the URL and form. List/Map preserved q/category/region and `culturePage=1`; Culture remained visible and independent.
 - **Checks:** `npm run test:search --workspace web` 32/32, `npm run test:explore --workspace web` 14/14, `npm run test:map --workspace web` 24/24, `npm run test:destination --workspace web` 61/61, `npm run check-types`, `npm run build` and `git diff --check` PASS.
 - No production writes, schema changes, migrations, commit or push.
-<<<<<<< HEAD
->>>>>>> 1b74d933e3d23aa240ac245123f05a3d2ddd4973
-=======
->>>>>>> 8263c94e13cda29cde9f9556d186acc79e75ad44
 
 ## 2026-10-07 — US-16 direct Header link
 
@@ -908,8 +904,6 @@ Append a new entry for each meaningful work session. Keep prior entries as hando
 - **Eligibility:** Retained one canonical predicate `status === INDEXED` for response eligibility. Tests cover all five statuses and the INDEXED → DISABLED change. No fake retrieval/indexing was added.
 - **Verification:** TDD red run had 5 failing cases; `npm run test:rag --workspace=web` PASS 34/34 after implementation. Root `npm run test`, `npm run check-types`, `npm run build`, `git diff --check` PASS. No schema/migration/dependency/env change; no commit or push.
 - **Limits:** NT-252 end-to-end retrieval and QTN-107 history-source exclusion are **BLOCKED BY US-19** because no retrieval query exists. No Admin browser session/live RAG records or inspectable Figma MH-16/MH-18 frame, so light/dark, 360px and real database/Blob UI flow are NOT PROVEN.
-<<<<<<< HEAD
-=======
 
 
 ## 2026-10-11 — ThaiAnh into TXH integration review
@@ -1603,7 +1597,6 @@ Deterministic selection/gate/session-abuse/HTTP/source-status regressions: 83/83
 - **Coverage:** The new 13 tests assert blocking questions/hints, stable duration→transport order, CHOOSE_ONE with no default, source preservation, model/source downgrade, `TRANSPORT_UNSUPPORTED`, `TRIP_REQUIREMENT_UNCLEAR` blockers, advisory-vs-blocking confirmation, and the unchanged final start-date guard. Existing US24/25/26/27 tests were reused for role/body-order, legacy response defaults, no-store, stale/network, storage/source-contract and prior API behavior; no unrelated old test was changed.
 - **Tests:** Full relevant selection is **22 files, 348/348 tests passed**. The new suite alone is **13/13**. Test stderr contains only expected safe error-log assertions from existing API boundary cases; no sensitive request body is logged.
 - **Checks/limits:** Root `npm run test`, `npm run check-types` and `npm run build` remain blocked immediately by the existing local `shim integrity check failed`; `git diff --check` remains the relevant repository check. Browser/manual review, responsive overflow, keyboard/screen-reader focus, Guest/Admin live session, and authorized real OpenAI evaluation are **NOT PROVEN**. No commit or push.
-<<<<<<< HEAD
 
 ## 2026-10-13 — US28 preliminary Planner and reference UI
 
@@ -1636,6 +1629,290 @@ Deterministic selection/gate/session-abuse/HTTP/source-status regressions: 83/83
 - Full `npm run test` PASS:1166Vitest/84disposable-PG skips plus328legacy. New image suite37PASS. Real isolated PostgreSQL13/13PASS (four image tests+nineV3), including two-Admin slot20 and concurrent same-key finalize; owned disposable container cleaned. Chromium17groupsPASS, production components/services with synthetic provider/persistence, including current AddressKit and360px light/dark. Typecheck/build/diff checks PASS; no real Cloudinary/Admin3010 acceptance claim.
 - Known limits: server-mediated upload rather than browser signed; local10MiB but Vercel4.5MB body ceiling; File handoff in memory only; thirty-minute intent expiry; no physical cleanup job. Scoped premium audit retains one existing untouched ContentProfileEditor textarea finding; unscoped audit27existing findings. Owner config/live smoke remains pending. See [story](stories/DESTINATION-CLOUDINARY-V3-2.md) and [report/manual steps](implementation/destination-cloudinary-v3-2-report.md).
 
+## 2026-10-14 — Destination E-Magazine V3.3
+
+- Started main D:/KLTN/KLTN on TXH at owner baseline b79ebe2b06ebd05c0b0f5ff320d5f671076e7002; origin/TXH matched and working tree was clean. HEAD unchanged. No commit/push/deploy, reset/stash, shared Neon write/migration or real OpenAI/Cloudinary operation.
+- Delivered scoped green Destination Create/Edit, separate Admin editorial editor, four families x three real compositions, deterministic photo/content-aware auto layout, all13block types, manual content/media/gallery/crop/focal/order, preview, undo/discard and exact UNKNOWN recovery. Supplemental prose/provenance is preserved; no generated facts or executable markup. Standard Detail remains fallback; current approved rights rechecked, Favorite/Assistant/canonical visit/map retained. RAG/Planner untouched.
+- Added DestinationEditorial model and additive migration20261014120000 with separate draft/published/previousPublished snapshots, revisions, trusted actors/times and fingerprint. Only generated client locally; migration tested solely on owned disposable loopback Docker PostgreSQL. Missing table reports owner-activation blocker while preview and public legacy remain usable. Explicit reviewed Publish/rollback never changes Destination visibility/description/media.
+- Optional OPENAI_EDITORIAL_MODEL, existing server structured adapter, strict layout-only/exact-title-substring proposal validation, durable3/minute/20day budget, bounded output/time and deterministic fallback. Only explicit button action calls AI; actual provider tests used mocked HTTP.
+- Full regression1194VitestPASS/89gatedPGskip plus328legacyPASS;28new editorial unit/HTTP/adapter tests. Real PostgreSQL18/18PASS (fiveEditorial+nineV3+fourV3.2), including concurrency/replay/rollback/privacy/media snapshots; container cleaned. Browser13editorial+17V3.2groupsPASS with five viewport widths/light-dark and twelve layouts. Typecheck/build/diffPASS.139editorial PNGs plus Create/Edit images and direct visual reviews; normal-flow form actions prevent field overlap. Premium static auditor unavailable after session plugin removal; no static auditPASS claim.
+- Owner shared migration and live Admin3010/model/provider acceptance pending. No shared runtime activation claimed. See docs/stories/DESTINATION-EMAGAZINE-V3-3.md and docs/implementation/destination-emagazine-v3-3-report.md for file map, limits, artifacts and minimal activation steps.
+
+## 2026-10-14 — Destination V3.3 final integration/readiness
+
+- Preserved V3.3 working tree on TXH; local HEAD and actual remote TXH remain b79ebe2b06ebd05c0b0f5ff320d5f671076e7002. No staging/commit/push/deploy or shared write.
+- Valid schema and additive SQL audit PASS. Read-only Neon endpoint/database confirmed ep-purple-pond-b3xujb8o/neondb, 17 finished matching ledger entries, only Editorial pending; datasource-to-schema diff contains only new Editorial table/FK. Development project/branch and recovery point cannot be verified with available access, so conditionally authorized migration was NOT applied and overall activation is BLOCKED. Both audits:2Destination/0media, table absent.
+- Disposable migration preserves exact old Destination/media rows; PK/FK/CHECK/index enforced. Added persisted-Traveler/guest denial and legacy fallback PG case. Final19PG PASS and owned container cleanup;15Editorial+17V3/V3.2browser groups PASS, all five widths/light-dark including Create/Edit, public shell/fallback and photo counts. Added Hero replacement/preview controls and final contact sheet.
+- Windows Vitest thread pool had a post-assertion native exit3221225477. Selected forks on Windows; normal root npm test then1194VitestPASS/90gatedPGskip+328legacyPASS, PostgreSQL19PASS. Typecheck/build/diff/schema checks PASS. No paid providers; Cloudinary incomplete, Editorial model absent. Live3010 health/public fallback PASS and new Editorial APIs401/private-no-store; browser Admin redirects to login. LIVE_ADMIN_SMOKE=PENDING; no fake session/shared fixture.
+- See docs/implementation/destination-emagazine-v3-3-final-acceptance.md for exact evidence, manifest, recovery approach and minimal blocked activation steps. V3.3 remains local/uncommitted rather than part of HEAD.
+
+## 2026-10-15 — Destination V3.3 Neon Development migration
+
+- Owner explicitly attested Development and waived backup/recovery creation. Main D:/KLTN/KLTN TXH/HEAD b79ebe2b06ebd05c0b0f5ff320d5f671076e7002 and all uncommitted V3.3 source preserved. No datasource/env/provider setting change, staging/commit/push/deploy.
+- Varlock preflight and immediate recheck confirmed endpoint ep-purple-pond-b3xujb8o/database neondb,17finished matching migration checksums, only20261014120000_add_destination_editorial pending, no unrelated schema drift. Pinned reviewed create-only SQL SHA2563a724d9fd6619004a45cd706d8b05e0404f4bea526d668b0bcf64c1319d8bd7b. Repository npm db:migrate:deploy/Prisma migrate deploy applied it successfully, exit0. No reset/dbpush/dev/resolve/direct old-data SQL or recovery branch.
+- Post verification:18finished/zero pending/conflict,12correct columns, validated PK/FK/CHECK plus6NOTNULL catalog constraints on PostgreSQL18.6, valid/used unique PK index, zero orphans, empty Prisma schema diff. An initial metadata count assertion was corrected for PostgreSQL18NOTNULL entries; no migration rerun/alteration. Application Neon Prisma Client verified target and all-column query in a read-only transaction; table has0rows, so existing generated client/env types required no regeneration.
+- Counts and complete-row hashes unchanged before/after/final:2Destination,0ContentMedia,14opening-day,2interval,1Favorite,8RAG-document. No Neon fixture/application data write. Started main Next normally at free3010(hidden background); health/public listing/detail200, Editorial API401/private-no-store, Admin page login redirect. Left running for owner. OpenAI key present but Editorial model absent; Cloudinary incomplete. No paid/provider call or secret output.
+- READY_FOR_MANUAL_TEST=YES. Owner will perform authenticated acceptance. Full QA not repeated for migration-only work; diff/new-doc whitespace checks PASS. See docs/implementation/destination-emagazine-v3-3-neon-migration.md and updated final acceptance/story.
+
+## 2026-10-15 — Provider Varlock runtime correction
+
+- Owner reported provider settings already filled. Presence-only inspection confirmed all Cloudinary values and OPENAI_EDITORIAL_MODEL in ignored .env, no overriding entries in .env.local. Prior runtime-only missing-config diagnosis was incomplete: @internal excludes values from application injection. Removed it only from the four Cloudinary runtime settings and Editorial model, preserving API credential/model sensitivity; noncredential cloud/folder metadata retain their existing classification. Corrected provider comment/docs. No actual env value, model ID or credential was changed or printed.
+- Added real Varlock subprocess regression using isolated temporary schema declarations and synthetic credentials. Both cases failed before the fix (configured values/default folder omitted) and pass afterward, including sensitive-credential metadata and optional-provider behavior. Focused Cloudinary/Editorial/config suites67/67PASS; env codegen PASS. Fresh runtime presence6/6, actual cloudinaryConfiguration accepted and editorialAiConfigured true; no provider calls. Verified/stopped only the agent-owned main Next process tree and restarted3010with current Varlock settings. Typecheck4workspaces and production build PASS;136static files scanned with0credential-value hits; health200/Admin APIs401. Evidence is in ignored .cache/provider-env-* logs.
+- Detected owner commit5dad753 (fix v3.3) containing the previous37-file V3.3/migration work; inspected its scope and preserved it. This provider-loading correction remains uncommitted on TXH. No agent commit/push/deploy or further DB migration/write.
+
+## 2026-10-15 — Cloudinary upload503diagnosis and fix
+
+- Clean TXH baseline7ecdaec74e0944129d722abeb2dd3c27d4f34c3e. Runtime configuration present. READONLY Neon audit for the owner's exact Destination found6intents/9attempts/0upload completions/0media; final counts unchanged. Cloudinary resource GETs for6bound intent public IDs all404, wrapped as error.http_code inside an outer SDK rejection. No secret/raw SDK payload logged, Neon write or real asset upload/delete.
+- Root cause: provider.find checked only top-level http_code, so expected missing-asset404became503before upload. Red test reproduced it. Normalized wrapped/flat errors, preserving other failures and safe metadata; exact retry/public ID/reconciliation/UNKNOWN review rules unchanged. Added generated request correlation header and safe per-phase logs through verify/finalize; raw SDK errors never reach the generic route logger. No schema/RAG/Editorial/Planner change.
+- Actual fixed provider.find read-only check nowreturnsnull for the pending asset, not503. Focused51tests PASS (38image+11provider/diagnostic+2env); typecheck4workspaces/build/diff PASS;136static files0credential hits; GET health200/private APIs401. No full/browser/PG write suite or authenticated live upload. READY_FOR_MANUAL_RETRY=YES; existing intent expiry still applies. See docs/implementation/destination-cloudinary-v3-2-upload-503.md. No commit/push/deploy.
+
+## 2026-10-15 — JPEG upload 400 verification correction
+
+- Owner's screenshot correlation `98ecbdf4-00ad-41d5-baf9-db78c40941d5` matches the main Next development log: VERIFY_ASSET, HTTP400, INVALID_IMAGE_INTENT. Preserved the existing uncommitted upload503fix and diagnostics.
+- Read-only Development transaction and four bound Cloudinary resource GETs confirmed assets already exist, with zero ContentMedia attachments. The latest asset matches the screenshot's39597bytes; all four have matching byte counts, identity, folder, context, dimensions and URL. The sole format mismatch is Cloudinary `jpg` versus Sharp `jpeg`, consistent with the official Upload API response documentation. This is separate from the earlier SDK404/503defect.
+- Normalize only provider `jpg` to `jpeg` for decoded-format comparison; retain original provider format in storage metadata. Existing ownership, hash, size, rights and exact-retry rules remain. No database/provider write, migration, env edit, commit/push/deploy or authenticated upload performed.
+- Regression failed before correction and passed afterward: real Sharp JPEG bytes plus an existing provider jpg asset recover and replay with one attachment, UNKNOWN rights and zero upload calls; mismatched PNG stays rejected. Image/provider suites50/50PASS; root typecheck4workspacesPASS. Read-only actual asset verification now passes for all four inspected assets. Production build and diff results recorded in the task handoff. Live authenticated finalization remains for the owner's same-file/same-key retry within the30-minute intent lifetime.
+- Final checks: production web build PASS; git diff --check PASS. Full regression/browser/PostgreSQL write suites were not rerun for this format-alias fix; no schema change.
+
+## 2026-10-15 — Automatic Destination photo upload and batch latency
+
+- Owner requested immediate upload on selection/drop and faster new-photo batches. Preserved all prior uncommitted503/JPEG/diagnostic work. Existing Edit now auto-starts fresh queued files, two chains at a time, with shared in-flight state and a synchronous Save guard. Create retains explicit valid HIDDEN creation first; uncertain/error retries retain identical files/keys. Unsaved media edits block adding until saved; unrelated prose drafts survive uploads.
+- Cloudinary upload callback now returns authenticated asset metadata for full existing verification before attachment. Normal path removes the second Admin lookup; pre-upload exact-identity lookup and missing/uncertain-response reconciliation remain. Newer confirmed updatedAt/media state wins over delayed/older replayed snapshots. No optimistic SUCCESS or rights approval.
+- Focused image/provider/V3 suites64PASS; isolated Chromium19groupsPASS, including actual picker/drop auto-start without Save, two concurrent provider calls, delayed/lost response and stale same-key replay, draft preservation, Create handoff, review and responsive/light-dark checks. Four-workspace typecheck, web production build and diff checkPASS. No actual upload latency benchmark, live authenticated acceptance, full suite or PG rerun claimed. No schema/env edit, Neon/provider write, commit/push/deploy. See docs/implementation/destination-images-auto-upload.md.
+
+## 2026-10-15 — Destination image UX simplification
+
+- Owner explicitly approved separating website application-use from per-photo legal review. TXH/main working tree retained SDK503 normalization/diagnostics, JPEG/JPG alias, exact retry and concurrent automatic upload. No reset/stash, commit/push/deploy, env change, physical deletion, real Cloudinary/AI upload/call or shared Neon write.
+- Removed Destination image evidence/review/manual-alt UI and confusing legal statuses; optional caption/cover/order/unlink/gallery retained. Upload alt comes from actual Destination name. New legal state remains UNKNOWN, evidence/reviewer/time null. Server-only versioned website-use provenance in existing storageReference avoids a Prisma migration; no schema/ledger mutation.
+- Shared eligibility across public Detail/profile, Explore cover, Planner thumbnail, Editorial picker/auto engine/AI allowlist/public resolution. VISIBLE Destination and published Editorial gates retained. REJECTED/revoked, foreign/mismatched and untagged legacy UNKNOWN stay blocked. Generic legacy/ContentMedia writes cannot mint/copy the capability; URL/rights changes and revocation remove it. Public DTOs strip internal metadata. Existing Đồng Văn rows and all legacy IDs/URLs/metadata were not rewritten; no blanket UNKNOWN activation/backfill. Sources/Culture/RAG rights unchanged.
+- Final full root tests1221VitestPASS/91PGskips +328legacyPASS. Focused selection157PASS; new cases exercise no-alt/caption/evidence upload, legal UNKNOWN, cross-owner/legacy marker forgery, revocation, AI ID filtering, actual services for Detail/Explore/Planner/published-only Editorial and safe public projections. Browser20Destination +16Editorial groupsPASS, including multi-auto-upload, optional empty caption, cover/order/unlink, retry/lost/stale responses, new-photo selection/auto-layout and legacy/rejected blocking, responsive light/dark. Visually inspected simplified card and picker. Four-workspace typecheck/build/diffPASS.
+- Added real disposable PostgreSQL end-to-end scenario but NOT RUN: Docker Linux engine pipe was absent; Desktop start did not make engine responsive. Stopped only owned hung Docker client probes; no destructive Docker repair or shared DB substitute. PG migration testing is not required for this schema-free change, but real-query integration remains a verification limit. Live authenticated Owner test pending. READY_FOR_MANUAL_TEST=YES. See docs/stories/DESTINATION-IMAGE-UX-SIMPLIFICATION.md and docs/implementation/destination-image-ux-simplification.md.
+
+## 2026-10-15 — V3.3 Editorial GPT-6 Luna adapter and diagnostics
+
+- Main TXH/HEAD7ecdaec74e0944129d722abeb2dd3c27d4f34c3e; all initial uncommitted503/JPEG/auto-upload/V3.4 image eligibility changes preserved. No env/model value change, migration, shared Neon write, Cloudinary upload, real OpenAI request, commit/push/deploy. OpenAI Docs skill and current official Luna/compatibility pages consulted.
+- Varlock presence-only subprocess confirmed key present/target equality; actual Next3010GET-only405module probe logged CONFIGURED_GPT6_LUNA (correlation43e637f6-fe48-487a-9d2d-131764469a1f), also confirmed in production build. This does not prove key validity/model permission/quota. Historical remote response unavailable. Code-confirmed defect: US25 adapter sent temperature0with implicit Luna medium reasoning, contrary to documented compatibility, and discarded error details into generic fallback. Mock400reproduced the old rejection.
+- Added Editorial-only Chat Completions adapter: exact gpt-6-luna, none reasoning, no temperature, strict destination_editorial_layout schema,8192completion-token cap,96KiBouter/32KiBproposal bounds,25sdeadline for fetch/body, no auto-retry. US25 adapter/env/behavior unchanged. Safe phase/code/status/allowlisted provider code/param/correlation logs and response header distinguish model/key/permission/quota/billing/parameter/schema/output/timeout/network/token/validation failures. No credentials, prompt/response body, actor/Destination IDs or raw exception logging; UI shows safe diagnosed fallback.
+- Proposal request accepts the current validated layout so existing manual/unsaved blocks and prose survive; only known block IDs and safe layout/image/title choices can change. Server checks ownership and current shared V3.4 media eligibility, including all hidden-block image IDs; REJECTED/foreign images cannot pass. No Destination or Editorial save/publish, beyond existing mock-tested provider-budget admission.
+- Final focused201/201PASS (25new adapter/diagnostic/service +28Editorial +86US25-related +45images +5eligibility +12Cloudinary); production editor/renderer browser17groupsPASS including AI success/current-layout/manual-text preservation/no writes. Root typecheck4workspaces, production build and diff checkPASS. No full repository/PG rerun required for adapter scope. Real OpenAI model response/account access/billing and authenticated Owner3010proposal remain unverified. READY_FOR_MANUAL_TEST=YES. Any later agent live test needs explicit permission and at most one small request. See docs/implementation/destination-editorial-gpt6-luna.md.
+
+## 2026-10-15 — Editorial art direction and respected Admin choices
+
+Owner requested a more engaging travel article, editable typography and correction
+of AI replacing a manually chosen family/variant. Implemented KEEP by default in
+UI/route/strict provider schema/server validation, explicit AUTO opt-in, optional
+safe design enums in existing v1 JSON, and AI crop/gallery choices. Shared
+preview/public presentation now has Vietnamese Lora/Geist/Be Vietnam roles,
+article-relative title sizing, readable paragraph rhythm, inset panoramic title,
+responsive photography and manual font/palette/spacing controls. Successful
+proposals remain local/undoable; fallback leaves local work intact. Existing
+Cloudinary fixes, V3.4 eligibility, legal/source boundaries and Luna configuration
+remain preserved. No migration/backfill/provider request/Neon write/commit/push/deploy.
+
+Verification:212focused offline tests PASS;6isolated PG cases SKIP.20browser groups
+PASS including real build fonts, five widths/light-dark, KEEP/AUTO/Undo, Save/refresh,
+keyboard, UNKNOWN/conflict/error/media/public cases. Four-workspace typecheck,
+production build, diff check and scoped strict premium audit PASS. DESIGN lint has
+zero errors/four existing orphaned-token warnings; broader Admin audit retains one
+pre-existing content-profile Textarea finding outside scope. Actual Luna aesthetic
+quality remains owner manual acceptance; no live quota spent. See
+[report](implementation/destination-editorial-art-direction.md) and DESIGN.md.
+
+## 2026-10-15 — E-Magazine V3.5 design quality overhaul
+
+- Preserved TXH working tree and prior V3.2/V3.3/V3.4/Luna changes. Added a read-only source-bound content projection: rejects sentence-length or repeated headings, suppresses exact duplicate paragraphs only in rendered output, and flags near duplicates without deleting them. Destination source text and stored layout JSON remain intact.
+- Added a shared set of feature-article components for inset/split/centered openings, lead, reading sections, full-bleed breaks, staggered galleries, practical details, maps and source notes. Admin Preview, standalone renderer and published article share one projection/render path. Typography now follows bounded literary/modern/humanist choices, palette and reading rhythm; no arbitrary font/CSS input.
+- AI art direction now returns constrained headline/deck/emphasis/design/composition choices. Server validation binds headings/decks to current text, uses shared V3.4 media eligibility, preserves block IDs/prose, does not hide populated blocks, reorder practical/map/source material ahead of the story, save or publish. Verified image dimensions prioritize suitable landscape cover imagery and surface low-resolution/missing-metadata warnings.
+- V3.5 adds only optional v1 JSON properties; no migration, database mutation, provider call, Cloudinary upload, commit/push/deploy. Root typecheck and production web build PASS. Full web Vitest:80 files/1,278 tests PASS;10 DB integration files/91 tests skipped. One unrelated Blob SDK test exceeded the default5s once; full rerun with15s timeout passed. `test:legacy` PASS. Focused Editorial/media/Planner run:190 PASS/6 DB skips. Browser:21 groups PASS including Admin/public markup equality; before/after matrix30/30 PASS, six photo counts covered. Visual evidence is synthetic only; actual GPT-6 Luna response/aesthetic quality still needs owner manual acceptance. See [V3.5 report](implementation/destination-emagazine-v3-5-design-quality.md) and [story](stories/DESTINATION-EMAGAZINE-V3-5.md).
+
+## 2026-10-15 — E-Magazine final UI polish
+
+- Completed a focused shared-renderer CSS pass: cinematic hero proportions and title fit, introduction hierarchy/measure, split and gallery composition, stable limited-resolution photo sizing, editorial facts, practical details, and map framing. Kept family/variant and bounded Admin/AI art-direction behavior; Preview and public use the same shared presentation.
+- Matched the before/after visual run to the same working-tree renderer, fixtures, fonts, and synthetic photo bytes; only the final-polish CSS block differs. Thirty viewport/theme snapshots passed at390/768/1440 and light/dark. No overflow, text overlap or text overflow; maximum image geometry shift after decode0px and CLS0. Photo-count assertions cover0/1/2/3/5/8.
+- Focused Editorial Vitest85/85PASS; editorial browser suite21groupsPASS (all family/variant combinations, five viewport widths, light/dark, Preview/renderer equality and responsive public shell); root typecheck and web production buildPASS; `git diff --check`PASS. No real OpenAI request, Cloudinary upload, Neon write, migration, commit/push/deploy. Screenshot evidence is synthetic; real photos/live AI art direction remain for Owner manual review. READY_FOR_MANUAL_TEST=YES. See [report](implementation/destination-emagazine-final-ui-polish.md).
+
+## 2026-10-15 — Editorial AI atomic fallback and smart empty content
+
+- Fixed two offline-reproduced validator contradictions: canonical Hero names receiving paragraph provenance, and unchanged existing labels being revalidated as newly extracted headings. Historical PROPOSAL_INVALID logs do not reveal the exact rejected field; no live response is claimed. Added safe validation subcodes/field paths and distinct fallback outcomes. Failed proposals retain the exact submitted layout; the client commits only a complete validated success. Existing Luna configuration and provider/US25 behavior are retained.
+- Added a shared reversible display projection for meaningful optional text, partial Facts, known operating days (including 24:00), duration, eligible media/sources and legal coordinates. Empty/repeated utility sections disappear without editing saved blocks; no implicit visit reinsertion. Admin controls distinguish automatic hiding from manual hiding. Legacy Destination detail applies the corresponding optional-value rules. Manual IDs/prose survive repeated deterministic/AI cycles without block growth.
+- Verification: full web Vitest 1,320 PASS/91 DB SKIP; final focused Editorial 127 PASS/6 DB SKIP; legacy 328 PASS; browser 24 groups PASS; visual matrix 42 snapshots across seven cases at 390/768/1440/light-dark with Preview/Public equality and no placeholders, empty headings/lists, duplicates, overflow or split overlap. Root typecheck, production build and diff check PASS. Actual Owner Destination was read in an explicit READ ONLY transaction; images/maps in QA use synthetic transport. Docker disposable PostgreSQL unavailable; no shared-DB write substitute.
+- Preserved prior working-tree work and external commit 23b7525 plus concurrent Editor presentation edits. This agent performed no commit/push/deploy/reset, migration, .env edit, OpenAI call or Cloudinary upload/delete. READY_FOR_MANUAL_TEST=YES; live GPT acceptance and exact historical rejected field remain unverified. See [report](implementation/destination-editorial-ai-and-empty-content-fix.md) and [story](stories/DESTINATION-EDITORIAL-AI-EMPTY-CONTENT-FIX.md).
+
+## 2026-10-15 — Compact Editorial publication actions
+
+- Owner requested a cleaner footer and secondary actions under an ellipsis. Grouped Save and Publish together with icons and state-aware primary emphasis; retained revision/unsaved/UNKNOWN status. Desktop shows Save → Review → Publish steps; Review navigation and its mobile shortcut focus the existing checkbox without accepting it automatically. Read again, Restore draft and Rollback are in the shared accessible overflow menu, with their original guards and handlers intact.
+- Added scoped `editorial-actions.css` to retain concurrent studio CSS edits. Menu is viewport-bounded, layered above the dock, keyboard operable and Escape returns focus to its trigger. Browser checks cover 390/768/1440 light/dark, review navigation, menu containment/occlusion and all prior write/recovery flows: 25 groups PASS. Root typecheck, production web build and diff check PASS. No business/provider/schema/env change or agent commit/push/deploy.
+
+## 2026-10-15 — Minimal Editorial header and confirmation dialog
+
+- Owner requested removal of presentation warnings, the persistent review checkbox, redundant family badge, published-preview toggle and visible outer title/subtitle. Removed those UI elements while retaining real system/availability alerts and an accessible visually hidden page heading. Moved the compact workflow to the top beside the Edit Destination return link; preview now consistently shows the working draft.
+- Publish and Rollback open a native modal with explicit Cancel/Confirm. Only Confirm supplies the existing reviewed acknowledgement; cancel/Escape do not write. Saved-draft, busy/UNKNOWN, revision and server authorization/reference guards remain intact. This is a UI-only change; saved/published data is not deleted.
+- Browser suite 25 groups PASS, including 390/768/1440 light/dark dialog/menu containment, no request before confirmation, Cancel/Escape/focus return, and existing publication/rollback/AI/media flows. Web typecheck, production build and diff check PASS. No Neon/provider write, schema/env change or agent commit/push/deploy.
+
+## 2026-10-15 — Premium E-Magazine Hero
+
+- Owner requested three professional Hero compositions without losing V3.3–V3.6 work. Replaced layered Hero-only selectors with one composition owner: cinematic photo/colophon Panorama, 44/56 Split and centered magazine Cover. Preserved family, typography, palette and rhythm controls; no global rebrand or Destination-specific layout. Optional short decks are deduplicated; legacy longer Hero prose remains in the article.
+- Added optional V1 JSON Hero composition/focal locks and native Admin controls. Both AI server validation and client atomic acceptance enforce locks. Crop/focal edits and selected source image survive regeneration; old noncentral focal settings are treated conservatively. AI uses tested enum choices, existing eligibility and grounded source content; provider adapter and actual Luna model configuration are unchanged. Failed proposals keep current work.
+- Actual cached read-only Đồng Văn originals are 565x353, 597x335 and 738x414px. Verified real Cloudinary image reads; no upload/delete. Source widths now cap display; small/unknown Panorama sources fall back to a bounded Cover without mutating saved choices. Admin receives a source-quality note. Full-quality fixtures demonstrate all three distinct openings.
+- Verification: 340 focused Editorial/Preference Extraction/Trip Planner tests PASS, 9 DB SKIP; 26 production Editor/public-shell browser groups PASS; 126 before + 126 after Hero snapshots at 390/768/1440 light/dark, six fixture cases plus real Đồng Văn; contact sheets and visual inspection completed. No overflow/text overlap or Hero image decode geometry shift. Root typecheck (4 workspaces), web production build, scoped premium strict audit (0 findings), DESIGN lint (0 errors/4 pre-existing orphan-token warnings), script syntax and diff check PASS. Fixed missing UTF-8 metadata in the isolated Editor harness after diagnosing a false Vietnamese regex/projection mismatch; production heading logic was preserved.
+- No migration, environment edit, shared Neon write, real OpenAI request, Cloudinary upload/delete, RAG/AddressKit/Planner production change or agent commit/push/deploy. Concurrent V3.6 AI corrections were preserved. READY_FOR_MANUAL_TEST=YES; authenticated persistence and live model aesthetic quality remain Owner acceptance. See [report](implementation/destination-emagazine-premium-hero.md) and [story](stories/DESTINATION-EMAGAZINE-PREMIUM-HERO.md).
+
+## 2026-10-15 — Editorial AI admission/rate-limit audit
+
+- A single explicit READ ONLY/ROLLBACK database audit found 20 confirmed admissions in the rolling 24-hour window and zero in the last minute, explaining the current internal 429. Oldest admission was 2026-10-14 21:12:31.698 UTC. No budget reset/delete or shared DB write was performed. Policy remains three admitted actions/minute and twenty/rolling day per Admin across Destinations; Alternative admits once for at most two provider calls.
+- Extracted the admission policy and testable HTTP boundary. Excluded the current reservation explicitly, calculated Retry-After from actual admitted timestamps (later of both blocked windows), retained locking/atomic rollback and mapped unknown admission failures to 503 rather than false quota 429. Provider 429/billing failures have separate codes and valid provider timing is forwarded.
+- Added correlated APP_REQUEST_RECEIVED, ADMISSION_ACCEPTED/REJECTED, real adapter PROVIDER_REQUEST_STARTED/RESPONSE_RECEIVED/FAILED, validation and FALLBACK_USED stages. Logs contain only safe HTTP/model/request-ID/token metadata; missing evidence is null. No prompt, credentials, raw body or actor/Destination identity. Actual model configuration, none reasoning, strict schema, token limits and Preference Extraction behavior are preserved.
+- UI displays clear internal/provider 429 messages and an authoritative countdown, temporarily disables both AI actions, preserves local unsaved layout and saved draft, and never auto-retries or guesses a delay. Editing/Save remain available. Browser evidence: 27 groups PASS including cooldown/recovery/invalid-missing header/no writes or draft/layout changes. Focused Editorial/Preference Extraction tests: 272 PASS/6 DB SKIP. Root typecheck (4 workspaces), production web build, scoped strict audit and diff check PASS.
+- LIVE_OPENAI_CALLED=NOT_CONFIRMED; no live request ID or usage is fabricated. Owner's one-call procedure uses PROPOSE only after Retry-After, then correlates server/provider evidence with the correct OpenAI Usage project/model/time interval. Optional bounded Development allowance is proposed, not enabled. No environment/migration/provider upload or commit/push/deploy. See [audit](implementation/destination-editorial-ai-rate-limit-audit.md) and [story](stories/DESTINATION-EDITORIAL-AI-RATE-LIMIT.md).
+
+
+## 2026-10-15 — Remove Editorial AI request quotas
+
+Owner approved removal of Editorial minute/day quotas for Development and Production. Removed budget module and its DB idempotency operation from Editorial execution; old records remain untouched. Added process-local in-flight protection (one action/Admin, four actions/process), released in finally. Provider 429, safe provider codes, Retry-After, GPT-6 Luna settings, Alternative max-two calls, authorization and atomic local editing are preserved. No changes to other API limiters.
+
+Verification and limitations: see docs/implementation/destination-editorial-no-request-quota.md. No real OpenAI calls, shared Neon writes, migration, Cloudinary mutation or commit/push/deployment.
+
+Verification complete: 276 focused tests PASS/6 isolated-DB tests SKIP; 28 browser groups PASS; four-workspace typecheck, web build, scoped UI audit (zero findings), script syntax and diff check PASS. READY_FOR_MANUAL_TEST=YES. Production not deployed; live OpenAI not called.
+
+## 2026-10-16 — Fix V4 Generative Layout GPT-6 Luna Timeout
+
+Resolved runtime timeout issue in V4 Generative Engine (`PROVIDER_REQUEST_FAILED: TIMEOUT`, ~26.3s abort) when querying `gpt-6-luna`.
+
+Root Cause:
+- Editorial OpenAI client hardcoded an internal client abort timer at 25,000ms (`v1TimeoutMs`), insufficient for GPT-6 Luna structured generation of Layout DSL v2 (20-30 nodes).
+- Prompt required the model to echo full Vietnamese narrative text into the `text` field, dramatically inflating token generation time.
+
+Key Changes:
+- Timeout Strategy: Configured distinct timeout tiers separating V4 (60,000ms default, configurable via `OPENAI_EDITORIAL_TIMEOUT_MS` up to 90,000ms) from V3.6 (25,000ms default). Next.js Route Handler `maxDuration` set to 90s; frontend `AbortSignal.timeout` set to 95s for V4.
+- Total Action Deadline: In `ALTERNATIVE` mode, bounded the entire action to 85,000ms max. Attempt 2 is aborted if remaining action time is < 15,000ms, preventing trailing timeouts.
+- Payload Optimization & Content Preservation: AI prompt instructs model to emit `contentRef: "<unitId>"` and leave `text: ""` for narrative blocks. Server-side deterministically rehydrates authentic prose from Content AST units into `text` and `title`, slashing output token budget by ~80% while strictly ensuring 100% content preservation.
+- Strict Schema Alignment: `children` array in `editorialNodeV2Schema` marked nullable to align with OpenAI strict mode leaf representations.
+- Diagnostics & Fallback: Added sanitized diagnostics (`configuredTimeoutMs`, `elapsedMs`, `attempt`, `providerStatus`, `providerRequestId`, `inputTokens`, `outputTokens`, `errorClassification`) with zero secret leakage. Timeouts fall back atomically to preserve user draft and layout untouched.
+
+Verification:
+- 15/15 focused timeout tests PASS (`editorial-v4-timeout.vitest.test.ts`).
+- 257/257 total editorial tests PASS across 15 test suites.
+- Turbo check-types (4/4 packages) and Next.js production build PASS.
+- `git diff --check` PASS (0 whitespace errors).
+- LIVE_OPENAI_TEST=PENDING; READY_FOR_MANUAL_TEST=YES.
+
+### Task: FIX_V4_GENERATIVE_REFERENCES_VALIDATION
+
+Status: COMPLETED (Verified via focused vitest suite, Turbo check-types, production build, diff-check)
+Correlation ID: 9eef7352-4be0-4d77-974a-ae7dfad68167
+Destination: Căng Bắc Mê (cmv9fcwo1000be89w3yxz3mqu)
+
+Root Cause:
+1. `userPayload` supplied `ast` and `media` to GPT-6 Luna but completely omitted `sources: context.sources`. When GPT-6 Luna generated `SOURCES` or `TIMELINE` nodes, it either hallucinated foreign source IDs or left `sourceIds` empty (which failed publishing requirements for `TIMELINE` where empty sources are rejected).
+2. `validateLayoutReferences` in `editorial-engine.ts` threw a generic `Error` with message without structured metadata (`nodeId`, `nodeType`, `field`, `reason`).
+3. In `editorial-ai-diagnostics.ts`, `fieldNames` array lacked Layout DSL v2 property keys (`sections`, `contentRef`, `entries`, `children`, `text`, `caption`, `hero`, `columns`, `gap`, etc.), causing fallback to generic `fieldPath="field"`.
+4. `contentRef` was not validated strictly prior to hydration or constrained at the JSON Schema grammar level, permitting the model to output non-existent content unit IDs.
+
+Key Changes:
+- Reference Contract & Dynamic Schema Enum: Updated `createV2JsonSchema(direction, base, ast)` to dynamically bind `contentRef` property in section/child schemas to `enum: ast.units.map(u => u.id)` when AST is present. This uses OpenAI Structured Outputs grammar-level token masking to prevent hallucinated content unit IDs at generation time.
+- Context & Prompt Alignment: Included canonical `sources: context.sources.map(s => ({ id: s.id, title: s.title, url: s.url }))` in the `userPayload` sent to OpenAI. Updated `EDITORIAL_GENERATIVE_PROMPT` with explicit provenance rules for `sources`, `contentRef`, and `mediaIds`.
+- Strict Pre-Hydration & Post-Hydration Reference Validation: `validateAiProposalV2` validates all `contentRef` against `ast.units`, `mediaIds` against destination-owned `usableEditorialMedia(context)`, and `sourceIds` against `context.sources`.
+- Deterministic Hydration & Auto-Hydration for Sources: Rehydrates authentic narrative text from AST into `text` and `title`. For `SOURCES` nodes and `TIMELINE` entries, if the model passes empty or unpopulated source arrays, server-side deterministically auto-hydrates approved canonical source IDs from `context.sources`, guaranteeing full provenance compliance and 100% content preservation.
+- Granular Diagnostics & Safe Logging: Created `EditorialReferenceError` with `{ nodeId, nodeType, field, reason }`. Added `ReferenceValidationDetails` to diagnostics logging (`referenceType`, `nodeType`, `nodePath`, `invalidReason`, `expectedNamespace`, `outcome`) with zero secret or prose leakage. Expanded `fieldNames` so `fieldPath` reflects precise DSL paths (e.g., `sections.2.contentRef`, `sections.4.sourceIds`).
+- Preservation of Fallback Invariants: Any reference failure falls back atomically to existing user draft, preserving working tree and unsaved edits without corrupting state.
+
+Verification:
+- 15/15 focused reference tests PASS (`editorial-v4-references.vitest.test.ts`).
+- 272/272 total destination-editorial Vitest tests PASS across 16 test files.
+- Turbo check-types (4/4 packages: @KLTN/auth, @KLTN/config, @KLTN/db, @KLTN/ui, web) PASS.
+- `git diff --check` PASS (0 whitespace errors).
+- LIVE_GPT6_LUNA=PENDING; READY_FOR_MANUAL_TEST=YES.
+
+## 2026-10-16 — V4.2 alternative contract and browser composition acceptance
+
+Implemented bounded provider/runtime alignment, precise Zod tree paths/stages/codes,
+current V4-tree payload and text weights, exact canonical hydration/preservation,
+compiled body divergence and the full Quality Gate. Removed automatic first-source
+timeline attribution; unverified event/source bindings are rejected. Added shared
+manual-node locks, compiler-backed Preview/Public rendering, balanced prose grids,
+heading grouping, resolution-aware Hero and original-ratio galleries. Browser-safe
+content segmentation retains server AST hashes; V1 behavior is regression covered.
+
+Verified GENERATE followed by three consecutive ALTERNATIVE calls on a read-only
+Căng Bắc Mê DOM fixture with mocked transport, production service and renderer.
+Four candidates preserve every description unit and all five images. Production
+Editor browser clicks/Undo pass at measured iframe widths390/768/1440, with no
+horizontal overflow. Actual Admin local V4 conversion was undone; read-only Public
+later displayed V4. No Save/Publish or paid provider request was made by this task.
+
+Verification:1,489 Vitest PASS/91 DB SKIP,328 legacy PASS, root typecheck and web
+production build PASS; diff check PASS. Premium global static audit retains28
+pre-existing/global findings, not a repository-wide audit PASS. Source backup replay
+proves provider allowed columns0 while runtime rejected it, and duplicate-ID errors
+formerly lost their path at root. The exact historical live SCHEMA issue cannot be
+reconstructed from the supplied log; it is not asserted to be duplicate ID/media.
+
+STATUS=OFFLINE_VERIFIED; LIVE_PENDING. READY_FOR_MANUAL_TEST=YES.
+No env/Neon/migration/Destination write, commit/push/deploy. Pre-existing dirty
+changes preserved. Report and Owner live procedure:
+[current V4 handoff](implementation/destination-generative-layout-v4-report.md).
+
+### V4.2 follow-up — Owner live TITLE_PROVENANCE (2026-10-16)
+
+New screenshot identifies HYDRATION / UNSOURCED_CONTENT at
+`sections.2.children.4.title` after provider HTTP200. Reproduced the contract gap:
+wire schema accepted arbitrary titles, while runtime required canonical/manual/UI
+provenance. Added exact canonical/current-draft title enums at all three wire
+depths and explicit heading-reference instructions; provenance validation remains
+strict. Synthetic regression failed before the fix and passes afterward, including
+preserved manual title on the original ID and rejection if moved to a new ID.
+Full Vitest:1,491 PASS/91 DB SKIP; root typecheck, production build and diff check PASS. Căng Bắc Mê GENERATE plus
+three consecutive ALTERNATIVE fixtures still pass. Browser renderer is unchanged;
+existing screenshots remain scoped rendering evidence. LIVE_PENDING remains;
+no paid calls or Destination writes were made. See the V4.2 implementation report
+and `artifacts/v4-2/title-provenance-before-after.json` for safe before/after evidence.
+
+## 2026-10-16 — Owner simplification: V4 only
+
+Owner retired alternative generation, V3.6 controls and the travel preparation
+panel. The supported AI action is PROPOSE/version2; retired HTTP mode/version
+requests fail before provider calls. Alternative retries were removed. Saved V1
+layouts remain readable for Undo/Rollback and published articles. Preparation
+panels no longer render in Preview/Public; V4 grammar/auto-layout no longer adds
+them. Metadata/canonical description and database data remain unchanged.
+
+Temporary harness, QA artifacts, superseded reports and dedicated alternative
+test moved outside the repo to the local Temp archive. The retained consolidated
+[current handoff](implementation/destination-generative-layout-v4-report.md)
+supersedes previous alternative acceptance and per-error reports. No paid AI,
+Neon/Destination writes, env/migration edits or commit/push/deploy.
+
+Final checks: 1,472 Vitest PASS/91 DB SKIP, 328 legacy PASS, root typecheck PASS.
+Real browser confirms one AI action and no preparation panel in Preview/Public;
+five Public images and sources remain. Production build and diff check PASS;
+final CSS cleanup build rerun also PASS, recorded in current handoff. No persistence writes.
+
+## 2026-10-16 — Editorial reading scale
+
+Owner reported oversized reading presentation on the Đồng Văn Public article.
+Adjusted shared editorial.css plus V4 heading scale: desktop lead 22.23px/40.01px
+to 19.95px/33.92px with 672px measure, Split Hero title 51.3px to45.6px,
+body 17.92px to17px/29.75px. Mobile lead17px/28.9px, body16px/28px.
+Real browser measured 1440/768/390 viewports with no horizontal overflow;
+Desktop/mobile screenshots stored only in Temp/kltn-editorial-reading-20261016.
+Preview/Public share the same stylesheet. Content, images, layout JSON and
+browser zoom remain untouched. CSS-only change; no new tests or paid AI calls.
+Reading-scale verification: production build PASS; git diff --check PASS.
+
+## 2026-10-16 — One aligned editorial body rail
+
+Owner requested shared outer edges instead of alternating prose/media insets.
+Shared CSS now uses a48rem body rail for lead, text, image/text rows, map and
+references. V4 nested wrappers inherit their parent gutter; prose fills its
+column and featured prose no longer indents at a left rule. Paired photos/copy
+are top-aligned; original image ratios remain intact. Hero remains distinct.
+Real Public browser at1440/768/390 reports identical section edges and zero
+overflow; paired desktop columns have equal top coordinates. Actual Admin
+Preview (482px article) also reports equal section edges and no overflow.
+Read-only observations; no AI calls or Destination writes. Screenshots and
+measurements are outside repo in Temp/kltn-editorial-alignment-20261016.
+CSS-only follow-up; no new tests. Production build result recorded in handoff.
+Body-alignment verification: production build PASS; diff check PASS.
 ## 2026-10-14 — `/trips/new` sequential tab flow
 
 - **Scope:** Redesigned the existing Traveler trip-requirement page as a four-step in-memory tab flow: “Mô tả” → “Bổ sung” → “Kiểm tra” → “Đề xuất”. Future tabs remain locked until the preceding result exists; switching uses a horizontal transition with reduced-motion support and keyboard arrow navigation.
@@ -1740,8 +2017,6 @@ Deterministic selection/gate/session-abuse/HTTP/source-status regressions: 83/83
 - **Known issues:** Composed helpers use a test-only caller and do not prove production coordinator/UI wiring, click-only runtime behavior or screen-reader/360px acceptance. Source regex audit scans direct production TS/TSX (currently5files), not transitive imports or runtime data flow/obfuscation; it is not a privacy certification for every dependency. Outside-Ha-Giang/freshness/accuracy policy and Trip/Validator/Planner integration remain unresolved. Shared story/progress docs may conflict with other developers; root typecheck remains red outside scope.
 - **Decisions:** Task285 resolves manual-specificity narrowly as requiring a complete valid coordinate pair; no geofence/geocoding/accuracy/freshness threshold introduced. A valid pair passes shape/range only, not itinerary/regional eligibility. Source audit is intentionally conservative and excludes test fixtures that mention prohibited APIs as negative controls. US-35 stays DRAFT; full-flow ACs are unchecked.
 - **Next step:** Bình runs and records the manual checklist once real UI/caller integration exists; keep blocked/unrun cases NOT PROVEN and resolve owner region policy separately.
-=======
->>>>>>> 8b5ff486267fd66fd6a8418005d8b02b13b49d8c
 
 ## 2026-10-14 — US-29A opening hours and minimum duration validator
 
@@ -1758,8 +2033,6 @@ Deterministic selection/gate/session-abuse/HTTP/source-status regressions: 83/83
 - Live spike used two visible development Destinations plus the checked-in Lũng Cú coordinate payload. Three pairs × `auto`/`motorcycle` returned six HTTP 200 routes with finite duration, distance and geometry (113–298 ms observed across two runs). One DB point is an unverified manual test record and the payload is not a DB record; production 30–50 destination coverage remains NOT PROVEN. No key or raw provider response was logged.
 - Focused tests: US-29B + US-29A Vitest 31/31 PASS; existing/new map `node:test` 25/25 PASS. Manual `/explore?view=map` loaded tiles/two markers, switched dark/light, and showed no horizontal overflow at 360/390/768/1024/1440px; no browser console or hydration errors. Browser network-level credential inspection was unavailable. `npm run env:generate` and `git diff --check` PASS.
 - Root `npm run test`, `npm run check-types` and `npm run build` were attempted but fail on unrelated missing declared packages, stale generated Prisma members and RAG tests. The targeted changed-file TypeScript diagnostic scan showed no US-29B errors; full type/build PASS and end-to-end Trip integration remain NOT PROVEN. No commit or push.
-<<<<<<< HEAD
->>>>>>> d244d112ee8fe91f0c8d56a9081296133e75cf95
 
 ## 2026-10-15 — US-32 manual itinerary edit DRAFT contract alignment (docs only)
 
@@ -1773,7 +2046,6 @@ Deterministic selection/gate/session-abuse/HTTP/source-status regressions: 83/83
 - **Known issues:** Trip/version/CAS, aggregate Validator signature, Hoài's stored itinerary shape, hidden historical destinations and validation freshness remain unresolved; implementation/cancel/apply/replay/UI are NOT PROVEN. `docs/ai-progress.md` contains conflict markers already tracked in the clean baseline; preserved all prior entries and only appended, without merge resolution. Story/progress shared documentation can conflict with concurrent edits. Root typecheck remains red outside scope.
 - **Decisions:** Product-spec “Edit, save, and in-trip support” and user-flow “Edit itinerary” supply the business rules. API/candidate/revision design remains a proposal pending Hoài/Thai Anh confirmation; no schema or new business policy approved by this documentation task. Kept prior OQ identifiers/shared-design heading for existing cross-story references; GPS/Favorite questions do not add work to US-32.
 - **Next step:** Bình reviews the DRAFT and obtains Trip/version/owned-detail and aggregate Validator handoff from Thai Anh plus itinerary schema/adapter confirmation from Hoài before authorizing implementation. Resolve hidden-destination and concurrency questions without changing US-32 schema scope.
-=======
 
 ## 2026-10-15 — US-29C and US-30 ordered implementation
 
@@ -1809,8 +2081,623 @@ Deterministic selection/gate/session-abuse/HTTP/source-status regressions: 83/83
 - TDD RED recorded four missing-feature failures; GREEN focused Favorite/Trip regression 54/54 and legacy Favorite 24/24 PASS. Explicit guarded PostgreSQL test 1/1 PASS verifies FK/CHECK/unique/concurrent add/ownership and no-copy counts **2 Trip / 2 Day / 2 Visit before and after**, with original graph/owner unchanged. Prisma generate/validate, root typecheck/build PASS. Full Vitest 1083 passed/68 skipped; root npm test fails at existing Culture header assertion `culture-page.test.tsx:37`.
 - Local browser on the production build with development fixtures verified pending-disabled, confirmed add/remove, list/detail/browser Back consistency, Space/Tab focus, 403 FAILED retaining active heart, and server-unavailable UNKNOWN retaining heart then successful mounted retry after restart. Both pages/themes have no horizontal overflow at 390/768/1024/1440. Screenshots are outside Git and linked from the story. Figma MH-07/MH-09 parity remains BLOCKED; production rollout/post-commit lost-response behavior remains NOT PROVEN.
 - Disposable fixture account/session/Trip/Days/Visits/Destination/Favorites/idempotency records cleaned; read-only verification found zero US34 fixture users/Trips, total Trip count restored to 0. Theme/viewport restored, test tab and owned server closed. Independent review found no correctness/security issue; story/progress evidence updated. No reset, db:push, commit or push. Stop after US-34.
->>>>>>> 4ae7ffc3a9c2b5cb3e0a0e964079510e5357e236
 
+## 2026-10-16 — US-23 AI Answer Quality V2
+
+Audited TXH with pre-existing dirty QA, Editorial and RAG extraction/index changes;
+these were preserved. Exact sentence membership in generation AND service grounding,
+plus a verbatim prompt, prevented natural synthesis. Added a private synthesis
+candidate path and at most one bounded independent claim-verification call. All
+claims must partition the answer, cite reviewed current support, cover supported
+facets and pass relevance/scope/time/numeric/citation/language gates. A process-local
+certificate binds content/review/source snapshot for the service's grounding check.
+Exact reviewed answers retain the original fast path. Valid negative verdicts
+abstain with INSUFFICIENT_SOURCE; malformed/provider/revocation failures remain
+technical. No public contract, UI, retrieval policy, source/index data or DB change.
+
+Assessment/generation prompts prioritize current question intent, overview/table
+rows, direct Vietnamese and records-versus-current time. Verifier also sees omitted
+scoped rows to detect incomplete coverage. R05's four-row fixture returns PARTIAL:
+no common ticket, separate fees/conditions and no claim that recorded prices are
+verified today. No destination-specific hardcoded runtime answer was added.
+
+Worst-case admission reservation is 43000 tokens (was 33000), retaining the same
+8000000 daily budget. Extra verification defaults to 10s, shares 8000 input/2000
+output/64KiB bounds, no retry. Eligibility watcher covers verification; cancellation
+on publication revocation is regression tested. Semantic review is probabilistic;
+offline verdict fixtures are not evidence of actual provider/corpus quality.
+
+Final checks: 44 focused V2 tests PASS; full AI 413 PASS/46 PostgreSQL SKIP (included
+in full suite); full web Vitest 1669 PASS/97 gated SKIP, all 329 legacy tests PASS.
+Root typecheck PASS; final production build PASS (44.4s); git diff --check PASS.
+No DB/schema/migration/env/source/embedding write, paid API call, commit/push/deploy.
+Live latency/cost, actual corpus recall/semantics and Owner acceptance remain pending.
+READY_FOR_OWNER_MANUAL_TEST=YES; US-23 remains NOT_ACCEPTED.
+Audit, task-owned file list, limits and manual procedure:
+[Answer Quality V2 handoff](implementation/us23-answer-quality-v2.md).
+
+## 2026-10-16 — QA punctuation/repetition reliability and basic conversation
+
+- **Branch:** TXH; existing dirty working tree retained. No commit or push.
+- **Story/task:** Owner's current troubleshooting request; US-21/US-23 follow-up.
+- **Completed:** Reproduced ten failing input/routing regressions before the fix.
+  Shared question interpretation now normalizes incidental punctuation/whitespace
+  while retaining numeric dates/prices, qualifiers and original admission/storage
+  text. Explicit subjects avoid unrelated prior questions; recognizable follow-ups
+  retain bounded factual intent history across social turns. Existing structured
+  provider uses temperature zero. Added allowlisted server-authored CONVERSATIONAL
+  outcomes for greetings/thanks/help/basic conversation/travel openings, with no
+  factual parts/citations/provider calls, normal owned completion and replay.
+  Mixed factual/social requests still require eligible current sources. Assistant
+  renders conversational text without an insufficient-source notice.
+- **Files changed:** New qa-conversation, qa-question-understanding and integrated
+  reliability tests; contract/runtime types, service/retrieval/source binding,
+  JSON provider, existing retrieval/service/provider tests; AssistantAnswer and
+  source-state/controller tests. Full owned list and audit in
+  [conversation reliability handoff](implementation/us23-conversation-reliability.md).
+- **DB/migration changes:** None by this task. Existing unrelated dirty schema,
+  Editorial, RAG and AI Answer Quality V2 work was not replaced.
+- **Validation performed:** New regression file 34/34; Assistant source-state
+  tests 5/5. Final full web npm run test: 1705 Vitest PASS, 97 existing gated SKIP,
+  all 329 legacy tests PASS. Root npm run check-types PASS; root production build
+  PASS (26.7s). git diff --check PASS. Task-owned file/secret-pattern review PASS.
+  Local logs: %TEMP%/kltn-qa-stability-tests-final.log and
+  %TEMP%/kltn-qa-stability-build.log (outside Git).
+- **Deployment/smoke result:** Offline real assessment/generation adapters with
+  mocked transport, rendered UI and controller smoke PASS. No live OpenAI, live DB,
+  source/index/environment change, browser session or deployment performed.
+- **Known issues:** Intent routing remains bounded; unrecognized chit-chat or
+  complex elliptical follow-ups can need clarification. Temperature zero reduces
+  sampling variation but does not prove deterministic provider semantics. Current
+  factual corpus coverage and live acceptance remain unverified in this task.
+- **Decisions:** The owner's explicit request adds basic conversational replies;
+  factual travel answers retain source grounding, eligibility and safety checks.
+  No arbitrary open-domain factual answer or response-cache bypass was introduced.
+- **Next step:** Owner smoke on the existing enabled development app using the
+  handoff procedure; US-23 remains NOT_ACCEPTED pending live corpus acceptance.
+
+## 2026-10-17 — Live QA synthesis rejection fix after owner retest
+
+- **Branch:** TXH; previous task and unrelated dirty edits preserved.
+- **Story/task:** Continued owner's report that the general Đồng Văn question still
+  failed after the punctuation/history fix. This corrects that earlier fix's
+  incomplete runtime coverage; it does not rewrite its historical test evidence.
+- **Completed:** Real pinned-corpus/provider reproduction found sufficient current
+  sources and eight passing semantic gates, but ASPECT_COVERAGE rejected the reply.
+  After constraining coverage IDs, a second live run exposed SUPPORT_REFERENCE.
+  Added per-request aspect-ID enums/explicit ID guidance, restricted generation
+  evidence to actual reviewed sentence/citation pairs, clarified broad overview
+  intent, and added bounded synthesis-rejection reasons without logging raw claims.
+  Source eligibility, grounding, citations, ownership and persistence remain intact.
+- **Files changed:** qa-synthesis-verification, qa-prompt, qa-assessment,
+  qa-diagnostics, V2/diagnostic regression tests; new opt-in live reliability test
+  and scripts/qa-local-http-smoke.mjs. Added
+  [live synthesis handoff](implementation/us23-live-synthesis-fix.md) and appended
+  US-23/progress evidence. Existing non-task code/source/schema edits retained.
+- **DB/migration changes:** No schema/migration/source/index change. Isolated corpus
+  probes used READ ONLY transactions against the matching development pins. The
+  local HTTP smoke created its own Guest/conversation, confirmed four persisted
+  turns, then deleted its own conversation and revoked its own Guest through APIs.
+  Existing admission counters/non-content tombstones follow normal retention.
+  No owner account/session/history was read or modified.
+- **Validation performed:** Red/green verifier schema regression, missing/renamed/
+  extra aspect rejection and safe diagnostic tests. Full web npm run test: 1710
+  Vitest PASS / 98 SKIP plus all 329 legacy tests PASS. The new gated live test was
+  run separately and PASS. Root typecheck PASS; production build PASS (27.1s);
+  git diff --check PASS. Task-owned secret-pattern/diff review PASS.
+- **Deployment/smoke result:** Final live adapter test: ANSWERED with four eligible
+  chunks and no synthesis rejection. Real localhost:3010 HTTP: hi CONVERSATIONAL;
+  exact general Đồng Văn question, same question repeated and same question with
+  '? ,./' all ANSWERED with two citations. Authorized history matched all four
+  completed turns; same-key/payload replay returned the original turn. Own test
+  resource cleanup confirmed. Existing local dev server loaded the changes.
+- **Known issues:** This validates the reproduced questions, not every corpus query.
+  Semantic gates remain probabilistic and real missing evidence must still abstain.
+  Old insufficient responses remain historical and are not automatically replaced.
+- **Decisions:** Correct model/reference contracts and generation evidence scope;
+  keep the existing verification requirements. Live calls were limited to the
+  reported defect and local repeated/punctuated smoke. Credentials/cookies/private
+  IDs/source prose were not printed or persisted in task diagnostics.
+- **Next step:** User can reload /assistant and submit a new turn. US-23 remains
+  NOT_ACCEPTED pending its broader corpus acceptance. No commit, push or deployment.
+
+## 2026-10-17 — Luna migration, further reference fix and attached repo assessment
+
+- **Branch/task:** TXH; owner explicitly requested Luna and review of the attached
+  AI Agent ZIP. Existing dirty Editorial/RAG/schema and other QA work preserved.
+- **Completed:** QA's shared JSON provider now defaults to gpt-6-luna for source
+  assessment, answer generation and verification; reasoning none, temperature
+  zero, strict JSON and store false retained. No automatic fallback/retry. Added
+  safe requested/actual-model metadata and four model-routing regressions.
+  Embedding remains text-embedding-3-small; social replies remain server-authored.
+- **Reliability follow-up:** Initial real Luna runs confirmed model routing but
+  still failed synthesis intermittently. One intermediate three-case matrix
+  passed only 1/3; failures were SUPPORT_REFERENCE and semantic grounding/citation
+  rejection. Verifier source prose is now selected through server-owned support
+  handles, and per-part schema variants constrain handles to that paragraph's
+  own citations. Source-close concise generation guidance reduces decorative
+  citations. Invalid/no reviewed citation support can reject before a verifier
+  call. Semantic negatives still abstain; no safety gate or timeout was relaxed.
+- **Validation:** Focused model/quality/diagnostic 89/89 PASS. Final full web
+  npm run test: 1719 Vitest PASS / 100 gated SKIP plus all 329 legacy PASS. Three
+  gated live cases were run separately and all PASS. Root check-types PASS;
+  production build PASS (20.2s); git diff --check PASS. No lint script/config is
+  available. One intermediate offline evaluation failure concerned an expected
+  provider-call count (3 vs 2) after earlier rejection; outcome remained correct.
+  Fixture updated to assert the new earlier rejection and the full suite rerun.
+- **Runtime evidence:** Final READ ONLY direct matrix returned ANSWERED for base,
+  repeated and '? ,./' variants, each with four parts, four eligible chunks and
+  all eight verification gates positive. All nine JSON calls asserted both sent
+  Luna and returned Luna/snapshot. Final local HTTP smoke: hi CONVERSATIONAL;
+  three factual turns ANSWERED with four parts/three citations each, approximately
+  21.7s/20.4s/21.0s. Authorized stored history, same-key/payload replay, own Guest
+  revocation and own conversation deletion passed. This is local API evidence,
+  not a new browser/manual UX acceptance run or production deployment.
+- **DB/data:** No schema, migration, environment, source, index or embedding
+  change. Direct corpus queries used READ ONLY transactions. HTTP test created
+  and cleaned only its own resources; owner's Admin session/history untouched.
+- **Reference repo:** Safely extracted a reference reading copy outside this
+  repository; no dependencies installed or scripts/seed/migration run. Static
+  comparison recommends selective query rewriting and hybrid retrieval
+  calibration on the existing stack; distinguishes suggestions/future widgets
+  from delivered code. No reference code/assets imported and no framework,
+  vector database or grounding-policy migration. ZIP provenance/hash, exact
+  source pointers, applicability and limits are in
+  [reference assessment](implementation/ai-agent-reference-review.md).
+- **Files/audit:** Owned migration details, failed and final live observations,
+  source links and local log paths are in
+  [Luna migration handoff](implementation/us23-luna-migration.md). Updated current
+  US-23 story. Task-owned diff/secret-pattern review completed; no credentials
+  added. No commit, push or deployment.
+- **Known limits/next step:** Reload /assistant and submit a new turn to try the
+  running local version. Past completed answers are historical. Finite smoke
+  coverage does not guarantee all semantic judgments or corpus questions;
+  insufficient current facts must still abstain. US-23 remains NOT_ACCEPTED
+  until broader owner corpus acceptance. Future hybrid retrieval/follow-up/
+  widget proposals have not been implemented by this review.
+
+## 2026-10-17 — chatbot improvement plan, batch 1
+
+- **Authorization/scope:** Owner requested implementation of the authored plan.
+  Executed its first batch (stages 0–2 and development measurements) under US-23;
+  no promotion of product requirements or full corpus acceptance. The plan's
+  human-reviewed corpus dataset remains pending, separate from offline fixtures.
+- **Completed:** 40 annotated fictional service/adapter cases, baseline 23/40 →
+  40/40 after routing fixes; shared versioned answer/source/scope/time policy;
+  improved social variants and one-question travel opening with historical text
+  compatibility; mixed greeting/thanks with factual follow-up; uppercase follow-up
+  handling; conservative absent/multiple-subject clarification; short destination
+  replies preserve the requested attribute after clarification. No prior answer
+  becomes evidence. No additional rewrite call, retry, fallback or model change.
+- **Verification:** Existing source/certificate/claim gates remain. Added concise
+  private verifier summary and consistency guidance; summary never overrides a
+  negative gate or enters public output/storage/logs. Regression explicitly checks
+  that positive summary plus negative gate still abstains. Removed raw assessment
+  debug-file writes. Added request/provider elapsed metadata in development only.
+- **Final automated checks:** Full web npm run test PASS: 1767 Vitest PASS / 101
+  gated SKIP and 329 legacy PASS. Root typecheck PASS. Production-build/diff results
+  are recorded in the final check line below. No lint script is available. No UI
+  change/browser QA or schema/migration change by this batch.
+- **Live evidence:** Final direct suite 3/4, all 12 JSON calls confirmed Luna.
+  Base/repeated/punctuated variants ANSWERED; mixed follow-up abstained at negative
+  CLAIM_GROUNDING. HTTP separately passed all six turns (clarification, greeting,
+  base, repeat, punctuated, mixed follow-up), with citations for all four factual
+  responses; stored history, identical-key replay and own-resource cleanup passed.
+  Factual HTTP times ~27.1s/18.6s/14.1s/20.2s. Do not infer latency SLO or full live
+  reliability from these few runs. Earlier direct/HTTP failures remain documented.
+- **Data/operations:** Direct corpus access READ ONLY with matching development
+  pins/allowlist. HTTP used and cleaned only its own Guest/conversation; no owner's
+  session/history read or modified. Started development server on localhost:3010
+  because it was stopped. No corpus/index/schema/env/auth/admission-budget change,
+  commit, push or deployment. Temporary inspection instrumentation removed and its
+  own temporary inspection files cleaned; normal diagnostics contain no raw text.
+- **Handoff:** Updated plan checkboxes/status and US-23; new
+  [batch report](implementation/ai-improvement-batch1.md) and
+  [before/after measurements](implementation/ai-improvement-batch1-results.json).
+  These fixtures test code behavior, not semantic accuracy. Independent corpus
+  review and the remaining semantic rejection are still open. US-23 NOT_ACCEPTED.
+  Hybrid retrieval, rich rendering and suggested questions are later stages,
+  not implemented or inferred approved by this first batch.
+- **Final check line:** Production build PASS (18.8s), root typecheck PASS,
+  git diff --check PASS and task-owned credential-pattern review PASS. No new
+  migration to inspect. Live direct suite remains 3/4; HTTP smoke is 6/6 with
+  confirmed history/replay/cleanup. This discrepancy remains an open quality
+  finding, not a full live PASS or acceptance of US-23.
+
+### 2026-10-17 — follow-up screenshot: entrance-ticket intent
+
+- Reproduced five failing variants of “giá vé vào thì sao?”: the history selector
+  omitted the previous destination because entrance-ticket wording was absent
+  from the anchored attribute pattern. Corrected the pattern; kept explicit
+  destination queries independent and missing-subject clarification deterministic.
+  Seven added cases plus the existing regression pass. No old answer is evidence.
+- Source eligibility, factual/claim checks, all eight synthesis gates and Luna
+  configuration remain unchanged. The screenshot's general introduction instability
+  is still unresolved; negative verifier metadata alone cannot establish a false
+  rejection. Advice is to measure and simplify overlapping checks while retaining
+  grounding, not remove all rules. No semantic-policy weakening implemented.
+- Checks: 1774 Vitest PASS / 101 gated SKIP and 329 legacy PASS; root typecheck
+  PASS; production build PASS (26.142s); diff check PASS. No schema/UI change or
+  fresh paid API/HTTP run. US-23 NOT_ACCEPTED; details/limits appended to the
+  [batch report](implementation/ai-improvement-batch1.md).
+
+### 2026-10-17 — complete remaining chatbot-plan code
+
+- **Request:** owner asked to finish the plan. Shared source handles, facet-bound
+  generation and fixed-part verifier schemas remove model-authored reference/text
+  reconstruction. All eight synthesis gates/certificate guards remain. A narrowly
+  eligible rejected synthesis may instead produce a visibly labeled exact reviewed
+  source answer; it never certifies that synthesis or supplies missing/current-time
+  facts. Source eligibility, safety, scope/time/numeric failures remain blocking.
+- **Retrieval/UI:** measured hybrid FTS + vector, same current-source/context filters,
+  one bounded read transaction and unchanged final context budget. Literal-source
+  recall 36/40 → 38/40 on a fixed 51-chunk snapshot. Controlled paragraph/list/table,
+  specific PARTIAL/verification messages and at most three transient draft-only
+  follow-ups implemented; no extra provider call or auto-send.
+- **Real measurements:** final direct 6/6 (four synthesis + two exact excerpts),
+  18/18 JSON calls actual Luna, observed 51,682 tokens, median 10.1275s / sample p95
+  12.05s. HTTP 7/7, including history/replay/owned cleanup; two factual results exact
+  excerpts, admission follow-up PARTIAL. Earlier failures/rolled-back trials retained.
+  This is not a semantic gold evaluation, account bill or production SLO.
+- **Checks:** 1834 Vitest PASS / 105 gated SKIP + 329 legacy PASS. Disposable
+  PostgreSQL 69/69 PASS and cleanup; root typecheck and production build PASS
+  (32.758s). Browser 17/17 groups PASS; scoped premium audit 0 findings. DESIGN lint
+  0 errors / 4 existing orphan-token warnings. Normal git diff --check PASS;
+  task-added credential-pattern scan found no matches. No lint script, schema or
+  migration change. Corpus reads pinned READ ONLY; only own HTTP Guest data cleaned.
+- **Handoff:** updated plan/code/design/story and generated 60 draft review cases;
+  reviewer/gold fields left empty. Independent source/content acceptance remains
+  pending, US-23 NOT_ACCEPTED. No commit/push/deploy/env/source mutation. Started
+  localhost:3010 development server and left it available for manual testing.
+  [Report](implementation/ai-chatbot-completion.md),
+  [measurements](implementation/ai-chatbot-completion-results.json),
+  [review package](implementation/ai-chatbot-corpus-review.json).
+
+### 2026-10-17 — natural replies, collapsed sources and neutral follow-up chains
+
+- Owner requested conversational Vietnamese and quieter sources; asked about
+  replacing embedding with Luna. Kept model/index roles. Generation policy .4
+  favors plain short prose without repeated administrative leads; verifier still
+  requires every factual claim/qualification. No post-verification text rewriting.
+- Added one closed answer-level native source disclosure, retaining source/part
+  mappings, keyboard/mobile access and reading-source scroll protection. Invalid
+  registries remain visibly unavailable. Missing PARTIAL facts remain separate.
+- Added a red regression for the screenshot's lost subject. At most two provider
+  questions now retain the nearest subject through explicitly unqualified neutral
+  follow-ups; never discard unknown wording/conditions/preferences to make space.
+  Narrowed designation suggestions; Đồng Văn no longer triggers money suggestions.
+- Full first run exposed nine old UI expectations plus an unrelated SDK-import
+  timeout. Fixed source-error presentation; updated intentional UI expectations.
+  SDK test unchanged and passed alone. Final full 1842 Vitest PASS / 105 gated SKIP
+  plus 329 legacy PASS. Browser 17/17 PASS; root typecheck PASS; premium 0 findings;
+  DESIGN lint 0 errors / 4 existing warnings. Build/diff line in linked report.
+- Actual HTTP broad-suggestion sequence 4/5 (negative coverage gate), narrowed
+  UNESCO sequence 5/5: one social, three ANSWERED (one exact excerpt), one PARTIAL.
+  Both runs verify stored history/replay and clean only own Guest/conversation.
+  Descriptive prefix counts are not naturalness/semantic gold. No extra trials to
+  hide the failure, no USD or production SLO claim; no source/schema/env mutation.
+- No commit/push/deploy. Independent corpus acceptance remains pending, US-23
+  NOT_ACCEPTED. [Report](implementation/ai-chatbot-natural-conversation.md),
+  [measurements](implementation/ai-chatbot-natural-conversation-results.json).
+
+  Final follow-up checks: root build PASS (30.198s), root typecheck PASS, diff
+  check and task-added credential-pattern scan PASS; report JSON valid. Current
+  assistant localhost:3010 HTTP 200; reviewed mobile paragraph/table screenshots.
+  No new API trial, schema change or independent corpus acceptance claimed.
+
+### 2026-10-17 — useful replies when evidence is missing
+
+- Owner requested natural explanations/help even when an answer cannot be
+  supported. Replaced the missing-source warning card with two ordinary paragraphs
+  composed from reason + fixed topic. Original confirmed question selects price,
+  hours, designation, geology/culture, accessibility/location or generic copy;
+  no arbitrary text echo, invented claim/citation, auto-send or provider call.
+- Reason distinguishes no material retrieved this turn, insufficient support,
+  and failed answer verification. Old stored literal message/DTO remains valid;
+  renderer accepts optional question. Service records existing MISSING_SUPPORT
+  reason after negative review; PARTIAL/FAILED/UNKNOWN/ownership/replay unchanged.
+- Full web 1862 Vitest PASS / 105 gated SKIP + 329 legacy PASS. Added two service
+  reason/no-extra-call cases afterwards: focused service/reply group 38/38 PASS.
+  Browser 19/19 PASS with blocked external network and mobile screenshots; root
+  typecheck PASS. Build/diff final evidence in the linked report. No fresh paid
+  API or DB benchmark, SQL/schema/source/env/model change, commit/push/deploy.
+- Premium auditor plugin disappeared from its earlier cache path; search found
+  no replacement. No new static-audit PASS claimed. Independent corpus acceptance
+  still pending; US-23 NOT_ACCEPTED.
+  [Report](implementation/ai-chatbot-missing-source-replies.md).
+
+  Final checks: root build PASS (21.058s), root typecheck PASS, diff check and
+  credential-pattern scan PASS; localhost assistant HTTP 200. Reviewed final
+  mobile screenshots for no-evidence/verification replies. No paid rerun.
+
+### 2026-10-17 — AI Conversation History & Management (ChatGPT-like Sidebar)
+
+- **Branch:** `feat/ai-conversation-history` (from origin/TXH @ `e9f91e38c12dcb8455da9ece3d5d106943b108da`).
+- **Scope & Delivery:** End-to-end implementation of AI conversation history management with a ChatGPT-like responsive sidebar on KLTN Hà Giang Travel Assistant.
+- **Database (Additive Migration):**
+  - Updated `packages/db/prisma/schema/qa-conversation.prisma`: Added `title String? @db.VarChar(120)`, `titleCustomized Boolean @default(false)`, `lastActivityAt DateTime @default(now()) @db.Timestamptz(3)`, and composite index `@@index([principalKind, principalId, deletedAt, lastActivityAt(sort: Desc)])`.
+  - Created additive migration `20261017120000_add_qa_conversation_history/migration.sql` with safe backfill and index creation. Ran `npm run db:generate`.
+- **Backend & APIs:**
+  - Created `qa-conversation-title.ts`: Deterministic Vietnamese title generator from initial question without calling OpenAI.
+  - Implemented `GET /api/ai/conversations` (cursor pagination, title search, principal isolation, sorted by `lastActivityAt DESC`).
+  - Enhanced `GET /api/ai/conversations/:id` (returns full confirmed turns and conversation metadata while preserving backward compatibility with legacy smoke scripts).
+  - Implemented `PATCH /api/ai/conversations/:id` (rename with Unicode NFC normalization, 120-char max, CSRF check, does not advance `lastActivityAt`).
+  - Implemented `DELETE /api/ai/conversations/:id` (soft-delete tombstone with replay safety and principal isolation).
+  - Implemented `GET /api/ai/conversations/:id/turns` (paginated turn fetching).
+- **Frontend & State Management:**
+  - Enhanced `AssistantController`: Added `loadConversation` (atomic state hydration) and `prependTurns` (deduplicated pagination).
+  - Created `AssistantSidebar`: ChatGPT-like sidebar with "Đoạn chat mới" button, real-time debounced search, date grouping ("Hôm nay", "Hôm qua", "7 ngày trước", "Cũ hơn"), active highlighting, 3-dots actions menu with inline rename and delete confirmation, load more button, responsive desktop collapse and mobile drawer overlay.
+  - Updated `AssistantChat`: Integrated sidebar, URL query param sync (`?conversationId=...`), deep link restoration, browser Back/Forward (popstate) handling, race condition cancellation with AbortController, and preserve all recent AI presentation features (typing indicator, structured answer, follow-ups, excerpts, source replies).
+- **Validation & Test Results:**
+  - 153/153 Assistant component tests PASS (`assistant-sidebar`, `assistant-history-controller`, `assistant-conversation-client`, `assistant-conversation-groups`, etc.).
+  - 590/590 AI module tests PASS (`qa-http`, `qa-conversations-route`, `qa-conversation-title`, `qa-service`, `qa-contract`, etc.).
+  - 1894/1894 full Vitest test suite PASS across all web modules.
+  - 52/52 legacy test suites PASS (auth-ui, account, authorization, destination, culture, map, explore, search, favorite, rag, idempotency).
+  - `npm run check-types` PASS (0 errors).
+  - `npm run build` PASS (Turbopack production build with all static/dynamic routes optimized).
+  - `git diff --check` PASS (clean diff, no conflict markers, no secrets).
+
+### 2026-10-17 — Live Database Integration & Browser E2E Acceptance
+
+- **Branch & Base Commit:** `feat/ai-conversation-history` @ commit `a7ab1367f8cb54b56cbc9241f4a8cb156600beb5`.
+- **Database Migrations (Neon Development & Disposable PG):**
+  - Migration `20261017120000_add_qa_conversation_history` deployed to authorized Neon Development (`neondb`).
+  - Verified on isolated disposable Docker container (`pgvector/pgvector:0.8.6-pg16`): columns `title`, `titleCustomized`, `lastActivityAt`, and composite index `qa_conversation_principalKind_principalId_deletedAt_lastAct_idx` verified.
+  - Production database untouched.
+- **PostgreSQL Integration Tests (10 test files, 94 tests, 0 skipped, 100% PASS):**
+  - `scripts/test-qa-postgres.mjs`: 71/71 tests PASS (includes `qa-store.postgres.integration.vitest.test.ts` with 31 tests covering history listing, cursor pagination, title search, rename, soft delete, cross-principal isolation, and >12 turns persistence).
+  - `scripts/test-destination-images-postgres.mjs`: 20/20 tests PASS (destination-images, editorial, destination-v3).
+  - `scripts/test-trip-planner-postgres.mjs`: 3/3 tests PASS (planner-candidates).
+  - `scripts/test-rag-index-postgres.mjs`: 1/1 test PASS (rag-index-store concurrency).
+- **Live Browser E2E Acceptance on localhost:3010 (14/14 PASS, 0 failures):**
+  - Ran `scripts/qa-browser-e2e-live.mjs` against real running dev server connected to Neon Development.
+  - Test 1 (Desktop Initial Load): Sidebar, composer, and 4 prompt suggestions loaded — PASS.
+  - Test 2 (Send Question & AI Response): Question asked, typing indicator animated dots detected, real OpenAI answer received, DB persisted — PASS.
+  - Test 3 (F5 Refresh & State Restoration): Full page reload properly restores conversation and turns — PASS.
+  - Test 4 (Follow-up Multi-turn): Turn 2 appended successfully in same conversation — PASS.
+  - Test 5 (Rename Conversation): Renamed via inline edit form, persisted to DB — PASS.
+  - Test 6 (Search in Sidebar): Real-time debounced filtering, empty state, and clearing verified — PASS.
+  - Test 7 (Back/Forward Navigation): Seamless popstate history navigation between conv1 and conv2 — PASS.
+  - Test 8 (Delete Conversation): Soft delete removes item from sidebar, resets active conversation and URL — PASS.
+  - Test 9 (Mobile Responsive Drawer <1024px): Toggle button, drawer slide-in, backdrop click dismiss — PASS.
+  - Test 10 (Concurrent Tabs): Independent tab correctly sees and loads conversation history — PASS.
+  - Test 11 (In-Flight Switch Handling): Switching while AI generates prompts abandon dialog and switches safely without corruption — PASS.
+  - Test 12 (History & Turns Pagination API Contract): Limit/cursor pagination and turns limit contract verified — PASS.
+  - Test 13 (Account Switching / Principal Boundary): Fresh incognito session starts with empty history (strict isolation) — PASS.
+  - Test 14 (HEAD TXH AI Improvements): Typing indicator, speaker badge, source citations disclosure ("Xem nguồn (2)⌄"), and follow-up chips preserved — PASS.
+- **Typecheck & Production Build:**
+  - `npm run check-types` PASS (0 errors).
+  - `npm run build` PASS (41/41 routes compiled).
+  - `git diff --check` PASS (clean diff, no conflict markers, no secrets).
+
+### 2026-10-17 — reported follow-up failure investigation
+
+- Inspected local development diagnostics: observed GENERATION_PREFLIGHT /
+  PRIVATE_MATERIAL after four eligible chunks, before model dispatch. Exact
+  screenshot-turn correlation and offending source block remain unconfirmed.
+- Fixed bounded other-place follow-up detection so the reported wording retains
+  the previous factual topic; missing context asks for clarification. No safety
+  checks were bypassed and no full incident resolution is claimed.
+- Focused tests 101/101 PASS; root check-types PASS; root build PASS (27.373s).
+  No live provider/DB acceptance, schema/source/env/model change, commit or push.
+- Details and remaining investigation: [incident report](implementation/ai-chat-followup-incident.md).
+  US-23 remains NOT ACCEPTED.
+
+### 2026-10-17 — owner trial: Sol 6.1 answer composition
+
+- Owner requested GPT-6.1 Sol specifically for the answer step. Default answer
+  composition now uses gpt-6.1-sol; source assessment and independent verification
+  retain gpt-6-luna. Explicit test/provider injection remains supported.
+- Sol 6.1 requests use reasoning_effort=low and omit temperature as required by
+  official OpenAI migration guidance. Existing deadlines, token budgets, grounding,
+  persistence and safety gates remain in force.
+- Focused provider/generation/verifier suites: 72/72 PASS; root typecheck PASS.
+- One live synthetic structured-output connection probe: HTTP 200, actual model
+  gpt-6.1-sol, finish_reason=stop, valid JSON, 2321 ms. This confirms API access and
+  parameter compatibility, not live corpus answer quality or incident resolution.
+- No schema/environment changes, commit, push or deployment.
+- Source: https://developers.openai.com/api/docs/guides/latest-model
+  Final verification: root build PASS (25.105s); git diff --check PASS.
+
+### 2026-10-17 — owner expanded Sol trial to reading and generation
+
+- Owner clarified both reading and generation should use Sol. Shared QA default is
+  now gpt-6.1-sol for source assessment, answer generation and independent synthesis
+  verification, using reasoning_effort=low without temperature. Embeddings keep
+  their separate embedding model; no reindexing or schema change is needed.
+- Updated active transport/evaluation assertions to the selected model; explicit
+  legacy-model injection still works. AI suites: 595 PASS / 56 gated SKIP.
+  Root typecheck PASS. Earlier synthetic live Sol compatibility probe remains
+  applicable; no new paid calls or corpus-quality acceptance is claimed.
+- Existing source-safety failure remains unresolved. No commit/push/deployment.
+  Final checks: root build PASS (23.767s), git diff --check PASS.
+
+### 2026-10-17 — eMagazine Luna maximum reasoning
+
+- Owner clarified edit means eMagazine. Editorial already pins gpt-6-luna;
+  changed reasoning_effort from none to max, the highest effort documented by
+  OpenAI. Request still omits temperature/top_p and uses existing bounded schema,
+  output budget and deadline. No QA model, database, environment or article edit.
+- Editorial offline suites: 311 PASS / 6 PostgreSQL-gated SKIP; no paid API calls
+  or live layout quality/latency claim. Updated the V4 story configuration record.
+- No commit/push/deploy.
+  Final checks: root typecheck PASS; root build PASS (65.336s);
+  git diff --check PASS. Only Editorial adapter/test and task documentation changed.
+
+### 2026-10-17 — Sol 6.1 medium reasoning
+
+- Owner requested medium effort for Sol. Shared QA transport now sends
+  reasoning_effort=medium for gpt-6.1-sol across assessment, generation and
+  synthesis verification. Updated active model/request assertions accordingly.
+- eMagazine retains the separately requested gpt-6-luna/max configuration.
+  No schema/environment changes, paid calls, commit, push or deployment.
+- Root typecheck PASS. Full QA tests/build and diff-check results recorded below.
+  Final checks: QA suites 595 PASS / 56 gated SKIP; root build PASS (33.553s),
+  root typecheck and git diff --check PASS. No live model-quality test in this change.
+
+### 2026-10-17 — Dynamic Neon RAG retrieval & public QA permission management
+
+- Upgraded RAG retrieval to dynamically discover all eligible RagDocument records in Neon PostgreSQL, removing the need for manual QA_PUBLIC_SOURCE_IDS allowlist in .env and eliminating redeploy requirements when Admin adds/indexes new documents.
+- Schema & Migration: Created additive Prisma migration 20261017150000_add_rag_public_qa_permission adding publicQaApproved Boolean @default(false) and index [status, publicQaApproved] on rag_document. Applied migration to authorized Neon Development database. Initialized existing indexed document cmvapg3l0001j7w9w61egpl01 with publicQaApproved = true.
+- Retrieval & Runtime: Updated qa-retrieval.ts eligible SQL clause to enforce d."status" = 'INDEXED' AND d."publicQaApproved" = true AND g."state" = 'READY' along with embedding dimensions and model checks. When options.publicSourceIds is omitted, retrieval dynamically queries all DB-eligible sources. Strict concurrency linearization point (lockQaEvidenceEligibility with SELECT ... FOR UPDATE) guarantees in-flight completions abort immediately with AI_INVALID_RESPONSE if an Admin disables a document or revokes public QA approval.
+- Admin Backend & Routes: Updated rag-service.ts to compute publicQaEligible and ineligibilityReason (STATUS_NOT_INDEXED, NOT_PUBLIC_APPROVED, NO_READY_INDEX, EMBEDDING_MISMATCH). Supported ENABLE_PUBLIC_QA and DISABLE_PUBLIC_QA actions in transitionRagDocument. Added POST /api/admin/rag-documents/bulk-public-qa supporting ENABLE_ALL_INDEXED, ENABLE_SELECTED, and DISABLE_SELECTED.
+- Admin UI (rag-review-ui.tsx, rag-review.css): Added summary statistics cards (Total, Indexed, Public QA Approved, Ready for AI), a one-click bulk approval banner for all currently indexed unapproved documents, detailed badge representations, and a dedicated Public QA Permission card in the detail view with instant toggle.
+- Verification & Test Results:
+  - Disposable Docker PostgreSQL integration runner (scripts/test-qa-postgres.mjs): 72/72 PASS (0 fail, 0 skip), verifying RAG_PUBLIC_QA_MIGRATION, dynamic multi-document discovery, and permission revocation rejection.
+  - Vitest: 1,900 unit tests PASS (0 fail, 108 skipped).
+  - Node RAG regression tests (npm run test:rag): 56/56 PASS (0 fail).
+  - TypeScript typecheck (npm run check-types): PASS.
+  - Next.js production build (npm run build): PASS in 37.6s, all routes compiled.
+  - git diff --check: PASS. No production database touched; no push/merge performed.
+
+### 2026-10-17 — RAG advanced reasoning V2
+
+- Synced origin/TXH at b75c4b7; branch fix/ai-rag-multisource-reasoning.
+  Owner authorized explicit multi-document/clarification/coverage regression fixes.
+- Added bounded subject/facet/year planning, one batched embedding call for two
+  subjects, fair hybrid candidates and token reservation. Same runtime max four
+  chunks/3000 evidence tokens; no additional planner/generator call or agent layer.
+- Required coverage is checked independently at assessment and source sufficiency,
+  propagated into generation/verifier and bound to the source snapshot. Explicit
+  missing facts no longer trigger irrelevant clarification/templates. Source,
+  temporal, ownership, transaction, revocation and FAILED/UNKNOWN gates retained.
+- Nine offline owner cases and 21 advanced tests PASS. Live content review 9/9:
+  36 calls (10 embedding, 26 chat), 79286 reported tokens, approved Development
+  READ ONLY; no source/history writes. Initial mechanical failures and one genuine
+  over-specified comparison plan were retained and explained; no universal claim.
+- Full web npm test: 1921 Vitest PASS / 118 gated SKIP + 333 legacy PASS.
+  Disposable PostgreSQL/pgvector: 73/73 PASS, including public approval revocation
+  during generation; owned container/volume cleanup PASS. Intermediate simultaneous
+  build/DB run hit two existing 5s test deadlines; isolated final rerun passed.
+- Browser 21/21 groups PASS including both exact dated questions at 360px; source
+  reply screenshot reviewed. Root check-types PASS; final root build PASS (26.508s),
+  after a transient concurrent-build lock rejection. git diff --check PASS.
+- Test-only server-only alias fixes full-suite resolution failures; production
+  imports unchanged. Premium static audit has 29 pre-existing out-of-scope findings;
+  no broad UI compliance claim. No schema/env/model/source change or Production access.
+- Local scoped commit; no push/merge/deploy. Concurrent header UI/scripts are
+  excluded and preserved. US-23 still NOT_ACCEPTED pending independent corpus review.
+- [Report](implementation/rag-advanced-reasoning-v2.md),
+  [live evidence](implementation/rag-advanced-live-results.json).
+
+
+### 2026-10-17 — RBAC V2: Admin inherits Traveler capabilities
+
+- Owner approved Admin capability inheritance, superseding the old US-06/product
+  non-inheritance rule. Shared typed capability map + policy; requireTraveler
+  delegates to requireActor with persisted-role checks, one User query per guard,
+  and its existing userId contract. Ownership and Admin-only guards remain intact.
+- APIs/pages inherit the guards. UserMenu/FavoriteButton/mutation logic/auth demo
+  accept both roles. Fixed an existing Strict Mode mountedRef issue in Trip Review
+  found by real browser testing. Concurrent Landing/header/map work is preserved.
+- Final full web npm test: 1940 Vitest PASS / 126 gated SKIP + 336 legacy PASS.
+  Root typecheck PASS; build PASS (50.518s); diff-check PASS. No schema/migration
+  change. Premium audit has 29 existing findings; no broad UI compliance claim.
+- Approved Development PostgreSQL RBAC tests: 8/8 PASS and fixture cleanup PASS.
+  Docker Engine unavailable: disposable/broader PostgreSQL QA/RAG/planner suites
+  remain unverified. Real Chromium/Better Auth browser E2E: 12/12 groups PASS,
+  including both-role planner flow, API save/replay/UI reopen/Trip favorites,
+  Destination favorites, cross-user isolation, Admin-only APIs/pages, AI history
+  and Guest denial. Desktop/390px screenshots inspected; final check found zero
+  remaining browser User/Destination fixtures. No quota reset/source changes.
+- Existing planner UI does not mount save panel: save verified through existing
+  API and reopening via UI. Missing routes remain INSUFFICIENT_DATA. AI greeting
+  tests transport/history, not factual RAG quality. No hidden-feature activation.
+- Branch feat/admin-inherits-traveler from TXH/origin TXH a18d54d; HEAD unchanged.
+  No commit/push/merge/deploy or Production/environment/secret changes.
+  [Story](stories/RBAC-V2-admin-inherits-traveler.md),
+  [report](implementation/rbac-v2-admin-inherits-traveler.md),
+  [browser evidence](implementation/rbac-v2-evidence/browser-results.json).
+
+### 2026-10-17 — Admin User Management CMS V2
+
+- Implemented Phase 2 on `feat/admin-user-management-be` from the pushed Phase 1
+  baseline `e20f444fbb8bf6ce863e2c5d3b8c923d4ec33d59`. Owner follow-up authorizes
+  a scoped CMS commit/push; no merge/deploy. Concurrent Landing source, components
+  and media are preserved and excluded from CMS scope.
+- Added ACTIVE/LOCKED metadata, persistent audit and the versioned session-admission
+  trigger. Eight Admin APIs enforce persisted role/status, strict bounded input,
+  safe DTOs, atomic audit/idempotency, self protection and serialized last-active-
+  Admin checks. Better Auth 1.7.5's verified session-create hook plus DB row locking
+  prevent locked-account login/session races. Cookie cache is disabled.
+- Default datasource is HTTP in Development and Production. Existing Phase 1
+  screens use real search/filter/page/count/detail/session/audit data and confirmed
+  mutations, with safe UNKNOWN retries, errors, refetch and accessible dialogs.
+  RBAC V2 inheritance/private ownership remain intact; only AI account-admission
+  status checks changed, with no retrieval/model/history behavior change.
+- Migration deploy twice on a new disposable PostgreSQL database PASS; CMS real
+  PostgreSQL/Better Auth 8/8 PASS. Exact Development metadata verified, then migration
+  applied: 23 healthy ledger entries; existing counts and ID/role hash unchanged.
+  RBAC real Development PostgreSQL 8/8 PASS; real Chromium E2E 9/9 groups PASS.
+  All owned browser fixtures/test DB/schema removed; no Production access.
+- Full Vitest: 1961 PASS, 134 gated SKIP. Final legacy: 335 PASS, 1 unrelated
+  Landing/Explore source assertion FAIL; stopped chained suites ran separately.
+  Final CMS/fixture rerun: 21/21 PASS. Root typecheck/build and diff-check PASS.
+  Scoped strict CMS UI audit: zero findings. Broader Docker PG regression remains
+  unverified because Docker Engine was unavailable; gated tests are not PASS.
+- CMS-specific acceptance is verified; repository-wide release gate remains
+  non-green. Production requires separately approved migration/backup/deployment
+  and smoke verification. Last login telemetry is absent; session rows cap at 20;
+  UNKNOWN attempt recovery lasts for the current browser runtime.
+  [Story](stories/ADMIN-USER-MANAGEMENT-V2.md),
+  [acceptance report](implementation/admin-user-management-v2.md),
+  [browser evidence](implementation/admin-users-v2-evidence/browser-results.json).
+
+### 2026-10-18 — US-28 Stadia Standard Routing V2
+
+- Actual clean baseline86bb942 on feat/admin-user-management-be; preserve hero/CMS/
+  Auth/RBAC/RAG/Editorial/Trip persistence. Replace Google provider with shared
+  server-only Stadia HTTP, CAR/auto and MOTORCYCLE/motorcycle. No migration.
+- US-28 requires finite bounded duration and distance; missing distance never zero.
+  US29B/30 duration-only compatibility retained. One 10s global deadline,27 pairs,
+  three in flight, real fetch/body cancellation,512KiB limit, no retry/fallback/cache.
+- Correct Varlock @internal stripping for optional sensitive Stadia runtime key,
+  regenerate types; actual .env unchanged. Vercel metadata shows sensitive key in
+  Preview/Production, no remote env write.158 built static files:0 credential hits.
+- Final focused192 PASS/3 SKIP; full1992 PASS/134 SKIP. Legacy335 PASS/1 existing
+  Landing assertion FAIL, baseline evidence retained. Root typecheck/build/diff PASS.
+  PostgreSQL disposable US28 3/3 and RBAC8/8 PASS; owned containers cleaned.
+- Real Chrome/Better Auth/Neon/Stadia browser6/6 PASS; CAR/MOTORCYCLE, relative day,
+  save/replay/read/favorite/ownership and locked/Guest checks. TEST hours/durations
+  only; coordinates copied from verified Destinations. All owned fixtures cleaned.
+  Offline failure/empty/browser cases:5/5 PASS, separate synthetic evidence. Screenshots
+  capture map loading; do not claim external tile or Production hostname success.
+- Production still conditional on baseline legacy gate, hostname/corpus registry
+  and pre-existing distributed admission decisions. CMS migration/rollout preserved.
+  PR7 was externally merged at00:45 Asia/Saigon into master; no replacement PR,
+  reopening, master/dev merge/push or Production operation by this task.
+  [Report](implementation/us28-stadia-routing-v2.md),
+  [browser evidence](implementation/us28-stadia-v2-evidence/browser-results.json).
+
+- Git handoff correction: shared checkout was externally switched to master;
+  routing source commit c9265d6 was retained on the feature branch and pushed
+  there only. Own local-master change was reverted by85b9152 without rewriting
+  history. Local master content matches86bb942; its two local commits remain
+  unpublished. Checkout restored to feat/admin-user-management-be. Report records
+  the correction; no remote master/dev push or Production operation occurred.
+
+### 2026-10-18 — Global Guest Access & Authentication UX V2
+
+- **Branch / Worktree:** `feat/global-guest-auth-ux-v2` created in dedicated Git worktree `D:/KLTN/KLTN/.worktrees/feat-global-guest-auth-ux-v2` from `master` at HEAD `86bb942`.
+- **Implementation Scope:**
+  - Upgraded guest experience from abrupt redirect to context-aware explanation dialogs prior to authentication.
+  - Implemented centralized intent configurations in `apps/web/src/lib/auth-intent-config.ts` for `favorites`, `planner`, `trips`, `trip_save`, `dashboard`, `account`, `session_expired`, and `generic`.
+  - Built accessible, responsive `AuthRequiredDialog` (`auth-required-dialog.tsx` / `auth-required-dialog.css`) adhering to WAI-ARIA (`role="dialog"`, `aria-modal="true"`, focus trap, Escape/backdrop dismissal, focus restoration, body scroll-lock management, emerald/gold theme, reduced motion).
+  - Built `AuthRequiredProvider` and `useAuthRequired()` hook managing 8 auth states (`pending`, `traveler`, `admin`, `guest`, `session_expired`, `error`, `locked`, `insufficient_permission`) with safe SSR/non-provider fallback.
+  - Built `ProtectedLink` intercepting guest clicks, preserving new-tab modifier behaviors, and safely closing mobile drawer before dialog opens.
+  - Updated Header (Desktop & Mobile), Landing Page CTAs/footer, and FavoriteButton.
+  - Server RBAC and route guards (`requireActor()`, `requireTraveler()`, `buildAuthLoginHref()`) remain strictly intact.
+  - No automatic mutation replay after login; users must explicitly click the action again.
+- **Validation:**
+  - `npm run check-types` PASSED across all workspace packages.
+  - `npm run build` PASSED (Next.js 16.3.8 Turbopack, 45 pages compiled).
+  - 15 new focused unit tests passed.
+  - 103 US-story tests and 335 legacy tests passed (36 auth-ui, 27 favorite, 21 authorization, 18 account, 4 idempotency, 63 destination, 37 culture, 27 map, 33 search, 56 rag).
+  - Pre-existing regression in `test:explore` (`public-culture-list.test.tsx:85` matching legacy `home-hero-visual`) noted as untouched from `c5ede132`.
+- **Git & Safety:**
+  - `git diff --check` PASSED with 0 warnings/errors.
+  - No merge to master, no push, no deployment, no database migration changes.
+  - [Report](implementation/global-guest-auth-ux-v2.md).
 ## 2026-10-16 — US-32 Task265 pure edit candidate
 
 - **Branch:** `duybinh`; working tree was clean before this task. No commit/push/merge.
@@ -2211,3 +3098,301 @@ Deterministic selection/gate/session-abuse/HTTP/source-status regressions: 83/83
 - **Known issues:** Successful idempotency replay returns the stored response before rerunning Validator. This follows ADR-09; since location is excluded from the hash, a same-key retry with a different location replays the original result. A new user confirmation requires a new key. Location freshness remains an open product policy. The numeric “revision + 1” wording in the draft differs from current implementation, which uses `updatedAt` as the CAS revision token.
 - **Decisions:** No raw request input is stored by `executeIdempotentWrite`; its record has only scope/key, request hash and serialized successful response. Identity hashes tripId, baseRevision, kind, normalized candidate and mandatoryEndpoint; location is excluded. Response contains candidate/validation but not location. Same-key SUCCESS replay skips Validator as required by the shared idempotency primitive.
 - **Next step:** Task 295 remains for confirmation UI; Task 297 remains for additional end-to-end regression coverage and browser checklist handoff.
+### 2026-10-18 — RAG Production corpus migration preparation / backup blocker
+
+- Worktree codex/rag-production-sync from0f0426a7; other sessions/checkout preserved.
+  Verified both explicit SYNC_* URLs through Neon project/branch/endpoint metadata.
+  Read-only SQL shows schema equality and23 healthy migrations each;19 raw checksum
+  differences match exact LF/CRLF variants, no ledger/migration rewrite.
+- Development11 docs:8 DISABLED fixtures excluded,3 real DOCX technically ready.
+  Verified3 private Blob originals, MIME/size/hash, owner-original equality and
+  anonymous403; deterministic extraction/chunk replay,137 actual binary vectors,
+  all identity/hash/token/provenance checks. Same Blob store, no copy/reembedding.
+  Manifest286 inserts,0 updates/deletes/jobs/origins; publicQaApproved=false.
+- Fresh snapshot creation rejected SNAPSHOTS_LIMIT_EXCEEDED. Existing snapshot
+  predates Destination sync; retained unchanged. Await current backup method
+  selection; no Production import/write, no new branch or restore/reset performed.
+  CMS smoke blocked by Browser use disabled; owner plans to enable it.
+- Migration28/28 tests (isolated PGlite/pgvector, not native Neon concurrency),
+  CMS RAG56/56. Relevant Vitest initial143 PASS/1 timeout/22 SKIP; isolated rerun
+  PASS. Root typecheck/build PASS. Native Docker engine unresponsive; full repo
+  and Production write tests not run. No paid OpenAI request/cost, push/merge/deploy.
+- Production all protected-table fingerprints unchanged, RAG still0. Source RAG
+  unchanged; Development Favorite/idempotency changed concurrently outside this
+  read-only audit.7 previous receipts hash-match. Assistant gate untouched.
+- RAG_PRODUCTION_SYNC=BLOCKED before write. [Report](implementation/rag-development-production-sync.md),
+  [evidence](implementation/rag-sync-evidence/),
+  [story](stories/RAG-DEVELOPMENT-PRODUCTION-SYNC.md).
+
+### 2026-10-18 — RAG owner-authorized direct Production apply
+
+- Owner waived new backup for exact three-document import after quota refusal.
+  CURRENT_PRODUCTION_BACKUP=WAIVED_BY_OWNER;
+  RECOVERY_POINT_AFTER_DESTINATION_IMPORT=NOT_AVAILABLE. Old snapshot/receipts kept;
+  no branch/reset/restore/endpoint/env change. Default backup gate remains; explicit
+  CLI waiver binds exact scope/hash/verified target, all other preflight gates kept.
+- Refreshed identity/schema/23 migrations/Blob originals/137 actual vectors. Manifest
+  ff1f1fcc64e6421b6f2a6b9fbc4a87344795b3abbeb95db7c9e66a1c92f1d519.
+  COMMIT_CONFIRMED: 286 INSERT, 0 UPDATE/DELETE. Independent read-only post-import
+  and post-replay PASS, exact replay 0/0/0 writes. All 31 protected fingerprints
+  match. Three docs INDEXED/current READY, publicQaApproved=false, 137 chunks/vectors,
+  3 publications, no fixtures/jobs/origins/provider calls/Blob copies.
+- Migration39/39, RAG56/56, root typecheck/build PASS (cached offline). No full suite,
+  native Neon concurrency or post-commit restore claim. CMS browser BLOCKED by
+  disabled Browser use; guest private list/detail/file GETs401; authenticated Admin
+  and deployed Blob credential remain unverified.
+- RAG_PRODUCTION_SYNC=PASS for corpus only. RIGHTS_REVIEW_REQUIRED and Assistant
+  closed remain. No commit/push/merge/deploy. Current
+  [report](implementation/rag-development-production-sync.md) and
+  [final summary](implementation/rag-sync-evidence/final-summary.json).
+
+
+### 2026-10-18 — Production Assistant & RAG readiness
+
+- Dedicated codex/assistant-production-readiness worktree from2225030; unrelated
+  primary Editorial edits preserved. Source audit and live page/GET show Production
+  hard-disabled at both UI/runtime gates, independent of credentials/corpus.
+- Neon API verified exact Production branch/endpoint; aggregate REPEATABLE READ
+  READ ONLY inventory confirms0 RAG documents/chunks/vectors/publications/jobs,
+  pgvector0.8.6 and vector(1536). Three VISIBLE Destinations,12 ContentSource rights
+  all UNKNOWN without rights evidence, no RAG origins;23 healthy migrations.
+- Vercel metadata has OPENAI_API_KEY in Preview/Production, QA/HMAC/cleanup settings
+  not listed. Validity/deployed env/model access unverified; no paid provider calls.
+  Checked-out QA default is now gpt-6.1-sol; historical Luna reports not runtime proof.
+- Relevant Vitest919 PASS/0 FAIL/89 gated SKIP; legacy RAG56/56; root typecheck/build
+  PASS (Next16.3.8). Full repo/PG integration/live semantic checks not run. Premium
+  audit30 existing findings; no UI/global compliance claim. Diff/secret/preservation
+  details in report evidence. No application source, remote env, schema or Auth changes.
+- Snapshot retained,7 prior receipts hash-match, read-only business fingerprints
+  preserved. No import, Production data write, conversation creation, cleanup call,
+  push, merge or deployment. AI_ASSISTANT_PRODUCTION=BLOCKED / NO_GO; US-23 NOT_ACCEPTED.
+- [Report](implementation/assistant-production-readiness.md),
+  [evidence](implementation/assistant-production-evidence/).
+
+### 2026-10-18 — Destination Development to Production sync: blocked preflight
+
+- Isolated codex/destination-production-sync worktree from origin/master86bb942;
+  original checkout/routing untouched. No merge, push, deploy or schema operation.
+- Owner supplied explicit SYNC source/target URLs in the original ignored env file;
+  local URL validation PASS. No DATABASE_URL fallback or secret output/copy.
+- Provider identity remains UNVERIFIED: NEON_API_KEY missing, available Console
+  requires login. Owner-request IV/VIII require trusted identity and a completed
+  Production backup. Requested access/evidence; no DB connections or writes.
+- Read-only preliminary guard plus seven fixture tests PASS. Transfer/apply/verify
+  modes, live inventory and full dry-run are pending; no migration success claim.
+- Public HTTP baseline: APIs/Explore/MapLibre assets200, zero public Destination
+  items. Browser/CMS/Stadia tiles and data integrity/replay are NOT_RUN.
+- [Story](stories/DESTINATION-DEVELOPMENT-PRODUCTION-SYNC.md),
+  [22-item report](implementation/destination-development-production-sync.md).
+  DESTINATION_PRODUCTION_SYNC=NOT_RUN; NO_GO for Production writes.
+
+### 2026-10-18 — Destination migration resumed: data committed, smoke partial
+
+- Owner supplied NEON_API_KEY in ignored env; Neon API verified both pinned
+  branches/endpoints/database.23 healthy migrations and live schema parity PASS.
+- Completed Production snapshot snap-snowy-rain-b33t352d verified. Owner chose
+  three VISIBLE records; excluded explicit US09 fixture and HIDDEN duplicate.
+- Imported3 Destinations,21 UNKNOWN weekdays,12 sources,13 media/3 covers and
+  3 editorials. All52 canonical rows equal source;38 FKs have zero dangling rows.
+  Actual apply replay inserts0; excluded-table counts/fingerprints unchanged.
+- Initial timestamp Date-parsing mismatch rolled back. Preserve raw PostgreSQL
+  timestamps; non-UTC real PostgreSQL regression PASS before successful import.
+-16 unit +3 unique disposable PostgreSQL tests PASS; owned container removed.
+  Public API/filter/detail and browser list/search/detail PASS.16 source images200.
+- Full Production acceptance remains PARTIAL: Landing prerender/cache retains
+  empty fallback; map displays unavailable; authenticated CMS/Planner, responsive
+  and actual Stadia tiles/hostname auth unverified. No app/routing change or deploy.
+  Cloudinary Production cloud redacted; no asset movement or rights escalation.
+- All scripts/evidence remain in isolated worktree, uncommitted/unpushed.
+  [22-item report](implementation/destination-development-production-sync.md).
+  DATA_TRANSFER=PASS; DESTINATION_PRODUCTION_SYNC=PARTIAL.
+
+### 2026-10-18 — Final acceptance: scoped Home fix and direct smoke evidence
+
+- Reused isolated destination-production-sync worktree; original checkout has
+  unrelated staged/unmerged guest-auth work and was not touched.
+- Home uses Next16 connection() outside DB fallback. Build marks / dynamic;
+  local next start reads pinned Production with default_transaction_read_only=on,
+  renders all3 names/no fallback. No Production deployment.
+- Added redacted map load/mount/provider/timeout diagnostics. Worker assets match
+  npm; styles/sprites200. Production-origin vector tile probe401, localhost200;
+  local browser draws tiles/all3 markers and correct detail popup. No key/proxy.
+- Owner signed in interactively. CMS list3, gallery3/5/5, sources4 each and
+  editorial revisions14/8,13/7,7/4 confirmed read-only. No save/publish/upload.
+- Actual planner candidate repository and recheck return3 from Production RO;
+  source registry only covers Development. Two durations missing; all hours
+  UNKNOWN. No proposal/Routes/AI/Trip writes. Admin Planner form access confirmed.
+- 15 scoped responsive cases390/768/1440 pass with viewport override reset.
+  Runtime Cloudinary configured=true; exact cloud identity remains unverified.
+- Typecheck/build PASS; Vitest1966 PASS/134 gated SKIP; legacy Map27,
+  Destination63, Search33 PASS. Strict premium audit30 existing findings,
+  none in changed owned files; no repository-wide audit PASS claim.
+- Canonical52-row hash unchanged;23 migrations; snapshot retained. No reimport,
+  schema/Auth writes, merge, push or deploy. Release NO_GO / sync PARTIAL.
+  [Final report](implementation/destination-production-final-acceptance.md).
+
+### 2026-10-18 — Owner-requested branch consolidation and cleanup
+
+- Integrated all missing local/remote branch ancestry into TXH: kduy/duybinh trip
+  editing/location work, Production RAG release, previously uncommitted Destination
+  request-time Home/map diagnostics and Assistant audit. Preserved existing TXH UX
+  changes; retired obsolete local-master rollback without reverting Stadia.
+- Reconciled old trip-edit tests with approved RBAC V2 ownership, retained actual
+  NextResponse in the Home mock and updated stale Home/header source assertions.
+- Final root tests PASS: Vitest2305 and legacy336;134 Vitest skips not counted.
+  Migration55 PASS, root typecheck/build PASS offline. No schema/Production data,
+  provider/rights/runtime activation operation. Native PostgreSQL fixture needs an
+  explicit loopback test port and was not accepted as tested.
+- Verified recovery bundles + ignored-file SHA256 copies outside Git. Archived
+  managed audit worktrees; US19/Guest Git registrations removed. Physical remnants
+  remain where recursive cleanup failed or was rejected by automatic approval
+  review. Keep teammates' personal branches; remove merged feature refs after push.
+- Owner authorized promotion to TXH/dev/master and resulting Production delivery.
+  [Integration report](implementation/branch-consolidation-20261018.md).
+
+### 2026-10-18 — AI Assistant Production Activation V1
+
+- Implemented dedicated fail-closed runtime gate `QA_PRODUCTION_RUNTIME_ENABLED` (default false) and synchronized server-side HTTP guard with client-side UI transport selection in `app/assistant/page.tsx`.
+- Verified live Neon Production corpus on branch `br-cold-dew-b3h270wp` / endpoint `ep-blue-art-b3v3vr4h`: exactly 3 `RagDocument` records (Đồng Văn, Căng Bắc Mê, Khâu Vai) with `INDEXED` status, `publicQaApproved=true`, 137 chunks, 137 valid 1536-dim embeddings. Zero mutations or re-indexing performed.
+- Verified OpenAI provider models live: `text-embedding-3-small` (1536 dims) and `gpt-6.1-sol` (strict structured output) responding with HTTP 200.
+- Configured Vercel Production environment variables: `QA_PRODUCTION_RUNTIME_ENABLED=true`, `QA_ABUSE_PROTECTION_ACCEPTED=true`, `QA_RUNTIME_ALLOWED_DATABASE_HOST=ep-blue-art-b3v3vr4h-pooler.c-4.ap-southeast-1.aws.neon.tech`, `QA_RUNTIME_ALLOWED_DATABASE_NAME=neondb`, and a 32-byte cryptographic `QA_NETWORK_HMAC_SECRET`.
+- Production build deployed to Vercel and aliased to `https://kltn-rho.vercel.app` (Deployment ID: `dpl_AvtbhHxAAf76TcYkGX5dJXug32Yq`).
+- Full automated test suite PASS: 775 Vitest AI/assistant tests, 84 RAG tests, 56 legacy tests, root TypeScript typecheck (`tsc --noEmit`), and Next.js production build (`next build`).
+- Live production smoke test passed: Guest bootstrap (HTTP 200 + HttpOnly cookie), Đồng Văn grounded Q&A (HTTP 200, status `ANSWERED`, 2 citations), Căng Bắc Mê grounded Q&A (HTTP 200, status `ANSWERED`, 1 citation), Khâu Vai Q&A (HTTP 200, status `ANSWERED`, 1 citation), Multi-turn follow-up (HTTP 200, status `ANSWERED`), Out-of-scope grounding rejection (HTTP 200, status `INSUFFICIENT_SOURCE`), and Conversation history list (HTTP 200).
+- Immediate kill switch verified (`QA_PRODUCTION_RUNTIME_ENABLED=false` fails closed to HTTP 503 `AI_UNAVAILABLE` and UI notice banner).
+- Final status: `AI_ASSISTANT_PRODUCTION=PASS`.
+- [Activation report](implementation/assistant-production-activation.md).
+
+### 2026-10-18 — QA verifier latency correction
+
+- Owner-reported generation200 followed by verifier503 was reproduced with valid
+  10.5/12s replies against old10s cutoff. New ceiling25s, clipped to shared40s
+  provider budget,58s persistence acknowledgement target. Vercel60/frontend70/
+  lease90 unchanged; UNKNOWN and identical-key reconciliation preserved.
+- Added safe provider phase/deadline/network/upstream/abort diagnostics, including
+  elapsed/status/usage, in every runtime. No prompts/source/PII/raw error logging.
+  Grounding, semantic verification, citations, eligibility/revocation and abuse
+  controls retained. No model/medium/token-limit/schema/Auth/data/US28 change.
+- Two owner-authorized live Local pipelines used Production read-only corpus and
+  memory persistence: both ANSWERED/3 citations,8 provider calls, zero DB writes.
+  Estimated uncached token cost USD0.05148704, not invoice. Historical incident
+  remains probable timeout; controlled regression confirms the failure mechanism.
+- Focused124 PASS, full regression/typecheck/build evidence and Production GET
+  deployment checks: [timeout report](implementation/qa-verifier-timeout.md).
+
+### 2026-10-18 — Bounded performance audit on TXH (no release)
+
+- Owner explicitly selected direct TXH edits, no push/deploy. Started433f264;
+  concurrent Assistant styling/syntax repair advanced HEAD toa18e8be. Preserved
+  that work; Production baseline433f264 and local A/B source context are separate.
+- Collected57 sequential Production Guest GET samples,20 short Chromium route
+  observations, read-only Prisma/EXPLAIN and existing numeric AI diagnostics.
+  Observability duration requires paid plan, field vitals empty, Neon usage403;
+  no fabricated field p95/INP/cost or authenticated workload measurements.
+- Home public read SQL4→2, paired n5 p50222→157ms with identical DTO hashes.
+  Unfiltered list SQL3→2 but p50143→147ms: fewer statements, no latency-win claim.
+  Lossless poster682840→458612B, decoded pixels identical; original retained.
+  No cross-request cache, source/visibility gate, model, Auth, schema/data change.
+- Corrected browser cache instrumentation and verified50 warm hits. Local Home
+ 390/768/1440 A/B retained all observations, including tablet cold LCP regression.
+  Guest browser18 observations+4 API checks PASS; Explore3/Detail1 map markers at
+  all widths. Valid Traveler/Admin sessions and changed-code Preview unavailable.
+- Controlled post-fix theme-menu interaction probes expose mobile CPU4x event
+  duration864/496ms (second:450.5ms presentation); field INP/root render cause
+  unverified. Both samples retained, no interaction speedup/PASS claim.
+- Root tests2333 Vitest+336 legacy PASS;134 gated SKIP; focused53, harness5,
+  root/script typechecks and isolated Next production build PASS. Static premium
+  audit34 existing unresolved/errors, none in changed UI files; no whole-app PASS.
+- [Review package](performance/performance-optimization-report.md): readiness
+  NO_GO/PARTIAL pending Preview, authenticated CMS/Planner/Trip and broader metrics.
+  No new OpenAI/Routes calls, Production mutations, import, push/merge/deploy.
+
+### 2026-10-18 — Neon priority: read latency decomposition and editorial projection
+
+- Continued on TXH a18e8be + existing performance patch. Owner prioritizes Neon;
+  no push/merge/deploy. Current Production domain nowa18e8be from external work;
+  original433f264 baseline retained. No schema/data/Auth/import/index/compute change.
+-12 read flows×5 paired old/new samples, real PrismaNeon/poolmax2/Production RO;
+  checkout/driver/serialization spans separated,12 canonical DTO hashes identical.
+  Separate3-client WS/TCP ×direct/pooled probe measures local creation/warm RTT,
+  not Vercel hop/compute cold. Unknown stages explicitly NOT_MEASURED.
+- Public editorial reused two unused Admin relations. Public-only select removes
+  areas/cultureLinks, keeps all renderer inputs/DTO validation, media/source rights
+  and final visibility race check. Detail18→16 SQL, editorial10→8. Admin untouched.
+- Paired Home p50209.38→149.58ms; three detail medians841.95→777.43,
+  1061.88→830.57,900.14→786.98ms. Some sample p95 maxima regress; retain all results.
+  No all-route/tail-latency PASS. No new persistent cache: immediate next-read CMS
+  freshness, no private/session cache, no invalidation policy bypass.
+- Neon regionAPI confirmsSingapore; latest Vercel180 function artifacts confirm
+  iad1. Historical hkg1 logs remain distinct; current10m empty. Inter-service RTT
+  and region benefit NOT_MEASURED; Preview placement A/B remains a proposed gate.
+- Focused85 PASS; full2337 Vitest+336 legacy PASS,134 gated SKIP; benchmark7,
+  root/script typecheck and isolated production build PASS. New public reader tests
+  cover identical DTO, unchanged Admin select, hide race, publication freshness
+  and invalid schedules/errors. Final receipts linked in Neon report.
+- [Neon report](performance/neon-database-optimization.md),
+  [17-row mandatory-column matrix](performance/evidence/neon-read-comparison.csv):
+  12 paired flows +5 private workloads BLOCKED without valid sessions. Actual
+  original SQL execution/Vercel session/start/materialization/network metrics are
+  NOT_MEASURED. NEON_PERFORMANCE_OPTIMIZED=PARTIAL; Production releaseNO_GO.
+
+## 2026-10-18 — Performance V3, owner-authorized master rollout
+
+Preserved the uncommitted V1/V2 patch and receipts; owner's latest instruction
+selects master and Production-domain map validation (single Stadia domain).
+Root Vercel regions=[sin1], existing Services/build/rewrites unchanged. Both
+Preview artifacts verified180 Node24 functions in iad1 vs sin1.240 alternating
+public GETs,300 authenticated API samples and120 alternating dashboard GETs
+show lower measured medians; public DTO hashes match and dashboard names remain
+isolated. Five private service/repository workload kinds measured using real
+Better Auth Development fixtures. Preview history remains readiness-gated503;
+repository history timing is not HTTP acceptance or live AI validation.
+
+Real Preview CMS fixture passes create/edit/show/hide and publication/rollback;
+2 users,1 Destination and scoped operation records verified fully cleaned.
+Stadia Preview tile401 remains an explicit hostname restriction; actual current
+Production-domain browser loads tile200 with3 markers. Owner explicitly asks to
+push master and finish validation on that sole configured domain. No map key,
+Origin spoofing, readiness/RBAC bypass, Redis, schema/index/driver/pool/model or
+Production database mutation. Production rollout pending commit/push and final
+alias/function/public smoke; do not infer success from Preview READY.
+
+Validation:2337 Vitest PASS/134 gated SKIP;336 legacy PASS;27 focused timeout and
+public-read tests PASS;7 benchmark tests PASS; root/benchmark typecheck PASS;
+two Preview production builds PASS; diff check and secret scan PASS. Full
+methods, raw measurements, rollback baseline and limits are in
+`docs/performance/performance-optimization-v3.md`. New paid model/routing calls0.
+
+Performance V3 rollout snapshot: master code commit e5a7e01 deployed READY as
+`dpl_GzwyGGusVRtpU6FnCkUSszTZHuVk`; alias and180 sin1 function artifacts verified.
+Read-only Production21 GETs return200 with identical3-Destination API DTO hash;
+Guest browser18 observations +4 denied APIs PASS across390/768/1440. Separate
+actual tile/style/sprite200 and3-marker Production check PASS. Recent available
+runtime error/fatal and CDN5xx log scans each0 records. No paid inference/routing
+or Production DB writes. All new Development fixtures and operation records0
+remaining. Full performance acceptance remains PARTIAL for live AI/history,
+Production owner sessions, native integration/field vitals and detailed provider
+telemetry. Evidence-only follow-up commits preserve the tested runtime tree.
+
+### 2026-10-18 — US-28 verified Production registry fix (TXH; release held)
+
+Code commit f1d414c fixes the Development-only registry and silent empty-candidate
+fallback. Neon API project/branch/endpoint/database identity and read-only real
+Production repository/engine/recheck verified 0→3 public candidates, 1 selectable
+by duration, 0 fully verifiable; both transports correctly return INSUFFICIENT_DATA
+for OPENING_UNKNOWN. Separate environment exclusions and canonical-host/protocol/
+TLS checks retain fail-closed behavior. Single-query inventory distinguishes empty,
+incomplete, invalid-coordinate and registry-excluded data; no filters are relaxed.
+
+Focused 477 PASS / 11 SKIP; full Vitest 2358 PASS / 134 SKIP; legacy 336 PASS;
+typecheck and Production-mode build PASS. Preview real Traveler/Admin
+form→review→check→proposal and bounded live Stadia CAR/MOTORCYCLE pass; regenerate,
+back/edit/recheck, Guest/locked/persisted-role gates and 390/768/1440 start view
+verified. Main browser groups 9 PASS / 1 FAIL (MapLibre tile401); boundary groups
+3 PASS. Production Guest map control has tile200/3 markers and Planner Guest401.
+Existing Production owner session inaccessible via CUA. Owned Development TEST
+users2/Destinations2 cleaned, zero remaining. No Production schema/data/Auth/Trip
+writes, model calls, push, merge or Production deploy; old READY commit70a810f
+retained. Preview map/final E2E block release; business-data gaps separately block
+fully verified proposals. Overall PARTIAL / NO_GO. See
+[full report](implementation/us28-production-registry-fix.md).

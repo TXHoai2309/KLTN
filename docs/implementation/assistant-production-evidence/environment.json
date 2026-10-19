@@ -1,0 +1,121 @@
+{
+  "checkedAt": "2026-10-18T03:58:46.586Z",
+  "scope": "Current Vercel project config metadata, not deployed process.env",
+  "variables": [
+    {
+      "name": "DATABASE_URL",
+      "developmentFilePresent": true,
+      "preview": "PRESENT_METADATA",
+      "production": "PRESENT_METADATA"
+    },
+    {
+      "name": "BETTER_AUTH_SECRET",
+      "developmentFilePresent": true,
+      "preview": "PRESENT_METADATA",
+      "production": "PRESENT_METADATA"
+    },
+    {
+      "name": "BETTER_AUTH_URL",
+      "developmentFilePresent": true,
+      "preview": "NOT_LISTED",
+      "production": "NOT_LISTED"
+    },
+    {
+      "name": "OPENAI_API_KEY",
+      "developmentFilePresent": true,
+      "preview": "PRESENT_METADATA",
+      "production": "PRESENT_METADATA"
+    },
+    {
+      "name": "QA_RUNTIME_ENABLED",
+      "developmentFilePresent": true,
+      "preview": "NOT_LISTED",
+      "production": "NOT_LISTED"
+    },
+    {
+      "name": "QA_PREVIEW_RUNTIME_ENABLED",
+      "developmentFilePresent": true,
+      "preview": "NOT_LISTED",
+      "production": "NOT_LISTED"
+    },
+    {
+      "name": "QA_ABUSE_PROTECTION_ACCEPTED",
+      "developmentFilePresent": true,
+      "preview": "NOT_LISTED",
+      "production": "NOT_LISTED"
+    },
+    {
+      "name": "QA_RUNTIME_ALLOWED_DATABASE_HOST",
+      "developmentFilePresent": true,
+      "preview": "NOT_LISTED",
+      "production": "NOT_LISTED"
+    },
+    {
+      "name": "QA_RUNTIME_ALLOWED_DATABASE_NAME",
+      "developmentFilePresent": true,
+      "preview": "NOT_LISTED",
+      "production": "NOT_LISTED"
+    },
+    {
+      "name": "QA_NETWORK_HMAC_SECRET",
+      "developmentFilePresent": true,
+      "preview": "NOT_LISTED",
+      "production": "NOT_LISTED"
+    },
+    {
+      "name": "QA_LOCAL_NETWORK_ID",
+      "developmentFilePresent": true,
+      "preview": "NOT_LISTED",
+      "production": "NOT_LISTED"
+    },
+    {
+      "name": "QA_PUBLIC_SOURCE_IDS",
+      "developmentFilePresent": false,
+      "preview": "NOT_LISTED",
+      "production": "NOT_LISTED"
+    },
+    {
+      "name": "QA_LEGACY_SOURCE_ALLOWLIST_ENABLED",
+      "developmentFilePresent": true,
+      "preview": "NOT_LISTED",
+      "production": "NOT_LISTED"
+    },
+    {
+      "name": "BLOB_READ_WRITE_TOKEN",
+      "developmentFilePresent": true,
+      "preview": "PRESENT_METADATA",
+      "production": "PRESENT_METADATA"
+    },
+    {
+      "name": "QA_CLEANUP_ENABLED",
+      "developmentFilePresent": true,
+      "preview": "NOT_LISTED",
+      "production": "NOT_LISTED"
+    },
+    {
+      "name": "QA_CLEANUP_ALLOWED_DATABASE_HOST",
+      "developmentFilePresent": true,
+      "preview": "NOT_LISTED",
+      "production": "NOT_LISTED"
+    },
+    {
+      "name": "QA_CLEANUP_ALLOWED_DATABASE_NAME",
+      "developmentFilePresent": true,
+      "preview": "NOT_LISTED",
+      "production": "NOT_LISTED"
+    },
+    {
+      "name": "CRON_SECRET",
+      "developmentFilePresent": true,
+      "preview": "NOT_LISTED",
+      "production": "NOT_LISTED"
+    }
+  ],
+  "limitations": [
+    "Sensitive presence does not establish validity or active deployment value.",
+    "Platform-provided VERCEL, VERCEL_ENV and generated BETTER_AUTH_URL are not custom env entries.",
+    "Local ignored .env is not proof of Vercel Development configuration."
+  ],
+  "valuesExported": false,
+  "credentialValidityChecked": false
+}

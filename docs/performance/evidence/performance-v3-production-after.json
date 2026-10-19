@@ -1,0 +1,305 @@
+{
+  "checkedAt": "2026-10-18T11:17:59.150Z",
+  "phase": "after",
+  "origin": "https://kltn-rho.vercel.app",
+  "method": "21 bounded sequential public GETs,3 samples/workload;500ms pause; no cookies, Auth writes, history GET, inference or routing",
+  "samplesAreSmall": true,
+  "productionWrites": 0,
+  "observations": [
+    {
+      "path": "/api/destinations",
+      "sample": 0,
+      "status": 200,
+      "ttfbMs": 1826.1103,
+      "totalMs": 1845.6808999999998,
+      "bytes": 1257,
+      "dtoHash": "c924705b7b0ba107a97a5e9de0507e9ccd73246ffa3305b96ca571cb177b3967",
+      "destinationCount": 3
+    },
+    {
+      "path": "/api/destinations",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 610.4097000000002,
+      "totalMs": 612.2714999999998,
+      "bytes": 1257,
+      "dtoHash": "c924705b7b0ba107a97a5e9de0507e9ccd73246ffa3305b96ca571cb177b3967",
+      "destinationCount": 3
+    },
+    {
+      "path": "/api/destinations",
+      "sample": 2,
+      "status": 200,
+      "ttfbMs": 388.33200000000033,
+      "totalMs": 389.40970000000016,
+      "bytes": 1257,
+      "dtoHash": "c924705b7b0ba107a97a5e9de0507e9ccd73246ffa3305b96ca571cb177b3967",
+      "destinationCount": 3
+    },
+    {
+      "path": "/",
+      "sample": 0,
+      "status": 200,
+      "ttfbMs": 1618.0272000000004,
+      "totalMs": 1651.0357000000004,
+      "bytes": 112708
+    },
+    {
+      "path": "/",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 694.9519,
+      "totalMs": 699.6048000000001,
+      "bytes": 112708
+    },
+    {
+      "path": "/",
+      "sample": 2,
+      "status": 200,
+      "ttfbMs": 295.9500000000007,
+      "totalMs": 331.1700000000001,
+      "bytes": 112708
+    },
+    {
+      "path": "/explore",
+      "sample": 0,
+      "status": 200,
+      "ttfbMs": 231.58579999999893,
+      "totalMs": 284.5785999999989,
+      "bytes": 51815
+    },
+    {
+      "path": "/explore",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 148.04910000000018,
+      "totalMs": 157.23899999999958,
+      "bytes": 51815
+    },
+    {
+      "path": "/explore",
+      "sample": 2,
+      "status": 200,
+      "ttfbMs": 158.47659999999996,
+      "totalMs": 166.14539999999943,
+      "bytes": 51815
+    },
+    {
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 0,
+      "status": 200,
+      "ttfbMs": 316.72550000000047,
+      "totalMs": 486.0727999999999,
+      "bytes": 69742
+    },
+    {
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 157.22189999999864,
+      "totalMs": 206.18799999999828,
+      "bytes": 69742
+    },
+    {
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 2,
+      "status": 200,
+      "ttfbMs": 428.34659999999894,
+      "totalMs": 433.91759999999886,
+      "bytes": 69742
+    },
+    {
+      "path": "/destinations/cmv9fcwo1000be89w3yxz3mqu",
+      "sample": 0,
+      "status": 200,
+      "ttfbMs": 152.6913999999997,
+      "totalMs": 225.82989999999882,
+      "bytes": 79849
+    },
+    {
+      "path": "/destinations/cmv9fcwo1000be89w3yxz3mqu",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 195.15819999999985,
+      "totalMs": 237.35670000000027,
+      "bytes": 79849
+    },
+    {
+      "path": "/destinations/cmv9fcwo1000be89w3yxz3mqu",
+      "sample": 2,
+      "status": 200,
+      "ttfbMs": 160.6237999999994,
+      "totalMs": 209.64379999999983,
+      "bytes": 79849
+    },
+    {
+      "path": "/destinations/cmvanjc6p000f7w9wyuydna52",
+      "sample": 0,
+      "status": 200,
+      "ttfbMs": 144.67220000000088,
+      "totalMs": 202.50730000000112,
+      "bytes": 96023
+    },
+    {
+      "path": "/destinations/cmvanjc6p000f7w9wyuydna52",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 143.33300000000054,
+      "totalMs": 189.29399999999987,
+      "bytes": 96023
+    },
+    {
+      "path": "/destinations/cmvanjc6p000f7w9wyuydna52",
+      "sample": 2,
+      "status": 200,
+      "ttfbMs": 149.1973999999973,
+      "totalMs": 231.27179999999862,
+      "bytes": 96023
+    },
+    {
+      "path": "/assistant",
+      "sample": 0,
+      "status": 200,
+      "ttfbMs": 238.30259999999907,
+      "totalMs": 240.07330000000002,
+      "bytes": 46191
+    },
+    {
+      "path": "/assistant",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 144.1436999999969,
+      "totalMs": 177.62079999999696,
+      "bytes": 46191
+    },
+    {
+      "path": "/assistant",
+      "sample": 2,
+      "status": 200,
+      "ttfbMs": 152.00120000000243,
+      "totalMs": 190.2409000000007,
+      "bytes": 46191
+    }
+  ],
+  "summary": [
+    {
+      "path": "/api/destinations",
+      "totalMs": {
+        "n": 3,
+        "p50": 612.2714999999998,
+        "p95": 1845.6808999999998,
+        "min": 389.40970000000016,
+        "max": 1845.6808999999998
+      },
+      "ttfbMs": {
+        "n": 3,
+        "p50": 610.4097000000002,
+        "p95": 1826.1103,
+        "min": 388.33200000000033,
+        "max": 1826.1103
+      }
+    },
+    {
+      "path": "/",
+      "totalMs": {
+        "n": 3,
+        "p50": 699.6048000000001,
+        "p95": 1651.0357000000004,
+        "min": 331.1700000000001,
+        "max": 1651.0357000000004
+      },
+      "ttfbMs": {
+        "n": 3,
+        "p50": 694.9519,
+        "p95": 1618.0272000000004,
+        "min": 295.9500000000007,
+        "max": 1618.0272000000004
+      }
+    },
+    {
+      "path": "/explore",
+      "totalMs": {
+        "n": 3,
+        "p50": 166.14539999999943,
+        "p95": 284.5785999999989,
+        "min": 157.23899999999958,
+        "max": 284.5785999999989
+      },
+      "ttfbMs": {
+        "n": 3,
+        "p50": 158.47659999999996,
+        "p95": 231.58579999999893,
+        "min": 148.04910000000018,
+        "max": 231.58579999999893
+      }
+    },
+    {
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "totalMs": {
+        "n": 3,
+        "p50": 433.91759999999886,
+        "p95": 486.0727999999999,
+        "min": 206.18799999999828,
+        "max": 486.0727999999999
+      },
+      "ttfbMs": {
+        "n": 3,
+        "p50": 316.72550000000047,
+        "p95": 428.34659999999894,
+        "min": 157.22189999999864,
+        "max": 428.34659999999894
+      }
+    },
+    {
+      "path": "/destinations/cmv9fcwo1000be89w3yxz3mqu",
+      "totalMs": {
+        "n": 3,
+        "p50": 225.82989999999882,
+        "p95": 237.35670000000027,
+        "min": 209.64379999999983,
+        "max": 237.35670000000027
+      },
+      "ttfbMs": {
+        "n": 3,
+        "p50": 160.6237999999994,
+        "p95": 195.15819999999985,
+        "min": 152.6913999999997,
+        "max": 195.15819999999985
+      }
+    },
+    {
+      "path": "/destinations/cmvanjc6p000f7w9wyuydna52",
+      "totalMs": {
+        "n": 3,
+        "p50": 202.50730000000112,
+        "p95": 231.27179999999862,
+        "min": 189.29399999999987,
+        "max": 231.27179999999862
+      },
+      "ttfbMs": {
+        "n": 3,
+        "p50": 144.67220000000088,
+        "p95": 149.1973999999973,
+        "min": 143.33300000000054,
+        "max": 149.1973999999973
+      }
+    },
+    {
+      "path": "/assistant",
+      "totalMs": {
+        "n": 3,
+        "p50": 190.2409000000007,
+        "p95": 240.07330000000002,
+        "min": 177.62079999999696,
+        "max": 240.07330000000002
+      },
+      "ttfbMs": {
+        "n": 3,
+        "p50": 152.00120000000243,
+        "p95": 238.30259999999907,
+        "min": 144.1436999999969,
+        "max": 238.30259999999907
+      }
+    }
+  ]
+}

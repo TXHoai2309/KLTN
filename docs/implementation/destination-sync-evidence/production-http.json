@@ -1,0 +1,147 @@
+{
+  "checkedAt": "2026-10-17T19:08:21.091Z",
+  "mode": "READ_ONLY_NO_AUTH_NO_QA",
+  "results": [
+    {
+      "path": "/api/health",
+      "status": 200,
+      "finalPath": "/api/health",
+      "apiSuccess": true
+    },
+    {
+      "path": "/api/destinations",
+      "status": 200,
+      "finalPath": "/api/destinations",
+      "apiSuccess": true,
+      "count": 3,
+      "ids": [
+        "cmv97lcrq0016z09ws0o74lqp",
+        "cmvanjc6p000f7w9wyuydna52",
+        "cmv9fcwo1000be89w3yxz3mqu"
+      ],
+      "coverCount": 3
+    },
+    {
+      "path": "/api/destinations?q=Kh%C3%A2u%20Vai",
+      "status": 200,
+      "finalPath": "/api/destinations",
+      "apiSuccess": true,
+      "count": 1,
+      "ids": [
+        "cmvanjc6p000f7w9wyuydna52"
+      ],
+      "coverCount": 1
+    },
+    {
+      "path": "/api/destinations?category=v%C4%83n%20h%C3%B3a",
+      "status": 200,
+      "finalPath": "/api/destinations",
+      "apiSuccess": true,
+      "count": 1,
+      "ids": [
+        "cmvanjc6p000f7w9wyuydna52"
+      ],
+      "coverCount": 1
+    },
+    {
+      "path": "/api/destinations?region=khu%20v%E1%BB%B1c%20h%C3%A0%20giang",
+      "status": 200,
+      "finalPath": "/api/destinations",
+      "apiSuccess": true,
+      "count": 3,
+      "ids": [
+        "cmv97lcrq0016z09ws0o74lqp",
+        "cmvanjc6p000f7w9wyuydna52",
+        "cmv9fcwo1000be89w3yxz3mqu"
+      ],
+      "coverCount": 3
+    },
+    {
+      "path": "/api/destinations?q=no-synthetic-result-20261018",
+      "status": 200,
+      "finalPath": "/api/destinations",
+      "apiSuccess": true,
+      "count": 0,
+      "ids": [],
+      "coverCount": 0
+    },
+    {
+      "path": "/api/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "status": 200,
+      "finalPath": "/api/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "apiSuccess": true
+    },
+    {
+      "path": "/api/destinations/cmv9fcwo1000be89w3yxz3mqu",
+      "status": 200,
+      "finalPath": "/api/destinations/cmv9fcwo1000be89w3yxz3mqu",
+      "apiSuccess": true
+    },
+    {
+      "path": "/api/destinations/cmvanjc6p000f7w9wyuydna52",
+      "status": 200,
+      "finalPath": "/api/destinations/cmvanjc6p000f7w9wyuydna52",
+      "apiSuccess": true
+    },
+    {
+      "path": "/api/destinations/cmutr90km00015o9w4t64ozfd",
+      "status": 404,
+      "finalPath": "/api/destinations/cmutr90km00015o9w4t64ozfd",
+      "apiSuccess": false
+    },
+    {
+      "path": "/api/destinations/cmv7kc5eu0003209w9ggzpolq",
+      "status": 404,
+      "finalPath": "/api/destinations/cmv7kc5eu0003209w9ggzpolq",
+      "apiSuccess": false
+    },
+    {
+      "path": "/",
+      "status": 200,
+      "finalPath": "/",
+      "prerender": "1",
+      "vercelCache": "HIT",
+      "age": "3008",
+      "hasRealDestinationNames": false,
+      "hasFallback": true
+    },
+    {
+      "path": "/explore",
+      "status": 200,
+      "finalPath": "/explore",
+      "hasImportedNames": true
+    },
+    {
+      "path": "/explore?view=list",
+      "status": 200,
+      "finalPath": "/explore",
+      "hasImportedNames": true
+    },
+    {
+      "path": "/explore?view=map",
+      "status": 200,
+      "finalPath": "/explore",
+      "hasImportedNames": true
+    },
+    {
+      "path": "/maplibre/maplibre-gl-worker.mjs",
+      "status": 200,
+      "finalPath": "/maplibre/maplibre-gl-worker.mjs"
+    },
+    {
+      "path": "/maplibre/maplibre-gl-shared.mjs",
+      "status": 200,
+      "finalPath": "/maplibre/maplibre-gl-shared.mjs"
+    },
+    {
+      "path": "/admin/destinations",
+      "status": 200,
+      "finalPath": "/admin/destinations"
+    },
+    {
+      "path": "/trips/new",
+      "status": 200,
+      "finalPath": "/trips/new"
+    }
+  ]
+}

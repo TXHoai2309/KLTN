@@ -1,0 +1,4349 @@
+{
+  "measuredAt": "2026-10-18T11:10:48.026Z",
+  "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+  "browser": "isolated Chromium; no credentials; all non-GET/HEAD blocked",
+  "conditions": {
+    "widths": [
+      390,
+      768,
+      1440
+    ],
+    "viewportHeight": 900,
+    "mobile": "4Mbps/80ms RTT/4x CPU",
+    "desktopTablet": "20Mbps/20ms RTT/1x CPU",
+    "reducedMotion": "reduce",
+    "observation": "load + 2500ms, viewport only; no interaction or scrolling",
+    "cache": "cold/warm browser only; server cold not forced",
+    "crossOriginBytes": "Resource Timing may be zero without TAO; encodedNetworkBytes from CDP includes completed cross-origin transfers",
+    "lcp": "synthetic observed candidate, not field p75",
+    "cls": "observation-window cumulative shifts, not full-session metric"
+  },
+  "observations": [
+    {
+      "route": "/",
+      "width": 390,
+      "cache": "browser-cold",
+      "cacheHits": 0,
+      "status": 200,
+      "navigationFailure": false,
+      "elapsedMs": 7019,
+      "encodedNetworkBytes": 1217226,
+      "payload": {
+        "font": {
+          "count": 24,
+          "encodedBodyBytes": 268872,
+          "transferBytes": 276072
+        },
+        "css": {
+          "count": 9,
+          "encodedBodyBytes": 67523,
+          "transferBytes": 70223
+        },
+        "js": {
+          "count": 21,
+          "encodedBodyBytes": 378419,
+          "transferBytes": 384419
+        },
+        "image": {
+          "count": 1,
+          "encodedBodyBytes": 458612,
+          "transferBytes": 458912
+        },
+        "other": {
+          "count": 18,
+          "encodedBodyBytes": 8326,
+          "transferBytes": 13726
+        }
+      },
+      "resources": [
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/00ea0ef410d3b1a3-s.p.1u66ldh9q433o.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 12464,
+          "transferBytes": 12764,
+          "durationMs": 550,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/3c285486269019b7-s.p.1br53b7gww62p.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 12908,
+          "transferBytes": 13208,
+          "durationMs": 624,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/3eca85881bcfa204-s.p.1uu2pxtyb_ixz.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13380,
+          "transferBytes": 13680,
+          "durationMs": 686,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/53e45098eac42afb-s.p.0udrnr4-18tjo.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 4720,
+          "transferBytes": 5020,
+          "durationMs": 204,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/5f841e19a104a2f1-s.p.2ia5k3t--_4xp.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5092,
+          "transferBytes": 5392,
+          "durationMs": 393,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/625a092f804baad3-s.p.3bgaltqld2gq2.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5100,
+          "transferBytes": 5400,
+          "durationMs": 170,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/6f42e0a3b0519c4d-s.p.31-z0m_4g_6pa.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13348,
+          "transferBytes": 13648,
+          "durationMs": 903,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/72a16e137f4c90fd-s.p.2w0vc8cot_wiz.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 4720,
+          "transferBytes": 5020,
+          "durationMs": 178,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/797e433ab948586e-s.p.1v5bejj26fx9h.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 23108,
+          "transferBytes": 23408,
+          "durationMs": 1051,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/8f46d218c8f79e34-s.p.092z1_2w2m55_.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13428,
+          "transferBytes": 13728,
+          "durationMs": 747,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/8c2eb9ceedecfc8e-s.p.1c4v1kyduoipm.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 37792,
+          "transferBytes": 38092,
+          "durationMs": 1214,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/8ffc259da9d23054-s.p.2heyes1wqz_kz.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5132,
+          "transferBytes": 5432,
+          "durationMs": 280,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/9d978ba009f47915-s.p.1p2xad7_-sbqy.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13604,
+          "transferBytes": 13904,
+          "durationMs": 871,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/a3bcb02a0e9e5d11-s.p.35qbt1_6db49h.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5124,
+          "transferBytes": 5424,
+          "durationMs": 217,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/a4f4f75ad654963f-s.p.22m3f6pvfu2zf.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13324,
+          "transferBytes": 13624,
+          "durationMs": 886,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/e1ccd2766b08c828-s.p.1trkgqz3-pw7b.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 8908,
+          "transferBytes": 9208,
+          "durationMs": 700,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/caa3a2e1cccd8315-s.p.0zr6hhvz-h9nw.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 29288,
+          "transferBytes": 29588,
+          "durationMs": 1132,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/fcf129058e6e31f2-s.p.11ye8_54polii.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5144,
+          "transferBytes": 5444,
+          "durationMs": 516,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/1pcpb58np0hwa.css",
+          "kind": "css",
+          "encodedBodyBytes": 2882,
+          "transferBytes": 3182,
+          "durationMs": 577,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/44i8p1-r4plma.css",
+          "kind": "css",
+          "encodedBodyBytes": 1330,
+          "transferBytes": 1630,
+          "durationMs": 329,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2_kf68gh5e27e.css",
+          "kind": "css",
+          "encodedBodyBytes": 18377,
+          "transferBytes": 18677,
+          "durationMs": 1026,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/21l6k590z34o0.css",
+          "kind": "css",
+          "encodedBodyBytes": 4346,
+          "transferBytes": 4646,
+          "durationMs": 421,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/10wvzie0n6hrk.css",
+          "kind": "css",
+          "encodedBodyBytes": 10516,
+          "transferBytes": 10816,
+          "durationMs": 854,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/18tkshu5u4gl8.css",
+          "kind": "css",
+          "encodedBodyBytes": 15990,
+          "transferBytes": 16290,
+          "durationMs": 948,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0fovf4mbrzuxx.js",
+          "kind": "js",
+          "encodedBodyBytes": 3789,
+          "transferBytes": 4089,
+          "durationMs": 439,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/1191lj8_x8otc.js",
+          "kind": "js",
+          "encodedBodyBytes": 8794,
+          "transferBytes": 9094,
+          "durationMs": 717,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0vn_c-qtmgve7.js",
+          "kind": "js",
+          "encodedBodyBytes": 8730,
+          "transferBytes": 9030,
+          "durationMs": 702,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/31ye0b8iue7vm.js",
+          "kind": "js",
+          "encodedBodyBytes": 73139,
+          "transferBytes": 73439,
+          "durationMs": 1411,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0wl-od64gbou4.js",
+          "kind": "js",
+          "encodedBodyBytes": 35731,
+          "transferBytes": 36031,
+          "durationMs": 1184,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/3c6-f2nju9kp2.js",
+          "kind": "js",
+          "encodedBodyBytes": 13029,
+          "transferBytes": 13329,
+          "durationMs": 872,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/turbopack-2v1kll9q-4-a2.js",
+          "kind": "js",
+          "encodedBodyBytes": 4540,
+          "transferBytes": 4840,
+          "durationMs": 501,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/20-z55-i2gsys.js",
+          "kind": "js",
+          "encodedBodyBytes": 10534,
+          "transferBytes": 10834,
+          "durationMs": 794,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/21p5yufur5h0c.js",
+          "kind": "js",
+          "encodedBodyBytes": 9380,
+          "transferBytes": 9680,
+          "durationMs": 732,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0u_nxrbrmwb9r.js",
+          "kind": "js",
+          "encodedBodyBytes": 12394,
+          "transferBytes": 12694,
+          "durationMs": 855,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/04idciq-ma_99.js",
+          "kind": "js",
+          "encodedBodyBytes": 46305,
+          "transferBytes": 46605,
+          "durationMs": 1259,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2t1-rkkqk5vy9.js",
+          "kind": "js",
+          "encodedBodyBytes": 15450,
+          "transferBytes": 15750,
+          "durationMs": 980,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2djye3t_l310w.js",
+          "kind": "js",
+          "encodedBodyBytes": 13048,
+          "transferBytes": 13348,
+          "durationMs": 855,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/439akcaatie30.js",
+          "kind": "js",
+          "encodedBodyBytes": 1003,
+          "transferBytes": 1303,
+          "durationMs": 283,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0wwgwrpuee5ul.js",
+          "kind": "js",
+          "encodedBodyBytes": 10816,
+          "transferBytes": 11116,
+          "durationMs": 886,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/1ku1svcvhkvjk.js",
+          "kind": "js",
+          "encodedBodyBytes": 11815,
+          "transferBytes": 12115,
+          "durationMs": 886,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/images/ha-giang-highland-poster.webp",
+          "kind": "image",
+          "encodedBodyBytes": 458612,
+          "transferBytes": 458912,
+          "durationMs": 2875,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/9e486ba39c38fb8a-s.37omzjo7pfhh3.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7164,
+          "transferBytes": 7464,
+          "durationMs": 2041,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/7b74840ea7c05e95-s.1e28-l79jjv5u.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7144,
+          "transferBytes": 7444,
+          "durationMs": 2004,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/85ea1b3aadcead52-s.18lx4otehud-r.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 6880,
+          "transferBytes": 7180,
+          "durationMs": 1979,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/b35fd19aef91b293-s.1-vmsm_v03uvy.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7152,
+          "transferBytes": 7452,
+          "durationMs": 1990,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/6afabefbb32d7517-s.0mlt1uo-cplt-.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7184,
+          "transferBytes": 7484,
+          "durationMs": 1967,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/ac83d56547af7957-s.2z_-uxg0gj5aw.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 6764,
+          "transferBytes": 7064,
+          "durationMs": 1838,
+          "status": 200
+        },
+        {
+          "origin": "https://vercel.live",
+          "path": "/_next-live/feedback/feedback.js",
+          "kind": "js",
+          "encodedBodyBytes": 0,
+          "transferBytes": 0,
+          "durationMs": 374,
+          "status": 0
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/api/auth/get-session",
+          "kind": "other",
+          "encodedBodyBytes": 10,
+          "transferBytes": 310,
+          "durationMs": 1383,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/explore",
+          "kind": "other",
+          "encodedBodyBytes": 159,
+          "transferBytes": 459,
+          "durationMs": 656,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/assistant",
+          "kind": "other",
+          "encodedBodyBytes": 156,
+          "transferBytes": 456,
+          "durationMs": 656,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/favorites",
+          "kind": "other",
+          "encodedBodyBytes": 160,
+          "transferBytes": 460,
+          "durationMs": 669,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips/new",
+          "kind": "other",
+          "encodedBodyBytes": 163,
+          "transferBytes": 463,
+          "durationMs": 655,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips",
+          "kind": "other",
+          "encodedBodyBytes": 156,
+          "transferBytes": 456,
+          "durationMs": 175,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/dashboard",
+          "kind": "other",
+          "encodedBodyBytes": 155,
+          "transferBytes": 455,
+          "durationMs": 172,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/",
+          "kind": "other",
+          "encodedBodyBytes": 837,
+          "transferBytes": 1137,
+          "durationMs": 144,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/explore",
+          "kind": "other",
+          "encodedBodyBytes": 1209,
+          "transferBytes": 1509,
+          "durationMs": 142,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/assistant",
+          "kind": "other",
+          "encodedBodyBytes": 676,
+          "transferBytes": 976,
+          "durationMs": 152,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/favorites",
+          "kind": "other",
+          "encodedBodyBytes": 1110,
+          "transferBytes": 1410,
+          "durationMs": 151,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips/new",
+          "kind": "other",
+          "encodedBodyBytes": 1166,
+          "transferBytes": 1466,
+          "durationMs": 161,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/25-a27rpndia-.css",
+          "kind": "css",
+          "encodedBodyBytes": 8860,
+          "transferBytes": 9160,
+          "durationMs": 133,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips",
+          "kind": "other",
+          "encodedBodyBytes": 147,
+          "transferBytes": 447,
+          "durationMs": 141,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/login",
+          "kind": "other",
+          "encodedBodyBytes": 165,
+          "transferBytes": 465,
+          "durationMs": 167,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/3ixr-3p1wsdb-.js",
+          "kind": "js",
+          "encodedBodyBytes": 4846,
+          "transferBytes": 5146,
+          "durationMs": 119,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0jhgzhne0r23u.js",
+          "kind": "js",
+          "encodedBodyBytes": 93406,
+          "transferBytes": 93706,
+          "durationMs": 505,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/24kdwqjmdtl6t.js",
+          "kind": "js",
+          "encodedBodyBytes": 869,
+          "transferBytes": 1169,
+          "durationMs": 132,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0pk74q1mxhtgd.css",
+          "kind": "css",
+          "encodedBodyBytes": 3480,
+          "transferBytes": 3780,
+          "durationMs": 129,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/dashboard",
+          "kind": "other",
+          "encodedBodyBytes": 628,
+          "transferBytes": 928,
+          "durationMs": 150,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips",
+          "kind": "other",
+          "encodedBodyBytes": 627,
+          "transferBytes": 927,
+          "durationMs": 155,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0az152jn-wf7p.js",
+          "kind": "js",
+          "encodedBodyBytes": 801,
+          "transferBytes": 1101,
+          "durationMs": 94,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2hg68zgoes4ut.css",
+          "kind": "css",
+          "encodedBodyBytes": 1742,
+          "transferBytes": 2042,
+          "durationMs": 118,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/login",
+          "kind": "other",
+          "encodedBodyBytes": 649,
+          "transferBytes": 949,
+          "durationMs": 144,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/login",
+          "kind": "other",
+          "encodedBodyBytes": 153,
+          "transferBytes": 453,
+          "durationMs": 132,
+          "status": 200
+        }
+      ],
+      "lcp": {
+        "startTime": 3252,
+        "size": 88800,
+        "tag": "VIDEO"
+      },
+      "cls": 0.00048164609053497943,
+      "longTasks": [
+        148,
+        106,
+        58,
+        50,
+        105
+      ],
+      "interactions": [],
+      "navigation": {
+        "ttfbMs": 243.69999999925494,
+        "domContentLoadedMs": 2734.60000000149,
+        "loadMs": 4450.800000000745,
+        "encodedBodyBytes": 19178,
+        "decodedBodyBytes": 115119
+      },
+      "overflow": false,
+      "mapMarkers": 0,
+      "mapUnavailable": false,
+      "imageCount": 0,
+      "inp": null,
+      "inpReason": "No representative user interaction; field INP unavailable",
+      "blockedWriteRequests": []
+    },
+    {
+      "route": "/",
+      "width": 390,
+      "cache": "browser-warm",
+      "cacheHits": 51,
+      "status": 200,
+      "navigationFailure": false,
+      "elapsedMs": 4937,
+      "encodedNetworkBytes": 32052,
+      "payload": {
+        "font": {
+          "count": 24,
+          "encodedBodyBytes": 268872,
+          "transferBytes": 0
+        },
+        "css": {
+          "count": 9,
+          "encodedBodyBytes": 67523,
+          "transferBytes": 0
+        },
+        "js": {
+          "count": 21,
+          "encodedBodyBytes": 378419,
+          "transferBytes": 0
+        },
+        "image": {
+          "count": 1,
+          "encodedBodyBytes": 0,
+          "transferBytes": 300
+        },
+        "other": {
+          "count": 19,
+          "encodedBodyBytes": 8496,
+          "transferBytes": 14196
+        }
+      },
+      "resources": [
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/00ea0ef410d3b1a3-s.p.1u66ldh9q433o.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 12464,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/3c285486269019b7-s.p.1br53b7gww62p.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 12908,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/3eca85881bcfa204-s.p.1uu2pxtyb_ixz.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13380,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/53e45098eac42afb-s.p.0udrnr4-18tjo.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 4720,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/5f841e19a104a2f1-s.p.2ia5k3t--_4xp.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5092,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/625a092f804baad3-s.p.3bgaltqld2gq2.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5100,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/6f42e0a3b0519c4d-s.p.31-z0m_4g_6pa.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13348,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/72a16e137f4c90fd-s.p.2w0vc8cot_wiz.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 4720,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/797e433ab948586e-s.p.1v5bejj26fx9h.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 23108,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/8c2eb9ceedecfc8e-s.p.1c4v1kyduoipm.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 37792,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/8f46d218c8f79e34-s.p.092z1_2w2m55_.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13428,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/8ffc259da9d23054-s.p.2heyes1wqz_kz.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5132,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/9d978ba009f47915-s.p.1p2xad7_-sbqy.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13604,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/a3bcb02a0e9e5d11-s.p.35qbt1_6db49h.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5124,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/a4f4f75ad654963f-s.p.22m3f6pvfu2zf.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13324,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/caa3a2e1cccd8315-s.p.0zr6hhvz-h9nw.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 29288,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/e1ccd2766b08c828-s.p.1trkgqz3-pw7b.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 8908,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/fcf129058e6e31f2-s.p.11ye8_54polii.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5144,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/1pcpb58np0hwa.css",
+          "kind": "css",
+          "encodedBodyBytes": 2882,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2_kf68gh5e27e.css",
+          "kind": "css",
+          "encodedBodyBytes": 18377,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/44i8p1-r4plma.css",
+          "kind": "css",
+          "encodedBodyBytes": 1330,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/21l6k590z34o0.css",
+          "kind": "css",
+          "encodedBodyBytes": 4346,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/18tkshu5u4gl8.css",
+          "kind": "css",
+          "encodedBodyBytes": 15990,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/10wvzie0n6hrk.css",
+          "kind": "css",
+          "encodedBodyBytes": 10516,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0fovf4mbrzuxx.js",
+          "kind": "js",
+          "encodedBodyBytes": 3789,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/1191lj8_x8otc.js",
+          "kind": "js",
+          "encodedBodyBytes": 8794,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0vn_c-qtmgve7.js",
+          "kind": "js",
+          "encodedBodyBytes": 8730,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/31ye0b8iue7vm.js",
+          "kind": "js",
+          "encodedBodyBytes": 73139,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0wl-od64gbou4.js",
+          "kind": "js",
+          "encodedBodyBytes": 35731,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/3c6-f2nju9kp2.js",
+          "kind": "js",
+          "encodedBodyBytes": 13029,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/turbopack-2v1kll9q-4-a2.js",
+          "kind": "js",
+          "encodedBodyBytes": 4540,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/20-z55-i2gsys.js",
+          "kind": "js",
+          "encodedBodyBytes": 10534,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/21p5yufur5h0c.js",
+          "kind": "js",
+          "encodedBodyBytes": 9380,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0u_nxrbrmwb9r.js",
+          "kind": "js",
+          "encodedBodyBytes": 12394,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/04idciq-ma_99.js",
+          "kind": "js",
+          "encodedBodyBytes": 46305,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2t1-rkkqk5vy9.js",
+          "kind": "js",
+          "encodedBodyBytes": 15450,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2djye3t_l310w.js",
+          "kind": "js",
+          "encodedBodyBytes": 13048,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0wwgwrpuee5ul.js",
+          "kind": "js",
+          "encodedBodyBytes": 10816,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/439akcaatie30.js",
+          "kind": "js",
+          "encodedBodyBytes": 1003,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/1ku1svcvhkvjk.js",
+          "kind": "js",
+          "encodedBodyBytes": 11815,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/images/ha-giang-highland-poster.webp",
+          "kind": "image",
+          "encodedBodyBytes": 0,
+          "transferBytes": 300,
+          "durationMs": 101,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/85ea1b3aadcead52-s.18lx4otehud-r.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 6880,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/6afabefbb32d7517-s.0mlt1uo-cplt-.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7184,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/b35fd19aef91b293-s.1-vmsm_v03uvy.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7152,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/9e486ba39c38fb8a-s.37omzjo7pfhh3.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7164,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/7b74840ea7c05e95-s.1e28-l79jjv5u.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7144,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/ac83d56547af7957-s.2z_-uxg0gj5aw.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 6764,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://vercel.live",
+          "path": "/_next-live/feedback/feedback.js",
+          "kind": "js",
+          "encodedBodyBytes": 0,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 0
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/api/auth/get-session",
+          "kind": "other",
+          "encodedBodyBytes": 10,
+          "transferBytes": 310,
+          "durationMs": 1863,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/explore",
+          "kind": "other",
+          "encodedBodyBytes": 159,
+          "transferBytes": 459,
+          "durationMs": 1685,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/assistant",
+          "kind": "other",
+          "encodedBodyBytes": 156,
+          "transferBytes": 456,
+          "durationMs": 1683,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/favorites",
+          "kind": "other",
+          "encodedBodyBytes": 160,
+          "transferBytes": 460,
+          "durationMs": 1683,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips/new",
+          "kind": "other",
+          "encodedBodyBytes": 163,
+          "transferBytes": 463,
+          "durationMs": 1681,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips",
+          "kind": "other",
+          "encodedBodyBytes": 156,
+          "transferBytes": 456,
+          "durationMs": 146,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/dashboard",
+          "kind": "other",
+          "encodedBodyBytes": 155,
+          "transferBytes": 455,
+          "durationMs": 150,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/explore",
+          "kind": "other",
+          "encodedBodyBytes": 169,
+          "transferBytes": 469,
+          "durationMs": 148,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/",
+          "kind": "other",
+          "encodedBodyBytes": 840,
+          "transferBytes": 1140,
+          "durationMs": 168,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/login",
+          "kind": "other",
+          "encodedBodyBytes": 165,
+          "transferBytes": 465,
+          "durationMs": 146,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/explore",
+          "kind": "other",
+          "encodedBodyBytes": 1208,
+          "transferBytes": 1508,
+          "durationMs": 168,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/assistant",
+          "kind": "other",
+          "encodedBodyBytes": 672,
+          "transferBytes": 972,
+          "durationMs": 144,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/favorites",
+          "kind": "other",
+          "encodedBodyBytes": 1112,
+          "transferBytes": 1412,
+          "durationMs": 153,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/login",
+          "kind": "other",
+          "encodedBodyBytes": 651,
+          "transferBytes": 951,
+          "durationMs": 141,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips/new",
+          "kind": "other",
+          "encodedBodyBytes": 1166,
+          "transferBytes": 1466,
+          "durationMs": 154,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/25-a27rpndia-.css",
+          "kind": "css",
+          "encodedBodyBytes": 8860,
+          "transferBytes": 0,
+          "durationMs": 3,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips",
+          "kind": "other",
+          "encodedBodyBytes": 147,
+          "transferBytes": 447,
+          "durationMs": 136,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/3ixr-3p1wsdb-.js",
+          "kind": "js",
+          "encodedBodyBytes": 4846,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0jhgzhne0r23u.js",
+          "kind": "js",
+          "encodedBodyBytes": 93406,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/24kdwqjmdtl6t.js",
+          "kind": "js",
+          "encodedBodyBytes": 869,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0pk74q1mxhtgd.css",
+          "kind": "css",
+          "encodedBodyBytes": 3480,
+          "transferBytes": 0,
+          "durationMs": 3,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/dashboard",
+          "kind": "other",
+          "encodedBodyBytes": 627,
+          "transferBytes": 927,
+          "durationMs": 134,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/login",
+          "kind": "other",
+          "encodedBodyBytes": 153,
+          "transferBytes": 453,
+          "durationMs": 150,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0az152jn-wf7p.js",
+          "kind": "js",
+          "encodedBodyBytes": 801,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2hg68zgoes4ut.css",
+          "kind": "css",
+          "encodedBodyBytes": 1742,
+          "transferBytes": 0,
+          "durationMs": 4,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips",
+          "kind": "other",
+          "encodedBodyBytes": 627,
+          "transferBytes": 927,
+          "durationMs": 152,
+          "status": 200
+        }
+      ],
+      "lcp": {
+        "startTime": 1464,
+        "size": 88800,
+        "tag": "VIDEO"
+      },
+      "cls": 0.00048164609053497943,
+      "longTasks": [
+        63,
+        78
+      ],
+      "interactions": [],
+      "navigation": {
+        "ttfbMs": 74,
+        "domContentLoadedMs": 1451.8999999985099,
+        "loadMs": 2394.39999999851,
+        "encodedBodyBytes": 19204,
+        "decodedBodyBytes": 115119
+      },
+      "overflow": false,
+      "mapMarkers": 0,
+      "mapUnavailable": false,
+      "imageCount": 0,
+      "inp": null,
+      "inpReason": "No representative user interaction; field INP unavailable",
+      "blockedWriteRequests": []
+    },
+    {
+      "route": "/",
+      "width": 768,
+      "cache": "browser-cold",
+      "cacheHits": 0,
+      "status": 200,
+      "navigationFailure": false,
+      "elapsedMs": 4188,
+      "encodedNetworkBytes": 1217036,
+      "payload": {
+        "font": {
+          "count": 24,
+          "encodedBodyBytes": 268872,
+          "transferBytes": 276072
+        },
+        "css": {
+          "count": 9,
+          "encodedBodyBytes": 67523,
+          "transferBytes": 70223
+        },
+        "js": {
+          "count": 21,
+          "encodedBodyBytes": 378419,
+          "transferBytes": 384419
+        },
+        "image": {
+          "count": 1,
+          "encodedBodyBytes": 458612,
+          "transferBytes": 458912
+        },
+        "other": {
+          "count": 18,
+          "encodedBodyBytes": 8327,
+          "transferBytes": 13727
+        }
+      },
+      "resources": [
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/00ea0ef410d3b1a3-s.p.1u66ldh9q433o.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 12464,
+          "transferBytes": 12764,
+          "durationMs": 104,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/3c285486269019b7-s.p.1br53b7gww62p.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 12908,
+          "transferBytes": 13208,
+          "durationMs": 134,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/53e45098eac42afb-s.p.0udrnr4-18tjo.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 4720,
+          "transferBytes": 5020,
+          "durationMs": 111,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/3eca85881bcfa204-s.p.1uu2pxtyb_ixz.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13380,
+          "transferBytes": 13680,
+          "durationMs": 134,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/5f841e19a104a2f1-s.p.2ia5k3t--_4xp.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5092,
+          "transferBytes": 5392,
+          "durationMs": 133,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/625a092f804baad3-s.p.3bgaltqld2gq2.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5100,
+          "transferBytes": 5400,
+          "durationMs": 134,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/72a16e137f4c90fd-s.p.2w0vc8cot_wiz.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 4720,
+          "transferBytes": 5020,
+          "durationMs": 227,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/6f42e0a3b0519c4d-s.p.31-z0m_4g_6pa.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13348,
+          "transferBytes": 13648,
+          "durationMs": 256,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/797e433ab948586e-s.p.1v5bejj26fx9h.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 23108,
+          "transferBytes": 23408,
+          "durationMs": 228,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/8ffc259da9d23054-s.p.2heyes1wqz_kz.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5132,
+          "transferBytes": 5432,
+          "durationMs": 227,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/8f46d218c8f79e34-s.p.092z1_2w2m55_.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13428,
+          "transferBytes": 13728,
+          "durationMs": 278,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/8c2eb9ceedecfc8e-s.p.1c4v1kyduoipm.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 37792,
+          "transferBytes": 38092,
+          "durationMs": 426,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/9d978ba009f47915-s.p.1p2xad7_-sbqy.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13604,
+          "transferBytes": 13904,
+          "durationMs": 284,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/a3bcb02a0e9e5d11-s.p.35qbt1_6db49h.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5124,
+          "transferBytes": 5424,
+          "durationMs": 133,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/a4f4f75ad654963f-s.p.22m3f6pvfu2zf.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13324,
+          "transferBytes": 13624,
+          "durationMs": 225,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/caa3a2e1cccd8315-s.p.0zr6hhvz-h9nw.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 29288,
+          "transferBytes": 29588,
+          "durationMs": 342,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/1pcpb58np0hwa.css",
+          "kind": "css",
+          "encodedBodyBytes": 2882,
+          "transferBytes": 3182,
+          "durationMs": 192,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/fcf129058e6e31f2-s.p.11ye8_54polii.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5144,
+          "transferBytes": 5444,
+          "durationMs": 226,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/e1ccd2766b08c828-s.p.1trkgqz3-pw7b.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 8908,
+          "transferBytes": 9208,
+          "durationMs": 264,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/44i8p1-r4plma.css",
+          "kind": "css",
+          "encodedBodyBytes": 1330,
+          "transferBytes": 1630,
+          "durationMs": 181,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2_kf68gh5e27e.css",
+          "kind": "css",
+          "encodedBodyBytes": 18377,
+          "transferBytes": 18677,
+          "durationMs": 297,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/21l6k590z34o0.css",
+          "kind": "css",
+          "encodedBodyBytes": 4346,
+          "transferBytes": 4646,
+          "durationMs": 226,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/18tkshu5u4gl8.css",
+          "kind": "css",
+          "encodedBodyBytes": 15990,
+          "transferBytes": 16290,
+          "durationMs": 265,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/10wvzie0n6hrk.css",
+          "kind": "css",
+          "encodedBodyBytes": 10516,
+          "transferBytes": 10816,
+          "durationMs": 324,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0fovf4mbrzuxx.js",
+          "kind": "js",
+          "encodedBodyBytes": 3789,
+          "transferBytes": 4089,
+          "durationMs": 216,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/1191lj8_x8otc.js",
+          "kind": "js",
+          "encodedBodyBytes": 8794,
+          "transferBytes": 9094,
+          "durationMs": 231,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0vn_c-qtmgve7.js",
+          "kind": "js",
+          "encodedBodyBytes": 8730,
+          "transferBytes": 9030,
+          "durationMs": 232,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/3c6-f2nju9kp2.js",
+          "kind": "js",
+          "encodedBodyBytes": 13029,
+          "transferBytes": 13329,
+          "durationMs": 300,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0wl-od64gbou4.js",
+          "kind": "js",
+          "encodedBodyBytes": 35731,
+          "transferBytes": 36031,
+          "durationMs": 334,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/31ye0b8iue7vm.js",
+          "kind": "js",
+          "encodedBodyBytes": 73139,
+          "transferBytes": 73439,
+          "durationMs": 385,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/21p5yufur5h0c.js",
+          "kind": "js",
+          "encodedBodyBytes": 9380,
+          "transferBytes": 9680,
+          "durationMs": 241,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0u_nxrbrmwb9r.js",
+          "kind": "js",
+          "encodedBodyBytes": 12394,
+          "transferBytes": 12694,
+          "durationMs": 273,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/turbopack-2v1kll9q-4-a2.js",
+          "kind": "js",
+          "encodedBodyBytes": 4540,
+          "transferBytes": 4840,
+          "durationMs": 273,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/20-z55-i2gsys.js",
+          "kind": "js",
+          "encodedBodyBytes": 10534,
+          "transferBytes": 10834,
+          "durationMs": 291,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2djye3t_l310w.js",
+          "kind": "js",
+          "encodedBodyBytes": 13048,
+          "transferBytes": 13348,
+          "durationMs": 292,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2t1-rkkqk5vy9.js",
+          "kind": "js",
+          "encodedBodyBytes": 15450,
+          "transferBytes": 15750,
+          "durationMs": 292,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0wwgwrpuee5ul.js",
+          "kind": "js",
+          "encodedBodyBytes": 10816,
+          "transferBytes": 11116,
+          "durationMs": 300,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/04idciq-ma_99.js",
+          "kind": "js",
+          "encodedBodyBytes": 46305,
+          "transferBytes": 46605,
+          "durationMs": 354,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/1ku1svcvhkvjk.js",
+          "kind": "js",
+          "encodedBodyBytes": 11815,
+          "transferBytes": 12115,
+          "durationMs": 299,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/439akcaatie30.js",
+          "kind": "js",
+          "encodedBodyBytes": 1003,
+          "transferBytes": 1303,
+          "durationMs": 370,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/images/ha-giang-highland-poster.webp",
+          "kind": "image",
+          "encodedBodyBytes": 458612,
+          "transferBytes": 458912,
+          "durationMs": 684,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/9e486ba39c38fb8a-s.37omzjo7pfhh3.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7164,
+          "transferBytes": 7464,
+          "durationMs": 109,
+          "status": 200
+        },
+        {
+          "origin": "https://vercel.live",
+          "path": "/_next-live/feedback/feedback.js",
+          "kind": "js",
+          "encodedBodyBytes": 0,
+          "transferBytes": 0,
+          "durationMs": 283,
+          "status": 0
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/7b74840ea7c05e95-s.1e28-l79jjv5u.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7144,
+          "transferBytes": 7444,
+          "durationMs": 810,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/85ea1b3aadcead52-s.18lx4otehud-r.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 6880,
+          "transferBytes": 7180,
+          "durationMs": 799,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/b35fd19aef91b293-s.1-vmsm_v03uvy.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7152,
+          "transferBytes": 7452,
+          "durationMs": 800,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/6afabefbb32d7517-s.0mlt1uo-cplt-.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7184,
+          "transferBytes": 7484,
+          "durationMs": 801,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/ac83d56547af7957-s.2z_-uxg0gj5aw.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 6764,
+          "transferBytes": 7064,
+          "durationMs": 769,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/api/auth/get-session",
+          "kind": "other",
+          "encodedBodyBytes": 10,
+          "transferBytes": 310,
+          "durationMs": 742,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/explore",
+          "kind": "other",
+          "encodedBodyBytes": 159,
+          "transferBytes": 459,
+          "durationMs": 689,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/assistant",
+          "kind": "other",
+          "encodedBodyBytes": 156,
+          "transferBytes": 456,
+          "durationMs": 689,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/favorites",
+          "kind": "other",
+          "encodedBodyBytes": 160,
+          "transferBytes": 460,
+          "durationMs": 690,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips/new",
+          "kind": "other",
+          "encodedBodyBytes": 163,
+          "transferBytes": 463,
+          "durationMs": 690,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips",
+          "kind": "other",
+          "encodedBodyBytes": 156,
+          "transferBytes": 456,
+          "durationMs": 142,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/dashboard",
+          "kind": "other",
+          "encodedBodyBytes": 155,
+          "transferBytes": 455,
+          "durationMs": 137,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/",
+          "kind": "other",
+          "encodedBodyBytes": 838,
+          "transferBytes": 1138,
+          "durationMs": 146,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/explore",
+          "kind": "other",
+          "encodedBodyBytes": 1206,
+          "transferBytes": 1506,
+          "durationMs": 145,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/login",
+          "kind": "other",
+          "encodedBodyBytes": 165,
+          "transferBytes": 465,
+          "durationMs": 143,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/assistant",
+          "kind": "other",
+          "encodedBodyBytes": 674,
+          "transferBytes": 974,
+          "durationMs": 140,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/favorites",
+          "kind": "other",
+          "encodedBodyBytes": 1110,
+          "transferBytes": 1410,
+          "durationMs": 144,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/25-a27rpndia-.css",
+          "kind": "css",
+          "encodedBodyBytes": 8860,
+          "transferBytes": 9160,
+          "durationMs": 99,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips/new",
+          "kind": "other",
+          "encodedBodyBytes": 1172,
+          "transferBytes": 1472,
+          "durationMs": 149,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/login",
+          "kind": "other",
+          "encodedBodyBytes": 647,
+          "transferBytes": 947,
+          "durationMs": 141,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips",
+          "kind": "other",
+          "encodedBodyBytes": 147,
+          "transferBytes": 447,
+          "durationMs": 139,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/3ixr-3p1wsdb-.js",
+          "kind": "js",
+          "encodedBodyBytes": 4846,
+          "transferBytes": 5146,
+          "durationMs": 96,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0jhgzhne0r23u.js",
+          "kind": "js",
+          "encodedBodyBytes": 93406,
+          "transferBytes": 93706,
+          "durationMs": 176,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/24kdwqjmdtl6t.js",
+          "kind": "js",
+          "encodedBodyBytes": 869,
+          "transferBytes": 1169,
+          "durationMs": 104,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0pk74q1mxhtgd.css",
+          "kind": "css",
+          "encodedBodyBytes": 3480,
+          "transferBytes": 3780,
+          "durationMs": 113,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/dashboard",
+          "kind": "other",
+          "encodedBodyBytes": 627,
+          "transferBytes": 927,
+          "durationMs": 153,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0az152jn-wf7p.js",
+          "kind": "js",
+          "encodedBodyBytes": 801,
+          "transferBytes": 1101,
+          "durationMs": 98,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2hg68zgoes4ut.css",
+          "kind": "css",
+          "encodedBodyBytes": 1742,
+          "transferBytes": 2042,
+          "durationMs": 102,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips",
+          "kind": "other",
+          "encodedBodyBytes": 629,
+          "transferBytes": 929,
+          "durationMs": 134,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/login",
+          "kind": "other",
+          "encodedBodyBytes": 153,
+          "transferBytes": 453,
+          "durationMs": 138,
+          "status": 200
+        }
+      ],
+      "lcp": {
+        "startTime": 1012,
+        "size": 399168,
+        "tag": "VIDEO"
+      },
+      "cls": 0.00024996141975308644,
+      "longTasks": [],
+      "interactions": [],
+      "navigation": {
+        "ttfbMs": 238.80000000074506,
+        "domContentLoadedMs": 706.3000000007451,
+        "loadMs": 1659.199999999255,
+        "encodedBodyBytes": 19212,
+        "decodedBodyBytes": 115119
+      },
+      "overflow": false,
+      "mapMarkers": 0,
+      "mapUnavailable": false,
+      "imageCount": 0,
+      "inp": null,
+      "inpReason": "No representative user interaction; field INP unavailable",
+      "blockedWriteRequests": []
+    },
+    {
+      "route": "/",
+      "width": 768,
+      "cache": "browser-warm",
+      "cacheHits": 51,
+      "status": 200,
+      "navigationFailure": false,
+      "elapsedMs": 3031,
+      "encodedNetworkBytes": 30827,
+      "payload": {
+        "font": {
+          "count": 24,
+          "encodedBodyBytes": 268872,
+          "transferBytes": 0
+        },
+        "css": {
+          "count": 9,
+          "encodedBodyBytes": 67523,
+          "transferBytes": 0
+        },
+        "js": {
+          "count": 21,
+          "encodedBodyBytes": 378419,
+          "transferBytes": 0
+        },
+        "image": {
+          "count": 1,
+          "encodedBodyBytes": 0,
+          "transferBytes": 300
+        },
+        "other": {
+          "count": 18,
+          "encodedBodyBytes": 8326,
+          "transferBytes": 13726
+        }
+      },
+      "resources": [
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/00ea0ef410d3b1a3-s.p.1u66ldh9q433o.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 12464,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/3c285486269019b7-s.p.1br53b7gww62p.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 12908,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/3eca85881bcfa204-s.p.1uu2pxtyb_ixz.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13380,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/53e45098eac42afb-s.p.0udrnr4-18tjo.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 4720,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/5f841e19a104a2f1-s.p.2ia5k3t--_4xp.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5092,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/625a092f804baad3-s.p.3bgaltqld2gq2.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5100,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/6f42e0a3b0519c4d-s.p.31-z0m_4g_6pa.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13348,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/72a16e137f4c90fd-s.p.2w0vc8cot_wiz.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 4720,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/797e433ab948586e-s.p.1v5bejj26fx9h.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 23108,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/8c2eb9ceedecfc8e-s.p.1c4v1kyduoipm.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 37792,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/8f46d218c8f79e34-s.p.092z1_2w2m55_.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13428,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/8ffc259da9d23054-s.p.2heyes1wqz_kz.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5132,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/9d978ba009f47915-s.p.1p2xad7_-sbqy.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13604,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/a3bcb02a0e9e5d11-s.p.35qbt1_6db49h.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5124,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/a4f4f75ad654963f-s.p.22m3f6pvfu2zf.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13324,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/caa3a2e1cccd8315-s.p.0zr6hhvz-h9nw.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 29288,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/e1ccd2766b08c828-s.p.1trkgqz3-pw7b.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 8908,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/fcf129058e6e31f2-s.p.11ye8_54polii.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5144,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/1pcpb58np0hwa.css",
+          "kind": "css",
+          "encodedBodyBytes": 2882,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2_kf68gh5e27e.css",
+          "kind": "css",
+          "encodedBodyBytes": 18377,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/44i8p1-r4plma.css",
+          "kind": "css",
+          "encodedBodyBytes": 1330,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/21l6k590z34o0.css",
+          "kind": "css",
+          "encodedBodyBytes": 4346,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/18tkshu5u4gl8.css",
+          "kind": "css",
+          "encodedBodyBytes": 15990,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/10wvzie0n6hrk.css",
+          "kind": "css",
+          "encodedBodyBytes": 10516,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0fovf4mbrzuxx.js",
+          "kind": "js",
+          "encodedBodyBytes": 3789,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/1191lj8_x8otc.js",
+          "kind": "js",
+          "encodedBodyBytes": 8794,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0vn_c-qtmgve7.js",
+          "kind": "js",
+          "encodedBodyBytes": 8730,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/31ye0b8iue7vm.js",
+          "kind": "js",
+          "encodedBodyBytes": 73139,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0wl-od64gbou4.js",
+          "kind": "js",
+          "encodedBodyBytes": 35731,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/3c6-f2nju9kp2.js",
+          "kind": "js",
+          "encodedBodyBytes": 13029,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/turbopack-2v1kll9q-4-a2.js",
+          "kind": "js",
+          "encodedBodyBytes": 4540,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/20-z55-i2gsys.js",
+          "kind": "js",
+          "encodedBodyBytes": 10534,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/21p5yufur5h0c.js",
+          "kind": "js",
+          "encodedBodyBytes": 9380,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0u_nxrbrmwb9r.js",
+          "kind": "js",
+          "encodedBodyBytes": 12394,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/04idciq-ma_99.js",
+          "kind": "js",
+          "encodedBodyBytes": 46305,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2t1-rkkqk5vy9.js",
+          "kind": "js",
+          "encodedBodyBytes": 15450,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2djye3t_l310w.js",
+          "kind": "js",
+          "encodedBodyBytes": 13048,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0wwgwrpuee5ul.js",
+          "kind": "js",
+          "encodedBodyBytes": 10816,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/439akcaatie30.js",
+          "kind": "js",
+          "encodedBodyBytes": 1003,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/1ku1svcvhkvjk.js",
+          "kind": "js",
+          "encodedBodyBytes": 11815,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/images/ha-giang-highland-poster.webp",
+          "kind": "image",
+          "encodedBodyBytes": 0,
+          "transferBytes": 300,
+          "durationMs": 86,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/85ea1b3aadcead52-s.18lx4otehud-r.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 6880,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/6afabefbb32d7517-s.0mlt1uo-cplt-.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7184,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/b35fd19aef91b293-s.1-vmsm_v03uvy.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7152,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/9e486ba39c38fb8a-s.37omzjo7pfhh3.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7164,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/7b74840ea7c05e95-s.1e28-l79jjv5u.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7144,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/ac83d56547af7957-s.2z_-uxg0gj5aw.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 6764,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://vercel.live",
+          "path": "/_next-live/feedback/feedback.js",
+          "kind": "js",
+          "encodedBodyBytes": 0,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 0
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/api/auth/get-session",
+          "kind": "other",
+          "encodedBodyBytes": 10,
+          "transferBytes": 310,
+          "durationMs": 148,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/explore",
+          "kind": "other",
+          "encodedBodyBytes": 159,
+          "transferBytes": 459,
+          "durationMs": 152,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/assistant",
+          "kind": "other",
+          "encodedBodyBytes": 156,
+          "transferBytes": 456,
+          "durationMs": 137,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/favorites",
+          "kind": "other",
+          "encodedBodyBytes": 160,
+          "transferBytes": 460,
+          "durationMs": 171,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips/new",
+          "kind": "other",
+          "encodedBodyBytes": 163,
+          "transferBytes": 463,
+          "durationMs": 151,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips",
+          "kind": "other",
+          "encodedBodyBytes": 156,
+          "transferBytes": 456,
+          "durationMs": 156,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/login",
+          "kind": "other",
+          "encodedBodyBytes": 165,
+          "transferBytes": 465,
+          "durationMs": 143,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/dashboard",
+          "kind": "other",
+          "encodedBodyBytes": 155,
+          "transferBytes": 455,
+          "durationMs": 141,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/",
+          "kind": "other",
+          "encodedBodyBytes": 838,
+          "transferBytes": 1138,
+          "durationMs": 138,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/explore",
+          "kind": "other",
+          "encodedBodyBytes": 1208,
+          "transferBytes": 1508,
+          "durationMs": 145,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/assistant",
+          "kind": "other",
+          "encodedBodyBytes": 674,
+          "transferBytes": 974,
+          "durationMs": 144,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/login",
+          "kind": "other",
+          "encodedBodyBytes": 649,
+          "transferBytes": 949,
+          "durationMs": 144,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/favorites",
+          "kind": "other",
+          "encodedBodyBytes": 1109,
+          "transferBytes": 1409,
+          "durationMs": 134,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips/new",
+          "kind": "other",
+          "encodedBodyBytes": 1168,
+          "transferBytes": 1468,
+          "durationMs": 139,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/25-a27rpndia-.css",
+          "kind": "css",
+          "encodedBodyBytes": 8860,
+          "transferBytes": 0,
+          "durationMs": 3,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips",
+          "kind": "other",
+          "encodedBodyBytes": 147,
+          "transferBytes": 447,
+          "durationMs": 137,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/dashboard",
+          "kind": "other",
+          "encodedBodyBytes": 628,
+          "transferBytes": 928,
+          "durationMs": 132,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/3ixr-3p1wsdb-.js",
+          "kind": "js",
+          "encodedBodyBytes": 4846,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0jhgzhne0r23u.js",
+          "kind": "js",
+          "encodedBodyBytes": 93406,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/24kdwqjmdtl6t.js",
+          "kind": "js",
+          "encodedBodyBytes": 869,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0pk74q1mxhtgd.css",
+          "kind": "css",
+          "encodedBodyBytes": 3480,
+          "transferBytes": 0,
+          "durationMs": 2,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/login",
+          "kind": "other",
+          "encodedBodyBytes": 153,
+          "transferBytes": 453,
+          "durationMs": 158,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips",
+          "kind": "other",
+          "encodedBodyBytes": 628,
+          "transferBytes": 928,
+          "durationMs": 146,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0az152jn-wf7p.js",
+          "kind": "js",
+          "encodedBodyBytes": 801,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2hg68zgoes4ut.css",
+          "kind": "css",
+          "encodedBodyBytes": 1742,
+          "transferBytes": 0,
+          "durationMs": 2,
+          "status": 200
+        }
+      ],
+      "lcp": {
+        "startTime": 368,
+        "size": 399168,
+        "tag": "VIDEO"
+      },
+      "cls": 0.00024996141975308644,
+      "longTasks": [],
+      "interactions": [],
+      "navigation": {
+        "ttfbMs": 76.80000000074506,
+        "domContentLoadedMs": 332.4000000022352,
+        "loadMs": 507.4000000022352,
+        "encodedBodyBytes": 19204,
+        "decodedBodyBytes": 115119
+      },
+      "overflow": false,
+      "mapMarkers": 0,
+      "mapUnavailable": false,
+      "imageCount": 0,
+      "inp": null,
+      "inpReason": "No representative user interaction; field INP unavailable",
+      "blockedWriteRequests": []
+    },
+    {
+      "route": "/",
+      "width": 1440,
+      "cache": "browser-cold",
+      "cacheHits": 0,
+      "status": 200,
+      "navigationFailure": false,
+      "elapsedMs": 3608,
+      "encodedNetworkBytes": 1215804,
+      "payload": {
+        "font": {
+          "count": 24,
+          "encodedBodyBytes": 268872,
+          "transferBytes": 276072
+        },
+        "css": {
+          "count": 9,
+          "encodedBodyBytes": 67523,
+          "transferBytes": 70223
+        },
+        "js": {
+          "count": 21,
+          "encodedBodyBytes": 378419,
+          "transferBytes": 384419
+        },
+        "image": {
+          "count": 1,
+          "encodedBodyBytes": 458612,
+          "transferBytes": 458912
+        },
+        "other": {
+          "count": 18,
+          "encodedBodyBytes": 8327,
+          "transferBytes": 13727
+        }
+      },
+      "resources": [
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/00ea0ef410d3b1a3-s.p.1u66ldh9q433o.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 12464,
+          "transferBytes": 12764,
+          "durationMs": 197,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/3c285486269019b7-s.p.1br53b7gww62p.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 12908,
+          "transferBytes": 13208,
+          "durationMs": 134,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/53e45098eac42afb-s.p.0udrnr4-18tjo.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 4720,
+          "transferBytes": 5020,
+          "durationMs": 91,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/5f841e19a104a2f1-s.p.2ia5k3t--_4xp.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5092,
+          "transferBytes": 5392,
+          "durationMs": 95,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/3eca85881bcfa204-s.p.1uu2pxtyb_ixz.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13380,
+          "transferBytes": 13680,
+          "durationMs": 134,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/625a092f804baad3-s.p.3bgaltqld2gq2.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5100,
+          "transferBytes": 5400,
+          "durationMs": 94,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/6f42e0a3b0519c4d-s.p.31-z0m_4g_6pa.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13348,
+          "transferBytes": 13648,
+          "durationMs": 118,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/72a16e137f4c90fd-s.p.2w0vc8cot_wiz.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 4720,
+          "transferBytes": 5020,
+          "durationMs": 133,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/8f46d218c8f79e34-s.p.092z1_2w2m55_.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13428,
+          "transferBytes": 13728,
+          "durationMs": 148,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/8c2eb9ceedecfc8e-s.p.1c4v1kyduoipm.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 37792,
+          "transferBytes": 38092,
+          "durationMs": 149,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/797e433ab948586e-s.p.1v5bejj26fx9h.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 23108,
+          "transferBytes": 23408,
+          "durationMs": 226,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/8ffc259da9d23054-s.p.2heyes1wqz_kz.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5132,
+          "transferBytes": 5432,
+          "durationMs": 118,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/a3bcb02a0e9e5d11-s.p.35qbt1_6db49h.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5124,
+          "transferBytes": 5424,
+          "durationMs": 118,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/9d978ba009f47915-s.p.1p2xad7_-sbqy.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13604,
+          "transferBytes": 13904,
+          "durationMs": 237,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/1pcpb58np0hwa.css",
+          "kind": "css",
+          "encodedBodyBytes": 2882,
+          "transferBytes": 3182,
+          "durationMs": 177,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/fcf129058e6e31f2-s.p.11ye8_54polii.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5144,
+          "transferBytes": 5444,
+          "durationMs": 194,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/a4f4f75ad654963f-s.p.22m3f6pvfu2zf.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13324,
+          "transferBytes": 13624,
+          "durationMs": 211,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/e1ccd2766b08c828-s.p.1trkgqz3-pw7b.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 8908,
+          "transferBytes": 9208,
+          "durationMs": 222,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/caa3a2e1cccd8315-s.p.0zr6hhvz-h9nw.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 29288,
+          "transferBytes": 29588,
+          "durationMs": 319,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2_kf68gh5e27e.css",
+          "kind": "css",
+          "encodedBodyBytes": 18377,
+          "transferBytes": 18677,
+          "durationMs": 255,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/44i8p1-r4plma.css",
+          "kind": "css",
+          "encodedBodyBytes": 1330,
+          "transferBytes": 1630,
+          "durationMs": 165,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/21l6k590z34o0.css",
+          "kind": "css",
+          "encodedBodyBytes": 4346,
+          "transferBytes": 4646,
+          "durationMs": 170,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/10wvzie0n6hrk.css",
+          "kind": "css",
+          "encodedBodyBytes": 10516,
+          "transferBytes": 10816,
+          "durationMs": 246,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/18tkshu5u4gl8.css",
+          "kind": "css",
+          "encodedBodyBytes": 15990,
+          "transferBytes": 16290,
+          "durationMs": 334,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0fovf4mbrzuxx.js",
+          "kind": "js",
+          "encodedBodyBytes": 3789,
+          "transferBytes": 4089,
+          "durationMs": 193,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0vn_c-qtmgve7.js",
+          "kind": "js",
+          "encodedBodyBytes": 8730,
+          "transferBytes": 9030,
+          "durationMs": 243,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/1191lj8_x8otc.js",
+          "kind": "js",
+          "encodedBodyBytes": 8794,
+          "transferBytes": 9094,
+          "durationMs": 274,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/31ye0b8iue7vm.js",
+          "kind": "js",
+          "encodedBodyBytes": 73139,
+          "transferBytes": 73439,
+          "durationMs": 341,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/turbopack-2v1kll9q-4-a2.js",
+          "kind": "js",
+          "encodedBodyBytes": 4540,
+          "transferBytes": 4840,
+          "durationMs": 167,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/3c6-f2nju9kp2.js",
+          "kind": "js",
+          "encodedBodyBytes": 13029,
+          "transferBytes": 13329,
+          "durationMs": 231,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0wl-od64gbou4.js",
+          "kind": "js",
+          "encodedBodyBytes": 35731,
+          "transferBytes": 36031,
+          "durationMs": 306,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/21p5yufur5h0c.js",
+          "kind": "js",
+          "encodedBodyBytes": 9380,
+          "transferBytes": 9680,
+          "durationMs": 221,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/20-z55-i2gsys.js",
+          "kind": "js",
+          "encodedBodyBytes": 10534,
+          "transferBytes": 10834,
+          "durationMs": 290,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0u_nxrbrmwb9r.js",
+          "kind": "js",
+          "encodedBodyBytes": 12394,
+          "transferBytes": 12694,
+          "durationMs": 291,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2djye3t_l310w.js",
+          "kind": "js",
+          "encodedBodyBytes": 13048,
+          "transferBytes": 13348,
+          "durationMs": 259,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0wwgwrpuee5ul.js",
+          "kind": "js",
+          "encodedBodyBytes": 10816,
+          "transferBytes": 11116,
+          "durationMs": 259,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2t1-rkkqk5vy9.js",
+          "kind": "js",
+          "encodedBodyBytes": 15450,
+          "transferBytes": 15750,
+          "durationMs": 305,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/04idciq-ma_99.js",
+          "kind": "js",
+          "encodedBodyBytes": 46305,
+          "transferBytes": 46605,
+          "durationMs": 321,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/439akcaatie30.js",
+          "kind": "js",
+          "encodedBodyBytes": 1003,
+          "transferBytes": 1303,
+          "durationMs": 143,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/1ku1svcvhkvjk.js",
+          "kind": "js",
+          "encodedBodyBytes": 11815,
+          "transferBytes": 12115,
+          "durationMs": 208,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/images/ha-giang-highland-poster.webp",
+          "kind": "image",
+          "encodedBodyBytes": 458612,
+          "transferBytes": 458912,
+          "durationMs": 525,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/6afabefbb32d7517-s.0mlt1uo-cplt-.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7184,
+          "transferBytes": 7484,
+          "durationMs": 249,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/7b74840ea7c05e95-s.1e28-l79jjv5u.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7144,
+          "transferBytes": 7444,
+          "durationMs": 149,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/85ea1b3aadcead52-s.18lx4otehud-r.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 6880,
+          "transferBytes": 7180,
+          "durationMs": 151,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/b35fd19aef91b293-s.1-vmsm_v03uvy.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7152,
+          "transferBytes": 7452,
+          "durationMs": 146,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/9e486ba39c38fb8a-s.37omzjo7pfhh3.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7164,
+          "transferBytes": 7464,
+          "durationMs": 145,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/ac83d56547af7957-s.2z_-uxg0gj5aw.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 6764,
+          "transferBytes": 7064,
+          "durationMs": 123,
+          "status": 200
+        },
+        {
+          "origin": "https://vercel.live",
+          "path": "/_next-live/feedback/feedback.js",
+          "kind": "js",
+          "encodedBodyBytes": 0,
+          "transferBytes": 0,
+          "durationMs": 287,
+          "status": 0
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/api/auth/get-session",
+          "kind": "other",
+          "encodedBodyBytes": 10,
+          "transferBytes": 310,
+          "durationMs": 452,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/explore",
+          "kind": "other",
+          "encodedBodyBytes": 159,
+          "transferBytes": 459,
+          "durationMs": 695,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/assistant",
+          "kind": "other",
+          "encodedBodyBytes": 156,
+          "transferBytes": 456,
+          "durationMs": 594,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips/new",
+          "kind": "other",
+          "encodedBodyBytes": 163,
+          "transferBytes": 463,
+          "durationMs": 695,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/favorites",
+          "kind": "other",
+          "encodedBodyBytes": 160,
+          "transferBytes": 460,
+          "durationMs": 695,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/login",
+          "kind": "other",
+          "encodedBodyBytes": 165,
+          "transferBytes": 465,
+          "durationMs": 164,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips",
+          "kind": "other",
+          "encodedBodyBytes": 156,
+          "transferBytes": 456,
+          "durationMs": 133,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/dashboard",
+          "kind": "other",
+          "encodedBodyBytes": 155,
+          "transferBytes": 455,
+          "durationMs": 160,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/",
+          "kind": "other",
+          "encodedBodyBytes": 839,
+          "transferBytes": 1139,
+          "durationMs": 132,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/login",
+          "kind": "other",
+          "encodedBodyBytes": 648,
+          "transferBytes": 948,
+          "durationMs": 145,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/explore",
+          "kind": "other",
+          "encodedBodyBytes": 1209,
+          "transferBytes": 1509,
+          "durationMs": 142,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/assistant",
+          "kind": "other",
+          "encodedBodyBytes": 671,
+          "transferBytes": 971,
+          "durationMs": 146,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/favorites",
+          "kind": "other",
+          "encodedBodyBytes": 1111,
+          "transferBytes": 1411,
+          "durationMs": 131,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips/new",
+          "kind": "other",
+          "encodedBodyBytes": 1168,
+          "transferBytes": 1468,
+          "durationMs": 142,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/25-a27rpndia-.css",
+          "kind": "css",
+          "encodedBodyBytes": 8860,
+          "transferBytes": 9160,
+          "durationMs": 91,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips",
+          "kind": "other",
+          "encodedBodyBytes": 147,
+          "transferBytes": 447,
+          "durationMs": 130,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/dashboard",
+          "kind": "other",
+          "encodedBodyBytes": 630,
+          "transferBytes": 930,
+          "durationMs": 132,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/3ixr-3p1wsdb-.js",
+          "kind": "js",
+          "encodedBodyBytes": 4846,
+          "transferBytes": 5146,
+          "durationMs": 107,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0jhgzhne0r23u.js",
+          "kind": "js",
+          "encodedBodyBytes": 93406,
+          "transferBytes": 93706,
+          "durationMs": 169,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/24kdwqjmdtl6t.js",
+          "kind": "js",
+          "encodedBodyBytes": 869,
+          "transferBytes": 1169,
+          "durationMs": 84,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0pk74q1mxhtgd.css",
+          "kind": "css",
+          "encodedBodyBytes": 3480,
+          "transferBytes": 3780,
+          "durationMs": 90,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/login",
+          "kind": "other",
+          "encodedBodyBytes": 153,
+          "transferBytes": 453,
+          "durationMs": 136,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0az152jn-wf7p.js",
+          "kind": "js",
+          "encodedBodyBytes": 801,
+          "transferBytes": 1101,
+          "durationMs": 85,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2hg68zgoes4ut.css",
+          "kind": "css",
+          "encodedBodyBytes": 1742,
+          "transferBytes": 2042,
+          "durationMs": 92,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips",
+          "kind": "other",
+          "encodedBodyBytes": 627,
+          "transferBytes": 927,
+          "durationMs": 138,
+          "status": 200
+        }
+      ],
+      "lcp": {
+        "startTime": 976,
+        "size": 839540,
+        "tag": "VIDEO"
+      },
+      "cls": 0.0004290509259259259,
+      "longTasks": [],
+      "interactions": [],
+      "navigation": {
+        "ttfbMs": 261.5,
+        "domContentLoadedMs": 785.5,
+        "loadMs": 1079,
+        "encodedBodyBytes": 19204,
+        "decodedBodyBytes": 115119
+      },
+      "overflow": false,
+      "mapMarkers": 0,
+      "mapUnavailable": false,
+      "imageCount": 0,
+      "inp": null,
+      "inpReason": "No representative user interaction; field INP unavailable",
+      "blockedWriteRequests": []
+    },
+    {
+      "route": "/",
+      "width": 1440,
+      "cache": "browser-warm",
+      "cacheHits": 51,
+      "status": 200,
+      "navigationFailure": false,
+      "elapsedMs": 3030,
+      "encodedNetworkBytes": 27974,
+      "payload": {
+        "font": {
+          "count": 24,
+          "encodedBodyBytes": 268872,
+          "transferBytes": 0
+        },
+        "css": {
+          "count": 9,
+          "encodedBodyBytes": 67523,
+          "transferBytes": 0
+        },
+        "js": {
+          "count": 21,
+          "encodedBodyBytes": 378419,
+          "transferBytes": 0
+        },
+        "image": {
+          "count": 1,
+          "encodedBodyBytes": 0,
+          "transferBytes": 300
+        },
+        "other": {
+          "count": 18,
+          "encodedBodyBytes": 8330,
+          "transferBytes": 13730
+        }
+      },
+      "resources": [
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/00ea0ef410d3b1a3-s.p.1u66ldh9q433o.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 12464,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/3c285486269019b7-s.p.1br53b7gww62p.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 12908,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/3eca85881bcfa204-s.p.1uu2pxtyb_ixz.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13380,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/53e45098eac42afb-s.p.0udrnr4-18tjo.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 4720,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/5f841e19a104a2f1-s.p.2ia5k3t--_4xp.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5092,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/625a092f804baad3-s.p.3bgaltqld2gq2.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5100,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/6f42e0a3b0519c4d-s.p.31-z0m_4g_6pa.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13348,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/72a16e137f4c90fd-s.p.2w0vc8cot_wiz.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 4720,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/797e433ab948586e-s.p.1v5bejj26fx9h.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 23108,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/8c2eb9ceedecfc8e-s.p.1c4v1kyduoipm.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 37792,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/8f46d218c8f79e34-s.p.092z1_2w2m55_.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13428,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/8ffc259da9d23054-s.p.2heyes1wqz_kz.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5132,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/9d978ba009f47915-s.p.1p2xad7_-sbqy.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13604,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/a3bcb02a0e9e5d11-s.p.35qbt1_6db49h.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5124,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/a4f4f75ad654963f-s.p.22m3f6pvfu2zf.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 13324,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/caa3a2e1cccd8315-s.p.0zr6hhvz-h9nw.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 29288,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/e1ccd2766b08c828-s.p.1trkgqz3-pw7b.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 8908,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/fcf129058e6e31f2-s.p.11ye8_54polii.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 5144,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/1pcpb58np0hwa.css",
+          "kind": "css",
+          "encodedBodyBytes": 2882,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2_kf68gh5e27e.css",
+          "kind": "css",
+          "encodedBodyBytes": 18377,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/44i8p1-r4plma.css",
+          "kind": "css",
+          "encodedBodyBytes": 1330,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/21l6k590z34o0.css",
+          "kind": "css",
+          "encodedBodyBytes": 4346,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/18tkshu5u4gl8.css",
+          "kind": "css",
+          "encodedBodyBytes": 15990,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/10wvzie0n6hrk.css",
+          "kind": "css",
+          "encodedBodyBytes": 10516,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0fovf4mbrzuxx.js",
+          "kind": "js",
+          "encodedBodyBytes": 3789,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/1191lj8_x8otc.js",
+          "kind": "js",
+          "encodedBodyBytes": 8794,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0vn_c-qtmgve7.js",
+          "kind": "js",
+          "encodedBodyBytes": 8730,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/31ye0b8iue7vm.js",
+          "kind": "js",
+          "encodedBodyBytes": 73139,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0wl-od64gbou4.js",
+          "kind": "js",
+          "encodedBodyBytes": 35731,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/3c6-f2nju9kp2.js",
+          "kind": "js",
+          "encodedBodyBytes": 13029,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/turbopack-2v1kll9q-4-a2.js",
+          "kind": "js",
+          "encodedBodyBytes": 4540,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/20-z55-i2gsys.js",
+          "kind": "js",
+          "encodedBodyBytes": 10534,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/21p5yufur5h0c.js",
+          "kind": "js",
+          "encodedBodyBytes": 9380,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0u_nxrbrmwb9r.js",
+          "kind": "js",
+          "encodedBodyBytes": 12394,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/04idciq-ma_99.js",
+          "kind": "js",
+          "encodedBodyBytes": 46305,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2t1-rkkqk5vy9.js",
+          "kind": "js",
+          "encodedBodyBytes": 15450,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2djye3t_l310w.js",
+          "kind": "js",
+          "encodedBodyBytes": 13048,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0wwgwrpuee5ul.js",
+          "kind": "js",
+          "encodedBodyBytes": 10816,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/439akcaatie30.js",
+          "kind": "js",
+          "encodedBodyBytes": 1003,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/1ku1svcvhkvjk.js",
+          "kind": "js",
+          "encodedBodyBytes": 11815,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/images/ha-giang-highland-poster.webp",
+          "kind": "image",
+          "encodedBodyBytes": 0,
+          "transferBytes": 300,
+          "durationMs": 78,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/85ea1b3aadcead52-s.18lx4otehud-r.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 6880,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/6afabefbb32d7517-s.0mlt1uo-cplt-.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7184,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/b35fd19aef91b293-s.1-vmsm_v03uvy.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7152,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/9e486ba39c38fb8a-s.37omzjo7pfhh3.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7164,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/7b74840ea7c05e95-s.1e28-l79jjv5u.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 7144,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/media/ac83d56547af7957-s.2z_-uxg0gj5aw.woff2",
+          "kind": "font",
+          "encodedBodyBytes": 6764,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://vercel.live",
+          "path": "/_next-live/feedback/feedback.js",
+          "kind": "js",
+          "encodedBodyBytes": 0,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 0
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/api/auth/get-session",
+          "kind": "other",
+          "encodedBodyBytes": 10,
+          "transferBytes": 310,
+          "durationMs": 138,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/explore",
+          "kind": "other",
+          "encodedBodyBytes": 159,
+          "transferBytes": 459,
+          "durationMs": 1196,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/assistant",
+          "kind": "other",
+          "encodedBodyBytes": 156,
+          "transferBytes": 456,
+          "durationMs": 1213,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/favorites",
+          "kind": "other",
+          "encodedBodyBytes": 160,
+          "transferBytes": 460,
+          "durationMs": 1185,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips/new",
+          "kind": "other",
+          "encodedBodyBytes": 163,
+          "transferBytes": 463,
+          "durationMs": 1192,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/login",
+          "kind": "other",
+          "encodedBodyBytes": 165,
+          "transferBytes": 465,
+          "durationMs": 144,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips",
+          "kind": "other",
+          "encodedBodyBytes": 156,
+          "transferBytes": 456,
+          "durationMs": 135,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/dashboard",
+          "kind": "other",
+          "encodedBodyBytes": 155,
+          "transferBytes": 455,
+          "durationMs": 142,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/",
+          "kind": "other",
+          "encodedBodyBytes": 840,
+          "transferBytes": 1140,
+          "durationMs": 134,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/explore",
+          "kind": "other",
+          "encodedBodyBytes": 1208,
+          "transferBytes": 1508,
+          "durationMs": 141,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/login",
+          "kind": "other",
+          "encodedBodyBytes": 651,
+          "transferBytes": 951,
+          "durationMs": 139,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/assistant",
+          "kind": "other",
+          "encodedBodyBytes": 674,
+          "transferBytes": 974,
+          "durationMs": 140,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/favorites",
+          "kind": "other",
+          "encodedBodyBytes": 1109,
+          "transferBytes": 1409,
+          "durationMs": 146,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/25-a27rpndia-.css",
+          "kind": "css",
+          "encodedBodyBytes": 8860,
+          "transferBytes": 0,
+          "durationMs": 2,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips/new",
+          "kind": "other",
+          "encodedBodyBytes": 1168,
+          "transferBytes": 1468,
+          "durationMs": 144,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips",
+          "kind": "other",
+          "encodedBodyBytes": 147,
+          "transferBytes": 447,
+          "durationMs": 141,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/dashboard",
+          "kind": "other",
+          "encodedBodyBytes": 628,
+          "transferBytes": 928,
+          "durationMs": 139,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/3ixr-3p1wsdb-.js",
+          "kind": "js",
+          "encodedBodyBytes": 4846,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0jhgzhne0r23u.js",
+          "kind": "js",
+          "encodedBodyBytes": 93406,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/24kdwqjmdtl6t.js",
+          "kind": "js",
+          "encodedBodyBytes": 869,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0pk74q1mxhtgd.css",
+          "kind": "css",
+          "encodedBodyBytes": 3480,
+          "transferBytes": 0,
+          "durationMs": 4,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/login",
+          "kind": "other",
+          "encodedBodyBytes": 153,
+          "transferBytes": 453,
+          "durationMs": 169,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/trips",
+          "kind": "other",
+          "encodedBodyBytes": 628,
+          "transferBytes": 928,
+          "durationMs": 145,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/0az152jn-wf7p.js",
+          "kind": "js",
+          "encodedBodyBytes": 801,
+          "transferBytes": 0,
+          "durationMs": 0,
+          "status": 200
+        },
+        {
+          "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+          "path": "/_next/static/chunks/2hg68zgoes4ut.css",
+          "kind": "css",
+          "encodedBodyBytes": 1742,
+          "transferBytes": 0,
+          "durationMs": 3,
+          "status": 200
+        }
+      ],
+      "lcp": {
+        "startTime": 432,
+        "size": 839540,
+        "tag": "VIDEO"
+      },
+      "cls": 0.0004290509259259259,
+      "longTasks": [],
+      "interactions": [],
+      "navigation": {
+        "ttfbMs": 225.60000000149012,
+        "domContentLoadedMs": 322.6000000014901,
+        "loadMs": 516.2000000029802,
+        "encodedBodyBytes": 19204,
+        "decodedBodyBytes": 115119
+      },
+      "overflow": false,
+      "mapMarkers": 0,
+      "mapUnavailable": false,
+      "imageCount": 0,
+      "inp": null,
+      "inpReason": "No representative user interaction; field INP unavailable",
+      "blockedWriteRequests": []
+    }
+  ]
+}

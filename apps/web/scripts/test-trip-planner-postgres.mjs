@@ -17,7 +17,7 @@ try {
   const port = docker("port", name, "5432/tcp").match(/^127\.0\.0\.1:(\d+)$/m)?.[1]; if (!port) throw new Error("Non-loopback disposable target rejected");
   if (docker("exec", name, "psql", "-At", "-U", "us28_test", "-d", "us28_test", "-c", "SELECT current_database()") !== "us28_test") throw new Error("Database identity rejected");
   const migrations = ["20261004070249_add_destination_domain", "20261005021531_add_culture_content_domain", "20261008120000_add_rag_document", "20261012150000_admin_content_profiles"];
-  const sql = (await Promise.all(migrations.map(m => readFile(resolve(root, `packages/db/prisma/migrations/${m}/migration.sql`), "utf8")))).join("\n");
+  const sql = "CREATE EXTENSION IF NOT EXISTS vector;\n" + (await Promise.all(migrations.map(m => readFile(resolve(root, `packages/db/prisma/migrations/${m}/migration.sql`), "utf8")))).join("\n");
   run("docker", ["exec", "-i", name, "psql", "-v", "ON_ERROR_STOP=1", "-U", "us28_test", "-d", "us28_test"], sql);
   console.log("US28_DISPOSABLE_TARGET=VERIFIED; ACTUAL_RELEVANT_MIGRATIONS=4; NO_NEON_ACCESS");
   const url = new URL(`postgresql://us28_test:${password}@127.0.0.1:${port}/us28_test`); url.searchParams.set("sslmode", "disable");

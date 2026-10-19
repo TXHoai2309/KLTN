@@ -20,8 +20,8 @@ export const travelLegSchema = z.object({
   reason: z.enum(["NOT_CONFIGURED", "TIMEOUT", "UNAVAILABLE", "UNSUPPORTED_MODE", "NO_ROUTE", "INVALID_RESPONSE"]).nullable(),
   durationSeconds: z.number().finite().nonnegative().max(604800).nullable(),
   distanceMeters: z.number().finite().nonnegative().max(10_000_000).nullable(),
-  provider: z.enum(["GOOGLE_ROUTES", "STADIA_MAPS"]).nullable(),
-  // Owner decision (ADR-17): route geometry is not rendered on MapLibre.
+  provider: z.literal("STADIA_MAPS").nullable(),
+  // Owner decision: Routing geometry is not rendered on MapLibre.
 }).strict().superRefine((leg, ctx) => {
   if (leg.status === "VERIFIED" && (leg.durationSeconds === null || leg.distanceMeters === null || leg.provider === null || leg.reason !== null))
     ctx.addIssue({ code: "custom", message: "Verified route requires provider metrics." });

@@ -3,6 +3,7 @@ import { AppError } from "@/server/http/app-error";
 import type { DestinationProfile } from "../content-profile/content-profile-contract";
 import type { DestinationInput } from "./destination-contract";
 import { fromMinute, toMinute } from "./destination-contract";
+import { withoutWebsiteUse } from "./destination-media-eligibility";
 
 type Source = Prisma.ContentSourceGetPayload<object>;
 type Media = Prisma.ContentMediaGetPayload<object>;
@@ -40,6 +41,8 @@ function reconcile<T extends { id: string }>(
         "Nguồn/ảnh không thuộc điểm đến này hoặc bị lặp.",
         400,
       );
+    if (isMedia && fields.storageReference !== (old as Record<string, unknown> | undefined)?.storageReference)
+      fields.storageReference = withoutWebsiteUse(fields.storageReference as string | null);
     const reviewed = Object.entries(fields).some(
       ([k, v]) => k.endsWith("Rights") && v !== "UNKNOWN",
     );
@@ -64,6 +67,8 @@ function reconcile<T extends { id: string }>(
         storageReference: null, websiteRights: "UNKNOWN", rightsEvidence: null,
         reviewedBy: null, reviewedAt: null,
       });
+      if (isMedia && ("websiteRights" in changes || "rightsEvidence" in changes))
+        Object.assign(changes, { storageReference: withoutWebsiteUse(("storageReference" in changes ? changes.storageReference : (old as Record<string, unknown>).storageReference) as string | null) });
       if (Object.keys(changes).length)
         update.push({ where: { id: old.id }, data: changes });
     } else

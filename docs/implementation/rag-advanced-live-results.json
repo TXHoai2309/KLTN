@@ -1,0 +1,361 @@
+{
+  "date": "2026-10-17",
+  "readOnly": true,
+  "totalCalls": 36,
+  "embeddingCalls": 10,
+  "chatCalls": 26,
+  "reportedTokens": 79286,
+  "finalPassed": 9,
+  "totalCases": 9,
+  "initialRun": "rag-advanced-live-initial-results.json",
+  "focusedRetry": {
+    "date": "2026-10-17",
+    "totalCalls": 4,
+    "maxCalls": 36,
+    "readOnly": true,
+    "results": [
+      {
+        "caseId": 5,
+        "passed": true,
+        "status": "ANSWERED",
+        "retrievedDocuments": 2,
+        "calls": [
+          {
+            "role": "embedding",
+            "model": "text-embedding-3-small",
+            "httpStatus": 200,
+            "tokens": 45
+          },
+          {
+            "role": "qa_source_assessment",
+            "model": "gpt-6.1-sol",
+            "httpStatus": 200,
+            "tokens": 3229
+          },
+          {
+            "role": "grounded_qa",
+            "model": "gpt-6.1-sol",
+            "httpStatus": 200,
+            "tokens": 2550
+          },
+          {
+            "role": "qa_claim_verification",
+            "model": "gpt-6.1-sol",
+            "httpStatus": 200,
+            "tokens": 3036
+          }
+        ],
+        "elapsedMs": 23084,
+        "answer": "Căng Bắc Mê mang giá trị lịch sử cách mạng, là nơi giam giữ tù nhân chính trị thời Pháp thuộc và được xếp hạng Di tích lịch sử quốc gia. Giá trị của nơi này không nằm ở tư cách một di tích kiến trúc nghệ thuật độc lập. Chợ tình Khâu Vai lại nổi bật ở sinh hoạt văn hóa cộng đồng: gặp gỡ, chuyện trò, hát đối, chia sẻ ký ức và tham gia sinh hoạt tín ngưỡng, thay vì chủ yếu trao đổi hàng hóa. Người đến còn để vui hội, gặp bạn bè, xem diễn xướng, tìm hiểu đời sống cộng đồng và tôn trọng tập quán truyền thống; vì vậy không nên hiểu toàn bộ lễ hội chỉ là dịp “tìm người yêu cũ”.",
+        "missing": [],
+        "diagnostics": []
+      }
+    ]
+  },
+  "results": [
+    {
+      "caseId": 1,
+      "passed": true,
+      "status": "ANSWERED",
+      "retrievedDocuments": 2,
+      "calls": [
+        {
+          "role": "embedding",
+          "model": "text-embedding-3-small",
+          "httpStatus": 200,
+          "tokens": 32
+        },
+        {
+          "role": "qa_source_assessment",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 4171
+        },
+        {
+          "role": "grounded_qa",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 1502
+        },
+        {
+          "role": "qa_claim_verification",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 3317
+        }
+      ],
+      "elapsedMs": 13960,
+      "answer": "Căng Bắc Mê được xếp hạng di tích lịch sử quốc gia năm 1992, vào ngày 21/01/1992.",
+      "missing": [],
+      "diagnostics": []
+    },
+    {
+      "caseId": 2,
+      "passed": true,
+      "status": "ANSWERED",
+      "retrievedDocuments": 1,
+      "calls": [
+        {
+          "role": "embedding",
+          "model": "text-embedding-3-small",
+          "httpStatus": 200,
+          "tokens": 40
+        },
+        {
+          "role": "qa_source_assessment",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 3187
+        },
+        {
+          "role": "grounded_qa",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 1563
+        },
+        {
+          "role": "qa_claim_verification",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 2701
+        }
+      ],
+      "elapsedMs": 15340,
+      "answer": "Giai đoạn 1939–1942, khoảng 300 tù nhân chính trị được đưa đến giam giữ tại Căng Bắc Mê qua nhiều đợt; đây là số liệu xấp xỉ theo báo chí.",
+      "missing": [],
+      "diagnostics": [],
+      "evaluationNote": "Rechecked saved verified answer after correcting Vietnamese đ-to-d folding in the mechanical checker; no additional provider call."
+    },
+    {
+      "caseId": 3,
+      "passed": true,
+      "status": "ANSWERED",
+      "retrievedDocuments": 3,
+      "calls": [
+        {
+          "role": "embedding",
+          "model": "text-embedding-3-small",
+          "httpStatus": 200,
+          "tokens": 33
+        },
+        {
+          "role": "qa_source_assessment",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 4905
+        },
+        {
+          "role": "grounded_qa",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 1686
+        },
+        {
+          "role": "qa_claim_verification",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 3870
+        }
+      ],
+      "elapsedMs": 12376,
+      "answer": "Tập quán xã hội và tín ngưỡng Chợ Phong Lưu Khâu Vai được ghi danh là di sản văn hóa phi vật thể quốc gia năm 2021.",
+      "missing": [],
+      "diagnostics": []
+    },
+    {
+      "caseId": 4,
+      "passed": true,
+      "status": "ANSWERED",
+      "retrievedDocuments": 1,
+      "calls": [
+        {
+          "role": "embedding",
+          "model": "text-embedding-3-small",
+          "httpStatus": 200,
+          "tokens": 32
+        },
+        {
+          "role": "qa_source_assessment",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 4272
+        },
+        {
+          "role": "grounded_qa",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 1469
+        },
+        {
+          "role": "qa_claim_verification",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 3439
+        }
+      ],
+      "elapsedMs": 12369,
+      "answer": "Phiên chính của Chợ tình Khâu Vai diễn ra vào ngày 27 tháng 3 âm lịch hằng năm.",
+      "missing": [],
+      "diagnostics": []
+    },
+    {
+      "caseId": 5,
+      "passed": true,
+      "status": "ANSWERED",
+      "retrievedDocuments": 2,
+      "calls": [
+        {
+          "role": "embedding",
+          "model": "text-embedding-3-small",
+          "httpStatus": 200,
+          "tokens": 45
+        },
+        {
+          "role": "qa_source_assessment",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 3229
+        },
+        {
+          "role": "grounded_qa",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 2550
+        },
+        {
+          "role": "qa_claim_verification",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 3036
+        }
+      ],
+      "elapsedMs": 23084,
+      "answer": "Căng Bắc Mê mang giá trị lịch sử cách mạng, là nơi giam giữ tù nhân chính trị thời Pháp thuộc và được xếp hạng Di tích lịch sử quốc gia. Giá trị của nơi này không nằm ở tư cách một di tích kiến trúc nghệ thuật độc lập. Chợ tình Khâu Vai lại nổi bật ở sinh hoạt văn hóa cộng đồng: gặp gỡ, chuyện trò, hát đối, chia sẻ ký ức và tham gia sinh hoạt tín ngưỡng, thay vì chủ yếu trao đổi hàng hóa. Người đến còn để vui hội, gặp bạn bè, xem diễn xướng, tìm hiểu đời sống cộng đồng và tôn trọng tập quán truyền thống; vì vậy không nên hiểu toàn bộ lễ hội chỉ là dịp “tìm người yêu cũ”.",
+      "missing": [],
+      "diagnostics": [],
+      "evaluationNote": "Focused retry after replacing the over-specified Cartesian heritage checklist with two required subject roles under all requested criteria."
+    },
+    {
+      "caseId": 6,
+      "passed": true,
+      "status": "ANSWERED",
+      "retrievedDocuments": 1,
+      "calls": [
+        {
+          "role": "embedding",
+          "model": "text-embedding-3-small",
+          "httpStatus": 200,
+          "tokens": 36
+        },
+        {
+          "role": "qa_source_assessment",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 3006
+        },
+        {
+          "role": "grounded_qa",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 1524
+        },
+        {
+          "role": "qa_claim_verification",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 2571
+        }
+      ],
+      "elapsedMs": 12459,
+      "answer": "Không thể xác định chính xác năm xây dựng ban đầu của Căng Bắc Mê vì các nguồn chưa thống nhất về mốc này. Cần phân biệt thời điểm dựng đồn với thời điểm chuyển thành cơ sở giam giữ.",
+      "missing": [],
+      "diagnostics": [],
+      "evaluationNote": "Rechecked saved verified answer after correcting Vietnamese đ-to-d folding in the mechanical checker; no additional provider call."
+    },
+    {
+      "caseId": 7,
+      "passed": true,
+      "status": "INSUFFICIENT_SOURCE",
+      "retrievedDocuments": 1,
+      "calls": [
+        {
+          "role": "embedding",
+          "model": "text-embedding-3-small",
+          "httpStatus": 200,
+          "tokens": 48
+        },
+        {
+          "role": "qa_source_assessment",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 4838
+        }
+      ],
+      "elapsedMs": 5161,
+      "diagnostics": []
+    },
+    {
+      "caseId": 8,
+      "passed": true,
+      "status": "INSUFFICIENT_SOURCE",
+      "retrievedDocuments": 3,
+      "calls": [
+        {
+          "role": "embedding",
+          "model": "text-embedding-3-small",
+          "httpStatus": 200,
+          "tokens": 35
+        },
+        {
+          "role": "qa_source_assessment",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 2651
+        }
+      ],
+      "elapsedMs": 5133,
+      "diagnostics": []
+    },
+    {
+      "caseId": 9,
+      "passed": true,
+      "status": "ANSWERED",
+      "retrievedDocuments": 2,
+      "calls": [
+        {
+          "role": "embedding",
+          "model": "text-embedding-3-small",
+          "httpStatus": 200,
+          "tokens": 23
+        },
+        {
+          "role": "qa_source_assessment",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 4946
+        },
+        {
+          "role": "grounded_qa",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 2081
+        },
+        {
+          "role": "qa_claim_verification",
+          "model": "gpt-6.1-sol",
+          "httpStatus": 200,
+          "tokens": 4067
+        }
+      ],
+      "elapsedMs": 23374,
+      "answer": "Danh hiệu được ghi nhận là di sản văn hóa phi vật thể quốc gia, không phải Di sản thế giới UNESCO. Theo hồ sơ, năm 2021, tập quán xã hội và tín ngưỡng Chợ Phong Lưu Khâu Vai được ghi danh; việc này không đồng nghĩa toàn bộ khu chợ được UNESCO công nhận.",
+      "missing": [],
+      "diagnostics": []
+    }
+  ],
+  "limits": [
+    "Finite non-independent live sample; not a universal quality guarantee.",
+    "No live conversation persistence writes; history and concurrency were verified in disposable PostgreSQL.",
+    "Later token-reservation and follow-up hardening checked offline; no paid rerun beyond 36 calls."
+  ]
+}

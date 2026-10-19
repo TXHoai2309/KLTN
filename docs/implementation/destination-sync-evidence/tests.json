@@ -1,0 +1,21 @@
+{
+  "unitTests": {
+    "pass": 16,
+    "fail": 0,
+    "command": "node --test scripts/destination-sync-core.test.mjs scripts/preflight-destination-production-sync.test.mjs"
+  },
+  "postgresIntegration": {
+    "uniqueTests": 3,
+    "pass": 3,
+    "fail": 0,
+    "disposablePostgres17": true,
+    "timezone": "Asia/Ho_Chi_Minh",
+    "timestampWithoutTimezoneRegression": "PASS",
+    "lateFkRollback": "PASS",
+    "advisoryLock": "PASS",
+    "ownedContainerRemoved": true
+  },
+  "nodeSyntax": "PASS",
+  "applicationBuild": "NOT_RUN_NO_APP_CODE_CHANGED",
+  "applicationTypecheck": "NOT_RUN_NO_APP_CODE_CHANGED"
+}

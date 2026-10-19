@@ -8,7 +8,7 @@ describe("US21 repeatable offline technical evaluation", () => {
     console.info("US21_EVALUATION_REPORT=" + JSON.stringify(result));
     expect(result.realCorpusEvaluation).toBe("NOT_EVALUATED");
     expect(result.semanticQuality).toBe("NOT_EVALUATED");
-    expect(result.metrics.technicalExpectationsMatched).toBe(result.metrics.technicalCases);
+    expect(result.metrics.technicalExpectationsMatched, JSON.stringify(result.results.filter(item => !item.expectationMatched))).toBe(result.metrics.technicalCases);
     expect(result.results.filter(item => !item.expectationMatched)).toEqual([]);
     expect(result.metrics.historyIsolationFailures).toBe(0);
     expect(result.metrics.metadataAuthenticityFailures).toBe(0);

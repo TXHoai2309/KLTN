@@ -1,0 +1,442 @@
+{
+  "measuredAt": "2026-10-18T09:24:52.398Z",
+  "source": "Vercel existing traffic only; latest50 matching logs in15m; truncation possible; no audit AI requests",
+  "requestsObserved": 2,
+  "events": [
+    {
+      "run": "run1",
+      "stage": "HTTP_RESPONSE_VALIDATION",
+      "event": "STAGE",
+      "elapsedMs": 36007,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "PERSISTENCE_COMPLETED",
+      "event": "STAGE",
+      "elapsedMs": 36007,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "PERSISTENCE_STARTED",
+      "event": "STAGE",
+      "elapsedMs": 32991,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "CITATIONS_VERIFIED",
+      "event": "STAGE",
+      "elapsedMs": 31482,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "GENERATION_COMPLETED",
+      "event": "STAGE",
+      "elapsedMs": 31481,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "GENERATION_OUTPUT_VALIDATED",
+      "event": "STAGE",
+      "elapsedMs": 31481,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "GENERATION_JSON",
+      "event": "STAGE",
+      "elapsedMs": 31478,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "GENERATION_ENVELOPE",
+      "event": "STAGE",
+      "elapsedMs": 31475,
+      "providerPhase": "SYNTHESIS_VERIFICATION",
+      "providerElapsedMs": 6316,
+      "httpStatus": 200,
+      "promptTokens": 4555,
+      "completionTokens": 254,
+      "totalTokens": 4809,
+      "reasoningTokens": 28,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "GENERATION_ENVELOPE",
+      "event": "STAGE",
+      "elapsedMs": 31474,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "SYNTHESIS_VERIFICATION",
+      "event": "STAGE",
+      "elapsedMs": 31474,
+      "providerPhase": "SYNTHESIS_VERIFICATION",
+      "providerElapsedMs": 6315,
+      "httpStatus": 200,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "SYNTHESIS_VERIFICATION",
+      "event": "STAGE",
+      "elapsedMs": 25159,
+      "providerPhase": "SYNTHESIS_VERIFICATION",
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "SYNTHESIS_VERIFICATION",
+      "event": "STAGE",
+      "elapsedMs": 25158,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "SYNTHESIS_VERIFICATION",
+      "event": "STAGE",
+      "elapsedMs": 25131,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "GENERATION_OUTPUT_SCHEMA",
+      "event": "STAGE",
+      "elapsedMs": 25130,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "GENERATION_JSON",
+      "event": "STAGE",
+      "elapsedMs": 25130,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "GENERATION_ENVELOPE",
+      "event": "STAGE",
+      "elapsedMs": 25127,
+      "providerPhase": "GENERATION",
+      "providerElapsedMs": 8044,
+      "httpStatus": 200,
+      "promptTokens": 2054,
+      "completionTokens": 333,
+      "totalTokens": 2387,
+      "reasoningTokens": 54,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "GENERATION_ENVELOPE",
+      "event": "STAGE",
+      "elapsedMs": 25125,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "GENERATION_PROVIDER",
+      "event": "STAGE",
+      "elapsedMs": 25125,
+      "providerPhase": "GENERATION",
+      "providerElapsedMs": 8042,
+      "httpStatus": 200,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "GENERATION_PROVIDER",
+      "event": "STAGE",
+      "elapsedMs": 17083,
+      "providerPhase": "GENERATION",
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "GENERATION_PROVIDER",
+      "event": "STAGE",
+      "elapsedMs": 17083,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "GENERATION_PREFLIGHT",
+      "event": "STAGE",
+      "elapsedMs": 17062,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "ASSESSMENT_VALIDATION",
+      "event": "STAGE",
+      "elapsedMs": 16166,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "GENERATION_JSON",
+      "event": "STAGE",
+      "elapsedMs": 16166,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "GENERATION_ENVELOPE",
+      "event": "STAGE",
+      "elapsedMs": 16164,
+      "providerPhase": "ASSESSMENT",
+      "providerElapsedMs": 4398,
+      "httpStatus": 200,
+      "promptTokens": 5613,
+      "completionTokens": 156,
+      "totalTokens": 5769,
+      "reasoningTokens": 0,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "GENERATION_ENVELOPE",
+      "event": "STAGE",
+      "elapsedMs": 16163,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "ASSESSMENT_STARTED",
+      "event": "STAGE",
+      "elapsedMs": 16163,
+      "providerPhase": "ASSESSMENT",
+      "providerElapsedMs": 4397,
+      "httpStatus": 200,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "ASSESSMENT_STARTED",
+      "event": "STAGE",
+      "elapsedMs": 11766,
+      "providerPhase": "ASSESSMENT",
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "ASSESSMENT_STARTED",
+      "event": "STAGE",
+      "elapsedMs": 11766,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "ASSESSMENT_STARTED",
+      "event": "STAGE",
+      "elapsedMs": 11737,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "GENERATION_STARTED",
+      "event": "STAGE",
+      "elapsedMs": 11735,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "EVIDENCE_ELIGIBILITY_CHECKED",
+      "event": "STAGE",
+      "elapsedMs": 11735,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run1",
+      "stage": "EVIDENCE_ELIGIBILITY_CHECK",
+      "event": "STAGE",
+      "elapsedMs": 10841,
+      "retrievedChunks": 4,
+      "eligibleChunks": null
+    },
+    {
+      "run": "run1",
+      "stage": "RETRIEVAL_COMPLETED",
+      "event": "STAGE",
+      "elapsedMs": 10841,
+      "retrievedChunks": 4,
+      "eligibleChunks": null
+    },
+    {
+      "run": "run1",
+      "stage": "RETRIEVAL_COMPLETED",
+      "event": "STAGE",
+      "elapsedMs": 10841,
+      "retrievedChunks": 4,
+      "eligibleChunks": null
+    },
+    {
+      "run": "run1",
+      "stage": "RETRIEVAL_STARTED",
+      "event": "STAGE",
+      "elapsedMs": 9224,
+      "retrievedChunks": null,
+      "eligibleChunks": null
+    },
+    {
+      "run": "run1",
+      "stage": "QUESTION_EMBEDDING_COMPLETED",
+      "event": "STAGE",
+      "elapsedMs": 9223,
+      "retrievedChunks": null,
+      "eligibleChunks": null
+    },
+    {
+      "run": "run1",
+      "stage": "QUESTION_EMBEDDING_VALIDATION",
+      "event": "STAGE",
+      "elapsedMs": 9223,
+      "retrievedChunks": null,
+      "eligibleChunks": null
+    },
+    {
+      "run": "run1",
+      "stage": "QUESTION_EMBEDDING_STARTED",
+      "event": "STAGE",
+      "elapsedMs": 9221,
+      "providerElapsedMs": 264,
+      "httpStatus": 200,
+      "retrievedChunks": null,
+      "eligibleChunks": null
+    },
+    {
+      "run": "run1",
+      "stage": "QUESTION_EMBEDDING_STARTED",
+      "event": "STAGE",
+      "elapsedMs": 8957,
+      "retrievedChunks": null,
+      "eligibleChunks": null
+    },
+    {
+      "run": "run1",
+      "stage": "QUESTION_EMBEDDING_STARTED",
+      "event": "STAGE",
+      "elapsedMs": 8956,
+      "retrievedChunks": null,
+      "eligibleChunks": null
+    },
+    {
+      "run": "run1",
+      "stage": "RETRIEVAL_STARTED",
+      "event": "STAGE",
+      "elapsedMs": 8955,
+      "retrievedChunks": null,
+      "eligibleChunks": null
+    },
+    {
+      "run": "run1",
+      "stage": "IDEMPOTENCY_ADMITTED",
+      "event": "STAGE",
+      "elapsedMs": 8950,
+      "retrievedChunks": null,
+      "eligibleChunks": null
+    },
+    {
+      "run": "run1",
+      "stage": "IDEMPOTENCY_ADMISSION",
+      "event": "STAGE",
+      "elapsedMs": 1350,
+      "retrievedChunks": null,
+      "eligibleChunks": null
+    },
+    {
+      "run": "run1",
+      "stage": "PRINCIPAL_RESOLVED",
+      "event": "STAGE",
+      "elapsedMs": 1350,
+      "retrievedChunks": null,
+      "eligibleChunks": null
+    },
+    {
+      "run": "run1",
+      "stage": "REQUEST_ACCEPTED",
+      "event": "STAGE",
+      "elapsedMs": 0,
+      "retrievedChunks": null,
+      "eligibleChunks": null
+    },
+    {
+      "run": "run2",
+      "stage": "HTTP_RESPONSE_VALIDATION",
+      "event": "STAGE",
+      "elapsedMs": 33864,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run2",
+      "stage": "PERSISTENCE_COMPLETED",
+      "event": "STAGE",
+      "elapsedMs": 33864,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run2",
+      "stage": "PERSISTENCE_STARTED",
+      "event": "STAGE",
+      "elapsedMs": 30773,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run2",
+      "stage": "CITATIONS_VERIFIED",
+      "event": "STAGE",
+      "elapsedMs": 29890,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    },
+    {
+      "run": "run2",
+      "stage": "GENERATION_COMPLETED",
+      "event": "STAGE",
+      "elapsedMs": 29889,
+      "retrievedChunks": 4,
+      "eligibleChunks": 4
+    }
+  ]
+}

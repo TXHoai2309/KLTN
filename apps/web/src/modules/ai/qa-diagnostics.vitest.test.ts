@@ -2,11 +2,11 @@ import { fixtureQaAssessment } from "./__fixtures__/qa-reviewed-input";
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import type { Database } from "@KLTN/db";
-import { createQaDiagnostics, qaOrigin, qaProviderMetadata, qaReportFailure, qaStage, type QaDiagnosticEvent } from "./qa-diagnostics";
+import { createQaDiagnostics, qaOrigin, qaProviderMetadata, qaReportFailure, qaRejectSynthesis, qaStage, type QaDiagnosticEvent } from "./qa-diagnostics";
 import { createQaHttpHandlers } from "./qa-http";
 import { createQaService } from "./qa-service";
 import { createQaRetriever } from "./qa-retrieval";
-import { createQaGenerator } from "./qa-generation";
+import { createFixtureQaGenerator as createQaGenerator } from "./__fixtures__/qa-generation-wire";
 import type { QaConversationStore } from "./qa-conversation-store";
 import { countEmbeddingTokens } from "../rag-processing/embedding-tokenizer";
 import { AppError } from "../../server/http/app-error";
@@ -57,9 +57,8 @@ describe("development QA stage diagnostics with offline providers", () => {
     const call = t.fetcher.mock.calls.find(([url]) => url === "https://api.openai.com/v1/chat/completions")!;
     const sent = JSON.parse(call[1]!.body as string);
     expect(sent.store).toBe(false);
-    expect(sent.response_format.json_schema).toMatchObject({ strict: true, schema: { required: ["status", "answerParts", "unanswered"], additionalProperties: false } });
-    expect(sent.messages[0].content).toContain("unanswered=true only for PARTIAL");
-    expect(sent.messages[0].content).toContain("Empty parts for insufficiency/clarification");
+    expect(sent.response_format.json_schema).toMatchObject({ strict: true, schema: { required: ["status", "facets", "unanswered"], additionalProperties: false } });
+    // Outcome behavior is exercised below; prompt wording is not the contract.
     expect(JSON.stringify(t.events)).not.toContain(text);
   });
   it.each(["ANSWERED", "PARTIAL", "INSUFFICIENT_SOURCE", "CLARIFICATION_REQUIRED"] as const)("rejects contradictory unanswered for %s at the historical stage", async status => {
@@ -74,7 +73,7 @@ describe("development QA stage diagnostics with offline providers", () => {
     const factual = status === "ANSWERED" || status === "PARTIAL";
     const t = await exercise("valid", { output: { status, answerParts: factual ? [] : answered.answerParts, unanswered: status === "PARTIAL" } });
     expect(t.response.status).toBe(502);
-    expect(t.events.at(-1)).toMatchObject({ stage: "GENERATION_OUTCOME", category: "OUTCOME_CONSISTENCY", issues: [{ code: "custom", path: ["answerParts"] }] });
+    expect(t.events.at(-1)).toMatchObject({ stage: "GENERATION_OUTCOME", category: "OUTCOME_CONSISTENCY", issues: [{ code: "custom", path: [factual ? "facets" : "answerParts"] }] });
     expect(t.store.complete).not.toHaveBeenCalled(); expect(t.store.fail).toHaveBeenCalledTimes(1);
   });
   it.each([
@@ -111,7 +110,7 @@ describe("development QA stage diagnostics with offline providers", () => {
     ["schema", "GENERATION_OUTPUT_SCHEMA", "SCHEMA", "AI_INVALID_RESPONSE", 502],
     ["outcome", "GENERATION_OUTCOME", "OUTCOME_CONSISTENCY", "AI_INVALID_RESPONSE", 502],
     ["citation", "CITATION_VALIDATION", "CITATION_REFERENCE", "AI_INVALID_RESPONSE", 502],
-    ["grounding", "GROUNDING_VALIDATION", "UNSUPPORTED_SENTENCE", "AI_INVALID_RESPONSE", 502],
+    ["grounding", "SYNTHESIS_VERIFICATION", "SCHEMA", "AI_INVALID_RESPONSE", 502],
     ["persistence", "PERSISTENCE_STARTED", "PERSISTENCE", "OPERATION_STATUS_UNKNOWN", 503],
     ["embedding", "QUESTION_EMBEDDING_VALIDATION", "EMBEDDING_VECTOR", "AI_INVALID_RESPONSE", 502],
     ["eligibility", "EVIDENCE_ELIGIBILITY_CHECK", "ELIGIBILITY", "AI_INVALID_RESPONSE", 502],
@@ -123,10 +122,11 @@ describe("development QA stage diagnostics with offline providers", () => {
     if (["embedding", "eligibility"].includes(mode)) expect(failures[0]!.generationInvoked).toBe(false);
     expect(JSON.stringify(t.events)).not.toMatch(/private-|secret-|Unsupported private|Fixture confirmation|QA-SAOTIM/);
   });
-  it.each([["production", undefined], ["production", "preview"], ["development", "production"], ["development", "preview"]])("does not emit for NODE_ENV=%s VERCEL_ENV=%s", async (nodeEnv, vercelEnv) => {
+  it.each([["production", undefined], ["production", "preview"], ["development", "production"], ["development", "preview"]])("emits sanitized telemetry for NODE_ENV=%s VERCEL_ENV=%s", async (nodeEnv, vercelEnv) => {
     const sink = vi.fn();
     await createQaDiagnostics({ nodeEnv, vercelEnv, sink }).run(async () => { qaStage("REQUEST_ACCEPTED"); qaReportFailure(new Error("secret"), "AI_INVALID_RESPONSE"); });
-    expect(sink).not.toHaveBeenCalled();
+    expect(sink).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(sink.mock.calls)).not.toContain("secret");
   });
   it("projects validation paths and provider metadata, rejects arbitrary values", async () => {
     const events: QaDiagnosticEvent[] = [];
@@ -137,6 +137,19 @@ describe("development QA stage diagnostics with offline providers", () => {
     });
     expect(events.at(-1)!.issues).toEqual([{ code: "OTHER", path: ["answerParts", 0, "FIELD"] }]);
     expect(JSON.stringify(events)).not.toMatch(/secret|private|https/);
+  });
+  it("records synthesis rejection causes without emitting arbitrary gate/source text", async () => {
+    const events: QaDiagnosticEvent[] = [];
+    await createQaDiagnostics({ nodeEnv: "development", sink: event => events.push(event) }).run(async () => {
+      expect(qaRejectSynthesis("ASPECT_COVERAGE")).toBe(false);
+      qaRejectSynthesis("GATE_REJECTED", "CLAIM_GROUNDING");
+      qaRejectSynthesis("GATE_REJECTED", "private-source-text");
+    });
+    expect(events[0]).toMatchObject({ stage: "SYNTHESIS_REJECTED", synthesisRejection: "ASPECT_COVERAGE" });
+    expect(events[1]).toMatchObject({ synthesisRejection: "GATE_REJECTED", synthesisGate: "CLAIM_GROUNDING" });
+    expect(events[2]).not.toHaveProperty("synthesisGate");
+    expect(JSON.stringify(events)).not.toContain("private-source-text");
+    await expect(createQaDiagnostics({ nodeEnv: "development", sink: () => { throw new Error("sink unavailable"); } }).run(async () => qaRejectSynthesis("SUPPORT_REFERENCE"))).resolves.toBe(false);
   });
   it("keeps correlation state isolated for concurrent requests and ignores sink failures", async () => {
     const events: QaDiagnosticEvent[] = [];

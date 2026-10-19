@@ -70,6 +70,7 @@ async function waitUntilReady() {
 async function installTask184Schema() {
   const admissionMigrations = await Promise.all([
     "20261001115741_init_auth", "20261001130000_add_idempotency_record", "20261001143000_add_user_role",
+    "20261017210000_admin_user_management",
   ].map(name => readFile(resolve(repoRoot, `packages/db/prisma/migrations/${name}/migration.sql`), "utf8")));
   const documentMigration = await readFile(
     resolve(repoRoot, "packages/db/prisma/migrations/20261008120000_add_rag_document/migration.sql"),
@@ -83,13 +84,17 @@ async function installTask184Schema() {
     resolve(repoRoot, "packages/db/prisma/migrations/20261010120000_add_rag_index_jobs/migration.sql"),
     "utf8",
   );
-  const qaMigrations = await Promise.all(["20261011120000_add_qa_guest_identity", "20261011121000_add_qa_conversations", "20261011122000_add_qa_abuse_guard", "20261011123000_add_qa_cleanup_state"].map(name => readFile(resolve(repoRoot, `packages/db/prisma/migrations/${name}/migration.sql`), "utf8")));
+  const qaMigrations = await Promise.all(["20261011120000_add_qa_guest_identity", "20261011121000_add_qa_conversations", "20261011122000_add_qa_abuse_guard", "20261011123000_add_qa_cleanup_state", "20261017120000_add_qa_conversation_history"].map(name => readFile(resolve(repoRoot, `packages/db/prisma/migrations/${name}/migration.sql`), "utf8")));
+  const ragPublicQaMigration = await readFile(
+    resolve(repoRoot, "packages/db/prisma/migrations/20261017150000_add_rag_public_qa_permission/migration.sql"),
+    "utf8",
+  );
   const destinationMigration = await readFile(resolve(repoRoot, "packages/db/prisma/migrations/20261004070249_add_destination_domain/migration.sql"), "utf8");
   const contextMigration = await readFile(resolve(repoRoot, "packages/db/prisma/migrations/20261012120000_add_qa_destination_context/migration.sql"), "utf8");
   const cultureMigration = await readFile(resolve(repoRoot,"packages/db/prisma/migrations/20261005021531_add_culture_content_domain/migration.sql"),"utf8");
   const profileMigration = await readFile(resolve(repoRoot,"packages/db/prisma/migrations/20261012150000_admin_content_profiles/migration.sql"),"utf8");
   const legacySeed = `INSERT INTO destination(id,name,description,area,category,latitude,longitude,"updatedAt") VALUES ('af-legacy-destination','Legacy destination','Legacy prose','Test','Test',23,105,CURRENT_TIMESTAMP); INSERT INTO culture_content(id,title,content,"sourceTitle","updatedAt") VALUES('af-legacy-culture','Legacy culture','Legacy prose','Legacy source',CURRENT_TIMESTAMP); INSERT INTO opening_day(id,"destinationId","dayOfWeek",status) SELECT 'af-legacy-day-'||day, 'af-legacy-destination', day::"Weekday", 'UNKNOWN'::"OpeningStatus" FROM unnest(ARRAY['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY']) day;`;
-  const setupSql = `CREATE EXTENSION vector;\n${admissionMigrations.join("\n")}\n${destinationMigration}\n${documentMigration}\n${indexMigration}\n${jobMigration}\n${qaMigrations.join("\n")}\n${contextMigration}\n${cultureMigration}\n${legacySeed}\n${profileMigration}\n`;
+  const setupSql = `CREATE EXTENSION vector;\n${admissionMigrations.join("\n")}\n${destinationMigration}\n${documentMigration}\n${indexMigration}\n${jobMigration}\n${ragPublicQaMigration}\n${qaMigrations.join("\n")}\n${contextMigration}\n${cultureMigration}\n${legacySeed}\n${profileMigration}\n`;
   const result = run(
     "docker",
     [
@@ -109,6 +114,36 @@ async function installTask184Schema() {
   if (result.status !== 0) {
     throw new Error("Could not install the actual RagDocument and Task184/185 migrations into the isolated database.");
   }
+  const historyColumns = requireSuccess("docker", [
+    "exec", containerName, "psql", "-At", "-U", databaseUser, "-d", databaseName, "-c",
+    "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'qa_conversation' AND column_name IN ('title', 'titleCustomized', 'lastActivityAt') ORDER BY column_name",
+  ]);
+  if (!historyColumns.includes("title|character varying") || !historyColumns.includes("titleCustomized|boolean") || !historyColumns.includes("lastActivityAt|timestamp with time zone")) {
+    throw new Error(`qa_conversation history columns missing in PostgreSQL schema: ${historyColumns}`);
+  }
+  const historyIndex = requireSuccess("docker", [
+    "exec", containerName, "psql", "-At", "-U", databaseUser, "-d", databaseName, "-c",
+    "SELECT indexname FROM pg_indexes WHERE tablename = 'qa_conversation' AND indexname = 'qa_conversation_principalKind_principalId_deletedAt_lastAct_idx'",
+  ]);
+  if (!historyIndex.includes("qa_conversation_principalKind_principalId_deletedAt_lastAct_idx")) {
+    throw new Error("qa_conversation history index missing in PostgreSQL schema");
+  }
+  console.log("QA_CONVERSATION_HISTORY_MIGRATION=VERIFIED (columns title, titleCustomized, lastActivityAt, index exist)");
+  const publicQaColumns = requireSuccess("docker", [
+    "exec", containerName, "psql", "-At", "-U", databaseUser, "-d", databaseName, "-c",
+    "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'rag_document' AND column_name = 'publicQaApproved'",
+  ]);
+  if (!publicQaColumns.includes("publicQaApproved|boolean")) {
+    throw new Error(`rag_document publicQaApproved column missing in PostgreSQL schema: ${publicQaColumns}`);
+  }
+  const publicQaIndex = requireSuccess("docker", [
+    "exec", containerName, "psql", "-At", "-U", databaseUser, "-d", databaseName, "-c",
+    "SELECT indexname FROM pg_indexes WHERE tablename = 'rag_document' AND indexname = 'rag_document_status_publicQaApproved_idx'",
+  ]);
+  if (!publicQaIndex.includes("rag_document_status_publicQaApproved_idx")) {
+    throw new Error("rag_document_status_publicQaApproved_idx missing in PostgreSQL schema");
+  }
+  console.log("RAG_PUBLIC_QA_MIGRATION=VERIFIED (column publicQaApproved, index exist)");
 }
 
 async function cleanupOwnedContainer() {

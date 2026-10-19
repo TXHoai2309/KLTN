@@ -18,9 +18,8 @@ Run `npm run env:generate` after a schema change. Keep example/schema developer-
 | `BETTER_AUTH_SECRET` | Better Auth secret; unique per environment. |
 | `DATABASE_URL` | Neon PostgreSQL connection string. Local must use the development branch. |
 | `OPENAI_API_KEY` | Optional server-side AI/RAG/embedding/planner integration. |
-| `OPENAI_PREFERENCE_MODEL` | Optional server-side model identifier for US-25 preference extraction; no repository default. Missing value produces `AI_UNAVAILABLE` before any provider request. |
-| `OPENAI_EDITORIAL_MODEL` | Optional non-secret editorial model identifier; declaration alone does not implement an editorial provider. |
-| `STADIA_MAPS_API_KEY` | Server-side Stadia Standard Routing key for US-29B; never rename to `NEXT_PUBLIC_*`. |
+| `OPENAI_PREFERENCE_MODEL` | Optional server-side model identifier for US-25 preference extraction; no repository default. Missing value must produce `AI_UNAVAILABLE` when that future integration is enabled. |
+| `STADIA_MAPS_API_KEY` | Server-side Stadia Standard Routing key shared by US-28/US-29B/US-30; never rename to `NEXT_PUBLIC_*`. |
 | `INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` | Only needed for the bootstrap command. Clear them after use. |
 
 Never put actual connection strings, API keys, bootstrap credentials, or other secrets in committed documentation. OpenAI and Stadia Routing keys are server-side. Browser map rendering uses MapLibre/Stadia without a frontend API key.
@@ -33,12 +32,22 @@ Application runtime variables such as `OPENAI_PREFERENCE_MODEL` must not use Var
 
 Destination V3.2 adds optional `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`,
 `CLOUDINARY_API_SECRET`, and `CLOUDINARY_DESTINATION_FOLDER` to the web Varlock
-schema/example. All are internal/server-only; the secret is sensitive. The only
+schema/example. Runtime provider settings must not use Varlock `@internal`: that
+decorator prevents injection into the application and is for interpolation-only
+configuration, not a server-only security boundary. Cloudinary API key/secret and
+`OPENAI_EDITORIAL_MODEL` remain sensitive runtime settings; credentials must never
+be public or `NEXT_PUBLIC_*`. Cloud name/folder are noncredential metadata. The only
 accepted destination root is `KLTN/destinations`. Blank/incomplete credentials
 disable upload only. The provider reads the configured environment's folder mode
 via the Admin Config API; it never creates an environment, moves assets or deletes
 assets. Set real values in ignored local environment files yourself, then restart
 the local app. See [V3.2 smoke instructions](destination-cloudinary-v3-2-report.md).
+
+V3.3's optional `OPENAI_EDITORIAL_MODEL` follows the same runtime rule and uses the
+existing server-side `OPENAI_API_KEY`. After changing schema annotations, regenerate
+env types and restart Next. On 2026-10-15 the owner already had the provider values
+in the ignored `.env`; removing the incorrect `@internal` annotations restored
+runtime loading without editing that file or changing credentials.
 
 ## Environment topology
 
@@ -71,3 +80,25 @@ Official [authentication policy](https://docs.stadiamaps.com/authentication/) pe
 Before production: create a Stadia account/property and register the stable Vercel/custom hostname in Stadia Dashboard → Manage Properties → Authentication Configuration. Preview hostnames need explicit property/domain configuration; do not assume arbitrary preview URLs are authorized. Keep Origin/Referer available to browser tile requests. Production tile authentication is not configured or deployed by this task. No frontend key is introduced. Configure `STADIA_MAPS_API_KEY` separately in the server runtime for routing; never expose it in tile style URLs or browser bundles.
 
 The web dev/build commands prepare official npm MapLibre worker/shared assets under ignored public/maplibre. Deploy that public directory with the build; do not manually commit vendor bundles. A missing worker asset displays the map error state and can recover by retry after deployment is repaired.
+
+## US-28 Stadia runtime configuration — 2026-10-18
+
+Remove interpolation-only `@internal` from STADIA_MAPS_API_KEY: installed Varlock
+1.18 strips internal keys from process.env and generated application ENV. It is
+now `@required=false @sensitive=true`, so the routing feature can return
+NOT_CONFIGURED without blocking unrelated functionality. `npm run env:generate
+--workspace web` regenerates ignored env.ts; no secret value or .env file changes.
+US-28 reads the server ENV getter. US-29B/30 read its injected server process value.
+
+Vercel project kltn was inspected read-only: STADIA_MAPS_API_KEY exists as sensitive
+in Preview and Production. Presence does not prove key validity, account quota,
+property access or hostname registration. No remote secret was created/replaced.
+Local live tests prove the configured Development key at that observed time only.
+Register each allowed Preview/Production tile hostname in Stadia; do not add a
+routing key to browser style/tile URLs. Dashboard registration remains unverified.
+
+The current Destination routing registry is independently limited to the reviewed
+Development endpoint. Production candidate admission needs its own verified corpus
+and approved registry entry; this migration does not loosen that gate. Retain CMS
+V2's migration and controlled Production rollout plan. No routing DB migration or
+Production deployment/env/migration operation is included.

@@ -1,0 +1,22 @@
+{
+  "passed": [
+    "Admin Better Auth login + real list/statistics + no fixture/banner",
+    "Search/filter/sort/page are real server queries and stable pages",
+    "Promote/demote via real dialogs, DB audit and existing cookie DB authority",
+    "Lost mutation acknowledgement stays UNKNOWN then same-key retry produces only one audit",
+    "Lock revokes devices and blocks real login; unlock permits fresh login only",
+    "Revoke confirmation invalidates real cookie; audit timeline and session counts refresh",
+    "Guest and Traveler CMS APIs deny, details contain no session tokens/IP/hash"
+  ],
+  "failed": [
+    {
+      "name": "Self protection keeps failed dialog open; keyboard trap, Escape/focus restoration",
+      "message": "Expected values to be strictly equal:\n\nfalse !== true\n"
+    },
+    {
+      "name": "Mobile 390px, desktop dark theme and real empty/error recovery",
+      "message": "Expected values to be strictly equal:\n\nfalse !== true\n"
+    }
+  ],
+  "cleanup": true
+}

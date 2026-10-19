@@ -49,7 +49,7 @@ export function ItineraryStopCard({ stop, selected, onSelect }: { stop: PlannerS
       <span className="planner-stop-content"><span className="planner-stop-heading"><strong>{stop.destination.name}</strong><ValidationBadge status={stop.validationStatus} /></span>
         <span className="planner-stop-description">{stop.destination.description || "Chưa có mô tả điểm đến."}</span>
         <span className="planner-stop-meta"><span><Clock3 />{clockText(stop.arrivalMinute)}</span><span><Flag />{clockText(stop.departureMinute)}</span><span><Activity />{durationText(stop.visitDurationMinutes)}</span></span>
-        {stop.inbound && <span className="planner-stop-travel"><Car size={14} aria-hidden="true" />{stop.inbound.status === "VERIFIED" ? `${durationText(Math.ceil(stop.inbound.durationSeconds! / 60))} · ${(stop.inbound.distanceMeters! / 1000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} km (${stop.inbound.provider === "STADIA_MAPS" ? "Stadia Maps" : "Google Maps"})` : "Chưa có thời gian di chuyển đã xác minh"}</span>}
+        {stop.inbound && <span className="planner-stop-travel"><Car size={14} aria-hidden="true" />{stop.inbound.status === "VERIFIED" ? `${durationText(Math.ceil(stop.inbound.durationSeconds! / 60))} · ${(stop.inbound.distanceMeters! / 1000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} km (Stadia Maps)` : "Chưa có thời gian di chuyển đã xác minh"}</span>}
       </span>
     </button>
   </li>;
@@ -64,7 +64,6 @@ export function ItineraryValidationPanel({ checks }: { checks: PlannerResult["ch
 export function TripOverviewCard({ day }: { day: PlannerDay }) {
   return <section className="planner-overview" aria-label="Tổng quan hành trình"><div><Route /><span><small>Quãng đường ngày {day.day}</small><strong>{day.distanceMeters === null ? "Chưa đủ dữ liệu" : `${(day.distanceMeters / 1000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} km`}</strong></span></div>
     <div><Clock3 /><span><small>Thời gian di chuyển</small><strong>{day.travelSeconds === null ? "Chưa đủ dữ liệu" : day.travelSeconds ? durationText(Math.ceil(day.travelSeconds / 60)) : "Không có chặng nối"}</strong></span></div><div><MapPin /><span><small>Điểm dừng</small><strong>{day.stops.length} điểm</strong></span></div>
-    {day.stops.some(stop => stop.inbound?.provider === "GOOGLE_ROUTES") && <p className="planner-provider-credit">Google Maps · Ước tính đường bộ, không gồm giao thông thời gian thực.</p>}
     {day.stops.some(stop => stop.inbound?.provider === "STADIA_MAPS") && <p className="planner-provider-credit">Stadia Maps · Ước tính đường bộ, không gồm giao thông thời gian thực.</p>}
   </section>;
 }
@@ -73,7 +72,7 @@ export function DestinationPreviewCard({ stop }: { stop: PlannerStop | undefined
   return <section className="planner-preview" aria-label={`Thông tin ${stop.destination.name}`}><DestinationImage stop={stop} large />
     <div><div className="planner-preview-heading"><span className="planner-preview-number">{stop.order}</span><h2>{stop.destination.name}</h2><ValidationBadge status={stop.validationStatus} /></div>
       <p>{stop.destination.description || "Chưa có mô tả điểm đến."}</p><ul className="planner-preview-meta"><li><MapPin />{stop.destination.address || stop.destination.area}</li><li><Clock3 />{clockText(stop.arrivalMinute)} – {clockText(stop.departureMinute)} · {durationText(stop.visitDurationMinutes)}</li>
-      {stop.inbound && <li><Car />{stop.inbound.status === "VERIFIED" ? `${stop.inbound.provider === "STADIA_MAPS" ? "Stadia Maps" : "Google Maps"} · ${durationText(Math.ceil(stop.inbound.durationSeconds! / 60))} · ${(stop.inbound.distanceMeters! / 1000).toFixed(1)} km` : "Chưa có dữ liệu di chuyển phù hợp"}</li>}</ul>
+        {stop.inbound && <li><Car />{stop.inbound.status === "VERIFIED" ? `Stadia Maps · ${durationText(Math.ceil(stop.inbound.durationSeconds! / 60))} · ${(stop.inbound.distanceMeters! / 1000).toFixed(1)} km` : "Chưa có dữ liệu di chuyển phù hợp"}</li>}</ul>
       {stop.destination.image?.author && <p className="planner-image-credit">Ảnh: {stop.destination.image.author}{stop.destination.image.sourceUrl && <> · <a href={stop.destination.image.sourceUrl} target="_blank" rel="noopener noreferrer">Nguồn ảnh</a></>}</p>}
       <a className="planner-detail-link" href={`/destinations/${encodeURIComponent(stop.destination.id)}`} target="_blank" rel="noopener noreferrer">Xem chi tiết <ArrowRight size={16} aria-hidden="true" /></a>
     </div>

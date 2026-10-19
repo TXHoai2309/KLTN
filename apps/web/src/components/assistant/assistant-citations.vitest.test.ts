@@ -47,7 +47,7 @@ describe("Task 196 citation presentation", () => {
       expect(summary[0]).toContain("aria-label=");
     }
     expect(html).not.toContain("source_fixture_only"); expect(html).not.toContain("fixture_c1");
-    expect(html.match(/<details/g)).toHaveLength(5);
+    expect(html.match(/<details/g)).toHaveLength(6);
     expect(html).not.toContain(" open=");
   });
   it("escapes metadata and preserves long titles and large collections", () => {
@@ -57,14 +57,14 @@ describe("Task 196 citation presentation", () => {
     expect(render(turn)).not.toContain("<img"); expect(render(turn)).not.toContain("<script>");
     expect(render(turn)).toContain("&lt;img");
     expect(render(citationFixture("LONG"))).toContain(citationFixture("LONG").citations[0]!.title);
-    expect(render(citationFixture("MANY")).match(/<details/g)).toHaveLength(52);
+    expect(render(citationFixture("MANY")).match(/<details/g)).toHaveLength(53);
   });
   it("keeps custom slot association and null fallback compatible", () => {
     const turn = citationFixture("ONE");
     const html = renderToStaticMarkup(createElement(AssistantAnswer, { turn, citationSlot: ({ part, citations, turn: received }) => {
       expect(received).toBe(turn); expect(part.citationIds).toEqual(["fixture_c1"]); expect(citations).toBe(turn.citations); return "CUSTOM_SLOT";
     } }));
-    expect(html).toContain("CUSTOM_SLOT"); expect(html).not.toContain("<details");
+    expect(html).toContain("CUSTOM_SLOT"); expect(html.match(/<details/g)).toHaveLength(1); // Shared closed panel wraps a custom source slot too.
     expect(renderToStaticMarkup(createElement(AssistantAnswer, { turn, citationSlot: () => null }))).toContain("<details");
   });
   it("renders partial sources separately and gives no sources to insufficient/clarification", () => {

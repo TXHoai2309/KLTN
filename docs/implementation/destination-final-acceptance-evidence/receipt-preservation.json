@@ -1,0 +1,34 @@
+{
+  "checkedAt": "2026-10-18T03:14:22.647Z",
+  "mode": "READ_ONLY_HASH_NO_RECEIPT_REWRITE",
+  "files": [
+    {
+      "file": ".cache/destination-sync/backup-receipt.json",
+      "sha256": "ae04b91fb5afb97f5d340a54d6463b38cb9dda79259b903f34cce53e988849cd"
+    },
+    {
+      "file": ".cache/destination-sync/prepared.json",
+      "sha256": "325a4df263b93ef70819d0d4fc77c0274e69d3a7f88245a2a2b3254b0197b518"
+    },
+    {
+      "file": ".cache/destination-sync/applied.json",
+      "sha256": "a4994cf7554504af9ce5309f788ba0faec3062f1d2cee277ea4f429a50d750fa"
+    },
+    {
+      "file": ".cache/destination-sync/replay.json",
+      "sha256": "4576343779f6465361a45e743bf2ae7e7297afc0b6361e8ac990a2aab3dfd522"
+    },
+    {
+      "file": "docs/implementation/destination-sync-evidence/backup.json",
+      "sha256": "ae04b91fb5afb97f5d340a54d6463b38cb9dda79259b903f34cce53e988849cd"
+    },
+    {
+      "file": "docs/implementation/destination-sync-evidence/import.json",
+      "sha256": "a4994cf7554504af9ce5309f788ba0faec3062f1d2cee277ea4f429a50d750fa"
+    },
+    {
+      "file": "docs/implementation/destination-sync-evidence/replay.json",
+      "sha256": "4576343779f6465361a45e743bf2ae7e7297afc0b6361e8ac990a2aab3dfd522"
+    }
+  ]
+}

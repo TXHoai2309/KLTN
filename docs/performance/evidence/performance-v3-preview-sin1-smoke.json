@@ -1,0 +1,1676 @@
+{
+  "startedAt": "2026-10-18T10:53:26.662Z",
+  "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+  "method": "Real Better Auth test accounts provisioned on pinned Development only. Read-only after sign-in. Origin-scoped Vercel OIDC. Playwright routing disables HTTP cache; no Web Vitals claim.",
+  "results": [
+    {
+      "role": "GUEST",
+      "path": "/api/favorites",
+      "samples": [
+        {
+          "status": 401,
+          "ttfbMs": 185.30000000074506,
+          "totalMs": 185.69999999925494,
+          "bytes": 108,
+          "cacheControl": "private, no-store",
+          "code": "UNAUTHENTICATED",
+          "emptyPersonalList": false
+        }
+      ],
+      "p50P95": {
+        "n": 1,
+        "p50": 185.69999999925494,
+        "p95": 185.69999999925494,
+        "min": 185.69999999925494,
+        "max": 185.69999999925494
+      },
+      "expected": 401,
+      "status": "PASS"
+    },
+    {
+      "role": "GUEST",
+      "path": "/api/trips",
+      "samples": [
+        {
+          "status": 401,
+          "ttfbMs": 173,
+          "totalMs": 173.10000000149012,
+          "bytes": 108,
+          "cacheControl": "private, no-store",
+          "code": "UNAUTHENTICATED",
+          "emptyPersonalList": false
+        }
+      ],
+      "p50P95": {
+        "n": 1,
+        "p50": 173.10000000149012,
+        "p95": 173.10000000149012,
+        "min": 173.10000000149012,
+        "max": 173.10000000149012
+      },
+      "expected": 401,
+      "status": "PASS"
+    },
+    {
+      "role": "GUEST",
+      "path": "/api/admin/destinations",
+      "samples": [
+        {
+          "status": 401,
+          "ttfbMs": 153.19999999925494,
+          "totalMs": 153.39999999850988,
+          "bytes": 108,
+          "cacheControl": "private, no-store",
+          "code": "UNAUTHENTICATED"
+        }
+      ],
+      "p50P95": {
+        "n": 1,
+        "p50": 153.39999999850988,
+        "p95": 153.39999999850988,
+        "min": 153.39999999850988,
+        "max": 153.39999999850988
+      },
+      "expected": 401,
+      "status": "PASS"
+    },
+    {
+      "role": "GUEST",
+      "path": "/api/ai/conversations",
+      "samples": [
+        {
+          "status": 503,
+          "ttfbMs": 752.7000000029802,
+          "totalMs": 753.1000000014901,
+          "bytes": 141,
+          "cacheControl": "no-store",
+          "code": "AI_UNAVAILABLE"
+        }
+      ],
+      "p50P95": {
+        "n": 1,
+        "p50": 753.1000000014901,
+        "p95": 753.1000000014901,
+        "min": 753.1000000014901,
+        "max": 753.1000000014901
+      },
+      "expected": 503,
+      "status": "BLOCKED_PREVIEW_RUNTIME_DISABLED"
+    },
+    {
+      "role": "GUEST",
+      "path": "/dashboard",
+      "check": "page",
+      "status": 200,
+      "finalPath": "/login",
+      "pass": true
+    },
+    {
+      "role": "GUEST",
+      "path": "/favorites",
+      "check": "page",
+      "status": 200,
+      "finalPath": "/login",
+      "pass": true
+    },
+    {
+      "role": "GUEST",
+      "path": "/trips",
+      "check": "page",
+      "status": 200,
+      "finalPath": "/login",
+      "pass": true
+    },
+    {
+      "role": "GUEST",
+      "path": "/trips/new",
+      "check": "page",
+      "status": 200,
+      "finalPath": "/login",
+      "pass": true
+    },
+    {
+      "role": "GUEST",
+      "path": "/assistant",
+      "check": "page",
+      "status": 200,
+      "finalPath": "/assistant",
+      "pass": true
+    },
+    {
+      "role": "GUEST",
+      "path": "/",
+      "width": 390,
+      "check": "responsive-map",
+      "status": 200,
+      "overflow": false,
+      "markers": 0,
+      "unavailable": false,
+      "pass": true
+    },
+    {
+      "role": "GUEST",
+      "path": "/explore?view=map",
+      "width": 390,
+      "check": "responsive-map",
+      "status": 200,
+      "overflow": false,
+      "markers": 9,
+      "unavailable": false,
+      "pass": true
+    },
+    {
+      "role": "GUEST",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "width": 390,
+      "check": "responsive-map",
+      "status": 200,
+      "overflow": false,
+      "markers": 1,
+      "unavailable": false,
+      "pass": true
+    },
+    {
+      "role": "GUEST",
+      "path": "/",
+      "width": 768,
+      "check": "responsive-map",
+      "status": 200,
+      "overflow": false,
+      "markers": 0,
+      "unavailable": false,
+      "pass": true
+    },
+    {
+      "role": "GUEST",
+      "path": "/explore?view=map",
+      "width": 768,
+      "check": "responsive-map",
+      "status": 200,
+      "overflow": false,
+      "markers": 9,
+      "unavailable": false,
+      "pass": true
+    },
+    {
+      "role": "GUEST",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "width": 768,
+      "check": "responsive-map",
+      "status": 200,
+      "overflow": false,
+      "markers": 1,
+      "unavailable": false,
+      "pass": true
+    },
+    {
+      "role": "GUEST",
+      "path": "/",
+      "width": 1440,
+      "check": "responsive-map",
+      "status": 200,
+      "overflow": false,
+      "markers": 0,
+      "unavailable": false,
+      "pass": true
+    },
+    {
+      "role": "GUEST",
+      "path": "/explore?view=map",
+      "width": 1440,
+      "check": "responsive-map",
+      "status": 200,
+      "overflow": false,
+      "markers": 9,
+      "unavailable": false,
+      "pass": true
+    },
+    {
+      "role": "GUEST",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "width": 1440,
+      "check": "responsive-map",
+      "status": 200,
+      "overflow": false,
+      "markers": 1,
+      "unavailable": false,
+      "pass": true
+    },
+    {
+      "role": "TRAVELER",
+      "check": "real-better-auth-sign-in",
+      "status": 200,
+      "pass": true
+    },
+    {
+      "role": "TRAVELER",
+      "path": "/api/favorites",
+      "samples": [
+        {
+          "status": 200,
+          "ttfbMs": 217.5,
+          "totalMs": 217.69999999925494,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 327.80000000074506,
+          "totalMs": 328,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 259.5999999977648,
+          "totalMs": 259.69999999925494,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 316.1000000014901,
+          "totalMs": 316.5,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 160.59999999776483,
+          "totalMs": 160.80000000074506,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 158.60000000149012,
+          "totalMs": 159.10000000149012,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 181,
+          "totalMs": 181.19999999925494,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 170.90000000223517,
+          "totalMs": 171.5,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 243,
+          "totalMs": 243.29999999701977,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 159.09999999776483,
+          "totalMs": 159.39999999850988,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 164.30000000074506,
+          "totalMs": 164.59999999776483,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 151.19999999925494,
+          "totalMs": 151.39999999850988,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 171,
+          "totalMs": 171.30000000074506,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 310.19999999925494,
+          "totalMs": 310.5,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 307.80000000074506,
+          "totalMs": 308.1000000014901,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 154.80000000074506,
+          "totalMs": 155.19999999925494,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 167.90000000223517,
+          "totalMs": 168,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 157.5,
+          "totalMs": 157.80000000074506,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 170.80000000074506,
+          "totalMs": 171,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 162.10000000149012,
+          "totalMs": 162.40000000223517,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 227.19999999925494,
+          "totalMs": 227.39999999850988,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 199.80000000074506,
+          "totalMs": 200.10000000149012,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 217.90000000223517,
+          "totalMs": 218.10000000149012,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 165.80000000074506,
+          "totalMs": 166,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 216.5,
+          "totalMs": 216.89999999850988,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 165.09999999776483,
+          "totalMs": 165.29999999701977,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 173.89999999850988,
+          "totalMs": 174.19999999925494,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 156.19999999925494,
+          "totalMs": 156.39999999850988,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 171.39999999850988,
+          "totalMs": 171.5,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 162.60000000149012,
+          "totalMs": 162.80000000074506,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        }
+      ],
+      "p50P95": {
+        "n": 30,
+        "p50": 171.30000000074506,
+        "p95": 316.5,
+        "min": 151.39999999850988,
+        "max": 328
+      },
+      "expected": 200,
+      "status": "PASS"
+    },
+    {
+      "role": "TRAVELER",
+      "path": "/api/trips",
+      "samples": [
+        {
+          "status": 200,
+          "ttfbMs": 196,
+          "totalMs": 196.19999999925494,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 164.39999999850988,
+          "totalMs": 164.59999999776483,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 191.39999999850988,
+          "totalMs": 191.59999999776483,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 246.30000000074506,
+          "totalMs": 246.5,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 253.70000000298023,
+          "totalMs": 254,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 309.19999999925494,
+          "totalMs": 309.6000000014901,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 163.20000000298023,
+          "totalMs": 164.80000000074506,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 157.5,
+          "totalMs": 157.79999999701977,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 154.19999999925494,
+          "totalMs": 154.39999999850988,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 147.69999999925494,
+          "totalMs": 148.19999999925494,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 157.39999999850988,
+          "totalMs": 157.60000000149012,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 147.90000000223517,
+          "totalMs": 148.19999999925494,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 157.70000000298023,
+          "totalMs": 157.90000000223517,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 157.10000000149012,
+          "totalMs": 157.30000000074506,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 174.70000000298023,
+          "totalMs": 175,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 242.40000000223517,
+          "totalMs": 242.60000000149012,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 161,
+          "totalMs": 161.30000000074506,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 155.69999999925494,
+          "totalMs": 155.89999999850988,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 184.09999999776483,
+          "totalMs": 184.39999999850988,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 147.39999999850988,
+          "totalMs": 147.60000000149012,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 157.09999999776483,
+          "totalMs": 157.39999999850988,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 165.80000000074506,
+          "totalMs": 166,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 145.90000000223517,
+          "totalMs": 146,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 158.80000000074506,
+          "totalMs": 159,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 148.10000000149012,
+          "totalMs": 148.5,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 232.19999999925494,
+          "totalMs": 232.40000000223517,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 316.29999999701977,
+          "totalMs": 316.5,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 310.1000000014901,
+          "totalMs": 310.30000000074506,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 307.5999999977648,
+          "totalMs": 307.79999999701977,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 152.5,
+          "totalMs": 152.80000000074506,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        }
+      ],
+      "p50P95": {
+        "n": 30,
+        "p50": 161.30000000074506,
+        "p95": 310.30000000074506,
+        "min": 146,
+        "max": 316.5
+      },
+      "expected": 200,
+      "status": "PASS"
+    },
+    {
+      "role": "TRAVELER",
+      "path": "/api/admin/destinations",
+      "samples": [
+        {
+          "status": 403,
+          "ttfbMs": 166.80000000074506,
+          "totalMs": 166.90000000223517,
+          "bytes": 113,
+          "cacheControl": "private, no-store",
+          "code": "FORBIDDEN"
+        }
+      ],
+      "p50P95": {
+        "n": 1,
+        "p50": 166.90000000223517,
+        "p95": 166.90000000223517,
+        "min": 166.90000000223517,
+        "max": 166.90000000223517
+      },
+      "expected": 403,
+      "status": "PASS"
+    },
+    {
+      "role": "TRAVELER",
+      "path": "/api/ai/conversations",
+      "samples": [
+        {
+          "status": 503,
+          "ttfbMs": 772.4000000022352,
+          "totalMs": 772.6000000014901,
+          "bytes": 141,
+          "cacheControl": "no-store",
+          "code": "AI_UNAVAILABLE"
+        }
+      ],
+      "p50P95": {
+        "n": 1,
+        "p50": 772.6000000014901,
+        "p95": 772.6000000014901,
+        "min": 772.6000000014901,
+        "max": 772.6000000014901
+      },
+      "expected": 503,
+      "status": "BLOCKED_PREVIEW_RUNTIME_DISABLED"
+    },
+    {
+      "role": "TRAVELER",
+      "path": "/dashboard",
+      "check": "page",
+      "status": 200,
+      "finalPath": "/dashboard",
+      "pass": true
+    },
+    {
+      "role": "TRAVELER",
+      "path": "/favorites",
+      "check": "page",
+      "status": 200,
+      "finalPath": "/favorites",
+      "pass": true
+    },
+    {
+      "role": "TRAVELER",
+      "path": "/trips",
+      "check": "page",
+      "status": 200,
+      "finalPath": "/trips",
+      "pass": true
+    },
+    {
+      "role": "TRAVELER",
+      "path": "/trips/new",
+      "check": "page",
+      "status": 200,
+      "finalPath": "/trips/new",
+      "pass": true
+    },
+    {
+      "role": "TRAVELER",
+      "path": "/assistant",
+      "check": "page",
+      "status": 200,
+      "finalPath": "/assistant",
+      "pass": true
+    },
+    {
+      "role": "ADMIN",
+      "check": "real-better-auth-sign-in",
+      "status": 200,
+      "pass": true
+    },
+    {
+      "role": "ADMIN",
+      "path": "/api/favorites",
+      "samples": [
+        {
+          "status": 200,
+          "ttfbMs": 175,
+          "totalMs": 175.09999999776483,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 160.19999999925494,
+          "totalMs": 160.29999999701977,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 155.10000000149012,
+          "totalMs": 155.40000000223517,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 171.69999999925494,
+          "totalMs": 172,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 182.80000000074506,
+          "totalMs": 183,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 317.5999999977648,
+          "totalMs": 317.8999999985099,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 250.19999999925494,
+          "totalMs": 250.30000000074506,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 306.5,
+          "totalMs": 306.80000000074506,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 150.39999999850988,
+          "totalMs": 150.5,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 163.60000000149012,
+          "totalMs": 163.90000000223517,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 195.59999999776483,
+          "totalMs": 195.89999999850988,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 150,
+          "totalMs": 150.30000000074506,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 156.19999999925494,
+          "totalMs": 156.39999999850988,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 163.80000000074506,
+          "totalMs": 164,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 169.10000000149012,
+          "totalMs": 169.19999999925494,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 388.20000000298023,
+          "totalMs": 388.5,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 244.19999999925494,
+          "totalMs": 244.5,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 297.8999999985099,
+          "totalMs": 298.0999999977648,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 348.8999999985099,
+          "totalMs": 349.19999999925494,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 172.39999999850988,
+          "totalMs": 172.80000000074506,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 165.60000000149012,
+          "totalMs": 165.90000000223517,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 158.5,
+          "totalMs": 158.59999999776483,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 156.29999999701977,
+          "totalMs": 156.59999999776483,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 153.59999999776483,
+          "totalMs": 154.59999999776483,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 171,
+          "totalMs": 171.19999999925494,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 394.9000000022352,
+          "totalMs": 395.1000000014901,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 248.5,
+          "totalMs": 248.90000000223517,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 156.59999999776483,
+          "totalMs": 156.89999999850988,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 154.5,
+          "totalMs": 154.89999999850988,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 160.19999999925494,
+          "totalMs": 160.39999999850988,
+          "bytes": 64,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        }
+      ],
+      "p50P95": {
+        "n": 30,
+        "p50": 169.19999999925494,
+        "p95": 388.5,
+        "min": 150.30000000074506,
+        "max": 395.1000000014901
+      },
+      "expected": 200,
+      "status": "PASS"
+    },
+    {
+      "role": "ADMIN",
+      "path": "/api/trips",
+      "samples": [
+        {
+          "status": 200,
+          "ttfbMs": 155.70000000298023,
+          "totalMs": 155.90000000223517,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 175.30000000074506,
+          "totalMs": 175.59999999776483,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 159.19999999925494,
+          "totalMs": 159.5,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 198.09999999776483,
+          "totalMs": 198.39999999850988,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 154.5,
+          "totalMs": 154.80000000074506,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 151.90000000223517,
+          "totalMs": 152.10000000149012,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 228.89999999850988,
+          "totalMs": 229.09999999776483,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 160.40000000223517,
+          "totalMs": 160.80000000074506,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 151.19999999925494,
+          "totalMs": 152,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 160.80000000074506,
+          "totalMs": 161,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 159.69999999925494,
+          "totalMs": 160,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 150.30000000074506,
+          "totalMs": 150.5,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 174.80000000074506,
+          "totalMs": 175.19999999925494,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 161.69999999925494,
+          "totalMs": 162,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 165,
+          "totalMs": 165.20000000298023,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 145.69999999925494,
+          "totalMs": 146,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 153.10000000149012,
+          "totalMs": 153.5,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 301.5,
+          "totalMs": 301.69999999925494,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 163.60000000149012,
+          "totalMs": 163.89999999850988,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 330.80000000074506,
+          "totalMs": 331,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 296.80000000074506,
+          "totalMs": 297,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 191.5,
+          "totalMs": 191.70000000298023,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 153.19999999925494,
+          "totalMs": 153.5,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 152.89999999850988,
+          "totalMs": 153.19999999925494,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 154.30000000074506,
+          "totalMs": 154.5,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 150.69999999925494,
+          "totalMs": 150.80000000074506,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 150.5,
+          "totalMs": 150.80000000074506,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 213.30000000074506,
+          "totalMs": 213.69999999925494,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 289.6000000014901,
+          "totalMs": 289.70000000298023,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        },
+        {
+          "status": 200,
+          "ttfbMs": 296.30000000074506,
+          "totalMs": 310.69999999925494,
+          "bytes": 36,
+          "cacheControl": "private, no-store",
+          "emptyPersonalList": true
+        }
+      ],
+      "p50P95": {
+        "n": 30,
+        "p50": 160.80000000074506,
+        "p95": 310.69999999925494,
+        "min": 146,
+        "max": 331
+      },
+      "expected": 200,
+      "status": "PASS"
+    },
+    {
+      "role": "ADMIN",
+      "path": "/api/admin/destinations",
+      "samples": [
+        {
+          "status": 200,
+          "ttfbMs": 203.79999999701977,
+          "totalMs": 204,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 173.30000000074506,
+          "totalMs": 173.60000000149012,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 156.29999999701977,
+          "totalMs": 156.59999999776483,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 160.19999999925494,
+          "totalMs": 160.39999999850988,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 164.30000000074506,
+          "totalMs": 164.60000000149012,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 176.89999999850988,
+          "totalMs": 177.19999999925494,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 168.80000000074506,
+          "totalMs": 169,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 164,
+          "totalMs": 164.39999999850988,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 159.60000000149012,
+          "totalMs": 181.60000000149012,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 191,
+          "totalMs": 191.19999999925494,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 228.19999999925494,
+          "totalMs": 228.59999999776483,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 297.69999999925494,
+          "totalMs": 298.1000000014901,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 184.90000000223517,
+          "totalMs": 185.20000000298023,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 170.69999999925494,
+          "totalMs": 171,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 158.5,
+          "totalMs": 159.30000000074506,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 173.19999999925494,
+          "totalMs": 173.5,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 158.39999999850988,
+          "totalMs": 158.59999999776483,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 207.5,
+          "totalMs": 207.69999999925494,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 178.39999999850988,
+          "totalMs": 178.69999999925494,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 293.5,
+          "totalMs": 293.6000000014901,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 245.59999999776483,
+          "totalMs": 245.79999999701977,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 303.5,
+          "totalMs": 303.80000000074506,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 167.69999999925494,
+          "totalMs": 168,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 173.29999999701977,
+          "totalMs": 173.59999999776483,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 159.39999999850988,
+          "totalMs": 159.80000000074506,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 171.09999999776483,
+          "totalMs": 171.19999999925494,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 162,
+          "totalMs": 162.09999999776483,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 178.19999999925494,
+          "totalMs": 178.39999999850988,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 192.5,
+          "totalMs": 192.80000000074506,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        },
+        {
+          "status": 200,
+          "ttfbMs": 312.0999999977648,
+          "totalMs": 339.5999999977648,
+          "bytes": 2388,
+          "cacheControl": "private, no-store"
+        }
+      ],
+      "p50P95": {
+        "n": 30,
+        "p50": 173.60000000149012,
+        "p95": 303.80000000074506,
+        "min": 156.59999999776483,
+        "max": 339.5999999977648
+      },
+      "expected": 200,
+      "status": "PASS"
+    },
+    {
+      "role": "ADMIN",
+      "path": "/api/ai/conversations",
+      "samples": [
+        {
+          "status": 503,
+          "ttfbMs": 230.60000000149012,
+          "totalMs": 230.90000000223517,
+          "bytes": 141,
+          "cacheControl": "no-store",
+          "code": "AI_UNAVAILABLE"
+        }
+      ],
+      "p50P95": {
+        "n": 1,
+        "p50": 230.90000000223517,
+        "p95": 230.90000000223517,
+        "min": 230.90000000223517,
+        "max": 230.90000000223517
+      },
+      "expected": 503,
+      "status": "BLOCKED_PREVIEW_RUNTIME_DISABLED"
+    },
+    {
+      "role": "ADMIN",
+      "path": "/dashboard",
+      "check": "page",
+      "status": 200,
+      "finalPath": "/dashboard",
+      "pass": true
+    },
+    {
+      "role": "ADMIN",
+      "path": "/favorites",
+      "check": "page",
+      "status": 200,
+      "finalPath": "/favorites",
+      "pass": true
+    },
+    {
+      "role": "ADMIN",
+      "path": "/trips",
+      "check": "page",
+      "status": 200,
+      "finalPath": "/trips",
+      "pass": true
+    },
+    {
+      "role": "ADMIN",
+      "path": "/trips/new",
+      "check": "page",
+      "status": 200,
+      "finalPath": "/trips/new",
+      "pass": true
+    },
+    {
+      "role": "ADMIN",
+      "path": "/assistant",
+      "check": "page",
+      "status": 200,
+      "finalPath": "/assistant",
+      "pass": true
+    },
+    {
+      "role": "ADMIN",
+      "path": "/admin/destinations",
+      "check": "page",
+      "status": 200,
+      "finalPath": "/admin/destinations",
+      "pass": true
+    },
+    {
+      "role": "ADMIN",
+      "path": "/admin/rag",
+      "check": "page",
+      "status": 200,
+      "finalPath": "/admin/rag",
+      "pass": true
+    }
+  ],
+  "blockedWrites": [],
+  "networkFailures": [],
+  "paidRequests": 0,
+  "productionWrites": 0,
+  "failures": 0,
+  "status": "PASS_TESTED_SCOPE_HISTORY_BLOCKED",
+  "finishedAt": "2026-10-18T10:55:59.194Z",
+  "acceptanceReview": {
+    "originalHarness": "Auth/DOM/marker checks; did not require successful tile responses",
+    "strictMapEvidence": "performance-v3-map-before.json",
+    "previewMapTileGate": "FAIL_401_STADIA_HOSTNAME",
+    "ownerDecision": "Single authorized Production domain; owner explicitly requests master rollout and map verification on Production",
+    "authDomStatus": "PASS_TESTED_SCOPE_HISTORY_BLOCKED"
+  }
+}

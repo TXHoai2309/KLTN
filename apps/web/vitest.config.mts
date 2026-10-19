@@ -5,6 +5,7 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   resolve: {
     alias: {
+      "server-only": fileURLToPath(new URL("./src/test/server-only-stub.ts", import.meta.url)),
       "@": fileURLToPath(new URL("./src", import.meta.url)),
       "@KLTN/ui": fileURLToPath(
         new URL("../../packages/ui/src", import.meta.url),
@@ -13,7 +14,9 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    pool: "threads",
+    // Windows thread workers intermittently exit with 0xC0000005 after all
+    // assertions pass. Use a child process so native teardown is isolated.
+    pool: process.platform === "win32" ? "forks" : "threads",
     fileParallelism: false,
     maxWorkers: 1,
     minWorkers: 1,

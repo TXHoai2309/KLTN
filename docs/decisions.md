@@ -299,3 +299,68 @@ Progress is read from a consistent database snapshot. Admission SUCCESS and job
 completion are separate; Admin UI polls, supports safe recovery and refreshes the
 document only after observed COMPLETED. Offline code/test completion does not mean
 live Blob/provider or owner acceptance. US19 remains IN_PROGRESS.
+
+## 2026-10-15 — Destination image application-use eligibility
+
+Owner explicitly approved removing Destination per-photo evidence/review steps. Successful new server-verified uploads may be used immediately in Destination and Editorial while legal websiteRights remains UNKNOWN and evidence/reviewer/time remain null. This supersedes the original image approval gate only; Culture, factual sources and RAG permissions are unchanged.
+
+Use a server-owned versioned application-use marker in the existing storageReference JSON, bound to Destination and provider identity/URL. Mint only in verified upload finalization; strip client-minted/copy attempts and remove on URL/rights change or revocation. Consumers share persisted candidate filtering and exact owner/asset validation. Public use still requires VISIBLE Destination and, for magazine composition, published Editorial. No migration is required. Do not backfill untagged legacy UNKNOWN or rewrite existing Đồng Văn photos; their provenance/revocation history needs separate audit before any future activation. No fake legal evidence/APPROVED assignment, new approval loop, shared migration, commit/push/deploy or real-provider automated test.
+
+
+## 2026-10-15 — Owner removes Destination Editorial AI request quotas
+
+Owner explicitly supersedes the Editorial 3 requests/minute/Admin and 20 requests/rolling 24h/Admin policy in both Development and Production. No replacement fixed request quota is authorized. Scope is PROPOSE and ALTERNATIVE only; Better Auth, Traveler AI, RAG and Trip Planner rate limits remain unchanged.
+
+Retain Admin authorization, one active Editorial action/Admin and four active actions/server process, with immediate release on completion/error. This is in-flight protection, not a time allowance; it is not a distributed cluster-wide cap. Retain existing provider deadlines and at most two model calls per Alternative action. Provider 429 and evidence-based Retry-After remain authoritative. Stop reading/writing the obsolete Editorial budget operation; retain historical records unchanged. No migration or shared data cleanup.
+
+
+## 2026-10-17 — Owner-approved RBAC V2 capability inheritance
+
+ADMIN inherits released Traveler capabilities while retaining Admin-only content
+management. The persisted database role remains authoritative after Better Auth
+identity verification. This explicitly supersedes the original US-06/product
+non-inheritance rule, with no role switching, impersonation, ownership bypass or
+hidden-feature activation. Private reads/writes remain scoped by the authenticated
+user ID; Admin cannot access another user's Trips, Favorites or conversations.
+See [RBAC V2](stories/RBAC-V2-admin-inherits-traveler.md) and its acceptance report.
+
+## 2026-10-17 — Owner-approved Admin User Management CMS V2
+
+The owner approves completing the existing Phase 1 CMS with real database-backed
+administration, replacing its draft Phase 2 assumptions with ACTIVE/LOCKED only.
+Use nullable lock metadata and persistent audit; do not invent last-login telemetry
+or a SUSPENDED state. No account deletion or private Traveler-data bypass is added.
+
+Persisted ACTIVE ADMIN authorization is mandatory. Deny self role change, lock,
+unlock and session revocation in CMS; serialize CMS privilege/status mutations,
+recheck the actor and preserve at least one ACTIVE ADMIN. Role change retains
+sessions because current DB role controls every next protected request. Lock
+revokes all stored sessions and prevents new authentication; unlock restores no
+session. Explicit revoke removes active sessions without locking or changing
+credentials. Record one semantic audit event atomically with the mutation and
+idempotency result; lock includes its revocation count in USER_LOCKED details.
+
+Use the installed Better Auth session-create extension with cookie cache disabled
+and a PostgreSQL row-locking session-admission trigger to close sign-in/lock races.
+Default runtime datasource is HTTP in both environments; retain the Phase 1 visual
+system. Development migration/testing are authorized after exact environment
+verification; Production migration/deployment are outside this task's authorization.
+See the [implemented API contract](implementation/admin-user-management-phase2-api-contract.md)
+and [acceptance report](implementation/admin-user-management-v2.md).
+
+## ADR-18 — US-28 shares Stadia Standard Routing (2026-10-18)
+
+Owner approves migrating US-28 from Google Routes to Stadia Standard Routing.
+US-28, US-29B and US-30 share a consistent Stadia-based routing architecture.
+MapLibre remains the map renderer. This supersedes ADR-07's routing choice for
+US-28 only; old ADR text and dated delivery evidence remain historical.
+
+Reuse one server-only HTTP boundary, canonical CAR/auto and MOTORCYCLE/motorcycle,
+safe normalization/failure reasons, parent cancellation and per-request timeout.
+Preserve US-28's 27-pair/three-concurrent/10-second budget. Duration plus distance
+are mandatory for US-28 VERIFIED; US-29B/30 retain duration-only checks. Save must
+fetch fresh routing and revalidate current data, never trust a proposal snapshot.
+No Google fallback, guessed distance, provider response/geometry in Planner DTO,
+new dependency, persistent route cache or DB migration. Optional sensitive Stadia
+runtime config must not be annotated @internal; browser tiles keep domain auth.
+No authorization, ownership, business scheduling, UI layout or Production change.

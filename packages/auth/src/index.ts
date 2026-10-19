@@ -2,6 +2,7 @@ import type { Database } from "@KLTN/db";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
+import { APIError } from "better-auth/api";
 
 export type AuthConfig = {
   BETTER_AUTH_URL: string;
@@ -13,6 +14,20 @@ export function createAuth(env: AuthConfig, database: Database) {
     database: prismaAdapter(database, {
       provider: "postgresql",
     }),
+    // Revocation always consults database storage, including provider endpoints.
+    session: { cookieCache: { enabled: false } },
+    databaseHooks: {
+      session: {
+        create: {
+          before: async (session) => {
+            const user = await database.user.findUnique({ where: { id: session.userId }, select: { status: true } });
+            if (!user || user.status !== "ACTIVE") {
+              throw new APIError("FORBIDDEN", { code: "ACCOUNT_LOCKED", message: "Tài khoản không được phép đăng nhập." });
+            }
+          },
+        },
+      },
+    },
     user: {
       additionalFields: {
         role: {

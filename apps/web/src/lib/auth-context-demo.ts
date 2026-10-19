@@ -1,4 +1,5 @@
 import { buildAuthLoginHref } from "./auth-return-to";
+import { hasRolePermission } from "./authorization-capabilities";
 
 export type BrowserNavigationContext = {
   pathname: string;
@@ -18,14 +19,14 @@ export type AuthContextDemoActionResult =
 export function authorizeAuthContextDemoAction(
   trustedRole: string | null | undefined,
 ): AuthContextDemoActionResult {
-  if (trustedRole === "TRAVELER") {
+  if (hasRolePermission(trustedRole, "traveler")) {
     return {
       status: "CONFIRMED",
       message: "Đã xác nhận thao tác minh họa. Không có dữ liệu nào được lưu.",
     };
   }
 
-  if (trustedRole === "ADMIN") {
+  if (trustedRole) {
     return {
       status: "FORBIDDEN",
       message: "Tài khoản hiện tại không có quyền Du khách cho thao tác này.",

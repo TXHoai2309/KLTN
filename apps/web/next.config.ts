@@ -4,6 +4,8 @@ const withVarlock = varlockNextConfigPlugin();
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Local benchmark builds must not share output with next dev/default builds.
+  distDir: process.env.KLTN_PERF_BUILD === "1" ? ".cache/performance-next" : ".next",
   typedRoutes: true,
   reactCompiler: true,
   // PDF.js resolves its Node worker relative to the installed ESM package.

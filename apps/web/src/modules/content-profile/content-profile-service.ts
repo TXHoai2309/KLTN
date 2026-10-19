@@ -1,6 +1,7 @@
 import type { Prisma } from "@KLTN/db";
 import { AppError } from "@/server/http/app-error";
 import type { DestinationProfile, CultureProfile } from "./content-profile-contract";
+import { withoutWebsiteUse } from "../destination/destination-media-eligibility";
 export const commonProfileSelect = { contentRevision: true, areas: { select: { id: true } }, sources: { orderBy: { position: "asc" as const } }, media: { orderBy: { position: "asc" as const } } };
 export const destinationProfileSelect = { ...commonProfileSelect, aliases: true, shortDescription: true, address: true, googleMapsUrl: true, locationVerified: true, locationEvidence: true, ticketPrice: true, ticketVerification: true, ticketEvidence: true, bestVisitTime: true, visitNotes: true, cultureLinks: { select: { cultureId: true } } } satisfies Prisma.DestinationSelect;
 export const cultureProfileSelect = { ...commonProfileSelect, category: true, shortDescription: true, geographicScope: true, communities: { select: { id: true } } } satisfies Prisma.CultureContentSelect;
@@ -40,5 +41,5 @@ export async function profileWrite(tx: Prisma.TransactionClient, profile: Destin
         openAiRights?: string;
     }) => [item.websiteRights, item.indexingRights, item.openAiRights].some(v => v && v !== "UNKNOWN") ? { reviewedBy: actorId, reviewedAt: new Date() } : { reviewedBy: null, reviewedAt: null };
     const owned = (items: unknown[]) => ({ ...update ? { deleteMany: {} } : {}, create: items });
-    return { ...scalars, areas: relation(areaIds), ...(communityIds ? { communities: relation(communityIds) } : {}), ...(cultureIds ? { cultureLinks: owned(cultureIds.map(cultureId => ({ cultureId }))) } : {}), sources: owned(sources.map((s, position) => ({ ...s, position, ...reviewed(s) }))), media: owned(media.map((m, position) => ({ ...m, position, ...reviewed(m) }))) };
+    return { ...scalars, areas: relation(areaIds), ...(communityIds ? { communities: relation(communityIds) } : {}), ...(cultureIds ? { cultureLinks: owned(cultureIds.map(cultureId => ({ cultureId }))) } : {}), sources: owned(sources.map((s, position) => ({ ...s, position, ...reviewed(s) }))), media: owned(media.map((m, position) => ({ ...m, storageReference: withoutWebsiteUse(m.storageReference), position, ...reviewed(m) }))) };
 }

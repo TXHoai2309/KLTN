@@ -1,0 +1,41 @@
+{
+  "checkedAt": "2026-10-18T12:08:42.424Z",
+  "method": "Actual isolated Guest browser GETs. Native Origin/Referer untouched; exact-origin OIDC only for Preview. Wait for tile responses +2.5s. No origin spoofing, provider key, application write or paid routing.",
+  "productionWrites": 0,
+  "observations": [
+    {
+      "origin": "https://kltn-rho.vercel.app",
+      "scope": "PRODUCTION_READ_ONLY_CONTROL",
+      "status": 200,
+      "markers": 3,
+      "styles": [
+        {
+          "path": "/styles/alidade_smooth.json",
+          "status": 200
+        },
+        {
+          "path": "/styles/alidade-smooth/sprite.json",
+          "status": 200
+        },
+        {
+          "path": "/styles/alidade-smooth/sprite.png",
+          "status": 200
+        }
+      ],
+      "tiles": [
+        {
+          "path": "/data/openmaptiles/9/405/222.pbf",
+          "status": 200
+        },
+        {
+          "path": "/data/openmaptiles/9/406/222.pbf",
+          "status": 200
+        }
+      ],
+      "tileGate": "PASS",
+      "expectedMarkers": 3
+    }
+  ],
+  "previewGate": "NOT_RUN_OWNER_SINGLE_DOMAIN",
+  "productionControlGate": "PASS"
+}

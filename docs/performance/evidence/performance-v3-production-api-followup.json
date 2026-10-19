@@ -1,0 +1,49 @@
+{
+  "checkedAt": "2026-10-18T11:19:50.771Z",
+  "scope": "5 sequential post-rollout API GETs to investigate initial3-sample variance;not a new before/after experiment or proven platform-warm/cold classification",
+  "rows": [
+    {
+      "sample": 0,
+      "status": 200,
+      "ttfbMs": 761.3125,
+      "totalMs": 765.372,
+      "dtoHash": "c924705b7b0ba107a97a5e9de0507e9ccd73246ffa3305b96ca571cb177b3967"
+    },
+    {
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 207.98520000000008,
+      "totalMs": 208.89200000000005,
+      "dtoHash": "c924705b7b0ba107a97a5e9de0507e9ccd73246ffa3305b96ca571cb177b3967"
+    },
+    {
+      "sample": 2,
+      "status": 200,
+      "ttfbMs": 323.4099000000001,
+      "totalMs": 324.6361999999999,
+      "dtoHash": "c924705b7b0ba107a97a5e9de0507e9ccd73246ffa3305b96ca571cb177b3967"
+    },
+    {
+      "sample": 3,
+      "status": 200,
+      "ttfbMs": 159.1795000000002,
+      "totalMs": 161.01560000000018,
+      "dtoHash": "c924705b7b0ba107a97a5e9de0507e9ccd73246ffa3305b96ca571cb177b3967"
+    },
+    {
+      "sample": 4,
+      "status": 200,
+      "ttfbMs": 248.97379999999976,
+      "totalMs": 250.8209999999999,
+      "dtoHash": "c924705b7b0ba107a97a5e9de0507e9ccd73246ffa3305b96ca571cb177b3967"
+    }
+  ],
+  "totalMs": {
+    "n": 5,
+    "p50": 250.8209999999999,
+    "p95": 765.372,
+    "min": 161.01560000000018,
+    "max": 765.372
+  },
+  "productionWrites": 0
+}

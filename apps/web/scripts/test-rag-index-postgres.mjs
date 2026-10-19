@@ -61,7 +61,7 @@ async function waitUntilReady() {
   const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) {
     const ready = docker("exec", containerName, "pg_isready", "-U", databaseUser, "-d", databaseName);
-    if (ready.status === 0) return;
+    if (ready.status === 0) { const usable = docker("exec", containerName, "psql", "-At", "-U", databaseUser, "-d", databaseName, "-c", "SELECT 1"); if (usable.status === 0 && usable.stdout.trim() === "1") return; }
     await new Promise((resolvePromise) => setTimeout(resolvePromise, 400));
   }
   throw new Error("Isolated PostgreSQL did not become ready within 60 seconds.");
@@ -70,6 +70,7 @@ async function waitUntilReady() {
 async function installTask184Schema() {
   const admissionMigrations = await Promise.all([
     "20261001115741_init_auth", "20261001130000_add_idempotency_record", "20261001143000_add_user_role",
+    "20261017210000_admin_user_management",
   ].map(name => readFile(resolve(repoRoot, `packages/db/prisma/migrations/${name}/migration.sql`), "utf8")));
   const documentMigration = await readFile(
     resolve(repoRoot, "packages/db/prisma/migrations/20261008120000_add_rag_document/migration.sql"),

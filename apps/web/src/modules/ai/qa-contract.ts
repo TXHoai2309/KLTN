@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { QA_CONVERSATION_MESSAGES } from "./qa-conversation";
+import { QA_ANSWER_PRESENTATIONS } from "./qa-answer-details";
 
 // Pure contracts only. No HTTP parsing, authentication, evidence registry or AI.
 export const QA_QUESTION_MAX_UTF16_UNITS = 2000;
@@ -119,7 +121,16 @@ export const qaCompletedTurnSchema = z
   .discriminatedUnion("status", [
     z.object({
       ...completedTurnFields,
+      status: z.literal("CONVERSATIONAL"),
+      answerParts: z.array(qaAnswerPartSchema).length(0),
+      citations: z.array(qaPublicCitationSchema).length(0),
+      message: z.enum(Object.values(QA_CONVERSATION_MESSAGES)),
+    }).strict(),
+    z.object({
+      ...completedTurnFields,
       status: z.literal("ANSWERED"),
+      answerMode: z.literal("SOURCE_EXCERPTS").optional(),
+      presentation: z.enum(QA_ANSWER_PRESENTATIONS).optional(),
       answerParts: z.array(qaAnswerPartSchema).min(1),
       citations: z.array(qaPublicCitationSchema).min(1),
       unansweredAspects: z.array(normalizedText()).length(0),
@@ -127,6 +138,8 @@ export const qaCompletedTurnSchema = z
     z.object({
       ...completedTurnFields,
       status: z.literal("PARTIAL"),
+      answerMode: z.literal("SOURCE_EXCERPTS").optional(),
+      presentation: z.enum(QA_ANSWER_PRESENTATIONS).optional(),
       answerParts: z.array(qaAnswerPartSchema).min(1),
       citations: z.array(qaPublicCitationSchema).min(1),
       unansweredAspects: z.array(normalizedText()).min(1),
@@ -134,6 +147,7 @@ export const qaCompletedTurnSchema = z
     z.object({
       ...completedTurnFields,
       status: z.literal("INSUFFICIENT_SOURCE"),
+      reason: z.enum(["NO_EVIDENCE", "MISSING_SUPPORT", "ANSWER_VERIFICATION"]).optional(),
       answerParts: z.array(qaAnswerPartSchema).length(0),
       citations: z.array(qaPublicCitationSchema).length(0),
       message: z.literal(QA_INSUFFICIENT_SOURCE_MESSAGE),
@@ -252,3 +266,52 @@ export type QaAnswerPart = z.infer<typeof qaAnswerPartSchema>;
 export type QaCompletedTurn = z.infer<typeof qaCompletedTurnSchema>;
 export type QaResponse = z.infer<typeof qaResponseSchema>;
 export type QaErrorCode = z.infer<typeof qaErrorCodeSchema>;
+
+export const qaConversationTitleSchema = z
+  .string()
+  .transform((v) => v.normalize("NFC").trim())
+  .pipe(
+    z
+      .string()
+      .min(1, "Tiêu đề không được để trống.")
+      .max(100, "Tiêu đề tối đa 100 ký tự.")
+  );
+
+export const qaRenameConversationSchema = z
+  .object({
+    title: qaConversationTitleSchema,
+  })
+  .strict();
+
+export const qaConversationSummarySchema = z
+  .object({
+    id: qaReferenceIdSchema,
+    title: z.string(),
+    context: qaContextSchema,
+    createdAt: z.string(),
+    lastActivityAt: z.string(),
+  })
+  .strict();
+
+export const qaConversationListResponseSchema = z
+  .object({
+    items: z.array(qaConversationSummarySchema),
+    nextCursor: z.string().nullable(),
+    hasMore: z.boolean(),
+  })
+  .strict();
+
+export const qaConversationDetailMetadataSchema = z
+  .object({
+    id: qaReferenceIdSchema,
+    title: z.string(),
+    context: qaContextSchema,
+    headTurnId: qaReferenceIdSchema.nullable(),
+    createdAt: z.string(),
+    lastActivityAt: z.string(),
+  })
+  .strict();
+
+export type QaRenameConversationInput = z.infer<typeof qaRenameConversationSchema>;
+export type QaConversationSummary = z.infer<typeof qaConversationSummarySchema>;
+export type QaConversationDetailMetadata = z.infer<typeof qaConversationDetailMetadataSchema>;

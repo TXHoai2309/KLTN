@@ -1,3 +1,4 @@
+import { hasRolePermission } from "@/lib/authorization-capabilities";
 import type { MutationOutcome } from "@/lib/mutation-contract";
 import {
   type FavoriteResult,
@@ -64,7 +65,7 @@ export function resolveFavoriteClickAction(
   hasSessionError: boolean,
 ): FavoriteClickAction {
   if (hasSessionError || !sessionRole) return "LOGIN";
-  return sessionRole === "TRAVELER" ? "MUTATE" : "IGNORE";
+  return hasRolePermission(sessionRole, "traveler") ? "MUTATE" : "IGNORE";
 }
 
 export function reduceFavoriteMutationUiState(

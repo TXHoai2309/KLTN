@@ -1,0 +1,45 @@
+{
+  "startedAt": "2026-10-18T11:08:05.550Z",
+  "origin": "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app",
+  "environment": "Preview with real Development-only synthetic Admin",
+  "productionWrites": 0,
+  "existingDestinationWrites": 0,
+  "mediaUploads": 0,
+  "openAiRequests": 0,
+  "checks": [
+    {
+      "name": "create-hidden",
+      "visible": false,
+      "pass": true
+    },
+    {
+      "name": "show-next-read",
+      "visible": true,
+      "pass": true
+    },
+    {
+      "name": "edit-next-read",
+      "visible": true,
+      "pass": true
+    },
+    {
+      "name": "editorial-publish-1",
+      "pass": true
+    },
+    {
+      "name": "editorial-publish-2",
+      "pass": true
+    },
+    {
+      "name": "editorial-rollback",
+      "pass": true
+    },
+    {
+      "name": "hide-next-read",
+      "visible": false,
+      "pass": true
+    }
+  ],
+  "status": "PASS_SYNTHETIC_FIXTURE_ONLY",
+  "finishedAt": "2026-10-18T11:08:09.630Z"
+}

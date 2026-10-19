@@ -1,0 +1,57 @@
+{
+  "checkedAt": "2026-10-17T19:03:32.939Z",
+  "mode": "--dry-run",
+  "identities": [
+    {
+      "side": "source",
+      "project": "summer-unit-95870477",
+      "branch": "br-aged-hat-b3o6hg9p",
+      "endpoint": "ep-purple-pond-b3xujb8o",
+      "database": "neondb",
+      "status": "VERIFIED_BY_API"
+    },
+    {
+      "side": "target",
+      "project": "summer-unit-95870477",
+      "branch": "br-cold-dew-b3h270wp",
+      "endpoint": "ep-blue-art-b3v3vr4h",
+      "database": "neondb",
+      "status": "VERIFIED_BY_API"
+    }
+  ],
+  "status": "PASS",
+  "sourceCount": 5,
+  "eligibleCount": 3,
+  "visible": 3,
+  "hidden": 0,
+  "targetCount": 0,
+  "expectedInserts": {
+    "content_area": 0,
+    "destination": 3,
+    "opening_day": 21,
+    "opening_interval": 0,
+    "content_source": 12,
+    "content_media": 13,
+    "_AreaToDestination": 0,
+    "destination_editorial": 3,
+    "culture_destination": 0
+  },
+  "expectedUpdates": 0,
+  "expectedDeletes": 0,
+  "replays": {
+    "content_area": 0,
+    "destination": 0,
+    "opening_day": 0,
+    "opening_interval": 0,
+    "content_source": 0,
+    "content_media": 0,
+    "_AreaToDestination": 0,
+    "destination_editorial": 0,
+    "culture_destination": 0
+  },
+  "issues": [],
+  "rightsWarnings": 50,
+  "deferred": [],
+  "sourceHash": "6f6d179c1d223c70c812ac77aeed53b425e4eddf0aa9cda570c1325f9b6a07b3",
+  "planHash": "082020d3905145b4478506431bf53770938633bdc26b3e38a3f7f338e553ab5a"
+}

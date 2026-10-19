@@ -65,10 +65,12 @@ export default function ExploreResults({ data: initialData, error }: { data?: Pu
         onClear={clear}
       />
       <div className="explore-controls-row">
-        <nav className="explore-content-tabs" aria-label="Nội dung khám phá">
-          <a href="#explore-destination-title"><Map aria-hidden="true" size={15} />Điểm đến</a>
-          {mvpFeatures.culture && <a href="#explore-culture-title"><BookOpen aria-hidden="true" size={15} />Nội dung văn hóa</a>}
-        </nav>
+        {mvpFeatures.culture && (
+          <nav className="explore-content-tabs" aria-label="Nội dung khám phá">
+            <a href="#explore-destination-title"><Map aria-hidden="true" size={15} />Điểm đến</a>
+            <a href="#explore-culture-title"><BookOpen aria-hidden="true" size={15} />Nội dung văn hóa</a>
+          </nav>
+        )}
         <div className="explore-view-switch" role="group" aria-label="Chế độ xem điểm đến">
           <button type="button" aria-pressed={view === "list"} onClick={() => setView("list")}>
             <List aria-hidden="true" size={17} /> Danh sách

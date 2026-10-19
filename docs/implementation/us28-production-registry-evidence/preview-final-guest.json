@@ -1,0 +1,12 @@
+{
+  "measuredAt": "2026-10-18T12:28:20.475Z",
+  "origin": "https://kltn-i05mu463a-to-xuan-hoai-s-projects.vercel.app",
+  "codeCommit": "f1d414ce1cdb0542b85684f803cf9794b66ceccc",
+  "pageStatus": 200,
+  "guestProposalStatus": 401,
+  "code": "UNAUTHENTICATED",
+  "productionWrites": 0,
+  "tripWrites": 0,
+  "providerCalls": 0,
+  "scope": "Final committed-code Preview Guest only; full authenticated/map E2E remains blocked."
+}

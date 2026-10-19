@@ -1,6 +1,7 @@
 import type { Database, Prisma } from "@KLTN/db";
 import { visibleDestinationWhere, isDestinationEligibleForNewItinerary, findEligibleDestinationIds } from "../destination/destination-eligibility";
 import { publicHttpsUrl } from "../content-profile/content-profile-contract";
+import { destinationMediaWhere, isDestinationMediaUsable } from "../destination/destination-media-eligibility";
 import { richContentText } from "../culture/culture-rich-content";
 import type { TripInterest } from "../trip-requirement/trip-requirement-contract";
 import type { z } from "zod";
@@ -11,22 +12,30 @@ export type PlannerCandidate = z.infer<typeof plannerDestinationSchema> & {
   openingDays: { dayOfWeek: string; status: string; intervals: { opensAtMinute: number; closesAtMinute: number }[] }[];
 };
 export const MAX_CANDIDATES = 64;
+export type PlannerCandidateInventory = { candidates: PlannerCandidate[]; publicRowCount: number; invalidCoordinateCount: number; excludedCount: number };
 const select = {
   id: true, name: true, description: true, shortDescription: true, area: true, category: true, address: true,
   latitude: true, longitude: true, visibility: true, updatedAt: true, contentRevision: true,
   suggestedDurationMinutes: true, minimumDurationMinutes: true,
-  media: { where: { websiteRights: "APPROVED" as const }, take: 1, orderBy: [{ isCover: "desc" as const }, { position: "asc" as const }, { id: "asc" as const }], select: { url: true, alt: true, author: true, sourceUrl: true } },
+  media: { where: destinationMediaWhere, take: 20, orderBy: [{ isCover: "desc" as const }, { position: "asc" as const }, { id: "asc" as const }], select: { url: true, alt: true, author: true, sourceUrl: true, websiteRights: true, storageReference: true } },
   openingDays: { orderBy: { dayOfWeek: "asc" as const }, select: { dayOfWeek: true, status: true, intervals: { orderBy: { opensAtMinute: "asc" as const }, select: { opensAtMinute: true, closesAtMinute: true } } } },
 } satisfies Prisma.DestinationSelect;
 export async function retrievePlannerCandidates(database: Pick<Database, "destination">, ids?: readonly string[], excludedIds: readonly string[] = []): Promise<PlannerCandidate[]> {
+  return (await retrievePlannerCandidateInventory(database, ids, excludedIds)).candidates;
+}
+export async function retrievePlannerCandidateInventory(database: Pick<Database, "destination">, ids?: readonly string[], excludedIds: readonly string[] = []): Promise<PlannerCandidateInventory> {
   const rows = await database.destination.findMany({ where: { ...visibleDestinationWhere, ...(ids ? { id: { in: [...ids] } } : {}) }, select, orderBy: { id: "asc" }, take: MAX_CANDIDATES });
-  return rows.filter(row => !excludedIds.includes(row.id) && isDestinationEligibleForNewItinerary(row) && Number.isFinite(row.latitude) && Number.isFinite(row.longitude) && Math.abs(row.latitude) <= 90 && Math.abs(row.longitude) <= 180).map(row => {
-    const image = row.media[0];
+  const publicRows = rows.filter(isDestinationEligibleForNewItinerary);
+  const coordinateValid = (row: typeof rows[number]) => Number.isFinite(row.latitude) && Number.isFinite(row.longitude) && Math.abs(row.latitude) <= 90 && Math.abs(row.longitude) <= 180;
+  const candidates = publicRows.filter(row => !excludedIds.includes(row.id) && coordinateValid(row)).map(row => {
+    const image = row.media.find(m => isDestinationMediaUsable(m, row.id));
     return { id: row.id, name: row.name, description: richContentText(row.shortDescription || row.description).slice(0, 1000), area: row.area, category: row.category,
-      address: row.address, latitude: row.latitude, longitude: row.longitude, image: image && publicHttpsUrl.safeParse(image.url).success ? { ...image, sourceUrl: image.sourceUrl && publicHttpsUrl.safeParse(image.sourceUrl).success ? image.sourceUrl : null } : null,
+      address: row.address, latitude: row.latitude, longitude: row.longitude, image: image ? { url: image.url, alt: image.alt, author: image.author, sourceUrl: image.sourceUrl && publicHttpsUrl.safeParse(image.sourceUrl).success ? image.sourceUrl : null } : null,
       visibility: row.visibility, revision: `${row.contentRevision}:${row.updatedAt.toISOString()}`, suggestedDurationMinutes: row.suggestedDurationMinutes,
       minimumDurationMinutes: row.minimumDurationMinutes, openingDays: row.openingDays };
   });
+  return { candidates, publicRowCount: publicRows.length, invalidCoordinateCount: publicRows.filter(row => !excludedIds.includes(row.id) && !coordinateValid(row)).length,
+    excludedCount: publicRows.filter(row => excludedIds.includes(row.id)).length };
 }
 export function candidateSnapshot(candidate: PlannerCandidate) { return JSON.stringify(candidate); }
 export async function recheckPlannerCandidates(database: Pick<Database, "destination">, candidates: readonly PlannerCandidate[], excludedIds: readonly string[] = []): Promise<boolean> {

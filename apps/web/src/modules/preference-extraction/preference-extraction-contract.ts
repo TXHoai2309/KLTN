@@ -388,6 +388,7 @@ export function createModelOutputJsonSchema(): JsonSchemaObject {
 export const modelOutputJsonSchema = createModelOutputJsonSchema();
 
 const STRICT_JSON_SCHEMA_KEYS = new Set([
+  "minLength", "maxLength", "pattern", "minItems", "maxItems", "minimum", "maximum",
   "type",
   "properties",
   "required",

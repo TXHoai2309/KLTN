@@ -1,0 +1,13 @@
+{
+  "checkedAt": "2026-10-18T11:11:21.555Z",
+  "branch": "br-aged-hat-b3o6hg9p",
+  "ownedFixtureUsers": 2,
+  "ownedFixtureDestinations": 1,
+  "remaining": {
+    "users_remaining": 0,
+    "destinations_remaining": 0,
+    "operations_remaining": 0
+  },
+  "status": "PASS",
+  "productionWrites": 0
+}

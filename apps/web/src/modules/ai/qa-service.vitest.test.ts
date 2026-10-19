@@ -28,6 +28,25 @@ describe("QA orchestration without external services",()=>{
   });
   const citation={id:"c1",sourceId:"public_fixture",title:"Fixture",sourceUrl:null,locators:[]};
   const evidence:QaEvidence={citationId:"c1",documentId:"private_doc",generationId:"generation",contentVersionId:"version",chunkId:"private_chunk",chunkHash:"hash",text:"Fixture claim",tokenCount:2,score:1,citation};
+  it("keeps a no-evidence reply completed with its reason and no assessment/generation call", async () => {
+    const t = setup();
+    const result = await t.service.ask(principal, "missing_key", request);
+    expect(result.data).toMatchObject({ status: "INSUFFICIENT_SOURCE", reason: "NO_EVIDENCE", answerParts: [], citations: [] });
+    expect(t.assessor.assess).not.toHaveBeenCalled(); expect(t.generator.generate).not.toHaveBeenCalled();
+    expect(t.store.complete).toHaveBeenCalledOnce();
+  });
+  it("records missing support after review without calling generation or changing it into a provider error", async () => {
+    const t = setup(); t.retriever.retrieve.mockResolvedValue([evidence]);
+    t.assessor.assess.mockImplementation(async input => {
+      const assessment = fixtureQaAssessment(input);
+      assessment.review.aspects = [{ id: "requested", status: "MISSING", supports: [] }];
+      return assessment;
+    });
+    const result = await t.service.ask(principal, "support_key", request);
+    expect(result.data).toMatchObject({ status: "INSUFFICIENT_SOURCE", reason: "MISSING_SUPPORT", answerParts: [], citations: [] });
+    expect(t.assessor.assess).toHaveBeenCalledOnce(); expect(t.generator.generate).not.toHaveBeenCalled();
+    expect(t.store.complete).toHaveBeenCalledOnce(); expect(t.store.fail).not.toHaveBeenCalled();
+  });
   it.each<QaAnswer>([
     {status:"ANSWERED",answerParts:[{text:"Fixture claim",citationIds:["c1"]}],citations:[citation],unansweredAspects:[]},
     {status:"PARTIAL",answerParts:[{text:"Fixture claim",citationIds:["c1"]}],citations:[citation],unansweredAspects:["Chưa đủ nguồn cho phần còn lại."]},
@@ -51,9 +70,9 @@ describe("QA orchestration without external services",()=>{
     const t=setup();
     const historical={...answer,conversationId:"conv",turnId:"previous",context:{type:"GENERAL" as const},turnState:"COMPLETED" as const} as QaCompletedTurn;
     t.reservation.history.push({question:"Cũ",response:historical});
-    const result=await t.service.ask(principal,"key",request);
+    const result=await t.service.ask(principal,"key",{...request,question:"Nó ở đâu?"});
     expect(result.data.status).toBe("INSUFFICIENT_SOURCE");
-    expect(t.retriever.retrieve).toHaveBeenCalledWith(request.question,t.reservation.history,undefined,{type:"GENERAL"});
+    expect(t.retriever.retrieve).toHaveBeenCalledWith("nó ở đâu",[{...t.reservation.history[0],question:"cũ"}],undefined,{type:"GENERAL"});
     expect(t.generator.generate).not.toHaveBeenCalled();
     expect(t.store.complete).toHaveBeenCalledOnce();
   });

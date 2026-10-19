@@ -1,0 +1,846 @@
+{
+  "date": "2026-10-17",
+  "dataset": "qa-improvement-cases-v1",
+  "annotation": "Agent-authored fictional behavior annotations; independent owner review pending",
+  "metricScope": "Routing, normalization, history selection, confirmed persistence and provider call counts. Not semantic/corpus accuracy.",
+  "before": {
+    "evidenceClass": "FICTIONAL_OFFLINE_BEHAVIOR",
+    "semanticQuality": "NOT_EVALUATED",
+    "ownerCorpusAcceptance": "PENDING",
+    "cases": 40,
+    "passed": 23,
+    "results": [
+      {
+        "id": "social-1",
+        "group": "social",
+        "passed": true,
+        "status": "CONVERSATIONAL",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "social-2",
+        "group": "social",
+        "passed": true,
+        "status": "CONVERSATIONAL",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "social-3",
+        "group": "social",
+        "passed": true,
+        "status": "CONVERSATIONAL",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "social-4",
+        "group": "social",
+        "passed": false,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": false,
+        "historyMatched": true
+      },
+      {
+        "id": "social-5",
+        "group": "social",
+        "passed": false,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": false,
+        "historyMatched": true
+      },
+      {
+        "id": "social-6",
+        "group": "social",
+        "passed": false,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": false,
+        "historyMatched": true
+      },
+      {
+        "id": "social-7",
+        "group": "social",
+        "passed": true,
+        "status": "CONVERSATIONAL",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "social-8",
+        "group": "social",
+        "passed": false,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": false,
+        "historyMatched": true
+      },
+      {
+        "id": "social-9",
+        "group": "social",
+        "passed": true,
+        "status": "CONVERSATIONAL",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "social-10",
+        "group": "social",
+        "passed": true,
+        "status": "CONVERSATIONAL",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "social-11",
+        "group": "social",
+        "passed": false,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": false,
+        "historyMatched": true
+      },
+      {
+        "id": "social-12",
+        "group": "social",
+        "passed": true,
+        "status": "CONVERSATIONAL",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "mixed-1",
+        "group": "mixed",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "mixed-2",
+        "group": "mixed",
+        "passed": false,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": false,
+        "historyMatched": true
+      },
+      {
+        "id": "mixed-3",
+        "group": "mixed",
+        "passed": false,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": false,
+        "historyMatched": false
+      },
+      {
+        "id": "mixed-4",
+        "group": "mixed",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "mixed-5",
+        "group": "mixed",
+        "passed": false,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": false,
+        "historyMatched": false
+      },
+      {
+        "id": "mixed-6",
+        "group": "mixed",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "mixed-7",
+        "group": "mixed",
+        "passed": false,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": false,
+        "historyMatched": true
+      },
+      {
+        "id": "mixed-8",
+        "group": "mixed",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "context-1",
+        "group": "context",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "context-2",
+        "group": "context",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "context-3",
+        "group": "context",
+        "passed": false,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": false
+      },
+      {
+        "id": "context-4",
+        "group": "context",
+        "passed": false,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": false
+      },
+      {
+        "id": "context-5",
+        "group": "context",
+        "passed": false,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": false
+      },
+      {
+        "id": "context-6",
+        "group": "context",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "context-7",
+        "group": "context",
+        "passed": false,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": false
+      },
+      {
+        "id": "context-new-entity",
+        "group": "context",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "context-no-subject",
+        "group": "context",
+        "passed": false,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": false,
+        "historyMatched": true
+      },
+      {
+        "id": "context-no-price-subject",
+        "group": "context",
+        "passed": false,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": false,
+        "historyMatched": true
+      },
+      {
+        "id": "context-two-subjects",
+        "group": "context",
+        "passed": false,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": false,
+        "historyMatched": true
+      },
+      {
+        "id": "context-two-subjects-social",
+        "group": "context",
+        "passed": false,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": false,
+        "historyMatched": true
+      },
+      {
+        "id": "context-selected-subject",
+        "group": "context",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "context-independent",
+        "group": "context",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "numeric-1",
+        "group": "numeric",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "numeric-2",
+        "group": "numeric",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "numeric-3",
+        "group": "numeric",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "numeric-4",
+        "group": "numeric",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "numeric-5",
+        "group": "numeric",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "numeric-6",
+        "group": "numeric",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      }
+    ]
+  },
+  "after": {
+    "evidenceClass": "FICTIONAL_OFFLINE_BEHAVIOR",
+    "semanticQuality": "NOT_EVALUATED",
+    "ownerCorpusAcceptance": "PENDING",
+    "cases": 40,
+    "passed": 40,
+    "results": [
+      {
+        "id": "social-1",
+        "group": "social",
+        "passed": true,
+        "status": "CONVERSATIONAL",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "social-2",
+        "group": "social",
+        "passed": true,
+        "status": "CONVERSATIONAL",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "social-3",
+        "group": "social",
+        "passed": true,
+        "status": "CONVERSATIONAL",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "social-4",
+        "group": "social",
+        "passed": true,
+        "status": "CONVERSATIONAL",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "social-5",
+        "group": "social",
+        "passed": true,
+        "status": "CONVERSATIONAL",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "social-6",
+        "group": "social",
+        "passed": true,
+        "status": "CONVERSATIONAL",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "social-7",
+        "group": "social",
+        "passed": true,
+        "status": "CONVERSATIONAL",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "social-8",
+        "group": "social",
+        "passed": true,
+        "status": "CONVERSATIONAL",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "social-9",
+        "group": "social",
+        "passed": true,
+        "status": "CONVERSATIONAL",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "social-10",
+        "group": "social",
+        "passed": true,
+        "status": "CONVERSATIONAL",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "social-11",
+        "group": "social",
+        "passed": true,
+        "status": "CONVERSATIONAL",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "social-12",
+        "group": "social",
+        "passed": true,
+        "status": "CONVERSATIONAL",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "mixed-1",
+        "group": "mixed",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "mixed-2",
+        "group": "mixed",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "mixed-3",
+        "group": "mixed",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "mixed-4",
+        "group": "mixed",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "mixed-5",
+        "group": "mixed",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "mixed-6",
+        "group": "mixed",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "mixed-7",
+        "group": "mixed",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "mixed-8",
+        "group": "mixed",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "context-1",
+        "group": "context",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "context-2",
+        "group": "context",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "context-3",
+        "group": "context",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "context-4",
+        "group": "context",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "context-5",
+        "group": "context",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "context-6",
+        "group": "context",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "context-7",
+        "group": "context",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "context-new-entity",
+        "group": "context",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "context-no-subject",
+        "group": "context",
+        "passed": true,
+        "status": "CLARIFICATION_REQUIRED",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "context-no-price-subject",
+        "group": "context",
+        "passed": true,
+        "status": "CLARIFICATION_REQUIRED",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "context-two-subjects",
+        "group": "context",
+        "passed": true,
+        "status": "CLARIFICATION_REQUIRED",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "context-two-subjects-social",
+        "group": "context",
+        "passed": true,
+        "status": "CLARIFICATION_REQUIRED",
+        "providerCalls": 0,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "context-selected-subject",
+        "group": "context",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "context-independent",
+        "group": "context",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "numeric-1",
+        "group": "numeric",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "numeric-2",
+        "group": "numeric",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "numeric-3",
+        "group": "numeric",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "numeric-4",
+        "group": "numeric",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "numeric-5",
+        "group": "numeric",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      },
+      {
+        "id": "numeric-6",
+        "group": "numeric",
+        "passed": true,
+        "status": "ANSWERED",
+        "providerCalls": 2,
+        "retrievalMatched": true,
+        "historyMatched": true
+      }
+    ]
+  },
+  "liveRuntime": {
+    "broaderSemanticAcceptance": "PENDING",
+    "cases": [
+      {
+        "label": "original",
+        "status": "ANSWERED",
+        "rejections": [],
+        "jsonCalls": 3,
+        "actualLunaConfirmed": true,
+        "tokens": 7009.0
+      },
+      {
+        "label": "repeated",
+        "status": "ANSWERED",
+        "rejections": [],
+        "jsonCalls": 3,
+        "actualLunaConfirmed": true,
+        "tokens": 8054.0
+      },
+      {
+        "label": "punctuated",
+        "status": "ANSWERED",
+        "rejections": [],
+        "jsonCalls": 3,
+        "actualLunaConfirmed": true,
+        "tokens": 7418.0
+      },
+      {
+        "label": "mixed-followup",
+        "status": "INSUFFICIENT_SOURCE",
+        "rejections": [
+          {
+            "reason": "GATE_REJECTED",
+            "gate": "CLAIM_GROUNDING"
+          }
+        ],
+        "jsonCalls": 3,
+        "actualLunaConfirmed": true,
+        "tokens": 8450.0
+      }
+    ],
+    "note": "Earlier failed runs remain documented. No retry-until-pass acceptance.",
+    "status": "3_OF_4_EXPECTED_ANSWERS; NOT_ACCEPTED"
+  },
+  "http": {
+    "passed": true,
+    "ownResourcesCleaned": true,
+    "cases": [
+      {
+        "index": 0,
+        "status": "CLARIFICATION_REQUIRED",
+        "partCount": 0,
+        "citationCount": 0,
+        "elapsedMs": 3714
+      },
+      {
+        "index": 1,
+        "status": "CONVERSATIONAL",
+        "partCount": 0,
+        "citationCount": 0,
+        "elapsedMs": 3029
+      },
+      {
+        "index": 2,
+        "status": "ANSWERED",
+        "partCount": 3,
+        "citationCount": 3,
+        "elapsedMs": 27129
+      },
+      {
+        "index": 3,
+        "status": "ANSWERED",
+        "partCount": 2,
+        "citationCount": 2,
+        "elapsedMs": 18563
+      },
+      {
+        "index": 4,
+        "status": "ANSWERED",
+        "partCount": 2,
+        "citationCount": 2,
+        "elapsedMs": 14106
+      },
+      {
+        "index": 5,
+        "status": "ANSWERED",
+        "partCount": 2,
+        "citationCount": 3,
+        "elapsedMs": 20179
+      }
+    ],
+    "historyConfirmed": true,
+    "replayConfirmed": true
+  },
+  "checks": {
+    "finalProductionBuild": "PASS (18.8s)",
+    "gatedSkip": 101,
+    "vitestPass": 1767,
+    "rootTypecheck": "PASS",
+    "legacyPass": 329,
+    "diffCheck": "PASS"
+  }
+}

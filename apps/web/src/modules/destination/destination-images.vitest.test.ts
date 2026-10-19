@@ -1,14 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 import sharp from "sharp";
+import {v2 as cloudinary} from "cloudinary";
 vi.mock("server-only", () => ({}));
 const httpAuth = vi.hoisted(() => ({ role: null as string | null }));
 vi.mock("./destination-server", () => ({ destinationDependencies: {
   resolveSession: async () => httpAuth.role ? { user: { id: "test-admin" } } : null,
   database: { user: { findUnique: async () => httpAuth.role ? { id: "test-admin", role: httpAuth.role } : null } },
 } }));
-import { cloudinaryConfiguration, inspectImage, type DestinationImageProvider, type ImageAsset } from "./cloudinary-provider";
+import { cloudinaryConfiguration, destinationImageProvider, inspectImage, type DestinationImageProvider, type ImageAsset } from "./cloudinary-provider";
 import { createImageIntent, uploadDestinationImage, reviewDestinationImage, verifyImageAsset } from "./destination-image-service";
+import { destinationMediaWhere, isDestinationMediaUsable, withoutWebsiteUse } from "./destination-media-eligibility";
 import { imageIntentInput, MAX_IMAGE_BYTES, type ImageIntent } from "./destination-media-contract";
 import { mediaChanges } from "./destination-media-patch";
 import { writeDestination } from "./destination-service";
@@ -101,6 +103,110 @@ describe("Destination image byte/config/HTTP boundaries (offline)", () => {
   });
 });
 describe("Intent/upload/review services with mock persistence/provider (not PostgreSQL)", () => {
+  it("uploads without alt/caption/evidence, uses Destination alt, and retains legal UNKNOWN", async () => {
+    const f = await fixture(); const p = fakeProvider();
+    await createImageIntent(headers, { ...f.input, name: "IMG_000999.png" }, "simple-upload", f.id, f.store.deps, p.provider);
+    expect(await uploadDestinationImage(headers, f.bytes, "simple-upload", f.id, f.store.deps, p.provider)).toMatchObject({status:"SUCCESS"});
+    const row = f.store.rows().get(f.id); const media = row.media[0];
+    expect(media).toMatchObject({alt:"Hình ảnh Synthetic",caption:null,rightsEvidence:null,websiteRights:"UNKNOWN",reviewedBy:null,reviewedAt:null});
+    expect(isDestinationMediaUsable(media, f.id)).toBe(true);
+    expect(isDestinationMediaUsable(media, "foreign-destination")).toBe(false);
+    const before = structuredClone(media);
+    await writeDestination(headers, {formVersion:"V3",media:[{id:media.id,caption:""}]}, "empty-caption", f.id, f.store.deps);
+    expect(row.media[0].alt).toBe(before.alt); expect(row.media[0].storageReference).toBe(before.storageReference);
+  });
+  it("generic legacy writes cannot mint or copy upload-use provenance", async () => {
+    const f = await fixture(); const p = fakeProvider();
+    await createImageIntent(headers, f.input, "proof-upload", f.id, f.store.deps, p.provider);
+    await uploadDestinationImage(headers, f.bytes, "proof-upload", f.id, f.store.deps, p.provider);
+    const row = f.store.rows().get(f.id); const original = structuredClone(row.media[0]);
+    const { id: _mediaId, ...forged } = (await import("./destination-service")).toDestinationDto(row).profile!.media[0]!;
+    const created = await writeDestination(headers, {name:"Other",description:"Other",category:"chợ phiên",area:"đồng văn",latitude:23,longitude:105,suggestedDurationMinutes:null,minimumDurationMinutes:null,openingDays:unknownSchedule(),profile:{media:[forged]}}, "forged-create", null, f.store.deps);
+    expect(created.status).toBe("SUCCESS");
+    if(created.status!=="SUCCESS")throw Error("fixture");
+    expect(isDestinationMediaUsable(f.store.rows().get(created.data.id).media[0], created.data.id)).toBe(false);
+    const revoked = await reviewDestinationImage(headers, {id:original.id,expectedUpdatedAt:row.updatedAt.toISOString(),decision:"UNKNOWN",evidence:"Revoked fixture"}, "revoke-proof", f.id, f.store.deps);
+    expect(revoked.status).toBe("SUCCESS"); expect(isDestinationMediaUsable(row.media[0],f.id)).toBe(false);
+    const restore = await writeDestination(headers, {profile:{media:[{...forged,id:original.id}]}}, "forged-restore",f.id,f.store.deps);
+    expect(restore.status).toBe("SUCCESS"); expect(isDestinationMediaUsable(row.media[0],f.id)).toBe(false);
+    expect(row.media[0].id).toBe(original.id); expect(row.media[0].url).toBe(original.url);
+  });
+  it("Editorial AI receives new upload IDs only, without legal evidence or foreign/legacy media", async () => {
+    const f = await fixture(); const p = fakeProvider();
+    await createImageIntent(headers,f.input,"ai-upload",f.id,f.store.deps,p.provider);
+    await uploadDestinationImage(headers,f.bytes,"ai-upload",f.id,f.store.deps,p.provider);
+    const row = f.store.rows().get(f.id); const uploaded = row.media[0];
+    row.media.push({...uploaded,id:"legacy-ai",isCover:false,storageReference:withoutWebsiteUse(uploaded.storageReference)}, {...uploaded,id:"rejected-ai",isCover:false,websiteRights:"REJECTED"});
+    f.db.idempotencyRecord.count = async()=>0;
+    let supplied: any;
+    const {proposeEditorial}=await import("../destination-editorial/editorial-ai");
+    const result = await proposeEditorial(headers,f.id,f.store.deps,{complete:async request=>{
+      supplied=JSON.parse(request.user);
+      return {model:"offline",rawText:JSON.stringify({family:supplied.base.family,variant:supplied.base.variant,blocks:supplied.base.blocks.map((b:any)=>({id:b.id,mediaIds:b.mediaIds,placement:b.placement,title:b.title}))})};
+    }});
+    expect(result.status).toBe("PROPOSED"); expect(supplied.mediaIds).toEqual([uploaded.id]);
+    expect(JSON.stringify(supplied)).not.toContain("storageReference"); expect(JSON.stringify(supplied)).not.toContain("rightsEvidence");
+    expect(result.layout.blocks.flatMap(b=>b.mediaIds)).toEqual([uploaded.id]);
+  });
+  it("Detail/Explore/Planner/Editorial share eligibility, with no HIDDEN or draft leak and no private metadata", async () => {
+    const f = await fixture(); const p = fakeProvider();
+    await createImageIntent(headers,f.input,"shared-upload",f.id,f.store.deps,p.provider);
+    await uploadDestinationImage(headers,f.bytes,"shared-upload",f.id,f.store.deps,p.provider);
+    const row=f.store.rows().get(f.id); Object.assign(row.media[0],{sourceUrl:null});
+    const {getPublicDestination}=await import("./public-destination-service");
+    const {retrievePlannerCandidates}=await import("../trip-planner/planner-candidates");
+    const {readPublicEditorial,readEditorialContext}=await import("../destination-editorial/editorial-service");
+    const {autoLayout}=await import("../destination-editorial/editorial-engine");
+    let published: unknown=null;
+    f.db.destinationEditorial={findUnique:async()=>({published})};
+    await expect(getPublicDestination(f.id,f.db)).rejects.toMatchObject({status:410});
+    expect(await readPublicEditorial(f.id,f.db)).toBeNull();
+    expect(await retrievePlannerCandidates(f.db,[f.id])).toEqual([]);
+    row.visibility="VISIBLE";
+    expect(await readPublicEditorial(f.id,f.db)).toBeNull();
+    published=autoLayout(await readEditorialContext(f.id,f.db));
+    expect((await readPublicEditorial(f.id,f.db))?.media.map(m=>m.id)).toEqual([row.media[0].id]);
+    const detail=await getPublicDestination(f.id,f.db);
+    expect(detail.profile?.media).toHaveLength(1);
+    const planner=await retrievePlannerCandidates(f.db,[f.id]);
+    expect(planner[0]?.image?.url).toBe(row.media[0].url);
+    expect(JSON.stringify({detail,planner})).not.toContain("storageReference");
+    expect(JSON.stringify({detail,planner})).not.toContain("websiteUse");
+    row.media[0].websiteRights="REJECTED";
+    expect((await getPublicDestination(f.id,f.db)).profile?.media).toHaveLength(0);
+    expect((await readPublicEditorial(f.id,f.db))?.media).toHaveLength(0);
+    expect((await retrievePlannerCandidates(f.db,[f.id]))[0]?.image).toBeNull();
+    row.media[0].websiteRights="UNKNOWN"; row.media[0].storageReference=withoutWebsiteUse(row.media[0].storageReference);
+    expect((await getPublicDestination(f.id,f.db)).profile?.media).toHaveLength(0);
+    expect((await readPublicEditorial(f.id,f.db))?.media).toHaveLength(0);
+    expect((await retrievePlannerCandidates(f.db,[f.id]))[0]?.image).toBeNull();
+  });
+  it("verifies returned upload metadata and skips the second provider lookup", async () => {
+    const f = await fixture(); const p = fakeProvider();
+    await createImageIntent(headers, f.input, "fast-upload", f.id, f.store.deps, p.provider);
+    p.provider.upload = vi.fn(async (intent, bytes) => assetFor(intent, bytes));
+    expect(await uploadDestinationImage(headers, f.bytes, "fast-upload", f.id, f.store.deps, p.provider)).toMatchObject({ status: "SUCCESS" });
+    expect(p.provider.find).toHaveBeenCalledOnce(); expect(p.provider.upload).toHaveBeenCalledOnce();
+    expect(f.store.rows().get(f.id).media).toHaveLength(1);
+  });
+  it("rejects mismatched upload metadata before attachment even on the faster path", async () => {
+    const f = await fixture(); const p = fakeProvider();
+    await createImageIntent(headers, f.input, "bad-upload", f.id, f.store.deps, p.provider);
+    p.provider.upload = vi.fn(async (intent, bytes) => ({ ...assetFor(intent, bytes), public_id: "foreign" }));
+    await expect(uploadDestinationImage(headers, f.bytes, "bad-upload", f.id, f.store.deps, p.provider)).rejects.toMatchObject({ code: "INVALID_IMAGE_INTENT" });
+    expect(f.store.rows().get(f.id).media).toHaveLength(0);
+  });
+  it("nested SDK 404 proceeds to upload once, then attaches UNKNOWN and replays the same key",async()=>{
+    const f=await fixture();const fake=fakeProvider();const created=await createImageIntent(headers,f.input,"nested-404",f.id,f.store.deps,fake.provider);if(created.status!=="SUCCESS")throw Error("fixture");
+    vi.stubEnv("CLOUDINARY_CLOUD_NAME","test-cloud");vi.stubEnv("CLOUDINARY_API_KEY","fixture-key");vi.stubEnv("CLOUDINARY_API_SECRET","fixture-secret");vi.stubEnv("CLOUDINARY_DESTINATION_FOLDER","KLTN/destinations");
+    const resource=vi.spyOn(cloudinary.api,"resource").mockRejectedValueOnce({error:{http_code:404,message:"Resource not found"}}).mockResolvedValueOnce(assetFor(created.data,f.bytes) as any);
+    const provider=destinationImageProvider();const upload=vi.spyOn(provider,"upload").mockResolvedValue();
+    try{
+      expect(await uploadDestinationImage(headers,f.bytes,"nested-404",f.id,f.store.deps,provider)).toMatchObject({status:"SUCCESS",data:{profile:{media:[{websiteRights:"UNKNOWN"}]}}});
+      expect(await uploadDestinationImage(headers,f.bytes,"nested-404",f.id,f.store.deps,provider)).toMatchObject({status:"SUCCESS",replayed:true});
+      expect(upload).toHaveBeenCalledOnce();expect(resource).toHaveBeenCalledTimes(2);expect(f.store.rows().get(f.id).media).toHaveLength(1);
+    }finally{resource.mockRestore();upload.mockRestore();vi.unstubAllEnvs();}
+  });
   it.each([null, "TRAVELER"])("rejects %s before provider calls", async role => {
     const f = await fixture(role); const p = fakeProvider();
     await expect(createImageIntent(headers, f.input, "image-1", f.id, f.store.deps, p.provider)).rejects.toMatchObject({ status: role ? 403 : 401 });
@@ -128,6 +234,24 @@ describe("Intent/upload/review services with mock persistence/provider (not Post
     await expect(uploadDestinationImage(headers, f.bytes, "image-1", f.id, f.store.deps, p.provider, intent.data.expiresAt)).rejects.toMatchObject({ code: "INVALID_IMAGE_INTENT" });
     await expect(createImageIntent(headers, { ...f.input, folder: "Vocab" }, "bad", f.id, f.store.deps, p.provider)).rejects.toMatchObject({ code: "INVALID_IMAGE" });
     expect(p.provider.upload).not.toHaveBeenCalled();
+  });
+  it("recovers an existing Cloudinary jpg using decoded JPEG bytes and replays without another upload", async () => {
+    const f = await fixture(); const p = fakeProvider();
+    const bytes = await sharp({ create: { width: 2, height: 2, channels: 3, background: "red" } }).jpeg().toBuffer();
+    const input = { ...f.input, name: "synthetic.jpg", mime: "image/jpeg", size: bytes.length, sha256: createHash("sha256").update(bytes).digest("hex") };
+    const result = await createImageIntent(headers, input, "jpeg-recovery", f.id, f.store.deps, p.provider);
+    if (result.status !== "SUCCESS") throw Error("fixture intent");
+    const asset = { ...assetFor(result.data, bytes), format: "jpg", secure_url: `https://res.cloudinary.com/test-cloud/image/upload/v1/${result.data.publicId}.jpg` };
+    p.assets.set(result.data.publicId, asset);
+    // The alias must not permit JPEG assets to satisfy a different decoded format.
+    expect(() => verifyImageAsset(asset, result.data, "png")).toThrow();
+    expect(await uploadDestinationImage(headers, bytes, "jpeg-recovery", f.id, f.store.deps, p.provider)).toMatchObject({ status: "SUCCESS" });
+    expect(await uploadDestinationImage(headers, bytes, "jpeg-recovery", f.id, f.store.deps, p.provider)).toMatchObject({ status: "SUCCESS", replayed: true });
+    expect(p.provider.upload).not.toHaveBeenCalled();
+    const media = f.store.rows().get(f.id).media;
+    expect(media).toHaveLength(1);
+    expect(media[0].websiteRights).toBe("UNKNOWN");
+    expect(JSON.parse(media[0].storageReference).format).toBe("jpg");
   });
   it.each(["public_id", "asset_folder", "secure_url", "context", "resource_type", "bytes", "format"])("rejects untrusted asset %s", async field => {
     const f = await fixture(); const p = fakeProvider(); const result = await createImageIntent(headers, f.input, "image-1", f.id, f.store.deps, p.provider); if (result.status !== "SUCCESS") throw Error();
@@ -199,15 +323,20 @@ describe("Intent/upload/review services with mock persistence/provider (not Post
     expect(result.status).toBe("SUCCESS"); expect(row.media[0]).toMatchObject({ id: mediaId, websiteRights: "UNKNOWN", reviewedBy: null, storageReference: null });
     expect([...f.store.records().values()].filter(r => r.scope.includes("media-unlinked"))).toHaveLength(1);
   });
-  it("public list selects only approved media with cover priority and keeps HIDDEN isolated", async () => {
+  it("public list uses verified Admin uploads, keeps legacy UNKNOWN/REJECTED blocked and HIDDEN isolated", async () => {
     const f = await fixture(); const p = fakeProvider(); await createImageIntent(headers, f.input, "image-1", f.id, f.store.deps, p.provider); await uploadDestinationImage(headers, f.bytes, "image-1", f.id, f.store.deps, p.provider);
     expect((await listPublicLocations({}, f.db)).items).toHaveLength(0);
     const row = f.store.rows().get(f.id); row.visibility = "VISIBLE";
+    expect((await listPublicLocations({}, f.db)).items[0]?.image?.url).toContain("res.cloudinary.com");
+    const reference = row.media[0].storageReference;
+    row.media[0].storageReference = withoutWebsiteUse(reference);
+    expect((await listPublicLocations({}, f.db)).items[0]?.image).toBeNull();
+    row.media[0].storageReference = reference; row.media[0].websiteRights = "REJECTED";
     expect((await listPublicLocations({}, f.db)).items[0]?.image).toBeNull();
     row.media[0].websiteRights = "APPROVED";
     expect((await listPublicLocations({}, f.db)).items[0]?.image?.url).toContain("res.cloudinary.com");
     const findMany = vi.spyOn(f.db.destination, "findMany"); await listPublicLocations({}, f.db);
-    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { visibility: "VISIBLE" }, select: expect.objectContaining({ media: expect.objectContaining({ where: { websiteRights: "APPROVED" }, orderBy: [{ isCover: "desc" }, { position: "asc" }, { id: "asc" }] }) }) }));
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { visibility: "VISIBLE" }, select: expect.objectContaining({ media: expect.objectContaining({ where: destinationMediaWhere, orderBy: [{ isCover: "desc" }, { position: "asc" }, { id: "asc" }] }) }) }));
   });
 });
 describe("Media PATCH ownership and omission", () => {
@@ -226,6 +355,7 @@ describe("Thin HTTP authorization and uncertain response contract", () => {
       Object.defineProperty(request, "body", { get: () => { reads++; throw Error("must not read"); } });
       const response = await handler(request, { params: Promise.resolve({ id: "test" }) });
       expect(response.status).toBe(role ? 403 : 401); expect(reads).toBe(0); expect(response.headers.get("cache-control")).toBe("private, no-store");
+      if(handler===uploadPost)expect(response.headers.get("X-Image-Upload-Request-Id")).toMatch(/^[0-9a-f-]{36}$/);
     }
   });
   it("configuration returns only a boolean, no credentials", async () => {

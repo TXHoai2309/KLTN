@@ -18,9 +18,10 @@ export async function requireActor(
   if (!session?.user.id) throw new AppError("UNAUTHENTICATED", "Vui lòng đăng nhập để tiếp tục.", 401);
   // Read the current persisted role, not a client field or cached cookie role.
   const user = await dependencies.database.user.findUnique({
-    where: { id: session.user.id }, select: { id: true, role: true },
+    where: { id: session.user.id }, select: { id: true, role: true, status: true },
   });
   if (!user) throw new AppError("UNAUTHENTICATED", "Vui lòng đăng nhập để tiếp tục.", 401);
+  if (user.status === "LOCKED") throw new AppError("ACCOUNT_LOCKED", "Tài khoản đã bị khóa.", 403);
   const actor: Actor = { id: user.id, role: user.role };
   requirePermission(actor, permission);
   return actor;

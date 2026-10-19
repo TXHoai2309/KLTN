@@ -2,16 +2,20 @@ model QaConversation {
   id            String   @id
   principalKind String   @db.VarChar(5)
   principalId   String
-  headTurnId    String?
-  activeTurnId  String?
-  context       Json     @default("{\"type\":\"GENERAL\"}")
-  expiresAt     DateTime @db.Timestamptz(3)
-  deletedAt     DateTime? @db.Timestamptz(3)
-  createdAt     DateTime @default(now()) @db.Timestamptz(3)
-  turns         QaTurn[]
+  headTurnId      String?
+  activeTurnId    String?
+  title           String?   @db.VarChar(120)
+  titleCustomized Boolean   @default(false)
+  lastActivityAt  DateTime  @default(now()) @db.Timestamptz(3)
+  context         Json      @default("{\"type\":\"GENERAL\"}")
+  expiresAt       DateTime  @db.Timestamptz(3)
+  deletedAt       DateTime? @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  turns           QaTurn[]
 
   @@index([principalKind, principalId])
   @@unique([id, principalKind, principalId])
+  @@index([principalKind, principalId, deletedAt, lastActivityAt(sort: Desc)])
   @@index([expiresAt])
   @@index([deletedAt])
   @@map("qa_conversation")

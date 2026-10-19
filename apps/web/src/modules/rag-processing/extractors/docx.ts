@@ -1,3 +1,4 @@
+import { posix } from "node:path";
 import { Unzip, UnzipInflate } from "fflate";
 import { XMLParser, XMLValidator } from "fast-xml-parser";
 import type { ExtractionWarning, SegmentOrigin } from "../extraction-contract";
@@ -65,7 +66,7 @@ function readZip(bytes: Uint8Array) {
     if (file.name.length > 500 || names.has(file.name) || file.name.includes("\\") || file.name.startsWith("/") || file.name.split("/").includes("..")) corrupt("DOCX_ZIP_PATH_INVALID");
     names.add(file.name);
     if (!directory.has(file.name)) corrupt("DOCX_ZIP_DIRECTORY_INVALID");
-    if (!selected.has(file.name)) return;
+    if (!selected.has(file.name) && !/^word\/[^/]+\.xml$/.test(file.name) && !/^word\/_rels\/[^/]+\.xml\.rels$/.test(file.name)) return;
     if ((file.originalSize ?? 0) > budgets.singleXmlBytes) limit("XML_PART_LIMIT");
     const pieces: Uint8Array[] = [];
     let size = 0;
@@ -115,6 +116,7 @@ function decodeEntities(value: string): string {
 function parseXml(bytes: Uint8Array): XmlNode[] {
   let xml: string;
   try { xml = new TextDecoder("utf-8", { fatal: true }).decode(bytes); } catch { corrupt("DOCX_XML_ENCODING_INVALID"); }
+  if (/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/u.test(xml)) corrupt("DOCX_XML_CONTROL_INVALID");
   if (/<!DOCTYPE|<!ENTITY/i.test(xml)) corrupt("XML_DTD_UNSAFE");
   // Depth checked BEFORE recursive parsing/validation. Ignore comments/CDATA/PIs.
   let depth = 0;
@@ -142,7 +144,7 @@ function checkWordNamespaces(node: XmlNode, inherited: Record<string, string> = 
   }
   const name = tag(node);
   const prefix = name.includes(":") ? name.split(":")[0] : "";
-  if (["document", "body", "styles", "style", "basedOn", "p", "pPr", "pStyle", "outlineLvl", "r", "t", "tab", "br", "cr", "tbl", "tr", "tc"].includes(local(name)) && namespaces[prefix] !== W) corrupt("DOCX_NAMESPACE_INVALID");
+  if (["hdr", "ftr", "hyperlink", "fldSimple", "document", "body", "styles", "style", "basedOn", "p", "pPr", "pStyle", "outlineLvl", "r", "t", "tab", "br", "cr", "tbl", "tr", "tc"].includes(local(name)) && namespaces[prefix] !== W) corrupt("DOCX_NAMESPACE_INVALID");
   for (const nested of children(node)) checkWordNamespaces(nested, namespaces);
 }
 
@@ -164,18 +166,49 @@ export function extractDocx(bytes: Uint8Array) {
   const body = child(document, "body");
   if (!body) corrupt("DOCX_BODY_MISSING");
   const warnings: ExtractionWarning[] = [];
-  const warn = (region: string) => { if (!warnings.some(w => w.region === region)) warnings.push({ code: "UNSUPPORTED_DOCX_REGION", region }); };
+  let currentPart = "word/document.xml";
+  const nodePaths = new WeakMap<XmlNode, string>();
+  const mapPaths = (node: XmlNode, path: string) => {
+    nodePaths.set(node, path);
+    children(node).forEach((nested, index) => mapPaths(nested, `${path}/${local(tag(nested))}[${index}]`));
+  };
+  mapPaths(document, "document");
+  const warn = (region: string, node?: XmlNode) => {
+    const location = node ? nodePaths.get(node) : undefined;
+    if (!warnings.some(w => w.region === region && w.ooxmlPart === currentPart && w.location === location)) warnings.push({
+      code: "UNSUPPORTED_DOCX_REGION", region, ooxmlPart: currentPart, unsupportedElement: region,
+      ...(location ? { location } : {}),
+    });
+  };
+  const auxiliary = new Map<string, "hdr" | "ftr">();
+  const linksByPart = new Map<string, Map<string, string>>();
   for (const name of names) {
-    if (/^word\/(?:footnotes|endnotes|header[^/]*|footer[^/]*)\.xml$/.test(name)) warn(name);
+    if (/^word\/(?:footnotes|endnotes)\.xml$/.test(name)) warn(name);
+    if (/^word\/(?:header|footer)[^/]*\.xml$/.test(name)) auxiliary.set(name, name.includes("/header") ? "hdr" : "ftr");
     if (/vbaProject|embeddings\//i.test(name)) warn("embedded-content");
   }
-  if (parts.has("word/_rels/document.xml.rels")) {
-    const root = parseXml(parts.get("word/_rels/document.xml.rels")!).find(node => local(tag(node)) === "Relationships");
+  for (const [partName, bytes] of parts) {
+    if (!/^word\/_rels\/[^/]+\.xml\.rels$/.test(partName)) continue;
+    const owner = `word/${posix.basename(partName, ".rels")}`;
+    const links = new Map<string, string>();
+    const root = parseXml(bytes).find(node => local(tag(node)) === "Relationships");
     if (!root) corrupt("DOCX_RELATION_INVALID");
     for (const relation of children(root)) {
       const type = attr(relation, "Type")?.split("/").pop();
-      if (type && ["header", "footer", "footnotes", "endnotes", "aFChunk"].includes(type)) warn(`relationship:${type}`);
+      const target = attr(relation, "Target");
+      const id = attr(relation, "Id");
+      if (type === "hyperlink" && target && id && attr(relation, "TargetMode") === "External") {
+        if (links.has(id)) corrupt("DOCX_RELATION_INVALID");
+        links.set(id, decodeEntities(target));
+      }
+      if (type && ["header", "footer"].includes(type)) {
+        const resolved = target ? posix.normalize(posix.join("word", target)) : "";
+        if (attr(relation, "TargetMode") === "External" || !/^word\/[^/]+\.xml$/.test(resolved) || !parts.has(resolved)) warn(`relationship:${type}`);
+        else auxiliary.set(resolved, type === "header" ? "hdr" : "ftr");
+      }
+      if (type && ["footnotes", "endnotes", "aFChunk"].includes(type)) warn(`relationship:${type}`);
     }
+    linksByPart.set(owner, links);
   }
   const styles = new Map<string, { basedOn?: string; level?: number }>();
   if (parts.has("word/styles.xml")) {
@@ -208,14 +241,32 @@ export function extractDocx(bytes: Uint8Array) {
   let section: Extract<SegmentOrigin, { format: "DOCX" }>["section"];
   function textOf(node: XmlNode): string {
     const name = local(tag(node));
-    if (["txbxContent", "drawing", "pict", "object", "altChunk", "del", "moveFrom"].includes(name)) { warn(name); return ""; }
+    if (["txbxContent", "drawing", "pict", "object", "altChunk", "del", "moveFrom"].includes(name)) { warn(name, node); return ""; }
+    if (name === "fldSimple") {
+      // Render only the saved result of pagination fields; never evaluate instructions.
+      const instruction = decodeEntities(attr(node, "instr") ?? "").trim();
+      if (!/^(?:PAGE|NUMPAGES|SECTIONPAGES)(?:\s+\\\*\s+(?:MERGEFORMAT|Arabic))?$/i.test(instruction)) warn(name, node);
+      return children(node).map(textOf).join("");
+    }
+    if (name === "hyperlink") {
+      const label = children(node).map(textOf).join("");
+      const id = attr(node, "id");
+      if (!id) return label; // local bookmark
+      const target = linksByPart.get(currentPart)?.get(id);
+      if (!target) { warn("hyperlink-target", node); return label; }
+      try {
+        const url = new URL(target);
+        if (!["https:", "http:"].includes(url.protocol) || url.username || url.password || /[\s\u0000-\u001f]/u.test(target)) throw new Error();
+      } catch { warn("hyperlink-target", node); return label; }
+      return label.includes(target) ? label : `${label}${label ? " " : ""}${target}`;
+    }
     if (name === "t") return children(node).map(node => typeof node["#text"] === "string" ? decodeEntities(node["#text"]) : "").join("");
     if (name === "tab") return "\t";
     if (name === "br" || name === "cr") return "\n";
-    if (["footnoteReference", "endnoteReference"].includes(name)) warn(name);
-    if (["instrText", "sym", "fldSimple", "ins", "moveTo"].includes(name)) warn(name);
-    if (["pPr", "rPr"].includes(name)) return "";
-    if (!["p", "r", "t", "tab", "br", "cr", "hyperlink", "sdt", "sdtContent", "smartTag", "customXml", "bookmarkStart", "bookmarkEnd", "proofErr", "fldChar", "lastRenderedPageBreak", "commentRangeStart", "commentRangeEnd", "commentReference", "footnoteReference", "endnoteReference", "instrText", "sym", "fldSimple", "ins", "moveTo", "#text"].includes(name)) warn(name || "unknown-inline-region");
+    if (["footnoteReference", "endnoteReference"].includes(name)) warn(name, node);
+    if (["instrText", "sym", "ins", "moveTo"].includes(name)) warn(name, node);
+    if (["pPr", "rPr", "sdtPr", "sdtEndPr", "customXmlPr"].includes(name)) return "";
+    if (!["p", "r", "t", "tab", "br", "cr", "hyperlink", "sdt", "sdtContent", "smartTag", "customXml", "bookmarkStart", "bookmarkEnd", "proofErr", "fldChar", "lastRenderedPageBreak", "commentRangeStart", "commentRangeEnd", "commentReference", "footnoteReference", "endnoteReference", "instrText", "sym", "ins", "moveTo", "#text"].includes(name)) warn(name || "unknown-inline-region", node);
     return children(node).map(textOf).join("");
   }
   function paragraph(node: XmlNode, table?: Extract<SegmentOrigin, { format: "DOCX" }>["table"]) {
@@ -227,7 +278,7 @@ export function extractDocx(bytes: Uint8Array) {
     const style = attr(child(properties ?? {}, "pStyle") ?? {}, "val");
     const level = direct === undefined ? (style ? styleLevel(style) : undefined) : Number(direct);
     if (text && level !== undefined && level < 9) section = { id: `section-${position}`, title: text, level: level + 1 };
-    collector.add(text, { format: "DOCX", blockIndex: position, ...(section ? { section: { ...section } } : {}), ...(table ? { table } : {}) }, level !== undefined && level < 9 ? "heading" : table ? "table-cell" : "paragraph");
+    collector.add(text, { format: "DOCX", blockIndex: position, ...(currentPart !== "word/document.xml" ? { ooxmlPart: currentPart } : {}), ...(section ? { section: { ...section } } : {}), ...(table ? { table } : {}) }, level !== undefined && level < 9 ? "heading" : table ? "table-cell" : "paragraph");
   }
   function walk(node: XmlNode, table?: Extract<SegmentOrigin, { format: "DOCX" }>["table"]) {
     const name = local(tag(node));
@@ -235,7 +286,9 @@ export function extractDocx(bytes: Uint8Array) {
     if (name === "tbl") {
       const index = tableIndex++;
       let row = 0;
+      for (const nested of children(node)) if (!["tr", "tblPr", "tblGrid"].includes(local(tag(nested)))) warn(local(tag(nested)), nested);
       for (const tr of children(node).filter(node => local(tag(node)) === "tr")) {
+        for (const nested of children(tr)) if (!["tc", "trPr"].includes(local(tag(nested)))) warn(local(tag(nested)), nested);
         let cell = 0;
         for (const tc of children(tr).filter(node => local(tag(node)) === "tc")) {
           for (const nested of children(tc)) walk(nested, { index, row, cell });
@@ -247,8 +300,22 @@ export function extractDocx(bytes: Uint8Array) {
     }
     if (["sectPr", "tcPr", "tblPr", "tblGrid", "trPr", "sdtPr"].includes(name)) return;
     if (["sdt", "sdtContent", "customXml"].includes(name)) { for (const nested of children(node)) walk(nested, table); return; }
-    if (name !== "#text") warn(name || "unknown-body-region");
+    if (name !== "#text") warn(name || "unknown-body-region", node);
   }
+  function readAuxiliary(part: string, expected: "hdr" | "ftr") {
+    currentPart = part;
+    section = undefined;
+    const root = parseXml(parts.get(part)!).find(node => local(tag(node)) === expected);
+    if (!root) corrupt("DOCX_AUXILIARY_INVALID");
+    checkWordNamespaces(root);
+    mapPaths(root, expected);
+    for (const node of children(root)) walk(node);
+  }
+  // Each stored header/footer is read once, never repeated for every rendered page.
+  for (const [part, kind] of auxiliary) if (kind === "hdr") readAuxiliary(part, kind);
+  currentPart = "word/document.xml";
+  section = undefined;
   for (const node of children(body)) walk(node);
+  for (const [part, kind] of auxiliary) if (kind === "ftr") readAuxiliary(part, kind);
   return { segments: collector.segments, warnings };
 }

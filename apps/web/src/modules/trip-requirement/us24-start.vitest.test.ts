@@ -128,7 +128,7 @@ describe("POST /api/trip-requirements/evaluate", () => {
     dependencyHolder.current = fakeDependencies("TRAVELER");
   });
 
-  it("denies Guest/Admin before reading the body", async () => {
+  it("denies Guest before body parsing and accepts Admin", async () => {
     let guestBodyRead = false;
     dependencyHolder.current = fakeDependencies(null, undefined, () => { guestBodyRead = true; });
     const guest = await POST(request(requirement()));
@@ -138,8 +138,8 @@ describe("POST /api/trip-requirements/evaluate", () => {
     let adminBodyRead = false;
     dependencyHolder.current = fakeDependencies("ADMIN", undefined, () => { adminBodyRead = true; });
     const admin = await POST(request(requirement()));
-    expect(admin.status).toBe(403);
-    expect(adminBodyRead).toBe(false);
+    expect(admin.status).toBe(200);
+    expect(adminBodyRead).toBe(true);
   });
 
   it("returns preliminary and final readiness with private no-store cache", async () => {

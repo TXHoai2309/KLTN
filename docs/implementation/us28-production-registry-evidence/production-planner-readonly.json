@@ -1,0 +1,149 @@
+{
+  "measuredAt": "2026-10-18T12:20:38.925Z",
+  "databaseReadOnly": true,
+  "before": {
+    "commit": "70a810f5e088cbfad68be790a7e5ce88db150ee3",
+    "registryVerified": false,
+    "runtimeCandidateCount": 0
+  },
+  "after": {
+    "registryVerified": true,
+    "publicCoordinateCandidates": 3,
+    "excludedIds": []
+  },
+  "candidates": [
+    {
+      "id": "cmv97lcrq0016z09ws0o74lqp",
+      "durationMissing": true,
+      "openingHoursVerified": false
+    },
+    {
+      "id": "cmv9fcwo1000be89w3yxz3mqu",
+      "durationMissing": false,
+      "openingHoursVerified": false
+    },
+    {
+      "id": "cmvanjc6p000f7w9wyuydna52",
+      "durationMissing": true,
+      "openingHoursVerified": false
+    }
+  ],
+  "outcomes": [
+    {
+      "transport": "CAR",
+      "status": "INSUFFICIENT_DATA",
+      "eligibleForFinalConfirmation": false,
+      "stops": [
+        {
+          "id": "cmv9fcwo1000be89w3yxz3mqu",
+          "duration": 60,
+          "validationStatus": "INSUFFICIENT_DATA"
+        }
+      ],
+      "reasonCodes": [
+        "OPENING_UNKNOWN"
+      ],
+      "checks": [
+        {
+          "key": "OPENING_HOURS",
+          "status": "INSUFFICIENT_DATA",
+          "issues": [
+            {
+              "code": "OPENING_UNKNOWN",
+              "message": "Cần ngày cụ thể, giờ tham quan và lịch mở cửa để kiểm tra.",
+              "day": 1,
+              "destinationId": "cmv9fcwo1000be89w3yxz3mqu"
+            }
+          ]
+        },
+        {
+          "key": "MINIMUM_DURATION",
+          "status": "PASS",
+          "issues": []
+        },
+        {
+          "key": "TRAVEL_TIME",
+          "status": "PASS",
+          "issues": []
+        },
+        {
+          "key": "SCHEDULE_CONFLICTS",
+          "status": "PASS",
+          "issues": []
+        },
+        {
+          "key": "MOBILITY",
+          "status": "PASS",
+          "issues": []
+        }
+      ],
+      "warnings": [
+        "PRELIMINARY_ONLY",
+        "ORIGIN_AND_LODGING_UNKNOWN",
+        "BOUNDED_SELECTION",
+        "MISSING_VISIT_DURATION"
+      ],
+      "durationEligibleCount": 1
+    },
+    {
+      "transport": "MOTORCYCLE",
+      "status": "INSUFFICIENT_DATA",
+      "eligibleForFinalConfirmation": false,
+      "stops": [
+        {
+          "id": "cmv9fcwo1000be89w3yxz3mqu",
+          "duration": 60,
+          "validationStatus": "INSUFFICIENT_DATA"
+        }
+      ],
+      "reasonCodes": [
+        "OPENING_UNKNOWN"
+      ],
+      "checks": [
+        {
+          "key": "OPENING_HOURS",
+          "status": "INSUFFICIENT_DATA",
+          "issues": [
+            {
+              "code": "OPENING_UNKNOWN",
+              "message": "Cần ngày cụ thể, giờ tham quan và lịch mở cửa để kiểm tra.",
+              "day": 1,
+              "destinationId": "cmv9fcwo1000be89w3yxz3mqu"
+            }
+          ]
+        },
+        {
+          "key": "MINIMUM_DURATION",
+          "status": "PASS",
+          "issues": []
+        },
+        {
+          "key": "TRAVEL_TIME",
+          "status": "PASS",
+          "issues": []
+        },
+        {
+          "key": "SCHEDULE_CONFLICTS",
+          "status": "PASS",
+          "issues": []
+        },
+        {
+          "key": "MOBILITY",
+          "status": "PASS",
+          "issues": []
+        }
+      ],
+      "warnings": [
+        "PRELIMINARY_ONLY",
+        "ORIGIN_AND_LODGING_UNKNOWN",
+        "MOTORCYCLE_CAUTION",
+        "BOUNDED_SELECTION",
+        "MISSING_VISIT_DURATION"
+      ],
+      "durationEligibleCount": 1
+    }
+  ],
+  "providerCalls": 0,
+  "productionWrites": 0,
+  "limitation": "Repository/service integration only; this does not prove authenticated Production HTTP or browser behavior."
+}

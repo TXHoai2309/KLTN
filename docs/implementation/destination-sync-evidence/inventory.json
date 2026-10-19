@@ -1,0 +1,143 @@
+{
+  "checkedAt": "2026-10-17T19:08:28.885Z",
+  "identities": [
+    {
+      "side": "source",
+      "project": "summer-unit-95870477",
+      "branch": "br-aged-hat-b3o6hg9p",
+      "endpoint": "ep-purple-pond-b3xujb8o",
+      "database": "neondb",
+      "status": "VERIFIED_BY_API"
+    },
+    {
+      "side": "target",
+      "project": "summer-unit-95870477",
+      "branch": "br-cold-dew-b3h270wp",
+      "endpoint": "ep-blue-art-b3v3vr4h",
+      "database": "neondb",
+      "status": "VERIFIED_BY_API"
+    }
+  ],
+  "schemaParity": true,
+  "migrations": {
+    "source": 23,
+    "target": 23
+  },
+  "source": {
+    "total": 5,
+    "visible": 3,
+    "hidden": 2,
+    "validCoordinates": 5,
+    "locationVerified": 4,
+    "sevenDaySchedules": 5,
+    "withKnownOpenIntervals": 1,
+    "withSources": 4,
+    "withMedia": 4,
+    "withCover": 4,
+    "draft": 4,
+    "published": 4,
+    "withArea": 1,
+    "withCulture": 1,
+    "withRag": 0,
+    "counts": {
+      "destination": 5,
+      "opening_day": 35,
+      "opening_interval": 2,
+      "content_source": 14,
+      "content_media": 16,
+      "destination_editorial": 4,
+      "content_area": 1,
+      "culture_destination": 1,
+      "rag_domain_origin": 0,
+      "_AreaToDestination": 1
+    }
+  },
+  "target": {
+    "total": 3,
+    "visible": 3,
+    "hidden": 0,
+    "validCoordinates": 3,
+    "locationVerified": 3,
+    "sevenDaySchedules": 3,
+    "withKnownOpenIntervals": 0,
+    "withSources": 3,
+    "withMedia": 3,
+    "withCover": 3,
+    "draft": 3,
+    "published": 3,
+    "withArea": 0,
+    "withCulture": 0,
+    "withRag": 0,
+    "counts": {
+      "destination": 3,
+      "opening_day": 21,
+      "opening_interval": 0,
+      "content_source": 12,
+      "content_media": 13,
+      "destination_editorial": 3,
+      "content_area": 0,
+      "culture_destination": 0,
+      "rag_domain_origin": 0,
+      "_AreaToDestination": 0
+    }
+  },
+  "manifest": [
+    {
+      "id": "cmutr90km00015o9w4t64ozfd",
+      "name": "US09 Manual Test Edited",
+      "visibility": "HIDDEN",
+      "locationVerified": false,
+      "selection": "EXCLUDED_EXPLICIT_TEST_FIXTURE",
+      "sources": 0,
+      "media": 0,
+      "hasDraft": false,
+      "hasPublished": false
+    },
+    {
+      "id": "cmv7kc5eu0003209w9ggzpolq",
+      "name": "Cao nguyên đá Đồng Văn",
+      "visibility": "HIDDEN",
+      "locationVerified": true,
+      "selection": "EXCLUDED_DUPLICATE_BY_OWNER",
+      "sources": 2,
+      "media": 3,
+      "hasDraft": true,
+      "hasPublished": true
+    },
+    {
+      "id": "cmv97lcrq0016z09ws0o74lqp",
+      "name": "Cao nguyên đá Đồng Văn",
+      "visibility": "VISIBLE",
+      "locationVerified": true,
+      "selection": "INCLUDED",
+      "sources": 4,
+      "media": 3,
+      "hasDraft": true,
+      "hasPublished": true
+    },
+    {
+      "id": "cmv9fcwo1000be89w3yxz3mqu",
+      "name": "Di tích lịch sử Căng Bắc Mê",
+      "visibility": "VISIBLE",
+      "locationVerified": true,
+      "selection": "INCLUDED",
+      "sources": 4,
+      "media": 5,
+      "hasDraft": true,
+      "hasPublished": true
+    },
+    {
+      "id": "cmvanjc6p000f7w9wyuydna52",
+      "name": "Chợ tình Khâu Vai",
+      "visibility": "VISIBLE",
+      "locationVerified": true,
+      "selection": "INCLUDED",
+      "sources": 4,
+      "media": 5,
+      "hasDraft": true,
+      "hasPublished": true
+    }
+  ],
+  "sourceFixtures": 1,
+  "excludedDuplicate": 1
+}

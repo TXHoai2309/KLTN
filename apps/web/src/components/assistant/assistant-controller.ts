@@ -92,6 +92,31 @@ export class AssistantController {
     this.update(initialAssistantState(this.state.identity, this.state.generation + 1, this.state.context));
     return true;
   }
+  loadConversation(conversationId: string, turns: readonly ConfirmedTurn[], parentTurnId: string | null, context: QaContext, confirmedAbandon = false): boolean {
+    if (hasUnresolvedAttempt(this.state) && !confirmedAbandon) return false;
+    this.invalidate();
+    this.update({
+      ...this.state,
+      generation: this.state.generation + 1,
+      conversationId,
+      parentTurnId,
+      turns,
+      context,
+      draft: "",
+      validation: null,
+      pending: null,
+    });
+    return true;
+  }
+  prependTurns(olderTurns: readonly ConfirmedTurn[]) {
+    const existingIds = new Set(this.state.turns.map((t) => t.response.turnId));
+    const newTurns = olderTurns.filter((t) => !existingIds.has(t.response.turnId));
+    if (!newTurns.length) return;
+    this.update({
+      ...this.state,
+      turns: [...newTurns, ...this.state.turns],
+    });
+  }
   changeIdentity(identity: string) {
     if (identity === this.state.identity) return;
     this.invalidate();

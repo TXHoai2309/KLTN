@@ -1,0 +1,7 @@
+{
+  "test_databases": 0,
+  "test_schemas": 0,
+  "browser_fixture_users": 0,
+  "user_count": 9,
+  "applied_migrations": 23
+}

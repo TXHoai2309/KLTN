@@ -42,8 +42,8 @@ function fixture(role = "TRAVELER", authenticated = true) {
   const deps: FavoriteDependencies = { database: database as unknown as Database, resolveSession: async () => authenticated ? { user: { id: "a" } } : null };
   return { deps, destinations, cultures, setRole: (next:string)=>{role=next;}, clear: () => { rows = []; }, rows: () => rows, queries: () => queries, deletes: () => deletes };
 }
-test("own groups only; hidden targets remain title-only unavailable without original links", async () => {
-  const data = await getFavorites(new Headers({ "x-user-id": "b" }), fixture().deps);
+for (const role of ["TRAVELER", "ADMIN"]) test(role + ": own groups only; hidden targets remain title-only unavailable without original links", async () => {
+  const data = await getFavorites(new Headers({ "x-user-id": "b" }), fixture(role).deps);
   assert.deepEqual(data.destinations.map(x => x.favoriteId), ["fd", "fhd"]);
   assert.deepEqual(data.cultureContents.map(x => x.favoriteId), ["fc", "fhc"]);
   assert.equal(data.destinations[0]?.href, "/destinations/d"); assert.equal(data.cultureContents[0]?.href, "/culture/c");
@@ -51,18 +51,18 @@ test("own groups only; hidden targets remain title-only unavailable without orig
   assert.ok(!JSON.stringify(data).includes("SECRET"));
 });
 test("empty groups are successful data", async () => { const f=fixture(); f.clear(); assert.deepEqual(await getFavorites(new Headers(),f.deps),{destinations:[],cultureContents:[]}); });
-for (const [role, authenticated, status] of [["TRAVELER",false,401],["ADMIN",true,403]] as const) test(`${role}/${authenticated} cannot read or delete`, async () => {
+for (const [role, authenticated, status] of [["TRAVELER",false,401],["ROOT",true,403]] as const) test(`${role}/${authenticated} cannot read or delete`, async () => {
   const f=fixture(role,authenticated); await assert.rejects(getFavorites(new Headers(),f.deps),{status}); await assert.rejects(removeFavorite(new Headers(),"fd","key",f.deps),{status}); assert.equal(f.queries(),0); assert.equal(f.deletes(),0);
 });
-test("delete scopes relation by both IDs, preserves targets/other user's relation, replay has no second write", async () => {
-  const f=fixture(); assert.equal((await removeFavorite(new Headers(),"fd","key",f.deps)).status,"SUCCESS");
+for (const role of ["TRAVELER", "ADMIN"]) test(role + ": delete scopes relation by both IDs, preserves targets/other user's relation, replay has no second write", async () => {
+  const f=fixture(role); assert.equal((await removeFavorite(new Headers(),"fd","key",f.deps)).status,"SUCCESS");
   assert.equal(f.rows().some(x=>x.id==="fd"),false); assert.equal(f.rows().some(x=>x.id==="foreign"),true);
   assert.equal(f.destinations.length,2); assert.equal(f.cultures.length,2);
   const replay=await removeFavorite(new Headers(),"fd","key",f.deps); assert.equal(replay.status,"SUCCESS"); if(replay.status==="SUCCESS") assert.equal(replay.replayed,true); assert.equal(f.deletes(),1);
 });
-test("foreign and missing IDs have identical 404 failures; hidden relation removable", async () => {
-  for(const id of ["foreign","absent"]) { const f=fixture(); const r=await removeFavorite(new Headers(),id,"key",f.deps); assert.equal(r.status,"FAILED"); if(r.status==="FAILED") {assert.equal(r.httpStatus,404);assert.equal(r.error.code,"NOT_FOUND");} assert.equal(f.deletes(),0); }
-  assert.equal((await removeFavorite(new Headers(),"fhd","key",fixture().deps)).status,"SUCCESS");
+for (const role of ["TRAVELER", "ADMIN"]) test(role + ": foreign and missing IDs have identical 404 failures; hidden relation removable", async () => {
+  for(const id of ["foreign","absent"]) { const f=fixture(role); const r=await removeFavorite(new Headers(),id,"key",f.deps); assert.equal(r.status,"FAILED"); if(r.status==="FAILED") {assert.equal(r.httpStatus,404);assert.equal(r.error.code,"NOT_FOUND");} assert.equal(f.deletes(),0); }
+  assert.equal((await removeFavorite(new Headers(),"fhd","key",fixture(role).deps)).status,"SUCCESS");
 });
 test("API private envelope, rejects query identity and unsafe mutation origin, honors idempotency header", async () => {
   const f=fixture(); const response=await favoritesResponse(new Request("http://localhost/api/favorites"),f.deps);
@@ -72,8 +72,8 @@ test("API private envelope, rejects query identity and unsafe mutation origin, h
   const request=new Request("http://localhost/api/favorites/fd",{method:"DELETE",headers:{origin:"http://localhost","Idempotency-Key":"key"}});
   assert.equal((await (await removeFavoriteResponse(request,"fd",f.deps)).json()).operationStatus,"SUCCESS");
 });
-test("API Guest/Admin denial returns private failure without favorite data",async()=>{
-  for(const [role,authenticated,status] of [["TRAVELER",false,401],["ADMIN",true,403]] as const) {
+test("API Guest/unsupported role denial returns private failure without favorite data",async()=>{
+  for(const [role,authenticated,status] of [["TRAVELER",false,401],["ROOT",true,403]] as const) {
     const f=fixture(role,authenticated);
     const response=await favoritesResponse(new Request("http://localhost/api/favorites"),f.deps);
     assert.equal(response.status,status);const body=await response.json();assert.equal(body.success,false);assert.equal(body.data,undefined);
@@ -92,7 +92,7 @@ test("different target with reused key conflicts; persisted role rechecked insid
   const f=fixture();await removeFavorite(new Headers(),"fd","key",f.deps);
   const conflict=await removeFavorite(new Headers(),"fc","key",f.deps);assert.equal(conflict.status,"FAILED");if(conflict.status==="FAILED")assert.equal(conflict.httpStatus,409);
   const g=fixture(); const transaction=g.deps.database.$transaction;
-  g.deps.database.$transaction=(async(execute:Parameters<typeof transaction>[0])=>{g.setRole("ADMIN");return transaction(execute as never);}) as typeof transaction;
+  g.deps.database.$transaction=(async(execute:Parameters<typeof transaction>[0])=>{g.setRole("ROOT");return transaction(execute as never);}) as typeof transaction;
   const denied=await removeFavorite(new Headers(),"fd","key",g.deps);assert.equal(denied.status,"FAILED");if(denied.status==="FAILED")assert.equal(denied.httpStatus,403);assert.equal(g.deletes(),0);
 });
 test("technical read sanitized500; uncertain write uses shared UNKNOWN",async()=>{

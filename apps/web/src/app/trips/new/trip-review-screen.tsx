@@ -269,6 +269,7 @@ export default function TripReviewScreen({
   }, [draft, initialClarificationRequests]);
 
   useEffect(() => {
+    // Strict Mode replays setup after cleanup in development.
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
@@ -668,9 +669,9 @@ export default function TripReviewScreen({
       ? "Hãy lưu hoặc hủy chỉnh sửa đang mở trước."
       : clarificationBlockingCount > 0
         ? `Còn ${clarificationBlockingCount} mục bắt buộc cần làm rõ.`
-      : !acknowledged
-        ? "Hãy xác nhận rằng bạn đã kiểm tra các thông tin trên."
-        : null;
+        : !acknowledged
+          ? "Hãy xác nhận rằng bạn đã kiểm tra các thông tin trên."
+          : null;
 
   const ReviewContainer = embedded ? "div" : "main";
 

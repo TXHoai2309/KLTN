@@ -3,6 +3,7 @@ import { v2 as cloudinary } from "cloudinary";
 import sharp from "sharp";
 import { AppError } from "@/server/http/app-error";
 import { IMAGE_FORMATS, MAX_IMAGE_BYTES, type ImageIntent } from "./destination-media-contract";
+import {CloudinaryProviderError, cloudinaryErrorMetadata, type ImageUploadDiagnostics} from "./destination-image-diagnostics";
 
 export type ImageAsset = {
   asset_id: string; public_id: string; secure_url: string; resource_type: string; type: string;
@@ -15,11 +16,10 @@ export interface DestinationImageProvider {
   folderMode(): Promise<"dynamic" | "fixed">;
   inspect(bytes: Buffer): Promise<string>;
   find(intent: ImageIntent): Promise<ImageAsset | null>;
-  upload(intent: ImageIntent, bytes: Buffer): Promise<void>;
+  upload(intent: ImageIntent, bytes: Buffer): Promise<ImageAsset | void>;
 }
-const unavailable = () => new AppError("IMAGE_PROVIDER_UNAVAILABLE", "Dịch vụ ảnh chưa sẵn sàng. Giữ ảnh và thử lại.", 503);
 export function cloudinaryConfiguration() {
-  // @internal Varlock variables intentionally are not part of generated browser ENV types.
+  // Runtime values come from Varlock; API credentials remain sensitive/server-only.
   const cloud = process.env.CLOUDINARY_CLOUD_NAME?.trim();
   const api_key = process.env.CLOUDINARY_API_KEY?.trim();
   const api_secret = process.env.CLOUDINARY_API_SECRET?.trim();
@@ -40,7 +40,7 @@ export async function inspectImage(bytes: Buffer) {
   } catch { throw new AppError("INVALID_IMAGE", "Chọn ảnh JPEG, PNG, WebP hoặc AVIF hợp lệ, tối đa 25 triệu điểm ảnh; không nhận ảnh động.", 400); }
 }
 let modeCache: { cloud: string; apiKey: string; mode: "dynamic" | "fixed"; until: number } | undefined;
-export function destinationImageProvider(): DestinationImageProvider {
+export function destinationImageProvider(diagnostics?:ImageUploadDiagnostics): DestinationImageProvider {
   const config = cloudinaryConfiguration();
   if (!config) throw new AppError("IMAGE_UPLOAD_NOT_CONFIGURED", "Chưa cấu hình tải ảnh. Các thông tin điểm đến vẫn có thể lưu.", 503);
   const options = config.options;
@@ -55,25 +55,26 @@ export function destinationImageProvider(): DestinationImageProvider {
         if (mode !== "dynamic" && mode !== "fixed") throw Error("mode");
         modeCache = { cloud: config.cloud, apiKey: options.api_key, mode, until: Date.now() + 300_000 };
         return mode;
-      } catch { throw unavailable(); }
+      } catch (error) { throw new CloudinaryProviderError(error); }
     },
     async find(intent) {
       try { return await cloudinary.api.resource(intent.publicId, { ...options, resource_type: "image", type: "upload", context: true }) as ImageAsset; }
       catch (error) {
-        if (error && typeof error === "object" && "http_code" in error && error.http_code === 404) return null;
-        throw unavailable();
+        // Admin SDK Promise rejections wrap HTTP errors as { error: { http_code } }.
+        if (cloudinaryErrorMetadata(error).cloudinaryHttpStatus === 404) { diagnostics?.providerAbsent(error); return null; }
+        throw new CloudinaryProviderError(error);
       }
     },
     async upload(intent, bytes) {
-      await new Promise<void>((resolve, reject) => {
+      return new Promise<ImageAsset | void>((resolve, reject) => {
         const stream = cloudinary.uploader.upload_stream({
           ...options, resource_type: "image", type: "upload", public_id: intent.mode === "fixed" ? intent.publicId.split("/").pop() : intent.publicId,
           ...(intent.mode === "dynamic" ? { asset_folder: intent.folder } : { folder: intent.folder }),
           overwrite: false, unique_filename: false, use_filename: false,
           allowed_formats: [...IMAGE_FORMATS],
           context: { kltn_intent: intent.intentKey, kltn_sha256: intent.sha256 },
-        }, (error) => error ? reject(unavailable()) : resolve());
-        stream.on("error", () => reject(unavailable()));
+        }, (error, result) => error ? reject(new CloudinaryProviderError(error)) : resolve(result as ImageAsset | undefined));
+        stream.on("error", (error) => reject(new CloudinaryProviderError(error)));
         stream.end(bytes);
       });
     },

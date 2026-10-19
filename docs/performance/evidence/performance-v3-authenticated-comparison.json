@@ -1,0 +1,129 @@
+{
+  "measuredAt": "2026-10-18T11:04:47.120Z",
+  "scope": "Actual authenticated Preview browser fetch; same source code and Development account/cohort; 30 samples per role/API/region. Windows sequential (sin1 then iad1), not interleaved; time/session/cache/load confounding remains. No query-only latency or population p95 inference.",
+  "comparison": [
+    {
+      "role": "TRAVELER",
+      "path": "/api/favorites",
+      "samplesBefore": 30,
+      "samplesAfter": 30,
+      "before": {
+        "n": 30,
+        "p50": 1660.2999999970198,
+        "p95": 1784.0999999977648,
+        "min": 1625.4000000022352,
+        "max": 2096.699999999255
+      },
+      "after": {
+        "n": 30,
+        "p50": 171.30000000074506,
+        "p95": 316.5,
+        "min": 151.39999999850988,
+        "max": 328
+      },
+      "improvementP50Percent": 89.6825874841262,
+      "allExpectedStatus": true,
+      "privateNoStore": true,
+      "population": "fresh synthetic account; no saved Trips/Favorites; CMS Development first page"
+    },
+    {
+      "role": "TRAVELER",
+      "path": "/api/trips",
+      "samplesBefore": 30,
+      "samplesAfter": 30,
+      "before": {
+        "n": 30,
+        "p50": 1424,
+        "p95": 1621.5999999977648,
+        "min": 1408.300000000745,
+        "max": 1783.300000000745
+      },
+      "after": {
+        "n": 30,
+        "p50": 161.30000000074506,
+        "p95": 310.30000000074506,
+        "min": 146,
+        "max": 316.5
+      },
+      "improvementP50Percent": 88.67275280893644,
+      "allExpectedStatus": true,
+      "privateNoStore": true,
+      "population": "fresh synthetic account; no saved Trips/Favorites; CMS Development first page"
+    },
+    {
+      "role": "ADMIN",
+      "path": "/api/favorites",
+      "samplesBefore": 30,
+      "samplesAfter": 30,
+      "before": {
+        "n": 30,
+        "p50": 1721.0999999977648,
+        "p95": 1852.800000000745,
+        "min": 1696.7999999970198,
+        "max": 3911.099999997765
+      },
+      "after": {
+        "n": 30,
+        "p50": 169.19999999925494,
+        "p95": 388.5,
+        "min": 150.30000000074506,
+        "max": 395.1000000014901
+      },
+      "improvementP50Percent": 90.16907791531725,
+      "allExpectedStatus": true,
+      "privateNoStore": true,
+      "population": "fresh synthetic account; no saved Trips/Favorites; CMS Development first page"
+    },
+    {
+      "role": "ADMIN",
+      "path": "/api/trips",
+      "samplesBefore": 30,
+      "samplesAfter": 30,
+      "before": {
+        "n": 30,
+        "p50": 1487.1000000014901,
+        "p95": 1682.300000000745,
+        "min": 1458.300000000745,
+        "max": 1730.300000000745
+      },
+      "after": {
+        "n": 30,
+        "p50": 160.80000000074506,
+        "p95": 310.69999999925494,
+        "min": 146,
+        "max": 331
+      },
+      "improvementP50Percent": 89.18700827109247,
+      "allExpectedStatus": true,
+      "privateNoStore": true,
+      "population": "fresh synthetic account; no saved Trips/Favorites; CMS Development first page"
+    },
+    {
+      "role": "ADMIN",
+      "path": "/api/admin/destinations",
+      "samplesBefore": 30,
+      "samplesAfter": 30,
+      "before": {
+        "n": 30,
+        "p50": 1957.1000000014901,
+        "p95": 2104.5,
+        "min": 1927.699999999255,
+        "max": 2113.89999999851
+      },
+      "after": {
+        "n": 30,
+        "p50": 173.60000000149012,
+        "p95": 303.80000000074506,
+        "min": 156.59999999776483,
+        "max": 339.5999999977648
+      },
+      "improvementP50Percent": 91.12973276780144,
+      "allExpectedStatus": true,
+      "privateNoStore": true,
+      "population": "fresh synthetic account; no saved Trips/Favorites; CMS Development first page"
+    }
+  ],
+  "historyHttp": "BLOCKED_PREVIEW_RUNTIME_DISABLED;503 excluded from authorized read timing",
+  "mapCaveat": "Original broad smoke statuses cover tested DOM/Auth scope; tile response401 in iad1 requires separate strict map gate. Markers do not prove tile authorization.",
+  "allAuthorizationChecks": true
+}

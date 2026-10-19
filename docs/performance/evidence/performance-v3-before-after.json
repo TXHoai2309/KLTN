@@ -1,0 +1,4386 @@
+{
+  "measuredAt": "2026-10-18T10:46:51.433Z",
+  "origins": [
+    "https://kltn-p2o4djrsz-to-xuan-hoai-s-projects.vercel.app",
+    "https://kltn-mdr4di004-to-xuan-hoai-s-projects.vercel.app"
+  ],
+  "method": "30 observations per variant/workload; alternating order; sequential; 750ms pause after each request; GET only; no paid model/routing calls",
+  "environment": "Preview; shared Development cohort, not Production",
+  "coldStart": "NOT_MEASURED: first observed request is recorded, compute idle not forced",
+  "functionDuration": "NOT_MEASURED",
+  "neonRoundtrip": "NOT_MEASURED",
+  "prismaDuration": "NOT_MEASURED",
+  "observations": [
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 0,
+      "firstObserved": true,
+      "status": 200,
+      "ttfbMs": 3346.3831,
+      "totalMs": 3353.708,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 0,
+      "firstObserved": true,
+      "status": 200,
+      "ttfbMs": 1183.7818000000007,
+      "totalMs": 1185.2222000000002,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 1,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 239.28060000000005,
+      "totalMs": 240.69800000000032,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 1,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1285.9080999999996,
+      "totalMs": 1287.1755000000003,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 2,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 759.9037000000008,
+      "totalMs": 761.8798000000006,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 2,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 788.9736000000012,
+      "totalMs": 790.4829000000009,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 3,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 422.02660000000105,
+      "totalMs": 422.5486000000001,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 3,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1230.4891000000007,
+      "totalMs": 1232.363300000001,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 4,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 986.9080999999987,
+      "totalMs": 988.864599999999,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 4,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 362.59490000000005,
+      "totalMs": 364.1009000000013,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 5,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 402.32730000000083,
+      "totalMs": 404.3038000000015,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 5,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1036.9481000000014,
+      "totalMs": 1083.7508000000016,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 6,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 833.6183999999994,
+      "totalMs": 834.5149999999994,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 6,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 516.3544000000002,
+      "totalMs": 517.8911000000007,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 7,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 166.29119999999966,
+      "totalMs": 167.10199999999895,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 7,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 765.3176000000021,
+      "totalMs": 766.2364000000016,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 8,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 896.5800000000017,
+      "totalMs": 897.4087,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 8,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 444.8567000000003,
+      "totalMs": 445.95390000000043,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 9,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 178.43219999999928,
+      "totalMs": 179.33550000000105,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 9,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 761.4954999999973,
+      "totalMs": 762.5573999999979,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 10,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 746.1610000000001,
+      "totalMs": 747.2220000000016,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 10,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 168.15639999999985,
+      "totalMs": 169.1275999999998,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 11,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 300.46199999999953,
+      "totalMs": 301.2017000000051,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 11,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 857.1106,
+      "totalMs": 859.0046999999977,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 12,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 762.887999999999,
+      "totalMs": 763.9320999999982,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 12,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 158.8512000000046,
+      "totalMs": 159.74140000000625,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 13,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 163.47149999999965,
+      "totalMs": 165.13820000000123,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 13,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 840.5833999999959,
+      "totalMs": 841.3429999999935,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 14,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 843.513199999994,
+      "totalMs": 844.4317999999985,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 14,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 197.65380000000005,
+      "totalMs": 198.97660000000178,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 15,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 169.62620000000607,
+      "totalMs": 170.66120000000228,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 15,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 817.6104999999952,
+      "totalMs": 818.4493999999977,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 16,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 754.5715000000055,
+      "totalMs": 756.0155999999988,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 16,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 187.56010000000242,
+      "totalMs": 188.4982999999993,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 17,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 248.3251999999993,
+      "totalMs": 249.32419999999547,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 17,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 976.9069999999992,
+      "totalMs": 977.7569000000003,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 18,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 756.306899999996,
+      "totalMs": 757.6143000000011,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 18,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 305.30869999999413,
+      "totalMs": 306.3393999999971,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 19,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 165.29629999999452,
+      "totalMs": 166.75769999999466,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 19,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 748.7707000000009,
+      "totalMs": 749.6870999999956,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 20,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 886.3723000000027,
+      "totalMs": 888.8686000000016,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 20,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 164.57249999999476,
+      "totalMs": 165.93789999999717,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 21,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 179.95850000000064,
+      "totalMs": 180.9097000000038,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 21,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 770.8839000000007,
+      "totalMs": 771.8807000000015,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 22,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 735.4227000000028,
+      "totalMs": 737.0584999999992,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 22,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 139.26940000000468,
+      "totalMs": 139.70330000000104,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 23,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 145.0691999999981,
+      "totalMs": 146.14510000000155,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 23,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 747.0547999999981,
+      "totalMs": 748.8962000000029,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 24,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 793.2939000000042,
+      "totalMs": 794.5176999999967,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 24,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 176.15630000000237,
+      "totalMs": 177.06610000001092,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 25,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 143.1322000000073,
+      "totalMs": 144.0387000000046,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 25,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 740.2965000000113,
+      "totalMs": 741.3101000000024,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 26,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 755.9740999999922,
+      "totalMs": 756.9930000000022,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 26,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 162.39549999999872,
+      "totalMs": 163.5963000000047,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 27,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 144.34799999999814,
+      "totalMs": 145.50960000000487,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 27,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 766.7986000000092,
+      "totalMs": 767.6154999999999,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 28,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 750.3471999999892,
+      "totalMs": 751.0930999999982,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 28,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 157.78519999999844,
+      "totalMs": 158.7436000000016,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations",
+      "sample": 29,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 164.79869999999937,
+      "totalMs": 166.0668000000005,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations",
+      "sample": 29,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 899.7992000000086,
+      "totalMs": 900.7385000000068,
+      "bodyBytes": 2880,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 0,
+      "firstObserved": true,
+      "status": 200,
+      "ttfbMs": 1257.928899999999,
+      "totalMs": 1258.8543999999965,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 0,
+      "firstObserved": true,
+      "status": 200,
+      "ttfbMs": 351.9299000000028,
+      "totalMs": 352.6185000000114,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 1,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 166.73489999999583,
+      "totalMs": 167.9652999999962,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 1,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 774.0151999999944,
+      "totalMs": 776.0209999999934,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 2,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 783.64929999999,
+      "totalMs": 784.5613000000012,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 2,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 211.26480000000447,
+      "totalMs": 211.82559999999648,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 3,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 255.51699999999255,
+      "totalMs": 257.22189999998955,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 3,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 797.7646999999997,
+      "totalMs": 798.7773000000016,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 4,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 782.2364999999991,
+      "totalMs": 783.9342000000033,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 4,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 167.5170000000071,
+      "totalMs": 168.5521000000008,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 5,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 227.10830000000715,
+      "totalMs": 227.95650000000023,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 5,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 828.1955999999918,
+      "totalMs": 829.3174999999901,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 6,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 799.2231000000029,
+      "totalMs": 800.917100000006,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 6,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 165.23360000000685,
+      "totalMs": 167.76510000000417,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 7,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 172.68649999999616,
+      "totalMs": 173.61759999999776,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 7,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 757.4514000000054,
+      "totalMs": 758.9000000000087,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 8,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 796.8676000000123,
+      "totalMs": 798.0102000000043,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 8,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 294.6561000000074,
+      "totalMs": 295.4825000000128,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 9,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 346.7988000000041,
+      "totalMs": 347.85740000000806,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 9,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 761.801999999996,
+      "totalMs": 762.3064000000013,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 10,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 773.9038,
+      "totalMs": 774.958300000013,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 10,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 200.92369999999937,
+      "totalMs": 202.53280000000086,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 11,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 261.6056000000099,
+      "totalMs": 262.4762000000046,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 11,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 876.0106999999989,
+      "totalMs": 876.7100000000064,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 12,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 763.2213999999949,
+      "totalMs": 764.156799999997,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 12,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 156.21340000000782,
+      "totalMs": 157.04559999999765,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 13,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 159.05319999999483,
+      "totalMs": 160.05509999999776,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 13,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 788.4712999999902,
+      "totalMs": 788.9121999999916,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 14,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 917.9061000000074,
+      "totalMs": 918.8838000000105,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 14,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 233.98589999999967,
+      "totalMs": 234.93989999999758,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 15,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 152.69920000000275,
+      "totalMs": 153.93989999999758,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 15,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 776.4361000000063,
+      "totalMs": 777.2200000000012,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 16,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 777.4961000000039,
+      "totalMs": 778.2654000000039,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 16,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 154.58669999999984,
+      "totalMs": 155.49780000001192,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 17,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 144.43069999999716,
+      "totalMs": 145.23500000000058,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 17,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 814.9272999999957,
+      "totalMs": 815.7736000000004,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 18,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 767.7948999999935,
+      "totalMs": 768.665399999998,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 18,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 165.58009999999194,
+      "totalMs": 166.09649999999965,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 19,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 167.77279999999155,
+      "totalMs": 168.5277999999962,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 19,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 767.6578999999911,
+      "totalMs": 768.7112999999954,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 20,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 942.6363999999885,
+      "totalMs": 943.6152000000002,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 20,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 183.9391000000178,
+      "totalMs": 185.02480000001378,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 21,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 163.6769000000204,
+      "totalMs": 164.7966000000015,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 21,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 767.598800000007,
+      "totalMs": 768.6157000000239,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 22,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 766.4410999999964,
+      "totalMs": 767.1901000000071,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 22,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 154.5102000000188,
+      "totalMs": 155.44620000000577,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 23,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 144.93150000000605,
+      "totalMs": 145.75560000000405,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 23,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 807.6598999999987,
+      "totalMs": 810.2188000000024,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 24,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 804.8943999999901,
+      "totalMs": 805.5098999999755,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 24,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 159.61689999999362,
+      "totalMs": 160.43959999998333,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 25,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 163.40570000000298,
+      "totalMs": 164.49259999999776,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 25,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 762.6330999999773,
+      "totalMs": 763.1853999999876,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 26,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 783.4290000000037,
+      "totalMs": 784.1195000000007,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 26,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 186.1425000000163,
+      "totalMs": 187.6298999999999,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 27,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 154.50270000001183,
+      "totalMs": 155.0060999999987,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 27,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 766.5903000000108,
+      "totalMs": 767.1552000000083,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 28,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 763.3403999999864,
+      "totalMs": 764.2480999999971,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 28,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 168.77489999998943,
+      "totalMs": 169.67840000000433,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "sin1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 29,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 163.12729999999283,
+      "totalMs": 163.79670000000624,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "sample": 29,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 829.2471000000078,
+      "totalMs": 830.122000000003,
+      "bodyBytes": 1088,
+      "cache": "MISS",
+      "contentType": "application/json",
+      "placeholder": false,
+      "dtoSha256": "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 0,
+      "firstObserved": true,
+      "status": 200,
+      "ttfbMs": 2078.2030000000086,
+      "totalMs": 5514.585099999997,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 0,
+      "firstObserved": true,
+      "status": 200,
+      "ttfbMs": 1799.4900999999954,
+      "totalMs": 1995.3913000000175,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 1,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 266.1565000000119,
+      "totalMs": 359.37350000001607,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 1,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 508.3238999999885,
+      "totalMs": 2531.8426000000036,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 2,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 332.74090000000433,
+      "totalMs": 2427.228600000002,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 2,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 342.0859000000055,
+      "totalMs": 463.5682000000088,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 3,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 182.7764999999781,
+      "totalMs": 226.812099999981,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 3,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 347.1014000000141,
+      "totalMs": 2409.0619000000006,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 4,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 333.00599999999395,
+      "totalMs": 2516.177399999986,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 4,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 457.0619000000006,
+      "totalMs": 501.77290000001085,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 5,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 258.7116999999853,
+      "totalMs": 313.4853999999759,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 5,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 346.2607999999891,
+      "totalMs": 2538.4255999999878,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 6,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 383.58520000000135,
+      "totalMs": 2453.8534999999974,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 6,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 351.1885000000184,
+      "totalMs": 387.73279999999795,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 7,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 180.76189999998314,
+      "totalMs": 230.45679999998538,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 7,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 478.4447999999975,
+      "totalMs": 2512.443900000013,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 8,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 371.2004999999772,
+      "totalMs": 2434.101799999975,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 8,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 328.4788000000117,
+      "totalMs": 372.99970000001485,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 9,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 176.21179999999003,
+      "totalMs": 298.6570000000065,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 9,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 382.82480000000214,
+      "totalMs": 2377.732500000013,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 10,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 377.5511000000115,
+      "totalMs": 2439.835000000021,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 10,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 515.6633000000147,
+      "totalMs": 517.4823000000033,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 11,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 265.4012999999977,
+      "totalMs": 267.53210000001127,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 11,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 340.91380000000936,
+      "totalMs": 2369.769800000009,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 12,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 336.0560000000114,
+      "totalMs": 2406.1675000000105,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 12,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 465.98540000000503,
+      "totalMs": 470.16969999999856,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 13,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 177.12450000000536,
+      "totalMs": 235.74499999999534,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 13,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 334.6099000000104,
+      "totalMs": 2355.9841000000015,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 14,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 347.6319000000076,
+      "totalMs": 2410.989600000001,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 14,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 344.2698000000091,
+      "totalMs": 387.8575000000128,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 15,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 160.0185000000056,
+      "totalMs": 206.33319999999367,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 15,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 351.25560000000405,
+      "totalMs": 2386.964100000012,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 16,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 406.8097999999882,
+      "totalMs": 2465.498800000001,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 16,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 331.35130000000936,
+      "totalMs": 373.40380000000005,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 17,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 166.8507999999856,
+      "totalMs": 207.25959999999031,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 17,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 361.3712999999989,
+      "totalMs": 2400.708099999989,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 18,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 412.80569999999716,
+      "totalMs": 2429.572899999999,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 18,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 313.2140000000072,
+      "totalMs": 349.33319999999367,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 19,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 168.31640000001062,
+      "totalMs": 209.11470000000554,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 19,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 349.3963999999978,
+      "totalMs": 2382.045600000012,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 20,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 418.2202999999863,
+      "totalMs": 2415.625800000009,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 20,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 338.8440999999875,
+      "totalMs": 372.5182999999961,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 21,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 168.45350000000326,
+      "totalMs": 213.23509999999078,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 21,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 336.394100000005,
+      "totalMs": 2358.403099999996,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 22,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 419.315900000016,
+      "totalMs": 2405.8165000000154,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 22,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 341.7862000000023,
+      "totalMs": 378.3924999999872,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 23,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 341.1392999999807,
+      "totalMs": 379.08849999998347,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 23,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 342.90119999999297,
+      "totalMs": 2372.38989999998,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 24,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 405.7514000000083,
+      "totalMs": 2476.176600000006,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 24,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 362.1328999999678,
+      "totalMs": 407.405700000003,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 25,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 205.60080000001471,
+      "totalMs": 242.9735000000219,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 25,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 389.5118000000366,
+      "totalMs": 2408.7835000000196,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 26,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 327.94900000002235,
+      "totalMs": 2413.9676999999792,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 26,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 326.30060000001686,
+      "totalMs": 362.09820000000764,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 27,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 188.40649999998277,
+      "totalMs": 231.1031999999541,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 27,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 339.5529000000097,
+      "totalMs": 2366.4972000000416,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 28,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 355.4726999999839,
+      "totalMs": 2403.7283999999636,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 28,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 461.6900000000023,
+      "totalMs": 463.5916000000434,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 29,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 161.27549999998882,
+      "totalMs": 218.4726999999839,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 29,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 308.28800000000047,
+      "totalMs": 2335.99589999998,
+      "bodyBytes": 69742,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 0,
+      "firstObserved": true,
+      "status": 200,
+      "ttfbMs": 1102.3347000000067,
+      "totalMs": 1303.2640999999712,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 0,
+      "firstObserved": true,
+      "status": 200,
+      "ttfbMs": 429.9801999999909,
+      "totalMs": 476.86249999998836,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 1,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 189.03450000000885,
+      "totalMs": 230.20899999997346,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 1,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1032.5877999999793,
+      "totalMs": 1235.973100000003,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 2,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1028.0226000000257,
+      "totalMs": 1237.3090000000084,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 2,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 427.7489999999525,
+      "totalMs": 472.2587999999523,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 3,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 183.02389999997104,
+      "totalMs": 248.586100000015,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 3,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1056.3396000000066,
+      "totalMs": 1246.456200000015,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 4,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1021.7519999999786,
+      "totalMs": 1025.3271999999997,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 4,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 334.79920000000857,
+      "totalMs": 374.5531000000192,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 5,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 180.05039999994915,
+      "totalMs": 222.39969999995083,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 5,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1025.4960999999894,
+      "totalMs": 1200.997399999993,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 6,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1047.947199999995,
+      "totalMs": 1250.3575999999885,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 6,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 350.6721999999718,
+      "totalMs": 365.14949999999953,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 7,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 192.57070000004023,
+      "totalMs": 239.16070000000764,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 7,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1032.9199999999837,
+      "totalMs": 1230.6526000000304,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 8,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1146.7515999999596,
+      "totalMs": 1276.7244000000064,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 8,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 465.2151999999769,
+      "totalMs": 472.5334000000148,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 9,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 468.95230000000447,
+      "totalMs": 472.2285999999731,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 9,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1082.9564000000246,
+      "totalMs": 1098.1060000000289,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 10,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1025.3234999999986,
+      "totalMs": 1240.300500000012,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 10,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 343.7070000000531,
+      "totalMs": 386.55670000001555,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 11,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 210.03980000002775,
+      "totalMs": 249.78139999997802,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 11,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1022.7114000000292,
+      "totalMs": 1247.0359000000171,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 12,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1009.3279999999795,
+      "totalMs": 1216.9625999999698,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 12,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 387.90200000000186,
+      "totalMs": 429.18880000000354,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 13,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 259.96789999998873,
+      "totalMs": 263.63260000001173,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 13,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1187.435300000012,
+      "totalMs": 1323.6329999999725,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 14,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1024.8170000000391,
+      "totalMs": 1235.1089999999967,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 14,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 341.9347999999882,
+      "totalMs": 377.56339999998454,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 15,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 179.14789999998175,
+      "totalMs": 258.79180000000633,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 15,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1166.41730000003,
+      "totalMs": 1373.4970999999787,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 16,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1070.268700000015,
+      "totalMs": 1282.1745999999694,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 16,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 337.1900000000023,
+      "totalMs": 340.6725999999908,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 17,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 191.0288999999757,
+      "totalMs": 249.78059999999823,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 17,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1134.302800000005,
+      "totalMs": 1215.9850999999908,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 18,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1066.8414999999804,
+      "totalMs": 1281.5314999999828,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 18,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 323.36879999999655,
+      "totalMs": 361.90689999994356,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 19,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 174.32730000000447,
+      "totalMs": 223.27410000003874,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 19,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1130.8013999999966,
+      "totalMs": 1337.4356000000262,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 20,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1126.787799999991,
+      "totalMs": 1332.5972000000183,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 20,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 434.5584000000381,
+      "totalMs": 471.821100000001,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 21,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 176.13229999999749,
+      "totalMs": 215.45670000003884,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 21,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1028.7940999999992,
+      "totalMs": 1226.0013000000035,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 22,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1003.9433999999892,
+      "totalMs": 1210.6312000000034,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 22,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 378.5564000000013,
+      "totalMs": 449.75909999996657,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 23,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 183.211100000015,
+      "totalMs": 220.6818000000203,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 23,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1010.1214000000036,
+      "totalMs": 1216.4409999999916,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 24,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1023.3023000000394,
+      "totalMs": 1029.8157000000356,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 24,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 339.7722000000067,
+      "totalMs": 383.6330999999773,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 25,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 324.6428999999771,
+      "totalMs": 325.7320999999647,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 25,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1076.5284000000102,
+      "totalMs": 1283.1212000000523,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 26,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1017.2523999999976,
+      "totalMs": 1019.8390999999829,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 26,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 333.8127000000095,
+      "totalMs": 368.71389999997336,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 27,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 184.9047000000137,
+      "totalMs": 192.30310000001919,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 27,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1149.7814000000362,
+      "totalMs": 1302.338300000003,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 28,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1144.7138999999734,
+      "totalMs": 1355.6600999999791,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 28,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 339.9785999999731,
+      "totalMs": 349.3429999999935,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "sin1",
+      "path": "/",
+      "sample": 29,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 170.42359999998007,
+      "totalMs": 211.7332999999635,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    },
+    {
+      "variant": "iad1",
+      "path": "/",
+      "sample": 29,
+      "firstObserved": false,
+      "status": 200,
+      "ttfbMs": 1053.4970000000321,
+      "totalMs": 1328.280000000028,
+      "bodyBytes": 115119,
+      "cache": "MISS",
+      "contentType": "text/html; charset=utf-8",
+      "placeholder": false
+    }
+  ],
+  "summary": [
+    {
+      "path": "/api/destinations",
+      "variants": [
+        {
+          "variant": "iad1",
+          "ttfbMs": {
+            "n": 30,
+            "p50": 770.8839000000007,
+            "p95": 1285.9080999999996,
+            "min": 735.4227000000028,
+            "max": 3346.3831
+          },
+          "totalMs": {
+            "n": 30,
+            "p50": 771.8807000000015,
+            "p95": 1287.1755000000003,
+            "min": 737.0584999999992,
+            "max": 3353.708
+          },
+          "errors": 0,
+          "dtoHashes": [
+            "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+          ]
+        },
+        {
+          "variant": "sin1",
+          "ttfbMs": {
+            "n": 30,
+            "p50": 176.15630000000237,
+            "p95": 788.9736000000012,
+            "min": 139.26940000000468,
+            "max": 1183.7818000000007
+          },
+          "totalMs": {
+            "n": 30,
+            "p50": 177.06610000001092,
+            "p95": 790.4829000000009,
+            "min": 139.70330000000104,
+            "max": 1185.2222000000002
+          },
+          "errors": 0,
+          "dtoHashes": [
+            "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+          ]
+        }
+      ],
+      "dtoEquality": true,
+      "improvementP50Percent": 77.0604317480654
+    },
+    {
+      "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+      "variants": [
+        {
+          "variant": "iad1",
+          "ttfbMs": {
+            "n": 30,
+            "p50": 782.2364999999991,
+            "p95": 942.6363999999885,
+            "min": 757.4514000000054,
+            "max": 1257.928899999999
+          },
+          "totalMs": {
+            "n": 30,
+            "p50": 783.9342000000033,
+            "p95": 943.6152000000002,
+            "min": 758.9000000000087,
+            "max": 1258.8543999999965
+          },
+          "errors": 0,
+          "dtoHashes": [
+            "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+          ]
+        },
+        {
+          "variant": "sin1",
+          "ttfbMs": {
+            "n": 30,
+            "p50": 166.73489999999583,
+            "p95": 346.7988000000041,
+            "min": 144.43069999999716,
+            "max": 351.9299000000028
+          },
+          "totalMs": {
+            "n": 30,
+            "p50": 167.9652999999962,
+            "p95": 347.85740000000806,
+            "min": 145.23500000000058,
+            "max": 352.6185000000114
+          },
+          "errors": 0,
+          "dtoHashes": [
+            "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+          ]
+        }
+      ],
+      "dtoEquality": true,
+      "improvementP50Percent": 78.57405634299467
+    },
+    {
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "variants": [
+        {
+          "variant": "iad1",
+          "ttfbMs": {
+            "n": 30,
+            "p50": 351.25560000000405,
+            "p95": 508.3238999999885,
+            "min": 308.28800000000047,
+            "max": 2078.2030000000086
+          },
+          "totalMs": {
+            "n": 30,
+            "p50": 2409.0619000000006,
+            "p95": 2538.4255999999878,
+            "min": 2335.99589999998,
+            "max": 5514.585099999997
+          },
+          "errors": 0,
+          "dtoHashes": []
+        },
+        {
+          "variant": "sin1",
+          "ttfbMs": {
+            "n": 30,
+            "p50": 313.2140000000072,
+            "p95": 515.6633000000147,
+            "min": 160.0185000000056,
+            "max": 1799.4900999999954
+          },
+          "totalMs": {
+            "n": 30,
+            "p50": 359.37350000001607,
+            "p95": 517.4823000000033,
+            "min": 206.33319999999367,
+            "max": 1995.3913000000175
+          },
+          "errors": 0,
+          "dtoHashes": []
+        }
+      ],
+      "dtoEquality": "NOT_APPLICABLE_HTML_BUILDS_DIFFER",
+      "improvementP50Percent": 85.08242980389934
+    },
+    {
+      "path": "/",
+      "variants": [
+        {
+          "variant": "iad1",
+          "ttfbMs": {
+            "n": 30,
+            "p50": 1047.947199999995,
+            "p95": 1166.41730000003,
+            "min": 1003.9433999999892,
+            "max": 1187.435300000012
+          },
+          "totalMs": {
+            "n": 30,
+            "p50": 1240.300500000012,
+            "p95": 1355.6600999999791,
+            "min": 1019.8390999999829,
+            "max": 1373.4970999999787
+          },
+          "errors": 0,
+          "dtoHashes": []
+        },
+        {
+          "variant": "sin1",
+          "ttfbMs": {
+            "n": 30,
+            "p50": 324.6428999999771,
+            "p95": 465.2151999999769,
+            "min": 170.42359999998007,
+            "max": 468.95230000000447
+          },
+          "totalMs": {
+            "n": 30,
+            "p50": 340.6725999999908,
+            "p95": 472.5334000000148,
+            "min": 192.30310000001919,
+            "max": 476.86249999998836
+          },
+          "errors": 0,
+          "dtoHashes": []
+        }
+      ],
+      "dtoEquality": "NOT_APPLICABLE_HTML_BUILDS_DIFFER",
+      "improvementP50Percent": 72.53305952872006
+    }
+  ],
+  "completedAt": "2026-10-18T10:53:14.660Z",
+  "acceptance": {
+    "BASELINE_HEAD": "a18e8be261ea18eadf3d7558e8f7255a09899f29",
+    "FINAL_HEAD": "e5a7e01b3cdfebb94bfe0719cb797f61b6af5f6b",
+    "WORKTREE_STATUS": "CAPTURED_BEFORE_EVIDENCE_COMMIT;REPORT_ONLY_DELTAS",
+    "VERCEL_REGION_BEFORE": "iad1",
+    "VERCEL_REGION_AFTER": "sin1 Production and Preview",
+    "NEON_REGION": "aws-ap-southeast-1",
+    "REGION_VERIFIED": {
+      "preview": true,
+      "production": true
+    },
+    "FUNCTION_REGION_EVIDENCE": "vercel-region-validation.json; actual180 lambda.deployedTo artifacts, not build/CDN PoP",
+    "API_P50_P95_BEFORE_AFTER": {
+      "public": [
+        {
+          "path": "/api/destinations",
+          "variants": [
+            {
+              "variant": "iad1",
+              "ttfbMs": {
+                "n": 30,
+                "p50": 770.8839000000007,
+                "p95": 1285.9080999999996,
+                "min": 735.4227000000028,
+                "max": 3346.3831
+              },
+              "totalMs": {
+                "n": 30,
+                "p50": 771.8807000000015,
+                "p95": 1287.1755000000003,
+                "min": 737.0584999999992,
+                "max": 3353.708
+              },
+              "errors": 0,
+              "dtoHashes": [
+                "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+              ]
+            },
+            {
+              "variant": "sin1",
+              "ttfbMs": {
+                "n": 30,
+                "p50": 176.15630000000237,
+                "p95": 788.9736000000012,
+                "min": 139.26940000000468,
+                "max": 1183.7818000000007
+              },
+              "totalMs": {
+                "n": 30,
+                "p50": 177.06610000001092,
+                "p95": 790.4829000000009,
+                "min": 139.70330000000104,
+                "max": 1185.2222000000002
+              },
+              "errors": 0,
+              "dtoHashes": [
+                "9c6fd32625303887caca0e89c1a74dabfb6e13f904f98f1ba2465670c1a5ca52"
+              ]
+            }
+          ],
+          "dtoEquality": true,
+          "improvementP50Percent": 77.0604317480654
+        },
+        {
+          "path": "/api/destinations?q=%C4%90%E1%BB%93ng%20V%C4%83n",
+          "variants": [
+            {
+              "variant": "iad1",
+              "ttfbMs": {
+                "n": 30,
+                "p50": 782.2364999999991,
+                "p95": 942.6363999999885,
+                "min": 757.4514000000054,
+                "max": 1257.928899999999
+              },
+              "totalMs": {
+                "n": 30,
+                "p50": 783.9342000000033,
+                "p95": 943.6152000000002,
+                "min": 758.9000000000087,
+                "max": 1258.8543999999965
+              },
+              "errors": 0,
+              "dtoHashes": [
+                "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+              ]
+            },
+            {
+              "variant": "sin1",
+              "ttfbMs": {
+                "n": 30,
+                "p50": 166.73489999999583,
+                "p95": 346.7988000000041,
+                "min": 144.43069999999716,
+                "max": 351.9299000000028
+              },
+              "totalMs": {
+                "n": 30,
+                "p50": 167.9652999999962,
+                "p95": 347.85740000000806,
+                "min": 145.23500000000058,
+                "max": 352.6185000000114
+              },
+              "errors": 0,
+              "dtoHashes": [
+                "3f011216c8525d65bd533887fd6eaafd54b8fd8242a0acae00d936e2cd392217"
+              ]
+            }
+          ],
+          "dtoEquality": true,
+          "improvementP50Percent": 78.57405634299467
+        },
+        {
+          "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+          "variants": [
+            {
+              "variant": "iad1",
+              "ttfbMs": {
+                "n": 30,
+                "p50": 351.25560000000405,
+                "p95": 508.3238999999885,
+                "min": 308.28800000000047,
+                "max": 2078.2030000000086
+              },
+              "totalMs": {
+                "n": 30,
+                "p50": 2409.0619000000006,
+                "p95": 2538.4255999999878,
+                "min": 2335.99589999998,
+                "max": 5514.585099999997
+              },
+              "errors": 0,
+              "dtoHashes": []
+            },
+            {
+              "variant": "sin1",
+              "ttfbMs": {
+                "n": 30,
+                "p50": 313.2140000000072,
+                "p95": 515.6633000000147,
+                "min": 160.0185000000056,
+                "max": 1799.4900999999954
+              },
+              "totalMs": {
+                "n": 30,
+                "p50": 359.37350000001607,
+                "p95": 517.4823000000033,
+                "min": 206.33319999999367,
+                "max": 1995.3913000000175
+              },
+              "errors": 0,
+              "dtoHashes": []
+            }
+          ],
+          "dtoEquality": "NOT_APPLICABLE_HTML_BUILDS_DIFFER",
+          "improvementP50Percent": 85.08242980389934
+        },
+        {
+          "path": "/",
+          "variants": [
+            {
+              "variant": "iad1",
+              "ttfbMs": {
+                "n": 30,
+                "p50": 1047.947199999995,
+                "p95": 1166.41730000003,
+                "min": 1003.9433999999892,
+                "max": 1187.435300000012
+              },
+              "totalMs": {
+                "n": 30,
+                "p50": 1240.300500000012,
+                "p95": 1355.6600999999791,
+                "min": 1019.8390999999829,
+                "max": 1373.4970999999787
+              },
+              "errors": 0,
+              "dtoHashes": []
+            },
+            {
+              "variant": "sin1",
+              "ttfbMs": {
+                "n": 30,
+                "p50": 324.6428999999771,
+                "p95": 465.2151999999769,
+                "min": 170.42359999998007,
+                "max": 468.95230000000447
+              },
+              "totalMs": {
+                "n": 30,
+                "p50": 340.6725999999908,
+                "p95": 472.5334000000148,
+                "min": 192.30310000001919,
+                "max": 476.86249999998836
+              },
+              "errors": 0,
+              "dtoHashes": []
+            }
+          ],
+          "dtoEquality": "NOT_APPLICABLE_HTML_BUILDS_DIFFER",
+          "improvementP50Percent": 72.53305952872006
+        }
+      ],
+      "authenticated": [
+        {
+          "role": "TRAVELER",
+          "path": "/api/favorites",
+          "samplesBefore": 30,
+          "samplesAfter": 30,
+          "before": {
+            "n": 30,
+            "p50": 1660.2999999970198,
+            "p95": 1784.0999999977648,
+            "min": 1625.4000000022352,
+            "max": 2096.699999999255
+          },
+          "after": {
+            "n": 30,
+            "p50": 171.30000000074506,
+            "p95": 316.5,
+            "min": 151.39999999850988,
+            "max": 328
+          },
+          "improvementP50Percent": 89.6825874841262,
+          "allExpectedStatus": true,
+          "privateNoStore": true,
+          "population": "fresh synthetic account; no saved Trips/Favorites; CMS Development first page"
+        },
+        {
+          "role": "TRAVELER",
+          "path": "/api/trips",
+          "samplesBefore": 30,
+          "samplesAfter": 30,
+          "before": {
+            "n": 30,
+            "p50": 1424,
+            "p95": 1621.5999999977648,
+            "min": 1408.300000000745,
+            "max": 1783.300000000745
+          },
+          "after": {
+            "n": 30,
+            "p50": 161.30000000074506,
+            "p95": 310.30000000074506,
+            "min": 146,
+            "max": 316.5
+          },
+          "improvementP50Percent": 88.67275280893644,
+          "allExpectedStatus": true,
+          "privateNoStore": true,
+          "population": "fresh synthetic account; no saved Trips/Favorites; CMS Development first page"
+        },
+        {
+          "role": "ADMIN",
+          "path": "/api/favorites",
+          "samplesBefore": 30,
+          "samplesAfter": 30,
+          "before": {
+            "n": 30,
+            "p50": 1721.0999999977648,
+            "p95": 1852.800000000745,
+            "min": 1696.7999999970198,
+            "max": 3911.099999997765
+          },
+          "after": {
+            "n": 30,
+            "p50": 169.19999999925494,
+            "p95": 388.5,
+            "min": 150.30000000074506,
+            "max": 395.1000000014901
+          },
+          "improvementP50Percent": 90.16907791531725,
+          "allExpectedStatus": true,
+          "privateNoStore": true,
+          "population": "fresh synthetic account; no saved Trips/Favorites; CMS Development first page"
+        },
+        {
+          "role": "ADMIN",
+          "path": "/api/trips",
+          "samplesBefore": 30,
+          "samplesAfter": 30,
+          "before": {
+            "n": 30,
+            "p50": 1487.1000000014901,
+            "p95": 1682.300000000745,
+            "min": 1458.300000000745,
+            "max": 1730.300000000745
+          },
+          "after": {
+            "n": 30,
+            "p50": 160.80000000074506,
+            "p95": 310.69999999925494,
+            "min": 146,
+            "max": 331
+          },
+          "improvementP50Percent": 89.18700827109247,
+          "allExpectedStatus": true,
+          "privateNoStore": true,
+          "population": "fresh synthetic account; no saved Trips/Favorites; CMS Development first page"
+        },
+        {
+          "role": "ADMIN",
+          "path": "/api/admin/destinations",
+          "samplesBefore": 30,
+          "samplesAfter": 30,
+          "before": {
+            "n": 30,
+            "p50": 1957.1000000014901,
+            "p95": 2104.5,
+            "min": 1927.699999999255,
+            "max": 2113.89999999851
+          },
+          "after": {
+            "n": 30,
+            "p50": 173.60000000149012,
+            "p95": 303.80000000074506,
+            "min": 156.59999999776483,
+            "max": 339.5999999977648
+          },
+          "improvementP50Percent": 91.12973276780144,
+          "allExpectedStatus": true,
+          "privateNoStore": true,
+          "population": "fresh synthetic account; no saved Trips/Favorites; CMS Development first page"
+        }
+      ],
+      "dashboard": [
+        {
+          "role": "TRAVELER",
+          "variants": [
+            {
+              "variant": "iad1",
+              "totalMs": {
+                "n": 30,
+                "p50": 1026.6963000000014,
+                "p95": 1236.1228999999985,
+                "min": 984.8168999999907,
+                "max": 1791.7221
+              },
+              "ttfbMs": {
+                "n": 30,
+                "p50": 1020.0952000000016,
+                "p95": 1152.9490000000005,
+                "min": 984.0013000000035,
+                "max": 1790.4809999999998
+              },
+              "isolationPass": true
+            },
+            {
+              "variant": "sin1",
+              "totalMs": {
+                "n": 30,
+                "p50": 193.46059999999852,
+                "p95": 406.2266000000018,
+                "min": 162.32570000000123,
+                "max": 461.0868999999984
+              },
+              "ttfbMs": {
+                "n": 30,
+                "p50": 191.4788000000044,
+                "p95": 404.45690000000104,
+                "min": 160.4149000000034,
+                "max": 459.77070000000094
+              },
+              "isolationPass": true
+            }
+          ]
+        },
+        {
+          "role": "ADMIN",
+          "variants": [
+            {
+              "variant": "iad1",
+              "totalMs": {
+                "n": 30,
+                "p50": 1007.1023999999888,
+                "p95": 1132.8334999999934,
+                "min": 981.8601999999955,
+                "max": 1211.3857000000135
+              },
+              "ttfbMs": {
+                "n": 30,
+                "p50": 1005.6450999999943,
+                "p95": 1132.2820999999967,
+                "min": 981.1517000000022,
+                "max": 1210.067800000019
+              },
+              "isolationPass": true
+            },
+            {
+              "variant": "sin1",
+              "totalMs": {
+                "n": 30,
+                "p50": 184.52999999999884,
+                "p95": 335.7072999999946,
+                "min": 157.69690000000992,
+                "max": 381.81870000000345
+              },
+              "ttfbMs": {
+                "n": 30,
+                "p50": 181.55520000000251,
+                "p95": 334.1845999999932,
+                "min": 156.8119000000006,
+                "max": 380.17399999999907
+              },
+              "isolationPass": true
+            }
+          ]
+        }
+      ],
+      "production": {
+        "method": "3 public GETs/workload before/after; same Production cohort; complete optimization+region change, NOT isolated region A/B; sample p95=max",
+        "before": [
+          {
+            "path": "/api/destinations",
+            "totalMs": {
+              "n": 3,
+              "p50": 754.6567999999997,
+              "p95": 2382.7577,
+              "min": 741.7745999999997,
+              "max": 2382.7577
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 748.1300999999999,
+              "p95": 2376.7075,
+              "min": 740.5496000000003,
+              "max": 2376.7075
+            }
+          },
+          {
+            "path": "/",
+            "totalMs": {
+              "n": 3,
+              "p50": 1419.5933000000005,
+              "p95": 2689.2258,
+              "min": 1179.6918999999998,
+              "max": 2689.2258
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 1215.5301999999992,
+              "p95": 2477.8192,
+              "min": 982.8888999999999,
+              "max": 2477.8192
+            }
+          },
+          {
+            "path": "/explore",
+            "totalMs": {
+              "n": 3,
+              "p50": 799.3525000000009,
+              "p95": 896.007599999999,
+              "min": 768.4233000000004,
+              "max": 896.007599999999
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 350.7934000000005,
+              "p95": 387.78429999999935,
+              "min": 340.78139999999985,
+              "max": 387.78429999999935
+            }
+          },
+          {
+            "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+            "totalMs": {
+              "n": 3,
+              "p50": 2410.785,
+              "p95": 3228.3372999999992,
+              "min": 2348.8066,
+              "max": 3228.3372999999992
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 418.8903999999966,
+              "p95": 439.1870999999992,
+              "min": 326.5132999999987,
+              "max": 439.1870999999992
+            }
+          },
+          {
+            "path": "/destinations/cmv9fcwo1000be89w3yxz3mqu",
+            "totalMs": {
+              "n": 3,
+              "p50": 2553.0579999999973,
+              "p95": 2599.1008,
+              "min": 2535.7236999999986,
+              "max": 2599.1008
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 335.54449999999997,
+              "p95": 480.97209999999905,
+              "min": 329.9511999999995,
+              "max": 480.97209999999905
+            }
+          },
+          {
+            "path": "/destinations/cmvanjc6p000f7w9wyuydna52",
+            "totalMs": {
+              "n": 3,
+              "p50": 2545.062100000003,
+              "p95": 2641.4683000000005,
+              "min": 2531.495299999995,
+              "max": 2641.4683000000005
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 315.9699000000037,
+              "p95": 320.6996999999974,
+              "min": 308.4201999999932,
+              "max": 320.6996999999974
+            }
+          },
+          {
+            "path": "/assistant",
+            "totalMs": {
+              "n": 3,
+              "p50": 726.5795999999973,
+              "p95": 814.396900000007,
+              "min": 641.6241000000009,
+              "max": 814.396900000007
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 627.8449000000037,
+              "p95": 640.352899999998,
+              "min": 537.5606999999945,
+              "max": 640.352899999998
+            }
+          }
+        ],
+        "after": [
+          {
+            "path": "/api/destinations",
+            "totalMs": {
+              "n": 3,
+              "p50": 612.2714999999998,
+              "p95": 1845.6808999999998,
+              "min": 389.40970000000016,
+              "max": 1845.6808999999998
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 610.4097000000002,
+              "p95": 1826.1103,
+              "min": 388.33200000000033,
+              "max": 1826.1103
+            }
+          },
+          {
+            "path": "/",
+            "totalMs": {
+              "n": 3,
+              "p50": 699.6048000000001,
+              "p95": 1651.0357000000004,
+              "min": 331.1700000000001,
+              "max": 1651.0357000000004
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 694.9519,
+              "p95": 1618.0272000000004,
+              "min": 295.9500000000007,
+              "max": 1618.0272000000004
+            }
+          },
+          {
+            "path": "/explore",
+            "totalMs": {
+              "n": 3,
+              "p50": 166.14539999999943,
+              "p95": 284.5785999999989,
+              "min": 157.23899999999958,
+              "max": 284.5785999999989
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 158.47659999999996,
+              "p95": 231.58579999999893,
+              "min": 148.04910000000018,
+              "max": 231.58579999999893
+            }
+          },
+          {
+            "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+            "totalMs": {
+              "n": 3,
+              "p50": 433.91759999999886,
+              "p95": 486.0727999999999,
+              "min": 206.18799999999828,
+              "max": 486.0727999999999
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 316.72550000000047,
+              "p95": 428.34659999999894,
+              "min": 157.22189999999864,
+              "max": 428.34659999999894
+            }
+          },
+          {
+            "path": "/destinations/cmv9fcwo1000be89w3yxz3mqu",
+            "totalMs": {
+              "n": 3,
+              "p50": 225.82989999999882,
+              "p95": 237.35670000000027,
+              "min": 209.64379999999983,
+              "max": 237.35670000000027
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 160.6237999999994,
+              "p95": 195.15819999999985,
+              "min": 152.6913999999997,
+              "max": 195.15819999999985
+            }
+          },
+          {
+            "path": "/destinations/cmvanjc6p000f7w9wyuydna52",
+            "totalMs": {
+              "n": 3,
+              "p50": 202.50730000000112,
+              "p95": 231.27179999999862,
+              "min": 189.29399999999987,
+              "max": 231.27179999999862
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 144.67220000000088,
+              "p95": 149.1973999999973,
+              "min": 143.33300000000054,
+              "max": 149.1973999999973
+            }
+          },
+          {
+            "path": "/assistant",
+            "totalMs": {
+              "n": 3,
+              "p50": 190.2409000000007,
+              "p95": 240.07330000000002,
+              "min": 177.62079999999696,
+              "max": 240.07330000000002
+            },
+            "ttfbMs": {
+              "n": 3,
+              "p50": 152.00120000000243,
+              "p95": 238.30259999999907,
+              "min": 144.1436999999969,
+              "max": 238.30259999999907
+            }
+          }
+        ],
+        "dtoHashEqual": true
+      }
+    },
+    "DB_ROUNDTRIP_BEFORE_AFTER": {
+      "vercel": "NOT_MEASURED",
+      "localPublic": "neon-read-flows-paired.json;12 paired flows,n5,Production read-only",
+      "localPrivate": "performance-v3-private-neon.json;5 workload kinds,9 role/workload cases,n5,Development;no before variant"
+    },
+    "QUERY_COUNT_BEFORE_AFTER": [
+      {
+        "flow": "landing",
+        "before": [
+          4
+        ],
+        "after": [
+          2
+        ]
+      },
+      {
+        "flow": "explore-list",
+        "before": [
+          3
+        ],
+        "after": [
+          2
+        ]
+      },
+      {
+        "flow": "explore-map",
+        "before": [
+          3
+        ],
+        "after": [
+          2
+        ]
+      },
+      {
+        "flow": "explore-keyword",
+        "before": [
+          3
+        ],
+        "after": [
+          3
+        ]
+      },
+      {
+        "flow": "explore-category",
+        "before": [
+          3
+        ],
+        "after": [
+          3
+        ]
+      },
+      {
+        "flow": "destination-1",
+        "before": [
+          18
+        ],
+        "after": [
+          16
+        ]
+      },
+      {
+        "flow": "destination-2",
+        "before": [
+          18
+        ],
+        "after": [
+          16
+        ]
+      },
+      {
+        "flow": "destination-3",
+        "before": [
+          18
+        ],
+        "after": [
+          16
+        ]
+      },
+      {
+        "flow": "public-editorial",
+        "before": [
+          10
+        ],
+        "after": [
+          8
+        ]
+      },
+      {
+        "flow": "planner-candidates",
+        "before": [
+          4
+        ],
+        "after": [
+          4
+        ]
+      },
+      {
+        "flow": "planner-recheck",
+        "before": [
+          5
+        ],
+        "after": [
+          5
+        ]
+      },
+      {
+        "flow": "rag-retrieval",
+        "before": [
+          4
+        ],
+        "after": [
+          4
+        ]
+      }
+    ],
+    "FRONTEND_WEB_VITALS": {
+      "scope": "Synthetic Chromium;one sample/viewport/cache/region;not field p75 or a reliable distribution; both variants already contain WebP/SQL patch",
+      "rows": [
+        {
+          "width": 390,
+          "cache": "browser-cold",
+          "beforeLcpMs": 4568,
+          "afterLcpMs": 3252,
+          "beforeCls": 0.00048164609053497943,
+          "afterCls": 0.00048164609053497943,
+          "beforeTtfbMs": 255.89999999850988,
+          "afterTtfbMs": 243.69999999925494
+        },
+        {
+          "width": 390,
+          "cache": "browser-warm",
+          "beforeLcpMs": 1580,
+          "afterLcpMs": 1464,
+          "beforeCls": 0.00048164609053497943,
+          "afterCls": 0.00048164609053497943,
+          "beforeTtfbMs": 75.60000000149012,
+          "afterTtfbMs": 74
+        },
+        {
+          "width": 768,
+          "cache": "browser-cold",
+          "beforeLcpMs": 2488,
+          "afterLcpMs": 1012,
+          "beforeCls": 0.00024996141975308644,
+          "afterCls": 0.00024996141975308644,
+          "beforeTtfbMs": 258.9000000022352,
+          "afterTtfbMs": 238.80000000074506
+        },
+        {
+          "width": 768,
+          "cache": "browser-warm",
+          "beforeLcpMs": 2152,
+          "afterLcpMs": 368,
+          "beforeCls": 0.001954243827160494,
+          "afterCls": 0.00024996141975308644,
+          "beforeTtfbMs": 104.70000000298023,
+          "afterTtfbMs": 76.80000000074506
+        },
+        {
+          "width": 1440,
+          "cache": "browser-cold",
+          "beforeLcpMs": 1980,
+          "afterLcpMs": 976,
+          "beforeCls": 0.0004290509259259259,
+          "afterCls": 0.0004290509259259259,
+          "beforeTtfbMs": 242,
+          "afterTtfbMs": 261.5
+        },
+        {
+          "width": 1440,
+          "cache": "browser-warm",
+          "beforeLcpMs": 2044,
+          "afterLcpMs": 432,
+          "beforeCls": 0.0004290509259259259,
+          "afterCls": 0.0004290509259259259,
+          "beforeTtfbMs": 88.69999999925494,
+          "afterTtfbMs": 225.60000000149012
+        }
+      ],
+      "INP": "NOT_MEASURED"
+    },
+    "AI_RAG_LATENCY": {
+      "liveRequests": 0,
+      "finiteLiveCap": 0,
+      "incrementalOpenAiCostUsd": 0,
+      "verifierTimeoutMs": 25000,
+      "providerBudgetMs": 40000,
+      "responseBudgetMs": 58000,
+      "vercelDurationMs": 60000,
+      "clientBudgetMs": 70000,
+      "leaseMs": 90000,
+      "modelChanged": false,
+      "groundingChanged": false,
+      "historyRepositoryQueries": 21,
+      "historyHttp": "BLOCKED_PREVIEW_RUNTIME_DISABLED",
+      "generationAfterRegionMigration": "NOT_MEASURED"
+    },
+    "AUTHENTICATED_WORKLOAD_RESULTS": {
+      "previewAuthBoundaries": true,
+      "personalCohort": "fresh empty fixtures;not large histories",
+      "dashboardIsolation": true,
+      "cmsFreshness": "PASS_SYNTHETIC_FIXTURE_ONLY",
+      "fixtureCleanup": "PASS",
+      "historyService": "MEASURED_AFTER_REAL_AUTH_ON_DEVELOPMENT",
+      "historyHttp": "BLOCKED_PREVIEW_RUNTIME_DISABLED",
+      "productionAuthenticatedReads": "NOT_TESTED_WITH_OWNER_PRODUCTION_ACCOUNT"
+    },
+    "TEST_RESULTS": {
+      "vitestPassed": 2337,
+      "vitestSkipped": 134,
+      "legacyPassed": 336,
+      "focusedPassed": 27,
+      "benchmarkTestsPassed": 7,
+      "rootTypecheck": "PASS (Turborepo cached, same app source)",
+      "benchmarkTypecheck": "PASS",
+      "previewBuilds": "PASS_TWO_LINUX_NODE24_BUILDS",
+      "cmsFreshness": "PASS_SYNTHETIC_FIXTURE_ONLY",
+      "nativeIntegration": "134_GATED_SKIPS_NOT_PASS",
+      "diffCheck": "PASS"
+    },
+    "PRODUCTION_DEPLOYMENT_ID": "dpl_GzwyGGusVRtpU6FnCkUSszTZHuVk",
+    "PRODUCTION_SMOKE": {
+      "http": {
+        "observations": 21,
+        "errors": 0
+      },
+      "browser": "PASS_PRODUCTION_GUEST_SCOPE_ONLY",
+      "mapTiles": "PASS",
+      "logs": {
+        "checkedAt": "2026-10-18T11:20:24.526Z",
+        "deploymentId": "dpl_GzwyGGusVRtpU6FnCkUSszTZHuVk",
+        "window": "last10m; deployment only recently became READY",
+        "runtimeErrorRecords": 0,
+        "http5xxRecords": 0,
+        "scope": "Available Vercel runtime/error and CDN-request datasets only. No conclusion about unobserved user journeys or future errors.",
+        "privateLogMessagesPersisted": false
+      }
+    },
+    "ROLLBACK_PLAN": {
+      "deploymentId": "dpl_6xThmeh8Ra279G7tgf5H8sZ7RouK",
+      "url": "https://kltn-35aec67pp-to-xuan-hoai-s-projects.vercel.app",
+      "config": {
+        "$schema": "https://openapi.vercel.sh/vercel.json",
+        "services": {
+          "web": {
+            "root": "apps/web",
+            "framework": "nextjs",
+            "installCommand": "cd ../.. && npm install",
+            "buildCommand": "cd ../.. && npm run db:generate && cd apps/web && npm run build"
+          }
+        },
+        "rewrites": [
+          {
+            "source": "/(.*)",
+            "destination": {
+              "service": "web"
+            }
+          }
+        ]
+      },
+      "method": "Before rollout leave alias unchanged. If rollout is approved, vercel rollback exact baseline deployment; restore root regions to previous value/absence for subsequent builds. Rollback disables auto-assignment until explicit promotion.",
+      "commit": "a18e8be261ea18eadf3d7558e8f7255a09899f29"
+    },
+    "REDIS_ADDED": "NO",
+    "PRODUCTION_PERFORMANCE_STATUS": "PARTIAL_VERIFIED_PRODUCTION_SIN1_PUBLIC_READS;LIVE_AI_AND_PRODUCTION_AUTH_NOT_MEASURED",
+    "OPTIMIZATION_FILES": [
+      "vercel.json",
+      "apps/web/next.config.ts",
+      "apps/web/tsconfig.json",
+      "apps/web/src/app/page.tsx",
+      "apps/web/src/components/home-hero-video.tsx",
+      "apps/web/public/images/ha-giang-highland-poster.webp",
+      "apps/web/src/modules/destination/public-home-destinations.ts",
+      "apps/web/src/modules/destination/public-destination-list.ts",
+      "apps/web/src/modules/destination-editorial/editorial-service.ts",
+      "scripts/performance/*",
+      "docs/performance/*",
+      "docs/ai-progress.md"
+    ],
+    "FINAL_HEAD_SCOPE": "Verified application optimization commit; a later evidence-only commit may change Git HEAD without changing runtime code.",
+    "PRODUCTION_RELEASE_STATUS": "DEPLOYED_VERIFIED_GUEST_SCOPE_OWNER_SINGLE_DOMAIN_DECISION",
+    "VERCEL_USAGE_IMPACT": "No plan/memory/build-machine change; actual billing NOT_MEASURED; bounded audit/builds consume normal usage",
+    "NEON_USAGE_IMPACT": "Lower SQL counts on public flows; no compute/pool/driver/extension/index change; actual CU/billing NOT_MEASURED"
+  }
+}

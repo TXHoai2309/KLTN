@@ -738,3 +738,13 @@ Backlog remains external per docs/README.md and docs/roadmap.md. No parallel
 backlog is created or external backlog edited; owner updates the three approved
 task statuses there. This run changes documentation only, with no runtime,
 schema,migration,Neon writes,live OpenAI/Blob calls or TXH integration.
+
+
+## 2026-10-16 — Research DOCX extraction coverage correction
+
+The original Đồng Văn research DOCX reproduced INCOMPLETE_COVERAGE because the
+extractor omitted meaningful header/footer parts. Added bounded story extraction,
+saved pagination results, relationship hyperlink URLs and structural diagnostics,
+while retaining coverage failures for unsupported content. All three owner originals
+pass independent XML-oracle coverage and mocked indexing; live retry remains pending.
+See [root cause, file evidence, validation and retry procedure](US-19-docx-extraction-fix.md).

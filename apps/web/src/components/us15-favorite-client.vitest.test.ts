@@ -130,10 +130,11 @@ describe("US15 FavoriteButton client mutation logic", () => {
     expect(canStartFavoriteMutation(false, true)).toBe(false);
   });
 
-  it("routes Guest to login without a write action and ignores Admin", () => {
+  it("routes Guest to login, permits Admin and ignores unsupported roles", () => {
     expect(resolveFavoriteClickAction(undefined, false)).toBe("LOGIN");
     expect(resolveFavoriteClickAction(undefined, true)).toBe("LOGIN");
-    expect(resolveFavoriteClickAction("ADMIN", false)).toBe("IGNORE");
+    expect(resolveFavoriteClickAction("ADMIN", false)).toBe("MUTATE");
+    expect(resolveFavoriteClickAction("ROOT", false)).toBe("IGNORE");
     expect(resolveFavoriteClickAction("TRAVELER", false)).toBe("MUTATE");
   });
 

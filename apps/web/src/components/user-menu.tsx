@@ -1,4 +1,5 @@
 "use client";
+import { hasRolePermission } from "@/lib/authorization-capabilities";
 import { mvpFeatures } from "@/lib/mvp-features";
 
 import { Suspense, useRef, useState } from "react";
@@ -15,7 +16,7 @@ import {
 import { Skeleton } from "@KLTN/ui/components/skeleton";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { BookOpen, ChevronDown, FileText, Heart, LogOut, MapPin, User } from "lucide-react";
+import { BookOpen, ChevronDown, FileText, Heart, LogOut, MapPin, User, Users } from "lucide-react";
 
 import { authClient } from "@/lib/auth-client";
 import { claimSubmission, releaseSubmission } from "@/lib/auth-submission-guard";
@@ -130,7 +131,7 @@ export default function UserMenu() {
             <User className="size-3.5 text-muted-foreground mr-2" />
             <span>Thông tin tài khoản</span>
           </DropdownMenuItem>
-          {session.user.role === "TRAVELER" && (
+          {hasRolePermission(session.user.role, "traveler") && (
             <DropdownMenuItem className="cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium" render={<Link href="/favorites" />}>
               <Heart className="size-3.5 text-muted-foreground mr-2" />
               <span>Yêu thích</span>
@@ -154,6 +155,10 @@ export default function UserMenu() {
               <DropdownMenuItem className="cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium" render={<Link href={"/admin/rag" as import("next").Route} />}>
                 <FileText className="size-3.5 text-muted-foreground mr-2" />
                 <span>Quản lý tài liệu RAG</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium" render={<Link href={"/admin/users" as import("next").Route} />}>
+                <Users className="size-3.5 text-muted-foreground mr-2" />
+                <span>Quản lý người dùng</span>
               </DropdownMenuItem>
             </>
           )}

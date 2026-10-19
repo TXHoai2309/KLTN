@@ -6,6 +6,9 @@ export const favoriteItemSchema = z.object({
   title: z.string(),
   availability: z.enum(["AVAILABLE", "UNAVAILABLE"]),
   href: z.string().nullable(),
+  image: z.object({ url: z.string(), alt: z.string() }).strict().nullable().optional(),
+  area: z.string().optional(),
+  category: z.string().optional(),
 }).strict();
 export const favoriteListSchema = z.object({
   destinations: z.array(favoriteItemSchema),

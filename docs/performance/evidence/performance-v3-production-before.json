@@ -1,0 +1,305 @@
+{
+  "checkedAt": "2026-10-18T11:12:17.847Z",
+  "phase": "before",
+  "origin": "https://kltn-rho.vercel.app",
+  "method": "21 bounded sequential public GETs,3 samples/workload;500ms pause; no cookies, Auth writes, history GET, inference or routing",
+  "samplesAreSmall": true,
+  "productionWrites": 0,
+  "observations": [
+    {
+      "path": "/api/destinations",
+      "sample": 0,
+      "status": 200,
+      "ttfbMs": 2376.7075,
+      "totalMs": 2382.7577,
+      "bytes": 1257,
+      "dtoHash": "c924705b7b0ba107a97a5e9de0507e9ccd73246ffa3305b96ca571cb177b3967",
+      "destinationCount": 3
+    },
+    {
+      "path": "/api/destinations",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 748.1300999999999,
+      "totalMs": 754.6567999999997,
+      "bytes": 1257,
+      "dtoHash": "c924705b7b0ba107a97a5e9de0507e9ccd73246ffa3305b96ca571cb177b3967",
+      "destinationCount": 3
+    },
+    {
+      "path": "/api/destinations",
+      "sample": 2,
+      "status": 200,
+      "ttfbMs": 740.5496000000003,
+      "totalMs": 741.7745999999997,
+      "bytes": 1257,
+      "dtoHash": "c924705b7b0ba107a97a5e9de0507e9ccd73246ffa3305b96ca571cb177b3967",
+      "destinationCount": 3
+    },
+    {
+      "path": "/",
+      "sample": 0,
+      "status": 200,
+      "ttfbMs": 2477.8192,
+      "totalMs": 2689.2258,
+      "bytes": 112706
+    },
+    {
+      "path": "/",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 1215.5301999999992,
+      "totalMs": 1419.5933000000005,
+      "bytes": 112706
+    },
+    {
+      "path": "/",
+      "sample": 2,
+      "status": 200,
+      "ttfbMs": 982.8888999999999,
+      "totalMs": 1179.6918999999998,
+      "bytes": 112706
+    },
+    {
+      "path": "/explore",
+      "sample": 0,
+      "status": 200,
+      "ttfbMs": 340.78139999999985,
+      "totalMs": 799.3525000000009,
+      "bytes": 51815
+    },
+    {
+      "path": "/explore",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 387.78429999999935,
+      "totalMs": 896.007599999999,
+      "bytes": 51815
+    },
+    {
+      "path": "/explore",
+      "sample": 2,
+      "status": 200,
+      "ttfbMs": 350.7934000000005,
+      "totalMs": 768.4233000000004,
+      "bytes": 51815
+    },
+    {
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 0,
+      "status": 200,
+      "ttfbMs": 439.1870999999992,
+      "totalMs": 3228.3372999999992,
+      "bytes": 69742
+    },
+    {
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 326.5132999999987,
+      "totalMs": 2348.8066,
+      "bytes": 69742
+    },
+    {
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "sample": 2,
+      "status": 200,
+      "ttfbMs": 418.8903999999966,
+      "totalMs": 2410.785,
+      "bytes": 69742
+    },
+    {
+      "path": "/destinations/cmv9fcwo1000be89w3yxz3mqu",
+      "sample": 0,
+      "status": 200,
+      "ttfbMs": 329.9511999999995,
+      "totalMs": 2553.0579999999973,
+      "bytes": 79849
+    },
+    {
+      "path": "/destinations/cmv9fcwo1000be89w3yxz3mqu",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 480.97209999999905,
+      "totalMs": 2599.1008,
+      "bytes": 79849
+    },
+    {
+      "path": "/destinations/cmv9fcwo1000be89w3yxz3mqu",
+      "sample": 2,
+      "status": 200,
+      "ttfbMs": 335.54449999999997,
+      "totalMs": 2535.7236999999986,
+      "bytes": 79849
+    },
+    {
+      "path": "/destinations/cmvanjc6p000f7w9wyuydna52",
+      "sample": 0,
+      "status": 200,
+      "ttfbMs": 320.6996999999974,
+      "totalMs": 2641.4683000000005,
+      "bytes": 96023
+    },
+    {
+      "path": "/destinations/cmvanjc6p000f7w9wyuydna52",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 315.9699000000037,
+      "totalMs": 2545.062100000003,
+      "bytes": 96023
+    },
+    {
+      "path": "/destinations/cmvanjc6p000f7w9wyuydna52",
+      "sample": 2,
+      "status": 200,
+      "ttfbMs": 308.4201999999932,
+      "totalMs": 2531.495299999995,
+      "bytes": 96023
+    },
+    {
+      "path": "/assistant",
+      "sample": 0,
+      "status": 200,
+      "ttfbMs": 627.8449000000037,
+      "totalMs": 814.396900000007,
+      "bytes": 46191
+    },
+    {
+      "path": "/assistant",
+      "sample": 1,
+      "status": 200,
+      "ttfbMs": 640.352899999998,
+      "totalMs": 641.6241000000009,
+      "bytes": 46191
+    },
+    {
+      "path": "/assistant",
+      "sample": 2,
+      "status": 200,
+      "ttfbMs": 537.5606999999945,
+      "totalMs": 726.5795999999973,
+      "bytes": 46191
+    }
+  ],
+  "summary": [
+    {
+      "path": "/api/destinations",
+      "totalMs": {
+        "n": 3,
+        "p50": 754.6567999999997,
+        "p95": 2382.7577,
+        "min": 741.7745999999997,
+        "max": 2382.7577
+      },
+      "ttfbMs": {
+        "n": 3,
+        "p50": 748.1300999999999,
+        "p95": 2376.7075,
+        "min": 740.5496000000003,
+        "max": 2376.7075
+      }
+    },
+    {
+      "path": "/",
+      "totalMs": {
+        "n": 3,
+        "p50": 1419.5933000000005,
+        "p95": 2689.2258,
+        "min": 1179.6918999999998,
+        "max": 2689.2258
+      },
+      "ttfbMs": {
+        "n": 3,
+        "p50": 1215.5301999999992,
+        "p95": 2477.8192,
+        "min": 982.8888999999999,
+        "max": 2477.8192
+      }
+    },
+    {
+      "path": "/explore",
+      "totalMs": {
+        "n": 3,
+        "p50": 799.3525000000009,
+        "p95": 896.007599999999,
+        "min": 768.4233000000004,
+        "max": 896.007599999999
+      },
+      "ttfbMs": {
+        "n": 3,
+        "p50": 350.7934000000005,
+        "p95": 387.78429999999935,
+        "min": 340.78139999999985,
+        "max": 387.78429999999935
+      }
+    },
+    {
+      "path": "/destinations/cmv97lcrq0016z09ws0o74lqp",
+      "totalMs": {
+        "n": 3,
+        "p50": 2410.785,
+        "p95": 3228.3372999999992,
+        "min": 2348.8066,
+        "max": 3228.3372999999992
+      },
+      "ttfbMs": {
+        "n": 3,
+        "p50": 418.8903999999966,
+        "p95": 439.1870999999992,
+        "min": 326.5132999999987,
+        "max": 439.1870999999992
+      }
+    },
+    {
+      "path": "/destinations/cmv9fcwo1000be89w3yxz3mqu",
+      "totalMs": {
+        "n": 3,
+        "p50": 2553.0579999999973,
+        "p95": 2599.1008,
+        "min": 2535.7236999999986,
+        "max": 2599.1008
+      },
+      "ttfbMs": {
+        "n": 3,
+        "p50": 335.54449999999997,
+        "p95": 480.97209999999905,
+        "min": 329.9511999999995,
+        "max": 480.97209999999905
+      }
+    },
+    {
+      "path": "/destinations/cmvanjc6p000f7w9wyuydna52",
+      "totalMs": {
+        "n": 3,
+        "p50": 2545.062100000003,
+        "p95": 2641.4683000000005,
+        "min": 2531.495299999995,
+        "max": 2641.4683000000005
+      },
+      "ttfbMs": {
+        "n": 3,
+        "p50": 315.9699000000037,
+        "p95": 320.6996999999974,
+        "min": 308.4201999999932,
+        "max": 320.6996999999974
+      }
+    },
+    {
+      "path": "/assistant",
+      "totalMs": {
+        "n": 3,
+        "p50": 726.5795999999973,
+        "p95": 814.396900000007,
+        "min": 641.6241000000009,
+        "max": 814.396900000007
+      },
+      "ttfbMs": {
+        "n": 3,
+        "p50": 627.8449000000037,
+        "p95": 640.352899999998,
+        "min": 537.5606999999945,
+        "max": 640.352899999998
+      }
+    }
+  ]
+}

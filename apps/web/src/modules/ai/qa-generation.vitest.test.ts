@@ -1,7 +1,8 @@
 import { fixtureReviewedInput } from "./__fixtures__/qa-reviewed-input";
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
-import { createQaGenerator, validateQaGenerationOutput, QA_GENERATION_LIMITS } from "./qa-generation";
+import { validateQaGenerationOutput, QA_GENERATION_LIMITS } from "./qa-generation";
+import { createFixtureQaGenerator as createQaGenerator } from "./__fixtures__/qa-generation-wire";
 import { composeQaPrompt, QA_CLARIFICATION_QUESTION, QA_UNANSWERED_ASPECT } from "./qa-prompt";
 import type { QaGenerationInput } from "./qa-runtime-contract";
 import { createQaDiagnostics, qaReportFailure, type QaDiagnosticEvent } from "./qa-diagnostics";
@@ -124,11 +125,14 @@ describe("Task193 grounded generation", () => {
     const serialized = JSON.stringify(body);
     const userPayload = JSON.parse(body.messages[1].content);
     expect(body.store).toBe(false);
+    expect(body).not.toHaveProperty("temperature");
+    expect(body.model).toBe("gpt-6.1-sol");
+    expect(body.reasoning_effort).toBe("medium");
     expect(body.max_completion_tokens).toBe(QA_GENERATION_LIMITS.maxOutputTokens);
     expect(body.response_format.json_schema.strict).toBe(true);
     expect(request[1].redirect).toBe("error");
     expect(userPayload.HISTORY_QUESTIONS).toEqual(["middle", "latest"]);
-    expect(userPayload.CURRENT_EVIDENCE).toEqual([{ citationId: "c1", sentences: ["Dinh thự nằm tại Sà Phìn.", "Tài liệu không xác minh giờ mở cửa."] }]);
+    expect(userPayload.CURRENT_EVIDENCE).toEqual([{ citationId: "c1", sourceTitle: "Nguồn kiểm thử", sentences: ["Dinh thự nằm tại Sà Phìn.", "Tài liệu không xác minh giờ mở cửa."] }]);
     expect(serialized).not.toMatch(/private_document|private_generation|private_version|private_chunk|private-conversation|private-turn|sourceUrl|previous_response_id|conversation_id/);
   });
   it("bounds provider evidence to four chunks and rejects storage references or secrets before fetch", async () => {

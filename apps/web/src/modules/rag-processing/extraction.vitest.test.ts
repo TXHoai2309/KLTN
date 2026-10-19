@@ -87,16 +87,16 @@ describe("Task181 DOCX", () => {
     expect(r.document.segments[0].origin).not.toHaveProperty("section");
   });
   it("warns for excluded content; no embedded code/external fetch", async () => {
-    const r = await extract("DOCX", syntheticDocx(p("Đọc được") + '<w:p><w:r><w:drawing><w:txbxContent>' + p("Không đọc") + '</w:txbxContent></w:drawing></w:r></w:p><w:altChunk/>', "", { "word/header1.xml": strToU8("private header"), "word/footnotes.xml": strToU8("footnote"), "word/_rels/document.xml.rels": strToU8('<Relationships><Relationship Target="https://invalid.example" TargetMode="External"/></Relationships>') }));
+    const r = await extract("DOCX", syntheticDocx(p("Đọc được") + '<w:p><w:r><w:drawing><w:txbxContent>' + p("Không đọc") + '</w:txbxContent></w:drawing></w:r></w:p><w:altChunk/>', "", { "word/header1.xml": strToU8('<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:altChunk/></w:hdr>'), "word/footnotes.xml": strToU8("footnote"), "word/_rels/document.xml.rels": strToU8('<Relationships><Relationship Target="https://invalid.example" TargetMode="External"/></Relationships>') }));
     if (r.status !== "EXTRACTED") throw new Error(JSON.stringify(r));
     expect(r.document.segments.map(s => s.text)).toEqual(["Đọc được"]);
-    expect(r.document.warnings.map(w => w.region)).toEqual(expect.arrayContaining(["word/header1.xml", "word/footnotes.xml", "drawing", "altChunk"]));
+    expect(r.document.warnings.map(w => w.region)).toEqual(expect.arrayContaining(["word/footnotes.xml", "drawing", "altChunk"]));
   });
   it.each(["<w:p>", "<w:p><w:r></w:p>", '<w:p xmlns:w="urn:fake"><w:r><w:t>Fake</w:t></w:r></w:p>', p("&unknown;"), p("&constructor;"), p("&bare"), p("&#0;")])("rejects malformed/hostile OOXML %s", async body => { expect(await extract("DOCX", syntheticDocx(body))).toMatchObject({ status: "CORRUPT_DOCUMENT" }); });
   it("detects excluded regions by relationships even with nonstandard names", async () => {
-    const r = await extract("DOCX", syntheticDocx(p("Body"), "", { "word/custom-name.xml": strToU8("excluded text"), "word/_rels/document.xml.rels": strToU8('<Relationships><Relationship Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="custom-name.xml"/></Relationships>') }));
+    const r = await extract("DOCX", syntheticDocx(p("Body"), "", { "word/custom-name.xml": strToU8('<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:altChunk/></w:hdr>'), "word/_rels/document.xml.rels": strToU8('<Relationships><Relationship Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="custom-name.xml"/></Relationships>') }));
     if (r.status !== "EXTRACTED") throw new Error("failed");
-    expect(r.document.warnings).toContainEqual({ code: "UNSUPPORTED_DOCX_REGION", region: "relationship:header" });
+    expect(r.document.warnings).toContainEqual(expect.objectContaining({ code: "UNSUPPORTED_DOCX_REGION", region: "altChunk", ooxmlPart: "word/custom-name.xml" }));
   });
   it("rejects DTD/entity constructs before expansion", async () => { expect(await extract("DOCX", syntheticDocx(p("&xxe;"), "", { "word/document.xml": strToU8('<!DOCTYPE x [<!ENTITY xxe SYSTEM "file:///private">]><x>&xxe;</x>') }))).toMatchObject({ status: "CORRUPT_DOCUMENT", code: "XML_DTD_UNSAFE" }); });
   it("style cycles fail explicitly", async () => { expect(await extract("DOCX", syntheticDocx(p("text"), '<w:style w:type="paragraph" w:styleId="A"><w:basedOn w:val="A"/></w:style>'))).toMatchObject({ status: "CORRUPT_DOCUMENT", code: "DOCX_STYLE_CYCLE" }); });

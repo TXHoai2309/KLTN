@@ -1,0 +1,25 @@
+{
+  "success": true,
+  "data": {
+    "requirement": {
+      "startDate": "2027-01-01",
+      "durationDays": 1,
+      "transport": "CAR",
+      "companions": null,
+      "interests": [],
+      "pace": null,
+      "mobilityConstraints": null
+    },
+    "issues": [],
+    "confirmable": true,
+    "readiness": {
+      "preliminary": true,
+      "finalConfirmation": true,
+      "missing": [],
+      "startDateIssue": null,
+      "usesRelativeDays": false
+    },
+    "usesRelativeDays": false,
+    "clarificationRequests": []
+  }
+}

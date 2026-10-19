@@ -9,13 +9,13 @@ import { tripRequirementInputSchema } from "../src/modules/trip-requirement/trip
 import { evaluateTripRequirement } from "../src/modules/trip-requirement/trip-requirement-readiness";
 import { checkTripRequirement } from "../src/modules/trip-requirement/trip-requirement-check";
 import { deriveClarificationsFromCheck } from "../src/modules/trip-requirement/trip-clarification-rules";
-import { missingLeg } from "../src/modules/trip-planner/planner-routes";
+import { missingLeg, createStadiaRoutesProvider } from "../src/modules/trip-planner/planner-routes";
 if (process.env.NODE_ENV === "production") throw new Error("Local test fixture only");
 const web = fileURLToPath(new URL("../", import.meta.url));
 let scenario = "FULL";
 let requests = 0;
 let service = makeService();
-function makeService() { return createPlannerService({ repository: { candidates: async () => { if (scenario === "ERROR") throw new Error("synthetic failure"); return scenario === "EMPTY" ? [] : candidates; }, recheck: async () => true }, routes: { route: async (pair, signal) => scenario === "MISSING_ROUTE" ? missingLeg(pair,"NO_ROUTE") : fakeRoutes.route(pair,signal) }, now: () => referenceTime }); }
+function makeService() { return createPlannerService({ repository: { candidates: async () => { if (scenario === "ERROR") throw new Error("synthetic failure"); return scenario === "EMPTY" ? [] : candidates; }, recheck: async () => true }, routes: { route: async (pair, signal) => scenario === "NOT_CONFIGURED" ? createStadiaRoutesProvider({apiKey:()=>undefined}).route(pair,signal) : scenario === "MISSING_ROUTE" ? missingLeg(pair,"NO_ROUTE") : fakeRoutes.route(pair,signal) }, now: () => referenceTime }); }
 const bundle = await build({ absWorkingDir: web, stdin: { contents: `import React from "react";import {createRoot} from "react-dom/client";import Form from "./src/app/trips/new/trip-requirement-form";import "./src/app/trips/new/trip-form.css";import "maplibre-gl/dist/maplibre-gl.css";const root=createRoot(document.getElementById("app"));root.render(<div className="trip-shell"><Form/></div>);`, loader: "tsx", resolveDir: web }, bundle: true, write: false, outfile: "fixture.js", platform: "browser", format: "iife", jsx: "automatic", tsconfig: "tsconfig.json", define: { "process.env.NODE_ENV": '"development"' }, plugins: [{ name: "offline-map-style-only", setup(builder) { builder.onResolve({filter: /modules\/map\/map-config$/},()=>({path:"map-config",namespace:"test-map"}));builder.onLoad({filter:/.*/,namespace:"test-map"},()=>({resolveDir:web,loader:"js",contents:'export const mapStyle=()=>"/test-map-style.json";export async function loadMapLibre(){const m=await import("maplibre-gl");m.setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");return m;}'})); } }] });
 const js = bundle.outputFiles.find(file=>file.path.endsWith(".js"))!.contents;
 const css = bundle.outputFiles.filter(file=>file.path.endsWith(".css")).map(file=>file.text).join("\n");
@@ -29,7 +29,7 @@ const server = createServer(async(request,response)=>{
     if(url.pathname==="/fixture.js"){response.setHeader("Content-Type","text/javascript");response.end(js);return;}
     if(url.pathname==="/fixture.css"){response.setHeader("Content-Type","text/css");response.end(css);return;}
     if(url.pathname==="/test-map-style.json"){send({version:8,sources:{},layers:[{id:"background",type:"background",paint:{"background-color":"#dce9dc"}}]});return;}
-    if(url.pathname==="/fixture-scenario"){const next=url.searchParams.get("value");if(next&&["FULL","MISSING_ROUTE","EMPTY","ERROR"].includes(next)){scenario=next;service=makeService();}send({scenario});return;}
+    if(url.pathname==="/fixture-scenario"){const next=url.searchParams.get("value");if(next&&["FULL","NOT_CONFIGURED","MISSING_ROUTE","EMPTY","ERROR"].includes(next)){scenario=next;service=makeService();}send({scenario});return;}
     if(url.pathname==="/fixture-stats"){send({scenario,requests});return;}
     if(["/maplibre/maplibre-gl-worker.mjs","/maplibre/maplibre-gl-shared.mjs"].includes(url.pathname)){try{response.setHeader("Content-Type","text/javascript");response.end(await readFile(new URL(`../public${url.pathname}`,import.meta.url)));}catch{response.writeHead(404);response.end();}return;}
   }

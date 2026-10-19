@@ -1,0 +1,149 @@
+{
+  "checkedAt": "2026-10-18T09:46:20.208Z",
+  "branch": "TXH",
+  "head": "a18e8be261ea18eadf3d7558e8f7255a09899f29",
+  "productionBaseline": "433f264fa32d9d14efcaf2e9063ccbc6cf58eb93",
+  "status": "LOCAL_MEASURED_IMPROVEMENTS_PRODUCTION_RELEASE_NO_GO",
+  "tests": {
+    "focused": 53,
+    "vitestPass": 2333,
+    "vitestSkipped": 134,
+    "legacyPass": 336,
+    "benchmarkNodePass": 5,
+    "rootTypecheck": "PASS",
+    "scriptTypecheck": "PASS",
+    "nextProductionBuild": "PASS_ISOLATED_READ_ONLY",
+    "nativePostgres": "GATED_NOT_RUN"
+  },
+  "databasePairedEquivalence": {
+    "home": true,
+    "list": true
+  },
+  "poster": {
+    "checkedAt": "2026-10-18T09:39:20.815Z",
+    "beforeBytes": 682840,
+    "afterBytes": 458612,
+    "savedBytes": 224228,
+    "savedPercent": 32.83756077558433,
+    "width": 1200,
+    "height": 700,
+    "pixelsIdentical": true,
+    "decodedPixelSha256": "9132195ea67da0e1decaa0bed3a4cda16d04c49a3a7806511c038cd5b3809cc4"
+  },
+  "browserRegression": {
+    "status": "PASS_LOCAL_GUEST_SCOPE_ONLY",
+    "observations": 18,
+    "apiChecks": 4,
+    "failures": 0
+  },
+  "beforeAfter": [
+    {
+      "width": 390,
+      "cache": "browser-cold",
+      "beforeLcpMs": 4976,
+      "afterLcpMs": 3352,
+      "beforeTtfbMs": 940,
+      "afterTtfbMs": 865.5999999977648,
+      "afterCacheHits": 0,
+      "afterOverflow": false
+    },
+    {
+      "width": 390,
+      "cache": "browser-warm",
+      "beforeLcpMs": 832,
+      "afterLcpMs": 644,
+      "beforeTtfbMs": 340.4000000022352,
+      "afterTtfbMs": 244.39999999850988,
+      "afterCacheHits": 50,
+      "afterOverflow": false
+    },
+    {
+      "width": 768,
+      "cache": "browser-cold",
+      "beforeLcpMs": 900,
+      "afterLcpMs": 1064,
+      "beforeTtfbMs": 241.60000000149012,
+      "afterTtfbMs": 341.30000000074506,
+      "afterCacheHits": 0,
+      "afterOverflow": false
+    },
+    {
+      "width": 768,
+      "cache": "browser-warm",
+      "beforeLcpMs": 608,
+      "afterLcpMs": 428,
+      "beforeTtfbMs": 408.19999999925494,
+      "afterTtfbMs": 215.40000000223517,
+      "afterCacheHits": 50,
+      "afterOverflow": false
+    },
+    {
+      "width": 1440,
+      "cache": "browser-cold",
+      "beforeLcpMs": 956,
+      "afterLcpMs": 888,
+      "beforeTtfbMs": 279.1000000014901,
+      "afterTtfbMs": 228.80000000074506,
+      "afterCacheHits": 0,
+      "afterOverflow": false
+    },
+    {
+      "width": 1440,
+      "cache": "browser-warm",
+      "beforeLcpMs": 436,
+      "afterLcpMs": 432,
+      "beforeTtfbMs": 279.8999999985099,
+      "afterTtfbMs": 244.80000000074506,
+      "afterCacheHits": 50,
+      "afterOverflow": false
+    }
+  ],
+  "premiumStatic": {
+    "summary": {
+      "errors": 34,
+      "total": 34,
+      "unresolved": 14,
+      "violations": 20,
+      "warnings": 0
+    },
+    "changedUiFileFindings": 0
+  },
+  "secretMatches": 0,
+  "databaseMutations": 0,
+  "newOpenAiRequests": 0,
+  "newRoutingRequests": 0,
+  "pushes": 0,
+  "merges": 0,
+  "deployments": 0,
+  "unverified": [
+    "Authenticated Traveler/Admin live workloads",
+    "Real CMS test-environment mutations",
+    "Changed-code Preview",
+    "Representative INP and field web vitals",
+    "Population p50/p95 and billing savings",
+    "AI DB connection/SQL/lock decomposition"
+  ],
+  "sourceSha256": {
+    "apps/web/next.config.ts": "4223c3c134dcb1ad3e7a9fc901c33f667fc5b0af37419513010821e2c7d6b092",
+    "apps/web/src/app/page.tsx": "58c5d4280350114e07f136f7c88eaeafc51b1821f8d6e2a3313c8a47a31b2065",
+    "apps/web/src/components/home-hero-video.tsx": "c01a7c1d18f46ebc34183656c82ddb364314a795ffc4dcbc4dc4d22b675a1cc3",
+    "apps/web/src/modules/destination/destination-search.test.ts": "d22f9130a01b59404ac692f189a275a42a0e583b81521a20fde36774758e5a4c",
+    "apps/web/src/modules/destination/public-destination-list.ts": "20abbead7e4f139e28e17a88e9f62344cf0af5f633ad6d034c006abf4395304a",
+    "apps/web/tsconfig.json": "83f663637434e303cf2be39f7fc81f479ff82a0b917177722088f695d437937a",
+    "apps/web/public/images/ha-giang-highland-poster.webp": "6fcf669ec0aff7f99c839e5f5b85ce30074db90119e43baa420e61b20f822923",
+    "apps/web/src/modules/destination/public-home-destinations.ts": "f69ba2f4356a616d7b7d0bb83d5a511c8df6ccee7a9e833be2d98ce15a153e7b",
+    "apps/web/src/modules/destination/public-home-destinations.vitest.test.ts": "2e394768694dab0b1bdf6d2aba47afbb7d45dfa20424b452a9c6d0280e2c534c",
+    "scripts/performance/README.md": "deff6e45b30a90606580a1c28d7f7736707aca00e6add7d4571ddb58417c6f5c",
+    "scripts/performance/browser-baseline.mjs": "17257c1d2ece528ff0e315a7d8b32a58e75a2c9516ea5ce78d34b65574578eb8",
+    "scripts/performance/browser-regression.mjs": "dcfb4dedda7db5abf752b69e2040deea34cb2fba5e806bbd6d34777632aadd2f",
+    "scripts/performance/database-readonly.ts": "c08a060369cf4de886cf2bd81bf36e1aab967f6d2ec37fcf6cf35bb1275b494f",
+    "scripts/performance/http-baseline.mjs": "3aa0b8e6e0e945eceaf31dfc6cfcd38f60d89da1a28761e65e043ca0169c2fd2",
+    "scripts/performance/interaction-readonly.mjs": "69c17ed5cec259c48cb89fe0275fdaccea173baa9a1ab0fc7860afd9e1a3efc4",
+    "scripts/performance/local-readonly.mjs": "0ee8be33ed751d500dc2d5f3b59b1161dd868540a276223275e8b7bbd1cccb35",
+    "scripts/performance/metrics.mjs": "da0c38975631b0095b2935b164d03778c6683d7e4a77378c268c17a900a685bb",
+    "scripts/performance/metrics.test.mjs": "bb907309740ec6db74b25a810788fab80652c53a9e904f6bbf902a85c0a9a655",
+    "scripts/performance/neon-monitoring-readonly.mjs": "7dcd617f2aa304e203f64601618d4715031495a27f1c42b2fb7e6f1e38ac43ed",
+    "scripts/performance/poster-verification.test.mjs": "c8b81f80301fb5bf1e7cf7e13ff7fe5f88664af03a6be89b47971a5d917798a3",
+    "scripts/performance/tsconfig.json": "54748a741fa431a2d07baf36e9a0f684b86260218f72768a70b083864c527655"
+  }
+}

@@ -1,6 +1,7 @@
 import type { QaCompletedTurn, QaPublicCitation } from "./qa-contract";
 import type { QaResolvedContext } from "./qa-destination-context";
 import type { QaSourceReview, QaSourceDecision } from "./qa-source-sufficiency";
+import type { QaQuestionPlan } from "./qa-question-plan";
 
 // Server-internal only. Never serialize this registry to the browser.
 export type QaEvidence = {
@@ -24,11 +25,13 @@ export type QaGenerationInput = {
   signal?: AbortSignal;
   sourceSufficiency?: QaSourceDecision;
   sourceReview?: QaSourceReview;
+  questionPlan?: QaQuestionPlan;
 };
 export type QaAnswer =
-  | Pick<Extract<QaCompletedTurn, { status: "ANSWERED" }>, "status" | "answerParts" | "citations" | "unansweredAspects">
-  | Pick<Extract<QaCompletedTurn, { status: "PARTIAL" }>, "status" | "answerParts" | "citations" | "unansweredAspects">
-  | Pick<Extract<QaCompletedTurn, { status: "INSUFFICIENT_SOURCE" }>, "status" | "answerParts" | "citations" | "message">
+  | Pick<Extract<QaCompletedTurn, { status: "CONVERSATIONAL" }>, "status" | "answerParts" | "citations" | "message">
+  | Pick<Extract<QaCompletedTurn, { status: "ANSWERED" }>, "status" | "answerParts" | "citations" | "unansweredAspects" | "presentation" | "answerMode">
+  | Pick<Extract<QaCompletedTurn, { status: "PARTIAL" }>, "status" | "answerParts" | "citations" | "unansweredAspects" | "presentation" | "answerMode">
+  | Pick<Extract<QaCompletedTurn, { status: "INSUFFICIENT_SOURCE" }>, "status" | "answerParts" | "citations" | "message" | "reason">
   | Pick<Extract<QaCompletedTurn, { status: "CLARIFICATION_REQUIRED" }>, "status" | "answerParts" | "citations" | "clarificationQuestion">;
 export interface QaRetriever {
   retrieve(question: string, history: readonly QaHistoryTurn[], signal?: AbortSignal, context?: QaResolvedContext): Promise<QaEvidence[]>;

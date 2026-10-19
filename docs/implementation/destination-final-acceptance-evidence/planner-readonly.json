@@ -1,0 +1,63 @@
+{
+  "checkedAt": "2026-10-18T03:10:42.695Z",
+  "identities": [
+    {
+      "side": "source",
+      "project": "summer-unit-95870477",
+      "branch": "br-aged-hat-b3o6hg9p",
+      "endpoint": "ep-purple-pond-b3xujb8o",
+      "database": "neondb",
+      "status": "VERIFIED_BY_API"
+    },
+    {
+      "side": "target",
+      "project": "summer-unit-95870477",
+      "branch": "br-cold-dew-b3h270wp",
+      "endpoint": "ep-blue-art-b3v3vr4h",
+      "database": "neondb",
+      "status": "VERIFIED_BY_API"
+    }
+  ],
+  "readOnly": true,
+  "repositoryReadStatus": "PASS",
+  "count": 3,
+  "ids": [
+    "cmv97lcrq0016z09ws0o74lqp",
+    "cmv9fcwo1000be89w3yxz3mqu",
+    "cmvanjc6p000f7w9wyuydna52"
+  ],
+  "recheckMatches": true,
+  "runtimeRegistryVerified": false,
+  "candidates": [
+    {
+      "id": "cmv97lcrq0016z09ws0o74lqp",
+      "name": "Cao nguyên đá Đồng Văn",
+      "visibility": "VISIBLE",
+      "suggestedDurationMinutes": null,
+      "minimumDurationMinutes": null,
+      "openingDayCount": 7,
+      "unknownDays": 7
+    },
+    {
+      "id": "cmv9fcwo1000be89w3yxz3mqu",
+      "name": "Di tích lịch sử Căng Bắc Mê",
+      "visibility": "VISIBLE",
+      "suggestedDurationMinutes": 60,
+      "minimumDurationMinutes": 45,
+      "openingDayCount": 7,
+      "unknownDays": 7
+    },
+    {
+      "id": "cmvanjc6p000f7w9wyuydna52",
+      "name": "Chợ tình Khâu Vai",
+      "visibility": "VISIBLE",
+      "suggestedDurationMinutes": null,
+      "minimumDurationMinutes": null,
+      "openingDayCount": 7,
+      "unknownDays": 7
+    }
+  ],
+  "proposalCalls": 0,
+  "routesCalls": 0,
+  "tripWrites": 0
+}

@@ -1,0 +1,905 @@
+{
+  "measuredAt": "2026-10-18T09:36:07.349Z",
+  "mode": "after",
+  "equivalence": {
+    "home": true,
+    "list": true
+  },
+  "identities": [
+    {
+      "side": "source",
+      "project": "summer-unit-95870477",
+      "branch": "br-aged-hat-b3o6hg9p",
+      "endpoint": "ep-purple-pond-b3xujb8o",
+      "database": "neondb",
+      "status": "VERIFIED_BY_API"
+    },
+    {
+      "side": "target",
+      "project": "summer-unit-95870477",
+      "branch": "br-cold-dew-b3h270wp",
+      "endpoint": "ep-blue-art-b3v3vr4h",
+      "database": "neondb",
+      "status": "VERIFIED_BY_API"
+    }
+  ],
+  "readOnly": true,
+  "databaseWrites": 0,
+  "method": "Actual PrismaNeon adapter; verified default_transaction_read_only=on; sequential 5 samples, pool max2; paired after mode alternates old/new ordering; warm-read mixed; statement_timeout10s; no raw SQL parameters retained",
+  "observations": [
+    {
+      "kind": "list-before-paired",
+      "elapsedMs": 593,
+      "queryCount": 3,
+      "queries": [
+        {
+          "durationMs": 71.78239999999914
+        },
+        {
+          "durationMs": 152.66139999999996
+        },
+        {
+          "durationMs": 501.84819999999945
+        }
+      ],
+      "resultBytes": 1233,
+      "resultHash": "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909"
+    },
+    {
+      "kind": "list-after-paired",
+      "elapsedMs": 316,
+      "queryCount": 2,
+      "queries": [
+        {
+          "durationMs": 169.52779999999984
+        },
+        {
+          "durationMs": 140.1850999999997
+        }
+      ],
+      "resultBytes": 1233,
+      "resultHash": "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909"
+    },
+    {
+      "kind": "home-before-paired",
+      "elapsedMs": 466,
+      "queryCount": 4,
+      "queries": [
+        {
+          "durationMs": 75.55799999999999
+        },
+        {
+          "durationMs": 197.29120000000057
+        },
+        {
+          "durationMs": 77.6221999999998
+        },
+        {
+          "durationMs": 181.23130000000037
+        }
+      ],
+      "resultBytes": 1721,
+      "resultHash": "7064c8ef6f1a44be82868fa6e814d2f17b076a6ab4c0b18b9d14c34bdfa46b12"
+    },
+    {
+      "kind": "home-after-paired",
+      "elapsedMs": 213,
+      "queryCount": 2,
+      "queries": [
+        {
+          "durationMs": 136.28709999999955
+        },
+        {
+          "durationMs": 70.41550000000007
+        }
+      ],
+      "resultBytes": 1721,
+      "resultHash": "7064c8ef6f1a44be82868fa6e814d2f17b076a6ab4c0b18b9d14c34bdfa46b12"
+    },
+    {
+      "kind": "public-list-filtered",
+      "elapsedMs": 504,
+      "queryCount": 3,
+      "queries": [
+        {
+          "durationMs": 331.04140000000007
+        },
+        {
+          "durationMs": 332.6410999999998
+        },
+        {
+          "durationMs": 166.27309999999943
+        }
+      ],
+      "resultBytes": 513,
+      "resultHash": "def3ea3b5318975b879d64c3aeb650cffa5afa8c3151ec43333eaaae23de2658"
+    },
+    {
+      "kind": "home-after-paired",
+      "elapsedMs": 157,
+      "queryCount": 2,
+      "queries": [
+        {
+          "durationMs": 81.41400000000067
+        },
+        {
+          "durationMs": 71.41520000000037
+        }
+      ],
+      "resultBytes": 1721,
+      "resultHash": "7064c8ef6f1a44be82868fa6e814d2f17b076a6ab4c0b18b9d14c34bdfa46b12"
+    },
+    {
+      "kind": "home-before-paired",
+      "elapsedMs": 200,
+      "queryCount": 4,
+      "queries": [
+        {
+          "durationMs": 63.217899999999645
+        },
+        {
+          "durationMs": 70.10049999999956
+        },
+        {
+          "durationMs": 70.1225999999997
+        },
+        {
+          "durationMs": 63.90450000000055
+        }
+      ],
+      "resultBytes": 1721,
+      "resultHash": "7064c8ef6f1a44be82868fa6e814d2f17b076a6ab4c0b18b9d14c34bdfa46b12"
+    },
+    {
+      "kind": "list-after-paired",
+      "elapsedMs": 138,
+      "queryCount": 2,
+      "queries": [
+        {
+          "durationMs": 60.23710000000028
+        },
+        {
+          "durationMs": 75.96420000000035
+        }
+      ],
+      "resultBytes": 1233,
+      "resultHash": "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909"
+    },
+    {
+      "kind": "list-before-paired",
+      "elapsedMs": 136,
+      "queryCount": 3,
+      "queries": [
+        {
+          "durationMs": 64.98359999999957
+        },
+        {
+          "durationMs": 71.9350000000004
+        },
+        {
+          "durationMs": 68.92049999999927
+        }
+      ],
+      "resultBytes": 1233,
+      "resultHash": "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909"
+    },
+    {
+      "kind": "public-list-filtered",
+      "elapsedMs": 138,
+      "queryCount": 3,
+      "queries": [
+        {
+          "durationMs": 72.9944000000005
+        },
+        {
+          "durationMs": 74.46100000000024
+        },
+        {
+          "durationMs": 61.798000000000684
+        }
+      ],
+      "resultBytes": 513,
+      "resultHash": "def3ea3b5318975b879d64c3aeb650cffa5afa8c3151ec43333eaaae23de2658"
+    },
+    {
+      "kind": "list-before-paired",
+      "elapsedMs": 151,
+      "queryCount": 3,
+      "queries": [
+        {
+          "durationMs": 68.89660000000003
+        },
+        {
+          "durationMs": 70.58849999999984
+        },
+        {
+          "durationMs": 78.14570000000094
+        }
+      ],
+      "resultBytes": 1233,
+      "resultHash": "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909"
+    },
+    {
+      "kind": "list-after-paired",
+      "elapsedMs": 139,
+      "queryCount": 2,
+      "queries": [
+        {
+          "durationMs": 74.27410000000054
+        },
+        {
+          "durationMs": 62.94210000000021
+        }
+      ],
+      "resultBytes": 1233,
+      "resultHash": "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909"
+    },
+    {
+      "kind": "home-before-paired",
+      "elapsedMs": 227,
+      "queryCount": 4,
+      "queries": [
+        {
+          "durationMs": 74.71639999999934
+        },
+        {
+          "durationMs": 75.41009999999915
+        },
+        {
+          "durationMs": 72.89509999999973
+        },
+        {
+          "durationMs": 76.77429999999913
+        }
+      ],
+      "resultBytes": 1721,
+      "resultHash": "7064c8ef6f1a44be82868fa6e814d2f17b076a6ab4c0b18b9d14c34bdfa46b12"
+    },
+    {
+      "kind": "home-after-paired",
+      "elapsedMs": 139,
+      "queryCount": 2,
+      "queries": [
+        {
+          "durationMs": 63.38080000000082
+        },
+        {
+          "durationMs": 73.53709999999955
+        }
+      ],
+      "resultBytes": 1721,
+      "resultHash": "7064c8ef6f1a44be82868fa6e814d2f17b076a6ab4c0b18b9d14c34bdfa46b12"
+    },
+    {
+      "kind": "public-list-filtered",
+      "elapsedMs": 153,
+      "queryCount": 3,
+      "queries": [
+        {
+          "durationMs": 67.23619999999937
+        },
+        {
+          "durationMs": 71.14639999999963
+        },
+        {
+          "durationMs": 80.3830999999991
+        }
+      ],
+      "resultBytes": 513,
+      "resultHash": "def3ea3b5318975b879d64c3aeb650cffa5afa8c3151ec43333eaaae23de2658"
+    },
+    {
+      "kind": "home-after-paired",
+      "elapsedMs": 158,
+      "queryCount": 2,
+      "queries": [
+        {
+          "durationMs": 80.31450000000041
+        },
+        {
+          "durationMs": 75.54119999999966
+        }
+      ],
+      "resultBytes": 1721,
+      "resultHash": "7064c8ef6f1a44be82868fa6e814d2f17b076a6ab4c0b18b9d14c34bdfa46b12"
+    },
+    {
+      "kind": "home-before-paired",
+      "elapsedMs": 200,
+      "queryCount": 4,
+      "queries": [
+        {
+          "durationMs": 61.3695000000007
+        },
+        {
+          "durationMs": 65.35890000000109
+        },
+        {
+          "durationMs": 61.60279999999875
+        },
+        {
+          "durationMs": 70.4423999999999
+        }
+      ],
+      "resultBytes": 1721,
+      "resultHash": "7064c8ef6f1a44be82868fa6e814d2f17b076a6ab4c0b18b9d14c34bdfa46b12"
+    },
+    {
+      "kind": "list-after-paired",
+      "elapsedMs": 160,
+      "queryCount": 2,
+      "queries": [
+        {
+          "durationMs": 81.4385000000002
+        },
+        {
+          "durationMs": 77.08110000000124
+        }
+      ],
+      "resultBytes": 1233,
+      "resultHash": "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909"
+    },
+    {
+      "kind": "list-before-paired",
+      "elapsedMs": 140,
+      "queryCount": 3,
+      "queries": [
+        {
+          "durationMs": 69.11899999999878
+        },
+        {
+          "durationMs": 72.25330000000031
+        },
+        {
+          "durationMs": 66.90140000000065
+        }
+      ],
+      "resultBytes": 1233,
+      "resultHash": "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909"
+    },
+    {
+      "kind": "public-list-filtered",
+      "elapsedMs": 149,
+      "queryCount": 3,
+      "queries": [
+        {
+          "durationMs": 62.77440000000024
+        },
+        {
+          "durationMs": 64.43219999999928
+        },
+        {
+          "durationMs": 79.21709999999985
+        }
+      ],
+      "resultBytes": 513,
+      "resultHash": "def3ea3b5318975b879d64c3aeb650cffa5afa8c3151ec43333eaaae23de2658"
+    },
+    {
+      "kind": "list-before-paired",
+      "elapsedMs": 143,
+      "queryCount": 3,
+      "queries": [
+        {
+          "durationMs": 70.03999999999905
+        },
+        {
+          "durationMs": 70.6768000000011
+        },
+        {
+          "durationMs": 70.86349999999948
+        }
+      ],
+      "resultBytes": 1233,
+      "resultHash": "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909"
+    },
+    {
+      "kind": "list-after-paired",
+      "elapsedMs": 147,
+      "queryCount": 2,
+      "queries": [
+        {
+          "durationMs": 77.93169999999918
+        },
+        {
+          "durationMs": 67.53120000000126
+        }
+      ],
+      "resultBytes": 1233,
+      "resultHash": "a4c63675bac47586433abe2b45b95d1de0a9fd75cfeeecbe4c4b7cd3e208e909"
+    },
+    {
+      "kind": "home-before-paired",
+      "elapsedMs": 222,
+      "queryCount": 4,
+      "queries": [
+        {
+          "durationMs": 69.11789999999928
+        },
+        {
+          "durationMs": 77.54739999999947
+        },
+        {
+          "durationMs": 72.54089999999997
+        },
+        {
+          "durationMs": 74.78399999999965
+        }
+      ],
+      "resultBytes": 1721,
+      "resultHash": "7064c8ef6f1a44be82868fa6e814d2f17b076a6ab4c0b18b9d14c34bdfa46b12"
+    },
+    {
+      "kind": "home-after-paired",
+      "elapsedMs": 157,
+      "queryCount": 2,
+      "queries": [
+        {
+          "durationMs": 74.56339999999909
+        },
+        {
+          "durationMs": 80.47030000000086
+        }
+      ],
+      "resultBytes": 1721,
+      "resultHash": "7064c8ef6f1a44be82868fa6e814d2f17b076a6ab4c0b18b9d14c34bdfa46b12"
+    },
+    {
+      "kind": "public-list-filtered",
+      "elapsedMs": 143,
+      "queryCount": 3,
+      "queries": [
+        {
+          "durationMs": 65.59859999999935
+        },
+        {
+          "durationMs": 71.4369000000006
+        },
+        {
+          "durationMs": 69.96100000000115
+        }
+      ],
+      "resultBytes": 513,
+      "resultHash": "def3ea3b5318975b879d64c3aeb650cffa5afa8c3151ec43333eaaae23de2658"
+    }
+  ],
+  "summary": [
+    {
+      "kind": "list-before-paired",
+      "elapsedMs": {
+        "n": 5,
+        "p50": 143,
+        "p95": 593,
+        "min": 136,
+        "max": 593
+      },
+      "queryCounts": [
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    },
+    {
+      "kind": "list-after-paired",
+      "elapsedMs": {
+        "n": 5,
+        "p50": 147,
+        "p95": 316,
+        "min": 138,
+        "max": 316
+      },
+      "queryCounts": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ]
+    },
+    {
+      "kind": "home-before-paired",
+      "elapsedMs": {
+        "n": 5,
+        "p50": 222,
+        "p95": 466,
+        "min": 200,
+        "max": 466
+      },
+      "queryCounts": [
+        4,
+        4,
+        4,
+        4,
+        4
+      ]
+    },
+    {
+      "kind": "home-after-paired",
+      "elapsedMs": {
+        "n": 5,
+        "p50": 157,
+        "p95": 213,
+        "min": 139,
+        "max": 213
+      },
+      "queryCounts": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ]
+    },
+    {
+      "kind": "public-list-filtered",
+      "elapsedMs": {
+        "n": 5,
+        "p50": 149,
+        "p95": 504,
+        "min": 138,
+        "max": 504
+      },
+      "queryCounts": [
+        3,
+        3,
+        3,
+        3,
+        3
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "state": "active",
+      "count": 1
+    },
+    {
+      "state": "idle",
+      "count": 2
+    }
+  ],
+  "extensions": [
+    {
+      "extname": "vector",
+      "extversion": "0.8.6"
+    }
+  ],
+  "tables": [
+    {
+      "relname": "content_media",
+      "n_live_tup": 13,
+      "n_dead_tup": 13,
+      "seq_scan": 258,
+      "idx_scan": 69
+    },
+    {
+      "relname": "destination",
+      "n_live_tup": 3,
+      "n_dead_tup": 3,
+      "seq_scan": 146,
+      "idx_scan": 756
+    },
+    {
+      "relname": "rag_chunk",
+      "n_live_tup": 137,
+      "n_dead_tup": 0,
+      "seq_scan": 83,
+      "idx_scan": 1934
+    },
+    {
+      "relname": "rag_chunk_embedding",
+      "n_live_tup": 137,
+      "n_dead_tup": 0,
+      "seq_scan": 333,
+      "idx_scan": 4456
+    },
+    {
+      "relname": "rag_document",
+      "n_live_tup": 3,
+      "n_dead_tup": 6,
+      "seq_scan": 65,
+      "idx_scan": 938
+    }
+  ],
+  "plans": [
+    {
+      "label": "visible-destinations",
+      "plan": [
+        {
+          "QUERY PLAN": [
+            {
+              "Plan": {
+                "Node Type": "Sort",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 8.16,
+                "Total Cost": 8.17,
+                "Plan Rows": 1,
+                "Plan Width": 902,
+                "Actual Startup Time": 0.017,
+                "Actual Total Time": 0.018,
+                "Actual Rows": 3,
+                "Actual Loops": 1,
+                "Disabled": false,
+                "Sort Key": [
+                  "name",
+                  "id"
+                ],
+                "Sort Method": "quicksort",
+                "Sort Space Used": 25,
+                "Sort Space Type": "Memory",
+                "Shared Hit Blocks": 3,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Index Scan",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Scan Direction": "Forward",
+                    "Index Name": "destination_visibility_idx",
+                    "Relation Name": "destination",
+                    "Alias": "destination",
+                    "Startup Cost": 0.14,
+                    "Total Cost": 8.15,
+                    "Plan Rows": 1,
+                    "Plan Width": 902,
+                    "Actual Startup Time": 0.008,
+                    "Actual Total Time": 0.01,
+                    "Actual Rows": 3,
+                    "Actual Loops": 1,
+                    "Disabled": false,
+                    "Index Cond": "(visibility = 'VISIBLE'::\"DestinationVisibility\")",
+                    "Rows Removed by Index Recheck": 0,
+                    "Index Searches": 1,
+                    "Shared Hit Blocks": 3,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0
+                  }
+                ]
+              },
+              "Planning": {
+                "Shared Hit Blocks": 0,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              },
+              "Planning Time": 0.067,
+              "Triggers": [],
+              "Execution Time": 0.039
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "filter-options",
+      "plan": [
+        {
+          "QUERY PLAN": [
+            {
+              "Plan": {
+                "Node Type": "Unique",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 8.16,
+                "Total Cost": 8.17,
+                "Plan Rows": 1,
+                "Plan Width": 436,
+                "Actual Startup Time": 0.026,
+                "Actual Total Time": 0.028,
+                "Actual Rows": 3,
+                "Actual Loops": 1,
+                "Disabled": false,
+                "Shared Hit Blocks": 3,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Sort",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Startup Cost": 8.16,
+                    "Total Cost": 8.17,
+                    "Plan Rows": 1,
+                    "Plan Width": 436,
+                    "Actual Startup Time": 0.025,
+                    "Actual Total Time": 0.025,
+                    "Actual Rows": 3,
+                    "Actual Loops": 1,
+                    "Disabled": false,
+                    "Sort Key": [
+                      "category",
+                      "area"
+                    ],
+                    "Sort Method": "quicksort",
+                    "Sort Space Used": 25,
+                    "Sort Space Type": "Memory",
+                    "Shared Hit Blocks": 3,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0,
+                    "Plans": [
+                      {
+                        "Node Type": "Index Scan",
+                        "Parent Relationship": "Outer",
+                        "Parallel Aware": false,
+                        "Async Capable": false,
+                        "Scan Direction": "Forward",
+                        "Index Name": "destination_visibility_idx",
+                        "Relation Name": "destination",
+                        "Alias": "destination",
+                        "Startup Cost": 0.14,
+                        "Total Cost": 8.15,
+                        "Plan Rows": 1,
+                        "Plan Width": 436,
+                        "Actual Startup Time": 0.016,
+                        "Actual Total Time": 0.019,
+                        "Actual Rows": 3,
+                        "Actual Loops": 1,
+                        "Disabled": false,
+                        "Index Cond": "(visibility = 'VISIBLE'::\"DestinationVisibility\")",
+                        "Rows Removed by Index Recheck": 0,
+                        "Index Searches": 1,
+                        "Shared Hit Blocks": 3,
+                        "Shared Read Blocks": 0,
+                        "Shared Dirtied Blocks": 0,
+                        "Shared Written Blocks": 0,
+                        "Local Hit Blocks": 0,
+                        "Local Read Blocks": 0,
+                        "Local Dirtied Blocks": 0,
+                        "Local Written Blocks": 0,
+                        "Temp Read Blocks": 0,
+                        "Temp Written Blocks": 0
+                      }
+                    ]
+                  }
+                ]
+              },
+              "Planning": {
+                "Shared Hit Blocks": 0,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              },
+              "Planning Time": 0.077,
+              "Triggers": [],
+              "Execution Time": 0.055
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "label": "rag-eligibility-count",
+      "plan": [
+        {
+          "QUERY PLAN": [
+            {
+              "Plan": {
+                "Node Type": "Aggregate",
+                "Strategy": "Hashed",
+                "Partial Mode": "Simple",
+                "Parallel Aware": false,
+                "Async Capable": false,
+                "Startup Cost": 10.3,
+                "Total Cost": 10.55,
+                "Plan Rows": 20,
+                "Plan Width": 8,
+                "Actual Startup Time": 0.015,
+                "Actual Total Time": 0.016,
+                "Actual Rows": 1,
+                "Actual Loops": 1,
+                "Disabled": false,
+                "Group Key": [
+                  "status"
+                ],
+                "Planned Partitions": 0,
+                "HashAgg Batches": 1,
+                "Peak Memory Usage": 32,
+                "Disk Usage": 0,
+                "Shared Hit Blocks": 1,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0,
+                "Plans": [
+                  {
+                    "Node Type": "Seq Scan",
+                    "Parent Relationship": "Outer",
+                    "Parallel Aware": false,
+                    "Async Capable": false,
+                    "Relation Name": "rag_document",
+                    "Alias": "rag_document",
+                    "Startup Cost": 0,
+                    "Total Cost": 10.2,
+                    "Plan Rows": 20,
+                    "Plan Width": 4,
+                    "Actual Startup Time": 0.007,
+                    "Actual Total Time": 0.008,
+                    "Actual Rows": 3,
+                    "Actual Loops": 1,
+                    "Disabled": false,
+                    "Shared Hit Blocks": 1,
+                    "Shared Read Blocks": 0,
+                    "Shared Dirtied Blocks": 0,
+                    "Shared Written Blocks": 0,
+                    "Local Hit Blocks": 0,
+                    "Local Read Blocks": 0,
+                    "Local Dirtied Blocks": 0,
+                    "Local Written Blocks": 0,
+                    "Temp Read Blocks": 0,
+                    "Temp Written Blocks": 0
+                  }
+                ]
+              },
+              "Planning": {
+                "Shared Hit Blocks": 92,
+                "Shared Read Blocks": 0,
+                "Shared Dirtied Blocks": 0,
+                "Shared Written Blocks": 0,
+                "Local Hit Blocks": 0,
+                "Local Read Blocks": 0,
+                "Local Dirtied Blocks": 0,
+                "Local Written Blocks": 0,
+                "Temp Read Blocks": 0,
+                "Temp Written Blocks": 0
+              },
+              "Planning Time": 0.162,
+              "Triggers": [],
+              "Execution Time": 0.043
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

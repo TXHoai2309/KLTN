@@ -36,7 +36,7 @@ for (const [query, ids] of [
   const f = fixture();
   const data = await listPublicLocations(parsePublicListQuery(new URLSearchParams(query)), f.database);
   assert.deepEqual(data.items.map(item => item.id), ids);
-  assert.equal(f.queries.length, 2);
+  assert.equal(f.queries.length, Object.keys(parsePublicListQuery(new URLSearchParams(query))).length ? 2 : 1);
   for (const input of f.queries) assert.equal(input.where.visibility, "VISIBLE");
   assert.deepEqual(f.queries[0].select, publicLocationSelect);
   assert.deepEqual(f.queries[0].orderBy, [{ name: "asc" }, { id: "asc" }]);

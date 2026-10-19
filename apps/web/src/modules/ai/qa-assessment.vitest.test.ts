@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
-import { createQaGenerator } from "./qa-generation";
+import { createFixtureQaGenerator as createQaGenerator } from "./__fixtures__/qa-generation-wire";
 import { AppError } from "../../server/http/app-error";
 import { createQaAssessor } from "./qa-assessment";
+import { fixtureAssessmentWire } from "./__fixtures__/qa-assessment-wire";
 import { createQaService } from "./qa-service";
 import { createQaHttpHandlers } from "./qa-http";
 import { QA_INSUFFICIENT_SOURCE_MESSAGE } from "./qa-contract";
@@ -17,7 +18,7 @@ function assessmentOutput(status = "SUPPORTED") {
 }
 const envelope = (value: unknown) => Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify(value) } }] });
 function setup(output: unknown = assessmentOutput(), transport?: typeof fetch, generated?: unknown) {
-  const fetcher = vi.fn<typeof fetch>(transport ?? (async () => envelope(output)));
+  const fetcher = vi.fn<typeof fetch>(transport ?? (async (_url, init) => envelope(fixtureAssessmentWire(output, JSON.parse(String(init?.body))))));
   const assessor = createQaAssessor({ apiKey: () => "offline-fixture", fetcher, timeoutMs: 30 });
   const store: QaConversationStore = { reserve: vi.fn(async () => ({ kind: "RESERVED" as const, conversationId: "conv", turnId: "turn", fence: 1, history: [] })),
     complete: vi.fn(async (_p, _r, data) => data), fail: vi.fn(async () => {}), history: vi.fn(async () => []), delete: vi.fn(async () => {}), revokeGuest: vi.fn(async () => {}), cleanup: vi.fn(async () => ({ processed: 0, hasMore: false, lockAcquired: true, lastSuccessfulSweep: null, eligibleBacklogCount: 0, oldestOverdueItem: null, failureCount: 0 })) };
@@ -150,7 +151,7 @@ describe("US23 actual assessment and generation HTTP integration", () => {
 describe("US23 assessor scope and multi-turn boundaries", () => {
   const input: QaGenerationInput = { question: "And its hours?", evidence: [source], context: { type: "GENERAL" }, history: [{ question: "Which region contains Synthetic Alpha?", response: { conversationId: "conv", turnId: "old", turnState: "COMPLETED", context: { type: "GENERAL" }, status: "ANSWERED", answerParts: [{ text: "OLD_FACT_NOT_EVIDENCE opens at nine.", citationIds: ["old_citation"] }], citations: [{ ...source.citation, id: "old_citation" }], unansweredAspects: [] } }] };
   it("history resolves intent but missing current evidence remains missing", async () => {
-    const fetcher = vi.fn<typeof fetch>(async () => envelope(assessmentOutput("MISSING")));
+    const fetcher = vi.fn<typeof fetch>(async (_url, init) => envelope(fixtureAssessmentWire(assessmentOutput("MISSING"), JSON.parse(String(init?.body)))));
     const review = await createQaAssessor({ apiKey: () => "offline-fixture", fetcher }).assess(input);
     expect(review.review.aspects[0]!.status).toBe("MISSING");
     const prompt = String(fetcher.mock.calls[0]?.[1]?.body);
@@ -158,13 +159,13 @@ describe("US23 assessor scope and multi-turn boundaries", () => {
   });
   it("rejects historical quotes even when the model attaches a current citation", async () => {
     const output = assessmentOutput(); output.aspects[0]!.supports[0]!.sentence = "OLD_FACT_NOT_EVIDENCE opens at nine.";
-    const assessor = createQaAssessor({ apiKey: () => "offline-fixture", fetcher: async () => envelope(output) });
+    const assessor = createQaAssessor({ apiKey: () => "offline-fixture", fetcher: async (_url, init) => envelope(fixtureAssessmentWire(output, JSON.parse(String(init?.body)))) });
     await expect(assessor.assess(input)).rejects.toMatchObject({ code: "AI_INVALID_RESPONSE", status: 502 });
   });
   it("does not expose or accept out-of-Destination sentences in the semantic review", async () => {
     const scoped: QaGenerationInput = { ...input, context: { type: "DESTINATION", destinationId: "synthetic_alpha", name: "Synthetic Alpha" }, evidence: [{ ...source, text: sentence + " Other Place opens at nine." }] };
     const output = assessmentOutput(); output.aspects[0]!.supports[0]!.sentence = "Other Place opens at nine.";
-    const fetcher = vi.fn<typeof fetch>(async () => envelope(output));
+    const fetcher = vi.fn<typeof fetch>(async (_url, init) => envelope(fixtureAssessmentWire(output, JSON.parse(String(init?.body)))));
     await expect(createQaAssessor({ apiKey: () => "offline-fixture", fetcher }).assess(scoped)).rejects.toMatchObject({ code: "AI_INVALID_RESPONSE" });
     expect(String(fetcher.mock.calls[0]?.[1]?.body)).not.toContain("Other Place opens at nine.");
   });
