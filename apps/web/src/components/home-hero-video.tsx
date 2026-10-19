@@ -57,7 +57,7 @@ export default function HomeHeroVideo({
         loop
         muted
         playsInline
-        preload="metadata"
+        preload="auto"
       />
 
       <div className="home-scene-controls">
