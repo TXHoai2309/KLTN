@@ -3,5 +3,5 @@ import { editorialAiClient } from "@/modules/destination-editorial/editorial-ser
 import { createEditorialProposalHandler } from "@/modules/destination-editorial/editorial-http";
 
 export const runtime = "nodejs";
-export const maxDuration = 210;
+export const maxDuration = 270;
 export const POST = createEditorialProposalHandler(destinationDependencies, editorialAiClient);
