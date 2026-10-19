@@ -103,3 +103,20 @@ Both owned users and both owned TEST Destinations were cleaned from Development.
 No Production writes, push, branch promotion or Production release. Code readiness
 does not imply DATA_READY or full acceptance. See
 [registry report](../implementation/us28-production-registry-fix.md).
+
+## Merge build regression fix — 2026-10-19
+
+Merge `b0a6dc1` reintroduced the obsolete inline `createStadiaRoutesProvider`
+alongside the shared adapter, causing Turbopack's duplicate-definition error.
+Removed that duplicate and retained delegation to `requestStadiaRoute`, including
+the existing deadline, cancellation, response bounds and missing-data behavior.
+Aligned the older CAR/MOTORCYCLE boundary assertion with this story's existing
+unrounded duration contract (1800.5 seconds remains 1800.5).
+
+Validation: Planner/Validator/Save Vitest suites 201 PASS, 3 PostgreSQL integration
+tests SKIP (test database not configured); root `npm run check-types` PASS.
+`npm run build` completed the Next.js production build and reported 1 successful
+task; its idle Turbo wrapper then hung and was stopped (wrapper exit 1).
+Production-mode build used a local placeholder database URL and disabled QA
+runtime gates. `git diff --check` PASS. No schema/migration or
+runtime environment change; no live provider/browser check, push or deployment.

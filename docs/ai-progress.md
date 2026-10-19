@@ -3396,3 +3396,20 @@ writes, model calls, push, merge or Production deploy; old READY commit70a810f
 retained. Preview map/final E2E block release; business-data gaps separately block
 fully verified proposals. Overall PARTIAL / NO_GO. See
 [full report](implementation/us28-production-registry-fix.md).
+
+### 2026-10-19 — Fix duplicate Stadia provider after duybinh merge
+
+- **Branch/baseline:** TXH at merge `b0a6dc1`; owner requested the build fix.
+- **Change:** Removed the obsolete duplicate `createStadiaRoutesProvider` from
+  `planner-routes.ts`; retained the shared `requestStadiaRoute` adapter specified
+  by US-28. Updated the older boundary assertion to preserve fractional seconds
+  rather than round them, matching the existing story and shared adapter tests.
+- **Validation:** Focused Planner/Validator/Save Vitest 201 PASS / 3 PostgreSQL
+  integration SKIP (test database not configured); root `npm run check-types`
+  and `git diff --check` PASS. `npm run build` finished the Next.js production
+  build and reported 1 successful task; idle Turbo wrapper hung afterward and
+  was stopped (wrapper exit 1). Build used a local placeholder database URL with
+  QA runtime gates disabled. Reviewed the complete
+  diff: only the routing fix, assertion and handoff docs; no secrets added.
+- **Limits:** No schema/migration or runtime environment change. No live provider
+  or browser smoke test; no commit, push or deployment performed.
