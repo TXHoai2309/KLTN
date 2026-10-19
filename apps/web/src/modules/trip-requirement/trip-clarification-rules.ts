@@ -5,7 +5,6 @@ import {
   MIN_DURATION_DAYS,
   PACE_OPTIONS,
   TRANSPORT_OPTIONS,
-  isValidCalendarDate,
 } from "./trip-requirement-contract";
 import type { CheckIssue, CheckResult } from "./trip-requirement-check";
 import type {
@@ -15,6 +14,7 @@ import type {
   PreferenceExtractionStatus,
 } from "../preference-extraction/preference-extraction-contract";
 import { classifyTransportText } from "./trip-transport-policy";
+import { explicitTripDatesInSource } from "./explicit-trip-date";
 
 /** The canonical seven-field order shared by extraction, review and check. */
 export const CLARIFICATION_FIELD_VALUES = [
@@ -267,25 +267,6 @@ function dayNumbersInSource(sourceText: string): { values: number[]; hasRange: b
   };
 }
 
-function absoluteDatesInSource(sourceText: string): string[] {
-  const dates = new Set<string>();
-  const add = (year: string, month: string, day: string) => {
-    const candidate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-    if (isValidCalendarDate(candidate)) dates.add(candidate);
-  };
-
-  for (const match of sourceText.matchAll(/(?<!\d)(\d{4})-(\d{1,2})-(\d{1,2})(?!\d)/gu)) {
-    add(match[1], match[2], match[3]);
-  }
-  for (const match of sourceText.matchAll(/(?<!\d)(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?!\d)/gu)) {
-    add(match[3], match[2], match[1]);
-  }
-  for (const match of sourceText.matchAll(/ngày\s+(\d{1,2})\s+tháng\s+(\d{1,2})\s+năm\s+(\d{4})(?!\d)/giu)) {
-    add(match[3], match[2], match[1]);
-  }
-  return [...dates];
-}
-
 function downgradedField<T>(
   field: { sourceText: string; note: string | null },
   note: string,
@@ -421,7 +402,7 @@ export function downgradeContradictions(extraction: ExtractionResult): Extractio
   }
 
   const startDate = fields.startDate;
-  if (startDate.status === "EXTRACTED" && absoluteDatesInSource(startDate.sourceText).length > 1) {
+  if (startDate.status === "EXTRACTED" && explicitTripDatesInSource(startDate.sourceText).length > 1) {
     fields.startDate = downgradedField(
       startDate,
       "Ngày bắt đầu có nhiều lựa chọn; vui lòng chọn một ngày cụ thể.",

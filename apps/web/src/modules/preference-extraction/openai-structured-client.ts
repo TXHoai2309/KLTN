@@ -203,6 +203,9 @@ export function createOpenAiStructuredClient(
               signal: controller.signal,
               body: JSON.stringify({
                 model,
+                // GPT-6 Luna defaults to reasoning, where temperature is unsupported.
+                // Use its documented non-reasoning mode for bounded extraction.
+                ...(/^gpt-6-luna(?:-|$)/u.test(model) ? { reasoning_effort: "none" } : {}),
                 messages: [
                   { role: "system", content: input.system },
                   { role: "user", content: input.user },
@@ -237,14 +240,18 @@ export function createOpenAiStructuredClient(
             if (response.status === 429) {
               throw new PreferenceExtractionError("PROVIDER_RATE_LIMITED", true, {
                 retryAfterMs: delay,
+                providerStatus: response.status,
               });
             }
             if (response.status === 408 || response.status >= 500) {
               throw new PreferenceExtractionError("PROVIDER_UNAVAILABLE", true, {
                 retryAfterMs: delay,
+                providerStatus: response.status,
               });
             }
-            throw new PreferenceExtractionError("PROVIDER_REJECTED", false);
+            throw new PreferenceExtractionError("PROVIDER_REJECTED", false, {
+              providerStatus: response.status,
+            });
           }
 
           let responseText: string;

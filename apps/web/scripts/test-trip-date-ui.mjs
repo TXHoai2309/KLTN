@@ -1,0 +1,81 @@
+import { build } from 'esbuild';
+import { createServer } from 'node:http';
+import { createRequire } from 'node:module';
+import { readFile, mkdir } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import assert from 'node:assert/strict';
+const require = createRequire(import.meta.url);
+const { chromium } = require(require.resolve('playwright', { paths: [process.env.PLAYWRIGHT_MODULE_DIR] }));
+const web = fileURLToPath(new URL('..', import.meta.url));
+const result = await build({ absWorkingDir: web, stdin: { resolveDir: web, loader: 'tsx', contents: `
+import React, {useState} from 'react';
+import {createRoot} from 'react-dom/client';
+import {StartDateEditor} from './src/app/trips/new/trip-field-editors';
+import ExtractionResultPanel from './src/app/trips/new/extraction-result-panel';
+import TripReviewScreen from './src/app/trips/new/trip-review-screen';
+import {draftFromExtraction} from './src/modules/trip-requirement/trip-requirement-review';
+import {validateRequiredFields} from './src/modules/trip-requirement/trip-requirement-form-logic';
+import {TripSummaryBar, ItineraryDayTabs} from './src/components/trip-planner/planner-presentation';
+const missing={status:'MISSING',value:null,sourceText:null,note:null};
+const extraction={fields:{startDate:{status:'EXTRACTED',value:'2026-12-20',sourceText:'20/12/2026',note:null},durationDays:missing,transport:missing,companions:missing,interests:missing,pace:missing,mobilityConstraints:missing},clarifications:[],missingRequired:['durationDays','transport'],meta:{model:'test-model',latencyMs:0,inputLength:10}};
+function App(){const [value,setValue]=useState('2026-12-20');const [error,setError]=useState();return <main className='trip-form-page' lang='vi'><div className='trip-form-card'><h1>Ngày chuyến đi</h1><form noValidate onSubmit={e=>{e.preventDefault();setError(validateRequiredFields({startDate:value,durationDays:'3',transport:'CAR',companionType:'',companionGroupSize:'',interests:[],pace:'',mobilityFlags:[],mobilityNote:''}).startDate)}}><StartDateEditor value={value} onChange={setValue} error={error} errorId='date-error'/><button type='submit'>Kiểm tra ngày</button><button type='button' onClick={()=>{setValue('2027-01-02');setError(undefined)}}>Điền ngày AI</button><output id='canonical'>{value}</output></form><ExtractionResultPanel result={extraction} suggestions={{}} onFillForm={()=>{}}/><TripReviewScreen draft={draftFromExtraction(extraction)} readiness={{preliminary:false,finalConfirmation:false,missing:["durationDays","transport"],startDateIssue:null,usesRelativeDays:false}} onBackToForm={()=>{}}/><TripSummaryBar requirement={{startDate:'2026-12-20',durationDays:3,transport:'CAR',companions:null,interests:[],pace:null,mobilityConstraints:null}} days={[{day:1,date:'2026-12-20'},{day:3,date:'2026-12-22'}]}/><ItineraryDayTabs days={[{day:1,date:'2026-12-20'}]} selectedDay={1} onChange={()=>{}}/></div></main>};createRoot(document.getElementById('app')).render(<App/>);` }, bundle:true, write:false, jsx:'automatic', define:{'process.env.NODE_ENV':'"development"'}, outdir:'.cache/trip-date-ui' });
+const css = (await Promise.all(['../src/app/trips/new/trip-form.css','../src/components/trip-planner/trip-planner.css'].map(path=>readFile(new URL(path,import.meta.url),'utf8')))).join('\n');
+const bundle = result.outputFiles.find(file=>file.path.endsWith('.js')).text;
+const server = createServer((req,res)=>{res.setHeader('Content-Type',req.url==='/app.js'?'text/javascript; charset=utf-8':'text/html; charset=utf-8');res.end(req.url==='/app.js'?bundle:`<!doctype html><html lang='vi'><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><style>*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif}input{width:100%;padding:12px;border:1px solid #cbd8cf;border-radius:8px}button{min-height:44px} ${css}</style><div id='app'></div><script src='/app.js'></script></html>`)});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+const browser=await chromium.launch({headless:true, channel: process.env.PLAYWRIGHT_CHANNEL});
+try {
+ const page=await browser.newPage({locale:'en-US',viewport:{width:1280,height:900}});
+ const errors=[];page.on('pageerror',error=>errors.push(error.message));
+ await page.goto(`http://127.0.0.1:${server.address().port}`);
+ const input=page.locator('#trip-start-date').first();
+ await input.waitFor();
+ assert.equal(await input.inputValue(),'20/12/2026');
+ assert.equal(await input.getAttribute('type'),'text');
+ assert.equal(await page.locator('.trip-extraction-value').first().innerText(),'20/12/2026');
+ assert.ok((await page.locator('.planner-summary').innerText()).includes('20/12/2026 – 22/12/2026'));
+ assert.ok((await page.locator('.planner-day-tabs').innerText()).includes('20/12/2026'));
+ const review=page.locator('#trip-review-field-startDate');
+ assert.equal(await review.locator('.trip-review-value').innerText(),'20/12/2026');
+ await review.getByRole('button',{name:'Sửa Ngày bắt đầu',exact:true}).click();
+ const reviewInput=review.locator('input');
+ assert.equal(await reviewInput.inputValue(),'20/12/2026');
+ await reviewInput.fill('21/12/2026');
+ await review.getByRole('button',{name:'Lưu thay đổi',exact:true}).click();
+ assert.equal(await review.locator('.trip-review-value').innerText(),'21/12/2026');
+ await review.getByRole('button',{name:'Sửa Ngày bắt đầu',exact:true}).click();
+ await reviewInput.fill('22/12/2026');
+ await reviewInput.press('Escape');
+ assert.equal(await review.locator('.trip-review-value').innerText(),'21/12/2026');
+ await page.getByRole('button',{name:'Điền ngày AI',exact:true}).click();
+ assert.equal(await input.inputValue(),'02/01/2027');
+ await input.fill('05/04/2027');
+ assert.equal(await page.locator('#canonical').innerText(),'2027-04-05');
+ await input.fill('31/02/2027');
+ await page.getByRole('button',{name:'Kiểm tra ngày',exact:true}).click();
+ assert.equal(await input.inputValue(),'31/02/2027');
+ assert.equal(await input.getAttribute('aria-invalid'),'true');
+ assert.ok((await page.locator('#date-error').innerText()).length>0);
+ await input.fill('');
+ await page.getByRole('button',{name:'Kiểm tra ngày',exact:true}).click();
+ assert.equal(await input.getAttribute('aria-invalid'),'false');
+ await page.getByText('Ngày bắt đầu',{exact:false}).first().click();
+ // Real label association and normal keyboard input.
+ await page.locator('label[for="trip-start-date"]').first().click();
+ assert.equal(await input.evaluate(el=>el===document.activeElement),true);
+ await page.keyboard.type('20/12/2027');
+ assert.equal(await page.locator('#canonical').innerText(),'2027-12-20');
+ await page.keyboard.press('Tab');
+ assert.equal(await input.evaluate(el=>el===document.activeElement),false);
+ await mkdir(new URL('../.cache/trip-date-ui/', import.meta.url),{recursive:true});
+ await page.screenshot({path:new URL('../.cache/trip-date-ui/desktop.png', import.meta.url).pathname.replace(/^\/(\w:)/,'$1'),fullPage:true});
+ await page.setViewportSize({width:360,height:800});
+ assert.equal(await input.inputValue(),'20/12/2027');
+ assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+ await page.screenshot({path:new URL('../.cache/trip-date-ui/mobile.png', import.meta.url).pathname.replace(/^\/(\w:)/,'$1'),fullPage:true});
+ assert.deepEqual(errors,[]);
+ console.log('PASS: en-US browser uses dd/mm/yyyy; AI fill, typed/pasted input, invalid/clear, keyboard/labels, extraction/review/planner, desktop/360px.');
+} finally {await browser.close();await new Promise(resolve=>server.close(resolve));}
+
+
+

@@ -26,6 +26,8 @@ Never put actual connection strings, API keys, bootstrap credentials, or other s
 
 US-25 adds the optional `OPENAI_PREFERENCE_MODEL` declaration and ADR-16 server-boundary documentation. It is not exposed through `NEXT_PUBLIC_*`, and is intentionally left blank until an owner selects a model. `scripts/sync-vercel-env.ts` already syncs only non-empty keys declared in `.env.schema`; no script change is required. Run `npm run env:generate -w web` after changing the schema so the generated `apps/web/src/env.ts` stays aligned; do not put a real model name or API key in committed files.
 
+Application runtime variables such as `OPENAI_PREFERENCE_MODEL` must not use Varlock's `@internal`: that decorator excludes the value from runtime injection, even when `.env` contains it. Credentials retain the default sensitive setting. Model identifiers use explicit `@sensitive=false` because extraction responses already include `meta.model`; an undeclared model key inherits default sensitivity and can cause Varlock to block that response when values match. Neither model variable uses `@public`/`NEXT_PUBLIC_`. After updating the schema, regenerate types and restart the development server before retrying `/trips/new`.
+
 ## Destination image configuration
 
 Destination V3.2 adds optional `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`,

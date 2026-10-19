@@ -15,6 +15,7 @@ import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 
 import { authorizationFeedback } from "@/lib/authorization-feedback";
+import { formatVietnameseDate } from "@/lib/date-only";
 import { buildAuthLoginHref } from "@/lib/auth-return-to";
 import { checkTripRequirement, shouldApplyCheckResponse } from "@/lib/trip-requirement-check-client";
 import TripClarificationPanel from "./trip-clarification-panel";
@@ -156,7 +157,7 @@ function formatValue<K extends ReviewFieldKey>(key: K, value: ReviewValueMap[K] 
 
   switch (key) {
     case "startDate":
-      return String(value);
+      return formatVietnameseDate(String(value));
     case "durationDays":
       return `${String(value)} ngày`;
     case "companions": {
@@ -247,7 +248,7 @@ export default function TripReviewScreen({
   const checkAbortRef = useRef<AbortController | null>(null);
   const checkInFlightRef = useRef(false);
   const checkSequenceRef = useRef(0);
-  const mountedRef = useRef(true);
+  const mountedRef = useRef(false);
 
   useEffect(() => {
     headingRef?.current?.focus();
@@ -668,9 +669,9 @@ export default function TripReviewScreen({
       ? "Hãy lưu hoặc hủy chỉnh sửa đang mở trước."
       : clarificationBlockingCount > 0
         ? `Còn ${clarificationBlockingCount} mục bắt buộc cần làm rõ.`
-      : !acknowledged
-        ? "Hãy xác nhận rằng bạn đã kiểm tra các thông tin trên."
-        : null;
+        : !acknowledged
+          ? "Hãy xác nhận rằng bạn đã kiểm tra các thông tin trên."
+          : null;
 
   const ReviewContainer = embedded ? "div" : "main";
 

@@ -1,4 +1,4 @@
-import { isValidCalendarDate } from "../trip-requirement/trip-requirement-contract";
+import { explicitTripDatesInSource, normalizeExplicitTripDate } from "../trip-requirement/explicit-trip-date";
 import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
 import {
   modelOutputSchema,
@@ -48,31 +48,6 @@ function missingField() {
   return { status: "MISSING" as const, value: null, sourceText: null, note: null };
 }
 
-function absoluteDateFromSource(sourceText: string): string | null {
-  const normalized = normalizeForSourceMatch(sourceText);
-  const iso = normalized.match(/(?<!\d)(\d{4})-(\d{1,2})-(\d{1,2})(?!\d)/u);
-  const separated = normalized.match(/(?<!\d)(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?!\d)/u);
-  const vietnamese = normalized.match(
-    /ngay\s+(\d{1,2})\s+thang\s+(\d{1,2})\s+nam\s+(\d{4})(?!\d)/u,
-  );
-
-  let year: string;
-  let month: string;
-  let day: string;
-  if (iso) {
-    [, year, month, day] = iso;
-  } else if (separated) {
-    [, day, month, year] = separated;
-  } else if (vietnamese) {
-    [, day, month, year] = vietnamese;
-  } else {
-    return null;
-  }
-
-  const candidate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
-  return isValidCalendarDate(candidate) ? candidate : null;
-}
-
 function verifyAbsoluteStartDate(
   raw: ModelOutput["fields"]["startDate"],
   now: Date,
@@ -80,8 +55,10 @@ function verifyAbsoluteStartDate(
   if (raw.status === "MISSING") return raw;
   if (raw.status !== "EXTRACTED") return raw;
 
-  const parsedSourceDate = absoluteDateFromSource(raw.sourceText);
-  if (parsedSourceDate === null || parsedSourceDate !== raw.value) {
+  const sourceDates = explicitTripDatesInSource(raw.sourceText);
+  const parsedSourceDate = sourceDates.length === 1 ? sourceDates[0] : null;
+  const parsedModelDate = normalizeExplicitTripDate(raw.value);
+  if (parsedSourceDate === null || parsedSourceDate !== parsedModelDate) {
     return {
       status: "AMBIGUOUS" as const,
       value: null,
@@ -97,7 +74,7 @@ function verifyAbsoluteStartDate(
       note: "Ngày bắt đầu đã ở trong quá khứ theo múi giờ Việt Nam.",
     };
   }
-  return raw;
+  return { ...raw, value: parsedSourceDate };
 }
 
 function filterFabricatedFields(raw: ModelOutput, originalInput: string): ModelOutput {

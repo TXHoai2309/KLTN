@@ -17,6 +17,7 @@ export type PreferenceExtractionErrorCode =
 
 export type PreferenceExtractionErrorOptions = {
   retryAfterMs?: number;
+  providerStatus?: number;
 };
 
 const safeMessageByCode: Record<PreferenceExtractionErrorCode, string> = {
@@ -47,6 +48,7 @@ export class PreferenceExtractionError extends Error {
   readonly code: PreferenceExtractionErrorCode;
   readonly retryable: boolean;
   readonly retryAfterMs?: number;
+  readonly providerStatus?: number;
 
   constructor(
     code: PreferenceExtractionErrorCode,
@@ -58,6 +60,10 @@ export class PreferenceExtractionError extends Error {
     this.code = code;
     this.retryable = retryable;
     this.retryAfterMs = typeof options === "number" ? options : options.retryAfterMs;
+    const status = typeof options === "number" ? undefined : options.providerStatus;
+    this.providerStatus = typeof status === "number" && Number.isInteger(status) && status >= 400 && status <= 599
+      ? status
+      : undefined;
   }
 
   toAppError(): AppError {

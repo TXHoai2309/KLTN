@@ -198,6 +198,9 @@ record. Browser evidence is 17 isolated groups with synthetic provider/persisten
 360px and desktop light/dark screenshots; no live Cloudinary or authenticated
 Neon write claim. PostgreSQL concurrency evidence is separate and disposable.
 
+## Traveler trip date presentation (2026-10-17)
+
+Vietnamese trip UI displays date-only values as `dd/mm/yyyy` through `src/lib/date-only.ts` without timezone conversion. The reusable `VietnameseDateInput` is the typed date owner for the shared StartDateEditor in the creation and review flows. It deliberately uses a text input with a written format/example rather than an OS-owned calendar popup whose closed format depends on the user's browser locale. Valid complete entries become canonical ISO `yyyy-mm-dd` in existing form state; incomplete/invalid text stays visible for the existing field validation. Clearing remains optional at the preliminary step. API schemas, confirmation rules and date-only persistence remain ISO. Extraction cards, review values/announcements and preliminary itinerary summary/day tabs use the same formatter. Existing trip form tokens, labels, focus/error associations and natural-height mobile layout remain the styling owners; no new theme tokens or calendar dependencies.
 ## Destination V3.3 editorial (2026-10-14)
 
 Destination .dv3-page owns the approved full-width #EDF5EF exterior, white cards,

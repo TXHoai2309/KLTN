@@ -83,12 +83,12 @@ Story DRAFT cho task 271–277. AI chỉ tạo đề xuất tách biệt. Du kh�
 
 ## Data Contract
 
-### Đề xuất — cần Hoài xác nhận
+### Intent và ánh xạ itinerary
 
 - Model trả **ý định**: loại thao tác, `visitId` mục tiêu nếu cần, `destinationId` nếu thêm/thay điểm đến, tham số thời gian/thời lượng/vị trí và phần bị ảnh hưởng.
 - Server áp ý định lên deep clone bằng `addVisit`, `removeVisit`, `moveVisit`, `setVisitTime`, `setVisitDuration` hoặc `replaceVisit` của US-32; server tự tính diff và phạm vi phải validate.
 - Model không trả candidate hoàn chỉnh làm nguồn dữ liệu có thẩm quyền, không tạo câu hỏi/lựa chọn tùy ý và không phát biểu kết quả Validator.
-- Hình dạng candidate hiện dùng trong code US-32 gồm metadata Trip và `days[].visits[]`; visit có `visitId`, `destinationId`, `startMinute`, `plannedDurationMinutes`, `order`. Cần Hoài xác nhận adapter với planner itinerary (`day`/`stops`, `arrivalMinute`, `visitDurationMinutes`) và Thai Anh xác nhận contract lưu Trip trước khi coi hình dạng này là baseline tích hợp.
+- Hình dạng candidate hiện dùng trong code US-32 gồm metadata Trip và `days[].visits[]`; visit có `visitId`, `destinationId`, `startMinute`, `plannedDurationMinutes`, `order`. Task 273 đọc trực tiếp Trip đã lưu và dùng contract candidate của US-32; không chuyển đổi từ output planner của US-28. Tích hợp trực tiếp với planner itinerary (`day`/`stops`, `arrivalMinute`, `visitDurationMinutes`) nằm ngoài task này.
 
 ## API Contract
 
@@ -108,9 +108,10 @@ Request strict, bounded:
 
 - Auth Traveler phải hoàn tất trước khi đọc body. Service xác minh ownership/revision trước khi gửi dữ liệu Trip đến provider.
 - Candidate/intent được tạo lại cho mỗi request. Clarification response không lưu server state; người dùng có thể viết rõ hơn hoặc gửi code-generated `resolution`, sau đó server xác minh và đánh giá lại.
-- Khi cần làm rõ: `{ status: "NEEDS_CLARIFICATION", clarification: { code, prompt, choices? } }`. `prompt` và choices do code tạo.
-- Khi có candidate: `{ status: "PROPOSED", candidate, intent, diff, validation }`. `validation` là kết quả bốn nhóm từ `previewEdit`/Constraint Validator, không phải kết quả do model hay client gửi.
-- Task 272 tái sử dụng mã lỗi nội bộ `PreferenceExtractionError` của client US-25: timeout → `PROVIDER_TIMEOUT`, refusal/incomplete → `PROVIDER_REFUSAL`, output rỗng/malformed → `INVALID_PROVIDER_RESPONSE`, provider không nhận diện → `PROVIDER_UNAVAILABLE`. Route US-33 sau này phải ánh xạ qua AppError convention hiện có, không tạo envelope mới; ADR-16 vẫn ở trạng thái Proposed.
+- Khi cần làm rõ: `{ status: "NEEDS_CLARIFICATION", intent, reason, clarification: { code, prompt, choices? } }`. `prompt` và choices do code tạo; `intent`/`reason` giữ tương thích với response Task 273.
+- Proposal trả `{ status: "PROPOSED", candidate, intent, diff, validation }`. Validation được Task 275 lấy nguyên từ `previewEdit`/Constraint Validator; đây không phải kết quả do model hay client gửi. VIOLATION và INSUFFICIENT_DATA vẫn trả candidate nhưng không cho xác nhận.
+- Task 274 xử lý resolution trên từng request độc lập: server nạp lại Trip và tập destination VISIBLE, kiểm tra ID trong dữ liệu đó, rồi chỉ áp lựa chọn nếu ý định hiện tại vẫn có đúng loại clarification tương ứng. Resolution giả, không còn hợp lệ hoặc không khớp clarification hiện tại bị từ chối.
+- Task 272 tái sử dụng mã lỗi nội bộ `PreferenceExtractionError` của client US-25: timeout → `PROVIDER_TIMEOUT`, refusal/incomplete → `PROVIDER_REFUSAL`, output rỗng/malformed → `INVALID_PROVIDER_RESPONSE`, provider không nhận diện → `PROVIDER_UNAVAILABLE`. Route Task 273 ánh xạ các lỗi này sang AppError convention hiện có, không tạo envelope mới; ADR-16 vẫn ở trạng thái Proposed.
 - Endpoint AI không ghi DB và không gọi apply. Dùng `Cache-Control: private, no-store`.
 
 ### Áp dụng
@@ -142,14 +143,14 @@ Sau khi người dùng xác nhận candidate hợp lệ, UI gọi endpoint apply
 
 - [ ] Task 271: structured output strict biểu diễn intent chỉnh sửa theo schema đã được Hoài xác nhận; dữ liệu thừa/sai bị từ chối.
 - [ ] Task 272: nhận diện target/scope được kiểm chứng với dữ liệu server; unknown visit/destination/day không được tin hoặc áp dụng.
-- [ ] Task 273: server tạo candidate tách biệt bằng hàm US-32; endpoint AI không ghi DB và không sửa hành trình gốc.
-- [ ] Task 274: yêu cầu thiếu rõ ràng trả clarification do code sinh; resolution được server xác minh và mỗi request được đánh giá lại độc lập.
-- [ ] Task 275: Validator chạy cho candidate; trả đủ bốn nhóm; VIOLATION và INSUFFICIENT_DATA không đủ điều kiện xác nhận.
-- [ ] Task 276: người dùng thấy diff và trạng thái chưa áp dụng; chỉ xác nhận sau mọi check PASS; hủy không gọi API ghi.
-- [ ] Apply chỉ qua US-32 sau xác nhận; chỉ SUCCESS từ DB mới cập nhật UI như đã lưu. AI không tự áp dụng hoặc certify.
+- [x] Task 273: server tạo candidate tách biệt bằng hàm US-32; endpoint AI không ghi DB và không sửa hành trình gốc.
+- [x] Task 274: yêu cầu thiếu rõ ràng trả clarification do code sinh; resolution được server xác minh và mỗi request được đánh giá lại độc lập.
+- [x] Task 275: Validator chạy cho candidate; trả đủ bốn nhóm; VIOLATION và INSUFFICIENT_DATA không đủ điều kiện xác nhận.
+- [x] Task 276: người dùng thấy diff và trạng thái chưa áp dụng; chỉ xác nhận sau mọi check PASS; hủy không gọi API ghi.
+- [x] Apply chỉ qua US-32 sau xác nhận; chỉ SUCCESS từ DB mới cập nhật UI như đã lưu. AI không tự áp dụng hoặc certify.
 - [ ] Guest nhận 401, Admin 403, Trip thiếu/không thuộc chủ nhận cùng 404; không gọi provider trước auth/ownership.
 - [ ] Input, output model và nội dung destination không được lưu/log dạng thô; độ dài input bị giới hạn; request riêng tư không cache.
-- [ ] Task 277 có kiểm thử fake provider/Validator/repository cho thành công, clarification, output không hợp lệ, auth/ownership, Validator fail, hủy, apply/replay và không ghi trước xác nhận.
+- [x] Task 277 có kiểm thử fake provider/Validator/repository cho thành công, clarification, output không hợp lệ, auth/ownership, Validator fail, hủy, apply/replay và không ghi trước xác nhận.
 
 ## Test Plan
 
@@ -167,7 +168,7 @@ Các đường dẫn dưới đây là phạm vi dự kiến, chưa phải quy�
 
 - `apps/web/src/modules/trip-edit/edit-intent-contract.ts` và test: schema/kiểu intent strict, JSON Schema và kiểu kết quả đã xác minh (Task 271).
 - `apps/web/src/modules/trip-edit/edit-intent-prompt.ts`, `edit-intent-verify.ts`, `edit-intent-service.ts` và các test: dựng prompt allowlist, xác minh output theo dữ liệu server, gọi structured client hiện có (Task 272).
-- `apps/web/src/modules/trip-edit/ai-edit-http.ts` và test; `apps/web/src/app/api/trips/[id]/edits/ai/route.ts`: parse/auth/service/error mapping.
+- `apps/web/src/modules/trip-edit/ai-edit-service.ts`, `ai-edit-http.ts` và test; `apps/web/src/app/api/trips/[id]/edits/ai/route.ts`: Task 273 read-only proposal service, parse/auth/service/error mapping.
 - `apps/web/src/modules/trip-edit/` và `apps/web/src/app/trips/[id]/edit/`: chỉ phần logic/UI hội thoại AI; tái sử dụng candidate, diff, preview, Validator panel và apply của US-32.
 - `apps/web/src/lib/trip-edit-client.ts`: chỉ bổ sung helper AI nếu thiếu, giữ nguyên các phần US-32.
 - `apps/web/src/modules/trip-edit/us33-test.vitest.test.ts` hoặc file test mới phù hợp để bổ sung acceptance tổng hợp.
@@ -175,15 +176,63 @@ Các đường dẫn dưới đây là phạm vi dự kiến, chưa phải quy�
 
 ## Dependencies
 
-- **US-32:** candidate helpers, `previewEdit`, apply `kind: "AI"`, UI/client hiện có là phụ thuộc trực tiếp. Code US-32 đang hiện diện trong working tree nhưng chưa commit/merge; một số file code đang untracked, nên chưa phải baseline dùng chung. Xác nhận handoff/merge trước khi bắt đầu các task phụ thuộc.
+- **US-32:** candidate helpers, `previewEdit`, apply `kind: "AI"`, UI/client hiện có là phụ thuộc trực tiếp. Các file này hiện đã có trên branch `duybinh` (sau các merge Hoài/Thai Anh); Task 273 tái sử dụng candidate/helpers và chưa gọi `previewEdit` (Task 275) hay apply (sau xác nhận ở Task 276).
 - **Thai Anh — Trip/itinerary/Constraint Validator:** Trip ownership, revision token, saved itinerary fields, destination eligibility và Validator bốn nhóm. Reuse `validateItinerary`/`previewEdit`; không tạo model, schema hoặc Validator thay thế. Trip hiện dùng `updatedAt` làm token trong code US-32; chủ sở hữu cần xác nhận đây là hợp đồng CAS liên nhóm.
-- **Hoài — US-28 Planner/schema:** xác nhận hình dạng itinerary và cách ánh xạ planner `day/stops` sang candidate visit US-32; xác nhận hướng model chỉ trả intent. Planner hiện có trong repo là deterministic, không phải OpenAI planner client.
+- **Hoài — US-28 Planner/schema:** không phải phụ thuộc trực tiếp của Task 273 vì service đọc Trip đã lưu theo contract US-32, không nhận output planner. Planner hiện có trong repo là deterministic; việc chuyển đổi planner itinerary không nằm trong task này.
 - **OpenAI client:** client có trong `apps/web/src/modules/preference-extraction/openai-structured-client.ts`, transport nhận JSON Schema đầu vào nhưng đang gắn schema name mặc định `trip_preference_extraction`; service/verification xung quanh là preference-specific. Tái sử dụng client/model theo định hướng Bình, sau khi chốt adapter/schema-name; không tạo client/env/dependency mới. `apps/web/src/modules/ai/qa-json-provider.ts` là QA-specific, không mặc định là client cho US-33.
 - **Rate limiting:** ADR-16 để chính sách giới hạn AI mở. Repo có quota/guard theo từng feature (ví dụ planner và Q&A), chưa có limiter dùng chung được xác nhận cho endpoint OpenAI của US-33.
 
 ## Migration Impact
 
 Không có schema/migration trong US-33. Candidate không lưu DB; lưu Trip tiếp tục dùng schema và write path của US-32.
+
+## Implementation Evidence — Task 273
+
+- **Completed:** Thêm `createAiEditProposal`, HTTP adapter và `POST /api/trips/[id]/edits/ai`. HTTP xác thực Traveler trước body, giới hạn JSON, parse strict request, trả response private/no-store và ánh xạ provider error thành lỗi AI riêng. Service truy vấn Trip theo `id + userId`, so `updatedAt` làm `baseRevision` trước khi gọi provider, chỉ nạp destination `VISIBLE`, tạo candidate từ snapshot đã lưu và áp intent bằng các helper thuần của US-32. Candidate/diff/affected scope được dựng ở server; không ghi DB và không gọi apply/Validator.
+- **Clarification boundary:** Task 273 ban đầu trả `NEEDS_CLARIFICATION` cùng reason. Task 274 bên dưới mở rộng response bằng câu hỏi/lựa chọn code-generated và xử lý resolution đã xác minh.
+- **Validation:** Bộ test trip-edit và client liên quan: 16 file / 122 test PASS bằng Vitest với fake provider/repository. Direct `tsc --noEmit -p tsconfig.json` không có diagnostics trong Task 273 nhưng toàn repo typecheck vẫn thất bại bởi dependency/diagnostics Cloudinary có sẵn (`cloudinary` TS2307 và callback TS7006). `npm run check-types` không khởi động do NVM shim báo chưa chọn Node.js. `git diff --check` PASS.
+- **NOT PROVEN:** OpenAI thật, route với Better Auth/Neon thật, browser flow, Task 274 clarification choices, Task 275 Validator, Task 276 apply UI và end-to-end Task 277 chưa được kiểm chứng trong Task 273.
+
+## Implementation Evidence — Task 274
+
+- **Completed:** Thêm `edit-clarification.ts` với schema strict cho resolution và clarification; câu hỏi tiếng Việt cố định theo đủ sáu `clarificationReason`. Lựa chọn mục tiêu được dựng từ visit trong Trip với tên/ngày/giờ do server đọc; lựa chọn destination chỉ lấy từ danh sách VISIBLE. Luồng AI trả `NEEDS_CLARIFICATION` không kèm candidate. Request tiếp theo xác minh lại resolution với snapshot server mới và chỉ nhận lựa chọn khớp loại clarification hiện tại; ID giả/ngoài tập đủ điều kiện bị từ chối.
+- **Files changed:** Thêm `apps/web/src/modules/trip-edit/edit-clarification.ts` và `edit-clarification.vitest.test.ts`; cập nhật `ai-edit-service.ts`, `ai-edit-service.vitest.test.ts`, `ai-edit-http.ts`, `ai-edit-http.vitest.test.ts` để nối resolution và response tương thích; cập nhật story và append progress. Không sửa client US-25, schema/migration, dependency hoặc env.
+- **Validation performed:** Focused Vitest cho `src/modules/trip-edit` và `src/lib/trip-edit-client.vitest.test.ts`: 17 file / 143 test PASS (bao gồm đủ sáu reason, lựa chọn dựng từ server, resolution hợp lệ/giả và không có candidate khi làm rõ). `git diff --check` PASS. Source-audit trên route/HTTP/service AI không tìm thấy import `apply-edit`, `executeIdempotentWrite` hoặc lời gọi Prisma ghi. `npm run check-types` không khởi chạy vì NVM shim báo chưa cấu hình Node đang hoạt động. Direct bundled `tsc --noEmit -p tsconfig.json` báo hai lỗi Cloudinary sẵn có (`cloudinary` TS2307 và callback TS7006); không có diagnostics trong Task 274.
+- **NOT PROVEN:** OpenAI thật, Better Auth/Neon thật, UI/browser (360px, bàn phím, hủy, hai tab), Task 275 Validator, Task 276 apply UI, Task 277 tích hợp tổng thể và rate limit chưa được kiểm chứng. Không gọi provider hoặc DB thật.
+- **Next step:** Task 275 nối `previewEdit`/Constraint Validator vào proposal, giữ nguyên candidate khi validation là VIOLATION hoặc INSUFFICIENT_DATA.
+
+## Implementation Evidence — Task 275
+
+- **Completed:** `createAiEditProposal` gọi đúng một lần `previewEdit` trên candidate vừa dựng, truyền `baseRevision`, `userId`, provider route và `timeReference` nhận từ HTTP boundary. Response `PROPOSED` bổ sung nguyên kết quả `TripValidation` bốn nhóm từ preview; model/client không thể cung cấp validation. Route provider lỗi/timeout được chuyển thành route snapshot unavailable, để Validator chung trả `INSUFFICIENT_DATA` trong khi candidate vẫn có trong response. Không thay rule Validator, không ghi DB và không gọi apply.
+- **Files changed:** Cập nhật `apps/web/src/modules/trip-edit/ai-edit-service.ts`, `ai-edit-http.ts`, test của service/HTTP và `apps/web/src/app/api/trips/[id]/edits/ai/route.ts`; cập nhật story và append progress. Không sửa `trip-edit-service.ts`, Validator, schema/migration, dependency hoặc env.
+- **Validation performed:** Focused trip-edit/client Vitest: 17 file / 148 test PASS. AI route/service source-audit không thấy đường ghi; `git diff --check` PASS. `npm run check-types` không khởi chạy do NVM shim chưa cấu hình Node đang hoạt động. Direct bundled `tsc --noEmit -p tsconfig.json` chỉ báo hai lỗi Cloudinary sẵn có (`cloudinary` TS2307 và callback TS7006); không có diagnostics Task 275.
+- **NOT PROVEN:** OpenAI thật, Better Auth/Neon thật, browser, routing provider thật và UI/apply của Task 276 chưa được kiểm chứng. Test timeout giả lập lỗi route provider; không giả lập lỗi nội bộ từ hàm Validator đồng bộ.
+- **Next step:** Task 276 hiển thị candidate và `validation`, chỉ cho xác nhận khi bốn nhóm của response đều đạt; apply phải chạy lại Validator theo US-32.
+
+## Implementation Evidence — Task 276
+
+- **Completed:** Added the AI conversation panel and isolated pure session state. It sends bounded requests to `/edits/ai`, renders server clarification choices and proposal diff, and reuses `TripValidationPanel`. Confirmation is enabled only when all four server validation groups are `SATISFIED`; the confirmed AI candidate goes through the existing idempotent apply endpoint with `kind: AI`. UNKNOWN retains its exact key and payload for retry. Cancel clears only local proposal state. After SUCCESS, the confirmed revision/candidate updates the shared edit baseline while preserving any manual draft; a revision conflict refreshes the saved base and requires a fresh preview before confirmation.
+- **Files changed:** Added `apps/web/src/app/trips/[id]/edit/ai-edit-panel.tsx`, `ai-edit-panel.module.css`, `apps/web/src/modules/trip-edit/ai-edit-session.ts`, `ai-edit-session.vitest.test.ts`, and `ai-edit-client.vitest.test.ts`; appended AI request/apply helpers to `apps/web/src/lib/trip-edit-client.ts`; mounted the panel and synchronized the manual baseline in `edit-trip-client.tsx`; updated this story and appended `docs/ai-progress.md`. No schema, migration, dependency, environment, secret or external-service changes.
+- **Validation performed:** Focused Task 276 + US-32/33 trip-edit/client Vitest: 19 files / 155 tests PASS, including AI request payload/resolution, AI apply Idempotency-Key/kind, confirmation gating, cancellation, UNKNOWN retry and conflict retention. `git diff --check` PASS. `npm run check-types` could not start because the NVM shim reports no active Node.js version. Direct bundled `tsc --noEmit -p apps/web/tsconfig.json` reports only existing Cloudinary errors (`cloudinary` TS2307 and callback implicit-any TS7006); no Task 276 diagnostics.
+- **NOT PROVEN:** Browser rendering at 360px, keyboard/screen-reader interaction, real authenticated route/apply, real OpenAI or route-provider behavior, two-tab conflict recovery, and the user's manual checklist were not exercised. No live OpenAI or Neon request was made for this task.
+- **Known gaps:** Task 277's fake integrated coverage is recorded below. The client UI contract is type-checked by direct TypeScript apart from the two existing Cloudinary diagnostics; the repository's prescribed typecheck remains blocked by the local NVM shim. Premium strict audit reports 31 repository findings; none targets the new panel, while four findings are in the existing manual edit page. If an AI-proposed destination is absent from the saved-trip label map, its diff currently displays its destination ID. AI/provider rate limiting remains an existing ADR-16 question.
+- **Next step:** Bình should run the manual browser checklist below; real provider, deployed auth/database, two-tab behavior and rate-limit behavior remain NOT PROVEN.
+
+## Implementation Evidence — Task 277
+
+- **Completed:** Added the missing cross-boundary tests in `us33-test.vitest.test.ts` without editing existing test files. With fake persistence, provider and Validator, the suite proves AI preview leaves the saved Trip untouched, confirmed `kind: AI` applies only through the shared apply endpoint and advances the revision, and an attempted apply is rejected without writes when the Validator returns VIOLATION or INSUFFICIENT_DATA. It also checks forged visit/destination IDs and out-of-range days produce code-generated clarification without a candidate, prompt-injection text remains data, provider timeout/refusal/incomplete errors stay in the AI error contract while manual candidate editing remains available, raw malformed model output is not returned/logged, and the AI route/service/provider-intent path has no write-path imports or calls. Existing US-33/US-32 tests cover the individual intent operations, clarification, auth/ownership, revision conflicts, cancellation and idempotency cases.
+- **Files changed:** Added `apps/web/src/modules/trip-edit/us33-test.vitest.test.ts`; updated this story and appended `docs/ai-progress.md`. No application source, schema, migration, dependency, environment or credential files changed.
+- **DB/migration changes:** None. Tests use in-memory fakes and do not connect to Neon or call OpenAI/Google.
+- **Validation performed:** Focused Vitest for `src/modules/trip-edit` plus `src/lib/trip-edit-client.vitest.test.ts`: 20 files / 167 tests PASS. `git diff --check` exited 0 (Git emitted existing LF-to-CRLF warnings). `npm run check-types` from the repository root and `apps/web` both stopped before TypeScript because the NVM shim reports no active Node.js version. Direct bundled `tsc --noEmit -p apps/web/tsconfig.json` reports only the existing Cloudinary diagnostics (`cloudinary` TS2307 and callback TS7006); no diagnostics point to the Task 277 test. Build was not run.
+- **Deployment/smoke result:** None. No real OpenAI, Google Routes, Neon, authenticated browser route or apply request was exercised.
+- **Known issues / NOT PROVEN:** Real OpenAI refusal/incomplete behavior, browser layout at 360px, keyboard/screen-reader flow, manual cancellation/clarification, two-tab revision recovery, and deployed auth/database behavior remain NOT PROVEN. Browser checklist below is intentionally unchecked for Bình to run. ADR-16 rate limiting remains open.
+- **Manual browser checklist — NOT PROVEN:**
+  - [ ] Viewport 360px: AI panel and manual edit page do not overflow horizontally.
+  - [ ] Keyboard-only: enter a request, review the proposal/clarification choices, confirm, and cancel.
+  - [ ] Cancel a proposal and verify the saved itinerary remains unchanged.
+  - [ ] Resolve an ambiguous request using a server-provided choice and inspect the new proposal.
+  - [ ] Open the same Trip in two tabs; apply in one and verify the other receives a revision conflict and requires a fresh check.
+- **Next step:** Bình runs the unchecked browser checklist; keep provider, database, deployed auth and rate-limit evidence marked NOT PROVEN until actually exercised.
 
 ## Environment Impact
 

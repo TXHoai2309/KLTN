@@ -20,6 +20,7 @@ import type {
   ExtractionSuggestions,
 } from "@/modules/preference-extraction/apply-extraction";
 import { unresolvedTransportMessage } from "@/modules/trip-requirement/transport-safety";
+import { formatVietnameseDate } from "@/lib/date-only";
 
 export type ExtractionResultPanelProps = {
   result: ExtractionResult;
@@ -62,7 +63,7 @@ function formatValue(field: PreferenceExtractionField, extraction: FieldExtracti
   if (extraction.status !== "EXTRACTED") return null;
   const value = extraction.value;
   switch (field) {
-    case "startDate": return String(value);
+    case "startDate": return formatVietnameseDate(String(value));
     case "durationDays": return `${String(value)} ngày`;
     case "transport": return optionLabel(TRANSPORT_OPTIONS, String(value));
     case "companions": {

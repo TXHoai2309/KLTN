@@ -289,3 +289,7 @@ Không. No new dependency, secret or environment variable.
 - US-28 must call `checkTripRequirement` again on the server and then `assertStartDateForFinalConfirmation` immediately before accepting a requirement for planner/itinerary work.
 - US-27 owns clarification and consistency recovery; US-28 owns planner/itinerary/destination selection. No placeholder action was added for either story.
 - `apply-extraction` remains the explicit bridge back to US-24 controls. It only applies verified extracted values according to its existing non-overwrite/conflict rules.
+
+## 2026-10-17 — Vietnamese date display consistency
+
+Owner-requested presentation update: shared StartDateEditor now uses a reusable typed `VietnameseDateInput` with `dd/mm/yyyy` guidance. Valid input becomes canonical ISO in the existing in-memory state and API payload; partial/invalid text is preserved for correction. The text control replaces the locale-dependent native date field; no authored calendar popup is introduced. AI extraction cards, review values and announcements, preliminary itinerary summaries and day tabs display the same Vietnamese date format. Existing business validation/optional preliminary date semantics remain unchanged.

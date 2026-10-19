@@ -3,6 +3,7 @@
 import { Input } from "@KLTN/ui/components/input";
 import { Label } from "@KLTN/ui/components/label";
 import { useState, type Ref } from "react";
+import { VietnameseDateInput } from "@/components/vietnamese-date-input";
 
 import {
   COMPANION_OPTIONS,
@@ -43,19 +44,18 @@ export function StartDateEditor({
   return (
     <div className="trip-field">
       <Label htmlFor="trip-start-date">Ngày bắt đầu <span className="trip-optional">Tùy chọn ở bước sơ bộ</span></Label>
-      <Input
+      <VietnameseDateInput
         ref={inputRef}
         id="trip-start-date"
         name="startDate"
-        type="date"
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={onChange}
         onBlur={onBlur}
         autoFocus={autoFocus}
         aria-describedby={`trip-start-date-help${error ? ` ${errorId}` : ""}`}
         aria-invalid={Boolean(error)}
       />
-      <p id="trip-start-date-help" className="trip-help">Có thể bỏ trống ở bước đề xuất sơ bộ; cần có trước khi xác nhận và lưu chính thức.</p>
+      <p id="trip-start-date-help" className="trip-help">Nhập ngày/tháng/năm (dd/mm/yyyy), ví dụ 20/12/2026. Có thể bỏ trống ở bước đề xuất sơ bộ; cần có trước khi xác nhận và lưu chính thức.</p>
       <EditorError error={error} errorId={errorId} />
     </div>
   );

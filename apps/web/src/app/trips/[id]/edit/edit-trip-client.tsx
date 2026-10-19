@@ -47,6 +47,7 @@ import {
 } from "@/modules/trip-edit/edit-session";
 import { TripValidationPanel } from "@/modules/trip-validation/trip-validation-panel";
 import type { ValidationFinding } from "@/modules/trip-validation/trip-validation";
+import AiEditPanel from "./ai-edit-panel";
 import styles from "./edit-trip.module.css";
 
 type Props = {
@@ -116,6 +117,18 @@ export default function EditTripClient({ tripId, baseRevision, initialCandidate,
     applyStateRef.current = next;
     setApplyState(next);
   }
+
+  useEffect(() => {
+    const current = applyStateRef.current;
+    if (current.baseRevision === baseRevision || current.pending) return;
+    const rebased = updateEditApplyCandidate(
+      createEditApplyState(baseRevision, initialCandidate),
+      current.candidate,
+    );
+    commitApplyState(rebased);
+    setPreviewState(EMPTY_EDIT_PREVIEW_STATE);
+    setAnnouncement("Hành trình đã được cập nhật ở nơi khác. Phương án thủ công được giữ lại; hãy kiểm tra lại trước khi áp dụng.");
+  }, [baseRevision, initialCandidate]);
 
   const applyInProgress = applyState.status === "SENDING" || applyState.status === "UNKNOWN";
   const markSafeToLeave = useUnsavedChanges(
@@ -206,6 +219,21 @@ export default function EditTripClient({ tripId, baseRevision, initialCandidate,
     commitApplyState(discarded);
     setAnnouncement("");
     markSafeToLeave();
+  }
+
+  function handleAiApplied(nextRevision: string, savedCandidate: EditCandidate) {
+    const current = applyStateRef.current;
+    if (current.pending) {
+      setAnnouncement("Đề xuất AI đã được áp dụng. Yêu cầu chỉnh sửa thủ công đang chờ xác nhận kết quả.");
+      return;
+    }
+    const rebased = updateEditApplyCandidate(
+      createEditApplyState(nextRevision, savedCandidate),
+      current.candidate,
+    );
+    commitApplyState(rebased);
+    setPreviewState(EMPTY_EDIT_PREVIEW_STATE);
+    setAnnouncement("Đề xuất AI đã được áp dụng. Bản chỉnh sửa thủ công đang có được giữ lại; hãy kiểm tra lại trước khi xác nhận.");
   }
 
   function handleCancelKeyDown(event: KeyboardEvent<HTMLAnchorElement>) {
@@ -373,6 +401,14 @@ export default function EditTripClient({ tripId, baseRevision, initialCandidate,
           )}
         </div>
       </header>
+
+      <AiEditPanel
+        tripId={tripId}
+        baseRevision={applyState.baseRevision}
+        baselineCandidate={applyState.baselineCandidate}
+        destinationLabels={destinationLabels}
+        onApplied={handleAiApplied}
+      />
 
       <div className={styles.columns}>
         <section className={styles.panel} aria-labelledby="edit-add-heading" inert={applyInProgress}>
