@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -20,8 +24,12 @@
       }
     ],
     "paths": {
-      "@/*": ["./src/*"],
-      "@KLTN/ui/*": ["../../packages/ui/src/*"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@KLTN/ui/*": [
+        "../../packages/ui/src/*"
+      ]
     }
   },
   "include": [
@@ -31,7 +39,10 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     ".cache/performance-next/types/**/*.ts",
-    ".cache/performance-next/dev/types/**/*.ts"
+    ".cache/performance-next/dev/types/**/*.ts",
+    ".next/dev/dev/types/**/*.ts"
   ],
-  "exclude": ["./node_modules"]
+  "exclude": [
+    "./node_modules"
+  ]
 }
