@@ -3413,3 +3413,39 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
   diff: only the routing fix, assertion and handoff docs; no secrets added.
 - **Limits:** No schema/migration or runtime environment change. No live provider
   or browser smoke test; no commit, push or deployment performed.
+
+### 2026-10-19 — US-30/31 audit-and-fix: planner to save handoff
+
+- Current repo already has US-28 planner, US-29 four-group validator, US-30 save
+  service/API/panel, and US-31 owner-scoped list/detail. The missing handoff was
+  the Save panel on the real `/trips/new` proposal screen.
+- Added a strictly parsed adapter from factual planner stops to the existing
+  save proposal, a read-only authenticated `/api/trips/validate` preview sharing
+  the canonical visible-destination/route validator, and mounted the existing
+  Save panel with loading/error/retry. Planner back/regenerate actions are disabled
+  while save is pending or UNKNOWN, preserving the same-key retry in this session.
+  SUCCESS routes to the real Trip detail ID; FAILED/UNKNOWN do not claim success. Server save revalidation/transaction and
+  existing idempotency remain the write authority. No schema/auth/theme change.
+- Read-only Neon development audit: 23 finished migrations, zero rolled back;
+  US-30 migration applied, Trip/Day/Visit tables with four FKs and seven indexes,
+  1 existing Trip/2 Days/4 Visits before E2E. No schema or old Trip data changed.
+- Focused US-29/30/31 Vitest 115/115 PASS; typecheck/build, separate legacy suite,
+  and diff check PASS. Root `npm test` NOT PASS: full Vitest 2602 passed,
+  6 unrelated failures, 134 skipped, 1 todo; its legacy phase did not execute.
+- Guest browser/API at localhost:3010 denied Trip reads and redirected to login.
+  After user login, manual form→review→real planner proposal with verified Stadia
+  legs→four-group SATISFIED→save→detail→My Trips PASS. The new development Trip
+  `cmvetgw4s0001a0k5cytvczml` uses three pre-existing VISIBLE `[TEST]`
+  Destinations; DB increased to 2 Trip and new nested 1 Day/3 Visits, with no
+  alteration to the old Trip. Real-DB same-key service replay returned SUCCESS,
+  replayed=true, same ID and no extra Trip. Real-DB negative violation and
+  unavailable route each rejected with no write. The current Traveler's API/UI
+  could not read the old other-owner Trip, matching nonexistent-ID behavior.
+- Light/dark browser checks of `/trips/new`, `/trips` and detail at 360/390/
+  768/1024/1440px found no stable horizontal overflow, including the full
+  planner proposal; original light theme and viewport restored. A separate
+  natural-language AI request extracted date/day count/car/nature correctly,
+  then required review. HTTP-level duplicate retry, reverse Traveler-B check,
+  live ONGOING/COMPLETED and Figma MH-07/08/09 matching are NOT PROVEN; connected
+  Figma exposes only `01 – Components`. No commit, push, merge, branch switch
+  or DB reset.

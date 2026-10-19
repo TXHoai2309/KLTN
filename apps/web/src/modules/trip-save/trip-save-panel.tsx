@@ -7,13 +7,14 @@ import type { TripValidation } from "../trip-validation/trip-validation";
 import { TripValidationPanel } from "../trip-validation/trip-validation-panel";
 import { submitTripSave } from "./trip-save-client";
 
-type SaveState = "idle" | "pending" | "success" | "failed" | "unknown";
+export type SaveState = "idle" | "pending" | "success" | "failed" | "unknown";
 
-/** Mount when a future planner can provide a proposal and its validation result. */
-export function TripSavePanel({ proposal, validation, onSaved }: {
+/** Save only a validated proposal; the planner screen supplies the current preview. */
+export function TripSavePanel({ proposal, validation, onSaved, onStateChange }: {
   proposal: TripProposal;
   validation: TripValidation;
   onSaved?: (tripId: string) => void;
+  onStateChange?: (state: SaveState) => void;
 }) {
   const signature = JSON.stringify(proposal);
   const validationSignature = JSON.stringify(validation);
@@ -27,6 +28,7 @@ export function TripSavePanel({ proposal, validation, onSaved }: {
     pendingRef.current?.abort();
     setCurrentValidation(validation);
     setState("idle");
+    onStateChange?.("idle");
     setMessage("");
     return () => pendingRef.current?.abort();
   }, [signature, validationSignature]);
@@ -37,6 +39,7 @@ export function TripSavePanel({ proposal, validation, onSaved }: {
     const controller = new AbortController();
     pendingRef.current = controller;
     setState("pending");
+    onStateChange?.("pending");
     setMessage("Đang xác nhận và lưu chuyến đi…");
     const result = await submitTripSave(proposal, keyRef.current.key, controller.signal);
     if (controller.signal.aborted) return;
@@ -44,14 +47,17 @@ export function TripSavePanel({ proposal, validation, onSaved }: {
     if (result.status === "SUCCESS") {
       setCurrentValidation(result.validation);
       setState("success");
+      onStateChange?.("success");
       setMessage("Lưu thành công.");
       onSaved?.(result.tripId);
     } else if (result.status === "FAILED") {
       if (result.validation) setCurrentValidation(result.validation);
       setState("failed");
+      onStateChange?.("failed");
       setMessage(result.message);
     } else {
       setState("unknown");
+      onStateChange?.("unknown");
       setMessage(result.message);
     }
   }

@@ -2,7 +2,7 @@
 
 ## Status
 
-IMPLEMENTED IN CODE — development DB migration and proposal-screen integration remain NOT PROVEN.
+IMPLEMENTED IN CODE; authenticated development-DB valid-save path PASS, strict full acceptance remains NOT PROVEN (audit 2026-10-19).
 
 ## Goal / User Story
 
@@ -10,73 +10,72 @@ Traveler xác nhận phương án hợp lệ và lưu Trip thuộc tài khoản 
 
 ## Source References
 
-- `docs/product/product-spec.md`: start date trước save; bốn nhóm Validator.
-- `docs/flow/user-flow.md`: xác nhận rồi ghi DB, chỉ báo thành công sau ghi.
-- `docs/stories/US-29C-conflict-validator-aggregation.md` và hai story US-29A/B.
-- Task 4 của người dùng quy định ownership, transaction và `SUCCESS/FAILED/UNKNOWN`.
+- `docs/product/product-spec.md`, `docs/architecture/technical-architecture.md`, `docs/flow/user-flow.md`, `docs/design/ui-baseline.md`.
+- `docs/stories/US-29A*`, `US-29B*`, `US-29C*`, `US-30-db-migration-fix.md`.
+- Yêu cầu audit-and-fix US-30/31 ngày 2026-10-19.
 
-## Dependencies
+## Dependencies and Current Baseline
 
-US-29C hoàn thành trước save service. Repo chưa có Trip/Day/Visit schema hoặc proposal screen; người dùng trước đó chọn chỉ làm save API + component, không dựng planner giả.
+US-28 planner thực tế đã có: `/trips/new` đi từ nhập/xác nhận nhu cầu tới `TripPlannerFlow`, `POST /api/trip-proposals` và `TripPlannerScreen`. US-29 validator bốn nhóm đã có. Trước đợt sửa này, `TripSavePanel` và `POST /api/trips` đã tồn tại nhưng panel chưa được gắn vào màn hình proposal. Prisma Trip/Day/Visit và migration đã có; không cần schema mới.
 
 ## In Scope
 
-- Prisma Trip/ItineraryDay/ItineraryVisit tối thiểu và migration.
-- `POST /api/trips`, xác thực Traveler, xác nhận tường minh, server revalidation và transactional create.
-- Reuse `Idempotency-Key`, `preflightIdempotentReplay`, `executeIdempotentWrite`, shared mutation envelope.
-- Component save dùng lại được với pending, SUCCESS, FAILED, UNKNOWN, giữ proposal trong session.
+- Ghép phương án có thời gian thực từ planner vào save contract, không chế Destination ID hoặc thời gian.
+- Preview validator trên dữ liệu công khai/hiện hành và bốn nhóm trước thao tác lưu.
+- Dùng lại `TripSavePanel`, shared idempotency và API save; điều hướng tới detail bằng ID thật sau `SUCCESS`.
+- Xác minh schema, migration, DB, test và UI; không thay đổi auth hoặc theme.
 
 ## Out of Scope
 
-Draft persistence, edit trip, in-trip assistant, favorites, sharing, planner/proposal generation, US-31.
+Draft/edit/replanning/in-trip assistant, favorites, sharing, tạo data demo/production, migration mới, US-34.
 
 ## Business Rules
 
-- Server lấy owner từ session, query Destination `VISIBLE` và dữ liệu nghiệp vụ hiện thời. Không nhận `ownerId` hoặc tin `validatorPassed` của client.
-- Chỉ ghi khi confirm tường minh, start date hợp lệ và bốn group `SATISFIED`. Vi phạm hoặc thiếu dữ liệu trả validation mới, không ghi.
-- Route snapshot được lấy ngoài transaction; business data được đọc lại trong transaction. Dữ liệu đổi khiến kết quả khác thì thất bại và không ghi.
-- Trip, days, visits và idempotency result cùng một Prisma transaction. UNKNOWN retry bằng cùng key và payload.
+- `toSaveProposal` chỉ chuyển planner result đủ điều kiện xác nhận, có ngày đi, tất cả stop `PLANNED` và giờ đến có thật; Zod kiểm tra cấu trúc ngày/thứ tự/thời lượng.
+- Preview `POST /api/trips/validate` yêu cầu traveler capability, tìm Destination `VISIBLE` ở server, lấy route Stadia và gọi chung `validateItinerary`; không ghi DB. Route không có/timeout là `INSUFFICIENT_DATA`.
+- Save `POST /api/trips` yêu cầu `{ confirm: true, proposal }` cùng `Idempotency-Key`; actor từ session, revalidate bốn nhóm bằng business data hiện hành và route snapshot, recheck trong transaction trước khi tạo Trip/Days/Visits.
+- Chỉ `canConfirm=true` (cả bốn group `SATISFIED`) được lưu. `VIOLATION`/`INSUFFICIENT_DATA` chặn cả UI lẫn server. Idempotency replay cùng key/payload không tạo bản thứ hai.
+- Preview chỉ hỗ trợ quyết định UI; save không tin `canConfirm` từ client. Thành công chỉ được hiển thị sau response `SUCCESS` có tripId.
 
 ## Roles / Ownership
 
-Guest 401, Admin 403; Traveler là owner từ authenticated session. Recheck role bên trong transaction.
+Guest 401; actor có traveler capability theo RBAC V2 là TRAVELER hoặc ADMIN. Trip owner là actor ID từ session, không phải client-provided userId. Role khác 403. Đây là convention hiện hành; tài liệu US-30 cũ ghi Admin 403 đã lỗi thời.
 
 ## Data / API Contract
 
-`POST /api/trips` JSON `{ confirm: true, proposal: { startDate, durationDays, transport, days: [{ dayIndex, visits: [{ destinationId, startMinute, plannedDurationMinutes, order }] }] } }`, `Idempotency-Key` bắt buộc. Shared mutation envelope: `SUCCESS` trả tripId + validation; `FAILED` có reason và fresh validation khi revalidation không pass; `UNKNOWN` giữ cùng key để reconcile.
+- Prisma `Trip` (owner, startDate, durationDays, transport, timestamps), `ItineraryDay` (trip, dayIndex, localDate), `ItineraryVisit` (day, destination, startMinute, plannedDurationMinutes, order).
+- `POST /api/trips/validate`: JSON `{ proposal }` → shared read envelope `{ success: true, data: { validation } }`, `Cache-Control: private, no-store`; technical/invalid/auth errors qua shared handler.
+- `POST /api/trips`: JSON `{ confirm: true, proposal }`, `Idempotency-Key` → shared mutation envelope `SUCCESS/FAILED/UNKNOWN`. `FAILED` do revalidation có fresh validation; `UNKNOWN` không được suy đoán thành công và retry phải dùng lại key/payload.
 
 ## UX / UI Contract
 
-Component nhận proposal và validation, enable “Xác nhận và lưu” chỉ khi `canConfirm=true`, chỉ báo “Lưu thành công” sau `SUCCESS`. Không có màn hình proposal thực để gắn component tại branch này; end-to-end navigation là NOT PROVEN.
+`TripPlannerScreen` hiển thị ngày/stop, preliminary checks, rồi `TripConfirmationSection`. Section gọi read-only preview, có loading/error/retry, hiển thị `TripValidationPanel` bốn nhóm và dùng `TripSavePanel` hiện có. Button chỉ enable khi bốn nhóm đáp ứng. `TripSavePanel` giữ proposal và idempotency key cho retry `UNKNOWN`; các nút quay lại/tạo lại bị khóa trong lúc `pending`, `unknown` hoặc `success` để không hủy phiên lưu chưa rõ kết quả. `SUCCESS` dùng `router.replace` tới `/trips/{tripId}` để Back không trở lại proposal vừa lưu. Planner vẫn cho quay lại hoặc tạo lại khi save thất bại.
 
 ## Error / Recovery
 
-Invalid structure là 400; destination ẩn/không tồn tại là 422; validation không đạt là 422; DB outcome không chắc chắn là UNKNOWN. Không lộ lỗi provider thô.
+Input cấu trúc sai 400; destination ẩn/không tồn tại 422; validator không đạt 422; lỗi DB outcome không chắc chắn là `UNKNOWN`. Không trả raw Stadia error cho FE. Preview lỗi có nút kiểm tra lại. Không có success giả khi `FAILED`/`UNKNOWN`.
 
 ## Migration / Environment Impact
 
-Migration Prisma tạo ba model và relation tối thiểu. Review SQL và báo rõ có apply development DB hay chưa; không dùng `db:push`.
+Không có migration mới trong đợt sửa 2026-10-19. Read-only audit: 23 migration disk/DB đều finished, không rolled back; `20261015000000_us30_trip_save` đã applied 2026-10-15T09:32:51.735Z. Development DB có `trip`, `itinerary_day`, `itinerary_visit` với bốn FK và bảy index gồm PK. Trước E2E có 1 Trip/2 Day/4 Visit. Inventory chỉ đọc: 9 Destination `VISIBLE`, 7 có minimum duration, 6 có ít nhất một khoảng OPEN và 6 có trạng thái cả bảy ngày không UNKNOWN. E2E được người dùng yêu cầu đã tạo **một Trip development** `cmvetgw4s0001a0k5cytvczml` từ ba Destination `[TEST]` đang VISIBLE; sau E2E DB có 2 Trip, Trip mới có 1 Day/3 Visit. Không reset hay sửa bản ghi cũ. Đây không phải production dataset acceptance.
 
 ## Acceptance Criteria
 
-- [x] Bốn group SATISFIED + confirm tạo một Trip và nested days/visits trong service test; real DB write NOT PROVEN.
-- [x] Mỗi group vi phạm hoặc thiếu dữ liệu chặn save trong service test.
-- [x] Không confirm, Guest/Admin, hidden Destination đều không tạo Trip trong contract/service tests.
-- [x] Same key/payload không tạo bản thứ hai; FAILED/UNKNOWN không hiển thị success trong service/client tests.
+- [x] Planner proposal có cấu trúc nối với preview bốn nhóm và Save UI; component/unit tests dùng planner service thật với fixture.
+- [x] Save service test chứng minh server visibility, ownership, validator gate, transaction, idempotent replay, FAILED/UNKNOWN.
+- [x] Guest read Trip API trả 401 trên localhost:3010; migrated development DB và ba bảng được xác minh read-only.
+- [x] Traveler qua form thủ công thực sự tạo proposal từ Destination `[TEST]` có Stadia routes; bốn nhóm preview SATISFIED; click save → detail ID thật; DB thêm chính xác 1 Trip/1 Day/3 Visit và My Trips liệt kê Trip mới.
+- [x] Cùng key/payload được replay bằng save service trên development DB thật: `SUCCESS`, `replayed:true`, cùng tripId, Trip count 2→2. HTTP retry bằng cùng browser request chưa được chạy.
+- [x] Session Traveler hiện tại mở Trip cũ thuộc owner khác: API trả `TRIP_NOT_FOUND`, giống ID không tồn tại; UI hiển thị cùng not-found. Chưa đăng nhập phiên Traveler B để đảo chiều kiểm tra.
+- [x] Negative server integration trên development DB: duration violation và unavailable route đều `TRIP_VALIDATION_FAILED`, Trip count 2→2. UI negative proposal chưa được chạy live.
+- [ ] Pixel matching MH-07/08/09: BLOCKED vì Figma file kết nối chỉ lộ `01 – Components`.
 
-## Test Plan
+## Test Plan / Acceptance Evidence (2026-10-19)
 
-Vitest service/API/client tests cho 12 case task; kiểm tra transaction, migration, full tests, typecheck, build, `git diff --check`.
+TDD adapter/service/HTTP/client/UI RED→GREEN; có test khóa hai planner actions khi kết quả lưu chưa rõ. Focused US-29/30/31 Vitest 115/115 PASS; root `npm run env:generate`, `npm run db:generate`, `npm run check-types`, `npm run build`, `npx prisma migrate status`, legacy tests chạy riêng và `git diff --check` PASS. Root `npm test` chưa PASS: full Vitest 2602 passed, 6 failed, 134 skipped, 1 todo; sáu thất bại nằm ở US-35/36/37 in-trip, AI edit và preference-extraction env, không ở các file US-29/30/31 đang sửa. Vì Vitest fail, legacy phase của root script không chạy; nó được chạy riêng và PASS.
 
-## Implementation Sequence
+Browser 3010 Guest tới `/trips` chuyển `/login`. Sau khi người dùng đăng nhập Traveler, `/trips/new` manual form → review → real proposal ngày 20/10/2026 → bốn nhóm SATISFIED → save → `/trips/cmvetgw4s0001a0k5cytvczml` → My Trips và detail PASS. Nhánh AI cũng được chạy riêng: từ câu tiếng Việt, provider nhận diện đúng ngày, thời lượng, ô tô và thiên nhiên; review vẫn yêu cầu xác nhận. Không bấm lưu lần thứ hai. Read-only DB query xác nhận owner có giá trị, 1 Day/3 Visit đúng order 1,2,3. Existing Trip không bị sửa. Dữ liệu Destination đều mang nhãn `[TEST]`, nên production dataset và Figma parity vẫn chưa được chứng minh. Live negative UI, HTTP duplicate retry, Traveler B session và ONGOING/COMPLETED browser cases vẫn NOT PROVEN.
 
-1. Reuse contract và Validator của US-29C.
-2. TDD save service với fake DB transaction và outcome.
-3. Schema + Prisma migration, thin route, reusable client component.
-4. Verify và ghi acceptance evidence.
+## Files Changed in This Audit
 
-## Acceptance Evidence
-
-US-30 focused Vitest: 17/17 PASS (service 10, HTTP 2, client 3, panel 2). Entire US-29A/B/C + US-30 selection: 66/66 PASS. `npm run env:generate`, `npm run db:generate`, `npx prisma validate`, `npm run check-types`, `npm run build` PASS. Root `npm run test` reached legacy Culture tests and failed on an existing assertion that header navigation contains `to: "/culture", label: "Văn hóa"`; neither file was changed here. `git diff --check` PASS for tracked diff.
-
-Migration SQL was reviewed against the three Prisma models: one enum, three tables, four indexes and four expected foreign keys; no speculative tables. `npx prisma migrate status` reports **not applied** and exits 1 because the DB has migration `20261014120000_add_destination_editorial` absent locally. No migration was applied to the development DB; actual PostgreSQL atomicity and live authenticated save remain NOT PROVEN until histories are reconciled. The reusable component is not mounted because the current `/trips/new` only reviews trip requirements, not a generated itinerary.
+`trip-save-adapter.ts`/test, `trip-confirmation-section.tsx`, `trip-planner-screen.tsx`/CSS/UI test, `POST /api/trips/validate` route, `trip-save-service.ts`/HTTP/client và tests, comment trong `trip-save-panel.tsx`, story này và `docs/ai-progress.md`. US-31 runtime code không cần đổi.

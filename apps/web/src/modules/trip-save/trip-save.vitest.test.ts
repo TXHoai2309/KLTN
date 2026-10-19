@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { getTravelRoute } from "../trip-validation/stadia-route";
 
 import { tripSaveRequestSchema } from "./trip-save-contract";
-import { saveTrip, type TripSaveDependencies } from "./trip-save-service";
+import { previewTripValidation, saveTrip, type TripSaveDependencies } from "./trip-save-service";
 
 const timeReference = new Date("2026-10-15T00:00:00.000Z");
 const headers = new Headers();
@@ -59,6 +59,18 @@ const twoVisits = () => ({ confirm: true as const, proposal: { ...structuredClon
 ] }] } });
 
 describe.each(["TRAVELER", "ADMIN"])("US-30 %s server save gate", role => {
+  it("previews all four groups from canonical visible data without writing", async () => {
+    const test = fixture(role);
+    const validation = await previewTripValidation(headers, tripSaveRequestSchema.parse(twoVisits()).proposal, test.dependencies, timeReference);
+    expect(validation.canConfirm).toBe(true);
+    expect(Object.keys(validation.groups)).toEqual(["openingHours", "minimumDuration", "travelTime", "scheduleConflict"]);
+    expect(test.trips).toHaveLength(0);
+    expect(test.records).toHaveLength(0);
+    test.dependencies.getRoute = async () => ({ kind: "unavailable" });
+    const missing = await previewTripValidation(headers, tripSaveRequestSchema.parse(twoVisits()).proposal, test.dependencies, timeReference);
+    expect(missing.groups.travelTime.status).toBe("INSUFFICIENT_DATA");
+    expect(missing.canConfirm).toBe(false);
+  });
   it("revalidates through shared motorcycle routing and replays without another provider call", async () => {
     const test=fixture(role);
     const fetcher=vi.fn<typeof fetch>(async()=>Response.json({trip:{summary:{time:60}}}));
