@@ -10,14 +10,12 @@ export interface QaAbuseHooks {
   admit(tx: Tx, principal: QaPrincipal, turnId: string, fence: number, leaseUntil: Date): Promise<void>;
   release(tx: Tx, turnId: string, fence: number): Promise<void>;
 }
-// The owner requested a very high practical ceiling for QA. Counters and
-// concurrency leases remain in place, while 100M caps avoid ordinary use being
-// rejected. Each attempt reserves its entire token ceiling, including embedding,
-// assessment, generation and at most one synthesis verification.
+// The owner requested very high practical request ceilings for QA. Durable
+// request counters and concurrency leases remain in place; token reservations
+// are not used as an admission limit.
 export const QA_ABUSE_LIMITS = {
   bootstrapNetworkHour: 100_000_000, bootstrapGlobalDay: 100_000_000,
   askNetworkTenMinutes: 100_000_000, askNetworkDay: 100_000_000, askGlobalDay: 100_000_000,
-  globalTokensDay: 100_000_000, tokensPerAttempt: 43_000,
   concurrentGlobal: 100_000_000, concurrentNetwork: 100_000_000, concurrentPrincipal: 100_000_000,
 } as const;
 export type QaAbuseLimits = { [K in keyof typeof QA_ABUSE_LIMITS]: number };
@@ -51,7 +49,6 @@ export function createQaNetworkResolver(options: { secret: () => string | undefi
 export function createQaAbuseGuard(db: Database, overrides: Partial<QaAbuseLimits> = {}) {
   const limits = { ...QA_ABUSE_LIMITS, ...overrides };
   if (Object.values(limits).some(n => !Number.isSafeInteger(n) || n < 1 || n > 100_000_000)) throw new Error("Invalid QA abuse limit");
-  if (limits.tokensPerAttempt < QA_ABUSE_LIMITS.tokensPerAttempt) throw new Error("QA cost reservation below provider token ceilings");
   const lock = async (tx: Tx) => {
     await tx.$queryRaw(Prisma.sql`SELECT pg_advisory_xact_lock(hashtextextended('qa-abuse-global-v1',0))::text AS locked`);
   };
@@ -80,7 +77,6 @@ export function createQaAbuseGuard(db: Database, overrides: Partial<QaAbuseLimit
       await charge(tx,`ask-network:${p.networkId}`,600,1,limits.askNetworkTenMinutes);
       await charge(tx,`ask-network:${p.networkId}`,86400,1,limits.askNetworkDay);
       await charge(tx,"ask-global",86400,1,limits.askGlobalDay);
-      await charge(tx,"tokens-global",86400,limits.tokensPerAttempt,limits.globalTokensDay);
       await tx.$executeRaw(Prisma.sql`INSERT INTO qa_abuse_lease("turnId",fence,principal,"networkId","leaseUntil") VALUES(${turnId},${fence},${principal},${p.networkId},${leaseUntil}) ON CONFLICT("turnId") DO UPDATE SET fence=EXCLUDED.fence,"leaseUntil"=EXCLUDED."leaseUntil"`);
     },
     async release(tx,turnId,fence) {

@@ -3492,3 +3492,9 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
 - **Files:** RAG service/API/UI/styles; retrieval query and tests; indexing job store/service/request/worker/finalizer and tests; PostgreSQL setup scripts; Prisma schema/migration; `GLOSSARY.md`, US-39 story and this progress record.
 - **Verification:** RAG service/UI 64/64 PASS; DELETE/restore route Vitest 5/5 PASS; retrieval/indexing Vitest 61 PASS / 3 SKIP; Web typecheck PASS; Prisma Client generation PASS; Next.js production build PASS with process-local placeholder environment values; both PostgreSQL script syntax checks PASS; `git diff --check` PASS. Impeccable source detector: 0 anti-patterns, 15 advisory notes. No lint script is configured.
 - **Limits:** PostgreSQL integration tests were skipped because Docker Engine was unavailable and no disposable DB URL was configured. No authenticated browser smoke or parsed-page Impeccable check. Migration not applied; no commit, push, or deployment.
+
+### 2026-10-20 — US-21 QA token reservation removed
+
+- Removed the fixed 43,000-token reservation per admitted ask and its global daily token-budget counter at the owner's request. Durable ask/network counters and concurrency leases remain at their configured high ceilings.
+- Kept provider-call input/output limits, evidence limits, and bounded model-call flow unchanged. No schema or migration change; historical token bucket rows expire through existing cleanup.
+- Updated focused tests and implementation notes. Tests/typecheck were not run in this turn; no commit, push, or deployment.

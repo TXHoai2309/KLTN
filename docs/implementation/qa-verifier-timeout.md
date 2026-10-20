@@ -68,9 +68,11 @@ verifier samples:0/18 reasoning tokens at5.754/6.634s; no causal evidence medium
 was the historical bottleneck. No model/effort/temperature/token cap change.
 
 Existing bounds:4 chunks/3000 evidence tokens,8k input/2k completion per structured
-call, at most assessment+generation+one verifier,43k token reservation per admitted
-attempt and durable abuse/concurrency controls unchanged. Timeout extension may
-allow existing work to finish, but adds no token budget or provider call/retry.
+call, at most assessment+generation+one verifier, and durable request/concurrency
+controls. The owner later removed the 43k per-attempt reservation and its related
+global token-day admission budget. Provider per-call input/output caps remain.
+Timeout extension may allow existing work to finish, but adds no provider call or
+retry.
 
 Owner authorized live smoke. Exactly2 Local HTTP/service pipelines used actual
 eligible Production retrieval, Neon API identity verification, TLS/default read-only

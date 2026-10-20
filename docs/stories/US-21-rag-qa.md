@@ -1533,3 +1533,12 @@ Acceptance disposition: TASK192=PARTIAL (retrieval/eligibility implementation an
 Follow-up GitHub issues created: [Guest/browser readiness #1](https://github.com/TXHoai2309/KLTN/issues/1), [authenticated multi-turn/idempotency #2](https://github.com/TXHoai2309/KLTN/issues/2), [historical AI_INVALID_RESPONSE #3](https://github.com/TXHoai2309/KLTN/issues/3), [verified Hà Giang corpus evaluation #4](https://github.com/TXHoai2309/KLTN/issues/4), [retention scheduler/SLA #5](https://github.com/TXHoai2309/KLTN/issues/5), and [separate GPT-6 Luna configuration evaluation #6](https://github.com/TXHoai2309/KLTN/issues/6). These track work; they do not waive US-21 acceptance.
 
 Final local validation: 286/286 targeted Guest/auth/controller, contract, retrieval, generation, HTTP, service and abuse tests PASS; typecheck PASS (4/4); production build PASS (29/29 pages). The previously recorded 573/573 Vitest/disposable PostgreSQL result is from the same unchanged code commit and was reused; no DB test or Neon operation was repeated. Prisma validation and the full credential/client-asset scan remain the same-checkpoint evidence recorded above. No application code, schema, environment, model, provider, or database content changed. Only append-only closeout evidence was added to this story and `docs/ai-progress.md`.
+
+### 2026-10-20 — Owner-directed removal of token reservation admission
+
+Removed the fixed 43,000-token reservation charged for each admitted QA attempt
+and the associated global daily token bucket. Request/network admission counters
+and concurrency leases remain. Provider per-call input/output bounds, evidence
+limits, and model-call count are unchanged. Historical `tokens-global` counters
+and earlier 43,000-token reports describe the old implementation only; existing
+expired rows are left for normal cleanup. No database migration is required.

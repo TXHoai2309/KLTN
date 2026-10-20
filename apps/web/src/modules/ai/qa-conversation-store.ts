@@ -144,7 +144,7 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
   const maxPerDay = options.maxPerDay ?? 100;
   const maxAttempts=options.maxAttempts ?? 3;
   if(!Number.isInteger(maxAttempts)||maxAttempts<1||maxAttempts>5) throw new Error("Invalid QA recovery attempt limit");
-  if (![maxPerTenMinutes,maxPerDay].every(n=>Number.isInteger(n)&&n>=1&&n<=1000)) throw new Error("Invalid QA admission limits");
+  if (![maxPerTenMinutes,maxPerDay].every(n=>Number.isInteger(n)&&n>=1&&n<=100_000_000)) throw new Error("Invalid QA admission limits");
   const transaction = <T>(work: (tx: Tx, now: Date) => Promise<T>) => db.$transaction(async tx => {
     const now = options.now?.() ?? (await tx.$queryRaw<{ now: Date }[]>(Prisma.sql`SELECT clock_timestamp() AS now`))[0]!.now;
     if (!Number.isFinite(now.getTime())) throw new Error("Invalid QA clock");
