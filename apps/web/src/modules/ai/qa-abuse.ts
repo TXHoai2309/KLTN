@@ -10,15 +10,15 @@ export interface QaAbuseHooks {
   admit(tx: Tx, principal: QaPrincipal, turnId: string, fence: number, leaseUntil: Date): Promise<void>;
   release(tx: Tx, turnId: string, fence: number): Promise<void>;
 }
-// Provisional conservative deployment budgets, requiring owner calibration. Each
-// attempt reserves its entire token ceiling, including embedding, assessment,
-// generation and at most one synthesis verification (each JSON call <= 8k+2k).
-// No refund: failed calls and recovered same-key attempts still incur cost.
+// The owner requested a very high practical ceiling for QA. Counters and
+// concurrency leases remain in place, while 100M caps avoid ordinary use being
+// rejected. Each attempt reserves its entire token ceiling, including embedding,
+// assessment, generation and at most one synthesis verification.
 export const QA_ABUSE_LIMITS = {
-  bootstrapNetworkHour: 10, bootstrapGlobalDay: 500,
-  askNetworkTenMinutes: 20, askNetworkDay: 100, askGlobalDay: 500,
-  globalTokensDay: 8_000_000, tokensPerAttempt: 43_000,
-  concurrentGlobal: 8, concurrentNetwork: 2, concurrentPrincipal: 1,
+  bootstrapNetworkHour: 100_000_000, bootstrapGlobalDay: 100_000_000,
+  askNetworkTenMinutes: 100_000_000, askNetworkDay: 100_000_000, askGlobalDay: 100_000_000,
+  globalTokensDay: 100_000_000, tokensPerAttempt: 43_000,
+  concurrentGlobal: 100_000_000, concurrentNetwork: 100_000_000, concurrentPrincipal: 100_000_000,
 } as const;
 export type QaAbuseLimits = { [K in keyof typeof QA_ABUSE_LIMITS]: number };
 const unavailable = () => new AppError("AI_UNAVAILABLE", "AI_UNAVAILABLE", 503);
