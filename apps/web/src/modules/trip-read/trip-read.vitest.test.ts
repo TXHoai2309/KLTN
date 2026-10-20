@@ -38,17 +38,17 @@ function fixture() {
     trip: {
       findMany: async (args: { where: { userId: string }; select: Record<string, unknown> }) => {
         calls.list = args;
-        return rows.filter(row => row.userId === args.where.userId).map(row => ({ ...row, favorites: favoriteOwner === args.where.userId ? [{ id: "favorite" }] : [] }));
+        return rows.filter(row => row.userId === args.where.userId).map(row => ({ ...row, favorites: favoriteOwner === args.where.userId ? [{ id: "favorite" }] : [], days: [{ _count: { visits: 3 } }] }));
       },
       findFirst: async (args: { where: { id: string; userId: string } }) => {
         calls.detail = args;
         const row = rows.find(item => item.id === args.where.id && item.userId === args.where.userId);
         return row && { ...row, favorites: favoriteOwner === args.where.userId ? [{ id: "favorite" }] : [], days: [
-          { id: "day-2", dayIndex: 2, localDate: new Date("2026-10-11T00:00:00.000Z"), visits: [
+          { id: "day-2", dayIndex: 2, localDate: new Date("2026-10-11T00:00:00.000Z"), _count: { visits: 2 }, visits: [
             { id: "visit-2", order: 2, startMinute: 600, plannedDurationMinutes: 60, destination: { id: "d2", name: "B", area: "Đồng Văn", visibility: "VISIBLE" } },
             { id: "visit-1", order: 1, startMinute: 480, plannedDurationMinutes: 90, destination: { id: "d1", name: "A", area: "Mèo Vạc", visibility: "HIDDEN" } },
           ] },
-          { id: "day-1", dayIndex: 1, localDate: new Date("2026-10-10T00:00:00.000Z"), visits: [] },
+          { id: "day-1", dayIndex: 1, localDate: new Date("2026-10-10T00:00:00.000Z"), _count: { visits: 0 }, visits: [] },
         ] };
       },
     },
@@ -69,13 +69,14 @@ describe("US-31 owned Trip reads", () => {
     expect((await listMyTrips(headers, test.dependencies, "2026-10-10")).items[0]).toHaveProperty("isFavorite", false);
     expect(await getMyTrip(headers, "mine", test.dependencies, "2026-10-10")).toHaveProperty("isFavorite", false);
   });
-  it("lists only current Traveler trips and omits visits", async () => {
+  it("lists only current Traveler trips and returns factual visit counts without visit rows", async () => {
     const test = fixture();
     const result = await listMyTrips(headers, test.dependencies, "2026-10-09");
     expect(result.items.map(item => item.id)).toEqual(["mine"]);
-    expect(result.items[0]).toMatchObject({ startDate: "2026-10-10", endDate: "2026-10-11", transport: "CAR", status: "UPCOMING" });
+    expect(result.items[0]).toMatchObject({ startDate: "2026-10-10", endDate: "2026-10-11", transport: "CAR", status: "UPCOMING", visitCount: 3 });
     expect(test.calls.list).toMatchObject({ where: { userId: "a" } });
-    expect((test.calls.list as { select: Record<string, unknown> }).select).not.toHaveProperty("days");
+    expect(test.calls.list).toMatchObject({ select: { days: { select: { _count: { select: { visits: true } } } } } });
+    expect(test.calls.list).not.toMatchObject({ select: { days: { select: { visits: expect.anything() } } } });
   });
   it("reads own detail and orders days and visits", async () => {
     const test = fixture();

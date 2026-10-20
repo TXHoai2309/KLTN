@@ -3449,3 +3449,104 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
   live ONGOING/COMPLETED and Figma MH-07/08/09 matching are NOT PROVEN; connected
   Figma exposes only `01 – Components`. No commit, push, merge, branch switch
   or DB reset.
+
+### 2026-10-19 — US-30/31 completion: visible save receipt and Figma-aligned Trip views
+
+- Reproduced two independent valid saves before changing code. Persistence and
+  exact Trip Detail navigation worked, but `TripSavePanel`'s local success text
+  was unmounted immediately by `router.replace`, so users did not see a durable
+  success acknowledgement. No stale My Trips/cache defect reproduced.
+- Added a global Sonner success notification before exact-ID navigation and a
+  focused ordering regression test. Two post-fix saves showed pending, exact
+  detail navigation and the success notification in the destination DOM. My
+  Trips updated immediately and retained all items after reload.
+- Inspected Figma Prototype Flow MH-07 `71:2`, MH-08 `57:573` and MH-09 `71:39`.
+  My Trips now uses status-grouped full-width rows with factual visit counts;
+  Trip Detail uses a green factual hero, ordered itinerary timeline and info
+  sidebar. Existing Favorite/Edit/In-trip routes remain; no fake image, route
+  time or validator snapshot was added.
+- Development DB after the authorized E2E work: 6 Trip / 7 Day / 19 Visit. Four
+  audit-created Trip IDs share the authenticated Traveler owner; each has one
+  Day and three Visits ordered 1,2,3. No record was reset or deleted and no
+  schema/migration changed.
+- Browser checks on `/trips` and Trip Detail at 360/390/768/1024/1440 in both
+  light and dark measured no horizontal overflow and retained main actions.
+  Focused US-29/30/31 Vitest: 115/115 PASS; root typecheck and build PASS;
+  diff check PASS. Root `npm test` remains FAILED outside this change: 2603
+  passed, 6 failed, 134 skipped, 1 todo (US-35/36/37, AI edit authorization and
+  preference-extraction environment). Controlled browser FAILED/UNKNOWN,
+  reverse second-Traveler ownership and live ONGOING/COMPLETED remain NOT PROVEN.
+
+### 2026-10-20 — Trip reference-image UI redesign
+
+- User approved three screenshots as the primary visual target for Trip Detail,
+  In-trip Assistant and Edit. Removed the remaining Favorite control from My
+  Trips; Detail also has no Favorite control. US-34 API/service/schema/data and
+  other Favorite surfaces remain. The original US-34 list/detail action
+  acceptance is explicitly superseded in its story, not reported as current PASS.
+- Detail now has aligned direct Back navigation, a full-width green hero with
+  factual status, full-width per-day timeline, separate time column, factual
+  start/end/duration and destination cards. Real Edit/In-trip links move below
+  the itinerary; duplicated sidebar information is removed.
+- In-trip now has serif hierarchy, clock/amber information banner, section icons,
+  individual timeline nodes and time badges, wrapped factual metadata and a
+  compact remaining empty state. Schedule-passed does not imply actually visited.
+- Edit now has factual summary at the right of its heading, equal desktop columns,
+  AI chips that populate textarea without submitting, a real character counter,
+  destination picker and compact proposal with native expandable visit tools.
+  Existing preview/apply/cancel/UNKNOWN handlers and four-group Validator are kept.
+- Only frontend presentation and Trip-view regression tests changed in this task.
+  Existing Card/Button, Lucide and configured fonts/theme are reused. No dependency,
+  schema, migration, API/service, auth, routing or GPS change; no DB mutation,
+  commit, push, merge or branch switch.
+- Current-owner browser Trip was selected from the actual My Trips links.
+  Thirty viewport/theme measurements PASS (3 routes x 360/390/768/1024/1440 x
+  light/dark): no horizontal overflow, Edit stacks through 768 and uses equal
+  columns at 1024/1440. Header is unchanged. Light theme and viewport restored.
+- Browser PASS: list five Trips/zero Favorite controls; direct Back returns to
+  My Trips; chip fills textarea without submitting; local reorder survives empty
+  search; adding a real public Destination only changes local proposal 3→4 visits;
+  cancellation returns to the persisted 3 visits. Read-only preview of the
+  original proposal returns four SATISFIED groups; no confirm/apply was invoked.
+- Visual evidence outside Git:
+  `C:/Users/Admin/AppData/Local/Temp/trip-redesign-detail-before.png`,
+  `trip-redesign-detail-after.png`, `trip-redesign-in-trip-after.png`,
+  `trip-redesign-edit-after.png`, `trip-redesign-edit-dark.png`,
+  `trip-redesign-*-mobile-dark.png`, `trip-redesign-validator-after.png`;
+  viewport measurements in `trip-redesign-responsive.json`.
+  Detail before/after is usable. NOT VERIFIED: loaded Edit/In-trip before
+  screenshots, because their baseline capture caught loading skeletons.
+- BLOCKED exact image/description/illustration parity: current Trip DTO has no
+  destination media/summary; no matching decorative asset was found. Neutral
+  placeholders replace absent images. No hardcoded image mapping, invented
+  description, decorative mountain system or fake map/drag action was added.
+  NOT VERIFIED: live AI submission, controlled mutation FAILED/UNKNOWN, GPS,
+  live HAS_REMAINING fixture; existing session/business tests cover their rules.
+- Verification: targeted Vitest 79/79 PASS, Favorite legacy 27/27 PASS, full
+  legacy 336/336 PASS, root typecheck/build/diff check PASS. Root `npm test`
+  FAILED with the same six failures as before this task: 2607 passed, 6 failed,
+  134 skipped, 1 todo. US-35 static-href source guard, US-36/replan/US-37
+  Admin-denied expectations, AI-edit HTTP Admin expectation, preference env
+  model-sensitivity expectation. No newly failing test identified.
+- Commands: root `npm test`, `npm run check-types`, `npm run build`,
+  `git diff --check`; web `npm run test:favorite`, `npm run test:legacy`;
+  `npm exec vitest run -- --config vitest.config.mts` with
+  `src/app/trips/trips-view.vitest.test.ts`,
+  `src/components/in-trip/in-trip-presentation.vitest.test.ts`,
+  `src/components/trip-planner/planner-ui.vitest.test.ts`,
+  `src/modules/trip-edit/us32-test.vitest.test.ts`,
+  `src/modules/trip-edit/edit-apply-state.vitest.test.ts`,
+  `src/modules/trip-edit/ai-edit-session.vitest.test.ts`,
+  `src/modules/in-trip/in-trip-proposal-session.vitest.test.ts`,
+  `src/modules/in-trip/in-trip-session.vitest.test.ts`,
+  `src/modules/in-trip/split-trip.vitest.test.ts`,
+  `src/modules/trip-validation/trip-validation.vitest.test.ts`,
+  `src/modules/trip-validation/trip-validation-panel.vitest.test.ts`.
+- Runtime/test files changed this task:
+  `apps/web/src/app/trips/trips-view.tsx`, `trips.css`,
+  `trips-view.vitest.test.ts`;
+  `apps/web/src/app/trips/[id]/edit/edit-trip-client.tsx`,
+  `edit-trip.module.css`, `ai-edit-panel.tsx`, `ai-edit-panel.module.css`;
+  `apps/web/src/components/in-trip/in-trip-assistant.tsx`,
+  `in-trip-assistant.module.css`. Docs: this entry, US-31 and US-34 Trip story.
+  Earlier uncommitted US-30/31 changes were preserved.

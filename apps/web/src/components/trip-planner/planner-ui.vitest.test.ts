@@ -10,7 +10,7 @@ import { missingLeg } from "../../modules/trip-planner/planner-routes";
 import type { PlannerResult } from "../../modules/trip-planner/planner-contract";
 import { PlannerActions } from "./planner-presentation";
 
-let components: Record<string, ComponentType<any>>;
+let components: Record<string, any>;
 let ready: PlannerResult;
 const noop = () => {};
 beforeAll(async () => {
@@ -71,5 +71,13 @@ describe("real planner UI server rendering", () => {
   it("does not let back or regenerate interrupt a save whose outcome is unresolved", () => {
     const html = renderToStaticMarkup(createElement(PlannerActions, { busy: false, disabled: true, onBack: noop, onRegenerate: noop }));
     expect(html.match(/disabled=""/g)).toHaveLength(2);
+  });
+  it("announces a confirmed save before navigating to the persisted Trip", () => {
+    const events: string[] = [];
+    components.completeTripSave("trip/one", (message: string) => events.push(`notice:${message}`), (href: string) => events.push(`navigate:${href}`));
+    expect(events).toEqual([
+      "notice:Đã lưu chuyến đi thành công.",
+      "navigate:/trips/trip%2Fone",
+    ]);
   });
 });

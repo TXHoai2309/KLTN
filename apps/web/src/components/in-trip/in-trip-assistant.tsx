@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { Route } from "next";
+import { ArrowLeft, CalendarDays, Clock3, MapPinned, Mountain, Sparkles } from "lucide-react";
 import { useId, useRef, useState } from "react";
 
 import ManualLocationPicker from "@/components/in-trip/manual-location-picker";
@@ -30,6 +31,7 @@ import {
 import { diffEditCandidate, type EditCandidate } from "@/modules/trip-edit/edit-candidate";
 import { requestInTripReplan } from "@/lib/in-trip-client";
 import type { SplitTripStatus } from "@/modules/in-trip/split-trip";
+import { inTripDateLabel, inTripVisitStatus, REMAINING_EMPTY_MESSAGE } from "./in-trip-presentation";
 import styles from "./in-trip-assistant.module.css";
 
 type Props = {
@@ -59,10 +61,10 @@ function InTripVisitList({
   return (
     <section className={`${styles.visitGroup} ${completed ? styles.completed : styles.remaining}`}>
       <div className={styles.visitGroupHeading}>
-        <span className={styles.timelineMark} aria-hidden="true" />
+        <span className={styles.sectionIcon} aria-hidden="true">{completed ? <MapPinned size={22} /> : <Sparkles size={22} />}</span>
         <div>
-          <h2>{completed ? "Đã qua giờ theo lịch" : "Sẽ được đề xuất lại"}</h2>
-          {completed && <span className={styles.lockBadge}>Đã khóa</span>}
+          <div className={styles.groupTitle}><h2>{completed ? "Đã qua giờ theo lịch" : "Sẽ được đề xuất lại"}</h2>
+          {completed && <span className={styles.lockBadge}>Đã khóa</span>}</div>
           <p>
             {completed
               ? "Đây là mốc giờ trong kế hoạch; lượt được giữ nguyên và hệ thống không xác nhận bạn đã thực sự tham quan."
@@ -71,16 +73,27 @@ function InTripVisitList({
         </div>
       </div>
       {visits.length === 0 ? (
-        <p className={styles.emptyVisits}>{completed ? "Chưa có lượt nào qua giờ theo lịch." : "Không còn lượt nào trong phần lịch này."}</p>
+        <div className={styles.emptyVisits}>
+          <MapPinned size={32} aria-hidden="true" />
+          <div><p>{completed ? "Chưa có lượt nào qua giờ theo lịch." : REMAINING_EMPTY_MESSAGE}</p>
+          {!completed && <p className={styles.emptyDescription}>Khi còn các lượt trong lịch, trợ lý sẽ gợi ý cách sắp xếp phù hợp.</p>}</div>
+        </div>
       ) : (
         <ol className={styles.visitList}>
           {visits.map(visit => (
             <li className={styles.visit} key={visit.visitId}>
-              <span className={styles.visitTime}>{timeLabel(visit.startMinute)}</span>
+              <span className={styles.visitNode} aria-hidden="true" />
+              <div className={styles.visitTime}>
+                <strong>{timeLabel(visit.startMinute)}</strong>
+              </div>
               <div className={styles.visitContent}>
                 <h3>{visit.destinationName}</h3>
-                <p>{visit.area ? `${visit.area} · ` : ""}Ngày {visit.dayIndex} · {visit.localDate}</p>
-                <p>{visit.plannedDurationMinutes} phút · vị trí {visit.order}</p>
+                <div className={styles.visitMeta}>
+                  {visit.area && <p><Mountain size={14} aria-hidden="true" />{visit.area}</p>}
+                  <p><CalendarDays size={14} aria-hidden="true" />Ngày {visit.dayIndex} · {inTripDateLabel(visit.localDate)}</p>
+                  <p><Clock3 size={14} aria-hidden="true" />{visit.plannedDurationMinutes} phút · Thứ tự {visit.order}</p>
+                </div>
+                <span className={styles.srOnly}>{inTripVisitStatus(completed)}</span>
               </div>
             </li>
           ))}
@@ -231,7 +244,10 @@ export default function InTripAssistant({
   return (
     <main className={styles.page} aria-labelledby={headingId}>
       <div className={styles.content}>
-        <Link className={styles.backLink} href={`/trips/${tripId}` as Route}>← Quay lại chuyến đi</Link>
+        <Link className={styles.backLink} href={`/trips/${tripId}` as Route}>
+          <ArrowLeft size={16} aria-hidden="true" />
+          Quay lại chuyến đi
+        </Link>
         <header className={styles.hero}>
           <p className={styles.eyebrow}>Hỗ trợ trong chuyến đi</p>
           <h1 id={headingId}>Trợ lý hành trình</h1>
@@ -240,8 +256,11 @@ export default function InTripAssistant({
 
         {status === "ALL_COMPLETED" && (
           <section className={styles.completedNotice} role="status" aria-live="polite">
-            <h2>Không còn lượt trong lịch để đề xuất lại</h2>
-            <p>Toàn bộ lượt theo lịch đã qua giờ kết thúc dự kiến. Điều này không xác nhận bạn đã thực sự tham quan.</p>
+            <span className={styles.completedNoticeIcon}><Clock3 size={22} aria-hidden="true" /></span>
+            <div>
+              <h2>Không còn lượt trong lịch để đề xuất lại</h2>
+              <p>Toàn bộ lượt theo lịch đã qua giờ kết thúc dự kiến. Điều này không xác nhận bạn đã thực sự tham quan.</p>
+            </div>
           </section>
         )}
 

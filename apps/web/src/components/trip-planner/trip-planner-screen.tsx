@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route as NextRoute } from "next";
 import { AlertCircle, ArrowLeft, LoaderCircle, MapPinned, Mountain, Route, ShieldCheck } from "lucide-react";
+import { toast } from "sonner";
 import type { ConfirmedTripRequirement } from "@/modules/trip-requirement/trip-requirement-review";
 import type { PlannerResult } from "@/modules/trip-planner/planner-contract";
 import { requestTripProposal, type PlannerClientResult } from "@/lib/trip-planner-client";
@@ -13,6 +14,15 @@ import { TripConfirmationSection } from "./trip-confirmation-section";
 import type { SaveState } from "@/modules/trip-save/trip-save-panel";
 import { DestinationPreviewCard, ItineraryDayTabs, ItineraryStopCard, ItineraryValidationPanel, PlannerActions, TripOverviewCard, TripSummaryBar } from "./planner-presentation";
 import "./trip-planner.css";
+
+export function completeTripSave(
+  tripId: string,
+  notify: (message: string) => void,
+  navigate: (href: NextRoute) => void,
+) {
+  notify("Đã lưu chuyến đi thành công.");
+  navigate(`/trips/${encodeURIComponent(tripId)}` as NextRoute);
+}
 
 export function TripPlannerScreen({ proposal, busy = false, onBack, onRegenerate, onSaved, embedded = false }: { proposal: PlannerResult; busy?: boolean; onBack: () => void; onRegenerate: () => void; onSaved: (tripId: string) => void; embedded?: boolean }) {
   const [dayNumber, setDayNumber] = useState(1);
@@ -72,7 +82,11 @@ export default function TripPlannerFlow({ confirmed, onBack, embedded = false }:
     } finally { if (seq === sequence.current) { lock.current = false; if (mounted.current) setBusy(false); } }
   }
   const back = () => { abort.current?.abort(); sequence.current++; attempt.current = null; setProposal(null); onBack(); };
-  if (proposal) return <><TripPlannerScreen proposal={proposal} busy={busy} onBack={back} onRegenerate={() => { void generate(); }} onSaved={tripId => router.replace(`/trips/${encodeURIComponent(tripId)}` as NextRoute)} embedded={embedded} />{error && <PlannerErrorState error={error} onBack={back} onRetry={() => { void generate(true); }} />}{busy && <div className="planner-progress" role="status"><LoaderCircle className="trip-spinner" />Đang tạo lại lịch trình…</div>}</>;
+  if (proposal) return <><TripPlannerScreen proposal={proposal} busy={busy} onBack={back} onRegenerate={() => { void generate(); }} onSaved={tripId => completeTripSave(
+    tripId,
+    message => toast.success(message, { id: "trip-saved", position: "bottom-right", duration: 5000 }),
+    href => router.replace(href),
+  )} embedded={embedded} />{error && <PlannerErrorState error={error} onBack={back} onRetry={() => { void generate(true); }} />}{busy && <div className="planner-progress" role="status"><LoaderCircle className="trip-spinner" />Đang tạo lại lịch trình…</div>}</>;
   const PlannerContainer = embedded ? "div" : "main";
   return <PlannerContainer className="planner-page" lang="vi"><TripSummaryBar requirement={confirmed.requirement} />{busy ? <PlannerLoadingState /> : error ? <PlannerErrorState error={error} onBack={back} onRetry={() => { void generate(true); }} /> :
      <section className="planner-start"><span className="planner-start-icon"><MapPinned size={36} /></span><p className="planner-eyebrow">Nhu cầu đã được kiểm tra</p><h2 data-trip-panel-heading tabIndex={-1}>Sẵn sàng khám phá Hà Giang?</h2><p>Chúng tôi sẽ sắp xếp các điểm đến hiện có thành lịch trình theo ngày, rồi kiểm tra thời lượng, giờ mở cửa và dữ liệu di chuyển.</p><button type="button" className="planner-primary" onClick={() => { void generate(); }}><Route size={18} />Tạo lịch trình đề xuất</button><button type="button" className="planner-start-back" onClick={back}><ArrowLeft size={16} />Quay lại chỉnh nhu cầu</button><small>Đây là đề xuất trong phiên hiện tại, chưa tạo hành trình chính thức.</small></section>}</PlannerContainer>;

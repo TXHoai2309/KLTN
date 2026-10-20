@@ -2,7 +2,7 @@
 
 ## Status
 
-IMPLEMENTED — scoped code, development PostgreSQL and browser acceptance verified with disposable fixtures on 2026-10-15. Full root tests still have an unrelated legacy Culture failure; Figma frame parity remains blocked.
+API/schema implementation retained. **UI SCOPE OVERRIDE 2026-10-20:** user explicitly removed Favorite Trip controls from My Trips and Trip Detail. The original UI acceptance below is historical and is not a current PASS. See the override section.
 
 ## Epic
 
@@ -18,7 +18,7 @@ Là Du khách, tôi muốn thêm hoặc bỏ yêu thích một hành trình đã
 
 ## Outcome
 
-An authenticated Traveler can toggle Favorite on an owned persisted Trip from My Trips and Trip Detail; only a Favorite relation changes.
+The original implementation added owned-Trip Favorite API/persistence and controls. The 2026-10-20 user-approved UI redesign removes those controls from `/trips` surfaces while retaining API, services, relations, stored data and other Favorite surfaces.
 
 ## Source References
 
@@ -85,7 +85,7 @@ Existing development Neon/Better Auth only; no new dependency or environment var
 - [x] Add/remove preserves original Trip/Days/Visits/owner, demonstrated against development DB fixtures.
 - [x] Trip list/detail Favorite state belongs to current actor.
 - [x] Guest/Admin denied; client identity cannot override actor.
-- [x] List/detail heart changes only on SUCCESS; pending repeated click blocked; FAILED/UNKNOWN retain state and safe retry.
+- [ ] Original list/detail heart interaction criterion is superseded by the 2026-10-20 UI removal; it must not be reported as current UI PASS.
 - [x] Responsive, light/dark and keyboard evidence reported without unverified visual claims.
 
 ## Test Plan
@@ -112,6 +112,12 @@ No production environment change. Explicit opt-in `US34_DEV_DB=1` only for guard
 4. Run DB no-copy/security tests, regressions and browser checks; record acceptance evidence.
 
 ## Acceptance Evidence
+
+### Current UI override — 2026-10-20
+
+The user explicitly requested no Favorite Trip heart/add/remove action anywhere under `/trips`. Removed the remaining `TripFavoriteButton` render/import from `MyTripsView`; Detail already omitted the control after the earlier UI task. Unused Trip-only Favorite CSS was removed. The standalone button implementation, Favorite API/service, Prisma relation/migration, `isFavorite` DTO and `/favorites` are retained. This is a deliberate change to US-34's former list/detail UX, not proof that the original UI acceptance still passes. SSR regression now checks both isFavorite values on list and detail; browser list shows zero Favorite controls. Shared Favorite regression tests: 27/27 PASS. No Favorite mutation or database write was performed.
+
+The remaining evidence below documents the earlier implementation and must be read as historical.
 
 ### Architecture and API
 
