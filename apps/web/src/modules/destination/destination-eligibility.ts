@@ -3,10 +3,10 @@ import type { Database, Prisma } from "@KLTN/db";
 /** Shared boundary for public content and candidates for a NEW itinerary.
  * Historical references require their own unavailable-content presentation.
  */
-export const visibleDestinationWhere = { visibility: "VISIBLE" } as const satisfies Prisma.DestinationWhereInput;
+export const visibleDestinationWhere = { visibility: "VISIBLE", deletedAt: null } as const satisfies Prisma.DestinationWhereInput;
 
-export function isDestinationPublic(destination: { visibility: string } | null | undefined): boolean {
-  return destination?.visibility === visibleDestinationWhere.visibility;
+export function isDestinationPublic(destination: { visibility: string; deletedAt?: Date | null } | null | undefined): boolean {
+  return destination?.visibility === visibleDestinationWhere.visibility && destination.deletedAt == null;
 }
 export const isDestinationEligibleForNewItinerary = isDestinationPublic;
 

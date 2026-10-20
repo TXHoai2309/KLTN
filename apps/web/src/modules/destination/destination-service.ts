@@ -38,14 +38,15 @@ export function validateDestinationId(id: string) {
 function openingCreate(days: DestinationInput["openingDays"]) {
   return days.map(day => ({ dayOfWeek: day.dayOfWeek, status: day.status, intervals: { create: day.intervals.map(interval => ({ opensAtMinute: toMinute(interval.opensAt), closesAtMinute: toMinute(interval.closesAt) })) } }));
 }
-export async function listDestinations(headers: Headers, page: number, deps: DestinationDependencies) {
+export async function listDestinations(headers: Headers, page: number, deps: DestinationDependencies, view: "active" | "deleted" = "active") {
   await requireActor(headers, deps, "admin");
   if (!Number.isSafeInteger(page) || page < 1 || page > 10000) throw new AppError("INVALID_DESTINATION_QUERY", "Trang không hợp lệ.", 400);
-  const rows = await deps.database.destination.findMany({ skip: (page - 1) * 25, take: 26, orderBy: [{ name: "asc" }, { id: "asc" }], select: { id: true, name: true, area: true, category: true, visibility: true, updatedAt: true } });
-  return destinationListSchema.parse({ items: rows.slice(0, 25).map(row => ({ ...row, updatedAt: row.updatedAt.toISOString() })), page, hasMore: rows.length > 25 });
+  const deletedOnly = view === "deleted";
+  const rows = await deps.database.destination.findMany({ where: deletedOnly ? { deletedAt: { not: null } } : { deletedAt: null }, skip: (page - 1) * 25, take: 26, orderBy: [{ name: "asc" }, { id: "asc" }], select: { id: true, name: true, area: true, category: true, visibility: true, updatedAt: true, deletedAt: true } });
+  return destinationListSchema.parse({ items: rows.slice(0, 25).map(row => ({ ...row, updatedAt: row.updatedAt.toISOString(), deletedAt: row.deletedAt?.toISOString() ?? null })), page, hasMore: rows.length > 25 });
 }
 export async function readDestination(id: string, database: Pick<Database, "destination">) {
-  const row = await database.destination.findUnique({ where: { id: validateDestinationId(id) }, select: destinationSelect });
+  const row = await database.destination.findUnique({ where: { id: validateDestinationId(id), deletedAt: null }, select: destinationSelect });
   if (!row) throw new AppError("DESTINATION_NOT_FOUND", "Không tìm thấy điểm đến.", 404);
   return toDestinationDto(row);
 }
@@ -75,7 +76,7 @@ export async function writeDestination(headers: Headers, body: unknown, key: str
         const extension = await profileWrite(tx, profile, actor.id, false);
         return toDestinationDto(await tx.destination.create({ data: { ...fields, ...extension, visibility: "HIDDEN", openingDays: { create: openingCreate(openingDays) } }, select: destinationSelect }));
       }
-      const previous = await tx.destination.findUnique({ where: { id }, select: destinationSelect });
+      const previous = await tx.destination.findUnique({ where: { id, deletedAt: null }, select: destinationSelect });
       if (!previous) throw new AppError("DESTINATION_NOT_FOUND", "Không tìm thấy điểm đến.", 404);
       const { openingDays, profile: ignoredProfile, ...fields } = input;
       let profile = ignoredProfile;

@@ -19,7 +19,7 @@ async function lock(tx: Prisma.TransactionClient, value: string) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${value}, 0))`;
 }
 async function destination(tx: Pick<Database, "destination">, id: string) {
-  const row = await tx.destination.findUnique({ where: { id: validateDestinationId(id) }, select: destinationSelect });
+  const row = await tx.destination.findUnique({ where: { id: validateDestinationId(id), deletedAt: null }, select: destinationSelect });
   if (!row) throw new AppError("DESTINATION_NOT_FOUND", "Không tìm thấy điểm đến.", 404);
   return row;
 }

@@ -67,9 +67,9 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
           <Card className="my-trips-visit">
             <div className="my-trips-visit-time"><strong>{minuteLabel(visit.startMinute)}</strong><span>{visit.plannedDurationMinutes} phút</span></div>
             <div className="my-trips-visit-place">
-              <h3>{visit.destination.visibility === "VISIBLE" ? <Link href={`/destinations/${visit.destination.id}` as Route}>{visit.destination.name}</Link> : visit.destination.name}</h3>
+              <h3>{visit.destination.availability === "AVAILABLE" ? <Link href={`/destinations/${visit.destination.id}` as Route}>{visit.destination.name}</Link> : visit.destination.name}</h3>
               <p>Điểm đến · {visit.destination.area}</p>
-              {visit.destination.visibility === "HIDDEN" && <p className="my-trips-unavailable">Không còn công khai</p>}
+              {visit.destination.availability === "UNAVAILABLE" && <p className="my-trips-unavailable">Điểm đến không còn khả dụng công khai</p>}
             </div>
           </Card>
         </li>)}

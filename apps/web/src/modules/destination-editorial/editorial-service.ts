@@ -21,7 +21,7 @@ function toEditorialContext(id: string, row: Parameters<typeof toDestinationDto>
   };
 }
 export async function readEditorialContext(id: string, database: Pick<Database, "destination">): Promise<EditorialContext> {
-  const row = await database.destination.findUnique({ where: { id: validateDestinationId(id) }, select: destinationSelect });
+  const row = await database.destination.findUnique({ where: { id: validateDestinationId(id), deletedAt: null }, select: destinationSelect });
   if (!row) throw new AppError("DESTINATION_NOT_FOUND", "Không tìm thấy điểm đến.", 404);
   return toEditorialContext(id, row);
 }
@@ -86,14 +86,14 @@ export async function writeEditorial(headers: Headers, body: unknown, key: strin
 /** Called only after the canonical public Destination read. No draft/provenance/AI query. */
 export async function readPublicEditorial(id: string, database: Database) {
   try {
-    const visible = await database.destination.findUnique({ where: { id, visibility: "VISIBLE" }, select: { id: true } });
+    const visible = await database.destination.findUnique({ where: { id, visibility: "VISIBLE", deletedAt: null }, select: { id: true } });
     if (!visible) return null;
     const row = await database.destinationEditorial.findUnique({ where: { destinationId: id }, select: { published: true } });
     const parsed = editorialLayoutSchema.safeParse(row?.published);
     if (!parsed.success) return null;
     // Recheck visibility/rights with the materialized context to close a hide/revoke race.
     const context = await readPublishedEditorialContext(id, database);
-    const stillVisible = await database.destination.findUnique({ where: { id, visibility: "VISIBLE" }, select: { id: true } });
+    const stillVisible = await database.destination.findUnique({ where: { id, visibility: "VISIBLE", deletedAt: null }, select: { id: true } });
     return stillVisible ? resolveEditorial(parsed.data, context) : null;
   } catch { return null; } // Missing table/invalid legacy JSON cannot break standard detail.
 }

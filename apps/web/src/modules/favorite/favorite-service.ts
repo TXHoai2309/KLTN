@@ -18,6 +18,7 @@ const favoriteSelect = {
       id: true,
       name: true,
       visibility: true,
+      deletedAt: true,
       area: true,
       category: true,
       media: {

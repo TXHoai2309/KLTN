@@ -5,11 +5,12 @@ import { getFavorites, removeFavorite, type FavoriteDependencies } from "./favor
 import { favoritesResponse, removeFavoriteResponse } from "./favorite-http";
 
 function fixture(role = "TRAVELER", authenticated = true) {
-  const destinations = [{ id: "d", name: "Public", visibility: "VISIBLE" }, { id: "hd", name: "Hidden", visibility: "HIDDEN", description: "SECRET" }];
+  const destinations = [{ id: "d", name: "Public", visibility: "VISIBLE", deletedAt: null }, { id: "hd", name: "Hidden", visibility: "HIDDEN", deletedAt: null, description: "SECRET" }, { id: "dd", name: "Deleted", visibility: "VISIBLE", deletedAt: new Date("2026-10-19T00:00:00Z") }];
   const cultures = [{ id: "c", title: "Culture", visibility: "VISIBLE" }, { id: "hc", title: "Hidden culture", visibility: "HIDDEN", content: "SECRET" }];
   let rows = [
     { id: "fd", userId: "a", destination: destinations[0], cultureContent: null },
     { id: "fhd", userId: "a", destination: destinations[1], cultureContent: null },
+    { id: "fdd", userId: "a", destination: destinations[2], cultureContent: null },
     { id: "fc", userId: "a", destination: null, cultureContent: cultures[0] },
     { id: "fhc", userId: "a", destination: null, cultureContent: cultures[1] },
     { id: "foreign", userId: "b", destination: destinations[0], cultureContent: null },
@@ -44,10 +45,10 @@ function fixture(role = "TRAVELER", authenticated = true) {
 }
 for (const role of ["TRAVELER", "ADMIN"]) test(role + ": own groups only; hidden targets remain title-only unavailable without original links", async () => {
   const data = await getFavorites(new Headers({ "x-user-id": "b" }), fixture(role).deps);
-  assert.deepEqual(data.destinations.map(x => x.favoriteId), ["fd", "fhd"]);
+  assert.deepEqual(data.destinations.map(x => x.favoriteId), ["fd", "fhd", "fdd"]);
   assert.deepEqual(data.cultureContents.map(x => x.favoriteId), ["fc", "fhc"]);
   assert.equal(data.destinations[0]?.href, "/destinations/d"); assert.equal(data.cultureContents[0]?.href, "/culture/c");
-  for (const item of [data.destinations[1]!, data.cultureContents[1]!]) { assert.equal(item.availability, "UNAVAILABLE"); assert.equal(item.href, null); }
+  for (const item of [data.destinations[1]!, data.destinations[2]!, data.cultureContents[1]!]) { assert.equal(item.availability, "UNAVAILABLE"); assert.equal(item.href, null); }
   assert.ok(!JSON.stringify(data).includes("SECRET"));
 });
 test("empty groups are successful data", async () => { const f=fixture(); f.clear(); assert.deepEqual(await getFavorites(new Headers(),f.deps),{destinations:[],cultureContents:[]}); });
@@ -57,7 +58,7 @@ for (const [role, authenticated, status] of [["TRAVELER",false,401],["ROOT",true
 for (const role of ["TRAVELER", "ADMIN"]) test(role + ": delete scopes relation by both IDs, preserves targets/other user's relation, replay has no second write", async () => {
   const f=fixture(role); assert.equal((await removeFavorite(new Headers(),"fd","key",f.deps)).status,"SUCCESS");
   assert.equal(f.rows().some(x=>x.id==="fd"),false); assert.equal(f.rows().some(x=>x.id==="foreign"),true);
-  assert.equal(f.destinations.length,2); assert.equal(f.cultures.length,2);
+  assert.equal(f.destinations.length,3); assert.equal(f.cultures.length,2);
   const replay=await removeFavorite(new Headers(),"fd","key",f.deps); assert.equal(replay.status,"SUCCESS"); if(replay.status==="SUCCESS") assert.equal(replay.replayed,true); assert.equal(f.deletes(),1);
 });
 for (const role of ["TRAVELER", "ADMIN"]) test(role + ": foreign and missing IDs have identical 404 failures; hidden relation removable", async () => {

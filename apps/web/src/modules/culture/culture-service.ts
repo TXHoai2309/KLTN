@@ -40,7 +40,7 @@ export async function getCulture(headers: Headers, id: string, deps: CultureDepe
 export async function lookupCultureDestinations(headers: Headers, query: string, page: number, deps: CultureDependencies) {
   await requireActor(headers, deps, "admin");
   if (query.length > 200 || !Number.isSafeInteger(page) || page < 1 || page > 10000) throw new AppError("INVALID_CULTURE_QUERY", "Tham số không hợp lệ.", 400);
-  const rows = await deps.database.destination.findMany({ where: { name: { contains: query.normalize("NFC").trim(), mode: "insensitive" } }, skip: (page - 1) * 25, take: 26, orderBy: [{ name: "asc" }, { id: "asc" }], select: { id: true, name: true } });
+  const rows = await deps.database.destination.findMany({ where: { deletedAt: null, name: { contains: query.normalize("NFC").trim(), mode: "insensitive" } }, skip: (page - 1) * 25, take: 26, orderBy: [{ name: "asc" }, { id: "asc" }], select: { id: true, name: true } });
   return destinationLookupSchema.parse({ items: rows.slice(0, 25), hasMore: rows.length > 25 });
 }
 export async function writeCulture(headers: Headers, body: unknown, key: string, id: string | null, deps: CultureDependencies) {

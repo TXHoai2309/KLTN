@@ -28,8 +28,8 @@ describe("US-31 Trip views", () => {
   it("renders ordered itinerary by day with unavailable destination text", () => {
     const trip: TripDetail = { ...sample("one", "ONGOING"), days: [
       { id: "d1", dayIndex: 1, localDate: "2026-10-10", visits: [
-        { id: "v1", order: 1, startMinute: 480, plannedDurationMinutes: 90, destination: { id: "a", name: "Cột cờ Lũng Cú", area: "Đồng Văn", visibility: "VISIBLE" } },
-        { id: "v2", order: 2, startMinute: 600, plannedDurationMinutes: 60, destination: { id: "b", name: "Điểm cũ", area: "Mèo Vạc", visibility: "HIDDEN" } },
+        { id: "v1", order: 1, startMinute: 480, plannedDurationMinutes: 90, destination: { id: "a", name: "Cột cờ Lũng Cú", area: "Đồng Văn", visibility: "VISIBLE", availability: "AVAILABLE" } },
+        { id: "v2", order: 2, startMinute: 600, plannedDurationMinutes: 60, destination: { id: "b", name: "Điểm cũ", area: "Mèo Vạc", visibility: "HIDDEN", availability: "UNAVAILABLE" } },
       ] },
       { id: "d2", dayIndex: 2, localDate: "2026-10-11", visits: [] },
     ] };
@@ -38,7 +38,7 @@ describe("US-31 Trip views", () => {
     expect(html.indexOf("Cột cờ Lũng Cú")).toBeLessThan(html.indexOf("Điểm cũ"));
     expect(html).toContain("08:00");
     expect(html).toContain("90 phút");
-    expect(html).toContain("Không còn công khai");
+    expect(html).toContain("Điểm đến không còn khả dụng công khai");
     expect(html).toContain("Ngày này chưa có điểm dừng");
   });
   it("distinguishes loading from a recoverable technical error", () => {

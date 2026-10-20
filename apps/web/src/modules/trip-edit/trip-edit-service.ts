@@ -90,7 +90,7 @@ const tripEditPageSelect = {
           order: true,
           startMinute: true,
           plannedDurationMinutes: true,
-          destination: { select: { id: true, name: true, area: true, visibility: true } },
+          destination: { select: { id: true, name: true, area: true, visibility: true, deletedAt: true } },
         },
       },
     },
@@ -133,9 +133,9 @@ export async function getTripForEdit(
     destinationLabels: Object.fromEntries(trip.days.flatMap((day) =>
       day.visits.map((visit) => [
         visit.destination.id,
-        visit.destination.visibility === "VISIBLE"
+        visit.destination.visibility === "VISIBLE" && !visit.destination.deletedAt
           ? `${visit.destination.name} · ${visit.destination.area}`
-          : "Điểm đến đã ẩn",
+          : "Điểm đến không còn khả dụng",
       ]),
     )),
   };

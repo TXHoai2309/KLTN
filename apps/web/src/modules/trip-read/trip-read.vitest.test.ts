@@ -45,8 +45,8 @@ function fixture() {
         const row = rows.find(item => item.id === args.where.id && item.userId === args.where.userId);
         return row && { ...row, favorites: favoriteOwner === args.where.userId ? [{ id: "favorite" }] : [], days: [
           { id: "day-2", dayIndex: 2, localDate: new Date("2026-10-11T00:00:00.000Z"), visits: [
-            { id: "visit-2", order: 2, startMinute: 600, plannedDurationMinutes: 60, destination: { id: "d2", name: "B", area: "Đồng Văn", visibility: "VISIBLE" } },
-            { id: "visit-1", order: 1, startMinute: 480, plannedDurationMinutes: 90, destination: { id: "d1", name: "A", area: "Mèo Vạc", visibility: "HIDDEN" } },
+            { id: "visit-2", order: 2, startMinute: 600, plannedDurationMinutes: 60, destination: { id: "d2", name: "B", area: "Đồng Văn", visibility: "VISIBLE", deletedAt: new Date("2026-10-08T00:00:00Z") } },
+            { id: "visit-1", order: 1, startMinute: 480, plannedDurationMinutes: 90, destination: { id: "d1", name: "A", area: "Mèo Vạc", visibility: "HIDDEN", deletedAt: null } },
           ] },
           { id: "day-1", dayIndex: 1, localDate: new Date("2026-10-10T00:00:00.000Z"), visits: [] },
         ] };
@@ -83,7 +83,8 @@ describe("US-31 owned Trip reads", () => {
     expect(test.calls.detail).toMatchObject({ where: { id: "mine", userId: "a" } });
     expect(result.days.map(day => day.dayIndex)).toEqual([1, 2]);
     expect(result.days[1].visits.map(visit => visit.order)).toEqual([1, 2]);
-    expect(result.days[1].visits[0].destination).toMatchObject({ name: "A", visibility: "HIDDEN" });
+    expect(result.days[1].visits[0].destination).toMatchObject({ name: "A", visibility: "HIDDEN", availability: "UNAVAILABLE" });
+    expect(result.days[1].visits[1].destination).toMatchObject({ name: "B", visibility: "VISIBLE", availability: "UNAVAILABLE" });
   });
   it("returns identical 404 for another owner's and missing Trip", async () => {
     const test = fixture();

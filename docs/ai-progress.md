@@ -3434,3 +3434,42 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
   no `main`, so `origin/main` was created at that tested commit. `master` remains
   at `433e684`. No deployment, Production data/Auth change, database write or
   migration was performed.
+
+### 2026-10-20 — US-38 soft-delete and restore Destinations
+
+- **Branch/story:** TXH; `docs/stories/US-38-destination-delete-restore.md`.
+- **Completed:** Added Admin-only soft delete and restore with persisted-role
+  recheck inside the transaction and the shared `Idempotency-Key` / `SUCCESS` /
+  `FAILED` / `UNKNOWN` contract. The Admin list defaults to active records and
+  includes an archived view; restore always returns the record as HIDDEN. Public
+  and new-itinerary eligibility omit deleted Destinations. Existing Favorite,
+  Trip, Culture, schedule, editorial, media and source relations remain intact;
+  historical Favorite/Trip views show deleted records as unavailable.
+- **UI:** Added the reviewed quiet destructive action beside Edit in desktop and
+  mobile layouts, native confirmation with the exact name, Cancel/Delete, pending
+  state, same-key UNKNOWN recovery, Sonner feedback, focus restoration, 44px
+  controls, dark styling and reduced-motion support. Impeccable detector findings
+  on existing global styling were left untouched; the new UNKNOWN panel reuses
+  the existing uncertainty treatment.
+- **Files:** Admin Destination list/action/CSS; admin collection and detail/restore
+  routes; Destination client, contract, HTTP, service, eligibility, visibility,
+  image and V3 modules; Culture, editorial, Favorite, Trip read/edit/planner and
+  in-trip read/eligibility modules; relevant Destination/public/Favorite/Trip/
+  Planner tests; Prisma Destination schema and migration; this story and progress
+  document.
+- **DB:** Added nullable `deletedAt TIMESTAMPTZ(3)` in
+  `20261020044507_destination_soft_delete/migration.sql`. Prisma Client generation
+  and schema validation passed. The migration was reviewed but not applied. After
+  verifying the target DB, run `npm run db:migrate:deploy --workspace @KLTN/db`
+  from the repository root; do not use `db:push`.
+- **Validation:** Destination/public 70/70, Culture 37/37, Favorite 27/27, and
+  affected Trip/Planner/Edit/Replan/Culture/image Vitest suites 132/132 PASS.
+  Web typecheck, Next.js production build and `git diff --check` PASS. No lint
+  script is configured. Full web Vitest: 2,596 PASS, 6 FAIL, 134 SKIP, 1 TODO.
+  Four failures assert Admin should not inherit Traveler access, contrary to
+  accepted RBAC V2; the remaining two are an existing US35 source audit in an
+  untouched file and a preference-extraction environment-sensitivity assertion.
+- **Limits/next step:** No authenticated browser smoke, shared DB migration,
+  deployment, commit or push. Review the documented full-suite failures before
+  treating the repository-wide test command as green; verify the intended database
+  before applying the new migration.

@@ -60,7 +60,7 @@ export const inTripReplanTripSelect = {
           order: true,
           startMinute: true,
           plannedDurationMinutes: true,
-          destination: { select: { id: true, name: true, visibility: true } },
+          destination: { select: { id: true, name: true, visibility: true, deletedAt: true } },
         },
       },
     },
@@ -195,9 +195,9 @@ function clarificationContext(
               visitId: visit.id,
               destinationId: visit.destination.id,
               destinationName:
-                visit.destination.visibility === "VISIBLE"
+                visit.destination.visibility === "VISIBLE" && !visit.destination.deletedAt
                   ? visit.destination.name
-                  : "Điểm đến đã ẩn",
+                  : "Điểm đến không còn khả dụng",
               dayIndex: day.dayIndex,
               startMinute: visit.startMinute,
             }]
@@ -386,9 +386,9 @@ export async function replanTrip(
         return {
           visitId: visit.visitId,
           destinationName:
-            persistedVisit?.destination.visibility === "VISIBLE"
+            persistedVisit?.destination.visibility === "VISIBLE" && !persistedVisit.destination.deletedAt
               ? persistedVisit.destination.name
-              : "Điểm đến đã ẩn",
+              : "Điểm đến không còn khả dụng",
           dayIndex: visit.dayIndex,
           startTime: formatStartTime(visit.startMinute),
           durationMinutes: visit.plannedDurationMinutes,
