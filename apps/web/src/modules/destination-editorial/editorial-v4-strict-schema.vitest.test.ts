@@ -14,6 +14,9 @@ import {
 import {
   isV1Layout,
   isV2Layout,
+  editorialLayoutV2Schema,
+  EDITORIAL_V2_MAX_ROOT_SECTIONS,
+  EDITORIAL_V2_MAX_TOTAL_NODES,
   type EditorialContext,
   type EditorialLayoutV2,
 } from "./editorial-contract";
@@ -122,6 +125,7 @@ describe("Task FIX_V4_GENERATIVE_INVALID_SCHEMA — Root Cause & Strict Outputs 
     const propKeys = Object.keys(v2JsonSchema.properties).sort();
     const reqKeys = [...v2JsonSchema.required].sort();
     expect(propKeys).toEqual(reqKeys);
+    expect((v2JsonSchema.properties.sections as { maxItems: number }).maxItems).toBe(EDITORIAL_V2_MAX_ROOT_SECTIONS);
   });
 
   it("STRICT_SCHEMA: verifies dynamic createV2JsonSchema for both AUTO and KEEP directions", () => {
@@ -135,6 +139,31 @@ describe("Task FIX_V4_GENERATIVE_INVALID_SCHEMA — Root Cause & Strict Outputs 
     // When KEEP direction is specified, hero and family are constrained to base layout
     expect(schemaKeep.properties.family.enum).toEqual([base.family]);
     expect(schemaKeep.properties.variant.enum).toEqual([base.variant]);
+  });
+
+  it("accepts 50 root nodes including utility nodes and rejects a 51st root", () => {
+    const base = autoLayoutV2(fixtureContext);
+    const sections = [...base.sections, ...Array.from({ length: EDITORIAL_V2_MAX_ROOT_SECTIONS - base.sections.length }, (_, i) => ({
+      id: `utility-${i}`,
+      type: (["MAP", "SOURCES", "VISIT_INFORMATION", "FACTS", "SECTION"] as const)[i % 5]!,
+    }))];
+    expect(sections).toHaveLength(EDITORIAL_V2_MAX_ROOT_SECTIONS);
+    expect(editorialLayoutV2Schema.safeParse({ ...base, sections }).success).toBe(true);
+    expect(editorialLayoutV2Schema.safeParse({ ...base, sections: [...sections, { id: "overflow", type: "SECTION" }] }).success).toBe(false);
+  });
+
+  it("rejects 51 total nodes even when root sections remain under 50", () => {
+    const sections = Array.from({ length: 5 }, (_, rootIndex) => ({
+      id: `root-${rootIndex}`,
+      type: "SECTION" as const,
+      children: Array.from({ length: rootIndex === 4 ? 6 : 10 }, (_, childIndex) => ({
+        id: `child-${rootIndex}-${childIndex}`,
+        type: "PARAGRAPH" as const,
+      })),
+    }));
+    expect(sections.length).toBeLessThan(EDITORIAL_V2_MAX_ROOT_SECTIONS);
+    expect(sections.reduce((count, root) => count + 1 + root.children.length, 0)).toBe(EDITORIAL_V2_MAX_TOTAL_NODES + 1);
+    expect(editorialLayoutV2Schema.safeParse({ schemaVersion: 2, mode: "GENERATIVE", sections }).success).toBe(false);
   });
 
   // 3. Adapter error classification: LOCAL_INVALID_SCHEMA vs OPENAI_SCHEMA_REJECTED

@@ -3473,3 +3473,12 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
   deployment, commit or push. Review the documented full-suite failures before
   treating the repository-wide test command as green; verify the intended database
   before applying the new migration.
+
+### 2026-10-20 — Destination Editorial section limits and diagnostics
+
+- **Branch/story:** `master`; `docs/stories/DESTINATION-EDITORIAL-SECTION-LIMITS-AND-DIAGNOSTICS.md`.
+- **Completed:** Tasks 1–6. V2 accepts up to 50 root nodes and 50 total nodes; AI targets 12–20 roots without a hard minimum and oversized proposals are rejected before repair/application. Deterministic fallback coalesces only eligible adjacent paragraphs and reports a bounded failure when no safe fit exists.
+- **Diagnostics/UI:** API/server failures now log structured safe stages, categories, paths and bounded counts. The editor separates GET/DTO errors from initial-layout generation errors; retries target GET or the local builder respectively. Client diagnostics remain in `console.error`; no telemetry or content/session/provider data is logged.
+- **Files:** V2 contract, provider schema/prompt, proposal repair, deterministic layout engine, Editorial API/service/route diagnostics, Admin editor, focused tests and offline client-error browser harness; V4 architecture and this story/progress record.
+- **Verification:** Editorial Vitest 335 PASS / 6 PostgreSQL integration SKIP (not configured); web typecheck PASS; offline browser harness PASS at 1440/390px with keyboard retry and no telemetry; Next.js production build PASS using ephemeral local placeholder environment fields; `git diff --check` PASS with line-ending conversion warnings. No lint script is configured.
+- **Limits:** No migration, persistent environment change, API envelope change, production operation, commit, push or deployment. The existing broader Destination Editorial integration tests that require PostgreSQL remain skipped.

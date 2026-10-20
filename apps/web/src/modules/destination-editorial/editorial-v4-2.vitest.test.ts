@@ -239,6 +239,45 @@ async function inMemoryFixture() {
 }
 
 describe("V4.2 alternative service, without network or database writes", () => {
+  it("rejects over-limit V2 Save and Publish inputs before persistence", async () => {
+    const f = await inMemoryFixture();
+    const db = f.store.deps.database as any;
+    db.$executeRaw = async () => 1;
+    db.idempotencyRecord.count = async () => 1;
+    const overLimit = {
+      ...f.current,
+      sections: Array.from({ length: 51 }, (_, i) => ({ id: `section-${i}`, type: "SECTION" as const })),
+    };
+    let record: any = {
+      destinationId: f.id, draft: overLimit, published: null, previousPublished: null,
+      draftRevision: 0, publishedRevision: 0, publishedAt: null, updatedAt: new Date(),
+    };
+    const create = vi.fn(async ({ data }: any) => (record = { ...record, ...structuredClone(data) }));
+    const update = vi.fn(async ({ data }: any) => (record = { ...record, ...structuredClone(data) }));
+    db.destinationEditorial = { findUnique: async () => structuredClone(record), create, update };
+    const before = structuredClone(record);
+    const diagnosticLog = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    let publish: Awaited<ReturnType<typeof writeEditorial>>;
+    let logs: unknown[] = [];
+    try {
+      await expect(writeEditorial(new Headers(), { action: "SAVE", expectedRevision: 0, layout: overLimit }, "limit-save", f.id, f.store.deps))
+        .rejects.toMatchObject({ code: "INVALID_EDITORIAL", status: 400 });
+      publish = await writeEditorial(new Headers(), { action: "PUBLISH", expectedRevision: 0, reviewed: true }, "limit-publish", f.id, f.store.deps);
+    } finally {
+      logs = diagnosticLog.mock.calls.map(call => JSON.parse(String(call[0])));
+      diagnosticLog.mockRestore();
+    }
+    expect(publish!).toMatchObject({ status: "FAILED", error: { code: "EDITORIAL_NO_VERSION" }, httpStatus: 409 });
+    expect(logs).toEqual(expect.arrayContaining([
+      expect.objectContaining({ event: "editorial_api", stage: "EDITORIAL_SAVE", issueCode: "SECTION_LIMIT", expectedRootSections: 50, actualRootSections: 51, expectedTotalNodes: 50, actualTotalNodes: 51 }),
+      expect.objectContaining({ event: "editorial_api", stage: "EDITORIAL_PUBLISH", issueCode: "SECTION_LIMIT", expectedRootSections: 50, actualRootSections: 51, expectedTotalNodes: 50, actualTotalNodes: 51 }),
+    ]));
+    expect(create).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+    expect(record).toEqual(before);
+  });
+
   it("preserves V1 → V2 draft/publish/rollback and exact idempotent replay in an in-memory store", async () => {
     const f = await inMemoryFixture();
     const db = f.store.deps.database as any;

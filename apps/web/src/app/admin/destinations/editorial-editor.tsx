@@ -9,6 +9,8 @@ import { useUnsavedChanges } from "@/components/admin/use-unsaved-changes";
 import { AdminAlert, AdminLoadingState } from "@/components/admin/admin-form-shell";
 import EditorialRenderer from "@/components/editorial/editorial-renderer";
 import { autoLayoutV2, getAllLayoutNodes, resolveEditorial, resolveEditorialDisplay } from "@/modules/destination-editorial/editorial-engine";
+import { editorialClientFailureMessage, editorialFailureRetryAction, editorialInitialLayoutFailure, recordEditorialClientFailure, type EditorialClientFailure } from "@/modules/destination-editorial/editorial-client-diagnostics";
+import { EditorialClientLoadError, loadEditorialState } from "@/modules/destination-editorial/editorial-client-loader";
 import { isDestinationMediaUsable } from "@/modules/destination/destination-media-eligibility";
 import {
   editorialActionSchema,
@@ -119,6 +121,8 @@ export default function EditorialEditor({ id }: { id: string }) {
   const [layout, setLayout] = useState<EditorialLayout>();
   const [baseline, setBaseline] = useState("");
   const [message, setMessage] = useState("");
+  const [initialFailure, setInitialFailure] = useState<EditorialClientFailure>();
+  const [retryingInitialLayout, setRetryingInitialLayout] = useState(false);
   const [busy, setBusy] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [aiCooldownUntil, setAiCooldownUntil] = useState(0);
@@ -143,22 +147,63 @@ export default function EditorialEditor({ id }: { id: string }) {
   const request = useRef<AbortController | null>(null);
   const dirty = Boolean(layout && JSON.stringify(layout) !== baseline);
   useUnsavedChanges(dirty, busy || unknown);
-  function accept(value: EditorialState) {
-    const next = value.draft ?? autoLayoutV2(value.context);
-    setState(value); setLayout(next); setBaseline(JSON.stringify(next));
+  function applyLayout(next: EditorialLayout) {
+    setLayout(next); setBaseline(JSON.stringify(next));
     const firstId = isV2Layout(next) ? next.sections[0]?.id : next.blocks[0]?.id;
     setSelected(firstId ?? ""); history.current = [];
+  }
+  function accept(value: EditorialState) {
+    const next = value.draft ?? autoLayoutV2(value.context);
+    setState(value); applyLayout(next); setInitialFailure(undefined);
   }
   useEffect(() => {
     mounted.current = true;
     const controller = new AbortController();
     setMessage("");
-    void fetch(`/api/admin/destinations/${encodeURIComponent(id)}/editorial`, { cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20_000)]) })
-      .then(async r => { const b = await r.json(); if (!r.ok || !b.success) throw Error(); return editorialStateSchema.parse(b.data); })
-      .then(value => { if (!controller.signal.aborted) accept(value); })
-      .catch(() => { if (!controller.signal.aborted) setMessage("Không thể tải bản biên tập. Kiểm tra phiên Admin và thử lại."); });
+    setInitialFailure(undefined); setState(undefined); setLayout(undefined);
+    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(20_000)]);
+    void loadEditorialState(id, signal)
+      .then(value => {
+        if (controller.signal.aborted) return;
+        setState(value);
+        try {
+          const next = value.draft ?? autoLayoutV2(value.context);
+          applyLayout(next);
+        } catch (error) {
+          const failure = editorialInitialLayoutFailure(error);
+          recordEditorialClientFailure(failure);
+          setInitialFailure(failure);
+        }
+      })
+      .catch(error => {
+        if (controller.signal.aborted) return;
+        const failure = error instanceof EditorialClientLoadError
+          ? error.failure
+          : { stage: "DATA_LOAD" as const, code: "NETWORK_ERROR" as const };
+        recordEditorialClientFailure(failure);
+        setInitialFailure(failure);
+      });
     return () => { mounted.current = false; controller.abort(); request.current?.abort(); };
   }, [id, reload]);
+  function retryInitialFailure() {
+    if (!initialFailure) return;
+    if (editorialFailureRetryAction(initialFailure) === "RELOAD_DATA" || !state) {
+      setReload(value => value + 1);
+      return;
+    }
+    setRetryingInitialLayout(true);
+    try {
+      const next = state.draft ?? autoLayoutV2(state.context);
+      applyLayout(next);
+      setInitialFailure(undefined);
+    } catch (error) {
+      const failure = editorialInitialLayoutFailure(error);
+      recordEditorialClientFailure(failure);
+      setInitialFailure(failure);
+    } finally {
+      setRetryingInitialLayout(false);
+    }
+  }
   function edit(next: EditorialLayout) {
     if (busy || unknown || !layout) return;
     history.current = [...history.current.slice(-19), layout];
@@ -312,7 +357,7 @@ export default function EditorialEditor({ id }: { id: string }) {
   const heroPlan = layout ? editorialHeroPlan(layout, heroImage) : null;
   const displayIssues = state && layout && isV1Layout(layout) ? resolveEditorialDisplay(layout, state.context).issues : [];
   const displayReason = { ADMIN_HIDDEN: "Admin chủ động ẩn", EMPTY_CONTENT: "Tự ẩn · Chưa có nội dung hoặc tham chiếu đủ điều kiện", DUPLICATE_BLOCK: "Tự ẩn · Thông tin đã xuất hiện trong block khác" };
-  if (!state || !layout) return <div className="af-root dv3-page"><main className="dv3-main">{message ? <AdminAlert variant="error">{message}<button className="af-btn" onClick={() => setReload(n => n + 1)}>Thử lại</button></AdminAlert> : <AdminLoadingState>Đang tải bản biên tập…</AdminLoadingState>}</main></div>;
+  if (!state || !layout) return <div className="af-root dv3-page"><main className="dv3-main">{initialFailure ? <AdminAlert variant="error"><p>{editorialClientFailureMessage(initialFailure)}</p><button className="af-btn" type="button" disabled={retryingInitialLayout} aria-busy={retryingInitialLayout} onClick={retryInitialFailure}>{retryingInitialLayout ? "Đang tạo lại…" : editorialFailureRetryAction(initialFailure) === "RETRY_LAYOUT" ? "Thử tạo lại bố cục" : "Thử tải lại"}</button></AdminAlert> : <AdminLoadingState>Đang tải bản biên tập…</AdminLoadingState>}</main></div>;
   return <div className="af-root dv3-page ed-page">
     <header className="ed-topbar"><Link href={`/admin/destinations/${id}/edit`}>← Chỉnh sửa điểm đến</Link><h1 className="ed-sr-only">Thiết kế trang giới thiệu</h1>
       <nav className="ed-action-flow" aria-label="Quy trình xuất bản">

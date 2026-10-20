@@ -14,6 +14,7 @@ import {
   type EditorialContext,
   type ResolvedEditorial,
   type EditorialBlock,
+  EDITORIAL_V2_MAX_TOTAL_NODES,
 } from "./editorial-contract";
 import { groupEditorialSections, prepareEditorialContent, splitSourcedSection, stripMarkdownHeading } from "./editorial-content";
 import { editorialImageDimensions } from "./editorial-image-quality";
@@ -40,6 +41,65 @@ function landscape(media: EditorialContext["media"][number]) {
   const d = editorialImageDimensions(media);
   return Boolean(d.width && d.height && d.width / d.height >= 1.5);
 }
+
+export class EditorialLayoutGenerationError extends Error {
+  readonly code = "NODE_LIMIT" as const;
+  readonly expectedNodeCount = EDITORIAL_V2_MAX_TOTAL_NODES;
+  readonly actualNodeCount: number;
+
+  constructor(actualNodeCount: number) {
+    super("Initial Editorial layout exceeds the supported node limit after adjacent paragraph coalescing.");
+    this.name = "EditorialLayoutGenerationError";
+    this.actualNodeCount = Math.min(Math.max(0, Math.floor(actualNodeCount)), 1000);
+  }
+}
+
+function countEditorialTreeNodes(nodes: EditorialNodeV2[]): number {
+  return nodes.reduce((total, node) => total + 1 + countEditorialTreeNodes(node.children ?? []), 0);
+}
+
+function canCoalesceFallbackParagraphs(left: EditorialNodeV2, right: EditorialNodeV2) {
+  const paragraphOnly = (node: EditorialNodeV2) => node.type === "SECTION" &&
+    !node.hidden && !node.locked && !node.contentRef && !node.children?.length &&
+    !node.mediaIds?.length && !node.sourceIds?.length && !node.entries?.length &&
+    !node.caption && !node.deck;
+  return paragraphOnly(left) && paragraphOnly(right) && !right.headingProvenance;
+}
+
+function mergeFallbackParagraphs(left: EditorialNodeV2, right: EditorialNodeV2, description: string) {
+  if (!canCoalesceFallbackParagraphs(left, right)) return null;
+  const canonicalRightHeading = right.title && description.includes(right.title) ? right.title : "";
+  const appended = [canonicalRightHeading, right.text].filter(Boolean).join("\n\n");
+  const text = [left.text, appended].filter(Boolean).join("\n\n");
+  if (text.length > 12_000) return null;
+  return { ...left, text };
+}
+
+function coalesceFallbackParagraphs(sections: EditorialNodeV2[], description: string): EditorialNodeV2[] {
+  const result = sections.map(section => ({ ...section }));
+  let total = countEditorialTreeNodes(result);
+  let searchFrom = 0;
+
+  while (total > EDITORIAL_V2_MAX_TOTAL_NODES) {
+    let mergedAt = -1;
+    for (let index = searchFrom; index < result.length - 1; index++) {
+      const merged = mergeFallbackParagraphs(result[index]!, result[index + 1]!, description);
+      if (!merged) continue;
+      result.splice(index, 2, merged);
+      mergedAt = index;
+      break;
+    }
+    if (mergedAt < 0 && searchFrom > 0) {
+      searchFrom = 0;
+      continue;
+    }
+    if (mergedAt < 0) throw new EditorialLayoutGenerationError(total);
+    total = countEditorialTreeNodes(result);
+    searchFrom = mergedAt + 1;
+  }
+  return result;
+}
+
 export function autoLayoutV1(context: EditorialContext, seed?: EditorialLayoutV1): EditorialLayoutV1 {
   const images = [...usableEditorialMedia(context)].sort((a, b) => Number(b.isCover) - Number(a.isCover) || Number(landscape(b)) - Number(landscape(a)));
   const keepHeroImage = seed && heroFocalLocked(seed);
@@ -331,6 +391,7 @@ export function autoLayoutV2(context: EditorialContext, seed?: EditorialLayoutV2
     containerWidth: "STANDARD" as const,
   };
 
+  const boundedSections = coalesceFallbackParagraphs(sections, context.description);
   return editorialLayoutV2Schema.parse({
     schemaVersion: 2,
     mode: "GENERATIVE",
@@ -338,7 +399,7 @@ export function autoLayoutV2(context: EditorialContext, seed?: EditorialLayoutV2
     variant: seed?.variant ?? variant,
     design: seed?.design ?? designTokens,
     hero: seed?.hero ?? { composition: variant, locked: false },
-    sections,
+    sections: boundedSections,
     metadata: {
       generatedAt: new Date().toISOString(),
       qualityScore: 95,

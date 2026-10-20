@@ -6,6 +6,11 @@ import { executeIdempotentWrite } from "@/server/http/idempotency";
 import { destinationSelect, toDestinationDto, validateDestinationId, type DestinationDependencies } from "../destination/destination-service";
 import { editorialActionSchema, editorialLayoutSchema, editorialStateSchema, type EditorialContext, type EditorialState } from "./editorial-contract";
 import { resolveEditorial, validateLayoutReferences } from "./editorial-engine";
+import { editorialLayoutDiagnosticCounts, recordEditorialApiFailure, type EditorialApiDiagnosticStage, type EditorialLayoutDiagnosticCounts } from "./editorial-ai-diagnostics";
+
+function editorialWriteDiagnosticStage(action: unknown): EditorialApiDiagnosticStage {
+  return action === "PUBLISH" ? "EDITORIAL_PUBLISH" : action === "RESTORE_DRAFT" ? "EDITORIAL_RESTORE_DRAFT" : action === "ROLLBACK" ? "EDITORIAL_ROLLBACK" : "EDITORIAL_SAVE";
+}
 export function editorialMigrationMissing(error: unknown) { return Boolean(error && typeof error === "object" && "code" in error && error.code === "P2021"); }
 export function editorialAiConfigured() { return Boolean(process.env.OPENAI_API_KEY?.trim() && process.env.OPENAI_EDITORIAL_MODEL?.trim()); }
 // These relations are not consumed by EditorialContext. Keep every scalar,
@@ -45,14 +50,25 @@ export async function getEditorial(headers: Headers, id: string, deps: Destinati
   await requireActor(headers, deps, "admin");
   const context = await readEditorialContext(id, deps.database);
   try { return state(context, await deps.database.destinationEditorial.findUnique({ where: { destinationId: id } })); }
-  catch (error) { if (editorialMigrationMissing(error)) return state(context, null, false); throw new AppError("EDITORIAL_UNAVAILABLE", "Không thể đọc bản biên tập. Thử lại sau.", 503); }
+  catch (error) {
+    if (editorialMigrationMissing(error)) return state(context, null, false);
+    recordEditorialApiFailure("EDITORIAL_GET", "EDITORIAL_UNAVAILABLE");
+    throw new AppError("EDITORIAL_UNAVAILABLE", "Không thể đọc bản biên tập. Thử lại sau.", 503);
+  }
 }
 export async function writeEditorial(headers: Headers, body: unknown, key: string, id: string, deps: DestinationDependencies) {
   const actor = await requireActor(headers, deps, "admin"); validateDestinationId(id);
   const parsed = editorialActionSchema.safeParse(body);
-  if (!parsed.success) throw new AppError("INVALID_EDITORIAL", "Kiểm tra bố cục và xác nhận kiểm duyệt.", 400, parsed.error.issues.map(i => ({ path: i.path.join("."), message: i.message })));
+  if (!parsed.success) {
+    const source = body && typeof body === "object" ? body as Record<string, unknown> : {};
+    const counts = editorialLayoutDiagnosticCounts(source.layout);
+    const fieldPath = parsed.error.issues[0]?.path.join(".");
+    recordEditorialApiFailure(editorialWriteDiagnosticStage(source.action), "INVALID_EDITORIAL", counts, undefined, fieldPath);
+    throw new AppError("INVALID_EDITORIAL", "Kiểm tra bố cục và xác nhận kiểm duyệt.", 400, parsed.error.issues.map(i => ({ path: i.path.join("."), message: i.message })));
+  }
   const input = parsed.data;
-  return executeIdempotentWrite({ database: deps.database, actorId: actor.id, operation: `destination:editorial:${input.action.toLowerCase()}`, key, input: { id, ...input }, execute: async tx => {
+  let rejectedStoredCounts: EditorialLayoutDiagnosticCounts | undefined;
+  const outcome = await executeIdempotentWrite({ database: deps.database, actorId: actor.id, operation: `destination:editorial:${input.action.toLowerCase()}`, key, input: { id, ...input }, execute: async tx => {
     await requireActor(headers, { ...deps, database: tx as unknown as Database }, "admin");
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`destination-editorial:${id}`}, 0))`;
     const context = await readEditorialContext(id, tx as unknown as Database);
@@ -70,7 +86,10 @@ export async function writeEditorial(headers: Headers, body: unknown, key: strin
     } else {
       const candidate = input.action === "ROLLBACK" ? previous?.previousPublished : previous?.draft;
       const layout = editorialLayoutSchema.safeParse(candidate);
-      if (!layout.success) throw new AppError("EDITORIAL_NO_VERSION", "Chưa có phiên bản hợp lệ để xuất bản/khôi phục.", 409);
+      if (!layout.success) {
+        rejectedStoredCounts = editorialLayoutDiagnosticCounts(candidate);
+        throw new AppError("EDITORIAL_NO_VERSION", "Chưa có phiên bản hợp lệ để xuất bản/khôi phục.", 409);
+      }
       try { validateLayoutReferences(layout.data, context, true); } catch (e) { throw new AppError("EDITORIAL_NOT_REVIEWED", (e as Error).message, 400); }
       if (!resolveEditorial(layout.data, context)) throw new AppError("EDITORIAL_EMPTY", "Bố cục không có nội dung hợp lệ.", 400);
       data.published = layout.data as unknown as Prisma.InputJsonValue;
@@ -82,6 +101,11 @@ export async function writeEditorial(headers: Headers, body: unknown, key: strin
     const saved = previous ? await tx.destinationEditorial.update({ where: { destinationId: id, draftRevision: input.expectedRevision }, data: changes }) : await tx.destinationEditorial.create({ data });
     return state(context, saved);
   }});
+  if (outcome.status !== "SUCCESS") {
+    const counts = rejectedStoredCounts ?? (input.action === "SAVE" ? editorialLayoutDiagnosticCounts(input.layout) : undefined);
+    recordEditorialApiFailure(editorialWriteDiagnosticStage(input.action), outcome.error.code, counts);
+  }
+  return outcome;
 }
 /** Called only after the canonical public Destination read. No draft/provenance/AI query. */
 export async function readPublicEditorial(id: string, database: Database) {
