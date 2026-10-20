@@ -51,6 +51,7 @@ describe("US21 retrieval", () => {
     expect(JSON.stringify(result[0]!.citation)).not.toMatch(/private|chunk|gen|version|token/);
     const sql = s.query.mock.calls[0]![0] as unknown as { sql: string; values: unknown[] };
     expect(sql.sql).toMatch(/rag_index_publication/);
+    expect(sql.sql).toContain('d."deletedAt" IS NULL');
     expect(sql.sql).toMatch(/INDEXED/); expect(sql.sql).toMatch(/READY/);
     expect(sql.sql).toMatch(/ORDER BY/); expect(sql.sql).not.toContain(vector.join(","));
   });
@@ -105,6 +106,7 @@ describe("US21 retrieval", () => {
     s.query.mockClear();
     expect(await lockQaEvidenceEligibility(s.db as never, evidence, allowSyntheticSources())).toBe(true);
     expect((s.query.mock.calls[0]![0] as unknown as { sql: string }).sql).toMatch(/ORDER BY "id" FOR UPDATE/);
+    expect((s.query.mock.calls[1]![0] as unknown as { sql: string }).sql).toContain('d."deletedAt" IS NULL');
     expect(s.query).toHaveBeenCalledTimes(2);
   });
   it("only exposes trustworthy format locators and stable opaque document aliases", () => {

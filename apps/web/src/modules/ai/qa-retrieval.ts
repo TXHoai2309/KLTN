@@ -53,7 +53,7 @@ const joins = Prisma.sql`FROM "rag_index_publication" p
   JOIN "rag_index_generation" g ON g."id" = p."generationId" AND g."ragDocumentId" = d."id"
   JOIN "rag_chunk" c ON c."generationId" = g."id" AND c."ragDocumentId" = d."id"
   JOIN "rag_chunk_embedding" e ON e."chunkId" = c."id"`;
-const eligible = Prisma.sql`d."status" = 'INDEXED' AND d."publicQaApproved" = true AND g."state" = 'READY'
+const eligible = Prisma.sql`d."deletedAt" IS NULL AND d."status" = 'INDEXED' AND d."publicQaApproved" = true AND g."state" = 'READY'
   AND g."embeddingProvider" = ${EMBEDDING_PROVENANCE.provider}
   AND g."embeddingModel" = ${EMBEDDING_PROVENANCE.model}
   AND g."embeddingDimensions" = ${EMBEDDING_PROVENANCE.dimensions}`;

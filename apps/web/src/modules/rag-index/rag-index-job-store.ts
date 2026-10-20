@@ -40,11 +40,11 @@ export async function lockAndAssertRagIndexJobLease(
     SELECT "ragDocumentId" FROM "rag_index_job" WHERE "id" = ${lease.jobId}
   `);
   if (!identities[0]) throw new RagIndexError("JOB_LEASE_LOST");
-  const documents = await tx.$queryRaw<Array<{ status: string }>>(Prisma.sql`
-    SELECT "status"::text AS "status" FROM "rag_document" WHERE "id" = ${identities[0].ragDocumentId} FOR UPDATE
+  const documents = await tx.$queryRaw<Array<{ status: string; deletedAt: Date | null }>>(Prisma.sql`
+    SELECT "status"::text AS "status", "deletedAt" FROM "rag_document" WHERE "id" = ${identities[0].ragDocumentId} FOR UPDATE
   `);
   if (!documents[0]) throw new RagIndexError("RAG_DOCUMENT_NOT_FOUND");
-  if (!options.allowIneligibleDocument && documents[0].status !== "APPROVED" && documents[0].status !== "INDEXED") {
+  if (!options.allowIneligibleDocument && (documents[0].deletedAt || documents[0].status !== "APPROVED" && documents[0].status !== "INDEXED")) {
     throw new RagIndexError("DOCUMENT_NOT_ELIGIBLE");
   }
 
@@ -66,14 +66,14 @@ export async function lockAndAssertRagIndexJobLease(
     throw new RagIndexError("JOB_LEASE_LOST");
   }
   if (!options.allowCancelRequested && job.cancelRequestedAt) throw new RagIndexError("JOB_CANCELLED");
-  return { documentStatus: documents[0].status, ragDocumentId: identities[0].ragDocumentId, job };
+  return { documentStatus: documents[0].status, deletedAt: documents[0].deletedAt, ragDocumentId: identities[0].ragDocumentId, job };
 }
 
 export function createRagIndexJobStore(database: Database) {
   return {
     async lockDocumentForAdmission(tx: Transaction, ragDocumentId: string) {
-      const rows = await tx.$queryRaw<Array<{ status: string }>>(Prisma.sql`
-        SELECT "status"::text AS "status" FROM "rag_document" WHERE "id" = ${ragDocumentId} FOR UPDATE
+      const rows = await tx.$queryRaw<Array<{ status: string; deletedAt: Date | null }>>(Prisma.sql`
+        SELECT "status"::text AS "status", "deletedAt" FROM "rag_document" WHERE "id" = ${ragDocumentId} FOR UPDATE
       `);
       return rows[0] ?? null;
     },
@@ -119,10 +119,11 @@ export function createRagIndexJobStore(database: Database) {
           contentVersionId: string | null; generationId: string | null; pendingBatchIndexes: unknown;
         }>>(Prisma.sql`
           WITH candidate AS (
-            SELECT "id" FROM "rag_index_job"
-            WHERE "status" = 'QUEUED'
-              AND (${targetJobId}::text IS NULL OR "id" = ${targetJobId})
-            ORDER BY "createdAt" ASC, "id" ASC
+            SELECT job."id" FROM "rag_index_job" AS job
+            WHERE job."status" = 'QUEUED'
+              AND (${targetJobId}::text IS NULL OR job."id" = ${targetJobId})
+              AND EXISTS (SELECT 1 FROM "rag_document" AS document WHERE document."id" = job."ragDocumentId" AND document."deletedAt" IS NULL)
+            ORDER BY job."createdAt" ASC, job."id" ASC
             FOR UPDATE SKIP LOCKED
             LIMIT 1
           )
@@ -150,7 +151,7 @@ export function createRagIndexJobStore(database: Database) {
         let locked: Awaited<ReturnType<typeof lockAndAssertRagIndexJobLease>>;
         try { locked = await lockAndAssertRagIndexJobLease(tx, lease, { allowCancelRequested: true, allowIneligibleDocument: true }); }
         catch (error) { if (error instanceof RagIndexError && error.code === "JOB_LEASE_LOST") return "LOST"; throw error; }
-        if (locked.documentStatus !== "APPROVED" && locked.documentStatus !== "INDEXED") return "INELIGIBLE";
+        if (locked.deletedAt || locked.documentStatus !== "APPROVED" && locked.documentStatus !== "INDEXED") return "INELIGIBLE";
         if (locked.job.cancelRequestedAt) return "CANCELLED";
         await tx.$executeRaw(Prisma.sql`
           UPDATE "rag_index_job" SET "leaseExpiresAt" = now() + (${leaseMs} * interval '1 millisecond'), "updatedAt" = now()
@@ -164,7 +165,7 @@ export function createRagIndexJobStore(database: Database) {
       return database.ragIndexJob.findUnique({
         where: { id: jobId },
         select: { ragDocument: { select: {
-          id: true, status: true, originalFileName: true, fileType: true, mimeType: true,
+          id: true, status: true, deletedAt: true, originalFileName: true, fileType: true, mimeType: true,
           sizeBytes: true, storagePath: true,
         } } },
       }).then(row => row?.ragDocument ?? null);

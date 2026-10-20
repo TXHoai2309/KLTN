@@ -175,6 +175,10 @@ test("DISABLED is terminal and has no re-enable action", async () => {
   const html = renderToStaticMarkup(createElement(RagStatusBadge, { item: { status: "DISABLED", retrievalEligible: false } }));
   assert.match(html, /Đã vô hiệu hóa/);
   assert.match(html, /Chưa dùng cho truy xuất/);
+  const deletedHtml = renderToStaticMarkup(createElement(RagStatusBadge, { item: { status: "INDEXED", retrievalEligible: false, deletedAt: "2026-10-20T10:00:00.000Z" } }));
+  assert.match(deletedHtml, /Đã xóa/);
+  assert.match(deletedHtml, /Chưa dùng cho truy xuất/);
+  assert.doesNotMatch(deletedHtml, /Sẵn sàng cho AI/);
 });
 
 test("Guest and Traveler cannot disable", async () => {

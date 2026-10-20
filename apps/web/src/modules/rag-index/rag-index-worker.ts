@@ -170,6 +170,7 @@ async function runClaimed(job: RagIndexJobRecord, deps: RagIndexWorkerDependenci
   try {
     const document = await deps.jobs.getDocumentForJob(job.id);
     if (!document) throw new AppError("RAG_DOCUMENT_NOT_FOUND", "Không tìm thấy tài liệu.", 404);
+    if (document.deletedAt) throw new AppError("DOCUMENT_NOT_ELIGIBLE", "Tài liệu đã xóa.", 409);
     if (document.status !== "APPROVED" && document.status !== "INDEXED") {
       throw new AppError("DOCUMENT_NOT_ELIGIBLE", "Tài liệu hiện không đủ điều kiện lập chỉ mục.", 409);
     }

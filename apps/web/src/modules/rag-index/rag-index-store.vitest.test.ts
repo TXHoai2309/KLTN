@@ -18,6 +18,7 @@ type TestGeneration = {
 function fakeDatabase(options: { contentVersionRaceCall?: number; generationRaceCall?: number } = {}) {
   const generations = new Map<string, TestGeneration>();
   const documentStatus = new Map<string, string>([["doc-1", "APPROVED"]]);
+  const deletedDocuments = new Set<string>();
   const chunks = new Map<string, Record<string, unknown>>();
   const contentVersions = new Map<string, Record<string, unknown>>();
   const generationKeys = new Map<string, string>();
@@ -52,8 +53,9 @@ function fakeDatabase(options: { contentVersionRaceCall?: number; generationRace
         return [{ chunkCount: generationChunks.length, embeddingCount: embedded.length, tokenCount: embedded.reduce((sum, row) => sum + row!.tokenCount, 0) }];
       }
       if (sql.includes('FROM "rag_document"') && sql.includes("FOR UPDATE")) {
-        const status = documentStatus.get(String(values[0]));
-        return status ? [{ status }] : [];
+        const id = String(values[0]);
+        const status = documentStatus.get(id);
+        return status ? [{ status, deletedAt: deletedDocuments.has(id) ? new Date() : null }] : [];
       }
       if (sql.includes('FROM "rag_chunk_embedding" WHERE "chunkId"')) {
         const row = embeddings.get(String(values[0]));
@@ -62,7 +64,7 @@ function fakeDatabase(options: { contentVersionRaceCall?: number; generationRace
       if (sql.includes('FROM "rag_index_publication"')) {
         const publication = publications.get(String(values[0]));
         const generation = publication ? generations.get(publication.generationId) : undefined;
-        if (!publication || documentStatus.get(String(values[0])) !== "INDEXED" || generation?.state !== "READY") return [];
+        if (!publication || deletedDocuments.has(String(values[0])) || documentStatus.get(String(values[0])) !== "INDEXED" || generation?.state !== "READY") return [];
         return [{
           ragDocumentId: publication.ragDocumentId, generationId: generation.id, contentVersionId: generation.contentVersionId,
           generationKey: generation.generationKey, chunkerVersion: generation.chunkerVersion,
@@ -136,7 +138,7 @@ function fakeDatabase(options: { contentVersionRaceCall?: number; generationRace
       },
     },
   };
-  return { database: db as Database, generations, contentVersions, documentStatus, chunks, embeddings, publications, get vectorInsertCount() { return vectorInsertCount; } };
+  return { database: db as Database, generations, contentVersions, documentStatus, deletedDocuments, chunks, embeddings, publications, get vectorInsertCount() { return vectorInsertCount; } };
 }
 
 const chunkInput = (texts: string[]): DocumentChunk[] => texts.map((text, index) => ({
@@ -246,7 +248,7 @@ describe("US-19 Task184 versioned RAG persistence", () => {
     }])).rejects.toMatchObject({ code: "EMBEDDING_CONFLICT" });
   });
 
-  it("uses one publication pointer, keeps old generations, and excludes APPROVED or DISABLED documents from retrieval metadata", async () => {
+  it("uses one publication pointer, keeps old generations, and excludes APPROVED, DISABLED, or deleted documents", async () => {
     const fake = fakeDatabase(); const store = createRagIndexStore(fake.database);
     for (const id of ["gen-1", "gen-2"]) {
       const chunks = chunkInput([`synthetic ${id}`]);
@@ -269,6 +271,10 @@ describe("US-19 Task184 versioned RAG persistence", () => {
     expect(fake.publications.get("doc-1")?.generationId).toBe("gen-2");
     expect(fake.generations.has("gen-1")).toBe(true);
     fake.documentStatus.set("doc-1", "DISABLED");
+    expect(await store.getPublishedGenerationMetadata("doc-1")).toBeNull();
+    await expect(store.publishReadyGeneration("doc-1", "gen-2")).rejects.toMatchObject({ code: "DOCUMENT_NOT_ELIGIBLE" });
+    fake.documentStatus.set("doc-1", "INDEXED");
+    fake.deletedDocuments.add("doc-1");
     expect(await store.getPublishedGenerationMetadata("doc-1")).toBeNull();
     await expect(store.publishReadyGeneration("doc-1", "gen-2")).rejects.toMatchObject({ code: "DOCUMENT_NOT_ELIGIBLE" });
   });

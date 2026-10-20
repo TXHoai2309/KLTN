@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowLeft, FileText, Plus, AlertTriangle, LoaderCircle, ShieldCheck, ShieldAlert, Sparkles } from "lucide-react";
+import { ArrowLeft, FileText, Plus, AlertTriangle, LoaderCircle, ShieldCheck, ShieldAlert, Sparkles, Trash2, RotateCcw, MoreHorizontal } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@KLTN/ui/components/button";
 import { createIdempotencyKey, sendIdempotentMutation } from "@/lib/mutation-client";
 import { confirmedRagDetail } from "@/modules/rag-document/rag-review-state";
@@ -11,7 +12,7 @@ import { RagIndexPanel } from "./rag-index-panel";
 
 type RagStatus = "UPLOADED" | "REVIEWING" | "APPROVED" | "INDEXED" | "DISABLED";
 type RagAction = "START_REVIEW" | "APPROVE" | "DISABLE" | "ENABLE_PUBLIC_QA" | "DISABLE_PUBLIC_QA";
-type RagIneligibilityReason = "STATUS_NOT_INDEXED" | "NOT_PUBLIC_APPROVED" | "NO_READY_INDEX" | "EMBEDDING_MISMATCH";
+type RagIneligibilityReason = "STATUS_NOT_INDEXED" | "NOT_PUBLIC_APPROVED" | "NO_READY_INDEX" | "EMBEDDING_MISMATCH" | "DOCUMENT_DELETED";
 
 type RagItem = {
   id: string;
@@ -23,6 +24,7 @@ type RagItem = {
   publicQaApproved: boolean;
   publicQaEligible: boolean;
   ineligibilityReason: RagIneligibilityReason | null;
+  deletedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -53,6 +55,7 @@ const ineligibilityReasonLabel: Record<RagIneligibilityReason, string> = {
   NOT_PUBLIC_APPROVED: "Chưa cấp quyền AI công khai",
   NO_READY_INDEX: "Chỉ mục chưa sẵn sàng (READY)",
   EMBEDDING_MISMATCH: "Mô hình vector không tương thích",
+  DOCUMENT_DELETED: "Tài liệu đã xóa; không dùng cho truy xuất",
 };
 
 const date = (value: string) =>
@@ -104,6 +107,7 @@ export function RagStatusBadge({
   item: {
     status: RagStatus;
     retrievalEligible: boolean;
+    deletedAt?: string | null;
     publicQaApproved?: boolean;
     publicQaEligible?: boolean;
     ineligibilityReason?: RagIneligibilityReason | null;
@@ -112,6 +116,7 @@ export function RagStatusBadge({
   return (
     <div className="rag-statuses">
       <span className={`rag-status is-${item.status.toLowerCase()}`}>{statusLabel[item.status]}</span>
+      {item.deletedAt && <span className="rag-status is-deleted">Đã xóa</span>}
       <span className="rag-retrieval">{item.retrievalEligible ? "Đủ điều kiện truy xuất" : "Chưa dùng cho truy xuất"}</span>
       {item.publicQaApproved !== undefined && (
         item.publicQaApproved ? (
@@ -137,20 +142,48 @@ export function RagStatusBadge({
   );
 }
 
-export function RagList() {
-  const { data, error, retry } = useRagRead<{ items: RagItem[] }>("/api/admin/rag-documents");
+type RagListView = "active" | "deleted";
+type RagLifecycleAttempt = { kind: "delete" | "restore"; key: string };
+
+export function RagList({ initialView = "active" }: { initialView?: RagListView }) {
+  const deletedView = initialView === "deleted";
+  const listUrl = deletedView ? "/api/admin/rag-documents?view=deleted" : "/api/admin/rag-documents";
+  const { data, setData, error, retry } = useRagRead<{ items: RagItem[] }>(listUrl);
   const [bulkMessage, setBulkMessage] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
+  const [uncertainIds, setUncertainIds] = useState<Set<string>>(() => new Set());
+  const [confirmation, setConfirmation] = useState<RagItem | null>(null);
+  const attempts = useRef(new Map<string, RagLifecycleAttempt>());
+  const activeRequests = useRef(new Set<string>());
+  const dialog = useRef<HTMLDialogElement>(null);
+  const opener = useRef<HTMLButtonElement | null>(null);
+  const restoreFocus = useRef(false);
+  const listHeading = useRef<HTMLHeadingElement>(null);
+  const titleId = useId();
+  const descriptionId = useId();
+
+  useEffect(() => {
+    if (confirmation && !dialog.current?.open) dialog.current?.showModal();
+    else if (!confirmation && dialog.current?.open) dialog.current.close();
+  }, [confirmation]);
+  useEffect(() => {
+    if (confirmation || !restoreFocus.current) return;
+    restoreFocus.current = false;
+    requestAnimationFrame(() => {
+      if (opener.current?.isConnected) opener.current.focus();
+      else listHeading.current?.focus();
+    });
+  }, [confirmation, data]);
 
   const items = data?.items ?? [];
-  const totalCount = items.length;
   const indexedCount = items.filter(i => i.status === "INDEXED").length;
   const publicApprovedCount = items.filter(i => i.publicQaApproved).length;
   const publicEligibleCount = items.filter(i => i.publicQaEligible).length;
   const unapprovedIndexed = items.filter(i => i.status === "INDEXED" && !i.publicQaApproved);
 
   async function handleBulkEnableIndexed() {
-    if (bulkBusy || unapprovedIndexed.length === 0) return;
+    if (bulkBusy || deletedView || unapprovedIndexed.length === 0) return;
     setBulkBusy(true);
     setBulkMessage("");
     try {
@@ -160,9 +193,7 @@ export function RagList() {
         body: JSON.stringify({ action: "ENABLE_ALL_INDEXED" }),
       });
       const body = await response.json();
-      if (!response.ok || body.success !== true) {
-        throw new Error(body.error?.message || "Không thể thực hiện duyệt hàng loạt.");
-      }
+      if (!response.ok || body.success !== true) throw new Error(body.error?.message || "Không thể thực hiện duyệt hàng loạt.");
       setBulkMessage(`Đã cấp quyền AI công khai cho ${body.data?.updatedCount ?? unapprovedIndexed.length} tài liệu đã lập chỉ mục.`);
       retry();
     } catch (err) {
@@ -171,6 +202,69 @@ export function RagList() {
       setBulkBusy(false);
     }
   }
+
+  async function runLifecycle(item: RagItem, kind: RagLifecycleAttempt["kind"]) {
+    if (activeRequests.current.has(item.id)) return;
+    const existing = attempts.current.get(item.id);
+    const attempt = existing?.kind === kind ? existing : { kind, key: createIdempotencyKey() };
+    attempts.current.set(item.id, attempt);
+    activeRequests.current.add(item.id);
+    setPendingIds(current => new Set(current).add(item.id));
+    try {
+      const result = await sendIdempotentMutation<{ id: string }>(
+        kind === "delete" ? `/api/admin/rag-documents/${encodeURIComponent(item.id)}` : `/api/admin/rag-documents/${encodeURIComponent(item.id)}/restore`,
+        { idempotencyKey: attempt.key, init: { method: kind === "delete" ? "DELETE" : "POST", headers: { "Content-Type": "application/json" }, body: "{}" } },
+      );
+      if (result.status === "SUCCESS") {
+        attempts.current.delete(item.id);
+        setUncertainIds(current => { const next = new Set(current); next.delete(item.id); return next; });
+        setData(current => current ? { items: current.items.filter(entry => entry.id !== item.id) } : current);
+        if (kind === "delete") setConfirmation(current => current?.id === item.id ? null : current);
+        restoreFocus.current = true;
+        toast.success(kind === "delete" ? "Đã chuyển tài liệu vào danh sách đã xóa." : "Đã khôi phục tài liệu về trạng thái vô hiệu hóa.", { position: "bottom-right" });
+      } else if (result.status === "FAILED") {
+        attempts.current.delete(item.id);
+        setUncertainIds(current => { const next = new Set(current); next.delete(item.id); return next; });
+        if (kind === "delete") setConfirmation(current => current?.id === item.id ? null : current);
+        toast.error(result.error.message || `Không thể ${kind === "delete" ? "xóa" : "khôi phục"} tài liệu.`, { position: "bottom-right" });
+      } else {
+        setUncertainIds(current => new Set(current).add(item.id));
+        toast.warning(`Chưa xác định kết quả ${kind === "delete" ? "xóa" : "khôi phục"}.`, {
+          position: "bottom-right", description: "Thử lại cùng thao tác sẽ giữ nguyên request và Idempotency-Key.",
+        });
+      }
+    } catch {
+      setUncertainIds(current => new Set(current).add(item.id));
+      toast.warning("Chưa xác định kết quả thao tác.", { position: "bottom-right", description: "Request và Idempotency-Key được giữ nguyên để thử lại." });
+    } finally {
+      activeRequests.current.delete(item.id);
+      setPendingIds(current => { const next = new Set(current); next.delete(item.id); return next; });
+    }
+  }
+
+  function openDelete(item: RagItem, button: HTMLButtonElement) {
+    if (activeRequests.current.has(item.id)) return;
+    button.closest("details")?.removeAttribute("open");
+    opener.current = button;
+    setConfirmation(item);
+  }
+  function confirmDelete() {
+    if (confirmation) void runLifecycle(confirmation, "delete");
+  }
+  function cancelDelete() {
+    if (pendingIds.size) return;
+    restoreFocus.current = true;
+    setConfirmation(null);
+  }
+  function restore(item: RagItem, button: HTMLButtonElement) {
+    if (activeRequests.current.has(item.id)) return;
+    button.closest("details")?.removeAttribute("open");
+    opener.current = button;
+    void runLifecycle(item, "restore");
+  }
+
+  const activeHref = "/admin/rag" as Route;
+  const deletedHref = "/admin/rag?view=deleted" as Route;
 
   return (
     <main className="destination-page rag-review-page">
@@ -186,58 +280,38 @@ export function RagList() {
           </Link>
         </header>
 
-        {data && (
+        {!deletedView && data && (
           <div className="rag-stats-grid">
-            <div className="rag-stat-card">
-              <div className="rag-stat-label">Tổng tài liệu</div>
-              <div className="rag-stat-value">{totalCount}</div>
-            </div>
-            <div className="rag-stat-card">
-              <div className="rag-stat-label">Đã lập chỉ mục</div>
-              <div className="rag-stat-value">{indexedCount}</div>
-            </div>
-            <div className="rag-stat-card">
-              <div className="rag-stat-label">Đã cấp quyền AI</div>
-              <div className="rag-stat-value">{publicApprovedCount}</div>
-            </div>
-            <div className="rag-stat-card">
-              <div className="rag-stat-label">Sẵn sàng cho AI</div>
-              <div className="rag-stat-value">{publicEligibleCount}</div>
-            </div>
+            <div className="rag-stat-card"><div className="rag-stat-label">Tổng tài liệu</div><div className="rag-stat-value">{items.length}</div></div>
+            <div className="rag-stat-card"><div className="rag-stat-label">Đã lập chỉ mục</div><div className="rag-stat-value">{indexedCount}</div></div>
+            <div className="rag-stat-card"><div className="rag-stat-label">Đã cấp quyền AI</div><div className="rag-stat-value">{publicApprovedCount}</div></div>
+            <div className="rag-stat-card"><div className="rag-stat-label">Sẵn sàng cho AI</div><div className="rag-stat-value">{publicEligibleCount}</div></div>
           </div>
         )}
 
-        {unapprovedIndexed.length > 0 && (
+        {!deletedView && unapprovedIndexed.length > 0 && (
           <div className="rag-bulk-bar">
-            <div className="rag-bulk-info">
-              Có <strong>{unapprovedIndexed.length}</strong> tài liệu đã lập chỉ mục nhưng chưa được cấp quyền làm nguồn trả lời AI công khai.
-            </div>
-            <Button
-              type="button"
-              className="destination-primary"
-              disabled={bulkBusy}
-              onClick={() => void handleBulkEnableIndexed()}
-            >
+            <div className="rag-bulk-info">Có <strong>{unapprovedIndexed.length}</strong> tài liệu đã lập chỉ mục nhưng chưa được cấp quyền làm nguồn trả lời AI công khai.</div>
+            <Button type="button" className="destination-primary" disabled={bulkBusy} onClick={() => void handleBulkEnableIndexed()}>
               <Sparkles size={16} aria-hidden="true" />
               {bulkBusy ? "Đang xử lý…" : `Duyệt công khai tất cả (${unapprovedIndexed.length})`}
             </Button>
           </div>
         )}
 
-        {bulkMessage && (
-          <div className="rag-action-feedback" role="status" style={{ marginBottom: "16px" }}>
-            {bulkMessage}
-          </div>
-        )}
+        {bulkMessage && <div className="rag-action-feedback" role="status" style={{ marginBottom: "16px" }}>{bulkMessage}</div>}
+
+        <nav className="rag-list-tabs" aria-label="Lọc danh sách tài liệu">
+          <Link href={activeHref} aria-current={!deletedView ? "page" : undefined}>Đang hoạt động</Link>
+          <Link href={deletedHref} aria-current={deletedView ? "page" : undefined}>Đã xóa</Link>
+        </nav>
 
         <section className="destination-card" aria-labelledby="rag-list-title">
           <div className="destination-section-heading">
-            <span className="destination-section-icon" aria-hidden="true">
-              <FileText size={21} />
-            </span>
+            <span className="destination-section-icon" aria-hidden="true"><FileText size={21} /></span>
             <div>
-              <h2 id="rag-list-title">Danh sách tài liệu</h2>
-              <p>Tài liệu cần được lập chỉ mục và cấp quyền AI công khai để trợ lý có thể tự động tìm kiếm.</p>
+              <h2 id="rag-list-title" ref={listHeading} tabIndex={-1}>{deletedView ? "Tài liệu đã xóa" : "Danh sách tài liệu"}</h2>
+              <p>{deletedView ? "Tài liệu đã xóa được giữ nguyên lịch sử và không còn được dùng cho truy xuất mới." : "Tài liệu cần được lập chỉ mục và cấp quyền AI công khai để trợ lý có thể tự động tìm kiếm."}</p>
             </div>
           </div>
           {error || !data ? (
@@ -245,40 +319,75 @@ export function RagList() {
           ) : data.items.length === 0 ? (
             <div className="destination-state destination-empty">
               <FileText size={34} aria-hidden="true" />
-              <h3>Chưa có tài liệu nào</h3>
-              <p>Tải tài liệu đầu tiên để bắt đầu kiểm duyệt.</p>
-              <Link className="destination-primary" href={"/admin/rag/upload" as Route}>
-                Tải tài liệu mới
-              </Link>
+              <h3>{deletedView ? "Chưa có tài liệu đã xóa" : "Chưa có tài liệu nào"}</h3>
+              <p>{deletedView ? "Tài liệu được xóa mềm sẽ xuất hiện tại đây để Admin có thể khôi phục." : "Tải tài liệu đầu tiên để bắt đầu kiểm duyệt."}</p>
+              {!deletedView && <Link className="destination-primary" href={"/admin/rag/upload" as Route}>Tải tài liệu mới</Link>}
             </div>
           ) : (
             <ul className="rag-document-list">
-              {data.items.map(item => (
-                <li key={item.id} className="rag-document-row">
-                  <div className="rag-document-main">
-                    <FileText size={20} aria-hidden="true" />
-                    <div>
-                      <strong>{item.originalFileName}</strong>
-                      <p>{item.sourceTitle}</p>
+              {items.map(item => {
+                const pending = pendingIds.has(item.id);
+                const uncertain = uncertainIds.has(item.id);
+                return (
+                  <li key={item.id} className="rag-document-row" aria-busy={pending}>
+                    <div className="rag-document-main">
+                      <FileText size={20} aria-hidden="true" />
+                      <div><strong>{item.originalFileName}</strong><p>{item.sourceTitle}</p></div>
                     </div>
-                  </div>
-                  <div className="rag-document-meta">
-                    <span>{item.fileType}</span>
-                    <RagStatusBadge item={item} />
-                  </div>
-                  <Link
-                    className="destination-edit"
-                    href={`/admin/rag/${encodeURIComponent(item.id)}` as Route}
-                    aria-label={`Mở chi tiết ${item.originalFileName}`}
-                  >
-                    Mở chi tiết
-                  </Link>
-                </li>
-              ))}
+                    <div className="rag-document-meta">
+                      <span>{item.fileType}{deletedView && item.deletedAt ? ` · Xóa ${date(item.deletedAt)}` : ""}</span>
+                      <RagStatusBadge item={item} />
+                    </div>
+                    <div className="rag-row-actions rag-row-actions-desktop">
+                      <Link className="destination-edit" href={`/admin/rag/${encodeURIComponent(item.id)}` as Route} aria-label={`Mở chi tiết ${item.originalFileName}`}>Mở chi tiết</Link>
+                      {deletedView ? (
+                        <button type="button" className="destination-restore rag-row-action" aria-label={`${uncertain ? "Thử lại khôi phục" : "Khôi phục"} ${item.originalFileName}`} disabled={pending} aria-busy={pending} onClick={event => restore(item, event.currentTarget)}>
+                          {pending ? <LoaderCircle size={15} className="destination-spinner" aria-hidden="true" /> : <RotateCcw size={15} aria-hidden="true" />}
+                          {pending ? "Đang khôi phục…" : uncertain ? "Thử lại" : "Khôi phục"}
+                        </button>
+                      ) : (
+                        <button type="button" className="destination-delete rag-row-action" aria-label={`${uncertain ? "Thử lại xóa" : "Xóa"} ${item.originalFileName}`} disabled={pending} onClick={event => openDelete(item, event.currentTarget)}>
+                          <Trash2 size={15} aria-hidden="true" />{uncertain ? "Thử xác nhận" : "Xóa"}
+                        </button>
+                      )}
+                    </div>
+                    <details className="rag-row-actions rag-row-actions-mobile">
+                      <summary aria-label={`Thao tác với ${item.originalFileName}`}><MoreHorizontal size={20} aria-hidden="true" /><span className="destination-sr-only">Thao tác</span></summary>
+                      <div className="rag-mobile-action-menu">
+                        <Link href={`/admin/rag/${encodeURIComponent(item.id)}` as Route} aria-label={`Mở chi tiết ${item.originalFileName}`}>Mở chi tiết</Link>
+                        {deletedView ? (
+                          <button type="button" onClick={event => restore(item, event.currentTarget)} disabled={pending} aria-busy={pending}>
+                            {pending ? <LoaderCircle size={15} className="destination-spinner" aria-hidden="true" /> : <RotateCcw size={15} aria-hidden="true" />}{pending ? "Đang khôi phục…" : uncertain ? "Thử lại khôi phục" : "Khôi phục"}
+                          </button>
+                        ) : (
+                          <button type="button" onClick={event => openDelete(item, event.currentTarget)} disabled={pending}>
+                            <Trash2 size={15} aria-hidden="true" />{uncertain ? "Thử xác nhận lại" : "Xóa"}
+                          </button>
+                        )}
+                      </div>
+                    </details>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
       </div>
+
+      <dialog ref={dialog} className="destination-confirm rag-delete-dialog" aria-labelledby={titleId} aria-describedby={descriptionId} onCancel={event => { event.preventDefault(); cancelDelete(); }}>
+        {confirmation && <>
+          <h2 id={titleId}>{uncertainIds.has(confirmation.id) ? "Xác nhận lại việc xóa?" : "Xóa tài liệu RAG?"}</h2>
+          <p id={descriptionId}>Bạn sắp xóa <strong>{confirmation.originalFileName}</strong>. Tài liệu sẽ bị ẩn khỏi danh sách hoạt động và dừng dùng cho truy xuất. File cùng lịch sử vẫn được giữ lại để có thể khôi phục.</p>
+          {uncertainIds.has(confirmation.id) && <p className="destination-uncertain destination-dialog-warning" role="status" aria-live="polite">Kết quả lần trước chưa xác định. Thử lại sẽ dùng cùng request và Idempotency-Key.</p>}
+          <div>
+            <button type="button" autoFocus disabled={pendingIds.size > 0} onClick={cancelDelete}>Hủy</button>
+            <button type="button" className="destination-destructive" disabled={pendingIds.size > 0} aria-busy={pendingIds.has(confirmation.id)} onClick={confirmDelete}>
+              {pendingIds.has(confirmation.id) && <LoaderCircle size={15} className="destination-spinner" aria-hidden="true" />}
+              {pendingIds.has(confirmation.id) ? "Đang xóa…" : uncertainIds.has(confirmation.id) ? "Thử lại cùng yêu cầu" : "Xóa tài liệu"}
+            </button>
+          </div>
+        </>}
+      </dialog>
     </main>
   );
 }
@@ -339,7 +448,7 @@ export function RagDetailView({ id }: { id: string }) {
   return (
     <main className="destination-page rag-review-page">
       <div className="destination-container destination-form-container">
-        <Link className="destination-back destination-button" href={"/admin/rag" as Route}>
+        <Link className="destination-back destination-button" href={(item?.deletedAt ? "/admin/rag?view=deleted" : "/admin/rag") as Route}>
           <ArrowLeft size={17} aria-hidden="true" />
           Danh sách tài liệu
         </Link>
@@ -388,6 +497,13 @@ export function RagDetailView({ id }: { id: string }) {
                 Tải tài liệu gốc để xem
               </a>
             </section>
+
+            {item.deletedAt && (
+              <section className="destination-card rag-deleted-notice" role="status" aria-label="Tài liệu đã xóa">
+                <strong>Tài liệu đã xóa mềm</strong>
+                <p>Đã xóa lúc {date(item.deletedAt)}. Nội dung này chỉ đọc, được giữ lại để khôi phục và không dùng cho truy xuất mới.</p>
+              </section>
+            )}
 
             <section className="destination-card" aria-labelledby="rag-source-title">
               <h2 id="rag-source-title">Thông tin nguồn</h2>
@@ -454,7 +570,7 @@ export function RagDetailView({ id }: { id: string }) {
                 </div>
               </dl>
 
-              <div className="rag-actions">
+              {!item.deletedAt && <div className="rag-actions">
                 {item.status !== "DISABLED" && !item.publicQaApproved && (
                   <Button
                     type="button"
@@ -475,10 +591,10 @@ export function RagDetailView({ id }: { id: string }) {
                     <ShieldAlert size={16} aria-hidden="true" /> Thu hồi quyền AI công khai
                   </Button>
                 )}
-              </div>
+              </div>}
             </section>
 
-            <RagIndexPanel
+            {!item.deletedAt && <RagIndexPanel
               key={id}
               documentId={id}
               status={item.status}
@@ -497,9 +613,14 @@ export function RagDetailView({ id }: { id: string }) {
                     }
                   });
               }}
-            />
+            />}
 
-            <section className="destination-card" aria-labelledby="rag-actions-title">
+            {item.deletedAt ? (
+              <section className="destination-card" aria-labelledby="rag-actions-title">
+                <h2 id="rag-actions-title">Chế độ chỉ đọc</h2>
+                <p className="destination-helper">Để khôi phục tài liệu về trạng thái vô hiệu hóa, quay lại danh sách “Đã xóa” và chọn Khôi phục.</p>
+              </section>
+            ) : <section className="destination-card" aria-labelledby="rag-actions-title">
               <h2 id="rag-actions-title">Quản lý trạng thái tài liệu</h2>
               <p className="destination-helper">
                 {item.status === "DISABLED"
@@ -551,7 +672,7 @@ export function RagDetailView({ id }: { id: string }) {
                   )}
                 </div>
               )}
-            </section>
+            </section>}
           </>
         )}
       </div>

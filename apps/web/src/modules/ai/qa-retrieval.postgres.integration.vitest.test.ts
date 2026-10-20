@@ -403,5 +403,12 @@ integrationDescribe("US21 real pgvector retrieval (explicit disposable database 
 
     await db.ragDocument.update({ where: { id: docA.id }, data: { publicQaApproved: false } });
     expect(await dynamicRetriever.recheck(docAEvidence)).toBe(false);
+
+    const docBEvidence = evidence.filter(e => e.documentId === docB.id);
+    expect(docBEvidence.length).toBeGreaterThan(0);
+    await db.ragDocument.update({ where: { id: docB.id }, data: { deletedAt: new Date(), publicQaApproved: false } });
+    expect(await dynamicRetriever.recheck(docBEvidence)).toBe(false);
+    const afterDeletion = await dynamicRetriever.retrieve("dữ kiện hợp lệ?", []);
+    expect(afterDeletion.map(item => item.documentId)).not.toContain(docB.id);
   });
 });

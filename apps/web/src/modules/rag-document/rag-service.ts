@@ -27,6 +27,16 @@ const reviewRequest = z.object({
   action: z.enum(["START_REVIEW", "APPROVE", "DISABLE", "ENABLE_PUBLIC_QA", "DISABLE_PUBLIC_QA"]),
 }).strict();
 export type RagReviewAction = z.infer<typeof reviewRequest>["action"];
+type RagDocumentTransitionResult = {
+  id: string;
+  status: RagStatus;
+  publicQaApproved: boolean;
+  publicQaEligible: boolean;
+  ineligibilityReason: RagIneligibilityReason | null;
+  updatedAt: Date;
+  retrievalEligible: boolean;
+  allowedActions: RagReviewAction[];
+};
 
 const bulkRequest = z.discriminatedUnion("action", [
   z.object({
@@ -41,7 +51,7 @@ export type RagBulkPublicQaRequest = z.infer<typeof bulkRequest>;
 
 const listFields = {
   id: true, originalFileName: true, fileType: true, sourceTitle: true,
-  status: true, publicQaApproved: true, createdAt: true, updatedAt: true,
+  status: true, publicQaApproved: true, deletedAt: true, createdAt: true, updatedAt: true,
 } as const;
 const detailFields = {
   ...listFields, mimeType: true, sizeBytes: true, sourceUrl: true, author: true,
@@ -56,7 +66,8 @@ export type RagIneligibilityReason =
   | "STATUS_NOT_INDEXED"
   | "NOT_PUBLIC_APPROVED"
   | "NO_READY_INDEX"
-  | "EMBEDDING_MISMATCH";
+  | "EMBEDDING_MISMATCH"
+  | "DOCUMENT_DELETED";
 
 type GenerationSubset = {
   state: "BUILDING" | "READY";
@@ -69,7 +80,11 @@ export function computeRagEligibility(
   status: RagStatus,
   publicQaApproved: boolean,
   generation: GenerationSubset,
+  deletedAt: Date | null = null,
 ): { publicQaEligible: boolean; ineligibilityReason: RagIneligibilityReason | null } {
+  if (deletedAt) {
+    return { publicQaEligible: false, ineligibilityReason: "DOCUMENT_DELETED" };
+  }
   if (status !== "INDEXED") {
     return { publicQaEligible: false, ineligibilityReason: "STATUS_NOT_INDEXED" };
   }
@@ -162,10 +177,13 @@ export async function getRagOriginal(headers: Headers, id: string, deps: RagDepe
   return { row, stream: await deps.storage.stream(row.storagePath) };
 }
 
-export async function listRagDocuments(headers: Headers, deps: RagDependencies) {
+export type RagDocumentListView = "active" | "deleted";
+
+export async function listRagDocuments(headers: Headers, deps: RagDependencies, view: RagDocumentListView = "active") {
   await requireActor(headers, deps, "admin");
   const [rows, publications] = await Promise.all([
     deps.database.ragDocument.findMany({
+      where: { deletedAt: view === "deleted" ? { not: null } : null },
       select: listFields, orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     }),
     deps.database.ragIndexPublication.findMany({
@@ -185,15 +203,78 @@ export async function listRagDocuments(headers: Headers, deps: RagDependencies) 
   const pubMap = new Map(publications.map(p => [p.ragDocumentId, p.generation]));
   return { items: rows.map(row => {
     const gen = pubMap.get(row.id);
-    const { publicQaEligible, ineligibilityReason } = computeRagEligibility(row.status, row.publicQaApproved, gen);
+    const { publicQaEligible, ineligibilityReason } = computeRagEligibility(row.status, row.publicQaApproved, gen, row.deletedAt);
     return {
       id: row.id, originalFileName: row.originalFileName, sourceTitle: row.sourceTitle,
       fileType: row.fileType, status: row.status, publicQaApproved: row.publicQaApproved,
+      deletedAt: row.deletedAt,
       publicQaEligible, ineligibilityReason,
-      retrievalEligible: retrievalEligible(row.status),
+      retrievalEligible: !row.deletedAt && retrievalEligible(row.status),
       createdAt: row.createdAt, updatedAt: row.updatedAt,
     };
   }) };
+}
+
+const emptyRequest = z.object({}).strict();
+
+export async function softDeleteRagDocument(headers: Headers, id: string, body: unknown, key: string, deps: RagDependencies) {
+  const actor = await requireActor(headers, deps, "admin");
+  validateId(id);
+  parse(emptyRequest, body);
+  const input = { documentId: id, action: "DELETE" as const };
+  return executeIdempotentWrite({
+    database: deps.database, actorId: actor.id, operation: `rag-document:${id}:delete`, key, input,
+    execute: async tx => {
+      await requireActor(headers, { ...deps, database: tx as unknown as Database }, "admin");
+      const now = new Date();
+      // Updating the document first takes the same document-before-job lock used
+      // by index admission and publication finalization.
+      const updated = await tx.ragDocument.updateMany({
+        where: { id, deletedAt: null },
+        data: { deletedAt: now, publicQaApproved: false, updatedAt: now },
+      });
+      if (updated.count === 0) {
+        const existing = await tx.ragDocument.findUnique({ where: { id }, select: { deletedAt: true } });
+        if (!existing) throw new AppError("RAG_DOCUMENT_NOT_FOUND", "Không tìm thấy tài liệu.", 404);
+        if (!existing.deletedAt) throw new AppError("RAG_DOCUMENT_DELETE_CONFLICT", "Không thể xóa tài liệu lúc này. Hãy thử lại.", 409);
+        return { id, deletedAt: existing.deletedAt };
+      }
+
+      await tx.ragIndexJob.updateMany({
+        where: { ragDocumentId: id, status: { in: ["QUEUED", "UNKNOWN"] } },
+        data: { status: "CANCELLED", cancelRequestedAt: now, completedAt: now, failureCode: "DOCUMENT_DELETED", leaseToken: null, leaseExpiresAt: null, updatedAt: now },
+      });
+      await tx.ragIndexJob.updateMany({
+        where: { ragDocumentId: id, status: "RUNNING", cancelRequestedAt: null },
+        data: { cancelRequestedAt: now, updatedAt: now },
+      });
+      return { id, deletedAt: now };
+    },
+  });
+}
+
+export async function restoreRagDocument(headers: Headers, id: string, body: unknown, key: string, deps: RagDependencies) {
+  const actor = await requireActor(headers, deps, "admin");
+  validateId(id);
+  parse(emptyRequest, body);
+  const input = { documentId: id, action: "RESTORE" as const };
+  return executeIdempotentWrite({
+    database: deps.database, actorId: actor.id, operation: `rag-document:${id}:restore`, key, input,
+    execute: async tx => {
+      await requireActor(headers, { ...deps, database: tx as unknown as Database }, "admin");
+      const now = new Date();
+      const updated = await tx.ragDocument.updateMany({
+        where: { id, deletedAt: { not: null } },
+        data: { deletedAt: null, status: "DISABLED", publicQaApproved: false, updatedAt: now },
+      });
+      if (updated.count !== 1) {
+        const existing = await tx.ragDocument.findUnique({ where: { id }, select: { deletedAt: true } });
+        if (!existing) throw new AppError("RAG_DOCUMENT_NOT_FOUND", "Không tìm thấy tài liệu.", 404);
+        throw new AppError("RAG_DOCUMENT_NOT_DELETED", "Tài liệu không nằm trong danh sách đã xóa.", 409);
+      }
+      return { id, status: "DISABLED" as const, deletedAt: null, publicQaApproved: false, updatedAt: now };
+    },
+  });
 }
 
 export async function getRagDocument(headers: Headers, id: string, deps: RagDependencies) {
@@ -216,15 +297,15 @@ export async function getRagDocument(headers: Headers, id: string, deps: RagDepe
     }),
   ]);
   if (!row) throw new AppError("RAG_DOCUMENT_NOT_FOUND", "Không tìm thấy tài liệu.", 404);
-  const { publicQaEligible, ineligibilityReason } = computeRagEligibility(row.status, row.publicQaApproved, pub?.generation);
+  const { publicQaEligible, ineligibilityReason } = computeRagEligibility(row.status, row.publicQaApproved, pub?.generation, row.deletedAt);
   return { document: {
     id: row.id, originalFileName: row.originalFileName, fileType: row.fileType,
     mimeType: row.mimeType, sizeBytes: row.sizeBytes, sourceTitle: row.sourceTitle,
     sourceUrl: row.sourceUrl, author: row.author, topic: row.topic,
     locality: row.locality, uploadedById: row.uploadedById, status: row.status,
-    publicQaApproved: row.publicQaApproved, publicQaEligible, ineligibilityReason,
+    publicQaApproved: row.publicQaApproved, publicQaEligible, ineligibilityReason, deletedAt: row.deletedAt,
     createdAt: row.createdAt, updatedAt: row.updatedAt,
-    retrievalEligible: retrievalEligible(row.status), allowedActions: allowedActions(row.status, row.publicQaApproved),
+    retrievalEligible: !row.deletedAt && retrievalEligible(row.status), allowedActions: row.deletedAt ? [] : allowedActions(row.status, row.publicQaApproved),
   } };
 }
 
@@ -232,24 +313,30 @@ export async function transitionRagDocument(headers: Headers, id: string, body: 
   const actor = await requireActor(headers, deps, "admin");
   validateId(id);
   const { action } = parse(reviewRequest, body);
+  const replay = await preflightIdempotentReplay<RagDocumentTransitionResult>({
+    database: deps.database, actorId: actor.id, operation: `rag-document:${id}:${action}`, key, input: { id, action },
+  });
+  if (replay.status !== "ABSENT") return replay;
   // The external Blob check stays outside the database transaction. A replay
   // after approval skips the check and is resolved by the idempotency record.
   if (action === "APPROVE") {
-    const row = await deps.database.ragDocument.findUnique({ where: { id }, select: { status: true, storagePath: true } });
+    const row = await deps.database.ragDocument.findUnique({ where: { id }, select: { status: true, storagePath: true, deletedAt: true } });
     if (!row) throw new AppError("RAG_DOCUMENT_NOT_FOUND", "Không tìm thấy tài liệu.", 404);
+    if (row.deletedAt) throw new AppError("RAG_DOCUMENT_DELETED", "Tài liệu đã xóa và chỉ có thể xem ở chế độ chỉ đọc.", 409);
     if (row.status === "REVIEWING" && !await deps.storage.accessible(row.storagePath)) {
       return { status: "FAILED" as const, httpStatus: 409, error: {
         code: "RAG_ORIGINAL_UNAVAILABLE", message: "Không thể truy cập tệp gốc. Tài liệu vẫn đang kiểm duyệt.",
       } };
     }
   }
-  return executeIdempotentWrite({
+  return executeIdempotentWrite<RagDocumentTransitionResult>({
     database: deps.database, actorId: actor.id, operation: `rag-document:${id}:${action}`,
     key, input: { id, action },
     execute: async tx => {
       await requireActor(headers, { ...deps, database: tx as unknown as Database }, "admin");
-      const current = await tx.ragDocument.findUnique({ where: { id }, select: { status: true } });
+      const current = await tx.ragDocument.findUnique({ where: { id }, select: { status: true, deletedAt: true } });
       if (!current) throw new AppError("RAG_DOCUMENT_NOT_FOUND", "Không tìm thấy tài liệu.", 404);
+      if (current.deletedAt) throw new AppError("RAG_DOCUMENT_DELETED", "Tài liệu đã xóa và chỉ có thể xem ở chế độ chỉ đọc.", 409);
       if (action === "ENABLE_PUBLIC_QA") {
         if (current.status === "DISABLED") throw new AppError("RAG_TRANSITION_INVALID", "Không thể cấp quyền cho tài liệu đã bị vô hiệu hóa.", 409);
         await tx.ragDocument.update({ where: { id }, data: { publicQaApproved: true } });
@@ -294,13 +381,13 @@ export async function bulkSetRagPublicQa(headers: Headers, body: unknown, deps: 
   const input = parse(bulkRequest, body);
   if (input.action === "ENABLE_ALL_INDEXED") {
     const indexedDocs = await deps.database.ragDocument.findMany({
-      where: { status: "INDEXED", publicQaApproved: false },
+      where: { status: "INDEXED", publicQaApproved: false, deletedAt: null },
       select: { id: true },
     });
     const ids = indexedDocs.map(d => d.id);
     if (ids.length > 0) {
       await deps.database.ragDocument.updateMany({
-        where: { id: { in: ids } },
+        where: { id: { in: ids }, deletedAt: null },
         data: { publicQaApproved: true },
       });
     }
@@ -308,20 +395,20 @@ export async function bulkSetRagPublicQa(headers: Headers, body: unknown, deps: 
   }
   if (input.action === "ENABLE_SELECTED") {
     const docs = await deps.database.ragDocument.findMany({
-      where: { id: { in: input.documentIds }, status: { not: "DISABLED" } },
+      where: { id: { in: input.documentIds }, status: { not: "DISABLED" }, deletedAt: null },
       select: { id: true },
     });
     const ids = docs.map(d => d.id);
     if (ids.length > 0) {
       await deps.database.ragDocument.updateMany({
-        where: { id: { in: ids } },
+        where: { id: { in: ids }, deletedAt: null },
         data: { publicQaApproved: true },
       });
     }
     return { updatedCount: ids.length, ids };
   }
   const res = await deps.database.ragDocument.updateMany({
-    where: { id: { in: input.documentIds } },
+    where: { id: { in: input.documentIds }, deletedAt: null },
     data: { publicQaApproved: false },
   });
   return { updatedCount: res.count, ids: input.documentIds };
