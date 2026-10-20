@@ -23,8 +23,80 @@
   min-width: 0;
 }
 .dv3-description {
+  height: 180px;
   min-height: 180px;
+  max-height: 180px;
   resize: none;
+  overflow-y: auto;
+  field-sizing: fixed;
+}
+.dv3-description-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+.dv3-textarea-meta {
+  min-width: 0;
+}
+.dv3-description-expand {
+  flex: 0 0 auto;
+}
+.dv3-description-dialog {
+  width: min(900px, calc(100vw - 32px));
+  max-width: none;
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  border: 1px solid var(--af-line);
+  border-radius: 16px;
+  background: var(--af-surface);
+  color: var(--af-ink);
+  box-shadow: 0 24px 72px #10211940;
+  overflow: hidden;
+}
+.dv3-description-dialog::backdrop {
+  background: rgb(10 20 14 / 56%);
+}
+.dv3-description-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: calc(100dvh - 32px);
+  padding: 22px;
+}
+.dv3-description-dialog-header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.dv3-description-dialog-header h2 {
+  margin: 0;
+  color: var(--af-ink);
+  font-size: 20px;
+  line-height: 1.3;
+}
+.dv3-description-dialog-header p,
+.dv3-description-dialog-count {
+  margin: 6px 0 0;
+  color: var(--af-muted, #607568);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.dv3-description-expanded {
+  width: 100%;
+  height: min(55vh, 520px);
+  min-height: 220px;
+  max-height: 60vh;
+  resize: vertical;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+.dv3-description-dialog-count {
+  margin: -8px 0 0;
+  text-align: right;
 }
 .dv3-page .af-section {
   margin-bottom: 24px;
@@ -114,6 +186,25 @@
   .dv3-source > button {
     margin-top: 0;
     justify-self: start;
+  }
+  .dv3-description-meta-row {
+    align-items: start;
+  }
+  .dv3-description-dialog {
+    width: calc(100vw - 16px);
+    max-height: calc(100dvh - 16px);
+    border-radius: 14px;
+  }
+  .dv3-description-dialog-content {
+    max-height: calc(100dvh - 16px);
+    padding: 16px;
+  }
+  .dv3-description-dialog-header h2 {
+    font-size: 18px;
+  }
+  .dv3-description-expanded {
+    height: 55vh;
+    min-height: 180px;
   }
 }
 

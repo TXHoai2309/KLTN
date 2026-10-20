@@ -6,6 +6,12 @@ Owner amendment (2026-10-16): add “văn hóa” to Destination categories. Cre
 options and server validation share destination-categories.ts; Culture keeps its
 independent taxonomy. No data migration or Destination write is required.
 
+Owner amendment (2026-10-20): raise the shared Destination description limit from
+10,000 to 50,000 characters for Admin Create/Edit. Keep the form field at a fixed
+height and provide an accessible, bounded dialog for reviewing and editing the
+full text. The existing 512 KiB API body limit and PostgreSQL `TEXT` column remain
+in place; no schema migration or Production data write is required.
+
 Authority: owner-approved implementation request in this chat and `D:/Download/KLTN_Destination_Admin_UX_V3_Spec_for_Codex.md`. This explicitly updates the Destination part of the AF-1–AF-6 contract. Product authorization, independent durations, idempotency and hidden-content invariants remain.
 
 Scope: shared Create/Edit/preview; Destination-only six-category taxonomy; one prose input with deterministic short summary; server-default area; administrative address through AddressKit; explicit Maps coordinates without Places; patch writes; simplified sources; Culture presentation flag; Planner region exclusions. No schema migration, provider billing, Production access, RAG ingestion, persisted Trip delivery, commit/push/deploy.
