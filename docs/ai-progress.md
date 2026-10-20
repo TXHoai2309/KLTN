@@ -3413,3 +3413,24 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
   diff: only the routing fix, assertion and handoff docs; no secrets added.
 - **Limits:** No schema/migration or runtime environment change. No live provider
   or browser smoke test; no commit, push or deployment performed.
+
+### 2026-10-20 — Destination Admin description limit and compact editor
+
+- **Branch/baseline:** TXH at `433e684`; owner requested the change and pushes to
+  TXH, dev and main.
+- **Root cause and change:** Admin Create/Edit capped the description at 10,000
+  characters in both the input and shared server contract. The input also expanded
+  its height while typing. A shared 50,000-character bound now covers client,
+  create/patch validation and DTO parsing. The fixed-height field scrolls internally;
+  “Xem thêm và chỉnh sửa” opens a bounded dialog with synchronized edits, Escape
+  close and focus restoration. Existing request-body bound is 512 KiB and the
+  database column is PostgreSQL `TEXT`; no migration is needed.
+- **Validation:** Long-text schema/service tests 21/21 PASS; Destination/public
+  legacy tests 63/63 PASS; browser suite 21/21 PASS including 390/768/1440px dialog
+  sizing, internal scroll, saved-in-memory create/edit, no horizontal overflow and
+  keyboard focus. Web typecheck and Next.js 16.3.8 production build PASS;
+  `git diff --check` PASS.
+- **Release:** Commit `2563dc6` pushed to `origin/TXH` and `origin/dev`; remote had
+  no `main`, so `origin/main` was created at that tested commit. `master` remains
+  at `433e684`. No deployment, Production data/Auth change, database write or
+  migration was performed.
