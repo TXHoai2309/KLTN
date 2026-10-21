@@ -191,20 +191,40 @@ export function createQaAssessor(options: QaProviderOptions = {}): QaAssessor {
     ];
     return provider.request({ messages, name: "qa_source_assessment", schema, signal: input.signal }, content => {
       let sanitizedContent = content;
-      if (content && typeof content === "object" && Array.isArray((content as any).aspects)) {
+      if (content && typeof content === "object") {
+        const rawAspects = Array.isArray((content as any).aspects) ? (content as any).aspects : [];
         sanitizedContent = {
           ...(content as any),
-          aspects: (content as any).aspects.map((aspect: any, idx: number) => {
+          aspects: rawAspects.map((aspect: any, idx: number) => {
+            let id = `aspect_${idx + 1}`;
             if (aspect && typeof aspect === "object" && typeof aspect.id === "string") {
               const rawId = aspect.id.trim();
-              if (!/^[a-zA-Z0-9_-]{1,64}$/.test(rawId)) {
+              if (/^[a-zA-Z0-9_-]{1,64}$/.test(rawId)) {
+                id = rawId;
+              } else {
                 const slug = rawId.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 64);
-                return { ...aspect, id: slug || `aspect_${idx + 1}` };
+                id = slug || `aspect_${idx + 1}`;
               }
             }
-            return aspect;
+            const kind = (aspect && typeof aspect.kind === "string" && (QA_ASPECT_KINDS as readonly string[]).includes(aspect.kind))
+              ? aspect.kind
+              : "OTHER";
+            return { ...aspect, id, kind };
           }),
         };
+        if (Array.isArray((sanitizedContent as any).relevance)) {
+          const existing = new Set((sanitizedContent as any).relevance.map((r: any) => r?.citationId));
+          const filled = [...(sanitizedContent as any).relevance];
+          for (const item of input.evidence) {
+            if (!existing.has(item.citationId)) {
+              filled.push({ citationId: item.citationId, status: "UNRELATED" });
+            }
+          }
+          sanitizedContent = {
+            ...(sanitizedContent as Record<string, unknown>),
+            relevance: filled.slice(0, 4),
+          };
+        }
       }
       const parsed = wireSchema.safeParse(sanitizedContent);
       if (!parsed.success) throw invalid("SCHEMA", parsed.error.issues);

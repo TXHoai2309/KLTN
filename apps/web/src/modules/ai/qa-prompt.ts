@@ -44,11 +44,16 @@ export function composeQaPrompt(input: QaGenerationInput): { role: "system" | "u
   return messages;
 }
 
+function normalizeReferenceBlocks(text: string): string {
+  return text.replace(/(?:\r?\n)+(?=(?:Nguồn(?: tham khảo)?|Source|URL|Link)\s*[:：]|\[?S\d+\]?[:：]?\s*https?:\/\/|https?:\/\/)/giu, "\n\n");
+}
+
 export function qaScopedEvidenceSentences(text: string, input: Pick<QaGenerationInput, "context">): string[] {
   if (qaHasUnsafeEvidenceContent(text)) return [];
+  const normalized = normalizeReferenceBlocks(text);
   const runs: string[] = [];
   let current: string[] = [];
-  for (const block of text.split(/\r?\n\s*\r?\n/gu)) {
+  for (const block of normalized.split(/\r?\n\s*\r?\n/gu)) {
     if (!isQaPublicMetadataSafe(block)) {
       if (current.length) runs.push(current.join("\n\n"));
       current = []; // Never manufacture a new sentence across a removed block.
@@ -60,15 +65,16 @@ export function qaScopedEvidenceSentences(text: string, input: Pick<QaGeneration
 
 function isReferenceOnlyBlock(block: string): boolean {
   if (!/https?:\/\//iu.test(block)) return false;
-  // Only a bare reference URL with an optional fixed citation label is omitted.
+  // Only reference URLs with optional citation labels ([S01], S01:, S01) and separators (|) are omitted.
   // Any remaining factual wording, negation, condition or date blocks the chunk.
-  return block.replace(/https?:\/\/[^\s]+/giu, "").replace(/\[S\d+\]/gu, "")
-    .replace(/^\s*(?:Nguồn(?: tham khảo)?|Source|URL|Link)\s*[:：]?\s*/iu, "")
-    .replace(/[\s:;.,()[\]–—-]/gu, "") === "";
+  return block.replace(/https?:\/\/[^\s]+/giu, "").replace(/\[?S\d+\]?[:：]?/giu, "")
+    .replace(/(?:^|\s)(?:Nguồn(?: tham khảo)?|Source|URL|Link)\s*[:：]?\s*/giu, "")
+    .replace(/[\s:;.,()[\]–—|/\\-]/gu, "") === "";
 }
 
 export function qaHasUnsafeEvidenceContent(text: string): boolean {
-  return text.split(/\r?\n\s*\r?\n/gu).some(block => !isQaPublicMetadataSafe(block) && !isReferenceOnlyBlock(block));
+  const normalized = normalizeReferenceBlocks(text);
+  return normalized.split(/\r?\n\s*\r?\n/gu).some(block => !isQaPublicMetadataSafe(block) && !isReferenceOnlyBlock(block));
 }
 
 export function canonicalizeSentence(rawSentence: string, availableSentences: readonly string[]): string {

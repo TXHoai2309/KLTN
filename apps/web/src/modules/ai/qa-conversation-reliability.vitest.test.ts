@@ -16,6 +16,7 @@ import { planQaQuestion } from "./qa-question-plan";
 import { createFixtureQaGenerator as createQaGenerator } from "./__fixtures__/qa-generation-wire";
 import { qaRequestHash } from "./qa-conversation-store";
 import { AppError } from "../../server/http/app-error";
+import { qaHasUnsafeEvidenceContent, qaScopedEvidenceSentences } from "./qa-prompt";
 
 vi.mock("server-only", () => ({}));
 
@@ -345,5 +346,20 @@ describe("question punctuation, repeated intent and social conversation", () => 
     );
     expect(assessment.intent).toBe("CLEAR");
     expect(assessment.review.aspects.every(a => a.status === "MISSING")).toBe(true);
+  });
+
+  it("safely accepts single-newline reference lines with pipe separators without throwing 502", () => {
+    const text = [
+      "Hạ Thành là làng du lịch cộng đồng của người Tày ở vùng ven trung tâm Hà Giang cũ.",
+      "Nguồn: S03: https://baotuyenquang.com.vn/photo/lang-tay-ha-thanh | S07: https://baotuyenquang.com.vn/ve-ha-thanh",
+      "",
+      "Mô tả mở rộng: Hạ Thành không phải khu vui chơi nhân tạo hay công trình di tích có một cổng kiểm soát tập trung.",
+      "Nguồn: S05: https://baotuyenquang.com.vn/net-rieng-ha-thanh",
+    ].join("\n");
+
+    expect(qaHasUnsafeEvidenceContent(text)).toBe(false);
+    const sentences = qaScopedEvidenceSentences(text, { context: { type: "GENERAL" } });
+    expect(sentences.length).toBeGreaterThan(0);
+    expect(sentences.every(s => !s.includes("https://"))).toBe(true);
   });
 });
