@@ -1595,7 +1595,7 @@
 }
 
 .assistant-expanded-badge {
-  display: inline-flex;
+  display: none !important;
   align-items: center;
   gap: 4px;
   font-size: 11px;

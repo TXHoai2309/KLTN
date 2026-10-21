@@ -18,11 +18,12 @@ export function AssistantAnswerContent({ parts, presentation, sources }: {
     return (
       <>
         <AnswerText text={part.text} />
-        {isExpanded && (
+        {/* Tạm thời ẩn badge kiến thức mở rộng cho demo */}
+        {/* {isExpanded && (
           <span className="assistant-expanded-badge" title="Nội dung được bổ sung từ kiến thức mô hình AI">
             Kiến thức mở rộng
           </span>
-        )}
+        )} */}
         {!isExpanded && sources && <div className="assistant-citation-slot">{sources(part)}</div>}
       </>
     );
@@ -37,7 +38,7 @@ export function AssistantAnswerContent({ parts, presentation, sources }: {
           <tr key={index}>
             <td>
               <AnswerText text={part.text} />
-              {isExpanded && <span className="assistant-expanded-badge">Kiến thức mở rộng</span>}
+              {/* {isExpanded && <span className="assistant-expanded-badge">Kiến thức mở rộng</span>} */}
             </td>
             {sources && <td>{!isExpanded ? sources(part) : <span className="assistant-muted">-</span>}</td>}
           </tr>
