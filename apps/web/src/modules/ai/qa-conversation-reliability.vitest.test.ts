@@ -362,4 +362,36 @@ describe("question punctuation, repeated intent and social conversation", () => 
     expect(sentences.length).toBeGreaterThan(0);
     expect(sentences.every(s => !s.includes("https://"))).toBe(true);
   });
+
+  it("strips bare blob.vercel-storage.com URLs from prose and keeps the surrounding text", () => {
+    // Document chunks from Vercel Blob storage often embed the hosted image/asset URL inline.
+    // The bare storage host carries no auth — stripping it should leave usable evidence sentences.
+    const text = [
+      "Hạ Thành là làng văn hóa du lịch cộng đồng nổi bật của người Tày.",
+      "Ảnh minh họa: https://abc.blob.vercel-storage.com/ha-thanh-landscape.jpg thể hiện cảnh quan.",
+      "Làng nằm ở ven trung tâm Hà Giang, gần cầu Hạ Thành cũ.",
+    ].join("\n");
+
+    expect(qaHasUnsafeEvidenceContent(text)).toBe(false);
+    const sentences = qaScopedEvidenceSentences(text, { context: { type: "GENERAL" } });
+    // Should NOT return [] — the blob URL is stripped, not fatal
+    expect(sentences.length).toBeGreaterThan(0);
+    // No URL should leak into the evidence
+    expect(sentences.every(s => !s.includes("https://"))).toBe(true);
+    // The factual content around the image URL should be preserved
+    expect(sentences.some(s => s.includes("Hạ Thành"))).toBe(true);
+  });
+
+  it("still blocks signed blob URLs with auth query params", () => {
+    // A signed Vercel Blob URL with ?token= carries auth material — must block the chunk.
+    const text = [
+      "Tài liệu nội bộ về Hạ Thành.",
+      "Xem tại: https://abc.blob.vercel-storage.com/private.pdf?token=eyJhb123secret456 đây là link.",
+      "Thông tin quan trọng tiếp theo.",
+    ].join("\n");
+
+    const sentences = qaScopedEvidenceSentences(text, { context: { type: "GENERAL" } });
+    // Signed URL in a sentence → null → whole chunk unsafe → empty array
+    expect(sentences).toHaveLength(0);
+  });
 });

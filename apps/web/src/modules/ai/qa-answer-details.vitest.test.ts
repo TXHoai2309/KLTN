@@ -69,12 +69,19 @@ describe("bounded public answer details", () => {
     const source = { ...input, evidence: [{ ...input.evidence[0]!, text }] };
     expect(qaScopedEvidenceSentences(text, source)).toEqual(["Hạ Thành là làng du lịch cộng đồng của người Tày."]);
   });
-  it("still treats storage links, signed URLs, paths and secrets as private for the whole chunk", () => {
-    for (const unsafe of ["Tài liệu: https://bucket.blob.vercel-storage.com/file.pdf", "Xem https://x.org/f?sig=abc", "Tệp rag/admin-1/private.pdf", "Khóa sk-abcdefghijklmnop"]) {
+  it("still treats signed URLs, paths and secrets as private for the whole chunk; bare blob host is strippable", () => {
+    // Auth-bearing signed URLs, rag paths, and secret tokens block the whole chunk.
+    for (const unsafe of ["Xem https://x.org/f?sig=abc", "Tệp rag/admin-1/private.pdf", "Khóa sk-abcdefghijklmnop"]) {
       const text = `Hạ Thành có nhà sàn.\n\n${unsafe}`;
       const source = { ...input, evidence: [{ ...input.evidence[0]!, text }] };
       expect(qaScopedEvidenceSentences(text, source)).toEqual([]);
     }
+    // A bare storage host (no auth params) is stripped like a public URL — chunk stays usable.
+    const blobText = "Hạ Thành có nhà sàn.\n\nTài liệu: https://bucket.blob.vercel-storage.com/file.pdf";
+    const blobSource = { ...input, evidence: [{ ...input.evidence[0]!, text: blobText }] };
+    const blobSentences = qaScopedEvidenceSentences(blobText, blobSource);
+    expect(blobSentences).toContain("Hạ Thành có nhà sàn.");
+    expect(blobSentences.every(s => !s.includes("https://"))).toBe(true);
   });
   it("qaUsableEvidence drops only unusable chunks instead of failing the question", () => {
     const good = { ...input.evidence[0]!, citationId: "c1", text: "Hạ Thành có nhà sàn.\n\nNguồn: S02: https://example.org/a" };

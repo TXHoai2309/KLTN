@@ -51,19 +51,27 @@ function normalizeReferenceBlocks(text: string): string {
 
 // An ordinary web address in prose is not private material. It is removed from
 // the sentence while the surrounding wording (including any qualification such
-// as "no longer applies") is kept. Storage links and signed/token URLs stay unsafe.
+// as "no longer applies") is kept. Only auth-bearing (signed/token) URLs block
+// the sentence; a bare storage host URL is strippable like any public URL.
 const PUBLIC_URL = /https?:\/\/[^\s<>"'\])]+/giu;
-const SIGNED_OR_STORAGE_URL = /blob\.vercel-storage\.com|[?&](?:token|signature|sig|se|sp|sv|sr|skoid|sktid|skt|ske|sks|skv)=/iu;
+/** Truly private: URL carries auth query params. Keeping the URL blocks the sentence. */
+const SIGNED_URL = /[?&](?:token|signature|sig|se|sp|sv|sr|skoid|sktid|skt|ske|sks|skv)=/iu;
 const REFERENCE_LABEL = /\[?\bS\d+\b\]?|\b(?:Nguồn(?:\s+tham\s+khảo)?|Tham\s+khảo|Source|URL|Link)\b/giu;
 const REFERENCE_FILLER = /[\s:;.,()[\]–—\-|•·*]/gu;
 
 /** Returns the sentence without public URLs, "" when nothing but a source
- * reference remains, or null when private material (path, secret, signed or
- * storage link) is present and the sentence must not be shown. */
+ * reference remains, or null when private material (auth-signed URL, path,
+ * or secret token) is present and the sentence must not be shown.
+ * Storage-host-only URLs (blob.vercel-storage.com without auth params) are
+ * stripped like ordinary public URLs — the host alone carries no secret. */
 function redactPublicUrls(sentence: string): string | null {
   const redacted = sentence.replace(PUBLIC_URL, url => {
-    const tail = /[.,;:!?]+$/u.exec(url)?.[0] ?? ""; // keep the sentence punctuation after the URL
-    return SIGNED_OR_STORAGE_URL.test(url.slice(0, url.length - tail.length)) ? url : tail;
+    const tail = /[.,;:!?]+$/u.exec(url)?.[0] ?? ""; // keep punctuation that follows the URL
+    const urlBody = url.slice(0, url.length - tail.length);
+    // Auth-bearing URLs are truly private → keep to trigger null below.
+    if (SIGNED_URL.test(urlBody)) return url;
+    // Storage host without auth or any public URL → strip, keep punctuation.
+    return tail;
   })
     .replace(/\(\s*\)|\[\s*\]/gu, "").replace(/\s+([.,;:!?])/gu, "$1").replace(/\s{2,}/gu, " ").trim();
   if (!isQaPublicMetadataSafe(redacted)) return null;
@@ -108,7 +116,16 @@ export function qaUsableEvidence<T extends QaEvidence>(evidence: readonly T[], c
 
 export function qaHasUnsafeEvidenceContent(text: string): boolean {
   const normalized = normalizeReferenceBlocks(text);
-  return normalized.split(/\r?\n\s*\r?\n/gu).some(block => !isQaPublicMetadataSafe(block) && !isReferenceOnlyBlock(block));
+  return normalized.split(/\r?\n\s*\r?\n/gu).some(block => {
+    // Strip the same set of URLs that redactPublicUrls strips (public + bare storage host).
+    // Only signed/auth URLs are kept, which will then trigger the safety check.
+    const stripped = block.replace(PUBLIC_URL, url => {
+      const tail = /[.,;:!?]+$/u.exec(url)?.[0] ?? "";
+      const urlBody = url.slice(0, url.length - tail.length);
+      return SIGNED_URL.test(urlBody) ? url : tail;
+    }).replace(/\(\s*\)|\[\s*\]/gu, "").replace(/\s+([.,;:!?])/gu, "$1").replace(/\s{2,}/gu, " ").trim();
+    return !isQaPublicMetadataSafe(stripped) && !isReferenceOnlyBlock(block);
+  });
 }
 
 export function canonicalizeSentence(rawSentence: string, availableSentences: readonly string[]): string {
