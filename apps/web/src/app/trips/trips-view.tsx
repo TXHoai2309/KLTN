@@ -57,6 +57,12 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
       <div className="my-trips-detail-actions">
         <span className={`my-trips-badge my-trips-badge-${trip.status.toLowerCase()}`}>{statusLabel}</span>
         <TripFavoriteButton tripId={trip.id} isFavorite={trip.isFavorite} />
+        <Link className="my-trips-action" href={`/trips/${trip.id}/edit` as Route}>Chỉnh sửa hành trình</Link>
+        {trip.status !== "COMPLETED" && (
+          <Link className="my-trips-action my-trips-secondary-action" href={`/trips/${trip.id}/in-trip` as Route}>
+            Trợ lý trong chuyến đi
+          </Link>
+        )}
       </div>
     </div>
     <p className="my-trips-status-note">Trạng thái chuyến đi được tính theo ngày lịch, không xác nhận các điểm dừng đã được tham quan.</p>

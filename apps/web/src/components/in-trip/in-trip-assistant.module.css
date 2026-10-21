@@ -78,6 +78,9 @@
 .proposalPanel h2 { color: var(--in-trip-green); font-size: 18px; }
 .proposalPanel h3 { margin-top: 7px; font-size: 14px; }
 .proposalContent { display: grid; min-width: 0; gap: 10px; }
+.proposalActions { display: grid; min-width: 0; gap: 12px; }
+.proposalButtonRow { display: flex; min-width: 0; flex-wrap: wrap; gap: 10px; }
+.checkedAt { margin: 0; color: var(--in-trip-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
 .proposalBadge { width: fit-content; max-width: 100%; padding: 6px 10px; margin: 0; border-radius: 999px; background: var(--in-trip-soft); color: var(--in-trip-green); font-size: 12px; font-weight: 800; overflow-wrap: anywhere; }
 .proposalStatus, .proposalError { margin: 0; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
 .proposalStatus { color: var(--in-trip-ink); }
@@ -110,6 +113,7 @@
   .visit { grid-template-columns: 46px minmax(0, 1fr); gap: 8px; padding: 10px; }
   .step, .submitArea { padding: 16px; }
   .locationActions { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .proposalButtonRow { display: grid; grid-template-columns: minmax(0, 1fr); }
   .primaryButton, .secondaryButton, .submitButton { width: 100%; }
 }
 

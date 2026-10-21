@@ -121,6 +121,15 @@ export default function EditTripClient({ tripId, baseRevision, initialCandidate,
   useEffect(() => {
     const current = applyStateRef.current;
     if (current.baseRevision === baseRevision || current.pending) return;
+    const wasDirty = !areEditCandidatesEqual(current.candidate, current.baselineCandidate);
+    if (!wasDirty) {
+      const nextState = createEditApplyState(baseRevision, initialCandidate);
+      candidateRef.current = initialCandidate;
+      setSession(createEditSession(initialCandidate));
+      commitApplyState(nextState);
+      setPreviewState(EMPTY_EDIT_PREVIEW_STATE);
+      return;
+    }
     const rebased = updateEditApplyCandidate(
       createEditApplyState(baseRevision, initialCandidate),
       current.candidate,
@@ -227,13 +236,15 @@ export default function EditTripClient({ tripId, baseRevision, initialCandidate,
       setAnnouncement("Đề xuất AI đã được áp dụng. Yêu cầu chỉnh sửa thủ công đang chờ xác nhận kết quả.");
       return;
     }
-    const rebased = updateEditApplyCandidate(
-      createEditApplyState(nextRevision, savedCandidate),
-      current.candidate,
-    );
-    commitApplyState(rebased);
+    const freshState = createEditApplyState(nextRevision, savedCandidate);
+    const appliedSession = createEditSession(savedCandidate);
+    candidateRef.current = savedCandidate;
+    setSession(appliedSession);
+    commitApplyState(freshState);
     setPreviewState(EMPTY_EDIT_PREVIEW_STATE);
-    setAnnouncement("Đề xuất AI đã được áp dụng. Bản chỉnh sửa thủ công đang có được giữ lại; hãy kiểm tra lại trước khi xác nhận.");
+    setTimingDrafts({});
+    setMoveDayDrafts({});
+    setAnnouncement("Đã áp dụng đề xuất AI vào hành trình.");
   }
 
   function handleCancelKeyDown(event: KeyboardEvent<HTMLAnchorElement>) {

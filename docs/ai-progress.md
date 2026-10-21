@@ -3413,3 +3413,29 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
   diff: only the routing fix, assertion and handoff docs; no secrets added.
 - **Limits:** No schema/migration or runtime environment change. No live provider
   or browser smoke test; no commit, push or deployment performed.
+
+## 2026-10-19 — US-37 Task 295 In-trip validation and confirmation
+
+- **Branch:** `duybinh`.
+- **Story/task:** US-37 Task 295, FE validation preview and explicit confirmation.
+- **Completed:** Added in-trip preview/apply clients using the existing preview endpoint, shared apply endpoint, `TripValidationPanel`, and `sendIdempotentMutation`. The session state snapshots candidate, need, and location at preview time; confirmation is available only while that snapshot is unchanged and every validation group plus `canConfirm` passes. UNKNOWN retains the exact request and idempotency key for retry. Apply rejection keeps the proposal visible with fresh validation/time when supplied; cancel only clears local proposal state.
+- **Files changed:** `apps/web/src/lib/in-trip-client.ts`, `apps/web/src/components/in-trip/in-trip-assistant.tsx`, `apps/web/src/components/in-trip/in-trip-assistant.module.css`, `apps/web/src/modules/in-trip/in-trip-session.ts`, `apps/web/src/lib/in-trip-client.vitest.test.ts`, `apps/web/src/modules/in-trip/in-trip-proposal-session.vitest.test.ts`, `docs/stories/US-37-in-trip-validate-confirm.md`.
+- **DB/migration changes:** None.
+- **Validation performed:** Focused Vitest for the client and session; direct bundled TypeScript check; broader related preview/apply tests; `git diff --check`.
+- **Deployment/smoke result:** No browser, GPS, or live routing smoke test; these remain NOT PROVEN.
+- **Known issues:** `npm run check-types` is blocked because the local NVM shim has no active Node version. Direct `tsc` reports existing unrelated Cloudinary module/type errors and missing `STADIA_MAPS_API_KEY` typing. The broader related suite has a Task 293 expectation mismatch: Admin preview returns 400 where its test expects 403; outside Task 295 scope.
+- **Decisions:** Continue using the existing idempotent apply contract; location remains in the POST body and is excluded from idempotency identity by the server implementation. After UNKNOWN, retry the same payload/key. After an apply rejection with changed validation, require a new preview before another confirmation.
+- **Next step:** US-37 Task 297 integration tests and manual browser checklist remain.
+
+## 2026-10-19 — US-37 Task 297 in-trip validation and apply tests
+
+- **Branch:** `duybinh`.
+- **Story/task:** US-37 Task 297, prove rejected in-trip proposals cannot be applied.
+- **Completed:** Added a new acceptance suite using fake database, Validator/routing and server clock. It covers rejection without writes for VIOLATION/INSUFFICIENT_DATA, changed validation/deadline/completed visits, strict server-owned time/completion inputs, successful committed apply, idempotency replay/conflict/UNKNOWN retry, location privacy and route/service write-boundary source audits. Role coverage follows Bình's confirmed RBAC V2 policy: Admin can act on their own Trip; Guest gets 401 and another owner's Trip is masked as 404.
+- **Files changed:** `apps/web/src/modules/in-trip/us37-test.vitest.test.ts`, `docs/stories/US-37-in-trip-validate-confirm.md`, `docs/ai-progress.md`.
+- **DB/migration changes:** None.
+- **Validation performed:** Focused Task 297 Vitest: 1 file / 17 tests PASS. Related suite: 7 files / 81 PASS, 1 FAIL; the existing Task 293 test expects Admin 403, conflicting with the confirmed RBAC V2 policy. It was left untouched because Task 297 is add-only. `git diff --check` PASS. `npm run check-types` could not start because NVM has no active Node.js version. Direct bundled `tsc --noEmit -p tsconfig.json` reports existing unrelated Cloudinary missing-module/implicit-any errors and missing `STADIA_MAPS_API_KEY` typing, with no Task 297 diagnostics.
+- **Deployment/smoke result:** No browser, GPS, or live Stadia routing smoke test; manual checklist remains for the owner.
+- **Known issues:** Existing Task 293 Admin-403 test expectation needs reconciliation with RBAC V2; no old test was edited. Browser/GPS/routing are NOT PROVEN.
+- **Decisions:** Preserve the user's explicit RBAC V2 decision that Admin inherits Traveler permissions on owned Trips. Do not mark the manual checklist complete.
+- **Next step:** Owner runs the manual proposal/check/confirm, expiry, cancel, two-tab, 360px and keyboard checklist; no commit or push performed.

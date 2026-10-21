@@ -39,7 +39,16 @@ describe("US-31 Trip views", () => {
     expect(html).toContain("08:00");
     expect(html).toContain("90 phút");
     expect(html).toContain("Không còn công khai");
-    expect(html).toContain("Ngày này chưa có điểm dừng");
+    expect(html).toContain("/trips/one/edit");
+    expect(html).toContain("Chỉnh sửa hành trình");
+    expect(html).toContain("/trips/one/in-trip");
+    expect(html).toContain("Trợ lý trong chuyến đi");
+
+    const completedTrip: TripDetail = { ...sample("done", "COMPLETED"), days: [] };
+    const completedHtml = renderToStaticMarkup(createElement(TripDetailView, { trip: completedTrip }));
+    expect(completedHtml).not.toContain("/trips/done/in-trip");
+    expect(completedHtml).not.toContain("Trợ lý trong chuyến đi");
+    expect(completedHtml).toContain("/trips/done/edit");
   });
   it("distinguishes loading from a recoverable technical error", () => {
     const loading = renderToStaticMarkup(createElement(MyTripsLoading));
