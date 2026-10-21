@@ -11,7 +11,8 @@ import type { QaRetriever } from "./qa-runtime-contract";
 import { fixtureQaAssessment } from "./__fixtures__/qa-reviewed-input";
 import { normalizeQaQuestion, qaIntentHistory, qaFollowupClarification, qaFactualQuestion, QA_FOLLOWUP_CLARIFICATIONS } from "./qa-question-understanding";
 import { qaConversationMessage, QA_CONVERSATION_MESSAGES } from "./qa-conversation";
-import { createQaAssessor } from "./qa-assessment";
+import { createQaAssessor, validateQaAssessment } from "./qa-assessment";
+import { planQaQuestion } from "./qa-question-plan";
 import { createFixtureQaGenerator as createQaGenerator } from "./__fixtures__/qa-generation-wire";
 import { qaRequestHash } from "./qa-conversation-store";
 import { AppError } from "../../server/http/app-error";
@@ -228,5 +229,121 @@ describe("question punctuation, repeated intent and social conversation", () => 
     uncertain.store.complete.mockRejectedValue(new Error("commit response lost"));
     await expect(uncertain.service.ask(principal, "key", { question: "Ở đó có gì?", context: { type: "GENERAL" } })).rejects.toMatchObject({ code: "OPERATION_STATUS_UNKNOWN" });
     expect(uncertain.store.fail).not.toHaveBeenCalled();
+  });
+  it("maintains active destination entity tracking across multi-turn conversation (Căng Bắc Mê)", () => {
+    const turnHistory: QaHistoryTurn[] = [];
+    const t1 = "Giới thiệu về Căng Bắc Mê";
+    turnHistory.push({ question: t1, response });
+
+    // Turn 2: "quá trình lịch sử thì sao"
+    const t2 = "quá trình lịch sử thì sao";
+    const h2 = qaIntentHistory(t2, turnHistory);
+    expect(h2.map(t => t.question)).toEqual(["giới thiệu về căng bắc mê"]);
+    expect(qaFollowupClarification(t2, h2, { type: "GENERAL" })).toBeUndefined();
+    turnHistory.push({ question: t2, response });
+
+    // Turn 3: "nên tham quan vào thời gian nào là hợp lý nhất"
+    const t3 = "nên tham quan vào thời gian nào là hợp lý nhất";
+    const h3 = qaIntentHistory(t3, turnHistory);
+    expect(h3.map(t => t.question)).toEqual(["giới thiệu về căng bắc mê", "quá trình lịch sử thì sao"]);
+    expect(qaFollowupClarification(t3, h3, { type: "GENERAL" })).toBeUndefined();
+    turnHistory.push({ question: t3, response });
+
+    // Turn 4: "đường đi có khó không"
+    const t4 = "đường đi có khó không";
+    const h4 = qaIntentHistory(t4, turnHistory);
+    expect(h4.map(t => t.question)).toEqual(["giới thiệu về căng bắc mê", "nên tham quan vào thời gian nào là hợp lý nhất"]);
+    expect(qaFollowupClarification(t4, h4, { type: "GENERAL" })).toBeUndefined();
+    turnHistory.push({ question: t4, response });
+
+    // Turn 5: "có gì đặc biệt"
+    const t5 = "có gì đặc biệt";
+    const h5 = qaIntentHistory(t5, turnHistory);
+    expect(h5.map(t => t.question)).toEqual(["giới thiệu về căng bắc mê", "đường đi có khó không"]);
+    expect(qaFollowupClarification(t5, h5, { type: "GENERAL" })).toBeUndefined();
+    turnHistory.push({ question: t5, response });
+
+    // Turn 6: Switch entity to "Còn Cột cờ Lũng Cú thì sao?"
+    const t6 = "Còn Cột cờ Lũng Cú thì sao?";
+    const h6 = qaIntentHistory(t6, turnHistory);
+    expect(h6).toEqual([]);
+    turnHistory.push({ question: t6, response });
+
+    // Turn 7: Follow-up on new entity "đường đi có khó không"
+    const t7 = "đường đi có khó không";
+    const h7 = qaIntentHistory(t7, turnHistory);
+    expect(h7.map(t => t.question)).toEqual(["còn cột cờ lũng cú thì sao"]);
+    expect(qaFollowupClarification(t7, h7, { type: "GENERAL" })).toBeUndefined();
+  });
+
+  it.each([
+    "quá trình lịch sử thì sao",
+    "lịch sử hình thành thì sao",
+    "nguồn gốc thì sao",
+    "kiến trúc có gì đặc biệt",
+    "ý nghĩa lịch sử là gì",
+    "nên tham quan vào thời gian nào là hợp lý nhất",
+    "nên đi vào thời gian nào",
+    "mùa nào đẹp nhất",
+    "đường đi có khó không",
+    "có gì chơi",
+    "có gì đẹp",
+    "ăn gì ngon",
+    "cần chuẩn bị gì",
+  ])("correctly tracks conversational intent and clarification for follow-up: %s", followup => {
+    const history: QaHistoryTurn[] = [{ question: "Giới thiệu về Căng Bắc Mê", response }];
+    const selected = qaIntentHistory(followup, history);
+    expect(selected.map(t => t.question)).toEqual(["giới thiệu về căng bắc mê"]);
+    expect(qaFollowupClarification(followup, selected, { type: "GENERAL" })).toBeUndefined();
+    expect(qaFollowupClarification(followup, [], { type: "GENERAL" })).toBe(QA_FOLLOWUP_CLARIFICATIONS.missingSubject);
+  });
+
+  it("extracts clean subjects for comparison questions with colloquial particles and slang", () => {
+    const q1 = planQaQuestion("điểm khác nhau giữa cao nguyên đá và căng bắc mê là j");
+    expect(q1?.comparison).toBe(true);
+    expect(q1?.subjects).toEqual(["cao nguyên đá", "căng bắc mê"]);
+
+    const q2 = planQaQuestion("so sánh dinh họ vương và cột cờ lũng cú thế nào");
+    expect(q2?.comparison).toBe(true);
+    expect(q2?.subjects).toEqual(["dinh họ vương", "cột cờ lũng cú"]);
+
+    const q3 = planQaQuestion("sự khác biệt giữa hoàng su phì và mèo vạc là gì vậy");
+    expect(q3?.comparison).toBe(true);
+    expect(q3?.subjects).toEqual(["hoàng su phì", "mèo vạc"]);
+  });
+
+  it("gracefully validates assessment when intent is AMBIGUOUS without throwing 502", () => {
+    const input: QaGenerationInput = {
+      question: "điểm khác nhau giữa cao nguyên đá và căng bắc mê là j",
+      history: [],
+      evidence: [
+        {
+          citationId: "c1",
+          documentId: "d1",
+          generationId: "g1",
+          contentVersionId: "v1",
+          chunkId: "ch1",
+          chunkHash: "hash1",
+          text: "Cao nguyên đá Đồng Văn có cảnh quan độc đáo.",
+          citation: { id: "c1", sourceId: "s1", title: "Cao nguyên đá Đồng Văn", sourceUrl: null, locators: [] },
+          score: 0.9,
+          tokenCount: 20,
+        },
+      ],
+      context: { type: "GENERAL" },
+      questionPlan: planQaQuestion("điểm khác nhau giữa cao nguyên đá và căng bắc mê là j"),
+    };
+
+    const assessment = validateQaAssessment(
+      {
+        intent: "AMBIGUOUS",
+        exhaustive: true,
+        relevance: [{ citationId: "c1", status: "UNRELATED" }],
+        aspects: [],
+      },
+      input
+    );
+    expect(assessment.intent).toBe("CLEAR");
+    expect(assessment.review.aspects.every(a => a.status === "MISSING")).toBe(true);
   });
 });

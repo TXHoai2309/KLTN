@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { AssistantAnswer } from "./assistant-chat";
+import { AssistantAnswer, AssistantTurn } from "./assistant-chat";
 import { buildCitationIndex, citationSourceHref, isReadingCitation } from "./assistant-citation-utils";
 import { citationFixture } from "../../../development/assistant-citation-fixtures";
 import { DemoAssistantTransport } from "../../../development/assistant-demo-transport";
 import { AssistantController } from "./assistant-controller";
 import { QA_INSUFFICIENT_SOURCE_MESSAGE, qaCompletedTurnSchema } from "../../modules/ai/qa-contract";
 
-const render = (turn = citationFixture("MULTI")) => renderToStaticMarkup(createElement(AssistantAnswer, { turn }));
+const render = (turn = citationFixture("MULTI"), showSources = true) => renderToStaticMarkup(createElement(AssistantAnswer, { turn, showSources }));
 describe("Task 196 citation presentation", () => {
   it("numbers first occurrence across parts regardless of citation array order, without merging sources", () => {
     const turn = citationFixture("MULTI");
@@ -130,5 +130,18 @@ describe("Task 196 citation presentation", () => {
     expect(isReadingCitation(viewport(false, true, true))).toBe(true);
     expect(isReadingCitation(viewport(false, true, false))).toBe(false);
     expect(isReadingCitation(viewport(false, false, true))).toBe(false);
+  });
+  it("hides citations and source accordion by default on UI (ASSISTANT-01)", () => {
+    const turn = citationFixture("MULTI");
+    const turnHtml = renderToStaticMarkup(createElement(AssistantTurn, { turn: { question: "Hỏi", response: turn } }));
+    expect(turnHtml).not.toContain("<details");
+    expect(turnHtml).not.toContain("Xem nguồn");
+    expect(turnHtml).not.toContain("assistant-citation-ref");
+    expect(turnHtml).not.toContain("Thông tin nguồn không khả dụng");
+
+    const answerHtml = renderToStaticMarkup(createElement(AssistantAnswer, { turn, showSources: false }));
+    expect(answerHtml).not.toContain("<details");
+    expect(answerHtml).not.toContain("Xem nguồn");
+    expect(answerHtml).not.toContain("assistant-citation-ref");
   });
 });

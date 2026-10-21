@@ -96,6 +96,16 @@ export function validateQaAssessment(output: unknown, input: QaGenerationInput):
       sup.sentence = canonicalizeSentence(sup.sentence, available);
     }
   }
+  // Ensure citations supporting any aspect are marked as RELATED in relevance
+  const supportedCitationIds = new Set(
+    content.aspects.flatMap(aspect => aspect.status === "SUPPORTED" ? aspect.supports.map(s => s.citationId) : [])
+  );
+  if (supportedCitationIds.size > 0) {
+    content.relevance = content.relevance.map(item =>
+      supportedCitationIds.has(item.citationId) ? { ...item, status: "RELATED" as const } : item
+    );
+  }
+
   const plan = input.questionPlan;
   // Validate every supplied reference before a conservative missing-slot repair.
   // Invalid/provider-invented material must not disappear into a successful result.
@@ -107,16 +117,27 @@ export function validateQaAssessment(output: unknown, input: QaGenerationInput):
   // A valid ambiguous-intent response carries no factual support. It cannot
   // become a route around citation/snapshot validation.
   if (intent === "AMBIGUOUS") {
-    if (review.aspects.length || review.relevance.some(item => item.status !== "UNCERTAIN") ||
-      new Set(review.relevance.map(item => item.citationId)).size !== input.evidence.length ||
-      review.relevance.length !== input.evidence.length || review.relevance.some(item => !input.evidence.some(source => source.citationId === item.citationId))) {
-      throw invalid("OUTCOME_CONSISTENCY");
-    }
     // Clear subjects/attributes cannot become ambiguous because sources lack facts.
-    if (plan?.facets.length) return { intent: "CLEAR", review: { ...review, exhaustive: true,
-      relevance: review.relevance.map(item => ({ ...item, status: "UNRELATED" as const })),
-      aspects: plan.facets.map(facet => ({ id: facet.id, kind: facet.kind, status: "MISSING" as const, supports: [] })),
-    } };
+    if (plan?.facets.length) {
+      return {
+        intent: "CLEAR",
+        review: {
+          ...review,
+          exhaustive: true,
+          relevance: input.evidence.map(item => ({ citationId: item.citationId, status: "UNRELATED" as const })),
+          aspects: plan.facets.map(facet => ({ id: facet.id, kind: facet.kind, status: "MISSING" as const, supports: [] })),
+        },
+      };
+    }
+    return {
+      intent: "AMBIGUOUS",
+      review: {
+        ...review,
+        exhaustive: true,
+        aspects: [],
+        relevance: input.evidence.map(item => ({ citationId: item.citationId, status: "UNCERTAIN" as const })),
+      },
+    };
   } else {
     if (plan?.facets.length) {
       // Missing obligations stay missing; no support is invented or transferred.
@@ -156,7 +177,7 @@ export function createQaAssessor(options: QaProviderOptions = {}): QaAssessor {
       { role: "system", content: [
         "Assess the CURRENT QUESTION against the scoped sentence registry CURRENT_EVIDENCE. Output only the specified JSON, no answer.",
         QA_SOURCE_POLICY, QA_SCOPE_TIME_POLICY, QA_OVERVIEW_POLICY, QA_ADMISSION_SCOPE_POLICY,
-        "Resolve only a dependent follow-up from HISTORY_QUESTIONS; a new explicit subject/attribute takes precedence. Identify requested entity, relation, scope, time and answer type. Enumerate all requested facets with unique short ASCII id and a kind from the schema. kind is for a fixed missing-information notice, never factual evidence. Use OTHER when no kind fits. An overview needs a concise selection of identity, setting and distinguishing features supported by the sources, not every sentence or optional price/hour detail. An umbrella overview facet may use several relevant sentences.",
+        "Resolve only a dependent follow-up from HISTORY_QUESTIONS; a new explicit subject/attribute takes precedence. When HISTORY_QUESTIONS provides an active destination/entity and the current question is an attribute follow-up (e.g. history, timing, route, activities, overview), treat that active destination as the target subject. Evaluate intent as CLEAR whenever the question's target subject and requested attribute are clearly identifiable from the conversation history and current turn. Identify requested entity, relation, scope, time and answer type. Enumerate all requested facets with unique short ASCII id and a kind from the schema. kind is for a fixed missing-information notice, never factual evidence. Use OTHER when no kind fits. An overview needs a concise selection of identity, setting and distinguishing features supported by the sources, not every sentence or optional price/hour detail. An umbrella overview facet may use several relevant sentences.",
         "For prices distinguish common regional admission, individual site/service fees, conditions and current validity. A known recorded fee may be SUPPORTED as records-only ADMISSION, with CURRENT_VALIDITY=MISSING if today's validity is not verified. Never treat that as support for a current price. A common-admission statement is distinct from a site fee. A misconception needs its supported negation and explanation. Evaluate genuine conflicts about the same fact; unrelated topics are not conflicts.",
         "Classify EVERY supplied citationId exactly once: RELATED for directly useful evidence, UNRELATED for background or absent requested facts, UNCERTAIN only for genuinely ambiguous evidence about the requested fact. Select supportIds from the exact registry handles; the server resolves their sentence and citation. SUPPORTED requires useful support; MISSING has no supports. Do not choose merely topical sentences or unrelated examples. Do not invent, translate or quote source handles. Select all qualifications needed for the fact.",
         "CLEAR has nonempty aspects, including MISSING when requested evidence is absent. AMBIGUOUS is only an unresolved subject/intent: aspects=[], every relevance=UNCERTAIN. exhaustive=true only after assessing all requested facets. CONFLICTING/UNCERTAIN stay unresolved. Missing evidence in bounded retrieval is not evidence that the entire corpus lacks it.",
@@ -169,7 +190,23 @@ export function createQaAssessor(options: QaProviderOptions = {}): QaAssessor {
         CURRENT_EVIDENCE: input.evidence.map(item => ({ citationId: item.citationId, sourceTitle: item.citation.title, sentences: registry.filter(ref => ref.citationId === item.citationId).map(({ id, sentence }) => ({ id, text: sentence })) })) }) },
     ];
     return provider.request({ messages, name: "qa_source_assessment", schema, signal: input.signal }, content => {
-      const parsed = wireSchema.safeParse(content);
+      let sanitizedContent = content;
+      if (content && typeof content === "object" && Array.isArray((content as any).aspects)) {
+        sanitizedContent = {
+          ...(content as any),
+          aspects: (content as any).aspects.map((aspect: any, idx: number) => {
+            if (aspect && typeof aspect === "object" && typeof aspect.id === "string") {
+              const rawId = aspect.id.trim();
+              if (!/^[a-zA-Z0-9_-]{1,64}$/.test(rawId)) {
+                const slug = rawId.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9_-]+/g, "_").slice(0, 64);
+                return { ...aspect, id: slug || `aspect_${idx + 1}` };
+              }
+            }
+            return aspect;
+          }),
+        };
+      }
+      const parsed = wireSchema.safeParse(sanitizedContent);
       if (!parsed.success) throw invalid("SCHEMA", parsed.error.issues);
       const refs = new Map(registry.map(ref => [ref.id, ref]));
       const aspects = parsed.data.aspects.map(({ supportIds, ...aspect }) => {

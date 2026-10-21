@@ -8,7 +8,8 @@ export type QaQuestionPlan = { comparison: boolean; subjects: string[]; facets: 
 
 const clean = (text: string) => text.trim().replace(/\s+/gu, " ");
 function subject(text: string): string | undefined {
-  const value = clean(text).replace(/^(?:về|của)\s+/u, "");
+  let value = clean(text).replace(/^(?:về|của)\s+/u, "");
+  value = value.replace(/\s+(?:là gì|là j|là sao|như thế nào|thế nào|ra sao|thì sao|vậy|nhỉ|ạ|ơi|hả)$/u, "").trim();
   // This parser recognizes explicit syntax, not arbitrary entity semantics.
   // Unknown/elliptical wording stays with the semantic assessor and clarification.
   if (value.length < 3 || value.length > 120 || value.split(" ").length > 18 ||
@@ -21,7 +22,7 @@ function subject(text: string): string | undefined {
  * A plan supplies obligations, never a sufficiency or entailment certificate. */
 export function planQaQuestion(question: string, history: readonly QaHistoryTurn[] = [], context: QaResolvedContext = { type: "GENERAL" }): QaQuestionPlan | undefined {
   const text = qaFactualQuestion(question);
-  const comparison = text.match(/(?:khác biệt|khác nhau|so sánh|đối chiếu)(?:\s+giữa)?\s+(.+?)\s+(?:và|với|so với)\s+(.+?)(?:\s+về\s+(.+?))?(?:\s+(?:là gì|như thế nào))?$/u);
+  const comparison = text.match(/(?:khác biệt|khác nhau|so sánh|đối chiếu)(?:\s+giữa)?\s+(.+?)\s+(?:và|với|so với)\s+(.+?)(?:\s+về\s+(.+?))?(?:\s+(?:là gì|là j|như thế nào|thế nào|ra sao|là sao|thì sao))?(?:\s+(?:nhỉ|vậy|ạ|ơi|hả))?$/u);
   let subjects: string[] = [];
   let attributes: { attribute: string; kind: QaAspectKind; criteria?: readonly string[] }[] = [];
   const year = text.match(/\bnăm\s+((?:19|20|21)\d{2})\b/u)?.[1];
@@ -50,7 +51,7 @@ export function planQaQuestion(question: string, history: readonly QaHistoryTurn
     const schedule = /(?:ngày dương lịch|lịch tổ chức|ngày nào|khi nào)/u.test(text) && /(?:tổ chức|diễn ra)/u.test(text);
     const activities = /(?:hoạt động|chương trình)/u.test(text);
     if (!admission && !hours && !(year && (schedule || activities))) return undefined;
-    const named = text.match(/\bcủa\s+(.+?)(?:\s+(?:trong\s+)?năm\s+\d{4})?(?:\s+(?:là|vào|bao nhiêu|như thế nào)(?=\s|$).*)?$/u)?.[1]
+    const named = text.match(/\bcủa\s+(.+?)(?:\s+(?:trong\s+)?năm\s+\d{4})?(?:\s+(?:là|vào|bao nhiêu|như thế nào|thế nào|là gì|là j)(?=\s|$).*)?$/u)?.[1]
       ?? text.match(/^(.+?)\s+năm\s+\d{4}\s+(?:sẽ|được|có|tổ chức|diễn ra)/u)?.[1];
     let name = context.type === "DESTINATION" ? context.name : named && subject(named);
     if (!name && history.length && /^(?:còn|vậy|thế|giá vé|giờ mở cửa)/u.test(text)) {
