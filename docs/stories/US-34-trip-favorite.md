@@ -2,7 +2,115 @@
 
 ## Status
 
-API/schema implementation retained. **UI SCOPE OVERRIDE 2026-10-20:** user explicitly removed Favorite Trip controls from My Trips and Trip Detail. The original UI acceptance below is historical and is not a current PASS. See the override section.
+IMPLEMENTED — 2026-10-21 scoped acceptance verified below. The current user request explicitly restores Favorite actions on My Trips/Trip Detail and extends `/favorites` with saved Trips, superseding the UI removal dated 2026-10-20. Overall repository tests still have six preexisting failures. Historical evidence below is retained and is not current verification.
+
+## Current task — 2026-10-21
+
+Source: user attachment `ee520ac9-ae85-4ed0-a34a-593311a86788`; YCCN-18/19/20/21 and QTN-86/87/88/90 are supplied requirement IDs, not independently inspected DOCX citations. Source documents are unavailable in this checkout. Current product RBAC V2 permits Admin to use Traveler capabilities on their own data only; it never grants access to a Traveler's private Trip. Historical Admin403 statements below are superseded by RBAC V2.
+
+### Audit checklist and minimal design
+- [x] Clean current working tree on ThaiAnh; reread current Favorite/Trip modules, schemas, routes and relevant docs rather than restore an old UI.
+- [x] Existing Favorite supports TRIP, tripId FK, database unique(userId,tripId), exactly-one-target CHECK and idempotent add/remove/status endpoints. No new schema/migration/subsystem needed.
+- [x] Existing Trip list/detail return actor-scoped isFavorite; TripFavoriteButton wraps shared confirmed-only FavoriteButton and refreshes after SUCCESS. Controls are currently absent from both views.
+- [x] Trip deletion already removes Favorite references atomically before hard-deleting Trip and cascading Day/Visit; manual completion/status helpers already exist and will be reused.
+- [x] Restore secondary Heart action in list and Hero action area, outside navigation links. Keep Delete/Completion/Save and current layout/theme intact.
+- [x] Extend existing GET /api/favorites DTO with trips containing original Trip link and date/duration/transport/effective status. Filter by Favorite actor AND Trip owner on the server, including inconsistent foreign-owner references. Never select itinerary/body or client identity.
+- [x] Show all three Favorite groups. User explicitly confirmed restoring Culture group only on `/favorites`; global Simplified MVP flag and other pages unchanged.
+- [x] Reuse relation-ID removal, SUCCESS-only card removal, FAILED/UNKNOWN retention/same-key retry; successful removal toast and server refresh.
+- [x] TDD missing UI/DTO/ownership cases, Favorite/Trip regressions, guarded development DB no-copy/concurrency/delete tests, browser localhost3010 and responsive/theme matrix, types/build/full/diff checks recorded below.
+
+### Current acceptance
+Own saved Trip add/remove and actor status; foreign/missing/proposal denial; no Trip/Day/Visit/owner changes; database uniqueness/concurrent retry; visible list/detail controls; list/detail/Favorites synchronization; three Favorite groups opening original Trip; confirmed-only UI; FAILED/UNKNOWN recovery; Destination/Culture regression; Light/Dark and 360/390/768/1024/1440. Results and limits are recorded below using PASS/FAILED/NOT PROVEN/BLOCKED.
+
+### Actual API contract
+Keep PUT/DELETE `/api/favorites/trips/:tripId`, GET `/api/favorites/status?targetType=trips&targetId=:tripId`, DELETE `/api/favorites/:favoriteId`. GET `/api/favorites` adds `trips:[]` beside existing groups. Each Trip favorite adds nested `trip: {startDate,endDate,durationDays,transport,status}` alongside existing favoriteId/targetId/title/availability/href. No new endpoint, dependency or global store; native refresh and existing page fetches obtain confirmed state on navigation.
+
+### Current acceptance evidence — 2026-10-21
+
+#### Backend / database
+- PASS: no schema, migration or auth change. Existing `20261015160000_us34_trip_favorite` SQL reviewed; development ledger has finished_at `2026-10-15T15:28:56.919Z`, rolled_back_at null. Live catalog confirms `favorite_userId_tripId_key` UNIQUE(userId,tripId), `favorite_tripId_fkey` DELETE RESTRICT/UPDATE CASCADE, and three-target exactly-one-FK CHECK. No migration applied, no reset/db push or production access.
+- PASS: add/remove/status retain existing target-based API, actor session/persisted-role recheck, original idempotency scopes, replay and SUCCESS/FAILED/UNKNOWN. Trip list/detail already include actor-filtered Favorite state. New Favorites list query constrains Favorite.userId plus Trip.userId and never selects private itinerary.
+- PASS: explicit development integration creates two disposable TRAVELER accounts, an Admin and private Trip graphs. It exercises real PostgreSQL with API/service boundaries: own add/remove/status, foreign/missing uniform404, Guest401, Admin foreign404, relation-ID foreign404, missing Trip cannot be favorited, concurrent different-key adds => one row, same-key replay, direct duplicate insert P2002, invalid target CHECK and missing FK rejection.
+- PASS: before/after Favorite and Unfavorite global Trip/Day/Visit counts `8/10/24 → 8/10/24`; original graph/timestamps/owner deep-equal. Favorites list opens original ID. An intentionally inconsistent Favorite(A→TripB) is excluded by the server query, then fixture removed. Manual completion status uses existing effectiveTripStatus, covered by new list unit test. Relation-ID removal preserves graph. Existing Trip deletion removes Favorite and hides it from list; foreign fixture Trip retained. All integration fixtures cleaned in finally.
+
+#### Browser — localhost:3010
+- PASS: existing real signed-in Traveler-capable session; separate disposable Trip `us34-browser-f10f92cb-3823-43ff-8365-a9139490c060` dated 01/01/2099 used. No existing Trip was favorited, edited, completed or deleted.
+- PASS: list add initially disabled/busy with aria-pressed=false; after SUCCESS active, URL remains /trips, success toast and reload persistence. Detail initially active. Detail remove pending stays active until SUCCESS, then browser Back returns inactive list without manual reload.
+- PASS: second add → /favorites → Hành trình shows date, duration, transport, status and original /trips/:id link. Opening it reaches original detail. Unfavorite there → browser Back → Favorites refetches and Hành trình becomes empty without manual reload (no stale link). Reviewer's cache concern explicitly tested, no speculative cache/store added.
+- PASS: remove directly in Favorites retains card/disabled pending, removes after SUCCESS with toast; original detail still opens and Heart is inactive. Browser DB snapshots after add/remove: `7/9/25 → 7/9/25`, full graph and owner unchanged, Favorite count1 then0.
+- PASS: 30 measured cases, three pages × Light/Dark ×360/390/768/1024/1440. scrollWidth == clientWidth and no visible control outside horizontal viewport. List Heart is semantic BUTTON44×44, keyboard focus-visible solid; active Dark color rgb145,199,167 on rgb39,59,47. Detail Hero keeps original green, white text/action; Favorites dark card rgb30,38,33 with light text. Observed console error/warn log empty. Viewport reset, manual Light restored.
+- PASS: fixture cleanup only removed the created Trip/descendants, its Favorite and matching idempotency records; global counts restored to `6/8/22`, fixture Trip count0. Temporary fixture script/state removed after cleanup. Browser ends on real My Trips list.
+- NOT PROVEN: two independent real browser sessions A/B; ownership is established by integration API/service tests with two persisted fixture users, not an assertion of two real login E2E sessions. Live injected FAILED/UNKNOWN/network-loss behavior not exercised; existing shared client/reducer tests establish old-state/same-key semantics. No claim of pixel parity with unavailable Figma frames. Arbitrary custom long Trip names cannot be entered in current contract (title derives from duration).
+- Culture caveat: the user explicitly restored its Favorites group only. Global Culture presentation remains disabled; original Culture routes retain their existing redirect to Explore. This task does not claim to re-enable Culture pages or change that global product decision. Destination/Culture backend and client regressions PASS.
+- Evidence outside Git: `C:/Users/Admin/.codex/visualizations/2026/10/05/01a10ada-9f55-7b53-82be-58318bebb2fe/us34-2026-10-21/`. `responsive.json` contains30 measurements. Stable representative images: `list-dark-390.jpg`, `detail-light-final.jpg`, `favorites-dark-desktop-final.jpg`, `favorites-dark-mobile-final.jpg`. Some immediate resize-loop captures are cropped during browser bitmap resizing and are not used as representative screenshots.
+
+#### Final acceptance matrix
+
+| # | Criterion | Result | Evidence |
+|---|---|---|---|
+| 1 | Own persisted Trip Favorite | PASS | existing route tests, live DB, browser pending/SUCCESS/reload |
+| 2 | Own Trip Unfavorite | PASS | DB both removal APIs, browser Detail/Favorites |
+| 3 | Foreign Trip denied | PASS | trusted owner predicates, two persisted users, API/service404 |
+| 4 | No Trip copy | PASS | global counts + graph comparison DB/browser |
+| 5 | No additional Day/Visit | PASS | same counts/graph |
+| 6 | Owner unchanged | PASS | exact graph comparison |
+| 7 | No duplicate | PASS | live UNIQUE rejection, concurrent adds, replay |
+| 8 | My Trips action | PASS | semantic shared button, render test, browser |
+| 9 | Detail action | PASS | preserved Hero, render test, browser |
+| 10 | State synchronization | PASS | both MyTrips/Detail and Favorites/Detail Back paths |
+| 11 | Favorites opens original Trip | PASS | exact href validation, DB/browser original ID |
+| 12 | Confirmed-only UI | PASS | shared reducer + browser pending before SUCCESS |
+| 13 | FAILED/UNKNOWN preserve state | PASS | unchanged shared client/reducer, identical Trip target/key retry; live injection NOT PROVEN |
+| 14 | Destination/Culture regression | PASS | Favorite legacy27 and full legacy336; global Culture route caveat above |
+| 15 | Responsive/Light/Dark | PASS |30 actual computed-width/control measurements and inspected screenshots |
+
+#### Tests / exact verification commands
+
+TDD RED: nine failures / three passes for missing controls/DTO/Trip group. GREEN12/12 after minimal implementation. The existing Culture source guard also failed because it still required hiding Favorites; updated that one scoped expectation after explicit user approval to show three groups; new render test proves all three exist while the global flag remains false.
+
+Root:
+```powershell
+npm test
+npm run check-types
+npm run build
+git diff --check
+```
+Web workspace:
+```powershell
+& ../../node_modules/.bin/vitest.cmd run --config vitest.config.mts src/modules/favorite src/modules/favorites src/components/us15-favorite-client.vitest.test.ts src/components/favorite-button-guest-ux.vitest.test.ts src/modules/trip-save src/modules/trip-read src/app/trips/trips-view.vitest.test.ts src/modules/destination/culture-mvp.vitest.test.ts
+npm run test:favorite
+npm run test:legacy
+$env:US34_DEV_DB='1'
+& ../../node_modules/.bin/varlock.cmd run -- node ../../node_modules/tsx/dist/cli.mjs --test src/modules/favorites/us34-trip-favorite.integration.test.ts
+Remove-Item Env:US34_DEV_DB
+```
+- PASS: targeted102, one opt-in Trip-management DB test skipped; Favorite legacy27, full legacy336; separately opted-in US34 real DB1/1; typecheck4/4; build1/1; final git diff whitespace check exit0.
+- FAILED full npm test: baseline before edits2640 passed/6 failed/135 skipped/1todo; final2645 passed/6 failed/135 skipped/1todo. Same six baseline files: `in-trip-validation`, `replan-http`, `us35-location-source-audit`, `us36-test`, `preference-extraction-env`, `ai-edit-http`. No newly failing test. Root script stops before legacy; legacy run separately.
+- Audit/browser fixture commands used the same varlock/node/tsx prefix with temporary `../../tmp/us34-browser-fixture.ts catalog|create|added|removed|cleanup`. First varlock attempt with bare `tsx` failed PATH resolution before tests and was corrected to explicit node CLI path. Catalog first query needed PostgreSQL name→text casts; corrected read-only query then verified. No environment file edited or credentials printed. Prisma generate/migration CLI not needed because schema unchanged.
+- Fresh read-only review found no material issue beyond a Back-cache verification condition; both affected Back paths then passed live. No new dependency/store/engine/provider, no Validator/routing/Save/status business edits, no commit/push/merge/branch change/reset.
+
+#### Exact files changed in this task
+```text
+apps/web/src/app/favorites/favorites-view.tsx
+apps/web/src/app/favorites/favorites.css
+apps/web/src/app/trips/trip-favorite-button.tsx
+apps/web/src/app/trips/trips-view.tsx
+apps/web/src/app/trips/trips-view.vitest.test.ts
+apps/web/src/app/trips/trips.css
+apps/web/src/modules/destination/culture-mvp.vitest.test.ts
+apps/web/src/modules/favorite/favorite-client.test.tsx
+apps/web/src/modules/favorite/favorite-contract.ts
+apps/web/src/modules/favorite/favorite-service.ts
+apps/web/src/modules/favorite/favorite.integration.test.ts
+apps/web/src/modules/favorite/favorite.test.ts
+apps/web/src/modules/favorite/us34-favorite-list.vitest.test.ts
+apps/web/src/modules/favorites/us34-trip-favorite.integration.test.ts
+docs/stories/US-34-trip-favorite.md
+docs/stories/US-34-favorite-saved-trip.md
+docs/ai-progress.md
+```
+
+## Historical contract and evidence — superseded where noted above
 
 ## Epic
 

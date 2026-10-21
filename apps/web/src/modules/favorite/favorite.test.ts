@@ -20,7 +20,7 @@ function fixture(role = "TRAVELER", authenticated = true) {
     user: { findUnique: async () => ({ id: "a", role }) },
     favorite: {
       findMany: async ({ where, select }: { where: { userId: string }; select: Record<string, unknown> }) => {
-        queries++; assert.deepEqual(where, { userId: "a" }); assert.ok(select.destination); assert.ok(select.cultureContent);
+        queries++; assert.deepEqual(where, { userId: "a", OR: [{ targetType: { not: "TRIP" } }, { trip: { userId: "a" } }] }); assert.ok(select.destination); assert.ok(select.cultureContent);
         return rows.filter(row => row.userId === where.userId);
       },
       deleteMany: async ({ where }: { where: { id: string; userId: string } }) => {
@@ -50,7 +50,7 @@ for (const role of ["TRAVELER", "ADMIN"]) test(role + ": own groups only; hidden
   for (const item of [data.destinations[1]!, data.cultureContents[1]!]) { assert.equal(item.availability, "UNAVAILABLE"); assert.equal(item.href, null); }
   assert.ok(!JSON.stringify(data).includes("SECRET"));
 });
-test("empty groups are successful data", async () => { const f=fixture(); f.clear(); assert.deepEqual(await getFavorites(new Headers(),f.deps),{destinations:[],cultureContents:[]}); });
+test("empty groups are successful data", async () => { const f=fixture(); f.clear(); assert.deepEqual(await getFavorites(new Headers(),f.deps),{destinations:[],cultureContents:[],trips:[]}); });
 for (const [role, authenticated, status] of [["TRAVELER",false,401],["ROOT",true,403]] as const) test(`${role}/${authenticated} cannot read or delete`, async () => {
   const f=fixture(role,authenticated); await assert.rejects(getFavorites(new Headers(),f.deps),{status}); await assert.rejects(removeFavorite(new Headers(),"fd","key",f.deps),{status}); assert.equal(f.queries(),0); assert.equal(f.deletes(),0);
 });

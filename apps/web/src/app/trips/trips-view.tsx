@@ -12,6 +12,7 @@ import type { TripDetail, TripSummary } from "@/modules/trip-read/trip-read-serv
 import type { TripStatus } from "@/modules/trip-read/trip-status";
 import { applyTripChange, type TripChange } from "@/modules/trip-read/trip-management-client";
 import { TripManagementActions } from "./trip-management-actions";
+import TripFavoriteButton from "./trip-favorite-button";
 
 const groups: { status: TripStatus; label: string }[] = [
   { status: "UPCOMING", label: "Sắp tới" },
@@ -56,6 +57,7 @@ export function MyTripsView({ items: initialItems }: { items: TripSummary[] }) {
             <div className="my-trips-card-main">
               <div className="my-trips-card-actions">
                 <span className={`my-trips-badge my-trips-badge-${trip.status.toLowerCase()}`}>{group.label}</span>
+                <TripFavoriteButton tripId={trip.id} isFavorite={trip.isFavorite} />
               </div>
               <h3>Chuyến đi {trip.durationDays} ngày</h3>
               <p className="my-trips-completion-note">{trip.manuallyCompletedAt ? "Bạn đã đánh dấu hoàn thành thủ công." : trip.status === "COMPLETED" ? "Đã hoàn thành theo ngày kế hoạch; chưa đánh dấu thủ công." : "Trạng thái theo ngày kế hoạch."}</p>
@@ -94,6 +96,7 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
       </div>
       <div className="my-trips-detail-actions">
         <span className={`my-trips-badge my-trips-badge-${trip.status.toLowerCase()}`}>{statusLabel}</span>
+        <TripFavoriteButton tripId={trip.id} isFavorite={trip.isFavorite} />
       </div>
     </section>
 

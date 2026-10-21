@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh() {} }) }));
+vi.mock("@/components/favorite-button", () => ({ default: ({ targetId, initialIsFavorite }: { targetId: string; initialIsFavorite: boolean }) => createElement("button", { type: "button", "data-trip-heart": targetId, "aria-pressed": initialIsFavorite }, initialIsFavorite ? "Bỏ chuyến đi khỏi yêu thích" : "Thêm chuyến đi vào yêu thích") }));
 
 import type { TripDetail, TripSummary } from "@/modules/trip-read/trip-read-service";
 import { MyTripsView, TripDetailView } from "./trips-view";
@@ -23,8 +24,7 @@ describe("US-31 Trip views", () => {
     expect(html).toContain("Đánh dấu đã hoàn thành");
     expect(html).toContain("Xóa chuyến đi");
     expect(html).not.toContain("Đang tải trạng thái yêu thích");
-    expect(html).not.toContain("Thêm chuyến đi vào yêu thích");
-    expect(html).not.toContain("Bỏ chuyến đi khỏi yêu thích");
+    expect(html).toContain("Thêm chuyến đi vào yêu thích");
   });
   it("distinguishes manual completion from elapsed calendar dates", () => {
     const html = renderToStaticMarkup(createElement(MyTripsView, { items: [{ ...sample("manual", "COMPLETED"), manuallyCompletedAt: "2026-10-20T00:00:00Z" }, sample("calendar", "COMPLETED")] }));
@@ -37,16 +37,15 @@ describe("US-31 Trip views", () => {
     expect(html).toContain("Bạn chưa có chuyến đi nào.");
     expect(html).not.toContain("Lỗi");
   });
-  it.each([false, true])("omits Favorite actions for isFavorite=%s on both Trip surfaces", (isFavorite) => {
+  it.each([false, true])("passes confirmed isFavorite=%s into a semantic Heart outside links on both Trip surfaces", (isFavorite) => {
     const trip: TripDetail = { ...sample("owned", "UPCOMING"), isFavorite, days: [] };
     for (const html of [
       renderToStaticMarkup(createElement(MyTripsView, { items: [trip] })),
       renderToStaticMarkup(createElement(TripDetailView, { trip })),
     ]) {
-      expect(html).not.toContain("favorite-button");
-      expect(html).not.toContain("Đang tải trạng thái yêu thích");
-      expect(html).not.toContain("Thêm chuyến đi vào yêu thích");
-      expect(html).not.toContain("Bỏ chuyến đi khỏi yêu thích");
+      expect(html).toContain(`data-trip-heart="owned" aria-pressed="${isFavorite}"`);
+      expect(html).toContain(isFavorite ? "Bỏ chuyến đi khỏi yêu thích" : "Thêm chuyến đi vào yêu thích");
+      expect(html).not.toMatch(/<a\b[^>]*>(?:(?!<\/a>)[\s\S])*data-trip-heart/);
     }
   });
   it("renders ordered itinerary by day with unavailable destination text", () => {
@@ -66,7 +65,7 @@ describe("US-31 Trip views", () => {
     expect(html).toContain("Không còn công khai");
     expect(html).toContain("Ngày này chưa có điểm dừng");
     expect(html).toContain("Quay lại Chuyến đi của tôi");
-    expect(html).not.toContain("Thêm chuyến đi vào yêu thích");
+    expect(html).toContain("Thêm chuyến đi vào yêu thích");
     expect(html).not.toContain("Bỏ chuyến đi khỏi yêu thích");
     expect(html).not.toContain("Đang tải trạng thái yêu thích");
     expect(html).toContain('href="/trips"');

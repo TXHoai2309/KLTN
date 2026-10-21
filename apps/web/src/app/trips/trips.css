@@ -103,6 +103,16 @@
 .my-trips-card h3 { margin: 0; font-family: var(--font-editorial-serif), serif; font-size: 21px; font-weight: 600; line-height: 1.35; }
 .my-trips-card-actions, .my-trips-detail-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; }
 .my-trips-card-actions { min-height: 30px; }
+.my-trips-card-actions { justify-content: space-between; }
+.my-trips-page .my-trips-favorite { min-height: 44px; height: auto; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--trip-read-border); background: var(--trip-read-card); color: var(--trip-read-green); font-size: 12px; }
+.my-trips-page .my-trips-favorite[aria-pressed="true"] { background: var(--trip-read-soft); border-color: var(--trip-read-green); }
+.my-trips-page .my-trips-favorite:hover:not(:disabled) { background: var(--trip-read-soft); }
+.my-trips-page .favorite-button-message { display: block; max-width: 240px; margin-top: 8px; font-size: 12px; }
+.my-trips-card .my-trips-favorite { width: 44px; padding: 10px; }
+.my-trips-card .my-trips-favorite > span { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.my-trips-detail-actions .favorite-button-stack { max-width: 250px; }
+.my-trips-detail-actions .my-trips-favorite { background: transparent; color: #fff; border-color: #ffffff70; }
+.my-trips-detail-actions .my-trips-favorite[aria-pressed="true"], .my-trips-detail-actions .my-trips-favorite:hover:not(:disabled) { background: #ffffff1a; border-color: #ffffffb3; }
 .my-trips-meta, .my-trips-hero-meta { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; gap: 8px 20px; }
 .my-trips-meta span, .my-trips-hero-meta span { display: inline-flex; min-width: 0; align-items: center; gap: 7px; font-size: 12px; line-height: 1.5; }
 .my-trips-meta span { color: var(--trip-read-muted); }
