@@ -128,7 +128,7 @@ describe("Task193 grounded generation", () => {
     expect(body).not.toHaveProperty("temperature");
     expect(body.model).toBe("gpt-6.1-sol");
     expect(body.reasoning_effort).toBe("medium");
-    expect(body.max_completion_tokens).toBe(QA_GENERATION_LIMITS.maxOutputTokens);
+    expect(body.max_completion_tokens).toBe(QA_GENERATION_LIMITS.maxCompletionTokens);
     expect(body.response_format.json_schema.strict).toBe(true);
     expect(request[1].redirect).toBe("error");
     expect(userPayload.HISTORY_QUESTIONS).toEqual(["middle", "latest"]);

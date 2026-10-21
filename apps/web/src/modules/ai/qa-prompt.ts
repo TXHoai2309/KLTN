@@ -1,4 +1,4 @@
-import type { QaGenerationInput } from "./qa-runtime-contract";
+import type { QaEvidence, QaGenerationInput } from "./qa-runtime-contract";
 import { destinationEvidenceSentences } from "./qa-destination-context";
 import { QA_GENERATION_POLICY, QA_ANSWER_POLICY_VERSION } from "./qa-answer-policy";
 import { isQaPublicMetadataSafe } from "./qa-public-safety";
@@ -33,7 +33,8 @@ export function composeQaPrompt(input: QaGenerationInput): { role: "system" | "u
   const reviewedPairs = input.sourceReview && new Set(input.sourceReview.aspects
     .filter(aspect => aspect.status === "SUPPORTED")
     .flatMap(aspect => aspect.supports.map(ref => JSON.stringify([ref.citationId, ref.sentence]))));
-  const currentEvidence = input.evidence.map(item => ({ citationId: item.citationId, sourceTitle: item.citation.title,
+  const currentEvidence = input.evidence.map(item => ({
+    citationId: item.citationId, sourceTitle: item.citation.title,
     sentences: qaScopedEvidenceSentences(item.text, input).filter(sentence => !reviewedPairs || reviewedPairs.has(JSON.stringify([item.citationId, sentence]))),
   })).filter(item => item.sentences.length > 0);
   const messages: { role: "system" | "user"; content: string }[] = [
@@ -48,19 +49,39 @@ function normalizeReferenceBlocks(text: string): string {
   return text.replace(/(?:\r?\n)+(?=(?:Nguồn(?: tham khảo)?|Source|URL|Link)\s*[:：]|\[?S\d+\]?[:：]?\s*https?:\/\/|https?:\/\/)/giu, "\n\n");
 }
 
+// An ordinary web address in prose is not private material. It is removed from
+// the sentence while the surrounding wording (including any qualification such
+// as "no longer applies") is kept. Storage links and signed/token URLs stay unsafe.
+const PUBLIC_URL = /https?:\/\/[^\s<>"'\])]+/giu;
+const SIGNED_OR_STORAGE_URL = /blob\.vercel-storage\.com|[?&](?:token|signature|sig|se|sp|sv|sr|skoid|sktid|skt|ske|sks|skv)=/iu;
+const REFERENCE_LABEL = /\[?\bS\d+\b\]?|\b(?:Nguồn(?:\s+tham\s+khảo)?|Tham\s+khảo|Source|URL|Link)\b/giu;
+const REFERENCE_FILLER = /[\s:;.,()[\]–—\-|•·*]/gu;
+
+/** Returns the sentence without public URLs, "" when nothing but a source
+ * reference remains, or null when private material (path, secret, signed or
+ * storage link) is present and the sentence must not be shown. */
+function redactPublicUrls(sentence: string): string | null {
+  const redacted = sentence.replace(PUBLIC_URL, url => {
+    const tail = /[.,;:!?]+$/u.exec(url)?.[0] ?? ""; // keep the sentence punctuation after the URL
+    return SIGNED_OR_STORAGE_URL.test(url.slice(0, url.length - tail.length)) ? url : tail;
+  })
+    .replace(/\(\s*\)|\[\s*\]/gu, "").replace(/\s+([.,;:!?])/gu, "$1").replace(/\s{2,}/gu, " ").trim();
+  if (!isQaPublicMetadataSafe(redacted)) return null;
+  if (redacted !== sentence.trim() && redacted.replace(REFERENCE_LABEL, "").replace(REFERENCE_FILLER, "") === "") return "";
+  return redacted;
+}
+
 export function qaScopedEvidenceSentences(text: string, input: Pick<QaGenerationInput, "context">): string[] {
-  if (qaHasUnsafeEvidenceContent(text)) return [];
-  const normalized = normalizeReferenceBlocks(text);
-  const runs: string[] = [];
-  let current: string[] = [];
-  for (const block of normalized.split(/\r?\n\s*\r?\n/gu)) {
-    if (!isQaPublicMetadataSafe(block)) {
-      if (current.length) runs.push(current.join("\n\n"));
-      current = []; // Never manufacture a new sentence across a removed block.
-    } else current.push(block);
+  const sentences = input.context.type === "DESTINATION" ? destinationEvidenceSentences(text, input.context.name) : evidenceSentences(text);
+  const result: string[] = [];
+  for (const sentence of sentences) {
+    const clean = redactPublicUrls(sentence);
+    // Private material anywhere in the chunk keeps the chunk unusable: dropping
+    // only that sentence could hide a qualification and leave a misleading fact.
+    if (clean === null) return [];
+    if (clean) result.push(clean);
   }
-  if (current.length) runs.push(current.join("\n\n"));
-  return [...new Set(runs.flatMap(run => input.context.type === "DESTINATION" ? destinationEvidenceSentences(run, input.context.name) : evidenceSentences(run)))];
+  return [...new Set(result)];
 }
 
 function isReferenceOnlyBlock(block: string): boolean {
@@ -70,6 +91,19 @@ function isReferenceOnlyBlock(block: string): boolean {
   return block.replace(/https?:\/\/[^\s]+/giu, "").replace(/\[?S\d+\]?[:：]?/giu, "")
     .replace(/(?:^|\s)(?:Nguồn(?: tham khảo)?|Source|URL|Link)\s*[:：]?\s*/giu, "")
     .replace(/[\s:;.,()[\]–—|/\\-]/gu, "") === "";
+}
+
+/** Keeps only evidence the model may safely read: drops (instead of failing the
+ * whole question) chunks that carry instruction-like text, internal identifiers,
+ * unsafe citation metadata, or no safe sentence at all once unsafe blocks are removed. */
+export function qaUsableEvidence<T extends QaEvidence>(evidence: readonly T[], context: QaGenerationInput["context"]): T[] {
+  return evidence.filter(item => {
+    if (containsEvidenceInstruction(item.text) || !isQaPublicMetadataSafe(item.citation)) return false;
+    const sentences = qaScopedEvidenceSentences(item.text, { context });
+    if (!sentences.length) return false;
+    const ids = [item.documentId, item.generationId, item.contentVersionId, item.chunkId, item.chunkHash].filter(id => id.length >= 8);
+    return !sentences.some(sentence => ids.some(id => sentence.includes(id)));
+  });
 }
 
 export function qaHasUnsafeEvidenceContent(text: string): boolean {

@@ -10,7 +10,7 @@ import type { QaContext } from "./qa-contract";
 import type { QaResolvedContext } from "./qa-destination-context";
 import { createQaAssessor, type QaAssessor } from "./qa-assessment";
 import { assertQaEvidenceInput, insufficientQaAnswer } from "./qa-generation";
-import { QA_CLARIFICATION_QUESTION } from "./qa-prompt";
+import { QA_CLARIFICATION_QUESTION, qaUsableEvidence } from "./qa-prompt";
 import { evaluateQaSourceSufficiency } from "./qa-source-sufficiency";
 import { qaFactualQuestion, qaIntentHistory, qaFollowupClarification } from "./qa-question-understanding";
 import { qaConversationMessage } from "./qa-conversation";
@@ -55,6 +55,9 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
         qaStage("RETRIEVAL_STARTED");
         evidence = skipEvidence ? [] : await retriever.retrieve(question, history, signal, resolvedContext);
         qaStage("RETRIEVAL_COMPLETED", { retrievedChunks: evidence.length });
+        // Drop only the chunks that cannot be shown safely; an unusable chunk
+        // must not turn an otherwise answerable question into AI_INVALID_RESPONSE.
+        if (!skipEvidence) evidence = qaUsableEvidence(evidence, resolvedContext);
         qaStage("EVIDENCE_ELIGIBILITY_CHECK");
         if (!skipEvidence && !await retriever.recheck(evidence)) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "EVIDENCE_ELIGIBILITY_CHECK", "ELIGIBILITY");
         qaStage("EVIDENCE_ELIGIBILITY_CHECKED", { eligibleChunks: evidence.length });

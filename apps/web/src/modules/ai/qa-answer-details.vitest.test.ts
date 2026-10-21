@@ -9,7 +9,7 @@ import { createQaGenerator as createRuntimeQaGenerator } from "./qa-generation";
 import { QA_SYNTHESIS_GATES } from "./qa-synthesis-verification";
 import { fixtureReviewedInput } from "./__fixtures__/qa-reviewed-input";
 import type { QaGenerationInput } from "./qa-runtime-contract";
-import { composeQaPrompt, qaScopedEvidenceSentences } from "./qa-prompt";
+import { composeQaPrompt, qaScopedEvidenceSentences, qaUsableEvidence } from "./qa-prompt";
 
 describe("bounded public answer details", () => {
   it("projects only fixed missing notices, not raw aspect IDs or source text", () => {
@@ -57,13 +57,30 @@ describe("bounded public answer details", () => {
     expect(JSON.stringify(composeQaPrompt(reviewed))).not.toContain("https://");
     expect(JSON.stringify(composeQaPrompt(reviewed))).toContain("không miễn phí theo hồ sơ");
   });
-  it("never hides an unsafe qualification and then publishes the remaining positive fact", async () => {
+  it("keeps a qualification that carries a public URL, removing only the URL", () => {
     const text = "Điểm A có giá ghi trong hồ sơ.\n\nGiá không còn áp dụng; xem https://example.org/notice.";
     const source = { ...input, evidence: [{ ...input.evidence[0]!, text }] };
-    expect(qaScopedEvidenceSentences(text, source)).toEqual([]);
-    const fetcher = vi.fn<typeof fetch>();
-    await expect(createRuntimeQaGenerator({ apiKey: () => "fixture-only", fetcher }).generate(fixtureReviewedInput(source))).rejects.toMatchObject({ code: "AI_INVALID_RESPONSE" });
-    expect(fetcher).not.toHaveBeenCalled();
+    // The qualification must never be dropped while the positive fact stays.
+    expect(qaScopedEvidenceSentences(text, source)).toEqual(["Điểm A có giá ghi trong hồ sơ.", "Giá không còn áp dụng; xem."]);
+    expect(JSON.stringify(composeQaPrompt(fixtureReviewedInput(source)))).not.toContain("https://");
+  });
+  it("drops source-reference lines (S02: URL | S03: URL) but keeps the factual sentences", () => {
+    const text = "Hạ Thành là làng du lịch cộng đồng của người Tày.\n\nNguồn: S02: https://baotuyenquang.com.vn/a-1/ | S03: https://nongthon.vietnamtourism.gov.vn/b-2/\n\nhttps://baotuyenquang.com.vn/c-3/\n\nNguồn tham khảo [S04] https://example.org/x.";
+    const source = { ...input, evidence: [{ ...input.evidence[0]!, text }] };
+    expect(qaScopedEvidenceSentences(text, source)).toEqual(["Hạ Thành là làng du lịch cộng đồng của người Tày."]);
+  });
+  it("still treats storage links, signed URLs, paths and secrets as private for the whole chunk", () => {
+    for (const unsafe of ["Tài liệu: https://bucket.blob.vercel-storage.com/file.pdf", "Xem https://x.org/f?sig=abc", "Tệp rag/admin-1/private.pdf", "Khóa sk-abcdefghijklmnop"]) {
+      const text = `Hạ Thành có nhà sàn.\n\n${unsafe}`;
+      const source = { ...input, evidence: [{ ...input.evidence[0]!, text }] };
+      expect(qaScopedEvidenceSentences(text, source)).toEqual([]);
+    }
+  });
+  it("qaUsableEvidence drops only unusable chunks instead of failing the question", () => {
+    const good = { ...input.evidence[0]!, citationId: "c1", text: "Hạ Thành có nhà sàn.\n\nNguồn: S02: https://example.org/a" };
+    const onlyUrl = { ...input.evidence[0]!, citationId: "c2", text: "https://example.org/only" };
+    const secret = { ...input.evidence[0]!, citationId: "c3", text: "Hạ Thành. Khóa sk-abcdefghijklmnop" };
+    expect(qaUsableEvidence([good, onlyUrl, secret], input.context).map(item => item.citationId)).toEqual(["c1"]);
   });
   it("derives public citations from current selected support handles, without exposing handles", async () => {
     const fetcher = vi.fn<typeof fetch>(async () => Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ status: "ANSWERED", unanswered: false, facets: { fixture_aspect: [{ text: input.evidence[0]!.text, supportIds: ["s1"] }] } }) } }] }));
