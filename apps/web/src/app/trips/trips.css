@@ -33,6 +33,8 @@
 .my-trips-page :is(a, button):focus-visible { outline: 2px solid var(--trip-read-green); outline-offset: 3px; }
 .my-trips-action, .my-trips-open { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; border: 1px solid var(--trip-read-green); border-radius: 10px; background: var(--trip-read-green); color: var(--trip-read-bg) !important; font-size: 13px; font-weight: 700; text-align: center; text-decoration: none; }
 .my-trips-action:hover, .my-trips-open:hover { opacity: .88; }
+.my-trips-secondary-action { background: var(--trip-read-card) !important; color: var(--trip-read-green) !important; border: 1px solid var(--trip-read-green); }
+.my-trips-secondary-action:hover { background: var(--trip-read-soft) !important; opacity: 1; }
 .my-trips-heading > .my-trips-action { flex: 0 0 auto; }
 .my-trips-group, .my-trips-day { min-width: 0; margin-bottom: 34px; }
 .my-trips-group-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--trip-read-border); margin-bottom: 18px; }

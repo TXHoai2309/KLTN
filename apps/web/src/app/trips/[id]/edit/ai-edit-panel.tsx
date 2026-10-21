@@ -113,6 +113,7 @@ export default function AiEditPanel({
     if (outcome.status === "SUCCESS") {
       onApplied(finished.baseRevision, finished.baselineCandidate);
       setAnnouncement("Đã áp dụng đề xuất vào hành trình.");
+      router.refresh();
       return;
     }
     if (outcome.status === "UNKNOWN") {

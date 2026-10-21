@@ -788,6 +788,11 @@ export default function TripRequirementForm() {
                 if (review) advanceTo("review");
                 else advanceTo("details");
               }}
+              onSaved={(tripId) => {
+                if (typeof window !== "undefined") {
+                  window.location.assign(`/trips/${encodeURIComponent(tripId)}`);
+                }
+              }}
             />
           )}
         </div>

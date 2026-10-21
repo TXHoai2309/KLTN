@@ -1,15 +1,26 @@
 import { z } from "zod";
 
-import { editCandidateSchema } from "@/modules/trip-edit/edit-candidate";
+import { createIdempotencyKey, sendIdempotentMutation } from "@/lib/mutation-client";
+import type { MutationOutcome } from "@/lib/mutation-contract";
+
+import { editCandidateSchema, type EditCandidate } from "@/modules/trip-edit/edit-candidate";
 import type {
   InTripReplanOutcome,
   InTripReplanResponse,
 } from "@/modules/in-trip/in-trip-session";
 import { IN_TRIP_NEED_MAX_LENGTH } from "@/modules/in-trip/in-trip-session";
 import type { InTripLocation } from "@/modules/in-trip/in-trip-location";
+import type {
+  InTripApplyData,
+  InTripApplyOutcome,
+  InTripApplyPayload,
+  InTripPreviewOutcome,
+} from "@/modules/in-trip/in-trip-session";
+import type { TripValidation, ValidationFinding } from "@/modules/trip-validation/trip-validation";
 import { TRANSPORT_VALUES } from "@/modules/trip-requirement/trip-requirement-contract";
 
 export const IN_TRIP_REPLAN_TIMEOUT_MS = 20_000;
+export const IN_TRIP_PREVIEW_TIMEOUT_MS = 20_000;
 
 export type InTripReplanRequest = {
   baseRevision: string;
@@ -115,6 +126,62 @@ const errorEnvelopeSchema = z.object({
     details: z.unknown().optional(),
   }).strict(),
 }).strict();
+
+const validationGroupNames = ["openingHours", "minimumDuration", "travelTime", "scheduleConflict"] as const;
+const validationGroupStatusSchema = z.enum(["SATISFIED", "VIOLATION", "INSUFFICIENT_DATA"]);
+const validationFindingSchema = z.object({
+  group: z.enum(validationGroupNames),
+  status: z.enum(["VIOLATION", "INSUFFICIENT_DATA"]),
+  reasonCode: z.string(),
+  message: z.string(),
+  affectedVisitId: z.string().optional(),
+  fromVisitId: z.string().optional(),
+  toVisitId: z.string().optional(),
+  visitIds: z.tuple([z.string(), z.string()]).optional(),
+}).strict() satisfies z.ZodType<ValidationFinding>;
+const validationSchema = z.object({
+  timeReference: z.string(),
+  groups: z.object({
+    openingHours: z.object({ status: validationGroupStatusSchema, findings: z.array(validationFindingSchema) }).strict(),
+    minimumDuration: z.object({ status: validationGroupStatusSchema, findings: z.array(validationFindingSchema) }).strict(),
+    travelTime: z.object({ status: validationGroupStatusSchema, findings: z.array(validationFindingSchema) }).strict(),
+    scheduleConflict: z.object({ status: validationGroupStatusSchema, findings: z.array(validationFindingSchema) }).strict(),
+  }).strict(),
+  canConfirm: z.boolean(),
+}).strict() satisfies z.ZodType<TripValidation>;
+const inTripPreviewDataSchema = z.object({
+  validation: validationSchema,
+  checkedAt: z.iso.datetime(),
+  completedVisitIds: z.array(idSchema),
+}).strict();
+const inTripPreviewEnvelopeSchema = z.object({ success: z.literal(true), data: inTripPreviewDataSchema }).strict();
+const inTripApplyDataSchema = z.object({
+  tripId: idSchema,
+  baseRevision: z.iso.datetime(),
+  kind: z.literal("IN_TRIP"),
+  candidate: editCandidateSchema,
+  validation: validationSchema,
+}).strict() satisfies z.ZodType<InTripApplyData>;
+const inTripDetailsSchema = z.object({
+  validation: validationSchema.optional(),
+  checkedAt: z.iso.datetime().optional(),
+}).passthrough();
+
+function invalidInTripApplyOutcome(): MutationOutcome<InTripApplyData> {
+  return {
+    status: "UNKNOWN",
+    error: {
+      code: "OPERATION_STATUS_UNKNOWN",
+      message: "Phản hồi xác nhận chưa rõ. Hãy thử lại cùng yêu cầu và mã xác nhận.",
+    },
+    retryWithSameKey: true,
+  };
+}
+
+function inTripApplyErrorDetails(details: unknown): { validation?: TripValidation; checkedAt?: string } {
+  const parsed = inTripDetailsSchema.safeParse(details);
+  return parsed.success ? parsed.data : {};
+}
 
 const invalidResponse = (): InTripReplanOutcome => ({
   kind: "FAILED",
@@ -223,4 +290,113 @@ export async function requestInTripReplan(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export type InTripPreviewRequest = {
+  baseRevision: string;
+  candidate: EditCandidate;
+  location: InTripLocation;
+  mandatoryEndpoint: { destinationId: string; deadline: string } | null;
+};
+
+/** Check a proposed in-trip candidate; location is sent only in the private POST body. */
+export async function previewInTrip(
+  tripId: string,
+  request: InTripPreviewRequest,
+  options: InTripReplanClientOptions = {},
+): Promise<InTripPreviewOutcome> {
+  const timeoutMs = options.timeoutMs ?? IN_TRIP_PREVIEW_TIMEOUT_MS;
+  const fetcher = options.fetcher ?? fetch;
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+  try {
+    const response = await fetcher(`/api/trips/${encodeURIComponent(tripId)}/in-trip/preview`, {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify(request),
+      signal: controller.signal,
+    });
+    let body: unknown = null;
+    try { body = await response.json(); } catch { body = null; }
+    if (response.status === 200) {
+      const parsed = inTripPreviewEnvelopeSchema.safeParse(body);
+      return parsed.success
+        ? { status: "SUCCESS", data: parsed.data.data }
+        : { status: "FAILED", code: "INVALID_RESPONSE", message: "Kết quả kiểm tra không hợp lệ.", httpStatus: 502 };
+    }
+    const error = errorEnvelopeSchema.safeParse(body);
+    if (!error.success) {
+      return timedOut
+        ? { status: "TIMEOUT" }
+        : { status: "FAILED", code: "INVALID_RESPONSE", message: "Không đọc được kết quả kiểm tra.", httpStatus: response.status };
+    }
+    const details = inTripDetailsSchema.safeParse(error.data.error.details);
+    return {
+      status: "FAILED",
+      code: error.data.error.code,
+      message: error.data.error.message,
+      httpStatus: response.status,
+      ...(details.success && details.data.validation ? { validation: details.data.validation } : {}),
+      ...(details.success && details.data.checkedAt ? { checkedAt: details.data.checkedAt } : {}),
+    };
+  } catch {
+    return timedOut ? { status: "TIMEOUT" } : { status: "NETWORK_ERROR" };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/** Send a confirmed IN_TRIP apply using the shared idempotent mutation contract. */
+export async function applyInTrip(
+  tripId: string,
+  request: InTripApplyPayload,
+  idempotencyKey = createIdempotencyKey(),
+): Promise<InTripApplyOutcome> {
+  const candidate = editCandidateSchema.parse(request.candidate);
+  const result = await sendIdempotentMutation<unknown>(
+    `/api/trips/${encodeURIComponent(tripId)}/edits/apply`,
+    {
+      idempotencyKey,
+      init: {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ ...request, candidate }),
+      },
+    },
+  );
+  if (result.status === "UNKNOWN") {
+    return { status: "UNKNOWN", error: result.error, retryWithSameKey: true };
+  }
+  if (result.status === "FAILED") {
+    const details = inTripApplyErrorDetails(result.error.details);
+    return {
+      status: "FAILED",
+      error: { code: result.error.code, message: result.error.message },
+      ...(result.httpStatus !== undefined ? { httpStatus: result.httpStatus } : {}),
+      ...details,
+    };
+  }
+
+  const parsed = inTripApplyDataSchema.safeParse(result.data);
+  if (!parsed.success) return invalidInTripApplyOutcome();
+  const data = parsed.data;
+  const passed = data.validation.canConfirm && [
+    data.validation.groups.openingHours.status,
+    data.validation.groups.minimumDuration.status,
+    data.validation.groups.travelTime.status,
+    data.validation.groups.scheduleConflict.status,
+  ].every(status => status === "SATISFIED");
+  if (data.tripId !== tripId || data.kind !== "IN_TRIP" || data.baseRevision === request.baseRevision
+    || JSON.stringify(data.candidate) !== JSON.stringify(candidate) || !passed) {
+    return invalidInTripApplyOutcome();
+  }
+  return { status: "SUCCESS", data, ...(result.replayed === undefined ? {} : { replayed: result.replayed }) };
 }

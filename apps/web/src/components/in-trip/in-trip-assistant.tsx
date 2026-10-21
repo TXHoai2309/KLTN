@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { useId, useRef, useState } from "react";
 
@@ -18,17 +19,26 @@ import {
   type InTripLocation,
 } from "@/modules/in-trip/in-trip-location";
 import {
+  beginInTripApply,
+  beginInTripPreview,
   canSubmitInTripReplan,
+  canConfirmInTrip,
+  cancelInTripProposal,
   beginInTripReplan,
   createInTripAssistantState,
+  finishInTripApply,
+  finishInTripPreview,
   finishInTripReplan,
   IN_TRIP_NEED_MAX_LENGTH,
+  retryUnknownInTripApply,
   updateInTripAssistantInput,
   validateInTripNeed,
   type InTripVisitSummary,
 } from "@/modules/in-trip/in-trip-session";
 import { diffEditCandidate, type EditCandidate } from "@/modules/trip-edit/edit-candidate";
-import { requestInTripReplan } from "@/lib/in-trip-client";
+import { applyInTrip, previewInTrip, requestInTripReplan } from "@/lib/in-trip-client";
+import { createIdempotencyKey } from "@/lib/mutation-client";
+import { TripValidationPanel } from "@/modules/trip-validation/trip-validation-panel";
 import type { SplitTripStatus } from "@/modules/in-trip/split-trip";
 import styles from "./in-trip-assistant.module.css";
 
@@ -110,6 +120,7 @@ export default function InTripAssistant({
   completed,
   remaining,
 }: Props) {
+  const router = useRouter();
   const headingId = useId();
   const needId = useId();
   const helpId = useId();
@@ -164,7 +175,66 @@ export default function InTripAssistant({
       ...(resolution ? { resolution } : {}),
     });
     if (requestSequence.current !== requestId) return;
-    setAssistantState(current => finishInTripReplan(current, outcome));
+    const proposedState = finishInTripReplan(assistantState, outcome);
+    setAssistantState(proposedState);
+    if (outcome.kind === "RESPONSE" && outcome.data.status === "PROPOSED") {
+      await runPreview(proposedState, requestId);
+    }
+  }
+
+  async function runPreview(state: typeof assistantState, requestId = ++requestSequence.current) {
+    const checking = beginInTripPreview(state);
+    if (checking === state || state.proposal.status !== "PROPOSED" || !state.session.location) return;
+    setAssistantState(checking);
+    const result = await previewInTrip(tripId, {
+      baseRevision,
+      candidate: state.proposal.result.candidate,
+      location: state.session.location,
+      mandatoryEndpoint: state.proposal.result.mandatoryEndpoint,
+    });
+    if (requestSequence.current !== requestId) return;
+    setAssistantState(current => finishInTripPreview(current, result));
+  }
+
+  async function runApply(state: typeof assistantState) {
+    if (state.apply.status !== "APPLYING") return;
+    const pending = state.apply.pending;
+    const result = await applyInTrip(tripId, pending.payload, pending.idempotencyKey);
+    const next = finishInTripApply(state, result);
+    setAssistantState(current => current.apply.status === "APPLYING" ? next : current);
+    if (result.status === "SUCCESS") {
+      setAnnouncement("Đã áp dụng phương án thành công. Đang mở chi tiết chuyến đi.");
+      router.replace(`/trips/${tripId}` as Route);
+      router.refresh();
+    }
+  }
+
+  function confirmProposal() {
+    const next = beginInTripApply(assistantState, baseRevision, createIdempotencyKey());
+    if (next === assistantState) return;
+    setAssistantState(next);
+    void runApply(next);
+  }
+
+  function retryApply() {
+    const next = retryUnknownInTripApply(assistantState);
+    if (next === assistantState) return;
+    setAssistantState(next);
+    void runApply(next);
+  }
+
+  function cancelProposal() {
+    requestSequence.current += 1;
+    setAssistantState(current => cancelInTripProposal(current));
+    setAnnouncement("Đã hủy đề xuất. Hành trình đã lưu không thay đổi.");
+  }
+
+  function checkedTimeLabel(value: string): string {
+    return new Intl.DateTimeFormat("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "Asia/Ho_Chi_Minh",
+    }).format(new Date(value));
   }
 
   async function chooseGpsLocation() {
@@ -227,6 +297,22 @@ export default function InTripAssistant({
 
   const canRequest = canSubmitInTripReplan(assistantState);
   const isRequesting = proposal.status === "REQUESTING";
+  const mutationPending = assistantState.apply.status === "APPLYING" || assistantState.apply.status === "UNKNOWN";
+  const canConfirm = canConfirmInTrip(assistantState);
+  const shownValidation = assistantState.apply.status === "FAILED" && assistantState.apply.validation
+    ? assistantState.apply.validation
+    : assistantState.validation.status === "CHECKED"
+      ? assistantState.validation.data.validation
+      : assistantState.validation.status === "FAILED"
+        ? assistantState.validation.data?.validation
+        : undefined;
+  const shownCheckedAt = assistantState.apply.status === "FAILED" && assistantState.apply.checkedAt
+    ? assistantState.apply.checkedAt
+    : assistantState.validation.status === "CHECKED"
+      ? assistantState.validation.data.checkedAt
+      : assistantState.validation.status === "FAILED"
+        ? assistantState.validation.data?.checkedAt
+        : undefined;
 
   return (
     <main className={styles.page} aria-labelledby={headingId}>
@@ -258,10 +344,10 @@ export default function InTripAssistant({
               <p className={styles.help}>Vị trí chỉ được giữ tạm trên trang này. GPS chỉ chạy khi bạn bấm nút.</p>
               <div className={styles.locationActions}>
                 <button className={styles.primaryButton} type="button" onClick={chooseGpsLocation}
-                  disabled={locationFlow.status === "requesting" || isRequesting}>
+                  disabled={locationFlow.status === "requesting" || isRequesting || mutationPending}>
                   {locationFlow.status === "requesting" ? "Đang lấy vị trí…" : "Dùng vị trí GPS"}
                 </button>
-                <button className={styles.secondaryButton} type="button" onClick={chooseManualLocation} disabled={isRequesting}>
+                <button className={styles.secondaryButton} type="button" onClick={chooseManualLocation} disabled={isRequesting || mutationPending}>
                   Chọn vị trí thủ công
                 </button>
               </div>
@@ -292,7 +378,7 @@ export default function InTripAssistant({
                 className={`${styles.textarea} resize-none`}
                 value={session.need}
                 onChange={event => updateNeed(event.target.value)}
-                disabled={!session.location || isRequesting}
+                disabled={!session.location || isRequesting || mutationPending}
                 aria-invalid={Boolean(needError)}
                 aria-describedby={`${helpId} ${countId}${needError ? ` ${errorId}` : ""}`}
               />
@@ -326,7 +412,7 @@ export default function InTripAssistant({
               return (
                 <div className={styles.proposalContent}>
                   <p className={styles.proposalBadge}>Đề xuất chưa áp dụng</p>
-                  <p className={styles.proposalStatus} role="status" aria-live="polite">Chưa được kiểm tra bởi Validator.</p>
+                  <p className={styles.proposalStatus}>Phương án cần được Validator kiểm tra trước khi xác nhận.</p>
                   <section className={styles.lockedVisits} aria-label="Phần đã qua giờ theo lịch được khóa">
                     <strong>Phần đã qua giờ theo lịch · Đã khóa</strong>
                     <p>{proposal.result.completedVisitIds.length} lượt được giữ nguyên, không thể chỉnh sửa trong đề xuất này.</p>
@@ -395,6 +481,50 @@ export default function InTripAssistant({
             )}
             {proposal.status === "FAILED" && (
               <p className={styles.proposalError} role="alert" aria-live="assertive">{proposal.message}</p>
+            )}
+            {proposal.status === "PROPOSED" && (
+              <div className={styles.proposalActions}>
+                <p className={styles.help}>Hệ thống sẽ kiểm tra lại các ràng buộc ngay khi bạn xác nhận.</p>
+                {assistantState.validation.status === "CHECKING" && (
+                  <p className={styles.proposalStatus} role="status" aria-live="polite">Đang kiểm tra phương án…</p>
+                )}
+                {assistantState.validation.status === "FAILED" && (
+                  <p className={styles.proposalError} role="alert" aria-live="assertive">{assistantState.validation.message}</p>
+                )}
+                {assistantState.apply.status === "FAILED" && (
+                  <p className={styles.proposalError} role="alert" aria-live="assertive">
+                    {assistantState.apply.message}{assistantState.apply.code ? ` (${assistantState.apply.code})` : ""}
+                  </p>
+                )}
+                {assistantState.apply.status === "UNKNOWN" && (
+                  <div className={styles.proposalError} role="status" aria-live="polite">
+                    <p>Chưa xác định được kết quả xác nhận. Hãy thử lại cùng yêu cầu; không tạo xác nhận mới.</p>
+                    <button className={styles.secondaryButton} type="button" onClick={retryApply}>Thử lại xác nhận</button>
+                  </div>
+                )}
+                {shownCheckedAt && <p className={styles.checkedAt}>Kiểm tra lúc {checkedTimeLabel(shownCheckedAt)}</p>}
+                {shownValidation && (
+                  <TripValidationPanel
+                    validation={shownValidation}
+                    onConfirm={canConfirm ? confirmProposal : undefined}
+                    pending={assistantState.apply.status === "APPLYING"}
+                    actionLabel="Xác nhận"
+                  />
+                )}
+                <div className={styles.proposalButtonRow}>
+                  <button
+                    className={styles.secondaryButton}
+                    type="button"
+                    disabled={mutationPending || assistantState.validation.status === "CHECKING"}
+                    onClick={() => void runPreview(assistantState)}
+                  >
+                    {assistantState.validation.status === "CHECKING" ? "Đang kiểm tra…" : "Kiểm tra lại"}
+                  </button>
+                  <button className={styles.secondaryButton} type="button" disabled={mutationPending} onClick={cancelProposal}>
+                    Hủy
+                  </button>
+                </div>
+              </div>
             )}
           </section>
         )}

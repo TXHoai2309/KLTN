@@ -75,7 +75,7 @@ Là Du khách, tôi muốn kiểm tra và xác nhận phương án điều chỉ
 
 ## Roles / Authorization
 
-Chỉ Traveler được preview/xác nhận qua `requireTraveler`. Guest nhận 401; Admin nhận 403 và không được bypass. Auth chạy trước khi đọc body. Response riêng tư có `Cache-Control: private, no-store`.
+`requireTraveler` cho phép Traveler và Admin dùng quyền Traveler trên Trip do chính họ sở hữu theo RBAC V2. Guest nhận 401; Admin không sở hữu Trip và các tài khoản khác nhận 404 giống Trip không tồn tại. Auth chạy trước khi đọc body. Response riêng tư có `Cache-Control: private, no-store`.
 
 ## Ownership Rules
 
@@ -136,7 +136,7 @@ Tái sử dụng routing/Validator đã có. Routing và mọi provider call ch�
 
 ## Acceptance Criteria
 
-- [ ] Preview chỉ trả kết quả cho Traveler sở hữu Trip; Guest 401, Admin 403, Trip không thuộc chủ/không tồn tại cùng 404.
+- [ ] Preview chỉ trả kết quả cho người dùng được `requireTraveler` chấp nhận trên Trip của chính họ (Traveler hoặc Admin theo RBAC V2); Guest 401, Trip không thuộc chủ/không tồn tại cùng 404.
 - [ ] Preview trả đủ bốn nhóm Validator, `checkedAt` và completedVisitIds do server tính; không ghi DB.
 - [ ] Nút xác nhận chỉ khả dụng khi mọi check bắt buộc PASS và Traveler chủ động xác nhận; INSUFFICIENT_DATA không được coi là PASS.
 - [ ] Apply chạy Validator lại ngoài transaction bằng thời gian server mới và tính lại visit đã qua giờ; kết quả không đạt hoặc thiếu dữ liệu thì không ghi và trả validation mới.
@@ -201,3 +201,7 @@ Không thêm dependency, client hoặc biến môi trường. Không ghi secret.
 ## Handoff Notes
 
 Thiết kế API apply trong story này vẫn là **đề xuất**. Bình đã cho phép tự mở rộng Validator để hoàn thành Task 293; phần mở rộng file dùng chung là một rủi ro review/hợp nhất, không đặt thêm điều kiện phê duyệt cho Task 293. Chưa chốt độ cũ của location, replay, hiệu lực preview và contract apply; không coi Task 293 là nghiệm thu các task 294–297.
+
+2026-10-19 Task 295: Nối UI In-trip với POST preview và shared idempotent apply. Sau khi có đề xuất, client tự gọi preview; UI hiển thị `TripValidationPanel` bốn nhóm, trạng thái thiếu dữ liệu/vi phạm, thời điểm `checkedAt` theo giờ Việt Nam, cùng nút kiểm tra lại và hủy cục bộ. Xác nhận chỉ bật khi snapshot candidate/need/location còn nguyên và `canConfirm` cùng cả bốn nhóm đều PASS. Apply gửi location trong POST body, dùng `sendIdempotentMutation`, giữ nguyên key/payload ở UNKNOWN; SUCCESS mới cập nhật state bằng `baseRevision` server và điều hướng về chi tiết chuyến đi. Lỗi apply có validation mới giữ đề xuất và yêu cầu kiểm tra lại trước lần xác nhận tiếp theo. Source audit trong test xác nhận UI không dùng storage, cookie, URL tọa độ hoặc console log. Focused Vitest: 2 file / 19 tests PASS. Bộ liên quan gồm 6 file: 64 tests PASS và 1 test Task 293 FAIL vì route preview trả 400 thay vì 403 cho Admin; chưa sửa vì nằm ngoài Task 295. `npm run check-types` không chạy được do NVM không có Node active; direct bundled `tsc --noEmit -p tsconfig.json` chỉ còn lỗi hiện hữu ngoài Task 295 ở Cloudinary (thiếu module/implicit-any) và `STADIA_MAPS_API_KEY` trong planner runtime. `git diff --check` PASS. Browser/GPS thật và kiểm tra thủ công 360px/bàn phím là NOT PROVEN; Task 297 còn lại.
+
+2026-10-19 Task 297: Added `apps/web/src/modules/in-trip/us37-test.vitest.test.ts` with fake database, Validator/routing and server clock. The 17 cases cover blocked writes for VIOLATION/INSUFFICIENT_DATA, routing unavailable at preview and confirmation, changed validation/deadline/completed visits, strict rejection of client-supplied time/completion data, successful commit/revision update, idempotent replay/conflict/UNKNOWN retry, location privacy, and source-audited write boundaries. The auth case follows Bình's explicit RBAC V2 choice: Admin may act on their own Trip; Guest is 401 and another owner's Trip is masked as 404. Focused Task 297: 17/17 PASS. Related suite: 7 files, 81 PASS / 1 FAIL; the sole failure is an existing Task 293 test expecting Admin 403, contrary to the confirmed RBAC V2 policy. It was not changed because Task 297 requires additions only. `npm run check-types` is blocked by the local NVM shim (no active Node); direct bundled `tsc --noEmit -p tsconfig.json` reports existing unrelated Cloudinary missing-module/implicit-any errors and missing `STADIA_MAPS_API_KEY` typing, with no diagnostics in the Task 297 test. `git diff --check` PASS. No database/schema changes. Browser, GPS, and live Stadia routing remain NOT PROVEN; the manual proposal/check/confirm, expiry, cancel, two-tab, 360px, and keyboard checklist remains for Bình to run. No commit or push.
