@@ -12,6 +12,7 @@ model Trip {
   transport    TripTransport
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
+  manuallyCompletedAt DateTime?
   days         ItineraryDay[]
   favorites    Favorite[]
 

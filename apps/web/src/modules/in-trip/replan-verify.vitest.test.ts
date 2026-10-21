@@ -95,6 +95,35 @@ describe("in-trip replan verification", () => {
     }
   });
 
+  test("sanitizes unneeded params on REPLACE_VISIT and REMOVE_VISIT without marking OUT_OF_SCOPE", () => {
+    const replaceWithParams = operation("REPLACE_VISIT", {
+      params: { dayIndex: 1, position: 2, startTime: "10:00", durationMinutes: 60 },
+    });
+    const removeWithParams = operation("REMOVE_VISIT", {
+      params: { dayIndex: 1, position: 1, startTime: null, durationMinutes: null },
+    });
+    const result = verifyReplanOutput(
+      output({ operations: [replaceWithParams, removeWithParams] }),
+      context,
+    );
+    expect(result.status).toBe("PROPOSED");
+    if (result.status === "PROPOSED") {
+      expect(result.intent.operations).toHaveLength(2);
+      expect(result.intent.operations[0]?.params).toEqual({
+        dayIndex: null,
+        position: null,
+        startTime: null,
+        durationMinutes: null,
+      });
+      expect(result.intent.operations[1]?.params).toEqual({
+        dayIndex: null,
+        position: null,
+        startTime: null,
+        durationMinutes: null,
+      });
+    }
+  });
+
   test("rejects the whole proposal when an operation targets a completed visit", () => {
     const result = verifyReplanOutput(
       output({ operations: [operation("REMOVE_VISIT", { targetVisitId: "completed-1" })] }),
@@ -191,6 +220,52 @@ describe("in-trip replan verification", () => {
       status: "NEEDS_CLARIFICATION",
       clarificationReason: "AMBIGUOUS_DESTINATION",
     });
+  });
+
+  test("auto-schedules ADD_VISIT when startTime and durationMinutes are omitted", () => {
+    const result = verifyReplanOutput(
+      output({
+        operations: [
+          {
+            operationType: "ADD_VISIT",
+            targetVisitId: null,
+            destinationId: "destination-2",
+            params: { dayIndex: 1, position: null, startTime: null, durationMinutes: null },
+          },
+        ],
+      }),
+      context,
+    );
+    expect(result.status).toBe("PROPOSED");
+    if (result.status === "PROPOSED") {
+      expect(result.intent.operations[0]?.params.durationMinutes).toBe(60);
+      expect(result.intent.operations[0]?.params.startTime).toMatch(/^\d{2}:\d{2}$/);
+    }
+  });
+
+  test("normalizes natural deadline times and preserves mandatory endpoint when ADD_VISIT uses selectedDestinationId", () => {
+    const result = verifyReplanOutput(
+      output({
+        operations: [
+          {
+            operationType: "ADD_VISIT",
+            targetVisitId: null,
+            destinationId: "destination-2",
+            params: { dayIndex: 1, position: null, startTime: "8h", durationMinutes: null },
+          },
+        ],
+        mandatoryEndpoint: { destinationId: "destination-1", deadline: "8:00" },
+      }),
+      { ...context, resolution: { selectedDestinationId: "destination-2" } },
+    );
+    expect(result.status).toBe("PROPOSED");
+    if (result.status === "PROPOSED") {
+      expect(result.intent.operations[0]?.params.startTime).toBe("08:00");
+      expect(result.intent.mandatoryEndpoint).toEqual({
+        destinationId: "destination-1",
+        deadline: "08:00",
+      });
+    }
   });
 
   test("rejects malformed structured output as a typed provider error", () => {

@@ -156,6 +156,7 @@ function clarificationContext(
       id: destination.id,
       name: destination.name,
     })),
+    dayIndexes: trip.days.map((day) => day.dayIndex).sort((a, b) => a - b),
   };
 }
 

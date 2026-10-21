@@ -2,7 +2,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh() { } }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh() {} }) }));
+vi.mock("@/components/favorite-button", () => ({ default: ({ targetId, initialIsFavorite }: { targetId: string; initialIsFavorite: boolean }) => createElement("button", { type: "button", "data-trip-heart": targetId, "aria-pressed": initialIsFavorite }, initialIsFavorite ? "Bỏ chuyến đi khỏi yêu thích" : "Thêm chuyến đi vào yêu thích") }));
 
 import type { TripDetail, TripSummary } from "@/modules/trip-read/trip-read-service";
 import { MyTripsView, TripDetailView } from "./trips-view";
@@ -10,7 +11,7 @@ import MyTripsLoading from "./loading";
 import MyTripsError from "./error";
 
 const sample = (id: string, status: TripSummary["status"]): TripSummary => ({
-  id, status, startDate: "2026-10-10", endDate: "2026-10-11", durationDays: 2, transport: "CAR", isFavorite: false,
+  id, status, startDate: "2026-10-10", endDate: "2026-10-11", durationDays: 2, transport: "CAR", isFavorite: false, visitCount: 3, manuallyCompletedAt: null,
 });
 
 describe("US-31 Trip views", () => {
@@ -18,12 +19,34 @@ describe("US-31 Trip views", () => {
     const html = renderToStaticMarkup(createElement(MyTripsView, { items: [sample("one", "UPCOMING"), sample("two", "ONGOING"), sample("three", "COMPLETED")] }));
     for (const label of ["Sắp tới", "Đang diễn ra", "Đã hoàn thành", "Tạo chuyến đi"]) expect(html).toContain(label);
     expect(html).toContain("/trips/one");
+    expect(html).toContain("3 điểm dừng");
     expect(html).toContain("/trips/new");
+    expect(html).toContain("Đánh dấu đã hoàn thành");
+    expect(html).toContain("Xóa chuyến đi");
+    expect(html).not.toContain("Đang tải trạng thái yêu thích");
+    expect(html).toContain("Thêm chuyến đi vào yêu thích");
+  });
+  it("distinguishes manual completion from elapsed calendar dates", () => {
+    const html = renderToStaticMarkup(createElement(MyTripsView, { items: [{ ...sample("manual", "COMPLETED"), manuallyCompletedAt: "2026-10-20T00:00:00Z" }, sample("calendar", "COMPLETED")] }));
+    expect(html).toContain("Bạn đã đánh dấu hoàn thành thủ công.");
+    expect(html).toContain("Bỏ đánh dấu hoàn thành");
+    expect(html).toContain("Đã hoàn thành theo ngày kế hoạch; chưa đánh dấu thủ công.");
   });
   it("shows a valid empty state", () => {
     const html = renderToStaticMarkup(createElement(MyTripsView, { items: [] }));
-    expect(html).toContain("Bạn chưa có chuyến đi đã lưu");
+    expect(html).toContain("Bạn chưa có chuyến đi nào.");
     expect(html).not.toContain("Lỗi");
+  });
+  it.each([false, true])("passes confirmed isFavorite=%s into a semantic Heart outside links on both Trip surfaces", (isFavorite) => {
+    const trip: TripDetail = { ...sample("owned", "UPCOMING"), isFavorite, days: [] };
+    for (const html of [
+      renderToStaticMarkup(createElement(MyTripsView, { items: [trip] })),
+      renderToStaticMarkup(createElement(TripDetailView, { trip })),
+    ]) {
+      expect(html).toContain(`data-trip-heart="owned" aria-pressed="${isFavorite}"`);
+      expect(html).toContain(isFavorite ? "Bỏ chuyến đi khỏi yêu thích" : "Thêm chuyến đi vào yêu thích");
+      expect(html).not.toMatch(/<a\b[^>]*>(?:(?!<\/a>)[\s\S])*data-trip-heart/);
+    }
   });
   it("renders ordered itinerary by day with unavailable destination text", () => {
     const trip: TripDetail = {
@@ -41,10 +64,10 @@ describe("US-31 Trip views", () => {
     expect(html.indexOf("Ngày 1")).toBeLessThan(html.indexOf("Ngày 2"));
     expect(html.indexOf("Cột cờ Lũng Cú")).toBeLessThan(html.indexOf("Điểm cũ"));
     expect(html).toContain("08:00");
+    expect(html).toContain("08:00 – 09:30 (90 phút)");
     expect(html).toContain("90 phút");
     expect(html).toContain("Điểm đến không còn khả dụng công khai");
     expect(html).toContain("Ngày này chưa có điểm dừng");
-    expect(html).toContain("Không còn công khai");
     expect(html).toContain("/trips/one/edit");
     expect(html).toContain("Chỉnh sửa hành trình");
     expect(html).toContain("/trips/one/in-trip");
@@ -55,13 +78,35 @@ describe("US-31 Trip views", () => {
     expect(completedHtml).not.toContain("/trips/done/in-trip");
     expect(completedHtml).not.toContain("Trợ lý trong chuyến đi");
     expect(completedHtml).toContain("/trips/done/edit");
+    expect(html).toContain("Ngày này chưa có điểm dừng");
+    expect(html).toContain("Quay lại Chuyến đi của tôi");
+    expect(html).toContain("Thêm chuyến đi vào yêu thích");
+    expect(html).not.toContain("Bỏ chuyến đi khỏi yêu thích");
+    expect(html).not.toContain("Đang tải trạng thái yêu thích");
+    expect(html).toContain('href="/trips"');
+    expect(html).toContain('href="/trips/one/edit"');
+    expect(html).not.toContain('href="/destinations/b"');
+  });
+  it("keeps a soft-deleted visible destination in the itinerary without a public link", () => {
+    const trip: TripDetail = { ...sample("deleted-target", "ONGOING"), days: [{
+      id: "day", dayIndex: 1, localDate: "2026-10-10", visits: [{
+        id: "visit", order: 1, startMinute: 480, plannedDurationMinutes: 60,
+        destination: { id: "deleted", name: "Điểm đã xóa mềm", area: "Đồng Văn", visibility: "VISIBLE", availability: "UNAVAILABLE" },
+      }],
+    }] };
+    const html = renderToStaticMarkup(createElement(TripDetailView, { trip }));
+    expect(html).toContain("Điểm đã xóa mềm");
+    expect(html).toContain("Điểm đến không còn khả dụng công khai");
+    expect(html).not.toContain('href="/destinations/deleted"');
+    expect(html).toContain("my-trips-timeline-node");
+    expect(html).toContain("08:00 – 09:00 (60 phút)");
   });
   it("distinguishes loading from a recoverable technical error", () => {
     const loading = renderToStaticMarkup(createElement(MyTripsLoading));
     const error = renderToStaticMarkup(createElement(MyTripsError, { reset: () => { } }));
     expect(loading).toContain("Đang tải chuyến đi của bạn");
     expect(loading).toContain('aria-busy="true"');
-    expect(error).toContain("Không thể tải chuyến đi");
+    expect(error).toContain("Không thể tải danh sách chuyến đi");
     expect(error).toContain("Thử lại");
     expect(error).not.toContain("Đang tải chuyến đi của bạn");
   });

@@ -8,7 +8,7 @@ function harness() {
   const buttons: { attrs: Record<string, string>; click?: () => void; removeEventListener: ReturnType<typeof vi.fn> }[] = [];
   vi.stubGlobal("document", { createElement: () => { const button = { attrs: {} as Record<string, string>, classList: { toggle: vi.fn() }, setAttribute(key: string, value: string) { this.attrs[key] = value; }, addEventListener(_type: string, callback: () => void) { this.click = callback; }, click: undefined as (() => void) | undefined, removeEventListener: vi.fn() }; buttons.push(button); return button; } });
   vi.stubGlobal("matchMedia", () => ({ matches: true }));
-  const map = { on: vi.fn(), off: vi.fn(), remove: vi.fn(), addControl: vi.fn(), jumpTo: vi.fn(), fitBounds: vi.fn(), easeTo: vi.fn(), getZoom: () => 10 };
+  const map = { on: vi.fn(), off: vi.fn(), remove: vi.fn(), setStyle: vi.fn(), addControl: vi.fn(), jumpTo: vi.fn(), fitBounds: vi.fn(), easeTo: vi.fn(), getZoom: () => 10 };
   const markerRemoval = vi.fn(), positions: number[][] = [];
   const library = { Map: class { constructor() { return map; } }, NavigationControl: class {}, LngLatBounds: class { extend = vi.fn(); }, Marker: class { setLngLat(coords: number[]) { positions.push(coords); return this; } addTo() { return this; } remove = markerRemoval; } } as unknown as typeof MapLibre;
   const stops = schedulePlannerDays({ ...requirement, durationDays: 1 }, [[candidate("a"), candidate("bb")]], new Map())[0]!.stops;
@@ -17,6 +17,15 @@ function harness() {
   return { renderer, map, buttons, positions, stops, onSelect, markerRemoval };
 }
 describe("itinerary MapLibre selection and lifecycle", () => {
+  it("switches style on the same map without touching markers, selection or camera", () => {
+    const h = harness();
+    h.renderer.select("bb", false);
+    h.renderer.setStyle("dark-style"); h.renderer.setStyle("dark-style");
+    expect(h.map.setStyle).toHaveBeenCalledExactlyOnceWith("dark-style");
+    expect(h.map.remove).not.toHaveBeenCalled(); expect(h.markerRemoval).not.toHaveBeenCalled();
+    expect(h.buttons[1]!.attrs["aria-pressed"]).toBe("true"); expect(h.map.easeTo).not.toHaveBeenCalled();
+    h.renderer.dispose(); h.renderer.setStyle("light-style"); expect(h.map.setStyle).toHaveBeenCalledTimes(1);
+  });
   it("uses only DB coordinates, fits actual stops and binds accessible marker clicks", () => {
     const h = harness(); expect(h.positions).toEqual(h.stops.map(stop => [stop.destination.longitude, stop.destination.latitude])); expect(h.map.fitBounds).toHaveBeenCalledOnce();
     expect(h.buttons[1]!.attrs["aria-label"]).toBe("Điểm 2: TEST Điểm đến bb"); h.buttons[1]!.click!(); expect(h.onSelect).toHaveBeenCalledWith("bb");

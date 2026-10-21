@@ -9,13 +9,22 @@ export const favoriteItemSchema = z.object({
   image: z.object({ url: z.string(), alt: z.string() }).strict().nullable().optional(),
   area: z.string().optional(),
   category: z.string().optional(),
+  trip: z.object({
+    startDate: z.iso.date(),
+    endDate: z.iso.date(),
+    durationDays: z.number().int().positive(),
+    transport: z.enum(["CAR", "MOTORCYCLE"]),
+    status: z.enum(["UPCOMING", "ONGOING", "COMPLETED"]),
+  }).strict().optional(),
 }).strict();
 export const favoriteListSchema = z.object({
   destinations: z.array(favoriteItemSchema),
   cultureContents: z.array(favoriteItemSchema),
+  trips: z.array(favoriteItemSchema),
 }).strict().refine(data => [
   ...data.destinations.map(item => ({ item, path: "destinations" })),
   ...data.cultureContents.map(item => ({ item, path: "culture" })),
-].every(({item,path}) => item.href === (item.availability === "AVAILABLE" ? `/${path}/${item.targetId}` : null)));
+  ...data.trips.map(item => ({ item, path: "trips" })),
+].every(({item,path}) => item.href === (item.availability === "AVAILABLE" ? `/${path}/${item.targetId}` : null)) && data.trips.every(item => item.trip !== undefined));
 export type FavoriteItem = z.infer<typeof favoriteItemSchema>;
 export type FavoriteList = z.infer<typeof favoriteListSchema>;

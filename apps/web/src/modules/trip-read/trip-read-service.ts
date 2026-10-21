@@ -3,7 +3,7 @@ import type { Database, Prisma } from "@KLTN/db";
 import { requireTraveler } from "@/server/auth/require-traveler";
 import type { AuthorizationDependencies } from "@/server/authorization/guard";
 import { AppError } from "@/server/http/app-error";
-import { deriveTripStatus, type TripStatus } from "./trip-status";
+import { effectiveTripStatus, type TripStatus } from "./trip-status";
 
 export type TripReadDependencies = AuthorizationDependencies & { database: Database };
 
@@ -14,7 +14,9 @@ export type TripSummary = {
   durationDays: number;
   transport: "CAR" | "MOTORCYCLE";
   status: TripStatus;
+  manuallyCompletedAt: string | null;
   isFavorite: boolean;
+  visitCount: number;
 };
 
 export type TripDetail = TripSummary & {
@@ -33,15 +35,18 @@ export type TripDetail = TripSummary & {
 };
 
 const summarySelect = (userId: string) => ({
-  id: true, startDate: true, durationDays: true, transport: true,
+  id: true, startDate: true, durationDays: true, transport: true, manuallyCompletedAt: true,
   favorites: { where: { userId }, select: { id: true } },
+  days: { select: { _count: { select: { visits: true } } } },
 } satisfies Prisma.TripSelect);
 const detailSelect = (userId: string) => ({
-  ...summarySelect(userId),
+  id: true, startDate: true, durationDays: true, transport: true, manuallyCompletedAt: true,
+  favorites: { where: { userId }, select: { id: true } },
   days: {
     orderBy: [{ dayIndex: "asc" as const }, { id: "asc" as const }],
     select: {
       id: true, dayIndex: true, localDate: true,
+      _count: { select: { visits: true } },
       visits: {
         orderBy: [{ order: "asc" as const }, { id: "asc" as const }],
         select: {
@@ -53,9 +58,28 @@ const detailSelect = (userId: string) => ({
   },
 } satisfies Prisma.TripSelect);
 
-function summary(row: Prisma.TripGetPayload<{ select: ReturnType<typeof summarySelect> }>, referenceDate: string): TripSummary {
+type SummaryRow = {
+  id: string;
+  startDate: Date;
+  manuallyCompletedAt: Date | null;
+  durationDays: number;
+  transport: "CAR" | "MOTORCYCLE";
+  favorites: { id: string }[];
+  days: { _count: { visits: number } }[];
+};
+
+function summary(row: SummaryRow, referenceDate: string): TripSummary {
   const startDate = row.startDate.toISOString().slice(0, 10);
-  return { id: row.id, startDate, durationDays: row.durationDays, transport: row.transport, isFavorite: row.favorites.length > 0, ...deriveTripStatus(startDate, row.durationDays, referenceDate) };
+  return {
+    id: row.id,
+    startDate,
+    durationDays: row.durationDays,
+    transport: row.transport,
+    manuallyCompletedAt: row.manuallyCompletedAt?.toISOString() ?? null,
+    isFavorite: row.favorites.length > 0,
+    visitCount: row.days.reduce((total, day) => total + day._count.visits, 0),
+    ...effectiveTripStatus(startDate, row.durationDays, referenceDate, row.manuallyCompletedAt),
+  };
 }
 
 export async function listMyTrips(headers: Headers, deps: TripReadDependencies, referenceDate: string): Promise<{ items: TripSummary[] }> {

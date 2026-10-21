@@ -51,6 +51,7 @@ export function mountDestinationPinPicker(host: HTMLDivElement, library: typeof 
   const map = new library.Map({ container: host, style, center: toMapCoordinate(start), zoom: initial ? 12 : haGiangViewport.zoom, maxZoom: 18, cooperativeGestures: true, attributionControl: { compact: true } });
   let marker: MapLibre.Marker | null = null;
   let disposed = false;
+  let currentStyle = style;
   let markerKeydown: ((event: KeyboardEvent) => void) | null = null;
 
   const removeMarker = () => {
@@ -122,7 +123,10 @@ export function mountDestinationPinPicker(host: HTMLDivElement, library: typeof 
     map.on("error", onFailure);
     map.on("click", handleMapClick);
     if (initial) setCoordinates(initial, false);
-    return { setCoordinates, dispose };
+    return { setCoordinates, dispose, setStyle(next: string) {
+      if (disposed || currentStyle === next) return;
+      map.setStyle(next); currentStyle = next;
+    } };
   } catch (error) {
     dispose();
     throw error;

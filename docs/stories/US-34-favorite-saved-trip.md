@@ -2,7 +2,7 @@
 
 ## Status
 
-DRAFT
+HISTORICAL DRAFT — superseded by [US-34 implementation and current evidence](US-34-trip-favorite.md#current-task--2026-10-21). The current repository already has TRIP schema/API/ownership; the original dependency assumptions below describe an earlier snapshot. Current user request restores list/detail actions and three Favorites groups. Do not treat the old Admin403 or absent-schema assumptions below as current behavior.
 
 ## Epic
 

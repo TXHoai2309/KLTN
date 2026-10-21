@@ -1,7 +1,7 @@
 import { it, expect } from "vitest";
 import { readFile } from "node:fs/promises";
 import { mvpFeatures } from "@/lib/mvp-features";
-it("Culture presentation defaults OFF while legacy pages/APIs/schema remain", async () => {
+it("Culture presentation defaults OFF outside the explicitly restored Favorites groups", async () => {
   expect(mvpFeatures.culture).toBe(false);
   for (const path of [
     "../../components/header.tsx",
@@ -10,7 +10,7 @@ it("Culture presentation defaults OFF while legacy pages/APIs/schema remain", as
     "../../app/explore/page.tsx",
     "../../app/explore/loading.tsx",
     "../../app/destinations/[id]/destination-detail.tsx",
-    "../../app/favorites/favorites-view.tsx",
+    // US-34 owner decision 2026-10-21 restores all three groups only in Favorites.
   ]) {
     expect(await readFile(new URL(path, import.meta.url), "utf8")).toContain(
       "mvpFeatures.culture",

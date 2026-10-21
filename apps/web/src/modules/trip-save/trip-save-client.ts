@@ -19,6 +19,24 @@ function isValidation(value: unknown): value is TripValidation {
     });
 }
 
+export async function requestTripValidation(proposal: TripProposal, signal?: AbortSignal, fetcher: typeof fetch = fetch): Promise<
+  { ok: true; validation: TripValidation } | { ok: false; message: string }
+> {
+  try {
+    const response = await fetcher("/api/trips/validate", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ proposal }), cache: "no-store", signal,
+    });
+    const result = await response.json() as { success?: boolean; data?: { validation?: unknown }; error?: { message?: string } };
+    if (response.ok && result.success === true && isValidation(result.data?.validation)) {
+      return { ok: true, validation: result.data.validation };
+    }
+    return { ok: false, message: result.error?.message || "Chưa thể kiểm tra hành trình. Vui lòng thử lại." };
+  } catch {
+    return { ok: false, message: "Chưa thể kiểm tra hành trình. Vui lòng thử lại." };
+  }
+}
+
 /** UNKNOWN preserves the caller's key and proposal so a retry can reconcile the write. */
 export async function submitTripSave(proposal: TripProposal, key: string, signal?: AbortSignal, fetcher: typeof fetch = fetch): Promise<TripSaveClientResult> {
   try {

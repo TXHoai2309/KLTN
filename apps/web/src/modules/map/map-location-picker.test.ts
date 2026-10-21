@@ -32,6 +32,8 @@ type FakeMap = {
   camera: { center: [number, number]; zoom: number } | null;
   removed: boolean;
   on(name: string, handler: Handler): FakeMap;
+  styles: string[];
+  setStyle(style: string): FakeMap;
   off(name: string, handler: Handler): FakeMap;
   getZoom(): number;
   jumpTo(camera: { center: [number, number]; zoom: number }): FakeMap;
@@ -67,10 +69,12 @@ test("Admin pin picker supports click, drag, manual coordinate sync and cleanup"
       handlers: FakeMap["handlers"] = {};
       camera: FakeMap["camera"] = null;
       removed = false;
+      styles: string[] = [];
       constructor(options: FakeMap["options"]) { this.options = options; maps.push(this as unknown as FakeMap); }
       on(name: string, handler: Handler) { this.handlers[name] = handler; return this; }
       off(name: string, handler: Handler) { if (this.handlers[name] === handler) delete this.handlers[name]; return this; }
       getZoom() { return this.camera?.zoom ?? this.options.zoom; }
+      setStyle(style: string) { this.styles.push(style); return this; }
       jumpTo(camera: NonNullable<FakeMap["camera"]>) { this.camera = camera; return this; }
       remove() { this.removed = true; }
     },
@@ -119,11 +123,19 @@ test("Admin pin picker supports click, drag, manual coordinate sync and cleanup"
     assert.deepEqual(markers[0]?.position, [106.02, 24.01]);
     assert.deepEqual(map.camera, { center: [106.02, 24.01], zoom: 12 });
 
+    const changesBeforeTheme = changed.length;
+    session.setStyle(stadiaStyles.dark); session.setStyle(stadiaStyles.dark);
+    assert.deepEqual(map.styles, [stadiaStyles.dark]); assert.equal(maps.length, 1);
+    assert.equal(markers.length, 1); assert.equal(markers[0]?.removed, false);
+    assert.deepEqual(markers[0]?.position, [106.02, 24.01]);
+    assert.equal(changed.length, changesBeforeTheme);
+
     session.setCoordinates(null);
     assert.equal(markers[0]?.removed, true);
     assert.equal(markers[0]?.element.handlers.keydown, undefined);
     session.dispose();
     assert.equal(map.removed, true);
+    session.setStyle(stadiaStyles.light); assert.deepEqual(map.styles, [stadiaStyles.dark]);
     assert.deepEqual(Object.keys(map.handlers).sort(), []);
   } finally {
     globalThis.document = previousDocument;

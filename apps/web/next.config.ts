@@ -25,7 +25,12 @@ const nextConfig: NextConfig = {
   // over HMR. A disconnected initial socket can lose it before hydration;
   // reconnecting does not replay the server stream. Keep HMR independent of
   // application startup until that transport can recover the initial stream.
-  experimental: { reactDebugChannel: false },
+  experimental: {
+    reactDebugChannel: false,
+    // Match the bounded compiler pool on Windows instead of spawning one page
+    // worker per CPU on memory-constrained developer machines.
+    ...(process.platform === "win32" ? { cpus: 2 } : {}),
+  },
 };
 
 export default withVarlock(nextConfig);

@@ -10,13 +10,17 @@ const proposal = { startDate: "2026-10-20", durationDays: 1, transport: "CAR" as
 describe("US-30 save component initial state", () => {
   it("presents an explicit save action without an unconfirmed success claim", () => {
     const html = renderToStaticMarkup(createElement(TripSavePanel, { proposal, validation: validateItinerary([], [], new Date("2026-10-15T00:00:00Z")) }));
-    expect(html).toContain("Xác nhận và lưu");
+    expect(html).toContain("Lưu chuyến đi");
     expect(html).not.toContain("Lưu thành công");
     expect(html).not.toMatch(/<button[^>]*\sdisabled(?:\s|=|>)/);
   });
   it("keeps the save action unavailable when validation is insufficient", () => {
     const validation = validateItinerary([{ visitId: "day-1-visit-1", dayIndex: 1, order: 1, localDate: "2026-10-20", startMinute: 480, plannedDurationMinutes: 60, minimumDurationMinutes: null, openingDays: null }], [], new Date("2026-10-15T00:00:00Z"));
     const html = renderToStaticMarkup(createElement(TripSavePanel, { proposal, validation }));
+    expect(html).toMatch(/<button[^>]*\sdisabled(?:\s|=|>)/);
+  });
+  it("cannot save a relative proposal without a start date", () => {
+    const html = renderToStaticMarkup(createElement(TripSavePanel, { proposal: { ...proposal, startDate: null }, validation: validateItinerary([], [], new Date("2026-10-15T00:00:00Z")) }));
     expect(html).toMatch(/<button[^>]*\sdisabled(?:\s|=|>)/);
   });
 });

@@ -287,7 +287,16 @@ const aiClarificationSchema = z.object({
     resolution: z.object({
       selectedVisitId: z.string().min(1).max(128).optional(),
       selectedDestinationId: z.string().min(1).max(128).optional(),
-    }).strict().refine((value) => Number(value.selectedVisitId !== undefined) + Number(value.selectedDestinationId !== undefined) === 1),
+      selectedDayIndex: z.number().int().min(1).max(30).optional(),
+    }).strict().refine((value) => {
+      const hasVisit = value.selectedVisitId !== undefined;
+      const hasDest = value.selectedDestinationId !== undefined;
+      const hasDay = value.selectedDayIndex !== undefined;
+      const count = Number(hasVisit) + Number(hasDest) + Number(hasDay);
+      if (count === 0) return false;
+      if (hasVisit && (hasDest || hasDay)) return false;
+      return true;
+    }),
   }).strict()).max(50).optional(),
 }).strict();
 

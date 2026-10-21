@@ -15,16 +15,18 @@ export function ItineraryMap({ day, selectedDestinationId, focusSelection, onSel
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
   const { resolvedTheme } = useTheme(); const style = mapStyle(resolvedTheme);
+  const styleRef = useRef(style); styleRef.current = style;
   useEffect(() => {
     if (!container.current) return;
     const host = container.current;
     const dispose = startMapSession({ load: loadMapLibre, onState: setState, mount: (library, ready, fail) => {
-      const map = mountItineraryMap(host, library, day.stops, style, id => callback.current(id), ready, fail);
+      const map = mountItineraryMap(host, library, day.stops, styleRef.current, id => callback.current(id), ready, fail);
       renderer.current = map; map.select(currentSelection.current, false);
       return () => { map.dispose(); if (renderer.current === map) renderer.current = null; };
     } });
     return dispose;
-  }, [day, style, attempt]);
+  }, [day, attempt]);
+  useEffect(() => { renderer.current?.setStyle(style); }, [style]);
   useEffect(() => { renderer.current?.select(selectedDestinationId, focusSelection); }, [selectedDestinationId, focusSelection]);
   return <section className="planner-map" aria-label={`Bản đồ điểm dừng ngày ${day.day}`}>
     <div ref={container} className="planner-map-canvas" style={{ visibility: state === "ready" ? "visible" : "hidden" }} />

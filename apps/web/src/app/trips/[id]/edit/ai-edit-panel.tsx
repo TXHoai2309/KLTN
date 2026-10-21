@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowRight, Sparkles } from "lucide-react";
 
 import { Button } from "@KLTN/ui/components/button";
 import { createIdempotencyKey } from "@/lib/mutation-client";
@@ -162,9 +163,12 @@ export default function AiEditPanel({
   return (
     <section className={styles.panel} aria-labelledby="ai-edit-heading">
       <header className={styles.heading}>
+        <span className={styles.aiIcon}><Sparkles size={25} aria-hidden="true" /></span>
         <div>
           <p className={styles.eyebrow}>Đề xuất bằng hội thoại</p>
-          <h2 id="ai-edit-heading">Chỉnh sửa với AI</h2>
+          <div className={styles.titleRow}>
+            <h2 id="ai-edit-heading">Chỉnh sửa với AI</h2>
+          </div>
           <p className={styles.description}>AI chỉ tạo phương án để bạn xem và quyết định.</p>
         </div>
         {proposal && <span className={styles.badge}>Đề xuất chưa áp dụng</span>}
@@ -172,6 +176,7 @@ export default function AiEditPanel({
 
       <form className={styles.form} onSubmit={handleSubmit} noValidate aria-busy={pending}>
         <label className={styles.label} htmlFor="ai-edit-message">Bạn muốn thay đổi điều gì?</label>
+        <div className={styles.textareaWrap}>
         <textarea
           id="ai-edit-message"
           className={`${styles.message} resize-none`}
@@ -179,16 +184,30 @@ export default function AiEditPanel({
           onChange={(event) => commit(setAiEditMessage(sessionRef.current, event.target.value))}
           maxLength={MAX_EDIT_INTENT_MESSAGE_LENGTH}
           rows={3}
+          placeholder="Ví dụ: Thêm một điểm ngắm cảnh, thay đổi thứ tự, rút ngắn thời gian, hoặc gợi ý điểm ăn trưa ngon…"
           aria-required="true"
           disabled={pending}
-          aria-describedby="ai-edit-message-help"
+          aria-describedby="ai-edit-message-help ai-edit-message-count"
         />
+          <span id="ai-edit-message-count" className={styles.counter}>{[...session.message].length}/{MAX_EDIT_INTENT_MESSAGE_LENGTH}</span>
+        </div>
+        <div className={styles.suggestions} role="group" aria-label="Gợi ý yêu cầu chỉnh sửa">
+          <p>Gợi ý nhanh:</p>
+          {["Thêm điểm ngắm cảnh", "Đổi thứ tự các điểm", "Thêm điểm ăn uống", "Rút ngắn thời gian"].map(suggestion => (
+            <button type="button" key={suggestion} disabled={pending} onClick={() => {
+              const current = sessionRef.current.message.trim();
+              const next = current ? `${current}. ${suggestion}` : suggestion;
+              commit(setAiEditMessage(sessionRef.current, next.slice(0, MAX_EDIT_INTENT_MESSAGE_LENGTH)));
+              document.getElementById("ai-edit-message")?.focus();
+            }}>{suggestion}</button>
+          ))}
+        </div>
         <div className={styles.formFooter}>
           <p id="ai-edit-message-help" className={styles.hint}>
-            Tối đa {MAX_EDIT_INTENT_MESSAGE_LENGTH} ký tự. Yêu cầu được gửi riêng cho hành trình này.
+            Yêu cầu được gửi riêng cho hành trình này.
           </p>
           <Button type="submit" disabled={pending || !session.message.trim()}>
-            {session.status === "SENDING" ? "Đang gửi…" : "Gửi yêu cầu"}
+            <Sparkles size={16} aria-hidden="true" />{session.status === "SENDING" ? "Đang gửi…" : "Gửi yêu cầu"}<ArrowRight size={16} aria-hidden="true" />
           </Button>
         </div>
       </form>

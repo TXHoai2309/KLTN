@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/prepare-map-assets.mjs && next dev --port 3010",
-    "build": "node scripts/prepare-map-assets.mjs && next build",
+    "build": "node scripts/prepare-map-assets.mjs && node scripts/build.mjs",
     "check-types": "tsc --noEmit",
     "test": "vitest run --config vitest.config.mts && npm run test:legacy",
     "test:legacy": "npm run test:auth-ui && npm run test:account && npm run test:authorization && npm run test:destination && npm run test:culture && npm run test:map && npm run test:explore && npm run test:search && npm run test:favorite && npm run test:rag && npm run test:idempotency",
