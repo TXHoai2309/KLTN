@@ -74,12 +74,12 @@
   background:
     linear-gradient(90deg,
       rgba(9, 26, 18, 0.94) 0%,
-      rgba(9, 26, 18, 0.85) 36%,
-      rgba(9, 26, 18, 0.52) 60%,
-      rgba(9, 26, 18, 0.16) 82%,
-      transparent 96%
+      rgba(9, 26, 18, 0.86) 32%,
+      rgba(9, 26, 18, 0.46) 50%,
+      rgba(9, 26, 18, 0.08) 68%,
+      transparent 82%
     ),
-    linear-gradient(180deg, rgba(9, 26, 18, 0.25) 0%, transparent 40%, rgba(9, 26, 18, 0.65) 100%);
+    linear-gradient(180deg, rgba(9, 26, 18, 0.28) 0%, transparent 26%, transparent 70%, rgba(9, 26, 18, 0.48) 100%);
   content: "";
   pointer-events: none;
 }
@@ -92,8 +92,7 @@
   animation: home-visual-enter 1100ms cubic-bezier(.22, 1, .36, 1) both;
 }
 
-.home-hero-image,
-.home-hero-video {
+.home-hero-image {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -102,10 +101,22 @@
   object-position: center 36%;
   filter: saturate(1.12) contrast(1.04) brightness(0.96);
   pointer-events: none;
+  animation: home-ken-burns 14000ms ease-in-out alternate infinite;
 }
 
-.home-hero-image {
-  animation: home-ken-burns 14000ms ease-in-out alternate infinite;
+.home-hero-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 36%;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  filter: saturate(1.12) contrast(1.04) brightness(0.98);
+  pointer-events: none;
 }
 
 @keyframes home-ken-burns {

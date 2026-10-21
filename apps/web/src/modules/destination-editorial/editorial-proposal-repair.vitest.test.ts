@@ -8,10 +8,10 @@ import { autoLayoutV2, getAllLayoutNodes, resolveEditorial, validateLayoutRefere
 import { evaluateLayoutQuality } from "./editorial-quality-gate";
 import { buildCanonicalContentAst } from "./editorial-ast";
 import { acceptedEditorialProposal } from "./editorial-proposal-result";
-import { createEditorialAiDiagnostics } from "./editorial-ai-diagnostics";
+import { createEditorialAiDiagnostics, EditorialProposalError, editorialFallbackReason } from "./editorial-ai-diagnostics";
 import { bacMeContext, bacMeCandidates } from "./__fixtures__/bac-me-v4";
 import { khauVaiContext } from "./__fixtures__/khau-vai-v4";
-import type { EditorialLayoutV2, EditorialNodeV2 } from "./editorial-contract";
+import { EDITORIAL_V2_MAX_ROOT_SECTIONS, type EditorialLayoutV2, type EditorialNodeV2 } from "./editorial-contract";
 import EditorialRenderer from "@/components/editorial/editorial-renderer";
 
 const context = bacMeContext, base = autoLayoutV2(context);
@@ -24,6 +24,15 @@ const assertIntact = (l: EditorialLayoutV2, ctx = context) => {
 };
 
 describe("repair then hard-validate V4", () => {
+  it("accepts a sparse-source layout below the 12-root AI target without inventing content", () => {
+    const sparseContext = { ...context, description: "Một điểm đến giữa núi non.", media: [], sources: [] };
+    const sparseLayout = autoLayoutV2(sparseContext);
+    expect(sparseLayout.sections.length).toBeLessThan(12);
+    const repaired = run(sparseLayout, sparseLayout, sparseContext);
+    expect(repaired.sections.length).toBeLessThan(12);
+    expect(repaired.sections.flatMap(node => [node.title, node.text, ...(node.children ?? []).map(child => child.text ?? "")]).join(" ")).not.toMatch(/Dấu ấn lịch sử|Không gian văn hóa|Hành trình khám phá/);
+    expect(acceptedEditorialProposal({ status: "PROPOSED", outcome: "PROPOSED_NEW", layout: repaired }, sparseLayout, sparseContext, "AUTO")).toEqual(repaired);
+  });
   it.each(neutralEditorialTitles)("permits neutral editorial heading %s without inventing a claim", title => {
     const candidate = structuredClone(base); candidate.sections.push({ id: "neutral", type: "SECTION", title });
     expect(nodes(run(candidate)).some(n => n.title === title)).toBe(true);
@@ -129,7 +138,7 @@ describe("repair then hard-validate V4", () => {
   it("rejects unknown keys, invalid JSON and bounded-tree overflow", () => {
     expect(() => run({ ...base, css: "body{}" })).toThrow();
     expect(() => repairEditorialProposal("broken", base, context)).toThrow();
-    expect(() => run({ ...base, sections: Array.from({ length: 26 }, (_, i) => ({ id: `x-${i}`, type: "SECTION" })) })).toThrow();
+    expect(() => run({ ...base, sections: Array.from({ length: EDITORIAL_V2_MAX_ROOT_SECTIONS + 1 }, (_, i) => ({ id: `x-${i}`, type: "SECTION" })) })).toThrow();
   });
   it("never promotes a partial legend excerpt to historical prose", () => {
     const b = autoLayoutV2(khauVaiContext);
@@ -152,15 +161,17 @@ describe("repair then hard-validate V4", () => {
     expect(getAllLayoutNodes(result).length).toBeLessThanOrEqual(50);
     assertIntact(result);
   });
-  it("compacts an overflow candidate with more than 50 raw nodes down to <= 50 nodes without throwing TREE_LIMIT", () => {
-    const candidate: any = structuredClone(base);
-    // Base has 5 sections. Add children distributed across sections so no section exceeds 10 children,
-    // but total nodes exceed 50.
-    for (let i = 0; i < 4; i++) {
-      const sec = candidate.sections[i];
-      sec.children = sec.children || [];
-      for (let j = 0; j < 8; j++) {
-        sec.children.push({
+  it("rejects an AI proposal with more than 50 raw nodes before repair", () => {
+    const current = structuredClone(base);
+    current.design!.palette = current.design!.palette === "FOREST" ? "SLATE" : "FOREST";
+    current.sections[1]!.locked = true;
+    const before = structuredClone(current);
+    const candidate: any = structuredClone(current);
+    // Build exactly 51 raw nodes while keeping each parent within its 10-child bound.
+    candidate.sections = Array.from({ length: 5 }, (_, i) => ({
+      id: `overflow-root-${i}`,
+      type: "SECTION",
+      children: Array.from({ length: i === 4 ? 6 : 10 }, (_, j) => ({
           id: `overflow-node-${i}-${j}`,
           type: "PARAGRAPH",
           title: neutralEditorialTitles[j % 5],
@@ -168,13 +179,38 @@ describe("repair then hard-validate V4", () => {
           mediaIds: [],
           sourceIds: [],
           children: [],
-        });
-      }
-    }
-    const result = run(candidate);
-    expect(getAllLayoutNodes(result).length).toBeLessThanOrEqual(50);
-    expect(result.sections.length).toBeLessThanOrEqual(25);
-    assertIntact(result);
+      })),
+    }));
+    let failure: unknown;
+    try { run(candidate, current); } catch (error) { failure = error; }
+    expect(failure).toEqual(expect.objectContaining({
+      validationCode: "SCHEMA",
+      referenceDetails: expect.objectContaining({ issueCode: "NODE_LIMIT" }),
+    }));
+    expect((failure as EditorialProposalError).referenceDetails?.limitCounts).toMatchObject({
+      expectedRootSections: 50,
+      actualRootSections: 5,
+      expectedTotalNodes: 50,
+      actualTotalNodes: 51,
+    });
+    expect(editorialFallbackReason(failure as EditorialProposalError, "test-correlation")).toContain("50 node toàn cây");
+    expect(acceptedEditorialProposal({ status: "FALLBACK", layout: current }, current, context, "AUTO")).toBeNull();
+    expect(current).toEqual(before);
+  });
+  it("reports root-section overflow separately from whole-tree overflow", () => {
+    const candidate = { ...base, sections: Array.from({ length: 51 }, (_, index) => ({ id: `root-${index}`, type: "SECTION", text: "", children: [] })) };
+    let failure: unknown;
+    try { run(candidate); } catch (error) { failure = error; }
+    expect(failure).toMatchObject({ referenceDetails: { issueCode: "SECTION_LIMIT" } });
+    expect((failure as EditorialProposalError).referenceDetails?.limitCounts).toMatchObject({
+      expectedRootSections: 50,
+      actualRootSections: 51,
+      expectedTotalNodes: 50,
+      actualTotalNodes: 51,
+    });
+    const reason = editorialFallbackReason(failure as EditorialProposalError, "test-correlation");
+    expect(reason).toContain("50 root node");
+    expect(reason).toContain("test-correlation");
   });
   it("keeps explicit canonical hide intent intact when 100% visible preservation is impossible", () => {
     const b = structuredClone(base); b.sections[1]!.hidden = true;

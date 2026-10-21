@@ -10,7 +10,7 @@ import { createRagIndexStore } from "./rag-index-store";
 import { createRagIndexWorker } from "./rag-index-worker";
 import { processIndexRequest, readIndexProgress } from "./rag-index-request-service";
 import { enqueueRagIndexJob, retryRagIndexJob, type RagIndexJobServiceDependencies } from "./rag-index-job-service";
-import { transitionRagDocument, type RagDependencies } from "../rag-document/rag-service";
+import { softDeleteRagDocument, transitionRagDocument, type RagDependencies } from "../rag-document/rag-service";
 import { EMBEDDING_PROVENANCE } from "../rag-processing/embedding-contract";
 import { canonical, sha256 } from "../rag-processing/content-hash";
 import { extractDocument } from "../rag-processing/extract-document";
@@ -144,7 +144,7 @@ integrationDescribe("US-19 Task185 durable job persistence (isolated PostgreSQL 
     expect(stored.status).toBe("RUNNING");
   });
 
-  it("validates the actual Task185 migration enums, indexes and CHECK/FK constraints", async () => {
+  it("validates the actual Task185 and US-39 migration schema and CHECK/FK constraints", async () => {
     const enumValues = await prisma.$queryRaw<Array<{ label: string }>>(Prisma.sql`
       SELECT e.enumlabel::text AS label FROM pg_enum e JOIN pg_type t ON t.oid=e.enumtypid
       WHERE t.typname='RagIndexJobStatus' ORDER BY e.enumsortorder
@@ -164,6 +164,15 @@ integrationDescribe("US-19 Task185 durable job persistence (isolated PostgreSQL 
       "rag_index_job_idempotencyScope_idempotencyKey_key", "rag_index_job_leaseToken_key",
       "rag_index_job_status_createdAt_idx", "rag_index_job_status_leaseExpiresAt_idx",
     ]));
+    const deletedAtColumns = await prisma.$queryRaw<Array<{ dataType: string; isNullable: string }>>(Prisma.sql`
+      SELECT data_type AS "dataType", is_nullable AS "isNullable" FROM information_schema.columns
+      WHERE table_schema='public' AND table_name='rag_document' AND column_name='deletedAt'
+    `);
+    expect(deletedAtColumns).toEqual([{ dataType: "timestamp with time zone", isNullable: "YES" }]);
+    const documentIndexes = await prisma.$queryRaw<Array<{ name: string }>>(Prisma.sql`
+      SELECT indexname::text AS name FROM pg_indexes WHERE tablename='rag_document'
+    `);
+    expect(documentIndexes.map(row => row.name)).toContain("rag_document_deletedAt_idx");
     const id = `task185-constraints-${randomUUID()}`;
     await createDocument(id);
     const jobId = `task185-job-${randomUUID()}`;
@@ -301,6 +310,54 @@ integrationDescribe("US-19 Task185 durable job persistence (isolated PostgreSQL 
       await expect(retryRagIndexJob(new Headers(), ready.jobId, "disabled-retry-key", deps)).resolves.toMatchObject({ status: "FAILED", error: { code: "RAG_DOCUMENT_NOT_ELIGIBLE" } });
       expect(await index.getPublishedGenerationMetadata(documentId)).toBeNull();
     }
+  }, 60_000);
+
+  it("rejects generation publication after a soft-delete commits while finalization waits on the document lock", async () => {
+    const documentId = `task185-delete-race-${randomUUID()}`;
+    await createDocument(documentId);
+    const ready = await prepareReady(documentId);
+    const held = deferred();
+    const release = deferred();
+    const actorId = "task185-delete-admin-" + randomUUID();
+    actorIds.push(actorId);
+    await prisma.user.create({ data: { id: actorId, name: "Synthetic Admin", email: actorId + "@example.invalid", role: "ADMIN", updatedAt: new Date() } });
+    const paused = prisma.$extends({ query: { ragDocument: { async updateMany({ args, query }) {
+      const result = await query(args);
+      held.resolve();
+      await release.promise;
+      return result;
+    } } } });
+    const deps: RagDependencies = { database: paused as unknown as Database,
+      resolveSession: async () => ({ user: { id: actorId } }),
+      storage: {
+        accessible: async () => true, issue: async () => { throw new Error("delete must not issue Blob upload"); },
+        read: async () => { throw new Error("delete must not read Blob"); },
+        stream: async () => { throw new Error("delete must not stream Blob"); },
+      } };
+    const deleting = softDeleteRagDocument(new Headers(), documentId, {}, "delete-race-key", deps);
+    await held.promise;
+    const finishing = index.finalizeReadyGeneration(documentId, ready.generationId, ready.lease)
+      .then(() => ({ code: "UNEXPECTED_SUCCESS" }), error => error as { code: string });
+    try {
+      const deadline = Date.now() + 5_000;
+      let blocked = false;
+      while (!blocked && Date.now() < deadline) {
+        const rows = await prisma.$queryRaw<Array<{ count: number }>>(Prisma.sql`
+          SELECT count(*)::int AS count FROM pg_stat_activity
+          WHERE datname=current_database() AND wait_event_type='Lock' AND pid<>pg_backend_pid()
+        `);
+        blocked = (rows[0]?.count ?? 0) > 0;
+        if (!blocked) await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      expect(blocked).toBe(true);
+    } finally { release.resolve(); await expect(deleting).resolves.toMatchObject({ status: "SUCCESS" }); }
+    await expect(finishing).resolves.toMatchObject({ code: "DOCUMENT_NOT_ELIGIBLE" });
+    await expect(prisma.ragIndexPublication.count({ where: { ragDocumentId: documentId } })).resolves.toBe(0);
+    await expect(prisma.ragDocument.findUniqueOrThrow({ where: { id: documentId } })).resolves.toMatchObject({ status: "APPROVED", publicQaApproved: false });
+    await expect(prisma.ragIndexJob.findUniqueOrThrow({ where: { id: ready.jobId } })).resolves.toMatchObject({ status: "RUNNING", cancelRequestedAt: expect.any(Date) });
+    await expect(enqueueRagIndexJob(new Headers(), documentId, "deleted-index-key", deps)).resolves.toMatchObject({ status: "FAILED", error: { code: "RAG_DOCUMENT_NOT_ELIGIBLE" } });
+    await expect(retryRagIndexJob(new Headers(), ready.jobId, "deleted-retry-key", deps)).resolves.toMatchObject({ status: "FAILED", error: { code: "RAG_DOCUMENT_NOT_ELIGIBLE" } });
+    expect(await index.getPublishedGenerationMetadata(documentId)).toBeNull();
   }, 60_000);
 
   function failingFinalizer() {

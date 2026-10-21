@@ -11,10 +11,12 @@ import type { QaRetriever } from "./qa-runtime-contract";
 import { fixtureQaAssessment } from "./__fixtures__/qa-reviewed-input";
 import { normalizeQaQuestion, qaIntentHistory, qaFollowupClarification, qaFactualQuestion, QA_FOLLOWUP_CLARIFICATIONS } from "./qa-question-understanding";
 import { qaConversationMessage, QA_CONVERSATION_MESSAGES } from "./qa-conversation";
-import { createQaAssessor } from "./qa-assessment";
+import { createQaAssessor, validateQaAssessment } from "./qa-assessment";
+import { planQaQuestion } from "./qa-question-plan";
 import { createFixtureQaGenerator as createQaGenerator } from "./__fixtures__/qa-generation-wire";
 import { qaRequestHash } from "./qa-conversation-store";
 import { AppError } from "../../server/http/app-error";
+import { qaHasUnsafeEvidenceContent, qaScopedEvidenceSentences } from "./qa-prompt";
 
 vi.mock("server-only", () => ({}));
 
@@ -228,5 +230,168 @@ describe("question punctuation, repeated intent and social conversation", () => 
     uncertain.store.complete.mockRejectedValue(new Error("commit response lost"));
     await expect(uncertain.service.ask(principal, "key", { question: "Ở đó có gì?", context: { type: "GENERAL" } })).rejects.toMatchObject({ code: "OPERATION_STATUS_UNKNOWN" });
     expect(uncertain.store.fail).not.toHaveBeenCalled();
+  });
+  it("maintains active destination entity tracking across multi-turn conversation (Căng Bắc Mê)", () => {
+    const turnHistory: QaHistoryTurn[] = [];
+    const t1 = "Giới thiệu về Căng Bắc Mê";
+    turnHistory.push({ question: t1, response });
+
+    // Turn 2: "quá trình lịch sử thì sao"
+    const t2 = "quá trình lịch sử thì sao";
+    const h2 = qaIntentHistory(t2, turnHistory);
+    expect(h2.map(t => t.question)).toEqual(["giới thiệu về căng bắc mê"]);
+    expect(qaFollowupClarification(t2, h2, { type: "GENERAL" })).toBeUndefined();
+    turnHistory.push({ question: t2, response });
+
+    // Turn 3: "nên tham quan vào thời gian nào là hợp lý nhất"
+    const t3 = "nên tham quan vào thời gian nào là hợp lý nhất";
+    const h3 = qaIntentHistory(t3, turnHistory);
+    expect(h3.map(t => t.question)).toEqual(["giới thiệu về căng bắc mê", "quá trình lịch sử thì sao"]);
+    expect(qaFollowupClarification(t3, h3, { type: "GENERAL" })).toBeUndefined();
+    turnHistory.push({ question: t3, response });
+
+    // Turn 4: "đường đi có khó không"
+    const t4 = "đường đi có khó không";
+    const h4 = qaIntentHistory(t4, turnHistory);
+    expect(h4.map(t => t.question)).toEqual(["giới thiệu về căng bắc mê", "nên tham quan vào thời gian nào là hợp lý nhất"]);
+    expect(qaFollowupClarification(t4, h4, { type: "GENERAL" })).toBeUndefined();
+    turnHistory.push({ question: t4, response });
+
+    // Turn 5: "có gì đặc biệt"
+    const t5 = "có gì đặc biệt";
+    const h5 = qaIntentHistory(t5, turnHistory);
+    expect(h5.map(t => t.question)).toEqual(["giới thiệu về căng bắc mê", "đường đi có khó không"]);
+    expect(qaFollowupClarification(t5, h5, { type: "GENERAL" })).toBeUndefined();
+    turnHistory.push({ question: t5, response });
+
+    // Turn 6: Switch entity to "Còn Cột cờ Lũng Cú thì sao?"
+    const t6 = "Còn Cột cờ Lũng Cú thì sao?";
+    const h6 = qaIntentHistory(t6, turnHistory);
+    expect(h6).toEqual([]);
+    turnHistory.push({ question: t6, response });
+
+    // Turn 7: Follow-up on new entity "đường đi có khó không"
+    const t7 = "đường đi có khó không";
+    const h7 = qaIntentHistory(t7, turnHistory);
+    expect(h7.map(t => t.question)).toEqual(["còn cột cờ lũng cú thì sao"]);
+    expect(qaFollowupClarification(t7, h7, { type: "GENERAL" })).toBeUndefined();
+  });
+
+  it.each([
+    "quá trình lịch sử thì sao",
+    "lịch sử hình thành thì sao",
+    "nguồn gốc thì sao",
+    "kiến trúc có gì đặc biệt",
+    "ý nghĩa lịch sử là gì",
+    "nên tham quan vào thời gian nào là hợp lý nhất",
+    "nên đi vào thời gian nào",
+    "mùa nào đẹp nhất",
+    "đường đi có khó không",
+    "có gì chơi",
+    "có gì đẹp",
+    "ăn gì ngon",
+    "cần chuẩn bị gì",
+  ])("correctly tracks conversational intent and clarification for follow-up: %s", followup => {
+    const history: QaHistoryTurn[] = [{ question: "Giới thiệu về Căng Bắc Mê", response }];
+    const selected = qaIntentHistory(followup, history);
+    expect(selected.map(t => t.question)).toEqual(["giới thiệu về căng bắc mê"]);
+    expect(qaFollowupClarification(followup, selected, { type: "GENERAL" })).toBeUndefined();
+    expect(qaFollowupClarification(followup, [], { type: "GENERAL" })).toBe(QA_FOLLOWUP_CLARIFICATIONS.missingSubject);
+  });
+
+  it("extracts clean subjects for comparison questions with colloquial particles and slang", () => {
+    const q1 = planQaQuestion("điểm khác nhau giữa cao nguyên đá và căng bắc mê là j");
+    expect(q1?.comparison).toBe(true);
+    expect(q1?.subjects).toEqual(["cao nguyên đá", "căng bắc mê"]);
+
+    const q2 = planQaQuestion("so sánh dinh họ vương và cột cờ lũng cú thế nào");
+    expect(q2?.comparison).toBe(true);
+    expect(q2?.subjects).toEqual(["dinh họ vương", "cột cờ lũng cú"]);
+
+    const q3 = planQaQuestion("sự khác biệt giữa hoàng su phì và mèo vạc là gì vậy");
+    expect(q3?.comparison).toBe(true);
+    expect(q3?.subjects).toEqual(["hoàng su phì", "mèo vạc"]);
+  });
+
+  it("gracefully validates assessment when intent is AMBIGUOUS without throwing 502", () => {
+    const input: QaGenerationInput = {
+      question: "điểm khác nhau giữa cao nguyên đá và căng bắc mê là j",
+      history: [],
+      evidence: [
+        {
+          citationId: "c1",
+          documentId: "d1",
+          generationId: "g1",
+          contentVersionId: "v1",
+          chunkId: "ch1",
+          chunkHash: "hash1",
+          text: "Cao nguyên đá Đồng Văn có cảnh quan độc đáo.",
+          citation: { id: "c1", sourceId: "s1", title: "Cao nguyên đá Đồng Văn", sourceUrl: null, locators: [] },
+          score: 0.9,
+          tokenCount: 20,
+        },
+      ],
+      context: { type: "GENERAL" },
+      questionPlan: planQaQuestion("điểm khác nhau giữa cao nguyên đá và căng bắc mê là j"),
+    };
+
+    const assessment = validateQaAssessment(
+      {
+        intent: "AMBIGUOUS",
+        exhaustive: true,
+        relevance: [{ citationId: "c1", status: "UNRELATED" }],
+        aspects: [],
+      },
+      input
+    );
+    expect(assessment.intent).toBe("CLEAR");
+    expect(assessment.review.aspects.every(a => a.status === "MISSING")).toBe(true);
+  });
+
+  it("safely accepts single-newline reference lines with pipe separators without throwing 502", () => {
+    const text = [
+      "Hạ Thành là làng du lịch cộng đồng của người Tày ở vùng ven trung tâm Hà Giang cũ.",
+      "Nguồn: S03: https://baotuyenquang.com.vn/photo/lang-tay-ha-thanh | S07: https://baotuyenquang.com.vn/ve-ha-thanh",
+      "",
+      "Mô tả mở rộng: Hạ Thành không phải khu vui chơi nhân tạo hay công trình di tích có một cổng kiểm soát tập trung.",
+      "Nguồn: S05: https://baotuyenquang.com.vn/net-rieng-ha-thanh",
+    ].join("\n");
+
+    expect(qaHasUnsafeEvidenceContent(text)).toBe(false);
+    const sentences = qaScopedEvidenceSentences(text, { context: { type: "GENERAL" } });
+    expect(sentences.length).toBeGreaterThan(0);
+    expect(sentences.every(s => !s.includes("https://"))).toBe(true);
+  });
+
+  it("strips bare blob.vercel-storage.com URLs from prose and keeps the surrounding text", () => {
+    // Document chunks from Vercel Blob storage often embed the hosted image/asset URL inline.
+    // The bare storage host carries no auth — stripping it should leave usable evidence sentences.
+    const text = [
+      "Hạ Thành là làng văn hóa du lịch cộng đồng nổi bật của người Tày.",
+      "Ảnh minh họa: https://abc.blob.vercel-storage.com/ha-thanh-landscape.jpg thể hiện cảnh quan.",
+      "Làng nằm ở ven trung tâm Hà Giang, gần cầu Hạ Thành cũ.",
+    ].join("\n");
+
+    expect(qaHasUnsafeEvidenceContent(text)).toBe(false);
+    const sentences = qaScopedEvidenceSentences(text, { context: { type: "GENERAL" } });
+    // Should NOT return [] — the blob URL is stripped, not fatal
+    expect(sentences.length).toBeGreaterThan(0);
+    // No URL should leak into the evidence
+    expect(sentences.every(s => !s.includes("https://"))).toBe(true);
+    // The factual content around the image URL should be preserved
+    expect(sentences.some(s => s.includes("Hạ Thành"))).toBe(true);
+  });
+
+  it("still blocks signed blob URLs with auth query params", () => {
+    // A signed Vercel Blob URL with ?token= carries auth material — must block the chunk.
+    const text = [
+      "Tài liệu nội bộ về Hạ Thành.",
+      "Xem tại: https://abc.blob.vercel-storage.com/private.pdf?token=eyJhb123secret456 đây là link.",
+      "Thông tin quan trọng tiếp theo.",
+    ].join("\n");
+
+    const sentences = qaScopedEvidenceSentences(text, { context: { type: "GENERAL" } });
+    // Signed URL in a sentence → null → whole chunk unsafe → empty array
+    expect(sentences).toHaveLength(0);
   });
 });

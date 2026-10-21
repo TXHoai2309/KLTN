@@ -25,7 +25,8 @@
     "test:rag-index:postgres": "node scripts/test-rag-index-postgres.mjs",
     "test:rag-index:postgres:vitest": "vitest run --config vitest.config.mts src/modules/rag-index/rag-index-store.postgres.integration.vitest.test.ts src/modules/rag-index/rag-index-job-store.postgres.integration.vitest.test.ts",
     "test:idempotency": "tsx --test src/server/http/idempotency.test.ts",
-    "eval:preference": "varlock run -- tsx scripts/eval-preference-extraction.ts"
+    "eval:preference": "varlock run -- tsx scripts/eval-preference-extraction.ts",
+    "rag:citations:backfill": "varlock run -- node --conditions=react-server --import tsx scripts/backfill-rag-citations.ts"
   },
   "dependencies": {
     "@KLTN/auth": "*",

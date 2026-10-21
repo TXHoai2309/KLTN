@@ -307,6 +307,40 @@ try {
   );
   assert.equal(await page.getByRole("heading", { level: 2 }).count(), 5);
   pass("5 sections including optional images, removed inputs, 360/390/768/1440 no overflow");
+  await page.setViewportSize({ width: 390, height: 900 });
+  const descriptionField = page.locator("#destination-description");
+  const descriptionFieldHeight = await descriptionField.evaluate((el) => el.getBoundingClientRect().height);
+  const longDescription = "x".repeat(50_000);
+  await descriptionField.fill(longDescription);
+  assert.equal(await descriptionField.getAttribute("maxlength"), "50000");
+  assert.equal(await descriptionField.evaluate((el) => el.getBoundingClientRect().height), descriptionFieldHeight);
+  assert.ok((await page.locator("#description-count").textContent()).includes("50.000 / 50.000"));
+  await page.getByRole("button", { name: "Xem thêm và chỉnh sửa" }).click();
+  const descriptionDialog = page.getByRole("dialog", { name: "Mô tả điểm đến" });
+  await descriptionDialog.waitFor();
+  const expandedDescription = descriptionDialog.locator("#destination-description-expanded");
+  assert.equal((await expandedDescription.inputValue()).length, 50_000);
+  for (const width of [390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const dialogBounds = await descriptionDialog.evaluate((el) => {
+      const rect = el.getBoundingClientRect();
+      return { width: rect.width, height: rect.height, scrollHeight: el.scrollHeight };
+    });
+    assert.ok(dialogBounds.width <= width && dialogBounds.height <= 900);
+    assert.ok(dialogBounds.scrollHeight <= dialogBounds.height);
+  }
+  await page.setViewportSize({ width: 390, height: 900 });
+  assert.ok(await expandedDescription.evaluate((el) => el.scrollHeight > el.clientHeight));
+  await expandedDescription.fill("Mô tả dài đã chỉnh sửa.");
+  await descriptionDialog.getByRole("button", { name: "Đóng", exact: true }).click();
+  assert.equal(await descriptionField.inputValue(), "Mô tả dài đã chỉnh sửa.");
+  await page.getByRole("button", { name: "Xem thêm và chỉnh sửa" }).click();
+  await page.getByRole("dialog", { name: "Mô tả điểm đến" }).waitFor();
+  await page.keyboard.press("Escape");
+  assert.equal(await page.getByRole("dialog").count(), 0);
+  assert.equal(await page.evaluate(() => document.activeElement?.id), "destination-description-expand");
+  await descriptionField.fill("Mô tả điểm đến. Nội dung thử nghiệm.");
+  pass("50k description, fixed form field, bounded dialog at 390/768/1440px, synced edits, and Escape/focus restore");
   await page.getByRole("button", { name: "Tạo điểm đến", exact: true }).click();
   await page.locator("#err-name").waitFor();
   await page.waitForFunction(

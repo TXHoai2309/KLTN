@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Check, CirclePlus, Copy, FileText, Info, Leaf, Loader2, PanelLeft, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { AssistantLandscape } from "./assistant-landscape";
-import { AssistantCitations } from "./assistant-citations";
+import { AssistantCitations, AssistantSourceList } from "./assistant-citations";
 import { buildCitationIndex, isReadingCitation } from "./assistant-citation-utils";
 import type { QaContext, QaAnswerPart, QaCompletedTurn, QaPublicCitation, QaConversationSummary } from "../../modules/ai/qa-contract";
 import { createIdempotencyKey } from "../../lib/mutation-client";
@@ -20,7 +20,8 @@ export type CitationSlot = (input: { part: QaAnswerPart; citations: QaPublicCita
 // Shell-local presentation only; the controller remains the context authority.
 const AssistantContextDisplay = createContext<((label: string | null) => void) | null>(null);
 
-export function AssistantAnswer({ turn, citationSlot, question }: { turn: QaCompletedTurn; citationSlot?: CitationSlot; question?: string }) {
+export function AssistantAnswer({ turn, citationSlot, question, showSources = true }: { turn: QaCompletedTurn; citationSlot?: CitationSlot; question?: string; showSources?: boolean }) {
+  const sourcePrefix=useId();
   if (turn.status === "CONVERSATIONAL") return <p>{turn.message}</p>;
   if (turn.status === "INSUFFICIENT_SOURCE") {
     const reply = assistantSourceReply(turn, question);
@@ -28,22 +29,27 @@ export function AssistantAnswer({ turn, citationSlot, question }: { turn: QaComp
   }
   if (turn.status === "CLARIFICATION_REQUIRED") return <p>{turn.clarificationQuestion}</p>;
   const citationIndex = buildCitationIndex(turn);
-  const sources = (part: QaAnswerPart) => citationSlot?.({ part, citations: turn.citations, turn }) ?? <AssistantCitations part={part} index={citationIndex} />;
+  const sources = (part: QaAnswerPart) => {
+    if (citationSlot) {
+      const custom = citationSlot({ part, citations: turn.citations, turn });
+      if (custom !== null && custom !== undefined) return custom;
+    }
+    if (!showSources) return null;
+    if (!citationIndex) return <AssistantCitations part={part} index={null} />;
+    const visibleCount = part.citationIds.filter(id => citationIndex.has(id)).length;
+    if (!visibleCount) return null;
+    return <AssistantCitations part={part} index={citationIndex} />;
+  };
   return <>
     {turn.answerMode === "SOURCE_EXCERPTS" && <p className="assistant-source-notice">Thông tin dưới đây được trích nguyên văn từ tài liệu đã được đánh giá cho câu hỏi này.</p>}
     {turn.status === "PARTIAL" && <p className="assistant-muted">Mình tìm được một phần thông tin bạn hỏi:</p>}
-    <AssistantAnswerContent parts={turn.answerParts} presentation={turn.presentation} sources={turn.presentation === "TABLE" ? part => <span className="assistant-source-reference">{part.citationIds.map(id => citationIndex?.get(id)?.number).filter(number => number !== undefined).map(number => `[${number}]`).join(" ") || "Nguồn không khả dụng"}</span> : undefined} />
-    {citationIndex ? <details className="assistant-answer-sources">
-      <summary aria-label={`Xem nguồn tham khảo (${turn.citations.length})`}><FileText aria-hidden="true" /><span>Xem nguồn ({turn.citations.length})</span><span className="assistant-sources-chevron" aria-hidden="true">⌄</span></summary>
-      <div className="assistant-answer-source-groups">{turn.answerParts.map((part, position) => <section key={position} aria-label={`Nguồn cho ý ${position + 1}`}>
-        <p className="assistant-source-group-label">Nguồn cho ý {position + 1}</p>{sources(part)}
-      </section>)}</div>
-    </details> : <p className="assistant-citations-error">Thông tin nguồn không khả dụng.</p>}
+    <AssistantAnswerContent parts={turn.answerParts} presentation={turn.presentation} sources={citationSlot || showSources ? sources : undefined} />
+    {(citationSlot || showSources) && (citationIndex ? <AssistantSourceList index={citationIndex} sourcePrefix={sourcePrefix}/> : <p className="assistant-citations-error">Thông tin nguồn không khả dụng.</p>)}
     {turn.status === "PARTIAL" && <div className="assistant-unanswered"><strong>Phần chưa đủ dữ liệu</strong><ul>{turn.unansweredAspects.map((aspect, index) => <li key={index}>{aspect}</li>)}</ul></div>}
   </>;
 }
 
-export function AssistantTurn({ turn, citationSlot }: { turn: ConfirmedTurn; citationSlot?: CitationSlot }) {
+export function AssistantTurn({ turn, citationSlot, showSources = false }: { turn: ConfirmedTurn; citationSlot?: CitationSlot; showSources?: boolean }) {
   return <div className="assistant-turn">
     <article className="assistant-message assistant-user" aria-label="Câu hỏi đã được xác nhận"><p>{turn.question}</p><small>Đã xác nhận lượt hỏi</small></article>
     <article className="assistant-message assistant-answer" aria-label="Phản hồi của trợ lý">
@@ -51,7 +57,7 @@ export function AssistantTurn({ turn, citationSlot }: { turn: ConfirmedTurn; cit
         <Sparkles className="assistant-speaker-icon" aria-hidden="true" />
         <span>Trợ lý AI</span>
       </span>
-      <AssistantAnswer turn={turn.response} question={turn.question} citationSlot={citationSlot} />
+      <AssistantAnswer turn={turn.response} question={turn.question} citationSlot={citationSlot} showSources={showSources} />
     </article>
   </div>;
 }
@@ -65,8 +71,8 @@ const PROMPT_SUGGESTIONS = [
 
 /** Surface-independent chat core: a page or future popup can reuse this component. */
 export type AssistantContextProps = { initialContext?: QaContext; destinations?: readonly { id: string; name: string }[]; contextError?: string; syncContextUrl?: boolean };
-export function AssistantChat({ transport = null, identity = "unavailable", citationSlot, demo = false, available = true, initialContext, destinations = [], contextError, syncContextUrl = false }: {
-  transport?: AssistantTransport | null; identity?: string; citationSlot?: CitationSlot; demo?: boolean; available?: boolean;
+export function AssistantChat({ transport = null, identity = "unavailable", citationSlot, demo = false, available = true, initialContext, destinations = [], contextError, syncContextUrl = false, showSources = false }: {
+  transport?: AssistantTransport | null; identity?: string; citationSlot?: CitationSlot; demo?: boolean; available?: boolean; showSources?: boolean;
 } & AssistantContextProps) {
   const instanceId = useId();
   const questionId = `${instanceId}-question`;
@@ -431,7 +437,7 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
                   </div>
                 </div>
               )}
-              {state.turns.map((turn) => <AssistantTurn key={`${turn.response.conversationId}:${turn.response.turnId}`} turn={turn} citationSlot={citationSlot} />)}
+              {state.turns.map((turn) => <AssistantTurn key={`${turn.response.conversationId}:${turn.response.turnId}`} turn={turn} citationSlot={citationSlot} showSources={showSources} />)}
               {!!followups.length && !state.pending && <nav className="assistant-followups" aria-label="Câu hỏi tiếp nối">
                 <p className="assistant-muted">Bạn có thể hỏi tiếp{state.draft.trim() ? " — xóa nội dung ô nhập để chọn gợi ý" : " — chọn để điền vào ô nhập"}:</p>
                 <div>{followups.map(question => <button type="button" key={question} disabled={!available || !!contextError || unresolved || !!state.draft.trim()} onClick={() => {

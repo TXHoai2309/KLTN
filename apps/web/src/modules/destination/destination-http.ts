@@ -7,17 +7,20 @@ export function destinationResponseDto(dto: DestinationDto, request: Request): D
   const withoutId = <T extends {id?:string}>(item:T) => { const {id: _id,...fields}=item; return fields; };
   return {...dto,profile:{...dto.profile,sources:dto.profile.sources.map(withoutId),media:dto.profile.media.map(withoutId)}};
 }
-export function destinationPageQuery(request: Request): number {
+export function destinationPageQuery(request: Request): { page: number; view: "active" | "deleted" } {
   const params = new URL(request.url).searchParams;
-  if ([...params.keys()].some(key => key !== "page") || params.getAll("page").length > 1 || (params.has("page") && !/^[1-9]\d*$/.test(params.get("page")!))) throw new AppError("INVALID_DESTINATION_QUERY", "Tham số không hợp lệ.", 400);
-  return Number(params.get("page") ?? 1);
+  if ([...params.keys()].some(key => key !== "page" && key !== "view") || params.getAll("page").length > 1 || params.getAll("view").length > 1 || (params.has("page") && !/^[1-9]\d*$/.test(params.get("page")!)) || (params.has("view") && params.get("view") !== "deleted")) throw new AppError("INVALID_DESTINATION_QUERY", "Tham số không hợp lệ.", 400);
+  return { page: Number(params.get("page") ?? 1), view: params.get("view") === "deleted" ? "deleted" : "active" };
 }
 export function noDestinationQuery(request: Request) {
   if (new URL(request.url).search) throw new AppError("INVALID_DESTINATION_QUERY", "Không hỗ trợ tham số này.", 400);
 }
-export async function destinationJson(request: Request) {
-  noDestinationQuery(request);
+export function requireDestinationSameOrigin(request: Request) {
   if (request.headers.get("origin") !== new URL(request.url).origin) throw new AppError("INVALID_ORIGIN", "Yêu cầu không hợp lệ.", 403);
+  noDestinationQuery(request);
+}
+export async function destinationJson(request: Request) {
+  requireDestinationSameOrigin(request);
   if (request.headers.get("content-type")?.split(";")[0]?.trim() !== "application/json") throw new AppError("INVALID_CONTENT_TYPE", "Yêu cầu phải là JSON.", 415);
   return readBoundedJsonBody(request, {maxBytes: 512 * 1024,
     tooLargeError: new AppError("DESTINATION_BODY_TOO_LARGE", "Dữ liệu biểu mẫu quá lớn.", 413),

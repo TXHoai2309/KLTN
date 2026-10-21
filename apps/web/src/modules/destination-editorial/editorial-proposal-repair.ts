@@ -1,5 +1,5 @@
 import "server-only";
-import { editorialLayoutV2Schema, v2Typography, v2Palettes, v2Rhythms, containerWidths, type EditorialContext, type EditorialLayoutV2, type EditorialNodeV2 } from "./editorial-contract";
+import { editorialLayoutV2Schema, EDITORIAL_V2_MAX_ROOT_SECTIONS, EDITORIAL_V2_MAX_TOTAL_NODES, v2Typography, v2Palettes, v2Rhythms, containerWidths, type EditorialContext, type EditorialLayoutV2, type EditorialNodeV2 } from "./editorial-contract";
 import { buildCanonicalContentAst } from "./editorial-ast";
 import { getAllLayoutNodes, usableEditorialMedia, isEligibleEditorialSource, validateLayoutReferences } from "./editorial-engine";
 import { stripMarkdownHeading } from "./editorial-content";
@@ -7,7 +7,7 @@ import { compileEditorialLayout } from "./editorial-compiler";
 import { evaluateLayoutQuality } from "./editorial-quality-gate";
 import { preservesEditorialNodeLocks } from "./editorial-locks";
 import { preservesHeroLocks } from "./editorial-hero";
-import { EditorialProposalError } from "./editorial-ai-diagnostics";
+import { EditorialProposalError, editorialLayoutDiagnosticCounts } from "./editorial-ai-diagnostics";
 
 /** Presentation labels carry no new historical claim. Everything else is extractive. */
 export const neutralEditorialTitles = ["Dấu ấn lịch sử", "Không gian văn hóa", "Những câu chuyện được lưu truyền", "Hành trình khám phá", "Giá trị của di sản"];
@@ -21,8 +21,8 @@ const nodeKeys = new Set(["id", "type", "hidden", "locked", "contentRef", "title
 
 /** Strict JSON/shape boundary, then bounded, deterministic repairs. Never writes data. */
 export function repairEditorialProposal(raw: string, base: EditorialLayoutV2, context: EditorialContext, direction: "KEEP" | "AUTO" = "AUTO"): EditorialLayoutV2 {
-  const fail = (code: "SCHEMA" | "LAYOUT_CONTRACT" | "DIRECTION", path: (string | number)[], issueCode: string, stage: "WIRE_SCHEMA" | "TREE_CONTRACT" | "HYDRATION" | "LOCKS" | "QUALITY_GATE" = "WIRE_SCHEMA"): never => {
-    throw new EditorialProposalError(code, path, { validationStage: stage, issueCode });
+  const fail = (code: "SCHEMA" | "LAYOUT_CONTRACT" | "DIRECTION", path: (string | number)[], issueCode: string, stage: "WIRE_SCHEMA" | "TREE_CONTRACT" | "HYDRATION" | "LOCKS" | "QUALITY_GATE" = "WIRE_SCHEMA", limitCounts?: ReturnType<typeof editorialLayoutDiagnosticCounts>): never => {
+    throw new EditorialProposalError(code, path, { validationStage: stage, issueCode, ...(limitCounts ? { limitCounts } : {}) });
   };
   if (Buffer.byteLength(raw) > 64 * 1024) throw new EditorialProposalError("OUTPUT_SIZE");
   let data: any;
@@ -48,7 +48,7 @@ export function repairEditorialProposal(raw: string, base: EditorialLayoutV2, co
   // markup remain errors, even if their owning node would later be downgraded.
   const normalize = (n: any, path: (string | number)[], depth: number): any => {
     if (!n || typeof n !== "object" || Array.isArray(n)) fail("SCHEMA", path, "INVALID_NODE");
-    if (++count > 100) fail("SCHEMA", path, "TREE_LIMIT", "TREE_CONTRACT");
+    if (++count > EDITORIAL_V2_MAX_TOTAL_NODES) fail("SCHEMA", path, "NODE_LIMIT", "TREE_CONTRACT", editorialLayoutDiagnosticCounts(data));
     if (depth > 3) fail("SCHEMA", path, "DEPTH_LIMIT", "TREE_CONTRACT");
     for (const key of Object.keys(n)) if (!nodeKeys.has(key)) fail("SCHEMA", [...path, key], "unrecognized_keys");
     for (const key of ["title", "text", "caption", "deck"]) {
@@ -86,7 +86,7 @@ export function repairEditorialProposal(raw: string, base: EditorialLayoutV2, co
     }
     return n;
   };
-  if (data.sections.length > 25) fail("SCHEMA", ["sections"], "SECTION_LIMIT");
+  if (data.sections.length > EDITORIAL_V2_MAX_ROOT_SECTIONS) fail("SCHEMA", ["sections"], "SECTION_LIMIT", "WIRE_SCHEMA", editorialLayoutDiagnosticCounts(data));
   data.sections = data.sections.map((n: any, i: number) => normalize(n, ["sections", i], 1));
   if (data.design == null) { data.design = base.design; record("PRESENTATION_DEFAULT", ["design"]); }
   if (data.design && typeof data.design === "object" && !Array.isArray(data.design)) {
@@ -283,7 +283,7 @@ export function repairEditorialProposal(raw: string, base: EditorialLayoutV2, co
     };
     data.sections = unwrap(data.sections);
 
-    if (countAllNodes(data.sections) > 50) {
+    if (countAllNodes(data.sections) > EDITORIAL_V2_MAX_TOTAL_NODES) {
       const mergeText = (nodes: any[]) => {
         for (const n of nodes) {
           if (n.children?.length > 1) {
@@ -328,7 +328,7 @@ export function repairEditorialProposal(raw: string, base: EditorialLayoutV2, co
   // Preserve manual text even if a model omits its node. It is not an AST unit.
   for (const n of originalNodes.filter(n => !n.hidden && !n.contentRef && n.text && !grounded(n.text))) {
     if (!(getAllLayoutNodes(proposal) as EditorialNodeV2[]).some(candidate => candidate.text === n.text)) {
-      if (data.sections.length < 25) {
+      if (data.sections.length < EDITORIAL_V2_MAX_ROOT_SECTIONS) {
         data.sections.push(structuredClone(n));
       } else {
         const target = (getAllLayoutNodes(data) as EditorialNodeV2[]).find(cand => !protectedIds.has(cand.id) && containers.has(cand.type));
@@ -344,7 +344,7 @@ export function repairEditorialProposal(raw: string, base: EditorialLayoutV2, co
   const missingUnits = units.filter(u => missing.includes(u.id));
   const recovered: EditorialNodeV2[] = missingUnits.map(u => ({ id: identity(`recovered-${u.id}`), type: (u.type === "CHAPTER_HEADING" ? "HEADING" : "PARAGRAPH") as EditorialNodeV2["type"], contentRef: u.id, title: u.type === "CHAPTER_HEADING" ? u.title ?? u.text : "", text: u.type === "CHAPTER_HEADING" ? "" : u.text }));
   // Pack missing units into bounded narrative sections rather than dropping any.
-  const remainingNodes = 50 - getAllLayoutNodes(proposal).length;
+  const remainingNodes = EDITORIAL_V2_MAX_TOTAL_NODES - getAllLayoutNodes(proposal).length;
   if (recovered.length + Math.ceil(recovered.length / 10) > remainingNodes) {
     const chunks: string[] = [];
     for (const u of missingUnits) {
@@ -355,11 +355,11 @@ export function repairEditorialProposal(raw: string, base: EditorialLayoutV2, co
     for (const text of chunks) {
       const target = (getAllLayoutNodes(data) as EditorialNodeV2[]).find(n => !protectedIds.has(n.id) && !n.hidden && containers.has(n.type) && !n.sourceIds?.length && !n.entries?.length && (n.text?.length ?? 0) + text.length + 2 <= 12000);
       if (target) { target.text = [target.text, text].filter(Boolean).join("\n\n"); target.contentRef = null; }
-      else if (data.sections.length < 25) { data.sections.push({ id: identity("recovered-content"), type: "SECTION", text }); }
+      else if (data.sections.length < EDITORIAL_V2_MAX_ROOT_SECTIONS) { data.sections.push({ id: identity("recovered-content"), type: "SECTION", text }); }
       record("CANONICAL_CONTENT_RESTORED", ["sections"]);
     }
   } else for (let i = 0; i < recovered.length; i += 10) {
-    if (data.sections.length >= 25) {
+    if (data.sections.length >= EDITORIAL_V2_MAX_ROOT_SECTIONS) {
       const target = (getAllLayoutNodes(data) as EditorialNodeV2[]).find(n => !protectedIds.has(n.id) && !n.hidden && containers.has(n.type) && (n.children?.length ?? 0) < 10);
       if (target) {
         target.children = [...(target.children ?? []), ...recovered.slice(i, i + 10)];
@@ -374,7 +374,7 @@ export function repairEditorialProposal(raw: string, base: EditorialLayoutV2, co
   const used = new Set((getAllLayoutNodes(data) as EditorialNodeV2[]).flatMap(n => n.mediaIds ?? []));
   const missingMedia = usableEditorialMedia(context).filter(m => !used.has(m.id));
   for (let i = 0; i < missingMedia.length; i += 12) {
-    if (data.sections.length < 25) {
+    if (data.sections.length < EDITORIAL_V2_MAX_ROOT_SECTIONS) {
       data.sections.push({ id: identity("recovered-media"), type: "GALLERY", crop: "original", mediaIds: missingMedia.slice(i, i + 12).map(m => m.id) });
     } else {
       const target = (getAllLayoutNodes(data) as EditorialNodeV2[]).find(n => !protectedIds.has(n.id) && ["GALLERY", "IMAGE_MOSAIC"].includes(n.type) && (n.mediaIds?.length ?? 0) < 12);
@@ -385,7 +385,7 @@ export function repairEditorialProposal(raw: string, base: EditorialLayoutV2, co
   const listedSources = new Set((getAllLayoutNodes(data) as EditorialNodeV2[]).filter(n => n.type === "SOURCES").flatMap(n => n.sourceIds ?? []));
   const missingSources = sources.filter(id => !listedSources.has(id));
   for (let i = 0; i < missingSources.length; i += 10) {
-    if (data.sections.length < 25) {
+    if (data.sections.length < EDITORIAL_V2_MAX_ROOT_SECTIONS) {
       data.sections.push({ id: identity("recovered-sources"), type: "SOURCES", title: "Nguồn tham khảo", sourceIds: missingSources.slice(i, i + 10) });
     } else {
       const target = (getAllLayoutNodes(data) as EditorialNodeV2[]).find(n => n.type === "SOURCES" && (n.sourceIds?.length ?? 0) < 10);

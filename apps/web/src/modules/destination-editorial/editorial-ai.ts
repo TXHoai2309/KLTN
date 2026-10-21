@@ -28,6 +28,7 @@ import {
   type EditorialLayoutV1,
   type EditorialLayoutV2,
   type EditorialNodeV2,
+  EDITORIAL_V2_MAX_ROOT_SECTIONS,
 } from "./editorial-contract";
 import { autoLayout, autoLayoutV1, autoLayoutV2, validateLayoutReferences, usableEditorialMedia, getAllLayoutNodes, isEligibleEditorialSource } from "./editorial-engine";
 import { readEditorialContext } from "./editorial-service";
@@ -282,7 +283,7 @@ export function createV2JsonSchema(
       sections: {
         type: "array",
         minItems: 1,
-        maxItems: 25,
+        maxItems: EDITORIAL_V2_MAX_ROOT_SECTIONS,
         items: sectionNode,
       },
     },
@@ -713,7 +714,8 @@ Pacing and visual composition:
 - Weave photographs and prose naturally: use IMAGE_TEXT with alternating left/right placement for dynamic visual storytelling.
 - Use SECTION/STACK for focused narrative reading. Use GALLERY (grid or mosaic) or IMAGE_MOSAIC for 3+ photos to create visual breathing pauses.
 - Use GRID/COLUMNS only for balanced parallel aspects. Preserve image aspect ratios.
-- Aim for a clean, cohesive structure of 7 to 12 sections and 25 to 45 nodes total. Maximum 3 nesting levels.
+- Aim for a clean, cohesive structure of 12 to 20 root nodes in layout.sections. Count every root node, including HERO, LEAD, GALLERY, FACTS, MAP, SOURCES and other utility nodes. This is a target, not a minimum: use fewer nodes when the source cannot support more meaningful content; never invent content to reach the target.
+- Hard limits: no more than 50 root nodes and 50 nodes across the entire tree. Reject an oversized proposal; do not merge, drop or partially apply its nodes. Maximum 3 nesting levels.
 
 Section titles:
 - Prefer authentic chapter titles from ast units (ast[].title) or evocative headings from the source text.

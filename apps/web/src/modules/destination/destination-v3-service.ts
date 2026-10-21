@@ -54,7 +54,7 @@ export async function writeDestinationV3(
   const input: DestinationV3Input = parsed.data;
   const before = id
     ? await deps.database.destination.findUnique({
-        where: { id },
+        where: { id, deletedAt: null },
         select: destinationSelect,
       })
     : null;
@@ -116,7 +116,7 @@ export async function writeDestinationV3(
       );
       const previous = id
         ? await tx.destination.findUnique({
-            where: { id },
+            where: { id, deletedAt: null },
             select: destinationSelect,
           })
         : null;

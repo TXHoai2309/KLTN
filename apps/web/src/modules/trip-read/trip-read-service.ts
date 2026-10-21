@@ -29,7 +29,7 @@ export type TripDetail = TripSummary & {
       order: number;
       startMinute: number;
       plannedDurationMinutes: number;
-      destination: { id: string; name: string; area: string; visibility: "VISIBLE" | "HIDDEN" };
+      destination: { id: string; name: string; area: string; visibility: "VISIBLE" | "HIDDEN"; availability: "AVAILABLE" | "UNAVAILABLE" };
     }[];
   }[];
 };
@@ -51,7 +51,7 @@ const detailSelect = (userId: string) => ({
         orderBy: [{ order: "asc" as const }, { id: "asc" as const }],
         select: {
           id: true, order: true, startMinute: true, plannedDurationMinutes: true,
-          destination: { select: { id: true, name: true, area: true, visibility: true } },
+          destination: { select: { id: true, name: true, area: true, visibility: true, deletedAt: true } },
         },
       },
     },
@@ -103,7 +103,13 @@ export async function getMyTrip(headers: Headers, id: string, deps: TripReadDepe
       visits: [...day.visits].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id)).map(visit => ({
         id: visit.id, order: visit.order, startMinute: visit.startMinute,
         plannedDurationMinutes: visit.plannedDurationMinutes,
-        destination: visit.destination,
+        destination: {
+          id: visit.destination.id,
+          name: visit.destination.name,
+          area: visit.destination.area,
+          visibility: visit.destination.visibility,
+          availability: visit.destination.visibility === "VISIBLE" && !visit.destination.deletedAt ? "AVAILABLE" : "UNAVAILABLE",
+        },
       })),
     })),
   };

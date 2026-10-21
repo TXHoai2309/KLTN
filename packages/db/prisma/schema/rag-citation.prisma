@@ -1,0 +1,15 @@
+model RagCitationBundle {
+  id               String @id @default(cuid())
+  ragDocumentId    String
+  generationId     String
+  contentVersionId String
+  parserVersion    String @db.VarChar(100)
+  metadata         Json
+  metadataHash     String @db.Char(64)
+  createdAt        DateTime @default(now())
+  generation       RagIndexGeneration @relation(fields: [ragDocumentId, generationId], references: [ragDocumentId, id], onDelete: Restrict, map: "rag_citation_bundle_generation_fkey")
+  contentVersion   RagContentVersion @relation(fields: [ragDocumentId, contentVersionId], references: [ragDocumentId, id], onDelete: Restrict, map: "rag_citation_bundle_contentVersion_fkey")
+
+  @@unique([generationId, parserVersion])
+  @@map("rag_citation_bundle")
+}

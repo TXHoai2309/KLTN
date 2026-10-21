@@ -17,6 +17,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
@@ -28,8 +29,13 @@ export default function Header() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const toggleBtnRef = useRef<HTMLButtonElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Detect scroll to toggle transparent crystal top vs elevated opaque frosted glass
   useEffect(() => {
@@ -197,104 +203,110 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Mobile Navigation Drawer & Backdrop */}
-      <div
-        className={`site-mobile-overlay ${isMobileMenuOpen ? "site-mobile-overlay-open" : ""}`}
-        aria-hidden={!isMobileMenuOpen}
-        onClick={() => setIsMobileMenuOpen(false)}
-      />
+      {/* Mobile Navigation Drawer & Backdrop (teleported to body to escape header containing block) */}
+      {mounted &&
+        createPortal(
+          <>
+            <div
+              className={`site-mobile-overlay ${isMobileMenuOpen ? "site-mobile-overlay-open" : ""}`}
+              aria-hidden={!isMobileMenuOpen}
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
 
-      <aside
-        id="site-mobile-drawer"
-        className={`site-mobile-drawer ${isMobileMenuOpen ? "site-mobile-drawer-open" : ""}`}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Menu điều hướng di động"
-        aria-hidden={!isMobileMenuOpen}
-      >
-        <div className="site-mobile-drawer-header">
-          <Link
-            className="site-brand"
-            href="/"
-            aria-label="Hà Giang Travel Assistant - Trang chủ"
-            onClick={() => setIsMobileMenuOpen(false)}
-          >
-            <span className="site-brand-mark" aria-hidden="true">
-              <BrandLogo size={34} />
-            </span>
-            <span className="site-brand-copy">
-              <strong>Hà Giang</strong>
-              <span>Travel Assistant</span>
-            </span>
-          </Link>
-          <button
-            ref={closeBtnRef}
-            type="button"
-            className="site-mobile-drawer-close"
-            aria-label="Đóng menu"
-            onClick={() => {
-              setIsMobileMenuOpen(false);
-              toggleBtnRef.current?.focus();
-            }}
-          >
-            <X className="size-5" />
-          </button>
-        </div>
-
-        <nav className="site-mobile-nav" aria-label="Điều hướng di động">
-          {links.map(({ to, label, icon: Icon, isAi, protected: isProtected, intent }) => {
-            const active = isLinkActive(to);
-            const content = (
-              <>
-                <span className="site-mobile-nav-icon">
-                  <Icon className="size-4" />
-                </span>
-                <span className="site-mobile-nav-label">{label}</span>
-                {isAi && <span className="site-mobile-ai-badge">AI</span>}
-              </>
-            );
-
-            if (isProtected) {
-              return (
-                <ProtectedLink
-                  key={to}
-                  href={to}
-                  intent={intent}
-                  className="site-mobile-nav-link"
-                  data-active={active || undefined}
-                  aria-current={active ? "page" : undefined}
-                  onGuestIntercept={() => {
-                    setIsMobileMenuOpen(false);
-                  }}
+            <aside
+              id="site-mobile-drawer"
+              className={`site-mobile-drawer ${isMobileMenuOpen ? "site-mobile-drawer-open" : ""}`}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Menu điều hướng di động"
+              aria-hidden={!isMobileMenuOpen}
+            >
+              <div className="site-mobile-drawer-header">
+                <Link
+                  className="site-brand"
+                  href="/"
+                  aria-label="Hà Giang Travel Assistant - Trang chủ"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  {content}
-                </ProtectedLink>
-              );
-            }
+                  <span className="site-brand-mark" aria-hidden="true">
+                    <BrandLogo size={34} />
+                  </span>
+                  <span className="site-brand-copy">
+                    <strong>Hà Giang</strong>
+                    <span>Travel Assistant</span>
+                  </span>
+                </Link>
+                <button
+                  ref={closeBtnRef}
+                  type="button"
+                  className="site-mobile-drawer-close"
+                  aria-label="Đóng menu"
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    toggleBtnRef.current?.focus();
+                  }}
+                >
+                  <X className="size-5" />
+                </button>
+              </div>
 
-            return (
-              <Link
-                key={to}
-                href={to as Route}
-                className="site-mobile-nav-link"
-                data-active={active || undefined}
-                aria-current={active ? "page" : undefined}
-                onClick={() => setIsMobileMenuOpen(false)}
-              >
-                {content}
-              </Link>
-            );
-          })}
-        </nav>
+              <nav className="site-mobile-nav" aria-label="Điều hướng di động">
+                {links.map(({ to, label, icon: Icon, isAi, protected: isProtected, intent }) => {
+                  const active = isLinkActive(to);
+                  const content = (
+                    <>
+                      <span className="site-mobile-nav-icon">
+                        <Icon className="size-4" />
+                      </span>
+                      <span className="site-mobile-nav-label">{label}</span>
+                      {isAi && <span className="site-mobile-ai-badge">AI</span>}
+                    </>
+                  );
 
-        <div className="site-mobile-drawer-footer">
-          <div className="site-mobile-drawer-footer-row">
-            <span className="site-mobile-footer-text">Giao diện sáng / tối</span>
-            <ModeToggle className="site-theme-toggle" locale="vi" />
-          </div>
-        </div>
-      </aside>
+                  if (isProtected) {
+                    return (
+                      <ProtectedLink
+                        key={to}
+                        href={to}
+                        intent={intent}
+                        className="site-mobile-nav-link"
+                        data-active={active || undefined}
+                        aria-current={active ? "page" : undefined}
+                        onGuestIntercept={() => {
+                          setIsMobileMenuOpen(false);
+                        }}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        {content}
+                      </ProtectedLink>
+                    );
+                  }
+
+                  return (
+                    <Link
+                      key={to}
+                      href={to as Route}
+                      className="site-mobile-nav-link"
+                      data-active={active || undefined}
+                      aria-current={active ? "page" : undefined}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      {content}
+                    </Link>
+                  );
+                })}
+              </nav>
+
+              <div className="site-mobile-drawer-footer">
+                <div className="site-mobile-drawer-footer-row">
+                  <span className="site-mobile-footer-text">Giao diện sáng / tối</span>
+                  <ModeToggle className="site-theme-toggle" locale="vi" />
+                </div>
+              </div>
+            </aside>
+          </>,
+          document.body
+        )}
     </header>
   );
 }

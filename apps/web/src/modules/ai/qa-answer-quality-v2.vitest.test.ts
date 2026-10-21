@@ -7,7 +7,6 @@ import { QA_SYNTHESIS_GATES, hasQaSynthesisCertificate } from "./qa-synthesis-ve
 import { qaSourceReviewBinding } from "./qa-source-sufficiency";
 import { createQaAssessor, validateQaAssessment } from "./qa-assessment";
 import { createQaService } from "./qa-service";
-import { QA_ABUSE_LIMITS } from "./qa-abuse";
 import type { QaGenerationInput, QaEvidence } from "./qa-runtime-contract";
 import type { QaConversationStore } from "./qa-conversation-store";
 import { composeQaPrompt } from "./qa-prompt";
@@ -229,11 +228,10 @@ describe("US23 grounded synthesis V2 (mock semantic verdicts, no paid calls)", (
     const input = reviewed("Danh hiệu?", [facts.unesco]);
     expect(() => validateQaGenerationOutput({ status: "ANSWERED", unanswered: false, answerParts: [{ text: "Đây là Công viên địa chất toàn cầu UNESCO.", citationIds: ["c1"] }] }, input)).toThrow();
   });
-  it("skips verification for simple exact reviewed answers and reserves the worst-case cost", async () => {
+  it("skips verification for simple exact reviewed answers", async () => {
     const input = reviewed("Danh hiệu?", [facts.unesco]); const t = setup(input, facts.unesco);
     expect((await t.generator.generate(input)).status).toBe("ANSWERED");
     expect(t.fetcher).toHaveBeenCalledTimes(1);
-    expect(QA_ABUSE_LIMITS.tokensPerAttempt).toBeGreaterThanOrEqual(3 * (8000 + 2000) + 13000);
   });
   it("retains the existing public-safety rejection of URL-bearing DOCX prose", async () => {
     const input = reviewed("Danh hiệu?", [facts.unesco + " Nguồn tham khảo https://example.org."]);

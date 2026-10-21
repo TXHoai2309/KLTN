@@ -30,7 +30,7 @@ async function loadFixture(configured: boolean) {
     const env = { ...process.env };
     for (const key of Object.keys(env)) if (keys.includes(key) || /^_+VARLOCK/.test(key)) delete env[key];
     const auto = pathToFileURL(resolve(root, "node_modules/varlock/dist/auto-load.mjs")).href;
-    const script = `import ${JSON.stringify(auto)}; const keys=${JSON.stringify(keys)}; const config=globalThis.__varlockLoadedEnv.config; console.log(JSON.stringify({present:Object.fromEntries(keys.map(k=>[k,Boolean(process.env[k]?.trim())])),sensitive:Object.fromEntries(['CLOUDINARY_API_KEY','CLOUDINARY_API_SECRET','OPENAI_API_KEY','OPENAI_EDITORIAL_MODEL','STADIA_MAPS_API_KEY'].map(k=>[k,config[k]?.isSensitive===true]))}));`;
+    const script = `import ${JSON.stringify(auto)}; const keys=${JSON.stringify(keys)}; const config=globalThis.__varlockLoadedEnv.config; console.log(JSON.stringify({present:Object.fromEntries(keys.map(k=>[k,Boolean(process.env[k]?.trim())])),credentialsSensitive:Object.fromEntries(['CLOUDINARY_API_KEY','CLOUDINARY_API_SECRET','OPENAI_API_KEY','STADIA_MAPS_API_KEY'].map(k=>[k,config[k]?.isSensitive===true])),modelSensitive:config.OPENAI_EDITORIAL_MODEL?.isSensitive===true}));`;
     const result = spawnSync(process.execPath, ["--input-type=module", "-e", script], { cwd: directory, env, encoding: "utf8", windowsHide: true, timeout: 20000 });
     if (result.status !== 0) throw Error("Isolated Varlock load failed; output suppressed");
     return JSON.parse(result.stdout.trim());
@@ -45,7 +45,8 @@ describe("Provider configuration through the actual Varlock schema", () => {
   it("injects configured values into runtime and keeps credentials sensitive", async () => {
     const result = await loadFixture(true);
     expect(result.present).toEqual(Object.fromEntries(keys.map(key => [key, true])));
-    expect(Object.values(result.sensitive)).toEqual([true, true, true, true, true]);
+    expect(Object.values(result.credentialsSensitive)).toEqual([true, true, true, true]);
+    expect(result.modelSensitive).toBe(false);
   }, 25000);
   it("permits absent optional providers while retaining the canonical folder default", async () => {
     const result = await loadFixture(false);

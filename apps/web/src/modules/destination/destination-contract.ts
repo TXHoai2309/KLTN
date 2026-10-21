@@ -4,6 +4,7 @@ import { z } from "zod";
 export const weekdays = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"] as const;
 export const weekdayLabels = ["Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy", "Chủ Nhật"];
 const text = (max: number) => z.string().transform(value => value.normalize("NFC").trim()).pipe(z.string().min(1, "Không được để trống.").max(max, `Tối đa ${max} ký tự.`));
+export const DESTINATION_DESCRIPTION_MAX_LENGTH = 50_000;
 const taxonomy = text(100).transform(value => value.replace(/\s+/g, " ").toLocaleLowerCase("vi-VN"));
 const time = z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/, "Giờ phải theo HH:mm.");
 export const toMinute = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
@@ -23,7 +24,7 @@ const scheduleSchema = z.array(daySchema).length(7, "Cần đủ bảy ngày.").
 const duration = z.number().int("Thời lượng phải là phút nguyên.").min(1, "Thời lượng phải lớn hơn 0 phút.").max(10080, "Thời lượng tối đa 10080 phút.").nullable();
 export const destinationInputSchema = z.object({
   profile: destinationProfileSchema.optional(),
-  name: text(200), description: text(10000), area: taxonomy, category: taxonomy,
+  name: text(200), description: text(DESTINATION_DESCRIPTION_MAX_LENGTH), area: taxonomy, category: taxonomy,
   latitude: z.number().min(-90, "Vĩ độ phải từ -90 đến 90.").max(90, "Vĩ độ phải từ -90 đến 90."), longitude: z.number().min(-180, "Kinh độ phải từ -180 đến 180.").max(180, "Kinh độ phải từ -180 đến 180."),
   suggestedDurationMinutes: duration, minimumDurationMinutes: duration, openingDays: scheduleSchema,
 }).strict();
@@ -31,7 +32,9 @@ export type DestinationInput = z.infer<typeof destinationInputSchema>;
 export const visibilitySchema = z.enum(["HIDDEN", "VISIBLE"]);
 export const destinationDtoSchema = destinationInputSchema.extend({ id: z.string().min(1), visibility: visibilitySchema, createdAt: z.iso.datetime(), updatedAt: z.iso.datetime() }).strict();
 export type DestinationDto = z.infer<typeof destinationDtoSchema>;
-export const destinationListItemSchema = destinationDtoSchema.pick({ id: true, name: true, area: true, category: true, visibility: true, updatedAt: true });
+export const destinationListItemSchema = destinationDtoSchema.pick({ id: true, name: true, area: true, category: true, visibility: true, updatedAt: true }).extend({ deletedAt: z.iso.datetime().nullable().optional() });
 export const destinationListSchema = z.object({ items: z.array(destinationListItemSchema), page: z.number().int().positive(), hasMore: z.boolean() }).strict();
 export type DestinationList = z.infer<typeof destinationListSchema>;
+export const destinationDeleteResultSchema = z.object({ id: z.string().min(1), deletedAt: z.iso.datetime() }).strict();
+export const destinationRestoreResultSchema = z.object({ id: z.string().min(1), visibility: z.literal("HIDDEN"), updatedAt: z.iso.datetime() }).strict();
 export const unknownSchedule = (): DestinationInput["openingDays"] => weekdays.map(dayOfWeek => ({ dayOfWeek, status: "UNKNOWN", intervals: [] }));

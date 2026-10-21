@@ -10,12 +10,13 @@ import type { QaContext } from "./qa-contract";
 import type { QaResolvedContext } from "./qa-destination-context";
 import { createQaAssessor, type QaAssessor } from "./qa-assessment";
 import { assertQaEvidenceInput, insufficientQaAnswer } from "./qa-generation";
-import { QA_CLARIFICATION_QUESTION } from "./qa-prompt";
+import { QA_CLARIFICATION_QUESTION, qaUsableEvidence } from "./qa-prompt";
 import { evaluateQaSourceSufficiency } from "./qa-source-sufficiency";
 import { qaFactualQuestion, qaIntentHistory, qaFollowupClarification } from "./qa-question-understanding";
 import { qaConversationMessage } from "./qa-conversation";
 import { planQaQuestion } from "./qa-question-plan";
 import { withinQaResponseBudget, QA_ELIGIBILITY_ABORT } from "./qa-request-budget";
+import { projectQaOriginalSources, validQaSourceProjection } from "./qa-original-source-projection";
 
 export function createQaService(dependencies: { store: QaConversationStore; retriever: QaRetriever; generator: QaGenerator; assessor?: QaAssessor; eligibilityPollMs?: number; resolveContext?: (context: QaContext) => Promise<QaResolvedContext> }) {
   const { store, retriever, generator } = dependencies;
@@ -54,6 +55,9 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
         qaStage("RETRIEVAL_STARTED");
         evidence = skipEvidence ? [] : await retriever.retrieve(question, history, signal, resolvedContext);
         qaStage("RETRIEVAL_COMPLETED", { retrievedChunks: evidence.length });
+        // Drop only the chunks that cannot be shown safely; an unusable chunk
+        // must not turn an otherwise answerable question into AI_INVALID_RESPONSE.
+        if (!skipEvidence) evidence = qaUsableEvidence(evidence, resolvedContext);
         qaStage("EVIDENCE_ELIGIBILITY_CHECK");
         if (!skipEvidence && !await retriever.recheck(evidence)) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "EVIDENCE_ELIGIBILITY_CHECK", "ELIGIBILITY");
         qaStage("EVIDENCE_ELIGIBILITY_CHECKED", { eligibleChunks: evidence.length });
@@ -137,6 +141,8 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
           if (!mapped.length || mapped.some(e=>JSON.stringify(e.citation)!==JSON.stringify(citation))) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "CITATION_VALIDATION", "CITATION_PROJECTION");
         }
         qaStage("CITATIONS_VERIFIED");
+        data = projectQaOriginalSources(data,evidence);
+        if (!validQaSourceProjection(data,evidence) || !isQaPublicAnswerSafe(data,evidence)) throw qaOrigin(new AppError("AI_INVALID_RESPONSE","AI_INVALID_RESPONSE",502),"CITATION_VALIDATION","CITATION_PROJECTION");
         if (!skipEvidence && !await retriever.recheck(evidence)) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "EVIDENCE_ELIGIBILITY_CHECK", "ELIGIBILITY");
       } catch (e) {
         const failure = e instanceof AppError ? e : e instanceof EmbeddingError

@@ -28,7 +28,7 @@ The DSL v2 schema is strictly enforced via Zod and JSON Schema:
 - **No Arbitrary Executable Code**: JavaScript, event handlers, scripts, and eval expressions are prohibited.
 - **No Arbitrary HTML / DOM Injection**: All content is rendered through verified React component primitives.
 - **No Arbitrary External Assets**: AI cannot generate or reference image URLs outside the approved Destination Media Library.
-- **Strict Tree Bounds**: Maximum node count $\le 50$, maximum nesting depth $\le 3$, maximum grid columns $\le 4$, maximum sections $\le 25$.
+- **Strict Tree Bounds**: Maximum node count $\le 50$, maximum nesting depth $\le 3$, maximum grid columns $\le 4$, maximum root sections $\le 50$.
 - **Design Tokens**: Typography (`LITERARY`, `MODERN`, `HUMANIST`, `EDITORIAL_SERIF`, `GEOMETRIC_SANS`), Palettes (`FOREST`, `SLATE`, `EARTH`, `MONOCHROME`, `TERRACOTTA`, `INDIGO`), Rhythms (`IMMERSIVE`, `COMPACT`, `RELAXED`, `STACCATO`), Container Widths (`NARROW`, `STANDARD`, `WIDE`, `FULL`).
 
 ### 2.2. Layout Primitives Catalog

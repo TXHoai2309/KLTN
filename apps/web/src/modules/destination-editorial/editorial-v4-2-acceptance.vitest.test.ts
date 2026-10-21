@@ -55,6 +55,9 @@ describe("V4 repaired generation and three consecutive alternatives", () => {
     for (let index = 0; index < 4; index++) {
       const mode = index === 0 ? "PROPOSE" : "ALTERNATIVE";
       const complete = vi.fn(async (input: any) => {
+        expect(input.system).toContain("12 to 20 root nodes in layout.sections");
+        expect(input.system).toContain("Count every root node, including HERO, LEAD, GALLERY, FACTS, MAP, SOURCES");
+        expect(input.system).toContain("This is a target, not a minimum");
         const payload = JSON.parse(input.user);
         expect(payload.mode).toBe(mode);
         expect(payload.currentLayout.sections.map((n: any) => n.id)).toEqual(current.sections.map(n => n.id));

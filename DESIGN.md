@@ -27,6 +27,7 @@ components:
 
 # Admin RAG design context
 
+<<<<<<< HEAD
 ## Trip merge and Save recovery (2026-10-21)
 
 Owner-selected Trip UI follows ThaiAnh's existing layouts, CSS/theme tokens and
@@ -36,6 +37,18 @@ preview and TripSavePanel's confirmed write; success toast precedes navigation
 to `/trips`. Pending/UNKNOWN locks extend to the containing requirement form's
 tabs and input handlers, retaining the mounted proposal and identical retry key.
 Known FAILED releases that lock. No new palette, font or storage mechanism.
+=======
+## Assistant original-source citations (2026-10-20)
+
+AssistantCitations owns numbered references after each paragraph/list item and
+inside table source cells. AssistantSourceList owns the single final disclosure,
+grouped by canonical URL (or document alias for uploaded-material fallback).
+Titles and domains wrap; links open a new tab with an accessible name. Uploaded
+material references open their local source entry, never the private file.
+Secondary locators explicitly describe the RAG document. Existing Assistant
+tokens, typography and scroll ownership remain canonical; reading a source
+suspends follow-tail. No source approval screen or new theme is introduced.
+>>>>>>> 130d94a6fa04d37020852f8945d615887093060b
 
 ## Assistant missing-source copy (2026-10-17)
 

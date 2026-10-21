@@ -7,7 +7,7 @@ import { AssistantAnswer } from "./assistant-chat";
 import type { QaCompletedTurn } from "../../modules/ai/qa-contract";
 
 const parts = [{ text: "Địa chất: Địa hình karst đá vôi hư cấu.", citationIds: ["c1"] }, { text: "Văn hóa: Truyền thống dân tộc và danh hiệu UNESCO hư cấu.", citationIds: ["c1"] }];
-const turn: QaCompletedTurn = { conversationId: "conv", turnId: "turn", turnState: "COMPLETED", context: { type: "GENERAL" }, status: "ANSWERED", answerParts: parts, citations: [{ id: "c1", sourceId: "fixture", title: "Nguồn hư cấu", sourceUrl: null, locators: [] }], unansweredAspects: [] };
+const turn: QaCompletedTurn = { conversationId: "conv", turnId: "turn", turnState: "COMPLETED", context: { type: "GENERAL" }, status: "ANSWERED", answerParts: parts, citations: [{ id: "c1", sourceId: "fixture", title: "Nguồn hư cấu", sourceUrl: "https://example.com/source", locators: [] }], unansweredAspects: [] };
 describe("verified answer presentation and follow-up projection", () => {
   it.each(["PARAGRAPHS", "LIST", "TABLE"] as const)("renders %s without inventing or dropping factual content", presentation => {
     const html = renderToStaticMarkup(createElement(AssistantAnswerContent, { parts, presentation, sources: () => createElement("span", null, "CITATION") }));
@@ -47,9 +47,8 @@ describe("verified answer presentation and follow-up projection", () => {
     expect(html.match(/class="assistant-answer-sources"/g)).toHaveLength(1);
     expect(html).toContain("Xem nguồn (1)");
     expect(html).not.toContain('class="assistant-answer-sources" open');
-    expect(html).toContain('aria-label="Nguồn cho ý 1"');
-    expect(html).toContain('aria-label="Nguồn cho ý 2"');
-    expect(html.indexOf("Xem nguồn")).toBeGreaterThan(html.indexOf(parts[1]!.text.split(": ")[1]!));
+    expect(html.match(/aria-label="Nguồn tham khảo"/g)).toHaveLength(2);
+    expect(html.indexOf('class="assistant-answer-sources"')).toBeGreaterThan(html.indexOf(parts[1]!.text.split(": ")[1]!));
   });
 
   it("does not confuse the place name Đồng Văn with a money amount", () => {

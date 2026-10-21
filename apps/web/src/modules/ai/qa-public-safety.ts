@@ -1,4 +1,5 @@
 import type { QaAnswer, QaEvidence } from "./qa-runtime-contract";
+import { originalSourceUrl } from "../../lib/original-source-url";
 
 const privateReferencePatterns = [
   /\bfile:\/\//iu,
@@ -27,9 +28,12 @@ export function isQaPublicMetadataSafe(value: unknown): boolean {
 }
 
 // Projection alone is insufficient if a source sentence/title itself quotes an
-// internal path. Public links are intentionally not projected in this release.
+// internal path. Only a server-projected, provenance-bound citation URL can bypass
+// the URL prohibition; all prose and the remaining metadata use the old checks.
 export function isQaPublicAnswerSafe(answer: QaAnswer, evidence: readonly QaEvidence[]): boolean {
-  if(!isQaPublicMetadataSafe(answer))return false;
+  for (const citation of answer.citations) if (citation.sourceUrl &&
+    (originalSourceUrl(citation.sourceUrl)!==citation.sourceUrl || !evidence.some(item=>item.sourceBundle && item.originalSources?.some(source=>source.url===citation.sourceUrl && source.title===citation.title) && item.projectedCitations?.some(candidate=>JSON.stringify(candidate)===JSON.stringify(citation))))) return false;
+  if(!isQaPublicMetadataSafe({...answer,citations:answer.citations.map(citation=>({...citation,sourceUrl:null}))}))return false;
   const publicText = JSON.stringify(answer);
   for (const item of evidence) {
     if ([item.documentId, item.generationId, item.contentVersionId, item.chunkId, item.chunkHash]

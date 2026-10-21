@@ -3414,6 +3414,117 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
 - **Limits:** No schema/migration or runtime environment change. No live provider
   or browser smoke test; no commit, push or deployment performed.
 
+### 2026-10-20 — Destination Admin description limit and compact editor
+
+- **Branch/baseline:** TXH at `433e684`; owner requested the change and pushes to
+  TXH, dev and main.
+- **Root cause and change:** Admin Create/Edit capped the description at 10,000
+  characters in both the input and shared server contract. The input also expanded
+  its height while typing. A shared 50,000-character bound now covers client,
+  create/patch validation and DTO parsing. The fixed-height field scrolls internally;
+  “Xem thêm và chỉnh sửa” opens a bounded dialog with synchronized edits, Escape
+  close and focus restoration. Existing request-body bound is 512 KiB and the
+  database column is PostgreSQL `TEXT`; no migration is needed.
+- **Validation:** Long-text schema/service tests 21/21 PASS; Destination/public
+  legacy tests 63/63 PASS; browser suite 21/21 PASS including 390/768/1440px dialog
+  sizing, internal scroll, saved-in-memory create/edit, no horizontal overflow and
+  keyboard focus. Web typecheck and Next.js 16.3.8 production build PASS;
+  `git diff --check` PASS.
+- **Release:** Commit `2563dc6` pushed to `origin/TXH` and `origin/dev`; remote had
+  no `main`, so `origin/main` was created at that tested commit. `master` remains
+  at `433e684`. No deployment, Production data/Auth change, database write or
+  migration was performed.
+
+### 2026-10-20 — US-38 soft-delete and restore Destinations
+
+- **Branch/story:** TXH; `docs/stories/US-38-destination-delete-restore.md`.
+- **Completed:** Added Admin-only soft delete and restore with persisted-role
+  recheck inside the transaction and the shared `Idempotency-Key` / `SUCCESS` /
+  `FAILED` / `UNKNOWN` contract. The Admin list defaults to active records and
+  includes an archived view; restore always returns the record as HIDDEN. Public
+  and new-itinerary eligibility omit deleted Destinations. Existing Favorite,
+  Trip, Culture, schedule, editorial, media and source relations remain intact;
+  historical Favorite/Trip views show deleted records as unavailable.
+- **UI:** Added the reviewed quiet destructive action beside Edit in desktop and
+  mobile layouts, native confirmation with the exact name, Cancel/Delete, pending
+  state, same-key UNKNOWN recovery, Sonner feedback, focus restoration, 44px
+  controls, dark styling and reduced-motion support. Impeccable detector findings
+  on existing global styling were left untouched; the new UNKNOWN panel reuses
+  the existing uncertainty treatment.
+- **Files:** Admin Destination list/action/CSS; admin collection and detail/restore
+  routes; Destination client, contract, HTTP, service, eligibility, visibility,
+  image and V3 modules; Culture, editorial, Favorite, Trip read/edit/planner and
+  in-trip read/eligibility modules; relevant Destination/public/Favorite/Trip/
+  Planner tests; Prisma Destination schema and migration; this story and progress
+  document.
+- **DB:** Added nullable `deletedAt TIMESTAMPTZ(3)` in
+  `20261020044507_destination_soft_delete/migration.sql`. Prisma Client generation
+  and schema validation passed. The migration was reviewed but not applied. After
+  verifying the target DB, run `npm run db:migrate:deploy --workspace @KLTN/db`
+  from the repository root; do not use `db:push`.
+- **Validation:** Destination/public 70/70, Culture 37/37, Favorite 27/27, and
+  affected Trip/Planner/Edit/Replan/Culture/image Vitest suites 132/132 PASS.
+  Web typecheck, Next.js production build and `git diff --check` PASS. No lint
+  script is configured. Full web Vitest: 2,596 PASS, 6 FAIL, 134 SKIP, 1 TODO.
+  Four failures assert Admin should not inherit Traveler access, contrary to
+  accepted RBAC V2; the remaining two are an existing US35 source audit in an
+  untouched file and a preference-extraction environment-sensitivity assertion.
+- **Limits/next step:** No authenticated browser smoke, shared DB migration,
+  deployment, commit or push. Review the documented full-suite failures before
+  treating the repository-wide test command as green; verify the intended database
+  before applying the new migration.
+
+### 2026-10-20 — Destination Editorial section limits and diagnostics
+
+- **Branch/story:** `master`; `docs/stories/DESTINATION-EDITORIAL-SECTION-LIMITS-AND-DIAGNOSTICS.md`.
+- **Completed:** Tasks 1–6. V2 accepts up to 50 root nodes and 50 total nodes; AI targets 12–20 roots without a hard minimum and oversized proposals are rejected before repair/application. Deterministic fallback coalesces only eligible adjacent paragraphs and reports a bounded failure when no safe fit exists.
+- **Diagnostics/UI:** API/server failures now log structured safe stages, categories, paths and bounded counts. The editor separates GET/DTO errors from initial-layout generation errors; retries target GET or the local builder respectively. Client diagnostics remain in `console.error`; no telemetry or content/session/provider data is logged.
+- **Files:** V2 contract, provider schema/prompt, proposal repair, deterministic layout engine, Editorial API/service/route diagnostics, Admin editor, focused tests and offline client-error browser harness; V4 architecture and this story/progress record.
+- **Verification:** Editorial Vitest 335 PASS / 6 PostgreSQL integration SKIP (not configured); web typecheck PASS; offline browser harness PASS at 1440/390px with keyboard retry and no telemetry; Next.js production build PASS using ephemeral local placeholder environment fields; `git diff --check` PASS with line-ending conversion warnings. No lint script is configured.
+- **Limits:** No migration, persistent environment change, API envelope change, production operation, commit, push or deployment. The existing broader Destination Editorial integration tests that require PostgreSQL remain skipped.
+
+### 2026-10-20 — US-39 RAG document soft-delete and restore
+
+- **Branch/story:** `codex/rag-document-delete-restore`; `docs/stories/US-39-rag-document-delete-restore.md`.
+- **Backend/data:** Added nullable `RagDocument.deletedAt` plus an index and additive migration. Admin delete/restore writes use the shared idempotency outcome contract and recheck Admin role in the transaction. Delete retains all records and Blob data, revokes public-Q&A approval, cancels queued/unknown jobs and requests cancellation of running work. Restore clears the marker and returns the record to terminal `DISABLED`.
+- **Retrieval/indexing:** Active Admin list and public retrieval/evidence recheck exclude deleted documents. Admission, resume, retry, worker persistence and publication finalization reject deleted records. Added PostgreSQL race and schema coverage; both manual disposable-database setup scripts now include the public-Q&A and soft-delete migrations.
+- **UI:** Added active/deleted list navigation, restore, desktop row action and mobile action disclosure, accessible named confirmation dialog, loading state, success/error/unknown toasts, same-key retry, immediate list removal, and read-only deleted detail while retaining original-file access.
+- **Files:** RAG service/API/UI/styles; retrieval query and tests; indexing job store/service/request/worker/finalizer and tests; PostgreSQL setup scripts; Prisma schema/migration; `GLOSSARY.md`, US-39 story and this progress record.
+- **Verification:** RAG service/UI 64/64 PASS; DELETE/restore route Vitest 5/5 PASS; retrieval/indexing Vitest 61 PASS / 3 SKIP; Web typecheck PASS; Prisma Client generation PASS; Next.js production build PASS with process-local placeholder environment values; both PostgreSQL script syntax checks PASS; `git diff --check` PASS. Impeccable source detector: 0 anti-patterns, 15 advisory notes. No lint script is configured.
+- **Limits:** PostgreSQL integration tests were skipped because Docker Engine was unavailable and no disposable DB URL was configured. No authenticated browser smoke or parsed-page Impeccable check. Migration not applied; no commit, push, or deployment.
+
+### 2026-10-20 — US-21 QA token reservation removed
+
+- Removed the fixed 43,000-token reservation per admitted ask and its global daily token-budget counter at the owner's request. Durable ask/network counters and concurrency leases remain at their configured high ceilings.
+- Kept provider-call input/output limits, evidence limits, and bounded model-call flow unchanged. No schema or migration change; historical token bucket rows expire through existing cleanup.
+- Updated focused tests and implementation notes. Tests/typecheck were not run in this turn; no commit, push, or deployment.
+
+### 2026-10-20 — Original-source citations specification confirmed
+
+- **Contract:** `docs/stories/ASSISTANT-ORIGINAL-SOURCE-CITATIONS.md`, READY for implementation planning; implementation is NOT STARTED and is not authorized by this documentation task.
+- **Owner decisions:** Extract source URLs already inside QA-eligible RAG documents, without re-entry, extra link approval or website fetching. Use explicit section/passage attribution, inline numbered references, a deduplicated final list and uploaded-document fallback; preserve historical response snapshots.
+- **Sample evidence:** Read-only inspection of the supplied Dong Van DOCX found 23 section source declarations and 17 resolvable original-source entries, with literal URLs and zero Word hyperlink relationships. The sample was not changed and source websites were not fetched.
+- **Spec contents:** Scope, policy amendment to US-21 Decision B, roles/ownership, parser/provenance and additive metadata contract, existing-document backfill, backward-compatible public reference projection, safety/bounds, UX/accessibility, AC01–AC17, test/verification plans and dependency checkpoints.
+- **Files:** Specification, domain glossary, parent US-21 cross-reference and this progress entry. Documentation only; no application code, schema, migration, database/provider operation, commit, push or deploy.
+
+### 2026-10-20 — Original-source citation implementation, infrastructure gate open
+
+- Owner authorized implementation after the specification. Added immutable, version-bound source metadata, source-aware QA projection/fencing, numbered and deduplicated UI references, and bounded exact-provenance backfill without source approval or website fetching.
+- Owner DOCX parser verification: 17 sources / 23 section mappings. Final QA/indexing/processing/Assistant suite: 972 PASS, 93 SKIP, 0 FAIL. RAG regression: 64 PASS. Typecheck, Prisma generation/schema validation, production build and offline 360/1440px light/dark browser verification PASS.
+- PostgreSQL integration could not execute because Docker Engine was unavailable/nonresponsive. Real DB atomicity/race and remote-file operational backfill acceptance remain OPEN; not all AC are marked verified. Broad premium audit has unrelated repository/cache findings; not a repo-wide audit PASS.
+- [Implementation evidence and operator handoff](implementation/assistant-original-source-citations.md) record AC mapping, changed modules, commands, migration and backfill steps. No development/production migration/backfill, live provider, commit, push or deploy performed.
+
+### 2026-10-21 — Original-source citation schema deployed to dev and prod
+
+- Owner authorized migration on both configured targets. Existing `db:migrate:deploy` command applied `20261020180000_rag_original_source_citations` successfully on development (`DATABASE_URL`) and production (`DATABASE_URL_PROD`), both exit 0.
+- Read-only verification on each target confirmed the finished/non-rolled-back migration record and `public.rag_citation_bundle` table. Credentials were used only in child-process environments and never printed or written to tracked files.
+- Dev has an already-applied `20261020170000_trip_manual_completion` migration absent from the current checkout; its history was preserved. No reset/resolve, citation backfill, model request, commit or push performed. Disposable integration/race acceptance remains separate from this confirmed real schema deployment.
+
+### 2026-10-21 — Original-source citation UI clarified
+
+- **Decision:** Keep answer-local numbered links such as `[1]`, resolving the destination from document-local references such as `[S1]`. Hide the marker and final-list entry when a safe URL is absent or attribution is ambiguous. Do not show the RAG filename, page/section location, or a “no public link” message.
+- **Implementation:** Public citation rendering now includes only safe URL-backed sources. The API projection and saved history snapshots remain backward-compatible; old snapshots without URLs are hidden at render time. Story and implementation evidence were updated.
+- **Verification:** Focused citation Vitest 23/23 PASS; offline browser smoke at 360px/1440px PASS (numbered external links, hidden no-URL/RAG details, keyboard focus, wrapping and light/dark); web typecheck PASS; `git diff --check` PASS. No backfill, commit, push or deployment.
 ## 2026-10-19 — US-37 Task 295 In-trip validation and confirmation
 
 - **Branch:** `duybinh`.

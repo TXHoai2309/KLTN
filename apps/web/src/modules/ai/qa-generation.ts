@@ -5,7 +5,7 @@ import { z } from "zod";
 import { countEmbeddingTokens } from "../rag-processing/embedding-tokenizer";
 import { AppError } from "../../server/http/app-error";
 import { QA_INSUFFICIENT_SOURCE_MESSAGE, qaCompletedTurnSchema, qaPublicCitationSchema, qaQuestionSchema, qaReferenceIdSchema } from "./qa-contract";
-import { canonicalizeSentence, composeQaPrompt, containsEvidenceInstruction, qaScopedEvidenceSentences, qaHasUnsafeEvidenceContent, QA_CLARIFICATION_QUESTION, QA_UNANSWERED_ASPECT } from "./qa-prompt";
+import { canonicalizeSentence, composeQaPrompt, containsEvidenceInstruction, qaScopedEvidenceSentences, QA_CLARIFICATION_QUESTION, QA_UNANSWERED_ASPECT } from "./qa-prompt";
 import type { QaAnswer, QaGenerationInput, QaGenerator } from "./qa-runtime-contract";
 import { isQaPublicAnswerSafe, isQaPublicMetadataSafe } from "./qa-public-safety";
 import { createQaSynthesisVerifier } from "./qa-synthesis-verification";
@@ -40,9 +40,12 @@ export function assertQaEvidenceInput(input: QaGenerationInput): void {
   if (input.evidence.some(item => qaScopedEvidenceSentences(item.text, input).some(sentence => [item.documentId, item.generationId, item.contentVersionId, item.chunkId, item.chunkHash]
     .some(id => id.length >= 8 && sentence.includes(id)))) || !isQaPublicMetadataSafe(input.evidence.map(item => qaScopedEvidenceSentences(item.text, input)))) throw invalid("GENERATION_PREFLIGHT", "PRIVATE_MATERIAL");
   if (input.evidence.some(item => containsEvidenceInstruction(item.text))) throw invalid("GENERATION_PREFLIGHT", "EVIDENCE_INSTRUCTION");
-  if (input.evidence.some(item => qaHasUnsafeEvidenceContent(item.text)) || !isQaPublicMetadataSafe(input.evidence.map(item => item.citation)) ||
-      (!input.evidence.some(item => qaScopedEvidenceSentences(item.text, input).length) &&
-       !isQaPublicMetadataSafe(input.evidence.map(item => item.text)))) throw invalid("GENERATION_PREFLIGHT", "PRIVATE_MATERIAL");
+  // Unsafe blocks (URLs, paths, secrets) are already removed from every sentence
+  // the model can see, so they no longer fail the whole question. Callers drop
+  // unusable chunks first (qaUsableEvidence); this stays as a last defence for
+  // unsafe citation metadata and for input that has no safe sentence at all.
+  if (!isQaPublicMetadataSafe(input.evidence.map(item => item.citation)) ||
+      (input.evidence.length > 0 && !input.evidence.some(item => qaScopedEvidenceSentences(item.text, input).length))) throw invalid("GENERATION_PREFLIGHT", "PRIVATE_MATERIAL");
   const rawLength = input.question.length + input.history.slice(-6).reduce((sum, turn) => sum + turn.question.length, 0) + input.evidence.reduce((sum, item) => sum + item.text.length, 0);
   if (rawLength > QA_GENERATION_LIMITS.maxInputUtf16) throw invalid();
 }

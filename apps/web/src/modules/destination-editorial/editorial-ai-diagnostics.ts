@@ -1,5 +1,76 @@
 import { randomUUID } from "node:crypto";
 import { AI_LAYOUT_PRESERVED } from "./editorial-display-policy";
+import { EDITORIAL_V2_MAX_ROOT_SECTIONS, EDITORIAL_V2_MAX_TOTAL_NODES } from "./editorial-contract";
+
+const MAX_DIAGNOSTIC_COUNT = 1000;
+export type EditorialLayoutDiagnosticCounts = {
+  expectedRootSections: number;
+  actualRootSections: number;
+  expectedTotalNodes: number;
+  actualTotalNodes: number;
+  countsCapped?: true;
+};
+
+/** Count only bounded structural fields; never inspect or return Editorial text. */
+export function editorialLayoutDiagnosticCounts(value: unknown): EditorialLayoutDiagnosticCounts | undefined {
+  if (!value || typeof value !== "object" || !Array.isArray((value as { sections?: unknown }).sections)) return undefined;
+  const sections = (value as { sections: unknown[] }).sections;
+  const actualRootSections = Math.min(sections.length, MAX_DIAGNOSTIC_COUNT);
+  const pending: unknown[] = sections.slice(0, MAX_DIAGNOSTIC_COUNT);
+  let actualTotalNodes = 0;
+  let countsCapped = sections.length > MAX_DIAGNOSTIC_COUNT;
+  while (pending.length && actualTotalNodes < MAX_DIAGNOSTIC_COUNT) {
+    const current = pending.pop();
+    actualTotalNodes++;
+    if (!current || typeof current !== "object") continue;
+    const children = (current as { children?: unknown }).children;
+    if (!Array.isArray(children)) continue;
+    const available = MAX_DIAGNOSTIC_COUNT - actualTotalNodes - pending.length;
+    if (children.length > available) countsCapped = true;
+    for (let index = Math.min(children.length, Math.max(0, available)) - 1; index >= 0; index--) {
+      pending.push(children[index]);
+    }
+  }
+  if (pending.length) countsCapped = true;
+  return {
+    expectedRootSections: EDITORIAL_V2_MAX_ROOT_SECTIONS,
+    actualRootSections,
+    expectedTotalNodes: EDITORIAL_V2_MAX_TOTAL_NODES,
+    actualTotalNodes,
+    ...(countsCapped ? { countsCapped: true as const } : {}),
+  };
+}
+
+export function editorialLayoutLimitIssue(counts: EditorialLayoutDiagnosticCounts | undefined) {
+  if (!counts) return undefined;
+  if (counts.actualRootSections > counts.expectedRootSections) return "SECTION_LIMIT" as const;
+  if (counts.actualTotalNodes > counts.expectedTotalNodes) return "NODE_LIMIT" as const;
+  return undefined;
+}
+
+export type EditorialApiDiagnosticStage = "EDITORIAL_GET" | "EDITORIAL_SAVE" | "EDITORIAL_PUBLISH" | "EDITORIAL_RESTORE_DRAFT" | "EDITORIAL_ROLLBACK" | "EDITORIAL_PROPOSAL_REQUEST";
+export function recordEditorialApiFailure(
+  stage: EditorialApiDiagnosticStage,
+  errorCode: string,
+  counts?: EditorialLayoutDiagnosticCounts,
+  correlationId = randomUUID(),
+  fieldPath?: string,
+) {
+  const safeCode = /^[A-Z0-9_]{1,64}$/.test(errorCode) ? errorCode : "EDITORIAL_FAILURE";
+  const safePath = fieldPath && /^(?:layout\.)?(?:sections|blocks)(?:\.(?:children|\d{1,3}|[A-Za-z]{1,32}))*$/.test(fieldPath) ? fieldPath : undefined;
+  const safeCounts = counts ? {
+    expectedRootSections: EDITORIAL_V2_MAX_ROOT_SECTIONS,
+    actualRootSections: Math.min(Math.max(0, Math.floor(counts.actualRootSections)), MAX_DIAGNOSTIC_COUNT),
+    expectedTotalNodes: EDITORIAL_V2_MAX_TOTAL_NODES,
+    actualTotalNodes: Math.min(Math.max(0, Math.floor(counts.actualTotalNodes)), MAX_DIAGNOSTIC_COUNT),
+    ...(counts.countsCapped ? { countsCapped: true } : {}),
+  } : {};
+  console.error(JSON.stringify({ event: "editorial_api", correlationId, stage, code: safeCode, ...safeCounts,
+    ...(editorialLayoutLimitIssue(counts) ? { issueCode: editorialLayoutLimitIssue(counts) } : {}),
+    ...(safePath ? { fieldPath: safePath } : {}),
+  }));
+  return correlationId;
+}
 
 export type EditorialAiFailure = "MODEL_UNAVAILABLE" | "INVALID_API_KEY" | "FORBIDDEN" | "QUOTA_EXCEEDED" | "RATE_LIMIT" | "UNSUPPORTED_PARAMETER" | "INVALID_SCHEMA" | "LOCAL_INVALID_SCHEMA" | "OPENAI_SCHEMA_REJECTED" | "INVALID_OUTPUT" | "TOKEN_LIMIT" | "TIMEOUT" | "NETWORK" | "PROVIDER_UNAVAILABLE" | "REFUSAL" | "CANCELLED" | "CONFIGURATION" | "PROPOSAL_INVALID" | "ADMISSION_REJECTED" | "LLM_PROVIDER_ERROR" | "STALE_LAYOUT" | "SCHEMA_VALIDATION" | "MEDIA_PROVENANCE";
 const providerCodes = new Set(["model_not_found", "invalid_api_key", "insufficient_quota", "billing_hard_limit_reached", "billing_not_active", "unsupported_parameter", "unsupported_value", "invalid_parameter", "invalid_value", "invalid_json_schema", "rate_limit_exceeded", "server_error", "context_length_exceeded"]);
@@ -26,6 +97,7 @@ export type ReferenceValidationDetails = {
   nodePath?: string;
   invalidReason?: "UNKNOWN_REFERENCE" | "DUPLICATE_REFERENCE" | "UNUSABLE_MEDIA" | "REJECTED_SOURCE" | "MISSING_REQUIRED_SOURCE" | "INVALID_FORMAT";
   expectedNamespace?: "ast.units" | "context.media" | "context.sources" | "layout.sections";
+  limitCounts?: EditorialLayoutDiagnosticCounts;
 };
 
 const fieldNames = new Set([
@@ -80,6 +152,13 @@ export function createEditorialAiDiagnostics() {
           nodePath: error.referenceDetails.nodePath && /^(?:sections|blocks)(?:\.(?:children|entries|[0-9]{1,2}))*$/.test(error.referenceDetails.nodePath) ? error.referenceDetails.nodePath : error.fieldPath,
           invalidReason: error.referenceDetails.invalidReason ?? null,
           expectedNamespace: error.referenceDetails.expectedNamespace ?? null,
+          ...(error.referenceDetails.limitCounts ? {
+            expectedRootSections: EDITORIAL_V2_MAX_ROOT_SECTIONS,
+            actualRootSections: Number.isSafeInteger(error.referenceDetails.limitCounts.actualRootSections) ? Math.min(Math.max(0, error.referenceDetails.limitCounts.actualRootSections), MAX_DIAGNOSTIC_COUNT) : null,
+            expectedTotalNodes: EDITORIAL_V2_MAX_TOTAL_NODES,
+            actualTotalNodes: Number.isSafeInteger(error.referenceDetails.limitCounts.actualTotalNodes) ? Math.min(Math.max(0, error.referenceDetails.limitCounts.actualTotalNodes), MAX_DIAGNOSTIC_COUNT) : null,
+            ...(error.referenceDetails.limitCounts.countsCapped ? { countsCapped: true } : {}),
+          } : {}),
         } : {}),
       } : {}) }));
   };
@@ -166,7 +245,7 @@ export function editorialFallbackReason(error: EditorialAiError, correlationId: 
   const detail = reasons[code] ?? reasons[error.code] ?? reasons.PROPOSAL_INVALID;
   const issues: Record<string, string> = {
     DUPLICATE_NODE_ID: "Có node trùng ID.", DUPLICATE_MEDIA: "Một ảnh xuất hiện nhiều lần.",
-    NODE_LIMIT: "Cây bố cục vượt 50 node.", TREE_LIMIT: "Cây bố cục vượt giới hạn kích thước node.", DEPTH_LIMIT: "Cây bố cục vượt ba cấp.",
+    SECTION_LIMIT: "Đề xuất vượt giới hạn 50 root node.", NODE_LIMIT: "Cây bố cục vượt giới hạn 50 node toàn cây.", TREE_LIMIT: "Cây bố cục vượt giới hạn kích thước node.", DEPTH_LIMIT: "Cây bố cục vượt ba cấp.",
     HERO_POSITION: "Hero bị lặp hoặc đặt sai cấp.", CONTENT_LOSS: "Đề xuất chưa giữ đủ nội dung gốc.",
     UNSOURCED_CONTENT: "Đề xuất có nội dung không được chứng minh từ hồ sơ.",
     UNVERIFIED_EVENT_SOURCE: "Sự kiện và nguồn tham khảo chưa có liên kết được kiểm chứng.",

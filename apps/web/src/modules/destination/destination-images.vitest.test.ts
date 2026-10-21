@@ -336,7 +336,7 @@ describe("Intent/upload/review services with mock persistence/provider (not Post
     row.media[0].websiteRights = "APPROVED";
     expect((await listPublicLocations({}, f.db)).items[0]?.image?.url).toContain("res.cloudinary.com");
     const findMany = vi.spyOn(f.db.destination, "findMany"); await listPublicLocations({}, f.db);
-    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { visibility: "VISIBLE" }, select: expect.objectContaining({ media: expect.objectContaining({ where: destinationMediaWhere, orderBy: [{ isCover: "desc" }, { position: "asc" }, { id: "asc" }] }) }) }));
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { visibility: "VISIBLE", deletedAt: null }, select: expect.objectContaining({ media: expect.objectContaining({ where: destinationMediaWhere, orderBy: [{ isCover: "desc" }, { position: "asc" }, { id: "asc" }] }) }) }));
   });
 });
 describe("Media PATCH ownership and omission", () => {

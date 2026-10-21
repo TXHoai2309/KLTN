@@ -30,21 +30,15 @@ const legacyAllowlistEnabled = process.env.QA_LEGACY_SOURCE_ALLOWLIST_ENABLED ==
 const legacySourceIds = legacyAllowlistEnabled && process.env.QA_PUBLIC_SOURCE_IDS
   ? new Set(process.env.QA_PUBLIC_SOURCE_IDS.split(",").map(value => value.trim()).filter(value => /^[a-zA-Z0-9_-]{1,128}$/u.test(value)))
   : undefined;
-const abuse = createQaAbuseGuard(db, process.env.NODE_ENV === "development" ? {
-  askNetworkTenMinutes: 1000,
-  askNetworkDay: 10000,
-  askGlobalDay: 10000,
-  concurrentNetwork: 10,
-  concurrentGlobal: 50,
-} : {});
+const abuse = createQaAbuseGuard(db);
 const networkId = createQaNetworkResolver({ secret: () => process.env.QA_NETWORK_HMAC_SECRET, vercel: () => process.env.VERCEL === "1", localIdentity: () => process.env.NODE_ENV === "development" ? process.env.QA_LOCAL_NETWORK_ID : undefined });
 export const qaPrincipalResolver = createQaPrincipalResolver({ database: db, auth: authorizationDependencies, secure: process.env.NODE_ENV !== "development", abuse, networkId });
 export const qaService = createQaService({
   store: createQaConversationStore(db, {
     abuse: abuse.hooks,
     publicSourceIds: legacySourceIds,
-    maxPerTenMinutes: process.env.NODE_ENV === "development" ? 1000 : 10,
-    maxPerDay: process.env.NODE_ENV === "development" ? 1000 : 100,
+    maxPerTenMinutes: 100_000_000,
+    maxPerDay: 100_000_000,
   }),
   retriever: createQaRetriever(db, { publicSourceIds: legacySourceIds, topK: 4, maxEvidenceTokens: 3000, hybrid: true }),
   generator: createQaGenerator(),

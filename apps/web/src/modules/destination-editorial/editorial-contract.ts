@@ -67,6 +67,8 @@ export const aspectRatios = ["16:9", "4:3", "3:2", "1:1", "4:5", "3:4", "21:9", 
 export const v2Typography = ["LITERARY", "MODERN", "HUMANIST", "EDITORIAL_SERIF", "GEOMETRIC_SANS"] as const;
 export const v2Palettes = ["FOREST", "SLATE", "EARTH", "MONOCHROME", "TERRACOTTA", "INDIGO"] as const;
 export const v2Rhythms = ["IMMERSIVE", "COMPACT", "RELAXED", "STACCATO"] as const;
+export const EDITORIAL_V2_MAX_ROOT_SECTIONS = 50;
+export const EDITORIAL_V2_MAX_TOTAL_NODES = 50;
 
 export const editorialDesignV2Schema = z.object({
   typography: z.enum(v2Typography).default("LITERARY"),
@@ -142,7 +144,7 @@ export const editorialLayoutV2Schema = z.object({
   variant: z.enum(variants).optional(),
   design: editorialDesignV2Schema.optional(),
   hero: z.object({ composition: z.enum(variants), locked: z.boolean(), focalLocked: z.boolean().optional() }).strict().optional(),
-  sections: z.array(editorialNodeV2Schema).min(1).max(25),
+  sections: z.array(editorialNodeV2Schema).min(1).max(EDITORIAL_V2_MAX_ROOT_SECTIONS),
   contentReferences: z.record(z.string(), z.string()).optional(),
   metadata: z.object({
     model: z.string().optional(),
@@ -159,7 +161,7 @@ export const editorialLayoutV2Schema = z.object({
       const issue = (field: string, issueCode: string) => ctx.addIssue({ code: "custom", path: [...path, field], message: issueCode, params: { issueCode } });
       if (ids.has(node.id)) issue("id", "DUPLICATE_NODE_ID");
       ids.add(node.id);
-      if (++total === 51) issue("id", "NODE_LIMIT");
+      if (++total === EDITORIAL_V2_MAX_TOTAL_NODES + 1) issue("id", "NODE_LIMIT");
       if (depth === 4) issue("children", "DEPTH_LIMIT");
       const shown = visible && !node.hidden;
       if (shown && node.type === "HERO" && (++heroes > 1 || depth !== 1 || index !== layout.sections.findIndex(section => !section.hidden))) issue("type", "HERO_POSITION");

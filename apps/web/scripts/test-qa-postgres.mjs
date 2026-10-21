@@ -89,12 +89,16 @@ async function installTask184Schema() {
     resolve(repoRoot, "packages/db/prisma/migrations/20261017150000_add_rag_public_qa_permission/migration.sql"),
     "utf8",
   );
+  const documentSoftDeleteMigration = await readFile(
+    resolve(repoRoot, "packages/db/prisma/migrations/20261020100000_rag_document_soft_delete/migration.sql"),
+    "utf8",
+  );
   const destinationMigration = await readFile(resolve(repoRoot, "packages/db/prisma/migrations/20261004070249_add_destination_domain/migration.sql"), "utf8");
   const contextMigration = await readFile(resolve(repoRoot, "packages/db/prisma/migrations/20261012120000_add_qa_destination_context/migration.sql"), "utf8");
   const cultureMigration = await readFile(resolve(repoRoot,"packages/db/prisma/migrations/20261005021531_add_culture_content_domain/migration.sql"),"utf8");
   const profileMigration = await readFile(resolve(repoRoot,"packages/db/prisma/migrations/20261012150000_admin_content_profiles/migration.sql"),"utf8");
   const legacySeed = `INSERT INTO destination(id,name,description,area,category,latitude,longitude,"updatedAt") VALUES ('af-legacy-destination','Legacy destination','Legacy prose','Test','Test',23,105,CURRENT_TIMESTAMP); INSERT INTO culture_content(id,title,content,"sourceTitle","updatedAt") VALUES('af-legacy-culture','Legacy culture','Legacy prose','Legacy source',CURRENT_TIMESTAMP); INSERT INTO opening_day(id,"destinationId","dayOfWeek",status) SELECT 'af-legacy-day-'||day, 'af-legacy-destination', day::"Weekday", 'UNKNOWN'::"OpeningStatus" FROM unnest(ARRAY['MONDAY','TUESDAY','WEDNESDAY','THURSDAY','FRIDAY','SATURDAY','SUNDAY']) day;`;
-  const setupSql = `CREATE EXTENSION vector;\n${admissionMigrations.join("\n")}\n${destinationMigration}\n${documentMigration}\n${indexMigration}\n${jobMigration}\n${ragPublicQaMigration}\n${qaMigrations.join("\n")}\n${contextMigration}\n${cultureMigration}\n${legacySeed}\n${profileMigration}\n`;
+  const setupSql = `CREATE EXTENSION vector;\n${admissionMigrations.join("\n")}\n${destinationMigration}\n${documentMigration}\n${indexMigration}\n${jobMigration}\n${ragPublicQaMigration}\n${documentSoftDeleteMigration}\n${qaMigrations.join("\n")}\n${contextMigration}\n${cultureMigration}\n${legacySeed}\n${profileMigration}\n`;
   const result = run(
     "docker",
     [
@@ -144,6 +148,21 @@ async function installTask184Schema() {
     throw new Error("rag_document_status_publicQaApproved_idx missing in PostgreSQL schema");
   }
   console.log("RAG_PUBLIC_QA_MIGRATION=VERIFIED (column publicQaApproved, index exist)");
+  const softDeleteColumns = requireSuccess("docker", [
+    "exec", containerName, "psql", "-At", "-U", databaseUser, "-d", databaseName, "-c",
+    "SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = 'rag_document' AND column_name = 'deletedAt'",
+  ]);
+  if (!softDeleteColumns.includes("deletedAt|timestamp with time zone|YES")) {
+    throw new Error(`rag_document deletedAt column missing or has the wrong nullability/type: ${softDeleteColumns}`);
+  }
+  const softDeleteIndex = requireSuccess("docker", [
+    "exec", containerName, "psql", "-At", "-U", databaseUser, "-d", databaseName, "-c",
+    "SELECT indexname FROM pg_indexes WHERE tablename = 'rag_document' AND indexname = 'rag_document_deletedAt_idx'",
+  ]);
+  if (!softDeleteIndex.includes("rag_document_deletedAt_idx")) {
+    throw new Error("rag_document_deletedAt_idx missing in PostgreSQL schema");
+  }
+  console.log("RAG_DOCUMENT_SOFT_DELETE_MIGRATION=VERIFIED (nullable deletedAt column and index exist)");
 }
 
 async function cleanupOwnedContainer() {

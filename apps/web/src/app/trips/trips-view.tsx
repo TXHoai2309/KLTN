@@ -104,6 +104,7 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
           </Link>
         )}
       </div>
+<<<<<<< HEAD
     </section>
 
     <section className="my-trips-itinerary" aria-label="Hành trình đã lưu">
@@ -140,5 +141,24 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
           {trip.status !== "COMPLETED" && <Link className="my-trips-secondary-action" href={`/trips/${trip.id}/in-trip` as Route}>Mở Trợ lý trong chuyến đi</Link>}
         </nav>
     </footer>
+=======
+    </div>
+    <p className="my-trips-status-note">Trạng thái chuyến đi được tính theo ngày lịch, không xác nhận các điểm dừng đã được tham quan.</p>
+    <div className="my-trips-days">{trip.days.map(day => <section key={day.id} className="my-trips-day" aria-labelledby={`trip-day-${day.dayIndex}`}>
+      <div className="my-trips-group-heading"><h2 id={`trip-day-${day.dayIndex}`}>Ngày {day.dayIndex}</h2><span>{dateLabel(day.localDate)}</span></div>
+      {day.visits.length === 0 ? <p className="my-trips-group-empty">Ngày này chưa có điểm dừng.</p> : <ol className="my-trips-visits">
+        {day.visits.map(visit => <li key={visit.id}>
+          <Card className="my-trips-visit">
+            <div className="my-trips-visit-time"><strong>{minuteLabel(visit.startMinute)}</strong><span>{visit.plannedDurationMinutes} phút</span></div>
+            <div className="my-trips-visit-place">
+              <h3>{visit.destination.availability === "AVAILABLE" ? <Link href={`/destinations/${visit.destination.id}` as Route}>{visit.destination.name}</Link> : visit.destination.name}</h3>
+              <p>Điểm đến · {visit.destination.area}</p>
+              {visit.destination.availability === "UNAVAILABLE" && <p className="my-trips-unavailable">Điểm đến không còn khả dụng công khai</p>}
+            </div>
+          </Card>
+        </li>)}
+      </ol>}
+    </section>)}</div>
+>>>>>>> 130d94a6fa04d37020852f8945d615887093060b
   </main>;
 }

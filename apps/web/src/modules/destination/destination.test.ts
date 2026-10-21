@@ -4,31 +4,36 @@ import { readFile } from "node:fs/promises";
 import type { Database } from "@KLTN/db";
 import { destinationInputSchema, unknownSchedule, toMinute, fromMinute, type DestinationInput } from "./destination-contract";
 import { getDestination, listDestinations, writeDestination, type DestinationDependencies } from "./destination-service";
-import { destinationJson, destinationPageQuery } from "./destination-http";
+import { destinationJson, destinationPageQuery, requireDestinationSameOrigin } from "./destination-http";
 import { AppError } from "../../server/http/app-error";
-import { saveDestination, changeDestinationVisibility } from "../../lib/destination-client";
+import { saveDestination, changeDestinationVisibility, deleteDestination, restoreDestination } from "../../lib/destination-client";
 import { setDestinationVisibility } from "./destination-visibility";
+import { restoreDestination as restoreDestinationService, softDeleteDestination } from "./destination-delete";
 import { visibleDestinationWhere, isDestinationPublic, isDestinationEligibleForNewItinerary, findEligibleDestinationIds } from "./destination-eligibility";
 import { claimSubmission, releaseSubmission } from "../../lib/auth-submission-guard";
 import { markDestinationSaved, takeDestinationSaved } from "../../lib/destination-save-notice";
-import { createElement } from "react";
+import { createElement, useRef } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import OpeningHoursEditor from "../../app/admin/destinations/opening-hours-editor";
 import DestinationPageHeader from "../../app/admin/destinations/destination-page-header";
 import { useDestinationVisibility } from "../../app/admin/destinations/destination-visibility-action";
 import DestinationVisibilitySwitch from "../../app/admin/destinations/destination-visibility-switch";
+import { useDestinationLifecycle } from "../../app/admin/destinations/destination-lifecycle-action";
 
 const input = (): DestinationInput => ({ name: "Test destination", description: "Description", area: "Đồng Văn", category: "Thiên nhiên", latitude: 23.2, longitude: 105.3, suggestedDurationMinutes: 90, minimumDurationMinutes: 30, openingDays: unknownSchedule() });
 function fixture(role: string | null = "ADMIN") {
-  let rows = new Map<string, any>(); let records = new Map<string, any>(); let writes = 0; let fail = false;
-  const rowFromData = (data: any, id: string) => ({ ...data, id, createdAt: new Date("2026-10-04T00:00:00Z"), updatedAt: new Date("2026-10-04T01:00:00Z"), openingDays: data.openingDays.create.map((day: any) => ({ ...day, intervals: day.intervals.create })) });
+  let rows = new Map<string, any>(); let records = new Map<string, any>(); let writes = 0; let fail = false; let currentRole = role; let transactionStart: (() => void) | undefined;
+  const rowFromData = (data: any, id: string) => ({ ...data, id, deletedAt: null, createdAt: new Date("2026-10-04T00:00:00Z"), updatedAt: new Date("2026-10-04T01:00:00Z"), openingDays: data.openingDays.create.map((day: any) => ({ ...day, intervals: day.intervals.create })) });
+  const matches = (row: any, where: any = {}) => (!where.id || typeof where.id !== "string" || row.id === where.id) && (!where.visibility || row.visibility === where.visibility) && (!Object.hasOwn(where, "deletedAt") || (where.deletedAt && typeof where.deletedAt === "object" ? row.deletedAt !== where.deletedAt.not : row.deletedAt === where.deletedAt)) && (!where.id?.in || where.id.in.includes(row.id));
   const db: any = {
-    user: { findUnique: async () => ({ id: "actor", role }) },
+    user: { findUnique: async () => ({ id: "actor", role: currentRole }) },
     destination: {
-      findMany: async ({ skip = 0, take = rows.size, where }: any) => [...rows.values()].filter(row => (!where?.visibility || row.visibility === where.visibility) && (!where?.id?.in || where.id.in.includes(row.id))).slice(skip, skip + take).map(({ id, name, area, category, visibility, updatedAt }) => ({ id, name, area, category, visibility, updatedAt })),
-      findUnique: async ({ where }: any) => rows.get(where.id) ?? null,
+      findMany: async ({ skip = 0, take = rows.size, where }: any) => [...rows.values()].filter(row => matches(row, where)).slice(skip, skip + take).map(({ id, name, area, category, visibility, updatedAt, deletedAt }) => ({ id, name, area, category, visibility, updatedAt, deletedAt })),
+      findUnique: async ({ where }: any) => { const row = rows.get(where.id); return row && matches(row, where) ? row : null; },
+      findFirst: async ({ where }: any) => [...rows.values()].find(row => matches(row, where)) ?? null,
       create: async ({ data }: any) => { writes++; const row = rowFromData(data, `id-${rows.size + 1}`); rows.set(row.id, row); return row; },
       update: async ({ where, data }: any) => { writes++; if (fail) throw new AppError("TEST_ROLLBACK", "fixture failure", 400); const old = rows.get(where.id); const row = { ...old, ...data, openingDays: structuredClone(old.openingDays) }; if(data.openingDays?.update) for(const change of data.openingDays.update){const day=row.openingDays.find((d:any)=>d.dayOfWeek===change.where.destinationId_dayOfWeek.dayOfWeek);day.status=change.data.status;const removed=change.data.intervals.deleteMany.map((i:any)=>i.opensAtMinute);day.intervals=day.intervals.filter((i:any)=>!removed.includes(i.opensAtMinute)).concat(change.data.intervals.create);} rows.set(row.id, row); return row; },
+      updateMany: async ({ where, data }: any) => { const old = rows.get(where.id); if (!old || !matches(old, where)) return { count: 0 }; writes++; if (fail) throw new AppError("TEST_ROLLBACK", "fixture failure", 400); rows.set(old.id, { ...old, ...data, updatedAt: new Date("2026-10-04T02:00:00Z") }); return { count: 1 }; },
     },
     openingDay: { deleteMany: async ({ where }: any) => { rows.get(where.destinationId).openingDays = []; } },
     idempotencyRecord: {
@@ -36,15 +41,15 @@ function fixture(role: string | null = "ADMIN") {
       create: async ({ data }: any) => { const key = JSON.stringify({ scope: data.scope, key: data.key }); if (records.has(key)) throw new Error("duplicate key"); records.set(key, data); },
       update: async ({ where, data }: any) => Object.assign(records.get(JSON.stringify(where.scope_key)), data),
     },
-    $transaction: async (fn: any) => { const snapshot = structuredClone({ rows, records }); try { return await fn(db); } catch (error) { rows = snapshot.rows; records = snapshot.records; throw error; } },
+    $transaction: async (fn: any) => { const snapshot = structuredClone({ rows, records }); try { transactionStart?.(); return await fn(db); } catch (error) { rows = snapshot.rows; records = snapshot.records; throw error; } },
   };
   const deps: DestinationDependencies = { database: db as Database, resolveSession: async () => role ? { user: { id: "actor" } } : null };
-  return { deps, writes: () => writes, records: () => records.size, rows: () => rows, failUpdate: () => { fail = true; } };
+  return { deps, writes: () => writes, records: () => records.size, rows: () => rows, failUpdate: () => { fail = true; }, setRole: (next: string | null) => { currentRole = next; }, onTransaction: (callback: () => void) => { transactionStart = callback; } };
 }
 const headers = new Headers();
 for (const role of [null, "TRAVELER"]) test(`${role ?? "GUEST"} cannot list/detail/create/update even with role body`, async () => {
   const f = fixture(role);
-  for (const execute of [() => listDestinations(headers, 1, f.deps), () => getDestination(headers, "id", f.deps), () => writeDestination(headers, { ...input(), role: "ADMIN" }, "key", null, f.deps), () => writeDestination(headers, input(), "key", "id", f.deps)]) await assert.rejects(execute(), { status: role ? 403 : 401 });
+  for (const execute of [() => listDestinations(headers, 1, f.deps), () => listDestinations(headers, 1, f.deps, "deleted"), () => getDestination(headers, "id", f.deps), () => writeDestination(headers, { ...input(), role: "ADMIN" }, "key", null, f.deps), () => writeDestination(headers, input(), "key", "id", f.deps)]) await assert.rejects(execute(), { status: role ? 403 : 401 });
   assert.equal(f.writes(), 0);
 });
 test("strict create/update reject forged fields before writes", async () => {
@@ -126,7 +131,11 @@ test("client lost/malformed response UNKNOWN, denied response FAILED, success DT
 });
 test("HTTP parser rejects unknown/repeated query, foreign origin, non-JSON and malformed JSON", async () => {
   for (const query of ["role=ADMIN", "page=0", "page=1&page=2"]) assert.throws(() => destinationPageQuery(new Request(`https://example.test/api?${query}`)), { status: 400 });
-  assert.equal(destinationPageQuery(new Request("https://example.test/api?page=2")), 2);
+  assert.deepEqual(destinationPageQuery(new Request("https://example.test/api?page=2")), { page: 2, view: "active" });
+  assert.deepEqual(destinationPageQuery(new Request("https://example.test/api?page=2&view=deleted")), { page: 2, view: "deleted" });
+  requireDestinationSameOrigin(new Request("https://example.test/api/item", { method: "DELETE", headers: { origin: "https://example.test" } }));
+  assert.throws(() => requireDestinationSameOrigin(new Request("https://example.test/api/item", { method: "DELETE", headers: { origin: "https://foreign.test" } })), { status: 403 });
+  assert.throws(() => requireDestinationSameOrigin(new Request("https://example.test/api/item?role=ADMIN", { method: "DELETE", headers: { origin: "https://example.test" } })), { status: 400 });
   await assert.rejects(destinationJson(new Request("https://example.test/api", { method: "POST" })), { status: 403 });
   await assert.rejects(destinationJson(new Request("https://example.test/api", { method: "POST", headers: { origin: "https://example.test" } })), { status: 415 });
   await assert.rejects(destinationJson(new Request("https://example.test/api", { method: "POST", headers: { origin: "https://example.test", "content-type": "application/json" }, body: "bad" })), { status: 400 });
@@ -251,10 +260,10 @@ test("visibility rechecks current role inside transaction", async () => {
   assert.equal(f.rows().get("id-1").visibility, "HIDDEN"); assert.equal(f.records(), 1);
 });
 
-test("public and new-itinerary canonical predicates reject hidden/missing; persistence only returns existing visible IDs", async () => {
+test("public and new-itinerary canonical predicates reject hidden/deleted/missing; persistence only returns active visible IDs", async () => {
   const f = fixture(); await writeDestination(headers, input(), "a", null, f.deps); await writeDestination(headers, input(), "b", null, f.deps);
   await setDestinationVisibility(headers, "id-1", { visibility: "VISIBLE" }, "show", f.deps);
-  assert.deepEqual(visibleDestinationWhere, { visibility: "VISIBLE" });
+  assert.deepEqual(visibleDestinationWhere, { visibility: "VISIBLE", deletedAt: null });
   for (const predicate of [isDestinationPublic, isDestinationEligibleForNewItinerary]) {
     assert.equal(predicate(f.rows().get("id-1")), true);
     assert.equal(predicate(f.rows().get("id-2")), false);
@@ -263,6 +272,67 @@ test("public and new-itinerary canonical predicates reject hidden/missing; persi
   assert.deepEqual(await findEligibleDestinationIds(["id-1", "id-2", "missing"], f.deps.database), ["id-1"]);
   assert.deepEqual(await findEligibleDestinationIds([], f.deps.database), []);
   assert.equal((await listDestinations(headers, 1, f.deps)).items.length, 2);
+});
+
+test("soft delete preserves historical references and visibility, filters both lists and replays idempotently", async () => {
+  const f = fixture(); await writeDestination(headers, input(), "create", null, f.deps);
+  const row = f.rows().get("id-1"); row.visibility = "VISIBLE"; row.favorites = [{ id: "favorite-1" }]; row.itineraryVisits = [{ id: "visit-1" }]; row.cultureLinks = [{ cultureId: "culture-1" }];
+  const before = structuredClone({ favorites: row.favorites, itineraryVisits: row.itineraryVisits, cultureLinks: row.cultureLinks, openingDays: row.openingDays });
+  const first = await softDeleteDestination(headers, "id-1", "delete-key", f.deps);
+  assert.equal(first.status, "SUCCESS"); assert.equal(f.rows().get("id-1").visibility, "VISIBLE"); assert.ok(f.rows().get("id-1").deletedAt instanceof Date);
+  assert.deepEqual({ favorites: f.rows().get("id-1").favorites, itineraryVisits: f.rows().get("id-1").itineraryVisits, cultureLinks: f.rows().get("id-1").cultureLinks, openingDays: f.rows().get("id-1").openingDays }, before);
+  assert.equal((await listDestinations(headers, 1, f.deps)).items.length, 0);
+  const deleted = await listDestinations(headers, 1, f.deps, "deleted"); assert.equal(deleted.items.length, 1); assert.ok(deleted.items[0]?.deletedAt);
+  await assert.rejects(getDestination(headers, "id-1", f.deps), { status: 404 });
+  const writes = f.writes(); const replay = await softDeleteDestination(headers, "id-1", "delete-key", f.deps);
+  assert.equal(replay.status, "SUCCESS"); if (replay.status === "SUCCESS") assert.equal(replay.replayed, true); assert.equal(f.writes(), writes);
+  const conflict = await softDeleteDestination(headers, "id-2", "delete-key", f.deps); assert.equal(conflict.status, "FAILED"); if (conflict.status === "FAILED") assert.equal(conflict.httpStatus, 409);
+});
+
+test("restore clears deletedAt, forces HIDDEN, preserves relations and is Admin-only/idempotent", async () => {
+  const f = fixture(); await writeDestination(headers, input(), "create", null, f.deps);
+  const row = f.rows().get("id-1"); row.visibility = "VISIBLE"; row.favorites = [{ id: "favorite-1" }]; row.itineraryVisits = [{ id: "visit-1" }];
+  await softDeleteDestination(headers, "id-1", "delete-key", f.deps);
+  const restored = await restoreDestinationService(headers, "id-1", "restore-key", f.deps);
+  assert.equal(restored.status, "SUCCESS"); assert.equal(f.rows().get("id-1").deletedAt, null); assert.equal(f.rows().get("id-1").visibility, "HIDDEN");
+  assert.deepEqual(f.rows().get("id-1").favorites, [{ id: "favorite-1" }]); assert.deepEqual(f.rows().get("id-1").itineraryVisits, [{ id: "visit-1" }]);
+  assert.equal((await listDestinations(headers, 1, f.deps)).items[0]?.visibility, "HIDDEN");
+  const writes = f.writes(); const replay = await restoreDestinationService(headers, "id-1", "restore-key", f.deps);
+  assert.equal(replay.status, "SUCCESS"); if (replay.status === "SUCCESS") assert.equal(replay.replayed, true); assert.equal(f.writes(), writes);
+  for (const role of [null, "TRAVELER"]) {
+    const denied = fixture(role);
+    await assert.rejects(softDeleteDestination(headers, "id-1", "key", denied.deps), { status: role ? 403 : 401 });
+    await assert.rejects(restoreDestinationService(headers, "id-1", "key", denied.deps), { status: role ? 403 : 401 });
+    assert.equal(denied.writes(), 0); assert.equal(denied.records(), 0);
+  }
+  assert.equal(isDestinationPublic({ visibility: "VISIBLE", deletedAt: new Date() }), false);
+});
+
+test("soft delete and restore recheck Admin role inside the write transaction", async () => {
+  const deletion = fixture(); await writeDestination(headers, input(), "create", null, deletion.deps);
+  const deleteWrites = deletion.writes(); const deleteRecords = deletion.records();
+  deletion.onTransaction(() => deletion.setRole("TRAVELER"));
+  const deleteResult = await softDeleteDestination(headers, "id-1", "revoked-delete", deletion.deps);
+  assert.equal(deleteResult.status, "FAILED"); if (deleteResult.status === "FAILED") assert.equal(deleteResult.httpStatus, 403);
+  assert.equal(deletion.rows().get("id-1").deletedAt, null); assert.equal(deletion.writes(), deleteWrites); assert.equal(deletion.records(), deleteRecords);
+
+  const restoration = fixture(); await writeDestination(headers, input(), "create", null, restoration.deps);
+  await softDeleteDestination(headers, "id-1", "setup-delete", restoration.deps);
+  const writes = restoration.writes(); const records = restoration.records();
+  restoration.onTransaction(() => restoration.setRole("TRAVELER"));
+  const restoreResult = await restoreDestinationService(headers, "id-1", "revoked-restore", restoration.deps);
+  assert.equal(restoreResult.status, "FAILED"); if (restoreResult.status === "FAILED") assert.equal(restoreResult.httpStatus, 403);
+  assert.ok(restoration.rows().get("id-1").deletedAt instanceof Date); assert.equal(restoration.writes(), writes); assert.equal(restoration.records(), records);
+});
+
+test("soft-delete failure rolls back and restore rejects non-deleted Destinations", async () => {
+  const f = fixture(); await writeDestination(headers, input(), "create", null, f.deps); f.failUpdate();
+  const failed = await softDeleteDestination(headers, "id-1", "failed-delete", f.deps); assert.equal(failed.status, "FAILED");
+  assert.equal(f.rows().get("id-1").deletedAt, null); assert.equal(f.records(), 1);
+  for (const visibility of ["HIDDEN", "VISIBLE"] as const) {
+    const g = fixture(); await writeDestination(headers, input(), "create", null, g.deps); g.rows().get("id-1").visibility = visibility;
+    const result = await restoreDestinationService(headers, "id-1", `not-deleted-${visibility}`, g.deps); assert.equal(result.status, "FAILED"); if (result.status === "FAILED") assert.equal(result.httpStatus, 409);
+  }
 });
 
 test("visibility client sends explicit endpoint/target/key and rejects transport or mismatched confirmation as UNKNOWN", async () => {
@@ -278,6 +348,57 @@ test("visibility client sends explicit endpoint/target/key and rejects transport
   }
   assert.equal((await changeDestinationVisibility("id-1", "VISIBLE", "key", async () => { throw Error("lost"); })).status, "UNKNOWN");
   assert.equal((await changeDestinationVisibility("id-1", "VISIBLE", "key", async () => Response.json({ success: false, operationStatus: "FAILED", error: { code: "FORBIDDEN" } }, { status: 403 }))).status, "FAILED");
+});
+
+test("delete and restore clients send bodyless mutations and preserve same-key UNKNOWN recovery", async () => {
+  const requests: { url: string; method: string; key: string | null; body: unknown }[] = [];
+  const transport = async (url: string | URL | Request, init?: RequestInit) => {
+    requests.push({ url: String(url), method: init?.method ?? "GET", key: new Headers(init?.headers).get("Idempotency-Key"), body: init?.body });
+    return requests.length === 1
+      ? Response.json({ success: false, operationStatus: "UNKNOWN", retryWithSameKey: true, error: { code: "UNKNOWN", message: "unknown" } }, { status: 503 })
+      : Response.json({ success: true, operationStatus: "SUCCESS", data: { id: "id-1", deletedAt: "2026-10-20T10:00:00.000Z" } }, { headers: { "Idempotency-Replayed": "true" } });
+  };
+  assert.equal((await deleteDestination("id-1", "delete-key", transport)).status, "UNKNOWN");
+  assert.equal((await deleteDestination("id-1", "delete-key", transport)).status, "SUCCESS");
+  assert.deepEqual(requests, [
+    { url: "/api/admin/destinations/id-1", method: "DELETE", key: "delete-key", body: undefined },
+    { url: "/api/admin/destinations/id-1", method: "DELETE", key: "delete-key", body: undefined },
+  ]);
+  const restored = await restoreDestination("id-1", "restore-key", async (url, init) => {
+    assert.equal(url, "/api/admin/destinations/id-1/restore"); assert.equal(init?.method, "POST");
+    assert.equal(new Headers(init?.headers).get("Idempotency-Key"), "restore-key"); assert.equal(init?.body, undefined);
+    return Response.json({ success: true, operationStatus: "SUCCESS", data: { id: "id-1", visibility: "HIDDEN", updatedAt: "2026-10-20T10:01:00.000Z" } });
+  }); assert.equal(restored.status, "SUCCESS");
+  assert.equal((await deleteDestination("id-1", "key", async () => Response.json({ success: true, operationStatus: "SUCCESS", data: { id: "other", deletedAt: "2026-10-20T10:00:00.000Z" } }))).status, "UNKNOWN");
+  assert.equal((await restoreDestination("id-1", "key", async () => Response.json({ success: false, operationStatus: "FAILED", error: { code: "FORBIDDEN", message: "forbidden" } }, { status: 403 }))).status, "FAILED");
+});
+
+test("delete and restore controls have named accessible actions and guarded idempotent routes", async () => {
+  function Actions() {
+    const controller = useDestinationLifecycle(() => {}, useRef(false));
+    return createElement("div", null,
+      controller.action({ id: "a", name: "Cao nguyên đá Đồng Văn" }, "active"),
+      controller.action({ id: "b", name: "Chợ tình Khâu Vai" }, "deleted"),
+      controller.feedback,
+    );
+  }
+  const html = renderToStaticMarkup(createElement(Actions));
+  assert.match(html, /aria-label="Xóa Cao nguyên đá Đồng Văn"/);
+  assert.match(html, /aria-label="Khôi phục Chợ tình Khâu Vai"/);
+  const ui = await readFile(new URL("../../app/admin/destinations/destination-lifecycle-action.tsx", import.meta.url), "utf8");
+  assert.match(ui, /deleteDestination\(id, current\.key\)/); assert.match(ui, /restoreDestination\(id, current\.key\)/);
+  assert.match(ui, /aria-labelledby=\{titleId\}/); assert.match(ui, /aria-describedby=\{descriptionId\}/);
+  assert.match(ui, /<strong>\{confirmation\.name\}<\/strong>/); assert.match(ui, /autoFocus/); assert.match(ui, /onCancel=/);
+  assert.match(ui, /Thử lại cùng thao tác/); assert.match(ui, /Đang xóa…/); assert.match(ui, /Đang khôi phục…/);
+  const deleteRoute = await readFile(new URL("../../app/api/admin/destinations/[id]/route.ts", import.meta.url), "utf8");
+  const restoreRoute = await readFile(new URL("../../app/api/admin/destinations/[id]/restore/route.ts", import.meta.url), "utf8");
+  for (const route of [deleteRoute, restoreRoute]) {
+    assert.match(route, /requireActor\(request\.headers, deps, "admin"\)/);
+    assert.match(route, /requireIdempotencyKey\(request\)/);
+    assert.match(route, /requireDestinationSameOrigin\(request\)/);
+    assert.match(route, /apiMutationResult/);
+  }
+  assert.match(deleteRoute, /export async function DELETE/); assert.match(restoreRoute, /export async function POST/);
 });
 
 test("visibility switches render confirmed OFF/ON with text, explicit type and accessible labels", () => {
@@ -302,7 +423,7 @@ test("visibility UI tracks pending and UNKNOWN per item, confirms hide, retries 
   assert.match(ui, /<dialog.*aria-labelledby=.*aria-describedby=/); assert.match(ui, /onCancel=/); assert.match(ui, /autoFocus/);
   assert.doesNotMatch(ui, /window.confirm|setVisibility/);
   const list = await readFile(new URL("../../app/admin/destinations/destination-list.tsx", import.meta.url), "utf8");
-  assert.equal(list.split('visibilityAction.action(item)').length - 1, 2);
+  assert.equal(list.split('visibilityAction.action(item, lifecycle.busy)').length - 1, 2);
   const form = await readFile(new URL("../../app/admin/destinations/destination-form.tsx", import.meta.url), "utf8");
   assert.match(form, /useDestinationVisibility\([\s\S]*?setDto[\s\S]*?,\s*lock,?\s*\)/);
   assert.match(form, /dto\s*&&\s*visibilityAction.action/); assert.match(form, /visibilityAction.action/);
@@ -334,9 +455,9 @@ test("switch is presentation only, list places it in status not action column, m
   assert.ok(controller.includes('dialog.current?.close(); setConfirmation(null);'));
   assert.ok(controller.includes('void execute(item);'));
   const list = await readFile(new URL("../../app/admin/destinations/destination-list.tsx", import.meta.url), "utf8");
-  assert.ok(list.includes('<td>{visibilityAction.action(item)}</td>'));
-  assert.ok(list.includes('<h3>{item.name}</h3>{visibilityAction.action(item)}'));
-  assert.ok(!list.includes('destination-row-actions">{visibilityAction.action'));
+  assert.equal(list.split('visibilityAction.action(item, lifecycle.busy)').length - 1, 2);
+  assert.equal(list.split('lifecycle.action(item, view)').length - 1, 2);
+  assert.ok(list.includes('view === "active" && <Link'));
   assert.match(list, /aria-label=\{`Chỉnh sửa \$\{item.name\}`\}/);
   const css = await readFile(new URL("../../app/admin/destinations/destinations.css", import.meta.url), "utf8");
   assert.match(css, /aria-checked=true/); assert.match(css, /translateX\(18px\)/);

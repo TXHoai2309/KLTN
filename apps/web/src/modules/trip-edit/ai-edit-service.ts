@@ -60,7 +60,7 @@ const aiEditTripSelect = {
           order: true,
           startMinute: true,
           plannedDurationMinutes: true,
-          destination: { select: { id: true, name: true, visibility: true } },
+          destination: { select: { id: true, name: true, visibility: true, deletedAt: true } },
         },
       },
     },
@@ -145,9 +145,9 @@ function clarificationContext(
         visitId: visit.id,
         destinationId: visit.destination.id,
         destinationName:
-          visit.destination.visibility === "VISIBLE"
+          visit.destination.visibility === "VISIBLE" && !visit.destination.deletedAt
             ? visit.destination.name
-            : "Điểm đến đã ẩn",
+            : "Điểm đến không còn khả dụng",
         dayIndex: day.dayIndex,
         startMinute: visit.startMinute,
       })),
@@ -447,9 +447,9 @@ export async function createAiEditProposal(
       visits: day.visits.map((visit) => ({
         visitId: visit.id,
         destinationName:
-          visit.destination.visibility === "VISIBLE"
+          visit.destination.visibility === "VISIBLE" && !visit.destination.deletedAt
             ? visit.destination.name
-            : "Điểm đến đã ẩn",
+            : "Điểm đến không còn khả dụng",
         startTime: formatStartTime(visit.startMinute),
         durationMinutes: visit.plannedDurationMinutes,
       })),

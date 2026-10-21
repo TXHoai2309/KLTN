@@ -14,9 +14,13 @@ import {
   LoaderCircle,
   Save,
   Plus,
+  Expand,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { DestinationDto } from "@/modules/destination/destination-contract";
+import {
+  DESTINATION_DESCRIPTION_MAX_LENGTH,
+  type DestinationDto,
+} from "@/modules/destination/destination-contract";
 import {
   destinationV3CreateSchema,
   destinationV3PatchSchema,
@@ -78,7 +82,10 @@ export default function DestinationForm({ id }: { id: string | null }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState("");
   const [preview, setPreview] = useState(false);
+  const [descriptionEditorOpen, setDescriptionEditorOpen] = useState(false);
   const images = useRef<DestinationImagesHandle>(null);
+  const descriptionDialog = useRef<HTMLDialogElement>(null);
+  const descriptionExpandButton = useRef<HTMLButtonElement>(null);
   const [mediaPatch, setMediaPatch] = useState<Partial<DestinationV3Input>>({});
   const [imageState, setImageState] = useState({ busy: false, pending: false, uncertainReview: false });
   const imageStateChanged = useCallback((value: { busy: boolean; pending: boolean; uncertainReview: boolean }) => setImageState(value), []);
@@ -132,6 +139,10 @@ export default function DestinationForm({ id }: { id: string | null }) {
       active = false;
     };
   }, [id, reload]);
+  useEffect(() => {
+    const dialog = descriptionDialog.current;
+    if (descriptionEditorOpen && dialog && !dialog.open) dialog.showModal();
+  }, [descriptionEditorOpen]);
   function change<K extends keyof DestinationDraft>(
     key: K,
     value: DestinationDraft[K],
@@ -145,6 +156,13 @@ export default function DestinationForm({ id }: { id: string | null }) {
       ),
     );
     setFeedback("");
+  }
+  function closeDescriptionEditor() {
+    setDescriptionEditorOpen(false);
+    window.requestAnimationFrame(() => {
+      if (descriptionExpandButton.current && !descriptionExpandButton.current.disabled)
+        descriptionExpandButton.current.focus();
+    });
   }
   const focusError = (path: string) => {
     if (path.startsWith("media.")) {
@@ -402,25 +420,38 @@ export default function DestinationForm({ id }: { id: string | null }) {
                 </AdminLabel>
                 <textarea
                   id="destination-description"
-                  className="af-textarea dv3-description resize-none"
+                  className="af-textarea dv3-description"
+                  rows={6}
                   value={draft.description}
                   placeholder="Nhập mô tả chi tiết về cảnh quan, trải nghiệm du lịch, văn hóa và các thông tin cần biết cho du khách..."
-                  maxLength={10000}
+                  maxLength={DESTINATION_DESCRIPTION_MAX_LENGTH}
                   onChange={(e) => {
                     change("description", e.target.value);
-                    e.target.style.height = "auto";
-                    e.target.style.height = e.target.scrollHeight + "px";
                   }}
                   aria-invalid={Boolean(errors.description)}
-                  aria-describedby="description-help err-description"
+                  aria-describedby="description-help description-count err-description"
                 />
-                <div className="dv3-textarea-meta">
-                  <p id="description-help" className="af-helper">
-                    Mô tả đặc điểm, trải nghiệm và thông tin cần biết.
-                  </p>
-                  <span className="dv3-char-count">
-                    {draft.description.length.toLocaleString("vi-VN")} / 10.000 ký tự
-                  </span>
+                <div className="dv3-description-meta-row">
+                  <div className="dv3-textarea-meta">
+                    <p id="description-help" className="af-helper">
+                      Mô tả đặc điểm, trải nghiệm và thông tin cần biết.
+                    </p>
+                    <span id="description-count" className="dv3-char-count">
+                      {draft.description.length.toLocaleString("vi-VN")} / {DESTINATION_DESCRIPTION_MAX_LENGTH.toLocaleString("vi-VN")} ký tự
+                    </span>
+                  </div>
+                  <button
+                    id="destination-description-expand"
+                    ref={descriptionExpandButton}
+                    type="button"
+                    className="af-btn dv3-description-expand"
+                    disabled={disabled}
+                    onClick={() => setDescriptionEditorOpen(true)}
+                    aria-haspopup="dialog"
+                  >
+                    <Expand size={16} />
+                    <span>Xem thêm và chỉnh sửa</span>
+                  </button>
                 </div>
               </AdminField>
               {summary && (
@@ -681,6 +712,56 @@ export default function DestinationForm({ id }: { id: string | null }) {
           </AdminStickyActions>
         </form>
       </main>
+      {descriptionEditorOpen && (
+        <dialog
+          ref={descriptionDialog}
+          id="destination-description-dialog"
+          className="dv3-description-dialog"
+          aria-labelledby="destination-description-dialog-title"
+          aria-describedby="destination-description-dialog-help"
+          onCancel={(event) => {
+            event.preventDefault();
+            closeDescriptionEditor();
+          }}
+          onClose={closeDescriptionEditor}
+        >
+          <div className="dv3-description-dialog-content">
+            <header className="dv3-description-dialog-header">
+              <div>
+                <h2 id="destination-description-dialog-title">Mô tả điểm đến</h2>
+                <p id="destination-description-dialog-help">
+                  Nội dung dài được cuộn trong khung này, không làm trang biểu mẫu kéo dài thêm.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="af-btn"
+                onClick={closeDescriptionEditor}
+              >
+                Đóng
+              </button>
+            </header>
+            <label className="sr-only" htmlFor="destination-description-expanded">
+              Mô tả điểm đến đầy đủ
+            </label>
+            <textarea
+              id="destination-description-expanded"
+              className="af-textarea dv3-description-expanded"
+              rows={12}
+              value={draft.description}
+              maxLength={DESTINATION_DESCRIPTION_MAX_LENGTH}
+              onChange={(e) => change("description", e.target.value)}
+              aria-invalid={Boolean(errors.description)}
+              aria-describedby="description-help description-count err-description"
+              disabled={disabled}
+              autoFocus
+            />
+            <p className="dv3-description-dialog-count">
+              {draft.description.length.toLocaleString("vi-VN")} / {DESTINATION_DESCRIPTION_MAX_LENGTH.toLocaleString("vi-VN")} ký tự
+            </p>
+          </div>
+        </dialog>
+      )}
     </div>
   );
 }

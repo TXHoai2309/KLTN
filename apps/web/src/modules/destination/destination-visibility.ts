@@ -19,7 +19,7 @@ export async function setDestinationVisibility(headers: Headers, id: string, bod
     database: deps.database, actorId: actor.id, operation: "destination:set-visibility", key, input: { id, ...input },
     execute: async tx => {
       await requireActor(headers, { ...deps, database: tx as unknown as Database }, "admin");
-      const row = await tx.destination.findUnique({ where: { id }, select: destinationSelect });
+      const row = await tx.destination.findUnique({ where: { id, deletedAt: null }, select: destinationSelect });
       if (!row) throw new AppError("DESTINATION_NOT_FOUND", "Không tìm thấy điểm đến.", 404);
       // No rewrite/delete of the destination or its opening schedule. Same-state is a no-op.
       if (row.visibility === input.visibility) return toDestinationDto(row);

@@ -77,7 +77,7 @@ describe("development QA stage diagnostics with offline providers", () => {
     expect(t.store.complete).not.toHaveBeenCalled(); expect(t.store.fail).toHaveBeenCalledTimes(1);
   });
   it.each([
-    [{ output: answered, finishReason: "length" }, "GENERATION_ENVELOPE", "ENVELOPE"],
+    [{ output: answered, finishReason: "length" }, "GENERATION_ENVELOPE", "TOKEN_LIMIT"],
     [{ content: "{", finishReason: "stop" }, "GENERATION_JSON", "INVALID_JSON"],
   ])("rejects truncation/malformed output before outcome validation %#", async (provider, stage, category) => {
     const t = await exercise("valid", provider);

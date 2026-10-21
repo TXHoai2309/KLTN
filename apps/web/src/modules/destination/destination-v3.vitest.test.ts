@@ -4,7 +4,11 @@ import {
   destinationV3CreateSchema,
   destinationV3PatchSchema,
 } from "./destination-v3-contract";
-import { destinationDtoSchema, unknownSchedule } from "./destination-contract";
+import {
+  DESTINATION_DESCRIPTION_MAX_LENGTH,
+  destinationDtoSchema,
+  unknownSchedule,
+} from "./destination-contract";
 import {
   destinationDraft,
   destinationDraftPayload,
@@ -46,6 +50,34 @@ const dto = () =>
     },
   });
 describe("Destination V3 safe form contract", () => {
+  it("accepts long descriptions through create, patch and DTO contracts up to the shared bound", () => {
+    const description = "x".repeat(DESTINATION_DESCRIPTION_MAX_LENGTH);
+    const base = {
+      formVersion: "V3" as const,
+      name: "Long description",
+      description,
+      category: "văn hóa",
+      googleMapsUrl: "https://google.com/maps/search/?query=23,105",
+    };
+
+    expect(destinationV3CreateSchema.safeParse(base).success).toBe(true);
+    expect(
+      destinationV3PatchSchema.safeParse({ formVersion: "V3", description })
+        .success,
+    ).toBe(true);
+    expect(
+      destinationDtoSchema.safeParse({
+        ...dto(),
+        description,
+      }).success,
+    ).toBe(true);
+    expect(
+      destinationV3CreateSchema.safeParse({
+        ...base,
+        description: `${description}x`,
+      }).success,
+    ).toBe(false);
+  });
   it("legacy HTTP responses omit added child IDs; V3 explicitly requests them", () => {
     const value = dto();
     expect(

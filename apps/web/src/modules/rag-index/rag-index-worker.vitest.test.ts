@@ -12,7 +12,7 @@ import { createRagIndexWorker, type RagIndexWorkerDependencies } from "./rag-ind
 
 vi.mock("server-only", () => ({}));
 
-function harness(options: { status?: string; content?: string; fileType?: "TXT" | "PDF" | "DOCX"; bytes?: Uint8Array; persistedIndexes?: number[]; providerFailure?: EmbeddingError; signal?: AbortSignal; leaseMs?: number; renewFailure?: boolean; holdStorageUntilAbort?: boolean; onVerifyGeneration?: () => void } = {}) {
+function harness(options: { status?: string; deletedAt?: Date | null; content?: string; fileType?: "TXT" | "PDF" | "DOCX"; bytes?: Uint8Array; persistedIndexes?: number[]; providerFailure?: EmbeddingError; signal?: AbortSignal; leaseMs?: number; renewFailure?: boolean; holdStorageUntilAbort?: boolean; onVerifyGeneration?: () => void } = {}) {
   const fileType = options.fileType ?? "TXT";
   const bytes = options.bytes ?? new TextEncoder().encode(options.content ?? "Hà Giang có cao nguyên đá và nhiều giá trị văn hóa.");
   const fileName = fileType === "TXT" ? "synthetic.txt" : fileType === "PDF" ? "synthetic.pdf" : "synthetic.docx";
@@ -40,7 +40,7 @@ function harness(options: { status?: string; content?: string; fileType?: "TXT" 
       return "RENEWED" as const;
     }),
     getDocumentForJob: vi.fn(async () => ({
-      id: "doc-1", status: options.status ?? "APPROVED", originalFileName: fileName,
+      id: "doc-1", status: options.status ?? "APPROVED", deletedAt: options.deletedAt ?? null, originalFileName: fileName,
       fileType, mimeType, sizeBytes: bytes.byteLength, storagePath: "private/registered-path",
     })),
     checkpoint: vi.fn(async (_lease, phase: string, pending?: number[] | null) => { calls.push(`phase:${phase}:${pending?.join(",") ?? ""}`); }),
@@ -81,6 +81,13 @@ function harness(options: { status?: string; content?: string; fileType?: "TXT" 
 }
 
 describe("US-19 Task185 indexing worker", () => {
+  it.each([false,true])("derives citation metadata after chunks; metadata failure does not block indexing (%s)",async fail=>{
+    const t=harness();const save=vi.fn(async()=>{if(fail)throw Error("unavailable");});
+    const worker=createRagIndexWorker({jobs:t.jobs,index:t.index,storage:t.storage,provider:createFakeEmbeddingProvider().provider,saveCitationBundle:save} as unknown as RagIndexWorkerDependencies);
+    expect(await worker.runNext()).toMatchObject({status:"COMPLETED"});
+    expect(save).toHaveBeenCalledWith("doc-1","generation-1","cv-1",expect.objectContaining({parserVersion:"explicit-section-sources-v1"}));
+    expect(t.index.persistChunks.mock.invocationCallOrder[0]).toBeLessThan(save.mock.invocationCallOrder[0]!);
+  });
   it.each(["Cao nguyên đá Đồng Văn", "Di tích Căng Bắc Mê", "Chợ tình Khâu Vai"])("indexes research fixture %s through the full mocked pipeline", async title => {
     const test = harness({fileType:"DOCX", bytes:researchDocx(title)});
     await expect(test.worker.runNext()).resolves.toMatchObject({status:"COMPLETED"});
@@ -220,7 +227,15 @@ describe("US-19 Task185 indexing worker", () => {
 
 describe("Task187 failure pipeline regressions",()=>{
  it("valid DOCX completes real extraction/chunking",async()=>{const t=harness({fileType:"DOCX",bytes:syntheticDocx(p("Synthetic valid document"))});expect(await t.worker.runNext()).toMatchObject({status:"COMPLETED"});expect(t.index.finalizeReadyGeneration).toHaveBeenCalledTimes(1);});
- it("missing Blob fails without provider or publication",async()=>{const t=harness();t.storage.read.mockRejectedValue(new Error("synthetic missing"));expect(await t.worker.runNext()).toMatchObject({status:"FAILED"});expect(t.providerCalls).toBe(0);expect(t.index.finalizeReadyGeneration).not.toHaveBeenCalled();});
+  it("missing Blob fails without provider or publication",async()=>{const t=harness();t.storage.read.mockRejectedValue(new Error("synthetic missing"));expect(await t.worker.runNext()).toMatchObject({status:"FAILED"});expect(t.providerCalls).toBe(0);expect(t.index.finalizeReadyGeneration).not.toHaveBeenCalled();});
+  it("deleted documents cancel before reading Blob or invoking the provider", async () => {
+    const t = harness({ deletedAt: new Date("2026-10-20T00:00:00Z") });
+    expect(await t.worker.runNext()).toMatchObject({ status: "CANCELLED" });
+    expect(t.storage.read).not.toHaveBeenCalled();
+    expect(t.providerCalls).toBe(0);
+    expect(t.index.finalizeReadyGeneration).not.toHaveBeenCalled();
+    expect(t.failures[0]).toMatchObject({ status: "CANCELLED", code: "DOCUMENT_NOT_ELIGIBLE" });
+  });
  it("untrusted extractor hash cannot publish",async()=>{const t=harness();const actual=await extractDocument({bytes:new TextEncoder().encode("Synthetic"),format:"TXT"});const replacement={...actual,...("document" in actual?{document:{...actual.document,originalBytesHash:"0".repeat(64)}}:{})};const test=createRagIndexWorker({jobs:t.jobs,index:t.index,storage:t.storage,provider:createFakeEmbeddingProvider().provider,extract:async()=>replacement} as unknown as RagIndexWorkerDependencies);expect(await test.runNext()).toMatchObject({status:"FAILED"});expect(t.index.finalizeReadyGeneration).not.toHaveBeenCalled();});
  it("provider rejection fails instead of being automatically retried",async()=>{const t=harness({providerFailure:new EmbeddingError("PROVIDER_REJECTED",false)});expect(await t.worker.runNext()).toMatchObject({status:"FAILED"});expect(t.providerCalls).toBe(1);expect(t.index.finalizeReadyGeneration).not.toHaveBeenCalled();});
  it("generation verification failure prevents publication",async()=>{const t=harness();t.index.verifyGeneration.mockRejectedValue(new Error("synthetic incomplete"));expect(await t.worker.runNext()).toMatchObject({status:"FAILED"});expect(t.index.finalizeReadyGeneration).not.toHaveBeenCalled();});

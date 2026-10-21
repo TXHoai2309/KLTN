@@ -2,8 +2,12 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+<<<<<<< HEAD
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh() {} }) }));
 vi.mock("@/components/favorite-button", () => ({ default: ({ targetId, initialIsFavorite }: { targetId: string; initialIsFavorite: boolean }) => createElement("button", { type: "button", "data-trip-heart": targetId, "aria-pressed": initialIsFavorite }, initialIsFavorite ? "Bỏ chuyến đi khỏi yêu thích" : "Thêm chuyến đi vào yêu thích") }));
+=======
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh() { } }) }));
+>>>>>>> 130d94a6fa04d37020852f8945d615887093060b
 
 import type { TripDetail, TripSummary } from "@/modules/trip-read/trip-read-service";
 import { MyTripsView, TripDetailView } from "./trips-view";
@@ -49,19 +53,25 @@ describe("US-31 Trip views", () => {
     }
   });
   it("renders ordered itinerary by day with unavailable destination text", () => {
-    const trip: TripDetail = { ...sample("one", "ONGOING"), days: [
-      { id: "d1", dayIndex: 1, localDate: "2026-10-10", visits: [
-        { id: "v1", order: 1, startMinute: 480, plannedDurationMinutes: 90, destination: { id: "a", name: "Cột cờ Lũng Cú", area: "Đồng Văn", visibility: "VISIBLE" } },
-        { id: "v2", order: 2, startMinute: 600, plannedDurationMinutes: 60, destination: { id: "b", name: "Điểm cũ", area: "Mèo Vạc", visibility: "HIDDEN" } },
-      ] },
-      { id: "d2", dayIndex: 2, localDate: "2026-10-11", visits: [] },
-    ] };
+    const trip: TripDetail = {
+      ...sample("one", "ONGOING"), days: [
+        {
+          id: "d1", dayIndex: 1, localDate: "2026-10-10", visits: [
+            { id: "v1", order: 1, startMinute: 480, plannedDurationMinutes: 90, destination: { id: "a", name: "Cột cờ Lũng Cú", area: "Đồng Văn", visibility: "VISIBLE", availability: "AVAILABLE" } },
+            { id: "v2", order: 2, startMinute: 600, plannedDurationMinutes: 60, destination: { id: "b", name: "Điểm cũ", area: "Mèo Vạc", visibility: "HIDDEN", availability: "UNAVAILABLE" } },
+          ]
+        },
+        { id: "d2", dayIndex: 2, localDate: "2026-10-11", visits: [] },
+      ]
+    };
     const html = renderToStaticMarkup(createElement(TripDetailView, { trip }));
     expect(html.indexOf("Ngày 1")).toBeLessThan(html.indexOf("Ngày 2"));
     expect(html.indexOf("Cột cờ Lũng Cú")).toBeLessThan(html.indexOf("Điểm cũ"));
     expect(html).toContain("08:00");
     expect(html).toContain("08:00 – 09:30 (90 phút)");
     expect(html).toContain("90 phút");
+    expect(html).toContain("Điểm đến không còn khả dụng công khai");
+    expect(html).toContain("Ngày này chưa có điểm dừng");
     expect(html).toContain("Không còn công khai");
     expect(html).toContain("/trips/one/edit");
     expect(html).toContain("Chỉnh sửa hành trình");
@@ -84,7 +94,7 @@ describe("US-31 Trip views", () => {
   });
   it("distinguishes loading from a recoverable technical error", () => {
     const loading = renderToStaticMarkup(createElement(MyTripsLoading));
-    const error = renderToStaticMarkup(createElement(MyTripsError, { reset: () => {} }));
+    const error = renderToStaticMarkup(createElement(MyTripsError, { reset: () => { } }));
     expect(loading).toContain("Đang tải chuyến đi của bạn");
     expect(loading).toContain('aria-busy="true"');
     expect(error).toContain("Không thể tải danh sách chuyến đi");

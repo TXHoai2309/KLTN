@@ -57,6 +57,15 @@ for (const role of ["Guest", "Traveler", "Admin"]) test(`${role} hidden HTTP410 
   assert.equal(f.reads(), 2);
 });
 
+test("soft-deleted public Destination returns unavailable without leaking its detail", async () => {
+  const f = fixture("DELETED");
+  const response = await publicDestinationResponse(new Request("http://localhost/api/destinations/detail-a"), "detail-a", f.database);
+  assert.equal(response.status, 410);
+  const result = await response.json();
+  assert.equal(result.error.code, "DESTINATION_UNAVAILABLE");
+  assert.equal(result.data, undefined);
+});
+
 test("missing404, malformed404 before persistence and unsupported query400 are distinct", async () => {
   const f = fixture(); f.state(null);
   const response = await publicDestinationResponse(new Request("http://localhost/api/destinations/detail-a"), "detail-a", f.database);

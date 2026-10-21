@@ -9,7 +9,7 @@ export type QaProviderOptions = { apiKey?: () => string | undefined; fetcher?: t
 // Owner-selected model for reading, assessment, answer composition and verification.
 export const QA_DEFAULT_MODEL = "gpt-6.1-sol";
 export const QA_ANSWER_MODEL = QA_DEFAULT_MODEL;
-export const QA_GENERATION_LIMITS = { timeoutMs: 25_000, maxInputTokens: 8_000, maxOutputTokens: 2_000, maxResponseBytes: 64 * 1024, maxEvidence: 4, maxInputUtf16: 40_000 } as const;
+export const QA_GENERATION_LIMITS = { timeoutMs: 25_000, maxInputTokens: 8_000, maxOutputTokens: 2_000, maxCompletionTokens: 8_000, maxResponseBytes: 64 * 1024, maxEvidence: 4, maxInputUtf16: 40_000 } as const;
 const invalid = (stage: QaStage, category: QaFailureCategory, issues?: readonly { code: string; path: readonly PropertyKey[] }[]) =>
   qaOrigin(new AppError("AI_INVALID_RESPONSE", "Phản hồi AI không hợp lệ hoặc không có căn cứ.", 502), stage, category, issues);
 const unavailable = (stage: QaStage = "GENERATION_PROVIDER") => qaOrigin(new AppError("AI_UNAVAILABLE", "Dịch vụ AI hiện không khả dụng.", 503), stage, "PROVIDER_FAILURE");
@@ -46,6 +46,10 @@ export function createQaJsonProvider(options: QaProviderOptions = {}) {
   const timeoutMs = options.timeoutMs ?? QA_GENERATION_LIMITS.timeoutMs;
   const maxOutputTokens = options.maxOutputTokens ?? QA_GENERATION_LIMITS.maxOutputTokens;
   const phase = options.providerPhase ?? "GENERATION";
+  // max_completion_tokens also pays for hidden reasoning. With medium reasoning a 2,000 cap is often
+  // spent before any JSON is written (finish_reason "length"), so reasoning models get a larger
+  // completion budget. The visible JSON stays bounded by maxOutputTokens (checked on the content below).
+  const completionCap = sol61 ? Math.max(maxOutputTokens, QA_GENERATION_LIMITS.maxCompletionTokens) : maxOutputTokens;
   const failureStage = phase === "SYNTHESIS_VERIFICATION" ? phase : phase === "ASSESSMENT" ? "ASSESSMENT_STARTED" : "GENERATION_PROVIDER";
   if (!/^[a-zA-Z0-9._-]{1,100}$/.test(model) || !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > QA_GENERATION_LIMITS.timeoutMs || !Number.isInteger(maxOutputTokens) || maxOutputTokens < 1 || maxOutputTokens > QA_GENERATION_LIMITS.maxOutputTokens) throw new Error("Invalid QA generation configuration");
   return { async request<T>(input: { messages: { role: "system" | "user"; content: string }[]; name: string; schema: object; signal?: AbortSignal }, validate: (value: unknown) => T): Promise<T> {
@@ -77,7 +81,7 @@ export function createQaJsonProvider(options: QaProviderOptions = {}) {
     const deadline = new Promise<never>((_, reject) => { timer = setTimeout(() => { const error = fail(remainingMs <= timeoutMs ? "REQUEST_DEADLINE" : "PROVIDER_TIMEOUT"); controller.abort(); reject(error); }, effectiveTimeoutMs); });
     const cancellation = new Promise<never>((_, reject) => { controller.signal.addEventListener("abort", () => reject(fail(failureReason ?? "REQUEST_ABORT")), { once: true }); });
     const work = async (): Promise<T> => {
-      const response = await (options.fetcher ?? fetch)("https://api.openai.com/v1/chat/completions", { method: "POST", redirect: "error", signal: controller.signal, headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify({ model, messages, store: false, ...(sol61 ? { reasoning_effort: "medium" } : { temperature: 0, ...(luna ? { reasoning_effort: "none" } : {}) }), max_completion_tokens: maxOutputTokens, response_format: { type: "json_schema", json_schema: { name: input.name, strict: true, schema: input.schema } } }) });
+      const response = await (options.fetcher ?? fetch)("https://api.openai.com/v1/chat/completions", { method: "POST", redirect: "error", signal: controller.signal, headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify({ model, messages, store: false, ...(sol61 ? { reasoning_effort: "medium" } : { temperature: 0, ...(luna ? { reasoning_effort: "none" } : {}) }), max_completion_tokens: completionCap, response_format: { type: "json_schema", json_schema: { name: input.name, strict: true, schema: input.schema } } }) });
       if (controller.signal.aborted) { void response.body?.cancel().catch(() => undefined); throw fail(failureReason ?? "REQUEST_ABORT"); }
       qaProviderMetadata("generation", response);
       if (!response.ok) { void response.body?.cancel().catch(() => undefined); throw fail("UPSTREAM_HTTP"); }
@@ -86,6 +90,8 @@ export function createQaJsonProvider(options: QaProviderOptions = {}) {
       const raw = await readBounded(response, controller.signal);
       try { payload = JSON.parse(raw); } catch { throw invalid("GENERATION_ENVELOPE", "INVALID_JSON"); }
       qaProviderMetadata("generation", response, payload);
+      // Running out of completion budget (reasoning included) is a distinct, diagnosable failure.
+      if ((payload as { choices?: { finish_reason?: unknown }[] } | null)?.choices?.[0]?.finish_reason === "length") throw invalid("GENERATION_ENVELOPE", "TOKEN_LIMIT");
       const envelope = z.object({ choices: z.array(z.object({ finish_reason: z.literal("stop"), message: z.object({ content: z.string(), refusal: z.string().nullable().optional() }) })).length(1) }).safeParse(payload);
       if (!envelope.success) throw invalid("GENERATION_ENVELOPE", "ENVELOPE", envelope.error.issues);
       if (envelope.data.choices[0]!.message.refusal) throw invalid("GENERATION_ENVELOPE", "REFUSAL");

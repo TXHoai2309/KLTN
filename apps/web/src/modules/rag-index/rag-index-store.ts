@@ -294,9 +294,10 @@ export function createRagIndexStore(database: Database) {
 
     async publishReadyGeneration(ragDocumentId: string, generationId: string): Promise<void> {
       await database.$transaction(async tx => {
-        const documents = await tx.$queryRaw<Array<{ status: string }>>(Prisma.sql`SELECT "status"::text AS "status" FROM "rag_document" WHERE "id" = ${ragDocumentId} FOR UPDATE`);
-        const status = documents[0]?.status;
-        if (status !== "APPROVED" && status !== "INDEXED") throw new RagIndexError(status ? "DOCUMENT_NOT_ELIGIBLE" : "RAG_DOCUMENT_NOT_FOUND");
+        const documents = await tx.$queryRaw<Array<{ status: string; deletedAt: Date | null }>>(Prisma.sql`SELECT "status"::text AS "status", "deletedAt" FROM "rag_document" WHERE "id" = ${ragDocumentId} FOR UPDATE`);
+        const document = documents[0];
+        if (!document) throw new RagIndexError("RAG_DOCUMENT_NOT_FOUND");
+        if (document.deletedAt || document.status !== "APPROVED" && document.status !== "INDEXED") throw new RagIndexError("DOCUMENT_NOT_ELIGIBLE");
         const generation = await lockGeneration(tx, ragDocumentId, generationId);
         if (generation.state !== "READY") throw new RagIndexError("GENERATION_NOT_READY");
         const progress = await assertComplete(tx, generationId, generation.expectedChunkCount, generation.expectedTokenCount);
@@ -330,7 +331,7 @@ export function createRagIndexStore(database: Database) {
         });
         const transitioned = await tx.$executeRaw(Prisma.sql`
           UPDATE "rag_document" SET "status" = 'INDEXED', "updatedAt" = ${now}
-          WHERE "id" = ${ragDocumentId} AND "status" IN ('APPROVED', 'INDEXED')
+          WHERE "id" = ${ragDocumentId} AND "status" IN ('APPROVED', 'INDEXED') AND "deletedAt" IS NULL
         `);
         if (transitioned !== 1) throw new RagIndexError("DOCUMENT_NOT_ELIGIBLE");
         const completed = await tx.ragIndexJob.updateMany({
@@ -349,7 +350,7 @@ export function createRagIndexStore(database: Database) {
         FROM "rag_index_publication" p
         JOIN "rag_document" d ON d."id" = p."ragDocumentId"
         JOIN "rag_index_generation" g ON g."id" = p."generationId" AND g."ragDocumentId" = d."id"
-        WHERE d."id" = ${ragDocumentId} AND d."status" = 'INDEXED' AND g."state" = 'READY'
+        WHERE d."id" = ${ragDocumentId} AND d."deletedAt" IS NULL AND d."status" = 'INDEXED' AND g."state" = 'READY'
         LIMIT 1
       `);
       return rows[0] ?? null;

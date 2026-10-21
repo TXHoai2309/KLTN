@@ -66,6 +66,15 @@ describe("QA orchestration without external services",()=>{
     t.generator.generate.mockResolvedValue({status:"ANSWERED",answerParts:[{text:"Fixture claim",citationIds:["fake"]}],citations:[{...citation,id:"fake"}],unansweredAspects:[]});
     await expect(t.service.ask(principal,"key",request)).rejects.toMatchObject({code:"AI_INVALID_RESPONSE"});expect(t.store.complete).not.toHaveBeenCalled();
   });
+  it("projects original links only after verification and passes proof into completion",async()=>{
+    const t=setup();const current:QaEvidence={...evidence,sourceBundle:{id:"bundle",hash:"metadata-hash"},originalSources:[{title:"Original article",url:"https://example.org/article"}]};
+    t.retriever.retrieve.mockResolvedValue([current]);
+    t.generator.generate.mockResolvedValue({status:"ANSWERED",answerParts:[{text:"Fixture claim",citationIds:["c1"]}],citations:[citation],unansweredAspects:[]});
+    const result=await t.service.ask(principal,"source_key",request);
+    expect(result.data.citations[0]).toMatchObject({title:"Original article",sourceUrl:"https://example.org/article",sourceId:citation.sourceId});
+    expect(current.projectedCitations).toEqual(result.data.citations);
+    expect(t.store.complete).toHaveBeenCalledWith(principal,t.reservation,result.data,[current]);
+  });
   it("reuses validated completed server history solely as interpretation input",async()=>{
     const t=setup();
     const historical={...answer,conversationId:"conv",turnId:"previous",context:{type:"GENERAL" as const},turnState:"COMPLETED" as const} as QaCompletedTurn;

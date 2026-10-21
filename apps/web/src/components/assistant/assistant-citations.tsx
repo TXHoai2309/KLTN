@@ -1,32 +1,37 @@
 import type { QaAnswerPart } from "../../modules/ai/qa-contract";
 import { citationSourceHref, type IndexedCitation } from "./assistant-citation-utils";
+import { ArrowUpRight } from "lucide-react";
 
 export function AssistantCitations({ part, index }: {
   part: QaAnswerPart;
   index: ReadonlyMap<string, IndexedCitation> | null;
 }) {
-  if (!index || part.citationIds.some((id) => !index.has(id))) {
+  if (!index) {
     return <span className="assistant-citations-error">Thông tin nguồn không khả dụng.</span>;
   }
-  return <div className="assistant-citations" aria-label="Nguồn tham khảo">
-    {part.citationIds.map((id) => {
-      const { citation, number } = index.get(id)!;
+  const entries=[...new Map(part.citationIds.flatMap(id=>{const entry=index.get(id);return entry?[[entry.number,entry] as const]:[]})).values()];
+  if (!entries.length) return null;
+  return <span className="assistant-citations" aria-label="Nguồn tham khảo">
+    {entries.map(({citation,number}) => {
       const href = citationSourceHref(citation.sourceUrl);
-      return <details className="assistant-citation" key={id}>
-        <summary aria-label={`Nguồn tham khảo ${number}: ${citation.title}`}>
-          <span>[{number}] Nguồn tham khảo</span><span className="assistant-citation-chevron" aria-hidden="true">⌄</span>
-        </summary>
-        <div className="assistant-citation-metadata">
-          <strong>{citation.title}</strong>
-          {citation.locators.length ? <ul>{citation.locators.map((locator, position) => <li key={position}>
-            {locator.pageNumber !== undefined && <span>Trang {locator.pageNumber}</span>}
-            {locator.pageNumber !== undefined && locator.section !== undefined && " · "}
-            {locator.section !== undefined && <span>Mục “{locator.section}”</span>}
-          </li>)}</ul> : <p>Không có vị trí cụ thể</p>}
-          {href ? <a href={href} target="_blank" rel="noopener noreferrer" aria-label={`Mở nguồn ${number}: ${citation.title} (tab mới)`}>Mở nguồn <span aria-hidden="true">↗</span></a>
-            : <p>Không có liên kết công khai</p>}
-        </div>
-      </details>;
+      return href ? <a className="assistant-citation-ref" key={number} href={href} target="_blank" rel="noopener noreferrer" aria-label={`Mở nguồn ${number}: ${citation.title} (tab mới)`}>[{number}]</a> : null;
     })}
-  </div>;
+  </span>;
+}
+
+export function AssistantSourceList({index,sourcePrefix}:{index:ReadonlyMap<string,IndexedCitation>;sourcePrefix:string}) {
+  const entries=[...new Map([...index.values()].map(entry=>[entry.number,entry])).values()];
+  if (!entries.length) return null;
+  return <details className="assistant-answer-sources" id={`${sourcePrefix}-sources`}>
+    <summary aria-label={`Xem nguồn tham khảo (${entries.length})`}>Xem nguồn ({entries.length})</summary>
+    <ol className="assistant-source-list">{entries.map(({citation,number})=>{
+      const href=citationSourceHref(citation.sourceUrl);
+      if (!href) return null;
+      return <li key={number} id={`${sourcePrefix}-source-${number}`} tabIndex={-1}>
+        <span className="assistant-source-number">[{number}]</span><div>
+          <a href={href} target="_blank" rel="noopener noreferrer" aria-label={`Mở nguồn ${number}: ${citation.title} (tab mới)`}>{citation.title} <ArrowUpRight size={12} aria-hidden="true" /></a><span className="assistant-source-domain">{new URL(href).hostname}</span>
+        </div>
+      </li>;
+    })}</ol>
+  </details>;
 }
