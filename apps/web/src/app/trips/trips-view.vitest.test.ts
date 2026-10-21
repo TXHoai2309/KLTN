@@ -10,7 +10,7 @@ import MyTripsLoading from "./loading";
 import MyTripsError from "./error";
 
 const sample = (id: string, status: TripSummary["status"]): TripSummary => ({
-  id, status, startDate: "2026-10-10", endDate: "2026-10-11", durationDays: 2, transport: "CAR", isFavorite: false, visitCount: 3,
+  id, status, startDate: "2026-10-10", endDate: "2026-10-11", durationDays: 2, transport: "CAR", isFavorite: false, visitCount: 3, manuallyCompletedAt: null,
 });
 
 describe("US-31 Trip views", () => {
@@ -20,9 +20,17 @@ describe("US-31 Trip views", () => {
     expect(html).toContain("/trips/one");
     expect(html).toContain("3 điểm dừng");
     expect(html).toContain("/trips/new");
+    expect(html).toContain("Đánh dấu đã hoàn thành");
+    expect(html).toContain("Xóa chuyến đi");
     expect(html).not.toContain("Đang tải trạng thái yêu thích");
     expect(html).not.toContain("Thêm chuyến đi vào yêu thích");
     expect(html).not.toContain("Bỏ chuyến đi khỏi yêu thích");
+  });
+  it("distinguishes manual completion from elapsed calendar dates", () => {
+    const html = renderToStaticMarkup(createElement(MyTripsView, { items: [{ ...sample("manual", "COMPLETED"), manuallyCompletedAt: "2026-10-20T00:00:00Z" }, sample("calendar", "COMPLETED")] }));
+    expect(html).toContain("Bạn đã đánh dấu hoàn thành thủ công.");
+    expect(html).toContain("Bỏ đánh dấu hoàn thành");
+    expect(html).toContain("Đã hoàn thành theo ngày kế hoạch; chưa đánh dấu thủ công.");
   });
   it("shows a valid empty state", () => {
     const html = renderToStaticMarkup(createElement(MyTripsView, { items: [] }));

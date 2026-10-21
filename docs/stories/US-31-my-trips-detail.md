@@ -2,7 +2,7 @@
 
 ## Status
 
-IMPLEMENTED IN CODE — authenticated My Trips/detail, immediate post-save freshness, factual visit counts and responsive light/dark UX PASS. Two-account reverse ownership and live browser status matrix remain NOT PROVEN (completion audit 2026-10-19).
+IMPLEMENTED — 2026-10-20 approved extension adds owner-scoped Delete and manual completion. Browser save/reload/mark/reload/unmark/delete/not-found and responsive light/dark PASS. Two-actor PostgreSQL fixture isolation PASS; two separate real browser accounts and injected browser FAILED/UNKNOWN NOT PROVEN. Latest extension evidence below supersedes earlier read-only scope.
 
 ## Goal / User Story
 
@@ -147,3 +147,108 @@ Follow-up verification on 2026-10-15: US-30/31 targeted tests 37/37 PASS, `npm r
 - PASS: Favorite legacy regression 27/27.
 - FAILED: root `npm test`: 2607 passed, 6 failed, 134 skipped, 1 todo. Same six failures recorded before this task: US-35 source guard flags the existing static `href`, US-36/replan and US-37 tests retain Admin-denied expectations, AI edit HTTP retains Admin-denied expectation, preference-extraction env expects different model sensitivity. No newly failing test identified.
 - Full legacy suite, root typecheck/build and final diff check are recorded in the corresponding progress entry.
+
+## Approved extension — 2026-10-20 (current behavior)
+
+User task `dd773ed8-494a-4aa9-b36b-3774956d1208` explicitly extends the original read-only/date-derived baseline with Delete and manual completion. Historical sections above describe prior work. No Trip editing, in-trip semantics, Favorite UI, header or global theme redesign is included.
+
+### API, authorization and transaction
+
+| Endpoint | Request | Confirmed SUCCESS data |
+| --- | --- | --- |
+| `DELETE /api/trips/:id` | Empty body, same-origin, `Idempotency-Key` | `{ tripId, deleted: true }` |
+| `PATCH /api/trips/:id/completion` | Strict JSON `{ completed: boolean }`, same-origin, `Idempotency-Key` | `{ tripId, manuallyCompletedAt: ISO-or-null, status, endDate }` |
+
+Both use shared SUCCESS/FAILED/UNKNOWN envelopes and `private, no-store`. Query owner overrides, body owner overrides, invalid types/JSON and missing keys are rejected. Actor comes from authenticated session plus persisted authorization. Existing RBAC V2 Admin inheritance of traveler capability on **own** records is preserved; no Admin ownership bypass was added. Guest mutations fail. Foreign/missing Trip consistently returns 404.
+
+`trip-management-service.ts` uses actor-scoped `executeIdempotentWrite`. It rechecks authorization inside the transaction and scopes Trip find/delete/update predicates by `{ id, userId: actor.userId }`. Replay lookup precedes another write, including replay after the Trip has been deleted. Different payload with the same operation/key fails 409. Lookup/technical uncertainty is UNKNOWN, never a fabricated confirmed result.
+
+Hard delete chosen because Trip has no soft-delete contract. Live FK audit found only Favorite and ItineraryDay referencing Trip; ItineraryVisit references Day. The transaction deletes Favorite links only after proving Trip ownership, then deletes the owned Trip. Existing cascade removes Day/Visit. Destination is a RESTRICT target, never deleted by this service. Idempotency/audit data is retained; other Trips are untouched. Concurrent missing target rolls back the transaction.
+
+### Completion model and status
+
+One nullable Trip field: `manuallyCompletedAt DateTime?`. `deriveTripStatus` remains unchanged. Shared `effectiveTripStatus` returns COMPLETED if this timestamp exists, otherwise uses the calendar result. Both list/detail select and return the timestamp and use this helper. The completion update writes only the timestamp (and Prisma's conventional updatedAt); no dates, duration, order, visits or in-trip visit classification are changed.
+
+Mark/unmark only changes UI after confirmed SUCCESS. Unmark explains that an already elapsed trip remains COMPLETED by calendar. Manual and calendar completion have different visible copy. No checked control is inferred from elapsed dates.
+
+### Development DB audit and migration
+
+Verified the configured development endpoint against the existing reviewed registry; no production connection or secret was printed.
+
+| Migration state | Disk before | DB before | Disk/DB after |
+| --- | --- | --- | --- |
+| Existing 23 migrations through `20261017210000_admin_user_management` | Present | Finished | Present/finished |
+| `20261020044507_destination_soft_delete` | Missing | Finished | Restored exact Git original / already finished |
+| `20261020100000_rag_document_soft_delete` | Missing | Finished | Restored exact Git original / already finished |
+| `20261020170000_trip_manual_completion` | New | Not applied | Present / finished `2026-10-20T16:02:38.218Z` |
+| Total | 23 | 25 | 26 / 26 |
+
+Drift was reported before proceeding. User explicitly approved restoration of original migrations and corresponding schema fields/index. Originals came from `2eb8757` (Destination) and `4e0e0de` (RAG); SHA256 checksums match ledger allowing LF/CRLF variants. No migration was deleted/rewritten, no manual ledger write or resolve was used. After restoration, `prisma migrate diff` returned an empty migration. A second diff then showed exactly the new nullable Trip column. Reviewed SQL:
+
+```sql
+ALTER TABLE "trip" ADD COLUMN "manuallyCompletedAt" TIMESTAMP(3);
+```
+
+Applied the reviewed pending migration via Prisma `migrate deploy`; already-applied restored migrations were not executed again. Final migrate status is up to date and final DB-to-schema diff is empty. Column confirmed nullable `timestamp without time zone`.
+
+Verified catalog FKs: Trip→User CASCADE; Day→Trip CASCADE; Visit→Day CASCADE; Visit→Destination RESTRICT; Favorite→Trip RESTRICT. Existing indexes retained: trip PK and `(userId,createdAt)`, Day PK/unique `(tripId,dayIndex)`, Visit PK/unique `(dayId,order)`/index destinationId. No speculative new index.
+
+### UI and browser evidence
+
+- Existing Trip card and shared Button reused. Primary detail link is separated from secondary completion/destructive controls. Native modal dialog has labelled heading/description, initial focus on Hủy, native focus containment/Escape, pending lock and irreversible deletion wording.
+- FAILED/UNKNOWN retains list and counts. UNKNOWN locks changing the intended action and retries the same request/key for server reconciliation. A malformed/mismatched success response is treated as UNKNOWN. Confirmed completion updates only that Trip and group counts; router refresh reconciles current server data without emptying the list.
+- A live browser fixture passed mark → COMPLETED, reload retained timestamp/group, unmark → UPCOMING. Delete cancel retained the row. The user then explicitly approved deleting this exact disposable Trip; pending was observed, row/count removed only on SUCCESS. Its direct detail/edit/in-trip showed not-found; authenticated detail API returned `TRIP_NOT_FOUND`.
+- Final DB counts: seven pre-existing Trips remain; browser test Trip/Day count zero; disposable integration users zero. The PostgreSQL test verifies descendant Visit and Favorite counts zero and original test Destination survives Trip deletion, before fixture cleanup.
+- Light and Dark measured at 360/390/768/1024/1440: document widths 345/375/753/1009/1425 respectively (15px vertical scrollbar), no horizontal overflow. Dialog fits mobile, actions wrap, theme tokens respond. Temporary viewport reset afterward.
+- A new screen-reader announcement initially inherited the direct-child container width and caused overflow; excluding `.sr-only` from that width rule fixed the measured root cause.
+- Screenshot artifacts: `trip-management-evidence/my-trips-desktop-light.jpg`, `delete-dialog-mobile-dark.jpg`, completion/list captures in the task's local artifact directory. They contain development UI only, no secrets.
+
+### Tests and remaining evidence limits
+
+| Check | Result |
+| --- | --- |
+| Targeted Validator/save/read/planner/UI/edit/in-trip regression | PASS: 184 tests, one opt-in DB test skipped in this run |
+| Opt-in live PostgreSQL integration (two disposable TRAVELER users) | PASS: 1/1; save/replay/read/completion/isolation/FK cleanup |
+| Full Vitest via root `npm test` | FAILED: 2626 pass, six known baseline failures, 135 skip, one todo |
+| Legacy suite including auth/authorization/Favorite/idempotency | PASS: 336 tests |
+| Root check-types / build / diff whitespace | PASS; final command results in ai-progress |
+| Real browser Save + reload + mark + reload + unmark + cancel/delete + not-found | PASS |
+| Browser injected FAILED/UNKNOWN and two separately signed-in users | NOT PROVEN; covered at service/client/HTTP/DB levels instead |
+
+The six full-suite failures are unchanged from the previous progress baseline: US-35 static navigation source guard, US-36 Admin-denied assertions (replan HTTP and end-to-end), US-37 Admin-denied assertion, AI-edit HTTP Admin-denied assertion, preference env model sensitivity expectation. This extension did not edit those production/test files. No new failing test remains; no unrelated failure was suppressed.
+
+### Commands run
+
+Root working directory:
+```powershell
+npm run db:generate
+npm run check-types
+npm run build
+npm test
+git diff --check
+```
+Web working directory (`apps/web`), Windows binaries:
+```powershell
+& ../../node_modules/.bin/varlock.cmd run -- node ../../node_modules/tsx/dist/cli.mjs .trip-management-audit.ts
+& ../../node_modules/.bin/varlock.cmd run -- node ../../node_modules/prisma/build/index.js migrate diff --from-config-datasource --to-schema ../../packages/db/prisma/schema --config ../../packages/db/prisma.config.ts --script
+& ../../node_modules/.bin/varlock.cmd run -- node ../../node_modules/prisma/build/index.js migrate deploy --config ../../packages/db/prisma.config.ts
+& ../../node_modules/.bin/varlock.cmd run -- node ../../node_modules/prisma/build/index.js migrate status --config ../../packages/db/prisma.config.ts
+& ../../node_modules/.bin/vitest.cmd run --config vitest.config.mts src/modules/trip-validation src/modules/trip-save src/modules/trip-read src/components/trip-planner/planner-ui.vitest.test.ts src/app/trips/trips-view.vitest.test.ts src/modules/trip-edit/us32-test.vitest.test.ts src/modules/trip-edit/edit-apply-state.vitest.test.ts src/modules/trip-edit/ai-edit-session.vitest.test.ts src/modules/in-trip/in-trip-proposal-session.vitest.test.ts src/modules/in-trip/in-trip-session.vitest.test.ts src/modules/in-trip/split-trip.vitest.test.ts
+$env:RUN_TRIP_MANAGEMENT_DB_TESTS='1'
+& ../../node_modules/.bin/varlock.cmd run -- node ../../node_modules/vitest/vitest.mjs run --config vitest.config.mts src/modules/trip-read/trip-management.postgres.integration.vitest.test.ts
+Remove-Item Env:RUN_TRIP_MANAGEMENT_DB_TESTS
+npm run test:legacy
+```
+Audit script was temporary and removed after recording results. Its read-only SQL included migration ledger ordered by started_at, information_schema nullable column, pg_constraint FK definitions and pg_indexes. No env file was changed.
+
+### Exact management files added/changed
+
+- `packages/db/prisma/schema/{trip.prisma,destination.prisma,rag-document.prisma}`.
+- `packages/db/prisma/migrations/{20261020044507_destination_soft_delete,20261020100000_rag_document_soft_delete,20261020170000_trip_manual_completion}/migration.sql` (first two restored, last new).
+- `apps/web/src/app/api/trips/[id]/route.ts`; new `[id]/completion/route.ts`.
+- `apps/web/src/modules/trip-read/{trip-status.ts,trip-read-service.ts,trip-read.vitest.test.ts}`.
+- New `apps/web/src/modules/trip-read/{trip-management-service.ts,trip-management-http.ts,trip-management-client.ts,trip-management.vitest.test.ts,trip-management-client.vitest.test.ts,trip-management.postgres.integration.vitest.test.ts}`.
+- `apps/web/src/app/trips/{trips-view.tsx,trips-view.vitest.test.ts,trips.css}`; new `trip-management-actions.tsx`.
+- Save files listed in US-30; these two stories, `docs/ai-progress.md`, `docs/superpowers/plans/2026-10-20-trip-management-extension.md`.
+
+Fresh read-only reviewer found no critical/important code issue. No commit/push/merge/reset, dependency, new global store/provider or generic management engine.

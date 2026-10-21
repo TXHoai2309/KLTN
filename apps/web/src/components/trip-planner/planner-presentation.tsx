@@ -79,5 +79,5 @@ export function DestinationPreviewCard({ stop }: { stop: PlannerStop | undefined
   </section>;
 }
 export function PlannerActions({ busy, disabled = false, onBack, onRegenerate }: { busy: boolean; disabled?: boolean; onBack: () => void; onRegenerate: () => void }) {
-  return <div className="planner-actions"><button type="button" onClick={onBack} disabled={busy || disabled}><ArrowLeft size={17} aria-hidden="true" />Quay lại chỉnh nhu cầu</button><button type="button" className="planner-primary" onClick={onRegenerate} disabled={busy || disabled}><Route size={17} aria-hidden="true" />{busy ? "Đang tạo đề xuất…" : "Tạo lại lịch trình"}</button></div>;
+  return <div className="planner-actions"><button type="button" onClick={onBack} disabled={busy || disabled}><ArrowLeft size={17} aria-hidden="true" />Chỉnh sửa nhu cầu</button><button type="button" onClick={onRegenerate} disabled={busy || disabled}><Route size={17} aria-hidden="true" />{busy ? "Đang tạo đề xuất…" : "Tạo lại lịch trình"}</button></div>;
 }

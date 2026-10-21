@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import type { PlannerResult } from "@/modules/trip-planner/planner-contract";
 import { toSaveProposal } from "@/modules/trip-save/trip-save-adapter";
@@ -13,7 +13,7 @@ type PreviewState =
   | { signature: string; kind: "ready"; validation: TripValidation }
   | { signature: string; kind: "error"; message: string };
 
-export function TripConfirmationSection({ result, onSaved, onSaveStateChange }: { result: PlannerResult; onSaved: (tripId: string) => void; onSaveStateChange?: (state: SaveState) => void }) {
+export function TripConfirmationSection({ result, onSaved, onSaveStateChange, secondaryActions, disabled = false }: { result: PlannerResult; onSaved: (tripId: string) => void; onSaveStateChange?: (state: SaveState) => void; secondaryActions?: ReactNode; disabled?: boolean }) {
   const proposal = useMemo(() => toSaveProposal(result), [result]);
   const signature = JSON.stringify(proposal);
   const [attempt, setAttempt] = useState(0);
@@ -37,6 +37,7 @@ export function TripConfirmationSection({ result, onSaved, onSaveStateChange }: 
     {!proposal ? <p role="status">Chưa thể xác nhận và lưu phương án này. Hãy bổ sung ngày đi hoặc điều chỉnh các mục chưa đáp ứng, rồi tạo lại đề xuất.</p>
       : preview.signature !== signature || preview.kind === "loading" ? <p role="status" aria-live="polite">Đang kiểm tra bốn điều kiện xác nhận trên dữ liệu hiện hành…</p>
       : preview.kind === "error" ? <div role="alert"><p>{preview.message}</p><button type="button" className="planner-primary" onClick={() => setAttempt(value => value + 1)}>Kiểm tra lại</button></div>
-      : <TripSavePanel key={signature} proposal={proposal} validation={preview.validation} onSaved={onSaved} onStateChange={onSaveStateChange} />}
+      : <TripSavePanel key={signature} proposal={proposal} validation={preview.validation} onSaved={onSaved} onStateChange={onSaveStateChange} secondaryActions={secondaryActions} disabled={disabled} />}
+    {(!proposal || preview.signature !== signature || preview.kind !== "ready") && <div className="flex flex-wrap items-center justify-end gap-3">{secondaryActions}<button type="button" className="planner-primary" disabled>Lưu chuyến đi</button></div>}
   </section>;
 }

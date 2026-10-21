@@ -1,4 +1,8 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { ArrowLeft, ArrowRight, CalendarDays, CarFront, Clock3, MapPin, Mountain } from "lucide-react";
 
@@ -6,6 +10,8 @@ import { Card } from "@KLTN/ui/components/card";
 import { Empty } from "@KLTN/ui/components/empty";
 import type { TripDetail, TripSummary } from "@/modules/trip-read/trip-read-service";
 import type { TripStatus } from "@/modules/trip-read/trip-status";
+import { applyTripChange, type TripChange } from "@/modules/trip-read/trip-management-client";
+import { TripManagementActions } from "./trip-management-actions";
 
 const groups: { status: TripStatus; label: string }[] = [
   { status: "UPCOMING", label: "Sắp tới" },
@@ -18,12 +24,25 @@ const dateLabel = (date: string) => `${date.slice(8, 10)}/${date.slice(5, 7)}/${
 const minuteLabel = (minute: number) => `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
 const visitLabel = (count: number) => `${count} điểm dừng`;
 
-export function MyTripsView({ items }: { items: TripSummary[] }) {
+export function MyTripsView({ items: initialItems }: { items: TripSummary[] }) {
+  const [items, setItems] = useState(initialItems);
+  const [announcement, setAnnouncement] = useState("");
+  const focusGroup = useRef<TripStatus | null>(null);
+  const router = useRouter();
+  useEffect(() => { setItems(initialItems); }, [initialItems]);
+  useEffect(() => { if (focusGroup.current) { document.getElementById(`trips-${focusGroup.current}`)?.focus(); focusGroup.current = null; } }, [items]);
+  function confirmed(change: TripChange) {
+    setItems(current => applyTripChange(current, { status: "SUCCESS", data: change }));
+    focusGroup.current = "deleted" in change ? null : change.status;
+    setAnnouncement("deleted" in change ? "Đã xóa chuyến đi khỏi danh sách." : `Đã cập nhật chuyến đi vào nhóm ${groups.find(group => group.status === change.status)!.label}.`);
+    router.refresh();
+  }
   return <main className="my-trips-page" lang="vi">
     <div className="my-trips-heading">
       <div><p className="my-trips-eyebrow">Hành trình đã lưu</p><h1>Chuyến đi của tôi</h1><p>Xem các hành trình đã lưu và tiếp tục chuẩn bị cho chuyến đi.</p></div>
       <Link className="my-trips-action" href="/trips/new">Tạo chuyến đi</Link>
     </div>
+    <p className="sr-only" role="status" aria-live="polite">{announcement}</p>
     {items.length === 0 ? <Empty className="my-trips-state" role="status">
       <h2>Bạn chưa có chuyến đi nào.</h2>
       <p>Khi bạn xác nhận và lưu một hành trình, chuyến đi sẽ xuất hiện ở đây.</p>
@@ -31,7 +50,7 @@ export function MyTripsView({ items }: { items: TripSummary[] }) {
     </Empty> : groups.map(group => {
       const trips = items.filter(item => item.status === group.status);
       return <section className="my-trips-group" key={group.status} aria-labelledby={`trips-${group.status}`}>
-        <div className="my-trips-group-heading"><h2 id={`trips-${group.status}`}>{group.label}</h2><span>{trips.length}</span></div>
+        <div className="my-trips-group-heading"><h2 id={`trips-${group.status}`} tabIndex={-1}>{group.label}</h2><span>{trips.length}</span></div>
         {trips.length === 0 ? <p className="my-trips-group-empty">Chưa có chuyến đi trong nhóm này.</p> : <ul className="my-trips-list">
           {trips.map(trip => <li key={trip.id}><Card className={`my-trips-card my-trips-card-${trip.status.toLowerCase()}`}>
             <div className="my-trips-card-main">
@@ -39,6 +58,7 @@ export function MyTripsView({ items }: { items: TripSummary[] }) {
                 <span className={`my-trips-badge my-trips-badge-${trip.status.toLowerCase()}`}>{group.label}</span>
               </div>
               <h3>Chuyến đi {trip.durationDays} ngày</h3>
+              <p className="my-trips-completion-note">{trip.manuallyCompletedAt ? "Bạn đã đánh dấu hoàn thành thủ công." : trip.status === "COMPLETED" ? "Đã hoàn thành theo ngày kế hoạch; chưa đánh dấu thủ công." : "Trạng thái theo ngày kế hoạch."}</p>
               <div className="my-trips-meta" aria-label="Thông tin chuyến đi">
                 <span><CalendarDays size={15} aria-hidden="true" />{dateLabel(trip.startDate)} – {dateLabel(trip.endDate)}</span>
                 <span><Clock3 size={15} aria-hidden="true" />{trip.durationDays} ngày</span>
@@ -46,7 +66,7 @@ export function MyTripsView({ items }: { items: TripSummary[] }) {
                 <span><MapPin size={15} aria-hidden="true" />{visitLabel(trip.visitCount)}</span>
               </div>
             </div>
-            <Link className="my-trips-open" prefetch={false} href={`/trips/${trip.id}` as Route} aria-label={`Mở chuyến đi từ ${dateLabel(trip.startDate)}`}>Xem chi tiết <ArrowRight size={16} aria-hidden="true" /></Link>
+            <div className="my-trips-card-controls"><Link className="my-trips-open" prefetch={false} href={`/trips/${trip.id}` as Route} aria-label={`Mở chuyến đi từ ${dateLabel(trip.startDate)}`}>Xem chi tiết <ArrowRight size={16} aria-hidden="true" /></Link><TripManagementActions trip={trip} onConfirmed={confirmed} /></div>
           </Card></li>)}
         </ul>}
       </section>;
@@ -105,7 +125,7 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
         </section>)}</div>
     </section>
     <footer className="my-trips-detail-footer">
-          <p className="my-trips-status-note">Trạng thái được tính theo ngày lịch; không xác nhận các điểm dừng đã được tham quan.</p>
+          <p className="my-trips-status-note">{trip.manuallyCompletedAt ? "Bạn đã đánh dấu chuyến đi hoàn thành thủ công; thao tác này không xác nhận các điểm dừng đã được tham quan." : "Trạng thái được tính theo ngày lịch; không xác nhận các điểm dừng đã được tham quan."}</p>
         <nav className="my-trips-detail-nav" aria-label="Thao tác chuyến đi">
           <Link className="my-trips-action" href={`/trips/${trip.id}/edit` as Route}>Chỉnh sửa hành trình</Link>
           <Link className="my-trips-secondary-action" href={`/trips/${trip.id}/in-trip` as Route}>Mở Trợ lý trong chuyến đi</Link>

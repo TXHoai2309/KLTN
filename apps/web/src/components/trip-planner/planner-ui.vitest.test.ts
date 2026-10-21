@@ -77,7 +77,7 @@ describe("real planner UI server rendering", () => {
     components.completeTripSave("trip/one", (message: string) => events.push(`notice:${message}`), (href: string) => events.push(`navigate:${href}`));
     expect(events).toEqual([
       "notice:Đã lưu chuyến đi thành công.",
-      "navigate:/trips/trip%2Fone",
+      "navigate:/trips",
     ]);
   });
 });

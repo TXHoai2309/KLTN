@@ -21,7 +21,7 @@ export function completeTripSave(
   navigate: (href: NextRoute) => void,
 ) {
   notify("Đã lưu chuyến đi thành công.");
-  navigate(`/trips/${encodeURIComponent(tripId)}` as NextRoute);
+  navigate("/trips");
 }
 
 export function TripPlannerScreen({ proposal, busy = false, onBack, onRegenerate, onSaved, embedded = false }: { proposal: PlannerResult; busy?: boolean; onBack: () => void; onRegenerate: () => void; onSaved: (tripId: string) => void; embedded?: boolean }) {
@@ -46,9 +46,8 @@ export function TripPlannerScreen({ proposal, busy = false, onBack, onRegenerate
           {day.stops.length ? <ol className="planner-timeline">{day.stops.map(stop => <ItineraryStopCard key={stop.destination.id} stop={stop} selected={stop.destination.id === selectedDestinationId} onSelect={select} />)}</ol> : <PlannerEmptyState onBack={onBack} />}
         </div>
         <ItineraryValidationPanel checks={proposal.checks} />
-        <TripConfirmationSection result={proposal} onSaved={onSaved} onSaveStateChange={setSaveState} />
         <details className="planner-warnings"><summary><AlertCircle size={16} />Lưu ý cho đề xuất này ({proposal.warnings.length})</summary><ul>{proposal.warnings.map((warning, index) => <li key={index}>{warning.message}</li>)}</ul></details>
-        <PlannerActions busy={busy} disabled={saveState === "pending" || saveState === "unknown" || saveState === "success"} onBack={onBack} onRegenerate={onRegenerate} />
+        <TripConfirmationSection result={proposal} disabled={busy} onSaved={onSaved} onSaveStateChange={setSaveState} secondaryActions={<PlannerActions busy={busy} disabled={saveState === "pending" || saveState === "unknown" || saveState === "success"} onBack={onBack} onRegenerate={onRegenerate} />} />
       </section>
       <div className="planner-map-panel"><TripOverviewCard day={day} /><ItineraryMap day={day} selectedDestinationId={selectedDestinationId} focusSelection={focusSelection} onSelect={select} /><DestinationPreviewCard stop={selected} /></div>
     </div>

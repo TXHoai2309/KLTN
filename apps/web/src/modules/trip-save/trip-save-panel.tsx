@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import type { TripProposal } from "../trip-validation/trip-proposal-contract";
 import type { TripValidation } from "../trip-validation/trip-validation";
@@ -10,11 +10,13 @@ import { submitTripSave } from "./trip-save-client";
 export type SaveState = "idle" | "pending" | "success" | "failed" | "unknown";
 
 /** Save only a validated proposal; the planner screen supplies the current preview. */
-export function TripSavePanel({ proposal, validation, onSaved, onStateChange }: {
+export function TripSavePanel({ proposal, validation, onSaved, onStateChange, secondaryActions, disabled = false }: {
   proposal: TripProposal;
   validation: TripValidation;
   onSaved?: (tripId: string) => void;
   onStateChange?: (state: SaveState) => void;
+  secondaryActions?: ReactNode;
+  disabled?: boolean;
 }) {
   const signature = JSON.stringify(proposal);
   const validationSignature = JSON.stringify(validation);
@@ -34,7 +36,7 @@ export function TripSavePanel({ proposal, validation, onSaved, onStateChange }: 
   }, [signature, validationSignature]);
 
   async function confirmAndSave() {
-    if (!currentValidation.canConfirm || state === "pending" || state === "success") return;
+    if (disabled || !proposal.startDate || pendingRef.current || !currentValidation.canConfirm || state === "pending" || state === "success") return;
     if (keyRef.current?.signature !== signature) keyRef.current = { signature, key: crypto.randomUUID() };
     const controller = new AbortController();
     pendingRef.current = controller;
@@ -66,8 +68,9 @@ export function TripSavePanel({ proposal, validation, onSaved, onStateChange }: 
     <TripValidationPanel
       validation={currentValidation}
       pending={state === "pending"}
-      onConfirm={state === "success" ? undefined : confirmAndSave}
-      actionLabel={state === "unknown" ? "Kiểm tra lại kết quả lưu" : "Xác nhận và lưu"}
+      onConfirm={disabled || !proposal.startDate || state === "success" ? undefined : confirmAndSave}
+      secondaryActions={secondaryActions}
+      actionLabel={state === "unknown" ? "Kiểm tra lại kết quả lưu" : "Lưu chuyến đi"}
     />
     <p role={state === "failed" ? "alert" : "status"} aria-live="polite" className="min-h-5 break-words text-sm text-foreground">{message}</p>
   </div>;

@@ -2,7 +2,7 @@
 
 ## Status
 
-IMPLEMENTED IN CODE; authenticated development-DB save, persisted detail, success feedback and immediate list freshness PASS. Strict full acceptance remains NOT PROVEN for controlled browser FAILED/UNKNOWN and two-account reverse ownership (completion audit 2026-10-19).
+IMPLEMENTED — 2026-10-20 extension: real Save CTA, pending, global toast, navigation to `/trips` and reload persistence PASS in browser. Controlled browser FAILED/UNKNOWN remains NOT PROVEN; service/client tests cover the write contract. See latest evidence below; earlier sections retain historical evidence.
 
 ## Goal / User Story
 
@@ -22,7 +22,7 @@ US-28 planner thực tế đã có: `/trips/new` đi từ nhập/xác nhận nhu
 
 - Ghép phương án có thời gian thực từ planner vào save contract, không chế Destination ID hoặc thời gian.
 - Preview validator trên dữ liệu công khai/hiện hành và bốn nhóm trước thao tác lưu.
-- Dùng lại `TripSavePanel`, shared idempotency và API save; điều hướng tới detail bằng ID thật sau `SUCCESS`.
+- Dùng lại `TripSavePanel`, shared idempotency và API save; sau `SUCCESS` lấy ID thật, phát global toast và điều hướng `/trips`.
 - Xác minh schema, migration, DB, test và UI; không thay đổi auth hoặc theme.
 
 ## Out of Scope
@@ -84,3 +84,31 @@ Không có migration mới trong đợt sửa 2026-10-19. Read-only audit: 23 mi
 - `apps/web/src/components/trip-planner/trip-planner-screen.tsx` and `planner-ui.vitest.test.ts`: global success toast before exact Trip Detail navigation, with regression coverage.
 - `docs/stories/US-30-confirm-save-trip.md` and `docs/ai-progress.md`: current evidence and limitations.
 - US-31 list/detail files are documented in the US-31 story; no API write, schema or migration file changed.
+
+## Approved extension — 2026-10-20 (current behavior)
+
+Source: user task attachment `dd773ed8-494a-4aa9-b36b-3774956d1208`. Delete/manual completion are explicitly approved extensions, not claims about the original Product baseline. Original Product/System DOCX files are unavailable in this checkout; condensed product/architecture/stories were reviewed.
+
+### Audit and implementation
+
+- Before: `PlannerActions` made regeneration primary; `onRegenerate` invokes `POST /api/trip-proposals`, never persistence. Existing `TripSavePanel`/`POST /api/trips` already perform canonical server validation and transactional idempotent creation.
+- Missing opening hours legitimately prevents confirmation. The planner also has an accessibility check; its `eligibleForFinalConfirmation` gate remains intact. No required check was bypassed or data invented.
+- End of proposal now has secondary **Chỉnh sửa nhu cầu**, secondary **Tạo lại lịch trình**, and one primary **Lưu chuyến đi**. Invalid/relative/loading previews expose disabled Save with guidance; regeneration remains available for invalid proposals.
+- Save uses existing `submitTripSave`, not regeneration. A synchronous ref blocks duplicate clicks; pending shows spinner/Đang lưu… and locks secondary actions. Missing start date disables Save even for direct component usage.
+- Only confirmed SUCCESS with a real Trip ID triggers global Sonner `Đã lưu chuyến đi thành công.` then `router.replace('/trips')`. Existing dynamic owner-scoped list reads supply fresh data. No timeout, provider/store, localStorage Trip or cache library was added.
+- FAILED preserves proposal. UNKNOWN preserves the identical proposal/key and offers **Kiểm tra lại kết quả lưu**. The existing repeated POST first reconciles the actor-scoped persisted idempotency record; it does not create another logical save request.
+
+### Evidence
+
+- RED → GREEN: label and `/trips` navigation assertions failed before implementation; missing-date disabled assertion failed before its guard. Planner/save/Validator tests pass in the targeted run.
+- Browser at `localhost:3010`, existing authenticated traveler-capable session: an initial proposal missing opening hours kept Save disabled. Selecting the existing nature preference yielded real `[TEST]` destinations with all checks satisfied. Pending was observed, followed by `/trips`, success toast after planner unmount, immediate row and persisted row after reload.
+- Browser-created disposable Trip: `cmvgvphwq000400k5bpact9xi`, 21/10/2026, 1 Day/3 Visits. Mark/reload/unmark subsequently passed; user explicitly approved its deletion at browser action time. It was deleted; pre-existing Trip count returned to seven.
+- PostgreSQL integration separately creates two disposable TRAVELER users, one explicit test Destination, and saves using the real service/Validator/DB. Same key replay creates exactly one Trip; list/detail agree. Fixture cleanup completed.
+- NOT PROVEN: injected network FAILED/UNKNOWN through browser, and two separate signed-in browser accounts. Service/client/HTTP tests exercise these contracts; these do not substitute for E2E evidence.
+
+### Changed save files
+
+`apps/web/src/components/trip-planner/{planner-presentation.tsx,planner-ui.vitest.test.ts,trip-confirmation-section.tsx,trip-planner-screen.tsx}`;
+`apps/web/src/modules/trip-save/{trip-save-panel.tsx,trip-save-panel.vitest.test.ts}`;
+`apps/web/src/modules/trip-validation/trip-validation-panel.tsx`.
+The management schema/API/UI/test files and exact verification commands are recorded in the US-31 extension below.

@@ -25,7 +25,7 @@ describe("US-31 calendar status", () => {
   });
 });
 
-const trip = (id: string, userId: string) => ({ id, userId, startDate: new Date("2026-10-10T00:00:00.000Z"), durationDays: 2, transport: "CAR" as const });
+const trip = (id: string, userId: string) => ({ id, userId, startDate: new Date("2026-10-10T00:00:00.000Z"), durationDays: 2, transport: "CAR" as const, manuallyCompletedAt: null as Date | null });
 
 function fixture() {
   const rows = [trip("mine", "a"), trip("other", "b")];
