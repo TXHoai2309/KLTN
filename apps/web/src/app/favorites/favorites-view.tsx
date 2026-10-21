@@ -1,6 +1,8 @@
 "use client";
-import { mvpFeatures } from "@/lib/mvp-features";
 import React, { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Heart } from "lucide-react";
+import { toast } from "sonner";
 import Link from "next/link";
 import type { Route } from "next";
 import { Button } from "@KLTN/ui/components/button";
@@ -15,8 +17,9 @@ import type { FavoriteItem, FavoriteList } from "@/modules/favorite/favorite-con
 
 type Group = keyof FavoriteList;
 type Removed = (id: string, outcome: MutationOutcome<{favoriteId:string}>) => void;
-const allGroups = [{id:"destinations",label:"Điểm đến"},{id:"cultureContents",label:"Nội dung văn hóa"}] as const;
-const groups = allGroups.filter(group => group.id === "destinations" || mvpFeatures.culture);
+const groups = [{id:"destinations",label:"Điểm đến"},{id:"cultureContents",label:"Nội dung văn hóa"},{id:"trips",label:"Hành trình"}] as const;
+const dateLabel = (value: string) => `${value.slice(8,10)}/${value.slice(5,7)}/${value.slice(0,4)}`;
+const tripStatusLabels = { UPCOMING: "Sắp tới", ONGOING: "Đang diễn ra", COMPLETED: "Đã hoàn thành" };
 
 export function FavoriteCard({item,group,onRemoved}: {item:FavoriteItem;group:Group;onRemoved:Removed}) {
   const [pending,setPending] = useState(false);
@@ -47,11 +50,16 @@ export function FavoriteCard({item,group,onRemoved}: {item:FavoriteItem;group:Gr
     <div className="favorite-card-body">
       {item.category && <p className="favorite-card-category">{item.category}</p>}
       <h3>{item.title}</h3>
-      <p className="favorite-card-desc">{item.availability === "UNAVAILABLE" ? "Không còn khả dụng" : `${group === "destinations" ? "Điểm đến" : "Nội dung văn hóa"} đã yêu thích. Mở để xem đối tượng gốc.`}</p>
+      <p className="favorite-card-desc">{item.availability === "UNAVAILABLE" ? "Không còn khả dụng" : `${group === "trips" ? "Hành trình" : group === "destinations" ? "Điểm đến" : "Nội dung văn hóa"} đã yêu thích. Mở để xem đối tượng gốc.`}</p>
+      {group === "trips" && item.trip && <div className="favorite-trip-meta" aria-label="Thông tin chuyến đi">
+        <p>{dateLabel(item.trip.startDate)} – {dateLabel(item.trip.endDate)}</p>
+        <p>{item.trip.durationDays} ngày · {item.trip.transport === "CAR" ? "Ô tô" : "Xe máy"}</p>
+        <p className="favorite-trip-status">{tripStatusLabels[item.trip.status]}</p>
+      </div>}
       <div className="favorite-actions">
-        {item.href && item.availability === "AVAILABLE" && <Link className="favorite-action" href={item.href as Route} aria-label={`Mở chi tiết ${item.title}`}>Mở chi tiết</Link>}
+        {item.href && item.availability === "AVAILABLE" && <Link className="favorite-action" prefetch={false} href={item.href as Route} aria-label={`Mở chi tiết ${item.title}`}>Mở chi tiết</Link>}
         <Button variant="outline" className="favorite-action" disabled={pending} onClick={()=>void remove()} aria-label={`${feedback ? "Thử lại bỏ" : "Bỏ"} yêu thích ${item.title}`}>
-          {pending ? "Đang bỏ..." : feedback ? "Thử lại bỏ yêu thích" : "Bỏ yêu thích"}
+          {group === "trips" && <Heart size={16} fill="currentColor" aria-hidden="true" />}{pending ? "Đang bỏ..." : feedback ? "Thử lại bỏ yêu thích" : "Bỏ yêu thích"}
         </Button>
       </div>
       {feedback && <p role="alert" className="favorite-feedback">{feedback}</p>}
@@ -62,13 +70,14 @@ export function FavoriteCard({item,group,onRemoved}: {item:FavoriteItem;group:Gr
 export function FavoriteContent({state,group,items,retry,onRemoved}: {state:"loading"|"error"|"ready";group:Group;items:FavoriteItem[];retry:()=>void;onRemoved:Removed}) {
   if (state === "loading") return <div role="status" aria-busy="true"><span className="sr-only">Đang tải danh sách yêu thích</span><div className="favorite-grid">{[0,1,2].map(i=><Card className="favorite-card favorite-skeleton" key={i}><Skeleton className="h-7 w-2/3"/><Skeleton className="h-5 w-full"/><Skeleton className="h-9 w-full"/><Skeleton className="h-11 w-3/4"/></Card>)}</div></div>;
   if (state === "error") return <Empty className="favorite-state" role="alert"><p>Không thể tải danh sách yêu thích. Vui lòng thử lại.</p><Button className="favorite-action" variant="outline" onClick={retry}>Thử lại</Button></Empty>;
-  if (!items.length) return <Empty className="favorite-state" role="status"><p>{group === "destinations" ? "Bạn chưa có điểm đến yêu thích." : "Bạn chưa có nội dung văn hóa yêu thích."}</p><Link className="favorite-action" href="/explore">Khám phá nội dung</Link></Empty>;
+  if (!items.length) return <Empty className="favorite-state" role="status"><p>{group === "trips" ? "Bạn chưa có hành trình yêu thích." : group === "destinations" ? "Bạn chưa có điểm đến yêu thích." : "Bạn chưa có nội dung văn hóa yêu thích."}</p><Link className="favorite-action" href={group === "trips" ? "/trips" : "/explore"}>{group === "trips" ? "Chuyến đi của tôi" : "Khám phá nội dung"}</Link></Empty>;
   return <ul className="favorite-grid">{items.map(item=><li key={item.favoriteId}><FavoriteCard item={item} group={group} onRemoved={onRemoved}/></li>)}</ul>;
 }
 
 export default function FavoritesView({loadingOnly=false}: {loadingOnly?:boolean}) {
   const [group,setGroup] = useState<Group>("destinations");
-  const [data,setData] = useState<FavoriteList>({destinations:[],cultureContents:[]});
+  const [data,setData] = useState<FavoriteList>({destinations:[],cultureContents:[],trips:[]});
+  const router = useRouter();
   const [state,setState] = useState<"loading"|"error"|"ready">("loading");
   const [attempt,setAttempt] = useState(0);
   const [notice,setNotice] = useState("");
@@ -79,8 +88,8 @@ export default function FavoritesView({loadingOnly=false}: {loadingOnly?:boolean
     return ()=>controller.abort();
   },[attempt,loadingOnly]);
   const removed:Removed=(id,outcome)=>{
-    setData(current=>({destinations:confirmedRemoval(current.destinations,id,outcome),cultureContents:confirmedRemoval(current.cultureContents,id,outcome)}));
-    if(outcome.status === "SUCCESS") setNotice("Đã bỏ yêu thích.");
+    setData(current=>({destinations:confirmedRemoval(current.destinations,id,outcome),cultureContents:confirmedRemoval(current.cultureContents,id,outcome),trips:confirmedRemoval(current.trips,id,outcome)}));
+    if(outcome.status === "SUCCESS") { setNotice("Đã bỏ yêu thích."); toast.success("Đã bỏ yêu thích."); router.refresh(); }
   };
   return <main className="favorites-page" lang="vi">
     <h1>Yêu thích</h1>
@@ -103,7 +112,7 @@ export default function FavoritesView({loadingOnly=false}: {loadingOnly?:boolean
         ))}
       </div>
     )}
-    {/* Keep both groups mounted so a pending/UNKNOWN mutation retains its key when switching. */}
+    {/* Keep groups mounted so a pending/UNKNOWN mutation retains its key when switching. */}
     {groups.map(tab=><section key={tab.id} id={`favorite-${tab.id}`} hidden={group!==tab.id} aria-labelledby={`favorite-title-${tab.id}`}><h2 className="sr-only" id={`favorite-title-${tab.id}`}>{tab.label}</h2><FavoriteContent state={state} group={tab.id} items={data[tab.id]} retry={()=>setAttempt(x=>x+1)} onRemoved={removed}/></section>)}
     <p role="status" className="sr-only">{notice}</p>
   </main>;

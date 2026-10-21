@@ -27,6 +27,7 @@ model RagDocument {
   uploadedById     String
   status           RagDocumentStatus   @default(UPLOADED)
   publicQaApproved Boolean             @default(false)
+  deletedAt        DateTime?           @db.Timestamptz(3)
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
 
@@ -37,5 +38,6 @@ model RagDocument {
   indexJobs        RagIndexJob[]
 
   @@index([status, publicQaApproved])
+  @@index([deletedAt])
   @@map("rag_document")
 }

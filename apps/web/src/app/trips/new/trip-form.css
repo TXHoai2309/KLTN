@@ -1,11 +1,15 @@
 .trip-shell {
+  /* Lightning CSS lowers light-dark() using this CSS color-scheme boundary. */
+  color-scheme: light;
   min-width: 0;
   min-height: 100%;
   overflow-x: hidden;
-  background: #f7f6f2;
-  color: #1d2521;
+  background: light-dark(#f7f6f2, var(--background));
+  color: light-dark(#1d2521, var(--foreground));
   font-family: var(--font-trip-body), sans-serif;
 }
+
+.dark .trip-shell { color-scheme: dark; }
 
 .trip-form-page {
   width: min(100%, 1120px);
@@ -15,26 +19,26 @@
 }
 
 .trip-form-intro { max-width: 760px; margin-bottom: 32px; }
-.trip-eyebrow { margin: 0 0 10px; color: #287c61; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-.trip-form-intro h1 { margin: 0; color: #183c2d; font-family: var(--font-trip-heading), serif; font-size: clamp(30px, 4vw, 48px); line-height: 1.18; overflow-wrap: anywhere; }
-.trip-form-intro > p:last-child { max-width: 680px; margin: 16px 0 0; color: #66716b; font-size: 15px; line-height: 1.7; overflow-wrap: anywhere; }
+.trip-eyebrow { margin: 0 0 10px; color: light-dark(#287c61, #91c7a7); font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.trip-form-intro h1 { margin: 0; color: light-dark(#183c2d, var(--foreground)); font-family: var(--font-trip-heading), serif; font-size: clamp(30px, 4vw, 48px); line-height: 1.18; overflow-wrap: anywhere; }
+.trip-form-intro > p:last-child { max-width: 680px; margin: 16px 0 0; color: light-dark(#66716b, var(--muted-foreground)); font-size: 15px; line-height: 1.7; overflow-wrap: anywhere; }
 
 .trip-flow-tabs { display: grid; min-width: 0; gap: 10px; margin-bottom: 24px; }
-.trip-flow-tablist { display: grid; min-width: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 8px; border: 1px solid #dce5df; border-radius: 18px; background: #eef4ef; }
-.trip-flow-tab { position: relative; display: flex; min-width: 0; min-height: 76px; gap: 10px; align-items: flex-start; padding: 12px; border: 1px solid transparent; border-radius: 13px; background: transparent; color: #66716b; cursor: pointer; font: inherit; text-align: left; transition: border-color .2s ease, background .2s ease, color .2s ease, transform .2s ease; }
-.trip-flow-tab:hover:not(:disabled) { border-color: #b7d3c2; background: #f8fcf9; color: #275a47; transform: translateY(-1px); }
-.trip-flow-tab:focus-visible { outline: 3px solid rgba(40, 124, 97, .27); outline-offset: 2px; }
+.trip-flow-tablist { display: grid; min-width: 0; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 8px; border: 1px solid light-dark(#dce5df, var(--border)); border-radius: 18px; background: light-dark(#eef4ef, var(--muted)); }
+.trip-flow-tab { position: relative; display: flex; min-width: 0; min-height: 76px; gap: 10px; align-items: flex-start; padding: 12px; border: 1px solid transparent; border-radius: 13px; background: transparent; color: light-dark(#66716b, var(--muted-foreground)); cursor: pointer; font: inherit; text-align: left; transition: border-color .2s ease, background .2s ease, color .2s ease, transform .2s ease; }
+.trip-flow-tab:hover:not(:disabled) { border-color: light-dark(#b7d3c2, var(--border)); background: light-dark(#f8fcf9, var(--muted)); color: light-dark(#275a47, #91c7a7); transform: translateY(-1px); }
+.trip-flow-tab:focus-visible { outline: 3px solid light-dark(rgba(40, 124, 97, .27), var(--ring)); outline-offset: 2px; }
 .trip-flow-tab[data-active="true"] { border-color: #21694f; background: #21694f; color: #fff; box-shadow: 0 7px 16px rgba(33, 105, 79, .16); }
-.trip-flow-tab[data-completed="true"] { color: #21694f; }
+.trip-flow-tab[data-completed="true"] { color: light-dark(#21694f, #91c7a7); }
 .trip-flow-tab:disabled { cursor: not-allowed; opacity: .68; }
-.trip-flow-tab-icon { display: grid; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; border: 1px solid #cbd8cf; border-radius: 9px; background: #fff; color: #287c61; }
+.trip-flow-tab-icon { display: grid; width: 30px; height: 30px; flex: 0 0 30px; place-items: center; border: 1px solid light-dark(#cbd8cf, var(--border)); border-radius: 9px; background: var(--card); color: light-dark(#287c61, #91c7a7); }
 .trip-flow-tab[data-active="true"] .trip-flow-tab-icon { border-color: rgba(255,255,255,.3); background: rgba(255,255,255,.14); color: #fff; }
 .trip-flow-tab-copy { display: grid; min-width: 0; gap: 3px; }
 .trip-flow-tab-copy strong { display: flex; min-width: 0; flex-wrap: wrap; gap: 6px; align-items: baseline; color: inherit; font-size: 13px; line-height: 1.35; overflow-wrap: anywhere; }
 .trip-flow-tab-copy small { color: inherit; opacity: .72; font-size: 10px; line-height: 1.4; overflow-wrap: anywhere; }
 .trip-flow-tab-index { font-family: var(--font-trip-heading), serif; font-size: 12px; letter-spacing: .08em; opacity: .72; }
 .trip-flow-tab-state { align-self: flex-end; margin-left: auto; color: inherit; opacity: .68; font-size: 10px; line-height: 1.3; white-space: nowrap; }
-.trip-flow-tabs-hint { margin: 0 4px; color: #66716b; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.trip-flow-tabs-hint { margin: 0 4px; color: light-dark(#66716b, var(--muted-foreground)); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .trip-flow-viewport { min-width: 0; overflow: hidden; }
 .trip-flow-panel { min-width: 0; }
 .trip-flow-panel[data-active="true"] { animation-duration: 360ms; animation-timing-function: cubic-bezier(.2,.75,.25,1); animation-fill-mode: both; }
@@ -44,73 +48,73 @@
 @keyframes trip-panel-in-forward { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes trip-panel-in-backward { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: translateX(0); } }
 
-.trip-details-intro { display: grid; min-width: 0; gap: 12px; margin-bottom: 16px; padding: 20px 22px; border: 1px solid #c8e4d3; border-radius: 18px; background: #f8fcf9; }
+.trip-details-intro { display: grid; min-width: 0; gap: 12px; margin-bottom: 16px; padding: 20px 22px; border: 1px solid light-dark(#c8e4d3, var(--border)); border-radius: 18px; background: light-dark(#f8fcf9, var(--muted)); }
 .trip-details-intro .trip-section-heading { margin: 0; }
-.trip-details-intro h2 { margin: 0; color: #183c2d; font-family: var(--font-trip-heading), serif; font-size: 24px; line-height: 1.3; overflow-wrap: anywhere; }
-.trip-details-intro > p { max-width: 720px; margin: 0; color: #66716b; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.trip-details-intro h2 { margin: 0; color: light-dark(#183c2d, var(--foreground)); font-family: var(--font-trip-heading), serif; font-size: 24px; line-height: 1.3; overflow-wrap: anywhere; }
+.trip-details-intro > p { max-width: 720px; margin: 0; color: light-dark(#66716b, var(--muted-foreground)); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
 
 .trip-form { display: grid; min-width: 0; gap: 24px; }
-.trip-natural-language { display: grid; min-width: 0; gap: 16px; padding: 24px; border: 1px solid #dce5df; border-radius: 20px; background: #fff; box-shadow: 0 6px 18px rgba(27, 55, 40, .05); }
+.trip-natural-language { display: grid; min-width: 0; gap: 16px; padding: 24px; border: 1px solid light-dark(#dce5df, var(--border)); border-radius: 20px; background: var(--card); box-shadow: 0 6px 18px rgba(27, 55, 40, .05); }
 .trip-natural-language-heading { display: flex; min-width: 0; gap: 12px; align-items: center; }
-.trip-natural-language-heading h2 { margin: 0; color: #183c2d; font-family: var(--font-trip-heading), serif; font-size: 25px; line-height: 1.3; overflow-wrap: anywhere; }
-.trip-natural-language-intro { max-width: 720px; margin: -4px 0 0; color: #66716b; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.trip-natural-language-heading h2 { margin: 0; color: light-dark(#183c2d, var(--foreground)); font-family: var(--font-trip-heading), serif; font-size: 25px; line-height: 1.3; overflow-wrap: anywhere; }
+.trip-natural-language-intro { max-width: 720px; margin: -4px 0 0; color: light-dark(#66716b, var(--muted-foreground)); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
 .trip-natural-language-field { min-width: 0; }
-.trip-natural-language-field > label { display: block; color: #27352d; font-size: 14px; font-weight: 700; }
+.trip-natural-language-field > label { display: block; color: light-dark(#27352d, var(--foreground)); font-size: 14px; font-weight: 700; }
 .trip-natural-language-textarea { min-height: 140px; margin-top: 8px; }
-.trip-natural-language-meta { display: flex; min-width: 0; justify-content: flex-end; margin-top: 7px; color: #66716b; font-size: 12px; }
+.trip-natural-language-meta { display: flex; min-width: 0; justify-content: flex-end; margin-top: 7px; color: light-dark(#66716b, var(--muted-foreground)); font-size: 12px; }
 .trip-natural-language-examples { min-width: 0; }
 .trip-natural-language-chips { display: flex; min-width: 0; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-.trip-natural-language-chip { min-height: 44px; max-width: 100%; padding: 9px 12px; border: 1px solid #cbd8cf; border-radius: 999px; background: #f7faf8; color: #275a47; cursor: pointer; font: inherit; font-size: 12px; line-height: 1.4; text-align: left; overflow-wrap: anywhere; }
-.trip-natural-language-chip:hover { border-color: #287c61; background: #eef7f1; }
-.trip-natural-language-chip:focus-visible { outline: 3px solid rgba(40, 124, 97, .25); outline-offset: 2px; }
-.trip-natural-language-privacy, .trip-natural-language-contract-note { margin: 0; color: #66716b; font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
-.trip-natural-language-privacy { padding-top: 4px; border-top: 1px solid #edf0ed; }
+.trip-natural-language-chip { min-height: 44px; max-width: 100%; padding: 9px 12px; border: 1px solid light-dark(#cbd8cf, var(--border)); border-radius: 999px; background: light-dark(#f7faf8, var(--muted)); color: light-dark(#275a47, #91c7a7); cursor: pointer; font: inherit; font-size: 12px; line-height: 1.4; text-align: left; overflow-wrap: anywhere; }
+.trip-natural-language-chip:hover { border-color: light-dark(#287c61, var(--border)); background: light-dark(#eef7f1, var(--muted)); }
+.trip-natural-language-chip:focus-visible { outline: 3px solid light-dark(rgba(40, 124, 97, .25), var(--ring)); outline-offset: 2px; }
+.trip-natural-language-privacy, .trip-natural-language-contract-note { margin: 0; color: light-dark(#66716b, var(--muted-foreground)); font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
+.trip-natural-language-privacy { padding-top: 4px; border-top: 1px solid light-dark(#edf0ed, var(--border)); }
 .trip-natural-language-actions { display: flex; min-width: 0; flex-wrap: wrap; gap: 12px; align-items: center; }
-.trip-natural-language-button-reason { min-width: 0; margin: 0; color: #66716b; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
-.trip-natural-language-manual-path { display: flex; min-width: 0; flex-wrap: wrap; gap: 7px; align-items: center; padding-top: 2px; color: #66716b; font-size: 12px; line-height: 1.5; }
-.trip-natural-language-status { display: flex; min-width: 0; flex-wrap: wrap; gap: 9px; align-items: center; padding: 12px 14px; border: 1px solid #dce5df; border-radius: 12px; color: #275a47; background: #f7faf8; font-size: 13px; line-height: 1.5; }
-.trip-natural-language-status-failure { border-color: #ecc9c2; color: #8a3024; background: #fff3f0; }
-.trip-natural-language-status-success { border-color: #c8e4d3; background: #f2faf5; }
+.trip-natural-language-button-reason { min-width: 0; margin: 0; color: light-dark(#66716b, var(--muted-foreground)); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.trip-natural-language-manual-path { display: flex; min-width: 0; flex-wrap: wrap; gap: 7px; align-items: center; padding-top: 2px; color: light-dark(#66716b, var(--muted-foreground)); font-size: 12px; line-height: 1.5; }
+.trip-natural-language-status { display: flex; min-width: 0; flex-wrap: wrap; gap: 9px; align-items: center; padding: 12px 14px; border: 1px solid light-dark(#dce5df, var(--border)); border-radius: 12px; color: light-dark(#275a47, #91c7a7); background: light-dark(#f7faf8, var(--muted)); font-size: 13px; line-height: 1.5; }
+.trip-natural-language-status-failure { border-color: light-dark(#ecc9c2, color-mix(in srgb, var(--destructive) 45%, var(--border))); color: light-dark(#8a3024, var(--destructive)); background: light-dark(#fff3f0, color-mix(in srgb, var(--destructive) 12%, var(--card))); }
+.trip-natural-language-status-success { border-color: light-dark(#c8e4d3, var(--border)); background: light-dark(#f2faf5, var(--muted)); }
 .trip-natural-language-cancel { min-height: 40px; margin-left: auto; }
 .trip-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .trip-form-grid { display: grid; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
 .trip-field, .trip-fieldset { min-width: 0; }
-.trip-field label, .trip-fieldset legend { color: #27352d; font-size: 14px; font-weight: 700; }
-.trip-fieldset { margin: 0; padding: 22px; border: 1px solid #dce5df; border-radius: 18px; background: rgba(255, 255, 255, .82); }
+.trip-field label, .trip-fieldset legend { color: light-dark(#27352d, var(--foreground)); font-size: 14px; font-weight: 700; }
+.trip-fieldset { margin: 0; padding: 22px; border: 1px solid light-dark(#dce5df, var(--border)); border-radius: 18px; background: light-dark(rgba(255, 255, 255, .82), color-mix(in srgb, var(--card) 82%, transparent)); }
 .trip-fieldset legend { padding-inline: 8px; }
 .trip-field > label { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; margin-bottom: 8px; }
-.trip-field input:not([type="radio"]):not([type="checkbox"]), .trip-textarea { display: block; width: 100%; min-width: 0; min-height: 46px; margin-top: 8px; border: 1px solid #cbd8cf; border-radius: 10px; background: #fff; color: #1d2521; padding: 11px 13px; font: inherit; font-size: 14px; outline: none; }
+.trip-field input:not([type="radio"]):not([type="checkbox"]), .trip-textarea { display: block; width: 100%; min-width: 0; min-height: 46px; margin-top: 8px; border: 1px solid light-dark(#cbd8cf, var(--input)); border-radius: 10px; background: var(--card); color: light-dark(#1d2521, var(--foreground)); padding: 11px 13px; font: inherit; font-size: 14px; outline: none; }
 .trip-textarea { min-height: 112px; resize: vertical; line-height: 1.55; }
-.trip-field input:not([type="radio"]):not([type="checkbox"]):focus-visible, .trip-textarea:focus-visible { border-color: #287c61; box-shadow: 0 0 0 3px rgba(40, 124, 97, .16); }
+.trip-field input:not([type="radio"]):not([type="checkbox"]):focus-visible, .trip-textarea:focus-visible { border-color: light-dark(#287c61, var(--border)); box-shadow: 0 0 0 3px light-dark(rgba(40, 124, 97, .16), var(--ring)); }
 .trip-field input:disabled { cursor: not-allowed; opacity: .58; }
 .trip-required, .trip-optional { display: inline-flex; align-items: center; min-height: 24px; border-radius: 999px; padding: 3px 8px; font-size: 11px; font-weight: 600; }
-.trip-required { background: #e9f4ee; color: #21694f; }
-.trip-optional { background: #f0f2ef; color: #66716b; }
-.trip-help { margin: 8px 0 0; color: #66716b; font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
+.trip-required { background: light-dark(#e9f4ee, var(--muted)); color: light-dark(#21694f, #91c7a7); }
+.trip-optional { background: light-dark(#f0f2ef, var(--muted)); color: light-dark(#66716b, var(--muted-foreground)); }
+.trip-help { margin: 8px 0 0; color: light-dark(#66716b, var(--muted-foreground)); font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
 .trip-character-count { text-align: right; }
 
 .trip-choice-grid { display: grid; min-width: 0; gap: 10px; margin-top: 16px; }
 .trip-choice-grid-two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .trip-choice-grid-wrap { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
-.trip-choice { display: flex; min-width: 0; min-height: 58px; align-items: flex-start; gap: 11px; padding: 12px; border: 1px solid #dce5df; border-radius: 12px; background: #fff; color: #27352d; cursor: pointer; }
-.trip-choice:hover { border-color: #87b9a0; }
-.trip-choice:has(input:focus-visible) { outline: 3px solid rgba(40, 124, 97, .2); outline-offset: 2px; }
-.trip-choice input { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 2px; accent-color: #287c61; }
+.trip-choice { display: flex; min-width: 0; min-height: 58px; align-items: flex-start; gap: 11px; padding: 12px; border: 1px solid light-dark(#dce5df, var(--border)); border-radius: 12px; background: var(--card); color: light-dark(#27352d, var(--foreground)); cursor: pointer; }
+.trip-choice:hover { border-color: light-dark(#87b9a0, var(--border)); }
+.trip-choice:has(input:focus-visible) { outline: 3px solid light-dark(rgba(40, 124, 97, .2), var(--ring)); outline-offset: 2px; }
+.trip-choice input { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 2px; accent-color: light-dark(#287c61, #91c7a7); }
 .trip-choice span { display: grid; min-width: 0; gap: 4px; }
 .trip-choice strong { font-size: 13px; line-height: 1.35; overflow-wrap: anywhere; }
-.trip-choice small { color: #66716b; font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
+.trip-choice small { color: light-dark(#66716b, var(--muted-foreground)); font-size: 11px; line-height: 1.45; overflow-wrap: anywhere; }
 .trip-choice-compact { min-height: 50px; align-items: center; }
 .trip-choice-compact span { display: flex; flex-wrap: wrap; gap: 5px 8px; align-items: baseline; }
 .trip-nested-field { max-width: 420px; margin-top: 18px; }
 
-.trip-error-summary { margin: 0; padding: 14px 16px; border: 1px solid #ecc9c2; border-radius: 12px; background: #fff3f0; color: #8a3024; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+.trip-error-summary { margin: 0; padding: 14px 16px; border: 1px solid light-dark(#ecc9c2, color-mix(in srgb, var(--destructive) 45%, var(--border))); border-radius: 12px; background: light-dark(#fff3f0, color-mix(in srgb, var(--destructive) 12%, var(--card))); color: light-dark(#8a3024, var(--destructive)); font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
 .trip-error-summary p { margin: 0; font-weight: 700; }
 .trip-error-summary ul { display: grid; gap: 4px; margin: 8px 0 0; padding-left: 20px; }
 .trip-error-summary a { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
-.trip-error-summary a:focus-visible { outline: 3px solid rgba(40, 124, 97, .3); outline-offset: 3px; }
+.trip-error-summary a:focus-visible { outline: 3px solid light-dark(rgba(40, 124, 97, .3), var(--ring)); outline-offset: 3px; }
 .trip-form-error, .trip-form-feedback { margin: 0; padding: 12px 14px; border-radius: 10px; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
-.trip-form-error, .trip-field-error, .trip-form-feedback { color: #8a3024; }
-.trip-form-error, .trip-form-feedback { border: 1px solid #ecc9c2; background: #fff3f0; }
+.trip-form-error, .trip-field-error, .trip-form-feedback { color: light-dark(#8a3024, var(--destructive)); }
+.trip-form-error, .trip-form-feedback { border: 1px solid light-dark(#ecc9c2, color-mix(in srgb, var(--destructive) 45%, var(--border))); background: light-dark(#fff3f0, color-mix(in srgb, var(--destructive) 12%, var(--card))); }
 .trip-field-error { margin: 7px 0 0; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .trip-form-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 .trip-submit-button, .trip-secondary-button { min-height: 46px; padding-inline: 18px; white-space: normal; }
@@ -118,139 +122,139 @@
 .trip-spinner { animation: trip-spin 800ms linear infinite; }
 @keyframes trip-spin { to { transform: rotate(360deg); } }
 
-.trip-extraction-result { display: grid; min-width: 0; gap: 16px; padding: 24px; border: 1px solid #c8e4d3; border-radius: 20px; background: #f8fcf9; box-shadow: 0 6px 18px rgba(27, 55, 40, .04); }
+.trip-extraction-result { display: grid; min-width: 0; gap: 16px; padding: 24px; border: 1px solid light-dark(#c8e4d3, var(--border)); border-radius: 20px; background: light-dark(#f8fcf9, var(--muted)); box-shadow: 0 6px 18px rgba(27, 55, 40, .04); }
 .trip-extraction-result h2 { outline: none; }
-.trip-extraction-count, .trip-extraction-neutral, .trip-extraction-missing, .trip-extraction-disclaimer { margin: 0; color: #66716b; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
-.trip-extraction-count { color: #275a47; font-weight: 700; }
-.trip-extraction-missing { color: #8a5a19; }
+.trip-extraction-count, .trip-extraction-neutral, .trip-extraction-missing, .trip-extraction-disclaimer { margin: 0; color: light-dark(#66716b, var(--muted-foreground)); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.trip-extraction-count { color: light-dark(#275a47, #91c7a7); font-weight: 700; }
+.trip-extraction-missing { color: light-dark(#8a5a19, #edcf91); }
 .trip-extraction-field-list { display: grid; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.trip-extraction-field { min-width: 0; padding: 14px; border: 1px solid #dce5df; border-radius: 12px; background: #fff; }
+.trip-extraction-field { min-width: 0; padding: 14px; border: 1px solid light-dark(#dce5df, var(--border)); border-radius: 12px; background: var(--card); }
 .trip-extraction-field-heading { display: flex; min-width: 0; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
-.trip-extraction-field h3, .trip-extraction-clarifications h3 { margin: 0; color: #27352d; font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
-.trip-extraction-status { display: inline-flex; min-height: 28px; align-items: center; gap: 5px; color: #66716b; font-size: 11px; line-height: 1.3; }
-.trip-extraction-field-extracted .trip-extraction-status { color: #21694f; }
-.trip-extraction-field-ambiguous .trip-extraction-status { color: #8a5a19; }
-.trip-extraction-field-unsupported .trip-extraction-status { color: #8a3024; }
+.trip-extraction-field h3, .trip-extraction-clarifications h3 { margin: 0; color: light-dark(#27352d, var(--foreground)); font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.trip-extraction-status { display: inline-flex; min-height: 28px; align-items: center; gap: 5px; color: light-dark(#66716b, var(--muted-foreground)); font-size: 11px; line-height: 1.3; }
+.trip-extraction-field-extracted .trip-extraction-status { color: light-dark(#21694f, #91c7a7); }
+.trip-extraction-field-ambiguous .trip-extraction-status { color: light-dark(#8a5a19, #edcf91); }
+.trip-extraction-field-unsupported .trip-extraction-status { color: light-dark(#8a3024, var(--destructive)); }
 .trip-extraction-value, .trip-extraction-note, .trip-extraction-source { margin: 9px 0 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
-.trip-extraction-value { color: #1d2521; font-weight: 700; }
-.trip-extraction-note { color: #66716b; }
-.trip-extraction-source { color: #6e7b74; font-size: 12px; font-style: italic; }
-.trip-extraction-clarifications { min-width: 0; padding: 14px; border: 1px solid #ead8ae; border-radius: 12px; background: #fffaf0; }
+.trip-extraction-value { color: light-dark(#1d2521, var(--foreground)); font-weight: 700; }
+.trip-extraction-note { color: light-dark(#66716b, var(--muted-foreground)); }
+.trip-extraction-source { color: light-dark(#6e7b74, var(--muted-foreground)); font-size: 12px; font-style: italic; }
+.trip-extraction-clarifications { min-width: 0; padding: 14px; border: 1px solid light-dark(#ead8ae, color-mix(in srgb, #b8791d 45%, var(--border))); border-radius: 12px; background: light-dark(#fffaf0, color-mix(in srgb, #b8791d 15%, var(--card))); }
 .trip-extraction-clarifications ul { display: grid; gap: 10px; margin: 9px 0 0; padding-left: 19px; }
-.trip-extraction-clarifications li { min-width: 0; color: #5f4a22; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
-.trip-extraction-clarifications small { display: block; margin-top: 3px; color: #806f4c; font-size: 11px; }
-.trip-extraction-pending { margin-top: 10px; padding-top: 10px; border-top: 1px solid #edf0ed; }
-.trip-extraction-pending p { margin: 0; color: #8a5a19; font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.trip-extraction-clarifications li { min-width: 0; color: light-dark(#5f4a22, #edcf91); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.trip-extraction-clarifications small { display: block; margin-top: 3px; color: light-dark(#806f4c, #edcf91); font-size: 11px; }
+.trip-extraction-pending { margin-top: 10px; padding-top: 10px; border-top: 1px solid light-dark(#edf0ed, var(--border)); }
+.trip-extraction-pending p { margin: 0; color: light-dark(#8a5a19, #edcf91); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
 .trip-extraction-suggestion-actions { display: flex; min-width: 0; flex-wrap: wrap; gap: 8px 14px; margin-top: 7px; }
-.trip-extraction-link-button { min-height: 40px; padding: 7px 0; border: 0; background: transparent; color: #21694f; cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
-.trip-extraction-link-button:focus-visible { outline: 3px solid rgba(40, 124, 97, .28); outline-offset: 3px; border-radius: 4px; }
+.trip-extraction-link-button { min-height: 40px; padding: 7px 0; border: 0; background: transparent; color: light-dark(#21694f, #91c7a7); cursor: pointer; font: inherit; font-size: 12px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.trip-extraction-link-button:focus-visible { outline: 3px solid light-dark(rgba(40, 124, 97, .28), var(--ring)); outline-offset: 3px; border-radius: 4px; }
 .trip-extraction-fill-button { width: fit-content; }
-.trip-ai-suggestion { display: flex; min-width: 0; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-top: 10px; padding: 10px 12px; border: 1px dashed #87b9a0; border-radius: 10px; background: #f2faf5; }
+.trip-ai-suggestion { display: flex; min-width: 0; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-top: 10px; padding: 10px 12px; border: 1px dashed light-dark(#87b9a0, var(--border)); border-radius: 10px; background: light-dark(#f2faf5, var(--muted)); }
 .trip-ai-suggestion > div { display: grid; min-width: 0; gap: 3px; }
-.trip-ai-suggestion strong { color: #21694f; font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
-.trip-ai-suggestion small { color: #66716b; font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+.trip-ai-suggestion strong { color: light-dark(#21694f, #91c7a7); font-size: 12px; line-height: 1.4; overflow-wrap: anywhere; }
+.trip-ai-suggestion small { color: light-dark(#66716b, var(--muted-foreground)); font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
 
 .trip-review-page { display: grid; min-width: 0; gap: 24px; }
-.trip-review-screen { display: grid; min-width: 0; gap: 16px; padding: 24px; border: 1px solid #c8e4d3; border-radius: 20px; background: #f8fcf9; box-shadow: 0 6px 18px rgba(27, 55, 40, .04); }
-.trip-review-summary { display: flex; min-width: 0; gap: 12px; align-items: center; padding: 14px; border: 1px solid #dce5df; border-radius: 14px; background: #fff; }
-.trip-review-summary strong { color: #275a47; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
-.trip-review-summary p { margin: 4px 0 0; color: #66716b; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.trip-review-screen { display: grid; min-width: 0; gap: 16px; padding: 24px; border: 1px solid light-dark(#c8e4d3, var(--border)); border-radius: 20px; background: light-dark(#f8fcf9, var(--muted)); box-shadow: 0 6px 18px rgba(27, 55, 40, .04); }
+.trip-review-summary { display: flex; min-width: 0; gap: 12px; align-items: center; padding: 14px; border: 1px solid light-dark(#dce5df, var(--border)); border-radius: 14px; background: var(--card); }
+.trip-review-summary strong { color: light-dark(#275a47, #91c7a7); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.trip-review-summary p { margin: 4px 0 0; color: light-dark(#66716b, var(--muted-foreground)); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .trip-review-field-list { display: grid; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-.trip-review-field { display: grid; min-width: 0; gap: 8px; padding: 15px; border: 1px solid #dce5df; border-radius: 12px; background: #fff; }
+.trip-review-field { display: grid; min-width: 0; gap: 8px; padding: 15px; border: 1px solid light-dark(#dce5df, var(--border)); border-radius: 12px; background: var(--card); }
 .trip-review-field-heading { display: flex; min-width: 0; flex-wrap: wrap; gap: 8px; align-items: flex-start; justify-content: space-between; }
-.trip-review-field h2 { margin: 0; color: #27352d; font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
+.trip-review-field h2 { margin: 0; color: light-dark(#27352d, var(--foreground)); font-size: 13px; line-height: 1.4; overflow-wrap: anywhere; }
 .trip-review-badges { display: flex; min-width: 0; flex-wrap: wrap; gap: 5px; justify-content: flex-end; }
 .trip-review-badge, .trip-review-status, .trip-review-required { display: inline-flex; min-height: 27px; align-items: center; gap: 4px; border-radius: 999px; padding: 4px 7px; font-size: 10px; font-weight: 700; line-height: 1.25; overflow-wrap: anywhere; }
-.trip-review-badge-ai { color: #21694f; background: #e9f4ee; }
-.trip-review-badge-user { color: #315b7a; background: #edf4fb; }
-.trip-review-badge-empty { color: #66716b; background: #f0f2ef; }
-.trip-review-status { color: #66716b; background: #f5f6f4; }
-.trip-review-status-success { color: #21694f; background: #e9f4ee; }
-.trip-review-status-warning { color: #8a5a19; background: #fff5d9; }
-.trip-review-status-error { color: #8a3024; background: #fff0ed; }
-.trip-review-required { color: #8a3024; background: #fff0ed; }
+.trip-review-badge-ai { color: light-dark(#21694f, #91c7a7); background: light-dark(#e9f4ee, var(--muted)); }
+.trip-review-badge-user { color: light-dark(#315b7a, #9dcfe0); background: light-dark(#edf4fb, var(--muted)); }
+.trip-review-badge-empty { color: light-dark(#66716b, var(--muted-foreground)); background: light-dark(#f0f2ef, var(--muted)); }
+.trip-review-status { color: light-dark(#66716b, var(--muted-foreground)); background: light-dark(#f5f6f4, var(--muted)); }
+.trip-review-status-success { color: light-dark(#21694f, #91c7a7); background: light-dark(#e9f4ee, var(--muted)); }
+.trip-review-status-warning { color: light-dark(#8a5a19, #edcf91); background: light-dark(#fff5d9, color-mix(in srgb, #b8791d 15%, var(--card))); }
+.trip-review-status-error { color: light-dark(#8a3024, var(--destructive)); background: light-dark(#fff0ed, color-mix(in srgb, var(--destructive) 12%, var(--card))); }
+.trip-review-required { color: light-dark(#8a3024, var(--destructive)); background: light-dark(#fff0ed, color-mix(in srgb, var(--destructive) 12%, var(--card))); }
 .trip-review-value, .trip-review-source, .trip-review-note, .trip-review-edited { margin: 0; line-height: 1.55; overflow-wrap: anywhere; word-break: break-word; }
-.trip-review-value { color: #1d2521; font-size: 14px; font-weight: 700; }
-.trip-review-value-empty { color: #66716b; font-weight: 500; }
-.trip-review-source { color: #6e7b74; font-size: 12px; font-style: italic; }
-.trip-review-note { color: #66716b; font-size: 12px; }
-.trip-review-transport-warning, .trip-extraction-transport-warning { display: flex; min-width: 0; gap: 6px; align-items: flex-start; margin: 0; color: #8a4b12; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; word-break: break-word; }
-.trip-review-edited { color: #315b7a; font-size: 12px; }
-.trip-review-issues { display: grid; gap: 5px; margin: 0; padding-left: 18px; color: #8a5a19; font-size: 12px; line-height: 1.5; }
+.trip-review-value { color: light-dark(#1d2521, var(--foreground)); font-size: 14px; font-weight: 700; }
+.trip-review-value-empty { color: light-dark(#66716b, var(--muted-foreground)); font-weight: 500; }
+.trip-review-source { color: light-dark(#6e7b74, var(--muted-foreground)); font-size: 12px; font-style: italic; }
+.trip-review-note { color: light-dark(#66716b, var(--muted-foreground)); font-size: 12px; }
+.trip-review-transport-warning, .trip-extraction-transport-warning { display: flex; min-width: 0; gap: 6px; align-items: flex-start; margin: 0; color: light-dark(#8a4b12, #edcf91); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; word-break: break-word; }
+.trip-review-edited { color: light-dark(#315b7a, #9dcfe0); font-size: 12px; }
+.trip-review-issues { display: grid; gap: 5px; margin: 0; padding-left: 18px; color: light-dark(#8a5a19, #edcf91); font-size: 12px; line-height: 1.5; }
 .trip-review-issues li { min-width: 0; overflow-wrap: anywhere; }
 .trip-review-editor { display: grid; min-width: 0; gap: 10px; }
 .trip-review-editor .trip-field, .trip-review-editor .trip-fieldset { min-width: 0; }
 .trip-review-editor-actions, .trip-review-field-actions { display: flex; min-width: 0; flex-wrap: wrap; gap: 8px; align-items: center; }
 .trip-review-editor-actions button, .trip-review-field-actions button { min-height: 44px; }
 .trip-review-editor-actions .trip-secondary-button, .trip-review-field-actions .trip-secondary-button { white-space: normal; }
-.trip-review-relative-days { margin: 0; color: #66716b; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.trip-review-relative-days { margin: 0; color: light-dark(#66716b, var(--muted-foreground)); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
 .trip-review-actions { display: flex; min-width: 0; flex-wrap: wrap; gap: 12px; align-items: center; }
 .trip-review-actions .trip-secondary-button { display: inline-flex; gap: 7px; align-items: center; }
-.trip-review-error-summary { margin: 0; padding: 14px 16px; border: 1px solid #ecc9c2; border-radius: 12px; background: #fff3f0; color: #8a3024; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+.trip-review-error-summary { margin: 0; padding: 14px 16px; border: 1px solid light-dark(#ecc9c2, color-mix(in srgb, var(--destructive) 45%, var(--border))); border-radius: 12px; background: light-dark(#fff3f0, color-mix(in srgb, var(--destructive) 12%, var(--card))); color: light-dark(#8a3024, var(--destructive)); font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
 .trip-review-error-summary strong { display: block; }
 .trip-review-error-summary ul { display: grid; gap: 5px; margin: 8px 0 0; padding-left: 20px; }
 .trip-review-error-summary a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
-.trip-review-confirmation { display: grid; min-width: 0; gap: 13px; padding: 18px; border: 1px solid #dce5df; border-radius: 14px; background: #fff; outline: none; }
-.trip-review-confirmation[data-state="CHECKING"] { border-color: #87b9a0; }
-.trip-review-confirmation[data-state="CONFIRMED"] { border-color: #c8e4d3; background: #f2faf5; }
-.trip-review-confirmation-heading { display: flex; min-width: 0; gap: 12px; align-items: flex-start; justify-content: space-between; color: #21694f; }
-.trip-review-confirmation-heading h2 { margin: 0; color: #183c2d; font-family: var(--font-trip-heading), serif; font-size: 21px; line-height: 1.35; overflow-wrap: anywhere; }
+.trip-review-confirmation { display: grid; min-width: 0; gap: 13px; padding: 18px; border: 1px solid light-dark(#dce5df, var(--border)); border-radius: 14px; background: var(--card); outline: none; }
+.trip-review-confirmation[data-state="CHECKING"] { border-color: light-dark(#87b9a0, var(--border)); }
+.trip-review-confirmation[data-state="CONFIRMED"] { border-color: light-dark(#c8e4d3, var(--border)); background: light-dark(#f2faf5, var(--muted)); }
+.trip-review-confirmation-heading { display: flex; min-width: 0; gap: 12px; align-items: flex-start; justify-content: space-between; color: light-dark(#21694f, #91c7a7); }
+.trip-review-confirmation-heading h2 { margin: 0; color: light-dark(#183c2d, var(--foreground)); font-family: var(--font-trip-heading), serif; font-size: 21px; line-height: 1.35; overflow-wrap: anywhere; }
 .trip-review-confirmation-heading .trip-eyebrow { margin-bottom: 4px; }
-.trip-review-confirmation-copy, .trip-review-confirmation-reason, .trip-review-confirmed p, .trip-review-next-step { margin: 0; color: #66716b; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
-.trip-review-acknowledgement { display: flex; min-width: 0; min-height: 44px; gap: 10px; align-items: center; color: #27352d; font-size: 13px; font-weight: 700; cursor: pointer; }
-.trip-review-acknowledgement input { width: 19px; height: 19px; flex: 0 0 auto; accent-color: #287c61; }
-.trip-review-confirmation-reason { color: #8a5a19; }
+.trip-review-confirmation-copy, .trip-review-confirmation-reason, .trip-review-confirmed p, .trip-review-next-step { margin: 0; color: light-dark(#66716b, var(--muted-foreground)); font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+.trip-review-acknowledgement { display: flex; min-width: 0; min-height: 44px; gap: 10px; align-items: center; color: light-dark(#27352d, var(--foreground)); font-size: 13px; font-weight: 700; cursor: pointer; }
+.trip-review-acknowledgement input { width: 19px; height: 19px; flex: 0 0 auto; accent-color: light-dark(#287c61, #91c7a7); }
+.trip-review-confirmation-reason { color: light-dark(#8a5a19, #edcf91); }
 .trip-review-confirmed { display: grid; min-width: 0; gap: 7px; }
-.trip-review-confirmed strong { color: #21694f; font-size: 14px; }
+.trip-review-confirmed strong { color: light-dark(#21694f, #91c7a7); font-size: 14px; }
 .trip-review-confirmed-summary { display: grid; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; margin: 5px 0 0; }
-.trip-review-confirmed-summary > div { min-width: 0; padding: 8px 0; border-top: 1px solid #dcebe1; }
-.trip-review-confirmed-summary dt { color: #66716b; font-size: 11px; overflow-wrap: anywhere; }
-.trip-review-confirmed-summary dd { margin: 3px 0 0; color: #1d2521; font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; word-break: break-word; }
-.trip-review-check-error { display: flex; min-width: 0; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px 14px; border: 1px solid #ecc9c2; border-radius: 10px; background: #fff3f0; color: #8a3024; }
+.trip-review-confirmed-summary > div { min-width: 0; padding: 8px 0; border-top: 1px solid light-dark(#dcebe1, var(--border)); }
+.trip-review-confirmed-summary dt { color: light-dark(#66716b, var(--muted-foreground)); font-size: 11px; overflow-wrap: anywhere; }
+.trip-review-confirmed-summary dd { margin: 3px 0 0; color: light-dark(#1d2521, var(--foreground)); font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; word-break: break-word; }
+.trip-review-check-error { display: flex; min-width: 0; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px 14px; border: 1px solid light-dark(#ecc9c2, color-mix(in srgb, var(--destructive) 45%, var(--border))); border-radius: 10px; background: light-dark(#fff3f0, color-mix(in srgb, var(--destructive) 12%, var(--card))); color: light-dark(#8a3024, var(--destructive)); }
 .trip-review-check-error p { flex: 1 1 240px; min-width: 0; margin: 0; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
 .trip-review-check-error .trip-secondary-button { flex: 0 0 auto; }
 
-.trip-clarification-panel { display: grid; min-width: 0; gap: 16px; padding: 18px; border: 2px solid #ead8ae; border-radius: 16px; background: #fffaf0; }
+.trip-clarification-panel { display: grid; min-width: 0; gap: 16px; padding: 18px; border: 2px solid light-dark(#ead8ae, color-mix(in srgb, #b8791d 45%, var(--border))); border-radius: 16px; background: light-dark(#fffaf0, color-mix(in srgb, #b8791d 15%, var(--card))); }
 .trip-clarification-heading { display: flex; min-width: 0; gap: 12px; align-items: flex-start; }
-.trip-clarification-heading h2 { margin: 0; color: #5f4a22; font-family: var(--font-trip-heading), serif; font-size: 22px; line-height: 1.35; overflow-wrap: anywhere; }
-.trip-clarification-heading p { margin: 5px 0 0; color: #806f4c; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.trip-clarification-heading h2 { margin: 0; color: light-dark(#5f4a22, #edcf91); font-family: var(--font-trip-heading), serif; font-size: 22px; line-height: 1.35; overflow-wrap: anywhere; }
+.trip-clarification-heading p { margin: 5px 0 0; color: light-dark(#806f4c, #edcf91); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
 .trip-clarification-group { display: grid; min-width: 0; gap: 9px; }
-.trip-clarification-group h3 { display: flex; min-width: 0; gap: 7px; align-items: center; margin: 0; color: #5f4a22; font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+.trip-clarification-group h3 { display: flex; min-width: 0; gap: 7px; align-items: center; margin: 0; color: light-dark(#5f4a22, #edcf91); font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
 .trip-clarification-list { display: grid; min-width: 0; gap: 10px; margin: 0; padding: 0; list-style: none; }
-.trip-clarification-item { display: grid; min-width: 0; gap: 8px; padding: 14px; border: 1px solid #ead8ae; border-radius: 12px; background: #fff; }
-.trip-clarification-item-heading { display: flex; min-width: 0; gap: 8px; align-items: flex-start; color: #3f3523; line-height: 1.5; overflow-wrap: anywhere; }
-.trip-clarification-icon { display: inline-flex; flex: 0 0 auto; margin-top: 2px; color: #a26713; }
-.trip-clarification-hint, .trip-clarification-source, .trip-clarification-resolution-help { min-width: 0; margin: 0; color: #66716b; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; word-break: break-word; }
-.trip-clarification-source { color: #6e7b74; font-style: italic; }
+.trip-clarification-item { display: grid; min-width: 0; gap: 8px; padding: 14px; border: 1px solid light-dark(#ead8ae, color-mix(in srgb, #b8791d 45%, var(--border))); border-radius: 12px; background: var(--card); }
+.trip-clarification-item-heading { display: flex; min-width: 0; gap: 8px; align-items: flex-start; color: light-dark(#3f3523, var(--muted-foreground)); line-height: 1.5; overflow-wrap: anywhere; }
+.trip-clarification-icon { display: inline-flex; flex: 0 0 auto; margin-top: 2px; color: light-dark(#a26713, #edcf91); }
+.trip-clarification-hint, .trip-clarification-source, .trip-clarification-resolution-help { min-width: 0; margin: 0; color: light-dark(#66716b, var(--muted-foreground)); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; word-break: break-word; }
+.trip-clarification-source { color: light-dark(#6e7b74, var(--muted-foreground)); font-style: italic; }
 .trip-clarification-item-actions { display: flex; min-width: 0; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
-.trip-clarification-link { display: inline-flex; min-height: 44px; gap: 5px; align-items: center; color: #21694f; font-size: 12px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
-.trip-clarification-link:focus-visible { outline: 3px solid rgba(40, 124, 97, .28); outline-offset: 3px; border-radius: 4px; }
+.trip-clarification-link { display: inline-flex; min-height: 44px; gap: 5px; align-items: center; color: light-dark(#21694f, #91c7a7); font-size: 12px; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
+.trip-clarification-link:focus-visible { outline: 3px solid light-dark(rgba(40, 124, 97, .28), var(--ring)); outline-offset: 3px; border-radius: 4px; }
 .trip-clarification-choice { display: grid; min-width: min(100%, 360px); gap: 8px; margin: 0; padding: 0; border: 0; }
-.trip-clarification-choice legend { margin-bottom: 2px; color: #3f3523; font-size: 12px; font-weight: 700; }
-.trip-choice-option { display: flex; min-width: 0; min-height: 44px; gap: 9px; align-items: center; color: #27352d; font-size: 13px; cursor: pointer; overflow-wrap: anywhere; }
-.trip-choice-option input { width: 18px; height: 18px; flex: 0 0 auto; accent-color: #287c61; }
-.trip-clarification-clear { display: flex; min-width: 0; gap: 7px; align-items: center; margin: 0; color: #21694f; font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.trip-clarification-choice legend { margin-bottom: 2px; color: light-dark(#3f3523, var(--muted-foreground)); font-size: 12px; font-weight: 700; }
+.trip-choice-option { display: flex; min-width: 0; min-height: 44px; gap: 9px; align-items: center; color: light-dark(#27352d, var(--foreground)); font-size: 13px; cursor: pointer; overflow-wrap: anywhere; }
+.trip-choice-option input { width: 18px; height: 18px; flex: 0 0 auto; accent-color: light-dark(#287c61, #91c7a7); }
+.trip-clarification-clear { display: flex; min-width: 0; gap: 7px; align-items: center; margin: 0; color: light-dark(#21694f, #91c7a7); font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
 
-.trip-readiness-status { display: flex; min-width: 0; gap: 13px; align-items: flex-start; margin-top: 24px; padding: 18px; border: 1px solid #dce5df; border-left: 4px solid #287c61; border-radius: 14px; background: #fff; }
-.trip-readiness-status[data-tone="warning"] { border-left-color: #b8791d; }
-.trip-readiness-status[data-tone="error"] { border-left-color: #b94a3b; }
+.trip-readiness-status { display: flex; min-width: 0; gap: 13px; align-items: flex-start; margin-top: 24px; padding: 18px; border: 1px solid light-dark(#dce5df, var(--border)); border-left: 4px solid light-dark(#287c61, var(--border)); border-radius: 14px; background: var(--card); }
+.trip-readiness-status[data-tone="warning"] { border-left-color: light-dark(#b8791d, var(--border)); }
+.trip-readiness-status[data-tone="error"] { border-left-color: light-dark(#b94a3b, var(--border)); }
 .trip-readiness-status h2 { margin: 0; font-size: 16px; line-height: 1.4; overflow-wrap: anywhere; }
-.trip-readiness-status p { margin: 5px 0 0; color: #66716b; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
-.trip-heading-icon { display: grid; width: 40px; height: 40px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: #e8f4ed; color: #287c61; }
-.trip-summary { min-width: 0; padding: 24px; border: 1px solid #dce5df; border-radius: 20px; background: #fff; box-shadow: 0 6px 18px rgba(27, 55, 40, .05); }
+.trip-readiness-status p { margin: 5px 0 0; color: light-dark(#66716b, var(--muted-foreground)); font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.trip-heading-icon { display: grid; width: 40px; height: 40px; flex: 0 0 auto; place-items: center; border-radius: 50%; background: light-dark(#e8f4ed, var(--muted)); color: light-dark(#287c61, #91c7a7); }
+.trip-summary { min-width: 0; padding: 24px; border: 1px solid light-dark(#dce5df, var(--border)); border-radius: 20px; background: var(--card); box-shadow: 0 6px 18px rgba(27, 55, 40, .05); }
 .trip-section-heading { display: flex; min-width: 0; gap: 12px; align-items: center; }
-.trip-section-heading h2 { margin: 0; color: #183c2d; font-family: var(--font-trip-heading), serif; font-size: 25px; line-height: 1.3; overflow-wrap: anywhere; }
+.trip-section-heading h2 { margin: 0; color: light-dark(#183c2d, var(--foreground)); font-family: var(--font-trip-heading), serif; font-size: 25px; line-height: 1.3; overflow-wrap: anywhere; }
 .trip-section-heading .trip-eyebrow { margin-bottom: 3px; }
 .trip-summary-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; margin: 22px 0 0; }
-.trip-summary-list > div { min-width: 0; padding: 13px 0; border-top: 1px solid #edf0ed; }
-.trip-summary-list dt { color: #66716b; font-size: 12px; }
-.trip-summary-list dd { margin: 4px 0 0; color: #1d2521; font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; }
-.trip-next-step { display: flex; min-width: 0; gap: 8px; align-items: center; margin: 20px 0 18px; color: #66716b; font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
-.trip-error-card, .trip-loading-card { min-width: 0; padding: 24px; border: 1px solid #dce5df; border-radius: 18px; background: #fff; }
-.trip-error-card h1 { margin: 0; color: #183c2d; font-family: var(--font-trip-heading), serif; font-size: 27px; }
-.trip-error-card p { margin: 10px 0 18px; color: #66716b; line-height: 1.6; overflow-wrap: anywhere; }
+.trip-summary-list > div { min-width: 0; padding: 13px 0; border-top: 1px solid light-dark(#edf0ed, var(--border)); }
+.trip-summary-list dt { color: light-dark(#66716b, var(--muted-foreground)); font-size: 12px; }
+.trip-summary-list dd { margin: 4px 0 0; color: light-dark(#1d2521, var(--foreground)); font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; }
+.trip-next-step { display: flex; min-width: 0; gap: 8px; align-items: center; margin: 20px 0 18px; color: light-dark(#66716b, var(--muted-foreground)); font-size: 13px; line-height: 1.55; overflow-wrap: anywhere; }
+.trip-error-card, .trip-loading-card { min-width: 0; padding: 24px; border: 1px solid light-dark(#dce5df, var(--border)); border-radius: 18px; background: var(--card); }
+.trip-error-card h1 { margin: 0; color: light-dark(#183c2d, var(--foreground)); font-family: var(--font-trip-heading), serif; font-size: 27px; }
+.trip-error-card p { margin: 10px 0 18px; color: light-dark(#66716b, var(--muted-foreground)); line-height: 1.6; overflow-wrap: anywhere; }
 .trip-skeleton-block { display: grid; gap: 13px; }
-.trip-skeleton { display: block; border-radius: 8px; background: #e6ece8; animation: trip-pulse 1.5s ease-in-out infinite; }
+.trip-skeleton { display: block; border-radius: 8px; background: light-dark(#e6ece8, var(--muted)); animation: trip-pulse 1.5s ease-in-out infinite; }
 .trip-skeleton-eyebrow { width: 130px; height: 13px; }
 .trip-skeleton-title { width: min(100%, 500px); height: 48px; }
 .trip-skeleton-copy { width: min(100%, 650px); height: 22px; }

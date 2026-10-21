@@ -14,8 +14,8 @@ test("list client distinguishes valid empty from technical failure, abort signal
   const original=globalThis.fetch;
   try {
     const signal=new AbortController().signal;
-    globalThis.fetch=async (url,init)=>{assert.equal(url,"/api/favorites");assert.equal(init?.signal,signal);return Response.json({success:true,data:{destinations:[],cultureContents:[]}});};
-    assert.deepEqual(await loadFavorites(signal),{destinations:[],cultureContents:[]});
+    globalThis.fetch=async (url,init)=>{assert.equal(url,"/api/favorites");assert.equal(init?.signal,signal);return Response.json({success:true,data:{destinations:[],cultureContents:[],trips:[]}});};
+    assert.deepEqual(await loadFavorites(signal),{destinations:[],cultureContents:[],trips:[]});
     globalThis.fetch=async()=>Response.json({success:false},{status:500}); await assert.rejects(loadFavorites(signal));
   } finally {globalThis.fetch=original;}
 });

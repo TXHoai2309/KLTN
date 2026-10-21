@@ -7,7 +7,7 @@ import { visibleDestinationWhere } from "../destination/destination-eligibility"
 import { tripRequirementInputSchema } from "../trip-requirement/trip-requirement-contract";
 import { assertStartDateForFinalConfirmation } from "../trip-requirement/trip-requirement-readiness";
 import type { TravelRoute } from "../trip-validation/stadia-route";
-import { tripDayDate } from "../trip-validation/trip-proposal-contract";
+import { tripDayDate, type TripProposal } from "../trip-validation/trip-proposal-contract";
 import { validateItinerary, type RouteSnapshot, type TripValidation, type ValidationVisit } from "../trip-validation/trip-validation";
 import type { TripSaveRequest } from "./trip-save-contract";
 
@@ -23,20 +23,20 @@ const destinationSelect = {
 } satisfies Prisma.DestinationSelect;
 type CanonicalDestination = Prisma.DestinationGetPayload<{ select: typeof destinationSelect }>;
 
-async function readDestinations(database: Pick<Database, "destination">, request: TripSaveRequest) {
-  const ids = [...new Set(request.proposal.days.flatMap(day => day.visits.map(visit => visit.destinationId)))];
+async function readDestinations(database: Pick<Database, "destination">, proposal: TripProposal) {
+  const ids = [...new Set(proposal.days.flatMap(day => day.visits.map(visit => visit.destinationId)))];
   const rows = await database.destination.findMany({ where: { ...visibleDestinationWhere, id: { in: ids } }, select: destinationSelect });
   if (rows.length !== ids.length) throw new AppError("DESTINATION_UNAVAILABLE", "Có điểm đến không còn công khai hoặc không tồn tại.", 422);
   return new Map(rows.map(row => [row.id, row]));
 }
 
-function toVisits(request: TripSaveRequest, destinations: Map<string, CanonicalDestination>): ValidationVisit[] {
-  return request.proposal.days.flatMap(day => day.visits.map(visit => {
+function toVisits(proposal: TripProposal, destinations: Map<string, CanonicalDestination>): ValidationVisit[] {
+  return proposal.days.flatMap(day => day.visits.map(visit => {
     const destination = destinations.get(visit.destinationId)!;
     return {
       visitId: `day-${day.dayIndex}-visit-${visit.order}`,
       dayIndex: day.dayIndex, order: visit.order,
-      localDate: tripDayDate(request.proposal.startDate, day.dayIndex),
+      localDate: tripDayDate(proposal.startDate, day.dayIndex),
       startMinute: visit.startMinute, plannedDurationMinutes: visit.plannedDurationMinutes,
       minimumDurationMinutes: destination.minimumDurationMinutes,
       openingDays: destination.openingDays,
@@ -55,12 +55,12 @@ function validRoutes(destinations: Map<string, CanonicalDestination>, snapshots:
   });
 }
 
-async function snapshotRoutes(request: TripSaveRequest, destinations: Map<string, CanonicalDestination>, getRoute: TripSaveDependencies["getRoute"]): Promise<FixedRoute[]> {
-  const legs = request.proposal.days.flatMap(day => day.visits.slice(1).map((next, index) => ({ dayIndex: day.dayIndex, from: day.visits[index], to: next })));
+async function snapshotRoutes(proposal: TripProposal, destinations: Map<string, CanonicalDestination>, getRoute: TripSaveDependencies["getRoute"]): Promise<FixedRoute[]> {
+  const legs = proposal.days.flatMap(day => day.visits.slice(1).map((next, index) => ({ dayIndex: day.dayIndex, from: day.visits[index], to: next })));
   return Promise.all(legs.map(async leg => {
     const from = destinations.get(leg.from.destinationId)!;
     const to = destinations.get(leg.to.destinationId)!;
-    const route = await getRoute({ origin: { latitude: from.latitude, longitude: from.longitude }, destination: { latitude: to.latitude, longitude: to.longitude }, vehicle: request.proposal.transport });
+    const route = await getRoute({ origin: { latitude: from.latitude, longitude: from.longitude }, destination: { latitude: to.latitude, longitude: to.longitude }, vehicle: proposal.transport });
     return {
       fromVisitId: `day-${leg.dayIndex}-visit-${leg.from.order}`,
       toVisitId: `day-${leg.dayIndex}-visit-${leg.to.order}`,
@@ -72,6 +72,14 @@ async function snapshotRoutes(request: TripSaveRequest, destinations: Map<string
 
 function assertCanSave(validation: TripValidation): void {
   if (!validation.canConfirm) throw new AppError("TRIP_VALIDATION_FAILED", "Hành trình chưa đủ điều kiện xác nhận và lưu.", 422, { validation });
+}
+
+/** Read-only preview. The save boundary repeats these checks against current data. */
+export async function previewTripValidation(headers: Headers, proposal: TripProposal, dependencies: TripSaveDependencies, timeReference: Date): Promise<TripValidation> {
+  await requireTraveler(headers, dependencies);
+  const destinations = await readDestinations(dependencies.database, proposal);
+  const snapshots = await snapshotRoutes(proposal, destinations, dependencies.getRoute);
+  return validateItinerary(toVisits(proposal, destinations), validRoutes(destinations, snapshots), timeReference);
 }
 
 /** The HTTP caller supplies one time reference; external routing never runs inside a DB transaction. */
@@ -86,17 +94,17 @@ export async function saveTrip(headers: Headers, request: TripSaveRequest, key: 
     startDate: request.proposal.startDate, durationDays: request.proposal.durationDays, transport: request.proposal.transport,
   });
   assertStartDateForFinalConfirmation(requirement, timeReference);
-  const initialDestinations = await readDestinations(dependencies.database, request);
-  const snapshots = await snapshotRoutes(request, initialDestinations, dependencies.getRoute);
-  assertCanSave(validateItinerary(toVisits(request, initialDestinations), validRoutes(initialDestinations, snapshots), timeReference));
+  const initialDestinations = await readDestinations(dependencies.database, request.proposal);
+  const snapshots = await snapshotRoutes(request.proposal, initialDestinations, dependencies.getRoute);
+  assertCanSave(validateItinerary(toVisits(request.proposal, initialDestinations), validRoutes(initialDestinations, snapshots), timeReference));
 
   return executeIdempotentWrite({
     ...identity,
     execute: async transaction => {
       await requireTraveler(headers, { ...dependencies, database: transaction as unknown as Database });
       assertStartDateForFinalConfirmation(requirement, timeReference);
-      const currentDestinations = await readDestinations(transaction as unknown as Database, request);
-      const validation = validateItinerary(toVisits(request, currentDestinations), validRoutes(currentDestinations, snapshots), timeReference);
+      const currentDestinations = await readDestinations(transaction as unknown as Database, request.proposal);
+      const validation = validateItinerary(toVisits(request.proposal, currentDestinations), validRoutes(currentDestinations, snapshots), timeReference);
       assertCanSave(validation);
       const trip = await transaction.trip.create({ data: {
         userId: actor.userId,

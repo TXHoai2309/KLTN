@@ -8,8 +8,9 @@ import { createPlannerService } from "../../modules/trip-planner/planner-service
 import { candidates, fakeRoutes, referenceTime, requirement } from "../../modules/trip-planner/__fixtures__/planner-fixtures";
 import { missingLeg } from "../../modules/trip-planner/planner-routes";
 import type { PlannerResult } from "../../modules/trip-planner/planner-contract";
+import { PlannerActions } from "./planner-presentation";
 
-let components: Record<string, ComponentType<any>>;
+let components: Record<string, any>;
 let ready: PlannerResult;
 const noop = () => {};
 beforeAll(async () => {
@@ -20,7 +21,7 @@ beforeAll(async () => {
   components = module.exports;
   ready = await createPlannerService({ repository: { candidates: async () => candidates, recheck: async () => true }, routes: fakeRoutes, now: () => referenceTime }).propose("test", "ready-ui-test", requirement);
 });
-const screen = (proposal: PlannerResult) => renderToStaticMarkup(createElement(components.TripPlannerScreen!, { proposal, onBack: noop, onRegenerate: noop }));
+const screen = (proposal: PlannerResult) => renderToStaticMarkup(createElement(components.TripPlannerScreen!, { proposal, onBack: noop, onRegenerate: noop, onSaved: noop }));
 describe("real planner UI server rendering", () => {
   it("renders proposal order, selection, day tabs and server checks", () => {
     const html = screen(ready);
@@ -29,7 +30,8 @@ describe("real planner UI server rendering", () => {
     expect(html).toContain('role="tabpanel"'); expect(html).toContain('aria-pressed="true"');
     expect(html).toContain("Đề xuất đáp ứng các kiểm tra hiện tại"); expect(html).toContain("Đáp ứng");
     expect(html).toContain("Stadia Maps"); expect(html).not.toContain("Google Maps");
-    expect(html).toContain('/destinations/a'); expect(html).not.toMatch(/Lưu hành trình|Xác nhận hành trình/);
+    expect(html).toContain('/destinations/a');
+    expect(html).toContain("Đang kiểm tra bốn điều kiện xác nhận");
   });
   it("missing routes display unknown times and missing data rather than zero travel", async () => {
     const proposal = await createPlannerService({ repository: { candidates: async () => candidates, recheck: async () => true }, routes: { route: async pair => missingLeg(pair, "NO_ROUTE") }, now: () => referenceTime }).propose("test", "missing-ui-test", requirement);
@@ -40,6 +42,8 @@ describe("real planner UI server rendering", () => {
     const proposal = await createPlannerService({ repository: { candidates: async () => candidates, recheck: async () => true }, routes: fakeRoutes, now: () => referenceTime }).propose("test", "relative-ui-test", { ...requirement, startDate: null });
     const html = screen(proposal); expect(html).toContain("Ngày tương đối"); expect(html).toContain("Đề xuất còn dữ liệu chưa được xác minh");
     expect(html).not.toContain("2027-01-01");
+    expect(html).toContain("Chưa thể xác nhận và lưu phương án này");
+    expect(html).not.toContain("Đang kiểm tra bốn điều kiện xác nhận");
   });
   it("empty candidates render no fabricated destinations or metrics", async () => {
     const proposal = await createPlannerService({ repository: { candidates: async () => [], recheck: async () => true }, routes: fakeRoutes, now: () => referenceTime }).propose("test", "empty-ui-test", requirement);
@@ -63,5 +67,17 @@ describe("real planner UI server rendering", () => {
   it("unreviewed database configuration offers guidance without a pointless retry", () => {
     const html = renderToStaticMarkup(createElement(components.PlannerErrorState!, { error: { ok: false, code: "PLANNER_NOT_CONFIGURED", message: "Liên hệ quản trị viên" }, onBack: noop, onRetry: noop }));
     expect(html).toContain("Liên hệ quản trị viên"); expect(html).not.toContain("Thử lại cùng yêu cầu");
+  });
+  it("does not let back or regenerate interrupt a save whose outcome is unresolved", () => {
+    const html = renderToStaticMarkup(createElement(PlannerActions, { busy: false, disabled: true, onBack: noop, onRegenerate: noop }));
+    expect(html.match(/disabled=""/g)).toHaveLength(2);
+  });
+  it("announces a confirmed save before navigating to the persisted Trip", () => {
+    const events: string[] = [];
+    components.completeTripSave("trip/one", (message: string) => events.push(`notice:${message}`), (href: string) => events.push(`navigate:${href}`));
+    expect(events).toEqual([
+      "notice:Đã lưu chuyến đi thành công.",
+      "navigate:/trips",
+    ]);
   });
 });

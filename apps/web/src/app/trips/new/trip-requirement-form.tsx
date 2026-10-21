@@ -2,7 +2,7 @@
 
 import { Button } from "@KLTN/ui/components/button";
 import { Check, ClipboardCheck, FileText, LoaderCircle, MapPinned, SlidersHorizontal } from "lucide-react";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { claimSubmission, releaseSubmission } from "@/lib/auth-submission-guard";
 import { authorizationFeedback } from "@/lib/authorization-feedback";
@@ -23,6 +23,7 @@ import NaturalLanguageInput, { type NaturalLanguageInputStatus } from "./natural
 import ExtractionResultPanel from "./extraction-result-panel";
 import TripReviewScreen from "./trip-review-screen";
 import TripPlannerFlow from "@/components/trip-planner/trip-planner-screen";
+import { isTripSaveNavigationLocked, type SaveState } from "@/modules/trip-save/trip-save-state";
 import type { TripRequirementReadiness } from "@/modules/trip-requirement/trip-requirement-readiness";
 import {
   draftFromFormFields,
@@ -76,12 +77,14 @@ function FlowTabs({
   detailsUnlocked,
   reviewUnlocked,
   plannerUnlocked,
+  locked = false,
   onChange,
 }: {
   activeTab: TripFlowTab;
   detailsUnlocked: boolean;
   reviewUnlocked: boolean;
   plannerUnlocked: boolean;
+  locked?: boolean;
   onChange: (tab: TripFlowTab) => void;
 }) {
   const isUnlocked = (tab: TripFlowTab) => tab === "describe"
@@ -90,6 +93,7 @@ function FlowTabs({
     || (tab === "planner" && plannerUnlocked);
 
   function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, tab: TripFlowTab) {
+    if (locked) return;
     if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
     event.preventDefault();
     const direction = event.key === "ArrowRight" ? 1 : -1;
@@ -122,11 +126,11 @@ function FlowTabs({
               aria-selected={selected}
               aria-controls={`trip-tabpanel-${tab.id}`}
               aria-label={`${index + 1}. ${tab.label}: ${tab.description}`}
-              disabled={!unlocked}
+              disabled={locked || !unlocked}
               tabIndex={selected ? 0 : -1}
               data-active={selected ? "true" : "false"}
               data-completed={completed ? "true" : "false"}
-              data-locked={!unlocked ? "true" : "false"}
+              data-locked={locked || !unlocked ? "true" : "false"}
               onClick={() => onChange(tab.id)}
               onKeyDown={(event) => handleKeyDown(event, tab.id)}
             >
@@ -258,6 +262,13 @@ export default function TripRequirementForm() {
   const [pending, setPending] = useState(false);
   const [review, setReview] = useState<EvaluationResult | null>(null);
   const [planner, setPlanner] = useState<ConfirmedTripRequirement | null>(null);
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const saveLock = useRef(false);
+  const saveNavigationLocked = isTripSaveNavigationLocked(saveState);
+  const handleSaveStateChange = useCallback((state: SaveState) => {
+    saveLock.current = isTripSaveNavigationLocked(state);
+    setSaveState(state);
+  }, []);
   const [activeTab, setActiveTab] = useState<TripFlowTab>("describe");
   const [detailsUnlocked, setDetailsUnlocked] = useState(false);
   const [tabDirection, setTabDirection] = useState<"forward" | "backward">("forward");
@@ -279,12 +290,14 @@ export default function TripRequirementForm() {
   const previousTabRef = useRef<TripFlowTab | null>(null);
 
   function changeTab(nextTab: TripFlowTab) {
+    if (saveLock.current) return;
     if (nextTab === activeTab) return;
     setTabDirection(FLOW_TAB_INDEX[nextTab] >= FLOW_TAB_INDEX[activeTab] ? "forward" : "backward");
     setActiveTab(nextTab);
   }
 
   function advanceTo(nextTab: TripFlowTab) {
+    if (saveLock.current) return;
     setTabDirection(FLOW_TAB_INDEX[nextTab] >= FLOW_TAB_INDEX[activeTab] ? "forward" : "backward");
     setActiveTab(nextTab);
   }
@@ -323,6 +336,7 @@ export default function TripRequirementForm() {
     value: TripRequirementFormFields[K],
     errorField = String(field),
   ) {
+    if (saveLock.current) return;
     const nextFields = { ...fields, [field]: value };
     if (review || planner) {
       setReview(null);
@@ -372,6 +386,7 @@ export default function TripRequirementForm() {
   }
 
   async function analyzeNaturalLanguage(normalizedText: string) {
+    if (saveLock.current) return;
     if (!claimSubmission(naturalLanguageLock)) return;
 
     naturalLanguageAbortRef.current?.abort();
@@ -387,7 +402,7 @@ export default function TripRequirementForm() {
 
     try {
       const outcome = await analyzeTripNeeds(normalizedText, controller.signal);
-      if (!shouldApplyRequestResponse(requestSequence, naturalLanguageSequenceRef.current, mountedRef.current)) return;
+      if (saveLock.current || !shouldApplyRequestResponse(requestSequence, naturalLanguageSequenceRef.current, mountedRef.current)) return;
 
       if (outcome.kind === "SUCCESS") {
         const count = Object.values(outcome.result.fields).filter((field) => field.status === "EXTRACTED").length;
@@ -432,6 +447,7 @@ export default function TripRequirementForm() {
   }
 
   function handleFillExtractionForm() {
+    if (saveLock.current) return;
     if (!extractionResult) return;
     const applied = applyExtractionToForm(fields, extractionResult);
     setFields(applied.fields);
@@ -439,12 +455,14 @@ export default function TripRequirementForm() {
   }
 
   function handleUseExtractionSuggestion(field: ExtractionSuggestionField) {
+    if (saveLock.current) return;
     const applied = useExtractionSuggestion(fields, extractionSuggestions, field);
     setFields(applied.fields);
     setExtractionSuggestions(applied.suggestions);
   }
 
   function handleFillAndEdit(reviewDraft?: TripRequirementReviewDraft) {
+    if (saveLock.current) return;
     if (reviewDraft) {
       setFields(draftToFormFields(reviewDraft));
       setExtractionSuggestions({});
@@ -458,17 +476,20 @@ export default function TripRequirementForm() {
   }
 
   function continueWithForm() {
+    if (saveLock.current) return;
     setDetailsUnlocked(true);
     advanceTo("details");
   }
 
   function handleDismissExtractionSuggestion(field: ExtractionSuggestionField) {
+    if (saveLock.current) return;
     const dismissed = dismissExtractionSuggestion(fields, extractionSuggestions, field);
     setFields(dismissed.fields);
     setExtractionSuggestions(dismissed.suggestions);
   }
 
   async function submit() {
+    if (saveLock.current) return;
     if (!claimSubmission(submissionLock)) return;
 
     const clientErrors = validateRequiredFields(fields);
@@ -505,7 +526,7 @@ export default function TripRequirementForm() {
         body = null;
       }
       const decision = decideEvaluateResponse({ kind: "http", status: response.status, body });
-      if (!shouldApplyRequestResponse(sequence, sequenceRef.current, mountedRef.current)) return;
+      if (saveLock.current || !shouldApplyRequestResponse(sequence, sequenceRef.current, mountedRef.current)) return;
 
       if (decision.action === "SUCCESS") {
         setReview({
@@ -564,12 +585,14 @@ export default function TripRequirementForm() {
         detailsUnlocked={detailsUnlocked}
         reviewUnlocked={review !== null}
         plannerUnlocked={planner !== null}
+        locked={saveNavigationLocked}
         onChange={changeTab}
       />
 
       <div className="trip-flow-viewport">
         <div
           id="trip-tabpanel-describe"
+          inert={saveNavigationLocked}
           className={`trip-flow-panel trip-flow-panel-${tabDirection}`}
           role="tabpanel"
           aria-labelledby="trip-tab-describe"
@@ -586,6 +609,7 @@ export default function TripRequirementForm() {
 
         <div
           id="trip-tabpanel-details"
+          inert={saveNavigationLocked}
           className={`trip-flow-panel trip-flow-panel-${tabDirection}`}
           role="tabpanel"
           aria-labelledby="trip-tab-details"
@@ -742,6 +766,7 @@ export default function TripRequirementForm() {
 
         <div
           id="trip-tabpanel-review"
+          inert={saveNavigationLocked}
           className={`trip-flow-panel trip-flow-panel-${tabDirection}`}
           role="tabpanel"
           aria-labelledby="trip-tab-review"
@@ -756,6 +781,7 @@ export default function TripRequirementForm() {
               clarificationRequests={review.clarificationRequests}
               headingRef={reviewHeadingRef}
               onBackToForm={(reviewDraft) => {
+                if (saveLock.current) return;
                 setFields(draftToFormFields(reviewDraft));
                 setReview(null);
                 setDetailsUnlocked(true);
@@ -763,6 +789,7 @@ export default function TripRequirementForm() {
               }}
               onFillForm={review.source === "AI" ? handleFillAndEdit : undefined}
               onConfirmed={(confirmed, confirmedDraft) => {
+                if (saveLock.current) return;
                 setReview({ ...review, draft: confirmedDraft });
                 setPlanner(structuredClone(confirmed));
                 advanceTo("planner");
@@ -783,15 +810,12 @@ export default function TripRequirementForm() {
             <TripPlannerFlow
               embedded
               confirmed={planner}
+              onSaveStateChange={handleSaveStateChange}
               onBack={() => {
+                if (saveLock.current) return;
                 setPlanner(null);
                 if (review) advanceTo("review");
                 else advanceTo("details");
-              }}
-              onSaved={(tripId) => {
-                if (typeof window !== "undefined") {
-                  window.location.assign(`/trips/${encodeURIComponent(tripId)}`);
-                }
               }}
             />
           )}

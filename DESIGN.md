@@ -27,6 +27,16 @@ components:
 
 # Admin RAG design context
 
+## Trip merge and Save recovery (2026-10-21)
+
+Owner-selected Trip UI follows ThaiAnh's existing layouts, CSS/theme tokens and
+shared map renderers. US-37 In-trip and revision/draft behavior remain owned by
+their existing session helpers. Trip Save uses TripConfirmationSection's server
+preview and TripSavePanel's confirmed write; success toast precedes navigation
+to `/trips`. Pending/UNKNOWN locks extend to the containing requirement form's
+tabs and input handlers, retaining the mounted proposal and identical retry key.
+Known FAILED releases that lock. No new palette, font or storage mechanism.
+
 ## Assistant missing-source copy (2026-10-17)
 
 `assistantSourceReply` remains the single owner of completed missing-source

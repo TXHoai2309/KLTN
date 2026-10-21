@@ -6,6 +6,8 @@ import { isDestinationPublic } from "../destination/destination-eligibility";
 import { isCulturePublic } from "../culture/culture-eligibility";
 import { destinationMediaWhere, isDestinationMediaUsable } from "../destination/destination-media-eligibility";
 import type { FavoriteList } from "./favorite-contract";
+import { effectiveTripStatus } from "../trip-read/trip-status";
+import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
 
 export type FavoriteDependencies = {
   database: Database;
@@ -29,16 +31,18 @@ const favoriteSelect = {
     },
   },
   cultureContent: { select: { id: true, title: true, visibility: true } },
+  trip: { select: { id: true, startDate: true, durationDays: true, transport: true, manuallyCompletedAt: true } },
 } satisfies Prisma.FavoriteSelect;
 
-export async function getFavorites(headers: Headers, deps: FavoriteDependencies): Promise<FavoriteList> {
+export async function getFavorites(headers: Headers, deps: FavoriteDependencies, timeReference = new Date()): Promise<FavoriteList> {
   const actor = await requireActor(headers, deps, "traveler");
   // History intentionally includes hidden targets; never select their body/detail.
   const rows = await deps.database.favorite.findMany({
-    where: { userId: actor.id }, select: favoriteSelect,
+    // Trip references must still belong to this actor, even if legacy data is inconsistent.
+    where: { userId: actor.id, OR: [{ targetType: { not: "TRIP" } }, { trip: { userId: actor.id } }] }, select: favoriteSelect,
     orderBy: [{ createdAt: "desc" }, { id: "asc" }],
   });
-  const data: FavoriteList = { destinations: [], cultureContents: [] };
+  const data: FavoriteList = { destinations: [], cultureContents: [], trips: [] };
   for (const row of rows) {
     if (row.destination) {
       const available = isDestinationPublic(row.destination);
@@ -59,6 +63,14 @@ export async function getFavorites(headers: Headers, deps: FavoriteDependencies)
       const available = isCulturePublic(row.cultureContent);
       data.cultureContents.push({ favoriteId: row.id, targetId: row.cultureContent.id, title: row.cultureContent.title,
         availability: available ? "AVAILABLE" : "UNAVAILABLE", href: available ? `/culture/${row.cultureContent.id}` : null });
+    } else if (row.trip) {
+      const startDate = row.trip.startDate.toISOString().slice(0, 10);
+      data.trips.push({
+        favoriteId: row.id, targetId: row.trip.id, title: `Chuyến đi ${row.trip.durationDays} ngày`,
+        availability: "AVAILABLE", href: `/trips/${row.trip.id}`,
+        trip: { startDate, durationDays: row.trip.durationDays, transport: row.trip.transport,
+          ...effectiveTripStatus(startDate, row.trip.durationDays, vietnamDateOf(timeReference), row.trip.manuallyCompletedAt) },
+      });
     }
   }
   return data;

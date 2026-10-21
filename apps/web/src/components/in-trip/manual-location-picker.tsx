@@ -38,6 +38,8 @@ export default function ManualLocationPicker({ coordinates, onChange }: {
   const [attempt, setAttempt] = useState(0);
   const { resolvedTheme } = useTheme();
   const style = mapStyle(resolvedTheme);
+  const styleRef = useRef(style);
+  styleRef.current = style;
 
   useEffect(() => {
     coordinatesRef.current = coordinates;
@@ -55,7 +57,7 @@ export default function ManualLocationPicker({ coordinates, onChange }: {
       onState: value => { if (active) setState(value); },
       mount: (library, ready, fail) => {
         const mounted = mountDestinationPinPicker(
-          host, library as typeof MapLibre, coordinatesRef.current, style,
+          host, library as typeof MapLibre, coordinatesRef.current, styleRef.current,
           value => {
             if (!active) return;
             coordinatesRef.current = value;
@@ -72,7 +74,8 @@ export default function ManualLocationPicker({ coordinates, onChange }: {
       },
     });
     return () => { active = false; stop(); };
-  }, [attempt, style]);
+  }, [attempt]);
+  useEffect(() => { session.current?.setStyle(style); }, [style]);
 
   function applyCoordinates() {
     const result = validateManualCoordinates(fields);

@@ -116,6 +116,8 @@
 .favorite-card-desc {
   margin-bottom: 16px;
 }
+.favorite-trip-meta { display: grid; gap: 6px; margin-top: 12px; }
+.favorite-card .favorite-trip-status { color: var(--primary); font-weight: 600; }
 .favorite-accent {
   height: 36px;
   flex-shrink: 0;

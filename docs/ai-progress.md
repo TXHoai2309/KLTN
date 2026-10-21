@@ -3439,3 +3439,196 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
 - **Known issues:** Existing Task 293 Admin-403 test expectation needs reconciliation with RBAC V2; no old test was edited. Browser/GPS/routing are NOT PROVEN.
 - **Decisions:** Preserve the user's explicit RBAC V2 decision that Admin inherits Traveler permissions on owned Trips. Do not mark the manual checklist complete.
 - **Next step:** Owner runs the manual proposal/check/confirm, expiry, cancel, two-tab, 360px and keyboard checklist; no commit or push performed.
+
+### 2026-10-19 — US-30/31 audit-and-fix: planner to save handoff
+
+- Current repo already has US-28 planner, US-29 four-group validator, US-30 save
+  service/API/panel, and US-31 owner-scoped list/detail. The missing handoff was
+  the Save panel on the real `/trips/new` proposal screen.
+- Added a strictly parsed adapter from factual planner stops to the existing
+  save proposal, a read-only authenticated `/api/trips/validate` preview sharing
+  the canonical visible-destination/route validator, and mounted the existing
+  Save panel with loading/error/retry. Planner back/regenerate actions are disabled
+  while save is pending or UNKNOWN, preserving the same-key retry in this session.
+  SUCCESS routes to the real Trip detail ID; FAILED/UNKNOWN do not claim success. Server save revalidation/transaction and
+  existing idempotency remain the write authority. No schema/auth/theme change.
+- Read-only Neon development audit: 23 finished migrations, zero rolled back;
+  US-30 migration applied, Trip/Day/Visit tables with four FKs and seven indexes,
+  1 existing Trip/2 Days/4 Visits before E2E. No schema or old Trip data changed.
+- Focused US-29/30/31 Vitest 115/115 PASS; typecheck/build, separate legacy suite,
+  and diff check PASS. Root `npm test` NOT PASS: full Vitest 2602 passed,
+  6 unrelated failures, 134 skipped, 1 todo; its legacy phase did not execute.
+- Guest browser/API at localhost:3010 denied Trip reads and redirected to login.
+  After user login, manual form→review→real planner proposal with verified Stadia
+  legs→four-group SATISFIED→save→detail→My Trips PASS. The new development Trip
+  `cmvetgw4s0001a0k5cytvczml` uses three pre-existing VISIBLE `[TEST]`
+  Destinations; DB increased to 2 Trip and new nested 1 Day/3 Visits, with no
+  alteration to the old Trip. Real-DB same-key service replay returned SUCCESS,
+  replayed=true, same ID and no extra Trip. Real-DB negative violation and
+  unavailable route each rejected with no write. The current Traveler's API/UI
+  could not read the old other-owner Trip, matching nonexistent-ID behavior.
+- Light/dark browser checks of `/trips/new`, `/trips` and detail at 360/390/
+  768/1024/1440px found no stable horizontal overflow, including the full
+  planner proposal; original light theme and viewport restored. A separate
+  natural-language AI request extracted date/day count/car/nature correctly,
+  then required review. HTTP-level duplicate retry, reverse Traveler-B check,
+  live ONGOING/COMPLETED and Figma MH-07/08/09 matching are NOT PROVEN; connected
+  Figma exposes only `01 – Components`. No commit, push, merge, branch switch
+  or DB reset.
+
+### 2026-10-19 — US-30/31 completion: visible save receipt and Figma-aligned Trip views
+
+- Reproduced two independent valid saves before changing code. Persistence and
+  exact Trip Detail navigation worked, but `TripSavePanel`'s local success text
+  was unmounted immediately by `router.replace`, so users did not see a durable
+  success acknowledgement. No stale My Trips/cache defect reproduced.
+- Added a global Sonner success notification before exact-ID navigation and a
+  focused ordering regression test. Two post-fix saves showed pending, exact
+  detail navigation and the success notification in the destination DOM. My
+  Trips updated immediately and retained all items after reload.
+- Inspected Figma Prototype Flow MH-07 `71:2`, MH-08 `57:573` and MH-09 `71:39`.
+  My Trips now uses status-grouped full-width rows with factual visit counts;
+  Trip Detail uses a green factual hero, ordered itinerary timeline and info
+  sidebar. Existing Favorite/Edit/In-trip routes remain; no fake image, route
+  time or validator snapshot was added.
+- Development DB after the authorized E2E work: 6 Trip / 7 Day / 19 Visit. Four
+  audit-created Trip IDs share the authenticated Traveler owner; each has one
+  Day and three Visits ordered 1,2,3. No record was reset or deleted and no
+  schema/migration changed.
+- Browser checks on `/trips` and Trip Detail at 360/390/768/1024/1440 in both
+  light and dark measured no horizontal overflow and retained main actions.
+  Focused US-29/30/31 Vitest: 115/115 PASS; root typecheck and build PASS;
+  diff check PASS. Root `npm test` remains FAILED outside this change: 2603
+  passed, 6 failed, 134 skipped, 1 todo (US-35/36/37, AI edit authorization and
+  preference-extraction environment). Controlled browser FAILED/UNKNOWN,
+  reverse second-Traveler ownership and live ONGOING/COMPLETED remain NOT PROVEN.
+
+### 2026-10-20 — Trip reference-image UI redesign
+
+- User approved three screenshots as the primary visual target for Trip Detail,
+  In-trip Assistant and Edit. Removed the remaining Favorite control from My
+  Trips; Detail also has no Favorite control. US-34 API/service/schema/data and
+  other Favorite surfaces remain. The original US-34 list/detail action
+  acceptance is explicitly superseded in its story, not reported as current PASS.
+- Detail now has aligned direct Back navigation, a full-width green hero with
+  factual status, full-width per-day timeline, separate time column, factual
+  start/end/duration and destination cards. Real Edit/In-trip links move below
+  the itinerary; duplicated sidebar information is removed.
+- In-trip now has serif hierarchy, clock/amber information banner, section icons,
+  individual timeline nodes and time badges, wrapped factual metadata and a
+  compact remaining empty state. Schedule-passed does not imply actually visited.
+- Edit now has factual summary at the right of its heading, equal desktop columns,
+  AI chips that populate textarea without submitting, a real character counter,
+  destination picker and compact proposal with native expandable visit tools.
+  Existing preview/apply/cancel/UNKNOWN handlers and four-group Validator are kept.
+- Only frontend presentation and Trip-view regression tests changed in this task.
+  Existing Card/Button, Lucide and configured fonts/theme are reused. No dependency,
+  schema, migration, API/service, auth, routing or GPS change; no DB mutation,
+  commit, push, merge or branch switch.
+- Current-owner browser Trip was selected from the actual My Trips links.
+  Thirty viewport/theme measurements PASS (3 routes x 360/390/768/1024/1440 x
+  light/dark): no horizontal overflow, Edit stacks through 768 and uses equal
+  columns at 1024/1440. Header is unchanged. Light theme and viewport restored.
+- Browser PASS: list five Trips/zero Favorite controls; direct Back returns to
+  My Trips; chip fills textarea without submitting; local reorder survives empty
+  search; adding a real public Destination only changes local proposal 3→4 visits;
+  cancellation returns to the persisted 3 visits. Read-only preview of the
+  original proposal returns four SATISFIED groups; no confirm/apply was invoked.
+- Visual evidence outside Git:
+  `C:/Users/Admin/AppData/Local/Temp/trip-redesign-detail-before.png`,
+  `trip-redesign-detail-after.png`, `trip-redesign-in-trip-after.png`,
+  `trip-redesign-edit-after.png`, `trip-redesign-edit-dark.png`,
+  `trip-redesign-*-mobile-dark.png`, `trip-redesign-validator-after.png`;
+  viewport measurements in `trip-redesign-responsive.json`.
+  Detail before/after is usable. NOT VERIFIED: loaded Edit/In-trip before
+  screenshots, because their baseline capture caught loading skeletons.
+- BLOCKED exact image/description/illustration parity: current Trip DTO has no
+  destination media/summary; no matching decorative asset was found. Neutral
+  placeholders replace absent images. No hardcoded image mapping, invented
+  description, decorative mountain system or fake map/drag action was added.
+  NOT VERIFIED: live AI submission, controlled mutation FAILED/UNKNOWN, GPS,
+  live HAS_REMAINING fixture; existing session/business tests cover their rules.
+- Verification: targeted Vitest 79/79 PASS, Favorite legacy 27/27 PASS, full
+  legacy 336/336 PASS, root typecheck/build/diff check PASS. Root `npm test`
+  FAILED with the same six failures as before this task: 2607 passed, 6 failed,
+  134 skipped, 1 todo. US-35 static-href source guard, US-36/replan/US-37
+  Admin-denied expectations, AI-edit HTTP Admin expectation, preference env
+  model-sensitivity expectation. No newly failing test identified.
+- Commands: root `npm test`, `npm run check-types`, `npm run build`,
+  `git diff --check`; web `npm run test:favorite`, `npm run test:legacy`;
+  `npm exec vitest run -- --config vitest.config.mts` with
+  `src/app/trips/trips-view.vitest.test.ts`,
+  `src/components/in-trip/in-trip-presentation.vitest.test.ts`,
+  `src/components/trip-planner/planner-ui.vitest.test.ts`,
+  `src/modules/trip-edit/us32-test.vitest.test.ts`,
+  `src/modules/trip-edit/edit-apply-state.vitest.test.ts`,
+  `src/modules/trip-edit/ai-edit-session.vitest.test.ts`,
+  `src/modules/in-trip/in-trip-proposal-session.vitest.test.ts`,
+  `src/modules/in-trip/in-trip-session.vitest.test.ts`,
+  `src/modules/in-trip/split-trip.vitest.test.ts`,
+  `src/modules/trip-validation/trip-validation.vitest.test.ts`,
+  `src/modules/trip-validation/trip-validation-panel.vitest.test.ts`.
+- Runtime/test files changed this task:
+  `apps/web/src/app/trips/trips-view.tsx`, `trips.css`,
+  `trips-view.vitest.test.ts`;
+  `apps/web/src/app/trips/[id]/edit/edit-trip-client.tsx`,
+  `edit-trip.module.css`, `ai-edit-panel.tsx`, `ai-edit-panel.module.css`;
+  `apps/web/src/components/in-trip/in-trip-assistant.tsx`,
+  `in-trip-assistant.module.css`. Docs: this entry, US-31 and US-34 Trip story.
+  Earlier uncommitted US-30/31 changes were preserved.
+
+## 2026-10-20 — Approved US-30/31 save/delete/manual-completion extension
+
+- Source: user attachment dd773ed8-494a-4aa9-b36b-3774956d1208. Audited clean branch ThaiAnh/456a908; read required project docs and US-29/30/31 stories. Delete/manual completion explicitly extend the original Product baseline. Original DOCX sources unavailable locally; condensed specs used. No architecture/auth/header/theme redesign.
+- Save: existing regeneration stays secondary and still invokes planner; one primary **Lưu chuyến đi** invokes real save mutation. Missing date, failed/insufficient Validator and invalid/preliminary proposal keep it disabled. Existing additional planner checks remain. Ref lock, spinner/pending, same payload/key on UNKNOWN, global Sonner success then `/trips` implemented.
+- Delete: `DELETE /api/trips/:id`, empty body + Idempotency-Key. Session/persisted traveler capability plus owned `{id,userId}` query; Guest denied, foreign/missing uniform404. Existing RBAC Admin own-record inheritance preserved. Atomic Favorite cleanup then owned Trip delete; live verified Day/Visit cascade; Destination/audit/idempotency records retained. Shared SUCCESS/FAILED/UNKNOWN/replay, no second write mechanism.
+- Completion: strict `PATCH /api/trips/:id/completion` `{completed:boolean}`. Nullable `Trip.manuallyCompletedAt` overrides effective status to COMPLETED, otherwise unchanged calendar helper. List/detail share helper and timestamp; no trip date/duration/Visit/in-trip semantics modified.
+- My Trips reuses current cards, shared Button/theme and global toast. Accessible native confirmation, cancel focus, pending lock, recoverable failure/UNKNOWN with same key; confirmed-only local row/group/count updates followed by router refresh. Screen-reader announcement width regression found in browser and fixed via `:not(.sr-only)` container selector.
+- DB: initial 23 migrations disk vs25 finished DB. Reported drift and received explicit approval to restore original Destination/RAG soft-delete migrations/schema from commits2eb8757/4e0e0de. Original checksums match DB with LF/CRLF normalization. Pre-new migration Prisma diff empty. Reviewed nullable-column-only SQL; applied **20261020170000_trip_manual_completion** on verified development DB using Prisma migrate deploy. Final26 disk/DB, status up-to-date, diff empty. No reset/db push/resolve/manual ledger edits/production access. Catalog column/FK/index checked; no new speculative index. Temporary audit script removed.
+- TDD: Save label/navigation assertions failed before implementation; missing-date component assertion failed before guard. New management service/client tests initially failed for missing implementation then passed. Unit/HTTP tests cover ownership, Guest, missing/foreign target, rollback, replay/key conflict, mark/unmark/fallback, unchanged data, malformed success, FAILED/UNKNOWN list retention.
+- PASS: targeted **184/184**, one opt-in integration skipped in that run; separate **live PostgreSQL1/1** with two disposable TRAVELER users, real save/read/replay, foreign mark/unmark/delete denial, completion list/detail consistency and unchanged itinerary, Favorite cleanup/Day/Visit cascade. Exact fixture cleanup completed; no integration users remain.
+- PASS browser localhost3010: existing signed-in traveler-capable session, initial missing-opening-hours proposal correctly blocked, subsequent nature proposal using existing TEST destinations satisfied checks. Observed pendingSave → globaltoast → /trips → immediate row → reload persistence. DisposableTrip **cmvgvphwq000400k5bpact9xi** passed mark/reload/unmark, delete-cancel retention and then explicit user-approved browser deletion. Detail/edit/in-trip not-found; authenticated detail API `TRIP_NOT_FOUND`. Final seven original DB Trips remain; disposable Trip/Day absent.
+- PASS light/dark responsive360/390/768/1024/1440; measured document width345/375/753/1009/1425 (vertical scrollbar15), no horizontal overflow. Modal focus initially Hủy; mobile dialog/action fit. Viewport restored; final light-mode My Trips tab retained for user. Local screenshots stored under task visualization `trip-management-evidence`.
+- PASS root typecheck4/4 and build1/1; legacy336/336; final diff whitespace check. Fresh read-only reviewer found no critical/important code issue. No commit/push/merge/reset.
+- FAILED root `npm test`: **2626 passed, six failed,135 skipped,one todo**. Same six baseline failures previously recorded: US-35 static navigation source guard; replan HTTP/US-36 end-to-end/US-37 Admin-denied expectations; AI-edit HTTP Admin-denied expectation; preference env model sensitivity. Those files unchanged by this task. Targeted extension has no remaining failure.
+- NOT PROVEN: live browser injected network FAILED/UNKNOWN or malformed response; two separate real browser accounts; no claim that unit/DB tests establish those E2E scenarios. No remaining DB migration blocker.
+- Exact commands, migration SQL/evidence, API contract, file list and historical/current scope distinctions: `docs/stories/US-30-confirm-save-trip.md`, `docs/stories/US-31-my-trips-detail.md`. Plan/ledger: `docs/superpowers/plans/2026-10-20-trip-management-extension.md`.
+
+## 2026-10-20 — Trip Light/Dark Theme Integration
+
+- Source: attachment26b956c0-b9ac-4a21-80f5-6a868164fffd. Reused one existing global next-themes provider, class `.dark`, storage `theme`, System default and Header toggle. No dependency/provider/context/storage key added. Branch ThaiAnh and preceding dirty US-30/31 work preserved; no commit/push.
+- Root cause: trip-form hardcoded Light surfaces; Planner had incomplete adaptive colors. Fixed colors only with existing semantic tokens and light-dark Light-value preservation. Added CSS color-scheme boundary for Lightning CSS compiled helpers; no separate theme logic. Kept fonts, geometry, breakpoints and dark-green Hero. Existing MyTrips/detail/edit/in-trip palettes verified without rewriting those pages.
+- Existing itinerary/manual-pin maps now setStyle on same renderer; latest style ref handles async mounting. Tests preserve markers/camera/selection/coordinates and prevent callbacks from theme-only changes. No routing/credentials/coordinates/Validator/API/business/schema/migration changes.
+- TDD PASS: observed initial failing theme/renderer tests, then fixed; standalone error, pale selected-day contrast and reviewer-identified floating-progress background each failed before minimal CSS corrections. Fresh read-only review completed with no other important finding.
+- Browser PASS localhost3010: five routes × Light/Dark ×360/390/768/1024/1440 =50 cases, no measured horizontal overflow/control clipping. Real owned Trip used read-only. Natural-language/manual form, edit textarea/Destination, proposal/selected stop/Validator/Save eligibility retained across theme. No hydration warnings in observed logs; no business request observed during bounded theme-only actions. No Save/Update/Delete/Complete clicked. Viewport and manual Light restored.
+- System: current OS Dark follows through navigation/reload; manual Light override PASS. Six actual provider pre-paint script cases PASS. Live OS Light↔Dark switching, manual Dark against live OS Light and frame-by-frame first-paint flash NOT VERIFIED: tool lacks media emulation. In-trip HAS_REMAINING/manual picker live state and injected network FAILED/UNKNOWN NOT VERIFIED; no claim beyond existing regression/renderer coverage.
+- Final PASS: targeted411 +one opt-in DB skip; theme13; map legacy41; legacy336; root typecheck4/4; build1/1; git diff --check. Full npm test FAILED:2640 passed,6 failed,135 skipped,1todo. Same baseline files: in-trip-validation/replan-http/us35-location-source-audit/us36-test/preference-extraction-env/ai-edit-http; untouched here. Legacy ran separately because root script stops after failed Vitest.
+- Exact commands, all11 task files and evidence/limitations: `docs/superpowers/plans/2026-10-20-trip-theme-integration.md`. Screenshots/computed 50-case JSON outside repo under visualization `trip-theme-evidence`.
+
+## 2026-10-21 — US-34 restore Trip Favorite actions and Favorites Trip group
+
+- Source: attachment `ee520ac9-ae85-4ed0-a34a-593311a86788`. Audited clean ThaiAnh at f002019. Existing Favorite TRIP model/FK/unique/CHECK, target add/remove/status, idempotency and actor-scoped Trip isFavorite already implemented; buttons were intentionally removed and /favorites lacked Trip data. No schema/migration/dependency/auth/Validator/routing/Trip-save/status rule changed; no commit/push/merge/branch change/reset.
+- Restored shared FavoriteButton through existing TripFavoriteButton on My Trips (secondary Heart44×44, outside Links) and Detail Hero actions. Preserved layout/brand/theme/Delete/Completion. Shared SUCCESS-only mutation, pending ref lock, FAILED/UNKNOWN retention, same-key recovery, toast and router.refresh reused.
+- Extended existing GET /api/favorites strict DTO with trips and nested date/duration/transport/effective-status metadata, exact original /trips/:id link. Query scopes Favorite.userId plus Trip.userId; deliberately inconsistent foreign-owner reference excluded in live DB. No itinerary snapshot/body selected or copied. Existing relation-ID removal removes only Favorite; groups stay mounted to retain pending/UNKNOWN key. User explicitly confirmed restoring Culture group only in /favorites; global Culture flag unchanged. Culture original pages still retain prior redirect to Explore; no claim to re-enable them.
+- TDD:9 expected failures before missing controls/DTO/group fixes, then12/12. Updated obsolete Culture source-guard expectation after the explicit three-group decision; behavior test confirms all groups with global flag still off. Existing Favorite Destination/Culture and Trip ownership/write tests retained.
+- PASS development catalog: existing US34 migration finished2026-10-15T15:28:56.919Z, no rollback; live unique(userId,tripId), RESTRICT FK and three-target CHECK verified. No migration applied. Guarded PostgreSQL integration1/1 with two disposable Traveler users/Admin: own/foreign/missing/Guest, reference-ID foreign removal, duplicate/P2002, replay/concurrent add, list no leakage, relation-only removal, existing delete cleanup. Before/after Favorite Trip/Day/Visit8/10/24 unchanged; exact graph/owner preserved. All integration fixtures cleaned.
+- PASS browser localhost3010: existing signed-in Traveler-capable session plus separate disposable Trip us34-browser-f10f92cb-3823-43ff-8365-a9139490c060 (01/01/2099). List pending stays inactive until SUCCESS; reload persists. Detail inherits active, pending removal stays active until SUCCESS; browser Back updates list. Favorites opens original Trip; Detail removal then Back causes refetch/empty without manual reload. Favorites removal retains pending card, removes only after SUCCESS; original Trip detail still opens. DB snapshots7/9/25 unchanged during all Favorite writes. Cleanup restores original6/8/22 and leaves zero fixture Trip. No existing Trip mutated.
+- PASS responsive/theme:30 actual cases (three pages × Light/Dark ×360/390/768/1024/1440), no horizontal overflow/control clipping; actual computed colors/screenshots inspected. Semantic Heart44×44 and keyboard focus-visible solid. Console error/warn empty. Viewport/manual Light restored. Evidence outside Git: visualization `us34-2026-10-21`, including responsive.json and stable representative screenshots.
+- PASS final targeted102 +one opt-in Trip-management DB skip; Favorite legacy27; full legacy336; US34 DB1/1 separately enabled; root typecheck4/4/build1/1/diff whitespace. FAILED root npm test: final2645 passed/6 failed/135 skipped/1todo vs baseline2640/6/135/1. Same six baseline files in-trip-validation/replan-http/us35-location-source-audit/us36-test/preference-extraction-env/ai-edit-http; no new failure. Legacy ran separately since root script stops on Vitest failure.
+- Fresh read-only review found no additional material issue; both Back synchronization paths explicitly passed after reviewer raised cache concern. NOT PROVEN: two independently logged-in real browser accounts, live injected FAILED/UNKNOWN/network-loss, exact Figma parity and custom long Trip name (current title derives from duration). Existing client/reducer and live DB API/service tests cover scoped outcome/security invariants.
+- Current acceptance matrix, exact commands, all17 files and evidence/limitations: `docs/stories/US-34-trip-favorite.md`. Older `US-34-favorite-saved-trip.md` marked historical/superseded to avoid stale absent-schema/Admin403 claims.
+
+## 2026-10-21 — Merge ThaiAnh into duybinh with preserved US-37
+
+- Authorization: owner approved ThaiAnh UI/Save as the base, preservation of duybinh In-trip, and UNKNOWN recovery hardening, then explicitly requested completion of the existing merge. Parents: 7493da1941972a8231571e156d5f14e398f39575 and b61228c9957e26443ca56eead7d835f230613ee1; common base c651225.
+- Resolved four unmerged files plus leftover markers in two already-staged My Trips files. Preserved both progress histories. Incoming layouts/theme, Save preview, Favorite and management services retained; US-37 session/client/service code and revision/draft fixes retained. Completed Trips do not show In-trip links in either Detail action area.
+- UNKNOWN fix: synchronous parent lock, disabled outer tabs, inert other panels, guarded edit/navigation/confirmation handlers, and guards against late analyze/evaluate responses. Retry retains the mounted proposal/key; FAILED unlocks. Confirmed Save toast precedes navigation to /trips.
+- Browser: two real RED reproductions followed by GREEN in the offline production-component harness. Covers late evaluation, pending/UNKNOWN/FAILED/success, exact retry identity, 360/1440 Light/Dark. Review/router/map and HTTP are fixtures; this is not live authenticated end-to-end or real database/provider acceptance. Screenshots outside Git under task visualization trip-merge.
+- Focused related suites: 176 PASS / 1 opt-in PostgreSQL SKIP. Legacy suites: 336 PASS. Four-workspace TypeScript PASS. Prisma schema validate/client generate PASS on Node 22; Node 24 native cache/UV failures were observed and not counted as success.
+- Incoming schema/migrations include Destination/RAG deletedAt and Trip manuallyCompletedAt. SQL reviewed; no migrate deploy, db push, database mutation or live migration-state claim.
+- Local dependency restoration: initial missing Cloudinary and interrupted install required restoring installed versions against the unchanged lockfile. Repo dev process was stopped to release Windows native binaries; restart is part of handoff. No dependency manifest/lockfile, credentials or environment file is changed.
+- Premium static audit: 33 existing ownership/style findings; no repository-wide compliance PASS claimed. The task preserves the selected existing UI, without unrelated global UI repairs.
+- Initial full Vitest run: 2584 PASS / 8 assertion FAIL / 132 pending / 1 todo, 19 failed files including temporary-loader ENOENT and isolated Varlock fixtures, plus previously documented RBAC/source-audit/model-environment failures. Targeted suites were independently green. Final verification and build result follow.
+- Final production build PASS (Next 16.3.8, Node 22, isolated .cache/performance-next output, placeholder database, QA gates disabled): compiled, TypeScript finished, 46 static pages generated. No deploy or real database access. Dev server restarted on localhost:3010; GET /api/health returned HTTP 200 with service KLTN. Next regenerated its AGENTS heading; generated guidance remains intact.
+- Sandbox isolation diagnostic also failed (256 PASS / 20 assertion FAIL, 192 failed files), dominated by worker access to deleted/inaccessible temporary SSR loader paths; not counted as product regression evidence. Final rerun used Node 22 outside the sandbox with the unchanged Vitest config and unchanged assertions: 2680 PASS / 6 FAIL / 135 pending / 1 todo. Six failures match the documented in-trip-validation, replan-http, us35-location-source-audit, us36-test, preference-extraction-env and ai-edit-http baseline groups. Full-suite status remains FAILED; no assertion or runtime authorization was weakened.
+- Final Spec rereview: no remaining finding after the late-response guards. Whitespace and conflict-marker checks PASS. All core installed dependency versions match package-lock; manifests/lockfile unchanged. Merge is local only, with no push/deploy.

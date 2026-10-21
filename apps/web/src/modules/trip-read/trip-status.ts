@@ -8,3 +8,9 @@ export function deriveTripStatus(startDate: string, durationDays: number, refere
   const status = referenceDate < startDate ? "UPCOMING" : referenceDate > endDate ? "COMPLETED" : "ONGOING";
   return { status, endDate };
 }
+
+/** Explicit Trip-level confirmation never changes the date or Visit contract. */
+export function effectiveTripStatus(startDate: string, durationDays: number, referenceDate: string, manuallyCompletedAt: Date | string | null) {
+  const derived = deriveTripStatus(startDate, durationDays, referenceDate);
+  return { ...derived, status: manuallyCompletedAt ? "COMPLETED" as const : derived.status };
+}

@@ -1,6 +1,8 @@
 "use client";
 
 import { Button } from "@KLTN/ui/components/button";
+import { LoaderCircle } from "lucide-react";
+import type { ReactNode } from "react";
 
 import type { TripValidation, ValidationGroupName } from "./trip-validation";
 
@@ -16,11 +18,12 @@ const labels = {
   INSUFFICIENT_DATA: "Chưa đủ dữ liệu để kiểm tra",
 } as const;
 
-export function TripValidationPanel({ validation, onConfirm, pending = false, actionLabel = "Xác nhận và lưu" }: {
+export function TripValidationPanel({ validation, onConfirm, pending = false, actionLabel = "Xác nhận và lưu", secondaryActions }: {
   validation: TripValidation;
   onConfirm?: () => void;
   pending?: boolean;
   actionLabel?: string;
+  secondaryActions?: ReactNode;
 }) {
   return <section aria-labelledby="trip-validation-heading" className="min-w-0 space-y-4 rounded-lg border border-border bg-card p-4 text-card-foreground sm:p-6">
     <h2 id="trip-validation-heading" className="text-lg font-semibold">Kiểm tra hành trình</h2>
@@ -39,8 +42,9 @@ export function TripValidationPanel({ validation, onConfirm, pending = false, ac
         </li>;
       })}
     </ul>
-    <Button type="button" disabled={!validation.canConfirm || !onConfirm || pending} onClick={onConfirm}>
+    <div className="flex flex-wrap items-center justify-end gap-3">{secondaryActions}<Button type="button" disabled={!validation.canConfirm || !onConfirm || pending} onClick={onConfirm} aria-busy={pending}>
+      {pending && <LoaderCircle className="animate-spin" aria-hidden="true" />}
       {pending ? "Đang lưu…" : actionLabel}
-    </Button>
+    </Button></div>
   </section>;
 }

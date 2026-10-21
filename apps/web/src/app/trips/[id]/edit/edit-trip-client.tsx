@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { Route } from "next";
+import { ArrowLeft, ArrowRight, CalendarDays, CarFront, CheckCircle2, FileSearch, FileText, MapPin, Mountain, Plus, Route as RouteIcon, Search } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 
 import { createIdempotencyKey } from "@/lib/mutation-client";
@@ -46,6 +47,7 @@ import {
   type EditSession,
 } from "@/modules/trip-edit/edit-session";
 import { TripValidationPanel } from "@/modules/trip-validation/trip-validation-panel";
+import { tripDayDate } from "@/modules/trip-validation/trip-proposal-contract";
 import type { ValidationFinding } from "@/modules/trip-validation/trip-validation";
 import AiEditPanel from "./ai-edit-panel";
 import styles from "./edit-trip.module.css";
@@ -68,6 +70,11 @@ function minuteValue(value: string): number | null {
   const minute = Number(match[2]);
   if (hour > 23 || minute > 59) return null;
   return hour * 60 + minute;
+}
+
+function dateLabel(date: string | null): string {
+  if (date === null) return "Chưa có ngày bắt đầu";
+  return `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}`;
 }
 
 const groupLabels: Record<ValidationFinding["group"], string> = {
@@ -254,6 +261,8 @@ export default function EditTripClient({ tripId, baseRevision, initialCandidate,
   const previewCanConfirm = canConfirmEditPreview(session.candidate, previewState)
     && previewState.result?.baseRevision === applyState.baseRevision;
   const editDirty = !areEditCandidatesEqual(applyState.candidate, applyState.baselineCandidate);
+  const savedVisitCount = applyState.baselineCandidate.days.reduce((count, day) => count + day.visits.length, 0);
+  const savedEndDate = tripDayDate(applyState.baselineCandidate.startDate, applyState.baselineCandidate.durationDays);
   const previewDiff = previewState.result
     ? diffEditCandidate(applyState.baselineCandidate, previewState.result.candidate)
     : null;
@@ -384,8 +393,10 @@ export default function EditTripClient({ tripId, baseRevision, initialCandidate,
 
   return (
     <main className={styles.page} lang="vi">
+      <div className={styles.content}>
       <Link className={styles.backLink} href={`/trips/${tripId}` as Route}>
-        ← Trở về hành trình
+        <ArrowLeft size={16} aria-hidden="true" />
+        Trở về hành trình
       </Link>
 
       <header className={styles.heading}>
@@ -394,47 +405,43 @@ export default function EditTripClient({ tripId, baseRevision, initialCandidate,
           <h1>Điều chỉnh các điểm đến</h1>
           <p>Thay đổi chỉ cập nhật vào hành trình sau khi bạn xác nhận phương án đã kiểm tra.</p>
         </div>
-        <div className={styles.headingActions}>
-          <span className={styles.status} aria-label={editDirty ? "Phương án chưa áp dụng" : undefined}>
-            {editDirty ? "Chưa áp dụng" : "Đã lưu"}
-          </span>
-          {applyInProgress ? (
-            <button className={styles.cancelLink} type="button" disabled aria-disabled="true">Hủy chỉnh sửa</button>
-          ) : (
-            <Link
-              className={styles.cancelLink}
-              href={`/trips/${tripId}` as Route}
-              onPointerDown={(event) => { if (event.button === 0) discardAndLeave(); }}
-              onKeyDown={handleCancelKeyDown}
-            >
-              Hủy chỉnh sửa
-            </Link>
-          )}
-        </div>
+        <section className={styles.savedSummary} aria-labelledby="saved-trip-summary-heading">
+          <span className={styles.summaryIcon}><CalendarDays size={23} aria-hidden="true" /></span>
+          <div><p className={styles.eyebrow}>Hành trình đang lưu</p>
+            <h2 id="saved-trip-summary-heading">Chuyến đi {applyState.baselineCandidate.durationDays} ngày</h2>
+            <p>{dateLabel(applyState.baselineCandidate.startDate)} – {dateLabel(savedEndDate)} · {savedVisitCount} điểm dừng</p>
+          </div>
+          <span className={styles.summaryTransport}><CarFront size={16} aria-hidden="true" />{applyState.baselineCandidate.transport === "MOTORCYCLE" ? "Xe máy" : "Ô tô"}</span>
+        </section>
       </header>
 
-      <AiEditPanel
-        tripId={tripId}
-        baseRevision={applyState.baseRevision}
-        baselineCandidate={applyState.baselineCandidate}
-        destinationLabels={destinationLabels}
-        onApplied={handleAiApplied}
-      />
-
       <div className={styles.columns}>
-        <section className={styles.panel} aria-labelledby="edit-add-heading" inert={applyInProgress}>
-          <h2 id="edit-add-heading">Thêm điểm đến</h2>
+        <div className={styles.leftColumn}>
+          <AiEditPanel
+            tripId={tripId}
+            baseRevision={applyState.baseRevision}
+            baselineCandidate={applyState.baselineCandidate}
+            destinationLabels={destinationLabels}
+            onApplied={handleAiApplied}
+          />
+
+          <section className={styles.panel} aria-labelledby="edit-add-heading" inert={applyInProgress}>
+          <div className={styles.sectionIntro}>
+            <span className={styles.sectionIcon}><MapPin size={24} aria-hidden="true" /></span>
+            <div><h2 id="edit-add-heading">Thêm điểm đến</h2>
+            <p>Tìm và thêm các điểm đến mới vào phương án hành trình của bạn.</p></div>
+          </div>
           <form className={styles.form} onSubmit={handleAdd}>
             <label className={styles.field}>
               <span>Tìm điểm đến công khai</span>
-              <input
+              <span className={styles.searchField}><Search size={17} aria-hidden="true" /><input
                 type="search"
                 maxLength={200}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Nhập tên điểm đến"
                 aria-describedby="destination-request-status"
-              />
+              /></span>
             </label>
 
             <label className={styles.field}>
@@ -507,14 +514,33 @@ export default function EditTripClient({ tripId, baseRevision, initialCandidate,
               </label>
             </div>
 
-            <button className={styles.primaryButton} type="submit" disabled={!currentDestinationId || destinations.status !== "ready"}>
-              Thêm vào phương án
+            <button className={styles.addButton} type="submit" disabled={!currentDestinationId || destinations.status !== "ready"}>
+              <Plus size={18} aria-hidden="true" />Thêm vào hành trình
             </button>
-          </form>
-        </section>
+            </form>
+          </section>
+        <div className={styles.headingActions}>
+          <span className={styles.status} aria-label={editDirty ? "Phương án chưa áp dụng" : undefined}>
+            {editDirty ? "Chưa áp dụng" : "Đã lưu"}
+          </span>
+          {applyInProgress ? (
+            <button className={styles.cancelLink} type="button" disabled aria-disabled="true">Hủy chỉnh sửa</button>
+          ) : (
+            <Link
+              className={styles.cancelLink}
+              href={`/trips/${tripId}` as Route}
+              onPointerDown={(event) => { if (event.button === 0) discardAndLeave(); }}
+              onKeyDown={handleCancelKeyDown}
+            >
+              Hủy chỉnh sửa
+            </Link>
+          )}
+        </div>
+        </div>
 
         <section className={styles.candidate} aria-labelledby="candidate-heading">
           <div className={styles.candidateHeading}>
+            <span className={styles.sectionIcon}><FileText size={22} aria-hidden="true" /></span>
             <div><h2 id="candidate-heading">Phương án chỉnh sửa</h2><p>Phương án chỉ được lưu vào hành trình sau khi xác nhận.</p></div>
             <span className={styles.status}>Chưa áp dụng</span>
           </div>
@@ -527,7 +553,7 @@ export default function EditTripClient({ tripId, baseRevision, initialCandidate,
               disabled={previewState.status === "CHECKING" || applyInProgress}
               onClick={() => void handleCheck()}
             >
-              {previewState.status === "CHECKING" ? "Đang kiểm tra…" : "Kiểm tra"}
+              <Search size={18} aria-hidden="true" />{previewState.status === "CHECKING" ? "Đang kiểm tra…" : "Kiểm tra phương án"}<ArrowRight size={18} aria-hidden="true" />
             </button>
             <p className={styles.previewMessage} role="status" aria-live="polite">
               {previewState.status === "IDLE" && "Kiểm tra để xem khác biệt và kết quả Validator."}
@@ -539,14 +565,21 @@ export default function EditTripClient({ tripId, baseRevision, initialCandidate,
             </p>
           </div>
 
+          <section className={styles.proposalSection} aria-labelledby="proposal-itinerary-heading">
+          <div className={styles.sectionIntro}><span className={styles.sectionIcon}><RouteIcon size={20} aria-hidden="true" /></span>
+            <div><h3 id="proposal-itinerary-heading">Hành trình đề xuất</h3><p>Đây là phương án đang chỉnh sửa, chưa thay đổi hành trình đã lưu.</p></div>
+          </div>
           <div className={styles.days} inert={applyInProgress}>
             {session.candidate.days.map((day) => (
               <section className={styles.day} key={day.dayIndex} aria-labelledby={`candidate-day-${day.dayIndex}`}>
-                <h3 id={`candidate-day-${day.dayIndex}`}>Ngày {day.dayIndex}</h3>
+                <h4 id={`candidate-day-${day.dayIndex}`}>Ngày {day.dayIndex}</h4>
                 {day.visits.length === 0 ? <p className={styles.empty}>Chưa có điểm đến trong ngày này.</p> : (
                   <ol className={styles.visitList}>
                     {day.visits.map((visit) => {
                       const label = labelForDestination(visit.destinationId);
+                      const divider = label.lastIndexOf(" · ");
+                      const destinationName = divider < 0 ? label : label.slice(0, divider);
+                      const destinationArea = divider < 0 ? "" : label.slice(divider + 3);
                       const otherDays = session.candidate.days.filter((item) => item.dayIndex !== day.dayIndex);
                       const preferredMoveDay = moveDayDrafts[visit.visitId];
                       const moveDayIndex = otherDays.some((item) => item.dayIndex === preferredMoveDay)
@@ -558,11 +591,18 @@ export default function EditTripClient({ tripId, baseRevision, initialCandidate,
                       };
                       return (
                         <li className={styles.visit} key={visit.visitId}>
+                          <span className={styles.visitNode} aria-hidden="true" />
                           <div className={styles.visitHeader}>
+                            <span className={styles.visitThumbnail} role="img" aria-label="Chưa có ảnh điểm đến"><Mountain size={22} aria-hidden="true" /></span>
+                            <strong className={styles.visitTime}>{minuteLabel(visit.startMinute)}</strong>
                             <div className={styles.visitText}>
-                              <strong>{label}</strong>
-                              <span>Thứ tự {visit.order} · {minuteLabel(visit.startMinute)} · {visit.plannedDurationMinutes} phút</span>
+                              <strong>{destinationName}</strong>
+                              <span>{destinationArea && <><MapPin size={12} aria-hidden="true" />{destinationArea} · </>}{visit.plannedDurationMinutes} phút · Thứ tự {visit.order}</span>
                             </div>
+                          </div>
+                          <details className={styles.visitTools}>
+                            <summary>Điều chỉnh điểm dừng {visit.order}</summary>
+                            <div className={styles.visitToolsContent}>
                             <div className={styles.orderControls} aria-label={`Đổi thứ tự ${label}`}>
                               <button
                                 className={styles.smallButton}
@@ -579,7 +619,6 @@ export default function EditTripClient({ tripId, baseRevision, initialCandidate,
                                 onClick={() => handleReorder(visit.visitId, "down")}
                               >Xuống</button>
                             </div>
-                          </div>
                           {otherDays.length > 0 && (
                             <div className={styles.moveControls}>
                               <label className={styles.compactField}>
@@ -642,6 +681,8 @@ export default function EditTripClient({ tripId, baseRevision, initialCandidate,
                             aria-label={`Xóa điểm đến thứ ${visit.order} (${label}) khỏi ngày ${day.dayIndex}`}
                             onClick={() => handleRemove(visit.visitId, day.dayIndex, label)}
                           >Xóa</button>
+                            </div>
+                          </details>
                         </li>
                       );
                     })}
@@ -650,6 +691,19 @@ export default function EditTripClient({ tripId, baseRevision, initialCandidate,
               </section>
             ))}
           </div>
+          </section>
+
+          <section className={styles.validationSection} aria-labelledby="edit-validation-heading">
+            <div className={styles.sectionIntro}><span className={styles.sectionIcon}><CheckCircle2 size={22} aria-hidden="true" /></span>
+              <div><h3 id="edit-validation-heading">Kết quả kiểm tra</h3><p>Hệ thống hiển thị kết quả sau khi bạn kiểm tra phương án.</p></div>
+            </div>
+            {previewState.status === "IDLE" && (
+              <div className={styles.validatorEmpty}>
+                <FileSearch size={26} aria-hidden="true" />
+                <h4>Chưa có kết quả kiểm tra</h4>
+                <p>Nhấn “Kiểm tra phương án” để xem khác biệt và kiểm tra tính hợp lệ.</p>
+              </div>
+            )}
 
           {previewState.status === "PREVIEWED" && previewState.result && previewDiff && (
             <div className={styles.previewResults}>
@@ -727,7 +781,9 @@ export default function EditTripClient({ tripId, baseRevision, initialCandidate,
               <TripValidationPanel validation={{ ...applyState.validation, canConfirm: false }} />
             </section>
           )}
+          </section>
         </section>
+      </div>
       </div>
     </main>
   );
