@@ -8,6 +8,7 @@ import { EmbeddingError } from "../rag-processing/embedding-errors";
 import { extractDocument } from "../rag-processing/extract-document";
 import { encryptedSyntheticPdf, p, syntheticDocx, syntheticPdf } from "../rag-processing/__fixtures__/synthetic-documents";
 import { sha256 } from "../rag-processing/content-hash";
+import { ORIGINAL_SOURCE_PARSER } from "../rag-processing/original-sources";
 import { createRagIndexWorker, type RagIndexWorkerDependencies } from "./rag-index-worker";
 
 vi.mock("server-only", () => ({}));
@@ -85,7 +86,7 @@ describe("US-19 Task185 indexing worker", () => {
     const t=harness();const save=vi.fn(async()=>{if(fail)throw Error("unavailable");});
     const worker=createRagIndexWorker({jobs:t.jobs,index:t.index,storage:t.storage,provider:createFakeEmbeddingProvider().provider,saveCitationBundle:save} as unknown as RagIndexWorkerDependencies);
     expect(await worker.runNext()).toMatchObject({status:"COMPLETED"});
-    expect(save).toHaveBeenCalledWith("doc-1","generation-1","cv-1",expect.objectContaining({parserVersion:"explicit-section-sources-v1"}));
+    expect(save).toHaveBeenCalledWith("doc-1","generation-1","cv-1",expect.objectContaining({parserVersion:ORIGINAL_SOURCE_PARSER}));
     expect(t.index.persistChunks.mock.invocationCallOrder[0]).toBeLessThan(save.mock.invocationCallOrder[0]!);
   });
   it.each(["Cao nguyên đá Đồng Văn", "Di tích Căng Bắc Mê", "Chợ tình Khâu Vai"])("indexes research fixture %s through the full mocked pipeline", async title => {

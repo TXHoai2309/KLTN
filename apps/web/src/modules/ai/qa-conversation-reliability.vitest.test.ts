@@ -67,7 +67,7 @@ describe("question punctuation, repeated intent and social conversation", () => 
       provider: { provider: "openai", model: "text-embedding-3-small", dimensions: 1536, embed },
     });
     await retriever.retrieve(`${question}?`, [{ question: "Giá vé hôm nay?", response }]);
-    expect(embed.mock.calls[0]?.[0].input).toEqual([question.toLocaleLowerCase("vi")]);
+    expect(embed.mock.calls[0]?.[0].input).toEqual(["Cao nguyên đá Đồng Văn\nCao nguyên đá Đồng Văn cao nguyên đá đồng văn được unesco công nhận là gì"]);
   });
 
   it.each(["hi", "Hi!", "xin chào,./", "chào bạn", "cảm ơn bạn!", "tạm biệt", "bạn có thể giúp gì?", "mình muốn đi du lịch Hà Giang"])("completes safe conversational intent without providers: %s", async text => {
@@ -110,7 +110,8 @@ describe("question punctuation, repeated intent and social conversation", () => 
       expect(result.data).toMatchObject({ status: "ANSWERED", answerParts: [{ text: sentence, citationIds: ["c1"] }] });
       t.reservation.history.push({ question: text, response: result.data });
     }
-    expect(fetcher).toHaveBeenCalledTimes(8);
+    // In the simplified flow (Ticket 03), assessor is eliminated; generator is called 1 time per turn (4 turns = 4 calls)
+    expect(fetcher).toHaveBeenCalledTimes(4);
     expect(new Set(payloads.map(payload => payload.question))).toEqual(new Set([question.toLocaleLowerCase("vi")]));
     expect(payloads.every(payload => payload.HISTORY_QUESTIONS.length === 0)).toBe(true);
     expect(qaRequestHash({ question, context: { type: "GENERAL" } })).not.toBe(qaRequestHash({ question: `${question}?`, context: { type: "GENERAL" } }));

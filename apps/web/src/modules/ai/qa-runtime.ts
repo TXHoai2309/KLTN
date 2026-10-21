@@ -1,4 +1,5 @@
 import { createQaAssessor } from "./qa-assessment";
+import { createQaQuestionUnderstander } from "./qa-question-understander";
 import "server-only";
 import { db } from "../../services";
 import { authorizationDependencies } from "../../server/authorization/server";
@@ -43,6 +44,7 @@ export const qaService = createQaService({
   retriever: createQaRetriever(db, { publicSourceIds: legacySourceIds, topK: 4, maxEvidenceTokens: 3000, hybrid: true }),
   generator: createQaGenerator(),
   assessor: createQaAssessor(),
+  understander: createQaQuestionUnderstander(),
   resolveContext: context => resolveQaContext(db, context)
 });
 export const qaHttp = createQaHttpHandlers({
@@ -54,6 +56,7 @@ export const qaHttp = createQaHttpHandlers({
   get: qaService.get,
   list: qaService.list,
   rename: qaService.rename,
+  update: qaService.update,
   turns: qaService.turns,
   delete: qaService.delete,
 });

@@ -1,4 +1,4 @@
-import type { QaCompletedTurn, QaPublicCitation } from "./qa-contract";
+import type { QaCompletedTurn, QaKnowledgeMode, QaPublicCitation } from "./qa-contract";
 import type { QaResolvedContext } from "./qa-destination-context";
 import type { QaSourceReview, QaSourceDecision } from "./qa-source-sufficiency";
 import type { QaQuestionPlan } from "./qa-question-plan";
@@ -26,19 +26,23 @@ export type QaGenerationInput = {
   history: readonly QaHistoryTurn[];
   evidence: readonly QaEvidence[];
   context: QaResolvedContext;
+  knowledgeMode?: QaKnowledgeMode;
   signal?: AbortSignal;
   sourceSufficiency?: QaSourceDecision;
   sourceReview?: QaSourceReview;
   questionPlan?: QaQuestionPlan;
 };
-export type QaAnswer =
+export type QaAnswer = (
   | Pick<Extract<QaCompletedTurn, { status: "CONVERSATIONAL" }>, "status" | "answerParts" | "citations" | "message">
   | Pick<Extract<QaCompletedTurn, { status: "ANSWERED" }>, "status" | "answerParts" | "citations" | "unansweredAspects" | "presentation" | "answerMode">
   | Pick<Extract<QaCompletedTurn, { status: "PARTIAL" }>, "status" | "answerParts" | "citations" | "unansweredAspects" | "presentation" | "answerMode">
   | Pick<Extract<QaCompletedTurn, { status: "INSUFFICIENT_SOURCE" }>, "status" | "answerParts" | "citations" | "message" | "reason">
-  | Pick<Extract<QaCompletedTurn, { status: "CLARIFICATION_REQUIRED" }>, "status" | "answerParts" | "citations" | "clarificationQuestion">;
+  | Pick<Extract<QaCompletedTurn, { status: "CLARIFICATION_REQUIRED" }>, "status" | "answerParts" | "citations" | "clarificationQuestion">
+) & { knowledgeMode?: QaKnowledgeMode };
+import type { QaQuestionUnderstanding } from "./qa-question-understanding";
+
 export interface QaRetriever {
-  retrieve(question: string, history: readonly QaHistoryTurn[], signal?: AbortSignal, context?: QaResolvedContext): Promise<QaEvidence[]>;
+  retrieve(question: string, history: readonly QaHistoryTurn[], signal?: AbortSignal, context?: QaResolvedContext, understanding?: QaQuestionUnderstanding): Promise<QaEvidence[]>;
   recheck(evidence: readonly QaEvidence[]): Promise<boolean>;
 }
 export interface QaGenerator { generate(input: QaGenerationInput): Promise<QaAnswer> }

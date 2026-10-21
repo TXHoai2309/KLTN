@@ -112,3 +112,132 @@ export function qaIntentHistory(question: string, history: readonly QaHistoryTur
   }
   return candidates.slice(0, 2).reverse();
 }
+
+export type QaQuestionUnderstanding = {
+  targetSubjects: string[];
+  intent: "OVERVIEW" | "ADMISSION" | "OPENING_HOURS" | "CULTURE" | "HISTORY" | "DIRECTIONS" | "SCHEDULE" | "COMPARISON" | "OTHER";
+  attributes: string[];
+  temporalConstraint: string | null;
+  conditions: string[];
+  searchQuery: string;
+  ambiguous: boolean;
+  clarificationQuestion: string | null;
+};
+
+export const KNOWN_DESTINATIONS: readonly { canonical: string; aliases: readonly string[] }[] = [
+  { canonical: "Làng văn hóa du lịch cộng đồng Hạ Thành", aliases: ["hạ thành", "ha thanh", "làng hạ thành", "thôn hạ thành", "làng văn hóa du lịch cộng đồng hạ thành", "làng văn hóa du lịch cộng đồng thôn hạ thành"] },
+  { canonical: "Cao nguyên đá Đồng Văn", aliases: ["đồng văn", "dong van", "cao nguyên đá đồng văn", "cao nguyên đá", "cao nguyen da"] },
+  { canonical: "Cột cờ Lũng Cú", aliases: ["lũng cú", "lung cu", "cột cờ lũng cú", "cột cờ"] },
+  { canonical: "Đèo Mã Pí Lèng", aliases: ["mã pí lèng", "ma pi leng", "đèo mã pí lèng", "mã pì lèng"] },
+  { canonical: "Chợ tình Khâu Vai", aliases: ["khâu vai", "khau vai", "chợ tình khâu vai", "chợ phong lưu khâu vai"] },
+  { canonical: "Di tích Căng Bắc Mê", aliases: ["căng bắc mê", "cang bac me", "bắc mê", "bac me"] },
+  { canonical: "Dinh thự họ Vương", aliases: ["dinh họ vương", "dinh ho vuong", "dinh vương", "nhà vương", "nha vuong", "dinh vua mèo", "vua mèo"] },
+  { canonical: "Ruộng bậc thang Hoàng Su Phì", aliases: ["hoàng su phì", "hoang su phi"] },
+  { canonical: "Sông Nho Quế", aliases: ["nho quế", "nho que", "sông nho quế", "hẻm tu sản", "hem tu san"] },
+  { canonical: "Làng Lũng Cẩm", aliases: ["lũng cẩm", "lung cam", "làng văn hóa lũng cẩm", "nhà của pao"] },
+  { canonical: "Thị trấn Phố Bảng", aliases: ["phố bảng", "pho bang"] },
+  { canonical: "Du Già", aliases: ["du già", "du gia", "thác du già"] },
+  { canonical: "Núi Đôi Quản Bạ", aliases: ["núi đôi", "nui doi", "quản bạ", "quan ba", "cổng trời quản bạ", "cổng trời"] },
+  { canonical: "Rừng thông Yên Minh", aliases: ["yên minh", "yen minh", "rừng thông yên minh"] },
+  { canonical: "Mèo Vạc", aliases: ["mèo vạc", "meo vac"] },
+];
+
+export function foldVi(s: string): string {
+  return s.normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/g, "d").toLowerCase().trim();
+}
+
+export function matchKnownDestinations(text: string): string[] {
+  const norm = normalizeQaQuestion(text);
+  const folded = foldVi(norm);
+  const matched: string[] = [];
+  for (const item of KNOWN_DESTINATIONS) {
+    const hit = item.aliases.some(alias => {
+      const aliasFold = foldVi(alias);
+      const re = new RegExp(`(?:^|[^a-z0-9])${aliasFold.replace(/\s+/gu, "\\s+")}(?:$|[^a-z0-9])`, "u");
+      return re.test(folded);
+    });
+    if (hit) {
+      matched.push(item.canonical);
+    }
+  }
+  return matched;
+}
+
+export function deterministicQuestionUnderstanding(
+  question: string,
+  history: readonly QaHistoryTurn[] = [],
+  context: QaResolvedContext = { type: "GENERAL" },
+): QaQuestionUnderstanding {
+  const factual = qaFactualQuestion(question);
+
+  let targetSubjects: string[] = [];
+  if (context.type === "DESTINATION" && context.name) {
+    targetSubjects = [context.name];
+  } else {
+    targetSubjects = matchKnownDestinations(factual);
+  }
+
+  if (targetSubjects.length === 0 && history.length > 0 && needsHistory(question)) {
+    const priorTurns = qaIntentHistory(question, history);
+    for (const pt of priorTurns) {
+      const ptMatches = matchKnownDestinations(pt.question);
+      if (ptMatches.length > 0) {
+        targetSubjects = ptMatches;
+        break;
+      }
+    }
+  }
+
+  const comparisonMatch = /(?:khác biệt|khác nhau|so sánh|đối chiếu)(?:\s+giữa)?\s+(.+?)\s+(?:và|với|so với)\s+(.+?)/u.test(factual);
+  let intent: QaQuestionUnderstanding["intent"] = "OTHER";
+  if (comparisonMatch || targetSubjects.length > 1) {
+    intent = "COMPARISON";
+  } else if (/như\s+thế\s+nào|thế\s+nào|ra\s+sao|có\s+gì\s+(?:đặc\s+biệt|nổi\s+bật|hay|đẹp|chơi)|giới\s+thiệu|tổng\s+quan/u.test(factual)) {
+    intent = "OVERVIEW";
+  } else if (/(?:giá\s+)?vé|phí\s+vào|phí\s+tham\s+quan|bao\s+nhiêu\s+tiền/u.test(factual)) {
+    intent = "ADMISSION";
+  } else if (/giờ\s+mở|giờ\s+đóng|giờ\s+hoạt\s+động|mấy\s+giờ/u.test(factual)) {
+    intent = "OPENING_HOURS";
+  } else if (/lịch\s+sử|hình\s+thành|nguồn\s+gốc|sự\s+tích|ý\s+nghĩa/u.test(factual)) {
+    intent = "HISTORY";
+  } else if (/văn\s+hóa|phong\s+tục|truyền\s+thống|dân\s+tộc|nhà\s+sàn|lễ\s+hội/u.test(factual)) {
+    intent = "CULTURE";
+  } else if (/đường\s+đi|cách\s+đi|phương\s+tiện|di\s+chuyển/u.test(factual)) {
+    intent = "DIRECTIONS";
+  } else if (/ngày\s+nào|thời\s+điểm|khi\s+nào|mùa\s+nào|lịch\s+trình|tổ\s+chức/u.test(factual)) {
+    intent = "SCHEDULE";
+  }
+
+  const yearMatch = factual.match(/\b(?:năm\s+)?((?:19|20|21)\d{2})\b/u);
+  const temporalConstraint = yearMatch ? yearMatch[1] : null;
+
+  const conditions: string[] = [];
+  const negationMatches = factual.match(/(?:không|chưa|chẳng)\s+[\p{L}\p{N}]+/gu);
+  if (negationMatches) conditions.push(...negationMatches);
+  if (/người\s+cao\s+tuổi|người\s+già/u.test(factual)) conditions.push("người cao tuổi");
+  if (/trẻ\s+em/u.test(factual)) conditions.push("trẻ em");
+  if (/mùa\s+mưa/u.test(factual)) conditions.push("mùa mưa");
+
+  const attributes: string[] = [];
+  if (/nhà\s+sàn/u.test(factual)) attributes.push("nhà sàn");
+  if (/kiến\s+trúc/u.test(factual)) attributes.push("kiến trúc");
+  if (/ẩm\s+thực|món\s+ăn|đặc\s+sản/u.test(factual)) attributes.push("đặc sản ẩm thực");
+  if (/lễ\s+hội/u.test(factual)) attributes.push("lễ hội");
+
+  const clarification = qaFollowupClarification(question, history, context);
+  const ambiguous = targetSubjects.length === 0 && context.type === "GENERAL" && !!clarification;
+
+  const subPart = targetSubjects.join(" ");
+  const searchQuery = subPart ? `${subPart} ${factual}` : factual;
+
+  return {
+    targetSubjects,
+    intent,
+    attributes,
+    temporalConstraint,
+    conditions,
+    searchQuery,
+    ambiguous,
+    clarificationQuestion: ambiguous ? (clarification ?? QA_FOLLOWUP_CLARIFICATIONS.missingSubject) : null,
+  };
+}

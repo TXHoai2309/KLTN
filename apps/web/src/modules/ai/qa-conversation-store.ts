@@ -12,6 +12,8 @@ import {
   type QaRequest,
   type QaConversationSummary,
   type QaConversationDetailMetadata,
+  type QaKnowledgeMode,
+  qaKnowledgeModeSchema,
 } from "./qa-contract";
 import { resolveQaContext } from "./qa-destination-context";
 import type { QaEvidence, QaHistoryTurn, QaPrincipal } from "./qa-runtime-contract";
@@ -27,6 +29,7 @@ type Conversation = {
   context: QaContext;
   principalKind: string;
   principalId: string;
+  knowledgeMode?: string;
   headTurnId: string | null;
   activeTurnId: string | null;
   title: string | null;
@@ -47,6 +50,7 @@ export interface QaConversationStore {
   list?(principal: QaPrincipal, options?: { cursor?: string | null; limit?: number; search?: string }): Promise<{ items: QaConversationSummary[]; nextCursor: string | null; hasMore: boolean }>;
   get?(principal: QaPrincipal, id: string): Promise<{ conversation: QaConversationDetailMetadata; turns: QaHistoryTurn[] }>;
   rename?(principal: QaPrincipal, id: string, title: string): Promise<{ id: string; title: string }>;
+  update?(principal: QaPrincipal, id: string, updates: { title?: string; knowledgeMode?: QaKnowledgeMode }): Promise<{ id: string; title?: string; knowledgeMode?: QaKnowledgeMode }>;
   turns?(principal: QaPrincipal, id: string, options?: { cursor?: string | null; limit?: number }): Promise<{ turns: QaHistoryTurn[]; nextCursor: string | null; hasMore: boolean }>;
   history(principal: QaPrincipal, id: string): Promise<QaHistoryTurn[]>;
   delete(principal: QaPrincipal, id: string): Promise<void>;
@@ -56,9 +60,10 @@ export interface QaConversationStore {
 export function qaRequestHash(request: QaRequest): string {
   // Preserve the legacy GENERAL/omission hash. Omitted follow-up context is
   // resolved separately from the owned conversation; it never resets its context.
+  const mode = request.knowledgeMode ?? "SOURCE_ONLY";
   const canonical = "conversationId" in request
-    ? [request.conversationId, request.parentTurnId, request.question, request.context?.type === "DESTINATION" ? request.context : "GENERAL"]
-    : [null, null, request.question, request.context.type === "DESTINATION" ? request.context : "GENERAL"];
+    ? [request.conversationId, request.parentTurnId, request.question, request.context?.type === "DESTINATION" ? request.context : "GENERAL", mode]
+    : [null, null, request.question, request.context.type === "DESTINATION" ? request.context : "GENERAL", mode];
   return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
 }
 function error(code: keyof typeof QA_ERROR_HTTP_STATUS): never {
@@ -205,8 +210,15 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
         } else {
           const id = randomUUID();
           await resolveQaContext(tx, request.context, true);
+          const initialMode = request.knowledgeMode ?? "SOURCE_ONLY";
           const rows = await tx.$queryRaw<Conversation[]>(Prisma.sql`INSERT INTO qa_conversation(id,"principalKind","principalId",context,"expiresAt","createdAt","lastActivityAt","title") VALUES(${id},${p.kind},${p.id},${JSON.stringify(request.context)}::jsonb,${now}::timestamptz + ${p.kind === "GUEST" ? 7 : 30} * INTERVAL '1 day',${now}::timestamptz,${now}::timestamptz,NULL) RETURNING *`);
           conversation = rows[0]!;
+          if (initialMode !== "SOURCE_ONLY") {
+            try {
+              await tx.$executeRaw(Prisma.sql`UPDATE qa_conversation SET "knowledgeMode"=${initialMode} WHERE id=${id}`);
+              conversation.knowledgeMode = initialMode;
+            } catch {}
+          }
         }
         const turnId = randomUUID();
         await options.abuse?.admit(tx,p,turnId,1,new Date(now.getTime()+leaseMs));
@@ -233,6 +245,11 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
         await tx.$executeRaw(Prisma.sql`UPDATE qa_turn SET state='COMPLETED', response=${JSON.stringify(parsed)}::jsonb, provenance=${JSON.stringify(provenance)}::jsonb, "completedAt"=${now}::timestamptz WHERE id=${r.turnId}`);
         const generatedTitle = generateConversationTitle(turn.question ?? "Cuộc hội thoại mới");
         await tx.$executeRaw(Prisma.sql`UPDATE qa_conversation SET "headTurnId"=${r.turnId}, "activeTurnId"=NULL, "lastActivityAt"=${now}::timestamptz, "title"=COALESCE("title", ${generatedTitle}), "expiresAt"=${now}::timestamptz + ${p.kind === "GUEST" ? 7 : 30} * INTERVAL '1 day' WHERE id=${r.conversationId}`);
+        if (parsed.knowledgeMode) {
+          try {
+            await tx.$executeRaw(Prisma.sql`UPDATE qa_conversation SET "knowledgeMode"=${parsed.knowledgeMode} WHERE id=${r.conversationId}`);
+          } catch {}
+        }
         await options.abuse?.release(tx,r.turnId,r.fence);
         return parsed;
       });
@@ -276,6 +293,7 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
           id: row.id,
           title: row.title ?? "Cuộc hội thoại mới",
           context: qaContextSchema.parse(row.context),
+          knowledgeMode: qaKnowledgeModeSchema.parse((row as any).knowledgeMode ?? "SOURCE_ONLY"),
           createdAt: row.createdAt.toISOString(),
           lastActivityAt: row.lastActivityAt.toISOString(),
         }));
@@ -307,6 +325,7 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
           id: owned.id,
           title: owned.title ?? (turns.length ? generateConversationTitle(turns[0]!.question) : "Cuộc hội thoại mới"),
           context: qaContextSchema.parse(owned.context),
+          knowledgeMode: qaKnowledgeModeSchema.parse((owned as any).knowledgeMode ?? "SOURCE_ONLY"),
           headTurnId: owned.headTurnId,
           createdAt: owned.createdAt.toISOString(),
           lastActivityAt: owned.lastActivityAt.toISOString(),
@@ -314,19 +333,36 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
         return { conversation, turns };
       });
     },
-    async rename(p, id, title) {
-      const validated = qaConversationTitleSchema.parse(title);
+    async update(p, id, updates) {
       await cleanupAccess(p);
       return transaction(async (tx) => {
         const now = await lockPrincipal(tx, p, currentTime);
-        await loadOwned(tx, p, id, now);
-        await tx.$executeRaw(Prisma.sql`
-          UPDATE qa_conversation
-          SET "title" = ${validated}, "titleCustomized" = true
-          WHERE id = ${id} AND "principalKind" = ${p.kind} AND "principalId" = ${p.id}
-        `);
-        return { id, title: validated };
+        const owned = await loadOwned(tx, p, id, now);
+        let newTitle = owned.title;
+        let newMode = qaKnowledgeModeSchema.parse((owned as any).knowledgeMode ?? "SOURCE_ONLY");
+        if (updates.title !== undefined) {
+          newTitle = qaConversationTitleSchema.parse(updates.title);
+          await tx.$executeRaw(Prisma.sql`
+            UPDATE qa_conversation
+            SET "title" = ${newTitle}, "titleCustomized" = true
+            WHERE id = ${id} AND "principalKind" = ${p.kind} AND "principalId" = ${p.id}
+          `);
+        }
+        if (updates.knowledgeMode !== undefined) {
+          newMode = qaKnowledgeModeSchema.parse(updates.knowledgeMode);
+          try {
+            await tx.$executeRaw(Prisma.sql`
+              UPDATE qa_conversation
+              SET "knowledgeMode" = ${newMode}
+              WHERE id = ${id} AND "principalKind" = ${p.kind} AND "principalId" = ${p.id}
+            `);
+          } catch {}
+        }
+        return { id, title: newTitle ?? "", knowledgeMode: newMode };
       });
+    },
+    async rename(p, id, title) {
+      return this.update!(p, id, { title }) as Promise<{ id: string; title: string }>;
     },
     async turns(p, id, options = {}) {
       await cleanupAccess(p);

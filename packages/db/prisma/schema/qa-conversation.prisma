@@ -8,6 +8,7 @@ model QaConversation {
   titleCustomized Boolean   @default(false)
   lastActivityAt  DateTime  @default(now()) @db.Timestamptz(3)
   context         Json      @default("{\"type\":\"GENERAL\"}")
+  knowledgeMode   String    @default("SOURCE_ONLY") @db.VarChar(16)
   expiresAt       DateTime  @db.Timestamptz(3)
   deletedAt       DateTime? @db.Timestamptz(3)
   createdAt       DateTime  @default(now()) @db.Timestamptz(3)

@@ -7,7 +7,7 @@ export type CitationBundleRow = { id: string; generationId: string; contentVersi
 
 export async function loadCitationBundle(db: Reader, generationId: string): Promise<(CitationBundleRow & { bundle: OriginalSourceBundle }) | null> {
   try {
-    const rows = await db.$queryRaw<CitationBundleRow[]>(Prisma.sql`SELECT id,"generationId","contentVersionId",metadata,"metadataHash" FROM rag_citation_bundle WHERE "generationId"=${generationId} AND "parserVersion"=${ORIGINAL_SOURCE_PARSER}`);
+    const rows = await db.$queryRaw<CitationBundleRow[]>(Prisma.sql`SELECT id,"generationId","contentVersionId",metadata,"metadataHash" FROM rag_citation_bundle WHERE "generationId"=${generationId} AND "parserVersion" IN (${ORIGINAL_SOURCE_PARSER}, 'explicit-section-sources-v1') ORDER BY CASE WHEN "parserVersion"=${ORIGINAL_SOURCE_PARSER} THEN 0 ELSE 1 END LIMIT 1`);
     const row = rows[0];
     if (!row) return null;
     const bundle = readOriginalSourceBundle(row.metadata,row.metadataHash);

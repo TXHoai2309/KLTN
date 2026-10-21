@@ -35,16 +35,13 @@ describe("QA orchestration without external services",()=>{
     expect(t.assessor.assess).not.toHaveBeenCalled(); expect(t.generator.generate).not.toHaveBeenCalled();
     expect(t.store.complete).toHaveBeenCalledOnce();
   });
-  it("records missing support after review without calling generation or changing it into a provider error", async () => {
+  it("records insufficient source outcome without calling assessor or changing it into a provider error", async () => {
     const t = setup(); t.retriever.retrieve.mockResolvedValue([evidence]);
-    t.assessor.assess.mockImplementation(async input => {
-      const assessment = fixtureQaAssessment(input);
-      assessment.review.aspects = [{ id: "requested", status: "MISSING", supports: [] }];
-      return assessment;
-    });
+    t.generator.generate.mockResolvedValue({ status: "INSUFFICIENT_SOURCE", answerParts: [], citations: [], message: QA_INSUFFICIENT_SOURCE_MESSAGE, reason: "MISSING_SUPPORT" });
     const result = await t.service.ask(principal, "support_key", request);
     expect(result.data).toMatchObject({ status: "INSUFFICIENT_SOURCE", reason: "MISSING_SUPPORT", answerParts: [], citations: [] });
-    expect(t.assessor.assess).toHaveBeenCalledOnce(); expect(t.generator.generate).not.toHaveBeenCalled();
+    expect(t.assessor.assess).not.toHaveBeenCalled();
+    expect(t.generator.generate).toHaveBeenCalledOnce();
     expect(t.store.complete).toHaveBeenCalledOnce(); expect(t.store.fail).not.toHaveBeenCalled();
   });
   it.each<QaAnswer>([
@@ -53,11 +50,12 @@ describe("QA orchestration without external services",()=>{
     {status:"CLARIFICATION_REQUIRED",answerParts:[],citations:[],clarificationQuestion:"Bạn muốn hỏi điều gì?"},
   ])("persists $status only after completion acknowledgement",async outcome=>{
     const t=setup();t.retriever.retrieve.mockResolvedValue([evidence]);t.generator.generate.mockResolvedValue(outcome);
-    if(outcome.status === "PARTIAL") t.assessor.assess.mockImplementation(async input=>fixtureQaAssessment(input,true));
     const result=await t.service.ask(principal,"key",request);
     expect(result.data.status).toBe(outcome.status);
+    expect(t.assessor.assess).not.toHaveBeenCalled();
     expect(t.generator.generate).toHaveBeenCalledWith(expect.objectContaining({
-      sourceSufficiency: { status: outcome.status === "PARTIAL" ? "PARTIAL" : "SUFFICIENT", reason: outcome.status === "PARTIAL" ? "PARTIAL_COVERAGE" : "COMPLETE_COVERAGE" },
+      question: "câu hỏi",
+      evidence: [evidence],
     }));
     expect(JSON.stringify(result.data)).not.toMatch(/private_doc|private_chunk|tokenCount|chunkHash/);
   });
@@ -81,7 +79,7 @@ describe("QA orchestration without external services",()=>{
     t.reservation.history.push({question:"Cũ",response:historical});
     const result=await t.service.ask(principal,"key",{...request,question:"Nó ở đâu?"});
     expect(result.data.status).toBe("INSUFFICIENT_SOURCE");
-    expect(t.retriever.retrieve).toHaveBeenCalledWith("nó ở đâu",[{...t.reservation.history[0],question:"cũ"}],undefined,{type:"GENERAL"});
+    expect(t.retriever.retrieve).toHaveBeenCalledWith("nó ở đâu",[{...t.reservation.history[0],question:"cũ"}],undefined,{type:"GENERAL"},expect.anything());
     expect(t.generator.generate).not.toHaveBeenCalled();
     expect(t.store.complete).toHaveBeenCalledOnce();
   });

@@ -1,5 +1,5 @@
 import { AppError } from "../../server/http/app-error";
-import { QA_BODY_MAX_BYTES, QA_ERROR_HTTP_STATUS, qaRequestSchema, qaIdempotencyKeySchema, qaCompletedResponseSchema, qaReferenceIdSchema, qaRenameConversationSchema, type QaRequest } from "./qa-contract";
+import { QA_BODY_MAX_BYTES, QA_ERROR_HTTP_STATUS, qaRequestSchema, qaIdempotencyKeySchema, qaCompletedResponseSchema, qaReferenceIdSchema, qaRenameConversationSchema, qaUpdateConversationSchema, type QaRequest } from "./qa-contract";
 import { assertQaSameOrigin } from "./qa-principal";
 import type { QaPrincipal } from "./qa-runtime-contract";
 import type { QaCompletedTurn } from "./qa-contract";
@@ -15,6 +15,7 @@ export type QaHttpDependencies = {
   get?: (principal: QaPrincipal, id: string) => Promise<{ conversation: unknown; turns: unknown[] }>;
   list?: (principal: QaPrincipal, options?: { cursor?: string | null; limit?: number; search?: string }) => Promise<unknown>;
   rename?: (principal: QaPrincipal, id: string, title: string) => Promise<unknown>;
+  update?: (principal: QaPrincipal, id: string, updates: { title?: string; knowledgeMode?: any }) => Promise<unknown>;
   turns?: (principal: QaPrincipal, id: string, options?: { cursor?: string | null; limit?: number }) => Promise<unknown>;
   delete: (principal: QaPrincipal, id: string) => Promise<unknown>;
 };
@@ -125,10 +126,10 @@ export function createQaHttpHandlers(deps: QaHttpDependencies) {
         if (!qaReferenceIdSchema.safeParse(id).success) throw new AppError("NOT_FOUND", "Not found", 404);
         let json: unknown;
         try { json = await request.json(); } catch { throw new AppError("INVALID_REQUEST", "Invalid JSON", 400); }
-        const parsed = qaRenameConversationSchema.safeParse(json);
-        if (!parsed.success) throw new AppError("INVALID_REQUEST", "Invalid title", 400);
+        const parsed = qaUpdateConversationSchema.safeParse(json);
+        if (!parsed.success) throw new AppError("INVALID_REQUEST", "Invalid title or mode", 400);
         const principal = await readOnly(() => deps.resolve(request.headers));
-        const data = deps.rename ? await deps.rename(principal, id, parsed.data.title) : { id, title: parsed.data.title };
+        const data = deps.update ? await deps.update(principal, id, parsed.data) : deps.rename && parsed.data.title ? await deps.rename(principal, id, parsed.data.title) : { id, ...parsed.data };
         return qaJson({ success: true, operationStatus: "SUCCESS", data });
       } catch (error) { return qaHttpError(error); }
     },

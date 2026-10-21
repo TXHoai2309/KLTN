@@ -89,54 +89,37 @@ describe("bounded public answer details", () => {
     const secret = { ...input.evidence[0]!, citationId: "c3", text: "Hạ Thành. Khóa sk-abcdefghijklmnop" };
     expect(qaUsableEvidence([good, onlyUrl, secret], input.context).map(item => item.citationId)).toEqual(["c1"]);
   });
-  it("derives public citations from current selected support handles, without exposing handles", async () => {
-    const fetcher = vi.fn<typeof fetch>(async () => Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ status: "ANSWERED", unanswered: false, facets: { fixture_aspect: [{ text: input.evidence[0]!.text, supportIds: ["s1"] }] } }) } }] }));
+  it("derives public citations from current selected evidence, without exposing handles", async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ status: "ANSWERED", unanswered: false, answerParts: [{ text: input.evidence[0]!.text, mode: "SOURCE", citationIds: ["c1"] }] }) } }] }));
     const answer = await createRuntimeQaGenerator({ apiKey: () => "fixture-only", fetcher }).generate(fixtureReviewedInput(input));
     expect(answer).toMatchObject({ status: "ANSWERED", answerParts: [{ text: input.evidence[0]!.text, citationIds: ["c1"] }] });
     expect(JSON.stringify(answer)).not.toContain("supportIds");
     const body = JSON.parse(String(fetcher.mock.calls[0]![1]!.body));
-    expect(body.response_format.json_schema.schema.properties.facets.properties.fixture_aspect.items.properties.supportIds.items.enum).toEqual(["s1"]);
+    expect(body.response_format.json_schema.schema.properties.answerParts.items.properties.citationIds.items.enum).toEqual(["c1"]);
   });
-  it.each(["unknown", "duplicate", "legacy-citation"])("rejects a %s runtime generation reference before accepting facts", async mode => {
-    const part = mode === "legacy-citation" ? { text: input.evidence[0]!.text, citationIds: ["c1"] } : { text: input.evidence[0]!.text, supportIds: mode === "duplicate" ? ["s1", "s1"] : ["s999"] };
-    const fetcher: typeof fetch = async () => Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ status: "ANSWERED", unanswered: false, facets: { fixture_aspect: [part] } }) } }] });
+  it.each(["unknown", "duplicate"])("rejects a %s runtime citation reference before accepting facts", async mode => {
+    const citationIds = mode === "duplicate" ? ["c1", "c1"] : ["c999"];
+    const fetcher: typeof fetch = async () => Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ status: "ANSWERED", unanswered: false, answerParts: [{ text: input.evidence[0]!.text, mode: "SOURCE", citationIds }] }) } }] });
     await expect(createRuntimeQaGenerator({ apiKey: () => "fixture-only", fetcher }).generate(fixtureReviewedInput(input))).rejects.toMatchObject({ code: "AI_INVALID_RESPONSE" });
-  });
-  it("cannot replace the selected support with another valid handle even if the reviewer accepts it", async () => {
-    const reviewed = fixtureReviewedInput({ ...input, evidence: [{ ...input.evidence[0]!, text: "Điểm A có thuộc tính B. Điểm A có thuộc tính C." }] });
-    const text = "Theo nguồn, thuộc tính được ghi là B.";
-    const fetcher: typeof fetch = async (_url, init) => {
-      const body = JSON.parse(String(init?.body));
-      const output = body.response_format.json_schema.name === "grounded_qa"
-        ? { status: "ANSWERED", unanswered: false, facets: { fixture_aspect: [{ text, supportIds: ["s1"] }] } }
-        : { summary: "Fixture only.", gates: QA_SYNTHESIS_GATES.map(name => ({ name, passed: true })), coveredAspects: ["fixture_aspect"], claims: [{ partIndex: 0, text, entailed: true, supportIds: ["s2"] }] };
-      return Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify(output) } }] });
-    };
-    await expect(createRuntimeQaGenerator({ apiKey: () => "fixture-only", fetcher }).generate(reviewed)).rejects.toMatchObject({ code: "AI_INVALID_RESPONSE" });
   });
   function facetInput() {
     const reviewed = fixtureReviewedInput({ ...input, evidence: [input.evidence[0]!, { ...input.evidence[0]!, citationId: "c2", chunkId: "second", text: "Điểm A có thuộc tính C.", citation: { ...input.evidence[0]!.citation, id: "c2" } }] });
     reviewed.sourceReview = { ...reviewed.sourceReview!, aspects: reviewed.evidence.map((item, index) => ({ id: `facet_${index}`, status: "SUPPORTED" as const, supports: [{ citationId: item.citationId, sentence: item.text }] })) };
     return reviewed;
   }
-  it("binds every generated facet to its own support and preserves the reviewed order", async () => {
+  it("binds generated parts to their citations and preserves order", async () => {
     const reviewed = facetInput();
-    const fetcher: typeof fetch = async () => Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ status: "ANSWERED", unanswered: false, facets: {
-      facet_1: [{ text: reviewed.evidence[1]!.text, supportIds: ["s2"] }], facet_0: [{ text: reviewed.evidence[0]!.text, supportIds: ["s1"] }],
-    } }) } }] });
+    const fetcher: typeof fetch = async () => Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ status: "ANSWERED", unanswered: false, answerParts: [
+      { text: reviewed.evidence[1]!.text, mode: "SOURCE", citationIds: ["c2"] },
+      { text: reviewed.evidence[0]!.text, mode: "SOURCE", citationIds: ["c1"] },
+    ] }) } }] });
     const answer = await createRuntimeQaGenerator({ apiKey: () => "fixture-only", fetcher }).generate(reviewed);
-    expect(answer.answerParts.map(part => part.citationIds)).toEqual([["c1"], ["c2"]]);
-    expect(JSON.stringify(answer)).not.toMatch(/facet_0|supportIds/);
+    expect(answer.answerParts.map(part => part.citationIds)).toEqual([["c2"], ["c1"]]);
   });
-  it.each(["missing", "extra", "empty", "cross-facet", "oversized"])("rejects %s facet output rather than silently losing supported coverage", async mode => {
+  it.each(["empty", "oversized"])("rejects %s answerParts output rather than silently accepting bad output", async mode => {
     const reviewed = facetInput();
-    const facets: Record<string, { text: string; supportIds: string[] }[]> = { facet_0: [{ text: reviewed.evidence[0]!.text, supportIds: ["s1"] }], facet_1: [{ text: reviewed.evidence[1]!.text, supportIds: ["s2"] }] };
-    if (mode === "missing") delete facets.facet_1;
-    if (mode === "extra") facets.extra = [];
-    if (mode === "empty") facets.facet_1 = [];
-    if (mode === "cross-facet") facets.facet_0![0]!.supportIds = ["s2"];
-    if (mode === "oversized") facets.facet_0 = Array(20).fill(facets.facet_0![0]);
-    const fetcher: typeof fetch = async () => Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ status: "ANSWERED", unanswered: false, facets }) } }] });
+    const parts = mode === "empty" ? [] : Array(21).fill({ text: reviewed.evidence[0]!.text, mode: "SOURCE", citationIds: ["c1"] });
+    const fetcher: typeof fetch = async () => Response.json({ choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ status: "ANSWERED", unanswered: false, answerParts: parts }) } }] });
     await expect(createRuntimeQaGenerator({ apiKey: () => "fixture-only", fetcher }).generate(reviewed)).rejects.toMatchObject({ code: "AI_INVALID_RESPONSE" });
   });
 });

@@ -1,4 +1,4 @@
-import { qaRequestSchema, qaResponseSchema, sameQaContext, type QaContext, type QaCompletedTurn, type QaRequest } from "../../modules/ai/qa-contract";
+import { qaRequestSchema, qaResponseSchema, sameQaContext, type QaContext, type QaCompletedTurn, type QaKnowledgeMode, type QaRequest } from "../../modules/ai/qa-contract";
 
 export type AssistantAttempt = Readonly<{
   id: string;
@@ -20,6 +20,7 @@ export type AssistantState = {
   context: QaContext;
   generation: number;
   identity: string;
+  knowledgeMode: QaKnowledgeMode;
   draft: string;
   validation: string | null;
   turns: readonly ConfirmedTurn[];
@@ -28,8 +29,8 @@ export type AssistantState = {
   pending: { attempt: AssistantAttempt; phase: AttemptPhase; message: string } | null;
 };
 
-export function initialAssistantState(identity: string, generation = 0, context: QaContext = { type: "GENERAL" }): AssistantState {
-  return { context, generation, identity, draft: "", validation: null, turns: [], conversationId: null, parentTurnId: null, pending: null };
+export function initialAssistantState(identity: string, generation = 0, context: QaContext = { type: "GENERAL" }, knowledgeMode: QaKnowledgeMode = "SOURCE_ONLY"): AssistantState {
+  return { context, generation, identity, knowledgeMode, draft: "", validation: null, turns: [], conversationId: null, parentTurnId: null, pending: null };
 }
 export function hasUnresolvedAttempt(state: AssistantState): boolean {
   return !!state.pending && state.pending.phase !== "failed";
@@ -46,8 +47,8 @@ export class AssistantController {
   private listeners = new Set<() => void>();
   private dispatch = 0;
   private abort: AbortController | null = null;
-  constructor(private transport: AssistantTransport | null, identity: string, private makeKey: () => string, context: QaContext = { type: "GENERAL" }) {
-    this.state = initialAssistantState(identity, 0, context);
+  constructor(private transport: AssistantTransport | null, identity: string, private makeKey: () => string, context: QaContext = { type: "GENERAL" }, knowledgeMode: QaKnowledgeMode = "SOURCE_ONLY") {
+    this.state = initialAssistantState(identity, 0, context, knowledgeMode);
   }
   getSnapshot = (): AssistantState => this.state;
   subscribe = (listener: () => void): (() => void) => {
@@ -59,11 +60,16 @@ export class AssistantController {
     this.listeners.forEach((listener) => listener());
   }
   setDraft(draft: string) { this.update({ ...this.state, draft, validation: null }); }
+  setKnowledgeMode(knowledgeMode: QaKnowledgeMode) {
+    if (this.state.knowledgeMode === knowledgeMode) return;
+    this.update({ ...this.state, knowledgeMode });
+  }
   submit(): boolean {
     if (!this.transport || hasUnresolvedAttempt(this.state)) return false;
+    const knowledgeMode = this.state.knowledgeMode;
     const parsed = qaRequestSchema.safeParse(this.state.conversationId
-      ? { question: this.state.draft, conversationId: this.state.conversationId, parentTurnId: this.state.parentTurnId }
-      : { question: this.state.draft, context: this.state.context });
+      ? { question: this.state.draft, conversationId: this.state.conversationId, parentTurnId: this.state.parentTurnId, knowledgeMode }
+      : { question: this.state.draft, context: this.state.context, knowledgeMode });
     if (!parsed.success) {
       this.update({ ...this.state, validation: "Nhập câu hỏi từ 1 đến 2000 ký tự UTF-16 (sau khi bỏ khoảng trắng và chuẩn hóa)." });
       return false;
@@ -89,12 +95,13 @@ export class AssistantController {
   newConversation(confirmedAbandon = false): boolean {
     if (hasUnresolvedAttempt(this.state) && !confirmedAbandon) return false;
     this.invalidate();
-    this.update(initialAssistantState(this.state.identity, this.state.generation + 1, this.state.context));
+    this.update(initialAssistantState(this.state.identity, this.state.generation + 1, this.state.context, "SOURCE_ONLY"));
     return true;
   }
-  loadConversation(conversationId: string, turns: readonly ConfirmedTurn[], parentTurnId: string | null, context: QaContext, confirmedAbandon = false): boolean {
+  loadConversation(conversationId: string, turns: readonly ConfirmedTurn[], parentTurnId: string | null, context: QaContext, confirmedAbandon = false, preferenceMode?: QaKnowledgeMode): boolean {
     if (hasUnresolvedAttempt(this.state) && !confirmedAbandon) return false;
     this.invalidate();
+    const effectiveMode = preferenceMode ?? (turns.length > 0 ? (turns.at(-1)?.response.knowledgeMode ?? "SOURCE_ONLY") : "SOURCE_ONLY");
     this.update({
       ...this.state,
       generation: this.state.generation + 1,
@@ -102,6 +109,7 @@ export class AssistantController {
       parentTurnId,
       turns,
       context,
+      knowledgeMode: effectiveMode,
       draft: "",
       validation: null,
       pending: null,

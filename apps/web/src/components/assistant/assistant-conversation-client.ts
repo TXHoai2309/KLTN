@@ -1,4 +1,4 @@
-import type { QaConversationSummary, QaConversationDetailMetadata } from "../../modules/ai/qa-contract";
+import type { QaConversationSummary, QaConversationDetailMetadata, QaKnowledgeMode } from "../../modules/ai/qa-contract";
 import type { ConfirmedTurn } from "./assistant-controller";
 
 export type ConversationListResult = {
@@ -101,5 +101,21 @@ export async function deleteConversation(id: string, signal?: AbortSignal): Prom
   });
 
   const body = await handleResponse<{ success: true; data: { id: string } }>(response);
+  return body.data;
+}
+
+export async function updateConversationPreference(id: string, knowledgeMode: QaKnowledgeMode, signal?: AbortSignal): Promise<{ id: string; knowledgeMode: QaKnowledgeMode }> {
+  const response = await fetch(`/api/ai/conversations/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+      "x-requested-with": "XMLHttpRequest",
+    },
+    body: JSON.stringify({ knowledgeMode }),
+    credentials: "same-origin",
+    cache: "no-store",
+    signal,
+  });
+  const body = await handleResponse<{ success: true; data: { id: string; knowledgeMode: QaKnowledgeMode } }>(response);
   return body.data;
 }

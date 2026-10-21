@@ -50,7 +50,7 @@ export function createQaJsonProvider(options: QaProviderOptions = {}) {
   // spent before any JSON is written (finish_reason "length"), so reasoning models get a larger
   // completion budget. The visible JSON stays bounded by maxOutputTokens (checked on the content below).
   const completionCap = sol61 ? Math.max(maxOutputTokens, QA_GENERATION_LIMITS.maxCompletionTokens) : maxOutputTokens;
-  const failureStage = phase === "SYNTHESIS_VERIFICATION" ? phase : phase === "ASSESSMENT" ? "ASSESSMENT_STARTED" : "GENERATION_PROVIDER";
+  const failureStage = phase === "SYNTHESIS_VERIFICATION" ? phase : phase === "ASSESSMENT" ? "ASSESSMENT_STARTED" : phase === "QUESTION_UNDERSTANDING" ? "QUESTION_UNDERSTANDING_STARTED" : "GENERATION_PROVIDER";
   if (!/^[a-zA-Z0-9._-]{1,100}$/.test(model) || !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > QA_GENERATION_LIMITS.timeoutMs || !Number.isInteger(maxOutputTokens) || maxOutputTokens < 1 || maxOutputTokens > QA_GENERATION_LIMITS.maxOutputTokens) throw new Error("Invalid QA generation configuration");
   return { async request<T>(input: { messages: { role: "system" | "user"; content: string }[]; name: string; schema: object; signal?: AbortSignal }, validate: (value: unknown) => T): Promise<T> {
     const messages = input.messages;

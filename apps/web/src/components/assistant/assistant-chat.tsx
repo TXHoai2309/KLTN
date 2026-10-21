@@ -13,7 +13,7 @@ import { AssistantAnswerContent } from "./assistant-answer-content";
 import { assistantFollowupSuggestions } from "./assistant-followups";
 import { assistantSourceReply } from "./assistant-source-reply";
 import { AssistantSidebar } from "./assistant-sidebar";
-import { fetchConversations, fetchConversationDetail, renameConversation, deleteConversation } from "./assistant-conversation-client";
+import { fetchConversations, fetchConversationDetail, renameConversation, deleteConversation, updateConversationPreference } from "./assistant-conversation-client";
 
 export type CitationSlot = (input: { part: QaAnswerPart; citations: QaPublicCitation[]; turn: QaCompletedTurn }) => ReactNode;
 
@@ -171,7 +171,9 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
         detail.conversation.id,
         detail.turns,
         detail.conversation.headTurnId,
-        detail.conversation.context
+        detail.conversation.context,
+        false,
+        detail.conversation.knowledgeMode
       );
       if (typeof window !== "undefined") {
         const url = new URL(window.location.href);
@@ -502,37 +504,57 @@ export function AssistantChat({ transport = null, identity = "unavailable", cita
               />
 
               <div className="assistant-composer-bar">
-                {!contextError && (
-                  <div className="assistant-context-controls">
-                    <div className="assistant-context-bar">
-                      <label htmlFor={`${instanceId}-context`} className="assistant-context-label" title="Chọn bối cảnh hỏi đáp">
-                        <Leaf aria-hidden="true" />
-                        <span className="assistant-sr-only">Bối cảnh hiện tại</span>
-                      </label>
-                      {state.context.type === "DESTINATION" && (
-                        <strong className="assistant-context-name">
-                          {destinations.find(destination => state.context.type === "DESTINATION" && destination.id === state.context.destinationId)?.name ?? "Điểm đến đang chọn"}
-                        </strong>
-                      )}
-                      <select
-                        id={`${instanceId}-context`}
-                        value={state.context.type === "DESTINATION" ? state.context.destinationId : ""}
-                        disabled={unresolved || !available}
-                        onChange={event => changeContext(event.target.value ? { type: "DESTINATION", destinationId: event.target.value } : { type: "GENERAL" })}
-                        className="assistant-context-select"
-                        aria-label="Chọn bối cảnh hỏi đáp"
-                      >
-                        <option value="">Hỏi đáp chung</option>
-                        {destinations.map(destination => <option key={destination.id} value={destination.id}>{destination.name}</option>)}
-                      </select>
-                      {state.context.type === "DESTINATION" && (
-                        <button type="button" className="assistant-context-clear-btn" disabled={unresolved || !available} onClick={() => changeContext({ type: "GENERAL" })} title="Xóa bối cảnh">
-                          Xóa bối cảnh
-                        </button>
-                      )}
+                <div className="assistant-composer-left-tools">
+                  {!contextError && (
+                    <div className="assistant-context-controls">
+                      <div className="assistant-context-bar">
+                        <label htmlFor={`${instanceId}-context`} className="assistant-context-label" title="Chọn bối cảnh hỏi đáp">
+                          <Leaf aria-hidden="true" />
+                          <span className="assistant-sr-only">Bối cảnh hiện tại</span>
+                        </label>
+                        {state.context.type === "DESTINATION" && (
+                          <strong className="assistant-context-name">
+                            {destinations.find(destination => state.context.type === "DESTINATION" && destination.id === state.context.destinationId)?.name ?? "Điểm đến đang chọn"}
+                          </strong>
+                        )}
+                        <select
+                          id={`${instanceId}-context`}
+                          value={state.context.type === "DESTINATION" ? state.context.destinationId : ""}
+                          disabled={unresolved || !available}
+                          onChange={event => changeContext(event.target.value ? { type: "DESTINATION", destinationId: event.target.value } : { type: "GENERAL" })}
+                          className="assistant-context-select"
+                          aria-label="Chọn bối cảnh hỏi đáp"
+                        >
+                          <option value="">Hỏi đáp chung</option>
+                          {destinations.map(destination => <option key={destination.id} value={destination.id}>{destination.name}</option>)}
+                        </select>
+                        {state.context.type === "DESTINATION" && (
+                          <button type="button" className="assistant-context-clear-btn" disabled={unresolved || !available} onClick={() => changeContext({ type: "GENERAL" })} title="Xóa bối cảnh">
+                            Xóa bối cảnh
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
+
+                  <button
+                    type="button"
+                    className={`assistant-knowledge-toggle ${state.knowledgeMode === "EXPANDED" ? "active" : ""}`}
+                    onClick={() => {
+                        const nextMode = state.knowledgeMode === "EXPANDED" ? "SOURCE_ONLY" : "EXPANDED";
+                        controller.setKnowledgeMode(nextMode);
+                        if (state.conversationId) {
+                          void updateConversationPreference(state.conversationId, nextMode).catch(() => {});
+                        }
+                      }}
+                    disabled={unresolved || !available}
+                    aria-pressed={state.knowledgeMode === "EXPANDED"}
+                    title={state.knowledgeMode === "EXPANDED" ? "Mở rộng kiến thức: Đang BẬT (bổ sung kiến thức mô hình)" : "Mở rộng kiến thức: Đang TẮT (chỉ dùng tài liệu xác minh)"}
+                  >
+                    <Sparkles aria-hidden="true" className="assistant-knowledge-toggle-icon" />
+                    <span>Mở rộng kiến thức</span>
+                  </button>
+                </div>
 
                 <button type="submit" disabled={!transport || !available || !!contextError || unresolved || !state.draft.trim()} aria-busy={sending}>
                   <Send aria-hidden="true" />

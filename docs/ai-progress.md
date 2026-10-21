@@ -3550,3 +3550,59 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
 - **Known issues:** Existing Task 293 Admin-403 test expectation needs reconciliation with RBAC V2; no old test was edited. Browser/GPS/routing are NOT PROVEN.
 - **Decisions:** Preserve the user's explicit RBAC V2 decision that Admin inherits Traveler permissions on owned Trips. Do not mark the manual checklist complete.
 - **Next step:** Owner runs the manual proposal/check/confirm, expiry, cancel, two-tab, 360px and keyboard checklist; no commit or push performed.
+
+### 2026-10-21 — Public Q&A knowledge expansion design interview started
+
+- Owner explicitly approved an opt-in **Mở rộng kiến thức** capability, source-only behavior when off, AI question understanding before retrieval, relaxation of restrictive answer-style/Q&A checks and the exact `gpt-6.1-sol` / medium model configuration. Owner requested `grill-with-docs` before `to-tickets`.
+- Recorded the confirmed capability scope in the product contract, ADR-19 and glossary. Detailed design remains DRAFT in [the interview record](implementation/assistant-knowledge-expansion-plan.md); toggle persistence, attribution, time-sensitive facts, verification simplification and ticket destination are not silently approved.
+- Read-only subagents verified current request/history/provenance/UI seams and absence of configured tracker/triage documents. The current provider already uses the selected model/effort. Official model documentation was checked; no provider call or database write was made during interview preparation.
+- No application code, schema, environment, UI or runtime behavior changed. No tickets/issues, commit, push, migration or deployment created. Documentation diff checks apply; application build/typecheck/tests are not needed for this documentation-only interview step.
+- Next: collect round 1 answers, update resolved terms/decisions as they are settled, continue remaining design branches, obtain shared-understanding confirmation, then review and publish the approved vertical-slice tickets.
+
+### 2026-10-21 — Knowledge expansion decisions confirmed and ticket review drafted
+
+- Owner accepted all six presented interview recommendations and directed use of `to-tickets`; the “q1-7” wording does not invent an unseen seventh decision. Updated the product contract, ADR-19, glossary and design record with the actual accepted scope.
+- Prepared seven separate DRAFT ticket files under `.scratch/assistant-knowledge-expansion/drafts/`. Each describes a complete verifiable behavior with acceptance criteria and genuine blocking edges: 01/02 independent; 03 after 02; 04 after 03; 05/06 after 04; 07 after 05.
+- Local ticket destination is approved, but the actual seven-ticket breakdown is new and awaits the skill-required size/dependency/merge-split review. No ready-for-agent issue files or external issues have been published.
+- No application code, schema, provider call, database access, migration, commit, push or deployment in this step. Documentation whitespace and draft structure/link/dependency checks apply; application build/typecheck/tests were not run for documentation-only work.
+- Next: owner reviews the concrete breakdown, then publish the approved one-file-per-ticket set under `.scratch/assistant-knowledge-expansion/issues/`. Ticket implementation remains a separate task.
+
+### 2026-10-21 — Ticket 01 covers all supported document formats
+
+- Owner clarified that document content/source handling must cover all three formats, not TXT alone. Renamed and broadened draft 01 to TXT, Word DOCX and PDF, with direct end-to-end acceptance for each format, format-specific structure/link handling and old-history compatibility. Updated the design breakdown; dependencies remain unchanged.
+- Read-only code inspection confirms the current formats are TXT/DOCX/PDF. Legacy binary DOC and OCR are not claimed as implemented or silently added. No application code changed; documentation whitespace and draft-presence checks apply.
+
+### 2026-10-21 — Assistant knowledge expansion implemented across Tickets 01–07
+
+- **Scope & Delivery:** Implemented all 7 approved knowledge expansion tickets strictly sequentially (01 → 02 → 03 → 04 → 05 → 06 → 07) in `.scratch/assistant-knowledge-expansion/issues/`.
+  - **Ticket 01:** Document content and original source parsing across TXT, Word DOCX, and PDF formats; bibliography sections tagged `metadataOnly` to prevent evicting substantive content chunks from retrieval (`apps/web/src/modules/rag-processing/original-sources.ts`, `apps/web/src/modules/rag-index/rag-citation-store.ts`).
+  - **Ticket 02:** AI question understanding before retrieval (`gpt-6.1-sol`, medium reasoning) identifying intended destinations, sub-entities, and travel aspects with deterministic fallback (`apps/web/src/modules/ai/qa-question-understanding.ts`, `apps/web/src/modules/ai/qa-question-understander.ts`, `apps/web/src/modules/ai/qa-retrieval.ts`).
+  - **Ticket 03:** Natural source-only answers using simplified 2-call AI path (understanding → retrieval → generation) with `gpt-6.1-sol`, removing assessor and 8-criteria verifier from normal path, while preserving deterministic ground-truth citations, token bounds, and ownership (`apps/web/src/modules/ai/qa-service.ts`, `apps/web/src/modules/ai/qa-generation.ts`, `apps/web/src/modules/ai/qa-answer-grounding.ts`).
+  - **Ticket 04:** Opt-in "Mở rộng kiến thức" switch in Assistant composer. Default OFF (`SOURCE_ONLY`). Tagged `EXPANDED` parts with badge "Kiến thức mở rộng". Only document-backed claims carry citations; no fake citations or URLs (`apps/web/src/components/assistant/assistant-chat.tsx`, `apps/web/src/components/assistant/assistant-answer-content.tsx`, `apps/web/src/components/assistant/assistant.css`, `apps/web/src/modules/ai/qa-contract.ts`).
+  - **Ticket 05:** Per-chat knowledge preference persistence and restoration across refresh and chat switches via `knowledgeMode` column. In-flight snapshot and UNKNOWN idempotency isolation. Additive migration `20261021183000_add_qa_conversation_knowledge_mode` created (`apps/web/src/modules/ai/qa-conversation-store.ts`, `apps/web/src/modules/ai/qa-http.ts`, `apps/web/src/components/assistant/assistant-controller.ts`).
+  - **Ticket 06:** Explicit uncertainty handling for unverified current prices, hours, and festival dates (`QA_CURRENT_UNCERTAINTY_POLICY`). Useful supported info returned with explicit limitations instead of false certitude or unnecessary full refusals (`apps/web/src/modules/ai/qa-answer-policy.ts`, `apps/web/src/modules/ai/qa-generation.ts`).
+  - **Ticket 07:** Cross-mode multi-turn follow-ups. Correct resolution of contextual references ("ở đó", "nơi này", "còn giá vé?") and new entity overrides. When switching from EXPANDED to SOURCE_ONLY, prior model knowledge is strictly barred from serving as verified source evidence (`apps/web/src/modules/ai/qa-question-understanding.ts`).
+- **Verification & Tests:**
+  - `apps/web/src/modules/rag-processing/original-sources.vitest.test.ts` (10/10 PASS)
+  - `apps/web/src/modules/ai/qa-question-understanding.vitest.test.ts` (15/15 PASS)
+  - `apps/web/src/modules/ai/qa-natural-answers.vitest.test.ts` (14/14 PASS)
+  - `apps/web/src/modules/ai/qa-expanded-answers.vitest.test.ts` (12/12 PASS)
+  - `apps/web/src/modules/ai/qa-chat-preference.vitest.test.ts` (7/7 PASS)
+  - `apps/web/src/modules/ai/qa-current-information-uncertainty.vitest.test.ts` (5/5 PASS)
+  - `apps/web/src/modules/ai/qa-cross-mode-followups.vitest.test.ts` (4/4 PASS)
+  - Broader QA regression suites: 14 test suites, 175 tests PASS.
+  - `npm --prefix apps/web run check-types` passed with 0 errors.
+  - `git diff --check` passed with 0 errors.
+- **Operational Status:**
+  - Additive migration `20261021183000_add_qa_conversation_knowledge_mode/migration.sql` prepared and Prisma client generated. Pending execution on development/production targets via `db:migrate:deploy`.
+  - Offline automated tests and typechecks verified. Live provider verification and production database migration remain unexecuted per instructions. No commit, push, or merge.
+
+### 2026-10-21 — QA conversation knowledgeMode migration deployed to dev database
+
+- **Authorization:** Owner explicitly requested applying the database migration to development (`DATABASE_URL`).
+- **Execution:** Ran repository deployment command `npm run db:migrate:deploy --workspace @KLTN/db`. Prisma applied `20261021183000_add_qa_conversation_knowledge_mode` successfully to development endpoint `ep-purple-pond-b3xujb8o` (`neondb`), exit 0.
+- **Verification:** Read-only audit via Neon adapter confirmed:
+  - Column `knowledgeMode` (VARCHAR, NOT NULL, DEFAULT `'SOURCE_ONLY'::character varying`) added to `public.qa_conversation`.
+  - Constraint `qa_conversation_knowledge_mode_check` (`CHECK ("knowledgeMode" IN ('SOURCE_ONLY', 'EXPANDED'))`) active.
+  - Existing rows preserved with default value `'SOURCE_ONLY'`.
+- **Scope & Safety:** Development only. Production database (`DATABASE_URL_PROD`) was NOT touched. No secrets or connection strings logged or stored in tracked files. No commit, push, or merge.

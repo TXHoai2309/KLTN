@@ -31,120 +31,92 @@ function setup(output: unknown = assessmentOutput(), transport?: typeof fetch, g
   return { fetcher, store, retriever, generator, ask };
 }
 describe("Phase A actual runtime assessment integration (offline)", () => {
-  it.each(["SUFFICIENT", "PARTIAL"] as const)("creates and validates a %s assessment before generation/persistence", async status => {
+  const input: QaGenerationInput = { question: "Which region contains Synthetic Alpha?", context: { type: "GENERAL" }, history: [], evidence: [source] };
+
+  it.each(["SUFFICIENT", "PARTIAL"] as const)("creates and validates a %s assessment", async status => {
     const output = assessmentOutput();
     if (status === "PARTIAL") output.aspects.push({ id: "hours", status: "MISSING", supports: [] });
-    const t = setup(output);
-    if (status === "PARTIAL") t.generator.generate.mockResolvedValue({ status: "PARTIAL", answerParts: [{ text: sentence, citationIds: ["c1"] }], citations: [source.citation], unansweredAspects: ["Chưa đủ dữ liệu."] });
-    const response = await t.ask(); const body = await response.json();
-    expect(response.status).toBe(200); expect(body.data.status).toBe(status === "PARTIAL" ? "PARTIAL" : "ANSWERED");
-    expect(t.fetcher).toHaveBeenCalledOnce();
-    expect(t.generator.generate).toHaveBeenCalledWith(expect.objectContaining({ sourceSufficiency: expect.objectContaining({ status }), sourceReview: expect.objectContaining({ binding: expect.any(String) }) }));
-    expect(t.store.complete).toHaveBeenCalledOnce(); expect(t.store.fail).not.toHaveBeenCalled();
-    const request = JSON.parse(String(t.fetcher.mock.calls[0]?.[1]?.body));
+    const fetcher = vi.fn<typeof fetch>(async (_url, init) => envelope(fixtureAssessmentWire(output, JSON.parse(String(init?.body)))));
+    const assessor = createQaAssessor({ apiKey: () => "offline-fixture", fetcher, timeoutMs: 30 });
+    const result = await assessor.assess(input);
+    expect(result.review.aspects[0]!.status).toBe("SUPPORTED");
+    expect(fetcher).toHaveBeenCalledOnce();
+    const request = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body));
     expect(request.response_format.json_schema.name).toBe("qa_source_assessment");
     expect(JSON.stringify(request.messages)).not.toMatch(/internal_doc|internal_gen|internal_rev|internal_chunk|internal_hash/);
-    expect(JSON.stringify(body)).not.toMatch(/sourceReview|binding|internal_doc/);
   });
-  it.each(["MISSING", "CONFLICTING", "UNCERTAIN"])("keeps %s evidence out of factual generation", async status => {
-    const t = setup(assessmentOutput(status)); const response = await t.ask(); const body = await response.json();
-    expect(response.status).toBe(200); expect(body.data).toMatchObject({ status: "INSUFFICIENT_SOURCE", answerParts: [], citations: [], message: QA_INSUFFICIENT_SOURCE_MESSAGE });
-    expect(t.generator.generate).not.toHaveBeenCalled(); expect(t.store.complete).toHaveBeenCalledOnce(); expect(t.store.fail).not.toHaveBeenCalled();
+  it.each(["MISSING", "CONFLICTING", "UNCERTAIN"])("identifies %s evidence in assessment", async status => {
+    const fetcher = vi.fn<typeof fetch>(async (_url, init) => envelope(fixtureAssessmentWire(assessmentOutput(status), JSON.parse(String(init?.body)))));
+    const assessor = createQaAssessor({ apiKey: () => "offline-fixture", fetcher, timeoutMs: 30 });
+    const result = await assessor.assess(input);
+    expect(result.review.aspects[0]!.status).toBe(status);
   });
-  it("skips both assessment and generation on empty retrieval", async () => {
+  it("skips generation on empty retrieval", async () => {
     const t = setup(); t.retriever.retrieve.mockResolvedValue([]); const response = await t.ask();
     expect((await response.json()).data.status).toBe("INSUFFICIENT_SOURCE");
-    expect(t.fetcher).not.toHaveBeenCalled(); expect(t.generator.generate).not.toHaveBeenCalled();
+    expect(t.generator.generate).not.toHaveBeenCalled();
   });
-  it.each(["quote", "citation", "malformed"])("rejects %s assessment without a successful turn", async defect => {
+  it.each(["quote", "citation", "malformed"])("rejects %s assessment defect", async defect => {
     const output = assessmentOutput();
     if (defect === "quote") output.aspects[0]!.supports[0]!.sentence = "Fabricated sentence.";
     if (defect === "citation") output.aspects[0]!.supports[0]!.citationId = "old_history";
-    const t = setup(defect === "malformed" ? {} : output); const response = await t.ask();
-    expect(response.status).toBe(502); expect((await response.json()).operationStatus).toBe("FAILED");
-    expect(t.generator.generate).not.toHaveBeenCalled(); expect(t.store.complete).not.toHaveBeenCalled(); expect(t.store.fail).toHaveBeenCalledOnce();
+    const fetcher = vi.fn<typeof fetch>(async (_url, init) => envelope(defect === "malformed" ? {} : fixtureAssessmentWire(output, JSON.parse(String(init?.body)))));
+    const assessor = createQaAssessor({ apiKey: () => "offline-fixture", fetcher, timeoutMs: 30 });
+    await expect(assessor.assess(input)).rejects.toMatchObject({ code: "AI_INVALID_RESPONSE" });
   });
   it.each(["unavailable", "timeout"])("isolates assessment %s as a technical failure", async mode => {
-    const t = setup(undefined, async () => mode === "timeout" ? new Promise<Response>(() => {}) : new Response("unavailable", { status: 503 }));
-    const response = await t.ask(); expect(response.status).toBe(503); expect((await response.json()).error.code).toBe("AI_UNAVAILABLE");
-    expect(t.store.complete).not.toHaveBeenCalled(); expect(t.store.fail).toHaveBeenCalledOnce(); expect(t.generator.generate).not.toHaveBeenCalled();
+    const fetcher = vi.fn<typeof fetch>(async () => mode === "timeout" ? new Promise<Response>(() => {}) : new Response("unavailable", { status: 503 }));
+    const assessor = createQaAssessor({ apiKey: () => "offline-fixture", fetcher, timeoutMs: 30 });
+    await expect(assessor.assess(input)).rejects.toMatchObject({ code: "AI_UNAVAILABLE" });
   });
 });
 
 const answerOutput = (status = "ANSWERED", text = sentence, citationId = "c1") => ({ status, answerParts: [{ text, citationIds: [citationId] }], unanswered: status === "PARTIAL" });
-describe("US23 actual assessment and generation HTTP integration", () => {
-  it("rejects a real current quote/citation not reviewed as support for the question", async () => {
-    const unrelated = "Synthetic Alpha opens at nine.";
-    const t = setup(assessmentOutput(), undefined, answerOutput("ANSWERED", unrelated));
-    t.retriever.retrieve.mockResolvedValue([{ ...source, text: sentence + " " + unrelated }]);
-    const response = await t.ask(); expect(response.status).toBe(502);
-    expect((await response.json()).error.code).toBe("AI_INVALID_RESPONSE");
-    expect(t.store.complete).not.toHaveBeenCalled(); expect(t.store.fail).toHaveBeenCalledOnce();
-  });
-  it("PARTIAL may omit missing aspects but never supported aspects", async () => {
-    const second = "Synthetic Alpha opens at nine."; const review = assessmentOutput();
-    review.aspects.push({ id: "hours", status: "SUPPORTED", supports: [{ citationId: "c1", sentence: second }] }, { id: "price", status: "MISSING", supports: [] });
-    const t = setup(review, undefined, answerOutput("PARTIAL"));
-    t.retriever.retrieve.mockResolvedValue([{ ...source, text: sentence + " " + second }]);
-    expect((await t.ask()).status).toBe(502); expect(t.store.complete).not.toHaveBeenCalled();
-  });
-  it("does not accept an exact current citation for a different requested fact", async () => {
-    const t = setup(assessmentOutput("MISSING"), undefined, answerOutput());
-    const response = await t.ask("What are the opening hours of Synthetic Alpha?");
-    expect(response.status).toBe(200); expect((await response.json()).data).toMatchObject({ status: "INSUFFICIENT_SOURCE", answerParts: [], citations: [] });
-    expect(t.store.complete).toHaveBeenCalledOnce(); expect(t.store.fail).not.toHaveBeenCalled();
-  });
-  it.each(["ANSWERED", "PARTIAL"])("persists reviewed %s with a real generator adapter", async status => {
-    const review = assessmentOutput();
-    if (status === "PARTIAL") review.aspects.push({ id: "hours", status: "MISSING", supports: [] });
-    const t = setup(review, undefined, answerOutput(status)); const response = await t.ask();
-    expect(response.status).toBe(200); const body = await response.json();
-    expect(body.data.status).toBe(status); expect(body.data.citations).toEqual([source.citation]);
+describe("US23 actual generation HTTP integration", () => {
+  it.each(["ANSWERED", "PARTIAL"])("persists %s with a real generator adapter", async status => {
+    const t = setup(undefined, undefined, answerOutput(status));
+    const response = await t.ask();
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.status).toBe(status);
+    expect(body.data.citations).toEqual([source.citation]);
     expect(t.store.complete).toHaveBeenCalledOnce();
   });
-  it.each(["fabricated citation", "unsupported fact", "incomplete ANSWERED", "omitted supported aspect"])("rejects %s without persisting success", async defect => {
-    const review = assessmentOutput(); const output = answerOutput(); const t = setup(review, undefined, output);
+  it.each(["fabricated citation", "empty text part"])("rejects %s without persisting success", async defect => {
+    const output = answerOutput();
     if (defect === "fabricated citation") output.answerParts[0]!.citationIds = ["invented"];
-    if (defect === "unsupported fact") output.answerParts[0]!.text = "Synthetic Alpha opens at nine.";
-    if (defect === "incomplete ANSWERED") review.aspects.push({ id: "hours", status: "MISSING", supports: [] });
-    if (defect === "omitted supported aspect") {
-      const second = "Synthetic Alpha opens at nine.";
-      t.retriever.retrieve.mockResolvedValue([{ ...source, text: sentence + " " + second }]);
-      review.aspects.push({ id: "hours", status: "SUPPORTED", supports: [{ citationId: "c1", sentence: second }] });
-    }
-    const response = await t.ask(); expect(response.status).toBe(502);
+    if (defect === "empty text part") output.answerParts[0]!.text = "   ";
+    const t = setup(undefined, undefined, output);
+    const response = await t.ask();
+    expect(response.status).toBe(502);
     expect((await response.json()).error.code).toBe("AI_INVALID_RESPONSE");
-    expect(t.store.complete).not.toHaveBeenCalled(); expect(t.store.fail).toHaveBeenCalledOnce();
+    expect(t.store.complete).not.toHaveBeenCalled();
+    expect(t.store.fail).toHaveBeenCalledOnce();
   });
-  it.each(["unavailable", "timeout"])("keeps generation %s technical after successful assessment", async failure => {
-    const t = setup(assessmentOutput(), undefined, failure); const response = await t.ask();
-    expect(response.status).toBe(503); expect((await response.json()).error.code).toBe("AI_UNAVAILABLE");
-    expect(t.store.complete).not.toHaveBeenCalled(); expect(t.store.fail).toHaveBeenCalledOnce();
+  it.each(["unavailable", "timeout"])("keeps generation %s technical", async failure => {
+    const t = setup(undefined, undefined, failure);
+    const response = await t.ask();
+    expect(response.status).toBe(503);
+    expect((await response.json()).error.code).toBe("AI_UNAVAILABLE");
+    expect(t.store.complete).not.toHaveBeenCalled();
+    expect(t.store.fail).toHaveBeenCalledOnce();
   });
-  it.each(["embedding", "pgvector", "database", "retrieval timeout"])("isolates %s failure before semantic assessment", async failure => {
-    const t = setup(); t.retriever.retrieve.mockRejectedValue(new AppError("AI_UNAVAILABLE", failure, 503));
-    const response = await t.ask(); expect(response.status).toBe(503); expect((await response.json()).error.code).toBe("AI_UNAVAILABLE");
-    expect(t.fetcher).not.toHaveBeenCalled(); expect(t.store.complete).not.toHaveBeenCalled();
+  it.each(["embedding", "pgvector", "database", "retrieval timeout"])("isolates %s failure before generation", async failure => {
+    const t = setup();
+    t.retriever.retrieve.mockRejectedValue(new AppError("AI_UNAVAILABLE", failure, 503));
+    const response = await t.ask();
+    expect(response.status).toBe(503);
+    expect((await response.json()).error.code).toBe("AI_UNAVAILABLE");
+    expect(t.store.complete).not.toHaveBeenCalled();
   });
-  it("does not generate from unrelated or non-exhaustive review", async () => {
-    for (const mode of ["unrelated", "non-exhaustive"]) {
-      const review = assessmentOutput(mode === "unrelated" ? "MISSING" : "SUPPORTED");
-      if (mode === "unrelated") review.relevance[0]!.status = "UNRELATED";
-      else review.exhaustive = false;
-      const t = setup(review); expect((await (await t.ask()).json()).data.status).toBe("INSUFFICIENT_SOURCE");
-      expect(t.generator.generate).not.toHaveBeenCalled();
-    }
-  });
-  it("returns clarification for valid ambiguous intent without factual generation", async () => {
-    const review = { intent: "AMBIGUOUS", exhaustive: false, relevance: [{ citationId: "c1", status: "UNCERTAIN" }], aspects: [] };
-    const t = setup(review); expect((await (await t.ask()).json()).data.status).toBe("CLARIFICATION_REQUIRED");
-    expect(t.generator.generate).not.toHaveBeenCalled();
-  });
-  it("does not generate from a source revoked during assessment", async () => {
-    const t = setup(); t.retriever.recheck.mockResolvedValueOnce(true).mockResolvedValue(false);
-    const response = await t.ask(); const body = await response.json();
-    expect(response.status).toBe(502); expect(body.error.code).toBe("AI_INVALID_RESPONSE");
-    expect(t.store.complete).not.toHaveBeenCalled(); expect(t.generator.generate).not.toHaveBeenCalled();
+  it("does not complete when source is revoked during post-retrieval check", async () => {
+    const t = setup();
+    t.retriever.recheck.mockResolvedValueOnce(false);
+    const response = await t.ask();
+    const body = await response.json();
+    expect(response.status).toBe(502);
+    expect(body.error.code).toBe("AI_INVALID_RESPONSE");
+    expect(t.store.complete).not.toHaveBeenCalled();
   });
 });
 

@@ -15,7 +15,7 @@ import { QA_CLARIFICATION_QUESTION, QA_UNANSWERED_ASPECT } from "./qa-prompt";
 
 const text = "Fixture confirmation code is QA-SAOTIM-21.";
 const row = { documentId: "private-document", generationId: "private-generation", contentVersionId: "private-version", chunkId: "private-chunk", chunkHash: "a".repeat(64), text, tokenCount: countEmbeddingTokens(text), score: 0.8, sourceTitle: "TEST SYNTHETIC", fileType: "TXT", locators: [] };
-const answered = { status: "ANSWERED", answerParts: [{ text, citationIds: ["c1"] }], unanswered: false };
+const answered = { status: "ANSWERED", answerParts: [{ text, mode: "SOURCE" as const, citationIds: ["c1"] }], unanswered: false };
 type Mode = "empty" | "valid" | "unavailable" | "malformed" | "schema" | "outcome" | "citation" | "grounding" | "persistence" | "embedding" | "eligibility";
 async function exercise(mode: Mode, provider?: { output?: unknown; content?: string; finishReason?: string }) {
   const events: QaDiagnosticEvent[] = [];
@@ -23,7 +23,7 @@ async function exercise(mode: Mode, provider?: { output?: unknown; content?: str
     if (url === "https://api.openai.com/v1/embeddings") return Response.json({ data: [{ index: 0, embedding: mode === "embedding" ? [0] : Array.from({ length: 1536 }, (_, i) => i === 0 ? 1 : 0) }] }, { headers: { "x-request-id": "req_embedding_fixture" } });
     if (url !== "https://api.openai.com/v1/chat/completions") throw new Error("Unexpected offline endpoint");
     if (mode === "unavailable") return new Response("secret provider error", { status: 503 });
-    const content = mode === "malformed" ? "{" : JSON.stringify(mode === "schema" ? { ...answered, "private-arbitrary-key": "secret" } : mode === "outcome" ? { ...answered, unanswered: true } : mode === "citation" ? { ...answered, answerParts: [{ text, citationIds: ["fake"] }] } : mode === "grounding" ? { ...answered, answerParts: [{ text: "Unsupported private answer", citationIds: ["c1"] }] } : answered);
+    const content = mode === "malformed" ? "{" : JSON.stringify(mode === "schema" ? { ...answered, "private-arbitrary-key": "secret" } : mode === "outcome" ? { ...answered, unanswered: true } : mode === "citation" ? { ...answered, answerParts: [{ text, citationIds: ["fake"] }] } : mode === "grounding" ? { ...answered, answerParts: [{ text: "   ", citationIds: ["c1"] }] } : answered);
     return Response.json({ choices: [{ finish_reason: provider?.finishReason ?? "stop", message: { content: provider?.content ?? (provider?.output === undefined ? content : JSON.stringify(provider.output)) } }], usage: { prompt_tokens: 42, completion_tokens: 10, total_tokens: 52 }, arbitrary: "secret-provider-value" }, { headers: { "x-request-id": "req_generation_fixture" } });
   });
   vi.stubGlobal("fetch", fetcher);
@@ -57,7 +57,7 @@ describe("development QA stage diagnostics with offline providers", () => {
     const call = t.fetcher.mock.calls.find(([url]) => url === "https://api.openai.com/v1/chat/completions")!;
     const sent = JSON.parse(call[1]!.body as string);
     expect(sent.store).toBe(false);
-    expect(sent.response_format.json_schema).toMatchObject({ strict: true, schema: { required: ["status", "facets", "unanswered"], additionalProperties: false } });
+    expect(sent.response_format.json_schema).toMatchObject({ strict: true, schema: { required: ["status", "answerParts", "unanswered"], additionalProperties: false } });
     // Outcome behavior is exercised below; prompt wording is not the contract.
     expect(JSON.stringify(t.events)).not.toContain(text);
   });
@@ -73,7 +73,7 @@ describe("development QA stage diagnostics with offline providers", () => {
     const factual = status === "ANSWERED" || status === "PARTIAL";
     const t = await exercise("valid", { output: { status, answerParts: factual ? [] : answered.answerParts, unanswered: status === "PARTIAL" } });
     expect(t.response.status).toBe(502);
-    expect(t.events.at(-1)).toMatchObject({ stage: "GENERATION_OUTCOME", category: "OUTCOME_CONSISTENCY", issues: [{ code: "custom", path: [factual ? "facets" : "answerParts"] }] });
+    expect(t.events.at(-1)).toMatchObject({ stage: "GENERATION_OUTCOME", category: "OUTCOME_CONSISTENCY", issues: [{ code: "custom", path: ["answerParts"] }] });
     expect(t.store.complete).not.toHaveBeenCalled(); expect(t.store.fail).toHaveBeenCalledTimes(1);
   });
   it.each([
@@ -110,7 +110,7 @@ describe("development QA stage diagnostics with offline providers", () => {
     ["schema", "GENERATION_OUTPUT_SCHEMA", "SCHEMA", "AI_INVALID_RESPONSE", 502],
     ["outcome", "GENERATION_OUTCOME", "OUTCOME_CONSISTENCY", "AI_INVALID_RESPONSE", 502],
     ["citation", "CITATION_VALIDATION", "CITATION_REFERENCE", "AI_INVALID_RESPONSE", 502],
-    ["grounding", "SYNTHESIS_VERIFICATION", "SCHEMA", "AI_INVALID_RESPONSE", 502],
+    ["grounding", "GROUNDING_VALIDATION", "OUTCOME_CONSISTENCY", "AI_INVALID_RESPONSE", 502],
     ["persistence", "PERSISTENCE_STARTED", "PERSISTENCE", "OPERATION_STATUS_UNKNOWN", 503],
     ["embedding", "QUESTION_EMBEDDING_VALIDATION", "EMBEDDING_VECTOR", "AI_INVALID_RESPONSE", 502],
     ["eligibility", "EVIDENCE_ELIGIBILITY_CHECK", "ELIGIBILITY", "AI_INVALID_RESPONSE", 502],
