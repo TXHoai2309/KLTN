@@ -27,6 +27,17 @@ components:
 
 # Admin RAG design context
 
+## Assistant original-source citations (2026-10-20)
+
+AssistantCitations owns numbered references after each paragraph/list item and
+inside table source cells. AssistantSourceList owns the single final disclosure,
+grouped by canonical URL (or document alias for uploaded-material fallback).
+Titles and domains wrap; links open a new tab with an accessible name. Uploaded
+material references open their local source entry, never the private file.
+Secondary locators explicitly describe the RAG document. Existing Assistant
+tokens, typography and scroll ownership remain canonical; reading a source
+suspends follow-tail. No source approval screen or new theme is introduced.
+
 ## Assistant missing-source copy (2026-10-17)
 
 `assistantSourceReply` remains the single owner of completed missing-source

@@ -91,7 +91,7 @@ describe("US21 retrieval", () => {
     const retriever = createQaRetriever(db, { provider: s.provider, publicSourceIds: allowSyntheticSources() });
     const evidence = await retriever.retrieve("Q?", []);
     expect(await retriever.recheck(evidence)).toBe(true);
-    expect(transaction).toHaveBeenCalledTimes(2);
+    expect(transaction).toHaveBeenCalledTimes(3); // retrieval, immutable citation sidecar, eligibility recheck
     expect(transaction).toHaveBeenCalledWith(expect.any(Function), { maxWait: 5000, timeout: 7000 });
     expect((s.query.mock.calls[0]![0] as { sql: string }).sql).toContain("set_config('statement_timeout', '5000ms', true)");
     expect((s.query.mock.calls[2]![0] as { sql: string }).sql).toContain("set_config('statement_timeout', '5000ms', true)");

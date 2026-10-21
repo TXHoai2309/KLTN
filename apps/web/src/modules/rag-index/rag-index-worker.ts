@@ -20,6 +20,8 @@ import { createRagIndexStore } from "./rag-index-store";
 import type { ContentVersionInput, IndexGenerationInput } from "./rag-index-contract";
 import type { DocumentChunk } from "../rag-processing/chunk-contract";
 import type { ExtractedDocument, ExtractionWarning } from "../rag-processing/extraction-contract";
+import { deriveOriginalSources, type OriginalSourceBundle } from "../rag-processing/original-sources";
+import { persistCitationBundle } from "./rag-citation-store";
 
 type StorageReader = { read(pathname: string, signal?: AbortSignal): Promise<{ bytes: Uint8Array; mimeType: string; sizeBytes: number }> };
 type JobStore = ReturnType<typeof createRagIndexJobStore>;
@@ -36,6 +38,7 @@ export type RagIndexWorkerDependencies = {
   leaseMs?: number;
   /** When set, claim only this already-admitted job (no queue worker). */
   jobId?: string;
+  saveCitationBundle?: (documentId:string,generationId:string,contentVersionId:string,bundle:OriginalSourceBundle)=>Promise<void>;
   embeddingOptions?: Omit<EmbeddingJobOptions, "signal" | "onBatchStart" | "onBatchComplete">;
 };
 
@@ -237,6 +240,10 @@ async function runClaimed(job: RagIndexJobRecord, deps: RagIndexWorkerDependenci
       });
       throw new AppError("CHUNK_PERSISTENCE_FAILED", "Không thể lưu các đoạn tài liệu.", 500);
     }
+    if (deps.saveCitationBundle) {
+      try { await deps.saveCitationBundle(document.id,generation.id,version.id,deriveOriginalSources(extraction.document,chunking.chunks)); }
+      catch { console.warn("RAG_CITATION_METADATA",{stage:"PERSISTENCE_UNAVAILABLE"}); }
+    }
     const persisted = await deps.jobs.listPersistedEmbeddingIndexes(generation.id);
     const expectedIndexes = new Set(chunking.chunks.map(chunk => chunk.index));
     if (persisted.some(index => !expectedIndexes.has(index))) throw new RagIndexError("GENERATION_CONFLICT");
@@ -310,6 +317,7 @@ export async function runNextRagIndexJob(database: Database, options: { signal?:
     index: createRagIndexStore(database),
     storage: ragStorage,
     provider: createOpenAiEmbeddingProvider(),
+    saveCitationBundle: (documentId,generationId,versionId,bundle)=>persistCitationBundle(database,documentId,generationId,versionId,bundle),
     signal: options.signal,
     jobId: options.jobId,
   });

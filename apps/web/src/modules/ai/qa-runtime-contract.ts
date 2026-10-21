@@ -15,6 +15,10 @@ export type QaEvidence = {
   tokenCount: number;
   score: number;
   citation: QaPublicCitation;
+  originalSources?: readonly { title: string; url: string }[];
+  sourceBundle?: { id: string; hash: string };
+  /** Server projection proof, populated only after generation/grounding. */
+  projectedCitations?: readonly QaPublicCitation[];
 };
 export type QaHistoryTurn = { question: string; response: QaCompletedTurn };
 export type QaGenerationInput = {

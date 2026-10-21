@@ -12,6 +12,9 @@ import { qaOrigin, qaProviderInvoked, qaProviderMetadata, qaStage } from "./qa-d
 import { destinationEvidenceSentences } from "./qa-destination-context";
 import { qaFactualQuestion, qaIntentHistory } from "./qa-question-understanding";
 import { planQaQuestion } from "./qa-question-plan";
+import { loadCitationBundle } from "../rag-index/rag-citation-store";
+import { canonical } from "../rag-processing/content-hash";
+import { citationEvidenceText } from "../rag-processing/original-sources";
 
 type Reader = Pick<Database, "$queryRaw"> & Partial<Pick<Database, "$transaction">>;
 type Row = { documentId: string; generationId: string; contentVersionId: string; chunkId: string;
@@ -91,10 +94,23 @@ async function recheckWith(reader: Reader, evidence: readonly QaEvidence[], publ
   if (publicSourceIds && evidence.some(item => !publicSourceIds.has(item.documentId))) return false;
   const identities = evidence.map(item => Prisma.sql`(d."id" = ${item.documentId} AND g."id" = ${item.generationId}
     AND g."contentVersionId" = ${item.contentVersionId} AND c."id" = ${item.chunkId} AND c."chunkHash" = ${item.chunkHash})`);
-  const rows = await reader.$queryRaw<Array<{ chunkId: string; documentId: string; generationId: string; contentVersionId: string; chunkHash: string }>>(Prisma.sql`SELECT c."id" AS "chunkId", d."id" AS "documentId", g."id" AS "generationId", g."contentVersionId", c."chunkHash" ${joins}
+  const rows = await reader.$queryRaw<Array<{ chunkId: string; documentId: string; generationId: string; contentVersionId: string; chunkHash: string; text:string }>>(Prisma.sql`SELECT c."id" AS "chunkId", d."id" AS "documentId", g."id" AS "generationId", g."contentVersionId", c."chunkHash",c."text" ${joins}
     WHERE ${eligible} AND (${Prisma.join(identities, " OR ")})`);
-  return evidence.every(item => rows.some(row => row.chunkId === item.chunkId && row.documentId === item.documentId &&
+  const contentCurrent = evidence.every(item => rows.some(row => row.chunkId === item.chunkId && row.documentId === item.documentId &&
     row.generationId === item.generationId && row.contentVersionId === item.contentVersionId && row.chunkHash === item.chunkHash));
+  if (!contentCurrent) return false;
+  const bundles = new Map<string,Awaited<ReturnType<typeof loadCitationBundle>>>();
+  for (const item of evidence) {
+    if (!item.sourceBundle) continue;
+    if(!bundles.has(item.generationId))bundles.set(item.generationId,await loadCitationBundle(reader,item.generationId));
+    const stored = bundles.get(item.generationId);
+    if (!stored || stored.id !== item.sourceBundle.id || stored.metadataHash !== item.sourceBundle.hash || stored.contentVersionId !== item.contentVersionId) return false;
+    const binding = stored.bundle.bindings[item.chunkHash];
+    if (!binding || binding.metadataOnly || canonical(binding.sourceCodes.map(code=>stored.bundle.registry[code])) !== canonical(item.originalSources ?? [])) return false;
+    const row = rows.find(row=>row.chunkId===item.chunkId);
+    if (!row || citationEvidenceText(row.text,binding)!==item.text) return false;
+  }
+  return true;
 }
 
 /** Call inside the same transaction as completion. Disable and index publication
@@ -242,13 +258,22 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
       }
 
       const evidence: QaEvidence[] = [];
+      const sourceBundles = new Map<string, Awaited<ReturnType<typeof loadCitationBundle>>>();
       let usedTokens = 0;
       const coveredGroups = new Set<number>();
       for (const row of rows) {
         if (evidence.length >= topK) break;
         if (restrictBySourceIds && !options.publicSourceIds!.has(row.documentId)) continue;
         if (!Number.isFinite(row.score) || !row.text.trim()) continue;
-        if (context.type === "DESTINATION" && !destinationEvidenceSentences(row.text, context.name).length) continue;
+        // Query-only deterministic adapters retain legacy behavior. Production
+        // readers load the immutable metadata once per candidate generation.
+        if (database.$transaction && !sourceBundles.has(row.generationId)) sourceBundles.set(row.generationId,await boundedRead(database,reader=>loadCitationBundle(reader,row.generationId)));
+        const sourceBundle = sourceBundles.get(row.generationId);
+        const binding = sourceBundle?.contentVersionId === row.contentVersionId ? sourceBundle.bundle.bindings[row.chunkHash] : undefined;
+        if (binding?.metadataOnly) continue;
+        const evidenceText=binding ? citationEvidenceText(row.text,binding) : row.text;
+        if (!evidenceText) continue;
+        if (context.type === "DESTINATION" && !destinationEvidenceSentences(evidenceText, context.name).length) continue;
         const actualTokens = countEmbeddingTokens(row.text);
         if (!Number.isInteger(row.tokenCount) || actualTokens !== row.tokenCount || usedTokens + actualTokens > maxEvidenceTokens) continue;
         const rowGroups = rankedGroups.flatMap((group, index) => group.some(item => item.chunkId === row.chunkId) ? [index] : []);
@@ -270,7 +295,8 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
         usedTokens += actualTokens;
         rowGroups.forEach(index => coveredGroups.add(index));
         evidence.push({ citationId, documentId: row.documentId, generationId: row.generationId, contentVersionId: row.contentVersionId,
-          chunkId: row.chunkId, chunkHash: row.chunkHash, text: row.text, tokenCount: actualTokens, score: row.score, citation: citation.data });
+          chunkId: row.chunkId, chunkHash: row.chunkHash, text: evidenceText, tokenCount: actualTokens, score: row.score, citation: citation.data,
+          ...(sourceBundle && binding ? { originalSources: binding.sourceCodes.map(code=>sourceBundle.bundle.registry[code]!), sourceBundle: { id: sourceBundle.id, hash: sourceBundle.metadataHash } } : {}) });
       }
       const retrievalReason = candidateRows.length === 0
         ? "NO_CANDIDATES"

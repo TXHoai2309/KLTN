@@ -16,6 +16,7 @@ import { qaFactualQuestion, qaIntentHistory, qaFollowupClarification } from "./q
 import { qaConversationMessage } from "./qa-conversation";
 import { planQaQuestion } from "./qa-question-plan";
 import { withinQaResponseBudget, QA_ELIGIBILITY_ABORT } from "./qa-request-budget";
+import { projectQaOriginalSources, validQaSourceProjection } from "./qa-original-source-projection";
 
 export function createQaService(dependencies: { store: QaConversationStore; retriever: QaRetriever; generator: QaGenerator; assessor?: QaAssessor; eligibilityPollMs?: number; resolveContext?: (context: QaContext) => Promise<QaResolvedContext> }) {
   const { store, retriever, generator } = dependencies;
@@ -137,6 +138,8 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
           if (!mapped.length || mapped.some(e=>JSON.stringify(e.citation)!==JSON.stringify(citation))) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "CITATION_VALIDATION", "CITATION_PROJECTION");
         }
         qaStage("CITATIONS_VERIFIED");
+        data = projectQaOriginalSources(data,evidence);
+        if (!validQaSourceProjection(data,evidence) || !isQaPublicAnswerSafe(data,evidence)) throw qaOrigin(new AppError("AI_INVALID_RESPONSE","AI_INVALID_RESPONSE",502),"CITATION_VALIDATION","CITATION_PROJECTION");
         if (!skipEvidence && !await retriever.recheck(evidence)) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "EVIDENCE_ELIGIBILITY_CHECK", "ELIGIBILITY");
       } catch (e) {
         const failure = e instanceof AppError ? e : e instanceof EmbeddingError

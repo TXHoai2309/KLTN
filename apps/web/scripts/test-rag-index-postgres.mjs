@@ -92,7 +92,8 @@ async function installTask184Schema() {
     resolve(repoRoot, "packages/db/prisma/migrations/20261020100000_rag_document_soft_delete/migration.sql"),
     "utf8",
   );
-  const setupSql = `CREATE EXTENSION vector;\n${admissionMigrations.join("\n")}\n${documentMigration}\n${indexMigration}\n${jobMigration}\n${ragPublicQaMigration}\n${documentSoftDeleteMigration}\n`;
+  const citationMigration = await readFile(resolve(repoRoot,"packages/db/prisma/migrations/20261020180000_rag_original_source_citations/migration.sql"),"utf8");
+  const setupSql = `CREATE EXTENSION vector;\n${admissionMigrations.join("\n")}\n${documentMigration}\n${indexMigration}\n${jobMigration}\n${ragPublicQaMigration}\n${documentSoftDeleteMigration}\n${citationMigration}\n`;
   const result = run(
     "docker",
     [
@@ -200,6 +201,7 @@ async function main() {
     "run", "--config", "vitest.config.mts",
     "src/modules/rag-index/rag-index-store.postgres.integration.vitest.test.ts",
     "src/modules/rag-index/rag-index-job-store.postgres.integration.vitest.test.ts",
+    "src/modules/rag-index/rag-citation-store.postgres.integration.vitest.test.ts",
     "--reporter=default", "--reporter=json", `--outputFile=${reportPath}`], {
     cwd: webRoot,
     env: {

@@ -15,6 +15,7 @@ model RagContentVersion {
 
   ragDocument RagDocument         @relation(fields: [ragDocumentId], references: [id], onDelete: Restrict)
   generations RagIndexGeneration[]
+  citationBundles RagCitationBundle[]
 
   @@unique([ragDocumentId, identityHash])
   @@unique([ragDocumentId, id])
@@ -44,6 +45,7 @@ model RagIndexGeneration {
   contentVersion RagContentVersion @relation(fields: [ragDocumentId, contentVersionId], references: [ragDocumentId, id], onDelete: Restrict)
   chunks         RagChunk[]
   publication    RagIndexPublication?
+  citationBundles RagCitationBundle[]
 
   @@unique([ragDocumentId, generationKey])
   @@unique([ragDocumentId, id])

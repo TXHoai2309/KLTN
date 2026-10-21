@@ -47,9 +47,8 @@ describe("verified answer presentation and follow-up projection", () => {
     expect(html.match(/class="assistant-answer-sources"/g)).toHaveLength(1);
     expect(html).toContain("Xem nguồn (1)");
     expect(html).not.toContain('class="assistant-answer-sources" open');
-    expect(html).toContain('aria-label="Nguồn cho ý 1"');
-    expect(html).toContain('aria-label="Nguồn cho ý 2"');
-    expect(html.indexOf("Xem nguồn")).toBeGreaterThan(html.indexOf(parts[1]!.text.split(": ")[1]!));
+    expect(html.match(/aria-label="Nguồn tham khảo"/g)).toHaveLength(2);
+    expect(html.indexOf('class="assistant-answer-sources"')).toBeGreaterThan(html.indexOf(parts[1]!.text.split(": ")[1]!));
   });
 
   it("does not confuse the place name Đồng Văn with a money amount", () => {

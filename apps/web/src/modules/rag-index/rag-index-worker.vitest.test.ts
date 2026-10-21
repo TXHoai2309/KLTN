@@ -81,6 +81,13 @@ function harness(options: { status?: string; deletedAt?: Date | null; content?: 
 }
 
 describe("US-19 Task185 indexing worker", () => {
+  it.each([false,true])("derives citation metadata after chunks; metadata failure does not block indexing (%s)",async fail=>{
+    const t=harness();const save=vi.fn(async()=>{if(fail)throw Error("unavailable");});
+    const worker=createRagIndexWorker({jobs:t.jobs,index:t.index,storage:t.storage,provider:createFakeEmbeddingProvider().provider,saveCitationBundle:save} as unknown as RagIndexWorkerDependencies);
+    expect(await worker.runNext()).toMatchObject({status:"COMPLETED"});
+    expect(save).toHaveBeenCalledWith("doc-1","generation-1","cv-1",expect.objectContaining({parserVersion:"explicit-section-sources-v1"}));
+    expect(t.index.persistChunks.mock.invocationCallOrder[0]).toBeLessThan(save.mock.invocationCallOrder[0]!);
+  });
   it.each(["Cao nguyên đá Đồng Văn", "Di tích Căng Bắc Mê", "Chợ tình Khâu Vai"])("indexes research fixture %s through the full mocked pipeline", async title => {
     const test = harness({fileType:"DOCX", bytes:researchDocx(title)});
     await expect(test.worker.runNext()).resolves.toMatchObject({status:"COMPLETED"});

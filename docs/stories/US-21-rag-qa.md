@@ -1542,3 +1542,28 @@ and concurrency leases remain. Provider per-call input/output bounds, evidence
 limits, and model-call count are unchanged. Historical `tokens-global` counters
 and earlier 43,000-token reports describe the old implementation only; existing
 expired rows are left for normal cleanup. No database migration is required.
+
+### 2026-10-20 — Confirmed original-source citation specification
+
+The owner confirmed [the original-source citation contract](ASSISTANT-ORIGINAL-SOURCE-CITATIONS.md).
+For this planned feature, automatically use explicit source URLs and attribution
+inside existing QA-eligible RAG documents, without separate URL approval or a new
+Admin review action. This supersedes Decision B's null-URL/separate-approval policy
+only for the specified server-validated, provenance-bound projection. Existing
+document approval/eligibility, private-data protection, grounding, ownership and
+write outcomes remain mandatory. Source websites are not fetched.
+
+The contract preserves recorded old response snapshots and public citation DTO
+shape, defines citation-only version-checked backfill, and replaces repeated
+source groups with inline numbered references and a deduplicated final list.
+This is a specification-only handoff: no application/schema/runtime change,
+migration, backfill, test execution, commit, push or deployment occurred.
+
+### 2026-10-20 — Original-source implementation follow-up
+
+The subsequent owner instruction authorized application implementation. Source
+derivation, immutable metadata, QA projection/completion checks, numbered source
+UI and an explicit-target dry-run/apply backfill command are implemented. See
+[verification and operator handoff](../implementation/assistant-original-source-citations.md).
+Offline checks pass; real PostgreSQL/infrastructure acceptance is still open.
+Development/production migration/backfill and deployment have not been performed.

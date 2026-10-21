@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Check, CirclePlus, Copy, FileText, Info, Leaf, Loader2, PanelLeft, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { AssistantLandscape } from "./assistant-landscape";
-import { AssistantCitations } from "./assistant-citations";
+import { AssistantCitations, AssistantSourceList } from "./assistant-citations";
 import { buildCitationIndex, isReadingCitation } from "./assistant-citation-utils";
 import type { QaContext, QaAnswerPart, QaCompletedTurn, QaPublicCitation, QaConversationSummary } from "../../modules/ai/qa-contract";
 import { createIdempotencyKey } from "../../lib/mutation-client";
@@ -21,6 +21,7 @@ export type CitationSlot = (input: { part: QaAnswerPart; citations: QaPublicCita
 const AssistantContextDisplay = createContext<((label: string | null) => void) | null>(null);
 
 export function AssistantAnswer({ turn, citationSlot, question }: { turn: QaCompletedTurn; citationSlot?: CitationSlot; question?: string }) {
+  const sourcePrefix=useId();
   if (turn.status === "CONVERSATIONAL") return <p>{turn.message}</p>;
   if (turn.status === "INSUFFICIENT_SOURCE") {
     const reply = assistantSourceReply(turn, question);
@@ -28,17 +29,12 @@ export function AssistantAnswer({ turn, citationSlot, question }: { turn: QaComp
   }
   if (turn.status === "CLARIFICATION_REQUIRED") return <p>{turn.clarificationQuestion}</p>;
   const citationIndex = buildCitationIndex(turn);
-  const sources = (part: QaAnswerPart) => citationSlot?.({ part, citations: turn.citations, turn }) ?? <AssistantCitations part={part} index={citationIndex} />;
+  const sources = (part: QaAnswerPart) => citationSlot?.({ part, citations: turn.citations, turn }) ?? <AssistantCitations part={part} index={citationIndex} sourcePrefix={sourcePrefix} />;
   return <>
     {turn.answerMode === "SOURCE_EXCERPTS" && <p className="assistant-source-notice">Thông tin dưới đây được trích nguyên văn từ tài liệu đã được đánh giá cho câu hỏi này.</p>}
     {turn.status === "PARTIAL" && <p className="assistant-muted">Mình tìm được một phần thông tin bạn hỏi:</p>}
-    <AssistantAnswerContent parts={turn.answerParts} presentation={turn.presentation} sources={turn.presentation === "TABLE" ? part => <span className="assistant-source-reference">{part.citationIds.map(id => citationIndex?.get(id)?.number).filter(number => number !== undefined).map(number => `[${number}]`).join(" ") || "Nguồn không khả dụng"}</span> : undefined} />
-    {citationIndex ? <details className="assistant-answer-sources">
-      <summary aria-label={`Xem nguồn tham khảo (${turn.citations.length})`}><FileText aria-hidden="true" /><span>Xem nguồn ({turn.citations.length})</span><span className="assistant-sources-chevron" aria-hidden="true">⌄</span></summary>
-      <div className="assistant-answer-source-groups">{turn.answerParts.map((part, position) => <section key={position} aria-label={`Nguồn cho ý ${position + 1}`}>
-        <p className="assistant-source-group-label">Nguồn cho ý {position + 1}</p>{sources(part)}
-      </section>)}</div>
-    </details> : <p className="assistant-citations-error">Thông tin nguồn không khả dụng.</p>}
+    <AssistantAnswerContent parts={turn.answerParts} presentation={turn.presentation} sources={sources} />
+    {citationIndex ? <AssistantSourceList index={citationIndex} sourcePrefix={sourcePrefix}/> : <p className="assistant-citations-error">Thông tin nguồn không khả dụng.</p>}
     {turn.status === "PARTIAL" && <div className="assistant-unanswered"><strong>Phần chưa đủ dữ liệu</strong><ul>{turn.unansweredAspects.map((aspect, index) => <li key={index}>{aspect}</li>)}</ul></div>}
   </>;
 }

@@ -3498,3 +3498,24 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
 - Removed the fixed 43,000-token reservation per admitted ask and its global daily token-budget counter at the owner's request. Durable ask/network counters and concurrency leases remain at their configured high ceilings.
 - Kept provider-call input/output limits, evidence limits, and bounded model-call flow unchanged. No schema or migration change; historical token bucket rows expire through existing cleanup.
 - Updated focused tests and implementation notes. Tests/typecheck were not run in this turn; no commit, push, or deployment.
+
+### 2026-10-20 — Original-source citations specification confirmed
+
+- **Contract:** `docs/stories/ASSISTANT-ORIGINAL-SOURCE-CITATIONS.md`, READY for implementation planning; implementation is NOT STARTED and is not authorized by this documentation task.
+- **Owner decisions:** Extract source URLs already inside QA-eligible RAG documents, without re-entry, extra link approval or website fetching. Use explicit section/passage attribution, inline numbered references, a deduplicated final list and uploaded-document fallback; preserve historical response snapshots.
+- **Sample evidence:** Read-only inspection of the supplied Dong Van DOCX found 23 section source declarations and 17 resolvable original-source entries, with literal URLs and zero Word hyperlink relationships. The sample was not changed and source websites were not fetched.
+- **Spec contents:** Scope, policy amendment to US-21 Decision B, roles/ownership, parser/provenance and additive metadata contract, existing-document backfill, backward-compatible public reference projection, safety/bounds, UX/accessibility, AC01–AC17, test/verification plans and dependency checkpoints.
+- **Files:** Specification, domain glossary, parent US-21 cross-reference and this progress entry. Documentation only; no application code, schema, migration, database/provider operation, commit, push or deploy.
+
+### 2026-10-20 — Original-source citation implementation, infrastructure gate open
+
+- Owner authorized implementation after the specification. Added immutable, version-bound source metadata, source-aware QA projection/fencing, numbered and deduplicated UI references, and bounded exact-provenance backfill without source approval or website fetching.
+- Owner DOCX parser verification: 17 sources / 23 section mappings. Final QA/indexing/processing/Assistant suite: 972 PASS, 93 SKIP, 0 FAIL. RAG regression: 64 PASS. Typecheck, Prisma generation/schema validation, production build and offline 360/1440px light/dark browser verification PASS.
+- PostgreSQL integration could not execute because Docker Engine was unavailable/nonresponsive. Real DB atomicity/race and remote-file operational backfill acceptance remain OPEN; not all AC are marked verified. Broad premium audit has unrelated repository/cache findings; not a repo-wide audit PASS.
+- [Implementation evidence and operator handoff](implementation/assistant-original-source-citations.md) record AC mapping, changed modules, commands, migration and backfill steps. No development/production migration/backfill, live provider, commit, push or deploy performed.
+
+### 2026-10-21 — Original-source citation schema deployed to dev and prod
+
+- Owner authorized migration on both configured targets. Existing `db:migrate:deploy` command applied `20261020180000_rag_original_source_citations` successfully on development (`DATABASE_URL`) and production (`DATABASE_URL_PROD`), both exit 0.
+- Read-only verification on each target confirmed the finished/non-rolled-back migration record and `public.rag_citation_bundle` table. Credentials were used only in child-process environments and never printed or written to tracked files.
+- Dev has an already-applied `20261020170000_trip_manual_completion` migration absent from the current checkout; its history was preserved. No reset/resolve, citation backfill, model request, commit or push performed. Disposable integration/race acceptance remains separate from this confirmed real schema deployment.

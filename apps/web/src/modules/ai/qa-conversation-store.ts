@@ -19,6 +19,7 @@ import type { QaAbuseHooks } from "./qa-abuse";
 import { lockQaEvidenceEligibility } from "./qa-retrieval";
 import { qaOrigin } from "./qa-diagnostics";
 import { generateConversationTitle } from "./qa-conversation-title";
+import { validQaSourceProjection } from "./qa-original-source-projection";
 
 type Tx = Prisma.TransactionClient;
 type Conversation = {
@@ -224,10 +225,11 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
         // check and the completed write are one linearization point, not a preflight.
         if (!await lockQaEvidenceEligibility(tx,evidence,options.publicSourceIds)) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "PERSISTENCE_STARTED", "ELIGIBILITY");
         const parsed = qaCompletedTurnSchema.parse(data);
+        if (!validQaSourceProjection(parsed,evidence)) throw qaOrigin(new AppError("AI_INVALID_RESPONSE","AI_INVALID_RESPONSE",502),"PERSISTENCE_STARTED","CITATION_PROJECTION");
         await resolveQaContext(tx, conversation.context, true);
         if (!sameQaContext(parsed.context, conversation.context)) error("CONVERSATION_STALE");
         if (parsed.conversationId !== r.conversationId || parsed.turnId !== r.turnId) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "PERSISTENCE_STARTED", "IDENTITY_MISMATCH");
-        const provenance = evidence.map(({ documentId,generationId,contentVersionId,chunkId,chunkHash,citationId })=>({documentId,generationId,contentVersionId,chunkId,chunkHash,citationId}));
+        const provenance = evidence.map(({ documentId,generationId,contentVersionId,chunkId,chunkHash,citationId,sourceBundle,projectedCitations })=>({documentId,generationId,contentVersionId,chunkId,chunkHash,citationId, ...(sourceBundle ? {sourceBundle,publicCitationIds:projectedCitations?.map(c=>c.id) ?? []} : {})}));
         await tx.$executeRaw(Prisma.sql`UPDATE qa_turn SET state='COMPLETED', response=${JSON.stringify(parsed)}::jsonb, provenance=${JSON.stringify(provenance)}::jsonb, "completedAt"=${now}::timestamptz WHERE id=${r.turnId}`);
         const generatedTitle = generateConversationTitle(turn.question ?? "Cuộc hội thoại mới");
         await tx.$executeRaw(Prisma.sql`UPDATE qa_conversation SET "headTurnId"=${r.turnId}, "activeTurnId"=NULL, "lastActivityAt"=${now}::timestamptz, "title"=COALESCE("title", ${generatedTitle}), "expiresAt"=${now}::timestamptz + ${p.kind === "GUEST" ? 7 : 30} * INTERVAL '1 day' WHERE id=${r.conversationId}`);

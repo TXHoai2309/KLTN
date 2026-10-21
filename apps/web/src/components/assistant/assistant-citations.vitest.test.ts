@@ -16,7 +16,7 @@ describe("Task 196 citation presentation", () => {
     expect([...index.keys()]).toEqual(["fixture_c1", "fixture_c2", "fixture_c3"]);
     expect([...index.values()].map((entry) => entry.number)).toEqual([1, 2, 3]);
     expect(index.get("fixture_c1")!.citation.sourceId).toBe(index.get("fixture_c2")!.citation.sourceId);
-    expect(render(turn).match(/\[1\] Nguồn tham khảo/g)).toHaveLength(2);
+    expect(render(turn).match(/>\[1\]<\/a>/g)).toHaveLength(2);
     turn.answerParts[0]!.citationIds.reverse();
     expect(buildCitationIndex(turn)!.get("fixture_c3")!.number).toBe(1);
     expect(buildCitationIndex(citationFixture("ONE"))!.get("fixture_c1")!.number).toBe(1);
@@ -34,7 +34,8 @@ describe("Task 196 citation presentation", () => {
   it.each([null, "javascript:alert(1)", "data:text/html,hi", "file:///secret", "https://user:pass@example.com/", "https://example.com/\n", "bad-url"])("never renders unsafe/null URL %s as an anchor", (url) => {
     const turn = citationFixture("ONE"); turn.citations[0]!.sourceUrl = url;
     expect(citationSourceHref(url)).toBeNull();
-    expect(render(turn)).not.toContain("<a ");
+    expect(render(turn)).not.toContain('target="_blank"');
+    expect(render(turn)).toContain('href="#');
     expect(render(turn)).toContain(turn.citations[0]!.title);
   });
   it("puts safe links outside summary and exposes title/locators without private aliases", () => {
@@ -47,7 +48,7 @@ describe("Task 196 citation presentation", () => {
       expect(summary[0]).toContain("aria-label=");
     }
     expect(html).not.toContain("source_fixture_only"); expect(html).not.toContain("fixture_c1");
-    expect(html.match(/<details/g)).toHaveLength(6);
+    expect(html.match(/<details/g)).toHaveLength(3);
     expect(html).not.toContain(" open=");
   });
   it("escapes metadata and preserves long titles and large collections", () => {
@@ -57,7 +58,7 @@ describe("Task 196 citation presentation", () => {
     expect(render(turn)).not.toContain("<img"); expect(render(turn)).not.toContain("<script>");
     expect(render(turn)).toContain("&lt;img");
     expect(render(citationFixture("LONG"))).toContain(citationFixture("LONG").citations[0]!.title);
-    expect(render(citationFixture("MANY")).match(/<details/g)).toHaveLength(53);
+    expect(render(citationFixture("MANY")).match(/<details/g)).toHaveLength(50);
   });
   it("keeps custom slot association and null fallback compatible", () => {
     const turn = citationFixture("ONE");
