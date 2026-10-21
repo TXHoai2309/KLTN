@@ -44,15 +44,9 @@ function fixture() {
         calls.detail = args;
         const row = rows.find(item => item.id === args.where.id && item.userId === args.where.userId);
         return row && { ...row, favorites: favoriteOwner === args.where.userId ? [{ id: "favorite" }] : [], days: [
-<<<<<<< HEAD
           { id: "day-2", dayIndex: 2, localDate: new Date("2026-10-11T00:00:00.000Z"), _count: { visits: 2 }, visits: [
-            { id: "visit-2", order: 2, startMinute: 600, plannedDurationMinutes: 60, destination: { id: "d2", name: "B", area: "Đồng Văn", visibility: "VISIBLE" } },
-            { id: "visit-1", order: 1, startMinute: 480, plannedDurationMinutes: 90, destination: { id: "d1", name: "A", area: "Mèo Vạc", visibility: "HIDDEN" } },
-=======
-          { id: "day-2", dayIndex: 2, localDate: new Date("2026-10-11T00:00:00.000Z"), visits: [
             { id: "visit-2", order: 2, startMinute: 600, plannedDurationMinutes: 60, destination: { id: "d2", name: "B", area: "Đồng Văn", visibility: "VISIBLE", deletedAt: new Date("2026-10-08T00:00:00Z") } },
             { id: "visit-1", order: 1, startMinute: 480, plannedDurationMinutes: 90, destination: { id: "d1", name: "A", area: "Mèo Vạc", visibility: "HIDDEN", deletedAt: null } },
->>>>>>> 130d94a6fa04d37020852f8945d615887093060b
           ] },
           { id: "day-1", dayIndex: 1, localDate: new Date("2026-10-10T00:00:00.000Z"), _count: { visits: 0 }, visits: [] },
         ] };

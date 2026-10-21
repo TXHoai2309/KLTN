@@ -81,6 +81,23 @@ Before production: create a Stadia account/property and register the stable Verc
 
 The web dev/build commands prepare official npm MapLibre worker/shared assets under ignored public/maplibre. Deploy that public directory with the build; do not manually commit vendor bundles. A missing worker asset displays the map error state and can recover by retry after deployment is repaired.
 
+### Windows production builds
+
+`npm run build` invokes the web build launcher after preparing MapLibre assets.
+On Windows the launcher defaults `RAYON_NUM_THREADS` to 2 before starting Next,
+and Next's page worker count is capped at 2. This avoids native allocation
+failures observed with CPU-wide loader concurrency on a 12-CPU, 16-GB laptop.
+The launcher sets its default after Turbo's strict environment filtering;
+non-Windows builds retain their existing concurrency. Next still runs TypeScript
+and uses Turbopack, with the normal `.next` output.
+
+After a native build crash, a later build may report a cached Turbopack task
+cancellation such as `GenerateSourceMap::generate_source_map was canceled`.
+Stop the failed build and move only `apps/web/.next/cache/turbopack` to an ignored
+backup directory before retrying. Do not change application source maps or skip
+typechecking to hide the failure. The 2026-10-21 repair preserved both old caches
+under `.cache/merge-checks/`; no dependency upgrade or database migration was used.
+
 ## US-28 Stadia runtime configuration — 2026-10-18
 
 Remove interpolation-only `@internal` from STADIA_MAPS_API_KEY: installed Varlock

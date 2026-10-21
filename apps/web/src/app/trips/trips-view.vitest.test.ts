@@ -2,12 +2,8 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-<<<<<<< HEAD
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh() {} }) }));
 vi.mock("@/components/favorite-button", () => ({ default: ({ targetId, initialIsFavorite }: { targetId: string; initialIsFavorite: boolean }) => createElement("button", { type: "button", "data-trip-heart": targetId, "aria-pressed": initialIsFavorite }, initialIsFavorite ? "Bỏ chuyến đi khỏi yêu thích" : "Thêm chuyến đi vào yêu thích") }));
-=======
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh() { } }) }));
->>>>>>> 130d94a6fa04d37020852f8945d615887093060b
 
 import type { TripDetail, TripSummary } from "@/modules/trip-read/trip-read-service";
 import { MyTripsView, TripDetailView } from "./trips-view";
@@ -72,7 +68,6 @@ describe("US-31 Trip views", () => {
     expect(html).toContain("90 phút");
     expect(html).toContain("Điểm đến không còn khả dụng công khai");
     expect(html).toContain("Ngày này chưa có điểm dừng");
-    expect(html).toContain("Không còn công khai");
     expect(html).toContain("/trips/one/edit");
     expect(html).toContain("Chỉnh sửa hành trình");
     expect(html).toContain("/trips/one/in-trip");
@@ -91,6 +86,20 @@ describe("US-31 Trip views", () => {
     expect(html).toContain('href="/trips"');
     expect(html).toContain('href="/trips/one/edit"');
     expect(html).not.toContain('href="/destinations/b"');
+  });
+  it("keeps a soft-deleted visible destination in the itinerary without a public link", () => {
+    const trip: TripDetail = { ...sample("deleted-target", "ONGOING"), days: [{
+      id: "day", dayIndex: 1, localDate: "2026-10-10", visits: [{
+        id: "visit", order: 1, startMinute: 480, plannedDurationMinutes: 60,
+        destination: { id: "deleted", name: "Điểm đã xóa mềm", area: "Đồng Văn", visibility: "VISIBLE", availability: "UNAVAILABLE" },
+      }],
+    }] };
+    const html = renderToStaticMarkup(createElement(TripDetailView, { trip }));
+    expect(html).toContain("Điểm đã xóa mềm");
+    expect(html).toContain("Điểm đến không còn khả dụng công khai");
+    expect(html).not.toContain('href="/destinations/deleted"');
+    expect(html).toContain("my-trips-timeline-node");
+    expect(html).toContain("08:00 – 09:00 (60 phút)");
   });
   it("distinguishes loading from a recoverable technical error", () => {
     const loading = renderToStaticMarkup(createElement(MyTripsLoading));

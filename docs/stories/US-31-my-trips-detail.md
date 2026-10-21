@@ -252,3 +252,17 @@ Audit script was temporary and removed after recording results. Its read-only SQ
 - Save files listed in US-30; these two stories, `docs/ai-progress.md`, `docs/superpowers/plans/2026-10-20-trip-management-extension.md`.
 
 Fresh read-only reviewer found no critical/important code issue. No commit/push/merge/reset, dependency, new global store/provider or generic management engine.
+
+## 2026-10-21 — Repair committed merge conflicts
+
+The later merge at `613aa7e` committed conflict markers in TripDetailView, its view
+test, the trip-read fixture and DESIGN.md. Removed the markers while retaining
+ThaiAnh's timeline, Favorite and completion UI, both design-context entries and
+the incoming server-derived destination availability contract. Hidden or
+soft-deleted destinations remain in saved itineraries with a warning and no
+public destination link. The fixture retains visit counts and deletedAt data.
+
+Regression: the existing unavailable-destination assertion and a new soft-delete
+case failed before the availability UI correction; both focused suites now pass
+(20 tests). Validation results are recorded in docs/ai-progress.md. No database
+migration or mutation, commit, push or development-server restart was performed.
