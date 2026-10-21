@@ -29,7 +29,16 @@ export function AssistantAnswer({ turn, citationSlot, question }: { turn: QaComp
   }
   if (turn.status === "CLARIFICATION_REQUIRED") return <p>{turn.clarificationQuestion}</p>;
   const citationIndex = buildCitationIndex(turn);
-  const sources = (part: QaAnswerPart) => citationSlot?.({ part, citations: turn.citations, turn }) ?? <AssistantCitations part={part} index={citationIndex} sourcePrefix={sourcePrefix} />;
+  const sources = (part: QaAnswerPart) => {
+    if (!citationIndex) return <AssistantCitations part={part} index={null} />;
+    const visibleCount = part.citationIds.filter(id => citationIndex.has(id)).length;
+    if (!visibleCount) return null;
+    if (citationSlot && visibleCount === part.citationIds.length) {
+      const custom = citationSlot({ part, citations: turn.citations, turn });
+      if (custom !== null && custom !== undefined) return custom;
+    }
+    return <AssistantCitations part={part} index={citationIndex} />;
+  };
   return <>
     {turn.answerMode === "SOURCE_EXCERPTS" && <p className="assistant-source-notice">Thông tin dưới đây được trích nguyên văn từ tài liệu đã được đánh giá cho câu hỏi này.</p>}
     {turn.status === "PARTIAL" && <p className="assistant-muted">Mình tìm được một phần thông tin bạn hỏi:</p>}

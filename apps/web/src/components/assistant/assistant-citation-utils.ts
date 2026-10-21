@@ -11,22 +11,25 @@ export function buildCitationIndex(turn: QaCompletedTurn): ReadonlyMap<string, I
   }
   const index = new Map<string, IndexedCitation>();
   const groups = new Map<string, IndexedCitation>();
+  const referenced = new Set<string>();
   for (const part of turn.answerParts) {
     const partIds = new Set<string>();
     for (const id of part.citationIds) {
       const citation = citations.get(id);
       if (!citation || partIds.has(id)) return null;
       partIds.add(id);
+      referenced.add(id);
       if (!index.has(id)) {
         const href=citationSourceHref(citation.sourceUrl);
-        const key=href ? `url:${new URL(href).href}` : `document:${citation.sourceId}`;
+        if (!href) continue;
+        const key=`url:${new URL(href).href}`;
         let group=groups.get(key);
         if(!group){group={citation,number:groups.size+1,citations:[]};groups.set(key,group);}
         group.citations.push(citation); index.set(id,group);
       }
     }
   }
-  return index.size === citations.size ? index : null;
+  return referenced.size === citations.size ? index : null;
 }
 
 /** Syntax defense only. Public authorization and provenance belong to runtime. */

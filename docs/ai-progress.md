@@ -3519,6 +3519,12 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
 - Owner authorized migration on both configured targets. Existing `db:migrate:deploy` command applied `20261020180000_rag_original_source_citations` successfully on development (`DATABASE_URL`) and production (`DATABASE_URL_PROD`), both exit 0.
 - Read-only verification on each target confirmed the finished/non-rolled-back migration record and `public.rag_citation_bundle` table. Credentials were used only in child-process environments and never printed or written to tracked files.
 - Dev has an already-applied `20261020170000_trip_manual_completion` migration absent from the current checkout; its history was preserved. No reset/resolve, citation backfill, model request, commit or push performed. Disposable integration/race acceptance remains separate from this confirmed real schema deployment.
+
+### 2026-10-21 — Original-source citation UI clarified
+
+- **Decision:** Keep answer-local numbered links such as `[1]`, resolving the destination from document-local references such as `[S1]`. Hide the marker and final-list entry when a safe URL is absent or attribution is ambiguous. Do not show the RAG filename, page/section location, or a “no public link” message.
+- **Implementation:** Public citation rendering now includes only safe URL-backed sources. The API projection and saved history snapshots remain backward-compatible; old snapshots without URLs are hidden at render time. Story and implementation evidence were updated.
+- **Verification:** Focused citation Vitest 23/23 PASS; offline browser smoke at 360px/1440px PASS (numbered external links, hidden no-URL/RAG details, keyboard focus, wrapping and light/dark); web typecheck PASS; `git diff --check` PASS. No backfill, commit, push or deployment.
 ## 2026-10-19 — US-37 Task 295 In-trip validation and confirmation
 
 - **Branch:** `duybinh`.

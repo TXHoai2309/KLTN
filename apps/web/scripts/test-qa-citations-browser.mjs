@@ -24,10 +24,13 @@ try{
   await page.setViewportSize({width,height:900});await page.goto(`http://127.0.0.1:${server.address().port}`);
   await page.locator(".assistant-citation-ref").first().waitFor();
   assert.equal(await page.locator(".assistant-answer-sources").count(),1);
-  assert.equal(await page.locator(".assistant-source-list > li").count(),2); // shared original URL deduplicated
-  const fallback=page.locator('.assistant-citation-ref[href^="#"]').first();await fallback.focus();await page.keyboard.press("Enter");
-  assert.equal(await page.locator(".assistant-answer-sources").getAttribute("open"),"");
-  assert.equal(await page.evaluate(()=>document.activeElement?.id),(await fallback.getAttribute("href")).slice(1));
+  assert.equal(await page.locator(".assistant-source-list > li").count(),1); // shared original URL deduplicated; no-URL citation hidden
+  assert.equal(await page.locator('.assistant-citation-ref[href^="#"]').count(),0);
+  assert.equal(await page.getByText("Tài liệu đã tải lên").count(),0);
+  assert.equal(await page.getByText("Vị trí trong tài liệu RAG").count(),0);
+  await page.keyboard.press("Tab");
+  assert.equal(await page.evaluate(()=>document.activeElement?.classList.contains("assistant-citation-ref")),true);
+  assert.notEqual(await page.locator(".assistant-citation-ref").first().evaluate(node=>getComputedStyle(node).outlineStyle),"none");
   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   const link=page.locator('.assistant-citation-ref[target="_blank"]').first();
   assert.equal(await link.getAttribute("href"),"https://example.com/");assert.equal(await link.getAttribute("rel"),"noopener noreferrer");
@@ -36,7 +39,7 @@ try{
   await page.screenshot({path:join(output,`${width}-light.png`),fullPage:true});
   await page.evaluate(()=>document.documentElement.classList.add("dark"));
   await page.screenshot({path:join(output,`${width}-dark.png`),fullPage:true});
-  passed.push(`${width}px: dedup, fallback Enter/focus, title wrapping, link semantics, target size, light/dark`);
+  passed.push(`${width}px: dedup, no-URL/RAG metadata hidden, keyboard focus, title wrapping, link semantics, target size, light/dark`);
  }
  assert.deepEqual(errors,[]);console.log(JSON.stringify({passed,screenshots:output}));
 }finally{await browser.close();await new Promise(resolve=>server.close(resolve));}

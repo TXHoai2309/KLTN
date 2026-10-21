@@ -13,8 +13,8 @@ Date: 2026-10-20.
 ## Goal
 
 Let readers open the original articles or web pages supporting an AI answer,
-while retaining accurate citations to uploaded RAG material when no trustworthy
-public URL can be associated with the supporting passage.
+while showing no RAG-document citation details in the public answer UI when no
+trustworthy public URL can be associated with the supporting passage.
 
 ## Confirmed owner decisions
 
@@ -22,9 +22,14 @@ public URL can be associated with the supporting passage.
   prepare the RAG document.
 - **Q2 — Presentation:** Show clickable numbered references after answer
   paragraphs. List each source once at the end using its title and domain,
-  replacing repeated per-answer-part source disclosure groups.
-- **Q3 — Missing public URL:** Retain the RAG document title and trustworthy
-  page/section locator, labelled as uploaded material. Do not invent a URL.
+  replacing repeated per-answer-part source disclosure groups. The answer-local
+  number (for example `[1]`) links to the original URL resolved from a document
+  source code such as `[S1]`; do not display the local `[S1]` code as the answer
+  marker.
+- **Q3 — Missing public URL (revised 2026-10-21):** Hide the citation marker and
+  source-list item when no safe public URL can be associated. Do not show the
+  RAG document title/locator or a “no public link” placeholder, and do not invent
+  a URL.
 - **Q4 — Source granularity:** Support multiple original sources in one RAG
   document, bound to the relevant sections or passages. An answer part may link
   only to original sources associated with its supporting evidence.
@@ -35,13 +40,14 @@ public URL can be associated with the supporting passage.
   The AI selects existing references and does not invent source URLs.
 - **Q6 — Historical answers:** Apply the new source presentation to old
   conversations while retaining their recorded source snapshots. Do not
-  retroactively add links to old answers that lack them. New original-source
-  links apply to newly generated answers.
+  retroactively add links to old answers that lack them. The renderer displays
+  only safe URL-backed citations, so existing snapshots without a URL are hidden.
+  New original-source links apply to newly generated answers.
 - **Q7 — Automatic reuse:** Read existing source URLs from the RAG material;
   do not require re-entry, a separate review screen, or an extra approval action.
   Associate links with sections/passages when explicit references establish the
-  connection. Retain uploaded-material citations when no trustworthy association
-  can be established, following Q3.
+  connection. Suppress the public citation when no trustworthy URL association
+  can be established, following revised Q3.
 - **URL versus website content:** Use URLs as citation destinations. Answers
   continue to rely on RAG evidence. Do not fetch the linked websites, crawl
   external content, or add web search to the answer flow.
@@ -109,8 +115,8 @@ continue to apply.
   content requires associations derived from that new version; old answers keep
   their recorded snapshots as agreed in Q6.
 - A bibliography containing several URLs without explicit references does not
-  justify assigning every URL to every answer paragraph. Fall back to uploaded
-  material instead of guessing the association.
+  justify assigning every URL to every answer paragraph. Suppress the public
+  citation instead of guessing the association.
 - Show a source title when available from the document; otherwise use its domain
   as the label. Group repeated references to the same original URL in the final
   source list while preserving which paragraphs cite it.
@@ -118,7 +124,8 @@ continue to apply.
   administrative, credential-bearing, and signed download links remain excluded.
 
 The earlier Q8 prompt about additional URL approval is superseded by Q5/Q7;
-missing or ambiguous source associations use Q3's document fallback. The Q9
+missing or ambiguous source associations follow revised Q3 and are hidden in the
+public answer UI. The Q9
 proposal for a separate per-link approval/revocation workflow is withdrawn from
 scope. No new source-management interface is requested. Historical citation
 snapshots follow Q6 rather than being rewritten from current document metadata.
@@ -163,8 +170,9 @@ contract below records the confirmed scope and its engineering requirements.
   for existing files without user reupload.
 - Server-owned URL validation, source projection, provenance, and completion
   fencing, plus backward-compatible citation rendering and history/replay.
-- Inline references and a deduplicated source list, including uploaded-material
-  fallback, responsive behavior, and accessibility.
+- Inline numbered references that open resolved original-source URLs and a
+  deduplicated source list; citations without a safe URL and internal RAG
+  locations are omitted from the public UI.
 
 ### Out of scope
 
@@ -209,13 +217,14 @@ operator action; neither a browser nor a client-supplied URL can write source ma
    claim a more precise independently verified per-sentence origin.
 4. Other formats may reuse the parser only when existing extraction provides
    unambiguous source declarations and scope. Existing PDF/TXT or unstructured
-   DOCX material remains usable through the existing document fallback.
+   DOCX material remains usable through the existing QA path; the public citation
+   UI omits its citation when no safe URL is available.
 5. Resolve local source codes within the same document content version only.
    Identical `S1` identifiers in two documents must never share definitions.
 6. Exact duplicate definitions with the same canonical URL may be coalesced.
    Conflicting duplicate codes, missing definitions, or ambiguous occurrence/span
-   matches must not produce a guessed link. Unresolved attribution scopes use
-   document fallback; unaffected scopes remain available.
+   matches must not produce a guessed link. The public UI omits unresolved source
+   citations; unaffected scopes remain available.
 7. Use the original-source title recorded by the document when safe and valid;
    otherwise label the source with its domain. Do not fetch a page title or ask
    the model to invent one. Preserve existing title/locator size constraints.
@@ -324,11 +333,13 @@ The coordinated server flow is:
    Store final citation snapshots and the internal projection provenance atomically
    with the completed turn. Internal provenance additions must tolerate old rows.
 
-Document fallback retains the existing title, trustworthy locators, opaque alias,
-and null sourceUrl. A metadata bundle that appears after an in-flight turn selected
-fallback does not retroactively change that turn's response. Evidence revocation
-or integrity failure during generation/completion follows the existing error and
-UNKNOWN handling; it must not commit stale clickable attribution.
+The backward-compatible document-fallback DTO retains the existing title,
+trustworthy locators, opaque alias, and null sourceUrl. The public citation UI
+does not render that fallback, its RAG locations, or a placeholder. A metadata
+bundle that appears after an in-flight turn selected fallback does not
+retroactively change that turn's response. Evidence revocation or integrity
+failure during generation/completion follows the existing error and UNKNOWN
+handling; it must not commit stale clickable attribution.
 
 No new public mutation endpoint is required. Source derivation/indexing/backfill
 writes use deterministic identities, confirmed persistence, and safe identical
@@ -370,15 +381,13 @@ technical failure path.
 - Number by first appearance within the answer; repeat the same number for the
   same canonical external URL. Different local source codes/documents can share
   one displayed external-source entry without collapsing their internal proof.
-- Group repeated uploaded-material fallback citations by their opaque document
-  identity; merge trustworthy locator displays without inventing locations.
 - At the end, display a single source list using title and domain, in number
   order, replacing the repeated `Nguồn cho ý ...` groups. A repeated URL with
   differing titles uses the first valid title in deterministic reference order.
-- Keep secondary RAG locators available and label them as locations within the
-  uploaded material. Do not present them as positions on the linked website.
-- A fallback reference navigates to its source-list entry; that entry shows
-  `Tài liệu đã tải lên`, title and locators, without an external download button.
+- Do not show uploaded RAG titles, file labels, page/section locators, or
+  placeholders in the public source list. If a citation has no safe public URL,
+  omit its inline marker and list entry. If all citations for an answer are
+  omitted, show no citation disclosure.
 - Preserve current fonts, colors, spacing, chat/sidebar/composer behavior and
   design-system interaction patterns. At 360 px and desktop widths, long titles
   wrap and source entries do not cause horizontal page scrolling.
@@ -397,9 +406,10 @@ technical failure path.
   invalid/missing/unreferenced/foreign citations cannot pass.
 - No cross-document source-code matching, mutable old snapshot, or stale
   generation/disabled/deleted-source publication is allowed.
-- Missing, unsupported, unsafe or ambiguous source metadata falls back per affected
-  attribution scope while preserving safe eligible RAG content. This never makes
-  unsafe substantive content eligible or turns missing grounding into a pass.
+- Missing, unsupported, unsafe or ambiguous source metadata does not produce a
+  public citation for the affected scope; the answer can still use otherwise
+  eligible RAG evidence. This never makes unsafe substantive content eligible or
+  turns missing grounding into a pass.
 - Internal integrity mismatches and persistence failures follow existing failure
   semantics; they are not reported as a successful citation backfill.
 - Diagnostics use bounded stages/categories/counts for parsing, ambiguity, URL
@@ -413,7 +423,7 @@ technical failure path.
 | --- | --- |
 | AC01 | The supplied DOCX yields 17 source definitions and 23 section mappings, with every declared code resolved, despite having zero Word hyperlink relationships. Section 16 resolves S1/S5/S7/S9 without retrieving the bibliography as answer evidence. |
 | AC02 | Literal text, line breaks and existing extracted hyperlinks are parsed; local identifiers are scoped by document/version. Identical heading text or S1 in another document cannot transfer attribution. |
-| AC03 | Conflicting/missing references, repeated sentence ambiguity, malformed/unsafe URLs and unstructured bibliographies never create guessed links; affected scopes show document fallback. Valid unrelated scopes continue to work. |
+| AC03 | Conflicting/missing references, repeated sentence ambiguity, malformed/unsafe URLs and unstructured bibliographies never create guessed links; affected citation markers/list entries are hidden in the public UI. Valid unrelated scopes continue to work. |
 | AC04 | Existing eligible documents acquire derived metadata from stored files without reupload, embeddings, approval/status changes, or modifications to chunks, hashes, publication or historical turns. |
 | AC05 | Backfill verifies exact input/version/chunk identity, supports dry-run, bounded resume and identical retry, publishes atomically, and skips stale/disabled/deleted targets. A hash/version mismatch leaves fallback and a clear operator result. |
 | AC06 | Future indexing produces version-bound metadata without an extra Admin approval step. Source-metadata absence/ambiguity does not itself block otherwise valid RAG indexing. |
@@ -422,7 +432,7 @@ technical failure path.
 | AC09 | Every new public link exactly matches a safe registry entry bound to its supporting evidence. Model-invented links, mismatched public citation IDs or forged mapping proof are rejected. |
 | AC10 | Disable, public-QA revocation, soft deletion, publication replacement or metadata-integrity mismatch during an ask cannot commit stale new-source attribution. Ownership and UNKNOWN identical-key reconciliation remain intact. |
 | AC11 | Numbered anchors appear after paragraphs/list items and in TABLE source cells. Reused canonical URLs share one number and one final source-list entry, ordered by first appearance. |
-| AC12 | Fallback shows uploaded-material title/locators and no private original-file link. RAG locators are identified as RAG locations, including for linked originals. |
+| AC12 | Only safe URL-backed citations appear in the public UI. Citations without a safe URL and all uploaded-file titles/RAG locators are hidden; no placeholder is shown. |
 | AC13 | At 360 px and desktop, long titles/domains remain readable; keyboard focus, accessible names, touch controls, new-tab semantics and current scroll/follow-tail behavior work. |
 | AC14 | Website fetch/search and additional model calls are absent from derivation/projection; arbitrary prose URLs and private references remain blocked while approved-format citation metadata can render validated HTTP(S) anchors. |
 | AC15 | The complete projected ask envelope respects 128 KiB. Overflow falls back to the complete original-document reference set without truncating text or choosing arbitrary external sources. |
@@ -443,7 +453,7 @@ its absolute local path or copy its full authored text into CI fixtures.
 | Persistence/backfill | Additive migration, old rows without metadata, deterministic replay, crash before publication, transaction rollback/uncertainty, exact hash checks, no embedding invocation, stale generation and concurrent disable/delete | 04–06,10,16 |
 | QA service/store | Original grounding before server projection, projection proof, rechecks under completion locks, unchanged outcomes/text, null snapshots, GET/history/replay, same-key UNKNOWN and wrong-principal access | 07–10,16,17 |
 | Bounds | Many URLs/UTF-8 titles, full-envelope byte accounting, deterministic whole-response fallback and unchanged answer body | 07,15 |
-| UI | Inline/list/table slots, first-reference numbering, repeated URL across documents, fallback grouping/locators, title conflict, empty source states, accessible anchors and historic renderer compatibility | 08,11–13 |
+| UI | Inline/list/table slots, first-reference numbering after filtering, repeated URL across documents, omitted null/unsafe URLs, no RAG metadata, empty source states, accessible anchors and historic renderer compatibility | 08,11–13 |
 | Browser | Offline controlled fixtures at 360 px and desktop; keyboard/tab order, focus/new-tab link behavior, scroll stability and network observation proving no application-driven source-site fetch/telemetry | 11–14,17 |
 
 Use a disposable PostgreSQL database for persistence/race tests. Source-site
@@ -463,7 +473,7 @@ Pure parser/read-only sample checks do not validate remote page accuracy.
 | `qa-service.ts`, `qa-generation.ts`, `qa-public-safety.ts` and a source-projection module | Preserve grounding pipeline; deterministic final reference expansion and field-specific validation |
 | `qa-conversation-store.ts`, eligibility helpers | Atomic snapshot/proof persistence and current eligibility/version fencing |
 | `qa-contract.ts`, `qa-http.ts` | Preserve public contract; final validation and envelope-size checks at the correct boundary |
-| `assistant-citation-utils.ts`, `assistant-citations.tsx`, `assistant-chat.tsx`, `assistant-answer-content.tsx`, citation styles | Inline anchors, URL grouping/numbering, one final list, fallback/accessibility/layout |
+| `assistant-citation-utils.ts`, `assistant-citations.tsx`, `assistant-chat.tsx`, `assistant-answer-content.tsx`, citation styles | Inline external anchors, URL grouping/numbering, one final list, omission of missing-URL citations/RAG details, accessibility/layout |
 | Focused tests and parent story/progress | Verification and policy amendment evidence |
 
 Route handlers stay thin. Public fields must not contain source-registry IDs,
@@ -478,7 +488,8 @@ environment variables or external credentials/services are introduced. Reuse
 server-side storage/database credentials and current runtime eligibility gates.
 
 Apply schema before activating readers/writers and before citation backfill.
-Before metadata is available, the new code must work through document fallback.
+Before metadata is available, RAG answers remain readable and the public UI
+omits citations that have no safe original-source URL.
 For rollback, revert application behavior and leave additive metadata dormant;
 do not drop it or rewrite saved answers to roll back UI. No database or deployment
 operation is authorized by completion of this spec alone.

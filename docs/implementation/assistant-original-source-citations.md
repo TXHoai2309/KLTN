@@ -26,8 +26,9 @@ PostgreSQL/infrastructure acceptance remains open. No deployment claim.
   the existing transaction. Full 128 KiB response overflow selects whole document
   fallback. Public DTO, question/model/evidence limits and idempotency stay unchanged.
 - Assistant citation utilities/components/styles: numbered references after parts
-  and in table source cells, one final list, canonical-URL/document deduplication,
-  uploaded-material fallback, RAG locator disclosure and accessible focus/links.
+  and in table source cells, one final list, canonical-URL grouping, accessible
+  focus/links; public UI omits citations without a safe URL and hides RAG
+  document names/locations.
 - Prisma `rag-citation.prisma`, generation/version inverse relations and migration
   `20261020180000_rag_original_source_citations`: additive table only.
 - Tests, PostgreSQL runner, npm backfill command, DESIGN, glossary, story/progress.
@@ -102,9 +103,11 @@ server-only DATABASE_URL and Blob configuration; it does not print them.
 
 New indexing creates its own metadata. Existing eligible documents require the
 backfill to expose original links; historical turns keep their saved source
-snapshots. Missing/unreproducible metadata keeps document fallback. Rollback of
-the application leaves the additive table unused; it does not require dropping
-data or rewriting history/chunks.
+snapshots. The backward-compatible API may still return document-fallback
+metadata internally, but the public UI does not render it. Missing or
+unreproducible metadata therefore produces no public citation; no placeholder is
+shown. Rollback of the application leaves the additive table unused; it does not
+require dropping data or rewriting history/chunks.
 
 ### 2026-10-21 — authorized development and production migration
 
@@ -125,3 +128,15 @@ the two distinct hosts/database identities before invoking the existing
 - No backfill, model call, commit, push, environment-file edit or reset performed.
   This execution verifies the actual migration/table on both targets; it does not
   replace the still-open disposable PostgreSQL race/atomicity integration suite.
+
+### 2026-10-21 — public citation fallback clarified
+
+The owner confirmed answer-local `[1]` markers should open the source URL resolved
+from document references such as `[S1]`. When no safe URL can be associated,
+hide the inline marker and source-list item entirely. Do not expose RAG filenames,
+page/section locations, or a “no public link” placeholder. The citation DTO and
+saved history snapshots remain backward-compatible; historical snapshots without
+URLs are hidden by the renderer. Focused UI tests pass (23/23); browser, typecheck
+and final diff verification are recorded in the current work-session progress
+entry. The earlier dev/prod migration check found zero citation bundles; no
+backfill was run here.

@@ -31,8 +31,6 @@
 .assistant-source-list a svg { display: inline; vertical-align: middle; }
 .assistant-source-number { flex-shrink: 0; color: var(--assistant-muted, #576d60); }
 .assistant-source-domain { display: block; font-size: 12px; color: var(--assistant-muted, #576d60); margin-top: 3px; }
-.assistant-source-locations { font-size: 12px; color: var(--assistant-muted, #576d60); margin-top: 8px; }
-.assistant-source-locations summary { cursor: pointer; min-height: 32px; }
 .assistant-citation-ref:focus-visible, .assistant-source-list :is(a,summary):focus-visible, .assistant-source-list > li:focus-visible { outline: 2px solid var(--assistant-green, #1d563a); outline-offset: 3px; }
 .dark .assistant-citation-ref, .dark .assistant-source-list a { color: #8cc4a1; }
 
