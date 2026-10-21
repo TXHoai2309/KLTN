@@ -120,7 +120,7 @@ export default function InTripAssistant({
   completed,
   remaining,
 }: Props) {
-  const router = useRouter();
+  const nav = useRouter();
   const headingId = useId();
   const needId = useId();
   const helpId = useId();
@@ -128,12 +128,20 @@ export default function InTripAssistant({
   const countId = useId();
   const proposalHeadingId = useId();
   const [assistantState, setAssistantState] = useState(() => createInTripAssistantState(status));
+  const assistantStateRef = useRef(assistantState);
+  assistantStateRef.current = assistantState;
   const { session, proposal } = assistantState;
   const [locationFlow, setLocationFlow] = useState<LocationFlowState>(() => createLocationFlowState());
   const flowRef = useRef(locationFlow);
   const [manualPickerOpen, setManualPickerOpen] = useState(false);
   const [locationError, setLocationError] = useState("");
   const [announcement, setAnnouncement] = useState("");
+  const [accumulatedResolution, setAccumulatedResolution] = useState<{
+    selectedVisitId?: string;
+    selectedDestinationId?: string;
+    selectedDestinationLabel?: string;
+    selectedDayIndex?: number;
+  }>({});
   const requestSequence = useRef(0);
   const needValidation = validateInTripNeed(session.need);
   const needError = session.need.length > 0 && !needValidation.valid
@@ -151,40 +159,68 @@ export default function InTripAssistant({
 
   function setSelectedLocation(location: InTripLocation | null) {
     requestSequence.current += 1;
-    setAssistantState(current => updateInTripAssistantInput(current, { location }));
+    setAccumulatedResolution({});
+    setAssistantState(current => {
+      const next = updateInTripAssistantInput(current, { location });
+      assistantStateRef.current = next;
+      return next;
+    });
   }
 
   function updateNeed(need: string) {
     requestSequence.current += 1;
+    setAccumulatedResolution({});
     const boundedNeed = [...need].slice(0, IN_TRIP_NEED_MAX_LENGTH).join("");
-    setAssistantState(current => updateInTripAssistantInput(current, { need: boundedNeed }));
+    setAssistantState(current => {
+      const next = updateInTripAssistantInput(current, { need: boundedNeed });
+      assistantStateRef.current = next;
+      return next;
+    });
   }
 
-  async function requestProposal(resolution?: { selectedVisitId?: string; selectedDestinationId?: string }) {
-    if (!canSubmitInTripReplan(assistantState)) return;
-    const location = assistantState.session.location;
-    const need = validateInTripNeed(assistantState.session.need);
+  async function requestProposal(resolution?: {
+    selectedVisitId?: string;
+    selectedDestinationId?: string;
+    selectedDayIndex?: number;
+  }) {
+    if (!canSubmitInTripReplan(assistantStateRef.current)) return;
+    const location = assistantStateRef.current.session.location;
+    const need = validateInTripNeed(assistantStateRef.current.session.need);
     if (!location || !need.valid) return;
 
     const requestId = ++requestSequence.current;
-    setAssistantState(current => beginInTripReplan(current));
+    const requestingState = beginInTripReplan(assistantStateRef.current);
+    assistantStateRef.current = requestingState;
+    setAssistantState(requestingState);
+
     const outcome = await requestInTripReplan(tripId, {
       baseRevision,
       location,
       need: need.normalized,
-      ...(resolution ? { resolution } : {}),
+      ...(resolution ? {
+        resolution: {
+          ...(resolution.selectedVisitId ? { selectedVisitId: resolution.selectedVisitId } : {}),
+          ...(resolution.selectedDestinationId ? { selectedDestinationId: resolution.selectedDestinationId } : {}),
+          ...(resolution.selectedDayIndex !== undefined ? { selectedDayIndex: resolution.selectedDayIndex } : {}),
+        },
+      } : {}),
     });
     if (requestSequence.current !== requestId) return;
-    const proposedState = finishInTripReplan(assistantState, outcome);
-    setAssistantState(proposedState);
+
+    const next = finishInTripReplan(assistantStateRef.current, outcome);
+    assistantStateRef.current = next;
+    setAssistantState(next);
+
     if (outcome.kind === "RESPONSE" && outcome.data.status === "PROPOSED") {
-      await runPreview(proposedState, requestId);
+      setAccumulatedResolution({});
+      await runPreview(next, requestId);
     }
   }
 
   async function runPreview(state: typeof assistantState, requestId = ++requestSequence.current) {
     const checking = beginInTripPreview(state);
     if (checking === state || state.proposal.status !== "PROPOSED" || !state.session.location) return;
+    assistantStateRef.current = checking;
     setAssistantState(checking);
     const result = await previewInTrip(tripId, {
       baseRevision,
@@ -193,7 +229,9 @@ export default function InTripAssistant({
       mandatoryEndpoint: state.proposal.result.mandatoryEndpoint,
     });
     if (requestSequence.current !== requestId) return;
-    setAssistantState(current => finishInTripPreview(current, result));
+    const next = finishInTripPreview(assistantStateRef.current, result);
+    assistantStateRef.current = next;
+    setAssistantState(next);
   }
 
   async function runApply(state: typeof assistantState) {
@@ -201,11 +239,15 @@ export default function InTripAssistant({
     const pending = state.apply.pending;
     const result = await applyInTrip(tripId, pending.payload, pending.idempotencyKey);
     const next = finishInTripApply(state, result);
-    setAssistantState(current => current.apply.status === "APPLYING" ? next : current);
+    setAssistantState(current => {
+      const updated = current.apply.status === "APPLYING" ? next : current;
+      assistantStateRef.current = updated;
+      return updated;
+    });
     if (result.status === "SUCCESS") {
       setAnnouncement("Đã áp dụng phương án thành công. Đang mở chi tiết chuyến đi.");
-      router.replace(`/trips/${tripId}` as Route);
-      router.refresh();
+      nav.replace(`/trips/${tripId}` as Route);
+      nav.refresh();
     }
   }
 
@@ -225,6 +267,7 @@ export default function InTripAssistant({
 
   function cancelProposal() {
     requestSequence.current += 1;
+    setAccumulatedResolution({});
     setAssistantState(current => cancelInTripProposal(current));
     setAnnouncement("Đã hủy đề xuất. Hành trình đã lưu không thay đổi.");
   }
@@ -317,7 +360,7 @@ export default function InTripAssistant({
   return (
     <main className={styles.page} aria-labelledby={headingId}>
       <div className={styles.content}>
-        <Link className={styles.backLink} href={`/trips/${tripId}` as Route}>← Quay lại chuyến đi</Link>
+        <Link className={styles.backLink} {...{ href: `/trips/${tripId}` as Route }}>← Quay lại chuyến đi</Link>
         <header className={styles.hero}>
           <p className={styles.eyebrow}>Hỗ trợ trong chuyến đi</p>
           <h1 id={headingId}>Trợ lý hành trình</h1>
@@ -449,6 +492,24 @@ export default function InTripAssistant({
             })()}
             {proposal.status === "NEEDS_CLARIFICATION" && (
               <div className={styles.proposalContent}>
+                {accumulatedResolution.selectedDestinationLabel && (
+                  <div style={{ marginBottom: "0.75rem", padding: "0.5rem 0.75rem", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "0.375rem", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+                    <span style={{ fontSize: "0.875rem", color: "#166534" }}>
+                      Đã chọn: <strong>{accumulatedResolution.selectedDestinationLabel}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      style={{ fontSize: "0.75rem", color: "#047857", textDecoration: "underline", background: "none", border: "none", cursor: "pointer" }}
+                      disabled={isRequesting}
+                      onClick={() => {
+                        setAccumulatedResolution({});
+                        void requestProposal();
+                      }}
+                    >
+                      (Đổi điểm khác)
+                    </button>
+                  </div>
+                )}
                 <p className={styles.proposalStatus} role="status" aria-live="polite">{proposal.result.clarification.prompt}</p>
                 {proposal.result.clarification.choices && proposal.result.clarification.choices.length > 0 && (
                   <div className={styles.clarificationChoices} role="group" aria-label="Lựa chọn làm rõ">
@@ -458,9 +519,16 @@ export default function InTripAssistant({
                         type="button"
                         className={styles.secondaryButton}
                         disabled={isRequesting}
-                        onClick={() => void requestProposal(choice.resolution)}
+                        onClick={() => {
+                          const merged = { ...accumulatedResolution, ...choice.resolution };
+                          if (choice.resolution.selectedDestinationId) {
+                            merged.selectedDestinationLabel = choice.label;
+                          }
+                          setAccumulatedResolution(merged);
+                          void requestProposal(merged);
+                        }}
                       >
-                        {choice.label}
+                        {isRequesting ? "Đang xử lý…" : choice.label}
                       </button>
                     ))}
                   </div>

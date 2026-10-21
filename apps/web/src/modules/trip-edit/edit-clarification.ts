@@ -8,6 +8,7 @@ import {
   type VerifiedEditDestinationId,
   type VerifiedEditVisitId,
 } from "./edit-intent-contract";
+import { MAX_DURATION_DAYS } from "../trip-requirement/trip-requirement-contract";
 
 const entityIdSchema = z.string().min(1).max(128);
 
@@ -15,14 +16,20 @@ export const editResolutionSchema = z
   .object({
     selectedVisitId: entityIdSchema.optional(),
     selectedDestinationId: entityIdSchema.optional(),
+    selectedDayIndex: z.number().int().min(1).max(MAX_DURATION_DAYS).optional(),
   })
   .strict()
   .refine(
-    (resolution) =>
-      Number(resolution.selectedVisitId !== undefined) +
-        Number(resolution.selectedDestinationId !== undefined) ===
-      1,
-    "Chọn đúng một phương án làm rõ.",
+    (resolution) => {
+      const hasVisit = resolution.selectedVisitId !== undefined;
+      const hasDest = resolution.selectedDestinationId !== undefined;
+      const hasDay = resolution.selectedDayIndex !== undefined;
+      const count = Number(hasVisit) + Number(hasDest) + Number(hasDay);
+      if (count === 0) return false;
+      if (hasVisit && (hasDest || hasDay)) return false;
+      return true;
+    },
+    "Phương án làm rõ không hợp lệ.",
   );
 
 export type EditResolution = z.infer<typeof editResolutionSchema>;
@@ -60,6 +67,7 @@ export type EditClarificationDestination = {
 export type EditClarificationContext = {
   visits: readonly EditClarificationVisit[];
   eligibleDestinations: readonly EditClarificationDestination[];
+  dayIndexes?: readonly number[];
 };
 
 const QUESTION_BY_REASON: Record<EditIntentClarificationReason, string> = {
@@ -104,6 +112,14 @@ export function createEditClarification(
       label: destination.name,
       resolution: { selectedDestinationId: destination.id },
     }));
+  } else if (reason === "MISSING_DAY") {
+    const dayIndexes = context.dayIndexes && context.dayIndexes.length > 0
+      ? context.dayIndexes
+      : [...new Set(context.visits.map((visit) => visit.dayIndex))].sort((a, b) => a - b);
+    choices = dayIndexes.map((dayIndex) => ({
+      label: `Ngày ${dayIndex}`,
+      resolution: { selectedDayIndex: dayIndex },
+    }));
   }
 
   return editClarificationSchema.parse({
@@ -137,6 +153,15 @@ export function assertResolutionReferencesServerData(
     parsed.data.selectedDestinationId !== undefined &&
     !context.eligibleDestinations.some(
       (destination) => destination.id === parsed.data.selectedDestinationId,
+    )
+  ) {
+    throw invalidResolution();
+  }
+  if (
+    parsed.data.selectedDayIndex !== undefined &&
+    !(
+      (context.dayIndexes && context.dayIndexes.includes(parsed.data.selectedDayIndex)) ||
+      context.visits.some((visit) => visit.dayIndex === parsed.data.selectedDayIndex)
     )
   ) {
     throw invalidResolution();
@@ -181,16 +206,40 @@ export function resolveEditIntent(
     };
   }
 
-  const destinationId = parsed.data.selectedDestinationId;
-  const destination = context.eligibleDestinations.find((item) => item.id === destinationId);
-  if (intent.clarificationReason !== "AMBIGUOUS_DESTINATION" || !destination) {
-    throw invalidResolution();
+  let updated = intent;
+
+  if (parsed.data.selectedDestinationId !== undefined) {
+    const destinationId = parsed.data.selectedDestinationId;
+    const destination = context.eligibleDestinations.find((item) => item.id === destinationId);
+    if (!destination) {
+      throw invalidResolution();
+    }
+    updated = {
+      ...updated,
+      destinationId: destination.id as VerifiedEditDestinationId,
+      needsClarification: false,
+      clarificationReason: null,
+    };
   }
 
-  return {
-    ...intent,
-    destinationId: destination.id as VerifiedEditDestinationId,
-    needsClarification: false,
-    clarificationReason: null,
-  };
+  if (parsed.data.selectedDayIndex !== undefined) {
+    const dayIndex = parsed.data.selectedDayIndex;
+    updated = {
+      ...updated,
+      params: {
+        ...updated.params,
+        dayIndex,
+      },
+      affected: {
+        ...updated.affected,
+        dayIndexes: [...new Set([...updated.affected.dayIndexes, dayIndex])].sort(
+          (left, right) => left - right,
+        ),
+      },
+      needsClarification: false,
+      clarificationReason: null,
+    };
+  }
+
+  return updated;
 }

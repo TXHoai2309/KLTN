@@ -187,6 +187,13 @@ function clarificationContext(
   remainingVisitIds: ReadonlySet<string>,
   eligibleDestinations: readonly EligibleDestination[],
 ): EditClarificationContext {
+  const remainingDays = trip.days
+    .filter((day) => day.visits.some((visit) => remainingVisitIds.has(visit.id)))
+    .map((day) => day.dayIndex);
+  const dayIndexes = (
+    remainingDays.length > 0 ? remainingDays : trip.days.map((day) => day.dayIndex)
+  ).sort((left, right) => left - right);
+
   return {
     visits: trip.days.flatMap((day) =>
       day.visits.flatMap((visit) =>
@@ -205,6 +212,7 @@ function clarificationContext(
       ),
     ),
     eligibleDestinations: eligibleDestinations.map(({ id, name }) => ({ id, name })),
+    dayIndexes: [...new Set(dayIndexes)],
   };
 }
 

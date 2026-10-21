@@ -81,6 +81,42 @@ function validTime(value: string): boolean {
   return /^(?:[01]\d|2[0-3]):[0-5]\d$/u.test(value);
 }
 
+function normalizeTime(value: string | null): string | null {
+  if (value === null) return null;
+  const trimmed = value.trim();
+  const colonMatch = /^(\d{1,2}):(\d{2})$/u.exec(trimmed);
+  if (colonMatch) {
+    const hours = Number(colonMatch[1]);
+    const minutes = Number(colonMatch[2]);
+    if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+      return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+    }
+  }
+  const hMatch = /^(\d{1,2})h(\d{2})?$/ui.exec(trimmed);
+  if (hMatch) {
+    const hours = Number(hMatch[1]);
+    const minutes = hMatch[2] ? Number(hMatch[2]) : 0;
+    if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+      return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+    }
+  }
+  const singleHourMatch = /^(\d{1,2})$/u.exec(trimmed);
+  if (singleHourMatch) {
+    const hours = Number(singleHourMatch[1]);
+    if (hours >= 0 && hours <= 23) {
+      return `${hours.toString().padStart(2, "0")}:00`;
+    }
+  }
+  return trimmed;
+}
+
+function formatTimeMinutes(minutesTotal: number): string {
+  const bounded = Math.max(0, Math.min(1439, minutesTotal));
+  const hours = Math.floor(bounded / 60);
+  const minutes = bounded % 60;
+  return `${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+}
+
 function timeMinutes(value: string): number | null {
   const match = /^(?:([01]\d|2[0-3])):([0-5]\d)$/u.exec(value);
   return match ? Number(match[1]) * 60 + Number(match[2]) : null;
@@ -156,7 +192,18 @@ function verifyOutput(
     }
     const dayRequired =
       operation.operationType === "ADD_VISIT" || operation.operationType === "MOVE_VISIT";
-    if (dayRequired && params.dayIndex === null) mark("MISSING_DAY");
+    if (dayRequired && params.dayIndex === null) {
+      if (
+        context.resolution?.selectedDayIndex !== undefined &&
+        dayIndexes.has(context.resolution.selectedDayIndex)
+      ) {
+        params.dayIndex = context.resolution.selectedDayIndex;
+      } else if (dayIndexes.size === 1) {
+        params.dayIndex = [...dayIndexes][0]!;
+      } else {
+        mark("MISSING_DAY");
+      }
+    }
 
     if (
       params.position !== null &&
@@ -165,21 +212,54 @@ function verifyOutput(
         params.position > MAX_EDIT_VISITS_PER_DAY)
     ) {
       params.position = null;
-      mark("OUT_OF_SCOPE");
     }
 
-    if (params.startTime !== null && !validTime(params.startTime)) {
-      params.startTime = null;
-      mark("MISSING_TIME");
-    }
-    if (
-      params.durationMinutes !== null &&
-      (!Number.isSafeInteger(params.durationMinutes) ||
+    if (operation.operationType === "ADD_VISIT") {
+      params.startTime = normalizeTime(params.startTime);
+      if (params.startTime !== null && !validTime(params.startTime)) {
+        params.startTime = null;
+      }
+      if (
+        params.durationMinutes === null ||
+        !Number.isSafeInteger(params.durationMinutes) ||
         params.durationMinutes < 1 ||
-        params.durationMinutes > 1440)
-    ) {
-      params.durationMinutes = null;
-      mark("MISSING_TIME");
+        params.durationMinutes > 1440
+      ) {
+        params.durationMinutes = 60;
+      }
+
+      if (params.startTime === null && params.dayIndex !== null) {
+        const dayVisits = context.remainingVisits.filter((v) => v.dayIndex === params.dayIndex);
+        let scheduleMinute = 9 * 60;
+        for (const v of dayVisits) {
+          const sm = timeMinutes(v.startTime);
+          if (sm !== null) {
+            scheduleMinute = Math.max(scheduleMinute, sm + v.durationMinutes + 30);
+          }
+        }
+        if (scheduleMinute + params.durationMinutes > 1440) {
+          scheduleMinute = Math.max(0, 1440 - params.durationMinutes);
+        }
+        params.startTime = formatTimeMinutes(scheduleMinute);
+        params.position ??= dayVisits.length + 1;
+      }
+    } else {
+      if (params.startTime !== null) {
+        params.startTime = normalizeTime(params.startTime);
+      }
+      if (params.startTime !== null && !validTime(params.startTime)) {
+        params.startTime = null;
+        mark("MISSING_TIME");
+      }
+      if (
+        params.durationMinutes !== null &&
+        (!Number.isSafeInteger(params.durationMinutes) ||
+          params.durationMinutes < 1 ||
+          params.durationMinutes > 1440)
+      ) {
+        params.durationMinutes = null;
+        mark("MISSING_TIME");
+      }
     }
 
     const startRequired =
@@ -230,12 +310,10 @@ function verifyOutput(
     for (const key of Object.keys(params) as (keyof typeof params)[]) {
       if (!allowedParams.has(key) && params[key] !== null) {
         params[key] = null;
-        mark("OUT_OF_SCOPE");
       }
     }
     if (operation.operationType === "REPLACE_VISIT" && params.dayIndex !== null) {
       params.dayIndex = null;
-      mark("OUT_OF_SCOPE");
     }
     if (
       operation.operationType !== "ADD_VISIT" &&
@@ -243,7 +321,6 @@ function verifyOutput(
       destinationId !== null
     ) {
       destinationId = null;
-      mark("OUT_OF_SCOPE");
     }
 
     return {
@@ -257,10 +334,14 @@ function verifyOutput(
   let mandatoryEndpoint: ReplanModelOutput["mandatoryEndpoint"] = output.mandatoryEndpoint;
   if (mandatoryEndpoint !== null) {
     const selectedDestinationId = context.resolution?.selectedDestinationId;
+    const matchesOperation = normalized.some(
+      (operation) => operation.destinationId === selectedDestinationId,
+    );
     if (
       mandatoryEndpoint.destinationId === null &&
       selectedDestinationId !== undefined &&
-      destinations.has(selectedDestinationId)
+      destinations.has(selectedDestinationId) &&
+      !matchesOperation
     ) {
       mandatoryEndpoint = { ...mandatoryEndpoint, destinationId: selectedDestinationId };
     } else if (
@@ -271,10 +352,14 @@ function verifyOutput(
       mark("AMBIGUOUS_DESTINATION");
     } else if (
       selectedDestinationId !== undefined &&
-      mandatoryEndpoint.destinationId !== selectedDestinationId
+      mandatoryEndpoint.destinationId !== selectedDestinationId &&
+      !matchesOperation
     ) {
       mandatoryEndpoint = null;
       mark("AMBIGUOUS_DESTINATION");
+    }
+    if (mandatoryEndpoint !== null && mandatoryEndpoint.deadline !== null) {
+      mandatoryEndpoint.deadline = normalizeTime(mandatoryEndpoint.deadline);
     }
     if (
       mandatoryEndpoint !== null &&
@@ -299,6 +384,23 @@ function verifyOutput(
     );
     if (!matchesMandatoryEndpoint && !matchesOperation) {
       mark("AMBIGUOUS_DESTINATION");
+    }
+  }
+  if (context.resolution?.selectedDayIndex !== undefined) {
+    const selectedDayIndex = context.resolution.selectedDayIndex;
+    const matchesOperation = normalized.some(
+      (operation) => operation.params.dayIndex === selectedDayIndex,
+    );
+    if (!matchesOperation) {
+      const targetOp = normalized.find(
+        (operation) =>
+          operation.operationType === "ADD_VISIT" || operation.operationType === "MOVE_VISIT",
+      );
+      if (targetOp && dayIndexes.has(selectedDayIndex)) {
+        targetOp.params.dayIndex = selectedDayIndex;
+      } else {
+        mark("MISSING_DAY");
+      }
     }
   }
 

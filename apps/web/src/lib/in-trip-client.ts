@@ -29,6 +29,7 @@ export type InTripReplanRequest = {
   resolution?: {
     selectedVisitId?: string;
     selectedDestinationId?: string;
+    selectedDayIndex?: number;
   };
 };
 
@@ -41,8 +42,17 @@ const idSchema = z.string().min(1).max(128);
 const resolutionSchema = z.object({
   selectedVisitId: idSchema.optional(),
   selectedDestinationId: idSchema.optional(),
+  selectedDayIndex: z.number().int().min(1).max(30).optional(),
 }).strict().refine(
-  value => Number(value.selectedVisitId !== undefined) + Number(value.selectedDestinationId !== undefined) === 1,
+  value => {
+    const hasVisit = value.selectedVisitId !== undefined;
+    const hasDest = value.selectedDestinationId !== undefined;
+    const hasDay = value.selectedDayIndex !== undefined;
+    const count = Number(hasVisit) + Number(hasDest) + Number(hasDay);
+    if (count === 0) return false;
+    if (hasVisit && (hasDest || hasDay)) return false;
+    return true;
+  },
 );
 
 const clarificationReasonSchema = z.enum([

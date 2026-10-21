@@ -82,6 +82,19 @@ describe("createEditClarification", () => {
     ]);
   });
 
+  it("builds day options when reason is MISSING_DAY", () => {
+    const result = createEditClarification(
+      "MISSING_DAY",
+      intent({ clarificationReason: "MISSING_DAY" }),
+      { ...context, dayIndexes: [1, 2] },
+    );
+
+    expect(result.choices).toEqual([
+      { label: "Ngày 1", resolution: { selectedDayIndex: 1 } },
+      { label: "Ngày 2", resolution: { selectedDayIndex: 2 } },
+    ]);
+  });
+
   it("explains the supported editing scope for out-of-scope requests", () => {
     const result = createEditClarification("OUT_OF_SCOPE", intent(), context);
 
@@ -126,6 +139,30 @@ describe("resolveEditIntent", () => {
       destinationId: "destination-4",
       needsClarification: false,
       clarificationReason: null,
+    });
+  });
+
+  it("resolves a missing day with selectedDayIndex", () => {
+    const missingDay = intent({
+      intentType: "ADD_VISIT",
+      targetVisitIds: [],
+      destinationId: "destination-3" as EditIntentResult["destinationId"],
+      params: { dayIndex: null, position: null, startTime: "09:00", durationMinutes: 60 },
+      affected: { visitIds: [], dayIndexes: [] },
+      clarificationReason: "MISSING_DAY",
+    });
+
+    const result = resolveEditIntent(
+      missingDay,
+      { selectedDayIndex: 2 },
+      { ...context, dayIndexes: [1, 2] },
+    );
+
+    expect(result).toMatchObject({
+      params: { dayIndex: 2 },
+      needsClarification: false,
+      clarificationReason: null,
+      affected: { dayIndexes: [2] },
     });
   });
 
