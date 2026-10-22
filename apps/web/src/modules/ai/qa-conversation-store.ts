@@ -14,6 +14,7 @@ import {
   type QaConversationDetailMetadata,
   type QaKnowledgeMode,
   qaKnowledgeModeSchema,
+  qaReferenceIdSchema,
 } from "./qa-contract";
 import { resolveQaContext } from "./qa-destination-context";
 import type { QaEvidence, QaHistoryTurn, QaPrincipal } from "./qa-runtime-contract";
@@ -214,10 +215,8 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
           const rows = await tx.$queryRaw<Conversation[]>(Prisma.sql`INSERT INTO qa_conversation(id,"principalKind","principalId",context,"expiresAt","createdAt","lastActivityAt","title") VALUES(${id},${p.kind},${p.id},${JSON.stringify(request.context)}::jsonb,${now}::timestamptz + ${p.kind === "GUEST" ? 7 : 30} * INTERVAL '1 day',${now}::timestamptz,${now}::timestamptz,NULL) RETURNING *`);
           conversation = rows[0]!;
           if (initialMode !== "SOURCE_ONLY") {
-            try {
-              await tx.$executeRaw(Prisma.sql`UPDATE qa_conversation SET "knowledgeMode"=${initialMode} WHERE id=${id}`);
-              conversation.knowledgeMode = initialMode;
-            } catch {}
+            await tx.$executeRaw(Prisma.sql`UPDATE qa_conversation SET "knowledgeMode"=${initialMode} WHERE id=${id}`);
+            conversation.knowledgeMode = initialMode;
           }
         }
         const turnId = randomUUID();
@@ -246,9 +245,7 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
         const generatedTitle = generateConversationTitle(turn.question ?? "Cuộc hội thoại mới");
         await tx.$executeRaw(Prisma.sql`UPDATE qa_conversation SET "headTurnId"=${r.turnId}, "activeTurnId"=NULL, "lastActivityAt"=${now}::timestamptz, "title"=COALESCE("title", ${generatedTitle}), "expiresAt"=${now}::timestamptz + ${p.kind === "GUEST" ? 7 : 30} * INTERVAL '1 day' WHERE id=${r.conversationId}`);
         if (parsed.knowledgeMode) {
-          try {
-            await tx.$executeRaw(Prisma.sql`UPDATE qa_conversation SET "knowledgeMode"=${parsed.knowledgeMode} WHERE id=${r.conversationId}`);
-          } catch {}
+          await tx.$executeRaw(Prisma.sql`UPDATE qa_conversation SET "knowledgeMode"=${parsed.knowledgeMode} WHERE id=${r.conversationId}`);
         }
         await options.abuse?.release(tx,r.turnId,r.fence);
         return parsed;
@@ -338,6 +335,7 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
       return transaction(async (tx) => {
         const now = await lockPrincipal(tx, p, currentTime);
         const owned = await loadOwned(tx, p, id, now);
+        await resolveQaContext(tx, owned.context, true);
         let newTitle = owned.title;
         let newMode = qaKnowledgeModeSchema.parse((owned as any).knowledgeMode ?? "SOURCE_ONLY");
         if (updates.title !== undefined) {
@@ -350,13 +348,11 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
         }
         if (updates.knowledgeMode !== undefined) {
           newMode = qaKnowledgeModeSchema.parse(updates.knowledgeMode);
-          try {
-            await tx.$executeRaw(Prisma.sql`
-              UPDATE qa_conversation
-              SET "knowledgeMode" = ${newMode}
-              WHERE id = ${id} AND "principalKind" = ${p.kind} AND "principalId" = ${p.id}
-            `);
-          } catch {}
+          await tx.$executeRaw(Prisma.sql`
+            UPDATE qa_conversation
+            SET "knowledgeMode" = ${newMode}
+            WHERE id = ${id} AND "principalKind" = ${p.kind} AND "principalId" = ${p.id}
+          `);
         }
         return { id, title: newTitle ?? "", knowledgeMode: newMode };
       });
@@ -371,13 +367,27 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
         const now = await lockPrincipal(tx, p, currentTime);
         const owned = await loadOwned(tx, p, id, now);
         await resolveQaContext(tx, owned.context, true);
+        if (options.cursor) {
+          if (!qaReferenceIdSchema.safeParse(options.cursor).success) error("INVALID_REQUEST");
+          const cursor = await tx.$queryRaw<{ id: string }[]>(Prisma.sql`
+            SELECT id FROM qa_turn WHERE id=${options.cursor} AND "conversationId"=${id}
+              AND "principalKind"=${p.kind} AND "principalId"=${p.id} AND state='COMPLETED'
+          `);
+          if (!cursor.length) error("INVALID_REQUEST");
+        }
+        // Page along the completed parent chain, as provider history does. DB
+        // timestamps can tie, so they cannot determine conversation order.
         const rows = await tx.$queryRaw<Turn[]>(Prisma.sql`
-          SELECT * FROM qa_turn
-          WHERE "conversationId" = ${id}
-            AND "principalKind" = ${p.kind}
-            AND "principalId" = ${p.id}
-            AND state = 'COMPLETED'
-          ORDER BY "createdAt" ASC
+          WITH RECURSIVE history AS (
+            SELECT t.*,0 AS depth FROM qa_turn t WHERE t.id=${owned.headTurnId}
+              AND t."conversationId"=${id} AND t."principalKind"=${p.kind} AND t."principalId"=${p.id} AND t.state='COMPLETED'
+            UNION ALL
+            SELECT t.*,h.depth+1 AS depth FROM qa_turn t JOIN history h ON h."parentTurnId"=t.id
+              WHERE t."conversationId"=${id} AND t."principalKind"=${p.kind} AND t."principalId"=${p.id} AND t.state='COMPLETED'
+          )
+          SELECT * FROM history
+          ${options.cursor ? Prisma.sql`WHERE depth < (SELECT depth FROM history WHERE id=${options.cursor})` : Prisma.empty}
+          ORDER BY depth DESC
           LIMIT ${limit + 1}
         `);
         const hasMore = rows.length > limit;
@@ -385,7 +395,7 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
           question: row.question!,
           response: qaCompletedTurnSchema.parse(row.response),
         }));
-        return { turns: items, nextCursor: null, hasMore };
+        return { turns: items, nextCursor: hasMore ? items[items.length - 1]!.response.turnId : null, hasMore };
       });
     },
     async history(p, id) {

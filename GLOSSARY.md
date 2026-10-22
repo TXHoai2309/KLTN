@@ -20,3 +20,10 @@ _Avoid_: Original source, verified document evidence.
 **QA question understanding (hiểu câu hỏi)**:
 Interpretation of the user's intended subject and requested information so that Q&A can search for relevant material and respond to the actual question.
 _Avoid_: Source verification, factual answer.
+
+**Contextual assistant panel (khung trợ lý theo điểm đến)**:
+A compact assistant conversation opened alongside the destination being viewed, so the traveler can ask questions without leaving that destination page.
+_Avoid_: Browser popup window, separate AI assistant.
+
+**Global assistant launcher (nút trợ lý dùng chung)**:
+The single floating entry owned by the application layout. Its mounted panel keeps the active conversation across client navigation; starting a new chat uses the current public page context or general Hà Giang Q&A.

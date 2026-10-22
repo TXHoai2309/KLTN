@@ -27,6 +27,54 @@ components:
 
 # Admin RAG design context
 
+## Global assistant correction approved by owner (2026-10-22)
+
+The owner now requests a launcher available across pages, fixes for Send, and a
+smaller popup header. This supersedes the earlier Destination-only placement and
+discard-on-client-navigation policy below. GlobalAssistantProvider in the root
+Providers owns one lazily opened session, portaled to body to avoid editorial
+typography and stacking contexts. Ordinary client navigation/minimize preserves
+the active conversation and draft; Chat mới adopts the current server-projected
+Destination or GENERAL on other pages. Reload has no durable recovery promise.
+Hide the launcher on full Assistant/auth routes to avoid duplicate controls;
+explicit full-page handoff releases the resolved panel after transferring its
+actual conversation ID, draft and mode. Saved chats stay in full-page history.
+
+Header hierarchy is a 14px Trợ lý AI title plus a single-line context disclosure;
+full names remain available by keyboard/touch. Existing colors/fonts/citations
+remain canonical. Desktop is non-modal; mobile contains focus, makes background
+inert, restores prior scroll/focus state, and bounds the composer to visualViewport.
+Styles live with the global Assistant, not Destination detail. No new API/schema,
+AI provider policy or permission rule is introduced.
+
+## Destination contextual assistant panel approved direction (2026-10-22)
+
+Owner requests that the Destination detail **Hỏi trợ lý AI** action open a compact
+right-corner conversation alongside the page. Existing Assistant typography,
+semantic theme tokens, lucide icons, citations and knowledge-mode presentation
+remain the visual owners. This is an embedded variant, not a new visual system.
+The existing full Assistant remains a separate surface; do not embed its sidebar,
+full-viewport shell, main landmark or URL synchronization unchanged.
+
+Owner approved Q1–Q7: desktop non-modal right-corner panel near 400×560px with
+viewport bounds; mobile full-width tall sheet; pinned Destination heading; compact
+messages/composer/suggestions/citations/knowledge toggle and Chat mới, without the
+all-chat sidebar. Opening alone sends no AI question. Minimize retains the mounted
+chat, draft and request; full-page navigation remains an explicit action once work
+is resolved. New page loads start a fresh panel chat; saved history stays available
+in the full Assistant. Header Assistant navigation keeps its existing behavior.
+
+Owner also approved Q8–Q9: explicit full-page continuation preserves unsent text
+and selected mode without auto-sending; pending/UNKNOWN work cannot be handed off
+by simply navigating. New-chat/in-app departure that discards unresolved intent
+uses the existing abandonment confirmation; leaving local recovery does not mean
+server cancellation. Ephemeral draft transfer must stay out of URLs and durable
+browser storage. The full contract is in
+`docs/implementation/destination-assistant-popup-contract.md`. On 2026-10-22, FE
+implemented the six-ticket breakdown: semantic FAB action, non-modal desktop panel,
+responsive mobile sheet with modal backdrop, in-memory one-use handoff adapter,
+hidden-state minimize preservation, and principal/context isolation without URL leaks.
+
 ## Trip merge and Save recovery (2026-10-21)
 
 Owner-selected Trip UI follows ThaiAnh's existing layouts, CSS/theme tokens and

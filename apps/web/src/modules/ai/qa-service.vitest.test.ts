@@ -132,4 +132,29 @@ describe("QA orchestration without external services",()=>{
     expect(qaRequestHash(follow)).toBe(qaRequestHash({...follow,context:{type:"GENERAL"}}));
     expect(qaRequestHash({...follow,parentTurnId:null})).not.toBe(qaRequestHash(follow));
   });
+  it("browser abort during persistence does not certify cancellation of a Destination turn", async () => {
+    const t = setup();
+    const context = { type: "DESTINATION" as const, destinationId: "panel_fixture" };
+    t.reservation.context = context;
+    let acknowledge!: () => void;
+    let writing!: () => void;
+    const started = new Promise<void>(resolve => { writing = resolve; });
+    vi.mocked(t.store.complete).mockImplementation(async (_principal, _reservation, data) => {
+      writing();
+      return new Promise<QaCompletedTurn>(resolve => { acknowledge = () => resolve(data); });
+    });
+    const service = createQaService({ store: t.store, retriever: t.retriever, generator: t.generator,
+      resolveContext: async () => ({ ...context, name: "Điểm kiểm thử" }),
+    });
+    const browser = new AbortController();
+    const pending = service.ask(principal, "panel_abort_key", { question: "xin chào", context, knowledgeMode: "EXPANDED" }, browser.signal);
+    await started;
+    browser.abort();
+    acknowledge();
+    const result = await pending;
+    expect(result.data).toMatchObject({ context, knowledgeMode: "EXPANDED", turnState: "COMPLETED" });
+    expect(t.store.complete).toHaveBeenCalledOnce();
+    expect(t.store.fail).not.toHaveBeenCalled();
+    expect(t.generator.generate).not.toHaveBeenCalled();
+  });
 });
