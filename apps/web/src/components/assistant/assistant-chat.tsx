@@ -129,7 +129,8 @@ export function AssistantChat({
     transport,
     identity,
     createIdempotencyKey,
-    assistantContextFromUrl(initialContext, destinations, syncContextUrl && typeof window !== "undefined" ? window.location.search : undefined)
+    assistantContextFromUrl(initialContext, destinations, syncContextUrl && typeof window !== "undefined" ? window.location.search : undefined),
+    "EXPANDED"
   ));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
   const setContextDisplay = useContext(AssistantContextDisplay);
@@ -829,8 +830,9 @@ export function AssistantChat({
                             {destinations.map(destination => <option key={destination.id} value={destination.id}>{destination.name}</option>)}
                           </select>
                           {state.context.type === "DESTINATION" && (
-                            <button type="button" className="assistant-context-clear-btn" disabled={unresolved || !available} onClick={() => changeContext({ type: "GENERAL" })} title="Xóa bối cảnh">
-                              Xóa bối cảnh
+                            <button type="button" className="assistant-context-clear-btn" disabled={unresolved || !available} onClick={() => changeContext({ type: "GENERAL" })} title="Xóa bối cảnh" aria-label="Xóa bối cảnh">
+                              <span className="assistant-context-clear-x" aria-hidden="true">✕</span>
+                              <span className="assistant-context-clear-text">Xóa bối cảnh</span>
                             </button>
                           )}
                         </div>

@@ -194,7 +194,7 @@ export function DestinationAssistantPanel({
       <div
         ref={panelRef}
         id={panelId}
-        className="destination-assistant-panel assistant-page"
+        className="destination-assistant-panel assistant-chat-panel assistant-page"
         hidden={!isOpen}
         style={{ display: isOpen ? "flex" : "none" }}
         role="dialog"

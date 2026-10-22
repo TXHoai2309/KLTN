@@ -40,7 +40,7 @@ export type QaDiagnosticEvent = {
   providerFailureReason?: QaProviderFailureReason;
   timeoutReason?: "PROVIDER_TIMEOUT" | "REQUEST_DEADLINE" | "REQUEST_ABORT";
   configuredTimeoutMs?: number;
-  reasoningEffort?: "medium" | "none";
+  reasoningEffort?: "high" | "medium" | "none";
   reasoningTokens?: number;
 };
 type ProviderMetadata = Pick<QaDiagnosticEvent, "provider" | "httpStatus" | "requestId" | "finishReason" | "promptTokens" | "completionTokens" | "totalTokens" | "requestedModel" | "actualModel" | "providerElapsedMs" | "providerPhase" | "providerFailureReason" | "timeoutReason" | "configuredTimeoutMs" | "reasoningEffort" | "reasoningTokens">;

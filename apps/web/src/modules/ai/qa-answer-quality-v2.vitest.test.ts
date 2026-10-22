@@ -68,7 +68,7 @@ describe("US23 grounded synthesis V2 (mock semantic verdicts, no paid calls)", (
     // In simplified 2-call flow (Ticket 03), generator calls provider once
     expect(t.fetcher).toHaveBeenCalledTimes(1);
     for (const call of t.fetcher.mock.calls) {
-      expect(JSON.parse(String(call[1]?.body))).toMatchObject({ model: "gpt-6.1-sol", reasoning_effort: "medium" });
+      expect(JSON.parse(String(call[1]?.body))).toMatchObject({ model: "gpt-6-luna", reasoning_effort: "high" });
     }
     expect(JSON.stringify(answer)).not.toMatch(/binding|chunkHash|fixture_document/);
   });
@@ -104,7 +104,7 @@ describe("US23 grounded synthesis V2 (mock semantic verdicts, no paid calls)", (
     expect(answer.status).toBe("ANSWERED");
     expect(t.fetcher).toHaveBeenCalledTimes(1);
     const body = JSON.parse(String(t.fetcher.mock.calls[0]![1]!.body));
-    expect(body).toMatchObject({ model: "gpt-6.1-sol", reasoning_effort: "medium" });
+    expect(body).toMatchObject({ model: "gpt-6-luna", reasoning_effort: "high" });
     const payload = JSON.parse(body.messages[1].content);
     expect(payload.CURRENT_EVIDENCE).toHaveLength(2);
     expect(payload.CURRENT_EVIDENCE.map((e: { citationId: string }) => e.citationId)).toEqual(["c1", "c2"]);
@@ -216,7 +216,7 @@ describe("US23 grounded synthesis V2 (mock semantic verdicts, no paid calls)", (
     const fetcher = vi.fn<typeof fetch>(async (_url, init) => envelope(fixtureAssessmentWire({ intent: "CLEAR", exhaustive: true, relevance: [{ citationId: "c1", status: "RELATED" }], aspects: [{ id: "current_price", status: "MISSING", supports: [] }] }, JSON.parse(String(init?.body)))));
     await createQaAssessor({ apiKey: () => "offline", fetcher }).assess(input);
     const body = String(fetcher.mock.calls[0]![1]!.body);
-    expect(JSON.parse(body)).toMatchObject({ model: "gpt-6.1-sol", reasoning_effort: "medium" });
+    expect(JSON.parse(body)).toMatchObject({ model: "gpt-6-luna", reasoning_effort: "high" });
     expect(body).toContain("requested entity"); expect(body).toContain("registry handles"); expect(body).toContain("entire corpus");
     expect(body).toContain("CLEAR overview intent");
     expect(body).toContain("explicit narrow question");

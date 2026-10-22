@@ -500,8 +500,10 @@ export function AssistantChatSurface({
                             disabled={unresolved || !available}
                             onClick={() => changeContext({ type: "GENERAL" })}
                             title="Xóa bối cảnh"
+                            aria-label="Xóa bối cảnh"
                           >
-                            Xóa bối cảnh
+                            <span className="assistant-context-clear-x" aria-hidden="true">✕</span>
+                            <span className="assistant-context-clear-text">Xóa bối cảnh</span>
                           </button>
                         )}
                       </div>

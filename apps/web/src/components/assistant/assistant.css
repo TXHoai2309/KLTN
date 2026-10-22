@@ -1548,50 +1548,9 @@
   gap: 8px;
 }
 
-.assistant-page .assistant-knowledge-toggle {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-  background: #f2f7f4 !important;
-  padding: 0 12px 0 10px !important;
-  height: 32px !important;
-  min-height: 32px !important;
-  border-radius: 9999px !important;
-  border: 1px solid #d7e4db !important;
-  font-size: 12.5px !important;
-  font-weight: 500 !important;
-  color: var(--assistant-ink) !important;
-  cursor: pointer !important;
-  box-shadow: none !important;
-  transition: all 0.2s ease !important;
-  user-select: none;
-}
-
-.assistant-page .assistant-knowledge-toggle:hover:not(:disabled) {
-  background: #e7f1ea !important;
-  border-color: #1e563b !important;
-  box-shadow: 0 2px 6px rgba(30, 86, 59, 0.06) !important;
-}
-
-.assistant-page .assistant-knowledge-toggle.active {
-  background: linear-gradient(135deg, #1e563b 0%, #297350 100%) !important;
-  color: #ffffff !important;
-  border-color: #1e563b !important;
-  box-shadow: 0 2px 8px rgba(30, 86, 59, 0.25) !important;
-}
-
-.assistant-knowledge-toggle-icon {
-  width: 13px;
-  height: 13px;
-}
-
-.assistant-page .assistant-knowledge-toggle.active .assistant-knowledge-toggle-icon {
-  color: #fce182;
-}
-
-.assistant-page .assistant-knowledge-toggle:disabled {
-  opacity: 0.5 !important;
-  cursor: not-allowed !important;
+.assistant-page .assistant-knowledge-toggle,
+.assistant-knowledge-toggle {
+  display: none !important;
 }
 
 .assistant-expanded-badge {
@@ -1612,19 +1571,24 @@
 }
 
 .assistant-context-controls {
-  font-size: 12.5px;
-  margin: 0;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .assistant-context-bar {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   background: #f2f7f4;
-  padding: 0 12px 0 10px;
-  height: 32px;
+  padding: 0 8px 0 10px;
+  height: 28px;
   border-radius: 9999px;
   border: 1px solid #d7e4db;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   transition: all 0.2s ease;
 }
 
@@ -1643,48 +1607,64 @@
 }
 
 .assistant-context-label svg {
-  width: 14px;
-  height: 14px;
+  width: 13px;
+  height: 13px;
 }
 
+/* Hide static strong text to prevent duplicate name display since select already shows the chosen destination */
 .assistant-context-name {
-  font-weight: 600;
-  color: var(--assistant-ink);
-  font-size: 12.5px;
-  white-space: nowrap;
+  display: none !important;
 }
 
 .assistant-context-select {
-  height: 28px;
-  min-height: 28px;
+  height: 26px;
+  min-height: 26px;
   min-width: 0;
+  max-width: 160px;
   padding: 0 2px;
   border: none;
   background: transparent;
   color: #18442e;
   font-weight: 600;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
   outline: none;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .assistant-page .assistant-context-clear-btn {
-  height: 22px !important;
-  min-height: 22px !important;
-  padding: 0 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  height: 20px !important;
+  min-height: 20px !important;
+  padding: 0 6px !important;
   border-radius: 9999px !important;
-  font-size: 11px !important;
+  font-size: 10.5px !important;
   font-weight: 550 !important;
   background: #ffffff !important;
   border: 1px solid #e8d0cb !important;
   color: #8c3226 !important;
   box-shadow: none !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  cursor: pointer !important;
   transition: all 0.15s ease !important;
+}
+
+.assistant-context-clear-x {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .assistant-page .assistant-context-clear-btn:hover:not(:disabled) {
   background: #fdf2f0 !important;
   border-color: #d6877e !important;
+  color: #b02a1a !important;
 }
 
 /* Send button inside composer-bar */
@@ -2103,12 +2083,29 @@
     font-size: 13.5px;
   }
   .assistant-answer-table { min-width: 0; }
-  .assistant-answer-table th, .assistant-answer-table td { padding: 8px; }
   .assistant-bottom-dock-inner {
     padding: 6px 10px 10px;
   }
   .assistant-composer-bar {
     flex-wrap: wrap;
+    gap: 8px;
+  }
+  .assistant-composer-left-tools {
+    max-width: calc(100% - 70px);
+    min-width: 0;
+  }
+  .assistant-context-bar {
+    max-width: 100%;
+  }
+  .assistant-context-select {
+    max-width: 120px;
+  }
+  .assistant-context-clear-text {
+    display: none !important;
+  }
+  .assistant-page .assistant-context-clear-btn {
+    padding: 0 5px !important;
+    min-width: 20px !important;
   }
   .assistant-composer-footer {
     flex-direction: column;

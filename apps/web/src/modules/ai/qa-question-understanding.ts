@@ -24,7 +24,7 @@ function needsHistory(question: string): boolean {
   // This resolves intent only, never semantic relevance or source sufficiency.
   const text = qaFactualQuestion(question);
   if (/^(?:còn|vậy|thế)(?:\s+trong)?\s+năm\s+(?:19|20|21)\d{2}(?:\s+thì sao)?$/u.test(text)) return true;
-  return /(?:^|\s)(?:nó|ở đó|nơi đó|nơi này|điểm đến này|địa điểm đó|địa điểm này|chỗ đó|chỗ này|vừa nhắc|kể trên)(?:\s|$)/u.test(text) ||
+  return /(?:^|\s)(?:nó|ở đó|nơi đó|nơi này|điểm đến này|địa điểm đó|địa điểm này|chỗ đó|chỗ này|chỗ ấy|vừa nhắc|kể trên|tại đây|tại đó|gần đó|ở đây|trên đó|dưới đó)(?:\s|$)/u.test(text) ||
     /^(?:còn|vậy|thế)(?:\s+còn)?\s+(?:(?:các|những)\s+)?(?:địa điểm|điểm đến|nơi|chỗ)(?:\s+(?:khác|còn lại))(?:\s+(?:thì sao|thế nào|như thế nào))?$/u.test(text) ||
     /^họ\s+(?:là|làm|ở|có|đã|được|sống|sử dụng)(?:\s|$)/u.test(text) ||
     /^(?:(?:mình|tôi) muốn biết thêm|thêm|nói thêm|kể thêm|giải thích thêm)(?:\s+(?:đi|nữa|được không))?$/u.test(text) ||
@@ -38,7 +38,16 @@ function needsHistory(question: string): boolean {
     /^(?:đường đi\s+)?có khó đi không$/u.test(text) ||
     /^(?:(?:còn|vậy|thế)\s+)?có gì\s+(?:đặc biệt|nổi bật|đẹp|chơi|hay|thú vị|tham quan|làm|trải nghiệm)(?:\s+(?:thì sao|thế nào|như thế nào|không))?$/u.test(text) ||
     /^(?:(?:còn|vậy|thế)\s+)?(?:hoạt động|trải nghiệm|điểm tham quan)(?:\s+gì|\s+nào)?(?:\s+(?:nổi bật|đặc sắc|thú vị))?(?:\s+(?:thì sao|thế nào|như thế nào))?$/u.test(text) ||
-    /^(?:(?:còn|vậy|thế)\s+)?(?:ăn gì|uống gì|món gì ngon|đặc sản gì|nghỉ ở đâu|khách sạn nào|homestay nào|cần chuẩn bị gì|chuẩn bị gì|kinh nghiệm|lưu ý gì|chú ý gì|trang phục|mặc gì)(?:\s+(?:ngon|thì sao|thế nào|như thế nào|khi đi|khi tham quan))?$/u.test(text);
+    /^(?:(?:còn|vậy|thế)\s+)?(?:ăn gì|uống gì|món gì ngon|đặc sản gì|nghỉ ở đâu|khách sạn nào|homestay nào|cần chuẩn bị gì|chuẩn bị gì|kinh nghiệm|lưu ý gì|chú ý gì|trang phục|mặc gì)(?:\s+(?:ngon|thì sao|thế nào|như thế nào|khi đi|khi tham quan))?$/u.test(text) ||
+    /^(?:(?:còn|vậy|thế)\s+)?(?:thời tiết|khí hậu|nhiệt độ|mưa|nắng|sương mù|lạnh)(?:\s+(?:thì sao|thế nào|như thế nào|vào mùa này))?$/u.test(text) ||
+    /^(?:(?:còn|vậy|thế)\s+)?(?:mất|tốn)?\s*(?:bao lâu|bao nhiêu thời gian|mấy ngày|mấy tiếng)(?:\s+(?:để đi|tham quan|di chuyển))?$/u.test(text) ||
+    /^(?:đi\s+)?(?:xe máy|ô tô|xe khách|xe buýt|máy bay)(?:\s+(?:được không|có tiện không|thì sao))?$/u.test(text) ||
+    /^(?:(?:còn|vậy|thế)\s+)?(?:tại sao|vì sao|nguồn gốc|ý nghĩa tên gọi|tên gọi)(?:\s+(?:lại gọi là|là gì|như vậy|thế))?$/u.test(text) ||
+    /^(?:(?:còn|vậy|thế)\s+)?(?:chụp ảnh|check-in|sống ảo)(?:\s+(?:ở đâu đẹp|góc nào đẹp|chỗ nào đẹp|thì sao|thế nào|được không))?$/u.test(text) ||
+    /^(?:(?:còn|vậy|thế)\s+)?(?:có mất vé không|có mất tiền không|có thu phí không|miễn phí không|có vé không)$/u.test(text) ||
+    /^(?:(?:còn|vậy|thế)\s+)?(?:mấy giờ|giờ mở cửa|giờ đóng cửa|có mở cửa lúc)(?:\s+(?:mở cửa|đóng cửa|thì sao|thế nào|không))?$/u.test(text) ||
+    /^(?:(?:còn|vậy|thế)\s+)?(?:còn gì nữa không|ngoài ra còn gì nữa|còn điểm nào nữa không)$/u.test(text) ||
+    (!/về\s+[A-ZÀ-Ỹ]/u.test(text) && /^(?:(?:hãy\s+)?(?:kể|nói|cho biết|chia sẻ|hướng dẫn)\s+(?:thêm|rõ hơn|chi tiết hơn))(?:\s+(?:nữa|đi|nhé|ạ))?$/u.test(text));
 }
 
 export const QA_FOLLOWUP_CLARIFICATIONS = {
