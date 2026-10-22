@@ -281,6 +281,27 @@ describe("repair then hard-validate V4", () => {
     expect(codes(result)).toContain("DUPLICATE_ID_REPAIRED");
     assertIntact(result);
   });
+  it("deduplicates media IDs so no photo appears more than once across visible sections", () => {
+    const candidate = structuredClone(base);
+    const mediaId = context.media[0]!.id;
+    // Add two sections using the same media ID
+    candidate.sections.push({
+      id: "media-section-1",
+      type: "SECTION",
+      mediaIds: [mediaId],
+      text: "Đoạn 1",
+    });
+    candidate.sections.push({
+      id: "media-section-2",
+      type: "SECTION",
+      mediaIds: [mediaId],
+      text: "Đoạn 2",
+    });
+    const result = run(candidate);
+    const photos = nodes(result).filter(n => !n.hidden).flatMap(n => n.mediaIds ?? []);
+    expect(new Set(photos).size).toBe(photos.length);
+    assertIntact(result);
+  });
 });
 
 function exact(s: string) { return s.normalize("NFC").replace(/\s+/g, " ").trim(); }
