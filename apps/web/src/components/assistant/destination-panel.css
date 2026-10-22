@@ -509,15 +509,18 @@
 .destination-assistant-panel .assistant-composer-input,
 .assistant-chat-panel .assistant-composer-input {
   display: flex !important;
-  flex-direction: column !important;
+  flex-direction: row !important;
+  align-items: center !important;
   border: 1px solid #d0ded5 !important;
-  border-radius: 14px !important;
+  border-radius: 9999px !important;
   background: #ffffff !important;
-  padding: 6px 8px 6px 12px !important;
-  gap: 2px !important;
+  padding: 4px 6px 4px 12px !important;
+  gap: 6px !important;
   overflow: hidden;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   box-shadow: 0 1px 3px rgba(15, 76, 58, 0.04) !important;
+  min-height: 38px !important;
+  box-sizing: border-box !important;
 }
 
 .destination-assistant-panel .assistant-composer-input:focus-within,
@@ -531,8 +534,12 @@
 .assistant-chat-panel textarea,
 .destination-assistant-panel .assistant-composer textarea,
 .assistant-chat-panel .assistant-composer textarea {
-  width: 100% !important;
-  min-height: 24px !important;
+  display: block !important;
+  flex: 1 1 auto !important;
+  width: auto !important;
+  min-width: 0 !important;
+  height: 22px !important;
+  min-height: 22px !important;
   max-height: 72px !important;
   padding: 2px 0 !important;
   border: none !important;

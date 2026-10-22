@@ -1474,45 +1474,50 @@
   padding-top: 0;
 }
 
-/* Two-row composer input box */
+/* Single-row sleek composer input box */
 .assistant-composer-input {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
   gap: 8px;
   border: 1.5px solid #d4e1d8;
-  border-radius: 22px;
-  padding: 14px 16px 12px 18px;
+  border-radius: 9999px;
+  padding: 4px 6px 4px 16px;
   background: #ffffff;
-  box-shadow: 0 4px 20px -2px rgba(18, 44, 30, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 2px 10px -2px rgba(18, 44, 30, 0.05);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
   position: relative;
+  min-height: 42px;
+  box-sizing: border-box;
 }
 
 .assistant-composer-input:hover {
   border-color: #bcd1c2;
-  box-shadow: 0 6px 24px -2px rgba(18, 44, 30, 0.08), 0 2px 8px -1px rgba(0, 0, 0, 0.03);
+  box-shadow: 0 4px 14px -2px rgba(18, 44, 30, 0.08);
 }
 
 .assistant-composer-input:focus-within {
   border-color: #1e563b;
-  box-shadow: 0 0 0 3.5px rgba(30, 86, 59, 0.12), 0 8px 30px -4px rgba(18, 44, 30, 0.1);
+  box-shadow: 0 0 0 3px rgba(30, 86, 59, 0.12), 0 4px 16px -2px rgba(18, 44, 30, 0.1);
   background: #ffffff;
 }
 
 .assistant-composer textarea {
   display: block;
   resize: none;
-  width: 100%;
+  flex: 1 1 auto;
+  width: auto;
   min-width: 0;
-  min-height: 46px;
-  max-height: 180px;
-  padding: 2px 0 4px;
+  height: 24px;
+  min-height: 24px;
+  max-height: 96px;
+  padding: 2px 0;
   border: 0 !important;
   background: transparent;
   color: var(--assistant-ink);
   font: inherit;
-  font-size: 15px;
-  line-height: 1.58;
+  font-size: 14px;
+  line-height: 20px;
   outline: none !important;
   box-shadow: none !important;
 }
@@ -1531,21 +1536,21 @@
   font-weight: 400;
 }
 
-/* Bottom action row inside composer: Context picker on left, Send button on right */
+/* Action controls and submit button inline with textarea */
 .assistant-composer-bar {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-top: 8px;
-  border-top: 1px solid rgba(225, 236, 229, 0.7);
+  gap: 6px;
+  padding: 0;
+  border-top: none !important;
+  flex-shrink: 0;
 }
 
 .assistant-composer-left-tools {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .assistant-page .assistant-knowledge-toggle,
@@ -1672,20 +1677,20 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
   background: linear-gradient(135deg, #1e563b 0%, #123d27 100%);
   color: #ffffff;
-  min-width: 78px;
-  height: 34px;
-  min-height: 34px;
-  padding: 0 16px;
+  min-width: auto;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 14px;
   border-radius: 9999px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12.5px;
   letter-spacing: 0.01em;
   border: none;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(18, 61, 39, 0.22);
+  box-shadow: 0 2px 6px rgba(18, 61, 39, 0.2);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
 }

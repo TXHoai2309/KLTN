@@ -60,3 +60,40 @@ Local evidence (outside Git): `C:/Users/User/AppData/Local/Temp/kltn-us19-docx-q
 4. If extraction fails, inspect the Admin progress API's extractionDiagnostic and correlate its UUID with the server diagnostic. Do not auto-retry an UNKNOWN provider outcome.
 
 No runtime blocker remains for the demonstrated originals. Live owner retry, actual embeddings/vector ranking and real database publication remain LIVE_PENDING. Sixteen opt-in PostgreSQL assertions were not run; the authorized mock path was used. Existing unrelated V4/category/Prisma dirty changes were preserved. No .env, migration or model change; no Neon write, approval/index operation, paid provider call, commit, push or deployment.
+
+## 2026-10-22 — Complex pagination field correction
+
+The reported diagnostic points to `word/footer1.xml`,
+`ftr/p[0]/r[2]/instrText[1]`. A synthetic DOCX with that exact structure
+reproduced `RAG_EXTRACTION_COVERAGE_FAILURE` and `INCOMPLETE_COVERAGE` in the
+real worker extraction path before the fix. Unlike `fldSimple`, the previous
+extractor rejected every complex-field `instrText`, including supported PAGE fields.
+
+- Inspect complete complex fields in document order within each body/header/footer
+  part. Join instruction fragments across runs and paragraphs; validate begin,
+  optional separator, and end markers. Never join fields across story parts.
+- Apply the existing pagination allowlist (PAGE/NUMPAGES/SECTIONPAGES and the
+  existing MERGEFORMAT/Arabic switch support) to both simple and complex fields.
+  Preserve saved visible results and surrounding text; never evaluate instructions,
+  fetch field targets, or synthesize a missing page result. A pagination field with
+  no saved result contributes no text, matching the existing simple-field policy.
+- Unsupported instructions, orphan/unterminated/duplicate markers, nested complex
+  fields and complex fields nested in simple fields remain coverage failures.
+  Validate the namespaces of the newly supported field elements. Diagnostics retain
+  structural locations without private instructions or document text.
+- Bump DOCX extractor identity to `ooxml-stories-fields-v3`; PDF/TXT unchanged.
+  Existing coverage, authorization, publication and confirmed-write rules remain.
+
+Validation: the exact-location worker regression failed before the change and now
+completes through fake embeddings and mocked publication. The paired unsupported
+field test still fails before chunk persistence/provider invocation. Extraction
+tests cover all three pagination fields, split instructions, saved results,
+header/body/footer provenance, deterministic re-extraction, chunk coverage and
+malformed/foreign markup. The final RAG processing/index suite passes **207 tests**;
+**27 opt-in tests skipped** (20 PostgreSQL, 7 owner-file cases). Workspace typecheck
+passes. Production build and final diff review are recorded in the progress entry.
+
+The failing uploaded DOCX itself was not supplied; its field instruction is not
+known from the diagnostic alone. Live Blob/provider/database retry remains pending
+deployment and an explicit Admin retry. No schema or migration change, database or
+paid-provider call, commit, push or deployment was performed for this correction.

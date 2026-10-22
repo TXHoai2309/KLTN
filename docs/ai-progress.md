@@ -3871,3 +3871,75 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
   - 12 failures in `qa-advanced-reasoning.vitest.test.ts` remain pre-existing baseline failures reproduced on HEAD `18e5e50`.
   - Disposable PostgreSQL suite remains pending Docker readiness as noted in API/BE handoff.
 - Status: All six vertical tickets marked `IMPLEMENTED` with FE & BE evidence; awaiting final owner acceptance. No commits, push, merge, or deployment performed.
+
+## 2026-10-22 — Destination Assistant Mini Chat, GPT-6 Luna & UI Fixes
+
+- **Feature / Epic:** Destination Contextual Assistant Popup (Mini Chat AI) & Q&A Enhancements.
+- **Completed Tasks:**
+  1. **Mini Chat AI Foundation (Tickets 01–06 & Global Launcher):**
+     - **Ticket 01 (Shared Chat Seam):** Tách `AssistantChatSurface` và `mode="page" | "panel"` dùng chung logic chat mà không bị gắn chặt vào URL/sidebar full page.
+     - **Ticket 02 (Destination Panel Chat):** Nút FAB chuyển thành `<button>` mở popup panel góc phải (~400×560px) gắn bối cảnh điểm đến mà không reload/navigate trang.
+     - **Ticket 03 (Minimize & State Recovery):** Đóng/thu gọn panel vẫn giữ nguyên controller, draft và trạng thái pending/retry trong DOM.
+     - **Ticket 04 (Responsive Mobile Sheet):** Mobile tự động chuyển thành tall bottom sheet (`min(85dvh, 640px)`) kèm backdrop mờ; giữ vị trí đọc tài liệu khi mở trích dẫn.
+     - **Ticket 05 (In-Memory Draft Handoff):** Chuyển draft và chế độ kiến thức một lần an toàn sang trang `/assistant` khi mở toàn màn hình (`assistant-handoff.ts`).
+     - **Ticket 06 (Identity & Context Isolation):** Tự động cô lập trạng thái khi đổi người dùng hoặc đổi điểm đến.
+     - **Global Assistant (`GlobalAssistant`):** Gắn launcher nổi ở góc màn hình layout root để mở trợ lý AI nhanh từ mọi trang.
+  2. **Knowledge Expansion & Control Simplification:**
+     - Ẩn nút "Mở rộng kiến thức" khỏi giao diện FE nhưng luôn **mặc định BẬT** (`knowledgeMode: "EXPANDED"`).
+     - Ẩn context pill "Hỏi đáp chung" ở trạng thái rảnh để giao diện gọn gàng.
+  3. **AI Model Upgrade & Multi-Turn Session Continuity:**
+     - Nâng cấp model hỏi đáp sang **`gpt-6-luna`** với `reasoning_effort: "high"`, không dùng `temperature`, ngân sách `max_completion_tokens: 8000`.
+     - Bổ sung cấu hình biến môi trường `OPENAI_QA_MODEL` vào `.env.example`, `.env.schema` và `qa-json-provider.ts`.
+     - Cải tiến cơ chế nhớ ngữ cảnh phiên (Multi-turn Continuity): mở rộng `needsHistory` và `CONTINUITY_POLICY` giúp AI nhớ câu hỏi trước và tự động kế thừa thực thể khi người dùng hỏi tiếp nối trong cùng phiên.
+  4. **Compact Composer (Thu gọn ô nhập chat popup):**
+     - Đồng bộ styling `.destination-assistant-panel` / `.assistant-chat-panel`.
+     - Rút gọn chiều cao textarea từ `46px` xuống `24px` (1 dòng chuẩn, tự mở rộng tối đa 72px khi gõ nhiều dòng), giảm padding khung nhập từ `14px 16px` xuống `6px 8px 6px 12px`, bỏ đường kẻ ngang thừa, thu nhỏ nút Gửi (`height: 26px`). Giảm hơn 50% diện tích chiếm dụng của ô nhập.
+  5. **Context Bar UI & Mobile Overflow Fix (Sửa lỗi thanh bối cảnh địa điểm):**
+     - Ẩn thẻ tĩnh `.assistant-context-name` bị lặp chữ cùng với dropdown `<select>`.
+     - Giới hạn `max-width` kèm `text-overflow: ellipsis` cho dropdown chọn điểm đến, chống tràn viền.
+     - Tối ưu nút "Xóa bối cảnh": trên mobile (<= 640px) tự động thu gọn thành nút icon tròn `✕` nhỏ nhắn, không bị tràn ra ngoài viền phải khung chat như tester phản ánh; trên desktop hiển thị icon + text đầy đủ.
+     - Sửa lỗi cú pháp CSS unclosed block trong media query `assistant.css`.
+- **Validation:**
+  - `vitest run src/components/assistant/`: **183/183 tests PASS (100%)**.
+  - `npm run build`: Compiled Turbopack, TypeScript, 46 static pages generated thành công 100%, exit 0.
+
+## 2026-10-22 — Admin User Management UI/UX Promax & Dialog Transparency Fix
+
+- **Task:** Fix dialog transparency bug on `/admin/users/[id]` and polish modal UI.
+- **Bug Identified:**
+  - Native `<dialog>` elements rendered via `showModal()` are promoted to top layer. CSS variables `--destination-surface`, `--destination-ink`, etc. were scoped only inside `.admin-users-page`, which was not present on the user detail page (`dv3-page`), causing `.admin-modal-content` background to evaluate to `initial` (transparent). Modal text and controls overlapped page content directly.
+- **Fixes Applied:**
+  - Scoped Destination tokens globally (`:root`, `.admin-users-page`, `.admin-users-dialog`).
+  - Enforced solid, opaque background (`#ffffff` light, `#111b15` dark), deep shadow, and solid borders on `.admin-modal-content`, `.admin-modal-header`, `.admin-modal-body`, `.admin-modal-footer`, and `.admin-modal-user-box`.
+  - Upgraded role selection dialog with role descriptions, icons (`ShieldAlert` / `User`), radio alignment, and clear active card styling.
+  - Added solid color fallbacks for `.admin-btn-primary`, `.admin-btn-outline`, `.admin-btn-destructive`.
+- **Validation:**
+  - `npm run check-types`: 0 errors.
+  - `npx vitest run admin-user`: 21 tests passed (3 test files).
+  - `git diff --check`: 0 errors.
+
+## 2026-10-22 — RAG DOCX complex pagination fields
+
+- **Task:** Correct footer `instrText` coverage failures reported during indexing.
+- **Reproduction:** Before the fix, the worker regression with a synthetic PAGE
+  field emitted `RAG_EXTRACTION_COVERAGE_FAILURE`, `INCOMPLETE_COVERAGE`,
+  `word/footer1.xml`, `ftr/p[0]/r[2]/instrText[1]`, matching the supplied diagnostic.
+- **Changes:** Validate complete complex fields within each Word story part;
+  support the existing PAGE/NUMPAGES/SECTIONPAGES pagination allowlist, joining
+  split instruction fragments while retaining saved displayed results. Never
+  execute instructions or infer page values. Unsupported/malformed/nested fields
+  remain blocking; new field elements receive namespace validation. DOCX extractor
+  version is `ooxml-stories-fields-v3`. See
+  [US-19 correction](stories/US-19-docx-extraction-fix.md#2026-10-22--complex-pagination-field-correction).
+- **Validation:** `npx vitest run --config vitest.config.mts
+  src/modules/rag-processing src/modules/rag-index` from `apps/web`: **207 passed,
+  27 opt-in skipped** (20 PostgreSQL and 7 owner-file cases). The exact-location
+  pagination worker test now completes through fake embeddings/mock publication;
+  unsupported instructions still fail before persistence/provider calls.
+  Root `npm run check-types`, `npm run build` (46 generated pages) and
+  `git diff --check`: PASS.
+- **Limits/handoff:** The failing uploaded original was not available, so actual
+  field contents and live retry are unverified. Deploy the correction, then retry
+  the failed job explicitly from Admin. No migration/schema, live database/Blob or
+  paid provider operations, commit, push or deployment. Existing unrelated Admin,
+  Assistant and editorial changes and prior progress entries were preserved.

@@ -319,7 +319,26 @@ export function repairEditorialProposal(raw: string, base: EditorialLayoutV2, co
   };
   compactTree();
 
+  const deduplicateNodeIds = () => {
+    const seen = new Set<string>();
+    const walk = (nodes: any[], path: (string | number)[]) => {
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
+        if (!node || typeof node !== "object") continue;
+        if (!node.id || seen.has(node.id)) {
+          const oldId = typeof node.id === "string" && node.id ? node.id : "repaired-node";
+          node.id = identity(oldId);
+          record("DUPLICATE_ID_REPAIRED", [...path, i, "id"]);
+        }
+        seen.add(node.id);
+        if (Array.isArray(node.children)) walk(node.children, [...path, i, "children"]);
+      }
+    };
+    if (Array.isArray(data.sections)) walk(data.sections, ["sections"]);
+  };
+
   const parse = () => {
+    deduplicateNodeIds();
     const result = editorialLayoutV2Schema.safeParse(data);
     if (!result.success) { const issue = result.error.issues[0]!; fail("SCHEMA", issue.path as (string | number)[], issue.code === "custom" ? String(issue.params?.issueCode ?? issue.code) : issue.code, "TREE_CONTRACT"); }
     return result.data!;

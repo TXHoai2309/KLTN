@@ -19,6 +19,7 @@ const attr = (node: XmlNode, name: string) => {
   return key ? attributes![key] : undefined;
 };
 const child = (node: XmlNode, name: string) => children(node).find(node => local(tag(node)) === name);
+const isPaginationInstruction = (value: string) => /^(?:PAGE|NUMPAGES|SECTIONPAGES)(?:\s+\\\*\s+(?:MERGEFORMAT|Arabic))?$/i.test(value.trim());
 const crcTable = Uint32Array.from({ length: 256 }, (_, n) => {
   let value = n;
   for (let i = 0; i < 8; i++) value = (value >>> 1) ^ ((value & 1) ? 0xedb88320 : 0);
@@ -144,7 +145,7 @@ function checkWordNamespaces(node: XmlNode, inherited: Record<string, string> = 
   }
   const name = tag(node);
   const prefix = name.includes(":") ? name.split(":")[0] : "";
-  if (["hdr", "ftr", "hyperlink", "fldSimple", "document", "body", "styles", "style", "basedOn", "p", "pPr", "pStyle", "outlineLvl", "r", "t", "tab", "br", "cr", "tbl", "tr", "tc"].includes(local(name)) && namespaces[prefix] !== W) corrupt("DOCX_NAMESPACE_INVALID");
+  if (["hdr", "ftr", "hyperlink", "fldSimple", "fldChar", "instrText", "document", "body", "styles", "style", "basedOn", "p", "pPr", "pStyle", "outlineLvl", "r", "t", "tab", "br", "cr", "tbl", "tr", "tc"].includes(local(name)) && namespaces[prefix] !== W) corrupt("DOCX_NAMESPACE_INVALID");
   for (const nested of children(node)) checkWordNamespaces(nested, namespaces);
 }
 
@@ -180,6 +181,62 @@ export function extractDocx(bytes: Uint8Array) {
       ...(location ? { location } : {}),
     });
   };
+  const paginationInstructions = new WeakSet<XmlNode>();
+  function inspectComplexFields(root: XmlNode) {
+    // Fields may span runs/paragraphs, but never different Word story parts.
+    // Validate the complete instruction before exempting any instrText from coverage warnings.
+    type Field = { start: XmlNode; instructions: XmlNode[]; fragments: string[]; separated: boolean; invalid: boolean };
+    const fields: Field[] = [];
+    let simpleDepth = 0;
+    const reject = (field: Field) => {
+      if (field.instructions.length) for (const node of field.instructions) warn("instrText", node);
+      else warn("fldChar", field.start);
+    };
+    function visit(node: XmlNode) {
+      const name = local(tag(node));
+      if (["pPr", "rPr", "sdtPr", "sdtEndPr", "customXmlPr", "sectPr", "tblPr", "trPr", "tcPr"].includes(name)) return;
+      const field = fields.at(-1);
+      if (name === "fldSimple") {
+        if (field) field.invalid = true;
+        simpleDepth++;
+        for (const nested of children(node)) visit(nested);
+        simpleDepth--;
+        return;
+      }
+      if (name === "fldChar") {
+        const type = attr(node, "fldCharType");
+        if (type === "begin") {
+          if (field) field.invalid = true; // Nested fields are outside supported pagination.
+          fields.push({ start: node, instructions: [], fragments: [], separated: false, invalid: !!field || simpleDepth > 0 });
+        } else if (type === "separate" && field && !field.separated) {
+          field.separated = true;
+        } else if (type === "end" && field) {
+          fields.pop();
+          if (field.invalid || !isPaginationInstruction(field.fragments.join(""))) reject(field);
+          else for (const instruction of field.instructions) paginationInstructions.add(instruction);
+        } else {
+          if (field) field.invalid = true;
+          warn("fldChar", node);
+        }
+        return;
+      }
+      if (name === "instrText") {
+        if (!field || field.separated) {
+          if (field) field.invalid = true;
+          warn("instrText", node);
+        } else {
+          field.instructions.push(node);
+          if (children(node).some(n => tag(n) !== "#text")) field.invalid = true;
+          field.fragments.push(children(node).map(n => typeof n["#text"] === "string" ? decodeEntities(n["#text"]) : "").join(""));
+        }
+        return;
+      }
+      if (field && !field.separated && ["t", "tab", "br", "cr"].includes(name)) field.invalid = true;
+      for (const nested of children(node)) visit(nested);
+    }
+    visit(root);
+    for (const field of fields) reject(field); // Unterminated fields remain blocking.
+  }
   const auxiliary = new Map<string, "hdr" | "ftr">();
   const linksByPart = new Map<string, Map<string, string>>();
   for (const name of names) {
@@ -245,8 +302,12 @@ export function extractDocx(bytes: Uint8Array) {
     if (name === "fldSimple") {
       // Render only the saved result of pagination fields; never evaluate instructions.
       const instruction = decodeEntities(attr(node, "instr") ?? "").trim();
-      if (!/^(?:PAGE|NUMPAGES|SECTIONPAGES)(?:\s+\\\*\s+(?:MERGEFORMAT|Arabic))?$/i.test(instruction)) warn(name, node);
+      if (!isPaginationInstruction(instruction)) warn(name, node);
       return children(node).map(textOf).join("");
+    }
+    if (name === "instrText") {
+      if (!paginationInstructions.has(node)) warn(name, node);
+      return ""; // Field code is never displayed text, and is never evaluated.
     }
     if (name === "hyperlink") {
       const label = children(node).map(textOf).join("");
@@ -264,7 +325,7 @@ export function extractDocx(bytes: Uint8Array) {
     if (name === "tab") return "\t";
     if (name === "br" || name === "cr") return "\n";
     if (["footnoteReference", "endnoteReference"].includes(name)) warn(name, node);
-    if (["instrText", "sym", "ins", "moveTo"].includes(name)) warn(name, node);
+    if (["sym", "ins", "moveTo"].includes(name)) warn(name, node);
     if (["pPr", "rPr", "sdtPr", "sdtEndPr", "customXmlPr"].includes(name)) return "";
     if (!["p", "r", "t", "tab", "br", "cr", "hyperlink", "sdt", "sdtContent", "smartTag", "customXml", "bookmarkStart", "bookmarkEnd", "proofErr", "fldChar", "lastRenderedPageBreak", "commentRangeStart", "commentRangeEnd", "commentReference", "footnoteReference", "endnoteReference", "instrText", "sym", "ins", "moveTo", "#text"].includes(name)) warn(name || "unknown-inline-region", node);
     return children(node).map(textOf).join("");
@@ -309,12 +370,14 @@ export function extractDocx(bytes: Uint8Array) {
     if (!root) corrupt("DOCX_AUXILIARY_INVALID");
     checkWordNamespaces(root);
     mapPaths(root, expected);
+    inspectComplexFields(root);
     for (const node of children(root)) walk(node);
   }
   // Each stored header/footer is read once, never repeated for every rendered page.
   for (const [part, kind] of auxiliary) if (kind === "hdr") readAuxiliary(part, kind);
   currentPart = "word/document.xml";
   section = undefined;
+  inspectComplexFields(body);
   for (const node of children(body)) walk(node);
   for (const [part, kind] of auxiliary) if (kind === "ftr") readAuxiliary(part, kind);
   return { segments: collector.segments, warnings };

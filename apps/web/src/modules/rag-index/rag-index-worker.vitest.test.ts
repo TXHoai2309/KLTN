@@ -1,4 +1,5 @@
 import { researchDocx } from "../rag-processing/__fixtures__/research-docx";
+import { strToU8 } from "fflate";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { chunkDocument } from "../rag-processing/chunk-document";
@@ -154,6 +155,30 @@ describe("US-19 Task185 indexing worker", () => {
     expect(test.failures).toMatchObject([{ status: "FAILED", code: "INCOMPLETE_COVERAGE", options: { warningCodes: ["UNSUPPORTED_DOCX_REGION"], extractionDiagnostic: { ooxmlPart: "word/document.xml", unsupportedElement: "drawing", recoverable: false } } }]);
     expect(test.providerCalls).toBe(0);
     expect(test.index.finalizeReadyGeneration).not.toHaveBeenCalled();
+  });
+
+  it.each(["PAGE", "INCLUDETEXT private-path"])("handles a footer complex field through indexing: %s", async instruction => {
+    const bytes = syntheticDocx(p("Readable body"), "", {
+      "word/footer1.xml": strToU8(`<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:r><w:t>Trang </w:t></w:r><w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:rPr/><w:instrText xml:space="preserve">${instruction}</w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p></w:ftr>`),
+    });
+    const test = harness({ fileType: "DOCX", bytes });
+    if (instruction === "PAGE") {
+      await expect(test.worker.runNext()).resolves.toMatchObject({ status: "COMPLETED" });
+      expect(test.failures).toEqual([]);
+      expect(test.providerCalls).toBeGreaterThan(0);
+      expect(test.index.persistChunks).toHaveBeenCalledTimes(1);
+      expect(test.index.finalizeReadyGeneration).toHaveBeenCalledTimes(1);
+    } else {
+      const log = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+      try {
+        await expect(test.worker.runNext()).resolves.toMatchObject({ status: "FAILED" });
+        expect(test.failures).toMatchObject([{ code: "INCOMPLETE_COVERAGE", options: { extractionDiagnostic: { ooxmlPart: "word/footer1.xml", unsupportedElement: "instrText", location: "ftr/p[0]/r[2]/instrText[1]" } } }]);
+        expect(test.providerCalls).toBe(0);
+        expect(test.index.persistChunks).not.toHaveBeenCalled();
+        expect(test.index.finalizeReadyGeneration).not.toHaveBeenCalled();
+        expect(JSON.stringify(log.mock.calls)).not.toContain("private-path");
+      } finally { log.mockRestore(); }
+    }
   });
 
   it.each([

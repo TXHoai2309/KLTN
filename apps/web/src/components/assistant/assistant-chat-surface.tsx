@@ -425,7 +425,7 @@ export function AssistantChatSurface({
                 className="resize-none"
                 id={questionId}
                 ref={composer}
-                rows={variant === "panel" ? 2 : 2}
+                rows={1}
                 placeholder={
                   pinnedDestinationName
                     ? `Nhập câu hỏi về ${pinnedDestinationName}…`

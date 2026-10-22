@@ -789,7 +789,7 @@ export function AssistantChat({
                   className="resize-none"
                   id={questionId}
                   ref={composer}
-                  rows={2}
+                  rows={1}
                   placeholder={pinnedDestinationName ? `Nhập câu hỏi về ${pinnedDestinationName}…` : "Nhập câu hỏi về Hà Giang…"}
                   value={state.draft}
                   disabled={!transport || !available || !!contextError}

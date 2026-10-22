@@ -265,6 +265,22 @@ describe("repair then hard-validate V4", () => {
     for (const unit of buildCanonicalContentAst(ctx).units.filter(u => u.provenance.sourceField === "description")) expect(rendered).toContain(exact(unit.text));
     expect(acceptedEditorialProposal({ status: "PROPOSED", outcome: "ALTERNATIVE_MINOR", layout: result }, b, ctx, "AUTO", "ALTERNATIVE")).not.toBeNull();
   });
+  it("repairs duplicate node IDs in proposal sections and children into unique IDs", () => {
+    const candidate = structuredClone(base);
+    candidate.sections.push({
+      id: candidate.sections[0]!.id, // duplicate root ID
+      type: "SECTION",
+      children: [
+        { id: candidate.sections[1]!.id, type: "PARAGRAPH", text: "Khám phá miền đá." }, // duplicate with another section
+        { id: candidate.sections[1]!.id, type: "PARAGRAPH", text: "Nét văn hóa độc đáo." } // duplicate sibling ID
+      ]
+    });
+    const result = run(candidate);
+    const allNodeIds = nodes(result).map(n => n.id);
+    expect(new Set(allNodeIds).size).toBe(allNodeIds.length);
+    expect(codes(result)).toContain("DUPLICATE_ID_REPAIRED");
+    assertIntact(result);
+  });
 });
 
 function exact(s: string) { return s.normalize("NFC").replace(/\s+/g, " ").trim(); }
