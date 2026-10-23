@@ -167,8 +167,8 @@ suite("US21 real PostgreSQL reservations, retention and completion",()=>{
       acquired();await held;
     },{timeout:10000});
     await locked;
-    let clockReads=0;
-    const clocked=createQaConversationStore(db as Database,{now:()=>++clockReads===1?new Date(boundary.getTime()-1):new Date(boundary)});
+    let clockReads=0, clockNow=new Date(boundary.getTime()-1);
+    const clocked=createQaConversationStore(db as Database,{now:()=>{clockReads++;return clockNow;}});
     const pending=clocked.reserve(p,key,{question:"Câu hỏi kiểm thử",context:{type:"GENERAL"}});
     let observedWait=false;
     try {
@@ -183,8 +183,8 @@ suite("US21 real PostgreSQL reservations, retention and completion",()=>{
         if(!observedWait)await new Promise(resolve=>setTimeout(resolve,10));
       }
       expect(observedWait).toBe(true);
-      expect(clockReads).toBe(1);
-    } finally {release();}
+      expect(clockReads).toBe(0); // No unused timestamp sampled before acquiring the lock.
+    } finally {clockNow=new Date(boundary);release();}
     await blocker;
     await expect(pending).rejects.toMatchObject({code:"NOT_FOUND"});
     const row=(await db.$queryRaw<{state:string;question:unknown;response:unknown}[]>(Prisma.sql`SELECT state,question,response FROM qa_turn WHERE id=${r.turnId}`))[0]!;

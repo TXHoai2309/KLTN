@@ -7,6 +7,7 @@ import { destinationSelect, toDestinationDto, validateDestinationId, type Destin
 import { editorialActionSchema, editorialLayoutSchema, editorialStateSchema, type EditorialContext, type EditorialState } from "./editorial-contract";
 import { resolveEditorial, validateLayoutReferences } from "./editorial-engine";
 import { editorialLayoutDiagnosticCounts, recordEditorialApiFailure, type EditorialApiDiagnosticStage, type EditorialLayoutDiagnosticCounts } from "./editorial-ai-diagnostics";
+import { visibleDestinationWhere } from "../destination/destination-eligibility";
 
 function editorialWriteDiagnosticStage(action: unknown): EditorialApiDiagnosticStage {
   return action === "PUBLISH" ? "EDITORIAL_PUBLISH" : action === "RESTORE_DRAFT" ? "EDITORIAL_RESTORE_DRAFT" : action === "ROLLBACK" ? "EDITORIAL_ROLLBACK" : "EDITORIAL_SAVE";
@@ -107,17 +108,19 @@ export async function writeEditorial(headers: Headers, body: unknown, key: strin
   }
   return outcome;
 }
-/** Called only after the canonical public Destination read. No draft/provenance/AI query. */
+/** Independently guarded public read; safe alongside the canonical detail read.
+ * No draft/provenance/AI query. The caller must still require canonical detail. */
 export async function readPublicEditorial(id: string, database: Database) {
   try {
-    const visible = await database.destination.findUnique({ where: { id, visibility: "VISIBLE", deletedAt: null }, select: { id: true } });
+    validateDestinationId(id);
+    const visible = await database.destination.findUnique({ where: { id, ...visibleDestinationWhere }, select: { id: true } });
     if (!visible) return null;
     const row = await database.destinationEditorial.findUnique({ where: { destinationId: id }, select: { published: true } });
     const parsed = editorialLayoutSchema.safeParse(row?.published);
     if (!parsed.success) return null;
     // Recheck visibility/rights with the materialized context to close a hide/revoke race.
     const context = await readPublishedEditorialContext(id, database);
-    const stillVisible = await database.destination.findUnique({ where: { id, visibility: "VISIBLE", deletedAt: null }, select: { id: true } });
+    const stillVisible = await database.destination.findUnique({ where: { id, ...visibleDestinationWhere }, select: { id: true } });
     return stillVisible ? resolveEditorial(parsed.data, context) : null;
   } catch { return null; } // Missing table/invalid legacy JSON cannot break standard detail.
 }

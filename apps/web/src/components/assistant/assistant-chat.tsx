@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Check, Copy, FileText, Info, Leaf, Loader2, Maximize2, Minus, PanelLeft, RotateCcw, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { AssistantLandscape } from "./assistant-landscape";
 import { AssistantCitations, AssistantSourceList } from "./assistant-citations";
@@ -189,37 +189,46 @@ export function AssistantChat({
     return () => window.removeEventListener("resize", handleResize);
   }, [mode]);
 
-  async function loadConversationList(search = "", cursor: string | null = null, isMore = false) {
+  const listFetchRef = useRef<AbortController | null>(null);
+  const loadConversationList = useCallback(async (search = "", cursor: string | null = null, isMore = false) => {
     if (mode !== "page" || !available || !transport) return;
+    listFetchRef.current?.abort();
+    const request = new AbortController();
+    listFetchRef.current = request;
     if (isMore) setConversationsLoadingMore(true);
     else setConversationsLoading(true);
     try {
-      const res = await fetchConversations({ search, cursor });
+      const res = await fetchConversations({ search, cursor, signal: request.signal });
+      if (request.signal.aborted) return;
       setConversations(prev => isMore ? [...prev, ...res.items] : res.items);
       setHistoryCursor(res.nextCursor);
       setHistoryHasMore(res.hasMore);
     } catch {
       // Network/offline error: fail-safe
     } finally {
-      if (isMore) setConversationsLoadingMore(false);
-      else setConversationsLoading(false);
+      if (listFetchRef.current === request) {
+        setConversationsLoadingMore(false);
+        setConversationsLoading(false);
+      }
     }
-  }
+  }, [available, transport, mode, identity]);
 
   useEffect(() => {
-    if (mode === "page") {
-      void loadConversationList();
-    }
-  }, [available, transport, mode]);
+    setConversations([]);
+    setHistoryCursor(null);
+    setHistoryHasMore(false);
+    return () => { listFetchRef.current?.abort(); };
+  }, [identity]);
 
-  // Debounced search (page mode only)
+  // One effect owns initial loading and search. Empty/cleared search is immediate;
+  // typing is debounced, and obsolete requests cannot replace newer results.
   useEffect(() => {
     if (mode !== "page" || !available || !transport) return;
     const timer = setTimeout(() => {
       void loadConversationList(searchQuery);
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [searchQuery, available, transport, mode]);
+    }, searchQuery ? 250 : 0);
+    return () => { clearTimeout(timer); listFetchRef.current?.abort(); };
+  }, [searchQuery, available, transport, mode, loadConversationList]);
 
   const activeFetchRef = useRef<AbortController | null>(null);
   async function loadConversationById(id: string, confirmedAbandon = false) {
@@ -774,7 +783,7 @@ export function AssistantChat({
         <div className="assistant-bottom-dock">
           <div className="assistant-bottom-dock-inner">
             <div
-              className={`assistant-live ${!state.validation && !sending && !state.pending?.message ? "assistant-live-idle" : "assistant-live-active"} ${state.validation ? "assistant-live-error" : ""}`}
+              className={`assistant-live ${!state.validation && !state.pending?.message ? "assistant-live-idle" : "assistant-live-active"} ${state.validation ? "assistant-live-error" : ""}`}
               role="status"
               aria-live="polite"
               aria-atomic="true"

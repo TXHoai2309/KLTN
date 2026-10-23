@@ -4,6 +4,7 @@ import {writeDestination} from "../destination/destination-service";
 import {unknownSchedule} from "../destination/destination-contract";
 import {readEditorialContext,readPublicEditorial} from "./editorial-service";
 import {autoLayout,resolveEditorial} from "./editorial-engine";
+import type { Database } from "@KLTN/db";
 
 async function fixture(){
   const f=v3TestStore(),h=new Headers();
@@ -42,4 +43,21 @@ it("schedule validation still fails closed; data errors never return a stale lay
   f.row.openingDays[0].status="UNKNOWN";
   vi.spyOn(f.db.destination,"findUnique").mockRejectedValueOnce(new Error("database unavailable"));
   expect(await readPublicEditorial(f.id,f.db)).toBeNull();
+});
+it("an independent public editorial read validates malformed IDs before querying", async () => {
+  const findUnique = vi.fn();
+  const database = { destination: { findUnique } } as unknown as Database;
+  expect(await readPublicEditorial("bad/id", database)).toBeNull();
+  expect(findUnique).not.toHaveBeenCalled();
+});
+it("an independent public editorial read establishes visibility before reading any publication", async () => {
+  const visible = vi.fn(async (query: unknown) => {
+    expect(query).toEqual({ where: { id: "unavailable", visibility: "VISIBLE", deletedAt: null }, select: { id: true } });
+    return null;
+  });
+  const published = vi.fn();
+  const database = { destination: { findUnique: visible }, destinationEditorial: { findUnique: published } } as unknown as Database;
+  expect(await readPublicEditorial("unavailable", database)).toBeNull();
+  expect(visible).toHaveBeenCalledTimes(1);
+  expect(published).not.toHaveBeenCalled();
 });

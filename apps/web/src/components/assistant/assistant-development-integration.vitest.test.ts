@@ -14,6 +14,7 @@ describe("real /assistant development integration", () => {
     const require = createRequire(import.meta.url);
     const slots: unknown[] = []; let cursor = 0;
     const hooks = { ...require("react"), useContext: () => null, useId: () => "fixture", useRef: () => ({ current: null }), useEffect: () => {},
+      useCallback: (callback: unknown) => callback,
       useState: (init: unknown) => { const index = cursor++; if (!(index in slots)) slots[index] = typeof init === "function" ? init() : init; return [slots[index], () => {}]; },
       useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot() };
     type Element = { type: unknown; props: Record<string, any> };

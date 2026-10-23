@@ -2,6 +2,7 @@ import { mvpFeatures } from "@/lib/mvp-features";
 import { db } from "@/services";
 import React, { Suspense } from "react";
 import { listPublicLocations, parsePublicListQuery } from "@/modules/destination/public-destination-list";
+import { destinationRequestKey } from "@/modules/destination/public-destination-query";
 import ExploreResults from "./explore-results";
 import CultureResults from "./culture-results";
 import { listPublicCulture, parsePublicCultureQuery } from "@/modules/culture/public-culture-list";
@@ -40,7 +41,7 @@ function SectionLoading({ label, kind }: { label: string; kind: "destination" | 
 async function Destinations({ query }: { query: URLSearchParams }) {
   const params = new URLSearchParams(query);
   params.delete("culturePage");
-  return <ExploreResults {...await loadPublicSection(
+  return <ExploreResults initialQuery={destinationRequestKey(params)} {...await loadPublicSection(
     () => listPublicLocations(parsePublicListQuery(params), db),
     "Không thể tải dữ liệu điểm đến. Vui lòng thử lại.",
   )} />;

@@ -122,6 +122,28 @@ async function cleanPrincipal(tx: Tx, p: QaPrincipal, now: Date, batchSize = 100
   await tx.$executeRaw(Prisma.sql`UPDATE qa_turn SET question=NULL, response=NULL, provenance=NULL, "contentExpiresAt"=NULL WHERE id IN (SELECT id FROM qa_turn WHERE "principalKind"=${p.kind} AND "principalId"=${p.id} AND state='FAILED' AND "contentExpiresAt"<=${now}::timestamptz ORDER BY "contentExpiresAt",id LIMIT ${batchSize} FOR UPDATE)`);
 }
 
+async function principalCleanupDue(tx: Tx, p: QaPrincipal, now: Date): Promise<boolean> {
+  // One indexed existence probe replaces four no-op maintenance statements on
+  // ordinary history reads. Run under the same principal lock as the cleanup;
+  // never cache the result across requests or defer due retention work.
+  const rows = await tx.$queryRaw<Array<{ cleanupDue: boolean }>>(Prisma.sql`
+    SELECT (
+      EXISTS (SELECT 1 FROM qa_conversation c
+        WHERE c."principalKind"=${p.kind} AND c."principalId"=${p.id} AND c."deletedAt" IS NULL
+          AND (c."expiresAt"<=${now}::timestamptz OR (c."principalKind"='GUEST' AND EXISTS (
+            SELECT 1 FROM qa_guest_identity g WHERE g.id=c."principalId"
+              AND (g."expiresAt"<=${now}::timestamptz OR g."revokedAt" IS NOT NULL)))))
+      OR EXISTS (SELECT 1 FROM qa_turn t JOIN qa_conversation c ON c.id=t."conversationId"
+        WHERE t."principalKind"=${p.kind} AND t."principalId"=${p.id} AND (
+          (c."deletedAt" IS NOT NULL AND t.state<>'TOMBSTONE')
+          OR (t.state='PROCESSING' AND t."leaseUntil"<=${now}::timestamptz-INTERVAL '24 hours')
+          OR (t.state='FAILED' AND t."contentExpiresAt"<=${now}::timestamptz)))
+    ) AS "cleanupDue"
+  `);
+  // Fail closed if a driver ever returns an unexpected projection.
+  return rows[0]?.cleanupDue !== false;
+}
+
 function encodeCursor(item: { lastActivityAt: Date; id: string }): string {
   return Buffer.from(JSON.stringify({ lastActivityAt: item.lastActivityAt.toISOString(), id: item.id })).toString("base64url");
 }
@@ -152,11 +174,9 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
   const maxAttempts=options.maxAttempts ?? 3;
   if(!Number.isInteger(maxAttempts)||maxAttempts<1||maxAttempts>5) throw new Error("Invalid QA recovery attempt limit");
   if (![maxPerTenMinutes,maxPerDay].every(n=>Number.isInteger(n)&&n>=1&&n<=100_000_000)) throw new Error("Invalid QA admission limits");
-  const transaction = <T>(work: (tx: Tx, now: Date) => Promise<T>) => db.$transaction(async tx => {
-    const now = options.now?.() ?? (await tx.$queryRaw<{ now: Date }[]>(Prisma.sql`SELECT clock_timestamp() AS now`))[0]!.now;
-    if (!Number.isFinite(now.getTime())) throw new Error("Invalid QA clock");
-    return work(tx, now);
-  }, { timeout: 10_000 });
+  // Callers sample time at the point they use it, after acquiring their lock.
+  // Reading it unconditionally at BEGIN adds a remote round trip then discards it.
+  const transaction = <T>(work: (tx: Tx) => Promise<T>) => db.$transaction(work, { timeout: 10_000 });
   const currentTime = async (tx: Tx) => {
     const now = options.now?.() ?? (await tx.$queryRaw<{ now: Date }[]>(Prisma.sql`SELECT clock_timestamp() AS now`))[0]!.now;
     if (!Number.isFinite(now.getTime())) throw new Error("Invalid QA clock");
@@ -166,7 +186,7 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
   // back the expired content scrubbing. It never refreshes retention.
   const cleanupAccess = async (p: QaPrincipal) => {
     try { await transaction(async (tx)=>{ await lockPrincipalKey(tx,p); const now=await currentTime(tx);
-      await cleanPrincipal(tx,p,now,batchSize); }); }
+      if (await principalCleanupDue(tx,p,now)) await cleanPrincipal(tx,p,now,batchSize); }); }
     catch(e) { if(e instanceof AppError) throw e; throw new AppError("INTERNAL_SERVER_ERROR","INTERNAL_SERVER_ERROR",500); }
   };
   return {
@@ -267,7 +287,6 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
       const decoded = options.cursor ? decodeCursor(options.cursor) : null;
       return transaction(async (tx) => {
         const now = await lockPrincipal(tx, p, currentTime);
-        await cleanPrincipal(tx, p, now, batchSize);
 
         const conditions = [
           Prisma.sql`"principalKind" = ${p.kind}`,
@@ -454,14 +473,17 @@ export function createQaConversationStore(db: Database, options: { leaseMs?: num
       try {
         // Keep identity and turn tombstones: deleting them races bootstrap/replay.
         const started = Date.now();
-        const principals = await transaction(async (tx, now) => tx.$queryRaw<QaPrincipal[]>(Prisma.sql`
+        const principals = await transaction(async (tx) => {
+          const now = await currentTime(tx);
+          return tx.$queryRaw<QaPrincipal[]>(Prisma.sql`
           SELECT DISTINCT "principalKind" AS kind,"principalId" AS id FROM qa_conversation
           WHERE "deletedAt" IS NULL AND ("expiresAt"<=${now}::timestamptz OR ("principalKind"='GUEST' AND "principalId" IN
             (SELECT id FROM qa_guest_identity WHERE "expiresAt"<=${now}::timestamptz OR "revokedAt" IS NOT NULL)))
           UNION SELECT DISTINCT "principalKind" AS kind,"principalId" AS id FROM qa_turn
           WHERE (state='FAILED' AND "contentExpiresAt"<=${now}::timestamptz) OR (state='PROCESSING' AND "leaseUntil"<=${now}::timestamptz-INTERVAL '24 hours')
             OR (state<>'TOMBSTONE' AND "conversationId" IN (SELECT id FROM qa_conversation WHERE "deletedAt" IS NOT NULL))
-          ORDER BY kind,id LIMIT ${batchSize+1}`));
+          ORDER BY kind,id LIMIT ${batchSize+1}`);
+        });
         let processed = 0;
         for (const p of principals.slice(0,batchSize)) {
           if (Date.now()-started >= cleanupMaxDurationMs) break;

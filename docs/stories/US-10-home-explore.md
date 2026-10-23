@@ -52,3 +52,8 @@ Home is a static Vietnamese product entry with a primary `/explore` CTA and link
 Schema changed: NO. Migration: NOT REQUIRED. Production untouched. No commit or push.
 
 US-11 owns keyword search and filters; this story adds no search/filter controls. US-14 owns public Culture detail; Culture cards remain summary-only. Task149 was blocked at the time of this US-10 acceptance; US-12 records its later manual PASS on 2026-10-07. US-13 remains ACCEPTED and its detail behavior was regression-smoked.
+
+
+## 2026-10-22 — Stream Home map data independently
+
+Owner-requested performance correction: Home starts its request-fresh public read after the existing connection boundary and returns the static hero without awaiting the map. A Suspense region awaits the data, reusing the existing map skeleton/responsive geometry; empty/error CTAs and final map contents retain their previous behavior. Scroll reveal owns the stable outer wrapper so it cannot change a pending map before hydration. Deferred-database regression verifies the shell does not block; existing per-request freshness/failure/control-flow tests pass. Browser and streamed-response evidence are in [the follow-up report](../performance/local-data-loading-2026-10-22.md). No content/cache/visibility rule change.

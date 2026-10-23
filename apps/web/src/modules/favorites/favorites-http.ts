@@ -6,11 +6,13 @@ import { requireTraveler } from "@/server/auth/require-traveler";
 import {
   parseFavoriteTarget,
   parseFavoriteTargetQuery,
+  parseFavoriteStatusBatchQuery,
   type FavoriteTarget,
 } from "./favorites.schema";
 import {
   addFavorite,
   getFavoriteStatus,
+  getFavoriteStatuses,
   removeFavorite,
   type FavoritesDependencies,
 } from "./favorites.service";
@@ -104,6 +106,16 @@ export async function favoriteStatusResponse(
     return privateResponse(
       apiSuccess(await getFavoriteStatus(actor.userId, target, dependencies)),
     );
+  } catch (error) {
+    return privateResponse(handleApiError(error));
+  }
+}
+
+export async function favoriteStatusesResponse(request: Request, dependencies: FavoritesDependencies) {
+  try {
+    const actor = await requireTraveler(request.headers, dependencies.authorization);
+    const batch = parseFavoriteStatusBatchQuery(request);
+    return privateResponse(apiSuccess(await getFavoriteStatuses(actor.userId, batch, dependencies)));
   } catch (error) {
     return privateResponse(handleApiError(error));
   }

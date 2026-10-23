@@ -26,6 +26,12 @@ function MapSkeleton({ validCount }: { validCount?: number }) {
   );
 }
 
+export function HomeExploreMapLoading() {
+  return <div className="home-explore-map-card" role="status" aria-busy="true" aria-label="Đang tải dữ liệu điểm đến trên bản đồ">
+    <MapSkeleton />
+  </div>;
+}
+
 // Dynamically import DestinationMap with ssr: false for optimal client bundle lazy loading
 const DestinationMap = dynamic(
   () => import("@/components/map/destination-map"),
@@ -150,7 +156,6 @@ export default function HomeExploreMap({
     <div
       ref={containerRef}
       className={`home-explore-map-card${selectedDestination ? " has-active-preview" : ""}`}
-      data-home-reveal
       role="region"
       aria-label="Bản đồ các điểm đến Hà Giang"
     >

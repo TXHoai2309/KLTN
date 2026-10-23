@@ -201,6 +201,7 @@ export function DestinationAssistantPanel({
         aria-modal={isMobile && isOpen ? "true" : "false"}
         aria-label={destinationName ? `Trợ lý AI về ${destinationName}` : "Trợ lý AI Hà Giang"}
         tabIndex={-1}
+        onWheel={(e) => e.stopPropagation()}
       >
         <AssistantChat
           mode="panel"

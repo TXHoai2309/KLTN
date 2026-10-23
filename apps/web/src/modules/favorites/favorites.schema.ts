@@ -32,6 +32,27 @@ export const favoriteResultSchema = z
 
 export type FavoriteResult = z.infer<typeof favoriteResultSchema>;
 
+export const FAVORITE_STATUS_BATCH_LIMIT = 50;
+const favoriteStatusBatchSchema = z.object({
+  targetType: z.enum(["destinations", "culture"]),
+  targetIds: z.array(favoriteTargetIdSchema).min(1).max(FAVORITE_STATUS_BATCH_LIMIT),
+}).strict();
+export type FavoriteStatusBatch = z.infer<typeof favoriteStatusBatchSchema>;
+
+export function parseFavoriteStatusBatchQuery(request: Request): FavoriteStatusBatch {
+  const params = new URL(request.url).searchParams;
+  for (const key of params.keys()) {
+    if (!["targetType", "targetIds"].includes(key) || params.getAll(key).length !== 1) invalidTarget();
+  }
+  const targetIds = params.get("targetIds");
+  if (!targetIds || targetIds.length > FAVORITE_STATUS_BATCH_LIMIT * 129) invalidTarget();
+  const parsed = favoriteStatusBatchSchema.safeParse({
+    targetType: params.get("targetType"), targetIds: targetIds.split(","),
+  });
+  if (!parsed.success) invalidTarget();
+  return { ...parsed.data, targetIds: [...new Set(parsed.data.targetIds)] };
+}
+
 function invalidTarget(details?: unknown): never {
   throw new AppError(
     "INVALID_FAVORITE_TARGET",

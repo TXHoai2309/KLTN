@@ -398,7 +398,7 @@ export function AssistantChatSurface({
         <div className="assistant-bottom-dock-inner">
           <div
             className={`assistant-live ${
-              !state.validation && !sending && !state.pending?.message
+              !state.validation && !state.pending?.message
                 ? "assistant-live-idle"
                 : "assistant-live-active"
             } ${state.validation ? "assistant-live-error" : ""}`}

@@ -1567,3 +1567,8 @@ UI and an explicit-target dry-run/apply backfill command are implemented. See
 [verification and operator handoff](../implementation/assistant-original-source-citations.md).
 Offline checks pass; real PostgreSQL/infrastructure acceptance is still open.
 Development/production migration/backfill and deployment have not been performed.
+
+
+## 2026-10-22 — Local history read latency correction
+
+Owner-requested performance correction removes repeated per-list cleanup and discarded BEGIN-time clock queries. A locked, request-fresh existence probe skips empty maintenance work; due cleanup still commits independently before a protected read, with existing retention, principal locking, expiry and ownership checks. The global sweep samples its required timestamp explicitly. Assistant initial/search loading uses one effect and cancels obsolete/old-identity requests. Unit regression and isolated Development retention/expiry-lock checks cover these boundaries; the complete disposable PostgreSQL suite remains gated by Docker availability. Empty local history improved from 1320–1562 ms to 819–1027 ms in the recorded final sample; the strict 1000 ms tail budget remains unmet. See [latency evidence](../performance/local-api-latency-2026-10-22.md). Story-wide production/live-AI acceptance is unchanged.

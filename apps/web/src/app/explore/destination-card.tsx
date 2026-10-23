@@ -1,5 +1,6 @@
 import React from "react";
 import Link from "next/link";
+import { ArrowRight, MapPin } from "lucide-react";
 import { Card, CardContent } from "@KLTN/ui/components/card";
 import type { PublicLocation } from "@/modules/destination/public-destination-query";
 import type { ExploreReturnHref } from "@/modules/destination/destination-detail-navigation";
@@ -13,12 +14,20 @@ export default function DestinationCard({ destination, returnTo }: { destination
       <Link className="destination-card-link" href={destinationDetailHref(destination.id, returnTo)}>
         <div className="destination-card-media">
           <DestinationCardImage image={destination.image} />
-          <span className="destination-card-area">{destination.area}</span>
+          <span className="destination-card-area">
+            <MapPin size={12} aria-hidden="true" />
+            <span>{destination.area}</span>
+          </span>
         </div>
         <CardContent className="destination-card-content">
-          <p className="destination-card-meta">{destination.category}</p>
-          <h3>{destination.name}</h3>
-          <span className="destination-card-action">Xem chi tiết <span aria-hidden="true">→</span></span>
+          <div className="destination-card-meta-wrap">
+            <span className="destination-card-meta">{destination.category}</span>
+          </div>
+          <h3 title={destination.name}>{destination.name}</h3>
+          <span className="destination-card-action">
+            <span>Xem chi tiết</span>
+            <ArrowRight size={14} aria-hidden="true" />
+          </span>
         </CardContent>
       </Link>
       <div

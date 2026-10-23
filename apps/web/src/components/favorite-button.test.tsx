@@ -47,9 +47,11 @@ test("FavoriteButton uses confirmed idempotent writes and retries UNKNOWN safely
 
 test("FavoriteButton fetches private status and sends Guests through safe returnTo", async () => {
   const component = await source("./favorite-button.tsx");
+  const statusClient = await source("./favorite-status-client.ts");
 
-  assert.match(component, /\/api\/favorites\/status/);
-  assert.match(component, /credentials: "same-origin"/);
+  assert.match(component, /loadFavoriteStatus\(sessionUserId, targetType, targetId/);
+  assert.match(statusClient, /\/api\/favorites\/status/);
+  assert.match(statusClient, /credentials: "same-origin"/);
   assert.match(component, /buildAuthLoginHref\(currentPath\)/);
   assert.match(component, /window\.location\.hash/);
   assert.match(component, /hasRolePermission\(sessionRole, "traveler"\)/);

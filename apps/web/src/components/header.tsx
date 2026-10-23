@@ -13,7 +13,6 @@ import {
   Heart,
   PlusCircle,
   CalendarDays,
-  LayoutDashboard,
   BookOpen,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -115,7 +114,6 @@ export default function Header() {
     { to: "/favorites", label: "Yêu thích", icon: Heart, protected: true, intent: "favorites" },
     { to: "/trips/new", label: "Lập hành trình", icon: PlusCircle, protected: true, intent: "planner" },
     { to: "/trips", label: "Chuyến đi của tôi", icon: CalendarDays, protected: true, intent: "trips" },
-    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, protected: true, intent: "dashboard" },
   ];
 
   const isLinkActive = (to: string) => {

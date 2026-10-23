@@ -1,0 +1,35 @@
+diff -ruN e/apps/web/src/app/home-request-data.vitest.test.ts f/apps/web/src/app/home-request-data.vitest.test.ts
+--- e/apps/web/src/app/home-request-data.vitest.test.ts	2026-10-23 02:07:29.385325703 +0000
++++ f/apps/web/src/app/home-request-data.vitest.test.ts	2026-10-23 02:07:29.386764662 +0000
+@@ -18,6 +18,8 @@
+ vi.mock("@/components/home-explore-map", () => ({ default: ({ destinations }: any) => React.createElement("ul", { "aria-label": "Current destinations" }, destinations.map((d: any) => React.createElement("li", { key: d.id }, d.name))) }));
+ vi.mock("@/components/home-hero-video", () => ({ default: () => null }));
+ vi.mock("@/components/home-hero-metrics", () => ({ default: () => null }));
++vi.mock("@/components/home-gallery", () => ({ default: () => null }));
++vi.mock("@/components/home-season-banner", () => ({ default: () => null }));
+ vi.mock("@/components/home-scroll-reveal", () => ({ default: ({ children }: any) => children }));
+ import Home from "./page";
+ 
+diff -ruN e/apps/web/src/app/page.tsx f/apps/web/src/app/page.tsx
+--- e/apps/web/src/app/page.tsx	2026-10-23 02:07:29.383921685 +0000
++++ f/apps/web/src/app/page.tsx	2026-10-23 02:07:29.386735476 +0000
+@@ -29,6 +29,8 @@
+ import HomeExploreMap from "@/components/home-explore-map";
+ import HomeHeroVideo from "@/components/home-hero-video";
+ import HomeHeroMetrics from "@/components/home-hero-metrics";
++import HomeGallery from "@/components/home-gallery";
++import HomeSeasonBanner from "@/components/home-season-banner";
+ import { ProtectedLink } from "@/components/protected-link";
+ import "./home.css";
+ 
+@@ -127,6 +129,10 @@
+ 
+       <HomeScrollReveal>
+ 
++        {/* SECTION 2: ẢNH ĐIỂM ĐẾN VÀ DẢI MÙA HOA */}
++        <HomeGallery />
++        <HomeSeasonBanner />
++
+         {/* SECTION 3: HOW IT WORKS / QUY TRÌNH ĐƠN GIẢN */}
+         <section className="home-steps-section" aria-labelledby="home-steps-title">
+           <div className="home-section-heading" data-home-reveal>

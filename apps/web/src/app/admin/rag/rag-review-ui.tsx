@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowLeft, FileText, Plus, AlertTriangle, LoaderCircle, ShieldCheck, ShieldAlert, Sparkles, Trash2, RotateCcw, MoreHorizontal } from "lucide-react";
+import { ArrowLeft, FileText, Plus, AlertTriangle, LoaderCircle, ShieldCheck, ShieldAlert, Sparkles, Trash2, RotateCcw, MoreHorizontal, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@KLTN/ui/components/button";
 import { createIdempotencyKey, sendIdempotentMutation } from "@/lib/mutation-client";
@@ -352,16 +352,42 @@ export function RagList({ initialView = "active" }: { initialView?: RagListView 
                       )}
                     </div>
                     <details className="rag-row-actions rag-row-actions-mobile">
-                      <summary aria-label={`Thao tác với ${item.originalFileName}`}><MoreHorizontal size={20} aria-hidden="true" /><span className="destination-sr-only">Thao tác</span></summary>
+                      <summary aria-label={`Thao tác với ${item.originalFileName}`}><MoreHorizontal size={18} aria-hidden="true" /><span className="destination-sr-only">Thao tác</span></summary>
                       <div className="rag-mobile-action-menu">
-                        <Link href={`/admin/rag/${encodeURIComponent(item.id)}` as Route} aria-label={`Mở chi tiết ${item.originalFileName}`}>Mở chi tiết</Link>
+                        <Link
+                          href={`/admin/rag/${encodeURIComponent(item.id)}` as Route}
+                          aria-label={`Mở chi tiết ${item.originalFileName}`}
+                          onClick={event => { const d = event.currentTarget.closest("details"); d?.removeAttribute("open"); }}
+                        >
+                          <ExternalLink size={14} aria-hidden="true" />
+                          <span>Mở chi tiết</span>
+                        </Link>
                         {deletedView ? (
-                          <button type="button" onClick={event => restore(item, event.currentTarget)} disabled={pending} aria-busy={pending}>
-                            {pending ? <LoaderCircle size={15} className="destination-spinner" aria-hidden="true" /> : <RotateCcw size={15} aria-hidden="true" />}{pending ? "Đang khôi phục…" : uncertain ? "Thử lại khôi phục" : "Khôi phục"}
+                          <button
+                            type="button"
+                            onClick={event => {
+                              const d = event.currentTarget.closest("details");
+                              d?.removeAttribute("open");
+                              restore(item, event.currentTarget);
+                            }}
+                            disabled={pending}
+                            aria-busy={pending}
+                          >
+                            {pending ? <LoaderCircle size={14} className="destination-spinner" aria-hidden="true" /> : <RotateCcw size={14} aria-hidden="true" />}
+                            <span>{pending ? "Đang khôi phục…" : uncertain ? "Thử lại khôi phục" : "Khôi phục"}</span>
                           </button>
                         ) : (
-                          <button type="button" onClick={event => openDelete(item, event.currentTarget)} disabled={pending}>
-                            <Trash2 size={15} aria-hidden="true" />{uncertain ? "Thử xác nhận lại" : "Xóa"}
+                          <button
+                            type="button"
+                            onClick={event => {
+                              const d = event.currentTarget.closest("details");
+                              d?.removeAttribute("open");
+                              openDelete(item, event.currentTarget);
+                            }}
+                            disabled={pending}
+                          >
+                            <Trash2 size={14} aria-hidden="true" />
+                            <span>{uncertain ? "Thử xác nhận lại" : "Xóa"}</span>
                           </button>
                         )}
                       </div>
