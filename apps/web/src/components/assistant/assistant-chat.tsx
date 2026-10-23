@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { Check, Copy, FileText, Info, Leaf, Loader2, Maximize2, Minus, PanelLeft, RotateCcw, Send, ShieldCheck, Sparkles } from "lucide-react";
+import { Check, Copy, FileText, Info, Leaf, Loader2, Maximize2, Minus, PanelLeft, PanelLeftOpen, Plus, RotateCcw, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { AssistantLandscape } from "./assistant-landscape";
 import { AssistantCitations, AssistantSourceList } from "./assistant-citations";
 import { buildCitationIndex, isReadingCitation } from "./assistant-citation-utils";
@@ -497,11 +497,22 @@ export function AssistantChat({
                 type="button"
                 className="assistant-sidebar-toggle-btn"
                 onClick={() => setSidebarOpen(prev => !prev)}
-                aria-label={sidebarOpen ? "Đóng thanh bên lịch sử" : "Mở thanh bên lịch sử"}
-                title={sidebarOpen ? "Đóng thanh bên" : "Mở thanh bên"}
+                aria-label={sidebarOpen ? "Thu nhỏ thanh bên lịch sử" : "Mở thanh bên lịch sử (phóng to)"}
+                title={sidebarOpen ? "Thu nhỏ thanh bên" : "Mở thanh bên (phóng to)"}
               >
-                <PanelLeft aria-hidden="true" />
+                {sidebarOpen ? <PanelLeft aria-hidden="true" /> : <PanelLeftOpen aria-hidden="true" />}
               </button>
+              {!sidebarOpen && (
+                <button
+                  type="button"
+                  className="assistant-floating-new-btn"
+                  onClick={startNew}
+                  aria-label="Tạo cuộc trò chuyện mới"
+                  title="Đoạn chat mới"
+                >
+                  <Plus aria-hidden="true" />
+                </button>
+              )}
             </div>
           </div>
         )}

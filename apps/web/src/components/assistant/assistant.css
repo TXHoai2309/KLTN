@@ -669,29 +669,67 @@
   position: absolute;
   top: 14px;
   left: 16px;
-  z-index: 25;
+  z-index: 35;
   pointer-events: none;
+}
+
+.assistant-floating-header.sidebar-open {
+  display: none !important;
 }
 
 .assistant-floating-header .assistant-header-left {
   pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--assistant-line);
+  border-radius: 9px;
+  padding: 3px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@media (min-width: 1024px) {
-  .assistant-floating-header.sidebar-open {
-    display: none;
-  }
+.assistant-floating-header .assistant-header-left:hover {
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.06);
+  border-color: #bcd0c1;
 }
 
 .assistant-floating-header .assistant-sidebar-toggle-btn {
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid var(--assistant-line);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  border-radius: 8px;
-  width: 36px;
-  height: 36px;
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--assistant-green);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+  min-height: 34px;
+  box-shadow: none;
+}
+
+.assistant-floating-header .assistant-sidebar-toggle-btn:hover {
+  background: #edf3ee;
+  color: #123d27;
+}
+
+.assistant-floating-header .assistant-sidebar-toggle-btn svg {
+  width: 19px;
+  height: 19px;
+}
+
+.assistant-floating-header .assistant-floating-new-btn {
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  width: 34px;
+  height: 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -699,16 +737,16 @@
   cursor: pointer;
   transition: all 0.15s ease;
   padding: 0;
-  min-height: 36px;
+  min-height: 34px;
+  box-shadow: none;
 }
 
-.assistant-floating-header .assistant-sidebar-toggle-btn:hover {
-  background: #ffffff;
+.assistant-floating-header .assistant-floating-new-btn:hover {
+  background: #edf3ee;
   color: var(--assistant-green);
-  border-color: var(--assistant-green);
 }
 
-.assistant-floating-header .assistant-sidebar-toggle-btn svg {
+.assistant-floating-header .assistant-floating-new-btn svg {
   width: 18px;
   height: 18px;
 }
@@ -1187,15 +1225,9 @@
   font-weight: 600;
 }
 
-/* Missing / Partial Data Callout Box (Phần chưa đủ dữ liệu) */
+/* Missing / Partial Data Callout Box (Phần chưa đủ dữ liệu) — Ẩn hoàn toàn trên UI theo yêu cầu */
 .assistant-unanswered {
-  margin-top: 14px;
-  padding: 12px 14px;
-  background: #fefbf4;
-  border: 1px solid #f6e1ba;
-  border-left: 3px solid #d97706;
-  border-radius: 8px;
-  font-size: 13px;
+  display: none !important;
 }
 
 .assistant-unanswered strong {
@@ -1830,14 +1862,31 @@
   background: #121c16;
 }
 
+.dark .assistant-floating-header .assistant-header-left {
+  background: rgba(21, 34, 26, 0.94);
+  border-color: #273b2e;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.dark .assistant-floating-header .assistant-header-left:hover {
+  border-color: #38a169;
+}
+
 .dark .assistant-floating-header .assistant-sidebar-toggle-btn {
-  background: rgba(28, 43, 34, 0.9);
-  border-color: #2e4335;
-  color: #95a89b;
+  color: #8cc4a1;
 }
 
 .dark .assistant-floating-header .assistant-sidebar-toggle-btn:hover {
-  background: #24382c;
+  background: #1f3025;
+  color: #a8dbbb;
+}
+
+.dark .assistant-floating-header .assistant-floating-new-btn {
+  color: #95a89b;
+}
+
+.dark .assistant-floating-header .assistant-floating-new-btn:hover {
+  background: #1f3025;
   color: #8cc4a1;
 }
 
@@ -2076,6 +2125,10 @@
    5. RESPONSIVE & ACCESSIBILITY
    ========================================================================== */
 @media (max-width: 768px) {
+  .assistant-floating-header {
+    top: 10px;
+    left: 12px;
+  }
   .assistant-transcript-inner {
     padding: 0 12px;
   }
@@ -2116,6 +2169,11 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 2px;
+  }
+  .assistant-composer textarea,
+  .assistant-page .assistant-composer textarea,
+  .assistant-sidebar-search-input {
+    font-size: 16px !important;
   }
   .assistant-trust-footer {
     display: none;

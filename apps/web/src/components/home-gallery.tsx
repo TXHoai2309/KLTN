@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, MapPin } from "lucide-react";
 import "./home-gallery.css";
+import "./home-polish.css";
 
 // Ảnh minh họa của trang chủ. Chỉnh tên địa điểm, mô tả và thứ tự ngay tại đây.
 // Lưu ý: ảnh được sưu tầm cho đồ án học tập, cần thay bằng ảnh có giấy phép

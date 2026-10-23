@@ -116,7 +116,7 @@ describe("Task193 grounded generation", () => {
     const current = input(); current.evidence = [...current.evidence, { ...current.evidence[0]!, citationId: "c2", text: "Dữ liệu bổ sung.", citation: { ...current.evidence[0]!.citation, id: "c2" } }];
     expect(() => validateQaGenerationOutput({ ...answer(), answerParts: [{ ...answer().answerParts[0], citationIds: ["c1", "c3_missing"] }] }, current)).toThrow();
   });
-  it("sends only bounded approved evidence and the minimum history needed, without provider-side conversation state", async () => {
+  it("sends bounded approved evidence and recent question history without provider-side conversation state", async () => {
     const fetcher = vi.fn(async () => response(answer()));
     const current = input();
     current.history = ["older", "middle", "latest"].map(question => ({ question, response: { context: { type: "GENERAL" }, conversationId: "private-conversation", turnId: "private-turn", turnState: "COMPLETED", status: "INSUFFICIENT_SOURCE", answerParts: [], citations: [], message: "Private history response" } })) as unknown as QaGenerationInput["history"];
@@ -132,7 +132,7 @@ describe("Task193 grounded generation", () => {
     expect(body.max_completion_tokens).toBe(QA_GENERATION_LIMITS.maxCompletionTokens);
     expect(body.response_format.json_schema.strict).toBe(true);
     expect(request[1].redirect).toBe("error");
-    expect(userPayload.HISTORY_QUESTIONS).toEqual(["middle", "latest"]);
+    expect(userPayload.HISTORY_QUESTIONS).toEqual(["older", "middle", "latest"]);
     expect(userPayload.CURRENT_EVIDENCE).toEqual([{ citationId: "c1", sourceTitle: "Nguồn kiểm thử", sentences: ["Dinh thự nằm tại Sà Phìn.", "Tài liệu không xác minh giờ mở cửa."] }]);
     expect(serialized).not.toMatch(/private_document|private_generation|private_version|private_chunk|private-conversation|private-turn|sourceUrl|previous_response_id|conversation_id/);
   });

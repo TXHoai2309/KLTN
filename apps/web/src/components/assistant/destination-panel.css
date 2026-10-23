@@ -753,6 +753,22 @@
     padding-bottom: max(12px, env(safe-area-inset-bottom));
   }
 
+  .destination-assistant-panel textarea,
+  .assistant-chat-panel textarea,
+  .destination-assistant-panel .assistant-composer textarea,
+  .assistant-chat-panel .assistant-composer textarea,
+  .assistant-composer textarea {
+    font-size: 16px !important;
+    line-height: 1.45 !important;
+    min-height: 24px !important;
+  }
+
+  .destination-assistant-panel textarea::placeholder,
+  .assistant-chat-panel textarea::placeholder,
+  .assistant-composer textarea::placeholder {
+    font-size: 15px !important;
+  }
+
   .destination-panel-action-btn {
     min-width: 44px;
     min-height: 44px;

@@ -1572,3 +1572,23 @@ Development/production migration/backfill and deployment have not been performed
 ## 2026-10-22 — Local history read latency correction
 
 Owner-requested performance correction removes repeated per-list cleanup and discarded BEGIN-time clock queries. A locked, request-fresh existence probe skips empty maintenance work; due cleanup still commits independently before a protected read, with existing retention, principal locking, expiry and ownership checks. The global sweep samples its required timestamp explicitly. Assistant initial/search loading uses one effect and cancels obsolete/old-identity requests. Unit regression and isolated Development retention/expiry-lock checks cover these boundaries; the complete disposable PostgreSQL suite remains gated by Docker availability. Empty local history improved from 1320–1562 ms to 819–1027 ms in the recorded final sample; the strict 1000 ms tail budget remains unmet. See [latency evidence](../performance/local-api-latency-2026-10-22.md). Story-wide production/live-AI acceptance is unchanged.
+
+## 2026-10-23 — Owner-requested multi-turn continuity repair
+
+Production question understanding and composition now share up to twelve recent
+authorized user questions within a 1,500-token history budget and a per-request
+resolved interpretation. Follow-up phrasing no longer controls whether the
+semantic understander sees history. Explicit/pinned subjects and the latest
+correction take precedence; Cổng Trời and Núi Đôi Quản Bạ are distinct aliases.
+Comparison ambiguity asks for clarification. History remains intent-only and
+contains no prior answer/citation evidence. No schema, ownership, retention,
+idempotency or knowledge-mode change. See [implementation and verification](../implementation/ai-chat-session-continuity.md).
+
+Subject filters also normalize bound destination names to match lowercased
+database text/titles, so canonical names do not exclude their own evidence.
+
+Sixteen new offline regressions pass; six focused suites pass 193 tests.
+The whole AI module retains fourteen exactly matched before-fix failures
+(694 pass, 73 opt-in skip); no additional failures. Root typecheck, separate
+production build and whitespace check pass. No live model/browser acceptance,
+commit, push or deployment; story-wide status is unchanged.

@@ -18,6 +18,7 @@ import { qaConversationMessage } from "./qa-conversation";
 import { planQaQuestion } from "./qa-question-plan";
 import { withinQaResponseBudget, QA_ELIGIBILITY_ABORT } from "./qa-request-budget";
 import { projectQaOriginalSources, validQaSourceProjection } from "./qa-original-source-projection";
+import { qaSessionHistory } from "./qa-session-history";
 
 export function createQaService(dependencies: { store: QaConversationStore; retriever: QaRetriever; generator: QaGenerator; assessor?: QaAssessor; understander?: QaQuestionUnderstander; eligibilityPollMs?: number; resolveContext?: (context: QaContext) => Promise<QaResolvedContext> }) {
   const { store, retriever, generator } = dependencies;
@@ -50,8 +51,11 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
         if (!resolvedContext) throw new AppError("CONTEXT_UNAVAILABLE", "CONTEXT_UNAVAILABLE", 404);
         const socialMessage = qaConversationMessage(request.data.question);
         const question = qaFactualQuestion(request.data.question) || request.data.question;
-        const history = qaIntentHistory(request.data.question, admission.history);
-        let clarificationQuestion = socialMessage ? undefined : qaFollowupClarification(question, history, resolvedContext);
+        const sessionHistory = qaSessionHistory(admission.history);
+        // Semantic understanding must see recent authorized questions regardless
+        // of wording. The bounded deterministic adapter retains its legacy seam.
+        const history = dependencies.understander ? sessionHistory : qaIntentHistory(request.data.question, sessionHistory);
+        let clarificationQuestion = socialMessage || dependencies.understander ? undefined : qaFollowupClarification(question, history, resolvedContext);
         let understanding: QaQuestionUnderstanding | undefined;
         if (!socialMessage && !clarificationQuestion) {
           qaStage("QUESTION_UNDERSTANDING_STARTED");
@@ -116,7 +120,7 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
         const generation = (async () => {
           if (socialMessage) return { status: "CONVERSATIONAL" as const, answerParts: [] as [], citations: [] as [], message: socialMessage, knowledgeMode };
           if (clarificationQuestion) return { status: "CLARIFICATION_REQUIRED" as const, answerParts: [] as [], citations: [] as [], clarificationQuestion, knowledgeMode };
-          const input: QaGenerationInput = { question, history, evidence, context: resolvedContext, knowledgeMode, signal: providerController.signal, questionPlan: planQaQuestion(question, history, resolvedContext) };
+          const input: QaGenerationInput = { question, history, evidence, context: resolvedContext, knowledgeMode, signal: providerController.signal, questionPlan: planQaQuestion(question, history, resolvedContext), questionUnderstanding: understanding };
           if (!evidence.length && knowledgeMode !== "EXPANDED") return insufficientQaAnswer("NO_EVIDENCE");
           assertQaEvidenceInput(input);
           reviewedInput = input;

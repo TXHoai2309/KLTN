@@ -149,7 +149,11 @@ export function createQaGenerator(options: QaProviderOptions = {}): QaGenerator 
         additionalProperties: false,
         required: ["status", "answerParts", "unanswered"],
         properties: {
-          status: { type: "string", enum: ["ANSWERED", "PARTIAL", "INSUFFICIENT_SOURCE", "CLARIFICATION_REQUIRED"] },
+          status: {
+            type: "string",
+            enum: ["ANSWERED", "PARTIAL", "INSUFFICIENT_SOURCE", "CLARIFICATION_REQUIRED"],
+            description: "Set to 'PARTIAL' if some requested details lack evidence; 'ANSWERED' if all facts are covered; 'INSUFFICIENT_SOURCE' if no evidence supports it.",
+          },
           answerParts: {
             type: "array",
             items: {
@@ -166,7 +170,10 @@ export function createQaGenerator(options: QaProviderOptions = {}): QaGenerator 
               },
             },
           },
-          unanswered: { type: "boolean" },
+          unanswered: {
+            type: "boolean",
+            description: "Must be true if and only if status is 'PARTIAL'. For all other statuses, this must be false.",
+          },
         },
       };
       const answer = await provider.request({ messages, name: "grounded_qa", schema, signal: input.signal }, content => {

@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { expect, it, vi } from "vitest";
 
 vi.mock("./home-gallery.css", () => ({}));
+vi.mock("./home-polish.css", () => ({}));
 vi.mock("next/link", () => ({ default: ({ children, href, ...props }: any) => React.createElement("a", { href, ...props }, children) }));
 vi.mock("next/image", () => ({ default: ({ fill, ...props }: any) => React.createElement("img", props) }));
 vi.mock("@/components/protected-link", () => ({ ProtectedLink: ({ children, href, intent, ...props }: any) => React.createElement("a", { href, ...props }, children) }));

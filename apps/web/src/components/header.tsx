@@ -29,6 +29,7 @@ export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
   const toggleBtnRef = useRef<HTMLButtonElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -46,6 +47,39 @@ export default function Header() {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Track scroll progress exclusively on landing page
+  useEffect(() => {
+    if (pathname !== "/") {
+      setScrollProgress(0);
+      return;
+    }
+
+    let ticking = false;
+
+    const handleProgress = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const docEl = document.documentElement;
+          const totalHeight = docEl.scrollHeight - window.innerHeight;
+          const currentScroll = window.scrollY || docEl.scrollTop || 0;
+          const progress = totalHeight > 0 ? Math.min(1, Math.max(0, currentScroll / totalHeight)) : 0;
+          setScrollProgress(progress);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    handleProgress();
+    window.addEventListener("scroll", handleProgress, { passive: true });
+    window.addEventListener("resize", handleProgress, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", handleProgress);
+      window.removeEventListener("resize", handleProgress);
+    };
+  }, [pathname]);
 
   // Close mobile drawer on route change
   useEffect(() => {
@@ -305,6 +339,17 @@ export default function Header() {
           </>,
           document.body
         )}
+      {pathname === "/" && (
+        <div
+          className="header-scroll-progress"
+          role="progressbar"
+          aria-valuenow={Math.round(scrollProgress * 100)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Tiến trình cuộn trang"
+          style={{ transform: `scaleX(${scrollProgress})` }}
+        />
+      )}
     </header>
   );
 }

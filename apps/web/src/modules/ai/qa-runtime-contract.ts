@@ -31,6 +31,8 @@ export type QaGenerationInput = {
   sourceSufficiency?: QaSourceDecision;
   sourceReview?: QaSourceReview;
   questionPlan?: QaQuestionPlan;
+  /** Interpretation shared by retrieval and composition; never source evidence. */
+  questionUnderstanding?: QaQuestionUnderstanding;
 };
 export type QaAnswer = (
   | Pick<Extract<QaCompletedTurn, { status: "CONVERSATIONAL" }>, "status" | "answerParts" | "citations" | "message">

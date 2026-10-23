@@ -388,3 +388,202 @@
 }
 
 @media (prefers-reduced-motion: reduce) { .rag-review-page .destination-spinner { animation: none; } }
+
+/* ---------- Modal Kiểm duyệt tài liệu RAG ---------- */
+.rag-review-dialog {
+  width: min(640px, calc(100vw - 32px));
+  max-width: calc(100vw - 32px);
+  box-sizing: border-box;
+  margin: auto;
+  padding: 24px;
+  border: 1px solid var(--destination-line);
+  border-radius: 14px;
+  background: var(--destination-surface);
+  color: var(--destination-ink);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.25);
+}
+
+.rag-review-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(2px);
+}
+
+.rag-review-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--destination-line);
+}
+
+.rag-review-dialog-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--destination-ink);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rag-review-dialog-header h2 svg {
+  color: var(--destination-green);
+}
+
+.rag-dialog-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid var(--destination-line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--destination-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.rag-dialog-close:hover:not(:disabled) {
+  color: var(--destination-ink);
+  background: var(--destination-tint);
+  border-color: var(--destination-green);
+}
+
+.rag-dialog-close:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.rag-review-dialog-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: calc(85vh - 160px);
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.rag-review-dialog-card {
+  padding: 14px 16px;
+  background: var(--destination-tint);
+  border: 1px solid var(--destination-line);
+  border-radius: 10px;
+}
+
+.rag-review-dialog-file-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.rag-review-dialog-file-info svg {
+  color: var(--destination-green);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.rag-review-dialog-file-info strong {
+  display: block;
+  font-size: 15px;
+  word-break: break-all;
+  color: var(--destination-ink);
+}
+
+.rag-review-dialog-file-info p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--destination-muted);
+}
+
+.rag-review-dialog-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 16px;
+  margin: 12px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in srgb, var(--destination-line) 60%, transparent);
+}
+
+.rag-review-dialog-grid dt {
+  font-size: 12px;
+  color: var(--destination-muted);
+}
+
+.rag-review-dialog-grid dd {
+  margin: 2px 0 0;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--destination-ink);
+}
+
+.rag-review-dialog-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 14px;
+  border: 1px solid color-mix(in srgb, var(--destination-green) 35%, var(--destination-line));
+  border-radius: 8px;
+  background: var(--destination-surface);
+  color: var(--destination-green);
+  text-decoration: none;
+  font-size: 13.5px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.rag-review-dialog-download:hover {
+  background: color-mix(in srgb, var(--destination-green) 12%, var(--destination-surface));
+  border-color: var(--destination-green);
+}
+
+.rag-review-guidance {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--destination-muted) 8%, var(--destination-surface));
+  border: 1px solid var(--destination-line);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--destination-muted);
+}
+
+.rag-review-guidance svg {
+  flex-shrink: 0;
+  color: var(--destination-green);
+  margin-top: 2px;
+}
+
+.rag-review-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--destination-line);
+}
+
+@media (max-width: 600px) {
+  .rag-review-dialog-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rag-review-dialog-actions {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+  .rag-review-dialog-actions button,
+  .rag-review-dialog-actions .destination-button,
+  .rag-review-dialog-actions .destination-primary {
+    width: 100%;
+  }
+}

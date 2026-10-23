@@ -18,13 +18,15 @@ export function qaFactualQuestion(question: string): string {
   return normalizeQaQuestion(question).replace(/^(?:(?:hi|hello|hey|alo|xin chào|chào bạn)(?:\s+bạn)?|(?:cảm ơn|cám ơn|thanks|thank you)(?:\s+bạn(?!\s+(?:có|biết|giúp|hỗ trợ|cho biết)(?:\s|$)))?)(?:\s+(?:nhé|nha|ạ|ơi))?\s+(?=\p{L})/u, "");
 }
 
-function needsHistory(question: string): boolean {
+export function needsHistory(question: string): boolean {
   // Case is not evidence of an entity: "NÓ Ở ĐÂU" is still a follow-up.
   // Full attribute/continuation patterns leave explicitly named questions alone.
   // This resolves intent only, never semantic relevance or source sufficiency.
   const text = qaFactualQuestion(question);
   if (/^(?:còn|vậy|thế)(?:\s+trong)?\s+năm\s+(?:19|20|21)\d{2}(?:\s+thì sao)?$/u.test(text)) return true;
   return /(?:^|\s)(?:nó|ở đó|nơi đó|nơi này|điểm đến này|địa điểm đó|địa điểm này|chỗ đó|chỗ này|chỗ ấy|vừa nhắc|kể trên|tại đây|tại đó|gần đó|ở đây|trên đó|dưới đó)(?:\s|$)/u.test(text) ||
+    /^(?:trong ngày(?:\s+thì)?\s+)?(?:nên\s+)?(?:đi|tham quan|ghé thăm)(?:\s+vào)?\s+(?:giờ|khung giờ|buổi)\s+nào(?:\s+(?:là\s+)?(?:hợp lý|thích hợp|đẹp|tốt)(?:\s+nhất)?)?$/u.test(text) ||
+    /^(?:tầm|khoảng|lúc|vào)\s+\d{1,2}(?:[:h]\d{0,2})?(?:\s*[-–]\s*\d{1,2}(?:[:h]\d{0,2})?)?(?:\s+(?:giờ|sáng|chiều|tối))?\s+(?:có\s+)?(?:được|dc|đc|ổn|hợp lý)(?:\s+(?:không|k|ko|kh))?(?:\s+có gì\s+(?:đặc biệt|nổi bật)(?:\s+(?:không|k|ko))?)?$/u.test(text) ||
     /^(?:còn|vậy|thế)(?:\s+còn)?\s+(?:(?:các|những)\s+)?(?:địa điểm|điểm đến|nơi|chỗ)(?:\s+(?:khác|còn lại))(?:\s+(?:thì sao|thế nào|như thế nào))?$/u.test(text) ||
     /^họ\s+(?:là|làm|ở|có|đã|được|sống|sử dụng)(?:\s|$)/u.test(text) ||
     /^(?:(?:mình|tôi) muốn biết thêm|thêm|nói thêm|kể thêm|giải thích thêm)(?:\s+(?:đi|nữa|được không))?$/u.test(text) ||
@@ -61,7 +63,7 @@ export const QA_FOLLOWUP_CLARIFICATIONS = {
 export function qaFollowupClarification(question: string, history: readonly QaHistoryTurn[], context: QaResolvedContext): string | undefined {
   if (context.type === "DESTINATION" || !needsHistory(question)) return undefined;
   if (!history.length) return QA_FOLLOWUP_CLARIFICATIONS.missingSubject;
-  const anchor = history.find(turn => !needsHistory(turn.question));
+  const anchor = [...history].reverse().find(turn => !needsHistory(turn.question));
   if (!anchor) return QA_FOLLOWUP_CLARIFICATIONS.missingSubject;
   const previous = qaFactualQuestion(anchor.question);
   if (/(?:so sánh|giữa)\s+(?!(?:giá|vé|giờ|chi phí)(?:\s|$)).+\s+(?:và|với|hay|vs)\s+.+/u.test(previous)) {
@@ -146,7 +148,8 @@ export const KNOWN_DESTINATIONS: readonly { canonical: string; aliases: readonly
   { canonical: "Làng Lũng Cẩm", aliases: ["lũng cẩm", "lung cam", "làng văn hóa lũng cẩm", "nhà của pao"] },
   { canonical: "Thị trấn Phố Bảng", aliases: ["phố bảng", "pho bang"] },
   { canonical: "Du Già", aliases: ["du già", "du gia", "thác du già"] },
-  { canonical: "Núi Đôi Quản Bạ", aliases: ["núi đôi", "nui doi", "quản bạ", "quan ba", "cổng trời quản bạ", "cổng trời"] },
+  { canonical: "Cổng Trời Quản Bạ", aliases: ["cổng trời quản bạ", "cong troi quan ba", "cổng trời", "cong troi"] },
+  { canonical: "Núi Đôi Quản Bạ", aliases: ["núi đôi", "nui doi", "núi đôi quản bạ", "núi đôi cô tiên"] },
   { canonical: "Rừng thông Yên Minh", aliases: ["yên minh", "yen minh", "rừng thông yên minh"] },
   { canonical: "Mèo Vạc", aliases: ["mèo vạc", "meo vac"] },
 ];
@@ -187,13 +190,14 @@ export function deterministicQuestionUnderstanding(
   }
 
   if (targetSubjects.length === 0 && history.length > 0 && needsHistory(question)) {
-    const priorTurns = qaIntentHistory(question, history);
-    for (const pt of priorTurns) {
+    for (const pt of [...history].reverse()) {
       const ptMatches = matchKnownDestinations(pt.question);
       if (ptMatches.length > 0) {
         targetSubjects = ptMatches;
         break;
       }
+      // Do not cross an explicit but unrecognized topic when falling back.
+      if (!needsHistory(pt.question)) break;
     }
   }
 
@@ -234,7 +238,7 @@ export function deterministicQuestionUnderstanding(
   if (/lễ\s+hội/u.test(factual)) attributes.push("lễ hội");
 
   const clarification = qaFollowupClarification(question, history, context);
-  const ambiguous = targetSubjects.length === 0 && context.type === "GENERAL" && !!clarification;
+  const ambiguous = context.type === "GENERAL" && !!clarification && targetSubjects.length !== 1;
 
   const subPart = targetSubjects.join(" ");
   const searchQuery = subPart ? `${subPart} ${factual}` : factual;

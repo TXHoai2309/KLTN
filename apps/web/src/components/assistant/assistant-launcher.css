@@ -125,13 +125,19 @@
 
 @media (max-width: 640px) {
   .global-assistant-launcher {
-    right: 16px;
-    bottom: max(16px, env(safe-area-inset-bottom));
+    right: 14px;
+    bottom: max(14px, env(safe-area-inset-bottom));
   }
   .global-assistant-launcher button {
-    padding-inline: 15px;
-    font-size: 13px;
-    min-height: 44px;
+    padding: 0 14px;
+    font-size: 12.5px;
+    min-height: 40px;
+    gap: 6px;
+    box-shadow: 0 4px 14px rgba(15, 76, 58, 0.35);
+  }
+  .global-assistant-launcher svg {
+    width: 15px;
+    height: 15px;
   }
 }
 

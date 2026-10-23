@@ -225,7 +225,8 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
       const keywordQuery = options.hybrid
         ? qaKeywordQuery(currentSubject ? queries[qi]! : (understanding.searchQuery || normalized), keywordSubjects)
         : "";
-      const subjectFilter = currentSubject ? Prisma.sql`AND (strpos(lower(normalize(c."text", NFC)), ${currentSubject}) > 0 OR strpos(lower(normalize(d."sourceTitle", NFC)), ${currentSubject}) > 0)` : Prisma.empty;
+      const subjectNeedle = currentSubject?.normalize("NFC").toLocaleLowerCase("vi");
+      const subjectFilter = subjectNeedle ? Prisma.sql`AND (strpos(lower(normalize(c."text", NFC)), ${subjectNeedle}) > 0 OR strpos(lower(normalize(d."sourceTitle", NFC)), ${subjectNeedle}) > 0)` : Prisma.empty;
       const group = await boundedRead(database, async reader => {
       const vectorRows = await reader.$queryRaw<Row[]>(Prisma.sql`SELECT d."id" AS "documentId", g."id" AS "generationId",
         g."contentVersionId", c."id" AS "chunkId", c."chunkHash", c."text", e."tokenCount",

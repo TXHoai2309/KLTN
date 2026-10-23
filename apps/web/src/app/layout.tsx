@@ -1,4 +1,15 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  interactiveWidget: "resizes-content",
+};
+
+export const metadata: Metadata = {
+  title: "KLTN",
+  description: "KLTN",
+};
 import { Geist, Geist_Mono, Be_Vietnam_Pro, Lora } from "next/font/google";
 
 import "../index.css";
@@ -31,10 +42,7 @@ const beVietnamPro = Be_Vietnam_Pro({
 });
 const editorialSerif = Lora({ variable: "--font-editorial-serif", subsets: ["latin", "vietnamese"], display: "swap" });
 
-export const metadata: Metadata = {
-  title: "KLTN",
-  description: "KLTN",
-};
+
 
 export default function RootLayout({
   children,

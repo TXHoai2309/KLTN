@@ -1,6 +1,5 @@
 import { mvpFeatures } from "@/lib/mvp-features";
 import type { Metadata } from "next";
-import { Suspense } from "react";
 import { connection } from "next/server";
 import type { Route } from "next";
 import Link from "next/link";
@@ -9,30 +8,30 @@ import {
   ArrowRight,
   BookOpen,
   CalendarDays,
-  Car,
   CheckCircle2,
-  Clock,
   Compass,
   FileText,
   Map,
   MapPin,
-  Mountain,
   PlusCircle,
   Route as RouteIcon,
-  ShieldCheck,
   Sparkles,
 } from "lucide-react";
 import HomeScrollReveal from "@/components/home-scroll-reveal";
 import { BrandLogo } from "@/components/brand-logo";
 import { db } from "@/services";
+import type { PublicLocation } from "@/modules/destination/public-destination-list";
 import { listPublicHomeDestinations } from "@/modules/destination/public-home-destinations";
-import HomeExploreMap, { HomeExploreMapLoading } from "@/components/home-explore-map";
+import HomeExploreMap from "@/components/home-explore-map";
 import HomeHeroVideo from "@/components/home-hero-video";
+import HomePlannerStory from "@/components/home-planner-story";
 import HomeHeroMetrics from "@/components/home-hero-metrics";
 import HomeGallery from "@/components/home-gallery";
 import HomeSeasonBanner from "@/components/home-season-banner";
+import HomeAssistantSimulation from "@/components/home-assistant-simulation";
 import { ProtectedLink } from "@/components/protected-link";
 import "./home.css";
+import "@/components/home-polish.css";
 
 export const metadata: Metadata = {
   title: "Hà Giang Travel Assistant | Khám phá Hà Giang theo cách của bạn",
@@ -45,9 +44,14 @@ export default async function Home() {
   // Keep this request boundary outside the data fallback so prerender control
   // flow is not swallowed. Other routes and static assets keep their cache policy.
   await connection();
-  const destinationsRequest: ReturnType<typeof listPublicHomeDestinations> = listPublicHomeDestinations(db).catch(() => ({
-    destinations: [], descriptions: {},
-  }));
+  // Fetch verified public destinations from DB via existing service
+  let destinations: PublicLocation[] = [];
+  let descriptions: Record<string, string> = {};
+  try {
+    ({ destinations, descriptions } = await listPublicHomeDestinations(db));
+  } catch {
+    destinations = [];
+  }
 
   return (
     <main className="home-page" lang="vi">
@@ -194,11 +198,76 @@ export default async function Home() {
             </p>
           </div>
 
-          <div data-home-reveal>
-            <Suspense fallback={<HomeExploreMapLoading />}>
-              <HomeDestinations request={destinationsRequest} />
-            </Suspense>
-          </div>
+          {destinations.length > 0 ? (
+            <HomeExploreMap destinations={destinations} descriptions={descriptions} />
+          ) : (
+            /* Fallback when offline or no DB rows returned */
+            <div className="home-card-grid" data-mvp-columns={mvpFeatures.culture ? undefined : "2"}>
+              <article className="home-card" data-home-reveal>
+                <div className="home-card-art home-card-art-destination" aria-hidden="true">
+                  <Image
+                    className="home-destination-image"
+                    src="/images/ha-giang-destination-card.webp"
+                    alt=""
+                    fill
+                    sizes="(max-width: 640px) calc(100vw - 28px), (max-width: 1020px) calc(50vw - 48px), 400px"
+                  />
+                  <span className="home-card-icon"><MapPin size={21} /></span>
+                </div>
+                <div className="home-card-content">
+                  <h3>Khám phá điểm đến</h3>
+                  <p>Xem khu vực, giờ hoạt động và thời lượng tham quan để hiểu thêm về nơi bạn muốn đến.</p>
+                  <Link href="/explore" className="home-card-link">
+                    Xem các điểm đến <ArrowRight size={15} aria-hidden="true" />
+                  </Link>
+                </div>
+              </article>
+
+              {mvpFeatures.culture && (
+                <article className="home-card" data-home-reveal>
+                  <div className="home-card-art home-card-art-culture" aria-hidden="true">
+                    <div className="home-culture-photo">
+                      <Image
+                        className="home-culture-image"
+                        src="/images/ha-giang-culture-card.webp"
+                        alt=""
+                        fill
+                        sizes="(max-width: 640px) 140px, (max-width: 1020px) 180px, 160px"
+                      />
+                    </div>
+                    <span className="home-card-icon home-card-icon-warm"><BookOpen size={21} /></span>
+                  </div>
+                  <div className="home-card-content">
+                    <h3>Tìm hiểu văn hóa</h3>
+                    <p>Đọc những câu chuyện văn hóa Hà Giang và tham khảo nguồn thông tin khi có.</p>
+                    <Link href="/explore" className="home-card-link">
+                      Khám phá văn hóa <ArrowRight size={15} aria-hidden="true" />
+                    </Link>
+                  </div>
+                </article>
+              )}
+
+              <article className="home-card" data-home-reveal>
+                <div className="home-card-art home-card-art-map" aria-hidden="true">
+                  <Image
+                    className="home-map-image"
+                    src="/images/ha-giang-map-card.webp"
+                    alt=""
+                    fill
+                    sizes="(max-width: 640px) 150px, (max-width: 1020px) 185px, 170px"
+                  />
+                  <span className="home-card-icon home-card-icon-blue"><Map size={21} /></span>
+                </div>
+                <div className="home-card-content">
+                  <h3>Xem vị trí trên bản đồ</h3>
+                  <p>Khám phá vị trí các điểm đến và mở thông tin chi tiết trực tiếp từ bản đồ.</p>
+                  <Link href={"/explore?view=map" as Route} className="home-card-link">
+                    Mở bản đồ điểm đến <ArrowRight size={15} aria-hidden="true" />
+                  </Link>
+                </div>
+              </article>
+            </div>
+          )}
 
           <div className="home-explore-footer" data-home-reveal>
             <Link href={"/explore?view=map" as Route} className="home-link-pill home-map-cta-pill">
@@ -219,7 +288,7 @@ export default async function Home() {
                 <span>Nhận câu trả lời có dẫn chứng nguồn.</span>
               </h2>
               <p className="home-showcase-desc">
-                Tra cứu thời tiết, mùa hoa tam giác mạch hay tình trạng cung đèo hiểm trở. Trợ lý AI đối chiếu trực tiếp từ kho tri thức du lịch địa phương, đồng thời minh bạch chỉ rõ các thông tin chưa đủ cơ sở xác thực.
+                Hỏi về thời tiết, mùa hoa hay đường đèo. Mỗi câu trả lời đều kèm nguồn tham khảo.
               </p>
 
               <ul className="home-feature-list" aria-label="Năng lực nổi bật của Trợ lý AI">
@@ -227,23 +296,23 @@ export default async function Home() {
                   <div className="home-feature-icon-badge home-badge-lavender" aria-hidden="true">
                     <CheckCircle2 size={18} />
                   </div>
-                  <span><strong>Tham khảo có dẫn nguồn:</strong> Mọi câu trả lời đều đối chiếu tài liệu văn hóa &amp; cẩm nang du lịch kiểm định.</span>
+                  <span><strong>Có dẫn nguồn</strong><span className="home-feature-extra"> từ tài liệu đã kiểm duyệt.</span></span>
                 </li>
                 <li>
                   <div className="home-feature-icon-badge home-badge-lavender" aria-hidden="true">
                     <CheckCircle2 size={18} />
                   </div>
-                  <span><strong>Cảnh báo an toàn đường đèo:</strong> Cập nhật khuyến cáo thực tế khi lái xe qua các cung đường dốc đá.</span>
+                  <span><strong>Lưu ý an toàn</strong><span className="home-feature-extra"> khi đi đường đèo.</span></span>
                 </li>
                 <li>
                   <div className="home-feature-icon-badge home-badge-lavender" aria-hidden="true">
                     <CheckCircle2 size={18} />
                   </div>
-                  <span><strong>Minh bạch độ tin cậy:</strong> Không suy diễn dữ liệu khi tài liệu gốc chưa có đủ thông tin đối chiếu.</span>
+                  <span><strong>Không đoán bừa</strong><span className="home-feature-extra">, nói rõ khi chưa đủ căn cứ.</span></span>
                 </li>
               </ul>
 
-              <div className="home-showcase-cta-group">
+              <div className="home-showcase-cta-group home-assistant-desktop-action">
                 <Link className="home-cta home-cta-primary home-cta-lavender" href={"/assistant" as Route}>
                   <Sparkles size={18} aria-hidden="true" />
                   <span>Trò chuyện với Trợ lý AI</span>
@@ -253,59 +322,16 @@ export default async function Home() {
             </div>
 
             <div className="home-showcase-preview" data-home-reveal>
-              <div className="home-ai-mockup">
-                <div className="home-mockup-header">
-                  <div className="home-mockup-brand">
-                    <span className="home-mockup-dot-indicator" aria-hidden="true" />
-                    <Sparkles size={16} className="home-mockup-sparkle" aria-hidden="true" />
-                    <strong>Trợ lý AI Hà Giang</strong>
-                  </div>
-                  <span className="home-mockup-badge home-mockup-badge-lavender">Hội thoại minh họa</span>
-                </div>
+              <HomeAssistantSimulation />
 
-                <div className="home-ai-conversation" aria-label="Ví dụ minh họa cuộc hội thoại">
-                  {/* User Bubble */}
-                  <div className="home-ai-turn home-ai-user-turn">
-                    <div className="home-ai-user-bubble">
-                      <p>Tháng 10 đi Hà Giang có hoa tam giác mạch chưa và cần chuẩn bị thời tiết thế nào?</p>
-                      <small className="home-ai-bubble-meta">09:15 · Du khách</small>
-                    </div>
-                  </div>
-
-                  {/* Assistant Bubble */}
-                  <div className="home-ai-turn home-ai-bot-turn">
-                    <div className="home-ai-bot-bubble">
-                      <div className="home-ai-speaker">
-                        <Sparkles size={14} className="home-ai-speaker-icon" aria-hidden="true" />
-                        <span>Trợ lý Hà Giang Travel</span>
-                      </div>
-                      <p className="home-ai-answer-text">
-                        Tháng 10 là thời điểm tam giác mạch bắt đầu nở rộ tại cao nguyên đá Đồng Văn, Lũng Cú và thung lũng Sủng Là. Ban ngày trời khô ráo, se lạnh dễ chịu (18–24°C), ban đêm nhiệt độ có thể xuống 13–15°C. Bạn nên mang thêm áo gió cản sương và găng tay khi đi đèo.
-                      </p>
-
-                      <div className="home-ai-citation-box">
-                        <div className="home-ai-citation-title">
-                          <FileText size={14} aria-hidden="true" />
-                          <span>Tài liệu tham khảo đối chiếu:</span>
-                          <span className="home-ai-citation-pill">[1]</span>
-                        </div>
-                        <p className="home-ai-citation-desc">
-                          Cẩm nang Du lịch &amp; Khí hậu Hà Giang · Mục 3.2 Chu kỳ mùa hoa &amp; thời tiết cao nguyên.
-                        </p>
-                      </div>
-
-                      <div className="home-ai-verified-notice">
-                        <ShieldCheck size={14} aria-hidden="true" />
-                        <span>Trích đoạn minh họa đối chiếu RAG Hà Giang từ tài liệu công khai.</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Follow-up suggestions */}
-                  <div className="home-ai-suggestions">
-                    <span className="home-ai-suggestion-chip">Đi xe máy cung Đồng Văn cần chuẩn bị gì?</span>
-                    <span className="home-ai-suggestion-chip">Ẩm thực chợ phiên vùng cao có gì đặc sắc?</span>
-                  </div>
+              {/* Nút hành động đặt dưới thẻ chat theo yêu cầu trên mobile */}
+              <div className="home-assistant-mobile-action">
+                <div className="home-showcase-cta-group">
+                  <Link className="home-cta home-cta-primary home-cta-lavender" href={"/assistant" as Route}>
+                    <Sparkles size={18} aria-hidden="true" />
+                    <span>Trò chuyện với Trợ lý AI</span>
+                    <ArrowRight className="home-cta-arrow" size={17} aria-hidden="true" />
+                  </Link>
                 </div>
               </div>
             </div>
@@ -314,41 +340,20 @@ export default async function Home() {
 
         {/* SECTION 4: SMART TRIP PLANNER SHOWCASE (Peach Cream × Golden Sun × Coral) */}
         <section className="home-planner-section" aria-labelledby="home-planner-title">
-          <div className="home-showcase-grid home-showcase-grid-reversed">
-            <div className="home-showcase-copy" data-home-reveal>
-              <p className="home-eyebrow home-eyebrow-coral">LẬP HÀNH TRÌNH TỐI ƯU</p>
+          <HomePlannerStory
+            intro={
+              <>
+                <p className="home-eyebrow home-eyebrow-coral">LẬP HÀNH TRÌNH TỐI ƯU</p>
               <h2 id="home-planner-title">
                 Hành trình riêng biệt.
                 <span>Thiết kế cho từng bước chân.</span>
               </h2>
               <p className="home-showcase-desc">
-                Không cần phải tự mò mẫm sắp xếp từng điểm dừng hay lo lắng lạc đường trên cung đèo núi. Hệ thống sắp xếp lộ trình logic, vừa vặn với số ngày và phương tiện của bạn.
+                Hệ thống tự sắp xếp lộ trình vừa với số ngày và phương tiện của bạn.
               </p>
-
-              <div className="home-planner-steps" role="list">
-                <div className="home-planner-step-item" role="listitem">
-                  <span className="home-planner-step-num home-step-coral">1</span>
-                  <div>
-                    <strong>Tùy chọn thời gian &amp; phương tiện</strong>
-                    <p>Hỗ trợ lịch trình 2–5 ngày linh hoạt bằng xe máy hoặc ô tô du lịch.</p>
-                  </div>
-                </div>
-                <div className="home-planner-step-item" role="listitem">
-                  <span className="home-planner-step-num home-step-gold">2</span>
-                  <div>
-                    <strong>Chọn gu trải nghiệm yêu thích</strong>
-                    <p>Khám phá thắng cảnh kỳ vĩ, hòa mình vào văn hóa bản làng hay nghỉ dưỡng thong dong.</p>
-                  </div>
-                </div>
-                <div className="home-planner-step-item" role="listitem">
-                  <span className="home-planner-step-num home-step-teal">3</span>
-                  <div>
-                    <strong>Tối ưu hóa cung đường thực tế</strong>
-                    <p>Sắp xếp thứ tự các điểm dừng logic theo địa lý, đảm bảo nhịp di chuyển thoải mái và an toàn.</p>
-                  </div>
-                </div>
-              </div>
-
+              </>
+            }
+            action={
               <div className="home-showcase-cta-group">
                 <ProtectedLink className="home-cta home-cta-primary home-cta-coral" href="/trips/new" intent="planner">
                   <CalendarDays size={18} aria-hidden="true" />
@@ -356,79 +361,8 @@ export default async function Home() {
                   <ArrowRight className="home-cta-arrow" size={17} aria-hidden="true" />
                 </ProtectedLink>
               </div>
-            </div>
-
-            <div className="home-showcase-preview" data-home-reveal>
-              <div className="home-planner-mockup">
-                <div className="home-mockup-header">
-                  <div className="home-mockup-brand">
-                    <RouteIcon size={16} className="home-mockup-icon" aria-hidden="true" />
-                    <strong>Lịch trình đề xuất mẫu · 3 Ngày 2 Đêm</strong>
-                  </div>
-                  <span className="home-mockup-badge home-mockup-badge-peach">Xe máy · Cảnh quan &amp; Bản địa</span>
-                </div>
-
-                <div className="home-planner-timeline-preview">
-                  <div className="home-planner-preference-pills" aria-label="Thông số hành trình mẫu">
-                    <span className="home-planner-pill home-planner-pill-car"><Car size={12} aria-hidden="true" /> Xe máy / Ô tô</span>
-                    <span className="home-planner-pill home-planner-pill-pace"><Clock size={12} aria-hidden="true" /> 3 Ngày 2 Đêm</span>
-                    <span className="home-planner-pill home-planner-pill-theme"><Mountain size={12} aria-hidden="true" /> Cảnh quan &amp; Văn hóa</span>
-                  </div>
-
-                  <div className="home-timeline-list">
-                    <div className="home-timeline-stop">
-                      <div className="home-timeline-indicator">
-                        <span className="home-timeline-dot home-dot-coral" />
-                        <span className="home-timeline-line" />
-                      </div>
-                      <div className="home-timeline-body">
-                        <div className="home-timeline-header">
-                          <span className="home-timeline-day">Ngày 1</span>
-                          <span className="home-timeline-time">Khởi hành · Chạm ngõ Cao nguyên</span>
-                        </div>
-                        <div className="home-timeline-name">TP. Hà Giang → Quản Bạ → Rừng thông Yên Minh</div>
-                        <p className="home-timeline-desc">Chiêm ngưỡng thung lũng Tam Sơn, vượt dốc Bắc Sum và nghỉ chân tại thị trấn vùng cao.</p>
-                      </div>
-                    </div>
-
-                    <div className="home-timeline-stop">
-                      <div className="home-timeline-indicator">
-                        <span className="home-timeline-dot home-dot-gold" />
-                        <span className="home-timeline-line" />
-                      </div>
-                      <div className="home-timeline-body">
-                        <div className="home-timeline-header">
-                          <span className="home-timeline-day">Ngày 2</span>
-                          <span className="home-timeline-time">Kỳ vĩ · Trái tim Di sản UNESCO</span>
-                        </div>
-                        <div className="home-timeline-name">Dinh họ Vương → Cột cờ Lũng Cú → Đèo Mã Pí Lèng</div>
-                        <p className="home-timeline-desc">Chạm mốc cực Bắc Tổ quốc, chinh phục hẻm Tu Sản và ngắm hoàng hôn rực rỡ sông Nho Quế.</p>
-                      </div>
-                    </div>
-
-                    <div className="home-timeline-stop">
-                      <div className="home-timeline-indicator">
-                        <span className="home-timeline-dot home-dot-teal" />
-                      </div>
-                      <div className="home-timeline-body">
-                        <div className="home-timeline-header">
-                          <span className="home-timeline-day">Ngày 3</span>
-                          <span className="home-timeline-time">Trải nghiệm · Chợ phiên &amp; Vòng về</span>
-                        </div>
-                        <div className="home-timeline-name">Mèo Vạc → Cua chữ M → Thác Du Già → TP. Hà Giang</div>
-                        <p className="home-timeline-desc">Thưởng thức ẩm thực chợ phiên buổi sớm, thư giãn bên dòng thác và hoàn thành cung đường chữ M.</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="home-planner-validation-banner">
-                    <ShieldCheck size={16} aria-hidden="true" />
-                    <span>Lộ trình đề xuất minh họa theo nhịp di chuyển thực tế và đặc điểm đường đèo Hà Giang</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+            }
+          />
         </section>
 
 
@@ -514,81 +448,4 @@ export default async function Home() {
       </HomeScrollReveal>
     </main>
   );
-}
-
-
-async function HomeDestinations({ request }: { request: ReturnType<typeof listPublicHomeDestinations> }) {
-  const { destinations, descriptions } = await request;
-  return <>
-          {destinations.length > 0 ? (
-            <HomeExploreMap destinations={destinations} descriptions={descriptions} />
-          ) : (
-            /* Fallback when offline or no DB rows returned */
-            <div className="home-card-grid" data-mvp-columns={mvpFeatures.culture ? undefined : "2"}>
-              <article className="home-card" data-home-reveal>
-                <div className="home-card-art home-card-art-destination" aria-hidden="true">
-                  <Image
-                    className="home-destination-image"
-                    src="/images/ha-giang-destination-card.webp"
-                    alt=""
-                    fill
-                    sizes="(max-width: 640px) calc(100vw - 28px), (max-width: 1020px) calc(50vw - 48px), 400px"
-                  />
-                  <span className="home-card-icon"><MapPin size={21} /></span>
-                </div>
-                <div className="home-card-content">
-                  <h3>Khám phá điểm đến</h3>
-                  <p>Xem khu vực, giờ hoạt động và thời lượng tham quan để hiểu thêm về nơi bạn muốn đến.</p>
-                  <Link href="/explore" className="home-card-link">
-                    Xem các điểm đến <ArrowRight size={15} aria-hidden="true" />
-                  </Link>
-                </div>
-              </article>
-
-              {mvpFeatures.culture && (
-                <article className="home-card" data-home-reveal>
-                  <div className="home-card-art home-card-art-culture" aria-hidden="true">
-                    <div className="home-culture-photo">
-                      <Image
-                        className="home-culture-image"
-                        src="/images/ha-giang-culture-card.webp"
-                        alt=""
-                        fill
-                        sizes="(max-width: 640px) 140px, (max-width: 1020px) 180px, 160px"
-                      />
-                    </div>
-                    <span className="home-card-icon home-card-icon-warm"><BookOpen size={21} /></span>
-                  </div>
-                  <div className="home-card-content">
-                    <h3>Tìm hiểu văn hóa</h3>
-                    <p>Đọc những câu chuyện văn hóa Hà Giang và tham khảo nguồn thông tin khi có.</p>
-                    <Link href="/explore" className="home-card-link">
-                      Khám phá văn hóa <ArrowRight size={15} aria-hidden="true" />
-                    </Link>
-                  </div>
-                </article>
-              )}
-
-              <article className="home-card" data-home-reveal>
-                <div className="home-card-art home-card-art-map" aria-hidden="true">
-                  <Image
-                    className="home-map-image"
-                    src="/images/ha-giang-map-card.webp"
-                    alt=""
-                    fill
-                    sizes="(max-width: 640px) 150px, (max-width: 1020px) 185px, 170px"
-                  />
-                  <span className="home-card-icon home-card-icon-blue"><Map size={21} /></span>
-                </div>
-                <div className="home-card-content">
-                  <h3>Xem vị trí trên bản đồ</h3>
-                  <p>Khám phá vị trí các điểm đến và mở thông tin chi tiết trực tiếp từ bản đồ.</p>
-                  <Link href={"/explore?view=map" as Route} className="home-card-link">
-                    Mở bản đồ điểm đến <ArrowRight size={15} aria-hidden="true" />
-                  </Link>
-                </div>
-              </article>
-            </div>
-          )}
-  </>;
 }
