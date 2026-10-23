@@ -173,7 +173,11 @@ export default function NaturalLanguageInput({
           aria-busy={isProcessing}
           onClick={handleAnalyze}
         >
-          {isProcessing && <LoaderCircle className="trip-spinner" size={18} aria-hidden="true" />}
+          {isProcessing ? (
+            <LoaderCircle className="trip-spinner" size={18} aria-hidden="true" />
+          ) : (
+            <Sparkles size={17} aria-hidden="true" />
+          )}
           {displayButtonState.label}
         </Button>
         {displayButtonState.reason && <p className="trip-natural-language-button-reason">{displayButtonState.reason}</p>}

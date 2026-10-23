@@ -42,6 +42,19 @@
 .my-trips-dialog p { margin-top: 14px; font-size: 14px; line-height: 1.65; }
 .my-trips-dialog-trip { color: var(--trip-read-muted); }
 .my-trips-dialog-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.my-trips-dialog-actions [data-slot="button"]:not([class*="destructive"]):not([class*="outline"]) {
+  background: linear-gradient(135deg, #184c35 0%, #236c50 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(24, 76, 53, 0.25);
+  transition: all 150ms ease;
+}
+.my-trips-dialog-actions [data-slot="button"]:not([class*="destructive"]):not([class*="outline"]):hover:not(:disabled) {
+  background: linear-gradient(135deg, #1e5a3f 0%, #2a7d5e 100%) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(24, 76, 53, 0.35);
+}
 .my-trips-mutation-feedback { border: 1px solid var(--trip-read-border); border-radius: 8px; padding: 12px; }
 .my-trips-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 32px; margin-bottom: 46px; }
 .my-trips-heading > div { min-width: 0; }
@@ -65,9 +78,21 @@
   font-weight: 700;
   text-align: center;
   text-decoration: none;
-  transition: opacity 150ms ease, transform 150ms ease;
+  transition: opacity 150ms ease, transform 150ms ease, box-shadow 150ms ease;
 }
-.my-trips-action:hover, .my-trips-open:hover, .my-trips-secondary-action:hover { opacity: .88; transform: translateY(-1px); }
+.my-trips-action {
+  background: linear-gradient(135deg, #184c35 0%, #236c50 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 2px 6px rgba(24, 76, 53, 0.2);
+}
+.my-trips-action:hover {
+  background: linear-gradient(135deg, #1e5a3f 0%, #2a7d5e 100%) !important;
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 14px rgba(24, 76, 53, 0.32);
+  opacity: 1 !important;
+}
+.my-trips-open:hover, .my-trips-secondary-action:hover { opacity: .88; transform: translateY(-1px); }
 .my-trips-heading > .my-trips-action { flex: 0 0 auto; }
 
 .my-trips-group { min-width: 0; margin-bottom: 40px; }
