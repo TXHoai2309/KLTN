@@ -85,6 +85,31 @@ to `/trips`. Pending/UNKNOWN locks extend to the containing requirement form's
 tabs and input handlers, retaining the mounted proposal and identical retry key.
 Known FAILED releases that lock. No new palette, font or storage mechanism.
 
+### Trip planning refinement approved by owner (2026-10-23)
+
+The owner approved Q1–Q5 for `/trips/new`: preserve the forest/cream palette and
+Be Vietnam Pro/Noto Serif families, refine layout and density, keep AI as the
+first entry with a visible manual path, prioritize the itinerary over supporting
+map content, and simplify Vietnamese copy without changing business meaning.
+The later implementation instruction explicitly authorizes these refinements;
+the earlier preservation direction above continues to govern business behavior.
+
+Runtime ownership remains Model B: `trip-form.css` owns `--tf-*` colors and themes;
+`trip-planning-layout.css` is the route-scoped composition adapter loaded by the
+existing layout. Embedded planner semantic variables map to the same tf roles.
+Standalone planner consumers retain their existing stylesheet. No generated
+design system, global palette, new font, dependency or navigation owner is added.
+
+Shared field editors own both form and review, with `trip` / `trip-review` instance
+IDs and independent radio names. Native typed Vietnamese dates remain canonical.
+Primary controls have at least 44px targets; review stacks at narrow widths.
+The document owns scrolling. The mobile action dock is in normal flow, keeping
+the global AI launcher and keyboard from covering its primary action. Source,
+readiness, Validator and database-save states retain their separate meanings.
+
+See `docs/design/trip-planning-ui-refinement.md` for the canonical UI map,
+verification evidence, known baseline failures and boundaries.
+
 ## Assistant original-source citations (2026-10-20)
 
 AssistantCitations owns numbered references after each paragraph/list item and
@@ -510,3 +535,12 @@ search with stale-response protection; audit uses bounded Load more. Runtime
 status choices are ACTIVE/LOCKED only. Session details omit IP/token, show actual
 active counts and at most twenty recent active sessions. lastLoginAt remains
 unrecorded, never derived from updatedAt.
+
+## Trip navigation — owner correction, 2026-10-23
+
+Match the supplied demo's information architecture: Header owns one protected
+`Chuyến đi của tôi` entry to `/trips`, between Assistant and Favorites, on desktop
+and mobile. The entry remains active throughout `/trips/`, including creation.
+Creation is the existing `+ Tạo chuyến đi` action inside MyTripsView linking to
+`/trips/new`; retain its empty-state alternative. Header and MyTripsView remain
+the canonical owners; no new navigation component, tokens or business behavior.

@@ -51,9 +51,9 @@ export function GlobalAssistantProvider({ children }: { children: ReactNode }) {
     {mounted && createPortal(
       <div data-assistant-overlay-root="" className="global-assistant-root">
         <aside className="global-assistant-launcher" hidden={!routeVisible || open} aria-label="Trợ lý AI">
-          <button ref={triggerRef} type="button" onClick={openPanel} aria-label="Hỏi trợ lý AI"
+          <button ref={triggerRef} type="button" onClick={openPanel} aria-label="Hỏi trợ lý AI" title="Hỏi trợ lý AI"
             aria-haspopup="dialog" aria-expanded={open && routeVisible} aria-controls={hasSession ? panelId : undefined}>
-            <Sparkles size={20} aria-hidden="true" /><span>Hỏi trợ lý AI</span>
+            <Sparkles size={20} aria-hidden="true" /><span className="global-assistant-launcher-label">Hỏi trợ lý AI</span>
           </button>
         </aside>
         {hasSession && <DestinationAssistantPanel

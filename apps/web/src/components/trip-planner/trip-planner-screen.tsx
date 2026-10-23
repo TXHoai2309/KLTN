@@ -24,7 +24,25 @@ export function completeTripSave(
   navigate("/trips");
 }
 
-export function TripPlannerScreen({ proposal, busy = false, onBack, onRegenerate, onSaved, onSaveStateChange, embedded = false }: { proposal: PlannerResult; busy?: boolean; onBack: () => void; onRegenerate: () => void; onSaved: (tripId: string) => void; onSaveStateChange?: (state: SaveState) => void; embedded?: boolean }) {
+export function TripPlannerScreen({
+  proposal,
+  busy = false,
+  onBack,
+  onRegenerate,
+  onSaved,
+  onSaveStateChange,
+  onUpdateStartDate,
+  embedded = false,
+}: {
+  proposal: PlannerResult;
+  busy?: boolean;
+  onBack: () => void;
+  onRegenerate: () => void;
+  onSaved: (tripId: string) => void;
+  onSaveStateChange?: (state: SaveState) => void;
+  onUpdateStartDate?: (newDate: string) => void;
+  embedded?: boolean;
+}) {
   const [dayNumber, setDayNumber] = useState(1);
   const [selectedDestinationId, setSelectedDestinationId] = useState<string | null>(proposal.days[0]?.stops[0]?.destination.id ?? null);
   const [focusSelection, setFocusSelection] = useState(false);
@@ -42,7 +60,7 @@ export function TripPlannerScreen({ proposal, busy = false, onBack, onRegenerate
   const PlannerContainer = embedded ? "div" : "main";
 
   return <PlannerContainer className="planner-page" lang="vi" aria-busy={busy}>
-    <TripSummaryBar requirement={proposal.requirement} days={proposal.days} />
+    <TripSummaryBar requirement={proposal.requirement} days={proposal.days} embedded={embedded} />
     <div className={`planner-result-notice planner-result-${proposal.status.toLowerCase()}`} role="status" aria-live="polite"><ShieldCheck size={18} aria-hidden="true" /><span>{proposal.status === "PROPOSAL_READY" ? "Đề xuất đáp ứng các kiểm tra hiện tại; chưa được lưu chính thức." : proposal.status === "NO_FEASIBLE_ITINERARY" ? "Chưa thể bố trí một lịch trình đáp ứng tất cả ràng buộc. Hãy xem các mục cần điều chỉnh." : "Đề xuất còn dữ liệu chưa được xác minh. Hãy xem các cảnh báo trước khi sử dụng."}</span></div>
     <div className="planner-grid">
       <section className="planner-timeline-panel" aria-labelledby="planner-timeline-title"><h2 ref={heading} id="planner-timeline-title" tabIndex={-1}><Route size={23} aria-hidden="true" />Lịch trình đề xuất</h2>
@@ -52,7 +70,7 @@ export function TripPlannerScreen({ proposal, busy = false, onBack, onRegenerate
         </div>
         <ItineraryValidationPanel checks={proposal.checks} />
         <details className="planner-warnings"><summary><AlertCircle size={16} />Lưu ý cho đề xuất này ({proposal.warnings.length})</summary><ul>{proposal.warnings.map((warning, index) => <li key={index}>{warning.message}</li>)}</ul></details>
-        <TripConfirmationSection result={proposal} disabled={busy} onSaved={onSaved} onSaveStateChange={handleSaveStateChange} secondaryActions={<PlannerActions busy={busy} disabled={isTripSaveNavigationLocked(saveState)} onBack={onBack} onRegenerate={onRegenerate} />} />
+        <TripConfirmationSection result={proposal} disabled={busy} onSaved={onSaved} onSaveStateChange={handleSaveStateChange} onUpdateStartDate={onUpdateStartDate} secondaryActions={<PlannerActions busy={busy} disabled={isTripSaveNavigationLocked(saveState)} onBack={onBack} onRegenerate={onRegenerate} />} />
       </section>
       <div className="planner-map-panel"><TripOverviewCard day={day} /><ItineraryMap day={day} selectedDestinationId={selectedDestinationId} focusSelection={focusSelection} onSelect={select} /><DestinationPreviewCard stop={selected} /></div>
     </div>
@@ -63,6 +81,7 @@ export function PlannerEmptyState({ onBack }: { onBack: () => void }) { return <
 export function PlannerLoadingState() { return <div className="planner-loading" role="status" aria-live="polite" aria-busy="true"><LoaderCircle className="trip-spinner" size={25} /><div><strong>Đang sắp xếp hành trình của bạn</strong><p>Đối chiếu điểm đến, dữ liệu di chuyển và các ràng buộc…</p></div><div className="planner-skeleton-row" aria-hidden="true"><span /><span /><span /></div></div>; }
 export default function TripPlannerFlow({ confirmed, onBack, onSaveStateChange, embedded = false }: { confirmed: ConfirmedTripRequirement; onBack: () => void; onSaveStateChange?: (state: SaveState) => void; embedded?: boolean }) {
   const router = useRouter();
+  const [currentRequirement, setCurrentRequirement] = useState(confirmed.requirement);
   const [proposal, setProposal] = useState<PlannerResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<Extract<PlannerClientResult, { ok: false }> | null>(null);
@@ -71,12 +90,14 @@ export default function TripPlannerFlow({ confirmed, onBack, onSaveStateChange, 
   const attempt = useRef<{ key: string; requirement: ConfirmedTripRequirement["requirement"] } | null>(null);
   const snapshot = JSON.stringify(confirmed.requirement);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; abort.current?.abort(); sequence.current++; }; }, []);
-  useEffect(() => { abort.current?.abort(); sequence.current++; lock.current = false; attempt.current = null; setProposal(null); setError(null); setBusy(false); }, [snapshot]);
-  async function generate(retry = false) {
+  useEffect(() => { abort.current?.abort(); sequence.current++; lock.current = false; attempt.current = null; setProposal(null); setError(null); setBusy(false); setCurrentRequirement(confirmed.requirement); }, [snapshot]);
+  async function generate(retry = false, updatedRequirement?: ConfirmedTripRequirement["requirement"]) {
     if (lock.current) return; lock.current = true;
+    const req = updatedRequirement ?? currentRequirement;
+    if (updatedRequirement) setCurrentRequirement(updatedRequirement);
     const seq = ++sequence.current;
     const controller = new AbortController(); abort.current = controller;
-    if (!retry || !attempt.current) attempt.current = { key: createIdempotencyKey(), requirement: structuredClone(confirmed.requirement) };
+    if (!retry || !attempt.current || updatedRequirement) attempt.current = { key: createIdempotencyKey(), requirement: structuredClone(req) };
     const current = attempt.current;
     setBusy(true); setError(null);
     try {
@@ -86,14 +107,14 @@ export default function TripPlannerFlow({ confirmed, onBack, onSaveStateChange, 
     } finally { if (seq === sequence.current) { lock.current = false; if (mounted.current) setBusy(false); } }
   }
   const back = () => { abort.current?.abort(); sequence.current++; attempt.current = null; setProposal(null); onBack(); };
-  if (proposal) return <><TripPlannerScreen proposal={proposal} busy={busy} onBack={back} onRegenerate={() => { void generate(); }} onSaveStateChange={onSaveStateChange} onSaved={tripId => completeTripSave(
+  if (proposal) return <><TripPlannerScreen proposal={proposal} busy={busy} onBack={back} onRegenerate={() => { void generate(); }} onUpdateStartDate={(newDate) => { void generate(false, { ...currentRequirement, startDate: newDate }); }} onSaveStateChange={onSaveStateChange} onSaved={tripId => completeTripSave(
     tripId,
     message => toast.success(message, { id: "trip-saved", position: "bottom-right", duration: 5000 }),
     href => router.replace(href),
   )} embedded={embedded} />{error && <PlannerErrorState error={error} onBack={back} onRetry={() => { void generate(true); }} />}{busy && <div className="planner-progress" role="status"><LoaderCircle className="trip-spinner" />Đang tạo lại lịch trình…</div>}</>;
   const PlannerContainer = embedded ? "div" : "main";
-  return <PlannerContainer className="planner-page" lang="vi"><TripSummaryBar requirement={confirmed.requirement} />{busy ? <PlannerLoadingState /> : error ? <PlannerErrorState error={error} onBack={back} onRetry={() => { void generate(true); }} /> :
-     <section className="planner-start"><span className="planner-start-icon"><MapPinned size={36} /></span><p className="planner-eyebrow">Nhu cầu đã được kiểm tra</p><h2 data-trip-panel-heading tabIndex={-1}>Sẵn sàng khám phá Hà Giang?</h2><p>Chúng tôi sẽ sắp xếp các điểm đến hiện có thành lịch trình theo ngày, rồi kiểm tra thời lượng, giờ mở cửa và dữ liệu di chuyển.</p><button type="button" className="planner-primary" onClick={() => { void generate(); }}><Route size={18} />Tạo lịch trình đề xuất</button><button type="button" className="planner-start-back" onClick={back}><ArrowLeft size={16} />Quay lại chỉnh nhu cầu</button><small>Đây là đề xuất trong phiên hiện tại, chưa tạo hành trình chính thức.</small></section>}</PlannerContainer>;
+  return <PlannerContainer className="planner-page" lang="vi"><TripSummaryBar requirement={confirmed.requirement} embedded={embedded} />{busy ? <PlannerLoadingState /> : error ? <PlannerErrorState error={error} onBack={back} onRetry={() => { void generate(true); }} /> :
+     <section className="planner-start"><span className="planner-start-icon"><MapPinned size={36} /></span><p className="planner-eyebrow">Nhu cầu đã được kiểm tra</p><h2 data-trip-panel-heading tabIndex={-1}>Tạo lịch trình cho chuyến đi</h2><p>Lịch trình được sắp xếp theo ngày từ các điểm đến hiện có và kiểm tra các điều kiện trước khi bạn lưu chuyến đi.</p><button type="button" className="planner-primary" onClick={() => { void generate(); }}><Route size={18} />Tạo lịch trình đề xuất</button><button type="button" className="planner-start-back" onClick={back}><ArrowLeft size={16} />Quay lại chỉnh nhu cầu</button><small>Đây là đề xuất trong phiên hiện tại, chưa tạo hành trình chính thức.</small></section>}</PlannerContainer>;
 }
 export function PlannerErrorState({ error, onBack, onRetry }: { error: Extract<PlannerClientResult, { ok: false }>; onBack: () => void; onRetry: () => void }) {
   const title = useRef<HTMLHeadingElement>(null);

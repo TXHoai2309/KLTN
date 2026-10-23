@@ -125,19 +125,32 @@
 
 @media (max-width: 640px) {
   .global-assistant-launcher {
-    right: 14px;
-    bottom: max(14px, env(safe-area-inset-bottom));
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(16px, env(safe-area-inset-bottom));
   }
   .global-assistant-launcher button {
-    padding: 0 14px;
-    font-size: 12.5px;
-    min-height: 40px;
-    gap: 6px;
-    box-shadow: 0 4px 14px rgba(15, 76, 58, 0.35);
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+    padding: 0;
+    border-radius: 50%;
+    gap: 0;
+    box-shadow: 0 4px 16px rgba(15, 76, 58, 0.4), 0 0 12px rgba(209, 172, 88, 0.3);
+  }
+  .global-assistant-launcher-label,
+  .global-assistant-launcher button span {
+    display: none;
   }
   .global-assistant-launcher svg {
-    width: 15px;
-    height: 15px;
+    width: 22px;
+    height: 22px;
+  }
+  .global-assistant-launcher button:hover {
+    transform: scale(1.04);
+  }
+  .global-assistant-launcher button:active {
+    transform: scale(0.96);
   }
 }
 

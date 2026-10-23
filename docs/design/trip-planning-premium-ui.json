@@ -1,0 +1,24 @@
+{
+  "scope": "Owner-approved /trips/new refinement; unrelated UI debt is outside this task",
+  "profile": "product-admin",
+  "locale": "vi-VN",
+  "sourceRoots": [
+    "apps/web/src/app/trips/new",
+    "apps/web/src/components/trip-planner"
+  ],
+  "canonicalMap": "docs/design/trip-planning-ui-refinement.md",
+  "requiredCapabilities": [
+    "Date",
+    "Form",
+    "Toast",
+    "Scrollbar",
+    "CRUD"
+  ],
+  "ownership": {
+    "Date": "typed"
+  },
+  "evidence": {
+    "crudFullFlow": "apps/web/src/modules/trip-save/trip-save.vitest.test.ts",
+    "failurePaths": "apps/web/src/modules/trip-save/trip-save-client.vitest.test.ts"
+  }
+}

@@ -84,6 +84,8 @@ export type TripReviewScreenProps = {
   onFillForm?: (draft: TripRequirementReviewDraft) => void;
   onConfirmed?: (confirmed: ConfirmedTripRequirement, draft: TripRequirementReviewDraft) => void;
   headingRef?: RefObject<HTMLHeadingElement | null>;
+  titleId?: string;
+  onDraftChange?: (draft: TripRequirementReviewDraft) => void;
 };
 
 function fieldErrorId(field: string): string {
@@ -189,7 +191,7 @@ function sourceBadge(field: ReviewField) {
   if (field.origin === "USER") {
     return <span className="trip-review-badge trip-review-badge-user"><UserRound size={15} aria-hidden="true" /> Bạn nhập</span>;
   }
-  return <span className="trip-review-badge trip-review-badge-empty"><CircleHelp size={15} aria-hidden="true" /> Chưa có thông tin</span>;
+  return null;
 }
 
 function statusBadge(field: ReviewField) {
@@ -223,6 +225,8 @@ export default function TripReviewScreen({
   onFillForm,
   onConfirmed,
   headingRef,
+  titleId,
+  onDraftChange,
 }: TripReviewScreenProps) {
   const initialClarificationRequests = clarificationRequests ?? EMPTY_CLARIFICATION_REQUESTS;
   const [editableDraft, setEditableDraft] = useState(draft);
@@ -253,6 +257,8 @@ export default function TripReviewScreen({
   useEffect(() => {
     headingRef?.current?.focus();
   }, [draft, headingRef]);
+
+  useEffect(() => { onDraftChange?.(editableDraft); }, [editableDraft, onDraftChange]);
 
   useEffect(() => {
     setEditableDraft(draft);
@@ -532,7 +538,7 @@ export default function TripReviewScreen({
   }
 
   function renderEditor(key: ReviewFieldKey) {
-    const common = { autoFocus: true };
+    const common = { autoFocus: true, idPrefix: "trip-review" };
     const inputRef = (element: HTMLInputElement | null) => { editorInputRef.current = element; };
     const noteRef = (element: HTMLTextAreaElement | null) => { editorInputRef.current = element; };
     switch (key) {
@@ -674,13 +680,14 @@ export default function TripReviewScreen({
           : null;
 
   const ReviewContainer = embedded ? "div" : "main";
+  const ReviewHeading = embedded ? "h2" : "h1";
 
   return (
     <ReviewContainer className="trip-form-page trip-review-page" lang="vi">
       <div className="trip-form-intro">
         <p className="trip-eyebrow">Kiểm tra trước khi tiếp tục</p>
-        <h1 ref={headingRef} tabIndex={-1}>Kiểm tra nhu cầu chuyến đi</h1>
-        <p>AI chỉ gợi ý — hãy kiểm tra từng mục trước khi xác nhận.</p>
+        <ReviewHeading id={titleId} ref={headingRef} tabIndex={-1}>Kiểm tra nhu cầu chuyến đi</ReviewHeading>
+        <p>AI chỉ gợi ý; hãy xem lại thông tin trước khi tiếp tục. Bạn có thể sửa từng mục ngay tại đây.</p>
       </div>
 
       <section
@@ -735,6 +742,7 @@ export default function TripReviewScreen({
                 className="trip-review-field"
                 key={key}
                 id={`trip-review-field-${key}`}
+                data-editing={isEditing ? "true" : undefined}
                 onKeyDown={(event) => {
                   if (event.key === "Escape" && isEditing) {
                     event.preventDefault();
@@ -743,7 +751,7 @@ export default function TripReviewScreen({
                 }}
               >
                 <div className="trip-review-field-heading">
-                  <h2>{reviewFieldLabel(key)}</h2>
+                  <h3>{reviewFieldLabel(key)}</h3>
                   <div className="trip-review-badges">
                     {sourceBadge(field)}
                     {statusBadge(field)}
@@ -824,6 +832,8 @@ export default function TripReviewScreen({
             );
           })}
         </div>
+
+        <TripReadinessStatus readiness={currentReadiness} />
 
         <section
           ref={confirmationRef}
@@ -908,7 +918,6 @@ export default function TripReviewScreen({
         </section>
       </section>
 
-      <TripReadinessStatus readiness={currentReadiness} />
       <p className="trip-sr-only" aria-live="polite">{liveMessage}</p>
       <p className="trip-review-relative-days">
         {editableDraft.fields.startDate.value === null

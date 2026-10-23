@@ -3981,3 +3981,50 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
 - **Evidence:** initial service/provider seam 8/8 RED; separate canonical-case retrieval regression RED before SQL correction. Final new regression file 16 PASS; six focused suites 193 PASS. Whole AI module 694 PASS / 14 FAIL / 73 gated SKIP. All fourteen failed names exactly match the before-fix loader restoring the six modified existing runtime modules from HEAD while preserving other working-tree changes (12 advanced-reasoning, two chat-preference cases); no additional failures. Ignored local receipts: .cache/qa-session-baseline/.
 - **Checks:** root typecheck four tasks PASS; final separate-output production web build PASS; git diff --check PASS. No schema/migration, live database/index, paid API, dependencies, model/config/credentials, commit, push, merge or deployment changes. No browser/live-provider acceptance; the SQL case test uses an offline query adapter, not PostgreSQL.
 - **Limits/handoff:** bounded recent context, not unlimited recall or cross-chat memory. Old saved answer snapshots are not rewritten. US-21/US-23 acceptance statuses unchanged. See docs/implementation/ai-chat-session-continuity.md for flow, exact test command, baseline comparison and known failures. Deploy separately before expecting the production screenshot's app to use this correction.
+
+
+## 2026-10-23 — Owner-approved Trip planning UI/UX refinement
+
+- **Authorization/scope:** Owner approved Q1–Q5 and requested ui-ux-pro-max
+  implementation, design-taste-frontend polish and impeccable final review for
+  the six `/trips/new` screenshots. Existing palette/fonts and business behavior
+  retained; no unrelated screens, API, schema/migration, provider or state-machine
+  changes. Concurrent Assistant changes in the working tree were preserved.
+- **Completed:** compact page/step hierarchy; earlier manual-entry alternative;
+  unified tf/planner semantic presentation; flat shared field/summary surfaces;
+  native summary shortcuts with focus/reduced-motion handling; scoped editor IDs
+  and radio groups; correct legend/pressed semantics and canonical Lucide icons;
+  one-column narrow review; readable metadata; full destination prose disclosure;
+  natural-flow mobile actions; corrected dark Cancel contrast and borders.
+- **Verification:** final root typecheck four tasks PASS and production build PASS.
+  Relevant Vitest 474 PASS / two unchanged theme-CSS expectation FAIL; 463/463 PASS
+  when that unchanged 13-case file is excluded. Real Edge fixture browser:
+  60 captures PASS across 1440/768/390/360px, Light/Dark and reduced motion,
+  including duplicate IDs/input overflow, focus, acknowledgement, blocked save,
+  day switching, manual path, technical error, missing route and empty results.
+  Enabled Cancel contrast asserted >=4.5:1 in eight editor cases. Premium strict
+  scoped audit zero findings; Impeccable final detector empty. Taste rendered
+  inspector zero FAIL with explained pinned-cream/metadata warnings; source lint
+  zero FAIL with explained none/hidden-label/meaningful-number warnings.
+  DESIGN.md lint zero errors (four existing Admin RAG token warnings).
+- **Limits:** synthetic repository/extraction/routing adapters and local map style;
+  no live auth/database save/paid provider/tile authorization, physical touch or
+  screen-reader acceptance. Full repository test suite was not run. The two
+  unchanged legacy theme tests remain documented baseline debt. No commit,
+  push, merge or deploy. Final whitespace/scope review completed before handoff.
+- **Handoff:** [design, canonical owners and evidence](design/trip-planning-ui-refinement.md).
+  Local ignored images/receipts: `apps/web/.cache/trip-ui/`, `.cache/trip-ui/`.
+
+## 2026-10-23 — Trip navigation aligned with owner-supplied demo
+
+- **Completed:** Header has one `Chuyến đi của tôi` link to `/trips`, before
+  Favorites, on desktop/mobile; it remains active on creation and other Trip
+  routes. Existing list/empty-state create links show a decorative Plus icon.
+  Business logic, auth intents/guards and existing unrelated changes preserved.
+- **Checks:** focused Header/MyTripsView/ProtectedLink/auth-intent tests 22 PASS;
+  root production build and typecheck PASS; `git diff --check` PASS. Browser
+  fixture six cases at 1440/390px with real components and synthetic auth/router
+  PASS (single entry, active state, mobile drawer, create href, no overflow).
+- **Limits:** no live auth/DB acceptance or full-suite run. No commit/push/deploy.
+  Ignored receipts: `.cache/trip-ui/nav-browser/`, `nav-build.log`, `nav-types.log`.
+  Contract recorded in DESIGN.md and US-31 navigation addendum.

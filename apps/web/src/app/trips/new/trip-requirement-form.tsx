@@ -5,10 +5,8 @@ import {
   AlertTriangle,
   Calendar,
   Check,
-  ClipboardCheck,
   Clock,
   Compass,
-  FileText,
   Gauge,
   LoaderCircle,
   MapPinned,
@@ -18,6 +16,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 
+import { formatVietnameseDate } from "@/lib/date-only";
+import { COMPANION_OPTIONS, INTEREST_OPTIONS, PACE_OPTIONS } from "@/modules/trip-requirement/trip-requirement-contract";
 import { claimSubmission, releaseSubmission } from "@/lib/auth-submission-guard";
 import { authorizationFeedback } from "@/lib/authorization-feedback";
 import { buildAuthLoginHref } from "@/lib/auth-return-to";
@@ -31,11 +31,9 @@ import {
   type ExtractionSuggestionField,
   type ExtractionSuggestions,
 } from "@/modules/preference-extraction/apply-extraction";
-import type { ExtractionResult } from "@/modules/preference-extraction/preference-extraction-contract";
 import type { ClarificationRequest } from "@/modules/trip-requirement/trip-clarification-rules";
 import NaturalLanguageInput, { type NaturalLanguageInputStatus } from "./natural-language-input";
-import ExtractionResultPanel from "./extraction-result-panel";
-import TripReviewScreen from "./trip-review-screen";
+import TripReviewDialog from "./trip-review-dialog";
 import TripPlannerFlow from "@/components/trip-planner/trip-planner-screen";
 import { isTripSaveNavigationLocked, type SaveState } from "@/modules/trip-save/trip-save-state";
 import type { TripRequirementReadiness } from "@/modules/trip-requirement/trip-requirement-readiness";
@@ -65,46 +63,35 @@ import {
 
 type FieldErrors = Record<string, string>;
 
-type TripFlowTab = "describe" | "details" | "review" | "planner";
+type TripFlowTab = "details" | "planner";
 
 const FLOW_TABS: ReadonlyArray<{
   id: TripFlowTab;
   label: string;
   description: string;
-  icon: typeof FileText;
+  icon: typeof SlidersHorizontal;
 }> = [
-  { id: "describe", label: "Mô tả", description: "Viết nhu cầu", icon: FileText },
-  { id: "details", label: "Bổ sung", description: "Điền phần còn thiếu", icon: SlidersHorizontal },
-  { id: "review", label: "Kiểm tra", description: "Xem lại trước khi xác nhận", icon: ClipboardCheck },
-  { id: "planner", label: "Đề xuất", description: "Lịch trình trong phiên", icon: MapPinned },
+  { id: "details", label: "Thông tin chuyến đi", description: "Điền và kiểm tra trước khi tiếp tục", icon: SlidersHorizontal },
+  { id: "planner", label: "Lịch trình đề xuất", description: "Khám phá hành trình của bạn", icon: MapPinned },
 ];
 
 const FLOW_TAB_INDEX: Record<TripFlowTab, number> = {
-  describe: 0,
-  details: 1,
-  review: 2,
-  planner: 3,
+  details: 0,
+  planner: 1,
 };
 
 function FlowTabs({
   activeTab,
-  detailsUnlocked,
-  reviewUnlocked,
   plannerUnlocked,
   locked = false,
   onChange,
 }: {
   activeTab: TripFlowTab;
-  detailsUnlocked: boolean;
-  reviewUnlocked: boolean;
   plannerUnlocked: boolean;
   locked?: boolean;
   onChange: (tab: TripFlowTab) => void;
 }) {
-  const isUnlocked = (tab: TripFlowTab) => tab === "describe"
-    || (tab === "details" && detailsUnlocked)
-    || (tab === "review" && reviewUnlocked)
-    || (tab === "planner" && plannerUnlocked);
+  const isUnlocked = (tab: TripFlowTab) => tab === "details" || plannerUnlocked;
 
   function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>, tab: TripFlowTab) {
     if (locked) return;
@@ -163,7 +150,7 @@ function FlowTabs({
         })}
       </div>
       <p className="trip-flow-tabs-hint" aria-live="polite">
-        Bước {FLOW_TAB_INDEX[activeTab] + 1}/4 · {FLOW_TABS[FLOW_TAB_INDEX[activeTab]]?.description}
+        Bước {FLOW_TAB_INDEX[activeTab] + 1}/{FLOW_TABS.length} · {FLOW_TABS[FLOW_TAB_INDEX[activeTab]]?.description}
       </p>
     </nav>
   );
@@ -172,7 +159,6 @@ function FlowTabs({
 type EvaluationResult = {
   draft: TripRequirementReviewDraft;
   readiness: TripRequirementReadiness;
-  source: "AI" | "FORM";
   clarificationRequests: ClarificationRequest[];
 };
 
@@ -321,13 +307,12 @@ export default function TripRequirementForm() {
     saveLock.current = isTripSaveNavigationLocked(state);
     setSaveState(state);
   }, []);
-  const [activeTab, setActiveTab] = useState<TripFlowTab>("describe");
-  const [detailsUnlocked, setDetailsUnlocked] = useState(false);
+  const [activeTab, setActiveTab] = useState<TripFlowTab>("details");
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [tabDirection, setTabDirection] = useState<"forward" | "backward">("forward");
   const [hasSubmitted, setHasSubmitted] = useState(false);
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const [naturalLanguageStatus, setNaturalLanguageStatus] = useState<NaturalLanguageInputStatus>({ kind: "idle" });
-  const [extractionResult, setExtractionResult] = useState<ExtractionResult | null>(null);
   const [extractionSuggestions, setExtractionSuggestions] = useState<ExtractionSuggestions>({});
   const submissionLock = useRef(false);
   const naturalLanguageLock = useRef(false);
@@ -338,7 +323,8 @@ export default function TripRequirementForm() {
   const mountedRef = useRef(false);
   const focusFirstErrorRef = useRef(false);
   const fieldRefs = useRef<Record<string, HTMLInputElement | HTMLTextAreaElement | null>>({});
-  const reviewHeadingRef = useRef<HTMLHeadingElement>(null);
+  const aiHelperRef = useRef<HTMLDetailsElement>(null);
+  const reviewTriggerRef = useRef<HTMLElement | null>(null);
   const previousTabRef = useRef<TripFlowTab | null>(null);
   const [activeGroup, setActiveGroup] = useState<"core" | "style" | "notes">("core");
 
@@ -377,7 +363,7 @@ export default function TripRequirementForm() {
     const listContainer = document.querySelector<HTMLElement>(".trip-passport-details-list");
     if (targetRow && listContainer) {
       const rowTop = targetRow.offsetTop;
-      listContainer.scrollTo({ top: Math.max(0, rowTop - 20), behavior: "smooth" });
+      listContainer.scrollTo({ top: Math.max(0, rowTop - 20), behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
     }
   }, [activeGroup, activeTab]);
 
@@ -392,7 +378,8 @@ export default function TripRequirementForm() {
     if (el) {
       const yOffset = -90;
       const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
-      window.scrollTo({ top: y, behavior: "smooth" });
+      window.scrollTo({ top: y, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+      el.querySelector<HTMLElement>("input, textarea, button")?.focus({ preventScroll: true });
       setActiveGroup(group);
     }
   }
@@ -403,7 +390,8 @@ export default function TripRequirementForm() {
     if (el) {
       const yOffset = -100;
       const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
-      window.scrollTo({ top: y, behavior: "smooth" });
+      window.scrollTo({ top: y, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+      (el.matches("input, textarea, button") ? el : el.querySelector<HTMLElement>("input, textarea, button"))?.focus({ preventScroll: true });
     }
   }
 
@@ -512,7 +500,6 @@ export default function TripRequirementForm() {
     naturalLanguageAbortRef.current = controller;
     const requestSequence = ++naturalLanguageSequenceRef.current;
     setNaturalLanguageStatus({ kind: "analyzing", message: "Đang phân tích nhu cầu…" });
-    setExtractionResult(null);
     setExtractionSuggestions({});
     setReview(null);
     setPlanner(null);
@@ -528,12 +515,12 @@ export default function TripRequirementForm() {
           ? `, ${outcome.result.clarifications.length} mục cần làm rõ`
           : "";
         const applied = applyExtractionToForm(fields, outcome.result);
-        setExtractionResult(outcome.result);
         setFields(applied.fields);
         setExtractionSuggestions(applied.suggestions);
-        setDetailsUnlocked(true);
+        if (aiHelperRef.current) aiHelperRef.current.open = false;
         advanceTo("details");
-        setNaturalLanguageStatus({ kind: "success", message: `Đã nhận diện ${count}/7 thông tin${clarificationText}.` });
+        window.requestAnimationFrame(() => scrollToField("durationDays"));
+        setNaturalLanguageStatus({ kind: "success", message: `Đã nhận diện nhu cầu chuyến đi${clarificationText}.` });
         return;
       }
 
@@ -564,14 +551,6 @@ export default function TripRequirementForm() {
     }
   }
 
-  function handleFillExtractionForm() {
-    if (saveLock.current) return;
-    if (!extractionResult) return;
-    const applied = applyExtractionToForm(fields, extractionResult);
-    setFields(applied.fields);
-    setExtractionSuggestions(applied.suggestions);
-  }
-
   function handleUseExtractionSuggestion(field: ExtractionSuggestionField) {
     if (saveLock.current) return;
     const applied = useExtractionSuggestion(fields, extractionSuggestions, field);
@@ -579,24 +558,21 @@ export default function TripRequirementForm() {
     setExtractionSuggestions(applied.suggestions);
   }
 
-  function handleFillAndEdit(reviewDraft?: TripRequirementReviewDraft) {
+  function handleFillAndEdit(reviewDraft: TripRequirementReviewDraft) {
     if (saveLock.current) return;
-    if (reviewDraft) {
-      setFields(draftToFormFields(reviewDraft));
-      setExtractionSuggestions({});
-    } else {
-      handleFillExtractionForm();
-    }
+    setFields(draftToFormFields(reviewDraft));
+    setExtractionSuggestions({});
     setReview(null);
     setPlanner(null);
-    setDetailsUnlocked(true);
+    setReviewOpen(false);
     advanceTo("details");
   }
 
   function continueWithForm() {
     if (saveLock.current) return;
-    setDetailsUnlocked(true);
+    if (aiHelperRef.current) aiHelperRef.current.open = false;
     advanceTo("details");
+    scrollToField("durationDays");
   }
 
   function handleDismissExtractionSuggestion(field: ExtractionSuggestionField) {
@@ -620,6 +596,8 @@ export default function TripRequirementForm() {
       return;
     }
 
+    reviewTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    if (naturalLanguageAbortRef.current) cancelNaturalLanguageAnalysis();
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -650,11 +628,10 @@ export default function TripRequirementForm() {
         setReview({
           draft: draftFromFormFields(fields),
           readiness: decision.data.readiness,
-          source: "FORM",
           clarificationRequests: [],
         });
         setPlanner(null);
-        advanceTo("review");
+        setReviewOpen(true);
         return;
       }
       if (decision.action === "VALIDATION_ERROR") {
@@ -705,65 +682,25 @@ export default function TripRequirementForm() {
   ].filter(Boolean).length;
   const progressPercent = Math.round((filledCount / 7) * 100);
 
-  const companionNames: Record<string, string> = {
-    SOLO: "Một mình 🎒",
-    COUPLE: "Cặp đôi 👫",
-    FAMILY: "Gia đình 👨‍👩‍👧‍👦",
-    FRIENDS: "Bạn bè 👥",
-    OTHER: "Nhóm khác 🗺️",
-  };
-
-  const paceNames: Record<string, string> = {
-    LEISURELY: "🍃 Thư thả",
-    MODERATE: "⚖️ Vừa phải",
-    PACKED: "⚡ Khám phá nhiều",
-  };
-
-  const interestNames: Record<string, string> = {
-    NATURE: "🏔️ Thiên nhiên",
-    CULTURE_HISTORY: "🏛️ Văn hóa",
-    ETHNIC_VILLAGES: "🛖 Bản làng",
-    PHOTOGRAPHY: "📸 Chụp ảnh",
-    FOOD: "🍜 Ẩm thực",
-    EXPLORATION: "🏕️ Khám phá",
-    RELAXATION: "🍃 Thư giãn",
-  };
+  const companionNames = Object.fromEntries(COMPANION_OPTIONS.map(option => [option.value, option.label]));
+  const paceNames = Object.fromEntries(PACE_OPTIONS.map(option => [option.value, option.label]));
+  const interestNames = Object.fromEntries(INTEREST_OPTIONS.map(option => [option.value, option.label]));
 
   return (
-    <main className="trip-form-page" lang="vi">
+    <main className="trip-form-page" lang="vi" data-trip-step={activeTab}>
       <div className="trip-form-intro">
-        <p className="trip-eyebrow">Lập hành trình</p>
-        <h1>Lập hành trình theo từng bước</h1>
-        <p>Chia sẻ điều bạn đang hình dung, bổ sung phần còn thiếu, rồi kiểm tra trước khi nhận đề xuất cho phiên hiện tại.</p>
+        <h1>Lập hành trình Hà Giang</h1>
+        <p>Điền thông tin chuyến đi, kiểm tra lại và khám phá lịch trình phù hợp với bạn.</p>
       </div>
 
       <FlowTabs
         activeTab={activeTab}
-        detailsUnlocked={detailsUnlocked}
-        reviewUnlocked={review !== null}
         plannerUnlocked={planner !== null}
         locked={saveNavigationLocked}
         onChange={changeTab}
       />
 
       <div className="trip-flow-viewport">
-        <div
-          id="trip-tabpanel-describe"
-          inert={saveNavigationLocked}
-          className={`trip-flow-panel trip-flow-panel-${tabDirection}`}
-          role="tabpanel"
-          aria-labelledby="trip-tab-describe"
-          data-active={activeTab === "describe" ? "true" : "false"}
-          hidden={activeTab !== "describe"}
-        >
-          <NaturalLanguageInput
-            status={naturalLanguageStatus}
-            onAnalyze={(text) => { void analyzeNaturalLanguage(text); }}
-            onCancel={cancelNaturalLanguageAnalysis}
-            onContinueManually={continueWithForm}
-          />
-        </div>
-
         <div
           id="trip-tabpanel-details"
           inert={saveNavigationLocked}
@@ -777,11 +714,10 @@ export default function TripRequirementForm() {
             <div className="trip-section-heading">
               <div className="trip-heading-icon" aria-hidden="true"><SlidersHorizontal size={20} /></div>
               <div>
-                <p className="trip-eyebrow">Bước 2 · Bổ sung</p>
-                <h2 id="trip-details-title" data-trip-panel-heading tabIndex={-1}>Điền phần còn thiếu</h2>
+                <h2 id="trip-details-title" data-trip-panel-heading tabIndex={-1}>Thông tin chuyến đi</h2>
               </div>
             </div>
-            <p>AI chỉ điền những gì nhận diện được chắc chắn. Trường còn trống hoặc cần làm rõ vẫn do bạn quyết định.</p>
+            <p>Chọn số ngày và phương tiện để bắt đầu. Bạn sẽ kiểm tra lại thông tin trong cửa sổ xác nhận trước khi xem lịch trình.</p>
             {appliedCount > 0 && (
               <div className="trip-ai-banner" role="status" aria-live="polite">
                 <span className="trip-ai-banner-badge">
@@ -794,6 +730,16 @@ export default function TripRequirementForm() {
               </div>
             )}
           </section>
+
+          <details ref={aiHelperRef} className="trip-ai-helper">
+            <summary><Sparkles size={18} aria-hidden="true" />Muốn điền nhanh bằng AI?</summary>
+            <NaturalLanguageInput
+              status={naturalLanguageStatus}
+              onAnalyze={(text) => { void analyzeNaturalLanguage(text); }}
+              onCancel={cancelNaturalLanguageAnalysis}
+              onContinueManually={continueWithForm}
+            />
+          </details>
 
           <form className="trip-form" onSubmit={(event) => { event.preventDefault(); void submit(); }} noValidate>
             {fieldErrorEntries.length > 0 && (
@@ -979,7 +925,7 @@ export default function TripRequirementForm() {
               </div>
 
               {/* Cột phải: Tóm tắt hành trình ghim cứng (Sticky Passport Card) */}
-              <aside className="trip-details-sidebar" aria-label="Tóm tắt hành trình cập nhật realtime">
+              <aside className="trip-details-sidebar" aria-label="Tóm tắt nhu cầu chuyến đi">
                 <div className="trip-passport-card">
                   <div className="trip-passport-header">
                     <div className="trip-passport-eyebrow">HÀ GIANG ROADTRIP</div>
@@ -989,54 +935,29 @@ export default function TripRequirementForm() {
 
                   <div className="trip-passport-progress-box">
                     <div className="trip-passport-progress-label">
-                      <span>Tiến độ hoàn thành</span>
-                      <strong>{filledCount}/7 mục ({progressPercent}%)</strong>
+                      <span>Trạng thái</span>
+                      <strong>
+                        {fields.durationDays && fields.transport
+                          ? "Đủ điều kiện tạo đề xuất"
+                          : "Cần chọn ngày & phương tiện"}
+                      </strong>
                     </div>
                     <div className="trip-passport-progress-track">
-                      <div className="trip-passport-progress-fill" style={{ width: `${progressPercent}%` }} />
+                      <div
+                        className="trip-passport-progress-fill"
+                        style={{
+                          width: fields.durationDays && fields.transport ? "100%" : "35%",
+                        }}
+                      />
                     </div>
-                  </div>
-
-                  {/* 3 Step Navigation Pills */}
-                  <div className="trip-passport-nav-pills" role="tablist" aria-label="Nhóm thông tin chuyến đi">
-                    <button
-                      type="button"
-                      className={`trip-passport-nav-pill ${activeGroup === "core" ? "trip-passport-nav-pill-active" : ""}`}
-                      onClick={() => scrollToGroup("core")}
-                      aria-current={activeGroup === "core" ? "true" : undefined}
-                    >
-                      <span className="trip-passport-nav-num">01</span>
-                      <span>Thời gian</span>
-                    </button>
-                    <button
-                      type="button"
-                      className={`trip-passport-nav-pill ${activeGroup === "style" ? "trip-passport-nav-pill-active" : ""}`}
-                      onClick={() => scrollToGroup("style")}
-                      aria-current={activeGroup === "style" ? "true" : undefined}
-                    >
-                      <span className="trip-passport-nav-num">02</span>
-                      <span>Đồng hành</span>
-                    </button>
-                    <button
-                      type="button"
-                      className={`trip-passport-nav-pill ${activeGroup === "notes" ? "trip-passport-nav-pill-active" : ""}`}
-                      onClick={() => scrollToGroup("notes")}
-                      aria-current={activeGroup === "notes" ? "true" : undefined}
-                    >
-                      <span className="trip-passport-nav-num">03</span>
-                      <span>Lưu ý</span>
-                    </button>
                   </div>
 
                   <div className="trip-passport-details-list">
                     {/* Nhóm 1: Thời gian & Phương tiện */}
-                    <div
+                    <button type="button"
                       className={`trip-passport-row ${activeGroup === "core" ? "trip-passport-row-active" : ""}`}
                       data-group="core"
-                      role="button"
-                      tabIndex={0}
                       onClick={() => scrollToField("durationDays")}
-                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); scrollToField("durationDays"); } }}
                       title="Bấm để cuộn đến phần Thời lượng"
                     >
                       <span className="trip-passport-row-icon-box" aria-hidden="true">
@@ -1051,15 +972,12 @@ export default function TripRequirementForm() {
                           {fields.durationDays ? `${fields.durationDays} ngày (${Number(fields.durationDays) > 1 ? `${fields.durationDays}N${Number(fields.durationDays) - 1}Đ` : "1 ngày"})` : "Chưa chọn"}
                         </strong>
                       </div>
-                    </div>
+                    </button>
 
-                    <div
+                    <button type="button"
                       className={`trip-passport-row ${activeGroup === "core" ? "trip-passport-row-active" : ""}`}
                       data-group="core"
-                      role="button"
-                      tabIndex={0}
                       onClick={() => scrollToField("startDate")}
-                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); scrollToField("startDate"); } }}
                       title="Bấm để cuộn đến phần Khởi hành"
                     >
                       <span className="trip-passport-row-icon-box" aria-hidden="true">
@@ -1070,18 +988,15 @@ export default function TripRequirementForm() {
                           <span className="trip-passport-row-label">Khởi hành</span>
                         </div>
                         <strong className="trip-passport-row-val">
-                          {fields.startDate || "Chưa chọn ngày"}
+                          {fields.startDate ? formatVietnameseDate(fields.startDate) : "Chưa chọn ngày"}
                         </strong>
                       </div>
-                    </div>
+                    </button>
 
-                    <div
+                    <button type="button"
                       className={`trip-passport-row ${activeGroup === "core" ? "trip-passport-row-active" : ""}`}
                       data-group="core"
-                      role="button"
-                      tabIndex={0}
                       onClick={() => scrollToField("transport")}
-                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); scrollToField("transport"); } }}
                       title="Bấm để cuộn đến phần Phương tiện"
                     >
                       <span className="trip-passport-row-icon-box" aria-hidden="true">
@@ -1095,16 +1010,13 @@ export default function TripRequirementForm() {
                           {fields.transport === "MOTORCYCLE" ? "Xe máy phượt đèo" : fields.transport === "CAR" ? "Ô tô du lịch" : "Chưa chọn phương tiện"}
                         </strong>
                       </div>
-                    </div>
+                    </button>
 
                     {/* Nhóm 2: Đồng hành & Sở thích */}
-                    <div
+                    <button type="button"
                       className={`trip-passport-row ${activeGroup === "style" ? "trip-passport-row-active" : ""}`}
                       data-group="style"
-                      role="button"
-                      tabIndex={0}
                       onClick={() => scrollToField("companions.type")}
-                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); scrollToField("companions.type"); } }}
                       title="Bấm để cuộn đến phần Người đồng hành"
                     >
                       <span className="trip-passport-row-icon-box" aria-hidden="true">
@@ -1119,15 +1031,12 @@ export default function TripRequirementForm() {
                           {fields.companionType ? `${companionNames[fields.companionType] ?? fields.companionType}${fields.companionGroupSize ? ` · ${fields.companionGroupSize} người` : ""}` : "Chưa chọn"}
                         </strong>
                       </div>
-                    </div>
+                    </button>
 
-                    <div
+                    <button type="button"
                       className={`trip-passport-row ${activeGroup === "style" ? "trip-passport-row-active" : ""}`}
                       data-group="style"
-                      role="button"
-                      tabIndex={0}
                       onClick={() => scrollToField("interests")}
-                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); scrollToField("interests"); } }}
                       title="Bấm để cuộn đến phần Sở thích"
                     >
                       <span className="trip-passport-row-icon-box" aria-hidden="true">
@@ -1149,15 +1058,12 @@ export default function TripRequirementForm() {
                           )}
                         </div>
                       </div>
-                    </div>
+                    </button>
 
-                    <div
+                    <button type="button"
                       className={`trip-passport-row ${activeGroup === "style" ? "trip-passport-row-active" : ""}`}
                       data-group="style"
-                      role="button"
-                      tabIndex={0}
                       onClick={() => scrollToField("pace")}
-                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); scrollToField("pace"); } }}
                       title="Bấm để cuộn đến phần Nhịp độ"
                     >
                       <span className="trip-passport-row-icon-box" aria-hidden="true">
@@ -1171,16 +1077,13 @@ export default function TripRequirementForm() {
                           {fields.pace ? (paceNames[fields.pace] ?? fields.pace) : "Chưa chọn nhịp độ"}
                         </strong>
                       </div>
-                    </div>
+                    </button>
 
                     {/* Nhóm 3: Ràng buộc & Ghi chú */}
-                    <div
+                    <button type="button"
                       className={`trip-passport-row ${activeGroup === "notes" ? "trip-passport-row-active" : ""}`}
                       data-group="notes"
-                      role="button"
-                      tabIndex={0}
                       onClick={() => scrollToField("mobilityConstraints.flags")}
-                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); scrollToField("mobilityConstraints.flags"); } }}
                       title="Bấm để cuộn đến phần Ràng buộc & Ghi chú"
                     >
                       <span className="trip-passport-row-icon-box" aria-hidden="true">
@@ -1199,7 +1102,7 @@ export default function TripRequirementForm() {
                             : "Không có ràng buộc đặc biệt"}
                         </strong>
                       </div>
-                    </div>
+                    </button>
                   </div>
 
                   <div className="trip-passport-action-box">
@@ -1213,7 +1116,7 @@ export default function TripRequirementForm() {
                       {button.label}
                     </Button>
                     <p className="trip-passport-helper">
-                      {filledCount >= 3 ? "Sẵn sàng kiểm tra và chuyển tiếp!" : "Hãy hoàn thành các mục bắt buộc bên trái"}
+                      Chọn số ngày và phương tiện để xem lại nhu cầu. Các thông tin khác có thể bổ sung sau.
                     </p>
                   </div>
                 </div>
@@ -1223,9 +1126,9 @@ export default function TripRequirementForm() {
             {/* Thanh điều hướng cố định trên thiết bị di động (Mobile Sticky Bar) */}
             <div className="trip-mobile-dock" aria-label="Tiến độ trên di động">
               <div className="trip-mobile-dock-info">
-                <span className="trip-mobile-dock-progress">Tiến độ: {filledCount}/7 mục</span>
+                <span className="trip-mobile-dock-progress">Đã cung cấp {filledCount}/7 mục</span>
                 <span className="trip-mobile-dock-summary">
-                  {fields.durationDays ? `${fields.durationDays}N` : ""} {fields.transport === "MOTORCYCLE" ? "🏍️" : fields.transport === "CAR" ? "🚗" : ""}
+                  {fields.durationDays ? `${fields.durationDays} ngày` : "Chưa chọn số ngày"} · {fields.transport === "MOTORCYCLE" ? "Xe máy" : fields.transport === "CAR" ? "Ô tô" : "Chưa chọn xe"}
                 </span>
               </div>
               <Button
@@ -1241,39 +1144,23 @@ export default function TripRequirementForm() {
           </form>
         </div>
 
-        <div
-          id="trip-tabpanel-review"
-          inert={saveNavigationLocked}
-          className={`trip-flow-panel trip-flow-panel-${tabDirection}`}
-          role="tabpanel"
-          aria-labelledby="trip-tab-review"
-          data-active={activeTab === "review" ? "true" : "false"}
-          hidden={activeTab !== "review"}
-        >
-          {review && (
-            <TripReviewScreen
-              embedded
+          {reviewOpen && review && (
+            <TripReviewDialog
+              returnFocusRef={reviewTriggerRef}
               draft={review.draft}
               readiness={review.readiness}
               clarificationRequests={review.clarificationRequests}
-              headingRef={reviewHeadingRef}
-              onBackToForm={(reviewDraft) => {
-                if (saveLock.current) return;
-                setFields(draftToFormFields(reviewDraft));
-                setReview(null);
-                setDetailsUnlocked(true);
-                advanceTo("details");
-              }}
-              onFillForm={review.source === "AI" ? handleFillAndEdit : undefined}
+              onBackToForm={handleFillAndEdit}
               onConfirmed={(confirmed, confirmedDraft) => {
                 if (saveLock.current) return;
+                setFields(draftToFormFields(confirmedDraft));
                 setReview({ ...review, draft: confirmedDraft });
                 setPlanner(structuredClone(confirmed));
+                setReviewOpen(false);
                 advanceTo("planner");
               }}
             />
           )}
-        </div>
 
         <div
           id="trip-tabpanel-planner"
@@ -1291,8 +1178,7 @@ export default function TripRequirementForm() {
               onBack={() => {
                 if (saveLock.current) return;
                 setPlanner(null);
-                if (review) advanceTo("review");
-                else advanceTo("details");
+                advanceTo("details");
               }}
             />
           )}

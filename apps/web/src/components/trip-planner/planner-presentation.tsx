@@ -13,11 +13,12 @@ export function DestinationImage({ stop, large = false }: { stop: PlannerStop; l
   return stop.destination.image ? <img className={large ? "planner-photo planner-photo-large" : "planner-photo"} src={stop.destination.image.url} alt={stop.destination.image.alt} loading="lazy" /> :
     <div className={large ? "planner-photo planner-photo-large planner-photo-empty" : "planner-photo planner-photo-empty"} role="img" aria-label="Chưa có ảnh điểm đến"><Mountain size={large ? 44 : 28} aria-hidden="true" /><span>Chưa có ảnh</span></div>;
 }
-export function TripSummaryBar({ requirement, days }: { requirement: TripRequirementInput; days?: PlannerDay[] }) {
+export function TripSummaryBar({ requirement, days, embedded = false }: { requirement: TripRequirementInput; days?: PlannerDay[]; embedded?: boolean }) {
   const { durationDays, transport, pace, companions, interests, startDate } = requirement;
   const endDate = days?.at(-1)?.date;
+  const Heading = embedded ? "h2" : "h1";
   return <section className="planner-summary" aria-label="Tóm tắt nhu cầu chuyến đi">
-    <div className="planner-summary-title"><span className="planner-summary-mark"><Mountain size={30} aria-hidden="true" /></span><div><p className="planner-eyebrow">Hành trình của bạn</p><h1>Hà Giang · {durationDays} ngày khám phá</h1><p>Đề xuất sơ bộ · Chưa xác nhận hoặc lưu chính thức</p></div></div>
+    <div className="planner-summary-title"><span className="planner-summary-mark"><Mountain size={30} aria-hidden="true" /></span><div><p className="planner-eyebrow">Hành trình của bạn</p><Heading>Hà Giang · {durationDays} ngày khám phá</Heading><p>Đề xuất sơ bộ · Chưa xác nhận hoặc lưu chính thức</p></div></div>
     <div className="planner-summary-chips">
       <div className="planner-chip"><CalendarDays /><span><strong>{durationDays} ngày</strong><small>{startDate ? `${formatVietnameseDate(startDate)} – ${endDate ? formatVietnameseDate(endDate) : "theo ngày bắt đầu"}` : `Ngày 1 – Ngày ${durationDays}`}</small></span></div>
       <div className="planner-chip planner-chip-teal">{transport === "CAR" ? <Car /> : <Bike />}<span><strong>{transport === "CAR" ? "Ô tô" : "Xe máy"}</strong><small>Phương tiện đã chọn</small></span></div>
@@ -71,7 +72,7 @@ export function DestinationPreviewCard({ stop }: { stop: PlannerStop | undefined
   if (!stop) return <section className="planner-preview planner-preview-empty"><MapPin size={26} /><p>Chọn một điểm dừng để xem thông tin.</p></section>;
   return <section className="planner-preview" aria-label={`Thông tin ${stop.destination.name}`}><DestinationImage stop={stop} large />
     <div><div className="planner-preview-heading"><span className="planner-preview-number">{stop.order}</span><h2>{stop.destination.name}</h2><ValidationBadge status={stop.validationStatus} /></div>
-      <p>{stop.destination.description || "Chưa có mô tả điểm đến."}</p><ul className="planner-preview-meta"><li><MapPin />{stop.destination.address || stop.destination.area}</li><li><Clock3 />{clockText(stop.arrivalMinute)} – {clockText(stop.departureMinute)} · {durationText(stop.visitDurationMinutes)}</li>
+      <details className="planner-preview-description"><summary>Giới thiệu điểm đến</summary><p>{stop.destination.description || "Chưa có mô tả điểm đến."}</p></details><ul className="planner-preview-meta"><li><MapPin />{stop.destination.address || stop.destination.area}</li><li><Clock3 />{clockText(stop.arrivalMinute)} – {clockText(stop.departureMinute)} · {durationText(stop.visitDurationMinutes)}</li>
         {stop.inbound && <li><Car />{stop.inbound.status === "VERIFIED" ? `Stadia Maps · ${durationText(Math.ceil(stop.inbound.durationSeconds! / 60))} · ${(stop.inbound.distanceMeters! / 1000).toFixed(1)} km` : "Chưa có dữ liệu di chuyển phù hợp"}</li>}</ul>
       {stop.destination.image?.author && <p className="planner-image-credit">Ảnh: {stop.destination.image.author}{stop.destination.image.sourceUrl && <> · <a href={stop.destination.image.sourceUrl} target="_blank" rel="noopener noreferrer">Nguồn ảnh</a></>}</p>}
       <a className="planner-detail-link" href={`/destinations/${encodeURIComponent(stop.destination.id)}`} target="_blank" rel="noopener noreferrer">Xem chi tiết <ArrowRight size={16} aria-hidden="true" /></a>

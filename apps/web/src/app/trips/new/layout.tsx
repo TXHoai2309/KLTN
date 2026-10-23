@@ -1,6 +1,7 @@
 import { Be_Vietnam_Pro, Noto_Serif } from "next/font/google";
 
 import "./trip-form.css";
+import "./trip-planning-layout.css";
 
 const tripBody = Be_Vietnam_Pro({
   weight: ["400", "500", "600", "700"],

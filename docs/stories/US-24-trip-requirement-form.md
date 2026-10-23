@@ -316,3 +316,15 @@ Không. No dependency, secret or environment variable added.
 - The evaluate API is a no-write readiness check only; it does not make a proposal saved or confirmed.
 - `/trips/new` keeps form state in React memory only. “Chỉnh sửa” returns to the same in-memory values; leaving the page loses them by design. The neutral next-step note is used instead of a dead “Lưu/Xác nhận/Tạo hành trình” control.
 - `docs/ai-progress.md` contains pre-existing merge-conflict markers; this task must append progress without rewriting those markers.
+
+
+## 2026-10-23 — Owner-approved Trip planning UI refinement
+
+Owner approved Q1–Q5 and implementation of the six supplied `/trips/new` states.
+Shared field editors, form/review/planner composition, narrow-screen layout,
+labels/focus/instance IDs, option icons and status readability were refined within
+the existing palette/fonts. Business input/check/confirmation/save rules and
+story acceptance status remain unchanged. See
+[design and verification record](../design/trip-planning-ui-refinement.md) for the
+60-state browser matrix, 474 passing relevant tests / two unchanged theme-baseline
+failures, scoped audits and live-acceptance limits.

@@ -46,6 +46,7 @@ export default function NaturalLanguageInput({
   onContinueManually,
 }: NaturalLanguageInputProps) {
   const [rawText, setRawText] = useState("");
+  const [showExamples, setShowExamples] = useState(false);
   const [announcedLength, setAnnouncedLength] = useState(0);
   const [announcedMessage, setAnnouncedMessage] = useState<string | null>(null);
   const textState = useMemo(() => getNaturalLanguageTextState(rawText), [rawText]);
@@ -53,7 +54,7 @@ export default function NaturalLanguageInput({
   const buttonState = getNaturalLanguageAnalyzeButtonState(textState, isProcessing);
   const validationMessage = status.kind === "invalid"
     ? status.message ?? textStateMessage(textState)
-    : textStateMessage(textState);
+    : rawText.length > 0 ? textStateMessage(textState) : null;
   const displayButtonState = status.kind === "failure"
     ? { ...buttonState, label: "Thử lại" }
     : status.kind === "success"
@@ -78,23 +79,56 @@ export default function NaturalLanguageInput({
       <div className="trip-natural-language-heading">
         <div className="trip-heading-icon" aria-hidden="true"><Sparkles size={20} /></div>
         <div>
-          <p className="trip-eyebrow">Cách khác để bắt đầu</p>
-          <h2 id="trip-natural-language-title" data-trip-panel-heading tabIndex={-1}>Mô tả nhu cầu bằng lời</h2>
+          <h2 id="trip-natural-language-title" data-trip-panel-heading tabIndex={-1}>Bạn muốn một chuyến đi thế nào?</h2>
         </div>
       </div>
       <p className="trip-natural-language-intro">
-        Viết tự nhiên những điều bạn đã hình dung. Biểu mẫu bên dưới vẫn có thể dùng độc lập.
+        Viết theo cách của bạn. AI sẽ gợi ý thông tin vào biểu mẫu bên dưới để bạn kiểm tra và chỉnh sửa.
       </p>
+
+      {onContinueManually && (
+        <div className="trip-natural-language-manual-path">
+          <span>Muốn tự chọn từng mục?</span>
+          <button type="button" className="trip-extraction-link-button" onClick={onContinueManually}>
+            Nhập bằng biểu mẫu
+          </button>
+        </div>
+      )}
 
       <div className="trip-natural-language-field">
         <label htmlFor="trip-natural-language-text">Bạn muốn chuyến đi như thế nào?</label>
         <p id="trip-natural-language-help" className="trip-help">
           Có thể viết ngày đi, thời lượng, phương tiện, người đồng hành và sở thích.
         </p>
+
+        {showExamples && (
+          <div className="trip-natural-language-examples" aria-label="Câu gợi ý">
+            <p className="trip-help">Gợi ý nhanh — bấm để điền vào ô:</p>
+            <div className="trip-natural-language-chips">
+              {EXAMPLE_PROMPTS.map((example) => (
+                <button
+                  key={example}
+                  type="button"
+                  className="trip-natural-language-chip"
+                  onClick={() => {
+                    setRawText(example);
+                    const el = document.getElementById("trip-natural-language-text");
+                    if (el) (el as HTMLTextAreaElement).focus();
+                  }}
+                >
+                  {example}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <textarea
           id="trip-natural-language-text"
-          className="trip-textarea trip-natural-language-textarea"
+          className="trip-textarea trip-natural-language-textarea resize-none"
           value={rawText}
+          onFocus={() => setShowExamples(true)}
+          onClick={() => setShowExamples(true)}
           onChange={(event) => {
             if (isProcessing) onCancel?.();
             setRawText(event.target.value);
@@ -121,26 +155,6 @@ export default function NaturalLanguageInput({
         </span>
       </div>
 
-      <div className="trip-natural-language-examples" aria-label="Câu gợi ý">
-        <p className="trip-help">Gợi ý nhanh — bấm để điền vào ô:</p>
-        <div className="trip-natural-language-chips">
-          {EXAMPLE_PROMPTS.map((example) => (
-            <button
-              key={example}
-              type="button"
-              className="trip-natural-language-chip"
-              onClick={() => setRawText(example)}
-            >
-              {example}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <p className="trip-natural-language-privacy">
-        Nội dung sẽ được gửi tới dịch vụ AI để phân tích và không được lưu lại trong hệ thống của ứng dụng.
-      </p>
-
       {(status.kind === "analyzing" || status.kind === "success" || status.kind === "failure") && (
         <div
           className={`trip-natural-language-status trip-natural-language-status-${status.kind}`}
@@ -154,7 +168,7 @@ export default function NaturalLanguageInput({
               (status.kind === "analyzing"
                 ? "Đang chuẩn bị phân tích nhu cầu."
                 : status.kind === "success"
-                  ? "Đã phân tích nhu cầu."
+                  ? "Đã nhận diện nhu cầu chuyến đi."
                   : "Chưa thể phân tích nhu cầu.")}
           </span>
           {status.kind === "analyzing" && onCancel && (
@@ -182,19 +196,6 @@ export default function NaturalLanguageInput({
         </Button>
         {displayButtonState.reason && <p className="trip-natural-language-button-reason">{displayButtonState.reason}</p>}
       </div>
-
-      {onContinueManually && (
-        <div className="trip-natural-language-manual-path">
-          <span>Không muốn dùng AI?</span>
-          <button type="button" className="trip-extraction-link-button" onClick={onContinueManually}>
-            Bỏ qua và nhập bằng biểu mẫu
-          </button>
-        </div>
-      )}
-
-      <p className="trip-natural-language-contract-note">
-        Tối thiểu {MIN_PREFERENCE_INPUT_LENGTH} và tối đa {MAX_PREFERENCE_INPUT_LENGTH} ký tự. Nội dung dài hơn sẽ được báo lỗi để bạn tự chỉnh sửa.
-      </p>
     </section>
   );
 }

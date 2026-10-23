@@ -11,7 +11,6 @@ import {
   Compass,
   Sparkles,
   Heart,
-  PlusCircle,
   CalendarDays,
   BookOpen,
 } from "lucide-react";
@@ -145,15 +144,13 @@ export default function Header() {
     { to: "/explore", label: "Khám phá", icon: Compass },
     ...(mvpFeatures.culture ? [{ to: "/culture", label: "Văn hóa", icon: BookOpen }] : []),
     { to: "/assistant", label: "Trợ lý AI", icon: Sparkles, isAi: true },
-    { to: "/favorites", label: "Yêu thích", icon: Heart, protected: true, intent: "favorites" },
-    { to: "/trips/new", label: "Lập hành trình", icon: PlusCircle, protected: true, intent: "planner" },
     { to: "/trips", label: "Chuyến đi của tôi", icon: CalendarDays, protected: true, intent: "trips" },
+    { to: "/favorites", label: "Yêu thích", icon: Heart, protected: true, intent: "favorites" },
   ];
 
   const isLinkActive = (to: string) => {
     if (to === "/") return pathname === "/";
     if (to === "/explore") return pathname === "/explore" || pathname.startsWith("/destinations/");
-    if (to === "/trips") return pathname === "/trips" || (pathname.startsWith("/trips/") && !pathname.startsWith("/trips/new"));
     return pathname === to || pathname.startsWith(`${to}/`);
   };
 
@@ -174,13 +171,7 @@ export default function Header() {
         {/* Center: Desktop Navigation */}
         <nav className="site-nav" aria-label="Điều hướng chính">
           {links.map(({ to, label, isAi, protected: isProtected, intent }) => {
-            const active = to === "/"
-              ? pathname === "/"
-              : to === "/explore"
-                ? pathname === "/explore" || pathname.startsWith("/destinations/")
-                : to === "/trips"
-                  ? pathname === "/trips" || (pathname.startsWith("/trips/") && !pathname.startsWith("/trips/new"))
-                : pathname === to || pathname.startsWith(`${to}/`);
+            const active = isLinkActive(to);
             const content = (
               <>
                 <span>{label}</span>
