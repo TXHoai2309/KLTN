@@ -4028,3 +4028,21 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
 - **Limits:** no live auth/DB acceptance or full-suite run. No commit/push/deploy.
   Ignored receipts: `.cache/trip-ui/nav-browser/`, `nav-build.log`, `nav-types.log`.
   Contract recorded in DESIGN.md and US-31 navigation addendum.
+
+## 2026-10-24 — Two-step Trip creation with review popup
+
+- **Completed:** structured form opens immediately; optional AI disclosure;
+  two visible steps; editable review moves into native TripReviewDialog. Existing
+  review/check and save contracts reused. Native modal inertness, bounded scroll,
+  Tab/Shift+Tab, Escape/editor cancellation, return focus, retained saved edits,
+  fresh acknowledgement and abort-on-dismiss tested. Planner Back returns to form.
+- **Checks:** 284 focused tests + 36 save regressions PASS; root build/typecheck
+  PASS; 61 browser captures across 1440/768/390/360px and light/dark PASS, including
+  failure/retry and pending-read cancellation. Scoped form premium and component
+  Impeccable scans have zero findings. Existing unrelated planner date/color
+  audit debt remains documented, unchanged. Whitespace/scope check at handoff.
+- **Limits:** synthetic browser adapters; no live DB/auth/provider or full-suite
+  acceptance. Existing theme snapshot file excluded as previously documented.
+  No schema, dependency, API, business-rule, commit/push/merge/deploy change by
+  this task. Receipts `.cache/trip-ui/resumed-*`, `apps/web/.cache/trip-ui/`;
+  design amendment and US-24 record updated.

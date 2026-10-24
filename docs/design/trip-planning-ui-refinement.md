@@ -40,8 +40,9 @@ CSS remains the runtime authority. Other routes are outside the adapter scope.
 | --- | --- | --- | --- | --- |
 | Date | VietnameseDateInput / StartDateEditor | date-only.ts; approved typed date contract | form / review instance | editor regression + browser |
 | Form | TripRequirementForm / shared TripFieldEditors | existing schemas and server evaluate/check | structured / extracted / inline review | US-24–27 tests + browser |
+| Dialog | TripReviewDialog / native dialog | existing TripReviewScreen and check contract | bounded modal, narrow single-column list | native focus/Escape/close/read-cancellation browser checks |
 | Toast | existing Sonner provider / completeTripSave | US-30 confirmed write contract | confirmed save | planner/save regression tests |
-| Scrollbar | existing global styles; normal document scroll | current application shell | no new scroll owner | responsive browser measurements |
+| Scrollbar | existing global styles; document and native review modal | current application shell | bounded modal only while reviewing | responsive browser measurements |
 | CRUD | TripConfirmationSection / TripSavePanel | current server preview, save state and idempotency modules | pending / FAILED / UNKNOWN / SUCCESS | existing save suites; no live write |
 
 Select/Listbox and Table Selection are not introduced or modified in this flow.
@@ -135,3 +136,45 @@ No saved Trip, account, database, auth boundary, provider behavior, API, idempot
 or business state machine was changed. Concurrent Assistant launcher/provider
 changes present in the working tree were preserved and are outside this task.
 No commit, push, merge or deployment was performed.
+
+## 2026-10-24 amendment — two steps and review popup
+
+Owner approved removing the dedicated description and review steps. This
+supersedes the four-stage presentation above: open structured inputs directly,
+keep AI entry as an optional disclosure, submit to a review modal, then enter the
+existing planner after authoritative check and acknowledgement. TripReviewDialog
+is the presentation owner; TripReviewScreen, field editors, readiness/check and
+save services remain canonical. No new UI kit or business decision engine.
+
+The modal uses the existing tf palette/radii, compact editable rows, 44px close
+control, a bounded viewport and native top-layer behavior. Tab/Shift+Tab remain
+inside; Escape cancels an active editor first, otherwise closes the modal.
+Closing restores the opening control and saved edits; reopening clears the
+acknowledgement. Pending read checks abort on dismissal. Review/check errors
+stay in the modal and allow retry; they never unlock the planner. Planner Back
+returns to the populated form. Missing dates still prevent official save.
+
+Revalidated after the owner stabilized the checkout: 284 focused tests plus
+36 save regressions PASS; root production build and typecheck PASS. Browser
+fixture: 61 captures PASS across 1440/768/390/360px, light/dark, reduced motion,
+including native modal bounds/inertness/focus, editor cancellation, dismissal,
+retained edits, re-acknowledgement, failed/pending checks, planner recovery and
+missing-date save gate. Synthetic auth/repository/routing only; no live DB/auth,
+paid provider, physical touch or screen-reader acceptance. Full suite not run;
+the previously documented unchanged theme snapshot file remains excluded.
+
+Scoped form premium audit and Impeccable component scan: zero findings. Broader
+planner audit still flags the native date prompt versus the recorded typed-date
+owner, and CSS scan notes three literal colors in the existing planner image
+placeholder; those concurrent planner changes were preserved outside this task.
+Taste inspector warnings about approved cream, metadata size and unequal
+form/sidebar heights are contextual, not new modal failures. Closed AI content
+is explicitly hidden to keep layout/visibility probes aligned with disclosure
+state. Receipts: `.cache/trip-ui/resumed-*` and `apps/web/.cache/trip-ui/`.
+
+Final handoff: explicit closed-disclosure styling verified with a fresh fixture
+after production compilation (avoiding font files being regenerated during
+fixture startup). Browser 61/61 PASS; Taste rendered inspector 0 FAIL / 3
+contextual WARN; final production compilation PASS and `git diff --check` PASS.
+Latest receipts use `.cache/trip-ui/handoff-*` and
+`apps/web/.cache/trip-ui/handoff-modal-browser-final.log`.

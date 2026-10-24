@@ -328,3 +328,17 @@ story acceptance status remain unchanged. See
 [design and verification record](../design/trip-planning-ui-refinement.md) for the
 60-state browser matrix, 474 passing relevant tests / two unchanged theme-baseline
 failures, scoped audits and live-acceptance limits.
+
+## 2026-10-24 — Owner-approved two-step creation and review popup
+
+Open the structured form directly; retain AI entry as an optional disclosure.
+The visible steps are Information and Proposed itinerary. Submission opens the
+existing editable review/check UI inside TripReviewDialog. Native modal focus,
+Escape/Close, return focus, retained edits and pending-read cancellation are
+implemented; re-entry requires acknowledgement again. Server check/readiness,
+supported transport, no-date proposal and official-save gates are unchanged.
+
+Focused form/planner/navigation tests 284 PASS; save regression 36 PASS. Root
+build/typecheck PASS; browser fixture 61 captures PASS with responsive/themes,
+keyboard, errors and cancellation. No live auth/DB/provider or full-suite claim.
+See the design record amendment for canonical owners, audit limits and receipts.

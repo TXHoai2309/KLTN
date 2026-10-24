@@ -60,6 +60,7 @@
 .trip-shell .trip-flow-panel[data-active="true"] { animation: none; }
 
 .trip-shell .trip-ai-helper { margin: 0 0 24px; border-block: 1px solid var(--trip-line); }
+.trip-shell .trip-ai-helper:not([open]) > .trip-natural-language { display: none; }
 .trip-shell .trip-ai-helper > summary {
   display: flex;
   gap: 10px;

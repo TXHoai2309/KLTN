@@ -544,3 +544,19 @@ and mobile. The entry remains active throughout `/trips/`, including creation.
 Creation is the existing `+ Tạo chuyến đi` action inside MyTripsView linking to
 `/trips/new`; retain its empty-state alternative. Header and MyTripsView remain
 the canonical owners; no new navigation component, tokens or business behavior.
+
+## Trip creation — two steps and review modal, 2026-10-24
+
+Owner replaces the separate Describe/Supplement/Review navigation with two
+steps: `Thông tin chuyến đi` and `Lịch trình đề xuất`. Open the structured form
+immediately. Preserve natural-language entry as an optional, initially collapsed
+AI helper in that form. Form submission validates required inputs, then opens
+TripReviewDialog; review is no longer a standalone navigable step.
+
+TripReviewDialog owns native modal presentation, background scroll/inertness,
+keyboard boundaries, Escape/Close and return focus. TripReviewScreen and the
+shared field editors retain edit/check/acknowledgement semantics. Saved review
+edits return to the form on dismissal; confirmation passes the server-checked
+snapshot to the existing planner. Closing aborts pending read checks. Reopening
+requires fresh acknowledgement. Minimum inputs, date/save gates, transport
+clarification, authorization and persistence contracts remain unchanged.
