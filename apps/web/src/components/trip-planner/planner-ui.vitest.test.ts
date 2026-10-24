@@ -58,7 +58,7 @@ describe("real planner UI server rendering", () => {
     const loading = renderToStaticMarkup(createElement(components.PlannerLoadingState!));
     const error = renderToStaticMarkup(createElement(components.PlannerErrorState!, { error: { ok: false, code: "PLANNER_UNAVAILABLE", message: "Dịch vụ tạm thời lỗi" }, onBack: noop, onRetry: noop }));
     expect(loading).toContain('aria-busy="true"'); expect(loading).toContain('role="status"');
-    expect(error).toContain('role="alert"'); expect(error).toContain("Thử lại cùng yêu cầu"); expect(error).not.toContain("Chưa đủ dữ liệu");
+    expect(error).toContain('role="alert"'); expect(error).toContain("Thử lại"); expect(error).toContain("Quay lại chỉnh sửa"); expect(error).not.toContain("Chưa đủ dữ liệu");
   });
   it("authentication failure points to login and does not retry anonymously", () => {
     const html = renderToStaticMarkup(createElement(components.PlannerErrorState!, { error: { ok: false, code: "UNAUTHENTICATED", message: "Đăng nhập lại" }, onBack: noop, onRetry: noop }));

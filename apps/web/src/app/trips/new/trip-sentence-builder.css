@@ -1410,3 +1410,311 @@ body:has(.trip-shell) .global-assistant-launcher {
   background: #1e664b;
   transform: translateY(-1px);
 }
+
+/* ============================================================
+   CONFIRMATION DIALOG
+   ============================================================ */
+
+.trip-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 995;
+  background: rgba(10, 26, 18, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: tripBackdropFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark .trip-confirm-backdrop {
+  background: rgba(4, 12, 8, 0.72);
+}
+
+.trip-confirm-modal {
+  position: relative;
+  background: #ffffff;
+  border-radius: 24px;
+  border: 1px solid rgba(22, 74, 54, 0.12);
+  box-shadow:
+    0 24px 60px -12px rgba(10, 36, 26, 0.35),
+    0 8px 24px rgba(0, 0, 0, 0.08);
+  width: 100%;
+  max-width: 440px;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  animation: tripModalScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark .trip-confirm-modal {
+  background: #192722;
+  border-color: #273b33;
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.75);
+}
+
+.trip-confirm-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 22px 24px 14px;
+}
+
+.trip-confirm-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #103325;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+}
+
+.dark .trip-confirm-title {
+  color: #ffffff;
+}
+
+.trip-confirm-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #f4f8f5;
+  border: none;
+  color: #556b60;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.dark .trip-confirm-close {
+  background: #20332a;
+  color: #9cb0a5;
+}
+
+.trip-confirm-close:hover:not(:disabled) {
+  background: #e8f0ec;
+  color: #1a4232;
+}
+
+.dark .trip-confirm-close:hover:not(:disabled) {
+  background: #274034;
+  color: #ffffff;
+}
+
+.trip-confirm-close:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.trip-confirm-body {
+  padding: 0 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.trip-confirm-desc {
+  font-size: 14px;
+  line-height: 1.55;
+  color: #496356;
+  margin: 0;
+}
+
+.dark .trip-confirm-desc {
+  color: #a4b8ad;
+}
+
+.trip-confirm-recap {
+  background: #f7faf8;
+  border: 1px solid rgba(22, 74, 54, 0.09);
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dark .trip-confirm-recap {
+  background: #14201b;
+  border-color: #24382e;
+}
+
+.trip-confirm-recap-eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #6a8276;
+}
+
+.dark .trip-confirm-recap-eyebrow {
+  color: #8da497;
+}
+
+.trip-confirm-recap-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.trip-confirm-recap-primary {
+  font-size: 17px;
+  font-weight: 700;
+  color: #103325;
+  letter-spacing: -0.01em;
+}
+
+.dark .trip-confirm-recap-primary {
+  color: #ffffff;
+}
+
+.trip-confirm-recap-secondary {
+  font-size: 14px;
+  font-weight: 500;
+  color: #257859;
+}
+
+.dark .trip-confirm-recap-secondary {
+  color: #55d6a7;
+}
+
+.trip-confirm-recap-divider {
+  height: 1px;
+  background: rgba(22, 74, 54, 0.08);
+  margin: 2px 0;
+}
+
+.dark .trip-confirm-recap-divider {
+  background: #23372e;
+}
+
+.trip-confirm-personalization {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #325244;
+  line-height: 1.5;
+}
+
+.dark .trip-confirm-personalization {
+  color: #c0d3c9;
+}
+
+.trip-confirm-personalization.trip-confirm-muted {
+  color: #7b9487;
+  font-style: italic;
+}
+
+.dark .trip-confirm-personalization.trip-confirm-muted {
+  color: #678073;
+}
+
+.trip-confirm-hint {
+  font-size: 12.5px;
+  color: #688275;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.dark .trip-confirm-hint {
+  color: #8da397;
+}
+
+.trip-confirm-error {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 14px;
+  background: #fff5f5;
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  border-radius: 12px;
+  color: #b91c1c;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.dark .trip-confirm-error {
+  background: #2c1717;
+  border-color: #592222;
+  color: #fca5a5;
+}
+
+.trip-confirm-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 24px 22px;
+  border-top: 1px solid #edf2ee;
+}
+
+.dark .trip-confirm-footer {
+  border-top-color: #253830;
+}
+
+.trip-confirm-secondary-btn {
+  padding: 11px 18px;
+  border-radius: 12px;
+  background: #f4f8f5;
+  border: 1px solid #dce5e0;
+  color: #335043;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.dark .trip-confirm-secondary-btn {
+  background: #20332a;
+  border-color: #2d4538;
+  color: #d1dfd7;
+}
+
+.trip-confirm-secondary-btn:hover:not(:disabled) {
+  background: #e8f0ec;
+  color: #1a4232;
+}
+
+.dark .trip-confirm-secondary-btn:hover:not(:disabled) {
+  background: #274034;
+  color: #ffffff;
+}
+
+.trip-confirm-secondary-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.trip-confirm-primary-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 22px;
+  border-radius: 12px;
+  background: #257859;
+  border: none;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(37, 120, 89, 0.3);
+  transition: all 0.15s ease;
+}
+
+.trip-confirm-primary-btn:hover:not(:disabled) {
+  background: #1e664b;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(37, 120, 89, 0.35);
+}
+
+.trip-confirm-primary-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+  transform: none;
+}

@@ -17,6 +17,7 @@ import {
 } from "@/modules/preference-extraction/apply-extraction";
 import type { ClarificationRequest } from "@/modules/trip-requirement/trip-clarification-rules";
 import TripReviewDialog from "./trip-review-dialog";
+import TripConfirmationDialog from "./trip-confirmation-dialog";
 import TripPlannerFlow from "@/components/trip-planner/trip-planner-screen";
 import { isTripSaveNavigationLocked, type SaveState } from "@/modules/trip-save/trip-save-state";
 import type { TripRequirementReadiness } from "@/modules/trip-requirement/trip-requirement-readiness";
@@ -116,6 +117,8 @@ export default function TripRequirementForm() {
 
   const [activeTab, setActiveTab] = useState<"details" | "planner">("details");
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const [extractionSuggestions, setExtractionSuggestions] = useState<ExtractionSuggestions>({});
 
   // Modals
@@ -251,25 +254,30 @@ export default function TripRequirementForm() {
     }
   }
 
-  async function submit() {
+  function handleInitiateSubmit() {
     if (saveLock.current) return;
-    if (!claimSubmission(submissionLock)) return;
-
     const clientErrors = validateRequiredFields(fields);
     if (Object.keys(clientErrors).length > 0) {
       setErrors(clientErrors);
       setFeedback(null);
-      releaseSubmission(submissionLock);
       return;
     }
+    setErrors({});
+    setFeedback(null);
+    setConfirmError(null);
+    setConfirmDialogOpen(true);
+  }
+
+  async function handleConfirmCreateTrip() {
+    if (saveLock.current) return;
+    if (!claimSubmission(submissionLock)) return;
 
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
     const sequence = ++sequenceRef.current;
     setPending(true);
-    setFeedback(null);
-    setErrors({});
+    setConfirmError(null);
 
     try {
       const candidate = buildPayload(fields);
@@ -283,21 +291,21 @@ export default function TripRequirementForm() {
       }
 
       if (outcome.kind === "NETWORK_ERROR") {
-        setFeedback("Không thể kết nối tới máy chủ. Dữ liệu của bạn được giữ nguyên, hãy thử lại.");
+        setConfirmError("Không thể kết nối tới máy chủ. Dữ liệu của bạn được giữ nguyên, hãy thử lại.");
         return;
       }
 
       if (outcome.kind === "FAILED") {
         if (outcome.status === 401) {
-          setFeedback(outcome.message);
+          setConfirmError(outcome.message);
           window.location.assign(buildAuthLoginHref("/trips/new"));
           return;
         }
         if (outcome.status === 403) {
-          setFeedback(authorizationFeedback(403) ?? outcome.message);
+          setConfirmError(authorizationFeedback(403) ?? outcome.message);
           return;
         }
-        setFeedback(outcome.message);
+        setConfirmError(outcome.message);
         return;
       }
 
@@ -315,11 +323,9 @@ export default function TripRequirementForm() {
         firstErrorField: firstErr?.field,
       });
 
-      // Only open review dialog in 3 cases per PO decision (2026-10-24):
-      // (a) AI assigned field exists and has not been unassigned
-      // (b) Server check is not confirmable or has mandatory clarifications
-      // (c) Otherwise: skip review dialog and go directly to proposal!
+      // If AI assigned fields need review or constraints require clarification
       if (routing.action === "OPEN_REVIEW") {
+        setConfirmDialogOpen(false);
         const draft = draftFromFormFields(fields);
         if (hasUnreviewedAiAssignments) {
           markAiFieldsInDraft(draft, extractionSuggestions);
@@ -340,10 +346,12 @@ export default function TripRequirementForm() {
       // Case (c): Pure manual entry or all AI unassigned, server confirmed -> Go directly to planner
       const confirmed = confirmDraft(draftFromFormFields(fields), checkResult, new Date());
       if (confirmed.confirmation.snapshot) {
+        setConfirmDialogOpen(false);
         setPlanner(structuredClone(confirmed.confirmation.snapshot));
         setReviewOpen(false);
         setActiveTab("planner");
       } else {
+        setConfirmDialogOpen(false);
         const draft = draftFromFormFields(fields);
         setReview({
           draft,
@@ -396,10 +404,29 @@ export default function TripRequirementForm() {
             mobilityNote={fields.mobilityNote}
             onMobilityNoteChange={(note) => updateField("mobilityNote", note)}
             onOpenAIModal={() => setAiModalOpen(true)}
-            onSubmit={() => void submit()}
+            onSubmit={handleInitiateSubmit}
             pending={pending}
             errors={errors}
             feedback={feedback}
+          />
+
+          <TripConfirmationDialog
+            isOpen={confirmDialogOpen}
+            onClose={() => {
+              if (!pending) setConfirmDialogOpen(false);
+            }}
+            onConfirm={() => void handleConfirmCreateTrip()}
+            isSubmitting={pending}
+            error={confirmError}
+            durationDays={fields.durationDays}
+            transport={fields.transport as TripTransport | ""}
+            startDate={fields.startDate}
+            companionType={fields.companionType as CompanionType | ""}
+            companionGroupSize={fields.companionGroupSize}
+            interests={fields.interests as TripInterest[]}
+            pace={fields.pace as TripPace | ""}
+            mobilityFlags={fields.mobilityFlags as MobilityConstraint[]}
+            mobilityNote={fields.mobilityNote}
           />
 
           {aiModalOpen && (
@@ -474,7 +501,7 @@ export default function TripRequirementForm() {
               }}
             >
               <ArrowLeft size={16} aria-hidden="true" />
-              <span>Quay lại chỉnh nhu cầu</span>
+              <span>Quay lại chỉnh sửa</span>
             </button>
           </div>
 
