@@ -36,7 +36,7 @@ export function GlobalAssistantProvider({ children }: { children: ReactNode }) {
   }, [pathname]);
   const current = pageDestination?.pathname === pathname ? pageDestination : null;
   const nextContext: QaContext = current ? { type: "DESTINATION", destinationId: current.id } : { type: "GENERAL" };
-  const routeVisible = !/^\/(admin|assistant|login|register|forgot-password|reset-password)(\/|$)/.test(pathname);
+  const routeVisible = !/^\/(admin|assistant|login|register|forgot-password|reset-password|trips\/new)(\/|$)/.test(pathname);
 
   function openPanel() {
     if (!hasSession) {
