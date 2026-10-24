@@ -77,8 +77,10 @@ import {
 
 export type TripReviewScreenProps = {
   draft: TripRequirementReviewDraft;
-  readiness: TripRequirementReadiness;
+  readiness?: TripRequirementReadiness | null;
   clarificationRequests?: ClarificationRequest[];
+  initialIssues?: CheckIssue[];
+  initialEditingKey?: ReviewFieldKey | null;
   embedded?: boolean;
   onBackToForm: (draft: TripRequirementReviewDraft) => void;
   onFillForm?: (draft: TripRequirementReviewDraft) => void;
@@ -220,6 +222,8 @@ export default function TripReviewScreen({
   draft,
   readiness,
   clarificationRequests,
+  initialIssues = [],
+  initialEditingKey = null,
   embedded = false,
   onBackToForm,
   onFillForm,
@@ -229,17 +233,26 @@ export default function TripReviewScreen({
   onDraftChange,
 }: TripReviewScreenProps) {
   const initialClarificationRequests = clarificationRequests ?? EMPTY_CLARIFICATION_REQUESTS;
+  const firstErrorKey = initialEditingKey ?? (() => {
+    const firstErr = initialIssues.find((issue) => issue.severity === "ERROR");
+    return firstErr ? reviewKeyFromIssue(firstErr) : null;
+  })();
+
   const [editableDraft, setEditableDraft] = useState(draft);
-  const [editingKey, setEditingKey] = useState<ReviewFieldKey | null>(null);
-  const [editorValue, setEditorValue] = useState<ReviewRawFieldValue>(null);
-  const [editorErrors, setEditorErrors] = useState<Record<string, string>>({});
+  const [editingKey, setEditingKey] = useState<ReviewFieldKey | null>(firstErrorKey);
+  const [editorValue, setEditorValue] = useState<ReviewRawFieldValue>(() =>
+    firstErrorKey ? rawValueForField(draft, firstErrorKey) : null,
+  );
+  const [editorErrors, setEditorErrors] = useState<Record<string, string>>(() =>
+    firstErrorKey ? serverErrorsForField(initialIssues, firstErrorKey) : {},
+  );
   const [liveMessage, setLiveMessage] = useState("");
   const [confirmation, setConfirmation] = useState<ReviewConfirmation>({
     state: "NOT_CONFIRMED",
     snapshot: null,
   });
   const [acknowledged, setAcknowledged] = useState(false);
-  const [serverIssues, setServerIssues] = useState<CheckIssue[]>([]);
+  const [serverIssues, setServerIssues] = useState<CheckIssue[]>(initialIssues);
   const [serverClarificationRequests, setServerClarificationRequests] = useState<ClarificationRequest[]>([]);
   const [dismissedAdvisoryIds, setDismissedAdvisoryIds] = useState<string[]>([]);
   const [choiceErrors, setChoiceErrors] = useState<Record<string, string>>({});
@@ -255,24 +268,30 @@ export default function TripReviewScreen({
   const mountedRef = useRef(false);
 
   useEffect(() => {
-    headingRef?.current?.focus();
-  }, [draft, headingRef]);
+    if (firstErrorKey) {
+      window.setTimeout(() => editorInputRef.current?.focus(), 0);
+    } else {
+      headingRef?.current?.focus();
+    }
+  }, [firstErrorKey, draft, headingRef]);
 
   useEffect(() => { onDraftChange?.(editableDraft); }, [editableDraft, onDraftChange]);
 
   useEffect(() => {
     setEditableDraft(draft);
-    setEditingKey(null);
-    setEditorErrors({});
+    if (!firstErrorKey) {
+      setEditingKey(null);
+      setEditorErrors({});
+    }
     setConfirmation(invalidateConfirmation());
     setAcknowledged(false);
-    setServerIssues([]);
+    setServerIssues(initialIssues);
     setServerClarificationRequests(initialClarificationRequests);
     setDismissedAdvisoryIds([]);
     setChoiceErrors({});
     setCheckError(null);
     setNormalizedFromServer(false);
-  }, [draft, initialClarificationRequests]);
+  }, [draft, initialClarificationRequests, firstErrorKey, initialIssues]);
 
   useEffect(() => {
     // Strict Mode replays setup after cleanup in development.
@@ -647,7 +666,7 @@ export default function TripReviewScreen({
     draftToCandidate(editableDraft) as TripRequirementInput,
     new Date(),
   );
-  const currentReadiness = editableDraft === draft ? readiness : derivedReadiness;
+  const currentReadiness = (editableDraft === draft && readiness) ? readiness : derivedReadiness;
 
   const valueCount = countReviewValues(editableDraft);
   const serverErrorFields = new Set(

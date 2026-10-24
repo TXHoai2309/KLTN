@@ -4046,3 +4046,20 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
   No schema, dependency, API, business-rule, commit/push/merge/deploy change by
   this task. Receipts `.cache/trip-ui/resumed-*`, `apps/web/.cache/trip-ui/`;
   design amendment and US-24 record updated.
+
+## 2026-10-24 — Streamlined Trip planning flow: collapsible AI helper and manual review bypass
+
+- **Task/branch:** master working tree; PO decision (2026-10-24) to streamline `/trips/new` form.
+- **Completed:**
+  - AI natural-language assistant collapsed by default (`.trip-ai-accordion`) below the required fields block, with full-width border, rotating chevron, subline "Gõ một câu, AI điền giúp bạn", and toggle indicator. Auto-collapses on AI success while auto-expanding populated optional fieldsets (personalization, special notes).
+  - Streamlined 2-action required block: duration (quick chips 2/3/4/5 days + stepper) and transport (2 cards). Departure date presented via compact toggle.
+  - Manual form entry bypasses `TripReviewDialog`: single authoritative server check `/api/trip-requirements/check` confirms draft in memory and routes directly to the itinerary proposal step (`planner`).
+  - `TripReviewDialog` is opened strictly for: (1) unreviewed AI-applied fields (`status === "APPLIED"`), preserving explicit AI provenance review; (2) server check failures or clarification requests, opening directly focused on the first error field (`initialEditingKey`).
+  - Fixed departure date minimum to Vietnam calendar date `vietnamDateOf(new Date())`. Proposal step departure date changes sync back to parent form (`onUpdateStartDate`). "Quay lại" returns to form with all field values intact.
+- **Verification:**
+  - Full Vitest suite for trip planning modules (16 test files, 258 tests) 100% PASS (including `decideSubmitRouting`, US-24, US-25, US-26, US-27, and accessibility tests).
+  - Monorepo `npm run check-types` across all 5 packages: PASS (exit code 0).
+  - `git diff --check`: PASS (zero trailing whitespace, zero conflict markers).
+  - Playwright browser fixture scripts noted as requiring codex-runtimes dependency not present on local Windows host.
+- **Documentation:** ADR-20 recorded in `docs/decisions.md`; `DESIGN.md`, `docs/design/trip-planning-ui-refinement.md`, `US-24-trip-requirement-form.md`, and `US-26-review-confirm-trip-needs.md` updated.
+- **Constraints:** No commit, no push, no merge, no API or schema changes. Existing design tokens and color palette preserved.

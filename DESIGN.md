@@ -545,18 +545,27 @@ Creation is the existing `+ Tạo chuyến đi` action inside MyTripsView linkin
 `/trips/new`; retain its empty-state alternative. Header and MyTripsView remain
 the canonical owners; no new navigation component, tokens or business behavior.
 
-## Trip creation — two steps and review modal, 2026-10-24
+## Trip creation — two steps, collapsible AI and direct proposal, 2026-10-24
 
 Owner replaces the separate Describe/Supplement/Review navigation with two
 steps: `Thông tin chuyến đi` and `Lịch trình đề xuất`. Open the structured form
 immediately. Preserve natural-language entry as an optional, initially collapsed
-AI helper in that form. Form submission validates required inputs, then opens
-TripReviewDialog; review is no longer a standalone navigable step.
+AI helper (`.trip-ai-accordion`) below the required fields block, with rotating
+chevron, "Gõ một câu, AI điền giúp bạn" subline, and toggle indicator. Auto-collapses
+on AI success and auto-expands relevant populated optional fieldsets.
+
+Form submission validates required inputs and runs authoritative server `/check`.
+For manual entry, a valid check confirms the draft in memory and advances directly
+to `Lịch trình đề xuất` (bypassing the review modal).
+
+`TripReviewDialog` is retained strictly for:
+1. AI-assisted drafts with at least one unreviewed AI-applied field.
+2. Server check failures or clarification requests, focusing on the first error.
 
 TripReviewDialog owns native modal presentation, background scroll/inertness,
 keyboard boundaries, Escape/Close and return focus. TripReviewScreen and the
 shared field editors retain edit/check/acknowledgement semantics. Saved review
 edits return to the form on dismissal; confirmation passes the server-checked
-snapshot to the existing planner. Closing aborts pending read checks. Reopening
-requires fresh acknowledgement. Minimum inputs, date/save gates, transport
+snapshot to the existing planner. Proposal departure date selection synchronizes
+back to parent form state. Minimum inputs, date/save gates, transport
 clarification, authorization and persistence contracts remain unchanged.

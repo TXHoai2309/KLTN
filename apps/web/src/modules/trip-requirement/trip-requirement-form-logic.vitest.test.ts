@@ -4,8 +4,10 @@ import { tripRequirementInputSchema } from "./trip-requirement-contract";
 import {
   buildPayload,
   decideEvaluateResponse,
+  decideSubmitRouting,
   getSubmitButtonState,
   mapFieldErrors,
+  shouldApplyRequestResponse,
   validateRequiredFields,
   type TripRequirementFormFields,
   type TripRequirementValidationFields,
@@ -235,12 +237,120 @@ describe("trip requirement form logic", () => {
     expect(getSubmitButtonState(false)).toEqual({
       disabled: false,
       ariaBusy: false,
-      label: "Xem lại nhu cầu",
+      label: "Xem lại và tạo lịch trình",
     });
     expect(getSubmitButtonState(true)).toEqual({
       disabled: true,
       ariaBusy: true,
       label: "Đang xem lại…",
+    });
+  });
+
+  describe("decideSubmitRouting (PO Decision 2026-10-24)", () => {
+    it("routes directly to planner for valid manual form entry without AI", () => {
+      const decision = decideSubmitRouting({
+        hasUnreviewedAiAssignments: false,
+        confirmable: true,
+        clarificationRequestsCount: 0,
+      });
+      expect(decision).toEqual({ action: "PROCEED_TO_PLANNER" });
+    });
+
+    it("opens review dialog when unreviewed AI fields remain", () => {
+      const decision = decideSubmitRouting({
+        hasUnreviewedAiAssignments: true,
+        confirmable: true,
+        clarificationRequestsCount: 0,
+      });
+      expect(decision).toEqual({ action: "OPEN_REVIEW", initialEditingKey: null });
+    });
+
+    it("routes directly to planner if user dismissed/unassigned all AI fields", () => {
+      const decision = decideSubmitRouting({
+        hasUnreviewedAiAssignments: false,
+        confirmable: true,
+        clarificationRequestsCount: 0,
+      });
+      expect(decision).toEqual({ action: "PROCEED_TO_PLANNER" });
+    });
+
+    it("opens review dialog at the error field when server check fails", () => {
+      const decision = decideSubmitRouting({
+        hasUnreviewedAiAssignments: false,
+        confirmable: false,
+        clarificationRequestsCount: 0,
+        firstErrorField: "durationDays",
+      });
+      expect(decision).toEqual({
+        action: "OPEN_REVIEW",
+        initialEditingKey: "durationDays",
+      });
+    });
+
+    it("opens review dialog when server requires clarifications", () => {
+      const decision = decideSubmitRouting({
+        hasUnreviewedAiAssignments: false,
+        confirmable: true,
+        clarificationRequestsCount: 2,
+      });
+      expect(decision).toEqual({ action: "OPEN_REVIEW", initialEditingKey: null });
+    });
+
+    it("nhập bằng biểu mẫu hợp lệ thì đi thẳng sang đề xuất (bypasses review dialog)", () => {
+      const decision = decideSubmitRouting({
+        hasUnreviewedAiAssignments: false,
+        confirmable: true,
+        clarificationRequestsCount: 0,
+      });
+      expect(decision).toEqual({ action: "PROCEED_TO_PLANNER" });
+    });
+
+    it("có trường AI chưa bỏ gán thì mở hộp thoại xem lại", () => {
+      const decision = decideSubmitRouting({
+        hasUnreviewedAiAssignments: true,
+        confirmable: true,
+        clarificationRequestsCount: 0,
+      });
+      expect(decision).toEqual({ action: "OPEN_REVIEW", initialEditingKey: null });
+    });
+
+    it("máy chủ không xác nhận thì mở hộp thoại ở đúng ô lỗi", () => {
+      const decision = decideSubmitRouting({
+        hasUnreviewedAiAssignments: false,
+        confirmable: false,
+        clarificationRequestsCount: 0,
+        firstErrorField: "transport",
+      });
+      expect(decision).toEqual({
+        action: "OPEN_REVIEW",
+        initialEditingKey: "transport",
+      });
+    });
+
+    it("bỏ gán hết các trường AI rồi gửi thì coi như nhập biểu mẫu (đi thẳng)", () => {
+      const decision = decideSubmitRouting({
+        hasUnreviewedAiAssignments: false,
+        confirmable: true,
+        clarificationRequestsCount: 0,
+      });
+      expect(decision).toEqual({ action: "PROCEED_TO_PLANNER" });
+    });
+
+    it("lỗi mạng thì ở lại biểu mẫu và cho phép thử lại (NETWORK_ERROR)", () => {
+      const responseDecision = decideEvaluateResponse({ kind: "network" });
+      expect(responseDecision.action).toBe("NETWORK_ERROR");
+    });
+
+    it("bấm đúp chỉ gửi một lần (submission lock / pending state)", () => {
+      const pendingState = getSubmitButtonState(true);
+      expect(pendingState.disabled).toBe(true);
+      expect(pendingState.ariaBusy).toBe(true);
+    });
+
+    it("đóng hoặc rời trang giữa chừng thì hủy hoặc bỏ qua kết quả yêu cầu", () => {
+      expect(shouldApplyRequestResponse(1, 1, false)).toBe(false);
+      expect(shouldApplyRequestResponse(1, 2, true)).toBe(false);
+      expect(shouldApplyRequestResponse(2, 2, true)).toBe(true);
     });
   });
 });

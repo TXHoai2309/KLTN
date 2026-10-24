@@ -79,7 +79,7 @@ export function TripPlannerScreen({
 }
 export function PlannerEmptyState({ onBack }: { onBack: () => void }) { return <div className="planner-empty" role="status"><Mountain size={34} aria-hidden="true" /><h3>Chưa đủ điểm đến phù hợp</h3><p>Chưa có đủ điểm đến công khai, tọa độ hoặc thời lượng tham quan để lập ngày này. Hệ thống không bổ sung địa điểm giả.</p><button onClick={onBack} type="button">Điều chỉnh nhu cầu</button></div>; }
 export function PlannerLoadingState() { return <div className="planner-loading" role="status" aria-live="polite" aria-busy="true"><LoaderCircle className="trip-spinner" size={25} /><div><strong>Đang sắp xếp hành trình của bạn</strong><p>Đối chiếu điểm đến, dữ liệu di chuyển và các ràng buộc…</p></div><div className="planner-skeleton-row" aria-hidden="true"><span /><span /><span /></div></div>; }
-export default function TripPlannerFlow({ confirmed, onBack, onSaveStateChange, embedded = false }: { confirmed: ConfirmedTripRequirement; onBack: () => void; onSaveStateChange?: (state: SaveState) => void; embedded?: boolean }) {
+export default function TripPlannerFlow({ confirmed, onBack, onSaveStateChange, onUpdateStartDate, embedded = false }: { confirmed: ConfirmedTripRequirement; onBack: () => void; onSaveStateChange?: (state: SaveState) => void; onUpdateStartDate?: (newDate: string) => void; embedded?: boolean }) {
   const router = useRouter();
   const [currentRequirement, setCurrentRequirement] = useState(confirmed.requirement);
   const [proposal, setProposal] = useState<PlannerResult | null>(null);
@@ -107,7 +107,7 @@ export default function TripPlannerFlow({ confirmed, onBack, onSaveStateChange, 
     } finally { if (seq === sequence.current) { lock.current = false; if (mounted.current) setBusy(false); } }
   }
   const back = () => { abort.current?.abort(); sequence.current++; attempt.current = null; setProposal(null); onBack(); };
-  if (proposal) return <><TripPlannerScreen proposal={proposal} busy={busy} onBack={back} onRegenerate={() => { void generate(); }} onUpdateStartDate={(newDate) => { void generate(false, { ...currentRequirement, startDate: newDate }); }} onSaveStateChange={onSaveStateChange} onSaved={tripId => completeTripSave(
+  if (proposal) return <><TripPlannerScreen proposal={proposal} busy={busy} onBack={back} onRegenerate={() => { void generate(); }} onUpdateStartDate={(newDate) => { onUpdateStartDate?.(newDate); void generate(false, { ...currentRequirement, startDate: newDate }); }} onSaveStateChange={onSaveStateChange} onSaved={tripId => completeTripSave(
     tripId,
     message => toast.success(message, { id: "trip-saved", position: "bottom-right", duration: 5000 }),
     href => router.replace(href),

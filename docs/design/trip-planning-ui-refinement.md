@@ -178,3 +178,27 @@ fixture startup). Browser 61/61 PASS; Taste rendered inspector 0 FAIL / 3
 contextual WARN; final production compilation PASS and `git diff --check` PASS.
 Latest receipts use `.cache/trip-ui/handoff-*` and
 `apps/web/.cache/trip-ui/handoff-modal-browser-final.log`.
+
+## 2026-10-24 PO decision — Collapsible AI helper and direct proposal for manual entry
+
+Product Owner overrides the earlier design with two key requirements to streamline the form:
+
+1. **Collapsible AI helper (`.trip-ai-accordion`):**
+   - The AI natural-language input is closed by default inside a `<details className="trip-ai-accordion">` element positioned immediately below the required fields block.
+   - Clickable full-width card with subtle border, rotating chevron indicator (`transform: rotate(180deg)`), explanatory subtitle "Gõ một câu, AI điền giúp bạn", and toggle text "Mở" / "Đóng".
+   - Upon successful AI extraction, the accordion automatically collapses while relevant optional collapsible sections containing filled suggestions (personalization, special notes) automatically expand.
+
+2. **Direct proposal step transition for manual form entry:**
+   - Manual form submission bypasses the intermediate `TripReviewDialog` review modal entirely.
+   - Form submission performs a single authoritative server check (`/api/trip-requirements/check`), removing the duplicate `/evaluate` pre-check.
+   - If the draft is valid and confirmable (`confirmable: true`), `confirmDraft` is called and the user transitions directly to the proposal step (`planner`), enabling a 2-step / 1-click creation workflow.
+   - `TripReviewDialog` is retained strictly for:
+     (a) AI-assisted entry with at least one unreviewed AI-applied field (`status === "APPLIED"`).
+     (b) Non-confirmable drafts or clarification requests returned by the server, opening directly at the first error field (`initialEditingKey`).
+   - If user unassigns/dismisses all AI fields, the draft is treated as manual entry (bypassing the modal).
+
+3. **Date synchronization and save gates:**
+   - Departure date minimum uses Vietnam calendar date `vietnamDateOf(new Date())`.
+   - Preliminary proposals without a departure date display numbered relative days ("Ngày 1, Ngày 2").
+   - Departure date selected in the proposal step synchronizes back to the parent form state (`onUpdateStartDate`).
+   - Planner "Quay lại" action returns to the form with all field values intact.

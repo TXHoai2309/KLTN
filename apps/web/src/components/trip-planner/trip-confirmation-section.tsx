@@ -14,6 +14,7 @@ type PreviewState =
   | { signature: string; kind: "error"; message: string };
 
 import { CalendarDays } from "lucide-react";
+import { vietnamDateOf } from "@/modules/trip-requirement/trip-requirement-readiness";
 
 export function TripConfirmationSection({
   result,
@@ -66,7 +67,7 @@ export function TripConfirmationSection({
               <div className="planner-date-prompt-controls">
                 <input
                   type="date"
-                  min={new Date().toISOString().split("T")[0]}
+                  min={vietnamDateOf(new Date())}
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
                   className="planner-date-input"

@@ -59,14 +59,14 @@ try {
       assert.equal(await page.getByRole('tablist', { name: 'Các bước lập hành trình', exact: true }).getByRole('tab').count(), 2);
       assert.equal(await page.locator('#trip-duration').isVisible(), true);
       await capture('details', width, theme);
-      await page.locator('.trip-ai-helper > summary').click();
+      await page.locator('.trip-ai-accordion > summary').click();
       assert.equal(await page.locator('#trip-natural-language-text').getAttribute('aria-invalid'), 'false');
       await page.locator('#trip-natural-language-text').fill('Mình muốn đi 2 ngày bằng ô tô, thích thiên nhiên và thư giãn');
       await page.getByRole('button', { name: 'Phân tích nhu cầu', exact: true }).click();
       await page.waitForFunction(() => document.querySelector('#trip-duration').value === '2');
-      assert.equal(await page.locator('.trip-ai-helper').getAttribute('open'), null);
+      assert.equal(await page.locator('.trip-ai-accordion').getAttribute('open'), null);
       await capture('filled', width, theme);
-      await page.getByRole('button', { name: 'Xem lại nhu cầu', exact: true }).first().press('Enter');
+      await page.getByRole('button', { name: 'Xem lại và tạo lịch trình', exact: true }).first().press('Enter');
       await page.getByRole('heading', { name: 'Kiểm tra nhu cầu chuyến đi', exact: true }).waitFor();
       const dialog = page.getByRole('dialog', { name: 'Kiểm tra nhu cầu chuyến đi', exact: true });
       assert.equal(await dialog.isVisible(), true);
@@ -103,9 +103,23 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await context.request.get(`${base}/fixture-scenario?value=FULL`);
   await page.goto(base);
+  // Manual form entry goes directly to proposal without dialog (PO decision 2026-10-24)
   await page.locator('#trip-duration').fill('2');
   await page.locator('#trip-transport input[value="CAR"]').check();
-  const reviewTrigger = page.getByRole('button', { name: 'Xem lại nhu cầu', exact: true }).first();
+  const directSubmit = page.getByRole('button', { name: 'Xem lại và tạo lịch trình', exact: true }).first();
+  await directSubmit.press('Enter');
+  await page.getByRole('heading', { name: 'Lịch trình đề xuất', exact: true }).waitFor();
+  assert.equal(await page.getByRole('dialog').count(), 0, 'Manual entry goes straight to planner without dialog');
+  await page.getByRole('button', { name: 'Quay lại chỉnh nhu cầu', exact: true }).click();
+  assert.equal(await page.locator('#trip-duration').inputValue(), '2', 'Back from planner preserves form values');
+
+  // AI entry with unassigned fields opens review dialog (Case a)
+  await page.locator('.trip-ai-accordion > summary').click();
+  await page.locator('#trip-natural-language-text').fill('Mình muốn đi 2 ngày bằng ô tô');
+  await page.getByRole('button', { name: 'Phân tích nhu cầu', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('#trip-duration').value === '2');
+
+  const reviewTrigger = page.getByRole('button', { name: 'Xem lại và tạo lịch trình', exact: true }).first();
   await reviewTrigger.press('Enter');
   const modal = page.getByRole('dialog', { name: 'Kiểm tra nhu cầu chuyến đi', exact: true });
   await modal.waitFor();
@@ -148,8 +162,10 @@ try {
 
   // Closing a pending read aborts it; its eventual response cannot advance the flow.
   await page.goto(base);
-  await page.locator('#trip-duration').fill('2');
-  await page.locator('#trip-transport input[value="CAR"]').check();
+  await page.locator('.trip-ai-accordion > summary').click();
+  await page.locator('#trip-natural-language-text').fill('2 ngày ô tô');
+  await page.getByRole('button', { name: 'Phân tích nhu cầu', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('#trip-duration').value === '2');
   await reviewTrigger.press('Enter');
   await modal.waitFor();
   let releaseCheck;
@@ -176,14 +192,14 @@ try {
   // The manual path remains independent of extraction; missing inputs stay blocked.
   await page.setViewportSize({ width: 360, height: 844 });
   await page.goto(base);
-  await page.getByRole('button', { name: 'Xem lại nhu cầu', exact: true }).first().press('Enter');
+  await page.getByRole('button', { name: 'Xem lại và tạo lịch trình', exact: true }).first().press('Enter');
   assert.equal(await page.locator('#trip-duration').getAttribute('aria-invalid'), 'true');
   assert.equal(await page.getByRole('dialog').count(), 0);
   assert.equal(await page.locator('#trip-tab-planner').isEnabled(), false);
   // A technical analysis failure keeps the original text and the manual escape hatch.
   await context.request.get(`${base}/fixture-scenario?value=ERROR`);
   await page.goto(base);
-  await page.locator('.trip-ai-helper > summary').click();
+  await page.locator('.trip-ai-accordion > summary').click();
   const text = 'Mình muốn đi 2 ngày bằng ô tô, thích thiên nhiên và thư giãn';
   await page.locator('#trip-natural-language-text').fill(text);
   await page.getByRole('button', { name: 'Phân tích nhu cầu', exact: true }).click();
@@ -194,11 +210,11 @@ try {
   // Planner errors, missing routes and empty candidate pools keep their own recovery UI.
   await context.request.get(`${base}/fixture-scenario?value=FULL`);
   await page.goto(base);
-  await page.locator('.trip-ai-helper > summary').click();
+  await page.locator('.trip-ai-accordion > summary').click();
   await page.locator('#trip-natural-language-text').fill(text);
   await page.getByRole('button', { name: 'Phân tích nhu cầu', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('#trip-duration').value === '2');
-  await page.getByRole('button', { name: 'Xem lại nhu cầu', exact: true }).first().press('Enter');
+  await page.getByRole('button', { name: 'Xem lại và tạo lịch trình', exact: true }).first().press('Enter');
   await page.getByRole('checkbox', { name: 'Tôi đã kiểm tra các thông tin trên', exact: true }).check();
   await page.getByRole('button', { name: 'Xác nhận nhu cầu', exact: true }).click();
   await page.getByRole('button', { name: 'Tạo lịch trình đề xuất', exact: true }).waitFor();

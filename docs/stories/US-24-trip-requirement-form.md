@@ -342,3 +342,11 @@ Focused form/planner/navigation tests 284 PASS; save regression 36 PASS. Root
 build/typecheck PASS; browser fixture 61 captures PASS with responsive/themes,
 keyboard, errors and cancellation. No live auth/DB/provider or full-suite claim.
 See the design record amendment for canonical owners, audit limits and receipts.
+
+## 2026-10-24 PO decision — Streamlined 2-action form and manual review bypass
+
+Product Owner approved streamlined form enhancements:
+- AI natural-language assistant collapsed by default (`.trip-ai-accordion`) below the required block with rotating chevron, subline "Gõ một câu, AI điền giúp bạn", and toggle indicator. Auto-collapses on AI success and opens relevant filled optional sections.
+- Form submission evaluates draft via single authoritative `/api/trip-requirements/check`. For manual entries, confirmable check results advance directly to `planner` (itinerary proposal) without opening `TripReviewDialog`.
+- `TripReviewDialog` is opened strictly for drafts with unreviewed AI fields or server check issues.
+- Departure date minimum uses Vietnam calendar date `vietnamDateOf(new Date())`. Proposal step departure date changes sync back to the parent form state.

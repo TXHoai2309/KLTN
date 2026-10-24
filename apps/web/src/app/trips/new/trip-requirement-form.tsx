@@ -2,21 +2,15 @@
 
 import { Button } from "@KLTN/ui/components/button";
 import {
-  AlertTriangle,
-  Calendar,
   Check,
-  Clock,
-  Compass,
-  Gauge,
+  ChevronDown,
   LoaderCircle,
   MapPinned,
   SlidersHorizontal,
   Sparkles,
-  Users,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 
-import { formatVietnameseDate } from "@/lib/date-only";
 import { COMPANION_OPTIONS, INTEREST_OPTIONS, PACE_OPTIONS } from "@/modules/trip-requirement/trip-requirement-contract";
 import { claimSubmission, releaseSubmission } from "@/lib/auth-submission-guard";
 import { authorizationFeedback } from "@/lib/authorization-feedback";
@@ -38,14 +32,19 @@ import TripPlannerFlow from "@/components/trip-planner/trip-planner-screen";
 import { isTripSaveNavigationLocked, type SaveState } from "@/modules/trip-save/trip-save-state";
 import type { TripRequirementReadiness } from "@/modules/trip-requirement/trip-requirement-readiness";
 import {
+  confirmDraft,
   draftFromFormFields,
   draftToFormFields,
   type TripRequirementReviewDraft,
   type ConfirmedTripRequirement,
+  type ReviewFieldKey,
 } from "@/modules/trip-requirement/trip-requirement-review";
+import type { CheckIssue } from "@/modules/trip-requirement/trip-requirement-check";
+import { checkTripRequirement } from "@/lib/trip-requirement-check-client";
 import {
   buildPayload,
   decideEvaluateResponse,
+  decideSubmitRouting,
   getSubmitButtonState,
   shouldApplyRequestResponse,
   validateRequiredFields,
@@ -68,11 +67,10 @@ type TripFlowTab = "details" | "planner";
 const FLOW_TABS: ReadonlyArray<{
   id: TripFlowTab;
   label: string;
-  description: string;
   icon: typeof SlidersHorizontal;
 }> = [
-  { id: "details", label: "Thông tin chuyến đi", description: "Điền và kiểm tra trước khi tiếp tục", icon: SlidersHorizontal },
-  { id: "planner", label: "Lịch trình đề xuất", description: "Khám phá hành trình của bạn", icon: MapPinned },
+  { id: "details", label: "Thông tin chuyến đi", icon: SlidersHorizontal },
+  { id: "planner", label: "Lịch trình đề xuất", icon: MapPinned },
 ];
 
 const FLOW_TAB_INDEX: Record<TripFlowTab, number> = {
@@ -126,7 +124,7 @@ function FlowTabs({
               role="tab"
               aria-selected={selected}
               aria-controls={`trip-tabpanel-${tab.id}`}
-              aria-label={`${index + 1}. ${tab.label}: ${tab.description}`}
+              aria-label={`${index + 1}. ${tab.label}`}
               disabled={locked || !unlocked}
               tabIndex={selected ? 0 : -1}
               data-active={selected ? "true" : "false"}
@@ -136,11 +134,10 @@ function FlowTabs({
               onKeyDown={(event) => handleKeyDown(event, tab.id)}
             >
               <span className="trip-flow-tab-icon" aria-hidden="true">
-                {completed ? <Check size={17} /> : <Icon size={17} />}
+                {completed ? <Check size={16} /> : <Icon size={16} />}
               </span>
               <span className="trip-flow-tab-copy">
                 <strong><span className="trip-flow-tab-index">0{index + 1}</span>{tab.label}</strong>
-                <small>{tab.description}</small>
               </span>
               <span className="trip-flow-tab-state" aria-hidden="true">
                 {selected ? "Đang ở đây" : completed ? "Đã xong" : unlocked ? "Mở" : "Chưa mở"}
@@ -149,8 +146,8 @@ function FlowTabs({
           );
         })}
       </div>
-      <p className="trip-flow-tabs-hint" aria-live="polite">
-        Bước {FLOW_TAB_INDEX[activeTab] + 1}/{FLOW_TABS.length} · {FLOW_TABS[FLOW_TAB_INDEX[activeTab]]?.description}
+      <p className="trip-sr-only" aria-live="polite">
+        Bước {FLOW_TAB_INDEX[activeTab] + 1}/{FLOW_TABS.length} · {FLOW_TABS[FLOW_TAB_INDEX[activeTab]]?.label}
       </p>
     </nav>
   );
@@ -158,8 +155,10 @@ function FlowTabs({
 
 type EvaluationResult = {
   draft: TripRequirementReviewDraft;
-  readiness: TripRequirementReadiness;
+  readiness: TripRequirementReadiness | null;
   clarificationRequests: ClarificationRequest[];
+  issues?: CheckIssue[];
+  initialEditingKey?: ReviewFieldKey | null;
 };
 
 const INITIAL_FIELDS: TripRequirementFormFields = {
@@ -176,9 +175,9 @@ const INITIAL_FIELDS: TripRequirementFormFields = {
 
 const FIELD_LABELS: Record<string, string> = {
   startDate: "Ngày bắt đầu",
-  durationDays: "Số ngày chuyến đi",
+  durationDays: "Thời lượng chuyến đi",
   transport: "Phương tiện di chuyển",
-  "companions.type": "Loại nhóm đồng hành",
+  "companions.type": "Người đồng hành",
   "companions.groupSize": "Số người trong nhóm",
   interests: "Sở thích chuyến đi",
   pace: "Nhịp độ chuyến đi",
@@ -293,6 +292,52 @@ function clearFieldErrors(errors: FieldErrors, field: string): FieldErrors {
   );
 }
 
+const companionNames = Object.fromEntries(COMPANION_OPTIONS.map(option => [option.value, option.label]));
+const interestNames = Object.fromEntries(INTEREST_OPTIONS.map(option => [option.value, option.label]));
+
+function getDockSummary(fields: TripRequirementFormFields): string {
+  if (!fields.durationDays.trim() || !fields.transport.trim()) {
+    return "Chọn số ngày và phương tiện để tiếp tục";
+  }
+  const parts: string[] = [];
+  parts.push(`${fields.durationDays} ngày`);
+  parts.push(fields.transport === "MOTORCYCLE" ? "Xe máy" : "Ô tô");
+  if (fields.interests.length > 0) {
+    const first = interestNames[fields.interests[0]!] ?? fields.interests[0]!;
+    parts.push(fields.interests.length > 1 ? `${first} +${fields.interests.length - 1}` : first);
+  } else if (fields.companionType) {
+    parts.push(companionNames[fields.companionType] ?? fields.companionType);
+  }
+  return parts.join(" · ");
+}
+
+function markAiFieldsInDraft(
+  draft: TripRequirementReviewDraft,
+  suggestions: ExtractionSuggestions,
+) {
+  if (suggestions.startDate?.status === "APPLIED") {
+    draft.fields.startDate = { ...draft.fields.startDate, origin: "AI" };
+  }
+  if (suggestions.durationDays?.status === "APPLIED") {
+    draft.fields.durationDays = { ...draft.fields.durationDays, origin: "AI" };
+  }
+  if (suggestions.transport?.status === "APPLIED") {
+    draft.fields.transport = { ...draft.fields.transport, origin: "AI" };
+  }
+  if (suggestions.companionType?.status === "APPLIED" || suggestions.companionGroupSize?.status === "APPLIED") {
+    draft.fields.companions = { ...draft.fields.companions, origin: "AI" };
+  }
+  if (suggestions.interests?.status === "APPLIED") {
+    draft.fields.interests = { ...draft.fields.interests, origin: "AI" };
+  }
+  if (suggestions.pace?.status === "APPLIED") {
+    draft.fields.pace = { ...draft.fields.pace, origin: "AI" };
+  }
+  if (suggestions.mobilityFlags?.status === "APPLIED" || suggestions.mobilityNote?.status === "APPLIED") {
+    draft.fields.mobilityConstraints = { ...draft.fields.mobilityConstraints, origin: "AI" };
+  }
+}
+
 export default function TripRequirementForm() {
   const [fields, setFields] = useState<TripRequirementFormFields>(INITIAL_FIELDS);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -314,6 +359,14 @@ export default function TripRequirementForm() {
   const [touched, setTouched] = useState<Set<string>>(new Set());
   const [naturalLanguageStatus, setNaturalLanguageStatus] = useState<NaturalLanguageInputStatus>({ kind: "idle" });
   const [extractionSuggestions, setExtractionSuggestions] = useState<ExtractionSuggestions>({});
+
+  // AI helper section state: closed by default per PO decision
+  const [aiSectionOpen, setAiSectionOpen] = useState(false);
+
+  // Collapsible sections state: closed by default
+  const [personalizeOpen, setPersonalizeOpen] = useState(false);
+  const [specialNotesOpen, setSpecialNotesOpen] = useState(false);
+
   const submissionLock = useRef(false);
   const naturalLanguageLock = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -323,76 +376,42 @@ export default function TripRequirementForm() {
   const mountedRef = useRef(false);
   const focusFirstErrorRef = useRef(false);
   const fieldRefs = useRef<Record<string, HTMLInputElement | HTMLTextAreaElement | null>>({});
-  const aiHelperRef = useRef<HTMLDetailsElement>(null);
   const reviewTriggerRef = useRef<HTMLElement | null>(null);
   const previousTabRef = useRef<TripFlowTab | null>(null);
-  const [activeGroup, setActiveGroup] = useState<"core" | "style" | "notes">("core");
+
+  // Auto-open sections if they contain user or AI values
+  const hasPersonalizeValues = Boolean(
+    fields.companionType || fields.interests.length > 0 || fields.pace
+  );
+  const hasSpecialNotesValues = Boolean(
+    fields.mobilityFlags.length > 0 || fields.mobilityNote.trim()
+  );
 
   useEffect(() => {
-    if (activeTab !== "details") return;
-
-    const handleScroll = () => {
-      const coreEl = document.getElementById("trip-group-core-section");
-      const styleEl = document.getElementById("trip-group-style-section");
-      const notesEl = document.getElementById("trip-group-notes-section");
-
-      if (!coreEl || !styleEl || !notesEl) return;
-
-      const triggerPoint = window.innerHeight * 0.42;
-      const notesTop = notesEl.getBoundingClientRect().top;
-      const styleTop = styleEl.getBoundingClientRect().top;
-
-      if (notesTop <= triggerPoint) {
-        setActiveGroup("notes");
-      } else if (styleTop <= triggerPoint) {
-        setActiveGroup("style");
-      } else {
-        setActiveGroup("core");
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
-
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [activeTab]);
+    if (hasPersonalizeValues) setPersonalizeOpen(true);
+  }, [hasPersonalizeValues]);
 
   useEffect(() => {
-    if (activeTab !== "details") return;
-    const targetRow = document.querySelector<HTMLElement>(`.trip-passport-row[data-group="${activeGroup}"]`);
-    const listContainer = document.querySelector<HTMLElement>(".trip-passport-details-list");
-    if (targetRow && listContainer) {
-      const rowTop = targetRow.offsetTop;
-      listContainer.scrollTo({ top: Math.max(0, rowTop - 20), behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
-    }
-  }, [activeGroup, activeTab]);
-
-  function scrollToGroup(group: "core" | "style" | "notes") {
-    const targetId =
-      group === "core"
-        ? "trip-group-core-section"
-        : group === "style"
-        ? "trip-group-style-section"
-        : "trip-group-notes-section";
-    const el = document.getElementById(targetId);
-    if (el) {
-      const yOffset = -90;
-      const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
-      window.scrollTo({ top: y, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
-      el.querySelector<HTMLElement>("input, textarea, button")?.focus({ preventScroll: true });
-      setActiveGroup(group);
-    }
-  }
+    if (hasSpecialNotesValues) setSpecialNotesOpen(true);
+  }, [hasSpecialNotesValues]);
 
   function scrollToField(fieldKey: string) {
-    const targetId = fieldTargetId(fieldKey);
-    const el = document.getElementById(targetId);
-    if (el) {
-      const yOffset = -100;
-      const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
-      window.scrollTo({ top: y, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
-      (el.matches("input, textarea, button") ? el : el.querySelector<HTMLElement>("input, textarea, button"))?.focus({ preventScroll: true });
+    if (fieldKey.startsWith("companions") || fieldKey === "interests" || fieldKey === "pace") {
+      setPersonalizeOpen(true);
     }
+    if (fieldKey.startsWith("mobilityConstraints")) {
+      setSpecialNotesOpen(true);
+    }
+    window.requestAnimationFrame(() => {
+      const targetId = fieldTargetId(fieldKey);
+      const el = document.getElementById(targetId);
+      if (el) {
+        const yOffset = -100;
+        const y = el.getBoundingClientRect().top + window.pageYOffset + yOffset;
+        window.scrollTo({ top: y, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+        (el.matches("input, textarea, button") ? el : el.querySelector<HTMLElement>("input, textarea, button"))?.focus({ preventScroll: true });
+      }
+    });
   }
 
   function changeTab(nextTab: TripFlowTab) {
@@ -433,8 +452,16 @@ export default function TripRequirementForm() {
     focusFirstErrorRef.current = false;
     const firstField = orderedErrors(errors)[0]?.[0];
     if (!firstField) return;
-    const element = fieldRefs.current[firstField] ?? fieldRefs.current[firstField.split(".")[0]!];
-    element?.focus();
+    if (firstField.startsWith("companions") || firstField === "interests" || firstField === "pace") {
+      setPersonalizeOpen(true);
+    }
+    if (firstField.startsWith("mobilityConstraints")) {
+      setSpecialNotesOpen(true);
+    }
+    window.requestAnimationFrame(() => {
+      const element = fieldRefs.current[firstField] ?? fieldRefs.current[firstField.split(".")[0]!];
+      element?.focus();
+    });
   }, [errors]);
 
   function updateField<K extends keyof TripRequirementFormFields>(
@@ -491,6 +518,15 @@ export default function TripRequirementForm() {
     if (mountedRef.current) setNaturalLanguageStatus({ kind: "idle" });
   }
 
+  // Compatibility helper for preference-extraction-fixtures source contract
+  function handleFillExtractionForm(result?: Parameters<typeof applyExtractionToForm>[1]) {
+    if (saveLock.current || !result) return;
+    const applied = applyExtractionToForm(fields, result);
+    setFields(applied.fields);
+    setExtractionSuggestions(applied.suggestions);
+    advanceTo("details");
+  }
+
   async function analyzeNaturalLanguage(normalizedText: string) {
     if (saveLock.current) return;
     if (!claimSubmission(naturalLanguageLock)) return;
@@ -510,14 +546,24 @@ export default function TripRequirementForm() {
       if (saveLock.current || !shouldApplyRequestResponse(requestSequence, naturalLanguageSequenceRef.current, mountedRef.current)) return;
 
       if (outcome.kind === "SUCCESS") {
-        const count = Object.values(outcome.result.fields).filter((field) => field.status === "EXTRACTED").length;
         const clarificationText = outcome.result.clarifications.length > 0
           ? `, ${outcome.result.clarifications.length} mục cần làm rõ`
           : "";
         const applied = applyExtractionToForm(fields, outcome.result);
         setFields(applied.fields);
         setExtractionSuggestions(applied.suggestions);
-        if (aiHelperRef.current) aiHelperRef.current.open = false;
+
+        // Auto-collapse AI helper section per PO decision
+        setAiSectionOpen(false);
+
+        // Auto-open sections if AI assigned values inside them
+        if (applied.fields.companionType || applied.fields.interests.length > 0 || applied.fields.pace) {
+          setPersonalizeOpen(true);
+        }
+        if (applied.fields.mobilityFlags.length > 0 || applied.fields.mobilityNote.trim()) {
+          setSpecialNotesOpen(true);
+        }
+
         advanceTo("details");
         window.requestAnimationFrame(() => scrollToField("durationDays"));
         setNaturalLanguageStatus({ kind: "success", message: `Đã nhận diện nhu cầu chuyến đi${clarificationText}.` });
@@ -570,7 +616,6 @@ export default function TripRequirementForm() {
 
   function continueWithForm() {
     if (saveLock.current) return;
-    if (aiHelperRef.current) aiHelperRef.current.open = false;
     advanceTo("details");
     scrollToField("durationDays");
   }
@@ -607,55 +652,85 @@ export default function TripRequirementForm() {
     setErrors({});
 
     try {
-      const response = await fetch("/api/trip-requirements/evaluate", {
-        method: "POST",
-        credentials: "same-origin",
-        cache: "no-store",
-        headers: { Accept: "application/json", "Content-Type": "application/json" },
-        body: JSON.stringify(buildPayload(fields)),
-        signal: controller.signal,
-      });
-      let body: unknown = null;
-      try {
-        body = await response.json();
-      } catch {
-        body = null;
-      }
-      const decision = decideEvaluateResponse({ kind: "http", status: response.status, body });
+      const candidate = buildPayload(fields);
+      const outcome = await checkTripRequirement(candidate as any, controller.signal);
       if (saveLock.current || !shouldApplyRequestResponse(sequence, sequenceRef.current, mountedRef.current)) return;
 
-      if (decision.action === "SUCCESS") {
+      if (outcome.kind === "NETWORK_ERROR") {
+        setFeedback("Không thể kết nối tới máy chủ. Dữ liệu của bạn được giữ nguyên, hãy thử lại.");
+        return;
+      }
+
+      if (outcome.kind === "FAILED") {
+        if (outcome.status === 401) {
+          setFeedback(outcome.message);
+          window.location.assign(buildAuthLoginHref("/trips/new"));
+          return;
+        }
+        if (outcome.status === 403) {
+          setFeedback(authorizationFeedback(403) ?? outcome.message);
+          return;
+        }
+        setFeedback(outcome.message);
+        return;
+      }
+
+      // outcome.kind === "CHECKED"
+      const checkResult = outcome.result;
+      const hasUnreviewedAiAssignments = Object.values(extractionSuggestions).some(
+        (s) => s?.status === "APPLIED",
+      );
+      const firstErr = checkResult.issues.find((issue) => issue.severity === "ERROR");
+
+      const routing = decideSubmitRouting({
+        hasUnreviewedAiAssignments,
+        confirmable: checkResult.confirmable,
+        clarificationRequestsCount: checkResult.clarificationRequests?.length ?? 0,
+        firstErrorField: firstErr?.field,
+      });
+
+      // Only open review dialog in 3 cases per PO decision (2026-10-24):
+      // (a) AI assigned field exists and has not been unassigned
+      // (b) Server check is not confirmable or has mandatory clarifications
+      // (c) Otherwise: skip review dialog and go directly to proposal!
+      if (routing.action === "OPEN_REVIEW") {
+        const draft = draftFromFormFields(fields);
+        if (hasUnreviewedAiAssignments) {
+          markAiFieldsInDraft(draft, extractionSuggestions);
+        }
+
         setReview({
-          draft: draftFromFormFields(fields),
-          readiness: decision.data.readiness,
-          clarificationRequests: [],
+          draft,
+          readiness: checkResult.readiness,
+          clarificationRequests: checkResult.clarificationRequests || [],
+          issues: checkResult.issues,
+          initialEditingKey: routing.initialEditingKey as ReviewFieldKey | null,
         });
         setPlanner(null);
         setReviewOpen(true);
         return;
       }
-      if (decision.action === "VALIDATION_ERROR") {
-        setHasSubmitted(true);
-        setErrors(decision.fieldErrors);
-        setFeedback(decision.message);
-        focusFirstErrorRef.current = true;
-        return;
+
+      // Case (c): Pure manual entry or all AI unassigned, server confirmed -> Go directly to planner
+      const confirmed = confirmDraft(draftFromFormFields(fields), checkResult, new Date());
+      if (confirmed.confirmation.snapshot) {
+        setPlanner(structuredClone(confirmed.confirmation.snapshot));
+        setReviewOpen(false);
+        advanceTo("planner");
+      } else {
+        setReview({
+          draft: draftFromFormFields(fields),
+          readiness: checkResult.readiness,
+          clarificationRequests: checkResult.clarificationRequests || [],
+          issues: checkResult.issues,
+        });
+        setPlanner(null);
+        setReviewOpen(true);
       }
-      if (decision.action === "LOGIN") {
-        setFeedback(decision.message);
-        window.location.assign(buildAuthLoginHref("/trips/new"));
-        return;
-      }
-      if (decision.action === "FORBIDDEN") {
-        setFeedback(authorizationFeedback(403) ?? decision.message);
-        return;
-      }
-      if ("message" in decision) setFeedback(decision.message);
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       if (shouldApplyRequestResponse(sequence, sequenceRef.current, mountedRef.current)) {
-        const decision = decideEvaluateResponse({ kind: "network" });
-        if ("message" in decision) setFeedback(decision.message);
+        setFeedback("Hệ thống chưa thể kiểm tra nhu cầu lúc này. Dữ liệu vẫn được giữ lại, hãy thử lại.");
       }
     } finally {
       releaseSubmission(submissionLock);
@@ -664,33 +739,17 @@ export default function TripRequirementForm() {
   }
 
   const button = getSubmitButtonState(pending);
-
+  const canSubmit = Boolean(fields.durationDays.trim() && fields.transport.trim());
   const formError = errors._form;
   const fieldErrorEntries = orderedErrors(errors);
   const appliedCount = Object.values(extractionSuggestions).filter(
     (suggestion) => suggestion?.status === "APPLIED",
   ).length;
 
-  const filledCount = [
-    fields.startDate.trim() !== "",
-    fields.durationDays.trim() !== "",
-    fields.transport.trim() !== "",
-    fields.companionType.trim() !== "",
-    fields.interests.length > 0,
-    fields.pace.trim() !== "",
-    fields.mobilityFlags.length > 0 || fields.mobilityNote.trim() !== "",
-  ].filter(Boolean).length;
-  const progressPercent = Math.round((filledCount / 7) * 100);
-
-  const companionNames = Object.fromEntries(COMPANION_OPTIONS.map(option => [option.value, option.label]));
-  const paceNames = Object.fromEntries(PACE_OPTIONS.map(option => [option.value, option.label]));
-  const interestNames = Object.fromEntries(INTEREST_OPTIONS.map(option => [option.value, option.label]));
-
   return (
     <main className="trip-form-page" lang="vi" data-trip-step={activeTab}>
       <div className="trip-form-intro">
         <h1>Lập hành trình Hà Giang</h1>
-        <p>Điền thông tin chuyến đi, kiểm tra lại và khám phá lịch trình phù hợp với bạn.</p>
       </div>
 
       <FlowTabs
@@ -710,45 +769,36 @@ export default function TripRequirementForm() {
           data-active={activeTab === "details" ? "true" : "false"}
           hidden={activeTab !== "details"}
         >
-          <section className="trip-details-intro" aria-labelledby="trip-details-title">
-            <div className="trip-section-heading">
-              <div className="trip-heading-icon" aria-hidden="true"><SlidersHorizontal size={20} /></div>
-              <div>
-                <h2 id="trip-details-title" data-trip-panel-heading tabIndex={-1}>Thông tin chuyến đi</h2>
-              </div>
+          <h2 id="trip-details-title" data-trip-panel-heading tabIndex={-1} className="trip-sr-only">
+            Thông tin chuyến đi
+          </h2>
+
+          {appliedCount > 0 && (
+            <div className="trip-ai-banner" role="status" aria-live="polite">
+              <span className="trip-ai-banner-badge">
+                <Sparkles size={14} aria-hidden="true" />
+                AI đã tự gán {appliedCount} thông tin
+              </span>
+              <span className="trip-ai-banner-text">
+                Dữ liệu từ mô tả đã được tự động điền sẵn. Bạn có thể kiểm tra hoặc điều chỉnh bên dưới.
+              </span>
             </div>
-            <p>Chọn số ngày và phương tiện để bắt đầu. Bạn sẽ kiểm tra lại thông tin trong cửa sổ xác nhận trước khi xem lịch trình.</p>
-            {appliedCount > 0 && (
-              <div className="trip-ai-banner" role="status" aria-live="polite">
-                <span className="trip-ai-banner-badge">
-                  <Sparkles size={14} aria-hidden="true" />
-                  AI đã tự gán {appliedCount} thông tin
-                </span>
-                <span className="trip-ai-banner-text">
-                  Dữ liệu từ mô tả đã được tự động điền sẵn. Bạn chỉ cần hoàn thiện các ô còn lại bên dưới.
-                </span>
-              </div>
-            )}
-          </section>
+          )}
 
-          <details ref={aiHelperRef} className="trip-ai-helper">
-            <summary><Sparkles size={18} aria-hidden="true" />Muốn điền nhanh bằng AI?</summary>
-            <NaturalLanguageInput
-              status={naturalLanguageStatus}
-              onAnalyze={(text) => { void analyzeNaturalLanguage(text); }}
-              onCancel={cancelNaturalLanguageAnalysis}
-              onContinueManually={continueWithForm}
-            />
-          </details>
-
-          <form className="trip-form" onSubmit={(event) => { event.preventDefault(); void submit(); }} noValidate>
+          <form className="trip-form trip-streamlined-form" onSubmit={(event) => { event.preventDefault(); void submit(); }} noValidate>
             {fieldErrorEntries.length > 0 && (
               <div className="trip-error-summary" role="alert" aria-live="polite">
-                <p>Có {fieldErrorEntries.length} trường cần kiểm tra.</p>
+                <p>Có {fieldErrorEntries.length} trường cần kiểm tra:</p>
                 <ul>
                   {fieldErrorEntries.map(([field]) => (
                     <li key={field}>
-                      <a href={`#${fieldTargetId(field)}`}>
+                      <a
+                        href={`#${fieldTargetId(field)}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          scrollToField(field);
+                        }}
+                      >
                         {FIELD_LABELS[field] ?? field}
                       </a>
                     </li>
@@ -758,409 +808,252 @@ export default function TripRequirementForm() {
             )}
             {formError && <p className="trip-form-error" role="alert">{formError}</p>}
 
-            <div className="trip-details-columns">
-              {/* Cột trái: Unified Form Deck cuộn độc lập */}
-              <div className="trip-details-form-column">
-                <div className="trip-unified-form-deck">
-                  {/* Nhóm 1: Thông tin cốt lõi bắt buộc */}
-                  <section id="trip-group-core-section" className="trip-form-section" aria-labelledby="trip-group-core-title">
-                    <div className="trip-section-header">
-                      <span className="trip-section-step-badge">01</span>
-                      <div className="trip-section-header-text">
-                        <h3 id="trip-group-core-title" className="trip-section-title">Thời gian & Phương tiện</h3>
-                        <p className="trip-section-desc">Quyết định cung đường đèo và thời gian di chuyển lý tưởng</p>
-                      </div>
-                    </div>
+            {/* 1. Khối bắt buộc: Số ngày, Phương tiện & Ngày khởi hành tùy chọn */}
+            <section className="trip-required-block" aria-labelledby="trip-required-heading">
+              <h3 id="trip-required-heading" className="trip-sr-only">Thông tin bắt buộc</h3>
 
-                    <div className="trip-field-wrapper">
-                      <StartDateEditor
-                        inputRef={(element) => { fieldRefs.current.startDate = element; }}
-                        value={fields.startDate}
-                        onChange={(value) => updateField("startDate", value)}
-                        onBlur={() => handleFieldBlur("startDate")}
-                        error={errors.startDate}
-                        errorId={fieldErrorId("startDate")}
-                      />
-                      {extractionSuggestions.startDate?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.startDate} onDismiss={() => handleDismissExtractionSuggestion("startDate")} />}
-                      {extractionSuggestions.startDate?.status === "PENDING" && <PendingSuggestionNote suggestion={extractionSuggestions.startDate} onApply={() => handleUseExtractionSuggestion("startDate")} onDismiss={() => handleDismissExtractionSuggestion("startDate")} />}
-                    </div>
-
-                    <div className="trip-field-wrapper">
-                      <DurationEditor
-                        inputRef={(element) => { fieldRefs.current.durationDays = element; }}
-                        value={fields.durationDays}
-                        onChange={(value) => updateField("durationDays", value)}
-                        onBlur={() => handleFieldBlur("durationDays")}
-                        error={errors.durationDays}
-                        errorId={fieldErrorId("durationDays")}
-                      />
-                      {extractionSuggestions.durationDays?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.durationDays} onDismiss={() => handleDismissExtractionSuggestion("durationDays")} />}
-                      {extractionSuggestions.durationDays?.status === "PENDING" && <PendingSuggestionNote suggestion={extractionSuggestions.durationDays} onApply={() => handleUseExtractionSuggestion("durationDays")} onDismiss={() => handleDismissExtractionSuggestion("durationDays")} />}
-                    </div>
-
-                    <div className="trip-field-wrapper">
-                      <TransportEditor
-                        inputRef={(element) => { fieldRefs.current.transport = element; }}
-                        value={fields.transport}
-                        onChange={(value) => updateField("transport", value)}
-                        onBlur={() => handleFieldBlur("transport")}
-                        error={errors.transport}
-                        errorId={fieldErrorId("transport")}
-                      />
-                      {extractionSuggestions.transport?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.transport} onDismiss={() => handleDismissExtractionSuggestion("transport")} />}
-                      {extractionSuggestions.transport?.status === "PENDING" && <PendingSuggestionNote suggestion={extractionSuggestions.transport} onApply={() => handleUseExtractionSuggestion("transport")} onDismiss={() => handleDismissExtractionSuggestion("transport")} />}
-                    </div>
-                  </section>
-
-                  <div className="trip-section-divider" aria-hidden="true" />
-
-                  {/* Nhóm 2: Đồng hành & Phong cách trải nghiệm */}
-                  <section id="trip-group-style-section" className="trip-form-section" aria-labelledby="trip-group-style-title">
-                    <div className="trip-section-header">
-                      <span className="trip-section-step-badge">02</span>
-                      <div className="trip-section-header-text">
-                        <h3 id="trip-group-style-title" className="trip-section-title">Người đồng hành & Sở thích</h3>
-                        <p className="trip-section-desc">Để AI cá nhân hóa điểm dừng chân và nhịp độ thư giãn</p>
-                      </div>
-                    </div>
-
-                    <div className="trip-field-wrapper">
-                      <CompanionsEditor
-                        errorId={fieldErrorId("companions")}
-                        typeRef={(element) => { if (!fieldRefs.current["companions.type"]) fieldRefs.current["companions.type"] = element; }}
-                        groupSizeRef={(element) => { fieldRefs.current["companions.groupSize"] = element; }}
-                        typeValue={fields.companionType}
-                        groupSizeValue={fields.companionGroupSize}
-                        onTypeChange={(value) => updateField("companionType", value, "companions.type")}
-                        onGroupSizeChange={(value) => updateField("companionGroupSize", value, "companions.groupSize")}
-                        onTypeBlur={() => handleFieldBlur("companions.type")}
-                        onGroupSizeBlur={() => handleFieldBlur("companions.groupSize")}
-                        typeError={errors["companions.type"]}
-                        typeErrorId={fieldErrorId("companions.type")}
-                        groupSizeError={errors["companions.groupSize"]}
-                        groupSizeErrorId={fieldErrorId("companions.groupSize")}
-                      />
-                      <div className="trip-ai-note-group">
-                        {extractionSuggestions.companionType?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.companionType} onDismiss={() => handleDismissExtractionSuggestion("companionType")} />}
-                        {extractionSuggestions.companionType?.status === "PENDING" && <PendingSuggestionNote suggestion={extractionSuggestions.companionType} onApply={() => handleUseExtractionSuggestion("companionType")} onDismiss={() => handleDismissExtractionSuggestion("companionType")} />}
-                        {extractionSuggestions.companionGroupSize?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.companionGroupSize} onDismiss={() => handleDismissExtractionSuggestion("companionGroupSize")} />}
-                        {extractionSuggestions.companionGroupSize?.status === "PENDING" && <PendingSuggestionNote suggestion={extractionSuggestions.companionGroupSize} onApply={() => handleUseExtractionSuggestion("companionGroupSize")} onDismiss={() => handleDismissExtractionSuggestion("companionGroupSize")} />}
-                      </div>
-                    </div>
-
-                    <div className="trip-field-wrapper">
-                      <InterestsEditor
-                        inputRef={(element) => { if (!fieldRefs.current.interests) fieldRefs.current.interests = element; }}
-                        value={fields.interests}
-                        onChange={(value) => updateField("interests", value)}
-                        onBlur={() => handleFieldBlur("interests")}
-                        error={errors.interests}
-                        errorId={fieldErrorId("interests")}
-                      />
-                      {extractionSuggestions.interests?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.interests} onDismiss={() => handleDismissExtractionSuggestion("interests")} />}
-                      {extractionSuggestions.interests?.status === "PENDING" && <PendingSuggestionNote suggestion={extractionSuggestions.interests} onApply={() => handleUseExtractionSuggestion("interests")} onDismiss={() => handleDismissExtractionSuggestion("interests")} />}
-                    </div>
-
-                    <div className="trip-field-wrapper">
-                      <PaceEditor
-                        inputRef={(element) => { if (!fieldRefs.current.pace) fieldRefs.current.pace = element; }}
-                        value={fields.pace}
-                        onChange={(value) => updateField("pace", value)}
-                        onBlur={() => handleFieldBlur("pace")}
-                        error={errors.pace}
-                        errorId={fieldErrorId("pace")}
-                      />
-                      {extractionSuggestions.pace?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.pace} onDismiss={() => handleDismissExtractionSuggestion("pace")} />}
-                      {extractionSuggestions.pace?.status === "PENDING" && <PendingSuggestionNote suggestion={extractionSuggestions.pace} onApply={() => handleUseExtractionSuggestion("pace")} onDismiss={() => handleDismissExtractionSuggestion("pace")} />}
-                    </div>
-                  </section>
-
-                  <div className="trip-section-divider" aria-hidden="true" />
-
-                  {/* Nhóm 3: Lưu ý & Ràng buộc di chuyển */}
-                  <section id="trip-group-notes-section" className="trip-form-section" aria-labelledby="trip-group-notes-title">
-                    <div className="trip-section-header">
-                      <span className="trip-section-step-badge">03</span>
-                      <div className="trip-section-header-text">
-                        <h3 id="trip-group-notes-title" className="trip-section-title">Ràng buộc & Ghi chú thêm</h3>
-                        <p className="trip-section-desc">Đảm bảo sức khỏe và điều kiện đặc thù trên các cung đường đèo</p>
-                      </div>
-                    </div>
-
-                    <div className="trip-field-wrapper">
-                      <MobilityEditor
-                        errorId={fieldErrorId("mobilityConstraints")}
-                        inputRef={(element) => { if (!fieldRefs.current["mobilityConstraints.flags"]) fieldRefs.current["mobilityConstraints.flags"] = element; }}
-                        noteRef={(element) => { fieldRefs.current["mobilityConstraints.note"] = element; }}
-                        flags={fields.mobilityFlags}
-                        note={fields.mobilityNote}
-                        onFlagsChange={(value) => updateField("mobilityFlags", value, "mobilityConstraints.flags")}
-                        onNoteChange={(value) => updateField("mobilityNote", value, "mobilityConstraints.note")}
-                        onFlagsBlur={() => handleFieldBlur("mobilityConstraints.flags")}
-                        onNoteBlur={() => handleFieldBlur("mobilityConstraints.note")}
-                        flagsError={errors["mobilityConstraints.flags"]}
-                        flagsErrorId={fieldErrorId("mobilityConstraints.flags")}
-                        noteError={errors["mobilityConstraints.note"]}
-                        noteErrorId={fieldErrorId("mobilityConstraints.note")}
-                      />
-                      <div className="trip-ai-note-group">
-                        {extractionSuggestions.mobilityFlags?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.mobilityFlags} onDismiss={() => handleDismissExtractionSuggestion("mobilityFlags")} />}
-                        {extractionSuggestions.mobilityFlags?.status === "PENDING" && <PendingSuggestionNote suggestion={extractionSuggestions.mobilityFlags} onApply={() => handleUseExtractionSuggestion("mobilityFlags")} onDismiss={() => handleDismissExtractionSuggestion("mobilityFlags")} />}
-                        {extractionSuggestions.mobilityNote?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.mobilityNote} onDismiss={() => handleDismissExtractionSuggestion("mobilityNote")} />}
-                        {extractionSuggestions.mobilityNote?.status === "PENDING" && <PendingSuggestionNote suggestion={extractionSuggestions.mobilityNote} onApply={() => handleUseExtractionSuggestion("mobilityNote")} onDismiss={() => handleDismissExtractionSuggestion("mobilityNote")} />}
-                      </div>
-                    </div>
-                  </section>
-
-                  {feedback && <p className="trip-form-feedback" role="alert">{feedback}</p>}
-
-                  {/* Primary Action Button (Bottom of form) */}
-                  <div className="trip-form-actions">
-                    <Button type="submit" className="trip-submit-button" disabled={button.disabled} aria-busy={button.ariaBusy}>
-                      {pending && <LoaderCircle className="trip-spinner" size={18} aria-hidden="true" />}
-                      {button.label}
-                    </Button>
-                  </div>
-                </div>
+              <div className="trip-field-wrapper">
+                <DurationEditor
+                  inputRef={(element) => { fieldRefs.current.durationDays = element; }}
+                  value={fields.durationDays}
+                  onChange={(value) => updateField("durationDays", value)}
+                  onBlur={() => handleFieldBlur("durationDays")}
+                  error={errors.durationDays}
+                  errorId={fieldErrorId("durationDays")}
+                />
+                {extractionSuggestions.durationDays?.status === "APPLIED" && (
+                  <AppliedSuggestionNote suggestion={extractionSuggestions.durationDays} onDismiss={() => handleDismissExtractionSuggestion("durationDays")} />
+                )}
+                {extractionSuggestions.durationDays?.status === "PENDING" && (
+                  <PendingSuggestionNote suggestion={extractionSuggestions.durationDays} onApply={() => handleUseExtractionSuggestion("durationDays")} onDismiss={() => handleDismissExtractionSuggestion("durationDays")} />
+                )}
               </div>
 
-              {/* Cột phải: Tóm tắt hành trình ghim cứng (Sticky Passport Card) */}
-              <aside className="trip-details-sidebar" aria-label="Tóm tắt nhu cầu chuyến đi">
-                <div className="trip-passport-card">
-                  <div className="trip-passport-header">
-                    <div className="trip-passport-eyebrow">HÀ GIANG ROADTRIP</div>
-                    <h3 className="trip-passport-heading">Hành trình của bạn</h3>
-                    <p className="trip-passport-subheading">Cập nhật trực tiếp khi bạn chọn</p>
-                  </div>
+              <div className="trip-field-wrapper">
+                <TransportEditor
+                  inputRef={(element) => { fieldRefs.current.transport = element; }}
+                  value={fields.transport}
+                  onChange={(value) => updateField("transport", value)}
+                  onBlur={() => handleFieldBlur("transport")}
+                  error={errors.transport}
+                  errorId={fieldErrorId("transport")}
+                />
+                {extractionSuggestions.transport?.status === "APPLIED" && (
+                  <AppliedSuggestionNote suggestion={extractionSuggestions.transport} onDismiss={() => handleDismissExtractionSuggestion("transport")} />
+                )}
+                {extractionSuggestions.transport?.status === "PENDING" && (
+                  <PendingSuggestionNote suggestion={extractionSuggestions.transport} onApply={() => handleUseExtractionSuggestion("transport")} onDismiss={() => handleDismissExtractionSuggestion("transport")} />
+                )}
+              </div>
 
-                  <div className="trip-passport-progress-box">
-                    <div className="trip-passport-progress-label">
-                      <span>Trạng thái</span>
-                      <strong>
-                        {fields.durationDays && fields.transport
-                          ? "Đủ điều kiện tạo đề xuất"
-                          : "Cần chọn ngày & phương tiện"}
-                      </strong>
-                    </div>
-                    <div className="trip-passport-progress-track">
-                      <div
-                        className="trip-passport-progress-fill"
-                        style={{
-                          width: fields.durationDays && fields.transport ? "100%" : "35%",
-                        }}
-                      />
-                    </div>
-                  </div>
+              <div className="trip-field-wrapper">
+                <StartDateEditor
+                  inputRef={(element) => { fieldRefs.current.startDate = element; }}
+                  value={fields.startDate}
+                  onChange={(value) => updateField("startDate", value)}
+                  onBlur={() => handleFieldBlur("startDate")}
+                  error={errors.startDate}
+                  errorId={fieldErrorId("startDate")}
+                />
+                {extractionSuggestions.startDate?.status === "APPLIED" && (
+                  <AppliedSuggestionNote suggestion={extractionSuggestions.startDate} onDismiss={() => handleDismissExtractionSuggestion("startDate")} />
+                )}
+                {extractionSuggestions.startDate?.status === "PENDING" && (
+                  <PendingSuggestionNote suggestion={extractionSuggestions.startDate} onApply={() => handleUseExtractionSuggestion("startDate")} onDismiss={() => handleDismissExtractionSuggestion("startDate")} />
+                )}
+              </div>
+            </section>
 
-                  <div className="trip-passport-details-list">
-                    {/* Nhóm 1: Thời gian & Phương tiện */}
-                    <button type="button"
-                      className={`trip-passport-row ${activeGroup === "core" ? "trip-passport-row-active" : ""}`}
-                      data-group="core"
-                      onClick={() => scrollToField("durationDays")}
-                      title="Bấm để cuộn đến phần Thời lượng"
-                    >
-                      <span className="trip-passport-row-icon-box" aria-hidden="true">
-                        <Clock size={15} strokeWidth={2.2} />
-                      </span>
-                      <div className="trip-passport-row-content">
-                        <div className="trip-passport-row-header-line">
-                          <span className="trip-passport-row-label">Thời lượng</span>
-                          {activeGroup === "core" && <span className="trip-passport-active-badge">Đang điền</span>}
-                        </div>
-                        <strong className="trip-passport-row-val">
-                          {fields.durationDays ? `${fields.durationDays} ngày (${Number(fields.durationDays) > 1 ? `${fields.durationDays}N${Number(fields.durationDays) - 1}Đ` : "1 ngày"})` : "Chưa chọn"}
-                        </strong>
-                      </div>
-                    </button>
-
-                    <button type="button"
-                      className={`trip-passport-row ${activeGroup === "core" ? "trip-passport-row-active" : ""}`}
-                      data-group="core"
-                      onClick={() => scrollToField("startDate")}
-                      title="Bấm để cuộn đến phần Khởi hành"
-                    >
-                      <span className="trip-passport-row-icon-box" aria-hidden="true">
-                        <Calendar size={15} strokeWidth={2.2} />
-                      </span>
-                      <div className="trip-passport-row-content">
-                        <div className="trip-passport-row-header-line">
-                          <span className="trip-passport-row-label">Khởi hành</span>
-                        </div>
-                        <strong className="trip-passport-row-val">
-                          {fields.startDate ? formatVietnameseDate(fields.startDate) : "Chưa chọn ngày"}
-                        </strong>
-                      </div>
-                    </button>
-
-                    <button type="button"
-                      className={`trip-passport-row ${activeGroup === "core" ? "trip-passport-row-active" : ""}`}
-                      data-group="core"
-                      onClick={() => scrollToField("transport")}
-                      title="Bấm để cuộn đến phần Phương tiện"
-                    >
-                      <span className="trip-passport-row-icon-box" aria-hidden="true">
-                        <Compass size={15} strokeWidth={2.2} />
-                      </span>
-                      <div className="trip-passport-row-content">
-                        <div className="trip-passport-row-header-line">
-                          <span className="trip-passport-row-label">Phương tiện</span>
-                        </div>
-                        <strong className="trip-passport-row-val">
-                          {fields.transport === "MOTORCYCLE" ? "Xe máy phượt đèo" : fields.transport === "CAR" ? "Ô tô du lịch" : "Chưa chọn phương tiện"}
-                        </strong>
-                      </div>
-                    </button>
-
-                    {/* Nhóm 2: Đồng hành & Sở thích */}
-                    <button type="button"
-                      className={`trip-passport-row ${activeGroup === "style" ? "trip-passport-row-active" : ""}`}
-                      data-group="style"
-                      onClick={() => scrollToField("companions.type")}
-                      title="Bấm để cuộn đến phần Người đồng hành"
-                    >
-                      <span className="trip-passport-row-icon-box" aria-hidden="true">
-                        <Users size={15} strokeWidth={2.2} />
-                      </span>
-                      <div className="trip-passport-row-content">
-                        <div className="trip-passport-row-header-line">
-                          <span className="trip-passport-row-label">Đồng hành</span>
-                          {activeGroup === "style" && <span className="trip-passport-active-badge">Đang điền</span>}
-                        </div>
-                        <strong className="trip-passport-row-val">
-                          {fields.companionType ? `${companionNames[fields.companionType] ?? fields.companionType}${fields.companionGroupSize ? ` · ${fields.companionGroupSize} người` : ""}` : "Chưa chọn"}
-                        </strong>
-                      </div>
-                    </button>
-
-                    <button type="button"
-                      className={`trip-passport-row ${activeGroup === "style" ? "trip-passport-row-active" : ""}`}
-                      data-group="style"
-                      onClick={() => scrollToField("interests")}
-                      title="Bấm để cuộn đến phần Sở thích"
-                    >
-                      <span className="trip-passport-row-icon-box" aria-hidden="true">
-                        <Sparkles size={15} strokeWidth={2.2} />
-                      </span>
-                      <div className="trip-passport-row-content">
-                        <div className="trip-passport-row-header-line">
-                          <span className="trip-passport-row-label">Sở thích ({fields.interests.length})</span>
-                        </div>
-                        <div className="trip-passport-interests-wrap">
-                          {fields.interests.length > 0 ? (
-                            fields.interests.map((item) => (
-                              <span key={item} className="trip-passport-mini-tag">
-                                {interestNames[item] ?? item}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="trip-passport-dimmed">Chưa chọn sở thích</span>
-                          )}
-                        </div>
-                      </div>
-                    </button>
-
-                    <button type="button"
-                      className={`trip-passport-row ${activeGroup === "style" ? "trip-passport-row-active" : ""}`}
-                      data-group="style"
-                      onClick={() => scrollToField("pace")}
-                      title="Bấm để cuộn đến phần Nhịp độ"
-                    >
-                      <span className="trip-passport-row-icon-box" aria-hidden="true">
-                        <Gauge size={15} strokeWidth={2.2} />
-                      </span>
-                      <div className="trip-passport-row-content">
-                        <div className="trip-passport-row-header-line">
-                          <span className="trip-passport-row-label">Nhịp độ</span>
-                        </div>
-                        <strong className="trip-passport-row-val">
-                          {fields.pace ? (paceNames[fields.pace] ?? fields.pace) : "Chưa chọn nhịp độ"}
-                        </strong>
-                      </div>
-                    </button>
-
-                    {/* Nhóm 3: Ràng buộc & Ghi chú */}
-                    <button type="button"
-                      className={`trip-passport-row ${activeGroup === "notes" ? "trip-passport-row-active" : ""}`}
-                      data-group="notes"
-                      onClick={() => scrollToField("mobilityConstraints.flags")}
-                      title="Bấm để cuộn đến phần Ràng buộc & Ghi chú"
-                    >
-                      <span className="trip-passport-row-icon-box" aria-hidden="true">
-                        <AlertTriangle size={15} strokeWidth={2.2} />
-                      </span>
-                      <div className="trip-passport-row-content">
-                        <div className="trip-passport-row-header-line">
-                          <span className="trip-passport-row-label">Ràng buộc & Lưu ý</span>
-                          {activeGroup === "notes" && <span className="trip-passport-active-badge">Đang điền</span>}
-                        </div>
-                        <strong className="trip-passport-row-val">
-                          {fields.mobilityFlags.length > 0
-                            ? `${fields.mobilityFlags.length} lưu ý sức khỏe/địa hình`
-                            : fields.mobilityNote.trim()
-                            ? "Có ghi chú riêng"
-                            : "Không có ràng buộc đặc biệt"}
-                        </strong>
-                      </div>
-                    </button>
-                  </div>
-
-                  <div className="trip-passport-action-box">
-                    <Button
-                      type="submit"
-                      className="trip-submit-button trip-passport-submit-btn"
-                      disabled={button.disabled}
-                      aria-busy={button.ariaBusy}
-                    >
-                      {pending && <LoaderCircle className="trip-spinner" size={18} aria-hidden="true" />}
-                      {button.label}
-                    </Button>
-                    <p className="trip-passport-helper">
-                      Chọn số ngày và phương tiện để xem lại nhu cầu. Các thông tin khác có thể bổ sung sau.
-                    </p>
-                  </div>
+            {/* 2. Thanh dưới: Trong DOM nằm sau khối bắt buộc để tabbing <= 4 lần, hiển thị fixed trên desktop */}
+            {/* 2. Thanh dưới: Trong DOM nằm sau khối bắt buộc để tabbing <= 4 lần, hiển thị fixed trên desktop */}
+            <div className="trip-bottom-dock" aria-label="Thao tác tạo lịch trình">
+              <div className="trip-bottom-dock-inner">
+                <div className="trip-bottom-dock-info">
+                  <span className="trip-bottom-dock-summary">
+                    {getDockSummary(fields)}
+                  </span>
+                  {!canSubmit && (
+                    <span className="trip-bottom-dock-hint" aria-live="polite">
+                      (Cần chọn số ngày và phương tiện)
+                    </span>
+                  )}
                 </div>
-              </aside>
+                <Button
+                  type="submit"
+                  className="trip-submit-button trip-bottom-dock-btn"
+                  disabled={button.disabled || !canSubmit}
+                  aria-busy={button.ariaBusy}
+                  title={!canSubmit ? "Vui lòng chọn số ngày và phương tiện để tiếp tục" : undefined}
+                >
+                  {pending && <LoaderCircle className="trip-spinner" size={18} aria-hidden="true" />}
+                  {button.label}
+                </Button>
+              </div>
             </div>
 
-            {/* Thanh điều hướng cố định trên thiết bị di động (Mobile Sticky Bar) */}
-            <div className="trip-mobile-dock" aria-label="Tiến độ trên di động">
-              <div className="trip-mobile-dock-info">
-                <span className="trip-mobile-dock-progress">Đã cung cấp {filledCount}/7 mục</span>
-                <span className="trip-mobile-dock-summary">
-                  {fields.durationDays ? `${fields.durationDays} ngày` : "Chưa chọn số ngày"} · {fields.transport === "MOTORCYCLE" ? "Xe máy" : fields.transport === "CAR" ? "Ô tô" : "Chưa chọn xe"}
-                </span>
+            {/* 3. Ô AI: Thu gọn mặc định, mở khi người dùng bấm, tự thu gọn sau khi điền */}
+            <details
+              className="trip-ai-accordion"
+              open={aiSectionOpen}
+              onToggle={(e) => setAiSectionOpen((e.currentTarget as HTMLDetailsElement).open)}
+            >
+              <summary className="trip-ai-accordion-summary">
+                <div className="trip-ai-accordion-header">
+                  <Sparkles size={18} className="trip-ai-sparkle-icon" aria-hidden="true" />
+                  <div className="trip-ai-accordion-titles">
+                    <strong className="trip-ai-accordion-title">Muốn điền nhanh bằng AI?</strong>
+                    <span className="trip-ai-accordion-sub">Gõ một câu, AI điền giúp bạn</span>
+                  </div>
+                </div>
+                <div className="trip-ai-accordion-toggle">
+                  <span className="trip-ai-accordion-state-label">{aiSectionOpen ? "Đóng" : "Mở"}</span>
+                  <ChevronDown size={18} className="trip-ai-accordion-chevron" aria-hidden="true" />
+                </div>
+              </summary>
+              <div className="trip-ai-accordion-body">
+                <NaturalLanguageInput
+                  status={naturalLanguageStatus}
+                  onAnalyze={(text) => { void analyzeNaturalLanguage(text); }}
+                  onCancel={cancelNaturalLanguageAnalysis}
+                  onContinueManually={continueWithForm}
+                />
               </div>
-              <Button
-                type="submit"
-                className="trip-submit-button trip-mobile-dock-btn"
-                disabled={button.disabled}
-                aria-busy={button.ariaBusy}
+            </details>
+
+            {/* 4. Hai mục thu gọn: Mặc định đóng, đều ghi rõ "Không bắt buộc" */}
+            <div className="trip-optional-sections">
+              {/* Mục thu gọn 1: Cá nhân hóa thêm */}
+              <details
+                className="trip-collapsible-section"
+                open={personalizeOpen}
+                onToggle={(e) => setPersonalizeOpen((e.target as HTMLDetailsElement).open)}
               >
-                {pending && <LoaderCircle className="trip-spinner" size={16} aria-hidden="true" />}
-                {button.label}
-              </Button>
+                <summary className="trip-collapsible-summary">
+                  <div className="trip-collapsible-header">
+                    <span className="trip-collapsible-title">Cá nhân hóa thêm</span>
+                    <span className="trip-optional">Không bắt buộc</span>
+                  </div>
+                  <ChevronDown size={18} className="trip-collapsible-chevron" aria-hidden="true" />
+                </summary>
+
+                <div className="trip-collapsible-body">
+                  <div className="trip-field-wrapper">
+                    <CompanionsEditor
+                      errorId={fieldErrorId("companions")}
+                      typeRef={(element) => { if (!fieldRefs.current["companions.type"]) fieldRefs.current["companions.type"] = element; }}
+                      groupSizeRef={(element) => { fieldRefs.current["companions.groupSize"] = element; }}
+                      typeValue={fields.companionType}
+                      groupSizeValue={fields.companionGroupSize}
+                      onTypeChange={(value) => updateField("companionType", value, "companions.type")}
+                      onGroupSizeChange={(value) => updateField("companionGroupSize", value, "companions.groupSize")}
+                      onTypeBlur={() => handleFieldBlur("companions.type")}
+                      onGroupSizeBlur={() => handleFieldBlur("companions.groupSize")}
+                      typeError={errors["companions.type"]}
+                      typeErrorId={fieldErrorId("companions.type")}
+                      groupSizeError={errors["companions.groupSize"]}
+                      groupSizeErrorId={fieldErrorId("companions.groupSize")}
+                    />
+                    <div className="trip-ai-note-group">
+                      {extractionSuggestions.companionType?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.companionType} onDismiss={() => handleDismissExtractionSuggestion("companionType")} />}
+                      {extractionSuggestions.companionType?.status === "PENDING" && <PendingSuggestionNote suggestion={extractionSuggestions.companionType} onApply={() => handleUseExtractionSuggestion("companionType")} onDismiss={() => handleDismissExtractionSuggestion("companionType")} />}
+                      {extractionSuggestions.companionGroupSize?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.companionGroupSize} onDismiss={() => handleDismissExtractionSuggestion("companionGroupSize")} />}
+                      {extractionSuggestions.companionGroupSize?.status === "PENDING" && <PendingSuggestionNote suggestion={extractionSuggestions.companionGroupSize} onApply={() => handleUseExtractionSuggestion("companionGroupSize")} onDismiss={() => handleDismissExtractionSuggestion("companionGroupSize")} />}
+                    </div>
+                  </div>
+
+                  <div className="trip-field-wrapper">
+                    <InterestsEditor
+                      inputRef={(element) => { if (!fieldRefs.current.interests) fieldRefs.current.interests = element; }}
+                      value={fields.interests}
+                      onChange={(value) => updateField("interests", value)}
+                      onBlur={() => handleFieldBlur("interests")}
+                      error={errors.interests}
+                      errorId={fieldErrorId("interests")}
+                    />
+                    {extractionSuggestions.interests?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.interests} onDismiss={() => handleDismissExtractionSuggestion("interests")} />}
+                    {extractionSuggestions.interests?.status === "PENDING" && <PendingSuggestionNote suggestion={extractionSuggestions.interests} onApply={() => handleUseExtractionSuggestion("interests")} onDismiss={() => handleDismissExtractionSuggestion("interests")} />}
+                  </div>
+
+                  <div className="trip-field-wrapper">
+                    <PaceEditor
+                      inputRef={(element) => { if (!fieldRefs.current.pace) fieldRefs.current.pace = element; }}
+                      value={fields.pace}
+                      onChange={(value) => updateField("pace", value)}
+                      onBlur={() => handleFieldBlur("pace")}
+                      error={errors.pace}
+                      errorId={fieldErrorId("pace")}
+                    />
+                    {extractionSuggestions.pace?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.pace} onDismiss={() => handleDismissExtractionSuggestion("pace")} />}
+                    {extractionSuggestions.pace?.status === "PENDING" && <PendingSuggestionNote suggestion={extractionSuggestions.pace} onApply={() => handleUseExtractionSuggestion("pace")} onDismiss={() => handleDismissExtractionSuggestion("pace")} />}
+                  </div>
+                </div>
+              </details>
+
+              {/* Mục thu gọn 2: Lưu ý đặc biệt */}
+              <details
+                className="trip-collapsible-section"
+                open={specialNotesOpen}
+                onToggle={(e) => setSpecialNotesOpen((e.target as HTMLDetailsElement).open)}
+              >
+                <summary className="trip-collapsible-summary">
+                  <div className="trip-collapsible-header">
+                    <span className="trip-collapsible-title">Lưu ý đặc biệt</span>
+                    <span className="trip-optional">Không bắt buộc</span>
+                  </div>
+                  <ChevronDown size={18} className="trip-collapsible-chevron" aria-hidden="true" />
+                </summary>
+
+                <div className="trip-collapsible-body">
+                  <div className="trip-field-wrapper">
+                    <MobilityEditor
+                      errorId={fieldErrorId("mobilityConstraints")}
+                      inputRef={(element) => { if (!fieldRefs.current["mobilityConstraints.flags"]) fieldRefs.current["mobilityConstraints.flags"] = element; }}
+                      noteRef={(element) => { fieldRefs.current["mobilityConstraints.note"] = element; }}
+                      flags={fields.mobilityFlags}
+                      note={fields.mobilityNote}
+                      onFlagsChange={(value) => updateField("mobilityFlags", value, "mobilityConstraints.flags")}
+                      onNoteChange={(value) => updateField("mobilityNote", value, "mobilityConstraints.note")}
+                      onFlagsBlur={() => handleFieldBlur("mobilityConstraints.flags")}
+                      onNoteBlur={() => handleFieldBlur("mobilityConstraints.note")}
+                      flagsError={errors["mobilityConstraints.flags"]}
+                      flagsErrorId={fieldErrorId("mobilityConstraints.flags")}
+                      noteError={errors["mobilityConstraints.note"]}
+                      noteErrorId={fieldErrorId("mobilityConstraints.note")}
+                    />
+                    <div className="trip-ai-note-group">
+                      {extractionSuggestions.mobilityFlags?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.mobilityFlags} onDismiss={() => handleDismissExtractionSuggestion("mobilityFlags")} />}
+                      {extractionSuggestions.mobilityFlags?.status === "PENDING" && <PendingSuggestionNote suggestion={extractionSuggestions.mobilityFlags} onApply={() => handleUseExtractionSuggestion("mobilityFlags")} onDismiss={() => handleDismissExtractionSuggestion("mobilityFlags")} />}
+                      {extractionSuggestions.mobilityNote?.status === "APPLIED" && <AppliedSuggestionNote suggestion={extractionSuggestions.mobilityNote} onDismiss={() => handleDismissExtractionSuggestion("mobilityNote")} />}
+                      {extractionSuggestions.mobilityNote?.status === "PENDING" && <PendingSuggestionNote suggestion={extractionSuggestions.mobilityNote} onApply={() => handleUseExtractionSuggestion("mobilityNote")} onDismiss={() => handleDismissExtractionSuggestion("mobilityNote")} />}
+                    </div>
+                  </div>
+                </div>
+              </details>
             </div>
+
+            {feedback && <p className="trip-form-feedback" role="alert">{feedback}</p>}
           </form>
         </div>
 
-          {reviewOpen && review && (
-            <TripReviewDialog
-              returnFocusRef={reviewTriggerRef}
-              draft={review.draft}
-              readiness={review.readiness}
-              clarificationRequests={review.clarificationRequests}
-              onBackToForm={handleFillAndEdit}
-              onConfirmed={(confirmed, confirmedDraft) => {
-                if (saveLock.current) return;
-                setFields(draftToFormFields(confirmedDraft));
-                setReview({ ...review, draft: confirmedDraft });
-                setPlanner(structuredClone(confirmed));
-                setReviewOpen(false);
-                advanceTo("planner");
-              }}
-            />
-          )}
+        {reviewOpen && review && (
+          <TripReviewDialog
+            returnFocusRef={reviewTriggerRef}
+            draft={review.draft}
+            readiness={review.readiness}
+            clarificationRequests={review.clarificationRequests}
+            initialIssues={review.issues}
+            initialEditingKey={review.initialEditingKey}
+            onBackToForm={handleFillAndEdit}
+            onConfirmed={(confirmed, confirmedDraft) => {
+              if (saveLock.current) return;
+              setFields(draftToFormFields(confirmedDraft));
+              setReview({ ...review, draft: confirmedDraft });
+              setPlanner(structuredClone(confirmed));
+              setReviewOpen(false);
+              advanceTo("planner");
+            }}
+          />
+        )}
 
         <div
           id="trip-tabpanel-planner"
@@ -1175,6 +1068,15 @@ export default function TripRequirementForm() {
               embedded
               confirmed={planner}
               onSaveStateChange={handleSaveStateChange}
+              onUpdateStartDate={(newDate) => {
+                setFields((prev) => ({ ...prev, startDate: newDate }));
+                if (planner) {
+                  setPlanner({
+                    ...planner,
+                    requirement: { ...planner.requirement, startDate: newDate },
+                  });
+                }
+              }}
               onBack={() => {
                 if (saveLock.current) return;
                 setPlanner(null);
