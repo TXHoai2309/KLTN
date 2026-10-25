@@ -54,6 +54,16 @@ export function MyTripsView({ items: initialItems }: { items: TripSummary[] }) {
         <div className="my-trips-group-heading"><h2 id={`trips-${group.status}`} tabIndex={-1}>{group.label}</h2><span>{trips.length}</span></div>
         {trips.length === 0 ? <p className="my-trips-group-empty">Chưa có chuyến đi trong nhóm này.</p> : <ul className="my-trips-list">
           {trips.map(trip => <li key={trip.id}><Card className={`my-trips-card my-trips-card-${trip.status.toLowerCase()}`}>
+            <div className="my-trips-card-thumb" aria-hidden="true">
+              <img
+                src={trip.durationDays >= 3 ? "/images/gallery/ha-giang-day3-lg.webp" : trip.durationDays === 2 ? "/images/gallery/ha-giang-day2-lg.webp" : "/images/gallery/ha-giang-day1-lg.webp"}
+                alt={`Chuyến đi ${trip.durationDays} ngày`}
+                className="my-trips-thumb-img"
+                loading="lazy"
+              />
+              <div className="my-trips-thumb-overlay" />
+              <span className="my-trips-thumb-tag">{transportLabel(trip.transport)}</span>
+            </div>
             <div className="my-trips-card-main">
               <div className="my-trips-card-actions">
                 <span className={`my-trips-badge my-trips-badge-${trip.status.toLowerCase()}`}>{group.label}</span>

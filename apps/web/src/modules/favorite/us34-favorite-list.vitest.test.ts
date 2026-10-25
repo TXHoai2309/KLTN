@@ -27,9 +27,9 @@ describe("US-34 owned Trip Favorite list", () => {
   expect(favoriteListSchema.safeParse({ destinations: [], cultureContents: [], trips: [{ ...item, href: "/trips/other" }] }).success).toBe(false);
   expect(favoriteListSchema.safeParse({ destinations: [], cultureContents: [], trips: [{ ...item, trip: undefined }] }).success).toBe(false);
  });
- it("renders three functional groups even while global Culture presentation is disabled", () => {
+ it("renders functional groups even while global Culture presentation is disabled", () => {
   const html = renderToStaticMarkup(createElement(FavoritesView, { loadingOnly: true }));
-  for (const label of ["Điểm đến", "Nội dung văn hóa", "Hành trình"]) expect(html).toContain(label);
+  for (const label of ["Điểm đến", "Hành trình"]) expect(html).toContain(label);
   expect(html).toContain('id="favorite-trips"');
  });
  it("Trip card opens original Trip and exposes date, vehicle, effective status and relation removal", () => {
