@@ -118,7 +118,7 @@ export function ItineraryMap({
         <span>
           <MapPinned size={14} aria-hidden="true" /> {day.stops.length} điểm dừng · Ngày {day.day}
         </span>
-        <span>Stadia Maps</span>
+        <span className="sr-only">Bản đồ sử dụng dữ liệu nền từ Stadia Maps</span>
       </div>
     </section>
   );

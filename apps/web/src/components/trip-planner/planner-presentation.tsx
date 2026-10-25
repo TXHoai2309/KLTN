@@ -121,6 +121,8 @@ export function TripSummaryBar({
         .filter(Boolean)
     : [];
 
+  const totalStops = days?.reduce((sum, d) => sum + d.stops.length, 0);
+
   const dateRangeText = startDate
     ? `${formatVietnameseDate(startDate)} – ${endDate ? formatVietnameseDate(endDate) : "theo ngày bắt đầu"}`
     : `Ngày 1 – Ngày ${durationDays}`;
@@ -135,44 +137,39 @@ export function TripSummaryBar({
           disabled={disabled}
           aria-label="Quay lại chỉnh nhu cầu"
         >
-          <ArrowLeft size={14} aria-hidden="true" />
-          <span>Quay lại chỉnh nhu cầu</span>
+          <ArrowLeft size={15} aria-hidden="true" />
+          <span>Chỉnh nhu cầu</span>
         </button>
       )}
 
       <div className="planner-summary-main">
-        <Heading className="planner-title">Lịch trình Hà Giang · {durationDays} ngày</Heading>
+        <Heading className="planner-title">Hành trình Hà Giang · {durationDays} ngày</Heading>
         <div className="planner-metadata" aria-label="Thông số chuyến đi">
-          <span className="planner-meta-tag">
-            <Calendar size={13} className="planner-meta-icon" aria-hidden="true" />
-            <span>{dateRangeText}</span>
-          </span>
-          <span className="planner-meta-dot" aria-hidden="true">·</span>
-          <span className="planner-meta-tag">
-            <Compass size={13} className="planner-meta-icon" aria-hidden="true" />
-            <span>{transportLabel}</span>
-          </span>
-          <span className="planner-meta-dot" aria-hidden="true">·</span>
-          <span className="planner-meta-tag">
-            <Gauge size={13} className="planner-meta-icon" aria-hidden="true" />
-            <span>{paceLabel}</span>
-          </span>
+          <span>{transportLabel}</span>
+          <span className="planner-meta-sep" aria-hidden="true">·</span>
+          <span>{paceLabel}</span>
+          {totalStops !== undefined && totalStops > 0 && (
+            <>
+              <span className="planner-meta-sep" aria-hidden="true">·</span>
+              <span>{totalStops} điểm đến</span>
+            </>
+          )}
           {companionLabel && (
             <>
-              <span className="planner-meta-dot" aria-hidden="true">·</span>
-              <span className="planner-meta-tag">
-                <Users size={13} className="planner-meta-icon" aria-hidden="true" />
-                <span>{companionLabel}</span>
-              </span>
+              <span className="planner-meta-sep" aria-hidden="true">·</span>
+              <span>{companionLabel}</span>
+            </>
+          )}
+          {startDate && (
+            <>
+              <span className="planner-meta-sep" aria-hidden="true">·</span>
+              <span>{dateRangeText}</span>
             </>
           )}
           {interestsList.length > 0 && (
             <>
-              <span className="planner-meta-dot" aria-hidden="true">·</span>
-              <span className="planner-meta-tag">
-                <Sparkles size={13} className="planner-meta-icon" aria-hidden="true" />
-                <span>{interestsList.join(", ")}</span>
-              </span>
+              <span className="planner-meta-sep" aria-hidden="true">·</span>
+              <span>{interestsList.join(", ")}</span>
             </>
           )}
         </div>
@@ -213,7 +210,7 @@ export function WarningNoticeRow({
 
 /**
  * Refined Day Tabs:
- * Lightweight tabs (Ngày 1 / Ngày 2 / Ngày 3) with accessible keyboard navigation.
+ * Editorial journey tabs with day label, stop count, and accessible keyboard navigation.
  */
 export function ItineraryDayTabs({
   days,
@@ -250,11 +247,11 @@ export function ItineraryDayTabs({
           onKeyDown={(event) => navigate(event, index)}
           className={`planner-day-tab ${selectedDay === day.day ? "is-active" : ""}`}
         >
-          <div className="planner-day-tab-top">
-            <strong>Ngày {day.day}</strong>
-            <span className="planner-day-tab-count">{day.stops.length} điểm</span>
-          </div>
-          <small>{day.date ? formatVietnameseDate(day.date) : "Ngày tương đối"}</small>
+          <span className="planner-day-tab-title">NGÀY {day.day}</span>
+          <span className="planner-day-tab-count">{day.stops.length} điểm</span>
+          <small className="planner-day-tab-date">
+            {day.date ? formatVietnameseDate(day.date) : "Ngày tương đối"}
+          </small>
         </button>
       ))}
     </div>
@@ -263,8 +260,8 @@ export function ItineraryDayTabs({
 
 /**
  * Compact Route Summary:
- * Editorial 3-metric strip under day tabs:
- * "3 điểm · 175,7 km · 2 giờ 01 phút di chuyển"
+ * Editorial header & metadata strip under day tabs:
+ * "Ngày 1 · 3 điểm · 175,7 km · khoảng 2 giờ di chuyển"
  */
 export function TripOverviewCard({ day }: { day: PlannerDay }) {
   const distanceStr =
@@ -280,35 +277,19 @@ export function TripOverviewCard({ day }: { day: PlannerDay }) {
 
   return (
     <div className="planner-overview" aria-label="Tổng quan hành trình ngày">
-      <div className="planner-overview-item">
-        <span className="planner-overview-badge" aria-hidden="true">
-          <MapPin size={14} />
+      <div className="planner-overview-day-heading">
+        <h3 className="planner-day-title">Ngày {day.day}</h3>
+        <span className="planner-day-subdate">
+          {day.date ? formatVietnameseDate(day.date) : "Ngày tương đối"}
         </span>
-        <div className="planner-overview-info">
-          <span className="planner-overview-label">Điểm dừng</span>
-          <strong>{day.stops.length} điểm</strong>
-        </div>
       </div>
-      <div className="planner-overview-divider" aria-hidden="true" />
-      <div className="planner-overview-item">
-        <span className="planner-overview-badge" aria-hidden="true">
-          <Route size={14} />
-        </span>
-        <div className="planner-overview-info">
-          <span className="planner-overview-label">Quãng đường</span>
-          <strong>{distanceStr}</strong>
-        </div>
-      </div>
-      <div className="planner-overview-divider" aria-hidden="true" />
-      <div className="planner-overview-item">
-        <span className="planner-overview-badge" aria-hidden="true">
-          <Clock size={14} />
-        </span>
-        <div className="planner-overview-info">
-          <span className="planner-overview-label">Di chuyển</span>
-          <strong>{travelStr}</strong>
-        </div>
-      </div>
+      <p className="planner-overview-meta-line">
+        <span>{day.stops.length} điểm dừng</span>
+        <span className="planner-meta-sep" aria-hidden="true">·</span>
+        <span>{distanceStr}</span>
+        <span className="planner-meta-sep" aria-hidden="true">·</span>
+        <span>{travelStr.includes("Chưa") ? travelStr : `khoảng ${travelStr} di chuyển`}</span>
+      </p>
     </div>
   );
 }
@@ -316,7 +297,7 @@ export function TripOverviewCard({ day }: { day: PlannerDay }) {
 /**
  * Itinerary Visit Item:
  * Modern Travel & Editorial timeline item:
- * Clean thumbnail, typography, metadata tags, and connected route pill.
+ * Clean thumbnail, editorial typography, quiet metadata, and connected route connector.
  */
 export function ItineraryStopCard({
   stop,
@@ -334,71 +315,84 @@ export function ItineraryStopCard({
 
   return (
     <li className={`planner-stop ${selected ? "is-selected" : ""}`}>
-      <span className="planner-stop-number" aria-hidden="true">
-        {stop.order}
-      </span>
+      {/* Vertical timeline node & connecting stem */}
+      <div className="planner-stop-node-col">
+        <span className="planner-stop-number" aria-hidden="true">
+          {stop.order}
+        </span>
+        <span className="planner-stop-stem" aria-hidden="true" />
+      </div>
 
-      <button
-        type="button"
-        className="planner-stop-select"
-        aria-pressed={selected}
-        onClick={() => onSelect(stop.destination.id)}
-      >
-        <DestinationImage stop={stop} />
-
-        <div className="planner-stop-content">
-          <div className="planner-stop-time-row">
-            <span className="planner-stop-time">
-              <Clock size={12} aria-hidden="true" />
-              <span>{arrival} – {departure}</span>
+      <div className="planner-stop-body">
+        {/* Time row above stop name */}
+        <div className="planner-stop-time-row">
+          <span className="planner-stop-time">
+            <Clock size={12} aria-hidden="true" />
+            <span>{arrival} – {departure}</span>
+          </span>
+          {stop.validationStatus !== "PASS" && (
+            <span
+              className="planner-stop-warn-hint"
+              title={statuses[stop.validationStatus].label}
+              aria-label={statuses[stop.validationStatus].label}
+            >
+              <AlertTriangle size={12} aria-hidden="true" />
+              <span className="sr-only">{statuses[stop.validationStatus].label}</span>
             </span>
-            {stop.validationStatus !== "PASS" && (
-              <span className={`planner-mini-tag planner-mini-tag-${stop.validationStatus.toLowerCase()}`}>
-                {statuses[stop.validationStatus].label}
-              </span>
-            )}
-            {stop.validationStatus === "PASS" && (
-              <span className="sr-only">Đáp ứng</span>
-            )}
-          </div>
-
-          <div className="planner-stop-heading">
-            <strong>{stop.destination.name}</strong>
-          </div>
-
-          <div className="planner-stop-meta">
-            {stop.destination.area || stop.destination.address ? (
-              <span className="planner-stop-area">
-                <MapPin size={11} aria-hidden="true" />
-                <span>{stop.destination.area || stop.destination.address}</span>
-              </span>
-            ) : null}
-            <span className="planner-stop-dot" aria-hidden="true">·</span>
-            <span className="planner-stop-duration">{durationText(stop.visitDurationMinutes)} dừng chân</span>
-          </div>
+          )}
+          {stop.validationStatus === "PASS" && (
+            <span className="sr-only">Đáp ứng</span>
+          )}
         </div>
-      </button>
 
-      {/* Clean Route Connector between stops without provider text */}
-      {nextStop?.inbound && (
-        <div className="planner-route-segment" aria-label="Đoạn đường di chuyển">
-          <div className="planner-route-pill">
-            <span className="planner-route-arrow" aria-hidden="true">↓</span>
-            <span className="planner-route-text">
-              {nextStop.inbound.status === "VERIFIED"
-                ? `${durationText(Math.ceil(nextStop.inbound.durationSeconds! / 60))} · ${(nextStop.inbound.distanceMeters! / 1000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} km`
-                : "Chưa có thời gian di chuyển đã xác minh"}
-            </span>
+        {/* Destination Card item */}
+        <button
+          type="button"
+          className="planner-stop-select"
+          aria-pressed={selected}
+          onClick={() => onSelect(stop.destination.id)}
+        >
+          <DestinationImage stop={stop} large />
+
+          <div className="planner-stop-content">
+            <div className="planner-stop-heading">
+              <h4 className="planner-stop-name">{stop.destination.name}</h4>
+            </div>
+
+            <div className="planner-stop-meta">
+              {stop.destination.area || stop.destination.address ? (
+                <span className="planner-stop-area">
+                  <MapPin size={12} aria-hidden="true" />
+                  <span>{stop.destination.area || stop.destination.address}</span>
+                </span>
+              ) : null}
+              <span className="planner-meta-sep" aria-hidden="true">·</span>
+              <span className="planner-stop-duration">{durationText(stop.visitDurationMinutes)} dừng chân</span>
+            </div>
           </div>
-        </div>
-      )}
+        </button>
+
+        {/* Route Segment connector between stops */}
+        {nextStop?.inbound && (
+          <div className="planner-route-segment" aria-label="Đoạn đường di chuyển">
+            <div className="planner-route-pill">
+              <span className="planner-route-arrow" aria-hidden="true">↓</span>
+              <span className="planner-route-text">
+                {nextStop.inbound.status === "VERIFIED"
+                  ? `${durationText(Math.ceil(nextStop.inbound.durationSeconds! / 60))} · ${(nextStop.inbound.distanceMeters! / 1000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} km`
+                  : "Chưa có thời gian di chuyển đã xác minh"}
+              </span>
+            </div>
+          </div>
+        )}
+      </div>
     </li>
   );
 }
 
 /**
- * Ultra-compact Floating Destination Card on Map (Option A):
- * Sits in bottom corner, small footprint, no image/provider duplication, doesn't hide map route.
+ * Ultra-compact Floating Destination Card on Map:
+ * Sits in bottom corner, small footprint, no image duplication, doesn't hide map route.
  */
 export function DestinationPreviewCard({
   stop,
@@ -415,9 +409,9 @@ export function DestinationPreviewCard({
         <div className="planner-floating-title-row">
           <span className="planner-floating-num" aria-hidden="true">{stop.order}</span>
           <div className="planner-floating-titles">
-            <h3 className="planner-floating-name">{stop.destination.name}</h3>
+            <h4 className="planner-floating-name">{stop.destination.name}</h4>
             <p className="planner-floating-sub">
-              {clockText(stop.arrivalMinute)} – {clockText(stop.departureMinute)} · {durationText(stop.visitDurationMinutes)}
+              {clockText(stop.arrivalMinute)} – {clockText(stop.departureMinute)}
               {stop.destination.area ? ` · ${stop.destination.area}` : ""}
             </p>
           </div>

@@ -4063,3 +4063,22 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
   - Playwright browser fixture scripts noted as requiring codex-runtimes dependency not present on local Windows host.
 - **Documentation:** ADR-20 recorded in `docs/decisions.md`; `DESIGN.md`, `docs/design/trip-planning-ui-refinement.md`, `US-24-trip-requirement-form.md`, and `US-26-review-confirm-trip-needs.md` updated.
 - **Constraints:** No commit, no push, no merge, no API or schema changes. Existing design tokens and color palette preserved.
+
+## 2026-10-25 — Editorial Travel Route Workspace for /trips/new Planner
+
+- **Task/branch:** master working tree; refined UI/UX of `/trips/new` proposal itinerary workspace to synchronize with `/explore`, `/trips`, and destination detail pages.
+- **Visual & Component Refinements:**
+  - **Typography:** Restored editorial serif (`var(--font-editorial-serif), var(--font-trip-heading), serif`) for page title, day titles, destination names, and section headings; preserved Be Vietnam Pro for metadata, buttons, and utility text.
+  - **Header (`TripSummaryBar`):** Converted to clean editorial title (`Hành trình Hà Giang · {durationDays} ngày`), quiet dot-separated metadata line (`Xe máy · Nhịp độ vừa phải · 7 điểm đến`), and lightweight ghost back button (`← Chỉnh nhu cầu`).
+  - **Day Navigation (`ItineraryDayTabs`):** Replaced heavy card boxes with flat, elegant journey navigation tabs (`NGÀY {day} · {stops} điểm`), active state in Forest Green with `#e2f2e8` text, inactive restrained with subtle hover, and horizontal scrolling on mobile.
+  - **Day Metrics (`TripOverviewCard`):** Removed 3-column KPI card widget and replaced with clean editorial day subheader (`Ngày {day} · {stops} điểm dừng · {distance} · {travel}`).
+  - **Itinerary Timeline (`ItineraryStopCard`):** Transformed into open timeline structure: continuous vertical stem line with circular order nodes, enlarged destination thumbnails (84px x 84px with 12px radius), serif destination title, quiet metadata, and route transit connector embedded directly on the timeline line. Removed visually noisy warning badge spam from cards while keeping full accessible text.
+  - **Map & Popover (`ItineraryMap`, `DestinationPreviewCard`):** Removed visible `Stadia Maps` provider label from user-facing caption (retaining accessible text and canvas legal attribution); styled 20px rounded map container and ultra-compact destination popup.
+  - **Sticky Bottom Action Bar (`TripConfirmationSection`):** Refined to 68px floating bar with backdrop blur, clear hierarchy (Primary Forest Green "Lưu chuyến đi", Secondary outline "Tạo lại", Tertiary ghost "Chỉnh nhu cầu"), and integrated departure date picker popover.
+- **Verification:**
+  - `npx vitest run src/components/trip-planner/planner-ui.vitest.test.ts src/components/trip-planner/trip-theme.vitest.test.ts`: 23/23 tests PASS (100%).
+  - `npx vitest run src/app/trips`: 23/23 tests PASS (100%).
+  - TypeScript `npm run check-types` in `apps/web`: PASS with zero errors.
+  - `git diff --check`: PASS with zero whitespace/conflict errors.
+- **Zero Business Logic/Contract Changes:**
+  - Preserved Trip Requirement, Planner proposal generation, Constraint Validator checks, regenerate flow, save trip state machine with idempotency and UNKNOWN/FAILED/SUCCESS semantics, start date validation, and MapLibre viewport synchronization. No changes to database, schema, or server APIs.

@@ -77,7 +77,7 @@ export function TripPlannerScreen({
     setFocusSelection(false);
     setSaveState("idle");
     setMobileTab("itinerary");
-    heading.current?.focus();
+    heading.current?.focus({ preventScroll: true });
   }, [proposal]);
 
   const select = (id: string) => {
