@@ -136,7 +136,7 @@ export default async function Home() {
         {/* SECTION 3: HOW IT WORKS / QUY TRÌNH ĐƠN GIẢN (Section cuộn bước ghim căn giữa) */}
         <HomeStepsScroll />
 
-        {/* SECTION 4: DISCOVER HÀ GIANG — SINGLE INTERACTIVE MAP */}
+        {/* SECTION 4: DISCOVER HÀ GIANG — MAP AND DESTINATION LIST */}
         <section className="home-explore" aria-labelledby="home-explore-title">
           <div className="home-section-heading" data-home-reveal>
             <p className="home-eyebrow home-eyebrow-coral">BẮT ĐẦU HÀNH TRÌNH</p>
