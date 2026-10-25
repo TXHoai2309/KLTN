@@ -1,7 +1,5 @@
 # US-28 — Preliminary Hà Giang Trip Planner
 
-> **Provider note (2026-10-23):** the Stadia Standard Routing provider named below is superseded by [ADR-19](../decisions.md) and [US-40](US-40-vietmap-provider-migration.md). The planner contract, the 27-pair / three-concurrent / 10-second budget, the CAR/motorcycle mapping, the save-revalidation rule and every dated acceptance record remain in force. Only the provider and its `provider: "VIETMAP"` value changed.
-
 ## Scope and acceptance sources
 
 MISSING_OFFICIAL_US28_AC: no existing story/backlog export or Product/System DOCX was found. Implementation baseline is `docs/product/product-spec.md` (Trip requirements, deterministic constraints, separate save), `docs/flow/user-flow.md`, US-24–27 and the owner's two attached task requests on 2026-10-13. The supplied mockup is the visual reference. FE-US28-01–14 in that request are the current UI review checklist. No acceptance of the entire story is implied.
