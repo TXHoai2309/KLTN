@@ -25,4 +25,8 @@
 .destination-map .maplibregl-popup-content { background: white; }
 .destination-map .maplibregl-popup-close-button { color: #17251d; padding: 2px 8px; }
 .destination-map button:focus-visible, .destination-map a:focus-visible { outline: 3px solid #43876a; outline-offset: 3px; }
+.destination-google-map .destination-map-popup,
+.dark .destination-google-map .destination-map-popup,
+.dark .destination-google-map .destination-map-popup strong { color: #20372c; }
+.dark .destination-google-map .destination-map-popup p { color: #63746e; }
 @media(max-width: 600px) { .destination-map-canvas { height: 360px; } }

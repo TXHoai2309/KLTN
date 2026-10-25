@@ -117,7 +117,7 @@ test("canonical styles/coordinate order, no key; shared provider wiring and reta
  for(const pattern of [/library.Marker/,/library.Popup/,/setDOMContent/,/textContent = point.name/,/focusAfterOpen: true/,/map.remove\(\)/,/map.on\("error"/,/map.on\("load"/,/NavigationControl/,/fitBounds/]) assert.match(renderer,pattern);
  assert.doesNotMatch(renderer,/innerHTML|geolocation|Directions/);
  const explore=await readFile(new URL("../../app/explore/explore-results.tsx",import.meta.url),"utf8"); assert.match(explore,/destinations=\{data.items\} returnTo=\{returnTo\}/); assert.match(explore,/destinationDetailHref\(item\.id, returnTo\)/); assert.match(explore,/data.items.map/); assert.match(explore,/commitExploreNavigation\(href, current/); assert.match(explore,/router\.push\(href as Route/); assert.match(explore,/aria-pressed/);
- const detail=await readFile(new URL("../../app/destinations/[id]/destination-detail.tsx",import.meta.url),"utf8"); assert.match(detail,/DestinationMap/); assert.match(detail,/latitude: d.latitude, longitude: d.longitude/); assert.match(detail,/d.relatedCulture/);
+ const detail=await readFile(new URL("../../app/destinations/[id]/destination-detail.tsx",import.meta.url),"utf8"); assert.match(detail,/GoogleDestinationDetailMap/); assert.match(detail,/latitude: d.latitude, longitude: d.longitude/); assert.match(detail,/d.relatedCulture/);
 });
 for(const scenario of ["ready","load-error","timeout","style-error","unmount","mount-error"]) test(`mock provider lifecycle ${scenario}, no late success`,async()=>{
  let resolve!:(value:number)=>void;let reject!:(error:Error)=>void;let timeout=()=>{};let providerFail=()=>{};let ready=()=>{};let mounted=0;let disposed=0;const states:string[]=[];

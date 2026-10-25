@@ -96,3 +96,9 @@ page 348 PASS, six opt-in PostgreSQL SKIP; legacy Destination 70 PASS; typecheck
 PASS. Real browser published detail and exact filtered return PASS without new
 console warnings/errors. See [measurement report](../performance/destination-detail-loading-2026-10-23.md)
 and ai-progress for final build/scope checks. Story acceptance status is unchanged.
+
+## 2026-10-25 — Google map on Destination Detail
+
+Owner requested a scoped map provider change for the default location section and published Editorial V1/V2 MAP blocks. These now use Google Maps JavaScript API with one Advanced Marker at the Destination's own coordinates, while the Home iframe and other map consumers remain unchanged. Browser key and map ID are optional in the schema so missing local configuration shows the existing map unavailable UI without breaking Destination content. See [ADR-21](../decisions.md#adr-21--google-maps-for-destination-detail-only-2026-10-25) and the [research plan](../implementation/google-maps-destination-detail-research.md).
+
+Component, Editorial and legacy MapLibre regressions pass locally. With browser key and map ID present, an isolated Chrome smoke on localhost returned HTTP 200 and loaded the Google map host without Stadia requests, but Google rendered its "Oops!" map error and console `Permission Denied.`; no tile, marker or attribution acceptance is claimed. Google Cloud key/API/billing/referrer/Map ID authorization must be checked before live acceptance.

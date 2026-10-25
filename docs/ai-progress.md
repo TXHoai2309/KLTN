@@ -4189,3 +4189,11 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
   - Verified visual rendering via Edge DevTools capture: high-contrast dark ink and coral typography on light blush pink background, seamless edge-to-edge photo with rounded card corners, fully responsive on mobile/tablet.
   - Tests: `npm run check-types` in `apps/web` PASS with zero errors. `git diff --check` PASS with zero whitespace errors.
 
+## 2026-10-25 — Destination Detail Google map scope
+
+- Replaced the shared MapLibre/Stadia map only in the default Detail location and Editorial V1/V2 MAP render paths. The new lazy Google Maps JavaScript component uses the Destination's latitude/longitude, one accessible Advanced Marker and an InfoWindow with the existing public context. Home, Explore and other map consumers were not changed by this task.
+- Added optional public browser key and map ID schema/example entries. The owner later added both local values; no routing key or server credential is passed to the browser.
+- Focused component/Editorial tests and legacy MapLibre regression pass; typecheck, codegen and Varlock provider-env tests pass when the bundled Node runtime is first on PATH. No production map acceptance is claimed.
+- Full Vitest run: 228 files / 2,928 tests pass; 11 files / 19 tests fail outside this Detail scope, 16 files / 143 tests skip, one todo. Failures include existing AI, in-trip, trip-edit and sandbox temp-module cases. The Next production build started but stalled while creating its optimized build and was stopped; build acceptance remains open.
+- Restarted the project dev server on port 3010 after terminating the prior project-owned listener. Detail HTTP 200; isolated Chrome smoke loaded the Google script and map host, with zero Stadia requests, but Google displayed its map error and console `Permission Denied.`. Google tile requests, Advanced Marker and attribution were not observed. The isolated browser profile was removed after testing. Live acceptance remains blocked by Google Cloud authorization, not by missing env names.
+

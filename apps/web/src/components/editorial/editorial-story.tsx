@@ -1,5 +1,5 @@
 import React from "react";
-import DestinationMap from "@/components/map/destination-map";
+import GoogleDestinationDetailMap from "@/components/map/google-destination-detail-map";
 import { editorialTitlePhrases, normalizeEditorialText, stripMarkdownHeading } from "@/modules/destination-editorial/editorial-content";
 import type { EditorialBlock, ResolvedEditorial } from "@/modules/destination-editorial/editorial-contract";
 import type { EditorialPageData } from "./editorial-renderer";
@@ -133,7 +133,7 @@ export function VisualHighlights({ data, duration }: { data: EditorialPageData; 
 }
 export function MapSection({ block, data }: StoryProps & { data: EditorialPageData }) {
   if (!hasEditorialCoordinates(data)) return null;
-  return <section className="emg-map"><h2>{block.title || "Vị trí tham chiếu"}</h2><p className="emg-map-note">Tọa độ tham chiếu của điểm đến; kiểm tra lối vào và đường đi phù hợp trước khi di chuyển.</p><DestinationMap destinations={[data]} detail label={`Bản đồ tham chiếu ${data.name}`} /></section>;
+  return <section className="emg-map"><h2>{block.title || "Vị trí tham chiếu"}</h2><p className="emg-map-note">Tọa độ tham chiếu của điểm đến; kiểm tra lối vào và đường đi phù hợp trước khi di chuyển.</p><GoogleDestinationDetailMap destination={data} label={`Bản đồ tham chiếu ${data.name}`} /></section>;
 }
 export function SourceAttribution({ block, sources }: StoryProps & { sources: ResolvedEditorial["sources"] }) {
   const allowed = sources.filter(s => block.sourceIds.includes(s.id) && editorialValue(s.title));

@@ -5,7 +5,7 @@ import PublishedContentProfile from "@/components/published-content-profile";
 import React, { type ReactNode } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import DestinationMap from "@/components/map/destination-map";
+import GoogleDestinationDetailMap from "@/components/map/google-destination-detail-map";
 import FavoriteButton from "@/components/favorite-button";
 import { resolveExploreReturnTo, type ExploreReturnHref } from "@/modules/destination/destination-detail-navigation";
 import {
@@ -163,10 +163,9 @@ export default function DestinationDetail({
               </div>
             </dl>
             <div className="public-detail-map-frame">
-              <DestinationMap
-                destinations={[{ id: d.id, name: d.name, area: d.area, category: d.category, latitude: d.latitude, longitude: d.longitude }]}
+              <GoogleDestinationDetailMap
+                destination={{ id: d.id, name: d.name, area: d.area, category: d.category, latitude: d.latitude, longitude: d.longitude }}
                 label={`Bản đồ vị trí ${d.name}`}
-                detail
               />
             </div>
           </section>}
