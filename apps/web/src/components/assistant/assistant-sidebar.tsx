@@ -148,8 +148,8 @@ export function AssistantSidebar({
             type="button"
             className="assistant-sidebar-toggle-btn"
             onClick={onClose}
-            aria-label="Đóng thanh bên lịch sử"
-            title="Đóng thanh bên"
+            aria-label="Thu nhỏ thanh bên lịch sử"
+            title="Thu nhỏ thanh bên"
           >
             <PanelLeftClose aria-hidden="true" />
           </button>

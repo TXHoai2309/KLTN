@@ -10,7 +10,7 @@ import { createOpenAiEmbeddingProvider } from "../rag-processing/openai-embeddin
 import { isQaPublicMetadataSafe } from "./qa-public-safety";
 import { qaOrigin, qaProviderInvoked, qaProviderMetadata, qaStage } from "./qa-diagnostics";
 import { destinationEvidenceSentences } from "./qa-destination-context";
-import { qaFactualQuestion, qaIntentHistory } from "./qa-question-understanding";
+import { qaFactualQuestion, qaIntentHistory, deterministicQuestionUnderstanding, type QaQuestionUnderstanding } from "./qa-question-understanding";
 import { planQaQuestion } from "./qa-question-plan";
 import { loadCitationBundle } from "../rag-index/rag-citation-store";
 import { canonical } from "../rag-processing/content-hash";
@@ -22,22 +22,38 @@ type Row = { documentId: string; generationId: string; contentVersionId: string;
 export type QaRetrievalOptions = { provider?: EmbeddingProvider; topK?: number; maxEvidenceTokens?: number; minScore?: number; publicSourceIds?: ReadonlySet<string>; hybrid?: boolean };
 
 const searchStopWords = new Set("tôi mình muốn tìm hiểu về ở đâu là của có thì sao vào cho một các những và theo trong được nào bao nhiêu thế này đó nổi bật bạn thể giới thiệu".split(" "));
-export function qaKeywordQuery(question: string): string {
+export function qaKeywordQuery(question: string, targetSubjects?: readonly string[]): string {
   const text = qaFactualQuestion(question);
   const folded = text.normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/g, "d");
   // Attribute vocabulary only, no destination-specific facts or gold answers.
   // Keep tsquery operators authored here; user tokens are letters/digits only.
-  if (/gio.*(?:mo|dong|hoat)|mo.*dong.*cua/u.test(folded)) return "gio & (cua | hoat)";
-  if (/dien tich/u.test(folded)) return "dien & tich";
-  if (/nhom dan toc|bao nhieu.*dan toc/u.test(folded)) return "dan & toc";
-  if (/dinh.*cao nhat/u.test(folded)) return "dinh & cao";
-  if (/gioi thieu|tim hieu/u.test(folded) && !/gia|phi|gio mo/u.test(folded)) return "mo & ta";
-  const words = /(?:^|\s)(?:giá|vé|phí|gia|phi)(?:\s|$)/u.test(text)
-    ? ["giá", "vé", "phí"]
-    : (text.match(/[\p{L}\p{N}]+/gu) ?? []).filter(word => !searchStopWords.has(word));
-  // Search form only: original text/negation/numbers still reach embedding and
-  // semantic review. No keyword overlap can certify an answer.
-  return [...new Set(words.map(word => word.normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/g, "d")))].slice(0, 16).join(" | ");
+  let attrQuery = "";
+  if (/gio.*(?:mo|dong|hoat)|mo.*dong.*cua/u.test(folded)) attrQuery = "gio & (cua | hoat)";
+  else if (/dien tich/u.test(folded)) attrQuery = "dien & tich";
+  else if (/nhom dan toc|bao nhieu.*dan toc/u.test(folded)) attrQuery = "dan & toc";
+  else if (/dinh.*cao nhat/u.test(folded)) attrQuery = "dinh & cao";
+  else if (/gioi thieu|tim hieu/u.test(folded) && !/gia|phi|gio mo/u.test(folded)) attrQuery = "mo & ta";
+  else {
+    const words = /(?:^|\s)(?:giá|vé|phí|gia|phi)(?:\s|$)/u.test(text)
+      ? ["giá", "vé", "phí"]
+      : (text.match(/[\p{L}\p{N}]+/gu) ?? []).filter(word => !searchStopWords.has(word));
+    attrQuery = [...new Set(words.map(word => word.normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/g, "d")))].slice(0, 16).join(" | ");
+  }
+
+  if (targetSubjects && targetSubjects.length > 0) {
+    const subjectTokens = targetSubjects.map(sub => {
+      const parts = sub.normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/g, "d").toLowerCase()
+        .split(/\s+/gu)
+        .filter(w => !searchStopWords.has(w) && w.length > 1);
+      return parts.length ? `(${parts.join(" & ")})` : "";
+    }).filter(Boolean);
+    if (subjectTokens.length > 0) {
+      const subjectClause = subjectTokens.join(" | ");
+      return attrQuery ? `(${subjectClause}) | (${attrQuery})` : subjectClause;
+    }
+  }
+
+  return attrQuery;
 }
 
 async function boundedRead<T>(database: Reader, work: (reader: Pick<Database, "$queryRaw">) => Promise<T>): Promise<T> {
@@ -146,17 +162,23 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
     : [];
   if (!Number.isFinite(minScore) || minScore < 0 || minScore > 1) throw new EmbeddingError("INVALID_INPUT", false);
   return {
-    async retrieve(question, history, signal, context = { type: "GENERAL" }): Promise<QaEvidence[]> {
+    async retrieve(question, history, signal, context = { type: "GENERAL" }, understandingInput?: QaQuestionUnderstanding): Promise<QaEvidence[]> {
       const validated = qaQuestionSchema.parse(question);
       const normalized = qaFactualQuestion(validated) || validated;
       if (signal?.aborted) throw new EmbeddingError("CANCELLED", false);
+      const understanding = understandingInput ?? deterministicQuestionUnderstanding(normalized, history, context);
+      const plan = planQaQuestion(normalized, history, context);
+      const targetSubjects = understanding.targetSubjects.length > 0 ? understanding.targetSubjects : (plan?.subjects ?? []);
       // Only authorized prior questions help resolve intent. Prior answers/citations
       // are never queried, projected, or returned as current evidence.
       const previousQuestions = qaIntentHistory(validated, history).map(turn => qaQuestionSchema.parse(turn.question));
-      const query = [...(context.type === "DESTINATION" ? [JSON.stringify({ destination: context.name })] : []), ...previousQuestions, normalized].join("\n");
-      const plan = planQaQuestion(normalized, history, context);
-      const subjects = plan?.comparison ? plan.subjects : [];
-      const queries = subjects.length ? subjects.map(subject => `${subject}\n${plan!.facets.filter(facet => facet.subject === subject).map(facet => facet.attribute).join(" ")}`) : [query];
+      const defaultQuery = [...(context.type === "DESTINATION" ? [JSON.stringify({ destination: context.name })] : []), ...previousQuestions, normalized].join("\n");
+      const subjects = plan?.comparison ? plan.subjects : targetSubjects;
+      const queries = subjects.length > 1
+        ? subjects.map(subject => `${subject}\n${understanding.searchQuery || normalized}`)
+        : subjects.length === 1
+          ? [`${subjects[0]}\n${understanding.searchQuery || normalized}`]
+          : [defaultQuery];
       if (queries.reduce((sum, item) => sum + countEmbeddingTokens(item), 0) > 8191) throw new EmbeddingError("RESOURCE_LIMIT", false);
       qaStage("QUESTION_EMBEDDING_STARTED");
       let response;
@@ -198,8 +220,13 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
       const groups: { vectorRows: Row[]; keywordRows: Row[] }[] = [];
       for (let qi = 0; qi < queries.length; qi++) {
       const vectorLiteral = `[${response[qi]!.embedding.join(",")}]`;
-      const keywordQuery = options.hybrid ? qaKeywordQuery(subjects[qi] ? queries[qi]! : normalized) : "";
-      const subjectFilter = subjects[qi] ? Prisma.sql`AND (strpos(lower(normalize(c."text", NFC)), ${subjects[qi]}) > 0 OR strpos(lower(normalize(d."sourceTitle", NFC)), ${subjects[qi]}) > 0)` : Prisma.empty;
+      const currentSubject = subjects[qi];
+      const keywordSubjects = context.type === "DESTINATION" ? undefined : (currentSubject ? [currentSubject] : targetSubjects);
+      const keywordQuery = options.hybrid
+        ? qaKeywordQuery(currentSubject ? queries[qi]! : (understanding.searchQuery || normalized), keywordSubjects)
+        : "";
+      const subjectNeedle = currentSubject?.normalize("NFC").toLocaleLowerCase("vi");
+      const subjectFilter = subjectNeedle ? Prisma.sql`AND (strpos(lower(normalize(c."text", NFC)), ${subjectNeedle}) > 0 OR strpos(lower(normalize(d."sourceTitle", NFC)), ${subjectNeedle}) > 0)` : Prisma.empty;
       const group = await boundedRead(database, async reader => {
       const vectorRows = await reader.$queryRaw<Row[]>(Prisma.sql`SELECT d."id" AS "documentId", g."id" AS "generationId",
         g."contentVersionId", c."id" AS "chunkId", c."chunkHash", c."text", e."tokenCount",
@@ -240,6 +267,18 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
         seen.add(row.chunkId); candidateRows.push(row);
       }
       if (signal?.aborted) throw new EmbeddingError("CANCELLED", false);
+      if (targetSubjects.length > 0) {
+        const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/g, "d").toLowerCase();
+        candidateRows.sort((a, b) => {
+          const aText = fold(`${a.sourceTitle} ${a.text}`);
+          const bText = fold(`${b.sourceTitle} ${b.text}`);
+          const aMatch = targetSubjects.some(sub => aText.includes(fold(sub)));
+          const bMatch = targetSubjects.some(sub => bText.includes(fold(sub)));
+          if (aMatch && !bMatch) return -1;
+          if (!aMatch && bMatch) return 1;
+          return (b.score ?? 0) - (a.score ?? 0);
+        });
+      }
       const topSimilarityScore = candidateRows[0]?.score != null && Number.isFinite(candidateRows[0].score)
         ? Math.round(candidateRows[0].score * 10000) / 10000
         : null;

@@ -17,6 +17,7 @@ import {
   AlertCircle,
   FileText,
   UserCheck,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
@@ -26,6 +27,18 @@ import type {
 import { defaultAdminUserDataSource } from "@/modules/admin-users/admin-user-data-source";
 import { UserRoleBadge, UserStatusBadge } from "../user-badges";
 import { LockAccountDialog, ChangeRoleDialog, RevokeSessionsDialog } from "../user-modals";
+import {
+  AdminField,
+  AdminLabel,
+  AdminCollapsibleSection,
+  AdminPageHeader,
+  AdminStickyActions,
+  AdminAlert,
+  AdminLoadingState,
+} from "@/components/admin/admin-form-shell";
+import "@/components/admin/admin-form-shell.css";
+import "../../destinations/destination-v3.css";
+import "../../destinations/destinations.css";
 import "../users.css";
 
 const formatDateTime = (dateStr: string | null | undefined) => {
@@ -69,7 +82,9 @@ export default function UserDetailClient({ userId }: { userId: string }) {
       .then(([userData, logs]) => {
         if (isCurrent) {
           setUser(userData);
-          setAuditLogs(logs); setAuditPage(1); setAuditMore(logs.length === 20);
+          setAuditLogs(logs);
+          setAuditPage(1);
+          setAuditMore(logs.length === 20);
           setIsLoading(false);
         }
       })
@@ -94,345 +109,518 @@ export default function UserDetailClient({ userId }: { userId: string }) {
     }
   }
 
-  function handleRevokeSessions() { setIsRevokeModalOpen(true); }
-  async function loadMoreAudit() {
-    if (auditBusy) return; setAuditBusy(true);
-    try { const rows = await defaultAdminUserDataSource.getUserAuditEvents(userId, auditPage + 1); setAuditLogs(old => [...old, ...rows.filter(row => !old.some(item => item.id === row.id))]); setAuditPage(p => p + 1); setAuditMore(rows.length === 20); }
-    catch { toast.error("Không thể tải thêm nhật ký. Hãy thử lại."); }
-    finally { setAuditBusy(false); }
+  function handleRevokeSessions() {
+    setIsRevokeModalOpen(true);
   }
-  function completed(message: string) { toast.success(message); setRefreshKey(value => value + 1); }
-  if (loadError && !isLoading) return <main className="admin-users-page"><div className="admin-state-container" role="alert"><p>{loadError}</p><button className="admin-btn admin-btn-outline" type="button" onClick={() => setRefreshKey(value => value + 1)}>Thử lại</button></div></main>;
+
+  async function loadMoreAudit() {
+    if (auditBusy) return;
+    setAuditBusy(true);
+    try {
+      const rows = await defaultAdminUserDataSource.getUserAuditEvents(userId, auditPage + 1);
+      setAuditLogs((old) => [
+        ...old,
+        ...rows.filter((row) => !old.some((item) => item.id === row.id)),
+      ]);
+      setAuditPage((p) => p + 1);
+      setAuditMore(rows.length === 20);
+    } catch {
+      toast.error("Không thể tải thêm nhật ký. Hãy thử lại.");
+    } finally {
+      setAuditBusy(false);
+    }
+  }
+
+  function completed(message: string) {
+    toast.success(message);
+    setRefreshKey((value) => value + 1);
+  }
+
+  if (loadError && !isLoading) {
+    return (
+      <div className="af-root dv3-page">
+        <main className="dv3-main">
+          <AdminAlert variant="error" icon={<AlertTriangle size={18} />}>
+            <div>
+              <p style={{ margin: "0 0 8px", fontWeight: 600 }}>Chưa tải được hồ sơ người dùng</p>
+              <p style={{ margin: "0 0 12px", fontSize: 13 }}>{loadError}</p>
+              <button
+                className="af-btn af-btn-primary"
+                type="button"
+                onClick={() => setRefreshKey((value) => value + 1)}
+              >
+                Thử tải lại
+              </button>
+            </div>
+          </AdminAlert>
+        </main>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
-      <main className="admin-users-page">
-        <div className="admin-users-container">
-          <div className="admin-state-container">
-            <RotateCcw className="size-8 animate-spin text-emerald-600 mb-3" />
-            <p className="admin-state-desc">Đang tải hồ sơ người dùng…</p>
-          </div>
-        </div>
-      </main>
+      <div className="af-root dv3-page">
+        <AdminLoadingState>Đang tải thông tin người dùng…</AdminLoadingState>
+      </div>
     );
   }
 
   if (!user) {
     return (
-      <main className="admin-users-page">
-        <div className="admin-users-container">
-          <div className="admin-state-container">
-            <AlertCircle className="size-10 text-amber-600 mb-3" />
-            <h2 className="admin-state-title">Không tìm thấy tài khoản người dùng</h2>
-            <p className="admin-state-desc">
+      <div className="af-root dv3-page">
+        <main className="dv3-main">
+          <div className="destination-state" role="alert">
+            <span className="destination-empty-icon" aria-hidden="true">
+              <AlertCircle size={32} />
+            </span>
+            <h3>Không tìm thấy tài khoản người dùng</h3>
+            <p>
               Tài khoản có mã định danh [{userId}] không tồn tại trong hệ thống hoặc đã bị xóa.
             </p>
-            <Link href={"/admin/users" as Route} className="admin-btn admin-btn-primary">
-              <ArrowLeft className="size-4" />
+            <Link href={"/admin/users" as Route} className="destination-primary">
+              <ArrowLeft size={16} aria-hidden="true" />
               <span>Quay lại danh sách người dùng</span>
             </Link>
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
     );
   }
 
   return (
-    <main className="admin-users-page">
-      <div className="admin-users-container">
-        {/* Breadcrumb */}
-        <nav className="admin-breadcrumb" aria-label="Đường dẫn liên kết">
-          <Link href="/" className="admin-breadcrumb-link">
-            Trang chủ
+    <div className="af-root dv3-page">
+      {/* Top Header - Destination Form Shell Standard */}
+      <AdminPageHeader
+        breadcrumb={
+          <Link
+            href={"/admin/users" as Route}
+            className="destination-back"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              textDecoration: "none",
+              fontWeight: 650,
+              fontSize: 13,
+            }}
+          >
+            <ArrowLeft size={15} aria-hidden="true" />
+            <span>Quay lại danh sách</span>
           </Link>
-          <span aria-hidden="true">/</span>
-          <Link href={"/admin/users" as Route} className="admin-breadcrumb-link">
-            Quản lý người dùng
-          </Link>
-          <span aria-hidden="true">/</span>
-          <span className="admin-breadcrumb-current" aria-current="page">
-            {user.name}
-          </span>
-        </nav>
+        }
+        title={`Hồ sơ người dùng: ${user.name}`}
+        subtitle="Quản lý chi tiết định danh, phân quyền vai trò và trạng thái bảo mật của tài khoản."
+        meta={
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <UserRoleBadge role={user.role} />
+            <UserStatusBadge status={user.status} />
+            {user.emailVerified ? (
+              <span className="destination-badge is-visible">
+                <UserCheck size={13} aria-hidden="true" />
+                <span>Email đã xác thực</span>
+              </span>
+            ) : (
+              <span className="destination-badge is-hidden">
+                <span>Email chưa xác thực</span>
+              </span>
+            )}
+          </div>
+        }
+      />
 
-        {/* Header Profile Card */}
-        <section className="admin-detail-header-card" aria-label="Hồ sơ người dùng">
-          <div className="admin-detail-profile">
-            <div className="admin-detail-avatar">
-              {user.name.charAt(0).toUpperCase()}
-            </div>
-            <div className="admin-detail-names">
-              <h2>{user.name}</h2>
-              <p className="admin-detail-email">{user.email}</p>
-              <div className="admin-detail-badges">
-                <UserRoleBadge role={user.role} />
-                <UserStatusBadge status={user.status} />
-                {user.emailVerified ? (
-                  <span className="admin-badge admin-badge-active text-[11px]">
-                    <UserCheck className="size-3" />
-                    <span>Email đã xác thực</span>
-                  </span>
-                ) : (
-                  <span className="admin-badge admin-badge-unknown text-[11px]">
-                    <span>Email chưa xác thực</span>
-                  </span>
-                )}
-              </div>
-            </div>
+      {/* Main Document Content Area */}
+      <main className="dv3-main">
+        {/* Section 1: Thao tác quản trị & An toàn */}
+        <AdminCollapsibleSection
+          id="dv3-user-actions"
+          icon={Shield}
+          title="Thao tác quản trị & An toàn tài khoản"
+          description="Kiểm soát phân quyền, thu hồi phiên làm việc hoặc khóa tài khoản khi có vi phạm."
+          defaultOpen={true}
+        >
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
+            <button
+              type="button"
+              className="af-btn"
+              onClick={() => setIsRoleModalOpen(true)}
+            >
+              <Shield size={16} aria-hidden="true" />
+              <span>Thay đổi vai trò ({user.role})</span>
+            </button>
+
+            {user.status === "LOCKED" ? (
+              <button
+                type="button"
+                className="af-btn af-btn-primary"
+                onClick={() => setIsLockModalOpen(true)}
+              >
+                <Unlock size={16} aria-hidden="true" />
+                <span>Mở khóa tài khoản</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="af-btn"
+                style={{
+                  color: "var(--af-error)",
+                  borderColor: "color-mix(in srgb, var(--af-error) 40%, var(--af-line))",
+                }}
+                onClick={() => setIsLockModalOpen(true)}
+              >
+                <Lock size={16} aria-hidden="true" />
+                <span>Khóa tài khoản này</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              className="af-btn"
+              onClick={handleRevokeSessions}
+            >
+              <KeyRound size={16} aria-hidden="true" />
+              <span>Thu hồi tất cả phiên</span>
+            </button>
           </div>
 
-          <div className="admin-header-actions">
-            <Link href={"/admin/users" as Route} className="admin-btn admin-btn-outline">
-              <ArrowLeft className="size-4" />
-              <span>Quay lại danh sách</span>
-            </Link>
-          </div>
-        </section>
-
-        {/* Detail Content Grid */}
-        <div className="admin-detail-grid">
-          {/* Main Info Column */}
-          <div className="flex flex-col gap-6">
-            {/* Account Details Card */}
-            <article className="admin-card p-6" aria-labelledby="account-info-title">
-              <h3 id="account-info-title" className="text-base font-bold text-foreground mb-4 pb-2 border-b border-border">
-                Thông tin tài khoản
-              </h3>
-
-              <div className="admin-field-list">
-                <div className="admin-field-item">
-                  <span className="admin-field-label">Mã người dùng (User ID)</span>
-                  <div className="flex items-center gap-2">
-                    <span className="admin-field-value font-mono text-xs">{user.id}</span>
-                    <button
-                      type="button"
-                      onClick={handleCopyId}
-                      className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
-                      title="Sao chép User ID"
-                    >
-                      {copiedId ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="admin-field-item">
-                  <span className="admin-field-label">Họ và tên</span>
-                  <span className="admin-field-value">{user.name}</span>
-                </div>
-
-                <div className="admin-field-item">
-                  <span className="admin-field-label">Địa chỉ email</span>
-                  <span className="admin-field-value">{user.email}</span>
-                </div>
-
-                <div className="admin-field-item">
-                  <span className="admin-field-label">Vai trò trong hệ thống</span>
-                  <span className="admin-field-value">{user.role}</span>
-                </div>
-
-                <div className="admin-field-item">
-                  <span className="admin-field-label">Ngày tạo tài khoản</span>
-                  <span className="admin-field-value">{formatDateTime(user.createdAt)}</span>
-                </div>
-
-                <div className="admin-field-item">
-                  <span className="admin-field-label">Cập nhật gần nhất</span>
-                  <span className="admin-field-value">{formatDateTime(user.updatedAt)}</span>
-                </div>
-
-                <div className="admin-field-item">
-                  <span className="admin-field-label">Đăng nhập gần nhất</span>
-                  <span className="admin-field-value">{formatDateTime(user.lastLoginAt)}</span>
-                </div>
-
-                <div className="admin-field-item">
-                  <span className="admin-field-label">Trạng thái khóa tài khoản</span>
-                  <span className="admin-field-value">
-                    {user.status === "LOCKED" ? "Đang bị khóa" : "Bình thường"}
-                  </span>
-                </div>
+          <div style={{ marginTop: 20 }}>
+            <AdminAlert variant="warning">
+              <div>
+                <strong>An toàn quản trị:</strong> Máy chủ luôn kiểm tra quyền hiện hành, bảo vệ Admin cuối cùng và tự động lưu vết nhật ký cho mọi thay đổi đã xác nhận.
               </div>
+            </AdminAlert>
+          </div>
+        </AdminCollapsibleSection>
 
-              {user.lockReason && (
-                <div className="admin-lock-banner">
-                  <span className="font-semibold">Lý do khóa:</span> {user.lockReason}
+        {/* Section 2: Thông tin tài khoản */}
+        <AdminCollapsibleSection
+          id="dv3-user-basic"
+          icon={UserCheck}
+          title="Thông tin cơ bản & Định danh"
+          description="Mã định danh hệ thống, thông tin cá nhân và thời gian hoạt động của tài khoản."
+          badge="required"
+          defaultOpen={true}
+        >
+          <div className="af-grid-2">
+            <AdminField>
+              <AdminLabel htmlFor="user-id" required>
+                Mã người dùng (User ID)
+              </AdminLabel>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  id="user-id"
+                  className="af-input font-mono text-xs"
+                  readOnly
+                  value={user.id}
+                  style={{ background: "var(--af-tint)", cursor: "default" }}
+                />
+                <button
+                  type="button"
+                  className="af-btn"
+                  onClick={handleCopyId}
+                  style={{ flexShrink: 0, minWidth: 96 }}
+                  title="Sao chép User ID"
+                >
+                  {copiedId ? (
+                    <Check size={14} className="text-emerald-600" aria-hidden="true" />
+                  ) : (
+                    <Copy size={14} aria-hidden="true" />
+                  )}
+                  <span>{copiedId ? "Đã chép" : "Sao chép"}</span>
+                </button>
+              </div>
+            </AdminField>
+
+            <AdminField>
+              <AdminLabel htmlFor="user-name" required>
+                Họ và tên
+              </AdminLabel>
+              <input
+                id="user-name"
+                className="af-input font-medium"
+                readOnly
+                value={user.name}
+              />
+            </AdminField>
+
+            <AdminField>
+              <AdminLabel htmlFor="user-email" required>
+                Địa chỉ email
+              </AdminLabel>
+              <input
+                id="user-email"
+                className="af-input"
+                readOnly
+                value={user.email}
+              />
+            </AdminField>
+
+            <AdminField>
+              <AdminLabel htmlFor="user-role" required>
+                Vai trò trong hệ thống
+              </AdminLabel>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <input
+                  id="user-role"
+                  className="af-input font-semibold"
+                  readOnly
+                  value={user.role}
+                  style={{ fontWeight: 700 }}
+                />
+                <button
+                  type="button"
+                  className="af-btn"
+                  onClick={() => setIsRoleModalOpen(true)}
+                  style={{ flexShrink: 0 }}
+                  title="Đổi vai trò"
+                >
+                  <Shield size={14} aria-hidden="true" />
+                  <span>Đổi vai trò</span>
+                </button>
+              </div>
+            </AdminField>
+
+            <AdminField>
+              <AdminLabel htmlFor="user-created">
+                Ngày tạo tài khoản
+              </AdminLabel>
+              <input
+                id="user-created"
+                className="af-input"
+                readOnly
+                value={formatDateTime(user.createdAt)}
+              />
+            </AdminField>
+
+            <AdminField>
+              <AdminLabel htmlFor="user-updated">
+                Cập nhật gần nhất
+              </AdminLabel>
+              <input
+                id="user-updated"
+                className="af-input"
+                readOnly
+                value={formatDateTime(user.updatedAt)}
+              />
+            </AdminField>
+
+            <AdminField>
+              <AdminLabel htmlFor="user-last-login">
+                Đăng nhập gần nhất
+              </AdminLabel>
+              <input
+                id="user-last-login"
+                className="af-input"
+                readOnly
+                value={formatDateTime(user.lastLoginAt)}
+              />
+            </AdminField>
+
+            <AdminField>
+              <AdminLabel htmlFor="user-status">
+                Trạng thái khóa tài khoản
+              </AdminLabel>
+              <input
+                id="user-status"
+                className="af-input"
+                readOnly
+                value={user.status === "LOCKED" ? "Đang bị khóa" : "Bình thường (Hoạt động)"}
+                style={{
+                  color: user.status === "LOCKED" ? "var(--af-error)" : "inherit",
+                  fontWeight: user.status === "LOCKED" ? 650 : 500,
+                }}
+              />
+            </AdminField>
+          </div>
+
+          {user.lockReason && (
+            <div style={{ marginTop: 16 }}>
+              <AdminAlert variant="error" icon={<Lock size={16} aria-hidden="true" />}>
+                <div>
+                  <strong>Lý do khóa tài khoản:</strong> {user.lockReason}
                   {user.lockedAt && (
-                    <span className="admin-lock-meta">
+                    <div style={{ marginTop: 4, fontSize: 12, opacity: 0.85 }}>
                       Thời điểm khóa: {formatDateTime(user.lockedAt)}
-                    </span>
+                    </div>
                   )}
                 </div>
-              )}
-            </article>
+              </AdminAlert>
+            </div>
+          )}
+        </AdminCollapsibleSection>
 
-            {/* Session & Authentication Card */}
-            <article className="admin-card p-6" aria-labelledby="session-info-title">
-              <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
-                <h3 id="session-info-title" className="text-base font-bold text-foreground">
-                  Phiên đăng nhập & Xác thực
-                </h3>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                  {user.sessionCount ?? user.activeSessions?.length ?? 0} phiên hoạt động
-                </span>
-              </div>
+        {/* Section 2: Phiên đăng nhập & Thiết bị */}
+        <AdminCollapsibleSection
+          id="dv3-user-sessions"
+          icon={Laptop}
+          title="Phiên đăng nhập & Thiết bị"
+          description="Các thiết bị và phiên làm việc đang duy trì quyền truy cập vào hệ thống."
+          summary={<span>{user.sessionCount ?? user.activeSessions?.length ?? 0} phiên hoạt động</span>}
+          defaultOpen={true}
+        >
+          {(user.sessionCount ?? 0) > (user.activeSessions?.length ?? 0) && (
+            <p className="af-helper" style={{ marginBottom: 12 }}>
+              Hiển thị tối đa 20 phiên đang hoạt động gần nhất.
+            </p>
+          )}
 
-              {(user.sessionCount ?? 0) > (user.activeSessions?.length ?? 0) && <p className="text-xs text-muted-foreground">Hiển thị tối đa 20 phiên đang hoạt động gần nhất.</p>}
-              {user.activeSessions && user.activeSessions.length > 0 ? (
-                <div>
-                  {user.activeSessions.map((sess) => (
-                    <div key={sess.id} className="admin-session-item">
-                      <div className="admin-session-left">
-                        <div className="admin-session-icon">
-                          <Laptop className="size-4" />
-                        </div>
-                        <div className="admin-session-info">
-                          <span className="admin-session-title">
-                            {sess.userAgent || "Thiết bị không xác định"}
-                          </span>
-                          <span className="admin-session-meta">
-                            Tạo lúc: {formatDateTime(sess.createdAt)}
-                          </span>
-                          <span className="admin-session-meta">
-                            Hết hạn: {formatDateTime(sess.expiresAt)}
-                          </span>
-                        </div>
+          {user.activeSessions && user.activeSessions.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {user.activeSessions.map((sess) => (
+                <div
+                  key={sess.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "14px 18px",
+                    border: "1px solid var(--af-line)",
+                    borderRadius: "var(--af-radius-input)",
+                    background: "var(--af-tint)",
+                    gap: 12,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+                    <div
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 10,
+                        background: "var(--af-surface)",
+                        border: "1px solid var(--af-line)",
+                        display: "grid",
+                        placeItems: "center",
+                        color: "var(--af-green)",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <Laptop size={18} aria-hidden="true" />
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 650, fontSize: 13.5, color: "var(--af-ink)" }}>
+                        {sess.userAgent || "Thiết bị không xác định"}
                       </div>
-                      <span className="admin-badge admin-badge-active text-[11px]">
-                        Đang hoạt động
+                      <div style={{ fontSize: 12, color: "var(--af-muted)", marginTop: 2 }}>
+                        Tạo lúc: {formatDateTime(sess.createdAt)} • Hết hạn: {formatDateTime(sess.expiresAt)}
+                      </div>
+                    </div>
+                  </div>
+                  <span className="destination-badge is-visible">
+                    Đang hoạt động
+                  </span>
+                </div>
+              ))}
+
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                <button
+                  type="button"
+                  className="af-btn"
+                  onClick={handleRevokeSessions}
+                >
+                  <KeyRound size={15} aria-hidden="true" />
+                  <span>Thu hồi toàn bộ phiên đăng nhập</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="af-helper" style={{ margin: "6px 0" }}>
+              Hiện không có phiên đăng nhập nào đang hoạt động cho tài khoản này.
+            </p>
+          )}
+        </AdminCollapsibleSection>
+
+        {/* Section 3: Nhật ký thao tác quản trị */}
+        <AdminCollapsibleSection
+          id="dv3-user-audit"
+          icon={FileText}
+          title="Nhật ký thao tác quản trị (Audit Log)"
+          description="Lịch sử ghi nhận can thiệp quản trị: phân quyền, khóa tài khoản, thu hồi phiên."
+          summary={<span>{auditLogs.length} sự kiện ghi nhận</span>}
+          defaultOpen={true}
+        >
+          {auditMore && (
+            <div style={{ marginBottom: 14 }}>
+              <button
+                type="button"
+                className="af-btn"
+                disabled={auditBusy}
+                onClick={() => void loadMoreAudit()}
+              >
+                Tải thêm nhật ký
+              </button>
+            </div>
+          )}
+
+          {auditLogs.length > 0 ? (
+            <div className="admin-timeline">
+              {auditLogs.map((log) => (
+                <div key={log.id} className="admin-timeline-item">
+                  <div className="admin-timeline-dot" />
+                  <div className="admin-timeline-content">
+                    <div className="admin-timeline-header">
+                      <span className="admin-timeline-title">
+                        {log.eventType === "ROLE_CHANGED" && "Thay đổi vai trò"}
+                        {log.eventType === "USER_LOCKED" && "Khóa tài khoản"}
+                        {log.eventType === "USER_UNLOCKED" && "Mở khóa tài khoản"}
+                        {log.eventType === "SESSION_REVOKED" && "Thu hồi phiên đăng nhập"}
+                      </span>
+                      <span className="admin-timeline-time">
+                        <Clock size={12} style={{ display: "inline", marginRight: 4 }} aria-hidden="true" />
+                        {formatDateTime(log.timestamp)}
                       </span>
                     </div>
-                  ))}
-
-                  <div className="pt-2 flex justify-end">
-                    <button
-                      type="button"
-                      className="admin-btn admin-btn-outline text-xs h-9"
-                      onClick={handleRevokeSessions}
-                      disabled={false}
-                    >
-                      <KeyRound className="size-3.5" />
-                      <span>Thu hồi toàn bộ phiên đăng nhập</span>
-                    </button>
+                    <p className="admin-timeline-desc">
+                      Thực hiện bởi: <strong>{log.actorName}</strong> ({log.actorEmail})
+                    </p>
+                    {log.reason && (
+                      <p className="admin-timeline-desc" style={{ fontStyle: "italic" }}>
+                        Lý do: &ldquo;{log.reason}&rdquo;
+                      </p>
+                    )}
                   </div>
                 </div>
-              ) : (
-                <p className="text-xs text-muted-foreground py-2">
-                  Hiện không có phiên đăng nhập nào đang hoạt động cho tài khoản này.
-                </p>
-              )}
-            </article>
+              ))}
+            </div>
+          ) : (
+            <div style={{ textAlign: "center", padding: "32px 16px", color: "var(--af-muted)" }}>
+              <span className="destination-empty-icon" style={{ margin: "0 auto 12px" }} aria-hidden="true">
+                <FileText size={28} />
+              </span>
+              <p style={{ fontSize: 13, margin: 0 }}>
+                Chưa có nhật ký thao tác quản trị nào cho tài khoản này.
+              </p>
+            </div>
+          )}
+        </AdminCollapsibleSection>
 
-            {/* Audit Log Timeline */}
-            <article className="admin-card p-6" aria-labelledby="audit-log-title">
-              <div className="flex items-center justify-between mb-4 pb-2 border-b border-border">
-                <h3 id="audit-log-title" className="text-base font-bold text-foreground">
-                  Nhật ký thao tác quản trị (Audit Log)
-                </h3>
-                <span className="text-[11px] text-muted-foreground">
-                  {auditLogs.length} sự kiện ghi nhận
-                </span>
-              </div>
+        {/* Sticky Actions Bar */}
+        <AdminStickyActions
+          message="Các thao tác phân quyền hoặc khóa tài khoản sẽ có hiệu lực ngay sau khi máy chủ xác nhận."
+        >
+          <Link href={"/admin/users" as Route} className="af-btn">
+            <ArrowLeft size={16} aria-hidden="true" />
+            <span>Quay lại danh sách</span>
+          </Link>
+          <button
+            type="button"
+            className="af-btn af-btn-primary"
+            onClick={() => setIsRoleModalOpen(true)}
+          >
+            <Shield size={16} aria-hidden="true" />
+            <span>Phân quyền vai trò</span>
+          </button>
+        </AdminStickyActions>
+      </main>
 
-              {auditMore && <button type="button" className="admin-btn admin-btn-outline" disabled={auditBusy} onClick={() => void loadMoreAudit()}>Tải thêm nhật ký</button>}
-              {auditLogs.length > 0 ? (
-                <div className="admin-timeline">
-                  {auditLogs.map((log) => (
-                    <div key={log.id} className="admin-timeline-item">
-                      <div className="admin-timeline-dot" />
-                      <div className="admin-timeline-content">
-                        <div className="admin-timeline-header">
-                          <span className="admin-timeline-title">
-                            {log.eventType === "ROLE_CHANGED" && "Thay đổi vai trò"}
-                            {log.eventType === "USER_LOCKED" && "Khóa tài khoản"}
-                            {log.eventType === "USER_UNLOCKED" && "Mở khóa tài khoản"}
-                            {log.eventType === "SESSION_REVOKED" && "Thu hồi phiên đăng nhập"}
-                          </span>
-                          <span className="admin-timeline-time">
-                            <Clock className="size-3 inline mr-1" />
-                            {formatDateTime(log.timestamp)}
-                          </span>
-                        </div>
-                        <p className="admin-timeline-desc">
-                          Thực hiện bởi: <strong>{log.actorName}</strong> ({log.actorEmail})
-                        </p>
-                        {log.reason && (
-                          <p className="admin-timeline-desc italic">
-                            Lý do: &ldquo;{log.reason}&rdquo;
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-6">
-                  <FileText className="size-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-xs text-muted-foreground">
-                    Chưa có nhật ký thao tác quản trị nào cho tài khoản này.
-                  </p>
-                </div>
-              )}
-            </article>
-          </div>
-
-          {/* Sidebar Action Column */}
-          <div className="flex flex-col gap-6">
-            <article className="admin-card p-6" aria-labelledby="actions-title">
-              <h3 id="actions-title" className="text-base font-bold text-foreground mb-4 pb-2 border-b border-border">
-                Thao tác quản trị
-              </h3>
-
-              <div className="flex flex-col gap-3">
-                <button
-                  type="button"
-                  className="admin-btn admin-btn-outline w-full justify-start text-xs h-10"
-                  onClick={() => setIsRoleModalOpen(true)}
-                >
-                  <Shield className="size-4 mr-1 text-emerald-700 dark:text-emerald-400" />
-                  <span>Thay đổi vai trò ({user.role})</span>
-                </button>
-
-                {user.status === "LOCKED" ? (
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn-primary w-full justify-start text-xs h-10"
-                    onClick={() => setIsLockModalOpen(true)}
-                  >
-                    <Unlock className="size-4 mr-1" />
-                    <span>Mở khóa tài khoản</span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="admin-btn admin-btn-destructive w-full justify-start text-xs h-10"
-                    onClick={() => setIsLockModalOpen(true)}
-                  >
-                    <Lock className="size-4 mr-1" />
-                    <span>Khóa tài khoản này</span>
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  className="admin-btn admin-btn-outline w-full justify-start text-xs h-10"
-                  onClick={handleRevokeSessions}
-                  disabled={false}
-                >
-                  <KeyRound className="size-4 mr-1 text-amber-600" />
-                  <span>Thu hồi tất cả phiên</span>
-                </button>
-              </div>
-
-              <div className="mt-5 p-3 rounded-lg bg-muted/40 border border-border text-[11.5px] text-muted-foreground leading-relaxed">
-                <strong>An toàn quản trị:</strong> Máy chủ kiểm tra quyền hiện hành, bảo vệ Admin cuối cùng và lưu nhật ký cho các thay đổi đã xác nhận.
-              </div>
-            </article>
-          </div>
-        </div>
-      </div>
-
-      <RevokeSessionsDialog user={user} isOpen={isRevokeModalOpen} onClose={() => setIsRevokeModalOpen(false)} onActionComplete={completed} />
       {/* Dialogs */}
+      <RevokeSessionsDialog
+        user={user}
+        isOpen={isRevokeModalOpen}
+        onClose={() => setIsRevokeModalOpen(false)}
+        onActionComplete={completed}
+      />
+
       <LockAccountDialog
         user={user}
         isOpen={isLockModalOpen}
@@ -446,6 +634,6 @@ export default function UserDetailClient({ userId }: { userId: string }) {
         onClose={() => setIsRoleModalOpen(false)}
         onActionComplete={completed}
       />
-    </main>
+    </div>
   );
 }

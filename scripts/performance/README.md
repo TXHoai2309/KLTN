@@ -117,3 +117,14 @@ the receipt-owned fixture; existing content and permissions are never edited.
 adds origin-scoped development OIDC for protected Previews via CDP, preserving
 browser caching. The optional credential is never sent to external asset origins.
 Use one browser/benchmark at a time; keep all samples including regressions.
+
+`npx tsx --tsconfig scripts/performance/tsconfig.json scripts/performance/destination-detail-latency.ts`
+compares sequential versus concurrent execution of the actual public Destination
+and independently guarded published Editorial services. It reads the local web
+environment in memory, pins the Development endpoint, switches only the benchmark
+to its direct hostname for server-enforced read-only startup options, and closes
+all clients. Four alternating pairs on three visible Destinations preserve every
+numeric sample and compare complete DTO hashes. Sanitized receipt is written to
+ignored `.cache/data-latency/detail-service-paired.json`; no response body, SQL,
+parameters, credentials, writes or provider calls. This is service latency, not
+runtime pooled-host HTTP, browser LCP, throughput or Production acceptance.

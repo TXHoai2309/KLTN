@@ -2,6 +2,7 @@ import { requestStadiaRoute } from "../trip-validation/stadia-route";
 import type { TripTransport } from "../trip-requirement/trip-requirement-contract";
 import { travelLegSchema, type TravelLeg } from "./planner-contract";
 import type { PlannerCandidate } from "./planner-candidates";
+import { plannerRouteGeometry } from "./planner-route-geometry";
 
 export type RoutePair = { from: PlannerCandidate; to: PlannerCandidate; transport: TripTransport };
 export type RouteProvider = { route: (pair: RoutePair, signal: AbortSignal) => Promise<TravelLeg> };
@@ -14,9 +15,10 @@ export function createStadiaRoutesProvider(options: { apiKey?: () => string | un
   return { async route(pair, signal) {
     const route = await requestStadiaRoute({ origin: pair.from, destination: pair.to, vehicle: pair.transport }, { ...options, signal });
     if (route.kind !== "ok") return missingLeg(pair, route.reason);
+    const geometry = plannerRouteGeometry(route.geometry);
     const parsed = travelLegSchema.safeParse({ fromDestinationId: pair.from.id, toDestinationId: pair.to.id,
       status: "VERIFIED", reason: null, durationSeconds: route.durationSeconds,
-      distanceMeters: route.distanceMeters ?? null, provider: "STADIA_MAPS" });
+      distanceMeters: route.distanceMeters ?? null, provider: "STADIA_MAPS", ...(geometry ? { geometry } : {}) });
     return parsed.success ? parsed.data : missingLeg(pair, "INVALID_RESPONSE");
   } };
 }

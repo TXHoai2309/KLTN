@@ -77,3 +77,22 @@ Current Culture dependency resolved by canonical US-09; current map dependency r
 Guest real map marker activated by Enter, popup focuses normal detail CTA, Enter opens canonical Detail with Culture intact. Admin public Explore also excludes hidden marker; no bypass. Full Culture detail/Favorite/AI/provenance absent models are still future scope; source rendered only when real Culture source exists. US-12 task149 search/filter dependency remains blocked independently and is not required to falsely implement extra US-13 behavior.
 
 Required regression suites/typecheck/build and clean scoped fixtures verified in ai-progress. With location/map and canonical Culture now genuinely integrated and tasks153–156 rechecked, US-13 is ACCEPTED for its approved functional scope. No commit/push/schema/migration.
+
+## 2026-10-23 — measured public detail loading follow-up
+
+The page now overlaps canonical detail and independently guarded published
+Editorial reads, awaiting both before rendering. Canonical missing/unavailable/DB
+error behavior, strict public DTO, no-store API and Editorial's initial/final
+visibility plus current media/source eligibility checks remain. Editorial rejects
+malformed IDs before querying; unavailable IDs cannot start publication/context
+reads. No UI, schema or publication rule change.
+
+Local warm full-response samples changed from 834–877 ms to 476–548 ms in the
+adjacent comparison (859 → 521 ms median); an independent three-destination
+read-only paired probe confirms identical complete DTO hashes. SQL count stays
+16 on the measured published path. This is local latency evidence, not Production
+throughput or LCP acceptance. Focused regressions 10 PASS; broader Editorial/media/
+page 348 PASS, six opt-in PostgreSQL SKIP; legacy Destination 70 PASS; typechecks
+PASS. Real browser published detail and exact filtered return PASS without new
+console warnings/errors. See [measurement report](../performance/destination-detail-loading-2026-10-23.md)
+and ai-progress for final build/scope checks. Story acceptance status is unchanged.

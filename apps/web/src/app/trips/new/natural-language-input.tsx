@@ -6,7 +6,6 @@ import { useEffect, useMemo, useState } from "react";
 
 import {
   MAX_PREFERENCE_INPUT_LENGTH,
-  MIN_PREFERENCE_INPUT_LENGTH,
 } from "@/modules/preference-extraction/preference-extraction-contract";
 import {
   getNaturalLanguageAnalyzeButtonState,
@@ -28,11 +27,9 @@ export type NaturalLanguageInputProps = {
   onContinueManually?: () => void;
 };
 
-const EXAMPLE_PROMPTS = [
-  "Mình muốn đi 2 ngày bằng ô tô, thích thiên nhiên và thư giãn",
-  "Đi xe máy 3 ngày với bạn bè, ưu tiên chụp ảnh và ẩm thực",
-  "Gia đình 4 người đi thong thả, tránh đi bộ xa",
-  "Mình đi một mình cuối tháng, muốn khám phá bản làng",
+export const EXAMPLE_PROMPTS = [
+  "Đi 3 ngày bằng xe máy với bạn bè, thích chụp ảnh và ẩm thực",
+  "Đi 2 ngày bằng ô tô thong thả, thích thiên nhiên và thư giãn",
 ] as const;
 
 function textStateMessage(textState: NaturalLanguageTextState): string | null {
@@ -53,7 +50,7 @@ export default function NaturalLanguageInput({
   const buttonState = getNaturalLanguageAnalyzeButtonState(textState, isProcessing);
   const validationMessage = status.kind === "invalid"
     ? status.message ?? textStateMessage(textState)
-    : textStateMessage(textState);
+    : rawText.length > 0 ? textStateMessage(textState) : null;
   const displayButtonState = status.kind === "failure"
     ? { ...buttonState, label: "Thử lại" }
     : status.kind === "success"
@@ -76,41 +73,85 @@ export default function NaturalLanguageInput({
   return (
     <section className="trip-natural-language" aria-labelledby="trip-natural-language-title">
       <div className="trip-natural-language-heading">
-        <div className="trip-heading-icon" aria-hidden="true"><Sparkles size={20} /></div>
-        <div>
-          <p className="trip-eyebrow">Cách khác để bắt đầu</p>
-          <h2 id="trip-natural-language-title" data-trip-panel-heading tabIndex={-1}>Mô tả nhu cầu bằng lời</h2>
+        <div className="trip-natural-language-title-group">
+          <Sparkles size={16} className="trip-ai-sparkle-icon" aria-hidden="true" />
+          <h2 id="trip-natural-language-title" data-trip-panel-heading tabIndex={-1}>
+            Điền nhanh bằng mô tả tự nhiên
+          </h2>
         </div>
+        <span className="trip-optional">Tùy chọn</span>
       </div>
-      <p className="trip-natural-language-intro">
-        Viết tự nhiên những điều bạn đã hình dung. Biểu mẫu bên dưới vẫn có thể dùng độc lập.
-      </p>
 
       <div className="trip-natural-language-field">
-        <label htmlFor="trip-natural-language-text">Bạn muốn chuyến đi như thế nào?</label>
-        <p id="trip-natural-language-help" className="trip-help">
+        <label htmlFor="trip-natural-language-text" className="trip-sr-only">
+          Bạn muốn chuyến đi như thế nào?
+        </label>
+        <p id="trip-natural-language-help" className="trip-sr-only">
           Có thể viết ngày đi, thời lượng, phương tiện, người đồng hành và sở thích.
         </p>
-        <textarea
-          id="trip-natural-language-text"
-          className="trip-textarea trip-natural-language-textarea"
-          value={rawText}
-          onChange={(event) => {
-            if (isProcessing) onCancel?.();
-            setRawText(event.target.value);
-          }}
-          placeholder="Ví dụ: Mình đi 3 ngày 2 đêm bằng xe máy với bạn gái, thích chụp ảnh và ăn uống, đi thong thả"
-          aria-describedby={`trip-natural-language-help trip-natural-language-count${validationMessage ? " trip-natural-language-error" : ""}`}
-          aria-invalid={Boolean(validationMessage)}
-        />
+
+        <div className="trip-natural-language-input-row">
+          <textarea
+            id="trip-natural-language-text"
+            rows={1}
+            className="trip-textarea trip-natural-language-textarea resize-none"
+            value={rawText}
+            onChange={(event) => {
+              if (isProcessing) onCancel?.();
+              setRawText(event.target.value);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                handleAnalyze();
+              }
+            }}
+            placeholder="Ví dụ: Đi 3 ngày bằng xe máy với bạn bè, thích chụp ảnh và ẩm thực..."
+            aria-describedby={`trip-natural-language-help trip-natural-language-count${validationMessage ? " trip-natural-language-error" : ""}`}
+            aria-invalid={Boolean(validationMessage)}
+          />
+          <Button
+            type="button"
+            className="trip-submit-button trip-ai-send-btn"
+            disabled={displayButtonState.disabled}
+            aria-busy={isProcessing}
+            onClick={handleAnalyze}
+          >
+            {isProcessing ? (
+              <LoaderCircle className="trip-spinner" size={16} aria-hidden="true" />
+            ) : (
+              <Sparkles size={16} aria-hidden="true" />
+            )}
+            <span>{displayButtonState.label}</span>
+          </Button>
+        </div>
+
         <div className="trip-natural-language-meta">
-          <span id="trip-natural-language-count" aria-hidden="true">
-            {textState.length}/{MAX_PREFERENCE_INPUT_LENGTH} ký tự
+          <div className="trip-natural-language-chips" aria-label="Gợi ý mẫu">
+            <span className="trip-ai-chips-label">Gợi ý:</span>
+            {EXAMPLE_PROMPTS.map((example) => (
+              <button
+                key={example}
+                type="button"
+                className="trip-natural-language-chip"
+                onClick={() => {
+                  setRawText(example);
+                  const el = document.getElementById("trip-natural-language-text");
+                  if (el) (el as HTMLTextAreaElement).focus();
+                }}
+              >
+                {example}
+              </button>
+            ))}
+          </div>
+          <span id="trip-natural-language-count" className="trip-ai-char-count" aria-hidden="true">
+            {textState.length}/{MAX_PREFERENCE_INPUT_LENGTH}
           </span>
           <span className="trip-sr-only" role="status" aria-live="polite">
             Đã nhập {announcedLength}/{MAX_PREFERENCE_INPUT_LENGTH} ký tự.
           </span>
         </div>
+
         {validationMessage && (
           <p id="trip-natural-language-error" className="trip-field-error">
             {validationMessage}
@@ -121,79 +162,40 @@ export default function NaturalLanguageInput({
         </span>
       </div>
 
-      <div className="trip-natural-language-examples" aria-label="Câu gợi ý">
-        <p className="trip-help">Gợi ý nhanh — bấm để điền vào ô:</p>
-        <div className="trip-natural-language-chips">
-          {EXAMPLE_PROMPTS.map((example) => (
-            <button
-              key={example}
-              type="button"
-              className="trip-natural-language-chip"
-              onClick={() => setRawText(example)}
-            >
-              {example}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <p className="trip-natural-language-privacy">
-        Nội dung sẽ được gửi tới dịch vụ AI để phân tích và không được lưu lại trong hệ thống của ứng dụng.
-      </p>
-
       {(status.kind === "analyzing" || status.kind === "success" || status.kind === "failure") && (
         <div
           className={`trip-natural-language-status trip-natural-language-status-${status.kind}`}
           role={status.kind === "failure" ? "alert" : "status"}
           aria-live="polite"
         >
-          {status.kind === "analyzing" && <LoaderCircle className="trip-spinner" size={18} aria-hidden="true" />}
-          {status.kind === "success" && <WandSparkles size={18} aria-hidden="true" />}
+          {status.kind === "analyzing" && <LoaderCircle className="trip-spinner" size={16} aria-hidden="true" />}
+          {status.kind === "success" && <WandSparkles size={16} aria-hidden="true" />}
           <span>
             {status.message ??
               (status.kind === "analyzing"
                 ? "Đang chuẩn bị phân tích nhu cầu."
                 : status.kind === "success"
-                  ? "Đã phân tích nhu cầu."
+                  ? "Đã nhận diện nhu cầu chuyến đi."
                   : "Chưa thể phân tích nhu cầu.")}
           </span>
           {status.kind === "analyzing" && onCancel && (
-            <Button type="button" variant="outline" onClick={onCancel} className="trip-natural-language-cancel">
+            <button type="button" onClick={onCancel} className="trip-natural-language-cancel">
               Hủy
-            </Button>
+            </button>
           )}
         </div>
       )}
 
-      <div className="trip-natural-language-actions">
-        <Button
-          type="button"
-          className="trip-submit-button"
-          disabled={displayButtonState.disabled}
-          aria-busy={isProcessing}
-          onClick={handleAnalyze}
-        >
-          {isProcessing ? (
-            <LoaderCircle className="trip-spinner" size={18} aria-hidden="true" />
-          ) : (
-            <Sparkles size={17} aria-hidden="true" />
-          )}
-          {displayButtonState.label}
-        </Button>
-        {displayButtonState.reason && <p className="trip-natural-language-button-reason">{displayButtonState.reason}</p>}
-      </div>
-
       {onContinueManually && (
         <div className="trip-natural-language-manual-path">
-          <span>Không muốn dùng AI?</span>
           <button type="button" className="trip-extraction-link-button" onClick={onContinueManually}>
-            Bỏ qua và nhập bằng biểu mẫu
+            Nhập bằng biểu mẫu
           </button>
         </div>
       )}
 
-      <p className="trip-natural-language-contract-note">
-        Tối thiểu {MIN_PREFERENCE_INPUT_LENGTH} và tối đa {MAX_PREFERENCE_INPUT_LENGTH} ký tự. Nội dung dài hơn sẽ được báo lỗi để bạn tự chỉnh sửa.
+      <p className="trip-natural-language-privacy">
+        Thông tin chỉ dùng để gợi ý lịch trình trong phiên này, không lưu trữ cá nhân.
       </p>
     </section>
   );

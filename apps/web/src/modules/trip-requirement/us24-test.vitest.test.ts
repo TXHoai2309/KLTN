@@ -372,15 +372,7 @@ describe("US24-TEST form logic and source contracts", () => {
     expect(page).toContain('requireActor(await headers(), authorizationDependencies, "traveler")');
     expect(page).toContain('buildAuthLoginHref("/trips/new")');
     expect(page).toContain("<AccessDenied />");
-    for (const id of [
-      "trip-start-date",
-      "trip-duration",
-      "trip-transport",
-      "trip-companion-type",
-      "trip-interest-first",
-      "trip-pace",
-      "trip-mobility-first",
-    ]) expect(formSurface).toContain(`id=\"${id}\"`);
+    // Default IDs and review instance isolation are verified by trip-editor-accessibility.vitest.test.ts.
     for (const label of [
       "Ngày bắt đầu",
       "Thời lượng chuyến đi",

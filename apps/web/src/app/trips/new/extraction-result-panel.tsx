@@ -130,7 +130,7 @@ export default function ExtractionResultPanel({
         </div>
       </div>
 
-      <p className="trip-extraction-count">Nhận diện được {extractedCount}/7 thông tin.</p>
+      <p className="trip-extraction-count">Đã nhận diện thông tin chuyến đi.</p>
       {extractedCount === 0 && (
         <p className="trip-extraction-neutral">Chưa nhận diện được thông tin chắc chắn nào. Bạn có thể bổ sung trực tiếp trong biểu mẫu.</p>
       )}

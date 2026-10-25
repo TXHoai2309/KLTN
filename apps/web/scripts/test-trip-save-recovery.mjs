@@ -50,7 +50,7 @@ try {
   async function load() {
     await page.goto(url);
     await page.getByRole("button", { name: "Bỏ qua và nhập bằng biểu mẫu" }).click();
-    await page.getByRole("button", { name: "Xem lại nhu cầu", exact: true }).click();
+    await page.getByRole("button", { name: "Xem lại và tạo lịch trình", exact: true }).click();
     await page.getByRole("button", { name: "TEST xác nhận nhu cầu" }).click();
     await page.getByRole("button", { name: "Tạo lịch trình đề xuất", exact: true }).click();
     await page.getByRole("button", { name: "Lưu chuyến đi", exact: true }).waitFor().catch(async error => {
@@ -87,7 +87,7 @@ try {
   await load();
   await page.evaluate(() => { window.tripSaveFixture.deferEvaluation = true; });
   await page.getByRole("tab", { name: /2\. Bổ sung/ }).click();
-  await page.getByRole("button", { name: "Xem lại nhu cầu", exact: true }).click();
+  await page.getByRole("button", { name: "Xem lại và tạo lịch trình", exact: true }).click();
   await page.getByRole("tab", { name: /4\. Đề xuất/ }).click();
   await page.getByRole("button", { name: "Lưu chuyến đi", exact: true }).click();
   await page.waitForFunction(() => window.tripSaveFixture.requests.length === 1);

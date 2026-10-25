@@ -4,44 +4,174 @@ import type { AdminUserStatistics } from "@/modules/admin-users/admin-user-contr
 
 export function UserStatsCards({ stats }: { stats: AdminUserStatistics | null }) {
   return (
-    <div className="admin-stats-grid" role="region" aria-label="Thống kê người dùng" aria-busy={!stats}>
-      <div className="admin-stat-card">
-        <div className="admin-stat-icon-wrapper emerald" aria-hidden="true">
-          <Users className="size-6" />
+    <div
+      className="admin-stats-grid"
+      role="region"
+      aria-label="Thống kê người dùng"
+      aria-busy={!stats}
+      style={{ marginBottom: 20 }}
+    >
+      <div
+        className="destination-card"
+        style={{
+          padding: "18px 20px",
+          margin: 0,
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+        }}
+      >
+        <div className="destination-section-icon" aria-hidden="true">
+          <Users size={20} />
         </div>
-        <div className="admin-stat-info">
-          <span className="admin-stat-label">Tổng số tài khoản</span>
-          <span className="admin-stat-value">{stats?.totalUsers ?? "—"}</span>
+        <div className="destination-stat-info">
+          <span
+            className="destination-stat-label"
+            style={{
+              display: "block",
+              fontSize: 12.5,
+              color: "var(--destination-muted)",
+              marginBottom: 3,
+              fontWeight: 550,
+            }}
+          >
+            Tổng số tài khoản
+          </span>
+          <span
+            className="destination-stat-value"
+            style={{
+              fontSize: 24,
+              fontWeight: 750,
+              color: "var(--destination-ink)",
+              lineHeight: 1,
+            }}
+          >
+            {stats?.totalUsers ?? "—"}
+          </span>
         </div>
       </div>
 
-      <div className="admin-stat-card">
-        <div className="admin-stat-icon-wrapper sky" aria-hidden="true">
-          <Compass className="size-6" />
+      <div
+        className="destination-card"
+        style={{
+          padding: "18px 20px",
+          margin: 0,
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+        }}
+      >
+        <div className="destination-section-icon" aria-hidden="true">
+          <Compass size={20} />
         </div>
-        <div className="admin-stat-info">
-          <span className="admin-stat-label">Tài khoản Traveler</span>
-          <span className="admin-stat-value">{stats?.travelerCount ?? "—"}</span>
+        <div className="destination-stat-info">
+          <span
+            className="destination-stat-label"
+            style={{
+              display: "block",
+              fontSize: 12.5,
+              color: "var(--destination-muted)",
+              marginBottom: 3,
+              fontWeight: 550,
+            }}
+          >
+            Tài khoản Traveler
+          </span>
+          <span
+            className="destination-stat-value"
+            style={{
+              fontSize: 24,
+              fontWeight: 750,
+              color: "var(--destination-ink)",
+              lineHeight: 1,
+            }}
+          >
+            {stats?.travelerCount ?? "—"}
+          </span>
         </div>
       </div>
 
-      <div className="admin-stat-card">
-        <div className="admin-stat-icon-wrapper violet" aria-hidden="true">
-          <ShieldCheck className="size-6" />
+      <div
+        className="destination-card"
+        style={{
+          padding: "18px 20px",
+          margin: 0,
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+        }}
+      >
+        <div className="destination-section-icon" aria-hidden="true">
+          <ShieldCheck size={20} />
         </div>
-        <div className="admin-stat-info">
-          <span className="admin-stat-label">Tài khoản Admin</span>
-          <span className="admin-stat-value">{stats?.adminCount ?? "—"}</span>
+        <div className="destination-stat-info">
+          <span
+            className="destination-stat-label"
+            style={{
+              display: "block",
+              fontSize: 12.5,
+              color: "var(--destination-muted)",
+              marginBottom: 3,
+              fontWeight: 550,
+            }}
+          >
+            Tài khoản Admin
+          </span>
+          <span
+            className="destination-stat-value"
+            style={{
+              fontSize: 24,
+              fontWeight: 750,
+              color: "var(--destination-ink)",
+              lineHeight: 1,
+            }}
+          >
+            {stats?.adminCount ?? "—"}
+          </span>
         </div>
       </div>
 
-      <div className="admin-stat-card">
-        <div className="admin-stat-icon-wrapper rose" aria-hidden="true">
-          <UserX className="size-6" />
+      <div
+        className="destination-card"
+        style={{
+          padding: "18px 20px",
+          margin: 0,
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+        }}
+      >
+        <div
+          className="destination-section-icon"
+          style={{ background: "#fdf2f2", color: "#ad3131" }}
+          aria-hidden="true"
+        >
+          <UserX size={20} />
         </div>
-        <div className="admin-stat-info">
-          <span className="admin-stat-label">Đang bị khóa</span>
-          <span className="admin-stat-value">{stats?.lockedCount ?? "—"}</span>
+        <div className="destination-stat-info">
+          <span
+            className="destination-stat-label"
+            style={{
+              display: "block",
+              fontSize: 12.5,
+              color: "var(--destination-muted)",
+              marginBottom: 3,
+              fontWeight: 550,
+            }}
+          >
+            Đang bị khóa
+          </span>
+          <span
+            className="destination-stat-value"
+            style={{
+              fontSize: 24,
+              fontWeight: 750,
+              color: "var(--destination-ink)",
+              lineHeight: 1,
+            }}
+          >
+            {stats?.lockedCount ?? "—"}
+          </span>
         </div>
       </div>
     </div>

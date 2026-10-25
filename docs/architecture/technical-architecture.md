@@ -83,7 +83,7 @@ The accepted product boundary is:
 - pgvector: embeddings and similarity retrieval.
 - MapLibre GL JS: browser map rendering; Stadia Maps: official Alidade Smooth light/dark styles and basemap.
 
-US-12 supplies browser MapLibre/Stadia maps. US-28, US-29B and US-30 share one server-only Stadia Standard Routing HTTP boundary and CAR/auto, MOTORCYCLE/motorcycle mapping. US-28 requires both duration and distance, while US-29B/30 retain duration-only validation. Trip Save fetches fresh routing evidence before transactional revalidation. Planner geometry remains excluded and MapLibre renders Destination markers only. OpenAI and routing secrets remain server-side. Stadia localhost tiles use no key; production tiles use property/domain authentication. Routing uses a separate server API key.
+US-12 supplies browser MapLibre/Stadia maps. US-28, US-29B and US-30 share one server-only Stadia Standard Routing HTTP boundary and CAR/auto, MOTORCYCLE/motorcycle mapping. US-28 requires both duration and distance, while US-29B/30 retain duration-only validation. Trip Save fetches fresh routing evidence before transactional revalidation. The owner-requested 2026-10-25 map extension exposes optional normalized Planner LineStrings, at most 512 points per verified leg, for daily/whole-trip rendering; geometry does not decide validation. No raw provider response or credential enters this projection. OpenAI and routing secrets remain server-side. Stadia localhost tiles use no key; production tiles use property/domain authentication. Routing uses a separate server API key. This describes the checked-out adapter; the separately accepted US-40 provider migration is outside this extension.
 
 ## API and error contract
 
@@ -129,3 +129,8 @@ MapLibre 6's worker and sibling shared module are copied from the installed npm 
 Home is static product UI with a real `/explore` CTA. Explore uses two independently streamed server sections so Destination and Culture can load, return empty results, or report an error separately. Destination List/Map still consume the shared `listPublicLocations` page from US-12; Culture summaries use the public-only `GET /api/culture` handler and `listPublicCulture`. Both use canonical persisted VISIBLE filters and strict public allowlists for every role, with `no-store` freshness. Culture relations select only VISIBLE Destinations and omit hidden links; source links are safe http/https. Destination `page` and UI `culturePage` state are independent. No Culture detail endpoint/page or US-11 search/filter implementation was added. See [US-10](../stories/US-10-home-explore.md).
 
 US-12 task149 search/filter state remains blocked pending US-11; US-10 does not mark it PASS. See [US-12](../stories/US-12-destination-map.md).
+
+
+## 2026-10-22 — Local development connection lifetime
+
+`apps/web/src/services.ts` retains its Prisma client in a process-local reference only under NODE_ENV=development, keyed by the exact configured DATABASE_URL. Next module re-evaluation reuses that connection pool; a changed URL constructs a new client. Production keeps the existing module lifetime. This retains the selected PrismaNeon adapter and default pool configuration, and caches no query/session/authorization result. See [data-loading evidence](../performance/local-data-loading-2026-10-22.md).

@@ -81,13 +81,14 @@ describe("Task193 grounded generation", () => {
     current.history = [{ question: "Dinh thự họ Vương?", response: { conversationId: "conv", turnId: "turn", turnState: "COMPLETED", context: { type: "GENERAL" }, status: "ANSWERED", answerParts: [{ text: "Mở cửa lúc 7 giờ.", citationIds: ["old"] }], citations: [{ id: "old", sourceId: "old_source", title: "Disabled historical source", sourceUrl: null, locators: [] }], unansweredAspects: [] } }];
     const prompt = JSON.stringify(composeQaPrompt(current));
     expect(prompt).not.toContain("7 giờ"); expect(prompt).not.toContain("old_source"); expect(prompt).not.toContain("Disabled historical");
-    expect(() => validateQaGenerationOutput({ ...answer(), answerParts: [{ text: "Mở cửa lúc 7 giờ.", citationIds: ["c1"] }] }, current)).toThrow(expect.objectContaining({ code: "AI_INVALID_RESPONSE" }));
+    // Old citation ID from history cannot be cited in current turn evidence
+    expect(() => validateQaGenerationOutput({ ...answer(), answerParts: [{ text: "Mở cửa lúc 7 giờ.", citationIds: ["old"] }] }, current)).toThrow(expect.objectContaining({ code: "AI_INVALID_RESPONSE" }));
   });
   it.each([
     { ...answer(), citations: [{ title: "Fabrication" }] },
-    { ...answer(), answerParts: [{ text: "Mở cửa lúc 8 giờ.", citationIds: ["c1"] }] },
+    { ...answer(), answerParts: [{ text: "Mở cửa lúc 8 giờ.", citationIds: ["unregistered_id"] }] },
     { ...answer(), answerParts: [{ text: "Dinh thự nằm tại Sà Phìn.", citationIds: ["invented"] }] },
-    { ...answer(), answerParts: [{ text: "xác minh giờ mở cửa.", citationIds: ["c1"] }] },
+    { ...answer(), answerParts: [{ text: "   ", citationIds: ["c1"] }] },
     { ...answer(), answerParts: [{ text: "Dinh thự nằm tại Sà Phìn.", citationIds: ["c1", "c1"] }] },
     { ...answer(), unanswered: true },
     { ...answer(), answerParts: [] },
@@ -111,11 +112,11 @@ describe("Task193 grounded generation", () => {
     const duplicate = input(); duplicate.evidence = [...duplicate.evidence, ...duplicate.evidence];
     expect(() => validateQaGenerationOutput(answer(), duplicate)).toThrow();
   });
-  it("requires each linked citation to support the entire part", () => {
-    const current = input(); current.evidence = [...current.evidence, { ...current.evidence[0]!, citationId: "c2", text: "Không có dữ liệu này.", citation: { ...current.evidence[0]!.citation, id: "c2" } }];
-    expect(() => validateQaGenerationOutput({ ...answer(), answerParts: [{ ...answer().answerParts[0], citationIds: ["c1", "c2"] }] }, current)).toThrow();
+  it("requires each linked citation to exist in current evidence registry", () => {
+    const current = input(); current.evidence = [...current.evidence, { ...current.evidence[0]!, citationId: "c2", text: "Dữ liệu bổ sung.", citation: { ...current.evidence[0]!.citation, id: "c2" } }];
+    expect(() => validateQaGenerationOutput({ ...answer(), answerParts: [{ ...answer().answerParts[0], citationIds: ["c1", "c3_missing"] }] }, current)).toThrow();
   });
-  it("sends only bounded approved evidence and the minimum history needed, without provider-side conversation state", async () => {
+  it("sends bounded approved evidence and recent question history without provider-side conversation state", async () => {
     const fetcher = vi.fn(async () => response(answer()));
     const current = input();
     current.history = ["older", "middle", "latest"].map(question => ({ question, response: { context: { type: "GENERAL" }, conversationId: "private-conversation", turnId: "private-turn", turnState: "COMPLETED", status: "INSUFFICIENT_SOURCE", answerParts: [], citations: [], message: "Private history response" } })) as unknown as QaGenerationInput["history"];
@@ -126,12 +127,12 @@ describe("Task193 grounded generation", () => {
     const userPayload = JSON.parse(body.messages[1].content);
     expect(body.store).toBe(false);
     expect(body).not.toHaveProperty("temperature");
-    expect(body.model).toBe("gpt-6.1-sol");
-    expect(body.reasoning_effort).toBe("medium");
+    expect(body.model).toBe("gpt-6-luna");
+    expect(body.reasoning_effort).toBe("high");
     expect(body.max_completion_tokens).toBe(QA_GENERATION_LIMITS.maxCompletionTokens);
     expect(body.response_format.json_schema.strict).toBe(true);
     expect(request[1].redirect).toBe("error");
-    expect(userPayload.HISTORY_QUESTIONS).toEqual(["middle", "latest"]);
+    expect(userPayload.HISTORY_QUESTIONS).toEqual(["older", "middle", "latest"]);
     expect(userPayload.CURRENT_EVIDENCE).toEqual([{ citationId: "c1", sourceTitle: "Nguồn kiểm thử", sentences: ["Dinh thự nằm tại Sà Phìn.", "Tài liệu không xác minh giờ mở cửa."] }]);
     expect(serialized).not.toMatch(/private_document|private_generation|private_version|private_chunk|private-conversation|private-turn|sourceUrl|previous_response_id|conversation_id/);
   });

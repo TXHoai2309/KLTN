@@ -266,3 +266,19 @@ Regression: the existing unavailable-destination assertion and a new soft-delete
 case failed before the availability UI correction; both focused suites now pass
 (20 tests). Validation results are recorded in docs/ai-progress.md. No database
 migration or mutation, commit, push or development-server restart was performed.
+
+## 2026-10-23 — Owner-requested demo navigation correction
+
+The supplied demo establishes one Header entry, `Chuyến đi của tôi` (`/trips`),
+followed by Favorites. Removed the separate planner entry from the shared
+desktop/mobile links. Both use the same active-route predicate, including
+`/trips/new` and owned detail/edit/in-trip routes. Existing MyTripsView create
+actions gain a decorative Plus icon and retain their text and `/trips/new` href.
+ProtectedLink, auth intents, route guards, trip data and save behavior unchanged.
+
+Validation: Header/MyTripsView/ProtectedLink/auth-intent tests 22/22 PASS;
+root production build and typecheck PASS; `git diff --check` PASS. Browser fixture
+uses real Header/MyTripsView and synthetic auth/router without DB: six cases at
+1440/390px across list/create/detail-edit PASS, including mobile drawer, one Trip
+entry, active state, no horizontal overflow and create-link navigation. No live
+authentication/persistence acceptance, full-suite run, commit, push or deployment.

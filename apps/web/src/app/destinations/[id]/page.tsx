@@ -12,7 +12,15 @@ export const metadata = { title: "Chi tiết điểm đến | Hà Giang Travel A
 export default async function Page({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const [{ id }, query] = await Promise.all([params, searchParams]);
   const returnTo = resolveExploreReturnTo(query.returnTo);
-  try { const destination = await getPublicDestination(id, db); return <DestinationDetail destination={destination} returnTo={returnTo} editorial={await readPublicEditorial(id, db)} />; }
+  try {
+    // Each service enforces its own public visibility boundary. Await both
+    // before rendering so canonical 404/410/errors still govern the whole page.
+    const [destination, editorial] = await Promise.all([
+      getPublicDestination(id, db),
+      readPublicEditorial(id, db),
+    ]);
+    return <DestinationDetail destination={destination} returnTo={returnTo} editorial={editorial} />;
+  }
   catch (error) {
     if (error instanceof AppError) {
       if (error.code === "DESTINATION_NOT_FOUND") notFound();

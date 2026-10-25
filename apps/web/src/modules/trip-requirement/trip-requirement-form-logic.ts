@@ -274,7 +274,7 @@ export function getSubmitButtonState(isPending: boolean): SubmitButtonState {
   return {
     disabled: isPending,
     ariaBusy: isPending,
-    label: isPending ? "Đang xem lại…" : "Xem lại nhu cầu",
+    label: isPending ? "Đang xem lại…" : "Xem lại và tạo lịch trình",
   };
 }
 
@@ -284,4 +284,35 @@ export function shouldApplyRequestResponse(
   mounted: boolean,
 ): boolean {
   return mounted && requestSequence === currentSequence;
+}
+
+export type SubmitRoutingDecision =
+  | { action: "OPEN_REVIEW"; initialEditingKey: string | null }
+  | { action: "PROCEED_TO_PLANNER" };
+
+/**
+ * Implements PO decision (2026-10-24):
+ * Only open review dialog in 3 cases:
+ * (a) user used AI and has unreviewed assigned fields
+ * (b) server check is not confirmable or has mandatory clarification requests
+ * (c) otherwise, proceed directly to proposal without review dialog.
+ */
+export function decideSubmitRouting(params: {
+  hasUnreviewedAiAssignments: boolean;
+  confirmable: boolean;
+  clarificationRequestsCount: number;
+  firstErrorField?: string | null;
+}): SubmitRoutingDecision {
+  if (
+    params.hasUnreviewedAiAssignments ||
+    !params.confirmable ||
+    params.clarificationRequestsCount > 0
+  ) {
+    const key =
+      params.firstErrorField && params.firstErrorField !== "_form"
+        ? params.firstErrorField
+        : null;
+    return { action: "OPEN_REVIEW", initialEditingKey: key };
+  }
+  return { action: "PROCEED_TO_PLANNER" };
 }

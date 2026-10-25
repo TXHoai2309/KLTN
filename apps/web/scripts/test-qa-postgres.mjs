@@ -84,7 +84,7 @@ async function installTask184Schema() {
     resolve(repoRoot, "packages/db/prisma/migrations/20261010120000_add_rag_index_jobs/migration.sql"),
     "utf8",
   );
-  const qaMigrations = await Promise.all(["20261011120000_add_qa_guest_identity", "20261011121000_add_qa_conversations", "20261011122000_add_qa_abuse_guard", "20261011123000_add_qa_cleanup_state", "20261017120000_add_qa_conversation_history"].map(name => readFile(resolve(repoRoot, `packages/db/prisma/migrations/${name}/migration.sql`), "utf8")));
+  const qaMigrations = await Promise.all(["20261011120000_add_qa_guest_identity", "20261011121000_add_qa_conversations", "20261011122000_add_qa_abuse_guard", "20261011123000_add_qa_cleanup_state", "20261017120000_add_qa_conversation_history", "20261021183000_add_qa_conversation_knowledge_mode"].map(name => readFile(resolve(repoRoot, `packages/db/prisma/migrations/${name}/migration.sql`), "utf8")));
   const ragPublicQaMigration = await readFile(
     resolve(repoRoot, "packages/db/prisma/migrations/20261017150000_add_rag_public_qa_permission/migration.sql"),
     "utf8",

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { tripRequirementInputSchema } from "../trip-requirement/trip-requirement-contract";
 import { publicHttpsUrl } from "../content-profile/content-profile-contract";
+import { plannerRouteGeometrySchema } from "./planner-route-geometry";
 
 export const PLANNER_PHASES = ["PRELIMINARY_PROPOSAL", "FINAL_CONFIRMATION", "OFFICIAL_SAVE"] as const;
 export const CHECK_KEYS = ["OPENING_HOURS", "MINIMUM_DURATION", "TRAVEL_TIME", "SCHEDULE_CONFLICTS", "MOBILITY"] as const;
@@ -21,11 +22,11 @@ export const travelLegSchema = z.object({
   durationSeconds: z.number().finite().nonnegative().max(604800).nullable(),
   distanceMeters: z.number().finite().nonnegative().max(10_000_000).nullable(),
   provider: z.literal("STADIA_MAPS").nullable(),
-  // Owner decision: Routing geometry is not rendered on MapLibre.
+  geometry: plannerRouteGeometrySchema.optional(),
 }).strict().superRefine((leg, ctx) => {
   if (leg.status === "VERIFIED" && (leg.durationSeconds === null || leg.distanceMeters === null || leg.provider === null || leg.reason !== null))
     ctx.addIssue({ code: "custom", message: "Verified route requires provider metrics." });
-  if (leg.status === "INSUFFICIENT_DATA" && (leg.durationSeconds !== null || leg.distanceMeters !== null || leg.provider !== null || leg.reason === null))
+  if (leg.status === "INSUFFICIENT_DATA" && (leg.durationSeconds !== null || leg.distanceMeters !== null || leg.provider !== null || leg.reason === null || leg.geometry !== undefined))
     ctx.addIssue({ code: "custom", message: "Missing route cannot contain factual metrics." });
 });
 export type TravelLeg = z.infer<typeof travelLegSchema>;

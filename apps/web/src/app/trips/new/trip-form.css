@@ -54,10 +54,22 @@
   min-width: 0;
   min-height: 100%;
   overflow-x: clip;
-  background: var(--tf-bg);
-  color: var(--tf-ink-900);
+  background: light-dark(#f7f6f2, var(--background));
+  color: light-dark(#1d2521, var(--foreground));
   font-family: var(--font-trip-body), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+.trip-natural-language {
+  background: var(--card);
+}
+
+.trip-natural-language-status-failure {
+  background: light-dark(#fff0ee, color-mix(in srgb, var(--destructive) 12%, var(--card)));
+}
+
+.trip-clarification-panel {
+  background: light-dark(#fffbf0, color-mix(in srgb, var(--tf-amber-700) 15%, var(--card)));
 }
 
 [tabindex="-1"]:focus,

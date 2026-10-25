@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
-import { ArrowLeft, ArrowRight, CalendarDays, CarFront, Clock3, MapPin, Mountain } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarDays, CarFront, Clock3, MapPin, Mountain, Plus } from "lucide-react";
 
 import { Card } from "@KLTN/ui/components/card";
 import { Empty } from "@KLTN/ui/components/empty";
@@ -41,19 +41,29 @@ export function MyTripsView({ items: initialItems }: { items: TripSummary[] }) {
   return <main className="my-trips-page" lang="vi">
     <div className="my-trips-heading">
       <div><p className="my-trips-eyebrow">Hành trình đã lưu</p><h1>Chuyến đi của tôi</h1><p>Xem các hành trình đã lưu và tiếp tục chuẩn bị cho chuyến đi.</p></div>
-      <Link className="my-trips-action" href="/trips/new">Tạo chuyến đi</Link>
+      <Link className="my-trips-action" href="/trips/new"><Plus size={18} aria-hidden="true" />Tạo chuyến đi</Link>
     </div>
     <p className="sr-only" role="status" aria-live="polite">{announcement}</p>
     {items.length === 0 ? <Empty className="my-trips-state" role="status">
       <h2>Bạn chưa có chuyến đi nào.</h2>
       <p>Khi bạn xác nhận và lưu một hành trình, chuyến đi sẽ xuất hiện ở đây.</p>
-      <Link className="my-trips-action" href="/trips/new">Tạo chuyến đi đầu tiên</Link>
+      <Link className="my-trips-action" href="/trips/new"><Plus size={18} aria-hidden="true" />Tạo chuyến đi đầu tiên</Link>
     </Empty> : groups.map(group => {
       const trips = items.filter(item => item.status === group.status);
       return <section className="my-trips-group" key={group.status} aria-labelledby={`trips-${group.status}`}>
         <div className="my-trips-group-heading"><h2 id={`trips-${group.status}`} tabIndex={-1}>{group.label}</h2><span>{trips.length}</span></div>
         {trips.length === 0 ? <p className="my-trips-group-empty">Chưa có chuyến đi trong nhóm này.</p> : <ul className="my-trips-list">
           {trips.map(trip => <li key={trip.id}><Card className={`my-trips-card my-trips-card-${trip.status.toLowerCase()}`}>
+            <div className="my-trips-card-thumb" aria-hidden="true">
+              <img
+                src={trip.durationDays >= 3 ? "/images/gallery/ha-giang-day3-lg.webp" : trip.durationDays === 2 ? "/images/gallery/ha-giang-day2-lg.webp" : "/images/gallery/ha-giang-day1-lg.webp"}
+                alt={`Chuyến đi ${trip.durationDays} ngày`}
+                className="my-trips-thumb-img"
+                loading="lazy"
+              />
+              <div className="my-trips-thumb-overlay" />
+              <span className="my-trips-thumb-tag">{transportLabel(trip.transport)}</span>
+            </div>
             <div className="my-trips-card-main">
               <div className="my-trips-card-actions">
                 <span className={`my-trips-badge my-trips-badge-${trip.status.toLowerCase()}`}>{group.label}</span>

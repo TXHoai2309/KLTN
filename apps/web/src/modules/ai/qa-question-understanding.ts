@@ -18,13 +18,15 @@ export function qaFactualQuestion(question: string): string {
   return normalizeQaQuestion(question).replace(/^(?:(?:hi|hello|hey|alo|xin chào|chào bạn)(?:\s+bạn)?|(?:cảm ơn|cám ơn|thanks|thank you)(?:\s+bạn(?!\s+(?:có|biết|giúp|hỗ trợ|cho biết)(?:\s|$)))?)(?:\s+(?:nhé|nha|ạ|ơi))?\s+(?=\p{L})/u, "");
 }
 
-function needsHistory(question: string): boolean {
+export function needsHistory(question: string): boolean {
   // Case is not evidence of an entity: "NÓ Ở ĐÂU" is still a follow-up.
   // Full attribute/continuation patterns leave explicitly named questions alone.
   // This resolves intent only, never semantic relevance or source sufficiency.
   const text = qaFactualQuestion(question);
   if (/^(?:còn|vậy|thế)(?:\s+trong)?\s+năm\s+(?:19|20|21)\d{2}(?:\s+thì sao)?$/u.test(text)) return true;
-  return /(?:^|\s)(?:nó|ở đó|nơi đó|nơi này|điểm đến này|địa điểm đó|địa điểm này|chỗ đó|chỗ này|vừa nhắc|kể trên)(?:\s|$)/u.test(text) ||
+  return /(?:^|\s)(?:nó|ở đó|nơi đó|nơi này|điểm đến này|địa điểm đó|địa điểm này|chỗ đó|chỗ này|chỗ ấy|vừa nhắc|kể trên|tại đây|tại đó|gần đó|ở đây|trên đó|dưới đó)(?:\s|$)/u.test(text) ||
+    /^(?:trong ngày(?:\s+thì)?\s+)?(?:nên\s+)?(?:đi|tham quan|ghé thăm)(?:\s+vào)?\s+(?:giờ|khung giờ|buổi)\s+nào(?:\s+(?:là\s+)?(?:hợp lý|thích hợp|đẹp|tốt)(?:\s+nhất)?)?$/u.test(text) ||
+    /^(?:tầm|khoảng|lúc|vào)\s+\d{1,2}(?:[:h]\d{0,2})?(?:\s*[-–]\s*\d{1,2}(?:[:h]\d{0,2})?)?(?:\s+(?:giờ|sáng|chiều|tối))?\s+(?:có\s+)?(?:được|dc|đc|ổn|hợp lý)(?:\s+(?:không|k|ko|kh))?(?:\s+có gì\s+(?:đặc biệt|nổi bật)(?:\s+(?:không|k|ko))?)?$/u.test(text) ||
     /^(?:còn|vậy|thế)(?:\s+còn)?\s+(?:(?:các|những)\s+)?(?:địa điểm|điểm đến|nơi|chỗ)(?:\s+(?:khác|còn lại))(?:\s+(?:thì sao|thế nào|như thế nào))?$/u.test(text) ||
     /^họ\s+(?:là|làm|ở|có|đã|được|sống|sử dụng)(?:\s|$)/u.test(text) ||
     /^(?:(?:mình|tôi) muốn biết thêm|thêm|nói thêm|kể thêm|giải thích thêm)(?:\s+(?:đi|nữa|được không))?$/u.test(text) ||
@@ -38,7 +40,16 @@ function needsHistory(question: string): boolean {
     /^(?:đường đi\s+)?có khó đi không$/u.test(text) ||
     /^(?:(?:còn|vậy|thế)\s+)?có gì\s+(?:đặc biệt|nổi bật|đẹp|chơi|hay|thú vị|tham quan|làm|trải nghiệm)(?:\s+(?:thì sao|thế nào|như thế nào|không))?$/u.test(text) ||
     /^(?:(?:còn|vậy|thế)\s+)?(?:hoạt động|trải nghiệm|điểm tham quan)(?:\s+gì|\s+nào)?(?:\s+(?:nổi bật|đặc sắc|thú vị))?(?:\s+(?:thì sao|thế nào|như thế nào))?$/u.test(text) ||
-    /^(?:(?:còn|vậy|thế)\s+)?(?:ăn gì|uống gì|món gì ngon|đặc sản gì|nghỉ ở đâu|khách sạn nào|homestay nào|cần chuẩn bị gì|chuẩn bị gì|kinh nghiệm|lưu ý gì|chú ý gì|trang phục|mặc gì)(?:\s+(?:ngon|thì sao|thế nào|như thế nào|khi đi|khi tham quan))?$/u.test(text);
+    /^(?:(?:còn|vậy|thế)\s+)?(?:ăn gì|uống gì|món gì ngon|đặc sản gì|nghỉ ở đâu|khách sạn nào|homestay nào|cần chuẩn bị gì|chuẩn bị gì|kinh nghiệm|lưu ý gì|chú ý gì|trang phục|mặc gì)(?:\s+(?:ngon|thì sao|thế nào|như thế nào|khi đi|khi tham quan))?$/u.test(text) ||
+    /^(?:(?:còn|vậy|thế)\s+)?(?:thời tiết|khí hậu|nhiệt độ|mưa|nắng|sương mù|lạnh)(?:\s+(?:thì sao|thế nào|như thế nào|vào mùa này))?$/u.test(text) ||
+    /^(?:(?:còn|vậy|thế)\s+)?(?:mất|tốn)?\s*(?:bao lâu|bao nhiêu thời gian|mấy ngày|mấy tiếng)(?:\s+(?:để đi|tham quan|di chuyển))?$/u.test(text) ||
+    /^(?:đi\s+)?(?:xe máy|ô tô|xe khách|xe buýt|máy bay)(?:\s+(?:được không|có tiện không|thì sao))?$/u.test(text) ||
+    /^(?:(?:còn|vậy|thế)\s+)?(?:tại sao|vì sao|nguồn gốc|ý nghĩa tên gọi|tên gọi)(?:\s+(?:lại gọi là|là gì|như vậy|thế))?$/u.test(text) ||
+    /^(?:(?:còn|vậy|thế)\s+)?(?:chụp ảnh|check-in|sống ảo)(?:\s+(?:ở đâu đẹp|góc nào đẹp|chỗ nào đẹp|thì sao|thế nào|được không))?$/u.test(text) ||
+    /^(?:(?:còn|vậy|thế)\s+)?(?:có mất vé không|có mất tiền không|có thu phí không|miễn phí không|có vé không)$/u.test(text) ||
+    /^(?:(?:còn|vậy|thế)\s+)?(?:mấy giờ|giờ mở cửa|giờ đóng cửa|có mở cửa lúc)(?:\s+(?:mở cửa|đóng cửa|thì sao|thế nào|không))?$/u.test(text) ||
+    /^(?:(?:còn|vậy|thế)\s+)?(?:còn gì nữa không|ngoài ra còn gì nữa|còn điểm nào nữa không)$/u.test(text) ||
+    (!/về\s+[A-ZÀ-Ỹ]/u.test(text) && /^(?:(?:hãy\s+)?(?:kể|nói|cho biết|chia sẻ|hướng dẫn)\s+(?:thêm|rõ hơn|chi tiết hơn))(?:\s+(?:nữa|đi|nhé|ạ))?$/u.test(text));
 }
 
 export const QA_FOLLOWUP_CLARIFICATIONS = {
@@ -52,7 +63,7 @@ export const QA_FOLLOWUP_CLARIFICATIONS = {
 export function qaFollowupClarification(question: string, history: readonly QaHistoryTurn[], context: QaResolvedContext): string | undefined {
   if (context.type === "DESTINATION" || !needsHistory(question)) return undefined;
   if (!history.length) return QA_FOLLOWUP_CLARIFICATIONS.missingSubject;
-  const anchor = history.find(turn => !needsHistory(turn.question));
+  const anchor = [...history].reverse().find(turn => !needsHistory(turn.question));
   if (!anchor) return QA_FOLLOWUP_CLARIFICATIONS.missingSubject;
   const previous = qaFactualQuestion(anchor.question);
   if (/(?:so sánh|giữa)\s+(?!(?:giá|vé|giờ|chi phí)(?:\s|$)).+\s+(?:và|với|hay|vs)\s+.+/u.test(previous)) {
@@ -111,4 +122,135 @@ export function qaIntentHistory(question: string, history: readonly QaHistoryTur
     }
   }
   return candidates.slice(0, 2).reverse();
+}
+
+export type QaQuestionUnderstanding = {
+  targetSubjects: string[];
+  intent: "OVERVIEW" | "ADMISSION" | "OPENING_HOURS" | "CULTURE" | "HISTORY" | "DIRECTIONS" | "SCHEDULE" | "COMPARISON" | "OTHER";
+  attributes: string[];
+  temporalConstraint: string | null;
+  conditions: string[];
+  searchQuery: string;
+  ambiguous: boolean;
+  clarificationQuestion: string | null;
+};
+
+export const KNOWN_DESTINATIONS: readonly { canonical: string; aliases: readonly string[] }[] = [
+  { canonical: "Làng văn hóa du lịch cộng đồng Hạ Thành", aliases: ["hạ thành", "ha thanh", "làng hạ thành", "thôn hạ thành", "làng văn hóa du lịch cộng đồng hạ thành", "làng văn hóa du lịch cộng đồng thôn hạ thành"] },
+  { canonical: "Cao nguyên đá Đồng Văn", aliases: ["đồng văn", "dong van", "cao nguyên đá đồng văn", "cao nguyên đá", "cao nguyen da"] },
+  { canonical: "Cột cờ Lũng Cú", aliases: ["lũng cú", "lung cu", "cột cờ lũng cú", "cột cờ"] },
+  { canonical: "Đèo Mã Pí Lèng", aliases: ["mã pí lèng", "ma pi leng", "đèo mã pí lèng", "mã pì lèng"] },
+  { canonical: "Chợ tình Khâu Vai", aliases: ["khâu vai", "khau vai", "chợ tình khâu vai", "chợ phong lưu khâu vai"] },
+  { canonical: "Di tích Căng Bắc Mê", aliases: ["căng bắc mê", "cang bac me", "bắc mê", "bac me"] },
+  { canonical: "Dinh thự họ Vương", aliases: ["dinh họ vương", "dinh ho vuong", "dinh vương", "nhà vương", "nha vuong", "dinh vua mèo", "vua mèo"] },
+  { canonical: "Ruộng bậc thang Hoàng Su Phì", aliases: ["hoàng su phì", "hoang su phi"] },
+  { canonical: "Sông Nho Quế", aliases: ["nho quế", "nho que", "sông nho quế", "hẻm tu sản", "hem tu san"] },
+  { canonical: "Làng Lũng Cẩm", aliases: ["lũng cẩm", "lung cam", "làng văn hóa lũng cẩm", "nhà của pao"] },
+  { canonical: "Thị trấn Phố Bảng", aliases: ["phố bảng", "pho bang"] },
+  { canonical: "Du Già", aliases: ["du già", "du gia", "thác du già"] },
+  { canonical: "Cổng Trời Quản Bạ", aliases: ["cổng trời quản bạ", "cong troi quan ba", "cổng trời", "cong troi"] },
+  { canonical: "Núi Đôi Quản Bạ", aliases: ["núi đôi", "nui doi", "núi đôi quản bạ", "núi đôi cô tiên"] },
+  { canonical: "Rừng thông Yên Minh", aliases: ["yên minh", "yen minh", "rừng thông yên minh"] },
+  { canonical: "Mèo Vạc", aliases: ["mèo vạc", "meo vac"] },
+];
+
+export function foldVi(s: string): string {
+  return s.normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/g, "d").toLowerCase().trim();
+}
+
+export function matchKnownDestinations(text: string): string[] {
+  const norm = normalizeQaQuestion(text);
+  const folded = foldVi(norm);
+  const matched: string[] = [];
+  for (const item of KNOWN_DESTINATIONS) {
+    const hit = item.aliases.some(alias => {
+      const aliasFold = foldVi(alias);
+      const re = new RegExp(`(?:^|[^a-z0-9])${aliasFold.replace(/\s+/gu, "\\s+")}(?:$|[^a-z0-9])`, "u");
+      return re.test(folded);
+    });
+    if (hit) {
+      matched.push(item.canonical);
+    }
+  }
+  return matched;
+}
+
+export function deterministicQuestionUnderstanding(
+  question: string,
+  history: readonly QaHistoryTurn[] = [],
+  context: QaResolvedContext = { type: "GENERAL" },
+): QaQuestionUnderstanding {
+  const factual = qaFactualQuestion(question);
+
+  let targetSubjects: string[] = [];
+  if (context.type === "DESTINATION" && context.name) {
+    targetSubjects = [context.name];
+  } else {
+    targetSubjects = matchKnownDestinations(factual);
+  }
+
+  if (targetSubjects.length === 0 && history.length > 0 && needsHistory(question)) {
+    for (const pt of [...history].reverse()) {
+      const ptMatches = matchKnownDestinations(pt.question);
+      if (ptMatches.length > 0) {
+        targetSubjects = ptMatches;
+        break;
+      }
+      // Do not cross an explicit but unrecognized topic when falling back.
+      if (!needsHistory(pt.question)) break;
+    }
+  }
+
+  const comparisonMatch = /(?:khác biệt|khác nhau|so sánh|đối chiếu)(?:\s+giữa)?\s+(.+?)\s+(?:và|với|so với)\s+(.+?)/u.test(factual);
+  let intent: QaQuestionUnderstanding["intent"] = "OTHER";
+  if (comparisonMatch || targetSubjects.length > 1) {
+    intent = "COMPARISON";
+  } else if (/như\s+thế\s+nào|thế\s+nào|ra\s+sao|có\s+gì\s+(?:đặc\s+biệt|nổi\s+bật|hay|đẹp|chơi)|giới\s+thiệu|tổng\s+quan/u.test(factual)) {
+    intent = "OVERVIEW";
+  } else if (/(?:giá\s+)?vé|phí\s+vào|phí\s+tham\s+quan|bao\s+nhiêu\s+tiền/u.test(factual)) {
+    intent = "ADMISSION";
+  } else if (/giờ\s+mở|giờ\s+đóng|giờ\s+hoạt\s+động|mấy\s+giờ/u.test(factual)) {
+    intent = "OPENING_HOURS";
+  } else if (/lịch\s+sử|hình\s+thành|nguồn\s+gốc|sự\s+tích|ý\s+nghĩa/u.test(factual)) {
+    intent = "HISTORY";
+  } else if (/văn\s+hóa|phong\s+tục|truyền\s+thống|dân\s+tộc|nhà\s+sàn|lễ\s+hội/u.test(factual)) {
+    intent = "CULTURE";
+  } else if (/đường\s+đi|cách\s+đi|phương\s+tiện|di\s+chuyển/u.test(factual)) {
+    intent = "DIRECTIONS";
+  } else if (/ngày\s+nào|thời\s+điểm|khi\s+nào|mùa\s+nào|lịch\s+trình|tổ\s+chức/u.test(factual)) {
+    intent = "SCHEDULE";
+  }
+
+  const yearMatch = factual.match(/\b(?:năm\s+)?((?:19|20|21)\d{2})\b/u);
+  const temporalConstraint = yearMatch ? yearMatch[1] : null;
+
+  const conditions: string[] = [];
+  const negationMatches = factual.match(/(?:không|chưa|chẳng)\s+[\p{L}\p{N}]+/gu);
+  if (negationMatches) conditions.push(...negationMatches);
+  if (/người\s+cao\s+tuổi|người\s+già/u.test(factual)) conditions.push("người cao tuổi");
+  if (/trẻ\s+em/u.test(factual)) conditions.push("trẻ em");
+  if (/mùa\s+mưa/u.test(factual)) conditions.push("mùa mưa");
+
+  const attributes: string[] = [];
+  if (/nhà\s+sàn/u.test(factual)) attributes.push("nhà sàn");
+  if (/kiến\s+trúc/u.test(factual)) attributes.push("kiến trúc");
+  if (/ẩm\s+thực|món\s+ăn|đặc\s+sản/u.test(factual)) attributes.push("đặc sản ẩm thực");
+  if (/lễ\s+hội/u.test(factual)) attributes.push("lễ hội");
+
+  const clarification = qaFollowupClarification(question, history, context);
+  const ambiguous = context.type === "GENERAL" && !!clarification && targetSubjects.length !== 1;
+
+  const subPart = targetSubjects.join(" ");
+  const searchQuery = subPart ? `${subPart} ${factual}` : factual;
+
+  return {
+    targetSubjects,
+    intent,
+    attributes,
+    temporalConstraint,
+    conditions,
+    searchQuery,
+    ambiguous,
+    clarificationQuestion: ambiguous ? (clarification ?? QA_FOLLOWUP_CLARIFICATIONS.missingSubject) : null,
+  };
 }

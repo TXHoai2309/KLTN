@@ -293,3 +293,12 @@ Không. No new dependency, secret or environment variable.
 ## 2026-10-17 — Vietnamese date display consistency
 
 Owner-requested presentation update: shared StartDateEditor now uses a reusable typed `VietnameseDateInput` with `dd/mm/yyyy` guidance. Valid input becomes canonical ISO in the existing in-memory state and API payload; partial/invalid text is preserved for correction. The text control replaces the locale-dependent native date field; no authored calendar popup is introduced. AI extraction cards, review values and announcements, preliminary itinerary summaries and day tabs display the same Vietnamese date format. Existing business validation/optional preliminary date semantics remain unchanged.
+
+## 2026-10-24 PO decision — Review dialog bypassed for manual entry, retained for AI and check errors
+
+Product Owner approved flow refinement:
+- Manual form entries that pass authoritative server check (`/api/trip-requirements/check`) bypass `TripReviewDialog` and go straight to the proposal step (`planner`).
+- `TripReviewDialog` is opened strictly in two cases:
+  1. Draft has unreviewed AI-applied fields (`status === "APPLIED"`), preserving the invariant that AI suggestions must not be applied without explicit user review.
+  2. Server check fails (`confirmable === false` or `clarificationRequests.length > 0`), opening directly focused on the first error field (`initialEditingKey`).
+- When opened with issues, the dialog highlights server errors and opens the first failing field for immediate correction.

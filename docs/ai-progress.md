@@ -3551,6 +3551,61 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
 - **Decisions:** Preserve the user's explicit RBAC V2 decision that Admin inherits Traveler permissions on owned Trips. Do not mark the manual checklist complete.
 - **Next step:** Owner runs the manual proposal/check/confirm, expiry, cancel, two-tab, 360px and keyboard checklist; no commit or push performed.
 
+### 2026-10-21 — Public Q&A knowledge expansion design interview started
+
+- Owner explicitly approved an opt-in **Mở rộng kiến thức** capability, source-only behavior when off, AI question understanding before retrieval, relaxation of restrictive answer-style/Q&A checks and the exact `gpt-6.1-sol` / medium model configuration. Owner requested `grill-with-docs` before `to-tickets`.
+- Recorded the confirmed capability scope in the product contract, ADR-19 and glossary. Detailed design remains DRAFT in [the interview record](implementation/assistant-knowledge-expansion-plan.md); toggle persistence, attribution, time-sensitive facts, verification simplification and ticket destination are not silently approved.
+- Read-only subagents verified current request/history/provenance/UI seams and absence of configured tracker/triage documents. The current provider already uses the selected model/effort. Official model documentation was checked; no provider call or database write was made during interview preparation.
+- No application code, schema, environment, UI or runtime behavior changed. No tickets/issues, commit, push, migration or deployment created. Documentation diff checks apply; application build/typecheck/tests are not needed for this documentation-only interview step.
+- Next: collect round 1 answers, update resolved terms/decisions as they are settled, continue remaining design branches, obtain shared-understanding confirmation, then review and publish the approved vertical-slice tickets.
+
+### 2026-10-21 — Knowledge expansion decisions confirmed and ticket review drafted
+
+- Owner accepted all six presented interview recommendations and directed use of `to-tickets`; the “q1-7” wording does not invent an unseen seventh decision. Updated the product contract, ADR-19, glossary and design record with the actual accepted scope.
+- Prepared seven separate DRAFT ticket files under `.scratch/assistant-knowledge-expansion/drafts/`. Each describes a complete verifiable behavior with acceptance criteria and genuine blocking edges: 01/02 independent; 03 after 02; 04 after 03; 05/06 after 04; 07 after 05.
+- Local ticket destination is approved, but the actual seven-ticket breakdown is new and awaits the skill-required size/dependency/merge-split review. No ready-for-agent issue files or external issues have been published.
+- No application code, schema, provider call, database access, migration, commit, push or deployment in this step. Documentation whitespace and draft structure/link/dependency checks apply; application build/typecheck/tests were not run for documentation-only work.
+- Next: owner reviews the concrete breakdown, then publish the approved one-file-per-ticket set under `.scratch/assistant-knowledge-expansion/issues/`. Ticket implementation remains a separate task.
+
+### 2026-10-21 — Ticket 01 covers all supported document formats
+
+- Owner clarified that document content/source handling must cover all three formats, not TXT alone. Renamed and broadened draft 01 to TXT, Word DOCX and PDF, with direct end-to-end acceptance for each format, format-specific structure/link handling and old-history compatibility. Updated the design breakdown; dependencies remain unchanged.
+- Read-only code inspection confirms the current formats are TXT/DOCX/PDF. Legacy binary DOC and OCR are not claimed as implemented or silently added. No application code changed; documentation whitespace and draft-presence checks apply.
+
+### 2026-10-21 — Assistant knowledge expansion implemented across Tickets 01–07
+
+- **Scope & Delivery:** Implemented all 7 approved knowledge expansion tickets strictly sequentially (01 → 02 → 03 → 04 → 05 → 06 → 07) in `.scratch/assistant-knowledge-expansion/issues/`.
+  - **Ticket 01:** Document content and original source parsing across TXT, Word DOCX, and PDF formats; bibliography sections tagged `metadataOnly` to prevent evicting substantive content chunks from retrieval (`apps/web/src/modules/rag-processing/original-sources.ts`, `apps/web/src/modules/rag-index/rag-citation-store.ts`).
+  - **Ticket 02:** AI question understanding before retrieval (`gpt-6.1-sol`, medium reasoning) identifying intended destinations, sub-entities, and travel aspects with deterministic fallback (`apps/web/src/modules/ai/qa-question-understanding.ts`, `apps/web/src/modules/ai/qa-question-understander.ts`, `apps/web/src/modules/ai/qa-retrieval.ts`).
+  - **Ticket 03:** Natural source-only answers using simplified 2-call AI path (understanding → retrieval → generation) with `gpt-6.1-sol`, removing assessor and 8-criteria verifier from normal path, while preserving deterministic ground-truth citations, token bounds, and ownership (`apps/web/src/modules/ai/qa-service.ts`, `apps/web/src/modules/ai/qa-generation.ts`, `apps/web/src/modules/ai/qa-answer-grounding.ts`).
+  - **Ticket 04:** Opt-in "Mở rộng kiến thức" switch in Assistant composer. Default OFF (`SOURCE_ONLY`). Tagged `EXPANDED` parts with badge "Kiến thức mở rộng". Only document-backed claims carry citations; no fake citations or URLs (`apps/web/src/components/assistant/assistant-chat.tsx`, `apps/web/src/components/assistant/assistant-answer-content.tsx`, `apps/web/src/components/assistant/assistant.css`, `apps/web/src/modules/ai/qa-contract.ts`).
+  - **Ticket 05:** Per-chat knowledge preference persistence and restoration across refresh and chat switches via `knowledgeMode` column. In-flight snapshot and UNKNOWN idempotency isolation. Additive migration `20261021183000_add_qa_conversation_knowledge_mode` created (`apps/web/src/modules/ai/qa-conversation-store.ts`, `apps/web/src/modules/ai/qa-http.ts`, `apps/web/src/components/assistant/assistant-controller.ts`).
+  - **Ticket 06:** Explicit uncertainty handling for unverified current prices, hours, and festival dates (`QA_CURRENT_UNCERTAINTY_POLICY`). Useful supported info returned with explicit limitations instead of false certitude or unnecessary full refusals (`apps/web/src/modules/ai/qa-answer-policy.ts`, `apps/web/src/modules/ai/qa-generation.ts`).
+  - **Ticket 07:** Cross-mode multi-turn follow-ups. Correct resolution of contextual references ("ở đó", "nơi này", "còn giá vé?") and new entity overrides. When switching from EXPANDED to SOURCE_ONLY, prior model knowledge is strictly barred from serving as verified source evidence (`apps/web/src/modules/ai/qa-question-understanding.ts`).
+- **Verification & Tests:**
+  - `apps/web/src/modules/rag-processing/original-sources.vitest.test.ts` (10/10 PASS)
+  - `apps/web/src/modules/ai/qa-question-understanding.vitest.test.ts` (15/15 PASS)
+  - `apps/web/src/modules/ai/qa-natural-answers.vitest.test.ts` (14/14 PASS)
+  - `apps/web/src/modules/ai/qa-expanded-answers.vitest.test.ts` (12/12 PASS)
+  - `apps/web/src/modules/ai/qa-chat-preference.vitest.test.ts` (7/7 PASS)
+  - `apps/web/src/modules/ai/qa-current-information-uncertainty.vitest.test.ts` (5/5 PASS)
+  - `apps/web/src/modules/ai/qa-cross-mode-followups.vitest.test.ts` (4/4 PASS)
+  - Broader QA regression suites: 14 test suites, 175 tests PASS.
+  - `npm --prefix apps/web run check-types` passed with 0 errors.
+  - `git diff --check` passed with 0 errors.
+- **Operational Status:**
+  - Additive migration `20261021183000_add_qa_conversation_knowledge_mode/migration.sql` prepared and Prisma client generated. Pending execution on development/production targets via `db:migrate:deploy`.
+  - Offline automated tests and typechecks verified. Live provider verification and production database migration remain unexecuted per instructions. No commit, push, or merge.
+
+### 2026-10-21 — QA conversation knowledgeMode migration deployed to dev database
+
+- **Authorization:** Owner explicitly requested applying the database migration to development (`DATABASE_URL`).
+- **Execution:** Ran repository deployment command `npm run db:migrate:deploy --workspace @KLTN/db`. Prisma applied `20261021183000_add_qa_conversation_knowledge_mode` successfully to development endpoint `ep-purple-pond-b3xujb8o` (`neondb`), exit 0.
+- **Verification:** Read-only audit via Neon adapter confirmed:
+  - Column `knowledgeMode` (VARCHAR, NOT NULL, DEFAULT `'SOURCE_ONLY'::character varying`) added to `public.qa_conversation`.
+  - Constraint `qa_conversation_knowledge_mode_check` (`CHECK ("knowledgeMode" IN ('SOURCE_ONLY', 'EXPANDED'))`) active.
+  - Existing rows preserved with default value `'SOURCE_ONLY'`.
+- **Scope & Safety:** Development only. Production database (`DATABASE_URL_PROD`) was NOT touched. No secrets or connection strings logged or stored in tracked files. No commit, push, or merge.
 ### 2026-10-19 — US-30/31 audit-and-fix: planner to save handoff
 
 - Current repo already has US-28 planner, US-29 four-group validator, US-30 save
@@ -3760,3 +3815,377 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
 - Preserved failed caches in `.cache/merge-checks/turbopack-before-panic-repair` and `turbopack-after-cold-oom`. No automatic cache deletion was added to normal builds. Existing uncommitted Trip conflict repairs retained.
 - PASS actual root `npm run build`, normal `.next` output, new compiler cache: compiled, TypeScript, static generation and Turbo task 1/1, exit 0, 2m31s. PASS root `npm run build -- --force`: Turbo cache bypassed, Next reused its new compiler cache, task 1/1, exit 0, 22.7s. Both used Node 22 and a placeholder DATABASE_URL. No real database mutation or migration performed. These results supersede the prior default-root-build limitation.
 - PASS launcher `node --check` and final `git diff --check`. Full repository tests were not rerun for the build-launcher/config change; the prior related 20 tests remain recorded above. Logs: ignored `.cache/merge-checks/build-panic-{baseline,cold,fixed-cold,fixed-warm}.log`. No commit/push/deploy or development-server restart.
+
+## 2026-10-22 — Destination contextual Assistant panel design interview started
+
+- Owner reports previous AI feature completed and requests a compact right-corner popup from Destination **Hỏi trợ lý AI**, preserving the current page; explicitly invokes grill-with-docs, ui-ux-pro-max and then to-tickets, followed by separate FE and API/BE execution prompts.
+- Read-only exploration on clean TXH confirms the knowledge-mode/understanding feature and DONE local tickets. Existing API covers a basic embedded panel; full-page Assistant URL/sidebar behavior and controller disposal require a deliberate surface/lifecycle seam.
+- Recorded confirmed outcome, inspected facts, UI/UX references, seven proposed interview decisions and future FE/BE ownership in `docs/implementation/destination-assistant-popup-plan.md`. Added the contextual-panel glossary term and a discovery-only DESIGN.md entry. No unapproved geometry, session policy or new API is marked accepted.
+- No application code, schema, browser/model/provider call, database access, commit, push or deployment. Documentation whitespace and relative-link checks apply; application tests/build/typecheck are not run for this design-interview step.
+- Next: collect round 1 answers, settle remaining lifecycle/handoff branches, confirm the shared design, propose/review vertical-slice tickets, then publish local tickets and the two execution prompts.
+
+## 2026-10-22 — Destination panel Q1–Q7 approved
+
+- Owner explicitly accepted all seven presented popup recommendations. Recorded accepted trigger scope, desktop/mobile direction, pinned Destination, compact controls, non-sending open, state-preserving minimize, explicit confirmed-chat full-page continuation and fresh panel chat after a new page load.
+- Updated the design record, DESIGN.md and the requirement-level flow as planned behavior. Added one shared surface/ownership contract for future FE and API/BE prompts; current APIs remain the default reuse path.
+- Two concrete lifecycle cases remain for final design confirmation: unsent-draft transfer to full-page and deliberate abandonment/navigation while an ask is pending or UNKNOWN. These are proposed separately rather than silently treated as approved by the seven earlier questions.
+- Documentation-only work; no application code, schema, database/provider call, commit, push, deployment or ticket publication. Next: settle these cases, review the concrete ticket breakdown, then finalize tickets and both execution prompts.
+
+## 2026-10-22 — Destination panel design confirmed and six-ticket review prepared
+
+- Owner accepted Q8/Q9, completing the nine presented design decisions. Recorded explicit one-use draft/mode handoff without auto-send and state-preserving minimize versus explicit local abandonment; no guarantee of backend cancellation or durable refresh recovery is invented.
+- Added the shared FE/API-BE implementation contract and updated DESIGN/user flow. Prepared six separate DRAFT vertical-slice tickets in `.scratch/destination-assistant-popup/drafts/`, plus FE and API/BE execution prompt drafts in its `prompts/` folder.
+- Proposed graph: 01 first; 02 after 01; 03/04 independently after 02; 05 after 03; 06 after 05. 01 is the necessary shared-surface prefactor. Each later ticket has user-visible behavior and its own evidence, not a horizontal FE/BE/test split.
+- Both prompts consume one shared contract and explicit file ownership; recommended API/BE contract verification first, then FE implementation. Existing endpoints/schema are reused unless a real gap is demonstrated. A BE-only completion never closes an unfinished vertical ticket.
+- Ticket granularity/dependency approval is still pending per to-tickets. No ready-for-agent issue files, external issues, runtime code, schema, provider/database calls, commit, push or deployment. Documentation/template/link/dependency checks apply; application build/typecheck/tests are not run for this planning-only step.
+- Next: owner approves or adjusts the six-ticket breakdown; publish approved local issues, update prompt paths/status and return the final two execution prompts without repeating the product interview.
+
+## 2026-10-22 — Destination panel API/BE implementation and FE handoff
+
+- Owner explicitly approved the unchanged six-ticket breakdown/dependency graph and API/BE execution. Moved the six draft files to `.scratch/destination-assistant-popup/issues/` with `ready-for-agent` status; updated design/prompt paths/status. Each ticket records BE evidence separately and leaves FE/integration open.
+- Kept endpoints, shared QA schemas, model/effort, prompt/retrieval/knowledge policy and database schema unchanged. Actual reusable wire shapes, retry rules and synthetic FE fixtures are recorded in [the shared contract](implementation/destination-assistant-popup-contract.md#apibe-handoff--2026-10-22).
+- Reproduced three store→HTTP defects before fixing: preference write succeeded against hidden Destination; SQL mode failure was swallowed and acknowledged; turns advertised another page but returned no cursor. Added Destination recheck/lock to preference writes, propagated mode-write failures in update/admission/completion, and implemented scoped completed-chain turn pagination. No Route Handler/UI/component/CSS changes.
+- Added session/identity and schema-backed FE fixtures/tests, browser-abort-during-persistence regression, plus gated PostgreSQL Destination/role/mode/replay/owner/visibility/expiry/revocation/cursor tests. The disposable test harness now installs the existing knowledge-mode migration; no new migration or live database operation.
+- PASS focused QA: 190 tests; 37 PostgreSQL tests SKIPPED. PASS shared idempotency: 4 tests; root typecheck: 4 tasks; web-only typecheck; script syntax. PASS production web build with separate ignored performance output, placeholder loopback DATABASE_URL and QA gates disabled (compile, TypeScript, 46 static pages, exit 0).
+- Broad offline QA run: 675 PASS / 12 FAIL / 72 SKIP before the final service and PostgreSQL cases. The 12 failures are in unchanged qa-advanced-reasoning; reproduced 12 FAIL / 9 PASS on isolated HEAD `18e5e50` exported under ignored `.cache/destination-panel-baseline`. Did not restore old verifier/assessment rules to satisfy these pre-existing failures.
+- PostgreSQL verification remains pending: Docker engine initially unavailable; installed Docker Desktop started hidden for disposable testing, but a bounded subsequent readiness probe timed out. No real database URL used as fallback. Added SQL/rollback/pagination tests remain unexecuted; mocks are not live PostgreSQL or authenticated browser evidence.
+- Existing uncommitted DESIGN/glossary/flow/progress planning work preserved; no branch change, commit, push, merge, deployment, paid model call or live-data mutation. Final whitespace/secret/scope review is recorded in the shared contract. Next: run disposable PostgreSQL suite on a working engine and implement FE's six published slices/browser regressions against the verified existing API.
+
+## 2026-10-22 — Destination assistant popup FE complete across all six tickets
+
+- Implemented the complete frontend execution for the six approved Destination Assistant popup tickets:
+  - Ticket 01 (Shared Chat Seam): Decoupled chat session presentation from full-page URL, sidebar, and layout via `AssistantChatSurface` and `mode="page" | "panel"` in `AssistantChat`. URL search params (`conversationId`) and all-chat history sidebar are bypassed in panel mode; no nested `<main>` or leaked fullscreen CSS. All full Assistant regressions (59 tests) passed.
+  - Ticket 02 (Destination Panel Chat): Replaced `DestinationAiFab` link with a semantic `<button>` trigger across both render paths (editorial and standard detail). Desktop renders a non-modal corner panel (~400×560px) pinned to Destination with title, prompt suggestions, transcript, composer, citations, knowledge toggle, and Chat mới without navigating or altering scroll. Opening does not dispatch an ask.
+  - Ticket 03 (Minimize and Recovery): Minimizing keeps the controller, draft, knowledge mode, and pending/UNKNOWN attempts mounted in DOM. Responses arriving while hidden update state without auto-reopening or stealing focus. Retry on UNKNOWN/malformed preserves the identical Idempotency-Key and payload. Abandonment uses app-owned modal confirmation dialog.
+  - Ticket 04 (Responsive Mobile Sheet): Single controller maintained across window resizes without remounting or re-dispatching requests. Mobile renders a tall full-width bottom sheet (`min(85dvh, 640px)`) with modal backdrop, >=44px touch targets, and safe-area padding. Desktop remains non-modal without backdrop. Focus management restores focus to the trigger button on close; Escape minimizes; citation toggle pauses auto-scrolling to preserve reading position.
+  - Ticket 05 (In-Memory Handoff): Implemented ephemeral one-use in-memory adapter (`assistant-handoff.ts`) transferring unsent draft and knowledge mode scoped to principal, context, and conversation ID. Draft never enters URLs, logs, or browser storage. Full-page handoff is blocked while an ask is sending/UNKNOWN.
+  - Ticket 06 (Identity & Context Isolation): User login/logout/switch invalidates controller, clears handoffs, and isolates late responses. Panel stays pinned to the current Destination prop without reading arbitrary conversation IDs from the Destination URL. Context mismatch on handoff/restore triggers clear UI error instead of General fallback.
+- Test and verification results:
+  - Focused QA suite: **213 PASS across 13 test files**, exit 0 (includes `destination-assistant-panel.vitest.test.ts`, `destination-chat-seam.vitest.test.ts`, and `assistant-handoff.vitest.test.ts`).
+  - Full Assistant regression suite: **59 PASS**, exit 0 (`assistant-runtime-mode`, `assistant-development-integration`, `assistant-citations`, `assistant-auth-boundary`, `assistant-sidebar`).
+  - Typecheck: `npm run check-types` at repository root: **4 tasks successful, 0 errors**.
+  - Production build: `npm run build --workspace web` at repository root: **PASS**, exit 0 (46 static pages generated, dynamic routes compiled).
+  - Whitespace & formatting: `git diff --check` passed with 0 errors.
+- Pre-existing baseline failures:
+  - 3 failures in `assistant-controller.vitest.test.ts` and 2 in `assistant-context.vitest.test.ts` remain due to the pre-existing addition of `knowledgeMode: "SOURCE_ONLY"` by the earlier knowledge expansion feature; assertions were preserved as instructed.
+  - 12 failures in `qa-advanced-reasoning.vitest.test.ts` remain pre-existing baseline failures reproduced on HEAD `18e5e50`.
+  - Disposable PostgreSQL suite remains pending Docker readiness as noted in API/BE handoff.
+- Status: All six vertical tickets marked `IMPLEMENTED` with FE & BE evidence; awaiting final owner acceptance. No commits, push, merge, or deployment performed.
+
+## 2026-10-22 — Destination Assistant Mini Chat, GPT-6 Luna & UI Fixes
+
+- **Feature / Epic:** Destination Contextual Assistant Popup (Mini Chat AI) & Q&A Enhancements.
+- **Completed Tasks:**
+  1. **Mini Chat AI Foundation (Tickets 01–06 & Global Launcher):**
+     - **Ticket 01 (Shared Chat Seam):** Tách `AssistantChatSurface` và `mode="page" | "panel"` dùng chung logic chat mà không bị gắn chặt vào URL/sidebar full page.
+     - **Ticket 02 (Destination Panel Chat):** Nút FAB chuyển thành `<button>` mở popup panel góc phải (~400×560px) gắn bối cảnh điểm đến mà không reload/navigate trang.
+     - **Ticket 03 (Minimize & State Recovery):** Đóng/thu gọn panel vẫn giữ nguyên controller, draft và trạng thái pending/retry trong DOM.
+     - **Ticket 04 (Responsive Mobile Sheet):** Mobile tự động chuyển thành tall bottom sheet (`min(85dvh, 640px)`) kèm backdrop mờ; giữ vị trí đọc tài liệu khi mở trích dẫn.
+     - **Ticket 05 (In-Memory Draft Handoff):** Chuyển draft và chế độ kiến thức một lần an toàn sang trang `/assistant` khi mở toàn màn hình (`assistant-handoff.ts`).
+     - **Ticket 06 (Identity & Context Isolation):** Tự động cô lập trạng thái khi đổi người dùng hoặc đổi điểm đến.
+     - **Global Assistant (`GlobalAssistant`):** Gắn launcher nổi ở góc màn hình layout root để mở trợ lý AI nhanh từ mọi trang.
+  2. **Knowledge Expansion & Control Simplification:**
+     - Ẩn nút "Mở rộng kiến thức" khỏi giao diện FE nhưng luôn **mặc định BẬT** (`knowledgeMode: "EXPANDED"`).
+     - Ẩn context pill "Hỏi đáp chung" ở trạng thái rảnh để giao diện gọn gàng.
+  3. **AI Model Upgrade & Multi-Turn Session Continuity:**
+     - Nâng cấp model hỏi đáp sang **`gpt-6-luna`** với `reasoning_effort: "high"`, không dùng `temperature`, ngân sách `max_completion_tokens: 8000`.
+     - Bổ sung cấu hình biến môi trường `OPENAI_QA_MODEL` vào `.env.example`, `.env.schema` và `qa-json-provider.ts`.
+     - Cải tiến cơ chế nhớ ngữ cảnh phiên (Multi-turn Continuity): mở rộng `needsHistory` và `CONTINUITY_POLICY` giúp AI nhớ câu hỏi trước và tự động kế thừa thực thể khi người dùng hỏi tiếp nối trong cùng phiên.
+  4. **Compact Composer (Thu gọn ô nhập chat popup):**
+     - Đồng bộ styling `.destination-assistant-panel` / `.assistant-chat-panel`.
+     - Rút gọn chiều cao textarea từ `46px` xuống `24px` (1 dòng chuẩn, tự mở rộng tối đa 72px khi gõ nhiều dòng), giảm padding khung nhập từ `14px 16px` xuống `6px 8px 6px 12px`, bỏ đường kẻ ngang thừa, thu nhỏ nút Gửi (`height: 26px`). Giảm hơn 50% diện tích chiếm dụng của ô nhập.
+  5. **Context Bar UI & Mobile Overflow Fix (Sửa lỗi thanh bối cảnh địa điểm):**
+     - Ẩn thẻ tĩnh `.assistant-context-name` bị lặp chữ cùng với dropdown `<select>`.
+     - Giới hạn `max-width` kèm `text-overflow: ellipsis` cho dropdown chọn điểm đến, chống tràn viền.
+     - Tối ưu nút "Xóa bối cảnh": trên mobile (<= 640px) tự động thu gọn thành nút icon tròn `✕` nhỏ nhắn, không bị tràn ra ngoài viền phải khung chat như tester phản ánh; trên desktop hiển thị icon + text đầy đủ.
+     - Sửa lỗi cú pháp CSS unclosed block trong media query `assistant.css`.
+- **Validation:**
+  - `vitest run src/components/assistant/`: **183/183 tests PASS (100%)**.
+  - `npm run build`: Compiled Turbopack, TypeScript, 46 static pages generated thành công 100%, exit 0.
+
+## 2026-10-22 — Admin User Management UI/UX Promax & Dialog Transparency Fix
+
+- **Task:** Fix dialog transparency bug on `/admin/users/[id]` and polish modal UI.
+- **Bug Identified:**
+  - Native `<dialog>` elements rendered via `showModal()` are promoted to top layer. CSS variables `--destination-surface`, `--destination-ink`, etc. were scoped only inside `.admin-users-page`, which was not present on the user detail page (`dv3-page`), causing `.admin-modal-content` background to evaluate to `initial` (transparent). Modal text and controls overlapped page content directly.
+- **Fixes Applied:**
+  - Scoped Destination tokens globally (`:root`, `.admin-users-page`, `.admin-users-dialog`).
+  - Enforced solid, opaque background (`#ffffff` light, `#111b15` dark), deep shadow, and solid borders on `.admin-modal-content`, `.admin-modal-header`, `.admin-modal-body`, `.admin-modal-footer`, and `.admin-modal-user-box`.
+  - Upgraded role selection dialog with role descriptions, icons (`ShieldAlert` / `User`), radio alignment, and clear active card styling.
+  - Added solid color fallbacks for `.admin-btn-primary`, `.admin-btn-outline`, `.admin-btn-destructive`.
+- **Validation:**
+  - `npm run check-types`: 0 errors.
+  - `npx vitest run admin-user`: 21 tests passed (3 test files).
+  - `git diff --check`: 0 errors.
+
+## 2026-10-22 — RAG DOCX complex pagination fields
+
+- **Task:** Correct footer `instrText` coverage failures reported during indexing.
+- **Reproduction:** Before the fix, the worker regression with a synthetic PAGE
+  field emitted `RAG_EXTRACTION_COVERAGE_FAILURE`, `INCOMPLETE_COVERAGE`,
+  `word/footer1.xml`, `ftr/p[0]/r[2]/instrText[1]`, matching the supplied diagnostic.
+- **Changes:** Validate complete complex fields within each Word story part;
+  support the existing PAGE/NUMPAGES/SECTIONPAGES pagination allowlist, joining
+  split instruction fragments while retaining saved displayed results. Never
+  execute instructions or infer page values. Unsupported/malformed/nested fields
+  remain blocking; new field elements receive namespace validation. DOCX extractor
+  version is `ooxml-stories-fields-v3`. See
+  [US-19 correction](stories/US-19-docx-extraction-fix.md#2026-10-22--complex-pagination-field-correction).
+- **Validation:** `npx vitest run --config vitest.config.mts
+  src/modules/rag-processing src/modules/rag-index` from `apps/web`: **207 passed,
+  27 opt-in skipped** (20 PostgreSQL and 7 owner-file cases). The exact-location
+  pagination worker test now completes through fake embeddings/mock publication;
+  unsupported instructions still fail before persistence/provider calls.
+  Root `npm run check-types`, `npm run build` (46 generated pages) and
+  `git diff --check`: PASS.
+- **Limits/handoff:** The failing uploaded original was not available, so actual
+  field contents and live retry are unverified. Deploy the correction, then retry
+  the failed job explicitly from Admin. No migration/schema, live database/Blob or
+  paid provider operations, commit, push or deployment. Existing unrelated Admin,
+  Assistant and editorial changes and prior progress entries were preserved.
+
+
+## 2026-10-22 — Local API latency: Favorite batching and history round trips
+
+- **Branch/task:** master working tree; owner requested improving slow API calls from the supplied Next dev log. Existing Explore/Admin/launcher changes preserved; no commit, push, merge or deployment.
+- **Completed:** request-fresh, locked retention preflight skips empty maintenance; list no longer repeats cleanup; transaction wrapper no longer reads/discards BEGIN-time clocks. Required time samples remain after principal locks, including scheduler's explicit clock. Assistant initial/search list loading has one effect with stable callback and cancellation/identity isolation. FavoriteButton uses a one-tick, identity-scoped queue and a bounded 50-ID private status batch API; Trips keep their existing ownership route; no result cache or mutation-policy change.
+- **Evidence:** local empty Guest history 1320/1335/1344/1562 ms before, 890/819/840/1027 ms after final clock correction. Nine Favorite status HTTP reads versus one batch: four alternating pairs 1370/415/439/436 ms versus 498/310/339/311 ms. Small samples; strict every-warm-request-under-1000ms diagnostic still FAILS (1027ms); earlier 1464ms outlier retained in report. No field-p95/Production/large-history claim.
+- **Validation:** 269 focused tests PASS across 28 files; 37 disposable-loopback PostgreSQL cases SKIP (Docker unavailable). Legacy Favorite 27/27 PASS after updating moved transport-source assertion. Root typecheck 4 tasks PASS; performance-script typecheck PASS; production web build PASS, separate ignored output, 47 static pages. Real Development Neon: seven scoped Guest cases PASS (empty, expired, deleted, failed content, abandoned processing, expiry after held lock, revoked identity); owned fixtures removed. Paired HTTP benchmark uses real Better Auth and removes its disposable Traveler. Browser Guest Assistant search/no-results/clear exercised, no AI ask.
+- **DB/config:** no schema/migration, auth cache, driver/pool, provider/model, environment or infrastructure change. No paid provider or global live cleanup run. Existing private read/write/retention and idempotency invariants retained.
+- **Known limits:** strict UI audit has 36 existing project findings; no unrelated UI redesign. Full gated PostgreSQL suite, authenticated browser mutation flow and real-user/Production tail latency remain unverified. Remote Neon variability remains; this patch does not promise every API completes under one second.
+- **Handoff:** [latency report and reproducible commands](performance/local-api-latency-2026-10-22.md); US-15/US-21 addenda record the internal read changes. Final whitespace/secret/scope checks completed below before delivery.
+
+
+## 2026-10-22 — Shared data-loading follow-up: hydration, development pool, streamed Home
+
+- **Task/branch:** master working tree; owner reports remaining loading delay on most pages after the previous API patch. All pre-existing Admin/Explore/assistant styling and previous API work preserved; no commit, push, merge or deployment.
+- **Completed:** fixed the actual shared UserMenu Skeleton→resolved-session hydration mismatch; identical first client/server shell now prevents the observed affected-tree regeneration. Reuse one Prisma client across development module reloads for the exact DATABASE_URL; production module lifetime, adapter/pool settings and auth verification stay unchanged. Explore keeps matching SSR results visible during its no-store freshness read while source/query/retry checks reject obsolete results. Home starts its request-fresh Destination read after connection() and streams only the map data region, leaving the hero available sooner. Existing map skeleton/geometry and empty/error CTAs reused; reveal metadata moved to the stable Suspense wrapper after a browser-discovered delayed-hydration attribute warning.
+- **Evidence:** five alternating actual services-module evaluations plus real Development SELECT 1: fresh clients 420/265/266/270/256 ms (5 clients), retained client 252/81/78/64/73 ms (1 client). This measures simulated dev reloads only. Home streamed repeat hero bytes at 252/227/203 ms, map bytes at 329/341/318 ms; first request retained at 1392/1847 ms with dev compilation. Browser fresh Explore and final streamed Home report zero new hydration errors; search → Detail → Back preserves query/results; Home width/scrollWidth 597/597 and existing map height 362 px.
+- **Validation:** focused Home/Explore/UserMenu/lifetime/public-projection suite 18 PASS. Broader Destination/Editorial/Favorite/runtime suite 528 PASS and 20 opt-in PostgreSQL SKIP (overlapping counts). Legacy search 33/33, auth UI 36/36, Explore 14/14 PASS. Root typecheck 4 tasks PASS; final separate-output production build PASS; git diff --check PASS; no secret-file or debug-log additions. Strict UI static audit retains 36 existing findings without an unrelated contract/form redesign.
+- **Scope/limits:** no schema/migration, dependencies, credentials/environment, provider calls, live data/account writes, result/session cache, transport or production setting changes. Read-only Development benchmark clients disconnected. Warm public API and remote response tails remain variable; first compilation/connection and Production/user-perceived LCP are not solved or certified by these tiny local samples.
+- **Handoff:** docs/performance/local-data-loading-2026-10-22.md records raw sanitized receipt paths, methodology, limits and source changes. US-02, US-10 and US-11 addenda and the development connection-lifetime architecture note updated. Original story statuses remain unchanged.
+
+## 2026-10-23 — Destination detail read overlap
+
+- **Task/branch:** owner asks to continue after reporting slow data on most pages; master working tree, previous performance and unrelated concurrent UI/assistant edits preserved. No commit, push, merge or deploy.
+- **Finding/fix:** actual detail page serially awaited canonical public data before starting published Editorial. Both services already guard their own public reads. Page now starts them together and requires both before rendering; canonical 404/410/DB errors still control the page. Editorial adds pre-query ID validation and reuses canonical visibility/deletion predicates for its unchanged initial/final checks. Current publication/media/source validation and null fallback remain. No cache, projection, schema, pool or auth change.
+- **Evidence:** before-confirm HTTP warm page 877/870/834/848 ms, after 476/498/544/548 ms; adjacent median 859 → 521 ms. Initial baseline slow first-page 2392 ms retained. Actual-service read-only Development probe, three public Destinations/four alternating pairs each: median 658 → 407.5, 664.5 → 455.5 and 740 → 410 ms; all full DTO hashes match, successful published-path SQL remains 16. Pooled probe rejected startup options (08P01); benchmark-only direct hostname supports server-enforced read-only, actual app config unchanged. Numeric receipts in ignored .cache/data-latency; no content/credentials serialized and clients closed.
+- **Validation:** actual-page deferred-read and malformed-ID regressions reproduced red before fix; focused page/Editorial 10 PASS. Broader Editorial/media/page 348 PASS, six opt-in PostgreSQL SKIP; legacy Destination 70 PASS. Root typecheck four tasks PASS; performance-script typecheck PASS; separate-output production web build PASS (detail-build.log, exit 0); git diff --check PASS. Real browser filtered Explore → complete published Đồng Văn article/media/map/sources → exact q=Lũng return/three results PASS, zero new console warnings/errors.
+- **Limits/scope:** no data/account/provider write, paid model/routing call, migration, dependency, credentials/environment or deployment change. More within-request query concurrency is intentional; load/throughput, authenticated browser, full disposable PostgreSQL and Production/LCP acceptance remain unmeasured. Hidden/missing paths may add one ID-only eligibility read, never publication/context; malformed IDs add none. This is measured local detail improvement, not an all-pages latency bound.
+- **Handoff:** [detail loading report](performance/destination-detail-loading-2026-10-23.md), reproducible read-only script and US-13 addendum; story status unchanged. Prior shared-loading report covers development client reuse, UserMenu hydration, retained Explore SSR data and streamed Home.
+
+## 2026-10-23 — Owner-requested AI session continuity repair
+
+- **Branch/task:** master working tree, HEAD a2cf7ad; owner requested fixing the screenshot's loss of Cổng Trời Quản Bạ across short follow-up questions. Existing Admin/Home/assistant styling and independent answer-policy/generation changes preserved.
+- **Completed:** production semantic understanding receives the store-authorized completed question chain within 12 turns / 1,500 history tokens, without a regex admission gate. Composition receives the same resolved subject/intent plus the bounded question window. Original whole questions retain numbers, punctuation, conditions and negations; prior answers/citations are never sent as evidence. Explicit/pinned subjects and the latest correction take precedence over conflicting model guesses; ambiguity after comparison requires clarification. Cổng Trời and Núi Đôi aliases are separate. Deterministic fallback covers the screenshot's time-of-day/8–9h questions. SQL subject needles now use the same lowercase/NFC normalization as content/title filters in vector and keyword retrieval.
+- **Evidence:** initial service/provider seam 8/8 RED; separate canonical-case retrieval regression RED before SQL correction. Final new regression file 16 PASS; six focused suites 193 PASS. Whole AI module 694 PASS / 14 FAIL / 73 gated SKIP. All fourteen failed names exactly match the before-fix loader restoring the six modified existing runtime modules from HEAD while preserving other working-tree changes (12 advanced-reasoning, two chat-preference cases); no additional failures. Ignored local receipts: .cache/qa-session-baseline/.
+- **Checks:** root typecheck four tasks PASS; final separate-output production web build PASS; git diff --check PASS. No schema/migration, live database/index, paid API, dependencies, model/config/credentials, commit, push, merge or deployment changes. No browser/live-provider acceptance; the SQL case test uses an offline query adapter, not PostgreSQL.
+- **Limits/handoff:** bounded recent context, not unlimited recall or cross-chat memory. Old saved answer snapshots are not rewritten. US-21/US-23 acceptance statuses unchanged. See docs/implementation/ai-chat-session-continuity.md for flow, exact test command, baseline comparison and known failures. Deploy separately before expecting the production screenshot's app to use this correction.
+
+
+## 2026-10-23 — Owner-approved Trip planning UI/UX refinement
+
+- **Authorization/scope:** Owner approved Q1–Q5 and requested ui-ux-pro-max
+  implementation, design-taste-frontend polish and impeccable final review for
+  the six `/trips/new` screenshots. Existing palette/fonts and business behavior
+  retained; no unrelated screens, API, schema/migration, provider or state-machine
+  changes. Concurrent Assistant changes in the working tree were preserved.
+- **Completed:** compact page/step hierarchy; earlier manual-entry alternative;
+  unified tf/planner semantic presentation; flat shared field/summary surfaces;
+  native summary shortcuts with focus/reduced-motion handling; scoped editor IDs
+  and radio groups; correct legend/pressed semantics and canonical Lucide icons;
+  one-column narrow review; readable metadata; full destination prose disclosure;
+  natural-flow mobile actions; corrected dark Cancel contrast and borders.
+- **Verification:** final root typecheck four tasks PASS and production build PASS.
+  Relevant Vitest 474 PASS / two unchanged theme-CSS expectation FAIL; 463/463 PASS
+  when that unchanged 13-case file is excluded. Real Edge fixture browser:
+  60 captures PASS across 1440/768/390/360px, Light/Dark and reduced motion,
+  including duplicate IDs/input overflow, focus, acknowledgement, blocked save,
+  day switching, manual path, technical error, missing route and empty results.
+  Enabled Cancel contrast asserted >=4.5:1 in eight editor cases. Premium strict
+  scoped audit zero findings; Impeccable final detector empty. Taste rendered
+  inspector zero FAIL with explained pinned-cream/metadata warnings; source lint
+  zero FAIL with explained none/hidden-label/meaningful-number warnings.
+  DESIGN.md lint zero errors (four existing Admin RAG token warnings).
+- **Limits:** synthetic repository/extraction/routing adapters and local map style;
+  no live auth/database save/paid provider/tile authorization, physical touch or
+  screen-reader acceptance. Full repository test suite was not run. The two
+  unchanged legacy theme tests remain documented baseline debt. No commit,
+  push, merge or deploy. Final whitespace/scope review completed before handoff.
+- **Handoff:** [design, canonical owners and evidence](design/trip-planning-ui-refinement.md).
+  Local ignored images/receipts: `apps/web/.cache/trip-ui/`, `.cache/trip-ui/`.
+
+## 2026-10-23 — Trip navigation aligned with owner-supplied demo
+
+- **Completed:** Header has one `Chuyến đi của tôi` link to `/trips`, before
+  Favorites, on desktop/mobile; it remains active on creation and other Trip
+  routes. Existing list/empty-state create links show a decorative Plus icon.
+  Business logic, auth intents/guards and existing unrelated changes preserved.
+- **Checks:** focused Header/MyTripsView/ProtectedLink/auth-intent tests 22 PASS;
+  root production build and typecheck PASS; `git diff --check` PASS. Browser
+  fixture six cases at 1440/390px with real components and synthetic auth/router
+  PASS (single entry, active state, mobile drawer, create href, no overflow).
+- **Limits:** no live auth/DB acceptance or full-suite run. No commit/push/deploy.
+  Ignored receipts: `.cache/trip-ui/nav-browser/`, `nav-build.log`, `nav-types.log`.
+  Contract recorded in DESIGN.md and US-31 navigation addendum.
+
+## 2026-10-24 — Two-step Trip creation with review popup
+
+- **Completed:** structured form opens immediately; optional AI disclosure;
+  two visible steps; editable review moves into native TripReviewDialog. Existing
+  review/check and save contracts reused. Native modal inertness, bounded scroll,
+  Tab/Shift+Tab, Escape/editor cancellation, return focus, retained saved edits,
+  fresh acknowledgement and abort-on-dismiss tested. Planner Back returns to form.
+- **Checks:** 284 focused tests + 36 save regressions PASS; root build/typecheck
+  PASS; 61 browser captures across 1440/768/390/360px and light/dark PASS, including
+  failure/retry and pending-read cancellation. Scoped form premium and component
+  Impeccable scans have zero findings. Existing unrelated planner date/color
+  audit debt remains documented, unchanged. Whitespace/scope check at handoff.
+- **Limits:** synthetic browser adapters; no live DB/auth/provider or full-suite
+  acceptance. Existing theme snapshot file excluded as previously documented.
+  No schema, dependency, API, business-rule, commit/push/merge/deploy change by
+  this task. Receipts `.cache/trip-ui/resumed-*`, `apps/web/.cache/trip-ui/`;
+  design amendment and US-24 record updated.
+
+## 2026-10-24 — Streamlined Trip planning flow: collapsible AI helper and manual review bypass
+
+- **Task/branch:** master working tree; PO decision (2026-10-24) to streamline `/trips/new` form.
+- **Completed:**
+  - AI natural-language assistant collapsed by default (`.trip-ai-accordion`) below the required fields block, with full-width border, rotating chevron, subline "Gõ một câu, AI điền giúp bạn", and toggle indicator. Auto-collapses on AI success while auto-expanding populated optional fieldsets (personalization, special notes).
+  - Streamlined 2-action required block: duration (quick chips 2/3/4/5 days + stepper) and transport (2 cards). Departure date presented via compact toggle.
+  - Manual form entry bypasses `TripReviewDialog`: single authoritative server check `/api/trip-requirements/check` confirms draft in memory and routes directly to the itinerary proposal step (`planner`).
+  - `TripReviewDialog` is opened strictly for: (1) unreviewed AI-applied fields (`status === "APPLIED"`), preserving explicit AI provenance review; (2) server check failures or clarification requests, opening directly focused on the first error field (`initialEditingKey`).
+  - Fixed departure date minimum to Vietnam calendar date `vietnamDateOf(new Date())`. Proposal step departure date changes sync back to parent form (`onUpdateStartDate`). "Quay lại" returns to form with all field values intact.
+- **Verification:**
+  - Full Vitest suite for trip planning modules (16 test files, 258 tests) 100% PASS (including `decideSubmitRouting`, US-24, US-25, US-26, US-27, and accessibility tests).
+  - Monorepo `npm run check-types` across all 5 packages: PASS (exit code 0).
+  - `git diff --check`: PASS (zero trailing whitespace, zero conflict markers).
+  - Playwright browser fixture scripts noted as requiring codex-runtimes dependency not present on local Windows host.
+- **Documentation:** ADR-20 recorded in `docs/decisions.md`; `DESIGN.md`, `docs/design/trip-planning-ui-refinement.md`, `US-24-trip-requirement-form.md`, and `US-26-review-confirm-trip-needs.md` updated.
+- **Constraints:** No commit, no push, no merge, no API or schema changes. Existing design tokens and color palette preserved.
+
+## 2026-10-25 — Editorial Travel Route Workspace for /trips/new Planner
+
+- **Task/branch:** master working tree; refined UI/UX of `/trips/new` proposal itinerary workspace to synchronize with `/explore`, `/trips`, and destination detail pages.
+- **Visual & Component Refinements:**
+  - **Typography:** Restored editorial serif (`var(--font-editorial-serif), var(--font-trip-heading), serif`) for page title, day titles, destination names, and section headings; preserved Be Vietnam Pro for metadata, buttons, and utility text.
+  - **Header (`TripSummaryBar`):** Converted to clean editorial title (`Hành trình Hà Giang · {durationDays} ngày`), quiet dot-separated metadata line (`Xe máy · Nhịp độ vừa phải · 7 điểm đến`), and lightweight ghost back button (`← Chỉnh nhu cầu`).
+  - **Day Navigation (`ItineraryDayTabs`):** Replaced heavy card boxes with flat, elegant journey navigation tabs (`NGÀY {day} · {stops} điểm`), active state in Forest Green with `#e2f2e8` text, inactive restrained with subtle hover, and horizontal scrolling on mobile.
+  - **Day Metrics (`TripOverviewCard`):** Removed 3-column KPI card widget and replaced with clean editorial day subheader (`Ngày {day} · {stops} điểm dừng · {distance} · {travel}`).
+  - **Itinerary Timeline (`ItineraryStopCard`):** Transformed into open timeline structure: continuous vertical stem line with circular order nodes, enlarged destination thumbnails (84px x 84px with 12px radius), serif destination title, quiet metadata, and route transit connector embedded directly on the timeline line. Removed visually noisy warning badge spam from cards while keeping full accessible text.
+  - **Map & Popover (`ItineraryMap`, `DestinationPreviewCard`):** Removed visible `Stadia Maps` provider label from user-facing caption (retaining accessible text and canvas legal attribution); styled 20px rounded map container and ultra-compact destination popup.
+  - **Sticky Bottom Action Bar (`TripConfirmationSection`):** Refined to 68px floating bar with backdrop blur, clear hierarchy (Primary Forest Green "Lưu chuyến đi", Secondary outline "Tạo lại", Tertiary ghost "Chỉnh nhu cầu"), and integrated departure date picker popover.
+- **Verification:**
+  - `npx vitest run src/components/trip-planner/planner-ui.vitest.test.ts src/components/trip-planner/trip-theme.vitest.test.ts`: 23/23 tests PASS (100%).
+  - `npx vitest run src/app/trips`: 23/23 tests PASS (100%).
+  - TypeScript `npm run check-types` in `apps/web`: PASS with zero errors.
+  - `git diff --check`: PASS with zero whitespace/conflict errors.
+- **Zero Business Logic/Contract Changes:**
+  - Preserved Trip Requirement, Planner proposal generation, Constraint Validator checks, regenerate flow, save trip state machine with idempotency and UNKNOWN/FAILED/SUCCESS semantics, start date validation, and MapLibre viewport synchronization. No changes to database, schema, or server APIs.
+
+## 2026-10-25 — Owner-requested Planner route coherence correction
+
+- **Task/baseline:** owner requested fixing the arbitrary-looking seven-stop
+  itinerary after read-only diagnosis. Baseline `c69ac6c`; initially clean working
+  tree. No commit, push, merge or deployment.
+- **Completed:** replace ID-first route anchoring with bounded comparison of
+  geographic chains from eligible starts, using existing interest/area preferences
+  and coordinate/name tie-breaks. Retain geographic order when long visits carry
+  to another day. After fetching the original directed route pairs, repartition
+  the same chain across days using actual road time, visit duration, opening-hour
+  waiting and calendar availability. Prefer schedulable stops, occupied days and
+  balanced daily elapsed time. Existing pace caps, 64/28/27 limits, three concurrent
+  requests, 10-second routing deadline, Validator and Save boundaries retained.
+- **Evidence:** four new regressions RED before implementation; final nine
+  coherence cases PASS, including the screenshot route, renamed IDs, compact
+  subset, long visits, road-time 2–2→3–1 adjustment with three calls, calendar
+  closures, missing routes and impossible transfers. Public localhost replay now
+  selects Bắc Mê → Quản Bạ → Nhà Vương → Lũng Cú → Đồng Văn → Mã Pí Lèng → Nho Quế.
+  This is a public-data geographic replay, not live routing/corpus acceptance.
+- **Checks:** focused Planner/Validator/Save/UI/map suites 247 PASS / three gated
+  PostgreSQL SKIP. Wider edit/in-trip selection 744 PASS / five FAIL / three SKIP /
+  one TODO. All five failures reproduce with HEAD engine/service loaded through an
+  ignored Vitest baseline adapter (41 PASS / five FAIL); four obsolete Admin-denial
+  expectations and one existing in-trip navigation source audit. Root typecheck
+  four tasks PASS; isolated-output production build PASS with local placeholder
+  build credentials and AI gates disabled. Whitespace/scope/secret checks at handoff.
+- **Limits:** heuristic geographic ordering is not a road-matrix optimizer;
+  date-specific selection is not an exhaustive feasibility search. Missing routing
+  never supplies guessed clocks. No actual origin/lodging/return leg, lunch or
+  safety buffer is invented; warning clarifies unknown endpoints. Public TEST
+  records unchanged. No schema/migration, live data/auth write, environment,
+  routing-provider migration, paid provider call or browser acceptance.
+- **Handoff:** US-28 addendum records the policy change and evidence. Ignored
+  receipts: `apps/web/.cache/planner-fix/` (focused/baseline results, public replay,
+  isolated build log and baseline-only loader).
+
+## 2026-10-25 — Home Section 4 GPU Step-Card Scroll (Bao Lam Style)
+
+- **Component:** `apps/web/src/components/home-planner-story.tsx` and `apps/web/src/components/home-polish.css`.
+- **Context & Goal:** Replaced the legacy auto-play interval timer mechanism in Home Page Section 4 ("Hành trình riêng biệt · Thiết kế cho từng bước chân") with a GPU-accelerated interactive step-scroll experience with sticky stacking cards inspired by the Bao Lam project visual language.
+- **Implementation details:**
+  - Removed `AUTO_PLAY_INTERVAL = 1500` timer and jumpy intervals entirely.
+  - Implemented a sticky quick-jump pill navigation (`01`, `02`, `03`) with `IntersectionObserver` scroll synchronization.
+  - Replaced flat accordions with GPU-accelerated sticky stacking cards (`position: sticky`, `top: calc(...)`, `transform: translate3d(0, 0, 0)`, `will-change: transform`).
+  - Structured each card with oversized step numbers (`01`, `02`, `03`), prominent titles, detailed descriptions, milestone checklist items with checkmark badges, action CTA buttons to `/trips/new`, and high-resolution photo visual containers with hover zoom and location badges.
+  - Maintained full dark mode support, mobile responsive adaptations (`@media (max-width: 980px)` and `@media (max-width: 640px)`), and `@media (prefers-reduced-motion: reduce)` accessibility fallback.
+- **Validation:** `npm run check-types` in `apps/web` passed with 0 errors; `home-request-data.vitest.test.ts` passed 3/3; `planner-ui.vitest.test.ts` and `trip-theme.vitest.test.ts` passed 23/23; `git diff --check` passed with 0 whitespace issues.
+
+## 2026-10-25 — Home Section 7 Final CTA (Cinematic Backdrop: Mùa hoa tam giác mạch Lũng Cẩm)
+
+- **Component:** `apps/web/src/app/page.tsx` and `apps/web/src/components/home-polish.css`.
+- **Context & Goal:** Redesigned the Final CTA closer section at the bottom of the Home Page from a flat dark green container into a cinematic, high-contrast emotional closer utilizing the iconic photo of buckwheat flowers, golden haystacks, and traditional H'Mông earth-walled stone houses in Sủng Là.
+- **Implementation details:**
+  - Added optimized webp backdrop asset `/images/ha-giang-final-cta.webp` (183 KB) via `sharp`.
+  - Layered multi-stage cinematic lighting: Deep Forest dark vignette (`rgba(8, 26, 18, 0.74)` to `rgba(4, 13, 9, 0.96)`) preserving WCAG AAA contrast, amber dawn radial glow, and corner crop marks inspired by Bao Lam.
+  - Upgraded typography: high-contrast white heading with vibrant sunrise gradient punchline (`linear-gradient(90deg, #ffffff 0%, #fde68a 40%, #a7f3d0 75%, #ffffff 100%)`).
+  - Added 3 frosted trust badges: `100% Trải nghiệm miễn phí`, `50+ Điểm đến chọn lọc`, `Tối ưu lịch trình trong 30 giây`.
+  - Enhanced action buttons: Warm Terracotta primary button with glowing shadow + Frosted glass secondary button with white text and backdrop blur.
+  - Added subtle photo caption badge: `📍 Thung lũng Sủng Là · Mùa hoa tam giác mạch`.
+- **Validation:** `npm run check-types` in `apps/web` passed with 0 errors; `home-request-data.vitest.test.ts` passed 3/3; `git diff --check` passed with 0 whitespace issues.
+
+## 2026-10-25 — Planner road geometry and whole-trip map
+
+- **Owner request:** add actual road-shaped lines between numbered stops and a
+  map of all trip days. Explicitly supersedes US-28's earlier markers-only UI
+  decision. Prior route-coherence changes and concurrent Home work preserved.
+- **Completed:** optional, validated LineString on verified Planner legs, bounded
+  to 512 provider-derived points with endpoints retained. Reuses the same existing
+  routing request, budgets and normalized time/distance. Daily green road lines,
+  whole-trip scope with global marker numbers/day-color legend, marker-to-day
+  selection and refit. Actual previous endpoint appears as point 0 on day views.
+  Missing legs stay disconnected; missing shapes are explained. Theme swaps
+  restore sources/layers on the same map; hidden mobile maps resize/refit.
+  Floating preview no longer covers map-error retry. Root-marker positioning and
+  transforms remain owned by MapLibre; line endpoints and marker anchors align.
+- **Checks:** 256 focused Planner/routing/Validator/Save/UI/map tests PASS, three
+  gated PostgreSQL SKIP. Real Edge/MapLibre local fixture: 14 final screenshots
+  across 1440/768/390/360px and both themes, keyboard scope switch, cross-day/global
+  projection, day selection, colors, one canvas, endpoint alignment, refit,
+  missing data/shapes, empty and map-error retry PASS; zero browser page errors.
+  Root typecheck four tasks PASS; final isolated-output production build PASS.
+- **Live routing:** read-only CAR and MOTORCYCLE calls through the current adapter
+  for Quản Bạ to Nhà Vương both return 77,911 m / 3,249.208 s and 4,111 geometry
+  points, bounded to 512 for display. Only sanitized counts/metrics retained.
+  These are provider snapshots, not traffic/weather/safety acceptance.
+- **Visual audit:** changed map source lint zero FAIL/WARN; rendered taste gate
+  zero FAIL with explicit existing floating-marker-shadow and horizontally
+  scrolling-day-tab allowances. Existing palette/metadata/contrast/provider-font
+  warnings retained. Premium trip-scope audit retains three pre-existing findings
+  (textarea resize evidence, native confirmation date, WebKit scrollbar rule).
+- **Scope/limits:** no schema/migration, data/auth write, credentials/environment,
+  provider migration, extra routing pass, commit, push, merge or deployment. Browser
+  fixture shapes/styles are synthetic; actual tile authorization, real-auth browser
+  and live Save are not certified. Origin/lodging/return legs remain unspecified.
+- **Handoff:** docs/implementation/itinerary-route-map.md; US-28 addendum and
+  DESIGN.md updated. Canonical map owners extended, no alternate map or app route.
+  Ignored evidence: apps/web/.cache/itinerary-routes/.
+
+## 2026-10-25 — Home Section 7 Final CTA Pink Card Polish (Owner-Requested)
+- **Task:** Owner requested changing Section 7 (Final CTA) to a soft pink blush background, removing the redundant 3-badge row, adopting the elegant 2-column card layout with flush right photo, while retaining the exact original journey copy and the user's uploaded photo of Lũng Cẩm / Sủng Là (`ha-giang-final-cta.webp`).
+- **Completed:**
+  - Updated `apps/web/src/app/page.tsx`: Retained the journey copy ("SẴN SÀNG CHO HÀNH TRÌNH · CAO NGUYÊN ĐÁ HÀ GIANG", "Chuyến đi Hà Giang của bạn đã sẵn sàng để khởi hành.", "Khám phá cảnh sắc núi non kỳ vĩ, đắm mình trong mùa hoa tam giác mạch rực rỡ..."), CalendarDays primary CTA ("Tự tạo hành trình của bạn"), Compass secondary CTA ("Khám phá các điểm đến"), removed the 3 trust badges, and embedded the user's photo `ha-giang-final-cta.webp`.
+  - Updated `apps/web/src/components/home-polish.css`: Added `.home-final-cta-pink` with `linear-gradient(135deg, #fff4f6 0%, #fdeef2 52%, #f7f1ea 100%)`, `padding: 0 !important`, 2-column grid (`minmax(0, 1.15fr) minmax(0, 0.85fr)`), title highlight gradient (`#c84829`), coral button (`#d45435`), and flush right photo wrap with location badge.
+  - Verified visual rendering via Edge DevTools capture: high-contrast dark ink and coral typography on light blush pink background, seamless edge-to-edge photo with rounded card corners, fully responsive on mobile/tablet.
+  - Tests: `npm run check-types` in `apps/web` PASS with zero errors. `git diff --check` PASS with zero whitespace errors.
+

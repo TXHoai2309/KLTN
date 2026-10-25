@@ -10,6 +10,7 @@ import {
   favoriteResultSchema,
   type FavoriteResult,
   type FavoriteTarget,
+  type FavoriteStatusBatch,
 } from "./favorites.schema";
 
 export type FavoritesDependencies = {
@@ -205,4 +206,24 @@ export async function getFavoriteStatus(
     select: { id: true },
   });
   return result(target, Boolean(favorite), false);
+}
+
+export async function getFavoriteStatuses(
+  userId: string,
+  batch: FavoriteStatusBatch,
+  dependencies: FavoritesDependencies,
+): Promise<FavoriteResult[]> {
+  const destinations = batch.targetType === "destinations";
+  const rows = await dependencies.database.favorite.findMany({
+    where: {
+      userId,
+      targetType: destinations ? "DESTINATION" : "CULTURE_CONTENT",
+      ...(destinations ? { destinationId: { in: batch.targetIds } } : { cultureContentId: { in: batch.targetIds } }),
+    },
+    select: { destinationId: true, cultureContentId: true },
+  });
+  const favorites = new Set(rows.map(row => destinations ? row.destinationId : row.cultureContentId));
+  // As on the single-target status route, return only this actor's relation
+  // state. No target metadata or public-visibility permission is implied.
+  return batch.targetIds.map(targetId => result({ targetType: batch.targetType, targetId }, favorites.has(targetId), false));
 }

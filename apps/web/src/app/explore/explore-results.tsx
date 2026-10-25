@@ -1,7 +1,7 @@
 "use client";
 import { mvpFeatures } from "@/lib/mvp-features";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
@@ -18,33 +18,42 @@ import { buildExploreReturnTo } from "@/modules/destination/destination-detail-n
 import { commitExploreNavigation, destinationDetailHref, exploreView, exploreViewHref } from "@/modules/map/map-model";
 import { DestinationResultStatus, DestinationSearchForm } from "./destination-search-form";
 
-export default function ExploreResults({ data: initialData, error }: { data?: PublicLocationList; error?: string }) {
+export default function ExploreResults({ data: initialData, error, initialQuery }: { data?: PublicLocationList; error?: string; initialQuery: string }) {
   const router = useRouter();
   const params = useSearchParams();
   const returnTo = buildExploreReturnTo(new URLSearchParams(params));
   const view = exploreView(new URLSearchParams(params));
   const query = destinationRequestKey(new URLSearchParams(params));
+  const serverResult = useMemo(() => ({
+    query: initialQuery,
+    state: initialData ? { status: "ready", data: initialData } as const : error ? { status: "error" } as const : undefined,
+  }), [initialQuery, initialData, error]);
   const [retry, setRetry] = useState(0);
-  const [result, setResult] = useState<{ query: string; state: DestinationRequestState }>(() => ({
-    query,
-    state: initialData ? { status: "ready", data: initialData } : error ? { status: "error" } : { status: "loading" },
-  }));
+  const reload = () => setRetry(previous => previous + 1);
+  const [result, setResult] = useState<{ query: string; source: typeof serverResult; retry: number; state: DestinationRequestState } | null>(null);
   const [filters, setFilters] = useState(initialData?.filters ?? { categories: [], regions: [] });
 
-  useEffect(() => startDestinationRequest(new URLSearchParams(query), state => {
-    setResult({ query, state });
-    if (state.status === "ready") setFilters(state.data.filters);
-  }), [query, retry]);
+  useEffect(() => {
+    return startDestinationRequest(new URLSearchParams(query), state => {
+      setResult({ query, source: serverResult, retry, state });
+      if (state.status === "ready") setFilters(state.data.filters);
+    });
+  }, [query, retry, serverResult]);
 
   // Never show results for the previous URL while the next request is starting.
-  const state: DestinationRequestState = result.query === query ? result.state : { status: "loading" };
+  const current = result?.query === query && result.source === serverResult && result.retry === retry ? result.state : { status: "loading" } as const;
+  // The page already rendered this query's public data. Keep it visible while
+  // the existing no-store read checks freshness, including a Router-cache Back.
+  // Completed client errors remain errors; never borrow data from another query.
+  const state: DestinationRequestState = current.status === "loading" && serverResult.query === query && serverResult.state
+    ? serverResult.state : current;
   const data = state.status === "ready" ? state.data : undefined;
   // The request key omits valid view and Culture paging state, but preserves invalid URL state for recovery.
   const hasSearchState = query.length > 0;
 
   function navigate(href: string) {
     const current = `${window.location.pathname}${window.location.search}`;
-    commitExploreNavigation(href, current, () => router.push(href as Route, { scroll: false }), () => setRetry(value => value + 1));
+    commitExploreNavigation(href, current, () => router.push(href as Route, { scroll: false }), reload);
   }
 
   function clear() {
@@ -57,27 +66,29 @@ export default function ExploreResults({ data: initialData, error }: { data?: Pu
 
   return (
     <section className="explore-domain explore-destinations" aria-labelledby="explore-destination-title">
-      <DestinationSearchForm
-        key={query}
-        params={new URLSearchParams(query)}
-        filters={filters}
-        onSearch={values => navigate(destinationSearchHref(new URLSearchParams(params), values))}
-        onClear={clear}
-      />
-      <div className="explore-controls-row">
-        {mvpFeatures.culture && (
-          <nav className="explore-content-tabs" aria-label="Nội dung khám phá">
-            <a href="#explore-destination-title"><Map aria-hidden="true" size={15} />Điểm đến</a>
-            <a href="#explore-culture-title"><BookOpen aria-hidden="true" size={15} />Nội dung văn hóa</a>
-          </nav>
-        )}
-        <div className="explore-view-switch" role="group" aria-label="Chế độ xem điểm đến">
-          <button type="button" aria-pressed={view === "list"} onClick={() => setView("list")}>
-            <List aria-hidden="true" size={17} /> Danh sách
-          </button>
-          <button type="button" aria-pressed={view === "map"} onClick={() => setView("map")}>
-            <Map aria-hidden="true" size={17} /> Bản đồ
-          </button>
+      <div className="explore-search-toolbar">
+        <DestinationSearchForm
+          key={query}
+          params={new URLSearchParams(query)}
+          filters={data?.filters ?? filters}
+          onSearch={values => navigate(destinationSearchHref(new URLSearchParams(params), values))}
+          onClear={clear}
+        />
+        <div className="explore-toolbar-actions">
+          {mvpFeatures.culture && (
+            <nav className="explore-content-tabs" aria-label="Nội dung khám phá">
+              <a href="#explore-destination-title"><Map aria-hidden="true" size={15} />Điểm đến</a>
+              <a href="#explore-culture-title"><BookOpen aria-hidden="true" size={15} />Nội dung văn hóa</a>
+            </nav>
+          )}
+          <div className="explore-view-switch" role="group" aria-label="Chế độ xem điểm đến">
+            <button type="button" aria-pressed={view === "list"} onClick={() => setView("list")}>
+              <List aria-hidden="true" size={17} /> Danh sách
+            </button>
+            <button type="button" aria-pressed={view === "map"} onClick={() => setView("map")}>
+              <Map aria-hidden="true" size={17} /> Bản đồ
+            </button>
+          </div>
         </div>
       </div>
       <header className="explore-section-heading">
@@ -85,7 +96,7 @@ export default function ExploreResults({ data: initialData, error }: { data?: Pu
       </header>
 
       <div key={view} className="explore-view-content">
-        <DestinationResultStatus state={state} filtered={hasSearchState} onRetry={() => setRetry(value => value + 1)} onClear={clear} />
+        <DestinationResultStatus state={state} filtered={hasSearchState} onRetry={reload} onClear={clear} />
         {data && view === "map" && <div className="explore-map-workspace">
           <div className="explore-map-panel">
             <div className="explore-map-heading"><Map aria-hidden="true" size={18} /><span>Bản đồ Hà Giang</span><span className="explore-map-meta">{data.items.length} địa danh</span></div>

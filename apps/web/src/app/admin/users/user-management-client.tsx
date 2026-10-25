@@ -14,8 +14,8 @@ import {
   Unlock,
   ChevronLeft,
   ChevronRight,
-  Info,
   UserX,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
@@ -31,6 +31,7 @@ import { defaultAdminUserDataSource } from "@/modules/admin-users/admin-user-dat
 import { UserRoleBadge, UserStatusBadge } from "./user-badges";
 import { UserStatsCards } from "./user-stats";
 import { LockAccountDialog, ChangeRoleDialog } from "./user-modals";
+import "../destinations/destinations.css";
 import "./users.css";
 
 const formatDate = (dateStr: string | null) => {
@@ -87,9 +88,20 @@ export default function UserManagementClient() {
 
   // Load stats once or upon refresh
   useEffect(() => {
-    let current = true; setStatsError(false); setStats(null);
-    defaultAdminUserDataSource.getStatistics().then(res => { if (current) setStats(res); }).catch(() => { if (current) setStatsError(true); });
-    return () => { current = false; };
+    let current = true;
+    setStatsError(false);
+    setStats(null);
+    defaultAdminUserDataSource
+      .getStatistics()
+      .then((res) => {
+        if (current) setStats(res);
+      })
+      .catch(() => {
+        if (current) setStatsError(true);
+      });
+    return () => {
+      current = false;
+    };
   }, [refreshKey]);
 
   // Load users when filters change
@@ -139,59 +151,66 @@ export default function UserManagementClient() {
   function handleRefresh() {
     startTransition(() => {
       setRefreshKey((prev) => prev + 1);
-
     });
   }
 
   return (
-    <main className="admin-users-page">
-      <div className="admin-users-container">
-        {/* Breadcrumb */}
-        <nav className="admin-breadcrumb" aria-label="Đường dẫn liên kết">
-          <Link href="/" className="admin-breadcrumb-link">
-            Trang chủ
-          </Link>
-          <span aria-hidden="true">/</span>
-          <span className="admin-breadcrumb-link">Quản trị</span>
-          <span aria-hidden="true">/</span>
-          <span className="admin-breadcrumb-current" aria-current="page">
-            Người dùng
-          </span>
-        </nav>
-
-        {/* Page Header */}
-        <header className="admin-header">
-          <div className="admin-title-group">
-            <h1>Quản lý người dùng</h1>
-            <p className="admin-subtitle">
-              Quản lý tài khoản, vai trò và trạng thái truy cập của người dùng trong hệ thống Hà Giang Travel Assistant.
-            </p>
-          </div>
-          <div className="admin-header-actions">
-            <button
-              type="button"
-              className="admin-btn admin-btn-outline"
-              onClick={handleRefresh}
-              title="Làm mới dữ liệu người dùng"
-            >
-              <RotateCw className="size-4" />
-              <span>Làm mới</span>
-            </button>
-          </div>
-        </header>
+    <main className="destination-page">
+      <div className="destination-container">
+        {/* Page Header (Destination style) */}
+        <div className="destination-page-header">
+          <header className="destination-heading">
+            <div>
+              <h1>Quản lý người dùng</h1>
+              <p>
+                Quản lý tài khoản, vai trò và trạng thái truy cập của người dùng trong hệ thống Hà Giang Travel Assistant.
+              </p>
+            </div>
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <button
+                type="button"
+                className="destination-button"
+                onClick={handleRefresh}
+                title="Làm mới dữ liệu người dùng"
+              >
+                <RotateCw size={16} aria-hidden="true" />
+                <span>Làm mới</span>
+              </button>
+            </div>
+          </header>
+        </div>
 
         {/* Dashboard Statistics */}
-        {statsError ? <p role="alert">Không thể tải thống kê. <button type="button" className="admin-btn admin-btn-outline" onClick={handleRefresh}>Thử lại</button></p> : <UserStatsCards stats={stats} />}
+        {statsError ? (
+          <p role="alert" style={{ color: "var(--destination-error)", marginBottom: 16 }}>
+            Không thể tải thống kê.{" "}
+            <button type="button" className="destination-button" onClick={handleRefresh}>
+              Thử lại
+            </button>
+          </p>
+        ) : (
+          <UserStatsCards stats={stats} />
+        )}
 
-        {/* User CMS Card */}
-        <div className="admin-card">
+        {/* User CMS Main Card (Destination Card style) */}
+        <section className="destination-card destination-list-card" aria-label="Danh sách tài khoản">
+          <div className="destination-section-heading">
+            <span className="destination-section-icon" aria-hidden="true">
+              <Users size={21} />
+            </span>
+            <div>
+              <h2>Danh sách tài khoản</h2>
+              <p>Thông tin và trạng thái hiện tại của các tài khoản người dùng.</p>
+            </div>
+          </div>
+
           {/* Search & Filter Toolbar */}
-          <div className="admin-toolbar">
-            <div className="admin-search-wrapper">
-              <Search className="admin-search-icon size-4" />
+          <div className="destination-toolbar">
+            <div className="destination-search-box">
+              <Search className="search-icon size-4" />
               <input
                 type="text"
-                className="admin-search-input"
+                className="destination-search-input"
                 placeholder="Tìm theo tên hoặc email..."
                 value={searchInput}
                 onCompositionStart={() => setIsComposing(true)}
@@ -202,8 +221,12 @@ export default function UserManagementClient() {
               {searchInput && (
                 <button
                   type="button"
-                  className="admin-search-clear"
-                  onClick={() => { setSearchInput(""); setDebouncedSearch(""); setPage(1); }}
+                  className="destination-search-clear"
+                  onClick={() => {
+                    setSearchInput("");
+                    setDebouncedSearch("");
+                    setPage(1);
+                  }}
                   aria-label="Xóa từ khóa tìm kiếm"
                 >
                   <X className="size-4" />
@@ -211,10 +234,10 @@ export default function UserManagementClient() {
               )}
             </div>
 
-            <div className="admin-filters-group">
+            <div className="destination-filters">
               {/* Role filter */}
               <select
-                className="admin-select"
+                className="destination-filter-select"
                 value={roleFilter}
                 onChange={(e) => {
                   setRoleFilter(e.target.value as AdminUserRole | "ALL");
@@ -229,7 +252,7 @@ export default function UserManagementClient() {
 
               {/* Status filter */}
               <select
-                className="admin-select"
+                className="destination-filter-select"
                 value={statusFilter}
                 onChange={(e) => {
                   setStatusFilter(e.target.value as AdminUserStatus | "ALL");
@@ -239,12 +262,12 @@ export default function UserManagementClient() {
               >
                 <option value="ALL">Tất cả trạng thái</option>
                 <option value="ACTIVE">Đang hoạt động</option>
-                <option value="LOCKED">Đã khóa</option>
+                <option value="LOCKED">Đang bị khóa</option>
               </select>
 
               {/* Sort By */}
               <select
-                className="admin-select"
+                className="destination-filter-select"
                 value={`${sortBy}-${sortOrder}`}
                 onChange={(e) => {
                   const [field, order] = e.target.value.split("-") as [
@@ -267,21 +290,28 @@ export default function UserManagementClient() {
 
           {/* Table Area */}
           {isLoading ? (
-            <div className="admin-state-container">
-              <RotateCw className="size-8 animate-spin text-emerald-600 mb-3" />
-              <p className="admin-state-desc">Đang tải danh sách người dùng…</p>
+            <div className="destination-state" role="status">
+              <RotateCw className="size-8 animate-spin text-[#35765c] mb-3" />
+              <p>Đang tải danh sách người dùng…</p>
             </div>
-          ) : loadError ? <div className="admin-state-container" role="alert"><p>{loadError}</p><button type="button" className="admin-btn admin-btn-outline" onClick={handleRefresh}>Thử lại</button></div> : !userPage || userPage.items.length === 0 ? (
-            <div className="admin-state-container">
-              <div className="admin-state-icon">
-                <UserX className="size-7" />
-              </div>
-              <h3 className="admin-state-title">
+          ) : loadError ? (
+            <div className="destination-state" role="alert">
+              <p style={{ color: "var(--destination-error)" }}>{loadError}</p>
+              <button type="button" className="destination-button" onClick={handleRefresh}>
+                Thử lại
+              </button>
+            </div>
+          ) : !userPage || userPage.items.length === 0 ? (
+            <div className="destination-state destination-empty">
+              <span className="destination-empty-icon" aria-hidden="true">
+                <UserX size={32} />
+              </span>
+              <h3>
                 {debouncedSearch || roleFilter !== "ALL" || statusFilter !== "ALL"
                   ? "Không tìm thấy người dùng phù hợp"
                   : "Chưa có tài khoản nào"}
               </h3>
-              <p className="admin-state-desc">
+              <p>
                 {debouncedSearch || roleFilter !== "ALL" || statusFilter !== "ALL"
                   ? "Hãy thử điều chỉnh lại từ khóa tìm kiếm hoặc bỏ bớt các bộ lọc đang chọn."
                   : "Các tài khoản người dùng đăng ký sẽ hiển thị tại danh sách này."}
@@ -289,7 +319,7 @@ export default function UserManagementClient() {
               {(debouncedSearch || roleFilter !== "ALL" || statusFilter !== "ALL") && (
                 <button
                   type="button"
-                  className="admin-btn admin-btn-outline"
+                  className="destination-button"
                   onClick={() => {
                     setSearchInput("");
                     setDebouncedSearch("");
@@ -304,9 +334,9 @@ export default function UserManagementClient() {
             </div>
           ) : (
             <>
-              {/* Desktop / Tablet Table */}
-              <div className="admin-table-container">
-                <table className="admin-table">
+              {/* Desktop / Tablet Table (Destination Table standard) */}
+              <div className="destination-table">
+                <table>
                   <caption className="sr-only">Danh sách tài khoản người dùng quản trị</caption>
                   <thead>
                     <tr>
@@ -315,7 +345,7 @@ export default function UserManagementClient() {
                       <th scope="col">Trạng thái</th>
                       <th scope="col">Ngày tạo</th>
                       <th scope="col">Đăng nhập gần nhất</th>
-                      <th scope="col" className="text-right">
+                      <th scope="col" style={{ textAlign: "right" }}>
                         Thao tác
                       </th>
                     </tr>
@@ -331,7 +361,8 @@ export default function UserManagementClient() {
                             <div className="admin-user-info">
                               <Link
                                 href={`/admin/users/${user.id}` as Route}
-                                className="admin-user-name"
+                                className="destination-row-name"
+                                style={{ textDecoration: "none", color: "var(--destination-ink)" }}
                               >
                                 {user.name}
                               </Link>
@@ -345,13 +376,13 @@ export default function UserManagementClient() {
                         <td>
                           <UserStatusBadge status={user.status} />
                         </td>
-                        <td className="text-xs text-muted-foreground">
+                        <td className="destination-date">
                           {formatDate(user.createdAt)}
                         </td>
-                        <td className="text-xs text-muted-foreground">
+                        <td className="destination-date">
                           {formatDate(user.lastLoginAt)}
                         </td>
-                        <td className="text-right">
+                        <td style={{ textAlign: "right" }}>
                           <div className="relative inline-block text-left">
                             <button
                               type="button"
@@ -362,43 +393,41 @@ export default function UserManagementClient() {
                                 setActiveMenuId(activeMenuId === user.id ? null : user.id);
                               }}
                             >
-                              <MoreVertical className="size-4" />
+                              <MoreVertical size={16} />
                             </button>
 
                             {/* Dropdown Menu */}
                             {activeMenuId === user.id && (
                               <div
-                                className="absolute right-0 top-full mt-1 w-48 rounded-xl border border-border bg-card p-1.5 shadow-xl z-20"
+                                className="destination-dropdown-menu"
                                 onClick={(e) => e.stopPropagation()}
                               >
                                 <Link
                                   href={`/admin/users/${user.id}` as Route}
-                                  className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+                                  className="destination-menu-item"
                                   onClick={() => setActiveMenuId(null)}
                                 >
-                                  <Eye className="size-3.5 text-muted-foreground" />
+                                  <Eye size={15} className="text-[var(--destination-green)]" />
                                   <span>Xem chi tiết</span>
                                 </Link>
 
                                 <button
                                   type="button"
-                                  className="w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-foreground hover:bg-muted transition-colors text-left"
+                                  className="destination-menu-item"
                                   onClick={() => {
                                     setActiveMenuId(null);
                                     setSelectedUserForRole(user);
                                     setIsRoleModalOpen(true);
                                   }}
                                 >
-                                  <Shield className="size-3.5 text-muted-foreground" />
+                                  <Shield size={15} className="text-[var(--destination-green)]" />
                                   <span>Đổi vai trò</span>
                                 </button>
 
                                 <button
                                   type="button"
-                                  className={`w-full flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium text-left transition-colors ${
-                                    user.status === "LOCKED"
-                                      ? "text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
-                                      : "text-destructive hover:bg-destructive/10"
+                                  className={`destination-menu-item ${
+                                    user.status === "LOCKED" ? "is-active" : "is-destructive"
                                   }`}
                                   onClick={() => {
                                     setActiveMenuId(null);
@@ -408,12 +437,12 @@ export default function UserManagementClient() {
                                 >
                                   {user.status === "LOCKED" ? (
                                     <>
-                                      <Unlock className="size-3.5" />
+                                      <Unlock size={15} />
                                       <span>Mở khóa tài khoản</span>
                                     </>
                                   ) : (
                                     <>
-                                      <Lock className="size-3.5" />
+                                      <Lock size={15} />
                                       <span>Khóa tài khoản</span>
                                     </>
                                   )}
@@ -428,7 +457,7 @@ export default function UserManagementClient() {
                 </table>
               </div>
 
-              {/* Mobile Cards (for small screens < 768px) */}
+              {/* Mobile Cards (for small screens < 820px) */}
               <div className="admin-mobile-cards">
                 {userPage.items.map((user) => (
                   <article key={user.id} className="admin-user-card">
@@ -459,7 +488,7 @@ export default function UserManagementClient() {
                       </div>
                       <div className="admin-user-card-item">
                         <span className="admin-user-card-label">Ngày tạo</span>
-                        <span className="text-xs font-medium text-foreground">
+                        <span className="text-xs font-medium text-[var(--destination-ink)]">
                           {formatDate(user.createdAt)}
                         </span>
                       </div>
@@ -468,14 +497,16 @@ export default function UserManagementClient() {
                     <div className="admin-user-card-actions">
                       <Link
                         href={`/admin/users/${user.id}` as Route}
-                        className="admin-btn admin-btn-outline flex-1 text-xs h-9"
+                        className="destination-button flex-1 text-xs"
+                        style={{ minHeight: 36, padding: "6px 12px" }}
                       >
                         <Eye className="size-3.5" />
                         <span>Chi tiết</span>
                       </Link>
                       <button
                         type="button"
-                        className="admin-btn admin-btn-outline flex-1 text-xs h-9"
+                        className="destination-button flex-1 text-xs"
+                        style={{ minHeight: 36, padding: "6px 12px" }}
                         onClick={() => {
                           setSelectedUserForRole(user);
                           setIsRoleModalOpen(true);
@@ -486,58 +517,56 @@ export default function UserManagementClient() {
                       </button>
                       <button
                         type="button"
-                        className={`admin-btn h-9 px-3 ${
-                          user.status === "LOCKED" ? "admin-btn-primary" : "admin-btn-destructive"
+                        className={`destination-button ${
+                          user.status === "LOCKED" ? "destination-primary" : "destination-destructive"
                         }`}
+                        style={{ minHeight: 36, padding: "6px 12px" }}
                         onClick={() => {
                           setSelectedUserForLock(user);
                           setIsLockModalOpen(true);
                         }}
                         aria-label={user.status === "LOCKED" ? "Mở khóa" : "Khóa"}
                       >
-                        {user.status === "LOCKED" ? <Unlock className="size-4" /> : <Lock className="size-4" />}
+                        {user.status === "LOCKED" ? <Unlock size={16} /> : <Lock size={16} />}
                       </button>
                     </div>
                   </article>
                 ))}
               </div>
 
-              {/* Pagination Footer */}
-              <footer className="admin-pagination-footer">
-                <span className="admin-pagination-info">
-                  Hiển thị {(userPage.page - 1) * pageSize + 1}–
-                  {Math.min(userPage.page * pageSize, userPage.total)} trên tổng số {userPage.total} tài khoản
-                </span>
+              {/* Pagination Footer (Destination Standard) */}
+              <footer className="destination-list-footer">
+                <p>
+                  Đang hiển thị {userPage.items.length} tài khoản trên trang này (tổng số {userPage.total} tài khoản).
+                </p>
 
-                <nav className="admin-pagination-controls" aria-label="Phân trang danh sách người dùng">
+                <nav className="destination-pagination" aria-label="Phân trang danh sách người dùng">
                   <button
                     type="button"
-                    className="admin-pagination-btn"
                     disabled={userPage.page <= 1}
                     onClick={() => setPage(Math.max(1, userPage.page - 1))}
                   >
-                    <ChevronLeft className="size-4" />
+                    <ChevronLeft size={16} aria-hidden="true" />
                     <span>Trang trước</span>
                   </button>
 
-                  <span className="admin-pagination-page" aria-current="page">
+                  <span className="destination-current-page" aria-current="page">
                     Trang {userPage.page} / {userPage.totalPages}
                   </span>
 
                   <button
                     type="button"
-                    className="admin-pagination-btn"
                     disabled={!userPage.hasMore}
                     onClick={() => setPage(userPage.page + 1)}
                   >
                     <span>Trang sau</span>
-                    <ChevronRight className="size-4" />
+                    <ChevronRight size={16} aria-hidden="true" />
                   </button>
                 </nav>
               </footer>
             </>
           )}
-        </div>
+        </section>
       </div>
 
       {/* Dialogs */}
@@ -548,7 +577,10 @@ export default function UserManagementClient() {
           setIsLockModalOpen(false);
           setSelectedUserForLock(null);
         }}
-        onActionComplete={(msg) => { toast.success(msg); setRefreshKey(value => value + 1); }}
+        onActionComplete={(msg) => {
+          toast.success(msg);
+          setRefreshKey((value) => value + 1);
+        }}
       />
 
       <ChangeRoleDialog
@@ -558,7 +590,10 @@ export default function UserManagementClient() {
           setIsRoleModalOpen(false);
           setSelectedUserForRole(null);
         }}
-        onActionComplete={(msg) => { toast.success(msg); setRefreshKey(value => value + 1); }}
+        onActionComplete={(msg) => {
+          toast.success(msg);
+          setRefreshKey((value) => value + 1);
+        }}
       />
     </main>
   );

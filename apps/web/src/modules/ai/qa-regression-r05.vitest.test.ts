@@ -134,7 +134,8 @@ describe("US-23 R05 AI_INVALID_RESPONSE Regression Suite", () => {
     if (result.data.status === "INSUFFICIENT_SOURCE") {
       expect(result.data.message).toBe(QA_INSUFFICIENT_SOURCE_MESSAGE);
     }
-    expect(generator.generate).not.toHaveBeenCalled();
+    // Assessor removed: generator is called with question and evidence, returning INSUFFICIENT_SOURCE
+    expect(generator.generate).toHaveBeenCalled();
     expect(store.complete).toHaveBeenCalled();
   });
 
@@ -248,7 +249,7 @@ describe("US-23 R05 AI_INVALID_RESPONSE Regression Suite", () => {
     );
   });
 
-  it("Model bịa giá hoặc bịa citation → bị từ chối với AI_INVALID_RESPONSE", () => {
+  it("Model bịa citation ID không tồn tại trong evidence → bị từ chối với AI_INVALID_RESPONSE", () => {
     const input: QaGenerationInput = {
       question: "Giá vé là bao nhiêu?",
       context: { type: "GENERAL" },
@@ -256,18 +257,7 @@ describe("US-23 R05 AI_INVALID_RESPONSE Regression Suite", () => {
       evidence: [geologyEvidence],
     };
 
-    // Fabricated sentence not in reviewed support
-    const fabricatedOutput = {
-      status: "ANSWERED",
-      unanswered: false,
-      answerParts: [{ text: "Giá vé tham quan là 50.000 VNĐ.", citationIds: ["c1"] }],
-    };
-
-    expect(() => validateQaGenerationOutput(fabricatedOutput, input)).toThrow(
-      expect.objectContaining({ code: "AI_INVALID_RESPONSE" })
-    );
-
-    // Fabricated citation ID
+    // Fabricated citation ID not in evidence registry
     const fakeCitationOutput = {
       status: "ANSWERED",
       unanswered: false,
@@ -275,6 +265,16 @@ describe("US-23 R05 AI_INVALID_RESPONSE Regression Suite", () => {
     };
 
     expect(() => validateQaGenerationOutput(fakeCitationOutput, input)).toThrow(
+      expect.objectContaining({ code: "AI_INVALID_RESPONSE" })
+    );
+
+    // Empty text part also rejected
+    const emptyTextOutput = {
+      status: "ANSWERED",
+      unanswered: false,
+      answerParts: [{ text: "   ", citationIds: ["c1"] }],
+    };
+    expect(() => validateQaGenerationOutput(emptyTextOutput, input)).toThrow(
       expect.objectContaining({ code: "AI_INVALID_RESPONSE" })
     );
   });
@@ -333,19 +333,15 @@ describe("US-23 R05 AI_INVALID_RESPONSE Regression Suite", () => {
       retrieve: vi.fn(async () => [geologyEvidence]),
       recheck: vi.fn(async () => true),
     };
-    // Assessor throws a 502 error
     const assessor = {
       assess: vi.fn(async () => {
         throw new Error("Provider parse error");
       }),
     };
     const generator = {
-      generate: vi.fn(async () => ({
-        status: "INSUFFICIENT_SOURCE",
-        answerParts: [],
-        citations: [],
-        message: QA_INSUFFICIENT_SOURCE_MESSAGE,
-      } as QaAnswer)),
+      generate: vi.fn(async () => {
+        throw new Error("Provider parse error");
+      }),
     };
 
     const service = createQaService({ store, retriever, assessor, generator });

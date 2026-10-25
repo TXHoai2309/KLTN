@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { X, Lock, Unlock, ShieldAlert } from "lucide-react";
+import { X, Lock, Unlock, ShieldAlert, User } from "lucide-react";
 import { toast } from "sonner";
 import type { AdminUserSummary, AdminUserRole } from "@/modules/admin-users/admin-user-contract";
 import { defaultAdminUserDataSource } from "@/modules/admin-users/admin-user-data-source";
@@ -61,13 +61,80 @@ function UserMutationDialog({ user, isOpen, onClose, onActionComplete, kind }: P
   return <CmsDialog open={isOpen} busy={pending || unknown} title={title} onClose={onClose}>
     <form onSubmit={confirm} noValidate aria-busy={pending}>
       <div className="admin-modal-body">
-        <div className="admin-modal-user-box"><div className="admin-avatar size-10 text-xs">{user.name.charAt(0).toUpperCase()}</div><div className="flex flex-col min-w-0"><strong className="text-sm truncate">{user.name}</strong><span className="text-xs text-muted-foreground truncate">{user.email}</span><span className="text-[11px] text-muted-foreground">ID: {user.id}</span></div></div>
-        <div className="admin-modal-notice"><ShieldAlert className="size-4 shrink-0" /><p>{kind === "role" ? "Quyền quản trị có hiệu lực từ request tiếp theo. Dữ liệu cá nhân và phiên đăng nhập được giữ nguyên. Không được tự đổi quyền hoặc vô hiệu hóa Admin hoạt động cuối cùng." : kind === "revoke" ? "Mọi phiên đang hoạt động sẽ bị thu hồi. Tài khoản không bị khóa; người dùng có thể đăng nhập lại." : locking ? "Tài khoản bị khóa không thể đăng nhập mới; tất cả phiên hiện có sẽ bị thu hồi." : "Người dùng có thể đăng nhập lại bình thường. Các phiên đã thu hồi không được khôi phục."}</p></div>
-        {kind === "role" && <fieldset disabled={pending || unknown}><legend className="text-xs font-semibold">Chọn vai trò mới</legend><div className="admin-modal-role-grid">{(["TRAVELER", "ADMIN"] as const).map(value => <label key={value} className={`admin-modal-role-card ${role === value ? "selected" : ""}`}><span>{value}</span><input type="radio" name="role" value={value} checked={role === value} onChange={() => setRole(value)} /></label>)}</div></fieldset>}
-        {kind === "lock" && locking && <div className="flex flex-col gap-2"><label htmlFor="lock-reason" className="text-xs font-semibold">Lý do khóa tài khoản (tùy chọn, tối đa 500 ký tự)</label><textarea id="lock-reason" className="admin-modal-textarea resize-none" rows={3} maxLength={500} value={reason} disabled={pending || unknown} onChange={event => setReason(event.target.value)} /></div>}
-        {feedback && <p role="alert" className="text-sm text-destructive">{feedback}</p>}
+        <div className="admin-modal-user-box">
+          <div className="admin-avatar">{user.name ? user.name.charAt(0).toUpperCase() : "U"}</div>
+          <div className="admin-modal-user-info">
+            <strong className="admin-modal-user-name">{user.name}</strong>
+            <span className="admin-modal-user-email">{user.email}</span>
+            <span className="admin-modal-user-id">ID: {user.id}</span>
+          </div>
+        </div>
+        <div className="admin-modal-notice">
+          <ShieldAlert className="size-4 shrink-0" />
+          <p>{kind === "role" ? "Quyền quản trị có hiệu lực từ request tiếp theo. Dữ liệu cá nhân và phiên đăng nhập được giữ nguyên. Không được tự đổi quyền hoặc vô hiệu hóa Admin hoạt động cuối cùng." : kind === "revoke" ? "Mọi phiên đang hoạt động sẽ bị thu hồi. Tài khoản không bị khóa; người dùng có thể đăng nhập lại." : locking ? "Tài khoản bị khóa không thể đăng nhập mới; tất cả phiên hiện có sẽ bị thu hồi." : "Người dùng có thể đăng nhập lại bình thường. Các phiên đã thu hồi không được khôi phục."}</p>
+        </div>
+        {kind === "role" && (
+          <fieldset disabled={pending || unknown} className="border-0 p-0 m-0">
+            <legend className="text-xs font-semibold mb-2">Chọn vai trò mới</legend>
+            <div className="admin-modal-role-grid">
+              {(["TRAVELER", "ADMIN"] as const).map(value => (
+                <label key={value} className={`admin-modal-role-card ${role === value ? "selected" : ""}`}>
+                  <div className="admin-modal-role-info">
+                    <span className="admin-modal-role-title">
+                      {value === "ADMIN" ? (
+                        <ShieldAlert className="size-4 text-emerald-600 dark:text-emerald-400" />
+                      ) : (
+                        <User className="size-4 text-slate-500" />
+                      )}
+                      <span>{value}</span>
+                    </span>
+                    <span className="admin-modal-role-desc">
+                      {value === "ADMIN" ? "Quản trị viên toàn quyền" : "Người dùng thông thường"}
+                    </span>
+                  </div>
+                  <input
+                    type="radio"
+                    name="role"
+                    value={value}
+                    checked={role === value}
+                    onChange={() => setRole(value)}
+                  />
+                </label>
+              ))}
+            </div>
+          </fieldset>
+        )}
+        {kind === "lock" && locking && (
+          <div className="flex flex-col gap-2">
+            <label htmlFor="lock-reason" className="text-xs font-semibold">Lý do khóa tài khoản (tùy chọn, tối đa 500 ký tự)</label>
+            <textarea
+              id="lock-reason"
+              className="admin-modal-textarea"
+              rows={3}
+              maxLength={500}
+              placeholder="Nhập lý do tài khoản bị tạm khóa để lưu vào nhật ký..."
+              value={reason}
+              disabled={pending || unknown}
+              onChange={event => setReason(event.target.value)}
+            />
+          </div>
+        )}
+        {feedback && <p role="alert" className="text-sm font-semibold text-destructive">{feedback}</p>}
       </div>
-      <div className="admin-modal-footer"><button data-cancel type="button" className="admin-btn admin-btn-outline" onClick={onClose} disabled={pending || unknown}>Hủy bỏ</button><button type="submit" className={`admin-btn ${kind === "role" || kind === "lock" && !locking ? "admin-btn-primary" : "admin-btn-destructive"}`} disabled={pending || kind === "role" && role === user.role} aria-busy={pending}>{kind === "lock" && (locking ? <Lock className="size-4" /> : <Unlock className="size-4" />)}{pending ? "Đang xác nhận…" : unknown ? "Kiểm tra lại cùng yêu cầu" : kind === "role" ? "Lưu vai trò mới" : kind === "revoke" ? "Xác nhận thu hồi" : locking ? "Xác nhận khóa" : "Xác nhận mở khóa"}</button></div>
+      <div className="admin-modal-footer">
+        <button data-cancel type="button" className="admin-btn admin-btn-outline" onClick={onClose} disabled={pending || unknown}>
+          Hủy bỏ
+        </button>
+        <button
+          type="submit"
+          className={`admin-btn ${kind === "role" || (kind === "lock" && !locking) ? "admin-btn-primary" : "admin-btn-destructive"}`}
+          disabled={pending || (kind === "role" && role === user.role)}
+          aria-busy={pending}
+        >
+          {kind === "lock" && (locking ? <Lock className="size-4" /> : <Unlock className="size-4" />)}
+          {pending ? "Đang xác nhận…" : unknown ? "Kiểm tra lại cùng yêu cầu" : kind === "role" ? "Lưu vai trò mới" : kind === "revoke" ? "Xác nhận thu hồi" : locking ? "Xác nhận khóa" : "Xác nhận mở khóa"}
+        </button>
+      </div>
     </form>
   </CmsDialog>;
 }

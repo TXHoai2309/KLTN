@@ -1,6 +1,6 @@
 import { assertQaAnswerGrounding } from "./qa-answer-grounding";
 import { AppError } from "../../server/http/app-error";
-import { qaCompletedTurnSchema, qaIdempotencyKeySchema, qaRequestSchema, type QaRequest } from "./qa-contract";
+import { qaCompletedTurnSchema, type QaKnowledgeMode, qaIdempotencyKeySchema, qaRequestSchema, type QaRequest } from "./qa-contract";
 import type { QaConversationStore } from "./qa-conversation-store";
 import type { QaGenerator, QaPrincipal, QaRetriever, QaGenerationInput } from "./qa-runtime-contract";
 import { isQaPublicAnswerSafe } from "./qa-public-safety";
@@ -12,13 +12,15 @@ import { createQaAssessor, type QaAssessor } from "./qa-assessment";
 import { assertQaEvidenceInput, insufficientQaAnswer } from "./qa-generation";
 import { QA_CLARIFICATION_QUESTION, qaUsableEvidence } from "./qa-prompt";
 import { evaluateQaSourceSufficiency } from "./qa-source-sufficiency";
-import { qaFactualQuestion, qaIntentHistory, qaFollowupClarification } from "./qa-question-understanding";
+import { qaFactualQuestion, qaIntentHistory, qaFollowupClarification, deterministicQuestionUnderstanding, QA_FOLLOWUP_CLARIFICATIONS, type QaQuestionUnderstanding } from "./qa-question-understanding";
+import type { QaQuestionUnderstander } from "./qa-question-understander";
 import { qaConversationMessage } from "./qa-conversation";
 import { planQaQuestion } from "./qa-question-plan";
 import { withinQaResponseBudget, QA_ELIGIBILITY_ABORT } from "./qa-request-budget";
 import { projectQaOriginalSources, validQaSourceProjection } from "./qa-original-source-projection";
+import { qaSessionHistory } from "./qa-session-history";
 
-export function createQaService(dependencies: { store: QaConversationStore; retriever: QaRetriever; generator: QaGenerator; assessor?: QaAssessor; eligibilityPollMs?: number; resolveContext?: (context: QaContext) => Promise<QaResolvedContext> }) {
+export function createQaService(dependencies: { store: QaConversationStore; retriever: QaRetriever; generator: QaGenerator; assessor?: QaAssessor; understander?: QaQuestionUnderstander; eligibilityPollMs?: number; resolveContext?: (context: QaContext) => Promise<QaResolvedContext> }) {
   const { store, retriever, generator } = dependencies;
   const assessor = dependencies.assessor ?? createQaAssessor();
   const eligibilityPollMs=dependencies.eligibilityPollMs ?? 1000;
@@ -49,11 +51,29 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
         if (!resolvedContext) throw new AppError("CONTEXT_UNAVAILABLE", "CONTEXT_UNAVAILABLE", 404);
         const socialMessage = qaConversationMessage(request.data.question);
         const question = qaFactualQuestion(request.data.question) || request.data.question;
-        const history = qaIntentHistory(request.data.question, admission.history);
-        const clarificationQuestion = socialMessage ? undefined : qaFollowupClarification(question, history, resolvedContext);
+        const sessionHistory = qaSessionHistory(admission.history);
+        // Semantic understanding must see recent authorized questions regardless
+        // of wording. The bounded deterministic adapter retains its legacy seam.
+        const history = dependencies.understander ? sessionHistory : qaIntentHistory(request.data.question, sessionHistory);
+        let clarificationQuestion = socialMessage || dependencies.understander ? undefined : qaFollowupClarification(question, history, resolvedContext);
+        let understanding: QaQuestionUnderstanding | undefined;
+        if (!socialMessage && !clarificationQuestion) {
+          qaStage("QUESTION_UNDERSTANDING_STARTED");
+          try {
+            understanding = dependencies.understander
+              ? await dependencies.understander.understand({ question, history, context: resolvedContext, signal })
+              : deterministicQuestionUnderstanding(question, history, resolvedContext);
+            qaStage("QUESTION_UNDERSTANDING_COMPLETED");
+          } catch {
+            understanding = deterministicQuestionUnderstanding(question, history, resolvedContext);
+          }
+          if (understanding?.ambiguous && resolvedContext.type === "GENERAL") {
+            clarificationQuestion = understanding.clarificationQuestion ?? QA_FOLLOWUP_CLARIFICATIONS.missingSubject;
+          }
+        }
         const skipEvidence = !!socialMessage || !!clarificationQuestion;
         qaStage("RETRIEVAL_STARTED");
-        evidence = skipEvidence ? [] : await retriever.retrieve(question, history, signal, resolvedContext);
+        evidence = skipEvidence ? [] : await retriever.retrieve(question, history, signal, resolvedContext, understanding);
         qaStage("RETRIEVAL_COMPLETED", { retrievedChunks: evidence.length });
         // Drop only the chunks that cannot be shown safely; an unusable chunk
         // must not turn an otherwise answerable question into AI_INVALID_RESPONSE.
@@ -96,23 +116,15 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
         })();
         qaStage("GENERATION_STARTED");
         let reviewedInput: QaGenerationInput | undefined;
+        const knowledgeMode = request.data.knowledgeMode ?? "SOURCE_ONLY";
         const generation = (async () => {
-          if (socialMessage) return { status: "CONVERSATIONAL" as const, answerParts: [] as [], citations: [] as [], message: socialMessage };
-          if (clarificationQuestion) return { status: "CLARIFICATION_REQUIRED" as const, answerParts: [] as [], citations: [] as [], clarificationQuestion };
-          const input = { question, history, evidence, context: resolvedContext, signal: providerController.signal, questionPlan: planQaQuestion(question, history, resolvedContext) };
-          if (!evidence.length) return insufficientQaAnswer("NO_EVIDENCE");
+          if (socialMessage) return { status: "CONVERSATIONAL" as const, answerParts: [] as [], citations: [] as [], message: socialMessage, knowledgeMode };
+          if (clarificationQuestion) return { status: "CLARIFICATION_REQUIRED" as const, answerParts: [] as [], citations: [] as [], clarificationQuestion, knowledgeMode };
+          const input: QaGenerationInput = { question, history, evidence, context: resolvedContext, knowledgeMode, signal: providerController.signal, questionPlan: planQaQuestion(question, history, resolvedContext), questionUnderstanding: understanding };
+          if (!evidence.length && knowledgeMode !== "EXPANDED") return insufficientQaAnswer("NO_EVIDENCE");
           assertQaEvidenceInput(input);
-          const preliminary = evaluateQaSourceSufficiency({ kind: "COMPLETED", eligibility: "CURRENT", input });
-          if (preliminary.status === "INSUFFICIENT") return insufficientQaAnswer("MISSING_SUPPORT");
-          const assessment = await assessor.assess(input);
-          if (!await retriever.recheck(evidence)) throw new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502);
-          if (assessment.intent === "AMBIGUOUS") return input.questionPlan ? insufficientQaAnswer("MISSING_SUPPORT") : { status: "CLARIFICATION_REQUIRED" as const, answerParts: [] as [], citations: [] as [], clarificationQuestion: QA_CLARIFICATION_QUESTION };
-          const sourceSufficiency = evaluateQaSourceSufficiency({ kind: "COMPLETED", eligibility: "CURRENT", input, review: assessment.review });
-          if (!assessment.review.exhaustive) return insufficientQaAnswer();
-          if (sourceSufficiency.reason === "INVALID_REVIEW" || sourceSufficiency.reason === "UNASSESSED") throw new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502);
-          if (sourceSufficiency.status === "INSUFFICIENT" || sourceSufficiency.status === "UNCERTAIN") return insufficientQaAnswer("MISSING_SUPPORT");
-          reviewedInput = { ...input, sourceSufficiency, sourceReview: assessment.review };
-          const answer = await generator.generate(reviewedInput);
+          reviewedInput = input;
+          const answer = await generator.generate(input);
           if (answer.status === "CLARIFICATION_REQUIRED" && input.questionPlan) return insufficientQaAnswer("MISSING_SUPPORT");
           // Only the server-owned social router can emit this outcome.
           if (answer.status === "CONVERSATIONAL") throw new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502);
@@ -133,7 +145,7 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
         qaStage("GENERATION_COMPLETED");
         if (reviewedInput) assertQaAnswerGrounding(answer, reviewedInput);
         if (!isQaPublicAnswerSafe(answer, evidence)) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "PUBLIC_SAFETY", "PRIVATE_MATERIAL");
-        const parsed = qaCompletedTurnSchema.safeParse({ ...answer, conversationId: admission.conversationId, turnId: admission.turnId, turnState: "COMPLETED", context });
+        const parsed = qaCompletedTurnSchema.safeParse({ ...answer, conversationId: admission.conversationId, turnId: admission.turnId, turnState: "COMPLETED", context, knowledgeMode });
         if (!parsed.success) throw qaOrigin(new AppError("AI_INVALID_RESPONSE", "AI_INVALID_RESPONSE", 502), "RESPONSE_VALIDATION", "SCHEMA", parsed.error.issues);
         data = parsed.data;
         for (const citation of data.citations) {
@@ -170,8 +182,9 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
       }
     },
     list: (principal: QaPrincipal, options?: { cursor?: string | null; limit?: number; search?: string }) => store.list ? store.list(principal, options) : Promise.resolve({ items: [], nextCursor: null, hasMore: false }),
-    get: (principal: QaPrincipal, id: string) => store.get ? store.get(principal, id) : store.history(principal, id).then(turns => ({ conversation: { id, title: "Cuộc hội thoại", context: { type: "GENERAL" as const }, headTurnId: null, createdAt: new Date().toISOString(), lastActivityAt: new Date().toISOString() }, turns })),
+    get: (principal: QaPrincipal, id: string) => store.get ? store.get(principal, id) : store.history(principal, id).then(turns => ({ conversation: { id, title: "Cuộc hội thoại", context: { type: "GENERAL" as const }, headTurnId: null, knowledgeMode: "SOURCE_ONLY" as const, createdAt: new Date().toISOString(), lastActivityAt: new Date().toISOString() }, turns })),
     rename: (principal: QaPrincipal, id: string, title: string) => store.rename ? store.rename(principal, id, title) : Promise.resolve({ id, title }),
+    update: (principal: QaPrincipal, id: string, updates: { title?: string; knowledgeMode?: QaKnowledgeMode }) => store.update ? store.update(principal, id, updates) : updates.title && store.rename ? store.rename(principal, id, updates.title) : Promise.resolve({ id, ...updates }),
     turns: (principal: QaPrincipal, id: string, options?: { cursor?: string | null; limit?: number }) => store.turns ? store.turns(principal, id, options) : store.history(principal, id).then(turns => ({ turns, nextCursor: null, hasMore: false })),
     history: (principal: QaPrincipal, id: string) => store.history(principal, id),
     delete: (principal: QaPrincipal, id: string) => store.delete(principal, id),

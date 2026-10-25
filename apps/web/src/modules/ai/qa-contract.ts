@@ -38,10 +38,15 @@ export const qaContextSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("DESTINATION"), destinationId: qaReferenceIdSchema }).strict(),
 ]);
 
+export const QA_KNOWLEDGE_MODES = ["SOURCE_ONLY", "EXPANDED"] as const;
+export type QaKnowledgeMode = (typeof QA_KNOWLEDGE_MODES)[number];
+export const qaKnowledgeModeSchema = z.enum(QA_KNOWLEDGE_MODES);
+
 export const qaFirstTurnRequestSchema = z
   .object({
     question: qaQuestionSchema,
     context: qaContextSchema.default({ type: "GENERAL" }),
+    knowledgeMode: qaKnowledgeModeSchema.optional(),
   })
   .strict();
 
@@ -53,6 +58,7 @@ export const qaFollowUpRequestSchema = z
     question: qaQuestionSchema,
     // Omission inherits server-owned context; it does not reset to GENERAL.
     context: qaContextSchema.optional(),
+    knowledgeMode: qaKnowledgeModeSchema.optional(),
   })
   .strict();
 
@@ -102,19 +108,33 @@ export const qaPublicCitationSchema = z
   })
   .strict();
 
-// Every answer part is evidence-requiring content. System notices live elsewhere.
+export const qaAnswerPartModeSchema = z.enum(["SOURCE", "EXPANDED"]);
+export type QaAnswerPartMode = z.infer<typeof qaAnswerPartModeSchema>;
+
+// Every answer part is evidence-requiring content in SOURCE mode, or model-supplemented in EXPANDED mode.
 export const qaAnswerPartSchema = z
   .object({
     text: normalizedText(),
-    citationIds: z.array(qaReferenceIdSchema).min(1),
+    mode: qaAnswerPartModeSchema.optional(),
+    citationIds: z.array(qaReferenceIdSchema).default([]),
   })
-  .strict();
+  .strict()
+  .superRefine((part, context) => {
+    const mode = part.mode ?? "SOURCE";
+    if (mode === "SOURCE" && part.citationIds.length === 0) {
+      context.addIssue({ code: "custom", path: ["citationIds"], message: "Phần nội dung từ nguồn phải có ít nhất một trích dẫn." });
+    }
+    if (mode === "EXPANDED" && part.citationIds.length > 0) {
+      context.addIssue({ code: "custom", path: ["citationIds"], message: "Phần kiến thức mở rộng không được gắn trích dẫn tài liệu." });
+    }
+  });
 
 const completedTurnFields = {
   conversationId: qaReferenceIdSchema,
   turnId: qaReferenceIdSchema,
   turnState: z.literal("COMPLETED"),
   context: qaContextSchema,
+  knowledgeMode: qaKnowledgeModeSchema.optional(),
 };
 
 export const qaCompletedTurnSchema = z
@@ -132,7 +152,7 @@ export const qaCompletedTurnSchema = z
       answerMode: z.literal("SOURCE_EXCERPTS").optional(),
       presentation: z.enum(QA_ANSWER_PRESENTATIONS).optional(),
       answerParts: z.array(qaAnswerPartSchema).min(1),
-      citations: z.array(qaPublicCitationSchema).min(1),
+      citations: z.array(qaPublicCitationSchema),
       unansweredAspects: z.array(normalizedText()).length(0),
     }).strict(),
     z.object({
@@ -141,7 +161,7 @@ export const qaCompletedTurnSchema = z
       answerMode: z.literal("SOURCE_EXCERPTS").optional(),
       presentation: z.enum(QA_ANSWER_PRESENTATIONS).optional(),
       answerParts: z.array(qaAnswerPartSchema).min(1),
-      citations: z.array(qaPublicCitationSchema).min(1),
+      citations: z.array(qaPublicCitationSchema),
       unansweredAspects: z.array(normalizedText()).min(1),
     }).strict(),
     z.object({
@@ -161,6 +181,9 @@ export const qaCompletedTurnSchema = z
     }).strict(),
   ])
   .superRefine((turn, context) => {
+    if ((turn.knowledgeMode ?? "SOURCE_ONLY") === "SOURCE_ONLY" && turn.answerParts.some(p => (p.mode ?? "SOURCE") === "EXPANDED")) {
+      context.addIssue({ code: "custom", path: ["knowledgeMode"], message: "Chế độ SOURCE_ONLY không được chứa phần kiến thức mở rộng." });
+    }
     const ids = new Set<string>();
     for (const [index, citation] of turn.citations.entries()) {
       if (ids.has(citation.id)) {
@@ -283,11 +306,22 @@ export const qaRenameConversationSchema = z
   })
   .strict();
 
+export const qaUpdateConversationSchema = z
+  .object({
+    title: qaConversationTitleSchema.optional(),
+    knowledgeMode: qaKnowledgeModeSchema.optional(),
+  })
+  .strict()
+  .refine(data => data.title !== undefined || data.knowledgeMode !== undefined, {
+    message: "At least one field (title or knowledgeMode) must be provided",
+  });
+
 export const qaConversationSummarySchema = z
   .object({
     id: qaReferenceIdSchema,
     title: z.string(),
     context: qaContextSchema,
+    knowledgeMode: qaKnowledgeModeSchema.optional(),
     createdAt: z.string(),
     lastActivityAt: z.string(),
   })
@@ -306,6 +340,7 @@ export const qaConversationDetailMetadataSchema = z
     id: qaReferenceIdSchema,
     title: z.string(),
     context: qaContextSchema,
+    knowledgeMode: qaKnowledgeModeSchema.optional(),
     headTurnId: qaReferenceIdSchema.nullable(),
     createdAt: z.string(),
     lastActivityAt: z.string(),
@@ -313,5 +348,6 @@ export const qaConversationDetailMetadataSchema = z
   .strict();
 
 export type QaRenameConversationInput = z.infer<typeof qaRenameConversationSchema>;
+export type QaUpdateConversationInput = z.infer<typeof qaUpdateConversationSchema>;
 export type QaConversationSummary = z.infer<typeof qaConversationSummarySchema>;
 export type QaConversationDetailMetadata = z.infer<typeof qaConversationDetailMetadataSchema>;

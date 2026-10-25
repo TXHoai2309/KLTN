@@ -1,0 +1,164 @@
+.global-assistant-root {
+  --assistant-launcher-layer: 999;
+  --assistant-backdrop-layer: 1000;
+  --assistant-panel-layer: 1001;
+  font-family: var(--font-be-vietnam, Arial), system-ui, sans-serif;
+}
+
+.global-assistant-launcher {
+  position: fixed;
+  right: max(24px, env(safe-area-inset-right));
+  bottom: max(24px, env(safe-area-inset-bottom));
+  z-index: var(--assistant-launcher-layer);
+}
+
+.global-assistant-launcher[hidden] { display: none; }
+
+.global-assistant-launcher button {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 20px;
+  border: 1.5px solid rgba(209, 172, 88, 0.85);
+  border-radius: 999px;
+  background: linear-gradient(135deg, #1d6e4d 0%, #124d35 100%);
+  color: #fff;
+  font: 600 14px/1.3 var(--font-be-vietnam, Arial), system-ui, sans-serif;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(15, 76, 58, 0.35), 0 0 12px rgba(209, 172, 88, 0.25);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s ease,
+              background 0.25s ease;
+  animation: assistantAuraPulse 3.5s infinite ease-in-out;
+}
+
+/* Light sheen / shimmer effect passing through */
+.global-assistant-launcher button::before {
+  content: "";
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 220%;
+  height: 200%;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    transparent 40%,
+    rgba(255, 255, 255, 0.22) 50%,
+    rgba(241, 212, 142, 0.3) 53%,
+    transparent 65%,
+    transparent 100%
+  );
+  transform: rotate(15deg);
+  animation: assistantShimmer 4.5s infinite ease-in-out;
+  pointer-events: none;
+}
+
+/* Ensure contents sit above the shimmer pseudo-element */
+.global-assistant-launcher button > * {
+  position: relative;
+  z-index: 1;
+}
+
+.global-assistant-launcher button:hover {
+  background: linear-gradient(135deg, #227d58 0%, #15583d 100%);
+  border-color: #f5dc9a;
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 10px 28px rgba(15, 76, 58, 0.45), 0 0 20px rgba(209, 172, 88, 0.45);
+}
+
+.global-assistant-launcher button:active {
+  transform: translateY(1px) scale(0.98);
+  box-shadow: 0 4px 12px rgba(15, 76, 58, 0.3);
+}
+
+.global-assistant-launcher button:focus-visible {
+  outline: 3px solid #d1ac58;
+  outline-offset: 3px;
+}
+
+.global-assistant-launcher svg {
+  flex-shrink: 0;
+  color: #f1d48e;
+  filter: drop-shadow(0 0 3px rgba(241, 212, 142, 0.6));
+  animation: assistantSparkleTwinkle 3s infinite ease-in-out;
+  transition: transform 0.25s ease, filter 0.25s ease;
+}
+
+.global-assistant-launcher button:hover svg {
+  transform: scale(1.15) rotate(10deg);
+  filter: drop-shadow(0 0 6px rgba(241, 212, 142, 0.9));
+}
+
+/* Keyframe animations */
+@keyframes assistantAuraPulse {
+  0%, 100% {
+    box-shadow: 0 6px 20px rgba(15, 76, 58, 0.35), 0 0 10px rgba(209, 172, 88, 0.2);
+  }
+  50% {
+    box-shadow: 0 8px 24px rgba(15, 76, 58, 0.45), 0 0 18px rgba(209, 172, 88, 0.4);
+  }
+}
+
+@keyframes assistantShimmer {
+  0% {
+    transform: rotate(15deg) translateX(-120%);
+  }
+  35%, 100% {
+    transform: rotate(15deg) translateX(120%);
+  }
+}
+
+@keyframes assistantSparkleTwinkle {
+  0%, 100% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.12) rotate(8deg);
+  }
+}
+
+@media (max-width: 640px) {
+  .global-assistant-launcher {
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(16px, env(safe-area-inset-bottom));
+  }
+  .global-assistant-launcher button {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+    padding: 0;
+    border-radius: 50%;
+    gap: 0;
+    box-shadow: 0 4px 16px rgba(15, 76, 58, 0.4), 0 0 12px rgba(209, 172, 88, 0.3);
+  }
+  .global-assistant-launcher-label,
+  .global-assistant-launcher button span {
+    display: none;
+  }
+  .global-assistant-launcher svg {
+    width: 22px;
+    height: 22px;
+  }
+  .global-assistant-launcher button:hover {
+    transform: scale(1.04);
+  }
+  .global-assistant-launcher button:active {
+    transform: scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .global-assistant-launcher button,
+  .global-assistant-launcher button::before,
+  .global-assistant-launcher svg {
+    animation: none !important;
+    transition: none !important;
+  }
+}

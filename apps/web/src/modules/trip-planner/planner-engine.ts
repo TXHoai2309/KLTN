@@ -1,8 +1,9 @@
-import { DEFAULT_DESTINATION_AREA } from "../destination/destination-categories";
 import type { TripRequirementInput } from "../trip-requirement/trip-requirement-contract";
 import { weekdays } from "../destination/destination-contract";
 import { isDestinationEligibleForNewItinerary } from "../destination/destination-eligibility";
-import { interestScore, type PlannerCandidate } from "./planner-candidates";
+import type { PlannerCandidate } from "./planner-candidates";
+import { orderPlannerCandidates } from "./planner-order";
+export { haversine } from "./planner-geography";
 import type { PlannerDay, PlannerStop, TravelLeg } from "./planner-contract";
 import type { RoutePair } from "./planner-routes";
 
@@ -25,35 +26,27 @@ export function visitDuration(candidate: PlannerCandidate) {
   if (suggested === null && minimum === null) return null;
   return Math.max(suggested ?? 0, minimum ?? 0);
 }
-export function haversine(a: PlannerCandidate, b: PlannerCandidate) {
-  const rad = (x: number) => x * Math.PI / 180;
-  const h = Math.sin(rad(b.latitude - a.latitude) / 2) ** 2 + Math.cos(rad(a.latitude)) * Math.cos(rad(b.latitude)) * Math.sin(rad(b.longitude - a.longitude) / 2) ** 2;
-  return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(Math.max(0, 1 - h)));
-}
 export function selectPlannerDays(requirement: TripRequirementInput, input: readonly PlannerCandidate[]): PlannerCandidate[][] {
   const cap = PACE_STOP_LIMIT[requirement.pace ?? "MODERATE"];
-  const pool = [...new Map(input.filter(candidate => isDestinationEligibleForNewItinerary(candidate) && Number.isFinite(candidate.latitude) && Number.isFinite(candidate.longitude) && Math.abs(candidate.latitude) <= 90 && Math.abs(candidate.longitude) <= 180 && visitDuration(candidate) !== null && visitDuration(candidate)! <= 600).map(candidate => [candidate.id, candidate])).values()];
-  const days: PlannerCandidate[][] = []; let previous: PlannerCandidate | undefined;
+  const dates = Array.from({ length: requirement.durationDays }, (_, index) => dateForDay(requirement.startDate, index));
+  const availableOn = (candidate: PlannerCandidate, date: string | null) => {
+    const hours = openingFor(candidate, date), duration = visitDuration(candidate)!;
+    return hours?.status !== "CLOSED" && (hours?.status !== "OPEN" || hours.intervals.some(interval => Math.min(interval.closesAtMinute, 1080) - Math.max(interval.opensAtMinute, 480) >= duration));
+  };
+  const eligible = [...new Map(input.filter(candidate => isDestinationEligibleForNewItinerary(candidate) && Number.isFinite(candidate.latitude) && Number.isFinite(candidate.longitude) && Math.abs(candidate.latitude) <= 90 && Math.abs(candidate.longitude) <= 180 && visitDuration(candidate) !== null && visitDuration(candidate)! <= 600 && dates.some(date => availableOn(candidate, date))).map(candidate => [candidate.id, candidate])).values()];
+  const pool = orderPlannerCandidates(requirement, eligible, Math.min(28, requirement.durationDays * cap, eligible.length));
+  const days: PlannerCandidate[][] = [];
   let remainingBudget = Math.min(28, requirement.durationDays * cap, pool.length);
   for (let index = 0; index < requirement.durationDays; index++) {
     const date = dateForDay(requirement.startDate, index), today: PlannerCandidate[] = [];
     const count = Math.min(cap, Math.ceil(remainingBudget / (requirement.durationDays - index)));
     let visitBudget = 0;
     for (let slot = 0; slot < count; slot++) {
-      const choices = pool.filter(candidate => {
-        const hours = openingFor(candidate, date), duration = visitDuration(candidate)!;
-        if (hours?.status === "CLOSED" || visitBudget + duration > 600) return false;
-        return hours?.status !== "OPEN" || hours.intervals.some(interval => Math.min(interval.closesAtMinute, 1080) - Math.max(interval.opensAtMinute, 480) >= duration);
-      });
-      choices.sort((a, b) => {
-        const interest = interestScore(b, requirement.interests) - interestScore(a, requirement.interests);
-        if (!previous) return interest || a.id.localeCompare(b.id, "en");
-        const distance = haversine(previous, a) - haversine(previous, b);
-        // Same-area preference only breaks nearby ties; Haversine is NOT routing evidence.
-        return distance + (a.area === previous.area && a.area !== DEFAULT_DESTINATION_AREA ? -2 : 0) - (b.area === previous.area && b.area !== DEFAULT_DESTINATION_AREA ? -2 : 0) - interest * 5 || a.id.localeCompare(b.id, "en");
-      });
-      const chosen = choices[0]; if (!chosen) break;
-      today.push(chosen); previous = chosen; visitBudget += visitDuration(chosen)!;
+      const chosen = pool.find(candidate => availableOn(candidate, date));
+      // Carry the next geographic stop to tomorrow rather than jumping over it
+      // to fill today's quota, then doubling back to it on a later day.
+      if (!chosen || visitBudget + visitDuration(chosen)! > 600) break;
+      today.push(chosen); visitBudget += visitDuration(chosen)!;
       pool.splice(pool.findIndex(candidate => candidate.id === chosen.id), 1); remainingBudget--;
     }
     days.push(today);

@@ -5,23 +5,33 @@ import { Label } from "@KLTN/ui/components/label";
 import {
   AlertTriangle,
   Bike,
+  Baby,
+  Camera,
   Calendar,
   Car,
-  CircleDashed,
   Clock,
   Compass,
   FileEdit,
   Gauge,
   Heart,
-  HelpCircle,
   Home,
+  Landmark,
+  Leaf,
+  Mountain,
+  PersonStanding,
   Shapes,
   Sparkles,
   User,
   Users,
+  Utensils,
+  Accessibility,
+  Footprints,
+  Waves,
+  type LucideIcon,
 } from "lucide-react";
 import { useState, type Ref } from "react";
 import { VietnameseDateInput } from "@/components/vietnamese-date-input";
+import { formatVietnameseDate } from "@/lib/date-only";
 
 import {
   COMPANION_OPTIONS,
@@ -32,6 +42,7 @@ import {
 } from "@/modules/trip-requirement/trip-requirement-contract";
 
 type CommonEditorProps = {
+  idPrefix?: string;
   error?: string;
   errorId: string;
   disabled?: boolean;
@@ -51,6 +62,7 @@ export type StartDateEditorProps = CommonEditorProps & {
 };
 
 export function StartDateEditor({
+  idPrefix = "trip",
   value,
   onChange,
   onBlur,
@@ -59,33 +71,99 @@ export function StartDateEditor({
   error,
   errorId,
 }: StartDateEditorProps) {
+  const [showInput, setShowInput] = useState(Boolean(value) || idPrefix === "trip-review");
+  const isCompact = idPrefix === "trip" && !showInput && !value;
+
   return (
-    <div className="trip-field trip-field-card">
-      <div className="trip-field-label-row">
-        <div className="trip-field-title-group">
-          <span className="trip-field-icon-box" aria-hidden="true">
-            <Calendar size={16} strokeWidth={2.2} />
-          </span>
-          <Label htmlFor="trip-start-date" className="trip-field-title">
-            Ngày bắt đầu
-          </Label>
+    <div className={`trip-field trip-field-card ${isCompact ? "trip-date-compact-card" : ""}`}>
+      {isCompact ? (
+        <div className="trip-date-compact-bar">
+          <div className="trip-date-compact-info">
+            <span className="trip-field-icon-box" aria-hidden="true">
+              <Calendar size={16} strokeWidth={2.2} />
+            </span>
+            <span className="trip-date-compact-label">
+              Ngày đi: <strong>Chưa chốt</strong>
+            </span>
+            <span className="trip-date-divider" aria-hidden="true">·</span>
+            <button
+              type="button"
+              className="trip-date-toggle-btn"
+              onClick={() => setShowInput(true)}
+            >
+              Chọn ngày
+            </button>
+          </div>
+          <span className="trip-optional">Tùy chọn ở bước sơ bộ</span>
+          {/* Keep label & input in DOM for accessibility queries if needed */}
+          <div className="trip-sr-only">
+            <Label htmlFor={`${idPrefix}-start-date`}>Ngày bắt đầu</Label>
+            <VietnameseDateInput
+              ref={inputRef}
+              id={`${idPrefix}-start-date`}
+              name="startDate"
+              value={value}
+              onChange={onChange}
+              onBlur={onBlur}
+              aria-describedby={`${idPrefix}-start-date-help${error ? ` ${errorId}` : ""}`}
+              aria-invalid={Boolean(error)}
+            />
+            <p id={`${idPrefix}-start-date-help`}>dd/mm/yyyy</p>
+          </div>
         </div>
-        <span className="trip-optional">Tùy chọn ở bước sơ bộ</span>
-      </div>
-      <VietnameseDateInput
-        ref={inputRef}
-        id="trip-start-date"
-        name="startDate"
-        value={value}
-        onChange={onChange}
-        onBlur={onBlur}
-        autoFocus={autoFocus}
-        aria-describedby={`trip-start-date-help${error ? ` ${errorId}` : ""}`}
-        aria-invalid={Boolean(error)}
-      />
-      <p id="trip-start-date-help" className="trip-help">
-        Nhập ngày/tháng/năm (dd/mm/yyyy), ví dụ 20/12/2026. Có thể bỏ trống ở bước đề xuất sơ bộ; cần có trước khi xác nhận và lưu chính thức.
-      </p>
+      ) : (
+        <>
+          <div className="trip-field-label-row">
+            <div className="trip-field-title-group">
+              <span className="trip-field-icon-box" aria-hidden="true">
+                <Calendar size={16} strokeWidth={2.2} />
+              </span>
+              <Label htmlFor={`${idPrefix}-start-date`} className="trip-field-title">
+                Ngày bắt đầu
+              </Label>
+            </div>
+            <div className="trip-date-action-pills">
+              {idPrefix === "trip" && value && (
+                <button
+                  type="button"
+                  className="trip-date-clear-pill"
+                  onClick={() => {
+                    onChange("");
+                    setShowInput(false);
+                  }}
+                  title="Xóa ngày đã chọn, quay về chưa chốt"
+                >
+                  Chưa chốt ngày (Xóa)
+                </button>
+              )}
+              {idPrefix === "trip" && !value && (
+                <button
+                  type="button"
+                  className="trip-date-clear-pill"
+                  onClick={() => setShowInput(false)}
+                >
+                  Thu gọn
+                </button>
+              )}
+              <span className="trip-optional">Tùy chọn ở bước sơ bộ</span>
+            </div>
+          </div>
+          <VietnameseDateInput
+            ref={inputRef}
+            id={`${idPrefix}-start-date`}
+            name="startDate"
+            value={value}
+            onChange={onChange}
+            onBlur={onBlur}
+            autoFocus={autoFocus || (idPrefix === "trip" && showInput)}
+            aria-describedby={`${idPrefix}-start-date-help${error ? ` ${errorId}` : ""}`}
+            aria-invalid={Boolean(error)}
+          />
+          <p id={`${idPrefix}-start-date-help`} className="trip-help">
+            Nhập ngày/tháng/năm (dd/mm/yyyy), ví dụ 20/12/2026. Có thể bỏ trống ở bước đề xuất sơ bộ; cần có trước khi xác nhận và lưu chính thức.
+          </p>
+        </>
+      )}
       <EditorError error={error} errorId={errorId} />
     </div>
   );
@@ -107,6 +185,7 @@ const DURATION_CHIPS = [
 ] as const;
 
 export function DurationEditor({
+  idPrefix = "trip",
   value,
   onChange,
   onBlur,
@@ -122,7 +201,7 @@ export function DurationEditor({
           <span className="trip-field-icon-box" aria-hidden="true">
             <Clock size={16} strokeWidth={2.2} />
           </span>
-          <Label htmlFor="trip-duration" className="trip-field-title">
+          <Label htmlFor={`${idPrefix}-duration`} className="trip-field-title">
             Thời lượng chuyến đi
           </Label>
         </div>
@@ -136,6 +215,7 @@ export function DurationEditor({
             <button
               type="button"
               key={chip.days}
+              aria-pressed={isSelected}
               className={`trip-duration-chip ${isSelected ? "trip-duration-chip-active" : ""}`}
               onClick={() => {
                 onChange(chip.days);
@@ -152,7 +232,7 @@ export function DurationEditor({
       <div className="trip-input-with-suffix">
         <Input
           ref={inputRef}
-          id="trip-duration"
+          id={`${idPrefix}-duration`}
           name="durationDays"
           type="text"
           inputMode="numeric"
@@ -164,11 +244,11 @@ export function DurationEditor({
           autoFocus={autoFocus}
           aria-required="true"
           aria-invalid={Boolean(error)}
-          aria-describedby={`trip-duration-help${error ? ` ${errorId}` : ""}`}
+          aria-describedby={`${idPrefix}-duration-help${error ? ` ${errorId}` : ""}`}
         />
         <span className="trip-input-suffix-text">ngày</span>
       </div>
-      <p id="trip-duration-help" className="trip-help">Số ngày từ 1 đến 14.</p>
+      <p id={`${idPrefix}-duration-help`} className="trip-help">Số ngày từ 1 đến 14.</p>
       <EditorError error={error} errorId={errorId} />
     </div>
   );
@@ -184,6 +264,7 @@ export type TransportEditorProps = CommonEditorProps & {
 };
 
 export function TransportEditor({
+  idPrefix = "trip",
   value,
   onChange,
   onBlur,
@@ -197,7 +278,7 @@ export function TransportEditor({
   return (
     <fieldset
       ref={containerRef}
-      id="trip-transport"
+      id={`${idPrefix}-transport`}
       className="trip-fieldset trip-fieldset-card"
       tabIndex={containerRef ? -1 : undefined}
       aria-describedby={error ? errorId : undefined}
@@ -220,7 +301,7 @@ export function TransportEditor({
               <input
                 ref={index === 0 ? inputRef : undefined}
                 type="radio"
-                name="transport"
+                name={`${idPrefix}-transport`}
                 value={option.value}
                 checked={value === option.value}
                 onChange={(event) => {
@@ -238,9 +319,6 @@ export function TransportEditor({
                 <span className="trip-choice-info">
                   <strong className="trip-choice-name">{option.label}</strong>
                   <small className="trip-choice-sub">{option.description}</small>
-                </span>
-                <span className="trip-choice-status-indicator" aria-hidden="true">
-                  {isSelected ? "✓" : ""}
                 </span>
               </span>
             </label>
@@ -270,6 +348,7 @@ export type CompanionsEditorProps = CommonEditorProps & {
 };
 
 export function CompanionsEditor({
+  idPrefix = "trip",
   typeValue,
   groupSizeValue,
   onTypeChange,
@@ -284,13 +363,35 @@ export function CompanionsEditor({
   groupSizeRef,
   autoFocus,
 }: CompanionsEditorProps) {
-  const hasError = Boolean(typeError || groupSizeError);
+  const needsGroupSize = typeValue === "FAMILY" || typeValue === "FRIENDS" || typeValue === "OTHER";
+  const hasError = Boolean(typeError || (needsGroupSize && groupSizeError));
+
+  function handleSelectType(val: string) {
+    if (typeValue === val) {
+      // Toggle off / deselect
+      onTypeChange("");
+      onGroupSizeChange("");
+      onTypeBlur?.();
+      return;
+    }
+    onTypeChange(val);
+    if (val === "SOLO") {
+      onGroupSizeChange("1");
+    } else if (val === "COUPLE") {
+      onGroupSizeChange("2");
+    } else {
+      const current = Number.parseInt(groupSizeValue, 10);
+      if (Number.isNaN(current) || current < 2) {
+        onGroupSizeChange("4");
+      }
+    }
+    onTypeBlur?.();
+  }
 
   function adjustGroupSize(delta: number) {
     const current = Number.parseInt(groupSizeValue, 10);
-    const fallback = typeValue === "COUPLE" ? 2 : typeValue === "SOLO" ? 1 : 4;
-    const base = Number.isNaN(current) || current < 1 ? fallback : current;
-    const next = Math.max(1, Math.min(99, base + delta));
+    const base = Number.isNaN(current) || current < 2 ? 4 : current;
+    const next = Math.max(2, Math.min(20, base + delta));
     onGroupSizeChange(String(next));
     onGroupSizeBlur?.();
   }
@@ -312,9 +413,9 @@ export function CompanionsEditor({
 
   return (
     <fieldset
-      id="trip-companion-type"
+      id={`${idPrefix}-companion-type`}
       className="trip-fieldset trip-fieldset-card"
-      aria-describedby={hasError ? [typeError ? typeErrorId : "", groupSizeError ? groupSizeErrorId : ""].filter(Boolean).join(" ") : undefined}
+      aria-describedby={hasError ? [typeError ? typeErrorId : "", needsGroupSize && groupSizeError ? groupSizeErrorId : ""].filter(Boolean).join(" ") : undefined}
     >
       <legend className="trip-field-legend">
         <div className="trip-field-title-group">
@@ -325,41 +426,25 @@ export function CompanionsEditor({
         </div>
         <span className="trip-optional">Tùy chọn</span>
       </legend>
-      <p className="trip-help">Chọn nhóm người cùng đi để lộ trình được gợi ý phù hợp.</p>
+      <p className="trip-help">Chọn nhóm người cùng đi (bấm lại để bỏ chọn). Để trống nếu chưa chốt.</p>
+
       <div className="trip-choice-grid trip-choice-grid-companions">
-        <label className={`trip-choice trip-choice-compact ${typeValue === "" ? "trip-choice-active" : ""}`}>
-          <input
-            type="radio"
-            name="companionType"
-            value=""
-            checked={typeValue === ""}
-            onChange={() => onTypeChange("")}
-            autoFocus={autoFocus}
-          />
-          <span className="trip-choice-content">
-            <span className="trip-choice-visual-icon" aria-hidden="true">
-              <CircleDashed size={20} strokeWidth={2} />
-            </span>
-            <span className="trip-choice-info">
-              <strong className="trip-choice-name">Chưa chọn</strong>
-              <small className="trip-choice-sub">Phù hợp mọi đối tượng.</small>
-            </span>
-            <span className="trip-choice-status-indicator" aria-hidden="true">
-              {typeValue === "" ? "✓" : ""}
-            </span>
-          </span>
-        </label>
         {COMPANION_OPTIONS.map((option, index) => {
           const isSelected = typeValue === option.value;
           return (
-            <label className={`trip-choice trip-choice-compact ${isSelected ? "trip-choice-active" : ""}`} key={option.value}>
+            <label
+              className={`trip-choice trip-choice-compact ${isSelected ? "trip-choice-active" : ""}`}
+              key={option.value}
+              title={option.description}
+            >
               <input
                 ref={index === 0 ? typeRef : undefined}
                 type="radio"
-                name="companionType"
+                name={`${idPrefix}-companionType`}
                 value={option.value}
-                checked={typeValue === option.value}
-                onChange={(event) => onTypeChange(event.target.value)}
+                checked={isSelected}
+                onClick={() => handleSelectType(option.value)}
+                onChange={() => {}}
                 onBlur={onTypeBlur}
                 autoFocus={autoFocus && index === 0}
                 aria-invalid={Boolean(typeError)}
@@ -371,10 +456,7 @@ export function CompanionsEditor({
                 </span>
                 <span className="trip-choice-info">
                   <strong className="trip-choice-name">{option.label}</strong>
-                  <small className="trip-choice-sub">{option.description}</small>
-                </span>
-                <span className="trip-choice-status-indicator" aria-hidden="true">
-                  {isSelected ? "✓" : ""}
+                  <span className="trip-sr-only">{option.description}</span>
                 </span>
               </span>
             </label>
@@ -382,50 +464,50 @@ export function CompanionsEditor({
         })}
       </div>
 
-      <div className="trip-field trip-nested-field">
-        <div className="trip-field-label-row">
-          <Label htmlFor="trip-group-size">
-            <span className="trip-nested-label-text">Số người trong nhóm</span>
-            <span className="trip-optional">Tùy chọn</span>
-          </Label>
+      {needsGroupSize && (
+        <div className="trip-field trip-nested-field">
+          <div className="trip-field-label-row">
+            <Label htmlFor={`${idPrefix}-group-size`}>
+              <span className="trip-nested-label-text">Số người trong nhóm</span>
+              <span className="trip-optional">Tùy chọn (từ 2 đến 20)</span>
+            </Label>
+          </div>
+          <div className="trip-group-size-controls">
+            <button
+              type="button"
+              className="trip-stepper-button"
+              onClick={() => adjustGroupSize(-1)}
+              aria-label="Giảm 1 người"
+            >
+              −
+            </button>
+            <Input
+              ref={groupSizeRef}
+              id={`${idPrefix}-group-size`}
+              name="companionGroupSize"
+              type="text"
+              inputMode="numeric"
+              placeholder="Số người"
+              value={groupSizeValue}
+              onChange={(event) => onGroupSizeChange(event.target.value)}
+              onBlur={onGroupSizeBlur}
+              aria-invalid={Boolean(groupSizeError)}
+              aria-describedby={groupSizeError ? groupSizeErrorId : undefined}
+            />
+            <button
+              type="button"
+              className="trip-stepper-button"
+              onClick={() => adjustGroupSize(1)}
+              aria-label="Tăng 1 người"
+            >
+              +
+            </button>
+          </div>
+          <EditorError error={groupSizeError} errorId={groupSizeErrorId} />
         </div>
-        <div className="trip-group-size-controls">
-          <button
-            type="button"
-            className="trip-stepper-button"
-            disabled={!typeValue}
-            onClick={() => adjustGroupSize(-1)}
-            aria-label="Giảm 1 người"
-          >
-            −
-          </button>
-          <Input
-            ref={groupSizeRef}
-            id="trip-group-size"
-            name="companionGroupSize"
-            type="text"
-            inputMode="numeric"
-            placeholder="Số người"
-            value={groupSizeValue}
-            disabled={!typeValue}
-            onChange={(event) => onGroupSizeChange(event.target.value)}
-            onBlur={onGroupSizeBlur}
-            aria-invalid={Boolean(groupSizeError)}
-            aria-describedby={groupSizeError ? groupSizeErrorId : undefined}
-          />
-          <button
-            type="button"
-            className="trip-stepper-button"
-            disabled={!typeValue}
-            onClick={() => adjustGroupSize(1)}
-            aria-label="Tăng 1 người"
-          >
-            +
-          </button>
-        </div>
-      </div>
+      )}
+
       <EditorError error={typeError} errorId={typeErrorId} />
-      <EditorError error={groupSizeError} errorId={groupSizeErrorId} />
     </fieldset>
   );
 }
@@ -438,58 +520,77 @@ export type InterestsEditorProps = CommonEditorProps & {
   autoFocus?: boolean;
 };
 
-const INTEREST_ICONS: Record<string, string> = {
-  NATURE: "🏔️",
-  CULTURE_HISTORY: "🏛️",
-  ETHNIC_VILLAGES: "🛖",
-  PHOTOGRAPHY: "📸",
-  FOOD: "🍜",
-  EXPLORATION: "🏕️",
-  RELAXATION: "🍃",
+const INTEREST_ICONS: Record<string, LucideIcon> = {
+  NATURE: Mountain,
+  CULTURE_HISTORY: Landmark,
+  ETHNIC_VILLAGES: Home,
+  PHOTOGRAPHY: Camera,
+  FOOD: Utensils,
+  ADVENTURE: Compass,
+  RELAXATION: Leaf,
 };
 
-export function InterestsEditor({ value, onChange, onBlur, inputRef, autoFocus, error, errorId }: InterestsEditorProps) {
+export function InterestsEditor({
+  idPrefix = "trip",
+  value,
+  onChange,
+  onBlur,
+  inputRef,
+  autoFocus,
+  error,
+  errorId,
+}: InterestsEditorProps) {
   return (
-    <fieldset id="trip-interest-first" className="trip-fieldset trip-fieldset-card" aria-describedby={error ? errorId : undefined}>
-      <div className="trip-legend-header">
-        <legend className="trip-field-legend">
-          <div className="trip-field-title-group">
-            <span className="trip-field-icon-box" aria-hidden="true">
-              <Sparkles size={16} strokeWidth={2.2} />
-            </span>
-            <span className="trip-field-title">Sở thích chuyến đi</span>
-          </div>
-          <span className="trip-optional">Tùy chọn</span>
-        </legend>
-        <span className="trip-selection-counter">
-          Đã chọn: <strong>{value.length}/8</strong>
-        </span>
-      </div>
-      <p className="trip-help">Chọn những trải nghiệm bạn quan tâm nhất (gợi ý từ 2–4 mục để có hành trình tối ưu).</p>
+    <fieldset
+      id={`${idPrefix}-interest-first`}
+      className="trip-fieldset trip-fieldset-card"
+      aria-describedby={error ? errorId : undefined}
+    >
+      <legend className="trip-field-legend">
+        <div className="trip-field-title-group">
+          <span className="trip-field-icon-box" aria-hidden="true">
+            <Sparkles size={16} strokeWidth={2.2} />
+          </span>
+          <span className="trip-field-title">Sở thích chuyến đi</span>
+        </div>
+        <span className="trip-optional">Tùy chọn</span>
+        <span className="trip-selection-counter">Đã chọn {value.length} sở thích</span>
+      </legend>
+      <p className="trip-help">Chọn những trải nghiệm bạn quan tâm. Bạn có thể để trống và bổ sung sau.</p>
       <div className="trip-choice-grid trip-choice-grid-interests">
         {INTEREST_OPTIONS.map((option, index) => {
           const isSelected = value.includes(option.value);
+          const Icon = INTEREST_ICONS[option.value] ?? Compass;
           return (
-            <label className={`trip-choice trip-choice-chip ${isSelected ? "trip-choice-chip-selected" : ""}`} key={option.value}>
+            <label
+              className={`trip-choice trip-choice-chip ${isSelected ? "trip-choice-chip-selected" : ""}`}
+              key={option.value}
+              title={option.description}
+            >
               <input
                 ref={index === 0 ? inputRef : undefined}
                 type="checkbox"
                 name="interests"
                 value={option.value}
-                checked={value.includes(option.value)}
-                onChange={() => onChange(value.includes(option.value) ? value.filter((item) => item !== option.value) : [...value, option.value])}
+                checked={isSelected}
+                onChange={() =>
+                  onChange(
+                    isSelected
+                      ? value.filter((item) => item !== option.value)
+                      : [...value, option.value],
+                  )
+                }
                 onBlur={onBlur}
                 autoFocus={autoFocus && index === 0}
                 aria-invalid={Boolean(error)}
               />
               <span className="trip-chip-content">
-                <span className="trip-chip-icon" aria-hidden="true">{INTEREST_ICONS[option.value] ?? "🌟"}</span>
+                <span className="trip-chip-icon" aria-hidden="true">
+                  <Icon size={20} />
+                </span>
                 <span className="trip-chip-texts">
                   <strong className="trip-chip-title">{option.label}</strong>
-                  <small className="trip-chip-desc">{option.description}</small>
-                </span>
-                <span className="trip-chip-checkbox-mark" aria-hidden="true">
-                  {isSelected ? "✓" : "+"}
+                  <span className="trip-sr-only">{option.description}</span>
                 </span>
               </span>
             </label>
@@ -509,16 +610,29 @@ export type PaceEditorProps = CommonEditorProps & {
   autoFocus?: boolean;
 };
 
-const PACE_META: Record<string, { icon: string; spots: string }> = {
-  RELAXED: { icon: "🍃", spots: "1–2 điểm/ngày" },
-  LEISURELY: { icon: "🍃", spots: "1–2 điểm/ngày" },
-  MODERATE: { icon: "⚖️", spots: "2–3 điểm/ngày" },
-  PACKED: { icon: "⚡", spots: "3–4 điểm/ngày" },
+const PACE_META: Record<string, { Icon: LucideIcon; spots: string }> = {
+  RELAXED: { Icon: Leaf, spots: "1–2 điểm/ngày" },
+  LEISURELY: { Icon: Leaf, spots: "1–2 điểm/ngày" },
+  MODERATE: { Icon: Gauge, spots: "2–3 điểm/ngày" },
+  PACKED: { Icon: Compass, spots: "3–4 điểm/ngày" },
 };
 
-export function PaceEditor({ value, onChange, onBlur, inputRef, autoFocus, error, errorId }: PaceEditorProps) {
+export function PaceEditor({
+  idPrefix = "trip",
+  value,
+  onChange,
+  onBlur,
+  inputRef,
+  autoFocus,
+  error,
+  errorId,
+}: PaceEditorProps) {
   return (
-    <fieldset id="trip-pace" className="trip-fieldset trip-fieldset-card" aria-describedby={error ? errorId : undefined}>
+    <fieldset
+      id={`${idPrefix}-pace`}
+      className="trip-fieldset trip-fieldset-card"
+      aria-describedby={error ? errorId : undefined}
+    >
       <legend className="trip-field-legend">
         <div className="trip-field-title-group">
           <span className="trip-field-icon-box" aria-hidden="true">
@@ -530,47 +644,41 @@ export function PaceEditor({ value, onChange, onBlur, inputRef, autoFocus, error
       </legend>
       <p className="trip-help">Chọn tốc độ di chuyển mong muốn trên hành trình.</p>
       <div className="trip-choice-grid trip-choice-grid-pace">
-        <label className={`trip-choice trip-choice-pace ${value === "" ? "trip-choice-active" : ""}`}>
-          <input type="radio" name="pace" value="" checked={value === ""} onChange={() => onChange("")} autoFocus={autoFocus} />
-          <span className="trip-choice-content">
-            <span className="trip-choice-visual-icon" aria-hidden="true">
-              <Compass size={20} strokeWidth={2} />
-            </span>
-            <span className="trip-choice-info">
-              <strong className="trip-choice-name">Chưa chọn</strong>
-              <small className="trip-choice-sub">Để hệ thống gợi ý theo cung đường.</small>
-            </span>
-          </span>
-        </label>
         {PACE_OPTIONS.map((option, index) => {
           const isSelected = value === option.value;
           const meta = PACE_META[option.value];
+          const Icon = meta?.Icon ?? Compass;
           return (
-            <label className={`trip-choice trip-choice-pace ${isSelected ? "trip-choice-active" : ""}`} key={option.value}>
+            <label
+              className={`trip-choice trip-choice-pace ${isSelected ? "trip-choice-active" : ""}`}
+              key={option.value}
+              title={option.description}
+            >
               <input
                 ref={index === 0 ? inputRef : undefined}
                 type="radio"
-                name="pace"
+                name={`${idPrefix}-pace`}
                 value={option.value}
-                checked={value === option.value}
-                onChange={(event) => onChange(event.target.value)}
+                checked={isSelected}
+                onClick={() => {
+                  if (isSelected) onChange("");
+                  else onChange(option.value);
+                }}
+                onChange={() => {}}
                 onBlur={onBlur}
                 autoFocus={autoFocus && index === 0}
                 aria-invalid={Boolean(error)}
               />
               <span className="trip-choice-content">
                 <span className="trip-choice-visual-icon" aria-hidden="true">
-                  {meta?.icon ?? "🏃"}
+                  <Icon size={20} />
                 </span>
                 <span className="trip-choice-info">
                   <div className="trip-pace-header-line">
                     <strong className="trip-choice-name">{option.label}</strong>
                     {meta?.spots && <span className="trip-pace-spots-tag">{meta.spots}</span>}
                   </div>
-                  <small className="trip-choice-sub">{option.description}</small>
-                </span>
-                <span className="trip-choice-status-indicator" aria-hidden="true">
-                  {isSelected ? "✓" : ""}
+                  <span className="trip-sr-only">{option.description}</span>
                 </span>
               </span>
             </label>
@@ -598,16 +706,17 @@ export type MobilityEditorProps = CommonEditorProps & {
   autoFocus?: boolean;
 };
 
-const MOBILITY_ICONS: Record<string, string> = {
-  AVOID_LONG_WALKS: "🚶",
-  AVOID_STEEP_TERRAIN: "⛰️",
-  WHEELCHAIR_ACCESSIBLE: "♿",
-  HAS_CHILDREN: "👶",
-  HAS_ELDERLY: "🧓",
-  MOTION_SICKNESS: "🤢",
+const MOBILITY_ICONS: Record<string, LucideIcon> = {
+  AVOID_LONG_WALKING: Footprints,
+  NO_STEEP_TERRAIN: Mountain,
+  WHEELCHAIR_OR_MOBILITY_AID: Accessibility,
+  YOUNG_CHILDREN: Baby,
+  SENIORS: PersonStanding,
+  MOTION_SICKNESS: Waves,
 };
 
 export function MobilityEditor({
+  idPrefix = "trip",
   flags,
   note,
   onFlagsChange,
@@ -622,12 +731,14 @@ export function MobilityEditor({
   noteRef,
   autoFocus,
 }: MobilityEditorProps) {
-  const hasError = Boolean(flagsError || noteError);
+  const [showNote, setShowNote] = useState(Boolean(note.trim()) || Boolean(noteError));
+  const hasError = Boolean(flagsError || (showNote && noteError));
+
   return (
     <fieldset
-      id="trip-mobility-first"
+      id={`${idPrefix}-mobility-first`}
       className="trip-fieldset trip-fieldset-card"
-      aria-describedby={hasError ? [flagsError ? flagsErrorId : "", noteError ? noteErrorId : ""].filter(Boolean).join(" ") : undefined}
+      aria-describedby={hasError ? [flagsError ? flagsErrorId : "", showNote && noteError ? noteErrorId : ""].filter(Boolean).join(" ") : undefined}
     >
       <legend className="trip-field-legend">
         <div className="trip-field-title-group">
@@ -639,63 +750,104 @@ export function MobilityEditor({
         <span className="trip-optional">Tùy chọn</span>
       </legend>
       <p className="trip-help">Chọn điều cần lưu ý để lịch trình được điều chỉnh địa hình và thời gian phù hợp.</p>
+
       <div className="trip-choice-grid trip-choice-grid-mobility">
         {MOBILITY_CONSTRAINT_OPTIONS.map((option, index) => {
           const isSelected = flags.includes(option.value);
+          const Icon = MOBILITY_ICONS[option.value] ?? Accessibility;
           return (
-            <label className={`trip-choice trip-choice-mobility-chip ${isSelected ? "trip-choice-active" : ""}`} key={option.value}>
+            <label
+              className={`trip-choice trip-choice-mobility-chip ${isSelected ? "trip-choice-active" : ""}`}
+              key={option.value}
+              title={option.description}
+            >
               <input
                 ref={index === 0 ? inputRef : undefined}
                 type="checkbox"
                 name="mobilityFlags"
                 value={option.value}
-                checked={flags.includes(option.value)}
-                onChange={() => onFlagsChange(flags.includes(option.value) ? flags.filter((item) => item !== option.value) : [...flags, option.value])}
+                checked={isSelected}
+                onChange={() =>
+                  onFlagsChange(
+                    isSelected
+                      ? flags.filter((item) => item !== option.value)
+                      : [...flags, option.value],
+                  )
+                }
                 onBlur={onFlagsBlur}
                 autoFocus={autoFocus && index === 0}
                 aria-invalid={Boolean(flagsError)}
               />
               <span className="trip-chip-content">
-                <span className="trip-chip-icon" aria-hidden="true">{MOBILITY_ICONS[option.value] ?? "⚠️"}</span>
+                <span className="trip-chip-icon" aria-hidden="true">
+                  <Icon size={20} />
+                </span>
                 <span className="trip-chip-texts">
                   <strong className="trip-chip-title">{option.label}</strong>
-                  <small className="trip-chip-desc">{option.description}</small>
-                </span>
-                <span className="trip-choice-status-indicator" aria-hidden="true">
-                  {isSelected ? "✓" : "+"}
+                  <span className="trip-sr-only">{option.description}</span>
                 </span>
               </span>
             </label>
           );
         })}
       </div>
-      <div className="trip-field trip-nested-field">
-        <div className="trip-field-label-row">
-          <div className="trip-field-title-group">
-            <span className="trip-field-icon-box" aria-hidden="true">
-              <FileEdit size={15} strokeWidth={2.2} />
-            </span>
-            <Label htmlFor="trip-mobility-note" className="trip-field-title">Ghi chú thêm</Label>
+
+      <div className="trip-mobility-note-section">
+        {!showNote && !note.trim() ? (
+          <button
+            type="button"
+            className="trip-add-note-btn"
+            onClick={() => setShowNote(true)}
+          >
+            + Thêm ghi chú
+          </button>
+        ) : (
+          <div className="trip-field trip-nested-field">
+            <div className="trip-field-label-row">
+              <div className="trip-field-title-group">
+                <span className="trip-field-icon-box" aria-hidden="true">
+                  <FileEdit size={15} strokeWidth={2.2} />
+                </span>
+                <Label htmlFor={`${idPrefix}-mobility-note`} className="trip-field-title">
+                  Ghi chú thêm
+                </Label>
+              </div>
+              <div className="trip-note-header-actions">
+                <button
+                  type="button"
+                  className="trip-note-close-btn"
+                  onClick={() => {
+                    onNoteChange("");
+                    setShowNote(false);
+                  }}
+                >
+                  Xóa / Thu gọn
+                </button>
+                <span className="trip-optional">Tùy chọn</span>
+              </div>
+            </div>
+            <textarea
+              ref={noteRef}
+              id={`${idPrefix}-mobility-note`}
+              name="mobilityNote"
+              className="trip-textarea resize-none"
+              value={note}
+              maxLength={500}
+              placeholder="Ví dụ: Muốn ghé chợ phiên Đồng Văn sáng Chủ Nhật, ưu tiên homestay nhìn ra thung lũng..."
+              onChange={(event) => onNoteChange(event.target.value)}
+              onBlur={onNoteBlur}
+              aria-describedby={`${idPrefix}-mobility-note-help${noteError ? ` ${noteErrorId}` : ""}`}
+              aria-invalid={Boolean(noteError)}
+            />
+            <p id={`${idPrefix}-mobility-note-help`} className="trip-help trip-character-count">
+              Còn {500 - note.length} ký tự
+            </p>
+            <EditorError error={noteError} errorId={noteErrorId} />
           </div>
-          <span className="trip-optional">Tùy chọn</span>
-        </div>
-        <textarea
-          ref={noteRef}
-          id="trip-mobility-note"
-          name="mobilityNote"
-          className="trip-textarea"
-          value={note}
-          maxLength={500}
-          placeholder="Ví dụ: Muốn ghé chợ phiên Đồng Văn sáng Chủ Nhật, ưu tiên homestay nhìn ra thung lũng, hoặc cần nghỉ chân uống trà ngắm hoa tam giác mạch..."
-          onChange={(event) => onNoteChange(event.target.value)}
-          onBlur={onNoteBlur}
-          aria-describedby={`trip-mobility-note-help${noteError ? ` ${noteErrorId}` : ""}`}
-          aria-invalid={Boolean(noteError)}
-        />
-        <p id="trip-mobility-note-help" className="trip-help trip-character-count">Còn {500 - note.length} ký tự</p>
+        )}
       </div>
+
       <EditorError error={flagsError} errorId={flagsErrorId} />
-      <EditorError error={noteError} errorId={noteErrorId} />
     </fieldset>
   );
 }

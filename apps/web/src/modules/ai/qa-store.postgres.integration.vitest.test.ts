@@ -167,8 +167,8 @@ suite("US21 real PostgreSQL reservations, retention and completion",()=>{
       acquired();await held;
     },{timeout:10000});
     await locked;
-    let clockReads=0;
-    const clocked=createQaConversationStore(db as Database,{now:()=>++clockReads===1?new Date(boundary.getTime()-1):new Date(boundary)});
+    let clockReads=0, clockNow=new Date(boundary.getTime()-1);
+    const clocked=createQaConversationStore(db as Database,{now:()=>{clockReads++;return clockNow;}});
     const pending=clocked.reserve(p,key,{question:"Câu hỏi kiểm thử",context:{type:"GENERAL"}});
     let observedWait=false;
     try {
@@ -183,8 +183,8 @@ suite("US21 real PostgreSQL reservations, retention and completion",()=>{
         if(!observedWait)await new Promise(resolve=>setTimeout(resolve,10));
       }
       expect(observedWait).toBe(true);
-      expect(clockReads).toBe(1);
-    } finally {release();}
+      expect(clockReads).toBe(0); // No unused timestamp sampled before acquiring the lock.
+    } finally {clockNow=new Date(boundary);release();}
     await blocker;
     await expect(pending).rejects.toMatchObject({code:"NOT_FOUND"});
     const row=(await db.$queryRaw<{state:string;question:unknown;response:unknown}[]>(Prisma.sql`SELECT state,question,response FROM qa_turn WHERE id=${r.turnId}`))[0]!;
@@ -456,9 +456,92 @@ suite("US21 real PostgreSQL reservations, retention and completion",()=>{
     const page1 = await store15.turns!(p, conversationId, { limit: 12 });
     expect(page1.turns).toHaveLength(12);
     expect(page1.hasMore).toBe(true);
+    expect(page1.nextCursor).toBe(page1.turns[11]!.response.turnId);
+    const page2 = await store15.turns!(p, conversationId, { limit: 12, cursor: page1.nextCursor });
+    expect(page2.turns.map(turn => turn.question)).toEqual(["Câu hỏi lượt 13", "Câu hỏi lượt 14", "Câu hỏi lượt 15"]);
+    expect(page2.hasMore).toBe(false);
+    expect(page2.nextCursor).toBeNull();
 
     const pageAll = await store15.turns!(p, conversationId, { limit: 20 });
     expect(pageAll.turns).toHaveLength(15);
     expect(pageAll.hasMore).toBe(false);
+  });
+
+  it.each(["GUEST", "TRAVELER", "ADMIN"] as const)("panel %s restores owned Destination metadata, preference and immutable turn modes", async role => {
+    let p: QaPrincipal;
+    if (role === "GUEST") p = await guest();
+    else {
+      const id = randomUUID();
+      await db.$executeRaw(Prisma.sql`INSERT INTO "user"(id,name,email,role,"updatedAt") VALUES(${id},'Panel fixture',${`${id}@example.invalid`},${role}::"UserRole",CURRENT_TIMESTAMP)`);
+      p = { kind: "USER", id };
+    }
+    const context = await destination();
+    const request = { question: "Panel fixture", context, knowledgeMode: "SOURCE_ONLY" as const };
+    const key = randomUUID();
+    const first = await store.reserve(p, key, request) as QaReservation;
+    await store.complete(p, first, { ...completed(first), context, knowledgeMode: "SOURCE_ONLY" }, []);
+    await store.update!(p, first.conversationId, { knowledgeMode: "EXPANDED" });
+    const second = await store.reserve(p, randomUUID(), {
+      conversationId: first.conversationId, parentTurnId: first.turnId, question: "Follow", knowledgeMode: "EXPANDED",
+    }) as QaReservation;
+    await store.complete(p, second, { ...completed(second), context, knowledgeMode: "EXPANDED" }, []);
+    const detail = await store.get!(p, first.conversationId);
+    expect(detail.conversation).toMatchObject({ id: first.conversationId, context, headTurnId: second.turnId, knowledgeMode: "EXPANDED" });
+    expect(detail.turns.map(turn => turn.response.knowledgeMode)).toEqual(["SOURCE_ONLY", "EXPANDED"]);
+    expect((await store.reserve(p, key, request))).toMatchObject({ kind: "REPLAY", data: { turnId: first.turnId, knowledgeMode: "SOURCE_ONLY" } });
+    await expect(store.reserve(p, key, { ...request, knowledgeMode: "EXPANDED" })).rejects.toMatchObject({ code: "IDEMPOTENCY_KEY_REUSED" });
+    const foreign = await guest();
+    for (const operation of [() => store.get!(foreign, first.conversationId), () => store.turns!(foreign, first.conversationId), () => store.update!(foreign, first.conversationId, { knowledgeMode: "SOURCE_ONLY" })]) {
+      await expect(operation()).rejects.toMatchObject({ code: "NOT_FOUND" });
+    }
+    await db.$executeRaw(Prisma.sql`UPDATE destination SET visibility='HIDDEN' WHERE id=${context.destinationId}`);
+    for (const operation of [() => store.get!(p, first.conversationId), () => store.turns!(p, first.conversationId), () => store.update!(p, first.conversationId, { knowledgeMode: "SOURCE_ONLY" })]) {
+      await expect(operation()).rejects.toMatchObject({ code: "CONTEXT_UNAVAILABLE" });
+    }
+  });
+
+  it("panel get/turns/preference cannot resurrect expired or deleted conversations", async () => {
+    for (const deleted of [false, true]) {
+      const p = await guest(), r = await reservation(p);
+      await store.complete(p, r, completed(r), []);
+      if (deleted) await store.delete(p, r.conversationId);
+      else await db.$executeRaw(Prisma.sql`UPDATE qa_conversation SET "expiresAt"=CURRENT_TIMESTAMP-INTERVAL '1 second' WHERE id=${r.conversationId}`);
+      for (const operation of [() => store.get!(p, r.conversationId), () => store.turns!(p, r.conversationId), () => store.update!(p, r.conversationId, { knowledgeMode: "EXPANDED" })]) {
+        await expect(operation()).rejects.toMatchObject({ code: "NOT_FOUND" });
+      }
+    }
+  });
+
+  it("panel get/turns/preference recheck revoked Guest and locked user principals", async () => {
+    const anonymous = await guest();
+    const userId = randomUUID();
+    await db.$executeRaw(Prisma.sql`INSERT INTO "user"(id,name,email,role,"updatedAt") VALUES(${userId},'Panel fixture',${`${userId}@example.invalid`},'TRAVELER',CURRENT_TIMESTAMP)`);
+    const account: QaPrincipal = { kind: "USER", id: userId };
+    for (const p of [anonymous, account]) {
+      const r = await reservation(p);
+      await store.complete(p, r, completed(r), []);
+      if (p.kind === "GUEST") await store.revokeGuest(p);
+      else await db.$executeRaw(Prisma.sql`UPDATE "user" SET status='LOCKED' WHERE id=${p.id}`);
+      for (const operation of [() => store.get!(p, r.conversationId), () => store.turns!(p, r.conversationId), () => store.update!(p, r.conversationId, { knowledgeMode: "EXPANDED" })]) {
+        await expect(operation()).rejects.toMatchObject({ code: "UNAUTHENTICATED" });
+      }
+    }
+  });
+
+  it("panel turn pagination follows the completed chain when timestamps tie and rejects foreign cursors", async () => {
+    const p = await guest(), first = await reservation(p);
+    await store.complete(p, first, completed(first), []);
+    const second = await store.reserve(p, randomUUID(), { conversationId: first.conversationId, parentTurnId: first.turnId, question: "Second" }) as QaReservation;
+    await store.complete(p, second, completed(second), []);
+    await db.$executeRaw(Prisma.sql`UPDATE qa_turn SET "createdAt"='2026-10-22T00:00:00Z'::timestamptz WHERE "conversationId"=${first.conversationId}`);
+    const page1 = await store.turns!(p, first.conversationId, { limit: 1 });
+    expect(page1.turns[0]!.response.turnId).toBe(first.turnId);
+    expect(page1.nextCursor).toBe(first.turnId);
+    const page2 = await store.turns!(p, first.conversationId, { limit: 1, cursor: page1.nextCursor });
+    expect(page2.turns.map(turn => turn.response.turnId)).toEqual([second.turnId]);
+    expect(page2.hasMore).toBe(false);
+    const other = await reservation(await guest());
+    await expect(store.turns!(p, first.conversationId, { cursor: other.turnId })).rejects.toMatchObject({ code: "INVALID_REQUEST" });
+    await expect(store.turns!(p, first.conversationId, { cursor: "invalid/cursor" })).rejects.toMatchObject({ code: "INVALID_REQUEST" });
   });
 });

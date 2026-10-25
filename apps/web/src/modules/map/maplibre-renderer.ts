@@ -11,14 +11,25 @@ export function mountMapLibre(host: HTMLDivElement, library: typeof MapLibre, po
     map.addSource("destination-route", { type: "geojson", data: { type: "Feature", properties: {}, geometry: extras.routeGeometry } });
     map.addLayer({ id: "destination-route-line", type: "line", source: "destination-route", paint: { "line-color": "#327252", "line-width": 4, "line-opacity": 0.85 } });
   };
-  const dispose = () => { if (disposed) return; disposed = true; extras.onMap?.(null); markers.forEach(item => item.remove()); popups.forEach(item => item.remove()); map.off("load", onReady); map.off("error", onFailure); map.off("style.load", addRoute); map.remove(); };
+  // Hiển thị tên địa danh bằng tiếng Việt (name:vi) khi dữ liệu bản đồ có; nếu không thì giữ tên gốc.
+  const localizeLabels = () => {
+    if (disposed) return;
+    try {
+      for (const layer of map.getStyle().layers ?? []) {
+        if (layer.type !== "symbol" || !layer.layout || !("text-field" in layer.layout) || !JSON.stringify(layer.layout["text-field"]).includes("name")) continue;
+        map.setLayoutProperty(layer.id, "text-field", ["coalesce", ["get", "name:vi"], ["get", "name:latin"], ["get", "name"]]);
+      }
+    } catch { /* Kiểu bản đồ chưa sẵn sàng hoặc không có lớp chữ: bỏ qua, bản đồ vẫn dùng bình thường. */ }
+  };
+  const dispose = () => { if (disposed) return; disposed = true; extras.onMap?.(null); markers.forEach(item => item.remove()); popups.forEach(item => item.remove()); map.off("load", onReady); map.off("error", onFailure); map.off("style.load", addRoute); map.off("style.load", localizeLabels); map.remove(); };
   try {
-    map.on("load", onReady); map.on("error", onFailure);
+    map.on("load", onReady); map.on("error", onFailure); map.on("style.load", localizeLabels);
     if (extras.routeGeometry) map.on("style.load", addRoute);
     extras.onMap?.(map);
     map.addControl(new library.NavigationControl({ showCompass: false }), "top-right");
     points.forEach(point => {
       const element = document.createElement("button"); element.type = "button"; element.className = "destination-map-marker"; element.setAttribute("aria-label", `Xem ${point.name}`); element.setAttribute("data-destination-id", point.id); element.textContent = "●";
+      if (extras.disablePopup) { const nameLabel = document.createElement("span"); nameLabel.className = "destination-map-marker-label"; nameLabel.textContent = point.name; nameLabel.setAttribute("aria-hidden", "true"); element.append(nameLabel); } // chỉ bản đồ trang chủ hiện tên cạnh điểm
       const markerInstance = new library.Marker({ element }).setLngLat(toMapCoordinate(point));
       if (!extras.disablePopup) {
         const card = document.createElement("div"); card.className = "destination-map-popup";
@@ -123,10 +134,15 @@ export function mountDestinationPinPicker(host: HTMLDivElement, library: typeof 
     map.on("error", onFailure);
     map.on("click", handleMapClick);
     if (initial) setCoordinates(initial, false);
-    return { setCoordinates, dispose, setStyle(next: string) {
-      if (disposed || currentStyle === next) return;
-      map.setStyle(next); currentStyle = next;
-    } };
+    return {
+      setCoordinates,
+      dispose,
+      setStyle(next: string) {
+        if (disposed || currentStyle === next) return;
+        map.setStyle(next);
+        currentStyle = next;
+      },
+    };
   } catch (error) {
     dispose();
     throw error;

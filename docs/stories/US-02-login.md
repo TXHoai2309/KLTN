@@ -253,3 +253,8 @@ Tasks 2–5 evidence is recorded below. Overall status remains `IN PROGRESS` bec
 ## Handoff Notes
 
 Tasks 1–5 verification is complete. Overall story status is `IN PROGRESS` because AC-02 lacks safe Admin credentials for runtime verification; all other criteria have evidence recorded above. No commit or push was made.
+
+
+## 2026-10-22 — Shared UserMenu hydration correction
+
+The shared menu now matches its pending server shell on the first client render, including an already resolved browser auth store. This prevents the observed Skeleton→Guest Suspense hydration failure and affected-tree regeneration. Guest/Traveler/Admin first-render regression fixtures pass; a fresh browser load reports no new hydration error. Better Auth session verification, role/ownership guards, error/retry and confirmed logout retain their existing contracts. No credentials/session result cache or authentication protocol change. See [evidence](../performance/local-data-loading-2026-10-22.md).

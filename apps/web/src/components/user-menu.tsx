@@ -2,7 +2,7 @@
 import { hasRolePermission } from "@/lib/authorization-capabilities";
 import { mvpFeatures } from "@/lib/mvp-features";
 
-import { Suspense, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { Button } from "@KLTN/ui/components/button";
 import {
   DropdownMenu,
@@ -41,9 +41,14 @@ function GuestSignInLink() {
 
 export default function UserMenu() {
   const { data: session, isPending, error, refetch } = authClient.useSession();
+  const [hydrated, setHydrated] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const signOutInProgress = useRef(false);
+
+  // The browser auth store may already be resolved while SSR is still pending.
+  // Match the server shell first so React can hydrate instead of rebuilding it.
+  useEffect(() => { setHydrated(true); }, []);
 
   async function handleSignOut() {
     if (!claimSubmission(signOutInProgress)) return;
@@ -69,7 +74,7 @@ export default function UserMenu() {
     }
   }
 
-  if (isPending) {
+  if (!hydrated || isPending) {
     return <Skeleton className="h-9 w-24 rounded-full" />;
   }
 

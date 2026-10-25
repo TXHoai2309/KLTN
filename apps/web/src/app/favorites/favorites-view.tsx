@@ -17,9 +17,14 @@ import type { FavoriteItem, FavoriteList } from "@/modules/favorite/favorite-con
 
 type Group = keyof FavoriteList;
 type Removed = (id: string, outcome: MutationOutcome<{favoriteId:string}>) => void;
-const groups = [{id:"destinations",label:"Điểm đến"},{id:"cultureContents",label:"Nội dung văn hóa"},{id:"trips",label:"Hành trình"}] as const;
+const groups = [{id:"destinations",label:"Điểm đến"},{id:"trips",label:"Hành trình"}] as const;
 const dateLabel = (value: string) => `${value.slice(8,10)}/${value.slice(5,7)}/${value.slice(0,4)}`;
 const tripStatusLabels = { UPCOMING: "Sắp tới", ONGOING: "Đang diễn ra", COMPLETED: "Đã hoàn thành" };
+const tripDefaultImages: Record<number, string> = {
+  1: "/images/gallery/ha-giang-day1-lg.webp",
+  2: "/images/gallery/ha-giang-day2-lg.webp",
+  3: "/images/gallery/ha-giang-day3-lg.webp",
+};
 
 export function FavoriteCard({item,group,onRemoved}: {item:FavoriteItem;group:Group;onRemoved:Removed}) {
   const [pending,setPending] = useState(false);
@@ -38,11 +43,21 @@ export function FavoriteCard({item,group,onRemoved}: {item:FavoriteItem;group:Gr
     } catch { setFeedback("Chưa thể xác nhận đã bỏ yêu thích. Vui lòng thử lại."); }
     finally { inFlight.current=false; setPending(false); }
   }
+
+  const cardImage = item.image ?? (group === "trips" ? {
+    url: tripDefaultImages[item.trip?.durationDays ?? 3] || "/images/gallery/ha-giang-day1-lg.webp",
+    alt: item.title,
+  } : null);
+
   return <Card className="favorite-card">
-    {item.image ? (
+    {cardImage ? (
       <div className="favorite-card-media">
-        <DestinationCardImage image={item.image} />
-        {item.area ? <span className="favorite-card-area">{item.area}</span> : null}
+        <DestinationCardImage image={cardImage} />
+        {item.area ? (
+          <span className="favorite-card-area">{item.area}</span>
+        ) : group === "trips" && item.trip ? (
+          <span className="favorite-card-area">{tripStatusLabels[item.trip.status]}</span>
+        ) : null}
       </div>
     ) : (
       <div className="favorite-accent" aria-hidden="true" />
@@ -57,7 +72,7 @@ export function FavoriteCard({item,group,onRemoved}: {item:FavoriteItem;group:Gr
         <p className="favorite-trip-status">{tripStatusLabels[item.trip.status]}</p>
       </div>}
       <div className="favorite-actions">
-        {item.href && item.availability === "AVAILABLE" && <Link className="favorite-action" prefetch={false} href={item.href as Route} aria-label={`Mở chi tiết ${item.title}`}>Mở chi tiết</Link>}
+        {item.href && item.availability === "AVAILABLE" && <Link className="favorite-action favorite-action-detail" prefetch={false} href={item.href as Route} aria-label={`Mở chi tiết ${item.title}`}>Mở chi tiết</Link>}
         <Button variant="outline" className="favorite-action" disabled={pending} onClick={()=>void remove()} aria-label={`${feedback ? "Thử lại bỏ" : "Bỏ"} yêu thích ${item.title}`}>
           {group === "trips" && <Heart size={16} fill="currentColor" aria-hidden="true" />}{pending ? "Đang bỏ..." : feedback ? "Thử lại bỏ yêu thích" : "Bỏ yêu thích"}
         </Button>
@@ -92,7 +107,11 @@ export default function FavoritesView({loadingOnly=false}: {loadingOnly?:boolean
     if(outcome.status === "SUCCESS") { setNotice("Đã bỏ yêu thích."); toast.success("Đã bỏ yêu thích."); router.refresh(); }
   };
   return <main className="favorites-page" lang="vi">
-    <h1>Yêu thích</h1>
+    <div className="favorites-header">
+      <p className="favorites-eyebrow">BỘ SƯU TẬP CỦA BẠN</p>
+      <h1>Yêu thích</h1>
+      <p className="favorites-subheading">Lưu giữ các điểm đến và hành trình Hà Giang mà bạn quan tâm để dễ dàng theo dõi và lên kế hoạch.</p>
+    </div>
     {groups.length > 1 && (
       <div className="favorite-groups" role="group" aria-label="Nhóm yêu thích">
         {groups.map(tab => (

@@ -4,19 +4,35 @@ import { mountItineraryMap } from "./itinerary-map-renderer";
 import { schedulePlannerDays } from "../trip-planner/planner-engine";
 import { candidate, requirement } from "../trip-planner/__fixtures__/planner-fixtures";
 afterEach(() => vi.unstubAllGlobals());
-function harness() {
+function harness(options: Parameters<typeof mountItineraryMap>[7] = {}) {
   const buttons: { attrs: Record<string, string>; click?: () => void; removeEventListener: ReturnType<typeof vi.fn> }[] = [];
-  vi.stubGlobal("document", { createElement: () => { const button = { attrs: {} as Record<string, string>, classList: { toggle: vi.fn() }, setAttribute(key: string, value: string) { this.attrs[key] = value; }, addEventListener(_type: string, callback: () => void) { this.click = callback; }, click: undefined as (() => void) | undefined, removeEventListener: vi.fn() }; buttons.push(button); return button; } });
+  vi.stubGlobal("document", { createElement: () => { const button = { attrs: {} as Record<string, string>, style: { setProperty: vi.fn() }, classList: { toggle: vi.fn() }, setAttribute(key: string, value: string) { this.attrs[key] = value; }, addEventListener(_type: string, callback: () => void) { this.click = callback; }, click: undefined as (() => void) | undefined, removeEventListener: vi.fn() }; buttons.push(button); return button; } });
   vi.stubGlobal("matchMedia", () => ({ matches: true }));
-  const map = { on: vi.fn(), off: vi.fn(), remove: vi.fn(), setStyle: vi.fn(), addControl: vi.fn(), jumpTo: vi.fn(), fitBounds: vi.fn(), easeTo: vi.fn(), getZoom: () => 10 };
+  vi.stubGlobal("getComputedStyle", () => ({ getPropertyValue: (name: string) => name === "--planner-route-2" ? "#286ba5" : name === "--planner-route-casing" ? "#fff" : "#28734f" }));
+  const sources = new globalThis.Map();
+  const map = { on: vi.fn(), off: vi.fn(), remove: vi.fn(), setStyle: vi.fn(() => sources.clear()), addControl: vi.fn(), jumpTo: vi.fn(), fitBounds: vi.fn(), easeTo: vi.fn(), getZoom: () => 10,
+    getSource: vi.fn((id: string) => sources.get(id)), addSource: vi.fn((id: string, value: unknown) => sources.set(id, { value, setData: vi.fn() })), addLayer: vi.fn(), isStyleLoaded: () => true };
   const markerRemoval = vi.fn(), positions: number[][] = [];
   const library = { Map: class { constructor() { return map; } }, NavigationControl: class {}, LngLatBounds: class { extend = vi.fn(); }, Marker: class { setLngLat(coords: number[]) { positions.push(coords); return this; } addTo() { return this; } remove = markerRemoval; } } as unknown as typeof MapLibre;
   const stops = schedulePlannerDays({ ...requirement, durationDays: 1 }, [[candidate("a"), candidate("bb")]], new Map())[0]!.stops;
   const onSelect = vi.fn(), ready = vi.fn(), failure = vi.fn();
-  const renderer = mountItineraryMap({} as HTMLDivElement, library, stops, "style", onSelect, ready, failure);
+  const renderer = mountItineraryMap({} as HTMLDivElement, library, stops, "style", onSelect, ready, failure, options);
   return { renderer, map, buttons, positions, stops, onSelect, markerRemoval };
 }
 describe("itinerary MapLibre selection and lifecycle", () => {
+  it("draws separate provider shapes, restores them after theme changes and can refit", () => {
+    const geometry = { type: "LineString" as const, coordinates: [[105, 23], [105.1, 23.2], [105.2, 23.3]] as [number, number][] };
+    const h = harness({ overview: true, markerDays: new globalThis.Map([["a", 1], ["bb", 2]]), routes: [{ day: 2, geometry, fromDestinationId: "a", toDestinationId: "bb" }] });
+    const styleLoaded = h.map.on.mock.calls.find(call => call[0] === "style.load")![1] as () => void;
+    styleLoaded();
+    expect(h.map.addSource.mock.calls[0]?.[1]).toMatchObject({ data: { features: [{ geometry, properties: { day: 2, color: "#286ba5" } }] } });
+    expect(h.map.addLayer).toHaveBeenCalledTimes(2);
+    h.renderer.setStyle("dark-style"); styleLoaded();
+    expect(h.map.addSource).toHaveBeenCalledTimes(2); expect(h.map.remove).not.toHaveBeenCalled();
+    expect(h.buttons[1]!.attrs["aria-label"]).toContain("Ngày 2");
+    h.renderer.fit(); expect(h.map.fitBounds).toHaveBeenCalledTimes(2);
+    h.renderer.dispose(); styleLoaded(); expect(h.map.addSource).toHaveBeenCalledTimes(2);
+  });
   it("switches style on the same map without touching markers, selection or camera", () => {
     const h = harness();
     h.renderer.select("bb", false);

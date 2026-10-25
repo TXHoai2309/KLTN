@@ -30,7 +30,7 @@ describe("Trip theme integration", () => {
   expect(declaration("./trip-planner.css", ".planner-loading", "background")).toBe("var(--planner-surface)");
   expect(declaration("./trip-planner.css", ".planner-map-state", "background")).toContain("light-dark(");
   expect(declaration("./trip-planner.css", ".planner-badge-pass", "color")).toContain("light-dark(");
-  expect(declaration("./trip-planner.css", ".planner-grid", "grid-template-columns")).toBe("minmax(0, .42fr) minmax(0, .58fr)");
+  expect(declaration("./trip-planner.css", ".planner-grid", "grid-template-columns")).toBe("minmax(0, 0.95fr) minmax(0, 1.05fr)");
  });
  it("standalone regeneration error can resolve its surface outside planner-page", () => {
   expect(declaration("./trip-planner.css", ".planner-error", "--planner-surface")).toBe("var(--card)");

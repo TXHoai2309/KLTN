@@ -27,6 +27,54 @@ components:
 
 # Admin RAG design context
 
+## Global assistant correction approved by owner (2026-10-22)
+
+The owner now requests a launcher available across pages, fixes for Send, and a
+smaller popup header. This supersedes the earlier Destination-only placement and
+discard-on-client-navigation policy below. GlobalAssistantProvider in the root
+Providers owns one lazily opened session, portaled to body to avoid editorial
+typography and stacking contexts. Ordinary client navigation/minimize preserves
+the active conversation and draft; Chat mới adopts the current server-projected
+Destination or GENERAL on other pages. Reload has no durable recovery promise.
+Hide the launcher on full Assistant/auth routes to avoid duplicate controls;
+explicit full-page handoff releases the resolved panel after transferring its
+actual conversation ID, draft and mode. Saved chats stay in full-page history.
+
+Header hierarchy is a 14px Trợ lý AI title plus a single-line context disclosure;
+full names remain available by keyboard/touch. Existing colors/fonts/citations
+remain canonical. Desktop is non-modal; mobile contains focus, makes background
+inert, restores prior scroll/focus state, and bounds the composer to visualViewport.
+Styles live with the global Assistant, not Destination detail. No new API/schema,
+AI provider policy or permission rule is introduced.
+
+## Destination contextual assistant panel approved direction (2026-10-22)
+
+Owner requests that the Destination detail **Hỏi trợ lý AI** action open a compact
+right-corner conversation alongside the page. Existing Assistant typography,
+semantic theme tokens, lucide icons, citations and knowledge-mode presentation
+remain the visual owners. This is an embedded variant, not a new visual system.
+The existing full Assistant remains a separate surface; do not embed its sidebar,
+full-viewport shell, main landmark or URL synchronization unchanged.
+
+Owner approved Q1–Q7: desktop non-modal right-corner panel near 400×560px with
+viewport bounds; mobile full-width tall sheet; pinned Destination heading; compact
+messages/composer/suggestions/citations/knowledge toggle and Chat mới, without the
+all-chat sidebar. Opening alone sends no AI question. Minimize retains the mounted
+chat, draft and request; full-page navigation remains an explicit action once work
+is resolved. New page loads start a fresh panel chat; saved history stays available
+in the full Assistant. Header Assistant navigation keeps its existing behavior.
+
+Owner also approved Q8–Q9: explicit full-page continuation preserves unsent text
+and selected mode without auto-sending; pending/UNKNOWN work cannot be handed off
+by simply navigating. New-chat/in-app departure that discards unresolved intent
+uses the existing abandonment confirmation; leaving local recovery does not mean
+server cancellation. Ephemeral draft transfer must stay out of URLs and durable
+browser storage. The full contract is in
+`docs/implementation/destination-assistant-popup-contract.md`. On 2026-10-22, FE
+implemented the six-ticket breakdown: semantic FAB action, non-modal desktop panel,
+responsive mobile sheet with modal backdrop, in-memory one-use handoff adapter,
+hidden-state minimize preservation, and principal/context isolation without URL leaks.
+
 ## Trip merge and Save recovery (2026-10-21)
 
 Owner-selected Trip UI follows ThaiAnh's existing layouts, CSS/theme tokens and
@@ -36,6 +84,31 @@ preview and TripSavePanel's confirmed write; success toast precedes navigation
 to `/trips`. Pending/UNKNOWN locks extend to the containing requirement form's
 tabs and input handlers, retaining the mounted proposal and identical retry key.
 Known FAILED releases that lock. No new palette, font or storage mechanism.
+
+### Trip planning refinement approved by owner (2026-10-23)
+
+The owner approved Q1–Q5 for `/trips/new`: preserve the forest/cream palette and
+Be Vietnam Pro/Noto Serif families, refine layout and density, keep AI as the
+first entry with a visible manual path, prioritize the itinerary over supporting
+map content, and simplify Vietnamese copy without changing business meaning.
+The later implementation instruction explicitly authorizes these refinements;
+the earlier preservation direction above continues to govern business behavior.
+
+Runtime ownership remains Model B: `trip-form.css` owns `--tf-*` colors and themes;
+`trip-planning-layout.css` is the route-scoped composition adapter loaded by the
+existing layout. Embedded planner semantic variables map to the same tf roles.
+Standalone planner consumers retain their existing stylesheet. No generated
+design system, global palette, new font, dependency or navigation owner is added.
+
+Shared field editors own both form and review, with `trip` / `trip-review` instance
+IDs and independent radio names. Native typed Vietnamese dates remain canonical.
+Primary controls have at least 44px targets; review stacks at narrow widths.
+The document owns scrolling. The mobile action dock is in normal flow, keeping
+the global AI launcher and keyboard from covering its primary action. Source,
+readiness, Validator and database-save states retain their separate meanings.
+
+See `docs/design/trip-planning-ui-refinement.md` for the canonical UI map,
+verification evidence, known baseline failures and boundaries.
 
 ## Assistant original-source citations (2026-10-20)
 
@@ -462,3 +535,62 @@ search with stale-response protection; audit uses bounded Load more. Runtime
 status choices are ACTIVE/LOCKED only. Session details omit IP/token, show actual
 active counts and at most twenty recent active sessions. lastLoginAt remains
 unrecorded, never derived from updatedAt.
+
+## Trip navigation — owner correction, 2026-10-23
+
+Match the supplied demo's information architecture: Header owns one protected
+`Chuyến đi của tôi` entry to `/trips`, between Assistant and Favorites, on desktop
+and mobile. The entry remains active throughout `/trips/`, including creation.
+Creation is the existing `+ Tạo chuyến đi` action inside MyTripsView linking to
+`/trips/new`; retain its empty-state alternative. Header and MyTripsView remain
+the canonical owners; no new navigation component, tokens or business behavior.
+
+## Trip creation — two steps, collapsible AI and direct proposal, 2026-10-24
+
+Owner replaces the separate Describe/Supplement/Review navigation with two
+steps: `Thông tin chuyến đi` and `Lịch trình đề xuất`. Open the structured form
+immediately. Preserve natural-language entry as an optional, initially collapsed
+AI helper (`.trip-ai-accordion`) below the required fields block, with rotating
+chevron, "Gõ một câu, AI điền giúp bạn" subline, and toggle indicator. Auto-collapses
+on AI success and auto-expands relevant populated optional fieldsets.
+
+Form submission validates required inputs and runs authoritative server `/check`.
+For manual entry, a valid check confirms the draft in memory and advances directly
+to `Lịch trình đề xuất` (bypassing the review modal).
+
+`TripReviewDialog` is retained strictly for:
+1. AI-assisted drafts with at least one unreviewed AI-applied field.
+2. Server check failures or clarification requests, focusing on the first error.
+
+TripReviewDialog owns native modal presentation, background scroll/inertness,
+keyboard boundaries, Escape/Close and return focus. TripReviewScreen and the
+shared field editors retain edit/check/acknowledgement semantics. Saved review
+edits return to the form on dismissal; confirmation passes the server-checked
+snapshot to the existing planner. Proposal departure date selection synchronizes
+back to parent form state. Minimum inputs, date/save gates, transport
+clarification, authorization and persistence contracts remain unchanged.
+
+## Planner road routes and whole-trip map — owner request, 2026-10-25
+
+The owner requests actual road-shaped connections and an overview of all trip
+days. ItineraryMap remains the single presentation owner: native pressed buttons
+switch between the selected day and `Toàn hành trình`; `Vừa bản đồ` restores the
+complete displayed bounds. Whole-trip markers use global visit numbers; selecting
+one updates the existing day/timeline selection. The daily view includes the
+previous day's actual endpoint as point 0 when a transfer exists.
+
+Keep the existing forest/cream identity, typography, map controls and destination
+preview. `trip-planner.css` remains the Model B runtime token owner: route 1
+`#28734f`, route 2 `#286ba5`, route 3 `#99621d`; dark equivalents `#75caa0`,
+`#83bde8`, `#dfb46c`. These are geographic day identifiers, not Validator statuses.
+The three-color cycle is accompanied by explicit day labels for longer trips.
+The same CSS tokens drive legend swatches, markers and MapLibre line features.
+The route casing and marker ink have separate light/dark tokens. MapLibre owns
+marker position transforms; CSS must not animate or scale the root marker.
+
+Optional bounded server-normalized geometry from the existing routing call is
+the only line source. Missing shapes leave a visible gap and explanatory text;
+no straight fallback, invented road or additional browser routing request.
+Theme changes restore lines on the existing map. Loading/error/retry retain the
+timeline; the floating preview cannot cover the map-error retry action. The
+existing design refinement document remains the canonical behavior map.

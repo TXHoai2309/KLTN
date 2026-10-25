@@ -11,9 +11,7 @@ import {
   Compass,
   Sparkles,
   Heart,
-  PlusCircle,
   CalendarDays,
-  LayoutDashboard,
   BookOpen,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -30,6 +28,7 @@ export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
   const toggleBtnRef = useRef<HTMLButtonElement>(null);
   const closeBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -47,6 +46,39 @@ export default function Header() {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Track scroll progress exclusively on landing page
+  useEffect(() => {
+    if (pathname !== "/") {
+      setScrollProgress(0);
+      return;
+    }
+
+    let ticking = false;
+
+    const handleProgress = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const docEl = document.documentElement;
+          const totalHeight = docEl.scrollHeight - window.innerHeight;
+          const currentScroll = window.scrollY || docEl.scrollTop || 0;
+          const progress = totalHeight > 0 ? Math.min(1, Math.max(0, currentScroll / totalHeight)) : 0;
+          setScrollProgress(progress);
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    handleProgress();
+    window.addEventListener("scroll", handleProgress, { passive: true });
+    window.addEventListener("resize", handleProgress, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", handleProgress);
+      window.removeEventListener("resize", handleProgress);
+    };
+  }, [pathname]);
 
   // Close mobile drawer on route change
   useEffect(() => {
@@ -112,16 +144,13 @@ export default function Header() {
     { to: "/explore", label: "Khám phá", icon: Compass },
     ...(mvpFeatures.culture ? [{ to: "/culture", label: "Văn hóa", icon: BookOpen }] : []),
     { to: "/assistant", label: "Trợ lý AI", icon: Sparkles, isAi: true },
-    { to: "/favorites", label: "Yêu thích", icon: Heart, protected: true, intent: "favorites" },
-    { to: "/trips/new", label: "Lập hành trình", icon: PlusCircle, protected: true, intent: "planner" },
     { to: "/trips", label: "Chuyến đi của tôi", icon: CalendarDays, protected: true, intent: "trips" },
-    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard, protected: true, intent: "dashboard" },
+    { to: "/favorites", label: "Yêu thích", icon: Heart, protected: true, intent: "favorites" },
   ];
 
   const isLinkActive = (to: string) => {
     if (to === "/") return pathname === "/";
     if (to === "/explore") return pathname === "/explore" || pathname.startsWith("/destinations/");
-    if (to === "/trips") return pathname === "/trips" || (pathname.startsWith("/trips/") && !pathname.startsWith("/trips/new"));
     return pathname === to || pathname.startsWith(`${to}/`);
   };
 
@@ -142,13 +171,7 @@ export default function Header() {
         {/* Center: Desktop Navigation */}
         <nav className="site-nav" aria-label="Điều hướng chính">
           {links.map(({ to, label, isAi, protected: isProtected, intent }) => {
-            const active = to === "/"
-              ? pathname === "/"
-              : to === "/explore"
-                ? pathname === "/explore" || pathname.startsWith("/destinations/")
-                : to === "/trips"
-                  ? pathname === "/trips" || (pathname.startsWith("/trips/") && !pathname.startsWith("/trips/new"))
-                : pathname === to || pathname.startsWith(`${to}/`);
+            const active = isLinkActive(to);
             const content = (
               <>
                 <span>{label}</span>
@@ -307,6 +330,17 @@ export default function Header() {
           </>,
           document.body
         )}
+      {pathname === "/" && (
+        <div
+          className="header-scroll-progress"
+          role="progressbar"
+          aria-valuenow={Math.round(scrollProgress * 100)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label="Tiến trình cuộn trang"
+          style={{ transform: `scaleX(${scrollProgress})` }}
+        />
+      )}
     </header>
   );
 }

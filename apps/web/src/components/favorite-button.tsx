@@ -9,6 +9,7 @@ import { hasRolePermission } from "@/lib/authorization-capabilities";
 import { authClient } from "@/lib/auth-client";
 import { buildAuthLoginHref } from "@/lib/auth-return-to";
 import { useAuthRequired } from "./auth-required-provider";
+import { loadFavoriteStatus } from "./favorite-status-client";
 import {
   createIdempotencyKey,
   sendIdempotentMutation,
@@ -102,6 +103,7 @@ export default function FavoriteButton({
   const mutationInFlightRef = useRef(false);
   const mountedRef = useRef(false);
   const mutationSequenceRef = useRef(0);
+  const statusRequestRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -120,45 +122,21 @@ export default function FavoriteButton({
     mutationInFlightRef.current = false;
     setIsActionPending(false);
     setMutationUnknown(false);
-  }, [targetId, targetType]);
+  }, [targetId, targetType, sessionUserId]);
 
-  const loadStatus = useCallback(async (signal?: AbortSignal) => {
+  const loadStatus = useCallback(async () => {
+    statusRequestRef.current?.abort();
+    const controller = new AbortController();
+    statusRequestRef.current = controller;
     setLoadState("loading");
     setIsFavorite(undefined);
     setMessage(null);
 
     try {
-      const query = new URLSearchParams({ targetType, targetId });
-      const response = await fetch(`/api/favorites/status?${query.toString()}`, {
-        method: "GET",
-        credentials: "same-origin",
-        cache: "no-store",
-        headers: { Accept: "application/json" },
-        signal,
-      });
-      const body: unknown = await response.json();
-
-      if (
-        !response.ok ||
-        typeof body !== "object" ||
-        body === null ||
-        !("success" in body) ||
-        body.success !== true ||
-        !("data" in body)
-      ) {
-        throw new Error("favorite-status-failed");
-      }
-
-      const parsed = favoriteResultSchema.safeParse(body.data);
-      if (
-        !parsed.success ||
-        parsed.data.targetType !== targetType ||
-        parsed.data.targetId !== targetId
-      ) {
-        throw new Error("favorite-status-mismatch");
-      }
-
-      setIsFavorite(parsed.data.isFavorite);
+      if (!sessionUserId) return;
+      const result = await loadFavoriteStatus(sessionUserId, targetType, targetId, controller.signal);
+      if (controller.signal.aborted || !mountedRef.current) return;
+      setIsFavorite(result.isFavorite);
       setLoadState("ready");
     } catch (error) {
       if (isAbortError(error)) return;
@@ -169,7 +147,7 @@ export default function FavoriteButton({
       setLoadState("unknown");
       setMessage(statusErrorMessage);
     }
-  }, [targetId, targetType]);
+  }, [sessionUserId, targetId, targetType]);
 
   useEffect(() => {
     if (isSessionPending) return;
@@ -189,16 +167,14 @@ export default function FavoriteButton({
       return;
     }
 
-    const controller = new AbortController();
-    void loadStatus(controller.signal);
-    return () => controller.abort();
+    void loadStatus();
+    return () => statusRequestRef.current?.abort();
   }, [
     hasSessionError,
     canUseTraveler,
     initialIsFavorite,
     isSessionPending,
     loadStatus,
-    session,
     sessionRole,
     sessionUserId,
   ]);
