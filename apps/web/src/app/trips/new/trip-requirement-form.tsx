@@ -489,22 +489,6 @@ export default function TripRequirementForm() {
         </>
       ) : (
         <div className="trip-planner-view">
-          <div className="trip-planner-top-bar">
-            <button
-              type="button"
-              className="trip-planner-back-btn"
-              disabled={saveNavigationLocked}
-              onClick={() => {
-                if (saveLock.current) return;
-                setPlanner(null);
-                setActiveTab("details");
-              }}
-            >
-              <ArrowLeft size={16} aria-hidden="true" />
-              <span>Quay lại chỉnh sửa</span>
-            </button>
-          </div>
-
           {planner && (
             <TripPlannerFlow
               embedded
