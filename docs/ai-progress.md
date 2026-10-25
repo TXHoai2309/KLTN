@@ -4082,3 +4082,110 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
   - `git diff --check`: PASS with zero whitespace/conflict errors.
 - **Zero Business Logic/Contract Changes:**
   - Preserved Trip Requirement, Planner proposal generation, Constraint Validator checks, regenerate flow, save trip state machine with idempotency and UNKNOWN/FAILED/SUCCESS semantics, start date validation, and MapLibre viewport synchronization. No changes to database, schema, or server APIs.
+
+## 2026-10-25 — Owner-requested Planner route coherence correction
+
+- **Task/baseline:** owner requested fixing the arbitrary-looking seven-stop
+  itinerary after read-only diagnosis. Baseline `c69ac6c`; initially clean working
+  tree. No commit, push, merge or deployment.
+- **Completed:** replace ID-first route anchoring with bounded comparison of
+  geographic chains from eligible starts, using existing interest/area preferences
+  and coordinate/name tie-breaks. Retain geographic order when long visits carry
+  to another day. After fetching the original directed route pairs, repartition
+  the same chain across days using actual road time, visit duration, opening-hour
+  waiting and calendar availability. Prefer schedulable stops, occupied days and
+  balanced daily elapsed time. Existing pace caps, 64/28/27 limits, three concurrent
+  requests, 10-second routing deadline, Validator and Save boundaries retained.
+- **Evidence:** four new regressions RED before implementation; final nine
+  coherence cases PASS, including the screenshot route, renamed IDs, compact
+  subset, long visits, road-time 2–2→3–1 adjustment with three calls, calendar
+  closures, missing routes and impossible transfers. Public localhost replay now
+  selects Bắc Mê → Quản Bạ → Nhà Vương → Lũng Cú → Đồng Văn → Mã Pí Lèng → Nho Quế.
+  This is a public-data geographic replay, not live routing/corpus acceptance.
+- **Checks:** focused Planner/Validator/Save/UI/map suites 247 PASS / three gated
+  PostgreSQL SKIP. Wider edit/in-trip selection 744 PASS / five FAIL / three SKIP /
+  one TODO. All five failures reproduce with HEAD engine/service loaded through an
+  ignored Vitest baseline adapter (41 PASS / five FAIL); four obsolete Admin-denial
+  expectations and one existing in-trip navigation source audit. Root typecheck
+  four tasks PASS; isolated-output production build PASS with local placeholder
+  build credentials and AI gates disabled. Whitespace/scope/secret checks at handoff.
+- **Limits:** heuristic geographic ordering is not a road-matrix optimizer;
+  date-specific selection is not an exhaustive feasibility search. Missing routing
+  never supplies guessed clocks. No actual origin/lodging/return leg, lunch or
+  safety buffer is invented; warning clarifies unknown endpoints. Public TEST
+  records unchanged. No schema/migration, live data/auth write, environment,
+  routing-provider migration, paid provider call or browser acceptance.
+- **Handoff:** US-28 addendum records the policy change and evidence. Ignored
+  receipts: `apps/web/.cache/planner-fix/` (focused/baseline results, public replay,
+  isolated build log and baseline-only loader).
+
+## 2026-10-25 — Home Section 4 GPU Step-Card Scroll (Bao Lam Style)
+
+- **Component:** `apps/web/src/components/home-planner-story.tsx` and `apps/web/src/components/home-polish.css`.
+- **Context & Goal:** Replaced the legacy auto-play interval timer mechanism in Home Page Section 4 ("Hành trình riêng biệt · Thiết kế cho từng bước chân") with a GPU-accelerated interactive step-scroll experience with sticky stacking cards inspired by the Bao Lam project visual language.
+- **Implementation details:**
+  - Removed `AUTO_PLAY_INTERVAL = 1500` timer and jumpy intervals entirely.
+  - Implemented a sticky quick-jump pill navigation (`01`, `02`, `03`) with `IntersectionObserver` scroll synchronization.
+  - Replaced flat accordions with GPU-accelerated sticky stacking cards (`position: sticky`, `top: calc(...)`, `transform: translate3d(0, 0, 0)`, `will-change: transform`).
+  - Structured each card with oversized step numbers (`01`, `02`, `03`), prominent titles, detailed descriptions, milestone checklist items with checkmark badges, action CTA buttons to `/trips/new`, and high-resolution photo visual containers with hover zoom and location badges.
+  - Maintained full dark mode support, mobile responsive adaptations (`@media (max-width: 980px)` and `@media (max-width: 640px)`), and `@media (prefers-reduced-motion: reduce)` accessibility fallback.
+- **Validation:** `npm run check-types` in `apps/web` passed with 0 errors; `home-request-data.vitest.test.ts` passed 3/3; `planner-ui.vitest.test.ts` and `trip-theme.vitest.test.ts` passed 23/23; `git diff --check` passed with 0 whitespace issues.
+
+## 2026-10-25 — Home Section 7 Final CTA (Cinematic Backdrop: Mùa hoa tam giác mạch Lũng Cẩm)
+
+- **Component:** `apps/web/src/app/page.tsx` and `apps/web/src/components/home-polish.css`.
+- **Context & Goal:** Redesigned the Final CTA closer section at the bottom of the Home Page from a flat dark green container into a cinematic, high-contrast emotional closer utilizing the iconic photo of buckwheat flowers, golden haystacks, and traditional H'Mông earth-walled stone houses in Sủng Là.
+- **Implementation details:**
+  - Added optimized webp backdrop asset `/images/ha-giang-final-cta.webp` (183 KB) via `sharp`.
+  - Layered multi-stage cinematic lighting: Deep Forest dark vignette (`rgba(8, 26, 18, 0.74)` to `rgba(4, 13, 9, 0.96)`) preserving WCAG AAA contrast, amber dawn radial glow, and corner crop marks inspired by Bao Lam.
+  - Upgraded typography: high-contrast white heading with vibrant sunrise gradient punchline (`linear-gradient(90deg, #ffffff 0%, #fde68a 40%, #a7f3d0 75%, #ffffff 100%)`).
+  - Added 3 frosted trust badges: `100% Trải nghiệm miễn phí`, `50+ Điểm đến chọn lọc`, `Tối ưu lịch trình trong 30 giây`.
+  - Enhanced action buttons: Warm Terracotta primary button with glowing shadow + Frosted glass secondary button with white text and backdrop blur.
+  - Added subtle photo caption badge: `📍 Thung lũng Sủng Là · Mùa hoa tam giác mạch`.
+- **Validation:** `npm run check-types` in `apps/web` passed with 0 errors; `home-request-data.vitest.test.ts` passed 3/3; `git diff --check` passed with 0 whitespace issues.
+
+## 2026-10-25 — Planner road geometry and whole-trip map
+
+- **Owner request:** add actual road-shaped lines between numbered stops and a
+  map of all trip days. Explicitly supersedes US-28's earlier markers-only UI
+  decision. Prior route-coherence changes and concurrent Home work preserved.
+- **Completed:** optional, validated LineString on verified Planner legs, bounded
+  to 512 provider-derived points with endpoints retained. Reuses the same existing
+  routing request, budgets and normalized time/distance. Daily green road lines,
+  whole-trip scope with global marker numbers/day-color legend, marker-to-day
+  selection and refit. Actual previous endpoint appears as point 0 on day views.
+  Missing legs stay disconnected; missing shapes are explained. Theme swaps
+  restore sources/layers on the same map; hidden mobile maps resize/refit.
+  Floating preview no longer covers map-error retry. Root-marker positioning and
+  transforms remain owned by MapLibre; line endpoints and marker anchors align.
+- **Checks:** 256 focused Planner/routing/Validator/Save/UI/map tests PASS, three
+  gated PostgreSQL SKIP. Real Edge/MapLibre local fixture: 14 final screenshots
+  across 1440/768/390/360px and both themes, keyboard scope switch, cross-day/global
+  projection, day selection, colors, one canvas, endpoint alignment, refit,
+  missing data/shapes, empty and map-error retry PASS; zero browser page errors.
+  Root typecheck four tasks PASS; final isolated-output production build PASS.
+- **Live routing:** read-only CAR and MOTORCYCLE calls through the current adapter
+  for Quản Bạ to Nhà Vương both return 77,911 m / 3,249.208 s and 4,111 geometry
+  points, bounded to 512 for display. Only sanitized counts/metrics retained.
+  These are provider snapshots, not traffic/weather/safety acceptance.
+- **Visual audit:** changed map source lint zero FAIL/WARN; rendered taste gate
+  zero FAIL with explicit existing floating-marker-shadow and horizontally
+  scrolling-day-tab allowances. Existing palette/metadata/contrast/provider-font
+  warnings retained. Premium trip-scope audit retains three pre-existing findings
+  (textarea resize evidence, native confirmation date, WebKit scrollbar rule).
+- **Scope/limits:** no schema/migration, data/auth write, credentials/environment,
+  provider migration, extra routing pass, commit, push, merge or deployment. Browser
+  fixture shapes/styles are synthetic; actual tile authorization, real-auth browser
+  and live Save are not certified. Origin/lodging/return legs remain unspecified.
+- **Handoff:** docs/implementation/itinerary-route-map.md; US-28 addendum and
+  DESIGN.md updated. Canonical map owners extended, no alternate map or app route.
+  Ignored evidence: apps/web/.cache/itinerary-routes/.
+
+## 2026-10-25 — Home Section 7 Final CTA Pink Card Polish (Owner-Requested)
+- **Task:** Owner requested changing Section 7 (Final CTA) to a soft pink blush background, removing the redundant 3-badge row, adopting the elegant 2-column card layout with flush right photo, while retaining the exact original journey copy and the user's uploaded photo of Lũng Cẩm / Sủng Là (`ha-giang-final-cta.webp`).
+- **Completed:**
+  - Updated `apps/web/src/app/page.tsx`: Retained the journey copy ("SẴN SÀNG CHO HÀNH TRÌNH · CAO NGUYÊN ĐÁ HÀ GIANG", "Chuyến đi Hà Giang của bạn đã sẵn sàng để khởi hành.", "Khám phá cảnh sắc núi non kỳ vĩ, đắm mình trong mùa hoa tam giác mạch rực rỡ..."), CalendarDays primary CTA ("Tự tạo hành trình của bạn"), Compass secondary CTA ("Khám phá các điểm đến"), removed the 3 trust badges, and embedded the user's photo `ha-giang-final-cta.webp`.
+  - Updated `apps/web/src/components/home-polish.css`: Added `.home-final-cta-pink` with `linear-gradient(135deg, #fff4f6 0%, #fdeef2 52%, #f7f1ea 100%)`, `padding: 0 !important`, 2-column grid (`minmax(0, 1.15fr) minmax(0, 0.85fr)`), title highlight gradient (`#c84829`), coral button (`#d45435`), and flush right photo wrap with location badge.
+  - Verified visual rendering via Edge DevTools capture: high-contrast dark ink and coral typography on light blush pink background, seamless edge-to-edge photo with rounded card corners, fully responsive on mobile/tablet.
+  - Tests: `npm run check-types` in `apps/web` PASS with zero errors. `git diff --check` PASS with zero whitespace errors.
+

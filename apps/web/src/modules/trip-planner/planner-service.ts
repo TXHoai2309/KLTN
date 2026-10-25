@@ -6,6 +6,7 @@ import { plannerResultSchema, type PlannerResult } from "./planner-contract";
 import { plannerRoutePairs, schedulePlannerDays, selectPlannerDays } from "./planner-engine";
 import { resolvePlannerRoutes, type RouteProvider } from "./planner-routes";
 import { validatePlannerDays } from "./planner-validator";
+import { balancePlannerDays } from "./planner-day-balance";
 import type { PlannerCandidate, PlannerCandidateInventory } from "./planner-candidates";
 
 export type PlannerRepository = { candidates: () => Promise<PlannerCandidate[]>; inventory?: () => Promise<PlannerCandidateInventory>; recheck: (selected: readonly PlannerCandidate[]) => Promise<boolean> };
@@ -48,12 +49,13 @@ export function createPlannerService(deps: { repository: PlannerRepository; rout
       const selected = selectedDays.flat();
       const pairs = plannerRoutePairs(selectedDays, requirement.transport);
       const routes = await resolvePlannerRoutes(pairs, deps.routes, deps.routeTimeoutMs);
-      const days = schedulePlannerDays(requirement, selectedDays, routes);
+      const balancedDays = balancePlannerDays(requirement, selectedDays, routes);
+      const days = schedulePlannerDays(requirement, balancedDays, routes);
       const { checks, stopStatuses } = validatePlannerDays(requirement, days, selected);
       for (const day of days) for (const stop of day.stops) stop.validationStatus = stopStatuses.get(stop.destination.id) ?? "PASS";
       const warnings: PlannerResult["warnings"] = [{ code: "PRELIMINARY_ONLY", message: "Đề xuất sơ bộ trong phiên hiện tại; chưa xác nhận hoặc lưu chính thức. Khung 08:00–18:00 là giờ lập kế hoạch, không phải giờ mở cửa.", day: null, destinationId: null },
-        { code: "ORIGIN_AND_LODGING_UNKNOWN", message: "Lịch bắt đầu tại điểm dừng đầu tiên; chưa tính hành trình từ nơi xuất phát hoặc chỗ nghỉ. Chuyển ngày dùng chặng từ điểm cuối ngày trước.", day: null, destinationId: null }];
-      if (pairs.length) warnings.push({ code: "ROUTE_ESTIMATE", message: "Stadia Maps: thời gian di chuyển là ước tính theo mạng đường, không xác minh giao thông, thời tiết hay điều kiện đường thực tế. Dữ liệu tuyến không hiển thị trên MapLibre.", day: null, destinationId: null });
+        { code: "ORIGIN_AND_LODGING_UNKNOWN", message: "Điểm đầu được đề xuất theo vị trí và sở thích; chưa biết nơi xuất phát, chỗ nghỉ hoặc điểm kết thúc của bạn. Chưa tính các chặng này. Chuyển ngày dùng chặng từ điểm cuối ngày trước.", day: null, destinationId: null }];
+      if (pairs.length) warnings.push({ code: "ROUTE_ESTIMATE", message: "Tuyến đường và thời gian di chuyển là ước tính theo mạng đường; không xác minh giao thông, thời tiết hay điều kiện đường thực tế.", day: null, destinationId: null });
       if (requirement.transport === "MOTORCYCLE") warnings.push({ code: "MOTORCYCLE_CAUTION", message: "Tuyến xe máy có thể thiếu lối đi hoặc hướng dẫn chính xác; cần kiểm tra điều kiện đường trước chuyến đi.", day: null, destinationId: null });
       if (selected.length < candidates.length) warnings.push({ code: "BOUNDED_SELECTION", message: "Chỉ đề xuất các điểm có tọa độ và thời lượng trong giới hạn kế hoạch; không phải danh sách đầy đủ điểm đến Hà Giang.", day: null, destinationId: null });
       if (candidates.some(c => c.suggestedDurationMinutes === null && c.minimumDurationMinutes === null)) warnings.push({ code: "MISSING_VISIT_DURATION", message: "Một số điểm đến công khai chưa có thời lượng tham quan và chưa được đưa vào đề xuất. Cần quản trị viên bổ sung dữ liệu đã xác minh.", day: null, destinationId: null });

@@ -569,3 +569,28 @@ edits return to the form on dismissal; confirmation passes the server-checked
 snapshot to the existing planner. Proposal departure date selection synchronizes
 back to parent form state. Minimum inputs, date/save gates, transport
 clarification, authorization and persistence contracts remain unchanged.
+
+## Planner road routes and whole-trip map — owner request, 2026-10-25
+
+The owner requests actual road-shaped connections and an overview of all trip
+days. ItineraryMap remains the single presentation owner: native pressed buttons
+switch between the selected day and `Toàn hành trình`; `Vừa bản đồ` restores the
+complete displayed bounds. Whole-trip markers use global visit numbers; selecting
+one updates the existing day/timeline selection. The daily view includes the
+previous day's actual endpoint as point 0 when a transfer exists.
+
+Keep the existing forest/cream identity, typography, map controls and destination
+preview. `trip-planner.css` remains the Model B runtime token owner: route 1
+`#28734f`, route 2 `#286ba5`, route 3 `#99621d`; dark equivalents `#75caa0`,
+`#83bde8`, `#dfb46c`. These are geographic day identifiers, not Validator statuses.
+The three-color cycle is accompanied by explicit day labels for longer trips.
+The same CSS tokens drive legend swatches, markers and MapLibre line features.
+The route casing and marker ink have separate light/dark tokens. MapLibre owns
+marker position transforms; CSS must not animate or scale the root marker.
+
+Optional bounded server-normalized geometry from the existing routing call is
+the only line source. Missing shapes leave a visible gap and explanatory text;
+no straight fallback, invented road or additional browser routing request.
+Theme changes restore lines on the existing map. Loading/error/retry retain the
+timeline; the floating preview cannot cover the map-error retry action. The
+existing design refinement document remains the canonical behavior map.

@@ -83,7 +83,7 @@ The accepted product boundary is:
 - pgvector: embeddings and similarity retrieval.
 - MapLibre GL JS: browser map rendering; Stadia Maps: official Alidade Smooth light/dark styles and basemap.
 
-US-12 supplies browser MapLibre/Stadia maps. US-28, US-29B and US-30 share one server-only Stadia Standard Routing HTTP boundary and CAR/auto, MOTORCYCLE/motorcycle mapping. US-28 requires both duration and distance, while US-29B/30 retain duration-only validation. Trip Save fetches fresh routing evidence before transactional revalidation. Planner geometry remains excluded and MapLibre renders Destination markers only. OpenAI and routing secrets remain server-side. Stadia localhost tiles use no key; production tiles use property/domain authentication. Routing uses a separate server API key.
+US-12 supplies browser MapLibre/Stadia maps. US-28, US-29B and US-30 share one server-only Stadia Standard Routing HTTP boundary and CAR/auto, MOTORCYCLE/motorcycle mapping. US-28 requires both duration and distance, while US-29B/30 retain duration-only validation. Trip Save fetches fresh routing evidence before transactional revalidation. The owner-requested 2026-10-25 map extension exposes optional normalized Planner LineStrings, at most 512 points per verified leg, for daily/whole-trip rendering; geometry does not decide validation. No raw provider response or credential enters this projection. OpenAI and routing secrets remain server-side. Stadia localhost tiles use no key; production tiles use property/domain authentication. Routing uses a separate server API key. This describes the checked-out adapter; the separately accepted US-40 provider migration is outside this extension.
 
 ## API and error contract
 

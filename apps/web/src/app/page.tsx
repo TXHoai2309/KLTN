@@ -28,6 +28,7 @@ import HomePlannerStory from "@/components/home-planner-story";
 import HomeHeroMetrics from "@/components/home-hero-metrics";
 import HomeGallery from "@/components/home-gallery";
 import HomeSeasonBanner from "@/components/home-season-banner";
+import HomeStepsScroll from "@/components/home-steps-scroll";
 import HomeAssistantSimulation from "@/components/home-assistant-simulation";
 import { ProtectedLink } from "@/components/protected-link";
 import "./home.css";
@@ -132,61 +133,8 @@ export default async function Home() {
         <HomeGallery />
         <HomeSeasonBanner />
 
-        {/* SECTION 3: HOW IT WORKS / QUY TRÌNH ĐƠN GIẢN */}
-        <section className="home-steps-section" aria-labelledby="home-steps-title">
-          <div className="home-section-heading" data-home-reveal>
-            <p className="home-eyebrow">QUY TRÌNH ĐƠN GIẢN</p>
-            <h2 id="home-steps-title">Bắt đầu chuyến đi của bạn chỉ với vài bước</h2>
-            <p>Ba bước liền mạch để chuẩn bị chu đáo cho hành trình chinh phục vùng đất địa đầu Tổ quốc.</p>
-          </div>
-
-          <div className="home-steps-grid">
-            <article className="home-step-card home-step-card-peach" data-home-reveal>
-              <div className="home-step-header">
-                <span className="home-step-index">01</span>
-                <span className="home-step-icon"><Compass size={22} aria-hidden="true" /></span>
-              </div>
-              <h3>Khám phá điểm đến</h3>
-              <p>
-                Tra cứu danh lam thắng cảnh theo khu vực, thời lượng tham quan khuyến nghị và tìm hiểu thông tin cảnh sắc đặc trưng.
-              </p>
-              <Link href="/explore" className="home-step-link">
-                <span>Khám phá điểm đến</span>
-                <ArrowRight size={14} aria-hidden="true" />
-              </Link>
-            </article>
-
-            <article className="home-step-card home-step-card-lavender" data-home-reveal>
-              <div className="home-step-header">
-                <span className="home-step-index">02</span>
-                <span className="home-step-icon"><Sparkles size={22} aria-hidden="true" /></span>
-              </div>
-              <h3>Tìm hiểu thông tin với trợ lý AI</h3>
-              <p>
-                Đặt câu hỏi về văn hóa, mùa hoa, thời tiết và nhận giải đáp có đối chiếu nguồn tài liệu uy tín từ hệ thống RAG.
-              </p>
-              <Link href={"/assistant" as Route} className="home-step-link">
-                <span>Trò chuyện với AI</span>
-                <ArrowRight size={14} aria-hidden="true" />
-              </Link>
-            </article>
-
-            <article className="home-step-card home-step-card-teal" data-home-reveal>
-              <div className="home-step-header">
-                <span className="home-step-index">03</span>
-                <span className="home-step-icon"><RouteIcon size={22} aria-hidden="true" /></span>
-              </div>
-              <h3>Xây dựng hành trình phù hợp</h3>
-              <p>
-                Cung cấp thời gian, phương tiện và sở thích để nhận đề xuất lộ trình tối ưu đã được kiểm tra tính khả thi.
-              </p>
-              <ProtectedLink href="/trips/new" intent="planner" className="home-step-link">
-                <span>Lập hành trình mới</span>
-                <ArrowRight size={14} aria-hidden="true" />
-              </ProtectedLink>
-            </article>
-          </div>
-        </section>
+        {/* SECTION 3: HOW IT WORKS / QUY TRÌNH ĐƠN GIẢN (Section cuộn bước ghim căn giữa) */}
+        <HomeStepsScroll />
 
         {/* SECTION 4: DISCOVER HÀ GIANG — SINGLE INTERACTIVE MAP */}
         <section className="home-explore" aria-labelledby="home-explore-title">

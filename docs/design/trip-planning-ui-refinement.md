@@ -202,3 +202,16 @@ Product Owner overrides the earlier design with two key requirements to streamli
    - Preliminary proposals without a departure date display numbered relative days ("Ngày 1, Ngày 2").
    - Departure date selected in the proposal step synchronizes back to the parent form state (`onUpdateStartDate`).
    - Planner "Quay lại" action returns to the form with all field values intact.
+
+## Road-map variant — 2026-10-25
+
+Owner requests daily road lines and a whole-trip overview. The existing
+ItineraryMap/mountItineraryMap owners now consume optional, bounded normalized
+geometry from the same authenticated Planner response. Native pressed scope
+buttons and refit are read-only presentation controls; they do not re-propose,
+route or save. The selected marker resolves the current timeline day. All-day
+markers use global visit numbers, with CSS day tokens shared by line and legend.
+Day maps include point 0 from the actual prior endpoint when applicable. Error
+retry remains reachable without the floating preview covering it. See
+`docs/implementation/itinerary-route-map.md` for source, test and live-probe
+boundaries; no alternate map, state machine or API endpoint is added.

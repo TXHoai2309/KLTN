@@ -1,21 +1,25 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { useTheme } from "next-themes";
-import { MapPinned, RotateCcw } from "lucide-react";
+import { Expand, MapPinned, RotateCcw } from "lucide-react";
 import { loadMapLibre, mapStyle } from "@/modules/map/map-config";
 import { startMapSession } from "@/modules/map/map-session";
 import { mountItineraryMap } from "@/modules/map/itinerary-map-renderer";
+import { buildItineraryMapView, itineraryDayColorToken } from "@/modules/map/itinerary-map-model";
 import type { PlannerDay } from "@/modules/trip-planner/planner-contract";
 import { DestinationPreviewCard } from "./planner-presentation";
 
 export function ItineraryMap({
   day,
+  days,
   selectedDestinationId,
   focusSelection,
   onSelect,
 }: {
   day: PlannerDay;
+  days: PlannerDay[];
   selectedDestinationId: string | null;
   focusSelection: boolean;
   onSelect: (id: string) => void;
@@ -28,6 +32,9 @@ export function ItineraryMap({
   callback.current = onSelect;
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
+  const [overview, setOverview] = useState(false);
+  const activeDay = overview ? null : day.day;
+  const view = useMemo(() => buildItineraryMapView(days, activeDay), [days, activeDay]);
   const { resolvedTheme } = useTheme();
   const style = mapStyle(resolvedTheme);
   const styleRef = useRef(style);
@@ -43,11 +50,12 @@ export function ItineraryMap({
         const map = mountItineraryMap(
           host,
           library,
-          day.stops,
+          view.stops,
           styleRef.current,
           (id) => callback.current(id),
           ready,
           fail,
+          { routes: view.routes, markerDays: view.markerDays, overview },
         );
         renderer.current = map;
         map.select(currentSelection.current, false);
@@ -58,7 +66,7 @@ export function ItineraryMap({
       },
     });
     return dispose;
-  }, [day, attempt]);
+  }, [view, overview, attempt]);
 
   useEffect(() => {
     renderer.current?.setStyle(style);
@@ -68,10 +76,29 @@ export function ItineraryMap({
     renderer.current?.select(selectedDestinationId, focusSelection);
   }, [selectedDestinationId, focusSelection]);
 
-  const selectedStop = day.stops.find((stop) => stop.destination.id === selectedDestinationId);
+  const selectedStop = view.stops.find((stop) => stop.destination.id === selectedDestinationId);
 
   return (
-    <section className="planner-map" aria-label={`Bản đồ điểm dừng ngày ${day.day}`}>
+    <section className="planner-map-workspace" aria-label="Bản đồ hành trình">
+      <div className="planner-map-toolbar">
+        <div className="planner-map-scope" role="group" aria-label="Phạm vi bản đồ">
+          <button type="button" aria-pressed={!overview} onClick={() => setOverview(false)}>Ngày {day.day}</button>
+          <button type="button" aria-pressed={overview} onClick={() => setOverview(true)}>Toàn hành trình</button>
+        </div>
+        <button className="planner-map-fit" type="button" disabled={state !== "ready"} onClick={() => renderer.current?.fit()}>
+          <Expand size={15} aria-hidden="true" /><span>Vừa bản đồ</span>
+        </button>
+      </div>
+      {overview && (
+        <ul className="planner-map-legend" aria-label="Màu tuyến theo ngày">
+          {days.map(item => (
+            <li key={item.day} style={{ "--planner-marker-color": `var(${itineraryDayColorToken(item.day)})` } as CSSProperties}>
+              <span aria-hidden="true" />Ngày {item.day}<small>{item.stops.length} điểm</small>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="planner-map" aria-label={overview ? `Bản đồ toàn hành trình ${days.length} ngày` : `Bản đồ điểm dừng ngày ${day.day}`}>
       <div
         ref={container}
         className="planner-map-canvas"
@@ -107,7 +134,7 @@ export function ItineraryMap({
       )}
 
       {/* Floating Destination Detail Card */}
-      {selectedStop && (
+      {state !== "error" && selectedStop && (
         <DestinationPreviewCard
           stop={selectedStop}
           onClose={() => onSelect("")}
@@ -116,10 +143,16 @@ export function ItineraryMap({
 
       <div className="planner-map-caption">
         <span>
-          <MapPinned size={14} aria-hidden="true" /> {day.stops.length} điểm dừng · Ngày {day.day}
+          <MapPinned size={14} aria-hidden="true" /> {overview ? `${view.stops.length} điểm dừng · ${days.length} ngày` : `${day.stops.length} điểm dừng · Ngày ${day.day}`}
         </span>
         <span className="sr-only">Bản đồ sử dụng dữ liệu nền từ Stadia Maps</span>
       </div>
+      </div>
+      {state === "ready" && <div className="planner-map-route-status" role="status" aria-live="polite">
+        <p>{view.routes.length ? `${view.routes.length} chặng đường bộ dự kiến được hiển thị.` : view.stops.length < 2 ? "Chưa có chặng di chuyển trong phạm vi này." : "Chưa có hình tuyến đường để hiển thị."}</p>
+        {view.missingGeometryCount > 0 && <p>Chưa có hình tuyến cho {view.missingGeometryCount} chặng; các điểm dừng vẫn hiển thị.</p>}
+        {!overview && view.hasPreviousDayTransfer && <p>Điểm 0 là điểm cuối ngày trước, nơi bắt đầu chặng chuyển ngày.</p>}
+      </div>}
     </section>
   );
 }

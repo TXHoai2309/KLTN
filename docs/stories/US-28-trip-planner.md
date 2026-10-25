@@ -122,3 +122,69 @@ task; its idle Turbo wrapper then hung and was stopped (wrapper exit 1).
 Production-mode build used a local placeholder database URL and disabled QA
 runtime gates. `git diff --check` PASS. No schema/migration or
 runtime environment change; no live provider/browser check, push or deployment.
+
+## Owner-requested route coherence correction — 2026-10-25
+
+The owner reported the current seven-stop proposal as an arbitrary-looking route
+and requested a correction after repository diagnosis. This tunes the bounded
+proposal heuristic; the business checks, provider boundary and release acceptance
+status above remain unchanged.
+
+- Compare geographic chains from every eligible starting candidate, within the
+  existing 64-candidate / 28-stop limits. Score the complete selected chain with
+  the existing proximity, category-interest and same-area preferences. Coordinate
+  and name tie-breaks precede IDs. This replaces the ID-anchored single-start
+  nearest-neighbor policy; it is not an exhaustive or road-optimal tour solver.
+- Keep the selected chain in order when a visit must move to another day because
+  its duration would exceed the planning window. Known calendar closures still
+  control selection; unknown hours remain unknown.
+- After routing, evaluate contiguous day partitions of the same directed chain.
+  Prefer fewer unscheduled visits, then fewer empty days, balanced elapsed daily
+  time (including verified inbound travel and opening-hour waiting), and geographic
+  compactness on ties. Respect the existing pace caps and actual opening dates.
+  Reuse exactly the same route evidence: no matrix, second routing pass, retry,
+  added provider budget or Haversine-derived road metric.
+- Missing route evidence retains the preliminary partition and nullable clocks;
+  impossible transfers remain violations with their stops present. Final Validator,
+  fresh Save validation, ownership and idempotency behavior are unchanged.
+- There is still no user-specified origin, lodging or final endpoint. Clarify that
+  the first stop is a geographic proposal and the corresponding external legs are
+  unaccounted for. Public TEST records remain unchanged.
+
+Verification: four targeted regressions failed before implementation. Final nine
+coherence cases and the related Planner/Validator/Save/UI/marker suites: 247 PASS,
+three opt-in PostgreSQL SKIP. The wider edit/in-trip selection: 744 PASS, five FAIL,
+three SKIP, one TODO; all five failures also reproduce with the two changed runtime
+files loaded from HEAD (41 PASS / five FAIL), without resetting the checkout.
+Root typecheck and isolated-output production build pass. Public read-only replay
+reproduces the new chain: Bắc Mê → Quản Bạ → Nhà Vương → Lũng Cú → Đồng Văn →
+Mã Pí Lèng → Nho Quế. This replay uses public coordinates/suggested durations,
+not live routing or private minimum-duration evidence. No database/schema,
+credentials, provider, UI layout, commit, push or deployment change.
+
+## Owner-requested road lines and whole-trip map — 2026-10-25
+
+The owner explicitly requests road-shaped connections between numbered stops and
+a map of all days. This supersedes this story's earlier markers-only/geometry-
+excluded presentation decision. It does not change the routing provider, budgets,
+business validation, Save or ownership rules.
+
+- The existing routing result can supply an optional normalized `LineString` on
+  a verified leg. Only finite longitude/latitude pairs are admitted, rounded to
+  six decimals and bounded to 512 provider-derived points including endpoints.
+  Raw polylines, private provider fields and credentials remain server-side.
+- Metric-only older proposals still parse; missing/invalid shapes do not weaken
+  metric checks or invent a line. Missing route evidence cannot carry geometry.
+- The day map draws actual available leg shapes in green, including the previous
+  day's endpoint/transfer as point 0 when applicable. The whole-trip scope shows
+  every stop once with global numbers and a labeled day-color legend. Cross-day
+  legs belong to the receiving day. A marker selection updates the existing
+  timeline/day; refit restores all displayed stops and route bounds.
+- Theme changes restore line layers without duplicating canvases. Hidden mobile
+  map panels resize/refit on becoming visible. Missing shape, empty, loading,
+  provider-map error and retry remain explicit; error retry is not covered by the
+  floating destination preview. No route is fabricated between disconnected legs.
+
+Verification and remaining baseline audit debt are recorded in
+`docs/implementation/itinerary-route-map.md`. No database/schema, environment,
+provider migration, commit, push or deployment change.

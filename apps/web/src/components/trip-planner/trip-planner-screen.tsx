@@ -81,6 +81,8 @@ export function TripPlannerScreen({
   }, [proposal]);
 
   const select = (id: string) => {
+    const selectedDay = proposal.days.find(item => item.stops.some(stop => stop.destination.id === id));
+    if (selectedDay) setDayNumber(selectedDay.day);
     setSelectedDestinationId(id);
     setFocusSelection(true);
   };
@@ -189,6 +191,7 @@ export function TripPlannerScreen({
         <div className="planner-map-panel">
           <ItineraryMap
             day={day}
+            days={proposal.days}
             selectedDestinationId={selectedDestinationId}
             focusSelection={focusSelection}
             onSelect={select}
