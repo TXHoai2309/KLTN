@@ -1,25 +1,29 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import Image from "next/image";
 import type { Route } from "next";
 import type { PublicLocation } from "@/modules/destination/public-destination-list";
-import { projectMarkers, destinationDetailHref } from "@/modules/map/map-model";
+import { destinationDetailHref } from "@/modules/map/map-model";
 import { destinationThumbnail } from "@/modules/destination/destination-image-url";
 import { ArrowRight, Compass, MapPin, X } from "lucide-react";
 
-function MapSkeleton({ validCount }: { validCount?: number }) {
+const mapLocation = "Hà Giang, Việt Nam";
+const directionsDestination = "Thành phố Hà Giang, Việt Nam";
+const mapEmbedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(mapLocation)}&ll=22.8233,104.9836&z=9&output=embed`;
+const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(directionsDestination)}`;
+
+function MapSkeleton({ count }: { count?: number }) {
   return (
     <div className="home-explore-map-skeleton" aria-hidden="true">
       <div className="home-explore-map-skeleton-inner">
         <div className="home-explore-map-skeleton-icon">
           <Compass className="home-skeleton-spinner" size={32} />
         </div>
-        <p className="home-explore-map-skeleton-title">Đang kết nối dữ liệu bản đồ Hà Giang…</p>
+        <p className="home-explore-map-skeleton-title">Đang tải bản đồ Hà Giang…</p>
         <p className="home-explore-map-skeleton-desc">
-          Chuẩn bị hiển thị {validCount ? `${validCount} điểm đến` : "các địa danh"} trên cao nguyên đá
+          Chuẩn bị hiển thị {count ? `${count} điểm đến` : "các địa danh"} trên cao nguyên đá
         </p>
       </div>
     </div>
@@ -27,19 +31,15 @@ function MapSkeleton({ validCount }: { validCount?: number }) {
 }
 
 export function HomeExploreMapLoading() {
-  return <div className="home-explore-map-card" role="status" aria-busy="true" aria-label="Đang tải dữ liệu điểm đến trên bản đồ">
-    <MapSkeleton />
-  </div>;
+  return (
+    <div className="home-explore-map-card" role="status" aria-busy="true" aria-label="Đang tải dữ liệu điểm đến Hà Giang">
+      <div className="home-explore-map-visual"><MapSkeleton /></div>
+      <div className="home-destination-list-panel home-destination-list-loading" aria-hidden="true">
+        <span /><span /><span /><span />
+      </div>
+    </div>
+  );
 }
-
-// Dynamically import DestinationMap with ssr: false for optimal client bundle lazy loading
-const DestinationMap = dynamic(
-  () => import("@/components/map/destination-map"),
-  {
-    ssr: false,
-    loading: () => <MapSkeleton />,
-  }
-);
 
 export default function HomeExploreMap({
   destinations,
@@ -49,11 +49,11 @@ export default function HomeExploreMap({
   descriptions?: Record<string, string>;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const selectedButtonRef = useRef<HTMLButtonElement>(null);
+  const previewRef = useRef<HTMLElement>(null);
   const [inView, setInView] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const validPoints = projectMarkers(destinations);
-
-  const selectedDestination = destinations.find((d) => d.id === selectedId) ?? null;
+  const selectedDestination = destinations.find((destination) => destination.id === selectedId);
 
   // Lazy loading observer
   useEffect(() => {
@@ -84,163 +84,157 @@ export default function HomeExploreMap({
     return () => observer.disconnect();
   }, [inView]);
 
-  // Handle container resize to prevent marker drift
   useEffect(() => {
-    if (!inView || typeof window === "undefined" || !("ResizeObserver" in window)) return;
-    const node = containerRef.current;
-    if (!node) return;
-
-    let resizeTimer: NodeJS.Timeout;
-    const resizeObserver = new ResizeObserver(() => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
-        window.dispatchEvent(new Event("resize"));
-      }, 100);
-    });
-
-    resizeObserver.observe(node);
-    return () => {
-      clearTimeout(resizeTimer);
-      resizeObserver.disconnect();
-    };
-  }, [inView]);
-
-  // Event delegation to catch clicks on MapLibre markers
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const handleClick = (e: MouseEvent) => {
-      const marker = (e.target as HTMLElement).closest<HTMLElement>(".destination-map-marker");
-      if (marker) {
-        const id = marker.getAttribute("data-destination-id");
-        if (id) {
-          setSelectedId((prev) => (prev === id ? null : id));
-        }
-      }
-    };
-
-    container.addEventListener("click", handleClick);
-    return () => container.removeEventListener("click", handleClick);
-  }, []);
-
-  // Keyboard accessibility: Escape key to close preview
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+    if (!selectedDestination) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        selectedButtonRef.current?.focus();
         setSelectedId(null);
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [selectedDestination]);
 
-  // Sync selected state onto DOM marker elements for visual highlighting
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const markers = container.querySelectorAll<HTMLElement>(".destination-map-marker");
-    markers.forEach((m) => {
-      const id = m.getAttribute("data-destination-id");
-      if (id === selectedId) {
-        m.classList.add("is-selected");
-        m.setAttribute("aria-expanded", "true");
-      } else {
-        m.classList.remove("is-selected");
-        m.setAttribute("aria-expanded", "false");
-      }
-    });
-  }, [selectedId, inView]);
+    if (selectedId) previewRef.current?.scrollIntoView({ block: "nearest" });
+  }, [selectedId]);
 
   return (
     <div
       ref={containerRef}
       className={`home-explore-map-card${selectedDestination ? " has-active-preview" : ""}`}
       role="region"
-      aria-label="Bản đồ các điểm đến Hà Giang"
+      aria-label="Bản đồ và danh sách điểm đến Hà Giang"
     >
-      {/* Top Floating Badge - Corner indicator */}
-      <div className="home-map-status-badge" role="status" aria-live="polite">
-        <span className="home-map-status-pulse" aria-hidden="true" />
-        <span className="home-map-status-title">Khám phá Hà Giang</span>
-        <span className="home-map-status-sep" aria-hidden="true">·</span>
-        <span className="home-map-status-count">
-          <MapPin size={12} className="home-map-status-icon" aria-hidden="true" />
-          {validPoints.length} điểm đến
-        </span>
+      <div className="home-explore-map-visual">
+        <div className="home-map-status-badge" role="status" aria-live="polite">
+          <span className="home-map-status-pulse" aria-hidden="true" />
+          <span className="home-map-status-title">Khám phá Hà Giang</span>
+          <span className="home-map-status-sep" aria-hidden="true">·</span>
+          <span className="home-map-status-count">
+            <MapPin size={12} className="home-map-status-icon" aria-hidden="true" />
+            {destinations.length} điểm đến
+          </span>
+        </div>
+        {inView ? (
+          <iframe
+            className="home-google-map-frame"
+            title="Bản đồ khu vực Hà Giang"
+            src={mapEmbedUrl}
+            width="100%"
+            height="520"
+            style={{ border: 0 }}
+            allowFullScreen
+            loading="lazy"
+            referrerPolicy="strict-origin-when-cross-origin"
+          />
+        ) : (
+          <MapSkeleton count={destinations.length} />
+        )}
       </div>
 
-      {inView ? (
-        <DestinationMap
-          destinations={destinations}
-          label="Bản đồ các điểm đến tiêu biểu tại Hà Giang"
-          disableDefaultPopup
-        />
-      ) : (
-        <MapSkeleton validCount={validPoints.length} />
-      )}
-
-      {/* Interactive Floating Preview Card (Desktop bottom-left, Mobile bottom-sheet) */}
-      {selectedDestination && (
-        <article
-          className="home-map-preview-card"
-          role="dialog"
-          aria-label={`Thông tin địa điểm ${selectedDestination.name}`}
-        >
-          <button
-            type="button"
-            className="home-map-preview-close"
-            onClick={() => setSelectedId(null)}
-            aria-label="Đóng bảng xem trước (phím Esc)"
-          >
-            <X size={15} aria-hidden="true" />
-          </button>
-
-          <div className="home-map-preview-inner">
-            {selectedDestination.image?.url && (
-              <div className="home-map-preview-media">
-                <Image
-                  src={destinationThumbnail(selectedDestination.image.url)}
-                  alt={selectedDestination.image.alt || selectedDestination.name}
-                  width={140}
-                  height={96}
-                  className="home-map-preview-img"
-                />
-              </div>
-            )}
-
-            <div className="home-map-preview-body">
-              <div className="home-map-preview-meta">
-                <span className="home-map-preview-area">
-                  <MapPin size={11} aria-hidden="true" />
-                  {selectedDestination.area}
-                </span>
-                <span className="home-map-preview-category">
-                  {selectedDestination.category}
-                </span>
-              </div>
-
-              <h3 className="home-map-preview-title">{selectedDestination.name}</h3>
-
-              <p className="home-map-preview-desc">
-                {descriptions[selectedDestination.id] ||
-                  `Khám phá điểm đến nổi bật thuộc ${selectedDestination.area} với nét đặc trưng ${selectedDestination.category} của cao nguyên đá Hà Giang.`}
-              </p>
-
-              <div className="home-map-preview-actions">
-                <Link
-                  href={destinationDetailHref(selectedDestination.id) as Route}
-                  className="home-map-preview-btn"
+      <aside className="home-destination-list-panel" aria-label="Danh sách điểm đến Hà Giang">
+        <div className="home-destination-list-heading">
+          <strong>Điểm đến nổi bật</strong>
+          <p>Chọn một địa điểm để xem nhanh thông tin.</p>
+        </div>
+        <ul className="home-destination-list">
+          {destinations.map((destination, index) => {
+            const isSelected = selectedId === destination.id;
+            const previewId = `home-destination-preview-${index}`;
+            return (
+              <li key={destination.id} className="home-destination-list-item">
+                <button
+                  ref={isSelected ? selectedButtonRef : undefined}
+                  type="button"
+                  className={`home-destination-list-button${isSelected ? " is-selected" : ""}`}
+                  onClick={() => setSelectedId(isSelected ? null : destination.id)}
+                  aria-expanded={isSelected}
+                  aria-controls={isSelected ? previewId : undefined}
                 >
-                  <Compass size={14} aria-hidden="true" />
-                  <span>Xem chi tiết</span>
-                  <ArrowRight size={13} aria-hidden="true" />
-                </Link>
-              </div>
-            </div>
-          </div>
-        </article>
-      )}
+                  <span className="home-destination-list-number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+                  <span className="home-destination-list-copy">
+                    <strong>{destination.name}</strong>
+                    <small>{destination.area} · {destination.category}</small>
+                  </span>
+                  <ArrowRight size={15} aria-hidden="true" />
+                </button>
+                {isSelected && (
+                  <article
+                    ref={previewRef}
+                    id={previewId}
+                    className="home-map-preview-card"
+                    role="region"
+                    aria-label={`Thông tin địa điểm ${destination.name}`}
+                  >
+                    <button
+                      type="button"
+                      className="home-map-preview-close"
+                      onClick={() => {
+                        selectedButtonRef.current?.focus();
+                        setSelectedId(null);
+                      }}
+                      aria-label="Đóng bảng xem trước (phím Esc)"
+                    >
+                      <X size={15} aria-hidden="true" />
+                    </button>
+
+                    <div className="home-map-preview-inner">
+                      {destination.image?.url && (
+                        <div className="home-map-preview-media">
+                          <Image
+                            src={destinationThumbnail(destination.image.url)}
+                            alt={destination.image.alt || destination.name}
+                            width={140}
+                            height={96}
+                            className="home-map-preview-img"
+                          />
+                        </div>
+                      )}
+
+                      <div className="home-map-preview-body">
+                        <div className="home-map-preview-meta">
+                          <span className="home-map-preview-area">
+                            <MapPin size={11} aria-hidden="true" />
+                            {destination.area}
+                          </span>
+                          <span className="home-map-preview-category">
+                            {destination.category}
+                          </span>
+                        </div>
+
+                        <h3 className="home-map-preview-title">{destination.name}</h3>
+
+                        <p className="home-map-preview-desc">
+                          {descriptions[destination.id] ||
+                            `Khám phá điểm đến nổi bật thuộc ${destination.area} với nét đặc trưng ${destination.category} của cao nguyên đá Hà Giang.`}
+                        </p>
+
+                        <div className="home-map-preview-actions">
+                          <Link
+                            href={destinationDetailHref(destination.id) as Route}
+                            className="home-map-preview-btn"
+                          >
+                            <Compass size={14} aria-hidden="true" />
+                            <span>Xem chi tiết</span>
+                            <ArrowRight size={13} aria-hidden="true" />
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+        <a className="home-destination-directions" href={directionsUrl} target="_blank" rel="noopener noreferrer">
+          <MapPin size={16} aria-hidden="true" />
+          <span>Xem chỉ đường đến Hà Giang</span>
+          <ArrowRight size={16} aria-hidden="true" />
+        </a>
+      </aside>
     </div>
   );
 }

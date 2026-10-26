@@ -784,7 +784,7 @@
 }
 
 /* ==========================================================================
-   SECTION 2 — SINGLE LARGE INTERACTIVE DESTINATION MAP
+   SECTION 2 — HÀ GIANG MAP AND DESTINATION LIST
    ========================================================================== */
 .home-explore-map-card {
   position: relative;
@@ -3341,5 +3341,286 @@
   .home-reveal-root[data-home-reveal-ready="true"] [data-home-reveal-pending="true"] {
     opacity: 1;
     transform: none;
+  }
+}
+
+/* Home overview embed and its public destination list */
+.home-explore-map-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
+}
+
+.home-explore-map-visual {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 520px;
+}
+
+.home-explore-map-visual .home-map-status-badge {
+  position: relative;
+  top: auto;
+  left: auto;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 18px;
+  border: 0;
+  border-bottom: 1px solid rgba(27, 99, 69, 0.16);
+  border-radius: 0;
+  background: #fffdf8;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+.home-google-map-frame {
+  display: block;
+  width: 100%;
+  height: calc(100% - 52px);
+  border-radius: 0;
+  background: #eaf2ec;
+}
+
+.home-explore-map-visual .home-explore-map-skeleton {
+  height: calc(100% - 52px);
+  min-height: 0;
+  border-radius: 0;
+}
+
+.home-destination-list-panel {
+  min-width: 0;
+  height: 520px;
+  display: flex;
+  flex-direction: column;
+  padding: 25px 18px 18px;
+  border-left: 1px solid rgba(27, 99, 69, 0.16);
+  background: #fffdf8;
+}
+
+.home-destination-list-heading {
+  padding: 0 4px 14px;
+}
+
+.home-destination-list-heading strong {
+  display: block;
+  color: #123827;
+  font-size: 17px;
+  line-height: 1.35;
+}
+
+.home-destination-list-heading p {
+  margin: 5px 0 0;
+  color: var(--home-muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.home-destination-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0 3px 4px 0;
+  list-style: none;
+}
+
+.home-destination-list-item + .home-destination-list-item {
+  margin-top: 6px;
+}
+
+.home-destination-list-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 57px;
+  padding: 8px 10px;
+  border: 1px solid #dbe9df;
+  border-radius: 12px;
+  background: #fff;
+  color: #173d2c;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+
+.home-destination-list-button:hover,
+.home-destination-list-button.is-selected {
+  border-color: #64a37d;
+  background: #edf7ee;
+}
+
+.home-destination-list-button:focus-visible,
+.home-destination-directions:focus-visible,
+.home-destination-list-panel .home-map-preview-close:focus-visible,
+.home-destination-list-panel .home-map-preview-btn:focus-visible {
+  outline: 3px solid #43876a;
+  outline-offset: 2px;
+}
+
+.home-destination-list-number {
+  flex: none;
+  color: #397458;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.home-destination-list-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1;
+  gap: 2px;
+}
+
+.home-destination-list-copy strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.home-destination-list-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #657b6b;
+  font-size: 11px;
+}
+
+.home-destination-list-button > svg {
+  flex: none;
+}
+
+.home-destination-list-panel .home-map-preview-card {
+  position: relative;
+  bottom: auto;
+  left: auto;
+  right: auto;
+  width: 100%;
+  margin: 7px 0 12px;
+  padding: 14px 11px 11px;
+  border-radius: 12px;
+}
+
+.home-destination-list-panel .home-map-preview-inner {
+  flex-direction: column;
+  gap: 8px;
+}
+
+.home-destination-list-panel .home-map-preview-media {
+  width: 100%;
+  height: 100px;
+}
+
+.home-destination-list-panel .home-map-preview-desc {
+  display: -webkit-box;
+}
+
+.home-destination-directions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #1b6345;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.home-destination-directions:hover {
+  background: #134e35;
+  color: #fff;
+  text-decoration: none;
+}
+
+.home-destination-list-loading {
+  gap: 14px;
+  padding-top: 38px;
+}
+
+.home-destination-list-loading span {
+  height: 52px;
+  border-radius: 12px;
+  background: #e9f0e9;
+}
+
+.dark .home-destination-list-panel {
+  border-color: rgba(94, 212, 161, 0.2);
+  background: #17251d;
+}
+
+.dark .home-explore-map-visual .home-map-status-badge {
+  border-bottom-color: rgba(94, 212, 161, 0.2);
+  background: #17251d;
+}
+
+.dark .home-destination-list-heading strong,
+.dark .home-destination-list-button {
+  color: #eaf5ee;
+}
+
+.dark .home-destination-list-button {
+  border-color: #365144;
+  background: #1c3023;
+}
+
+.dark .home-destination-list-button:hover,
+.dark .home-destination-list-button.is-selected {
+  border-color: #6fbb91;
+  background: #264532;
+}
+
+.dark .home-destination-list-number,
+.dark .home-destination-list-copy small {
+  color: #a3dec1;
+}
+
+.dark .home-destination-list-loading span {
+  background: #263b2b;
+}
+
+@media (max-width: 1040px) {
+  .home-explore-map-visual,
+  .home-destination-list-panel {
+    height: 440px;
+  }
+}
+
+@media (max-width: 820px) {
+  .home-explore-map-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .home-explore-map-visual,
+  .home-explore-map-visual {
+    height: 360px;
+  }
+
+  .home-destination-list-panel {
+    height: auto;
+    border-top: 1px solid rgba(27, 99, 69, 0.16);
+    border-left: 0;
+  }
+
+  .home-destination-list {
+    overflow: visible;
+  }
+}
+
+@media (max-width: 380px) {
+  .home-explore-map-visual {
+    height: 320px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-destination-list-button {
+    transition: none;
   }
 }

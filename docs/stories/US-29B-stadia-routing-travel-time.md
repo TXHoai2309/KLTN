@@ -1,7 +1,5 @@
 # US-29B — Stadia routing and travel-time check
 
-> **Provider note (2026-10-23):** superseded by [ADR-19](../decisions.md) and [US-40](US-40-vietmap-provider-migration.md). The travel-time check, the six failure reasons, the fail-closed `INSUFFICIENT_DATA` rule, the 10-second limit and the "no profile substitution" rule remain in force; the provider is now VietMap Route v4 and `provider` is `VIETMAP`. Dated spike evidence below is historical and was not re-run.
-
 ## Status
 
 IMPLEMENTED — routing boundary, pure check and optional map line are in place. End-to-end Trip integration and production deployment remain unproven.
