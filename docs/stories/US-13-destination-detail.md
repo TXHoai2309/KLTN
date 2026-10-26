@@ -110,3 +110,5 @@ At the owner's direction, the default Detail map and published Editorial V1/V2 M
 Local browser follow-up: the published Editorial Detail page returned HTTP 200; headless Chrome rendered Google tiles, the destination pin and the external location link in the MAP block. This is local runtime acceptance for that surface. The legacy iframe URL's long term support remains unverified.
 
 The external link no longer opens a coordinate-only Google search. It prefers the public profile's verified Google place link; otherwise it searches by destination name and location context with an honest search label. This does not silently alter the canonical coordinates or guarantee that Google has a unique named listing for every Destination.
+
+The old MapLibre/Stadia Detail-only `detail` branch was removed from the shared map component and renderer after all Detail and Editorial MAP paths had moved to the iframe. The shared MapLibre renderer remains in use by Explore and other map surfaces.
