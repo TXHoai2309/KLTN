@@ -2,41 +2,56 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Image from "next/image";
-import { Route as RouteIcon } from "lucide-react";
-import "./home-polish.css";
+import { Clock, MapPin } from "lucide-react";
 
-// Lịch trình mẫu. Sửa nội dung, ảnh và chú thích ngay tại đây.
 const DAYS = [
   {
     day: "Ngày 1",
+    index: "01",
+    shortTitle: "Quản Bạ & Yên Minh",
     theme: "Khởi hành · Chạm ngõ Cao nguyên",
     route: "TP. Hà Giang → Quản Bạ → Rừng thông Yên Minh",
-    note: "Chiêm ngưỡng thung lũng Tam Sơn, vượt dốc Bắc Sum và nghỉ chân tại thị trấn vùng cao.",
+    distance: "105 km · ~3.5h lái xe",
+    note: "Chiêm ngưỡng thung lũng Tam Sơn, vượt dốc Bắc Sum quanh co và nghỉ chân tại thị trấn vùng cao rợp bóng thông.",
     src: "/images/gallery/ha-giang-day1-lg.webp",
     alt: "Ruộng bậc thang vàng xanh trên sườn núi Hà Giang",
+    waypoints: ["Dốc Bắc Sum", "Núi Đôi Quản Bạ", "Cổng trời", "Rừng thông Yên Minh"],
   },
   {
     day: "Ngày 2",
+    index: "02",
+    shortTitle: "Lũng Cú & Mã Pí Lèng",
     theme: "Kỳ vĩ · Trái tim Di sản UNESCO",
     route: "Dinh họ Vương → Cột cờ Lũng Cú → Đèo Mã Pí Lèng",
-    note: "Chạm mốc cực Bắc Tổ quốc, chinh phục hẻm Tu Sản và ngắm hoàng hôn rực rỡ trên sông Nho Quế.",
+    distance: "120 km · ~4.5h lái xe",
+    note: "Chạm mốc cực Bắc Tổ quốc, chinh phục hẻm Tu Sản kỳ vĩ và đón hoàng hôn rực rỡ bên dòng sông Nho Quế.",
     src: "/images/gallery/ha-giang-day2-lg.webp",
     alt: "Cánh đồng hoa tam giác mạch hồng dưới bầu trời hoàng hôn",
+    waypoints: ["Dinh Vua Mèo", "Cột cờ Lũng Cú", "Đèo Mã Pí Lèng", "Hẻm Tu Sản"],
   },
   {
     day: "Ngày 3",
+    index: "03",
+    shortTitle: "Mèo Vạc & Du Già",
     theme: "Trải nghiệm · Chợ phiên & Vòng về",
     route: "Mèo Vạc → Cua chữ M → Thác Du Già → TP. Hà Giang",
-    note: "Thưởng thức ẩm thực chợ phiên buổi sớm, thư giãn bên dòng thác và hoàn thành cung đường chữ M.",
+    distance: "140 km · ~5.0h lái xe",
+    note: "Thưởng thức ẩm thực chợ phiên sớm, thư giãn bên dòng thác Du Già trong vắt và hoàn thành trọn vẹn cung đường chữ M.",
     src: "/images/gallery/ha-giang-day3-lg.webp",
     alt: "Mái nhà ngói và cây mận nở hoa trong sương sớm",
+    waypoints: ["Chợ phiên Mèo Vạc", "Cua chữ M", "Bản Du Già", "Về TP. Hà Giang"],
   },
 ] as const;
 
-const AUTO_PLAY_INTERVAL = 1500; // Tự động chuyển ngày mỗi 2.5 giây
+const AUTO_PLAY_INTERVAL = 4500;
 
-/** Khung hiển thị lịch trình mẫu tự động chuyển đổi giữa các ngày và cho phép chọn nhanh qua các thẻ. */
-export default function HomePlannerStory({ intro, action }: { intro: ReactNode; action: ReactNode }) {
+export default function HomePlannerStory({
+  intro,
+  action,
+}: {
+  intro: ReactNode;
+  action: ReactNode;
+}) {
   const [active, setActive] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
 
@@ -50,117 +65,95 @@ export default function HomePlannerStory({ intro, action }: { intro: ReactNode; 
     return () => clearInterval(timer);
   }, [isPaused, active]);
 
-  function handleSelect(index: number) {
-    setActive(index);
-  }
-
   const activeDay = DAYS[active];
 
   return (
     <div
-      className="home-showcase-grid home-showcase-grid-reversed home-planner-story-grid"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
+      className="home-planner-dossier"
+      aria-label="Minh họa lịch trình mẫu Hà Giang"
     >
-      <div className="home-showcase-copy">
-        {intro}
-        <ol className="home-story-detail" aria-label="Chi tiết từng ngày">
-          {DAYS.map((item, index) => (
-            <li key={item.day} className="home-story-row" data-state={index === active ? "active" : "idle"}>
-              <button
-                type="button"
-                className="home-story-row-head"
-                onClick={() => handleSelect(index)}
-                aria-current={index === active ? "step" : undefined}
-                aria-label={`Xem chi tiết ${item.day}: ${item.theme}`}
-              >
-                <span className="home-story-row-num">{index + 1}</span>
-                <span className="home-story-row-title">
-                  <small>{item.day}</small>
-                  {item.theme}
-                </span>
-              </button>
-              <div className="home-story-more">
-                <div className="home-story-more-inner">
-                  <p>{item.note}</p>
-                  <ul className="home-story-stops" aria-label={`Điểm dừng ${item.day}`}>
-                    {item.route.split(" → ").map((stop) => (
-                      <li key={stop}>{stop}</li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ol>
-        <div className="home-planner-desktop-action">
-          {action}
-        </div>
-      </div>
-
-      <div className="home-showcase-preview">
-        <div className="home-planner-mockup home-story">
-          <div className="home-mockup-header">
-            <div className="home-mockup-brand">
-              <RouteIcon size={16} className="home-mockup-icon" aria-hidden="true" />
-              <strong>Lịch trình đề xuất mẫu · 3 Ngày 2 Đêm</strong>
-            </div>
-            <span className="home-mockup-badge home-mockup-badge-peach">Xe máy · Cảnh quan &amp; Bản địa</span>
-          </div>
-
-          <div className="home-story-days">
+      <div className="home-planner-dossier-grid">
+        {/* Cột trái: Khung hình ảnh lộ trình trực quan & Bộ chọn ngày */}
+        <div className="home-planner-visual-column">
+          <div className="home-planner-image-frame">
             {DAYS.map((item, index) => (
-              <figure key={item.day} className="home-story-day" data-state={index === active ? "active" : "idle"}>
+              <figure
+                key={item.day}
+                className={`home-planner-photo-slide ${index === active ? "is-visible" : "is-hidden"}`}
+              >
                 <Image
-                  className="home-story-photo"
                   src={item.src}
                   alt={item.alt}
                   fill
-                  sizes="(max-width: 1020px) 100vw, 700px"
+                  sizes="(max-width: 1024px) 100vw, 620px"
                   priority={index === 0}
+                  className="home-planner-photo"
                 />
               </figure>
             ))}
-          </div>
 
-          <div className="home-story-tabs" role="tablist" aria-label="Chọn ngày xem trước">
-            {DAYS.map((item, index) => (
-              <button
-                key={item.day}
-                type="button"
-                role="tab"
-                aria-selected={index === active}
-                className="home-story-tab"
-                onClick={() => handleSelect(index)}
-              >
-                {item.day}
-              </button>
-            ))}
-          </div>
+            {/* Lớp phủ điện ảnh */}
+            <div className="home-planner-photo-vignette" aria-hidden="true" />
 
-          {/* Chi tiết ngày đang chọn trên mobile: hiển thị ngày nào hiện ngày đó, thu gọn trong 1 khung màn */}
-          <div className="home-story-mobile-active-day" aria-live="polite">
-            <div className="home-story-mobile-day-head">
-              <span className="home-story-mobile-day-num">{active + 1}</span>
-              <div className="home-story-mobile-day-meta">
-                <small>{activeDay.day}</small>
-                <strong>{activeDay.theme}</strong>
+            {/* Thông số chặng đang chọn góc dưới ảnh */}
+            <div className="home-planner-floating-bottom" key={`badge-${active}`}>
+              <div className="home-planner-day-pill">
+                <span className="home-planner-day-num">{activeDay.index}</span>
+                <span className="home-planner-day-name">{activeDay.day}</span>
+              </div>
+              <div className="home-planner-distance-badge">
+                <Clock size={13} />
+                <span>{activeDay.distance}</span>
               </div>
             </div>
-            <p className="home-story-mobile-day-note">{activeDay.note}</p>
-            <ul className="home-story-stops" aria-label={`Điểm dừng ${activeDay.day}`}>
-              {activeDay.route.split(" → ").map((stop) => (
-                <li key={stop}>{stop}</li>
-              ))}
-            </ul>
           </div>
-
-          <p className="home-planner-credit">Ảnh minh họa sưu tầm; bản quyền thuộc tác giả.</p>
         </div>
 
-        {/* Nút hành động đặt dưới ảnh và thẻ theo yêu cầu trên mobile */}
-        <div className="home-planner-mobile-action">
-          {action}
+        {/* Cột phải: Tiêu đề Editorial & Thẻ ngày duy nhất đang kích hoạt */}
+        <div className="home-planner-journal-column">
+          <div className="home-planner-journal-intro">
+            {intro}
+          </div>
+
+          {/* Thẻ chi tiết chặng duy nhất đang chọn kèm hiệu ứng chuyển cảnh */}
+          <div
+            key={`planner-active-day-${active}`}
+            className="home-planner-active-card"
+            role="region"
+            aria-label={`Chi tiết ${activeDay.day}`}
+            onMouseEnter={() => setIsPaused(true)}
+            onMouseLeave={() => setIsPaused(false)}
+          >
+            <div className="home-planner-card-header">
+              <div className="home-planner-card-badge">
+                <span className="home-planner-card-num">{activeDay.index}</span>
+                <span className="home-planner-card-day">{activeDay.day}</span>
+              </div>
+              <h3 className="home-planner-card-theme">{activeDay.theme}</h3>
+            </div>
+
+            <p className="home-planner-card-note">{activeDay.note}</p>
+
+            {/* Chuỗi Waypoints liên kết */}
+            <div className="home-planner-waypoints-row">
+              <MapPin size={14} className="home-timeline-pin-icon" aria-hidden="true" />
+              <div className="home-planner-waypoints-list">
+                {activeDay.waypoints.map((point, pIdx) => (
+                  <span key={point} className="home-timeline-waypoint-item">
+                    <span className="home-waypoint-name">{point}</span>
+                    {pIdx < activeDay.waypoints.length - 1 && (
+                      <span className="home-waypoint-arrow" aria-hidden="true">→</span>
+                    )}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Nút hành động chính */}
+          <div className="home-planner-action-wrap">
+            {action}
+          </div>
         </div>
       </div>
     </div>
