@@ -1,5 +1,5 @@
 /* ==========================================================================
-   TRANG CHỦ — BẢN ĐỒ CÓ TÊN ĐIỂM, MÀU THẺ THỐNG NHẤT, CHỮ TO HƠN
+   TRANG CHỦ — MÀU THẺ THỐNG NHẤT, CHỮ TO HƠN
    Tệp này nạp sau home.css và dùng bộ chọn cụ thể hơn nên không cần sửa home.css.
    ========================================================================== */
 
@@ -20,10 +20,6 @@
 .home-page .home-map-preview-title { font-size: 16px; }
 .home-page .home-map-preview-desc { font-size: 14px; }
 .home-page .home-map-preview-btn { font-size: 14px; }
-.home-page .home-explore-map-card .destination-map-popup strong { font-size: 16.5px; }
-.home-page .home-explore-map-card .destination-map-popup p { font-size: 14px; }
-.home-page .home-explore-map-card .destination-map-popup a { font-size: 14px; }
-.home-page .home-explore-map-card .destination-map-note { font-size: 14.5px; }
 .home-page .home-map-cta-pill { font-size: 16.5px; }
 .home-page .home-link-pill { font-size: 16px; }
 .home-page .home-card-link { font-size: 15.5px; }
@@ -172,40 +168,7 @@
   color: #8be4f0;
 }
 
-/* ---------- Bản đồ: tên hiện cạnh mỗi điểm ---------- */
-.home-explore-map-card .destination-map-marker { position: relative; overflow: visible; }
-.home-explore-map-card .destination-map-marker-label {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  max-width: 190px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.95);
-  color: #11261d;
-  font-family: var(--home-font);
-  font-size: 13.5px;
-  font-weight: 700;
-  line-height: 1.35;
-  letter-spacing: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  box-shadow: 0 2px 8px rgba(10, 30, 20, 0.28);
-  pointer-events: none;
-}
-.home-explore-map-card .destination-map-marker.is-selected .destination-map-marker-label {
-  background: #fff3cf;
-  max-width: 240px;
-}
-.dark .home-explore-map-card .destination-map-marker-label { background: rgba(24, 36, 29, 0.94); color: #e8f3ec; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6); }
-.dark .home-explore-map-card .destination-map-marker.is-selected .destination-map-marker-label { background: #4a3a14; color: #fff3cf; }
-
-/* Điện thoại: chỗ hẹp nên chỉ hiện tên của điểm đang chọn. */
 @media (max-width: 640px) {
-  .home-explore-map-card .destination-map-marker-label { display: none; }
-  .home-explore-map-card .destination-map-marker.is-selected .destination-map-marker-label { display: block; }
   .home-page .home-step-card p { font-size: 16px; }
 }
 

@@ -1,4 +1,5 @@
 import React from "react";
+import type { PublicContentProfile } from "@/modules/content-profile/public-content-profile";
 import { formatSuggestedDuration } from "@/modules/destination/public-destination-contract";
 import type { EditorialContext, ResolvedEditorial } from "@/modules/destination-editorial/editorial-contract";
 import { defaultEditorialDesign, isV2Layout } from "@/modules/destination-editorial/editorial-contract";
@@ -7,7 +8,7 @@ import { HeroPanorama, HeroSplit, HeroCover, formatHeroLocation, EditorialIntrod
 import { editorialHeroPlan, heroDeck } from "@/modules/destination-editorial/editorial-hero";
 import { normalizeEditorialText } from "@/modules/destination-editorial/editorial-content";
 import EditorialGenerativeRenderer from "./editorial-generative-renderer";
-export type EditorialPageData = Pick<EditorialContext, "id" | "name" | "category" | "area" | "latitude" | "longitude" | "suggestedDurationMinutes" | "openingDays">;
+export type EditorialPageData = Pick<EditorialContext, "id" | "name" | "category" | "area" | "latitude" | "longitude" | "suggestedDurationMinutes" | "openingDays"> & { profile?: Pick<PublicContentProfile, "address" | "googleMapsUrl" | "locationVerified"> };
 export default function EditorialRenderer({ data, editorial }: { data: EditorialPageData; editorial: ResolvedEditorial }) {
   if (isV2Layout(editorial.layout)) {
     return <EditorialGenerativeRenderer data={data} editorial={editorial} />;

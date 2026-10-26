@@ -1,5 +1,7 @@
 # Nghiên cứu: Google Maps JavaScript API cho bản đồ trang chi tiết điểm đến
 
+Kế hoạch này là lịch sử: implementation Google Maps JavaScript API đã được thay bằng iframe không key cho Detail theo ADR-22 (2026-10-26).
+
 Ngày nghiên cứu: 2026-10-25. Phạm vi đề xuất chỉ là `/destinations/[id]`, gồm nhánh chi tiết thường và các khối bản đồ Editorial. Home tiếp tục dùng iframe hiện tại; Explore, Admin picker, Trip và các bản đồ khác giữ nguyên trong công việc này. Đây là nghiên cứu và kế hoạch, chưa phải implementation hay bằng chứng runtime.
 
 ## Hiện trạng trong repository

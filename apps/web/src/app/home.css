@@ -802,27 +802,6 @@
   box-shadow: 0 20px 52px -12px rgba(18, 56, 40, 0.16), 0 6px 20px -2px rgba(18, 56, 40, 0.08);
 }
 
-.home-explore-map-card .destination-map {
-  width: 100%;
-  position: relative;
-}
-
-.home-explore-map-card .destination-map-canvas {
-  width: 100%;
-  height: 520px;
-  border-radius: 22px;
-  overflow: hidden;
-}
-
-.home-explore-map-card .destination-map-state {
-  width: 100%;
-  height: 520px;
-  min-height: 520px;
-  border-radius: 22px;
-  background: #eef5f0;
-  color: var(--home-ink);
-}
-
 /* Map skeleton placeholder while lazy-loading */
 .home-explore-map-skeleton {
   width: 100%;
@@ -881,22 +860,17 @@
   color: var(--home-muted);
 }
 
-/* Top Floating Badge in map corner (Does not block map navigation) */
+/* Map status header */
 .home-map-status-badge {
-  position: absolute;
-  top: 18px;
-  left: 18px;
-  z-index: 5;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 16px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(27, 99, 69, 0.2);
-  box-shadow: 0 6px 20px -4px rgba(18, 56, 40, 0.15), 0 2px 6px rgba(0, 0, 0, 0.04);
+  flex: none;
+  width: 100%;
+  min-height: 52px;
+  padding: 10px 18px;
+  border-bottom: 1px solid rgba(27, 99, 69, 0.16);
+  background: #fffdf8;
   pointer-events: none;
   user-select: none;
 }
@@ -941,41 +915,6 @@
 
 .home-map-status-icon {
   color: #1f7a55;
-}
-
-/* Custom Marker Styling for Landing Page */
-.home-explore-map-card .destination-map-marker {
-  width: 32px;
-  height: 32px;
-  border: 3px solid #ffffff;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #1f7351 0%, #124d35 100%);
-  color: #ffffff;
-  font-size: 14px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  box-shadow: 0 4px 14px rgba(16, 69, 47, 0.38), 0 1px 3px rgba(0, 0, 0, 0.2);
-  transition: transform 180ms cubic-bezier(.2, .9, .3, 1.2), box-shadow 180ms ease, background-color 180ms ease;
-}
-
-.home-explore-map-card .destination-map-marker:hover,
-.home-explore-map-card .destination-map-marker:focus-visible {
-  transform: scale(1.22);
-  background: linear-gradient(135deg, #278c63 0%, #165d40 100%);
-  box-shadow: 0 8px 22px rgba(16, 69, 47, 0.5), 0 0 0 4px rgba(35, 116, 86, 0.28);
-  outline: none;
-}
-
-.home-explore-map-card .destination-map-marker.is-selected {
-  transform: scale(1.3);
-  background: linear-gradient(135deg, #e9b94b 0%, #c9813a 100%) !important;
-  color: #103b2b !important;
-  border-color: #ffffff !important;
-  box-shadow: 0 0 0 5px rgba(233, 185, 75, 0.5), 0 10px 24px rgba(16, 69, 47, 0.45) !important;
-  z-index: 10 !important;
 }
 
 /* Floating Destination Preview Card (Bottom-Left of Map, zero collision with controls) */
@@ -1144,75 +1083,6 @@
   transform: translateY(-1px);
   color: #ffffff;
   text-decoration: none;
-}
-
-/* Custom Popup Styling for Landing Page */
-.home-explore-map-card .maplibregl-popup-content {
-  padding: 14px 16px;
-  border-radius: 14px;
-  border: 1px solid rgba(22, 74, 54, 0.16);
-  background: #ffffff;
-  box-shadow: 0 14px 34px -4px rgba(16, 69, 47, 0.2), 0 4px 12px rgba(0, 0, 0, 0.06);
-}
-
-.home-explore-map-card .destination-map-popup {
-  min-width: 175px;
-  max-width: 250px;
-  font-family: var(--home-font);
-}
-
-.home-explore-map-card .destination-map-popup strong {
-  display: block;
-  font-size: 14.5px;
-  font-weight: 750;
-  color: #123023;
-  line-height: 1.35;
-  margin-bottom: 4px;
-}
-
-.home-explore-map-card .destination-map-popup p {
-  margin: 0 0 10px;
-  color: #556c60;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.home-explore-map-card .destination-map-popup a {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 6px 12px;
-  border-radius: 8px;
-  background: #1b6345;
-  color: #ffffff;
-  font-size: 12px;
-  font-weight: 700;
-  text-decoration: none;
-  transition: background 150ms ease, transform 150ms ease;
-}
-
-.home-explore-map-card .destination-map-popup a:hover {
-  background: #134e35;
-  text-decoration: none;
-  transform: translateY(-1px);
-}
-
-/* MapLibre Controls on Landing Page */
-.home-explore-map-card .maplibregl-ctrl-group {
-  margin-top: 18px;
-  margin-right: 18px;
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid rgba(27, 99, 69, 0.2);
-  box-shadow: 0 4px 16px rgba(18, 56, 40, 0.12);
-}
-
-.home-explore-map-card .destination-map-note {
-  margin-top: 10px;
-  text-align: center;
-  font-size: 12.5px;
-  color: var(--home-muted);
 }
 
 /* Footer CTA in Discover Section */
@@ -2465,9 +2335,8 @@
 }
 
 .dark .home-map-status-badge {
-  background: rgba(20, 32, 25, 0.92);
-  border-color: rgba(94, 212, 161, 0.25);
-  box-shadow: 0 6px 20px -4px rgba(0, 0, 0, 0.5);
+  background: #17251d;
+  border-bottom-color: rgba(94, 212, 161, 0.2);
 }
 
 .dark .home-map-status-pulse {
@@ -2489,46 +2358,6 @@
 
 .dark .home-map-status-icon {
   color: #5ed4a1;
-}
-
-.dark .home-explore-map-card .destination-map-marker {
-  border-color: #f0f7f3;
-  background: linear-gradient(135deg, #2b8c63 0%, #1b5f42 100%);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6);
-}
-
-.dark .home-explore-map-card .destination-map-marker:hover,
-.dark .home-explore-map-card .destination-map-marker:focus-visible {
-  background: linear-gradient(135deg, #37a877 0%, #237452 100%);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 0 4px rgba(94, 212, 161, 0.35);
-}
-
-.dark .home-explore-map-card .maplibregl-popup-content {
-  background: #18231c;
-  border-color: rgba(94, 212, 161, 0.24);
-  box-shadow: 0 14px 36px -4px rgba(0, 0, 0, 0.6);
-}
-
-.dark .home-explore-map-card .destination-map-popup strong {
-  color: #edf5f0;
-}
-
-.dark .home-explore-map-card .destination-map-popup p {
-  color: #9cb3a6;
-}
-
-.dark .home-explore-map-card .destination-map-popup a {
-  background: #247556;
-  color: #ffffff;
-}
-
-.dark .home-explore-map-card .destination-map-popup a:hover {
-  background: #2ea073;
-}
-
-.dark .home-explore-map-card .maplibregl-ctrl-group {
-  border-color: rgba(94, 212, 161, 0.25);
-  background: #18231c;
 }
 
 .dark .home-link-pill {
@@ -2815,12 +2644,6 @@
     height: 320px;
   }
 
-  .home-explore-map-card .destination-map-canvas,
-  .home-explore-map-card .destination-map-state,
-  .home-explore-map-skeleton {
-    height: 440px;
-    min-height: 440px;
-  }
 }
 
 /* 768px (Tablet) */
@@ -2972,14 +2795,6 @@
     margin-top: 20px;
   }
 
-  .home-explore-map-card .destination-map-canvas,
-  .home-explore-map-card .destination-map-state,
-  .home-explore-map-skeleton {
-    height: 360px;
-    min-height: 360px;
-    border-radius: 16px;
-  }
-
   .home-map-preview-card {
     bottom: 10px;
     left: 10px;
@@ -3050,13 +2865,6 @@
     font-size: 10.5px;
   }
 
-  .home-map-status-badge {
-    top: 12px;
-    left: 12px;
-    padding: 6px 12px;
-    gap: 6px;
-  }
-
   .home-map-status-title {
     font-size: 12px;
   }
@@ -3112,13 +2920,6 @@
     font-size: 29px;
   }
 
-  .home-explore-map-card .destination-map-canvas,
-  .home-explore-map-card .destination-map-state,
-  .home-explore-map-skeleton {
-    height: 320px;
-    min-height: 320px;
-  }
-
   .home-story-metrics {
     grid-template-columns: minmax(0, 1fr);
     gap: 8px;
@@ -3153,21 +2954,6 @@
   flex-direction: column;
   min-width: 0;
   height: 520px;
-}
-
-.home-explore-map-visual .home-map-status-badge {
-  position: relative;
-  top: auto;
-  left: auto;
-  width: 100%;
-  min-height: 52px;
-  padding: 10px 18px;
-  border: 0;
-  border-bottom: 1px solid rgba(27, 99, 69, 0.16);
-  border-radius: 0;
-  background: #fffdf8;
-  box-shadow: none;
-  backdrop-filter: none;
 }
 
 .home-google-map-frame {
@@ -3352,11 +3138,6 @@
   background: #17251d;
 }
 
-.dark .home-explore-map-visual .home-map-status-badge {
-  border-bottom-color: rgba(94, 212, 161, 0.2);
-  background: #17251d;
-}
-
 .dark .home-destination-list-heading strong,
 .dark .home-destination-list-button {
   color: #eaf5ee;
@@ -3394,7 +3175,6 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .home-explore-map-visual,
   .home-explore-map-visual {
     height: 360px;
   }
