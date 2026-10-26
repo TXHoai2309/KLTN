@@ -86,7 +86,7 @@ export default async function Home() {
               <CalendarDays size={18} aria-hidden="true" />
               <span>Lập hành trình</span>
             </ProtectedLink>
-            <Link className="home-cta home-cta-frosted home-cta-hero-map" href={"/explore?view=map" as Route}>
+            <Link className="home-cta home-cta-frosted home-cta-hero-map" href="#home-explore-title">
               <Map size={18} aria-hidden="true" />
               <span>Mở bản đồ</span>
             </Link>
@@ -266,15 +266,22 @@ export default async function Home() {
                 </div>
                 <div className="home-card-content">
                   <h3>Xem vị trí trên bản đồ</h3>
-                  <p>Khám phá vị trí các điểm đến và mở thông tin chi tiết trực tiếp từ bản đồ.</p>
-                  <Link href={"/explore?view=map" as Route} className="home-card-link">
-                    Mở bản đồ điểm đến <ArrowRight size={15} aria-hidden="true" />
-                  </Link>
+                  <p>Xem khu vực Hà Giang trên Google Maps.</p>
+                  <a href="https://maps.google.com/maps?q=H%C3%A0%20Giang%2C%20Vi%E1%BB%87t%20Nam" target="_blank" rel="noopener noreferrer" className="home-card-link">
+                    Mở bản đồ Hà Giang <ArrowRight size={15} aria-hidden="true" />
+                  </a>
                 </div>
               </article>
             </div>
           )}
 
+          <div className="home-explore-footer" data-home-reveal>
+            <Link href="/explore" className="home-link-pill home-map-cta-pill">
+              <Compass size={17} aria-hidden="true" />
+              <span>Xem tất cả điểm đến</span>
+              <ArrowRight size={16} aria-hidden="true" />
+            </Link>
+          </div>
         </section>
 
         {/* SECTION 3: AI TRAVEL ASSISTANT SHOWCASE (Lavender × Emerald) */}
@@ -438,7 +445,7 @@ export default async function Home() {
                 <h4 className="home-footer-heading">Khám phá</h4>
                 <ul className="home-footer-links">
                   <li><Link href="/explore">Điểm đến Hà Giang</Link></li>
-                  <li><Link href="/explore?view=map">Bản đồ số điểm đến</Link></li>
+                  <li><Link href="#home-explore-title">Bản đồ Hà Giang</Link></li>
                   <li><ProtectedLink href="/favorites" intent="favorites">Điểm đến yêu thích</ProtectedLink></li>
                   {mvpFeatures.culture && <li><Link href={"/culture" as Route}>Văn hóa &amp; Bản sắc</Link></li>}
                 </ul>

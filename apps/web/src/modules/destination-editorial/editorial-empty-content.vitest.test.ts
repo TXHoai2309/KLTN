@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
-vi.mock("@/components/map/destination-map", () => ({ default: () => null }));
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import EditorialRenderer from "@/components/editorial/editorial-renderer";

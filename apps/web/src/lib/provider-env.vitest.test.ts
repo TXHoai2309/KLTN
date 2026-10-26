@@ -25,6 +25,7 @@ async function loadFixture(configured: boolean) {
       CLOUDINARY_CLOUD_NAME: "fixturecloud", CLOUDINARY_API_KEY: "fixture-api-key",
       CLOUDINARY_API_SECRET: "fixture-api-secret", CLOUDINARY_DESTINATION_FOLDER: "KLTN/destinations",
       OPENAI_API_KEY: "fixture-openai-key", OPENAI_EDITORIAL_MODEL: "fixture-model", STADIA_MAPS_API_KEY: "fixture-stadia-key",
+      NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: "unused-browser-key", NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID: "unused-map-id",
     } : {};
     await writeFile(join(directory, ".env"), Object.entries(fixture).map(([key, value]) => `${key}=${value}`).join("\n"));
     const env = { ...process.env };
@@ -42,6 +43,12 @@ async function loadFixture(configured: boolean) {
 }
 
 describe("Provider configuration through the actual Varlock schema", () => {
+  it("does not declare unused Google Maps JavaScript credentials", async () => {
+    const schema = await readFile(join(webRoot, ".env.schema"), "utf8");
+    for (const key of ["NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID"]) {
+      expect(schema).not.toContain(`${key}=`);
+    }
+  });
   it("injects configured values into runtime and keeps credentials sensitive", async () => {
     const result = await loadFixture(true);
     expect(result.present).toEqual(Object.fromEntries(keys.map(key => [key, true])));

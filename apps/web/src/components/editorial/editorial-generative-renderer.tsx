@@ -1,5 +1,5 @@
 import React from "react";
-import DestinationMap from "@/components/map/destination-map";
+import DestinationDetailIframeMap from "@/components/map/destination-detail-iframe-map";
 import { formatSuggestedDuration } from "@/modules/destination/public-destination-contract";
 import type { EditorialContext, EditorialLayoutV2, EditorialNodeV2, ResolvedEditorial } from "@/modules/destination-editorial/editorial-contract";
 import { isV2Layout } from "@/modules/destination-editorial/editorial-contract";
@@ -323,7 +323,7 @@ export default function EditorialGenerativeRenderer({
             <p className="emg-map-note">
               Tọa độ tham chiếu của điểm đến; kiểm tra lối vào và đường đi phù hợp trước khi di chuyển.
             </p>
-            <DestinationMap destinations={[data]} detail label={`Bản đồ tham chiếu ${data.name}`} />
+            <DestinationDetailIframeMap destination={data} label={`Bản đồ tham chiếu ${data.name}`} />
           </section>
         );
       }

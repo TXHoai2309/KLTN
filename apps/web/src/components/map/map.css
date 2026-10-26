@@ -25,4 +25,7 @@
 .destination-map .maplibregl-popup-content { background: white; }
 .destination-map .maplibregl-popup-close-button { color: #17251d; padding: 2px 8px; }
 .destination-map button:focus-visible, .destination-map a:focus-visible { outline: 3px solid #43876a; outline-offset: 3px; }
+.destination-detail-iframe-map .destination-map-canvas { display: block; }
+.destination-detail-map-link { display: inline-block; margin-top: 10px; color: #216145; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+.dark .destination-detail-map-link { color: #a5d5b4; }
 @media(max-width: 600px) { .destination-map-canvas { height: 360px; } }
