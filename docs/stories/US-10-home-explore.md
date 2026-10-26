@@ -105,3 +105,24 @@ projection regression expanded; final checks are recorded in the progress log.
 ## 2026-10-22 — Stream Home map data independently
 
 Owner-requested performance correction: Home starts its request-fresh public read after the existing connection boundary and returns the static hero without awaiting the map. A Suspense region awaits the data, reusing the existing map skeleton/responsive geometry; empty/error CTAs and final map contents retain their previous behavior. Scroll reveal owns the stable outer wrapper so it cannot change a pending map before hydration. Deferred-database regression verifies the shell does not block; existing per-request freshness/failure/control-flow tests pass. Browser and streamed-response evidence are in [the follow-up report](../performance/local-data-loading-2026-10-22.md). No content/cache/visibility rule change.
+
+## 2026-10-26 — Restore independent Home streaming after the terrain redesign
+
+The redesigned Home had resumed awaiting destination data before rendering its
+static sections. A deferred-read regression reproduced an empty response while
+the database was pending. Home now starts one request-fresh service promise after
+`connection()`; separate Suspense boundaries consume it for the terrain map and
+the existing empty/error cards. The hero and static copy stream independently.
+The map placeholder uses the same stage classes and dimensions as the final map.
+The existing public eligibility checks and database failure fallback remain.
+
+The layout's floating Assistant also loads its chat implementation on first open;
+the small launcher remains available immediately. Its session stays mounted after
+minimization and client navigation. A loading header provides a minimize action
+while the chat chunk loads. No model request is dispatched by this loader.
+
+Focused Home/service/terrain/gallery/Assistant regressions: 48 PASS. Root typecheck,
+isolated production build and whitespace check PASS. Browser smoke covers Home,
+terrain readiness, Explore List/Map, published Detail and Assistant reopen across
+navigation. See [the loading report](../performance/page-loading-2026-10-26.md) for
+local measurements and their limits. Story acceptance status is unchanged.

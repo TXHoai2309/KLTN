@@ -1,5 +1,6 @@
 import React from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToPipeableStream } from "react-dom/server";
+import { PassThrough } from "node:stream";
 import { beforeEach, expect, it, vi } from "vitest";
 
 const fixture = vi.hoisted(() => ({
@@ -25,6 +26,19 @@ vi.mock("@/components/home-planner-story", () => ({ default: () => null }));
 vi.mock("@/components/home-scroll-reveal", () => ({ default: ({ children }: any) => children }));
 import Home from "./page";
 
+function renderHome() {
+  const output = new PassThrough();
+  let html = "";
+  const finished = new Promise<string>((resolve, reject) => {
+    output.on("data", chunk => { html += chunk.toString(); });
+    output.on("end", () => resolve(html));
+    output.on("error", reject);
+    const stream = renderToPipeableStream(React.createElement(Home), { onError: reject });
+    stream.pipe(output);
+  });
+  return { finished, html: () => html };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   fixture.rows = [];
@@ -36,15 +50,15 @@ beforeEach(() => {
 it("waits for the real request boundary before querying and reflects subsequent data on each render", async () => {
   let release!: () => void;
   fixture.connection.mockReturnValueOnce(new Promise<void>(resolve => { release = resolve; }));
-  const first = Home();
+  const first = renderHome();
   expect(fixture.findMany).not.toHaveBeenCalled();
   release();
-  expect(renderToStaticMarkup(await first)).toContain("Xem các điểm đến");
+  expect(await first.finished).toContain("Xem các điểm đến");
   fixture.rows = ["Synthetic mountain", "Synthetic heritage", "Synthetic market"].map((name, index) => ({
     id: `fixture-${index}`, name, area: "fixture area", category: "fixture category",
     latitude: 23, longitude: 105, media: [], description: "Synthetic authored text",
   }));
-  const html = renderToStaticMarkup(await Home());
+  const html = await renderHome().finished;
   for (const row of fixture.rows) expect(html).toContain(row.name);
   expect(html).not.toContain("Xem các điểm đến");
   expect(fixture.connection).toHaveBeenCalledTimes(2);
@@ -59,5 +73,24 @@ it("does not swallow prerender/request control flow inside the database fallback
 
 it("retains the existing readable fallback for a real data failure", async () => {
   fixture.findMany.mockRejectedValue(new Error("synthetic data outage"));
-  expect(renderToStaticMarkup(await Home())).toContain("Xem các điểm đến");
+  expect(await renderHome().finished).toContain("Xem các điểm đến");
+});
+
+it("streams the hero and static sections before a pending destination read finishes", async () => {
+  let release!: (rows: Array<Record<string, unknown>>) => void;
+  fixture.findMany.mockReturnValueOnce(new Promise(resolve => { release = resolve; }));
+  const page = renderHome();
+  try {
+    await vi.waitFor(() => {
+      expect(fixture.findMany).toHaveBeenCalled();
+      expect(page.html()).toContain("Nơi đá nở hoa,");
+      expect(page.html()).toContain('id="home-explore-title"');
+      expect(page.html()).toContain('id="home-assistant-title"');
+      expect(page.html()).toContain('aria-label="Đang tải bản đồ Hà Giang"');
+      expect(page.html()).not.toContain("Xem các điểm đến");
+    }, { timeout: 500, interval: 10 });
+  } finally {
+    release([]);
+    await page.finished;
+  }
 });

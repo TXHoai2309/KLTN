@@ -1,5 +1,15 @@
 # Bounded performance audit
 
+For the current local Home streaming and deferred Assistant loading probe, see
+[the 2026-10-26 report](../../docs/performance/page-loading-2026-10-26.md):
+
+```powershell
+node scripts/performance/page-load-readonly.mjs http://localhost:3098 docs/performance/evidence/page-load-2026-10-26-after.json --assert
+```
+
+This checks HTML-referenced scripts and streamed hero arrival, not total browser
+traffic or Web Vitals. It requires an already-running local production build.
+
 Run from repository root. Node22+, existing dependencies, Chromium/Playwright
 required for browser scripts. No dependency/lockfile or account-plan change.
 Browser module argument may be an installed `playwright` package or an absolute

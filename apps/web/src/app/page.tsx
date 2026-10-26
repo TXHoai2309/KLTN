@@ -1,4 +1,5 @@
 import { mvpFeatures } from "@/lib/mvp-features";
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { connection } from "next/server";
 import type { Route } from "next";
@@ -20,7 +21,6 @@ import {
 import HomeScrollReveal from "@/components/home-scroll-reveal";
 import { BrandLogo } from "@/components/brand-logo";
 import { db } from "@/services";
-import type { PublicLocation } from "@/modules/destination/public-destination-list";
 import { listPublicHomeDestinations } from "@/modules/destination/public-home-destinations";
 import HomeTerrainMap from "@/components/home-terrain-map";
 import HomeHeroVideo from "@/components/home-hero-video";
@@ -28,7 +28,6 @@ import HomePlannerStory from "@/components/home-planner-story";
 import HomeHeroMetrics from "@/components/home-hero-metrics";
 import HomeGallery from "@/components/home-gallery";
 import HomeSeasonBanner from "@/components/home-season-banner";
-import HomeStepsScroll from "@/components/home-steps-scroll";
 import HomeAssistantSimulation from "@/components/home-assistant-simulation";
 import HomeBackToTop from "@/components/home-back-to-top";
 import { ProtectedLink } from "@/components/protected-link";
@@ -46,14 +45,11 @@ export default async function Home() {
   // Keep this request boundary outside the data fallback so prerender control
   // flow is not swallowed. Other routes and static assets keep their cache policy.
   await connection();
-  // Fetch verified public destinations from DB via existing service
-  let destinations: PublicLocation[] = [];
-  let descriptions: Record<string, string> = {};
-  try {
-    ({ destinations, descriptions } = await listPublicHomeDestinations(db));
-  } catch {
-    destinations = [];
-  }
+  // Start the request-fresh read now; only the map and empty state await it.
+  // The hero and static sections can stream while the database is pending.
+  const destinationData = listPublicHomeDestinations(db).catch(() => ({
+    destinations: [], descriptions: {},
+  }));
 
   return (
     <main className="home-page" lang="vi">
@@ -134,15 +130,70 @@ export default async function Home() {
         <HomeGallery />
         <HomeSeasonBanner />
 
-        {/* SECTION 3: HOW IT WORKS / QUY TRÌNH ĐƠN GIẢN (Section cuộn bước ghim căn giữa) */}
-        <HomeStepsScroll />
+        {/* SECTION 3: HOW IT WORKS / QUY TRÌNH ĐƠN GIẢN */}
+        <section className="home-steps-section" aria-labelledby="home-steps-title">
+          <div className="home-section-heading" data-home-reveal>
+            <p className="home-eyebrow">QUY TRÌNH ĐƠN GIẢN</p>
+            <h2 id="home-steps-title">Bắt đầu chuyến đi của bạn chỉ với vài bước</h2>
+            <p>Ba bước liền mạch để chuẩn bị chu đáo cho hành trình chinh phục vùng đất địa đầu Tổ quốc.</p>
+          </div>
+
+          <div className="home-steps-grid">
+            <article className="home-step-card home-step-card-peach" data-home-reveal>
+              <div className="home-step-header">
+                <span className="home-step-index">01</span>
+                <span className="home-step-icon"><Compass size={22} aria-hidden="true" /></span>
+              </div>
+              <h3>Khám phá điểm đến</h3>
+              <p>
+                Tra cứu danh lam thắng cảnh theo khu vực, thời lượng tham quan khuyến nghị và tìm hiểu thông tin cảnh sắc đặc trưng.
+              </p>
+              <Link href="/explore" className="home-step-link">
+                <span>Khám phá điểm đến</span>
+                <ArrowRight size={14} aria-hidden="true" />
+              </Link>
+            </article>
+
+            <article className="home-step-card home-step-card-lavender" data-home-reveal>
+              <div className="home-step-header">
+                <span className="home-step-index">02</span>
+                <span className="home-step-icon"><Sparkles size={22} aria-hidden="true" /></span>
+              </div>
+              <h3>Tìm hiểu thông tin với trợ lý AI</h3>
+              <p>
+                Đặt câu hỏi về văn hóa, mùa hoa, thời tiết và nhận giải đáp có đối chiếu nguồn tài liệu uy tín từ hệ thống RAG.
+              </p>
+              <Link href={"/assistant" as Route} className="home-step-link">
+                <span>Trò chuyện với AI</span>
+                <ArrowRight size={14} aria-hidden="true" />
+              </Link>
+            </article>
+
+            <article className="home-step-card home-step-card-teal" data-home-reveal>
+              <div className="home-step-header">
+                <span className="home-step-index">03</span>
+                <span className="home-step-icon"><RouteIcon size={22} aria-hidden="true" /></span>
+              </div>
+              <h3>Xây dựng hành trình phù hợp</h3>
+              <p>
+                Cung cấp thời gian, phương tiện và sở thích để nhận đề xuất lộ trình tối ưu đã được kiểm tra tính khả thi.
+              </p>
+              <ProtectedLink href="/trips/new" intent="planner" className="home-step-link">
+                <span>Lập hành trình mới</span>
+                <ArrowRight size={14} aria-hidden="true" />
+              </ProtectedLink>
+            </article>
+          </div>
+        </section>
 
         {/* SECTION 4: DISCOVER HÀ GIANG — 2-COLUMN TERRAIN EXPLORATION */}
         <section className="home-explore" aria-labelledby="home-explore-title">
           <div className="home-explore-grid">
             {/* Cột 1 (Trái): Bản đồ địa hình 3D Hà Giang */}
             <div className="home-explore-stage-col" data-home-reveal>
-              <HomeTerrainMap destinations={destinations} descriptions={descriptions} />
+              <Suspense fallback={<HomeTerrainLoading />}>
+                <HomeTerrainData data={destinationData} />
+              </Suspense>
             </div>
 
             {/* Cột 2 (Phải): Thông tin giới thiệu & Điều hướng */}
@@ -206,74 +257,9 @@ export default async function Home() {
               </div>
             </div>
           </div>
-          {destinations.length === 0 && (
-            /* Fallback when offline or no DB rows returned */
-            <div className="home-card-grid" data-mvp-columns={mvpFeatures.culture ? undefined : "2"}>
-              <article className="home-card" data-home-reveal>
-                <div className="home-card-art home-card-art-destination" aria-hidden="true">
-                  <Image
-                    className="home-destination-image"
-                    src="/images/ha-giang-destination-card.webp"
-                    alt=""
-                    fill
-                    sizes="(max-width: 640px) calc(100vw - 28px), (max-width: 1020px) calc(50vw - 48px), 400px"
-                  />
-                  <span className="home-card-icon"><MapPin size={21} /></span>
-                </div>
-                <div className="home-card-content">
-                  <h3>Khám phá điểm đến</h3>
-                  <p>Xem khu vực, giờ hoạt động và thời lượng tham quan để hiểu thêm về nơi bạn muốn đến.</p>
-                  <Link href="/explore" className="home-card-link">
-                    Xem các điểm đến <ArrowRight size={15} aria-hidden="true" />
-                  </Link>
-                </div>
-              </article>
-
-              {mvpFeatures.culture && (
-                <article className="home-card" data-home-reveal>
-                  <div className="home-card-art home-card-art-culture" aria-hidden="true">
-                    <div className="home-culture-photo">
-                      <Image
-                        className="home-culture-image"
-                        src="/images/ha-giang-culture-card.webp"
-                        alt=""
-                        fill
-                        sizes="(max-width: 640px) 140px, (max-width: 1020px) 180px, 160px"
-                      />
-                    </div>
-                    <span className="home-card-icon home-card-icon-warm"><BookOpen size={21} /></span>
-                  </div>
-                  <div className="home-card-content">
-                    <h3>Tìm hiểu văn hóa</h3>
-                    <p>Đọc những câu chuyện văn hóa Hà Giang và tham khảo nguồn thông tin khi có.</p>
-                    <Link href="/explore" className="home-card-link">
-                      Khám phá văn hóa <ArrowRight size={15} aria-hidden="true" />
-                    </Link>
-                  </div>
-                </article>
-              )}
-
-              <article className="home-card" data-home-reveal>
-                <div className="home-card-art home-card-art-map" aria-hidden="true">
-                  <Image
-                    className="home-map-image"
-                    src="/images/ha-giang-map-card.webp"
-                    alt=""
-                    fill
-                    sizes="(max-width: 640px) 150px, (max-width: 1020px) 185px, 170px"
-                  />
-                  <span className="home-card-icon home-card-icon-blue"><Map size={21} /></span>
-                </div>
-                <div className="home-card-content">
-                  <h3>Xem vị trí trên bản đồ</h3>
-                  <p>Xem khu vực Hà Giang trên Google Maps.</p>
-                  <a href="https://maps.google.com/maps?q=H%C3%A0%20Giang%2C%20Vi%E1%BB%87t%20Nam" target="_blank" rel="noopener noreferrer" className="home-card-link">
-                    Mở bản đồ Hà Giang <ArrowRight size={15} aria-hidden="true" />
-                  </a>
-                </div>
-              </article>
-            </div>
-          )}
+          <Suspense fallback={null}>
+            <HomeEmptyDestinations data={destinationData} />
+          </Suspense>
 
           <div className="home-explore-footer" data-home-reveal>
             <Link href="/explore" className="home-link-pill home-map-cta-pill">
@@ -487,5 +473,93 @@ export default async function Home() {
         </footer>
       </HomeScrollReveal>
     </main>
+  );
+}
+
+type HomeDestinationData = Promise<Awaited<ReturnType<typeof listPublicHomeDestinations>>>;
+
+async function HomeTerrainData({ data }: { data: HomeDestinationData }) {
+  const { destinations, descriptions } = await data;
+  return <HomeTerrainMap destinations={destinations} descriptions={descriptions} />;
+}
+
+function HomeTerrainLoading() {
+  return <div className="hg-terrain">
+    <div className="hg-terrain-stage-wrap">
+      <div className="hg-terrain-stage" role="status" aria-busy="true" aria-label="Đang tải bản đồ Hà Giang" />
+      <div className="hg-terrain-state"><strong>Đang mở những miền đất Hà Giang…</strong></div>
+    </div>
+  </div>;
+}
+
+async function HomeEmptyDestinations({ data }: { data: HomeDestinationData }) {
+  const { destinations } = await data;
+  if (destinations.length > 0) return null;
+  return (
+    <div className="home-card-grid" data-mvp-columns={mvpFeatures.culture ? undefined : "2"}>
+      <article className="home-card" data-home-reveal>
+        <div className="home-card-art home-card-art-destination" aria-hidden="true">
+          <Image
+            className="home-destination-image"
+            src="/images/ha-giang-destination-card.webp"
+            alt=""
+            fill
+            sizes="(max-width: 640px) calc(100vw - 28px), (max-width: 1020px) calc(50vw - 48px), 400px"
+          />
+          <span className="home-card-icon"><MapPin size={21} /></span>
+        </div>
+        <div className="home-card-content">
+          <h3>Khám phá điểm đến</h3>
+          <p>Xem khu vực, giờ hoạt động và thời lượng tham quan để hiểu thêm về nơi bạn muốn đến.</p>
+          <Link href="/explore" className="home-card-link">
+            Xem các điểm đến <ArrowRight size={15} aria-hidden="true" />
+          </Link>
+        </div>
+      </article>
+
+      {mvpFeatures.culture && (
+        <article className="home-card" data-home-reveal>
+          <div className="home-card-art home-card-art-culture" aria-hidden="true">
+            <div className="home-culture-photo">
+              <Image
+                className="home-culture-image"
+                src="/images/ha-giang-culture-card.webp"
+                alt=""
+                fill
+                sizes="(max-width: 640px) 140px, (max-width: 1020px) 180px, 160px"
+              />
+            </div>
+            <span className="home-card-icon home-card-icon-warm"><BookOpen size={21} /></span>
+          </div>
+          <div className="home-card-content">
+            <h3>Tìm hiểu văn hóa</h3>
+            <p>Đọc những câu chuyện văn hóa Hà Giang và tham khảo nguồn thông tin khi có.</p>
+            <Link href="/explore" className="home-card-link">
+              Khám phá văn hóa <ArrowRight size={15} aria-hidden="true" />
+            </Link>
+          </div>
+        </article>
+      )}
+
+      <article className="home-card" data-home-reveal>
+        <div className="home-card-art home-card-art-map" aria-hidden="true">
+          <Image
+            className="home-map-image"
+            src="/images/ha-giang-map-card.webp"
+            alt=""
+            fill
+            sizes="(max-width: 640px) 150px, (max-width: 1020px) 185px, 170px"
+          />
+          <span className="home-card-icon home-card-icon-blue"><Map size={21} /></span>
+        </div>
+        <div className="home-card-content">
+          <h3>Xem vị trí trên bản đồ</h3>
+          <p>Xem khu vực Hà Giang trên Google Maps.</p>
+          <a href="https://maps.google.com/maps?q=H%C3%A0%20Giang%2C%20Vi%E1%BB%87t%20Nam" target="_blank" rel="noopener noreferrer" className="home-card-link">
+            Mở bản đồ Hà Giang <ArrowRight size={15} aria-hidden="true" />
+          </a>
+        </div>
+      </article>
+    </div>
   );
 }

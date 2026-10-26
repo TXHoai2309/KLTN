@@ -4339,3 +4339,34 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
 - Link follow-up: a user screenshot showed the external coordinate search opening a Google Maps coordinate panel. A focused test reproduced the exact coordinate-only URL, then passed after the link switched to a verified public profile place URL when present or a name/context search otherwise. The iframe remains coordinate anchored. A Google Maps name search was browser checked for Cao nguyên đá Đồng Văn and returned multiple results. A full verified Google place link with an explicit point is needed for a direct card in the current Admin V3 flow; Place ID-only URLs are rejected by its coordinate resolver.
 - Detail map cleanup: removed the unused `detail` flag from the shared MapLibre component/renderer and its no-link popup branch. The Detail and Editorial MAP paths import only the iframe component; Explore retains its popup-to-Detail link. Focused iframe/Editorial tests 8/8, shared map/picker tests 27/27, typecheck and diff check PASS. No schema or other map consumer change.
 
+## 2026-10-26 — Smoother Home loading and deferred global Assistant
+
+- **Branch/task:** `master`; owner-requested page-loading performance follow-up.
+- **Completed:** Reproduced Home's terrain data blocking the static hero with an
+  actual-page deferred-read stream test. Home now shares one request-fresh promise
+  between map and empty/error-card Suspense boundaries; the hero and static sections
+  stream independently. Existing terrain stage dimensions reserve its loading space.
+  Root Assistant chat code loads on first open, with a minimizable loading header;
+  the mounted panel/session lifetime across minimize and navigation remains.
+- **Files/evidence:** Home page and stream tests, global Assistant provider,
+  `scripts/performance/page-load-readonly.mjs`, US-10 handoff and
+  [loading report](performance/page-loading-2026-10-26.md) with raw before/after JSON.
+- **DB/migrations:** None. Existing services, visibility/media eligibility, auth,
+  ownership, writes, environment, provider settings and dependencies are unchanged.
+- **Validation:** 48 focused tests PASS; root typecheck 4/4 PASS; final isolated
+  production build and TypeScript check PASS; probe `--assert`, syntax and whitespace
+  checks PASS. The pre-fix stream test failed because no hero arrived while data
+  was pending; the emitted-script probe detected the eagerly imported panel.
+- **Measurement:** Local warm hero HTML arrival 266/230 → 45/34 ms, two samples
+  per revision; first-request variability retained in the report. Home HTML-referenced
+  JS 1,469,505 → 994,229 bytes; this excludes later Flight/prefetch requests and is
+  not total browser traffic. Explore/Login also exclude the unopened panel code.
+- **Browser:** Home, terrain canvas after scrolling, Explore Map/List, published
+  Detail/return context and Assistant minimize/reopen across navigation verified.
+  No warnings/errors in the checked log window. Existing local production AI runtime
+  is unavailable and shows retry; no live ask or model call was made.
+- **Limits/next:** No production rollout, authenticated browser, field Web Vitals,
+  mobile throttling, full offline suite or concurrent-load measurement. No font/
+  media/cache policy change. Follow-up performance work should measure browser
+  LCP/INP and complete asset waterfalls before selecting the next optimization.
+
