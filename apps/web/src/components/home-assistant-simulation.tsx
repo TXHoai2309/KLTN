@@ -67,14 +67,38 @@ export default function HomeAssistantSimulation() {
   const [displayedQuestion, setDisplayedQuestion] = useState("");
   const [displayedAnswer, setDisplayedAnswer] = useState("");
   const [isPaused, setIsPaused] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
 
   const scenario = SCENARIOS[activeScenarioIdx];
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const terminalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
+  }, []);
+
+  // IntersectionObserver: Chỉ khởi động tiến trình gõ kịch bản khi khối chat AI lọt vào tầm nhìn
+  useEffect(() => {
+    const el = terminalRef.current;
+    if (!el) return;
+
+    if (typeof IntersectionObserver === "undefined") {
+      setIsVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        setIsVisible(entry.isIntersecting);
+      },
+      { threshold: 0.15 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
   function selectScenario(index: number) {
@@ -92,6 +116,11 @@ export default function HomeAssistantSimulation() {
       setDisplayedQuestion(scenario.question);
       setDisplayedAnswer(scenario.answer);
       setPhase("done");
+      return;
+    }
+
+    // Tạm dừng chạy timer gõ chữ khi người dùng chưa cuộn tới hoặc đã cuộn ra khỏi vùng nhìn thấy
+    if (!isVisible) {
       return;
     }
 
@@ -131,10 +160,11 @@ export default function HomeAssistantSimulation() {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [phase, displayedQuestion, displayedAnswer, scenario, isPaused, activeScenarioIdx]);
+  }, [isVisible, phase, displayedQuestion, displayedAnswer, scenario, isPaused, activeScenarioIdx]);
 
   return (
     <div
+      ref={terminalRef}
       className="home-concierge-terminal"
       aria-label="Minh họa tương tác Trợ lý AI Hà Giang"
     >

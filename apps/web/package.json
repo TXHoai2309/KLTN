@@ -58,6 +58,7 @@
     "react-dom": "^19.2.8",
     "sharp": "^0.35.5",
     "sonner": "^2.0.8",
+    "three": "^0.186.1",
     "varlock": "1.18.0",
     "zod": "^4.5.4"
   },
@@ -69,6 +70,7 @@
     "@types/pg": "8.16.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
+    "@types/three": "^0.186.0",
     "pg": "8.16.3",
     "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",

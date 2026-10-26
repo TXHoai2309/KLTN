@@ -4189,3 +4189,137 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
   - Verified visual rendering via Edge DevTools capture: high-contrast dark ink and coral typography on light blush pink background, seamless edge-to-edge photo with rounded card corners, fully responsive on mobile/tablet.
   - Tests: `npm run check-types` in `apps/web` PASS with zero errors. `git diff --check` PASS with zero whitespace errors.
 
+
+## 2026-10-26 — Home Hà Giang terrain integration
+
+- **Owner approval:** integrate the reviewed standalone terrain model on Home;
+  top view, relief 2.2, district colors/boundaries and auto-rotation. Retain only
+  3D/top-view controls. Preserve all roads and improve contrast, add public
+  article previews and raise district meshes on hover.
+- **Implemented:** Home-only lazy Three.js client with measured DEM, satellite
+  imagery, partitioned district surfaces, attached labels/pins, bright road
+  cores/dark casings and visible source credits. Existing request-fresh public
+  query remains the article boundary. Exact names/explicit aliases bind links
+  only to current public results. No static CMS IDs/URLs or nearest guessing.
+  Empty-data Home keeps terrain and existing fallback links.
+- **Behavior:** two view controls, native pins, compact photo/prose/detail card,
+  Escape/focus restoration, keyboard camera controls, reduced motion,
+  hover/focus/touch/visibility pauses, cancellable loading, timeout/retry,
+  theme reuse and renderer/GPU/listener/observer cleanup.
+- **Checks:** model/Home/public-query Vitest 13/13 PASS; web typecheck PASS;
+  isolated KLTN_PERF_BUILD production build PASS. Home and data assets HTTP200;
+  terrain shell/two view controls present, old iframe absent. Source taste lint
+  0 FAIL / 0 WARN, git diff whitespace PASS. Data tests retain 417 road fragments,
+  31,933 coordinates, 14 reference landmarks, 11 districts and 641x641 DEM.
+  Npm Three.js and its type dependency added.
+- **Limits:** live integrated browser/hover/mobile checks could not run because
+  local browser use is disabled in Work settings. No alternate UI driver used.
+  Historical boundary approximation and older satellite dates documented.
+  No schema/migration, DB write, routing call, secret/environment change,
+  provider migration, commit/push/merge or deployment. Concurrent unrelated
+  assistant/hero edits are outside this task and preserved.
+- **Handoff:** docs/implementation/home-terrain-map.md, US-10 and DESIGN.md.
+
+## 2026-10-26 — Home Footer Polish & Landing Page IntersectionObserver Optimization
+
+- **Task:**
+  1. Redesign Home footer to eliminate negative dead space, provide balanced 4-column layout with highlights bar, remove graduation thesis / 3rd-party service references upon owner request, and add a smooth back-to-top interaction.
+  2. Implement `IntersectionObserver` across critical Home sections to eliminate background resource consumption and optimize runtime performance.
+- **Completed:**
+  - **Footer Enhancement & Content Polish:**
+    - Updated `apps/web/src/app/page.tsx`: Added highlights bar (Tri thức đối chiếu, Bản đồ số tương tác, Trợ lý AI đồng hành), expanded links into balanced columns ("Khám phá", "Tính năng", "Thông tin & Nền tảng"), added system status pulse indicator ("Hệ thống trực tuyến"), and added `HomeBackToTop` button.
+    - Removed graduation thesis references and 3rd-party vendor naming (VietMap) per owner instruction; replaced with clean product tags ("Tri thức bản địa", "Bản đồ tương tác", "Lộ trình tối ưu").
+    - Created `apps/web/src/components/home-back-to-top.tsx`: Accessible smooth scroll to top client component.
+    - Updated `apps/web/src/app/home.css` & `apps/web/src/components/home-polish.css`: Added deep forest emerald/gold radial glow, subtle borders, gold hover translation, 3-column equal grid distribution (`repeat(3, minmax(140px, 1fr))`), and responsive breakpoints for tablets/mobile.
+  - **IntersectionObserver Resource Optimizations:**
+    - `apps/web/src/components/home-hero-video.tsx`: Auto-pause 1080p flycam drone video when scrolled out of viewport, and resume playback when entering viewport, significantly reducing background GPU/CPU overhead.
+    - `apps/web/src/components/home-assistant-simulation.tsx`: Guarded typewriter simulation loops and timeout chains with `IntersectionObserver`, so scenario streaming starts only when the terminal is actually in view, and pauses when scrolled away.
+    - `apps/web/src/components/home-steps-scroll.tsx`: Wrapped continuous `window.addEventListener("scroll")` inside an observer with a 150px buffer zone (`rootMargin: "150px 0px"`). The scroll listener is dynamically attached only when near the section and detached elsewhere, eliminating continuous layout thrashing.
+- **Verification:**
+  - `npm run check-types` passed with code 0 across all workspace packages (`@KLTN/auth`, `@KLTN/config`, `@KLTN/db`, `@KLTN/ui`, `web`).
+- **Scope / Limits:**
+  - No database migrations, schemas, environment variables, or server route handlers modified.
+
+
+### 2026-10-26 — Terrain containment and caption follow-up
+
+- Owner screenshot identified excessive fixed 760/830px map height. Stage now
+  follows the viewport with a 600px desktop / 520px mobile ceiling; camera uses
+  a province sphere and reserves padding for rotation, hover lift and controls.
+  Preview card height is bounded with internal overflow.
+- Added a meaningful projection regression across five sizes, all 24 azimuths,
+  three pitches and points on the enclosing sphere. Focused suites now 14 PASS;
+  follow-up web typecheck PASS. Final isolated build and whitespace at handoff.
+- Owner additionally requested removing source/instruction text for a cleaner
+  frame. Instructional footer removed; source/reference notes move into a small
+  native information disclosure. No public-link/road/hover/default change.
+- Live rendering still not inspected because local browser tools remain disabled.
+
+### 2026-10-26 — Tối ưu bố cục Section 4: Bản đồ 3D bên trái (phóng to), nội dung bên phải (thu nhỏ tinh gọn)
+
+- **Bố cục 2 cột (Section 4 — Khám phá Hà Giang):**
+  - Đưa bản đồ mô phỏng địa hình 3D `HomeTerrainMap` sang cột trái, chiếm tỉ lệ lớn (~66% bề ngang container: `minmax(0, 1.65fr)`).
+  - Tăng chiều cao khung bản đồ `.hg-terrain-stage` từ `clamp(380px, 50svh, 480px)` lên `clamp(500px, 64svh, 620px)`, giúp địa hình Hà Giang hiển thị hùng vĩ, rõ nét các cung đèo và điểm đến.
+  - Đưa khối nội dung giới thiệu `home-explore-copy` sang cột phải với định dạng tinh gọn (`max-width: 420px; justify-self: center;`).
+- **Thu nhỏ và cân chỉnh typography khối nội dung:**
+  - Tiêu đề `h2`: Giảm từ cỡ chữ lớn `clamp(28px, 2.8vw, 42px)` xuống cỡ vừa vặn `clamp(21px, 1.85vw, 27px)`.
+  - Đoạn mô tả `.home-explore-desc`: Giảm font size xuống `13.5px`, line-height `1.6`, margin gọn gàng `18px`.
+  - Khối điểm nổi bật `.home-explore-highlights`: Thu gọn padding (`12px 14px`), giảm cỡ chữ tiêu đề mục (`13px`) và nội dung chi tiết (`12px`), dot chỉ báo `6px`.
+  - Nút điều hướng CTA: Nằm trực tiếp dưới phần text của cột phải, nút pill nhỏ gọn `13.5px`, padding `9px 18px`, icon `16px`.
+- **Giữ nguyên cơ chế tương tác chuẩn xác:**
+  - Giữ nguyên `controls.enableZoom = false` theo chỉ đạo của người dùng để tránh chiếm quyền cuộn trang (scroll hijacking) khi lướt web trên chuột/touchpad.
+  - Bản đồ vẫn hỗ trợ xoay 3D đa hướng mượt mà, chuyển đổi góc nhìn 3D / Từ trên cao, hover nhấc bổng địa bàn huyện lỵ và click mở thẻ điểm đến chi tiết.
+- **Kiểm thử & xác nhận:**
+  - `npm run check-types`: PASS 4/4 packages (0 errors).
+  - `vitest run src/app/home-request-data.vitest.test.ts`: PASS 3/3 tests.
+  - `git diff --check`: PASS (0 lỗi khoảng trắng).
+
+### 2026-10-26 — District disclosure and aligned compact Home map
+
+- Owner requested readable district names, destinations only in the active
+  district, a larger map, and subsequently a compact map/copy split aligned
+  with the neighboring sections. Pins now start hidden. Pointer hover reveals
+  only that district; touch selection persists for pin activation. Native
+  district-name buttons support keyboard access. Preview keeps its region and
+  return-focus target; blank tap/new camera gesture clears touch selection.
+- District labels take priority over pin names and road signs. All 14 static
+  landmarks resolve to a geographic district. Camera fitting minimizes and
+  centers the projected outline/elevation span instead of forcing symmetry
+  around the geographic bounding-box center. The hover envelope stays included.
+- Retained the shared 1540px outer section and 36px desktop inset so edges align
+  with adjacent sections. Equal inner columns, 40px gap, map-column cap 680px,
+  copy cap 520px. Two view controls restored to the upper-right overlay; no
+  bottom control row. Canvas: 460–580px desktop, 410–500px phone. Scoped map
+  stacking keeps view controls above labels. Existing source and article cards
+  remain within the frame. Other concurrent Home content is preserved.
+- Checks: focused Vitest 17/17 PASS; web typecheck PASS. Real outline/elevation
+  projection tests cover seven sizes, 48 azimuths and three pitches, plus
+  pointer/touch/keyboard disclosure and preview retention. Source taste lint
+  0 FAIL / 0 WARN. Home HTTP200 includes the split, updated accessible district
+  guidance and two view controls. Final build/whitespace receipt follows.
+- Limits: browser still reports local use disabled in Work settings. Actual
+  visual/hover/mobile acceptance is not certified by numeric/state tests.
+  No alternative UI driver, schema/migration, DB/auth/environment change,
+  dependency addition, commit/push/merge or deployment.
+- Final receipt: isolated production build PASS after the shared-frame alignment
+  change (47 generated pages); git diff whitespace PASS. Public-data district
+  smoke returned 21 geographic/article pins with zero unassigned districts.
+
+### 2026-10-26 — Tinh chỉnh Design Taste Frontend Section 4: Thon gọn bản đồ, thu nhỏ nút chuyển góc nhìn, bổ sung nội dung thực tế
+
+- **Thu nhỏ nút chuyển góc nhìn (3D / Từ trên cao) — `.hg-terrain-views`:**
+  - Thay đổi nút từ kích thước thô (44px, padding 10x16px) sang thiết kế dạng segmented pill thanh lịch, tinh tế chuẩn Apple Maps / GIS hiện đại.
+  - Chiều cao rút gọn còn 28px, padding 4x10px, cỡ chữ 11.5px semi-bold, bo góc 8px, nền kính mờ `rgba(255,255,255,0.92)` với hiệu ứng `backdrop-filter: blur(8px)`.
+  - Trên mobile rút gọn còn 26px, padding 3x8px, font 11px giúp giao diện bản đồ gọn gàng, không bị che khuất địa hình.
+- **Kéo dài khung bản đồ ("thon gọn") — `.hg-terrain-stage`:**
+  - Tăng chiều cao stage lên `clamp(520px, 68svh, 640px)` và điều chỉnh độ rộng cột bản đồ `max-width: 640px` (tỉ lệ lưới `minmax(0, 1.12fr) minmax(0, 0.98fr)`).
+  - Tỉ lệ khung hình dọc ăn khớp hoàn hảo với hình thể địa lý kéo dài từ bắc xuống nam của tỉnh Hà Giang, loại bỏ khoảng trống thừa ở hai bên sườn, giúp mô hình địa hình thanh thoát và nổi bật.
+- **Bổ sung nội dung phong phú cho cột bên phải (tránh trống trải):**
+  - Thêm dải thống kê nhanh địa lý chuẩn xác: **11** Huyện & Thành phố, **2.422m** Đỉnh Tây Côn Lĩnh, **04** Huyện cao nguyên đá UNESCO.
+  - Bổ sung 3 nhóm tính năng khám phá chi tiết (Mô hình 3D trực quan, 11 Huyện thị & Danh thắng, Cung đường đèo & Lộ trình di chuyển).
+  - Thêm cặp nút hành động kép hài hòa: Nút chính *"Mở bản đồ khám phá"* dẫn vào `/explore?view=map` và nút thứ hai *"Xem tất cả điểm đến"* dẫn vào `/explore`.
+- **Kiểm thử & xác nhận:**
+  - `npm run check-types`: 4/4 packages passed (0 errors).
+  - `vitest run src/app/home-request-data.vitest.test.ts`: 3/3 passed.
+  - `git diff --check`: 0 lỗi khoảng trắng.
+

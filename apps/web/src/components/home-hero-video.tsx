@@ -46,6 +46,29 @@ export default function HomeHeroVideo({
     };
   }, []);
 
+  // IntersectionObserver: Tự động tạm dừng video flycam khi cuộn ra khỏi viewport để tiết kiệm GPU/pin
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        if (entry.isIntersecting) {
+          video.play().catch(() => {
+            // Xử lý an toàn nếu trình duyệt chặn autoplay
+          });
+        } else {
+          video.pause();
+        }
+      },
+      { threshold: 0.05 }
+    );
+
+    observer.observe(video);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div className="home-hero-visual" aria-hidden="false">
       <video

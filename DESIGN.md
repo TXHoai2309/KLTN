@@ -594,3 +594,40 @@ no straight fallback, invented road or additional browser routing request.
 Theme changes restore lines on the existing map. Loading/error/retry retain the
 timeline; the floating preview cannot cover the map-error retry action. The
 existing design refinement document remains the canonical behavior map.
+
+## Home isolated Hà Giang terrain — owner approval, 2026-10-26
+
+HomeTerrainMap replaces the Home-only iframe/map list with the reviewed
+satellite-textured Hà Giang silhouette. Default to top view, relief 2.2,
+district colors/boundaries, all roads and geographic pins, and slow automatic
+rotation. Retain only the two 3D/top-view controls; no settings rail or toolbar.
+Use existing Home font, forest action, coral pin and light/dark surface tokens;
+home-terrain-map.css owns this presentation, not global map styles.
+
+Every road remains. Bright ivory/gold cores and dark casings improve contrast.
+Hover raises a district's actual terrain mesh together with its border and pins.
+Rotation pauses on hover, focus, touch, open preview, offscreen and hidden
+document. Reduced-motion users get no automatic motion. Native pin buttons open
+a compact article card; only the current public Home DTO supplies detail IDs,
+images or prose. Geographic landmarks without a public match have no invented
+detail link. Owner follow-up collapses credits and historical-reference geography
+into a small native information disclosure and removes the instructional footer.
+Use a viewport-bounded map stage (desktop 380–600px, mobile 410–520px) and fit
+the complete rotating province with controls/lift padding; no fixed 830px stage.
+See docs/implementation/home-terrain-map.md for source and verification details.
+
+Mobile scale follow-up: cap the centered terrain frame at 900px on desktop.
+Fit the actual province outline and its elevation/lift envelope in the current
+camera direction, refitting during rotation rather than using one all-angle
+sphere. Center the projection below the controls so mobile uses the available
+height. Keep the existing stage height limits and only the two view controls.
+
+Latest owner follow-up supersedes those frame dimensions: retain the new map/copy
+split with equal columns and a 40px gap, and remove the bottom control row.
+Keep the shared 1540px section frame and 36px inset aligned with neighboring
+sections; cap the map column at 680px and copy at 520px. Keep 3D/top-view controls
+at the upper right. Map heights are
+460–580px desktop and 410–500px phone. Center the projected geographic span itself.
+District names are the default map labels; disclose destinations only within the
+hovered/tapped/keyboard-selected district, retaining it through article previews.
+District labels take priority over destination and road-reference labels.

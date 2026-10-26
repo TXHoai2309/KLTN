@@ -22,7 +22,7 @@ import { BrandLogo } from "@/components/brand-logo";
 import { db } from "@/services";
 import type { PublicLocation } from "@/modules/destination/public-destination-list";
 import { listPublicHomeDestinations } from "@/modules/destination/public-home-destinations";
-import HomeExploreMap from "@/components/home-explore-map";
+import HomeTerrainMap from "@/components/home-terrain-map";
 import HomeHeroVideo from "@/components/home-hero-video";
 import HomePlannerStory from "@/components/home-planner-story";
 import HomeHeroMetrics from "@/components/home-hero-metrics";
@@ -137,19 +137,76 @@ export default async function Home() {
         {/* SECTION 3: HOW IT WORKS / QUY TRÌNH ĐƠN GIẢN (Section cuộn bước ghim căn giữa) */}
         <HomeStepsScroll />
 
-        {/* SECTION 4: DISCOVER HÀ GIANG — MAP AND DESTINATION LIST */}
+        {/* SECTION 4: DISCOVER HÀ GIANG — 2-COLUMN TERRAIN EXPLORATION */}
         <section className="home-explore" aria-labelledby="home-explore-title">
-          <div className="home-section-heading" data-home-reveal>
-            <p className="home-eyebrow home-eyebrow-coral">BẮT ĐẦU HÀNH TRÌNH</p>
-            <h2 id="home-explore-title">Những nơi đáng để khám phá</h2>
-            <p>
-              Khám phá cảnh quan kỳ vĩ, danh thắng lịch sử và những nét đẹp đặc trưng của vùng cao nguyên đá địa đầu Tổ quốc.
-            </p>
-          </div>
+          <div className="home-explore-grid">
+            {/* Cột 1 (Trái): Bản đồ địa hình 3D Hà Giang */}
+            <div className="home-explore-stage-col" data-home-reveal>
+              <HomeTerrainMap destinations={destinations} descriptions={descriptions} />
+            </div>
 
-          {destinations.length > 0 ? (
-            <HomeExploreMap destinations={destinations} descriptions={descriptions} />
-          ) : (
+            {/* Cột 2 (Phải): Thông tin giới thiệu & Điều hướng */}
+            <div className="home-explore-copy" data-home-reveal>
+              <p className="home-eyebrow home-eyebrow-coral">BẢN ĐỒ ĐỊA HÌNH 3D · ĐỊA ĐẦU TỔ QUỐC</p>
+              <h2 id="home-explore-title">Những nơi đáng để khám phá</h2>
+              <p className="home-explore-desc">
+                Khám phá cảnh quan kỳ vĩ, danh thắng lịch sử và những nét đẹp đặc trưng của vùng cao nguyên đá. Bản đồ số mô phỏng chính xác độ cao đồi núi, vách đá hẻm vực và mạng lưới giao thông liên huyện của Hà Giang.
+              </p>
+
+              {/* Thống kê nhanh địa lý Hà Giang */}
+              <div className="home-explore-stats">
+                <div className="home-explore-stat">
+                  <strong className="home-explore-stat-val">11</strong>
+                  <span className="home-explore-stat-lbl">Huyện &amp; Thành phố</span>
+                </div>
+                <div className="home-explore-stat">
+                  <strong className="home-explore-stat-val">2.422m</strong>
+                  <span className="home-explore-stat-lbl">Tây Côn Lĩnh</span>
+                </div>
+                <div className="home-explore-stat">
+                  <strong className="home-explore-stat-val">04</strong>
+                  <span className="home-explore-stat-lbl">Huyện cao nguyên đá</span>
+                </div>
+              </div>
+
+              <div className="home-explore-highlights">
+                <div className="home-explore-highlight-item">
+                  <span className="home-explore-highlight-dot" aria-hidden="true" />
+                  <div>
+                    <strong>Mô hình địa hình 3D trực quan</strong>
+                    <span>Tương tác xoay 360°, hiển thị cao độ đồi núi, hẻm vực Tu Sản và dòng sông Nho Quế.</span>
+                  </div>
+                </div>
+                <div className="home-explore-highlight-item">
+                  <span className="home-explore-highlight-dot" aria-hidden="true" />
+                  <div>
+                    <strong>11 Huyện thị &amp; Điểm đến tiêu biểu</strong>
+                    <span>Nhấp hoặc rê chuột vào từng huyện trên mô hình để xem các danh thắng và làng văn hóa.</span>
+                  </div>
+                </div>
+                <div className="home-explore-highlight-item">
+                  <span className="home-explore-highlight-dot" aria-hidden="true" />
+                  <div>
+                    <strong>Cung đường đèo &amp; Lộ trình di chuyển</strong>
+                    <span>Định vị các tuyến quốc lộ huyết mạch QL4C, QL34 và các cung đèo huyền thoại Đông Bắc.</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="home-explore-footer">
+                <Link href={"/explore?view=map" as Route} className="home-link-pill home-map-cta-pill">
+                  <Map size={16} aria-hidden="true" />
+                  <span>Mở bản đồ khám phá</span>
+                  <ArrowRight size={15} aria-hidden="true" />
+                </Link>
+                <Link href="/explore" className="home-link-pill home-map-secondary-pill">
+                  <span>Xem tất cả điểm đến</span>
+                  <ArrowRight size={14} aria-hidden="true" />
+                </Link>
+              </div>
+            </div>
+          </div>
+          {destinations.length === 0 && (
             /* Fallback when offline or no DB rows returned */
             <div className="home-card-grid" data-mvp-columns={mvpFeatures.culture ? undefined : "2"}>
               <article className="home-card" data-home-reveal>
@@ -218,13 +275,6 @@ export default async function Home() {
             </div>
           )}
 
-          <div className="home-explore-footer" data-home-reveal>
-            <Link href={"/explore?view=map" as Route} className="home-link-pill home-map-cta-pill">
-              <Map size={17} aria-hidden="true" />
-              <span>Mở bản đồ khám phá</span>
-              <ArrowRight size={16} aria-hidden="true" />
-            </Link>
-          </div>
         </section>
 
         {/* SECTION 3: AI TRAVEL ASSISTANT SHOWCASE (Lavender × Emerald) */}

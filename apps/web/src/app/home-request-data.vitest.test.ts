@@ -16,7 +16,7 @@ vi.mock("@/components/home-polish.css", () => ({}));
 vi.mock("@/services", () => ({ db: { destination: { findMany: fixture.findMany } } }));
 vi.mock("next/link", () => ({ default: ({ children, href, ...props }: any) => React.createElement("a", { href, ...props }, children) }));
 vi.mock("next/image", () => ({ default: ({ fill, priority, ...props }: any) => React.createElement("img", props) }));
-vi.mock("@/components/home-explore-map", () => ({ default: ({ destinations }: any) => React.createElement("ul", { "aria-label": "Current destinations" }, destinations.map((d: any) => React.createElement("li", { key: d.id }, d.name))) }));
+vi.mock("@/components/home-terrain-map", () => ({ default: ({ destinations }: any) => React.createElement("ul", { "aria-label": "Current destinations" }, destinations.map((d: any) => React.createElement("li", { key: d.id }, d.name))) }));
 vi.mock("@/components/home-hero-video", () => ({ default: () => null }));
 vi.mock("@/components/home-hero-metrics", () => ({ default: () => null }));
 vi.mock("@/components/home-gallery", () => ({ default: () => null }));

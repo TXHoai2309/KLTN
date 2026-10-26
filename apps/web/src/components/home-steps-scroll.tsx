@@ -96,8 +96,10 @@ export default function HomeStepsScroll() {
   useEffect(() => {
     setMounted(true);
 
+    const el = containerRef.current;
+    if (!el) return;
+
     function handleScroll() {
-      const el = containerRef.current;
       if (!el) return;
       const rect = el.getBoundingClientRect();
       const scrollableDist = el.offsetHeight - window.innerHeight;
@@ -116,9 +118,41 @@ export default function HomeStepsScroll() {
       }
     }
 
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
+    // IntersectionObserver: Chỉ kích hoạt sự kiện tính toán cuộn khi khối này lọt vào tầm mắt (+150px đệm)
+    if (typeof IntersectionObserver === "undefined") {
+      window.addEventListener("scroll", handleScroll, { passive: true });
+      handleScroll();
+      return () => window.removeEventListener("scroll", handleScroll);
+    }
+
+    let isListening = false;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry) return;
+        if (entry.isIntersecting) {
+          if (!isListening) {
+            isListening = true;
+            window.addEventListener("scroll", handleScroll, { passive: true });
+            handleScroll();
+          }
+        } else {
+          if (isListening) {
+            isListening = false;
+            window.removeEventListener("scroll", handleScroll);
+          }
+        }
+      },
+      { rootMargin: "150px 0px" }
+    );
+
+    observer.observe(el);
+
+    return () => {
+      observer.disconnect();
+      if (isListening) {
+        window.removeEventListener("scroll", handleScroll);
+      }
+    };
   }, []);
 
   function scrollToStep(index: number) {
