@@ -30,6 +30,7 @@ import HomeGallery from "@/components/home-gallery";
 import HomeSeasonBanner from "@/components/home-season-banner";
 import HomeStepsScroll from "@/components/home-steps-scroll";
 import HomeAssistantSimulation from "@/components/home-assistant-simulation";
+import HomeBackToTop from "@/components/home-back-to-top";
 import { ProtectedLink } from "@/components/protected-link";
 import "./home.css";
 import "@/components/home-polish.css";
@@ -231,40 +232,19 @@ export default async function Home() {
           <div className="home-showcase-grid">
             <div className="home-showcase-copy" data-home-reveal>
               <p className="home-eyebrow home-eyebrow-lavender">TRỢ LÝ DU LỊCH THÔNG MINH</p>
-              <h2 id="home-assistant-title">
+              <h2 id="home-assistant-title" className="home-assistant-editorial-title">
                 Hỏi bất kỳ điều gì về Hà Giang.
-                <span>Nhận câu trả lời có dẫn chứng nguồn.</span>
+                <em>Nhận câu trả lời có dẫn chứng nguồn.</em>
               </h2>
               <p className="home-showcase-desc">
-                Hỏi về thời tiết, mùa hoa hay đường đèo. Mỗi câu trả lời đều kèm nguồn tham khảo.
+                Hỏi về thời tiết, mùa hoa hay cung đèo hiểm trở. Mọi giải đáp đều được đối chiếu trực tiếp từ kho tư liệu đã kiểm chứng.
               </p>
-
-              <ul className="home-feature-list" aria-label="Năng lực nổi bật của Trợ lý AI">
-                <li>
-                  <div className="home-feature-icon-badge home-badge-lavender" aria-hidden="true">
-                    <CheckCircle2 size={18} />
-                  </div>
-                  <span><strong>Có dẫn nguồn</strong><span className="home-feature-extra"> từ tài liệu đã kiểm duyệt.</span></span>
-                </li>
-                <li>
-                  <div className="home-feature-icon-badge home-badge-lavender" aria-hidden="true">
-                    <CheckCircle2 size={18} />
-                  </div>
-                  <span><strong>Lưu ý an toàn</strong><span className="home-feature-extra"> khi đi đường đèo.</span></span>
-                </li>
-                <li>
-                  <div className="home-feature-icon-badge home-badge-lavender" aria-hidden="true">
-                    <CheckCircle2 size={18} />
-                  </div>
-                  <span><strong>Không đoán bừa</strong><span className="home-feature-extra">, nói rõ khi chưa đủ căn cứ.</span></span>
-                </li>
-              </ul>
 
               <div className="home-showcase-cta-group home-assistant-desktop-action">
                 <Link className="home-cta home-cta-primary home-cta-lavender" href={"/assistant" as Route}>
-                  <Sparkles size={18} aria-hidden="true" />
+                  <Sparkles size={17} aria-hidden="true" />
                   <span>Trò chuyện với Trợ lý AI</span>
-                  <ArrowRight className="home-cta-arrow" size={17} aria-hidden="true" />
+                  <ArrowRight className="home-cta-arrow" size={16} aria-hidden="true" />
                 </Link>
               </div>
             </div>
@@ -292,13 +272,13 @@ export default async function Home() {
             intro={
               <>
                 <p className="home-eyebrow home-eyebrow-coral">LẬP HÀNH TRÌNH TỐI ƯU</p>
-              <h2 id="home-planner-title">
-                Hành trình riêng biệt.
-                <span>Thiết kế cho từng bước chân.</span>
-              </h2>
-              <p className="home-showcase-desc">
-                Hệ thống tự sắp xếp lộ trình vừa với số ngày và phương tiện của bạn.
-              </p>
+                <h2 id="home-planner-title" className="home-planner-editorial-title">
+                  Hành trình riêng biệt.
+                  <em>Thiết kế cho từng bước chân.</em>
+                </h2>
+                <p className="home-showcase-desc">
+                  Hệ thống tự động sắp xếp lộ trình vừa vặn với số ngày và phương tiện của bạn.
+                </p>
               </>
             }
             action={
@@ -351,18 +331,56 @@ export default async function Home() {
 
         {/* SITE FOOTER */}
         <footer className="home-footer" role="contentinfo">
+          {/* Highlights bar: Tri thức, Bản đồ, Trợ lý AI */}
+          <div className="home-footer-highlights">
+            <div className="home-footer-highlight-item">
+              <div className="home-footer-highlight-icon">
+                <BookOpen size={18} aria-hidden="true" />
+              </div>
+              <div className="home-footer-highlight-text">
+                <strong>Tri thức đối chiếu</strong>
+                <span>100% trích xuất từ dữ liệu kiểm chứng</span>
+              </div>
+            </div>
+            <div className="home-footer-highlight-divider" aria-hidden="true" />
+            <div className="home-footer-highlight-item">
+              <div className="home-footer-highlight-icon">
+                <MapPin size={18} aria-hidden="true" />
+              </div>
+              <div className="home-footer-highlight-text">
+                <strong>Bản đồ số tương tác</strong>
+                <span>Định tuyến chuẩn địa hình đèo dốc</span>
+              </div>
+            </div>
+            <div className="home-footer-highlight-divider" aria-hidden="true" />
+            <div className="home-footer-highlight-item">
+              <div className="home-footer-highlight-icon">
+                <Sparkles size={18} aria-hidden="true" />
+              </div>
+              <div className="home-footer-highlight-text">
+                <strong>Trợ lý AI đồng hành</strong>
+                <span>Giải đáp ngữ cảnh địa phương 24/7</span>
+              </div>
+            </div>
+          </div>
+
           <div className="home-footer-inner">
             <div className="home-footer-brand-col">
               <Link href="/" className="home-footer-brand" aria-label="Hà Giang Travel Assistant - Trang chủ">
-                <BrandLogo size={36} />
+                <BrandLogo size={38} />
                 <div className="home-footer-brand-text">
                   <strong>Hà Giang</strong>
                   <span>Travel Assistant</span>
                 </div>
               </Link>
               <p className="home-footer-desc">
-                Nền tảng hỗ trợ thông tin du lịch, tra cứu tri thức địa phương có dẫn nguồn và lập kế hoạch hành trình thông minh tại Hà Giang.
+                Hệ thống hỗ trợ du lịch, tra cứu tri thức địa phương có dẫn nguồn và lập kế hoạch hành trình thông minh tại Hà Giang.
               </p>
+              <div className="home-footer-tags">
+                <span className="home-footer-tag">Tri thức bản địa</span>
+                <span className="home-footer-tag">Bản đồ tương tác</span>
+                <span className="home-footer-tag">Lộ trình tối ưu</span>
+              </div>
             </div>
 
             <div className="home-footer-nav-group">
@@ -370,9 +388,9 @@ export default async function Home() {
                 <h4 className="home-footer-heading">Khám phá</h4>
                 <ul className="home-footer-links">
                   <li><Link href="/explore">Điểm đến Hà Giang</Link></li>
-                  <li><Link href="/explore?view=map">Bản đồ điểm đến</Link></li>
+                  <li><Link href="/explore?view=map">Bản đồ số điểm đến</Link></li>
                   <li><ProtectedLink href="/favorites" intent="favorites">Điểm đến yêu thích</ProtectedLink></li>
-                  {mvpFeatures.culture && <li><Link href={"/culture" as Route}>Văn hóa Hà Giang</Link></li>}
+                  {mvpFeatures.culture && <li><Link href={"/culture" as Route}>Văn hóa &amp; Bản sắc</Link></li>}
                 </ul>
               </div>
 
@@ -385,12 +403,29 @@ export default async function Home() {
                   <li><ProtectedLink href="/dashboard" intent="dashboard">Bảng điều khiển</ProtectedLink></li>
                 </ul>
               </div>
+
+              <div className="home-footer-nav-col">
+                <h4 className="home-footer-heading">Thông tin &amp; Nền tảng</h4>
+                <div className="home-footer-status">
+                  <span className="home-footer-status-dot" aria-hidden="true" />
+                  <span>Hệ thống trực tuyến</span>
+                </div>
+                <ul className="home-footer-links">
+                  <li><Link href={"/assistant" as Route}>Tra cứu tri thức đối chiếu</Link></li>
+                  <li><ProtectedLink href="/trips/new" intent="planner">Kiểm định ràng buộc lộ trình</ProtectedLink></li>
+                  <li><Link href="/explore?view=map">Dữ liệu tọa độ chuẩn hóa</Link></li>
+                </ul>
+              </div>
             </div>
           </div>
 
           <div className="home-footer-bottom">
-            <p>© 2026 Hà Giang Travel Assistant · Đồ án Khóa luận tốt nghiệp</p>
-            <p className="home-footer-bottom-meta">Hệ thống hỗ trợ du lịch &amp; tra cứu tri thức đối chiếu</p>
+            <div className="home-footer-bottom-info">
+              <p>© 2026 Hà Giang Travel Assistant</p>
+              <span className="home-footer-bottom-sep" aria-hidden="true">•</span>
+              <p className="home-footer-bottom-meta">Hệ thống hỗ trợ du lịch &amp; tra cứu tri thức đối chiếu</p>
+            </div>
+            <HomeBackToTop />
           </div>
         </footer>
       </HomeScrollReveal>
