@@ -45,6 +45,10 @@ Accept structured form input and natural-language trip needs. AI may extract dur
 
 The planner can propose an itinerary only from existing, eligible destinations. Each visit needs a destination, trip day, start time, expected duration, and daily ordering. AI proposes; it does not certify validity.
 
+Owner-approved extension, 2026-10-27: the existing Assistant supports reviewing needs, creating a new itinerary, revising its unsaved proposal and explicitly saving from chat. AI selects eligible destination IDs/day/order; deterministic scheduling/routing/Validator remain authoritative. Named must-visit stops are preserved, ambiguity requires clarification, and actionable failures allow at most two automatic repair passes. Q&A can be interleaved. Reopened history requires explicit regeneration; only a freshly validated and explicitly confirmed save intent may retain its exact request temporarily for UNKNOWN reconciliation, never an invalid/unconfirmed itinerary draft. Saved-trip editing continues through the existing Trip workflow. See the [story and acceptance limits](../stories/ASSISTANT-CONVERSATIONAL-PLANNING.md).
+
+Owner-approved conversational refinement, 2026-10-27 (Q1–Q7): inside the Assistant, replace the automatically opened needs form with one missing question at a time and a detailed needs recap in chat. Natural confirmation reviews the recap and starts generation. Add/replace requests without a named new point proactively offer up to three real eligible options, selectable by number, name or button. Explicitly removed points stay excluded until the traveler asks to include them again; newly stated must-visits remain mandatory. Selected-point edits preserve unrelated days, with separate acceptance if cross-day transfers change another day's arrival times. Cancellation restores prior needs, including any persisted needs review; uncertain rollback retries use the identical request/key. Save is a distinct confirmed action. The separate form planner and saved-Trip editing workflow retain their scope. See the [chat-first story](../stories/ASSISTANT-CHAT-FIRST-PLANNING.md) and [approved decisions](../implementation/assistant-chat-first-planning-design.md).
+
 ### Deterministic Constraint Validator
 
 Every itinerary proposal must be checked for:
@@ -94,3 +98,17 @@ Acceptance comes from the story's cited Product/System criteria and observable e
 ## Source references
 
 Primary references in **Product document.docx** include Sections 3.5 (RQ1/RQ2), 4 (roles), 5 (scope/data), 7 (product flows), 10 (AI), 11 (business rules), 12 (non-functional requirements), and 13 (acceptance). **System Specification.docx** details roles (2), favorites (4), RAG (5), trip input/planning/validation (6–9), in-trip (10), admin (11–12), writes/errors (13), and non-functional requirements (14). Story-specific contracts must cite the precise subsections they use.
+
+### Guided optional questions — owner correction, 2026-10-27
+
+The owner clarified after seeing the batch presentation: cover all optional needs, asking one question per turn. After minimum inputs, ask experiences, pace, companions/count, mobility and destination wishes in sequence, with examples and quick replies only for the current topic. Retain volunteered combined answers and skip already answered topics. “Bỏ qua câu này” skips only the current topic; “Bỏ qua phần còn lại” explicitly completes the remaining optional stage. These remain optional; no new validation requirement, permission or saved-Trip behavior is introduced. The earlier batch presentation is superseded. See the current dialogue story and guided-question verification.
+
+Subsequent owner clarification: optional suggestion/skip chips fill the composer, preserving typed content and allowing multiple suggestions plus free text. They do not submit or advance the dialogue until the traveler explicitly presses Send.
+
+Interest choices combine into one sentence such as “Mình thích trải nghiệm thiên nhiên, văn hóa”. The composer grows/shrinks to fit typed or wrapped content, with a four-line visible limit and internal scrolling beyond that limit.
+
+Current screenshot correction: pace and companion categories are single choices; selecting another replaces the previous suggested value while preserving other text. The optional stage offers only a per-question skip button. A companion category without a count (or count without a category) remains an unfinished optional answer and prompts for the missing part; no family size is assumed.
+
+The recurring account-history loss follow-up adds persisted completed planning dialogue and an unreviewed needs checkpoint, separate from reviewed planner needs and official Trip Save. Reopening keeps text and continues incomplete questions, while old proposals/options need explicit regeneration. The account conversation's existing ownership, deletion and expiry govern this data. Guest scope and the prohibition on retaining invalid/unconfirmed itinerary schedules are unchanged. See the current dialogue story and follow-up verification.
+
+The active conversation preserves the chronological position and original contents of accepted itinerary cards. Edit requests and AI replies follow the previous card; an accepted revision appends a new card below its reply. Earlier cards are for comparison, with Save available only on the current proposal. This does not introduce durable storage of itinerary proposal snapshots.

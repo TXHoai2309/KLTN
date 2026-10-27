@@ -1,0 +1,88 @@
+import { expect, it } from "vitest";
+import { PlanningClient } from "../../components/assistant/planning-client";
+import { EMPTY_PLANNING_NEEDS, type PlanningRequest } from "./planning-contract";
+import { analyzePlanningText } from "./planning-ai";
+import { composePlanningReply } from "./planning-reply";
+import { executePlanning, type PlanningDependencies } from "./planning-service";
+import { fixtureNeeds } from "../../test/planning-fixtures";
+
+// Opt-in provider smoke only. No database, routing or Trip writes.
+it.skipIf(process.env.ASSISTANT_PLANNING_LANGUAGE_TEST !== "1")("understands verbal dates and asks the family size with real Luna dialogue", async () => {
+  const needs = { ...fixtureNeeds, requirement: { ...fixtureNeeds.requirement, interests: ["NATURE" as const], pace: "MODERATE" as const } };
+  const workspace = { conversationId: "language-family", version: 0, needs, pendingSaveKey: null, savedTripId: null, context: { type: "GENERAL" as const } };
+  const deps = { repository: { start: async () => workspace, assertVersion: async () => workspace }, candidates: async () => [], analyze: analyzePlanningText, compose: composePlanningReply, now: () => new Date("2026-10-27T03:00:00Z") } as unknown as PlanningDependencies;
+  const client = new PlanningClient("USER:language-family", (body, key) => executePlanning(JSON.parse(body) as PlanningRequest, key, deps));
+  await client.start(null);
+  await client.analyze("Mình đi với gia đình");
+  expect(client.getSnapshot().draft.companionDraft?.type).toBe("FAMILY");
+  expect(client.getSnapshot().draft.requirement.companions).toBeNull();
+  expect(client.getSnapshot().message).toMatch(/(?:bao nhiêu|mấy) người/u);
+  await client.analyze("4");
+  expect(client.getSnapshot().draft.requirement.companions).toEqual({ type: "FAMILY", groupSize: 4 });
+  expect(client.getSnapshot().draft.requirement.durationDays).toBe(1);
+  await client.analyze("15 tháng 11");
+  expect(client.getSnapshot().draft.requirement.startDate).toBe("2026-11-15");
+  expect(client.getSnapshot().message).toContain("15/11/2026");
+  expect(client.getSnapshot().uncertain).toBe(false);
+  console.info(JSON.stringify({ model: "gpt-6-luna", reasoning: "high", replies: client.getSnapshot().messages.map(turn => turn.reply) }));
+}, 180_000);
+
+it.skipIf(process.env.ASSISTANT_PLANNING_LANGUAGE_TEST !== "1")("keeps departure date explicit and does not invent companions or interests in short Vietnamese replies", async () => {
+  const workspace = { conversationId: "language-smoke", version: 0, needs: EMPTY_PLANNING_NEEDS, pendingSaveKey: null, savedTripId: null, context: { type: "GENERAL" as const } };
+  const deps = { repository: { start: async () => workspace, assertVersion: async () => workspace }, candidates: async () => [], analyze: analyzePlanningText, compose: composePlanningReply, now: () => new Date("2026-10-27T03:00:00Z") } as unknown as PlanningDependencies;
+  const replies: { text: string; reply: string }[] = [];
+  const client = new PlanningClient("USER:language-smoke", async (body, key) => {
+    const request = JSON.parse(body) as PlanningRequest;
+    if (request.action === "START" || request.action === "ANALYZE") return executePlanning(request, key, deps);
+    throw Error("Unexpected action in language smoke");
+  });
+  await client.send("Tôi muốn lập hành trình di chuyển", null);
+  expect(client.getSnapshot().prompt).toEqual({ kind: "NEED", field: "durationDays" });
+  await client.analyze("3");
+  expect(client.getSnapshot().draft.requirement.durationDays).toBe(3);
+  expect(client.getSnapshot().prompt).toEqual({ kind: "NEED", field: "transport" });
+  await client.analyze("Xe máy");
+  expect(client.getSnapshot().prompt).toEqual({ kind: "NEED", field: "startDate" });
+  expect(client.getSnapshot().dateDeferred).toBe(false);
+  await client.analyze("31/10");
+  expect(client.getSnapshot().draft.requirement.startDate).toBe("2026-10-31");
+  expect(client.getSnapshot().message).toContain("31/10/2026");
+  replies.push({ text: "31/10", reply: client.getSnapshot().message });
+  await client.analyze("khoảng tuần sau");
+  expect(client.getSnapshot().prompt?.kind).toBe("DATE_CHANGE");
+  await client.analyze("Đồng ý");
+  expect(client.getSnapshot().draft.requirement.startDate).toBeFalsy();
+  expect(client.getSnapshot().draft.departureWindow?.from).toBe("2026-11-02");
+  replies.push({ text: "khoảng tuần sau", reply: client.getSnapshot().message });
+  await client.analyze("Chưa chốt ngày");
+  await client.analyze("Chắc là trải nghiệm nhiều nhất có thể");
+  expect(client.getSnapshot().prompt).toEqual({ kind: "NEED", field: "preferences" });
+  expect(client.getSnapshot().message).toMatch(/trải nghiệm|sở thích|bạn thích/iu);
+  expect((client.getSnapshot().message.match(/\?/g) ?? [])).toHaveLength(1);
+  expect(client.getSnapshot().draft.requirement.pace).toBe("PACKED");
+  expect(client.getSnapshot().draft.requirement.companions ?? null).toBeNull();
+  expect(client.getSnapshot().draft.requirement.interests ?? []).toEqual([]);
+  expect(client.getSnapshot().uncertain).toBe(false);
+  replies.push({ text: "Chắc là trải nghiệm nhiều nhất có thể", reply: client.getSnapshot().message });
+  await client.analyze("không cần lưu ý gì hả");
+  expect(client.getSnapshot().prompt).toEqual({ kind: "NEED", field: "preferences" });
+  expect(client.getSnapshot().message).toMatch(/trải nghiệm|sở thích|bạn thích/iu);
+  await client.analyze("Mình muốn trải nghiệm mạo hiểm");
+  expect(client.getSnapshot().draft.requirement.interests).toContain("ADVENTURE");
+  expect(client.getSnapshot().message).toMatch(/đi cùng|cùng ai|một mình/iu);
+  expect(client.getSnapshot().message).not.toContain("Lưu ý di chuyển:");
+  await client.analyze("Mình đi một mình, 1 người");
+  expect(client.getSnapshot().draft.requirement.companions).toEqual({ type: "SOLO", groupSize: 1 });
+  expect(client.getSnapshot().message).toMatch(/di chuyển|đi bộ|lưu ý/iu);
+  await client.analyze("Không");
+  expect(client.getSnapshot().message).toMatch(/điểm|nơi nào|ghé|tránh/iu);
+  await client.analyze("Mình chưa có điểm đến bắt buộc, bạn gợi ý giúp mình");
+  expect(client.getSnapshot().draft.requirement.mobilityConstraints).toBeNull();
+  expect(client.getSnapshot().prompt?.kind).toBe("RECAP");
+  replies.push({ text: "Trả lời lần lượt từng ý", reply: client.getSnapshot().message });
+  // Explicit skip is still supported when some optional answers are unknown.
+  await client.analyze("không cần lưu ý gì hả");
+  await client.analyze("Bỏ qua phần còn lại");
+  expect(client.getSnapshot().prompt?.kind).toBe("RECAP");
+  console.info(JSON.stringify({ model: "gpt-6-luna", reasoning: "high", replies }));
+}, 300_000);

@@ -2,7 +2,13 @@
 
 This document describes the architecture selected for KLTN and distinguishes code that exists from integrations still awaiting business stories. The active implementation is Next.js full-stack; the supplied old Architecture document's NestJS backend and deployment-TBD statements are historical and are not current implementation.
 
+Snapshot note: several early inventory paragraphs below predate the delivered Trip/Favorite/AI modules. For the 2026-10-27 Assistant extension, the current implementation and verification are documented in [Conversational trip planning](../stories/ASSISTANT-CONVERSATIONAL-PLANNING.md); older future-work statements do not override current repository evidence.
+
 ## System shape
+
+The subsequent recurring-history-loss follow-up adds `AssistantPlanningTurn` and an unreviewed checkpoint/revision on the existing workspace. Authenticated CHECKPOINT atomically appends completed prose and updates needs under optimistic revision/ownership/idempotency; canonical reviewed needs, itinerary schedules and Save authority remain separate. The QA tombstone trigger/cascade erases this data. Only the additive Development migration was applied. See [verification](../implementation/assistant-dialogue-history-follow-up.md); older transient-dialogue statements below are historical for this account-history boundary.
+
+The owner-approved [chat-first Assistant refinement](../stories/ASSISTANT-CHAT-FIRST-PLANNING.md) reuses the same planning Route Handler, versioned workspace and canonical Save service. Understanding receives bounded recent dialogue, current selection and the pending question; real destination options are projected from server-eligible candidates. Client-only prompts/snapshots distinguish needs review, a selected edit, timing-impact acceptance and official save. Server deterministic edits/scope checks, exclusions, routing and Validator enforce the outcome. Canceled reviewed needs use a versioned idempotent REVIEW rollback with a distinct retry branch. No new schema or generated-itinerary persistence was added for this refinement.
 
 ```text
 Browser
@@ -134,3 +140,9 @@ US-12 task149 search/filter state remains blocked pending US-11; US-10 does not 
 ## 2026-10-22 — Local development connection lifetime
 
 `apps/web/src/services.ts` retains its Prisma client in a process-local reference only under NODE_ENV=development, keyed by the exact configured DATABASE_URL. Next module re-evaluation reuses that connection pool; a changed URL constructs a new client. Production keeps the existing module lifetime. This retains the selected PrismaNeon adapter and default pool configuration, and caches no query/session/authorization result. See [data-loading evidence](../performance/local-data-loading-2026-10-22.md).
+
+## Assistant dialogue follow-up — owner-approved 2026-10-27
+
+`planning-date.ts` normalizes departure expressions against the server's Vietnam date; a date window remains separate from an exact departure. Optional range/anchor and explicit deferral metadata live in the existing reviewed-needs JSON, without a new schema. `planning-ai.ts` interprets the current text and eligible data; deterministic calendar, scheduler and Validator retain authority. All planning AI tasks pin Luna/high independently of QA configuration.
+
+`planning-reply.ts` is a language-only boundary after analysis/authoritative generation. It receives canonical next-step text and bounded actual result data, protects critical facts and falls back without re-executing business work. It cannot select the next action, decide PASS or report a save outcome. Guest invitation state is local and follows its chat across public-QA conversation attachment; private planning API auth remains unchanged. See the accepted dialogue design and verification for retention and browser limits.

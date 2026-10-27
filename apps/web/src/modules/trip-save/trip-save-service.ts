@@ -15,6 +15,8 @@ export type TripSaveDependencies = {
   database: Database;
   resolveSession: (headers: Headers) => Promise<{ user: { id: string; role?: string } } | null>;
   getRoute: (input: { origin: { latitude: number; longitude: number }; destination: { latitude: number; longitude: number }; vehicle: TripSaveRequest["proposal"]["transport"] }) => Promise<TravelRoute>;
+  /** Conversational planner explicitly includes the transfer into the next day. */
+  interdayDepartureMinute?: number;
 };
 
 const destinationSelect = {
@@ -55,15 +57,19 @@ function validRoutes(destinations: Map<string, CanonicalDestination>, snapshots:
   });
 }
 
-async function snapshotRoutes(proposal: TripProposal, destinations: Map<string, CanonicalDestination>, getRoute: TripSaveDependencies["getRoute"]): Promise<FixedRoute[]> {
-  const legs = proposal.days.flatMap(day => day.visits.slice(1).map((next, index) => ({ dayIndex: day.dayIndex, from: day.visits[index], to: next })));
+async function snapshotRoutes(proposal: TripProposal, destinations: Map<string, CanonicalDestination>, getRoute: TripSaveDependencies["getRoute"], includeInterday = false): Promise<FixedRoute[]> {
+  const visits = proposal.days.flatMap(day => day.visits.map(visit => ({ dayIndex: day.dayIndex, visit })));
+  const legs = visits.slice(1).flatMap((to, index) => {
+    const from = visits[index]!;
+    return includeInterday || from.dayIndex === to.dayIndex ? [{ fromDay: from.dayIndex, toDay: to.dayIndex, from: from.visit, to: to.visit }] : [];
+  });
   return Promise.all(legs.map(async leg => {
     const from = destinations.get(leg.from.destinationId)!;
     const to = destinations.get(leg.to.destinationId)!;
     const route = await getRoute({ origin: { latitude: from.latitude, longitude: from.longitude }, destination: { latitude: to.latitude, longitude: to.longitude }, vehicle: proposal.transport });
     return {
-      fromVisitId: `day-${leg.dayIndex}-visit-${leg.from.order}`,
-      toVisitId: `day-${leg.dayIndex}-visit-${leg.to.order}`,
+      fromVisitId: `day-${leg.fromDay}-visit-${leg.from.order}`,
+      toVisitId: `day-${leg.toDay}-visit-${leg.to.order}`,
       fromDestinationId: from.id, toDestinationId: to.id,
       fromCoordinates: coordinates(from), toCoordinates: coordinates(to), route,
     };
@@ -78,8 +84,8 @@ function assertCanSave(validation: TripValidation): void {
 export async function previewTripValidation(headers: Headers, proposal: TripProposal, dependencies: TripSaveDependencies, timeReference: Date): Promise<TripValidation> {
   await requireTraveler(headers, dependencies);
   const destinations = await readDestinations(dependencies.database, proposal);
-  const snapshots = await snapshotRoutes(proposal, destinations, dependencies.getRoute);
-  return validateItinerary(toVisits(proposal, destinations), validRoutes(destinations, snapshots), timeReference);
+  const snapshots = await snapshotRoutes(proposal, destinations, dependencies.getRoute, dependencies.interdayDepartureMinute !== undefined);
+  return validateItinerary(toVisits(proposal, destinations), validRoutes(destinations, snapshots), timeReference, dependencies.interdayDepartureMinute);
 }
 
 /** The HTTP caller supplies one time reference; external routing never runs inside a DB transaction. */
@@ -95,8 +101,8 @@ export async function saveTrip(headers: Headers, request: TripSaveRequest, key: 
   });
   assertStartDateForFinalConfirmation(requirement, timeReference);
   const initialDestinations = await readDestinations(dependencies.database, request.proposal);
-  const snapshots = await snapshotRoutes(request.proposal, initialDestinations, dependencies.getRoute);
-  assertCanSave(validateItinerary(toVisits(request.proposal, initialDestinations), validRoutes(initialDestinations, snapshots), timeReference));
+  const snapshots = await snapshotRoutes(request.proposal, initialDestinations, dependencies.getRoute, dependencies.interdayDepartureMinute !== undefined);
+  assertCanSave(validateItinerary(toVisits(request.proposal, initialDestinations), validRoutes(initialDestinations, snapshots), timeReference, dependencies.interdayDepartureMinute));
 
   return executeIdempotentWrite({
     ...identity,
@@ -104,7 +110,7 @@ export async function saveTrip(headers: Headers, request: TripSaveRequest, key: 
       await requireTraveler(headers, { ...dependencies, database: transaction as unknown as Database });
       assertStartDateForFinalConfirmation(requirement, timeReference);
       const currentDestinations = await readDestinations(transaction as unknown as Database, request.proposal);
-      const validation = validateItinerary(toVisits(request.proposal, currentDestinations), validRoutes(currentDestinations, snapshots), timeReference);
+      const validation = validateItinerary(toVisits(request.proposal, currentDestinations), validRoutes(currentDestinations, snapshots), timeReference, dependencies.interdayDepartureMinute);
       assertCanSave(validation);
       const trip = await transaction.trip.create({ data: {
         userId: actor.userId,

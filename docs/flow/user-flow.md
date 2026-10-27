@@ -27,9 +27,13 @@ Owner-approved panel/global entry extension, 2026-10-22: **Hỏi trợ lý AI** 
 
 ## Trip requirement capture
 
+Owner-approved conversational entry, 2026-10-27: the same Assistant on the full page or existing floating entry receives a planning request → authenticates for personal planning → accumulates/reviews needs and resolves mandatory destination names → explicit **Tạo hành trình** → AI selection plus deterministic scheduling/validation → bounded automatic repair or conversational revision → explicit canonical Save. Q&A does not mutate the proposal. Opening history regenerates only on request; a pending confirmed save reconciles its identical operation. See the [implementation story](../stories/ASSISTANT-CONVERSATIONAL-PLANNING.md) for verified versus pending acceptance.
+
 Traveler enters a structured form or natural language → AI extracts candidate duration, companions, interests, pace, mode, and constraints → display candidates for review/edit → resolve ambiguous or missing required values → pass confirmed values to the planner. Duration and supported transport are the minimum inputs for a preliminary proposal. Without a specific start date, use Day 1 / Day 2 / ...; require a start date before final confirmation and official save. A proposal without a start date cannot be finally confirmed.
 
 ## Itinerary generation and validation
+
+Owner-approved chat-first refinement, 2026-10-27: the Assistant asks one missing need → traveler answers or skips an optional field → Assistant recaps all stated/unknown needs in a message → traveler corrects or confirms naturally → generation/validation. There is no needs form in chat. For add/replace requests the Assistant offers real destination choices, binds the selected action to the current itinerary, revalidates and explains changes; edits affecting another day's timing require explicit acceptance. Rejected/canceled edits preserve the previous plan and restore any reviewed needs before reporting cancellation. Q&A does not change a plan, and saving remains a separate confirmation. Reload requires explicit regeneration; the saved-Trip and separate form-planner flows are unchanged. See [chat-first acceptance](../stories/ASSISTANT-CHAT-FIRST-PLANNING.md).
 
 Planner proposes ordered visits from eligible existing destinations → validate structure → deterministic Validator checks opening hours, minimum visit duration, travel time, and schedule conflicts → report `PASS`, `VIOLATION`, or `INSUFFICIENT_DATA` for each check. Missing required routing data, including a response not received within at most 10 seconds, returns `INSUFFICIENT_DATA` / `CHƯA ĐỦ DỮ LIỆU`, never `PASS`; AI must not guess travel time. Confirm only if every mandatory check passes and a start date is present.
 
@@ -52,3 +56,17 @@ Admin manages destination fields and visibility, culture content/source links, a
 ## Write recovery
 
 For applicable writes, `SUCCESS` means confirmed; `FAILED` means known failure; `UNKNOWN` means completion is uncertain. On `UNKNOWN`, keep the input and retry the identical request with the same idempotency key. The server replays a stored success or executes only when no committed record exists. Do not create a second business record because a response was lost.
+
+### Guided optional planning questions — owner follow-up, 2026-10-27
+
+Owner correction after the batch screenshot: after minimum trip inputs → ask the next unanswered optional topic with an example/current-topic quick replies → accept the answer or skip this question → proceed to the next topic → recap → separate confirmation before generation. Volunteered combined answers are retained and their already answered topics are not asked again. A visible “Bỏ qua phần còn lại” skips unknown optional answers without filling defaults. Asking what else to provide stays within planning. Genuine destination QA remains separate and cannot mutate the plan. Minimum-date/save/authorization invariants and the shared full-page/popup flow remain unchanged.
+
+Optional suggestion/skip click → append to the shared composer while retaining the existing draft → add more suggestions or edit freely → explicit Send → process the combined answer. Repeated clicks do not duplicate a suggestion, and filling the composer alone cannot create a turn or advance the current question.
+
+Interest chips merge into a comma-separated sentence. The input grows/shrinks with content to four visible lines, then scrolls internally; inserting a suggestion focuses the end of the draft so the traveler can continue typing.
+
+Current correction: pace/companion suggestion → replace the prior single choice in the input → explicit Send. Choose family/partner/friends/another group without a count → retain that category → ask the count next. The visible skip-remainder control is removed; per-question skip remains.
+
+Completed planning exchange → authenticated atomic dialogue/checkpoint write → acknowledge DB result → reopen/reload → restore text and unfinished needs → continue the missing question. This does not confirm reviewed needs, regenerate a proposal or save a Trip. If a previous proposal's choices expired, ask for regeneration; if its departure date expired, ask a fresh date. Missing acknowledgement retries the same write/key. Deleted/expired conversations erase their planning dialogue/checkpoint through the same lifecycle.
+
+Active proposal response → itinerary card at that exchange → later edit request/AI clarification below the old card → accepted revision response → new itinerary card below. The old card stays intact for comparison. Cancel/failure leaves the existing snapshots; only the current accepted proposal can be saved. Reopening retains text and requires regeneration under the existing proposal lifecycle.

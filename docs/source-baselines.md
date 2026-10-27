@@ -12,11 +12,15 @@ For implementation work, cite the relevant document sections in the story. The c
 
 ## Implementation truth
 
+Current Assistant/Trip snapshot, 2026-10-27: the repository contains Q&A, natural-language requirements, Planner/Validator, Trip Save/Read/Edit and Favorites beyond the older foundation inventory below. Conversational trip planning is implemented under its [current story](stories/ASSISTANT-CONVERSATIONAL-PLANNING.md), with separate [verification and acceptance limits](implementation/assistant-trip-planning-verification.md). Earlier future-work inventory is historical evidence, not the current delivery status.
+
 The checked-out repository controls what is implemented. Accepted choices are summarized in [decisions.md](decisions.md), but a technology choice does not mean its product integration already exists.
 
 The repository currently contains a Next.js App Router application, Better Auth, Prisma/Neon, shared API/error and idempotency helpers, and `system`, `auth`, `account`, `destination`, `culture`, and `map` modules. Destination/Culture Admin management, public Destination detail, Home, public Explore summaries and shared maps are implemented. Trip/Favorite, RAG, Validator, and OpenAI/Google Routes service implementations remain future work. Auth, idempotency, Destination, and Culture tables are modeled; PostGIS/pgvector extensions are enabled, but no domain spatial/vector model was found in this snapshot.
 
 Therefore, product flows in the Product Document and System Specification are requirements for future stories unless a repository route/module demonstrates otherwise. Do not describe a planned feature as delivered.
+
+The same-day owner-approved [chat-first follow-up](stories/ASSISTANT-CHAT-FIRST-PLANNING.md) supersedes only the Assistant's automatic needs form/create-button interaction in the original nine-ticket design. Q1–Q7 approve conversational needs review/confirmation, proactive point options and explicit edit/save semantics. Existing implemented cards are historical UI evidence; the newer decisions define the requested interaction, with [verification limits](implementation/assistant-chat-first-planning-verification.md) recorded separately.
 
 ## Historical architecture reference
 
@@ -40,3 +44,7 @@ Figma may define layout, navigation, screen flow, components, and responsive int
 ## Conflict handling
 
 Use the current task instruction to determine task scope, method, and goal, subject to the locked business baseline above. The Product Document remains the product/business source of truth; the System Specification details behavior; the repository is implementation truth; accepted decisions are implementation decisions; the old Architecture document is historical when it conflicts; and Figma controls UI/interaction only. If these sources do not resolve a conflict, document an open question in the story and ask for a decision rather than choosing silently.
+
+## Assistant dialogue approval — 2026-10-27
+
+The owner approved Q1–Q5 in `docs/implementation/assistant-dialogue-naturalness-design.md`, selecting Luna/high for all planning AI and a visible Guest login navigation. This task refines date interpretation, grounded language and continuation UX. Guest still uses public QA; personal planning requires Traveler/Admin, and official Save retains authoritative validation/idempotency. No locked permission or validation invariant is replaced. Implementation/verification is recorded in the corresponding story and report.

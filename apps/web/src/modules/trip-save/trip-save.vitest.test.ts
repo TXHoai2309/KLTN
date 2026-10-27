@@ -11,7 +11,7 @@ const request = { confirm: true, proposal: {
   startDate: "2026-10-20", durationDays: 1, transport: "CAR",
   days: [{ dayIndex: 1, visits: [{ destinationId: "a", startMinute: 480, plannedDurationMinutes: 60, order: 1 }] }],
 } } as const;
-type Row = { id: string; visibility: "VISIBLE" | "HIDDEN"; latitude: number; longitude: number; minimumDurationMinutes: number | null; openingDays: { dayOfWeek: "TUESDAY"; status: "OPEN" | "UNKNOWN"; intervals: { opensAtMinute: number; closesAtMinute: number }[] }[] };
+type Row = { id: string; visibility: "VISIBLE" | "HIDDEN"; latitude: number; longitude: number; minimumDurationMinutes: number | null; openingDays: { dayOfWeek: "TUESDAY" | "WEDNESDAY"; status: "OPEN" | "UNKNOWN"; intervals: { opensAtMinute: number; closesAtMinute: number }[] }[] };
 const destination = (id: string): Row => ({ id, visibility: "VISIBLE", latitude: 23, longitude: 105, minimumDurationMinutes: 30, openingDays: [{ dayOfWeek: "TUESDAY", status: "OPEN", intervals: [{ opensAtMinute: 0, closesAtMinute: 1440 }] }] });
 
 function fixture(initialRole = "TRAVELER") {
@@ -141,4 +141,24 @@ describe.each(["TRAVELER", "ADMIN"])("US-30 %s server save gate", role => {
     expect(outcome.status).toBe("UNKNOWN");
     expect(test.trips).toHaveLength(0); expect(test.records).toHaveLength(0);
   });
+});
+
+it('chat save revalidates the fresh transfer between days before any write', async () => {
+  const test = fixture();
+  test.dependencies.interdayDepartureMinute = 480;
+  for (const row of test.rows) row.openingDays.push({ dayOfWeek: 'WEDNESDAY', status: 'OPEN', intervals: [{ opensAtMinute: 0, closesAtMinute: 1440 }] });
+  const proposal = { startDate: '2026-10-20', durationDays: 2, transport: 'CAR', days: [
+    { dayIndex: 1, visits: [{ destinationId: 'a', startMinute: 480, plannedDurationMinutes: 60, order: 1 }] },
+    { dayIndex: 2, visits: [{ destinationId: 'b', startMinute: 540, plannedDurationMinutes: 60, order: 1 }] },
+  ] };
+  const parsed = tripSaveRequestSchema.parse({ confirm: true, proposal });
+  const route = vi.fn<TripSaveDependencies['getRoute']>(async () => ({ kind: 'unavailable' }));
+  test.dependencies.getRoute = route;
+  const preview = await previewTripValidation(headers, parsed.proposal, test.dependencies, timeReference);
+  expect(route).toHaveBeenCalledTimes(1);
+  expect(preview.groups.travelTime.status).toBe('INSUFFICIENT_DATA');
+  await expect(saveTrip(headers, parsed, 'interday-unavailable', test.dependencies, timeReference)).rejects.toMatchObject({ code: 'TRIP_VALIDATION_FAILED' });
+  expect(test.trips).toHaveLength(0);
+  test.dependencies.getRoute = async () => ({ kind: 'ok', durationSeconds: 600 });
+  expect((await saveTrip(headers, parsed, 'interday-ready', test.dependencies, timeReference)).status).toBe('SUCCESS');
 });

@@ -13,6 +13,7 @@ model QaConversation {
   deletedAt       DateTime? @db.Timestamptz(3)
   createdAt       DateTime  @default(now()) @db.Timestamptz(3)
   turns           QaTurn[]
+  planningWorkspace AssistantPlanningWorkspace?
 
   @@index([principalKind, principalId])
   @@unique([id, principalKind, principalId])
