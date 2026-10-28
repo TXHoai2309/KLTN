@@ -4542,3 +4542,585 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
 - **Checks:** Original ordering regression failed before the change. Final focused3 files/30 tests PASS includes cancellation/failure and payload-retention boundaries; preceding related34 files/306 tests PASS with8 skips. Web typecheck and isolated production build exit0 PASS. Taste lint0 failures/one existing clock warning; whitespace/scope/secret checks PASS.
 - **Browser:** Browser use is available again. Actual components/CSS in a controlled local fixture reproduce the before-CSS overflow and verify after-CSS desktop/360px/light/dark containment plus old/edit/new card order with one current Save. No DB/provider writes. Screenshots/report: `docs/implementation/assistant-planning-fe-chronology-verification.md`. Authenticated full-app and live-model flow are not claimed. Existing local dev server was stopped; restarted its configured3010 command. Temporary preview tooling stays ignored in `.cache`; viewport restored.
 - **Scope:** No DB/API/schema/migration/provider/dependency or release change; no commit/push/merge/deployment. Existing unrelated work preserved.
+
+## 2026-10-28 — Owner-authorized Production planning migrations
+
+- **Request:** Owner pushed code to master and explicitly requested migrations on the Production DB.
+- **Release/target:** Fetched master `723f24e128d56ae0a47825a90d417f0f0695cf60`; verified Production Neon branch/endpoint/database through provider API and SQL. Applied exact fetched-master SQL from an ignored release copy, using a direct Production connection and explicit Prisma config. Local CRLF differences were content-equivalent; no uncommitted migration source was substituted.
+- **Applied:** The four pending migrations `20261027120000_assistant_planning_workspace`, `20261027123000_planning_history_retention`, `20261027130000_planning_replay_retention`, `20261027180000_planning_dialogue_history`. `prisma migrate deploy` exit0; no reset/db:push/backfill.
+- **Verified:**32 applied,0 pending,0 unfinished; workspace/turn tables, checkpoint columns/indexes and deletion trigger present. Production health200/success. No test users/chats/Trips or AI calls on Production. Receipt and limits: `docs/implementation/assistant-planning-production-migration.md`.
+- **Scope:** No application deployment/commit/push/merge or environment-file changes. Existing unrelated glossary/companion-design changes retained. This supersedes earlier Development-only rollout limits specifically for these four migrations; authenticated browser behavior is not claimed.
+
+## 2026-10-28 — Travel companions planning interview
+
+- **Request:** Use grill-with-docs and ui-ux-pro-max to plan public trip discovery, instant joining and group chat; no implementation requested.
+- **Completed:** Read product/technical/UI baselines and current Trip/auth/schema code. Recorded Q1–Q16 answers, glossary terms, desktop/mobile wireframes, public/member authorization, capacity/lifecycle rules, conceptual data/modules, polling proposal, acceptance scenarios and five implementation phases in `docs/implementation/trip-companions-design.md`.
+- **Decisions:** One host edits; join immediately into additional places; Guest sees a limited introduction; members read the latest saved itinerary and all chat history. Host may remove/ban. Leave revokes access and returns a place. Completion permits chat indefinitely; cancellation is read-only. Closing recruitment/withdrawing/canceling are distinct; retain history for trips that had members.
+- **Status:** DRAFT pending final shared-understanding confirmation. No READY implementation story or accepted product-baseline rewrite in this planning pass.
+- **Validation:** Source/doc review and whitespace check. Typecheck/build/application tests, migrations and browser acceptance are not run for this documentation-only change.
+- **Scope:** No feature code, schema, migration, real-user/Trip data, credentials, dependency installation, commit/push/merge or deployment by this session. Existing workspace work preserved.
+- **Next step:** Owner reviews the complete plan; record final planning confirmation or requested revisions. Code requires a separate request.
+
+## 2026-10-28 — Travel companions plan confirmed
+
+- **Owner confirmation:** Q17: “Đồng ý chốt bản kế hoạch, chưa triển khai code”. This completes the shared-understanding interview; no planning approval remains pending.
+- **Recorded:** Changed `docs/implementation/trip-companions-design.md` to APPROVED PLAN, recorded ADR-23 in `docs/decisions.md`, and added the explicitly approved planned extension to `docs/product/product-spec.md`. Single ownership, Validator authority and the distinction between planned and implemented remain explicit.
+- **Validation:** Reviewed Q1–Q17 consistency, document links and scope; `git diff --check` PASS. Application typecheck/build/tests, migrations and browser acceptance not run because this follow-up changes documentation only.
+- **Scope/next:** No feature code, schema, dependency, database operation, commit/push/merge or deployment. Planning is complete. A separate coding request and bounded implementation stories are required before development.
+
+## 2026-10-28 — Travel companions UI/UX analysis before implementation
+
+- **Request:** Apply ui-ux-pro-max to analyze the interface before coding, using the confirmed travel-companions plan.
+- **Delivered:** `docs/design/trip-companions-ui-ux-analysis.md` covers information hierarchy/navigation, discovery cards and filters, pre-join introduction, publication form/preview, desktop/mobile group chat, capacity labels, lifecycle states, accessibility and design priorities. Linked the analysis from the approved plan without changing Q1–Q17.
+- **Evidence:** Focused local skill searches were checked for relevance; unsuitable progressive-disclosure results were excluded as support for that pattern. Next image guidance was cross-checked with bundled installed-version docs. Static color calculations and official W3C references distinguish token contrast from rendered component conformance. No Figma/browser audit or UI score is claimed.
+- **Findings:** Prioritize public/group distinction, additional-place versus account counts, sufficient public decision information, truthful join/send states and single-pane mobile chat. Header width around the existing1140px drawer breakpoint and dark hover color combinations need visual verification; neither is asserted as a reproduced runtime defect.
+- **Validation/scope:** Documentation/whitespace review only; no application code/schema/migration, dependency installation, build/test run, real-user data, commit/push/merge or deployment. Existing unrelated work retained.
+
+## 2026-10-28 — Travel companions desktop image mockups
+
+- **Request/delivery:** Create sample screen images. Generated three separate desktop raster mockups for discovery, public trip introduction and member group chat with built-in image_gen. Applied one targeted image edit to remove ambiguous joined-person counts from discovery.
+- **Artifacts:** `docs/design/trip-companions-mockups/01-discovery-v1.png`, `02-trip-introduction-v1.png`, `03-group-chat-v1.png`, plus README and full prompt set. Linked the previews from the UI/UX analysis.
+- **Review/limits:** Visually inspected generated images for hierarchy, readable Vietnamese labels, public/member visibility, instant-join CTA, additional places versus group accounts and text-only chat. Illustrative data/imagery; these are not application screenshots, exact design tokens, Figma frames or browser acceptance evidence.
+- **Scope:** Images/docs only; no application code/schema/migration/dependency/database operation, commit/push/merge or deployment. Whitespace check only; application build/tests not applicable.
+
+## 2026-10-28 — Travel companions ticket breakdown and BE/FE prompts
+
+- **Request:** Apply the explicitly named to-tickets skill, split work into small tasks and prepare backend/frontend implementation prompts. No code execution requested in this turn.
+- **Delivered:** Eleven draft vertical tickets under `.scratch/trip-companions/drafts/`, plus the tracked ticket index, shared delivery/evidence contract and separate reusable BE/FE prompts. Each draft declares real blockers, role scope, end-to-end AC and demo evidence; TC-03 includes the deletion guard when membership first appears.
+- **Workflow:** Preserve the existing local tracker convention. The prompts operate on one target ticket (default TC-01), BE then FE/integration, before opening dependent tickets. A finished BE part is not a finished vertical blocker. No horizontal DB-only/API-only/frontend-only backlog was created.
+- **Status:** Product plan Q1–Q17 remains approved. Ticket granularity/dependency/merge-split review is pending per to-tickets; no ready-for-agent issues, external tracker publication, code, schema, migration, dependencies, database calls, commit/push/merge or deployment.
+- **Validation:** Eleven IDs unique and dependency-ordered, graph acyclic and TC-01 initial frontier. Document links/template/status/whitespace checked; application tests/typecheck/build not run for documentation-only work.
+- **Next step:** Owner approves or adjusts the reviewable breakdown; publish approved per-ticket files locally only after that decision. Execute BE/FE prompts only when separately handed off for coding.
+
+## 2026-10-28 — Assistant model invocation and repetitive reply correction
+
+- **Request:** The owner clarified that replies sound identical and asked whether the model is actually called.
+- **Runtime evidence:** Production READY on pushed master `723f24e`; five recent planning-reply events all report Luna/high and MODEL_ACCEPTED. Three baseline real-model samples also succeeded while reproducing repetitive acknowledgements and the stock proposal sentence.
+- **Cause/fix:** Removed mandatory per-turn acknowledgement and verbatim proposal opening. Composition now continues bounded context and supplied itinerary details, while fact/date/unsaved/preliminary guards remain. DISPLAY is read-only; explicit CREATE/SAVE are distinct from generic agreement. Repeated create cannot save, and redisplayed cards cannot duplicate the Save control.
+- **Validation:** 317 related tests pass; three opt-in real-provider tests pass, with truthful fallback retained in one family/date reply. Web typecheck, final isolated production build and whitespace checks pass. See `docs/implementation/assistant-reply-runtime-verification.md` for commands, observed outputs and limits.
+- **Scope:** No schema/migration, Production business-data write, commit/push or deployment. New wording is local pending release; stored historical prose is not rewritten. Existing unrelated travel-companions edits are preserved. No new authenticated browser acceptance or general language-quality certification.
+
+## 2026-10-28 — Travel companions tickets approved and published
+
+- **Owner confirmation:** “Duyệt nguyên bộ 11 ticket và các phụ thuộc”. Granularity, scope, acceptance criteria and dependency graph are unchanged.
+- **Published:** Moved the eleven draft files into `.scratch/trip-companions/issues/`, one file per ticket, with initial ready-for-agent status and approval metadata. The old drafts folder has no ticket files left. Only TC-01 has no blocking ticket at the initial frontier.
+- **Handoff:** Updated the ticket index/links, delivery contract, approved design pointer and both BE/FE prompts. Prompts record the existing approval and accept an explicitly assigned ticket code over the TC-01 default. Workflow remains BE then FE/integration for one ticket before dependent work.
+- **Validation/scope:** Checked count, status, unchanged blocking edges, existing local links and git diff --check. No feature application code/schema/migration, DB calls, dependencies, commit/push/merge/deployment or agent/chat execution. Application typecheck/build/tests not run for document publication. Implementation remains NOT STARTED until separately requested.
+
+## 2026-10-28 — TC-01 backend publication and public introduction
+
+- **Request/scope:** Owner supplied the implementation BE prompt, default TC-01 only. Approved Q1–Q17 and ticket graph were reused without reopening approval. Created the bounded story from the template before coding; no ticket blockers. BE is implemented locally; TC-01 FE/integration remain OPEN and TC-02 remains blocked.
+- **Delivered:** Unique TripCompanionPublication with title/introduction/additional capacity and nullable eligible ContentMedia; thin GET/POST owner publication, POST preview and public GET introduction routes. Client-safe Zod DTOs and synthetic FE fixtures. Host derives from trusted actor/Trip owner; current persisted role/status, user/Trip row locks and post-lock Vietnam date check. Existing private Trip access remains owner-scoped; no Admin bypass. Public/preview share an allowlisted projector, canonical destination/media eligibility, live dates/host/route and safe missing-image behavior; no private schedule/needs/AI/contact/group data. No membership/chat/discovery/recruitment lifecycle or UI was added.
+- **Writes:** Shared `trip-companions:publish` idempotency hashes tripId + complete normalized confirmed payload. Publication and successful IDs commit atomically; same-key replay returns same IDs, changed payload fails409 and distinct-key contenders cannot create duplicate publications. UNKNOWN retains payload/key; replay stores no potentially stale public content snapshot. Schema cache revision bumped for the new Prisma delegate in local hot reload.
+- **Migration:** Additive `20261028120000_trip_companion_publication`; generated client PASS. Verified a loopback PostgreSQL16 container with owned label/database identity. Prisma migrate deploy/status applied15 unchanged relevant migrations (14 baseline + new),0 pending; catalog/check/FK evidence PASS. Scoped fixture excludes unrelated PostGIS/vector/AI history, so no full deployment-history/drift claim. Container and temporary migration/config copies removed. No Development/Production data reads, ledger inspection or migration; target rollout still required. No reset/db:push.
+- **Checks:** Final focused Vitest19 files/176 tests PASS (22 new contract/service/HTTP; existing Trip Save/Read/management/Validator/edit/auth/media/schema-cache regression).11 opt-in cases skipped in that run;10 TC-01 PostgreSQL tests separately PASS, with observed real lock contention for midnight/date-change/completion/account-lock, six distinct-key and six same-key contenders, canonical Save→Guest read, hidden/deleted/media revocation, commit-ack loss/replay, rollback and FK deletion. Shared idempotency4/4 PASS. Root typecheck PASS; final isolated web production build PASS (Next16.3.8,48 static pages, three new API paths). Whitespace/new-file/link/scope/secret review PASS. Initial DB fixture omitted existing media-review evidence; corrected synthetic metadata and reran, with no constraint/assertion weakened.
+- **Handoff/limits:** Actual endpoints, request/response exports, errors, allowlists, replay protocol, ordering and FE work are in `docs/implementation/trip-companions-delivery-contract.md`; detailed commands/evidence in `docs/stories/TC-01-publish-public-introduction.md`. Issue and index updated with BE evidence only. FE owns form/Guest preview/page/client wrappers/recovery and UI/browser integration. No live Next/authenticated browser/full unrelated suite/real AI/routing acceptance claimed. TC-03 must add the historical-member deletion guard before join exists. Existing unrelated workspace work retained; no dependency/env changes, commit/push/merge/deploy, new chat/automation or cross-chat messaging.
+
+## 2026-10-28 — TC-01 frontend publication form, public introduction, and integration verification
+
+- **Request/scope:** Owner requested FE implementation and integration verification for TC-01 ("01: Công khai Trip đã lưu và xem giới thiệu") based on the delivered BE contract and issue checklist. Scope strictly limited to TC-01; no TC-02 discovery, TC-03 join, or recruitment lifecycle.
+- **Delivered (Frontend):**
+  - Client module: `companion-client.ts` with API adapters for `fetchCompanionFormContext`, `previewCompanionDraft`, `publishCompanionTrip` (with Zod schema validation and cross-checking `tripId`), and `fetchPublicCompanion`. Integrates `sendIdempotentMutation` to guarantee `UNKNOWN` write retention of the identical draft and idempotency key.
+  - Publication Form: Server Component `/trips/[id]/publication` handling 401 redirect with `returnTo`, 403 `AccessDenied`, 404 `notFound`, and 409 ineligible alert. `PublicationFormClient` provides read-only Trip baseline (dates, transport, route summary), real-time counters (title 1–200, introduction 1–4000), integer additional capacity, usable destination media selector with none-fallback, live preview toggle, and existing publication recognition.
+  - Public Introduction & Component: `CompanionIntroductionView` provides a shared presentation component for Guest public page (`/trip-companions/[id]`) and Host live preview. Features summary header, host identity card, capacity spotlight ("Số chỗ tìm thêm" / "Chỗ còn"), route stop summary, locked member-only itinerary banner, and strict plain-text rendering preventing script/HTML injection. No fake join CTA button.
+  - Navigation Entry Point: Added "Tìm bạn đồng hành" link with `Users` icon to `TripDetailView` header actions and footer nav in `trips-view.tsx` for active saved trips.
+  - Visual Design & CSS: `companion.css` inheriting brand design tokens (cream `#f8f7f3`, dark emerald `#174a35` / `#111714`, Be Vietnam Pro body, Lora editorial serif headings).
+- **Checks & Verification:**
+  - Focused Vitest: `node ../../node_modules/vitest/vitest.mjs run --config vitest.config.mts src/modules/trip-companions src/components/trip-companions src/app/trips/trips-view.vitest.test.ts` — **51 passed, 10 skipped** (including 12 unit/contract tests in `companion-client.vitest.test.ts` and 9 UI/render tests in `companion-ui.vitest.test.ts`).
+  - Full Vitest regression (21 test files): **197 passed, 11 skipped**.
+  - Shared Idempotency test suite: `npm run test:idempotency --workspace web` — **4/4 passed**.
+  - PostgreSQL container integration tests: `node scripts/test-trip-companions-postgres.mjs` — **10/10 PASS** (15 migrations, 0 pending).
+  - Monorepo Typecheck: `npm run check-types` — **4/4 packages passed**.
+  - Production Web Build: `$env:KLTN_PERF_BUILD='1'; npm run build --workspace web` — **Compiled successfully, 48 static pages prerendered**, `/trips/[id]/publication` and `/trip-companions/[id]` recognized as dynamic App Router routes.
+  - Git whitespace inspection: `git diff --check` PASS.
+- **Documentation:** Updated `.scratch/trip-companions/issues/01-publish-public-introduction.md`, `docs/stories/TC-01-publish-public-introduction.md`, and `docs/implementation/trip-companions-delivery-contract.md` to `IMPLEMENTED` with all 5 ACs verified and evidence receipts attached.
+- **Handoff/Limits:** Vertical ticket TC-01 is fully implemented and verified locally. No commit, push, merge, or deployment performed. TC-02 discovery list remains blocked pending user review and acceptance of TC-01.
+
+## 2026-10-28 — TC-01 publication form review fixes
+
+- **Request:** Owner says “sửa cho tôi” after the code review identified immutable UNKNOWN retry, mandatory Guest preview and preview/draft race defects.
+- **Fix:** Preview-first edit submit; current reviewed draft snapshot and stale-result invalidation; full Trip ID/draft/key attempt retained through pending/UNKNOWN with input/image/tab guards. Known failure retains input and requires a fresh preview/key; confirmed success cannot submit again while navigating. Editable hooks are isolated in a keyed child.
+- **Evidence:** Added seven actual-component-handler tests using real shared schemas/client/mutation transport and offline fetch fixtures. Corrected reproduction loop failed7/7 on old code, then passed7/7 after repair. Related14 passing files/129 tests,11 PostgreSQL skips; web typecheck and isolated local production build PASS (Next16.3.8,48/48 static pages). Existing simulated DB-error logs belong to passing Save tests.
+- **Docs:** Story, delivery contract and local ticket link the new verification report. It supersedes static-markup-only claims about recovery/confirmation; authenticated browser/visual acceptance is not claimed.
+- **Scope:** FE/test/docs only, no BE/API/schema/migration changes, provider requests, real publication, Production operations, new dependency, commit/push/merge/deploy or TC-02 implementation. Backend/migration hashes matched the review baseline. Existing unrelated work preserved. Final whitespace/source scope checks PASS; no DB integration suite rerun for this FE-only correction.
+
+## 2026-10-28 — TC-01 localhost missing-table recovery
+
+- **Request/cause:** Owner reported an error when opening “Tìm bạn đồng hành”. The running Next development log identified the missing `public.trip_companion_publication` table; the new migration had previously run only on disposable PostgreSQL.
+- **Repair:** Independently verified the configured Development database via endpoint allowlist and SQL server identity. Preflight found exactly the TC-01 migration pending and no unfinished entries. Applied that existing additive migration with Prisma `migrate deploy`; verified **34 applied, 0 pending/unfinished**, expected table/columns/indexes present. No reset or `db:push`.
+- **Runtime evidence:** Observed the existing authenticated Chrome tab render the publication form and then the completed Guest preview with its confirmation control. This repair did not click Publish or modify the user's draft. Full browser acceptance remains separate.
+- **Scope/checks:** Development schema rollout and documentation only; no application source/SQL changes, Production operation, credentials/env change, real publication, commit/push/merge/application deployment or TC-02 work. Prior code tests/typecheck/build were not rerun for the unchanged application. See `docs/implementation/tc01-development-migration.md`; story and delivery contract now reflect the Development rollout. Existing unrelated edits preserved.
+
+## 2026-10-28 — Travel companions implementation inventory
+
+- **Request/method:** Owner invoked grill-with-docs and asked what remains unimplemented after noticing missing discovery and host management controls. Applied grilling and domain-modeling; checked source against the approved plan, issue graph and current TC-01 evidence. A read-only sub-agent cross-checked API/pages/schema/navigation.
+- **Findings:** TC-01 publication/form/preview/public introduction exists; TC-02–TC-11 have no implemented BE/FE. There is no discovery collection page/API, membership, group reader, recruitment lifecycle or group chat. The public view has an unwired host-return link and copy suggesting join/chat already exists; `availablePlaces` still equals configured additional capacity until membership is implemented. Original saved-Trip editing already exists separately from publication editing.
+- **Docs:** Added `docs/implementation/trip-companions-implementation-status.md` with the ten-ticket gap table, TC-01 UI gaps, evidence and limits. Corrected stale current-status text in the ticket index, design execution update and product contract. Added concise saved-itinerary/companion-invitation glossary entries; existing closure/withdrawal/cancellation distinctions, Q1–Q17, ADR-23 and blocking edges remain unchanged. No new requirement or ADR was introduced.
+- **Scope/validation:** Documentation only; application gaps remain open and no ticket was started or marked accepted. Did not rerun code tests/typecheck/build, browser/DB/provider checks, schema/migration, application release, commit/push/merge or Production operations. Reviewed local links and whitespace; existing unrelated edits preserved.
+
+## 2026-10-28 — Travel companions completion plan and two role tasks
+
+- **Request:** Owner asks for a plan to implement all remaining tickets, divided into exactly one BE task and one FE task. This turn prepares the plan/task prompts; it does not start application implementation or create/dispatch chats.
+- **Delivered:** `docs/implementation/trip-companions-completion-plan.md` covers TC-01 UI/context follow-up and TC-02–TC-11 in the approved sequential order. Two complete task prompts are in `docs/implementation/tasks/trip-companions-backend.md` and `trip-companions-frontend.md`; each spans the remaining scope and resumes through gated handoffs, rather than using the legacy single-ticket TC-01 default.
+- **Coordination:** Existing vertical issues/AC/dependency graph remain authoritative. Each gate requires BE contract/schema/test evidence → FE integration → vertical checks before dependent implementation. Defined file ownership, actual DTO/fixture handoff, revision/change handling, safe pause/resume at cross-role blockers and separate BE/FE/integration completion. No busy waiting or automatic cross-chat messaging.
+- **Coverage:** Discovery/navigation, atomic join/member reads/deletion guard, leave, publication/capacity/recruitment management, remove/ban, text/link chat/history, polling/recovery, unread, atomic saved-itinerary notices and cancellation/completion lifecycle. Included truthful TC-01 copy/host-return wiring, Development migration verification and a final multi-actor/browser/concurrency matrix. No new product rules, provider or ADR.
+- **Documentation/limits:** Linked the new plan/tasks from the inventory, ticket index, delivery contract and legacy per-ticket prompts; legacy mode remains available. Document checks cover complete ticket mapping, dependency order, local links and whitespace. No source/schema/migration/DB/provider/dependency operation, application tests/typecheck/build, commit/push/merge/deploy or Production changes; existing unrelated work preserved. Task files are PREPARED, tickets retain their actual implementation status.
+
+## 2026-10-28 — Completion-plan milestone 0 backend viewer context
+
+- **Request/scope:** Owner assigned the full BE task, to advance through the completion-plan gates. Read project/task/source/story/AC and existing implementation evidence; initial checkout was clean. No repeat approval or cross-chat dispatch.
+- **Delivered:** Additive authenticated viewer context via getCompanionViewerContext and GET /api/trip-companions/:publicationId/viewer; client-safe strict HOST + private Trip ID or VISITOR only, with fixtures. Trusted session plus current persisted account and owner predicate; no name comparison/Admin bypass. Context works after departure/completion. Public/publish DTOs and private Trip ownership remain unchanged.
+- **Evidence:** Existing TC-01 plus viewer unit/HTTP/schema 30 PASS; actual disposable PostgreSQL 11 PASS, 15 unchanged relevant migrations, 0 pending, cleanup PASS. Root typecheck 4/4 PASS and git diff --check PASS. Final build follows TC-02 receipt. No new migration or Development/Production operation.
+- **Handoff:** Delivery contract TC01-viewer-r1 is BE READY FOR FE. FE owns public-page link/copy wiring and Guest/host/outsider/non-owner Admin integration; those follow-up checks remain OPEN. Existing TC-01 vertical receipts and completion-plan section 7 allow the TC-02 BE milestone. Do not implement TC-03 before TC-02 FE/integration evidence. Full BE task remains incomplete.
+
+## 2026-10-28 — TC-02 backend discovery handoff / next gate FE
+
+- **Scope/dependency:** Full BE assignment continued from milestone 0 into TC-02 per completion-plan section 7, retaining existing TC-01 vertical receipts. Created TC-02 story before coding; no dependency edge, product rule or ticket AC changed. TC-03–11 were not implemented early.
+- **Delivered:** GET /api/trip-companions and authenticated GET /api/trip-companions/mine; strict shared raw-query/list schemas and synthetic FE fixtures. Literal case-insensitive title/public-route search, inclusive departure-date range, transport/available filter, nearest-departure + publication-ID keyset cursor, total and nextCursor. Cursor is bound to normalized filters/scope/account but never substitutes for current server auth. Same TC-01 public projector, no private Trip IDs or hidden route/media leaks. Each page count/filter/projection uses RepeatableRead; cross-request live changes require refresh, not an immutable snapshot claim.
+- **Staged limits:** No membership exists until TC-03, so current remaining places equal configured positive additional capacity; available-only currently retains all otherwise eligible rows. Both collections in r1 are upcoming invitations. Future lifecycle predicates are added when TC-05/11 introduce their states. No new schema/migration/env/dependency or provider calls.
+- **Checks:** Discovery unit/HTTP/schema 24 PASS, viewer 8 PASS, TC-01 22 PASS. Related regression at checked source snapshot: 27 passing files / 253 PASS / 21 opt-in skips. Dedicated owned PostgreSQL16 runner separately passed 20/20 (9 discovery + 11 TC-01/viewer); 15 unchanged relevant migrations, 0 pending, cleanup PASS. Root typecheck 4/4 and shared idempotency 4/4 PASS. Initial fixture syntax/nested-relation/public-marker failures were corrected and rerun without weakening assertions/constraints. Final tracked/new-file whitespace, local handoff links and scope/secret checks PASS.
+- **Concurrent source/build limit:** FE-owned page/header/component/client/test edits appeared after the initial clean checkout. Kept them intact and did not count them as completed FE evidence. Build with separate output compiled, then failed its typed-route check because that FE snapshot linked /trip-companions before the list page existed. Earlier typecheck PASS does not certify the later combined checkout. FE must finish its route and rerun combined build/browser checks. No server defect was reported by that failure.
+- **Handoff:** Delivery contract TC01-viewer-r1 and TC02-discovery-r1 are BE READY FOR FE with exact endpoints/exports/query/errors/fixtures/cursor semantics, source hashes, commands and limits. Story, issues, task status, plan/inventory/index and product implementation status updated. M0 FE host-return/copy and TC-02 FE/integration remain OPEN; source edits alone do not open TC-03. Full BE task is INCOMPLETE / WAITING FOR FE evidence; resume this same task after evidence arrives. No chat/message/automation, commit/push/merge, application deployment or Development/Production operation.
+
+## 2026-10-28 — Owner changes two-task execution to continue across handoffs
+
+- **Request/cause:** Owner asks how to keep the BE/FE tasks working until their assigned scope is finished after BE stopped at TC-02. The old completion-plan instruction explicitly required FE/integration before starting dependent backend work; the task followed that instruction.
+- **Updated method:** For the two full-scope tasks, BE may continue TC-03–TC-11 once backend prerequisites/contracts/tests exist, without waiting for FE evidence from the previous ticket. FE consumes actual ready contracts continuously and moves to the next available milestone. Handoff updates are progress, not final-turn boundaries. Product rules, AC, functional dependencies and the requirement for BE + FE + integration before marking a vertical ticket IMPLEMENTED remain unchanged.
+- **Docs:** Updated both task prompts, completion plan, ticket index, delivery contract current instructions and TC-02 handoff. BE current execution state is PARTIAL / READY TO CONTINUE TC-03; no new code work is claimed. Old WAITING FOR FE receipts remain historical and are explicitly superseded for execution ordering.
+- **Stopping/checkpoint rules:** Continue independent implementation/checks while useful in-scope work remains. Stop only for completed role scope, explicit owner stop, or an investigated external blocker with no remaining useful work; platform limits require a truthful checkpoint. No infinite waiting, fake DONE, skipped auth/tests, automatic chat messaging or claim that editing a prompt wakes a finished task.
+- **Validation/scope:** Documentation-only links/whitespace/consistency checks; no application code/schema/migration/DB/provider/test/build operation, commit/push/merge/deploy or new task/agent dispatch. Existing concurrent FE and BE changes preserved. The finished BE conversation requires a follow-up instruction to resume under the updated prompt.
+
+
+## 2026-10-28 — TC-03 backend handoff
+
+Revision TC03-membership-r1. POST /api/trip-companions/:id/join accepts only {confirm:true} plus Idempotency-Key; result {publicationId}. GET /api/trip-companions/:id/group returns CompanionGroup; GET /api/trip-companions/joined uses existing strict list query/list schema and includes host/current member groups across dates. Shared companion-group-contract.ts exports companionConfirmSchema, companionGroupMutationSchema, companionGroupSchema / CompanionGroup; companion-group-fixtures.ts exports companionGroupFixture. Service exports joinCompanion/getCompanionGroup; listJoinedCompanions is in discovery service. Group projection has relationship, memberCount including host, public introduction and detailed days/visits (time/duration/coordinates for currently public destinations); unavailable destinations use null ID/coordinates and a placeholder. No needs/AI/contact/private Trip DTO. Active account checked per reader/writer; foreign/non-member Admin gets 403; Guest 401; invalid body 400; full/closed/history-delete 409. All responses private/no-store; ordinary GET envelopes and shared mutation outcomes. Successful replay IDs describe the original operation, never restore membership; refresh group after replay. Lock order account SHARE -> Trip UPDATE -> publication UPDATE; date evaluated after locks. One membership/account, host never uses a place. Public DTO shape unchanged; availablePlaces and availableOnly now derive from current ACTIVE memberships in one read snapshot. Migration 20261028130000_companion_membership adds durable historical flag/membership uniqueness/FKs and DB delete trigger; existing delete service locks/checks historical flag before favorite deletion. Evidence: 70 focused tests PASS; disposable PostgreSQL 26 PASS (6 new TC-03 + prior 20), 16 migrations/0 pending/cleanup PASS; Prisma generate and root typecheck PASS; whitespace checked. No Development/Production rollout yet. FE/vertical integration OPEN; final combined build deferred while FE changes, not claimed PASS.
+
+FE/integration OPEN, no owner acceptance. No commit/push/merge/application deployment/Production operation. Continue next backend prerequisite under owner-updated task.
+
+
+## 2026-10-28 — TC-04 backend handoff
+
+Revision TC04-leave-r1. POST /api/trip-companions/:id/leave uses shared strict {confirm:true}, Idempotency-Key, and {publicationId} confirmed result. companion-group-service.ts exports leaveCompanion; existing joinCompanion now reactivates the same LEFT row under locks. Historical everHadMembers and joinedAt remain intact. Host leave => COMPANION_HOST_CANNOT_LEAVE/409; no prior member/current barred relation => 403, Guest 401. ACTIVE -> LEFT once; current group readers/joined list revoke on next request, places count only ACTIVE rows. Leave allowed after departure; rejoin still requires future/open/available. Same-key replay never removes a later rejoin or reactivates a departed membership; reread group after replay. Migration 20261028131000_companion_leave adds LEFT. Evidence: disposable PostgreSQL 29 PASS (3 new leave/rejoin/race + prior 26), 17 migrations/0 pending/cleanup PASS; group schema/HTTP boundary 2 PASS and prior focused 70 PASS; Prisma generation PASS, root types recorded by current runner; diff check PASS. FE/integration OPEN; no FE wait before TC-05.
+
+FE/integration OPEN, no owner acceptance. No commit/push/merge/application deployment/Production operation. Continue next backend prerequisite under owner-updated task.
+
+## 2026-10-28 — Milestone 0 & TC-02 FE hoàn thiện & kiểm chứng tích hợp
+
+- **Scope/Status:** Hoàn thiện toàn bộ FE và tích hợp cho Mốc 0 (follow-up host link/copy) và TC-02 (Discovery & Lọc chuyến công khai). Vertical tickets đánh dấu `IMPLEMENTED LOCALLY`.
+- **Milestone 0 (TC-01 follow-up):**
+  - Cập nhật `companion-client.ts`: client adapter `fetchCompanionViewerContext(publicationId)`.
+  - Server Component `apps/web/src/app/trip-companions/[id]/page.tsx` phân giải context bảo mật (`relationship: "HOST" | "VISITOR"`), truyền `isHost` và `tripId` sang view; breadcrumb quay về `/trip-companions` an toàn typed-route (`as Route`).
+  - View `companion-introduction-view.tsx`: Nút "Quay lại quản lý chuyến đi" chỉ hiển thị khi `isHost && tripId`, trỏ về `/trips/${tripId}`; copy công khai trung thực phản ánh hiện trạng, không bật CTA join/chat giả.
+- **TC-02 (Discovery & Filter):**
+  - Navigation: Bổ sung "Tìm bạn đồng hành" (`/trip-companions`, icon `Users`) vào cả desktop header và mobile drawer trong `header.tsx`; điều chỉnh breakpoint nav từ 1140px lên 1200px bảo đảm không tràn ở 1152–1280px.
+  - Trang Discovery `apps/web/src/app/trip-companions/page.tsx` bọc trong `<Suspense>`, có dynamic metadata.
+  - Interactive Client Component `companion-discovery-view.tsx`:
+    - Hero header, nút "Đăng chuyến đi" dẫn tới `/trips` để chọn chuyến đi đã lưu.
+    - 2 tab phạm vi ban đầu: "Khám phá chuyến" (public) và "Chuyến tôi đăng" (mine); xử lý Guest khi chọn tab mine hiển thị thông báo đăng nhập kèm `returnTo=/trip-companions?tab=mine`.
+    - Thanh lọc: tìm kiếm từ khóa `q` (so khớp tiêu đề hoặc điểm đến công khai), khoảng ngày khởi hành `departureFrom` - `departureTo`, phương tiện `transport` (`CAR`/`MOTORCYCLE`), checkbox `availableOnly`, nút đặt lại bộ lọc.
+    - Đồng bộ 2 chiều với URLSearchParams (`useSearchParams` + `router.replace` scroll: false), giữ nguyên ngữ cảnh khi quay lại từ trang chi tiết.
+    - Lưới thẻ chuyến đi: ảnh đại diện với fallback gradient, badge "Còn X chỗ tìm thêm", thời gian, phương tiện, chuỗi điểm đến kèm mũi tên, thẻ host, nút "Xem chuyến".
+    - Phân trang keyset với nút "Tải thêm chuyến đi" (`nextCursor`).
+    - Skeleton loading state và empty state có nút xóa bộ lọc.
+  - Style: `apps/web/src/app/trip-companions/companion.css` kế thừa Highland design tokens (cream `#f8f7f3`, forest green `#174a35`, responsive 360px–1440px).
+- **Kiểm chứng:**
+  - Focused Vitest: 9 files / 118 passed, 29 skipped (toàn bộ skipped là postgres tests).
+  - Header Vitest: 12/12 passed.
+  - Discovery UI Vitest (`companion-discovery.vitest.test.ts`): 7/7 passed.
+  - Client Vitest (`companion-client.vitest.test.ts`): 20/20 passed.
+  - PostgreSQL disposable tests (`node scripts/test-trip-companions-postgres.mjs`): 20/20 PASS (11 TC-01 + 9 TC-02 discovery), 15 migrations, 0 pending, cleanup container PASS.
+  - Idempotency suite (`npm run test:idempotency --workspace web`): 4/4 passed.
+  - Root typecheck (`npm run check-types`): 4/4 packages PASS.
+  - Production build (`npm run build --workspace web`): 52 static pages compiled successfully.
+  - `git diff --check`: 0 lỗi.
+- **Tiếp tục:** BE đã bàn giao contract thật TC-03 (`TC03-membership-r1`) và TC-04 (`TC04-leave-r1`). FE chuyển tiếp ngay sang triển khai TC-03 theo quy tắc thực thi liên tục.
+
+
+
+## 2026-10-28 — TC-05 backend handoff
+
+Revision TC05-management-r1. GET/PATCH /api/trip-companions/:id/management owner-only. Shared companion-management-contract.ts exports companionManageInputSchema, companionManageSchema / CompanionManage; companion-management-fixtures.ts exports companionManageFixture. GET returns private tripId, current draft/Trip/imageOptions, visibility PUBLIC/WITHDRAWN, recruitmentOpen, managementRevision, activeMemberCount and canReopen. PATCH body is full CompanionDraft plus {confirm:true,baseRevision:number,visibility,recruitmentOpen}; key hash includes full validated payload and target. SUCCESS {publicationId,managementRevision}; reread GET after replay. Same group lock order; revision mismatch 409 COMPANION_REVISION_CONFLICT; capacity below ACTIVE count 409 COMPANION_CAPACITY_TOO_SMALL; invalid image 422. Re-publication/re-opening require future date and no manual completion. Close/withdraw never revoke members or create a new group. Additive optional recruitmentStatus on PublicCompanion: OPEN/FULL/CLOSED/DEPARTED/COMPLETED/WITHDRAWN; existing clients importing shared schema remain compatible, fixtures updated. Public collection/detail excludes withdrawn; closed/full public posts remain discoverable. DELTA to TC02 r1: /mine now includes own past/completed/withdrawn posts for management; /joined retains current groups across dates. Filters/cursor/envelopes unchanged. Migration 20261028132000_companion_recruitment adds visibility/recruitmentOpen/revision. Tests: PostgreSQL 32 PASS (3 new management/capacity-race/revision + 29 prior), 18 scoped migrations/0 pending/cleanup PASS; 49 focused schema/service/HTTP PASS; root types 4/4, Prisma generation and whitespace PASS. Development independently verified by configured endpoint plus SQL identity; scoped 03/04/05 migrations deployed using Prisma migrate deploy, 37 applied/0 pending/0 unfinished, 25 constraints/5 indexes/1 history guard trigger inspected. No Production or business-data write. Receipt .cache/trip-companions-be/development-migration.json (ignored, no credentials). Final build/integration remains separate while FE is active.
+
+FE/integration OPEN, no owner acceptance. No commit/push/merge/application deployment/Production operation. Continue next backend prerequisite under owner-updated task.
+
+
+## 2026-10-28 — TC-06 backend handoff
+
+Revision TC06-members-r1. GET /api/trip-companions/:id/members returns companionMembersSchema / CompanionMembers from companion-members-contract.ts, fixture companionMembersFixture. It contains host and current ACTIVE members only, with group-safe userId/displayName/avatar and joinedAt; no email/contact/account status. Current host/member required; outsider/foreign Admin/left/barred/locked denied. POST /api/trip-companions/:id/members/:userId/ban uses {confirm:true}, target path ID, Idempotency-Key; result {publicationId}. Service getCompanionMembers/banCompanionMember in companion-members-service.ts. Host-only permanent BANNED on existing relationship (including a previously LEFT relation), no unban route; host target 409, missing relation 404. Join checks BANNED both before replay and after row locks, so an original successful join key cannot bypass removal. Capacity counts ACTIVE only, removal returns place once; current group/member readers deny the barred account. Other members retain access and relation/history never deleted. Migration 20261028133000_companion_ban adds state. PostgreSQL 35 PASS (3 new ban/rejoin-race/authorization + 32 earlier), 19 scoped migrations/0 pending/cleanup PASS; root typecheck 4/4, schema/HTTP fixture suite 4 PASS, Prisma generation PASS. Global diff check detected trailing EOF blank lines in concurrently edited FE client/test files; BE leaves those files untouched and records combined whitespace OPEN until FE resolves. Development rollout uses independently verified target and scoped Prisma deploy (current ledger in ignored receipt). No Production or business-data mutations. FE/integration OPEN.
+
+FE/integration OPEN, no owner acceptance. No commit/push/merge/application deployment/Production operation. Continue next backend prerequisite under owner-updated task.
+
+
+## 2026-10-28 — TC-07 backend handoff
+
+Revision TC07-chat-r1. GET/POST /api/trip-companions/:id/messages. POST strict body {text:string}, trimmed 1–4000 chars (technical bound), Idempotency-Key; result {publicationId,messageId,sequence:string}. Authorship from current trusted session; body author/kind rejected. Shared companion-chat-contract.ts exports send/message/result/history/query schemas and CompanionMessage/CompanionHistory; companion-chat-fixtures.ts has client-safe message/history examples. GET query before (exclusive decimal bigint string) and limit raw string 1–100/default30; response {publicationId,items,olderCursor,highWaterCursor,canSend}. Page messages are ascending for rendering; request olderCursor as before to fetch prior history. New members can read all prior pages; current group permission/account required each request and before send replay. Text/links remain plain strings, render as escaped text and safe HTTP(S) links in FE, never HTML. Public APIs have no chat projection. Ordering proof: every sender holds Trip then publication UPDATE locks until commit, increments transactional per-group bigint counter and inserts message/result in same transaction. A later sender cannot allocate/commit a higher position until prior transaction commits/rolls back. RepeatableRead history reads committed counter and messages <= that cut. Thus commit-late writes cannot appear behind a consumed cursor; timestamps/cuid are not ordering. Rollback consumes no committed sequence. SAME payload/key replay yields same IDs/sequence; UNKNOWN retains exact payload/key. PostgreSQL 39 PASS (4 new chat concurrency/history/replay/lost-ack/rollback/held-commit cases + prior35), 20 scoped migrations/0 pending/cleanup PASS; schema/HTTP/Trip regression 22 PASS after fixing regex-to-BigInt parser pipeline (invalid decimals now fail validation, no exception). Prisma generation and root types recorded by runner. Migration 20261028134000_companion_chat adds counter/messages/constraints and extends service/DB deletion guard to retained host-only messages; no TTL. Development scoped rollout verified by endpoint+SQL identity; current redacted ledger receipt in .cache/trip-companions-be. FE/integration OPEN; final broad build remains separate.
+
+FE/integration OPEN, no owner acceptance. No commit/push/merge/application deployment/Production operation. Continue next backend prerequisite under owner-updated task.
+
+
+## 2026-10-28 — TC-08 backend handoff
+
+Revision TC08-delta-r1. GET /api/trip-companions/:id/messages/delta accepts after decimal sequence (default0), raw limit1–100/default100. Shared companionDeltaQuerySchema/companionDeltaSchema, type CompanionDelta, fixture companionDeltaFixture. Result {publicationId,items,nextCursor,highWaterCursor,hasMore,canSend,relationship}. Items ascending; advance only nextCursor (last delivered), never highWaterCursor when hasMore=true. Same committed sequence/RepeatableRead/auth boundary as history; old cursor grants no access after leave/ban/lock. Poll about3s only for visible current group, refresh on return, dedup by message ID/sequence, preserve scroll and reject late actor/group responses in FE; no BE timers or new provider. POST /api/trip-companions/:id/messages/reconcile takes identical send text body and Idempotency-Key, checks current membership and actor/publication/payload hash in shared replay store without writing. Confirmed => original SUCCESS IDs/sequence; changed key payload => FAILED409; absent/in-flight/unavailable/corrupt result => UNKNOWN503 retryWithSameKey, then retry original send with identical body/key. Never synthesize success or use a new key on reconnect. PostgreSQL 41 PASS (2 delta/reconciliation/current permission tests + earlier39), unchanged20 migrations/0 pending/cleanup PASS; chat schema suite3 PASS. Typecheck found ES2017 target incompatibility with BigInt literals introduced in TC07; replaced literals by exact BigInt constructors, preserving bigint strings and semantics. Root typecheck rerun/final broad check pending, not called PASS early. No migration for TC08; Development already has chat schema (39 applied/0 pending/unfinished). FE/browser/timer/integration evidence remains OPEN.
+
+FE/integration OPEN, no owner acceptance. No commit/push/merge/application deployment/Production operation. Continue next backend prerequisite under owner-updated task.
+
+
+## 2026-10-28 — TC-09 backend handoff
+
+Revision TC09-unread-r1. POST /api/trip-companions/:id/read strict {sequence:decimal-string} + Idempotency-Key; shared companionReadInputSchema/companionReadResultSchema. Result {publicationId,sequence} is monotonic at commit; stale successful replay does not rewind stored cursor, FE merges monotonically/refetches summary. Current host/member checked before replay and again after account/Trip/publication locks. Sequence0 allowed; positive cursor must exist committed in this group and cannot exceed messageSequence. GET /api/trip-companions/unread uses after publication-ID and raw limit1–50/default50, stable ID keyset; companionUnreadQuerySchema/companionUnreadSchema / CompanionUnread, fixture companionUnreadFixture. Summary items {publicationId,unreadCount,lastReadCursor,highWaterCursor,canSend}, nextCursor. Counts only actual messages above own marker, excluding own USER sends; independent actor scopes include host/current members across dates. GET never writes markers. Only explicitly displayed messages should be marked by FE; current membership/account enforcement removes left/barred/locked/private account data on next request; no public read-receipt API. PostgreSQL43 PASS (2 new marker/concurrency/permission tests + earlier41),21 migrations/0 pending/cleanup PASS; chat/read schema4 PASS; generation PASS. BigInt constructors retain exact values under existing ES2017 target; root typecheck result in runner/final receipt. Development independently verified and marker migration deployed through Prisma with scoped pending check, current receipt under .cache/trip-companions-be. FE badge/timer/browser integration OPEN.
+
+FE/integration OPEN, no owner acceptance. No commit/push/merge/application deployment/Production operation. Continue next backend prerequisite under owner-updated task.
+
+
+## 2026-10-28 — TC-10 backend handoff
+
+Revision TC10-notice-r1. Existing confirmed applyEdit persistence seam now calls recordCompanionItineraryChange from companion-itinerary-notice.ts inside the same Trip CAS/itinerary/idempotency transaction, after final day/visit writes. Source audit found this is the authoritative existing-trip MANUAL/AI/IN_TRIP write seam; new Trip Save has no publication yet, completion only updates its own timestamp. Current editor intentionally keeps Trip date/duration/transport immutable; this ticket does not add a metadata-edit bypass. Semantic comparison ignores regenerated visit IDs and checks dates/destinations/time-duration: unchanged content, preview, canceled/unconfirmed or FAILED proposals create no notice. Publication itineraryRevision and shared messageSequence increment atomically with SYSTEM message, so rollback/replay cannot leave a new schedule without its notice or duplicate it. Existing owner, Validator, explicit confirmation and completed-visit checks remain intact. No new UI endpoint; history/delta now accept additive SYSTEM union {author:null,notice:{type:ITINERARY_CHANGED,revision,changes:{dates,destinations,times}}}; text is generic and omits contact/AI/hidden destination names. Group reader adds optional itineraryRevision; unread includes SYSTEM notices for host/member. Shared companionSystemNoticeSchema and CompanionMessage union remain client-safe; FE must branch by kind and reread /group for latest itinerary. Migration 20261028140000_companion_itinerary_revision adds revision, SYSTEM kind, nullable author and notice/authorship constraint. Evidence: PostgreSQL46 PASS (3 actual confirmed MANUAL/IN_TRIP/no-op/rollback/replay cases + earlier43),22 scoped migrations/0 pending/cleanup PASS; affected apply-edit/US32/US33/US37/schema regression65 PASS. Strict backend source typecheck separated from stale concurrent Next generated artifacts; final combined build/root check still OPEN. Development scoped migration deploy verified separately; no Production/provider/FE changes. Backend continues TC-11.
+
+FE/integration OPEN, no owner acceptance. No commit/push/merge/application deployment/Production operation. Continue next backend prerequisite under owner-updated task.
+
+## 2026-10-28 — TC-03 frontend & integration verification
+
+- **Mục tiêu:** Hoàn thiện toàn bộ FE và kiểm chứng tích hợp cho TC-03 (Tham gia tức thì và mở lịch của nhóm).
+- **Phạm vi triển khai FE:**
+  - `apps/web/src/modules/trip-companions/companion-client.ts`: Thêm `joinCompanionTrip`, `fetchCompanionGroup`, `fetchJoinedCompanions`.
+  - `apps/web/src/components/trip-companions/companion-introduction-view.tsx`: CTA theo quan hệ phân quyền (Guest login-return, Outsider instant join / disabled khi full hoặc departed / unknown retry, Member vào nhóm, Host vào nhóm + quay lại quản lý chuyến).
+  - `apps/web/src/components/trip-companions/companion-discovery-view.tsx`: Bổ sung tab thứ 3 "Tôi tham gia" (`tab=joined`), lấy danh sách các chuyến đã tham gia, Guest prompt đăng nhập, nút "Vào nhóm" trực tiếp.
+  - `apps/web/src/components/trip-companions/companion-group-view.tsx`: Không gian nhóm hiển thị huy hiệu quan hệ, tab Lịch trình chi tiết (timeline ghé thăm, giờ/thời lượng, tọa độ, badge "Điểm đến không còn khả dụng", banner chỉ đọc) và tab Thành viên (danh sách thành viên, thẻ host, modal rời nhóm).
+  - `apps/web/src/app/trip-companions/[id]/group/page.tsx`: Server component phân quyền bằng `getCompanionGroup`, redirect 401 về `/login`, 403 về public detail, 404 `notFound()`.
+- **Kiểm chứng:**
+  - Focused Vitest: 12 files / 142 passed, 46 skipped (10 postgres integration files opt-in skips).
+  - PostgreSQL runner (`test-trip-companions-postgres.mjs`): 10/10 test files (46/46 tests) PASS, 22 migrations applied, 0 pending, dọn dẹp container thành công.
+  - Root typecheck (`npm run check-types`): 4/4 packages PASS.
+  - Production build (`npm run build --workspace web`): 53 static pages compiled successfully.
+  - `git diff --check`: 0 lỗi.
+- **Tiếp tục:** Tự động chuyển tiếp sang **TC-04** (Tự rời, hoàn trả chỗ, thu hồi quyền) theo hợp đồng bàn giao BE `TC04-leave-r1`.
+
+## 2026-10-28 — TC-04 frontend & integration verification
+
+- **Mục tiêu:** Hoàn thiện toàn bộ FE và kiểm chứng tích hợp cho TC-04 (Tự rời nhóm, hoàn trả chỗ và thu hồi quyền).
+- **Phạm vi triển khai FE:**
+  - `apps/web/src/modules/trip-companions/companion-client.ts`: `leaveCompanionTrip(publicationId, idempotencyKey)` mutation helper gửi `{ confirm: true }` với `Idempotency-Key` tới `POST /api/trip-companions/:id/leave`.
+  - `apps/web/src/components/trip-companions/companion-group-view.tsx`:
+    - Nút "Rời nhóm chuyến đi" (`companion-leave-button`) hiển thị riêng cho `relationship === "MEMBER"`, ẩn hoàn toàn đối với `HOST`.
+    - Modal xác nhận rời nhóm (`data-testid="companion-confirm-leave-btn"`) giải thích chi tiết 3 hệ quả: mất quyền xem lịch trình chi tiết và thảo luận nhóm, hoàn trả 1 chỗ tìm thêm cho chuyến đi, và bảo toàn toàn bộ tin nhắn đã gửi trước đó trong lịch sử nhóm.
+    - Xử lý trạng thái `UNKNOWN` với nút "Thử lại rời nhóm" giữ nguyên payload/key; khi `SUCCESS` điều hướng về trang công khai `/trip-companions/:id` nơi quyền truy cập chuyển thành `OUTSIDER`.
+  - `apps/web/src/app/trip-companions/[id]/group/page.tsx`: Tự động bắt mã lỗi 403 khi người dùng bị thu hồi quyền và redirect về trang công khai `/trip-companions/:id`.
+- **Kiểm chứng:**
+  - Focused Vitest: 12 files / 143 passed, 50 skipped.
+  - PostgreSQL disposable integration tests: 11/11 files (50/50 tests) PASS, bao gồm `companion-leave.postgres.integration.vitest.test.ts` (3 tests), 23 migrations, 0 pending, dọn dẹp container thành công.
+  - Root typecheck (`npm run check-types`): 4/4 packages PASS.
+  - Production build (`npm run build --workspace web`): 53 static pages compiled successfully.
+  - `git diff --check`: 0 lỗi.
+- **Tiếp tục:** Tự động chuyển tiếp sang **TC-05** (Quản lý host: đóng/mở tuyển, gỡ/công khai lại, sửa số chỗ) theo hợp đồng bàn giao BE `TC05-management-r1`.
+
+
+## 2026-10-28 — TC-11 backend handoff
+
+Revision TC11-cancel-r1. POST /api/trip-companions/:id/cancel accepts only {confirm:true} and Idempotency-Key, returns shared {publicationId}; cancelCompanion service is owner-only with current account/ownership checks before replay and under the same Trip/publication locks as join/send. Terminal canceledAt, recruitment stop, one SYSTEM COMPANION_CANCELED notice, sequence increment and replay result commit atomically. Same/different-key repeats never duplicate notice. No undo or transfer endpoint; database terminal-state trigger rejects clearing/changing canceledAt. Group/management adds optional canceledAt and canSend; history/delta/unread canSend=false after cancel, current valid relations retain history/latest saved itinerary; later authoritative Trip saves may still append SYSTEM notices. USER send/reconcile recheck cancellation before replay and after locks; join/public discovery/detail cannot admit canceled posts. /mine returns CANCELED label. Host removal still revokes members after cancellation; delete history guard persists. Calendar/manual completion alone never gates chat or adds TTL. Client-safe canceled-group/system-message fixtures exported; companionManageResultSchema added for PATCH result. PostgreSQL58 PASS in11 suites, including cancel/join/send race, rollback/replay, terminal DB guard, latest itinerary notice after cancel, normal chat years after completion, observed user/SYSTEM late-commit ordering and account/date/clock/completion lock waits. 23 actual scoped migrations/0 pending/cleanup PASS. Strict backend types PASS (63 entries, unchanged strict ES2017 target); focused fixtures/Trip regressions pass. Development independently verified and final migration applied through guarded Prisma deploy:42 applied/0 pending/0 unfinished,50 constraints/9 indexes/2 companion triggers inspected. No business-data/Production/provider write, FE code modification or application release. Broad regression and combined build results/limits are in final verification receipt; vertical FE/browser acceptance remains separate.
+
+FE/integration OPEN, no owner acceptance. No commit/push/merge/application deployment/Production operation. Continue next backend prerequisite under owner-updated task.
+
+
+## 2026-10-28 — Full companion backend scope complete through TC-11
+
+- **Request/method:** Owner explicitly replaced old FE gates and required continuous backend work to TC-11. Reverified54 prior unit tests, read current task/AC/prerequisites, then delivered and documented each backend ticket without stopping at handoffs. Preserved concurrent FE source and FE receipts.
+- **Delivered:** Atomic join/member projection/historical deletion guard; leave/rejoin; host publication/capacity/recruitment/visibility revisions; permanent ban/member reader; idempotent text/history, committed sequence/delta/reconciliation; monotonic actor/group read markers/unread; atomic confirmed MANUAL/AI/IN_TRIP schedule revision/SYSTEM notices; terminal cancellation with retained reads and unlimited normal-completion chat. Public/private projection and owner/Validator/confirmation boundaries retained. Exact schemas/routes/fixtures/errors/retries/order are in the delivery contract.
+- **Final checks:** PostgreSQL58/58 across11 actual suites,23 scoped migrations/0 pending/cleanup PASS. Focused34 files/340 PASS/59 opt-in skips, idempotency4/4, strict BE source types63 entries and root types4/4 PASS. Production build Next16.3.8/53 pages PASS. Read-only/unauthenticated HTTP13/13 and whitespace/new-file/link/scoped-secret checks PASS. Wider79-file regression758 PASS/5 FAIL/59 SKIP/1 TODO; the five unrelated legacy RBAC/source-guard failures are documented, with13 relevant files matching HEAD Git blobs. Not called fully green.
+- **Runtime/rollout:** Eight additive reviewed migrations deployed to independently verified Development in stages via guarded Prisma migrate deploy; final42 applied/0 pending/0 unfinished,50 constraints/9 indexes/2 triggers inspected. Live discovery initially exposed stale generated-client canceledAt metadata; bumped cache revision after Prisma generation, then public200 and all13 HTTP smokes passed. No reset/db:push, env/credential modification, Production or business-data write.
+- **Handoff:** Task BE scope COMPLETE / READY FOR FE THROUGH TC-11. Updated task/plan/index/inventory/product status, per-ticket stories/issues and final verification report. Existing FE milestone0/TC-02–04 local receipts preserved; later FE/browser/owner acceptance remains separate. No new provider, unrelated Assistant/FE source edits, chat/automation/message, commit/push/merge or application deployment.
+
+## 2026-10-28 — TC-05 frontend & integration verification
+
+- **Mục tiêu:** Hoàn thiện toàn bộ FE và kiểm chứng tích hợp cho TC-05 (Quản lý host: đóng/mở tuyển, gỡ/công khai lại, sửa số chỗ).
+- **Phạm vi triển khai FE:**
+  - `apps/web/src/modules/trip-companions/companion-client.ts`: Thêm `fetchCompanionManagement(id)` và `updateCompanionManagement(id, input, idempotencyKey)` dùng `sendIdempotentMutation` với phương thức PATCH, header `Idempotency-Key` và payload `confirm: true, baseRevision, visibility, recruitmentOpen, ...draft`.
+  - `apps/web/src/components/trip-companions/companion-management-view.tsx` & `/trip-companions/[id]/manage`:
+    - Giao diện quản lý host độc lập với banner cảnh báo phân biệt giữa quản lý tuyển người và chỉnh sửa lịch trình gốc (`/trips/:tripId/edit`).
+    - 3 thẻ trạng thái tương tác: Trạng thái hiển thị (Công khai / Đã gỡ), Mở tuyển (Đang mở / Đã đóng tuyển với kiểm tra `canReopen`), và Thành viên tham gia / Số chỗ tối đa.
+    - Chặn giảm số chỗ xuống dưới số thành viên đã tham gia (`activeMemberCount`).
+    - Biểu mẫu chỉnh sửa tiêu đề (1–200 ký tự), mô tả (1–4000 ký tự), chọn ảnh điểm đến từ danh sách của chuyến đi.
+    - Xử lý xung đột phiên bản máy chủ `COMPANION_REVISION_CONFLICT` (HTTP 409), lỗi vi phạm số chỗ `COMPANION_CAPACITY_TOO_SMALL` (HTTP 409), và thử lại an toàn với trạng thái `UNKNOWN`.
+  - `apps/web/src/app/trip-companions/[id]/manage/page.tsx`: Server Component kiểm tra quyền host phía server thông qua `getCompanionManagement`, chuyển hướng 401 về `/login`, 403 về trang chi tiết công khai, 404 khi không tìm thấy.
+  - `apps/web/src/components/trip-companions/companion-discovery-view.tsx`: Bổ sung nút "Quản lý" tại tab "Chuyến tôi đăng" (`tab=mine`); hiển thị badge `recruitmentStatus` trên thẻ bài đăng cho các trạng thái không phải OPEN.
+  - `apps/web/src/components/trip-companions/companion-group-view.tsx`: Bổ sung liên kết "Quản lý tuyển" cho Host tại action bar của header nhóm.
+  - `apps/web/src/app/trip-companions/companion.css`: Thêm kiểu dáng cho `.companion-item-status-tag`.
+- **Kiểm chứng:**
+  - Focused Vitest: 13 files / 151 passed, 58 skipped (bao gồm `companion-management.vitest.test.ts` 4/4 passed, `companion-client.vitest.test.ts` 29/29 passed).
+  - PostgreSQL disposable integration tests: 11/11 files (50/50 tests) PASS, bao gồm `companion-management.postgres.integration.vitest.test.ts` (3 tests), 23 migrations applied, 0 pending.
+  - Root typecheck (`npm run check-types`): 4/4 packages PASS.
+  - Web production build (`npm run build --workspace web`): 54 static/dynamic routes compiled successfully.
+  - `git diff --check`: 0 lỗi.
+- **Tiếp tục:** Tự động chuyển tiếp sang **TC-06** (Danh sách thành viên & Host loại/chặn thành viên) theo hợp đồng bàn giao BE `TC06-members-r1`.
+
+
+
+## 2026-10-28 — Final companion BE source recheck
+
+- Hardened the existing authoritative applyEdit transaction with User FOR SHARE before current actor reauthorization, preserving account -> Trip -> publication lock order. Updated only its four existing test fixtures for this server boundary.
+- Reran all actual companion PostgreSQL tests:58/58 PASS,23 migrations/0 pending/cleanup PASS. Strict BE types63 entries PASS. Latest focused regression35 files/344 PASS/59 opt-in skips includes FE management tests added concurrently; earlier340 counts retain their snapshot scope. Final complete-source production build PASS,53/53 pages, now also covering post-generation cache revision complete-v3. Root types and HTTP13/13 receipts remain documented.
+- Full BE scope through TC-11 remains COMPLETE / READY FOR FE. Existing FE05 evidence is preserved. Five unchanged legacy failures in the wider run remain explicitly unresolved; no blanket all-suite-green or browser/owner acceptance claim.
+
+## 2026-10-28 — TC-06 frontend & integration verification
+
+- **Mục tiêu:** Hoàn thiện toàn bộ FE và kiểm chứng tích hợp cho TC-06 (Danh sách thành viên & Host loại/chặn thành viên).
+- **Phạm vi triển khai FE:**
+  - `apps/web/src/modules/trip-companions/companion-client.ts`: Thêm `fetchCompanionMembers(publicationId)` và `banCompanionMember(publicationId, userId, idempotencyKey)` dùng `sendIdempotentMutation` với phương thức POST `{ confirm: true }`, header `Idempotency-Key` tới `/api/trip-companions/:id/members/:userId/ban`.
+  - `apps/web/src/components/trip-companions/companion-group-view.tsx` & `/trip-companions/[id]/group`:
+    - Server Component `page.tsx` prefetch `initialMembers` qua `getCompanionMembers` để trang hiển thị danh sách thành viên tức thì khi tải.
+    - Tab "Thành viên":
+      - Thẻ chủ chuyến hiển thị huy hiệu "Chủ chuyến", tên hiển thị, avatar đại diện.
+      - Danh sách thành viên tham gia (`companion-member-list`): hiển thị tên, avatar, ngày tham gia (`Tham gia: dd/mm/yyyy`).
+      - Nút "Loại khỏi nhóm" (`companion-ban-button`) hiển thị riêng cho Chủ chuyến trên từng thẻ của thành viên (không hiển thị trên thẻ chủ chuyến).
+      - Thành viên thông thường chỉ thấy danh sách thành viên và nút "Rời nhóm chuyến đi", không thấy nút loại/chặn.
+      - Modal xác nhận loại thành viên (`companion-ban-modal`): giải thích minh bạch 3 hậu quả (chặn vĩnh viễn không thể xin vào lại, hoàn trả 1 chỗ tìm thêm, bảo toàn lịch sử tin nhắn đã gửi).
+      - Xử lý trạng thái `UNKNOWN` với nút "Thử lại loại thành viên" giữ nguyên idempotency key; khi `SUCCESS` loại thành viên khỏi local state và cập nhật sĩ số tức thì.
+  - `apps/web/src/app/trip-companions/companion.css`: Bổ sung kiểu dáng cho `.companion-member-list`, `.companion-member-card`, `.companion-member-avatar`, `.companion-ban-button`, `.companion-empty-members`.
+- **Kiểm chứng:**
+  - Unit tests: `companion-group.vitest.test.ts` (6 tests) PASS, `companion-client.vitest.test.ts` (33 tests) PASS.
+  - Focused Vitest: 11 files / 136 passed, 58 skipped.
+  - PostgreSQL disposable integration tests: 11/11 files (58/58 tests) PASS trên container PostgreSQL 16 thật, 23 migrations applied, 0 pending, dọn dẹp container thành công.
+  - Root typecheck (`npm run check-types`): 4/4 packages PASS.
+  - Web production build (`npm run build --workspace web`): 53 static/dynamic routes compiled successfully.
+  - `git diff --check`: 0 lỗi.
+- **Tiếp tục:** Tự động chuyển tiếp sang **TC-07** (Trò chuyện nhóm: text/link chat & history) theo hợp đồng bàn giao BE `TC07-chat-r1`.
+
+---
+
+## 2026-10-28 — Milestone TC-07: Trò chuyện nhóm (Text/link chat & history)
+
+- **Trạng thái:** IMPLEMENTED LOCALLY (FE & Vertical Integration).
+- **Phạm vi hoàn tất:**
+  - `apps/web/src/modules/trip-companions/companion-client.ts`:
+    - `fetchCompanionMessages(publicationId, query)`: Gọi `GET /api/trip-companions/:id/messages` hỗ trợ query phân trang `before` (decimal sequence) và `limit`.
+    - `sendCompanionMessage(publicationId, text, idempotencyKey)`: Gửi tin nhắn idempotent tới `POST /api/trip-companions/:id/messages` thông qua `sendIdempotentMutation`.
+  - `apps/web/src/app/trip-companions/[id]/group/page.tsx`: Prefetch server-side `initialHistory` với `getCompanionHistory(reqHeaders, id, {}, tripReadDependencies)` và chuyển giao cho `CompanionGroupView`.
+  - `apps/web/src/components/trip-companions/companion-group-view.tsx`:
+    - Tab thứ 3: "Trò chuyện nhóm" (`tab=chat`, testid `group-tab-chat`, icon `MessageSquare`) giữa tab Lịch trình và Thành viên.
+    - Message transcript (`companion-chat-transcript`): phân biệt tin nhắn của chính mình (`companion-chat-msg-own`) và người khác (`companion-chat-msg-other`), hiển thị avatar / chữ cái đầu, tên tác giả, nhãn thời gian `formatMessageTimeVi(createdAt)`.
+    - Escape văn bản tuyệt đối an toàn và parse URL tự động qua `renderSafeMessageContent(text)`: link HTTP/HTTPS mở trong tab mới với `target="_blank"` và `rel="noopener noreferrer"`. Tuyệt đối không render HTML tùy ý.
+    - Tin nhắn hệ thống (`kind === "SYSTEM"`): render dạng pill trung tâm (`companion-chat-system-pill`), hỗ trợ thông báo `ITINERARY_CHANGED` với nút hành động "Xem lịch trình chi tiết" chuyển tức thì sang tab lịch trình (`setActiveTab("itinerary")`), và thông báo `COMPANION_CANCELED`.
+    - Phân trang lịch sử cũ qua cursor `olderCursor`: nút "Tải tin nhắn cũ hơn" (`handleLoadOlder`) gọi API với query `before`, giữ vị trí và nối tin cũ lên đầu danh sách.
+    - Khung soạn thảo tin nhắn (`companion-chat-input`, `companion-chat-send-btn`): tự sinh `Idempotency-Key` ngẫu nhiên cho mỗi tin nhắn; xử lý trạng thái `UNKNOWN` với nút thử lại giữ nguyên idempotency key và nội dung.
+    - Banner chỉ đọc (`data-testid="companion-chat-readonly-banner"`) và tự động ẩn khung soạn thảo khi `chatHistory.canSend === false`.
+  - `apps/web/src/app/trip-companions/companion.css`: Bổ sung toàn diện styles CSS cho phòng chat, transcript, tin nhắn, avatar, bubble, links, pills hệ thống, older button, khung soạn thảo.
+- **Kiểm chứng:**
+  - Unit tests: `companion-group.vitest.test.ts` (11 tests PASS), `companion-client.vitest.test.ts` (37 tests PASS).
+  - Focused Vitest: 6 files / 80 tests PASS.
+  - PostgreSQL disposable integration tests: 11/11 files (58/58 tests PASS) trên PostgreSQL 16 thật.
+  - Root typecheck (`npm run check-types`): 4/4 packages PASS.
+  - Web production build (`npm run build --workspace web`): 53 static/dynamic routes compiled successfully.
+  - `git diff --check`: 0 lỗi.
+- **Tiếp tục:** Tự động chuyển tiếp sang **TC-08** (Polling 3s & Reconnect recovery) theo hợp đồng bàn giao BE `TC08-delta-r1`.
+
+---
+
+## 2026-10-28 — Milestone TC-08: Cập nhật tin mới và phục hồi mất kết nối (Polling 3s & Reconnect recovery)
+
+- **Trạng thái:** IMPLEMENTED LOCALLY (FE & Vertical Integration).
+- **Phạm vi hoàn tất:**
+  - `apps/web/src/modules/trip-companions/companion-client.ts`:
+    - `fetchCompanionDelta(publicationId, after, limit)`: Gọi `GET /api/trip-companions/:id/messages/delta` với `cache: no-store`, hỗ trợ phân trang delta bằng cursor `after` và giới hạn `limit`.
+    - `reconcileCompanionMessage(publicationId, text, idempotencyKey)`: Gửi `POST /api/trip-companions/:id/messages/reconcile` qua `sendIdempotentMutation` để đối soát tin nhắn bị gián đoạn truyền nhận mà không tạo bản ghi mới.
+  - `apps/web/src/components/trip-companions/companion-group-view.tsx`:
+    - Chu kỳ polling ~3 giây (`pollDelta`) chỉ chạy khi `activeTab === "chat"`.
+    - Cổng kiểm soát visibility (`document.visibilityState === "visible"`): tạm dừng poll khi trang bị ẩn; tự động kích hoạt truy vấn delta ngay khi quay lại tab (`visibilitychange` event).
+    - Lắng nghe sự kiện mạng `online` để kích hoạt làm mới delta ngay khi thiết bị kết nối lại mạng.
+    - Tiến bộ cursor đơn điệu (`lastDeliveredCursorRef`) theo `delta.nextCursor`.
+    - Hợp nhất và lọc trùng tin nhắn (deduplication) theo `id` / `sequence`, bảo đảm thứ tự hiển thị tăng dần nghiêm ngặt.
+    - Duy trì vị trí thanh cuộn thông minh: nếu người dùng đang ở gần đáy trang (<120px), tự động cuộn theo tin mới; nếu đang đọc tin nhắn lịch sử phía trên, giữ nguyên vị trí xem.
+    - Xử lý đối soát và phục hồi mất kết nối trong khung soạn tin: khi gặp trạng thái `UNKNOWN`, hiển thị nút "Đối soát" (`companion-chat-reconcile-btn`) bên cạnh nút "Thử lại" (`companion-chat-retry-btn`). Khi đối soát xác nhận tin đã được ghi trên máy chủ, cập nhật giao diện thành công mà không lặp tin.
+  - `apps/web/src/app/trip-companions/companion.css`: Bổ sung styles cho `.companion-chat-reconcile-btn`.
+- **Kiểm chứng:**
+  - Unit tests: `companion-client.vitest.test.ts` (41 tests PASS), `companion-group.vitest.test.ts` (12 tests PASS).
+  - Focused Vitest: 6 files / 85 tests PASS.
+  - PostgreSQL disposable integration tests: 11/11 files (58/58 tests PASS) trên PostgreSQL 16 thật (bao gồm 2 test PostgreSQL delta & reconciliation).
+  - Root typecheck (`npm run check-types`): 4/4 packages PASS.
+  - Web production build (`npm run build --workspace web`): 53 static/dynamic routes compiled successfully.
+  - `git diff --check`: 0 lỗi.
+- **Tiếp tục:** Tự động chuyển tiếp sang **TC-09** (Badge chưa đọc & đánh dấu đã đọc) theo hợp đồng bàn giao BE `TC09-unread-r1`.
+
+---
+
+## 2026-10-28 — Milestone TC-09: Dấu chưa đọc và quay lại nhóm có tin mới (Unread badges & read markers)
+
+- **Trạng thái:** IMPLEMENTED LOCALLY (FE & Vertical Integration).
+- **Phạm vi hoàn tất:**
+  - `apps/web/src/modules/trip-companions/companion-client.ts`:
+    - `fetchCompanionUnread(query)`: Gọi `GET /api/trip-companions/unread` hỗ trợ phân trang cursor `after` và `limit`, trả về danh sách `items: [{ publicationId, unreadCount, lastReadCursor, highWaterCursor, canSend }]` và `nextCursor`.
+    - `markCompanionRead(publicationId, sequence, idempotencyKey)`: Gửi `POST /api/trip-companions/:id/read` qua `sendIdempotentMutation` với payload `{ sequence }` và header `Idempotency-Key` để cập nhật dấu mốc đã đọc đơn điệu.
+  - `apps/web/src/components/trip-companions/companion-discovery-view.tsx`:
+    - Chu kỳ polling ~15s gọi `fetchCompanionUnread()` khi trang đang hiển thị (`document.visibilityState === "visible"`).
+    - Tự động làm mới tổng hợp chưa đọc khi sự kiện `visibilitychange` hoặc `online` kích hoạt.
+    - Hiển thị badge `.companion-unread-badge` (`data-testid="companion-unread-badge-{id}"`) với số tin chưa đọc trên các card có tin nhắn mới.
+    - Điều hướng thông minh: Khi có tin nhắn chưa đọc, nút CTA trên card trực tiếp dẫn vào tab trò chuyện `/trip-companions/{id}/group?tab=chat`.
+  - `apps/web/src/components/trip-companions/companion-group-view.tsx`:
+    - Kiểm soát chặt chẽ việc đánh dấu đã đọc: Chỉ ghi dấu đọc (`markCompanionRead`) một cách đơn điệu cho các tin nhắn thực sự hiển thị trên giao diện khi người dùng đang ở tab chat (`activeTab === "chat"`).
+    - Không đánh dấu đã đọc khi ở các tab khác (lịch trình / thành viên); định kỳ ~15s kiểm tra `fetchCompanionUnread` và hiển thị badge tròn `.companion-tab-unread-pill` (`data-testid="group-chat-unread-badge"`) trên nút tab "Trò chuyện nhóm".
+    - Khi người dùng chuyển sang tab chat, badge chưa đọc được xóa và các tin nhắn đang hiển thị lập tức được gửi cập nhật read marker.
+  - `apps/web/src/app/trip-companions/[id]/group/page.tsx`:
+    - Hỗ trợ `searchParams.tab` để khi người dùng nhấn vào nút hoặc badge từ danh sách khám phá, giao diện tự động chọn `initialTab="chat"`.
+  - `apps/web/src/app/trip-companions/companion.css`:
+    - Thêm styling cho `.companion-unread-badge` và `.companion-tab-unread-pill` với độ tương phản cao, badge nổi bật và responsive.
+- **Kiểm chứng:**
+  - Unit tests: `companion-client.vitest.test.ts` (46 tests PASS, bổ sung 5 test cho unread/read), `companion-group.vitest.test.ts` (13 tests PASS), `companion-discovery.vitest.test.ts` (8 tests PASS).
+  - Focused Vitest: 11 files / 156 tests PASS.
+  - PostgreSQL disposable integration tests: 11/11 files (58/58 tests PASS) trên PostgreSQL 16 thật (bao gồm 3 test unread & read marker).
+  - Root typecheck (`npm run check-types`): 4/4 packages PASS.
+  - Web production build (`npm run build --workspace web`): 53 static/dynamic routes compiled successfully.
+  - `git diff --check`: 0 lỗi.
+- **Tiếp tục:** Tự động chuyển tiếp sang **TC-10** (Thông báo thay đổi lịch trình đã lưu) theo hợp đồng bàn giao BE `TC10-notice-r1`.
+
+---
+
+## 2026-10-28 — Milestone TC-10: Đổi lịch đã lưu và thông báo nhất quán trong nhóm (Saved itinerary change notices)
+
+- **Trạng thái:** IMPLEMENTED LOCALLY (FE & Vertical Integration).
+- **Phạm vi hoàn tất:**
+  - `apps/web/src/components/trip-companions/companion-group-view.tsx`:
+    - Quản lý trạng thái `currentGroup` linh hoạt và tự động cập nhật khi có thay đổi lịch trình.
+    - Hiển thị pill tin nhắn hệ thống (`.companion-chat-msg-system`, `.companion-chat-system-pill`) phân biệt rõ rệt với tin nhắn người dùng.
+    - Đối với thông báo `ITINERARY_CHANGED`: trích xuất `notice.changes` để hiển thị các tag cụ thể (`.companion-notice-tag`: Đổi ngày, Đổi điểm, Đổi giờ) và nút "Xem lịch trình chi tiết" (`data-testid="companion-chat-view-itinerary-btn"`).
+    - Khi người dùng nhấn nút "Xem lịch trình chi tiết" hoặc nhận tin delta có thông báo thay đổi lịch trình, ứng dụng tự động gọi `fetchCompanionGroup(group.publicationId)` để nạp lại toàn bộ lịch trình mới nhất và cập nhật `itineraryRevision` mà không cần reload trang.
+    - Trên tab Lịch trình, hiển thị badge phiên bản lịch chính thức `(Bản cập nhật #{revision})`.
+  - `apps/web/src/app/trip-companions/companion.css`: Bổ sung styles cho `.companion-chat-notice-actions`, `.companion-chat-notice-tags`, `.companion-notice-tag`.
+- **Kiểm chứng:**
+  - Unit tests: `companion-group.vitest.test.ts` (14 tests PASS, kiểm tra đầy đủ system message, notice action button, notice tags và revision badge).
+  - Focused Vitest: 11 files / 157 tests PASS.
+  - PostgreSQL disposable integration suite: 11 files / 58 tests PASS (bao gồm 4 test trong `companion-notice.postgres.integration.vitest.test.ts`).
+  - Root typecheck (`npm run check-types`): 4/4 packages PASS.
+  - Web production build (`npm run build --workspace web`): 53 routes compiled cleanly.
+  - `git diff --check`: 0 errors.
+- **Tiếp tục:** Tự động chuyển tiếp sang **TC-11** (Hủy chuyến & vòng đời hoàn tất) theo hợp đồng bàn giao BE `TC11-cancel-r1`.
+
+---
+
+## 2026-10-28 — Milestone TC-11: Hủy chuyến, giữ lịch sử và chat sau hoàn tất (Cancel & retain group lifecycle)
+
+- **Trạng thái:** IMPLEMENTED LOCALLY (FE & Vertical Integration).
+- **Phạm vi hoàn tất:**
+  - `apps/web/src/modules/trip-companions/companion-client.ts`:
+    - `cancelCompanionTrip(publicationId, idempotencyKey)`: Gửi yêu cầu hủy chuyến vĩnh viễn tới `POST /api/trip-companions/:id/cancel` với `{ confirm: true }` và header `Idempotency-Key` qua `sendIdempotentMutation`.
+    - Xử lý đầy đủ hợp đồng `SUCCESS`, `UNKNOWN`, `FAILED` và retry idempotency.
+  - `apps/web/src/app/trip-companions/companion.css`:
+    - Bổ sung kiểu dáng `.companion-danger-zone` cho vùng thao tác nguy hiểm và sử dụng `.companion-danger-button`.
+  - `apps/web/src/components/trip-companions/companion-management-view.tsx`:
+    - Thêm phần Vùng nguy hiểm (Danger Zone) dành riêng cho Chủ chuyến với nút "Hủy chuyến đồng hành" (`data-testid="companion-open-cancel-modal-btn"`).
+    - Modal xác nhận hủy chuyến minh bạch: cảnh báo rõ bài đăng sẽ gỡ khỏi danh sách công khai, dừng tuyển vĩnh viễn, chuyển trò chuyện nhóm sang chế độ chỉ đọc, bảo lưu lịch sử và không thể hoàn tác hay chuyển sang chuyến khác.
+    - Nút "Xác nhận hủy chuyến" (`data-testid="companion-confirm-cancel-btn"`) có spinner khi đang xử lý và xử lý nút thử lại khi gặp phản hồi không chắc chắn `UNKNOWN`.
+    - Khi chuyến đi đã bị hủy (`management.canceledAt` có giá trị):
+      - Hiển thị banner cảnh báo hủy có ngày giờ rõ ràng (`data-testid="companion-management-canceled-banner"`).
+      - Khóa (disabled) toàn bộ các trường nhập liệu form (tiêu đề, số chỗ, giới thiệu, ảnh bìa) và các nút thao tác chuyển trạng thái tuyển/công khai.
+      - Ẩn nút hủy chuyến trong Danger Zone để tránh thao tác thừa.
+  - `apps/web/src/components/trip-companions/companion-group-view.tsx`:
+    - Khi chuyến đi đã hủy (`currentGroup.canceledAt`), hiển thị banner thông báo lưu trữ chỉ đọc (`data-testid="companion-group-canceled-banner"`).
+    - Khi chuyến đi hoàn tất theo ngày lịch trình (`isCompletedTrip`) mà không bị hủy, hiển thị banner giải thích nhóm vẫn hoạt động bình thường (`data-testid="companion-group-completed-banner"`).
+    - Tự động nạp lại `currentGroup` khi delta polling nhận được thông báo hệ thống `COMPANION_CANCELED`, cập nhật giao diện thành viên tức thì sang chỉ đọc.
+    - Khung soạn thảo chat tự động chuyển sang chế độ chỉ đọc `companion-chat-readonly-banner` khi `!canSend`.
+- **Kiểm chứng:**
+  - Unit tests:
+    - `companion-client.vitest.test.ts`: 48 tests PASS (thêm 2 unit tests cho `cancelCompanionTrip`).
+    - `companion-management.vitest.test.ts`: 6 tests PASS (thêm 2 tests cho danger zone và canceled banner).
+    - `companion-group.vitest.test.ts`: 16 tests PASS (thêm 2 tests cho group canceled banner và group completed banner).
+  - Focused Vitest: 11 files / 163 tests PASS.
+  - PostgreSQL disposable integration tests: 11/11 files (58/58 tests PASS) trên PostgreSQL 16 container (bao gồm suite `companion-cancel.postgres.integration.vitest.test.ts`), 23 migrations, 0 pending, dọn dẹp container thành công.
+  - Root typecheck (`npm run check-types`): 4/4 packages PASS.
+  - Web production build (`npm run build --workspace web`): 53 static/dynamic routes compiled successfully.
+  - `git diff --check`: 0 lỗi.
+- **Tổng kết Epics Tìm bạn đồng hành:** Toàn bộ 11/11 mốc công việc (TC-01 đến TC-11 cùng mốc 0 viewer context) đã được triển khai hoàn chỉnh trên Frontend, kết nối chặt chẽ với backend contracts và xác minh tích hợp toàn diện.
+
+## 2026-10-28 — TC-01–TC-11 two-axis code review
+
+- **Request/method:** Owner supplied final BE and TC-11 FE reports and requested the code-review skill. Reused pre-TC-01 fixed point `723f24e128d56ae0a47825a90d417f0f0695cf60`, HEAD `b0449850a6a599128e0d9615c2a85ad8132a13fb`, plus scoped worktree/untracked files. Two independent sub-agents reviewed Standards and Spec; root checked FE handlers/effects and test coverage. Initial 142-file hashes were stable; final check observed a concurrent visual/coordinate-helper refactor in `trips-view.tsx` after tests, not authored/retested here. Finding files remained pinned and unchanged.
+- **Findings:** Seven confirmed FE defects: management UNKNOWN permits changed payload under the same key; chat UNKNOWN permits changed text under the same key; rejected close/withdraw leaves false local status; group 401/403 is swallowed without revoked-state cleanup; closed recruitment still offers enabled join; own-send ack can skip an unseen earlier message by advancing the read cursor; read marker runs while document hidden or on unviewed fetched messages. Standards 3 (worst P1), Spec 4 (worst P1). Backend still enforces its permission boundary; no new backend authorization/atomicity defect was confirmed in reviewed paths.
+- **Evidence:** Focused modules/components/trips-view: 171 PASS, 58 DB skips. Dedicated owned disposable PostgreSQL: 58/58 PASS with 23 relevant unchanged migrations, 0 pending and cleanup PASS. Strict backend checker: 63 entries PASS. Offline actual-component/client handler/effect harness reproduces all seven issues; it uses synthetic fetch/hooks and is not browser acceptance. See `docs/implementation/trip-companions-code-review.md` and ignored `.cache/trip-companions-review/` receipts.
+- **Limits/scope:** Existing static-render/controller-light tests and DB checks do not prove the broken FE interactions, so prior full vertical-acceptance wording must be read with these findings. No application source/test fixes or ticket-status edits, root typecheck/build/full-wide regression/browser rerun, Development/Production access, migration, provider request, commit/push/merge/deploy. New review report and this progress append only; previous evidence/history preserved. Document link/whitespace checks performed.
+
+## 2026-10-28 — Fix all seven companion review findings
+
+- **Request/scope:** Owner says “fix cho tôi các lỗi đó đi”. Fixed the seven reviewed defects locally in management/group/introduction views and private/public page composition; no new feature or backend business rule. Applied ui-ux-pro-max's async-button/status guidance, kept current product styling and concurrent visual/timeline/map work.
+- **Fix:** Snapshot full target/payload/key for management and chat, guard pending/UNKNOWN and stale callbacks, retry/reconcile exact attempts, release known failures for new keys. Recruitment/visibility change only after confirmed writes. Public view consumes authoritative recruitment state; absent-state fallback uses Vietnam date. Group state is keyed by publication/current actor, session changes or 401/403/404 unmount private state and clean timers, and active-scope guards discard late callbacks. Delivery cursor advances from server history/delta only, while user/system messages merge/dedup/sort by sequence. Read marker follows visible viewport geometry and document visibility, never an own-send gap or background fetch.
+- **Evidence:** Added actual-component/client/schema/transport interaction suite. Initial 14 cases failed on old source; final suite 19/19 PASS including stale callbacks, repeated submit, reconciliation, paginated delivery gap, revoked access/account switch, visibility/scroll/resize and Vietnam midnight. Final focused run 13 passing files/190 PASS and 58 DB skips. Root typecheck and isolated production build checked; final build PASS (Next16.3.8, compile13.6s, TypeScript30.0s,53/53 pages), whitespace PASS. Final source hashes retained while checks ran. Full verification: `docs/implementation/trip-companions-review-fixes.md`.
+- **Concurrent changes:** A later concurrent Introduction visual expansion initially caused five nullable-formatting TypeScript errors during build. Kept the new layout and made date/time formatters handle null explicitly; reran final build successfully. Removed only new blank EOF lines in companion CSS. No preexisting UI work was reset.
+- **Docs/limits:** Review report links resolution; TC-03/05/07/08/09 stories and delivery contract carry follow-up evidence. Computer Use stopped browser testing because it could not confidently determine the current Windows browser URL; no workaround or browser acceptance claim. No schema/migration/env/credential change, Development/Production data operation, real publication/chat message, provider request, new dependency, commit/push/merge/deploy or owner ACCEPTED status.73 BE/API/shared/schema/migration files match the review snapshot; no DB suite rerun for FE-only correction. Wider baseline failures remain outside this task.
+
+## 2026-10-28 — Companion introduction and group view UI visual upgrade
+
+- **Yêu cầu:** Người dùng muốn nâng cấp trang giới thiệu tìm bạn đồng hành (`/trip-companions/[id]`) đồng bộ giao diện giàu thông tin như trang chi tiết hành trình (`/trips/[id]`): có Hero billboard xanh rừng với đường đồng mức topo và 4 thẻ thông số, tabs chuyển đổi ngày (Ngày 1, 2, 3), các thẻ ảnh điểm đến thắng cảnh Hà Giang với số thứ tự và nhãn thời lượng, cùng Bản đồ tương tác MapLibre hiển thị toàn tuyến. Đồng thời sửa lỗi hiển thị nút hành lang CTA bị trắng chữ trên nền trắng.
+- **Thực hiện:**
+  - `apps/web/src/components/trip-companions/companion-introduction-view.tsx`:
+    - Tái cấu trúc thành giao diện cao cấp: Hero Billboard với nền topographic contour, 4 thẻ thống kê (Thời gian, Thời lượng, Phương tiện, Điểm tham quan).
+    - Phân bổ `routeSummary` thành danh sách ngày (`PlannerDay[]`) mượt mà qua `partitionRouteSummaryToPlannerDays` kết hợp tọa độ từ `destination-visuals.ts`.
+    - Thêm Tabs ngày: "Tất cả các ngày (N)", "Ngày 1", "Ngày 2", "Ngày 3"... chuyển đổi mượt mà đồng bộ bộ lọc ngày và focus bản đồ.
+    - Cột trái: Về chuyến đi, Tuyến dự kiến với ruy-băng lộ trình và các thẻ điểm dừng có ảnh thiên nhiên Hà Giang, thứ tự `#1, #2...`, nhãn khu vực và cự ly.
+    - Cột phải: Bản đồ tương tác MapLibre được đưa lên vị trí trên cùng (`companion-map-sticky`), bên dưới là khung thông tin chỗ còn / Chủ chuyến / Nút tham gia / Vào nhóm chuyến (`companion-side-panel`) loại bỏ hoàn toàn hiện tượng chồng chéo khi cuộn.
+    - Xử lý toggle linh hoạt trên thiết bị di động (Lịch trình vs Bản đồ).
+  - `apps/web/src/app/trip-companions/companion.css`:
+    - Khắc phục lỗi CSS specificity khiến link nút `.companion-hero-action-primary` kế thừa màu chữ trắng trên nền trắng: thêm `.companion-page a.companion-hero-action-primary` với màu chữ và icon `#123929 !important`.
+    - Điều chỉnh bố cục cột phải `.companion-side-sticky-wrap`: đưa bản đồ lên trước với độ cao tối ưu 420px, thẻ tham gia bên dưới với `position: static` cách nhau 20px giúp giao diện thoáng đãng, không đè lấn.
+    - Bổ sung cấu trúc bố cục `.companion-intro-view` và quy tắc đáp ứng màn hình nhỏ.
+  - `apps/web/src/app/trip-companions/[id]/page.tsx` & `apps/web/src/app/trips/[id]/publication/page.tsx`:
+    - Import `@/components/trip-planner/trip-planner.css` để đảm bảo kiểu dáng MapLibre được tải đầy đủ.
+- **Kiểm chứng:**
+  - `companion-ui.vitest.test.ts`: 13/13 tests PASS.
+  - `companion-interactions.vitest.test.ts`: 19/19 tests PASS.
+  - `companion-group.vitest.test.ts`: 16/16 tests PASS.
+  - `trips-view.vitest.test.ts`: 8/8 tests PASS.
+  - `npx tsc --noEmit`: 0 lỗi typecheck TypeScript.
+
+
+
+## 2026-10-28 — Requested Development migration execution
+
+- **Request/action:** Owner asks to run migrations on dev. Executed `node scripts/trip-companions-development-migration.mjs` then `--apply`; both verified configured endpoint/database and SQL Development identity. Eight companion migration checksums matched the reviewed SQL.
+- **Result:** Development already has **42 applied / 0 pending / 0 unfinished**, 50 companion constraints, 9 indexes and 2 triggers. The apply workflow confirmed no new migration was required. Fresh redacted receipt remains ignored; backend verification includes the recheck.
+- **Scope/checks:** No source/schema/env/credential/business-data/Production change, reset/db:push, commit/push/deploy or application test/build needed. Documentation whitespace checked; existing unrelated workspace changes preserved.
+
+## 2026-10-28 — Mobile redesign and participation panel streamlining (design-taste-frontend)
+
+- **Yêu cầu người dùng:** Người dùng phản ánh trên thiết bị di động (mobile) việc nhét thẻ tham gia chuyến vào tab khác khiến người dùng khó tìm thấy; yêu cầu tối ưu toàn bộ giao diện mobile thật gọn, thon và dễ quan sát nhất.
+- **Phân tích vấn đề thực tế từ 4 ảnh chụp:**
+  1. Thẻ tham gia chuyến đi (`companion-side-panel` chứa số chỗ còn lại, thông tin chủ chuyến và nút Tham gia ngay) nằm trong cột bên phải vốn bị ẩn hoặc đẩy xuống sau 10 điểm dừng ở tab Lịch trình, người dùng phải bấm tab "Bản đồ" mới thấy nút tham gia.
+  2. Phần "Tuyến dự kiến" hiển thị 6 khối hộp màu trắng xếp chồng lên nhau chiếm gần 400px chiều cao dọc màn hình mobile.
+  3. Tiêu đề "Ngày 1" bị lỗi co hẹp chữ dọc character-by-character ("N-G-À-Y-1").
+  4. Các thẻ điểm dừng quá cao, padding dày, timeline node chiếm diện tích ngang làm co cụm nội dung.
+- **Giải pháp triển khai:**
+  - `apps/web/src/components/trip-companions/companion-introduction-view.tsx`:
+    - Chuyển `companion-mobile-toggle` (`[ Lịch trình ] [ Bản đồ ]`) vào trong `companion-main-grid`.
+    - Thêm thanh thao tác cố định ở đáy màn hình di động (`companion-mobile-dock` với `position: fixed; bottom: 0; z-index: 99`) hiển thị số chỗ còn, tên chủ chuyến và nút CTA 1-chạm (Tham gia ngay / Vào nhóm / Đăng nhập) luôn nằm trong tầm ngón tay cái khi cuộn.
+  - `apps/web/src/app/trip-companions/companion.css`:
+    - Thiết lập `display: contents` trên `companion-map-column` và `companion-side-sticky-wrap` trên màn hình tablet/mobile (`<= 992px`) để các thành phần con tham gia trực tiếp vào flex layout.
+    - Cấu hình thứ tự hiển thị: Khung tham gia chuyến (`companion-side-panel`) luôn ở **Order 1 (đầu trang, ngay dưới Hero)** hiển thị đầy đủ trong mọi trường hợp, tiếp đến là Toggle chế độ xem **Order 2**, sau đó mới đến Lịch trình hoặc Bản đồ **Order 3**. Người dùng không bao giờ bị mất nút tham gia khi chuyển tab.
+    - Thay đổi "Tuyến dự kiến" thành dải ruy-băng chip cuộn ngang mượt mà (`flex-direction: row; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none`), chiều cao chỉ còn 36px (giảm hơn 300px chiều dọc).
+    - Khắc phục triệt để lỗi gãy chữ "Ngày 1" với `white-space: nowrap !important;` và `display: flex; flex-direction: column; width: 100%`.
+    - Tinh gọn thẻ điểm dừng thành dạng thẻ ngang 2 cột (ảnh thumbnail 96x70px bên trái, tên và thông tin thời gian bên phải), tối ưu tỷ lệ và độ cao còn ~72px.
+    - Tối ưu Hero billboard trên mobile: giảm padding thành 16x12px, tiêu đề 20px, lưới thông số 2x2 với icon 28px gọn gàng, giảm hơn 300px chiều cao vô ích.
+- **Xác minh:**
+  - `companion-ui.vitest.test.ts`, `companion-interactions.vitest.test.ts`, `companion-group.vitest.test.ts`: 48/48 tests PASS.
+  - `npx tsc --noEmit`: 0 lỗi typecheck TypeScript.
+  - `git diff --check`: 0 lỗi whitespace/blank lines.
+
+## 2026-10-28 — Remove redundant map day legend and unify mobile narrative flow
+
+- **Phản hồi người dùng:** Người dùng gửi ảnh chụp màn hình khối Bản đồ hiển thị thanh chú giải ngày lặp lại (`— Ngày 1 2 điểm, — Ngày 2 2 điểm, — Ngày 3 2 điểm`) nằm trực tiếp dưới khung thẻ khóa thành viên kèm icon phóng to rời rạc, nhận xét "vẫn chưa ổn lắm".
+- **Khắc phục:**
+  - Ẩn hoàn toàn `.planner-map-legend` trong `.companion-map-sticky` để loại bỏ dải chữ ngày lặp lại gây rối mắt.
+  - Bổ sung thanh tiêu đề khung bản đồ `.companion-map-header` tinh tế với icon bản đồ, tiêu đề "Bản đồ lộ trình" và huy hiệu tổng số điểm dừng, tạo khoảng thở ngăn cách 20px lịch thiệp giữa thẻ thành viên và bản đồ.
+  - Đưa nút phóng to/vừa bản đồ (`.planner-map-fit`) thành nút nổi bo tròn kính mờ góc trên phải của bản đồ.
+  - Loại bỏ hoàn toàn thanh tab toggle `companion-mobile-toggle` gây chia cắt giao diện, biến toàn bộ trang trên mobile thành một mạch dẫn chuyện duy nhất, tự nhiên: Hero → Thẻ thông tin tham gia & Chủ chuyến → Về chuyến đi → Tuyến dự kiến → Lịch trình các ngày → Thẻ thông báo thành viên → Bản đồ lộ trình toàn tuyến → Fixed Bottom Dock ghim đáy.
+- **Xác minh:** 69/69 vitest tests PASS, `npx tsc --noEmit` PASS (0 lỗi), `git diff --check` PASS (0 lỗi).
+
+## 2026-10-28 — Companion API/page performance audit from local interaction log
+
+- **Branch/task:** TXH; owner requested auditing and optimizing API/page loading. Relevant existing contracts: TC-01, TC-07, TC-08 and TC-09. Existing uncommitted implementation retained.
+- **Completed:** Selected-tab server reads and parallel independent reads; per-render metadata/page deduplication; lightweight introduction membership check; idle-delta and fully-read unread query elimination; client unread request coalescing and removal of the redundant initial group refresh. Prepare official MapLibre sourcemaps; add opt-in `dev:webpack` fallback.
+- **Measurements:** Actual read-only Development services, synthetic host session (excluding Better Auth/HTTP/rendering), three samples: itinerary data chain median 1741 → 820 ms / 27 → 14 Prisma query events; idle delta 423 → 293 ms / 6 → 4; unread 340 → 300 ms / 5 → 4. Full conditions, initial slower unread sample, raw receipts and limits: [performance audit](performance/companion-loading-2026-10-28.md). These are not browser loading or Production SLAs.
+- **DB/migrations:** No product schema/environment/business-data write. Benchmark verifies Development identity and PostgreSQL read-only default. Separate owned disposable PostgreSQL runner applied 23 scoped migrations, zero pending, 58/58 tests PASS and cleanup PASS.
+- **Validation:** Focused companion/header/page suite 204 PASS (58 opt-in cases run separately above); root typecheck four tasks PASS; isolated Next production build 53 generated pages PASS; syntax/whitespace checks PASS. Six pre-fix regression failures are documented. HTTP guest smoke verifies public pages/APIs, five protected APIs returning 401/private-no-store, and both MapLibre maps returning 200. Browser list/introduction/map render with correct Guest login action and no observed console warnings/errors.
+- **Limits:** No authenticated browser timing, live write/AI/routing journey, full repository suite, throttling/field Web Vitals, deployed environment or multi-hour HMR repro. Webpack cold/warm smoke PASS with its existing Varlock dynamic-dependency warning; no root fix claimed for the supplied Turbopack panic. No commit/push/merge/deploy. Temporary test servers stopped after verification.
+
+## 2026-10-28 — Travel-companions User Story and task summary
+
+- **Request:** Owner asks for the User Stories and tasks of the new travel-companions feature worked on today.
+- **Delivered:** [Vietnamese US/task document](implementation/trip-companions-user-stories-tasks.md), mapping the existing TC-01–TC-11 tickets to 11 User Stories with goals, dependencies, acceptance criteria and 55 subtasks: 22 BE, 22 FE, 11 test/integration. Added navigation in docs/README.md; no duplicate tracker issues or new product scope.
+- **Source/status:** Reconciled approved Q1–Q17, product extension, the eleven story AC and current delivery/review-fix/performance/migration receipts. Reported local implementation and prior evidence separately from final multi-user browser/owner acceptance; preserved existing ticket states.
+- **Validation/scope:** Documentation task counts, unique IDs, relative links and scoped whitespace checked. No application tests/build rerun for this documentation-only change. No source/schema/DB/credential/environment changes, commit/push/deploy or external issue creation.

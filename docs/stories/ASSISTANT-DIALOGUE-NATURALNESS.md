@@ -86,3 +86,17 @@ Owner screenshots show wrapped companion choices crossing the curved outer borde
 - [x] Shared page/popup regression, type/build and actual-component browser verification recorded in [the FE report](../implementation/assistant-planning-fe-chronology-verification.md).
 
 Browser use became available for this follow-up. Isolated actual-component checks cover wrapping/chronology, not authenticated production or a new live-model flow. No database/schema/migration/provider change.
+
+## Production migration release
+
+After the owner pushed master and explicitly requested Production migrations, all four Assistant planning migrations through `20261027180000_planning_dialogue_history` were applied successfully from fetched master `723f24e`. Production has32 applied/0 pending/0 unfinished migrations; independent schema verification and health200 pass. Earlier Development-only notes are historical for this migration rollout. See [release verification](../implementation/assistant-planning-production-migration.md); this does not assert authenticated Production chat acceptance.
+
+## Current correction — model invocation and repetitive wording, 2026-10-28
+
+The owner clarified that the main issue is repetitive prose, asking whether the model is called. Five recent Production reply events confirm accepted Luna/high prose; real-provider reproduction still produced the repetitive style. The acknowledgement-every-turn instruction and verbatim proposal-opening guard were the demonstrated causes.
+
+- [x] Remove those wording constraints while retaining grounded facts, one missing topic, complete dates, unsaved/preliminary state and deterministic Validator/Save authority.
+- [x] Distinguish display, explicit create/save and generic agreement; showing an existing itinerary cannot generate/save or fall through to destination QA. Redisplayed snapshots have no duplicate Save control.
+- [x] Verify failing-before/passing-after regressions, real Luna calls and accepted outputs, typecheck/build and scope checks. See [runtime and wording evidence](../implementation/assistant-reply-runtime-verification.md).
+
+No model switch, database migration or deployment. Earlier requirements to preserve the proposal's literal opening are superseded by truthful state protection. Historical stored messages and transient itinerary-retention boundaries remain unchanged.

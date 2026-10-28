@@ -5,6 +5,19 @@ import { needsRecap } from "./planning-dialogue";
 const input: PlanningReplyInput = { kind: "NEED", field: "startDate", canonical: "Bạn dự định khởi hành ngày nào?", needs: fixtureNeeds, latestText: "Xe máy" };
 
 describe("Language composition cannot decide or invent workflow outcomes", () => {
+  it("allows grounded proposal prose without forcing the stock opening sentence", () => {
+    const proposal = { ...input, kind: "PROPOSAL" as const, eligibleForSave: true,
+      canonical: "Mình đã lên lịch bên dưới và các bước kiểm tra đều đáp ứng. Bạn muốn chỉnh gì thêm hay lưu vào Chuyến đi của tôi?" };
+    expect(acceptPlanningReply("Lịch trình đã xếp xong để bạn xem bên dưới nhé. Bản này chưa lưu; bạn có thể chỉnh thêm hoặc xác nhận lưu chuyến đi.", proposal)).toBe(true);
+    expect(acceptPlanningReply("Lịch hiện chưa được lưu; bạn muốn lưu vào Chuyến đi của tôi không?", proposal)).toBe(true);
+    expect(acceptPlanningReply("Đã lưu chuyến đi thành công.", proposal)).toBe(false);
+  });
+  it("rejects a fluent but false pass for a preliminary proposal", () => {
+    const preliminary = { ...input, kind: "PROPOSAL" as const, eligibleForSave: false,
+      canonical: "Đây là hành trình sơ bộ, chưa thể lưu." };
+    expect(acceptPlanningReply("Đây là lịch sơ bộ, chưa thể lưu; mình cần kiểm tra thêm.", preliminary)).toBe(true);
+    expect(acceptPlanningReply("Lịch trình chưa lưu nhưng tất cả kiểm tra đều đáp ứng.", preliminary)).toBe(false);
+  });
   it("accepts a natural acknowledgement followed by the one missing question", () => {
     expect(acceptPlanningReply("Đi xe máy nhé, mình ghi nhận rồi. Bạn tính khởi hành ngày nào?", input)).toBe(true);
   });

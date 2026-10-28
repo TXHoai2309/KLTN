@@ -64,14 +64,14 @@ export const planningWorkspaceSchema = z.object({
 }).strict();
 export type PlanningWorkspace = z.infer<typeof planningWorkspaceSchema>;
 export const planningAnalysisSchema = z.object({
-  intent: z.enum(["NEEDS", "EDIT", "QA", "CLARIFY"]), needs: planningNeedsSchema,
+  intent: z.enum(["NEEDS", "EDIT", "QA", "CLARIFY", "DISPLAY"]), needs: planningNeedsSchema,
   message: z.string().max(800), unresolved: z.array(planningUnresolvedSchema).max(8),
   operation: planningOperationSchema.nullable().optional(),
   options: z.array(z.object({ id, name: z.string().max(200), reason: z.string().max(400) }).strict()).max(3).optional(),
   dateDeferred: z.boolean().optional(),
   preferencesSkipped: z.boolean().optional(),
   mandatoryAddition: z.boolean().optional(),
-  replyAction: z.enum(["NONE", "CONFIRM", "CANCEL"]).optional(),
+  replyAction: z.enum(["NONE", "CONFIRM", "CANCEL", "CREATE", "SAVE"]).optional(),
   dateConfirmation: planningNeedsSchema.optional(),
   followUpMessage: z.string().max(4000).optional(),
 }).strict();

@@ -139,6 +139,8 @@ function fixture() {
             return { count: 1 };
           },
         },
+        $queryRaw: async () => [],
+        tripCompanionPublication: { findUnique: async () => null },
         itineraryDay: {
           deleteMany: async () => {
             const count = pendingTrip.days.length;
