@@ -11,7 +11,5 @@
 .rag-upload-message svg { flex: 0 0 auto; margin-top: 1px; }
 .rag-upload-message.is-invalid, .rag-upload-message.is-failed { border-color: color-mix(in srgb, var(--destination-error) 35%, var(--destination-line)); color: var(--destination-error); }
 .rag-upload-message.is-unknown { border-color: #b18b43; }
-.rag-upload-result { margin: -4px 0 18px; font-size: 13px; }
-.rag-upload-result a { color: var(--destination-green); text-decoration: underline; }
 .rag-upload-page .destination-form-actions { margin-top: 14px; }
 @media (max-width: 600px) { .rag-upload-page .destination-grid { grid-template-columns: minmax(0, 1fr); } .rag-upload-page .destination-grid .destination-field:first-child { grid-column: auto; } .rag-file-summary { max-width: 100%; } }

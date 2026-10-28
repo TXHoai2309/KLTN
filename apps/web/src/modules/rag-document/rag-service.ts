@@ -9,6 +9,7 @@ import type { ragStorage } from "./rag-storage";
 
 type Storage = Pick<typeof ragStorage, "issue" | "read" | "stream" | "accessible">;
 export type RagDependencies = AuthorizationDependencies & { database: Database; storage: Storage };
+export type RagFinalizeResult = { id: string; originalFileName: string; sourceTitle: string; status: RagStatus; retrievalEligible: false; publicQaApproved: false; publicQaEligible: false; ineligibilityReason: "STATUS_NOT_INDEXED" };
 const fileFields = {
   originalFileName: z.string(),
   mimeType: z.string(),
@@ -24,7 +25,8 @@ const finalizeRequest = z.object({
   locality: z.string().trim().max(200).optional(),
 }).strict();
 const reviewRequest = z.object({
-  action: z.enum(["START_REVIEW", "APPROVE", "DISABLE", "ENABLE_PUBLIC_QA", "DISABLE_PUBLIC_QA"]),
+  action: z.enum(["DISABLE", "ENABLE_PUBLIC_QA", "DISABLE_PUBLIC_QA"]),
+  confirmedSourceReview: z.boolean().optional(),
 }).strict();
 export type RagReviewAction = z.infer<typeof reviewRequest>["action"];
 type RagDocumentTransitionResult = {
@@ -104,19 +106,17 @@ export function computeRagEligibility(
   return { publicQaEligible: true, ineligibilityReason: null };
 }
 
-function allowedActions(status: RagStatus, publicQaApproved = false): RagReviewAction[] {
-  if (status === "UPLOADED") return ["START_REVIEW", "DISABLE"];
-  if (status === "REVIEWING") return ["APPROVE", "DISABLE"];
+function allowedActions(status: RagStatus, publicQaApproved = false, indexReady = true): RagReviewAction[] {
+  if (status === "UPLOADED") return ["DISABLE"];
+  if (status === "REVIEWING") return ["DISABLE"];
   if (status === "APPROVED") return ["DISABLE"];
   if (status === "INDEXED") {
-    return ["DISABLE", publicQaApproved ? "DISABLE_PUBLIC_QA" : "ENABLE_PUBLIC_QA"];
+    return publicQaApproved ? ["DISABLE", "DISABLE_PUBLIC_QA"] : indexReady ? ["DISABLE", "ENABLE_PUBLIC_QA"] : ["DISABLE"];
   }
   return [];
 }
 
 function nextStatus(status: RagStatus, action: RagReviewAction): RagStatus {
-  if (status === "UPLOADED" && action === "START_REVIEW") return "REVIEWING";
-  if (status === "REVIEWING" && action === "APPROVE") return "APPROVED";
   if (action === "DISABLE" && status !== "DISABLED") return "DISABLED";
   throw new AppError("RAG_TRANSITION_INVALID", "Thao tác không hợp lệ ở trạng thái hiện tại.", 409);
 }
@@ -145,14 +145,14 @@ export async function finalizeRagUpload(headers: Headers, body: unknown, key: st
     try { const url = new URL(input.sourceUrl); if (!['http:', 'https:'].includes(url.protocol)) throw new Error(); }
     catch { throw new AppError("INVALID_RAG_SOURCE", "URL nguồn không hợp lệ.", 400); }
   }
-  const replay = await preflightIdempotentReplay({
+  const replay = await preflightIdempotentReplay<RagFinalizeResult>({
     database: deps.database, actorId: actor.id, operation: "rag-document:upload", key, input,
   });
   if (replay.status !== "ABSENT") return replay;
   const blob = await deps.storage.read(input.pathname);
   if (blob.sizeBytes !== input.sizeBytes || blob.mimeType !== input.mimeType) throw new AppError("INVALID_RAG_FILE", "Tệp trong kho không khớp thông tin khai báo.", 400);
   validateRagFile(input.originalFileName, blob.mimeType, blob.bytes);
-  return executeIdempotentWrite({
+  return executeIdempotentWrite<RagFinalizeResult>({
     database: deps.database, actorId: actor.id, operation: "rag-document:upload", key, input,
     execute: async tx => {
       await requireActor(headers, { ...deps, database: tx as unknown as Database }, "admin");
@@ -305,40 +305,32 @@ export async function getRagDocument(headers: Headers, id: string, deps: RagDepe
     locality: row.locality, uploadedById: row.uploadedById, status: row.status,
     publicQaApproved: row.publicQaApproved, publicQaEligible, ineligibilityReason, deletedAt: row.deletedAt,
     createdAt: row.createdAt, updatedAt: row.updatedAt,
-    retrievalEligible: !row.deletedAt && retrievalEligible(row.status), allowedActions: row.deletedAt ? [] : allowedActions(row.status, row.publicQaApproved),
+    retrievalEligible: !row.deletedAt && retrievalEligible(row.status), allowedActions: row.deletedAt ? [] : allowedActions(row.status, row.publicQaApproved, computeRagEligibility(row.status, true, pub?.generation, row.deletedAt).publicQaEligible),
   } };
 }
 
 export async function transitionRagDocument(headers: Headers, id: string, body: unknown, key: string, deps: RagDependencies) {
   const actor = await requireActor(headers, deps, "admin");
   validateId(id);
-  const { action } = parse(reviewRequest, body);
+  const { action, confirmedSourceReview } = parse(reviewRequest, body);
+  const input = { id, action, ...(action === "ENABLE_PUBLIC_QA" ? { confirmedSourceReview } : {}) };
   const replay = await preflightIdempotentReplay<RagDocumentTransitionResult>({
-    database: deps.database, actorId: actor.id, operation: `rag-document:${id}:${action}`, key, input: { id, action },
+    database: deps.database, actorId: actor.id, operation: `rag-document:${id}:${action}`, key, input,
   });
   if (replay.status !== "ABSENT") return replay;
-  // The external Blob check stays outside the database transaction. A replay
-  // after approval skips the check and is resolved by the idempotency record.
-  if (action === "APPROVE") {
-    const row = await deps.database.ragDocument.findUnique({ where: { id }, select: { status: true, storagePath: true, deletedAt: true } });
-    if (!row) throw new AppError("RAG_DOCUMENT_NOT_FOUND", "Không tìm thấy tài liệu.", 404);
-    if (row.deletedAt) throw new AppError("RAG_DOCUMENT_DELETED", "Tài liệu đã xóa và chỉ có thể xem ở chế độ chỉ đọc.", 409);
-    if (row.status === "REVIEWING" && !await deps.storage.accessible(row.storagePath)) {
-      return { status: "FAILED" as const, httpStatus: 409, error: {
-        code: "RAG_ORIGINAL_UNAVAILABLE", message: "Không thể truy cập tệp gốc. Tài liệu vẫn đang kiểm duyệt.",
-      } };
-    }
-  }
   return executeIdempotentWrite<RagDocumentTransitionResult>({
     database: deps.database, actorId: actor.id, operation: `rag-document:${id}:${action}`,
-    key, input: { id, action },
+    key, input,
     execute: async tx => {
       await requireActor(headers, { ...deps, database: tx as unknown as Database }, "admin");
       const current = await tx.ragDocument.findUnique({ where: { id }, select: { status: true, deletedAt: true } });
       if (!current) throw new AppError("RAG_DOCUMENT_NOT_FOUND", "Không tìm thấy tài liệu.", 404);
       if (current.deletedAt) throw new AppError("RAG_DOCUMENT_DELETED", "Tài liệu đã xóa và chỉ có thể xem ở chế độ chỉ đọc.", 409);
       if (action === "ENABLE_PUBLIC_QA") {
-        if (current.status === "DISABLED") throw new AppError("RAG_TRANSITION_INVALID", "Không thể cấp quyền cho tài liệu đã bị vô hiệu hóa.", 409);
+        if (current.status !== "INDEXED") throw new AppError("RAG_TRANSITION_INVALID", "Chỉ tài liệu đã lập chỉ mục mới có thể cấp quyền công khai.", 409);
+        if (confirmedSourceReview !== true) throw new AppError("RAG_SOURCE_REVIEW_REQUIRED", "Hãy đối soát tệp gốc và nguồn trước khi cấp quyền công khai.", 400);
+        const publication = await tx.ragIndexPublication.findUnique({ where: { ragDocumentId: id }, select: { generation: { select: { state: true, embeddingProvider: true, embeddingModel: true, embeddingDimensions: true } } } });
+        if (computeRagEligibility(current.status, true, publication?.generation).publicQaEligible !== true) throw new AppError("RAG_INDEX_NOT_READY", "Chỉ mục chưa sẵn sàng để sử dụng công khai.", 409);
         await tx.ragDocument.update({ where: { id }, data: { publicQaApproved: true } });
       } else if (action === "DISABLE_PUBLIC_QA") {
         await tx.ragDocument.update({ where: { id }, data: { publicQaApproved: false } });
@@ -370,7 +362,7 @@ export async function transitionRagDocument(headers: Headers, id: string, body: 
         ineligibilityReason,
         updatedAt: saved!.updatedAt,
         retrievalEligible: retrievalEligible(saved!.status),
-        allowedActions: allowedActions(saved!.status, saved!.publicQaApproved),
+        allowedActions: allowedActions(saved!.status, saved!.publicQaApproved, computeRagEligibility(saved!.status, true, pub?.generation).publicQaEligible),
       };
     },
   });
@@ -379,34 +371,7 @@ export async function transitionRagDocument(headers: Headers, id: string, body: 
 export async function bulkSetRagPublicQa(headers: Headers, body: unknown, deps: RagDependencies) {
   await requireActor(headers, deps, "admin");
   const input = parse(bulkRequest, body);
-  if (input.action === "ENABLE_ALL_INDEXED") {
-    const indexedDocs = await deps.database.ragDocument.findMany({
-      where: { status: "INDEXED", publicQaApproved: false, deletedAt: null },
-      select: { id: true },
-    });
-    const ids = indexedDocs.map(d => d.id);
-    if (ids.length > 0) {
-      await deps.database.ragDocument.updateMany({
-        where: { id: { in: ids }, deletedAt: null },
-        data: { publicQaApproved: true },
-      });
-    }
-    return { updatedCount: ids.length, ids };
-  }
-  if (input.action === "ENABLE_SELECTED") {
-    const docs = await deps.database.ragDocument.findMany({
-      where: { id: { in: input.documentIds }, status: { not: "DISABLED" }, deletedAt: null },
-      select: { id: true },
-    });
-    const ids = docs.map(d => d.id);
-    if (ids.length > 0) {
-      await deps.database.ragDocument.updateMany({
-        where: { id: { in: ids }, deletedAt: null },
-        data: { publicQaApproved: true },
-      });
-    }
-    return { updatedCount: ids.length, ids };
-  }
+  if (input.action !== "DISABLE_SELECTED") throw new AppError("RAG_SOURCE_REVIEW_REQUIRED", "Cấp quyền công khai từng tài liệu sau khi đối soát tệp gốc.", 409);
   const res = await deps.database.ragDocument.updateMany({
     where: { id: { in: input.documentIds }, deletedAt: null },
     data: { publicQaApproved: false },

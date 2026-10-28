@@ -47,7 +47,7 @@ When the feature needs location, request GPS permission; if unavailable/denied, 
 
 ## Admin destination, culture, and RAG management
 
-Admin manages destination fields and visibility, culture content/source links, and RAG documents. New destinations start hidden. RAG lifecycle is `UPLOADED → REVIEWING → APPROVED → INDEXED`; only successfully indexed sources are retrieval eligible. Disable excludes a document from future retrieval; upload/approval alone is not index success.
+Admin manages destination fields and visibility, culture content/source links, and RAG documents. New destinations start hidden. For new RAG uploads: Admin uploads a private file → the system confirms and stores the `UPLOADED` document without an index job → Admin clicks **Lập chỉ mục** → the existing request-scoped worker creates and processes a job → the document becomes `INDEXED` when a `READY` index is published → Admin checks the original file, source and index result, then explicitly enables public Q&A use. Existing `QUEUED` jobs from the former automatic flow are resumed on the same job. `REVIEWING`/`APPROVED` remain historical statuses. Upload or job admission alone is not index success. Only a ready, indexed, approved and active source may be used for public retrieval; disabling or revoking permission excludes it from future retrieval.
 
 ## Write recovery
 

@@ -84,8 +84,8 @@ it("retains the same model/medium reasoning and records bounded reasoning token 
   const test = await observe(fetcher);
   await test.promise;
   const body = JSON.parse(String(fetcher.mock.calls[0]![1]!.body));
-  expect(body).toMatchObject({ model: "gpt-6-luna", reasoning_effort: "high", store: false, max_completion_tokens: 8000 });
-  expect(test.events.find(event => event.reasoningTokens !== undefined)).toMatchObject({ providerPhase: "SYNTHESIS_VERIFICATION", reasoningTokens: 30, reasoningEffort: "high" });
+  expect(body).toMatchObject({ model: "gpt-6.1-sol", reasoning_effort: "medium", store: false, max_completion_tokens: 8000 });
+  expect(test.events.find(event => event.reasoningTokens !== undefined)).toMatchObject({ providerPhase: "SYNTHESIS_VERIFICATION", reasoningTokens: 30, reasoningEffort: "medium" });
   expect(JSON.stringify(test.events)).not.toMatch(/private-|content|messages|authorization/);
 });
 

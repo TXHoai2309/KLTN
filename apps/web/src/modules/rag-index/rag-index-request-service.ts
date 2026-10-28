@@ -48,7 +48,7 @@ export async function processIndexRequest(headers: Headers, id: string, key: str
       execute: async tx => {
         await requireActor(headers, { ...deps, database: tx as unknown as Database }, "admin");
         const document = await jobs.lockDocumentForAdmission(tx, id);
-        if (!document || document.deletedAt || !["APPROVED", "INDEXED"].includes(document.status)) throw new AppError("RAG_DOCUMENT_NOT_ELIGIBLE", "Tài liệu hiện không đủ điều kiện lập chỉ mục.", 409);
+        if (!document || document.deletedAt || !["UPLOADED", "REVIEWING", "APPROVED", "INDEXED"].includes(document.status)) throw new AppError("RAG_DOCUMENT_NOT_ELIGIBLE", "Tài liệu hiện không đủ điều kiện lập chỉ mục.", 409);
         const job = await tx.ragIndexJob.findUnique({ where: { id: input.jobId } });
         if (!job || job.ragDocumentId !== id) throw new AppError("RAG_INDEX_JOB_NOT_FOUND", "Không tìm thấy tác vụ của tài liệu này.", 404);
         const active = await jobs.findBlockingJob(tx, id);

@@ -3,7 +3,7 @@ import { handleMutationApiError } from "@/server/http/error-handler";
 import { requireIdempotencyKey } from "@/server/http/idempotency";
 import { requireActor } from "@/server/authorization/guard";
 import { destinationDependencies as deps } from "@/modules/destination/destination-server";
-import { destinationImageProvider } from "@/modules/destination/cloudinary-provider";
+import { runtimeDestinationImageProvider } from "@/modules/destination/cloudinary-provider";
 import { uploadDestinationImage } from "@/modules/destination/destination-image-service";
 import { imageBytes } from "@/modules/destination/destination-image-http";
 import { privateDestinationResponse as privateResponse } from "@/modules/destination/destination-http";
@@ -18,7 +18,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     await requireActor(request.headers, deps, "admin");
     const key=requireIdempotencyKey(request);const {id}=await context.params;
     diagnostics.setContext(id,key);diagnostics.setPhase("PROVIDER_CONFIGURATION");
-    const provider=destinationImageProvider(diagnostics);
+    const provider=await runtimeDestinationImageProvider(diagnostics);
     diagnostics.setPhase("READ_BODY");const bytes=await imageBytes(request);
     const result=await uploadDestinationImage(request.headers,bytes,key,id,deps,provider,undefined,diagnostics);
     const response=apiMutationResult(result);

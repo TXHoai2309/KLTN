@@ -57,7 +57,7 @@ describe("US-19 Task185 job admission boundary", () => {
     expect(admin.createdJobs).toHaveLength(1);
   });
 
-  it("rejects non-Admin actors and ineligible documents before durable admission", async () => {
+  it("rejects non-Admin actors and admits newly uploaded documents", async () => {
     const traveler = fakeDatabase("TRAVELER");
     const travelerDeps = { database: traveler.database, resolveSession: async () => ({ user: { id: "traveler-1" } }) };
     await expect(enqueueRagIndexJob(new Headers(), "doc-1", "request-key", travelerDeps as unknown as RagIndexJobServiceDependencies)).rejects.toMatchObject({ code: "FORBIDDEN" });
@@ -66,8 +66,8 @@ describe("US-19 Task185 job admission boundary", () => {
     const uploaded = fakeDatabase("ADMIN", "UPLOADED");
     const adminDeps = { database: uploaded.database, resolveSession: async () => ({ user: { id: "admin-1" } }) };
     const result = await enqueueRagIndexJob(new Headers(), "doc-1", "request-key", adminDeps as unknown as RagIndexJobServiceDependencies);
-    expect(result).toMatchObject({ status: "FAILED", error: { code: "RAG_DOCUMENT_NOT_ELIGIBLE" } });
-    expect(uploaded.createdJobs).toHaveLength(0);
+    expect(result).toMatchObject({ status: "SUCCESS", data: { jobId: "job-1", status: "QUEUED" } });
+    expect(uploaded.createdJobs).toHaveLength(1);
   });
 });
 

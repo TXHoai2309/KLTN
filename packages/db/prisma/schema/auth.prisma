@@ -33,6 +33,8 @@ model User {
   trips         Trip[]
   auditEvents   AdminAuditEvent[] @relation("TargetUser")
   actionsDone   AdminAuditEvent[] @relation("ActorAdmin")
+  runtimeConfigs RuntimeConfig[] @relation("RuntimeConfigEditor")
+  runtimeConfigAudits RuntimeConfigAudit[] @relation("RuntimeConfigActor")
 
   @@unique([email])
   @@index([role, status])

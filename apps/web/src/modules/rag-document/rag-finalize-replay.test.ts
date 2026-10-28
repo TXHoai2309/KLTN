@@ -9,6 +9,7 @@ function fixture() {
   let actorId = "admin-1", role: "ADMIN" | "TRAVELER" | null = "ADMIN", unavailable = false, lookupFails = false, lostCommit = false;
   let reads = 0;
   const documents: Record<string, unknown>[] = [];
+  const jobs: Record<string, unknown>[] = [];
   const records = new Map<string, { requestHash: string; responseJson: string }>();
   const recordKey = (scope: string, key: string) => JSON.stringify([scope, key]);
   const database = {
@@ -20,6 +21,7 @@ function fixture() {
         const row = { id: "rag-" + (documents.length + 1), ...data }; documents.push(row); return row;
       },
     },
+    ragIndexJob: { create: async ({ data }: { data: Record<string, unknown> }) => { const row = { id: `job-${jobs.length + 1}`, ...data }; jobs.push(row); return row; } },
     idempotencyRecord: {
       findUnique: async ({ where }: { where: { scope_key: { scope: string; key: string } } }) => { if (lookupFails) throw Error("lookup unavailable"); return records.get(recordKey(where.scope_key.scope, where.scope_key.key)) ?? null; },
       create: async ({ data }: { data: { scope: string; key: string; requestHash: string; responseJson: string } }) => {
@@ -33,10 +35,10 @@ function fixture() {
   let tail = Promise.resolve();
   const db = { ...database, $transaction: async (execute: (tx: typeof database) => Promise<unknown>) => {
     const previous = tail; let release!: () => void; tail = new Promise<void>(resolve => { release = resolve; }); await previous;
-    const snapshot = new Map(records), before = documents.length;
+    const snapshot = new Map(records), before = documents.length, jobsBefore = jobs.length;
     let result: unknown;
     try { result = await execute(database); }
-    catch (error) { documents.length = before; records.clear(); for (const [k, v] of snapshot) records.set(k, v); throw error; }
+    catch (error) { documents.length = before; jobs.length = jobsBefore; records.clear(); for (const [k, v] of snapshot) records.set(k, v); throw error; }
     finally { release(); }
     if (lostCommit) { lostCommit = false; lookupFails = true; throw Error("Commit acknowledged too late"); }
     return result;
@@ -48,14 +50,14 @@ function fixture() {
       issue: async () => ({ pathname: "synthetic", uploadUrl: "synthetic", contentType: "text/plain" }),
     },
   };
-  return { deps, input, documents, records, reads: () => reads, offlineBlob: () => { unavailable = true; }, offlineLookup: () => { lookupFails = true; }, restoreLookup: () => { lookupFails = false; }, loseCommit: () => { lostCommit = true; }, setActor: (id: string) => { actorId = id; }, setRole: (r: typeof role) => { role = r; } };
+  return { deps, input, documents, jobs, records, reads: () => reads, offlineBlob: () => { unavailable = true; }, offlineLookup: () => { lookupFails = true; }, restoreLookup: () => { lookupFails = false; }, loseCommit: () => { lostCommit = true; }, setActor: (id: string) => { actorId = id; }, setRole: (r: typeof role) => { role = r; } };
 }
 const headers = new Headers();
 test("A: committed finalize replays SUCCESS without reading unavailable Blob", async () => {
   const f = fixture(); assert.equal((await finalizeRagUpload(headers, f.input, "key", f.deps as never)).status, "SUCCESS");
   f.offlineBlob(); const result = await finalizeRagUpload(headers, f.input, "key", f.deps as never);
   assert.equal(result.status, "SUCCESS"); if (result.status === "SUCCESS") assert.equal(result.replayed, true);
-  assert.equal(f.reads(), 1); assert.equal(f.documents.length, 1);
+  assert.equal(f.reads(), 1); assert.equal(f.documents.length, 1); assert.equal(f.jobs.length, 0);
 });
 test("B: same-key changed payload conflicts before Blob read", async () => {
   const f = fixture(); await finalizeRagUpload(headers, f.input, "key", f.deps as never); f.offlineBlob();
@@ -79,7 +81,7 @@ test("E: failed preflight lookup yields UNKNOWN without Blob read or write", asy
 });
 test("F: concurrent same-key writes register one document and replay", async () => {
   const f = fixture(); const results = await Promise.all(Array.from({ length: 5 }, () => finalizeRagUpload(headers, f.input, "key", f.deps as never)));
-  assert.ok(results.every(r => r.status === "SUCCESS")); assert.equal(f.documents.length, 1); assert.equal(f.records.size, 1);
+  assert.ok(results.every(r => r.status === "SUCCESS")); assert.equal(f.documents.length, 1); assert.equal(f.jobs.length, 0); assert.equal(f.records.size, 1);
 });
 test("G: UNKNOWN acknowledgement after commit resolves on identical retry", async () => {
   const f = fixture(); f.loseCommit(); const first = await finalizeRagUpload(headers, f.input, "key", f.deps as never);

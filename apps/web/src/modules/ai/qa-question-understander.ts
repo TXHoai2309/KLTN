@@ -1,6 +1,6 @@
 import "server-only";
 import { z } from "zod";
-import { createQaJsonProvider, QA_DEFAULT_MODEL, type QaProviderOptions } from "./qa-json-provider";
+import { createQaJsonProvider, type QaProviderOptions } from "./qa-json-provider";
 import type { QaHistoryTurn } from "./qa-runtime-contract";
 import type { QaResolvedContext } from "./qa-destination-context";
 import {
@@ -90,7 +90,6 @@ export function createQaQuestionUnderstander(options: QaProviderOptions = {}): Q
   const provider = createQaJsonProvider({
     ...options,
     providerPhase: "QUESTION_UNDERSTANDING",
-    model: options.model ?? QA_DEFAULT_MODEL,
     maxOutputTokens: 600,
   });
 

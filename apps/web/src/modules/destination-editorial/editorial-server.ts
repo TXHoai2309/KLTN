@@ -1,9 +1,10 @@
 import "server-only";
 import { createEditorialOpenAiClient } from "./editorial-openai-client";
-import { editorialAiConfigured } from "./editorial-service";
 import { createEditorialAiDiagnostics } from "./editorial-ai-diagnostics";
-// Safe module-load observation also verifies configuration inside the Next runtime.
-createEditorialAiDiagnostics().configured(Boolean(process.env.OPENAI_API_KEY?.trim()), process.env.OPENAI_EDITORIAL_MODEL);
-export function editorialAiClient() {
-  return editorialAiConfigured() ? createEditorialOpenAiClient() : null;
+import { effectiveConfig } from "../runtime-config/runtime-config-service";
+import { isConfigurableChatModel } from "../runtime-config/openai-model-catalog";
+export async function editorialAiClient() {
+  const config = await effectiveConfig("OPENAI");
+  createEditorialAiDiagnostics().configured(Boolean(config.apiKey), config.editorialModel?.toString());
+  return config.apiKey && isConfigurableChatModel(config.editorialModel) ? createEditorialOpenAiClient() : null;
 }

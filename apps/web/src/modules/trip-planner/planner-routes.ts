@@ -11,7 +11,7 @@ export function missingLeg(pair: RoutePair, reason: NonNullable<TravelLeg["reaso
   return { fromDestinationId: pair.from.id, toDestinationId: pair.to.id, status: "INSUFFICIENT_DATA", reason, durationSeconds: null, distanceMeters: null, provider: null };
 }
 /** Planner requires both metrics; US29B/30 may validate a duration-only snapshot. */
-export function createStadiaRoutesProvider(options: { apiKey?: () => string | undefined; fetcher?: typeof fetch; timeoutMs?: number } = {}): RouteProvider {
+export function createStadiaRoutesProvider(options: { apiKey?: () => string | undefined | Promise<string | undefined>; fetcher?: typeof fetch; timeoutMs?: number } = {}): RouteProvider {
   return { async route(pair, signal) {
     const route = await requestStadiaRoute({ origin: pair.from, destination: pair.to, vehicle: pair.transport }, { ...options, signal });
     if (route.kind !== "ok") return missingLeg(pair, route.reason);

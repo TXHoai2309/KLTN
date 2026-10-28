@@ -5,7 +5,7 @@ import { countEmbeddingTokens } from "./embedding-tokenizer";
 import type { EmbeddingProvider, ProviderEmbedding } from "./embedding-contract";
 
 type OpenAiProviderOptions = {
-  apiKey?: () => string | undefined;
+  apiKey?: () => string | undefined | Promise<string | undefined>;
   fetcher?: typeof fetch;
   timeoutMs?: number;
 };
@@ -44,7 +44,7 @@ async function readBounded(response: Response): Promise<string> {
 }
 
 export function createOpenAiEmbeddingProvider(options: OpenAiProviderOptions = {}): EmbeddingProvider {
-  const getKey = options.apiKey ?? (() => process.env.OPENAI_API_KEY);
+  const getKey = options.apiKey ?? (() => import("../runtime-config/runtime-config-service").then(module => module.runtimeSetting("OPENAI", "apiKey")));
   const fetcher = options.fetcher ?? fetch;
   const timeoutMs = options.timeoutMs ?? EMBEDDING_LIMITS.requestTimeoutMs;
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > EMBEDDING_LIMITS.requestTimeoutMs) throw new EmbeddingError("INVALID_INPUT", false);
@@ -65,7 +65,7 @@ export function createOpenAiEmbeddingProvider(options: OpenAiProviderOptions = {
       }
       if (batchTokens > EMBEDDING_LIMITS.maxBatchTokens) throw new EmbeddingError("RESOURCE_LIMIT", false);
       let key: string | undefined;
-      try { key = getKey(); }
+      try { key = await getKey(); }
       catch { throw new EmbeddingError("CREDENTIALS_UNAVAILABLE", false); }
       if (typeof key !== "string" || key.length === 0) throw new EmbeddingError("CREDENTIALS_UNAVAILABLE", false);
       if (signal?.aborted) throw new EmbeddingError("CANCELLED", false);

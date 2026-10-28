@@ -31,8 +31,8 @@ export async function enqueueRagIndexJob(headers: Headers, documentId: string, i
       await requireActor(headers, { ...deps, database: tx as unknown as Database }, "admin");
       const document = await jobs.lockDocumentForAdmission(tx, documentId);
       if (!document) throw new AppError("RAG_DOCUMENT_NOT_FOUND", "Không tìm thấy tài liệu.", 404);
-      if (document.deletedAt || document.status !== "APPROVED" && document.status !== "INDEXED") {
-        throw new AppError("RAG_DOCUMENT_NOT_ELIGIBLE", "Chỉ tài liệu đã duyệt mới được lập chỉ mục.", 409);
+      if (document.deletedAt || !["UPLOADED", "REVIEWING", "APPROVED", "INDEXED"].includes(document.status)) {
+        throw new AppError("RAG_DOCUMENT_NOT_ELIGIBLE", "Tài liệu hiện không đủ điều kiện lập chỉ mục.", 409);
       }
       const active = await jobs.findBlockingJob(tx, documentId);
       if (active) {
@@ -81,7 +81,7 @@ export async function retryRagIndexJob(headers: Headers, jobId: string, idempote
       if (!identity) throw new AppError("RAG_INDEX_JOB_NOT_FOUND", "Không tìm thấy tác vụ lập chỉ mục.", 404);
       const document = await jobs.lockDocumentForAdmission(tx, identity.ragDocumentId);
       if (!document) throw new AppError("RAG_DOCUMENT_NOT_FOUND", "Không tìm thấy tài liệu.", 404);
-      if (document.deletedAt || document.status !== "APPROVED" && document.status !== "INDEXED") throw new AppError("RAG_DOCUMENT_NOT_ELIGIBLE", "Tài liệu hiện không đủ điều kiện lập chỉ mục.", 409);
+      if (document.deletedAt || !["UPLOADED", "REVIEWING", "APPROVED", "INDEXED"].includes(document.status)) throw new AppError("RAG_DOCUMENT_NOT_ELIGIBLE", "Tài liệu hiện không đủ điều kiện lập chỉ mục.", 409);
       const otherActive = await tx.ragIndexJob.findFirst({
         where: { ragDocumentId: identity.ragDocumentId, id: { not: jobId }, status: { in: ["QUEUED", "RUNNING", "UNKNOWN"] } },
         select: { id: true },

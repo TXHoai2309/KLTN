@@ -1,5 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
+vi.mock("../runtime-config/runtime-config-service", () => ({ effectiveConfig: async () => ({ apiKey: process.env.OPENAI_API_KEY, editorialModel: process.env.OPENAI_EDITORIAL_MODEL }) }));
+afterAll(() => { vi.doUnmock("../runtime-config/runtime-config-service"); vi.resetModules(); });
 import { createEditorialOpenAiClient, EDITORIAL_OPENAI_LIMITS } from "./editorial-openai-client";
 import { createOpenAiStructuredClient } from "../preference-extraction/openai-structured-client";
 import { createEditorialAiDiagnostics, EditorialAiError, editorialHttpError } from "./editorial-ai-diagnostics";
@@ -31,6 +33,14 @@ describe("Editorial-only GPT-6 Luna adapter, offline", () => {
     expect(body).toMatchObject({ model: "gpt-6-luna", reasoning_effort: "high", max_completion_tokens: 65_536, store: false,
       response_format: { type: "json_schema", json_schema: { name: "destination_editorial_layout", strict: true, schema: input.jsonSchema } } });
     expect(body).not.toHaveProperty("temperature"); expect(body).not.toHaveProperty("top_p");
+  });
+  it.each(["gpt-6.1-terra", "gpt-6-sol", "gpt-6.1-sol"])("uses selected Editorial model %s", async model => {
+    const fetcher = vi.fn(async (_url: string | URL | Request, _init?: RequestInit) => completion());
+    const configured = createEditorialOpenAiClient({ apiKey: () => "fixture-private-key", model: () => model, fetcher: fetcher as typeof fetch });
+    await expect(configured.complete(input)).resolves.toMatchObject({ model });
+    const body = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body)) as Record<string, unknown>;
+    expect(body).toMatchObject({ model, reasoning_effort: "high", response_format: { type: "json_schema" } });
+    expect(body).not.toHaveProperty("temperature");
   });
   it("reproduces the old unsupported-temperature request in a mock while the Editorial request succeeds", async () => {
     const fetcher = vi.fn(async (_url: unknown, init: any) => JSON.parse(init.body).temperature === 0
@@ -89,8 +99,8 @@ describe("Editorial-only GPT-6 Luna adapter, offline", () => {
     await expect(client(fetcher as typeof fetch).complete({...input,jsonSchema:{type:"object"}})).rejects.toMatchObject({code:"LOCAL_INVALID_SCHEMA"});
     await expect(client(fetcher as typeof fetch).complete({...input,signal:AbortSignal.abort()})).rejects.toMatchObject({code:"CANCELLED"});
     expect(fetcher).not.toHaveBeenCalled();
-    vi.stubEnv("OPENAI_API_KEY", ""); expect(editorialAiClient()).toBeNull();
-    vi.stubEnv("OPENAI_API_KEY", "fixture-private-key"); vi.stubEnv("OPENAI_EDITORIAL_MODEL", ""); expect(editorialAiClient()).toBeNull();
+    vi.stubEnv("OPENAI_API_KEY", ""); expect(await editorialAiClient()).toBeNull();
+    vi.stubEnv("OPENAI_API_KEY", "fixture-private-key"); vi.stubEnv("OPENAI_EDITORIAL_MODEL", ""); expect(await editorialAiClient()).toBeNull();
   });
 });
 
@@ -149,7 +159,7 @@ describe("Editorial proposal through the real Luna adapter with mocked HTTP", ()
     const fetcher=vi.fn(async (_url:unknown,init:any)=>{requestBody=JSON.parse(init.body);const supplied=JSON.parse(requestBody.messages[1].content);
       return completion(JSON.stringify({family: supplied.base.family,variant:"EDITORIAL",blocks:[...supplied.base.blocks].reverse().map((b:any)=>({id:b.id,mediaIds:b.mediaIds,placement:"right",title:b.title}))}));});
     vi.stubGlobal("fetch",fetcher); const diagnostics=createEditorialAiDiagnostics();
-    const result=await proposeEditorial(new Headers(),f.id,f.store.deps,editorialAiClient(),{layout:f.layout,diagnostics,direction:"AUTO"});
+    const result=await proposeEditorial(new Headers(),f.id,f.store.deps,await editorialAiClient(),{layout:f.layout,diagnostics,direction:"AUTO"});
     expect(result.status).toBe("PROPOSED"); expect(result.layout).not.toEqual(f.layout);
     expect(result.layout.blocks.map(b=>b.id).sort()).toEqual(f.layout.blocks.map(b=>b.id).sort());
     expect(result.layout.blocks.find(b=>b.id==="manual")?.text).toBe("fixture-private unsaved manual text");

@@ -1,5 +1,13 @@
 # US-18 — Kiểm duyệt và phê duyệt tài liệu RAG
 
+## Amendment 2026-10-27 — manual index trigger
+
+Admin now starts private indexing explicitly after upload. The removed START_REVIEW/APPROVE prerequisites and the separate individual public-Q&A approval remain as described below. See ADR-24.
+
+## Amendment 2026-10-26 — new-upload review gate moved to public use
+
+For new Admin uploads, the manual START_REVIEW and APPROVE steps are removed from the UI path. The system indexes privately first; Admin then opens the original file, checks source and index result, and explicitly confirms review before enabling public Q&A. Historical REVIEWING/APPROVED rows remain supported for indexing. The dated implementation and acceptance below describe the earlier workflow; ADR-23 supersedes it for new uploads.
+
 ## Status
 
 IMPLEMENTED IN CODE — live integration and visual acceptance not proven

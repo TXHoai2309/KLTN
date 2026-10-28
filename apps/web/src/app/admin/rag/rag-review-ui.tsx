@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { ArrowLeft, FileText, Plus, AlertTriangle, LoaderCircle, ShieldCheck, ShieldAlert, Sparkles, Trash2, RotateCcw, MoreHorizontal, ExternalLink, Download, CheckCircle2, X, Info } from "lucide-react";
+import { ArrowLeft, FileText, Plus, AlertTriangle, LoaderCircle, ShieldCheck, ShieldAlert, Sparkles, Trash2, RotateCcw, MoreHorizontal, ExternalLink, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@KLTN/ui/components/button";
 import { createIdempotencyKey, sendIdempotentMutation } from "@/lib/mutation-client";
@@ -11,7 +11,7 @@ import { confirmedRagDetail } from "@/modules/rag-document/rag-review-state";
 import { RagIndexPanel } from "./rag-index-panel";
 
 type RagStatus = "UPLOADED" | "REVIEWING" | "APPROVED" | "INDEXED" | "DISABLED";
-type RagAction = "START_REVIEW" | "APPROVE" | "DISABLE" | "ENABLE_PUBLIC_QA" | "DISABLE_PUBLIC_QA";
+type RagAction = "DISABLE" | "ENABLE_PUBLIC_QA" | "DISABLE_PUBLIC_QA";
 type RagIneligibilityReason = "STATUS_NOT_INDEXED" | "NOT_PUBLIC_APPROVED" | "NO_READY_INDEX" | "EMBEDDING_MISMATCH" | "DOCUMENT_DELETED";
 
 type RagItem = {
@@ -43,8 +43,8 @@ type RagDetail = RagItem & {
 type RagTransition = Pick<RagDetail, "id" | "status" | "updatedAt" | "retrievalEligible" | "allowedActions" | "publicQaApproved" | "publicQaEligible" | "ineligibilityReason">;
 
 const statusLabel: Record<RagStatus, string> = {
-  UPLOADED: "Chờ kiểm duyệt",
-  REVIEWING: "Đang kiểm duyệt",
+  UPLOADED: "Chờ lập chỉ mục",
+  REVIEWING: "Trạng thái cũ: đang duyệt",
   APPROVED: "Đã phê duyệt",
   INDEXED: "Đã lập chỉ mục",
   DISABLED: "Đã vô hiệu hóa",
@@ -150,8 +150,6 @@ export function RagList({ initialView = "active" }: { initialView?: RagListView 
   const deletedView = initialView === "deleted";
   const listUrl = deletedView ? "/api/admin/rag-documents?view=deleted" : "/api/admin/rag-documents";
   const { data, setData, error, retry } = useRagRead<{ items: RagItem[] }>(listUrl);
-  const [bulkMessage, setBulkMessage] = useState("");
-  const [bulkBusy, setBulkBusy] = useState(false);
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
   const [uncertainIds, setUncertainIds] = useState<Set<string>>(() => new Set());
   const [confirmation, setConfirmation] = useState<RagItem | null>(null);
@@ -182,27 +180,6 @@ export function RagList({ initialView = "active" }: { initialView?: RagListView 
   const publicApprovedCount = items.filter(i => i.publicQaApproved).length;
   const publicEligibleCount = items.filter(i => i.publicQaEligible).length;
   const unapprovedIndexed = items.filter(i => i.status === "INDEXED" && !i.publicQaApproved);
-
-  async function handleBulkEnableIndexed() {
-    if (bulkBusy || deletedView || unapprovedIndexed.length === 0) return;
-    setBulkBusy(true);
-    setBulkMessage("");
-    try {
-      const response = await fetch("/api/admin/rag-documents/bulk-public-qa", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "ENABLE_ALL_INDEXED" }),
-      });
-      const body = await response.json();
-      if (!response.ok || body.success !== true) throw new Error(body.error?.message || "Không thể thực hiện duyệt hàng loạt.");
-      setBulkMessage(`Đã cấp quyền AI công khai cho ${body.data?.updatedCount ?? unapprovedIndexed.length} tài liệu đã lập chỉ mục.`);
-      retry();
-    } catch (err) {
-      setBulkMessage(err instanceof Error ? err.message : "Duyệt hàng loạt thất bại.");
-    } finally {
-      setBulkBusy(false);
-    }
-  }
 
   async function runLifecycle(item: RagItem, kind: RagLifecycleAttempt["kind"]) {
     if (activeRequests.current.has(item.id)) return;
@@ -273,7 +250,7 @@ export function RagList({ initialView = "active" }: { initialView?: RagListView 
         <header className="destination-heading">
           <div>
             <h1>Tài liệu RAG</h1>
-            <p>Theo dõi nguồn tài liệu, tiến trình kiểm duyệt và quyền truy xuất AI.</p>
+            <p>Theo dõi nguồn tài liệu, lập chỉ mục theo yêu cầu Admin và quyền truy xuất AI.</p>
           </div>
           <Link className="destination-primary" href={"/admin/rag/upload" as Route}>
             <Plus size={17} aria-hidden="true" />
@@ -293,14 +270,9 @@ export function RagList({ initialView = "active" }: { initialView?: RagListView 
         {!deletedView && unapprovedIndexed.length > 0 && (
           <div className="rag-bulk-bar">
             <div className="rag-bulk-info">Có <strong>{unapprovedIndexed.length}</strong> tài liệu đã lập chỉ mục nhưng chưa được cấp quyền làm nguồn trả lời AI công khai.</div>
-            <Button type="button" className="destination-primary" disabled={bulkBusy} onClick={() => void handleBulkEnableIndexed()}>
-              <Sparkles size={16} aria-hidden="true" />
-              {bulkBusy ? "Đang xử lý…" : `Duyệt công khai tất cả (${unapprovedIndexed.length})`}
-            </Button>
+            <span>Mở từng tài liệu để đối soát tệp gốc trước khi cấp quyền công khai.</span>
           </div>
         )}
-
-        {bulkMessage && <div className="rag-action-feedback" role="status" style={{ marginBottom: "16px" }}>{bulkMessage}</div>}
 
         <nav className="rag-list-tabs" aria-label="Lọc danh sách tài liệu">
           <Link href={activeHref} aria-current={!deletedView ? "page" : undefined}>Đang hoạt động</Link>
@@ -321,7 +293,7 @@ export function RagList({ initialView = "active" }: { initialView?: RagListView 
             <div className="destination-state destination-empty">
               <FileText size={34} aria-hidden="true" />
               <h3>{deletedView ? "Chưa có tài liệu đã xóa" : "Chưa có tài liệu nào"}</h3>
-              <p>{deletedView ? "Tài liệu được xóa mềm sẽ xuất hiện tại đây để Admin có thể khôi phục." : "Tải tài liệu đầu tiên để bắt đầu kiểm duyệt."}</p>
+              <p>{deletedView ? "Tài liệu được xóa mềm sẽ xuất hiện tại đây để Admin có thể khôi phục." : "Tải tài liệu đầu tiên để bắt đầu lập chỉ mục."}</p>
               {!deletedView && <Link className="destination-primary" href={"/admin/rag/upload" as Route}>Tải tài liệu mới</Link>}
             </div>
           ) : (
@@ -427,20 +399,11 @@ export function RagDetailView({ id, initialDocument }: { id: string; initialDocu
   const [feedback, setFeedback] = useState("");
   const [busy, setBusy] = useState(false);
   const [uncertain, setUncertain] = useState(false);
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
-  const reviewDialogRef = useRef<HTMLDialogElement>(null);
+  const [sourceReviewed, setSourceReviewed] = useState(false);
   const flight = useRef(false);
   const generation = useRef(0);
   useEffect(() => () => { generation.current++; }, []);
-  const pending = useRef<{ action: RagAction; key: string } | null>(null);
-
-  useEffect(() => {
-    if (isReviewModalOpen && !reviewDialogRef.current?.open) {
-      reviewDialogRef.current?.showModal();
-    } else if (!isReviewModalOpen && reviewDialogRef.current?.open) {
-      reviewDialogRef.current?.close();
-    }
-  }, [isReviewModalOpen]);
+  const pending = useRef<{ action: RagAction; key: string; confirmedSourceReview: boolean } | null>(null);
 
   async function act(action: RagAction, key = createIdempotencyKey()) {
     if (flight.current || (pending.current && pending.current.key !== key)) return;
@@ -448,34 +411,29 @@ export function RagDetailView({ id, initialDocument }: { id: string; initialDocu
     const requestGeneration = generation.current;
     setBusy(true);
     setFeedback("");
-    pending.current = { action, key };
+    const confirmedSourceReview = pending.current?.key === key ? pending.current.confirmedSourceReview : sourceReviewed;
+    pending.current = { action, key, confirmedSourceReview };
     try {
       const outcome = await sendIdempotentMutation<RagTransition>(`/api/admin/rag-documents/${encodeURIComponent(id)}/actions`, {
         idempotencyKey: key,
-        init: { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) },
+        init: { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ...(action === "ENABLE_PUBLIC_QA" ? { confirmedSourceReview } : {}) }) },
       });
       if (generation.current !== requestGeneration) return;
       if (outcome.status === "SUCCESS") {
         setData(current => (current ? { document: confirmedRagDetail(current.document, outcome) } : current));
         pending.current = null;
         setUncertain(false);
-        if (action === "APPROVE") {
-          setIsReviewModalOpen(false);
-          toast.success("Đã phê duyệt tài liệu thành công. Hãy tiếp tục bước Lập chỉ mục AI bên dưới.", { position: "bottom-right" });
-        } else if (action === "DISABLE") {
-          setIsReviewModalOpen(false);
+        if (action === "DISABLE") {
           toast.success("Đã vô hiệu hóa tài liệu.", { position: "bottom-right" });
         }
         setFeedback(
           action === "DISABLE"
             ? "Đã vô hiệu hóa. Tài liệu không còn đủ điều kiện cho lượt truy xuất mới."
-            : action === "APPROVE"
-              ? "Đã phê duyệt. Tài liệu đã sẵn sàng để lập chỉ mục vector AI."
-              : action === "ENABLE_PUBLIC_QA"
+            : action === "ENABLE_PUBLIC_QA"
                 ? "Đã cấp quyền làm nguồn trả lời AI công khai."
                 : action === "DISABLE_PUBLIC_QA"
                   ? "Đã thu hồi quyền làm nguồn trả lời AI công khai. AI sẽ ngừng sử dụng tài liệu này ngay lập tức."
-                  : "Đã bắt đầu kiểm duyệt.",
+                  : "Trạng thái tài liệu đã cập nhật.",
         );
       } else if (outcome.status === "FAILED") {
         pending.current = null;
@@ -490,13 +448,6 @@ export function RagDetailView({ id, initialDocument }: { id: string; initialDocu
     } finally {
       flight.current = false;
       if (generation.current === requestGeneration) setBusy(false);
-    }
-  }
-
-  function handleStartReview() {
-    setIsReviewModalOpen(true);
-    if (item?.status === "UPLOADED") {
-      void act("START_REVIEW");
     }
   }
 
@@ -589,103 +540,7 @@ export function RagDetailView({ id, initialDocument }: { id: string; initialDocu
               </dl>
             </section>
 
-            {/* KHỐI 3: Quản lý trạng thái tài liệu (BƯỚC 1: KIỂM DUYỆT & DUYỆT - ĐẨY LÊN TRÊN!) */}
-            {item.deletedAt ? (
-              <section className="destination-card" aria-labelledby="rag-actions-title">
-                <h2 id="rag-actions-title">Chế độ chỉ đọc</h2>
-                <p className="destination-helper">Để khôi phục tài liệu về trạng thái vô hiệu hóa, quay lại danh sách “Đã xóa” và chọn Khôi phục.</p>
-              </section>
-            ) : (
-              <section className="destination-card" aria-labelledby="rag-actions-title">
-                <div className="destination-section-heading">
-                  <span className="destination-section-icon" aria-hidden="true">
-                    <ShieldCheck size={21} />
-                  </span>
-                  <div>
-                    <h2 id="rag-actions-title">Quản lý trạng thái tài liệu</h2>
-                    <p className="destination-helper">
-                      {item.status === "DISABLED"
-                        ? "Tài liệu đã vô hiệu hóa và không được dùng cho lượt truy xuất mới."
-                        : item.status === "INDEXED"
-                          ? "Tài liệu đã lập chỉ mục. Vô hiệu hóa sẽ dừng mọi lượt truy xuất."
-                          : item.status === "APPROVED"
-                            ? "Tài liệu đã được phê duyệt. Hãy tiếp tục bước Lập chỉ mục AI bên dưới."
-                            : item.status === "REVIEWING"
-                              ? "Tài liệu đang trong tiến trình kiểm duyệt. Mở hộp thoại kiểm duyệt để xem chi tiết và phê duyệt."
-                              : "Tài liệu đang chờ kiểm duyệt. Bấm 'Bắt đầu kiểm duyệt' để mở thông tin đối soát và phê duyệt."}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="rag-actions">
-                  {item.allowedActions.includes("START_REVIEW") && (
-                    <Button
-                      className="destination-primary"
-                      disabled={busy || uncertain}
-                      onClick={() => handleStartReview()}
-                    >
-                      <ShieldCheck size={16} aria-hidden="true" />
-                      Bắt đầu kiểm duyệt
-                    </Button>
-                  )}
-                  {item.allowedActions.includes("APPROVE") && (
-                    <Button
-                      className="destination-primary"
-                      disabled={busy || uncertain}
-                      onClick={() => setIsReviewModalOpen(true)}
-                    >
-                      <ShieldCheck size={16} aria-hidden="true" />
-                      Kiểm duyệt & Phê duyệt
-                    </Button>
-                  )}
-                  {item.status === "APPROVED" && (
-                    <p style={{ color: "var(--destination-green)", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
-                      <CheckCircle2 size={16} aria-hidden="true" />
-                      Tài liệu đã được phê duyệt. Hãy tiếp tục bước Lập chỉ mục AI bên dưới.
-                    </p>
-                  )}
-                  {item.status === "INDEXED" && (
-                    <p style={{ color: "var(--destination-green)", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
-                      <CheckCircle2 size={16} aria-hidden="true" />
-                      Tài liệu đã được lập chỉ mục vector AI.
-                    </p>
-                  )}
-                  {item.allowedActions.includes("DISABLE") && (
-                    <Button
-                      variant="destructive"
-                      disabled={busy || uncertain}
-                      onClick={() => {
-                        if (window.confirm("Vô hiệu hóa tài liệu này? Không thể kích hoạt lại bản ghi trong MVP.")) void act("DISABLE");
-                      }}
-                    >
-                      Vô hiệu hóa
-                    </Button>
-                  )}
-                  {item.allowedActions.length === 0 && item.status !== "APPROVED" && item.status !== "INDEXED" && (
-                    <p>{item.status === "DISABLED" ? "Tài liệu đã vô hiệu hóa. Không có thao tác tiếp theo." : "Không có thao tác kiểm duyệt tiếp theo ở trạng thái này."}</p>
-                  )}
-                </div>
-                {feedback && (
-                  <div className="rag-action-feedback" role={pending.current ? "alert" : "status"}>
-                    {feedback}
-                    {pending.current && (
-                      <Button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => {
-                          const attempt = pending.current;
-                          if (attempt) void act(attempt.action, attempt.key);
-                        }}
-                      >
-                        Thử lại cùng yêu cầu
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </section>
-            )}
-
-            {/* KHỐI 4: Lập chỉ mục AI (BƯỚC 2: LẬP CHỈ MỤC - ĐẨY XUỐNG DƯỚI QUẢN LÝ TRẠNG THÁI) */}
+            {/* Tiến độ lập chỉ mục AI. */}
             {!item.deletedAt && (
               <RagIndexPanel
                 key={id}
@@ -710,7 +565,7 @@ export function RagDetailView({ id, initialDocument }: { id: string; initialDocu
             )}
 
             {/* KHỐI 5: Quyền làm nguồn trả lời AI công khai (BƯỚC 3: CẤP QUYỀN AI CÔNG KHAI) */}
-            <section className="destination-card" aria-labelledby="rag-public-qa-title">
+            <section className="destination-card rag-public-qa-card" aria-labelledby="rag-public-qa-title">
               <div className="destination-section-heading">
                 <span className="destination-section-icon" aria-hidden="true">
                   <Sparkles size={21} />
@@ -721,227 +576,124 @@ export function RagDetailView({ id, initialDocument }: { id: string; initialDocu
                 </div>
               </div>
 
-              <div className={`rag-eligibility-box ${item.publicQaEligible ? "is-eligible" : "is-ineligible"}`}>
-                <strong>Trạng thái AI: </strong>
-                {item.publicQaEligible ? (
-                  <span>Tài liệu đã đủ điều kiện và đang được AI sử dụng tự động.</span>
-                ) : item.ineligibilityReason ? (
-                  <span>{ineligibilityReasonLabel[item.ineligibilityReason]}</span>
-                ) : (
-                  <span>Chưa đủ điều kiện sử dụng cho AI.</span>
-                )}
+              <div className={`rag-public-qa-status ${item.publicQaEligible ? "is-active" : item.allowedActions.includes("ENABLE_PUBLIC_QA") ? "is-ready" : "is-blocked"}`} role="status">
+                <strong>{item.publicQaEligible ? "Đang được AI sử dụng" : item.allowedActions.includes("ENABLE_PUBLIC_QA") ? "Sẵn sàng cấp quyền" : "Chưa thể sử dụng công khai"}</strong>
+                <span>{item.publicQaEligible
+                  ? "Trợ lý AI có thể tìm kiếm và trích dẫn tài liệu này."
+                  : item.allowedActions.includes("ENABLE_PUBLIC_QA")
+                    ? "Chỉ mục đã sẵn sàng. Xác nhận đối soát nguồn để cấp quyền."
+                    : item.ineligibilityReason
+                      ? `${item.publicQaApproved ? "Đã cấp quyền nhưng chưa thể sử dụng: " : ""}${ineligibilityReasonLabel[item.ineligibilityReason]}.`
+                      : "Tài liệu chưa đủ điều kiện để AI sử dụng."}</span>
               </div>
 
-              <dl className="rag-detail-grid" style={{ marginTop: "14px" }}>
-                <div>
-                  <dt>Cấp quyền công khai</dt>
-                  <dd>
-                    {item.publicQaApproved ? (
-                      <span style={{ color: "var(--destination-green)", fontWeight: 600 }}>Đã cấp quyền</span>
-                    ) : (
-                      <span style={{ color: "var(--destination-muted)" }}>Chưa cấp quyền</span>
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Điều kiện cần</dt>
-                  <dd>Đã lập chỉ mục (INDEXED) + Bản chỉ mục READY</dd>
-                </div>
-              </dl>
+              <p className="rag-public-qa-requirement">Điều kiện kỹ thuật: tài liệu đã lập chỉ mục (INDEXED) và bản chỉ mục sẵn sàng (READY).</p>
 
-              {!item.deletedAt && (
-                <div className="rag-actions">
-                  {item.status !== "DISABLED" && !item.publicQaApproved && (
-                    <Button
-                      type="button"
-                      className="destination-primary"
-                      disabled={busy || uncertain}
-                      onClick={() => void act("ENABLE_PUBLIC_QA")}
-                    >
-                      <ShieldCheck size={16} aria-hidden="true" /> Cho phép AI sử dụng công khai
-                    </Button>
+              {!item.deletedAt && (item.allowedActions.includes("ENABLE_PUBLIC_QA") || item.publicQaApproved) && (
+                <div className="rag-public-qa-controls">
+                  {item.allowedActions.includes("ENABLE_PUBLIC_QA") && (
+                    <>
+                      <label className="rag-public-qa-confirm">
+                        <input type="checkbox" checked={sourceReviewed} disabled={busy || uncertain} onChange={event => setSourceReviewed(event.target.checked)} />
+                        <span>Tôi đã mở và đối soát tệp gốc, nguồn và kết quả lập chỉ mục.</span>
+                      </label>
+                      <div className="rag-public-qa-submit">
+                        <Button
+                          type="button"
+                          className="destination-primary"
+                          disabled={busy || uncertain || !sourceReviewed}
+                          onClick={() => void act("ENABLE_PUBLIC_QA")}
+                        >
+                          <ShieldCheck size={16} aria-hidden="true" /> Cho phép AI sử dụng công khai
+                        </Button>
+                      </div>
+                    </>
                   )}
                   {item.publicQaApproved && (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      disabled={busy || uncertain}
-                      onClick={() => void act("DISABLE_PUBLIC_QA")}
-                    >
-                      <ShieldAlert size={16} aria-hidden="true" /> Thu hồi quyền AI công khai
-                    </Button>
+                    <div className="rag-public-qa-submit">
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        disabled={busy || uncertain}
+                        onClick={() => void act("DISABLE_PUBLIC_QA")}
+                      >
+                        <ShieldAlert size={16} aria-hidden="true" /> Thu hồi quyền AI công khai
+                      </Button>
+                    </div>
                   )}
                 </div>
               )}
             </section>
+
+            {/* Quản lý trạng thái tài liệu ở cuối trang. */}
+            {item.deletedAt ? (
+              <section className="destination-card" aria-labelledby="rag-actions-title">
+                <h2 id="rag-actions-title">Chế độ chỉ đọc</h2>
+                <p className="destination-helper">Để khôi phục tài liệu về trạng thái vô hiệu hóa, quay lại danh sách “Đã xóa” và chọn Khôi phục.</p>
+              </section>
+            ) : (
+              <section className="destination-card" aria-labelledby="rag-actions-title">
+                <div className="destination-section-heading">
+                  <span className="destination-section-icon" aria-hidden="true">
+                    <ShieldCheck size={21} />
+                  </span>
+                  <div>
+                    <h2 id="rag-actions-title">Quản lý trạng thái tài liệu</h2>
+                    <p className="destination-helper">
+                      {item.status === "DISABLED"
+                        ? "Tài liệu đã vô hiệu hóa và không được dùng cho lượt truy xuất mới."
+                        : item.status === "INDEXED"
+                          ? "Tài liệu đã lập chỉ mục. Vô hiệu hóa sẽ dừng mọi lượt truy xuất."
+                          : "Tài liệu chờ Admin lập chỉ mục hoặc đang được xử lý."}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="rag-actions">
+                  {item.status === "INDEXED" && (
+                    <p style={{ color: "var(--destination-green)", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
+                      <CheckCircle2 size={16} aria-hidden="true" />
+                      Tài liệu đã được lập chỉ mục vector AI.
+                    </p>
+                  )}
+                  {item.allowedActions.includes("DISABLE") && (
+                    <Button
+                      variant="destructive"
+                      disabled={busy || uncertain}
+                      onClick={() => {
+                        if (window.confirm("Vô hiệu hóa tài liệu này? Không thể kích hoạt lại bản ghi trong MVP.")) void act("DISABLE");
+                      }}
+                    >
+                      Vô hiệu hóa
+                    </Button>
+                  )}
+                  {item.allowedActions.length === 0 && item.status !== "APPROVED" && item.status !== "INDEXED" && (
+                    <p>{item.status === "DISABLED" ? "Tài liệu đã vô hiệu hóa. Không có thao tác tiếp theo." : "Theo dõi tiến độ lập chỉ mục ở trên."}</p>
+                  )}
+                </div>
+                {feedback && (
+                  <div className="rag-action-feedback" role={pending.current ? "alert" : "status"}>
+                    {feedback}
+                    {pending.current && (
+                      <Button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => {
+                          const attempt = pending.current;
+                          if (attempt) void act(attempt.action, attempt.key);
+                        }}
+                      >
+                        Thử lại cùng yêu cầu
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </section>
+            )}
           </>
         )}
       </div>
 
-      {/* POPUP KIỂM DUYỆT TÀI LIỆU RAG */}
-      {item && (
-        <dialog
-          ref={reviewDialogRef}
-          className="rag-review-dialog"
-          aria-labelledby="rag-review-dialog-title"
-          onCancel={event => {
-            event.preventDefault();
-            if (!busy) setIsReviewModalOpen(false);
-          }}
-        >
-          <div className="rag-review-dialog-header">
-            <h2 id="rag-review-dialog-title">
-              <ShieldCheck size={20} aria-hidden="true" />
-              Kiểm duyệt tài liệu RAG
-            </h2>
-            <button
-              type="button"
-              className="rag-dialog-close"
-              aria-label="Đóng"
-              disabled={busy}
-              onClick={() => setIsReviewModalOpen(false)}
-            >
-              <X size={18} aria-hidden="true" />
-            </button>
-          </div>
-
-          <div className="rag-review-dialog-body">
-            {/* Tóm tắt tệp & trạng thái */}
-            <div className="rag-review-dialog-card">
-              <div className="rag-review-dialog-file-info">
-                <FileText size={22} aria-hidden="true" />
-                <div>
-                  <strong>{item.originalFileName}</strong>
-                  <p>{item.sourceTitle}</p>
-                </div>
-              </div>
-              <div style={{ marginTop: "10px" }}>
-                <RagStatusBadge item={item} />
-              </div>
-              <dl className="rag-review-dialog-grid">
-                <div>
-                  <dt>Loại tệp</dt>
-                  <dd>{item.fileType}</dd>
-                </div>
-                <div>
-                  <dt>Dung lượng</dt>
-                  <dd>{(item.sizeBytes / 1024 / 1024).toFixed(2)} MB</dd>
-                </div>
-                <div>
-                  <dt>Ngày tải lên</dt>
-                  <dd>{date(item.createdAt)}</dd>
-                </div>
-                <div>
-                  <dt>Cập nhật lần cuối</dt>
-                  <dd>{date(item.updatedAt)}</dd>
-                </div>
-              </dl>
-            </div>
-
-            {/* Thông tin nguồn đối soát */}
-            <div className="rag-review-dialog-card">
-              <h3 style={{ margin: "0 0 8px", fontSize: "14px", fontWeight: 650, color: "var(--destination-ink)" }}>
-                Thông tin nguồn đối soát
-              </h3>
-              <dl className="rag-review-dialog-grid" style={{ margin: 0, paddingTop: 0, borderTop: "none" }}>
-                <div>
-                  <dt>Nguồn tài liệu</dt>
-                  <dd>{item.sourceTitle}</dd>
-                </div>
-                <div>
-                  <dt>Tác giả</dt>
-                  <dd>{item.author || "Chưa khai báo"}</dd>
-                </div>
-                <div>
-                  <dt>Chủ đề</dt>
-                  <dd>{item.topic || "Chưa khai báo"}</dd>
-                </div>
-                <div>
-                  <dt>Địa phương</dt>
-                  <dd>{item.locality || "Chưa khai báo"}</dd>
-                </div>
-                <div style={{ gridColumn: "span 2" }}>
-                  <dt>Trang web nguồn</dt>
-                  <dd>
-                    {item.sourceUrl ? (
-                      <a href={item.sourceUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                        <span>{item.sourceUrl}</span>
-                        <ExternalLink size={13} aria-hidden="true" />
-                      </a>
-                    ) : (
-                      "Chưa khai báo"
-                    )}
-                  </dd>
-                </div>
-              </dl>
-            </div>
-
-            {/* Nút tải tệp gốc để đối soát */}
-            <a
-              className="rag-review-dialog-download"
-              href={`/api/admin/rag-documents/${encodeURIComponent(id)}/file`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Download size={16} aria-hidden="true" />
-              <span>Tải tệp gốc để xem và đối soát nội dung</span>
-            </a>
-
-            {/* Hướng dẫn kiểm duyệt */}
-            <div className="rag-review-guidance">
-              <Info size={18} aria-hidden="true" />
-              <div>
-                <strong>Lưu ý kiểm duyệt:</strong> Hãy kiểm tra kỹ nội dung tệp gốc trước khi phê duyệt. Sau khi phê duyệt (APPROVED), tài liệu sẽ sẵn sàng cho việc lập chỉ mục vector AI.
-              </div>
-            </div>
-          </div>
-
-          <div className="rag-review-dialog-actions">
-            <button
-              type="button"
-              className="destination-button"
-              disabled={busy}
-              onClick={() => setIsReviewModalOpen(false)}
-            >
-              Hủy / Để duyệt sau
-            </button>
-
-            {item.allowedActions.includes("DISABLE") && (
-              <Button
-                type="button"
-                variant="destructive"
-                disabled={busy || uncertain}
-                onClick={() => {
-                  if (window.confirm("Vô hiệu hóa tài liệu này? Không thể kích hoạt lại bản ghi trong MVP.")) {
-                    void act("DISABLE");
-                  }
-                }}
-              >
-                Vô hiệu hóa
-              </Button>
-            )}
-
-            <Button
-              type="button"
-              className="destination-primary"
-              disabled={busy || uncertain || (!item.allowedActions.includes("APPROVE") && item.status !== "REVIEWING")}
-              onClick={() => void act("APPROVE")}
-            >
-              {busy && pending.current?.action === "APPROVE" ? (
-                <>
-                  <LoaderCircle size={15} className="destination-spinner" aria-hidden="true" />
-                  <span>Đang phê duyệt…</span>
-                </>
-              ) : (
-                <>
-                  <CheckCircle2 size={16} aria-hidden="true" />
-                  <span>Phê duyệt tài liệu</span>
-                </>
-              )}
-            </Button>
-          </div>
-        </dialog>
-      )}
     </main>
   );
 }

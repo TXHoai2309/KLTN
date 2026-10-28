@@ -30,7 +30,7 @@ function setup(status: Status = "UPLOADED", role: "ADMIN" | "TRAVELER" | null = 
   };
   const ragIndexPublication = {
     findMany: async () => [],
-    findUnique: async () => null,
+    findUnique: async () => status === "INDEXED" ? { generation: { state: "READY", embeddingProvider: "openai", embeddingModel: "text-embedding-3-small", embeddingDimensions: 1536 } } : null,
   };
   const tx = {
     user: { findUnique: async () => role ? { id: "admin-1", role } : null },
@@ -70,27 +70,21 @@ test("Admin list and detail contain metadata and server actions without storage 
   assert.equal(list.items[0].retrievalEligible, false);
   assert.equal("storagePath" in list.items[0], false);
   const detail = await getRagDocument(headers, "rag-1", deps as never);
-  assert.deepEqual(detail.document.allowedActions, ["START_REVIEW", "DISABLE"]);
+  assert.deepEqual(detail.document.allowedActions, ["DISABLE"]);
   assert.equal(detail.document.sourceUrl, "https://example.org/source");
   assert.equal("storagePath" in detail.document, false);
 });
 
-test("UPLOADED to REVIEWING succeeds and same key replays", async () => {
+test("manual START_REVIEW is no longer accepted for new uploads", async () => {
   const { deps, row } = setup();
-  const first = await transitionRagDocument(headers, "rag-1", { action: "START_REVIEW" }, "key-1", deps as never);
-  assert.equal(first.status, "SUCCESS");
-  assert.equal(row.status, "REVIEWING");
-  const replay = await transitionRagDocument(headers, "rag-1", { action: "START_REVIEW" }, "key-1", deps as never);
-  assert.equal(replay.status, "SUCCESS");
-  assert.equal(replay.replayed, true);
+  await assert.rejects(() => transitionRagDocument(headers, "rag-1", { action: "START_REVIEW" }, "key-1", deps as never), { code: "INVALID_RAG_INPUT" });
+  assert.equal(row.status, "UPLOADED");
 });
 
-test("REVIEWING to APPROVED succeeds but is not retrieval eligible", async () => {
+test("historical REVIEWING can index without manual APPROVE", async () => {
   const { deps, row } = setup("REVIEWING");
-  const outcome = await transitionRagDocument(headers, "rag-1", { action: "APPROVE" }, "key-2", deps as never);
-  assert.equal(outcome.status, "SUCCESS");
-  assert.equal(row.status, "APPROVED");
-  if (outcome.status === "SUCCESS") assert.equal(outcome.data.retrievalEligible, false);
+  await assert.rejects(() => transitionRagDocument(headers, "rag-1", { action: "APPROVE" }, "key-2", deps as never), { code: "INVALID_RAG_INPUT" });
+  assert.equal(row.status, "REVIEWING");
   const detail = await getRagDocument(headers, "rag-1", deps as never);
   assert.deepEqual(detail.document.allowedActions, ["DISABLE"]);
   assert.equal(detail.document.retrievalEligible, false);
@@ -99,17 +93,15 @@ test("REVIEWING to APPROVED succeeds but is not retrieval eligible", async () =>
 for (const [status, action] of [["UPLOADED", "APPROVE"], ["APPROVED", "START_REVIEW"], ["APPROVED", "APPROVE"], ["DISABLED", "START_REVIEW"]] as const) {
   test(`${status} with ${action} is rejected`, async () => {
     const { deps, row } = setup(status);
-    const outcome = await transitionRagDocument(headers, "rag-1", { action }, `invalid-${status}-${action}`, deps as never);
-    assert.equal(outcome.status, "FAILED");
+    await assert.rejects(() => transitionRagDocument(headers, "rag-1", { action }, `invalid-${status}-${action}`, deps as never), { code: "INVALID_RAG_INPUT" });
     assert.equal(row.status, status);
   });
 }
 
-test("unavailable original prevents APPROVE and keeps REVIEWING", async () => {
+test("unavailable original cannot be bypassed by obsolete APPROVE action", async () => {
   const { deps, row, missingFile } = setup("REVIEWING");
   missingFile();
-  const outcome = await transitionRagDocument(headers, "rag-1", { action: "APPROVE" }, "missing", deps as never);
-  assert.equal(outcome.status, "FAILED");
+  await assert.rejects(() => transitionRagDocument(headers, "rag-1", { action: "APPROVE" }, "missing", deps as never), { code: "INVALID_RAG_INPUT" });
   assert.equal(row.status, "REVIEWING");
 });
 
@@ -166,8 +158,12 @@ for (const status of ["UPLOADED", "REVIEWING", "APPROVED", "INDEXED"] as const) 
 test("DISABLED is terminal and has no re-enable action", async () => {
   const { deps, row } = setup("DISABLED");
   for (const action of ["DISABLE", "START_REVIEW", "APPROVE"] as const) {
-    const outcome = await transitionRagDocument(headers, "rag-1", { action }, `terminal-${action}`, deps as never);
-    assert.equal(outcome.status, "FAILED");
+    if (action === "DISABLE") {
+      const outcome = await transitionRagDocument(headers, "rag-1", { action }, `terminal-${action}`, deps as never);
+      assert.equal(outcome.status, "FAILED");
+    } else {
+      await assert.rejects(() => transitionRagDocument(headers, "rag-1", { action }, `terminal-${action}`, deps as never), { code: "INVALID_RAG_INPUT" });
+    }
     assert.equal(row.status, "DISABLED");
   }
   const detail = await getRagDocument(headers, "rag-1", deps as never);
@@ -260,7 +256,7 @@ test("ENABLE_PUBLIC_QA and DISABLE_PUBLIC_QA grant and revoke AI access for INDE
   assert.equal(row.publicQaApproved, false);
 
   // Enable public QA
-  const enable = await transitionRagDocument(headers, "rag-1", { action: "ENABLE_PUBLIC_QA" }, "key-qa-enable", deps as never);
+  const enable = await transitionRagDocument(headers, "rag-1", { action: "ENABLE_PUBLIC_QA", confirmedSourceReview: true }, "key-qa-enable", deps as never);
   assert.equal(enable.status, "SUCCESS");
   assert.equal(row.publicQaApproved, true);
   if (enable.status === "SUCCESS") {
@@ -285,7 +281,18 @@ test("ENABLE_PUBLIC_QA is rejected for DISABLED document", async () => {
   assert.equal(row.publicQaApproved, false);
 });
 
-test("bulkSetRagPublicQa enables all indexed or selected documents", async () => {
+test("public grant requires individual source confirmation and a READY indexed generation", async () => {
+  const indexed = setup("INDEXED");
+  const unconfirmed = await transitionRagDocument(headers, "rag-1", { action: "ENABLE_PUBLIC_QA" }, "missing-confirmation", indexed.deps as never);
+  assert.equal(unconfirmed.status, "FAILED");
+  assert.equal(indexed.row.publicQaApproved, false);
+  const uploaded = setup("UPLOADED");
+  const premature = await transitionRagDocument(headers, "rag-1", { action: "ENABLE_PUBLIC_QA", confirmedSourceReview: true }, "premature", uploaded.deps as never);
+  assert.equal(premature.status, "FAILED");
+  assert.equal(uploaded.row.publicQaApproved, false);
+});
+
+test("bulkSetRagPublicQa only revokes; bulk grants require individual source review", async () => {
   const docs = [
     { id: "doc-1", status: "INDEXED", publicQaApproved: false },
     { id: "doc-2", status: "INDEXED", publicQaApproved: false },
@@ -322,21 +329,14 @@ test("bulkSetRagPublicQa enables all indexed or selected documents", async () =>
     storage: { accessible: async () => true },
   };
 
-  // ENABLE_ALL_INDEXED
-  const allResult = await bulkSetRagPublicQa(headers, { action: "ENABLE_ALL_INDEXED" }, deps as never);
-  assert.equal(allResult.updatedCount, 2);
-  assert.deepEqual(allResult.ids, ["doc-1", "doc-2"]);
-  assert.equal(docs[0].publicQaApproved, true);
-  assert.equal(docs[1].publicQaApproved, true);
-  assert.equal(docs[2].publicQaApproved, false);
+  await assert.rejects(() => bulkSetRagPublicQa(headers, { action: "ENABLE_ALL_INDEXED" }, deps as never), { code: "RAG_SOURCE_REVIEW_REQUIRED" });
+  await assert.rejects(() => bulkSetRagPublicQa(headers, { action: "ENABLE_SELECTED", documentIds: ["doc-1"] }, deps as never), { code: "RAG_SOURCE_REVIEW_REQUIRED" });
+  docs[0].publicQaApproved = true;
 
   // DISABLE_SELECTED
   const disableResult = await bulkSetRagPublicQa(headers, { action: "DISABLE_SELECTED", documentIds: ["doc-1"] }, deps as never);
   assert.equal(disableResult.updatedCount, 1);
   assert.equal(docs[0].publicQaApproved, false);
 
-  // ENABLE_SELECTED
-  const enableResult = await bulkSetRagPublicQa(headers, { action: "ENABLE_SELECTED", documentIds: ["doc-1"] }, deps as never);
-  assert.equal(enableResult.updatedCount, 1);
-  assert.equal(docs[0].publicQaApproved, true);
+  assert.equal(docs[0].publicQaApproved, false);
 });

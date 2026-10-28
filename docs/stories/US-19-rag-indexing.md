@@ -1,5 +1,13 @@
 # US-19 — RAG indexing: Task181–Task187
 
+## Amendment 2026-10-27 — manual trigger with existing worker
+
+New uploads have no job until Admin clicks **Lập chỉ mục**. The existing index endpoint admits and runs the leased worker in a bounded HTTP request. Previously created `QUEUED` jobs are resumed using their original job ID. Vercel Queue dispatch/callback is removed. READY/INDEXED publication, idempotency, fencing, UNKNOWN reconciliation and separate public-use approval remain unchanged. See ADR-24; the automatic amendment below is historical.
+
+## Amendment 2026-10-26 — automatic execution for new Admin uploads
+
+New uploads create a queued job atomically during upload finalization. Vercel Queues invokes the existing worker independently of the browser. The worker accepts `UPLOADED` and publishes `INDEXED` only when the generation is READY; existing lease, fencing, extraction-failure and UNKNOWN provider gates stay in place. Legacy REVIEWING/APPROVED documents remain indexable. Request-scoped manual retry/resume remains for recovery; the historical Task185 acceptance below does not establish live queue delivery. See ADR-23.
+
 ## Current status — 2026-10-11
 
 US-19 request-scoped indexing MVP is ACCEPTED by owner Tô Xuân Hoài on

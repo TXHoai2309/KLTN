@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, FileText, UploadCloud, ShieldCheck, AlertTriangle, LoaderCircle } from "lucide-react";
 import { Button } from "@KLTN/ui/components/button";
 import { Input } from "@KLTN/ui/components/input";
@@ -26,18 +27,19 @@ function validateSelection(file: File | null): string | null {
 }
 
 export default function RagUploadForm() {
+  const router = useRouter();
   const [file, setFile] = useState<File | null>(null);
   const [metadata, setMetadata] = useState<Metadata>({ sourceTitle: "", sourceUrl: "", author: "", topic: "", locality: "" });
   const [status, setStatus] = useState<UploadStatus>("idle");
   const [message, setMessage] = useState("");
-  const [result, setResult] = useState<Result | null>(null);
   const pending = useRef<{ body: FinalizeBody; key: string } | null>(null);
 
   const flight = useRef(false);
+  const navigating = useRef(false);
   const generation = useRef(0);
   useEffect(() => () => { generation.current++; }, []);
 
-  const busy = status === "uploading";
+  const busy = status === "uploading" || status === "success";
   const locked = busy || status === "unknown";
   const update = (field: keyof Metadata, value: string) => {
     setMetadata(current => ({ ...current, [field]: value }));
@@ -51,8 +53,10 @@ export default function RagUploadForm() {
     });
     if (generation.current !== requestGeneration) return;
     if (outcome.status === "SUCCESS") {
-      pending.current = null; setResult(outcome.data); setStatus("success");
-      setMessage("Tài liệu đã được tải lên. Trạng thái UPLOADED, chưa tham gia RAG.");
+      navigating.current = true;
+      pending.current = null; setStatus("success");
+      setMessage("Tài liệu đã được tải lên. Đang mở trang chi tiết để lập chỉ mục…");
+      router.replace(`/admin/rag/${encodeURIComponent(outcome.data.id)}` as import("next").Route);
     } else if (outcome.status === "FAILED") {
       pending.current = null; setStatus("failed"); setMessage(outcome.error.message);
     } else {
@@ -62,7 +66,7 @@ export default function RagUploadForm() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (flight.current) return;
+    if (flight.current || navigating.current) return;
     flight.current = true;
     const requestGeneration = generation.current;
     try {
@@ -79,7 +83,7 @@ export default function RagUploadForm() {
       }
       const selected = file!;
       const mimeType = mimeByExtension[selected.name.split(".").pop()!.toLowerCase()];
-      setStatus("uploading"); setMessage("Đang tải tệp lên kho riêng tư…"); setResult(null);
+      setStatus("uploading"); setMessage("Đang tải tệp lên kho riêng tư…");
       try {
         const ticketResponse = await fetch("/api/admin/rag-documents/upload-url", {
           method: "POST", headers: { "Content-Type": "application/json" },
@@ -129,16 +133,15 @@ export default function RagUploadForm() {
       <section className="destination-card" aria-labelledby="rag-file-heading">
         <div className="destination-section-heading"><span className="destination-section-icon"><UploadCloud size={20} aria-hidden="true" /></span><div><h2 id="rag-file-heading">Tài liệu</h2><p>PDF, DOCX hoặc TXT · Tối đa 20 MB mỗi tệp</p></div></div>
         <label htmlFor="rag-file">Chọn tệp <span aria-hidden="true">*</span></label>
-        <Input id="rag-file" type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" disabled={locked} required onChange={event => { setFile(event.target.files?.[0] ?? null); setStatus("idle"); setMessage(""); setResult(null); }} />
+        <Input id="rag-file" type="file" accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" disabled={locked} required onChange={event => { setFile(event.target.files?.[0] ?? null); setStatus("idle"); setMessage(""); }} />
         {file ? <Attachment state={status === "uploading" ? "uploading" : status === "failed" || status === "invalid" ? "error" : status === "success" ? "done" : "idle"} className="rag-file-summary"><AttachmentMedia><FileText aria-hidden="true" /></AttachmentMedia><AttachmentContent><AttachmentTitle>{file.name}</AttachmentTitle><AttachmentDescription>{(file.size / 1024 / 1024).toFixed(2)} MB · {file.name.split(".").pop()?.toUpperCase()}</AttachmentDescription></AttachmentContent></Attachment> : <p className="destination-helper">Chưa chọn tài liệu.</p>}
       </section>
       <section className="destination-card" aria-labelledby="rag-source-heading">
-        <div className="destination-section-heading"><span className="destination-section-icon"><ShieldCheck size={20} aria-hidden="true" /></span><div><h2 id="rag-source-heading">Thông tin nguồn</h2><p>Giúp Quản trị viên nhận biết và kiểm duyệt tài liệu sau này.</p></div></div>
+        <div className="destination-section-heading"><span className="destination-section-icon"><ShieldCheck size={20} aria-hidden="true" /></span><div><h2 id="rag-source-heading">Thông tin nguồn</h2><p>Dùng để đối soát trước khi cấp quyền AI công khai.</p></div></div>
         <div className="destination-grid">{fields.map(({ key, label, placeholder, maxLength }) => <div className="destination-field" key={key}><label htmlFor={`rag-${key}`}>{label}{key === "sourceTitle" && <span aria-hidden="true"> *</span>}</label><Input id={`rag-${key}`} type={key === "sourceUrl" ? "url" : "text"} value={metadata[key]} onChange={event => update(key, event.target.value)} placeholder={placeholder} maxLength={maxLength} required={key === "sourceTitle"} disabled={locked} /></div>)}</div>
       </section>
       {message && <div className={`rag-upload-message is-${status}`} role={status === "invalid" || status === "failed" ? "alert" : "status"} aria-live="polite">{status === "uploading" ? <LoaderCircle className="destination-spinner" size={18} aria-hidden="true" /> : status === "success" ? <ShieldCheck size={18} aria-hidden="true" /> : <AlertTriangle size={18} aria-hidden="true" />}<span>{message}</span></div>}
-      {result && <p className="rag-upload-result"><Link href={`/admin/rag/${result.id}` as import("next").Route}>Mở chi tiết và kiểm duyệt tài liệu</Link></p>}
-      <div className="destination-form-actions"><p>Tài liệu mới bắt đầu ở UPLOADED và chưa được dùng cho câu trả lời RAG.</p><div className="destination-action-buttons"><Button type="submit" className="destination-primary" size="lg" disabled={busy} aria-busy={busy}>{busy ? "Đang tải…" : status === "unknown" ? "Thử xác nhận lại" : "Tải tài liệu"}</Button></div></div>
+      <div className="destination-form-actions"><p>Sau khi tải lên, Admin bấm Lập chỉ mục mới gửi nội dung tới OpenAI. Quyền AI công khai được cấp riêng sau khi kiểm tra nguồn.</p><div className="destination-action-buttons"><Button type="submit" className="destination-primary" size="lg" disabled={busy} aria-busy={busy}>{status === "success" ? "Đang mở…" : busy ? "Đang tải…" : status === "unknown" ? "Thử xác nhận lại" : "Tải tài liệu"}</Button></div></div>
     </form>
   </div></main>;
 }

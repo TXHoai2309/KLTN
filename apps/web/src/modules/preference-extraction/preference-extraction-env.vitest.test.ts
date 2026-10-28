@@ -2,9 +2,11 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { internal } from "varlock";
-import { expect, it, vi } from "vitest";
+import { afterAll, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+vi.mock("../runtime-config/runtime-config-service", () => ({ effectiveConfig: async () => ({ apiKey: process.env.OPENAI_API_KEY, preferenceModel: process.env.OPENAI_PREFERENCE_MODEL }) }));
+afterAll(() => { vi.doUnmock("../runtime-config/runtime-config-service"); vi.resetModules(); });
 
 import { createOpenAiStructuredClient } from "./openai-structured-client";
 import { modelOutputJsonSchema } from "./preference-extraction-contract";

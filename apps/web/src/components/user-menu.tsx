@@ -16,7 +16,7 @@ import {
 import { Skeleton } from "@KLTN/ui/components/skeleton";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { BookOpen, ChevronDown, FileText, Heart, LogOut, MapPin, User, Users } from "lucide-react";
+import { BookOpen, ChevronDown, FileText, Heart, LogOut, MapPin, Settings, User, Users } from "lucide-react";
 
 import { authClient } from "@/lib/auth-client";
 import { claimSubmission, releaseSubmission } from "@/lib/auth-submission-guard";
@@ -164,6 +164,10 @@ export default function UserMenu() {
               <DropdownMenuItem className="cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium" render={<Link href={"/admin/users" as import("next").Route} />}>
                 <Users className="size-3.5 text-muted-foreground mr-2" />
                 <span>Quản lý người dùng</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium" render={<Link href={"/admin/settings" as import("next").Route} />}>
+                <Settings className="size-3.5 text-muted-foreground mr-2" />
+                <span>Cấu hình hệ thống</span>
               </DropdownMenuItem>
             </>
           )}

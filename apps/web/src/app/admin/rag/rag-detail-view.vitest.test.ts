@@ -30,12 +30,12 @@ const mockUploadedDoc = {
   publicQaEligible: false,
   ineligibilityReason: "STATUS_NOT_INDEXED" as const,
   deletedAt: null,
-  allowedActions: ["START_REVIEW", "DISABLE"] as any[],
+  allowedActions: ["DISABLE"] as any[],
   createdAt: "2026-10-20T10:00:00.000Z",
   updatedAt: "2026-10-20T10:00:00.000Z",
 };
 
-it("renders sections in correct lifecycle order: File -> Source -> Status Management -> Indexing -> Public QA", () => {
+it("renders status management and its disable action after indexing and public QA", () => {
   const html = renderToStaticMarkup(
     React.createElement(RagDetailView, { id: "rag-test-1", initialDocument: mockUploadedDoc }),
   );
@@ -48,27 +48,48 @@ it("renders sections in correct lifecycle order: File -> Source -> Status Manage
 
   expect(fileIdx).toBeGreaterThan(-1);
   expect(sourceIdx).toBeGreaterThan(fileIdx);
-  expect(statusIdx).toBeGreaterThan(sourceIdx);
-  expect(indexIdx).toBeGreaterThan(statusIdx);
+  expect(indexIdx).toBeGreaterThan(sourceIdx);
   expect(publicQaIdx).toBeGreaterThan(indexIdx);
+  expect(statusIdx).toBeGreaterThan(publicQaIdx);
+  expect(html.indexOf("Vô hiệu hóa")).toBeGreaterThan(publicQaIdx);
 });
 
-it("renders review popup modal with document details, download button, and approve action", () => {
+it("shows the original source and automatic indexing without manual review actions", () => {
   const html = renderToStaticMarkup(
     React.createElement(RagDetailView, { id: "rag-test-1", initialDocument: mockUploadedDoc }),
   );
 
-  // Status management card has start review button
-  expect(html).toContain("Bắt đầu kiểm duyệt");
-
-  // Review modal dialog is present in markup
-  expect(html).toContain("rag-review-dialog");
-  expect(html).toContain("Kiểm duyệt tài liệu RAG");
+  expect(html).toContain("Chờ lập chỉ mục");
+  expect(html).toContain("Lập chỉ mục AI");
   expect(html).toContain("bao-cao-ha-giang.pdf");
   expect(html).toContain("Báo cáo văn hóa Hà Giang");
   expect(html).toContain("Sở VHTT");
-  expect(html).toContain("Tải tệp gốc để xem và đối soát nội dung");
+  expect(html).toContain("Tải tài liệu gốc để xem");
   expect(html).toContain('/api/admin/rag-documents/rag-test-1/file');
-  expect(html).toContain("Phê duyệt tài liệu");
-  expect(html).toContain("Hủy / Để duyệt sau");
+  expect(html).not.toContain("Bắt đầu kiểm duyệt");
+  expect(html).not.toContain("Phê duyệt tài liệu");
+  expect(html).not.toContain("Cho phép AI sử dụng công khai");
+});
+
+it("shows public AI status, source confirmation, then the grant action", () => {
+  const html = renderToStaticMarkup(React.createElement(RagDetailView, {
+    id: "rag-test-1",
+    initialDocument: {
+      ...mockUploadedDoc,
+      status: "INDEXED",
+      ineligibilityReason: "NOT_PUBLIC_APPROVED",
+      allowedActions: ["DISABLE", "ENABLE_PUBLIC_QA"],
+    },
+  }));
+
+  const statusIdx = html.indexOf("Sẵn sàng cấp quyền");
+  const conditionIdx = html.indexOf("Điều kiện kỹ thuật:");
+  const confirmIdx = html.indexOf("Tôi đã mở và đối soát tệp gốc");
+  const buttonIdx = html.indexOf("Cho phép AI sử dụng công khai");
+  expect(statusIdx).toBeGreaterThan(-1);
+  expect(conditionIdx).toBeGreaterThan(statusIdx);
+  expect(confirmIdx).toBeGreaterThan(conditionIdx);
+  expect(buttonIdx).toBeGreaterThan(confirmIdx);
+  expect(html).toContain('class="rag-public-qa-confirm"');
+  expect(html).toContain('class="rag-public-qa-submit"');
 });

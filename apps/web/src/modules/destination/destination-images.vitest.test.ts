@@ -1,8 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createHash } from "node:crypto";
 import sharp from "sharp";
 import {v2 as cloudinary} from "cloudinary";
 vi.mock("server-only", () => ({}));
+vi.mock("../runtime-config/runtime-config-service", () => ({ effectiveConfig: async () => ({ cloudName: process.env.CLOUDINARY_CLOUD_NAME, apiKey: process.env.CLOUDINARY_API_KEY, apiSecret: process.env.CLOUDINARY_API_SECRET }) }));
+afterAll(() => { vi.doUnmock("../runtime-config/runtime-config-service"); vi.resetModules(); });
 const httpAuth = vi.hoisted(() => ({ role: null as string | null }));
 vi.mock("./destination-server", () => ({ destinationDependencies: {
   resolveSession: async () => httpAuth.role ? { user: { id: "test-admin" } } : null,

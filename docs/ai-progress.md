@@ -4206,3 +4206,46 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
 - Link follow-up: a user screenshot showed the external coordinate search opening a Google Maps coordinate panel. A focused test reproduced the exact coordinate-only URL, then passed after the link switched to a verified public profile place URL when present or a name/context search otherwise. The iframe remains coordinate anchored. A Google Maps name search was browser checked for Cao nguyên đá Đồng Văn and returned multiple results. A full verified Google place link with an explicit point is needed for a direct card in the current Admin V3 flow; Place ID-only URLs are rejected by its coordinate resolver.
 - Detail map cleanup: removed the unused `detail` flag from the shared MapLibre component/renderer and its no-link popup branch. The Detail and Editorial MAP paths import only the iframe component; Explore retains its popup-to-Detail link. Focused iframe/Editorial tests 8/8, shared map/picker tests 27/27, typecheck and diff check PASS. No schema or other map consumer change.
 
+## 2026-10-26 — Admin RAG upload to automatic private indexing
+
+- Owner authorized removal of the two manual pre-index actions for new Admin uploads. Upload finalization now creates a `QUEUED` index job in the same confirmed DB transaction. After commit, Vercel Queues receives only the job ID; uncertain publication returns UNKNOWN and the same-key retry republishes the committed job. The queue callback invokes the existing leased worker with a bounded execution time. `UPLOADED` can proceed directly to atomic READY/INDEXED publication without synthetic APPROVED. Historical REVIEWING/APPROVED rows can still be indexed; START_REVIEW/APPROVE actions are rejected for new requests.
+- Admin UI shows automatic progress and explicit failure recovery. Public Q&A remains off by default; Admin must open the original/source, confirm review and enable each indexed document. Server requires INDEXED plus a compatible READY generation and blocks bulk grants. No schema migration, public retrieval expansion or real provider call in local tests.
+- Focused RAG document and indexing tests, TypeScript and `git diff --check` pass. The full Vitest run before final cleanup had 19 failing files (19 tests, 2,842 passed), including cross-suite failures in the existing RAG route test; focused RAG route/storage/Detail/queue tests pass independently. Default production build stalled during optimized bundling and was stopped. A webpack build failed with blocked Google Fonts DNS and an EPERM while creating an unrelated `.next` destination path. Live Vercel Queue, Blob and OpenAI acceptance remains untested; deploy/build validation is open. No commit or push.
+
+## 2026-10-27 — Admin-triggered RAG indexing replaces Vercel Queue
+
+- Owner chose upload-only finalization and explicit Admin indexing through the existing request-scoped worker. Upload now persists `UPLOADED` without a job or provider call; Admin click admits/runs the job. Existing queued jobs remain resumable on their original IDs. Public-Q&A review/approval and index safety gates are retained.
+- Removed Queue dispatch, callback, trigger, dependency and callback trace configuration; updated upload/index UI and ADR-24, product flow and active RAG story amendments. No DB schema change, live provider call, commit or push.
+- Validation: `npm run test:rag` 65/65 pass; focused Vitest worker/index/UI suite 53 pass, 3 skipped; focused RAG route suite 11/11 pass; `next typegen` and `npm run check-types` pass; `git diff --check` passes. Production `npm run build` remained at Turbopack's optimized-build step without diagnostics for about two minutes and was stopped; no build pass or live Blob/OpenAI acceptance is claimed.
+
+## 2026-10-27 — RAG upload success navigation
+
+- After a confirmed `SUCCESS` upload finalization (including a same-key replay), the Admin form now navigates directly to the created document detail to start indexing. `UNKNOWN`/failure stay on the form; a navigation guard prevents another submit while the confirmed transition is in progress. The intermediary detail link was removed. No indexing request is triggered automatically.
+- Validation: web `npm run check-types` and `git diff --check` pass. No live upload was performed, so browser navigation after a real Blob/DB write remains unverified.
+
+## 2026-10-27 — RAG disable control placement
+
+- Moved the existing document status/disable card to the bottom of Admin RAG detail, after indexing progress and public-Q&A controls. Confirmation, mutation and eligibility rules are unchanged. The focused detail render test verifies the new section order.
+
+## 2026-10-27 — Public AI source permission panel clarity
+
+- Simplified the Admin RAG public-use panel: one primary status explanation for active, ready or blocked states; a separate technical requirement; and a full-width source-review checkbox above the grant/revoke action. Removed the repeated permission/requirement grid. Server gates, confirmation and idempotent mutation behavior are unchanged.
+- Focused detail render tests 3/3 and web typecheck pass. Design lint reports no failures; its existing page-wide style warnings remain. Localhost browser inspection could not run because port 3010 was occupied but did not answer HTTP requests.
+
+## 2026-10-27 — Admin configuration CMS
+
+- Added an Admin-only **Cấu hình hệ thống** page and API for OpenAI, Cloudinary and Stadia credentials plus the approved model/timeout fields. Overrides are encrypted, scoped to Local/Preview/Production, audited without values, and written with the shared idempotency contract. Database, auth, Blob, QA safety gates and embedding provenance remain environment-managed or read-only. Provider consumers now resolve effective configuration on each operation.
+- Added the additive Prisma migration `20261027160000_admin_runtime_config`, vault key declarations and deployment guidance. No real key was written to source. The migration was initially pending and caused `/api/admin/settings` to return HTTP 500. On 2026-10-27 it was applied to Neon development after a migration-status check confirmed it was the only pending local migration; read-only SQL then confirmed both CMS tables exist. Three unrelated migrations exist in the development database but are absent from this checkout, so migration history remains divergent. Production was not migrated. Each environment still needs its own `RUNTIME_CONFIG_ENCRYPTION_KEY` before CMS writes work.
+- Final focused Vitest run: 8 files, 181 passed, 3 skipped; TypeScript, Prisma validate/generate, Next typegen and `git diff --check` passed. The full default Vitest suite did **not** pass (last complete run: 55 failed, 2,776 passed, 87 skipped, 1 todo; several failures occur only with the existing shared-isolation test order). No live provider call, browser acceptance, migration deployment, commit or push was performed.
+
+## 2026-10-28 — Preference model choices in Admin configuration
+
+- At the owner's direction, QA and Editorial models stay fixed. The preference-extraction selector now reads only model IDs visible to the active OpenAI key from `/v1/models`, intersected with a reviewed list of four Chat Completions/strict-JSON compatible models. The server adapts reasoning/temperature parameters for the selected model; the selected ID persists through the existing encrypted scoped `runtime_config` write. No embedding or QA model change.
+- A read-only live `/v1/models` query returned HTTP 200 and all four approved model IDs for the current local key. It did not invoke generation or validate the exact preference prompt. Local vault key is still missing, so Admin writes and browser acceptance remain pending. Focused Vitest: 5 files, 38/38 passed; web typecheck and `git diff --check` passed. No commit or push.
+
+## 2026-10-28 — Editorial and QA model selectors
+
+- Owner extended CMS model selection to Editorial and QA. Both now accept the same four account-visible, application-supported Chat Completions/strict-JSON model IDs as preference extraction. Each field remains independent in the encrypted OpenAI override. Editorial configuration gates and safe diagnostics use the selected model; QA maps selected models to supported reasoning parameters. Original defaults, grounding, Editorial validation and embedding provenance remain unchanged.
+- Focused Vitest: 7 files, 138/138 pass; web typecheck and `git diff --check` pass. A fresh local vault key was placed in ignored `apps/web/.env` and verified as configured without printing its value; the local dev server must restart to load it. Preview and Production need their own keys. No live Editorial/QA generation or browser save was performed. No commit or push.
+- CMS save feedback now names only successfully committed model selections (for example, the selected Editorial model) and uses generic wording for credential updates. `UNKNOWN` and failed writes do not show success. Web typecheck and `git diff --check` pass.
+

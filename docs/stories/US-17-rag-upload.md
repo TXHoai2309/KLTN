@@ -1,5 +1,15 @@
 # US-17 — Tải tài liệu RAG (Task 1)
 
+## Amendment 2026-10-27 — Admin starts indexing
+
+Upload finalization now stores only the verified private file and `UPLOADED` document. It creates no index job and makes no Queue or OpenAI call. Admin starts indexing from the document detail; same-key upload replay still returns the committed document. This supersedes the automatic-index amendment below; see ADR-24.
+
+On a confirmed upload response, the Admin upload page navigates directly to that document's detail page. `UNKNOWN` retains the identical request and idempotency key for reconciliation; no navigation occurs before confirmation.
+
+## Amendment 2026-10-26 — automatic index intent
+
+After server confirmation of an Admin's private upload, document `UPLOADED` and one `RagIndexJob` are created in the same transaction. The request sends the job ID to a durable queue after commit; an uncertain send returns `UNKNOWN`, recoverable with the identical payload/key. Upload success means queued, not indexed or public. See ADR-23. Historical acceptance below remains evidence for the original upload flow.
+
 ## Status
 
 IMPLEMENTED — local automated checks pass; live private Blob and Admin browser acceptance NOT PROVEN.

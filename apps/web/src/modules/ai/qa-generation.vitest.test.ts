@@ -127,8 +127,8 @@ describe("Task193 grounded generation", () => {
     const userPayload = JSON.parse(body.messages[1].content);
     expect(body.store).toBe(false);
     expect(body).not.toHaveProperty("temperature");
-    expect(body.model).toBe("gpt-6-luna");
-    expect(body.reasoning_effort).toBe("high");
+    expect(body.model).toBe("gpt-6.1-sol");
+    expect(body.reasoning_effort).toBe("medium");
     expect(body.max_completion_tokens).toBe(QA_GENERATION_LIMITS.maxCompletionTokens);
     expect(body.response_format.json_schema.strict).toBe(true);
     expect(request[1].redirect).toBe("error");

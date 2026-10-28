@@ -39,6 +39,7 @@ test("UPLOADED is not retrieval eligible", () => {
 function setup(role: "ADMIN" | "TRAVELER" | null = "ADMIN", item: typeof cases[number] = cases[0]) {
   const path = `rag/admin-1/123e4567-e89b-42d3-a456-426614174000.${item.type.toLowerCase()}`;
   const records: unknown[] = [];
+  const jobs: unknown[] = [];
   const idempotency = new Map<string, { requestHash: string; responseJson: string }>();
   let storageFails = false;
   let dbFails = false;
@@ -51,6 +52,7 @@ function setup(role: "ADMIN" | "TRAVELER" | null = "ADMIN", item: typeof cases[n
       records.push(row);
       return row;
     } },
+    ragIndexJob: { create: async ({ data }: { data: Record<string, unknown> }) => { const row = { id: `job-${jobs.length + 1}`, ...data }; jobs.push(row); return row; } },
     idempotencyRecord: {
       create: async ({ data }: { data: { scope: string; key: string; requestHash: string; responseJson: string } }) => { idempotency.set(`${data.scope}:${data.key}`, { requestHash: data.requestHash, responseJson: data.responseJson }); },
       update: async ({ where, data }: { where: { scope_key: { scope: string; key: string } }; data: { responseJson: string } }) => {
@@ -65,11 +67,14 @@ function setup(role: "ADMIN" | "TRAVELER" | null = "ADMIN", item: typeof cases[n
     database: {
       user: tx.user,
       ragDocument: tx.ragDocument,
+      ragIndexJob: tx.ragIndexJob,
       idempotencyRecord: { findUnique: async ({ where }: { where: { scope_key: { scope: string; key: string } } }) => idempotency.get(`${where.scope_key.scope}:${where.scope_key.key}`) ?? null },
       $transaction: async (fn: (value: typeof tx) => Promise<unknown>) => {
         const before = new Map(idempotency);
+        const documentsBefore = records.length;
+        const jobsBefore = jobs.length;
         try { return await fn(tx); }
-        catch (error) { idempotency.clear(); for (const [key, value] of before) idempotency.set(key, value); throw error; }
+        catch (error) { records.length = documentsBefore; jobs.length = jobsBefore; idempotency.clear(); for (const [key, value] of before) idempotency.set(key, value); throw error; }
       },
     },
     storage: {
@@ -78,19 +83,22 @@ function setup(role: "ADMIN" | "TRAVELER" | null = "ADMIN", item: typeof cases[n
     },
   };
   const input = { pathname: path, originalFileName: item.file, mimeType: item.mime, sizeBytes: item.bytes.length, sourceTitle: "Tài liệu địa phương" };
-  return { deps, input, records, failStorage: () => { storageFails = true; }, failDb: () => { dbFails = true; }, restoreDb: () => { dbFails = false; } };
+  return { deps, input, records, jobs, failStorage: () => { storageFails = true; }, failDb: () => { dbFails = true; }, restoreDb: () => { dbFails = false; } };
 }
 
 test("Admin finalizes a private blob once with UPLOADED status", async () => {
-  const { deps, input, records } = setup();
+  const { deps, input, records, jobs } = setup();
   const first = await finalizeRagUpload(new Headers(), input, "key-1", deps as never);
   assert.equal(first.status, "SUCCESS");
   assert.equal(records.length, 1);
+  assert.equal(jobs.length, 0);
   assert.equal((records[0] as { status: string }).status, "UPLOADED");
   const replay = await finalizeRagUpload(new Headers(), input, "key-1", deps as never);
   assert.equal(replay.status, "SUCCESS");
   assert.equal(records.length, 1);
+  assert.equal(jobs.length, 0);
 });
+
 
 for (const item of cases) test(`${item.type} finalizes as UPLOADED`, async () => {
   const { deps, input, records } = setup("ADMIN", item);

@@ -1,0 +1,26 @@
+model RuntimeConfig {
+  scope       String   @db.VarChar(20)
+  service     String   @db.VarChar(30)
+  payload     String   @db.Text
+  version     Int
+  updatedById String
+  updatedBy   User     @relation("RuntimeConfigEditor", fields: [updatedById], references: [id], onDelete: Restrict)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+
+  @@id([scope, service])
+  @@map("runtime_config")
+}
+
+model RuntimeConfigAudit {
+  id          String   @id @default(cuid())
+  scope       String   @db.VarChar(20)
+  service     String   @db.VarChar(30)
+  version     Int
+  changedKeys String   @db.VarChar(500)
+  actorId     String
+  actor       User     @relation("RuntimeConfigActor", fields: [actorId], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([scope, createdAt(sort: Desc)])
+  @@map("runtime_config_audit")
+}

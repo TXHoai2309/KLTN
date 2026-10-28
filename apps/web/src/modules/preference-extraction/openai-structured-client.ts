@@ -12,6 +12,7 @@ import type {
   StructuredLlmClient,
   StructuredLlmCompletionInput,
 } from "./preference-extraction-client";
+import { preferenceRequestParameters } from "../runtime-config/openai-model-catalog";
 
 export const PREFERENCE_OPENAI_LIMITS = {
   requestTimeoutMs: 15_000,
@@ -22,8 +23,8 @@ export const PREFERENCE_OPENAI_LIMITS = {
 } as const;
 
 export type OpenAiStructuredClientOptions = {
-  apiKey?: () => string | undefined;
-  model?: () => string | undefined;
+  apiKey?: () => string | undefined | Promise<string | undefined>;
+  model?: () => string | undefined | Promise<string | undefined>;
   fetcher?: typeof fetch;
   timeoutMs?: number;
   maxOutputTokens?: number;
@@ -136,8 +137,8 @@ function validateNumberOption(value: number, minimum: number, maximum: number): 
 export function createOpenAiStructuredClient(
   options: OpenAiStructuredClientOptions = {},
 ): StructuredLlmClient {
-  const getKey = options.apiKey ?? (() => process.env.OPENAI_API_KEY);
-  const getModel = options.model ?? (() => process.env.OPENAI_PREFERENCE_MODEL);
+  const getKey = options.apiKey;
+  const getModel = options.model;
   const fetcher = options.fetcher ?? fetch;
   const timeoutMs = options.timeoutMs ?? PREFERENCE_OPENAI_LIMITS.requestTimeoutMs;
   const maxOutputTokens = options.maxOutputTokens ?? PREFERENCE_OPENAI_LIMITS.maxOutputTokens;
@@ -159,18 +160,24 @@ export function createOpenAiStructuredClient(
     async complete(input: StructuredLlmCompletionInput) {
       let key: string | undefined;
       let model: string | undefined;
+      let active: Record<string, string | number | undefined> | undefined;
+      if (!getKey || !getModel) {
+        try { active = await import("../runtime-config/runtime-config-service").then(module => module.effectiveConfig("OPENAI")); }
+        catch { throw new PreferenceExtractionError("CREDENTIALS_UNAVAILABLE", false); }
+      }
       try {
-        key = getKey();
+        key = getKey ? await getKey() : active?.apiKey?.toString();
       } catch {
         throw new PreferenceExtractionError("CREDENTIALS_UNAVAILABLE", false);
       }
       try {
-        model = getModel();
+        model = getModel ? await getModel() : active?.preferenceModel?.toString();
       } catch {
         throw new PreferenceExtractionError("MODEL_UNAVAILABLE", false);
       }
       if (!key?.trim()) throw new PreferenceExtractionError("CREDENTIALS_UNAVAILABLE", false);
       if (!model?.trim()) throw new PreferenceExtractionError("MODEL_UNAVAILABLE", false);
+      const modelParameters = preferenceRequestParameters(model, maxOutputTokens);
 
       try {
         assertStrictModelJsonSchema(input.jsonSchema);
@@ -203,9 +210,7 @@ export function createOpenAiStructuredClient(
               signal: controller.signal,
               body: JSON.stringify({
                 model,
-                // GPT-6 Luna defaults to reasoning, where temperature is unsupported.
-                // Use its documented non-reasoning mode for bounded extraction.
-                ...(/^gpt-6-luna(?:-|$)/u.test(model) ? { reasoning_effort: "none" } : {}),
+                ...modelParameters,
                 messages: [
                   { role: "system", content: input.system },
                   { role: "user", content: input.user },
@@ -218,8 +223,6 @@ export function createOpenAiStructuredClient(
                     schema: input.jsonSchema,
                   },
                 },
-                temperature: 0,
-                max_completion_tokens: maxOutputTokens,
                 store: false,
               }),
             });

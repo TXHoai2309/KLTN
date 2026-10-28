@@ -71,7 +71,7 @@ describe("Private Blob upload/finalize response contract", () => {
     await expect(ragStorage.read("oversize")).rejects.toMatchObject({ code: "RAG_FILE_SIZE" });
     expect(cancel).toHaveBeenCalledTimes(1);
   });
-  it("upload ticket -> synthetic PUT -> finalize UPLOADED -> review and index read the same private pathname", async () => {
+  it("upload ticket -> synthetic PUT -> finalize UPLOADED with index job -> original and worker read the same private pathname", async () => {
     const { ragStorage } = await import("../rag-document/rag-storage");
     const { createRagUploadUrl, finalizeRagUpload, getRagOriginal } = await import("../rag-document/rag-service");
     const stored = new Map<string, Uint8Array<ArrayBuffer>>();
@@ -84,6 +84,7 @@ describe("Private Blob upload/finalize response contract", () => {
         findUnique: async ({ where }: { where: { id?: string; storagePath?: string } }) => documents.find(x => where.id ? x.id === where.id : x.storagePath === where.storagePath) ?? null,
         create: async ({ data }: { data: Record<string, unknown> }) => { const row = { id: "synthetic-document", ...data }; documents.push(row); return row; },
       },
+      ragIndexJob: { create: async ({ data }: { data: Record<string, unknown> }) => ({ id: "synthetic-job", ...data }) },
       idempotencyRecord: {
         findUnique: async ({ where }: { where: { scope_key: { scope: string; key: string } } }) => records.get(recordKey(where.scope_key)) ?? null,
         create: async ({ data }: { data: { scope: string; key: string } }) => { records.set(recordKey(data), { ...data }); },

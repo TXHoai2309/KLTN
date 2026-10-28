@@ -1,5 +1,13 @@
 # US-21 — Hỏi đáp RAG có nguồn và hội thoại nhiều lượt
 
+## Amendment 2026-10-27 — indexing trigger
+
+Private indexing starts only when Admin clicks **Lập chỉ mục**. This does not change retrieval eligibility: active INDEXED, compatible READY generation and individual Admin public approval remain required. See ADR-24.
+
+## Amendment 2026-10-26 — public source gate
+
+Automatic private indexing does not grant public Q&A access. Retrieval still requires an active `INDEXED` document, compatible READY generation and explicit Admin `publicQaApproved=true` after source review. Revocation excludes subsequent retrieval. See ADR-23.
+
 ## Status
 
 US-22 extends the active context union to ID-only DESTINATION; see
