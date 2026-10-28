@@ -4,6 +4,7 @@ import { requireTraveler } from "@/server/auth/require-traveler";
 import type { AuthorizationDependencies } from "@/server/authorization/guard";
 import { AppError } from "@/server/http/app-error";
 import { effectiveTripStatus, type TripStatus } from "./trip-status";
+import type { TravelLeg } from "../trip-planner/planner-contract";
 
 export type TripReadDependencies = AuthorizationDependencies & { database: Database };
 
@@ -29,7 +30,19 @@ export type TripDetail = TripSummary & {
       order: number;
       startMinute: number;
       plannedDurationMinutes: number;
-      destination: { id: string; name: string; area: string; visibility: "VISIBLE" | "HIDDEN"; availability: "AVAILABLE" | "UNAVAILABLE" };
+      destination: {
+        id: string;
+        name: string;
+        area: string;
+        category?: string;
+        latitude?: number;
+        longitude?: number;
+        address?: string | null;
+        description?: string;
+        visibility: "VISIBLE" | "HIDDEN";
+        availability: "AVAILABLE" | "UNAVAILABLE";
+      };
+      inbound?: TravelLeg | null;
     }[];
   }[];
 };
@@ -51,7 +64,20 @@ const detailSelect = (userId: string) => ({
         orderBy: [{ order: "asc" as const }, { id: "asc" as const }],
         select: {
           id: true, order: true, startMinute: true, plannedDurationMinutes: true,
-          destination: { select: { id: true, name: true, area: true, visibility: true, deletedAt: true } },
+          destination: {
+            select: {
+              id: true,
+              name: true,
+              area: true,
+              category: true,
+              latitude: true,
+              longitude: true,
+              address: true,
+              description: true,
+              visibility: true,
+              deletedAt: true,
+            },
+          },
         },
       },
     },
@@ -107,6 +133,11 @@ export async function getMyTrip(headers: Headers, id: string, deps: TripReadDepe
           id: visit.destination.id,
           name: visit.destination.name,
           area: visit.destination.area,
+          category: (visit.destination as { category?: string }).category,
+          latitude: (visit.destination as { latitude?: number }).latitude,
+          longitude: (visit.destination as { longitude?: number }).longitude,
+          address: (visit.destination as { address?: string | null }).address ?? null,
+          description: (visit.destination as { description?: string }).description,
           visibility: visit.destination.visibility,
           availability: visit.destination.visibility === "VISIBLE" && !visit.destination.deletedAt ? "AVAILABLE" : "UNAVAILABLE",
         },

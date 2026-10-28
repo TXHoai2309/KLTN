@@ -1,0 +1,84 @@
+{
+  "measuredAt": "2026-10-26T07:28:18.112Z",
+  "conditions": "Local production build, anonymous HTTP GETs, three sequential samples per route; no browser CPU/network throttling. Gzip bytes computed per emitted script; not observed network traffic or LCP/INP. Fonts count only HTML preloads. First sample retains connection warm-up.",
+  "observations": [
+    {
+      "route": "/",
+      "samples": [
+        {
+          "headersMs": 1056.4129,
+          "heroMs": 1074.5442,
+          "completeMs": 1728.366
+        },
+        {
+          "headersMs": 44.118799999999965,
+          "heroMs": 45.39740000000006,
+          "completeMs": 202.71479999999997
+        },
+        {
+          "headersMs": 32.42710000000011,
+          "heroMs": 33.580200000000104,
+          "completeMs": 165.5958999999998
+        }
+      ],
+      "scriptCount": 17,
+      "scriptBytes": 994229,
+      "scriptGzipBytes": 319030,
+      "assistantPanelInInitialScripts": false,
+      "fontPreloadCount": 0,
+      "fontPreloadBytes": 0
+    },
+    {
+      "route": "/explore",
+      "samples": [
+        {
+          "headersMs": 36.83289999999988,
+          "heroMs": null,
+          "completeMs": 238.1235999999999
+        },
+        {
+          "headersMs": 23.175000000000182,
+          "heroMs": null,
+          "completeMs": 172.10390000000007
+        },
+        {
+          "headersMs": 34.09680000000026,
+          "heroMs": null,
+          "completeMs": 154.38410000000022
+        }
+      ],
+      "scriptCount": 19,
+      "scriptBytes": 1398905,
+      "scriptGzipBytes": 413504,
+      "assistantPanelInInitialScripts": false,
+      "fontPreloadCount": 0,
+      "fontPreloadBytes": 0
+    },
+    {
+      "route": "/login",
+      "samples": [
+        {
+          "headersMs": 66.38429999999971,
+          "heroMs": null,
+          "completeMs": 67.46119999999974
+        },
+        {
+          "headersMs": 23.706700000000183,
+          "heroMs": null,
+          "completeMs": 26.222000000000207
+        },
+        {
+          "headersMs": 24.67360000000008,
+          "heroMs": null,
+          "completeMs": 28.39449999999988
+        }
+      ],
+      "scriptCount": 19,
+      "scriptBytes": 1421322,
+      "scriptGzipBytes": 415254,
+      "assistantPanelInInitialScripts": false,
+      "fontPreloadCount": 0,
+      "fontPreloadBytes": 0
+    }
+  ]
+}

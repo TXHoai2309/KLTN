@@ -69,6 +69,8 @@ The `TXH` → `dev` → `master` branch roles are described in [development work
 
 ## Deployment
 
+Planning-history migration follow-up (2026-10-27): the scoped `scripts/assistant-planning-migration.mjs` verifies the Development endpoint and uses its direct hostname for Prisma's session advisory lock, leaving the application pool/environment files unchanged. `20261027180000_planning_dialogue_history` was applied to Development only. Do not bypass migration locking or use db:push. See the follow-up report for the guarded idle-lock recovery and final pending-migration check.
+
 `vercel.json` defines the `apps/web` Next.js service, workspace install command, Prisma client generation, and web build. It does not define a separate NestJS service. Configure Preview and Production variables directly in Vercel; do not copy credentials into Git. `/api/health` is the lightweight deployment smoke endpoint.
 
 ## Database migration workflow

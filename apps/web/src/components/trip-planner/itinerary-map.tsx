@@ -17,12 +17,14 @@ export function ItineraryMap({
   selectedDestinationId,
   focusSelection,
   onSelect,
+  overviewOnly = false,
 }: {
   day: PlannerDay;
   days: PlannerDay[];
   selectedDestinationId: string | null;
   focusSelection: boolean;
   onSelect: (id: string) => void;
+  overviewOnly?: boolean;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const renderer = useRef<ReturnType<typeof mountItineraryMap> | null>(null);
@@ -32,7 +34,8 @@ export function ItineraryMap({
   callback.current = onSelect;
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
-  const [overview, setOverview] = useState(false);
+  const [showOverview, setOverview] = useState(false);
+  const overview = overviewOnly || showOverview;
   const activeDay = overview ? null : day.day;
   const view = useMemo(() => buildItineraryMapView(days, activeDay), [days, activeDay]);
   const { resolvedTheme } = useTheme();
@@ -81,10 +84,10 @@ export function ItineraryMap({
   return (
     <section className="planner-map-workspace" aria-label="Bản đồ hành trình">
       <div className="planner-map-toolbar">
-        <div className="planner-map-scope" role="group" aria-label="Phạm vi bản đồ">
+        {!overviewOnly && <div className="planner-map-scope" role="group" aria-label="Phạm vi bản đồ">
           <button type="button" aria-pressed={!overview} onClick={() => setOverview(false)}>Ngày {day.day}</button>
           <button type="button" aria-pressed={overview} onClick={() => setOverview(true)}>Toàn hành trình</button>
-        </div>
+        </div>}
         <button className="planner-map-fit" type="button" disabled={state !== "ready"} onClick={() => renderer.current?.fit()}>
           <Expand size={15} aria-hidden="true" /><span>Vừa bản đồ</span>
         </button>
@@ -116,7 +119,7 @@ export function ItineraryMap({
           </strong>
           <p>
             {state === "error"
-              ? "Bạn vẫn có thể xem danh sách điểm dừng trong lịch trình bên cạnh."
+              ? "Bạn vẫn có thể xem danh sách điểm dừng trong lịch trình."
               : "Các điểm dừng lấy từ dữ liệu điểm đến hiện hành."}
           </p>
           {state === "error" && (

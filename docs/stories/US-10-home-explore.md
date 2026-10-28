@@ -54,6 +54,75 @@ Schema changed: NO. Migration: NOT REQUIRED. Production untouched. No commit or 
 US-11 owns keyword search and filters; this story adds no search/filter controls. US-14 owns public Culture detail; Culture cards remain summary-only. Task149 was blocked at the time of this US-10 acceptance; US-12 records its later manual PASS on 2026-10-07. US-13 remains ACCEPTED and its detail behavior was regression-smoked.
 
 
+## 2026-10-26 — Owner-approved isolated terrain on Home
+
+Owner approved integrating the reviewed standalone Hà Giang terrain model.
+Default top view, relief 2.2, colored historical districts, boundaries and slow
+rotation; only 3D/top-view controls remain. All 417 road fragments are preserved
+with brighter cores and stronger casings. Hover lifts district meshes, borders
+and pins; keyboard/touch/reduced-motion fallbacks remain available.
+
+Pins matched to the current public Home projection show bounded descriptions,
+eligible photos and canonical detail links. Geographic-only landmarks have no
+fabricated article link. Static assets contain no cached CMS IDs or URLs.
+Only Home's map/list presentation changes; Explore/Detail maps, public query,
+visibility/media rules and auth remain unchanged. Empty-data Home retains
+terrain and existing fallback links.
+
+Verification: 14 focused model/Home/public-query tests PASS; web typecheck PASS;
+isolated-output production build PASS; Home and all three data assets HTTP200.
+Home contains the terrain shell and view controls, without the Google iframe.
+Source taste lint PASS; whitespace check PASS. Live visual/mobile/hover checks
+remain unverified because local browser use is disabled in Work settings.
+No schema/migration, DB write, routing call, deployment, commit or push.
+See [Home terrain implementation](../implementation/home-terrain-map.md).
+
+Owner screenshot follow-up: reduce map height to a viewport-relative maximum of
+600px (520px mobile), fit the rotating/lifted province inside its usable frame,
+and bound the article preview height. A numerical camera-projection regression
+covers five sizes and all rotation angles. Remove both instructional captions;
+collapse source text into a small information disclosure. Browser inspection
+remains unavailable; the screenshot supplied by the owner identified the issue.
+
+Next owner screenshot follow-up: replace the overly conservative sphere fit with
+an outline/elevation-envelope fit for the current camera angle, continuously
+updated through rotation/drag/view changes. Center the projection below the
+controls and cap the desktop frame at 900px to reduce empty side space. Retain
+the height bounds. Regression now checks actual province geometry at six sizes,
+48 azimuths and three pitches for containment and useful screen coverage; the
+default phone view must fill over 70% of the frame width. Focused tests 14/14 PASS.
+Live visual acceptance remains unavailable due to the disabled browser setting.
+
+Final owner refinement: keep district names visible and hide destination pins
+until the district is hovered, tapped or selected by keyboard. Preserve selection
+through its article preview and focus return. Fit and center the projected
+outline span. Retain the new map/copy split and shared 1540px section frame to
+align with neighboring sections. Use equal columns, a 680px map / 520px copy cap,
+and restore the two view controls at the top without a
+bottom control row. Canvas bounds: 460–580px desktop, 410–500px phone. State and
+projection regression expanded; final checks are recorded in the progress log.
+
 ## 2026-10-22 — Stream Home map data independently
 
 Owner-requested performance correction: Home starts its request-fresh public read after the existing connection boundary and returns the static hero without awaiting the map. A Suspense region awaits the data, reusing the existing map skeleton/responsive geometry; empty/error CTAs and final map contents retain their previous behavior. Scroll reveal owns the stable outer wrapper so it cannot change a pending map before hydration. Deferred-database regression verifies the shell does not block; existing per-request freshness/failure/control-flow tests pass. Browser and streamed-response evidence are in [the follow-up report](../performance/local-data-loading-2026-10-22.md). No content/cache/visibility rule change.
+
+## 2026-10-26 — Restore independent Home streaming after the terrain redesign
+
+The redesigned Home had resumed awaiting destination data before rendering its
+static sections. A deferred-read regression reproduced an empty response while
+the database was pending. Home now starts one request-fresh service promise after
+`connection()`; separate Suspense boundaries consume it for the terrain map and
+the existing empty/error cards. The hero and static copy stream independently.
+The map placeholder uses the same stage classes and dimensions as the final map.
+The existing public eligibility checks and database failure fallback remain.
+
+The layout's floating Assistant also loads its chat implementation on first open;
+the small launcher remains available immediately. Its session stays mounted after
+minimization and client navigation. A loading header provides a minimize action
+while the chat chunk loads. No model request is dispatched by this loader.
+
+Focused Home/service/terrain/gallery/Assistant regressions: 48 PASS. Root typecheck,
+isolated production build and whitespace check PASS. Browser smoke covers Home,
+terrain readiness, Explore List/Map, published Detail and Assistant reopen across
+navigation. See [the loading report](../performance/page-loading-2026-10-26.md) for
+local measurements and their limits. Story acceptance status is unchanged.

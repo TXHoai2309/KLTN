@@ -1,11 +1,16 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
-import { Sparkles } from "lucide-react";
+import { ChevronDown, Sparkles } from "lucide-react";
 import type { QaContext } from "../../modules/ai/qa-contract";
-import { DestinationAssistantPanel } from "./destination-assistant-panel";
+
+// Keep chat/controller code out of every route's initial JavaScript. Once opened,
+// the mounted panel still owns its session across minimization and navigation.
+const DestinationAssistantPanel = lazy(
+  () => import("./destination-assistant-panel").then(module => ({ default: module.DestinationAssistantPanel })),
+);
 
 type Destination = { id: string; name?: string };
 type PageDestination = Destination & { pathname: string; token: symbol };
@@ -56,7 +61,17 @@ export function GlobalAssistantProvider({ children }: { children: ReactNode }) {
             <Sparkles size={20} aria-hidden="true" /><span className="global-assistant-launcher-label">Hỏi trợ lý AI</span>
           </button>
         </aside>
-        {hasSession && <DestinationAssistantPanel
+        {hasSession && <Suspense fallback={open && routeVisible ? <div id={panelId} className="destination-assistant-panel" role="status" aria-live="polite">
+          <div className="destination-panel-header">
+            <h2 className="destination-panel-title">Đang mở trợ lý AI…</h2>
+            <button type="button" className="destination-panel-icon-btn" aria-label="Thu gọn trợ lý AI" onClick={() => {
+              setOpen(false);
+              requestAnimationFrame(() => triggerRef.current?.focus());
+            }}>
+              <ChevronDown size={18} aria-hidden="true" />
+            </button>
+          </div>
+        </div> : null}><DestinationAssistantPanel
           panelId={panelId}
           context={active.context}
           destinationName={active.name}
@@ -66,7 +81,7 @@ export function GlobalAssistantProvider({ children }: { children: ReactNode }) {
           onClose={() => setOpen(false)}
           triggerRef={triggerRef}
           onHandedOff={() => { setOpen(false); setHasSession(false); }}
-        />}
+        /></Suspense>}
       </div>, document.body
     )}
   </DestinationRegistration.Provider>;

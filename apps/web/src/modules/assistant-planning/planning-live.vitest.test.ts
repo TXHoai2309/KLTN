@@ -1,0 +1,54 @@
+import { afterAll, expect, it } from "vitest";
+import { randomUUID } from "node:crypto";
+import { createPrismaClient, type Database } from "@KLTN/db";
+import { createPlanningRepository } from "./planning-repository";
+import { analyzePlanningText, generateAiSelection } from "./planning-ai";
+import { executePlanning, type PlanningDependencies } from "./planning-service";
+import { retrievePlannerCandidates, recheckPlannerCandidates } from "../trip-planner/planner-candidates";
+import { routingRegistry } from "../destination/destination-routing-registry";
+import { createStadiaRoutesProvider } from "../trip-planner/planner-routes";
+import { EMPTY_PLANNING_NEEDS, planningAnalysisSchema, planningGeneratedSchema, planningWorkspaceSchema } from "./planning-contract";
+import { visitDuration } from "../trip-planner/planner-engine";
+
+let db: Database | null = null;
+const userId = `planning-live-${randomUUID()}`;
+const prefix = `planning-live-${randomUUID()}`;
+afterAll(async () => {
+  if (!db) return;
+  await db.qaConversation.deleteMany({ where: { principalKind: "USER", principalId: userId } });
+  await db.idempotencyRecord.deleteMany({ where: { key: { startsWith: prefix } } });
+  await db.user.deleteMany({ where: { id: userId } });
+  await db.$disconnect();
+}, 30_000);
+it.skipIf(process.env.ASSISTANT_PLANNING_LIVE_TEST !== "1")("one real understanding/selection path against eligible Development destinations", async () => {
+  const url = new URL(process.env.DATABASE_URL!);
+  if (url.hostname.split(".")[0].replace(/-pooler$/, "") !== "ep-purple-pond-b3xujb8o" || url.pathname !== "/neondb") throw Error("REFUSED_NON_DEVELOPMENT_TARGET");
+  db = createPrismaClient({ DATABASE_URL: process.env.DATABASE_URL! });
+  const actual = await db.$queryRaw<Array<{ endpoint: string }>>`SELECT current_setting('neon.endpoint_id',true) AS endpoint`;
+  if (actual[0]?.endpoint !== "ep-purple-pond-b3xujb8o") throw Error("DEVELOPMENT_IDENTITY_MISMATCH");
+  await db.user.create({ data: { id: userId, name: "Planning live fixture", email: `${userId}@example.invalid`, role: "TRAVELER" } });
+  const database = db;
+  const auth = { database, resolveSession: async () => ({ user: { id: userId } }) };
+  const registry = routingRegistry(process.env.DATABASE_URL!);
+  const deps: PlanningDependencies = { repository: createPlanningRepository(database, auth, new Headers(), userId), candidates: () => retrievePlannerCandidates(database, undefined, registry.excludedIds), recheck: selected => recheckPlannerCandidates(database, selected, registry.excludedIds), routes: createStadiaRoutesProvider(), generate: async input => {
+    expect(input.candidates.every(c => visitDuration(c) !== null && visitDuration(c)! <= 600)).toBe(true);
+    return generateAiSelection(input);
+  }, analyze: analyzePlanningText, now: () => new Date(), save: async () => { throw Error("NO_SAVE_IN_LIVE_SMOKE"); }, validateForSave: async () => ({ canConfirm: false }) };
+  const workspace = planningWorkspaceSchema.parse(await executePlanning({ action: "START", conversationId: null, context: { type: "GENERAL" } }, `${prefix}-start`, deps));
+  const analysis = planningAnalysisSchema.parse(await executePlanning({ action: "ANALYZE", conversationId: workspace.conversationId, version: 0, text: "Tôi muốn lập hành trình Hà Giang 1 ngày bằng ô tô, thích thiên nhiên.", draft: EMPTY_PLANNING_NEEDS, unresolved: [] }, `${prefix}-analyze`, deps));
+  expect(analysis.needs.requirement.durationDays).toBe(1); expect(analysis.needs.requirement.transport).toBe("CAR");
+  const reviewed = planningWorkspaceSchema.parse(await executePlanning({ action: "REVIEW", conversationId: workspace.conversationId, version: 0, needs: analysis.needs }, `${prefix}-review`, deps));
+  const result = planningGeneratedSchema.parse(await executePlanning({ action: "GENERATE", conversationId: workspace.conversationId, version: reviewed.version, previous: null, instruction: "Tạo lịch theo nhu cầu" }, `${prefix}-generate`, deps));
+  expect(result.proposal.days).toHaveLength(1); expect(result.proposal.days[0]!.stops.length).toBeGreaterThan(0);
+  expect(result.proposal.eligibleForFinalConfirmation).toBe(false);
+  expect(result.attempts).toHaveLength(1);
+  expect(await database.trip.count({ where: { userId } })).toBe(0);
+  const candidates = await deps.candidates();
+  const short = await analyzePlanningText("2", EMPTY_PLANNING_NEEDS, candidates, [], { question: "Bạn muốn đi mấy ngày?", field: "durationDays", recent: [], current: null });
+  expect(short.needs.requirement.durationDays).toBe(2);
+  expect(short.needs.requirement.transport).toBeUndefined();
+  const options = await analyzePlanningText("Thêm một điểm vào ngày 1, bạn tự gợi ý cho tôi nhé", analysis.needs, candidates, [], { question: "Bạn muốn chỉnh gì trong hành trình?", field: null, recent: [], current: result.selection });
+  expect(options.operation).toMatchObject({ kind: "ADD", day: 1 });
+  expect(options.options?.length).toBeGreaterThan(0);
+  expect(options.options!.every(c => candidates.some(actual => actual.id === c.id) && !result.selection.days.flat().includes(c.id))).toBe(true);
+}, 120_000);

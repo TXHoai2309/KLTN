@@ -27,6 +27,83 @@ components:
 
 # Admin RAG design context
 
+## Guided optional planning questions — owner follow-up (2026-10-27)
+
+Owner clarified the screenshot follow-up: ask one optional question per turn, in
+order: experiences, pace, companions/count, mobility and destinations. Give an
+example for the current question and show only its relevant quick replies. Reuse
+the existing controls, retaining “Bỏ qua câu này”. The later owner correction
+removes the visible skip-remainder action. The shared planning-preferences helper owns current-topic selection;
+answered sections are skipped automatically. Volunteered combined answers are
+still retained, but the Assistant never presents several questions together.
+Owner's next screenshot clarification: optional answer suggestions and skip chips
+fill the shared composer instead of sending. Combine interest chips in one sentence,
+for example “Mình thích trải nghiệm thiên nhiên, văn hóa”; preserve existing text,
+avoid duplicate suggestions and focus the composer with the caret at the end. Travelers
+can add several interests and edit their response before explicitly pressing Gửi.
+The suggestion group explains this interaction; it does not advance the question.
+The shared composer grows with wrapped text and manual line breaks, up to four
+visible lines, then scrolls internally. It shrinks when text is removed and remeasures
+when its available width changes. This applies to both page and floating chat.
+Pace and companion chips are single-choice draft suggestions: another choice
+replaces the previous suggested line, retaining unrelated typed text. Interest
+chips still combine. The helper text must match this cardinality. Companion
+categories are solo, partner, family, friends and other; category/count are asked
+sequentially when incomplete. Do not infer children, elders or a family size.
+Account planning dialogue now survives reopening through the server checkpoint;
+keep existing transcript/composer owners. A failed history write is visible and
+recoverable, and old unwritten text must not be presented as recovered. Saved Trip
+confirmation and invalid-proposal retention stay separate.
+Owner's subsequent FE correction: wrapped suggestion rows use a bounded rounded
+rectangle with inset padding, never a full-height capsule that curves through the
+second row. Buttons may wrap long labels and grow in height. Accepted itinerary
+cards belong to the exchange that created them; later edits/replies follow below.
+Each accepted revision appends a new card. Earlier cards keep their original data
+and only the current version can expose Save. Snapshots remain in the active
+conversation memory and follow the existing proposal-expiry boundary on reopening.
+Do not add a needs form, visual system or mandatory business fields. The existing
+transcript owns scrolling, paragraph line breaks and mobile wrapping; all quick
+controls retain existing 44px targets/focus/disabled states. AI may frame the reply
+but must preserve the current question and ask no additional question. Browser acceptance is still open because
+browser use is disabled in Work settings.
+
+## Planning dialogue and Guest continuation (2026-10-27)
+
+Owner approved the five dialogue decisions in
+`docs/implementation/assistant-dialogue-naturalness-design.md`. Keep the current
+Assistant brand, font, transcript/composer and shared page/popup owners. The Guest
+invitation is ordinary explanatory text with a visible `Đăng nhập để tiếp tục`
+navigation link styled with existing forest action tokens and a 44px target,
+hover/active and focus-visible states. Public QA stays usable. The link captures
+the original planning request/context, even if a later unsent draft is present;
+login returns an editable draft and does not execute a plan.
+
+A pending change from an exact date to a range has labeled confirm/keep controls.
+The recap displays full Vietnamese dates or the anchored indicative range and
+explicit preliminary meaning. AI may phrase the conversation; canonical facts,
+validation state and Save behavior remain system-owned. Assistant scroll surfaces
+share standards-based scrollbar properties alongside their existing WebKit rules.
+No new palette, font, calendar widget or overlay is introduced. Browser visual
+acceptance remains open because browser use is disabled in Work settings; component
+and actual-handler regression evidence is separate from browser evidence.
+
+## Conversational itinerary cards (2026-10-27)
+
+The approved Q1–Q7 follow-up replaces the Assistant's automatic editable needs card
+with sequential chat questions, a needs recap and natural confirmation. Real point
+options have numbered, labeled quick replies; day-by-day visits, explicit validation
+labels, change feedback and Save outcomes stay in the shared chat. Both page and floating panel reuse the same planning client
+and panel; minimize/navigation retains the active interaction, while reopening
+history requires explicit regeneration. Existing `--assistant-*` and `--panel-*`
+tokens own surfaces, text, borders and focus. The itinerary map reuses the current
+verified-geometry renderer; its failure cannot hide the visit list.
+
+Labeled quick replies, disabled confirmation states, live status and keyboard focus
+are part of the implementation. UI state/static rendering tests pass; live visual,
+mobile and focus acceptance remains unverified because browser use is disabled.
+See `docs/implementation/assistant-chat-first-planning-verification.md`. No new visual
+identity or Figma parity is claimed.
+
 ## Global assistant correction approved by owner (2026-10-22)
 
 The owner now requests a launcher available across pages, fixes for Send, and a
@@ -594,3 +671,40 @@ no straight fallback, invented road or additional browser routing request.
 Theme changes restore lines on the existing map. Loading/error/retry retain the
 timeline; the floating preview cannot cover the map-error retry action. The
 existing design refinement document remains the canonical behavior map.
+
+## Home isolated Hà Giang terrain — owner approval, 2026-10-26
+
+HomeTerrainMap replaces the Home-only iframe/map list with the reviewed
+satellite-textured Hà Giang silhouette. Default to top view, relief 2.2,
+district colors/boundaries, all roads and geographic pins, and slow automatic
+rotation. Retain only the two 3D/top-view controls; no settings rail or toolbar.
+Use existing Home font, forest action, coral pin and light/dark surface tokens;
+home-terrain-map.css owns this presentation, not global map styles.
+
+Every road remains. Bright ivory/gold cores and dark casings improve contrast.
+Hover raises a district's actual terrain mesh together with its border and pins.
+Rotation pauses on hover, focus, touch, open preview, offscreen and hidden
+document. Reduced-motion users get no automatic motion. Native pin buttons open
+a compact article card; only the current public Home DTO supplies detail IDs,
+images or prose. Geographic landmarks without a public match have no invented
+detail link. Owner follow-up collapses credits and historical-reference geography
+into a small native information disclosure and removes the instructional footer.
+Use a viewport-bounded map stage (desktop 380–600px, mobile 410–520px) and fit
+the complete rotating province with controls/lift padding; no fixed 830px stage.
+See docs/implementation/home-terrain-map.md for source and verification details.
+
+Mobile scale follow-up: cap the centered terrain frame at 900px on desktop.
+Fit the actual province outline and its elevation/lift envelope in the current
+camera direction, refitting during rotation rather than using one all-angle
+sphere. Center the projection below the controls so mobile uses the available
+height. Keep the existing stage height limits and only the two view controls.
+
+Latest owner follow-up supersedes those frame dimensions: retain the new map/copy
+split with equal columns and a 40px gap, and remove the bottom control row.
+Keep the shared 1540px section frame and 36px inset aligned with neighboring
+sections; cap the map column at 680px and copy at 520px. Keep 3D/top-view controls
+at the upper right. Map heights are
+460–580px desktop and 410–500px phone. Center the projected geographic span itself.
+District names are the default map labels; disclose destinations only within the
+hovered/tapped/keyboard-selected district, retaining it through article previews.
+District labels take priority over destination and road-reference labels.

@@ -1,0 +1,306 @@
+{
+  "kind": "OFFLINE_SYNTHETIC_SELECTION_PIPELINE",
+  "denominator": 7,
+  "initialPass": 1,
+  "finalPass": 2,
+  "initialSuccessRate": 0.14285714285714285,
+  "finalSuccessRate": 0.2857142857142857,
+  "results": [
+    {
+      "id": "ready",
+      "initial": {
+        "status": "PROPOSAL_READY",
+        "checks": [
+          {
+            "key": "OPENING_HOURS",
+            "status": "PASS"
+          },
+          {
+            "key": "MINIMUM_DURATION",
+            "status": "PASS"
+          },
+          {
+            "key": "TRAVEL_TIME",
+            "status": "PASS"
+          },
+          {
+            "key": "SCHEDULE_CONFLICTS",
+            "status": "PASS"
+          },
+          {
+            "key": "MOBILITY",
+            "status": "PASS"
+          }
+        ]
+      },
+      "final": {
+        "status": "PROPOSAL_READY",
+        "checks": [
+          {
+            "key": "OPENING_HOURS",
+            "status": "PASS"
+          },
+          {
+            "key": "MINIMUM_DURATION",
+            "status": "PASS"
+          },
+          {
+            "key": "TRAVEL_TIME",
+            "status": "PASS"
+          },
+          {
+            "key": "SCHEDULE_CONFLICTS",
+            "status": "PASS"
+          },
+          {
+            "key": "MOBILITY",
+            "status": "PASS"
+          }
+        ]
+      },
+      "adjustments": 0,
+      "outcome": "PROPOSAL_READY",
+      "repairError": false
+    },
+    {
+      "id": "repair-overfull-day",
+      "initial": {
+        "status": "NO_FEASIBLE_ITINERARY",
+        "checks": [
+          {
+            "key": "OPENING_HOURS",
+            "status": "INSUFFICIENT_DATA"
+          },
+          {
+            "key": "MINIMUM_DURATION",
+            "status": "PASS"
+          },
+          {
+            "key": "TRAVEL_TIME",
+            "status": "PASS"
+          },
+          {
+            "key": "SCHEDULE_CONFLICTS",
+            "status": "VIOLATION"
+          },
+          {
+            "key": "MOBILITY",
+            "status": "PASS"
+          }
+        ]
+      },
+      "final": {
+        "status": "PROPOSAL_READY",
+        "checks": [
+          {
+            "key": "OPENING_HOURS",
+            "status": "PASS"
+          },
+          {
+            "key": "MINIMUM_DURATION",
+            "status": "PASS"
+          },
+          {
+            "key": "TRAVEL_TIME",
+            "status": "PASS"
+          },
+          {
+            "key": "SCHEDULE_CONFLICTS",
+            "status": "PASS"
+          },
+          {
+            "key": "MOBILITY",
+            "status": "PASS"
+          }
+        ]
+      },
+      "adjustments": 1,
+      "outcome": "PROPOSAL_READY",
+      "repairError": false
+    },
+    {
+      "id": "relative-days",
+      "initial": {
+        "status": "INSUFFICIENT_DATA",
+        "checks": [
+          {
+            "key": "OPENING_HOURS",
+            "status": "INSUFFICIENT_DATA"
+          },
+          {
+            "key": "MINIMUM_DURATION",
+            "status": "PASS"
+          },
+          {
+            "key": "TRAVEL_TIME",
+            "status": "PASS"
+          },
+          {
+            "key": "SCHEDULE_CONFLICTS",
+            "status": "PASS"
+          },
+          {
+            "key": "MOBILITY",
+            "status": "PASS"
+          }
+        ]
+      },
+      "final": {
+        "status": "INSUFFICIENT_DATA",
+        "checks": [
+          {
+            "key": "OPENING_HOURS",
+            "status": "INSUFFICIENT_DATA"
+          },
+          {
+            "key": "MINIMUM_DURATION",
+            "status": "PASS"
+          },
+          {
+            "key": "TRAVEL_TIME",
+            "status": "PASS"
+          },
+          {
+            "key": "SCHEDULE_CONFLICTS",
+            "status": "PASS"
+          },
+          {
+            "key": "MOBILITY",
+            "status": "PASS"
+          }
+        ]
+      },
+      "adjustments": 0,
+      "outcome": "INSUFFICIENT_DATA",
+      "repairError": false
+    },
+    {
+      "id": "routing-unavailable",
+      "initial": {
+        "status": "INSUFFICIENT_DATA",
+        "checks": [
+          {
+            "key": "OPENING_HOURS",
+            "status": "INSUFFICIENT_DATA"
+          },
+          {
+            "key": "MINIMUM_DURATION",
+            "status": "PASS"
+          },
+          {
+            "key": "TRAVEL_TIME",
+            "status": "INSUFFICIENT_DATA"
+          },
+          {
+            "key": "SCHEDULE_CONFLICTS",
+            "status": "INSUFFICIENT_DATA"
+          },
+          {
+            "key": "MOBILITY",
+            "status": "PASS"
+          }
+        ]
+      },
+      "final": {
+        "status": "INSUFFICIENT_DATA",
+        "checks": [
+          {
+            "key": "OPENING_HOURS",
+            "status": "INSUFFICIENT_DATA"
+          },
+          {
+            "key": "MINIMUM_DURATION",
+            "status": "PASS"
+          },
+          {
+            "key": "TRAVEL_TIME",
+            "status": "INSUFFICIENT_DATA"
+          },
+          {
+            "key": "SCHEDULE_CONFLICTS",
+            "status": "INSUFFICIENT_DATA"
+          },
+          {
+            "key": "MOBILITY",
+            "status": "PASS"
+          }
+        ]
+      },
+      "adjustments": 0,
+      "outcome": "INSUFFICIENT_DATA",
+      "repairError": false
+    },
+    {
+      "id": "unknown-destination",
+      "initial": null,
+      "final": null,
+      "adjustments": 0,
+      "outcome": "STRUCTURAL_REJECTION",
+      "repairError": false
+    },
+    {
+      "id": "provider-error",
+      "initial": null,
+      "final": null,
+      "adjustments": 0,
+      "outcome": "TECHNICAL_FAILURE",
+      "repairError": false
+    },
+    {
+      "id": "no-itinerary-found",
+      "initial": {
+        "status": "INSUFFICIENT_DATA",
+        "checks": [
+          {
+            "key": "OPENING_HOURS",
+            "status": "INSUFFICIENT_DATA"
+          },
+          {
+            "key": "MINIMUM_DURATION",
+            "status": "INSUFFICIENT_DATA"
+          },
+          {
+            "key": "TRAVEL_TIME",
+            "status": "INSUFFICIENT_DATA"
+          },
+          {
+            "key": "SCHEDULE_CONFLICTS",
+            "status": "INSUFFICIENT_DATA"
+          },
+          {
+            "key": "MOBILITY",
+            "status": "PASS"
+          }
+        ]
+      },
+      "final": {
+        "status": "INSUFFICIENT_DATA",
+        "checks": [
+          {
+            "key": "OPENING_HOURS",
+            "status": "INSUFFICIENT_DATA"
+          },
+          {
+            "key": "MINIMUM_DURATION",
+            "status": "INSUFFICIENT_DATA"
+          },
+          {
+            "key": "TRAVEL_TIME",
+            "status": "INSUFFICIENT_DATA"
+          },
+          {
+            "key": "SCHEDULE_CONFLICTS",
+            "status": "INSUFFICIENT_DATA"
+          },
+          {
+            "key": "MOBILITY",
+            "status": "PASS"
+          }
+        ]
+      },
+      "adjustments": 0,
+      "outcome": "NO_ITINERARY",
+      "repairError": false
+    }
+  ]
+}

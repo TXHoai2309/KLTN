@@ -1554,3 +1554,83 @@
     max-width: 100%;
   }
 }
+
+/* ==========================================================================
+   SECTION 4: EXPLORE 2-COLUMN GRID & RESPONSIVE POLISH
+   ========================================================================== */
+.home-page .home-explore-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.98fr);
+  gap: 44px;
+  align-items: center;
+}
+
+@media (max-width: 1040px) {
+  .home-page .home-explore-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .home-page .home-explore {
+    padding: 32px 20px;
+  }
+
+  .home-page .home-explore-copy {
+    order: 1;
+    max-width: 600px;
+    margin: 0 auto;
+    text-align: center;
+    align-items: center;
+  }
+
+  .home-page .home-explore-stage-col {
+    order: 2;
+  }
+
+  .home-page .home-explore-stats {
+    width: 100%;
+    max-width: 540px;
+  }
+
+  .home-page .home-explore-highlights {
+    text-align: left;
+    width: 100%;
+    max-width: 540px;
+  }
+
+  .home-page .home-explore-copy .home-explore-footer {
+    justify-content: center;
+  }
+
+  .home-page .home-explore-stage-col .hg-terrain-stage {
+    height: clamp(460px, 62svh, 560px);
+  }
+}
+
+@media (max-width: 640px) {
+  .home-page .home-explore {
+    padding: 24px 14px;
+    border-radius: 18px;
+  }
+
+  .home-page .home-explore-stats {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .home-page .home-explore-stat {
+    padding: 8px 6px;
+  }
+
+  .home-page .home-explore-stat-val {
+    font-size: 15px;
+  }
+
+  .home-page .home-explore-stat-lbl {
+    font-size: 10px;
+  }
+
+  .home-page .home-explore-stage-col .hg-terrain-stage {
+    height: clamp(410px, 62svh, 500px);
+  }
+}

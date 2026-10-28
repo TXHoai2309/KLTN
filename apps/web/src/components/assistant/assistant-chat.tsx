@@ -16,8 +16,22 @@ import { AssistantSidebar } from "./assistant-sidebar";
 import { fetchConversations, fetchConversationDetail, renameConversation, deleteConversation } from "./assistant-conversation-client";
 import { consumeAssistantHandoff } from "./assistant-handoff";
 import { useAssistantPreference } from "./use-assistant-preference";
+import { PlanningExchange, PlanningPanel, usePlanningClient } from "./planning-panel";
+import { isPlanningRequest, reopenPlanningHistory } from "./planning-client";
+import { consumePlanningAuthDraft } from "./planning-auth-handoff";
+import { appendPlanningDraftSuggestion, type PlanningDraftSuggestion } from "./planning-suggestion-draft";
 
 export type CitationSlot = (input: { part: QaAnswerPart; citations: QaPublicCitation[]; turn: QaCompletedTurn }) => ReactNode;
+
+function resizeComposer(input: HTMLTextAreaElement) {
+  const style = input.ownerDocument.defaultView?.getComputedStyle(input);
+  const lineHeight = Number.parseFloat(style?.lineHeight ?? "") || 20;
+  const padding = (Number.parseFloat(style?.paddingTop ?? "") || 0) + (Number.parseFloat(style?.paddingBottom ?? "") || 0);
+  const maxHeight = lineHeight * 4 + padding;
+  input.style.maxHeight = `${maxHeight}px`;
+  input.style.height = "auto";
+  input.style.height = `${Math.max(lineHeight + padding, Math.min(maxHeight, input.scrollHeight))}px`;
+}
 
 // Shell-local presentation only; the controller remains the context authority.
 const AssistantContextDisplay = createContext<((label: string | null) => void) | null>(null);
@@ -133,6 +147,11 @@ export function AssistantChat({
     "EXPANDED"
   ));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
+  const planning = usePlanningClient(identity, state.conversationId, state.generation);
+  const attachPlanningConversation = useCallback((id: string, context: QaContext) => {
+    const current = controller.getSnapshot();
+    if (current.conversationId !== id && controller.loadConversation(id, [], null, context, false, current.knowledgeMode)) controller.setDraft(current.draft);
+  }, [controller]);
   const setContextDisplay = useContext(AssistantContextDisplay);
   const contextLabel = contextError ? "Bối cảnh không khả dụng" : state.context.type === "DESTINATION"
     ? destinations.find(destination => state.context.type === "DESTINATION" && destination.id === state.context.destinationId)?.name ?? (pinnedDestinationName ?? "Điểm đến đang chọn")
@@ -144,12 +163,35 @@ export function AssistantChat({
   }, [contextLabel, setContextDisplay]);
 
   const composer = useRef<HTMLTextAreaElement>(null);
+  const focusSuggestion = useRef(false);
+  useEffect(() => {
+    const input = composer.current;
+    if (!input) return;
+    resizeComposer(input);
+    if (focusSuggestion.current) {
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+      focusSuggestion.current = false;
+    }
+  }, [state.draft]);
+  useEffect(() => {
+    const input = composer.current;
+    if (!input || typeof ResizeObserver === "undefined") return;
+    let width = input.clientWidth;
+    const observer = new ResizeObserver(() => {
+      if (input.clientWidth === width) return;
+      width = input.clientWidth;
+      resizeComposer(input);
+    });
+    observer.observe(input);
+    return () => observer.disconnect();
+  }, []);
   const viewport = useRef<HTMLDivElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const nearEnd = useRef(true);
   const [unseen, setUnseen] = useState(false);
   const preference = useAssistantPreference(controller, state);
-  const unresolved = hasUnresolvedAttempt(state) || preference.unresolved;
+  const unresolved = hasUnresolvedAttempt(state) || preference.unresolved || planning.state.busy || planning.state.uncertain;
   const sending = state.pending?.phase === "sending";
 
   const openingSubject = pinnedDestinationName ?? (state.context.type === "DESTINATION"
@@ -176,6 +218,11 @@ export function AssistantChat({
   }, []);
 
   const restoringConversation = loadingConversation || (mounted && mode === "page" && !state.conversationId && typeof window !== "undefined" && new URLSearchParams(window.location.search).has("conversationId"));
+  useEffect(() => {
+    if (!available || restoringConversation || state.conversationId || state.draft.trim()) return;
+    const retained = consumePlanningAuthDraft(identity);
+    if (retained) { controller.changeContext(retained.context); controller.setDraft(retained.text); }
+  }, [identity, available, restoringConversation, state.conversationId, controller]);
 
   useEffect(() => {
     if (mode !== "page") return;
@@ -405,6 +452,7 @@ export function AssistantChat({
       dialog.current?.showModal();
       return;
     }
+    reopenPlanningHistory(identity, id);
     void loadConversationById(id);
   }
 
@@ -421,18 +469,50 @@ export function AssistantChat({
   }, []);
 
   useEffect(() => {
-    if (viewport.current && !state.turns.length && !state.pending) {
+    if (viewport.current && !state.turns.length && !state.pending && !planning.state.active) {
       viewport.current.scrollTop = 0;
       setUnseen(false);
       return;
     }
     if (nearEnd.current && viewport.current && !isReadingCitation(viewport.current)) viewport.current.scrollTop = viewport.current.scrollHeight;
     else setUnseen(true);
-  }, [state.turns, state.pending]);
+  }, [state.turns, state.pending, planning.state.messages, planning.state.message, planning.state.busy]);
 
-  function submit() {
-    if (!available || contextError || preference.unresolved || restoringConversation) return;
+  async function submit() {
+    if (!available || contextError || preference.unresolved || restoringConversation || planning.state.busy || planning.state.uncertain) return;
+    const text = controller.getSnapshot().draft.trim();
+    if (text && (planning.state.active || isPlanningRequest(text))) {
+      const submissionGeneration = controller.getSnapshot().generation;
+      planning.client.setQaBoundary(state.parentTurnId);
+      planning.client.setPublicDialogue(state.turns.slice(-3).map(turn => ({ question: turn.question, answer: turn.response.answerParts.map(part => part.text).join("\n") || ("message" in turn.response ? turn.response.message : "clarificationQuestion" in turn.response ? turn.response.clarificationQuestion : "") })));
+      controller.setDraft("");
+      {
+        const outcome = await planning.client.send(text, state.conversationId, state.context);
+        const current = controller.getSnapshot();
+        if (current.identity !== identity || current.generation !== submissionGeneration && current.conversationId !== planning.client.getSnapshot().workspace?.conversationId) return;
+        if (outcome === "QA") {
+          const nextDraft = controller.getSnapshot().draft;
+          controller.setDraft(planning.client.publicQuestion(text)); controller.submit();
+          if (nextDraft.trim() !== text) controller.setDraft(nextDraft);
+        }
+        else if (planning.client.getSnapshot().error && !controller.getSnapshot().draft.trim()) controller.setDraft(text);
+      }
+      return;
+    }
     if (!controller.submit()) composer.current?.focus();
+  }
+
+  function composePlanningSuggestion(suggestion: PlanningDraftSuggestion) {
+    const current = controller.getSnapshot();
+    const currentPlanning = planning.client.getSnapshot();
+    if (!available || !transport || contextError || preference.unresolved || restoringConversation || hasUnresolvedAttempt(current) || currentPlanning.busy || currentPlanning.uncertain || currentPlanning.workspace?.pendingSaveKey || currentPlanning.savedTripId) return;
+    const draft = current.draft;
+    const nextDraft = appendPlanningDraftSuggestion(draft, suggestion);
+    if (nextDraft !== draft) {
+      focusSuggestion.current = true;
+      controller.setDraft(nextDraft);
+    }
+    composer.current?.focus();
   }
 
   function changeContext(context: QaContext) {
@@ -466,7 +546,7 @@ export function AssistantChat({
     }
   }
 
-  const status = state.validation ?? (sending ? "Đang soạn câu trả lời…" : state.pending?.message) ?? (state.turns.length ? "Đã nhận phản hồi. Bạn có thể hỏi tiếp." : "Chưa có lượt hỏi.");
+  const status = state.validation ?? (planning.state.busy ? "Đang xử lý nhu cầu và hành trình…" : sending ? "Đang soạn câu trả lời…" : state.pending?.message) ?? (state.turns.length ? "Đã nhận phản hồi. Bạn có thể hỏi tiếp." : "Chưa có lượt hỏi.");
 
   return (
     <section className={mode === "panel" ? "assistant-chat assistant-chat-panel" : "assistant-chat"} aria-label="Hội thoại với trợ lý" lang="vi">
@@ -649,7 +729,7 @@ export function AssistantChat({
               </div>
             ) : (
               <>
-                {!state.turns.length && !state.pending && (
+                {!state.turns.length && !state.pending && !planning.state.active && (
                   <div className="assistant-empty">
                     {mode === "page" && (
                       <div className="assistant-empty-art">
@@ -687,14 +767,12 @@ export function AssistantChat({
                     </div>
                   </div>
                 )}
-                {state.turns.map(turn => (
-                  <AssistantTurn
-                    key={`${turn.response.conversationId}:${turn.response.turnId}`}
-                    turn={turn}
-                    citationSlot={citationSlot}
-                    showSources={showSources}
-                  />
-                ))}
+                {planning.state.messages.filter(m => !state.turns.some(t => t.response.turnId === m.afterQaTurnId)).map((message, i) => <PlanningExchange key={message.id ?? `planning-first-${i}`} message={message} client={planning.client} available={available && !!transport && !unresolved && !contextError && !restoringConversation}/>)}
+                {state.turns.map(turn => <div key={`${turn.response.conversationId}:${turn.response.turnId}`}>
+                  <AssistantTurn turn={turn} citationSlot={citationSlot} showSources={showSources}/>
+                  {planning.state.messages.filter(m => m.afterQaTurnId === turn.response.turnId).map((message, i) => <PlanningExchange key={message.id ?? `planning-${i}`} message={message} client={planning.client} available={available && !!transport && !unresolved && !contextError && !restoringConversation}/>)}
+                </div>)}
+                {!restoringConversation && <PlanningPanel client={planning.client} available={available && !!transport && !hasUnresolvedAttempt(state) && !preference.unresolved && !contextError} conversationId={state.conversationId} context={state.context} inputDraft={state.draft} onSuggestReply={composePlanningSuggestion} onStarted={attachPlanningConversation} renderMessages={false}/>}
                 {!!followups.length && !state.pending && (
                   <nav className="assistant-followups" aria-label="Câu hỏi tiếp nối">
                     <p className="assistant-muted">Bạn có thể hỏi tiếp{state.draft.trim() ? " — xóa nội dung ô nhập để chọn gợi ý" : " — chọn để điền vào ô nhập"}:</p>

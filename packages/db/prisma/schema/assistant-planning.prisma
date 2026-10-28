@@ -1,0 +1,40 @@
+// Reviewed needs/save identity and unreviewed dialogue are separate. No draft visits.
+model AssistantPlanningWorkspace {
+  conversationId String @id
+  userId String
+  version Int @default(0)
+  needs Json
+  dialogueRevision Int @default(0)
+  dialogueCheckpoint Json?
+  dialogueTurns AssistantPlanningTurn[]
+  pendingSaveKey String? @db.VarChar(200)
+  pendingSaveHash String? @db.Char(64)
+  // Present only for an explicitly confirmed save with fresh passing validation.
+  // Cleared on terminal outcome; never used to retain an invalid draft.
+  pendingSaveRequest Json?
+  completedSaveKey String? @db.VarChar(200)
+  completedSaveHash String? @db.Char(64)
+  proposalHash String? @db.Char(64)
+  savedTripId String?
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  conversation QaConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@map("assistant_planning_workspace")
+}
+
+// Conversation text only; never a structured itinerary or save authorization.
+model AssistantPlanningTurn {
+  id String @id
+  sequence Int @unique @default(autoincrement())
+  conversationId String
+  question String @db.Text
+  reply String @db.Text
+  at DateTime @db.Timestamptz(3)
+  afterQaTurnId String?
+  workspace AssistantPlanningWorkspace @relation(fields: [conversationId], references: [conversationId], onDelete: Cascade)
+
+  @@index([conversationId, sequence])
+  @@map("assistant_planning_turn")
+}

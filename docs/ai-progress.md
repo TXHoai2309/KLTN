@@ -4189,6 +4189,139 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
   - Verified visual rendering via Edge DevTools capture: high-contrast dark ink and coral typography on light blush pink background, seamless edge-to-edge photo with rounded card corners, fully responsive on mobile/tablet.
   - Tests: `npm run check-types` in `apps/web` PASS with zero errors. `git diff --check` PASS with zero whitespace errors.
 
+
+## 2026-10-26 — Home Hà Giang terrain integration
+
+- **Owner approval:** integrate the reviewed standalone terrain model on Home;
+  top view, relief 2.2, district colors/boundaries and auto-rotation. Retain only
+  3D/top-view controls. Preserve all roads and improve contrast, add public
+  article previews and raise district meshes on hover.
+- **Implemented:** Home-only lazy Three.js client with measured DEM, satellite
+  imagery, partitioned district surfaces, attached labels/pins, bright road
+  cores/dark casings and visible source credits. Existing request-fresh public
+  query remains the article boundary. Exact names/explicit aliases bind links
+  only to current public results. No static CMS IDs/URLs or nearest guessing.
+  Empty-data Home keeps terrain and existing fallback links.
+- **Behavior:** two view controls, native pins, compact photo/prose/detail card,
+  Escape/focus restoration, keyboard camera controls, reduced motion,
+  hover/focus/touch/visibility pauses, cancellable loading, timeout/retry,
+  theme reuse and renderer/GPU/listener/observer cleanup.
+- **Checks:** model/Home/public-query Vitest 13/13 PASS; web typecheck PASS;
+  isolated KLTN_PERF_BUILD production build PASS. Home and data assets HTTP200;
+  terrain shell/two view controls present, old iframe absent. Source taste lint
+  0 FAIL / 0 WARN, git diff whitespace PASS. Data tests retain 417 road fragments,
+  31,933 coordinates, 14 reference landmarks, 11 districts and 641x641 DEM.
+  Npm Three.js and its type dependency added.
+- **Limits:** live integrated browser/hover/mobile checks could not run because
+  local browser use is disabled in Work settings. No alternate UI driver used.
+  Historical boundary approximation and older satellite dates documented.
+  No schema/migration, DB write, routing call, secret/environment change,
+  provider migration, commit/push/merge or deployment. Concurrent unrelated
+  assistant/hero edits are outside this task and preserved.
+- **Handoff:** docs/implementation/home-terrain-map.md, US-10 and DESIGN.md.
+
+## 2026-10-26 — Home Footer Polish & Landing Page IntersectionObserver Optimization
+
+- **Task:**
+  1. Redesign Home footer to eliminate negative dead space, provide balanced 4-column layout with highlights bar, remove graduation thesis / 3rd-party service references upon owner request, and add a smooth back-to-top interaction.
+  2. Implement `IntersectionObserver` across critical Home sections to eliminate background resource consumption and optimize runtime performance.
+- **Completed:**
+  - **Footer Enhancement & Content Polish:**
+    - Updated `apps/web/src/app/page.tsx`: Added highlights bar (Tri thức đối chiếu, Bản đồ số tương tác, Trợ lý AI đồng hành), expanded links into balanced columns ("Khám phá", "Tính năng", "Thông tin & Nền tảng"), added system status pulse indicator ("Hệ thống trực tuyến"), and added `HomeBackToTop` button.
+    - Removed graduation thesis references and 3rd-party vendor naming (VietMap) per owner instruction; replaced with clean product tags ("Tri thức bản địa", "Bản đồ tương tác", "Lộ trình tối ưu").
+    - Created `apps/web/src/components/home-back-to-top.tsx`: Accessible smooth scroll to top client component.
+    - Updated `apps/web/src/app/home.css` & `apps/web/src/components/home-polish.css`: Added deep forest emerald/gold radial glow, subtle borders, gold hover translation, 3-column equal grid distribution (`repeat(3, minmax(140px, 1fr))`), and responsive breakpoints for tablets/mobile.
+  - **IntersectionObserver Resource Optimizations:**
+    - `apps/web/src/components/home-hero-video.tsx`: Auto-pause 1080p flycam drone video when scrolled out of viewport, and resume playback when entering viewport, significantly reducing background GPU/CPU overhead.
+    - `apps/web/src/components/home-assistant-simulation.tsx`: Guarded typewriter simulation loops and timeout chains with `IntersectionObserver`, so scenario streaming starts only when the terminal is actually in view, and pauses when scrolled away.
+    - `apps/web/src/components/home-steps-scroll.tsx`: Wrapped continuous `window.addEventListener("scroll")` inside an observer with a 150px buffer zone (`rootMargin: "150px 0px"`). The scroll listener is dynamically attached only when near the section and detached elsewhere, eliminating continuous layout thrashing.
+- **Verification:**
+  - `npm run check-types` passed with code 0 across all workspace packages (`@KLTN/auth`, `@KLTN/config`, `@KLTN/db`, `@KLTN/ui`, `web`).
+- **Scope / Limits:**
+  - No database migrations, schemas, environment variables, or server route handlers modified.
+
+
+### 2026-10-26 — Terrain containment and caption follow-up
+
+- Owner screenshot identified excessive fixed 760/830px map height. Stage now
+  follows the viewport with a 600px desktop / 520px mobile ceiling; camera uses
+  a province sphere and reserves padding for rotation, hover lift and controls.
+  Preview card height is bounded with internal overflow.
+- Added a meaningful projection regression across five sizes, all 24 azimuths,
+  three pitches and points on the enclosing sphere. Focused suites now 14 PASS;
+  follow-up web typecheck PASS. Final isolated build and whitespace at handoff.
+- Owner additionally requested removing source/instruction text for a cleaner
+  frame. Instructional footer removed; source/reference notes move into a small
+  native information disclosure. No public-link/road/hover/default change.
+- Live rendering still not inspected because local browser tools remain disabled.
+
+### 2026-10-26 — Tối ưu bố cục Section 4: Bản đồ 3D bên trái (phóng to), nội dung bên phải (thu nhỏ tinh gọn)
+
+- **Bố cục 2 cột (Section 4 — Khám phá Hà Giang):**
+  - Đưa bản đồ mô phỏng địa hình 3D `HomeTerrainMap` sang cột trái, chiếm tỉ lệ lớn (~66% bề ngang container: `minmax(0, 1.65fr)`).
+  - Tăng chiều cao khung bản đồ `.hg-terrain-stage` từ `clamp(380px, 50svh, 480px)` lên `clamp(500px, 64svh, 620px)`, giúp địa hình Hà Giang hiển thị hùng vĩ, rõ nét các cung đèo và điểm đến.
+  - Đưa khối nội dung giới thiệu `home-explore-copy` sang cột phải với định dạng tinh gọn (`max-width: 420px; justify-self: center;`).
+- **Thu nhỏ và cân chỉnh typography khối nội dung:**
+  - Tiêu đề `h2`: Giảm từ cỡ chữ lớn `clamp(28px, 2.8vw, 42px)` xuống cỡ vừa vặn `clamp(21px, 1.85vw, 27px)`.
+  - Đoạn mô tả `.home-explore-desc`: Giảm font size xuống `13.5px`, line-height `1.6`, margin gọn gàng `18px`.
+  - Khối điểm nổi bật `.home-explore-highlights`: Thu gọn padding (`12px 14px`), giảm cỡ chữ tiêu đề mục (`13px`) và nội dung chi tiết (`12px`), dot chỉ báo `6px`.
+  - Nút điều hướng CTA: Nằm trực tiếp dưới phần text của cột phải, nút pill nhỏ gọn `13.5px`, padding `9px 18px`, icon `16px`.
+- **Giữ nguyên cơ chế tương tác chuẩn xác:**
+  - Giữ nguyên `controls.enableZoom = false` theo chỉ đạo của người dùng để tránh chiếm quyền cuộn trang (scroll hijacking) khi lướt web trên chuột/touchpad.
+  - Bản đồ vẫn hỗ trợ xoay 3D đa hướng mượt mà, chuyển đổi góc nhìn 3D / Từ trên cao, hover nhấc bổng địa bàn huyện lỵ và click mở thẻ điểm đến chi tiết.
+- **Kiểm thử & xác nhận:**
+  - `npm run check-types`: PASS 4/4 packages (0 errors).
+  - `vitest run src/app/home-request-data.vitest.test.ts`: PASS 3/3 tests.
+  - `git diff --check`: PASS (0 lỗi khoảng trắng).
+
+### 2026-10-26 — District disclosure and aligned compact Home map
+
+- Owner requested readable district names, destinations only in the active
+  district, a larger map, and subsequently a compact map/copy split aligned
+  with the neighboring sections. Pins now start hidden. Pointer hover reveals
+  only that district; touch selection persists for pin activation. Native
+  district-name buttons support keyboard access. Preview keeps its region and
+  return-focus target; blank tap/new camera gesture clears touch selection.
+- District labels take priority over pin names and road signs. All 14 static
+  landmarks resolve to a geographic district. Camera fitting minimizes and
+  centers the projected outline/elevation span instead of forcing symmetry
+  around the geographic bounding-box center. The hover envelope stays included.
+- Retained the shared 1540px outer section and 36px desktop inset so edges align
+  with adjacent sections. Equal inner columns, 40px gap, map-column cap 680px,
+  copy cap 520px. Two view controls restored to the upper-right overlay; no
+  bottom control row. Canvas: 460–580px desktop, 410–500px phone. Scoped map
+  stacking keeps view controls above labels. Existing source and article cards
+  remain within the frame. Other concurrent Home content is preserved.
+- Checks: focused Vitest 17/17 PASS; web typecheck PASS. Real outline/elevation
+  projection tests cover seven sizes, 48 azimuths and three pitches, plus
+  pointer/touch/keyboard disclosure and preview retention. Source taste lint
+  0 FAIL / 0 WARN. Home HTTP200 includes the split, updated accessible district
+  guidance and two view controls. Final build/whitespace receipt follows.
+- Limits: browser still reports local use disabled in Work settings. Actual
+  visual/hover/mobile acceptance is not certified by numeric/state tests.
+  No alternative UI driver, schema/migration, DB/auth/environment change,
+  dependency addition, commit/push/merge or deployment.
+- Final receipt: isolated production build PASS after the shared-frame alignment
+  change (47 generated pages); git diff whitespace PASS. Public-data district
+  smoke returned 21 geographic/article pins with zero unassigned districts.
+
+### 2026-10-26 — Tinh chỉnh Design Taste Frontend Section 4: Thon gọn bản đồ, thu nhỏ nút chuyển góc nhìn, bổ sung nội dung thực tế
+
+- **Thu nhỏ nút chuyển góc nhìn (3D / Từ trên cao) — `.hg-terrain-views`:**
+  - Thay đổi nút từ kích thước thô (44px, padding 10x16px) sang thiết kế dạng segmented pill thanh lịch, tinh tế chuẩn Apple Maps / GIS hiện đại.
+  - Chiều cao rút gọn còn 28px, padding 4x10px, cỡ chữ 11.5px semi-bold, bo góc 8px, nền kính mờ `rgba(255,255,255,0.92)` với hiệu ứng `backdrop-filter: blur(8px)`.
+  - Trên mobile rút gọn còn 26px, padding 3x8px, font 11px giúp giao diện bản đồ gọn gàng, không bị che khuất địa hình.
+- **Kéo dài khung bản đồ ("thon gọn") — `.hg-terrain-stage`:**
+  - Tăng chiều cao stage lên `clamp(520px, 68svh, 640px)` và điều chỉnh độ rộng cột bản đồ `max-width: 640px` (tỉ lệ lưới `minmax(0, 1.12fr) minmax(0, 0.98fr)`).
+  - Tỉ lệ khung hình dọc ăn khớp hoàn hảo với hình thể địa lý kéo dài từ bắc xuống nam của tỉnh Hà Giang, loại bỏ khoảng trống thừa ở hai bên sườn, giúp mô hình địa hình thanh thoát và nổi bật.
+- **Bổ sung nội dung phong phú cho cột bên phải (tránh trống trải):**
+  - Thêm dải thống kê nhanh địa lý chuẩn xác: **11** Huyện & Thành phố, **2.422m** Đỉnh Tây Côn Lĩnh, **04** Huyện cao nguyên đá UNESCO.
+  - Bổ sung 3 nhóm tính năng khám phá chi tiết (Mô hình 3D trực quan, 11 Huyện thị & Danh thắng, Cung đường đèo & Lộ trình di chuyển).
+  - Thêm cặp nút hành động kép hài hòa: Nút chính *"Mở bản đồ khám phá"* dẫn vào `/explore?view=map` và nút thứ hai *"Xem tất cả điểm đến"* dẫn vào `/explore`.
+- **Kiểm thử & xác nhận:**
+  - `npm run check-types`: 4/4 packages passed (0 errors).
+  - `vitest run src/app/home-request-data.vitest.test.ts`: 3/3 passed.
+  - `git diff --check`: 0 lỗi khoảng trắng.
 ## 2026-10-25 — Destination Detail Google map scope
 
 - Replaced the shared MapLibre/Stadia map only in the default Detail location and Editorial V1/V2 MAP render paths. The new lazy Google Maps JavaScript component uses the Destination's latitude/longitude, one accessible Advanced Marker and an InfoWindow with the existing public context. Home, Explore and other map consumers were not changed by this task.
@@ -4249,3 +4382,163 @@ fully verified proposals. Overall PARTIAL / NO_GO. See
 - Focused Vitest: 7 files, 138/138 pass; web typecheck and `git diff --check` pass. A fresh local vault key was placed in ignored `apps/web/.env` and verified as configured without printing its value; the local dev server must restart to load it. Preview and Production need their own keys. No live Editorial/QA generation or browser save was performed. No commit or push.
 - CMS save feedback now names only successfully committed model selections (for example, the selected Editorial model) and uses generic wording for credential updates. `UNKNOWN` and failed writes do not show success. Web typecheck and `git diff --check` pass.
 
+## 2026-10-26 — Smoother Home loading and deferred global Assistant
+
+- **Branch/task:** `master`; owner-requested page-loading performance follow-up.
+- **Completed:** Reproduced Home's terrain data blocking the static hero with an
+  actual-page deferred-read stream test. Home now shares one request-fresh promise
+  between map and empty/error-card Suspense boundaries; the hero and static sections
+  stream independently. Existing terrain stage dimensions reserve its loading space.
+  Root Assistant chat code loads on first open, with a minimizable loading header;
+  the mounted panel/session lifetime across minimize and navigation remains.
+- **Files/evidence:** Home page and stream tests, global Assistant provider,
+  `scripts/performance/page-load-readonly.mjs`, US-10 handoff and
+  [loading report](performance/page-loading-2026-10-26.md) with raw before/after JSON.
+- **DB/migrations:** None. Existing services, visibility/media eligibility, auth,
+  ownership, writes, environment, provider settings and dependencies are unchanged.
+- **Validation:** 48 focused tests PASS; root typecheck 4/4 PASS; final isolated
+  production build and TypeScript check PASS; probe `--assert`, syntax and whitespace
+  checks PASS. The pre-fix stream test failed because no hero arrived while data
+  was pending; the emitted-script probe detected the eagerly imported panel.
+- **Measurement:** Local warm hero HTML arrival 266/230 → 45/34 ms, two samples
+  per revision; first-request variability retained in the report. Home HTML-referenced
+  JS 1,469,505 → 994,229 bytes; this excludes later Flight/prefetch requests and is
+  not total browser traffic. Explore/Login also exclude the unopened panel code.
+- **Browser:** Home, terrain canvas after scrolling, Explore Map/List, published
+  Detail/return context and Assistant minimize/reopen across navigation verified.
+  No warnings/errors in the checked log window. Existing local production AI runtime
+  is unavailable and shows retry; no live ask or model call was made.
+- **Limits/next:** No production rollout, authenticated browser, field Web Vitals,
+  mobile throttling, full offline suite or concurrent-load measurement. No font/
+  media/cache policy change. Follow-up performance work should measure browser
+  LCP/INP and complete asset waterfalls before selecting the next optimization.
+
+
+## 2026-10-27 — Conversational trip planning design and ticket proposal
+
+- **Branch:** master.
+- **Task:** Owner-invoked grill-with-docs followed by to-tickets; explicitly documentation only, no application implementation.
+- **Completed:** Read repository product/technical/story contracts and inspected Assistant, extraction, Planner and Save boundaries. Owner approved Q1–Q9: new-trip creation/revision/save in shared chat, AI destination selection/order, reviewed needs, two bounded repair passes, temporary proposal lifetime, mandatory destination handling, existing origin/lodging scope and interleaved Q&A.
+- **Files:** GLOSSARY.md and docs/implementation/assistant-trip-planning-design.md. Proposed complete flow and nine vertical tickets with blocking edges; not published or marked ready-for-agent.
+- **Validation:** Documentation diff whitespace check passed. No application tests/build, live provider, browser, database or migration checks run for documentation-only work.
+- **Limits:** Consolidated technical defaults, ticket size/dependencies and local publication destination await owner review under to-tickets. Existing overview/status documentation can lag code; no new feature acceptance is claimed.
+- **Next:** Review breakdown, then write one local file per approved ticket. Do not implement application code without a later owner request. No commit, push, merge or deployment.
+
+## 2026-10-27 — Nine Assistant trip-planning tickets implemented and reviewed
+
+- **Branch/baseline:** master, 296d5097045e01d4f0ac677157595eab7c72e7c9; uncommitted, no push/merge/deployment.
+- **Authorization:** Owner approved the plan/ticket breakdown and explicitly replaced the earlier no-code restriction with implementation plus code-review/diagnosing-bugs.
+- **Completed:** Shared chat needs/review, AI destination selection/order, deterministic scheduling/validation, two-pass repair bound, multi-turn ambiguity/mandatory stops, proposal revision, canonical Save and UNKNOWN recovery, history and panel/map integration. Published nine local ticket files and a bounded synthetic evaluation.
+- **DB:** Three additive planning workspace/retention migrations applied only after verifying Development endpoint ep-purple-pond-b3xujb8o. Generated client, PostgreSQL owner/replay/version/intent/retention tests pass; task-owned fixtures cleaned. Invalid/unconfirmed proposal schedules are not persisted. Only a freshly validated, user-confirmed Save intent temporarily retains its canonical request, cleared on terminal outcome.
+- **Diagnosis:** Reproduced stale-account and lost-START recovery bugs; live model smoke reproduced a selected point missing usable duration. Deterministic regression went red before candidate-filter fix, then passed; live understanding/selection smoke passed. Removed temporary diagnostics. Fixed review findings around day-specific edits, disambiguation, versioning, same-key replay ordering, interrupted saves, cross-day validation and retention.
+- **Checks:** Focused Assistant/Planner/Validator/Save suites: 43 files/438 tests PASS, 7 opt-in skips. Separate Development PostgreSQL3/3 and real model1/1 PASS. Typecheck4/4 and production build PASS; final receipt refreshed after last small adjustment. Local /assistant200 with planning entry; Guest planning POST401 with private/no-store. Whitespace/scope/secret review recorded.
+- **Full baseline:** Full web Vitest2992 PASS/19 FAIL/150 SKIP/1 TODO, seven failing files. The same19 failures reproduced in a source snapshot of the pre-task commit. Separately, legacy public Destination rendering has one failure, also reproduced at baseline. No broad-suite green claim.
+- **Reviews:** Independent Standards and Spec agents reviewed against the pinned baseline plus untracked files. Findings were fixed and targeted re-reviewed; no residual concrete findings in the final targeted checks.
+- **Limits:** Browser interaction/360px/visual acceptance unavailable: local browser use disabled in Work settings. Seven-case synthetic evaluation is a harness regression, not full academic RQ2/model-quality proof. No production rollout. See docs/stories/ASSISTANT-CONVERSATIONAL-PLANNING.md and docs/implementation/assistant-trip-planning-verification.md.
+- **Next:** Owner/browser acceptance and separately scoped baseline-test maintenance; production migration/configuration only through an explicit release task.
+
+## 2026-10-27 — Assistant chat-first follow-up after owner testing
+
+- **Approval:** Owner requested natural conversation in place of the chat needs form and approved Q1–Q3 then Q4–Q7 through grill-with-docs. Decisions are recorded in `docs/implementation/assistant-chat-first-planning-design.md`; all interview branches settled before implementation.
+- **Delivered:** Sequential needs questions/skips, detailed chat recap and natural generation confirmation; bounded current-dialogue context; proactive eligible point choices; scoped add/remove/replace/replan-day; explicit exclusions/re-additions and mandatory additions; separate acceptance of other-day timing effects; distinct official Save; corrected duplicate replies and Q&A transcript order.
+- **Recovery:** Pre-change snapshots remain client-only. Cancellation restores the prior active proposal when server state is unchanged; after REVIEW, an idempotent versioned needs rollback completes before claiming cancellation. Its UNKNOWN retry uses the same body/key and never generates another itinerary. Reload invalidates old offers; saved-Trip editing remains in its own workflow.
+- **Checks:** Final focused suites44 files/461 tests PASS, 7 opt-in skips; root typecheck4/4 PASS; final root production build PASS including TypeScript. Development PostgreSQL3/3 and real provider+Development1/1 PASS; live coverage includes shorthand days and proactive destination options, no Trip write. Migration preflight verified no pending migrations; this follow-up adds no migration. Panel design lint0 FAIL with one legitimate HH:mm padding warning. Whitespace/scope/secret checks recorded in the follow-up verification.
+- **Reviews/diagnosis:** Code-review Standards and Spec ran separately against the pinned baseline plus working-tree/new files. Red-capable tests reproduced UI duplication/form behavior, uppercase-Đ confirmation, exclusion/must-visit and cancellation/reload transitions before fixes. Final targeted reports have zero residual findings per axis; regression fixtures retained, no debug capture retained.
+- **Limits:** Local browser use remains disabled in Work settings. No live screenshot/mobile/focus or full authenticated browser acceptance, no new full-suite green claim and no production rollout. Prior baseline suite failures remain documented separately. No commit/push/merge.
+- **Handoff:** `docs/stories/ASSISTANT-CHAT-FIRST-PLANNING.md`, verification and the new16-case manual checklist. The older needs-form manual checklist is explicitly marked historical for that interaction.
+
+## 2026-10-27 — Assistant screenshot fixes and complete-itinerary map
+
+- **Scope:** Read the owner's referenced chat and screenshot report. Preserved approved preliminary-without-date behavior; no product-baseline change. Owner additionally requested the Trip's Stadia map with only the complete-itinerary view in chat.
+- **Delivered:** Immediate planning question display/composer clearing before START/ANALYZE; single completion reply and preservation of a newer draft. Explicit departure-date question/deferral, clarification for invalid/past extracted dates, client Save blocker and explanation. More conversational prompts/recaps, unspecified optional fields omitted, and no inferred companions/interests from a request for more experiences. Daily schedule first, grouped/collapsible checks, proper map host states and full-width mobile input.
+- **Map:** Existing MapLibre/Stadia component gains an optional overview-only presentation used by Assistant. Chat shows all days, no day dropdown/scope controls, and keeps fit/legend/selection. Separate Trip behavior retains its existing day/all controls. Provider configuration, authoritative routes and server credential boundaries are unchanged.
+- **Diagnosis/tests:** Regression assertions reproduced the skipped date, empty pending assistant bubble and invalid-date exception. Actual submit-handler and recovery tests cover pending START and preservation of typed follow-up text. Final focused suites49 files/500 tests PASS, 8 opt-in skips; separate real-provider language smoke1/1 PASS with screenshot wording and no DB/routing/Trip writes. Root typecheck4/4, final production build (1m17s), design lint (0 FAIL, one HH:mm warning), whitespace/scope/secret checks PASS.
+- **Browser:** In-app browser was available in this session. Production chat/panel/map/scheduler were checked with synthetic loopback adapters and an empty local MapLibre style. Complete map had3 markers and0 day controls at1440/768/360px, no document/proposal overflow, map height360px; mobile textarea314px. Immediate send, explicit date skip, recap, blocked Save, loading/error/ready map and light/dark were checked. Ignored local evidence is in `apps/web/.cache/planning-ux/`. Temporary server/harness were stopped/removed.
+- **Build cleanup:** Turbo reported the final build task successful, including Next TypeScript/static generation; its Windows runner remained alive after printing the receipt and was interrupted during cleanup. No application build error was reported.
+- **DB/release:** No schema, dependency or migration change in this follow-up. Existing uncommitted work preserved. No commit, push, merge or deployment.
+- **Limits/handoff:** Live Stadia tiles and the owner's authenticated browser acceptance remain open; synthetic map images do not demonstrate live provider connectivity. The language smoke is bounded evidence, not general AI-quality certification. No new full-suite green claim; earlier baseline failures remain separate. Story, verification and manual screenshot-regression checklist updated.
+
+## 2026-10-27 — Automatic Assistant map and real Stadia comparison
+
+- **Request:** Owner compared the previous synthetic empty-background screenshot to the completed Trip map. Clarified that the earlier image used a deliberate fixture style; did not replace or reconfigure the app's actual Stadia provider.
+- **Fix:** A red regression reproduced the generated panel keeping its map collapsed. New proposals now open their complete-itinerary map immediately; collapse is scoped to a proposal ID, so a revised proposal opens again. Existing Trip map behavior, routing/Validator and save boundaries remain unchanged.
+- **Live evidence:** Read-only Development lookup of seven eligible public points (including six existing `[TEST]` records), production scheduler and actual Stadia routing adapter. First run returned4/6 shapes under the existing deadline; a separate run returned6/6, without changing timeouts/retry behavior or drawing missing geometry. The actual map component then rendered real Stadia tiles/labels,7 numbered markers,6 colored road routes and required attribution in the in-app browser. Collapse/reopen worked. No AI call, account/conversation/Trip write, destination modification or private data read.
+- **Checks:** Panel/integration/map5 files28 tests PASS; root typecheck4/4 PASS; `npm run build -w web` PASS, exit0, including Next TypeScript/static generation; diff whitespace/scope/secret checks and design lint PASS (one HH:mm warning). No schema/dependency/migration change.
+- **Evidence/handoff:** Updated story, verification and manual checklist. Ignored live receipt and screenshot: `apps/web/.cache/planning-live-map/receipt.json`, `stadia-overview.jpg`. Temporary loopback viewer stopped. Owner-authenticated conversation acceptance and production rollout remain separate; transient provider route availability is not guaranteed. No commit, push or merge.
+
+## 2026-10-27 — Interview: flexible dates, natural replies and Guest flow
+
+- **Request/method:** Owner explicitly invoked grill-with-docs to handle incomplete/relative dates, inspect actual AI understanding/reply composition and discuss Guest behavior/model choice. This is a design interview; no new implementation approval is inferred.
+- **Facts:** Planning already calls AI for interpretation and point selection, with bounded dialogue context, while most displayed prompts/recaps remain deterministic templates. Prompt declines relative dates and request lacks a current-date/timezone anchor. Read-only local model-name check found gpt-6-luna. Static delegated audit identified Guest planning activation trapping later public Q&A when no workspace exists.
+- **Proposal:** Explicit date interpretation/ambiguity, model-written replies grounded in authoritative state, planning-specific Sol selection, and a baseline-preserving Guest login handoff; alternatively Guest preliminary plans require an explicit product decision. All frontier choices remain pending.
+- **Files:** `docs/implementation/assistant-dialogue-naturalness-design.md` records facts, proposed options, open dependencies and official model sources. No accepted ADR or product/Glossary baseline was changed.
+- **Validation/limits:** Documentation whitespace check only. No app/env/schema changes, tests/build/live model or release for this interview. Existing working-tree implementation preserved. Await Q1–Q3 decisions under grilling before implementation.
+
+## 2026-10-27 — Dialogue interview round 1 approved with Luna/high
+
+- **Approval:** Owner agreed to Q1–Q3, explicitly selecting `gpt-6-luna` / high reasoning for all AI steps of this planning flow and a visible login-navigation button for Guest. This supersedes the proposed Sol/medium choice. Guest generation rights remain unchanged.
+- **Documents:** Updated the dialogue design with accepted choices and the remaining Q4–Q5 frontier (when to confirm resolved dates and how date/context meaning survives interruptions). Added domain-only glossary terms for exact departure date and indicative departure window.
+- **Scope:** No app/env/model-provider or database change. No new model call, test/build, commit/push/merge or release. Documentation whitespace check applies; implementation awaits the remaining interview answers/shared-understanding confirmation under the invoked skill.
+
+## 2026-10-27 — Approved dialogue follow-up implemented
+
+- **Approval:** Q1–Q3 accepted with `gpt-6-luna` / `high` for all planning AI and a visible Guest login CTA; Q4–Q5 accepted by “có tôi đồng ý”. This follows the interview entry above and closes its implementation gate without widening Guest permissions.
+- **Delivered:** Server Vietnam calendar; exact/relative/date-window normalization and targeted clarification; confirmed replacement of exact dates; retained anchors in reviewed-needs JSON; expired-date checks; natural grounded composition separated from interpretation/selection/Validator. Composition failures return canonical prose without rerunning work. Other needs survive an invalid date.
+- **Guest:** Public QA remains usable after an invitation and after its conversation ID is attached. Independent public questions in punctuated mixed requests can be separated. Login captures original text/public context instead of the latest draft; existing one-use five-minute memory handoff requires explicit send after login. No automatic creation/save or Guest-history migration.
+- **Checks:** Broad related 38 files/359 tests PASS; after final changes, affected suites12 files/104 tests PASS (five opt-in skips). Real Luna/high language smoke1/1 PASS, no DB/routing/Trip writes. Root typecheck4/4 and final isolated production build exit0 PASS. Assistant-scope premium audit0 findings; design lint0 errors/four existing warnings; whitespace/scope/secret checks PASS.
+- **Limits:** Browser use is disabled in Work settings. Offline handler/component evidence is not authenticated browser/mobile/focus acceptance. No repository-wide suite, new DB smoke or rollout claim. No schema/dependency/migration change in this follow-up; existing uncommitted work retained; no commit/push/merge.
+- **Handoff:** `docs/stories/ASSISTANT-DIALOGUE-NATURALNESS.md`, accepted design and `docs/implementation/assistant-dialogue-naturalness-verification.md`.
+
+## 2026-10-27 — Guided remaining planning questions
+
+- **Request:** Owner screenshots showed interest-only recap and planning guidance misrouted to destination QA; requested all remaining questions so travelers know how to answer.
+- **Delivered:** A shared optional-question list with examples and relevant quick replies for experiences, pace, companions/count, mobility and destinations. Partial answers retain the rest; explicit scoped skips do not complete the whole stage. “Bỏ qua phần còn lại” remains available. Planning-guidance questions remain in planning; genuine QA is unchanged. Bare number/negative answers in a batch are clarified instead of guessed. Existing reviewed-needs JSON stores per-section skips, with no migration or new required fields.
+- **Evidence:** Red tests reproduced premature recap and the exact screenshot wording. Focused regressions, related suites, typecheck/build and real Luna/high service/composition smoke are recorded in `docs/implementation/assistant-guided-preferences-verification.md`. The real smoke accepts a combined response and retains the anchored date window; no DB/routing/Trip writes.
+- **Limits:** Browser tools still report disabled in Work settings, so no current visual/focus/mobile browser acceptance. Existing palette/components, Guest/Traveler boundary, separate confirmation, deterministic Validator and official Save remain unchanged. No commit/push/merge, deployment, schema or dependency change; unrelated work preserved.
+
+## 2026-10-27 — Owner correction: ask optional questions one at a time
+
+- **Request:** Owner clarified the batch screenshot: “những cái này nên hỏi từng câu 1 thôi á”. This supersedes the prior batch presentation while retaining coverage of all optional needs.
+- **Delivered:** Only the first unanswered optional topic is displayed, with its example and relevant quick replies. Current-topic metadata reaches understanding; the language composer preserves that question and allows no additional question. “Bỏ qua câu này”/bare skip advances one topic; explicit skip-remainder is separate. Bare negative answers for mobility/destinations apply to that topic. Previous and volunteered combined answers remain retained; date/auth/Validator/save boundaries and Luna/high remain unchanged.
+- **Checks:** Initial red test reproduced the unwanted multi-question reply. Final focused13 files/106 tests PASS with five opt-in skips; separate actual-chat/popup2 files/30 tests PASS. Web typecheck and isolated production build exit0 PASS. Real Luna/high sequential smoke1/1 PASS (154.6s), with no DB/routing/Trip writes. Assistant premium audit0 findings; design lint0 errors/four existing warnings; whitespace/secret/scope checks PASS.
+- **Limits:** Browser use still disabled in Work settings; no new visual/mobile/focus acceptance claim. No schema/migration/dependency or release changes; unrelated work preserved, no commit/push/merge. Current story, product/flow/design context and the guided-question verification distinguish this correction from the historical batch receipt.
+
+## 2026-10-27 — Optional suggestions fill the composer before sending
+
+- **Request:** Owner wants optional answer chips to fill the input, allowing several selections and additional typed text before sending.
+- **Delivered:** Optional suggestion/skip chips append to the latest shared page/popup composer draft, preserve existing text, avoid duplicates and focus the input. A hint explains choosing/editing before explicit Send. Clicking alone creates no API request, transcript turn or question advance; pending/unavailable guards and existing generation/Save actions remain intact.
+- **Checks:** Two actual-handler page/popup regressions failed before the change and now pass. Related23 files/234 tests PASS; web typecheck and isolated production build exit0 PASS. Component taste lint0 failures with one existing clock-format warning; whitespace/scope/secret review PASS. See `docs/implementation/assistant-guided-preferences-verification.md`.
+- **Limits:** Browser use remains disabled in Work settings, so real-browser visual/focus/mobile acceptance remains open. No AI/provider/API/database/schema/migration/dependency changes; no new model/DB smoke or release claim. Existing unrelated work preserved; no commit/push/merge.
+
+## 2026-10-27 — Read-only audit of missing Assistant history
+
+- **Request:** Owner asks whether chat is stored in DB because data often disappears, with a screenshot of an empty needs recap.
+- **Verified:** Read the exact pictured conversation on the endpoint-verified Development DB in a read-only transaction. Conversation is present/not deleted/not expired, has one completed QA turn, and planning workspace version0 with empty requirements. ANALYZE and planning transcript are currently transient; only REVIEW persists needs. `reopenHistory()` additionally clears in-memory planning messages. The actual opening typo is not recognized as a planning request and is routed to QA.
+- **Reproduction:** Temporary actual-client/service probe run twice, reproducing three expected-history failures: duration disappears on fresh READ, existing messages clear on reopening, and the pictured typo fails planning detection. Probe removed after documenting; no application fix/pass claim.
+- **Handoff:** `docs/implementation/assistant-history-persistence-audit.md` contains DB evidence, current boundaries and a concrete proposed account-only transcript/checkpoint design, separate from reviewed needs and canonical Trip Save. Persistence changes are proposed, not implemented; previously unwritten dialogue cannot be recovered from DB.
+- **Scope:** No application/schema/data changes, migration, provider calls, commit/push/merge or deployment. Existing unrelated work preserved. Typecheck/build/browser acceptance are not rerun for this audit-only change.
+- **Additional checks:** Existing planning client/service2 suites/24 tests PASS, confirming current behavior rather than fixing the reproduced gaps. Read-only migration preflight verifies the planning table and zero pending migrations; whitespace check PASS.
+
+## 2026-10-27 — Combined interest chips and a composer limited to four lines
+
+- **Request:** Owner reports Thiên nhiên followed by Văn hóa appears not to add the second choice; wants a natural comma-separated sentence. Follow-up explicitly requests automatic composer height with a line limit.
+- **Cause and change:** The previous callback appended separate sentences on new lines while the textarea remained one line tall. Interest chips now merge into “Mình thích trải nghiệm thiên nhiên, văn hóa”, preserve free text and avoid duplicates. The shared page/popup composer measures content, grows/shrinks to four lines, scrolls internally past the cap, remeasures width changes and places the caret after suggestions. Filling remains distinct from explicit Send.
+- **Evidence:** Both actual page/popup regressions reproduced the wrong text before the fix; a separate red cap assertion caught96px instead of four20px lines plus padding. Final related23 files/234 tests and web typecheck PASS. Running local Assistant200 and its JS assets contain the new code. Final build/whitespace receipts are in `docs/implementation/assistant-guided-preferences-verification.md`.
+- **Limits:** Browser use still disabled; effect/handler evidence does not prove visual/mobile acceptance. Taste lint flags existing unchanged emoji/icon controls; no clean whole-file lint claim. No AI/API/DB/persistence/schema/dependency/migration changes; the separate history persistence proposal remains pending. Unrelated work preserved; no commit/push/merge/deployment.
+
+## 2026-10-27 — Choice cardinality, companion counts, verbal dates and account planning history
+
+- **Request:** Five owner screenshots report accumulated single-value pace options, rejected “15 tháng 11”, the unwanted skip-remainder button, limited companion choices and recurring missing chat sessions; owner also asks whether reply composition uses a model. This follow-up implements account dialogue/checkpoint persistence for that recurring loss report, superseding the earlier transient-dialogue limitation. Guest permissions and invalid-itinerary/official Save invariants are unchanged.
+- **Delivered:** Pace/companion draft choices replace within their group, interests remain multiple; remove visible skip-remainder; normalize verbal dates without “ngày”; offer solo/partner/family/friends/other and retain partial category/count before asking the missing part. Bare count cannot replace duration; public QA remains separate. Copied full option lines now select the bound actual option. Composer retains four-line growth and explicit Send.
+- **Language:** All planning AI still Luna/high. Relaxed the verbatim preferences question gate to permit current-topic paraphrases while preserving critical facts/one question/Validator authority; language timeout25s. Safe outcome-only telemetry distinguishes model acceptance/fallback. New real-model family/count/verbal-date smoke1/1 PASS (23.2s), with3/3 MODEL_ACCEPTED and no DB/routing/Trip writes.
+- **History:** Added completed planning-text rows plus a separate unreviewed workspace checkpoint/revision. Client/service writes atomically under ownership/version/idempotency; lost acknowledgement retries identically. Reopen keeps text/needs and resumes missing questions, refreshing expired dates; old proposals/options still regenerate explicitly. QA lifecycle erases new data via cascade. Earlier unwritten text cannot be recovered; unacknowledged/in-flight work is not durable background execution.
+- **DB:** Regenerated Prisma Client. Applied additive `20261027180000_planning_dialogue_history` only after verifying Development identity. Initial P1002 advisory-lock failure came from a pooled idle backend, with no transaction; guarded termination of that idle connection and a direct migration connection resolved it. Final preflight shows zero pending. No reset/db:push/production migration or `.env` changes. Schema-aware development pool cache refreshes the client on hot reload.
+- **Checks:** Related34 files/305 tests PASS with8 opt-in skips; actual PostgreSQL5/5 PASS includes client/service → DB → fresh-reader resumption, ownership/replay/conflicts/deletion. Final type/build/whitespace receipts are in `docs/implementation/assistant-dialogue-history-follow-up.md`. Running local Assistant200 assets include checkpoint/single-choice code. Browser still disabled, so authenticated UI/mobile acceptance remains open. No new dependency, commit/push/merge or deployment; unrelated work retained.
+
+## 2026-10-27 — FE wrapping and chronological itinerary cards
+
+- **Request:** Owner's companion choices cross the curved outer border; editing a schedule puts the AI response above an always-bottom card. They request preserving the original card, replying below it and appending a revised card after acceptance.
+- **Delivered:** Bounded rounded wrapper/inset sizing and variable-height wrapped labels. Accepted proposal snapshots are cloned onto their creating exchanges and rendered by one shared card component. Later requests/replies follow the old card, accepted revisions append below, and earlier cards retain their original contents without Save controls. Failed/canceled edits do not append an accepted card; current Save still checks proposal identity. Reopen expires snapshots while retaining persisted text; checkpoint serialization excludes structured proposal data.
+- **Checks:** Original ordering regression failed before the change. Final focused3 files/30 tests PASS includes cancellation/failure and payload-retention boundaries; preceding related34 files/306 tests PASS with8 skips. Web typecheck and isolated production build exit0 PASS. Taste lint0 failures/one existing clock warning; whitespace/scope/secret checks PASS.
+- **Browser:** Browser use is available again. Actual components/CSS in a controlled local fixture reproduce the before-CSS overflow and verify after-CSS desktop/360px/light/dark containment plus old/edit/new card order with one current Save. No DB/provider writes. Screenshots/report: `docs/implementation/assistant-planning-fe-chronology-verification.md`. Authenticated full-app and live-model flow are not claimed. Existing local dev server was stopped; restarted its configured3010 command. Temporary preview tooling stays ignored in `.cache`; viewport restored.
+- **Scope:** No DB/API/schema/migration/provider/dependency or release change; no commit/push/merge/deployment. Existing unrelated work preserved.

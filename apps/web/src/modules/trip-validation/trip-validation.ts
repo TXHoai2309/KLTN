@@ -82,7 +82,7 @@ export function aggregateStatus(statuses: readonly VisitCheckStatus[]): Validati
 }
 
 /** Caller validates proposal structure and supplies one accepted route snapshot per adjacent leg. */
-export function validateItinerary(visits: readonly ValidationVisit[], routes: readonly RouteSnapshot[], timeReference: Date): TripValidation {
+export function validateItinerary(visits: readonly ValidationVisit[], routes: readonly RouteSnapshot[], timeReference: Date, interdayDepartureMinute?: number): TripValidation {
   if (Number.isNaN(timeReference.getTime())) throw new RangeError("timeReference must be valid");
   const ordered = [...visits].sort((a, b) => a.dayIndex - b.dayIndex || a.order - b.order || a.visitId.localeCompare(b.visitId));
   const findings: Record<ValidationGroupName, ValidationFinding[]> = {
@@ -112,8 +112,15 @@ export function validateItinerary(visits: readonly ValidationVisit[], routes: re
       }
     }
     const next = ordered[index + 1];
-    if (!next || next.dayIndex !== first.dayIndex) continue;
+    if (!next) continue;
     const snapshot = routes.find(route => route.fromVisitId === first.visitId && route.toVisitId === next.visitId);
+    if (next.dayIndex !== first.dayIndex) {
+      if (interdayDepartureMinute === undefined) continue;
+      const route = snapshot?.route;
+      if (!route || route.kind !== "ok" || !Number.isFinite(route.durationSeconds) || route.durationSeconds < 0) add("travelTime", "INSUFFICIENT_DATA", "ROUTE_UNAVAILABLE", { fromVisitId: first.visitId, toVisitId: next.visitId });
+      else if ((next.startMinute - interdayDepartureMinute) * 60 < route.durationSeconds) add("travelTime", "VIOLATION", "TRAVEL_TIME_SHORT", { fromVisitId: first.visitId, toVisitId: next.visitId });
+      continue;
+    }
     const travel = checkTravelTime({ previousVisit: { visitId: first.visitId, startMinute: first.startMinute, plannedDurationMinutes: first.plannedDurationMinutes }, nextVisit: { visitId: next.visitId, startMinute: next.startMinute } }, snapshot?.route ?? { kind: "unavailable" });
     add("travelTime", travel.status, travel.reason, { fromVisitId: first.visitId, toVisitId: next.visitId });
   }
