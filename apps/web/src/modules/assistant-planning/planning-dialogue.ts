@@ -24,6 +24,19 @@ export function planningReply(text: string) {
   if (/^(bo qua|bo qua cau nay|bo qua muc nay|bo qua phan con lai|de ai goi y|chua biet|chua chot|chua chot ngay|chua co ngay|de sau|ban cu goi y|tuy ban)$/.test(reply)) return "SKIP";
   return null;
 }
+/** Explicit action words must not inherit a different pending confirmation. */
+export function planningConfirmationTarget(text: string) {
+  const reply = normalizePlanningReply(text);
+  if (/^(?:dung roi )?(?:tao di|lap di|tao hanh trinh|tao lich trinh|bat dau)$/.test(reply)) return "CREATE";
+  if (/^(?:(?:xac nhan|dong y)(?: va)? )?luu(?: di| chuyen di| chuyen nay)?$/.test(reply)) return "SAVE";
+  return null;
+}
+export function asksToDisplayPlanning(text: string) {
+  const reply = normalizePlanningReply(text);
+  return /^(?:ban |ai )?(?:hien thi|cho .*xem|xem|mo|gui|nhac)\b/.test(reply)
+    && /\b(?:lich trinh|hanh trinh)\b/.test(reply)
+    && !/\b(?:doi|sua|thay|bo|them|huy)\b/.test(reply);
+}
 export function explicitlyDefersPlanningDate(text: string, askedForDate: boolean) {
   const value = normalizePlanningReply(text);
   return (askedForDate && planningReply(text) === "SKIP") || /\bchua (?:chot|co|biet|xac dinh) (?:duoc )?(?:ngay|lich|khi nao|bao gio)\b|\b(?:ngay di|ngay khoi hanh|lich di) (?:thi )?chua (?:chot|co|biet|xac dinh)\b/.test(value);
@@ -63,7 +76,7 @@ export function nextNeedsPrompt(needs: PlanningNeeds, dateDeferred: boolean, pre
 
 export function proposalReply(generated: PlanningGenerated) {
   return generated.proposal.eligibleForFinalConfirmation
-    ? "Mình đã lên lịch bên dưới và các bước kiểm tra đều đáp ứng. Bạn muốn chỉnh gì thêm hay lưu vào Chuyến đi của tôi?"
+    ? "Lịch trình đã sẵn sàng bên dưới để bạn xem. Bản này chưa lưu; bạn có thể nhắn mình chỉnh thêm hoặc xác nhận lưu vào Chuyến đi của tôi nhé."
     : !generated.proposal.requirement.startDate
       ? "Mình lên bản sơ bộ bên dưới để bạn xem trước nhé. Khi chốt được ngày đi, bạn nhắn mình để kiểm tra giờ mở cửa và hoàn thiện trước khi lưu. Bạn muốn thêm hay đổi điểm nào không?"
       : "Mình đã lên bản đề xuất bên dưới, nhưng còn mục chưa đáp ứng hoặc thiếu dữ liệu kiểm tra nên chưa thể lưu. Bạn có thể xem chi tiết kiểm tra hoặc nhắn mình điều muốn chỉnh nhé.";

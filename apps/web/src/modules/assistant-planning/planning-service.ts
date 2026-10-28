@@ -74,7 +74,7 @@ export async function executePlanning(request: PlanningRequest, key: string, dep
   const workspace = await deps.repository.assertVersion(request.conversationId, request.version, request.action === "SAVE");
   if (request.action === "ANALYZE") {
     const analysis = await deps.analyze(request.text, request.draft, await deps.candidates(), request.unresolved, request.dialogue, deps.now());
-    if (analysis.intent === "QA" || analysis.operation || analysis.unresolved.length) return analysis;
+    if (analysis.intent === "QA" || analysis.intent === "DISPLAY" || analysis.operation || analysis.unresolved.length) return analysis;
     const next = nextNeedsPrompt(analysis.needs, !!analysis.needs.dateDeferred, !!analysis.needs.preferencesDone, today);
     const dateChanged = analysis.needs.requirement.startDate && analysis.needs.requirement.startDate !== request.draft.requirement.startDate;
     const canonical = analysis.intent === "CLARIFY" ? analysis.message : `${dateChanged && next.prompt.kind !== "RECAP" ? `Mình ghi nhận ngày khởi hành ${formatVietnameseDate(analysis.needs.requirement.startDate!)} nhé.\n` : ""}${next.message}`;

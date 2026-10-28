@@ -15,9 +15,26 @@ model Trip {
   manuallyCompletedAt DateTime?
   days         ItineraryDay[]
   favorites    Favorite[]
+  companionPublication TripCompanionPublication?
 
   @@index([userId, createdAt])
   @@map("trip")
+}
+
+// TC-01 only: the unique publication is the stable identity for later group work.
+model TripCompanionPublication {
+  id                 String       @id @default(cuid())
+  tripId             String       @unique
+  trip               Trip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  title              String       @db.VarChar(200)
+  introduction       String       @db.VarChar(4000)
+  additionalCapacity Int
+  imageMediaId       String?
+  imageMedia         ContentMedia? @relation(fields: [imageMediaId], references: [id], onDelete: SetNull)
+  createdAt          DateTime     @default(now())
+
+  @@index([imageMediaId])
+  @@map("trip_companion_publication")
 }
 
 model ItineraryDay {

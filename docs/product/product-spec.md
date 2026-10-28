@@ -6,13 +6,15 @@ This is a condensed developer-facing contract for the Hà Giang travel assistant
 
 Help visitors discover Hà Giang destinations and culture, get source-grounded answers, plan and adjust trips, and receive useful support while traveling. The MVP is responsive web for Hà Giang, with approximately 30–50 destinations and 20–50 reviewed cultural/heritage documents. It supports motorcycle and car trips. A native mobile application, booking/payment, trip collaboration, complex multi-objective route optimization, and mandatory multi-province coverage are out of scope. PWA is optional.
 
+The owner-approved travel-companions extension below is a scoped exception to the original exclusion of trip collaboration: public invitations, member itinerary reads and group chat are approved requirements as of 2026-10-28. Shared trip ownership and collaborative editing remain out of scope. TC-01 publication/introduction is implemented locally following separate coding requests; discovery, membership, recruitment management and group chat remain unimplemented. See the [implementation inventory](../implementation/trip-companions-implementation-status.md). Planning approval alone does not authorize coding.
+
 ## Roles and access
 
 - **Guest:** May use public exploration and public culture Q&A.
 - **Traveler:** May use public features and personal favorites, trips, itineraries, and in-trip support.
 - **Admin:** Inherits Traveler capabilities for their own account, favorites, trips and planning, and retains destination, culture and RAG administration. This is capability inheritance, never permission to access another user's private resources. Owner-approved RBAC V2 (2026-10-17) supersedes the original non-inheritance rule; see [RBAC V2](../stories/RBAC-V2-admin-inherits-traveler.md).
 
-Public signup creates only a Traveler account. Authorization is enforced on the backend before protected data is returned, changed, or supplied to AI. A known URL or ID grants no access. A Traveler may access and edit only their own trips. The MVP does not support shared trip ownership or collaborative editing.
+Public signup creates only a Traveler account. Authorization is enforced on the backend before protected data is returned, changed, or supplied to AI. A known URL or ID grants no access. Private Trip workflows remain owner-scoped, and the MVP does not support shared trip ownership or collaborative editing. The planned extension below adds limited public introductions and explicit member-read capabilities through host publication and membership; it grants neither itinerary editing to members nor an Admin private-data bypass.
 
 Owner-approved Admin User Management V2 (2026-10-17) additionally permits Admins
 to view approved account metadata, change another account's role/status and revoke
@@ -32,6 +34,19 @@ Guests, Travelers, and Admins can discover destinations and culture that are cur
 ### Favorites and saved trips
 
 Favorites apply to destinations, culture content, and saved trips. Favorite trip is a link to an owned saved trip; it is not trip creation, a copy, or a change of ownership. Removing a favorite does not delete its source record. Do not create duplicate favorites for the same user and target. A now-hidden target may remain in a user's favorites but must be identified as unavailable rather than treated as public content. Update favorite UI only after the write is confirmed.
+
+### Planned travel-companions extension — approved 2026-10-28
+
+**Approved requirements; partially implemented.** The owner confirmed Q1–Q17 in the [travel-companions design](../implementation/trip-companions-design.md), keeping the initial task at planning only, then separately requested TC-01 BE and FE implementation. TC-01 is implemented locally with Development migration evidence; TC-02–TC-11 have not started. [ADR-23](../decisions.md#adr-23--travel-companions-preserve-single-trip-ownership-2026-10-28) records the single-owner/live-itinerary boundary.
+
+- A host may publish an invitation from an officially saved Trip. Guests see only the approved introduction, route summary, host display name/avatar, dates, transport and available additional places; detailed times, meeting information, member lists and chat require current membership. Existing private endpoints remain owner-scoped.
+- An authenticated eligible account joins immediately if a place is available and recruitment is still open before the Vietnam departure date. Capacity means additional places, excluding the host/existing travel party; each joining account occupies one place. Joining must not oversubscribe or duplicate membership on concurrent writes/retries.
+- Only the host edits the itinerary. Members read the latest successfully saved itinerary; date/destination/time changes create a consistent group notice without requiring every member to approve. Existing Validator, confirmation and write semantics continue to govern Trip changes.
+- Each Trip has one group chat for text and links. New members can read its full history, disclosed before joining. The initial plan uses in-web unread indicators and polling about every three seconds while the group is open; it has no DM, attachment, voice/call or off-web notification requirement.
+- Members may leave, losing private group access and returning their place; their messages remain for the group. A host may remove and bar a member from rejoining. Admin content-reporting tools remain future work and no new Admin private-read privilege is granted.
+- Closing recruitment, withdrawing public visibility and canceling the companion trip are distinct. Closing/withdrawing preserves the group; cancellation makes user chat read-only. Completion permits chat indefinitely. Trips that have ever had members retain group/history and use cancellation/withdrawal rather than permanent deletion. Capacity may change but cannot fall below current joined accounts.
+
+These are approved requirements for the complete extension; only the TC-01 slice is currently implemented, as detailed in the implementation inventory. The design contains the full permission matrix, lifecycle details, layout and acceptance scenarios.
 
 ### RAG answers
 

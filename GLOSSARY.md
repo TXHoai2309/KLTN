@@ -66,9 +66,15 @@ _Avoid_: Indicative departure window, number of trip days.
 A period in which the traveler may start the trip without yet choosing one exact departure date, such as a particular week.
 _Avoid_: Exact departure date, confirmed trip dates.
 
-## Travel companions — planned extension
+## Travel companions
 
-These terms describe the owner-selected feature design in `docs/implementation/trip-companions-design.md`; they do not imply that the feature is implemented.
+**Saved itinerary (lịch trình đã lưu)**:
+The official itinerary of a trip, including its travel dates and arranged destination visits, that its owner has confirmed and saved.
+_Avoid_: Itinerary proposal, companion invitation.
+
+**Companion invitation (bài đăng tìm bạn đồng hành)**:
+The host's public invitation for additional companions to join an existing trip, with an introduction and a summary of that trip.
+_Avoid_: Saved itinerary, group conversation, separate public event.
 
 **Trip host (chủ chuyến)**:
 The person who owns a trip opened to travel companions and retains authority to edit its itinerary.
@@ -78,7 +84,7 @@ _Avoid_: Shared owner, group administrator role.
 A person who has joined a trip and can view its itinerary and participate in its group conversation.
 _Avoid_: Join applicant, co-editor, trip host.
 
-**Open companion places (số chỗ tìm thêm)**:
+**Companion capacity (số chỗ tìm thêm)**:
 The number of additional people a host invites to join, excluding the host and companions already traveling with them. Each joining account occupies one place.
 _Avoid_: Total party size, planner companion count, vehicle seats.
 
@@ -89,3 +95,11 @@ _Avoid_: AI assistant conversation, direct message, public comments.
 **Recruitment closure (đóng tuyển)**:
 The point at which a trip stops accepting additional companions.
 _Avoid_: Trip completion, trip cancellation, trip deletion.
+
+**Listing withdrawal (gỡ công khai)**:
+Removal of a trip's invitation from public discovery while preserving its existing travel group.
+_Avoid_: Recruitment closure, group dissolution, trip deletion.
+
+**Companion trip cancellation (hủy chuyến đồng hành)**:
+The host's decision to call off the shared trip offered to its members.
+_Avoid_: Trip completion, listing withdrawal, trip deletion.

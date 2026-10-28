@@ -52,6 +52,7 @@ model ContentSource {
 
 model ContentMedia {
   id String @id @default(cuid())
+  companionPublications TripCompanionPublication[]
   destinationId String?
   cultureId String?
   destination Destination? @relation(fields:[destinationId],references:[id],onDelete:Restrict)

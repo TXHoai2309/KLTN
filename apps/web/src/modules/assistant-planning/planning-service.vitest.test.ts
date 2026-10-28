@@ -31,7 +31,7 @@ describe("Chat planning service end-to-end with controlled boundaries", () => {
     const { deps, repository } = setup();
     deps.compose = vi.fn().mockRejectedValue(new Error("language timeout"));
     const result = await executePlanning({ action: "GENERATE", conversationId: "chat", version: 0, previous: null, instruction: "Tạo lịch" }, "generate-language-failure", deps);
-    expect(result).toMatchObject({ version: 1, reply: expect.stringContaining("lên lịch") });
+    expect(result).toMatchObject({ version: 1, reply: expect.stringContaining("chưa lưu") });
     expect(repository.publishProposal).toHaveBeenCalledTimes(1);
     expect(deps.generate).toHaveBeenCalledTimes(1);
     expect(deps.save).not.toHaveBeenCalled();

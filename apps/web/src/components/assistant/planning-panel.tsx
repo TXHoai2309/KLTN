@@ -74,11 +74,11 @@ export function PlanningExchange({ message, client, available = true }: { messag
   return <div className="assistant-planning assistant-planning-exchange">
     {message.question && <article className="assistant-message assistant-user" aria-label="Tin nhắn của bạn"><p>{message.question}</p></article>}
     {message.reply && <article className="assistant-message assistant-answer assistant-planning-reply" aria-label="Phản hồi của trợ lý"><span className="assistant-speaker">Trợ lý AI</span><p>{message.reply}</p></article>}
-    {message.proposal && client && <PlanningProposalCard client={client} generated={message.proposal} available={available}/>}
+    {message.proposal && client && <PlanningProposalCard client={client} generated={message.proposal} available={available} readOnly={message.proposalReadOnly}/>}
   </div>;
 }
 
-export function PlanningProposalCard({ client, generated, available }: { client: PlanningClient; generated: PlanningGenerated; available: boolean }) {
+export function PlanningProposalCard({ client, generated, available, readOnly = false }: { client: PlanningClient; generated: PlanningGenerated; available: boolean; readOnly?: boolean }) {
   const state = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
   const [collapsedProposalId, setCollapsedProposalId] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -102,7 +102,7 @@ export function PlanningProposalCard({ client, generated, available }: { client:
           {expanded && day && <div className="assistant-planning-map"><Suspense fallback={<p role="status">Đang mở bản đồ…</p>}><ItineraryMap day={day} days={generated.proposal.days} selectedDestinationId={selected} focusSelection={false} onSelect={setSelected} overviewOnly/></Suspense></div>}
           <details className="assistant-planning-checks"><summary>Kết quả kiểm tra · {blockedChecks.length ? `${blockedChecks.length} mục cần lưu ý` : "Các mục đều đáp ứng"}</summary><p className="assistant-muted">Đã kiểm tra {generated.attempts.length} phương án · Điều chỉnh tự động {generated.attempts.length - 1}/2 lần.</p><ul className="assistant-planning-validation">{checks.map(check => <li key={check.key} data-status={check.status}><strong>{labels[check.key]}: {labels[check.status]}</strong>{issueGroups(check, names).map(group => <div key={group.message}><p>{group.message}</p>{group.places.length > 0 && <p className="assistant-muted">{group.places.join("; ")}</p>}</div>)}</li>)}</ul></details>
           <details className="assistant-planning-checks"><summary>Lưu ý cho chuyến đi</summary>{generated.proposal.warnings.filter(w => w.code !== "PRELIMINARY_ONLY").map((w, i) => <p className="assistant-muted" key={`${w.code}-${i}`}>{w.message}</p>)}</details>
-          {isCurrent && !state.savedTripId && <div className="assistant-planning-save"><button type="button" disabled={disabled || !state.generated || !generated.proposal.eligibleForFinalConfirmation} aria-describedby={!generated.proposal.eligibleForFinalConfirmation ? saveHelpId : undefined} onClick={() => {
+          {isCurrent && !readOnly && !state.savedTripId && <div className="assistant-planning-save"><button type="button" disabled={disabled || !state.generated || !generated.proposal.eligibleForFinalConfirmation} aria-describedby={!generated.proposal.eligibleForFinalConfirmation ? saveHelpId : undefined} onClick={() => {
             const latest = client.getSnapshot();
             if (latest.generated?.proposal.proposalId === generated.proposal.proposalId && latest.generated?.version === generated.version) void client.save();
           }}>Xác nhận và lưu chuyến đi</button>{!generated.proposal.eligibleForFinalConfirmation && <p id={saveHelpId} className="assistant-muted">{missingDate ? "Chưa thể lưu khi chưa có ngày khởi hành." : "Chỉ lưu được khi lịch trình đáp ứng các kiểm tra bắt buộc."}</p>}</div>}

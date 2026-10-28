@@ -22,6 +22,7 @@ import {
   ChevronRight,
   CheckCircle2,
   Pencil,
+  Users,
 } from "lucide-react";
 
 import { Card } from "@KLTN/ui/components/card";
@@ -552,13 +553,23 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
               </Link>
 
               {trip.status !== "COMPLETED" && (
-                <Link
-                  className="my-trips-action my-trips-in-trip-btn"
-                  href={`/trips/${trip.id}/in-trip` as Route}
-                >
-                  <Sparkles size={16} aria-hidden="true" />
-                  <span>Trợ lý trong chuyến đi</span>
-                </Link>
+                <>
+                  <Link
+                    className="my-trips-action my-trips-companion-action"
+                    href={`/trips/${trip.id}/publication` as Route}
+                  >
+                    <Users size={15} aria-hidden="true" />
+                    <span>Tìm bạn đồng hành</span>
+                  </Link>
+
+                  <Link
+                    className="my-trips-action my-trips-in-trip-btn"
+                    href={`/trips/${trip.id}/in-trip` as Route}
+                  >
+                    <Sparkles size={16} aria-hidden="true" />
+                    <span>Trợ lý trong chuyến đi</span>
+                  </Link>
+                </>
               )}
             </div>
           </div>
@@ -886,10 +897,16 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
           </Link>
 
           {trip.status !== "COMPLETED" && (
-            <Link className="my-trips-secondary-action" href={`/trips/${trip.id}/in-trip` as Route}>
-              <Sparkles size={16} aria-hidden="true" />
-              <span>Mở Trợ lý trong chuyến đi</span>
-            </Link>
+            <>
+              <Link className="my-trips-secondary-action" href={`/trips/${trip.id}/publication` as Route}>
+                <Users size={16} aria-hidden="true" />
+                <span>Tìm bạn đồng hành</span>
+              </Link>
+              <Link className="my-trips-secondary-action" href={`/trips/${trip.id}/in-trip` as Route}>
+                <Sparkles size={16} aria-hidden="true" />
+                <span>Mở Trợ lý trong chuyến đi</span>
+              </Link>
+            </>
           )}
         </nav>
       </footer>

@@ -34,6 +34,51 @@ function setup(needs: PlanningNeeds = fixtureNeeds, initialDays = [["a"]], route
 }
 
 describe("Chat-first planning with real scheduler and validation", () => {
+  it("does not interpret another create request as confirmation to save an existing proposal", async () => {
+    const { client, generate, save } = setup();
+    await client.start(null); await client.generate();
+    const before = client.getSnapshot().generated;
+    await client.analyze("Đúng rồi, tạo đi");
+    expect(save).not.toHaveBeenCalled();
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(client.getSnapshot().generated).toBe(before);
+    expect(client.getSnapshot().message).toMatch(/lịch trình|hành trình/u);
+  });
+  it("keeps a natural-language create command distinct from the pending save action", async () => {
+    const { client, analysis, generate, save } = setup();
+    await client.start(null); await client.generate();
+    analysis({ replyAction: "CREATE" });
+    await client.analyze("Bạn tạo giúp mình lịch trình đi nhé");
+    expect(save).not.toHaveBeenCalled(); expect(generate).toHaveBeenCalledTimes(1);
+    expect(client.getSnapshot().messages.at(-1)?.proposal).toBeDefined();
+  });
+  it("shows the saved itinerary in chat instead of routing a display request to destination QA", async () => {
+    const { client, analysis, generate, save } = setup();
+    await client.start(null); await client.generate(); await client.save();
+    const before = structuredClone(client.getSnapshot().generated);
+    analysis({ intent: "QA" });
+    expect(await client.analyze("hiển thị lại cho tôi lịch trình")).toBe("HANDLED");
+    expect(client.getSnapshot().messages.at(-1)?.proposal).toEqual(before);
+    expect(client.getSnapshot().savedTripId).toBe("saved-trip");
+    expect(generate).toHaveBeenCalledTimes(1); expect(save).toHaveBeenCalledTimes(1);
+  });
+  it("handles a semantic itinerary display without applying any extracted changes", async () => {
+    const { client, analysis, generate, save } = setup();
+    await client.start(null); await client.generate();
+    const before = client.getSnapshot().generated;
+    const needs = structuredClone(client.getSnapshot().draft);
+    analysis({ intent: "DISPLAY", needs: { ...fixtureNeeds, requirement: { durationDays: 5 } } });
+    expect(await client.analyze("Lịch mình vừa thống nhất đâu rồi nhỉ?")).toBe("HANDLED");
+    expect(client.getSnapshot().generated).toBe(before);
+    expect(client.getSnapshot().draft).toEqual(needs);
+    expect(save).not.toHaveBeenCalled(); expect(generate).toHaveBeenCalledTimes(1);
+  });
+  it("does not treat an explicit save request at recap as permission to generate", async () => {
+    const { client, generate, save } = setup({ ...fixtureNeeds, preferencesDone: true });
+    await client.start(null); await client.analyze("Lưu đi");
+    expect(generate).not.toHaveBeenCalled(); expect(save).not.toHaveBeenCalled();
+    expect(client.getSnapshot().prompt?.kind).toBe("RECAP");
+  });
   it("keeps the original card snapshot when an edit is canceled or a replacement fails", async () => {
     const { client, operation, call } = setup();
     await client.start(null); await client.generate();
