@@ -42,4 +42,20 @@ describe("Trip navigation matches the single My Trips entry", () => {
     expect(trips).not.toContain("aria-current");
     expect(trips).not.toContain("data-active");
   });
+
+  it("renders Tìm bạn đồng hành in navigation", () => {
+    const html = navigation("/");
+    expect(html).toContain("Tìm bạn đồng hành");
+    expect(html).toContain('href="/trip-companions"');
+  });
+
+  it.each(["/trip-companions", "/trip-companions/pub-sample"])(
+    "activates Tìm bạn đồng hành at %s",
+    pathname => {
+      const html = navigation(pathname);
+      const companionLink = html.match(/<a\b[^>]*href="\/trip-companions"[^>]*>/)![0];
+      expect(companionLink).toContain('data-active="true"');
+      expect(companionLink).toContain('aria-current="page"');
+    },
+  );
 });

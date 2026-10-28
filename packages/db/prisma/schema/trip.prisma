@@ -21,7 +21,7 @@ model Trip {
   @@map("trip")
 }
 
-// TC-01 only: the unique publication is the stable identity for later group work.
+// Unique publication remains the stable group identity across lifecycle changes.
 model TripCompanionPublication {
   id                 String       @id @default(cuid())
   tripId             String       @unique
@@ -32,9 +32,78 @@ model TripCompanionPublication {
   imageMediaId       String?
   imageMedia         ContentMedia? @relation(fields: [imageMediaId], references: [id], onDelete: SetNull)
   createdAt          DateTime     @default(now())
+  everHadMembers     Boolean      @default(false)
+  visibility         CompanionVisibility @default(PUBLIC)
+  recruitmentOpen    Boolean @default(true)
+  managementRevision Int @default(0)
+  messageSequence    BigInt @default(0)
+  itineraryRevision  BigInt @default(0)
+  canceledAt         DateTime?
+  messages           TripCompanionMessage[]
+  readMarkers        TripCompanionReadMarker[]
+  memberships        TripCompanionMembership[]
 
   @@index([imageMediaId])
   @@map("trip_companion_publication")
+}
+
+enum CompanionMembershipState {
+  ACTIVE
+  LEFT
+  BANNED
+}
+
+enum CompanionVisibility {
+  PUBLIC
+  WITHDRAWN
+}
+
+model TripCompanionMembership {
+  publicationId String
+  userId        String
+  publication   TripCompanionPublication @relation(fields: [publicationId], references: [id], onDelete: Restrict)
+  user          User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  state         CompanionMembershipState @default(ACTIVE)
+  joinedAt      DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@id([publicationId, userId])
+  @@index([userId, state, publicationId])
+  @@map("trip_companion_membership")
+}
+
+enum CompanionMessageKind {
+  USER
+  SYSTEM
+}
+
+model TripCompanionMessage {
+  id            String @id @default(cuid())
+  publicationId String
+  publication   TripCompanionPublication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  sequence      BigInt
+  kind          CompanionMessageKind @default(USER)
+  authorId      String?
+  author        User? @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  notice        Json?
+  text          String @db.VarChar(4000)
+  createdAt     DateTime @default(now())
+
+  @@unique([publicationId, sequence])
+  @@map("trip_companion_message")
+}
+
+model TripCompanionReadMarker {
+  publicationId String
+  userId        String
+  publication   TripCompanionPublication @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  user          User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  lastReadSequence BigInt @default(0)
+  updatedAt     DateTime @updatedAt
+
+  @@id([publicationId, userId])
+  @@index([userId, publicationId])
+  @@map("trip_companion_read_marker")
 }
 
 model ItineraryDay {

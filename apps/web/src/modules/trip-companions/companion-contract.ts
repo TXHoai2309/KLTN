@@ -34,7 +34,13 @@ export const companionIntroductionSchema = companionTripContextSchema.extend({
 export const publicCompanionSchema = z.object({
   publicationId: companionIdSchema,
   introduction: companionIntroductionSchema,
+  recruitmentStatus: z.enum(["OPEN", "FULL", "CLOSED", "DEPARTED", "COMPLETED", "WITHDRAWN", "CANCELED"]).optional(),
 }).strict();
+/** Private context, fetched separately from the session-independent public DTO. */
+export const companionViewerContextSchema = z.discriminatedUnion("relationship", [
+  z.object({ relationship: z.literal("HOST"), tripId: companionIdSchema }).strict(),
+  z.object({ relationship: z.literal("VISITOR") }).strict(),
+]);
 export const companionFormContextSchema = z.object({
   trip: companionTripContextSchema,
   imageOptions: z.array(companionImageSchema.extend({ mediaId: companionIdSchema }).strict()),
@@ -46,9 +52,30 @@ export const publishCompanionResultSchema = z.object({
   tripId: companionIdSchema,
 }).strict();
 
+/** Raw URL parameter values, shared by server and FE URL/client adapters. */
+export const companionListQuerySchema = z.object({
+  q: z.string().trim().max(200).default(""),
+  departureFrom: z.iso.date().optional(),
+  departureTo: z.iso.date().optional(),
+  transport: z.enum(["CAR", "MOTORCYCLE"]).optional(),
+  availableOnly: z.enum(["true", "false"]).default("false").transform(value => value === "true"),
+  limit: z.string().regex(/^[1-9]\d?$/).default("12").transform(Number).pipe(z.number().int().min(1).max(50)),
+  cursor: z.string().min(1).max(2048).regex(/^[A-Za-z0-9_-]+$/).optional(),
+}).strict().refine(value => !value.departureFrom || !value.departureTo || value.departureFrom <= value.departureTo, {
+  message: "Ngày bắt đầu phải không sau ngày kết thúc.", path: ["departureTo"],
+});
+export const companionListSchema = z.object({
+  items: z.array(publicCompanionSchema),
+  total: z.number().int().nonnegative(),
+  nextCursor: z.string().min(1).max(2048).nullable(),
+}).strict();
+
 export type CompanionDraft = z.infer<typeof companionDraftSchema>;
 export type PublishCompanionInput = z.infer<typeof publishCompanionSchema>;
 export type CompanionIntroduction = z.infer<typeof companionIntroductionSchema>;
 export type PublicCompanion = z.infer<typeof publicCompanionSchema>;
+export type CompanionViewerContext = z.infer<typeof companionViewerContextSchema>;
 export type CompanionFormContext = z.infer<typeof companionFormContextSchema>;
 export type PublishCompanionResult = z.infer<typeof publishCompanionResultSchema>;
+export type CompanionListQuery = z.infer<typeof companionListQuerySchema>;
+export type CompanionList = z.infer<typeof companionListSchema>;

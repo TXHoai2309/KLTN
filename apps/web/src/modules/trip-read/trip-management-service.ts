@@ -11,9 +11,13 @@ const notFound = () => new AppError("TRIP_NOT_FOUND", "Không tìm thấy chuy�
 export async function deleteMyTrip(headers: Headers, id: string, key: string, deps: TripReadDependencies) {
  const actor = await requireTraveler(headers, deps);
  return executeIdempotentWrite({ database: deps.database, actorId: actor.userId, operation: "trip:delete", key, input: { tripId: id }, execute: async tx => {
+  await tx.$queryRaw`SELECT "id" FROM "user" WHERE "id" = ${actor.userId} FOR SHARE`;
   await requireTraveler(headers, { ...deps, database: tx as unknown as Database });
+  await tx.$queryRaw`SELECT "id" FROM "trip" WHERE "id" = ${id} AND "userId" = ${actor.userId} FOR UPDATE`;
   const where = { id, userId: actor.userId };
-  if (!await tx.trip.findFirst({ where, select: { id: true } })) throw notFound();
+  const trip = await tx.trip.findFirst({ where, select: { id: true, companionPublication: { select: { everHadMembers: true, messageSequence: true } } } });
+  if (!trip) throw notFound();
+  if (trip.companionPublication && (trip.companionPublication.everHadMembers || trip.companionPublication.messageSequence > BigInt(0))) throw new AppError("TRIP_HAS_COMPANION_HISTORY", "Chuyến đã có lịch sử nhóm. Hãy gỡ công khai hoặc hủy thay vì xóa.", 409);
   // Favorite uses RESTRICT; owned Day/Visit descendants already use CASCADE.
   await tx.favorite.deleteMany({ where: { tripId: id } });
   if ((await tx.trip.deleteMany({ where })).count !== 1) throw notFound();

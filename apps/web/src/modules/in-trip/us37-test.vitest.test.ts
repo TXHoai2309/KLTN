@@ -158,6 +158,8 @@ function fixture(options: { role?: string; actorId?: string; now?: Date; routeUn
             return { count: 1 };
           },
         },
+        $queryRaw: async () => [],
+        tripCompanionPublication: { findUnique: async () => null },
         itineraryDay: {
           deleteMany: async () => {
             writes.push("itineraryDay.deleteMany");

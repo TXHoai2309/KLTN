@@ -4,6 +4,21 @@ Kiểm kê ngày 2026-10-28 theo yêu cầu của chủ dự án, áp dụng gri
 
 ## Phần đang có
 
+**Cập nhật sau kiểm kê — task BE 2026-10-28:** Toàn scope BE mốc 0/TC-02–TC-11
+đã có source/contract/tests và **BE READY FOR FE**. Membership/lifecycle, chat,
+delta/reconcile, unread và atomic itinerary notices đều có API thật; Development
+42 applied / 0 pending / 0 unfinished. FE mốc 0/TC-02–05 đã ghi receipt local
+riêng; phần FE tiếp theo đang triển khai, chưa nhận nghiệm thu browser/owner thay.
+Xem [delivery contract](trip-companions-delivery-contract.md) và
+[verification](trip-companions-backend-verification.md) cho counts, commands,
+5 lỗi baseline trong regression rộng và giới hạn. Các mô tả thiếu code bên dưới
+là **snapshot kiểm kê trước triển khai**, không phải hiện trạng BE.
+
+| Phạm vi hiện hành | BE | FE / vertical |
+| --- | --- | --- |
+| TC-01, mốc 0, TC-02–05 | READY, tests/Development evidence | Local receipts recorded separately |
+| TC-06–11 | READY, tests/Development evidence | OPEN / FE continuing; no owner ACCEPTED claim |
+
 **TC-01 đã có BE, FE và bằng chứng kiểm thử local**: chủ chuyến mở form từ Trip đã lưu, nhập giới thiệu/số chỗ/ảnh hợp lệ, xem trước rồi xác nhận công khai; người ngoài đọc giới thiệu qua link riêng. Form có recovery SUCCESS/FAILED/UNKNOWN và dùng lại request/key khi chưa xác nhận được kết quả.
 
 - [Service](../../apps/web/src/modules/trip-companions/companion-service.ts) hiện chỉ có lấy context chủ chuyến, preview, publish và đọc giới thiệu công khai.
@@ -14,9 +29,11 @@ Kiểm kê ngày 2026-10-28 theo yêu cầu của chủ dự án, áp dụng gri
 
 Đây là trạng thái hiện thực, không thay thế nghiệm thu đầy đủ của chủ dự án hoặc khẳng định toàn bộ tính năng đồng hành đã hoàn thành.
 
-## Mười ticket chưa triển khai
+## Các ticket còn thiếu FE/tích hợp hoặc chưa triển khai
 
-TC-02–TC-11 đều chưa có phần BE/FE thực thi; các issue vẫn ghi `ready-for-agent`, BE/FE `NOT STARTED`, integration `NOT RUN`.
+Bảng dưới ghi các gap tại **snapshot kiểm kê ban đầu**. Backend của tất cả các
+ticket đã được bổ sung sau đó; trạng thái hiện hành là bảng ở trên và delivery
+contract. Không coi BE READY FOR FE là vertical ticket IMPLEMENTED.
 
 | Ticket | Phần người dùng còn chưa có | Phụ thuộc đã duyệt |
 | --- | --- | --- |

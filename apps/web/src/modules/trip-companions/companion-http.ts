@@ -5,8 +5,10 @@ import { requireIdempotencyKey } from "@/server/http/idempotency";
 import { readBoundedJsonBody } from "@/server/http/read-json-body";
 import {
   getCompanionFormContext, getPublicCompanion, previewCompanion, publishCompanion,
+  getCompanionViewerContext,
   type CompanionDependencies,
 } from "./companion-service";
+import { listJoinedCompanions, listMyCompanionPublications, listPublicCompanions } from "./companion-discovery-service";
 
 function checkUrl(request: Request) {
   const url = new URL(request.url);
@@ -55,5 +57,26 @@ export async function publicCompanionResponse(request: Request, id: string, data
   try {
     checkUrl(request);
     return noStore(apiSuccess(await getPublicCompanion(id, database)));
+  } catch (error) { return noStore(handleApiError(error)); }
+}
+
+export async function companionViewerResponse(request: Request, id: string, deps: CompanionDependencies) {
+  try {
+    checkUrl(request);
+    return noStore(apiSuccess(await getCompanionViewerContext(request.headers, id, deps)));
+  } catch (error) { return noStore(handleApiError(error)); }
+}
+
+export async function companionCollectionResponse(request: Request, deps: CompanionDependencies, scope: "public" | "mine" | "joined") {
+  try {
+    const query: Record<string, string> = Object.create(null);
+    for (const [key, value] of new URL(request.url).searchParams) {
+      if (Object.hasOwn(query, key)) throw new AppError("INVALID_COMPANION_QUERY", "Bộ lọc không được lặp tham số.", 400);
+      query[key] = value;
+    }
+    const data = scope === "joined" ? await listJoinedCompanions(request.headers, query, deps) : scope === "mine"
+      ? await listMyCompanionPublications(request.headers, query, deps)
+      : await listPublicCompanions(query, deps);
+    return noStore(apiSuccess(data));
   } catch (error) { return noStore(handleApiError(error)); }
 }

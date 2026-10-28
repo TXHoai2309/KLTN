@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { companionDraftSchema, companionFormContextSchema, companionPreviewSchema, publicCompanionSchema } from "./companion-contract";
 import { companionDraftFixture as draft, companionFormFixture, publicCompanionFixture } from "./companion-fixtures";
 import { companionPreviewResponse, companionPublicationResponse, publicCompanionResponse } from "./companion-http";
-import { getCompanionFormContext, getPublicCompanion, previewCompanion, publishCompanion } from "./companion-service";
+import { companionRecruitmentStatus, getCompanionFormContext, getPublicCompanion, previewCompanion, publishCompanion } from "./companion-service";
 
 const headers = new Headers(), now = new Date("2030-11-14T12:00:00Z");
 const input = { ...draft, confirm: true };
@@ -22,7 +22,7 @@ function fixture() {
     ] } }] }],
     needs: "PRIVATE_NEEDS", aiHistory: "PRIVATE_AI_HISTORY", meeting: "PRIVATE_MEETING",
   };
-  const findPublication = vi.fn(async () => publication ? { ...publication, trip } : null);
+  const findPublication = vi.fn(async () => publication ? { ...publication, trip, visibility: "PUBLIC", recruitmentOpen: true, _count: { memberships: 0 } } : null);
   const database = {
     user: { findUnique: vi.fn(async () => actor ? { id: actor, role, status } : null) },
     trip: { findFirst: vi.fn(async ({ where }: any) => where.id === "trip" && where.userId === "owner" ? trip : null) },
@@ -65,6 +65,14 @@ function request(method: string, body?: unknown, extra: Record<string, string> =
 }
 
 describe("TC-01 publication service and HTTP contract", () => {
+  it("separates calendar completion, departure, manual recruitment and full status", () => {
+    const row = { canceledAt: null, visibility: "PUBLIC", recruitmentOpen: true, additionalCapacity: 2, trip: { startDate: new Date("2030-11-15"), durationDays: 2, manuallyCompletedAt: null } };
+    expect(companionRecruitmentStatus(row, 0, new Date("2030-11-17T01:00:00Z"))).toBe("COMPLETED");
+    expect(companionRecruitmentStatus(row, 0, new Date("2030-11-15T01:00:00Z"))).toBe("DEPARTED");
+    expect(companionRecruitmentStatus(row, 2, now)).toBe("FULL");
+    expect(companionRecruitmentStatus({ ...row, recruitmentOpen: false }, 2, now)).toBe("CLOSED");
+    expect(companionRecruitmentStatus({ ...row, canceledAt: now }, 0, now)).toBe("CANCELED");
+  });
   it("shares strict synthetic FE schemas and rejects identity overrides/coercion", () => {
     expect(publicCompanionSchema.parse(publicCompanionFixture)).toEqual(publicCompanionFixture);
     expect(companionFormContextSchema.parse(companionFormFixture)).toEqual(companionFormFixture);

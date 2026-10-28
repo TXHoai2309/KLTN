@@ -10,6 +10,7 @@ import { getCompanionFormContext } from "@/modules/trip-companions/companion-ser
 import { AppError } from "@/server/http/app-error";
 import { PublicationFormClient } from "./publication-form-client";
 import "@/app/trip-companions/companion.css";
+import "@/components/trip-planner/trip-planner.css";
 
 export const metadata: Metadata = {
   title: "Công khai tìm bạn đồng hành — Hà Giang Travel Assistant",

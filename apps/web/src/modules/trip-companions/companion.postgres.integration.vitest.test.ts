@@ -6,7 +6,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { saveTrip } from "../trip-save/trip-save-service";
 import { deleteMyTrip } from "../trip-read/trip-management-service";
 import { getMyTrip } from "../trip-read/trip-read-service";
-import { getCompanionFormContext, getPublicCompanion, previewCompanion, publishCompanion, type CompanionDependencies } from "./companion-service";
+import { getCompanionFormContext, getCompanionViewerContext, getPublicCompanion, previewCompanion, publishCompanion, type CompanionDependencies } from "./companion-service";
 import { companionPublicationResponse, publicCompanionResponse } from "./companion-http";
 
 const raw = process.env.TC01_TEST_DATABASE_URL;
@@ -36,11 +36,15 @@ describe.skipIf(!raw)("TC-01 actual disposable PostgreSQL", () => {
       media: { create: { id: id === visible ? media : `${id}-media`, url: `https://example.invalid/${id}.jpg`, alt: id === visible ? "Public image" : "PRIVATE_IMAGE", websiteRights: "APPROVED", rightsEvidence: "Synthetic disposable evidence", reviewedBy: admin, reviewedAt: now } },
     } });
   }, 30_000);
-  afterAll(async () => { await db?.$disconnect(); }); // Runner removes the entire owned container.
+  afterAll(async () => {
+    // Keep sibling discovery tests independent of file execution order.
+    try { if (db) await db.trip.deleteMany({ where: { userId: { in: [owner, outsider, admin] } } }); }
+    finally { await db?.$disconnect(); }
+  }); // Runner removes the entire owned container.
 
   it("applies real migration with checks, unique index and Cascade/SetNull FKs", async () => {
     const ledger = await db.$queryRaw<{ name: string }[]>`SELECT migration_name AS name FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL`;
-    expect(ledger).toHaveLength(15);
+    expect(ledger).toHaveLength(Number(process.env.TC_TEST_MIGRATION_COUNT ?? 15));
     expect(ledger.some(row => row.name === "20261028120000_trip_companion_publication")).toBe(true);
     const constraints = await db.$queryRaw<{ definition: string }[]>`SELECT pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE conrelid = 'trip_companion_publication'::regclass`;
     expect(constraints.some(c => c.definition.includes("ON DELETE CASCADE"))).toBe(true);
@@ -49,6 +53,22 @@ describe.skipIf(!raw)("TC-01 actual disposable PostgreSQL", () => {
     await expect(db.tripCompanionPublication.create({ data: { tripId: trip.id, title: "Invalid", introduction: "Invalid", additionalCapacity: 0 } })).rejects.toThrow();
     await expect(db.tripCompanionPublication.create({ data: { tripId: trip.id, title: "   ", introduction: "Invalid", additionalCapacity: 1 } })).rejects.toThrow();
     expect(await db.tripCompanionPublication.count({ where: { tripId: trip.id } })).toBe(0);
+  });
+
+  it("viewer context only grants the actual owner a private Trip ID, including after departure/completion", async () => {
+    const trip = await createTrip();
+    const published = await publishCompanion(headers, trip.id, input, `viewer-${randomUUID()}`, deps());
+    expect(published.status).toBe("SUCCESS");
+    if (published.status !== "SUCCESS") throw new Error("Synthetic publish failed");
+    const id = published.data.publicationId;
+    await db.trip.update({ where: { id: trip.id }, data: { startDate: new Date("2020-01-01"), manuallyCompletedAt: now } });
+    expect(await getCompanionViewerContext(headers, id, deps())).toEqual({ relationship: "HOST", tripId: trip.id });
+    for (const actor of [outsider, admin]) {
+      expect(await getCompanionViewerContext(headers, id, deps(actor))).toEqual({ relationship: "VISITOR" });
+    }
+    await db.user.update({ where: { id: owner }, data: { status: "LOCKED" } });
+    try { await expect(getCompanionViewerContext(headers, id, deps())).rejects.toMatchObject({ code: "ACCOUNT_LOCKED" }); }
+    finally { await db.user.update({ where: { id: owner }, data: { status: "ACTIVE" } }); }
   });
 
   it("canonical Save → preview → publish → fresh Guest read excludes hidden/deleted data and keeps private Trip owner-only", async () => {

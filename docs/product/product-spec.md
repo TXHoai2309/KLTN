@@ -6,7 +6,7 @@ This is a condensed developer-facing contract for the Hà Giang travel assistant
 
 Help visitors discover Hà Giang destinations and culture, get source-grounded answers, plan and adjust trips, and receive useful support while traveling. The MVP is responsive web for Hà Giang, with approximately 30–50 destinations and 20–50 reviewed cultural/heritage documents. It supports motorcycle and car trips. A native mobile application, booking/payment, trip collaboration, complex multi-objective route optimization, and mandatory multi-province coverage are out of scope. PWA is optional.
 
-The owner-approved travel-companions extension below is a scoped exception to the original exclusion of trip collaboration: public invitations, member itinerary reads and group chat are approved requirements as of 2026-10-28. Shared trip ownership and collaborative editing remain out of scope. TC-01 publication/introduction is implemented locally following separate coding requests; discovery, membership, recruitment management and group chat remain unimplemented. See the [implementation inventory](../implementation/trip-companions-implementation-status.md). Planning approval alone does not authorize coding.
+The owner-approved travel-companions extension below is a scoped exception to the original exclusion of trip collaboration: public invitations, member itinerary reads and group chat are approved requirements as of 2026-10-28. Shared trip ownership and collaborative editing remain out of scope. Following explicit coding requests, the backend through TC-11 is implemented locally with contract/tests and Development migration evidence. FE and full vertical/browser acceptance retain separate status in the [implementation inventory](../implementation/trip-companions-implementation-status.md); backend completion does not certify the full UI feature. Planning approval alone does not authorize coding.
 
 ## Roles and access
 
@@ -37,7 +37,7 @@ Favorites apply to destinations, culture content, and saved trips. Favorite trip
 
 ### Planned travel-companions extension — approved 2026-10-28
 
-**Approved requirements; partially implemented.** The owner confirmed Q1–Q17 in the [travel-companions design](../implementation/trip-companions-design.md), keeping the initial task at planning only, then separately requested TC-01 BE and FE implementation. TC-01 is implemented locally with Development migration evidence; TC-02–TC-11 have not started. [ADR-23](../decisions.md#adr-23--travel-companions-preserve-single-trip-ownership-2026-10-28) records the single-owner/live-itinerary boundary.
+**Approved requirements; backend implemented through TC-11, FE continuing.** The owner confirmed Q1–Q17 in the [travel-companions design](../implementation/trip-companions-design.md), then explicitly requested coding and continuous backend delivery. All backend milestones have contracts/test evidence and Development migrations; see [verification and limits](../implementation/trip-companions-backend-verification.md). Existing local FE receipts are preserved separately; no full browser/owner acceptance follows from BE-only evidence. [ADR-23](../decisions.md#adr-23--travel-companions-preserve-single-trip-ownership-2026-10-28) records the single-owner/live-itinerary boundary.
 
 - A host may publish an invitation from an officially saved Trip. Guests see only the approved introduction, route summary, host display name/avatar, dates, transport and available additional places; detailed times, meeting information, member lists and chat require current membership. Existing private endpoints remain owner-scoped.
 - An authenticated eligible account joins immediately if a place is available and recruitment is still open before the Vietnam departure date. Capacity means additional places, excluding the host/existing travel party; each joining account occupies one place. Joining must not oversubscribe or duplicate membership on concurrent writes/retries.
@@ -46,7 +46,7 @@ Favorites apply to destinations, culture content, and saved trips. Favorite trip
 - Members may leave, losing private group access and returning their place; their messages remain for the group. A host may remove and bar a member from rejoining. Admin content-reporting tools remain future work and no new Admin private-read privilege is granted.
 - Closing recruitment, withdrawing public visibility and canceling the companion trip are distinct. Closing/withdrawing preserves the group; cancellation makes user chat read-only. Completion permits chat indefinitely. Trips that have ever had members retain group/history and use cancellation/withdrawal rather than permanent deletion. Capacity may change but cannot fall below current joined accounts.
 
-These are approved requirements for the complete extension; only the TC-01 slice is currently implemented, as detailed in the implementation inventory. The design contains the full permission matrix, lifecycle details, layout and acceptance scenarios.
+These are approved requirements for the complete extension. Backend implementation and staged FE/vertical status are detailed in the implementation inventory; the design contains the full permission matrix, lifecycle details, layout and acceptance scenarios.
 
 ### RAG answers
 

@@ -2,6 +2,8 @@
 
 **Trạng thái tài liệu: PREPARED — chưa thực thi.** Copy toàn bộ phần prompt dưới đây vào task FE khi muốn bắt đầu. Đây là một task xuyên suốt phần còn lại, không phải prompt mặc định chỉ làm TC-01.
 
+**Quy tắc tiếp tục cập nhật 2026-10-28:** FE làm liên tục các mốc có contract BE thật; không kết thúc sau mỗi ticket hoặc chờ lệnh “tiếp tục” nếu còn phần thực hiện được. BE được phát triển ticket sau dựa trên backend prerequisites mà không chờ FE. Đây là điều chỉnh cách thực thi theo yêu cầu chủ dự án; evidence thực tế và tiêu chí hoàn tất vertical ticket giữ nguyên.
+
 ---
 
 Bạn làm việc trong **D:/KLTN/KLTN**. Triển khai phần **FE và kiểm chứng tích hợp của toàn bộ scope còn lại của Tìm bạn đồng hành**: follow-up TC-01 và TC-02–TC-11. BE là task riêng, bàn giao contract theo mốc. Hãy hoàn thiện luồng thật từ tìm chuyến đến tham gia/quản lý/chat/vòng đời.
@@ -22,11 +24,13 @@ Kiểm tra git status/diff, giữ mọi thay đổi hiện có. Tái sử dụng
 
 ## Thứ tự và phối hợp BE
 
-Đi qua **mốc 0 TC-01 follow-up → TC-02 → TC-03 → TC-04 → TC-05 → TC-06 → TC-07 → TC-08 → TC-09 → TC-10 → TC-11**. Trước khi tích hợp một mốc, đọc BE READY FOR FE, contract revision/exports/fixtures, migration state và tests của mốc đó. Dependency phải đủ cả BE/FE/tích hợp.
+Đi qua **mốc 0 TC-01 follow-up → TC-02 → TC-03 → TC-04 → TC-05 → TC-06 → TC-07 → TC-08 → TC-09 → TC-10 → TC-11**. Trước khi tích hợp một mốc, đọc BE READY FOR FE, contract revision/exports/fixtures, migration state và tests của mốc đó; bảo đảm UI prerequisite cần thiết đã được thực hiện. **Không chờ ticket được tuyên bố hoàn tất trọn lát cắt mới bắt đầu FE của contract đã sẵn sàng**. Giữ integration OPEN cho phần chưa kiểm chứng thay vì đóng vai trò/task sớm.
 
 Có thể chuẩn bị layout, reusable view và test cases từ thiết kế đã duyệt trong lúc chờ BE. Không tự bịa endpoint/schema, lách bằng `any`, đưa hardcoded membership/chat/capacity vào runtime hoặc coi fixture là API thành công. Nếu contract thiếu/sai, ghi rõ request/response/repro để BE sửa; tiếp tục phần không phụ thuộc và giữ integration OPEN.
 
-Nếu cần chờ BE, bàn giao với đúng mốc/contract còn thiếu và trạng thái task **chưa hoàn tất**. Khi được tiếp tục, đọc lại source/contract/evidence rồi làm tiếp cùng task; không viết lại phần đã kiểm chứng, không busy-wait hoặc tự nhắn sang chat khác/tạo thêm task.
+Sau khi xong một mốc, cập nhật evidence và **tự chuyển sang mốc có contract tiếp theo trong cùng lượt làm việc**, không trả final chỉ để báo đã bàn giao. Đọc lại sổ contract tại ranh giới mốc và sau các vòng hiện thực/kiểm chứng để nhận bàn giao mới từ BE. Khi contract kế tiếp chưa có, hoàn thiện tests/browser/gap của phần đã có và chuẩn bị layout/test cases không phụ thuộc; không tự bịa DTO hoặc backend.
+
+Chỉ trả final khi toàn scope FE/tích hợp được giao đã hoàn tất, chủ dự án yêu cầu dừng, hoặc đã xác minh blocker thật và không còn phần FE hữu ích nào làm được. Nếu tất cả việc độc lập đã hết mà thiếu BE contract bắt buộc, ghi chính xác contract/ticket còn thiếu và checkpoint; không nhận DONE giả hoặc chờ vô hạn. Nếu turn bị giới hạn bởi nền tảng, lưu checkpoint để tiếp tục. Không tự nhắn sang chat khác/tạo thêm task; sửa tài liệu chung không tự khởi động lại phiên đã kết thúc.
 
 ## Giao diện và luồng cần hoàn thành
 

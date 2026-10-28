@@ -23,6 +23,7 @@ import { previewInTrip } from "../in-trip/in-trip-validation";
 import { recheckInTripTime, type TimeRecheckTrip } from "../in-trip/time-recheck";
 import { preserveCompleted, ReplanCompletedVisitError } from "../in-trip/preserve-completed";
 import { splitCompletedRemaining } from "../in-trip/split-trip";
+import { recordCompanionItineraryChange } from "../trip-companions/companion-itinerary-notice";
 
 export const applyEditRequestSchema = z
   .object({
@@ -243,6 +244,7 @@ async function persistCandidate(
       },
     });
   }
+  await recordCompanionItineraryChange(transaction, tripId, createEditCandidate(trip), candidate);
   return nextRevision.toISOString();
 }
 
@@ -347,6 +349,7 @@ export async function applyEdit(
   const result = await executeIdempotentWrite<ApplyEditResult>({
     ...identity,
     execute: async (transaction) => {
+      await transaction.$queryRaw`SELECT "id" FROM "user" WHERE "id" = ${userId} FOR SHARE`;
       const actor = await requireTraveler(headers, {
         ...dependencies.authorization,
         database: transaction as unknown as Pick<Database, "user">,

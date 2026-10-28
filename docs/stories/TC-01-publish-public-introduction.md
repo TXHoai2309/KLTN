@@ -172,4 +172,22 @@ None blocking TC-01 BE. Q1–Q17 and the eleven-ticket dependency graph were alr
 
 ## Handoff Notes
 
+### Completion-plan milestone 0 — BE READY FOR FE (2026-10-28)
+
+The owner assigned the full BE task. Add a distinct authenticated viewer-context
+reader keyed by publication ID so FE can wire the host-return link. Only the
+current active owner receives the private Trip ID; other eligible actors receive
+a visitor relationship, and Guest/locked accounts cannot read private context.
+Public DTOs remain unchanged. Context must work after departure/completion too,
+unlike the create-publication form. Verify service/HTTP/schema and PostgreSQL
+ownership boundaries before handing off. FE copy/link wiring stays OPEN and is
+owned by the separate FE task. This follow-up does not invalidate the existing
+TC-01 publication slice evidence; completion-plan section 7 opens TC-02 next.
+
+Implemented `getCompanionViewerContext`, `companionViewerContextSchema` and
+`GET /api/trip-companions/:publicationId/viewer` under revision TC01-viewer-r1.
+Evidence: 30 unit/HTTP/schema PASS, 11 disposable PostgreSQL PASS (15 unchanged
+relevant migrations, 0 pending, cleanup PASS), root types 4/4 PASS and whitespace
+PASS. Final build receipt follows TC-02. No schema/Development/Production changes.
+
 FE consumes the actual [delivery contract](../implementation/trip-companions-delivery-contract.md#tc-01--contract-thực-2026-10-28) and exports, implements form/preview/Guest introduction/client recovery and verifies UI/browser behavior. Development now has the required migration; the existing authenticated form and Guest preview were observed working after the missing-table repair. Other environments require their own verified migration rollout. Do not mark this ticket complete from BE evidence alone or open TC-02 until TC-01 FE/integration is completed. TC-03 must add the historical-member deletion guard before join exists; no such history exists in TC-01.

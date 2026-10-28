@@ -2,7 +2,19 @@
 
 Ngày: 2026-10-28. **PLAN PREPARED / TASKS PREPARED — chưa bắt đầu triển khai trong lần lập kế hoạch này.** Chủ dự án yêu cầu lập kế hoạch hoàn thiện toàn bộ ticket còn lại rồi chia thành hai task: một BE, một FE. Đây là cách tổ chức thực thi cho scope đã duyệt, không thay đổi Q1–Q17 hoặc dependency của 11 ticket.
 
+**Điều chỉnh phương thức thực thi theo yêu cầu chủ dự án — 2026-10-28:** Chủ dự án yêu cầu hai task tiếp tục đến hết scope, không tự kết thúc ở mỗi lần bàn giao. **BE được triển khai ticket kế tiếp khi backend prerequisites/contract/tests đã sẵn sàng, không phải chờ FE/tích hợp của ticket trước. FE tích hợp liên tục theo contract thật đã bàn giao.** Gate đủ BE + FE + tích hợp vẫn áp dụng để đánh dấu vertical ticket IMPLEMENTED và xác nhận toàn tính năng, không còn là điều kiện bắt đầu mọi công việc BE. Quy tắc này thay thế các chỉ dẫn chờ FE ở bản prompt/receipt cũ; không thay đổi sản phẩm, AC hoặc kết quả kiểm chứng đã ghi.
+
 ## 1. Đầu vào và kết quả cần đạt
+
+**Cập nhật thực thi BE — 2026-10-28:** Toàn scope BE mốc 0 và TC-02–TC-11 đã
+hoàn tất theo task mới, có contract/evidence từng mốc, không chờ FE. Development
+42 applied / 0 pending / 0 unfinished; PostgreSQL58/58, focused344, types/build và
+HTTP smoke PASS. Regression rộng còn 5 lỗi baseline không đổi, ghi rõ trong
+[receipt cuối](trip-companions-backend-verification.md). Các receipt FE đã ghi
+trong sổ bàn giao giữ nguyên; FE còn lại và browser/owner acceptance tiếp tục độc lập.
+Xem [sổ bàn giao](trip-companions-delivery-contract.md).
+Các trạng thái “chưa bắt đầu” trong bản kế hoạch ban đầu là snapshot planning,
+không thay thế cập nhật thực thi này.
 
 - [Hiện trạng đã kiểm kê](trip-companions-implementation-status.md): TC-01 có code local; Development đã có migration TC-01; TC-02–TC-11 chưa triển khai. Không làm lại phần TC-01 đã có bằng chứng.
 - Nguồn nghiệp vụ: [kế hoạch Q1–Q17](trip-companions-design.md), [ticket index](trip-companions-tickets-plan.md), từng issue trong `.scratch/trip-companions/issues/`, [product extension](../product/product-spec.md#planned-travel-companions-extension--approved-2026-10-28), ADR-23 và [glossary](../../GLOSSARY.md).
@@ -18,13 +30,13 @@ Ngày: 2026-10-28. **PLAN PREPARED / TASKS PREPARED — chưa bắt đầu tri�
 
 Đây là hai task thực thi dài hạn; mười issue gốc tiếp tục là đơn vị scope và nghiệm thu. Không tạo thêm mười task/chat và không chuyển chúng thành hai ticket ngang chỉ có “làm DB”/“làm màn hình”.
 
-Tại mỗi mốc: **BE hiện thực và bàn giao contract thật → FE tích hợp → kiểm chứng AC của lát cắt → cập nhật evidence → mở mốc kế tiếp đủ dependency**. BE xong một phần không có nghĩa cả ticket đã hoàn tất. FE có thể chuẩn bị layout/test cases từ thiết kế trong lúc chờ nhưng không bịa endpoint/DTO hoặc chạy dữ liệu giả làm fallback runtime.
+Hai luồng chạy nối tiếp trong từng vai trò: **BE hiện thực/kiểm thử → xuất contract từng ticket → làm BE ticket tiếp theo đủ prerequisite**; **FE đọc contract → tích hợp/kiểm chứng → làm FE mốc tiếp theo sẵn sàng**. Hai phía cập nhật evidence liên tục. Mỗi ticket chỉ được IMPLEMENTED khi đủ BE + FE + tích hợp; BE READY FOR FE không đồng nghĩa DONE. FE có thể chuẩn bị phần không phụ thuộc nhưng không bịa endpoint/DTO hoặc dùng fixture làm runtime fallback.
 
-Hai task không cần chạy đồng thời trên cùng checkout. Nếu làm trong hai phiên, dùng vùng file sở hữu riêng và đọc bàn giao trước mỗi lần tiếp tục. Nếu bị chặn bởi phần việc của task kia, ghi rõ mốc/contract/check còn thiếu rồi bàn giao, giữ task chưa hoàn tất; tiếp tục chính task đó sau khi có evidence. Không busy-wait, không tự nhắn sang chat khác, không tự tạo thêm chat. Không cần hỏi duyệt lại Q1–Q17 hoặc xin phép từng thao tác triển khai thông thường đã nằm trong task được giao.
+Hai task có thể chạy đồng thời theo vùng file sở hữu riêng. Sau mỗi mốc đọc/cập nhật bàn giao rồi tự làm phần kế tiếp có thể thực hiện, không cần lệnh “tiếp tục”. Nếu cần contract từ phía kia, hoàn thiện phần độc lập và kiểm chứng còn lại trước; không tự kết thúc vì một lời nhắn bàn giao thông thường. Chỉ dừng khi hết scope, chủ dự án yêu cầu, hoặc blocker thật đã được điều tra khiến không còn công việc hữu ích trong scope. Không busy-wait/poll vô hạn, tự tạo/nhắn chat hoặc xin duyệt lại các quyết định đã chốt. Prompt không bảo đảm vượt giới hạn turn của nền tảng và sửa file không tự đánh thức task đã kết thúc; task đã dừng cần một lệnh tiếp tục để đọc quy tắc mới.
 
 ## 3. Thứ tự thực thi
 
-Chọn thứ tự tuần tự đã có trong ticket index để hai task dễ phối hợp. Mốc 0 là follow-up TC-01, không phải ticket nghiệp vụ mới. Các mốc sau giữ nguyên toàn bộ blocking edges; những nhánh có thể độc lập vẫn được phép đi tuần tự.
+Chọn thứ tự tuần tự đã có trong ticket index để hai task dễ phối hợp. Mốc 0 là follow-up TC-01, không phải ticket nghiệp vụ mới. Giữ các quan hệ phụ thuộc nghiệp vụ; khi bắt đầu phần BE chỉ kiểm tra backend prerequisite, phần FE kiểm tra contract/UI prerequisite. Cột điều kiện qua mốc bên dưới là **điều kiện hoàn tất tích hợp**, không chặn BE của ticket sau khi backend đã đủ.
 
 | Mốc / ticket | BE bàn giao | FE bàn giao | Điều kiện qua mốc |
 | --- | --- | --- | --- |
@@ -79,10 +91,10 @@ BE kiểm thử schema trên disposable trước. Khi tích hợp cần schema t
 5. Host lưu đổi lịch → member nhận đúng một notice và xem lịch mới; preview/FAILED/cancel edit không phát; hủy chuyến chat chỉ đọc, hoàn tất bình thường chat tiếp.
 6. Desktop/mobile 360/390/768/1024/1440px và header 1152–1366px, light/dark, keyboard/focus/reduced motion, tên tiếng Việt dài; sticky/composer/AI launcher không che điều khiển. Ảnh mockup không phải browser evidence.
 
-Hai task kết thúc khi mọi phần được giao có evidence, TC-02–TC-11 đủ BE/FE/tích hợp, gap TC-01 đã được xử lý và không còn lỗi chặn trong scope. IMPLEMENTED có thể ghi sau kiểm chứng; ACCEPTED thuộc chủ dự án. Commit/push/merge/deploy ứng dụng và Production rollout không nằm trong hai task mặc định.
+BE kết thúc phần được giao khi toàn bộ backend/contract/tests và các server defects đã biết trong scope được xử lý; không phải chờ FE hoàn thành nếu không còn việc BE. FE kết thúc khi toàn bộ UI/integration được giao có evidence. Toàn tính năng chỉ hoàn tất khi TC-02–TC-11 đủ BE/FE/tích hợp và gap TC-01 đã được xử lý. IMPLEMENTED ghi sau kiểm chứng; ACCEPTED thuộc chủ dự án. Trường hợp blocker thật/giới hạn turn phải có checkpoint và trạng thái chưa hoàn tất. Commit/push/merge/deploy ứng dụng và Production rollout không nằm trong hai task mặc định.
 
 ## 7. Cách giao hai task
 
-Mở hai prompt task ở mục 2 và dán mỗi prompt vào phiên tương ứng khi muốn bắt đầu triển khai. BE khởi động mốc 0 rồi TC-02; FE có thể đọc thiết kế/chuẩn bị phần không phụ thuộc và nối ngay khi có contract thật. Tiếp tục luân phiên BE → FE/integration ở từng mốc, không cần tạo task mới cho từng issue. Hai prompt cũ trong `prompts/` vẫn dành cho cách giao một ticket riêng lẻ.
+Mở hai prompt task ở mục 2 và dán mỗi prompt vào phiên tương ứng khi muốn bắt đầu/tiếp tục. Tại snapshot BE đã xong mốc 0/TC-02: **BE tiếp tục TC-03–TC-11 dựa trên backend prerequisite, FE hoàn thiện mốc 0/TC-02 rồi nối các contract tiếp theo**. Không cần tạo task mới cho mỗi issue, không yêu cầu gửi “tiếp tục” giữa các ticket còn làm được. Hai prompt cũ trong `prompts/` vẫn là chế độ một-ticket nếu chủ dự án chỉ giao đúng một ticket; không dùng giới hạn của chúng để dừng hai task toàn phạm vi.
 
 Lần soạn này chỉ tạo kế hoạch và hai task/prompt; không khởi chạy chat/agent triển khai, không sửa code/schema hoặc thao tác DB. Kiểm tra tài liệu: coverage mốc 0 + TC-02–TC-11, dependency order, local links và whitespace; không cần chạy lại application tests/typecheck/build cho thay đổi chỉ có tài liệu.

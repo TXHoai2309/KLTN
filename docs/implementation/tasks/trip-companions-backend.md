@@ -1,6 +1,13 @@
 # Task BE — Hoàn thiện backend Tìm bạn đồng hành
 
-**Trạng thái tài liệu: PREPARED — chưa thực thi.** Copy toàn bộ phần prompt dưới đây vào task BE khi muốn bắt đầu. Đây là một task xuyên suốt phần còn lại, không phải prompt mặc định chỉ làm TC-01.
+**Trạng thái thực thi: BE SCOPE COMPLETE / READY FOR FE THROUGH TC-11 — 2026-10-28.**
+Đã xác minh mốc 0/TC-02 và triển khai liên tục TC-03–TC-11 theo prerequisite BE,
+không chờ FE. Contract/source/tests/migration và Development rollout có evidence
+từng mốc trong [sổ bàn giao](../trip-companions-delivery-contract.md) và
+[receipt cuối](../trip-companions-backend-verification.md): PostgreSQL58/58,
+focused344 PASS, root types/build/HTTP smoke PASS; 5 lỗi regression rộng ở source
+baseline không đổi được ghi rõ. FE/vertical/browser acceptance còn riêng;
+không nhận ACCEPTED thay chủ dự án. Prompt và ranh giới thực thi dưới đây giữ nguyên.
 
 ---
 
@@ -17,17 +24,19 @@ Bạn làm việc trong **D:/KLTN/KLTN**. Triển khai phần **BE của toàn b
 - [Delivery contract](../trip-companions-delivery-contract.md), từng issue TC-01–TC-11 tại `.scratch/trip-companions/issues/`, `GLOSSARY.md`, ADR-23.
 - [Story TC-01](../../stories/TC-01-publish-public-introduction.md), [Development migration receipt](../tc01-development-migration.md), [review fixes](../tc01-publication-form-review-fixes.md).
 
-Q1–Q17 và 11 ticket/dependency đã được duyệt. Không grill lại, không hỏi duyệt từng mốc. Task này cho phép làm toàn bộ phần BE còn lại khi đủ prerequisite; không giới hạn mặc định vào một ticket như prompt cũ. Không đổi blocking edges hoặc coi BE xong là vertical ticket hoàn tất.
+Q1–Q17 và 11 ticket/dependency đã được duyệt. Không grill lại, không hỏi duyệt từng mốc. Task này cho phép làm toàn bộ phần BE còn lại khi đủ prerequisite backend; không giới hạn vào một ticket. Các quan hệ phụ thuộc nghiệp vụ giữ nguyên, nhưng gate **bắt đầu phần BE** chỉ yêu cầu backend/contract/tests của prerequisite đã có, không yêu cầu FE của nó hoàn tất. Gate **đánh dấu vertical ticket IMPLEMENTED** vẫn cần đủ BE/FE/tích hợp.
 
 Kiểm tra git status/diff, giữ nguyên work có sẵn và không nhận code của phiên khác là phần mình đã kiểm chứng. TC-01 đã có backend/schema/API thật và migration Development; tái sử dụng, không viết lại hoặc chạy lại migration mù quáng. Không sửa phần Assistant/AI không liên quan.
 
 ## Thứ tự và bàn giao
 
-Đi qua **mốc 0 TC-01 follow-up → TC-02 → TC-03 → TC-04 → TC-05 → TC-06 → TC-07 → TC-08 → TC-09 → TC-10 → TC-11**. Trước mỗi ticket mới, xác minh dependency đã đủ BE/FE/tích hợp. Tạo/cập nhật story theo `docs/stories/US-TEMPLATE.md` với AC issue và nguồn extension đã duyệt; không bịa requirement IDs.
+Đi qua **mốc 0 TC-01 follow-up → TC-02 → TC-03 → TC-04 → TC-05 → TC-06 → TC-07 → TC-08 → TC-09 → TC-10 → TC-11**. Mốc 0/TC-02 đã bàn giao thì xác minh source/contract hiện tại rồi tiếp tục TC-03, không làm lại từ đầu. Trước ticket mới, kiểm tra backend prerequisite, sửa lỗi server còn chặn rồi tiếp tục. Tạo/cập nhật story theo `docs/stories/US-TEMPLATE.md` với AC issue và nguồn extension đã duyệt; không bịa requirement IDs.
 
-Mỗi vòng: đọc story/AC → hiện thực phần BE vừa đủ → focused tests/DB evidence → cập nhật contract/fixture → bàn giao cho FE → kiểm tra FE/integration evidence trước khi mở ticket phụ thuộc. Có thể chuẩn bị phân tích/test cases của phần chưa mở, không triển khai trước dependency để làm hết BE một lượt.
+Mỗi vòng: đọc story/AC → hiện thực BE vừa đủ → focused tests/DB evidence → cập nhật contract/fixture và BE READY FOR FE → **tự chuyển sang phần BE ticket kế tiếp đủ prerequisite trong cùng lượt làm việc**. Việc cập nhật contract là bàn giao liên tục cho FE, không phải tín hiệu kết thúc turn. Đọc lại các báo lỗi FE trong tài liệu chung tại ranh giới ticket và xử lý server defects liên quan; không chờ FE để tiếp tục phần BE độc lập.
 
-Nếu cần chờ FE, ghi cụ thể ticket, contract revision, các check đã pass, endpoint/exports đã có và chính xác evidence còn thiếu; trả bàn giao với trạng thái task **chưa hoàn tất**. Khi được tiếp tục, đọc lại source/evidence rồi làm tiếp cùng task; không reset hoặc làm lại phần đã xác minh. Không busy-wait hoặc tự nhắn sang chat khác/tạo task mới.
+Không tự kết thúc chỉ vì xong một ticket, đã cập nhật contract, FE đang làm hoặc combined build đang lỗi ở file FE chưa xong. Khi còn phần BE thực hiện được, tiếp tục hiện thực/kiểm chứng, sửa lỗi thuộc mình và báo tiến độ bằng commentary. Với lỗi build FE đồng thời, ghi repro/nguồn lỗi và kiểm chứng BE riêng; vẫn giữ combined build OPEN, không gọi nó PASS, không sửa lấn file FE hoặc chạy lại build liên tục trên snapshot đang đổi.
+
+Chỉ trả final khi toàn scope BE đã hoàn tất, chủ dự án yêu cầu dừng, hoặc có blocker thật mà đã điều tra và không còn phần BE hữu ích nào làm được (ví dụ thiếu quyền/credential bắt buộc, prerequisite backend không thể giải quyết trong scope, xung đột nguồn chưa thể xử lý). Nêu nguyên nhân/bằng chứng và việc cần từ bên ngoài; không gọi trạng thái chờ FE thông thường là blocker BE. Không busy-wait, poll vô hạn hoặc tự tạo/nhắn chat. Nếu turn bị giới hạn bởi nền tảng, lưu checkpoint chính xác, không nhận DONE giả.
 
 ## Phần BE phải hoàn thành
 
@@ -62,7 +71,7 @@ Dùng disposable PostgreSQL/synthetic fixtures trước. Khi FE cần schema Dev
 
 Cập nhật từng mục ticket trong `trip-companions-delivery-contract.md`: contract revision, exports, endpoint/method, request/response/errors, auth/allowlist, retry/key semantics, ordering/cursor, fixture, migrations/checks và mục **BE READY FOR FE** với giới hạn cụ thể. Chỉ ghi khi source/tests thực có. Không đổi API đã bàn giao âm thầm; ghi revision/tác động và để FE cập nhật client.
 
-Cập nhật story + BE evidence issue, append ai-progress. Giữ FE/integration OPEN đến khi có bằng chứng thật. Khi FE phát hiện server defect, xử lý trong ticket liên quan và chạy lại checks bị ảnh hưởng trước khi mở dependency.
+Cập nhật story + BE evidence issue, append ai-progress. Giữ FE/integration OPEN đến khi có bằng chứng thật; việc đó không chặn BE tiến tiếp. Khi FE ghi server defect, xử lý trong ticket liên quan và chạy lại checks bị ảnh hưởng. Giữ DTO đã bàn giao tương thích khi thêm khả năng ở ticket sau; thay đổi cần thiết phải có revision và fixture/migration rõ, không phá client đang chạy.
 
 ## Điều kiện hoàn tất và báo cáo
 

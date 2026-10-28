@@ -1,7 +1,7 @@
-/** TC-01 owns a loopback disposable PostgreSQL; never loads .env or DATABASE_URL. */
+/** Companion milestones share an owned disposable PostgreSQL; never loads .env or DATABASE_URL. */
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rm, writeFile, readdir } from "node:fs/promises";
 import { resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -19,6 +19,7 @@ const migrations = [
   "20261017210000_admin_user_management", "20261020044507_destination_soft_delete",
   "20261020170000_trip_manual_completion", "20261028120000_trip_companion_publication",
 ];
+migrations.push(...(await readdir(resolve(root, "packages/db/prisma/migrations"))).filter(name => /^20261028\d{6}_companion_/.test(name) && !migrations.includes(name)).sort());
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, { cwd: web, encoding: "utf8", windowsHide: true, shell: false, ...options });
   if (result.error || result.status !== 0) throw new Error("Disposable subprocess failed; connection/output suppressed");
@@ -41,7 +42,7 @@ try {
   }
   const url = new URL(`postgresql://${databaseName}:${password}@127.0.0.1:${port}/${databaseName}`);
   url.searchParams.set("sslmode", "disable"); url.searchParams.set("application_name", "tc01_disposable");
-  const env = { ...process.env, TC01_TEST_DATABASE_URL: url.toString(), TC01_TEST_DISPOSABLE: "OWNED_LOOPBACK_CONTAINER" };
+  const env = { ...process.env, TC01_TEST_DATABASE_URL: url.toString(), TC01_TEST_DISPOSABLE: "OWNED_LOOPBACK_CONTAINER", TC_TEST_MIGRATION_COUNT: String(migrations.length) };
   await mkdir(resolve(root, ".cache"), { recursive: true });
   project = await mkdtemp(resolve(root, ".cache/tc01-migrations-"));
   for (const migration of migrations) await cp(resolve(root, "packages/db/prisma/migrations", migration), resolve(project, "migrations", migration), { recursive: true });
@@ -53,7 +54,8 @@ try {
   const status = run(process.execPath, [prisma, "migrate", "status", "--config", config], { env });
   if (!status?.includes("Database schema is up to date")) throw new Error("Scoped migration status is not up to date");
   console.log(`TC01_DISPOSABLE=VERIFIED; PRISMA_MIGRATIONS=${migrations.length}; PENDING=0; NO_DEVELOPMENT_OR_PRODUCTION_ACCESS`);
-  const test = spawnSync(process.execPath, [resolve(root, "node_modules/vitest/vitest.mjs"), "run", "--config", "vitest.config.mts", "src/modules/trip-companions/companion.postgres.integration.vitest.test.ts"], { cwd: web, env, stdio: "inherit", windowsHide: true, shell: false });
+  const suites = (await readdir(resolve(web, "src/modules/trip-companions"))).filter(name => name.endsWith(".postgres.integration.vitest.test.ts")).map(name => `src/modules/trip-companions/${name}`);
+  const test = spawnSync(process.execPath, [resolve(root, "node_modules/vitest/vitest.mjs"), "run", "--config", "vitest.config.mts", ...suites], { cwd: web, env, stdio: "inherit", windowsHide: true, shell: false });
   process.exitCode = test.status ?? 1;
 } catch (error) { console.error(error instanceof Error ? error.message : "TC01 disposable tests failed"); process.exitCode = 1; }
 finally {

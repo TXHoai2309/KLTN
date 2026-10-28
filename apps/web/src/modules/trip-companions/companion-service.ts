@@ -12,6 +12,7 @@ import {
   companionDraftSchema, companionFormContextSchema, companionIdSchema,
   companionIntroductionSchema, companionPreviewSchema, publicCompanionSchema,
   publishCompanionResultSchema, publishCompanionSchema,
+  companionViewerContextSchema,
   type CompanionDraft, type PublishCompanionResult,
 } from "./companion-contract";
 
@@ -36,6 +37,9 @@ const tripSelect = {
 type TripRow = Prisma.TripGetPayload<{ select: typeof tripSelect }>;
 const publicationSelect = {
   id: true, title: true, introduction: true, additionalCapacity: true, imageMediaId: true,
+  visibility: true, recruitmentOpen: true,
+  canceledAt: true,
+  _count: { select: { memberships: { where: { state: "ACTIVE" } } } },
 } satisfies Prisma.TripCompanionPublicationSelect;
 
 function idOf(value: string) {
@@ -85,7 +89,7 @@ function contextOf(row: TripRow) {
     imageOptions,
   };
 }
-function introductionOf(row: TripRow, draft: CompanionDraft, requireImage: boolean) {
+function introductionOf(row: TripRow, draft: CompanionDraft, requireImage: boolean, activeMembers = 0) {
   const context = contextOf(row);
   const image = context.imageOptions.find(option => option.mediaId === draft.imageMediaId);
   if (requireImage && draft.imageMediaId && !image) {
@@ -94,8 +98,7 @@ function introductionOf(row: TripRow, draft: CompanionDraft, requireImage: boole
   return companionIntroductionSchema.parse({
     ...context.trip, title: draft.title, introduction: draft.introduction,
     additionalCapacity: draft.additionalCapacity,
-    // TC-01 has no membership yet. TC-03 must derive this from current joined accounts.
-    availablePlaces: draft.additionalCapacity,
+    availablePlaces: Math.max(0, draft.additionalCapacity - activeMembers),
     image: image ? { url: image.url, alt: image.alt } : null,
   });
 }
@@ -156,6 +159,31 @@ export async function getPublicCompanion(id: string, database: Pick<Database, "t
   const row = await database.tripCompanionPublication.findUnique({
     where: { id: idOf(id) }, select: { ...publicationSelect, trip: { select: tripSelect } },
   });
-  if (!row) throw new AppError("COMPANION_NOT_FOUND", "Không tìm thấy chuyến công khai.", 404);
-  return publicCompanionSchema.parse({ publicationId: row.id, introduction: introductionOf(row.trip, row, false) });
+  if (!row || row.visibility !== "PUBLIC" || row.canceledAt) throw new AppError("COMPANION_NOT_FOUND", "Không tìm thấy chuyến công khai.", 404);
+  return publicCompanionSchema.parse({ publicationId: row.id, introduction: introductionOf(row.trip, row, false, row._count.memberships), recruitmentStatus: companionRecruitmentStatus(row, row._count.memberships, new Date()) });
+}
+
+/** No publication existence/owner identity disclosure to an unrelated principal. */
+export async function getCompanionViewerContext(headers: Headers, id: string, deps: CompanionDependencies) {
+  const publicationId = idOf(id), actor = await requireTraveler(headers, deps);
+  const owned = await deps.database.tripCompanionPublication.findFirst({
+    where: { id: publicationId, trip: { userId: actor.userId } },
+    select: { tripId: true },
+  });
+  return companionViewerContextSchema.parse(owned
+    ? { relationship: "HOST", tripId: owned.tripId }
+    : { relationship: "VISITOR" });
+}
+
+// Server-only projection shared by detail and discovery; never use a private Trip DTO.
+export { tripSelect as companionTripSelect, publicationSelect as companionPublicationSelect,
+  introductionOf as projectCompanionIntroduction, contextOf as projectCompanionContext };
+
+export function companionRecruitmentStatus(row: { visibility: string; recruitmentOpen: boolean; additionalCapacity: number; canceledAt: Date | null; trip: { startDate: Date; durationDays: number; manuallyCompletedAt: Date | null } }, count: number, now: Date) {
+  if (row.canceledAt) return "CANCELED" as const;
+  if (row.visibility === "WITHDRAWN") return "WITHDRAWN" as const;
+  if (effectiveTripStatus(row.trip.startDate.toISOString().slice(0, 10), row.trip.durationDays, vietnamDateOf(now), row.trip.manuallyCompletedAt).status === "COMPLETED") return "COMPLETED" as const;
+  if (row.trip.startDate.toISOString().slice(0, 10) <= vietnamDateOf(now)) return "DEPARTED" as const;
+  if (!row.recruitmentOpen) return "CLOSED" as const;
+  return count >= row.additionalCapacity ? "FULL" as const : "OPEN" as const;
 }

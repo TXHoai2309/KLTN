@@ -57,10 +57,9 @@ describe("Companion UI Components", () => {
       expect(html).toContain('src="https://example.invalid/companion-fixture.jpg"');
       expect(html).toContain('alt="Ảnh điểm đến mẫu"');
 
-      // No fake join CTA button in TC-01
+      // No fake approval CTA button
       expect(html).not.toContain("Gửi yêu cầu tham gia");
       expect(html).not.toContain("Chờ duyệt");
-      expect(html).not.toMatch(/<button[^>]*>Tham gia/);
     });
 
     it("renders cleanly without image when image is null", () => {
@@ -109,10 +108,55 @@ describe("Companion UI Components", () => {
       expect(html).toContain("giao diện người dùng và khách sẽ nhìn thấy");
     });
 
-    it("shows return-to-management link when viewer is the host", () => {
+    it("renders 'Đăng nhập để tham gia' CTA when viewer is a Guest", () => {
       const html = renderToStaticMarkup(
         createElement(CompanionIntroductionView, {
           introduction: publicCompanionFixture.introduction,
+          publicationId: "pub-123",
+          isGuest: true,
+        }),
+      );
+
+      expect(html).toContain("Đăng nhập để tham gia");
+      expect(html).toContain('href="/login?returnTo=%2Ftrip-companions%2Fpub-123"');
+      expect(html).toContain("data-testid=\"companion-guest-login-cta\"");
+    });
+
+    it("renders 'Tham gia chuyến đi' button when viewer is an outsider candidate", () => {
+      const html = renderToStaticMarkup(
+        createElement(CompanionIntroductionView, {
+          introduction: publicCompanionFixture.introduction,
+          publicationId: "pub-123",
+          isGuest: false,
+          isHost: false,
+          isMember: false,
+        }),
+      );
+
+      expect(html).toContain("Tham gia chuyến đi");
+      expect(html).toContain("data-testid=\"companion-join-btn\"");
+      expect(html).toContain("Không cần xét duyệt");
+    });
+
+    it("renders 'Vào nhóm chuyến' and member badge when viewer is a confirmed Member", () => {
+      const html = renderToStaticMarkup(
+        createElement(CompanionIntroductionView, {
+          introduction: publicCompanionFixture.introduction,
+          publicationId: "pub-123",
+          isMember: true,
+        }),
+      );
+
+      expect(html).toContain("Bạn đã là thành viên của chuyến đi");
+      expect(html).toContain("Vào nhóm chuyến");
+      expect(html).toContain('href="/trip-companions/pub-123/group"');
+    });
+
+    it("shows return-to-management link and enter-group link when viewer is the host", () => {
+      const html = renderToStaticMarkup(
+        createElement(CompanionIntroductionView, {
+          introduction: publicCompanionFixture.introduction,
+          publicationId: "pub-123",
           isHost: true,
           tripId: "trip-456",
         }),
@@ -120,6 +164,19 @@ describe("Companion UI Components", () => {
 
       expect(html).toContain("Quay lại quản lý chuyến đi");
       expect(html).toContain("/trips/trip-456");
+      expect(html).toContain("Vào nhóm chuyến");
+      expect(html).toContain('href="/trip-companions/pub-123/group"');
+    });
+
+    it("does not show return-to-management link when viewer is not host", () => {
+      const html = renderToStaticMarkup(
+        createElement(CompanionIntroductionView, {
+          introduction: publicCompanionFixture.introduction,
+          isHost: false,
+        }),
+      );
+
+      expect(html).not.toContain("Quay lại quản lý chuyến đi");
     });
   });
 

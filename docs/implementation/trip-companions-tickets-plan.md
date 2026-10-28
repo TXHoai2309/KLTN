@@ -1,13 +1,24 @@
 # Tìm bạn đồng hành — chia ticket và prompt thực thi
 
-Ngày: 2026-10-28. Trạng thái: **APPROVED BREAKDOWN / PUBLISHED LOCALLY; TC-01 BE + FE IMPLEMENTED LOCALLY** — người dùng duyệt “Duyệt nguyên bộ 11 ticket và các phụ thuộc”. TC-01 có bằng chứng tích hợp và migration Development; TC-02–11 chưa triển khai. Nghiệp vụ Q1–Q17 và dependency giữ nguyên; nghiệm thu đầy đủ của chủ dự án còn riêng. [Hiện trạng và các thiếu sót UI](trip-companions-implementation-status.md), [contract/evidence](trip-companions-delivery-contract.md#tc-01--contract-thực-2026-10-28).
+Ngày: 2026-10-28. Trạng thái: **APPROVED BREAKDOWN / BE READY THROUGH TC-11**.
+Giữ nguyên Q1–Q17, AC và dependency đã duyệt. Toàn BE đã có code/tests/contract,
+Development migrations; FE mốc 0/TC-02–04 có receipt local riêng, FE còn lại tiếp
+tục. Nghiệm thu browser/chủ dự án còn riêng. [Hiện trạng](trip-companions-implementation-status.md),
+[contract/evidence](trip-companions-delivery-contract.md), [receipt BE](trip-companions-backend-verification.md).
 
 ## Nguồn và nơi lưu
+
+**Thực thi BE sau planning — 2026-10-28:** Mốc 0 và TC-02–TC-11 đã **BE READY FOR FE**;
+task BE hoàn tất theo ranh giới riêng, không kết thúc feature thay FE. [Contract/revision/evidence](trip-companions-delivery-contract.md)
+là trạng thái mới nhất; các snapshot chưa triển khai bên dưới được giữ theo ngữ
+cảnh thời điểm lập kế hoạch. Blocking edges/AC không thay đổi.
+
+**Điều chỉnh cách chạy hai task theo yêu cầu mới — 2026-10-28:** BE tiếp tục TC-03–TC-11 khi backend prerequisites đã kiểm chứng, không chờ FE của ticket trước. FE tích hợp liên tục theo contract thật đã bàn giao. Chỉ khi đánh dấu ticket IMPLEMENTED mới yêu cầu đủ BE/FE/tích hợp. Quy tắc này thay thế các câu yêu cầu chờ trọn lát cắt để bắt đầu BE trong bản kế hoạch/prompt cũ; nghiệp vụ, AC và quan hệ phụ thuộc chức năng giữ nguyên. Xem [completion plan hiện hành](trip-companions-completion-plan.md).
 
 - [Kế hoạch đã duyệt](trip-companions-design.md), [product extension](../product/product-spec.md#planned-travel-companions-extension--approved-2026-10-28), [ADR-23](../decisions.md#adr-23--travel-companions-preserve-single-trip-ownership-2026-10-28) và glossary.
 - [Phân tích UI/UX](../design/trip-companions-ui-ux-analysis.md), [ba ảnh mockup](../design/trip-companions-mockups/README.md). Người dùng đã trả lời “OK rồi” với ảnh rồi yêu cầu chia ticket. Ảnh là tham chiếu bố cục đã chấp nhận, không chứng minh browser/Figma acceptance hoặc xác lập mọi pixel/chữ sinh trong ảnh.
 - Quy ước local tracker đã được chọn trong các đợt trước của dự án; tham khảo ghi nhận tại [Destination Assistant plan](destination-assistant-popup-plan.md). Không tạo issue trên dịch vụ ngoài hoặc chat mới.
-- Ticket chính thức: một file mỗi ticket tại `.scratch/trip-companions/issues/`, nhãn ban đầu `ready-for-agent`. Đã chuyển nguyên bộ 11 file từ drafts/ sau xác nhận của người dùng; scope, acceptance criteria và blocking edges giữ nguyên. Trạng thái thực thi hiện hành ghi riêng trong issue và delivery contract; hoàn tất BE không mở khóa ticket sau khi FE/tích hợp còn OPEN.
+- Ticket chính thức: một file mỗi ticket tại `.scratch/trip-companions/issues/`, nhãn ban đầu `ready-for-agent`. Đã chuyển nguyên bộ 11 file từ drafts/ sau xác nhận của người dùng; scope, acceptance criteria và quan hệ phụ thuộc chức năng giữ nguyên. Trạng thái thực thi hiện hành ghi riêng trong issue và delivery contract. Với hai task toàn phạm vi, phần BE tiến tiếp dựa trên backend prerequisite; vertical ticket vẫn OPEN nếu FE/tích hợp chưa hoàn tất.
 
 ## 11 ticket đã duyệt
 
@@ -91,7 +102,7 @@ Các nhánh không có dependency vẫn có thể sửa cùng module/contract; k
 
 ## Kế hoạch hoàn thiện bằng đúng hai task — 2026-10-28
 
-Theo yêu cầu tiếp theo của chủ dự án, đã soạn [kế hoạch hoàn thiện](trip-companions-completion-plan.md) cho gap TC-01 và TC-02–TC-11, cùng hai task xuyên suốt: [BE](tasks/trip-companions-backend.md) và [FE/tích hợp](tasks/trip-companions-frontend.md). Hai task đi luân phiên qua từng mốc BE contract → FE → kiểm chứng; giữ nguyên blocker graph và AC của các issue. Đây là tài liệu bàn giao, chưa chạy code hoặc mở chat triển khai trong lần lập kế hoạch.
+Theo yêu cầu tiếp theo của chủ dự án, đã soạn [kế hoạch hoàn thiện](trip-companions-completion-plan.md) cho gap TC-01 và TC-02–TC-11, cùng hai task xuyên suốt: [BE](tasks/trip-companions-backend.md) và [FE/tích hợp](tasks/trip-companions-frontend.md). Quy tắc cập nhật cho phép BE phát triển liên tục theo backend prerequisite, FE tích hợp liên tục theo contract; kiểm chứng đầy đủ vẫn cần trước khi nhận ticket hoàn tất. Lần soạn ban đầu chỉ tạo tài liệu; tiến độ thực thi ghi tại sổ bàn giao.
 
 ## Cách dùng prompt từng ticket hoặc hai task toàn phạm vi
 
@@ -99,7 +110,7 @@ Theo yêu cầu tiếp theo của chủ dự án, đã soạn [kế hoạch hoà
 - [Prompt FE](prompts/trip-companions-frontend.md).
 - [Hợp đồng bàn giao và evidence](trip-companions-delivery-contract.md).
 
-Hai prompt trong `prompts/` dùng lại theo **một ticket mục tiêu**. Mặc định là TC-01; đổi dòng “Ticket mục tiêu” sang mã đang làm. Chọn ticket có mọi blocker đã hoàn tất cả BE/FE/tích hợp. Chạy **BE của ticket → FE của cùng ticket → kiểm chứng tích hợp → cập nhật trạng thái**, rồi mới sang ticket được mở khóa. Việc BE đã xong không tự mở khóa blocker là ticket vẫn thiếu FE. Khi giao toàn bộ phần còn lại bằng hai task theo yêu cầu mới, dùng các file trong `tasks/` ở mục trên; scope bao trùm backlog nhưng vẫn qua các gate dependency này.
+Hai prompt trong `prompts/` dùng lại theo **một ticket mục tiêu** khi chủ dự án chỉ giao một ticket. Với yêu cầu làm hết phần còn lại, dùng hai file trong `tasks/`; không áp dụng giới hạn mặc định TC-01 hoặc chờ FE để chặn phần BE tiếp theo. Giữ thứ tự dependency về backend và DTO thật cho FE; điều kiện đủ BE/FE/tích hợp áp dụng lúc ghi IMPLEMENTED, không bắt BE dừng sau mỗi handoff.
 
 Cách này giữ lợi ích của vertical slices, đồng thời có prompt riêng cho từng vai trò. Không chỉ dẫn BE chạy tất cả ticket trước trong khi vẫn coi các ticket tiền nhiệm chưa có FE là đã hoàn tất.
 

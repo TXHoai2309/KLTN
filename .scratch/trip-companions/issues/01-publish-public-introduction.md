@@ -14,6 +14,16 @@
 
 **FE part:** Form có dữ liệu Trip chỉ đọc, tiêu đề/giới thiệu/số chỗ/ảnh phù hợp, preview đúng góc nhìn Guest, trạng thái ghi và trang giới thiệu. Chưa thêm CTA tham gia giả khi hành vi chưa có.
 
+**Completion-plan milestone 0 BE handoff (2026-10-28):** BE READY FOR FE under
+`TC01-viewer-r1`: `getCompanionViewerContext` / authenticated GET
+`/api/trip-companions/:publicationId/viewer`, strict HOST + private tripId or
+VISITOR without private IDs. Current role/status and owner predicate, no Admin
+bypass, works after departure/completion. Public DTO unchanged. 30 unit/HTTP/schema
+PASS, 11 disposable PostgreSQL PASS, root types 4/4 PASS, whitespace PASS; 15
+unchanged scoped migrations and 0 pending, no Development/Production operation.
+FE host-return/copy follow-up remains OPEN; existing publication evidence remains
+valid. Exact usage/fixtures in the delivery contract.
+
 - [x] Chủ sở hữu công khai được Trip đã lưu còn đủ điều kiện; Guest, người không sở hữu và tài khoản khóa không có quyền ghi.
 - [x] Ảnh/nội dung tự động chỉ lấy dữ liệu đủ điều kiện public; không lộ lịch từng giờ, nhu cầu/AI history, thông tin liên hệ, thành viên hay chat.
 - [x] Một Trip không có hai bài/nhóm khi double-click hoặc retry; UNKNOWN đối soát cùng payload/key và chỉ báo thành công sau DB xác nhận.
