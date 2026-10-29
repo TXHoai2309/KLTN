@@ -28,10 +28,10 @@ This is a lightweight log of decisions that future stories may rely on. “Exist
 
 ## ADR-04 — Better Auth and server-owned roles
 
-- **Status:** Accepted baseline
+- **Status:** Accepted role-assignment baseline; the original Admin non-inheritance consequence is superseded by owner-approved [RBAC V2 (2026-10-17)](stories/RBAC-V2-admin-inherits-traveler.md).
 - **Decision:** Use Better Auth email/password. Roles are `TRAVELER` and `ADMIN`; public signup defaults to `TRAVELER`, with `role` configured as a non-input additional field. Bootstrap Admin is a server-side command using environment credentials.
 - **Reason:** Role assignment must not be controlled by signup clients.
-- **Consequence:** Admin is not implicitly a Traveler. Every future protected feature still needs server authorization and ownership checks. The current repo has no complete business authorization module.
+- **Consequence:** Server authorization and ownership checks remain mandatory. The original non-inheritance rule is historical: RBAC V2 grants ADMIN the Traveler capability for its own resources through the current shared authorization module, without an ownership bypass.
 - **Date:** Existing baseline
 
 ## ADR-05 — Prisma with Neon PostgreSQL
@@ -447,3 +447,182 @@ No authorization, ownership, business scheduling, UI layout or Production change
 - **Boundaries:** Database, Better Auth, Blob, cron, bootstrap and QA safety/abuse secrets stay in the deployment environment. QA defaults to the owner-selected `gpt-6.1-sol`/medium and Editorial defaults to `gpt-6-luna`; both can be changed through the later approved selector below. RAG embedding provenance is read-only. Browser Google iframe and Stadia tile-domain authentication do not gain a client API key.
 - **Writes and rotation:** Admin writes are authorized against the current persisted role, idempotent and committed with a values-free audit event. A prior encryption root key may be supplied temporarily during rotation; an Admin rewrap action re-encrypts that environment's overrides before the old root key is removed. No provider key or root key is stored in documentation or committed files.
 - **Model-selection follow-up (2026-10-28):** The owner approved independent model selectors for preference extraction, Editorial and QA. Their prior fixed model selections remain defaults. The UI shows the intersection of a reviewed compatible model set and the active OpenAI API key's `/v1/models` response. Each request uses parameters compatible with its selected model. The list does not by itself prove a successful structured-output call. RAG embedding model, QA grounding and Editorial validation remain unchanged.
+
+## ADR-26 — Single skill-oriented Assistant runtime for V2 (2026-10-28)
+
+- **Status:** Accepted for Assistant V2 design; implementation pending.
+- **Date:** 2026-10-28
+
+### Context
+
+The current conversational planner is reliable at deterministic validation and persistence, but its dialogue is controlled by a fixed missing-field state machine and a language-only paraphraser. The owner wants Muse-like planning behavior now and additional capabilities such as place research and booking later, without replacing the existing KLTN planner/RAG/Trip business engine. TripSage demonstrates a useful single-runtime, server-first agent/tool pattern, while the KLTN repository already owns authorization, state, scheduling, routing, validation and idempotent persistence.
+
+### Decision
+
+Assistant V2 uses one server-side Assistant runtime with a skill registry and typed capability-action registry. Skills are operating policies loaded into the same runtime; they are not separate autonomous agents by default. The runtime must be skill-ready from the first vertical slice so later capabilities can be added without replacing the runtime.
+
+V1 begins with the `travel-planning` skill only in executable scope. The locked skill taxonomy also reserves `place-research`, `itinerary-replanning`, `in-trip-assistance` and `ha-giang-qa` for later slices. `booking-assistance` is a future extension, not V1 scope.
+
+### Alternatives
+
+- Copy TripSage as a second application/runtime: rejected because it would duplicate or replace working KLTN domain logic and infrastructure.
+- Multi-agent architecture with one agent per capability: rejected for the MVP because it multiplies model calls, state/handoff failure modes, latency and debugging surface.
+- Keep the current fixed dialogue state machine and only rewrite prompts: rejected because the current next-step decision remains deterministic questionnaire sequencing.
+
+### Consequences
+
+The Assistant gains a stable extension seam for future skills while the current KLTN domain engine remains authoritative. Runtime tests must prove that only registered skills/actions can execute and that adding a skill does not grant new write authority implicitly. Streaming, multi-agent handoff and dynamic skill discovery are deferred.
+
+## ADR-27 — Skills own workflow policy; capability actions own deterministic/retrieval/write work (2026-10-28)
+
+- **Status:** Accepted for Assistant V2 design; implementation pending.
+- **Date:** 2026-10-28
+
+### Context
+
+Treating every function as a skill would create many micro-skills and move deterministic rules into prompts. Treating every capability as only a tool would recreate the current problem where no reusable domain-level conversational policy exists.
+
+### Decision
+
+Create a skill only for reusable multi-step domain reasoning or conversational workflow. Use typed capability actions/services for narrow retrieval, deterministic calculation/validation, authorization and persistence.
+
+The initial skill set is:
+
+- `travel-planning` — executable first and the primary planning orchestrator.
+- `place-research` — later reusable research/compare workflow.
+- `itinerary-replanning` — later proposal-edit workflow.
+- `in-trip-assistance` — later live-trip workflow using current location/remaining itinerary.
+- `ha-giang-qa` — later skill wrapper around the existing grounded Q&A capability.
+
+Destination search, RAG retrieval, route calculation, scheduling, itinerary validation, trip read/save and location resolution remain capability actions/services, not skills.
+
+### Alternatives
+
+- Make destination discovery, feasibility and routing separate skills: rejected because they are narrow service/deterministic responsibilities.
+- Put all behavior into one `travel-planning` mega-skill: rejected because place research, in-trip behavior and future booking have reusable workflows and different action boundaries.
+
+### Consequences
+
+Skill files stay comparatively small and composable. Deterministic rules remain testable without a model. Future booking can be added as a skill plus approval-gated actions without changing the meaning of existing skills.
+
+## ADR-28 — Minimum useful brief and progressive refinement replace mandatory optional-question sequencing in V2 (2026-10-28)
+
+- **Status:** Accepted for Assistant V2; implementation pending. This supersedes the 2026-10-27 guided optional-question sequence only for V2 once the V2 path is enabled; V1 remains unchanged until migration.
+- **Date:** 2026-10-28
+
+### Context
+
+The product flow already states that duration plus supported transport are enough for a preliminary proposal, while the current chat-first follow-up requires start date, all optional preference topics, recap and a separate generation confirmation before proposing an itinerary. In practice this makes the Assistant behave like a form wizard and delays useful output.
+
+### Decision
+
+For V2, duration plus supported transport form the minimum useful brief for a preliminary proposal. Unknown exact date and optional preferences do not block a draft. The Assistant asks a material question only when its answer can materially change the plan, is required for safety/authorization, or resolves an ambiguity that cannot be handled reversibly.
+
+Exact departure date remains required before final confirmation and official Save. Unknown facts must remain unknown; progressive refinement is not permission to invent defaults. Needs recap is no longer a mandatory pre-generation checkpoint. The Assistant may recap when useful, before a consequential confirmation, or when it needs the user to verify a non-trivial interpretation.
+
+### Alternatives
+
+- Preserve the full guided optional sequence and only improve prose: rejected because the user still completes a questionnaire before receiving value.
+- Generate from duration alone: rejected because supported transport materially affects the feasible plan and is already a locked minimum input.
+
+### Consequences
+
+The dialogue becomes draft-first and refinement-oriented. Existing save/date/Validator invariants remain intact. Tests must explicitly cover `2 days + car -> preliminary proposal` with no forced start-date/preferences/recap gate.
+
+## ADR-29 — Assistant V2 orchestrates; existing KLTN planner and Validator retain authority (2026-10-28)
+
+- **Status:** Accepted for Assistant V2 design; implementation pending.
+- **Date:** 2026-10-28
+
+### Context
+
+The existing repository already validates AI-selected IDs, preserves mandatory/excluded destinations, resolves routes, schedules days, runs deterministic checks, limits repair attempts, rechecks selected destination data, and performs authoritative save validation. Replacing these with a model-driven TripSage planner would regress verified product invariants.
+
+### Decision
+
+Assistant V2 decides conversational workflow and requests typed actions. It does not decide `PASS`, fabricate route/opening evidence, authorize ownership, or persist a Trip directly. Preliminary proposal generation adapts to the existing planning engine; deterministic scheduling/routing/Validator and canonical save services retain authority.
+
+For the first MVP, avoid a recursive free-form agent loop that invokes a second model-backed planner as an opaque nested tool repeatedly. The runtime may request one bounded planning action; the application owns its execution and returns the authoritative result for response composition.
+
+### Alternatives
+
+- Port TripSage's travel domain/planner wholesale: rejected because KLTN has stricter existing product invariants and data contracts.
+- Let the agent call low-level scheduling/validation operations and assemble the itinerary itself: rejected for V1 because it expands the model's authority and duplicates the current planner.
+
+### Consequences
+
+The first V2 slice can reuse `generatePlanningProposal`, current candidate retrieval, route provider, scheduler, Validator, workspace versioning and save semantics. Later refactoring may expose finer-grained actions only when it preserves the same authority boundary.
+
+## ADR-30 — Port TripSage runtime patterns first; defer AI SDK/provider migration (2026-10-28)
+
+- **Status:** Accepted for Assistant V2 MVP design; implementation pending.
+- **Date:** 2026-10-28
+
+### Context
+
+TripSage's useful patterns include typed tools, server-owned orchestration, schema validation, streaming and approval gates. KLTN currently has a bounded OpenAI JSON provider over Chat Completions and no AI SDK dependency. Adding an SDK/provider migration at the same time as the conversation architecture change would enlarge the first blast radius.
+
+### Decision
+
+V2 MVP ports the architectural patterns, not the TripSage application or provider stack. It introduces project-owned skill/action contracts, registry, runtime state and structured next-action decisions while continuing to use the existing bounded OpenAI provider where possible. The provider boundary must not prevent a later move to OpenAI Responses/function calling or an AI SDK tool loop.
+
+Direct model-controlled multi-step tool calling, streaming/generative UI, Redis/QStash, TripSage Supabase/Auth/RAG and booking providers are outside the first MVP.
+
+### Alternatives
+
+- Add Vercel AI SDK and rewrite the provider immediately: deferred because it is not required to prove the new conversation behavior.
+- Keep provider-specific logic embedded inside each skill: rejected because it would couple skill design to one model/API transport.
+
+### Consequences
+
+The first runnable slice has fewer dependency and provider changes. Later direct tool calling must use the runtime/action contracts rather than bypass them. Current OpenAI tool calling is compatible with application-owned function schemas when the provider migration is undertaken.
+
+## ADR-31 — Feature-gated vertical migration with V1 preserved until V2 acceptance (2026-10-28)
+
+- **Status:** Accepted for Assistant V2 design; implementation pending.
+- **Date:** 2026-10-28
+
+### Context
+
+Conversational planning already has broad automated coverage, persistent dialogue/checkpoint state and owner-tested UI behavior. Replacing it in one change would make regressions difficult to isolate.
+
+### Decision
+
+Implement V2 as a feature-gated path alongside V1. The first tracer bullet handles only new-trip conversational planning through the `travel-planning` skill and reuses existing persistence/planning services. Existing saved-trip editing, official Save, Q&A, in-trip behavior and V1 remain unchanged until their dedicated V2 slices pass acceptance.
+
+No database schema change, streaming conversion or provider migration is required for the first vertical slice. Remove or retire V1 questionnaire/canonical-paraphrase paths only after V2 behavior/evaluation is accepted.
+
+### Alternatives
+
+- In-place rewrite of the current planning module: rejected because rollback and before/after evaluation would be harder.
+- Build the full five-skill runtime before exposing any behavior: rejected because it delays end-to-end learning and conflicts with the owner's run-first preference.
+
+### Consequences
+
+Each ticket can ship and be demonstrated independently. Temporary duplication is accepted during migration. Tests must cover both feature-flag states until V1 is retired.
+
+## ADR-32 — Read-only planning guidance and explicit regenerate in the V2 runtime (2026-10-29)
+
+- **Status:** Accepted for Assistant V2-08; implemented with controlled tests, live acceptance pending.
+- **Date:** 2026-10-29
+
+### Context
+
+After a proposal, an advice request such as "gợi ý cho tôi nên đi như nào" had no intent. The classifier returned CLARIFY and the session answered with the fixed question "Bạn muốn điều chỉnh cụ thể điều gì trong đề xuất này?". The wording gate also rejected natural advice (times, unknown numbers, a second question).
+
+### Decision
+
+Add `ADVISE` and `REGENERATE` to the planning understanding/analysis intents, defined only in the V2 prompt (V1 normalizes both to NEEDS). Add one read-only `PLANNING_GUIDANCE` goal to `travel-planning`: it derives signals deterministically from the stored canonical proposal (`analyzeCurrentProposal`), never changes needs, version, proposal, pending clarification or UNKNOWN state, never generates, publishes, saves or applies, and may run while a clarification or UNKNOWN is pending. Its wording is gated by claims that would be false or unsupported (change/save/validity, atmosphere facts, numbers not in the plan), retried once with the rejection reason, then rendered deterministically. `PRESENT_PROPOSAL` leads with route rationale before the validation caveat; failed generation maps stable action error codes to what happened and what to do next. An explicit rebuild request regenerates from the known brief through the existing refine action.
+
+No new agent, skill, schema, provider or capability is introduced.
+
+### Alternatives
+
+- New Planner/Advice agent or skill: rejected; the boundary is conversation policy inside the existing runtime.
+- Phrase lists or regex for advice: rejected; paraphrases are the classifier's job and a list is brittle.
+- Let the model answer freely with no gate: rejected; read-only advice must not claim changes, saves, validity or unsupported facts.
+- Hide `[TEST]` destinations in the UI: rejected; the Dev data issue belongs to the data layer.
+
+### Consequences
+
+Guidance quality depends on the real classifier separating ADVISE from CLARIFY/NEEDS, which only a live run can show. Compound advice plus edit still executes the explicit edit first. Overnight structure, lodging and weather remain out of scope (V2-09).

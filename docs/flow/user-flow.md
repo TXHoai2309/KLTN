@@ -39,6 +39,30 @@ Planner proposes ordered visits from eligible existing destinations → validate
 
 ## Save trip
 
+V2-only execution note (ADR-28, 2026-10-28): the internal
+[V2-02 session](../stories/ASSISTANT-SKILL-RUNTIME-V2-02.md) asks only a missing
+duration/transport blocker, then generates a preliminary proposal without forcing
+date/preferences/recap confirmation first. Date-dependent checks retain
+INSUFFICIENT_DATA where applicable. The V1 questionnaire above remains the current
+production path; V2 does not change the Save flow below.
+
+The internal [V2-03 continuation](../stories/ASSISTANT-SKILL-RUNTIME-V2-03.md)
+accepts later explicit preferences → explains their planning consequences →
+regenerates through the existing engine/Validator → atomically publishes one
+replacement, without asking the remaining optional fields. Failed/rejected
+refinement retains the prior proposal. The internal
+[V2-04 continuation](../stories/ASSISTANT-SKILL-RUNTIME-V2-04.md) now handles scoped
+REMOVE/ADD/REPLACE/MOVE and explicit day replans on that unsaved proposal. It
+preserves other days, asks before changing cross-day dependencies, and publishes
+one validated replacement. That slice excludes saved/in-trip editing; production V2 remains deferred.
+
+The internal [V2-05 continuation](../stories/ASSISTANT-SKILL-RUNTIME-V2-05.md)
+allows proposal → grounded QA → same-session edit/refinement. A QA interruption
+retains pending planning questions and an uncertain publication still blocks
+mutation. A unique fresh QA subject may resolve a later “điểm này”; ambiguity asks.
+QA returns the existing answer/citation contract without saving or publishing
+the itinerary. That slice excludes saved/in-trip V2; production routing remains deferred.
+
 Validated proposal → Traveler confirms → database write → report `SUCCESS` only after confirmation. Keep invalid proposals temporary, not long-lived saved drafts. “Save trip” creates/maintains the trip; “favorite trip” creates only a favorite relation.
 
 ## Edit itinerary
@@ -48,6 +72,21 @@ Traveler edits manually or asks AI for a change → keep a candidate separate fr
 ## In-trip assistant
 
 When the feature needs location, request GPS permission; if unavailable/denied, allow a specific manual location → consider current position, uncompleted itinerary, remaining time, and new needs → AI proposes changes without altering completed visits → Validator checks → user confirms → persist and apply after write confirmation. Do not track GPS continuously in the background.
+
+Internal [V2-06 flow](../stories/ASSISTANT-SKILL-RUNTIME-V2-06.md): explicit active
+saved Trip ID → current owned DB snapshot/revision → material GPS/manual location
+or a location-independent future-day request → existing US-36 interpretation and
+bound clarification → US-37 preview → separate proposal → explicit confirmation
+→ fresh validation/transactional apply → report confirmed DB outcome. QA can
+interrupt and preserve a pending day question; an agreement after QA re-shows
+that question/proposal before accepting confirmation. UNKNOWN permits QA while
+blocking mutation, with an explicit identical-request/key reconciliation. Reload
+loses transient session state; the database Trip remains canonical. Production
+routing defaults to V1. [V2-07](../stories/ASSISTANT-SKILL-RUNTIME-V2-07.md) adds
+an explicitly gated V2 UI/HTTP integration and live acceptance report. When
+selected, the same Assistant entry points use transient V2 conversations;
+reload starts a new interaction and never restores a pending apply. V1 remains
+available through configuration rollback; general rollout is still gated.
 
 ## Admin destination, culture, and RAG management
 

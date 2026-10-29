@@ -5,6 +5,7 @@ import { AssistantChat, type AssistantContextProps } from "./assistant-chat";
 import { AssistantHttpTransport } from "./assistant-http-transport";
 import { assistantRuntimeChatKey } from "./assistant-runtime-chat-key";
 import { assistantAuthBoundary } from "./assistant-auth-boundary";
+import { AssistantV2Chat } from "./assistant-v2-chat";
 
 export function AssistantRuntimeChat(contextProps: AssistantContextProps = {}) {
   const { data: session, isPending, error } = authClient.useSession();
@@ -26,6 +27,7 @@ export function AssistantRuntimeChat(contextProps: AssistantContextProps = {}) {
 function AuthenticatedRuntimeChat({ boundary, authReady, ...contextProps }: { boundary: string; authReady: boolean } & AssistantContextProps) {
   const [identity, setIdentity] = useState<string | null>(null);
   const [verified, setVerified] = useState(false);
+  const [runtimeVersion, setRuntimeVersion] = useState<"v1" | "v2">("v1");
   const [transport] = useState(() => new AssistantHttpTransport());
   useEffect(() => {
     setVerified(false);
@@ -38,15 +40,19 @@ function AuthenticatedRuntimeChat({ boundary, authReady, ...contextProps }: { bo
           if (!controller.signal.aborted && (response.status === 401 || response.status === 403)) setIdentity(null);
           return;
         }
-        const body = await response.json() as { data?: { identity?: unknown } };
+        const body = await response.json() as { data?: { identity?: unknown; runtimeVersion?: unknown } };
         if (!controller.signal.aborted && typeof body.data?.identity === "string" &&
           (boundary === "GUEST" ? /^GUEST:[a-f0-9]{64}$/.test(body.data.identity) : body.data.identity === boundary)) {
           setIdentity(body.data.identity);
+          setRuntimeVersion(body.data.runtimeVersion === "v2" ? "v2" : "v1");
           setVerified(true);
         }
       }).catch(() => undefined).finally(() => clearTimeout(timeout));
     return () => { clearTimeout(timeout); controller.abort(); };
   }, [boundary, authReady]);
   if (!identity) return <AssistantChat key={assistantRuntimeChatKey(boundary, identity)} {...contextProps} />;
+  // A saved-conversation deep link opens in the history-aware chat; V2 planning sessions are not stored there.
+  const savedConversation = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("conversationId");
+  if (runtimeVersion === "v2" && identity.startsWith("USER:") && !savedConversation) return <AssistantV2Chat key={identity} identity={identity} initialContext={contextProps.initialContext} available={authReady && verified}/>;
   return <AssistantChat key={assistantRuntimeChatKey(boundary, identity)} identity={identity} transport={transport} available={authReady && verified} {...contextProps} />;
 }

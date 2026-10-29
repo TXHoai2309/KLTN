@@ -32,6 +32,7 @@ model User {
   favorites     Favorite[]
   trips         Trip[]
   planningWorkspaces AssistantPlanningWorkspace[]
+  assistantV2Sessions AssistantV2SessionHead[]
   auditEvents   AdminAuditEvent[] @relation("TargetUser")
   actionsDone   AdminAuditEvent[] @relation("ActorAdmin")
   runtimeConfigs RuntimeConfig[] @relation("RuntimeConfigEditor")

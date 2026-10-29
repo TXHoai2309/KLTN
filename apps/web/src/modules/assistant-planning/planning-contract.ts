@@ -64,7 +64,7 @@ export const planningWorkspaceSchema = z.object({
 }).strict();
 export type PlanningWorkspace = z.infer<typeof planningWorkspaceSchema>;
 export const planningAnalysisSchema = z.object({
-  intent: z.enum(["NEEDS", "EDIT", "QA", "CLARIFY"]), needs: planningNeedsSchema,
+  intent: z.enum(["NEEDS", "EDIT", "QA", "CLARIFY", "ADVISE", "REGENERATE"]), needs: planningNeedsSchema,
   message: z.string().max(800), unresolved: z.array(planningUnresolvedSchema).max(8),
   operation: planningOperationSchema.nullable().optional(),
   options: z.array(z.object({ id, name: z.string().max(200), reason: z.string().max(400) }).strict()).max(3).optional(),

@@ -7,6 +7,7 @@ import { createReplanModelOutputJsonSchema } from "./replan-contract";
 import {
   buildReplanPrompt,
   type ReplanPromptInput,
+  type LocationIndependentReplanPromptInput,
 } from "./replan-prompt";
 import {
   replanServerIds,
@@ -19,6 +20,7 @@ export type ReplanAiServiceDependencies = {
   llm: StructuredLlmClient;
   timeoutMs?: number;
   signal?: AbortSignal;
+  allowLocationIndependent?: boolean;
 };
 
 function validateTimeout(value: number): number {
@@ -72,10 +74,10 @@ function withTimeout<T>(
 
 /** Generate and verify a read-only structured proposal for the remaining trip. */
 export async function createInTripReplanIntent(
-  input: ReplanPromptInput,
+  input: ReplanPromptInput | LocationIndependentReplanPromptInput,
   dependencies: ReplanAiServiceDependencies,
 ) {
-  const prompt = buildReplanPrompt(input);
+  const prompt = buildReplanPrompt(input, dependencies.allowLocationIndependent);
   const jsonSchema = createReplanModelOutputJsonSchema(replanServerIds(prompt.serverContext));
   const timeoutMs = validateTimeout(
     dependencies.timeoutMs ?? MAX_REPLAN_PROVIDER_TIMEOUT_MS,

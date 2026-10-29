@@ -23,8 +23,9 @@ import { previewInTrip } from "../in-trip/in-trip-validation";
 import { recheckInTripTime, type TimeRecheckTrip } from "../in-trip/time-recheck";
 import { preserveCompleted, ReplanCompletedVisitError } from "../in-trip/preserve-completed";
 import { splitCompletedRemaining } from "../in-trip/split-trip";
+import { assertLocationIndependentScope } from "../in-trip/location-independent-scope";
 
-export const applyEditRequestSchema = z
+const applyEditBaseSchema = z
   .object({
     baseRevision: z.iso.datetime(),
     candidate: editCandidateSchema,
@@ -33,8 +34,8 @@ export const applyEditRequestSchema = z
     location: inTripLocationSchema.optional(),
     mandatoryEndpoint: mandatoryEndpointSchema.nullable().optional(),
   })
-  .strict()
-  .superRefine((request, context) => {
+  .strict();
+export const applyEditRequestSchema = applyEditBaseSchema.superRefine((request, context) => {
     if (request.kind === "IN_TRIP" && request.location === undefined) {
       context.addIssue({ code: "custom", path: ["location"], message: "Cần vị trí để kiểm tra lại phương án In-trip." });
     }
@@ -83,6 +84,8 @@ export type ApplyEditDependencies = TripEditServiceDependencies & {
   authorization: AuthorizationDependencies;
   /** US-36/task 289 will wire the completed-visit invariant into this hook. */
   assertInTripCompletedVisitsUnchanged?: InTripCompletedVisitInvariant;
+  /** Internal-only integration; public request schemas still require location. */
+  allowLocationIndependent?: boolean;
 };
 
 export type ApplyEditResult = {
@@ -215,6 +218,11 @@ async function persistCandidate(
   if (trip.updatedAt.toISOString() !== baseRevision) throw revisionConflict();
   assertCandidateMatchesTrip(trip, candidate);
   assertInTripVisitsUnchanged(kind, trip, candidate, timeReference, dependencies);
+  if (kind === "IN_TRIP" && dependencies.allowLocationIndependent) {
+    // The ordinary completed invariant is still mandatory. The no-location
+    // future-scope restriction is also checked at commit using the same clock.
+    assertLocationIndependentScope(createEditCandidate(trip), candidate, timeReference);
+  }
 
   const nextRevision = nextBaseRevision(trip.updatedAt, timeReference);
   const revisionUpdate = await transaction.trip.updateMany({
@@ -256,7 +264,8 @@ export async function applyEdit(
   dependencies: ApplyEditDependencies,
   timeReference: Date | (() => Date),
 ) {
-  const parsed = applyEditRequestSchema.safeParse(request);
+  const internalNoLocation = dependencies.allowLocationIndependent && request.kind === "IN_TRIP" && request.location === undefined;
+  const parsed = (internalNoLocation ? applyEditBaseSchema : applyEditRequestSchema).safeParse(request);
   if (!parsed.success) {
     throw new AppError("VALIDATION_ERROR", "Dữ liệu áp dụng chỉnh sửa không hợp lệ.", 400, {
       fieldErrors: parsed.error.flatten().fieldErrors,
@@ -303,7 +312,7 @@ export async function applyEdit(
         location: input.location!,
         mandatoryEndpoint: input.mandatoryEndpoint ?? null,
       },
-      { database: dependencies.database, getRoute: dependencies.getRoute, now: () => validationTimeReference },
+      { database: dependencies.database, getRoute: dependencies.getRoute, now: () => validationTimeReference, allowLocationIndependent: internalNoLocation },
     );
     const recheck = recheckInTripTime({
       trip: timeRecheckTrip(ownedTrip),
@@ -363,7 +372,7 @@ export async function applyEdit(
         candidate,
         input.kind,
         validationTimeReference,
-        dependencies,
+        { ...dependencies, allowLocationIndependent: internalNoLocation },
       );
       return {
         tripId,

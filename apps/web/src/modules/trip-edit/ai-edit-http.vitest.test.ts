@@ -121,7 +121,6 @@ const body = JSON.stringify({ baseRevision: revision.toISOString(), message: "Đ
 describe("aiEditResponse", () => {
   it.each([
     ["Guest", (test: ReturnType<typeof fixture>) => test.removeSession(), 401, "UNAUTHENTICATED"],
-    ["Admin", (test: ReturnType<typeof fixture>) => test.setRole("ADMIN"), 403, "FORBIDDEN"],
   ] as const)("rejects %s before reading body or querying Trip", async (_role, configure, status, code) => {
     const test = fixture();
     configure(test);
@@ -155,8 +154,9 @@ describe("aiEditResponse", () => {
     expect(test.providerCalls).toBe(0);
   });
 
-  it("returns an owner-scoped proposal without writing", async () => {
+  it.each(["TRAVELER", "ADMIN"] as const)("returns an owner-scoped proposal without writing for %s under approved RBAC V2", async role => {
     const test = fixture();
+    test.setRole(role);
     const response = await aiEditResponse(postRequest(body), "trip-1", test.dependencies);
     const payload = await response.json();
 

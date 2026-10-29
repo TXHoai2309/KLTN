@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppError } from "../../server/http/app-error";
 import { createQaPrincipalResolver } from "./qa-principal";
 import type { Database } from "@KLTN/db";
@@ -12,10 +12,12 @@ vi.mock("./qa-runtime", () => runtime);
 import { POST } from "../../app/api/ai/session/route";
 
 const request = (origin = "http://localhost") => new Request("http://localhost/api/ai/session", { method: "POST", headers: { origin } });
+afterEach(() => vi.unstubAllEnvs());
 
 describe("panel opening uses the existing identity bootstrap only", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubEnv("ASSISTANT_RUNTIME_VERSION", "v1");
     runtime.qaRuntimeEnabled.mockReturnValue(true);
     runtime.qaPrincipalResolver.bootstrap.mockResolvedValue({ principal: { kind: "GUEST", id: "fixture_guest" } });
   });
@@ -23,7 +25,7 @@ describe("panel opening uses the existing identity bootstrap only", () => {
     const response = await POST(request());
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(await response.json()).toEqual({ success: true, data: { identity: "GUEST:fixture_guest" } });
+    expect(await response.json()).toEqual({ success: true, data: { identity: "GUEST:fixture_guest", runtimeVersion: "v1" } });
     expect(runtime.qaService.ask).not.toHaveBeenCalled();
     expect(runtime.qaService.get).not.toHaveBeenCalled();
     expect(runtime.qaService.revokeGuest).not.toHaveBeenCalled();

@@ -2194,6 +2194,9 @@
 
 /* Conversational itinerary: shared by the full Assistant and floating panel. */
 .assistant-planning { margin-block: 12px; min-width: 0; color: var(--assistant-ink, var(--panel-ink, #13241b)); }
+/* V2 reuses the V1 shell without the history sidebar; only its stacked status rows need spacing. */
+.assistant-v2-chat .assistant-transcript-inner > [role="alert"], .assistant-v2-chat .assistant-transcript-inner > [role="status"], .assistant-v2-chat .assistant-transcript-inner > .assistant-planning-actions { margin-block: 8px; }
+.assistant-v2-chat .assistant-messages { width: 100%; min-width: 0; }
 .assistant-planning-proposal { width: 100%; min-width: 0; box-sizing: border-box; border: 1px solid var(--assistant-line, var(--panel-line, #dbe7df)); border-radius: 12px; padding: 16px; background: var(--assistant-card, var(--panel-surface, #fff)); }
 .assistant-planning-reply p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
 /* Quick Selection Pill Bar ("dòng màu trắng bên ngoài, bo tròn viên thuốc") */

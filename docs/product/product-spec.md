@@ -53,6 +53,50 @@ Owner-approved conversational refinement, 2026-10-27 (Q1–Q7): inside the Assis
 
 ### Deterministic Constraint Validator
 
+Assistant V2 execution note, 2026-10-28: ADR-28 supersedes the mandatory optional-question,
+recap and separate pre-generation confirmation sequence for V2 only. The internal
+[V2-02 path](../stories/ASSISTANT-SKILL-RUNTIME-V2-02.md) can draft from duration plus
+supported transport while keeping unknown refinements unknown. Date-dependent
+checks remain insufficient without a date; final confirmation/Save still require
+the existing exact-date, Validator, authorization and persistence checks. The
+production V1 conversation remains unchanged until explicit V2 rollout.
+
+The internal [V2-03 continuation](../stories/ASSISTANT-SKILL-RUNTIME-V2-03.md)
+adds preference-driven refinement: new explicit interests, pace, group context,
+mobility and destination wishes imply planning work rather than a mandatory
+remaining-field questionnaire. Refinements reuse the existing engine/Validator;
+confirmed publication replaces one canonical proposal, and failure/rejection
+keeps the prior proposal. This does not activate production V2 or permit automatic Save.
+
+The internal [V2-04 continuation](../stories/ASSISTANT-SKILL-RUNTIME-V2-04.md)
+supports bounded edits to that current unsaved proposal. Unaffected days and
+unrelated explicit constraints remain intact; dependency changes outside the
+requested days require explicit acceptance. One edit publishes atomically after
+the existing Validator, retaining the prior proposal on failure and blocking new
+mutations on UNKNOWN. That slice excludes saved/in-trip changes; production rollout remains deferred.
+
+The internal [V2-05 continuation](../stories/ASSISTANT-SKILL-RUNTIME-V2-05.md)
+now delegates factual questions to the existing source-only QA/RAG pipeline.
+QA preserves planning needs, proposal/version/fingerprint, pending clarification
+and UNKNOWN, and permits a subsequent explicit planning/edit turn. Existing QA
+source eligibility, real citations, ownership and abuse controls remain in force.
+Compound factual-plus-edit requests explicitly defer mutation to a separate edit
+turn. This does not enable production V2 or the future place-research skill.
+
+The internal [V2-06 continuation](../stories/ASSISTANT-SKILL-RUNTIME-V2-06.md)
+supports an explicitly selected, owned saved Trip through existing US-35/36/37.
+It reads the current database revision, preserves completed/unaffected visits,
+asks only material location/scope questions, validates a separate proposal and
+applies it only after explicit confirmation and fresh server checks. Read-only
+QA preserves pending clarification/proposals and uncertain apply state. UNKNOWN
+blocks further mutation and retains the identical request/key for reconciliation.
+The server-only no-location adapter accepts only future-day changes and preserves
+all days through today; public V1 location contracts remain unchanged. This is an
+internal integration. [V2-07](../stories/ASSISTANT-SKILL-RUNTIME-V2-07.md) now
+integrates it behind a server-only runtime gate and records live acceptance.
+V1 remains the default pending the [rollout review](../implementation/assistant-v2-evaluation.md);
+this does not retire V1 or relax any planning, evidence, ownership or write rule.
+
 Every itinerary proposal must be checked for:
 
 1. Opening hours.

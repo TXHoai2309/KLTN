@@ -1,4 +1,5 @@
 import "server-only";
+import { assistantMetric } from "../../server/assistant-turn-metrics";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { randomUUID } from "node:crypto";
 import { QA_ERROR_HTTP_STATUS } from "./qa-contract";
@@ -145,6 +146,7 @@ export function qaStage(
 // Model metadata is diagnostic only. Never copy arbitrary provider strings.
 const safeModel = (value: unknown): value is string => typeof value === "string" && value.length <= 100 && /^(?:gpt-\d|text-embedding-\d)[a-zA-Z0-9._-]*$/u.test(value);
 export function qaProviderInvoked(provider: "embedding" | "generation", requestedModel?: string, details?: Pick<ProviderMetadata, "providerPhase" | "configuredTimeoutMs" | "reasoningEffort">) {
+  assistantMetric("provider");
   const active = context.getStore(); if (!active) return;
   active.state[provider === "embedding" ? "embeddingInvoked" : "generationInvoked"] = true;
   const metadata = { provider, ...(safeModel(requestedModel) ? { requestedModel } : {}), ...details };

@@ -1,4 +1,5 @@
 import "server-only";
+import { assistantMetric } from "../../server/assistant-turn-metrics";
 
 import {
   assertStrictModelJsonSchema,
@@ -200,6 +201,7 @@ export function createOpenAiStructuredClient(
         try {
           let response: Response;
           try {
+            assistantMetric("provider");
             response = await fetcher("https://api.openai.com/v1/chat/completions", {
               method: "POST",
               headers: {

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { assistantMetric } from "../../server/assistant-turn-metrics";
 import { AppError } from "../../server/http/app-error";
 import type { TripRequirementInput } from "../trip-requirement/trip-requirement-contract";
 import { assertTripRequirementClear } from "../trip-requirement/trip-clarification-server";
@@ -7,7 +8,7 @@ import type { PlannerCandidate } from "../trip-planner/planner-candidates";
 import { plannerRoutePairs, schedulePlannerDays, visitDuration, openingFor, PACE_STOP_LIMIT } from "../trip-planner/planner-engine";
 import { resolvePlannerRoutes, type RouteProvider } from "../trip-planner/planner-routes";
 import { validatePlannerDays } from "../trip-planner/planner-validator";
-import { plannerResultSchema, type PlannerResult } from "../trip-planner/planner-contract";
+import { plannerResultSchema, type PlannerResult, type TravelLeg } from "../trip-planner/planner-contract";
 import { planningSelectionSchema, type PlanningSelection, type PlanningNeeds, type PlanningGenerated, type PlanningEdit } from "./planning-contract";
 
 export function isUsablePlanningCandidate(candidate: PlannerCandidate) {
@@ -29,11 +30,29 @@ export function assertPlanningSelection(raw: unknown, needs: PlanningNeeds, cand
   return selection.data.days.map(day => day.map(id => eligible.get(id)!));
 }
 
-export async function scheduleSelection(needs: PlanningNeeds, selection: PlanningSelection, candidates: readonly PlannerCandidate[], routes: RouteProvider, now: Date): Promise<PlannerResult> {
+export async function scheduleSelection(needs: PlanningNeeds, selection: PlanningSelection, candidates: readonly PlannerCandidate[], routes: RouteProvider, now: Date, scope?: { current: PlannerResult; affectedDays: readonly number[] }): Promise<PlannerResult> {
   const requirement = assertTripRequirementClear(needs.requirement, now);
   const selected = assertPlanningSelection(selection, needs, candidates, now);
-  const evidence = await resolvePlannerRoutes(plannerRoutePairs(selected, requirement.transport), routes, 10_000);
-  const days = schedulePlannerDays(requirement, selected, evidence);
+  const pairs = plannerRoutePairs(selected, requirement.transport);
+  const evidence = new Map<string, TravelLeg>();
+  const scheduleDays = new Set(scope?.affectedDays ?? selected.map((_, i) => i + 1));
+  const requests = pairs.filter(pair => {
+    if (!scope) return true;
+    const day = selected.findIndex(stops => stops.some(stop => stop.id === pair.to.id)) + 1;
+    const prior = scope.current.days.flatMap(d => d.stops).find(stop => stop.destination.id === pair.to.id)?.inbound;
+    if (!scheduleDays.has(day) && prior?.fromDestinationId === pair.from.id && prior.toDestinationId === pair.to.id) { evidence.set(pair.to.id, prior); return false; }
+    scheduleDays.add(day);
+    return true;
+  });
+  // A removed predecessor can turn a former cross-day first stop into the very
+  // first stop. Its old inbound leg must disappear, not survive as stale evidence.
+  if (scope) for (const [i, stops] of selected.entries()) {
+    const first = stops[0];
+    if (first && !pairs.some(pair => pair.to.id === first.id) && scope.current.days[i]?.stops[0]?.inbound) scheduleDays.add(i + 1);
+  }
+  for (const [id, leg] of await resolvePlannerRoutes(requests, routes, 10_000)) evidence.set(id, leg);
+  const scheduled = schedulePlannerDays(requirement, selected.map((stops, i) => scheduleDays.has(i + 1) ? stops : []), evidence);
+  const days = scheduled.map((day, i) => scope && !scheduleDays.has(i + 1) ? structuredClone(scope.current.days[i]!) : day);
   const { checks, stopStatuses } = validatePlannerDays(requirement, days, selected.flat());
   for (const day of days) for (const stop of day.stops) stop.validationStatus = stopStatuses.get(stop.destination.id) ?? "INSUFFICIENT_DATA";
   const allPass = checks.every(check => check.status === "PASS");
@@ -77,6 +96,7 @@ export function assertEditScope(selection: PlanningSelection, previous: Planning
   if (edit.kind === "REPLAN_DAY" && JSON.stringify(selection.days[edit.day - 1]) === JSON.stringify(previous.days[edit.day - 1])) throw new AppError("NO_ALTERNATIVE_FOUND", "Mình chưa tìm được phương án khác cho ngày này trong nhu cầu hiện tại. Bạn có thể đổi sở thích hoặc điểm bắt buộc.", 422);
 }
 export async function generatePlanningProposal(input: { needs: PlanningNeeds; candidates: readonly PlannerCandidate[]; previous: PlanningSelection | null; instruction: string; edit?: PlanningEdit; routes: RouteProvider; generate: PlanningGenerator; now: Date; recheck: (selected: readonly PlannerCandidate[]) => Promise<boolean> }): Promise<PlanningGenerated> {
+  assistantMetric("planning");
   const requirement = assertTripRequirementClear(input.needs.requirement, input.now);
   const eligibleCandidates = input.candidates.filter(c => isUsablePlanningCandidate(c) && !input.needs.excludedDestinationIds?.includes(c.id));
   if (input.edit && !input.previous) throw new AppError("EDIT_TARGET_MISSING", "Cần tạo lại hành trình trước khi sửa điểm.", 422);

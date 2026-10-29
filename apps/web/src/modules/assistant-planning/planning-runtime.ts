@@ -11,6 +11,8 @@ import { createPlanningRepository } from "./planning-repository";
 import { analyzePlanningText, generateAiSelection } from "./planning-ai";
 import type { PlanningDependencies } from "./planning-service";
 import { composePlanningReply } from "./planning-reply";
+import { createAssistantV2HttpService } from "../assistant-agent-v2/http-service";
+import { createSessionHeadStore } from "../assistant-agent-v2/session-head-store";
 
 export const planningDependencies = {
   authorization: authorizationDependencies,
@@ -28,4 +30,10 @@ export const planningDependencies = {
       now: () => new Date(),
     };
   },
+};
+
+// Worker-independent encrypted state with shared owner/version/CAS metadata.
+export const assistantPlanningHttpDependencies = {
+  ...planningDependencies,
+  v2: createAssistantV2HttpService({ ...planningDependencies, heads: createSessionHeadStore(db), secret: () => ENV.BETTER_AUTH_SECRET }),
 };

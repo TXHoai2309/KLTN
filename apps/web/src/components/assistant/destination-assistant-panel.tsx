@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { AssistantChat } from "./assistant-chat";
+import { AssistantV2Chat } from "./assistant-v2-chat";
 import { hasUnresolvedAttempt, type AssistantState, type AssistantTransport } from "./assistant-controller";
 import type { QaContext } from "../../modules/ai/qa-contract";
 import { useAssistantSession } from "./use-assistant-session";
@@ -203,7 +204,7 @@ export function DestinationAssistantPanel({
         tabIndex={-1}
         onWheel={(e) => e.stopPropagation()}
       >
-        <AssistantChat
+        {customIdentity === undefined && session.runtimeVersion === "v2" && identity.startsWith("USER:") ? <AssistantV2Chat key={identity} identity={identity} initialContext={context ?? (destinationId ? { type: "DESTINATION", destinationId } : { type: "GENERAL" })} available={available} onMinimize={onClose}/> : <AssistantChat
           mode="panel"
           transport={transport}
           identity={identity}
@@ -217,7 +218,7 @@ export function DestinationAssistantPanel({
           showSources={true}
           onMinimize={onClose}
           onOpenFullPage={handleOpenFullPage}
-        />
+        />}
       </div>
     </>
   );

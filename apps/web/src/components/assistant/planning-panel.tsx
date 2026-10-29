@@ -80,11 +80,19 @@ export function PlanningExchange({ message, client, available = true }: { messag
 
 export function PlanningProposalCard({ client, generated, available }: { client: PlanningClient; generated: PlanningGenerated; available: boolean }) {
   const state = useSyncExternalStore(client.subscribe, client.getSnapshot, client.getSnapshot);
+  const isCurrent = state.generated?.proposal.proposalId === generated.proposal.proposalId && state.generated?.version === generated.version;
+  const disabled = !available || state.busy || state.uncertain || !!state.workspace?.pendingSaveKey || !!state.savedTripId;
+  return <PlanningProposalView generated={generated} isCurrent={isCurrent} disabled={disabled} savedTripId={state.savedTripId} changeSummary={state.changeSummary} canSave={!!state.generated} onSave={() => {
+    const latest = client.getSnapshot();
+    if (latest.generated?.proposal.proposalId === generated.proposal.proposalId && latest.generated?.version === generated.version) void client.save();
+  }}/>;
+}
+
+/** Shared presentation only; V1/V2 retain their own server action contracts. */
+export function PlanningProposalView({ generated, isCurrent, disabled, savedTripId, changeSummary, canSave = true, onSave }: { generated: PlanningGenerated; isCurrent: boolean; disabled: boolean; savedTripId?: string | null; changeSummary?: string | null; canSave?: boolean; onSave: () => void }) {
   const [collapsedProposalId, setCollapsedProposalId] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const saveHelpId = useId();
-  const isCurrent = state.generated?.proposal.proposalId === generated.proposal.proposalId && state.generated?.version === generated.version;
-  const disabled = !available || state.busy || state.uncertain || !!state.workspace?.pendingSaveKey || !!state.savedTripId;
   const expanded = collapsedProposalId !== generated.proposal.proposalId;
   const day = generated.proposal.days[0];
   const missingDate = !generated.proposal.requirement.startDate;
@@ -92,19 +100,16 @@ export function PlanningProposalCard({ client, generated, available }: { client:
   const checks = generated.proposal.checks;
   const blockedChecks = checks.filter(c => c.status !== "PASS");
   return <div className="assistant-planning-proposal" data-proposal-id={generated.proposal.proposalId}>
-          <header><div><h2>Hành trình của bạn</h2><p className="assistant-muted">{generated.proposal.days.length} ngày · {generated.proposal.requirement.transport === "MOTORCYCLE" ? "Xe máy" : "Ô tô"} · {generated.proposal.days.reduce((sum, d) => sum + d.stops.length, 0)} điểm dừng</p></div><span className="assistant-planning-status">{isCurrent ? state.savedTripId ? "Đã lưu" : "Bản đề xuất hiện tại" : "Phiên bản trước"}</span></header>
+          <header><div><h2>Hành trình của bạn</h2><p className="assistant-muted">{generated.proposal.days.length} ngày · {generated.proposal.requirement.transport === "MOTORCYCLE" ? "Xe máy" : "Ô tô"} · {generated.proposal.days.reduce((sum, d) => sum + d.stops.length, 0)} điểm dừng</p></div><span className="assistant-planning-status">{isCurrent ? savedTripId ? "Đã lưu" : "Bản đề xuất hiện tại" : "Phiên bản trước"}</span></header>
           {!isCurrent && <p className="assistant-muted">Phiên bản này được giữ để bạn đối chiếu.</p>}
-          {isCurrent && state.changeSummary && <p role="status">{state.changeSummary}</p>}
+          {isCurrent && changeSummary && <p role="status">{changeSummary}</p>}
           {generated.repairError && <p role="alert">{generated.repairError}</p>}
-          {isCurrent && !state.savedTripId && !generated.proposal.eligibleForFinalConfirmation && <div className="assistant-planning-readiness" role="note"><strong>{missingDate ? "Cần ngày khởi hành để lưu chuyến đi" : "Lịch trình còn thông tin cần kiểm tra"}</strong><p>{missingDate ? "Bạn vẫn có thể xem và chỉnh bản sơ bộ. Nhắn ngày/tháng/năm khởi hành để mình kiểm tra giờ mở cửa trước khi lưu." : "Mình đã giữ bản đề xuất bên dưới. Bạn mở kết quả kiểm tra để xem phần cần bổ sung hoặc điều chỉnh."}</p></div>}
+          {isCurrent && !savedTripId && !generated.proposal.eligibleForFinalConfirmation && <div className="assistant-planning-readiness" role="note"><strong>{missingDate ? "Cần ngày khởi hành để lưu chuyến đi" : "Lịch trình còn thông tin cần kiểm tra"}</strong><p>{missingDate ? "Bạn vẫn có thể xem và chỉnh bản sơ bộ. Nhắn ngày/tháng/năm khởi hành để mình kiểm tra giờ mở cửa trước khi lưu." : "Mình đã giữ bản đề xuất bên dưới. Bạn mở kết quả kiểm tra để xem phần cần bổ sung hoặc điều chỉnh."}</p></div>}
           <ol className="assistant-planning-days">{generated.proposal.days.map(d => <li key={d.day}><h3>Ngày {d.day}{d.date ? ` · ${formatVietnameseDate(d.date)}` : ""}</h3><ol>{d.stops.map(stop => <li key={stop.destination.id}><span className="assistant-planning-time">{clock(stop.arrivalMinute)}</span><div><a href={`/destinations/${encodeURIComponent(stop.destination.id)}`}>{stop.destination.name}</a><span>Tham quan {stop.visitDurationMinutes} phút{stop.inbound?.status === "VERIFIED" && stop.inbound.durationSeconds != null ? ` · Di chuyển khoảng ${Math.ceil(stop.inbound.durationSeconds / 60)} phút` : ""}</span></div></li>)}</ol>{!d.stops.length && <p>Chưa có điểm phù hợp cho ngày này.</p>}</li>)}</ol>
           <button type="button" aria-expanded={expanded} onClick={() => setCollapsedProposalId(expanded ? generated.proposal.proposalId : null)}>{expanded ? "Thu gọn bản đồ" : "Xem bản đồ hành trình"}</button>
           {expanded && day && <div className="assistant-planning-map"><Suspense fallback={<p role="status">Đang mở bản đồ…</p>}><ItineraryMap day={day} days={generated.proposal.days} selectedDestinationId={selected} focusSelection={false} onSelect={setSelected} overviewOnly/></Suspense></div>}
           <details className="assistant-planning-checks"><summary>Kết quả kiểm tra · {blockedChecks.length ? `${blockedChecks.length} mục cần lưu ý` : "Các mục đều đáp ứng"}</summary><p className="assistant-muted">Đã kiểm tra {generated.attempts.length} phương án · Điều chỉnh tự động {generated.attempts.length - 1}/2 lần.</p><ul className="assistant-planning-validation">{checks.map(check => <li key={check.key} data-status={check.status}><strong>{labels[check.key]}: {labels[check.status]}</strong>{issueGroups(check, names).map(group => <div key={group.message}><p>{group.message}</p>{group.places.length > 0 && <p className="assistant-muted">{group.places.join("; ")}</p>}</div>)}</li>)}</ul></details>
           <details className="assistant-planning-checks"><summary>Lưu ý cho chuyến đi</summary>{generated.proposal.warnings.filter(w => w.code !== "PRELIMINARY_ONLY").map((w, i) => <p className="assistant-muted" key={`${w.code}-${i}`}>{w.message}</p>)}</details>
-          {isCurrent && !state.savedTripId && <div className="assistant-planning-save"><button type="button" disabled={disabled || !state.generated || !generated.proposal.eligibleForFinalConfirmation} aria-describedby={!generated.proposal.eligibleForFinalConfirmation ? saveHelpId : undefined} onClick={() => {
-            const latest = client.getSnapshot();
-            if (latest.generated?.proposal.proposalId === generated.proposal.proposalId && latest.generated?.version === generated.version) void client.save();
-          }}>Xác nhận và lưu chuyến đi</button>{!generated.proposal.eligibleForFinalConfirmation && <p id={saveHelpId} className="assistant-muted">{missingDate ? "Chưa thể lưu khi chưa có ngày khởi hành." : "Chỉ lưu được khi lịch trình đáp ứng các kiểm tra bắt buộc."}</p>}</div>}
+          {isCurrent && !savedTripId && <div className="assistant-planning-save"><button type="button" disabled={disabled || !canSave || !generated.proposal.eligibleForFinalConfirmation} aria-describedby={!generated.proposal.eligibleForFinalConfirmation ? saveHelpId : undefined} onClick={onSave}>Xác nhận và lưu chuyến đi</button>{!generated.proposal.eligibleForFinalConfirmation && <p id={saveHelpId} className="assistant-muted">{missingDate ? "Chưa thể lưu khi chưa có ngày khởi hành." : "Chỉ lưu được khi lịch trình đáp ứng các kiểm tra bắt buộc."}</p>}</div>}
         </div>;
 }

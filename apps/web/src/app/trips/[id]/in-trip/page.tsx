@@ -10,6 +10,9 @@ import { splitCompletedRemaining } from "@/modules/in-trip/split-trip";
 import { tripReadDependencies } from "@/modules/trip-read/trip-read-server";
 import { tripDayDate } from "@/modules/trip-validation/trip-proposal-contract";
 import { AppError } from "@/server/http/app-error";
+import { assistantRuntimeVersion } from "@/modules/assistant-agent-v2/runtime-gate";
+import { AssistantV2Chat } from "@/components/assistant/assistant-v2-chat";
+import "@/components/assistant/assistant.css";
 
 export default async function InTripPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -27,6 +30,8 @@ export default async function InTripPage({ params }: { params: Promise<{ id: str
   if (trip.candidate.startDate === null) {
     throw new AppError("TRIP_START_DATE_MISSING", "Chuyến đi chưa có ngày bắt đầu.", 409);
   }
+
+  if (assistantRuntimeVersion() === "v2") return <main className="assistant-page"><a href={`/trips/${encodeURIComponent(id)}`}>Về chuyến đi</a><AssistantV2Chat tripId={id}/></main>;
 
   const split = splitCompletedRemaining({
     startDate: trip.candidate.startDate,

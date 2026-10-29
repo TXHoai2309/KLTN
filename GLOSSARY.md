@@ -89,3 +89,33 @@ _Avoid_: AI assistant conversation, direct message, public comments.
 **Recruitment closure (đóng tuyển)**:
 The point at which a trip stops accepting additional companions.
 _Avoid_: Trip completion, trip cancellation, trip deletion.
+
+## Assistant Skill Runtime V2
+
+**Assistant skill (kỹ năng trợ lý)**:
+A reusable domain-level operating policy that tells the Assistant how to reason about a class of user goals, what actions it may request, and what output contract it must respect. A skill does not own deterministic truth or database writes.
+_Avoid_: Tool, API endpoint, model, autonomous sub-agent.
+
+**Skill runtime (bộ chạy skill)**:
+The single server-side Assistant runtime that selects the active skill, supplies current conversation/domain state, obtains a structured next-action decision, executes allowed application actions, and composes the user-facing result.
+_Avoid_: Multi-agent system, planner engine, provider SDK.
+
+**Capability action (hành động năng lực)**:
+A typed application-owned operation exposed to the skill runtime, such as reading planning state, generating a proposal through the existing planner, retrieving destination candidates, validating an itinerary, or saving a confirmed trip. The application executes the action; the model does not own its truth.
+_Avoid_: Skill, free-form prompt instruction.
+
+**Material question (câu hỏi có ảnh hưởng quyết định)**:
+A question whose answer can materially change the candidate itinerary, is required for a safe/authorized action, or resolves ambiguity that cannot be handled by a reversible preliminary proposal.
+_Avoid_: Every unanswered optional profile field.
+
+**Minimum useful brief (bộ thông tin tối thiểu hữu ích)**:
+The smallest confirmed planning input that is sufficient to create a useful preliminary itinerary. For the current Hà Giang planner this is trip duration plus supported transport; an exact departure date is still required before final confirmation/save.
+_Avoid_: Fully completed preference questionnaire, save-ready requirement.
+
+**Progressive refinement (tinh chỉnh dần)**:
+Creating a preliminary proposal as soon as the minimum useful brief is available, then using later preferences, dates, constraints and corrections to revise that proposal instead of blocking on a fixed questionnaire.
+_Avoid_: Silent defaulting of unknown facts, skipping mandatory save requirements.
+
+**Response plan (kế hoạch phản hồi)**:
+A structured description of the next conversational goal, supported facts, allowed actions, and safety/business constraints from which natural Vietnamese prose is composed. It replaces the V1 pattern where the model is restricted to paraphrasing one canonical sentence.
+_Avoid_: Itinerary proposal, model-generated business decision.
