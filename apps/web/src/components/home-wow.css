@@ -1,0 +1,481 @@
+/* ==========================================================================
+   HOME — WOW LAYER
+   Loaded after home.css and home-polish.css. Additive: hero presence,
+   floating glass cards, place marquee, section accents and card depth.
+   ========================================================================== */
+
+/* ---------- Hero: taller, immersive, aurora-lit ---------- */
+.home-page .home-hero {
+  min-height: clamp(600px, calc(100svh - 96px), 820px);
+  margin-top: 10px;
+  border-radius: 32px;
+  box-shadow:
+    0 30px 80px -24px rgba(10, 30, 20, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+
+.home-page .home-hero::after {
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  background:
+    radial-gradient(60% 55% at 18% 82%, rgba(233, 185, 75, 0.16), transparent 70%),
+    radial-gradient(46% 50% at 86% 12%, rgba(126, 207, 160, 0.16), transparent 70%);
+  content: "";
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
+
+.home-page .home-hero-title {
+  max-width: 860px;
+  font-size: clamp(42px, 5.8vw, 88px);
+  letter-spacing: -0.05em;
+  line-height: 1.03;
+}
+
+.home-page .home-hero-description {
+  max-width: 600px;
+}
+
+.home-page .home-cta-hero-primary {
+  min-height: 56px;
+  padding: 0 30px;
+  font-size: 15.5px;
+  border-color: transparent;
+  background: linear-gradient(135deg, #f1c75e 0%, #e9a93b 100%);
+  color: #10301f;
+  font-weight: 700;
+  box-shadow: 0 14px 36px -8px rgba(233, 185, 75, 0.6);
+}
+
+.home-page .home-cta-hero-primary:hover {
+  background: linear-gradient(135deg, #f7d374 0%, #efb24a 100%);
+  box-shadow: 0 18px 44px -8px rgba(233, 185, 75, 0.78);
+}
+
+.home-page .home-cta-hero-secondary,
+.home-page .home-cta-hero-map {
+  min-height: 56px;
+}
+
+/* ---------- Floating glass cards ---------- */
+.home-hero-floats {
+  position: absolute;
+  z-index: 4;
+  right: clamp(24px, 4.5vw, 72px);
+  bottom: 84px;
+  display: grid;
+  width: min(300px, 26vw);
+  gap: 14px;
+}
+
+.home-float-card {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  padding: 16px 52px 16px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 20px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.07));
+  color: #ffffff;
+  text-decoration: none;
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: 0 20px 50px -18px rgba(0, 0, 0, 0.55);
+  animation: home-float-bob 6.5s ease-in-out infinite;
+  transition: border-color 240ms ease, background 240ms ease, box-shadow 240ms ease;
+}
+
+.home-float-card-ai {
+  margin-left: -28px;
+  animation-delay: -3.2s;
+}
+
+.home-float-card:hover {
+  border-color: rgba(233, 185, 75, 0.7);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.1));
+  box-shadow: 0 26px 60px -16px rgba(0, 0, 0, 0.65);
+}
+
+.home-float-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #bbf7d0;
+  font-size: 10.5px;
+  font-weight: 750;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.home-float-card-ai .home-float-kicker {
+  color: #d9ccff;
+}
+
+.home-float-card strong {
+  font-size: 15.5px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.home-float-meta {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.home-float-go {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  transform: translateY(-50%);
+  transition: transform 240ms cubic-bezier(.22, 1, .36, 1), background 240ms ease, color 240ms ease;
+}
+
+.home-float-card:hover .home-float-go {
+  background: #e9b94b;
+  color: #10301f;
+  transform: translateY(-50%) translateX(3px);
+}
+
+@keyframes home-float-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-9px); }
+}
+
+/* ---------- Scroll cue ---------- */
+.home-scroll-cue {
+  position: absolute;
+  z-index: 4;
+  bottom: 18px;
+  left: 50%;
+  display: flex;
+  width: 24px;
+  height: 38px;
+  justify-content: center;
+  padding-top: 7px;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  border-radius: 14px;
+  transform: translateX(-50%);
+}
+
+.home-scroll-cue-dot {
+  width: 4px;
+  height: 8px;
+  border-radius: 4px;
+  background: #ffffff;
+  animation: home-cue-drop 1.8s cubic-bezier(.4, 0, .2, 1) infinite;
+}
+
+@keyframes home-cue-drop {
+  0% { opacity: 0; transform: translateY(0); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(14px); }
+}
+
+/* ---------- Place marquee ---------- */
+.home-marquee {
+  position: relative;
+  max-width: 1540px;
+  margin: 22px auto 0;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent);
+}
+
+.home-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: home-marquee-run 48s linear infinite;
+}
+
+.home-marquee:hover .home-marquee-track {
+  animation-play-state: paused;
+}
+
+.home-marquee-list {
+  display: flex;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-marquee-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 28px;
+  padding-right: 28px;
+  color: var(--home-ink);
+  font-family: var(--home-font);
+  font-size: clamp(18px, 1.7vw, 26px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+
+.home-marquee-list li::after {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--hl-gold), var(--hl-coral));
+  content: "";
+}
+
+@keyframes home-marquee-run {
+  to { transform: translateX(-50%); }
+}
+
+/* ---------- Section headings: gradient accent underline ---------- */
+.home-page .home-section-heading h2 {
+  font-size: clamp(32px, 3.8vw, 54px);
+  letter-spacing: -0.045em;
+}
+
+.home-page .home-section-heading h2::after {
+  display: block;
+  width: 56px;
+  height: 4px;
+  margin: 18px auto 0;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--hl-gold), var(--hl-coral), var(--hl-lavender));
+  content: "";
+}
+
+/* ---------- Step cards: deeper hover, glow ---------- */
+.home-page .home-step-card {
+  overflow: hidden;
+  border-radius: 26px;
+}
+
+.home-page .home-step-card::before {
+  position: absolute;
+  top: -40%;
+  right: -30%;
+  width: 70%;
+  height: 80%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.9), transparent 65%);
+  content: "";
+  opacity: 0;
+  transition: opacity 320ms ease;
+  pointer-events: none;
+}
+
+.home-page .home-step-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 28px 54px -18px rgba(22, 74, 54, 0.28);
+}
+
+.home-page .home-step-card:hover::before {
+  opacity: 1;
+}
+
+.home-page .home-step-index {
+  font-size: 44px;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1100px) {
+  .home-hero-floats {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .home-page .home-hero {
+    min-height: clamp(560px, calc(100svh - 80px), 760px);
+    border-radius: 24px;
+  }
+
+  .home-page .home-hero-title {
+    font-size: clamp(38px, 11vw, 52px);
+  }
+
+  .home-page .home-cta-hero-primary,
+  .home-page .home-cta-hero-secondary,
+  .home-page .home-cta-hero-map {
+    min-height: 50px;
+  }
+
+  .home-scroll-cue {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-float-card,
+  .home-scroll-cue-dot,
+  .home-marquee-track {
+    animation: none;
+  }
+
+  .home-marquee {
+    overflow-x: auto;
+  }
+}
+
+/* ---------- FAQ (native <details>) ---------- */
+.home-faq-section {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 72px 24px 24px;
+}
+
+.home-faq-list {
+  display: grid;
+  gap: 12px;
+}
+
+.home-faq-item {
+  border-radius: 18px;
+  background: var(--home-card);
+  box-shadow: 0 4px 18px -10px rgba(22, 74, 54, 0.25);
+  transition: box-shadow 240ms ease, background 240ms ease;
+}
+
+.home-faq-item[open] {
+  background: #f4efff;
+  box-shadow: 0 14px 34px -16px rgba(123, 94, 184, 0.4);
+}
+
+.home-faq-item summary {
+  display: flex;
+  min-height: 60px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 22px;
+  color: var(--home-ink);
+  font-size: 17px;
+  font-weight: 700;
+  list-style: none;
+  cursor: pointer;
+}
+
+.home-faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.home-faq-item summary svg {
+  flex-shrink: 0;
+  transition: transform 260ms cubic-bezier(.22, 1, .36, 1);
+}
+
+.home-faq-item[open] summary svg {
+  transform: rotate(180deg);
+}
+
+.home-faq-item p {
+  margin: 0;
+  padding: 0 22px 22px;
+  color: var(--home-muted);
+  font-size: 15.5px;
+  line-height: 1.7;
+}
+
+.home-faq-item summary:focus-visible {
+  outline: 3px solid var(--hl-coral-deep);
+  outline-offset: 2px;
+  border-radius: 18px;
+}
+
+.dark .home-faq-item {
+  background: #15271e;
+}
+
+.dark .home-faq-item[open] {
+  background: #221c38;
+}
+
+.dark .home-faq-item summary {
+  color: #f1f5f2;
+}
+
+.dark .home-faq-item p {
+  color: rgba(241, 245, 242, 0.74);
+}
+
+/* ==========================================================================
+   SECTION REDESIGN — map, assistant, planner, final CTA
+   ========================================================================== */
+
+/* No monospace micro-labels anywhere on the home page */
+.home-page {
+  --home-font-mono: var(--home-font);
+}
+
+/* ---------- Footer: full-bleed, flush to the bottom of the page ---------- */
+.home-page {
+  padding-bottom: 0;
+}
+
+.home-page .home-footer {
+  max-width: none;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* ==========================================================================
+   Hero performance: nothing that must be recomputed per video frame
+   - no CSS filter on the <video>
+   - no blend mode or backdrop blur over the playing video
+   - no continuously repainting animations (shimmer) on top of it
+   ========================================================================== */
+.home-page .home-hero-video,
+.home-page .home-hero-image {
+  filter: none;
+}
+
+.home-page .home-hero::after {
+  mix-blend-mode: normal;
+  opacity: 0.7;
+}
+
+.home-page .home-hero [class*="home-cta"],
+.home-page .home-hero-metrics,
+.home-page .home-quick-info li,
+.home-page .home-float-card,
+.home-page .home-scene-label,
+.home-page .home-sound-toggle {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.home-page .home-hero-metrics {
+  background: rgba(11, 30, 21, 0.78);
+}
+
+.home-page .home-hero-metrics::after {
+  display: none;
+}
+
+.home-page .home-quick-info li {
+  background: rgba(11, 30, 21, 0.7);
+}
+
+.home-page .home-cta-hero-secondary,
+.home-page .home-cta-hero-map {
+  background: rgba(11, 30, 21, 0.55);
+}
+
+.home-page .home-float-card {
+  background: rgba(11, 30, 21, 0.62);
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+.home-page .home-hero-title span {
+  animation: none;
+  filter: none;
+}

@@ -14,6 +14,25 @@ export default function HomeHeroVideo({
 }: HomeHeroVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isMuted, setIsMuted] = useState(true);
+  // The 11 MB clip must not compete with the poster (LCP). It starts only after
+  // the page has loaded, and never on phones, Data Saver or reduced motion.
+  const [videoSrc, setVideoSrc] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+    const skip =
+      window.matchMedia("(max-width: 720px)").matches ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+      connection?.saveData === true;
+    if (skip) return;
+    const start = () => setVideoSrc(src);
+    if (document.readyState === "complete") {
+      const timer = window.setTimeout(start, 400);
+      return () => window.clearTimeout(timer);
+    }
+    window.addEventListener("load", start, { once: true });
+    return () => window.removeEventListener("load", start);
+  }, [src]);
 
   const toggleSound = () => {
     const video = videoRef.current;
@@ -74,13 +93,13 @@ export default function HomeHeroVideo({
       <video
         ref={videoRef}
         className="home-hero-video"
-        src={src}
+        src={videoSrc}
         poster={poster}
         autoPlay
         loop
         muted
         playsInline
-        preload="auto"
+        preload="metadata"
       />
 
       <div className="home-scene-controls">

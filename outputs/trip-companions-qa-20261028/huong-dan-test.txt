@@ -1,0 +1,10 @@
+﻿DÁN VÀ CHẠY TEST SPRINT 5
+
+- Bản bổ sung: 64 ca, cùng 19 cột với mẫu. Dán từ dòng ngay sau 70 ca cũ. Bỏ dòng header nếu file đang có header.
+- Bản cập nhật: 134 ca = 70 ca gốc giữ nguyên + 64 ca mới. Nhãn US-DH-01/02/03/04 tương ứng User Story Lark 508/509/510/511, không đổi ID Lark. Task ID 513-532 giữ theo file giao.
+- H = chủ chuyến; A/B = hai tài khoản Traveler độc lập; O = người ngoài; AD = Admin không sở hữu và không là thành viên; G = Guest. Có thêm tài khoản khóa và tài khoản bị ban khi ca yêu cầu.
+- D = ngày chạy test theo Asia/Ho_Chi_Minh. P = bài đăng/nhóm từ Trip đã lưu hợp lệ, mặc định khởi hành D+7, còn tuyển và còn chỗ. Tạo dữ liệu riêng cho từng ca có thay đổi trạng thái, tránh ca trước làm sai tiền điều kiện ca sau.
+- Chuẩn bị Chrome/Edge hoặc các profile độc lập; dataset đủ trang và nhóm >=75 tin cho lịch sử. Không dùng tài khoản thật hoặc Production.
+- Các ca đồng thời, UNKNOWN sau commit, rollback, trả response muộn và clock Việt Nam cần dev hỗ trợ fixture/harness theo contract. Nếu chưa có, ghi BLOCKED cùng blocker; Offline trước gửi không chứng minh mất phản hồi sau commit. Không sửa giờ DB chung hoặc làm hỏng dịch vụ dùng chung.
+- Tất cả 134 ca vẫn CHƯA CHẠY. Tester ghi actual, PASS/FAIL/BLOCKED, Bug ID, evidence, ngày và build thực tế sau khi chạy. P0 ưu tiên phân quyền/toàn vẹn/recovery, P1 luồng chính/UX, P2 điều hướng phụ.
+- Nội dung 70 ca gốc được giữ nguyên. Các câu hoặc tiêu chí baseline cũ không được tự sửa trong lần bổ sung này.

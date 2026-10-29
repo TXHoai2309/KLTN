@@ -4,7 +4,7 @@
    ========================================================================== */
 
 .companion-page {
-  --companion-bg: #f8f7f3;
+  --companion-bg: #f5f8f6;
   --companion-card: #ffffff;
   --companion-ink: #14221a;
   --companion-muted: #5e6d65;
@@ -1841,7 +1841,7 @@
   margin-bottom: 28px;
   padding: 8px;
   border-radius: 18px;
-  background: rgba(248, 247, 243, 0.92);
+  background: rgba(245, 248, 246, 0.94);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--companion-border);
