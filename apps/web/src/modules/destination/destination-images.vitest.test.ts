@@ -105,6 +105,29 @@ describe("Destination image byte/config/HTTP boundaries (offline)", () => {
   });
 });
 describe("Intent/upload/review services with mock persistence/provider (not PostgreSQL)", () => {
+  it("persists pre-create caption, cover and order despite reversed upload completion and replay", async () => {
+    const f = await fixture(); const p = fakeProvider();
+    const later = { ...f.input, initialSelection: { caption: null, position: 1, isCover: false } };
+    const cover = { ...f.input, initialSelection: { caption: "  Núi Hà Giang  ", position: 0, isCover: true } };
+    expect((await createImageIntent(headers, later, "later", f.id, f.store.deps, p.provider)).status).toBe("SUCCESS");
+    expect((await createImageIntent(headers, cover, "cover", f.id, f.store.deps, p.provider)).status).toBe("SUCCESS");
+    expect((await uploadDestinationImage(headers, f.bytes, "later", f.id, f.store.deps, p.provider)).status).toBe("SUCCESS");
+    expect((await uploadDestinationImage(headers, f.bytes, "cover", f.id, f.store.deps, p.provider)).status).toBe("SUCCESS");
+    const media = () => [...f.store.rows().get(f.id).media].sort((a,b) => a.position-b.position);
+    expect(media()).toMatchObject([{ caption: "Núi Hà Giang", position: 0, isCover: true, websiteRights: "UNKNOWN" }, { caption: null, position: 1, isCover: false }]);
+    const before = structuredClone(media());
+    expect((await uploadDestinationImage(headers, f.bytes, "later", f.id, f.store.deps, p.provider)).status).toBe("SUCCESS");
+    expect(media()).toEqual(before);
+    // A failed selection can resume after the admin reorders already saved photos.
+    expect((await createImageIntent(headers, { ...f.input, initialSelection: { caption: "Recovered", position: 0, isCover: false } }, "recovered", f.id, f.store.deps, p.provider)).status).toBe("SUCCESS");
+    expect((await uploadDestinationImage(headers, f.bytes, "recovered", f.id, f.store.deps, p.provider)).status).toBe("SUCCESS");
+    expect(media().map(item => item.position)).toEqual([0,1,2]);
+    expect(media().filter(item => item.isCover)).toHaveLength(1);
+    expect((await createImageIntent(headers, { ...cover, initialSelection: { ...cover.initialSelection, caption: "Changed" } }, "cover", f.id, f.store.deps, p.provider)).status).toBe("FAILED");
+    for (const initialSelection of [{...cover.initialSelection,position:20},{...cover.initialSelection,caption:"x".repeat(1001)},{...cover.initialSelection,websiteRights:"APPROVED"}]) {
+      expect(imageIntentInput.safeParse({...f.input,initialSelection}).success).toBe(false);
+    }
+  });
   it("uploads without alt/caption/evidence, uses Destination alt, and retains legal UNKNOWN", async () => {
     const f = await fixture(); const p = fakeProvider();
     await createImageIntent(headers, { ...f.input, name: "IMG_000999.png" }, "simple-upload", f.id, f.store.deps, p.provider);

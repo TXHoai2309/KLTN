@@ -38,3 +38,30 @@ upload and authenticated Upload API response optimizations are retained.
 
 See [implementation report](../implementation/destination-image-ux-simplification.md)
 for complete checks, legacy transition boundaries and manual test instructions.
+
+## 2026-10-29 — Editable gallery before Create
+
+Owner reported that selected images only reached the gallery after Save, then
+explicitly chose immediate local preview/editing with upload after successful
+Destination creation. Create now displays selected files in the existing gallery
+with optional captions, cover, reorder, large preview and removal before any
+write. The selected count and `Xem trước · Chưa lưu` distinguish local files from
+confirmed uploads. HIDDEN-create-first, Edit automatic upload and existing media
+save behavior remain intact.
+
+The authenticated image intent optionally binds the initial caption, cover and
+position to its existing durable JSON/idempotency record. Finalization applies
+these choices with attachment in the same transaction, preserving selection
+order despite concurrent completion. Retried pending selections retain the same
+metadata/file/key; position collisions insert rather than duplicate a position.
+No extra metadata Save, schema migration, provider deletion or legal approval is
+introduced.
+
+Verification: original browser regression failed with 0 gallery cards for 2
+selected files; corrected production-form harness passes 22 groups. Focused
+image/provider/V3/eligibility suite: 84 PASS. Disposable PostgreSQL image/V3/Editorial
+suite: 21 PASS, including actual persisted order, one cover and replay; container
+cleanup PASS. Root typecheck, web production build and diff check PASS. Desktop
+1440px and mobile 390px local galleries were inspected in light/dark; image decode
+is asserted. These are isolated tests with mocked Cloudinary, not live Admin or
+deployed acceptance. No shared database or real provider writes, commit/push/deploy.
