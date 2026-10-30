@@ -4,7 +4,7 @@
 
 **Blocked by:** 01, 03
 
-**Status:** ready-for-agent
+**Status:** done (merged into codex/v1-retirement)
 
 - [ ] Each surface renders the V2 chat for guests and users
 - [ ] Destination panel Q&A unchanged

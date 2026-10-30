@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done (merged into codex/v1-retirement)
 
 - [ ] Planning request from a guest makes no planning request and shows the invitation
 - [ ] Draft is retained and restored after sign-in

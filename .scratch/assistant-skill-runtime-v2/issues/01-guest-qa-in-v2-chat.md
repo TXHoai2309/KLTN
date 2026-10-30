@@ -4,7 +4,7 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done (merged into codex/v1-retirement)
 
 - [ ] Guest question sends a Q&A request and renders the answer with citations
 - [ ] No planning route or V2 session call is made in Guest mode

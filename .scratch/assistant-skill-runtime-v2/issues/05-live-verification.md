@@ -4,7 +4,7 @@
 
 **Blocked by:** 02, 03, 04
 
-**Status:** ready-for-agent
+**Status:** done with gaps (see Result: signed-in browser UI and post-sign-in draft restore not exercised live)
 
 - [ ] Guest Q&A with citations verified live
 - [ ] Invitation and draft restore verified live

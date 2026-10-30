@@ -31,3 +31,11 @@ Spec: `.scratch/assistant-skill-runtime-v2/SPEC-V1-RETIREMENT.md` (tickets 01-06
 - `assistant-runtime-chat-key.ts` and its test are kept as a small helper but have no production importer.
 - V1 planning server modules (`planning-service.ts` `executePlanning`, `planning-client.ts`) are not deleted: V2 shares types and helpers from them; pruning is a separate cleanup.
 - Wording of the in-trip page and guest citations should be checked in the browser by the owner (gaps above).
+
+## Review follow-ups (not blocking, judgement calls)
+- The guest/saved-conversation chat duplicates shell, sidebar and history state with the signed-in V2 chat; consider extracting a shared shell. Its name (`AssistantV2GuestChat`) also serves signed-in users reading a saved conversation.
+- Identity prefixes (`GUEST:` / `USER:`) are checked as strings in several places; a small typed helper would remove the repetition.
+- `assistant-runtime-chat-key.ts` and the in-trip `InTripAssistant` component have no production importer and are candidates for a later removal.
+- The guest sign-in link returns to `/assistant` only; it drops destination context and conversation id.
+- A saved conversation opened by a signed-in user is Q&A-only; "New chat" returns to the full planning chat.
+- The guest planning-request recognition is deliberately conservative (a planning request phrased as a question falls through to Q&A).

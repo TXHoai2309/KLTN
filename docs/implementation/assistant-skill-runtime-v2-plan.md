@@ -5,7 +5,7 @@
 Owner-directed design baseline, 2026-10-28. V2-01 through V2-06 are implemented;
 V2-07 adds gated production-path integration and live evaluation. V2-07A passed
 the readiness gate; the owner subsequently approved minimal V2 default
-enablement, with explicit `ASSISTANT_RUNTIME_VERSION=v1` retained for rollback.
+enablement, (historical: the V1 rollback variable was retired in the V1 retirement, see ADR-35).
 See [enablement verification](assistant-v2-default-enablement.md). The goal remains to prove the planning
 path first, then optimize language, streaming and capability breadth.
 
@@ -42,7 +42,7 @@ require normalized location; the internal future-day-only adapter preserves all
 days through today and still runs the existing Validator/apply checks. See
 [V2-06 implementation and baseline debt](../stories/ASSISTANT-SKILL-RUNTIME-V2-06.md).
 V2-07 continuation: the existing planning endpoint and Assistant UI can now
-select V2 through `ASSISTANT_RUNTIME_VERSION=v2`, with V1 as the safe default.
+select V2 through a runtime switch (historical: V1 was the default then; V1 and the switch were retired, see ADR-35).
 No deployment or V1 retirement occurs. See the
 [integration story](../stories/ASSISTANT-SKILL-RUNTIME-V2-07.md) and
 [evaluation/rollout gate](assistant-v2-evaluation.md) for actual live evidence,

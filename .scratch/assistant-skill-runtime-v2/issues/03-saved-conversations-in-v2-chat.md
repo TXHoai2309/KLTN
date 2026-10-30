@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done (merged into codex/v1-retirement)
 
 - [ ] Saved-conversation link opens in the V2 chat (guest and user)
 - [ ] Continue asking in a saved conversation

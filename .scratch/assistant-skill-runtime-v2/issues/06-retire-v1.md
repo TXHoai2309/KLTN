@@ -4,7 +4,7 @@
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** done (merged into codex/v1-retirement)
 
 - [ ] No importer of removed V1 code remains; shared modules kept
 - [ ] Runtime variable ignored if still set
