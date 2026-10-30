@@ -80,10 +80,11 @@ test("MVP loading markup hides Culture and keeps Destination semantic headings",
 });
 test("Home is product UI; Explore streams independently and exposes no dead Culture/AI/Trip controls", async () => {
   const home=await readFile(new URL("../../app/page.tsx",import.meta.url),"utf8");
-  for (const copy of [/Khám phá Hà Giang/, /theo cách của bạn/, /BẮT ĐẦU HÀNH TRÌNH/, /Khám phá điểm đến/, /Tìm hiểu văn hóa/, /Xem vị trí trên bản đồ/]) assert.match(home,copy);
+  for (const copy of [/Khám phá Hà Giang/, /theo cách của bạn/, /Bắt đầu chuyến đi của bạn/, /Khám phá điểm đến/, /Tìm hiểu văn hóa/, /Xem vị trí trên bản đồ/]) assert.match(home,copy);
   for (const href of [/href="\/explore"/, /href="\/explore\?view=map"/]) assert.match(home,href);
   assert.match(home,/<HomeHeroVideo\b/); assert.match(home,/home-quick-info/); assert.match(home,/HomeScrollReveal/);
-  assert.doesNotMatch(home,/TITLE_TEXT|API Status|BETTER|https?:\/\//);
+  assert.doesNotMatch(home,/TITLE_TEXT|API Status|BETTER/);
+  assert.match(home,/href="https:\/\/maps\.google\.com\/maps\?q=[^"]+" target="_blank" rel="noopener noreferrer"/);
   const header=await readFile(new URL("../../components/header.tsx",import.meta.url),"utf8");
   for (const pattern of [/<header\b[^>]*site-header/, /className="site-brand"/, /aria-label="Điều hướng chính"/, /aria-current=\{active \? "page" : undefined\}/, /<ModeToggle className="site-theme-toggle"/, /<UserMenu \/>/, /pathname\.startsWith\("\/destinations\/"\)/, /pathname === "\/login"/]) assert.match(header,pattern);
   const reveal=await readFile(new URL("../../components/home-scroll-reveal.tsx",import.meta.url),"utf8"); assert.match(reveal,/IntersectionObserver/); assert.match(reveal,/prefers-reduced-motion/); assert.match(reveal,/observer\.unobserve\(target\)/);

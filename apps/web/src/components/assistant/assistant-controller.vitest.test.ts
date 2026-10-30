@@ -32,7 +32,7 @@ describe("Task 195 controller (no persistence or HTTP endpoint)", () => {
   it("normalizes first-turn request and keeps pending separate", () => {
     const h = harness(); h.controller.setDraft("  Ha\u0300 Giang  ");
     expect(h.controller.submit()).toBe(true);
-    expect(JSON.parse(h.calls[0]!.body)).toEqual({ question: "Hà Giang", context: { type: "GENERAL" } });
+    expect(JSON.parse(h.calls[0]!.body)).toEqual({ question: "Hà Giang", context: { type: "GENERAL" }, knowledgeMode: "SOURCE_ONLY" });
     expect(h.controller.getSnapshot().turns).toHaveLength(0);
     expect(h.controller.getSnapshot().conversationId).toBeNull();
     expect(h.controller.getSnapshot().pending?.phase).toBe("sending");
@@ -53,7 +53,7 @@ describe("Task 195 controller (no persistence or HTTP endpoint)", () => {
     h.resolves[0]!(completed()); await tick();
     expect(h.controller.getSnapshot().turns).toHaveLength(1);
     h.controller.setDraft("follow up"); h.controller.submit();
-    expect(JSON.parse(h.calls[1]!.body)).toEqual({ question: "follow up", conversationId: "conv_fixture", parentTurnId: "turn_fixture_1" });
+    expect(JSON.parse(h.calls[1]!.body)).toEqual({ question: "follow up", conversationId: "conv_fixture", parentTurnId: "turn_fixture_1", knowledgeMode: "SOURCE_ONLY" });
     expect(h.calls[0]!.key).not.toBe(h.calls[1]!.key);
   });
   it.each<DemoScenario>(["ANSWERED", "PARTIAL", "INSUFFICIENT_SOURCE", "CLARIFICATION_REQUIRED"])("%s is completed and advances head", async (scenario) => {
@@ -171,7 +171,7 @@ describe("Task 195 controller (no persistence or HTTP endpoint)", () => {
     expect(h.controller.getSnapshot().parentTurnId).toBeNull();
     expect(h.controller.getSnapshot().generation).toBe(1);
     h.controller.setDraft("fresh fixture"); h.controller.submit();
-    expect(JSON.parse(h.calls[1]!.body)).toEqual({ question: "fresh fixture", context: { type: "GENERAL" } });
+    expect(JSON.parse(h.calls[1]!.body)).toEqual({ question: "fresh fixture", context: { type: "GENERAL" }, knowledgeMode: "SOURCE_ONLY" });
     const controller = new AssistantController(null, "unavailable", () => "unused");
     controller.setDraft("question"); expect(controller.submit()).toBe(false); expect(controller.retry()).toBe(false);
     expect(controller.newConversation()).toBe(true); expect(controller.getSnapshot().draft).toBe("");

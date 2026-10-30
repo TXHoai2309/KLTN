@@ -253,7 +253,6 @@ describe("US36 Task292 end-to-end read-only replan coverage", () => {
 
   it.each([
     ["Guest", null, 401, "UNAUTHENTICATED"],
-    ["Admin", "ADMIN", 403, "FORBIDDEN"],
   ] as const)("rejects %s before reading the body or accessing the Trip", async (_label, role, status, code) => {
     const f = fixture();
     let bodyRead = false;
@@ -269,6 +268,19 @@ describe("US36 Task292 end-to-end read-only replan coverage", () => {
     expect(f.tripFindFirst).not.toHaveBeenCalled();
     expect(f.llm.complete).not.toHaveBeenCalled();
     expectNoDatabaseWrites(f.writes);
+  });
+
+  it("admits Admin through the Traveler capability and preserves owner-scoped reads", async () => {
+    const f = fixture();
+    let bodyRead = false;
+    const response = await replanResponse(post(validBody), "trip-1", {
+      authorization: authorization("ADMIN"),
+      service: f.service,
+      onBodyRead: () => { bodyRead = true; },
+    });
+    expect(response.status).toBe(200);
+    expect(bodyRead).toBe(true);
+    expect(f.tripFindFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "trip-1", userId: "traveler-1" } }));
   });
 
   it("masks a foreign Trip as 404 and rejects a stale revision before provider use", async () => {

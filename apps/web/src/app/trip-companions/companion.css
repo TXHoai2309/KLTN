@@ -773,6 +773,7 @@
 .companion-scope-tab {
   display: inline-flex;
   align-items: center;
+  min-height: 44px;
   gap: 8px;
   padding: 9px 18px;
   font-size: 14px;
@@ -852,8 +853,12 @@
 
 @media (max-width: 640px) {
   .companion-filter-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 16px;
+  }
+
+  .companion-filter-grid > * {
+    min-width: 0;
   }
 }
 
@@ -869,6 +874,7 @@
 
 .companion-filter-input,
 .companion-filter-select {
+  box-sizing: border-box;
   width: 100%;
   height: 44px;
   padding: 0 14px;
@@ -930,7 +936,18 @@
   gap: 8px;
 }
 
+.companion-date-field {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.companion-date-label {
+  display: none;
+}
+
 .companion-date-input {
+  min-width: 0;
+  max-width: 100%;
   font-family: inherit;
   font-size: 13px;
   padding: 0 10px;
@@ -941,6 +958,26 @@
   font-size: 13px;
   user-select: none;
   opacity: 0.6;
+}
+
+@media (max-width: 640px) {
+  .companion-date-inputs {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .companion-date-label {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--companion-muted);
+    font-size: 12px;
+    font-weight: 650;
+  }
+
+  .companion-date-sep {
+    display: none;
+  }
 }
 
 .companion-checkbox-label {

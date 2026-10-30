@@ -2130,6 +2130,16 @@
    5. RESPONSIVE & ACCESSIBILITY
    ========================================================================== */
 @media (max-width: 768px) {
+  .assistant-floating-header .assistant-sidebar-toggle-btn,
+  .assistant-floating-header .assistant-floating-new-btn {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+  .assistant-page .assistant-composer-bar button[type="submit"] {
+    min-height: 44px;
+    height: 44px;
+  }
   .assistant-floating-header {
     top: 10px;
     left: 12px;

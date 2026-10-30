@@ -121,7 +121,6 @@ const body = JSON.stringify({ baseRevision: revision.toISOString(), message: "Đ
 describe("aiEditResponse", () => {
   it.each([
     ["Guest", (test: ReturnType<typeof fixture>) => test.removeSession(), 401, "UNAUTHENTICATED"],
-    ["Admin", (test: ReturnType<typeof fixture>) => test.setRole("ADMIN"), 403, "FORBIDDEN"],
   ] as const)("rejects %s before reading body or querying Trip", async (_role, configure, status, code) => {
     const test = fixture();
     configure(test);
@@ -135,6 +134,16 @@ describe("aiEditResponse", () => {
     expect(test.tripReadCount).toBe(0);
     expect(test.providerCalls).toBe(0);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
+  });
+
+  it("admits Admin through the Traveler capability before request validation", async () => {
+    const test = fixture();
+    test.setRole("ADMIN");
+    const response = await aiEditResponse(postRequest("{"), "trip-1", test.dependencies);
+    expect(response.status).toBe(400);
+    expect(test.bodyRead).toBe(true);
+    expect(test.tripReadCount).toBe(0);
+    expect(test.providerCalls).toBe(0);
   });
 
   it("rejects extra request fields before accessing Trip or provider", async () => {

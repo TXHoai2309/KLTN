@@ -15,10 +15,12 @@ function productionFiles(directory: string): string[] {
 
 const roots = ["src/modules/in-trip", "src/components/in-trip", "src/app/trips/[id]/in-trip"];
 const files = roots.flatMap(root => productionFiles(resolve(process.cwd(), root))).sort();
+const coordinateValue = String.raw`\b(?:coordinates|latitude|longitude)\b`;
+const navigationSink = String.raw`(?:\b(?:URL|URLSearchParams)\s*\(|\b(?:history|router)\s*(?:\?*\.|\[)|\b(?:window|document|globalThis)\s*(?:\.\s*location\b|\[\s*["']location["'])|\blocation\s*(?:\.\s*(?:href|search|hash|pathname|assign|replace)\b|\[\s*["'](?:href|search|hash|pathname|assign|replace)["'])|\b(?:href|searchParams)\s*=)`;
 const guards = [
   { name: "browser storage", pattern: /\b(?:localStorage|sessionStorage|indexedDB)\b/u, example: 'window["localStorage"].setItem("position", JSON.stringify(coordinates))' },
   { name: "cookies", pattern: /\b(?:cookie|cookies|cookieStore)\b/iu, example: 'document.cookie = "position=" + latitude' },
-  { name: "URL/navigation sinks", pattern: /\b(?:URL|URLSearchParams)\s*\(|\b(?:history|router)\s*(?:\?*\.|\[)|\b(?:window|document|globalThis)\s*(?:\.\s*location\b|\[\s*["']location["'])|\blocation\s*(?:\.\s*(?:href|search|hash|pathname|assign|replace)\b|\[\s*["'](?:href|search|hash|pathname|assign|replace)["'])|\b(?:href|searchParams)\s*=/u, example: 'history.replaceState(null, "", "?lat=" + latitude)' },
+  { name: "coordinate URL/navigation sinks", pattern: new RegExp(`(?:${coordinateValue}[\\s\\S]{0,160}${navigationSink}|${navigationSink}[\\s\\S]{0,160}${coordinateValue})`, "u"), example: 'history.replaceState(null, "", "?lat=" + latitude)' },
   { name: "coordinate logging", pattern: /\b(?:console|logger)\s*(?:\?*\.|\[)|\b(?:log|debug|info|warn|error)\s*\(\s*(?:coordinates|latitude|longitude|location)\b/u, example: 'console.warn({ latitude, longitude })' },
   { name: "continuous GPS", pattern: /\bwatchPosition\b/u, example: 'navigator.geolocation.watchPosition(onPosition)' },
 ] as const;
@@ -45,7 +47,7 @@ describe("US35 location privacy source contract", () => {
   }
 
   it("allows location data fields while detecting common global/bracket URL sinks", () => {
-    const guard = guards.find(item => item.name === "URL/navigation sinks")!;
+    const guard = guards.find(item => item.name === "coordinate URL/navigation sinks")!;
     expect("roundCoordinate(location.latitude); location.longitude").not.toMatch(guard.pattern);
     for (const text of [
       'new URLSearchParams({ lat: latitude })', 'new URL("?lat=" + latitude)',

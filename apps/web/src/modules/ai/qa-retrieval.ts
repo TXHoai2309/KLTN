@@ -267,13 +267,15 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
         seen.add(row.chunkId); candidateRows.push(row);
       }
       if (signal?.aborted) throw new EmbeddingError("CANCELLED", false);
-      if (targetSubjects.length > 0) {
+      // Comparison groups are already rank-interleaved above. Re-sorting them
+      // by a single inferred subject would starve the other comparison side.
+      if (subjects.length > 0 && !plan?.comparison) {
         const fold = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/g, "d").toLowerCase();
         candidateRows.sort((a, b) => {
           const aText = fold(`${a.sourceTitle} ${a.text}`);
           const bText = fold(`${b.sourceTitle} ${b.text}`);
-          const aMatch = targetSubjects.some(sub => aText.includes(fold(sub)));
-          const bMatch = targetSubjects.some(sub => bText.includes(fold(sub)));
+          const aMatch = subjects.some(sub => aText.includes(fold(sub)));
+          const bMatch = subjects.some(sub => bText.includes(fold(sub)));
           if (aMatch && !bMatch) return -1;
           if (!aMatch && bMatch) return 1;
           return (b.score ?? 0) - (a.score ?? 0);

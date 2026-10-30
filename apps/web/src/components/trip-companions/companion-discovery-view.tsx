@@ -235,12 +235,12 @@ export function CompanionDiscoveryView({
         setTotal(result.total);
         setNextCursor(result.nextCursor);
       } catch (err: unknown) {
+        setItems([]);
+        setTotal(0);
+        setNextCursor(null);
         if (err instanceof CompanionClientError) {
           if (err.status === 401 && (tab === "mine" || tab === "joined")) {
             setIsUnauthenticatedTab(tab);
-            setItems([]);
-            setTotal(0);
-            setNextCursor(null);
             return;
           }
           setError({ code: err.code, message: err.message });
@@ -459,32 +459,44 @@ export function CompanionDiscoveryView({
               Ngày khởi hành
             </label>
             <div className="companion-date-inputs">
-              <input
-                type="date"
-                value={departureFrom}
-                onChange={(e) => {
-                  setDepartureFrom(e.target.value);
-                  updateUrl({ departureFrom: e.target.value });
-                }}
-                className="companion-filter-input"
-                aria-label="Khởi hành từ ngày"
-                data-testid="companion-from-date"
-              />
+              <div className="companion-date-field">
+                <label htmlFor="companion-from-date" className="companion-date-label">
+                  Từ ngày
+                </label>
+                <input
+                  id="companion-from-date"
+                  type="date"
+                  value={departureFrom}
+                  onChange={(e) => {
+                    setDepartureFrom(e.target.value);
+                    updateUrl({ departureFrom: e.target.value });
+                  }}
+                  className="companion-filter-input companion-date-input"
+                  aria-label="Khởi hành từ ngày"
+                  data-testid="companion-from-date"
+                />
+              </div>
               <span className="companion-date-sep" aria-hidden="true">
                 –
               </span>
-              <input
-                type="date"
-                value={departureTo}
-                min={departureFrom || undefined}
-                onChange={(e) => {
-                  setDepartureTo(e.target.value);
-                  updateUrl({ departureTo: e.target.value });
-                }}
-                className="companion-filter-input"
-                aria-label="Khởi hành đến ngày"
-                data-testid="companion-to-date"
-              />
+              <div className="companion-date-field">
+                <label htmlFor="companion-to-date" className="companion-date-label">
+                  Đến ngày
+                </label>
+                <input
+                  id="companion-to-date"
+                  type="date"
+                  value={departureTo}
+                  min={departureFrom || undefined}
+                  onChange={(e) => {
+                    setDepartureTo(e.target.value);
+                    updateUrl({ departureTo: e.target.value });
+                  }}
+                  className="companion-filter-input companion-date-input"
+                  aria-label="Khởi hành đến ngày"
+                  data-testid="companion-to-date"
+                />
+              </div>
             </div>
           </div>
 
@@ -585,7 +597,7 @@ export function CompanionDiscoveryView({
       ) : (
         <>
           {/* ─── Results Stats ─── */}
-          <div className="companion-results-header">
+          {!error && <div className="companion-results-header">
             <p className="companion-results-count" data-testid="companion-results-count">
               {isLoading ? (
                 <span>Đang tìm kiếm chuyến đi...</span>
@@ -600,7 +612,7 @@ export function CompanionDiscoveryView({
                 </span>
               )}
             </p>
-          </div>
+          </div>}
 
           {/* ─── Loading Skeleton State ─── */}
           {isLoading && (
@@ -621,7 +633,7 @@ export function CompanionDiscoveryView({
           )}
 
           {/* ─── Empty State ─── */}
-          {!isLoading && items.length === 0 && (
+          {!isLoading && !error && items.length === 0 && (
             <div className="companion-card companion-empty-state" data-testid="companion-empty-state">
               <div className="companion-empty-icon" aria-hidden="true">
                 <Users size={36} />

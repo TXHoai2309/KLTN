@@ -28,7 +28,7 @@ describe("Assistant runtime bootstrap identity boundary", () => {
       ready.setDraft("fixture question");
       expect(ready.submit()).toBe(true);
       await vi.waitFor(() => expect(ready.getSnapshot().pending?.phase).not.toBe("sending"));
-      expect(fetcher).toHaveBeenCalledWith("/api/ai/ask", expect.objectContaining({ method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "Idempotency-Key": "key_fixture" }, body: '{"question":"fixture question","context":{"type":"GENERAL"}}' }));
+      expect(fetcher).toHaveBeenCalledWith("/api/ai/ask", expect.objectContaining({ method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json", "Idempotency-Key": "key_fixture" }, body: '{"question":"fixture question","context":{"type":"GENERAL"},"knowledgeMode":"SOURCE_ONLY"}' }));
       expect(fetcher.mock.calls.map(([url]) => url)).toEqual(["/api/ai/session", "/api/ai/ask"]);
       expect(fetcher.mock.contexts[1] === undefined || fetcher.mock.contexts[1] === globalThis).toBe(true);
       expect(ready.getSnapshot().pending?.phase).toBe("failed");

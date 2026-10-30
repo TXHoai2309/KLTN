@@ -31,7 +31,7 @@ export default function Header() {
   const [mounted, setMounted] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const toggleBtnRef = useRef<HTMLButtonElement>(null);
-  const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const drawerRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -86,29 +86,51 @@ export default function Header() {
     setIsMobileMenuOpen(false);
   }, [pathname]);
 
-  // Handle Escape key to close mobile drawer
+  // Keep the modal drawer's keyboard focus inside it and restore the page on close.
   useEffect(() => {
-    if (!isMobileMenuOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
+    if (!isMobileMenuOpen || !drawerRef.current) return;
+
+    const drawer = drawerRef.current;
+    const originalOverflow = document.body.style.overflow;
+    const background = Array.from(document.body.children)
+      .filter((element): element is HTMLElement =>
+        element instanceof HTMLElement && element !== drawer && !element.classList.contains("site-mobile-overlay")
+      )
+      .map((element) => ({ element, wasInert: element.inert }));
+
+    background.forEach(({ element }) => { element.inert = true; });
+    document.body.style.overflow = "hidden";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
+      if (event.key === "Escape") {
+        event.preventDefault();
         setIsMobileMenuOpen(false);
-        toggleBtnRef.current?.focus();
+        window.setTimeout(() => toggleBtnRef.current?.focus(), 0);
+        return;
+      }
+      if (event.key !== "Tab" || document.querySelector('[role="menu"]')) return;
+
+      const focusable = Array.from(drawer.querySelectorAll<HTMLElement>('a[href], button:not([disabled])'))
+        .filter((element) => element.getClientRects().length > 0);
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (!first || !last) return;
+      if (event.shiftKey && (document.activeElement === first || !drawer.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !drawer.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
       }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isMobileMenuOpen]);
 
-  // Prevent background scroll while mobile menu is open without locking permanently
-  useEffect(() => {
-    if (isMobileMenuOpen) {
-      const originalOverflow = document.body.style.overflow;
-      document.body.style.overflow = "hidden";
-      closeBtnRef.current?.focus();
-      return () => {
-        document.body.style.overflow = originalOverflow;
-      };
-    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      background.forEach(({ element, wasInert }) => { element.inert = wasInert; });
+      document.body.style.overflow = originalOverflow;
+    };
   }, [isMobileMenuOpen]);
 
   if (pathname === "/login") {
@@ -236,10 +258,14 @@ export default function Header() {
             <div
               className={`site-mobile-overlay ${isMobileMenuOpen ? "site-mobile-overlay-open" : ""}`}
               aria-hidden={!isMobileMenuOpen}
-              onClick={() => setIsMobileMenuOpen(false)}
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                window.setTimeout(() => toggleBtnRef.current?.focus(), 0);
+              }}
             />
 
             <aside
+              ref={drawerRef}
               id="site-mobile-drawer"
               className={`site-mobile-drawer ${isMobileMenuOpen ? "site-mobile-drawer-open" : ""}`}
               role="dialog"
@@ -263,13 +289,14 @@ export default function Header() {
                   </span>
                 </Link>
                 <button
-                  ref={closeBtnRef}
+                  key={isMobileMenuOpen ? "open" : "closed"}
+                  autoFocus={isMobileMenuOpen}
                   type="button"
                   className="site-mobile-drawer-close"
                   aria-label="Đóng menu"
                   onClick={() => {
                     setIsMobileMenuOpen(false);
-                    toggleBtnRef.current?.focus();
+                    window.setTimeout(() => toggleBtnRef.current?.focus(), 0);
                   }}
                 >
                   <X className="size-5" />

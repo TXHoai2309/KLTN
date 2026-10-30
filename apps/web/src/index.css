@@ -282,8 +282,8 @@
   position: absolute;
   right: 9px;
   display: grid;
-  width: 36px;
-  height: 36px;
+  width: 45px;
+  height: 45px;
   place-items: center;
   border: 0;
   border-radius: 9px;
@@ -519,8 +519,8 @@
   }
 
   .auth-theme-toggle {
-    width: 38px !important;
-    height: 38px !important;
+    width: 44px !important;
+    height: 44px !important;
   }
 
   .auth-form-column {

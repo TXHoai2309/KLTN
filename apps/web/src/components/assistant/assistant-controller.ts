@@ -68,8 +68,8 @@ export class AssistantController {
     if (!this.transport || hasUnresolvedAttempt(this.state)) return false;
     const knowledgeMode = this.state.knowledgeMode;
     const parsed = qaRequestSchema.safeParse(this.state.conversationId
-      ? { question: this.state.draft, conversationId: this.state.conversationId, parentTurnId: this.state.parentTurnId, ...(knowledgeMode === "EXPANDED" ? { knowledgeMode } : {}) }
-      : { question: this.state.draft, context: this.state.context, ...(knowledgeMode === "EXPANDED" ? { knowledgeMode } : {}) });
+      ? { question: this.state.draft, conversationId: this.state.conversationId, parentTurnId: this.state.parentTurnId, knowledgeMode }
+      : { question: this.state.draft, context: this.state.context, knowledgeMode });
     if (!parsed.success) {
       this.update({ ...this.state, validation: "Nhập câu hỏi từ 1 đến 2000 ký tự UTF-16 (sau khi bỏ khoảng trắng và chuẩn hóa)." });
       return false;

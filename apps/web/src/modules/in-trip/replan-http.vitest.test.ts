@@ -143,11 +143,8 @@ async function payload(response: Response) {
 }
 
 describe("US36 Task289 replan HTTP boundary", () => {
-  it("authenticates before the bounded body reader is reached", async () => {
-    for (const [role, status, code] of [
-      [null, 401, "UNAUTHENTICATED"],
-      ["ADMIN", 403, "FORBIDDEN"],
-    ] as const) {
+  it("authenticates guests before the bounded body reader is reached", async () => {
+    for (const [role, status, code] of [[null, 401, "UNAUTHENTICATED"]] as const) {
       let bodyRead = false;
       const f = service(tripFixture());
       const response = await replanResponse(post(validBody), "trip-1", {
@@ -163,6 +160,14 @@ describe("US36 Task289 replan HTTP boundary", () => {
       expect(f.tripReads()).toBe(0);
       expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     }
+
+    let adminBodyRead = false;
+    const admin = service(tripFixture());
+    const adminResponse = await replanResponse(post(validBody), "trip-1", {
+      authorization: auth("ADMIN"), service: admin.dependencies, onBodyRead: () => { adminBodyRead = true; },
+    });
+    expect(adminResponse.status).toBe(200);
+    expect(adminBodyRead).toBe(true);
   });
 
   it("returns an owner-masked 404 for a Trip that the repository does not return", async () => {

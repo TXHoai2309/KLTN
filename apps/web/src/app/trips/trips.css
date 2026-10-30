@@ -1744,6 +1744,18 @@
     width: 100%;
   }
 
+  .my-trips-filter-pill,
+  .my-trips-completion-button,
+  .my-trips-delete-button {
+    min-height: 44px !important;
+  }
+
+  .my-trips-page .my-trips-favorite {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+  }
+
   /* Trip list cards mobile */
   .my-trips-page .my-trips-card {
     grid-template-columns: minmax(0, 1fr);

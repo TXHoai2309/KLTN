@@ -75,6 +75,12 @@ describe("CompanionDiscoveryView Component", () => {
     // Date inputs
     expect(html).toContain('data-testid="companion-from-date"');
     expect(html).toContain('data-testid="companion-to-date"');
+    expect(html).toContain('for="companion-from-date"');
+    expect(html).toContain('id="companion-from-date"');
+    expect(html).toContain(">Từ ngày</label>");
+    expect(html).toContain('for="companion-to-date"');
+    expect(html).toContain('id="companion-to-date"');
+    expect(html).toContain(">Đến ngày</label>");
 
     // Transport select
     expect(html).toContain('data-testid="companion-transport-select"');

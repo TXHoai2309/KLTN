@@ -26,16 +26,16 @@ describe("US22 explicit context and lifecycle isolation", () => {
   });
   it("first turn sends the selected reference, follow-up inherits without client metadata", async () => {
     const h = harness(); h.controller.setDraft("Nó có gì?"); h.controller.submit();
-    expect(h.calls[0]!.payload).toEqual({ question: "Nó có gì?", context: a });
+    expect(h.calls[0]!.payload).toEqual({ question: "Nó có gì?", context: a, knowledgeMode: "SOURCE_ONLY" });
     h.complete(0); await tick(); h.controller.setDraft("Còn gì nữa?"); h.controller.submit();
-    expect(h.calls[1]!.payload).toEqual({ question: "Còn gì nữa?", conversationId: "conv_0", parentTurnId: "turn_0" });
+    expect(h.calls[1]!.payload).toEqual({ question: "Còn gì nữa?", conversationId: "conv_0", parentTurnId: "turn_0", knowledgeMode: "SOURCE_ONLY" });
   });
   it("switch and clear reset history/head and use new first-turn payloads", async () => {
     const h = harness(); h.controller.setDraft("Q"); h.controller.submit(); h.complete(0); await tick();
     expect(h.controller.changeContext(b)).toBe(true); expect(h.controller.getSnapshot().turns).toEqual([]);
-    h.controller.setDraft("B"); h.controller.submit(); expect(h.calls[1]!.payload).toEqual({ question: "B", context: b });
+    h.controller.setDraft("B"); h.controller.submit(); expect(h.calls[1]!.payload).toEqual({ question: "B", context: b, knowledgeMode: "SOURCE_ONLY" });
     h.complete(1, b); await tick(); h.controller.changeContext({ type: "GENERAL" });
-    h.controller.setDraft("G"); h.controller.submit(); expect(h.calls[2]!.payload).toEqual({ question: "G", context: { type: "GENERAL" } });
+    h.controller.setDraft("G"); h.controller.submit(); expect(h.calls[2]!.payload).toEqual({ question: "G", context: { type: "GENERAL" }, knowledgeMode: "SOURCE_ONLY" });
   });
   it("unrelated browsing/refetch does not mutate context or automatically submit", () => {
     const h = harness(); const initial = h.controller.getSnapshot();

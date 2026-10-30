@@ -15,7 +15,7 @@
 .message:focus-visible, .panel button:focus-visible { outline: 3px solid color-mix(in srgb,var(--ai-green) 40%,transparent); outline-offset: 3px; }
 .suggestions { display: flex; min-width: 0; flex-wrap: wrap; gap: 8px; }
 .suggestions p { flex-basis: 100%; margin: 0 0 1px; color: var(--muted-foreground); font-size: 11px; }
-.suggestions button { min-height: 36px; border: 1px solid var(--border); border-radius: 999px; padding: 7px 11px; background: var(--card); color: var(--foreground); font: inherit; font-size: 10px; cursor: pointer; }
+.suggestions button { min-height: 44px; border: 1px solid var(--border); border-radius: 999px; padding: 7px 11px; background: var(--card); color: var(--foreground); font: inherit; font-size: 10px; cursor: pointer; }
 .suggestions button:hover:not(:disabled) { border-color: var(--ai-green); background: var(--edit-soft); color: var(--ai-green); }
 .formFooter { display: flex; min-width: 0; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px; }
 .hint { min-width: 0; margin: 0; overflow-wrap: anywhere; }

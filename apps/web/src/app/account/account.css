@@ -1,6 +1,8 @@
 .account-page { padding: 30px 24px 64px; background: radial-gradient(ellipse at 75% 0%, #e6f3ec, transparent 70%), #f5f8f6; color: #192337; min-height: 100%; }
 .account-container { max-width: 1080px; margin: 0 auto; }
 .account-breadcrumb { display: flex; align-items: center; gap: 10px; color: #66768a; font-size: 13px; margin-bottom: 22px; }
+.account-breadcrumb a { display: inline-grid; width: 44px; height: 44px; place-items: center; margin: -12px -10px -12px -12px; border-radius: 8px; }
+.account-breadcrumb a:focus-visible { outline: 3px solid #39846980; outline-offset: 2px; }
 .account-page h1 { font-size: 28px; font-weight: 750; letter-spacing: -.6px; }
 .account-subtitle { color: #68768c; margin: 7px 0 28px; }
 .account-grid { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.3fr); gap: 24px; align-items: start; }
