@@ -7,6 +7,7 @@ const id = z.string().min(1).max(128);
 export const PLANNING_PREFERENCE_FIELDS = ["interests", "pace", "companions", "mobility", "destinations"] as const;
 export type PlanningPreferenceField = typeof PLANNING_PREFERENCE_FIELDS[number];
 export const planningDepartureWindowSchema = z.object({ from: z.iso.date(), to: z.iso.date(), anchorDate: z.iso.date() }).strict().refine(w => w.from <= w.to);
+export const tripStructureSchema = z.object({ overnightCount: z.number().int().min(0).max(14), overnightAreas: z.array(z.object({ afterDay: z.number().int().min(1).max(13), area: z.string().min(1).max(100) }).strict()).max(13).optional() }).strict();
 export const planningNeedsSchema = z.object({
   requirement: tripRequirementInputSchema.partial(),
   requiredDestinationIds: z.array(id).max(28),
@@ -14,6 +15,7 @@ export const planningNeedsSchema = z.object({
   excludedDestinationIds: z.array(id).max(128).optional(),
   destinationNames: z.record(id, z.string().max(200)).refine(value => Object.keys(value).length <= 64).default({}),
   departureWindow: planningDepartureWindowSchema.optional(),
+  tripStructure: tripStructureSchema.optional(),
   dateDeferred: z.boolean().optional(),
   preferencesDone: z.boolean().optional(),
   skippedPreferences: z.array(z.enum(PLANNING_PREFERENCE_FIELDS)).max(5).optional(),
@@ -67,6 +69,8 @@ export const planningAnalysisSchema = z.object({
   intent: z.enum(["NEEDS", "EDIT", "QA", "CLARIFY", "ADVISE", "REGENERATE"]), needs: planningNeedsSchema,
   message: z.string().max(800), unresolved: z.array(planningUnresolvedSchema).max(8),
   operation: planningOperationSchema.nullable().optional(),
+  tripStructureClarify: z.boolean().optional(),
+  tripShapeConflict: z.object({ durationDays: z.number().int(), overnightCount: z.number().int() }).strict().optional(),
   options: z.array(z.object({ id, name: z.string().max(200), reason: z.string().max(400) }).strict()).max(3).optional(),
   dateDeferred: z.boolean().optional(),
   preferencesSkipped: z.boolean().optional(),
@@ -80,6 +84,7 @@ export const planningGeneratedSchema = z.object({
   proposal: plannerResultSchema, selection: planningSelectionSchema,
   attempts: z.array(z.object({ status: plannerResultSchema.shape.status, checks: z.array(z.object({ key: z.string(), status: z.string() }).strict()) }).strict()).min(1).max(3),
   repairError: z.string().nullable(),
+  overnightUnmet: z.array(z.object({ afterDay: z.number().int().min(1).max(13), wantedArea: z.string().max(100), actualArea: z.string().max(100).nullable() }).strict()).max(13).optional(),
   version: z.number().int().nonnegative().optional(),
   reply: z.string().max(4000).optional(),
 }).strict();

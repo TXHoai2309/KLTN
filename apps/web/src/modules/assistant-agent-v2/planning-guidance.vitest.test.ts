@@ -114,7 +114,8 @@ describe("V2-08 guidance response plan and wording", () => {
     expect(guidance?.signals).toContainEqual({ code: "DATE_REQUIRED_FOR_HOURS" });
     expect(result.message).toContain("Quản Bạ → Đồng Văn");
     expect(result.message).toContain("Mã Pì Lèng → Nho Quế");
-    expect(result.message).toContain("ngày khởi hành");
+    // V2-10 caveat policy: plain advice carries no caveat about checks, the date or saving.
+    expect(result.message).not.toMatch(/ngày khởi hành|giờ mở cửa|chưa lưu/);
     expect(result.message).not.toContain("?");
   });
 });
@@ -124,11 +125,11 @@ describe("V2-08 acceptsPlanningV2Reply for guidance", () => {
     goal: "PLANNING_GUIDANCE", knownFacts: { durationDays: 2, transport: "MOTORCYCLE" } as PlanningResponsePlan["knownFacts"], planningImplications: [], mustNotClaim: ["SAVED", "APPLIED", "UNSUPPORTED_FACTS", "VALIDITY_WITHOUT_EVIDENCE"], proposalChanged: false,
     validation: { status: "INSUFFICIENT_DATA", checks: [{ key: "OPENING_HOURS", status: "INSUFFICIENT_DATA" }], eligibleForFinalConfirmation: false },
     guidance: { days: [{ day: 1, stops: ["Quản Bạ", "Đồng Văn", "Lũng Cú"], stopCount: 3, travelMinutes: 87, finishMinute: 807 }, { day: 2, stops: ["Mã Pì Lèng", "Nho Quế"], stopCount: 2, travelMinutes: 38, finishMinute: 698 }],
-      signals: [{ code: "DENSER_DAY", day: 1, stopCount: 3, lighterDay: 2, lighterStopCount: 2 }], fallbackSuggestions: [{ day: 1, dropStop: "Lũng Cú", reason: "DENSER_DAY" }], validation: { status: "INSUFFICIENT_DATA", pendingChecks: ["OPENING_HOURS"], eligibleForFinalConfirmation: false } },
+      overnights: [], signals: [{ code: "DENSER_DAY", day: 1, stopCount: 3, lighterDay: 2, lighterStopCount: 2 }], fallbackSuggestions: [{ day: 1, dropStop: "Lũng Cú", reason: "DENSER_DAY" }], validation: { status: "INSUFFICIENT_DATA", pendingChecks: ["OPENING_HOURS"], eligibleForFinalConfirmation: false } },
     ...overrides,
   });
   it("accepts natural advice that cites plan numbers and times", () => {
-    expect(acceptsPlanningV2Reply("Ngày 1 có 3 điểm, nhiều hơn ngày 2 (2 điểm), và dự kiến kết thúc khoảng 13:27. Nếu muốn thư thả hơn, mình sẽ bớt Lũng Cú trước chứ không thêm điểm mới. Vì chưa có ngày khởi hành nên giờ mở cửa vẫn cần kiểm tra lại trước khi lưu.", plan())).toBe(true);
+    expect(acceptsPlanningV2Reply("Ngày 1 có 3 điểm, nhiều hơn ngày 2 (2 điểm), và dự kiến kết thúc khoảng 13:27. Nếu muốn thư thả hơn, mình sẽ bớt Lũng Cú trước chứ không thêm điểm mới. Vì chưa có ngày khởi hành nên giờ mở cửa vẫn cần kiểm tra lại trước khi lưu.", { ...plan(), userQuestion: "lịch này ổn chưa" })).toBe(true);
   });
   it.each([
     ["claims the plan was changed", "Mình đã bỏ Lũng Cú khỏi ngày 1 cho nhẹ hơn."],
@@ -166,7 +167,7 @@ describe("V2-08 proposal explanation and failure explanation", () => {
     const result = await session.send("2 ngày xe máy", "v208-present-initial");
     const route = result.message.indexOf("Quản Bạ → Đồng Văn"), caveat = result.message.indexOf("chưa lưu");
     expect(route).toBeGreaterThanOrEqual(0); expect(caveat).toBeGreaterThan(route);
-    expect(result.message).toContain("sơ bộ"); expect(result.message).toContain("2 ngày");
+    expect(result.message).toMatch(/chưa lưu/); expect(result.message).toContain("2 ngày");
     expect(result.message).toContain("ngày khởi hành");
   });
   it.each([["INVALID_AI_PLAN", /dựng lại|thử lại/], ["AI_UNAVAILABLE", /tạm thời|thử lại/], ["SOMETHING_ELSE", /thử lại/]])("explains a generation failure (%s) with what happened and what to do next", async (code, next) => {
@@ -181,7 +182,7 @@ describe("V2-08 proposal explanation and failure explanation", () => {
   it("names the violated checks and offers a lighter retry for an infeasible proposal", () => {
     const message = fallbackPlanningV2Reply({ goal: "PRESENT_PROPOSAL", knownFacts: {}, planningImplications: [], mustNotClaim: ["SAVED", "APPLIED", "UNSUPPORTED_FACTS", "VALIDITY_WITHOUT_EVIDENCE"],
       validation: { status: "NO_FEASIBLE_ITINERARY", checks: [{ key: "TRAVEL_TIME", status: "VIOLATION" }, { key: "OPENING_HOURS", status: "INSUFFICIENT_DATA" }], eligibleForFinalConfirmation: false } } as unknown as PlanningResponsePlan);
-    expect(message).toContain("thời gian di chuyển"); expect(message).toMatch(/gọn hơn|ít điểm hơn/); expect(message).toContain("chưa lưu");
+    expect(message).toContain("thời gian di chuyển"); expect(message).toMatch(/gọn hơn|ít điểm hơn/); expect(message).toMatch(/chưa (?:\S+ ){0,2}lưu/);
   });
   it("recovers from a failed generation on the next turn without asking for the known brief again", async () => {
     const f = fixture(); const session = await f.start();

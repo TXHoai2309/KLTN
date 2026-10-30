@@ -47,7 +47,7 @@ export const planningSessionStateSchema = z.object({
   workspace: planningWorkspaceSchema, needs: planningNeedsSchema,
   unresolved: z.array(planningUnresolvedSchema).max(8),
   recent: z.array(z.object({ question: z.string().max(1000), reply: z.string().max(4000) }).strict()).max(RECENT_LIMIT),
-  previousPlan: z.object({ goal: z.enum(["ASK_DURATION", "ASK_TRANSPORT", "CLARIFY"]), clarificationField: z.enum(["durationDays", "transport", "destinations", "startDate", "interests", "pace", "companions", "mobility", "refinement"]).optional() }).strict().nullable(),
+  previousPlan: z.object({ goal: z.enum(["ASK_DURATION", "ASK_TRANSPORT", "CLARIFY"]), clarificationField: z.enum(["durationDays", "transport", "destinations", "startDate", "interests", "pace", "companions", "mobility", "refinement", "tripStructure"]).optional() }).strict().nullable(),
   previousMessage: z.string().max(4000), generated: planningGeneratedSchema.nullable(),
   pendingClarificationNeeds: planningNeedsSchema.nullable(), uncertain: z.boolean(), qaInterrupted: z.boolean(),
   pendingReplan: z.object({ text: z.string().max(1000), edit: boundedEditSchema, clarification: editClarificationSchema, dependencyDays: z.array(z.number().int().min(1).max(14)).max(14), version: z.number().int().nonnegative() }).strict().nullable(),
@@ -171,7 +171,7 @@ export async function startTravelPlanningV2Session(input: { headers: Headers; co
       }
       if (analysis.intent === "ADVISE") {
         // Read-only: no needs, version, proposal, pending clarification or UNKNOWN state changes.
-        const guidancePlan: PlanningResponsePlan = { ...planningResponsePlan(needs, "PLANNING_GUIDANCE", generated ?? undefined), ...(generated ? { guidance: analyzeCurrentProposal(generated.proposal) } : {}), userQuestion: text.slice(0, GUIDANCE_QUESTION_LIMIT), ...(uncertain ? { lastKnownOnly: true } : {}), proposalChanged: false };
+        const guidancePlan: PlanningResponsePlan = { ...planningResponsePlan(needs, "PLANNING_GUIDANCE", generated ?? undefined), ...(generated ? { guidance: analyzeCurrentProposal(generated.proposal, needs.tripStructure) } : {}), userQuestion: text.slice(0, GUIDANCE_QUESTION_LIMIT), ...(uncertain ? { lastKnownOnly: true } : {}), proposalChanged: false };
         qaInterrupted = true;
         remember(text, "");
         const message = await safePlanningV2Reply(guidancePlan, active.skill, boundaries.compose ?? composePlanningV2Reply);
@@ -199,7 +199,9 @@ export async function startTravelPlanningV2Session(input: { headers: Headers; co
           // Keep prior needs until the existing understanding boundary resolves it.
           if (unresolved.length && analysis.intent !== "CLARIFY") pendingClarificationNeeds = analysis.needs;
           plan = planningResponsePlan(needs, "CLARIFY", generated ?? undefined);
-          plan.clarificationField = unresolved.length ? "destinations" : analysis.dateConfirmation ? "startDate" : assessPlanningReadiness(needs).blockers[0]?.field
+          if (analysis.tripShapeConflict) plan.tripShapeConflict = analysis.tripShapeConflict;
+          if (analysis.tripStructureClarify) plan.clarificationMessage = analysis.message;
+          plan.clarificationField = analysis.tripShapeConflict || analysis.tripStructureClarify ? "tripStructure" : unresolved.length ? "destinations" : analysis.dateConfirmation ? "startDate" : assessPlanningReadiness(needs).blockers[0]?.field
             ?? (changed.includes("mobilityConstraints") ? "mobility" : changed.includes("interests") ? "interests" : changed.includes("pace") ? "pace" : changed.includes("companions") || changed.includes("companionDraft") ? "companions" : "refinement");
           if (unresolved[0]) plan.optionalQuestion = { field: "destinations", choices: unresolved[0].choices };
         } else {
@@ -215,6 +217,13 @@ export async function startTravelPlanningV2Session(input: { headers: Headers; co
             plan.refinement = refinement;
             plan.planningImplications.push(...refinement.planningImplications);
             plan.proposalChanged = false;
+            /** A night area that could not be built is not adopted: keep the committed value so later rebuilds are not poisoned by it. */
+            const dropUnbuiltOvernight = () => {
+              if (!refinement.changedFields.includes("tripStructure")) return;
+              const { tripStructure: _unbuilt, ...rest } = needs;
+              needs = workspace.needs.tripStructure ? { ...rest, tripStructure: workspace.needs.tripStructure } : rest;
+              plan.overnightPreferenceDropped = true;
+            };
             if (refinement.requiresRegeneration) {
               try {
                 const result = await executeAssistantV2Action({
@@ -229,6 +238,7 @@ export async function startTravelPlanningV2Session(input: { headers: Headers; co
                 } else {
                   refinementCandidate = result.candidate;
                   plan = { ...plan, ...planningResponsePlan(needs, "REFINEMENT_FAILED", result.candidate), planningImplications: plan.planningImplications };
+                  dropUnbuiltOvernight();
                 }
               } catch (error) {
                 if (!(error instanceof AssistantV2Error) || error.code !== "ACTION_EXECUTION_FAILED") throw error;
@@ -237,6 +247,8 @@ export async function startTravelPlanningV2Session(input: { headers: Headers; co
                 uncertain = causeCode(error.cause) === "OPERATION_STATUS_UNKNOWN";
                 plan.goal = "REFINEMENT_FAILED";
                 plan.refinementOutcome = uncertain ? "UNKNOWN" : "FAILED";
+                if (causeCode(error.cause)) plan.failureCode = causeCode(error.cause)!;
+                if (!uncertain) dropUnbuiltOvernight();
               }
             }
           } else {

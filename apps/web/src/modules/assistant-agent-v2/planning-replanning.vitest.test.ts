@@ -164,7 +164,7 @@ describe("V2-04 surgical replanning on the canonical unsaved proposal", () => {
     const result = await session.send("Thay Dinh Vương bằng Lô Lô Chải", "v204-invalid-turn");
     expect(result.refinementCandidate?.proposal.status).toBe("NO_FEASIBLE_ITINERARY");
     expect(result.responsePlan).toMatchObject({ goal: "REPLAN_FAILED", refinementOutcome: "REJECTED", proposalChanged: false });
-    expect(result.message).toContain("vi phạm"); expect(result.generated).toEqual(first.generated); expect(result.workspace).toEqual(first.workspace);
+    expect(result.message).toMatch(/chưa đạt|vi phạm/); expect(result.message).not.toMatch(/đều đáp ứng/); expect(result.generated).toEqual(first.generated); expect(result.workspace).toEqual(first.workspace);
     expect(f.repository.publishProposal).toHaveBeenCalledOnce();
   });
 

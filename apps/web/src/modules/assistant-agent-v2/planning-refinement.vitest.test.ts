@@ -18,7 +18,7 @@ afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 type Understanding = z.infer<typeof planningUnderstandingSchema>;
 const base: Understanding = {
-  intent: "NEEDS", durationDays: null, transport: null, startDate: null, departureText: null,
+  intent: "NEEDS", durationDays: null, transport: null, startDate: null, departureText: null, overnightCount: null, overnightArea: null,
   pace: null, interests: null, companions: null, mobilityConstraints: null, destinations: [],
   message: "", operation: null, suggestedIds: [], dateDeferred: false, preferencesSkipped: false, mandatoryAddition: false, replyAction: "NONE",
 };
@@ -134,7 +134,7 @@ describe("V2-03 progressive refinement", () => {
     expect(culture.generated?.proposal.proposalId).not.toBe(first.generated?.proposal.proposalId);
     const pace = await session.send("Mình muốn nhịp vừa phải", "v203-demo-pace");
     expect(pace.latestNeeds.requirement).toMatchObject({ interests: ["CULTURE_HISTORY"], pace: "MODERATE", startDate: null, companions: null, mobilityConstraints: null });
-    expect(pace.message).toMatch(/tránh nhồi.*giữ thời gian tham quan/);
+    expect(pace.message).toMatch(/giảm mật độ.*thời gian/);
     expect(pace.message).not.toContain("?");
     expect(pace.generated?.proposal.phase).toBe("PRELIMINARY_PROPOSAL");
     expect(pace.generated?.proposal.checks.find(check => check.key === "OPENING_HOURS")?.status).toBe("INSUFFICIENT_DATA");
@@ -161,7 +161,7 @@ describe("V2-03 progressive refinement", () => {
     await session.send("Mình thích trải nghiệm văn hóa", "v203-correct-culture");
     const nature = await session.send("Thực ra mình thích thiên nhiên hơn", "v203-correct-nature");
     expect(nature.generated?.proposal.requirement.interests).toEqual(["NATURE"]);
-    expect(nature.message).toMatch(/chuyển ưu tiên.*thiên nhiên/);
+    expect(nature.message).toMatch(/thiên nhiên/);
     const again = await session.send("Thực ra mình thích thiên nhiên hơn", "v203-repeat-nature");
     expect(again.responsePlan.goal).toBe("ACKNOWLEDGE_NO_CHANGE"); expect(again.generated).toEqual(nature.generated);
     expect(again.message).not.toContain("?"); expect(f.deps.generate).toHaveBeenCalledTimes(3);
@@ -187,7 +187,7 @@ describe("V2-03 progressive refinement", () => {
     const result = await session.send("Bố mẹ mình đi bộ khá khó", "v203-mobility");
     expect(result.generated?.proposal.requirement.mobilityConstraints?.flags).toEqual(["AVOID_LONG_WALKING"]);
     expect(result.generated?.proposal.checks.find(check => check.key === "MOBILITY")?.status).toBe("INSUFFICIENT_DATA");
-    expect(result.message).toMatch(/đánh giá lại.*chưa thể xác minh/); expect(validate).toHaveBeenCalledTimes(2);
+    expect(result.message).toMatch(/xét lại.*chưa thể xác minh/); expect(validate).toHaveBeenCalledTimes(2);
     expect(f.deps.recheck).toHaveBeenCalledTimes(2);
   });
 
@@ -271,7 +271,7 @@ describe("V2-03 progressive refinement", () => {
     vi.mocked(f.repository.publishProposal).mockRejectedValueOnce(new AppError("OPERATION_STATUS_UNKNOWN", "Unknown publication", 503));
     const unknown = await session.send("Mình thích trải nghiệm văn hóa", "v203-unknown");
     expect(unknown.uncertain).toBe(true); expect(unknown.responsePlan.refinementOutcome).toBe("UNKNOWN");
-    expect(unknown.generated).toEqual(first.generated); expect(unknown.message).toMatch(/Chưa rõ.*đối soát/);
+    expect(unknown.generated).toEqual(first.generated); expect(unknown.message).toMatch(/chưa rõ.*đối soát/);
     await expect(session.send("Mình muốn nhịp vừa phải", "v203-after-unknown")).rejects.toMatchObject({ code: "OPERATION_STATUS_UNKNOWN" });
     const replay = await session.send("Mình thích trải nghiệm văn hóa", "v203-unknown"); expect(replay).toEqual(unknown);
     expect(f.deps.generate).toHaveBeenCalledTimes(2);

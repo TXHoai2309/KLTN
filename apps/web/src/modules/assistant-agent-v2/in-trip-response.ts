@@ -18,7 +18,7 @@ export function inTripReply(plan: InTripResponsePlan) {
   if (plan.goal.startsWith("QA_")) return fallbackPlanningV2Reply({ ...planningResponsePlan(EMPTY_PLANNING_NEEDS), goal: plan.goal as "QA_ANSWER" | "QA_FAILED" | "QA_CLARIFY" | "QA_UNSUPPORTED", qa: plan.qa, compound: plan.compound });
   const name = (id: string) => plan.labels?.[id] ?? "điểm trong lịch";
   switch (plan.goal) {
-    case "READ_TRIP": return "Mình đã đọc hành trình đã lưu hiện tại. Bạn muốn xem lượt tiếp theo hay đề xuất chỉnh phần nào?";
+    case "READ_TRIP": return "Mình đã xem hành trình đã lưu của bạn. Bạn muốn biết điểm ghé tiếp theo hay thử chỉnh phần nào?";
     case "NEXT_VISIT": return plan.nextVisit ? `Lượt tiếp theo theo lịch là ${plan.nextVisit.name}, ngày ${plan.nextVisit.day}. Đây là thứ tự trong lịch, chưa xác định từ vị trí hiện tại.` : "Hành trình không còn lượt chưa hoàn thành theo lịch.";
     case "ASK_LOCATION": return "Thay đổi này cần vị trí hiện tại để kiểm tra chặng còn lại. Bạn có thể chủ động dùng GPS hoặc chọn tọa độ thủ công; nếu GPS không dùng được, hãy chọn thủ công.";
     case "ASK_CLARIFICATION": return `${plan.clarification?.prompt ?? "Bạn muốn chỉnh điểm hoặc ngày nào?"}${plan.clarification?.choices?.length ? `\n${plan.clarification.choices.map((c, i) => `${i + 1}. ${c.label}`).join("\n")}` : ""}`;
@@ -28,13 +28,13 @@ export function inTripReply(plan: InTripResponsePlan) {
         ...(plan.diff?.added.map(v => `thêm ${name(v.destinationId)} ở ngày ${v.dayIndex}`) ?? []),
         ...(plan.diff?.updated.map(v => v.before.destinationId !== v.after.destinationId ? `thay ${name(v.before.destinationId)} bằng ${name(v.after.destinationId)} ở ngày ${v.after.dayIndex}` : `đổi ${name(v.after.destinationId)} ở ngày ${v.before.dayIndex}${v.after.dayIndex !== v.before.dayIndex ? ` sang ngày ${v.after.dayIndex}` : " theo phương án"}`) ?? []),
       ];
-      return `Mình đề xuất ${changes.join("; ") || "giữ lịch theo phương án này"}. Phương án chưa được áp dụng. ${plan.requiresConfirmation ? "Các kiểm tra hiện tại đáp ứng; bạn xác nhận áp dụng phương án này không?" : "Phương án còn vi phạm hoặc chưa đủ dữ liệu kiểm tra, nên chưa thể áp dụng."}`;
+      return `Mình đề xuất ${changes.join("; ") || "giữ lịch theo phương án này"}. Phương án này chưa được áp dụng vào hành trình đã lưu của bạn. ${plan.requiresConfirmation ? "Các kiểm tra hiện tại đáp ứng; bạn xác nhận áp dụng không?" : "Phương án chưa đạt hoặc chưa đủ dữ liệu kiểm tra nên mình chưa thể áp dụng."}`;
     }
-    case "APPLY_SUCCESS": return "Mình đã áp dụng phương án vào hành trình sau khi hệ thống xác nhận ghi thành công.";
-    case "APPLY_UNKNOWN": return "Chưa rõ kết quả áp dụng; cần đối soát đúng yêu cầu và mã cũ. Mình chặn thay đổi tiếp, bạn vẫn có thể hỏi đáp kiến thức.";
-    case "APPLY_REJECTED": return "Phương án chưa được áp dụng: hành trình hoặc kết quả kiểm tra đã thay đổi, hoặc phạm vi yêu cầu không được hỗ trợ. Hãy xem lại và đề xuất lại trước khi xác nhận.";
-    case "FAILED": return "Chưa hoàn tất bước xử lý. Chưa có xác nhận áp dụng thành công; bạn có thể thử lại bước đọc hoặc tạo đề xuất.";
-    case "CANCELLED": return "Mình đã bỏ đề xuất đang chờ; hành trình đã lưu không thay đổi.";
+    case "APPLY_SUCCESS": return "Mình đã áp dụng thay đổi vào hành trình đã lưu; hệ thống đã xác nhận ghi thành công.";
+    case "APPLY_UNKNOWN": return "Mình chưa rõ thay đổi vừa rồi đã được ghi hay chưa nên tạm chặn thay đổi tiếp; cần đối soát đúng yêu cầu đó trước. Bạn vẫn hỏi đáp kiến thức được.";
+    case "APPLY_REJECTED": return "Mình chưa áp dụng thay đổi này: hành trình hoặc kết quả kiểm tra đã đổi, hoặc yêu cầu nằm ngoài phạm vi hỗ trợ. Bạn xem lại và đề xuất lại trước khi xác nhận nhé.";
+    case "FAILED": return "Mình chưa hoàn tất bước này và chưa có thay đổi nào được áp dụng; bạn thử lại việc đọc hành trình hoặc tạo đề xuất nhé.";
+    case "CANCELLED": return "Mình đã bỏ đề xuất đang chờ; hành trình đã lưu của bạn không thay đổi.";
     case "ALL_COMPLETED": return "Hành trình không còn lượt chưa hoàn thành theo lịch để đề xuất lại.";
   }
   return "Chưa hoàn tất bước xử lý hành trình.";

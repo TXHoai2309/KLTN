@@ -212,7 +212,7 @@ describe("V2-05 grounded Q&A interleaved with the current planning session", () 
     const f = fixture(); const session = await f.start(); const first = await session.send(initialText, "v205-compound-first");
     f.setRoute(routing({ question, subjectName: "Dinh họ Vương", compound: true }));
     const result = await session.send("Dinh họ Vương xây năm nào, nếu hay thì cho vào ngày 2", "v205-compound-qa");
-    expect(result.message).toContain("1898"); expect(result.message).toContain("chỉnh lịch chưa được thực hiện"); expect(result.generated).toEqual(first.generated);
+    expect(result.message).toContain("1898"); expect(result.message).toMatch(/phần chỉnh lịch mình chưa làm/i); expect(result.generated).toEqual(first.generated);
     f.setRoute(routing()); const added = await session.send("Cho Dinh họ Vương ngày 2", "v205-compound-add"); expect(added.generated?.selection.days[1]).toContain("vuong");
   });
 

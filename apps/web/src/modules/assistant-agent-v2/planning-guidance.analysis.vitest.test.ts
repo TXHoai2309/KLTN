@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { PlannerResult } from "../trip-planner/planner-contract";
 import { analyzeCurrentProposal } from "./planning-guidance";
 
-type Stop = { name: string; arrival: number | null; visit: number; travelSeconds: number | null };
-const stop = ({ name, arrival, visit, travelSeconds }: Stop, order: number) => ({
-  order, destination: { id: name, name }, arrivalMinute: arrival, departureMinute: arrival === null ? null : arrival + visit, visitDurationMinutes: visit,
+type Stop = { name: string; arrival: number | null; visit: number; travelSeconds: number | null; area?: string };
+const stop = ({ name, arrival, visit, travelSeconds, area }: Stop, order: number) => ({
+  order, destination: { id: name, name, area: area ?? "" }, arrivalMinute: arrival, departureMinute: arrival === null ? null : arrival + visit, visitDurationMinutes: visit,
   scheduleState: arrival === null ? "TIME_UNKNOWN" : "PLANNED", validationStatus: "PASS",
   inbound: travelSeconds === null ? null : { fromDestinationId: "x", toDestinationId: name, status: "VERIFIED", reason: null, durationSeconds: travelSeconds, distanceMeters: 1000, provider: "STADIA_MAPS" },
 });
@@ -67,5 +67,36 @@ describe("V2-08 guidance without a notable problem still answers 'what if I run 
   });
   it("always offers one unapplied slow-day fallback on the day with the most travel", () => {
     expect(analyzeCurrentProposal(balanced).fallbackSuggestions).toEqual([{ day: 1, dropStop: "Đồng Văn", reason: "SLOWDOWN" }]);
+  });
+});
+
+describe("V2-09 overnight structure derived from the stored itinerary", () => {
+  const twoDays = proposal([
+    day(1, [{ name: "Quản Bạ", arrival: 480, visit: 60, travelSeconds: null, area: "Quản Bạ" }, { name: "Phố cổ Đồng Văn", arrival: 600, visit: 90, travelSeconds: 3600, area: "Đồng Văn" }]),
+    day(2, [{ name: "Mã Pì Lèng", arrival: 509, visit: 60, travelSeconds: 1740, area: "Mèo Vạc" }, { name: "Nho Quế", arrival: 578, visit: 120, travelSeconds: 540, area: "Mèo Vạc" }]),
+  ]);
+  it("anchors each stated night on the area of the day's last stop and measures the next-day leg", () => {
+    expect(analyzeCurrentProposal(twoDays, { overnightCount: 1 }).overnights).toEqual([{ afterDay: 1, area: "Đồng Văn", nextDayLegMinutes: 29, source: "DERIVED" }]);
+  });
+  it("derives nothing when nights were not stated or are zero", () => {
+    expect(analyzeCurrentProposal(twoDays).overnights).toEqual([]);
+    expect(analyzeCurrentProposal(twoDays, { overnightCount: 0 }).overnights).toEqual([]);
+  });
+  it("only plans anchors between itinerary days even if more nights were stated", () => {
+    expect(analyzeCurrentProposal(twoDays, { overnightCount: 2 }).overnights).toHaveLength(1);
+  });
+  it("reports no leg minutes when the next day's first leg is unverified, and no area when none is stored", () => {
+    const unverified = proposal([day(1, [{ name: "A", arrival: 480, visit: 60, travelSeconds: null }]), day(2, [{ name: "B", arrival: null, visit: 60, travelSeconds: null }])]);
+    expect(analyzeCurrentProposal(unverified, { overnightCount: 1 }).overnights).toEqual([{ afterDay: 1, area: null, nextDayLegMinutes: null, source: "DERIVED" }]);
+  });
+  it("flags a late arrival at the overnight area in addition to the late finish, and never counts the anchor as a stop", () => {
+    const late = proposal([
+      day(1, [{ name: "A", arrival: 480, visit: 60, travelSeconds: null, area: "Đồng Văn" }, { name: "B", arrival: 1100, visit: 90, travelSeconds: 9000, area: "Lũng Cú" }]),
+      day(2, [{ name: "C", arrival: 500, visit: 60, travelSeconds: 1200, area: "Lũng Cú" }]),
+    ]);
+    const result = analyzeCurrentProposal(late, { overnightCount: 1 });
+    expect(result.signals).toContainEqual({ code: "LATE_ARRIVAL_TO_OVERNIGHT", day: 1, finishMinute: 1190, area: "Lũng Cú" });
+    expect(result.signals).toContainEqual({ code: "LATE_FINISH", day: 1, finishMinute: 1190 });
+    expect(result.days.map(d => d.stopCount)).toEqual([2, 1]);
   });
 });

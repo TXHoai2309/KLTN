@@ -626,3 +626,49 @@ No new agent, skill, schema, provider or capability is introduced.
 ### Consequences
 
 Guidance quality depends on the real classifier separating ADVISE from CLARIFY/NEEDS, which only a live run can show. Compound advice plus edit still executes the explicit edit first. Overnight structure, lodging and weather remain out of scope (V2-09).
+
+## ADR-33 — Trip structure keeps days and nights separate; overnight is a planning annotation (2026-10-30)
+
+- **Status:** Accepted for Assistant V2-09; implemented with controlled tests, live acceptance pending.
+- **Date:** 2026-10-30
+
+### Context
+
+"2 ngày 1 đêm" was reduced to `durationDays = 2`. The trip requirement contract (US-24), the Save payload and `trip.durationDays` have no night or lodging concept, and no lodging data exists in the product.
+
+### Decision
+
+Add `tripStructure` (`overnightCount`, optional `overnightAreas`) to `PlanningNeeds` only, not to `requirement`, the Save payload or the database. Nights are never derived from days; more nights than days is clarified, not fixed. An overnight anchor is an *area* taken from a destination's `area` (derived from the day-end stop, or an area the user chose that some destination belongs to). It is not a stop and is never a lodging, price, availability or booking. A user's area choice is a preference applied by deterministic arrangement of the selected stops (not by prompting the model, which over-packed a day in live runs) and reported honestly when unmet; it is not a Validator rule. Existing cross-day routing is reused unchanged.
+
+### Alternatives
+
+- Add `overnightCount` to the trip requirement and database: rejected; it spreads into the form, Save validation and a migration for a planning-only concept.
+- Derive nights as days minus one: rejected; "3 ngày 3 đêm" and night buses are real and explicit user facts win.
+- Insert a lodging stop or waypoint into routing: rejected; it would count as a visit and needs lodging data that does not exist.
+
+### Consequences
+
+The chosen areas are lost when a trip is saved and are not shown in saved-trip or in-trip views. A night-area change rebuilds the itinerary. Lodging research and booking remain a separate future capability.
+
+## ADR-34 — Safety gates differ from style gates; fixed replies belong to code (2026-10-30)
+
+- **Status:** Accepted and implemented in Assistant V2-10.
+- **Date:** 2026-10-30
+
+### Context
+
+Reply checks on model wording currently mix two different things. Some protect the traveler (never claim a proposal is saved or valid without evidence, never name lodging or prices, state an unmet night area, say "last known" while a write is uncertain). Others only enforce phrasing, such as requiring the literal words for "preliminary" and "insufficient data" or per-topic keywords. The style rails make a useful model reply get replaced by a fixed sentence and cause the repeated caveat. Separately, edit outcomes, factual-answer wrappers, failures and every saved-trip reply are already fixed sentences built by code.
+
+### Decision
+
+Keep the safety checks strict and remove or relax the phrasing rails. A reply that creates or changes a proposal must convey "not saved" in one short clause of any wording and name the concrete cause of an incomplete check; read-only turns carry no caveat unless the traveler asks about checks, the date or saving. Number claims are checked by unit (minutes, stops, days, nights, clock time) against facts of the same kind. Fixed replies stay code-built from verified facts and are rewritten to sound natural; no model call is added to them. Saved-trip replies keep three distinct states: proposal not applied, awaiting confirmation, applied only after the database confirmed the write.
+
+### Alternatives
+
+- Let the model write every reply with a large prompt: rejected; it moves business safety into prose and adds model calls to the most sensitive replies.
+- Keep all gates and only edit prompts: rejected; the gates would keep rejecting natural wording.
+- Track caveats already shown in conversation state: rejected; a stateless per-turn-type rule is simpler and needs no new capsule field.
+
+### Consequences
+
+Wording tests assert required facts and forbidden claims instead of exact sentences. A rejection counter per composed goal measures how often model wording is replaced by a fallback. Dropping literal phrases means read-only turns no longer remind the traveler that the plan is unsaved, which the caveat policy offsets on proposal-changing turns and on questions about saving.

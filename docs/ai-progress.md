@@ -4662,3 +4662,19 @@ Both newly created fixture users, owned records/session heads and temporary dest
 Status: IMPLEMENTED with controlled tests; live-provider acceptance and Dev data cleanup NOT done. No commit/push/deploy. V2-09 not started.
 
 Root cause of "gợi ý cho tôi nên đi như nào" returning "Bạn muốn điều chỉnh cụ thể điều gì?": the understanding schema had no advice intent, so it became CLARIFY with the fixed refinement fallback (not itinerary-replanning), and the wording gate rejected natural advice. Change: `ADVISE`/`REGENERATE` intents (V2 prompt only; V1 normalizes to NEEDS); read-only `PLANNING_GUIDANCE` goal using deterministic `analyzeCurrentProposal` signals; guidance wording gate + one retry with reason + deterministic fallback; summary-first `PRESENT_PROPOSAL`; failure-code explanation for `PROPOSAL_FAILED`; explicit rebuild from known brief. See ASSISTANT-SKILL-RUNTIME-V2-08.md and ADR-32.
+
+
+### Assistant Skill Runtime V2-09 - Trip structure and overnight reasoning (2026-10-30)
+
+Status: IMPLEMENTED; live acceptance against the Dev DB passed 12/12 after three fixes found live (night area applied by code and hidden from the model; unbuildable area not adopted; wording). No push/deploy. V2-10 not started.
+
+`PlanningNeeds.tripStructure` (`overnightCount`, `overnightAreas`) keeps days and nights as separate facts (never derived), validated for consistency, grounded in destination `area`, applied by deterministic stop arrangement (no extra model call) and reported honestly when unmet, and explained in proposals and read-only guidance (area suggestion, next-day leg minutes, `LATE_ARRIVAL_TO_OVERNIGHT`) without naming lodging, prices or booking. Existing cross-day routing reused; no schema/migration; nights are planning state and are not saved with the trip. See ASSISTANT-SKILL-RUNTIME-V2-09.md and ADR-33.
+
+
+### Assistant Skill Runtime V2-10 - Conversation polish and final evaluation (2026-10-30)
+
+Status: IMPLEMENTED; live evaluation on the Dev DB (disposable `[TEST]` user, deleted afterwards). Recommendation: MORE_WORK_REQUIRED, for one item only: the composer fallback-rate threshold (<=20%) was not measured, and the spec requires every threshold. All measured thresholds pass; freeze once the rate is read from `composerOutcomes` over a live batch. No push/deploy. V2-11 not started.
+
+Safety gates were split from style gates (ADR-34): proposals still must never claim saved/applied/valid and must name the concrete cause of an unchecked item, but no fixed phrases are forced; exactly one caveat sentence on create/change turns, none on unrelated read-only turns. Fixed replies (edit outcomes, QA wrappers, failures, saved-trip states) were rewritten as natural deterministic templates; numbers are checked by unit; the composer receives finished Vietnamese facts only; `composerOutcomes` (accepted/fallback per goal) added to turn metrics. Live findings fixed: one corrective retry for a first selection that over-packs a day, advice without a proposal no longer re-asks known facts.
+
+Evidence: 11 live V2 scenarios (incl. long Muse-like conversation and a real save-and-apply) have 0 hard failures, 0 caveat violations, 0 mechanical phrases; 4 paired V1 runs all show V1 asking 5-7 questions with redundant re-asks before a proposal (V2: 0-2). Not measured: composer fallback rate from production-like logs (counter exists; no aggregate captured), V1 comparison for QA/homestay (not comparable), 6 V1 pairs (4 run). Controlled scenarios are covered by existing unit/session tests. Full suite: 63 failing tests in 10 files, identical to the pre-existing baseline. See `docs/implementation/assistant-v2-final-evaluation-corpus.json`, ADR-34, GLOSSARY terms.

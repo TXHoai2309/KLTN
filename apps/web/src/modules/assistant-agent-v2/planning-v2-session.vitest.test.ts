@@ -97,12 +97,13 @@ describe("V2-02 internal authenticated planning path", () => {
   });
   it("recovers the committed REVIEW version after a rejected initial generation and waits for an explicit new turn", async () => {
     const f = setup(); const session = await f.start();
-    vi.mocked(f.deps.generate).mockRejectedValueOnce(new AppError("PACE_LIMIT", "fixture invalid density", 422));
+    // V2-10: one corrective retry is made inside the turn, so the generator must fail twice to fail the turn.
+    vi.mocked(f.deps.generate).mockRejectedValueOnce(new AppError("PACE_LIMIT", "fixture invalid density", 422)).mockRejectedValueOnce(new AppError("PACE_LIMIT", "fixture invalid density", 422));
     const failed = await session.send("2 ngày ô tô", "v207-initial-generation-fail");
     expect(failed.responsePlan.goal).toBe("PROPOSAL_FAILED"); expect(failed.generated).toBeNull(); expect(failed.uncertain).toBe(false);
-    expect(failed.workspace.version).toBe(1); expect(f.deps.generate).toHaveBeenCalledOnce(); expect(f.save).not.toHaveBeenCalled();
+    expect(failed.workspace.version).toBe(1); expect(f.deps.generate).toHaveBeenCalledTimes(2); expect(f.save).not.toHaveBeenCalled();
     const recovered = await session.send("2 ngày ô tô", "v207-explicit-generation-retry");
-    expect(recovered.responsePlan.goal).toBe("PRESENT_PROPOSAL"); expect(recovered.workspace.version).toBe(3); expect(f.deps.generate).toHaveBeenCalledTimes(2); expect(f.save).not.toHaveBeenCalled();
+    expect(recovered.responsePlan.goal).toBe("PRESENT_PROPOSAL"); expect(recovered.workspace.version).toBe(3); expect(f.deps.generate).toHaveBeenCalledTimes(3); expect(f.save).not.toHaveBeenCalled();
   });
   it("passes plain JSON needs to persistence when an exact date clears an optional departure window", async () => {
     const f = setup(); const session = await f.start();
@@ -140,7 +141,7 @@ describe("V2-02 internal authenticated planning path", () => {
     expect(f.deps.compose).not.toHaveBeenCalled();
     expect(f.save).not.toHaveBeenCalled();
     expect(f.repository.reserveSave).not.toHaveBeenCalled();
-    expect(final.message).toContain("chưa đủ dữ liệu");
+    expect(final.message).toMatch(/chưa có ngày khởi hành/); expect(final.message).toMatch(/chưa lưu/);
     const plans = f.requests.filter(request => request.name === "planning_v2_response");
     expect(plans.map(request => request.input.goal)).toEqual(["ASK_DURATION", "ASK_TRANSPORT", "PRESENT_PROPOSAL"]);
     expect(plans.every(request => !("canonical" in request.input))).toBe(true);
@@ -253,7 +254,7 @@ describe("V2-02 internal authenticated planning path", () => {
     const result = await session.send("2 ngày ô tô", "v2-violation-turn");
     expect(result.generated?.proposal.status).toBe("NO_FEASIBLE_ITINERARY");
     expect(result.generated?.proposal.checks.some(check => check.status === "VIOLATION")).toBe(true);
-    expect(result.message).toContain("vi phạm");
+    expect(result.message).toMatch(/chưa đạt|vi phạm/); expect(result.message).not.toMatch(/đều đáp ứng/);
     expect(f.save).not.toHaveBeenCalled();
   });
 

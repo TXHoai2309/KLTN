@@ -119,3 +119,23 @@ _Avoid_: Silent defaulting of unknown facts, skipping mandatory save requirement
 **Response plan (kế hoạch phản hồi)**:
 A structured description of the next conversational goal, supported facts, allowed actions, and safety/business constraints from which natural Vietnamese prose is composed. It replaces the V1 pattern where the model is restricted to paraphrasing one canonical sentence.
 _Avoid_: Itinerary proposal, model-generated business decision.
+
+**Planning guidance (tư vấn theo lịch hiện tại)**:
+A read-only answer to a request for advice about the current itinerary proposal (is it balanced, tiring, what if the traveler runs slow). It uses only what the stored proposal and its checks support, never changes the proposal, and is distinct from an edit request.
+_Avoid_: Replanning, clarification question.
+
+**Trip structure (cấu trúc chuyến đi)**:
+The days of a trip together with the nights the traveler explicitly said they will stay. Nights are never derived from days; more nights than days is clarified, not corrected silently.
+_Avoid_: Trip duration, lodging.
+
+**Overnight anchor (khu vực nghỉ đêm)**:
+The area in which a night between two itinerary days falls, taken from where the earlier day ends or chosen by the traveler. It is a suggestion about an area, not a stop, a lodging, a price or a booking.
+_Avoid_: Hotel, homestay, accommodation booking.
+
+**Night-area preference (khu vực nghỉ đêm mong muốn)**:
+An area the traveler explicitly asks to sleep in on a given night. It is honoured when a selected stop belongs to that area and reported plainly when it cannot be arranged; it is a preference, not a validity rule.
+_Avoid_: Mandatory destination, Validator constraint.
+
+**Caveat policy (chính sách lưu ý)**:
+The rule that a turn creating or changing a proposal carries one short, specific caveat (for example the missing departure date and the opening hours it blocks), while read-only turns carry none unless the traveler asks about checks, the date or saving.
+_Avoid_: Repeating the same disclaimer every turn.

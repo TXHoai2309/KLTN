@@ -9,6 +9,7 @@ import { plannerRoutePairs, schedulePlannerDays, visitDuration, openingFor, PACE
 import { resolvePlannerRoutes, type RouteProvider } from "../trip-planner/planner-routes";
 import { validatePlannerDays } from "../trip-planner/planner-validator";
 import { plannerResultSchema, type PlannerResult, type TravelLeg } from "../trip-planner/planner-contract";
+import { arrangeOvernightAreas, unmetOvernightAreas, type UnmetOvernight } from "./planning-trip-structure";
 import { planningSelectionSchema, type PlanningSelection, type PlanningNeeds, type PlanningGenerated, type PlanningEdit } from "./planning-contract";
 
 export function isUsablePlanningCandidate(candidate: PlannerCandidate) {
@@ -106,13 +107,30 @@ export async function generatePlanningProposal(input: { needs: PlanningNeeds; ca
   let result: PlannerResult | undefined;
   let selection: PlanningSelection | undefined;
   let repairError: string | null = null;
+  // Overnight area is a preference enforced after selection, never a Validator rule.
+  const overnightAreas = input.edit ? [] : input.needs.tripStructure?.overnightAreas ?? [];
+  let overnightUnmet: UnmetOvernight[] = [];
+  // Live: the model often over-packs a day on the first try (prompt says up to 4, default pace allows 3). One corrective retry, not a loop.
+  let selectionNote = "";
+  const eligibleById = new Map(eligibleCandidates.map(c => [c.id, c]));
+  // Live: showing the model the night preference made it over-pack a day (PACE_LIMIT). Code applies it instead.
+  const { tripStructure: _appliedByCode, ...modelNeeds } = input.needs;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const candidate = input.edit && input.edit.kind !== "REPLAN_DAY" ? applyPlanningEdit(input.previous!, input.edit) : eligibleCandidates.length ? await input.generate({ requirement, needs: input.needs, candidates: eligibleCandidates, previous, instruction: input.instruction, feedback: result?.checks ?? [] }) : { days: Array.from({ length: requirement.durationDays }, () => [] as string[]) };
+      const candidate = input.edit && input.edit.kind !== "REPLAN_DAY" ? applyPlanningEdit(input.previous!, input.edit) : eligibleCandidates.length ? await input.generate({ requirement, needs: modelNeeds, candidates: eligibleCandidates, previous, instruction: [input.instruction, selectionNote].filter(Boolean).join(" "), feedback: result?.checks ?? [] }) : { days: Array.from({ length: requirement.durationDays }, () => [] as string[]) };
       if (input.edit) assertEditScope(candidate, input.previous!, input.edit);
-      const next = await scheduleSelection(input.needs, candidate, eligibleCandidates, input.routes, input.now);
-      result = next; selection = candidate; previous = candidate;
+      // Not steered through the prompt (live: "end day 1 in X" made the model over-pack a day, PACE_LIMIT).
+      // Code guarantees the night area whenever a selected stop belongs to that area.
+      const arranged = overnightAreas.length ? { days: arrangeOvernightAreas(candidate.days, overnightAreas, eligibleById) } : candidate;
+      const next = await scheduleSelection(input.needs, arranged, eligibleCandidates, input.routes, input.now);
+      result = next; selection = arranged; previous = arranged;
     } catch (error) {
+      if (!result && !input.edit && attempt === 0 && error instanceof AppError && (error.code === "PACE_LIMIT" || error.code === "INVALID_AI_PLAN")) {
+        selectionNote = error.code === "PACE_LIMIT"
+          ? `Lần trước có ngày vượt nhịp độ: mỗi ngày tối đa ${PACE_STOP_LIMIT[requirement.pace ?? "MODERATE"]} điểm.`
+          : `Lần trước cấu trúc chưa hợp lệ: đúng ${requirement.durationDays} ngày, không lặp điểm, chỉ dùng ID trong danh sách.`;
+        continue;
+      }
       if (!result) throw error;
       repairError = "Chưa thể hoàn tất lần điều chỉnh. Giữ lại đề xuất trước; bạn có thể chỉnh nhu cầu rồi thử lại.";
       break;
@@ -125,10 +143,12 @@ export async function generatePlanningProposal(input: { needs: PlanningNeeds; ca
       const hours = openingFor(candidate, day.date);
       return !hours || hours.status === "UNKNOWN" || (hours.status === "OPEN" && !hours.intervals.length);
     }));
-    if (!result.checks.some(c => c.status === "VIOLATION") || missingEvidence || (input.edit && input.edit.kind !== "REPLAN_DAY")) break;
+    overnightUnmet = overnightAreas.length ? unmetOvernightAreas(overnightAreas, selection!.days.map(day => day.flatMap(id => eligibleById.get(id) ?? []))) : [];
+    const repairViolation = result.checks.some(c => c.status === "VIOLATION") && !missingEvidence && !(input.edit && input.edit.kind !== "REPLAN_DAY");
+    if (!repairViolation) break;
   }
   if (!result || !selection) throw new AppError("PLANNER_UNAVAILABLE", "Chưa tạo được đề xuất. Vui lòng thử lại.", 503);
   const selectedIds = new Set(selection.days.flat());
   if (!await input.recheck(input.candidates.filter(c => selectedIds.has(c.id)))) throw new AppError("PLANNER_DATA_CHANGED", "Dữ liệu điểm đến đã thay đổi. Vui lòng tạo lại.", 409);
-  return { proposal: result, selection, attempts, repairError };
+  return { proposal: result, selection, attempts, repairError, ...(overnightUnmet.length ? { overnightUnmet } : {}) };
 }
