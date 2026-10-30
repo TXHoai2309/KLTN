@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
-import { AssistantChat } from "./assistant-chat";
 import { AssistantV2Chat } from "./assistant-v2-chat";
+import { AssistantV2Pending } from "./assistant-v2-pending";
 import { hasUnresolvedAttempt, type AssistantState, type AssistantTransport } from "./assistant-controller";
 import type { QaContext } from "../../modules/ai/qa-contract";
 import { useAssistantSession } from "./use-assistant-session";
@@ -37,14 +37,12 @@ export function DestinationAssistantPanel({
   isOpen,
   onClose,
   triggerRef,
-  transport: customTransport,
   identity: customIdentity,
   available: customAvailable,
 }: DestinationAssistantPanelProps) {
   const router = useRouter();
   const session = useAssistantSession();
 
-  const transport = customTransport !== undefined ? customTransport : session.transport;
   const identity = customIdentity !== undefined ? customIdentity : (session.identity ?? "unavailable");
   const available = customAvailable !== undefined ? customAvailable : session.available;
 
@@ -204,21 +202,9 @@ export function DestinationAssistantPanel({
         tabIndex={-1}
         onWheel={(e) => e.stopPropagation()}
       >
-        {customIdentity === undefined && session.runtimeVersion === "v2" && (identity.startsWith("USER:") || identity.startsWith("GUEST:")) ? <AssistantV2Chat key={identity} identity={identity} initialContext={context ?? (destinationId ? { type: "DESTINATION", destinationId } : { type: "GENERAL" })} available={available} onMinimize={onClose}/> : <AssistantChat
-          mode="panel"
-          transport={transport}
-          identity={identity}
-          available={available}
-          availabilityError={customAvailable === undefined && session.error ? "Chưa kết nối được trợ lý AI. Bạn có thể thử lại." : undefined}
-          onRetrySession={session.retry}
-          initialContext={context ?? (destinationId ? { type: "DESTINATION", destinationId } : { type: "GENERAL" })}
-          newChatContext={newChatContext}
-          onStartedNewChat={onStartedNewChat}
-          pinnedDestinationName={destinationName}
-          showSources={true}
-          onMinimize={onClose}
-          onOpenFullPage={handleOpenFullPage}
-        />}
+        {identity.startsWith("USER:") || identity.startsWith("GUEST:")
+          ? <AssistantV2Chat key={identity} identity={identity} initialContext={context ?? (destinationId ? { type: "DESTINATION", destinationId } : { type: "GENERAL" })} available={available} onMinimize={onClose} onOpenFullPage={handleOpenFullPage}/>
+          : <AssistantV2Pending mode="panel" failed={customAvailable === undefined && !!session.error} onRetry={session.retry} onMinimize={onClose}/>}
       </div>
     </>
   );

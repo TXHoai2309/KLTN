@@ -19,17 +19,18 @@ import { PlanningProposalView } from "./planning-panel";
 import { assistantV2Fetch, AssistantV2ClientError, type AssistantV2Reply } from "./assistant-v2-client";
 import type { QaContext } from "../../modules/ai/qa-contract";
 import { consumePlanningAuthDraft } from "./planning-auth-handoff";
+import type { AssistantState } from "./assistant-controller";
 import { AssistantV2GuestChat } from "./assistant-v2-guest-chat";
 
 type Exchange = { question: string; turn: PlanningV2Turn | InTripV2Turn };
 const ManualLocationPicker = lazy(() => import("../in-trip/manual-location-picker"));
 /** Existing visual components; only the transport and transient conversation
  * controller differ. No model or private service is bundled in this client. */
-type AssistantV2ChatProps = { available?: boolean; tripId?: string; onMinimize?: () => void; initialContext?: QaContext; identity?: string; conversationId?: string };
+type AssistantV2ChatProps = { available?: boolean; tripId?: string; onMinimize?: () => void; onOpenFullPage?: (snapshot: AssistantState) => void; initialContext?: QaContext; identity?: string; conversationId?: string };
 /** Guests (cookie identity) get Guest mode: Q&A only, no V2 session. Everyone else keeps the signed-in V2 flow. */
 export function AssistantV2Chat(props: AssistantV2ChatProps) {
   // A saved conversation (either principal) opens in the Q&A chat; guests always use it.
-  if (props.identity && (props.identity.startsWith("GUEST:") || (props.conversationId && props.identity.startsWith("USER:")))) return <AssistantV2GuestChat identity={props.identity} available={props.available} onMinimize={props.onMinimize} initialContext={props.initialContext} conversationId={props.conversationId}/>;
+  if (props.identity && (props.identity.startsWith("GUEST:") || (props.conversationId && props.identity.startsWith("USER:")))) return <AssistantV2GuestChat identity={props.identity} available={props.available} onMinimize={props.onMinimize} onOpenFullPage={props.onOpenFullPage} initialContext={props.initialContext} conversationId={props.conversationId}/>;
   return <SignedInV2Chat {...props}/>;
 }
 function SignedInV2Chat({ available = true, tripId, onMinimize, initialContext, identity }: AssistantV2ChatProps) {
