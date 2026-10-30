@@ -1,5 +1,44 @@
 # Assistant V2 evaluation and rollout gate
 
+## Current gate — V2-10 conversation polish and final evaluation, 2026-10-30
+
+**READY_TO_FREEZE_V2** (recommendation only; no push/deploy, V1 not deleted). Story: [V2-10](../stories/ASSISTANT-SKILL-RUNTIME-V2-10.md); decision: ADR-34; corpus: `assistant-v2-final-evaluation-corpus.json` (24 scenarios).
+
+Final verification on the committed tree: `tsc --noEmit` clean, production webpack build (`KLTN_PERF_BUILD=1`) succeeds, `git diff --check` clean. Full vitest: 63 failures in 10 files, identical to the pre-existing baseline (none in V2 files).
+
+### Evidence
+- 11 live V2 conversations (Dev DB, disposable `[TEST]` user, deleted after): 0 hard failures, 0 caveat violations, 0 mechanical phrases, read-only turns left the proposal unchanged; S10 saved a trip for real (PROPOSAL_READY, DB-confirmed SUCCESS).
+- Composer accepted/fallback (dev-server log, last 39 turns = final batch): 4 of 24 fell back, 16.7% (threshold 20%). PRESENT/REFINE 0/14, PLANNING_GUIDANCE 1/8, ASK_* and no-change 3/4 (small sample). Rows are matched to the batch by position, not by id.
+- Controlled scenarios (9) are covered by existing unit/session tests, not separate runs.
+
+### V1 / V2 comparison
+| Class | Count | Cases |
+|---|---|---|
+| Comparable pairs | 4 | S11-S14 |
+| V2 better | 4 | S11, S12, S13, S14 |
+| V1 better | 0 | - |
+| Equivalent | 0 | - |
+| Not comparable | 2 | QA, homestay: V1 has no equivalent capability, so no fair pair exists |
+
+Basis of "V2 better": questions asked before the first proposal (V1 5-7 with redundant re-asks of known days/vehicle; V2 0-2) and mechanical phrasing. Itinerary quality of V1 proposals was not scored.
+
+### Manual rubric (author-scored, not independent)
+Scale: Strong / Adequate / Weak. Excerpts from `.cache/v210-eval/final-v2.json` (the `[TEST]` prefix belongs to the fixture data).
+
+| Criterion | Score | Evidence |
+|---|---|---|
+| Question efficiency | Strong | S01 asks only days then vehicle, then builds ("Bạn dự định đi mấy ngày? Có số ngày là mình dựng được bản nháp tuyến ngay."). S02-S06 ask nothing. V1 S11 took 6 questions including preference and date. |
+| Context reuse | Strong | S03/S04 advice reuses the existing proposal; no repeated asks of days or vehicle (0 redundant questions across 11 scenarios; V1: all 4 pairs had one). |
+| Input to implication | Strong | S04 "tôi muốn ngủ Mèo Vạc" rebuilds the route so day 1 ends in the chosen area and says so. |
+| Planner usefulness | Adequate | S03 "nếu đi chậm thì sao" names a stop to drop and the load (3 stops, 68 phút). Replies are concrete, but area names occasionally come out lowercase ("khu vực đồng văn"). |
+| Naturalness | Adequate | Proposals lead with the route then one caveat; S09 "Mình giữ nguyên lịch hiện tại, vì thông tin này không làm đổi cách bố trí." Fixed templates still read slightly formal, and ASK_*/acknowledge fall back often. |
+| Grounding | Strong | Quantities are checked by unit; stops and times come from typed facts; unmet night areas are stated; no lodging names or prices (S09 homestay request answered as unsupported). |
+| Mutation safety | Strong | S10: edit → "Phương án này chưa được áp dụng" → AWAIT_CONFIRMATION → APPLY_SUCCESS only after a DB-confirmed write; read-only turns never changed version. |
+| Caveat discipline | Strong | S01/S10 carry exactly one caveat naming the cause ("vì chưa có ngày khởi hành nên giờ mở cửa vẫn cần kiểm tra lại"); guidance turns carry none. |
+
+### Known limits
+Rubric is self-scored; the product-owner pair reading from the spec was not performed. Fallback rate is position-matched. ASK_* and no-change acknowledgements fall back often and are candidates for deterministic templates in a later story.
+
 ## Current gate — V2-07A closure, 2026-10-29
 
 **DONE — READY_FOR_V2_DEFAULT (recommendation only).** Default configuration

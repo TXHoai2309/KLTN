@@ -652,7 +652,7 @@ The chosen areas are lost when a trip is saved and are not shown in saved-trip o
 
 ## ADR-34 — Safety gates differ from style gates; fixed replies belong to code (2026-10-30)
 
-- **Status:** Accepted and implemented in Assistant V2-10.
+- **Status:** Accepted and implemented in Assistant V2-10; final evaluation (24 scenarios, 4 comparable V1 pairs all V2-better, fallback 16.7%) in `docs/implementation/assistant-v2-evaluation.md`.
 - **Date:** 2026-10-30
 
 ### Context
