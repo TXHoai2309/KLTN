@@ -54,7 +54,7 @@ describe("/assistant runtime selection and fail-closed boundary", () => {
     const bundle = await build({
       entryPoints: [fileURLToPath(new URL("../../app/assistant/page.tsx", import.meta.url))],
       bundle: true, write: false, format: "cjs", platform: "node", jsx: "automatic", metafile: true,
-      external: ["react", "react/*", "next", "./assistant-context-page"], loader: { ".css": "empty" }, logLevel: "silent",
+      external: ["react", "react/*", "next", "./assistant-context-page"], loader: { ".css": "empty", ".module.css": "empty" }, logLevel: "silent",
       define: Object.fromEntries(Object.entries(env).map(([key, value]) => [`process.env.${key}`, JSON.stringify(value)])),
     });
     const paths = Object.keys(bundle.metafile!.inputs);

@@ -62,11 +62,13 @@ describe("Destination Assistant Popup Tickets 02–06", () => {
       expect(markup).toBe("");
     });
 
-    it("renders panel pinned to Destination with title, compact header, and suggestions", () => {
+    it("renders the V2 panel for a verified identity with title, compact header and open-full-page", () => {
       const markup = renderToStaticMarkup(
         createElement(DestinationAssistantPanel, {
           destinationId: "meo-vac",
           destinationName: "Mèo Vạc",
+          identity: "GUEST:" + "a".repeat(64),
+          available: true,
           isOpen: true,
           onClose: () => {},
         })
@@ -74,10 +76,10 @@ describe("Destination Assistant Popup Tickets 02–06", () => {
 
       expect(markup).toContain("Mèo Vạc");
       expect(markup).toContain('class="destination-panel-title">Trợ lý AI</h2>');
-      expect(markup).toContain('class="destination-panel-subtitle">Mèo Vạc</summary>');
-      expect(markup).toContain("Giới thiệu ngắn gọn về Mèo Vạc.");
+      expect(markup).toContain('data-runtime="v2"');
       expect(markup).toContain("Chat mới");
-      expect(markup).toContain("Thu gọn");
+      expect(markup).toContain("Thu nhỏ");
+      expect(markup).toContain("Mở toàn màn hình");
       expect(markup).not.toContain("<main");
     });
 

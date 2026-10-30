@@ -1,9 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { authClient } from "../../lib/auth-client";
-import { AssistantChat, type AssistantContextProps } from "./assistant-chat";
-import { AssistantHttpTransport } from "./assistant-http-transport";
-import { assistantRuntimeChatKey } from "./assistant-runtime-chat-key";
+import type { AssistantContextProps } from "./assistant-chat";
+import { AssistantV2Pending } from "./assistant-v2-pending";
 import { assistantAuthBoundary } from "./assistant-auth-boundary";
 import { AssistantV2Chat } from "./assistant-v2-chat";
 import { savedConversationIdFromSearch } from "./assistant-saved-conversation";
@@ -19,7 +18,7 @@ export function AssistantRuntimeChat(contextProps: AssistantContextProps = {}) {
     if (unauthorized) setConfirmedBoundary(null);
     else if (authReady) setConfirmedBoundary(userId ? `USER:${userId}` : "GUEST");
   }, [authReady, unauthorized, userId]);
-  if (boundary === null) return <AssistantChat key="unresolved" {...contextProps} />;
+  if (boundary === null) return <AssistantV2Pending key="unresolved" />;
   // A transient refetch retains local intent, but cannot authorize another send.
   // Confirmed login/logout/account changes still unmount the old principal.
   return <AuthenticatedRuntimeChat key={boundary} boundary={boundary} authReady={authReady} {...contextProps} />;
@@ -28,8 +27,6 @@ export function AssistantRuntimeChat(contextProps: AssistantContextProps = {}) {
 function AuthenticatedRuntimeChat({ boundary, authReady, ...contextProps }: { boundary: string; authReady: boolean } & AssistantContextProps) {
   const [identity, setIdentity] = useState<string | null>(null);
   const [verified, setVerified] = useState(false);
-  const [runtimeVersion, setRuntimeVersion] = useState<"v1" | "v2">("v1");
-  const [transport] = useState(() => new AssistantHttpTransport());
   useEffect(() => {
     setVerified(false);
     if (!authReady) return;
@@ -41,20 +38,19 @@ function AuthenticatedRuntimeChat({ boundary, authReady, ...contextProps }: { bo
           if (!controller.signal.aborted && (response.status === 401 || response.status === 403)) setIdentity(null);
           return;
         }
-        const body = await response.json() as { data?: { identity?: unknown; runtimeVersion?: unknown } };
+        const body = await response.json() as { data?: { identity?: unknown } };
         if (!controller.signal.aborted && typeof body.data?.identity === "string" &&
           (boundary === "GUEST" ? /^GUEST:[a-f0-9]{64}$/.test(body.data.identity) : body.data.identity === boundary)) {
           setIdentity(body.data.identity);
-          setRuntimeVersion(body.data.runtimeVersion === "v2" ? "v2" : "v1");
           setVerified(true);
         }
       }).catch(() => undefined).finally(() => clearTimeout(timeout));
     return () => { clearTimeout(timeout); controller.abort(); };
   }, [boundary, authReady]);
-  if (!identity) return <AssistantChat key={assistantRuntimeChatKey(boundary, identity)} {...contextProps} />;
+  if (!identity) return <AssistantV2Pending key={`bootstrap:${boundary}`} />;
   // A saved-conversation link (?conversationId=) opens in the V2 chat for guests and signed-in users.
   const conversationId = typeof window !== "undefined" ? savedConversationIdFromSearch(window.location.search) ?? undefined : undefined;
   // Guests (GUEST:) get V2 Guest mode: Q&A only through the existing guest transport.
-  if (runtimeVersion === "v2" && (identity.startsWith("USER:") || identity.startsWith("GUEST:"))) return <AssistantV2Chat key={identity} identity={identity} initialContext={contextProps.initialContext} conversationId={conversationId} available={authReady && verified}/>;
-  return <AssistantChat key={assistantRuntimeChatKey(boundary, identity)} identity={identity} transport={transport} available={authReady && verified} {...contextProps} />;
+  if (identity.startsWith("USER:") || identity.startsWith("GUEST:")) return <AssistantV2Chat key={identity} identity={identity} initialContext={contextProps.initialContext} conversationId={conversationId} available={authReady && verified}/>;
+  return <AssistantV2Pending key={`bootstrap:${boundary}`} failed />;
 }

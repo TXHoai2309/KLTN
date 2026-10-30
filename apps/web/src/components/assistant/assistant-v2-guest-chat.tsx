@@ -1,10 +1,11 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
-import { FileText, Minus, PanelLeft, PanelLeftOpen, Plus, RotateCcw, Send, ShieldCheck, Sparkles } from "lucide-react";
+import { FileText, Maximize2, Minus, PanelLeft, PanelLeftOpen, Plus, RotateCcw, Send, ShieldCheck, Sparkles } from "lucide-react";
 import type { QaContext, QaConversationSummary } from "../../modules/ai/qa-contract";
 import { AssistantAnswer, PROMPT_SUGGESTIONS } from "./assistant-chat";
-import { AssistantController, shouldSendOnEnter } from "./assistant-controller";
+import { AssistantController, hasUnresolvedAttempt, shouldSendOnEnter, type AssistantState } from "./assistant-controller";
+import { consumeAssistantHandoff } from "./assistant-handoff";
 import { deleteConversation, fetchConversations, renameConversation } from "./assistant-conversation-client";
 import { AssistantHttpTransport } from "./assistant-http-transport";
 import { GUEST_SIGN_IN_INVITATION, submitGuestMessage } from "./assistant-guest-mode";
@@ -17,7 +18,7 @@ import { openSavedConversation } from "./assistant-saved-conversation";
 /** V2 Q&A chat through the existing endpoint. A guest principal gets Guest mode (planning asks invite sign-in);
  * a signed-in principal reaches it only to read and continue a saved conversation.
  * It never opens a V2 session and never calls the planning route. */
-export function AssistantV2GuestChat({ available = true, onMinimize, initialContext, identity, conversationId }: { available?: boolean; onMinimize?: () => void; initialContext?: QaContext; identity: string; conversationId?: string }) {
+export function AssistantV2GuestChat({ available = true, onMinimize, onOpenFullPage, initialContext, identity, conversationId }: { available?: boolean; onMinimize?: () => void; onOpenFullPage?: (snapshot: AssistantState) => void; initialContext?: QaContext; identity: string; conversationId?: string }) {
   const inputId = useId();
   const [controller] = useState(() => new AssistantController(new AssistantHttpTransport(), identity, createIdempotencyKey, initialContext ?? { type: "GENERAL" }));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
@@ -81,6 +82,13 @@ export function AssistantV2GuestChat({ available = true, onMinimize, initialCont
     void loadSaved(conversationId, false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId, available]);
+  // One-use in-memory handoff from the panel's "open full page": carries the unsent draft only.
+  useEffect(() => {
+    if (!isPage || !available || state.conversationId || conversationId) return;
+    const handoff = consumeAssistantHandoff(identity, null, state.context);
+    if (handoff?.draft && !controller.getSnapshot().draft.trim()) controller.setDraft(handoff.draft);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPage, available, identity]);
   // A conversation created by the first answer becomes the page's saved conversation.
   const activeId = state.conversationId;
   useEffect(() => {
@@ -132,6 +140,7 @@ export function AssistantV2GuestChat({ available = true, onMinimize, initialCont
       </div>
       <div className="destination-panel-actions">
         <button type="button" className="destination-panel-action-btn" onClick={startNew} aria-label="Bắt đầu cuộc trò chuyện mới" title="Chat mới"><RotateCcw aria-hidden="true" size={16}/></button>
+        {onOpenFullPage && <button type="button" className="destination-panel-action-btn" onClick={() => onOpenFullPage(state)} disabled={!available || hasUnresolvedAttempt(state)} aria-label="Mở toàn màn hình" title="Mở toàn màn hình"><Maximize2 aria-hidden="true" size={16}/></button>}
         <button type="button" className="destination-panel-action-btn" onClick={onMinimize} aria-label="Thu nhỏ trợ lý" title="Thu nhỏ"><Minus aria-hidden="true" size={16}/></button>
       </div>
     </header>}
