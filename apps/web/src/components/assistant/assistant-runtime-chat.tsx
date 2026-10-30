@@ -53,6 +53,7 @@ function AuthenticatedRuntimeChat({ boundary, authReady, ...contextProps }: { bo
   if (!identity) return <AssistantChat key={assistantRuntimeChatKey(boundary, identity)} {...contextProps} />;
   // A saved-conversation deep link opens in the history-aware chat; V2 planning sessions are not stored there.
   const savedConversation = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("conversationId");
-  if (runtimeVersion === "v2" && identity.startsWith("USER:") && !savedConversation) return <AssistantV2Chat key={identity} identity={identity} initialContext={contextProps.initialContext} available={authReady && verified}/>;
+  // Guests (GUEST:) get V2 Guest mode: Q&A only through the existing guest transport.
+  if (runtimeVersion === "v2" && (identity.startsWith("USER:") || identity.startsWith("GUEST:")) && !savedConversation) return <AssistantV2Chat key={identity} identity={identity} initialContext={contextProps.initialContext} available={authReady && verified}/>;
   return <AssistantChat key={assistantRuntimeChatKey(boundary, identity)} identity={identity} transport={transport} available={authReady && verified} {...contextProps} />;
 }

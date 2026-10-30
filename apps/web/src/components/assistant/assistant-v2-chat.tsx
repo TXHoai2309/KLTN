@@ -19,12 +19,19 @@ import { PlanningProposalView } from "./planning-panel";
 import { assistantV2Fetch, AssistantV2ClientError, type AssistantV2Reply } from "./assistant-v2-client";
 import type { QaContext } from "../../modules/ai/qa-contract";
 import { consumePlanningAuthDraft } from "./planning-auth-handoff";
+import { AssistantV2GuestChat } from "./assistant-v2-guest-chat";
 
 type Exchange = { question: string; turn: PlanningV2Turn | InTripV2Turn };
 const ManualLocationPicker = lazy(() => import("../in-trip/manual-location-picker"));
 /** Existing visual components; only the transport and transient conversation
  * controller differ. No model or private service is bundled in this client. */
-export function AssistantV2Chat({ available = true, tripId, onMinimize, initialContext, identity }: { available?: boolean; tripId?: string; onMinimize?: () => void; initialContext?: QaContext; identity?: string }) {
+type AssistantV2ChatProps = { available?: boolean; tripId?: string; onMinimize?: () => void; initialContext?: QaContext; identity?: string };
+/** Guests (cookie identity) get Guest mode: Q&A only, no V2 session. Everyone else keeps the signed-in V2 flow. */
+export function AssistantV2Chat(props: AssistantV2ChatProps) {
+  if (props.identity?.startsWith("GUEST:")) return <AssistantV2GuestChat identity={props.identity} available={props.available} onMinimize={props.onMinimize} initialContext={props.initialContext}/>;
+  return <SignedInV2Chat {...props}/>;
+}
+function SignedInV2Chat({ available = true, tripId, onMinimize, initialContext, identity }: AssistantV2ChatProps) {
   const inputId = useId();
   const [sessionId, setSessionId] = useState<string | null>(null);
   // Encrypted server capsule stays in this page's memory, never localStorage,

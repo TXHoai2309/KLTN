@@ -204,7 +204,7 @@ export function DestinationAssistantPanel({
         tabIndex={-1}
         onWheel={(e) => e.stopPropagation()}
       >
-        {customIdentity === undefined && session.runtimeVersion === "v2" && identity.startsWith("USER:") ? <AssistantV2Chat key={identity} identity={identity} initialContext={context ?? (destinationId ? { type: "DESTINATION", destinationId } : { type: "GENERAL" })} available={available} onMinimize={onClose}/> : <AssistantChat
+        {customIdentity === undefined && session.runtimeVersion === "v2" && (identity.startsWith("USER:") || identity.startsWith("GUEST:")) ? <AssistantV2Chat key={identity} identity={identity} initialContext={context ?? (destinationId ? { type: "DESTINATION", destinationId } : { type: "GENERAL" })} available={available} onMinimize={onClose}/> : <AssistantChat
           mode="panel"
           transport={transport}
           identity={identity}

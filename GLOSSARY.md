@@ -139,3 +139,11 @@ _Avoid_: Mandatory destination, Validator constraint.
 **Caveat policy (chính sách lưu ý)**:
 The rule that a turn creating or changing a proposal carries one short, specific caveat (for example the missing departure date and the opening hours it blocks), while read-only turns carry none unless the traveler asks about checks, the date or saving.
 _Avoid_: Repeating the same disclaimer every turn.
+
+**Guest (khách)**:
+An unauthenticated visitor identified only by the guest cookie. A Guest may ask public Hà Giang questions and nothing else.
+_Avoid_: Anonymous user, visitor account.
+
+**Guest mode (chế độ khách)**:
+The Assistant chat mode for a Guest: question-and-answer only, with source citations. Planning, saving and trip changes need an account; a Guest who asks for them is invited to sign in.
+_Avoid_: Demo mode, read-only planning.
