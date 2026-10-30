@@ -1,5 +1,7 @@
 # Assistant V2 Default Enablement
 
+> Historical. The runtime switch and V1 were removed by [ADR-35](../decisions.md); the variable below is ignored and V1 is no longer a rollback.
+
 Status: verification in progress, 2026-10-29. No commit, push or deployment.
 
 ## Scope and source

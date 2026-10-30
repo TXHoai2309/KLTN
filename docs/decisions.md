@@ -672,3 +672,27 @@ Keep the safety checks strict and remove or relax the phrasing rails. A reply th
 ### Consequences
 
 Wording tests assert required facts and forbidden claims instead of exact sentences. A rejection counter per composed goal measures how often model wording is replaced by a fallback. Dropping literal phrases means read-only turns no longer remind the traveler that the plan is unsaved, which the caveat policy offsets on proposal-changing turns and on questions about saving.
+
+
+## ADR-35 — One assistant chat; guests are Q&A-only; V1 retired (2026-10-30)
+
+- **Status:** Accepted and implemented in [ASSISTANT-SKILL-RUNTIME-V1-RETIREMENT](stories/ASSISTANT-SKILL-RUNTIME-V1-RETIREMENT.md). Supersedes the rollback-switch clause of ADR-31 ("V1 preserved until V2 acceptance"); V2 was accepted by V2-10 (READY_TO_FREEZE_V2, ADR-34) and the live check in the retirement story.
+- **Date:** 2026-10-30
+
+### Context
+
+ADR-31 kept the V1 chat and a server switch (`ASSISTANT_RUNTIME_VERSION`) as a rollback path while V2 was unproven. V2 is now accepted. Keeping both meant two chat experiences, two test suites, a V1 branch in the planning route, and a deployment setting that could silently send travelers back to the weaker form-like V1.
+
+### Decision
+
+There is one assistant chat for everyone. Signed-in travelers keep the full V2 experience. A Guest (no account, identified only by the guest cookie) uses the same chat in Guest mode: Q&A only, answered by the existing Q&A service under the existing abuse limits; a request to plan is answered with an invitation to sign in and the unsent text is kept through the existing planning auth hand-off. Saved-conversation links open in the same chat. V1 (the V1 chat client, the runtime switch, the V1 branch of the planning route, the V1 page fallbacks) is deleted and is not an available fallback. The server no longer reads `ASSISTANT_RUNTIME_VERSION`; a deployment that still sets it is unaffected. The planning route serves only the `ASSISTANT_V2` action and rejects any other action with `INVALID_INPUT`. The session bootstrap returns identity only. Guests never get planning, a V2 session, workspace saving or trip writes.
+
+### Alternatives
+
+- Keep the switch but default it to V2: rejected; it keeps the V1 code and the silent downgrade risk.
+- Hide the chat from guests: rejected; guests lose public Q&A that works today.
+- Let guests plan and claim the work on sign-in: rejected; it creates account-owned data for an unauthenticated principal.
+
+### Consequences
+
+Rollback is by reverting the single retirement commit, not by a setting. The Q&A service, `/api/ai/ask`, `/api/ai/conversations`, guest identity, abuse limits and the planning auth hand-off are unchanged. No schema change and no stored conversation is deleted. Where the chat cannot start (Q&A gate closed), `/assistant` shows an unavailable state instead of a local demo. Live evidence and its gaps are recorded in the retirement story.
