@@ -19,34 +19,22 @@ Run `npm run env:generate` after a schema change. Keep example/schema developer-
 | `DATABASE_URL` | Neon PostgreSQL connection string. Local must use the development branch. |
 | `OPENAI_API_KEY` | Optional server-side AI/RAG/embedding/planner integration. |
 | `OPENAI_PREFERENCE_MODEL` | Optional server-side model identifier for US-25 preference extraction; no repository default. Missing value must produce `AI_UNAVAILABLE` when that future integration is enabled. |
-| `ASSISTANT_RUNTIME_VERSION` | Server-only `v2` default. Explicit `v1` is the supported rollback runtime; never `NEXT_PUBLIC_*`. Blank/invalid values safely select V1. |
 | `STADIA_MAPS_API_KEY` | Server-side Stadia Standard Routing key shared by US-28/US-29B/US-30; never rename to `NEXT_PUBLIC_*`. |
 | `INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL`, `INITIAL_ADMIN_PASSWORD` | Only needed for the bootstrap command. Clear them after use. |
 
 Never put actual connection strings, API keys, bootstrap credentials, or other secrets in committed documentation. OpenAI and Stadia Routing keys are server-side. Browser map rendering uses MapLibre/Stadia without a frontend API key.
 
-### Assistant V2 default and supported V1 rollback
+### Assistant runtime (V2 only)
 
-After V2-07A acceptance, Assistant V2 is the repository/configuration default.
-See [default enablement verification](assistant-v2-default-enablement.md).
-The server returns its selection
-through the existing Assistant bootstrap and dispatches the additive V2 protocol
-on `/api/ai/planning`. Existing V1 requests keep their contract.
+V1 was retired by [ADR-35](../decisions.md); Assistant V2 is the only runtime and
+there is no runtime setting. `ASSISTANT_RUNTIME_VERSION` is no longer read:
+a deployment that still defines it is unaffected (the value is ignored), so it
+can be removed at any time. The session bootstrap returns identity only, and
+`/api/ai/planning` serves only the V2 action. The QA environment/abuse/database
+gates are unchanged. Rolling back means reverting the retirement commit, not
+changing a setting. See [default enablement](assistant-v2-default-enablement.md)
+(historical).
 
-Selection is exact: unset or `v2` selects V2; `v1` selects V1; blank, wrong-case
-or other invalid values safely select V1. Existing explicitly configured `v1`
-values continue to pin V1. For the intended production target, set
-`ASSISTANT_RUNTIME_VERSION=v2` (or remove an old explicit value to use the default).
-This choice does not enable or relax any QA environment/abuse/database gate.
-
-Rollback sets `ASSISTANT_RUNTIME_VERSION=v1` and restarts/redeploys that runtime.
-Removing the variable now restores V2, so removal is not a V1 kill switch.
-Rollback requires no source revert or database migration.
-Old V2 requests fail409 rather than replaying through V1; saved Trips remain in
-the canonical DB. Reload the page after changing runtime. No Production setting
-is changed by the acceptance harness, and this task does not authorize deploy.
-After a rollback test, restore `ASSISTANT_RUNTIME_VERSION=v2` or the unset V2
-default. V1 remains supported; it has not been deprecated or removed.
 V2-07A replaces process-local session authority with an authenticated encrypted
 client capsule and a shared DB owner/subject/version/lease head. Apply Prisma
 migration `20261029030000_assistant_v2_session_head` before enabling V2. All
@@ -57,7 +45,7 @@ Capsules expire after30 minutes and stay only in component memory, never URLs,
 localStorage or diagnostic logs. Reload requires reopening/regeneration.
 Stale versions, concurrent work and ambiguous worker loss fail closed; existing
 domain idempotency and fresh Validator checks remain mandatory for writes.
-Rollback to V1 leaves the additive table in place and reads canonical Trip data.
+The additive table is independent of any runtime choice and reads canonical Trip data.
 Real A→B intake/refinement and A→B→C clarification/confirmation receipts passed
 in V2-07A; no sticky-worker deployment contract is required.
 

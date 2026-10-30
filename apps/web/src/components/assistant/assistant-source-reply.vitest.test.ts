@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { assistantSourceReply } from "./assistant-source-reply";
-import { AssistantTurn } from "./assistant-chat";
+import { AssistantTurn } from "./assistant-answer";
 import { QA_INSUFFICIENT_SOURCE_MESSAGE, qaCompletedTurnSchema, type QaCompletedTurn } from "../../modules/ai/qa-contract";
 
 const turn: Extract<QaCompletedTurn, { status: "INSUFFICIENT_SOURCE" }> = { conversationId: "conv", turnId: "turn", turnState: "COMPLETED", context: { type: "GENERAL" }, status: "INSUFFICIENT_SOURCE", message: QA_INSUFFICIENT_SOURCE_MESSAGE, answerParts: [], citations: [] };

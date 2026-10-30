@@ -5,7 +5,7 @@ import { AppError } from "../../server/http/app-error";
 import { qaReferenceIdSchema } from "../../modules/ai/qa-contract";
 import { resolveQaContext } from "../../modules/ai/qa-destination-context";
 import { containsEvidenceInstruction } from "../../modules/ai/qa-prompt";
-import type { AssistantContextProps } from "../../components/assistant/assistant-chat";
+import type { AssistantContextProps } from "../../components/assistant/assistant-answer";
 
 export async function loadAssistantContext(query: Record<string, string | string[] | undefined>): Promise<AssistantContextProps> {
   let selected: { id: string; name: string } | undefined;

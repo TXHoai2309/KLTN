@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { AssistantChat } from "./assistant-chat";
 import { AssistantController, type AssistantAttempt, type AssistantTransportResult } from "./assistant-controller";
 import { QA_INSUFFICIENT_SOURCE_MESSAGE, type QaContext } from "../../modules/ai/qa-contract";
-import { assistantContextFromUrl } from "./assistant-context-navigation";
 
 const a: QaContext = { type: "DESTINATION", destinationId: "synthetic_a" };
 const b: QaContext = { type: "DESTINATION", destinationId: "synthetic_b" };
@@ -16,14 +12,6 @@ function harness() {
   return { controller, calls, resolves, complete };
 }
 describe("US22 explicit context and lifecycle isolation", () => {
-  it("restores explicit switch/clear after navigation with server-projected choices, ignoring client names", () => {
-    const choices = [{ id: "synthetic_a" }, { id: "synthetic_b" }];
-    expect(assistantContextFromUrl(a, choices, "?destinationId=synthetic_b&name=FORGED")).toEqual(b);
-    expect(assistantContextFromUrl(a, choices, "")).toEqual({ type: "GENERAL" });
-    expect(assistantContextFromUrl(a, choices, "?destinationId=unknown")).toEqual(a);
-    expect(assistantContextFromUrl(a, choices, "?destinationId=synthetic_b&destinationId=synthetic_a")).toEqual(a);
-    expect(assistantContextFromUrl(a, choices)).toEqual(a);
-  });
   it("first turn sends the selected reference, follow-up inherits without client metadata", async () => {
     const h = harness(); h.controller.setDraft("Nó có gì?"); h.controller.submit();
     expect(h.calls[0]!.payload).toEqual({ question: "Nó có gì?", context: a });
@@ -59,11 +47,5 @@ describe("US22 explicit context and lifecycle isolation", () => {
     const h = harness(); h.controller.setDraft("Q"); h.controller.submit(); h.complete(0); await tick();
     h.controller.newConversation(); expect(h.controller.getSnapshot().context).toEqual(a);
     h.controller.changeIdentity("USER:other"); expect(h.controller.getSnapshot().context).toEqual(a); expect(h.controller.getSnapshot().turns).toEqual([]);
-  });
-  it("renders verified names, accessible picker/clear and safe unavailable state", () => {
-    const html = renderToStaticMarkup(createElement(AssistantChat, { initialContext: a, destinations: [{ id: "synthetic_a", name: "Điểm kiểm thử A" }] }));
-    expect(html).toContain("Điểm kiểm thử A"); expect(html).toContain("Xóa bối cảnh"); expect(html).toContain('value="synthetic_a" selected');
-    const error = renderToStaticMarkup(createElement(AssistantChat, { contextError: "Bối cảnh điểm đến không còn khả dụng." }));
-    expect(error).toContain('role="alert"'); expect(error).toContain("Quay về hỏi đáp chung"); expect(error).not.toContain("<select");
   });
 });

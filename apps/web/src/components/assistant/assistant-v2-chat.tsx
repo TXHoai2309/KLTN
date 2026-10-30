@@ -10,7 +10,7 @@ import { requestBrowserLocation } from "../../modules/in-trip/browser-location";
 import { createLocationFlowState, transitionLocationFlow, getLocationFlowMessage } from "../../modules/in-trip/location-flow";
 import type { MapCoordinate } from "../../modules/map/map-model";
 import { TripValidationPanel } from "../../modules/trip-validation/trip-validation-panel";
-import { AssistantAnswer, PROMPT_SUGGESTIONS } from "./assistant-chat";
+import { AssistantAnswer, PROMPT_SUGGESTIONS } from "./assistant-answer";
 import { AssistantSidebar } from "./assistant-sidebar";
 import { deleteConversation, fetchConversations, renameConversation } from "./assistant-conversation-client";
 import type { QaConversationSummary } from "../../modules/ai/qa-contract";

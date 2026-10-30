@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { AssistantAnswer, AssistantTurn } from "./assistant-chat";
+import { AssistantAnswer, AssistantTurn } from "./assistant-answer";
 import { buildCitationIndex, citationSourceHref, isReadingCitation } from "./assistant-citation-utils";
 import { citationFixture } from "../../../development/assistant-citation-fixtures";
 import { DemoAssistantTransport } from "../../../development/assistant-demo-transport";

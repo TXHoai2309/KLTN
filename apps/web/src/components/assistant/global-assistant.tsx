@@ -75,8 +75,6 @@ export function GlobalAssistantProvider({ children }: { children: ReactNode }) {
           panelId={panelId}
           context={active.context}
           destinationName={active.name}
-          newChatContext={nextContext}
-          onStartedNewChat={() => setActive({ context: nextContext, name: current?.name })}
           isOpen={open && routeVisible}
           onClose={() => setOpen(false)}
           triggerRef={triggerRef}

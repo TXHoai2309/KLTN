@@ -42,7 +42,7 @@ Rubric is self-scored; the product-owner pair reading from the spec was not perf
 ## Current gate — V2-07A closure, 2026-10-29
 
 **DONE — READY_FOR_V2_DEFAULT (recommendation only).** Default configuration
-remainsV1; no deployment/push or V1 deletion. The original V2-07 observations
+was V1 at the time (V2 is now the only runtime; V1 was retired by [ADR-35](../decisions.md)). No deployment/push at that gate. The original V2-07 observations
 below are historical and are superseded by this gate and the
 [V2-07A story](../stories/ASSISTANT-SKILL-RUNTIME-V2-07A.md).
 
