@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { authClient } from "../../lib/auth-client";
-import type { AssistantContextProps } from "./assistant-chat";
+import type { AssistantContextProps } from "./assistant-answer";
 import { AssistantV2Pending } from "./assistant-v2-pending";
 import { assistantAuthBoundary } from "./assistant-auth-boundary";
 import { AssistantV2Chat } from "./assistant-v2-chat";

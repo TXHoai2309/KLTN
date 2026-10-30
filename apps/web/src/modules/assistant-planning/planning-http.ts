@@ -2,18 +2,14 @@ import type { AuthorizationDependencies } from "../../server/authorization/guard
 import { requireTraveler } from "../../server/auth/require-traveler";
 import { readBoundedJsonBody } from "../../server/http/read-json-body";
 import { AppError } from "../../server/http/app-error";
-import { apiFailure, apiSuccess, apiMutationResult } from "../../server/http/api-response";
-import { planningRequestSchema } from "./planning-contract";
-import { executePlanning, type PlanningDependencies } from "./planning-service";
+import { apiFailure, apiSuccess } from "../../server/http/api-response";
 import { createPlanningAdmission } from "./planning-admission";
-import { assistantRuntimeVersion } from "../assistant-agent-v2/runtime-gate";
 import { assistantV2RequestSchema, type AssistantV2Request } from "../assistant-agent-v2/http-contract";
 import { createQaDiagnostics } from "../ai/qa-diagnostics";
 const admit = createPlanningAdmission();
 
-export async function planningResponse(request: Request, deps: { authorization: AuthorizationDependencies; forActor: (userId: string, headers: Headers) => PlanningDependencies; runtimeVersion?: () => "v1" | "v2"; v2?: (input: AssistantV2Request, key: string, actorId: string, headers: Headers) => Promise<unknown> }) {
-  let runtime: "v1" | "v2" = "v1";
-  const noStore = (response: Response) => { response.headers.set("Cache-Control", "private, no-store"); response.headers.set("X-Assistant-Runtime", runtime); return response; };
+export async function planningResponse(request: Request, deps: { authorization: AuthorizationDependencies; v2?: (input: AssistantV2Request, key: string, actorId: string, headers: Headers) => Promise<unknown> }) {
+  const noStore = (response: Response) => { response.headers.set("Cache-Control", "private, no-store"); response.headers.set("X-Assistant-Runtime", "v2"); return response; };
   try {
     const actor = await requireTraveler(request.headers, deps.authorization);
     if (request.headers.get("origin") !== new URL(request.url).origin || request.headers.get("sec-fetch-site") === "cross-site") throw new AppError("FORBIDDEN", "Yêu cầu không được phép.", 403);
@@ -24,22 +20,14 @@ export async function planningResponse(request: Request, deps: { authorization: 
     // A 28-stop preview can contain 27 verified geometries of 512 points each.
     // Preserve the bound without rejecting that legitimate save projection.
     const body = await readBoundedJsonBody(request, { maxBytes: 1_048_576, tooLargeError: invalid, emptyError: invalid, invalidJsonError: invalid });
-    if (body && typeof body === "object" && "action" in body && body.action === "ASSISTANT_V2") {
-      if ((deps.runtimeVersion ?? assistantRuntimeVersion)() !== "v2") throw new AppError("ASSISTANT_RUNTIME_CHANGED", "Trợ lý đã chuyển chế độ. Mở lại phiên; yêu cầu cũ chưa được tự động thực hiện.", 409);
-      runtime = "v2";
-      const parsed = assistantV2RequestSchema.safeParse(body);
-      if (!parsed.success) throw invalid;
-      if (!deps.v2) throw new AppError("ASSISTANT_UNAVAILABLE", "Phiên trợ lý tạm thời không khả dụng.", 503);
-      const diagnostics = createQaDiagnostics({ nodeEnv: process.env.NODE_ENV, vercelEnv: process.env.VERCEL_ENV });
-      const result = await admit(actor.userId, () => diagnostics.run(() => deps.v2!(parsed.data, key, actor.userId, request.headers)));
-      return noStore(apiSuccess(result));
-    }
-    const parsed = planningRequestSchema.safeParse(body);
+    // One assistant: only the V2 action is served. Any other action (including the retired V1 planning actions) is rejected.
+    if (!body || typeof body !== "object" || !("action" in body) || body.action !== "ASSISTANT_V2") throw invalid;
+    const parsed = assistantV2RequestSchema.safeParse(body);
     if (!parsed.success) throw invalid;
-    const work = () => executePlanning(parsed.data, key, deps.forActor(actor.userId, request.headers));
-    const result = ["ANALYZE", "GENERATE", "START"].includes(parsed.data.action) ? await admit(actor.userId, work) : await work();
-    if ("save" in result && result.save && result.save.status !== "SUCCESS") return noStore(apiMutationResult(result.save));
-    return noStore(["READ", "ANALYZE"].includes(parsed.data.action) ? apiSuccess(result) : apiMutationResult({ status: "SUCCESS", data: result }));
+    if (!deps.v2) throw new AppError("ASSISTANT_UNAVAILABLE", "Phiên trợ lý tạm thời không khả dụng.", 503);
+    const diagnostics = createQaDiagnostics({ nodeEnv: process.env.NODE_ENV, vercelEnv: process.env.VERCEL_ENV });
+    const result = await admit(actor.userId, () => diagnostics.run(() => deps.v2!(parsed.data, key, actor.userId, request.headers)));
+    return noStore(apiSuccess(result));
   } catch (error) {
     if (error instanceof AppError) return noStore(apiFailure(error.code, error.message, error.status));
     // Never serialize provider, database or private request details.

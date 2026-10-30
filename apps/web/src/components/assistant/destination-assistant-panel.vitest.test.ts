@@ -84,13 +84,8 @@ describe("Destination Assistant Popup Tickets 02–06", () => {
     });
 
     it("opening panel alone does not dispatch an ask or model call", () => {
-      let sentCount = 0;
-      const testTransport: AssistantTransport = {
-        send: async () => {
-          sentCount++;
-          return { kind: "networkAmbiguity" };
-        },
-      };
+      const fetcher = vi.fn();
+      vi.stubGlobal("fetch", fetcher);
 
       const markup = renderToStaticMarkup(
         createElement(DestinationAssistantPanel, {
@@ -98,14 +93,14 @@ describe("Destination Assistant Popup Tickets 02–06", () => {
           destinationName: "Lũng Cú",
           isOpen: true,
           onClose: () => {},
-          transport: testTransport,
           identity: "GUEST:test",
           available: true,
         })
       );
 
       expect(markup).toContain("Lũng Cú");
-      expect(sentCount).toBe(0);
+      expect(fetcher).not.toHaveBeenCalled();
+      vi.unstubAllGlobals();
     });
 
     it("renders wire response fixture with sources and citations correctly", async () => {

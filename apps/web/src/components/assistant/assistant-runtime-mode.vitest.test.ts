@@ -35,7 +35,7 @@ function withEnvironment(overrides: Partial<RuntimeEnvironment>): RuntimeEnviron
 
 const selectionCases = [
   { name: "enabled local runtime", env: withEnvironment({ NODE_ENV: "development", VERCEL_ENV: "", QA_RUNTIME_ENABLED: "true" }), expected: "REAL" },
-  { name: "disabled local runtime retains its local demo", env: withEnvironment({ NODE_ENV: "development", VERCEL_ENV: "", QA_RUNTIME_ENABLED: "false" }), expected: "DEMO" },
+  { name: "disabled local runtime is unavailable, with no demo fallback", env: withEnvironment({ NODE_ENV: "development", VERCEL_ENV: "", QA_RUNTIME_ENABLED: "false" }), expected: "UNAVAILABLE" },
   { name: "Preview uses the shared gate when explicitly enabled", env: withEnvironment({}), expected: "REAL" },
   { name: "disabled Preview remains unavailable", env: withEnvironment({ QA_PREVIEW_RUNTIME_ENABLED: "false" }), expected: "UNAVAILABLE" },
   { name: "Preview remains unavailable without abuse acceptance", env: withEnvironment({ QA_ABUSE_PROTECTION_ACCEPTED: "false" }), expected: "UNAVAILABLE" },
@@ -64,11 +64,11 @@ describe("/assistant runtime selection and fail-closed boundary", () => {
     const realTransportExpected = localDevelopment || previewDeployment || productionDeployment;
     expect(paths.some(path => path.includes("assistant-runtime-chat.tsx"))).toBe(realTransportExpected);
     expect(paths.some(path => path.includes("assistant-http-transport.ts"))).toBe(realTransportExpected);
-    expect(paths.some(path => path.includes("development/"))).toBe(localDevelopment);
+    expect(paths.some(path => path.includes("development/"))).toBe(false);
     const module = { exports: {} as { default: (props: object) => Promise<ReactElement<{ children: ReactElement }>> } };
     new Function("require", "module", "exports", bundle.outputFiles[0]!.text)(createRequire(import.meta.url), module, module.exports);
     const page = await module.exports.default({});
-    const component = { REAL: "AssistantRuntimeChat", DEMO: "AssistantDevelopmentChat", UNAVAILABLE: "AssistantChat" }[expected];
+    const component = { REAL: "AssistantRuntimeChat", UNAVAILABLE: "AssistantV2Pending" }[expected];
     expect(page.props.children.type).toHaveProperty("name", component);
     if (env.VERCEL_ENV === "production") {
       if (env.QA_PRODUCTION_RUNTIME_ENABLED !== "true") {

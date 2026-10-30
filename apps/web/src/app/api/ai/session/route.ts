@@ -2,7 +2,6 @@ import { AppError } from "../../../../server/http/app-error";
 import { qaPrincipalResolver, qaRuntimeEnabled, qaService } from "../../../../modules/ai/qa-runtime";
 import { assertQaSameOrigin, guestCookie } from "../../../../modules/ai/qa-principal";
 import { qaHttpError, qaJson } from "../../../../modules/ai/qa-http";
-import { assistantRuntimeVersion } from "../../../../modules/assistant-agent-v2/runtime-gate";
 export const runtime = "nodejs";
 export async function POST(request: Request) {
   try {
@@ -10,7 +9,7 @@ export async function POST(request: Request) {
     assertQaSameOrigin(request);
     const { principal, setCookie } = await qaPrincipalResolver.bootstrap(request.headers);
     // Correlation boundary only; never accepted as authorization on another route.
-    return qaJson({ success: true, data: { identity: `${principal.kind}:${principal.id}`, runtimeVersion: assistantRuntimeVersion() } }, 200, setCookie ? { "Set-Cookie": setCookie } : {});
+    return qaJson({ success: true, data: { identity: `${principal.kind}:${principal.id}` } }, 200, setCookie ? { "Set-Cookie": setCookie } : {});
   } catch (error) { return qaHttpError(error); }
 }
 export async function DELETE(request: Request) {

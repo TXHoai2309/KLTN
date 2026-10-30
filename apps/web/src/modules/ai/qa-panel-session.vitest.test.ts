@@ -17,7 +17,6 @@ afterEach(() => vi.unstubAllEnvs());
 describe("panel opening uses the existing identity bootstrap only", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubEnv("ASSISTANT_RUNTIME_VERSION", "v1");
     runtime.qaRuntimeEnabled.mockReturnValue(true);
     runtime.qaPrincipalResolver.bootstrap.mockResolvedValue({ principal: { kind: "GUEST", id: "fixture_guest" } });
   });
@@ -25,10 +24,16 @@ describe("panel opening uses the existing identity bootstrap only", () => {
     const response = await POST(request());
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(await response.json()).toEqual({ success: true, data: { identity: "GUEST:fixture_guest", runtimeVersion: "v1" } });
+    expect(await response.json()).toEqual({ success: true, data: { identity: "GUEST:fixture_guest" } });
     expect(runtime.qaService.ask).not.toHaveBeenCalled();
     expect(runtime.qaService.get).not.toHaveBeenCalled();
     expect(runtime.qaService.revokeGuest).not.toHaveBeenCalled();
+  });
+  it.each(["v1", "v2", "garbage"])("never reports a runtime version, even when ASSISTANT_RUNTIME_VERSION=%s is still deployed", async value => {
+    vi.stubEnv("ASSISTANT_RUNTIME_VERSION", value);
+    const body = await (await POST(request())).json();
+    expect(body.data).toEqual({ identity: "GUEST:fixture_guest" });
+    expect(body.data).not.toHaveProperty("runtimeVersion");
   });
   it("fails closed before bootstrap for disabled runtime and foreign origin", async () => {
     runtime.qaRuntimeEnabled.mockReturnValue(false);

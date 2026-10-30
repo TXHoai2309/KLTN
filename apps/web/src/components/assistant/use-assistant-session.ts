@@ -13,13 +13,12 @@ export type AssistantSessionState = {
   isPending: boolean;
   error: unknown;
   retry: () => void;
-  runtimeVersion?: "v1" | "v2";
 };
 
 export function useAssistantSession(): AssistantSessionState {
   const { data: session, isPending, error } = authClient.useSession();
   const [confirmedBoundary, setConfirmedBoundary] = useState<string | null>(null);
-  const [resolved, setResolved] = useState<{ boundary: string; identity: string; runtimeVersion: "v1" | "v2" } | null>(null);
+  const [resolved, setResolved] = useState<{ boundary: string; identity: string } | null>(null);
   const [verified, setVerified] = useState(false);
   const [bootstrapError, setBootstrapError] = useState<unknown>(null);
   const [attempt, setAttempt] = useState(0);
@@ -63,14 +62,14 @@ export function useAssistantSession(): AssistantSessionState {
           }
           throw new Error("Session verification failed");
         }
-        const body = (await response.json()) as { success?: boolean; data?: { identity?: unknown; runtimeVersion?: unknown } };
+        const body = (await response.json()) as { success?: boolean; data?: { identity?: unknown } };
         if (
           !controller.signal.aborted &&
           body.success === true &&
           typeof body.data?.identity === "string" &&
           (boundary === "GUEST" ? /^GUEST:[a-f0-9]{64}$/.test(body.data.identity) : body.data.identity === boundary)
         ) {
-          setResolved({ boundary, identity: body.data.identity, runtimeVersion: body.data.runtimeVersion === "v2" ? "v2" : "v1" });
+          setResolved({ boundary, identity: body.data.identity });
           setVerified(true);
         } else if (!controller.signal.aborted) throw new Error("Invalid session response");
       })
@@ -85,7 +84,6 @@ export function useAssistantSession(): AssistantSessionState {
 
   return {
     boundary,
-    runtimeVersion: resolved?.boundary === boundary ? resolved.runtimeVersion : "v1",
     identity,
     // The mounted controller captures this transport once. Keep it stable even
     // before bootstrap; `available` is the separate authorization/send gate.

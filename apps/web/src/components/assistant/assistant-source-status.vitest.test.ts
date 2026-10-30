@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { AssistantAnswer } from "./assistant-chat";
+import { AssistantAnswer } from "./assistant-answer";
 import { AssistantController, type AssistantAttempt } from "./assistant-controller";
 import { QA_INSUFFICIENT_SOURCE_MESSAGE, type QaCompletedTurn } from "../../modules/ai/qa-contract";
 import { QA_CONVERSATION_MESSAGES } from "../../modules/ai/qa-conversation";

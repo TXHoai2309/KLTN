@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { AssistantV2Chat } from "./assistant-v2-chat";
 import { AssistantV2Pending } from "./assistant-v2-pending";
-import { hasUnresolvedAttempt, type AssistantState, type AssistantTransport } from "./assistant-controller";
+import { hasUnresolvedAttempt, type AssistantState } from "./assistant-controller";
 import type { QaContext } from "../../modules/ai/qa-contract";
 import { useAssistantSession } from "./use-assistant-session";
 import { setAssistantHandoff, clearAssistantHandoff } from "./assistant-handoff";
@@ -14,14 +14,11 @@ export interface DestinationAssistantPanelProps {
   destinationId?: string;
   destinationName?: string;
   context?: QaContext;
-  newChatContext?: QaContext;
-  onStartedNewChat?: () => void;
   onHandedOff?: () => void;
   panelId?: string;
   isOpen: boolean;
   onClose: () => void;
   triggerRef?: React.RefObject<HTMLElement | null>;
-  transport?: AssistantTransport | null;
   identity?: string;
   available?: boolean;
 }
@@ -30,8 +27,6 @@ export function DestinationAssistantPanel({
   destinationId,
   destinationName,
   context,
-  newChatContext,
-  onStartedNewChat,
   onHandedOff,
   panelId,
   isOpen,

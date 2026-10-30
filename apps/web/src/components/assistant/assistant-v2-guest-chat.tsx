@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { FileText, Maximize2, Minus, PanelLeft, PanelLeftOpen, Plus, RotateCcw, Send, ShieldCheck, Sparkles } from "lucide-react";
 import type { QaContext, QaConversationSummary } from "../../modules/ai/qa-contract";
-import { AssistantAnswer, PROMPT_SUGGESTIONS } from "./assistant-chat";
+import { AssistantAnswer, PROMPT_SUGGESTIONS } from "./assistant-answer";
 import { AssistantController, hasUnresolvedAttempt, shouldSendOnEnter, type AssistantState } from "./assistant-controller";
 import { consumeAssistantHandoff } from "./assistant-handoff";
 import { deleteConversation, fetchConversations, renameConversation } from "./assistant-conversation-client";
