@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AssistantController } from "./assistant-controller";
 import { AssistantHttpTransport } from "./assistant-http-transport";
 import { submitGuestMessage } from "./assistant-guest-mode";
+import { consumePlanningAuthDraft, retainPlanningAuthDraft } from "./planning-auth-handoff";
 
 const GUEST = `GUEST:${"a".repeat(64)}`;
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
@@ -37,6 +38,28 @@ describe("Guest mode in the V2 chat", () => {
     expect(h.fetcher).not.toHaveBeenCalled();
     expect(h.retain).toHaveBeenCalledWith(text, { type: "GENERAL" });
     expect(h.controller.getSnapshot().pending).toBeNull();
+  });
+
+  it("restores the retained draft once for the signed-in principal after sign-in, never for a guest", () => {
+    const controller = new AssistantController(null, GUEST, () => "key_1");
+    const text = "  Giúp tôi lên lịch trình 3 ngày ở Hà Giang  ";
+    const context = { type: "DESTINATION", destinationId: "dest_1" } as const;
+    expect(submitGuestMessage({ controller, text, context, retain: retainPlanningAuthDraft })).toBe("SIGN_IN");
+    expect(consumePlanningAuthDraft(GUEST)).toBeNull();
+    expect(consumePlanningAuthDraft("USER:abc")).toMatchObject({ text: text.trim(), context });
+    expect(consumePlanningAuthDraft("USER:abc")).toBeNull();
+  });
+
+  it.each([
+    "Kế hoạch du lịch Hà Giang năm nay của tỉnh gồm những gì?",
+    "Lịch trình tham quan Dinh thự họ Vương mở cửa lúc mấy giờ",
+    "Chuyến đi Lũng Cú nên đi vào mùa nào",
+    "Muốn đi Hà Giang 3 ngày thì tháng nào có hoa tam giác mạch?",
+  ])("answers a factual question that mentions a plan: %s", async text => {
+    const h = harness();
+    expect(h.submit(text)).toBe("SENT");
+    await tick();
+    expect(h.retain).not.toHaveBeenCalled();
   });
 
   it.each([

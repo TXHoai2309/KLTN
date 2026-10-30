@@ -25,10 +25,11 @@ type Exchange = { question: string; turn: PlanningV2Turn | InTripV2Turn };
 const ManualLocationPicker = lazy(() => import("../in-trip/manual-location-picker"));
 /** Existing visual components; only the transport and transient conversation
  * controller differ. No model or private service is bundled in this client. */
-type AssistantV2ChatProps = { available?: boolean; tripId?: string; onMinimize?: () => void; initialContext?: QaContext; identity?: string };
+type AssistantV2ChatProps = { available?: boolean; tripId?: string; onMinimize?: () => void; initialContext?: QaContext; identity?: string; conversationId?: string };
 /** Guests (cookie identity) get Guest mode: Q&A only, no V2 session. Everyone else keeps the signed-in V2 flow. */
 export function AssistantV2Chat(props: AssistantV2ChatProps) {
-  if (props.identity?.startsWith("GUEST:")) return <AssistantV2GuestChat identity={props.identity} available={props.available} onMinimize={props.onMinimize} initialContext={props.initialContext}/>;
+  // A saved conversation (either principal) opens in the Q&A chat; guests always use it.
+  if (props.identity && (props.identity.startsWith("GUEST:") || (props.conversationId && props.identity.startsWith("USER:")))) return <AssistantV2GuestChat identity={props.identity} available={props.available} onMinimize={props.onMinimize} initialContext={props.initialContext} conversationId={props.conversationId}/>;
   return <SignedInV2Chat {...props}/>;
 }
 function SignedInV2Chat({ available = true, tripId, onMinimize, initialContext, identity }: AssistantV2ChatProps) {
