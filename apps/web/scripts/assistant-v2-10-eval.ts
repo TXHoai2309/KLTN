@@ -12,7 +12,7 @@ import { scoreTranscript, type EvalTurn } from "../src/modules/assistant-agent-v
 
 type Scenario = { id: string; mode: "live" | "v1pair" | "controlled"; title: string; turns?: string[]; expected: string };
 type Api = { status: number; ok: boolean; error?: string; data?: any; ms: number };
-const origin = "http://localhost:3010";
+const origin = process.env.EVAL_ORIGIN ?? "http://localhost:3010";
 const EMPTY_NEEDS = { requirement: {}, requiredDestinationIds: [], preferredDestinationIds: [], destinationNames: {} };
 
 async function main() {
