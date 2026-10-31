@@ -30,7 +30,9 @@ function isMutationError(value: unknown): value is MutationError {
   return (
     isObject(value) &&
     typeof value.code === "string" &&
-    typeof value.message === "string"
+    value.code.trim().length > 0 &&
+    typeof value.message === "string" &&
+    value.message.trim().length > 0
   );
 }
 
@@ -83,6 +85,7 @@ export async function sendIdempotentMutation<T>(
   if (!isMutationResponse<T>(body)) return unknownOutcome<T>();
 
   if (body.operationStatus === "SUCCESS") {
+    if (!response.ok) return unknownOutcome<T>();
     return {
       status: "SUCCESS",
       data: body.data,

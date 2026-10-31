@@ -80,6 +80,7 @@ describe("US15 FavoriteButton client mutation logic", () => {
       confirmedIsFavorite: false,
       mutationUnknown: true,
       attempt: initial.attempt,
+      message: "Chưa xác định được kết quả lưu. Yêu cầu có thể đã được xử lý. Hãy kiểm tra lại trước khi tiếp tục để tránh lưu trùng.",
     });
 
     const success: MutationOutcome<FavoriteResult> = {

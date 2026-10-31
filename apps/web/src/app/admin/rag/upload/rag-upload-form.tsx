@@ -12,6 +12,16 @@ type Metadata = { sourceTitle: string; sourceUrl: string; author: string; topic:
 type FinalizeBody = Metadata & { pathname: string; originalFileName: string; mimeType: string; sizeBytes: number };
 type UploadStatus = "idle" | "invalid" | "uploading" | "success" | "failed" | "unknown";
 type Result = { id: string; originalFileName: string; sourceTitle: string; status: "UPLOADED"; retrievalEligible: false };
+
+export function isConfirmedRagUploadResult(value: unknown): value is Result {
+  if (!value || typeof value !== "object") return false;
+  const result = value as Partial<Result>;
+  return typeof result.id === "string" && result.id.length > 0 &&
+    typeof result.originalFileName === "string" && result.originalFileName.length > 0 &&
+    typeof result.sourceTitle === "string" && result.sourceTitle.length > 0 &&
+    result.status === "UPLOADED" &&
+    result.retrievalEligible === false;
+}
 const mimeByExtension: Record<string, string> = {
   pdf: "application/pdf", docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", txt: "text/plain",
 };
@@ -50,7 +60,7 @@ export default function RagUploadForm() {
       init: { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
     });
     if (generation.current !== requestGeneration) return;
-    if (outcome.status === "SUCCESS") {
+    if (outcome.status === "SUCCESS" && isConfirmedRagUploadResult(outcome.data)) {
       pending.current = null; setResult(outcome.data); setStatus("success");
       setMessage("Tài liệu đã được tải lên. Trạng thái UPLOADED, chưa tham gia RAG.");
     } else if (outcome.status === "FAILED") {

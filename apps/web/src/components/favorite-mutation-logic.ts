@@ -85,7 +85,7 @@ export function reduceFavoriteMutationUiState(
     return {
       ...state,
       mutationUnknown: true,
-      message: "Chưa xác nhận được thao tác yêu thích. Hãy thử lại.",
+      message: "Chưa xác định được kết quả lưu. Yêu cầu có thể đã được xử lý. Hãy kiểm tra lại trước khi tiếp tục để tránh lưu trùng.",
       attempt: state.attempt,
     };
   }
