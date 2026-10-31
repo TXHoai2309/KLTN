@@ -479,3 +479,17 @@
   animation: none;
   filter: none;
 }
+
+/* Sound toggle moves to the top-right of the hero so the fixed assistant button never covers it */
+.home-page .home-scene-controls {
+  top: 20px;
+  right: 24px;
+  bottom: auto;
+}
+
+@media (max-width: 900px) {
+  .home-page .home-scene-controls {
+    top: 12px;
+    right: 12px;
+  }
+}
