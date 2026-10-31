@@ -18,12 +18,38 @@ describe.skipIf(process.env.RUN_TRIP_MANAGEMENT_DB_TESTS !== "1")("development P
    await db.user.createMany({ data: owners.map(id => ({ id, name: "Disposable Trip integration fixture", email: `${id}@example.invalid`, updatedAt: time })) });
    await db.destination.create({ data: { id: destinationId, name: "[TEST disposable] Trip management fixture", description: "Integration fixture, not production content", area: "test", category: "test", visibility: "VISIBLE", latitude: 23, longitude: 105, minimumDurationMinutes: 30, openingDays: { create: { dayOfWeek: "TUESDAY", status: "OPEN", intervals: { create: { opensAtMinute: 0, closesAtMinute: 1440 } } } } } });
    const request = { confirm: true as const, proposal: { startDate: "2026-10-20", durationDays: 1, transport: "CAR" as const, days: [{ dayIndex: 1, visits: [{ destinationId, order: 1, startMinute: 480, plannedDurationMinutes: 60 }] }] } };
-   const saved = await saveTrip(headers, request, "save", dependencies(owners[0]), time);
-   expect(saved.status).toBe("SUCCESS"); if (saved.status !== "SUCCESS") throw new Error("fixture save failed");
-   savedId = saved.data.tripId;
+   const beforeCounts = {
+    trips: await db.trip.count({ where: { userId: owners[0] } }),
+    days: await db.itineraryDay.count(),
+    visits: await db.itineraryVisit.count(),
+   };
+   const concurrent = await Promise.all([
+    saveTrip(headers, request, "save", dependencies(owners[0]), time),
+    saveTrip(headers, request, "save", dependencies(owners[0]), time),
+   ]);
+   expect(concurrent.every(result => result.status === "SUCCESS")).toBe(true);
+   const persisted = await db.trip.findFirstOrThrow({ where: { userId: owners[0] }, select: { id: true } });
+   savedId = persisted.id;
+   expect(concurrent).toEqual(expect.arrayContaining([
+    expect.objectContaining({ status: "SUCCESS", data: expect.objectContaining({ tripId: savedId }) }),
+    expect.objectContaining({ status: "SUCCESS", data: expect.objectContaining({ tripId: savedId }) }),
+   ]));
+   // Treat the first confirmed commit acknowledgement as lost, then reconcile
+   // through the same request identity. The replay must return that persisted Trip.
    const replay = await saveTrip(headers, request, "save", dependencies(owners[0]), time);
    expect(replay).toMatchObject({ status: "SUCCESS", replayed: true, data: { tripId: savedId } });
    expect(await db.trip.count({ where: { userId: owners[0] } })).toBe(1);
+   expect(await db.itineraryDay.count({ where: { tripId: savedId } })).toBe(1);
+   expect(await db.itineraryVisit.count({ where: { day: { tripId: savedId } } })).toBe(1);
+   console.log("US39_TRIP_WRITE_COUNTS", JSON.stringify({
+    before: beforeCounts,
+    after: {
+     trips: await db.trip.count({ where: { userId: owners[0] } }),
+     days: await db.itineraryDay.count(),
+     visits: await db.itineraryVisit.count(),
+    },
+    sameTripId: true,
+   }));
    const before = await getMyTrip(headers, savedId, dependencies(owners[0]), "2026-10-20");
    expect((await listMyTrips(headers, dependencies(owners[0]), "2026-10-20")).items.map(t => t.id)).toEqual([savedId]);
    expect((await listMyTrips(headers, dependencies(owners[1]), "2026-10-20")).items).toEqual([]);

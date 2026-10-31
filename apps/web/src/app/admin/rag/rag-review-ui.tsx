@@ -41,6 +41,16 @@ type RagDetail = RagItem & {
 };
 
 type RagTransition = Pick<RagDetail, "id" | "status" | "updatedAt" | "retrievalEligible" | "allowedActions" | "publicQaApproved" | "publicQaEligible" | "ineligibilityReason">;
+type RagBulkResult = { updatedCount: number; ids: string[] };
+
+function isRagBulkResult(value: unknown): value is RagBulkResult {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as Partial<RagBulkResult>;
+  return Number.isInteger(candidate.updatedCount) &&
+    (candidate.updatedCount ?? -1) >= 0 &&
+    Array.isArray(candidate.ids) &&
+    candidate.ids.every(id => typeof id === "string");
+}
 
 const statusLabel: Record<RagStatus, string> = {
   UPLOADED: "Chờ kiểm duyệt",
@@ -152,6 +162,8 @@ export function RagList({ initialView = "active" }: { initialView?: RagListView 
   const { data, setData, error, retry } = useRagRead<{ items: RagItem[] }>(listUrl);
   const [bulkMessage, setBulkMessage] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkUnknown, setBulkUnknown] = useState(false);
+  const bulkAttempt = useRef<{ key: string; body: { action: "ENABLE_ALL_INDEXED" } } | null>(null);
   const [pendingIds, setPendingIds] = useState<Set<string>>(() => new Set());
   const [uncertainIds, setUncertainIds] = useState<Set<string>>(() => new Set());
   const [confirmation, setConfirmation] = useState<RagItem | null>(null);
@@ -185,20 +197,38 @@ export function RagList({ initialView = "active" }: { initialView?: RagListView 
 
   async function handleBulkEnableIndexed() {
     if (bulkBusy || deletedView || unapprovedIndexed.length === 0) return;
+    const attempt = bulkAttempt.current ?? {
+      key: createIdempotencyKey(),
+      body: { action: "ENABLE_ALL_INDEXED" as const },
+    };
+    bulkAttempt.current = attempt;
     setBulkBusy(true);
     setBulkMessage("");
     try {
-      const response = await fetch("/api/admin/rag-documents/bulk-public-qa", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "ENABLE_ALL_INDEXED" }),
+      const outcome = await sendIdempotentMutation<RagBulkResult>("/api/admin/rag-documents/bulk-public-qa", {
+        idempotencyKey: attempt.key,
+        init: {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(attempt.body),
+        },
       });
-      const body = await response.json();
-      if (!response.ok || body.success !== true) throw new Error(body.error?.message || "Không thể thực hiện duyệt hàng loạt.");
-      setBulkMessage(`Đã cấp quyền AI công khai cho ${body.data?.updatedCount ?? unapprovedIndexed.length} tài liệu đã lập chỉ mục.`);
-      retry();
-    } catch (err) {
-      setBulkMessage(err instanceof Error ? err.message : "Duyệt hàng loạt thất bại.");
+      if (outcome.status === "SUCCESS" && isRagBulkResult(outcome.data)) {
+        bulkAttempt.current = null;
+        setBulkUnknown(false);
+        setBulkMessage(`Đã cấp quyền AI công khai cho ${outcome.data.updatedCount} tài liệu đã lập chỉ mục.`);
+        retry();
+      } else if (outcome.status === "FAILED") {
+        bulkAttempt.current = null;
+        setBulkUnknown(false);
+        setBulkMessage(outcome.error.message);
+      } else {
+        setBulkUnknown(true);
+        setBulkMessage("Chưa xác định được kết quả lưu. Yêu cầu có thể đã được xử lý. Hãy kiểm tra lại trước khi tiếp tục để tránh cập nhật trùng.");
+      }
+    } catch {
+      setBulkUnknown(true);
+      setBulkMessage("Chưa xác định được kết quả lưu. Yêu cầu có thể đã được xử lý. Hãy kiểm tra lại trước khi tiếp tục để tránh cập nhật trùng.");
     } finally {
       setBulkBusy(false);
     }
@@ -295,7 +325,7 @@ export function RagList({ initialView = "active" }: { initialView?: RagListView 
             <div className="rag-bulk-info">Có <strong>{unapprovedIndexed.length}</strong> tài liệu đã lập chỉ mục nhưng chưa được cấp quyền làm nguồn trả lời AI công khai.</div>
             <Button type="button" className="destination-primary" disabled={bulkBusy} onClick={() => void handleBulkEnableIndexed()}>
               <Sparkles size={16} aria-hidden="true" />
-              {bulkBusy ? "Đang xử lý…" : `Duyệt công khai tất cả (${unapprovedIndexed.length})`}
+              {bulkBusy ? "Đang xử lý…" : bulkUnknown ? "Kiểm tra lại kết quả" : `Duyệt công khai tất cả (${unapprovedIndexed.length})`}
             </Button>
           </div>
         )}

@@ -285,58 +285,89 @@ test("ENABLE_PUBLIC_QA is rejected for DISABLED document", async () => {
   assert.equal(row.publicQaApproved, false);
 });
 
-test("bulkSetRagPublicQa enables all indexed or selected documents", async () => {
+test("bulkSetRagPublicQa is idempotent for all indexed or selected documents", async () => {
   const docs = [
     { id: "doc-1", status: "INDEXED", publicQaApproved: false },
     { id: "doc-2", status: "INDEXED", publicQaApproved: false },
     { id: "doc-3", status: "UPLOADED", publicQaApproved: false },
   ];
+  const idempotency = new Map<string, { requestHash: string; responseJson: string }>();
+  let updateCalls = 0;
+  const ragDocument = {
+    findMany: async ({ where }: { where: { status?: string | { not: string }; publicQaApproved?: boolean; id?: { in: string[] } } }) => {
+      return docs.filter(d => {
+        if (where.status) {
+          if (typeof where.status === "string" && d.status !== where.status) return false;
+          if (typeof where.status === "object" && "not" in where.status && d.status === where.status.not) return false;
+        }
+        if (where.publicQaApproved !== undefined && d.publicQaApproved !== where.publicQaApproved) return false;
+        if (where.id?.in && !where.id.in.includes(d.id)) return false;
+        return true;
+      });
+    },
+    updateMany: async ({ where, data }: { where: { id: { in: string[] } }; data: { publicQaApproved: boolean } }) => {
+      updateCalls++;
+      let count = 0;
+      for (const d of docs) {
+        if (where.id.in.includes(d.id)) {
+          d.publicQaApproved = data.publicQaApproved;
+          count++;
+        }
+      }
+      return { count };
+    },
+  };
+  const idempotencyRecord = {
+    findUnique: async ({ where }: { where: { scope_key: { scope: string; key: string } } }) =>
+      idempotency.get(`${where.scope_key.scope}:${where.scope_key.key}`) ?? null,
+    create: async ({ data }: { data: { scope: string; key: string; requestHash: string; responseJson: string } }) => {
+      idempotency.set(`${data.scope}:${data.key}`, { requestHash: data.requestHash, responseJson: data.responseJson });
+    },
+    update: async ({ where, data }: { where: { scope_key: { scope: string; key: string } }; data: { responseJson: string } }) => {
+      const mapKey = `${where.scope_key.scope}:${where.scope_key.key}`;
+      idempotency.set(mapKey, { ...idempotency.get(mapKey)!, responseJson: data.responseJson });
+    },
+  };
+  const tx = { ragDocument, idempotencyRecord };
   const deps = {
     resolveSession: async () => ({ user: { id: "admin-1" } }),
     database: {
       user: { findUnique: async () => ({ id: "admin-1", role: "ADMIN" }) },
-      ragDocument: {
-        findMany: async ({ where }: { where: { status?: string | { not: string }; publicQaApproved?: boolean; id?: { in: string[] } } }) => {
-          return docs.filter(d => {
-            if (where.status) {
-              if (typeof where.status === "string" && d.status !== where.status) return false;
-              if (typeof where.status === "object" && "not" in where.status && d.status === where.status.not) return false;
-            }
-            if (where.publicQaApproved !== undefined && d.publicQaApproved !== where.publicQaApproved) return false;
-            if (where.id?.in && !where.id.in.includes(d.id)) return false;
-            return true;
-          });
-        },
-        updateMany: async ({ where, data }: { where: { id: { in: string[] } }; data: { publicQaApproved: boolean } }) => {
-          let count = 0;
-          for (const d of docs) {
-            if (where.id.in.includes(d.id)) {
-              d.publicQaApproved = data.publicQaApproved;
-              count++;
-            }
-          }
-          return { count };
-        },
-      },
+      ragDocument,
+      idempotencyRecord,
+      $transaction: async (run: (value: typeof tx) => Promise<unknown>) => run(tx),
     },
     storage: { accessible: async () => true },
   };
 
   // ENABLE_ALL_INDEXED
-  const allResult = await bulkSetRagPublicQa(headers, { action: "ENABLE_ALL_INDEXED" }, deps as never);
-  assert.equal(allResult.updatedCount, 2);
-  assert.deepEqual(allResult.ids, ["doc-1", "doc-2"]);
+  const allResult = await bulkSetRagPublicQa(headers, { action: "ENABLE_ALL_INDEXED" }, "all-key", deps as never);
+  assert.equal(allResult.status, "SUCCESS");
+  if (allResult.status !== "SUCCESS") return;
+  assert.equal(allResult.data.updatedCount, 2);
+  assert.deepEqual(allResult.data.ids, ["doc-1", "doc-2"]);
+  const replay = await bulkSetRagPublicQa(headers, { action: "ENABLE_ALL_INDEXED" }, "all-key", deps as never);
+  assert.deepEqual(replay, { ...allResult, replayed: true });
+  assert.equal(updateCalls, 1);
   assert.equal(docs[0].publicQaApproved, true);
   assert.equal(docs[1].publicQaApproved, true);
   assert.equal(docs[2].publicQaApproved, false);
 
   // DISABLE_SELECTED
-  const disableResult = await bulkSetRagPublicQa(headers, { action: "DISABLE_SELECTED", documentIds: ["doc-1"] }, deps as never);
-  assert.equal(disableResult.updatedCount, 1);
+  const disableResult = await bulkSetRagPublicQa(headers, { action: "DISABLE_SELECTED", documentIds: ["doc-1"] }, "disable-key", deps as never);
+  assert.equal(disableResult.status, "SUCCESS");
+  if (disableResult.status !== "SUCCESS") return;
+  assert.equal(disableResult.data.updatedCount, 1);
   assert.equal(docs[0].publicQaApproved, false);
 
   // ENABLE_SELECTED
-  const enableResult = await bulkSetRagPublicQa(headers, { action: "ENABLE_SELECTED", documentIds: ["doc-1"] }, deps as never);
-  assert.equal(enableResult.updatedCount, 1);
+  const enableResult = await bulkSetRagPublicQa(headers, { action: "ENABLE_SELECTED", documentIds: ["doc-1"] }, "enable-key", deps as never);
+  assert.equal(enableResult.status, "SUCCESS");
+  if (enableResult.status !== "SUCCESS") return;
+  assert.equal(enableResult.data.updatedCount, 1);
   assert.equal(docs[0].publicQaApproved, true);
+
+  const conflict = await bulkSetRagPublicQa(headers, { action: "DISABLE_SELECTED", documentIds: ["doc-1"] }, "enable-key", deps as never);
+  assert.equal(conflict.status, "FAILED");
+  if (conflict.status === "FAILED") assert.equal(conflict.httpStatus, 409);
 });

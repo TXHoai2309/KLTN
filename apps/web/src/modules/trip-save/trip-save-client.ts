@@ -7,7 +7,10 @@ export type TripSaveClientResult =
   | { status: "FAILED"; message: string; validation?: TripValidation }
   | { status: "UNKNOWN"; message: string };
 
-const unknown = (): TripSaveClientResult => ({ status: "UNKNOWN", message: "Chưa xác định được kết quả lưu. Thử lại sẽ dùng cùng mã yêu cầu." });
+const unknown = (): TripSaveClientResult => ({
+  status: "UNKNOWN",
+  message: "Chưa xác định được kết quả lưu. Yêu cầu có thể đã được xử lý. Hãy kiểm tra lại trước khi tiếp tục để tránh lưu trùng.",
+});
 
 function isValidation(value: unknown): value is TripValidation {
   if (!value || typeof value !== "object") return false;

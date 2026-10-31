@@ -259,7 +259,7 @@ export function TripConfirmationSection({
               {saveState === "pending"
                 ? "Đang lưu…"
                 : saveState === "unknown"
-                  ? "Kiểm tra lại kết quả lưu"
+                  ? "Kiểm tra lại kết quả"
                   : "Lưu chuyến đi"}
             </span>
           </button>

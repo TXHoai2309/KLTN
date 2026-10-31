@@ -71,7 +71,7 @@ export function TripSavePanel({ proposal, validation, onSaved, onStateChange, se
       pending={state === "pending"}
       onConfirm={disabled || !proposal.startDate || state === "success" ? undefined : confirmAndSave}
       secondaryActions={secondaryActions}
-      actionLabel={state === "unknown" ? "Kiểm tra lại kết quả lưu" : "Lưu chuyến đi"}
+      actionLabel={state === "unknown" ? "Kiểm tra lại kết quả" : "Lưu chuyến đi"}
     />
     <p role={state === "failed" ? "alert" : "status"} aria-live="polite" className="min-h-5 break-words text-sm text-foreground">{message}</p>
   </div>;

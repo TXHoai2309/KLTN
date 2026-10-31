@@ -376,40 +376,60 @@ export async function transitionRagDocument(headers: Headers, id: string, body: 
   });
 }
 
-export async function bulkSetRagPublicQa(headers: Headers, body: unknown, deps: RagDependencies) {
-  await requireActor(headers, deps, "admin");
+export async function bulkSetRagPublicQa(
+  headers: Headers,
+  body: unknown,
+  key: string,
+  deps: RagDependencies,
+) {
+  const actor = await requireActor(headers, deps, "admin");
   const input = parse(bulkRequest, body);
-  if (input.action === "ENABLE_ALL_INDEXED") {
-    const indexedDocs = await deps.database.ragDocument.findMany({
-      where: { status: "INDEXED", publicQaApproved: false, deletedAt: null },
-      select: { id: true },
-    });
-    const ids = indexedDocs.map(d => d.id);
-    if (ids.length > 0) {
-      await deps.database.ragDocument.updateMany({
-        where: { id: { in: ids }, deletedAt: null },
-        data: { publicQaApproved: true },
+  return executeIdempotentWrite({
+    database: deps.database,
+    actorId: actor.id,
+    operation: "rag:bulk-public-qa",
+    key,
+    input,
+    execute: async transaction => {
+      if (input.action === "ENABLE_ALL_INDEXED") {
+        const indexedDocs = await transaction.ragDocument.findMany({
+          where: { status: "INDEXED", publicQaApproved: false, deletedAt: null },
+          select: { id: true },
+        });
+        const ids = indexedDocs.map(document => document.id);
+        if (ids.length > 0) {
+          await transaction.ragDocument.updateMany({
+            where: { id: { in: ids }, deletedAt: null },
+            data: { publicQaApproved: true },
+          });
+        }
+        return { updatedCount: ids.length, ids };
+      }
+
+      if (input.action === "ENABLE_SELECTED") {
+        const documents = await transaction.ragDocument.findMany({
+          where: {
+            id: { in: input.documentIds },
+            status: { not: "DISABLED" },
+            deletedAt: null,
+          },
+          select: { id: true },
+        });
+        const ids = documents.map(document => document.id);
+        if (ids.length > 0) {
+          await transaction.ragDocument.updateMany({
+            where: { id: { in: ids }, deletedAt: null },
+            data: { publicQaApproved: true },
+          });
+        }
+        return { updatedCount: ids.length, ids };
+      }
+
+      const result = await transaction.ragDocument.updateMany({
+        where: { id: { in: input.documentIds }, deletedAt: null },
+        data: { publicQaApproved: false },
       });
-    }
-    return { updatedCount: ids.length, ids };
-  }
-  if (input.action === "ENABLE_SELECTED") {
-    const docs = await deps.database.ragDocument.findMany({
-      where: { id: { in: input.documentIds }, status: { not: "DISABLED" }, deletedAt: null },
-      select: { id: true },
-    });
-    const ids = docs.map(d => d.id);
-    if (ids.length > 0) {
-      await deps.database.ragDocument.updateMany({
-        where: { id: { in: ids }, deletedAt: null },
-        data: { publicQaApproved: true },
-      });
-    }
-    return { updatedCount: ids.length, ids };
-  }
-  const res = await deps.database.ragDocument.updateMany({
-    where: { id: { in: input.documentIds }, deletedAt: null },
-    data: { publicQaApproved: false },
+      return { updatedCount: result.count, ids: input.documentIds };
+    },
   });
-  return { updatedCount: res.count, ids: input.documentIds };
 }
