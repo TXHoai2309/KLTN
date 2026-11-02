@@ -11,8 +11,8 @@
   --planner-ink: light-dark(#1d2521, #e7eee9);
   --planner-muted: light-dark(#66716b, #a4b3aa);
   --planner-border: light-dark(#dde3de, #39473e);
-  --planner-accent: light-dark(#24513b, #7bc797);
-  --planner-accent-hover: light-dark(#1c412f, #91c7a7);
+  --planner-accent: light-dark(#35765c, #52a883);
+  --planner-accent-hover: light-dark(#2c654e, #68be97);
   --planner-accent-subtle: light-dark(#edf4ee, #273b2f);
   --planner-soft: light-dark(#f6f8f6, #222d26);
   --planner-radius-sm: 8px;

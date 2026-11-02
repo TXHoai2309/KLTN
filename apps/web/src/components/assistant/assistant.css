@@ -2250,35 +2250,35 @@
 
 .assistant-planning .assistant-planning-actions button:hover:not(:disabled),
 .assistant-planning-actions button:hover:not(:disabled) {
-  background: #174a35 !important;
+  background: #35765c !important;
   color: #ffffff !important;
-  border-color: #174a35 !important;
+  border-color: #35765c !important;
   transform: translateY(-1.5px) !important;
-  box-shadow: 0 4px 14px rgba(23, 74, 53, 0.22) !important;
+  box-shadow: 0 4px 14px rgba(53, 118, 92, 0.22) !important;
 }
 
 .assistant-planning .assistant-planning-actions button:active:not(:disabled),
 .assistant-planning-actions button:active:not(:disabled) {
   transform: scale(0.97) !important;
-  background: #123929 !important;
+  background: #255844 !important;
 }
 
 .assistant-planning .assistant-planning-actions button[data-variant="primary"],
 .assistant-planning-actions button[data-variant="primary"] {
-  background: linear-gradient(135deg, #174a35 0%, #206346 100%) !important;
+  background: linear-gradient(135deg, #35765c 0%, #3e886b 100%) !important;
   color: #ffffff !important;
-  border: 1px solid #174a35 !important;
+  border: 1px solid #35765c !important;
   font-weight: 650 !important;
-  box-shadow: 0 2px 10px rgba(23, 74, 53, 0.22) !important;
+  box-shadow: 0 2px 10px rgba(53, 118, 92, 0.22) !important;
 }
 
 .assistant-planning .assistant-planning-actions button[data-variant="primary"]:hover:not(:disabled),
 .assistant-planning-actions button[data-variant="primary"]:hover:not(:disabled) {
-  background: linear-gradient(135deg, #1d5b41 0%, #287a56 100%) !important;
+  background: linear-gradient(135deg, #2c654e 0%, #36795f 100%) !important;
   color: #ffffff !important;
-  border-color: #1d5b41 !important;
+  border-color: #2c654e !important;
   transform: translateY(-1.5px) !important;
-  box-shadow: 0 4px 16px rgba(23, 74, 53, 0.32) !important;
+  box-shadow: 0 4px 16px rgba(53, 118, 92, 0.32) !important;
 }
 
 .assistant-planning .assistant-planning-actions button[data-variant="secondary"],
@@ -2292,9 +2292,9 @@
 .assistant-planning .assistant-planning-actions button[data-variant="secondary"]:hover:not(:disabled),
 .assistant-planning-actions button[data-variant="secondary"]:hover:not(:disabled) {
   background: #edf5f0 !important;
-  color: #174a35 !important;
-  border-color: #174a35 !important;
-  box-shadow: 0 3px 10px rgba(23, 74, 53, 0.14) !important;
+  color: #35765c !important;
+  border-color: #35765c !important;
+  box-shadow: 0 3px 10px rgba(53, 118, 92, 0.14) !important;
 }
 
 .dark .assistant-planning .assistant-planning-actions,

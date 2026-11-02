@@ -3,7 +3,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push() {}, refresh() {} }),
+  useRouter: () => ({ push() {}, refresh() {}, replace() {} }),
+  usePathname: () => "/trips",
+  useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },

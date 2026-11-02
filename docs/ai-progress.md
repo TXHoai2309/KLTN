@@ -5133,3 +5133,44 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - **Validation:** Focused image/provider/V3/eligibility Vitest 84 PASS; disposable loopback PostgreSQL image/V3/Editorial 21 PASS with atomic cover/order/replay and container cleanup. Initial disposable-runner Docker failure was transient; diagnostic and original-runner reruns passed. Root typecheck four tasks PASS; web production build 54 pages PASS; `git diff --check` PASS. Full repository suite not rerun.
 - **DB/deployment:** No schema or migration changes; existing migrations exercised only in a newly owned disposable container. No Neon/shared data, real Cloudinary upload, credentials/environment change, commit/push/merge/deploy. Existing unrelated workspace changes preserved.
 - **Limits/next:** Isolated browser/service/provider fixtures do not certify live authenticated Admin or deployed Cloudinary behavior. Verify the new Create gallery after deployment; existing story owner-acceptance status remains unchanged.
+
+## 2026-10-31 — Tích hợp Tìm bạn đồng hành vào Chuyến đi của tôi & hiển thị hành trình tham gia
+
+- **Yêu cầu & Quyết định (đã grill và chốt theo tài liệu/ADR-23):**
+  1. Loại bỏ nút "Tìm bạn đồng hành" khỏi Navbar/Header chính; đưa toàn bộ trải nghiệm Tìm bạn đồng hành vào 1 tab chính trong trang "Chuyến đi của tôi" (`/trips`).
+  2. Bố cục 2 tầng Tab trên `/trips`:
+     - Tab 1: **Hành trình của tôi** (hiển thị danh sách chuyến do chính user tạo và các chuyến user tham gia đồng hành, cùng các bộ lọc trạng thái: Tất cả, Sắp tới, Đang diễn ra, Đã hoàn thành).
+     - Tab 2: **Tìm bạn đồng hành** (hiển thị không gian tìm bạn với 3 sub-tab: Khám phá chuyến, Chuyến tôi đăng, Tôi tham gia, bộ lọc tìm kiếm và nút "+ Đăng chuyến đi").
+  3. Cơ chế dữ liệu cho người tham gia đồng hành:
+     - Tuân thủ ADR-23 (Single Source of Truth, 1 chủ sở hữu duy nhất): Không sao chép/clone bản ghi `Trip`.
+     - Mở rộng query `listMyTrips` và `getMyTrip` để truy vấn: `{ OR: [ { userId: actor.userId }, { companionPublication: { memberships: { some: { userId: actor.userId, state: "ACTIVE" } } } } ] }`.
+     - Trả về trường `role: "HOST" | "MEMBER"`, `publicationId`, `companionTitle`, và `hostName`.
+  4. Phân định quyền hạn trên giao diện:
+     - Thẻ chuyến đi tham gia (`role: "MEMBER"`): Gắn huy hiệu "Thành viên đồng hành", ghi chú tham gia cùng chủ chuyến, nút mở chuyển thành "Vào nhóm đồng hành" (dẫn tới `/trip-companions/[pubId]/group`), và nút hành động chuyển thành "Rời chuyến" (gọi `leaveCompanionTrip` thực hiện trả 1 chỗ theo TC-04 và gỡ khỏi danh sách của user). Không cho phép thành viên sửa hoặc xóa chuyến chính thức.
+     - Trang chi tiết `/trips/[id]`: Cho phép thành viên đọc lịch trình chính thức mới nhất (TC-03/TC-10), ẩn các nút sửa lịch trình / AI replan, hiển thị huy hiệu thành viên và nút "Vào nhóm đồng hành & trò chuyện".
+  5. Định tuyến URL:
+     - Truy cập `/trip-companions` tự động chuyển hướng (Redirect 307) về `/trips?tab=companions`, bảo toàn toàn bộ search params lọc.
+- **Xác thực:**
+  - `npm run check-types` trong `apps/web`: 0 lỗi typecheck (`tsc --noEmit` PASS).
+  - Vitest: 93/93 tests PASS (bao gồm `header.vitest.test.ts`, `trip-read.vitest.test.ts`, và toàn bộ suite `src/components/trip-companions/*`).
+  - `git diff --check`: 0 lỗi whitespace/blank lines.
+
+## 2026-10-31 — Chuẩn hóa màu sắc Button toàn hệ thống về tông Xanh Sage Thảo mộc (#35765c)
+
+- **Yêu cầu & Quyết định (grill theo docs DESIGN.md & /design-taste-frontend):**
+  1. Người dùng phản hồi các button trên hệ thống (đặc biệt là `/trips` và nút nổi Trợ lý AI) đang dùng màu xanh quá đậm/u tối (`#174a35` / `#103626`), gây cảm giác nặng nề.
+  2. Thống nhất chuyển toàn bộ button hành động chính (Primary CTA) sang **Xanh Sage Thảo mộc (`#35765c` theo DESIGN.md)** với gradient nhẹ (`#35765c` -> `#3e886b`), hover sáng tinh tế (`#2c654e` -> `#36795f`), shadow mềm mại `rgba(53, 118, 92, 0.22)`, đạt chuẩn tương phản chữ trắng WCAG AA (4.7:1).
+  3. Thanh tab chuyển đổi ("Hành trình của tôi / Tìm bạn đồng hành"):
+     - Tuân thủ nguyên tắc `design-taste-frontend` ("màu sắc đặt ở dữ liệu, không đặt ở chrome"): Tab active không dùng màu khối đặc nặng nề cạnh tranh với nút "+ Tạo chuyến đi", mà chuyển sang nền xanh phấn nhạt (`--trip-read-soft: #edf5f0`), chữ xanh thảo mộc (`#24634b`), viền mảnh `rgba(53, 118, 92, 0.24)`, tạo sự nhẹ nhàng, thanh thoát và cao cấp.
+     - Dark mode tab active: nền `#1e3027`, chữ `#8de3b9`.
+  4. Rà soát và cập nhật đồng bộ toàn diện:
+     - `/trips` (`trips.css`): `--trip-read-green`, `.my-trips-action` ("+ Tạo chuyến đi"), `.my-trips-open` ("Xem chi tiết"), tab pills, timeline nodes, day tabs, hover cards.
+     - Nút nổi Trợ lý AI (`assistant-launcher.css`): Chuyển gradient nền từ đậm sang `#35765c` -> `#29684f`, viền sáng nhẹ, ánh hào quang (aura pulse) mềm mại.
+     - Tìm bạn đồng hành (`companion.css`): `--companion-green`, `.companion-cta-button`, `.companion-create-trip-link`, `.companion-chat-send-btn`, `.companion-manage-submit-btn`, chat bubble người dùng.
+     - Trợ lý AI (`assistant.css`): `.assistant-planning-actions` primary/secondary buttons.
+     - Lập hành trình (`trip-planner.css`, `trip-sentence-builder.css`): `--planner-accent`, `.trip-sentence-primary-btn`.
+     - Token dùng chung (`@KLTN/ui/globals.css`, `explore.css`, `favorites.css`, `index.css`): Cập nhật `--primary` sang mã màu `#35765c` / `oklch(0.51 0.08 158)`.
+- **Xác thực:**
+  - `tsc --noEmit` (`npm run check-types`): 0 lỗi.
+  - Vitest: 11/11 test files (115/115 tests PASS), bao gồm `trip-read`, `trip-companions`, `header`.
+  - `git diff --check`: 0 cảnh báo.

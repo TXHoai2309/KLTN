@@ -28,7 +28,19 @@ describe("US-31 calendar status", () => {
 const trip = (id: string, userId: string) => ({ id, userId, startDate: new Date("2026-10-10T00:00:00.000Z"), durationDays: 2, transport: "CAR" as const, manuallyCompletedAt: null as Date | null });
 
 function fixture() {
-  const rows = [trip("mine", "a"), trip("other", "b")];
+  const rows = [
+    { ...trip("mine", "a"), companionPublication: null, user: { name: "User A" } },
+    { ...trip("other", "b"), companionPublication: null, user: { name: "User B" } },
+    {
+      ...trip("joined", "c"),
+      companionPublication: {
+        id: "pub-c",
+        title: "Chuyến Hà Giang cùng C",
+        memberships: [{ userId: "a", state: "ACTIVE" }],
+      },
+      user: { name: "Host C" },
+    },
+  ];
   let favoriteOwner = "a";
   let session: { user: { id: string; role: string } } | null = { user: { id: "a", role: "TRAVELER" } };
   let persistedRole = "TRAVELER";
@@ -36,14 +48,25 @@ function fixture() {
   const database = {
     user: { findUnique: async () => ({ id: "a", role: persistedRole }) },
     trip: {
-      findMany: async (args: { where: { userId: string }; select: Record<string, unknown> }) => {
+      findMany: async (args: { where: { OR?: Array<{ userId?: string; companionPublication?: unknown }> }; select: Record<string, unknown> }) => {
         calls.list = args;
-        return rows.filter(row => row.userId === args.where.userId).map(row => ({ ...row, favorites: favoriteOwner === args.where.userId ? [{ id: "favorite" }] : [], days: [{ _count: { visits: 3 } }] }));
+        return rows
+          .filter(row => {
+            if (row.userId === "a") return true;
+            if (row.companionPublication?.memberships.some(m => m.userId === "a" && m.state === "ACTIVE")) return true;
+            return false;
+          })
+          .map(row => ({ ...row, favorites: favoriteOwner === "a" ? [{ id: "favorite" }] : [], days: [{ _count: { visits: 3 } }] }));
       },
-      findFirst: async (args: { where: { id: string; userId: string } }) => {
+      findFirst: async (args: { where: { id: string; OR?: Array<{ userId?: string; companionPublication?: unknown }> } }) => {
         calls.detail = args;
-        const row = rows.find(item => item.id === args.where.id && item.userId === args.where.userId);
-        return row && { ...row, favorites: favoriteOwner === args.where.userId ? [{ id: "favorite" }] : [], days: [
+        const row = rows.find(item => {
+          if (item.id !== args.where.id) return false;
+          if (item.userId === "a") return true;
+          if (item.companionPublication?.memberships.some(m => m.userId === "a" && m.state === "ACTIVE")) return true;
+          return false;
+        });
+        return row && { ...row, favorites: favoriteOwner === "a" ? [{ id: "favorite" }] : [], days: [
           { id: "day-2", dayIndex: 2, localDate: new Date("2026-10-11T00:00:00.000Z"), _count: { visits: 2 }, visits: [
             { id: "visit-2", order: 2, startMinute: 600, plannedDurationMinutes: 60, destination: { id: "d2", name: "B", area: "Đồng Văn", visibility: "VISIBLE", deletedAt: new Date("2026-10-08T00:00:00Z") } },
             { id: "visit-1", order: 1, startMinute: 480, plannedDurationMinutes: 90, destination: { id: "d1", name: "A", area: "Mèo Vạc", visibility: "HIDDEN", deletedAt: null } },
@@ -69,19 +92,20 @@ describe("US-31 owned Trip reads", () => {
     expect((await listMyTrips(headers, test.dependencies, "2026-10-10")).items[0]).toHaveProperty("isFavorite", false);
     expect(await getMyTrip(headers, "mine", test.dependencies, "2026-10-10")).toHaveProperty("isFavorite", false);
   });
-  it("lists only current Traveler trips and returns factual visit counts without visit rows", async () => {
+  it("lists current Traveler owned and active joined companion trips", async () => {
     const test = fixture();
     const result = await listMyTrips(headers, test.dependencies, "2026-10-09");
-    expect(result.items.map(item => item.id)).toEqual(["mine"]);
-    expect(result.items[0]).toMatchObject({ startDate: "2026-10-10", endDate: "2026-10-11", transport: "CAR", status: "UPCOMING", visitCount: 3 });
-    expect(test.calls.list).toMatchObject({ where: { userId: "a" } });
+    expect(result.items.map(item => item.id)).toEqual(["mine", "joined"]);
+    expect(result.items[0]).toMatchObject({ id: "mine", role: "HOST", startDate: "2026-10-10", endDate: "2026-10-11", transport: "CAR", status: "UPCOMING", visitCount: 3 });
+    expect(result.items[1]).toMatchObject({ id: "joined", role: "MEMBER", publicationId: "pub-c", hostName: "Host C" });
+    expect(test.calls.list).toMatchObject({ where: { OR: [{ userId: "a" }, { companionPublication: { memberships: { some: { userId: "a", state: "ACTIVE" } } } }] } });
     expect(test.calls.list).toMatchObject({ select: { days: { select: { _count: { select: { visits: true } } } } } });
     expect(test.calls.list).not.toMatchObject({ select: { days: { select: { visits: expect.anything() } } } });
   });
   it("reads own detail and orders days and visits", async () => {
     const test = fixture();
     const result = await getMyTrip(headers, "mine", test.dependencies, "2026-10-10");
-    expect(test.calls.detail).toMatchObject({ where: { id: "mine", userId: "a" } });
+    expect(test.calls.detail).toMatchObject({ where: { id: "mine", OR: [{ userId: "a" }, { companionPublication: { memberships: { some: { userId: "a", state: "ACTIVE" } } } }] } });
     expect(result.days.map(day => day.dayIndex)).toEqual([1, 2]);
     expect(result.days[1].visits.map(visit => visit.order)).toEqual([1, 2]);
     expect(result.days[1].visits[0].destination).toMatchObject({ name: "A", visibility: "HIDDEN", availability: "UNAVAILABLE" });
@@ -96,7 +120,7 @@ describe("US-31 owned Trip reads", () => {
     const test = fixture(); test.setSession(null);
     await expect(listMyTrips(headers, test.dependencies, "2026-10-10")).rejects.toMatchObject({ status: 401 });
     test.setSession({ user: { id: "a", role: "ADMIN" } }); test.setRole("ADMIN");
-    expect((await listMyTrips(headers, test.dependencies, "2026-10-10")).items.map(item => item.id)).toEqual(["mine"]);
+    expect((await listMyTrips(headers, test.dependencies, "2026-10-10")).items.map(item => item.id)).toEqual(["mine", "joined"]);
     expect(await getMyTrip(headers, "mine", test.dependencies, "2026-10-10")).toHaveProperty("id", "mine");
     for (const id of ["other", "missing"]) {
       await expect(getMyTrip(headers, id, test.dependencies, "2026-10-10")).rejects.toMatchObject({ status: 404, code: "TRIP_NOT_FOUND" });
