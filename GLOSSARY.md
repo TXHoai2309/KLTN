@@ -96,7 +96,6 @@ _Avoid_: AI assistant conversation, direct message, public comments.
 The point at which a trip stops accepting additional companions.
 _Avoid_: Trip completion, trip cancellation, trip deletion.
 
-<<<<<<< HEAD
 ## Assistant Skill Runtime V2
 
 **Assistant skill (kỹ năng trợ lý)**:
@@ -154,7 +153,6 @@ _Avoid_: Anonymous user, visitor account.
 **Guest mode (chế độ khách)**:
 The Assistant chat mode for a Guest: question-and-answer only, with source citations. Planning, saving and trip changes need an account; a Guest who asks for them is invited to sign in.
 _Avoid_: Demo mode, read-only planning.
-=======
 **Listing withdrawal (gỡ công khai)**:
 Removal of a trip's invitation from public discovery while preserving its existing travel group.
 _Avoid_: Recruitment closure, group dissolution, trip deletion.
@@ -162,4 +160,3 @@ _Avoid_: Recruitment closure, group dissolution, trip deletion.
 **Companion trip cancellation (hủy chuyến đồng hành)**:
 The host's decision to call off the shared trip offered to its members.
 _Avoid_: Trip completion, listing withdrawal, trip deletion.
->>>>>>> 55c6baa66b06f11578707793b4dd8b2580ba4a55
