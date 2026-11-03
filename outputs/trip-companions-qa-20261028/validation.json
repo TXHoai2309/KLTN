@@ -1,0 +1,16 @@
+{
+  "oldPreserved": 70,
+  "newCases": 64,
+  "totalCases": 134,
+  "columns": 19,
+  "groups": {
+    "1": 16,
+    "2": 16,
+    "3": 16,
+    "4": 16
+  },
+  "allNotRun": true,
+  "oldValuesPreserved": true,
+  "allTaskIdsFromAttachment": true,
+  "output": "D:\\KLTN\\KLTN\\outputs\\trip-companions-qa-20261028"
+}

@@ -1,5 +1,5 @@
 import { destinationDtoSchema, type DestinationDto } from "@/modules/destination/destination-contract";
-import { imageIntentSchema, type ImageIntent } from "@/modules/destination/destination-media-contract";
+import { imageIntentSchema, type ImageIntent, type InitialImageSelection } from "@/modules/destination/destination-media-contract";
 export type ImageResult<T> = { status: "SUCCESS"; data: T } | { status: "FAILED" | "UNKNOWN"; message: string };
 export function parseImageResult<T>(body: unknown, parse: (data: unknown) => T): ImageResult<T> {
   const b = body as { success?: boolean; operationStatus?: string; data?: unknown; error?: { message?: string } } | null;
@@ -9,14 +9,14 @@ export function parseImageResult<T>(body: unknown, parse: (data: unknown) => T):
   if (b?.success === false && b.operationStatus === "FAILED") return { status: "FAILED", message: b.error?.message ?? "Không thể lưu ảnh. Giữ ảnh và thử lại." };
   return { status: "UNKNOWN", message: "Chưa xác định kết quả. Đọc lại và thử lại với cùng file và key." };
 }
-export async function createClientImageIntent(id: string, file: File, key: string, signal: AbortSignal): Promise<ImageResult<ImageIntent>> {
+export async function createClientImageIntent(id: string, file: File, key: string, signal: AbortSignal, initialSelection?: InitialImageSelection): Promise<ImageResult<ImageIntent>> {
   try {
     const digest = await crypto.subtle.digest("SHA-256", await file.arrayBuffer());
     const sha256 = [...new Uint8Array(digest)].map(x => x.toString(16).padStart(2, "0")).join("");
     const response = await fetch(`/api/admin/destinations/${encodeURIComponent(id)}/images/intents`, {
       method: "POST", credentials: "same-origin", signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)]),
       headers: { "Content-Type": "application/json", "Idempotency-Key": key },
-      body: JSON.stringify({ name: file.name.slice(0, 300), size: file.size, mime: file.type, sha256 }),
+      body: JSON.stringify({ name: file.name.slice(0, 300), size: file.size, mime: file.type, sha256, ...(initialSelection ? { initialSelection } : {}) }),
     });
     return parseImageResult(await response.json(), data => imageIntentSchema.parse(data));
   } catch { return { status: "UNKNOWN", message: "Không nhận được kết quả tạo yêu cầu ảnh. Thử lại với cùng file." }; }

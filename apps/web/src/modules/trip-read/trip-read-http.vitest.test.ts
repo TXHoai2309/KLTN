@@ -31,7 +31,22 @@ describe("US-31 read HTTP", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("private, no-store");
     expect(await response.json()).toEqual({ success: true, data: { items: [] } });
-    expect(test.where).toEqual([{ userId: "a" }]);
+    const expectedUserWhere = {
+      OR: [
+        { userId: "a" },
+        {
+          companionPublication: {
+            memberships: {
+              some: {
+                userId: "a",
+                state: "ACTIVE",
+              },
+            },
+          },
+        },
+      ],
+    };
+    expect(test.where).toEqual([expectedUserWhere]);
   });
   it("rejects userId query parameters", async () => {
     const test = fixture();
@@ -44,14 +59,48 @@ describe("US-31 read HTTP", () => {
     const response = await tripDetailResponse(new Request("https://example.test/api/trips/other"), "other", test.deps, now);
     expect(response.status).toBe(404);
     expect((await response.json()).error.code).toBe("TRIP_NOT_FOUND");
-    expect(test.where).toEqual([{ id: "other", userId: "a" }]);
+    expect(test.where).toEqual([
+      {
+        id: "other",
+        OR: [
+          { userId: "a" },
+          {
+            companionPublication: {
+              memberships: {
+                some: {
+                  userId: "a",
+                  state: "ACTIVE",
+                },
+              },
+            },
+          },
+        ],
+      },
+    ]);
   });
   it("returns owned detail with a Vietnam-calendar status", async () => {
     const test = fixture("a", true);
     const response = await tripDetailResponse(new Request("https://example.test/api/trips/own"), "own", test.deps, now);
     expect(response.status).toBe(200);
     expect((await response.json()).data.trip).toMatchObject({ id: "own", status: "ONGOING", endDate: "2026-10-10", days: [] });
-    expect(test.where).toEqual([{ id: "own", userId: "a" }]);
+    expect(test.where).toEqual([
+      {
+        id: "own",
+        OR: [
+          { userId: "a" },
+          {
+            companionPublication: {
+              memberships: {
+                some: {
+                  userId: "a",
+                  state: "ACTIVE",
+                },
+              },
+            },
+          },
+        ],
+      },
+    ]);
   });
   it("denies Guest before querying trips", async () => {
     const test = fixture(); test.deps.resolveSession = async () => null;

@@ -6,7 +6,8 @@ import { ENV } from "./env.server";
 // Next dev re-evaluates server modules after edits. Keep the connection pool
 // across those evaluations; query results and authorization are never cached.
 const developmentDatabase = Symbol.for("kltn.web.database.development");
-const databaseSchemaRevision = "planning-dialogue-v1";
+// Bump after prisma generate: an instance created mid-generation retains its old runtime model.
+const databaseSchemaRevision = "trip-companions-complete-v3";
 const processScope = globalThis as typeof globalThis & {
   [developmentDatabase]?: { url: string; client: Database; schemaRevision?: string };
 };

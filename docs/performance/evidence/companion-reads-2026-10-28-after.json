@@ -1,0 +1,65 @@
+{
+  "phase": "after",
+  "measuredAt": "2026-10-28T11:01:29.857Z",
+  "target": "verified-read-only-development",
+  "auth": "synthetic host session; persisted account/relationship checks remain real; excludes Better Auth/HTTP/browser",
+  "samples": 3,
+  "measurements": {
+    "group": [
+      {
+        "ms": 634,
+        "queries": 11
+      },
+      {
+        "ms": 633,
+        "queries": 11
+      },
+      {
+        "ms": 633,
+        "queries": 11
+      }
+    ],
+    "idle-delta": [
+      {
+        "ms": 293,
+        "queries": 4
+      },
+      {
+        "ms": 285,
+        "queries": 4
+      },
+      {
+        "ms": 307,
+        "queries": 4
+      }
+    ],
+    "unread": [
+      {
+        "ms": 532,
+        "queries": 4
+      },
+      {
+        "ms": 293,
+        "queries": 4
+      },
+      {
+        "ms": 300,
+        "queries": 4
+      }
+    ],
+    "itinerary-page-data-chain": [
+      {
+        "ms": 820,
+        "queries": 14
+      },
+      {
+        "ms": 868,
+        "queries": 14
+      },
+      {
+        "ms": 729,
+        "queries": 14
+      }
+    ]
+  }
+}

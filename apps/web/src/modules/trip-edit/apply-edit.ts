@@ -1,6 +1,6 @@
 import type { Database, Prisma } from "@KLTN/db";
 import { z } from "zod";
-
+import { recordCompanionItineraryChange } from "../trip-companions/companion-itinerary-notice";
 import { requireTraveler, type TravelerActor } from "@/server/auth/require-traveler";
 import type { AuthorizationDependencies } from "@/server/authorization/guard";
 import { AppError } from "@/server/http/app-error";
@@ -36,13 +36,13 @@ const applyEditBaseSchema = z
   })
   .strict();
 export const applyEditRequestSchema = applyEditBaseSchema.superRefine((request, context) => {
-    if (request.kind === "IN_TRIP" && request.location === undefined) {
-      context.addIssue({ code: "custom", path: ["location"], message: "Cần vị trí để kiểm tra lại phương án In-trip." });
-    }
-    if (request.kind !== "IN_TRIP" && (request.location !== undefined || request.mandatoryEndpoint !== undefined)) {
-      context.addIssue({ code: "custom", path: ["kind"], message: "Ngữ cảnh vị trí chỉ dùng cho chỉnh sửa In-trip." });
-    }
-  });
+  if (request.kind === "IN_TRIP" && request.location === undefined) {
+    context.addIssue({ code: "custom", path: ["location"], message: "Cần vị trí để kiểm tra lại phương án In-trip." });
+  }
+  if (request.kind !== "IN_TRIP" && (request.location !== undefined || request.mandatoryEndpoint !== undefined)) {
+    context.addIssue({ code: "custom", path: ["kind"], message: "Ngữ cảnh vị trí chỉ dùng cho chỉnh sửa In-trip." });
+  }
+});
 
 export type ApplyEditRequest = z.infer<typeof applyEditRequestSchema>;
 
@@ -251,6 +251,7 @@ async function persistCandidate(
       },
     });
   }
+  await recordCompanionItineraryChange(transaction, tripId, createEditCandidate(trip), candidate);
   return nextRevision.toISOString();
 }
 
@@ -356,6 +357,7 @@ export async function applyEdit(
   const result = await executeIdempotentWrite<ApplyEditResult>({
     ...identity,
     execute: async (transaction) => {
+      await transaction.$queryRaw`SELECT "id" FROM "user" WHERE "id" = ${userId} FOR SHARE`;
       const actor = await requireTraveler(headers, {
         ...dependencies.authorization,
         database: transaction as unknown as Pick<Database, "user">,

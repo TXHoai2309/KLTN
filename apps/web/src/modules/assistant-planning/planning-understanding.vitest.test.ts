@@ -3,6 +3,10 @@ import { applyPlanningUnderstanding, planningUnderstandingSchema } from "./plann
 import { fixtureNeeds, planningCandidate } from "../../test/planning-fixtures";
 const base = planningUnderstandingSchema.parse({ intent: "NEEDS", durationDays: null, transport: null, startDate: null, departureText: null, pace: null, interests: null, companions: null, mobilityConstraints: null, destinations: [], message: "Kiểm tra nhu cầu", operation: null, suggestedIds: [], dateDeferred: false, preferencesSkipped: false, mandatoryAddition: false, replyAction: "NONE" });
 describe("Multi-turn needs and destination interpretation", () => {
+  it("keeps itinerary display read-only even if the model supplies extraneous needs", () => {
+    const result = applyPlanningUnderstanding({ ...base, intent: "DISPLAY", durationDays: 9, transport: "MOTORCYCLE", destinations: [{ name: "Điểm a", required: true, remove: false }] }, fixtureNeeds, [planningCandidate("a")]);
+    expect(result).toEqual({ intent: "DISPLAY", needs: fixtureNeeds, unresolved: [], message: "" });
+  });
   it("asks for a real calendar date instead of throwing on an impossible extracted date", () => {
     const result = applyPlanningUnderstanding({ ...base, startDate: "2026-02-31" }, fixtureNeeds, []);
     expect(result.intent).toBe("CLARIFY");

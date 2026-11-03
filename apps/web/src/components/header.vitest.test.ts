@@ -42,4 +42,10 @@ describe("Trip navigation matches the single My Trips entry", () => {
     expect(trips).not.toContain("aria-current");
     expect(trips).not.toContain("data-active");
   });
+
+  it("does not render separate Tìm bạn đồng hành in top navigation", () => {
+    const html = navigation("/");
+    expect(html).not.toContain('href="/trip-companions"');
+    expect(html).not.toContain("Tìm bạn đồng hành");
+  });
 });

@@ -1,0 +1,113 @@
+{
+  "measuredAt": "2026-10-28T11:08:03.238Z",
+  "conditions": "Local production build, Node 24; guest; 3 sequential samples after server warmup; HTTP only, no browser paint or authenticated timing; Development read-only endpoints",
+  "measurements": {
+    "discovery": [
+      {
+        "headersMs": 10,
+        "completeMs": 12
+      },
+      {
+        "headersMs": 5,
+        "completeMs": 6
+      },
+      {
+        "headersMs": 6,
+        "completeMs": 8
+      }
+    ],
+    "introduction": [
+      {
+        "headersMs": 206,
+        "completeMs": 896
+      },
+      {
+        "headersMs": 19,
+        "completeMs": 363
+      },
+      {
+        "headersMs": 12,
+        "completeMs": 311
+      }
+    ],
+    "publicApi": [
+      {
+        "headersMs": 529,
+        "completeMs": 530
+      },
+      {
+        "headersMs": 514,
+        "completeMs": 515
+      },
+      {
+        "headersMs": 560,
+        "completeMs": 561
+      }
+    ],
+    "destinations": [
+      {
+        "headersMs": 110,
+        "completeMs": 110
+      },
+      {
+        "headersMs": 93,
+        "completeMs": 94
+      },
+      {
+        "headersMs": 114,
+        "completeMs": 115
+      }
+    ],
+    "explore": [
+      {
+        "headersMs": 13,
+        "completeMs": 133
+      },
+      {
+        "headersMs": 11,
+        "completeMs": 111
+      },
+      {
+        "headersMs": 8,
+        "completeMs": 112
+      }
+    ]
+  },
+  "privateChecks": [
+    {
+      "action": "group",
+      "status": 401,
+      "noStore": true
+    },
+    {
+      "action": "management",
+      "status": 401,
+      "noStore": true
+    },
+    {
+      "action": "members",
+      "status": 401,
+      "noStore": true
+    },
+    {
+      "action": "messages",
+      "status": 401,
+      "noStore": true
+    },
+    {
+      "action": "messages/delta?after=0",
+      "status": 401,
+      "noStore": true
+    }
+  ],
+  "maps": [
+    {
+      "file": "maplibre-gl-worker.mjs.map",
+      "status": 200
+    },
+    {
+      "file": "maplibre-gl-shared.mjs.map",
+      "status": 200
+    }
+  ]
+}

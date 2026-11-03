@@ -43,6 +43,20 @@ const url = process.env.US19_TASK184_TEST_DATABASE_URL;
     const intent = await createImageIntent(headers, input, key, id, deps, provider); expect(intent.status).toBe("SUCCESS");
     const result = await uploadDestinationImage(headers, bytes, key, id, deps, provider); expect(result.status).toBe("SUCCESS"); return { key, result };
   }
+  it("keeps pre-create caption, order and one cover across reversed completion and exact replay", async () => {
+    const laterKey = randomUUID(), coverKey = randomUUID();
+    expect((await createImageIntent(headers, { ...input, initialSelection: { caption: null, position: 1, isCover: false } }, laterKey, id, deps, provider)).status).toBe("SUCCESS");
+    expect((await createImageIntent(headers, { ...input, initialSelection: { caption: "  Chú thích đã chọn  ", position: 0, isCover: true } }, coverKey, id, deps, provider)).status).toBe("SUCCESS");
+    expect((await uploadDestinationImage(headers, bytes, laterKey, id, deps, provider)).status).toBe("SUCCESS");
+    const result = await uploadDestinationImage(headers, bytes, coverKey, id, deps, provider);
+    expect(result.status).toBe("SUCCESS");
+    if (result.status !== "SUCCESS") throw Error("fixture");
+    expect(result.data.profile!.media.map(media => [media.caption, media.isCover])).toEqual([["Chú thích đã chọn",true],[null,false]]);
+    const before = await db.contentMedia.findMany({where:{destinationId:id},orderBy:{position:"asc"}});
+    expect(before.map(media => [media.position,media.isCover])).toEqual([[0,true],[1,false]]);
+    expect((await uploadDestinationImage(headers, bytes, laterKey, id, deps, provider)).status).toBe("SUCCESS");
+    expect(await db.contentMedia.findMany({where:{destinationId:id},orderBy:{position:"asc"}})).toEqual(before);
+  });
   it("durable intent SQL works; same-key concurrent finalize creates exactly one media/revision", async () => {
     const key = randomUUID(); const intent = await createImageIntent(headers, input, key, id, deps, provider); expect(intent.status).toBe("SUCCESS");
     const before = await db.destination.findUniqueOrThrow({ where: { id } });

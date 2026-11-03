@@ -27,6 +27,24 @@ components:
 
 # Admin RAG design context
 
+## Destination local gallery before Create (2026-10-29)
+
+Owner chose immediate preview/editing of selected images before creating a
+Destination; uploading still follows confirmed HIDDEN creation. Reuse the
+DestinationImages gallery/cards, af tokens, controls and document scrolling.
+The Create picker says `Chọn ảnh`, counts selected photos and labels previews
+`Xem trước · Chưa lưu`. Optional captions, cover, order and removal work locally;
+their selections survive upload and partial-failure retry. Confirmed Edit images
+retain their existing automatic-upload and explicit metadata-save workflow.
+Local object URLs live only with the form/handoff and are revoked on removal or
+unmount. No new theme, persistence owner, legal status or publication rule.
+
+The server binds initial selections to the existing durable image intent and
+applies them atomically on attachment. Existing authenticated API, idempotency,
+two-worker upload and pending-file handoff remain canonical. Production-form
+browser checks, narrow/light/dark screenshots and disposable PostgreSQL checks
+are recorded in the Destination image story; live deployed acceptance is separate.
+
 ## Guided optional planning questions — owner follow-up (2026-10-27)
 
 Owner clarified the screenshot follow-up: ask one optional question per turn, in

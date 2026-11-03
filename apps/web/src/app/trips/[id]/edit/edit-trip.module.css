@@ -1,7 +1,7 @@
 .page, .page * { box-sizing: border-box; }
 .page {
   --edit-green: #24513b; --edit-soft: #e9f4ee; --edit-amber: #79541d; --edit-warning: #f6f2e8;
-  --background: #f7f6f2; --card: #fff; --foreground: #1d2521; --muted: #f4f7f4; --muted-foreground: #66716b; --border: #dde3de; --input: #d5ddd6; --primary: var(--edit-green); --primary-foreground: #fff;
+  --background: #f5f8f6; --card: #fff; --foreground: #1d2521; --muted: #f4f7f4; --muted-foreground: #66716b; --border: #dde3de; --input: #d5ddd6; --primary: var(--edit-green); --primary-foreground: #fff;
   width: 100%; min-width: 0; margin: 0; padding: 20px clamp(16px,5.5vw,80px) 60px; background: var(--background); color: var(--foreground); font-family: var(--font-be-vietnam),sans-serif;
 }
 .content { width: min(100%,1280px); min-width: 0; margin-inline: auto; }

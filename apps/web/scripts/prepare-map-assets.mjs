@@ -6,6 +6,6 @@ const target = new URL("../public/maplibre/", import.meta.url);
 await mkdir(target, { recursive: true });
 // v6's module worker imports a sibling shared module. Next rewrites application
 // chunk paths; serve both official npm assets together from the same origin.
-for (const file of ["maplibre-gl-worker.mjs", "maplibre-gl-shared.mjs"]) {
+for (const file of ["maplibre-gl-worker.mjs", "maplibre-gl-shared.mjs", "maplibre-gl-worker.mjs.map", "maplibre-gl-shared.mjs.map"]) {
   await copyFile(join(dist, file), new URL(file, target));
 }

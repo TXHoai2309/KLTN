@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
 import {
   ArrowLeft,
@@ -22,17 +22,130 @@ import {
   ChevronRight,
   CheckCircle2,
   Pencil,
+  Users,
+  LogOut,
+  LoaderCircle,
 } from "lucide-react";
 
 import { Card } from "@KLTN/ui/components/card";
 import { Empty } from "@KLTN/ui/components/empty";
+import { Button } from "@KLTN/ui/components/button";
+import { toast } from "sonner";
 import type { TripDetail, TripSummary } from "@/modules/trip-read/trip-read-service";
 import type { TripStatus } from "@/modules/trip-read/trip-status";
 import { applyTripChange, type TripChange } from "@/modules/trip-read/trip-management-client";
+import { leaveCompanionTrip } from "@/modules/trip-companions/companion-client";
+import { CompanionDiscoveryView } from "@/components/trip-companions/companion-discovery-view";
 import { TripManagementActions } from "./trip-management-actions";
 import TripFavoriteButton from "./trip-favorite-button";
 import { ItineraryMap } from "@/components/trip-planner/itinerary-map";
 import type { PlannerDay, PlannerStop, TravelLeg } from "@/modules/trip-planner/planner-contract";
+import { getDestinationCoordinates, getDestinationVisual } from "@/lib/destination-visuals";
+
+function MemberLeaveAction({
+  trip,
+  onLeft,
+}: {
+  trip: TripSummary;
+  onLeft: (tripId: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const cancelBtnRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      dialogRef.current?.showModal();
+      cancelBtnRef.current?.focus();
+    } else {
+      dialogRef.current?.close();
+    }
+  }, [open]);
+
+  async function handleConfirmLeave() {
+    if (!trip.publicationId || pending) return;
+    setPending(true);
+    setErrorMsg("");
+
+    const key = crypto.randomUUID();
+    const result = await leaveCompanionTrip(trip.publicationId, key);
+    setPending(false);
+
+    if (result.status === "SUCCESS") {
+      setOpen(false);
+      toast.success("Đã rời chuyến đi đồng hành thành công.");
+      onLeft(trip.id);
+    } else {
+      setErrorMsg(
+        result.status === "UNKNOWN"
+          ? "Kết quả chưa chắc chắn. Vui lòng thử lại."
+          : result.error?.message || "Không thể rời chuyến đi lúc này."
+      );
+    }
+  }
+
+  return (
+    <>
+      <div className="my-trips-management">
+        <Button
+          variant="outline"
+          className="my-trips-leave-button"
+          onClick={() => {
+            setErrorMsg("");
+            setOpen(true);
+          }}
+          disabled={pending}
+        >
+          <LogOut size={14} aria-hidden="true" />
+          <span>Rời chuyến</span>
+        </Button>
+      </div>
+
+      <dialog
+        ref={dialogRef}
+        className="my-trips-dialog"
+        onCancel={(e) => {
+          if (pending) e.preventDefault();
+          else setOpen(false);
+        }}
+      >
+        <h2>Rời chuyến đi đồng hành?</h2>
+        <p className="my-trips-dialog-trip">
+          Chuyến đi {trip.durationDays} ngày · {dateLabel(trip.startDate)} – {dateLabel(trip.endDate)}
+        </p>
+        <p>
+          Bạn sẽ trả lại 1 chỗ cho đoàn {trip.hostName ? `của ${trip.hostName}` : ""} và không còn quyền truy cập nhóm trò chuyện. Chuyến đi sẽ được gỡ khỏi danh sách của bạn.
+        </p>
+        {errorMsg && (
+          <p role="alert" className="my-trips-mutation-feedback">
+            {errorMsg}
+          </p>
+        )}
+        <div className="my-trips-dialog-actions">
+          <Button
+            ref={cancelBtnRef}
+            variant="outline"
+            disabled={pending}
+            onClick={() => setOpen(false)}
+          >
+            Hủy
+          </Button>
+          <Button
+            variant="destructive"
+            disabled={pending}
+            onClick={() => void handleConfirmLeave()}
+            aria-busy={pending}
+          >
+            {pending && <LoaderCircle className="animate-spin" aria-hidden="true" />}
+            {pending ? "Đang rời nhóm…" : "Xác nhận rời chuyến"}
+          </Button>
+        </div>
+      </dialog>
+    </>
+  );
+}
 
 const groups: { status: TripStatus; label: string; desc: string }[] = [
   { status: "UPCOMING", label: "Sắp tới", desc: "Hành trình đã lên lịch và sẵn sàng khởi hành" },
@@ -63,46 +176,47 @@ function getTripHeroImage(durationDays: number, index = 0): string {
   return photos[3];
 }
 
-function getDestinationVisual(name: string, area: string): { src: string; alt: string } {
-  const n = (name || "").toLowerCase();
-  const a = (area || "").toLowerCase();
-  if (n.includes("lũng cú") || n.includes("lung cu") || n.includes("cột cờ")) {
-    return { src: "/images/gallery/ha-giang-day3-lg.webp", alt: "Cột cờ Lũng Cú" };
-  }
-  if (n.includes("quản bạ") || n.includes("quan ba") || n.includes("cổng trời") || n.includes("núi đôi")) {
-    return { src: "/images/gallery/ha-giang-twin-mountain.webp", alt: "Núi đôi Quản Bạ" };
-  }
-  if (n.includes("nho quế") || n.includes("nho que") || n.includes("mã pí lèng") || n.includes("ma pi leng") || n.includes("tu sản")) {
-    return { src: "/images/ha-giang-hero.webp", alt: "Đèo Mã Pí Lèng và sông Nho Quế" };
-  }
-  if (n.includes("hạ thành") || n.includes("ha thanh") || n.includes("nặm đăm") || n.includes("nam dam")) {
-    return { src: "/images/gallery/ha-giang-terraces-mist-huts.webp", alt: "Làng văn hóa du lịch cộng đồng" };
-  }
-  if (n.includes("dinh") || n.includes("vương") || n.includes("vuong") || n.includes("phố cổ") || n.includes("đồng văn")) {
-    return { src: "/images/gallery/ha-giang-stone-village-plum.webp", alt: "Dinh thự họ Vương và kiến trúc cổ" };
-  }
-  if (n.includes("lô lô") || n.includes("lo lo") || n.includes("pả vi") || n.includes("pa vi") || n.includes("mèo vạc") || n.includes("meo vac")) {
-    return { src: "/images/gallery/ha-giang-buckwheat-harvest.webp", alt: "Làng cổ và hoa tam giác mạch" };
-  }
-  if (n.includes("khâu vai") || n.includes("khau vai") || n.includes("chợ tình") || n.includes("tam giác mạch")) {
-    return { src: "/images/gallery/ha-giang-buckwheat-slope.webp", alt: "Chợ phiên và triền hoa Hà Giang" };
-  }
-  if (n.includes("hoàng su phì") || n.includes("ruộng bậc thang") || a.includes("hoàng su phì")) {
-    return { src: "/images/gallery/ha-giang-terraces-golden.webp", alt: "Ruộng bậc thang Hoàng Su Phì" };
-  }
-  return { src: "/images/gallery/ha-giang-stone-village-plum.webp", alt: name || "Điểm đến Hà Giang" };
-}
 
-export function MyTripsView({ items: initialItems }: { items: TripSummary[] }) {
+export function MyTripsView({
+  items: initialItems,
+  isGuest = false,
+  initialTab,
+}: {
+  items: TripSummary[];
+  isGuest?: boolean;
+  initialTab?: string;
+}) {
   const [items, setItems] = useState(initialItems);
   const [announcement, setAnnouncement] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | TripStatus>("ALL");
   const focusGroup = useRef<TripStatus | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const tabParam = searchParams.get("tab") ?? initialTab;
+  const isCompanionScope =
+    tabParam === "companions" ||
+    tabParam === "explore" ||
+    tabParam === "mine" ||
+    tabParam === "joined";
+
+  const [mainTab, setMainTab] = useState<"my-trips" | "companions">(
+    isCompanionScope ? "companions" : "my-trips"
+  );
 
   useEffect(() => {
     setItems(initialItems);
   }, [initialItems]);
+
+  useEffect(() => {
+    const currentTab = searchParams.get("tab");
+    const isComp =
+      currentTab === "companions" ||
+      currentTab === "explore" ||
+      currentTab === "mine" ||
+      currentTab === "joined";
+    setMainTab(isComp ? "companions" : "my-trips");
+  }, [searchParams]);
 
   useEffect(() => {
     if (focusGroup.current) {
@@ -122,6 +236,19 @@ export function MyTripsView({ items: initialItems }: { items: TripSummary[] }) {
     router.refresh();
   }
 
+  function handleSelectMainTab(next: "my-trips" | "companions") {
+    if (next === "my-trips" && isGuest) {
+      router.push("/login?returnTo=%2Ftrips" as Route);
+      return;
+    }
+    setMainTab(next);
+    if (next === "my-trips") {
+      router.replace("/trips" as Route, { scroll: false });
+    } else {
+      router.replace("/trips?tab=companions" as Route, { scroll: false });
+    }
+  }
+
   const counts = useMemo(() => {
     return {
       all: items.length,
@@ -133,258 +260,274 @@ export function MyTripsView({ items: initialItems }: { items: TripSummary[] }) {
 
   return (
     <main className="my-trips-page" lang="vi">
-      {/* Editorial Header */}
-      <div className="my-trips-heading">
-        <div className="my-trips-heading-copy">
-          <p className="my-trips-eyebrow">Hành trình đã lưu</p>
-          <h1>Chuyến đi của tôi</h1>
-          <p>Xem các hành trình đã lưu và tiếp tục chuẩn bị cho chuyến đi.</p>
-        </div>
-
-        <Link className="my-trips-action" href="/trips/new">
-          <Plus size={18} aria-hidden="true" />
-          <span>Tạo chuyến đi</span>
-        </Link>
+      {/* Top 2-Level Main Tabs: Hành trình của tôi vs Tìm bạn đồng hành */}
+      <div className="my-trips-segmented-nav" role="tablist" aria-label="Phân loại quản lý chuyến đi">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mainTab === "my-trips"}
+          className={`my-trips-tab-button ${mainTab === "my-trips" ? "is-active" : ""}`}
+          onClick={() => handleSelectMainTab("my-trips")}
+        >
+          <CalendarDays size={18} aria-hidden="true" />
+          <span>Hành trình của tôi</span>
+          {items.length > 0 && <span className="my-trips-tab-count">{items.length}</span>}
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mainTab === "companions"}
+          className={`my-trips-tab-button ${mainTab === "companions" ? "is-active" : ""}`}
+          onClick={() => handleSelectMainTab("companions")}
+        >
+          <Users size={18} aria-hidden="true" />
+          <span>Tìm bạn đồng hành</span>
+        </button>
       </div>
 
-      <p className="sr-only" role="status" aria-live="polite">
-        {announcement}
-      </p>
-
-      {/* Interactive Status Filter Tabs */}
-      {items.length > 0 && (
-        <div className="my-trips-filter-bar" role="tablist" aria-label="Lọc trạng thái chuyến đi">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={statusFilter === "ALL"}
-            className={`my-trips-filter-pill ${statusFilter === "ALL" ? "is-active" : ""}`}
-            onClick={() => setStatusFilter("ALL")}
-          >
-            <span>Tất cả hành trình</span>
-            <span className="my-trips-filter-count">{counts.all}</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={statusFilter === "UPCOMING"}
-            className={`my-trips-filter-pill ${statusFilter === "UPCOMING" ? "is-active" : ""}`}
-            onClick={() => setStatusFilter("UPCOMING")}
-          >
-            <span>Sắp tới</span>
-            <span className="my-trips-filter-count">{counts.upcoming}</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={statusFilter === "ONGOING"}
-            className={`my-trips-filter-pill ${statusFilter === "ONGOING" ? "is-active" : ""}`}
-            onClick={() => setStatusFilter("ONGOING")}
-          >
-            <span>Đang diễn ra</span>
-            <span className="my-trips-filter-count">{counts.ongoing}</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={statusFilter === "COMPLETED"}
-            className={`my-trips-filter-pill ${statusFilter === "COMPLETED" ? "is-active" : ""}`}
-            onClick={() => setStatusFilter("COMPLETED")}
-          >
-            <span>Đã hoàn thành</span>
-            <span className="my-trips-filter-count">{counts.completed}</span>
-          </button>
+      {mainTab === "companions" ? (
+        <div className="my-trips-companions-section">
+          <CompanionDiscoveryView
+            initialTab={
+              tabParam === "mine"
+                ? "mine"
+                : tabParam === "joined"
+                ? "joined"
+                : "explore"
+            }
+          />
         </div>
-      )}
-
-      {items.length === 0 ? (
-        <Empty className="my-trips-state" role="status">
-          <div className="my-trips-state-illustration" aria-hidden="true">
-            <Mountain size={44} />
-          </div>
-          <h2>Bạn chưa có chuyến đi nào.</h2>
-          <p>Khi bạn xác nhận và lưu một hành trình, chuyến đi sẽ xuất hiện ở đây.</p>
-          <Link className="my-trips-action" href="/trips/new">
-            <Plus size={18} aria-hidden="true" />
-            <span>Tạo chuyến đi đầu tiên</span>
-          </Link>
-        </Empty>
       ) : (
-        groups.map((group) => {
-          const trips = items.filter((item) => item.status === group.status);
-          const isHiddenByFilter = statusFilter !== "ALL" && statusFilter !== group.status;
+        <>
+          {/* Editorial Header */}
+          <div className="my-trips-heading">
+            <div className="my-trips-heading-copy">
+              <p className="my-trips-eyebrow">Hành trình đã lưu</p>
+              <h1>Chuyến đi của tôi</h1>
+              <p>Xem các hành trình đã lưu và tiếp tục chuẩn bị cho chuyến đi.</p>
+            </div>
 
-          return (
-            <section
-              className={`my-trips-group ${isHiddenByFilter ? "my-trips-group-filtered-out" : ""}`}
-              key={group.status}
-              aria-labelledby={`trips-${group.status}`}
-            >
-              <div className="my-trips-group-heading">
-                <div className="my-trips-group-title-wrap">
-                  <h2 id={`trips-${group.status}`} tabIndex={-1}>
-                    {group.label}
-                  </h2>
-                  <span className="my-trips-group-badge">{trips.length}</span>
-                </div>
+            <Link className="my-trips-action" href="/trips/new">
+              <Plus size={18} aria-hidden="true" />
+              <span>Tạo chuyến đi</span>
+            </Link>
+          </div>
+
+          <p className="sr-only" role="status" aria-live="polite">
+            {announcement}
+          </p>
+
+          {/* Interactive Status Filter Tabs */}
+          {items.length > 0 && (
+            <div className="my-trips-filter-bar" role="tablist" aria-label="Lọc trạng thái chuyến đi">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={statusFilter === "ALL"}
+                className={`my-trips-filter-pill ${statusFilter === "ALL" ? "is-active" : ""}`}
+                onClick={() => setStatusFilter("ALL")}
+              >
+                <span>Tất cả hành trình</span>
+                <span className="my-trips-filter-count">{counts.all}</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={statusFilter === "UPCOMING"}
+                className={`my-trips-filter-pill ${statusFilter === "UPCOMING" ? "is-active" : ""}`}
+                onClick={() => setStatusFilter("UPCOMING")}
+              >
+                <span>Sắp tới</span>
+                <span className="my-trips-filter-count">{counts.upcoming}</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={statusFilter === "ONGOING"}
+                className={`my-trips-filter-pill ${statusFilter === "ONGOING" ? "is-active" : ""}`}
+                onClick={() => setStatusFilter("ONGOING")}
+              >
+                <span>Đang diễn ra</span>
+                <span className="my-trips-filter-count">{counts.ongoing}</span>
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={statusFilter === "COMPLETED"}
+                className={`my-trips-filter-pill ${statusFilter === "COMPLETED" ? "is-active" : ""}`}
+                onClick={() => setStatusFilter("COMPLETED")}
+              >
+                <span>Đã hoàn thành</span>
+                <span className="my-trips-filter-count">{counts.completed}</span>
+              </button>
+            </div>
+          )}
+
+          {items.length === 0 ? (
+            <Empty className="my-trips-state" role="status">
+              <div className="my-trips-state-illustration" aria-hidden="true">
+                <Mountain size={44} />
               </div>
+              <h2>Bạn chưa có chuyến đi nào.</h2>
+              <p>Khi bạn xác nhận và lưu một hành trình hoặc tham gia nhóm đồng hành, chuyến đi sẽ xuất hiện ở đây.</p>
+              <Link className="my-trips-action" href="/trips/new">
+                <Plus size={18} aria-hidden="true" />
+                <span>Tạo chuyến đi đầu tiên</span>
+              </Link>
+            </Empty>
+          ) : (
+            groups.map((group) => {
+              const trips = items.filter((item) => item.status === group.status);
+              const isHiddenByFilter = statusFilter !== "ALL" && statusFilter !== group.status;
 
-              {trips.length === 0 ? (
-                <div className="my-trips-group-empty">
-                  <div className="my-trips-group-empty-icon" aria-hidden="true">
-                    <Compass size={22} />
+              return (
+                <section
+                  className={`my-trips-group ${isHiddenByFilter ? "my-trips-group-filtered-out" : ""}`}
+                  key={group.status}
+                  aria-labelledby={`trips-${group.status}`}
+                >
+                  <div className="my-trips-group-heading">
+                    <div className="my-trips-group-title-wrap">
+                      <h2 id={`trips-${group.status}`} tabIndex={-1}>
+                        {group.label}
+                      </h2>
+                      <span className="my-trips-group-badge">{trips.length}</span>
+                    </div>
                   </div>
-                  <p>Chưa có chuyến đi trong nhóm này.</p>
-                </div>
-              ) : (
-                <ul className="my-trips-list">
-                  {trips.map((trip, tripIndex) => (
-                    <li key={trip.id}>
-                      <Card className={`my-trips-card my-trips-card-${trip.status.toLowerCase()}`}>
-                        {/* Thumbnail on Left */}
-                        <div className="my-trips-card-thumb" aria-hidden="true">
-                          <img
-                            src={getTripHeroImage(trip.durationDays, tripIndex)}
-                            alt={`Chuyến đi ${trip.durationDays} ngày`}
-                            className="my-trips-thumb-img"
-                            loading="lazy"
-                          />
-                          <div className="my-trips-thumb-overlay" />
-                          <span className="my-trips-thumb-tag">
-                            <CarFront size={12} className="inline mr-1" aria-hidden="true" />
-                            {transportLabel(trip.transport)}
-                          </span>
-                          <span className="my-trips-thumb-days">
-                            {trip.durationDays} ngày
-                          </span>
-                        </div>
 
-                        {/* Main Content Center */}
-                        <div className="my-trips-card-main">
-                          <div className="my-trips-card-actions">
-                            <div className="my-trips-status-pill-group">
-                              <span className={`my-trips-badge my-trips-badge-${trip.status.toLowerCase()}`}>
-                                <span className="my-trips-badge-dot" aria-hidden="true" />
-                                {group.label}
+                  {trips.length === 0 ? (
+                    <div className="my-trips-group-empty">
+                      <div className="my-trips-group-empty-icon" aria-hidden="true">
+                        <Compass size={22} />
+                      </div>
+                      <p>Chưa có chuyến đi trong nhóm này.</p>
+                    </div>
+                  ) : (
+                    <ul className="my-trips-list">
+                      {trips.map((trip, tripIndex) => (
+                        <li key={trip.id}>
+                          <Card className={`my-trips-card my-trips-card-${trip.status.toLowerCase()}`}>
+                            {/* Thumbnail on Left */}
+                            <div className="my-trips-card-thumb" aria-hidden="true">
+                              <img
+                                src={getTripHeroImage(trip.durationDays, tripIndex)}
+                                alt={`Chuyến đi ${trip.durationDays} ngày`}
+                                className="my-trips-thumb-img"
+                                loading="lazy"
+                              />
+                              <div className="my-trips-thumb-overlay" />
+                              <span className="my-trips-thumb-tag">
+                                <CarFront size={12} className="inline mr-1" aria-hidden="true" />
+                                {transportLabel(trip.transport)}
+                              </span>
+                              <span className="my-trips-thumb-days">
+                                {trip.durationDays} ngày
                               </span>
                             </div>
-                            <TripFavoriteButton tripId={trip.id} isFavorite={trip.isFavorite} />
-                          </div>
 
-                          <h3 className="my-trips-card-title">
-                            Chuyến đi {trip.durationDays} ngày
-                          </h3>
+                            {/* Main Content Center */}
+                            <div className="my-trips-card-main">
+                              <div className="my-trips-card-actions">
+                                <div className="my-trips-status-pill-group">
+                                  <span className={`my-trips-badge my-trips-badge-${trip.status.toLowerCase()}`}>
+                                    <span className="my-trips-badge-dot" aria-hidden="true" />
+                                    {group.label}
+                                  </span>
+                                  {trip.role === "MEMBER" && (
+                                    <span className="my-trips-role-badge">
+                                      <Users size={12} aria-hidden="true" />
+                                      <span>Thành viên đồng hành</span>
+                                    </span>
+                                  )}
+                                </div>
+                                <TripFavoriteButton tripId={trip.id} isFavorite={trip.isFavorite} />
+                              </div>
 
-                          <p className="my-trips-completion-note">
-                            {trip.manuallyCompletedAt
-                              ? "Bạn đã đánh dấu hoàn thành thủ công."
-                              : trip.status === "COMPLETED"
-                              ? "Đã hoàn thành theo ngày kế hoạch; chưa đánh dấu thủ công."
-                              : "Trạng thái theo ngày kế hoạch."}
-                          </p>
+                              <h3 className="my-trips-card-title">
+                                {trip.companionTitle || `Chuyến đi ${trip.durationDays} ngày`}
+                              </h3>
 
-                          <div className="my-trips-meta" aria-label="Thông tin chuyến đi">
-                            <span className="my-trips-meta-chip">
-                              <CalendarDays size={14} aria-hidden="true" />
-                              {dateLabel(trip.startDate)} – {dateLabel(trip.endDate)}
-                            </span>
-                            <span className="my-trips-meta-chip">
-                              <Clock3 size={14} aria-hidden="true" />
-                              {trip.durationDays} ngày
-                            </span>
-                            <span className="my-trips-meta-chip">
-                              <CarFront size={14} aria-hidden="true" />
-                              {transportLabel(trip.transport)}
-                            </span>
-                            <span className="my-trips-meta-chip">
-                              <MapPin size={14} aria-hidden="true" />
-                              {visitLabel(trip.visitCount)}
-                            </span>
-                          </div>
-                        </div>
+                              <p className="my-trips-completion-note">
+                                {trip.role === "MEMBER"
+                                  ? `Tham gia cùng ${trip.hostName || "chủ chuyến"} · Trạng thái theo lịch trình đoàn`
+                                  : trip.manuallyCompletedAt
+                                  ? "Bạn đã đánh dấu hoàn thành thủ công."
+                                  : trip.status === "COMPLETED"
+                                  ? "Đã hoàn thành theo ngày kế hoạch; chưa đánh dấu thủ công."
+                                  : "Trạng thái theo ngày kế hoạch."}
+                              </p>
 
-                        {/* Controls Right */}
-                        <div className="my-trips-card-controls">
-                          <Link
-                            className="my-trips-open"
-                            prefetch={false}
-                            href={`/trips/${trip.id}` as Route}
-                            aria-label={`Mở chuyến đi từ ${dateLabel(trip.startDate)}`}
-                          >
-                            <span>Xem chi tiết</span>
-                            <ArrowRight size={15} aria-hidden="true" />
-                          </Link>
-                          <TripManagementActions trip={trip} onConfirmed={confirmed} />
-                        </div>
-                      </Card>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          );
-        })
+                              <div className="my-trips-meta" aria-label="Thông tin chuyến đi">
+                                <span className="my-trips-meta-chip">
+                                  <CalendarDays size={14} aria-hidden="true" />
+                                  {dateLabel(trip.startDate)} – {dateLabel(trip.endDate)}
+                                </span>
+                                <span className="my-trips-meta-chip">
+                                  <Clock3 size={14} aria-hidden="true" />
+                                  {trip.durationDays} ngày
+                                </span>
+                                <span className="my-trips-meta-chip">
+                                  <CarFront size={14} aria-hidden="true" />
+                                  {transportLabel(trip.transport)}
+                                </span>
+                                <span className="my-trips-meta-chip">
+                                  <MapPin size={14} aria-hidden="true" />
+                                  {visitLabel(trip.visitCount)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Controls Right */}
+                            <div className="my-trips-card-controls">
+                              {trip.role === "MEMBER" && trip.publicationId ? (
+                                <>
+                                  <Link
+                                    className="my-trips-open is-member-open"
+                                    prefetch={false}
+                                    href={`/trip-companions/${trip.publicationId}/group` as Route}
+                                    aria-label={`Vào nhóm đồng hành cho chuyến ${dateLabel(trip.startDate)}`}
+                                  >
+                                    <Users size={15} aria-hidden="true" />
+                                    <span>Vào nhóm đồng hành</span>
+                                  </Link>
+                                  <MemberLeaveAction
+                                    trip={trip}
+                                    onLeft={(tripId) => {
+                                      setItems((current) => current.filter((item) => item.id !== tripId));
+                                      router.refresh();
+                                    }}
+                                  />
+                                </>
+                              ) : (
+                                <>
+                                  <Link
+                                    className="my-trips-open"
+                                    prefetch={false}
+                                    href={`/trips/${trip.id}` as Route}
+                                    aria-label={`Mở chuyến đi từ ${dateLabel(trip.startDate)}`}
+                                  >
+                                    <span>Xem chi tiết</span>
+                                    <ArrowRight size={15} aria-hidden="true" />
+                                  </Link>
+                                  <TripManagementActions trip={trip} onConfirmed={confirmed} />
+                                </>
+                              )}
+                            </div>
+                          </Card>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              );
+            })
+          )}
+        </>
       )}
     </main>
   );
 }
 
-const KNOWN_COORDINATES: Record<string, { latitude: number; longitude: number }> = {
-  "cổng trời quản bạ": { latitude: 23.0645, longitude: 104.9928 },
-  "quản bạ": { latitude: 23.0645, longitude: 104.9928 },
-  "núi đôi": { latitude: 23.0645, longitude: 104.9928 },
-  "nhà vương": { latitude: 23.2612, longitude: 105.2536 },
-  "dinh họ vương": { latitude: 23.2612, longitude: 105.2536 },
-  "dinh vương": { latitude: 23.2612, longitude: 105.2536 },
-  "cột cờ lũng cú": { latitude: 23.3615, longitude: 105.3195 },
-  "lũng cú": { latitude: 23.3615, longitude: 105.3195 },
-  "phố cổ đồng văn": { latitude: 23.2785, longitude: 105.3621 },
-  "đồng văn": { latitude: 23.2785, longitude: 105.3621 },
-  "đèo mã pí lèng": { latitude: 23.2389, longitude: 105.4194 },
-  "mã pí lèng": { latitude: 23.2389, longitude: 105.4194 },
-  "hẻm tu sản": { latitude: 23.2195, longitude: 105.429 },
-  "sông nho quế": { latitude: 23.2195, longitude: 105.429 },
-  "tu sản": { latitude: 23.2195, longitude: 105.429 },
-  "mèo vạc": { latitude: 23.1633, longitude: 105.4106 },
-  "yên minh": { latitude: 23.1167, longitude: 105.15 },
-  "du già": { latitude: 22.95, longitude: 105.2 },
-  "bắc mê": { latitude: 22.75, longitude: 105.3 },
-  "bảo lâm": { latitude: 22.9167, longitude: 105.5 },
-  "hà giang": { latitude: 22.8233, longitude: 104.9839 },
-  "lùng tám": { latitude: 23.05, longitude: 105.03 },
-  "thẩm mã": { latitude: 23.185, longitude: 105.185 },
-  "hạ thành": { latitude: 22.81, longitude: 104.96 },
-  "nặm đăm": { latitude: 23.045, longitude: 104.98 },
-  "pả vi": { latitude: 23.17, longitude: 105.42 },
-  "lô lô chải": { latitude: 23.36, longitude: 105.315 },
-  "hoàng su phì": { latitude: 22.7, longitude: 104.6667 },
-};
-
-function getDestinationCoordinates(
-  name: string,
-  area: string,
-  lat?: number,
-  lng?: number,
-  index = 0
-): { latitude: number; longitude: number } {
-  if (typeof lat === "number" && typeof lng === "number" && !isNaN(lat) && !isNaN(lng)) {
-    return { latitude: lat, longitude: lng };
-  }
-  const n = (name || "").toLowerCase();
-  const a = (area || "").toLowerCase();
-  for (const [key, coords] of Object.entries(KNOWN_COORDINATES)) {
-    if (n.includes(key) || a.includes(key)) return coords;
-  }
-  const fallbacks = [
-    { latitude: 23.0645, longitude: 104.9928 },
-    { latitude: 23.2612, longitude: 105.2536 },
-    { latitude: 23.3615, longitude: 105.3195 },
-    { latitude: 23.2785, longitude: 105.3621 },
-    { latitude: 23.2389, longitude: 105.4194 },
-    { latitude: 23.2195, longitude: 105.429 },
-  ];
-  return fallbacks[index % fallbacks.length]!;
-}
 
 function tripDetailToPlannerDays(trip: TripDetail): PlannerDay[] {
   let globalIndex = 0;
@@ -534,11 +677,19 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
           <div className="my-trips-hero-header-row">
             <div className="my-trips-hero-title-group">
               <div className="my-trips-hero-badge-row">
-                <p className="my-trips-eyebrow">Hành trình đã lưu</p>
+                <p className="my-trips-eyebrow">
+                  {trip.role === "MEMBER" ? "Chuyến đi tham gia" : "Hành trình đã lưu"}
+                </p>
                 <span className={`my-trips-badge my-trips-badge-${trip.status.toLowerCase()}`}>
                   <span className="my-trips-badge-dot" aria-hidden="true" />
                   {statusLabel}
                 </span>
+                {trip.role === "MEMBER" && (
+                  <span className="my-trips-role-badge">
+                    <Users size={12} aria-hidden="true" />
+                    <span>Thành viên đoàn {trip.hostName ? `của ${trip.hostName}` : ""}</span>
+                  </span>
+                )}
               </div>
               <h1 id="trip-detail-title">Chuyến đi {trip.durationDays} ngày</h1>
             </div>
@@ -546,19 +697,43 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
             <div className="my-trips-detail-actions">
               <TripFavoriteButton tripId={trip.id} isFavorite={trip.isFavorite} />
 
-              <Link className="my-trips-action my-trips-edit-action" href={`/trips/${trip.id}/edit` as Route}>
-                <Pencil size={15} aria-hidden="true" />
-                <span>Chỉnh sửa hành trình</span>
-              </Link>
+              {trip.role === "MEMBER" ? (
+                trip.publicationId && (
+                  <Link
+                    className="my-trips-action is-member-open"
+                    href={`/trip-companions/${trip.publicationId}/group` as Route}
+                  >
+                    <Users size={15} aria-hidden="true" />
+                    <span>Vào nhóm đồng hành & trò chuyện</span>
+                  </Link>
+                )
+              ) : (
+                <>
+                  <Link className="my-trips-action my-trips-edit-action" href={`/trips/${trip.id}/edit` as Route}>
+                    <Pencil size={15} aria-hidden="true" />
+                    <span>Chỉnh sửa hành trình</span>
+                  </Link>
 
-              {trip.status !== "COMPLETED" && (
-                <Link
-                  className="my-trips-action my-trips-in-trip-btn"
-                  href={`/trips/${trip.id}/in-trip` as Route}
-                >
-                  <Sparkles size={16} aria-hidden="true" />
-                  <span>Trợ lý trong chuyến đi</span>
-                </Link>
+                  {trip.status !== "COMPLETED" && (
+                    <>
+                      <Link
+                        className="my-trips-action my-trips-companion-action"
+                        href={`/trips/${trip.id}/publication` as Route}
+                      >
+                        <Users size={15} aria-hidden="true" />
+                        <span>Tìm bạn đồng hành</span>
+                      </Link>
+
+                      <Link
+                        className="my-trips-action my-trips-in-trip-btn"
+                        href={`/trips/${trip.id}/in-trip` as Route}
+                      >
+                        <Sparkles size={16} aria-hidden="true" />
+                        <span>Trợ lý trong chuyến đi</span>
+                      </Link>
+                    </>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -886,10 +1061,16 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
           </Link>
 
           {trip.status !== "COMPLETED" && (
-            <Link className="my-trips-secondary-action" href={`/trips/${trip.id}/in-trip` as Route}>
-              <Sparkles size={16} aria-hidden="true" />
-              <span>Mở Trợ lý trong chuyến đi</span>
-            </Link>
+            <>
+              <Link className="my-trips-secondary-action" href={`/trips/${trip.id}/publication` as Route}>
+                <Users size={16} aria-hidden="true" />
+                <span>Tìm bạn đồng hành</span>
+              </Link>
+              <Link className="my-trips-secondary-action" href={`/trips/${trip.id}/in-trip` as Route}>
+                <Sparkles size={16} aria-hidden="true" />
+                <span>Mở Trợ lý trong chuyến đi</span>
+              </Link>
+            </>
           )}
         </nav>
       </footer>

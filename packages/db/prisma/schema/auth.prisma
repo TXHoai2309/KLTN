@@ -31,6 +31,9 @@ model User {
   accounts      Account[]
   favorites     Favorite[]
   trips         Trip[]
+  companionMemberships TripCompanionMembership[]
+  companionMessages TripCompanionMessage[]
+  companionReadMarkers TripCompanionReadMarker[]
   planningWorkspaces AssistantPlanningWorkspace[]
   assistantV2Sessions AssistantV2SessionHead[]
   auditEvents   AdminAuditEvent[] @relation("TargetUser")

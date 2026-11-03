@@ -19,6 +19,7 @@ function fixture() {
    const pendingTrips = structuredClone(trips), pendingFavorites = structuredClone(favorites), pendingRecords = structuredClone(records);
    const matches = (r: any, where: any) => r.id === where.id && r.userId === where.userId;
    const tx = {
+    $queryRaw: async () => [],
     user: database.user,
     idempotencyRecord: { create: async ({ data }: any) => pendingRecords.push(data), update: async ({ where, data }: any) => Object.assign(pendingRecords.find(r => r.scope === where.scope_key.scope && r.key === where.scope_key.key), data) },
     trip: {

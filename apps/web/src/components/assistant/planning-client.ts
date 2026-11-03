@@ -3,7 +3,7 @@ import { createIdempotencyKey } from "../../lib/mutation-client";
 import { EMPTY_PLANNING_NEEDS, planningAnalysisSchema, planningGeneratedSchema, planningWorkspaceSchema, type PlanningAnalysis, type PlanningGenerated, type PlanningNeeds, type PlanningRequest, type PlanningWorkspace, type PlanningEdit, type PlanningDialogueContext, type PlanningCheckpoint } from "../../modules/assistant-planning/planning-contract";
 import { currentPlanningPreference, explicitlySkipsPreferences, skipPlanningPreference } from "../../modules/assistant-planning/planning-preferences";
 import type { QaContext } from "../../modules/ai/qa-contract";
-import { choiceIndex, editNeeds, explicitlyDefersPlanningDate, needsRecap, nextNeedsPrompt, normalizePlanningReply, otherDayTimingChanges, planningReply, proposalReply, selectionNames, type PlanningPrompt } from "../../modules/assistant-planning/planning-dialogue";
+import { asksToDisplayPlanning, choiceIndex, editNeeds, explicitlyDefersPlanningDate, needsRecap, nextNeedsPrompt, normalizePlanningReply, otherDayTimingChanges, planningConfirmationTarget, planningReply, proposalReply, selectionNames, type PlanningPrompt } from "../../modules/assistant-planning/planning-dialogue";
 
 export class PlanningClientError extends Error { constructor(message: string, readonly status: number, readonly code: string) { super(message); } }
 export async function planningFetch(body: string, key: string, fetcher: typeof fetch = fetch): Promise<unknown> {
@@ -14,7 +14,7 @@ export async function planningFetch(body: string, key: string, fetcher: typeof f
 }
 type SaveResult = { status: string; data?: { tripId: string }; error?: { message?: string } };
 const saveSchema = z.object({ save: z.discriminatedUnion("status", [z.object({ status: z.literal("SUCCESS"), data: z.object({ tripId: z.string().min(1) }) }), z.object({ status: z.literal("FAILED"), error: z.object({ message: z.string() }) }), z.object({ status: z.literal("UNKNOWN") })]) });
-export type PlanningMessage = { id?: string; question: string; reply: string; at?: number; afterQaTurnId?: string | null; proposal?: PlanningGenerated };
+export type PlanningMessage = { id?: string; question: string; reply: string; at?: number; afterQaTurnId?: string | null; proposal?: PlanningGenerated; proposalReadOnly?: boolean };
 export type PlanningClientState = {
   active: boolean; workspace: PlanningWorkspace | null; draft: PlanningNeeds; generated: PlanningGenerated | null;
   unresolved: PlanningAnalysis["unresolved"]; busy: boolean; message: string; error: string | null;
@@ -43,9 +43,9 @@ export class PlanningClient {
   getSnapshot = () => this.state;
   subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener); }; };
   private patch(update: Partial<PlanningClientState>) { this.state = { ...this.state, ...update }; this.listeners.forEach(l => l()); }
-  private say(question: string, reply: string, prompt: PlanningPrompt | null = null, proposal?: PlanningGenerated) {
+  private say(question: string, reply: string, prompt: PlanningPrompt | null = null, proposal?: PlanningGenerated, proposalReadOnly = false) {
     const last = this.state.messages.at(-1);
-    const snapshot = proposal ? { proposal: structuredClone(proposal) } : {};
+    const snapshot = proposal ? { proposal: structuredClone(proposal), ...(proposalReadOnly ? { proposalReadOnly: true } : {}) } : {};
     const messages = last?.reply === "" ? [...this.state.messages.slice(0, -1), { ...last, reply, ...snapshot }] : [...this.state.messages, { id: createIdempotencyKey(), question, reply, at: Date.now(), afterQaTurnId: this.qaBoundary, ...snapshot }];
     this.dialogueDirty = true;
     this.patch({ message: reply, prompt, interrupted: false, messages });
@@ -200,12 +200,31 @@ export class PlanningClient {
     this.patch({ draft, generated: null, editingFrom: this.state.generated ?? this.state.editingFrom, unresolved: this.state.unresolved.filter((_, i) => i !== index) });
     this.advance(id ? `Chọn ${draft.destinationNames[id]}` : "Bỏ yêu cầu điểm này");
   }
-  async analyze(text: string, interpretedReply?: "CONFIRM" | "CANCEL"): Promise<"QA" | "HANDLED"> { return this.withDialogue(() => this.analyzeTurn(text, interpretedReply)); }
-  private async analyzeTurn(text: string, interpretedReply?: "CONFIRM" | "CANCEL"): Promise<"QA" | "HANDLED"> {
+  async analyze(text: string, interpretedReply?: "CONFIRM" | "CANCEL" | "CREATE" | "SAVE"): Promise<"QA" | "HANDLED"> { return this.withDialogue(() => this.analyzeTurn(text, interpretedReply)); }
+  private showItinerary(text: string) {
+    const current = this.state.generated;
+    if (current) {
+      this.say(text, this.state.savedTripId ? "Đây là lịch trình chuyến đi đã lưu của bạn nhé. Bạn có thể mở chuyến đi để xem chi tiết." : "Đây là lịch trình hiện tại của bạn nhé. Bản này chưa lưu; bạn có thể xem lại hoặc nhắn mình phần muốn chỉnh.", this.state.prompt, current, true);
+    } else if (this.state.savedTripId) {
+      this.say(text, "Chuyến này đã được lưu rồi nhé. Bạn bấm Mở chuyến đi bên dưới để xem đầy đủ lịch trình.", this.state.prompt);
+    } else if (this.state.editingFrom) {
+      this.say(text, "Đây là phương án trước để bạn đối chiếu. Thay đổi đang chờ chưa được áp dụng; mình vẫn cần kiểm tra lại trước khi lưu nhé.", this.state.prompt, this.state.editingFrom, true);
+    } else {
+      this.advance(text);
+    }
+  }
+  private async analyzeTurn(text: string, interpretedReply?: "CONFIRM" | "CANCEL" | "CREATE" | "SAVE"): Promise<"QA" | "HANDLED"> {
     if (!this.state.workspace || this.state.busy || this.state.uncertain) return "HANDLED";
     this.queueQuestion(text);
     const prompt = this.state.prompt;
-    const reply = interpretedReply ?? planningReply(text);
+    const target = interpretedReply === "CREATE" || interpretedReply === "SAVE" ? interpretedReply : planningConfirmationTarget(text);
+    const reply = target ? "CONFIRM" : interpretedReply ?? planningReply(text);
+    if (asksToDisplayPlanning(text)) { this.showItinerary(text); return "HANDLED"; }
+    if (target === "CREATE" && (this.state.generated || this.state.savedTripId)) { this.showItinerary(text); return "HANDLED"; }
+    if (target === "SAVE" && prompt?.kind !== "SAVE") {
+      this.say(text, this.state.savedTripId ? "Chuyến này đã lưu rồi nhé. Bạn có thể mở chuyến đi bên dưới." : "Mình cần hoàn thành và kiểm tra lịch trình trước khi lưu. Bạn xem câu hỏi đang chờ bên trên nhé.", prompt);
+      return "HANDLED";
+    }
     if (!this.state.savedTripId) {
       if (reply === "CANCEL") {
         if (prompt?.kind === "NEED" && prompt.field === "preferences" && /^(khong|khong nhe)$/.test(normalizePlanningReply(text))) {
@@ -243,7 +262,7 @@ export class PlanningClient {
       }
       if (reply === "CONFIRM") {
         if (this.state.draft.requirement.startDate && this.state.workspace.today && this.state.draft.requirement.startDate < this.state.workspace.today && prompt?.kind !== "DATE_CHANGE") { this.advance(text); return "HANDLED"; }
-        if (this.state.interrupted || !prompt || prompt.kind === "NEED" || prompt.kind === "OPTIONS") {
+        if ((this.state.interrupted && !(target === "CREATE" && (prompt?.kind === "RECAP" || prompt?.kind === "REGENERATE") || target === "SAVE" && prompt?.kind === "SAVE")) || !prompt || prompt.kind === "NEED" || prompt.kind === "OPTIONS") {
           this.say(text, prompt?.kind === "OPTIONS" ? "Bạn muốn chọn phương án số mấy?" : prompt && this.state.interrupted ? `Bạn muốn xác nhận thao tác trước đó đúng không?\n${this.state.message}` : "Bạn muốn mình tạo hành trình, chỉnh điểm nào hay lưu chuyến đi?", prompt); return "HANDLED";
         }
         if ((prompt.kind === "SAVE" || prompt.kind === "CHANGE" || prompt.kind === "APPLY_CHANGE") && prompt.version !== this.state.workspace.version) { this.say(text, "Hành trình đã đổi. Mình cần kiểm tra và gợi ý lại trước khi áp dụng lựa chọn cũ."); return "HANDLED"; }
@@ -261,12 +280,13 @@ export class PlanningClient {
       }
     }
     let qa = false;
-    let semanticReply: "CONFIRM" | "CANCEL" | undefined;
+    let semanticReply: "CONFIRM" | "CANCEL" | "CREATE" | "SAVE" | undefined;
     await this.task(async () => {
       const w = this.state.workspace!;
       const rejectedReview = this.editBase?.discardRejected;
       const inputDraft = rejectedReview ? this.editBase!.needs : this.state.draft;
       const analysis = planningAnalysisSchema.parse(await this.run({ action: "ANALYZE", conversationId: w.conversationId, version: w.version, text, draft: inputDraft, unresolved: this.state.unresolved, dialogue: { question: this.state.message.slice(0, 4000), field: prompt?.kind === "NEED" ? prompt.field : null, ...(prompt?.kind === "NEED" && prompt.field === "preferences" ? { preferenceField: currentPlanningPreference(inputDraft) } : {}), recent: this.state.messages.filter(m => m.reply).slice(-8).map(({ question, reply }) => ({ question: question.slice(0, 1000), reply: reply.slice(0, 4000) })), publicTurns: this.publicTurns, current: (this.state.generated ?? this.state.editingFrom)?.selection ?? null } }));
+      if (analysis.intent === "DISPLAY") { this.showItinerary(text); return; }
       if (analysis.intent === "QA") { qa = true; this.patch({ interrupted: true, messages: this.state.messages.slice(0, -1) }); return; }
       if (this.state.savedTripId) {
         this.patch({ error: "Chuyến này đã lưu. Mở chuyến đi để chỉnh sửa, hoặc chọn Lập chuyến khác." });

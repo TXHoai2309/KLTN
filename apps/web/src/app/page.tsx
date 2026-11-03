@@ -22,17 +22,19 @@ import HomeScrollReveal from "@/components/home-scroll-reveal";
 import { BrandLogo } from "@/components/brand-logo";
 import { db } from "@/services";
 import { listPublicHomeDestinations } from "@/modules/destination/public-home-destinations";
-import HomeTerrainMap from "@/components/home-terrain-map";
+import HomeExploreMap, { HomeExploreMapLoading } from "@/components/home-explore-map";
 import HomeHeroVideo from "@/components/home-hero-video";
-import HomePlannerStory from "@/components/home-planner-story";
 import HomeHeroMetrics from "@/components/home-hero-metrics";
 import HomeGallery from "@/components/home-gallery";
 import HomeSeasonBanner from "@/components/home-season-banner";
-import HomeAssistantSimulation from "@/components/home-assistant-simulation";
+import { HomeAssistantSection, HomeItinerarySection } from "@/components/home-sections";
+import { HomeFaqSection, HomeRoutesSection } from "@/components/home-extra-sections";
 import HomeBackToTop from "@/components/home-back-to-top";
 import { ProtectedLink } from "@/components/protected-link";
 import "./home.css";
 import "@/components/home-polish.css";
+import "@/components/home-wow.css";
+import "@/components/home-sections.css";
 
 export const metadata: Metadata = {
   title: "Hà Giang Travel Assistant | Khám phá Hà Giang theo cách của bạn",
@@ -122,7 +124,47 @@ export default async function Home() {
             </li>
           </ul>
         </div>
+
+        <aside className="home-hero-floats" aria-label="Gợi ý nổi bật">
+          <Link href="/explore" className="home-float-card home-float-card-place">
+            <span className="home-float-kicker"><MapPin size={12} aria-hidden="true" /> Đang nổi bật</span>
+            <strong>Ruộng bậc thang Hoàng Su Phì</strong>
+            <span className="home-float-meta">Mùa lúa chín · biển mây buổi sáng</span>
+            <span className="home-float-go" aria-hidden="true"><ArrowRight size={14} /></span>
+          </Link>
+          <Link href={"/assistant" as Route} className="home-float-card home-float-card-ai">
+            <span className="home-float-kicker"><Sparkles size={12} aria-hidden="true" /> Trợ lý AI</span>
+            <strong>“Hà Giang đẹp nhất mùa nào?”</strong>
+            <span className="home-float-meta">Hỏi ngay · có dẫn nguồn</span>
+            <span className="home-float-go" aria-hidden="true"><ArrowRight size={14} /></span>
+          </Link>
+        </aside>
+
+        <a href="#home-places-marquee" className="home-scroll-cue" aria-label="Cuộn xuống khám phá">
+          <span className="home-scroll-cue-dot" aria-hidden="true" />
+        </a>
       </section>
+
+      <div id="home-places-marquee" className="home-marquee" aria-label="Những địa danh nổi bật của Hà Giang">
+        <div className="home-marquee-track">
+          {[0, 1].map((copy) => (
+            <ul key={copy} className="home-marquee-list" aria-hidden={copy === 1 ? "true" : undefined}>
+              {[
+                "Cột cờ Lũng Cú",
+                "Đèo Mã Pí Lèng",
+                "Hẻm Tu Sản",
+                "Sông Nho Quế",
+                "Ruộng bậc thang Hoàng Su Phì",
+                "Phố cổ Đồng Văn",
+                "Dinh thự họ Vương",
+                "Núi Đôi Quản Bạ",
+              ].map((name) => (
+                <li key={name}>{name}</li>
+              ))}
+            </ul>
+          ))}
+        </div>
+      </div>
 
       <HomeScrollReveal>
 
@@ -186,191 +228,35 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* SECTION 4: DISCOVER HÀ GIANG — 2-COLUMN TERRAIN EXPLORATION */}
-        <section className="home-explore" aria-labelledby="home-explore-title">
-          <div className="home-explore-grid">
-            {/* Cột 1 (Trái): Bản đồ địa hình 3D Hà Giang */}
-            <div className="home-explore-stage-col" data-home-reveal>
-              <Suspense fallback={<HomeTerrainLoading />}>
-                <HomeTerrainData data={destinationData} />
-              </Suspense>
-            </div>
+        <HomeRoutesSection />
 
-            {/* Cột 2 (Phải): Thông tin giới thiệu & Điều hướng */}
-            <div className="home-explore-copy" data-home-reveal>
-              <p className="home-eyebrow home-eyebrow-coral">BẢN ĐỒ ĐỊA HÌNH 3D · ĐỊA ĐẦU TỔ QUỐC</p>
-              <h2 id="home-explore-title">Những nơi đáng để khám phá</h2>
-              <p className="home-explore-desc">
-                Khám phá cảnh quan kỳ vĩ, danh thắng lịch sử và những nét đẹp đặc trưng của vùng cao nguyên đá. Bản đồ số mô phỏng chính xác độ cao đồi núi, vách đá hẻm vực và mạng lưới giao thông liên huyện của Hà Giang.
-              </p>
-
-              {/* Thống kê nhanh địa lý Hà Giang */}
-              <div className="home-explore-stats">
-                <div className="home-explore-stat">
-                  <strong className="home-explore-stat-val">11</strong>
-                  <span className="home-explore-stat-lbl">Huyện &amp; Thành phố</span>
-                </div>
-                <div className="home-explore-stat">
-                  <strong className="home-explore-stat-val">2.422m</strong>
-                  <span className="home-explore-stat-lbl">Tây Côn Lĩnh</span>
-                </div>
-                <div className="home-explore-stat">
-                  <strong className="home-explore-stat-val">04</strong>
-                  <span className="home-explore-stat-lbl">Huyện cao nguyên đá</span>
-                </div>
-              </div>
-
-              <div className="home-explore-highlights">
-                <div className="home-explore-highlight-item">
-                  <span className="home-explore-highlight-dot" aria-hidden="true" />
-                  <div>
-                    <strong>Mô hình địa hình 3D trực quan</strong>
-                    <span>Tương tác xoay 360°, hiển thị cao độ đồi núi, hẻm vực Tu Sản và dòng sông Nho Quế.</span>
-                  </div>
-                </div>
-                <div className="home-explore-highlight-item">
-                  <span className="home-explore-highlight-dot" aria-hidden="true" />
-                  <div>
-                    <strong>11 Huyện thị &amp; Điểm đến tiêu biểu</strong>
-                    <span>Nhấp hoặc rê chuột vào từng huyện trên mô hình để xem các danh thắng và làng văn hóa.</span>
-                  </div>
-                </div>
-                <div className="home-explore-highlight-item">
-                  <span className="home-explore-highlight-dot" aria-hidden="true" />
-                  <div>
-                    <strong>Cung đường đèo &amp; Lộ trình di chuyển</strong>
-                    <span>Định vị các tuyến quốc lộ huyết mạch QL4C, QL34 và các cung đèo huyền thoại Đông Bắc.</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="home-explore-footer">
-                <Link href={"/explore?view=map" as Route} className="home-link-pill home-map-cta-pill">
-                  <Map size={16} aria-hidden="true" />
-                  <span>Mở bản đồ khám phá</span>
-                  <ArrowRight size={15} aria-hidden="true" />
-                </Link>
-                <Link href="/explore" className="home-link-pill home-map-secondary-pill">
-                  <span>Xem tất cả điểm đến</span>
-                  <ArrowRight size={14} aria-hidden="true" />
-                </Link>
-              </div>
-            </div>
+        {/* MAP: full-width map + destination list */}
+        <section className="hx-map" aria-labelledby="home-explore-title">
+          <div className="hx-heading" data-home-reveal>
+            <h2 id="home-explore-title">Những nơi đáng để khám phá</h2>
+            <p>Kéo bản đồ để xem Hà Giang, hoặc chọn một điểm trong danh sách để đọc nhanh giới thiệu.</p>
+          </div>
+          <div className="hx-map-stage" data-home-reveal>
+            <Suspense fallback={<HomeTerrainLoading />}>
+              <HomeTerrainData data={destinationData} />
+            </Suspense>
           </div>
           <Suspense fallback={null}>
             <HomeEmptyDestinations data={destinationData} />
           </Suspense>
-
-          <div className="home-explore-footer" data-home-reveal>
-            <Link href="/explore" className="home-link-pill home-map-cta-pill">
-              <Compass size={17} aria-hidden="true" />
+          <div className="hx-actions" data-home-reveal>
+            <Link href="/explore" className="home-cta home-cta-primary">
+              <Compass size={18} aria-hidden="true" />
               <span>Xem tất cả điểm đến</span>
-              <ArrowRight size={16} aria-hidden="true" />
+              <ArrowRight className="home-cta-arrow" size={17} aria-hidden="true" />
             </Link>
           </div>
         </section>
 
-        {/* SECTION 3: AI TRAVEL ASSISTANT SHOWCASE (Lavender × Emerald) */}
-        <section className="home-assistant-section" aria-labelledby="home-assistant-title">
-          <div className="home-showcase-grid">
-            <div className="home-showcase-copy" data-home-reveal>
-              <p className="home-eyebrow home-eyebrow-lavender">TRỢ LÝ DU LỊCH THÔNG MINH</p>
-              <h2 id="home-assistant-title" className="home-assistant-editorial-title">
-                Hỏi bất kỳ điều gì về Hà Giang.
-                <em>Nhận câu trả lời có dẫn chứng nguồn.</em>
-              </h2>
-              <p className="home-showcase-desc">
-                Hỏi về thời tiết, mùa hoa hay cung đèo hiểm trở. Mọi giải đáp đều được đối chiếu trực tiếp từ kho tư liệu đã kiểm chứng.
-              </p>
+        <HomeAssistantSection />
+        <HomeItinerarySection />
 
-              <div className="home-showcase-cta-group home-assistant-desktop-action">
-                <Link className="home-cta home-cta-primary home-cta-lavender" href={"/assistant" as Route}>
-                  <Sparkles size={17} aria-hidden="true" />
-                  <span>Trò chuyện với Trợ lý AI</span>
-                  <ArrowRight className="home-cta-arrow" size={16} aria-hidden="true" />
-                </Link>
-              </div>
-            </div>
-
-            <div className="home-showcase-preview" data-home-reveal>
-              <HomeAssistantSimulation />
-
-              {/* Nút hành động đặt dưới thẻ chat theo yêu cầu trên mobile */}
-              <div className="home-assistant-mobile-action">
-                <div className="home-showcase-cta-group">
-                  <Link className="home-cta home-cta-primary home-cta-lavender" href={"/assistant" as Route}>
-                    <Sparkles size={18} aria-hidden="true" />
-                    <span>Trò chuyện với Trợ lý AI</span>
-                    <ArrowRight className="home-cta-arrow" size={17} aria-hidden="true" />
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* SECTION 4: SMART TRIP PLANNER SHOWCASE (Peach Cream × Golden Sun × Coral) */}
-        <section className="home-planner-section" aria-labelledby="home-planner-title">
-          <HomePlannerStory
-            intro={
-              <>
-                <p className="home-eyebrow home-eyebrow-coral">LẬP HÀNH TRÌNH TỐI ƯU</p>
-                <h2 id="home-planner-title" className="home-planner-editorial-title">
-                  Hành trình riêng biệt.
-                  <em>Thiết kế cho từng bước chân.</em>
-                </h2>
-                <p className="home-showcase-desc">
-                  Hệ thống tự động sắp xếp lộ trình vừa vặn với số ngày và phương tiện của bạn.
-                </p>
-              </>
-            }
-            action={
-              <div className="home-showcase-cta-group">
-                <ProtectedLink className="home-cta home-cta-primary home-cta-coral" href="/trips/new" intent="planner">
-                  <CalendarDays size={18} aria-hidden="true" />
-                  <span>Tự tạo hành trình của bạn</span>
-                  <ArrowRight className="home-cta-arrow" size={17} aria-hidden="true" />
-                </ProtectedLink>
-              </div>
-            }
-          />
-        </section>
-
-
-
-
-        {/* SECTION 7: FINAL CTA (Deep Forest × Golden Sun) */}
-        <section className="home-final-cta-section" aria-labelledby="home-final-cta-title">
-          <div className="home-final-cta" data-home-reveal>
-            <div className="home-final-ambient" aria-hidden="true" />
-            <svg className="home-final-topo" aria-hidden="true" viewBox="0 0 1200 400" preserveAspectRatio="none">
-              <path d="M0,280 Q300,160 600,240 T1200,180 L1200,400 L0,400 Z" fill="rgba(233,185,75,0.06)" />
-              <path d="M0,320 Q400,200 800,290 T1200,230 L1200,400 L0,400 Z" fill="rgba(255,255,255,0.04)" />
-              <path d="M0,360 Q350,260 700,340 T1200,300 L1200,400 L0,400 Z" fill="rgba(233,185,75,0.08)" />
-            </svg>
-            <div className="home-final-copy">
-              <p className="home-eyebrow home-eyebrow-gold">SẴN SÀNG CHO CHUYẾN ĐI</p>
-              <h2 id="home-final-cta-title">
-                Chuyến đi Hà Giang của bạn
-                <span>bắt đầu từ đây.</span>
-              </h2>
-              <p>
-                Khám phá cảnh sắc núi non hùng vĩ, trải nghiệm văn hóa bản địa độc đáo và xây dựng hành trình đáng nhớ ngay hôm nay.
-              </p>
-              <div className="home-final-actions">
-                <Link className="home-cta home-cta-primary home-cta-gold" href="/explore">
-                  <Compass size={18} aria-hidden="true" />
-                  <span>Khám phá ngay</span>
-                  <ArrowRight className="home-cta-arrow" size={17} aria-hidden="true" />
-                </Link>
-                <ProtectedLink className="home-cta home-cta-secondary home-cta-frosted" href="/trips/new" intent="planner">
-                  <PlusCircle size={18} aria-hidden="true" />
-                  <span>Lập hành trình</span>
-                </ProtectedLink>
-              </div>
-            </div>
-          </div>
-        </section>
+        <HomeFaqSection />
 
         {/* SITE FOOTER */}
         <footer className="home-footer" role="contentinfo">
@@ -480,16 +366,11 @@ type HomeDestinationData = Promise<Awaited<ReturnType<typeof listPublicHomeDesti
 
 async function HomeTerrainData({ data }: { data: HomeDestinationData }) {
   const { destinations, descriptions } = await data;
-  return <HomeTerrainMap destinations={destinations} descriptions={descriptions} />;
+  return <HomeExploreMap destinations={destinations} descriptions={descriptions} />;
 }
 
 function HomeTerrainLoading() {
-  return <div className="hg-terrain">
-    <div className="hg-terrain-stage-wrap">
-      <div className="hg-terrain-stage" role="status" aria-busy="true" aria-label="Đang tải bản đồ Hà Giang" />
-      <div className="hg-terrain-state"><strong>Đang mở những miền đất Hà Giang…</strong></div>
-    </div>
-  </div>;
+  return <HomeExploreMapLoading />;
 }
 
 async function HomeEmptyDestinations({ data }: { data: HomeDestinationData }) {

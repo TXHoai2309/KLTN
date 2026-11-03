@@ -3,9 +3,18 @@
 :root {
   --auth-ink: #142238;
   --auth-muted: #647187;
-  --auth-green: #287c61;
-  --auth-green-dark: #1f654e;
+  --auth-green: #35765c;
+  --auth-green-dark: #2c654e;
   --auth-border: #dce2e9;
+}
+
+body {
+  background-color: #f5f8f6;
+  color: var(--auth-ink);
+}
+
+.dark body {
+  background-color: #0c1410;
 }
 
 /* ─── Header ─── */
@@ -378,14 +387,14 @@
   overflow: hidden;
   border: 0 !important;
   border-radius: 12px !important;
-  background: linear-gradient(135deg, #2a8065 0%, #1f6b52 100%) !important;
+  background: linear-gradient(135deg, #35765c 0%, #3e886b 100%) !important;
   color: white !important;
   font-size: 15.5px !important;
   font-weight: 700 !important;
   letter-spacing: 0.01em !important;
   box-shadow:
-    0 6px 18px rgba(40, 124, 97, 0.28),
-    0 1px 4px rgba(40, 124, 97, 0.18) !important;
+    0 6px 18px rgba(53, 118, 92, 0.28),
+    0 1px 4px rgba(53, 118, 92, 0.18) !important;
   transition: transform 180ms ease, box-shadow 180ms ease !important;
 }
 
@@ -404,8 +413,8 @@
 
 .auth-submit:hover:not(:disabled) {
   box-shadow:
-    0 10px 26px rgba(40, 124, 97, 0.36),
-    0 2px 8px rgba(40, 124, 97, 0.22) !important;
+    0 10px 26px rgba(53, 118, 92, 0.36),
+    0 2px 8px rgba(53, 118, 92, 0.22) !important;
   transform: translateY(-2px) !important;
 }
 

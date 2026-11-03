@@ -9,6 +9,17 @@ import { scheduleSelection } from "../../modules/assistant-planning/planning-eng
 const workspace = { conversationId: "chat", version: 0, needs: EMPTY_PLANNING_NEEDS, pendingSaveKey: null, savedTripId: null, context: { type: "GENERAL" as const } };
 const render = (client: PlanningClient) => renderToStaticMarkup(createElement(PlanningPanel, { client, available: true, onStarted: () => undefined, conversationId: "chat", context: { type: "GENERAL" } }));
 describe("Shared planning panel semantic states", () => {
+  it("shows another read-only copy on request without duplicating the save control", async () => {
+    const proposal = await scheduleSelection(fixtureNeeds, { days: [["a"]] }, [planningCandidate("a")], fixtureRoutes, planningNow);
+    const call = vi.fn().mockResolvedValueOnce({ ...workspace, needs: fixtureNeeds })
+      .mockResolvedValueOnce({ ...workspace, needs: fixtureNeeds, version: 1 })
+      .mockResolvedValueOnce({ proposal, selection: { days: [["a"]] }, attempts: [{ status: proposal.status, checks: [] }], repairError: null, version: 2 });
+    const client = new PlanningClient("USER:display", call);
+    await client.start("chat"); await client.generate(); await client.analyze("Hiển thị lại lịch trình");
+    const html = render(client);
+    expect(html.match(/class="assistant-planning-proposal"/g)).toHaveLength(2);
+    expect(html.match(/>Xác nhận và lưu chuyến đi</g)).toHaveLength(1);
+  });
   it("keeps each itinerary card before subsequent edits and appends the revised card below its reply", async () => {
     const first = await scheduleSelection(fixtureNeeds, { days: [["a"]] }, [planningCandidate("a"), planningCandidate("b")], fixtureRoutes, planningNow);
     const second = await scheduleSelection(fixtureNeeds, { days: [["b"]] }, [planningCandidate("a"), planningCandidate("b")], fixtureRoutes, planningNow);

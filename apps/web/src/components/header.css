@@ -495,7 +495,7 @@
    RESPONSIVE BREAKPOINTS
    ========================================================================== */
 /* Tablet & Small Desktop: switch to mobile drawer when screen cannot comfortably fit all items */
-@media (max-width: 1140px) {
+@media (max-width: 1200px) {
   .site-nav {
     display: none;
   }

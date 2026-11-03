@@ -66,7 +66,11 @@ export const planningWorkspaceSchema = z.object({
 }).strict();
 export type PlanningWorkspace = z.infer<typeof planningWorkspaceSchema>;
 export const planningAnalysisSchema = z.object({
+<<<<<<< HEAD
   intent: z.enum(["NEEDS", "EDIT", "QA", "CLARIFY", "ADVISE", "REGENERATE"]), needs: planningNeedsSchema,
+=======
+  intent: z.enum(["NEEDS", "EDIT", "QA", "CLARIFY", "DISPLAY"]), needs: planningNeedsSchema,
+>>>>>>> 55c6baa66b06f11578707793b4dd8b2580ba4a55
   message: z.string().max(800), unresolved: z.array(planningUnresolvedSchema).max(8),
   operation: planningOperationSchema.nullable().optional(),
   tripStructureClarify: z.boolean().optional(),
@@ -75,7 +79,7 @@ export const planningAnalysisSchema = z.object({
   dateDeferred: z.boolean().optional(),
   preferencesSkipped: z.boolean().optional(),
   mandatoryAddition: z.boolean().optional(),
-  replyAction: z.enum(["NONE", "CONFIRM", "CANCEL"]).optional(),
+  replyAction: z.enum(["NONE", "CONFIRM", "CANCEL", "CREATE", "SAVE"]).optional(),
   dateConfirmation: planningNeedsSchema.optional(),
   followUpMessage: z.string().max(4000).optional(),
 }).strict();

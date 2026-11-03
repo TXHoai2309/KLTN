@@ -245,6 +245,8 @@ function fixture() {
             return { count: 1 };
           },
         },
+        $queryRaw: async () => [],
+        tripCompanionPublication: { findUnique: async () => null },
         itineraryDay: {
           deleteMany: async () => {
             writes.push("itineraryDay.deleteMany");

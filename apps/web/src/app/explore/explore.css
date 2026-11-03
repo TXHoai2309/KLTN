@@ -1,18 +1,18 @@
 .explore-shell {
-  --background: #f7f6f2;
+  --background: #f5f8f6;
   --foreground: #1d2521;
   --card: #fff;
   --card-foreground: #1d2521;
-  --primary: #24513b;
+  --primary: #35765c;
   --primary-foreground: #fff;
   --muted: #f1f3ef;
   --muted-foreground: #66716b;
   --border: #dde3de;
   --input: #dde3de;
-  --ring: #24513b;
+  --ring: #35765c;
   --destructive: #b6413a;
   --explore-accent: #b65d3b;
-  --explore-brand-hover: #1c412f;
+  --explore-brand-hover: #2c654e;
   min-width: 0;
   background: var(--background);
   color: var(--foreground);

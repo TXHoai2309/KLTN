@@ -49,6 +49,7 @@ At handoff, record implementation changes and evidence in the story and append a
 | [implementation/EN-01-foundation-acceptance.md](implementation/EN-01-foundation-acceptance.md) | Foundation scope, repository evidence, and assumptions for future stories. |
 | [implementation/development-workflow.md](implementation/development-workflow.md) | TXH, dev, and master branch roles and review flow. |
 | [implementation/environment-deployment.md](implementation/environment-deployment.md) | Environment files, database mapping, Vercel, and migration workflow. |
+| [implementation/trip-companions-user-stories-tasks.md](implementation/trip-companions-user-stories-tasks.md) | Vietnamese User Story and BE/FE/test task summary for the approved travel-companions extension. |
 | [stories/README.md](stories/README.md) | Story lifecycle and READY criteria. |
 | [stories/US-TEMPLATE.md](stories/US-TEMPLATE.md) | Reusable implementation contract for future stories. |
 | [templates/decision-template.md](templates/decision-template.md) | Format for adding an architecture decision. |
