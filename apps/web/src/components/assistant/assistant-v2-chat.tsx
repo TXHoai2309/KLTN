@@ -21,6 +21,8 @@ import type { QaContext } from "../../modules/ai/qa-contract";
 import { consumePlanningAuthDraft } from "./planning-auth-handoff";
 import type { AssistantState } from "./assistant-controller";
 import { AssistantV2GuestChat } from "./assistant-v2-guest-chat";
+import { AssistantPendingTurn } from "./assistant-v2-pending";
+import { AssistantPlanMessage } from "./assistant-plan-message";
 
 type Exchange = { question: string; turn: PlanningV2Turn | InTripV2Turn };
 const ManualLocationPicker = lazy(() => import("../in-trip/manual-location-picker"));
@@ -44,6 +46,7 @@ function SignedInV2Chat({ available = true, tripId, onMinimize, initialContext, 
   useEffect(() => { if (identity) { const retained = consumePlanningAuthDraft(identity); if (retained) { setDraft(retained.text); setContext(retained.context); } } }, [identity]);
   const [messages, setMessages] = useState<Exchange[]>([]);
   const [busy, setBusy] = useState(false);
+  const [asking, setAsking] = useState<{ question: string; at: number } | null>(null);
   const working = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [expired, setExpired] = useState(false);
@@ -123,8 +126,8 @@ function SignedInV2Chat({ available = true, tripId, onMinimize, initialContext, 
       else { const unknown = write?.status === "UNKNOWN" || !!result.save.workspace?.pendingSaveKey; setWriteUnknown(unknown); setError(unknown ? "Chưa rõ kết quả lưu. Hãy kiểm tra lại cùng thao tác." : result.save.message ?? "Chưa có xác nhận lưu thành công."); }
     }
   }
-  async function perform(request: AssistantV2Request, question: string, retry = false) {
-    if (working.current || !available || expired) return;
+  async function perform(request: AssistantV2Request, question: string, retry = false): Promise<boolean> {
+    if (working.current || !available || expired) return false;
     working.current = true; setBusy(true); setError(null);
     const attempt = retry && pending.current ? pending.current : { request: request.operation === "START" ? request : { ...request, stateToken: stateToken.current }, key: createIdempotencyKey(), question };
     pending.current = attempt;
@@ -133,14 +136,22 @@ function SignedInV2Chat({ available = true, tripId, onMinimize, initialContext, 
       await consume(result, attempt.question);
       pending.current = null;
       if (attempt.request.operation !== "START") setDraft("");
+      return true;
     } catch (cause) {
       setError(cause instanceof AssistantV2ClientError ? cause.message : "Chưa nhận được kết quả. Kiểm tra lại cùng yêu cầu trước khi tiếp tục.");
       if (cause instanceof AssistantV2ClientError && ["ASSISTANT_RUNTIME_CHANGED", "ASSISTANT_SESSION_EXPIRED"].includes(cause.code)) { setExpired(true); pending.current = null; }
       else if (cause instanceof AssistantV2ClientError && cause.status < 500) pending.current = null;
+      return false;
     } finally { working.current = false; setBusy(false); }
   }
   async function send() {
-    if (!draft.trim() || working.current || !available || expired || pending.current) return;
+    const text = draft.trim();
+    if (!text || working.current || !available || expired || pending.current) return;
+    // The question leaves the composer at once and shows as a pending turn; a failed send gives it back.
+    setAsking({ question: text, at: messages.length }); setDraft("");
+    try { if (!await sendTurn(text)) setDraft(current => current || text); } finally { setAsking(null); }
+  }
+  async function sendTurn(text: string): Promise<boolean> {
     let handle = sessionId;
     if (!handle) {
       working.current = true; setBusy(true); setError(null);
@@ -151,7 +162,7 @@ function SignedInV2Chat({ available = true, tripId, onMinimize, initialContext, 
       catch (cause) { setError(cause instanceof AssistantV2ClientError ? cause.message : "Chưa mở được phiên trợ lý. Nội dung vẫn được giữ."); }
       finally { working.current = false; setBusy(false); }
     }
-    if (handle) await perform({ action: "ASSISTANT_V2", operation: "TURN", sessionId: handle, text: draft.trim() }, draft.trim());
+    return handle ? perform({ action: "ASSISTANT_V2", operation: "TURN", sessionId: handle, text }, text) : false;
   }
   async function provideLocation(location: InTripLocation) {
     if (sessionId) await perform({ action: "ASSISTANT_V2", operation: "LOCATION", sessionId, location }, "Cung cấp vị trí cho yêu cầu đang chờ");
@@ -169,7 +180,7 @@ function SignedInV2Chat({ available = true, tripId, onMinimize, initialContext, 
   }
   const disabled = !available || busy || expired || !!pending.current || !!savedTripId;
   const mode = onMinimize ? "panel" : "page";
-  return <section className={`${mode === "panel" ? "assistant-chat assistant-chat-panel" : "assistant-chat"} assistant-v2-chat assistant-planning`} data-runtime="v2" aria-label="Trợ lý AI" aria-busy={busy} lang="vi">
+  return <section className={`${mode === "panel" ? "assistant-chat assistant-chat-panel" : "assistant-chat"} assistant-v2-chat`} data-runtime="v2" aria-label="Trợ lý AI" aria-busy={busy} lang="vi">
     {mode === "page" && <AssistantSidebar conversations={conversations} activeConversationId={null} loading={historyLoading} loadingMore={historyMore} hasMore={historyHasMore} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} onNewChat={startNew} onSelectConversation={openConversation} onRenameConversation={renameHistory} onDeleteConversation={deleteHistory} onLoadMore={() => void loadHistory(searchQuery, historyCursor, true)} searchQuery={searchQuery} onSearchChange={setSearchQuery}/>}
     <div className={`assistant-chat-main ${mode === "panel" ? "assistant-panel-main" : "assistant-chat-fullscreen"}`}>
     {mode === "page" && <div className={`assistant-floating-header ${sidebarOpen ? "sidebar-open" : "sidebar-collapsed"}`}>
@@ -205,16 +216,17 @@ function SignedInV2Chat({ available = true, tripId, onMinimize, initialContext, 
       const qa = planning?.responsePlan.qa ?? inTrip?.plan.qa;
       return <div className="assistant-turn assistant-planning-exchange" key={index}>
         <article className="assistant-message assistant-user"><p>{question}</p></article>
-        <article className="assistant-message assistant-answer"><span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true"/><span>Trợ lý AI</span></span>{qa ? <><AssistantAnswer turn={qa} question={question} showSources/>{(qa.status === "ANSWERED" || qa.status === "PARTIAL") && qa.citations.some(source => source.sourceUrl === null) && <details className="assistant-answer-sources"><summary>Nguồn tài liệu nội bộ</summary><ul>{qa.citations.filter(source => source.sourceUrl === null).map(source => <li key={source.id}><strong>{source.title}</strong>{source.locators.map((locator, i) => <p key={i}>{locator.pageNumber ? `Trang ${locator.pageNumber}` : ""}{locator.pageNumber && locator.section ? " · " : ""}{locator.section}</p>)}<small>Tài liệu chưa có liên kết công khai.</small></li>)}</ul></details>}{(planning?.responsePlan.compound || inTrip?.plan.compound) && <p>Phần chỉnh lịch chưa được thực hiện. Bạn hãy gửi riêng yêu cầu chỉnh sau khi xem thông tin nguồn.</p>}</> : <p>{turn.message}</p>}</article>
-        {planning?.generated && (planning.responsePlan.proposalChanged || planning.responsePlan.goal === "PRESENT_PROPOSAL") && <PlanningProposalView generated={planning.generated} isCurrent={planning.generated.proposal.proposalId === latestPlanning?.generated?.proposal.proposalId && planning.generated.version === latestPlanning.generated.version} disabled={disabled || uncertain} savedTripId={savedTripId} onSave={() => sessionId && void perform({ action: "ASSISTANT_V2", operation: "SAVE", sessionId, confirmed: true }, "Xác nhận và lưu chuyến đi")}/>}
+        <article className="assistant-message assistant-answer"><span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true"/><span>Trợ lý AI</span></span>{qa ? <><AssistantAnswer turn={qa} question={question} showSources/>{(qa.status === "ANSWERED" || qa.status === "PARTIAL") && qa.citations.some(source => source.sourceUrl === null) && <details className="assistant-answer-sources"><summary>Nguồn tài liệu nội bộ</summary><ul>{qa.citations.filter(source => source.sourceUrl === null).map(source => <li key={source.id}><strong>{source.title}</strong>{source.locators.map((locator, i) => <p key={i}>{locator.pageNumber ? `Trang ${locator.pageNumber}` : ""}{locator.pageNumber && locator.section ? " · " : ""}{locator.section}</p>)}<small>Tài liệu chưa có liên kết công khai.</small></li>)}</ul></details>}{(planning?.responsePlan.compound || inTrip?.plan.compound) && <p>Phần chỉnh lịch chưa được thực hiện. Bạn hãy gửi riêng yêu cầu chỉnh sau khi xem thông tin nguồn.</p>}</> : <AssistantPlanMessage message={turn.message} proposalBelow={!!planning?.generated && (planning.responsePlan.proposalChanged || planning.responsePlan.goal === "PRESENT_PROPOSAL")}/>}</article>
+        {planning?.generated && (planning.responsePlan.proposalChanged || planning.responsePlan.goal === "PRESENT_PROPOSAL") && <div className="assistant-planning"><PlanningProposalView generated={planning.generated} isCurrent={planning.generated.proposal.proposalId === latestPlanning?.generated?.proposal.proposalId && planning.generated.version === latestPlanning.generated.version} disabled={disabled || uncertain} savedTripId={savedTripId} onSave={() => sessionId && void perform({ action: "ASSISTANT_V2", operation: "SAVE", sessionId, confirmed: true }, "Xác nhận và lưu chuyến đi")}/></div>}
         {inTrip?.plan.validation && <TripValidationPanel validation={inTrip.plan.validation}/>}
         {inTrip?.proposal && inTrip.plan.goal === "AWAIT_CONFIRMATION" && <ol className="assistant-planning-days">{inTrip.proposal.candidate.days.map(day => <li key={day.dayIndex}>Ngày {day.dayIndex}<ul>{day.visits.map(visit => <li key={visit.visitId}>{inTrip.plan.labels?.[visit.destinationId] ?? inTrip.trip.destinationLabels[visit.destinationId] ?? "Điểm đến không còn khả dụng"} · {Math.floor(visit.startMinute / 60)}:{String(visit.startMinute % 60).padStart(2, "0")} · {visit.plannedDurationMinutes} phút</li>)}</ul></li>)}</ol>}
       </div>;
-    })}</div>
+    })}{asking && asking.at === messages.length && <AssistantPendingTurn question={asking.question}/>}</div>
+    <div className="assistant-planning">
     {error && <p role="alert">{error}</p>}
-    {busy && <p role="status">Mình đang xử lý yêu cầu…</p>}
+    {busy && !asking && <p role="status">Mình đang xử lý yêu cầu…</p>}
     {latestInTrip && <p className="assistant-muted">Nguồn vị trí: {latestInTrip.plan.currentLocationSource === "GPS" ? "GPS" : latestInTrip.plan.currentLocationSource === "MANUAL" ? "Thủ công" : "Chưa cung cấp"}.</p>}
-    {pending.current && <button type="button" disabled={busy || !available} onClick={() => void perform(pending.current!.request, pending.current!.question, true)}>Kiểm tra lại cùng yêu cầu</button>}
+    {pending.current && !busy && <button type="button" disabled={busy || !available} onClick={() => void perform(pending.current!.request, pending.current!.question, true)}>Kiểm tra lại cùng yêu cầu</button>}
     {uncertain && sessionId && <button type="button" disabled={busy || !available} onClick={() => void perform({ action: "ASSISTANT_V2", operation: "RECONCILE", sessionId }, "Kiểm tra kết quả thao tác trước")}>Đối soát thao tác trước</button>}
     {latestInTrip?.plan.goal === "ASK_LOCATION" && !uncertain && <div className="assistant-planning-actions">
       <button type="button" disabled={disabled} onClick={() => void gps()}>Dùng GPS hiện tại</button><button type="button" disabled={disabled} onClick={() => setManual(true)}>Chọn vị trí thủ công</button>
@@ -223,9 +235,10 @@ function SignedInV2Chat({ available = true, tripId, onMinimize, initialContext, 
     </div>}
     {latestInTrip?.plan.requiresConfirmation && sessionId && <button type="button" disabled={disabled || uncertain} onClick={() => void perform({ action: "ASSISTANT_V2", operation: "TURN", sessionId, text: "Áp dụng đi" }, "Áp dụng đi")}>Xác nhận áp dụng phương án</button>}
     {savedTripId && <p role="status">Đã lưu chuyến đi. <a href={`/trips/${encodeURIComponent(savedTripId)}`}>Mở chuyến đi</a></p>}
+    </div>
     </div></div>
     <div className="assistant-bottom-dock"><div className="assistant-bottom-dock-inner">
-    {expired ? <a className="assistant-notice-banner" href={tripId ? `/trips/${encodeURIComponent(tripId)}/in-trip` : "/assistant"}>Mở lại phiên từ trạng thái hiện tại</a> : <form noValidate className="assistant-composer" onSubmit={event => { event.preventDefault(); void send(); }}>
+        {expired ? <a className="assistant-notice-banner" href={tripId ? `/trips/${encodeURIComponent(tripId)}/in-trip` : "/assistant"}>Mở lại phiên từ trạng thái hiện tại</a> : <form noValidate className="assistant-composer" onSubmit={event => { event.preventDefault(); void send(); }}>
       <label htmlFor={inputId} className="assistant-sr-only">Tin nhắn cho trợ lý</label>
       <div className="assistant-composer-input">
         <textarea className="resize-none" ref={composer} id={inputId} maxLength={tripId ? 500 : 1000} rows={1} placeholder={tripId ? "Nhập yêu cầu về chuyến đi…" : "Nhập câu hỏi hoặc nhu cầu chuyến đi Hà Giang…"} value={draft} disabled={disabled} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void send(); } }}/>

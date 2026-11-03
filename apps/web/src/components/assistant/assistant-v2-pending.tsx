@@ -18,3 +18,17 @@ export function AssistantV2Pending({ mode = "page", failed = false, unavailable 
     </div>
   </section>;
 }
+
+/** ChatGPT-style pending turn: the question sits in its bubble at once, then the assistant's thinking indicator. */
+export function AssistantPendingTurn({ question, sending = true }: { question: string; sending?: boolean }) {
+  return <div className="assistant-turn assistant-planning-exchange assistant-local-attempt">
+    <article className="assistant-message assistant-user" aria-label="Câu hỏi của bạn"><p>{question}</p>{!sending && <small>Chưa được xác nhận lưu</small>}</article>
+    {sending && <article className="assistant-message assistant-answer assistant-pending-answer" aria-label="Phản hồi của trợ lý">
+      <span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true"/><span>Trợ lý AI</span></span>
+      <div className="assistant-typing-indicator" role="status" aria-label="Trợ lý AI đang soạn câu trả lời">
+        <span className="assistant-typing-dots" aria-hidden="true"><span className="assistant-typing-dot"/><span className="assistant-typing-dot"/><span className="assistant-typing-dot"/></span>
+        <span className="assistant-typing-label">Đang suy nghĩ…</span>
+      </div>
+    </article>}
+  </div>;
+}

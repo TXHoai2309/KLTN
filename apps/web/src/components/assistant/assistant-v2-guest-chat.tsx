@@ -14,6 +14,7 @@ import { AssistantSidebar } from "./assistant-sidebar";
 import { retainPlanningAuthDraft } from "./planning-auth-handoff";
 import { createIdempotencyKey } from "../../lib/mutation-client";
 import { openSavedConversation } from "./assistant-saved-conversation";
+import { AssistantPendingTurn } from "./assistant-v2-pending";
 
 /** V2 Q&A chat through the existing endpoint. A guest principal gets Guest mode (planning asks invite sign-in);
  * a signed-in principal reaches it only to read and continue a saved conversation.
@@ -124,7 +125,7 @@ export function AssistantV2GuestChat({ available = true, onMinimize, onOpenFullP
       <div className="assistant-planning-auth"><p>{GUEST_SIGN_IN_INVITATION}</p><Link className="assistant-planning-login" href="/login?returnTo=%2Fassistant">Đăng nhập để tiếp tục</Link></div>
     </article></div>);
   const empty = !state.turns.length && !pending && !invitations.length && !loadingSaved;
-  return <section className={`${mode === "panel" ? "assistant-chat assistant-chat-panel" : "assistant-chat"} assistant-v2-chat assistant-planning`} data-runtime="v2" data-mode={guest ? "guest" : "saved"} aria-label="Trợ lý AI" aria-busy={busy} lang="vi">
+  return <section className={`${mode === "panel" ? "assistant-chat assistant-chat-panel" : "assistant-chat"} assistant-v2-chat`} data-runtime="v2" data-mode={guest ? "guest" : "saved"} aria-label="Trợ lý AI" aria-busy={busy} lang="vi">
     {mode === "page" && <AssistantSidebar conversations={conversations} activeConversationId={state.conversationId} loading={historyLoading} loadingMore={historyMore} hasMore={historyHasMore} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} onNewChat={startNew} onSelectConversation={openConversation} onRenameConversation={renameHistory} onDeleteConversation={deleteHistory} onLoadMore={() => void loadHistory(searchQuery, historyCursor, true)} searchQuery={searchQuery} onSearchChange={setSearchQuery}/>}
     <div className={`assistant-chat-main ${mode === "panel" ? "assistant-panel-main" : "assistant-chat-fullscreen"}`}>
     {mode === "page" && <div className={`assistant-floating-header ${sidebarOpen ? "sidebar-open" : "sidebar-collapsed"}`}>
@@ -165,16 +166,15 @@ export function AssistantV2GuestChat({ available = true, onMinimize, onOpenFullP
         </div>
         {invite(index + 1)}
       </div>)}
-      {pending && <div className="assistant-turn assistant-planning-exchange"><article className="assistant-message assistant-user"><p>{pending.attempt.payload.question}</p></article></div>}
+      {pending && <AssistantPendingTurn question={pending.attempt.payload.question} sending={busy}/>}
     </div>
     {pending && pending.phase !== "sending" && <div role="alert"><p>{pending.message}</p>
       {pending.phase === "failed" ? <button type="button" onClick={() => controller.editFailed()}>Sửa câu hỏi</button> : <button type="button" onClick={() => controller.retry()}>Kiểm tra lại cùng yêu cầu</button>}
     </div>}
     {state.validation && <p role="alert">{state.validation}</p>}
-    {busy && <p role="status">Mình đang xử lý yêu cầu…</p>}
     </div></div>
     <div className="assistant-bottom-dock"><div className="assistant-bottom-dock-inner">
-    <form noValidate className="assistant-composer" onSubmit={event => { event.preventDefault(); send(); }}>
+        <form noValidate className="assistant-composer" onSubmit={event => { event.preventDefault(); send(); }}>
       <label htmlFor={inputId} className="assistant-sr-only">Tin nhắn cho trợ lý</label>
       <div className="assistant-composer-input">
         <textarea className="resize-none" ref={composer} id={inputId} maxLength={1000} rows={1} placeholder="Nhập câu hỏi về Hà Giang…" value={state.draft} disabled={disabled} onChange={event => controller.setDraft(event.target.value)} onKeyDown={event => { if (shouldSendOnEnter({ key: event.key, shiftKey: event.shiftKey, isComposing: event.nativeEvent.isComposing, keyCode: event.keyCode })) { event.preventDefault(); send(); } }}/>

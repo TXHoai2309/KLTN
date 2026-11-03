@@ -1318,8 +1318,10 @@
 
 /* Pending Answer & Typing Indicator */
 .assistant-pending-answer {
-  border-left: 3px solid var(--assistant-green);
-  background: linear-gradient(180deg, #ffffff 0%, var(--assistant-soft) 100%);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding-block: 4px;
   animation: assistant-fade-in 0.25s ease-out;
 }
 
@@ -1382,12 +1384,35 @@
   }
 }
 
+.assistant-typing-dots {
+  padding: 0;
+  background: none;
+}
+
+.assistant-pending-answer .assistant-typing-indicator {
+  display: flex;
+  margin-top: 6px;
+}
+
 .assistant-typing-label {
-  font-size: 13.5px;
-  color: var(--assistant-muted);
-  font-style: italic;
+  font-size: 14.5px;
   font-weight: 500;
   user-select: none;
+  color: transparent;
+  background: linear-gradient(90deg, #8a9d92 0%, #8a9d92 35%, #13241b 50%, #8a9d92 65%, #8a9d92 100%) 0 0 / 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: assistant-thinking-shimmer 1.8s linear infinite;
+}
+
+@keyframes assistant-thinking-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-typing-label { animation: none; color: var(--assistant-muted); background: none; }
+  .assistant-typing-dot { animation: none; }
 }
 
 /* Recovery */
@@ -2441,3 +2466,32 @@
   .assistant-composer-bar { width: 100%; justify-content: space-between; }
 }
 @media (max-width: 400px) { .assistant-planning { padding: 12px; } .assistant-planning-fields { grid-template-columns: minmax(0, 1fr); } }
+
+/* Itinerary summary message: intro, one card per day, notes */
+.assistant-plan-message { display: grid; gap: 12px; min-width: 0; }
+.assistant-plan-message p { margin: 0; }
+.assistant-plan-intro { font-weight: 550; }
+.assistant-plan-days { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.assistant-plan-day { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--assistant-line); border-radius: 12px; background: var(--assistant-soft); min-width: 0; }
+.assistant-plan-day-label { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--assistant-green); }
+.assistant-plan-stops { list-style: none; margin: 0; padding: 0; display: grid; counter-reset: stop; }
+.assistant-plan-stops > li { counter-increment: stop; position: relative; padding: 0 0 10px 34px; min-width: 0; overflow-wrap: anywhere; line-height: 1.5; }
+.assistant-plan-stops > li:last-child { padding-bottom: 0; }
+.assistant-plan-stops > li::before { content: counter(stop); position: absolute; left: 0; top: 0; width: 22px; height: 22px; border-radius: 50%; background: var(--assistant-green); color: #fff; font-size: 12px; font-weight: 600; display: grid; place-items: center; }
+.assistant-plan-stops > li:not(:last-child)::after { content: ""; position: absolute; left: 10.5px; top: 24px; bottom: 2px; width: 1px; background: var(--assistant-line); }
+.assistant-plan-badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.assistant-plan-badge { padding: 3px 10px; border-radius: 9999px; font-size: 12px; font-weight: 550; color: #8a5a00; background: #fff4d6; border: 1px solid #f1dc9c; }
+.assistant-plan-note { font-size: 13px; line-height: 1.6; color: var(--assistant-muted); }
+.dark .assistant-plan-day { background: rgba(255, 255, 255, 0.04); }
+.dark .assistant-plan-badge { color: #f6d98a; background: rgba(246, 217, 138, 0.12); border-color: rgba(246, 217, 138, 0.3); }
+
+/* Full page: low, compact dock like ChatGPT (composer, one hint row, one disclaimer row). */
+.assistant-chat-fullscreen .assistant-bottom-dock { padding-top: 0; border-top: 0; }
+.assistant-chat-fullscreen .assistant-bottom-dock-inner { padding: 0 20px 6px; }
+.assistant-chat-fullscreen .assistant-composer-footer { margin-top: 4px; }
+.assistant-chat-fullscreen .assistant-composer-footer span,
+.assistant-chat-fullscreen .assistant-trust-footer { font-size: 11px; }
+.assistant-chat-fullscreen .assistant-trust-footer { margin-top: 2px; gap: 8px; line-height: 1.2; }
+@media (max-height: 700px) {
+  .assistant-chat-fullscreen .assistant-trust-footer { display: none; }
+}
