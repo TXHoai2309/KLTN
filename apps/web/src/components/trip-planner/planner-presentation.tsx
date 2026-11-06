@@ -263,7 +263,7 @@ export function ItineraryDayTabs({
  * Editorial header & metadata strip under day tabs:
  * "Ngày 1 · 3 điểm · 175,7 km · khoảng 2 giờ di chuyển"
  */
-export function TripOverviewCard({ day }: { day: PlannerDay }) {
+export function TripOverviewCard({ day, journeyPlan }: { day: PlannerDay; journeyPlan?: import("@/modules/trip-origin/journey-route-contract").JourneyPlan | null }) {
   const distanceStr =
     day.distanceMeters === null
       ? "Chưa đủ dữ liệu"
@@ -277,6 +277,7 @@ export function TripOverviewCard({ day }: { day: PlannerDay }) {
 
   return (
     <div className="planner-overview" aria-label="Tổng quan hành trình ngày">
+      {journeyPlan && <div><p>Chạy xe: {journeyPlan.totals.drivingSeconds == null ? "Chưa đủ dữ liệu" : durationText(Math.ceil(journeyPlan.totals.drivingSeconds / 60))}</p><p>Nghỉ ven đường: {journeyPlan.totals.restMinutes == null ? "Chưa đủ dữ liệu" : `${journeyPlan.totals.restMinutes} phút`}</p><p>Tổng chặng: {journeyPlan.totals.distanceMeters == null ? "Chưa đủ dữ liệu" : `${(journeyPlan.totals.distanceMeters / 1000).toLocaleString("vi-VN")} km`}</p><p>Chưa tính đường ra/vào nơi nghỉ; chưa bao gồm thời gian nhận/trả phòng lưu trú.</p></div>}
       <div className="planner-overview-day-heading">
         <h3 className="planner-day-title">Ngày {day.day}</h3>
         <span className="planner-day-subdate">
@@ -635,4 +636,20 @@ export function PlannerActions({
       </button>
     </div>
   );
+}
+
+
+type BoundaryLeg = { route: import("@/modules/trip-origin/journey-route-contract").JourneyRoute; restMinutes: number | null };
+const journeyClock = (minute: number | null) => minute == null ? "Chưa đủ dữ liệu" : `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
+function BoundaryMetrics({ leg }: { leg?: BoundaryLeg }) {
+  return <p>{leg?.route.status === "VERIFIED" ? `${durationText(Math.ceil(leg.route.durationSeconds! / 60))} · ${(leg.route.distanceMeters! / 1000).toLocaleString("vi-VN")} km` : "Chưa đủ dữ liệu đường đi"} · nghỉ ven đường: {leg?.restMinutes == null ? "Chưa đủ dữ liệu" : `+${leg.restMinutes} phút`}</p>;
+}
+export function ItineraryOriginDepartureCard({ originLabel, startMinute, outboundLeg }: { originLabel: string; startMinute: number | null; outboundLeg?: BoundaryLeg }) {
+  return <li className="planner-stop-card"><strong>Khởi hành · Nơi xuất phát hành trình</strong><p>{originLabel}</p><p>Xuất phát: {journeyClock(startMinute)}</p><BoundaryMetrics leg={outboundLeg}/></li>;
+}
+export function ItineraryOriginReturnCard({ originLabel, endMinute, returnDeadlineMinute, returnLeg }: { originLabel: string; endMinute: number | null; returnDeadlineMinute: number | null; returnLeg?: BoundaryLeg }) {
+  return <li className="planner-stop-card"><strong>Hoàn thành · Điểm kết thúc hành trình</strong><p>{originLabel}</p><p>Về đến nơi: {journeyClock(endMinute)} · Hạn về: {journeyClock(returnDeadlineMinute)}</p><BoundaryMetrics leg={returnLeg}/></li>;
+}
+export function ItineraryTravelOnlyDayCard({ kind, originLabel, leg }: { kind: "OUTBOUND_ONLY" | "RETURN_ONLY"; originLabel: string; leg?: import("@/modules/trip-origin/journey-route-contract").JourneyPlan["legs"][number] }) {
+  return <div className="planner-stop-card"><strong>Chặng di chuyển {kind === "OUTBOUND_ONLY" ? "đi" : "về"}</strong><p>{kind === "OUTBOUND_ONLY" ? `${originLabel} → Hà Giang` : `Hà Giang → ${originLabel}`}</p><p>Khởi hành: {journeyClock(leg?.startMinute ?? null)} · Dự kiến đến: {journeyClock(leg?.endMinute ?? null)}</p><p>Nghỉ ven đường tự động: {leg?.restMinutes == null ? "Chưa đủ dữ liệu" : `+${leg.restMinutes} phút`}</p><p>Toàn bộ ngày dành cho hành trình đường dài. Mốc định tuyến là điểm tham quan, chưa tính đường ra/vào nơi nghỉ.</p></div>;
 }

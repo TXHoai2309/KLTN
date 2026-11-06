@@ -16,7 +16,7 @@ export type RefinementAssessment = {
 export function assessPlanningRefinement(previous: PlanningNeeds, updated: PlanningNeeds): RefinementAssessment {
   const changedFields: RefinementField[] = [];
   const newFacts: Partial<Record<RefinementField, unknown>> = {};
-  for (const field of ["durationDays", "transport", "startDate", "interests", "pace", "companions", "mobilityConstraints"] as const) {
+  for (const field of ["durationDays", "transport", "startDate", "interests", "pace", "companions", "mobilityConstraints", "journey"] as const) {
     if (JSON.stringify(previous.requirement[field] ?? null) !== JSON.stringify(updated.requirement[field] ?? null)) {
       changedFields.push(field); newFacts[field] = updated.requirement[field];
     }
@@ -44,6 +44,6 @@ export function assessPlanningRefinement(previous: PlanningNeeds, updated: Plann
   if (changedFields.includes("requiredDestinationIds")) planningImplications.push("REQUIRED_STOPS");
   if (changedFields.includes("excludedDestinationIds")) planningImplications.push("EXCLUDE_STOPS");
   if (changedFields.includes("preferredDestinationIds")) planningImplications.push("PREFERRED_STOPS");
-  if (changedFields.some(field => ["durationDays", "transport", "startDate"].includes(field))) planningImplications.push("REBUILD_BRIEF");
+  if (changedFields.some(field => ["durationDays", "transport", "startDate", "journey"].includes(field))) planningImplications.push("REBUILD_BRIEF");
   return { changedFields, newFacts, planningImplications, requiresRegeneration: changedFields.length > 0, tripStructureChanged: JSON.stringify(previous.tripStructure ?? null) !== JSON.stringify(updated.tripStructure ?? null) };
 }

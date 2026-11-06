@@ -20,6 +20,7 @@ import TripReviewDialog from "./trip-review-dialog";
 import TripConfirmationDialog from "./trip-confirmation-dialog";
 import TripPlannerFlow from "@/components/trip-planner/trip-planner-screen";
 import { isTripSaveNavigationLocked, type SaveState } from "@/modules/trip-save/trip-save-state";
+import type { TripJourney } from "@/modules/trip-origin/trip-origin-contract";
 import type { TripRequirementReadiness } from "@/modules/trip-requirement/trip-requirement-readiness";
 import {
   confirmDraft,
@@ -101,6 +102,7 @@ function markAiFieldsInDraft(
 
 export default function TripRequirementForm() {
   const [fields, setFields] = useState<TripRequirementFormFields>(INITIAL_FIELDS);
+  const [journey, setJourney] = useState<TripJourney | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [feedback, setFeedback] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -280,7 +282,10 @@ export default function TripRequirementForm() {
     setConfirmError(null);
 
     try {
-      const candidate = buildPayload(fields);
+      const candidate = {
+        ...buildPayload(fields),
+        ...(journey ? { journey } : {}),
+      };
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const outcome = await checkTripRequirement(candidate as any, controller.signal);
       if (
@@ -327,6 +332,9 @@ export default function TripRequirementForm() {
       if (routing.action === "OPEN_REVIEW") {
         setConfirmDialogOpen(false);
         const draft = draftFromFormFields(fields);
+        if (journey) {
+          draft.journey = journey;
+        }
         if (hasUnreviewedAiAssignments) {
           markAiFieldsInDraft(draft, extractionSuggestions);
         }
@@ -344,7 +352,11 @@ export default function TripRequirementForm() {
       }
 
       // Case (c): Pure manual entry or all AI unassigned, server confirmed -> Go directly to planner
-      const confirmed = confirmDraft(draftFromFormFields(fields), checkResult, new Date());
+      const baseDraft = draftFromFormFields(fields);
+      if (journey) {
+        baseDraft.journey = journey;
+      }
+      const confirmed = confirmDraft(baseDraft, checkResult, new Date());
       if (confirmed.confirmation.snapshot) {
         setConfirmDialogOpen(false);
         setPlanner(structuredClone(confirmed.confirmation.snapshot));
@@ -353,6 +365,9 @@ export default function TripRequirementForm() {
       } else {
         setConfirmDialogOpen(false);
         const draft = draftFromFormFields(fields);
+        if (journey) {
+          draft.journey = journey;
+        }
         setReview({
           draft,
           readiness: checkResult.readiness,
@@ -403,6 +418,8 @@ export default function TripRequirementForm() {
             onMobilityFlagsChange={(flags) => updateField("mobilityFlags", flags)}
             mobilityNote={fields.mobilityNote}
             onMobilityNoteChange={(note) => updateField("mobilityNote", note)}
+            journey={journey}
+            onJourneyChange={setJourney}
             onOpenAIModal={() => setAiModalOpen(true)}
             onSubmit={handleInitiateSubmit}
             pending={pending}
@@ -482,7 +499,12 @@ export default function TripRequirementForm() {
               clarificationRequests={review.clarificationRequests}
               initialIssues={review.issues}
               initialEditingKey={review.initialEditingKey}
-              onBackToForm={() => setReviewOpen(false)}
+              onBackToForm={(updatedDraft) => {
+                if (updatedDraft?.journey !== undefined) {
+                  setJourney(updatedDraft.journey);
+                }
+                setReviewOpen(false);
+              }}
               onConfirmed={(confirmedSnapshot) => handleReviewConfirmed(confirmedSnapshot)}
             />
           )}

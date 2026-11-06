@@ -726,3 +726,7 @@ at the upper right. Map heights are
 District names are the default map labels; disclose destinations only within the
 hovered/tapped/keyboard-selected district, retaining it through article previews.
 District labels take priority over destination and road-reference labels.
+
+## Origin interaction review fixes — 2026-11-04
+
+The origin picker uses explicit search/select/confirm with a manual fallback and current-theme MapLibre rendering. Journey clocks use one editor shared by form and modals; a return-only final day exposes its start clock without requesting user-entered rest. UNKNOWN apply freezes the reviewed request and disables dismissal/editing until reconciliation. Existing palette/type/layout stay in use. Isolated browser interaction receipts do not constitute full-shell visual acceptance.

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { tripJourneySchema } from "../trip-origin/trip-origin-contract";
 
 import { isValidCalendarDate, MAX_DURATION_DAYS, TRANSPORT_VALUES } from "../trip-requirement/trip-requirement-contract";
 
@@ -10,6 +11,7 @@ const visitSchema = z.object({
 }).strict().refine(visit => visit.startMinute + visit.plannedDurationMinutes <= 1440, "Lượt tham quan phải nằm trong một ngày.");
 
 export const tripProposalSchema = z.object({
+  journey: tripJourneySchema.nullable().optional(),
   startDate: z.string().refine(isValidCalendarDate, "Ngày bắt đầu không hợp lệ.").nullable(),
   durationDays: z.number().int().min(1).max(MAX_DURATION_DAYS),
   transport: z.enum(TRANSPORT_VALUES),

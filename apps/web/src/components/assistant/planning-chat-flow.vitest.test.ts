@@ -5,9 +5,13 @@ import { generatePlanningProposal } from "../../modules/assistant-planning/plann
 import { tripRequirementInputSchema } from "../../modules/trip-requirement/trip-requirement-contract";
 import { fixtureNeeds, fixtureRoutes, planningCandidate, planningNow } from "../../test/planning-fixtures";
 import { AppError } from "../../server/http/app-error";
+import { COMPLETE_JOURNEY_FIXTURE } from "../../modules/trip-origin/trip-origin-fixtures";
 
-function setup(needs: PlanningNeeds = fixtureNeeds, initialDays = [["a"]], routes = fixtureRoutes) {
-  let workspace: PlanningWorkspace = { conversationId: "chat", version: 0, needs, pendingSaveKey: null, savedTripId: null, context: { type: "GENERAL" } };
+const shortOriginLeg = { status: "VERIFIED", reason: null, durationSeconds: 600, distanceMeters: 1000, provider: "STADIA_MAPS" } as const;
+function setup(needs: PlanningNeeds = fixtureNeeds, initialDays = [["a"]], baseRoutes = fixtureRoutes) {
+  // Only a complete origin round trip can be saved; these flows are about dialogue, not the journey.
+  const routes = { coordinateRoute: async () => shortOriginLeg, ...baseRoutes };
+  let workspace: PlanningWorkspace = { conversationId: "chat", version: 0, needs: { ...needs, requirement: { journey: COMPLETE_JOURNEY_FIXTURE, ...needs.requirement } }, pendingSaveKey: null, savedTripId: null, context: { type: "GENERAL" } };
   const analyses: PlanningAnalysis[] = [];
   const generate = vi.fn(async () => ({ days: initialDays }));
   const save = vi.fn(async () => ({ save: { status: "SUCCESS", data: { tripId: "saved-trip" } } }));

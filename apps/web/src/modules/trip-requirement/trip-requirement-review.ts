@@ -18,6 +18,7 @@ import type {
 } from "../preference-extraction/preference-extraction-contract";
 import type { CheckIssue, CheckResult } from "./trip-requirement-check";
 import { resolveTransportCandidateFromExtraction } from "./transport-safety";
+import { tripJourneySchema } from "../trip-origin/trip-origin-contract";
 
 /** Fixed order for the review surface; do not derive it from object keys. */
 export const REVIEW_FIELD_KEYS = [
@@ -65,10 +66,12 @@ export type ReviewFieldMap = Record<ReviewFieldKey, ReviewField>;
 
 export type TripRequirementReviewDraft = {
   fields: ReviewFieldMap;
+  journey?: TripRequirementInput["journey"];
 };
 
 /** Candidate shape intentionally permits null required fields until a server check runs. */
 export type TripRequirementCandidate = {
+  journey?: TripRequirementInput["journey"];
   startDate: string | null;
   durationDays: number | null;
   companions: ReviewValueMap["companions"] | null;
@@ -254,6 +257,7 @@ export function draftToCandidate(draft: TripRequirementReviewDraft): TripRequire
   const fields = draft.fields;
   const interests = fields.interests.value;
   return {
+    ...(draft.journey === undefined ? {} : { journey: structuredClone(draft.journey) }),
     startDate: fields.startDate.value as string | null,
     durationDays: fields.durationDays.value as number | null,
     companions: fields.companions.value as ReviewValueMap["companions"] | null,
@@ -455,7 +459,7 @@ export function applyFieldEdit(
   } as ReviewFieldMap;
   return {
     ok: true,
-    draft: { fields: nextFields },
+    draft: { ...draft, fields: nextFields },
     confirmation: "NOT_CONFIRMED",
   };
 }
@@ -469,7 +473,7 @@ export function clearField(
     ...draft.fields,
     [key]: editedField(draft.fields[key], emptyValueFor(key) as ReviewValueMap[typeof key] | null),
   } as ReviewFieldMap;
-  return { fields: nextFields };
+  return { ...draft, fields: nextFields };
 }
 
 /** Restores only an actually extracted AI value; ambiguous/missing fields are untouched. */
@@ -494,7 +498,7 @@ export function restoreAiValue(
       issues: [],
     },
   } as ReviewFieldMap;
-  return { fields: nextFields };
+  return { ...draft, fields: nextFields };
 }
 
 function cloneReviewValue<K extends ReviewFieldKey>(
@@ -525,7 +529,7 @@ function syncDraftWithRequirement(
       issues: [],
     } as ReviewFieldMap[typeof key];
   }
-  return { fields };
+  return { fields, ...(requirement.journey === undefined ? {} : { journey: structuredClone(requirement.journey) }) };
 }
 
 /**
@@ -574,6 +578,14 @@ export function confirmDraft(
 /** Any subsequent edit must invalidate the check snapshot before a future save flow. */
 export function invalidateConfirmation(): ReviewConfirmation {
   return { state: "NOT_CONFIRMED", snapshot: null };
+}
+
+/** The picker owns explicit pin confirmation; a new journey always clears review. */
+export function updateDraftJourney(draft: TripRequirementReviewDraft, journey: unknown): { draft: TripRequirementReviewDraft; confirmation: ReviewConfirmation } {
+  return {
+    draft: { ...draft, journey: tripJourneySchema.nullable().parse(journey) },
+    confirmation: invalidateConfirmation(),
+  };
 }
 
 export type ReviewExtractionField = PreferenceExtractionField;

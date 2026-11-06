@@ -6,13 +6,13 @@ describe("Conversational itinerary deterministic boundary", () => {
   it("rejects unknown, repeated, hidden and missing mandatory destinations", () => {
     const candidates = [planningCandidate("a")];
     for (const days of [[["unknown"]], [["a", "a"]], [[], []]]) expect(() => assertPlanningSelection({ days }, fixtureNeeds, candidates)).toThrow();
-    expect(() => assertPlanningSelection({ days: [["a"]] }, { ...fixtureNeeds, requiredDestinationIds: ["b"] }, candidates)).toThrow(/bắt buộc/);
+    expect(() => assertPlanningSelection({ days: [["a"]] }, { ...fixtureNeeds, requiredDestinationIds: ["b"] }, candidates, planningNow)).toThrow(/bắt buộc/);
     expect(() => assertPlanningSelection({ days: [["a"]] }, fixtureNeeds, [{ ...candidates[0]!, visibility: "HIDDEN" }])).toThrow();
   });
   it("checks genuine dates/routes and never certifies a relative proposal", async () => {
     const candidates = [planningCandidate("a"), planningCandidate("b")];
     const ready = await scheduleSelection(fixtureNeeds, { days: [["a", "b"]] }, candidates, fixtureRoutes, planningNow);
-    expect(ready.eligibleForFinalConfirmation).toBe(true);
+    expect(ready.eligibleForFinalConfirmation).toBe(false); // no origin routing yet
     const relative = await scheduleSelection({ ...fixtureNeeds, requirement: { ...fixtureNeeds.requirement, startDate: null } }, { days: [["a", "b"]] }, candidates, fixtureRoutes, planningNow);
     expect(relative.eligibleForFinalConfirmation).toBe(false);
     const missing = await scheduleSelection(fixtureNeeds, { days: [["a", "b"]] }, candidates, { route: async p => missingLeg(p, "UNAVAILABLE") }, planningNow);

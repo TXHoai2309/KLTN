@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh() {} }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh() {} }), useSearchParams: () => new URLSearchParams() }));
 vi.mock("@/components/favorite-button", () => ({ default: ({ targetId, initialIsFavorite }: { targetId: string; initialIsFavorite: boolean }) => createElement("button", { type: "button", "data-trip-heart": targetId, "aria-pressed": initialIsFavorite }, initialIsFavorite ? "Bỏ chuyến đi khỏi yêu thích" : "Thêm chuyến đi vào yêu thích") }));
 
 import type { TripDetail, TripSummary } from "@/modules/trip-read/trip-read-service";

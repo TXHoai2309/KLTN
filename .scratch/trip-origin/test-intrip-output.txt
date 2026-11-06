@@ -1,0 +1,17 @@
+
+ RUN  v5.0.3 D:/KLTN/KLTN/apps/web
+
+stderr | src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts > V2-06 saved-trip authority through existing US-35/36/37 > preserves rollback and never claims success on a transaction failure
+Idempotent write outcome is unknown
+
+ ✓ src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts (31 tests) 857ms
+
+ Test Files  1 passed (1)
+      Tests  31 passed (31)
+   Start at  16:50:00
+   Duration  4.51s (transform 55%, import 25%, tests 20%)
+
+  Transform  transforming modules took 2.34s · 55% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+

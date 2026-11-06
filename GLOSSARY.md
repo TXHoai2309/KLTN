@@ -62,6 +62,18 @@ _Avoid_: Hidden destination, unavailable destination.
 The single calendar date intended for the start of the traveler's trip, including its day, month and year.
 _Avoid_: Indicative departure window, number of trip days.
 
+**Trip origin (nơi xuất phát)**:
+Địa điểm người đi bắt đầu hành trình, bao gồm chặng từ đó đến khu vực tham quan Hà Giang. Nơi xuất phát khác với điểm tham quan đầu tiên và vị trí hiện tại khi đang đi.
+_Avoid_: First attraction, current in-trip location, departure date.
+
+**Return leg (chặng về)**:
+Chặng di chuyển từ điểm tham quan cuối cùng quay về nơi xuất phát trong ngày cuối của chuyến đi.
+_Avoid_: Last attraction, trip completion.
+
+**Roadside rest allowance (thời gian nghỉ dọc đường dự kiến)**:
+Khoảng thời gian hệ thống dành thêm để nghỉ trong các chặng di chuyển của lịch trình, tách biệt với thời gian chạy xe ước tính.
+_Avoid_: Verified driving time, actual rest time, lodging.
+
 **Indicative departure window (khoảng khởi hành dự kiến)**:
 A period in which the traveler may start the trip without yet choosing one exact departure date, such as a particular week.
 _Avoid_: Exact departure date, confirmed trip dates.

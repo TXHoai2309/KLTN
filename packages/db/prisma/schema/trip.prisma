@@ -13,6 +13,8 @@ model Trip {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   manuallyCompletedAt DateTime?
+  // Owner-private origin, clocks and authoritative policy/route projection.
+  journeySnapshot Json?
   days         ItineraryDay[]
   favorites    Favorite[]
   companionPublication TripCompanionPublication?

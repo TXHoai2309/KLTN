@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { tripJourneySchema } from "../trip-origin/trip-origin-contract";
 
 /**
  * US-24 contract only. This module is intentionally client-safe: it does not
@@ -281,6 +282,7 @@ const mobilityConstraintsSchema = z
 export const tripRequirementInputSchema = z
   .object({
     startDate: startDateSchema,
+    journey: tripJourneySchema.nullable().optional(),
     durationDays: durationDaysSchema,
     transport: transportSchema,
     companions: companionsSchema.nullable().optional().default(null),

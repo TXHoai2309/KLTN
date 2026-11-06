@@ -50,6 +50,12 @@ At handoff, record implementation changes and evidence in the story and append a
 | [implementation/development-workflow.md](implementation/development-workflow.md) | TXH, dev, and master branch roles and review flow. |
 | [implementation/environment-deployment.md](implementation/environment-deployment.md) | Environment files, database mapping, Vercel, and migration workflow. |
 | [implementation/trip-companions-user-stories-tasks.md](implementation/trip-companions-user-stories-tasks.md) | Vietnamese User Story and BE/FE/test task summary for the approved travel-companions extension. |
+| [implementation/trip-origin-design.md](implementation/trip-origin-design.md) | Approved origin/return decisions Q1–Q22; planning only, not implementation authorization. |
+| [implementation/trip-origin-plan.md](implementation/trip-origin-plan.md) | Consolidated origin/return plan, nine proposed work items, dependencies and acceptance groups; awaiting review. |
+| [product/trip-origin-spec.md](product/trip-origin-spec.md) | Consolidated feature spec from Q1–Q22: user stories, implementation/testing decisions and scope; documentation only. |
+| [Origin/return tickets](../.scratch/trip-origin/README.md) | Ten local vertical slices; backend 01–09 and BE integration receipts available, FE/browser/live acceptance and shared migration deployment pending. |
+| [Origin backend prompt](../.scratch/trip-origin/prompts/backend.md), [frontend prompt](../.scratch/trip-origin/prompts/frontend.md) | Separate BE/FE ownership and contract handoffs within the ten tickets; prompts are prepared, not executed. |
+| [stories/TRIP-ORIGIN-ROUND-TRIP.md](stories/TRIP-ORIGIN-ROUND-TRIP.md) | Origin/return in progress; backend routing/rest, Save/read/privacy, Assistant ORIGIN and saved edit/legacy opt-in implemented locally; FE/vertical acceptance pending. |
 | [stories/README.md](stories/README.md) | Story lifecycle and READY criteria. |
 | [stories/US-TEMPLATE.md](stories/US-TEMPLATE.md) | Reusable implementation contract for future stories. |
 | [templates/decision-template.md](templates/decision-template.md) | Format for adding an architecture decision. |

@@ -1,4 +1,5 @@
 import { apiSuccess } from "@/server/http/api-response";
+import { assertJourneyCoverage } from "../trip-origin/trip-origin-service";
 import { AppError } from "@/server/http/app-error";
 import { handleApiError } from "@/server/http/error-handler";
 import { requireTraveler } from "@/server/auth/require-traveler";
@@ -57,6 +58,7 @@ export async function evaluateTripRequirementResponse(
       );
     }
 
+    assertJourneyCoverage(parsed.data.journey);
     return privateResponse(
       apiSuccess({
         requirement: parsed.data,

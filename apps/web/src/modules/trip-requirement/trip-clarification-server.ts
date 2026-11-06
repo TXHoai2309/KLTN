@@ -1,4 +1,5 @@
 import { AppError } from "@/server/http/app-error";
+import { assertJourneyCoverage } from "../trip-origin/trip-origin-service";
 
 import {
   deriveClarificationsFromCheck,
@@ -60,5 +61,6 @@ export function assertTripRequirementClear(
     );
   }
 
+  assertJourneyCoverage(check.requirement.journey);
   return check.requirement;
 }

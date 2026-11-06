@@ -5,6 +5,7 @@ import type { AuthorizationDependencies } from "@/server/authorization/guard";
 import { AppError } from "@/server/http/app-error";
 import { effectiveTripStatus, type TripStatus } from "./trip-status";
 import type { TravelLeg } from "../trip-planner/planner-contract";
+import { savedJourneySchema, journeyVisitFingerprint, type SavedJourney } from "../trip-origin/journey-saved-contract";
 
 export type TripReadDependencies = AuthorizationDependencies & { database: Database };
 
@@ -25,6 +26,9 @@ export type TripSummary = {
 };
 
 export type TripDetail = TripSummary & {
+  /** Only HOST receives this property; legacy owner reads explicitly return null. */
+  journey?: SavedJourney | null;
+  baseRevision?: string;
   days: {
     id: string;
     dayIndex: number;
@@ -64,6 +68,8 @@ const summarySelect = (userId: string) => ({
   },
 } satisfies Prisma.TripSelect);
 const detailSelect = (userId: string) => ({
+  journeySnapshot: true,
+  updatedAt: true,
   id: true, userId: true, startDate: true, durationDays: true, transport: true, manuallyCompletedAt: true,
   user: { select: { name: true } },
   favorites: { where: { userId }, select: { id: true } },
@@ -180,8 +186,17 @@ export async function getMyTrip(headers: Headers, id: string, deps: TripReadDepe
     select: detailSelect(actor.userId),
   });
   if (!row) throw new AppError("TRIP_NOT_FOUND", "Không tìm thấy chuyến đi.", 404);
+  let journey: SavedJourney | null = null;
+  if (row.userId === actor.userId && row.journeySnapshot != null) {
+    const parsed = savedJourneySchema.safeParse(row.journeySnapshot);
+    if (!parsed.success) throw new AppError("TRIP_JOURNEY_DATA_UNAVAILABLE", "Chưa thể đọc thông tin đi/về của chuyến đi.", 503);
+    journey = parsed.data;
+    const currentFingerprint = journeyVisitFingerprint(row.days.map(day => ({ dayIndex: day.dayIndex, visits: day.visits.map(visit => ({ ...visit, destinationId: visit.destination.id })) })));
+    if (journey.visitFingerprint !== currentFingerprint) journey = { ...journey, plan: null };
+  }
   return {
     ...summary(row, referenceDate, actor.userId),
+    ...(row.userId === actor.userId ? { journey, baseRevision: row.updatedAt?.toISOString() } : {}),
     days: [...row.days].sort((a, b) => a.dayIndex - b.dayIndex || a.id.localeCompare(b.id)).map(day => ({
       id: day.id, dayIndex: day.dayIndex, localDate: day.localDate.toISOString().slice(0, 10),
       visits: [...day.visits].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id)).map(visit => ({

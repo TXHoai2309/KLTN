@@ -1,0 +1,17 @@
+// Public place-search cache contains provider projections, never trip needs or raw queries.
+model OriginSearchCache {
+  key       String   @id
+  payload   Json
+  expiresAt DateTime @db.Timestamptz(3)
+
+  @@index([expiresAt])
+  @@map("origin_search_cache")
+}
+
+// Shared admission is committed BEFORE external I/O; process death leaves the cooldown intact.
+model OriginSearchAdmission {
+  id            String   @id
+  nextAllowedAt DateTime @db.Timestamptz(3)
+
+  @@map("origin_search_admission")
+}

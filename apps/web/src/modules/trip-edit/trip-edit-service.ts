@@ -46,6 +46,7 @@ export type TripEditServiceDependencies = {
 export type TripEditPageDependencies = AuthorizationDependencies & { database: Database };
 
 export type TripEditPageData = {
+  journeyDisclosure?: "ORIGIN_LEGS_NOT_INCLUDED" | "SAVED_JOURNEY_PRESENT";
   tripId: string;
   baseRevision: string;
   candidate: EditCandidate;
@@ -73,6 +74,7 @@ export type TripEditBase = Prisma.TripGetPayload<{
 }>;
 
 const tripEditPageSelect = {
+  journeySnapshot: true,
   id: true,
   startDate: true,
   durationDays: true,
@@ -128,6 +130,7 @@ export async function getTripForEdit(
 
   return {
     tripId: trip.id,
+    journeyDisclosure: trip.journeySnapshot == null ? "ORIGIN_LEGS_NOT_INCLUDED" : "SAVED_JOURNEY_PRESENT",
     baseRevision: trip.updatedAt.toISOString(),
     candidate,
     destinationLabels: Object.fromEntries(trip.days.flatMap((day) =>

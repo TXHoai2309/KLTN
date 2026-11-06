@@ -88,6 +88,7 @@ export function createAssistantV2HttpService(deps: Dependencies) {
       try {
         let data;
         if (request.operation === "TURN") data = { turn: await live.session.send(request.text, key) };
+        else if (live.mode === "PLANNING" && request.operation === "ORIGIN") data = { turn: await live.session.provideOrigin(request.journey, key) };
         else if (live.mode === "IN_TRIP" && request.operation === "LOCATION") data = { turn: await live.session.provideLocation(request.location, key) };
         else if (live.mode === "IN_TRIP" && request.operation === "RECONCILE") data = { turn: await live.session.reconcile() };
         else if (live.mode === "PLANNING" && request.operation === "RECONCILE") {
