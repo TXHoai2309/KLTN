@@ -4,6 +4,7 @@ import { createPlannerService } from "../trip-planner/planner-service";
 import type { RouteProvider } from "../trip-planner/planner-routes";
 import type { JourneyRoute } from "./journey-route-contract";
 import { planJourney } from "./journey-planner";
+import { selectPlannerDays } from "../trip-planner/planner-engine";
 import { tripRequirementInputSchema } from "../trip-requirement/trip-requirement-contract";
 import { COMPLETE_JOURNEY_FIXTURE } from "./trip-origin-fixtures";
 
@@ -39,11 +40,19 @@ describe("origin journeys fit the day boundaries and auto-selected stops", () =>
     expect(result.days[0]?.journeyDayKind).toBe("OUTBOUND_ONLY");
     expect(layout(result)).toEqual([0, 3, 2]);
   });
-  it("reuses evidence: trimming only requests the legs that changed", async () => {
+  it("reuses evidence: re-planning after a drop only requests legs it has not seen", async () => {
     const routes = providers();
     await propose(pool, 3, 420, routes);
-    expect(routes.route.mock.calls.length).toBe(8);
-    expect(routes.coordinateRoute.mock.calls.length).toBe(4);
+    const pairs = routes.route.mock.calls.map(([pair]) => `${pair.from.id}>${pair.to.id}`);
+    expect(new Set(pairs).size).toBe(pairs.length);
+    expect(routes.coordinateRoute.mock.calls.length).toBeLessThanOrEqual(6);
+  });
+  it("orders a round trip as a loop instead of doubling back", async () => {
+    const stops = [["a", 23.2, 105.0], ["b", 23.2, 105.4], ["c", 22.8, 105.0], ["d", 22.8, 105.4]].map(([id, latitude, longitude]) => candidate(id as string, { latitude: latitude as number, longitude: longitude as number, suggestedDurationMinutes: 30 }));
+    const requirement = tripRequirementInputSchema.parse({ ...input(2, 420), journey: { ...input(2, 420).journey, origin: { label: "Hà Nội", latitude: 21, longitude: 105.2, source: "MANUAL", confirmed: true } } });
+    const order = selectPlannerDays(requirement, stops).flat().map(stop => stop.id);
+    // c and d are the southern pair nearest Hà Nội: they must open and close the loop.
+    expect(new Set([order[0], order[3]])).toEqual(new Set(["c", "d"]));
   });
   it("does not trim when route evidence is missing", async () => {
     const result = await propose(pool, 3, 420, providers({ status: "INSUFFICIENT_DATA", reason: "UNAVAILABLE", durationSeconds: null, distanceMeters: null, provider: null }));

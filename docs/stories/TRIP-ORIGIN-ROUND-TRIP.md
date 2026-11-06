@@ -127,4 +127,5 @@ Owner asked to apply these immediately, using the values proposed in session. Th
 - Journey schedules leave 60 minutes for lunch when a visit ends 11:30-14:00 and another visit follows that day.
 - A day driving over 8 hours by car or 6 by motorcycle gets a non-blocking `LONG_DRIVING_DAY` warning.
 - Well-known destinations are kept first when there are more places than slots and dropped last when trimming. This is a name list in code until Admin has a field for it.
+- Form proposals with an origin order stops as a loop (2-opt on straight-line distance), prefer day boundaries that leave less unused time before the last day, and re-add dropped stops that still fit. Assistant day plans are kept unless a constraint fails.
 - Saved trips show the destination's own photo, falling back to the scenic picture when the link is broken. Ordinary trip edits still validate against uncapped provider times.

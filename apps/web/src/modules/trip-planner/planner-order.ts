@@ -15,6 +15,20 @@ export function pickPlannerStops(requirement: TripRequirementInput, candidates: 
   return [...[...featured].sort((a, b) => score(b) - score(a) || a.id.localeCompare(b.id)), ...others].slice(0, budget);
 }
 
+/** Nearest-neighbour chains double back. Reversing crossed stretches (2-opt) turns a round trip into a loop; at most 28 stops, no routing calls. */
+function untangleRoundTrip(path: readonly PlannerCandidate[], origin: { latitude: number; longitude: number }): PlannerCandidate[] {
+  const length = (stops: readonly PlannerCandidate[]) => stops.reduce((sum, stop, index) => sum + haversine(index ? stops[index - 1]! : origin, stop), 0) + (stops.length ? haversine(stops[stops.length - 1]!, origin) : 0);
+  let best = [...path], improved = true;
+  while (improved) {
+    improved = false;
+    for (let from = 0; from < best.length - 1; from++) for (let to = from + 1; to < best.length; to++) {
+      const next = [...best.slice(0, from), ...best.slice(from, to + 1).reverse(), ...best.slice(to + 1)];
+      if (length(next) < length(best) - EPSILON) { best = next; improved = true; }
+    }
+  }
+  return best.length && haversine(origin, best[0]!) > haversine(origin, best[best.length - 1]!) ? best.reverse() : best;
+}
+
 /** Bounded geographic heuristic only. These costs never become road metrics or clocks. */
 export function orderPlannerCandidates(requirement: TripRequirementInput, candidates: readonly PlannerCandidate[], budget: number): PlannerCandidate[] {
   const interests = new Map(candidates.map(candidate => [candidate.id, interestScore(candidate, requirement.interests)]));
@@ -55,6 +69,8 @@ export function orderPlannerCandidates(requirement: TripRequirementInput, candid
       bestCost = cost;
     }
   }
+  const tripOrigin = requirement.journey?.origin?.confirmed ? requirement.journey.origin : null;
+  if (tripOrigin) bestPath = untangleRoundTrip(bestPath, tripOrigin);
   // Retain alternatives for date-specific closures or visit-duration limits.
   const selected = new Set(bestPath.map(candidate => candidate.id));
   const remaining = pool.filter(candidate => !selected.has(candidate.id));
