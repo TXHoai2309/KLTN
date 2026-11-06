@@ -225,7 +225,6 @@ function SignedInV2Chat({ available = true, tripId, onMinimize, initialContext, 
       </div>;
     })}{asking && asking.at === messages.length && <AssistantPendingTurn question={asking.question}/>}</div>
     <div className="assistant-planning">
-    {error && <p role="alert">{error}</p>}
     {busy && !asking && <p role="status">Mình đang xử lý yêu cầu…</p>}
     {latestInTrip && <p className="assistant-muted">Nguồn vị trí: {latestInTrip.plan.currentLocationSource === "GPS" ? "GPS" : latestInTrip.plan.currentLocationSource === "MANUAL" ? "Thủ công" : "Chưa cung cấp"}.</p>}
     {pending.current && !busy && <button type="button" disabled={busy || !available} onClick={() => void perform(pending.current!.request, pending.current!.question, true)}>Kiểm tra lại cùng yêu cầu</button>}
@@ -240,10 +239,12 @@ function SignedInV2Chat({ available = true, tripId, onMinimize, initialContext, 
     </div>
     </div></div>
     <div className="assistant-bottom-dock"><div className="assistant-bottom-dock-inner">
+        {error && <p role="alert" className="assistant-planning-error" style={{ margin: "0 0 6px", color: "#b42318", fontSize: 12.5, overflowWrap: "anywhere" }}>{error}</p>}
+        {pending.current && !busy && !expired && <button type="button" className="assistant-composer-retry" disabled={!available} style={{ margin: "0 0 6px", minHeight: 40, padding: "6px 12px", border: "1px solid #165b3f", borderRadius: 9999, background: "#fff", color: "#165b3f", font: "inherit", fontWeight: 600, cursor: "pointer" }} onClick={() => void perform(pending.current!.request, pending.current!.question, true)}>Kiểm tra lại cùng yêu cầu</button>}
         {expired ? <a className="assistant-notice-banner" href={tripId ? `/trips/${encodeURIComponent(tripId)}/in-trip` : "/assistant"}>Mở lại phiên từ trạng thái hiện tại</a> : <form noValidate className="assistant-composer" onSubmit={event => { event.preventDefault(); void send(); }}>
       <label htmlFor={inputId} className="assistant-sr-only">Tin nhắn cho trợ lý</label>
-      <div className="assistant-composer-input">
-        <textarea className="resize-none" ref={composer} id={inputId} maxLength={tripId ? 500 : 1000} rows={1} placeholder={tripId ? "Nhập yêu cầu về chuyến đi…" : "Nhập câu hỏi hoặc nhu cầu chuyến đi Hà Giang…"} value={draft} disabled={disabled} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void send(); } }}/>
+      <div className="assistant-composer-input" onPointerDown={event => { if (event.target === event.currentTarget) { event.preventDefault(); composer.current?.focus(); } }}>
+        <textarea className="resize-none" ref={composer} id={inputId} maxLength={tripId ? 500 : 1000} rows={1} placeholder={tripId ? "Nhập yêu cầu về chuyến đi…" : "Nhập câu hỏi hoặc nhu cầu chuyến đi Hà Giang…"} value={draft} disabled={!available || expired || !!savedTripId} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void send(); } }}/>
         <div className="assistant-composer-bar">
           <div className="assistant-composer-left-tools">{!tripId && sessionId && <button type="button" disabled={disabled || uncertain} onClick={() => setOriginOpen(true)}>Nơi xuất phát & giờ đi/về</button>}</div>
           <button type="submit" disabled={disabled || !draft.trim()} aria-busy={busy}><Send aria-hidden="true"/><span>Gửi</span></button>

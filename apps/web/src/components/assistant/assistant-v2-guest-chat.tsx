@@ -176,7 +176,7 @@ export function AssistantV2GuestChat({ available = true, onMinimize, onOpenFullP
     <div className="assistant-bottom-dock"><div className="assistant-bottom-dock-inner">
         <form noValidate className="assistant-composer" onSubmit={event => { event.preventDefault(); send(); }}>
       <label htmlFor={inputId} className="assistant-sr-only">Tin nhắn cho trợ lý</label>
-      <div className="assistant-composer-input">
+      <div className="assistant-composer-input" onPointerDown={event => { if (event.target === event.currentTarget) { event.preventDefault(); composer.current?.focus(); } }}>
         <textarea className="resize-none" ref={composer} id={inputId} maxLength={1000} rows={1} placeholder="Nhập câu hỏi về Hà Giang…" value={state.draft} disabled={disabled} onChange={event => controller.setDraft(event.target.value)} onKeyDown={event => { if (shouldSendOnEnter({ key: event.key, shiftKey: event.shiftKey, isComposing: event.nativeEvent.isComposing, keyCode: event.keyCode })) { event.preventDefault(); send(); } }}/>
         <div className="assistant-composer-bar">
           <div className="assistant-composer-left-tools"/>

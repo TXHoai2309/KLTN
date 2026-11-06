@@ -773,6 +773,55 @@
     min-width: 44px;
     min-height: 44px;
   }
+
+  /* Touch-friendly composer: the whole pill is a tap target for the textarea */
+  .destination-assistant-panel .assistant-composer-input,
+  .assistant-chat-panel .assistant-composer-input {
+    min-height: 48px !important;
+    padding: 4px 6px 4px 14px !important;
+    cursor: text;
+    touch-action: manipulation;
+  }
+
+  .destination-assistant-panel textarea,
+  .assistant-chat-panel textarea,
+  .destination-assistant-panel .assistant-composer textarea,
+  .assistant-chat-panel .assistant-composer textarea {
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 8px 0 !important;
+    flex: 1 1 0% !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    opacity: 1 !important;
+    color: #132a21 !important;
+    -webkit-text-fill-color: #132a21 !important;
+    caret-color: #165b3f;
+    overflow-y: auto !important;
+  }
+
+  .dark .destination-assistant-panel textarea,
+  .dark .assistant-chat-panel textarea {
+    color: #f0f7f3 !important;
+    -webkit-text-fill-color: #f0f7f3 !important;
+  }
+
+  .destination-assistant-panel button[type="submit"],
+  .assistant-chat-panel button[type="submit"],
+  .destination-assistant-panel .assistant-composer-bar button[type="submit"],
+  .assistant-chat-panel .assistant-composer-bar button[type="submit"],
+  .destination-assistant-panel.assistant-page .assistant-composer-bar button[type="submit"] {
+    height: 40px !important;
+    min-width: 44px !important;
+    padding: 0 14px !important;
+    font-size: 13px !important;
+    touch-action: manipulation;
+  }
+
+  .assistant-chat-panel .assistant-composer-bar {
+    flex-wrap: nowrap !important;
+    flex-shrink: 0;
+  }
 }
 
 @media (min-width: 641px) {
