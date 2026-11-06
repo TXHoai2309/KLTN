@@ -1218,6 +1218,8 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
                 focusSelection={focusSelection}
                 onSelect={handleSelectDestination}
                 overviewOnly={activeDayIndex === null}
+                journeyPlan={trip.journey?.plan}
+                origin={trip.journey?.journey.origin}
               />
             ) : (
               <div className="my-trips-map-empty">

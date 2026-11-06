@@ -4,20 +4,21 @@ import type { PlannerStop } from "../trip-planner/planner-contract";
 import { itineraryDayColorToken, type ItineraryMapRoute } from "./itinerary-map-model";
 
 /** Marker coordinates come from Destination records. Never draws a guessed route. */
-export function mountItineraryMap(host: HTMLDivElement, library: typeof MapLibre, stops: readonly PlannerStop[], style: string, onSelect: (id: string) => void, onReady: () => void, onFailure: () => void, options: { routes?: readonly ItineraryMapRoute[]; overview?: boolean; markerDays?: ReadonlyMap<string, number> } = {}) {
+export function mountItineraryMap(host: HTMLDivElement, library: typeof MapLibre, stops: readonly PlannerStop[], style: string, onSelect: (id: string) => void, onReady: () => void, onFailure: () => void, options: { routes?: readonly ItineraryMapRoute[]; overview?: boolean; markerDays?: ReadonlyMap<string, number>; origin?: { label: string; latitude: number; longitude: number } } = {}) {
   const map = new library.Map({ container: host, style, center: toMapCoordinate(haGiangViewport.center), zoom: haGiangViewport.zoom, maxZoom: 16,
     cooperativeGestures: true, attributionControl: { compact: true } });
   const markers: { marker: MapLibre.Marker; button: HTMLButtonElement; click: () => void; stop: PlannerStop }[] = [];
   let disposed = false;
   let fittedVisible = false;
   let currentStyle = style;
+  let originMarker: MapLibre.Marker | undefined;
   const addRoutes = () => {
     if (disposed || !options.routes?.length) return;
     const css = getComputedStyle(host);
     const data = {
       type: "FeatureCollection" as const,
       features: options.routes.map(route => ({ type: "Feature" as const, geometry: route.geometry,
-        properties: { day: route.day, color: css.getPropertyValue(itineraryDayColorToken(options.overview ? route.day : 1)).trim() } })),
+        properties: { day: route.day, color: css.getPropertyValue(route.boundary ? "--planner-route-origin" : itineraryDayColorToken(options.overview ? route.day : 1)).trim() } })),
     };
     const source = map.getSource("itinerary-routes");
     if (source) { (source as MapLibre.GeoJSONSource).setData(data); return; }
@@ -28,12 +29,15 @@ export function mountItineraryMap(host: HTMLDivElement, library: typeof MapLibre
   const fit = () => {
     if (disposed) return;
     if (host.clientWidth > 0) fittedVisible = true;
-    if (stops.length === 1 && !options.routes?.length) map.jumpTo({ center: toMapCoordinate(stops[0]!.destination), zoom: 11 });
-    else if (stops.length) {
+    if (stops.length === 1 && !options.routes?.length && !options.origin) map.jumpTo({ center: toMapCoordinate(stops[0]!.destination), zoom: 11 });
+    else if (stops.length || options.origin) {
       const bounds = new library.LngLatBounds();
       stops.forEach(stop => bounds.extend(toMapCoordinate(stop.destination)));
+      if (options.origin) bounds.extend(toMapCoordinate(options.origin));
       options.routes?.forEach(route => route.geometry.coordinates.forEach(point => bounds.extend(point)));
-      map.fitBounds(bounds, { padding: { top: 70, right: 60, bottom: 80, left: 60 }, maxZoom: 11, duration: 0 });
+      // Keeps the route clear of the stop card pinned to the map's bottom corner.
+      const bottom = Math.max(80, Math.min(170, (host.clientHeight || 0) * 0.3));
+      map.fitBounds(bounds, { padding: { top: 70, right: 60, bottom, left: 60 }, maxZoom: 11, duration: 0 });
     }
   };
   // A mobile tab can mount the map while its panel is hidden.
@@ -46,6 +50,7 @@ export function mountItineraryMap(host: HTMLDivElement, library: typeof MapLibre
     if (disposed) return; disposed = true;
     resizeObserver?.disconnect();
     for (const item of markers) { item.button.removeEventListener("click", item.click); item.marker.remove(); }
+    originMarker?.remove();
     map.off("load", onReady); map.off("error", onFailure);
     if (options.routes?.length) map.off("style.load", addRoutes);
     map.remove();
@@ -69,6 +74,12 @@ export function mountItineraryMap(host: HTMLDivElement, library: typeof MapLibre
       const click = () => onSelect(stop.destination.id); button.addEventListener("click", click);
       const marker = new library.Marker({ element: button, anchor: "bottom", offset: [0, -6] }).setLngLat(toMapCoordinate(stop.destination)).addTo(map);
       markers.push({ marker, button, click, stop });
+    }
+    if (options.origin) {
+      const pin = document.createElement("div"); pin.className = "planner-map-origin-marker";
+      pin.setAttribute("role", "img"); pin.setAttribute("aria-label", `Nơi xuất phát: ${options.origin.label}`); pin.title = options.origin.label;
+      pin.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
+      originMarker = new library.Marker({ element: pin, anchor: "center" }).setLngLat(toMapCoordinate(options.origin)).addTo(map);
     }
     fit();
     return { dispose, fit, setStyle(next: string) {

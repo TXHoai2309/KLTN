@@ -21,6 +21,14 @@ export type OriginSelection = z.infer<typeof originSelectionSchema>;
 export type TripJourney = z.infer<typeof tripJourneySchema>;
 export type JourneyMissingField = "origin" | "originConfirmation" | "departureMinute" | "returnDeadlineMinute" | "returnDepartureMinute";
 
+export const JOURNEY_MISSING_LABELS: Record<JourneyMissingField, string> = {
+  origin: "Chưa chọn điểm xuất phát.",
+  originConfirmation: "Cần nhấn 'Xác nhận điểm xuất phát' trên bản đồ.",
+  departureMinute: "Chưa chọn giờ khởi hành ngày đầu.",
+  returnDeadlineMinute: "Chưa chọn hạn trở về ngày cuối.",
+  returnDepartureMinute: "Chưa chọn giờ bắt đầu trở về ngày cuối.",
+};
+
 export function missingJourneyFields(journey: TripJourney | null | undefined, returnOnly = false): JourneyMissingField[] {
   const missing: JourneyMissingField[] = [];
   if (!journey?.origin) missing.push("origin");

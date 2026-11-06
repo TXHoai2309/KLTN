@@ -16,7 +16,7 @@ import { isTripSaveNavigationLocked, type SaveState } from "@/modules/trip-save/
 import {
   ItineraryDayTabs,
   ItineraryStopCard,
-  TripOverviewCard, ItineraryOriginDepartureCard, ItineraryOriginReturnCard, ItineraryTravelOnlyDayCard,
+  TripOverviewCard, JourneyMissingNotice, ItineraryOriginDepartureCard, ItineraryOriginReturnCard, ItineraryTravelOnlyDayCard,
   TripSummaryBar,
   ValidationSheet,
   WarningNoticeRow,
@@ -111,6 +111,7 @@ export function TripPlannerScreen({
 
       {/* 2. Status notice (sr-only for screen readers) */}
       <WarningNoticeRow proposal={proposal} />
+      <JourneyMissingNotice journey={proposal.requirement.journey} returnOnly={proposal.days.at(-1)?.stops.length === 0} onBack={onBack} />
 
       {/* 3. Day Tabs spanning the itinerary view */}
       <div className="planner-day-tabs-wrapper">
@@ -197,6 +198,8 @@ export function TripPlannerScreen({
             selectedDestinationId={selectedDestinationId}
             focusSelection={focusSelection}
             onSelect={select}
+            journeyPlan={proposal.journeyPlan}
+            origin={proposal.requirement.journey?.origin}
           />
         </div>
       </div>

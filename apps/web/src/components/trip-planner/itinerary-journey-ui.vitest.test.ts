@@ -8,6 +8,7 @@ import {
   ItineraryOriginDepartureCard,
   ItineraryOriginReturnCard,
   ItineraryTravelOnlyDayCard,
+  JourneyMissingNotice,
   TripOverviewCard,
 } from "./planner-presentation";
 
@@ -62,6 +63,20 @@ describe("Itinerary Journey UI (Tickets 03, 04, 05)", () => {
     distanceMeters: 300000,
     travelSeconds: 21600,
   };
+
+  describe("incomplete journey notice", () => {
+    const origin = { label: "Hà Nội", latitude: 21, longitude: 105.8, source: "MANUAL" as const, confirmed: true };
+    const render = (departureMinute: number | null) => renderToStaticMarkup(createElement(JourneyMissingNotice, {
+      journey: { origin, departureMinute, returnDeadlineMinute: 1320, returnDepartureMinute: null }, returnOnly: false, onBack() {},
+    }));
+    it("names the missing time and offers a way back", () => {
+      expect(render(null)).toContain("Chưa chọn giờ khởi hành ngày đầu.");
+      expect(render(null)).toContain("Bổ sung thông tin");
+    });
+    it("stays away once the journey is complete", () => {
+      expect(render(300)).toBe("");
+    });
+  });
 
   describe("Ticket 03 — One-day round trip", () => {
     it("renders outbound origin departure card with times, distance, and roadside rest", () => {

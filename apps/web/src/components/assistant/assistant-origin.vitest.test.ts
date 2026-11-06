@@ -105,8 +105,10 @@ describe("Assistant V2 Origin Planning (Ticket 07)", () => {
     expect(html).toContain("Nơi xuất phát hành trình");
     expect(html).toContain("Bến xe Mỹ Đình");
     expect(html).toContain("Điểm kết thúc hành trình");
-    expect(html).toContain("Chạy xe: 4 giờ");
-    expect(html).toContain("Nghỉ ven đường: 30 phút");
+    expect(html).toContain("Chạy xe:");
+    expect(html).toContain("4 giờ");
+    expect(html).toContain("Nghỉ ven đường:");
+    expect(html).toContain("30 phút");
     expect(html).toContain("300 km");
     expect(html).toContain("Chưa tính đường ra/vào nơi nghỉ");
     expect(html).toContain("Xác nhận và lưu chuyến đi");

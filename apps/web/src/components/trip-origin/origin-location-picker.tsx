@@ -76,6 +76,7 @@ export default function OriginLocationPicker({
     if (controller.signal.aborted || searchRequest.current !== controller) return;
     setSearching(false);
     setSearchResult(result);
+    if (result.status === "RESULTS") setLiveAnnouncement(`Có ${result.results.length} gợi ý địa điểm.`);
   }
   const [validationError, setValidationError] = useState<string | null>(null);
   const [liveAnnouncement, setLiveAnnouncement] = useState<string>("");
@@ -237,16 +238,18 @@ export default function OriginLocationPicker({
     setValidating(false);
     if (revision !== selectionRevision.current) return;
 
+    // Uses the latest callback: times edited during this check must not be overwritten.
+    const onChangeNow = latest.current.onChange;
     if (outcome.kind === "VALID") {
-      onChange(candidate);
+      onChangeNow(candidate);
       setLiveAnnouncement(`Điểm xuất phát ${cleanLabel} đã được xác nhận thuộc lãnh thổ Việt Nam.`);
     } else if (outcome.kind === "OUTSIDE_VIETNAM" || outcome.kind === "COVERAGE_UNKNOWN") {
       setValidationError(outcome.message);
-      onChange({ ...candidate, confirmed: false });
+      onChangeNow({ ...candidate, confirmed: false });
       setLiveAnnouncement(`Lỗi xác nhận: ${outcome.message}`);
     } else {
       setValidationError(outcome.message || "Không thể xác nhận điểm xuất phát.");
-      onChange({ ...candidate, confirmed: false });
+      onChangeNow({ ...candidate, confirmed: false });
     }
   }
 
@@ -257,33 +260,37 @@ export default function OriginLocationPicker({
     <section className="trip-origin-picker" aria-labelledby={`${id}-origin-heading`}>
       <div className="trip-origin-header">
         <h3 id={`${id}-origin-heading`} className="trip-origin-title">
-          Điểm xuất phát (Hà Giang / Toàn quốc)
+          Điểm xuất phát
         </h3>
         <p className="trip-origin-description">
-          Chọn vị trí xuất phát cho hành trình bằng cách nhấp bản đồ hoặc nhập tọa độ. Vị trí cần được
-          xác nhận trong lãnh thổ Việt Nam.
+          Tìm tên địa điểm, nhấp bản đồ hoặc nhập tọa độ. Vị trí cần nằm trong lãnh thổ Việt Nam.
         </p>
       </div>
 
       <div className="trip-origin-label-field">
         <label htmlFor={`${id}-label-input`}>Tên địa điểm xuất phát</label>
-        <Input
-          id={`${id}-label-input`}
-          type="text"
-          placeholder="Ví dụ: Bến xe Mỹ Đình, TP. Hà Giang, Nhà riêng..."
-          value={label}
-          disabled={disabled || validating}
-          onChange={(e) => handleLabelChange(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void search(label); } }}
-          maxLength={300}
-        />
-        <Button className="trip-origin-search-btn" type="button" disabled={disabled || validating || searching || label.trim().length < 2} onClick={() => void search(label)}>{searching ? "Đang tìm…" : "Tìm địa điểm"}</Button>
-        <p className="trip-origin-description">Chỉ tìm tên địa điểm công khai; không nhập thông tin cá nhân hoặc ghi chú riêng tư.</p>
-        {searchResult && <div role="status" aria-live="polite">
-          {searchResult.status === "RESULTS" ? <ul className="trip-origin-search-results">{searchResult.results.map((result, index) => <li key={`${result.latitude}-${result.longitude}-${index}`}><button className="trip-origin-search-item" type="button" disabled={disabled} onClick={() => { invalidateRequests(); onChange(result); }}>{result.label}</button></li>)}</ul>
-            : searchResult.status === "NO_RESULTS" ? "Không tìm thấy địa điểm. Bạn có thể chọn ghim thủ công." : searchResult.message}
-        </div>}
-        <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors · ODbL</a>
+        <div className="trip-origin-search-bar">
+          <div className="trip-origin-search-input-wrap" onBlur={(e) => { if (searchResult?.status === "RESULTS" && !e.currentTarget.contains(e.relatedTarget)) setSearchResult(null); }}>
+            <Input
+              id={`${id}-label-input`}
+              type="text"
+              placeholder="Ví dụ: Bến xe Mỹ Đình, TP. Hà Giang..."
+              value={label}
+              disabled={disabled || validating}
+              onChange={(e) => handleLabelChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") { e.preventDefault(); void search(label); }
+                if (e.key === "Escape" && searchResult?.status === "RESULTS") { e.stopPropagation(); setSearchResult(null); }
+              }}
+              maxLength={300}
+              autoComplete="off"
+            />
+            {searchResult?.status === "RESULTS" && <ul className="trip-origin-search-results" aria-label="Gợi ý địa điểm">{searchResult.results.map((result, index) => <li key={`${result.latitude}-${result.longitude}-${index}`}><button className="trip-origin-search-item" type="button" disabled={disabled} onClick={() => { invalidateRequests(); onChange(result); }}>{result.label}</button></li>)}</ul>}
+          </div>
+          <Button className="trip-origin-search-btn" type="button" disabled={disabled || validating || searching || label.trim().length < 2} onClick={() => void search(label)}>{searching ? "Đang tìm…" : "Tìm địa điểm"}</Button>
+        </div>
+        {searchResult && searchResult.status !== "RESULTS" && <p className="trip-origin-search-status-box" role="status">{searchResult.status === "NO_RESULTS" ? "Không tìm thấy địa điểm. Bạn có thể chọn ghim thủ công." : searchResult.message}</p>}
+        <p className="trip-origin-privacy-hint">Chỉ tìm tên địa điểm công khai; không nhập thông tin cá nhân hoặc ghi chú riêng tư.</p>
       </div>
 
       <div className="trip-origin-map-wrapper">

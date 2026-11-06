@@ -4,6 +4,7 @@ import { useId, useState } from "react";
 import { AlertCircle, Clock } from "lucide-react";
 import { Input } from "@KLTN/ui/components/input";
 import {
+  JOURNEY_MISSING_LABELS,
   missingJourneyFields,
   type TripJourney,
   type OriginSelection,
@@ -102,32 +103,12 @@ export default function TripJourneyEditor({
           <div className="flex items-center gap-1.5 font-medium text-amber-800 text-xs uppercase tracking-wide">
             <Clock className="h-3.5 w-3.5" /> Thông tin chặng đi/về cần hoàn thiện:
           </div>
-          {missing.map((field) => {
-            let label = "";
-            switch (field) {
-              case "origin":
-                label = "Chưa chọn điểm xuất phát.";
-                break;
-              case "originConfirmation":
-                label = "Cần nhấn 'Xác nhận điểm xuất phát' trên bản đồ.";
-                break;
-              case "departureMinute":
-                label = "Chưa chọn giờ khởi hành ngày đầu.";
-                break;
-              case "returnDeadlineMinute":
-                label = "Chưa chọn hạn trở về ngày cuối.";
-                break;
-              case "returnDepartureMinute":
-                label = "Chưa chọn giờ bắt đầu trở về ngày cuối.";
-                break;
-            }
-            return (
-              <div key={field} className="trip-journey-missing-item flex items-center gap-1">
-                <span>•</span>
-                <span>{label}</span>
-              </div>
-            );
-          })}
+          {missing.map((field) => (
+            <div key={field} className="trip-journey-missing-item flex items-center gap-1">
+              <span>•</span>
+              <span>{JOURNEY_MISSING_LABELS[field]}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>

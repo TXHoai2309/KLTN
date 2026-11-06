@@ -19,7 +19,7 @@ describe("OriginLocationPicker component", () => {
       }),
     );
 
-    expect(html).toContain("Điểm xuất phát (Hà Giang / Toàn quốc)");
+    expect(html).toContain("Điểm xuất phát");
     expect(html).toContain("Tên địa điểm xuất phát");
     expect(html).toContain("Chưa chọn vị trí");
     expect(html).toContain("Xác nhận điểm xuất phát");

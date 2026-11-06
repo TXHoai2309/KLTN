@@ -19,7 +19,7 @@ import {
   type TripTransport,
 } from "@/modules/trip-requirement/trip-requirement-contract";
 import { formatVietnameseDate } from "@/lib/date-only";
-import type { TripJourney } from "@/modules/trip-origin/trip-origin-contract";
+import { missingJourneyFields, type TripJourney } from "@/modules/trip-origin/trip-origin-contract";
 import TripJourneyEditor from "@/components/trip-origin/trip-journey-editor";
 import TripPersonalizationSheet from "./trip-personalization-sheet";
 import TripCalendarPicker from "./trip-calendar-picker";
@@ -315,7 +315,7 @@ export default function TripSentenceBuilder({
               <span className="trip-config-row-label">NƠI XUẤT PHÁT & GIỜ ĐI/VỀ</span>
               <span className="trip-config-row-value">
                 {journey?.origin
-                  ? `${journey.origin.label} ${journey.origin.confirmed ? "✓" : "(Chưa xác nhận)"}`
+                  ? `${journey.origin.label} ${journey.origin.confirmed ? "✓" : "(Chưa xác nhận)"}${journey.departureMinute == null || journey.returnDeadlineMinute == null ? " · Thiếu giờ đi/về" : ""}`
                   : "Chưa chọn nơi xuất phát"}
               </span>
             </div>
@@ -544,7 +544,14 @@ export default function TripSentenceBuilder({
                     <button
                       type="button"
                       className="px-4 py-2 text-sm font-medium rounded-md bg-emerald-700 text-white hover:bg-emerald-800"
-                      onClick={() => setActivePicker(null)}
+                      onClick={(event) => {
+                        // Times sit below the map; point at what is missing rather than closing past it.
+                        if (journey && missingJourneyFields(journey).length) {
+                          event.currentTarget.closest("#origin-picker-panel")?.querySelector(".trip-journey-missing-list")?.scrollIntoView({ block: "center" });
+                          return;
+                        }
+                        setActivePicker(null);
+                      }}
                     >
                       Xong
                     </button>

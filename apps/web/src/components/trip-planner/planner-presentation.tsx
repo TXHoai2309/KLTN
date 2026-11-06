@@ -1,8 +1,9 @@
 "use client";
 
 import type { KeyboardEvent, ReactNode } from "react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatVietnameseDate } from "@/lib/date-only";
+import { JOURNEY_MISSING_LABELS, missingJourneyFields, type TripJourney } from "@/modules/trip-origin/trip-origin-contract";
 import {
   AlertCircle,
   AlertTriangle,
@@ -14,6 +15,7 @@ import {
   Clock,
   Compass,
   Gauge,
+  House,
   MapPin,
   Route,
   ShieldCheck,
@@ -35,6 +37,9 @@ import type {
   PlannerResult,
   PlannerStop,
 } from "@/modules/trip-planner/planner-contract";
+
+const visitTimeText = (stop: PlannerStop) =>
+  stop.arrivalMinute === null && stop.departureMinute === null ? "Chưa xác định giờ" : `${clockText(stop.arrivalMinute)} – ${clockText(stop.departureMinute)}`;
 
 export const clockText = (minute: number | null) =>
   minute === null
@@ -66,7 +71,8 @@ export function ValidationBadge({ status }: { status: CheckStatus }) {
  * NEVER renders a placeholder box if the image is missing, preserving full width for text.
  */
 export function DestinationImage({ stop, large = false }: { stop: PlannerStop; large?: boolean }) {
-  if (!stop.destination.image?.url) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  if (!stop.destination.image?.url || stop.destination.image.url === failedUrl) {
     return (
       <div
         className={large ? "planner-photo planner-photo-large planner-photo-empty" : "planner-photo planner-photo-empty"}
@@ -82,6 +88,9 @@ export function DestinationImage({ stop, large = false }: { stop: PlannerStop; l
       src={stop.destination.image.url}
       alt={stop.destination.image.alt || stop.destination.name}
       loading="lazy"
+      onError={() => setFailedUrl(stop.destination.image!.url)}
+      // Server-rendered images can fail before hydration, when onError is not yet attached.
+      ref={(image) => { if (image?.complete && !image.naturalWidth) setFailedUrl(image.getAttribute("src")); }}
     />
   );
 }
@@ -258,6 +267,8 @@ export function ItineraryDayTabs({
   );
 }
 
+const kmText = (meters: number) => `${(meters / 1000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} km`;
+
 /**
  * Compact Route Summary:
  * Editorial header & metadata strip under day tabs:
@@ -277,7 +288,12 @@ export function TripOverviewCard({ day, journeyPlan }: { day: PlannerDay; journe
 
   return (
     <div className="planner-overview" aria-label="Tổng quan hành trình ngày">
-      {journeyPlan && <div><p>Chạy xe: {journeyPlan.totals.drivingSeconds == null ? "Chưa đủ dữ liệu" : durationText(Math.ceil(journeyPlan.totals.drivingSeconds / 60))}</p><p>Nghỉ ven đường: {journeyPlan.totals.restMinutes == null ? "Chưa đủ dữ liệu" : `${journeyPlan.totals.restMinutes} phút`}</p><p>Tổng chặng: {journeyPlan.totals.distanceMeters == null ? "Chưa đủ dữ liệu" : `${(journeyPlan.totals.distanceMeters / 1000).toLocaleString("vi-VN")} km`}</p><p>Chưa tính đường ra/vào nơi nghỉ; chưa bao gồm thời gian nhận/trả phòng lưu trú.</p></div>}
+      {journeyPlan && <div className="planner-journey-totals" aria-label="Tổng toàn hành trình">
+        <p><span>Chạy xe:</span> <strong>{journeyPlan.totals.drivingSeconds == null ? "Chưa đủ dữ liệu" : durationText(Math.ceil(journeyPlan.totals.drivingSeconds / 60))}</strong></p>
+        <p><span>Nghỉ ven đường:</span> <strong>{journeyPlan.totals.restMinutes == null ? "Chưa đủ dữ liệu" : `${journeyPlan.totals.restMinutes} phút`}</strong></p>
+        <p><span>Tổng chặng:</span> <strong>{journeyPlan.totals.distanceMeters == null ? "Chưa đủ dữ liệu" : kmText(journeyPlan.totals.distanceMeters)}</strong></p>
+        <small>Chưa tính đường ra/vào nơi nghỉ; chưa bao gồm thời gian nhận/trả phòng lưu trú.</small>
+      </div>}
       <div className="planner-overview-day-heading">
         <h3 className="planner-day-title">Ngày {day.day}</h3>
         <span className="planner-day-subdate">
@@ -311,9 +327,6 @@ export function ItineraryStopCard({
   onSelect: (id: string) => void;
   nextStop?: PlannerStop;
 }) {
-  const arrival = clockText(stop.arrivalMinute);
-  const departure = clockText(stop.departureMinute);
-
   return (
     <li className={`planner-stop ${selected ? "is-selected" : ""}`}>
       {/* Vertical timeline node & connecting stem */}
@@ -329,7 +342,7 @@ export function ItineraryStopCard({
         <div className="planner-stop-time-row">
           <span className="planner-stop-time">
             <Clock size={12} aria-hidden="true" />
-            <span>{arrival} – {departure}</span>
+            <span>{visitTimeText(stop)}</span>
           </span>
           {stop.validationStatus !== "PASS" && (
             <span
@@ -412,7 +425,7 @@ export function DestinationPreviewCard({
           <div className="planner-floating-titles">
             <h4 className="planner-floating-name">{stop.destination.name}</h4>
             <p className="planner-floating-sub">
-              {clockText(stop.arrivalMinute)} – {clockText(stop.departureMinute)}
+              {visitTimeText(stop)}
               {stop.destination.area ? ` · ${stop.destination.area}` : ""}
             </p>
           </div>
@@ -639,17 +652,42 @@ export function PlannerActions({
 }
 
 
+/** Explains why clocks are unknown and Save is blocked, and how to fix it. Unknown is never defaulted. */
+export function JourneyMissingNotice({ journey, returnOnly, onBack }: { journey: TripJourney | null | undefined; returnOnly: boolean; onBack: () => void }) {
+  const missing = missingJourneyFields(journey, returnOnly);
+  if (!missing.length) return null;
+  return <div className="planner-journey-missing" role="status">
+    <div>
+      <strong>Chưa thể tính đủ giờ và lưu chuyến đi</strong>
+      <ul>{missing.map(field => <li key={field}>{JOURNEY_MISSING_LABELS[field]}</li>)}</ul>
+    </div>
+    <button type="button" onClick={onBack}>Bổ sung thông tin</button>
+  </div>;
+}
+
 type BoundaryLeg = { route: import("@/modules/trip-origin/journey-route-contract").JourneyRoute; restMinutes: number | null };
 const journeyClock = (minute: number | null) => minute == null ? "Chưa đủ dữ liệu" : `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
 function BoundaryMetrics({ leg }: { leg?: BoundaryLeg }) {
-  return <p>{leg?.route.status === "VERIFIED" ? `${durationText(Math.ceil(leg.route.durationSeconds! / 60))} · ${(leg.route.distanceMeters! / 1000).toLocaleString("vi-VN")} km` : "Chưa đủ dữ liệu đường đi"} · nghỉ ven đường: {leg?.restMinutes == null ? "Chưa đủ dữ liệu" : `+${leg.restMinutes} phút`}</p>;
+  return <p className="planner-boundary-metrics">{leg?.route.status === "VERIFIED" ? `${durationText(Math.ceil(leg.route.durationSeconds! / 60))} · ${kmText(leg.route.distanceMeters!)}` : "Chưa đủ dữ liệu đường đi"} · nghỉ ven đường: {leg?.restMinutes == null ? "Chưa đủ dữ liệu" : `+${leg.restMinutes} phút`}</p>;
+}
+function BoundaryStop({ time, title, originLabel, leg }: { time: string; title: string; originLabel: string; leg?: BoundaryLeg }) {
+  return <li className="planner-stop planner-stop-boundary">
+    <div className="planner-stop-node-col">
+      <span className="planner-stop-number" aria-hidden="true"><House size={13} /></span>
+      <span className="planner-stop-stem" aria-hidden="true" />
+    </div>
+    <div className="planner-stop-body">
+      <div className="planner-stop-time-row"><span className="planner-stop-time"><Clock size={12} aria-hidden="true" /><span>{time}</span></span></div>
+      <div className="planner-boundary-card"><strong>{title}</strong><p>{originLabel}</p><BoundaryMetrics leg={leg} /></div>
+    </div>
+  </li>;
 }
 export function ItineraryOriginDepartureCard({ originLabel, startMinute, outboundLeg }: { originLabel: string; startMinute: number | null; outboundLeg?: BoundaryLeg }) {
-  return <li className="planner-stop-card"><strong>Khởi hành · Nơi xuất phát hành trình</strong><p>{originLabel}</p><p>Xuất phát: {journeyClock(startMinute)}</p><BoundaryMetrics leg={outboundLeg}/></li>;
+  return <BoundaryStop time={`Xuất phát: ${journeyClock(startMinute)}`} title="Khởi hành · Nơi xuất phát hành trình" originLabel={originLabel} leg={outboundLeg} />;
 }
 export function ItineraryOriginReturnCard({ originLabel, endMinute, returnDeadlineMinute, returnLeg }: { originLabel: string; endMinute: number | null; returnDeadlineMinute: number | null; returnLeg?: BoundaryLeg }) {
-  return <li className="planner-stop-card"><strong>Hoàn thành · Điểm kết thúc hành trình</strong><p>{originLabel}</p><p>Về đến nơi: {journeyClock(endMinute)} · Hạn về: {journeyClock(returnDeadlineMinute)}</p><BoundaryMetrics leg={returnLeg}/></li>;
+  return <BoundaryStop time={`Về đến nơi: ${journeyClock(endMinute)} · Hạn về: ${journeyClock(returnDeadlineMinute)}`} title="Hoàn thành · Điểm kết thúc hành trình" originLabel={originLabel} leg={returnLeg} />;
 }
 export function ItineraryTravelOnlyDayCard({ kind, originLabel, leg }: { kind: "OUTBOUND_ONLY" | "RETURN_ONLY"; originLabel: string; leg?: import("@/modules/trip-origin/journey-route-contract").JourneyPlan["legs"][number] }) {
-  return <div className="planner-stop-card"><strong>Chặng di chuyển {kind === "OUTBOUND_ONLY" ? "đi" : "về"}</strong><p>{kind === "OUTBOUND_ONLY" ? `${originLabel} → Hà Giang` : `Hà Giang → ${originLabel}`}</p><p>Khởi hành: {journeyClock(leg?.startMinute ?? null)} · Dự kiến đến: {journeyClock(leg?.endMinute ?? null)}</p><p>Nghỉ ven đường tự động: {leg?.restMinutes == null ? "Chưa đủ dữ liệu" : `+${leg.restMinutes} phút`}</p><p>Toàn bộ ngày dành cho hành trình đường dài. Mốc định tuyến là điểm tham quan, chưa tính đường ra/vào nơi nghỉ.</p></div>;
+  return <div className="planner-boundary-card planner-boundary-card-day"><strong>Chặng di chuyển {kind === "OUTBOUND_ONLY" ? "đi" : "về"}</strong><p>{kind === "OUTBOUND_ONLY" ? `${originLabel} → Hà Giang` : `Hà Giang → ${originLabel}`}</p><p>Khởi hành: {journeyClock(leg?.startMinute ?? null)} · Dự kiến đến: {journeyClock(leg?.endMinute ?? null)}</p><p>Nghỉ ven đường tự động: {leg?.restMinutes == null ? "Chưa đủ dữ liệu" : `+${leg.restMinutes} phút`}</p><p>Toàn bộ ngày dành cho hành trình đường dài. Mốc định tuyến là điểm tham quan, chưa tính đường ra/vào nơi nghỉ.</p></div>;
 }

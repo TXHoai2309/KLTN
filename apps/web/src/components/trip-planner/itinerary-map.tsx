@@ -9,6 +9,7 @@ import { startMapSession } from "@/modules/map/map-session";
 import { mountItineraryMap } from "@/modules/map/itinerary-map-renderer";
 import { buildItineraryMapView, itineraryDayColorToken } from "@/modules/map/itinerary-map-model";
 import type { PlannerDay } from "@/modules/trip-planner/planner-contract";
+import type { JourneyPlan } from "@/modules/trip-origin/journey-route-contract";
 import { DestinationPreviewCard } from "./planner-presentation";
 
 export function ItineraryMap({
@@ -18,6 +19,8 @@ export function ItineraryMap({
   focusSelection,
   onSelect,
   overviewOnly = false,
+  journeyPlan,
+  origin,
 }: {
   day: PlannerDay;
   days: PlannerDay[];
@@ -25,6 +28,9 @@ export function ItineraryMap({
   focusSelection: boolean;
   onSelect: (id: string) => void;
   overviewOnly?: boolean;
+  /** Owner-only origin data; shared-trip views never pass it. */
+  journeyPlan?: JourneyPlan | null;
+  origin?: { label: string; latitude: number; longitude: number } | null;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const renderer = useRef<ReturnType<typeof mountItineraryMap> | null>(null);
@@ -37,7 +43,7 @@ export function ItineraryMap({
   const [showOverview, setOverview] = useState(false);
   const overview = overviewOnly || showOverview;
   const activeDay = overview ? null : day.day;
-  const view = useMemo(() => buildItineraryMapView(days, activeDay), [days, activeDay]);
+  const view = useMemo(() => buildItineraryMapView(days, activeDay, origin ? journeyPlan : null), [days, activeDay, journeyPlan, origin]);
   const { resolvedTheme } = useTheme();
   const style = mapStyle(resolvedTheme);
   const styleRef = useRef(style);
@@ -58,7 +64,7 @@ export function ItineraryMap({
           (id) => callback.current(id),
           ready,
           fail,
-          { routes: view.routes, markerDays: view.markerDays, overview },
+          { routes: view.routes, markerDays: view.markerDays, overview, ...(view.showsOrigin && origin ? { origin } : {}) },
         );
         renderer.current = map;
         map.select(currentSelection.current, false);
@@ -69,7 +75,7 @@ export function ItineraryMap({
       },
     });
     return dispose;
-  }, [view, overview, attempt]);
+  }, [view, overview, attempt, origin]);
 
   useEffect(() => {
     renderer.current?.setStyle(style);
@@ -154,6 +160,7 @@ export function ItineraryMap({
       {state === "ready" && <div className="planner-map-route-status" role="status" aria-live="polite">
         <p>{view.routes.length ? `${view.routes.length} chặng đường bộ dự kiến được hiển thị.` : view.stops.length < 2 ? "Chưa có chặng di chuyển trong phạm vi này." : "Chưa có hình tuyến đường để hiển thị."}</p>
         {view.missingGeometryCount > 0 && <p>Chưa có hình tuyến cho {view.missingGeometryCount} chặng; các điểm dừng vẫn hiển thị.</p>}
+        {view.showsOrigin && <p className="planner-map-origin-note"><span aria-hidden="true" />Đường màu đỏ gạch là chặng đi hoặc về nơi xuất phát.</p>}
         {!overview && view.hasPreviousDayTransfer && <p>Điểm 0 là điểm cuối ngày trước, nơi bắt đầu chặng chuyển ngày.</p>}
       </div>}
     </section>
