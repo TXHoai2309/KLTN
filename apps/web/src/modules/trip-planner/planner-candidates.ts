@@ -52,6 +52,9 @@ const terms: Record<TripInterest, string[]> = {
   ETHNIC_VILLAGES: ["ban lang", "cong dong", "dan toc"], PHOTOGRAPHY: ["ngam canh", "check-in", "chup anh"],
   FOOD: ["am thuc", "cho", "mon an"], ADVENTURE: ["kham pha", "trekking", "mao hiem"], RELAXATION: ["thu gian", "nghi duong"],
 };
+// shortcut: a name list instead of an Admin "featured" field; add the field when Admin must manage it.
+const FEATURED_NAMES = ["lung cu", "quan ba", "dinh thu ho vuong", "pho co dong van", "ma pi leng", "nho que"];
+export const isFeaturedDestination = (candidate: { name: string }) => { const name = normalized(candidate.name); return FEATURED_NAMES.some(item => name.includes(item)); };
 export function interestScore(candidate: PlannerCandidate, interests: readonly TripInterest[]) {
   const text = normalized(candidate.category);
   return interests.filter(interest => terms[interest].some(term => text.includes(term))).length;

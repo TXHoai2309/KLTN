@@ -9,6 +9,11 @@ export type RoutePair = { from: PlannerCandidate; to: PlannerCandidate; transpor
 export type CoordinateRoutePair = { from: { latitude: number; longitude: number }; to: { latitude: number; longitude: number }; transport: TripTransport };
 export type RouteProvider = { route: (pair: RoutePair, signal: AbortSignal) => Promise<TravelLeg>; coordinateRoute?: (pair: CoordinateRoutePair, signal: AbortSignal) => Promise<JourneyRoute> };
 export const ROUTING_DEADLINE_MS = 10_000;
+/** Owner-approved 2026-11-07. Provider free-flow times gave 76-91 km/h on Hà Giang mountain roads. */
+export const MAX_AVERAGE_KMH: Record<TripTransport, number> = { CAR: 50, MOTORCYCLE: 40 };
+export function cappedDurationSeconds(durationSeconds: number, distanceMeters: number | null | undefined, transport: TripTransport): number {
+  return distanceMeters == null ? durationSeconds : Math.max(durationSeconds, Math.ceil(distanceMeters / 1000 / MAX_AVERAGE_KMH[transport] * 3600));
+}
 export function missingLeg(pair: RoutePair, reason: NonNullable<TravelLeg["reason"]>): TravelLeg {
   return { fromDestinationId: pair.from.id, toDestinationId: pair.to.id, status: "INSUFFICIENT_DATA", reason, durationSeconds: null, distanceMeters: null, provider: null };
 }
@@ -19,14 +24,14 @@ export function createStadiaRoutesProvider(options: { apiKey?: () => string | un
     if (route.kind !== "ok") return missingLeg(pair, route.reason);
     const geometry = plannerRouteGeometry(route.geometry);
     const parsed = travelLegSchema.safeParse({ fromDestinationId: pair.from.id, toDestinationId: pair.to.id,
-      status: "VERIFIED", reason: null, durationSeconds: route.durationSeconds,
+      status: "VERIFIED", reason: null, durationSeconds: cappedDurationSeconds(route.durationSeconds, route.distanceMeters, pair.transport),
       distanceMeters: route.distanceMeters ?? null, provider: "STADIA_MAPS", ...(geometry ? { geometry } : {}) });
     return parsed.success ? parsed.data : missingLeg(pair, "INVALID_RESPONSE");
   }, async coordinateRoute(pair, signal) {
     const result = await requestStadiaRoute({ origin: pair.from, destination: pair.to, vehicle: pair.transport }, { ...options, signal });
     if (result.kind !== "ok") return { status: "INSUFFICIENT_DATA", reason: result.reason, durationSeconds: null, distanceMeters: null, provider: null };
     const geometry = plannerRouteGeometry(result.geometry);
-    const route = journeyRouteSchema.safeParse({ status: "VERIFIED", reason: null, durationSeconds: result.durationSeconds, distanceMeters: result.distanceMeters ?? null, provider: "STADIA_MAPS", ...(geometry ? { geometry } : {}) });
+    const route = journeyRouteSchema.safeParse({ status: "VERIFIED", reason: null, durationSeconds: cappedDurationSeconds(result.durationSeconds, result.distanceMeters, pair.transport), distanceMeters: result.distanceMeters ?? null, provider: "STADIA_MAPS", ...(geometry ? { geometry } : {}) });
     return route.success ? route.data : { status: "INSUFFICIENT_DATA", reason: "INVALID_RESPONSE", durationSeconds: null, distanceMeters: null, provider: null };
   } };
 }

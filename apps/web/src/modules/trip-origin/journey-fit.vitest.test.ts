@@ -29,7 +29,7 @@ describe("origin journeys fit the day boundaries and auto-selected stops", () =>
   it("drops only as many auto-selected stops as needed and discloses it", async () => {
     const result = await propose(pool, 3, 420);
     expect(result.status).toBe("PROPOSAL_READY");
-    expect(layout(result)).toEqual([2, 3, 3]);
+    expect(layout(result)).toEqual([2, 3, 2]);
     expect(result.warnings.map(w => w.code)).toContain("JOURNEY_STOPS_REDUCED");
     expect(result.eligibleForFinalConfirmation).toBe(true);
   });
@@ -37,13 +37,13 @@ describe("origin journeys fit the day boundaries and auto-selected stops", () =>
     const result = await propose(pool, 3, 780);
     expect(result.status).toBe("PROPOSAL_READY");
     expect(result.days[0]?.journeyDayKind).toBe("OUTBOUND_ONLY");
-    expect(layout(result)).toEqual([0, 3, 3]);
+    expect(layout(result)).toEqual([0, 3, 2]);
   });
   it("reuses evidence: trimming only requests the legs that changed", async () => {
     const routes = providers();
     await propose(pool, 3, 420, routes);
     expect(routes.route.mock.calls.length).toBe(8);
-    expect(routes.coordinateRoute.mock.calls.length).toBe(3);
+    expect(routes.coordinateRoute.mock.calls.length).toBe(4);
   });
   it("does not trim when route evidence is missing", async () => {
     const result = await propose(pool, 3, 420, providers({ status: "INSUFFICIENT_DATA", reason: "UNAVAILABLE", durationSeconds: null, distanceMeters: null, provider: null }));
@@ -54,6 +54,24 @@ describe("origin journeys fit the day boundaries and auto-selected stops", () =>
     const result = await propose(pool, 1, 420, providers(verified(50_000)));
     expect(result.status).toBe("NO_FEASIBLE_ITINERARY");
     expect(layout(result)).toEqual([3]);
+  });
+  it("keeps well-known stops when trimming and when there are more places than slots", async () => {
+    const featured = candidate("lc", { name: "Cột cờ Lũng Cú", latitude: 22.8, longitude: 105 });
+    const others = pool.slice(0, 14);
+    const result = await propose([...others, featured], 3, 420);
+    expect(result.days.flatMap(day => day.stops.map(stop => stop.destination.id))).toContain("lc");
+    expect(result.warnings.map(w => w.code)).toContain("JOURNEY_STOPS_REDUCED");
+  });
+  it("leaves 60 minutes for lunch only between visits", async () => {
+    const result = await propose(pool.slice(0, 6), 2, 420, providers(verified(1800)));
+    const gaps = result.days.flatMap(day => day.stops.slice(0, -1).map((stop, index) => ({ from: stop.departureMinute!, gap: day.stops[index + 1]!.arrivalMinute! - stop.departureMinute! })));
+    expect(gaps.filter(item => item.from >= 690 && item.from <= 840).map(item => item.gap)).toContain(90);
+    expect(gaps.filter(item => item.from < 690).every(item => item.gap === 30)).toBe(true);
+  });
+  it("warns about a long driving day without blocking the plan", async () => {
+    const result = await propose(pool.slice(0, 6), 2, 300, providers(verified(30_000)));
+    expect(result.warnings.find(w => w.code === "LONG_DRIVING_DAY")?.day).toBe(1);
+    expect(result.status).not.toBe("NO_FEASIBLE_ITINERARY");
   });
   it("planJourney alone never removes a stop (Assistant must-visits stay)", async () => {
     const requirement = tripRequirementInputSchema.parse(input(3, 420));

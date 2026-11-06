@@ -3,6 +3,7 @@
 import type { KeyboardEvent, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { formatVietnameseDate } from "@/lib/date-only";
+import { LUNCH } from "@/modules/trip-planner/planner-engine";
 import { JOURNEY_MISSING_LABELS, missingJourneyFields, type TripJourney } from "@/modules/trip-origin/trip-origin-contract";
 import {
   AlertCircle,
@@ -37,6 +38,10 @@ import type {
   PlannerResult,
   PlannerStop,
 } from "@/modules/trip-planner/planner-contract";
+
+const hasLunchBefore = (stop: PlannerStop, next: PlannerStop) =>
+  stop.departureMinute !== null && next.arrivalMinute !== null && next.inbound?.durationSeconds != null && stop.departureMinute >= LUNCH.fromMinute && stop.departureMinute <= LUNCH.toMinute
+  && next.arrivalMinute - stop.departureMinute - Math.ceil(next.inbound.durationSeconds / 60) >= LUNCH.minutes;
 
 const visitTimeText = (stop: PlannerStop) =>
   stop.arrivalMinute === null && stop.departureMinute === null ? "Chưa xác định giờ" : `${clockText(stop.arrivalMinute)} – ${clockText(stop.departureMinute)}`;
@@ -393,7 +398,7 @@ export function ItineraryStopCard({
               <span className="planner-route-arrow" aria-hidden="true">↓</span>
               <span className="planner-route-text">
                 {nextStop.inbound.status === "VERIFIED"
-                  ? `${durationText(Math.ceil(nextStop.inbound.durationSeconds! / 60))} · ${(nextStop.inbound.distanceMeters! / 1000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} km`
+                  ? `${durationText(Math.ceil(nextStop.inbound.durationSeconds! / 60))} · ${(nextStop.inbound.distanceMeters! / 1000).toLocaleString("vi-VN", { maximumFractionDigits: 1 })} km${hasLunchBefore(stop, nextStop) ? " · nghỉ trưa 60 phút" : ""}`
                   : "Chưa có thời gian di chuyển đã xác minh"}
               </span>
             </div>

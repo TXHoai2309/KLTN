@@ -171,6 +171,21 @@ const minuteLabel = (minute: number) =>
   `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
 const visitLabel = (count: number) => `${count} điểm dừng`;
 
+/** The destination's own photo; a broken link falls back to the scenic picture. */
+function VisitPhoto({ image, fallback }: { image?: { url: string; alt: string }; fallback: { src: string; alt: string } }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const usable = image && image.url !== failedUrl;
+  return (
+    <img
+      src={usable ? image.url : fallback.src}
+      alt={usable ? image.alt : fallback.alt}
+      className="my-trips-visit-photo"
+      loading="lazy"
+      onError={() => { if (usable) setFailedUrl(image.url); }}
+    />
+  );
+}
+
 function getTripHeroImage(durationDays: number, index = 0): string {
   const photos = [
     "/images/gallery/ha-giang-terraces-golden.webp",
@@ -1124,12 +1139,7 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
                                   role="img"
                                   aria-label="Chưa có ảnh điểm đến"
                                 >
-                                  <img
-                                    src={visual.src}
-                                    alt={visual.alt}
-                                    className="my-trips-visit-photo"
-                                    loading="lazy"
-                                  />
+                                  <VisitPhoto image={visit.destination.image} fallback={visual} />
                                   <div className="my-trips-visit-photo-gradient" />
                                   <span className="my-trips-visit-seq-tag">#{visit.order}</span>
                                 </div>

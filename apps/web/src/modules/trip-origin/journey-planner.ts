@@ -2,7 +2,8 @@ import type { TripRequirementInput } from "../trip-requirement/trip-requirement-
 import type { PlannerCandidate } from "../trip-planner/planner-candidates";
 import { dateForDay, PACE_STOP_LIMIT, PLANNING_WINDOW, schedulePlannerDays, visitDuration } from "../trip-planner/planner-engine";
 import { validatePlannerDays } from "../trip-planner/planner-validator";
-import { travelLegSchema, type PlannerCheck, type TravelLeg } from "../trip-planner/planner-contract";
+import { travelLegSchema, type PlannerCheck, type PlannerDay, type PlannerResult, type TravelLeg } from "../trip-planner/planner-contract";
+import { isFeaturedDestination } from "../trip-planner/planner-candidates";
 import { missingLeg, resolveBoundedRoutes, ROUTING_DEADLINE_MS, type CoordinateRoutePair, type RouteProvider, type RoutePair } from "../trip-planner/planner-routes";
 import { journeyRouteSchema, type JourneyPlan, type JourneyRoute } from "./journey-route-contract";
 import { afterVisitDriving, driveWithRest, REST_POLICY_VERSION } from "./rest-policy";
@@ -134,8 +135,7 @@ function balanceJourneyDays(requirement: TripRequirementInput, stops: readonly P
 
 /**
  * Form planning only, where every stop was auto-selected: when no day boundaries
- * can fit the chain, drop trailing stops until it fits. Never used for Assistant must-visits.
- * shortcut: drops from the chain's end regardless of interest match; rank by interest if users notice.
+ * can fit the chain, drop stops until it fits. Never used for Assistant must-visits.
  */
 export async function planJourneyFittingStops(requirement: TripRequirementInput, selected: readonly PlannerCandidate[][], provider: RouteProvider, timeoutMs = ROUTING_DEADLINE_MS) {
   const cache = new Map<string, Promise<unknown>>();
@@ -152,13 +152,24 @@ export async function planJourneyFittingStops(requirement: TripRequirementInput,
   if (usable(original, stops) || !verified(original)) return { ...original, selected: stops, reduced: false };
   const kept = selected.map(day => [...day]);
   while (stops.length > 1 && Date.now() < deadline) {
-    kept.findLast(day => day.length)!.pop();
+    // Well-known stops go last, whatever their place in the chain.
+    const drop = stops.findLast(stop => !isFeaturedDestination(stop)) ?? stops.at(-1)!;
+    const day = kept.find(item => item.includes(drop))!;
+    day.splice(day.indexOf(drop), 1);
     stops = kept.flat();
     const result = await planJourney(requirement, kept, reused, deadline - Date.now(), true);
     if (!verified(result)) break;
     if (usable(result, stops)) return { ...result, selected: stops, reduced: true };
   }
   return { ...original, selected: selected.flat(), reduced: false };
+}
+
+/** Owner-approved 2026-11-07. Advisory only: long days are allowed, never silently so. */
+export const DAILY_DRIVING_WARNING_HOURS: Record<TripRequirementInput["transport"], number> = { CAR: 8, MOTORCYCLE: 6 };
+export function journeyDrivingWarnings(requirement: TripRequirementInput, days: readonly PlannerDay[]): PlannerResult["warnings"] {
+  const hours = DAILY_DRIVING_WARNING_HOURS[requirement.transport];
+  return days.filter(day => (day.travelSeconds ?? 0) > hours * 3600).map(day => ({ code: "LONG_DRIVING_DAY", day: day.day, destinationId: null,
+    message: `Ngày ${day.day} chạy xe khoảng ${Math.round(day.travelSeconds! / 360) / 10} giờ, vượt mức ${hours} giờ nên cân nhắc. Hãy thêm ngày hoặc bớt điểm.` }));
 }
 
 export function scheduleJourneyEvidence(requirement: TripRequirementInput, selected: readonly PlannerCandidate[][], transfer: ReadonlyMap<string, TravelLeg>, outbound: JourneyRoute, returning: JourneyRoute, fixedArrivals?: ReadonlyMap<string, number>) {

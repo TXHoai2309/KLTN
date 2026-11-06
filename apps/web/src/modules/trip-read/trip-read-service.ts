@@ -5,6 +5,7 @@ import type { AuthorizationDependencies } from "@/server/authorization/guard";
 import { AppError } from "@/server/http/app-error";
 import { effectiveTripStatus, type TripStatus } from "./trip-status";
 import type { TravelLeg } from "../trip-planner/planner-contract";
+import { destinationMediaWhere, isDestinationMediaUsable } from "../destination/destination-media-eligibility";
 import { savedJourneySchema, journeyVisitFingerprint, type SavedJourney } from "../trip-origin/journey-saved-contract";
 
 export type TripReadDependencies = AuthorizationDependencies & { database: Database };
@@ -49,6 +50,7 @@ export type TripDetail = TripSummary & {
         description?: string;
         visibility: "VISIBLE" | "HIDDEN";
         availability: "AVAILABLE" | "UNAVAILABLE";
+        image?: { url: string; alt: string };
       };
       inbound?: TravelLeg | null;
     }[];
@@ -98,6 +100,7 @@ const detailSelect = (userId: string) => ({
               longitude: true,
               address: true,
               description: true,
+              media: { where: destinationMediaWhere, take: 20, orderBy: [{ isCover: "desc" as const }, { position: "asc" as const }, { id: "asc" as const }], select: { url: true, alt: true, websiteRights: true, storageReference: true } },
               visibility: true,
               deletedAt: true,
             },
@@ -199,7 +202,9 @@ export async function getMyTrip(headers: Headers, id: string, deps: TripReadDepe
     ...(row.userId === actor.userId ? { journey, baseRevision: row.updatedAt?.toISOString() } : {}),
     days: [...row.days].sort((a, b) => a.dayIndex - b.dayIndex || a.id.localeCompare(b.id)).map(day => ({
       id: day.id, dayIndex: day.dayIndex, localDate: day.localDate.toISOString().slice(0, 10),
-      visits: [...day.visits].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id)).map(visit => ({
+      visits: [...day.visits].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id)).map(visit => {
+        const image = (visit.destination as { media?: { url: string; alt: string; websiteRights: string; storageReference?: string | null }[] }).media?.find(media => isDestinationMediaUsable(media, visit.destination.id));
+        return {
         id: visit.id, order: visit.order, startMinute: visit.startMinute,
         plannedDurationMinutes: visit.plannedDurationMinutes,
         destination: {
@@ -213,8 +218,9 @@ export async function getMyTrip(headers: Headers, id: string, deps: TripReadDepe
           description: (visit.destination as { description?: string }).description,
           visibility: visit.destination.visibility,
           availability: visit.destination.visibility === "VISIBLE" && !visit.destination.deletedAt ? "AVAILABLE" : "UNAVAILABLE",
+          ...(image ? { image: { url: image.url, alt: image.alt } } : {}),
         },
-      })),
+      }; }),
     })),
   };
 }

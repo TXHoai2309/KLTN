@@ -10,7 +10,7 @@ import { validatePlannerDays } from "../trip-planner/planner-validator";
 import { plannerResultSchema, type PlannerResult, type TravelLeg } from "../trip-planner/planner-contract";
 import { arrangeOvernightAreas, unmetOvernightAreas, type UnmetOvernight } from "./planning-trip-structure";
 import { planningSelectionSchema, type PlanningSelection, type PlanningNeeds, type PlanningGenerated, type PlanningEdit } from "./planning-contract";
-import { planJourney } from "../trip-origin/journey-planner";
+import { journeyDrivingWarnings, planJourney } from "../trip-origin/journey-planner";
 
 export function isUsablePlanningCandidate(candidate: PlannerCandidate) {
   const duration = visitDuration(candidate);
@@ -47,7 +47,7 @@ export async function scheduleSelection(needs: PlanningNeeds, selection: Plannin
     return plannerResultSchema.parse({ proposalId: randomUUID(), phase: "PRELIMINARY_PROPOSAL", requirement, timezone: "Asia/Ho_Chi_Minh", days: journey.days,
       journeyPlan: journey.journeyPlan, checks, status: checks.some(check => check.status === "VIOLATION") ? "NO_FEASIBLE_ITINERARY" : allPass ? "PROPOSAL_READY" : "INSUFFICIENT_DATA",
       eligibleForFinalConfirmation: allPass && requirement.startDate !== null,
-      warnings: [{ code: "PRELIMINARY_ONLY", message: "Đề xuất chưa được lưu chính thức.", day: null, destinationId: null }, { code: "LODGING_LEGS_NOT_INCLUDED", message: "Mốc định tuyến là điểm tham quan, không phải nơi nghỉ. Chưa tính chặng ra/vào nơi nghỉ.", day: null, destinationId: null }],
+      warnings: [{ code: "PRELIMINARY_ONLY", message: "Đề xuất chưa được lưu chính thức.", day: null, destinationId: null }, { code: "LODGING_LEGS_NOT_INCLUDED", message: "Mốc định tuyến là điểm tham quan, không phải nơi nghỉ. Chưa tính chặng ra/vào nơi nghỉ.", day: null, destinationId: null }, ...journeyDrivingWarnings(requirement, journey.days)],
       reasonCodes: [...new Set(checks.flatMap(check => check.issues.map(issue => issue.code)))].slice(0, 30) });
   }
   const pairs = plannerRoutePairs(selected, requirement.transport);

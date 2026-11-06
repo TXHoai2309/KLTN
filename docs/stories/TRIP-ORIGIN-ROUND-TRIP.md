@@ -109,8 +109,22 @@ the verified Development database; both are recorded as finished. An empty,
 untracked migration directory had to be removed after Prisma reported P3015.
 Searching Hà Nội in the local app still returned unavailable after migration;
 a separate direct provider connection was reset. Live search remains unverified.
-Production was not migrated.
+Production was not migrated at that time.
 
 ## Form scheduling fit — 2026-11-06
 
 Form proposals with an origin now search all day boundaries of the same chain, then drop trailing auto-selected stops with a `JOURNEY_STOPS_REDUCED` warning when no boundary fits. Assistant planning gets the boundary search only and never drops a stop. Unverified routes never trigger a drop. Verified by unit tests with synthetic routes, not live Stadia or a browser.
+
+## Production migration — 2026-11-06
+
+After the deployed trip detail page failed, the owner authorized Production. `prisma migrate status` showed `20261104110000_origin_search` and `20261104130000_trip_journey_snapshot` pending on the Production database; `prisma migrate deploy` applied both.
+
+## Scheduling rules — 2026-11-07
+
+Owner asked to apply these immediately, using the values proposed in session. They are planning allowances, not verified road facts, and can be revisited.
+
+- Route durations are capped to an average of 50 km/h by car and 40 km/h by motorcycle, in `createStadiaRoutesProvider`, so planning, Assistant and Save validation agree. Provider times gave 76-91 km/h on these roads.
+- Journey schedules leave 60 minutes for lunch when a visit ends 11:30-14:00 and another visit follows that day.
+- A day driving over 8 hours by car or 6 by motorcycle gets a non-blocking `LONG_DRIVING_DAY` warning.
+- Well-known destinations are kept first when there are more places than slots and dropped last when trimming. This is a name list in code until Admin has a field for it.
+- Saved trips show the destination's own photo, falling back to the scenic picture when the link is broken. Ordinary trip edits still validate against uncapped provider times.

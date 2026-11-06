@@ -2,13 +2,15 @@ import type { TripRequirementInput } from "../trip-requirement/trip-requirement-
 import { weekdays } from "../destination/destination-contract";
 import { isDestinationEligibleForNewItinerary } from "../destination/destination-eligibility";
 import type { PlannerCandidate } from "./planner-candidates";
-import { orderPlannerCandidates } from "./planner-order";
+import { orderPlannerCandidates, pickPlannerStops } from "./planner-order";
 export { haversine } from "./planner-geography";
 import type { PlannerDay, PlannerStop, TravelLeg } from "./planner-contract";
 import type { RoutePair } from "./planner-routes";
 
 // Explicit preliminary planning preferences, not verified destination availability.
 export const PLANNING_WINDOW = { startMinute: 480, endMinute: 1080 } as const;
+/** Owner-approved 2026-11-07: a visit ending in this window is followed by a meal break before the next visit. */
+export const LUNCH = { fromMinute: 690, toMinute: 840, minutes: 60 } as const;
 export const PACE_STOP_LIMIT = { RELAXED: 2, MODERATE: 3, PACKED: 4 } as const;
 export function dateForDay(startDate: string | null, index: number): string | null {
   if (!startDate) return null;
@@ -34,7 +36,10 @@ export function selectPlannerDays(requirement: TripRequirementInput, input: read
     return hours?.status !== "CLOSED" && (hours?.status !== "OPEN" || hours.intervals.some(interval => Math.min(interval.closesAtMinute, 1080) - Math.max(interval.opensAtMinute, 480) >= duration));
   };
   const eligible = [...new Map(input.filter(candidate => isDestinationEligibleForNewItinerary(candidate) && Number.isFinite(candidate.latitude) && Number.isFinite(candidate.longitude) && Math.abs(candidate.latitude) <= 90 && Math.abs(candidate.longitude) <= 180 && visitDuration(candidate) !== null && visitDuration(candidate)! <= 600 && dates.some(date => availableOn(candidate, date))).map(candidate => [candidate.id, candidate])).values()];
-  const pool = orderPlannerCandidates(requirement, eligible, Math.min(28, requirement.durationDays * cap, eligible.length));
+  const budget = Math.min(28, requirement.durationDays * cap, eligible.length);
+  const picked = pickPlannerStops(requirement, eligible, budget);
+  // The others stay behind as stand-ins for a date-specific closure.
+  const pool = [...orderPlannerCandidates(requirement, picked, budget), ...eligible.filter(candidate => !picked.includes(candidate))];
   const days: PlannerCandidate[][] = [];
   let remainingBudget = Math.min(28, requirement.durationDays * cap, pool.length);
   for (let index = 0; index < requirement.durationDays; index++) {
@@ -62,6 +67,7 @@ export function schedulePlannerDays(requirement: TripRequirementInput, selected:
   return selected.map((candidates, index) => {
     const date = dateForDay(requirement.startDate, index);
     let cursor: number | null = timing?.starts.has(index + 1) ? timing.starts.get(index + 1)! : PLANNING_WINDOW.startMinute;
+    let lunched = false;
     const stops: PlannerStop[] = candidates.map((candidate, order) => {
       const inbound = routes.get(candidate.id) ?? null;
       const duration = visitDuration(candidate)!;
@@ -82,6 +88,9 @@ export function schedulePlannerDays(requirement: TripRequirementInput, selected:
       if (state !== "PLANNED") arrival = null;
       const departure = arrival === null ? null : arrival + duration;
       cursor = departure;
+      if (timing && !lunched && departure !== null && departure >= LUNCH.fromMinute && departure <= LUNCH.toMinute && order < candidates.length - 1) {
+        cursor = departure + LUNCH.minutes; lunched = true;
+      }
       const { id, name, description, area, address, category, latitude, longitude, image } = candidate;
       return { order: order + 1, destination: { id, name, description, area, address, category, latitude, longitude, image }, arrivalMinute: arrival,
         departureMinute: departure, visitDurationMinutes: duration, scheduleState: state, inbound, validationStatus: "INSUFFICIENT_DATA" };
