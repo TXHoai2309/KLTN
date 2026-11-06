@@ -4,6 +4,7 @@ import type { TripValidation, ValidationFinding, ValidationGroupName, Validation
 
 export function toTripProposal(proposal: PlannerResult): TripProposal {
   return {
+    ...(proposal.requirement.journey === undefined ? {} : { journey: structuredClone(proposal.requirement.journey) }),
     startDate: proposal.requirement.startDate,
     durationDays: proposal.requirement.durationDays,
     transport: proposal.requirement.transport,
@@ -45,6 +46,12 @@ export function toTripValidation(proposal: PlannerResult, now = new Date()): Tri
         issue.code === "TRANSFER_TOO_SHORT" ||
         issue.code === "SCHEDULE_CONFLICT" ||
         issue.code === "NO_TIME_SLOT" ||
+        issue.code === "RETURN_DEADLINE_MISSED" ||
+        issue.code === "OVERNIGHT_DRIVING_UNSUPPORTED" ||
+        issue.code === "NO_SIGHTSEEING_TIME" ||
+        issue.code === "JOURNEY_REST_MISMATCH" ||
+        issue.code === "JOURNEY_TRAVEL_TIME_MISMATCH" ||
+        issue.code === "JOURNEY_ARRIVAL_TOO_EARLY" ||
         issue.code === "INELIGIBLE_OR_DUPLICATE"
           ? "VIOLATION"
           : "INSUFFICIENT_DATA",

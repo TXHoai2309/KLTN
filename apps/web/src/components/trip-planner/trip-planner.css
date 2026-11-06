@@ -351,6 +351,73 @@
   line-height: 1.5;
 }
 
+.planner-journey-missing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 20px;
+  margin-bottom: 16px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: light-dark(#fbf0dc, #3a2f1b);
+  color: var(--planner-ink);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.planner-journey-missing ul {
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--planner-muted);
+  font-size: 13.5px;
+}
+
+.planner-journey-missing button {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 8px;
+  background: var(--planner-accent);
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.planner-journey-missing button:hover {
+  background: var(--planner-accent-hover);
+}
+
+.planner-journey-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--planner-accent-subtle);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.planner-journey-totals p {
+  margin: 0;
+  color: var(--planner-muted);
+}
+
+.planner-journey-totals strong {
+  color: var(--planner-ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.planner-journey-totals small {
+  flex-basis: 100%;
+  font-size: 12.5px;
+  color: var(--planner-muted);
+}
+
 /* ═══════════════════════════════════════════
    5. TIMELINE VISITS (Continuous Unbroken Stem)
    ═══════════════════════════════════════════ */
@@ -442,6 +509,63 @@
   font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+/* Origin departure and return, set on the same timeline as the visits.
+   Saved-trip and Assistant views render these outside .planner-page, hence the fallbacks. */
+.planner-stop-boundary {
+  --planner-boundary-ink: #b4533c;
+}
+
+.dark .planner-stop-boundary {
+  --planner-boundary-ink: #f0a08c;
+}
+
+.planner-stop-boundary .planner-stop-number {
+  border-color: var(--planner-boundary-ink);
+  color: var(--planner-boundary-ink);
+}
+
+.planner-stop-boundary .planner-stop-time {
+  color: var(--planner-boundary-ink);
+}
+
+.planner-boundary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--planner-accent-subtle, var(--muted));
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.planner-boundary-card strong {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--planner-muted, var(--muted-foreground));
+}
+
+.planner-boundary-card p {
+  margin: 0;
+  color: var(--planner-ink, var(--foreground));
+}
+
+.planner-boundary-card .planner-boundary-metrics {
+  font-size: 13px;
+  color: var(--planner-muted, var(--muted-foreground));
+}
+
+.planner-boundary-card-day {
+  margin-top: 16px;
+  gap: 4px;
+}
+
+.planner-boundary-card-day strong {
+  font-size: 15px;
+  color: var(--planner-ink, var(--foreground));
 }
 
 /* Subtle warning icon with tooltip (No screaming yellow pills) */
@@ -630,6 +754,7 @@
   --planner-route-2: #286ba5;
   --planner-route-3: #99621d;
   --planner-route-casing: #ffffff;
+  --planner-route-origin: #b4533c;
   --planner-route-marker-ink: #ffffff;
   min-width: 0;
 }
@@ -639,6 +764,7 @@
   --planner-route-2: #83bde8;
   --planner-route-3: #dfb46c;
   --planner-route-casing: #1b2a22;
+  --planner-route-origin: #f0a08c;
   --planner-route-marker-ink: #14251c;
 }
 
@@ -825,7 +951,8 @@
   border-radius: 16px;
   padding: 14px 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  z-index: 10;
+  /* Above the selected map marker (z-index 20). */
+  z-index: 25;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -919,6 +1046,36 @@
 .planner-detail-link:hover {
   background: var(--planner-accent-subtle);
   transform: translateX(2px);
+}
+
+.planner-map .planner-map-origin-marker {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 2.5px solid #ffffff;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  background: var(--planner-route-origin);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+}
+
+.dark .planner-map .planner-map-origin-marker {
+  color: #2a1510;
+}
+
+.planner-map-origin-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.planner-map-origin-note span {
+  flex-shrink: 0;
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--planner-route-origin);
 }
 
 /* ─── Premium Map Markers (Crystal clear, vivid emerald green, sharp pointer) ─── */

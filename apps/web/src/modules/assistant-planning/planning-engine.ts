@@ -3,7 +3,6 @@ import { assistantMetric } from "../../server/assistant-turn-metrics";
 import { AppError } from "../../server/http/app-error";
 import type { TripRequirementInput } from "../trip-requirement/trip-requirement-contract";
 import { assertTripRequirementClear } from "../trip-requirement/trip-clarification-server";
-import { assertStartDateForFinalConfirmation } from "../trip-requirement/trip-requirement-readiness";
 import type { PlannerCandidate } from "../trip-planner/planner-candidates";
 import { plannerRoutePairs, schedulePlannerDays, visitDuration, openingFor, PACE_STOP_LIMIT } from "../trip-planner/planner-engine";
 import { resolvePlannerRoutes, type RouteProvider } from "../trip-planner/planner-routes";
@@ -11,6 +10,7 @@ import { validatePlannerDays } from "../trip-planner/planner-validator";
 import { plannerResultSchema, type PlannerResult, type TravelLeg } from "../trip-planner/planner-contract";
 import { arrangeOvernightAreas, unmetOvernightAreas, type UnmetOvernight } from "./planning-trip-structure";
 import { planningSelectionSchema, type PlanningSelection, type PlanningNeeds, type PlanningGenerated, type PlanningEdit } from "./planning-contract";
+import { planJourney } from "../trip-origin/journey-planner";
 
 export function isUsablePlanningCandidate(candidate: PlannerCandidate) {
   const duration = visitDuration(candidate);
@@ -34,6 +34,22 @@ export function assertPlanningSelection(raw: unknown, needs: PlanningNeeds, cand
 export async function scheduleSelection(needs: PlanningNeeds, selection: PlanningSelection, candidates: readonly PlannerCandidate[], routes: RouteProvider, now: Date, scope?: { current: PlannerResult; affectedDays: readonly number[] }): Promise<PlannerResult> {
   const requirement = assertTripRequirementClear(needs.requirement, now);
   const selected = assertPlanningSelection(selection, needs, candidates, now);
+  if (requirement.journey) {
+    // A scoped edit retains requested day membership. Whole-brief generation may
+    // try the bounded boundary-day partitions, through the same form scheduler.
+    const journey = await planJourney(requirement, selected, routes, 10_000, !scope);
+    const { checks, stopStatuses } = validatePlannerDays(requirement, journey.days, selected.flat(), journey.travelOnlyDays);
+    const travel = checks.find(check => check.key === "TRAVEL_TIME")!;
+    if (journey.check.status === "VIOLATION" || travel.status === "PASS") travel.status = journey.check.status;
+    travel.issues.push(...journey.check.issues);
+    for (const day of journey.days) for (const stop of day.stops) stop.validationStatus = stopStatuses.get(stop.destination.id) ?? "PASS";
+    const allPass = checks.every(check => check.status === "PASS");
+    return plannerResultSchema.parse({ proposalId: randomUUID(), phase: "PRELIMINARY_PROPOSAL", requirement, timezone: "Asia/Ho_Chi_Minh", days: journey.days,
+      journeyPlan: journey.journeyPlan, checks, status: checks.some(check => check.status === "VIOLATION") ? "NO_FEASIBLE_ITINERARY" : allPass ? "PROPOSAL_READY" : "INSUFFICIENT_DATA",
+      eligibleForFinalConfirmation: allPass && requirement.startDate !== null,
+      warnings: [{ code: "PRELIMINARY_ONLY", message: "Đề xuất chưa được lưu chính thức.", day: null, destinationId: null }, { code: "LODGING_LEGS_NOT_INCLUDED", message: "Mốc định tuyến là điểm tham quan, không phải nơi nghỉ. Chưa tính chặng ra/vào nơi nghỉ.", day: null, destinationId: null }],
+      reasonCodes: [...new Set(checks.flatMap(check => check.issues.map(issue => issue.code)))].slice(0, 30) });
+  }
   const pairs = plannerRoutePairs(selected, requirement.transport);
   const evidence = new Map<string, TravelLeg>();
   const scheduleDays = new Set(scope?.affectedDays ?? selected.map((_, i) => i + 1));
@@ -57,8 +73,8 @@ export async function scheduleSelection(needs: PlanningNeeds, selection: Plannin
   const { checks, stopStatuses } = validatePlannerDays(requirement, days, selected.flat());
   for (const day of days) for (const stop of day.stops) stop.validationStatus = stopStatuses.get(stop.destination.id) ?? "INSUFFICIENT_DATA";
   const allPass = checks.every(check => check.status === "PASS");
-  let eligibleForFinalConfirmation = false;
-  if (allPass) { try { assertStartDateForFinalConfirmation(requirement, now); eligibleForFinalConfirmation = true; } catch { /* relative/invalid date cannot save */ } }
+  // Neither a date nor visit-only checks certify the origin round trip.
+  const eligibleForFinalConfirmation = false;
   return plannerResultSchema.parse({
     proposalId: randomUUID(), phase: "PRELIMINARY_PROPOSAL", requirement, timezone: "Asia/Ho_Chi_Minh", days, checks,
     status: checks.some(c => c.status === "VIOLATION") ? "NO_FEASIBLE_ITINERARY" : allPass ? "PROPOSAL_READY" : "INSUFFICIENT_DATA",
@@ -123,7 +139,9 @@ export async function generatePlanningProposal(input: { needs: PlanningNeeds; ca
       // Code guarantees the night area whenever a selected stop belongs to that area.
       const arranged = overnightAreas.length ? { days: arrangeOvernightAreas(candidate.days, overnightAreas, eligibleById) } : candidate;
       const next = await scheduleSelection(input.needs, arranged, eligibleCandidates, input.routes, input.now);
-      result = next; selection = arranged; previous = arranged;
+      result = next;
+      selection = { days: next.days.map(day => day.stops.map(stop => stop.destination.id)) };
+      previous = selection;
     } catch (error) {
       if (!result && !input.edit && attempt === 0 && error instanceof AppError && (error.code === "PACE_LIMIT" || error.code === "INVALID_AI_PLAN")) {
         selectionNote = error.code === "PACE_LIMIT"

@@ -57,21 +57,26 @@ export function plannerRoutePairs(days: readonly PlannerCandidate[][], transport
   const stops = days.flat();
   return stops.slice(1).map((to, index) => ({ from: stops[index]!, to, transport }));
 }
-export function schedulePlannerDays(requirement: TripRequirementInput, selected: readonly PlannerCandidate[][], routes: ReadonlyMap<string, TravelLeg>): PlannerDay[] {
+export type JourneyScheduleTiming = { starts: ReadonlyMap<number, number | null>; restBefore: ReadonlyMap<string, number | null>; fixedArrivals?: ReadonlyMap<string, number> };
+export function schedulePlannerDays(requirement: TripRequirementInput, selected: readonly PlannerCandidate[][], routes: ReadonlyMap<string, TravelLeg>, timing?: JourneyScheduleTiming): PlannerDay[] {
   return selected.map((candidates, index) => {
     const date = dateForDay(requirement.startDate, index);
-    let cursor: number | null = PLANNING_WINDOW.startMinute;
+    let cursor: number | null = timing?.starts.has(index + 1) ? timing.starts.get(index + 1)! : PLANNING_WINDOW.startMinute;
     const stops: PlannerStop[] = candidates.map((candidate, order) => {
       const inbound = routes.get(candidate.id) ?? null;
       const duration = visitDuration(candidate)!;
       if (inbound?.status === "INSUFFICIENT_DATA") cursor = null;
       else if (cursor !== null && inbound) cursor += Math.ceil(inbound.durationSeconds! / 60);
+      if (timing?.restBefore.get(candidate.id) === null) cursor = null;
+      else if (cursor !== null) cursor += timing?.restBefore.get(candidate.id) ?? 0;
+      if (cursor !== null) cursor = Math.max(PLANNING_WINDOW.startMinute, cursor);
       let arrival = cursor;
       const hours = openingFor(candidate, date);
       if (arrival !== null && hours?.status === "OPEN") {
         const interval = hours.intervals.find(interval => Math.max(arrival!, interval.opensAtMinute) + duration <= Math.min(interval.closesAtMinute, 1080));
         arrival = interval ? Math.max(arrival, interval.opensAtMinute) : null;
       }
+      if (timing?.fixedArrivals?.has(candidate.id)) arrival = timing.fixedArrivals.get(candidate.id)!;
       const impossible = cursor !== null && (hours?.status === "CLOSED" || arrival === null || arrival + duration > PLANNING_WINDOW.endMinute);
       const state = impossible ? "UNSCHEDULED" : arrival === null ? "TIME_UNKNOWN" : "PLANNED";
       if (state !== "PLANNED") arrival = null;

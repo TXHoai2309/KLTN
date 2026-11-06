@@ -22,6 +22,7 @@ import { consumePlanningAuthDraft } from "./planning-auth-handoff";
 import type { AssistantState } from "./assistant-controller";
 import { AssistantV2GuestChat } from "./assistant-v2-guest-chat";
 import { AssistantPendingTurn } from "./assistant-v2-pending";
+import { AssistantOriginModal } from "./assistant-origin-modal";
 import { AssistantPlanMessage } from "./assistant-plan-message";
 
 type Exchange = { question: string; turn: PlanningV2Turn | InTripV2Turn };
@@ -37,6 +38,7 @@ export function AssistantV2Chat(props: AssistantV2ChatProps) {
 }
 function SignedInV2Chat({ available = true, tripId, onMinimize, initialContext, identity }: AssistantV2ChatProps) {
   const inputId = useId();
+  const [originOpen, setOriginOpen] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   // Encrypted server capsule stays in this page's memory, never localStorage,
   // history, URLs or logs. Reload deliberately requires a fresh interaction.
@@ -244,7 +246,7 @@ function SignedInV2Chat({ available = true, tripId, onMinimize, initialContext, 
       <div className="assistant-composer-input" onPointerDown={event => { if (event.target === event.currentTarget) { event.preventDefault(); composer.current?.focus(); } }}>
         <textarea className="resize-none" ref={composer} id={inputId} maxLength={tripId ? 500 : 1000} rows={1} placeholder={tripId ? "Nhập yêu cầu về chuyến đi…" : "Nhập câu hỏi hoặc nhu cầu chuyến đi Hà Giang…"} value={draft} disabled={!available || expired || !!savedTripId} onChange={event => setDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); void send(); } }}/>
         <div className="assistant-composer-bar">
-          <div className="assistant-composer-left-tools"/>
+          <div className="assistant-composer-left-tools">{!tripId && sessionId && <button type="button" disabled={disabled || uncertain} onClick={() => setOriginOpen(true)}>Nơi xuất phát & giờ đi/về</button>}</div>
           <button type="submit" disabled={disabled || !draft.trim()} aria-busy={busy}><Send aria-hidden="true"/><span>Gửi</span></button>
         </div>
       </div>
@@ -257,5 +259,6 @@ function SignedInV2Chat({ available = true, tripId, onMinimize, initialContext, 
     </footer>}
     </div></div>
     </div>
+    {originOpen && <AssistantOriginModal isOpen returnOnly={latestPlanning?.generated?.proposal.days.at(-1)?.journeyDayKind === "RETURN_ONLY"} onClose={() => setOriginOpen(false)} initialJourney={latestPlanning?.latestNeeds.requirement.journey} onConfirm={journey => { if (sessionId) { setOriginOpen(false); void perform({ action: "ASSISTANT_V2", operation: "ORIGIN", sessionId, journey }, "Cập nhật nơi xuất phát và giờ đi/về"); } }} />}
   </section>;
 }

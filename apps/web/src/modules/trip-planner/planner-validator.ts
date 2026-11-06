@@ -3,7 +3,7 @@ import { CHECK_KEYS, travelLegSchema, type CheckStatus, type PlannerCheck, type 
 import type { PlannerCandidate } from "./planner-candidates";
 import { openingFor, PLANNING_WINDOW } from "./planner-engine";
 
-export function validatePlannerDays(requirement: TripRequirementInput, days: readonly PlannerDay[], candidates: readonly PlannerCandidate[]) {
+export function validatePlannerDays(requirement: TripRequirementInput, days: readonly PlannerDay[], candidates: readonly PlannerCandidate[], travelOnlyDays: ReadonlySet<number> = new Set()) {
   const checks: PlannerCheck[] = CHECK_KEYS.map(key => ({ key, status: "PASS", issues: [] }));
   const stopStatuses = new Map<string, CheckStatus>();
   const data = new Map(candidates.map(candidate => [candidate.id, candidate]));
@@ -17,7 +17,7 @@ export function validatePlannerDays(requirement: TripRequirementInput, days: rea
   let previousId: string | null = null;
   const seen = new Set<string>();
   for (const day of days) {
-    if (!day.stops.length) add("SCHEDULE_CONFLICTS", "INSUFFICIENT_DATA", "EMPTY_DAY", "Chưa có đủ điểm đến phù hợp cho ngày này.", day.day, null);
+    if (!day.stops.length && !travelOnlyDays.has(day.day)) add("SCHEDULE_CONFLICTS", "INSUFFICIENT_DATA", "EMPTY_DAY", "Chưa có đủ điểm đến phù hợp cho ngày này.", day.day, null);
     let departure: number | null = null;
     for (const stop of day.stops) {
       const id = stop.destination.id, candidate = data.get(id);

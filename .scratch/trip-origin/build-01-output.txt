@@ -1,0 +1,42 @@
+
+> web@0.1.0 build
+> node scripts/prepare-map-assets.mjs && node scripts/build.mjs
+
+▲ Next.js 16.3.8 (Turbopack)
+- Environments: .env, .env.schema, 
+                   ✨ loaded by varlock ✨
+✓ Running next.config.ts took 99ms
+- Experiments (use with caution):
+  · cpus: 2
+  ⨯ reactDebugChannel
+
+  Creating an optimized production build ...
+
+> Build error occurred
+Error: Turbopack build failed with 1 error:
+./apps/web/src/modules/trip-save/trip-save-adapter.ts
+Error: Reading source code for parsing failed
+An unexpected error happened while trying to read the source code to parse: creating new process
+
+Caused by:
+- node process exited before we could connect to it with exit code: 0
+
+Debug info:
+- Execution of <WebpackLoadersProcessedAsset as Asset>::content failed
+- Execution of WebpackLoadersProcessedAsset::process failed
+- Execution of evaluate_webpack_loader failed
+- creating new process
+- node process exited before we could connect to it with exit code: 0
+  Process output:
+  
+  Process error output:
+
+
+    at ignore-listed frames
+npm error Lifecycle script `build` failed with error:
+npm error code 1
+npm error path D:\KLTN\KLTN\apps\web
+npm error workspace web@0.1.0
+npm error location D:\KLTN\KLTN\apps\web
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c node scripts/prepare-map-assets.mjs && node scripts/build.mjs

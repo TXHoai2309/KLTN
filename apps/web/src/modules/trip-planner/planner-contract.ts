@@ -2,6 +2,7 @@ import { z } from "zod";
 import { tripRequirementInputSchema } from "../trip-requirement/trip-requirement-contract";
 import { publicHttpsUrl } from "../content-profile/content-profile-contract";
 import { plannerRouteGeometrySchema } from "./planner-route-geometry";
+import { journeyPlanSchema } from "../trip-origin/journey-route-contract";
 
 export const PLANNER_PHASES = ["PRELIMINARY_PROPOSAL", "FINAL_CONFIRMATION", "OFFICIAL_SAVE"] as const;
 export const CHECK_KEYS = ["OPENING_HOURS", "MINIMUM_DURATION", "TRAVEL_TIME", "SCHEDULE_CONFLICTS", "MOBILITY"] as const;
@@ -38,6 +39,7 @@ export const plannerStopSchema = z.object({
 }).strict();
 export type PlannerStop = z.infer<typeof plannerStopSchema>;
 export const plannerDaySchema = z.object({
+  journeyDayKind: z.enum(["VISITS", "OUTBOUND_ONLY", "RETURN_ONLY", "EMPTY"]).optional(),
   day: z.number().int().min(1).max(14), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
   stops: z.array(plannerStopSchema).max(4), distanceMeters: z.number().nonnegative().nullable(), travelSeconds: z.number().nonnegative().nullable(),
 }).strict();
@@ -46,6 +48,7 @@ const issueSchema = z.object({ code: z.string().max(80), message: z.string().max
 export const plannerCheckSchema = z.object({ key: z.enum(CHECK_KEYS), status: checkStatusSchema, issues: z.array(issueSchema).max(80) }).strict();
 export type PlannerCheck = z.infer<typeof plannerCheckSchema>;
 export const plannerResultSchema = z.object({
+  journeyPlan: journeyPlanSchema.optional(),
   proposalId: id, phase: z.literal("PRELIMINARY_PROPOSAL"),
   status: z.enum(["PROPOSAL_READY", "INSUFFICIENT_DATA", "NO_FEASIBLE_ITINERARY"]),
   requirement: tripRequirementInputSchema, timezone: z.literal("Asia/Ho_Chi_Minh"),

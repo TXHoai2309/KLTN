@@ -25,7 +25,17 @@ import {
   Users,
   LogOut,
   LoaderCircle,
+  Home,
+  Flag,
 } from "lucide-react";
+
+import {
+  ItineraryOriginDepartureCard,
+  ItineraryOriginReturnCard,
+  durationText,
+} from "@/components/trip-planner/planner-presentation";
+import { formatMinuteLabel } from "@/modules/trip-origin/journey-time-utils";
+import { TripJourneyEditModal } from "@/components/trip-origin/trip-journey-edit-modal";
 
 import { Card } from "@KLTN/ui/components/card";
 import { Empty } from "@KLTN/ui/components/empty";
@@ -623,11 +633,17 @@ function tripDetailToPlannerDays(trip: TripDetail): PlannerDay[] {
 }
 
 export function TripDetailView({ trip }: { trip: TripDetail }) {
+  const router = useRouter();
   const statusLabel = groups.find((group) => group.status === trip.status)!.label;
   const [activeDayIndex, setActiveDayIndex] = useState<number | null>(null);
   const [selectedDestinationId, setSelectedDestinationId] = useState<string | null>(null);
   const [focusSelection, setFocusSelection] = useState(false);
   const [mobileTab, setMobileTab] = useState<"itinerary" | "map">("itinerary");
+  const [journeyEditModalOpen, setJourneyEditModalOpen] = useState(false);
+  const [isLegacyOptInMode, setIsLegacyOptInMode] = useState(false);
+
+  const isOwner = trip.role !== "MEMBER";
+  const hasJourney = Boolean(trip.journey && trip.journey.journey.origin);
 
   const totalDestinations = trip.days.reduce((sum, d) => sum + d.visits.length, 0);
 
@@ -713,6 +729,34 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
                     <Pencil size={15} aria-hidden="true" />
                     <span>Chỉnh sửa hành trình</span>
                   </Link>
+
+                  {trip.status === "UPCOMING" && (
+                    hasJourney ? (
+                      <button
+                        type="button"
+                        className="my-trips-action"
+                        onClick={() => {
+                          setIsLegacyOptInMode(false);
+                          setJourneyEditModalOpen(true);
+                        }}
+                      >
+                        <MapPin size={15} aria-hidden="true" />
+                        <span>Đổi nơi/giờ xuất phát</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className="my-trips-action"
+                        onClick={() => {
+                          setIsLegacyOptInMode(true);
+                          setJourneyEditModalOpen(true);
+                        }}
+                      >
+                        <Plus size={15} aria-hidden="true" />
+                        <span>Bổ sung nơi xuất phát</span>
+                      </button>
+                    )
+                  )}
 
                   {trip.status !== "COMPLETED" && (
                     <>
@@ -810,6 +854,113 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
           </div>
         </div>
       </section>
+
+      {/* Journey Overview Card (for Owner when journey exists) */}
+      {hasJourney && trip.journey && (
+        <section className="my-trips-journey-banner" data-testid="trip-saved-journey-section" aria-label="Điểm xuất phát hành trình">
+          <div className="my-trips-journey-header">
+            <div className="flex items-center gap-2">
+              <Home size={18} className="text-primary" aria-hidden="true" />
+              <h3 className="font-semibold text-base">Điểm xuất phát hành trình</h3>
+              <span className="my-trips-badge my-trips-badge-upcoming">Riêng tư</span>
+            </div>
+            {trip.status === "UPCOMING" && isOwner && (
+              <button
+                type="button"
+                className="my-trips-journey-edit-btn text-xs font-medium text-primary hover:underline flex items-center gap-1"
+                onClick={() => {
+                  setIsLegacyOptInMode(false);
+                  setJourneyEditModalOpen(true);
+                }}
+              >
+                <Pencil size={13} aria-hidden="true" />
+                <span>Thay đổi</span>
+              </button>
+            )}
+          </div>
+
+          {trip.journey.journey.origin && (
+            <div className="my-trips-journey-body mt-2">
+              <div className="font-medium text-foreground text-sm">
+                {trip.journey.journey.origin.label}
+              </div>
+              <div className="text-xs text-muted-foreground mt-0.5">
+                Tọa độ riêng tư: ({trip.journey.journey.origin.latitude.toFixed(5)}, {trip.journey.journey.origin.longitude.toFixed(5)})
+              </div>
+
+              <div className="my-trips-journey-times mt-3 grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground text-xs block">Khởi hành Ngày 1:</span>
+                  <strong>{formatMinuteLabel(trip.journey.journey.departureMinute)}</strong>
+                </div>
+                <div>
+                  <span className="text-muted-foreground text-xs block">Hạn về Ngày {trip.durationDays}:</span>
+                  <strong>{formatMinuteLabel(trip.journey.journey.returnDeadlineMinute)}</strong>
+                </div>
+              </div>
+
+              {trip.journey.plan ? (
+                <div className="my-trips-journey-plan mt-3 pt-3 border-t border-border/50 text-sm">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                    {trip.journey.plan.totals.drivingSeconds != null && (
+                      <span>
+                        Chạy xe: <strong>{durationText(Math.ceil(trip.journey.plan.totals.drivingSeconds / 60))}</strong>
+                      </span>
+                    )}
+                    {trip.journey.plan.totals.restMinutes != null && (
+                      <span>
+                        Nghỉ ven đường: <strong>+{trip.journey.plan.totals.restMinutes} phút</strong>
+                      </span>
+                    )}
+                    {trip.journey.plan.totals.distanceMeters != null && (
+                      <span>
+                        Quãng đường:{" "}
+                        <strong>
+                          {(trip.journey.plan.totals.distanceMeters / 1000).toLocaleString("vi-VN", {
+                            maximumFractionDigits: 1,
+                          })}{" "}
+                          km
+                        </strong>
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1.5 italic">
+                    * Lịch trình chưa bao gồm thời gian nhận/trả phòng lưu trú (homestay/khách sạn).
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-amber-600 mt-2">
+                  Kế hoạch di chuyển chi tiết cần được cập nhật lại do các điểm dừng đã thay đổi.
+                </p>
+              )}
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Legacy Trip Disclosure Banner (for Owner when journey does not exist) */}
+      {isOwner && !hasJourney && (
+        <section className="my-trips-legacy-banner" data-testid="legacy-trip-disclosure" aria-label="Thông báo hành trình tiêu chuẩn cũ">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="text-sm text-muted-foreground">
+              <strong>Lưu ý:</strong> Chuyến đi này được lập theo chuẩn cũ chưa có nơi xuất phát và thời gian di chuyển đi/về.
+            </div>
+            {trip.status === "UPCOMING" && (
+              <button
+                type="button"
+                className="my-trips-action my-trips-legacy-optin-btn"
+                onClick={() => {
+                  setIsLegacyOptInMode(true);
+                  setJourneyEditModalOpen(true);
+                }}
+              >
+                <Plus size={14} className="mr-1" aria-hidden="true" />
+                <span>Bổ sung nơi xuất phát</span>
+              </button>
+            )}
+          </div>
+        </section>
+      )}
 
       {/* Interactive Day Switcher Tabs */}
       {trip.days.length > 1 && (
@@ -935,6 +1086,20 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
                       </div>
                     ) : (
                       <ol className="my-trips-visits">
+                        {day.dayIndex === 1 && trip.journey?.journey.origin && (
+                          <ItineraryOriginDepartureCard
+                            originLabel={trip.journey.journey.origin.label}
+                            startMinute={trip.journey.journey.departureMinute ?? null}
+                            outboundLeg={
+                              trip.journey.plan?.legs.find((l) => l.kind === "OUTBOUND")
+                                ? {
+                                    route: trip.journey.plan.legs.find((l) => l.kind === "OUTBOUND")!.route,
+                                    restMinutes: trip.journey.plan.legs.find((l) => l.kind === "OUTBOUND")!.restMinutes,
+                                  }
+                                : undefined
+                            }
+                          />
+                        )}
                         {day.visits.map((visit, visitIndex) => {
                           const visual = getDestinationVisual(visit.destination.name, visit.destination.area);
                           const isSelected = selectedDestinationId === visit.destination.id;
@@ -1016,6 +1181,23 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
                             </li>
                           );
                         })}
+                        {day.dayIndex === trip.days.length && trip.journey?.journey.origin && (
+                          <ItineraryOriginReturnCard
+                            originLabel={trip.journey.journey.origin.label}
+                            endMinute={
+                              trip.journey.plan?.legs.find((l) => l.kind === "RETURN")?.endMinute ?? null
+                            }
+                            returnDeadlineMinute={trip.journey.journey.returnDeadlineMinute ?? null}
+                            returnLeg={
+                              trip.journey.plan?.legs.find((l) => l.kind === "RETURN")
+                                ? {
+                                    route: trip.journey.plan.legs.find((l) => l.kind === "RETURN")!.route,
+                                    restMinutes: trip.journey.plan.legs.find((l) => l.kind === "RETURN")!.restMinutes,
+                                  }
+                                : undefined
+                            }
+                          />
+                        )}
                       </ol>
                     )}
                   </section>
@@ -1036,6 +1218,8 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
                 focusSelection={focusSelection}
                 onSelect={handleSelectDestination}
                 overviewOnly={activeDayIndex === null}
+                journeyPlan={trip.journey?.plan}
+                origin={trip.journey?.journey.origin}
               />
             ) : (
               <div className="my-trips-map-empty">
@@ -1074,6 +1258,19 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
           )}
         </nav>
       </footer>
+
+      <TripJourneyEditModal
+        isOpen={journeyEditModalOpen}
+        onClose={() => setJourneyEditModalOpen(false)}
+        tripId={trip.id}
+        baseRevision={trip.baseRevision}
+        initialJourney={trip.journey?.journey}
+        returnOnly={trip.days.at(-1)?.visits.length === 0}
+        isLegacyOptIn={isLegacyOptInMode}
+        onSaved={() => {
+          router.refresh();
+        }}
+      />
     </main>
   );
 }

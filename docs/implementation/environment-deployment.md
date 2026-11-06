@@ -1,5 +1,11 @@
 # Environment and deployment
 
+## Origin search and routing
+
+Origin search uses Stadia Geocoding (`/geocoding/v2/search`) through the same server-only key as routing, called from `/api/trip-origins/search` while the user types. It needs no extra variable. Queries are limited to public place names, without private traveler notes. Journey persistence requires the Trip migration; verify the target and migration state before applying anything.
+
+Stadia routing continues to use server-only `STADIA_MAPS_API_KEY` (or an existing configured runtime override). Keep its actual value out of the example, browser bundle, logs and committed files. Map tiles use the existing domain authentication setup.
+
 ## Environment files
 
 - `apps/web/.env.schema` is the Varlock machine contract for validation and TypeScript generation. Keep it committed.

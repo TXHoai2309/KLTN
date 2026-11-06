@@ -1,4 +1,5 @@
 import { apiSuccess } from "@/server/http/api-response";
+import { assertJourneyCoverage } from "../trip-origin/trip-origin-service";
 import { AppError } from "@/server/http/app-error";
 import { handleApiError } from "@/server/http/error-handler";
 import { requireTraveler } from "@/server/auth/require-traveler";
@@ -61,6 +62,7 @@ export async function checkTripRequirementResponse(
     if (!isObjectBody(rawBody)) throw requestBodyError();
 
     const result = checkTripRequirement(rawBody, dependencies.now());
+    assertJourneyCoverage(result.requirement?.journey);
     return privateResponse(apiSuccess({
       ...result,
       clarificationRequests: deriveClarificationsFromCheck(result),

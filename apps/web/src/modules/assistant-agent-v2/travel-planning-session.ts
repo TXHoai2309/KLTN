@@ -21,6 +21,10 @@ import { analyzeCurrentProposal } from "./planning-guidance";
 import { createPlanningQaSession, planningQaStateSchema } from "./qa-session";
 import type { QaActionServices } from "./qa-actions";
 import type { QaContext } from "../ai/qa-contract";
+import { tripJourneySchema, type TripJourney } from "../trip-origin/trip-origin-contract";
+import { assertJourneyCoverage } from "../trip-origin/trip-origin-service";
+import { refinePreliminaryProposal, generatePreliminaryProposal } from "./planning-actions";
+import { planningHash } from "../assistant-planning/planning-repository";
 
 type SessionDependencies = {
   authorization: AuthorizationDependencies;
@@ -285,6 +289,37 @@ export async function startTravelPlanningV2Session(input: { headers: Headers; co
   }
 
   return {
+    async provideOrigin(journey: TripJourney | null, turnKey: string): Promise<PlanningV2Turn> {
+      planningTurnKeySchema.parse(turnKey);
+      const actorNow = await requireTraveler(input.headers, boundaries.authorization);
+      if (actorNow.userId !== actor.userId) throw new AppError("FORBIDDEN", "Phiên đăng nhập đã thay đổi.", 403);
+      const parsed = tripJourneySchema.nullable().parse(journey);
+      assertJourneyCoverage(parsed);
+      if (busy || uncertain) throw new AppError("PLANNING_BUSY", "Cần đối soát thao tác hiện tại trước khi đổi nơi xuất phát.", 409);
+      await deps.repository.assertVersion(workspace.conversationId, workspace.version);
+      if (workspace.pendingSaveKey || workspace.savedTripId) throw new AppError("PLANNING_CHANGED", "Trạng thái lưu đã thay đổi.", 409);
+      const updated = planningNeedsSchema.parse({ ...needs, requirement: { ...needs.requirement, journey: parsed } });
+      busy = true;
+      try {
+        const context = createAssistantAgentContext({ userId: actor.userId, workspace });
+        if (generated) {
+          const result = await refinePreliminaryProposal({ needs: updated, current: generated, key: turnKey }, context, services.planning);
+          if (result.outcome !== "PUBLISHED") return turnResult(planningResponsePlan(needs, "REFINEMENT_FAILED", result.candidate), "Phương án mới chưa phù hợp; giữ nguyên phương án trước.", result.candidate);
+          workspace = result.workspace; generated = result.generated; needs = workspace.needs;
+        } else if (assessPlanningReadiness(updated).canDraft) {
+          const result = await generatePreliminaryProposal({ needs: updated, key: turnKey }, context, services.planning);
+          workspace = result.workspace; generated = result.generated; needs = workspace.needs;
+        } else {
+          workspace = planningWorkspaceSchema.parse(await deps.repository.review(workspace.conversationId, workspace.version, updated, planningHash({ key: turnKey, phase: "origin-review" })));
+          needs = updated;
+        }
+        pendingClarificationNeeds = null; pendingReplan = null;
+        return turnResult(planningResponsePlan(needs, generated ? "PRESENT_PROPOSAL" : undefined, generated ?? undefined), generated ? "Đã tính lại phương án theo nơi và giờ đi/về đã chọn. Lưu chuyến vẫn là bước xác nhận riêng." : "Đã ghi nhận nơi và giờ đi/về; cần số ngày và phương tiện để lập đề xuất.");
+      } catch (error) {
+        if (!(error instanceof AppError) || error.status >= 500) uncertain = true;
+        throw error;
+      } finally { busy = false; }
+    },
     exportState(): PlanningSessionState {
       return planningSessionStateSchema.parse({ workspace, needs, unresolved, recent,
         previousPlan: previousPlan && ["ASK_DURATION", "ASK_TRANSPORT", "CLARIFY"].includes(previousPlan.goal) ? { goal: previousPlan.goal, ...(previousPlan.clarificationField ? { clarificationField: previousPlan.clarificationField } : {}) } : null,

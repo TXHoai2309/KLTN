@@ -1,4 +1,5 @@
 import { AppError } from "@/server/http/app-error";
+import { missingJourneyFields } from "../trip-origin/trip-origin-contract";
 
 import {
   isValidCalendarDate,
@@ -74,10 +75,13 @@ export function evaluateTripRequirement(
   if (!durationValid) missing.push("durationDays");
   if (!transportValid) missing.push("transport");
   if (startDateIssue !== null) missing.push("startDate");
+  const journeyMissing = missingJourneyFields(input.journey);
+  // Keep the legacy transport/readiness wire shape. Origin-v1 consumers use
+  // missingJourneyFields(requirement.journey) for the additive journey details.
 
   return {
     preliminary,
-    finalConfirmation: preliminary && startDateIssue === null,
+    finalConfirmation: preliminary && startDateIssue === null && journeyMissing.length === 0,
     missing,
     startDateIssue,
     usesRelativeDays: startDateIssue === "MISSING",

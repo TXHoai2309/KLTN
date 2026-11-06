@@ -5,6 +5,7 @@ import { tripProposalSchema, type TripProposal } from "../trip-validation/trip-p
 export function toSaveProposal(result: PlannerResult): TripProposal | null {
   if (!result.eligibleForFinalConfirmation || !result.requirement.startDate) return null;
   const proposal = {
+    ...(result.requirement.journey === undefined ? {} : { journey: structuredClone(result.requirement.journey) }),
     startDate: result.requirement.startDate,
     durationDays: result.requirement.durationDays,
     transport: result.requirement.transport,

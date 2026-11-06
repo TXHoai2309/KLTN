@@ -51,6 +51,8 @@ function fixture(role: "TRAVELER" | "ADMIN" = "TRAVELER") {
     $transaction: async (callback: (tx: unknown) => Promise<unknown>) => {
       const pendingTrip = structuredClone(trip); const pendingRecords = new Map(records);
       const tx = {
+        $queryRaw: async () => [],
+        tripCompanionPublication: { findUnique: async () => null },
         user: database.user,
         trip: {
           findFirst: async (q: Query) => owned(q, pendingTrip),

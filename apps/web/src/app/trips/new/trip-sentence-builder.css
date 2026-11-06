@@ -336,6 +336,10 @@ body:has(.trip-shell) .global-assistant-launcher {
   box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.7);
 }
 
+.trip-shell .trip-picker-modal-origin {
+  max-width: 760px;
+}
+
 @keyframes tripModalScaleIn {
   from {
     opacity: 0;

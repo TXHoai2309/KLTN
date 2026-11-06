@@ -16,7 +16,7 @@ import { isTripSaveNavigationLocked, type SaveState } from "@/modules/trip-save/
 import {
   ItineraryDayTabs,
   ItineraryStopCard,
-  TripOverviewCard,
+  TripOverviewCard, JourneyMissingNotice, ItineraryOriginDepartureCard, ItineraryOriginReturnCard, ItineraryTravelOnlyDayCard,
   TripSummaryBar,
   ValidationSheet,
   WarningNoticeRow,
@@ -111,6 +111,7 @@ export function TripPlannerScreen({
 
       {/* 2. Status notice (sr-only for screen readers) */}
       <WarningNoticeRow proposal={proposal} />
+      <JourneyMissingNotice journey={proposal.requirement.journey} returnOnly={proposal.days.at(-1)?.stops.length === 0} onBack={onBack} />
 
       {/* 3. Day Tabs spanning the itinerary view */}
       <div className="planner-day-tabs-wrapper">
@@ -159,7 +160,7 @@ export function TripPlannerScreen({
             </h2>
 
             {/* Compact route metrics under day tabs */}
-            <TripOverviewCard day={day} />
+            <TripOverviewCard day={day} journeyPlan={proposal.journeyPlan} />
           </div>
 
           <div
@@ -169,6 +170,7 @@ export function TripPlannerScreen({
           >
             {day.stops.length ? (
               <ol className="planner-timeline">
+                {day.day === 1 && proposal.requirement.journey?.origin && <ItineraryOriginDepartureCard originLabel={proposal.requirement.journey.origin.label} startMinute={proposal.requirement.journey.departureMinute} outboundLeg={proposal.journeyPlan?.legs.find(l => l.kind === "OUTBOUND")}/>}
                 {day.stops.map((stop, index) => (
                   <ItineraryStopCard
                     key={stop.destination.id}
@@ -178,9 +180,10 @@ export function TripPlannerScreen({
                     onSelect={select}
                   />
                 ))}
+                {day.day === proposal.days.length && proposal.requirement.journey?.origin && <ItineraryOriginReturnCard originLabel={proposal.requirement.journey.origin.label} endMinute={proposal.journeyPlan?.legs.find(l => l.kind === "RETURN")?.endMinute ?? null} returnDeadlineMinute={proposal.requirement.journey.returnDeadlineMinute} returnLeg={proposal.journeyPlan?.legs.find(l => l.kind === "RETURN")}/>}
               </ol>
             ) : (
-              <PlannerEmptyState onBack={onBack} />
+              day.journeyDayKind === "OUTBOUND_ONLY" || day.journeyDayKind === "RETURN_ONLY" ? <ItineraryTravelOnlyDayCard kind={day.journeyDayKind} originLabel={proposal.requirement.journey?.origin?.label ?? "Nơi xuất phát"} leg={proposal.journeyPlan?.legs.find(l => l.day === day.day && l.kind === (day.journeyDayKind === "OUTBOUND_ONLY" ? "OUTBOUND" : "RETURN"))}/> : <PlannerEmptyState onBack={onBack} />
             )}
           </div>
 
@@ -195,6 +198,8 @@ export function TripPlannerScreen({
             selectedDestinationId={selectedDestinationId}
             focusSelection={focusSelection}
             onSelect={select}
+            journeyPlan={proposal.journeyPlan}
+            origin={proposal.requirement.journey?.origin}
           />
         </div>
       </div>

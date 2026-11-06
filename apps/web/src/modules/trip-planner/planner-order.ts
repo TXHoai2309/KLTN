@@ -35,8 +35,10 @@ export function orderPlannerCandidates(requirement: TripRequirementInput, candid
     }
     // There is no user origin yet. Choose a stable endpoint using interests and
     // coordinates, without claiming that endpoint is the traveler's actual origin.
-    if (compare(path[0]!, path[path.length - 1]!) > 0) path.reverse();
-    const cost = path.reduce((sum, candidate, index) => sum - interests.get(candidate.id)! * 5 + (index ? edge(path[index - 1]!, candidate) : 0), 0);
+    const origin = requirement.journey?.origin?.confirmed ? requirement.journey.origin : null;
+    if (origin ? haversine(origin, path[0]!) > haversine(origin, path[path.length - 1]!) : compare(path[0]!, path[path.length - 1]!) > 0) path.reverse();
+    const cost = path.reduce((sum, candidate, index) => sum - interests.get(candidate.id)! * 5 + (index ? edge(path[index - 1]!, candidate) : 0), 0)
+      + (origin ? haversine(origin, path[0]!) + haversine(path[path.length - 1]!, origin) : 0);
     const different = path.findIndex((candidate, index) => candidate.id !== bestPath[index]?.id);
     if (cost < bestCost - EPSILON || (Math.abs(cost - bestCost) <= EPSILON && different >= 0 && compare(path[different]!, bestPath[different]!) < 0)) {
       bestPath = path;

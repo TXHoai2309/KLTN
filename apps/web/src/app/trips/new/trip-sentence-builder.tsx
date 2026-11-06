@@ -19,6 +19,8 @@ import {
   type TripTransport,
 } from "@/modules/trip-requirement/trip-requirement-contract";
 import { formatVietnameseDate } from "@/lib/date-only";
+import { missingJourneyFields, type TripJourney } from "@/modules/trip-origin/trip-origin-contract";
+import TripJourneyEditor from "@/components/trip-origin/trip-journey-editor";
 import TripPersonalizationSheet from "./trip-personalization-sheet";
 import TripCalendarPicker from "./trip-calendar-picker";
 
@@ -43,6 +45,9 @@ export type TripSentenceBuilderProps = {
   onMobilityFlagsChange?: (flags: MobilityConstraint[]) => void;
   mobilityNote: string;
   onMobilityNoteChange?: (note: string) => void;
+
+  journey?: TripJourney | null;
+  onJourneyChange?: (journey: TripJourney) => void;
 
   onOpenPersonalization?: () => void;
   onOpenAIModal?: () => void;
@@ -80,12 +85,14 @@ export default function TripSentenceBuilder({
   onMobilityFlagsChange,
   mobilityNote,
   onMobilityNoteChange,
+  journey,
+  onJourneyChange,
   onSubmit,
   pending,
   errors = {},
   feedback,
 }: TripSentenceBuilderProps) {
-  const [activePicker, setActivePicker] = useState<"duration" | "transport" | "startDate" | null>(null);
+  const [activePicker, setActivePicker] = useState<"duration" | "transport" | "startDate" | "origin" | null>(null);
   const [isPersonalizationOpen, setIsPersonalizationOpen] = useState(false);
 
   const [isCustomDuration, setIsCustomDuration] = useState(() => {
@@ -295,6 +302,29 @@ export default function TripSentenceBuilder({
 
         <div className="trip-config-divider" />
 
+        {/* ── 5. Nơi xuất phát & Giờ đi/về ── */}
+        <div className="trip-config-item">
+          <button
+            type="button"
+            className="trip-config-row"
+            onClick={() => setActivePicker(activePicker === "origin" ? null : "origin")}
+            aria-expanded={activePicker === "origin"}
+            aria-haspopup="dialog"
+          >
+            <div className="trip-config-row-text">
+              <span className="trip-config-row-label">NƠI XUẤT PHÁT & GIỜ ĐI/VỀ</span>
+              <span className="trip-config-row-value">
+                {journey?.origin
+                  ? `${journey.origin.label} ${journey.origin.confirmed ? "✓" : "(Chưa xác nhận)"}${journey.departureMinute == null || journey.returnDeadlineMinute == null ? " · Thiếu giờ đi/về" : ""}`
+                  : "Chưa chọn nơi xuất phát"}
+              </span>
+            </div>
+            <ChevronRight size={18} className="trip-config-chevron" aria-hidden="true" />
+          </button>
+        </div>
+
+        <div className="trip-config-divider" />
+
         {/* Validation Errors */}
         {(errors.durationDays || errors.transport || errors.startDate || feedback) && (
           <div className="trip-sentence-errors" role="alert">
@@ -342,7 +372,7 @@ export default function TripSentenceBuilder({
           role="presentation"
         >
           <div
-            className="trip-picker-modal"
+            className={`trip-picker-modal${activePicker === "origin" ? " trip-picker-modal-origin" : ""}`}
             role="dialog"
             aria-modal="true"
             aria-labelledby="trip-picker-modal-title"
@@ -353,6 +383,7 @@ export default function TripSentenceBuilder({
                 {activePicker === "duration" && "Thời lượng chuyến đi"}
                 {activePicker === "transport" && "Phương tiện di chuyển"}
                 {activePicker === "startDate" && "Ngày khởi hành"}
+                {activePicker === "origin" && "Nơi xuất phát và giờ đi/về"}
               </h3>
               <button
                 type="button"
@@ -500,6 +531,31 @@ export default function TripSentenceBuilder({
                     }}
                     onClose={() => setActivePicker(null)}
                   />
+                </div>
+              )}
+
+              {activePicker === "origin" && (
+                <div id="origin-picker-panel" className="trip-picker-modal-content">
+                  <TripJourneyEditor
+                    journey={journey}
+                    onChange={(next) => onJourneyChange?.(next)}
+                  />
+                  <div className="flex justify-end pt-3 mt-3 border-t">
+                    <button
+                      type="button"
+                      className="px-4 py-2 text-sm font-medium rounded-md bg-emerald-700 text-white hover:bg-emerald-800"
+                      onClick={(event) => {
+                        // Times sit below the map; point at what is missing rather than closing past it.
+                        if (journey && missingJourneyFields(journey).length) {
+                          event.currentTarget.closest("#origin-picker-panel")?.querySelector(".trip-journey-missing-list")?.scrollIntoView({ block: "center" });
+                          return;
+                        }
+                        setActivePicker(null);
+                      }}
+                    >
+                      Xong
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
