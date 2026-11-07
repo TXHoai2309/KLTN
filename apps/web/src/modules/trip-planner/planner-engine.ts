@@ -11,6 +11,9 @@ import type { RoutePair } from "./planner-routes";
 export const PLANNING_WINDOW = { startMinute: 480, endMinute: 1080 } as const;
 /** Owner-approved 2026-11-07: a visit ending in this window is followed by a meal break before the next visit. */
 export const LUNCH = { fromMinute: 690, toMinute: 840, minutes: 60 } as const;
+/** Owner-approved 2026-11-07: from Day 2, breakfast then travel at 06:00. Visits still begin within the planning window. */
+export const MORNING_DEPARTURE_MINUTE = 360;
+export const BREAKFAST_MINUTES = 30;
 export const PACE_STOP_LIMIT = { RELAXED: 2, MODERATE: 3, PACKED: 4 } as const;
 export function dateForDay(startDate: string | null, index: number): string | null {
   if (!startDate) return null;
@@ -66,7 +69,7 @@ export type JourneyScheduleTiming = { starts: ReadonlyMap<number, number | null>
 export function schedulePlannerDays(requirement: TripRequirementInput, selected: readonly PlannerCandidate[][], routes: ReadonlyMap<string, TravelLeg>, timing?: JourneyScheduleTiming): PlannerDay[] {
   return selected.map((candidates, index) => {
     const date = dateForDay(requirement.startDate, index);
-    let cursor: number | null = timing?.starts.has(index + 1) ? timing.starts.get(index + 1)! : PLANNING_WINDOW.startMinute;
+    let cursor: number | null = timing?.starts.has(index + 1) ? timing.starts.get(index + 1)! : timing ? MORNING_DEPARTURE_MINUTE : PLANNING_WINDOW.startMinute;
     let lunched = false;
     const stops: PlannerStop[] = candidates.map((candidate, order) => {
       const inbound = routes.get(candidate.id) ?? null;

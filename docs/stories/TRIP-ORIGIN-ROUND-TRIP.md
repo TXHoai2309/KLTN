@@ -128,4 +128,6 @@ Owner asked to apply these immediately, using the values proposed in session. Th
 - A day driving over 8 hours by car or 6 by motorcycle gets a non-blocking `LONG_DRIVING_DAY` warning.
 - Well-known destinations are kept first when there are more places than slots and dropped last when trimming. This is a name list in code until Admin has a field for it.
 - Form proposals with an origin order stops as a loop (2-opt on straight-line distance), prefer day boundaries that leave less unused time before the last day, and re-add dropped stops that still fit. Assistant day plans are kept unless a constraint fails.
+- From Day 2, journey travel starts at 06:00 after a 30-minute breakfast, shown on the timeline. Visits still start no earlier than 08:00, the existing planning window.
+- The form and saved-trip timelines show breakfast, lunch and night rest times. Night rest names a time only, since lodging is not chosen or routed. The Assistant list does not show them yet.
 - Saved trips show the destination's own photo, falling back to the scenic picture when the link is broken. Ordinary trip edits still validate against uncapped provider times.

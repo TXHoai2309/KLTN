@@ -1,6 +1,6 @@
 import type { TripRequirementInput } from "../trip-requirement/trip-requirement-contract";
 import type { PlannerCandidate } from "../trip-planner/planner-candidates";
-import { dateForDay, PACE_STOP_LIMIT, PLANNING_WINDOW, schedulePlannerDays, visitDuration } from "../trip-planner/planner-engine";
+import { dateForDay, MORNING_DEPARTURE_MINUTE, PACE_STOP_LIMIT, PLANNING_WINDOW, schedulePlannerDays, visitDuration } from "../trip-planner/planner-engine";
 import { validatePlannerDays } from "../trip-planner/planner-validator";
 import { travelLegSchema, type PlannerCheck, type PlannerDay, type PlannerResult, type TravelLeg } from "../trip-planner/planner-contract";
 import { isFeaturedDestination } from "../trip-planner/planner-candidates";
@@ -242,7 +242,7 @@ export function scheduleJourneyEvidence(requirement: TripRequirementInput, selec
     const day = days.find(day => day.stops.some(stop => stop.destination.id === current.id))!;
     const previousStop = days.flatMap(day => day.stops).find(stop => stop.destination.id === previous.id)!;
     const sameDay = day.stops.some(stop => stop.destination.id === previous.id);
-    const start = sameDay ? previousStop.departureMinute : 480;
+    const start = sameDay ? previousStop.departureMinute : MORNING_DEPARTURE_MINUTE;
     const route = transfer.get(current.id)!;
     const rest = rests.get(current.id) ?? null;
     legs.push({ kind: "TRANSFER", day: day.day, from: { kind: "ATTRACTION", destinationId: previous.id }, to: { kind: "ATTRACTION", destinationId: current.id },

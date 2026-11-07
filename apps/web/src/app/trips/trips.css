@@ -1423,6 +1423,25 @@
   font-weight: 600;
 }
 
+.my-trips-break-item {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 28px 74px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+}
+
+@media (max-width: 720px) {
+  .my-trips-break-item {
+    grid-template-columns: 20px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .my-trips-break-item .my-trips-visit-time {
+    display: none;
+  }
+}
+
 /* Visit Item Card */
 .my-trips-page .my-trips-visit {
   display: grid;

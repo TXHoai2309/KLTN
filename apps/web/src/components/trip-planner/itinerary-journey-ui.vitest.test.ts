@@ -8,8 +8,11 @@ import {
   ItineraryOriginDepartureCard,
   ItineraryOriginReturnCard,
   ItineraryTravelOnlyDayCard,
+  ItineraryBreakfast,
+  ItineraryNightRest,
   JourneyMissingNotice,
   TripOverviewCard,
+  lunchBreakAfter,
 } from "./planner-presentation";
 
 describe("Itinerary Journey UI (Tickets 03, 04, 05)", () => {
@@ -63,6 +66,30 @@ describe("Itinerary Journey UI (Tickets 03, 04, 05)", () => {
     distanceMeters: 300000,
     travelSeconds: 21600,
   };
+
+  describe("lunch and night pauses", () => {
+    const route = { status: "VERIFIED" as const, reason: null, durationSeconds: 1800, distanceMeters: 1000, provider: "STADIA_MAPS" as const };
+    const plan = (endMinute: number): JourneyPlan => ({ policy: "roadside-rest-v1", totals: { drivingSeconds: 1800, restMinutes: 0, distanceMeters: 1000 }, legs: [
+      { kind: "TRANSFER", day: 1, from: { kind: "ATTRACTION", destinationId: "a" }, to: { kind: "ATTRACTION", destinationId: "b" }, route, startMinute: 720, endMinute, restMinutes: 0 },
+    ] });
+    it("reports the slot the route does not explain", () => {
+      expect(lunchBreakAfter(plan(750), "b", 720, 810)).toEqual({ from: 720, to: 780 });
+    });
+    it("stays silent for a plain transfer, a morning gap, an unknown leg or a saved trip without a plan", () => {
+      expect(lunchBreakAfter(plan(750), "b", 720, 750)).toBeNull();
+      expect(lunchBreakAfter(plan(630), "b", 600, 700)).toBeNull();
+      expect(lunchBreakAfter(plan(750), "other", 720, 810)).toBeNull();
+      expect(lunchBreakAfter(null, "b", 720, 810)).toBeNull();
+    });
+    it("names the night rest by time without claiming a place to stay", () => {
+      const html = renderToStaticMarkup(createElement(ItineraryNightRest, { fromMinute: 1003 }));
+      expect(html).toContain("Nghỉ tối");
+      expect(html).toContain("16:43");
+      expect(html).toContain("đến sáng hôm sau");
+      expect(renderToStaticMarkup(createElement(ItineraryBreakfast))).toContain("05:30 – 06:00, khởi hành 06:00");
+      expect(html).toContain("chưa chọn nơi nghỉ");
+    });
+  });
 
   describe("incomplete journey notice", () => {
     const origin = { label: "Hà Nội", latitude: 21, longitude: 105.8, source: "MANUAL" as const, confirmed: true };

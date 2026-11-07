@@ -5,6 +5,7 @@ import type { RouteProvider } from "../trip-planner/planner-routes";
 import type { JourneyRoute } from "./journey-route-contract";
 import { planJourney } from "./journey-planner";
 import { selectPlannerDays } from "../trip-planner/planner-engine";
+import { isFeaturedDestination } from "../trip-planner/planner-candidates";
 import { tripRequirementInputSchema } from "../trip-requirement/trip-requirement-contract";
 import { COMPLETE_JOURNEY_FIXTURE } from "./trip-origin-fixtures";
 
@@ -30,7 +31,7 @@ describe("origin journeys fit the day boundaries and auto-selected stops", () =>
   it("drops only as many auto-selected stops as needed and discloses it", async () => {
     const result = await propose(pool, 3, 420);
     expect(result.status).toBe("PROPOSAL_READY");
-    expect(layout(result)).toEqual([2, 3, 2]);
+    expect(layout(result)).toEqual([2, 3, 3]);
     expect(result.warnings.map(w => w.code)).toContain("JOURNEY_STOPS_REDUCED");
     expect(result.eligibleForFinalConfirmation).toBe(true);
   });
@@ -38,7 +39,7 @@ describe("origin journeys fit the day boundaries and auto-selected stops", () =>
     const result = await propose(pool, 3, 780);
     expect(result.status).toBe("PROPOSAL_READY");
     expect(result.days[0]?.journeyDayKind).toBe("OUTBOUND_ONLY");
-    expect(layout(result)).toEqual([0, 3, 2]);
+    expect(layout(result)).toEqual([0, 3, 3]);
   });
   it("reuses evidence: re-planning after a drop only requests legs it has not seen", async () => {
     const routes = providers();
@@ -46,6 +47,11 @@ describe("origin journeys fit the day boundaries and auto-selected stops", () =>
     const pairs = routes.route.mock.calls.map(([pair]) => `${pair.from.id}>${pair.to.id}`);
     expect(new Set(pairs).size).toBe(pairs.length);
     expect(routes.coordinateRoute.mock.calls.length).toBeLessThanOrEqual(6);
+  });
+  it("recognises well-known names that start a word with Đ", () => {
+    expect(isFeaturedDestination({ name: "Phố cổ Đồng Văn" })).toBe(true);
+    expect(isFeaturedDestination({ name: "Đèo Mã Pì Lèng" })).toBe(true);
+    expect(isFeaturedDestination({ name: "Di tích Căng Bắc Mê" })).toBe(false);
   });
   it("orders a round trip as a loop instead of doubling back", async () => {
     const stops = [["a", 23.2, 105.0], ["b", 23.2, 105.4], ["c", 22.8, 105.0], ["d", 22.8, 105.4]].map(([id, latitude, longitude]) => candidate(id as string, { latitude: latitude as number, longitude: longitude as number, suggestedDurationMinutes: 30 }));

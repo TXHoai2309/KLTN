@@ -45,7 +45,7 @@ export async function recheckPlannerCandidates(database: Pick<Database, "destina
   const current = new Map((await retrievePlannerCandidates(database, ids, excludedIds)).map(candidate => [candidate.id, candidateSnapshot(candidate)]));
   return candidates.every(candidate => current.get(candidate.id) === candidateSnapshot(candidate));
 }
-const normalized = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").toLowerCase();
+const normalized = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
 // Ranking heuristic only, not an approved taxonomy mapping or a factual suitability claim.
 const terms: Record<TripInterest, string[]> = {
   NATURE: ["thien nhien", "nui", "deo", "thac", "hang", "canh quan"], CULTURE_HISTORY: ["van hoa", "lich su", "di tich", "dinh", "pho co"],

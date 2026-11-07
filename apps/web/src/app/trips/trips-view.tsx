@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, useMemo } from "react";
+import { BREAKFAST_MINUTES, MORNING_DEPARTURE_MINUTE } from "@/modules/trip-planner/planner-engine";
+import { Fragment, useEffect, useRef, useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
 import {
@@ -27,9 +28,15 @@ import {
   LoaderCircle,
   Home,
   Flag,
+  Coffee,
+  Moon,
+  UtensilsCrossed,
 } from "lucide-react";
 
 import {
+  lunchBreakAfter,
+  breakfastText,
+  nightRestText,
   ItineraryOriginDepartureCard,
   ItineraryOriginReturnCard,
   durationText,
@@ -1118,10 +1125,22 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
                         {day.visits.map((visit, visitIndex) => {
                           const visual = getDestinationVisual(visit.destination.name, visit.destination.area);
                           const isSelected = selectedDestinationId === visit.destination.id;
+                          const nextVisit = day.visits[visitIndex + 1];
+                          const departure = visit.startMinute + visit.plannedDurationMinutes;
+                          const lunch = nextVisit ? lunchBreakAfter(trip.journey?.plan, nextVisit.destination.id, departure, nextVisit.startMinute) : null;
+                          const nextDay = trip.days.find((item) => item.dayIndex === day.dayIndex + 1);
+                          const night = !nextVisit && trip.journey?.plan && nextDay ? nightRestText(departure) : null;
 
                           return (
+                            <Fragment key={visit.id}>
+                            {visitIndex === 0 && day.dayIndex > 1 && trip.journey?.plan && (
+                              <li className="my-trips-break-item">
+                                <span aria-hidden="true" />
+                                <div className="my-trips-visit-time"><strong>{minuteLabel(MORNING_DEPARTURE_MINUTE - BREAKFAST_MINUTES)}</strong><span>{BREAKFAST_MINUTES} phút</span></div>
+                                <p className="planner-break"><Coffee size={13} aria-hidden="true" /><strong>Ăn sáng</strong> {breakfastText()}</p>
+                              </li>
+                            )}
                             <li
-                              key={visit.id}
                               id={`trip-visit-${visit.destination.id}`}
                               className={`my-trips-visit-item ${isSelected ? "is-selected-item" : ""}`}
                               onClick={() => handleSelectDestination(visit.destination.id)}
@@ -1189,6 +1208,21 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
                                 </div>
                               </Card>
                             </li>
+                            {lunch && (
+                              <li className="my-trips-break-item">
+                                <span aria-hidden="true" />
+                                <div className="my-trips-visit-time"><strong>{minuteLabel(lunch.from)}</strong><span>60 phút</span></div>
+                                <p className="planner-break"><UtensilsCrossed size={13} aria-hidden="true" /><strong>Nghỉ trưa</strong> {minuteLabel(lunch.from)} – {minuteLabel(lunch.to)}</p>
+                              </li>
+                            )}
+                            {night && (
+                              <li className="my-trips-break-item">
+                                <span aria-hidden="true" />
+                                <div className="my-trips-visit-time"><strong>{minuteLabel(departure)}</strong><span>Hết ngày</span></div>
+                                <p className="planner-break"><Moon size={13} aria-hidden="true" /><strong>Nghỉ tối</strong> {night} · chưa chọn nơi nghỉ</p>
+                              </li>
+                            )}
+                            </Fragment>
                           );
                         })}
                         {day.dayIndex === trip.days.length && trip.journey?.journey.origin && (
