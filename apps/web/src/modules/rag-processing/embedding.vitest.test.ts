@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { sha256 } from "./content-hash";
 import { EmbeddingError } from "./embedding-errors";
+import { createOpenAiEmbeddingProvider } from "./openai-embedding-provider";
 import { EMBEDDING_LIMITS } from "./embedding-limits";
 import { countEmbeddingTokens } from "./embedding-tokenizer";
 import { embedChunks } from "./embed-chunks";
@@ -169,5 +170,20 @@ describe("US-19 Task183 offline embedding pipeline", () => {
     });
     const timeout = createOpenAiEmbeddingProvider({ apiKey: () => "synthetic", fetcher: timeoutFetch, timeoutMs: 5 });
     await expect(timeout.embed({ input: ["synthetic"] })).rejects.toMatchObject({ code: "PROVIDER_TIMEOUT", retryable: true });
+  });
+
+  it("cancels an uncooperative response body at the embedding deadline", async () => {
+    let cancelled = false;
+    const provider = createOpenAiEmbeddingProvider({
+      apiKey: () => "synthetic",
+      timeoutMs: 5,
+      fetcher: async () => new Response(new ReadableStream({
+        pull: () => new Promise<void>(() => undefined),
+        cancel: () => { cancelled = true; },
+      })),
+    });
+    await expect(provider.embed({ input: ["synthetic"] }))
+      .rejects.toMatchObject({ code: "PROVIDER_TIMEOUT", retryable: true });
+    expect(cancelled).toBe(true);
   });
 });

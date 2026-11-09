@@ -57,15 +57,27 @@ function retryAfterMs(
   return Math.min(Math.max(0, parsed - now), maximum);
 }
 
-async function readBounded(response: Response, maximumBytes: number): Promise<string> {
+async function readBounded(
+  response: Response,
+  maximumBytes: number,
+  signal: AbortSignal,
+): Promise<string> {
   const reader = response.body?.getReader();
   if (!reader) throw new PreferenceExtractionError("INVALID_PROVIDER_RESPONSE", false);
+
+  const onAbort = () => { void reader.cancel().catch(() => undefined); };
+  signal.addEventListener("abort", onAbort, { once: true });
+  const cancelled = new Promise<never>((_resolve, reject) => {
+    const rejectCancelled = () => reject(new Error("provider request cancelled"));
+    signal.addEventListener("abort", rejectCancelled, { once: true });
+    if (signal.aborted) rejectCancelled();
+  });
 
   const chunks: Uint8Array[] = [];
   let total = 0;
   try {
     while (true) {
-      const { done, value } = await reader.read();
+      const { done, value } = await Promise.race([reader.read(), cancelled]);
       if (done) break;
       total += value.byteLength;
       if (total > maximumBytes) {
@@ -75,7 +87,8 @@ async function readBounded(response: Response, maximumBytes: number): Promise<st
       chunks.push(value);
     }
   } finally {
-    reader.releaseLock();
+    signal.removeEventListener("abort", onAbort);
+    try { reader.releaseLock(); } catch { /* An aborted read still owns the lock briefly. */ }
   }
 
   const bytes = new Uint8Array(total);
@@ -85,6 +98,40 @@ async function readBounded(response: Response, maximumBytes: number): Promise<st
     offset += chunk.byteLength;
   }
   return new TextDecoder().decode(bytes);
+}
+
+async function waitForRetry(
+  delayMs: number,
+  remainingMs: number,
+  signal: AbortSignal | undefined,
+  sleep: (milliseconds: number) => Promise<void>,
+): Promise<void> {
+  if (signal?.aborted) throw new PreferenceExtractionError("CANCELLED", false);
+  if (remainingMs <= 0) throw new PreferenceExtractionError("PROVIDER_TIMEOUT", true);
+  if (delayMs <= 0) return;
+
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    const finish = (callback: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      callback();
+    };
+    const onAbort = () => finish(() => reject(new PreferenceExtractionError("CANCELLED", false)));
+    const timer = setTimeout(
+      () => finish(() => reject(new PreferenceExtractionError("PROVIDER_TIMEOUT", true))),
+      remainingMs,
+    );
+    signal?.addEventListener("abort", onAbort, { once: true });
+    Promise.resolve()
+      .then(() => sleep(delayMs))
+      .then(
+        () => finish(resolve),
+        () => finish(() => reject(new PreferenceExtractionError("PROVIDER_UNAVAILABLE", true))),
+      );
+  });
 }
 
 function parseCompletion(responseText: string): string {
@@ -179,8 +226,11 @@ export function createOpenAiStructuredClient(
       }
       if (input.signal?.aborted) throw new PreferenceExtractionError("CANCELLED", false);
 
+      const deadlineAt = Date.now() + timeoutMs;
       let attempt = 0;
       while (true) {
+        const remainingMs = deadlineAt - Date.now();
+        if (remainingMs <= 0) throw new PreferenceExtractionError("PROVIDER_TIMEOUT", true);
         const controller = new AbortController();
         let timedOut = false;
         const onAbort = () => controller.abort();
@@ -188,7 +238,7 @@ export function createOpenAiStructuredClient(
         const timer = setTimeout(() => {
           timedOut = true;
           controller.abort();
-        }, timeoutMs);
+        }, remainingMs);
 
         try {
           let response: Response;
@@ -256,12 +306,16 @@ export function createOpenAiStructuredClient(
 
           let responseText: string;
           try {
-            responseText = await readBounded(response, maxResponseBytes);
+            responseText = await readBounded(response, maxResponseBytes, controller.signal);
           } catch (error) {
             if (error instanceof PreferenceExtractionError) throw error;
             if (input.signal?.aborted) throw new PreferenceExtractionError("CANCELLED", false);
             if (timedOut) throw new PreferenceExtractionError("PROVIDER_TIMEOUT", true);
             throw new PreferenceExtractionError("PROVIDER_UNAVAILABLE", true);
+          }
+          if (input.signal?.aborted) throw new PreferenceExtractionError("CANCELLED", false);
+          if (timedOut || controller.signal.aborted) {
+            throw new PreferenceExtractionError("PROVIDER_TIMEOUT", true);
           }
           return { rawText: parseCompletion(responseText), model };
         } catch (error) {
@@ -274,9 +328,12 @@ export function createOpenAiStructuredClient(
             isRetryableTransportError(normalized)
           ) {
             attempt += 1;
-            if (normalized.retryAfterMs !== undefined && normalized.retryAfterMs > 0) {
-              await sleep(normalized.retryAfterMs);
-            }
+            await waitForRetry(
+              normalized.retryAfterMs ?? 0,
+              deadlineAt - Date.now(),
+              input.signal,
+              sleep,
+            );
             continue;
           }
           throw normalized;

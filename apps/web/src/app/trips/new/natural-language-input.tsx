@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@KLTN/ui/components/button";
-import { LoaderCircle, Sparkles, WandSparkles } from "lucide-react";
+import { CircleAlert, LoaderCircle, Sparkles, WandSparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -170,7 +170,9 @@ export default function NaturalLanguageInput({
         >
           {status.kind === "analyzing" && <LoaderCircle className="trip-spinner" size={16} aria-hidden="true" />}
           {status.kind === "success" && <WandSparkles size={16} aria-hidden="true" />}
+          {status.kind === "failure" && <CircleAlert size={16} aria-hidden="true" />}
           <span>
+            {status.kind === "failure" && <strong className="block">Trợ lý AI tạm thời không khả dụng</strong>}
             {status.message ??
               (status.kind === "analyzing"
                 ? "Đang chuẩn bị phân tích nhu cầu."

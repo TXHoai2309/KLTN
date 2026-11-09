@@ -687,7 +687,7 @@ export function AssistantChat({
         {!transport && (
           <div className="assistant-notice-banner">
             <div className="assistant-notice" role="status">
-              <strong>Trợ lý AI chưa khả dụng</strong>
+              <strong>Trợ lý AI tạm thời không khả dụng</strong>
               <p>Chức năng gửi câu hỏi sẽ mở khi dịch vụ hỏi đáp sẵn sàng.</p>
             </div>
           </div>
@@ -814,17 +814,25 @@ export function AssistantChat({
                       </article>
                     ) : (
                       <div className="assistant-recovery" data-phase={state.pending.phase}>
+                        {state.pending.phase === "failed" && ["AI_UNAVAILABLE", "AI_INVALID_RESPONSE"].includes(state.pending.code ?? "") && (
+                          <strong className="inline-flex items-center gap-1.5"><Info size={16} aria-hidden="true" />Trợ lý AI tạm thời không khả dụng</strong>
+                        )}
                         <p>{state.pending.message}</p>
                         {state.pending.phase === "failed" && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              controller.editFailed();
-                              composer.current?.focus();
-                            }}
-                          >
-                            Sửa câu hỏi
-                          </button>
+                          <>
+                            <button type="button" disabled={!available} onClick={() => controller.retry()}>
+                              Thử lại
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                controller.editFailed();
+                                composer.current?.focus();
+                              }}
+                            >
+                              Sửa câu hỏi
+                            </button>
+                          </>
                         )}
                         {["unknown", "malformed"].includes(state.pending.phase) && (
                           <>

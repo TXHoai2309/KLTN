@@ -17,7 +17,7 @@ describe("US-29C result UI", () => {
   });
   it("renders missing data and disables confirmation", () => {
     const html = renderToStaticMarkup(createElement(TripValidationPanel, { validation: validateItinerary([{ ...visit, minimumDurationMinutes: null }], [], reference), onConfirm: () => undefined }));
-    expect(html).toContain("Chưa đủ dữ liệu để kiểm tra");
+    expect(html).toContain("Chưa đủ thông tin để kiểm tra");
     expect(html).toContain("Thiếu thời lượng tham quan tối thiểu");
     expect(html).toMatch(/<button[^>]*\sdisabled(?:\s|=|>)/);
   });
@@ -25,5 +25,21 @@ describe("US-29C result UI", () => {
     const html = renderToStaticMarkup(createElement(TripValidationPanel, { validation: validateItinerary([{ ...visit, minimumDurationMinutes: 90 }], [], reference), onConfirm: () => undefined }));
     expect(html).toContain("day-1-visit-1");
     expect(html).toContain("Vi phạm");
+  });
+  it("distinguishes routing failure from missing business data", () => {
+    const routing = renderToStaticMarkup(createElement(TripValidationPanel, {
+      validation: validateItinerary([
+        visit,
+        { ...visit, visitId: "day-1-visit-2", order: 2, startMinute: 600 },
+      ], [{ fromVisitId: "day-1-visit-1", toVisitId: "day-1-visit-2", route: { kind: "unavailable" } }], reference),
+    }));
+    expect(routing).toContain("Không thể kiểm tra thời gian di chuyển");
+    expect(routing).toContain("Dịch vụ định tuyến hiện chưa cung cấp đủ dữ liệu cho chặng này.");
+
+    const business = renderToStaticMarkup(createElement(TripValidationPanel, {
+      validation: validateItinerary([{ ...visit, minimumDurationMinutes: null }], [], reference),
+    }));
+    expect(business).toContain("Chưa đủ thông tin để kiểm tra");
+    expect(business).not.toContain("Dịch vụ định tuyến");
   });
 });

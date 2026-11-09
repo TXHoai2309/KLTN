@@ -183,6 +183,21 @@ describe("US-37 Task 293 In-trip preview", () => {
     expect(f.previewCalls()).toBe(1);
   });
 
+  it("aborts the underlying routing request when the in-trip deadline expires", async () => {
+    let providerSignal: AbortSignal | undefined;
+    const f = harness();
+    f.dependencies.getRoute = async (_input, options) => {
+      providerSignal = options?.signal;
+      return new Promise((resolve) => {
+        options?.signal?.addEventListener("abort", () => resolve({ kind: "unavailable" }), { once: true });
+      });
+    };
+    const result = await previewInTrip("trip-1", "traveler-1", request(), f.dependencies);
+    expect(providerSignal?.aborted).toBe(true);
+    expect(result.validation.groups.travelTime.status).toBe("INSUFFICIENT_DATA");
+    expect(result.validation.canConfirm).toBe(false);
+  });
+
   it("rejects a changed completed visit before route lookup or Validator", async () => {
     const f = harness();
     const changed = candidate();

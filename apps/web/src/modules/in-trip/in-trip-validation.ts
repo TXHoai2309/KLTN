@@ -115,19 +115,27 @@ function boundedRoute(dependencies: InTripPreviewDependencies): TripEditRoutePro
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 10_000) {
     throw new RangeError("Invalid route timeout");
   }
-  return async (input) => {
+  return async (input, options) => {
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    options?.signal?.addEventListener("abort", abort, { once: true });
+    if (options?.signal?.aborted) abort();
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
       return await Promise.race([
-        dependencies.getRoute(input),
+        dependencies.getRoute(input, { signal: controller.signal }),
         new Promise<Awaited<ReturnType<TripEditRouteProvider>>>((resolve) => {
-          timer = setTimeout(() => resolve({ kind: "unavailable" }), timeoutMs);
+          timer = setTimeout(() => {
+            controller.abort();
+            resolve({ kind: "unavailable" });
+          }, timeoutMs);
         }),
       ]);
     } catch {
       return { kind: "unavailable" };
     } finally {
       if (timer) clearTimeout(timer);
+      options?.signal?.removeEventListener("abort", abort);
     }
   };
 }

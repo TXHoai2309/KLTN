@@ -34,7 +34,7 @@ export function validatePlannerDays(requirement: TripRequirementInput, days: rea
         add("OPENING_HOURS", "VIOLATION", "OUTSIDE_OPENING_HOURS", "Khung tham quan nằm ngoài giờ mở cửa.", day.day, id);
       if (previousId) {
         if (!stop.inbound || !travelLegSchema.safeParse(stop.inbound).success || stop.inbound.status !== "VERIFIED" || stop.inbound.fromDestinationId !== previousId || stop.inbound.toDestinationId !== id)
-          add("TRAVEL_TIME", "INSUFFICIENT_DATA", "ROUTE_UNKNOWN", "Chưa có thời gian di chuyển đã xác minh giữa hai điểm dừng.", day.day, id);
+          add("TRAVEL_TIME", "INSUFFICIENT_DATA", "ROUTE_UNKNOWN", "Dịch vụ định tuyến hiện chưa cung cấp đủ dữ liệu cho chặng này.", day.day, id);
         else if (stop.arrivalMinute !== null && stop.arrivalMinute < (departure ?? PLANNING_WINDOW.startMinute) + Math.ceil(stop.inbound.durationSeconds! / 60))
           add("TRAVEL_TIME", "VIOLATION", "TRANSFER_TOO_SHORT", "Khoảng thời gian giữa hai điểm dừng không đủ để di chuyển.", day.day, id);
       }

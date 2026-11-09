@@ -203,7 +203,7 @@ describe("real /assistant development integration", () => {
     const waiting = renderToStaticMarkup(createElement(module.exports.AssistantChat, { transport, identity: "GUEST:fixture", available: false }));
     expect(waiting.match(/<textarea\b[^>]*>/)![0]).toContain("disabled");
     expect(waiting).toContain("Đang xác minh phiên");
-    expect(waiting).not.toContain("Trợ lý AI chưa khả dụng");
+    expect(waiting).not.toContain("Trợ lý AI tạm thời không khả dụng");
     expect(waiting).not.toContain("Dữ liệu mô phỏng");
     const ready = renderToStaticMarkup(createElement(module.exports.AssistantChat, { transport, identity: "GUEST:fixture", available: true }));
     expect(ready.match(/<textarea\b[^>]*>/)![0]).not.toContain("disabled");
@@ -225,11 +225,11 @@ describe("real /assistant development integration", () => {
       expect(textarea).not.toContain("disabled");
       expect(html).toContain("DEMO / DỮ LIỆU MÔ PHỎNG");
       expect(html).toContain("Dữ liệu mô phỏng");
-      expect(html).not.toContain("Trợ lý AI chưa khả dụng");
+      expect(html).not.toContain("Trợ lý AI tạm thời không khả dụng");
       expect(inputs.some((path) => path.includes("assistant-demo-transport"))).toBe(true);
     } else {
       expect(textarea).toContain("disabled");
-      expect(html).toContain("Trợ lý AI chưa khả dụng");
+      expect(html).toContain("Trợ lý AI tạm thời không khả dụng");
       expect(html).not.toContain("DỮ LIỆU MÔ PHỎNG");
       expect(inputs.some((path) => path.includes("development/"))).toBe(false);
       expect(bundle.outputFiles[0]!.text).not.toContain("source_fixture_only");

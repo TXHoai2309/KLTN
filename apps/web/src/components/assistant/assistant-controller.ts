@@ -26,7 +26,7 @@ export type AssistantState = {
   turns: readonly ConfirmedTurn[];
   conversationId: string | null;
   parentTurnId: string | null;
-  pending: { attempt: AssistantAttempt; phase: AttemptPhase; message: string } | null;
+  pending: { attempt: AssistantAttempt; phase: AttemptPhase; message: string; code?: string } | null;
 };
 
 export function initialAssistantState(identity: string, generation = 0, context: QaContext = { type: "GENERAL" }, knowledgeMode: QaKnowledgeMode = "SOURCE_ONLY"): AssistantState {
@@ -83,7 +83,7 @@ export class AssistantController {
   }
   retry(): boolean {
     const pending = this.state.pending;
-    if (!pending || !["unknown", "malformed"].includes(pending.phase) || !this.transport) return false;
+    if (!pending || !["failed", "unknown", "malformed"].includes(pending.phase) || !this.transport) return false;
     this.update({ ...this.state, pending: { ...pending, phase: "sending", message: "Đang xác nhận lại cùng lượt hỏi…" } });
     void this.send(pending.attempt);
     return true;
@@ -173,13 +173,13 @@ export class AssistantController {
       this.setAttemptPhase("unknown", "Chưa xác định kết quả lưu lượt hỏi. Thử xác nhận lại sẽ giữ nguyên câu hỏi và mã yêu cầu.");
     } else {
       if (result.httpStatus < 400 || result.httpStatus > 599) { this.malformed(); return; }
-      this.setAttemptPhase("failed", response.error.message);
+      this.setAttemptPhase("failed", response.error.message, response.error.code);
     }
   }
   private malformed() {
     this.setAttemptPhase("malformed", "Phản hồi không hợp lệ nên không thể hiển thị. Chưa xác định lượt đã được lưu; hãy thử xác nhận lại.");
   }
-  private setAttemptPhase(phase: AttemptPhase, message: string) {
-    if (this.state.pending) this.update({ ...this.state, pending: { ...this.state.pending, phase, message } });
+  private setAttemptPhase(phase: AttemptPhase, message: string, code?: string) {
+    if (this.state.pending) this.update({ ...this.state, pending: { ...this.state.pending, phase, message, ...(code ? { code } : {}) } });
   }
 }

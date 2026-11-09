@@ -338,6 +338,55 @@ describe("US25 OpenAI structured client", () => {
     expect(timeoutFetcher).toHaveBeenCalledOnce();
   });
 
+  it("bounds an uncooperative response body and cancels it at the provider deadline", async () => {
+    let cancelled = false;
+    const fetcher = vi.fn(async () => new Response(new ReadableStream({
+      pull: () => new Promise<void>(() => undefined),
+      cancel: () => { cancelled = true; },
+    })));
+    const client = createOpenAiStructuredClient({
+      apiKey: () => "secret",
+      model: () => "test",
+      fetcher,
+      timeoutMs: 5,
+    });
+
+    await expect(client.complete({ system: "s", user: "u", jsonSchema: modelOutputJsonSchema }))
+      .rejects.toMatchObject({ code: "PROVIDER_TIMEOUT" });
+    expect(cancelled).toBe(true);
+  });
+
+  it("counts a retry wait inside the single request budget and honors cancellation during it", async () => {
+    vi.useFakeTimers();
+    const fetcher = vi.fn(async () => new Response("busy", {
+      status: 429,
+      headers: { "retry-after": "1" },
+    }));
+    const client = createOpenAiStructuredClient({
+      apiKey: () => "secret",
+      model: () => "test",
+      fetcher,
+      timeoutMs: 20,
+    });
+    const pending = client.complete({ system: "s", user: "u", jsonSchema: modelOutputJsonSchema });
+    const rejection = expect(pending).rejects.toMatchObject({ code: "PROVIDER_TIMEOUT" });
+    await vi.advanceTimersByTimeAsync(21);
+    await rejection;
+    expect(fetcher).toHaveBeenCalledOnce();
+
+    const controller = new AbortController();
+    const cancelled = client.complete({
+      system: "s",
+      user: "u",
+      jsonSchema: modelOutputJsonSchema,
+      signal: controller.signal,
+    });
+    await vi.advanceTimersByTimeAsync(1);
+    controller.abort();
+    await expect(cancelled).rejects.toMatchObject({ code: "CANCELLED" });
+    vi.useRealTimers();
+  });
+
   it("does not log provider response, user text or credential details", async () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const fetcher = vi.fn(async () => {

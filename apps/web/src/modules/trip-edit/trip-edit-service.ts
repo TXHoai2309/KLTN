@@ -36,7 +36,7 @@ export type TripEditRouteProvider = (input: {
   origin: { latitude: number; longitude: number };
   destination: { latitude: number; longitude: number };
   vehicle: EditCandidate["transport"];
-}) => Promise<TravelRoute>;
+}, options?: { signal?: AbortSignal }) => Promise<TravelRoute>;
 
 export type TripEditServiceDependencies = {
   database: Database;

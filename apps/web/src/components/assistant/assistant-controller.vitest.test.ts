@@ -88,6 +88,14 @@ describe("Task 195 controller (no persistence or HTTP endpoint)", () => {
     h.controller.editFailed(); expect(h.controller.getSnapshot().draft).toBe("failed fixture");
     h.controller.submit(); expect(h.calls[1]!.key).not.toBe(h.calls[0]!.key);
   });
+  it("keeps the safe AI error category and retries the exact failed intent", async () => {
+    const h = harness(); h.controller.setDraft("failed fixture"); h.controller.submit();
+    h.resolves[0]!({ kind: "response", httpStatus: 503, body: { success: false, operationStatus: "FAILED", error: { code: "AI_UNAVAILABLE", message: "Dịch vụ AI hiện không khả dụng." } } });
+    await tick();
+    expect(h.controller.getSnapshot().pending).toMatchObject({ phase: "failed", code: "AI_UNAVAILABLE" });
+    expect(h.controller.retry()).toBe(true);
+    expect(h.calls[1]).toBe(h.calls[0]);
+  });
   it("accepts the same committed result on same-key retry exactly once", async () => {
     const h = harness(); h.controller.setDraft("fixture"); h.controller.submit();
     const committed = completed();
@@ -226,7 +234,7 @@ describe("Task 195 renderer and production graph", () => {
   });
   it("renders unavailable composer and explicit confirmation copy", () => {
     const html = renderToStaticMarkup(createElement(AssistantShell, null, createElement(AssistantChat)));
-    expect(html).toContain("Trợ lý AI chưa khả dụng"); expect(html).toContain("disabled");
+    expect(html).toContain("Trợ lý AI tạm thời không khả dụng"); expect(html).toContain("disabled");
     expect(html).toContain("không có nghĩa server đã hủy"); expect(html).toContain("không xóa dữ liệu server");
     expect(html).not.toContain("source_fixture_only");
   });
