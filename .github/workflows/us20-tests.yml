@@ -31,6 +31,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate Prisma Client
+        env:
+          DATABASE_URL: postgresql://us20_test:us20_test@127.0.0.1:5432/us20_test?sslmode=disable
+        run: npm run db:generate --workspace=@KLTN/db
+
       - name: Test RAG lifecycle
         working-directory: apps/web
         shell: bash
