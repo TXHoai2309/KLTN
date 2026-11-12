@@ -1,0 +1,60 @@
+
+name: Sprint 3 - US24 Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - kduy
+
+permissions:
+  contents: read
+
+jobs:
+  test-us24:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Setup npm
+        run: npm install -g npm@11.16.0
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        env:
+          DATABASE_URL: postgresql://us24_test:us24_test@127.0.0.1:5432/us24_test?sslmode=disable
+        run: npm run db:generate --workspace=@KLTN/db
+
+      - name: Run US24 unit tests
+        working-directory: apps/web
+        shell: bash
+        run: |
+          set -o pipefail
+          npx vitest run --config vitest.config.mts \
+            src/modules/trip-requirement/us24-test.vitest.test.ts \
+            src/modules/trip-requirement/us24-start.vitest.test.ts \
+            src/modules/trip-requirement/trip-requirement-contract.vitest.test.ts \
+            src/modules/trip-requirement/trip-requirement-form-logic.vitest.test.ts \
+            src/modules/trip-requirement/trip-requirement-check.vitest.test.ts \
+            src/modules/trip-requirement/trip-requirement-review.vitest.test.ts \
+            src/app/trips/new/trip-confirmation-dialog.vitest.test.ts \
+            2>&1 | tee ../../us24-unit.log
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: US24-Test-Evidence
+          path: us24-unit.log
+          if-no-files-found: warn

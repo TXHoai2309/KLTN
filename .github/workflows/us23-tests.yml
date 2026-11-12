@@ -1,0 +1,74 @@
+
+name: Sprint 3 - US23 Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - kduy
+
+permissions:
+  contents: read
+
+jobs:
+  test-us23:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Setup npm
+        run: npm install -g npm@11.16.0
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        env:
+          DATABASE_URL: postgresql://us23_test:us23_test@127.0.0.1:5432/us23_test?sslmode=disable
+        run: npm run db:generate --workspace=@KLTN/db
+
+      - name: Run US23 unit tests
+        working-directory: apps/web
+        shell: bash
+        run: |
+          set -o pipefail
+          npx vitest run --config vitest.config.mts \
+            src/modules/ai/qa-source-sufficiency.vitest.test.ts \
+            src/modules/ai/qa-runtime-gate.vitest.test.ts \
+            src/modules/ai/qa-service.vitest.test.ts \
+            src/modules/ai/qa-http.vitest.test.ts \
+            src/modules/ai/qa-contract.vitest.test.ts \
+            src/modules/ai/qa-generation.vitest.test.ts \
+            src/modules/ai/qa-retrieval.vitest.test.ts \
+            src/modules/ai/qa-provider-deadline.vitest.test.ts \
+            src/modules/ai/qa-public-safety.vitest.test.ts \
+            src/components/assistant/assistant-source-status.vitest.test.ts \
+            src/components/assistant/assistant-source-reply.vitest.test.ts \
+            2>&1 | tee ../../us23-unit.log
+
+      - name: Run PostgreSQL integration
+        working-directory: apps/web
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/test-qa-postgres.mjs \
+            2>&1 | tee ../../us23-postgres.log
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: US23-Test-Evidence
+          path: |
+            us23-unit.log
+            us23-postgres.log
+          if-no-files-found: warn

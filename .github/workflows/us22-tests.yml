@@ -1,0 +1,70 @@
+
+name: Sprint 3 - US22 Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - kduy
+
+permissions:
+  contents: read
+
+jobs:
+  test-us22:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Setup npm
+        run: npm install -g npm@11.16.0
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        env:
+          DATABASE_URL: postgresql://us22_test:us22_test@127.0.0.1:5432/us22_test?sslmode=disable
+        run: npm run db:generate --workspace=@KLTN/db
+
+      - name: Run US22 unit tests
+        working-directory: apps/web
+        shell: bash
+        run: |
+          set -o pipefail
+          npx vitest run --config vitest.config.mts \
+            src/modules/ai/qa-destination-context.vitest.test.ts \
+            src/modules/ai/qa-contract.vitest.test.ts \
+            src/modules/ai/qa-retrieval.vitest.test.ts \
+            src/app/assistant/assistant-context-page.vitest.test.ts \
+            src/components/assistant/assistant-context.vitest.test.ts \
+            src/components/assistant/destination-assistant-panel.vitest.test.ts \
+            src/components/assistant/destination-chat-seam.vitest.test.ts \
+            2>&1 | tee ../../us22-unit.log
+
+      - name: Run PostgreSQL integration
+        working-directory: apps/web
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/test-qa-postgres.mjs \
+            2>&1 | tee ../../us22-postgres.log
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: US22-Test-Evidence
+          path: |
+            us22-unit.log
+            us22-postgres.log
+          if-no-files-found: warn
