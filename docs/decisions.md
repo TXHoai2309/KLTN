@@ -703,3 +703,37 @@ Rollback is by reverting the single retirement commit, not by a setting. The Q&A
 - **Decision:** Retain one Trip owner and one authoritative saved itinerary. A linked publication exposes an explicit public allowlist, and current membership grants itinerary/group-chat reads through a distinct authorization boundary. Joining never transfers ownership or grants edit permission. Existing private Trip endpoints and Admin role isolation remain owner-scoped. The [product extension](product/product-spec.md#planned-travel-companions-extension--approved-2026-10-28) is a scoped exception for publication/member reads/chat, not shared ownership or collaborative editing.
 - **Alternatives:** Collaborative editing was rejected by Q1; a separately maintained group itinerary was rejected by Q6. Reusing the complete private Trip DTO as public content would cross the approved visibility boundary.
 - **Consequences:** Future stories need server-side membership/capacity enforcement, bounded public/member projections, atomic itinerary revision/group notices, access revocation and a deletion guard for Trips that have had members. Group history survives recruitment closure/withdrawal, chat continues after completion and cancellation makes user chat read-only. This is a durable data/authorization boundary; migrations, APIs and UI implementation remain separate future work.
+
+## ADR-36 — Port the tripsage-ai chat/agent to replace the planning chat (2026-11-14)
+
+- **Status:** Proposed. Drafted from the owner's recorded answers; not approved, not implemented, no authorization to start coding. Story: [TRIPSAGE-CHAT-ITINERARY-PORT](stories/TRIPSAGE-CHAT-ITINERARY-PORT.md).
+- **Date:** 2026-11-14
+
+### Context
+
+The owner wants the tripsage-ai chat block (UI, streaming route, tool-loop agent) to replace the current planning chat, with research from Google and the web. tripsage-ai has no scheduler, Constraint Validator or SUCCESS/FAILED/UNKNOWN contract; KLTN does. ADR-35 keeps one chat and guests Q&A-only.
+
+### Decision
+
+Copy-then-adapt the tripsage chat block under its MIT license (notice kept in `NOTICE`), behind a feature flag, for signed-in Travelers. Agent output goes through `PlanningSelection`, `scheduleSelection`, the Validator and the existing Save contract. Amadeus is dropped.
+
+### Invariants changed (each needs owner approval)
+
+1. Place source: no longer limited to VISIBLE KLTN destinations; Google/web places allowed via a new `ExternalPlace` table (Prisma migration).
+2. Routing provider: Stadia remains default; a Google adapter is added behind a config flag.
+3. Dependencies and providers added: `ai`, `@ai-sdk/react`, `@ai-sdk/openai`, Google, web search, Firecrawl.
+4. Save gate: a FAILED check still blocks Save, but "unchecked" items (validation data missing) no longer block. Save then needs explicit user confirmation and the Trip stores which checks were unchecked. Unchecked is never recorded as PASS. This relaxes the earlier "Save blocked unless PASS" and needs a Save-contract design and migration.
+
+### Invariants kept
+
+Validator separate from AI, missing data is never reported or stored as a pass, FAILED blocks Save, `executeIdempotentWrite` with SUCCESS/FAILED/UNKNOWN, Prisma migrations only, secrets server-side, thin Route Handlers, server-side ownership, guests Q&A-only.
+
+### Alternatives
+
+- Replace everything including Validator and Save (option A): rejected; breaks locked invariants.
+- Replace only the AI proposal layer (option B): not chosen by the owner.
+- Port streaming/UX only (option C): too small for the goal.
+
+### Consequences
+
+Old flow stays in code; rollback is turning the flag off. Open risks are in the story's Open Questions, notably external places lacking validation data.
