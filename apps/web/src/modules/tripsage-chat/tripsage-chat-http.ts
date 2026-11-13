@@ -1,0 +1,48 @@
+import type { LanguageModel } from "ai";
+import { requireTraveler } from "../../server/auth/require-traveler";
+import type { AuthorizationDependencies } from "../../server/authorization/guard";
+import { apiFailure } from "../../server/http/api-response";
+import { AppError } from "../../server/http/app-error";
+import { readBoundedJsonBody } from "../../server/http/read-json-body";
+import { createPlanningAdmission } from "../assistant-planning/planning-admission";
+import { isTripsageChatEnabled } from "./tripsage-chat-flag";
+import { parseTripsageChatMessages, streamTripsageChat } from "./tripsage-chat-service";
+
+export type TripsageChatHttpDependencies = {
+  authorization: AuthorizationDependencies;
+  model: () => Promise<LanguageModel>;
+  env?: Record<string, string | undefined>;
+  admit?: ReturnType<typeof createPlanningAdmission>;
+};
+const defaultAdmit = createPlanningAdmission();
+const SAFETY_RELEASE_MS = 130_000;
+
+const noStore = (response: Response) => { response.headers.set("Cache-Control", "private, no-store"); return response; };
+
+/** Thin boundary: flag, auth, same-origin, bounded JSON, admission, then the service. */
+export async function tripsageChatResponse(request: Request, deps: TripsageChatHttpDependencies): Promise<Response> {
+  if (!isTripsageChatEnabled(deps.env)) return noStore(apiFailure("NOT_FOUND", "Không tìm thấy trang.", 404));
+  try {
+    const actor = await requireTraveler(request.headers, deps.authorization);
+    if (request.headers.get("origin") !== new URL(request.url).origin || request.headers.get("sec-fetch-site") === "cross-site") throw new AppError("FORBIDDEN", "Yêu cầu không được phép.", 403);
+    if (request.headers.get("content-type")?.split(";")[0]?.trim() !== "application/json") throw new AppError("INVALID_INPUT", "Yêu cầu phải là JSON.", 415);
+    const invalid = new AppError("INVALID_INPUT", "Nội dung yêu cầu chưa hợp lệ.", 400);
+    const body = await readBoundedJsonBody(request, { maxBytes: 128 * 1024, tooLargeError: invalid, emptyError: invalid, invalidJsonError: invalid });
+    const messages = parseTripsageChatMessages(body);
+    // The slot is held until the stream settles, so the concurrency cap covers streaming time.
+    let release!: () => void;
+    const held = new Promise<void>(resolve => { release = resolve; });
+    const timer = setTimeout(release, SAFETY_RELEASE_MS); timer.unref?.();
+    const response = await new Promise<Response>((resolve, reject) => {
+      (deps.admit ?? defaultAdmit)(actor.userId, async () => {
+        try { resolve(streamTripsageChat({ model: await deps.model(), messages, signal: request.signal, onSettled: release })); }
+        catch (error) { reject(error); release(); }
+        await held;
+      }).catch(reject).finally(() => clearTimeout(timer));
+    });
+    return noStore(response);
+  } catch (error) {
+    if (error instanceof AppError) return noStore(apiFailure(error.code, error.message, error.status));
+    return noStore(apiFailure("PLANNING_UNAVAILABLE", "Trợ lý lập hành trình tạm thời không khả dụng. Hãy giữ nội dung và thử lại.", 503));
+  }
+}
