@@ -7,6 +7,7 @@ import { plannerResultSchema } from "../trip-planner/planner-contract";
 import { missingLeg } from "../trip-planner/planner-routes";
 import { fixtureRoutes, planningCandidate, planningNow } from "../../test/planning-fixtures";
 import { COMPLETE_JOURNEY_FIXTURE, ORIGIN_FIXTURES } from "../trip-origin/trip-origin-fixtures";
+import { toSaveProposal } from "../trip-save/trip-save-adapter";
 import { tripsageChatResponse } from "./tripsage-chat-http";
 import { createTripsageChatTools, TRIPSAGE_CHAT_TOOL_NAMES, type TripsagePlanningDeps } from "./tripsage-chat-tools";
 
@@ -201,6 +202,8 @@ describe("Tripsage required-information gate (Ticket 04)", () => {
     expect(result.requirement.journey?.origin?.confirmed).toBe(true);
     expect(result.status).toBe("PROPOSAL_READY");
     expect(result.eligibleForFinalConfirmation).toBe(true);
+    // Passes the existing Save mapping (mapping only; Save itself is Ticket 05).
+    expect(toSaveProposal(result)?.journey?.origin?.confirmed).toBe(true);
   });
 
   it("takes the origin only from the request, never from model tool input", async () => {
