@@ -6,17 +6,26 @@ import { AppError } from "../../server/http/app-error";
 import { readBoundedJsonBody } from "../../server/http/read-json-body";
 import { createPlanningAdmission } from "../assistant-planning/planning-admission";
 import { isTripsageChatEnabled } from "./tripsage-chat-flag";
-import { parseTripsageChatMessages, streamTripsageChat } from "./tripsage-chat-service";
+import type { TripsagePlanningDeps } from "./tripsage-chat-tools";
+import { parseTripsageChatMessages, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
 
 export type TripsageChatHttpDependencies = {
   authorization: AuthorizationDependencies;
   model: () => Promise<LanguageModel>;
+  /** Destination reader and routing provider; resolved lazily so plain chat never depends on them. */
+  planning?: () => TripsagePlanningDeps;
+  /** Test seam for the per-turn caps; production uses the defaults. */
+  limits?: Partial<TripsageChatTurnLimits>;
   env?: Record<string, string | undefined>;
   admit?: ReturnType<typeof createPlanningAdmission>;
 };
 const defaultAdmit = createPlanningAdmission();
 const SAFETY_RELEASE_MS = 130_000;
 
+const unavailablePlanning: TripsagePlanningDeps = {
+  candidates: async () => { throw new AppError("PLANNING_UNAVAILABLE", "Dữ liệu điểm đến chưa sẵn sàng.", 503); },
+  routes: { route: async () => { throw new AppError("PLANNING_UNAVAILABLE", "Dịch vụ định tuyến chưa sẵn sàng.", 503); } },
+};
 const noStore = (response: Response) => { response.headers.set("Cache-Control", "private, no-store"); return response; };
 
 /** Thin boundary: flag, auth, same-origin, bounded JSON, admission, then the service. */
@@ -35,7 +44,7 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
     const timer = setTimeout(release, SAFETY_RELEASE_MS); timer.unref?.();
     const response = await new Promise<Response>((resolve, reject) => {
       (deps.admit ?? defaultAdmit)(actor.userId, async () => {
-        try { resolve(streamTripsageChat({ model: await deps.model(), messages, signal: request.signal, onSettled: release })); }
+        try { resolve(streamTripsageChat({ model: await deps.model(), messages, planning: deps.planning?.() ?? unavailablePlanning, limits: deps.limits, signal: request.signal, onSettled: release })); }
         catch (error) { reject(error); release(); }
         await held;
       }).catch(reject).finally(() => clearTimeout(timer));

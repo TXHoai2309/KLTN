@@ -5,7 +5,9 @@ import { DefaultChatTransport } from "ai";
 import { Send, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
-type StatusPart = { kind: "start" | "writing"; label: string };
+import { parseItineraryPart, TripsageItineraryView } from "./tripsage-itinerary-view";
+
+type StatusPart = { kind: "start" | "checking" | "writing"; label: string };
 
 const MAX_LENGTH = 1000;
 
@@ -47,13 +49,16 @@ export function TripsageChatClient() {
             <div className="assistant-messages" aria-live="polite">
               {messages.map(message => {
                 const text = message.parts.map(part => (part.type === "text" ? part.text : "")).join("");
-                if (!text) return null;
+                // Latest data-itinerary part wins (same id replaces); only schema-valid results render.
+                const itinerary = message.role === "assistant" ? [...message.parts].reverse().map(part => (part.type === "data-itinerary" ? parseItineraryPart(part.data) : null)).find(Boolean) ?? null : null;
+                if (!text && !itinerary) return null;
                 return message.role === "user" ? (
                   <article key={message.id} className="assistant-message assistant-user"><p>{text}</p></article>
                 ) : (
                   <article key={message.id} className="assistant-message assistant-answer">
                     <span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true" /><span>Trợ lý AI</span></span>
-                    <p style={{ whiteSpace: "pre-wrap" }}>{text}</p>
+                    {itinerary && <TripsageItineraryView proposal={itinerary} />}
+                    {text && <p style={{ whiteSpace: "pre-wrap" }}>{text}</p>}
                   </article>
                 );
               })}
