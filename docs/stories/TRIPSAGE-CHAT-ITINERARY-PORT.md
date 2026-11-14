@@ -2,7 +2,7 @@
 
 ## Status
 
-DRAFT — awaiting owner approval. No code, migration or dependency change is authorized by this document. See ADR-36 (Proposed) in [decisions.md](../decisions.md).
+DRAFT in approval terms (owner has not approved ADR-36). Tickets 01-12 are implemented on `feat/tripsage-chat-itinerary-port` behind a flag; the two migrations are created but not applied. See Acceptance Evidence and the [handoff](../research/tripsage-port-handoff.md). See ADR-36 (Proposed) in [decisions.md](../decisions.md).
 
 ## Epic
 
@@ -93,15 +93,15 @@ OpenAI (existing), Google Places/Maps/Routes, web search, Firecrawl. All keys st
 
 ## Acceptance Criteria
 
-- [ ] Given the flag is off, when a Traveler plans a trip, then the existing flow behaves exactly as before.
-- [ ] Given the flag is on, when a signed-in Traveler plans in chat, then progress and prose stream in Vietnamese and the itinerary renders from `PlannerResult`.
+- [x] Given the flag is off, when a Traveler plans a trip, then the existing flow behaves exactly as before. (Ticket 12: `/assistant/plan` is `notFound()`, `/trips/new` renders the unchanged form, `/api/ai/chat` is refused; `tripsage-chat-flag` and `tripsage-chat-http` tests, the source-reading tests and the production build pass. Verified by tests and code reading, not in a browser.)
+- [ ] Given the flag is on, when a signed-in Traveler plans in chat, then progress and prose stream in Vietnamese and the itinerary renders from `PlannerResult`. (Left unticked: the stream, status parts, `data-itinerary` and component source/markup are tested at the HTTP/server-render seam with a fake model, but the page was never opened in a browser and no real OpenAI call was made.)
 - [x] Given a schedule with any FAILED check, when the Traveler tries to save, then Save is refused. (Ticket 05: server returns TRIP_VALIDATION_FAILED, no Trip; the button is hidden for non-PASS schedules.)
 - [x] Given a schedule with unchecked items and no FAILED check, when the Traveler saves, then an explicit confirmation naming the unchecked items is required and the saved Trip records them as unchecked, never as PASS. (Ticket 09, HTTP seam with an in-memory store; unchecked is allowed only for external-place data, see the design note; not run against a real database.)
 - [x] Given web or Firecrawl content containing instructions, when the agent runs, then the content is treated as data and no tool outside the allow-list is called (tested). (Ticket 10: `tripsage-web.vitest.test.ts`, HTTP seam with a fake model and fake Firecrawl.)
 - [ ] Given a place from Google not in the KLTN destination table, when the itinerary is saved, then `ItineraryVisit` references an `ExternalPlace` and the XOR constraint holds. (Ticket 09: Save creates the visit with `externalPlaceId` only, tested with an in-memory store; the XOR CHECK itself is verified only by the opt-in PostgreSQL tests, not run, migrations not applied. Left unticked.)
 - [x] Given a Save returns UNKNOWN, when the Traveler retries, then the identical payload and key are sent and no duplicate Trip is created. (Ticket 05, tested at the HTTP seam with an in-memory store.)
 - [x] Given a request exceeds 8 steps, 60 s or a provider call cap, when it runs, then it stops with a bounded, user-readable result. (Ticket 11: `tripsage-chat-resilience.vitest.test.ts`; step and time caps end with a Vietnamese notice naming the created itinerary, "not saved" and a next step; per-tool caps return a limit result.)
-- [x] No server secret appears in the browser bundle, logs or API responses. (Ticket 11: seam tests with fake providers plus `console.*` spies and the client source-reading test; no production bundle was built or inspected, and tool outputs of web results are still streamed to the browser, see ai-progress.)
+- [x] No server secret appears in the browser bundle, logs or API responses. (Ticket 11: seam tests with fake providers plus `console.*` spies and the client source-reading test; Ticket 12: the production build was scanned (no key names, endpoints or key-shaped strings in `.next/static`) and tool outputs are no longer streamed to the browser, only an `ok` flag; see Acceptance Evidence.)
 
 ## Test Plan
 
@@ -132,7 +132,17 @@ New server-only variables for Google, web search and Firecrawl keys, blank in th
 
 ## Acceptance Evidence
 
-N/A until implemented.
+Ticket 12 (2026-11-14, branch `feat/tripsage-chat-itinerary-port`, nothing applied to any database, no real external API called):
+
+- Security gap fixed (red first, then green): `tripsage-chat-stream-redaction.vitest.test.ts` at the chat route HTTP seam. The browser stream no longer contains web page text, snippets, injected text or tool result bodies (`tool-output-available` carries `{ok}` only; thrown tool errors become a fixed Vietnamese text). The UI still receives `data-sources` (domains), `data-places` (UNCHECKED suggestions), `data-itinerary` and the final text; the model still receives the full sanitized results.
+- `tsc --noEmit` (apps/web) 0 errors; `tsc --noEmit` in packages/auth, db and ui 0 errors.
+- Full Vitest: 4200 tests, 3908 passed, 59 failed, 232 skipped. 51 failures are exactly the baseline files and counts. The other 8 (`companion-discovery.vitest.test.ts`) are an order-dependent mock leak (`isolate:false`, `next/navigation` mock without `usePathname` registered by the unchanged `trips-view.vitest.test.ts`); it reproduces with only those two unchanged files and passes alone and in the directory run. Not caused by branch code, not fixed (would mean editing tests).
+- `npm run test:legacy`: auth-ui, account and authorization pass; `test:destination` (1 fail, public destination screen markup) and `test:explore` (1 fail, Home/Explore controls) fail; culture, map, search, favorite, rag and idempotency pass. The branch changed no files on those paths; not checked against a clean baseline, so treat as probably pre-existing but unproven.
+- Production build (`npm run build`, dummy loopback database URL so nothing connected) succeeded; `/assistant/plan` is a dynamic route. Client bundle scan: 0 hits for `GOOGLE_MAPS_API_KEY`, `FIRECRAWL_API_KEY`, `OPENAI_API_KEY`, `STADIA_MAPS_API_KEY`, `TRIPSAGE_CHAT_ENABLED`, `PLANNER_ROUTING_PROVIDER`, Firecrawl/Google endpoints, `sk-`/`AIza` strings. No `NEXT_PUBLIC_` added by the branch; `git diff --check 99000eb HEAD` clean; no real env file tracked (only `.env.example`/`.env.schema` templates with blank keys); no secret-shaped strings in the diff except test placeholders.
+- Allow-list: tool registry is exactly the five tools (tested); no Amadeus, Stripe, Supabase or Redis in branch code. Changes to existing files are listed in the handoff note (planning-engine external candidate branch only used when the chat merges Google places, admission `retryAfterSeconds`, routes provider selector defaulting to Stadia, `QUESTION_BY_FIELD` exported, trip pages and planner presentation for external stops); `/api/ai/planning` route file and the `/trips/new` form are untouched.
+- Old selector comparison (`assistant-trip-planning-evaluation.json`): the offline unit part (`planning-evaluation.vitest.test.ts`) runs in the full suite; the live comparison needs a real OpenAI key and an owner decision and was NOT run. No numbers are claimed.
+
+Unticked criterion and why: flag-on chat in a real browser (above), and the `ExternalPlace` XOR CHECK, which only the opt-in PostgreSQL tests can prove and migrations were not applied.
 
 ## Open Questions
 

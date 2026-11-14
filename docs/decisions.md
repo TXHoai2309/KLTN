@@ -728,6 +728,13 @@ Copy-then-adapt the tripsage chat block under its MIT license (notice kept in `N
 
 - Invariant #4 is implemented in code by Ticket 09 (design: [unchecked-save-design.md](research/unchecked-save-design.md)): FAILED and non-external missing data still block; unchecked data of external places is saved only with an explicit confirmation equal to the server's list, stored in `trip.uncheckedChecks` and never as PASS. Migrations `20261114120000_external_place` and `20261114130000_trip_unchecked_checks` are created but NOT applied to any database. This ADR stays Proposed until the owner approves it.
 
+### Trạng thái thực thi (Ticket 12, 2026-11-14; ADR vẫn Proposed, chỉ chủ dự án duyệt)
+
+- Đã code trên nhánh `feat/tripsage-chat-itinerary-port` (chưa merge/push), sau cờ `TRIPSAGE_CHAT_ENABLED`: chat stream, tool-loop 5 tool, cổng thông tin bắt buộc, Save idempotent, adapter Google Routes sau cờ, searchPlaces, webSearch/fetchPage (Firecrawl, SSRF guard), lịch có điểm ngoài danh mục (60 phút ước tính), Save có xác nhận mục chưa kiểm, lỗi/giới hạn tiếng Việt.
+- Hai migration (`20261114120000_external_place`, `20261114130000_trip_unchecked_checks`) đã tạo, CHƯA áp lên DB nào; test PostgreSQL opt-in chưa chạy.
+- Kiểm: tsc sạch, build production chạy được, Vitest đúng 51 test đỏ baseline (cộng 8 test lỗi do thứ tự mock, không do nhánh), quét bundle sạch. Chưa chạy: trình duyệt, OpenAI/Google/Firecrawl thật, so sánh selector cũ.
+- Chi tiết và việc chủ dự án phải làm: [tripsage-port-handoff.md](research/tripsage-port-handoff.md).
+
 ### Invariants kept
 
 Validator separate from AI, missing data is never reported or stored as a pass, FAILED blocks Save, `executeIdempotentWrite` with SUCCESS/FAILED/UNKNOWN, Prisma migrations only, secrets server-side, thin Route Handlers, server-side ownership, guests Q&A-only.
