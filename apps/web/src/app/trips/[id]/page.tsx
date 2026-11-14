@@ -17,7 +17,8 @@ async function attachTripRoutes(trip: TripDetail): Promise<TripDetail> {
     );
     if (visits.length < 2) return trip;
 
-    const apiKey = process.env.STADIA_MAPS_API_KEY;
+    const { routingProviderFromEnv } = await import("@/modules/trip-validation/google-route");
+    const apiKey = routingProviderFromEnv() === "GOOGLE" ? process.env.GOOGLE_MAPS_API_KEY : process.env.STADIA_MAPS_API_KEY;
     if (!apiKey) return trip;
 
     const pairs = [];
@@ -61,10 +62,10 @@ async function attachTripRoutes(trip: TripDetail): Promise<TripDetail> {
 
     if (pairs.length === 0) return trip;
 
-    const { createStadiaRoutesProvider, resolvePlannerRoutes } = await import(
+    const { createConfiguredRoutesProvider, resolvePlannerRoutes } = await import(
       "@/modules/trip-planner/planner-routes"
     );
-    const provider = createStadiaRoutesProvider({ apiKey: () => apiKey });
+    const provider = createConfiguredRoutesProvider({ stadiaApiKey: () => apiKey });
     const resolved = await resolvePlannerRoutes(pairs as unknown as Parameters<typeof resolvePlannerRoutes>[0], provider, 6000);
 
     return {

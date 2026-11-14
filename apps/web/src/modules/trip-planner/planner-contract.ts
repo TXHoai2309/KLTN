@@ -22,7 +22,7 @@ export const travelLegSchema = z.object({
   reason: z.enum(["NOT_CONFIGURED", "TIMEOUT", "UNAVAILABLE", "UNSUPPORTED_MODE", "NO_ROUTE", "INVALID_RESPONSE"]).nullable(),
   durationSeconds: z.number().finite().nonnegative().max(604800).nullable(),
   distanceMeters: z.number().finite().nonnegative().max(10_000_000).nullable(),
-  provider: z.literal("STADIA_MAPS").nullable(),
+  provider: z.enum(["STADIA_MAPS", "GOOGLE_MAPS"]).nullable(),
   geometry: plannerRouteGeometrySchema.optional(),
 }).strict().superRefine((leg, ctx) => {
   if (leg.status === "VERIFIED" && (leg.durationSeconds === null || leg.distanceMeters === null || leg.provider === null || leg.reason !== null))
