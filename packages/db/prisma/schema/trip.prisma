@@ -15,6 +15,10 @@ model Trip {
   manuallyCompletedAt DateTime?
   // Owner-private origin, clocks and authoritative policy/route projection.
   journeySnapshot Json?
+  // Ticket 09 (Q21'a): checks the owner saved as UNCHECKED (data missing), confirmed explicitly. NULL = nothing unchecked
+  // (every legacy and every all-PASS Trip). Shape: {revision:"unchecked-save-v1", items:[{check, reasonCode, placeId}]}.
+  uncheckedChecks Json?
+  uncheckedConfirmedAt DateTime? @db.Timestamptz(3)
   days         ItineraryDay[]
   favorites    Favorite[]
   companionPublication TripCompanionPublication?

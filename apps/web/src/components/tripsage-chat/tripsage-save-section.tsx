@@ -4,44 +4,71 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import type { PlannerResult } from "@/modules/trip-planner/planner-contract";
-import { chatSaveProposal, createChatSaveController, type ChatSaveView } from "@/modules/tripsage-chat/tripsage-chat-save";
+import { chatSavePlan, createChatSaveController, type ChatSaveView } from "@/modules/tripsage-chat/tripsage-chat-save";
 import type { SaveState } from "@/modules/trip-save/trip-save-state";
+import { uncheckedItemLabel } from "@/modules/trip-save/unchecked-checks";
 
-/** Save button under a chat itinerary. Rendered only when every check is PASS; the server re-validates before writing. */
+/**
+ * Save box under a chat itinerary. An all-PASS schedule saves with one click. A schedule whose only gaps are unchecked data of
+ * places outside the catalogue (Ticket 09) lists each unchecked item and saves only after an explicit tick; the server
+ * re-validates, compares the list and records the items as unchecked. A FAILED check never reaches this button.
+ */
 export function TripsageSaveSection({ result, onStateChange }: { result: PlannerResult; onStateChange?: (state: SaveState) => void }) {
   const controllerRef = useRef<ReturnType<typeof createChatSaveController> | null>(null);
   controllerRef.current ??= createChatSaveController();
-  const [view, setView] = useState<ChatSaveView>({ state: "idle", message: "", tripId: null });
+  const [view, setView] = useState<ChatSaveView>({ state: "idle", message: "", tripId: null, unchecked: [] });
+  const [confirmed, setConfirmed] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  if (!chatSaveProposal(result)) {
+  const plan = chatSavePlan(result);
+  if (!plan) {
     return <p role="note" className="assistant-muted">Lịch này có mục chưa được kiểm tra hoặc chưa đạt, nên chưa thể lưu.</p>;
   }
   const controller = controllerRef.current;
+  // After the server refused a confirmation, its list replaces ours and must be confirmed again.
+  const items = view.unchecked.length ? view.unchecked : plan.unchecked;
+  const names = new Map(result.days.flatMap(day => day.stops.map(stop => [stop.destination.id, stop.destination.name] as const)));
 
   async function save() {
     if (controller.view.state === "pending" || controller.view.state === "success") return;
+    if (items.length > 0 && !confirmed) return;
     abortRef.current = new AbortController();
-    setView({ state: "pending", message: "Đang lưu hành trình…", tripId: null });
+    setView({ state: "pending", message: "Đang lưu hành trình…", tripId: null, unchecked: items });
     onStateChange?.("pending");
-    const next = await controller.save(result, abortRef.current.signal);
+    const next = await controller.save(result, abortRef.current.signal, { confirmUnchecked: confirmed });
+    if (next.state === "failed" && next.unchecked.length) setConfirmed(false);
     setView({ ...next });
     onStateChange?.(next.state);
   }
 
+  if (view.state === "success" && view.tripId) {
+    return (
+      <div className="tripsage-save" aria-live="polite">
+        <p role="status">Đã lưu hành trình. <Link href={`/trips/${encodeURIComponent(view.tripId)}`}>Mở chuyến đi</Link></p>
+        {view.unchecked.length > 0 && <p role="note" className="assistant-muted">Hành trình được lưu kèm {view.unchecked.length} mục chưa kiểm; các mục này không được tính là đã đạt.</p>}
+      </div>
+    );
+  }
+  const unresolved = items.length > 0;
   return (
     <div className="tripsage-save" aria-live="polite">
-      {view.state === "success" && view.tripId ? (
-        <p role="status">Đã lưu hành trình. <Link href={`/trips/${encodeURIComponent(view.tripId)}`}>Mở chuyến đi</Link></p>
-      ) : (
-        <>
-          <button type="button" className="assistant-save-button" disabled={view.state === "pending"} onClick={() => void save()}>
-            {view.state === "pending" ? "Đang lưu…" : view.state === "unknown" ? "Kiểm tra lại kết quả lưu" : "Lưu hành trình"}
-          </button>
-          {view.state === "idle" && <p role="note" className="assistant-muted">Lịch trình chưa được lưu.</p>}
-        </>
+      {unresolved && (
+        <div role="group" aria-label="Các mục chưa kiểm" className="tripsage-unchecked">
+          <p><strong>Có mục chưa kiểm.</strong> KLTN chưa kiểm tra được các mục sau; chúng không được tính là đã đạt:</p>
+          <ul>
+            {items.map(item => <li key={`${item.check}|${item.reasonCode}|${item.placeId}`}>{names.get(item.placeId) ?? "Địa điểm ngoài danh mục"} (ngoài danh mục) — {uncheckedItemLabel(item)}</li>)}
+          </ul>
+          <label>
+            <input type="checkbox" checked={confirmed} disabled={view.state === "pending"} onChange={event => setConfirmed(event.target.checked)} />{" "}
+            Tôi hiểu các mục trên chưa được KLTN kiểm tra và hành trình sẽ được lưu kèm nhãn &quot;chưa kiểm&quot;.
+          </label>
+        </div>
       )}
+      <button type="button" className="assistant-save-button" disabled={view.state === "pending" || (unresolved && !confirmed)} onClick={() => void save()}>
+        {view.state === "pending" ? "Đang lưu…" : view.state === "unknown" ? "Kiểm tra lại kết quả lưu" : unresolved ? "Xác nhận và lưu hành trình" : "Lưu hành trình"}
+      </button>
+      {view.state === "idle" && <p role="note" className="assistant-muted">Lịch trình chưa được lưu.</p>}
       {view.state === "failed" && <p role="alert" style={{ color: "#b42318" }}>{view.message}</p>}
       {view.state === "unknown" && <p role="status">{view.message}</p>}
     </div>

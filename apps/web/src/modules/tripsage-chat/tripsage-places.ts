@@ -17,6 +17,8 @@ const DEFAULT_TIMEOUT_MS = 5_000;
 /** Hà Giang province bounding box (south-west, north-east): the KLTN planning scope. Results are re-checked locally. */
 const AREA = { low: { latitude: 22.3, longitude: 104.3 }, high: { latitude: 23.4, longitude: 105.6 } } as const;
 
+export const inPlacesArea = (latitude: number, longitude: number) => latitude >= AREA.low.latitude && latitude <= AREA.high.latitude && longitude >= AREA.low.longitude && longitude <= AREA.high.longitude;
+
 export type ExternalPlaceSuggestion = { placeId: string; name: string; latitude: number; longitude: number };
 export type PlacesOutcome = { status: "RESULTS"; places: ExternalPlaceSuggestion[] } | { status: "NO_RESULTS" } | { status: "UNAVAILABLE" };
 export type PlacesSearch = (query: string, signal?: AbortSignal) => Promise<PlacesOutcome>;
@@ -69,7 +71,7 @@ export function createGooglePlacesSearch(deps: { apiKey: () => string | undefine
         const places: ExternalPlaceSuggestion[] = [];
         for (const place of body.data.places ?? []) {
           const { latitude, longitude } = place.location;
-          const inArea = latitude >= AREA.low.latitude && latitude <= AREA.high.latitude && longitude >= AREA.low.longitude && longitude <= AREA.high.longitude;
+          const inArea = inPlacesArea(latitude, longitude);
           if (!inArea || vietnamCoverageAt({ latitude, longitude }) !== "SUPPORTED") continue;
           const name = cleanPlaceName(place.displayName?.text ?? "");
           if (name && !places.some(p => p.placeId === place.id)) places.push({ placeId: place.id, name, latitude, longitude });

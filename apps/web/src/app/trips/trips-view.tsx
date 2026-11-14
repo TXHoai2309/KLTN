@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { uncheckedItemLabel } from "@/modules/trip-save/unchecked-checks";
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
@@ -855,6 +856,21 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
         </div>
       </section>
 
+      {trip.unchecked && trip.unchecked.items.length > 0 && (
+        <section className="my-trips-unchecked" data-testid="trip-unchecked-section" aria-label="Các mục chưa kiểm">
+          <p><strong>Chưa kiểm</strong>: hành trình này được lưu kèm các mục KLTN chưa kiểm tra được (không được tính là đã đạt)
+            {trip.unchecked.confirmedAt ? `, bạn đã xác nhận lúc ${new Date(trip.unchecked.confirmedAt).toLocaleString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh" })}` : ""}.</p>
+          <ul>
+            {trip.unchecked.items.map((item) => (
+              <li key={`${item.check}|${item.reasonCode}|${item.placeId}`}>
+                {trip.days.flatMap((d) => d.visits).find((v) => v.destination.id === item.placeId)?.destination.name ?? "Địa điểm ngoài danh mục"} — {uncheckedItemLabel(item)}
+              </li>
+            ))}
+          </ul>
+          <p className="my-trips-unavailable">Chuyến đi có địa điểm ngoài danh mục chưa thể chỉnh sửa hoặc lập lại lịch.</p>
+        </section>
+      )}
+
       {/* Journey Overview Card (for Owner when journey exists) */}
       {hasJourney && trip.journey && (
         <section className="my-trips-journey-banner" data-testid="trip-saved-journey-section" aria-label="Điểm xuất phát hành trình">
@@ -1136,7 +1152,7 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
 
                                 <div className="my-trips-visit-place">
                                   <div className="my-trips-visit-top">
-                                    <span className="my-trips-order-label">Điểm dừng {visit.order}</span>
+                                    <span className="my-trips-order-label">Điểm dừng {visit.order}{visit.destination.external ? " · ngoài danh mục (chưa kiểm)" : ""}</span>
                                     <span className="my-trips-visit-chip">
                                       <Clock3 size={13} aria-hidden="true" />
                                       {visit.plannedDurationMinutes} phút
@@ -1144,7 +1160,7 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
                                   </div>
 
                                   <h3 className="my-trips-destination-title">
-                                    {visit.destination.availability === "AVAILABLE" ? (
+                                    {visit.destination.availability === "AVAILABLE" && !visit.destination.external ? (
                                       <Link
                                         href={`/destinations/${visit.destination.id}` as Route}
                                         className="my-trips-destination-link"

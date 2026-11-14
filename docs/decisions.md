@@ -724,6 +724,10 @@ Copy-then-adapt the tripsage chat block under its MIT license (notice kept in `N
 3. Dependencies and providers added: `ai`, `@ai-sdk/react`, `@ai-sdk/openai`, Google, web search, Firecrawl.
 4. Save gate: a FAILED check still blocks Save, but "unchecked" items (validation data missing) no longer block. Save then needs explicit user confirmation and the Trip stores which checks were unchecked. Unchecked is never recorded as PASS. This relaxes the earlier "Save blocked unless PASS" and needs a Save-contract design and migration.
 
+### Implementation status (updated 2026-11-14, still Proposed)
+
+- Invariant #4 is implemented in code by Ticket 09 (design: [unchecked-save-design.md](research/unchecked-save-design.md)): FAILED and non-external missing data still block; unchecked data of external places is saved only with an explicit confirmation equal to the server's list, stored in `trip.uncheckedChecks` and never as PASS. Migrations `20261114120000_external_place` and `20261114130000_trip_unchecked_checks` are created but NOT applied to any database. This ADR stays Proposed until the owner approves it.
+
 ### Invariants kept
 
 Validator separate from AI, missing data is never reported or stored as a pass, FAILED blocks Save, `executeIdempotentWrite` with SUCCESS/FAILED/UNKNOWN, Prisma migrations only, secrets server-side, thin Route Handlers, server-side ownership, guests Q&A-only.

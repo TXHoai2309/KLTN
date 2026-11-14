@@ -1,10 +1,13 @@
 import { z } from "zod";
 
 import { tripProposalSchema } from "../trip-validation/trip-proposal-contract";
+import { acknowledgedUncheckedSchema } from "./unchecked-checks";
 
 export const tripSaveRequestSchema = z.object({
   confirm: z.literal(true),
   proposal: tripProposalSchema,
+  /** Ticket 09: explicit confirmation of the unchecked items; the server compares it with its own list. */
+  acknowledgedUnchecked: acknowledgedUncheckedSchema.optional(),
 }).strict().superRefine((request, context) => {
   if (request.proposal.startDate === null) context.addIssue({ code: "custom", path: ["proposal", "startDate"], message: "Cần ngày bắt đầu trước khi lưu." });
   if (!request.proposal.days.some(day => day.visits.length > 0)) context.addIssue({ code: "custom", path: ["proposal", "days"], message: "Hành trình cần ít nhất một điểm đến." });

@@ -6,6 +6,7 @@ import { richContentText } from "../culture/culture-rich-content";
 import type { TripInterest } from "../trip-requirement/trip-requirement-contract";
 import type { z } from "zod";
 import type { plannerDestinationSchema } from "./planner-contract";
+import { EXTERNAL_PLACE_ID_PREFIX } from "./external-place-id";
 import { EXTERNAL_PLACE_DEFAULT_STAY_MINUTES } from "./planner-external-stay";
 
 export type PlannerCandidate = z.infer<typeof plannerDestinationSchema> & {
@@ -13,7 +14,7 @@ export type PlannerCandidate = z.infer<typeof plannerDestinationSchema> & {
   openingDays: { dayOfWeek: string; status: string; intervals: { opensAtMinute: number; closesAtMinute: number }[] }[];
 };
 export const MAX_CANDIDATES = 64;
-export const EXTERNAL_PLACE_ID_PREFIX = "ext:google:";
+export { EXTERNAL_PLACE_ID_PREFIX };
 /** Google place ids are url-safe; the whole prefixed id must fit the 128-character destination id of the planner contract. */
 export const isSchedulablePlaceId = (placeId: string) => /^[A-Za-z0-9_-]{1,100}$/.test(placeId);
 export const isExternalPlannerCandidate = (candidate: Pick<PlannerCandidate, "external">) => candidate.external === true;

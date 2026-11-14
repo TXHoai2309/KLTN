@@ -96,9 +96,9 @@ OpenAI (existing), Google Places/Maps/Routes, web search, Firecrawl. All keys st
 - [ ] Given the flag is off, when a Traveler plans a trip, then the existing flow behaves exactly as before.
 - [ ] Given the flag is on, when a signed-in Traveler plans in chat, then progress and prose stream in Vietnamese and the itinerary renders from `PlannerResult`.
 - [x] Given a schedule with any FAILED check, when the Traveler tries to save, then Save is refused. (Ticket 05: server returns TRIP_VALIDATION_FAILED, no Trip; the button is hidden for non-PASS schedules.)
-- [ ] Given a schedule with unchecked items and no FAILED check, when the Traveler saves, then an explicit confirmation naming the unchecked items is required and the saved Trip records them as unchecked, never as PASS.
+- [x] Given a schedule with unchecked items and no FAILED check, when the Traveler saves, then an explicit confirmation naming the unchecked items is required and the saved Trip records them as unchecked, never as PASS. (Ticket 09, HTTP seam with an in-memory store; unchecked is allowed only for external-place data, see the design note; not run against a real database.)
 - [x] Given web or Firecrawl content containing instructions, when the agent runs, then the content is treated as data and no tool outside the allow-list is called (tested). (Ticket 10: `tripsage-web.vitest.test.ts`, HTTP seam with a fake model and fake Firecrawl.)
-- [ ] Given a place from Google not in the KLTN destination table, when the itinerary is saved, then `ItineraryVisit` references an `ExternalPlace` and the XOR constraint holds.
+- [ ] Given a place from Google not in the KLTN destination table, when the itinerary is saved, then `ItineraryVisit` references an `ExternalPlace` and the XOR constraint holds. (Ticket 09: Save creates the visit with `externalPlaceId` only, tested with an in-memory store; the XOR CHECK itself is verified only by the opt-in PostgreSQL tests, not run, migrations not applied. Left unticked.)
 - [x] Given a Save returns UNKNOWN, when the Traveler retries, then the identical payload and key are sent and no duplicate Trip is created. (Ticket 05, tested at the HTTP seam with an in-memory store.)
 - [x] Given a request exceeds 8 steps, 60 s or a provider call cap, when it runs, then it stops with a bounded, user-readable result. (Ticket 11: `tripsage-chat-resilience.vitest.test.ts`; step and time caps end with a Vietnamese notice naming the created itinerary, "not saved" and a next step; per-tool caps return a limit result.)
 - [x] No server secret appears in the browser bundle, logs or API responses. (Ticket 11: seam tests with fake providers plus `console.*` spies and the client source-reading test; no production bundle was built or inspected, and tool outputs of web results are still streamed to the browser, see ai-progress.)
@@ -127,7 +127,8 @@ New server-only variables for Google, web search and Firecrawl keys, blank in th
 4. New stream route and chat UI behind the flag.
 5. Bridge to `scheduleSelection`, Validator and Save.
 6. Ticket 08b (before 09): schedule external Google places through the scheduler and Validator with unchecked checks, Save still blocked. Implemented: owner chose a 60-minute suggested stay (single constant, labelled estimate); same-turn external ids only; Save stays blocked ([design](../research/external-place-scheduling-design.md), progress log).
-7. Evidence, progress note, owner review.
+7. Ticket 09: Save with explicit confirmation of unchecked items, `ExternalPlace` upsert and stored unchecked list ([design](../research/unchecked-save-design.md)); migrations created, not applied.
+8. Evidence, progress note, owner review.
 
 ## Acceptance Evidence
 

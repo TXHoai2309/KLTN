@@ -6,7 +6,8 @@ import { AppError } from "@/server/http/app-error";
 import { effectiveTripStatus, type TripStatus } from "./trip-status";
 import type { TravelLeg } from "../trip-planner/planner-contract";
 import { savedJourneySchema, journeyVisitFingerprint, type SavedJourney } from "../trip-origin/journey-saved-contract";
-import { requireDestinationVisits } from "./itinerary-visit-place";
+import { externalPlaceView } from "./external-place-cache";
+import { storedUncheckedSchema, type UncheckedItem } from "../trip-save/unchecked-checks";
 
 export type TripReadDependencies = AuthorizationDependencies & { database: Database };
 
@@ -29,6 +30,8 @@ export type TripSummary = {
 export type TripDetail = TripSummary & {
   /** Only HOST receives this property; legacy owner reads explicitly return null. */
   journey?: SavedJourney | null;
+  /** Owner only: checks the Trip was saved with as UNCHECKED (never PASS). Absent when nothing was unchecked. */
+  unchecked?: { items: UncheckedItem[]; confirmedAt: string | null };
   baseRevision?: string;
   days: {
     id: string;
@@ -50,6 +53,8 @@ export type TripDetail = TripSummary & {
         description?: string;
         visibility: "VISIBLE" | "HIDDEN";
         availability: "AVAILABLE" | "UNAVAILABLE";
+        /** A place outside the KLTN catalogue: no destination page; name/coordinates are a 30-day cache. */
+        external?: true;
       };
       inbound?: TravelLeg | null;
     }[];
@@ -70,6 +75,8 @@ const summarySelect = (userId: string) => ({
 } satisfies Prisma.TripSelect);
 const detailSelect = (userId: string) => ({
   journeySnapshot: true,
+  uncheckedChecks: true,
+  uncheckedConfirmedAt: true,
   updatedAt: true,
   id: true, userId: true, startDate: true, durationDays: true, transport: true, manuallyCompletedAt: true,
   user: { select: { name: true } },
@@ -89,6 +96,7 @@ const detailSelect = (userId: string) => ({
         orderBy: [{ order: "asc" as const }, { id: "asc" as const }],
         select: {
           id: true, order: true, startMinute: true, plannedDurationMinutes: true,
+          externalPlace: { select: { providerPlaceId: true, name: true, latitude: true, longitude: true, fetchedAt: true } },
           destination: {
             select: {
               id: true,
@@ -165,7 +173,7 @@ export async function listMyTrips(headers: Headers, deps: TripReadDependencies, 
   return { items: rows.map(row => summary(row, referenceDate, actor.userId)) };
 }
 
-export async function getMyTrip(headers: Headers, id: string, deps: TripReadDependencies, referenceDate: string): Promise<TripDetail> {
+export async function getMyTrip(headers: Headers, id: string, deps: TripReadDependencies, referenceDate: string, now: Date = new Date()): Promise<TripDetail> {
   const actor = await requireTraveler(headers, deps);
   const found = await deps.database.trip.findFirst({
     where: {
@@ -187,35 +195,44 @@ export async function getMyTrip(headers: Headers, id: string, deps: TripReadDepe
     select: detailSelect(actor.userId),
   });
   if (!found) throw new AppError("TRIP_NOT_FOUND", "Không tìm thấy chuyến đi.", 404);
-  const row = requireDestinationVisits(found);
+  const row = found;
+  const isOwner = row.userId === actor.userId;
+  /** KLTN destination or saved external place; exactly one is set (DB CHECK). */
+  const placeOf = (visit: (typeof row.days)[number]["visits"][number]): TripDetail["days"][number]["visits"][number]["destination"] => {
+    if (visit.destination) {
+      return {
+        id: visit.destination.id, name: visit.destination.name, area: visit.destination.area,
+        category: (visit.destination as { category?: string }).category,
+        latitude: (visit.destination as { latitude?: number }).latitude,
+        longitude: (visit.destination as { longitude?: number }).longitude,
+        address: (visit.destination as { address?: string | null }).address ?? null,
+        description: (visit.destination as { description?: string }).description,
+        visibility: visit.destination.visibility,
+        availability: visit.destination.visibility === "VISIBLE" && !visit.destination.deletedAt ? "AVAILABLE" : "UNAVAILABLE",
+      };
+    }
+    if (visit.externalPlace) return externalPlaceView(visit.externalPlace, now, isOwner);
+    throw new AppError("TRIP_PLACE_UNAVAILABLE", "Chưa thể đọc địa điểm của chuyến đi.", 503);
+  };
   let journey: SavedJourney | null = null;
   if (row.userId === actor.userId && row.journeySnapshot != null) {
     const parsed = savedJourneySchema.safeParse(row.journeySnapshot);
     if (!parsed.success) throw new AppError("TRIP_JOURNEY_DATA_UNAVAILABLE", "Chưa thể đọc thông tin đi/về của chuyến đi.", 503);
     journey = parsed.data;
-    const currentFingerprint = journeyVisitFingerprint(row.days.map(day => ({ dayIndex: day.dayIndex, visits: day.visits.map(visit => ({ ...visit, destinationId: visit.destination.id })) })));
+    const currentFingerprint = journeyVisitFingerprint(row.days.map(day => ({ dayIndex: day.dayIndex, visits: day.visits.map(visit => ({ ...visit, destinationId: placeOf(visit).id })) })));
     if (journey.visitFingerprint !== currentFingerprint) journey = { ...journey, plan: null };
   }
+  const storedUnchecked = row.uncheckedChecks == null ? null : storedUncheckedSchema.safeParse(row.uncheckedChecks).data ?? null;
   return {
     ...summary(row, referenceDate, actor.userId),
     ...(row.userId === actor.userId ? { journey, baseRevision: row.updatedAt?.toISOString() } : {}),
+    ...(isOwner && storedUnchecked ? { unchecked: { items: storedUnchecked.items, confirmedAt: row.uncheckedConfirmedAt?.toISOString() ?? null } } : {}),
     days: [...row.days].sort((a, b) => a.dayIndex - b.dayIndex || a.id.localeCompare(b.id)).map(day => ({
       id: day.id, dayIndex: day.dayIndex, localDate: day.localDate.toISOString().slice(0, 10),
       visits: [...day.visits].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id)).map(visit => ({
         id: visit.id, order: visit.order, startMinute: visit.startMinute,
         plannedDurationMinutes: visit.plannedDurationMinutes,
-        destination: {
-          id: visit.destination.id,
-          name: visit.destination.name,
-          area: visit.destination.area,
-          category: (visit.destination as { category?: string }).category,
-          latitude: (visit.destination as { latitude?: number }).latitude,
-          longitude: (visit.destination as { longitude?: number }).longitude,
-          address: (visit.destination as { address?: string | null }).address ?? null,
-          description: (visit.destination as { description?: string }).description,
-          visibility: visit.destination.visibility,
-          availability: visit.destination.visibility === "VISIBLE" && !visit.destination.deletedAt ? "AVAILABLE" : "UNAVAILABLE",
-        },
+        destination: placeOf(visit),
       })),
     })),
   };
