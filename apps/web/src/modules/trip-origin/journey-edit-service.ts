@@ -16,16 +16,17 @@ import { assertJourneyBeforeDeparture } from "./journey-cutoff";
 import type { TripJourney } from "./trip-origin-contract";
 import { journeyEditApplySchema, type JourneyEditApply } from "./journey-edit-contract";
 import { journeyVisitFingerprint } from "./journey-saved-contract";
+import { requireDestinationVisits, type DestinationOnlyTrip } from "../trip-read/itinerary-visit-place";
 
 const select = { id: true, userId: true, startDate: true, durationDays: true, transport: true, updatedAt: true, manuallyCompletedAt: true, journeySnapshot: true,
   days: { orderBy: { dayIndex: "asc" as const }, select: { dayIndex: true, visits: { orderBy: { order: "asc" as const }, select: { id: true, destinationId: true, startMinute: true, plannedDurationMinutes: true, order: true } } } } } satisfies Prisma.TripSelect;
-type Owned = Prisma.TripGetPayload<{ select: typeof select }>;
+type Owned = DestinationOnlyTrip<Prisma.TripGetPayload<{ select: typeof select }>>;
 export type JourneyEditDependencies = TripSaveDependencies & { now: () => Date };
 const conflict = () => new AppError("TRIP_REVISION_CONFLICT", "Hành trình đã thay đổi. Vui lòng tải lại trước khi áp dụng.", 409);
 async function owned(database: Pick<Database, "trip">, id: string, userId: string): Promise<Owned> {
   const trip = await database.trip.findFirst({ where: { id, userId }, select });
   if (!trip) throw new AppError("TRIP_NOT_FOUND", "Không tìm thấy chuyến đi.", 404);
-  return trip;
+  return requireDestinationVisits(trip);
 }
 function assertSameVisits(trip: Owned, candidate: TripProposal): void {
   if (candidate.startDate !== trip.startDate.toISOString().slice(0, 10) || candidate.durationDays !== trip.durationDays || candidate.transport !== trip.transport || candidate.days.length !== trip.days.length || candidate.days.some((day, index) => day.dayIndex !== trip.days[index]!.dayIndex || day.visits.length !== trip.days[index]!.visits.length || day.visits.some((visit, slot) => {

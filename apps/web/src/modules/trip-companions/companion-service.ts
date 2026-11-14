@@ -71,6 +71,8 @@ function contextOf(row: TripRow) {
   const imageOptions: { mediaId: string; url: string; alt: string }[] = [];
   for (const day of row.days) for (const { destination } of day.visits) {
     // Prisma can load relations in separate queries. Recheck the returned row too.
+    // External places are not in the approved public projection; skip them.
+    if (!destination) continue;
     if (!isDestinationPublic(destination)) continue;
     if (seen.has(destination.id)) continue;
     seen.add(destination.id);

@@ -120,7 +120,7 @@ export async function getCompanionGroup(headers: Headers, rawId: string, deps: C
     return companionGroupSchema.parse({ publicationId: id, relationship, memberCount: count + 1, itineraryRevision: row.itineraryRevision.toString(), canSend: !row.canceledAt, canceledAt: row.canceledAt?.toISOString() ?? null,
       introduction: projectCompanionIntroduction(projected, row, false, count),
       itinerary: { days: projected.days.map(day => ({ dayIndex: day.dayIndex, localDate: day.localDate.toISOString().slice(0, 10),
-        visits: day.visits.map(visit => { const visible = isDestinationPublic(visit.destination); return {
+        visits: day.visits.flatMap(visit => visit.destination ? [visit as typeof visit & { destination: NonNullable<typeof visit.destination> }] : []).map(visit => { const visible = isDestinationPublic(visit.destination); return {
           visitId: visit.id, order: visit.order, startMinute: visit.startMinute, plannedDurationMinutes: visit.plannedDurationMinutes,
           destination: { destinationId: visible ? visit.destination.id : null, name: visible ? visit.destination.name : "Điểm đến không còn khả dụng",
             availability: visible ? "AVAILABLE" : "UNAVAILABLE", latitude: visible ? visit.destination.latitude : null, longitude: visible ? visit.destination.longitude : null },

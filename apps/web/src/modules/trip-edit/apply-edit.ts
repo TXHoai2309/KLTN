@@ -24,6 +24,7 @@ import { recheckInTripTime, type TimeRecheckTrip } from "../in-trip/time-recheck
 import { preserveCompleted, ReplanCompletedVisitError } from "../in-trip/preserve-completed";
 import { splitCompletedRemaining } from "../in-trip/split-trip";
 import { assertLocationIndependentScope } from "../in-trip/location-independent-scope";
+import { requireDestinationVisits, type DestinationOnlyTrip } from "../trip-read/itinerary-visit-place";
 
 const applyEditBaseSchema = z
   .object({
@@ -72,7 +73,7 @@ const tripApplySelect = {
   },
 } satisfies Prisma.TripSelect;
 
-type TripForApply = Prisma.TripGetPayload<{ select: typeof tripApplySelect }>;
+type TripForApply = DestinationOnlyTrip<Prisma.TripGetPayload<{ select: typeof tripApplySelect }>>;
 
 export type InTripCompletedVisitInvariant = (input: {
   original: EditCandidate;
@@ -171,7 +172,7 @@ async function findOwnedTrip(
     select: tripApplySelect,
   });
   if (!trip) throw tripNotFound();
-  return trip;
+  return requireDestinationVisits(trip);
 }
 
 function timeRecheckTrip(trip: TripForApply): TimeRecheckTrip {

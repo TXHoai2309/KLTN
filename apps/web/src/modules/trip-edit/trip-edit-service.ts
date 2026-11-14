@@ -13,6 +13,7 @@ import {
   type ValidationVisit,
 } from "../trip-validation/trip-validation";
 import { createEditCandidate, type EditCandidate } from "./edit-candidate";
+import { requireDestinationVisits, type DestinationOnlyTrip } from "../trip-read/itinerary-visit-place";
 
 const destinationSelect = {
   id: true,
@@ -106,11 +107,12 @@ export async function getTripForEdit(
   dependencies: TripEditPageDependencies,
 ): Promise<TripEditPageData> {
   const actor = await requireTraveler(headers, dependencies);
-  const trip = await dependencies.database.trip.findFirst({
+  const found = await dependencies.database.trip.findFirst({
     where: { id: tripId, userId: actor.userId },
     select: tripEditPageSelect,
   });
-  if (!trip) throw new AppError("TRIP_NOT_FOUND", "Không tìm thấy chuyến đi.", 404);
+  if (!found) throw new AppError("TRIP_NOT_FOUND", "Không tìm thấy chuyến đi.", 404);
+  const trip = requireDestinationVisits(found);
 
   const candidate = createEditCandidate({
     startDate: trip.startDate,

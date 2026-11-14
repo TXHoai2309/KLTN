@@ -22,6 +22,7 @@ import { preserveCompleted, ReplanCompletedVisitError } from "./preserve-complet
 import { splitCompletedRemaining } from "./split-trip";
 import { assertLocationIndependentScope } from "./location-independent-scope";
 import { createEditCandidate } from "../trip-edit/edit-candidate";
+import { requireDestinationVisits, type DestinationOnlyTrip } from "../trip-read/itinerary-visit-place";
 
 const inTripPreviewTripSelect = {
   id: true,
@@ -49,7 +50,7 @@ const inTripPreviewTripSelect = {
   },
 } satisfies Prisma.TripSelect;
 
-type OwnedTrip = Prisma.TripGetPayload<{ select: typeof inTripPreviewTripSelect }>;
+type OwnedTrip = DestinationOnlyTrip<Prisma.TripGetPayload<{ select: typeof inTripPreviewTripSelect }>>;
 
 export type InTripPreviewRequest = {
   baseRevision: string;
@@ -142,11 +143,12 @@ export async function previewInTrip(
   request: InTripPreviewRequest,
   dependencies: InTripPreviewDependencies,
 ): Promise<InTripPreviewResult> {
-  const trip = await dependencies.database.trip.findFirst({
+  const found = await dependencies.database.trip.findFirst({
     where: { id: tripId, userId },
     select: inTripPreviewTripSelect,
   });
-  if (!trip) throw new AppError("TRIP_NOT_FOUND", "Không tìm thấy chuyến đi.", 404);
+  if (!found) throw new AppError("TRIP_NOT_FOUND", "Không tìm thấy chuyến đi.", 404);
+  const trip = requireDestinationVisits(found);
   if (trip.updatedAt.toISOString() !== request.baseRevision) {
     throw new AppError("TRIP_REVISION_CONFLICT", "Hành trình đã thay đổi. Hãy tải lại.", 409);
   }

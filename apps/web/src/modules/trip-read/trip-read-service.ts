@@ -6,6 +6,7 @@ import { AppError } from "@/server/http/app-error";
 import { effectiveTripStatus, type TripStatus } from "./trip-status";
 import type { TravelLeg } from "../trip-planner/planner-contract";
 import { savedJourneySchema, journeyVisitFingerprint, type SavedJourney } from "../trip-origin/journey-saved-contract";
+import { requireDestinationVisits } from "./itinerary-visit-place";
 
 export type TripReadDependencies = AuthorizationDependencies & { database: Database };
 
@@ -166,7 +167,7 @@ export async function listMyTrips(headers: Headers, deps: TripReadDependencies, 
 
 export async function getMyTrip(headers: Headers, id: string, deps: TripReadDependencies, referenceDate: string): Promise<TripDetail> {
   const actor = await requireTraveler(headers, deps);
-  const row = await deps.database.trip.findFirst({
+  const found = await deps.database.trip.findFirst({
     where: {
       id,
       OR: [
@@ -185,7 +186,8 @@ export async function getMyTrip(headers: Headers, id: string, deps: TripReadDepe
     },
     select: detailSelect(actor.userId),
   });
-  if (!row) throw new AppError("TRIP_NOT_FOUND", "Không tìm thấy chuyến đi.", 404);
+  if (!found) throw new AppError("TRIP_NOT_FOUND", "Không tìm thấy chuyến đi.", 404);
+  const row = requireDestinationVisits(found);
   let journey: SavedJourney | null = null;
   if (row.userId === actor.userId && row.journeySnapshot != null) {
     const parsed = savedJourneySchema.safeParse(row.journeySnapshot);
