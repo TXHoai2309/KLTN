@@ -7,6 +7,8 @@ import type { PlannerResult } from "../trip-planner/planner-contract";
 import type { PlannerCandidate } from "../trip-planner/planner-candidates";
 import type { RouteProvider } from "../trip-planner/planner-routes";
 import { INTEREST_VALUES, TRANSPORT_VALUES, tripRequirementInputSchema } from "../trip-requirement/trip-requirement-contract";
+import { QUESTION_BY_FIELD } from "../trip-requirement/trip-clarification-rules";
+import { JOURNEY_MISSING_LABELS, missingJourneyFields, type TripJourney } from "../trip-origin/trip-origin-contract";
 
 /** The complete, hard allow-list. Anything else (web search, Places, tripsage tools) is refused by construction. */
 export const TRIPSAGE_CHAT_TOOL_NAMES = ["listDestinations", "proposeItinerary"] as const;
@@ -16,14 +18,32 @@ export type TripsageChatToolName = (typeof TRIPSAGE_CHAT_TOOL_NAMES)[number];
 export const TRIPSAGE_CHAT_TURN_LIMITS = { maxSteps: 8, totalMs: 60_000, maxProposals: 2 } as const;
 
 export type TripsagePlanningDeps = { candidates: () => Promise<PlannerCandidate[]>; routes: RouteProvider; now?: () => Date };
-export type TripsageToolContext = { planning: TripsagePlanningDeps; emitItinerary: (result: PlannerResult) => void; maxProposals?: number };
+/** `journey` comes from the signed-in request (origin picker), never from the model. */
+export type TripsageToolContext = { planning: TripsagePlanningDeps; emitItinerary: (result: PlannerResult) => void; maxProposals?: number; journey?: TripJourney | null };
+
+export type MissingTripInfo = { field: "transport" | "durationDays" | "startDate" | "interests" | "origin" | "originConfirmation" | "departureMinute" | "returnDeadlineMinute" | "returnDepartureMinute"; question: string };
+
+/**
+ * Required before any scheduling: transport, 1-14 days, start date, interests and a confirmed origin
+ * (with the departure/return-deadline clocks that KLTN's own `missingJourneyFields` demands). Reuses
+ * KLTN's clarification wording; nothing here guesses a value.
+ */
+export function missingTripInfo(input: { transport?: string | null; durationDays?: number | null; startDate?: string | null; interests?: readonly string[] | null }, journey: TripJourney | null | undefined): MissingTripInfo[] {
+  const out: MissingTripInfo[] = [];
+  if (!input.transport) out.push({ field: "transport", question: QUESTION_BY_FIELD.transport });
+  if (!input.durationDays) out.push({ field: "durationDays", question: QUESTION_BY_FIELD.durationDays });
+  if (!input.startDate) out.push({ field: "startDate", question: QUESTION_BY_FIELD.startDate });
+  if (!input.interests?.length) out.push({ field: "interests", question: QUESTION_BY_FIELD.interests });
+  for (const field of missingJourneyFields(journey)) out.push({ field, question: JOURNEY_MISSING_LABELS[field] });
+  return out;
+}
 
 const proposeInputSchema = z.object({
-  transport: z.enum(TRANSPORT_VALUES).describe("Phương tiện: MOTORCYCLE (xe máy) hoặc CAR (ô tô)."),
-  durationDays: z.number().int().min(1).max(14).describe("Số ngày của chuyến đi, từ 1 đến 14."),
+  transport: z.enum(TRANSPORT_VALUES).nullable().optional().describe("Phương tiện: MOTORCYCLE (xe máy) hoặc CAR (ô tô); null nếu người dùng chưa nói."),
+  durationDays: z.number().int().min(1).max(14).nullable().optional().describe("Số ngày của chuyến đi, từ 1 đến 14; null nếu người dùng chưa nói."),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional().describe("Ngày bắt đầu dạng YYYY-MM-DD, hoặc null nếu người dùng chưa chọn."),
   interests: z.array(z.enum(INTEREST_VALUES)).max(INTEREST_VALUES.length).optional().describe("Sở thích, chỉ dùng các giá trị cho phép."),
-  selection: planningSelectionSchema.describe("days[i] là danh sách id điểm đến (lấy từ listDestinations) của ngày i+1; tối đa 4 điểm mỗi ngày."),
+  selection: planningSelectionSchema.optional().describe("days[i] là danh sách id điểm đến (lấy từ listDestinations) của ngày i+1; tối đa 4 điểm mỗi ngày."),
 }).strict();
 
 const UNAVAILABLE_TEXT = "Chưa lập được lịch trình lúc này. Hãy thử lại sau.";
@@ -64,9 +84,13 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     inputSchema: proposeInputSchema,
     execute: async input => {
       if (proposals >= maxProposals) return { ok: false as const, code: "PROPOSAL_LIMIT", message: "Đã đạt số lần lập lịch tối đa trong lượt này. Hãy tóm tắt và mời người dùng nhắn tiếp." };
+      // Gate before any routing or scheduling: ask for what is missing, never guess it, and do not spend a proposal.
+      const missing = missingTripInfo(input, context.journey);
+      if (missing.length) return { ok: false as const, code: "MISSING_REQUIRED_INFO", message: "Chưa đủ thông tin để lập lịch. Hãy hỏi người dùng đúng các mục còn thiếu bằng tiếng Việt, chưa lập lịch.", missing: missing.map(m => m.field), questions: missing.map(m => m.question) };
       proposals += 1;
       try {
-        const requirement = tripRequirementInputSchema.parse({ startDate: input.startDate ?? null, durationDays: input.durationDays, transport: input.transport, interests: input.interests ?? [] });
+        if (!input.selection) throw new AppError("INVALID_AI_PLAN", "Thiếu danh sách điểm đến theo ngày. Hãy gọi listDestinations rồi chọn điểm.", 422);
+        const requirement = tripRequirementInputSchema.parse({ startDate: input.startDate ?? null, durationDays: input.durationDays, transport: input.transport, interests: input.interests ?? [], journey: context.journey });
         const needs = { requirement, requiredDestinationIds: [], preferredDestinationIds: [], destinationNames: {} };
         const result = await scheduleSelection(needs, input.selection, await candidates(), context.planning.routes, now());
         context.emitItinerary(result);

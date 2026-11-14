@@ -6,6 +6,7 @@ import { createPlanningAdmission } from "../assistant-planning/planning-admissio
 import { plannerResultSchema } from "../trip-planner/planner-contract";
 import { missingLeg } from "../trip-planner/planner-routes";
 import { fixtureRoutes, planningCandidate, planningNow } from "../../test/planning-fixtures";
+import { COMPLETE_JOURNEY_FIXTURE, ORIGIN_FIXTURES } from "../trip-origin/trip-origin-fixtures";
 import { tripsageChatResponse } from "./tripsage-chat-http";
 import { createTripsageChatTools, TRIPSAGE_CHAT_TOOL_NAMES, type TripsagePlanningDeps } from "./tripsage-chat-tools";
 
@@ -32,12 +33,12 @@ function scripted(steps: Step[]) {
 const routeSpy = vi.fn(fixtureRoutes.route);
 const planning = (over: Partial<TripsagePlanningDeps> = {}): (() => TripsagePlanningDeps) => () => ({
   candidates: async () => [planningCandidate("a"), planningCandidate("b"), { ...planningCandidate("hidden"), visibility: "HIDDEN" }],
-  routes: { route: routeSpy }, now: () => planningNow, ...over,
+  routes: { route: routeSpy, coordinateRoute: async () => ({ status: "VERIFIED", reason: null, durationSeconds: 3600, distanceMeters: 50_000, provider: "STADIA_MAPS" }) }, now: () => planningNow, ...over,
 });
 const userMessage = (text: string) => ({ id: "m1", role: "user", parts: [{ type: "text", text }] });
-const req = () => new Request("https://app.test/api/ai/chat", { method: "POST", headers: { origin: "https://app.test", "content-type": "application/json" }, body: JSON.stringify({ messages: [userMessage("Đi 1 ngày bằng ô tô")] }) });
-const run = async (model: MockLanguageModelV4, over: Record<string, unknown> = {}) => {
-  const response = await tripsageChatResponse(req(), { authorization: auth(), model: async () => model, env: { TRIPSAGE_CHAT_ENABLED: "true" }, admit: createPlanningAdmission(), planning: planning(), ...over });
+const req = (journey: unknown = COMPLETE_JOURNEY_FIXTURE) => new Request("https://app.test/api/ai/chat", { method: "POST", headers: { origin: "https://app.test", "content-type": "application/json" }, body: JSON.stringify({ messages: [userMessage("Đi 1 ngày bằng ô tô")], ...(journey === undefined ? {} : { journey }) }) });
+const run = async (model: MockLanguageModelV4, over: Record<string, unknown> = {}, journey: unknown = COMPLETE_JOURNEY_FIXTURE) => {
+  const response = await tripsageChatResponse(req(journey), { authorization: auth(), model: async () => model, env: { TRIPSAGE_CHAT_ENABLED: "true" }, admit: createPlanningAdmission(), planning: planning(), ...over });
   expect(response.status).toBe(200);
   return response.text();
 };
@@ -158,5 +159,68 @@ describe("Tripsage agent secrets and failures", () => {
     const off = await tripsageChatResponse(req(), { authorization: auth(), model: async () => model, env: {}, planning: planning() });
     expect(off.status).toBe(404);
     expect(model.doStreamCalls).toHaveLength(0);
+  });
+});
+
+describe("Tripsage required-information gate (Ticket 04)", () => {
+  const withJourney = (over: object) => ({ ...COMPLETE_JOURNEY_FIXTURE, ...over });
+  const MISSING: [string, Record<string, unknown>, unknown, string, string][] = [
+    ["transport", { transport: null }, COMPLETE_JOURNEY_FIXTURE, "transport", "xe máy hay ô tô"],
+    ["durationDays", { durationDays: null }, COMPLETE_JOURNEY_FIXTURE, "durationDays", "bao nhiêu ngày"],
+    ["startDate", { startDate: null }, COMPLETE_JOURNEY_FIXTURE, "startDate", "ngày nào"],
+    ["interests", { interests: [] }, COMPLETE_JOURNEY_FIXTURE, "interests", "sở thích"],
+    ["origin (no journey)", {}, null, "origin", "Chưa chọn điểm xuất phát"],
+    ["origin confirmation", {}, withJourney({ origin: ORIGIN_FIXTURES.unconfirmed }), "originConfirmation", "Xác nhận điểm xuất phát"],
+    ["departure time", {}, withJourney({ departureMinute: null }), "departureMinute", "giờ khởi hành"],
+    ["return deadline", {}, withJourney({ returnDeadlineMinute: null }), "returnDeadlineMinute", "hạn trở về"],
+  ];
+  for (const [name, extra, journey, field, text] of MISSING) {
+    it(`does not schedule and returns the Vietnamese question when ${name} is missing`, async () => {
+      routeSpy.mockClear();
+      const model = scripted([propose([["a"]], extra), { text: "Bạn cho mình biết thêm nhé." }]);
+      const sse = await run(model, {}, journey);
+      expect(parts(sse).some(p => p.type === "data-itinerary")).toBe(false);
+      expect(routeSpy).not.toHaveBeenCalled();
+      const fed = JSON.stringify(model.doStreamCalls[1]!.prompt);
+      expect(fed).toContain("MISSING_REQUIRED_INFO");
+      expect(fed).toContain(field);
+      expect(fed.toLowerCase()).toContain(text.toLowerCase());
+    });
+  }
+
+  it("does not spend a proposal on a gated call", async () => {
+    const model = scripted([propose([["a"]], { transport: null }), propose([["a"]], { transport: null }), propose([["a", "b"]]), { text: "Xong." }]);
+    const sse = await run(model);
+    expect(parts(sse).filter(p => p.type === "data-itinerary")).toHaveLength(1);
+  });
+
+  it("takes the journey branch when everything is present: journey legs and eligible schedule", async () => {
+    const sse = await run(scripted([propose([["a", "b"]]), { text: "Bạn xem lịch nhé." }]));
+    const result = plannerResultSchema.parse(parts(sse).find(p => p.type === "data-itinerary")!.data);
+    expect(result.journeyPlan?.legs.map(l => l.kind)).toEqual(["OUTBOUND", "TRANSFER", "RETURN"]);
+    expect(result.requirement.journey?.origin?.confirmed).toBe(true);
+    expect(result.status).toBe("PROPOSAL_READY");
+    expect(result.eligibleForFinalConfirmation).toBe(true);
+  });
+
+  it("takes the origin only from the request, never from model tool input", async () => {
+    const forged = propose([["a"]], { journey: COMPLETE_JOURNEY_FIXTURE });
+    const sse = await run(scripted([forged, { text: "Mình cần điểm xuất phát." }]), {}, null);
+    expect(parts(sse).some(p => p.type === "data-itinerary")).toBe(false);
+  });
+
+  it("rejects an invalid, strict-violating or out-of-coverage journey with 400/422 before the model runs", async () => {
+    for (const bad of [{ origin: { ...ORIGIN_FIXTURES.confirmed, extra: 1 } }, { origin: ORIGIN_FIXTURES.invalid }, { origin: ORIGIN_FIXTURES.outside }]) {
+      const model = scripted([{ text: "x" }]);
+      const response = await tripsageChatResponse(req(bad), { authorization: auth(), model: async () => model, env: { TRIPSAGE_CHAT_ENABLED: "true" }, admit: createPlanningAdmission(), planning: planning() });
+      expect([400, 422]).toContain(response.status);
+      expect(model.doStreamCalls).toHaveLength(0);
+    }
+  });
+
+  it("keeps the allow-list at exactly two tools", async () => {
+    const model = scripted([{ text: "Chào bạn." }]);
+    await run(model);
+    expect(model.doStreamCalls[0]!.tools!.map(t => t.name).sort()).toEqual(["listDestinations", "proposeItinerary"]);
   });
 });

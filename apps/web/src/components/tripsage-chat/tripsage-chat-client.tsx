@@ -3,7 +3,10 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { Send, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+
+import TripJourneyEditor from "@/components/trip-origin/trip-journey-editor";
+import { missingJourneyFields, type TripJourney } from "@/modules/trip-origin/trip-origin-contract";
 
 import { parseItineraryPart, TripsageItineraryView } from "./tripsage-itinerary-view";
 
@@ -11,13 +14,20 @@ type StatusPart = { kind: "start" | "checking" | "writing"; label: string };
 
 const MAX_LENGTH = 1000;
 
-/** Vietnamese streaming planning chat. Progress and prose only; no itinerary result yet. */
+/**
+ * Vietnamese streaming planning chat. The origin and journey clocks are chosen with the existing KLTN
+ * origin picker (search / map pin / explicit confirm) and sent as `journey`; the model never sees or invents coordinates.
+ */
 export function TripsageChatClient() {
   const [draft, setDraft] = useState("");
   const [status, setStatus] = useState<StatusPart | null>(null);
+  const [journey, setJourney] = useState<TripJourney | null>(null);
+  const journeyRef = useRef<TripJourney | null>(null);
+  journeyRef.current = journey;
+  const journeyMissing = missingJourneyFields(journey).length;
   const transport = useMemo(() => new DefaultChatTransport({
     api: "/api/ai/chat",
-    prepareSendMessagesRequest: ({ messages }) => ({ body: { messages } }),
+    prepareSendMessagesRequest: ({ messages }) => ({ body: { messages, journey: journeyRef.current } }),
   }), []);
   const { messages, sendMessage, status: chatStatus, error, stop } = useChat({
     transport,
@@ -43,7 +53,7 @@ export function TripsageChatClient() {
               <div className="assistant-empty">
                 <Sparkles className="assistant-icon" aria-hidden="true" />
                 <h2>Bạn muốn đi Hà Giang như thế nào?</h2>
-                <p>Cho mình biết phương tiện, số ngày và sở thích để mình giúp lên kế hoạch.</p>
+                <p>Cho mình biết phương tiện, số ngày, ngày bắt đầu và sở thích, rồi chọn điểm xuất phát bên dưới để mình lập kế hoạch.</p>
               </div>
             )}
             <div className="assistant-messages" aria-live="polite">
@@ -68,6 +78,10 @@ export function TripsageChatClient() {
         </div>
         <div className="assistant-bottom-dock"><div className="assistant-bottom-dock-inner">
           {error && <p role="alert" className="assistant-planning-error" style={{ margin: "0 0 6px", color: "#b42318", fontSize: 12.5 }}>Trợ lý tạm thời không phản hồi được. Nội dung của bạn vẫn được giữ, hãy thử lại.</p>}
+          <details className="tripsage-journey-panel" open={!journey?.origin?.confirmed}>
+            <summary>Điểm xuất phát{journeyMissing === 0 ? " (đã xác nhận)" : " (cần xác nhận để lập lịch)"}</summary>
+            <TripJourneyEditor journey={journey} onChange={setJourney} disabled={busy} />
+          </details>
           <form noValidate className="assistant-composer" onSubmit={submit}>
             <label htmlFor="tripsage-chat-input" className="assistant-sr-only">Tin nhắn cho trợ lý</label>
             <div className="assistant-composer-input">
