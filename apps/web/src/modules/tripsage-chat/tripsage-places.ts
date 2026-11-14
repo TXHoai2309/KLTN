@@ -30,7 +30,7 @@ const responseSchema = z.object({ places: z.array(z.object({
 /** Untrusted text: no control characters, collapsed whitespace, short. */
 export const cleanPlaceName = (text: string) => text.normalize("NFC").replace(/[\u0000-\u001f\u007f-\u009f]/gu, " ").replace(/\s+/gu, " ").trim().slice(0, 80);
 
-async function readBounded(response: Response, maxBytes: number): Promise<string | null> {
+export async function readBounded(response: Response, maxBytes: number): Promise<string | null> {
   const declared = Number(response.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > maxBytes) return null;
   if (!response.body) return null;

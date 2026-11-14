@@ -13,6 +13,7 @@ import { isTripSaveNavigationLocked } from "@/modules/trip-save/trip-save-state"
 
 import { parseItineraryPart, TripsageItineraryView } from "./tripsage-itinerary-view";
 import { parsePlacesPart, TripsagePlacesView } from "./tripsage-places-view";
+import { parseSourcesPart, TripsageSourcesView } from "./tripsage-sources-view";
 import { TripsageSaveSection } from "./tripsage-save-section";
 
 type StatusPart = { kind: "start" | "checking" | "writing"; label: string };
@@ -70,7 +71,8 @@ export function TripsageChatClient() {
                 // Latest data-itinerary part wins (same id replaces); only schema-valid results render.
                 const itinerary = message.role === "assistant" ? [...message.parts].reverse().map(part => (part.type === "data-itinerary" ? parseItineraryPart(part.data) : null)).find(Boolean) ?? null : null;
                 const suggestions = message.role === "assistant" ? message.parts.flatMap(part => (part.type === "data-places" ? parsePlacesPart(part.data) : [])) : [];
-                if (!text && !itinerary && !suggestions.length) return null;
+                const webSources = message.role === "assistant" ? [...message.parts].reverse().map(part => (part.type === "data-sources" ? parseSourcesPart(part.data) : null)).find(Boolean) ?? [] : [];
+                if (!text && !itinerary && !suggestions.length && !webSources.length) return null;
                 return message.role === "user" ? (
                   <article key={message.id} className="assistant-message assistant-user"><p>{text}</p></article>
                 ) : (
@@ -78,6 +80,7 @@ export function TripsageChatClient() {
                     <span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true" /><span>Trợ lý AI</span></span>
                     {itinerary && <TripsageItineraryView proposal={itinerary}>{message.id === lastItineraryMessageId && !busy && <TripsageSaveSection result={itinerary} onStateChange={setSaveState} />}</TripsageItineraryView>}
                     <TripsagePlacesView places={suggestions} />
+                    <TripsageSourcesView sources={webSources} />
                     {text && <p style={{ whiteSpace: "pre-wrap" }}>{text}</p>}
                   </article>
                 );

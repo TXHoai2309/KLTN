@@ -5,6 +5,7 @@ import { routingRegistry } from "../destination/destination-routing-registry";
 import { retrievePlannerCandidates } from "../trip-planner/planner-candidates";
 import { createConfiguredRoutesProvider } from "../trip-planner/planner-routes";
 import { createGooglePlacesSearch, type PlacesSearch } from "./tripsage-places";
+import { createFirecrawlWeb, type WebLookup } from "./tripsage-web";
 import type { TripsagePlanningDeps } from "./tripsage-chat-tools";
 
 /** Same candidate reader and routing provider (Stadia by default) as the existing planner. Provider keys stays server-side. */
@@ -20,4 +21,9 @@ export function tripsagePlanningRuntime(): TripsagePlanningDeps {
 /** Places search with the server-only Google key; the key is read per call and never leaves this module. */
 export function tripsagePlacesRuntime(): PlacesSearch {
   return createGooglePlacesSearch({ apiKey: () => ENV.GOOGLE_MAPS_API_KEY });
+}
+
+/** Firecrawl web search and page extraction with the server-only key, read per call; it never leaves this module. */
+export function tripsageWebRuntime(): WebLookup {
+  return createFirecrawlWeb({ apiKey: () => ENV.FIRECRAWL_API_KEY });
 }

@@ -46,18 +46,18 @@ const placesFetch = (impl?: (url: string, init: RequestInit) => Promise<Response
 const places = (fetcher: ReturnType<typeof placesFetch>, apiKey: (() => string | undefined) = () => KEY) => () => createGooglePlacesSearch({ apiKey, fetcher: fetcher as unknown as typeof fetch });
 
 describe("searchPlaces allow-list (Ticket 08)", () => {
-  it("registers exactly three tools", () => {
+  it("registers exactly five tools", () => {
     const tools = createTripsageChatTools({ planning: planning()(), emitItinerary: () => {} });
-    expect(Object.keys(tools).sort()).toEqual(["listDestinations", "proposeItinerary", "searchPlaces"]);
-    expect([...TRIPSAGE_CHAT_TOOL_NAMES].sort()).toEqual(["listDestinations", "proposeItinerary", "searchPlaces"]);
-    for (const banned of ["webSearch", "googlePlaces", "placeDetails", "crawlSite", "savePlan"]) expect(tools).not.toHaveProperty(banned);
+    expect(Object.keys(tools).sort()).toEqual(["fetchPage", "listDestinations", "proposeItinerary", "searchPlaces", "webSearch"]);
+    expect([...TRIPSAGE_CHAT_TOOL_NAMES].sort()).toEqual(["fetchPage", "listDestinations", "proposeItinerary", "searchPlaces", "webSearch"]);
+    for (const banned of ["googlePlaces", "placeDetails", "crawlSite", "savePlan"]) expect(tools).not.toHaveProperty(banned);
   });
 
-  it("advertises three tools and still refuses any other tool", async () => {
+  it("advertises five tools and still refuses any other tool", async () => {
     const model = scripted([{ tool: "placeDetails", input: { placeId: "x" } }, { text: "Không dùng được." }]);
     const fetcher = placesFetch();
     const sse = await run(model, { places: places(fetcher) });
-    expect(model.doStreamCalls[0]!.tools!.map(t => t.name).sort()).toEqual(["listDestinations", "proposeItinerary", "searchPlaces"]);
+    expect(model.doStreamCalls[0]!.tools!.map(t => t.name).sort()).toEqual(["fetchPage", "listDestinations", "proposeItinerary", "searchPlaces", "webSearch"]);
     expect(fetcher).not.toHaveBeenCalled();
     expect(sse).toContain("Không dùng được");
   });

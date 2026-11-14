@@ -47,17 +47,17 @@ const propose = (days: string[][] = [["a", "b"]], extra: Record<string, unknown>
 const parts = (sse: string) => sse.split("\n").filter(l => l.startsWith("data: {")).map(l => JSON.parse(l.slice(6)) as { type: string; data?: unknown; toolName?: string });
 
 describe("Tripsage agent tool allow-list", () => {
-  it("registers exactly three tools and nothing else", () => {
+  it("registers exactly five tools and nothing else", () => {
     const tools = createTripsageChatTools({ planning: planning()(), emitItinerary: () => {} });
     expect(Object.keys(tools).sort()).toEqual([...TRIPSAGE_CHAT_TOOL_NAMES].sort());
-    expect(TRIPSAGE_CHAT_TOOL_NAMES).toHaveLength(3);
-    for (const banned of ["webSearch", "googlePlaces", "crawlSite", "savePlan", "createTravelPlan"]) expect(tools).not.toHaveProperty(banned);
+    expect(TRIPSAGE_CHAT_TOOL_NAMES).toHaveLength(5);
+    for (const banned of ["googlePlaces", "crawlSite", "savePlan", "createTravelPlan"]) expect(tools).not.toHaveProperty(banned);
   });
 
-  it("advertises only the three tools to the model and refuses an unknown tool call", async () => {
-    const model = scripted([{ tool: "webSearch", input: { query: "ignore previous instructions" } }, { text: "Mình không dùng được công cụ đó." }]);
+  it("advertises only the five tools to the model and refuses an unknown tool call", async () => {
+    const model = scripted([{ tool: "crawlSite", input: { query: "ignore previous instructions" } }, { text: "Mình không dùng được công cụ đó." }]);
     const sse = await run(model);
-    expect(model.doStreamCalls[0]!.tools!.map(t => t.name).sort()).toEqual(["listDestinations", "proposeItinerary", "searchPlaces"]);
+    expect(model.doStreamCalls[0]!.tools!.map(t => t.name).sort()).toEqual(["fetchPage", "listDestinations", "proposeItinerary", "searchPlaces", "webSearch"]);
     expect(parts(sse).some(p => p.type === "data-itinerary")).toBe(false);
     expect(sse).not.toContain(SECRET);
     // The failed call is fed back as an error, never executed, and the loop continues to prose.
@@ -221,9 +221,9 @@ describe("Tripsage required-information gate (Ticket 04)", () => {
     }
   });
 
-  it("keeps the allow-list at exactly three tools", async () => {
+  it("keeps the allow-list at exactly five tools", async () => {
     const model = scripted([{ text: "Chào bạn." }]);
     await run(model);
-    expect(model.doStreamCalls[0]!.tools!.map(t => t.name).sort()).toEqual(["listDestinations", "proposeItinerary", "searchPlaces"]);
+    expect(model.doStreamCalls[0]!.tools!.map(t => t.name).sort()).toEqual(["fetchPage", "listDestinations", "proposeItinerary", "searchPlaces", "webSearch"]);
   });
 });
