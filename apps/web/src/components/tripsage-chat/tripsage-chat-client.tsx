@@ -12,6 +12,7 @@ import type { SaveState } from "@/modules/trip-save/trip-save-state";
 import { isTripSaveNavigationLocked } from "@/modules/trip-save/trip-save-state";
 
 import { parseItineraryPart, TripsageItineraryView } from "./tripsage-itinerary-view";
+import { parsePlacesPart, TripsagePlacesView } from "./tripsage-places-view";
 import { TripsageSaveSection } from "./tripsage-save-section";
 
 type StatusPart = { kind: "start" | "checking" | "writing"; label: string };
@@ -68,13 +69,15 @@ export function TripsageChatClient() {
                 const text = message.parts.map(part => (part.type === "text" ? part.text : "")).join("");
                 // Latest data-itinerary part wins (same id replaces); only schema-valid results render.
                 const itinerary = message.role === "assistant" ? [...message.parts].reverse().map(part => (part.type === "data-itinerary" ? parseItineraryPart(part.data) : null)).find(Boolean) ?? null : null;
-                if (!text && !itinerary) return null;
+                const suggestions = message.role === "assistant" ? message.parts.flatMap(part => (part.type === "data-places" ? parsePlacesPart(part.data) : [])) : [];
+                if (!text && !itinerary && !suggestions.length) return null;
                 return message.role === "user" ? (
                   <article key={message.id} className="assistant-message assistant-user"><p>{text}</p></article>
                 ) : (
                   <article key={message.id} className="assistant-message assistant-answer">
                     <span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true" /><span>Trợ lý AI</span></span>
                     {itinerary && <TripsageItineraryView proposal={itinerary}>{message.id === lastItineraryMessageId && !busy && <TripsageSaveSection result={itinerary} onStateChange={setSaveState} />}</TripsageItineraryView>}
+                    <TripsagePlacesView places={suggestions} />
                     {text && <p style={{ whiteSpace: "pre-wrap" }}>{text}</p>}
                   </article>
                 );

@@ -6,6 +6,7 @@ import { AppError } from "../../server/http/app-error";
 import { readBoundedJsonBody } from "../../server/http/read-json-body";
 import { createPlanningAdmission } from "../assistant-planning/planning-admission";
 import { isTripsageChatEnabled } from "./tripsage-chat-flag";
+import type { PlacesSearch } from "./tripsage-places";
 import type { TripsagePlanningDeps } from "./tripsage-chat-tools";
 import { parseTripsageChatJourney, parseTripsageChatMessages, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
 
@@ -14,6 +15,8 @@ export type TripsageChatHttpDependencies = {
   model: () => Promise<LanguageModel>;
   /** Destination reader and routing provider; resolved lazily so plain chat never depends on them. */
   planning?: () => TripsagePlanningDeps;
+  /** Google Places search; resolved lazily. Absent means the tool reports unavailable. */
+  places?: () => PlacesSearch;
   /** Test seam for the per-turn caps; production uses the defaults. */
   limits?: Partial<TripsageChatTurnLimits>;
   env?: Record<string, string | undefined>;
@@ -45,7 +48,7 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
     const timer = setTimeout(release, SAFETY_RELEASE_MS); timer.unref?.();
     const response = await new Promise<Response>((resolve, reject) => {
       (deps.admit ?? defaultAdmit)(actor.userId, async () => {
-        try { resolve(streamTripsageChat({ model: await deps.model(), messages, journey, planning: deps.planning?.() ?? unavailablePlanning, limits: deps.limits, signal: request.signal, onSettled: release })); }
+        try { resolve(streamTripsageChat({ model: await deps.model(), messages, journey, planning: deps.planning?.() ?? unavailablePlanning, places: deps.places?.(), limits: deps.limits, signal: request.signal, onSettled: release })); }
         catch (error) { reject(error); release(); }
         await held;
       }).catch(reject).finally(() => clearTimeout(timer));
