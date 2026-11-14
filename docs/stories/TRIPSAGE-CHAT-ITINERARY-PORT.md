@@ -126,7 +126,8 @@ New server-only variables for Google, web search and Firecrawl keys, blank in th
 3. Provider/adapter layer, allow-list, caps and tests.
 4. New stream route and chat UI behind the flag.
 5. Bridge to `scheduleSelection`, Validator and Save.
-6. Evidence, progress note, owner review.
+6. Ticket 08b (before 09): schedule external Google places through the scheduler and Validator with unchecked checks, Save still blocked. Design note written; implementation waits for the owner decision on stay duration ([design](../research/external-place-scheduling-design.md)).
+7. Evidence, progress note, owner review.
 
 ## Acceptance Evidence
 
