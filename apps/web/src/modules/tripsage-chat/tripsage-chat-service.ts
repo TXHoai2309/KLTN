@@ -109,6 +109,10 @@ export function streamTripsageChat(input: { model: LanguageModel; messages: Mode
             announced = true;
             controller.enqueue({ type: "data-status", data: { kind: "writing", label: "Đang soạn câu trả lời…" } satisfies TripsageChatStatus, transient: true } as UIMessageChunk);
           }
+          // Tool results (web text, snippets, place details) go to the model only. The UI renders data-itinerary / data-places / data-sources,
+          // so the browser gets just whether the call succeeded; thrown tool errors are replaced by a fixed text.
+          if (chunk.type === "tool-output-available") return controller.enqueue({ ...chunk, output: { ok: (chunk.output as { ok?: unknown } | null)?.ok === true } } as UIMessageChunk);
+          if (chunk.type === "tool-output-error") return controller.enqueue({ ...chunk, errorText: FAILURE_TEXT } as UIMessageChunk);
           if (chunk.type === "finish-step") stepsDone += 1;
           // Reaching the step cap ends the turn; say so before the stream finishes.
           if (chunk.type === "finish" && stepsDone >= limits.maxSteps) writeNotice(controller, "step-limit", capNotice(`Đã đạt giới hạn ${limits.maxSteps} bước xử lý cho lượt này nên mình dừng lại.`, hasItinerary));
