@@ -33,7 +33,7 @@ export function selectPlannerDays(requirement: TripRequirementInput, input: read
     const hours = openingFor(candidate, date), duration = visitDuration(candidate)!;
     return hours?.status !== "CLOSED" && (hours?.status !== "OPEN" || hours.intervals.some(interval => Math.min(interval.closesAtMinute, 1080) - Math.max(interval.opensAtMinute, 480) >= duration));
   };
-  const eligible = [...new Map(input.filter(candidate => isDestinationEligibleForNewItinerary(candidate) && Number.isFinite(candidate.latitude) && Number.isFinite(candidate.longitude) && Math.abs(candidate.latitude) <= 90 && Math.abs(candidate.longitude) <= 180 && visitDuration(candidate) !== null && visitDuration(candidate)! <= 600 && dates.some(date => availableOn(candidate, date))).map(candidate => [candidate.id, candidate])).values()];
+  const eligible = [...new Map(input.filter(candidate => !candidate.external && isDestinationEligibleForNewItinerary(candidate) && Number.isFinite(candidate.latitude) && Number.isFinite(candidate.longitude) && Math.abs(candidate.latitude) <= 90 && Math.abs(candidate.longitude) <= 180 && visitDuration(candidate) !== null && visitDuration(candidate)! <= 600 && dates.some(date => availableOn(candidate, date))).map(candidate => [candidate.id, candidate])).values()];
   const pool = orderPlannerCandidates(requirement, eligible, Math.min(28, requirement.durationDays * cap, eligible.length));
   const days: PlannerCandidate[][] = [];
   let remainingBudget = Math.min(28, requirement.durationDays * cap, pool.length);
@@ -83,7 +83,7 @@ export function schedulePlannerDays(requirement: TripRequirementInput, selected:
       const departure = arrival === null ? null : arrival + duration;
       cursor = departure;
       const { id, name, description, area, address, category, latitude, longitude, image } = candidate;
-      return { order: order + 1, destination: { id, name, description, area, address, category, latitude, longitude, image }, arrivalMinute: arrival,
+      return { order: order + 1, destination: { id, name, description, area, address, category, latitude, longitude, image, ...(candidate.external ? { external: true as const } : {}) }, arrivalMinute: arrival,
         departureMinute: departure, visitDurationMinutes: duration, scheduleState: state, inbound, validationStatus: "INSUFFICIENT_DATA" };
     });
     const complete = stops.length > 0 && stops.every(stop => !stop.inbound || stop.inbound.status === "VERIFIED");

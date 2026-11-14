@@ -31,6 +31,7 @@ import {
   PACE_OPTIONS,
   type TripRequirementInput,
 } from "@/modules/trip-requirement/trip-requirement-contract";
+import { EXTERNAL_PLACE_LABEL, EXTERNAL_PLACE_SOURCE_LABEL, EXTERNAL_STAY_ESTIMATE_LABEL } from "@/modules/trip-planner/planner-contract";
 import type {
   CheckStatus,
   PlannerDay,
@@ -371,6 +372,7 @@ export function ItineraryStopCard({
           <div className="planner-stop-content">
             <div className="planner-stop-heading">
               <h4 className="planner-stop-name">{stop.destination.name}</h4>
+              {stop.destination.external && <span className="planner-stop-external">{EXTERNAL_PLACE_LABEL}</span>}
             </div>
 
             <div className="planner-stop-meta">
@@ -381,7 +383,8 @@ export function ItineraryStopCard({
                 </span>
               ) : null}
               <span className="planner-meta-sep" aria-hidden="true">·</span>
-              <span className="planner-stop-duration">{durationText(stop.visitDurationMinutes)} dừng chân</span>
+              <span className="planner-stop-duration">{durationText(stop.visitDurationMinutes)} dừng chân{stop.destination.external ? ` (${EXTERNAL_STAY_ESTIMATE_LABEL})` : ""}</span>
+              {stop.destination.external && <span className="planner-stop-source">{EXTERNAL_PLACE_SOURCE_LABEL}</span>}
             </div>
           </div>
         </button>
@@ -427,6 +430,7 @@ export function DestinationPreviewCard({
             <p className="planner-floating-sub">
               {visitTimeText(stop)}
               {stop.destination.area ? ` · ${stop.destination.area}` : ""}
+              {stop.destination.external ? ` · ${EXTERNAL_PLACE_LABEL} · ${durationText(stop.visitDurationMinutes)} ${EXTERNAL_STAY_ESTIMATE_LABEL} · ${EXTERNAL_PLACE_SOURCE_LABEL}` : ""}
             </p>
           </div>
         </div>
@@ -442,7 +446,7 @@ export function DestinationPreviewCard({
         )}
       </div>
 
-      <div className="planner-floating-footer">
+      {!stop.destination.external && <div className="planner-floating-footer">
         <a
           className="planner-detail-link"
           href={`/destinations/${encodeURIComponent(stop.destination.id)}`}
@@ -452,7 +456,7 @@ export function DestinationPreviewCard({
           <span>Xem chi tiết</span>
           <ArrowRight size={13} aria-hidden="true" />
         </a>
-      </div>
+      </div>}
     </aside>
   );
 }

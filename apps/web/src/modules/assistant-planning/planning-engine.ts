@@ -17,12 +17,18 @@ export function isUsablePlanningCandidate(candidate: PlannerCandidate) {
   return candidate.visibility === "VISIBLE" && Number.isFinite(candidate.latitude) && Number.isFinite(candidate.longitude) && Math.abs(candidate.latitude) <= 90 && Math.abs(candidate.longitude) <= 180 && duration !== null && duration <= 600;
 }
 
+function isUsableExternalCandidate(candidate: PlannerCandidate) {
+  const duration = visitDuration(candidate);
+  return candidate.external === true && candidate.visibility === "EXTERNAL" && Number.isFinite(candidate.latitude) && Number.isFinite(candidate.longitude) && Math.abs(candidate.latitude) <= 90 && Math.abs(candidate.longitude) <= 180 && duration !== null && duration <= 600;
+}
+
 export function assertPlanningSelection(raw: unknown, needs: PlanningNeeds, candidates: readonly PlannerCandidate[], now = new Date()): PlannerCandidate[][] {
   const requirement = assertTripRequirementClear(needs.requirement, now);
   const selection = planningSelectionSchema.safeParse(raw);
   if (!selection.success) throw new AppError("INVALID_AI_PLAN", "AI chưa tạo được cấu trúc hành trình hợp lệ. Hãy thử lại.", 502);
   const ids = selection.data.days.flat();
-  const eligible = new Map(candidates.filter(isUsablePlanningCandidate).map(c => [c.id, c]));
+  // External places are only ever present when the chat tool merged them from this turn's searchPlaces result.
+  const eligible = new Map(candidates.filter(c => isUsablePlanningCandidate(c) || isUsableExternalCandidate(c)).map(c => [c.id, c]));
   if (selection.data.days.length !== requirement.durationDays || ids.length > 28 || (!ids.length && eligible.size > 0) || new Set(ids).size !== ids.length || ids.some(id => !eligible.has(id)))
     throw new AppError("INVALID_AI_PLAN", "Đề xuất chứa điểm đến hoặc thứ tự ngày không hợp lệ.", 422);
   if (needs.requiredDestinationIds.some(id => !ids.includes(id))) throw new AppError("MANDATORY_DESTINATION_MISSING", "Đề xuất chưa đáp ứng điểm bắt buộc. Hãy điều chỉnh nhu cầu hoặc tạo lại.", 422);

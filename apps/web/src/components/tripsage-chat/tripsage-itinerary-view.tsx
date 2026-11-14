@@ -1,7 +1,7 @@
 "use client";
 
 import { lazy, Suspense, useState, type ReactNode } from "react";
-import { plannerResultSchema, type PlannerResult } from "@/modules/trip-planner/planner-contract";
+import { EXTERNAL_PLACE_LABEL, EXTERNAL_PLACE_SOURCE_LABEL, EXTERNAL_STAY_ESTIMATE_LABEL, plannerResultSchema, type PlannerResult } from "@/modules/trip-planner/planner-contract";
 import { ItineraryDayTabs, ItineraryStopCard, ItineraryValidationPanel, TripOverviewCard, TripSummaryBar, WarningNoticeRow } from "@/components/trip-planner/planner-presentation";
 import "@/components/trip-planner/trip-planner.css";
 
@@ -11,6 +11,29 @@ const ItineraryMap = lazy(() => import("@/components/trip-planner/itinerary-map"
 export function parseItineraryPart(data: unknown): PlannerResult | null {
   const parsed = plannerResultSchema.safeParse(data);
   return parsed.success ? parsed.data : null;
+}
+
+const CHECK_LABELS: Record<string, string> = { OPENING_HOURS: "Giờ mở cửa", MINIMUM_DURATION: "Thời lượng tối thiểu", TRAVEL_TIME: "Thời gian di chuyển", SCHEDULE_CONFLICTS: "Xung đột lịch trình", MOBILITY: "Khả năng tiếp cận" };
+/** Lists, per place outside the catalogue, the checks that could not be run. Plain text only: no logo, no outside link. */
+function ExternalPlacesNotice({ proposal }: { proposal: PlannerResult }) {
+  const external = proposal.days.flatMap(d => d.stops).filter(s => s.destination.external);
+  if (!external.length) return null;
+  return (
+    <section className="planner-external-notice" aria-label="Địa điểm ngoài danh mục">
+      <p role="note"><strong>Địa điểm {EXTERNAL_PLACE_LABEL}</strong> · {EXTERNAL_PLACE_SOURCE_LABEL}. Thời gian ở lại chỉ là {EXTERNAL_STAY_ESTIMATE_LABEL}. Lịch có địa điểm này chưa thể lưu.</p>
+      <ul>
+        {external.map(stop => (
+          <li key={stop.destination.id}><strong>{stop.destination.name}</strong>
+            <ul>
+              {proposal.checks.filter(c => c.issues.some(i => i.destinationId === stop.destination.id)).map(c => (
+                <li key={c.key}>{CHECK_LABELS[c.key] ?? c.key}: chưa kiểm được ({c.issues.filter(i => i.destinationId === stop.destination.id).map(i => i.message).join(" ")})</li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 /** Existing KLTN presentation components render the validated result; `children` is the optional Save section. */
@@ -39,6 +62,7 @@ export function TripsageItineraryView({ proposal, children }: { proposal: Planne
         </Suspense>
       </div>
       <ItineraryValidationPanel checks={proposal.checks} />
+      <ExternalPlacesNotice proposal={proposal} />
       {children}
     </div>
   );

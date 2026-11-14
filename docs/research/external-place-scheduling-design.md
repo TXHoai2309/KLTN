@@ -1,6 +1,6 @@
 # Ticket 08b: scheduling external (Google) places, design note
 
-Status: design only. Implementation STOPPED here pending one owner decision (section 4). No production code changed.
+Status: IMPLEMENTED (Ticket 08b) with option A: a 60-minute suggested stay in `trip-planner/planner-external-stay.ts`, minimum stay null, labelled "ước tính"; same-turn external ids only; shared pace cap. Sections 1-3 are the design as built; section 4 is kept as the record of the decision. Actual blast radius: 11 production files + 1 new constant file.
 
 ## 1. Finding: the pivot is the destination id, so the change can stay small
 
