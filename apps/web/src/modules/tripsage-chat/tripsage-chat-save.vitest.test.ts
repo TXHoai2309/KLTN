@@ -157,6 +157,23 @@ describe("Tripsage chat Save through POST /api/trips", () => {
     expect(db.records).toHaveLength(1);
   });
 
+  it("a network error on Save is UNKNOWN (never success), Vietnamese, locks input, and the retry sends the identical payload and key", async () => {
+    const result = await chatItinerary();
+    const SECRET = "sk-test-secret-key-do-not-leak";
+    const sent: { key: string; body: string }[] = [];
+    const fetcher = (async (_url: unknown, init: RequestInit) => { sent.push({ key: (init.headers as Record<string, string>)["Idempotency-Key"]!, body: init.body as string }); throw new TypeError(`offline ${SECRET}`); }) as unknown as typeof fetch;
+    const controller = createChatSaveController({ fetcher, newKey: () => "key-net" });
+    const first = await controller.save(result);
+    expect(first).toMatchObject({ state: "unknown", tripId: null });
+    expect(first.message).toContain("Chưa xác định");
+    expect(first.message).not.toContain(SECRET);
+    expect(controller.locked).toBe(true);
+    await controller.save(result);
+    expect(sent).toHaveLength(2);
+    expect(sent[1]).toEqual(sent[0]);
+    expect(sent[0]!.key).toBe("key-net");
+  });
+
   it("another user cannot save on the owner's behalf or reuse the owner's receipt", async () => {
     const db = store();
     const body = { confirm: true, proposal: chatSaveProposal(await chatItinerary())! };

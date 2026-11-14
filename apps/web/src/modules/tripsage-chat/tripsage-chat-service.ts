@@ -7,6 +7,7 @@ import { assertJourneyCoverage } from "../trip-origin/trip-origin-service";
 import { TRIPSAGE_CHAT_LIMITS } from "./tripsage-chat-provider";
 import type { PlacesSearch } from "./tripsage-places";
 import type { WebLookup } from "./tripsage-web";
+import { TRIPSAGE_PROVIDER_LIMIT_TEXT, TRIPSAGE_PROVIDER_UNAVAILABLE_TEXT } from "./tripsage-chat-errors";
 import { createTripsageChatTools, TRIPSAGE_CHAT_TURN_LIMITS, type TripsagePlanningDeps } from "./tripsage-chat-tools";
 
 export const TRIPSAGE_CHAT_INSTRUCTIONS = [
@@ -55,8 +56,11 @@ export function parseTripsageChatJourney(body: unknown): TripJourney | null {
 }
 
 export type TripsageChatStatus = { kind: "start" | "checking" | "writing"; label: string };
-const TIMEOUT_TEXT = "Đã hết thời gian xử lý cho lượt này. Kết quả đã hiển thị (nếu có) vẫn giữ nguyên, bạn hãy nhắn tiếp để mình hỗ trợ.";
-const FAILURE_TEXT = "Trợ lý tạm thời không phản hồi được. Hãy giữ nội dung và thử lại.";
+const FAILURE_TEXT = TRIPSAGE_PROVIDER_UNAVAILABLE_TEXT;
+/** Maps a provider failure to one of two fixed Vietnamese texts; provider message, body and headers are never forwarded. */
+const failureText = (error: unknown) => ((error as { statusCode?: unknown } | null)?.statusCode === 429 ? TRIPSAGE_PROVIDER_LIMIT_TEXT : FAILURE_TEXT);
+/** Deterministic cap notice: what exists, that it is not saved, and what to do next. */
+const capNotice = (reason: string, hasItinerary: boolean) => `${reason} ${hasItinerary ? "Lịch trình đã tạo được vẫn hiển thị phía trên và chưa được lưu." : "Chưa tạo được lịch trình nào trong lượt này."} Hãy nhắn tiếp để mình tiếp tục, ví dụ chốt các điểm đến hoặc yêu cầu lập lại lịch.`;
 
 export type TripsageChatTurnLimits = { maxSteps: number; totalMs: number; maxProposals: number; maxPlacesCalls: number; maxWebSearchCalls: number; maxFetchPageCalls: number };
 
@@ -70,17 +74,20 @@ export function streamTripsageChat(input: { model: LanguageModel; messages: Mode
       writer.write({ type: "data-status", data: { kind: "start", label: "Đang đọc yêu cầu của bạn…" } satisfies TripsageChatStatus, transient: true });
       const budget = AbortSignal.timeout(limits.totalMs);
       const signal = input.signal ? AbortSignal.any([input.signal, budget]) : budget;
-      let placesPart = 0;
+      let placesPart = 0; let hasItinerary = false; let stepsDone = 0;
       const tools = createTripsageChatTools({
         planning: input.planning, places: input.places, journey: input.journey ?? null, maxProposals: limits.maxProposals, maxPlacesCalls: limits.maxPlacesCalls, web: input.web, maxWebSearchCalls: limits.maxWebSearchCalls, maxFetchPageCalls: limits.maxFetchPageCalls,
         emitSources: sources => writer.write({ type: "data-sources", id: "sources", data: { sources } }),
         emitPlaces: places => writer.write({ type: "data-places", id: `places-${++placesPart}`, data: { places } }),
         emitItinerary: (result: PlannerResult) => {
+          hasItinerary = true;
           writer.write({ type: "data-status", data: { kind: "checking", label: "Đang kiểm tra lịch trình…" } satisfies TripsageChatStatus, transient: true });
           writer.write({ type: "data-itinerary", id: "itinerary", data: result });
         },
       });
       const result = streamText({ model: input.model, instructions: TRIPSAGE_CHAT_INSTRUCTIONS, messages: input.messages, maxOutputTokens: TRIPSAGE_CHAT_LIMITS.maxOutputTokens, abortSignal: signal,
+        // One bounded upstream attempt per step: the SDK's silent backoff retries would multiply cost and eat the 60 s budget.
+        maxRetries: 0,
         tools, stopWhen: isStepCount(limits.maxSteps),
         // The last allowed step is text-only so a capped turn still ends with a readable reply.
         prepareStep: ({ stepNumber }) => (stepNumber >= limits.maxSteps - 1 ? { activeTools: [], toolChoice: "none" as const } : undefined),
@@ -88,18 +95,23 @@ export function streamTripsageChat(input: { model: LanguageModel; messages: Mode
         repairToolCall: async () => null,
         // The SDK default logs the raw error object; keep provider details out of logs.
         onError: () => console.error("[tripsage-chat] provider stream failed") });
-      let announced = false; let timeoutShown = false;
+      const notices = new Set<string>();
+      let announced = false;
       const timedOut = () => budget.aborted && !input.signal?.aborted;
-      const timeoutNotice = (controller: { enqueue: (chunk: UIMessageChunk) => void }) => {
-        if (timeoutShown) return; timeoutShown = true;
-        for (const chunk of [{ type: "text-start", id: "timeout" }, { type: "text-delta", id: "timeout", delta: TIMEOUT_TEXT }, { type: "text-end", id: "timeout" }]) controller.enqueue(chunk as UIMessageChunk);
+      const writeNotice = (controller: { enqueue: (chunk: UIMessageChunk) => void }, id: string, text: string) => {
+        if (notices.has(id)) return; notices.add(id);
+        for (const chunk of [{ type: "text-start", id }, { type: "text-delta", id, delta: text }, { type: "text-end", id }]) controller.enqueue(chunk as UIMessageChunk);
       };
-      const shaped = result.toUIMessageStream({ onError: () => FAILURE_TEXT }).pipeThrough(new TransformStream<UIMessageChunk, UIMessageChunk>({
+      const timeoutNotice = (controller: { enqueue: (chunk: UIMessageChunk) => void }) => writeNotice(controller, "timeout", capNotice("Đã hết thời gian xử lý cho lượt này.", hasItinerary));
+      const shaped = result.toUIMessageStream({ onError: failureText }).pipeThrough(new TransformStream<UIMessageChunk, UIMessageChunk>({
         transform(chunk, controller) {
           if (!announced && chunk.type === "text-start") {
             announced = true;
             controller.enqueue({ type: "data-status", data: { kind: "writing", label: "Đang soạn câu trả lời…" } satisfies TripsageChatStatus, transient: true } as UIMessageChunk);
           }
+          if (chunk.type === "finish-step") stepsDone += 1;
+          // Reaching the step cap ends the turn; say so before the stream finishes.
+          if (chunk.type === "finish" && stepsDone >= limits.maxSteps) writeNotice(controller, "step-limit", capNotice(`Đã đạt giới hạn ${limits.maxSteps} bước xử lý cho lượt này nên mình dừng lại.`, hasItinerary));
           // A budget abort surfaces as a stream error; replace it with a readable notice.
           if (chunk.type === "error" && timedOut()) return timeoutNotice(controller);
           controller.enqueue(chunk);
@@ -120,7 +132,7 @@ export function streamTripsageChat(input: { model: LanguageModel; messages: Mode
         cancel: reason => reader.cancel(reason),
       }));
     },
-    onError: () => FAILURE_TEXT,
+    onError: failureText,
     onFinish: settle,
   });
   return createUIMessageStreamResponse({ stream, headers: { "Cache-Control": "private, no-store", "X-Accel-Buffering": "no" } });

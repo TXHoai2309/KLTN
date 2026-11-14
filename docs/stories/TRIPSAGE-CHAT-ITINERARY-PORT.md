@@ -100,8 +100,8 @@ OpenAI (existing), Google Places/Maps/Routes, web search, Firecrawl. All keys st
 - [x] Given web or Firecrawl content containing instructions, when the agent runs, then the content is treated as data and no tool outside the allow-list is called (tested). (Ticket 10: `tripsage-web.vitest.test.ts`, HTTP seam with a fake model and fake Firecrawl.)
 - [ ] Given a place from Google not in the KLTN destination table, when the itinerary is saved, then `ItineraryVisit` references an `ExternalPlace` and the XOR constraint holds.
 - [x] Given a Save returns UNKNOWN, when the Traveler retries, then the identical payload and key are sent and no duplicate Trip is created. (Ticket 05, tested at the HTTP seam with an in-memory store.)
-- [ ] Given a request exceeds 8 steps, 60 s or a provider call cap, when it runs, then it stops with a bounded, user-readable result.
-- [ ] No server secret appears in the browser bundle, logs or API responses.
+- [x] Given a request exceeds 8 steps, 60 s or a provider call cap, when it runs, then it stops with a bounded, user-readable result. (Ticket 11: `tripsage-chat-resilience.vitest.test.ts`; step and time caps end with a Vietnamese notice naming the created itinerary, "not saved" and a next step; per-tool caps return a limit result.)
+- [x] No server secret appears in the browser bundle, logs or API responses. (Ticket 11: seam tests with fake providers plus `console.*` spies and the client source-reading test; no production bundle was built or inspected, and tool outputs of web results are still streamed to the browser, see ai-progress.)
 
 ## Test Plan
 

@@ -58,7 +58,12 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
     });
     return noStore(response);
   } catch (error) {
-    if (error instanceof AppError) return noStore(apiFailure(error.code, error.message, error.status));
+    if (error instanceof AppError) {
+      const response = noStore(apiFailure(error.code, error.message, error.status));
+      const wait = (error.details as { retryAfterSeconds?: unknown } | undefined)?.retryAfterSeconds;
+      if (error.status === 429 && typeof wait === "number" && Number.isInteger(wait) && wait >= 1) response.headers.set("Retry-After", String(wait));
+      return response;
+    }
     return noStore(apiFailure("PLANNING_UNAVAILABLE", "Trợ lý lập hành trình tạm thời không khả dụng. Hãy giữ nội dung và thử lại.", 503));
   }
 }

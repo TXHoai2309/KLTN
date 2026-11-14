@@ -15,6 +15,8 @@ import { parseItineraryPart, TripsageItineraryView } from "./tripsage-itinerary-
 import { parsePlacesPart, TripsagePlacesView } from "./tripsage-places-view";
 import { parseSourcesPart, TripsageSourcesView } from "./tripsage-sources-view";
 import { TripsageSaveSection } from "./tripsage-save-section";
+import { TripsageChatNotice } from "./tripsage-chat-notice";
+import { classifyChatError, createTripsageChatFetch } from "@/modules/tripsage-chat/tripsage-chat-errors";
 
 type StatusPart = { kind: "start" | "checking" | "writing"; label: string };
 
@@ -33,14 +35,16 @@ export function TripsageChatClient() {
   const journeyMissing = missingJourneyFields(journey).length;
   const transport = useMemo(() => new DefaultChatTransport({
     api: "/api/ai/chat",
+    fetch: createTripsageChatFetch(),
     prepareSendMessagesRequest: ({ messages }) => ({ body: { messages, journey: journeyRef.current } }),
   }), []);
-  const { messages, sendMessage, status: chatStatus, error, stop } = useChat({
+  const { messages, sendMessage, status: chatStatus, error, stop, regenerate } = useChat({
     transport,
     onData: part => { if (part.type === "data-status") setStatus(part.data as StatusPart); },
   });
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const saveLocked = isTripSaveNavigationLocked(saveState);
+  const notice = chatStatus === "error" ? classifyChatError(error) : null;
   const busy = chatStatus === "submitted" || chatStatus === "streaming";
   const lastItineraryMessageId = [...messages].reverse().find(m => m.role === "assistant" && m.parts.some(p => p.type === "data-itinerary" && parseItineraryPart(p.data)))?.id;
   useEffect(() => { if (!busy) setStatus(null); }, [busy]);
@@ -78,7 +82,7 @@ export function TripsageChatClient() {
                 ) : (
                   <article key={message.id} className="assistant-message assistant-answer">
                     <span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true" /><span>Trợ lý AI</span></span>
-                    {itinerary && <TripsageItineraryView proposal={itinerary}>{message.id === lastItineraryMessageId && !busy && <TripsageSaveSection result={itinerary} onStateChange={setSaveState} />}</TripsageItineraryView>}
+                    {itinerary && <TripsageItineraryView proposal={itinerary}>{message.id === lastItineraryMessageId && !busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} onStateChange={setSaveState} />)}</TripsageItineraryView>}
                     <TripsagePlacesView places={suggestions} />
                     <TripsageSourcesView sources={webSources} />
                     {text && <p style={{ whiteSpace: "pre-wrap" }}>{text}</p>}
@@ -90,7 +94,7 @@ export function TripsageChatClient() {
           </div>
         </div>
         <div className="assistant-bottom-dock"><div className="assistant-bottom-dock-inner">
-          {error && <p role="alert" className="assistant-planning-error" style={{ margin: "0 0 6px", color: "#b42318", fontSize: 12.5 }}>Trợ lý tạm thời không phản hồi được. Nội dung của bạn vẫn được giữ, hãy thử lại.</p>}
+          <TripsageChatNotice notice={notice} onResend={saveLocked ? undefined : () => void regenerate()} />
           <details className="tripsage-journey-panel" open={!journey?.origin?.confirmed}>
             <summary>Điểm xuất phát{journeyMissing === 0 ? " (đã xác nhận)" : " (cần xác nhận để lập lịch)"}</summary>
             <TripJourneyEditor journey={journey} onChange={setJourney} disabled={busy || saveLocked} />
