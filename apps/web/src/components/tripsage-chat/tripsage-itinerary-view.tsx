@@ -1,6 +1,6 @@
 "use client";
 
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useState, type ReactNode } from "react";
 import { plannerResultSchema, type PlannerResult } from "@/modules/trip-planner/planner-contract";
 import { ItineraryDayTabs, ItineraryStopCard, ItineraryValidationPanel, TripOverviewCard, TripSummaryBar, WarningNoticeRow } from "@/components/trip-planner/planner-presentation";
 import "@/components/trip-planner/trip-planner.css";
@@ -13,8 +13,8 @@ export function parseItineraryPart(data: unknown): PlannerResult | null {
   return parsed.success ? parsed.data : null;
 }
 
-/** Display only: no Save here (Save is a later ticket). Existing KLTN presentation components render the validated result. */
-export function TripsageItineraryView({ proposal }: { proposal: PlannerResult }) {
+/** Existing KLTN presentation components render the validated result; `children` is the optional Save section. */
+export function TripsageItineraryView({ proposal, children }: { proposal: PlannerResult; children?: ReactNode }) {
   const [selectedDay, setSelectedDay] = useState(proposal.days[0]?.day ?? 1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const day = proposal.days.find(d => d.day === selectedDay) ?? proposal.days[0];
@@ -23,7 +23,7 @@ export function TripsageItineraryView({ proposal }: { proposal: PlannerResult })
     <div className="planner-page" lang="vi" data-proposal-id={proposal.proposalId}>
       <TripSummaryBar requirement={proposal.requirement} days={proposal.days} embedded />
       <WarningNoticeRow proposal={proposal} />
-      <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Mục khác “Đáp ứng” nghĩa là chưa được xác nhận.</p>
+      <p role="note" className="assistant-muted">Mục khác “Đáp ứng” nghĩa là chưa được xác nhận.</p>
       <div className="planner-day-tabs-wrapper"><ItineraryDayTabs days={proposal.days} selectedDay={day.day} onChange={setSelectedDay} /></div>
       <TripOverviewCard day={day} journeyPlan={proposal.journeyPlan} />
       {day.stops.length ? (
@@ -39,6 +39,7 @@ export function TripsageItineraryView({ proposal }: { proposal: PlannerResult })
         </Suspense>
       </div>
       <ItineraryValidationPanel checks={proposal.checks} />
+      {children}
     </div>
   );
 }

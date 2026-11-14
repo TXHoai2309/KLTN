@@ -8,7 +8,11 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import TripJourneyEditor from "@/components/trip-origin/trip-journey-editor";
 import { missingJourneyFields, type TripJourney } from "@/modules/trip-origin/trip-origin-contract";
 
+import type { SaveState } from "@/modules/trip-save/trip-save-state";
+import { isTripSaveNavigationLocked } from "@/modules/trip-save/trip-save-state";
+
 import { parseItineraryPart, TripsageItineraryView } from "./tripsage-itinerary-view";
+import { TripsageSaveSection } from "./tripsage-save-section";
 
 type StatusPart = { kind: "start" | "checking" | "writing"; label: string };
 
@@ -33,13 +37,16 @@ export function TripsageChatClient() {
     transport,
     onData: part => { if (part.type === "data-status") setStatus(part.data as StatusPart); },
   });
+  const [saveState, setSaveState] = useState<SaveState>("idle");
+  const saveLocked = isTripSaveNavigationLocked(saveState);
   const busy = chatStatus === "submitted" || chatStatus === "streaming";
+  const lastItineraryMessageId = [...messages].reverse().find(m => m.role === "assistant" && m.parts.some(p => p.type === "data-itinerary" && parseItineraryPart(p.data)))?.id;
   useEffect(() => { if (!busy) setStatus(null); }, [busy]);
 
   function submit(event: FormEvent) {
     event.preventDefault();
     const text = draft.trim();
-    if (!text || busy) return;
+    if (!text || busy || saveLocked) return;
     setDraft("");
     void sendMessage({ text });
   }
@@ -67,7 +74,7 @@ export function TripsageChatClient() {
                 ) : (
                   <article key={message.id} className="assistant-message assistant-answer">
                     <span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true" /><span>Trợ lý AI</span></span>
-                    {itinerary && <TripsageItineraryView proposal={itinerary} />}
+                    {itinerary && <TripsageItineraryView proposal={itinerary}>{message.id === lastItineraryMessageId && !busy && <TripsageSaveSection result={itinerary} onStateChange={setSaveState} />}</TripsageItineraryView>}
                     {text && <p style={{ whiteSpace: "pre-wrap" }}>{text}</p>}
                   </article>
                 );
@@ -80,16 +87,16 @@ export function TripsageChatClient() {
           {error && <p role="alert" className="assistant-planning-error" style={{ margin: "0 0 6px", color: "#b42318", fontSize: 12.5 }}>Trợ lý tạm thời không phản hồi được. Nội dung của bạn vẫn được giữ, hãy thử lại.</p>}
           <details className="tripsage-journey-panel" open={!journey?.origin?.confirmed}>
             <summary>Điểm xuất phát{journeyMissing === 0 ? " (đã xác nhận)" : " (cần xác nhận để lập lịch)"}</summary>
-            <TripJourneyEditor journey={journey} onChange={setJourney} disabled={busy} />
+            <TripJourneyEditor journey={journey} onChange={setJourney} disabled={busy || saveLocked} />
           </details>
           <form noValidate className="assistant-composer" onSubmit={submit}>
             <label htmlFor="tripsage-chat-input" className="assistant-sr-only">Tin nhắn cho trợ lý</label>
             <div className="assistant-composer-input">
-              <textarea id="tripsage-chat-input" className="resize-none" rows={1} maxLength={MAX_LENGTH} placeholder="Nhập yêu cầu chuyến đi Hà Giang…" value={draft} disabled={busy}
+              <textarea id="tripsage-chat-input" className="resize-none" rows={1} maxLength={MAX_LENGTH} placeholder="Nhập yêu cầu chuyến đi Hà Giang…" value={draft} disabled={busy || saveLocked}
                 onChange={event => setDraft(event.target.value)}
                 onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} />
               <div className="assistant-composer-bar">
-                {busy ? <button type="button" onClick={() => void stop()}><span>Dừng</span></button> : <button type="submit" disabled={!draft.trim()}><Send aria-hidden="true" /><span>Gửi</span></button>}
+                {busy ? <button type="button" onClick={() => void stop()}><span>Dừng</span></button> : <button type="submit" disabled={!draft.trim() || saveLocked}><Send aria-hidden="true" /><span>Gửi</span></button>}
               </div>
             </div>
             <div className="assistant-composer-footer"><span>Enter để gửi · Shift+Enter xuống dòng</span><span className="assistant-char-counter">{draft.length}/{MAX_LENGTH} ký tự</span></div>

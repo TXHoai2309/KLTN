@@ -95,11 +95,11 @@ OpenAI (existing), Google Places/Maps/Routes, web search, Firecrawl. All keys st
 
 - [ ] Given the flag is off, when a Traveler plans a trip, then the existing flow behaves exactly as before.
 - [ ] Given the flag is on, when a signed-in Traveler plans in chat, then progress and prose stream in Vietnamese and the itinerary renders from `PlannerResult`.
-- [ ] Given a schedule with any FAILED check, when the Traveler tries to save, then Save is refused.
+- [x] Given a schedule with any FAILED check, when the Traveler tries to save, then Save is refused. (Ticket 05: server returns TRIP_VALIDATION_FAILED, no Trip; the button is hidden for non-PASS schedules.)
 - [ ] Given a schedule with unchecked items and no FAILED check, when the Traveler saves, then an explicit confirmation naming the unchecked items is required and the saved Trip records them as unchecked, never as PASS.
 - [ ] Given web or Firecrawl content containing instructions, when the agent runs, then the content is treated as data and no tool outside the allow-list is called (tested).
 - [ ] Given a place from Google not in the KLTN destination table, when the itinerary is saved, then `ItineraryVisit` references an `ExternalPlace` and the XOR constraint holds.
-- [ ] Given a Save returns UNKNOWN, when the Traveler retries, then the identical payload and key are sent and no duplicate Trip is created.
+- [x] Given a Save returns UNKNOWN, when the Traveler retries, then the identical payload and key are sent and no duplicate Trip is created. (Ticket 05, tested at the HTTP seam with an in-memory store.)
 - [ ] Given a request exceeds 8 steps, 60 s or a provider call cap, when it runs, then it stops with a bounded, user-readable result.
 - [ ] No server secret appears in the browser bundle, logs or API responses.
 
