@@ -724,6 +724,16 @@ The Validator and its tests are unchanged. A forecast provider outage degrades t
 
 The Assistant answers Weather questions for Guests and travelers, and a turn that creates or changes a proposal may add one line naming at most two of the heaviest advisories. Question understanding adds a `WEATHER` intent and a validated `weatherDate`; the server checks the date and re-reads the forecast, and neither model nor keyword code decides weather facts. Weather numbers and advisories are shown as a code-built card; the model writes only a short lead-in. The Assistant never says whether the traveler should or should not go. Weather questions count toward the existing Q&A abuse limits. Saved-trip weather questions (in-trip skill) are deferred.
 
+### Addendum (2026-11-18): Scheduling soft preference (planned, not implemented)
+
+- **Status:** Accepted at planning level by the owner (2026-11-18, Q1–Q11 grill). Not implemented; awaiting story and coding authorization.
+- **Decision:** Both the form planner and Assistant planner (including `journey` round-trips within origin/return bounds and scoped `affectedDays` edits) may use sun times (`isOutdoor` destinations scheduled before sunset, or earlier in the day when no `startDate` is set) and destination forecast advisories (reusing the exact ADR-36 rain/fog/wind thresholds) as **soft scheduling preferences** to reorder visits within a day or swap days, without changing Constraint Validator outcomes or blocking saves.
+- **Guardrails:**
+  1. **User constraints win:** Must-visit stops and explicit user time/day locks are preserved; the scheduler never silently drops a user-requested destination. (The Assistant may suggest an indoor alternative in prose when an entire day has severe advisories, leaving the choice to the user.)
+  2. **Validation & route efficiency win:** Weather/sunset reordering is applied only if it introduces no new Constraint Validator `VIOLATION` and keeps added driving/riding time within `<= 20%` (capped at `+30 minutes/day`) of the distance-optimal baseline.
+  3. **Graceful degradation:** Beyond the 16-day forecast horizon, without `startDate`, or when Open-Meteo fails/times out (~2.5s scheduling budget), forecast signals are skipped and planning proceeds normally (`suncalc` remains available whenever `startDate` is present).
+  4. **Explainability:** When weather/sun-time preference actively changes the order or day assignment, a short note is shown in the proposal warnings / Assistant reply. Leg weather remains advisory-only after scheduling.
+
 ## ADR-23 — Travel companions preserve single Trip ownership (2026-10-28)
 
 - **Status:** Accepted at planning level through the owner's Q17 confirmation, “Đồng ý chốt bản kế hoạch, chưa triển khai code”. Not implemented; no authorization to start coding.

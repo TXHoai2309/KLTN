@@ -5697,3 +5697,18 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
   - `npx --workspace apps/web vitest run --pool=threads src/modules/trip-edit src/modules/in-trip src/app/trips/[id]/edit src/lib/trip-edit-client.vitest.test.ts src/modules/trip-origin src/modules/trip-companions src/modules/trip-save`: **78 passed | 14 skipped** (`809 passed | 74 skipped | 1 todo`).
   - Pre-existing unrelated failures observed in full-repo Vitest (`npx --workspace apps/web vitest run --pool=threads` -> 358 passed, 5 failed): 4 previously recorded `src/modules/ai` suites (`qa-diagnostics`, `qa-conversation-reliability`, `qa-answer-quality-v2`, `qa-chat-preference`) plus `assistant-agent-v2/in-trip-v2.vitest.test.ts` line 155 (`in-trip-validation.ts` passing `{ signal }` on `HEAD`, while the remaining 30/31 tests in `in-trip-v2` pass).
 - **Not run (environment / cost constraints):** Live PostgreSQL disposable container suites (`14` skipped files; Docker Desktop daemon stopped), live authenticated `360px`/`1280px` Playwright browser walkthrough (`@playwright/test` absent + Postgres stopped), and live `OpenAI`/`Stadia` provider calls.
+
+## 2026-11-18 — WEATHER-SCHEDULING-PREFERENCE tickets 01–04
+
+- **Scope & decisions:** Completed grill Q1–Q11, added Scheduling soft preference Addendum to `docs/decisions.md` (ADR-36) and `docs/product/product-spec.md`, authored `docs/stories/WEATHER-SCHEDULING-PREFERENCE.md` and `.scratch/weather-scheduling-preference/issues/01..04.md`, and implemented all 4 tickets.
+- **Implementation:**
+  - `apps/web/src/modules/trip-planner/planner-candidates.ts`: added `isOutdoor` to `PlannerCandidate` selection/projection.
+  - `apps/web/src/modules/trip-planner/planner-weather-preference.ts`: shared bounded optimizer (`optimizeScheduleForWeather`) using `suncalc` + cached Open-Meteo (`2.5s` timeout, ADR-36 thresholds), respecting `lockedStopIds`, `allowedDayIndices`, no new Constraint Validator `VIOLATION`, and `<= 20%` (max `+30 min/day`) detour cap.
+  - `apps/web/src/modules/trip-planner/planner-service.ts` & `apps/web/src/modules/trip-origin/journey-planner.ts` (`optimizeJourneyForWeather`): wired Form standard and `journey` round-trip flows, emitting `WEATHER_PREFERENCE_WARNING` only when order/day changed.
+  - `apps/web/src/modules/assistant-planning/planning-engine.ts`, `apps/web/src/modules/assistant-agent-v2/planning-response.ts`, `apps/web/src/modules/assistant-agent-v2/travel-planning-session.ts`: wired Assistant `scheduleSelection` (with `affectedDays` isolation) and deterministic `WEATHER_PREFERENCE_REPLY_NOTE` on mutating turns.
+- **Evidence:**
+  - `npm --workspace apps/web run check-types` (`tsc --noEmit`): PASS (exit 0).
+  - Vitest `src/modules/trip-planner src/modules/trip-origin src/modules/trip-weather`: 25/25 files PASS (292/292 tests; 18 Postgres integration tests skipped).
+  - Vitest `src/modules/assistant-planning src/modules/assistant-agent-v2`: 31/32 non-skipped files PASS (389/390 tests; 10 skipped; 1 unrelated failure in `in-trip-v2.vitest.test.ts:155` on `getRoute` mock call arity).
+  - `git diff --check`: PASS.
+- **Not run / remaining:** `npm --workspace apps/web run build` and live browser/OpenAI acceptance not run.

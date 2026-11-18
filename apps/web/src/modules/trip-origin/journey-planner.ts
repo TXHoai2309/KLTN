@@ -5,6 +5,8 @@ import { validatePlannerDays } from "../trip-planner/planner-validator";
 import { travelLegSchema, type PlannerCheck, type PlannerDay, type PlannerResult, type TravelLeg } from "../trip-planner/planner-contract";
 import { isFeaturedDestination } from "../trip-planner/planner-candidates";
 import { missingLeg, resolveBoundedRoutes, ROUTING_DEADLINE_MS, type CoordinateRoutePair, type RouteProvider, type RoutePair } from "../trip-planner/planner-routes";
+import { optimizeScheduleForWeather } from "../trip-planner/planner-weather-preference";
+import type { ForecastOptions } from "../trip-weather/forecast";
 import { journeyRouteSchema, type JourneyPlan, type JourneyRoute } from "./journey-route-contract";
 import { afterVisitDriving, driveWithRest, REST_POLICY_VERSION } from "./rest-policy";
 import { missingJourneyFields } from "./trip-origin-contract";
@@ -310,4 +312,92 @@ export function validateJourneyTiming(requirement: TripRequirementInput, days: r
     }
   }
   return { key: "TRAVEL_TIME", status, issues };
+}
+
+function mergeJourneyChecks(
+  requirement: TripRequirementInput,
+  journey: Awaited<ReturnType<typeof planJourney>>,
+  selectedStops: readonly PlannerCandidate[],
+) {
+  const { checks, stopStatuses } = validatePlannerDays(requirement, journey.days, selectedStops, journey.travelOnlyDays);
+  const travel = checks.find(check => check.key === "TRAVEL_TIME")!;
+  if (journey.check.status === "VIOLATION" || travel.status === "PASS") travel.status = journey.check.status;
+  travel.issues.push(...journey.check.issues);
+  return {
+    scheduled: journey.days,
+    checks,
+    stopStatuses,
+    totalTravelSeconds: journey.journeyPlan.legs.reduce((sum, leg) => sum + (leg.route.durationSeconds ?? 0), 0),
+  };
+}
+
+/**
+ * Applies soft weather & sun-time preferences to a `journey` itinerary within
+ * outbound/return bounds, detour cap, and Validator invariants.
+ */
+export async function optimizeJourneyForWeather(input: {
+  requirement: TripRequirementInput;
+  baselineJourney: Awaited<ReturnType<typeof planJourney>>;
+  selectedByDay: readonly PlannerCandidate[][];
+  provider: RouteProvider;
+  timeoutMs?: number;
+  allowBoundaryRepartition?: boolean;
+  fixedArrivals?: ReadonlyMap<string, number>;
+  preferFullDays?: boolean;
+  forecast?: ForecastOptions;
+  allowedDayIndices?: readonly number[];
+  lockedStopIds?: ReadonlySet<string>;
+}) {
+  const cache = new Map<string, Promise<unknown>>();
+  const once = <T>(key: string, load: () => Promise<T>) => {
+    if (!cache.has(key)) cache.set(key, load());
+    return cache.get(key) as Promise<T>;
+  };
+  const cachedProvider: RouteProvider = {
+    route: (pair, signal) => once(`${pair.from.id}>${pair.to.id}`, () => input.provider.route(pair, signal)),
+    ...(input.provider.coordinateRoute
+      ? { coordinateRoute: (pair: CoordinateRoutePair, signal: AbortSignal) => once(`${pair.from.latitude},${pair.from.longitude}>${pair.to.latitude},${pair.to.longitude}`, () => input.provider.coordinateRoute!(pair, signal)) }
+      : {}),
+  };
+
+  let latestJourney = input.baselineJourney;
+  const candidateJourneys = new Map<string, Awaited<ReturnType<typeof planJourney>>>();
+  const keyOf = (days: readonly PlannerCandidate[][]) => days.map(d => d.map(s => s.id).join(",")).join("|");
+  candidateJourneys.set(keyOf(input.selectedByDay), input.baselineJourney);
+
+  const baselineEval = mergeJourneyChecks(input.requirement, input.baselineJourney, input.selectedByDay.flat());
+  const opt = await optimizeScheduleForWeather({
+    requirement: input.requirement,
+    baselineDays: input.selectedByDay,
+    baseline: baselineEval,
+    forecast: input.forecast,
+    allowedDayIndices: input.allowedDayIndices,
+    lockedStopIds: input.lockedStopIds,
+    scheduleAndValidate: async candidateDays => {
+      const journey = await planJourney(
+        input.requirement,
+        candidateDays,
+        cachedProvider,
+        input.timeoutMs,
+        input.allowBoundaryRepartition ?? false,
+        input.fixedArrivals,
+        input.preferFullDays ?? false,
+      );
+      candidateJourneys.set(keyOf(candidateDays), journey);
+      return mergeJourneyChecks(input.requirement, journey, candidateDays.flat());
+    },
+  });
+
+  if (opt.adjusted) {
+    latestJourney = candidateJourneys.get(keyOf(opt.days)) ?? latestJourney;
+  }
+
+  return {
+    adjusted: opt.adjusted,
+    days: opt.evaluated.scheduled,
+    checks: opt.evaluated.checks,
+    stopStatuses: opt.evaluated.stopStatuses,
+    journeyPlan: latestJourney.journeyPlan,
+    selected: opt.days.flat(),
+  };
 }

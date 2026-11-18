@@ -7,11 +7,13 @@ import { resolvePlannerRoutes, type RouteProvider } from "./planner-routes";
 import { validatePlannerDays } from "./planner-validator";
 import { balancePlannerDays } from "./planner-day-balance";
 import type { PlannerCandidate, PlannerCandidateInventory } from "./planner-candidates";
-import { journeyDrivingWarnings, planJourneyFittingStops } from "../trip-origin/journey-planner";
+import { journeyDrivingWarnings, optimizeJourneyForWeather, planJourneyFittingStops } from "../trip-origin/journey-planner";
+import type { ForecastOptions } from "../trip-weather/forecast";
+import { optimizeScheduleForWeather, WEATHER_PREFERENCE_WARNING } from "./planner-weather-preference";
 
 export type PlannerRepository = { candidates: () => Promise<PlannerCandidate[]>; inventory?: () => Promise<PlannerCandidateInventory>; recheck: (selected: readonly PlannerCandidate[]) => Promise<boolean> };
 type Completed = { result: PlannerResult; selected: PlannerCandidate[] };
-export function createPlannerService(deps: { repository: PlannerRepository; routes: RouteProvider; now?: () => Date; id?: () => string; routeTimeoutMs?: number; databaseTimeoutMs?: number }) {
+export function createPlannerService(deps: { repository: PlannerRepository; routes: RouteProvider; forecast?: ForecastOptions; now?: () => Date; id?: () => string; routeTimeoutMs?: number; databaseTimeoutMs?: number }) {
   const entries = new Map<string, { hash: string; expires: number; promise: Promise<Completed> }>();
   const admissions = new Map<string, number[]>();
   let active = 0;
@@ -48,15 +50,76 @@ export function createPlannerService(deps: { repository: PlannerRepository; rout
       const selectedDays = selectPlannerDays(requirement, candidates);
       const pairs = plannerRoutePairs(selectedDays, requirement.transport);
       const journey = requirement.journey ? await planJourneyFittingStops(requirement, selectedDays, deps.routes, deps.routeTimeoutMs) : null;
-      const selected = journey?.selected ?? selectedDays.flat();
+      let selected = journey?.selected ?? selectedDays.flat();
       const routes = journey ? new Map() : await resolvePlannerRoutes(pairs, deps.routes, deps.routeTimeoutMs);
       const balancedDays = balancePlannerDays(requirement, selectedDays, routes);
-      const days = journey?.days ?? schedulePlannerDays(requirement, balancedDays, routes);
-      const { checks, stopStatuses } = validatePlannerDays(requirement, days, selected, journey?.travelOnlyDays);
+      let days = journey?.days ?? schedulePlannerDays(requirement, balancedDays, routes);
+      let { checks, stopStatuses } = validatePlannerDays(requirement, days, selected, journey?.travelOnlyDays);
+      let weatherAdjusted = false;
+      if (!journey) {
+        const legCache = new Map<string, Awaited<ReturnType<typeof resolvePlannerRoutes>> extends Map<string, infer V> ? V : never>();
+        for (const leg of routes.values()) legCache.set(`${leg.fromDestinationId}->${leg.toDestinationId}`, leg);
+        const weatherOpt = await optimizeScheduleForWeather({
+          requirement,
+          baselineDays: balancedDays,
+          baseline: { scheduled: days, checks, stopStatuses, totalTravelSeconds: days.reduce((s, d) => s + (d.travelSeconds ?? 0), 0) },
+          forecast: deps.forecast,
+          scheduleAndValidate: async candidateDays => {
+            const neededPairs = plannerRoutePairs(candidateDays, requirement.transport);
+            const missingPairs = neededPairs.filter(p => !legCache.has(`${p.from.id}->${p.to.id}`));
+            if (missingPairs.length) {
+              for (const leg of (await resolvePlannerRoutes(missingPairs, deps.routes, deps.routeTimeoutMs)).values()) {
+                legCache.set(`${leg.fromDestinationId}->${leg.toDestinationId}`, leg);
+              }
+            }
+            const candRoutes = new Map<string, Awaited<ReturnType<typeof resolvePlannerRoutes>> extends Map<string, infer V> ? V : never>();
+            for (const p of neededPairs) {
+              const leg = legCache.get(`${p.from.id}->${p.to.id}`);
+              if (leg) candRoutes.set(p.to.id, leg);
+            }
+            const candScheduled = schedulePlannerDays(requirement, candidateDays, candRoutes);
+            const candValidated = validatePlannerDays(requirement, candScheduled, candidateDays.flat());
+            return {
+              scheduled: candScheduled,
+              checks: candValidated.checks,
+              stopStatuses: candValidated.stopStatuses,
+              totalTravelSeconds: candScheduled.reduce((s, d) => s + (d.travelSeconds ?? 0), 0),
+            };
+          },
+        });
+        if (weatherOpt.adjusted) {
+          weatherAdjusted = true;
+          days = weatherOpt.evaluated.scheduled;
+          checks = weatherOpt.evaluated.checks;
+          stopStatuses = weatherOpt.evaluated.stopStatuses;
+          selected = weatherOpt.days.flat();
+        }
+      }
+      let journeyPlan = journey?.journeyPlan;
       if (journey) {
         const travel = checks.find(check => check.key === "TRAVEL_TIME")!;
         if (journey.check.status === "VIOLATION" || travel.status === "PASS") travel.status = journey.check.status;
         travel.issues.push(...journey.check.issues);
+        const byId = new Map(selected.map(c => [c.id, c]));
+        const selectedByDay = journey.days.map(d => d.stops.map(s => byId.get(s.destination.id)!).filter(Boolean));
+        const jOpt = await optimizeJourneyForWeather({
+          requirement,
+          baselineJourney: journey,
+          selectedByDay,
+          provider: deps.routes,
+          timeoutMs: deps.routeTimeoutMs,
+          allowBoundaryRepartition: true,
+          preferFullDays: true,
+          forecast: deps.forecast,
+        });
+        if (jOpt.adjusted) {
+          weatherAdjusted = true;
+          days = jOpt.days;
+          checks = jOpt.checks;
+          stopStatuses = jOpt.stopStatuses;
+          journeyPlan = jOpt.journeyPlan;
+          selected = jOpt.selected;
+        }
       }
       for (const day of days) for (const stop of day.stops) stop.validationStatus = stopStatuses.get(stop.destination.id) ?? "PASS";
       const warnings: PlannerResult["warnings"] = [{ code: "PRELIMINARY_ONLY", message: "Đề xuất sơ bộ trong phiên hiện tại; chưa xác nhận hoặc lưu chính thức. Khung 08:00–18:00 là giờ lập kế hoạch, không phải giờ mở cửa.", day: null, destinationId: null },
@@ -69,12 +132,13 @@ export function createPlannerService(deps: { repository: PlannerRepository; rout
       if (selected.length < candidates.length) warnings.push({ code: "BOUNDED_SELECTION", message: "Chỉ đề xuất các điểm có tọa độ và thời lượng trong giới hạn kế hoạch; không phải danh sách đầy đủ điểm đến Hà Giang.", day: null, destinationId: null });
       if (candidates.some(c => c.suggestedDurationMinutes === null && c.minimumDurationMinutes === null)) warnings.push({ code: "MISSING_VISIT_DURATION", message: "Một số điểm đến công khai chưa có thời lượng tham quan và chưa được đưa vào đề xuất. Cần quản trị viên bổ sung dữ liệu đã xác minh.", day: null, destinationId: null });
       if (inventory?.invalidCoordinateCount) warnings.push({ code: "INVALID_DESTINATION_COORDINATES", message: "Một số điểm đến công khai chưa có tọa độ hợp lệ và đã được loại khỏi đề xuất.", day: null, destinationId: null });
+      if (weatherAdjusted) warnings.push(WEATHER_PREFERENCE_WARNING);
       const violation = checks.some(check => check.status === "VIOLATION"), allPass = checks.every(check => check.status === "PASS");
       // Save always fetches fresh canonical evidence; this is presentation only.
       const eligibleForFinalConfirmation = !!journey && allPass && requirement.startDate !== null;
       const result = plannerResultSchema.parse({ proposalId: (deps.id ?? randomUUID)(), phase: "PRELIMINARY_PROPOSAL", status: violation ? "NO_FEASIBLE_ITINERARY" : allPass ? "PROPOSAL_READY" : "INSUFFICIENT_DATA",
         requirement, timezone: "Asia/Ho_Chi_Minh", days, checks, warnings, eligibleForFinalConfirmation,
-        ...(journey ? { journeyPlan: journey.journeyPlan } : {}),
+        ...(journeyPlan ? { journeyPlan } : {}),
         reasonCodes: [...new Set([...(selected.length ? [] : ["NO_ELIGIBLE_CANDIDATES",
           ...(candidates.length ? ["NO_SCHEDULABLE_CANDIDATES"] : []),
           ...(inventory?.publicRowCount === 0 ? ["NO_PUBLIC_DESTINATIONS"] : []),

@@ -61,7 +61,12 @@ export type PlanningResponsePlan = {
   validation?: { status: PlanningGenerated["proposal"]["status"]; checks: { key: string; status: string }[]; eligibleForFinalConfirmation: boolean };
   /** At most 2 heaviest weather advisories on proposal-creating/changing turns; rendered deterministically by code. */
   weatherAdvisories?: ProposalWeatherAdvisoryItem[];
+  /** True when weather/sun-time soft preference reordered stops or days in the current proposal. */
+  weatherPreferenceApplied?: boolean;
 };
+
+export const WEATHER_PREFERENCE_REPLY_NOTE =
+  "Mình đã ưu tiên xếp các điểm ngoài trời trước hoàng hôn và né khung giờ dự báo xấu (chỉ mang tính tham khảo).";
 
 export function isProposalMutatingPlan(plan: PlanningResponsePlan): boolean {
   if (plan.goal === "PRESENT_PROPOSAL" || plan.goal === "REFINE_PROPOSAL" || plan.goal === "REPLAN_PROPOSAL") {
@@ -72,9 +77,15 @@ export function isProposalMutatingPlan(plan: PlanningResponsePlan): boolean {
 
 export function appendProposalWeatherAdvisoryLine(message: string, plan: PlanningResponsePlan): string {
   if (!isProposalMutatingPlan(plan)) return message;
+  let out = message;
+  if (plan.weatherPreferenceApplied && !out.includes(WEATHER_PREFERENCE_REPLY_NOTE)) {
+    out = `${out}\n${WEATHER_PREFERENCE_REPLY_NOTE}`;
+  }
   const line = formatProposalWeatherAdvisoryLine(plan.weatherAdvisories);
-  if (!line) return message;
-  return message.endsWith(line) ? message : `${message}\n${line}`;
+  if (line && !out.endsWith(line)) {
+    out = `${out}\n${line}`;
+  }
+  return out;
 }
 
 export function planningResponsePlan(needs: PlanningNeeds, goal?: PlanningResponsePlan["goal"], generated?: PlanningGenerated): PlanningResponsePlan {
@@ -313,7 +324,10 @@ export function acceptsPlanningV2Reply(message: string, plan: PlanningResponsePl
   if (plan.goal === "PLANNING_GUIDANCE") return guidanceRejection(message, plan) === null;
   if (plan.goal.startsWith("REPLAN_")) return message === fallbackPlanningV2Reply(plan);
   const advisoryLine = isProposalMutatingPlan(plan) ? formatProposalWeatherAdvisoryLine(plan.weatherAdvisories) : null;
-  const baseMessage = advisoryLine && message.endsWith(`\n${advisoryLine}`) ? message.slice(0, -(advisoryLine.length + 1)) : message;
+  let baseMessage = advisoryLine && message.endsWith(`\n${advisoryLine}`) ? message.slice(0, -(advisoryLine.length + 1)) : message;
+  if (isProposalMutatingPlan(plan) && plan.weatherPreferenceApplied && baseMessage.endsWith(`\n${WEATHER_PREFERENCE_REPLY_NOTE}`)) {
+    baseMessage = baseMessage.slice(0, -(WEATHER_PREFERENCE_REPLY_NOTE.length + 1));
+  }
   const text = plain(baseMessage);
   if (LODGING_FABRICATION.test(text)) return false;
   if (["ACKNOWLEDGE_NO_CHANGE", "CLARIFY", "ASK_DURATION", "ASK_TRANSPORT"].includes(plan.goal) && CAVEAT_TEXT.test(text)) return false;
@@ -360,7 +374,7 @@ const replySchema = z.object({ message: z.string().trim().min(1).max(1600) }).st
  * so the model cannot echo internal check names or outcomes. Other goals keep the structured plan. */
 function composerView(plan: PlanningResponsePlan): unknown {
   if (plan.goal !== "PRESENT_PROPOSAL" && plan.goal !== "REFINE_PROPOSAL") {
-    const { weatherAdvisories: _weather, ...rest } = plan;
+    const { weatherAdvisories: _weather, weatherPreferenceApplied: _pref, ...rest } = plan;
     return rest;
   }
   const overnight = overnightSentence(plan);
@@ -386,7 +400,7 @@ export async function safePlanningV2Reply(plan: PlanningResponsePlan, skill: Ass
   let hint: string | undefined;
   for (let attempt = 0; attempt < (plan.goal === "PLANNING_GUIDANCE" ? 2 : 1); attempt++) {
     try {
-      const { weatherAdvisories: _weather, ...modelPlan } = plan;
+      const { weatherAdvisories: _weather, weatherPreferenceApplied: _pref, ...modelPlan } = plan;
       const message = await compose(structuredClone(hint ? { ...modelPlan, retryHint: hint } : modelPlan), skill);
       if (acceptsPlanningV2Reply(message, plan)) { assistantComposerOutcome(plan.goal, "accepted"); return appendProposalWeatherAdvisoryLine(message, plan); }
       hint = plan.goal === "PLANNING_GUIDANCE" ? guidanceRejection(message, plan) ?? undefined : undefined;

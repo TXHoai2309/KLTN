@@ -11,6 +11,7 @@ import { EXTERNAL_PLACE_DEFAULT_STAY_MINUTES } from "./planner-external-stay";
 
 export type PlannerCandidate = z.infer<typeof plannerDestinationSchema> & {
   visibility: string; revision: string; suggestedDurationMinutes: number | null; minimumDurationMinutes: number | null;
+  isOutdoor?: boolean;
   openingDays: { dayOfWeek: string; status: string; intervals: { opensAtMinute: number; closesAtMinute: number }[] }[];
 };
 export const MAX_CANDIDATES = 64;
@@ -31,7 +32,7 @@ export type PlannerCandidateInventory = { candidates: PlannerCandidate[]; public
 const select = {
   id: true, name: true, description: true, shortDescription: true, area: true, category: true, address: true,
   latitude: true, longitude: true, visibility: true, updatedAt: true, contentRevision: true,
-  suggestedDurationMinutes: true, minimumDurationMinutes: true,
+  suggestedDurationMinutes: true, minimumDurationMinutes: true, isOutdoor: true,
   media: { where: destinationMediaWhere, take: 20, orderBy: [{ isCover: "desc" as const }, { position: "asc" as const }, { id: "asc" as const }], select: { url: true, alt: true, author: true, sourceUrl: true, websiteRights: true, storageReference: true } },
   openingDays: { orderBy: { dayOfWeek: "asc" as const }, select: { dayOfWeek: true, status: true, intervals: { orderBy: { opensAtMinute: "asc" as const }, select: { opensAtMinute: true, closesAtMinute: true } } } },
 } satisfies Prisma.DestinationSelect;
@@ -47,7 +48,7 @@ export async function retrievePlannerCandidateInventory(database: Pick<Database,
     return { id: row.id, name: row.name, description: richContentText(row.shortDescription || row.description).slice(0, 1000), area: row.area, category: row.category,
       address: row.address, latitude: row.latitude, longitude: row.longitude, image: image ? { url: image.url, alt: image.alt, author: image.author, sourceUrl: image.sourceUrl && publicHttpsUrl.safeParse(image.sourceUrl).success ? image.sourceUrl : null } : null,
       visibility: row.visibility, revision: `${row.contentRevision}:${row.updatedAt.toISOString()}`, suggestedDurationMinutes: row.suggestedDurationMinutes,
-      minimumDurationMinutes: row.minimumDurationMinutes, openingDays: row.openingDays };
+      minimumDurationMinutes: row.minimumDurationMinutes, isOutdoor: row.isOutdoor, openingDays: row.openingDays };
   });
   return { candidates, publicRowCount: publicRows.length, invalidCoordinateCount: publicRows.filter(row => !excludedIds.includes(row.id) && !coordinateValid(row)).length,
     excludedCount: publicRows.filter(row => excludedIds.includes(row.id)).length };

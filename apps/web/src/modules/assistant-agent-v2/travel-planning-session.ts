@@ -18,6 +18,7 @@ import { assessPlanningRefinement } from "./planning-refinement";
 import { AssistantV2Error } from "./agent-errors";
 import { appendProposalWeatherAdvisoryLine, composePlanningV2Reply, isProposalMutatingPlan, planningResponsePlan, safePlanningV2Reply, type PlanningResponsePlan, type PlanningV2ReplyComposer } from "./planning-response";
 import type { ProposalWeatherEvaluator } from "./proposal-weather-advisories";
+import { WEATHER_PREFERENCE_WARNING } from "../trip-planner/planner-weather-preference";
 import { analyzeCurrentProposal } from "./planning-guidance";
 import { createPlanningQaSession, planningQaStateSchema } from "./qa-session";
 import type { QaActionServices } from "./qa-actions";
@@ -281,9 +282,14 @@ export async function startTravelPlanningV2Session(input: { headers: Headers; co
         }
       }
     }
-    if (isProposalMutatingPlan(plan) && generated && boundaries.weatherForProposal) {
-      const advisories = await boundaries.weatherForProposal(generated.proposal);
-      if (advisories.length > 0) plan.weatherAdvisories = advisories;
+    if (isProposalMutatingPlan(plan) && generated) {
+      if (generated.proposal.warnings.some(w => w.code === WEATHER_PREFERENCE_WARNING.code)) {
+        plan.weatherPreferenceApplied = true;
+      }
+      if (boundaries.weatherForProposal) {
+        const advisories = await boundaries.weatherForProposal(generated.proposal);
+        if (advisories.length > 0) plan.weatherAdvisories = advisories;
+      }
     }
     const message = await safePlanningV2Reply(plan, responseSkill, boundaries.compose ?? composePlanningV2Reply);
     previousPlan = plan;
@@ -327,9 +333,14 @@ export async function startTravelPlanningV2Session(input: { headers: Headers; co
           ...planningResponsePlan(needs, generated ? "PRESENT_PROPOSAL" : undefined, generated ?? undefined),
           proposalChanged: originProposalChanged,
         };
-        if (originProposalChanged && generated && boundaries.weatherForProposal) {
-          const advisories = await boundaries.weatherForProposal(generated.proposal);
-          if (advisories.length > 0) originPlan.weatherAdvisories = advisories;
+        if (originProposalChanged && generated) {
+          if (generated.proposal.warnings.some(w => w.code === WEATHER_PREFERENCE_WARNING.code)) {
+            originPlan.weatherPreferenceApplied = true;
+          }
+          if (boundaries.weatherForProposal) {
+            const advisories = await boundaries.weatherForProposal(generated.proposal);
+            if (advisories.length > 0) originPlan.weatherAdvisories = advisories;
+          }
         }
         const originBaseReply = generated
           ? "Đã tính lại phương án theo nơi và giờ đi/về đã chọn. Lưu chuyến vẫn là bước xác nhận riêng."
