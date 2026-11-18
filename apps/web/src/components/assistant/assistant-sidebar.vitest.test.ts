@@ -5,6 +5,20 @@ import { AssistantSidebar } from "./assistant-sidebar";
 import type { QaConversationSummary } from "../../modules/ai/qa-contract";
 
 describe("AssistantSidebar", () => {
+  it("shows a recoverable read error instead of claiming history is empty", () => {
+    const html = renderToStaticMarkup(createElement(AssistantSidebar, {
+      conversations: [], activeConversationId: null, loading: false,
+      loadingMore: false, hasMore: false, isOpen: true,
+      onClose: () => {}, onNewChat: () => {}, onSelectConversation: () => {},
+      onRenameConversation: async () => true, onDeleteConversation: async () => true,
+      onLoadMore: () => {}, searchQuery: "", onSearchChange: () => {},
+      error: "Không thể tải lịch sử hội thoại.", onRetry: () => {},
+    }));
+    expect(html).toContain('role="alert"');
+    expect(html).toContain("Không thể tải lịch sử hội thoại.");
+    expect(html).toContain("Thử tải lại lịch sử");
+    expect(html).not.toContain("Chưa có cuộc trò chuyện nào.");
+  });
   const dummyConversations: QaConversationSummary[] = [
     {
       id: "conv-today-1",

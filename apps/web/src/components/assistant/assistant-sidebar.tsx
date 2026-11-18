@@ -22,6 +22,8 @@ export type AssistantSidebarProps = {
   activeConversationId: string | null;
   loading: boolean;
   loadingMore: boolean;
+  error?: string;
+  onRetry?: () => void;
   hasMore: boolean;
   isOpen: boolean;
   onClose: () => void;
@@ -39,6 +41,8 @@ export function AssistantSidebar({
   activeConversationId,
   loading,
   loadingMore,
+  error,
+  onRetry,
   hasMore,
   isOpen,
   onClose,
@@ -180,7 +184,14 @@ export function AssistantSidebar({
 
         {/* Conversation List */}
         <div className="assistant-sidebar-list" tabIndex={0} aria-label="Danh sách các cuộc trò chuyện">
-          {loading && !conversations.length ? (
+          {error ? (
+            <div className="assistant-sidebar-empty" role="alert">
+              <p>{error}</p>
+              <button type="button" className="assistant-sidebar-load-more-btn" onClick={onRetry}>
+                Thử tải lại lịch sử
+              </button>
+            </div>
+          ) : loading && !conversations.length ? (
             <div className="assistant-sidebar-loading" role="status">
               <Loader2 className="assistant-spinner" aria-hidden="true" />
               <span>Đang tải lịch sử…</span>
@@ -343,7 +354,7 @@ export function AssistantSidebar({
             ))
           )}
 
-          {hasMore && (
+          {hasMore && !error && (
             <div className="assistant-sidebar-load-more">
               <button
                 type="button"

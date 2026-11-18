@@ -245,7 +245,9 @@ export function MyTripsView({ items: initialItems }: { items: TripSummary[] }) {
                           </div>
 
                           <h3 className="my-trips-card-title">
-                            Chuyến đi {trip.durationDays} ngày
+                            <Link className="my-trips-card-link" prefetch={false} href={`/trips/${trip.id}` as Route}>
+                              Chuyến đi {trip.durationDays} ngày
+                            </Link>
                           </h3>
 
                           <p className="my-trips-completion-note">

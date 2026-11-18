@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
+import { useUnsavedChanges } from "@/components/admin/use-unsaved-changes";
 
 import { claimSubmission, releaseSubmission } from "@/lib/auth-submission-guard";
 import { authorizationFeedback } from "@/lib/authorization-feedback";
@@ -32,6 +33,7 @@ import type { CheckIssue } from "@/modules/trip-requirement/trip-requirement-che
 import { checkTripRequirement } from "@/lib/trip-requirement-check-client";
 import {
   buildPayload,
+  hasTripRequirementChanges,
   decideSubmitRouting,
   shouldApplyRequestResponse,
   validateRequiredFields,
@@ -110,11 +112,6 @@ export default function TripRequirementForm() {
   const saveLock = useRef(false);
   const saveNavigationLocked = isTripSaveNavigationLocked(saveState);
 
-  const handleSaveStateChange = useCallback((state: SaveState) => {
-    saveLock.current = isTripSaveNavigationLocked(state);
-    setSaveState(state);
-  }, []);
-
   const [activeTab, setActiveTab] = useState<"details" | "planner">("details");
   const [reviewOpen, setReviewOpen] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -125,6 +122,17 @@ export default function TripRequirementForm() {
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
   const [aiErrorMessage, setAiErrorMessage] = useState<string | null>(null);
+  const [naturalLanguageDirty, setNaturalLanguageDirty] = useState(false);
+  const allowLeave = useUnsavedChanges(
+    saveState !== "success" && (hasTripRequirementChanges(fields, INITIAL_FIELDS) || naturalLanguageDirty || !!review || !!planner),
+    saveState === "pending" || saveState === "unknown",
+    ".trip-shell",
+  );
+  const handleSaveStateChange = useCallback((state: SaveState) => {
+    if (state === "success") allowLeave();
+    saveLock.current = isTripSaveNavigationLocked(state);
+    setSaveState(state);
+  }, [allowLeave]);
 
   const naturalLanguageStatus: NaturalLanguageInputStatus = aiAnalyzing
     ? { kind: "analyzing" }
@@ -463,6 +471,7 @@ export default function TripRequirementForm() {
 
                 <div className="trip-ai-modal-body">
                   <NaturalLanguageInput
+                    onDirtyChange={setNaturalLanguageDirty}
                     status={naturalLanguageStatus}
                     onAnalyze={analyzeNaturalLanguage}
                     onCancel={() => {

@@ -107,6 +107,7 @@
 .dv3-edit-page .af-page-header { position: static; z-index: auto; }
 .dv3-page .af-breadcrumb a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
 .dark .dv3-page { --af-bg: #102119; --af-surface: #182e22; --af-green: #86d5aa; --af-line: #355341; --af-ink: #e8f3ec; }
+.dark .dv3-page .destination-visibility-confirm button.destination-primary { color: var(--af-bg); }
 .dv3-disclosure {
   margin: 14px 0;
   padding: 14px 16px;

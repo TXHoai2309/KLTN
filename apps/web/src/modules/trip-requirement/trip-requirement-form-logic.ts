@@ -69,6 +69,10 @@ function normalizeText(value: string | null | undefined): string | null {
   return normalized === "" ? null : normalized;
 }
 
+export function hasTripRequirementChanges(fields: TripRequirementFormFields, initial: TripRequirementFormFields): boolean {
+  return (Object.keys(initial) as (keyof TripRequirementFormFields)[]).some(key => JSON.stringify(fields[key]) !== JSON.stringify(initial[key]));
+}
+
 function parseIntegerOrKeep(value: string | null | undefined): number | string | null {
   const normalized = normalizeText(value);
   if (normalized === null) return null;

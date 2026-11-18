@@ -205,6 +205,7 @@ export function AssistantChat({
   const [conversations, setConversations] = useState<QaConversationSummary[]>([]);
   const [conversationsLoading, setConversationsLoading] = useState(false);
   const [conversationsLoadingMore, setConversationsLoadingMore] = useState(false);
+  const [historyError, setHistoryError] = useState("");
   const [historyCursor, setHistoryCursor] = useState<string | null>(null);
   const [historyHasMore, setHistoryHasMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -242,6 +243,7 @@ export function AssistantChat({
     listFetchRef.current?.abort();
     const request = new AbortController();
     listFetchRef.current = request;
+    setHistoryError("");
     if (isMore) setConversationsLoadingMore(true);
     else setConversationsLoading(true);
     try {
@@ -251,7 +253,7 @@ export function AssistantChat({
       setHistoryCursor(res.nextCursor);
       setHistoryHasMore(res.hasMore);
     } catch {
-      // Network/offline error: fail-safe
+      if (!request.signal.aborted) setHistoryError("Không thể tải lịch sử hội thoại. Vui lòng thử lại.");
     } finally {
       if (listFetchRef.current === request) {
         setConversationsLoadingMore(false);
@@ -262,6 +264,7 @@ export function AssistantChat({
 
   useEffect(() => {
     setConversations([]);
+    setHistoryError("");
     setHistoryCursor(null);
     setHistoryHasMore(false);
     return () => { listFetchRef.current?.abort(); };
@@ -556,6 +559,8 @@ export function AssistantChat({
           activeConversationId={state.conversationId}
           loading={conversationsLoading}
           loadingMore={conversationsLoadingMore}
+          error={historyError}
+          onRetry={() => void loadConversationList(searchQuery)}
           hasMore={historyHasMore}
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}

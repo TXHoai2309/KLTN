@@ -4,6 +4,13 @@
    ============================================================ */
 
 /* ── Design tokens ── */
+.trip-shell .af-leave-dialog { width: min(440px, calc(100vw - 32px)); margin: auto; padding: 24px; border: 1px solid var(--tf-line, var(--tf-ink-100)); border-radius: var(--tf-radius-md); color: var(--tf-ink-900); background: var(--tf-surface); }
+.trip-shell .af-leave-dialog::backdrop { background: #19233780; }
+.trip-shell .af-leave-dialog h2 { font-size: 20px; margin: 0 0 12px; }
+.trip-shell .af-leave-dialog p { line-height: 1.6; margin: 0 0 20px; }
+.trip-shell .af-leave-dialog > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.trip-shell .af-leave-dialog button { min-height: 44px; padding: 10px 16px; border: 1px solid var(--tf-line, var(--tf-ink-100)); border-radius: var(--tf-radius-xs); background: var(--tf-surface); color: var(--tf-ink-900); cursor: pointer; }
+.trip-shell .af-leave-dialog button:focus-visible { outline: 2px solid var(--tf-green-700); outline-offset: 2px; }
 .trip-shell {
   --tf-green-950: #0d2218;
   --tf-green-900: #183c2d;

@@ -25,6 +25,7 @@ export type NaturalLanguageInputProps = {
   onAnalyze: (normalizedText: string) => void;
   onCancel?: () => void;
   onContinueManually?: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 };
 
 export const EXAMPLE_PROMPTS = [
@@ -41,8 +42,13 @@ export default function NaturalLanguageInput({
   onAnalyze,
   onCancel,
   onContinueManually,
+  onDirtyChange,
 }: NaturalLanguageInputProps) {
   const [rawText, setRawText] = useState("");
+  useEffect(() => {
+    onDirtyChange?.(rawText.trim().length > 0);
+    return () => onDirtyChange?.(false);
+  }, [rawText, onDirtyChange]);
   const [announcedLength, setAnnouncedLength] = useState(0);
   const [announcedMessage, setAnnouncedMessage] = useState<string | null>(null);
   const textState = useMemo(() => getNaturalLanguageTextState(rawText), [rawText]);
