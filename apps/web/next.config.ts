@@ -26,6 +26,7 @@ const nextConfig: NextConfig = {
   // reconnecting does not replay the server stream. Keep HMR independent of
   // application startup until that transport can recover the initial stream.
   experimental: {
+    agentUpgrade: "security",
     reactDebugChannel: false,
     // Match the bounded compiler pool on Windows instead of spawning one page
     // worker per CPU on memory-constrained developer machines.
