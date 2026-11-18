@@ -16,11 +16,13 @@ it("renders actual route points, keeps selection and camera across theme changes
   vi.stubGlobal("getComputedStyle", () => ({ getPropertyValue: () => "#327252" }));
   vi.stubGlobal("matchMedia", () => ({ matches: true }));
   const maps: FakeMap[] = [], lines: { path: unknown; detached: boolean }[] = [];
+  let width = 0, visibleFits = 0, resize = () => {};
+  vi.stubGlobal("ResizeObserver", class { constructor(callback: () => void) { resize = callback; } observe() {} disconnect() {} });
   class FakeMap {
     center = { lat: 23, lng: 105 }; zoom = 12;
     addListener() { return { remove() {} }; }
     constructor() { maps.push(this); }
-    fitBounds() {} setCenter(p: typeof this.center) { this.center = p; } getCenter() { return { lat: () => this.center.lat, lng: () => this.center.lng }; }
+    fitBounds() { if (width > 0) visibleFits++; } setCenter(p: typeof this.center) { this.center = p; } getCenter() { return { lat: () => this.center.lat, lng: () => this.center.lng }; }
     setZoom(n: number) { this.zoom = n; } getZoom() { return this.zoom; } panTo(p: typeof this.center) { this.center = p; } unbindAll() {}
   }
   const sdk = {
@@ -31,10 +33,12 @@ it("renders actual route points, keeps selection and camera across theme changes
   } as unknown as GoogleMapsSdk;
   const stops = schedulePlannerDays({ ...requirement, durationDays: 1 }, [[candidate("a"), candidate("b")]], new Map())[0]!.stops;
   const selected = vi.fn();
-  const renderer = mountItineraryMap({ replaceChildren() {} } as unknown as HTMLDivElement, { provider: "GOOGLE", sdk }, stops, "light", selected, vi.fn(), vi.fn(), {
+  const renderer = mountItineraryMap({ get clientWidth() { return width; }, replaceChildren() {} } as unknown as HTMLDivElement, { provider: "GOOGLE", sdk }, stops, "light", selected, vi.fn(), vi.fn(), {
     routes: [{ day: 1, fromDestinationId: "a", toDestinationId: "b", provider: "GOOGLE_MAPS", geometry: { type: "LineString", coordinates: [[105, 23], [105.1, 23.05], [105.2, 23.1]] } }],
   });
   expect(lines[0]!.path).toEqual([{ lng: 105, lat: 23 }, { lng: 105.1, lat: 23.05 }, { lng: 105.2, lat: 23.1 }]);
+  width = 600; resize();
+  expect(visibleFits).toBe(1);
   buttons[1]!.click!(); expect(selected).toHaveBeenCalledWith("b");
   renderer.select("b", false);
   maps[0]!.setCenter({ lat: 22, lng: 104 }); maps[0]!.setZoom(16);

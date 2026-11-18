@@ -26,7 +26,7 @@ describe("US-29B Stadia routing boundary", () => {
       return response(route);
     }) as unknown as typeof fetch;
     const result = await getTravelRoute(input, { apiKey: () => "fixture-secret", fetcher });
-    expect(result).toEqual({ kind: "ok", durationSeconds: 3600, distanceMeters: 53510,
+    expect(result).toEqual({ kind: "ok", provider: "STADIA_MAPS", durationSeconds: 3600, distanceMeters: 53510,
       geometry: { type: "LineString", coordinates: [[0, 0], [0.000002, 0.000001]] } });
     expect(calls).toHaveLength(1);
     expect(calls[0]!.url).toBe("https://api.stadiamaps.com/route/v1");

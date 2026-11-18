@@ -2,7 +2,7 @@
 
 ## Status
 
-IN PROGRESS — owner authorized coding of the eight-ticket scope on 2026-11-18; local implementation/verification underway, live acceptance pending.
+IN PROGRESS — code local hoàn tất theo yêu cầu implement ngày 2026-11-18; automated/build/review có evidence, nghiệm thu browser/provider live còn mở.
 
 ## Goal / Source References
 
@@ -18,8 +18,8 @@ IN PROGRESS — owner authorized coding of the eight-ticket scope on 2026-11-18;
 ## Acceptance Criteria / Evidence
 
 - [ ] Cả hai cấu hình chạy đúng trên các màn hình thật theo toàn bộ checklist spec/runbook; Google Map/Places/Routes có live evidence và Stadia rollback được smoke test.
-- [ ] Automated provider matrix, timeout/error/no-fallback, provenance/rollback, map/picker lifecycle và ownership regression được chạy, phân biệt lỗi baseline.
-- [ ] Typecheck/build, bundle secret scan, full suite và hai trục code-review có evidence được ghi lại.
+- [x] Automated provider matrix, timeout/error/no-fallback, provenance/rollback, map/picker lifecycle và ownership regression được chạy, phân biệt lỗi baseline.
+- [x] Typecheck/build, bundle secret scan, full suite và hai trục code-review có evidence được ghi lại.
 - [ ] Live configuration và Google content retention/agreement gate được operator giải quyết; không có claim live acceptance từ mock.
 
 ## Roles / Data / API / Writes
@@ -33,3 +33,9 @@ Giữ server authorization và ownership hiện có. Public/member không đư�
 ## Out of Scope / Handoff
 
 Không đổi nghiệp vụ, mở rộng edit external-place, thêm quản lý Google secrets trong Admin, tạo billing account, chạy migration/shared DB, merge/push hoặc deploy production. Chưa có key Google local, nên kiểm thử Google thật/acceptance vẫn pending. Cập nhật kết quả local và review trước commit cuối; không đánh dấu ACCEPTED thay chủ dự án.
+
+## Local Implementation / Verification — 2026-11-18
+
+Code cho GM-01–07 đã nối vào shared selector/renderer, Google origin, routing hiện có, Save provenance và snapshot Read; GM-08 có config/runbook, automated integration, build, secret scan và review. Live checklist của các ticket vẫn mở, không có claim deployment hoặc Google/Stadia live acceptance.
+
+[Verification receipt](../implementation/google-maps-provider-switch-verification.md): production webpack Google build/typecheck PASS, 0 private-key hits trong static bundle; full Vitest 4,214 tests, 3,922 pass, 59 failures đã đối chiếu với 51 baseline + 8 order-dependent companion mock cũ, 232 pending, 1 todo. Targeted provider/rollback tests và 27 map legacy tests pass; chạy đủ legacy scripts, chỉ destination/explore còn lỗi nền đã ghi trước. Hai trục review cùng tìm một P2 mobile first-reveal viewport; đã tái hiện red → green và sửa, không còn unresolved code findings từ review. Không schema/migration mới và không kết nối DB thật.

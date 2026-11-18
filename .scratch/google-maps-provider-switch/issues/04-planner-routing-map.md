@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 — Explore dùng Google/Stadia qua cấu hình chung.
 
-**Status:** IN PROGRESS — chủ dự án yêu cầu triển khai toàn bộ ngày 2026-11-18; code local và kiểm thử đang hoàn tất, live acceptance còn mở.
+**Status:** IN PROGRESS — chủ dự án yêu cầu triển khai toàn bộ ngày 2026-11-18; code local và automated verification hoàn tất, live acceptance còn mở.
 
 - [ ] Tái sử dụng Google Routes adapter hiện có và Stadia adapter qua bộ chọn chung; route evidence mới giữ nguồn thực tế, không gán cứng Stadia.
 - [ ] CAR dùng DRIVE và MOTORCYCLE dùng TWO_WHEELER ở Google; không fallback phương tiện hoặc provider.
@@ -14,3 +14,5 @@
 - [ ] Giữ nội dung proposal khi map lỗi; không tạo hình tuyến giả để thay dữ liệu chưa có. Chỉ nạp SDK đang chọn.
 - [ ] Test end-to-end service proposal → routing → Validator → projection và map contract cho hai chế độ, geometry sai và thiếu dữ liệu.
 - [ ] Kiểm tra quy định Google chính thức về hiển thị geometry/attribution trước khi đưa overlay vào sử dụng live; ghi nguồn xác minh và giới hạn thực tế.
+
+**Local evidence (2026-11-18):** Code đã triển khai và review hai trục; provider/map/Save/Read regression tests qua, production webpack build/typecheck qua. Full suite còn các lỗi nền được phân biệt trong verification receipt. Các checkbox yêu cầu browser/provider thật chưa được tự đóng vì thiếu Google keys/Map ID; đây không phải live acceptance.

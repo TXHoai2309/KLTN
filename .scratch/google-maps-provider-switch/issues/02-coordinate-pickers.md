@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 — Explore dùng Google/Stadia qua cấu hình chung.
 
-**Status:** IN PROGRESS — chủ dự án yêu cầu triển khai toàn bộ ngày 2026-11-18; code local và kiểm thử đang hoàn tất, live acceptance còn mở.
+**Status:** IN PROGRESS — chủ dự án yêu cầu triển khai toàn bộ ngày 2026-11-18; code local và automated verification hoàn tất, live acceptance còn mở.
 
 - [ ] Cả picker tọa độ Admin và picker nơi xuất phát dùng cùng lựa chọn provider với Explore; Google dùng Maps JavaScript, Stadia giữ MapLibre.
 - [ ] Pin khởi tạo, click/drag tọa độ, cập nhật form và thao tác xác nhận hoạt động theo hợp đồng hiện tại; không đảo lat/lng, không tự xác nhận thay người dùng.
@@ -12,3 +12,5 @@
 - [ ] Giữ phân quyền ghi Admin, ownership nơi xuất phát, server validation tọa độ và hợp đồng mutation/idempotency hiện có.
 - [ ] Theme/retry/unmount không nhân đôi marker hoặc listener; giữ attribution, keyboard access và thao tác trên màn hình nhỏ.
 - [ ] Kiểm thử qua form/picker và API/service hiện có với hai chế độ; có smoke checklist chọn pin và lưu tọa độ, ghi rõ bằng chứng browser chưa chạy nếu thiếu key.
+
+**Local evidence (2026-11-18):** Code đã triển khai và review hai trục; provider/map/Save/Read regression tests qua, production webpack build/typecheck qua. Full suite còn các lỗi nền được phân biệt trong verification receipt. Các checkbox yêu cầu browser/provider thật chưa được tự đóng vì thiếu Google keys/Map ID; đây không phải live acceptance.

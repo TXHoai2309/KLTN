@@ -4,7 +4,7 @@
 
 **Blocked by:** 03 — Tìm, xác nhận và lưu nơi xuất phát bằng provider đang chọn; 04 — Đề xuất hành trình với tuyến và bản đồ đúng provider.
 
-**Status:** IN PROGRESS — chủ dự án yêu cầu triển khai toàn bộ ngày 2026-11-18; code local và kiểm thử đang hoàn tất, live acceptance còn mở.
+**Status:** IN PROGRESS — chủ dự án yêu cầu triển khai toàn bộ ngày 2026-11-18; code local và automated verification hoàn tất, live acceptance còn mở.
 
 - [ ] Save fetch route evidence mới từ provider hiện hành trước transactional revalidation; projection journey/visit giữ đúng nguồn thay vì gán cứng Stadia.
 - [ ] Trip origin, chặng đi/về, nghỉ dọc đường và các Validator hiện có giữ nguyên; không thay điều kiện Save hoặc mở rộng ngoại lệ mục chưa kiểm.
@@ -14,3 +14,5 @@
 - [ ] Google external-place search/Details và Save có xác nhận mục chưa kiểm vẫn tuân thủ hợp đồng hiện có dù cờ chọn Stadia.
 - [ ] Ownership, lỗi non-owner và origin privacy giữ nguyên; không cấp quyền đọc trip riêng cho Admin.
 - [ ] Test proposal → Save → Read cho cả provider và đổi cờ sau Save; bao gồm dữ liệu cũ, provenance, idempotency/UNKNOWN, provider lỗi và trường hợp external places hiện có.
+
+**Local evidence (2026-11-18):** Code đã triển khai và review hai trục; provider/map/Save/Read regression tests qua, production webpack build/typecheck qua. Full suite còn các lỗi nền được phân biệt trong verification receipt. Các checkbox yêu cầu browser/provider thật chưa được tự đóng vì thiếu Google keys/Map ID; đây không phải live acceptance.

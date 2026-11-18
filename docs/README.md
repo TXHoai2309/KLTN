@@ -59,6 +59,7 @@ At handoff, record implementation changes and evidence in the story and append a
 | [stories/README.md](stories/README.md) | Story lifecycle and READY criteria. |
 | [Google Maps provider switch spec](specs/google-maps-provider-switch-spec.md), [story](stories/MAPS-PROVIDER-SWITCH.md), [runbook](implementation/google-maps-provider-switch-runbook.md) | Owner-confirmed Google/Stadia switch; local implementation and verification, live acceptance pending. |
 | [Google Maps provider switch tickets](implementation/google-maps-provider-switch-tickets-plan.md) | Eight local issues with blocking edges, implementation authorized; evidence and remaining live acceptance recorded separately. |
+| [Google Maps verification](implementation/google-maps-provider-switch-verification.md) | Local implementation, automated/full-suite results, webpack build, secret scan and Standards/Spec review; real-provider acceptance pending. |
 | [stories/US-TEMPLATE.md](stories/US-TEMPLATE.md) | Reusable implementation contract for future stories. |
 | [templates/decision-template.md](templates/decision-template.md) | Format for adding an architecture decision. |
 | [templates/ai-progress-entry-template.md](templates/ai-progress-entry-template.md) | Format for appending a task handoff entry. |

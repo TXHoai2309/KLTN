@@ -1,6 +1,6 @@
 # Google Maps/Stadia — bản chia ticket để duyệt
 
-Ngày: 2026-11-18. Trạng thái: IN PROGRESS — chủ dự án tiếp tục bằng yêu cầu implement toàn bộ sau bản chia tám ticket; đã đưa ticket vào local issues. Code local/verification đang hoàn tất; live acceptance còn mở.
+Ngày: 2026-11-18. Trạng thái: IN PROGRESS — chủ dự án tiếp tục bằng yêu cầu implement toàn bộ sau bản chia tám ticket; đã đưa ticket vào local issues. Code local/automated verification hoàn tất; live acceptance còn mở. Xem [verification receipt](google-maps-provider-switch-verification.md).
 
 Nguồn: [spec đã chốt](../specs/google-maps-provider-switch-spec.md). Phạm vi Q1–Q7 và seam kiểm thử đã được duyệt. Yêu cầu implement kế tiếp được hiểu là cho phép dùng nguyên bộ chia/phụ thuộc đã trình bày, không yêu cầu đổi hay tách/gộp. [Story](../stories/MAPS-PROVIDER-SWITCH.md) và [runbook](google-maps-provider-switch-runbook.md) phân biệt code/test/live.
 

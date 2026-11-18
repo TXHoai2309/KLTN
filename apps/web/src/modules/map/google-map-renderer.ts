@@ -132,6 +132,7 @@ export function mountGoogleItinerary(host: HTMLDivElement, sdk: GoogleMapsSdk, s
   let selection: string | null = null, select = (_id: string | null, _focus = true) => {}, refit = () => {};
   const scene = mountScene(host, sdk, style, ready, fail, content => {
     const buttons: { stop: PlannerStop; button: HTMLButtonElement }[] = [];
+    let fittedVisible = content.restoring && host.clientWidth > 0;
     const css = getComputedStyle(host);
     stops.forEach(stop => {
       const button = document.createElement("button"); button.type = "button"; button.className = "planner-map-marker"; button.textContent = String(stop.order);
@@ -145,7 +146,7 @@ export function mountGoogleItinerary(host: HTMLDivElement, sdk: GoogleMapsSdk, s
     if (options.origin) { const pin = document.createElement("div"); pin.className = "planner-map-origin-marker"; pin.textContent = "⌂"; pin.setAttribute("role", "img"); pin.setAttribute("aria-label", `Nơi xuất phát: ${options.origin.label}`); content.marker(options.origin, pin, options.origin.label); }
     options.routes?.forEach(route => content.line(route.geometry, css.getPropertyValue(route.boundary ? "--planner-route-origin" : itineraryDayColorToken(options.overview ? route.day : 1)).trim() || "#327252"));
     const positions = [...stops.map(stop => stop.destination), ...(options.origin ? [options.origin] : [])];
-    refit = () => { const cleanup = fit(sdk, content.map, positions, options.routes?.map(route => route.geometry)); if (cleanup) content.cleanup.push(cleanup); };
+    refit = () => { if (host.clientWidth > 0) fittedVisible = true; const cleanup = fit(sdk, content.map, positions, options.routes?.map(route => route.geometry)); if (cleanup) content.cleanup.push(cleanup); };
     select = (id, focus = true) => {
       selection = id;
       buttons.forEach(({ button, stop }) => { const selected = stop.destination.id === id; button.classList.toggle("is-selected", selected); button.setAttribute("aria-pressed", String(selected)); });
@@ -153,7 +154,7 @@ export function mountGoogleItinerary(host: HTMLDivElement, sdk: GoogleMapsSdk, s
       if (chosen && focus) { if (matchMedia("(prefers-reduced-motion: reduce)").matches) content.map.setCenter(point(chosen.destination)); else content.map.panTo(point(chosen.destination)); content.map.setZoom(Math.max(content.map.getZoom() ?? 11, 11)); }
     };
     if (!content.restoring) refit(); select(selection, false);
-    const resize = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(() => { if (host.clientWidth > 0) { sdk.event.trigger(content.map, "resize"); if (!content.map.getCenter()) refit(); } });
+    const resize = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(() => { if (host.clientWidth > 0) { sdk.event.trigger(content.map, "resize"); if (!fittedVisible) refit(); } });
     resize?.observe(host); content.cleanup.push(() => resize?.disconnect());
   });
   let disposed = false;
