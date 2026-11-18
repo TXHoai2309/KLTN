@@ -43,10 +43,10 @@ async function loadFixture(configured: boolean) {
 }
 
 describe("Provider configuration through the actual Varlock schema", () => {
-  it("does not declare unused Google Maps JavaScript credentials", async () => {
+  it("declares the active browser-only Google configuration separately from the private server key", async () => {
     const schema = await readFile(join(webRoot, ".env.schema"), "utf8");
     for (const key of ["NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID"]) {
-      expect(schema).not.toContain(`${key}=`);
+      expect(schema).toContain(`${key}=`);
     }
   });
   it("injects configured values into runtime and keeps credentials sensitive", async () => {

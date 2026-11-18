@@ -12,6 +12,15 @@ async function fixture() {
 }
 
 describe("daily and whole-trip map projection", () => {
+  it("keeps the itinerary readable but hides Google route content on Stadia after rollback", async () => {
+    const days = await fixture();
+    days.forEach(day => day.stops.forEach(stop => { if (stop.inbound) stop.inbound.provider = "GOOGLE_MAPS"; }));
+    expect(buildItineraryMapView(days, null, null, "GOOGLE").routes).toHaveLength(3);
+    const stadia = buildItineraryMapView(days, null, null, "STADIA");
+    expect(stadia.routes).toHaveLength(0); expect(stadia.stops).toHaveLength(4);
+    expect(stadia.missingGeometryCount).toBe(3);
+    expect(days[0]!.stops[1]!.inbound!.provider).toBe("GOOGLE_MAPS");
+  });
   it("shows each provider leg once across the entire trip and numbers markers globally", async () => {
     const days = await fixture(), view = buildItineraryMapView(days, null);
     expect(view.stops.map(stop => stop.order)).toEqual([1, 2, 3, 4]);

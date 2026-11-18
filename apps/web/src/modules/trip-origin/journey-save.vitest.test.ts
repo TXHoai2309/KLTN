@@ -27,10 +27,16 @@ function fixture() {
       trips = pendingTrips; receipts = pendingReceipts; return result;
     },
   };
-  const deps: TripSaveDependencies = { database: database as unknown as Database, resolveSession: async () => ({ user: { id: "owner" } }), getRoute: vi.fn(async () => ({ kind: "ok" as const, durationSeconds: 7200, distanceMeters: 100_000 })) };
+  const deps: TripSaveDependencies = { database: database as unknown as Database, resolveSession: async () => ({ user: { id: "owner" } }), getRoute: vi.fn(async () => ({ kind: "ok" as const, provider: "STADIA_MAPS" as const, durationSeconds: 7200, distanceMeters: 100_000 })) };
   return { deps, destinations, setRole: (next: string) => { role = next; }, fail: () => { failure = true; }, get trips() { return trips; }, get receipts() { return receipts; } };
 }
 describe("fresh authoritative journey Save", () => {
+  it("saves the actual Google route source instead of labeling it Stadia", async () => {
+    const test = fixture();
+    test.deps.getRoute = async () => ({ kind: "ok", provider: "GOOGLE_MAPS", durationSeconds: 7200, distanceMeters: 100_000 });
+    expect(await saveTrip(new Headers(), input(), "google-source", test.deps, now)).toMatchObject({ status: "SUCCESS" });
+    expect(test.trips[0]).toMatchObject({ journeySnapshot: { plan: { legs: [{ route: { provider: "GOOGLE_MAPS" } }, { route: { provider: "GOOGLE_MAPS" } }] } } });
+  });
   it("fetches boundary evidence and persists origin/policy atomically, replaying without another route call", async () => {
     const test = fixture(); const payload = input();
     const saved = await saveTrip(new Headers(), payload, "journey-save-1", test.deps, now);
@@ -49,7 +55,7 @@ describe("fresh authoritative journey Save", () => {
       const payload = input(); change(payload);
       await expect(saveTrip(new Headers(), payload, "invalid-save", test.deps, now)).rejects.toMatchObject({ code: "TRIP_VALIDATION_FAILED" });
     }
-    test.deps.getRoute = async () => ({ kind: "ok", durationSeconds: 60 });
+    test.deps.getRoute = async () => ({ kind: "ok", provider: "STADIA_MAPS", durationSeconds: 60 });
     await expect(saveTrip(new Headers(), input(), "missing-distance", test.deps, now)).rejects.toMatchObject({ code: "TRIP_VALIDATION_FAILED" });
     expect(test.trips).toHaveLength(0);
   });
@@ -61,7 +67,7 @@ describe("fresh authoritative journey Save", () => {
         if (kind === "minimum") test.destinations[0]!.minimumDurationMinutes = 100;
         if (kind === "role") test.setRole("ROOT");
       }
-      return { kind: "ok", durationSeconds: 7200, distanceMeters: 100_000 };
+      return { kind: "ok", provider: "STADIA_MAPS", durationSeconds: 7200, distanceMeters: 100_000 };
     };
     const result = await saveTrip(new Headers(), input(), "changed-fresh-data", test.deps, now);
     expect(result).toMatchObject({ status: "FAILED", error: { code: kind === "coordinates" ? "TRIP_DATA_CHANGED" : kind === "minimum" ? "TRIP_VALIDATION_FAILED" : "FORBIDDEN" } });

@@ -130,18 +130,11 @@ function partitionRouteSummaryToPlannerDays(introduction: CompanionIntroduction)
         inbound = {
           fromDestinationId: prev.destinationId,
           toDestinationId: st.destinationId,
-          status: "VERIFIED",
-          reason: null,
-          durationSeconds: 1800,
-          distanceMeters: 15000,
-          provider: "STADIA_MAPS",
-          geometry: {
-            type: "LineString",
-            coordinates: [
-              [prev.coords.longitude, prev.coords.latitude],
-              [st.coords.longitude, st.coords.latitude],
-            ],
-          },
+          status: "INSUFFICIENT_DATA",
+          reason: "UNAVAILABLE",
+          durationSeconds: null,
+          distanceMeters: null,
+          provider: null,
         };
       }
 

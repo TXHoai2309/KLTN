@@ -36,8 +36,8 @@ export function createStadiaOriginSearch(deps: { apiKey: () => Promise<string | 
         const [longitude, latitude] = geometry.coordinates;
         if (vietnamCoverageAt({ latitude, longitude }) !== "SUPPORTED") continue;
         const label = [properties.name, properties.coarse_location].filter(Boolean).join(", ").normalize("NFC").replace(/[\u0000-\u001f\u007f]/gu, " ").trim().slice(0, 300);
-        // shortcut: results keep source "NOMINATIM" (the stored enum); rename with a migration if provenance matters.
-        if (label && !results.some(r => r.latitude === latitude && r.longitude === longitude)) results.push({ label, latitude, longitude, source: "NOMINATIM", confirmed: false });
+        // Origin selections persist as JSON; legacy NOMINATIM remains readable.
+        if (label && !results.some(r => r.latitude === latitude && r.longitude === longitude)) results.push({ label, latitude, longitude, source: "STADIA", confirmed: false });
       }
       return { status: results.length ? "RESULTS" : "NO_RESULTS", results: results.slice(0, 5), cached: false };
     } catch { return { status: "UNAVAILABLE" }; }

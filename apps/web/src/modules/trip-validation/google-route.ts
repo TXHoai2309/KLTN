@@ -1,4 +1,5 @@
 import "server-only";
+import { mapsProviderFromEnv } from "../map/maps-provider";
 
 import { isValidMapCoordinate, type MapCoordinate, type RouteGeometry } from "../map/map-model";
 import { assertSupportedTransportValue } from "../trip-requirement/trip-transport-policy";
@@ -11,10 +12,8 @@ export const GOOGLE_ROUTES_FIELD_MASK = "routes.duration,routes.distanceMeters,r
 export const MAX_GOOGLE_RESPONSE_BYTES = 512 * 1024;
 export type RoutingProviderName = "STADIA" | "GOOGLE";
 
-/** Only the exact value GOOGLE selects Google; anything else keeps the Stadia default. */
-export function routingProviderFromEnv(env: Record<string, string | undefined> = process.env): RoutingProviderName {
-  return env.PLANNER_ROUTING_PROVIDER?.trim() === "GOOGLE" ? "GOOGLE" : "STADIA";
-}
+/** Compatibility export; selection belongs to the shared website flag. */
+export const routingProviderFromEnv = mapsProviderFromEnv;
 
 export function toGoogleTravelMode(vehicle: unknown): "DRIVE" | "TWO_WHEELER" {
   return assertSupportedTransportValue(vehicle) === "CAR" ? "DRIVE" : "TWO_WHEELER";

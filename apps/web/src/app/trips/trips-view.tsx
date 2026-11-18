@@ -586,18 +586,11 @@ function tripDetailToPlannerDays(trip: TripDetail): PlannerDay[] {
         inbound = {
           fromDestinationId: prev.destinationId,
           toDestinationId: visit.destination.id,
-          status: "VERIFIED",
-          reason: null,
-          durationSeconds: 1800,
-          distanceMeters: 15000,
-          provider: "STADIA_MAPS",
-          geometry: {
-            type: "LineString",
-            coordinates: [
-              [prev.coords.longitude, prev.coords.latitude],
-              [coords.longitude, coords.latitude],
-            ],
-          },
+          status: "INSUFFICIENT_DATA",
+          reason: "UNAVAILABLE",
+          durationSeconds: null,
+          distanceMeters: null,
+          provider: null,
         };
       }
 

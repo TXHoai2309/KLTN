@@ -4,9 +4,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { useTheme } from "next-themes";
 import { Expand, MapPinned, RotateCcw } from "lucide-react";
-import { loadMapLibre, mapStyle } from "@/modules/map/map-config";
+import { mapStyle } from "@/modules/map/map-config";
+import { loadMapLibrary, mountItineraryMap } from "@/modules/map/map-renderer";
+import { mapsProviderFromEnv } from "@/modules/map/maps-provider";
 import { startMapSession } from "@/modules/map/map-session";
-import { mountItineraryMap } from "@/modules/map/itinerary-map-renderer";
 import { buildItineraryMapView, itineraryDayColorToken } from "@/modules/map/itinerary-map-model";
 import type { PlannerDay } from "@/modules/trip-planner/planner-contract";
 import type { JourneyPlan } from "@/modules/trip-origin/journey-route-contract";
@@ -30,7 +31,7 @@ export function ItineraryMap({
   overviewOnly?: boolean;
   /** Owner-only origin data; shared-trip views never pass it. */
   journeyPlan?: JourneyPlan | null;
-  origin?: { label: string; latitude: number; longitude: number } | null;
+  origin?: { label: string; latitude: number; longitude: number; source?: string } | null;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const renderer = useRef<ReturnType<typeof mountItineraryMap> | null>(null);
@@ -42,8 +43,9 @@ export function ItineraryMap({
   const [attempt, setAttempt] = useState(0);
   const [showOverview, setOverview] = useState(false);
   const overview = overviewOnly || showOverview;
+  const canShowOrigin = !(mapsProviderFromEnv() === "STADIA" && origin?.source === "GOOGLE_PLACES");
   const activeDay = overview ? null : day.day;
-  const view = useMemo(() => buildItineraryMapView(days, activeDay, origin ? journeyPlan : null), [days, activeDay, journeyPlan, origin]);
+  const view = useMemo(() => buildItineraryMapView(days, activeDay, origin ? journeyPlan : null, mapsProviderFromEnv()), [days, activeDay, journeyPlan, origin]);
   const { resolvedTheme } = useTheme();
   const style = mapStyle(resolvedTheme);
   const styleRef = useRef(style);
@@ -53,7 +55,7 @@ export function ItineraryMap({
     if (!container.current) return;
     const host = container.current;
     const dispose = startMapSession({
-      load: loadMapLibre,
+      load: loadMapLibrary,
       onState: setState,
       mount: (library, ready, fail) => {
         const map = mountItineraryMap(
@@ -64,7 +66,7 @@ export function ItineraryMap({
           (id) => callback.current(id),
           ready,
           fail,
-          { routes: view.routes, markerDays: view.markerDays, overview, ...(view.showsOrigin && origin ? { origin } : {}) },
+          { routes: view.routes, markerDays: view.markerDays, overview, ...(view.showsOrigin && origin && canShowOrigin ? { origin } : {}) },
         );
         renderer.current = map;
         map.select(currentSelection.current, false);
@@ -75,7 +77,7 @@ export function ItineraryMap({
       },
     });
     return dispose;
-  }, [view, overview, attempt, origin]);
+  }, [view, overview, attempt, origin, canShowOrigin]);
 
   useEffect(() => {
     renderer.current?.setStyle(style);
@@ -154,12 +156,15 @@ export function ItineraryMap({
         <span>
           <MapPinned size={14} aria-hidden="true" /> {overview ? `${view.stops.length} điểm dừng · ${days.length} ngày` : `${day.stops.length} điểm dừng · Ngày ${day.day}`}
         </span>
-        <span className="sr-only">Bản đồ sử dụng dữ liệu nền từ Stadia Maps</span>
+        <span className="sr-only">Bản đồ sử dụng {mapsProviderFromEnv() === "GOOGLE" ? "Google Maps" : "Stadia Maps"}</span>
       </div>
       </div>
       {state === "ready" && <div className="planner-map-route-status" role="status" aria-live="polite">
+        {mapsProviderFromEnv() === "STADIA" && days.some(item => item.stops.some(stop => stop.destination.external)) && <p>Điểm ngoài danh mục từ Google vẫn có trong lịch trình, nhưng không hiển thị trên bản đồ Stadia.</p>}
+        {mapsProviderFromEnv() === "GOOGLE" && <p>Tuyến xe máy của Google đang thử nghiệm và có thể chưa phù hợp với mọi đường đi. Hãy kiểm tra biển báo và điều kiện thực tế.</p>}
         <p>{view.routes.length ? `${view.routes.length} chặng đường bộ dự kiến được hiển thị.` : view.stops.length < 2 ? "Chưa có chặng di chuyển trong phạm vi này." : "Chưa có hình tuyến đường để hiển thị."}</p>
         {view.missingGeometryCount > 0 && <p>Chưa có hình tuyến cho {view.missingGeometryCount} chặng; các điểm dừng vẫn hiển thị.</p>}
+        {!canShowOrigin && <p>Ghim nơi xuất phát từ Google không hiển thị trên bản đồ Stadia. Lịch trình đã lưu vẫn được giữ nguyên.</p>}
         {view.showsOrigin && <p className="planner-map-origin-note"><span aria-hidden="true" />Đường màu đỏ gạch là chặng đi hoặc về nơi xuất phát.</p>}
         {!overview && view.hasPreviousDayTransfer && <p>Điểm 0 là điểm cuối ngày trước, nơi bắt đầu chặng chuyển ngày.</p>}
       </div>}

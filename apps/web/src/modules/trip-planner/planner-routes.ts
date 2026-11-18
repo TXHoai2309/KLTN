@@ -39,10 +39,10 @@ export function createStadiaRoutesProvider(options: RouteProviderOptions = {}): 
 export function createGoogleRoutesProvider(options: RouteProviderOptions = {}): RouteProvider {
   return createRoutesProvider(requestGoogleRoute, "GOOGLE_MAPS", options);
 }
-/** Stadia unless PLANNER_ROUTING_PROVIDER is exactly GOOGLE. `stadiaApiKey` keeps each caller's existing Stadia key source. */
-export function createConfiguredRoutesProvider(options: { stadiaApiKey?: RouteProviderOptions["apiKey"]; fetcher?: typeof fetch; timeoutMs?: number; env?: { PLANNER_ROUTING_PROVIDER?: string | undefined; GOOGLE_MAPS_API_KEY?: string | undefined } } = {}): RouteProvider {
+/** Shared website flag; preserve Stadia's configured runtime key source. */
+export function createConfiguredRoutesProvider(options: { stadiaApiKey?: RouteProviderOptions["apiKey"]; fetcher?: typeof fetch; timeoutMs?: number; env?: { NEXT_PUBLIC_MAPS_PROVIDER?: string | undefined; GOOGLE_MAPS_API_KEY?: string | undefined } } = {}): RouteProvider {
   const { stadiaApiKey, env, ...rest } = options;
-  if (routingProviderFromEnv(env ?? process.env) === "GOOGLE")
+  if ((env ? routingProviderFromEnv(env) : routingProviderFromEnv()) === "GOOGLE")
     return createGoogleRoutesProvider({ ...rest, ...(env ? { apiKey: () => env.GOOGLE_MAPS_API_KEY } : {}) });
   return createStadiaRoutesProvider({ ...rest, ...(stadiaApiKey ? { apiKey: stadiaApiKey } : {}) });
 }

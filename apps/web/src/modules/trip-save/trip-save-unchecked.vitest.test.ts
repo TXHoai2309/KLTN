@@ -50,7 +50,7 @@ function store(resolver?: ExternalPlaceResolver) {
   const dependencies: TripSaveDependencies = {
     database: database as unknown as Database,
     resolveSession: async () => actor ? { user: { id: actor } } : null,
-    getRoute: async () => ({ kind: "ok", durationSeconds: 3600, distanceMeters: 50_000 }),
+    getRoute: async () => ({ kind: "ok", provider: "STADIA_MAPS", durationSeconds: 3600, distanceMeters: 50_000 }),
     journeyRoutes: routes as never,
     resolveExternalPlaces: resolver ?? defaultResolver,
   };

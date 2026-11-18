@@ -23,7 +23,7 @@ export const planningDependencies = {
       repository: createPlanningRepository(db, authorizationDependencies, headers, userId),
       candidates: () => retrievePlannerCandidates(db, undefined, registry.excludedIds),
       recheck: selected => recheckPlannerCandidates(db, selected, registry.excludedIds),
-      routes: createConfiguredRoutesProvider({ stadiaApiKey: () => ENV.STADIA_MAPS_API_KEY }),
+      routes: createConfiguredRoutesProvider(),
       analyze: analyzePlanningText, generate: generateAiSelection, compose: composePlanningReply,
       save: (input, key) => saveTrip(headers, input, key, saveDependencies, new Date()),
       validateForSave: input => previewTripValidation(headers, input.proposal, saveDependencies, new Date()),

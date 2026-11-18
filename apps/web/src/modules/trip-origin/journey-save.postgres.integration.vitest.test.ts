@@ -20,7 +20,7 @@ describe.skipIf(!raw)("journey Save/read/privacy on actual disposable PostgreSQL
   let db: PrismaClient;
   const prefix = `origin06-${randomUUID()}`, owner = `${prefix}-owner`, member = `${prefix}-member`, admin = `${prefix}-admin`, dest = `${prefix}-destination`;
   const now = new Date("2030-11-14T00:00:00Z"), headers = new Headers();
-  const deps = (id: string | null = owner): TripSaveDependencies => ({ database: db, resolveSession: async () => id ? { user: { id } } : null, getRoute: async () => ({ kind: "ok", durationSeconds: 7200, distanceMeters: 100_000 }) });
+  const deps = (id: string | null = owner): TripSaveDependencies => ({ database: db, resolveSession: async () => id ? { user: { id } } : null, getRoute: async () => ({ kind: "ok", provider: "STADIA_MAPS", durationSeconds: 7200, distanceMeters: 100_000 }) });
   const input = () => tripSaveRequestSchema.parse({ confirm: true, proposal: { startDate: "2030-11-15", durationDays: 1, transport: "CAR", journey: { ...COMPLETE_JOURNEY_FIXTURE, origin: { ...COMPLETE_JOURNEY_FIXTURE.origin!, label: "PRIVATE_ORIGIN_CANARY" } }, days: [{ dayIndex: 1, visits: [{ destinationId: dest, startMinute: 600, plannedDurationMinutes: 60, order: 1 }] }] } });
   beforeAll(async () => {
     const target = new URL(raw!);
@@ -79,7 +79,7 @@ describe.skipIf(!raw)("journey Save/read/privacy on actual disposable PostgreSQL
   it("rechecks canonical minimum after routing and rolls back both Trip and receipt", async () => {
     let calls = 0;
     const key = `stale-${randomUUID()}`;
-    const stale = { ...deps(), getRoute: async () => { if (++calls === 2) await db.destination.update({ where: { id: dest }, data: { minimumDurationMinutes: 100 } }); return { kind: "ok" as const, durationSeconds: 7200, distanceMeters: 100_000 }; } };
+    const stale = { ...deps(), getRoute: async () => { if (++calls === 2) await db.destination.update({ where: { id: dest }, data: { minimumDurationMinutes: 100 } }); return { kind: "ok" as const, provider: "STADIA_MAPS" as const, durationSeconds: 7200, distanceMeters: 100_000 }; } };
     try {
       expect(await saveTrip(headers, input(), key, stale, now)).toMatchObject({ status: "FAILED", error: { code: "TRIP_VALIDATION_FAILED" } });
       expect(await db.idempotencyRecord.count({ where: { scope: JSON.stringify([owner, "trip:create"]), key } })).toBe(0);

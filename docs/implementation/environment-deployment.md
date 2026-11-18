@@ -1,5 +1,7 @@
 # Environment and deployment
 
+Google/Stadia follow-up (2026-11-18): the approved provider switch uses build-time `NEXT_PUBLIC_MAPS_PROVIDER` for interactive maps, routing and origin search, with a separate restricted browser key/Map ID and private Google Routes/Places key. The routing-only selector is retired. Preserve Stadia keys/domain authentication for rollback. Rebuild/redeploy after changing public Maps configuration; the historical no-browser-key paragraphs below do not describe the new Google mode. See the [configuration and verification runbook](google-maps-provider-switch-runbook.md) for Local/Preview/Production and live acceptance gates.
+
 ## Origin search and routing
 
 Origin search uses Stadia Geocoding (`/geocoding/v2/search`) through the same server-only key as routing, called from `/api/trip-origins/search` while the user types. It needs no extra variable. Queries are limited to public place names, without private traveler notes. Journey persistence requires the Trip migration; verify the target and migration state before applying anything.

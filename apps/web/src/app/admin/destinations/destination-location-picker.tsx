@@ -1,9 +1,8 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
-import type * as MapLibre from "maplibre-gl";
-import { loadMapLibre, mapStyle } from "@/modules/map/map-config";
-import { mountDestinationPinPicker } from "@/modules/map/maplibre-renderer";
+import { mapStyle } from "@/modules/map/map-config";
+import { loadMapLibrary, mountDestinationPinPicker } from "@/modules/map/map-renderer";
 import { startMapSession } from "@/modules/map/map-session";
 import type { MapCoordinate } from "@/modules/map/map-model";
 
@@ -29,10 +28,10 @@ export default function DestinationLocationPicker({ coordinates, locationVerifie
     if (!container.current) return;
     const host = container.current;
     return startMapSession({
-      load: loadMapLibre,
+      load: loadMapLibrary,
       onState: setState,
       mount: (library, ready, fail) => {
-        const mounted = mountDestinationPinPicker(host, library as typeof MapLibre, coordinatesRef.current, style, value => onChangeRef.current(value), ready, fail);
+        const mounted = mountDestinationPinPicker(host, library, coordinatesRef.current, style, value => onChangeRef.current(value), ready, fail);
         session.current = mounted;
         return () => {
           mounted.dispose();

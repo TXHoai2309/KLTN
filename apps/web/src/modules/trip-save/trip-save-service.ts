@@ -136,7 +136,7 @@ function journeyProvider(deps: TripSaveDependencies): RouteProvider {
   if (deps.journeyRoutes) return deps.journeyRoutes;
   const coordinateRoute: NonNullable<RouteProvider["coordinateRoute"]> = async pair => {
     const route = await deps.getRoute({ origin: pair.from, destination: pair.to, vehicle: pair.transport });
-    const parsed = route.kind === "ok" ? journeyRouteSchema.safeParse({ status: "VERIFIED", reason: null, durationSeconds: route.durationSeconds, distanceMeters: route.distanceMeters ?? null, provider: "STADIA_MAPS", ...(route.geometry ? { geometry: route.geometry } : {}) }) : null;
+    const parsed = route.kind === "ok" ? journeyRouteSchema.safeParse({ status: "VERIFIED", reason: null, durationSeconds: route.durationSeconds, distanceMeters: route.distanceMeters ?? null, provider: route.provider ?? null, ...(route.geometry ? { geometry: route.geometry } : {}) }) : null;
     return parsed?.success ? parsed.data : { status: "INSUFFICIENT_DATA", reason: "UNAVAILABLE", durationSeconds: null, distanceMeters: null, provider: null };
   };
   return { coordinateRoute, route: async (pair, signal) => ({ ...await coordinateRoute(pair, signal), fromDestinationId: pair.from.id, toDestinationId: pair.to.id }) };

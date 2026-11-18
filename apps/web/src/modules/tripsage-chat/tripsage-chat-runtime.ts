@@ -13,7 +13,7 @@ export function tripsagePlanningRuntime(): TripsagePlanningDeps {
   const registry = routingRegistry(ENV.DATABASE_URL);
   return {
     candidates: () => retrievePlannerCandidates(db, undefined, registry.excludedIds),
-    routes: createConfiguredRoutesProvider({ stadiaApiKey: () => ENV.STADIA_MAPS_API_KEY }),
+    routes: createConfiguredRoutesProvider(),
     now: () => new Date(),
   };
 }

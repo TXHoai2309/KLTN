@@ -5,7 +5,7 @@ import { AppError } from "@/server/http/app-error";
 import { readBoundedJsonBody } from "@/server/http/read-json-body";
 import { ORIGIN_SEARCH_REVISION, OSM_ATTRIBUTION, originSearchRequestSchema, type OriginSearchOutcome } from "./origin-search-contract";
 
-export async function originSearchResponse(request: Request, deps: { authorization: AuthorizationDependencies; search: (input: unknown, signal?: AbortSignal) => Promise<OriginSearchOutcome> }): Promise<Response> {
+export async function originSearchResponse(request: Request, deps: { authorization: AuthorizationDependencies; search: (input: unknown, signal?: AbortSignal) => Promise<OriginSearchOutcome & { attribution?: { text: string; url: string; license: string } }> }): Promise<Response> {
   const privateResponse = (response: Response) => { response.headers.set("Cache-Control", "private, no-store"); return response; };
   try {
     await requireTraveler(request.headers, deps.authorization);
@@ -23,7 +23,7 @@ export async function originSearchResponse(request: Request, deps: { authorizati
       return response;
     }
     if (result.status === "UNAVAILABLE") throw new AppError("ORIGIN_SEARCH_UNAVAILABLE", "Chưa thể tìm nơi xuất phát. Bạn vẫn có thể chọn ghim hoặc nhập tọa độ.", 503);
-    return privateResponse(apiSuccess({ revision: ORIGIN_SEARCH_REVISION, ...result, attribution: OSM_ATTRIBUTION }));
+    return privateResponse(apiSuccess({ revision: ORIGIN_SEARCH_REVISION, ...result, attribution: result.attribution ?? OSM_ATTRIBUTION }));
   } catch (error) {
     if (error instanceof AppError) return privateResponse(apiFailure(error.code, error.message, error.status, error.details));
     // Never forward or log raw provider/DB exceptions or private query input.
