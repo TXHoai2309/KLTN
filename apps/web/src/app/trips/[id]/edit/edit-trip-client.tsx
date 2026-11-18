@@ -9,7 +9,9 @@ import {
   ArrowUp,
   CalendarDays,
   CarFront,
+  Check,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Layers,
   LoaderCircle,
@@ -24,9 +26,9 @@ import {
   RotateCcw,
   Route as RouteIcon,
   Save,
-  Search,
   Trash2,
   Undo2,
+  Wand2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
@@ -116,13 +118,13 @@ import type { EditPlaceDetail, PreviewLegMetric } from "@/modules/trip-edit/trip
 import type { TripStatus } from "@/modules/trip-read/trip-status";
 import { uncheckedItemLabel } from "@/modules/trip-save/unchecked-checks";
 import {
+  autoFixItinerarySchedule,
   autoShiftDayVisits,
   formatLegMetricLabel,
   mapValidationToWorkspace,
   runInstantClientChecks,
 } from "@/modules/trip-edit/edit-workspace-checks";
 import { TripWeatherPanel } from "@/modules/trip-weather/trip-weather-panel";
-import { TripValidationPanel } from "@/modules/trip-validation/trip-validation-panel";
 import { tripDayDate } from "@/modules/trip-validation/trip-proposal-contract";
 import styles from "./edit-trip.module.css";
 
@@ -201,9 +203,9 @@ export default function EditTripClient({
   const [placeDetailsState, setPlaceDetailsState] = useState<Record<string, EditPlaceDetail>>(placeDetails);
   const [drawerTarget, setDrawerTarget] = useState<DrawerTarget | null>(null);
   const [drawerOpener, setDrawerOpener] = useState<HTMLElement | null>(null);
-  const [autoShiftEnabled, setAutoShiftEnabled] = useState(false);
+  const [autoShiftEnabled, setAutoShiftEnabled] = useState(true);
   const [autoShiftWarning, setAutoShiftWarning] = useState<string | null>(null);
-  const [originEditorExpanded, setOriginEditorExpanded] = useState(Boolean(initialCandidate.journey));
+  const [originEditorExpanded, setOriginEditorExpanded] = useState(false);
   const [reschedulingFromOrigin, setReschedulingFromOrigin] = useState(false);
   const [uncheckedAckConfirmed, setUncheckedAckConfirmed] = useState(false);
   const [conflictState, setConflictState] = useState<
@@ -722,6 +724,70 @@ export default function EditTripClient({
     return shifted.candidate;
   }
 
+  function handleAutoFixSchedule() {
+    if (applyInProgress) return;
+    const fixed = autoFixItinerarySchedule({
+      candidate: workingRef.current,
+      legMetrics: previewState.result?.legs,
+      journeySummary: previewState.result?.journeySummary,
+      lockedVisitIds: completedVisitSet,
+    });
+    if (fixed.overflowDays.length > 0) {
+      setAutoShiftWarning(
+        `Đã tự xếp lại giờ nhưng Ngày ${fixed.overflowDays.join(", ")} chạm giới hạn 23:59. Bạn có thể rút ngắn thời lượng hoặc bớt điểm.`,
+      );
+    } else {
+      setAutoShiftWarning(null);
+    }
+    if (fixed.changedVisitIds.length === 0) {
+      setAnnouncement("Các mốc giờ hiện tại đã khớp với thời gian di chuyển, không có xung đột cần dời.");
+      return;
+    }
+    setTimingDrafts({});
+    commitDraft(
+      fixed.candidate,
+      `Đã tự xếp lại ${fixed.changedVisitIds.length} mốc giờ khớp với thời gian di chuyển.`,
+    );
+  }
+
+  function handleShiftFromLeg(dayIndex: number, startFromIndex: number) {
+    if (applyInProgress) return;
+    const shifted = autoShiftDayVisits({
+      candidate: workingRef.current,
+      dayIndex,
+      startFromIndex,
+      legMetrics: previewState.result?.legs,
+      lockedVisitIds: completedVisitSet,
+    });
+    setAutoShiftWarning(shifted.overflowMessage);
+    if (areEditCandidatesEqual(shifted.candidate, workingRef.current)) {
+      setAnnouncement("Các điểm sau đã có đủ khoảng cách di chuyển.");
+      return;
+    }
+    setTimingDrafts({});
+    commitDraft(
+      shifted.candidate,
+      `Đã dời các điểm sau trong Ngày ${dayIndex} để đủ thời gian di chuyển.`,
+    );
+  }
+
+  function handleNudgeStartMinute(visitId: string, deltaMinutes: number) {
+    if (applyInProgress || completedVisitSet.has(visitId)) return;
+    const dayEntry = workingRef.current.days.find((d) => d.visits.some((v) => v.visitId === visitId));
+    const visit = dayEntry?.visits.find((v) => v.visitId === visitId);
+    if (!visit) return;
+    const maxStart = Math.max(0, 1439 - visit.plannedDurationMinutes);
+    const nextMinute = Math.max(0, Math.min(maxStart, visit.startMinute + deltaMinutes));
+    if (nextMinute === visit.startMinute) return;
+    setTimingDrafts((prev) => {
+      if (!(visitId in prev)) return prev;
+      const next = { ...prev };
+      delete next[visitId];
+      return next;
+    });
+    commitTiming(visitId, minuteLabel(nextMinute), String(visit.plannedDurationMinutes));
+  }
+
   function commitTiming(visitId: string, nextStart: string, nextDuration: string) {
     const dayEntry = workingDraft.days.find((d) => d.visits.some((v) => v.visitId === visitId));
     const visitIdx = dayEntry?.visits.findIndex((v) => v.visitId === visitId) ?? -1;
@@ -906,6 +972,46 @@ export default function EditTripClient({
     [workingDraft, placeDetailsState, previewState.result?.legs],
   );
 
+  const hasInstantOverlap = useMemo(
+    () =>
+      Object.values(instantChecks.byVisitId).some((list) =>
+        list.some((warning) => warning.code === "SCHEDULE_OVERLAP"),
+      ),
+    [instantChecks.byVisitId],
+  );
+
+  const validationGroupSummary = useMemo(() => {
+    const groups = previewState.result?.validation.groups;
+    if (!groups) return null;
+    const allFindings = [
+      ...groups.openingHours.findings,
+      ...groups.minimumDuration.findings,
+      ...groups.travelTime.findings,
+      ...groups.scheduleConflict.findings,
+    ];
+    return {
+      violationCount: allFindings.filter((f) => f.status === "VIOLATION").length,
+      insufficientCount: allFindings.filter((f) => f.status === "INSUFFICIENT_DATA").length,
+      hasScheduleConflict:
+        groups.travelTime.findings.some((f) => f.status === "VIOLATION") ||
+        groups.scheduleConflict.findings.some((f) => f.status === "VIOLATION"),
+      chips: [
+        { key: "openingHours", label: "Giờ mở cửa", status: groups.openingHours.status },
+        { key: "minimumDuration", label: "Thời lượng", status: groups.minimumDuration.status },
+        { key: "travelTime", label: "Di chuyển", status: groups.travelTime.status },
+        { key: "scheduleConflict", label: "Xung đột", status: groups.scheduleConflict.status },
+      ],
+    };
+  }, [previewState.result]);
+
+  const hasRepairableScheduleConflict =
+    hasInstantOverlap || Boolean(validationGroupSummary?.hasScheduleConflict);
+
+  const applyFallbackItems = useMemo(() => {
+    if (!applyState.validation) return [];
+    return mapValidationToWorkspace(applyState.validation, workingDraft, placeDetailsState).jumpItems;
+  }, [applyState.validation, workingDraft, placeDetailsState]);
+
   function jumpToDomTarget(targetDomId: string) {
     setMobileTab("timeline");
     requestAnimationFrame(() => {
@@ -991,7 +1097,7 @@ export default function EditTripClient({
   }
 
   return (
-    <main className={styles.page} lang="vi">
+    <main className={styles.page} lang="vi" aria-label="Không gian chỉnh sửa hành trình">
       <div className={styles.content}>
         <div className={styles.topNavRow}>
           <Link className={styles.backLink} href={`/trips/${tripId}` as Route}>
@@ -1002,7 +1108,6 @@ export default function EditTripClient({
 
         <header className={styles.workspaceHeader}>
           <div className={styles.headerCopy}>
-            <p className={styles.eyebrow}>Không gian chỉnh sửa hành trình</p>
             <h1>Chỉnh sửa lịch trình {workspace.baseline.durationDays} ngày</h1>
             <div className={styles.metaChips}>
               <span className={styles.metaChip}>
@@ -1184,13 +1289,24 @@ export default function EditTripClient({
                 />
                 Tự động dời giờ các điểm sau (trong cùng ngày)
               </label>
-              <span className={styles.fixedNote}>
-                {previewState.status === "CHECKING"
-                  ? "Đang đồng bộ kiểm tra máy chủ…"
-                  : previewState.status === "PREVIEWED"
-                    ? "Đã kiểm tra theo dữ liệu hiện hành"
-                    : "Sửa trực tiếp — tự động kiểm tra sau khi dừng tay"}
-              </span>
+              <div className={styles.autoShiftActions}>
+                <span className={styles.fixedNote}>
+                  {previewState.status === "CHECKING"
+                    ? "Đang kiểm tra máy chủ…"
+                    : previewState.status === "PREVIEWED"
+                      ? "Đã kiểm tra"
+                      : "Tự kiểm tra khi dừng tay"}
+                </span>
+                <button
+                  type="button"
+                  className={hasRepairableScheduleConflict ? styles.quickFixCta : styles.toolButtonCompact}
+                  disabled={applyInProgress || draftVisitCount === 0}
+                  onClick={handleAutoFixSchedule}
+                >
+                  <Wand2 size={14} aria-hidden="true" />
+                  Tự xếp lại giờ khớp di chuyển
+                </button>
+              </div>
             </div>
 
             {autoShiftWarning && (
@@ -1382,7 +1498,15 @@ export default function EditTripClient({
                             <div className={styles.visitTop}>
                               <VisitThumb place={place} order={visit.order} />
                               <div className={styles.visitMeta}>
-                                <h3>{label}</h3>
+                                <div className={styles.visitTitleRow}>
+                                  <h3>{label}</h3>
+                                  <span className={styles.visitTimePill}>
+                                    <Clock size={12} aria-hidden="true" />
+                                    {minuteLabel(visit.startMinute)} –{" "}
+                                    {minuteLabel(visit.startMinute + visit.plannedDurationMinutes)} ·{" "}
+                                    {visit.plannedDurationMinutes} phút
+                                  </span>
+                                </div>
                                 {aiChangeBadge === "ADDED" && (
                                   <span className={styles.aiBadgeAdded}>Mới thêm</span>
                                 )}
@@ -1481,27 +1605,53 @@ export default function EditTripClient({
                             </div>
 
                             <div className={styles.visitControls} onClick={(e) => e.stopPropagation()}>
-                              <label className={styles.inlineField}>
-                                <span>Giờ bắt đầu</span>
-                                <input
-                                  type="time"
-                                  step={60}
-                                  disabled={applyInProgress || isLockedVisit}
-                                  aria-label={`Giờ bắt đầu ${label}`}
-                                  value={draftTiming.startTime}
-                                  onChange={(e) => {
-                                    const nextTime = e.target.value;
-                                    setTimingDrafts((cur) => ({
-                                      ...cur,
-                                      [visit.visitId]: { ...draftTiming, startTime: nextTime },
-                                    }));
-                                    if (/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(nextTime)) {
-                                      commitTiming(visit.visitId, nextTime, draftTiming.duration);
+                              <div className={styles.timeFieldGroup}>
+                                <label className={styles.inlineField}>
+                                  <span>Giờ bắt đầu</span>
+                                  <input
+                                    type="time"
+                                    step={60}
+                                    disabled={applyInProgress || isLockedVisit}
+                                    aria-label={`Giờ bắt đầu ${label}`}
+                                    value={draftTiming.startTime}
+                                    onChange={(e) => {
+                                      const nextTime = e.target.value;
+                                      setTimingDrafts((cur) => ({
+                                        ...cur,
+                                        [visit.visitId]: { ...draftTiming, startTime: nextTime },
+                                      }));
+                                      if (/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(nextTime)) {
+                                        commitTiming(visit.visitId, nextTime, draftTiming.duration);
+                                      }
+                                    }}
+                                    onBlur={() => commitTiming(visit.visitId, draftTiming.startTime, draftTiming.duration)}
+                                  />
+                                </label>
+                                <div className={styles.nudgeGroup} role="group" aria-label={`Chỉnh nhanh giờ ${label}`}>
+                                  <button
+                                    type="button"
+                                    className={styles.nudgeBtn}
+                                    aria-label={`Lùi ${label} 15 phút`}
+                                    disabled={applyInProgress || isLockedVisit || visit.startMinute === 0}
+                                    onClick={() => handleNudgeStartMinute(visit.visitId, -15)}
+                                  >
+                                    -15p
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className={styles.nudgeBtn}
+                                    aria-label={`Dời ${label} thêm 15 phút`}
+                                    disabled={
+                                      applyInProgress ||
+                                      isLockedVisit ||
+                                      visit.startMinute + 15 > 1439 - visit.plannedDurationMinutes
                                     }
-                                  }}
-                                  onBlur={() => commitTiming(visit.visitId, draftTiming.startTime, draftTiming.duration)}
-                                />
-                              </label>
+                                    onClick={() => handleNudgeStartMinute(visit.visitId, 15)}
+                                  >
+                                    +15p
+                                  </button>
+                                </div>
+                              </div>
 
                               <label className={styles.inlineField}>
                                 <span>Thời lượng (phút)</span>
@@ -1552,6 +1702,27 @@ export default function EditTripClient({
                               )}
 
                               <div className={styles.visitButtons}>
+                                {!isUnavailableCatalog && (
+                                  <button
+                                    type="button"
+                                    className={styles.iconActionBtn}
+                                    aria-label={`Đổi ${label} sang điểm khác`}
+                                    disabled={applyInProgress || isLockedVisit}
+                                    onClick={(event) => {
+                                      setDrawerOpener(event.currentTarget);
+                                      setDrawerTarget({
+                                        kind: "replace",
+                                        dayIndex: day.dayIndex,
+                                        visitId: visit.visitId,
+                                        startMinute: visit.startMinute,
+                                        plannedDurationMinutes: visit.plannedDurationMinutes,
+                                      });
+                                    }}
+                                  >
+                                    <Replace size={15} aria-hidden="true" />
+                                    Đổi điểm
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   className={styles.iconActionBtn}
@@ -1614,6 +1785,17 @@ export default function EditTripClient({
                                     {finding.message}
                                   </span>
                                 ))}
+                                {legFindings.some((f) => f.status === "VIOLATION") && (
+                                  <button
+                                    type="button"
+                                    className={styles.legFixBtn}
+                                    disabled={applyInProgress || nextLocked}
+                                    onClick={() => handleShiftFromLeg(day.dayIndex, visitIdx)}
+                                  >
+                                    <Wand2 size={12} aria-hidden="true" />
+                                    Dời điểm sau khớp giờ
+                                  </button>
+                                )}
                               </div>
                             )}
                           </li>
@@ -1665,7 +1847,7 @@ export default function EditTripClient({
 
           <aside className={styles.sideColumn} aria-label="Bản đồ và kiểm tra tính hợp lệ">
             <div className={styles.sideSticky}>
-              <div className={styles.sidePanel}>
+              <div className={`${styles.sidePanel} ${styles.sidePanelMap}`}>
                 <ItineraryMap
                   day={activePlannerDay}
                   days={plannerDays}
@@ -1679,21 +1861,23 @@ export default function EditTripClient({
                 />
               </div>
 
-              <section className={styles.sidePanel} aria-labelledby="validation-box-heading">
-                <h2 id="validation-box-heading">Kiểm tra tính hợp lệ</h2>
-                <button
-                  type="button"
-                  className={styles.primaryButton}
-                  disabled={previewState.status === "CHECKING" || applyInProgress}
-                  onClick={() => void handleCheck()}
-                >
-                  {previewState.status === "CHECKING" ? (
-                    <LoaderCircle size={16} className="animate-spin" aria-hidden="true" />
-                  ) : (
-                    <Search size={16} aria-hidden="true" />
-                  )}
-                  {previewState.status === "CHECKING" ? "Đang kiểm tra…" : "Kiểm tra bản nháp"}
-                </button>
+              <section className={`${styles.sidePanel} ${styles.healthCard}`} aria-labelledby="validation-box-heading">
+                <div className={styles.healthHeader}>
+                  <h2 id="validation-box-heading">Kiểm tra tính hợp lệ</h2>
+                  <button
+                    type="button"
+                    className={styles.toolButtonCompact}
+                    disabled={previewState.status === "CHECKING" || applyInProgress}
+                    onClick={() => void handleCheck()}
+                  >
+                    <RefreshCw
+                      size={13}
+                      className={previewState.status === "CHECKING" ? "animate-spin" : undefined}
+                      aria-hidden="true"
+                    />
+                    {previewState.status === "CHECKING" ? "Đang kiểm tra…" : "Kiểm tra lại"}
+                  </button>
+                </div>
 
                 {(previewState.status === "FAILED" ||
                   previewState.status === "NETWORK_ERROR" ||
@@ -1706,30 +1890,77 @@ export default function EditTripClient({
                           ? "Mất kết nối khi kiểm tra. Bản nháp vẫn được giữ lại; hãy thử lại."
                           : "Kiểm tra quá thời gian chờ. Bản nháp vẫn được giữ lại; hãy thử lại."}
                     </p>
-                    <button
-                      type="button"
-                      className={styles.toolButton}
-                      disabled={applyInProgress}
-                      onClick={() => void handleCheck()}
-                    >
-                      <RefreshCw size={14} aria-hidden="true" />
-                      Kiểm tra lại
-                    </button>
                   </div>
                 )}
 
-                {previewState.status === "PREVIEWED" && previewState.result && (
+                {previewState.status === "PREVIEWED" && previewState.result && validationGroupSummary && (
                   <>
-                    <TripValidationPanel
-                      validation={
-                        previewState.result.validation.canConfirm
-                          ? { ...previewState.result.validation, canConfirm: previewCanConfirm }
-                          : previewState.result.validation
+                    <div
+                      className={
+                        previewCanConfirm && validationGroupSummary.violationCount === 0 && validationGroupSummary.insufficientCount === 0
+                          ? styles.healthBannerOk
+                          : previewCanConfirm && uncheckedItems.length > 0
+                            ? styles.healthBannerWarn
+                            : styles.healthBannerBad
                       }
-                      actionLabel="Mở xác nhận lưu"
-                      onConfirm={() => setConfirmOpen(true)}
-                      pending={applyState.status === "SENDING"}
-                    />
+                      role="status"
+                    >
+                      {previewCanConfirm && validationGroupSummary.violationCount === 0 && validationGroupSummary.insufficientCount === 0 ? (
+                        <>
+                          <Check size={16} aria-hidden="true" />
+                          <span>Hợp lệ · Sẵn sàng lưu</span>
+                        </>
+                      ) : previewCanConfirm && uncheckedItems.length > 0 ? (
+                        <>
+                          <AlertTriangle size={16} aria-hidden="true" />
+                          <span>Có {uncheckedItems.length} mục ngoài danh mục — có thể xác nhận lưu</span>
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle size={16} aria-hidden="true" />
+                          <span>
+                            Còn {Math.max(1, validationGroupSummary.violationCount)} mục cần điều chỉnh trước khi lưu
+                          </span>
+                        </>
+                      )}
+                    </div>
+
+                    <div className={styles.healthStrip}>
+                      {validationGroupSummary.chips.map((chip) => (
+                        <div
+                          key={chip.key}
+                          className={
+                            chip.status === "SATISFIED"
+                              ? styles.healthChipOk
+                              : chip.status === "INSUFFICIENT_DATA"
+                                ? styles.healthChipWarn
+                                : styles.healthChipBad
+                          }
+                        >
+                          <span className={styles.healthChipLabel}>{chip.label}</span>
+                          <strong>
+                            {chip.status === "SATISFIED"
+                              ? "Đạt"
+                              : chip.status === "INSUFFICIENT_DATA"
+                                ? "Chưa rõ"
+                                : "Cần sửa"}
+                          </strong>
+                        </div>
+                      ))}
+                    </div>
+
+                    {hasRepairableScheduleConflict && (
+                      <button
+                        type="button"
+                        className={styles.quickFixCtaFull}
+                        disabled={applyInProgress || draftVisitCount === 0}
+                        onClick={handleAutoFixSchedule}
+                      >
+                        <Wand2 size={15} aria-hidden="true" />
+                        Tự xếp lại giờ khớp di chuyển
+                      </button>
+                    )}
+
                     {previewCanConfirm &&
                       !previewState.result.validation.canConfirm &&
                       uncheckedItems.length > 0 && (
@@ -1748,10 +1979,11 @@ export default function EditTripClient({
                           </button>
                         </div>
                       )}
+
                     {mappedValidation.jumpItems.length > 0 && (
                       <div>
                         <p className={styles.fixedNote} style={{ marginTop: 10 }}>
-                          Bấm vào mục lỗi để nhảy nhanh tới vị trí cần sửa:
+                          Bấm vào mục lỗi để nhảy tới vị trí cần sửa:
                         </p>
                         <ul className={styles.jumpList}>
                           {mappedValidation.jumpItems.map((item) => (
@@ -1800,16 +2032,41 @@ export default function EditTripClient({
                 )}
 
                 {applyState.validation && (
-                  <div role="alert">
+                  <div role="alert" style={{ marginTop: 10 }}>
                     <p className={styles.errorText}>{applyState.error?.message}</p>
-                    <TripValidationPanel validation={{ ...applyState.validation, canConfirm: false }} />
+                    {applyFallbackItems.length > 0 && (
+                      <ul className={styles.jumpList} style={{ marginTop: 8 }}>
+                        {applyFallbackItems.map((item) => (
+                          <li key={`apply-${item.id}`}>
+                            <button
+                              type="button"
+                              className={styles.jumpBtn}
+                              onClick={() => jumpToDomTarget(item.targetDomId)}
+                            >
+                              <strong>{item.label}:</strong> {item.message}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 )}
               </section>
 
-              <div className={styles.sidePanel}>
-                <TripWeatherPanel days={plannerDays} />
-              </div>
+              <details className={`${styles.sidePanel} ${styles.weatherAccordion}`}>
+                <summary className={styles.weatherSummary}>
+                  <div>
+                    <strong>Thời tiết và giờ mặt trời</strong>
+                    <span className={styles.weatherSummaryHint}>
+                      {plannerDays.length} ngày · Bấm xem dự báo theo chặng
+                    </span>
+                  </div>
+                  <ChevronDown size={16} className={styles.weatherChevron} aria-hidden="true" />
+                </summary>
+                <div className={styles.weatherAccordionBody}>
+                  <TripWeatherPanel days={plannerDays} />
+                </div>
+              </details>
             </div>
           </aside>
         </div>
@@ -2032,7 +2289,9 @@ export default function EditTripClient({
         returnFocusTo={drawerOpener}
         eyebrowText={
           drawerTarget?.kind === "replace"
-            ? `Thay thế điểm không khả dụng (Ngày ${drawerTarget.dayIndex})`
+            ? instantChecks.unavailableVisits.some((u) => u.visitId === drawerTarget.visitId)
+              ? `Thay thế điểm không khả dụng (Ngày ${drawerTarget.dayIndex})`
+              : `Đổi điểm dừng (Ngày ${drawerTarget.dayIndex})`
             : undefined
         }
         confirmLabel={

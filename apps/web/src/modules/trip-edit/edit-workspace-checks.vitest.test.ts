@@ -4,6 +4,7 @@ import type { EditCatalogDestinationMeta } from "./add-visit-helper";
 import type { EditCandidate } from "./edit-candidate";
 import type { EditPlaceDetail, PreviewLegMetric } from "./trip-edit-service";
 import {
+  autoFixItinerarySchedule,
   autoShiftDayVisits,
   formatLegMetricLabel,
   mapValidationToWorkspace,
@@ -165,5 +166,74 @@ describe("Ticket 03 workspace checks & auto-shift", () => {
     expect(formatLegMetricLabel({ dayIndex: 1, fromVisitId: "v1", toVisitId: "v2", status: "INSUFFICIENT_DATA", durationSeconds: null, distanceMeters: null })).toBe(
       "Chưa đủ dữ liệu thời gian di chuyển",
     );
+  });
+
+  it("repairs multi-day schedule conflicts in one pass while honoring origin arrival, locked stops, and 23:59 limit", () => {
+    const candidate: EditCandidate = {
+      startDate: "2026-12-01",
+      durationDays: 3,
+      transport: "CAR",
+      journey: {
+        origin: {
+          label: "96 Định Công",
+          latitude: 20.98,
+          longitude: 105.83,
+          source: "NOMINATIM",
+          confirmed: true,
+        },
+        departureMinute: 360,
+        returnDeadlineMinute: 1320,
+        returnDepartureMinute: null,
+      },
+      days: [
+        {
+          dayIndex: 1,
+          visits: [
+            { visitId: "v1", destinationId: "d1", startMinute: 506, plannedDurationMinutes: 90, order: 1 }, // 08:26 < 11:25 arrival
+            { visitId: "v2", destinationId: "d1", startMinute: 616, plannedDurationMinutes: 120, order: 2 }, // needs >= 685 + 90 + 25 = 800
+          ],
+        },
+        {
+          dayIndex: 2,
+          visits: [
+            { visitId: "v3", destinationId: "d1", startMinute: 520, plannedDurationMinutes: 60, order: 1 }, // locked
+            { visitId: "v4", destinationId: "d1", startMinute: 560, plannedDurationMinutes: 60, order: 2 }, // unlocked -> 520+60+15=595
+          ],
+        },
+        {
+          dayIndex: 3,
+          visits: [
+            { visitId: "v5", destinationId: "d1", startMinute: 1380, plannedDurationMinutes: 50, order: 1 }, // 23:00-23:50
+            { visitId: "v6", destinationId: "d1", startMinute: 1390, plannedDurationMinutes: 30, order: 2 }, // overflows -> clamp 1410
+          ],
+        },
+      ],
+    };
+
+    const result = autoFixItinerarySchedule({
+      candidate,
+      journeySummary: {
+        outboundDurationSeconds: 19500,
+        outboundDistanceMeters: 280000,
+        outboundRestMinutes: 0,
+        estimatedArrivalAtFirstMinute: 685, // 11:25
+        firstVisitStartMinute: 506,
+        returnDurationSeconds: null,
+        returnDistanceMeters: null,
+        returnRestMinutes: 0,
+        estimatedReturnArrivalMinute: null,
+        returnDeadlineMinute: 1320,
+      },
+      legMetrics: [
+        { dayIndex: 1, fromVisitId: "v1", toVisitId: "v2", status: "VERIFIED", durationSeconds: 1500, distanceMeters: 12000 }, // 25m
+      ],
+      lockedVisitIds: new Set(["v3"]),
+    });
+
+    expect(result.changedVisitIds).toEqual(["v1", "v2", "v4", "v6"]);
+    expect(result.overflowDays).toEqual([3]);
+    expect(result.candidate.days[0]!.visits.map((v) => v.startMinute)).toEqual([685, 800]);
+    expect(result.candidate.days[1]!.visits.map((v) => v.startMinute)).toEqual([520, 595]);
+    expect(result.candidate.days[2]!.visits.map((v) => v.startMinute)).toEqual([1380, 1410]);
   });
 });

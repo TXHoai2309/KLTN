@@ -4,6 +4,7 @@ import { tripDayDate } from "../trip-validation/trip-proposal-contract";
 import type { TripValidation, ValidationFinding } from "../trip-validation/trip-validation";
 import type { EditCatalogDestinationMeta } from "./add-visit-helper";
 import type { EditCandidate } from "./edit-candidate";
+import type { PreviewJourneySummary } from "./edit-journey-helper";
 import type { EditPlaceDetail, PreviewLegMetric } from "./trip-edit-service";
 
 export type InstantVisitWarning = {
@@ -310,4 +311,90 @@ export function formatLegMetricLabel(leg: PreviewLegMetric | undefined): string 
   }
   const km = (leg.distanceMeters / 1000).toFixed(1).replace(".", ",");
   return `Di chuyển ${mins} phút (${km} km)`;
+}
+
+export type AutoFixItineraryResult = {
+  candidate: EditCandidate;
+  changedVisitIds: string[];
+  overflowDays: number[];
+};
+
+/**
+ * Repairs timing overlaps, travel-buffer shortages, and Day 1 origin arrival delays
+ * across every day in one click while keeping visit order, day assignment, and completed
+ * (locked) stops untouched.
+ */
+export function autoFixItinerarySchedule(params: {
+  candidate: EditCandidate;
+  legMetrics?: readonly PreviewLegMetric[] | null;
+  journeySummary?: PreviewJourneySummary | null;
+  lockedVisitIds?: ReadonlySet<string>;
+}): AutoFixItineraryResult {
+  const { candidate, legMetrics, journeySummary, lockedVisitIds } = params;
+  const legByPair = new Map<string, PreviewLegMetric>();
+  for (const leg of legMetrics ?? []) {
+    legByPair.set(`${leg.fromVisitId}->${leg.toVisitId}`, leg);
+  }
+
+  const changedVisitIds: string[] = [];
+  const overflowDays: number[] = [];
+
+  const days = candidate.days.map((day) => {
+    if (day.visits.length === 0) return day;
+
+    const updated = day.visits.map((v) => ({ ...v }));
+    for (let i = 0; i < updated.length; i++) {
+      const visit = updated[i]!;
+      if (lockedVisitIds?.has(visit.visitId)) {
+        continue;
+      }
+
+      let requiredStart = visit.startMinute;
+
+      if (
+        day.dayIndex === 1 &&
+        i === 0 &&
+        candidate.journey?.origin?.confirmed &&
+        journeySummary?.estimatedArrivalAtFirstMinute != null
+      ) {
+        requiredStart = Math.max(requiredStart, journeySummary.estimatedArrivalAtFirstMinute);
+      }
+
+      if (i > 0) {
+        const prev = updated[i - 1]!;
+        const leg = legByPair.get(`${prev.visitId}->${visit.visitId}`);
+        const travelMinutes =
+          leg?.status === "VERIFIED" && leg.durationSeconds !== null
+            ? Math.ceil(leg.durationSeconds / 60)
+            : 15;
+        const earliestAfterPrev =
+          prev.startMinute + prev.plannedDurationMinutes + Math.max(15, travelMinutes);
+        requiredStart = Math.max(requiredStart, earliestAfterPrev);
+      }
+
+      const maxStart = Math.max(0, 1440 - visit.plannedDurationMinutes);
+      if (requiredStart > maxStart || requiredStart > 1439) {
+        if (!overflowDays.includes(day.dayIndex)) {
+          overflowDays.push(day.dayIndex);
+        }
+        requiredStart = Math.min(1439, maxStart);
+      }
+
+      if (requiredStart !== visit.startMinute) {
+        visit.startMinute = requiredStart;
+        changedVisitIds.push(visit.visitId);
+      }
+    }
+
+    return { ...day, visits: updated };
+  });
+
+  if (changedVisitIds.length === 0) {
+    return { candidate, changedVisitIds, overflowDays };
+  }
+  return {
+    candidate: { ...candidate, days },
+    changedVisitIds,
+    overflowDays,
+  };
 }

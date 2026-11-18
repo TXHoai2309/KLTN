@@ -304,4 +304,95 @@ describe("Ticket 01 workspace rendering and map adapter", () => {
     expect(clientSource).toContain('aria-live="polite"');
     expect(clientSource).toContain("onCancel");
   });
+
+  it("renders uncluttered low-click UX: collapsed origin editor, inline quick-fix & replace actions, collapsed weather, and no raw CUID strings", () => {
+    const html = renderToStaticMarkup(
+      createElement(EditTripClient, {
+        tripId: "trip-ux-1",
+        baseRevision: "rev-1",
+        tripStatus: "UPCOMING",
+        hasCompanionPublication: false,
+        destinationLabels: {
+          "dest-1": "Cổng Trời Quản Bạ",
+          "dest-2": "Phố cổ Đồng Văn",
+        },
+        placeDetails: {
+          "dest-1": {
+            id: "dest-1",
+            name: "Cổng Trời Quản Bạ",
+            area: "Quản Bạ",
+            availability: "AVAILABLE",
+            external: false,
+          },
+          "dest-2": {
+            id: "dest-2",
+            name: "Phố cổ Đồng Văn",
+            area: "Đồng Văn",
+            availability: "AVAILABLE",
+            external: false,
+          },
+        },
+        initialCandidate: {
+          startDate: "2026-12-01",
+          durationDays: 2,
+          transport: "CAR",
+          journey: {
+            origin: {
+              label: "96 Định Công, Hà Nội",
+              latitude: 20.98,
+              longitude: 105.83,
+              source: "NOMINATIM",
+              confirmed: true,
+            },
+            departureMinute: 360,
+            returnDeadlineMinute: 1320,
+            returnDepartureMinute: null,
+          },
+          days: [
+            {
+              dayIndex: 1,
+              visits: [
+                {
+                  visitId: "cmiw57x910008q67gi5dkj4xj",
+                  destinationId: "dest-1",
+                  startMinute: 480,
+                  plannedDurationMinutes: 60,
+                  order: 1,
+                },
+                {
+                  visitId: "cmiw57x910009q67gq2j89aet",
+                  destinationId: "dest-2",
+                  startMinute: 560,
+                  plannedDurationMinutes: 60,
+                  order: 2,
+                },
+              ],
+            },
+            {
+              dayIndex: 2,
+              visits: [],
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(html).toContain('aria-label="Không gian chỉnh sửa hành trình"');
+    expect(html).not.toContain(">Không gian chỉnh sửa hành trình</p>");
+    // Origin editor stays collapsed until clicked even when trip has an existing origin
+    expect(html).toContain("Chỉnh xuất phát");
+    expect(html).not.toContain("Xác nhận điểm xuất phát");
+    // 1-click timeline controls, time-window pill, -15/+15 nudges, and per-card direct replace
+    expect(html).toContain("Tự xếp lại giờ khớp di chuyển");
+    expect(html).toContain("-15p");
+    expect(html).toContain("+15p");
+    expect(html).toContain("Đổi điểm");
+    expect(html).toContain("08:00 – 09:00 · 60 phút");
+    // Side column uses compact check trigger, collapsed weather <details>, and zero raw CUIDs
+    expect(html).toContain("Kiểm tra lại");
+    expect(html).not.toContain("Kiểm tra bản nháp");
+    expect(html).toContain("<details");
+    expect(html).toContain("Thời tiết và giờ mặt trời");
+    expect(html).not.toContain("cmiw57x910008q67gi5dkj4xj → cmiw57x910009q67gq2j89aet");
+  });
 });
