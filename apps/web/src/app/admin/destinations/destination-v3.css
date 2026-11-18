@@ -215,3 +215,10 @@
 }
 
 .dv3-page .af-actions .af-btn-primary { min-width: 180px; justify-content: center; }
+
+/* Outdoor flag (WEATHER-SUN-ADVISORIES ticket 06) */
+.dv3-outdoor { display: flex; align-items: flex-start; gap: 10px; margin: 14px 0 16px; padding: 12px 14px; border: 1px solid var(--af-line); border-radius: 12px; background: var(--af-tint); cursor: pointer; }
+.dv3-outdoor input { width: 18px; height: 18px; margin: 2px 0 0; flex: none; accent-color: var(--af-accent, #3f6b4f); cursor: pointer; }
+.dv3-outdoor span { display: grid; gap: 2px; }
+.dv3-outdoor strong { font-size: 13px; font-weight: 640; color: var(--af-ink); }
+.dv3-outdoor small { font-size: 12px; color: var(--af-muted); }

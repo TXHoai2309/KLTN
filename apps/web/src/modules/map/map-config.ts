@@ -1,8 +1,21 @@
 export const stadiaStyles = {
   light: "https://tiles.stadiamaps.com/styles/alidade_smooth.json",
   dark: "https://tiles.stadiamaps.com/styles/alidade_smooth_dark.json",
+  terrain: "https://tiles.stadiamaps.com/styles/outdoors.json",
 } as const;
-export function mapStyle(theme: string | undefined) { return theme === "dark" ? stadiaStyles.dark : stadiaStyles.light; }
+export type MapBackground = "default" | "terrain";
+export function mapStyle(theme: string | undefined, background: MapBackground = "default") {
+  if (background === "terrain") return stadiaStyles.terrain;
+  return theme === "dark" ? stadiaStyles.dark : stadiaStyles.light;
+}
+const BACKGROUND_KEY = "kltn-map-background";
+/** Per-device preference; storage can be blocked, so every access falls back to the default. */
+export function readMapBackground(): MapBackground {
+  try { return globalThis.localStorage?.getItem(BACKGROUND_KEY) === "terrain" ? "terrain" : "default"; } catch { return "default"; }
+}
+export function saveMapBackground(background: MapBackground) {
+  try { globalThis.localStorage?.setItem(BACKGROUND_KEY, background); } catch { /* preference is optional */ }
+}
 /** Cached npm module, not remote script. Only called inside client effect. */
 export async function verifyMapWorkerAssets() {
   // v6 caches its global worker initialization, including a rejected promise.

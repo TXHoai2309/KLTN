@@ -11,6 +11,7 @@ import type { EditClarification } from "../trip-edit/edit-clarification";
 import type { QaCompletedTurn } from "../ai/qa-contract";
 import { unsupportedQuantity } from "./reply-quantities";
 import { analyzeCurrentProposal, type ProposalGuidance } from "./planning-guidance";
+import { formatProposalWeatherAdvisoryLine, type ProposalWeatherAdvisoryItem } from "./proposal-weather-advisories";
 
 /** Presentation for the existing clarification taxonomy, including the locked
  * explicit acceptance of changes outside the requested day scope. */
@@ -58,7 +59,23 @@ export type PlanningResponsePlan = {
   mustNotClaim: readonly ["SAVED", "APPLIED", "UNSUPPORTED_FACTS", "VALIDITY_WITHOUT_EVIDENCE"];
   clarificationField?: "durationDays" | "transport" | "destinations" | "startDate" | "interests" | "pace" | "companions" | "mobility" | "refinement" | "tripStructure";
   validation?: { status: PlanningGenerated["proposal"]["status"]; checks: { key: string; status: string }[]; eligibleForFinalConfirmation: boolean };
+  /** At most 2 heaviest weather advisories on proposal-creating/changing turns; rendered deterministically by code. */
+  weatherAdvisories?: ProposalWeatherAdvisoryItem[];
 };
+
+export function isProposalMutatingPlan(plan: PlanningResponsePlan): boolean {
+  if (plan.goal === "PRESENT_PROPOSAL" || plan.goal === "REFINE_PROPOSAL" || plan.goal === "REPLAN_PROPOSAL") {
+    return plan.proposalChanged !== false;
+  }
+  return false;
+}
+
+export function appendProposalWeatherAdvisoryLine(message: string, plan: PlanningResponsePlan): string {
+  if (!isProposalMutatingPlan(plan)) return message;
+  const line = formatProposalWeatherAdvisoryLine(plan.weatherAdvisories);
+  if (!line) return message;
+  return message.endsWith(line) ? message : `${message}\n${line}`;
+}
 
 export function planningResponsePlan(needs: PlanningNeeds, goal?: PlanningResponsePlan["goal"], generated?: PlanningGenerated): PlanningResponsePlan {
   const ready = assessPlanningReadiness(needs);
@@ -210,7 +227,9 @@ export function fallbackPlanningV2Reply(plan: PlanningResponsePlan): string {
       const qa = plan.qa;
       const answer = !qa ? "Chưa hoàn tất câu trả lời."
         : qa.status === "ANSWERED" || qa.status === "PARTIAL" ? qa.answerParts.map(part => part.text).join("\n\n") + (qa.status === "PARTIAL" ? `\n\n${qa.unansweredAspects.join(" ")}` : "")
-        : qa.status === "CLARIFICATION_REQUIRED" ? qa.clarificationQuestion : qa.message;
+        : qa.status === "CLARIFICATION_REQUIRED" ? qa.clarificationQuestion
+        : qa.status === "WEATHER" ? qa.leadIn
+        : qa.message;
       return `${answer}${plan.compound ? "\n\nPhần chỉnh lịch mình chưa làm: bạn gửi riêng yêu cầu chỉnh điểm hoặc ngày sau khi xem thông tin nguồn nhé; lịch hiện tại vẫn giữ nguyên." : ""}`;
     }
     case "PLANNING_GUIDANCE": return guidanceFallback(plan);
@@ -236,13 +255,13 @@ export function fallbackPlanningV2Reply(plan: PlanningResponsePlan): string {
     case "REPLAN_FAILED": return plan.refinementOutcome === "UNKNOWN"
       ? "Mình chưa rõ chỉnh sửa vừa rồi đã được ghi hay chưa nên tạm chặn thay đổi tiếp; cần đối soát đúng yêu cầu đó trước."
       : `Mình chưa áp dụng chỉnh sửa này; đề xuất trước vẫn được giữ. ${plan.validation?.status === "NO_FEASIBLE_ITINERARY" ? "Phương án sau chỉnh sửa chưa đạt các kiểm tra" : "Mình chưa hoàn tất bước kiểm tra hoặc chưa có điểm thay thế phù hợp"}; bạn thử đổi sang điểm hoặc ngày khác nhé.`;
-    case "REPLAN_PROPOSAL": return replanSentence(plan);
+    case "REPLAN_PROPOSAL": return appendProposalWeatherAdvisoryLine(replanSentence(plan), plan);
     case "ACKNOWLEDGE_NO_CHANGE": return "Mình giữ nguyên lịch hiện tại, vì thông tin này không làm đổi cách bố trí.";
-    case "REFINE_PROPOSAL": return [...(plan.refinement?.planningImplications ?? []).map(code => implicationText[code]), currentRoute(plan), overnightSentence(plan), proposalStatusReply(plan)].filter(Boolean).join(" ");
+    case "REFINE_PROPOSAL": return appendProposalWeatherAdvisoryLine([...(plan.refinement?.planningImplications ?? []).map(code => implicationText[code]), currentRoute(plan), overnightSentence(plan), proposalStatusReply(plan)].filter(Boolean).join(" "), plan);
     case "REFINEMENT_FAILED": return plan.refinementOutcome === "UNKNOWN"
       ? "Mình chưa rõ thay đổi vừa rồi đã được ghi hay chưa. Đề xuất trước là bản đã biết gần nhất; cần đối soát đúng yêu cầu đó trước khi thay đổi tiếp."
       : `${plan.refinementOutcome === "REJECTED" ? `Mình chưa áp dụng thay đổi này; đề xuất trước vẫn được giữ. ${proposalStatusReply(plan)}` : "Mình chưa hoàn tất thay đổi này; đề xuất trước vẫn được giữ và chưa có gì được lưu."}${plan.overnightPreferenceDropped ? " Mình chưa dựng được lịch với nơi nghỉ đêm bạn vừa chọn nên giữ nguyên nơi nghỉ đêm hiện tại; bạn có thể chọn khu vực khác." : ""}`;
-    case "PRESENT_PROPOSAL": return `${routeRationale(plan)}${caveatClause(plan)}`;
+    case "PRESENT_PROPOSAL": return appendProposalWeatherAdvisoryLine(`${routeRationale(plan)}${caveatClause(plan)}`, plan);
   }
 }
 
@@ -292,26 +311,28 @@ function causeNamed(plan: PlanningResponsePlan, text: string) {
 export function acceptsPlanningV2Reply(message: string, plan: PlanningResponsePlan) {
   if (plan.goal.startsWith("QA_")) return message === fallbackPlanningV2Reply(plan);
   if (plan.goal === "PLANNING_GUIDANCE") return guidanceRejection(message, plan) === null;
-  const text = plain(message);
+  if (plan.goal.startsWith("REPLAN_")) return message === fallbackPlanningV2Reply(plan);
+  const advisoryLine = isProposalMutatingPlan(plan) ? formatProposalWeatherAdvisoryLine(plan.weatherAdvisories) : null;
+  const baseMessage = advisoryLine && message.endsWith(`\n${advisoryLine}`) ? message.slice(0, -(advisoryLine.length + 1)) : message;
+  const text = plain(baseMessage);
   if (LODGING_FABRICATION.test(text)) return false;
   if (["ACKNOWLEDGE_NO_CHANGE", "CLARIFY", "ASK_DURATION", "ASK_TRANSPORT"].includes(plan.goal) && CAVEAT_TEXT.test(text)) return false;
   if (plan.overnightUnmet?.some(unmet => !text.includes(plain(unmet.wantedArea)))) return false;
   if (plan.overnightPreferenceDropped && !/noi nghi dem|nghi dem/.test(text)) return false;
-  if (!message.trim() || message.length > 1600 || (message.match(/\?/g) ?? []).length > 1) return false;
+  if (!baseMessage.trim() || baseMessage.length > 1600 || (baseMessage.match(/\?/g) ?? []).length > 1) return false;
   if (/da (?:duoc )?(?:luu|ap dung|dat|them|xoa)|luu thanh cong|https?:|<[^>]+>|(?:mo|dong) cua (?:luc|den|tu|truoc|sau|vao)|gia ve|\d{1,2}:\d{2}/.test(text)) return false;
-  if (plan.goal.startsWith("REPLAN_")) return message === fallbackPlanningV2Reply(plan);
   const numbers = new Set(JSON.stringify({ facts: plan.knownFacts, companions: plan.companionContext, choices: plan.optionalQuestion, conflict: plan.tripShapeConflict, guidance: plan.guidance?.days.map(day => [day.day, day.stopCount]), nights: plan.tripStructure, overnights: plan.guidance?.overnights }).match(/\d+/g) ?? []);
   plan.optionalQuestion?.choices.forEach((_, i) => numbers.add(String(i + 1)));
-  if (unsupportedQuantity(message, plan, numbers)) return false;
+  if (unsupportedQuantity(baseMessage, plan, numbers)) return false;
   if (plan.validation?.status !== "PROPOSAL_READY" && VALIDITY_CLAIM.test(text.replace(NEGATED_VALIDITY, ""))) return false;
   if (plan.goal === "ASK_DURATION" || plan.goal === "ASK_TRANSPORT") {
-    if (!message.includes("?") || /khoi hanh|so thich|di cung|may nguoi|bao nhieu nguoi/.test(text)) return false;
+    if (!baseMessage.includes("?") || /khoi hanh|so thich|di cung|may nguoi|bao nhieu nguoi/.test(text)) return false;
     if (plan.goal === "ASK_DURATION" && !/may ngay|bao nhieu ngay|thoi luong/.test(text)) return false;
     if (plan.goal === "ASK_TRANSPORT" && !/o to|xe may|phuong tien/.test(text)) return false;
     if (plan.goal === "ASK_TRANSPORT" && plan.planningImplications.includes("COMPACT_TRIP") && !/gon|thoi gian.*duong|di chuyen/.test(text)) return false;
   }
   if (UNSUPPORTED_ATMOSPHERE.test(text)) return false;
-  if (["ACKNOWLEDGE_NO_CHANGE", "REFINEMENT_FAILED"].includes(plan.goal) && message.includes("?")) return false;
+  if (["ACKNOWLEDGE_NO_CHANGE", "REFINEMENT_FAILED"].includes(plan.goal) && baseMessage.includes("?")) return false;
   if (plan.goal === "REFINEMENT_FAILED" && plan.refinementOutcome === "UNKNOWN" && !/chua ro|doi soat/.test(text)) return false;
   if (plan.goal === "REFINEMENT_FAILED" && plan.refinementOutcome === "UNKNOWN" && /giu nguyen|van duoc giu/.test(text)) return false;
   if (plan.goal === "REFINEMENT_FAILED" && /da (?:cap nhat|tinh chinh)|phuong an moi da/.test(text)) return false;
@@ -321,7 +342,7 @@ export function acceptsPlanningV2Reply(message: string, plan: PlanningResponsePl
   }
   if (plan.goal === "PRESENT_PROPOSAL" || plan.goal === "REFINE_PROPOSAL") {
     if (!NOT_SAVED.test(text)) return false;
-    if (caveatSentenceCount(message) > 1) return false;
+    if (caveatSentenceCount(baseMessage) > 1) return false;
     if (plan.goal === "PRESENT_PROPOSAL" && plan.guidance?.days.some(day => day.stopCount) && !plan.guidance.days.some(day => day.stops.some(stop => text.includes(plain(stop))))) return false;
     if (plan.validation?.status !== "NO_FEASIBLE_ITINERARY" && /(?:chua|khong) (?:co|gom|bao gom) (?:du lieu ve )?(?:lich trinh|cac diem|diem dung)/.test(text)) return false;
     if (plan.validation?.status === "INSUFFICIENT_DATA" && !causeNamed(plan, text)) return false;
@@ -338,7 +359,10 @@ const replySchema = z.object({ message: z.string().trim().min(1).max(1600) }).st
 /** Proposal wording gets the route, concrete implications, the overnight sentence and the finished caveat as plain Vietnamese,
  * so the model cannot echo internal check names or outcomes. Other goals keep the structured plan. */
 function composerView(plan: PlanningResponsePlan): unknown {
-  if (plan.goal !== "PRESENT_PROPOSAL" && plan.goal !== "REFINE_PROPOSAL") return plan;
+  if (plan.goal !== "PRESENT_PROPOSAL" && plan.goal !== "REFINE_PROPOSAL") {
+    const { weatherAdvisories: _weather, ...rest } = plan;
+    return rest;
+  }
   const overnight = overnightSentence(plan);
   return {
     goal: plan.goal, knownFacts: plan.knownFacts, ...(plan.tripStructure ? { tripStructure: plan.tripStructure } : {}), route: routeLines(plan),
@@ -362,8 +386,9 @@ export async function safePlanningV2Reply(plan: PlanningResponsePlan, skill: Ass
   let hint: string | undefined;
   for (let attempt = 0; attempt < (plan.goal === "PLANNING_GUIDANCE" ? 2 : 1); attempt++) {
     try {
-      const message = await compose(structuredClone(hint ? { ...plan, retryHint: hint } : plan), skill);
-      if (acceptsPlanningV2Reply(message, plan)) { assistantComposerOutcome(plan.goal, "accepted"); return message; }
+      const { weatherAdvisories: _weather, ...modelPlan } = plan;
+      const message = await compose(structuredClone(hint ? { ...modelPlan, retryHint: hint } : modelPlan), skill);
+      if (acceptsPlanningV2Reply(message, plan)) { assistantComposerOutcome(plan.goal, "accepted"); return appendProposalWeatherAdvisoryLine(message, plan); }
       hint = plan.goal === "PLANNING_GUIDANCE" ? guidanceRejection(message, plan) ?? undefined : undefined;
     } catch { break; /* The confirmed business result is returned with a deterministic rendering. */ }
   }

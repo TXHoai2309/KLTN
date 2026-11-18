@@ -5426,3 +5426,80 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Fixed form proposals reporting NO_FEASIBLE for ordinary Hanoi trips: whole-chain day-boundary search in `planJourney`, plus trailing auto-selected stop reduction with `JOURNEY_STOPS_REDUCED` in the form path only. Assistant never drops stops.
 - Updated stale `planning-chat-flow` and `trips-view` test fixtures. Production migrations, commit and deploy not performed.
 - Itinerary map now draws the outbound and return legs and an origin marker for the owner (form, Assistant, saved trip; never companion views), counts legs without a shape as missing, and the timeline shows origin stops in the same rhythm as visits. Verified on a synthetic preview page, not with a live saved proposal.
+
+## 2026-11-18 — WEATHER-SUN-ADVISORIES ticket 01: sun times on destination
+
+- Owner asked to run the weather tickets overnight. Added `suncalc@1.9.0` (pinned) and `@types/suncalc@1.9.2`; new `trip-weather` module computes sunrise, sunset and golden hours in Asia/Ho_Chi_Minh; public `GET /api/destinations/[id]/weather?date=` reuses the public destination visibility boundary; destination page shows a "Giờ mặt trời" card with a date picker.
+- product-spec and trip-origin-spec now reference ADR-36. Evidence: trip-weather vitest 8/8 PASS; web `tsc --noEmit` PASS. Not run: production build, browser check. Solstice reference values for Đồng Văn come from suncalc itself (regression ±2 min), not an independent almanac.
+
+## 2026-11-18 — WEATHER-SUN-ADVISORIES ticket 06: outdoor destination
+
+- Added `Destination.isOutdoor` (default false) with migration `20261118010000_destination_is_outdoor` (one `ALTER TABLE ... ADD COLUMN`, reviewed). Threaded through the destination DTO, public DTO, V3 create/patch, admin form checkbox and admin list column (desktop and mobile). Regenerated Prisma client.
+- Evidence: web `tsc --noEmit` PASS; vitest destination/admin/trip-weather 486 PASS, 21 SKIP; legacy `test:destination` 69 PASS, 1 FAIL (test 64, also failing before this change). Updated two exact-key DTO assertions.
+- Not done: migration NOT applied to any database (needs owner authorization); browser check not run.
+
+## 2026-11-18 — WEATHER-SUN-ADVISORIES tickets 09 and 02
+
+- Ticket 09 needed no code: the destination page already links to Google Maps ("Mở địa danh trên Google Maps" / "Tìm điểm đến trên Google Maps") from the location card.
+- Ticket 02: server-only Open-Meteo adapter (`trip-weather/forecast`) with injectable fetcher/timeout/clock, multi-point batching, provider nulls kept as null, `UNAVAILABLE` reasons, 1-hour in-memory cache for available results only. The public weather endpoint now returns the selected day's hours, day summaries, `NOT_YET_AVAILABLE` with the start date, or `UNAVAILABLE`; the destination card shows an hourly table, next days, source and update time.
+- Evidence: trip-weather vitest 17/17 PASS; web `tsc --noEmit` PASS; one live Open-Meteo request from the agent machine returned 384 hourly rows (16 days). Not run: production build, browser check of the card.
+
+## 2026-11-18 — WEATHER-SUN-ADVISORIES tickets 03, 04, 05, 07, 08, 10
+
+- One `trip-weather` service turns an itinerary (planner days plus journey legs) into day sun times, visit-time weather (worst value of each variable across the visit's hours), `NOT_YET_AVAILABLE` days, leg weather sampled about every 20 km (max 8, `LINEAR_APPROXIMATION`, `INSUFFICIENT_DATA` without verified route/geometry/times), RAIN/FOG/WIND advisories at the owner thresholds and AFTER_SUNSET for outdoor destinations (computed even when the provider is down). Validator untouched.
+- Deviation from the spec: a single signed-in `POST /api/trip-weather` serves proposals and saved trips. The client sends the itinerary it already holds; the server re-reads destinations from the public visibility boundary and returns only public weather and the public outdoor flag, so no Trip ownership lookup is needed. Geometry is reduced to at most 64 points per leg client-side.
+- `TripWeatherPanel` is shown in the form proposal, the assistant proposal and the saved trip view (one panel per trip, grouped by day, not inline per stop card).
+- Ticket 10: explore map gets a "Nền địa hình" toggle using Stadia `outdoors` style, remembered in localStorage with try/catch. Not verified that the owner's Stadia plan serves this style; satellite was not used.
+- Evidence: trip-weather 26 tests, map background 3, itinerary suites 490 PASS / 3 SKIP, destination/admin 486 PASS; web `tsc --noEmit` PASS; `npm run build` PASS with both new routes; `git diff --check` clean.
+- Not done: browser verification of any screen, migration apply (owner), live Stadia terrain style check, commit.
+
+## 2026-11-18 — isOutdoor migration applied
+
+- Owner asked to migrate Development and Production. `prisma migrate deploy` applied `20261118010000_destination_is_outdoor` to Development (`DATABASE_URL`, host ep-purple-pond) and Production (`DATABASE_URL_PROD`, host ep-blue-art); `migrate status` reports both up to date. It was the only pending migration on each. No code deployed.
+- Fix: destinations with editorial (eMagazine) content returned early and skipped the weather card; the card is now rendered under the editorial body too. Verified in the browser on Cao nguyên đá Đồng Văn: sun times and live Open-Meteo hourly table render.
+
+## 2026-11-18 — ASSISTANT-WEATHER planned (not implemented)
+
+- Spec `docs/stories/ASSISTANT-WEATHER.md` and tickets 01 to 06 under `.scratch/assistant-weather/issues/` are written and owner-approved at planning level. Glossary terms (Weather question, Representative point) and the ADR-36 addendum are recorded.
+- No code changed. Owner asked to record only and start later.
+
+## 2026-11-18 — ASSISTANT-WEATHER ticket 01: shared weather block redesign
+
+- Replaced `TripWeatherView` body and `trip-weather.css` while keeping `TripWeatherPanel` and all three call sites (`/trips/new`, Assistant proposal card, `/trips/[id]`) unchanged in props, request/response contract, and advisory thresholds.
+- Each day renders as a card headed by sunrise/sunset with icons; each visit is a compact row (condition icon, temperature, rain, wind) showing visibility only when strictly below `FOG_VISIBILITY_THRESHOLD_M` (`< 1000 m`). Advisory chips at the top carry icons + text labels, scroll/highlight affected visit rows, and auto-open + highlight affected legs inside the default-collapsed leg `<details>`. Unavailable and `NOT_YET_AVAILABLE` states use neutral/slate styling, never "good" green.
+- Evidence: `tsc --noEmit` PASS; Vitest `trip-weather` + `planning-panel` + `trip-theme` **54/54 PASS** (including 6 new tests in `trip-weather-panel.vitest.test.ts`); `git diff --check` PASS. Browser check on Next dev server verified desktop (`1280x900`) and mobile (`375x812`) in light and dark themes with zero horizontal overflow, chip jump/highlight, and leg `<details>` auto-expand.
+- Not checked yet: live authenticated `/trips/new` and saved `/trips/[id]` screens with real DB trips (deferred to owner acceptance); `npm run build` deferred to tickets 03/04/06.
+
+## 2026-11-18 — ASSISTANT-WEATHER ticket 02: WEATHER intent, server date check, and Q&A turn contract
+
+- Extended `QaQuestionUnderstanding`, `questionUnderstandingSchema`, and `understandingValidationSchema` with `WEATHER` intent and nullable `weatherDate`, passing Vietnam `today` + weekday into `createQaQuestionUnderstander`. Added zero weather keyword lists; `deterministicQuestionUnderstanding` fallback never yields `WEATHER`.
+- Added server-side `validateWeatherDate` (`qa-weather-date.ts`) reusing `parseLocalDate`, `todayInVietnam`, `FORECAST_DAYS`, and `forecastStartDateFor` to classify `DEFAULT_TODAY`, `VALID`, `BEYOND_HORIZON` (with `availableFrom`), and `INVALID` (`MALFORMED` / `PAST_DATE`).
+- Extended `qaCompletedTurnSchema` and `QaAnswer` with strict `WEATHER` completed-turn status (`destinationId`, `date`, `representative`, `leadIn`, empty `answerParts`/`citations`, no forecast values) plus optional `choices` (1–3) on `CLARIFICATION_REQUIRED`, keeping all legacy stored turns readable.
+- Evidence: `tsc --noEmit` PASS; Vitest 8 Q&A/Assistant suites **219/219 PASS** (including 23 new tests in `qa-weather-intent-contract.vitest.test.ts`); `git diff --check` PASS. Not checked yet: real OpenAI `qa_question_understanding` call (forbidden without owner approval); `npm run build` deferred to tickets 03/04/06.
+
+## 2026-11-18 — ASSISTANT-WEATHER ticket 05: proposal reply weather advisory line
+
+- Added `proposal-weather-advisories.ts` and extracted shared `trip-weather-request.ts` (`toTripWeatherRequest` usable on both client and server). Fixed severity ranking (`ADVISORY_KIND_PRIORITY`: `FOG` > `RAIN` > `WIND` > `AFTER_SUNSET`, then relative threshold exceedance, then day/start time) selects at most 2 heaviest advisories from `getTripWeather` within a bounded 2.5 s timeout.
+- Wired `weatherForProposal` into `travel-planning-session.ts`, `http-service.ts`, and `planning-runtime.ts`. Code appends a deterministic single-line advisory notice (naming kind, day, stop/leg, window, metric, and reminder to inspect the weather panel below) only on proposal-creating/changing turns (`PRESENT_PROPOSAL`, `REFINE_PROPOSAL`, `REPLAN_PROPOSAL`); model composer never receives or rewrites weather figures. Read-only (`PLANNING_GUIDANCE`, `QA_*`), no-change, `NOT_YET_AVAILABLE`, and provider-failure turns omit the line. Validator and Save eligibility remain untouched.
+- Evidence: `tsc --noEmit` PASS; Vitest 24 `assistant-agent-v2` + `trip-weather` suites **320/320 PASS** (including `proposal-weather-advisories.vitest.test.ts`); `git diff --check` PASS. Not checked yet: live authenticated V2 planning turn with real OpenAI model; `npm run build` run in Ticket 03 next.
+
+## 2026-11-18 — ASSISTANT-WEATHER ticket 03: server Q&A weather answer branch
+
+- Added `qa-weather-answer.ts` and wired `weather` dependencies into `createQaService` and `qa-runtime.ts`. When understanding returns `WEATHER`, `qa-service` skips RAG retrieval and source generation while preserving Guest/Traveler admission, abuse limits, and idempotency replay.
+- Resolves open destination page context directly, matches `targetSubjects` against visible destinations via `resolvePlanningDestinationName` + `matchKnownDestinations` (up to 3 choices when ambiguous, plain `"mình chưa tìm thấy điểm đó"` when unmatched, representative Hà Giang city destination with `representative: true` when no specific place is named; fails closed honestly when no visible Hà Giang city destination exists in DB).
+- Enforces `validateWeatherDate` (`DEFAULT_TODAY`, `BEYOND_HORIZON` -> `"Chưa có dự báo, sẽ có từ ngày X."`, `INVALID` -> short date clarification), public destination visibility (404 `CONTEXT_UNAVAILABLE` on hidden context, plain not-found on hidden named place), graceful provider-down `WEATHER` notice, and `isSafeWeatherLeadIn` gate rejecting verdicts (`nên đi` / `không nên đi`) or unknown figures/clocks/dates in favor of `fixedWeatherLeadIn`. Stores zero forecast snapshots.
+- Evidence: `tsc --noEmit` PASS; Vitest 7 Q&A/Assistant suites **219/219 PASS** (including 16 new tests in `qa-weather-answer.vitest.test.ts`); `npm run build` (56 pages) PASS; `git diff --check` PASS. Data note: read-only Dev DB check shows no visible `"Thành phố Hà Giang"` destination row yet (owner should publish one in Admin before live representative-point acceptance).
+
+## 2026-11-18 — ASSISTANT-WEATHER ticket 04: chat weather card and clickable destination choices
+
+- Added `AssistantWeatherCard` (`assistant-weather-card.tsx` + `assistant-weather-card.css`, imported via `assistant.css`) reusing `SunTimesView` and `ForecastView` from `destination-weather-card.tsx` and fetching `GET /api/destinations/[id]/weather?date=` on render so reopened saved conversations always load fresh forecasts without storing snapshots.
+- Displays an explicit `Điểm đại diện` notice directly on the card when `representative=true`, handles `loading` (`aria-live="polite"`), `NOT_YET_AVAILABLE` (`"Chưa có dự báo cho ngày này, sẽ có từ ngày X."`), `UNAVAILABLE`, and isolated fetch/render errors (`WeatherCardErrorBoundary` + `role="alert"`) without breaking the turn lead-in. Added `tabIndex={0}` + `role="region"` on `.public-detail-table-scroll` for keyboard scrolling.
+- Wired `WEATHER` and up to 3 clickable `CLARIFICATION_REQUIRED` destination choice pills (`buildWeatherChoiceFollowUp`) across `AssistantAnswer`, `AssistantTurn`, `SignedInV2Chat` (full page + destination panel), and `AssistantV2GuestChat` (Guest full page, Guest destination panel, and reopened saved conversations), plus refined `resolveWeatherDestination` so short district aliases expand to all matching visible destinations and clicked choices resolve uniquely.
+- Evidence: `tsc --noEmit` PASS; Vitest 31 assistant/Q&A suites **267/267 PASS** (including 6 new tests in `assistant-weather-card.vitest.test.ts` and 17/17 in `qa-weather-answer.vitest.test.ts`); `npm run build` (56 pages) PASS; `git diff --check` PASS. Browser check on Next dev server verified `1280x900` and `375x812` in Light and Dark themes across Full Chat and Destination Panel (`html`/`body` width `360px <= 375px`, zero horizontal page overflow, choice click follow-up, keyboard focus, screenshot saved). Not checked yet: live OpenAI chat turn (forbidden without owner approval).
+
+## 2026-11-18 — ASSISTANT-WEATHER ticket 06: ha-giang-qa skill instructions, docs, and offline verification
+
+- Updated `ha-giang-qa` skill (`skills/ha-giang-qa.ts`) and V2 interleaved routing prompt (`planning-ai.ts`) so destination and general Hà Giang weather/sun-time forecast questions route through the Q&A service (`answer-ha-giang-question` only, zero write actions, no verdicts), while saved-trip and in-trip weather remain out of scope (`unsupported=true`). Added assertions in `skill-registry.vitest.test.ts`.
+- Updated `docs/product/product-spec.md` (Weather and sun times section), `docs/stories/ASSISTANT-WEATHER.md` status, and tickets `01`–`06` under `.scratch/assistant-weather/issues/`.
+- Evidence: `tsc --noEmit` PASS; related Vitest suites **75/75 files (913/913 tests) PASS** across `trip-weather`, `assistant-agent-v2`, `assistant-planning`, `components/assistant`, `trip-theme`, and Q&A weather/contract/understanding/service/HTTP/context/abuse/safety; `npm run build` (56 pages) PASS; `git diff --check` PASS.
+- Skipped / Pending owner approval: live browser acceptance calling real OpenAI models and saving a test trip to the database were skipped per owner cost/DB instructions (`cần owner đồng ý`). Read-only Dev DB check also noted that no `VISIBLE` destination row for `"Thành phố Hà Giang"` exists yet for live representative-point queries. Pre-existing unrelated test issues left untouched: legacy `test:destination` #64 and 3 older `src/modules/ai` offline suites (`qa-diagnostics`, `qa-advanced-reasoning`, `qa-chat-preference`) affected by earlier `runtime-config` / `knowledgeMode` changes. No commit or push.

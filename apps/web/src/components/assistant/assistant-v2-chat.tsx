@@ -11,6 +11,7 @@ import { createLocationFlowState, transitionLocationFlow, getLocationFlowMessage
 import type { MapCoordinate } from "../../modules/map/map-model";
 import { TripValidationPanel } from "../../modules/trip-validation/trip-validation-panel";
 import { AssistantAnswer, PROMPT_SUGGESTIONS } from "./assistant-answer";
+import { buildWeatherChoiceFollowUp } from "./assistant-weather-card";
 import { AssistantSidebar } from "./assistant-sidebar";
 import { deleteConversation, fetchConversations, renameConversation } from "./assistant-conversation-client";
 import type { QaConversationSummary } from "../../modules/ai/qa-contract";
@@ -146,12 +147,17 @@ function SignedInV2Chat({ available = true, tripId, onMinimize, initialContext, 
       return false;
     } finally { working.current = false; setBusy(false); }
   }
-  async function send() {
-    const text = draft.trim();
+  async function send(overrideText?: string) {
+    const fromOverride = overrideText !== undefined;
+    const text = (fromOverride ? overrideText : draft).trim();
     if (!text || working.current || !available || expired || pending.current) return;
     // The question leaves the composer at once and shows as a pending turn; a failed send gives it back.
-    setAsking({ question: text, at: messages.length }); setDraft("");
-    try { if (!await sendTurn(text)) setDraft(current => current || text); } finally { setAsking(null); }
+    setAsking({ question: text, at: messages.length });
+    if (!fromOverride) setDraft("");
+    try {
+      const ok = await sendTurn(text);
+      if (!ok && !fromOverride) setDraft(current => current || text);
+    } finally { setAsking(null); }
   }
   async function sendTurn(text: string): Promise<boolean> {
     let handle = sessionId;
@@ -218,7 +224,7 @@ function SignedInV2Chat({ available = true, tripId, onMinimize, initialContext, 
       const qa = planning?.responsePlan.qa ?? inTrip?.plan.qa;
       return <div className="assistant-turn assistant-planning-exchange" key={index}>
         <article className="assistant-message assistant-user"><p>{question}</p></article>
-        <article className="assistant-message assistant-answer"><span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true"/><span>Trợ lý AI</span></span>{qa ? <><AssistantAnswer turn={qa} question={question} showSources/>{(qa.status === "ANSWERED" || qa.status === "PARTIAL") && qa.citations.some(source => source.sourceUrl === null) && <details className="assistant-answer-sources"><summary>Nguồn tài liệu nội bộ</summary><ul>{qa.citations.filter(source => source.sourceUrl === null).map(source => <li key={source.id}><strong>{source.title}</strong>{source.locators.map((locator, i) => <p key={i}>{locator.pageNumber ? `Trang ${locator.pageNumber}` : ""}{locator.pageNumber && locator.section ? " · " : ""}{locator.section}</p>)}<small>Tài liệu chưa có liên kết công khai.</small></li>)}</ul></details>}{(planning?.responsePlan.compound || inTrip?.plan.compound) && <p>Phần chỉnh lịch chưa được thực hiện. Bạn hãy gửi riêng yêu cầu chỉnh sau khi xem thông tin nguồn.</p>}</> : <AssistantPlanMessage message={turn.message} proposalBelow={!!planning?.generated && (planning.responsePlan.proposalChanged || planning.responsePlan.goal === "PRESENT_PROPOSAL")}/>}</article>
+        <article className="assistant-message assistant-answer"><span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true"/><span>Trợ lý AI</span></span>{qa ? <><AssistantAnswer turn={qa} question={question} showSources onSelectChoice={(choice, prevQuestion) => void send(buildWeatherChoiceFollowUp(choice, prevQuestion))} choicesDisabled={disabled || uncertain}/>{(qa.status === "ANSWERED" || qa.status === "PARTIAL") && qa.citations.some(source => source.sourceUrl === null) && <details className="assistant-answer-sources"><summary>Nguồn tài liệu nội bộ</summary><ul>{qa.citations.filter(source => source.sourceUrl === null).map(source => <li key={source.id}><strong>{source.title}</strong>{source.locators.map((locator, i) => <p key={i}>{locator.pageNumber ? `Trang ${locator.pageNumber}` : ""}{locator.pageNumber && locator.section ? " · " : ""}{locator.section}</p>)}<small>Tài liệu chưa có liên kết công khai.</small></li>)}</ul></details>}{(planning?.responsePlan.compound || inTrip?.plan.compound) && <p>Phần chỉnh lịch chưa được thực hiện. Bạn hãy gửi riêng yêu cầu chỉnh sau khi xem thông tin nguồn.</p>}</> : <AssistantPlanMessage message={turn.message} proposalBelow={!!planning?.generated && (planning.responsePlan.proposalChanged || planning.responsePlan.goal === "PRESENT_PROPOSAL")}/>}</article>
         {planning?.generated && (planning.responsePlan.proposalChanged || planning.responsePlan.goal === "PRESENT_PROPOSAL") && <div className="assistant-planning"><PlanningProposalView generated={planning.generated} isCurrent={planning.generated.proposal.proposalId === latestPlanning?.generated?.proposal.proposalId && planning.generated.version === latestPlanning.generated.version} disabled={disabled || uncertain} savedTripId={savedTripId} onSave={() => sessionId && void perform({ action: "ASSISTANT_V2", operation: "SAVE", sessionId, confirmed: true }, "Xác nhận và lưu chuyến đi")}/></div>}
         {inTrip?.plan.validation && <TripValidationPanel validation={inTrip.plan.validation}/>}
         {inTrip?.proposal && inTrip.plan.goal === "AWAIT_CONFIRMATION" && <ol className="assistant-planning-days">{inTrip.proposal.candidate.days.map(day => <li key={day.dayIndex}>Ngày {day.dayIndex}<ul>{day.visits.map(visit => <li key={visit.visitId}>{inTrip.plan.labels?.[visit.destinationId] ?? inTrip.trip.destinationLabels[visit.destinationId] ?? "Điểm đến không còn khả dụng"} · {Math.floor(visit.startMinute / 60)}:{String(visit.startMinute % 60).padStart(2, "0")} · {visit.plannedDurationMinutes} phút</li>)}</ul></li>)}</ol>}

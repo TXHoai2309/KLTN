@@ -5,7 +5,7 @@ import type * as MapLibre from "maplibre-gl";
 import type { PublicLocation } from "@/modules/destination/public-destination-list";
 import type { ExploreReturnHref } from "@/modules/destination/destination-detail-navigation";
 import { projectMarkers, type RouteGeometry } from "@/modules/map/map-model";
-import { loadMapLibre, mapStyle } from "@/modules/map/map-config";
+import { loadMapLibre, mapStyle, readMapBackground, saveMapBackground, type MapBackground } from "@/modules/map/map-config";
 import { startMapSession } from "@/modules/map/map-session";
 import { mountMapLibre } from "@/modules/map/maplibre-renderer";
 
@@ -18,7 +18,9 @@ export default function DestinationMap({ destinations, label = "Bản đồ đi�
   const [attempt, setAttempt] = useState(0);
   const points = projectMarkers(destinations);
   const { resolvedTheme } = useTheme();
-  const style = mapStyle(resolvedTheme);
+  const [background, setBackground] = useState<MapBackground>("default");
+  useEffect(() => { setBackground(readMapBackground()); }, []);
+  const style = mapStyle(resolvedTheme, background);
   const styleRef = useRef(style);
   styleRef.current = style;
   useEffect(() => {
@@ -38,6 +40,10 @@ export default function DestinationMap({ destinations, label = "Bản đồ đi�
   </section>;
   return <section className="destination-map" aria-label={label}>
     <div ref={container} className="destination-map-canvas" aria-label={label} style={{ visibility: state === "ready" ? "visible" : "hidden" }} />
+    {state === "ready" && <button type="button" className="destination-map-background" aria-pressed={background === "terrain"}
+      onClick={() => { const next = background === "terrain" ? "default" : "terrain"; setBackground(next); saveMapBackground(next); }}>
+      {background === "terrain" ? "Nền thường" : "Nền địa hình"}
+    </button>}
     {state !== "ready" && <div className="destination-map-state destination-map-overlay" role={state === "error" ? "alert" : "status"} aria-busy={state === "loading"}>
       <strong>{state === "loading" ? "Đang tải bản đồ…" : "Bản đồ hiện không khả dụng"}</strong>
       {state === "error" && <><p>Không thể tải bản đồ. Thông tin điểm đến và Danh sách vẫn khả dụng.</p><button type="button" onClick={() => { setState("loading"); setAttempt(value => value + 1); }}>Thử lại bản đồ</button></>}

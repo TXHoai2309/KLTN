@@ -13,6 +13,7 @@ import { createQaAbuseGuard, createQaNetworkResolver } from "./qa-abuse";
 import { isQaRuntimeEnabled } from "./qa-runtime-gate";
 import { createQaDiagnostics } from "./qa-diagnostics";
 import { resolveQaContext } from "./qa-destination-context";
+import { createDefaultQaWeatherDependencies } from "./qa-weather-answer";
 
 // Owner runtime acceptance + cleanup scheduling + abuse review are pending.
 // Preview/local require exact target allowlisting and explicit abuse-control acceptance.
@@ -45,6 +46,7 @@ export const qaService = createQaService({
   generator: createQaGenerator(),
   assessor: createQaAssessor(),
   understander: createQaQuestionUnderstander(),
+  weather: createDefaultQaWeatherDependencies(db),
   resolveContext: context => resolveQaContext(db, context)
 });
 export const qaHttp = createQaHttpHandlers({

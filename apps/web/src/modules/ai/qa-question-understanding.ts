@@ -126,7 +126,8 @@ export function qaIntentHistory(question: string, history: readonly QaHistoryTur
 
 export type QaQuestionUnderstanding = {
   targetSubjects: string[];
-  intent: "OVERVIEW" | "ADMISSION" | "OPENING_HOURS" | "CULTURE" | "HISTORY" | "DIRECTIONS" | "SCHEDULE" | "COMPARISON" | "OTHER";
+  intent: "OVERVIEW" | "ADMISSION" | "OPENING_HOURS" | "CULTURE" | "HISTORY" | "DIRECTIONS" | "SCHEDULE" | "COMPARISON" | "WEATHER" | "OTHER";
+  weatherDate?: string | null;
   attributes: string[];
   temporalConstraint: string | null;
   conditions: string[];
@@ -246,6 +247,7 @@ export function deterministicQuestionUnderstanding(
   return {
     targetSubjects,
     intent,
+    weatherDate: null,
     attributes,
     temporalConstraint,
     conditions,

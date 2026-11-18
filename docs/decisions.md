@@ -696,6 +696,34 @@ There is one assistant chat for everyone. Signed-in travelers keep the full V2 e
 ### Consequences
 
 Rollback is by reverting the single retirement commit, not by a setting. The Q&A service, `/api/ai/ask`, `/api/ai/conversations`, guest identity, abuse limits and the planning auth hand-off are unchanged. No schema change and no stored conversation is deleted. Where the chat cannot start (Q&A gate closed), `/assistant` shows an unavailable state instead of a local demo. Live evidence and its gaps are recorded in the retirement story.
+
+## ADR-36 — Weather is an advisory, never a Constraint Validator input (2026-11-18)
+
+- **Status:** Accepted at planning level by the owner ("đồng ý hết", 2026-11-18). Lifts the earlier exclusion of weather for the scoped features below. Not implemented; stories pending.
+- **Date:** 2026-11-18
+
+### Context
+
+Weather was out of scope (`product/trip-origin-spec.md`). The owner approved destination forecasts, visit-time weather on itineraries, weather along route legs and sun times. Forecasts exist only for roughly the next 16 days and change between updates, and repo rules say missing required validation data is never a pass.
+
+### Decision
+
+Weather and sun times produce **weather advisories** and an after-sunset advisory shown on proposals and saved trips. They never change a Constraint Validator result and never block proposing or saving a trip. Days beyond the forecast horizon show "forecast not yet available" with no substitute values. Saved trips do not store a weather snapshot; the forecast is fetched (through a server cache) when viewed. Advisory thresholds (rain ≥ 70 % or ≥ 5 mm/h, visibility < 1 km, gusts ≥ 40 km/h) are owner-set and uncalibrated. Data comes from Open-Meteo (non-commercial, server-side, attributed) and a local sun-position library; no code, formula, data or UI is taken from SkyRadar.
+
+### Alternatives
+
+- Weather as a hard constraint: rejected; every trip beyond the forecast horizon would fail validation as missing data.
+- Store a forecast snapshot with each saved trip: rejected; it goes stale and needs new tables.
+- Fill missing days with climate averages: rejected; it presents estimates as forecasts.
+
+### Consequences
+
+The Validator and its tests are unchanged. A forecast provider outage degrades to an unavailable notice, not a failed trip. An "outdoor" flag on destinations is needed for the after-sunset advisory (migration and admin form). Cloud-sea likelihood, landslide risk from accumulated rain and official warnings remain future work.
+
+### Addendum (2026-11-18): Assistant
+
+The Assistant answers Weather questions for Guests and travelers, and a turn that creates or changes a proposal may add one line naming at most two of the heaviest advisories. Question understanding adds a `WEATHER` intent and a validated `weatherDate`; the server checks the date and re-reads the forecast, and neither model nor keyword code decides weather facts. Weather numbers and advisories are shown as a code-built card; the model writes only a short lead-in. The Assistant never says whether the traveler should or should not go. Weather questions count toward the existing Q&A abuse limits. Saved-trip weather questions (in-trip skill) are deferred.
+
 ## ADR-23 — Travel companions preserve single Trip ownership (2026-10-28)
 
 - **Status:** Accepted at planning level through the owner's Q17 confirmation, “Đồng ý chốt bản kế hoạch, chưa triển khai code”. Not implemented; no authorization to start coding.

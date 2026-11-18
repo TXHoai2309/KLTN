@@ -137,6 +137,23 @@ const completedTurnFields = {
   knowledgeMode: qaKnowledgeModeSchema.optional(),
 };
 
+export const qaDestinationChoiceSchema = z
+  .object({
+    id: qaReferenceIdSchema,
+    name: normalizedText(200),
+  })
+  .strict();
+
+export const qaLocalDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Ngày phải có định dạng YYYY-MM-DD.")
+  .refine(
+    (value) =>
+      !Number.isNaN(Date.parse(`${value}T00:00:00Z`)) &&
+      new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value,
+    "Ngày không hợp lệ.",
+  );
+
 export const qaCompletedTurnSchema = z
   .discriminatedUnion("status", [
     z.object({
@@ -178,6 +195,17 @@ export const qaCompletedTurnSchema = z
       answerParts: z.array(qaAnswerPartSchema).length(0),
       citations: z.array(qaPublicCitationSchema).length(0),
       clarificationQuestion: normalizedText(QA_CLARIFICATION_MAX_UTF16_UNITS),
+      choices: z.array(qaDestinationChoiceSchema).min(1).max(3).optional(),
+    }).strict(),
+    z.object({
+      ...completedTurnFields,
+      status: z.literal("WEATHER"),
+      answerParts: z.array(qaAnswerPartSchema).length(0),
+      citations: z.array(qaPublicCitationSchema).length(0),
+      destinationId: qaReferenceIdSchema,
+      date: qaLocalDateSchema,
+      representative: z.boolean(),
+      leadIn: normalizedText(500),
     }).strict(),
   ])
   .superRefine((turn, context) => {
@@ -285,6 +313,7 @@ export type QaFirstTurnRequest = z.infer<typeof qaFirstTurnRequestSchema>;
 export type QaFollowUpRequest = z.infer<typeof qaFollowUpRequestSchema>;
 export type QaCitationLocator = z.infer<typeof qaCitationLocatorSchema>;
 export type QaPublicCitation = z.infer<typeof qaPublicCitationSchema>;
+export type QaDestinationChoice = z.infer<typeof qaDestinationChoiceSchema>;
 export type QaAnswerPart = z.infer<typeof qaAnswerPartSchema>;
 export type QaCompletedTurn = z.infer<typeof qaCompletedTurnSchema>;
 export type QaResponse = z.infer<typeof qaResponseSchema>;

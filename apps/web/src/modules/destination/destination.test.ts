@@ -20,7 +20,7 @@ import { useDestinationVisibility } from "../../app/admin/destinations/destinati
 import DestinationVisibilitySwitch from "../../app/admin/destinations/destination-visibility-switch";
 import { useDestinationLifecycle } from "../../app/admin/destinations/destination-lifecycle-action";
 
-const input = (): DestinationInput => ({ name: "Test destination", description: "Description", area: "Đồng Văn", category: "Thiên nhiên", latitude: 23.2, longitude: 105.3, suggestedDurationMinutes: 90, minimumDurationMinutes: 30, openingDays: unknownSchedule() });
+const input = (): DestinationInput => ({ name: "Test destination", description: "Description", area: "Đồng Văn", category: "Thiên nhiên", latitude: 23.2, longitude: 105.3, suggestedDurationMinutes: 90, minimumDurationMinutes: 30, isOutdoor: false, openingDays: unknownSchedule() });
 function fixture(role: string | null = "ADMIN") {
   let rows = new Map<string, any>(); let records = new Map<string, any>(); let writes = 0; let fail = false; let currentRole = role; let transactionStart: (() => void) | undefined;
   const rowFromData = (data: any, id: string) => ({ ...data, id, deletedAt: null, createdAt: new Date("2026-10-04T00:00:00Z"), updatedAt: new Date("2026-10-04T01:00:00Z"), openingDays: data.openingDays.create.map((day: any) => ({ ...day, intervals: day.intervals.create })) });
@@ -97,7 +97,7 @@ test("Admin create hidden, detail round-trip explicit DTO, list includes hidden 
   const f = fixture(); const body = input(); body.openingDays[0] = { dayOfWeek: "MONDAY", status: "OPEN", intervals: [{ opensAt: "07:00", closesAt: "11:30" }, { opensAt: "13:30", closesAt: "17:00" }] };
   const result = await writeDestination(headers, body, "create", null, f.deps); assert.equal(result.status, "SUCCESS");
   const dto = await getDestination(headers, "id-1", f.deps); assert.equal(dto.visibility, "HIDDEN"); assert.deepEqual(dto.openingDays[0]!.intervals, body.openingDays[0]!.intervals); assert.equal(dto.openingDays.length, 7); assert.equal(dto.suggestedDurationMinutes, 90); assert.equal(dto.minimumDurationMinutes, 30);
-  assert.deepEqual(Object.keys(dto).sort(), ["id", "name", "description", "area", "category", "latitude", "longitude", "suggestedDurationMinutes", "minimumDurationMinutes", "visibility", "createdAt", "updatedAt", "openingDays"].sort());
+  assert.deepEqual(Object.keys(dto).sort(), ["id", "name", "description", "area", "category", "latitude", "longitude", "suggestedDurationMinutes", "minimumDurationMinutes", "isOutdoor", "visibility", "createdAt", "updatedAt", "openingDays"].sort());
   await writeDestination(headers, body, "second", null, f.deps); f.rows().get("id-2").visibility = "VISIBLE";
   const list = await listDestinations(headers, 1, f.deps); assert.equal(list.items.length, 2); assert.deepEqual(list.items.map(item => item.visibility), ["HIDDEN", "VISIBLE"]); assert.equal("description" in list.items[0]!, false);
 });

@@ -172,3 +172,45 @@ _Avoid_: Recruitment closure, group dissolution, trip deletion.
 **Companion trip cancellation (hủy chuyến đồng hành)**:
 The host's decision to call off the shared trip offered to its members.
 _Avoid_: Trip completion, listing withdrawal, trip deletion.
+
+## Weather and sun times
+
+**Destination forecast (dự báo tại điểm đến)**:
+The forecast weather conditions at a destination for a given hour or day.
+_Avoid_: Real-time weather, weather constraint.
+
+**Visit-time weather (thời tiết lúc có mặt)**:
+The destination forecast for the hour at which a scheduled visit is planned.
+_Avoid_: Departure weather, daily weather.
+
+**Weather advisory (cảnh báo thời tiết)**:
+An informational notice about forecast conditions shown on an itinerary proposal or saved trip. It is never a Constraint Validator result and never blocks a trip.
+_Avoid_: Validation failure, weather constraint.
+
+**Forecast not yet available (chưa có dự báo)**:
+The state of a day that lies beyond the forecast horizon. It carries no substitute values.
+_Avoid_: Climate average, estimated weather.
+
+**Sun times (giờ mặt trời)**:
+Sunrise, sunset and the morning and evening golden hours for a destination's location on a given date.
+_Avoid_: Astronomy forecast.
+
+**Outdoor destination (điểm ngoài trời)**:
+A destination an Admin has marked as experienced in the open, so daylight matters for the visit.
+_Avoid_: Nature category, scenic spot.
+
+**After-sunset advisory (cảnh báo sau hoàng hôn)**:
+A weather advisory that a visit to an outdoor destination is scheduled after that day's sunset.
+_Avoid_: Opening-hours violation.
+
+**Leg weather (thời tiết dọc chặng)**:
+The forecast along a travel leg for the time the traveler is expected to pass each part of it.
+_Avoid_: Departure weather, destination forecast.
+
+**Weather question (câu hỏi thời tiết)**:
+A question to the Assistant about forecast weather or sun times at a destination, answered from the destination forecast rather than from source documents. It never ends in a verdict on whether to go.
+_Avoid_: Seasonal advice, climate question.
+
+**Representative point (điểm đại diện)**:
+The place whose forecast stands in for "Hà Giang" when a Weather question names no destination. The answer states that it is a representative point.
+_Avoid_: Province-wide forecast.

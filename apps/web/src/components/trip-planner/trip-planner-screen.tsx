@@ -1,5 +1,6 @@
 "use client";
 
+import { TripWeatherPanel } from "@/modules/trip-weather/trip-weather-panel";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route as NextRoute } from "next";
@@ -161,6 +162,7 @@ export function TripPlannerScreen({
 
             {/* Compact route metrics under day tabs */}
             <TripOverviewCard day={day} journeyPlan={proposal.journeyPlan} />
+            <TripWeatherPanel days={proposal.days} journeyPlan={proposal.journeyPlan} />
           </div>
 
           <div

@@ -12,6 +12,7 @@ import { analyzePlanningText, generateAiSelection } from "./planning-ai";
 import type { PlanningDependencies } from "./planning-service";
 import { composePlanningReply } from "./planning-reply";
 import { createAssistantV2HttpService } from "../assistant-agent-v2/http-service";
+import { createProposalWeatherEvaluator } from "../assistant-agent-v2/proposal-weather-advisories";
 import { createSessionHeadStore } from "../assistant-agent-v2/session-head-store";
 
 export const planningDependencies = {
@@ -35,5 +36,10 @@ export const planningDependencies = {
 // Worker-independent encrypted state with shared owner/version/CAS metadata.
 export const assistantPlanningHttpDependencies = {
   ...planningDependencies,
-  v2: createAssistantV2HttpService({ ...planningDependencies, heads: createSessionHeadStore(db), secret: () => ENV.BETTER_AUTH_SECRET }),
+  v2: createAssistantV2HttpService({
+    ...planningDependencies,
+    heads: createSessionHeadStore(db),
+    secret: () => ENV.BETTER_AUTH_SECRET,
+    weatherForProposal: createProposalWeatherEvaluator({ database: db }),
+  }),
 };

@@ -1,5 +1,6 @@
 "use client";
 
+import { TripWeatherPanel } from "@/modules/trip-weather/trip-weather-panel";
 import Link from "next/link";
 import { BREAKFAST_MINUTES, MORNING_DEPARTURE_MINUTE } from "@/modules/trip-planner/planner-engine";
 import { Fragment, useEffect, useRef, useState, useMemo } from "react";
@@ -1248,6 +1249,7 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
                 );
               })}
             </div>
+            <TripWeatherPanel days={plannerDays} journeyPlan={trip.journey?.plan} />
           </section>
         </div>
 

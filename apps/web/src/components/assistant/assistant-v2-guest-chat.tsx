@@ -2,8 +2,9 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { FileText, Maximize2, Minus, PanelLeft, PanelLeftOpen, Plus, RotateCcw, Send, ShieldCheck, Sparkles } from "lucide-react";
-import type { QaContext, QaConversationSummary } from "../../modules/ai/qa-contract";
+import type { QaContext, QaConversationSummary, QaDestinationChoice } from "../../modules/ai/qa-contract";
 import { AssistantAnswer, PROMPT_SUGGESTIONS } from "./assistant-answer";
+import { buildWeatherChoiceFollowUp } from "./assistant-weather-card";
 import { AssistantController, hasUnresolvedAttempt, shouldSendOnEnter, type AssistantState } from "./assistant-controller";
 import { consumeAssistantHandoff } from "./assistant-handoff";
 import { deleteConversation, fetchConversations, renameConversation } from "./assistant-conversation-client";
@@ -101,12 +102,17 @@ export function AssistantV2GuestChat({ available = true, onMinimize, onOpenFullP
   const pending = state.pending;
   const busy = pending?.phase === "sending";
   const disabled = !available || loadingSaved || (!!pending && pending.phase !== "failed");
-  function send() {
-    if (disabled || !state.draft.trim()) return;
-    const text = state.draft;
+  function sendMessageText(text: string) {
+    if (disabled || !text.trim()) return;
     if (!guest) { controller.setDraft(text); controller.submit(); return; }
     const outcome = submitGuestMessage({ controller, text, context: state.context, retain: retainPlanningAuthDraft });
     if (outcome === "SIGN_IN") { setInvitations(current => [...current, { at: state.turns.length, text: text.trim() }]); controller.setDraft(""); }
+  }
+  function send() {
+    sendMessageText(state.draft);
+  }
+  function selectChoice(choice: QaDestinationChoice, previousQuestion?: string) {
+    sendMessageText(buildWeatherChoiceFollowUp(choice, previousQuestion));
   }
   function startNew() {
     // A signed-in user's new chat is the full V2 chat (planning included), not this Q&A view.
@@ -162,7 +168,7 @@ export function AssistantV2GuestChat({ available = true, onMinimize, onOpenFullP
       {state.turns.map((turn, index) => <div key={turn.response.turnId}>
         <div className="assistant-turn assistant-planning-exchange">
           <article className="assistant-message assistant-user"><p>{turn.question}</p></article>
-          <article className="assistant-message assistant-answer"><span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true"/><span>Trợ lý AI</span></span><AssistantAnswer turn={turn.response} question={turn.question} showSources/></article>
+          <article className="assistant-message assistant-answer"><span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true"/><span>Trợ lý AI</span></span><AssistantAnswer turn={turn.response} question={turn.question} showSources onSelectChoice={selectChoice} choicesDisabled={disabled}/></article>
         </div>
         {invite(index + 1)}
       </div>)}
