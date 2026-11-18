@@ -1,9 +1,6 @@
 import { z } from "zod";
 
-import {
-  MAX_EDIT_VISITS,
-  MAX_EDIT_VISITS_PER_DAY,
-} from "./edit-candidate";
+import { MAX_EDIT_VISITS } from "./edit-candidate";
 import { MAX_DURATION_DAYS } from "../trip-requirement/trip-requirement-contract";
 
 export const MAX_EDIT_INTENT_MESSAGE_LENGTH = 500;
@@ -24,7 +21,7 @@ const summaryVisitSchema = z
 const itineraryDaySchema = z
   .object({
     dayIndex: z.number().int().min(1).max(MAX_DURATION_DAYS),
-    visits: z.array(summaryVisitSchema).max(MAX_EDIT_VISITS_PER_DAY),
+    visits: z.array(summaryVisitSchema).max(MAX_EDIT_VISITS),
   })
   .strict();
 const eligibleDestinationSchema = z

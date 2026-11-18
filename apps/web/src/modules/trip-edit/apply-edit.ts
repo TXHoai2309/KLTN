@@ -1,6 +1,6 @@
-import type { Database, Prisma } from "@KLTN/db";
-import { z } from "zod";
+import { Prisma, type Database } from "@KLTN/db";
 import { recordCompanionItineraryChange } from "../trip-companions/companion-itinerary-notice";
+import { savedJourneySchema, type SavedJourney } from "../trip-origin/journey-saved-contract";
 import { requireTraveler, type TravelerActor } from "@/server/auth/require-traveler";
 import type { AuthorizationDependencies } from "@/server/authorization/guard";
 import { AppError } from "@/server/http/app-error";
@@ -12,9 +12,21 @@ import { editCandidateSchema, createEditCandidate, type EditCandidate } from "./
 import { tripSaveRequestSchema } from "../trip-save/trip-save-contract";
 import {
   assertCandidateMatchesTrip,
-  previewEdit,
+  assertTripEditable,
+  extractOwnedExternalPlaces,
+  tripExternalPlaceSelect,
+  validateEditCandidateFull,
+  type OwnedExternalPlace,
   type TripEditServiceDependencies,
 } from "./trip-edit-service";
+import { assertOngoingCompletedVisitsUnchanged } from "./edit-ongoing";
+import { externalPlaceDestinationId, isExternalPlaceId } from "./edit-unchecked";
+import {
+  acknowledgedUncheckedSchema,
+  UNCHECKED_REVISION,
+  uncheckedEqual,
+  type UncheckedItem,
+} from "../trip-save/unchecked-checks";
 import { tripDayDate } from "../trip-validation/trip-proposal-contract";
 import type { TripValidation } from "../trip-validation/trip-validation";
 import { inTripLocationSchema } from "../in-trip/in-trip-location";
@@ -24,7 +36,7 @@ import { recheckInTripTime, type TimeRecheckTrip } from "../in-trip/time-recheck
 import { preserveCompleted, ReplanCompletedVisitError } from "../in-trip/preserve-completed";
 import { splitCompletedRemaining } from "../in-trip/split-trip";
 import { assertLocationIndependentScope } from "../in-trip/location-independent-scope";
-import { requireDestinationVisits, type DestinationOnlyTrip } from "../trip-read/itinerary-visit-place";
+import { z } from "zod";
 
 const applyEditBaseSchema = z
   .object({
@@ -34,6 +46,7 @@ const applyEditBaseSchema = z
     kind: z.enum(["MANUAL", "AI", "IN_TRIP"]),
     location: inTripLocationSchema.optional(),
     mandatoryEndpoint: mandatoryEndpointSchema.nullable().optional(),
+    acknowledgedUnchecked: acknowledgedUncheckedSchema.optional(),
   })
   .strict();
 export const applyEditRequestSchema = applyEditBaseSchema.superRefine((request, context) => {
@@ -54,6 +67,9 @@ const tripApplySelect = {
   durationDays: true,
   transport: true,
   updatedAt: true,
+  manuallyCompletedAt: true,
+  journeySnapshot: true,
+  uncheckedChecks: true,
   days: {
     orderBy: [{ dayIndex: "asc" as const }, { id: "asc" as const }],
     select: {
@@ -64,6 +80,7 @@ const tripApplySelect = {
         select: {
           id: true,
           destinationId: true,
+          externalPlace: { select: tripExternalPlaceSelect },
           startMinute: true,
           plannedDurationMinutes: true,
           order: true,
@@ -73,7 +90,18 @@ const tripApplySelect = {
   },
 } satisfies Prisma.TripSelect;
 
-type TripForApply = DestinationOnlyTrip<Prisma.TripGetPayload<{ select: typeof tripApplySelect }>>;
+type RawTripForApply = Prisma.TripGetPayload<{ select: typeof tripApplySelect }>;
+type NormalizedApplyVisit = {
+  id: string;
+  destinationId: string;
+  startMinute: number;
+  plannedDurationMinutes: number;
+  order: number;
+  externalPlace?: OwnedExternalPlace | null;
+};
+type TripForApply = Omit<RawTripForApply, "days"> & {
+  days: { id: string; dayIndex: number; visits: NormalizedApplyVisit[] }[];
+};
 
 export type InTripCompletedVisitInvariant = (input: {
   original: EditCandidate;
@@ -172,7 +200,37 @@ async function findOwnedTrip(
     select: tripApplySelect,
   });
   if (!trip) throw tripNotFound();
-  return requireDestinationVisits(trip);
+  return {
+    ...trip,
+    days: trip.days.map((day) => ({
+      id: day.id,
+      dayIndex: day.dayIndex,
+      visits: day.visits.map((visit) => {
+        const ext = (visit as { externalPlace?: OwnedExternalPlace | null }).externalPlace ?? null;
+        if (typeof visit.destinationId === "string" && visit.destinationId.length > 0) {
+          return {
+            id: visit.id,
+            destinationId: visit.destinationId,
+            startMinute: visit.startMinute,
+            plannedDurationMinutes: visit.plannedDurationMinutes,
+            order: visit.order,
+            externalPlace: ext,
+          };
+        }
+        if (ext) {
+          return {
+            id: visit.id,
+            destinationId: externalPlaceDestinationId(ext.providerPlaceId),
+            startMinute: visit.startMinute,
+            plannedDurationMinutes: visit.plannedDurationMinutes,
+            order: visit.order,
+            externalPlace: ext,
+          };
+        }
+        throw new AppError("INVALID_TRIP_STATE", "Lượt tham quan thiếu địa điểm.", 500);
+      }),
+    })),
+  };
 }
 
 function timeRecheckTrip(trip: TripForApply): TimeRecheckTrip {
@@ -214,21 +272,64 @@ async function persistCandidate(
   kind: ApplyEditRequest["kind"],
   timeReference: Date,
   dependencies: ApplyEditDependencies,
+  nextJourneySnapshot?: SavedJourney | null,
+  uncheckedItemsToSave?: readonly UncheckedItem[] | null,
 ): Promise<string> {
   const trip = await findOwnedTrip(tripId, actor.userId, transaction as unknown as Pick<Database, "trip">);
   if (trip.updatedAt.toISOString() !== baseRevision) throw revisionConflict();
+  assertTripEditable(trip, timeReference);
   assertCandidateMatchesTrip(trip, candidate);
   assertInTripVisitsUnchanged(kind, trip, candidate, timeReference, dependencies);
+  if (kind !== "IN_TRIP") {
+    assertOngoingCompletedVisitsUnchanged(trip, candidate, timeReference);
+  }
   if (kind === "IN_TRIP" && dependencies.allowLocationIndependent) {
     // The ordinary completed invariant is still mandatory. The no-location
     // future-scope restriction is also checked at commit using the same clock.
     assertLocationIndependentScope(createEditCandidate(trip), candidate, timeReference);
   }
 
+  const externalRowByDestId = new Map<string, string>();
+  for (const ext of extractOwnedExternalPlaces(trip)) {
+    externalRowByDestId.set(externalPlaceDestinationId(ext.providerPlaceId), ext.id);
+  }
+  for (const day of candidate.days) {
+    for (const visit of day.visits) {
+      if (isExternalPlaceId(visit.destinationId) && !externalRowByDestId.has(visit.destinationId)) {
+        throw new AppError("DESTINATION_UNAVAILABLE", "Địa điểm ngoài danh mục không thuộc chuyến đi này.", 422);
+      }
+    }
+  }
+
   const nextRevision = nextBaseRevision(trip.updatedAt, timeReference);
+  const journeyWriteData =
+    nextJourneySnapshot === undefined
+      ? {}
+      : {
+          journeySnapshot:
+            nextJourneySnapshot === null
+              ? Prisma.DbNull
+              : (nextJourneySnapshot as unknown as Prisma.InputJsonValue),
+        };
+  const hadUnchecked = (trip as { uncheckedChecks?: unknown }).uncheckedChecks != null;
+  const uncheckedWriteData =
+    uncheckedItemsToSave && uncheckedItemsToSave.length > 0
+      ? {
+          uncheckedChecks: {
+            revision: UNCHECKED_REVISION,
+            items: uncheckedItemsToSave,
+          } as unknown as Prisma.InputJsonValue,
+          uncheckedConfirmedAt: timeReference,
+        }
+      : uncheckedItemsToSave === null && hadUnchecked
+        ? {
+            uncheckedChecks: Prisma.DbNull,
+            uncheckedConfirmedAt: null,
+          }
+        : {};
   const revisionUpdate = await transaction.trip.updateMany({
     where: { id: tripId, userId: actor.userId, updatedAt: trip.updatedAt },
-    data: { updatedAt: nextRevision },
+    data: { updatedAt: nextRevision, ...journeyWriteData, ...uncheckedWriteData },
   });
   if (revisionUpdate.count !== 1) throw revisionConflict();
 
@@ -243,7 +344,9 @@ async function persistCandidate(
           create: day.visits.map((visit) => ({
             // Preserve Task 265's stable identity as the persisted visit ID.
             id: visit.visitId,
-            destinationId: visit.destinationId,
+            ...(externalRowByDestId.has(visit.destinationId)
+              ? { externalPlaceId: externalRowByDestId.get(visit.destinationId)! }
+              : { destinationId: visit.destinationId }),
             startMinute: visit.startMinute,
             plannedDurationMinutes: visit.plannedDurationMinutes,
             order: visit.order,
@@ -252,7 +355,12 @@ async function persistCandidate(
       },
     });
   }
-  await recordCompanionItineraryChange(transaction, tripId, createEditCandidate(trip), candidate);
+  const beforeCandidate = createEditCandidate(trip);
+  const parsedBeforeJourney = savedJourneySchema.safeParse((trip as { journeySnapshot?: unknown }).journeySnapshot);
+  if (parsedBeforeJourney.success) {
+    beforeCandidate.journey = parsedBeforeJourney.data.journey;
+  }
+  await recordCompanionItineraryChange(transaction, tripId, beforeCandidate, candidate);
   return nextRevision.toISOString();
 }
 
@@ -288,6 +396,9 @@ export async function applyEdit(
       baseRevision: input.baseRevision,
       kind: input.kind,
       candidate,
+      ...(input.acknowledgedUnchecked !== undefined
+        ? { acknowledgedUnchecked: input.acknowledgedUnchecked }
+        : {}),
       ...(input.kind === "IN_TRIP" ? { mandatoryEndpoint: input.mandatoryEndpoint ?? null } : {}),
       // Location is intentionally transient and excluded from the idempotency hash.
     },
@@ -301,9 +412,12 @@ export async function applyEdit(
   if (Number.isNaN(validationTimeReference.getTime())) throw new RangeError("now must be valid");
 
   assertCandidateCanBeSaved(candidate);
+  assertTripEditable(ownedTrip, validationTimeReference);
   assertInTripVisitsUnchanged(input.kind, ownedTrip, candidate, validationTimeReference, dependencies);
 
   let validation: TripValidation;
+  let nextJourneySnapshot: SavedJourney | null | undefined;
+  let uncheckedItemsToSave: readonly UncheckedItem[] | null | undefined;
   if (input.kind === "IN_TRIP") {
     const checked = await previewInTrip(
       tripId,
@@ -336,23 +450,48 @@ export async function applyEdit(
     }
     validation = recheck.validation;
   } else {
-    const validationPreview = await previewEdit(
-      tripId,
-      userId,
-      input.baseRevision,
+    if (ownedTrip.updatedAt.toISOString() !== input.baseRevision) throw revisionConflict();
+    assertCandidateMatchesTrip(ownedTrip, candidate);
+    assertOngoingCompletedVisitsUnchanged(ownedTrip, candidate, validationTimeReference);
+    const checked = await validateEditCandidateFull(
       candidate,
       dependencies,
       validationTimeReference,
+      {
+        startDate: ownedTrip.startDate,
+        manuallyCompletedAt: ownedTrip.manuallyCompletedAt,
+        journeySnapshot: (ownedTrip as { journeySnapshot?: unknown }).journeySnapshot,
+        ownedExternalPlaces: extractOwnedExternalPlaces(ownedTrip),
+      },
+      candidate.journey !== undefined && candidate.journey !== null,
     );
-    if (!validationPreview.validation.canConfirm) {
+    if (checked.assessment.kind === "BLOCKED") {
       throw new AppError(
         "TRIP_VALIDATION_FAILED",
         "Hành trình chưa đạt toàn bộ kiểm tra để áp dụng.",
         422,
-        { validation: validationPreview.validation },
+        { validation: checked.validation },
       );
     }
-    validation = validationPreview.validation;
+    if (checked.assessment.kind === "UNCHECKED") {
+      const ack = input.acknowledgedUnchecked;
+      if (!ack?.confirmed || !uncheckedEqual(ack.items, checked.assessment.items)) {
+        throw new AppError(
+          "UNCHECKED_CONFIRMATION_REQUIRED",
+          "Cần xác nhận lại danh sách mục chưa kiểm được của địa điểm ngoài danh mục trước khi lưu.",
+          422,
+          {
+            validation: checked.validation,
+            uncheckedItems: checked.assessment.items,
+          },
+        );
+      }
+      uncheckedItemsToSave = checked.assessment.items;
+    } else {
+      uncheckedItemsToSave = null;
+    }
+    validation = checked.validation;
+    nextJourneySnapshot = checked.nextJourneySnapshot;
   }
 
   const result = await executeIdempotentWrite<ApplyEditResult>({
@@ -376,6 +515,8 @@ export async function applyEdit(
         input.kind,
         validationTimeReference,
         { ...dependencies, allowLocationIndependent: internalNoLocation },
+        nextJourneySnapshot,
+        uncheckedItemsToSave,
       );
       return {
         tripId,

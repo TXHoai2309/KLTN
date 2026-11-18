@@ -1,47 +1,67 @@
 import { randomUUID } from "node:crypto";
 import type { Database, Prisma } from "@KLTN/db";
-import { z } from "zod";
 
 import { AppError } from "@/server/http/app-error";
 import { visibleDestinationWhere } from "../destination/destination-eligibility";
 import type { StructuredLlmClient } from "../preference-extraction/preference-extraction-client";
+import { externalPlaceView } from "../trip-read/external-place-cache";
+import { savedJourneySchema } from "../trip-origin/journey-saved-contract";
+import { assertJourneyBeforeDeparture } from "../trip-origin/journey-cutoff";
+import type { TripJourney } from "../trip-origin/trip-origin-contract";
+import type { UncheckedItem } from "../trip-save/unchecked-checks";
 import type { TripValidation } from "../trip-validation/trip-validation";
 import {
-  type EditIntentClarificationReason,
-  type EditIntentResult,
-  type VerifiedEditVisitId,
-} from "./edit-intent-contract";
+  applySuggestedDurationsToPlan,
+  applyWorkspaceOperations,
+  buildGroundedAdvice,
+  MAX_AI_CHOICES,
+  planToPrimaryEditIntent,
+  resolveWorkspacePlan,
+  type AiChatHistoryTurn,
+  type WorkspacePromptJourneyContext,
+} from "./ai-workspace-plan";
+import {
+  createEditCandidate,
+  diffEditCandidate,
+  type EditCandidate,
+  type EditCandidateDiff,
+  type SavedTripForEdit,
+} from "./edit-candidate";
+import {
+  minuteClockLabel,
+  rescheduleDraftFromOrigin,
+  type PreviewJourneySummary,
+} from "./edit-journey-helper";
 import {
   assertResolutionReferencesServerData,
   createEditClarification,
-  resolveEditIntent,
   type EditClarification,
   type EditClarificationContext,
   type EditResolution,
 } from "./edit-clarification";
-import { recognizeEditIntent } from "./edit-intent-service";
-import {
-  addVisit,
-  createEditCandidate,
-  diffEditCandidate,
-  EditCandidateOperationError,
-  moveVisit,
-  removeVisit,
-  replaceVisit,
-  setVisitDuration,
-  setVisitTime,
-  type EditCandidate,
-  type EditCandidateDiff,
-} from "./edit-candidate";
+import type {
+  EditIntentClarificationReason,
+  EditIntentResult,
+} from "./edit-intent-contract";
 import {
   MAX_EDIT_INTENT_DESTINATIONS,
   MAX_EDIT_INTENT_MESSAGE_LENGTH,
 } from "./edit-intent-prompt";
+import { recognizeWorkspaceEditPlan } from "./edit-intent-service";
+import { classifyOngoingCompletedVisits, assertOngoingCompletedVisitsUnchanged } from "./edit-ongoing";
+import { externalPlaceDestinationId, isExternalPlaceId } from "./edit-unchecked";
 import {
+  assertCandidateMatchesTrip,
+  assertTripEditable,
+  extractOwnedExternalPlaces,
   previewEdit,
+  tripExternalPlaceSelect,
+  type EditPlaceDetail,
+  type OwnedExternalPlace,
+  type PreviewEditResult,
+  type PreviewLegMetric,
   type TripEditRouteProvider,
 } from "./trip-edit-service";
-import { requireDestinationVisits, type DestinationOnlyTrip } from "../trip-read/itinerary-visit-place";
 
 const aiEditTripSelect = {
   id: true,
@@ -50,6 +70,8 @@ const aiEditTripSelect = {
   durationDays: true,
   transport: true,
   updatedAt: true,
+  manuallyCompletedAt: true,
+  journeySnapshot: true,
   days: {
     orderBy: [{ dayIndex: "asc" }, { id: "asc" }],
     select: {
@@ -61,24 +83,71 @@ const aiEditTripSelect = {
           order: true,
           startMinute: true,
           plannedDurationMinutes: true,
-          destination: { select: { id: true, name: true, visibility: true, deletedAt: true } },
+          externalPlace: { select: tripExternalPlaceSelect },
+          destination: {
+            select: {
+              id: true,
+              name: true,
+              visibility: true,
+              deletedAt: true,
+            },
+          },
         },
       },
     },
   },
 } satisfies Prisma.TripSelect;
 
-type OwnedTrip = DestinationOnlyTrip<Prisma.TripGetPayload<{ select: typeof aiEditTripSelect }>>;
+type AiEditLoadedTrip = {
+  id: string;
+  userId: string;
+  startDate: Date;
+  durationDays: number;
+  transport: EditCandidate["transport"];
+  updatedAt: Date;
+  manuallyCompletedAt?: Date | null;
+  journeySnapshot?: unknown;
+  days: {
+    dayIndex: number;
+    visits: {
+      id: string;
+      order: number;
+      startMinute: number;
+      plannedDurationMinutes: number;
+      externalPlace?: OwnedExternalPlace | null;
+      destination: {
+        id: string;
+        name: string;
+        visibility: string;
+        deletedAt?: Date | null;
+      } | null;
+    }[];
+  }[];
+};
 
 const eligibleDestinationSelect = {
   id: true,
   name: true,
+  area: true,
+  category: true,
+  latitude: true,
+  longitude: true,
   suggestedDurationMinutes: true,
+  minimumDurationMinutes: true,
+  isOutdoor: true,
 } satisfies Prisma.DestinationSelect;
 
-type EligibleDestination = Prisma.DestinationGetPayload<{
-  select: typeof eligibleDestinationSelect;
-}>;
+type EligibleDestinationRow = {
+  id: string;
+  name: string;
+  area?: string;
+  category?: string;
+  latitude?: number;
+  longitude?: number;
+  suggestedDurationMinutes: number | null;
+  minimumDurationMinutes?: number | null;
+  isOutdoor?: boolean;
+};
 
 export type AiEditServiceDependencies = {
   database: Database;
@@ -92,6 +161,8 @@ export type AiEditRequest = {
   baseRevision: string;
   message: string;
   resolution?: EditResolution;
+  draft?: EditCandidate;
+  history?: AiChatHistoryTurn[];
 };
 
 export type AiEditClarificationResult = {
@@ -99,9 +170,17 @@ export type AiEditClarificationResult = {
   intent: EditIntentResult;
   reason: EditIntentClarificationReason;
   clarification: EditClarification;
+  aiSummary?: string;
 };
 
-type AiEditClarificationDraft = Omit<AiEditClarificationResult, "clarification">;
+export type AiEditAdvisedResult = {
+  status: "ADVISED";
+  intent: EditIntentResult;
+  advice: string;
+  validation: TripValidation;
+  aiSummary: string;
+  saveEligibility?: PreviewEditResult["saveEligibility"];
+};
 
 export type AiEditProposalResult = {
   status: "PROPOSED";
@@ -109,9 +188,24 @@ export type AiEditProposalResult = {
   intent: EditIntentResult;
   diff: EditCandidateDiff;
   validation: TripValidation;
+  aiSummary?: string;
+  changedVisitIds?: {
+    added: string[];
+    updated: string[];
+    shifted: string[];
+    removedCount: number;
+  };
+  legs?: PreviewLegMetric[];
+  saveEligibility?: PreviewEditResult["saveEligibility"];
+  uncheckedItems?: UncheckedItem[];
+  journeySummary?: PreviewJourneySummary;
+  addedPlaceDetails?: Record<string, EditPlaceDetail>;
 };
 
-export type AiEditServiceResult = AiEditClarificationResult | AiEditProposalResult;
+export type AiEditServiceResult =
+  | AiEditClarificationResult
+  | AiEditProposalResult
+  | AiEditAdvisedResult;
 
 function tripNotFound(): AppError {
   return new AppError("TRIP_NOT_FOUND", "Không tìm thấy chuyến đi.", 404);
@@ -125,284 +219,162 @@ function revisionConflict(): AppError {
   );
 }
 
-function clarification(
-  intent: EditIntentResult,
-  reason: EditIntentClarificationReason,
-): AiEditClarificationDraft {
-  return {
-    status: "NEEDS_CLARIFICATION",
-    intent: { ...intent, needsClarification: true, clarificationReason: reason },
-    reason,
-  };
-}
-
-function clarificationContext(
-  trip: OwnedTrip,
-  destinations: readonly EligibleDestination[],
-): EditClarificationContext {
-  return {
-    visits: trip.days.flatMap((day) =>
-      day.visits.map((visit) => ({
-        visitId: visit.id,
-        destinationId: visit.destination.id,
-        destinationName:
-          visit.destination.visibility === "VISIBLE" && !visit.destination.deletedAt
-            ? visit.destination.name
-            : "Điểm đến không còn khả dụng",
-        dayIndex: day.dayIndex,
-        startMinute: visit.startMinute,
-      })),
-    ),
-    eligibleDestinations: destinations.map((destination) => ({
-      id: destination.id,
-      name: destination.name,
-    })),
-    dayIndexes: trip.days.map((day) => day.dayIndex).sort((a, b) => a - b),
-  };
-}
-
-function completeClarification(
-  draft: AiEditClarificationDraft,
-  context: EditClarificationContext,
-): AiEditClarificationResult {
-  return {
-    ...draft,
-    clarification: createEditClarification(draft.reason, draft.intent, context),
-  };
-}
-
-function applySuggestedAddDuration(
-  intent: EditIntentResult,
-  destinations: readonly EligibleDestination[],
-): EditIntentResult {
-  if (
-    intent.intentType !== "ADD_VISIT" ||
-    !intent.needsClarification ||
-    intent.clarificationReason !== "MISSING_TIME" ||
-    intent.params.durationMinutes !== null ||
-    intent.params.startTime === null ||
-    intent.destinationId === null
-  ) {
-    return intent;
-  }
-  const destination = destinations.find((item) => item.id === intent.destinationId);
-  const suggestedDurationMinutes = destination?.suggestedDurationMinutes;
-  if (
-    suggestedDurationMinutes === null ||
-    suggestedDurationMinutes === undefined ||
-    !Number.isSafeInteger(suggestedDurationMinutes) ||
-    suggestedDurationMinutes < 1 ||
-    suggestedDurationMinutes > 1440
-  ) {
-    return intent;
-  }
-
-  // Task 272 correctly marks a missing duration for clarification. Here the
-  // server may satisfy that one missing value using authoritative metadata.
-  return {
-    ...intent,
-    params: { ...intent.params, durationMinutes: suggestedDurationMinutes },
-    needsClarification: false,
-    clarificationReason: null,
-  };
-}
-
 function formatStartTime(startMinute: number): string {
   const hours = Math.floor(startMinute / 60).toString().padStart(2, "0");
   const minutes = (startMinute % 60).toString().padStart(2, "0");
   return `${hours}:${minutes}`;
 }
 
-function parseStartMinute(value: string | null): number | null {
-  if (value === null) return null;
-  const match = /^(?:([01]\d|2[0-3])):([0-5]\d)$/u.exec(value);
-  if (!match) return null;
-  return Number(match[1]) * 60 + Number(match[2]);
-}
-
-function candidateFromTrip(trip: OwnedTrip): EditCandidate {
-  return createEditCandidate({
+function savedTripShapeFromLoaded(trip: AiEditLoadedTrip): SavedTripForEdit & { manuallyCompletedAt?: Date | null } {
+  return {
     startDate: trip.startDate,
     durationDays: trip.durationDays,
     transport: trip.transport,
+    manuallyCompletedAt: trip.manuallyCompletedAt ?? null,
     days: trip.days.map((day) => ({
       dayIndex: day.dayIndex,
-      visits: day.visits.map((visit) => ({
-        id: visit.id,
-        destinationId: visit.destination.id,
-        startMinute: visit.startMinute,
-        plannedDurationMinutes: visit.plannedDurationMinutes,
-        order: visit.order,
-      })),
+      visits: day.visits.map((visit) => {
+        if (visit.destination) {
+          return {
+            id: visit.id,
+            destinationId: visit.destination.id,
+            startMinute: visit.startMinute,
+            plannedDurationMinutes: visit.plannedDurationMinutes,
+            order: visit.order,
+          };
+        }
+        if (visit.externalPlace) {
+          return {
+            id: visit.id,
+            destinationId: externalPlaceDestinationId(visit.externalPlace.providerPlaceId),
+            startMinute: visit.startMinute,
+            plannedDurationMinutes: visit.plannedDurationMinutes,
+            order: visit.order,
+          };
+        }
+        throw new AppError("INVALID_TRIP_STATE", "Lượt tham quan thiếu địa điểm.", 500);
+      }),
     })),
-  });
+  };
+}
+
+function candidateFromSavedShape(
+  savedTrip: SavedTripForEdit,
+  journeySnapshot: unknown,
+): EditCandidate {
+  const candidate = createEditCandidate(savedTrip);
+  const parsedJourney = savedJourneySchema.safeParse(journeySnapshot);
+  if (parsedJourney.success) {
+    candidate.journey = parsedJourney.data.journey;
+  }
+  return candidate;
 }
 
 async function readEligibleDestinations(
   database: Pick<Database, "destination">,
-): Promise<EligibleDestination[]> {
+): Promise<EligibleDestinationRow[]> {
   return database.destination.findMany({
     where: visibleDestinationWhere,
     select: eligibleDestinationSelect,
     orderBy: [{ name: "asc" }, { id: "asc" }],
     take: MAX_EDIT_INTENT_DESTINATIONS,
-  });
+  }) as Promise<EligibleDestinationRow[]>;
 }
 
-function operationClarificationReason(
-  error: EditCandidateOperationError,
-): EditIntentClarificationReason {
-  switch (error.code) {
-    case "DAY_NOT_FOUND":
-      return "MISSING_DAY";
-    case "VISIT_NOT_FOUND":
-    case "VISIT_ID_CONFLICT":
-      return "MISSING_TARGET";
-    case "POSITION_INVALID":
-    case "VISIT_LIMIT_EXCEEDED":
-      return "OUT_OF_SCOPE";
-  }
+async function readMissingDraftDestinations(
+  database: Pick<Database, "destination">,
+  missingIds: readonly string[],
+): Promise<EligibleDestinationRow[]> {
+  if (missingIds.length === 0) return [];
+  return database.destination.findMany({
+    where: { ...visibleDestinationWhere, id: { in: [...missingIds] } },
+    select: eligibleDestinationSelect,
+  }) as Promise<EligibleDestinationRow[]>;
 }
 
-function applyVerifiedIntent(
-  original: EditCandidate,
-  intent: EditIntentResult,
-  destinations: readonly EligibleDestination[],
-  createVisitId: () => string,
-): EditCandidate | AiEditClarificationDraft {
-  if (intent.needsClarification) {
-    return clarification(intent, intent.clarificationReason ?? "MISSING_TARGET");
+function buildPlaceNameLookup(
+  trip: AiEditLoadedTrip,
+  destinations: readonly EligibleDestinationRow[],
+  timeReference: Date,
+): Map<string, string> {
+  const names = new Map<string, string>();
+  for (const dest of destinations) {
+    names.set(dest.id, dest.name);
   }
-
-  const eligibleById = new Map(destinations.map((destination) => [destination.id, destination]));
-  let candidate = original;
-
-  try {
-    switch (intent.intentType) {
-      case "ADD_VISIT": {
-        const destination = intent.destinationId
-          ? eligibleById.get(intent.destinationId)
-          : undefined;
-        const startMinute = parseStartMinute(intent.params.startTime);
-        if (!destination) return clarification(intent, "AMBIGUOUS_DESTINATION");
-        if (intent.params.dayIndex === null) return clarification(intent, "MISSING_DAY");
-        if (startMinute === null) return clarification(intent, "MISSING_TIME");
-        const durationMinutes =
-          intent.params.durationMinutes ?? destination.suggestedDurationMinutes;
-        if (
-          durationMinutes === null ||
-          durationMinutes === undefined ||
-          !Number.isSafeInteger(durationMinutes) ||
-          durationMinutes < 1 ||
-          durationMinutes > 1440
-        ) {
-          return clarification(intent, "MISSING_TIME");
-        }
-        candidate = addVisit(
-          candidate,
-          intent.params.dayIndex,
-          {
-            visitId: createVisitId(),
-            destinationId: destination.id,
-            startMinute,
-            plannedDurationMinutes: durationMinutes,
-          },
-          intent.params.position ?? undefined,
+  for (const day of trip.days) {
+    for (const visit of day.visits) {
+      if (visit.externalPlace) {
+        const view = externalPlaceView(visit.externalPlace, timeReference, true);
+        names.set(view.id, view.name);
+        continue;
+      }
+      if (visit.destination) {
+        const available = visit.destination.visibility === "VISIBLE" && !visit.destination.deletedAt;
+        names.set(
+          visit.destination.id,
+          available ? visit.destination.name : "Điểm đến không còn khả dụng",
         );
-        break;
       }
-      case "REMOVE_VISIT": {
-        if (intent.targetVisitIds.length === 0) return clarification(intent, "MISSING_TARGET");
-        for (const visitId of intent.targetVisitIds) candidate = removeVisit(candidate, visitId);
-        break;
-      }
-      case "MOVE_VISIT": {
-        const visitId = intent.targetVisitIds[0];
-        if (!visitId) return clarification(intent, "MISSING_TARGET");
-        if (intent.params.dayIndex === null) return clarification(intent, "MISSING_DAY");
-        candidate = moveVisit(
-          candidate,
-          visitId,
-          intent.params.dayIndex,
-          intent.params.position ?? undefined,
-        );
-        break;
-      }
-      case "CHANGE_TIME": {
-        const visitId = intent.targetVisitIds[0];
-        const startMinute = parseStartMinute(intent.params.startTime);
-        if (!visitId) return clarification(intent, "MISSING_TARGET");
-        if (startMinute === null) return clarification(intent, "MISSING_TIME");
-        candidate = setVisitTime(candidate, visitId, startMinute);
-        break;
-      }
-      case "CHANGE_DURATION": {
-        const visitId = intent.targetVisitIds[0];
-        if (!visitId) return clarification(intent, "MISSING_TARGET");
-        if (intent.params.durationMinutes === null) return clarification(intent, "MISSING_TIME");
-        candidate = setVisitDuration(candidate, visitId, intent.params.durationMinutes);
-        break;
-      }
-      case "REPLACE_VISIT": {
-        const visitId = intent.targetVisitIds[0];
-        const destination = intent.destinationId
-          ? eligibleById.get(intent.destinationId)
-          : undefined;
-        if (!visitId) return clarification(intent, "MISSING_TARGET");
-        if (!destination) return clarification(intent, "AMBIGUOUS_DESTINATION");
-        const current = candidate.days
-          .flatMap((day) => day.visits)
-          .find((visit) => visit.visitId === visitId);
-        if (!current) return clarification(intent, "MISSING_TARGET");
-        candidate = replaceVisit(candidate, visitId, {
-          destinationId: destination.id,
-          startMinute: current.startMinute,
-          plannedDurationMinutes: current.plannedDurationMinutes,
-        });
-        break;
-      }
-      case "UNSUPPORTED":
-        return clarification(intent, "OUT_OF_SCOPE");
-      case "UNCLEAR":
-        return clarification(intent, intent.clarificationReason ?? "MISSING_TARGET");
     }
-  } catch (error) {
-    if (error instanceof EditCandidateOperationError) {
-      return clarification(intent, operationClarificationReason(error));
-    }
-    if (error instanceof z.ZodError) {
-      return clarification(intent, "MISSING_TIME");
-    }
-    throw error;
   }
-
-  return candidate;
+  return names;
 }
 
-function withServerAffectedScope(
-  intent: EditIntentResult,
-  diff: EditCandidateDiff,
-): EditIntentResult {
-  const visitIds = [
-    ...diff.added.map((visit) => visit.visitId),
-    ...diff.removed.map((visit) => visit.visitId),
-    ...diff.updated.map((visit) => visit.visitId),
-  ] as VerifiedEditVisitId[];
-  const dayIndexes = new Set<number>();
-  for (const visit of diff.added) dayIndexes.add(visit.dayIndex);
-  for (const visit of diff.removed) dayIndexes.add(visit.dayIndex);
-  for (const visit of diff.updated) {
-    dayIndexes.add(visit.before.dayIndex);
-    dayIndexes.add(visit.after.dayIndex);
-  }
-
+function buildClarificationContext(
+  candidate: EditCandidate,
+  placeNames: ReadonlyMap<string, string>,
+  destinations: readonly EligibleDestinationRow[],
+  lockedVisitIds: ReadonlySet<string>,
+): EditClarificationContext {
   return {
-    ...intent,
-    affected: {
-      visitIds: [...new Set(visitIds)],
-      dayIndexes: [...dayIndexes].sort((left, right) => left - right),
-    },
+    visits: candidate.days.flatMap((day) =>
+      day.visits
+        .filter((visit) => !lockedVisitIds.has(visit.visitId))
+        .map((visit) => ({
+          visitId: visit.visitId,
+          destinationId: visit.destinationId,
+          destinationName: placeNames.get(visit.destinationId) ?? "Điểm đến không còn khả dụng",
+          dayIndex: day.dayIndex,
+          startMinute: visit.startMinute,
+        })),
+    ),
+    eligibleDestinations: destinations.map((d) => ({ id: d.id, name: d.name })),
+    dayIndexes: candidate.days.map((d) => d.dayIndex).sort((a, b) => a - b),
   };
+}
+
+function buildAddedPlaceDetails(
+  diff: EditCandidateDiff,
+  destinationsById: ReadonlyMap<string, EligibleDestinationRow>,
+): Record<string, EditPlaceDetail> | undefined {
+  const touchedDestIds = new Set<string>();
+  for (const added of diff.added) touchedDestIds.add(added.destinationId);
+  for (const upd of diff.updated) {
+    if (upd.changedFields.includes("destinationId")) {
+      touchedDestIds.add(upd.after.destinationId);
+    }
+  }
+  if (touchedDestIds.size === 0) return undefined;
+
+  const details: Record<string, EditPlaceDetail> = {};
+  for (const destId of touchedDestIds) {
+    const dest = destinationsById.get(destId);
+    if (!dest) continue;
+    details[dest.id] = {
+      id: dest.id,
+      name: dest.name,
+      area: dest.area ?? "",
+      ...(typeof dest.category === "string" ? { category: dest.category } : {}),
+      ...(typeof dest.latitude === "number" ? { latitude: dest.latitude } : {}),
+      ...(typeof dest.longitude === "number" ? { longitude: dest.longitude } : {}),
+      suggestedDurationMinutes: dest.suggestedDurationMinutes ?? null,
+      minimumDurationMinutes: dest.minimumDurationMinutes ?? null,
+      ...(typeof dest.isOutdoor === "boolean" ? { isOutdoor: dest.isOutdoor } : {}),
+      availability: "AVAILABLE",
+      external: false,
+    };
+  }
+  return Object.keys(details).length > 0 ? details : undefined;
 }
 
 function validateRequest(request: AiEditRequest): void {
@@ -418,7 +390,7 @@ function validateRequest(request: AiEditRequest): void {
   }
 }
 
-/** Build a verified AI proposal from an owner-scoped Trip snapshot without writing. */
+/** Build a verified read-only AI edit proposal against live workingDraft (or saved Trip). */
 export async function createAiEditProposal(
   tripId: string,
   userId: string,
@@ -428,92 +400,355 @@ export async function createAiEditProposal(
 ): Promise<AiEditServiceResult> {
   validateRequest(request);
 
-  const found = await dependencies.database.trip.findFirst({
+  const rawFound = await dependencies.database.trip.findFirst({
     where: { id: tripId, userId },
     select: aiEditTripSelect,
   });
-  if (!found) throw tripNotFound();
-  const trip = requireDestinationVisits(found);
+  if (!rawFound) throw tripNotFound();
+  const found = rawFound as unknown as AiEditLoadedTrip;
 
-  const baseRevision = trip.updatedAt.toISOString();
+  const baseRevision = found.updatedAt.toISOString();
   if (request.baseRevision !== baseRevision) throw revisionConflict();
+  assertTripEditable(found, timeReference);
 
-  const original = candidateFromTrip(trip);
-  const destinations = await readEligibleDestinations(dependencies.database);
-  const clarificationData = clarificationContext(trip, destinations);
-  assertResolutionReferencesServerData(request.resolution, clarificationData);
-  const recognizedIntent = await recognizeEditIntent({
-    message: request.message,
-    itinerary: trip.days.map((day) => ({
-      dayIndex: day.dayIndex,
-      visits: day.visits.map((visit) => ({
-        visitId: visit.id,
-        destinationName:
-          visit.destination.visibility === "VISIBLE" && !visit.destination.deletedAt
-            ? visit.destination.name
-            : "Điểm đến không còn khả dụng",
-        startTime: formatStartTime(visit.startMinute),
-        durationMinutes: visit.plannedDurationMinutes,
-      })),
-    })),
-    eligibleDestinations: destinations.map((destination) => ({
-      id: destination.id,
-      name: destination.name,
-    })),
-  }, { llm: dependencies.llm });
-  const resolvedIntent = resolveEditIntent(recognizedIntent, request.resolution, clarificationData);
-  const intent = applySuggestedAddDuration(resolvedIntent, destinations);
+  const savedShape = savedTripShapeFromLoaded(found);
+  const ownedExternalPlaces = extractOwnedExternalPlaces(found);
+  const ownedExternalIds = new Set(
+    ownedExternalPlaces.map((ext) => externalPlaceDestinationId(ext.providerPlaceId)),
+  );
 
-  if (
-    intent.needsClarification ||
-    intent.intentType === "UNSUPPORTED" ||
-    intent.intentType === "UNCLEAR"
-  ) {
-    return completeClarification(
-      clarification(
-        intent,
-        intent.clarificationReason ??
-          (intent.intentType === "UNSUPPORTED" ? "OUT_OF_SCOPE" : "MISSING_TARGET"),
-      ),
-      clarificationData,
-    );
+  let baseCandidate: EditCandidate;
+  if (request.draft) {
+    assertCandidateMatchesTrip(found, request.draft);
+    assertOngoingCompletedVisitsUnchanged(savedShape, request.draft, timeReference);
+    for (const day of request.draft.days) {
+      for (const visit of day.visits) {
+        if (isExternalPlaceId(visit.destinationId) && !ownedExternalIds.has(visit.destinationId)) {
+          throw new AppError(
+            "DESTINATION_UNAVAILABLE",
+            "Có điểm đến không còn công khai hoặc không thuộc chuyến đi này.",
+            422,
+          );
+        }
+      }
+    }
+    baseCandidate = request.draft;
+  } else {
+    baseCandidate = candidateFromSavedShape(savedShape, found.journeySnapshot);
   }
 
-  const changed = applyVerifiedIntent(
-    original,
-    intent,
-    destinations,
-    dependencies.createVisitId ?? randomUUID,
-  );
-  if ("status" in changed) return completeClarification(changed, clarificationData);
+  const completedInfo = classifyOngoingCompletedVisits(savedShape, timeReference);
+  const lockedVisitIds = new Set(completedInfo.completedVisitIds);
 
-  const diff = diffEditCandidate(original, changed);
-  const verifiedIntent = withServerAffectedScope(intent, diff);
+  const eligibleDestinations = await readEligibleDestinations(dependencies.database);
+  const eligibleIds = new Set(eligibleDestinations.map((d) => d.id));
+  const extraDraftCatalogIds = [
+    ...new Set(
+      baseCandidate.days.flatMap((day) =>
+        day.visits
+          .map((v) => v.destinationId)
+          .filter((id) => !isExternalPlaceId(id) && !eligibleIds.has(id)),
+      ),
+    ),
+  ];
+  const extraDraftCatalog = await readMissingDraftDestinations(
+    dependencies.database,
+    extraDraftCatalogIds,
+  );
+  const allCatalogDestinations = [...eligibleDestinations, ...extraDraftCatalog];
+  const catalogById = new Map(allCatalogDestinations.map((d) => [d.id, d]));
+
+  const placeNames = buildPlaceNameLookup(found, allCatalogDestinations, timeReference);
+  const clarificationData = buildClarificationContext(
+    baseCandidate,
+    placeNames,
+    eligibleDestinations,
+    lockedVisitIds,
+  );
+  assertResolutionReferencesServerData(request.resolution, clarificationData);
+
+  const parsedSavedJourney = savedJourneySchema.safeParse(found.journeySnapshot);
+  const currentJourney: TripJourney | null =
+    baseCandidate.journey !== undefined
+      ? baseCandidate.journey
+      : parsedSavedJourney.success
+        ? parsedSavedJourney.data.journey
+        : null;
+  let isBeforeDeparture = true;
+  try {
+    assertJourneyBeforeDeparture(
+      {
+        startDate: found.startDate,
+        manuallyCompletedAt: savedShape.manuallyCompletedAt ?? null,
+        journeySnapshot: found.journeySnapshot,
+      },
+      timeReference,
+    );
+  } catch {
+    isBeforeDeparture = false;
+  }
+  const journeyState: WorkspacePromptJourneyContext = {
+    hasOrigin: Boolean(currentJourney?.origin?.confirmed),
+    isBeforeDeparture,
+    departureTime: currentJourney?.departureMinute != null ? minuteClockLabel(currentJourney.departureMinute) : null,
+    returnDeadlineTime: currentJourney?.returnDeadlineMinute != null ? minuteClockLabel(currentJourney.returnDeadlineMinute) : null,
+    returnDepartureTime: currentJourney?.returnDepartureMinute != null ? minuteClockLabel(currentJourney.returnDepartureMinute) : null,
+  };
+
+  const recognizedPlan = await recognizeWorkspaceEditPlan(
+    {
+      message: request.message,
+      itinerary: baseCandidate.days.map((day) => ({
+        dayIndex: day.dayIndex,
+        visits: day.visits.map((visit) => ({
+          visitId: visit.visitId,
+          destinationName: placeNames.get(visit.destinationId) ?? "Điểm đến không còn khả dụng",
+          startTime: formatStartTime(visit.startMinute),
+          durationMinutes: visit.plannedDurationMinutes,
+        })),
+      })),
+      eligibleDestinations: eligibleDestinations.map((destination) => ({
+        id: destination.id,
+        name: destination.name,
+      })),
+      ...(request.history && request.history.length > 0 ? { history: request.history } : {}),
+      journeyState,
+    },
+    { llm: dependencies.llm },
+  );
+
+  const safeGetRoute: TripEditRouteProvider = async (input) => {
+    try {
+      return await dependencies.getRoute(input);
+    } catch {
+      return { kind: "unavailable" };
+    }
+  };
+
+  const resolvedPlan = resolveWorkspacePlan(recognizedPlan, request.resolution, clarificationData);
+  const hydratedPlan = applySuggestedDurationsToPlan(resolvedPlan, allCatalogDestinations);
+
+  if (hydratedPlan.mode === "ADVISED") {
+    const validationPreview = await previewEdit(
+      tripId,
+      userId,
+      request.baseRevision,
+      baseCandidate,
+      { database: dependencies.database, getRoute: safeGetRoute },
+      timeReference,
+    );
+    const advice = buildGroundedAdvice({
+      candidate: baseCandidate,
+      placeNames,
+      validation: validationPreview.validation,
+      legs: validationPreview.legs,
+      journeySummary: validationPreview.journeySummary,
+      saveEligibility: validationPreview.saveEligibility,
+      uncheckedItems: validationPreview.uncheckedItems,
+      focusDayIndex: hydratedPlan.adviceFocus?.dayIndex,
+      topic: hydratedPlan.adviceFocus?.topic,
+    });
+    return {
+      status: "ADVISED",
+      intent: planToPrimaryEditIntent(hydratedPlan),
+      advice,
+      validation: validationPreview.validation,
+      aiSummary: advice,
+      ...(validationPreview.saveEligibility ? { saveEligibility: validationPreview.saveEligibility } : {}),
+    };
+  }
+
+  if (hydratedPlan.mode === "CHANGE_ORIGIN_CLOCKS") {
+    if (!currentJourney || !currentJourney.origin) {
+      const validationPreview = await previewEdit(
+        tripId,
+        userId,
+        request.baseRevision,
+        baseCandidate,
+        { database: dependencies.database, getRoute: safeGetRoute },
+        timeReference,
+      );
+      const advice =
+        "Chuyến đi hiện chưa có điểm xuất phát (Trip origin). Hãy nhấn '+ Bổ sung nơi xuất phát' trong khung Hành trình xuất phát & trở về để chọn tọa độ trên bản đồ trước khi đặt giờ đi hoặc hạn về.";
+      return {
+        status: "ADVISED",
+        intent: planToPrimaryEditIntent(hydratedPlan),
+        advice,
+        validation: validationPreview.validation,
+        aiSummary: advice,
+        ...(validationPreview.saveEligibility ? { saveEligibility: validationPreview.saveEligibility } : {}),
+      };
+    }
+
+    if (!isBeforeDeparture) {
+      const savedBaselineCandidate: EditCandidate = {
+        ...baseCandidate,
+        journey: parsedSavedJourney.success ? parsedSavedJourney.data.journey : undefined,
+      };
+      const validationPreview = await previewEdit(
+        tripId,
+        userId,
+        request.baseRevision,
+        savedBaselineCandidate,
+        { database: dependencies.database, getRoute: safeGetRoute },
+        timeReference,
+      );
+      const advice =
+        "Chuyến đi đã qua mốc giờ khởi hành nên điểm xuất phát và giờ đi/về đã được cố định, không thể chỉnh sửa trên bản nháp.";
+      return {
+        status: "ADVISED",
+        intent: planToPrimaryEditIntent(hydratedPlan),
+        advice,
+        validation: validationPreview.validation,
+        aiSummary: advice,
+        ...(validationPreview.saveEligibility ? { saveEligibility: validationPreview.saveEligibility } : {}),
+      };
+    }
+
+    const clocks = hydratedPlan.originClocks!;
+    const updatedJourney: TripJourney = {
+      ...currentJourney,
+      departureMinute: clocks.departureMinute ?? currentJourney.departureMinute,
+      returnDeadlineMinute: clocks.returnDeadlineMinute ?? currentJourney.returnDeadlineMinute,
+      returnDepartureMinute: clocks.returnDepartureMinute ?? currentJourney.returnDepartureMinute,
+    };
+    let nextCandidate: EditCandidate = { ...baseCandidate, journey: updatedJourney };
+    let validationPreview = await previewEdit(
+      tripId,
+      userId,
+      request.baseRevision,
+      nextCandidate,
+      { database: dependencies.database, getRoute: safeGetRoute },
+      timeReference,
+    );
+    if (clocks.rescheduleDayOne && lockedVisitIds.size === 0 && validationPreview.journeySummary) {
+      const rescheduled = rescheduleDraftFromOrigin(
+        nextCandidate,
+        validationPreview.journeySummary,
+        validationPreview.legs ?? [],
+      );
+      if (rescheduled.candidate !== nextCandidate) {
+        nextCandidate = rescheduled.candidate;
+        validationPreview = await previewEdit(
+          tripId,
+          userId,
+          request.baseRevision,
+          nextCandidate,
+          { database: dependencies.database, getRoute: safeGetRoute },
+          timeReference,
+        );
+      }
+    }
+    const diff = diffEditCandidate(baseCandidate, nextCandidate);
+    const clockParts: string[] = [];
+    if (clocks.departureMinute !== null) {
+      clockParts.push(`giờ khởi hành ${minuteClockLabel(clocks.departureMinute)}`);
+    }
+    if (clocks.returnDeadlineMinute !== null) {
+      clockParts.push(`hạn trở về ${minuteClockLabel(clocks.returnDeadlineMinute)}`);
+    }
+    if (clocks.returnDepartureMinute !== null) {
+      clockParts.push(`giờ bắt đầu về ${minuteClockLabel(clocks.returnDepartureMinute)}`);
+    }
+    const aiSummary = `AI đã cập nhật ${clockParts.join(", ")} cho lộ trình xuất phát trên bản nháp.`;
+    return {
+      status: "PROPOSED",
+      candidate: nextCandidate,
+      intent: planToPrimaryEditIntent(hydratedPlan, diff),
+      diff,
+      validation: validationPreview.validation,
+      aiSummary,
+      changedVisitIds: {
+        added: [],
+        updated: diff.updated.map((u) => u.visitId),
+        shifted: [],
+        removedCount: 0,
+      },
+      ...(validationPreview.legs ? { legs: validationPreview.legs } : {}),
+      ...(validationPreview.saveEligibility ? { saveEligibility: validationPreview.saveEligibility } : {}),
+      ...(validationPreview.uncheckedItems ? { uncheckedItems: validationPreview.uncheckedItems } : {}),
+      ...(validationPreview.journeySummary ? { journeySummary: validationPreview.journeySummary } : {}),
+    };
+  }
+
+  if (hydratedPlan.mode !== "APPLY_BATCH") {
+    const reason =
+      hydratedPlan.clarificationReason ??
+      (hydratedPlan.mode === "UNSUPPORTED" ? "OUT_OF_SCOPE" : "MISSING_TARGET");
+    const clarificationObj = createEditClarification(
+      reason,
+      planToPrimaryEditIntent(hydratedPlan),
+      clarificationData,
+      {
+        candidateVisitIds: hydratedPlan.candidateVisitIds,
+        candidateDestinationIds: hydratedPlan.candidateDestinationIds,
+        maxChoices: MAX_AI_CHOICES,
+      },
+    );
+    return {
+      status: "NEEDS_CLARIFICATION",
+      intent: { ...planToPrimaryEditIntent(hydratedPlan), needsClarification: true, clarificationReason: reason },
+      reason,
+      clarification: clarificationObj,
+      aiSummary: clarificationObj.prompt,
+    };
+  }
+
+  const makeVisitId = dependencies.createVisitId ?? randomUUID;
+  const applied = applyWorkspaceOperations({
+    original: baseCandidate,
+    plan: hydratedPlan,
+    destinations: allCatalogDestinations,
+    lockedVisitIds,
+    createVisitId: makeVisitId,
+  });
+
+  if (applied.kind === "CLARIFY") {
+    const clarificationObj = createEditClarification(
+      applied.reason,
+      applied.intent,
+      clarificationData,
+      {
+        candidateVisitIds: hydratedPlan.candidateVisitIds,
+        candidateDestinationIds: hydratedPlan.candidateDestinationIds,
+        maxChoices: MAX_AI_CHOICES,
+      },
+    );
+    return {
+      status: "NEEDS_CLARIFICATION",
+      intent: { ...applied.intent, needsClarification: true, clarificationReason: applied.reason },
+      reason: applied.reason,
+      clarification: clarificationObj,
+      aiSummary: clarificationObj.prompt,
+    };
+  }
+
   const validationPreview = await previewEdit(
     tripId,
     userId,
     request.baseRevision,
-    changed,
+    applied.candidate,
     {
       database: dependencies.database,
-      getRoute: async (input) => {
-        try {
-          return await dependencies.getRoute(input);
-        } catch {
-          // Route timeouts/failures are unavailable snapshots; the shared Validator
-          // represents them as INSUFFICIENT_DATA instead of losing the proposal.
-          return { kind: "unavailable" };
-        }
-      },
+      getRoute: safeGetRoute,
     },
     timeReference,
   );
 
+  const addedPlaceDetails = buildAddedPlaceDetails(applied.diff, catalogById);
+
   return {
     status: "PROPOSED",
-    candidate: changed,
-    intent: verifiedIntent,
-    diff,
+    candidate: applied.candidate,
+    intent: applied.intent,
+    diff: applied.diff,
     validation: validationPreview.validation,
+    aiSummary: applied.aiSummary,
+    changedVisitIds: applied.changedVisitIds,
+    ...(validationPreview.legs ? { legs: validationPreview.legs } : {}),
+    ...(validationPreview.saveEligibility ? { saveEligibility: validationPreview.saveEligibility } : {}),
+    ...(validationPreview.uncheckedItems ? { uncheckedItems: validationPreview.uncheckedItems } : {}),
+    ...(validationPreview.journeySummary ? { journeySummary: validationPreview.journeySummary } : {}),
+    ...(addedPlaceDetails ? { addedPlaceDetails } : {}),
   };
 }

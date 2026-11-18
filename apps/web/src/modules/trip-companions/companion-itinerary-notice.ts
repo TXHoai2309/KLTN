@@ -1,5 +1,5 @@
 import type { Prisma } from "@KLTN/db";
-import type { EditCandidate } from "../trip-edit/edit-candidate";
+import { hasJourneyChanged, type EditCandidate } from "../trip-edit/edit-candidate";
 import { companionSystemNoticeSchema } from "./companion-chat-contract";
 
 export function companionItineraryChanges(before: EditCandidate, after: EditCandidate) {
@@ -8,7 +8,9 @@ export function companionItineraryChanges(before: EditCandidate, after: EditCand
   return {
     dates: before.startDate !== after.startDate || before.durationDays !== after.durationDays,
     destinations: JSON.stringify(destinations(before)) !== JSON.stringify(destinations(after)),
-    times: JSON.stringify(times(before)) !== JSON.stringify(times(after)),
+    times:
+      JSON.stringify(times(before)) !== JSON.stringify(times(after)) ||
+      hasJourneyChanged(before.journey, after.journey),
   };
 }
 

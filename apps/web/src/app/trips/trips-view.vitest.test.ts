@@ -77,7 +77,7 @@ describe("US-31 Trip views", () => {
     const completedHtml = renderToStaticMarkup(createElement(TripDetailView, { trip: completedTrip }));
     expect(completedHtml).not.toContain("/trips/done/in-trip");
     expect(completedHtml).not.toContain("Trợ lý trong chuyến đi");
-    expect(completedHtml).toContain("/trips/done/edit");
+    expect(completedHtml).not.toContain("/trips/done/edit");
     expect(html).toContain("Ngày này chưa có điểm dừng");
     expect(html).toContain("Quay lại Chuyến đi của tôi");
     expect(html).toContain("Thêm chuyến đi vào yêu thích");

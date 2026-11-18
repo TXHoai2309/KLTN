@@ -26,6 +26,7 @@ export type AiEditSession = {
     | "IDLE"
     | "SENDING"
     | "PROPOSED"
+    | "ADVISED"
     | "NEEDS_CLARIFICATION"
     | "CHECKING"
     | "ERROR"

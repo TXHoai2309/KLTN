@@ -97,3 +97,21 @@ export function canConfirmEditPreview(
     validation.groups.scheduleConflict.status,
   ].every((status) => status === "SATISFIED");
 }
+
+/**
+ * Allows opening Save confirmation either when all checks PASS strictly or when all
+ * remaining missing checks are explicitly ack-able ExternalPlace uncheckedItems (Ticket 05).
+ */
+export function canProceedToEditConfirmation(
+  candidate: EditCandidate,
+  state: EditPreviewState,
+): boolean {
+  if (canConfirmEditPreview(candidate, state)) return true;
+  if (state.status !== "PREVIEWED" || !state.checkedCandidate || !state.result) return false;
+  if (!areEditCandidatesEqual(candidate, state.checkedCandidate)) return false;
+  return (
+    state.result.saveEligibility === "NEEDS_UNCHECKED_ACK" &&
+    (state.result.uncheckedItems?.length ?? 0) > 0 &&
+    Object.values(state.result.validation.groups).every((g) => g.status !== "VIOLATION")
+  );
+}

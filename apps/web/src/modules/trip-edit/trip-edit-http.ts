@@ -14,7 +14,9 @@ import {
 } from "./apply-edit";
 import { editCandidateSchema } from "./edit-candidate";
 import {
+  getTripForEdit,
   previewEdit,
+  type TripEditPageDependencies,
   type TripEditServiceDependencies,
 } from "./trip-edit-service";
 
@@ -175,6 +177,19 @@ export async function previewEditResponse(
       dependencies.service,
       dependencies.now(),
     );
+    return privateResponse(apiSuccess(result));
+  } catch (error) {
+    return privateResponse(handleApiError(error));
+  }
+}
+
+export async function getEditSnapshotResponse(
+  request: Request,
+  tripId: string,
+  dependencies: TripEditPageDependencies,
+): Promise<Response> {
+  try {
+    const result = await getTripForEdit(request.headers, tripId, dependencies);
     return privateResponse(apiSuccess(result));
   } catch (error) {
     return privateResponse(handleApiError(error));

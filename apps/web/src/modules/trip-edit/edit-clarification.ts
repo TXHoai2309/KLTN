@@ -86,17 +86,28 @@ function formatStartTime(startMinute: number): string {
   return `${hours}:${minutes}`;
 }
 
+export type EditClarificationOptions = {
+  candidateVisitIds?: readonly string[];
+  candidateDestinationIds?: readonly string[];
+  maxChoices?: number;
+};
+
 /** Create stable Vietnamese clarification text and choices only from server data. */
 export function createEditClarification(
   reason: EditIntentClarificationReason,
   intent: EditIntentResult,
   context: EditClarificationContext,
+  options?: EditClarificationOptions,
 ): EditClarification {
   let choices: EditClarification["choices"];
   if (reason === "AMBIGUOUS_TARGET") {
     const visitsById = new Map(context.visits.map((visit) => [visit.visitId, visit]));
-    const candidateVisitIds = intent.targetVisitIds.length > 0
-      ? intent.targetVisitIds
+    const preferredIds =
+      options?.candidateVisitIds && options.candidateVisitIds.length > 0
+        ? options.candidateVisitIds
+        : intent.targetVisitIds;
+    const candidateVisitIds = preferredIds.length > 0
+      ? preferredIds
       : context.visits.map((visit) => visit.visitId);
     choices = candidateVisitIds.flatMap((visitId) => {
       const visit = visitsById.get(visitId);
@@ -107,11 +118,30 @@ export function createEditClarification(
           }]
         : [];
     });
+    if (options?.maxChoices !== undefined) {
+      choices = choices.slice(0, Math.max(1, options.maxChoices));
+    }
   } else if (reason === "AMBIGUOUS_DESTINATION") {
-    choices = context.eligibleDestinations.map((destination) => ({
-      label: destination.name,
-      resolution: { selectedDestinationId: destination.id },
-    }));
+    const preferredSet =
+      options?.candidateDestinationIds && options.candidateDestinationIds.length > 0
+        ? new Set(options.candidateDestinationIds)
+        : null;
+    const filteredDestinations = preferredSet
+      ? [
+          ...options!.candidateDestinationIds!
+            .map((id) => context.eligibleDestinations.find((dest) => dest.id === id))
+            .filter((dest): dest is EditClarificationDestination => Boolean(dest)),
+        ]
+      : [...context.eligibleDestinations];
+    const mapped = (filteredDestinations.length > 0 ? filteredDestinations : context.eligibleDestinations).map(
+      (destination) => ({
+        label: destination.name,
+        resolution: { selectedDestinationId: destination.id },
+      }),
+    );
+    choices = options?.maxChoices !== undefined
+      ? mapped.slice(0, Math.max(1, options.maxChoices))
+      : mapped;
   } else if (reason === "MISSING_DAY") {
     const dayIndexes = context.dayIndexes && context.dayIndexes.length > 0
       ? context.dayIndexes

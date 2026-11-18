@@ -2,9 +2,22 @@ import { z } from "zod";
 
 import { sendIdempotentMutation } from "@/lib/mutation-client";
 import type { MutationOutcome } from "@/lib/mutation-contract";
+import {
+  aiChatHistorySchema,
+  type AiChatHistoryTurn,
+} from "@/modules/trip-edit/ai-workspace-plan";
 import { editCandidateSchema, type EditCandidate } from "@/modules/trip-edit/edit-candidate";
 import type { ApplyEditResult } from "@/modules/trip-edit/apply-edit";
-import type { PreviewEditResult } from "@/modules/trip-edit/trip-edit-service";
+import type {
+  PreviewEditResult,
+  PreviewLegMetric,
+  TripEditPageData,
+} from "@/modules/trip-edit/trip-edit-service";
+import type { PreviewJourneySummary } from "@/modules/trip-edit/edit-journey-helper";
+import {
+  uncheckedItemSchema,
+  type AcknowledgedUnchecked,
+} from "@/modules/trip-save/unchecked-checks";
 import type {
   TripValidation,
   ValidationFinding,
@@ -41,11 +54,41 @@ const validationSchema = z.object({
   canConfirm: z.boolean(),
 }).strict() satisfies z.ZodType<TripValidation>;
 
+const previewLegMetricSchema = z.object({
+  dayIndex: z.number().int().positive(),
+  fromVisitId: z.string(),
+  toVisitId: z.string(),
+  status: z.enum(["VERIFIED", "INSUFFICIENT_DATA"]),
+  durationSeconds: z.number().nullable(),
+  distanceMeters: z.number().nullable(),
+  geometry: z.object({
+    type: z.literal("LineString"),
+    coordinates: z.array(z.tuple([z.number(), z.number()])),
+  }).optional(),
+}).strict() satisfies z.ZodType<PreviewLegMetric>;
+
+const previewJourneySummarySchema = z.object({
+  outboundDurationSeconds: z.number().nullable(),
+  outboundDistanceMeters: z.number().nullable(),
+  outboundRestMinutes: z.number(),
+  estimatedArrivalAtFirstMinute: z.number().nullable(),
+  firstVisitStartMinute: z.number().nullable(),
+  returnDurationSeconds: z.number().nullable(),
+  returnDistanceMeters: z.number().nullable(),
+  returnRestMinutes: z.number(),
+  estimatedReturnArrivalMinute: z.number().nullable(),
+  returnDeadlineMinute: z.number().nullable(),
+}).strict() satisfies z.ZodType<PreviewJourneySummary>;
+
 const previewResultSchema = z.object({
   baseRevision: z.iso.datetime(),
   candidate: editCandidateSchema,
   validation: validationSchema,
   eligibleForConfirmation: z.boolean(),
+  legs: z.array(previewLegMetricSchema).optional(),
+  journeySummary: previewJourneySummarySchema.optional(),
+  uncheckedItems: z.array(uncheckedItemSchema).optional(),
+  saveEligibility: z.enum(["PASS", "NEEDS_UNCHECKED_ACK", "BLOCKED"]).optional(),
 }).strict() satisfies z.ZodType<PreviewEditResult>;
 
 const applyResultSchema = z.object({
@@ -72,7 +115,7 @@ const errorEnvelopeSchema = z.object({
 
 export type TripEditPreviewOutcome =
   | { kind: "PREVIEWED"; result: PreviewEditResult }
-  | { kind: "FAILED"; status: number; code: string; message: string }
+  | { kind: "FAILED"; status: number; code: string; message: string; details?: unknown }
   | { kind: "NETWORK_ERROR" }
   | { kind: "TIMEOUT" };
 
@@ -91,12 +134,20 @@ export type TripEditApplyInput = {
   candidate: EditCandidate;
   confirmed: true;
   kind: "MANUAL";
+  acknowledgedUnchecked?: AcknowledgedUnchecked;
 };
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 
-function failed(status: number, code: string, message: string): TripEditPreviewOutcome {
-  return { kind: "FAILED", status, code, message };
+function failed(
+  status: number,
+  code: string,
+  message: string,
+  details?: unknown,
+): TripEditPreviewOutcome {
+  return details !== undefined
+    ? { kind: "FAILED", status, code, message, details }
+    : { kind: "FAILED", status, code, message };
 }
 
 /** Validate the untrusted HTTP envelope before exposing a preview to the UI. */
@@ -116,7 +167,7 @@ export function decideTripEditPreviewResponse(
     return failed(status >= 400 ? status : 502, "INVALID_RESPONSE", "Phản hồi kiểm tra hành trình không hợp lệ.");
   }
 
-  const { code, message } = parsed.data.error;
+  const { code, message, details } = parsed.data.error;
   if (status === 401 || code === "UNAUTHENTICATED") {
     return failed(401, "UNAUTHENTICATED", "Phiên đăng nhập không còn hiệu lực. Vui lòng đăng nhập lại.");
   }
@@ -124,12 +175,12 @@ export function decideTripEditPreviewResponse(
     return failed(403, "FORBIDDEN", "Bạn không có quyền kiểm tra hành trình này.");
   }
   if (status === 409 || code === "TRIP_REVISION_CONFLICT") {
-    return failed(409, "TRIP_REVISION_CONFLICT", message);
+    return failed(409, "TRIP_REVISION_CONFLICT", message, details);
   }
   if (status >= 500) {
     return failed(status, code, "Hệ thống chưa thể kiểm tra hành trình lúc này. Phương án vẫn được giữ lại, hãy thử lại.");
   }
-  return failed(status, code, message);
+  return failed(status, code, message, details);
 }
 
 /** Call the read-only edit preview endpoint with a bounded client-side wait. */
@@ -222,6 +273,9 @@ export async function applyTripEdit(
           candidate,
           confirmed: input.confirmed,
           kind: input.kind,
+          ...(input.acknowledgedUnchecked
+            ? { acknowledgedUnchecked: input.acknowledgedUnchecked }
+            : {}),
         }),
       },
     },
@@ -232,12 +286,16 @@ export async function applyTripEdit(
   if (!parsed.success) return unknownApplyOutcome();
 
   const data = parsed.data;
-  const allChecksPassed = data.validation.canConfirm && [
+  const groupStatuses = [
     data.validation.groups.openingHours.status,
     data.validation.groups.minimumDuration.status,
     data.validation.groups.travelTime.status,
     data.validation.groups.scheduleConflict.status,
-  ].every((status) => status === "SATISFIED");
+  ];
+  const noViolations = groupStatuses.every((status) => status !== "VIOLATION");
+  const allChecksPassed = input.acknowledgedUnchecked
+    ? noViolations
+    : data.validation.canConfirm && groupStatuses.every((status) => status === "SATISFIED");
   if (
     data.tripId !== tripId ||
     data.kind !== input.kind ||
@@ -261,7 +319,7 @@ const aiIntentSchema = z.object({
   destinationId: z.string().min(1).max(128).nullable(),
   params: z.object({
     dayIndex: z.number().int().min(1).max(30).nullable(),
-    position: z.number().int().min(1).max(4).nullable(),
+    position: z.number().int().min(1).max(50).nullable(),
     startTime: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/u).nullable(),
     durationMinutes: z.number().int().min(1).max(1440).nullable(),
   }).strict(),
@@ -305,7 +363,7 @@ const positionedDiffVisitSchema = z.object({
   destinationId: z.string().min(1).max(128),
   startMinute: z.number().int().min(0).max(1439),
   plannedDurationMinutes: z.number().int().min(1).max(1440),
-  order: z.number().int().min(1).max(4),
+  order: z.number().int().min(1).max(50),
   dayIndex: z.number().int().min(1).max(30),
 }).strict();
 
@@ -345,6 +403,18 @@ const aiEditResponseSchema = z.discriminatedUnion("status", [
     intent: aiIntentSchema,
     diff: aiDiffSchema,
     validation: aiValidationSchema,
+    aiSummary: z.string().optional(),
+    changedVisitIds: z.object({
+      added: z.array(z.string()),
+      updated: z.array(z.string()),
+      shifted: z.array(z.string()),
+      removedCount: z.number().int().nonnegative(),
+    }).strict().optional(),
+    legs: z.array(previewLegMetricSchema).optional(),
+    saveEligibility: z.enum(["PASS", "NEEDS_UNCHECKED_ACK", "BLOCKED"]).optional(),
+    uncheckedItems: z.array(uncheckedItemSchema).optional(),
+    journeySummary: previewJourneySummarySchema.optional(),
+    addedPlaceDetails: z.record(z.string(), z.unknown()).optional(),
   }).strict(),
   z.object({
     status: z.literal("NEEDS_CLARIFICATION"),
@@ -354,6 +424,15 @@ const aiEditResponseSchema = z.discriminatedUnion("status", [
       "AMBIGUOUS_DESTINATION", "OUT_OF_SCOPE",
     ]),
     clarification: aiClarificationSchema,
+    aiSummary: z.string().optional(),
+  }).strict(),
+  z.object({
+    status: z.literal("ADVISED"),
+    intent: aiIntentSchema,
+    advice: z.string().min(1),
+    validation: aiValidationSchema,
+    aiSummary: z.string().min(1),
+    saveEligibility: z.enum(["PASS", "NEEDS_UNCHECKED_ACK", "BLOCKED"]).optional(),
   }).strict(),
 ]);
 
@@ -366,11 +445,13 @@ export type AiTripEditInput = {
   baseRevision: string;
   message: string;
   resolution?: import("@/modules/trip-edit/edit-clarification").EditResolution;
+  draft?: EditCandidate;
+  history?: AiChatHistoryTurn[];
 };
 
 export type AiTripEditOutcome =
   | { kind: "RESULT"; result: import("@/modules/trip-edit/ai-edit-service").AiEditServiceResult }
-  | { kind: "FAILED"; status: number; code: string; message: string }
+  | { kind: "FAILED"; status: number; code: string; message: string; details?: unknown }
   | { kind: "NETWORK_ERROR" }
   | { kind: "TIMEOUT" };
 
@@ -389,29 +470,41 @@ export async function requestAiTripEdit(
   const fetcher = options.fetcher ?? fetch;
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   let timedOut = false;
-  const timeoutId = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, timeoutMs);
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
   try {
-    const response = await fetcher(
-      `/api/trips/${encodeURIComponent(tripId)}/edits/ai`,
-      {
-        method: "POST",
-        credentials: "same-origin",
-        cache: "no-store",
-        headers: { Accept: "application/json", "Content-Type": "application/json" },
-        body: JSON.stringify({
-          baseRevision: input.baseRevision,
-          message: input.message,
-          ...(input.resolution ? { resolution: input.resolution } : {}),
-        }),
-        signal: controller.signal,
-      },
-    );
+    const validatedDraft = input.draft !== undefined ? editCandidateSchema.parse(input.draft) : undefined;
+    const validatedHistory =
+      input.history && input.history.length > 0 ? aiChatHistorySchema.parse(input.history) : undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutId = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+        reject(new Error("AI_CLIENT_TIMEOUT"));
+      }, timeoutMs);
+    });
+    const response = await Promise.race([
+      fetcher(
+        `/api/trips/${encodeURIComponent(tripId)}/edits/ai`,
+        {
+          method: "POST",
+          credentials: "same-origin",
+          cache: "no-store",
+          headers: { Accept: "application/json", "Content-Type": "application/json" },
+          body: JSON.stringify({
+            baseRevision: input.baseRevision,
+            message: input.message,
+            ...(input.resolution ? { resolution: input.resolution } : {}),
+            ...(validatedDraft ? { draft: validatedDraft } : {}),
+            ...(validatedHistory ? { history: validatedHistory } : {}),
+          }),
+          signal: controller.signal,
+        },
+      ),
+      timeoutPromise,
+    ]);
     let body: unknown = null;
-    try { body = await response.json(); } catch { body = null; }
+    try { body = await Promise.race([response.json(), timeoutPromise]); } catch { body = null; }
     if (timedOut) return { kind: "TIMEOUT" };
 
     if (response.status === 200) {
@@ -425,14 +518,14 @@ export async function requestAiTripEdit(
     if (!parsedError.success) {
       return { kind: "FAILED", status: response.status, code: "INVALID_RESPONSE", message: "Hệ thống chưa thể tạo đề xuất lúc này." };
     }
-    const { code, message } = parsedError.data.error;
+    const { code, message, details } = parsedError.data.error;
     if (code === "AI_UNAVAILABLE" || code === "AI_INVALID_RESPONSE") {
-      return { kind: "FAILED", status: response.status, code, message };
+      return { kind: "FAILED", status: response.status, code, message, ...(details !== undefined ? { details } : {}) };
     }
     if (response.status === 409 || code === "TRIP_REVISION_CONFLICT") {
-      return { kind: "FAILED", status: 409, code: "TRIP_REVISION_CONFLICT", message };
+      return { kind: "FAILED", status: 409, code: "TRIP_REVISION_CONFLICT", message, ...(details !== undefined ? { details } : {}) };
     }
-    return { kind: "FAILED", status: response.status, code, message };
+    return { kind: "FAILED", status: response.status, code, message, ...(details !== undefined ? { details } : {}) };
   } catch {
     return timedOut ? { kind: "TIMEOUT" } : { kind: "NETWORK_ERROR" };
   } finally {
@@ -504,4 +597,71 @@ export async function applyAiTripEdit(
     return unknownAiApplyOutcome();
   }
   return { ...response, data };
+}
+
+export function extractCompletedVisitIdsFromDetails(details: unknown): string[] {
+  if (typeof details !== "object" || details === null || !("completedVisitIds" in details)) {
+    return [];
+  }
+  const raw = (details as { completedVisitIds?: unknown }).completedVisitIds;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((item): item is string => typeof item === "string" && item.length > 0);
+}
+
+export type TripEditSnapshot = TripEditPageData;
+
+export type TripEditSnapshotOutcome =
+  | { kind: "OK"; snapshot: TripEditSnapshot }
+  | { kind: "FAILED"; message: string };
+
+const snapshotSuccessSchema = z.object({
+  success: z.literal(true),
+  data: z.object({
+    tripId: z.string().min(1),
+    tripStatus: z.enum(["UPCOMING", "ONGOING", "COMPLETED"]),
+    hasCompanionPublication: z.boolean(),
+    baseRevision: z.iso.datetime(),
+    candidate: editCandidateSchema,
+    destinationLabels: z.record(z.string(), z.string()),
+    placeDetails: z.record(z.string(), z.unknown()),
+    completedVisitIds: z.array(z.string()).optional(),
+    journeyDisclosure: z.enum(["ORIGIN_LEGS_NOT_INCLUDED", "SAVED_JOURNEY_PRESENT"]).optional(),
+  }).passthrough(),
+}).strict();
+
+/** Fetches the latest owner-scoped snapshot cleanly after a 409 TRIP_REVISION_CONFLICT. */
+export async function fetchTripEditSnapshot(
+  tripId: string,
+  fetcher: typeof fetch = fetch,
+): Promise<TripEditSnapshotOutcome> {
+  try {
+    const response = await fetcher(
+      `/api/trips/${encodeURIComponent(tripId)}/edits/snapshot`,
+      {
+        method: "GET",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      },
+    );
+    const body = await response.json().catch(() => null);
+    if (response.ok) {
+      const parsed = snapshotSuccessSchema.safeParse(body);
+      if (parsed.success) {
+        return { kind: "OK", snapshot: parsed.data.data as TripEditSnapshot };
+      }
+    }
+    const errParsed = errorEnvelopeSchema.safeParse(body);
+    return {
+      kind: "FAILED",
+      message: errParsed.success
+        ? errParsed.data.error.message
+        : "Không thể tải phiên bản lịch trình mới nhất lúc này.",
+    };
+  } catch {
+    return {
+      kind: "FAILED",
+      message: "Mất kết nối khi tải phiên bản lịch trình mới nhất.",
+    };
+  }
 }

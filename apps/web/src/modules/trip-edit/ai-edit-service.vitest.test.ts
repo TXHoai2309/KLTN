@@ -512,4 +512,13 @@ describe("createAiEditProposal", () => {
     await expect(createProposal("trip-1", "owner-1", request, test.dependencies))
       .rejects.toMatchObject({ code: "PROVIDER_TIMEOUT" });
   });
+
+  it("rejects COMPLETED trips with 409 TRIP_COMPLETED_READONLY without calling the LLM", async () => {
+    const test = fixture();
+    const afterEnd = new Date("2026-10-25T00:00:00.000Z");
+
+    await expect(createAiEditProposal("trip-1", "owner-1", request, test.dependencies, afterEnd))
+      .rejects.toMatchObject({ code: "TRIP_COMPLETED_READONLY", status: 409 });
+    expect(test.providerCalls).toBe(0);
+  });
 });

@@ -22,6 +22,12 @@ export function useAssistantDestination(destination: Destination) {
   useEffect(() => register?.(destination), [register, destination.id, destination.name]);
 }
 
+/** Routes where the global floating assistant pill should remain hidden. */
+export function isGlobalAssistantVisibleRoute(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return !/^\/(admin|assistant|login|register|forgot-password|reset-password|trips\/new|trips\/[^/]+\/edit)(\/|$)/.test(pathname);
+}
+
 /** Root-layout owner: normal client navigation hides/shows a view, never its session. */
 export function GlobalAssistantProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -49,7 +55,7 @@ export function GlobalAssistantProvider({ children }: { children: ReactNode }) {
   }, [pathname]);
   const current = pageDestination?.pathname === pathname ? pageDestination : null;
   const nextContext: QaContext = current ? { type: "DESTINATION", destinationId: current.id } : { type: "GENERAL" };
-  const routeVisible = !/^\/(admin|assistant|login|register|forgot-password|reset-password|trips\/new)(\/|$)/.test(pathname);
+  const routeVisible = isGlobalAssistantVisibleRoute(pathname);
 
   function openPanel() {
     if (!hasSession) {

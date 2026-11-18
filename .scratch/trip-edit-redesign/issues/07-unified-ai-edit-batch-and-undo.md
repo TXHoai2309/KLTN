@@ -1,0 +1,15 @@
+# 07: Thanh AI Edit hợp nhất v1 (đọc Edit draft, đa thao tác, gợi ý 3 điểm & Hoàn tác trực quan)
+
+**What to build:** Thanh công cụ AI gọn ở đầu Timeline thay thế khung AI rời rạc cũ: khi người dùng gửi yêu cầu chỉnh sửa bằng ngôn ngữ tự nhiên (hoặc chọn chip gợi ý nhanh), hệ thống gửi chính `Edit draft` hiện tại từ trình duyệt (bao gồm mọi sửa đổi thủ công chưa lưu) kèm `baseRevision` tới endpoint AI. AI hỗ trợ thực hiện nhiều thao tác trong một lần kèm tự điều chỉnh khung giờ dây chuyền, hoặc đề xuất tối đa 3 điểm đến đủ điều kiện từ server để người dùng bấm chọn khi yêu cầu còn chung chung; kết quả AI đổ thẳng lên Timeline và Bản đồ của `Edit draft` kèm nhãn đánh dấu thay đổi (`Mới thêm / Đã chỉnh / Đã dời`) và thanh tóm tắt có nút *"Hoàn tác bước AI này"* nối trực tiếp vào lịch sử `Undo/Redo`.
+
+**Blocked by:** 01 — Khung Workspace Timeline + Bản đồ, Edit draft thống nhất, bỏ trần 4 lượt/ngày & Hộp thoại Lưu; 03 — Kiểm tra 2 tầng (0ms + debounce), Tự dời giờ dây chuyền, Nhãn chặng & Thời tiết; 05 — Hỗ trợ chỉnh sửa chuyến có địa điểm ngoài danh mục (ExternalPlace) & xác nhận uncheckedChecks; 06 — Bảo vệ lượt đã qua giờ khi ONGOING & Cơ chế Rebase khi gặp xung đột 409
+
+**Status:** done
+
+- [x] Endpoint AI nhận `Edit draft` hiện tại từ client (không đọc đè bản cũ trong DB làm mất sửa đổi thủ công), kiểm tra auth/sở hữu/`baseRevision` trước khi gọi LLM, giới hạn kích thước input/output, đánh dấu nội dung người dùng và tên điểm đến là dữ liệu không đáng tin cậy, và tuyệt đối không ghi database.
+- [x] AI trả về kế hoạch thao tác có cấu trúc được Zod strict kiểm tra; server xác minh lại toàn bộ `visitId`, `destinationId`, ngày, khung giờ và ràng buộc bảo vệ lượt đã hoàn tất (`ONGOING`) lẫn `ExternalPlace` hiện có trước khi dựng `Edit draft` mới, sau đó chạy `Itinerary validation` trên kết quả mới.
+- [x] Một câu lệnh tự nhiên có thể thực hiện nhiều thao tác liên hoàn (ví dụ thêm/xóa/đổi nhiều lượt) và tự động dời giờ dây chuyền hợp lý các điểm liên quan trong ngày (tôn trọng ranh giới `23:59` và các lượt đã khóa).
+- [x] Khi yêu cầu còn chung chung (như *"thêm điểm ngắm cảnh"* hoặc thiếu mục tiêu/ngày rõ ràng), AI trả về câu hỏi làm rõ do code sinh kèm tối đa 3 lựa chọn điểm đến đủ điều kiện/lượt tham quan xác thực từ server dưới dạng nút bấm trực quan; chọn một nút sẽ thực thi lại đúng trên `Edit draft` hiện tại.
+- [x] Đề xuất hợp chuẩn từ AI cập nhật thẳng vào `workingDraft` và lịch sử `Undo/Redo`, hiển thị badge phân biệt các điểm vừa thêm/sửa/dời trên Timeline + Bản đồ cùng thanh tóm tắt kèm nút *"Hoàn tác bước AI này"*; người dùng có thể sửa tay tiếp hoặc bấm Lưu qua hộp thoại xác nhận chung.
+- [x] Xử lý an toàn lỗi mạng/timeout/provider (`15s`), giữ nguyên nội dung người dùng đã nhập để thử lại và không làm hỏng `Edit draft` hiện tại; gặp `409` nối vào luồng Rebase chung.
+- [x] Kiểm thử seam AI HTTP/service (fake LLM, đọc draft chưa lưu, multi-op + auto-shift, 3 choices, từ chối ID giả/chạm lượt `ONGOING`, zero DB writes) và seam UI (thanh AI thu/mở, highlight, 1-click Undo) đều PASS.

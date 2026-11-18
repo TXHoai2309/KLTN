@@ -1,6 +1,6 @@
 import { aiEditResponse } from "@/modules/trip-edit/ai-edit-http";
 import { createOpenAiStructuredClient } from "@/modules/preference-extraction/openai-structured-client";
-import { getTravelRoute } from "@/modules/trip-validation/stadia-route";
+import { createTripEditRouteProvider } from "@/modules/trip-edit/trip-edit-routes";
 import { authorizationDependencies } from "@/server/authorization/server";
 import { db } from "@/services";
 
@@ -9,7 +9,7 @@ const dependencies = {
   service: {
     database: db,
     llm: createOpenAiStructuredClient(),
-    getRoute: getTravelRoute,
+    getRoute: createTripEditRouteProvider(),
   },
   now: () => new Date(),
 };

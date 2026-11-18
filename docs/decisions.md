@@ -776,3 +776,34 @@ Validator separate from AI, missing data is never reported or stored as a pass, 
 ### Consequences
 
 Old flow stays in code; rollback is turning the flag off. Open risks are in the story's Open Questions, notably external places lacking validation data.
+
+## ADR-37 — Unified stateless client Edit draft and atomic edit apply (2026-11-18)
+
+- **Status:** Accepted at design level by the owner (2026-11-18); implementation pending. Supersedes the separated manual/AI draft flow and 4-visits-per-day edit cap in `US-32` / `US-33`, and unifies saved-trip routing and `journeySnapshot` recalculation on `/trips/[id]/edit`.
+- **Date:** 2026-11-18
+
+### Context
+
+The existing `/trips/[id]/edit` implementation had four structural gaps verified in repository inspection:
+1. `AiEditPanel` (`/api/trips/[id]/edits/ai`) always read the persisted DB trip, supported only one primitive operation per turn, and maintained a separate diff/confirm/apply UI disconnected from `EditTripClient`'s manual candidate.
+2. `edit-candidate.ts` enforced `MAX_EDIT_VISITS_PER_DAY = 4` from the preliminary planner despite `US-32` (`OQ-F`) and `tripProposalSchema` only bounding total trip visits at 50.
+3. `/api/trips/[id]/edits/preview` and `/apply` called uncapped Stadia routing directly rather than the shared `PLANNER_ROUTING_PROVIDER` adapter, and `applyEdit` did not recalculate `journeySnapshot`, invalidating `journey.plan` on `/trips/[id]` while forcing origin/time edits into a separate modal that forbade visit changes.
+4. `getTripForEdit` rejected trips containing `ExternalPlace` visits with HTTP 501 (`EXTERNAL_PLACE_UNSUPPORTED`), and `/trips/[id]/edit` lacked `COMPLETED`/`ONGOING` lifecycle protection and a `409` rebase workflow.
+
+### Decision
+
+1. **Unified stateless `Edit draft`:** Keep one canonical `Edit draft` (`bản nháp chỉnh sửa`) in browser memory (with in-session Undo/Redo and ephemeral AI conversation turns; no new database draft table). Both `/edits/ai` and `/edits/preview` accept the current client `Edit draft` plus `baseRevision` and return verified changes/validation without mutating PostgreSQL. AI acts on the draft (supporting multi-operation batch edits, chained time adjustments, destination suggestions, pre-departure origin/clock edits, and read-only `Planning guidance`), pouring accepted mutations onto the shared draft with 1-click Undo.
+2. **Single atomic `/edits/apply` boundary:** Consolidate visit replacement, optional `journeySnapshot` update/recalculation, `uncheckedChecks` re-assessment and acknowledgement for existing `ExternalPlace` visits, companion itinerary notices, and CAS `updatedAt` advancement into one atomic idempotent write (revalidating outside the transaction).
+3. **Consistent rules across Trip workflows:** Remove the `4`-visits/day edit cap (retaining max `50` visits total and at least `1` visit), enforce `COMPLETED` lock and `ONGOING` elapsed-visit preservation, route preview/apply through the configured `PLANNER_ROUTING_PROVIDER`, and support client `409` rebase onto the latest saved revision.
+
+### Alternatives
+
+- Keep manual and AI editing in two separate tabs/flows: rejected because travelers cannot iteratively combine manual tweaks and AI adjustments before saving once.
+- Persist edit drafts in a new Prisma draft table: rejected because it adds schema/migration complexity and diverges from the product rule against long-lived unvalidated drafts.
+- Keep `journeySnapshot` editing isolated in a modal on `/trips/[id]` and uncapped Stadia routing in `/edits/*`: rejected because visit edits invalidate `visitFingerprint` and produce conflicting travel times between Detail/Planner and Edit.
+
+### Consequences
+
+- Request/response schemas for `/edits/ai`, `/edits/preview`, and `/edits/apply` must be updated cleanly (including client `Edit draft` validation, `journey` fields, and `acknowledgedUnchecked`).
+- `ONGOING` manual/AI edits share `preserveCompleted` invariants with `in-trip`, and `journey` changes remain blocked at/after Vietnam departure.
+- Existing `US-32` / `US-33` unit and route test suites will be updated alongside implementation to verify the unified contract.

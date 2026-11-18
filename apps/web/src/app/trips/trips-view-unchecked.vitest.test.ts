@@ -20,5 +20,7 @@ describe("Trip page with unchecked items", () => {
     expect(html).toContain("Giờ mở cửa: chưa có giờ mở cửa");
     expect(html).toContain("ngoài danh mục (chưa kiểm)");
     expect(html).not.toContain("/destinations/ext:");
+    expect(html).not.toContain("chưa thể chỉnh sửa");
+    expect(html).toContain("/trips/t1/edit");
   });
 });

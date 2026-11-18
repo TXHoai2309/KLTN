@@ -5659,3 +5659,41 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Updated `docs/product/product-spec.md` (Weather and sun times section), `docs/stories/ASSISTANT-WEATHER.md` status, and tickets `01`–`06` under `.scratch/assistant-weather/issues/`.
 - Evidence: `tsc --noEmit` PASS; related Vitest suites **75/75 files (913/913 tests) PASS** across `trip-weather`, `assistant-agent-v2`, `assistant-planning`, `components/assistant`, `trip-theme`, and Q&A weather/contract/understanding/service/HTTP/context/abuse/safety; `npm run build` (56 pages) PASS; `git diff --check` PASS.
 - Skipped / Pending owner approval: live browser acceptance calling real OpenAI models and saving a test trip to the database were skipped per owner cost/DB instructions (`cần owner đồng ý`). Read-only Dev DB check also noted that no `VISIBLE` destination row for `"Thành phố Hà Giang"` exists yet for live representative-point queries. Pre-existing unrelated test issues left untouched: legacy `test:destination` #64 and 3 older `src/modules/ai` offline suites (`qa-diagnostics`, `qa-advanced-reasoning`, `qa-chat-preference`) affected by earlier `runtime-config` / `knowledgeMode` changes. No commit or push.
+
+## 2026-11-18 — Trip Edit redesign interview, ADR-37 & spec (`grill-with-docs` + `to-spec`)
+
+- **Branch/status:** `master` — **PLAN / SPEC ONLY** (no application code, schema, migration, env, or DB changes).
+- **Design interview (`Q1–Q19`):** Owner confirmed unifying `/trips/[id]/edit` around one stateless client `Edit draft` shared by manual edits and multi-operation AI edits (with Undo/Redo, short in-session context, destination suggestions, pre-departure origin/time edits, and read-only `Planning guidance`), a Timeline + sticky `ItineraryMap` workspace aligned with `/trips/[id]` & `/trips/new` (hiding the floating global assistant pill on `/edit`), instant 0ms client checks + debounced server `Itinerary validation` mapped to stop cards/legs, removing `MAX_EDIT_VISITS_PER_DAY = 4`, unifying `PLANNER_ROUTING_PROVIDER` + `journeySnapshot` recalculation, locking `COMPLETED` trips, preserving elapsed visits for `ONGOING`, supporting existing `ExternalPlace` edits with `uncheckedChecks` acknowledgement, `409` rebase, and explicit confirmation modal with `UNKNOWN` idempotency retry.
+- **Documentation deliverables:**
+  - Updated [`GLOSSARY.md`](../GLOSSARY.md) (`Itinerary editing` terms and `Saved itinerary` avoid-list).
+  - Recorded `ADR-37` in [`docs/decisions.md`](decisions.md).
+  - Created [`docs/product/trip-edit-redesign-spec.md`](product/trip-edit-redesign-spec.md) following `to-spec` (37 user stories, implementation decisions without file paths/snippets, testing seams & decisions, out-of-scope, further notes) and indexed it in [`docs/README.md`](README.md).
+- **Checks:** Documentation-only session; whitespace check (`git diff --check`) to be verified after writing. No application tests/build/DB/provider calls/issue-tracker actions run.
+- **Next:** Owner confirms the two proposed test seams (`API/Service contract` & `Unified Workspace/Browser boundary`) and explicitly authorizes story breakdown / implementation when ready.
+
+## 2026-11-18 — Trip Edit redesign vertical tickets (`to-tickets`)
+
+- **Branch/status:** `master` — **PLAN / SPEC ONLY** (no application code, schema, migration, env, or DB changes).
+- **Tickets delivered:** Published 9 vertical tracer-bullet ticket files (`01`–`09`) under [`.scratch/trip-edit-redesign/issues/`](../.scratch/trip-edit-redesign/issues/) plus [`.scratch/trip-edit-redesign/README.md`](../.scratch/trip-edit-redesign/README.md) with explicit `Blocked by` edges, `ready-for-agent` status, and user-story coverage across all 37 stories in [trip-edit-redesign-spec.md](product/trip-edit-redesign-spec.md) (avoiding file paths/code snippets). Updated navigation in [`docs/README.md`](README.md).
+- **Checks:** Verified all 9 ticket files, blocking DAG (no cycles), user-story coverage (1–37), and `git diff --check`. No external tracker configured or modified. No application tests/build/DB/provider calls run.
+- **Next:** Start from frontier Ticket `01` when the owner explicitly authorizes coding.
+
+## 2026-11-18 — Trip Edit redesign implementation (Tickets `01`–`09`)
+
+- **Scope:** Implemented unified Trip Edit Workspace under `/trips/[id]/edit` and `/api/trips/[id]/edits/*` across Tickets `01`–`08` plus Ticket `09` offline hardening/verification on branch `master`.
+- **Delivered:**
+  - **Ticket `01`:** Removed the 4-visit/day cap (`MAX_EDIT_VISITS = 50`), switched routing to shared `createTripEditRouteProvider`, enforced `COMPLETED` lock, hid the floating `GlobalAssistant` on `/trips/[id]/edit`, and built the 2-column Timeline + sticky `ItineraryMap` workspace with unified `Undo/Redo` and Confirmation `<dialog>`.
+  - **Ticket `02`:** Built `AddVisitDrawer` + `add-visit-helper.ts` + `trip-edit-page-meta.ts` (public search/region/favorites filter, weekday opening hours summary, sequential slot snapping).
+  - **Ticket `03`:** Added 0ms instant client checks, same-day `autoShiftDayVisits` (`23:59` clamp), ~800ms debounced Preview sync with sequence guard, `PreviewLegMetric[]` road geometry + clickable connectors, `OQ-B` quick replace/remove, and `<TripWeatherPanel>`.
+  - **Ticket `04`:** Integrated optional pre-departure `TripJourney` editing (`edit-journey-server.ts`, `edit-journey-helper.ts`), atomic `journeySnapshot` writes, and privacy-safe companion notices without origin coordinate leaks.
+  - **Ticket `05`:** Enabled editing trips with `ExternalPlace` (`ext:google:...`), expired >30d cache safeguards, `assessEditUnchecked` classification, and mandatory unchecked acknowledgement on Save.
+  - **Ticket `06`:** Protected elapsed `ONGOING` visits in `Asia/Ho_Chi_Minh`, exposed owner-only `private, no-store` `/api/trips/[id]/edits/snapshot`, and built `409 TRIP_REVISION_CONFLICT` Rebase/Discard conflict flow preserving `workingDraft`.
+  - **Ticket `07` & `08`:** Added `ai-workspace-plan.ts` + collapsible `AiEditBar` sending live `workingDraft`, supporting multi-op batch edits + `shiftFollowing`, <=3 verified clarification choices, `15s` timeout/network retry keeping input, per-card change badges + 1-click Undo, bounded ephemeral session `history` (8 turns), pre-departure `CHANGE_ORIGIN_CLOCKS`, and server-grounded read-only `ADVISED` (`Planning guidance`).
+  - **Ticket `09`:** Added `trip-edit-workspace.postgres.integration.vitest.test.ts` (opt-in disposable Postgres suite), aligned CSS custom property aliases (`--edit-accent`, `--edit-accent-soft`, `--edit-surface-muted`, `--edit-success`) in `edit-trip.module.css`, and fixed `readSavedTrip` snapshot field projection in `assistant-agent-v2/in-trip-actions.ts`.
+- **Verification:**
+  - `npm run check-types`: **PASS** (4/4 Turbo tasks).
+  - `npm run build --workspace web`: **PASS** (57/57 static pages built cleanly).
+  - `npm run test:legacy --workspace web`: **PASS** (all 11 legacy TSX test suites).
+  - `npx --workspace apps/web vitest run --pool=threads src/modules/trip-edit src/modules/in-trip src/app/trips/[id]/edit src/lib/trip-edit-client.vitest.test.ts src/modules/trip-origin src/modules/trip-companions src/modules/trip-save`: **78 passed | 14 skipped** (`809 passed | 74 skipped | 1 todo`).
+  - Pre-existing unrelated failures observed in full-repo Vitest (`npx --workspace apps/web vitest run --pool=threads` -> 358 passed, 5 failed): 4 previously recorded `src/modules/ai` suites (`qa-diagnostics`, `qa-conversation-reliability`, `qa-answer-quality-v2`, `qa-chat-preference`) plus `assistant-agent-v2/in-trip-v2.vitest.test.ts` line 155 (`in-trip-validation.ts` passing `{ signal }` on `HEAD`, while the remaining 30/31 tests in `in-trip-v2` pass).
+- **Not run (environment / cost constraints):** Live PostgreSQL disposable container suites (`14` skipped files; Docker Desktop daemon stopped), live authenticated `360px`/`1280px` Playwright browser walkthrough (`@playwright/test` absent + Postgres stopped), and live `OpenAI`/`Stadia` provider calls.

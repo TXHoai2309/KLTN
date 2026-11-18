@@ -6,7 +6,7 @@ import {
   diffEditCandidate,
   EditCandidateOperationError,
   editCandidateSchema,
-  MAX_EDIT_VISITS_PER_DAY,
+  MAX_EDIT_VISITS,
   moveVisit,
   removeVisit,
   replaceVisit,
@@ -60,18 +60,27 @@ describe("editCandidateSchema", () => {
     })).toThrow();
   });
 
-  it("enforces consecutive day/order values, visit identity, schedule bounds and per-day limits", () => {
+  it("enforces consecutive day/order values, visit identity, schedule bounds and total trip visit limits while allowing >4 visits per day", () => {
     const base = candidate();
     expect(() => editCandidateSchema.parse({ ...base, days: [{ ...base.days[0]!, dayIndex: 2 }, base.days[1]] })).toThrow();
     expect(() => editCandidateSchema.parse({ ...base, days: [{ ...base.days[0]!, visits: [{ ...base.days[0]!.visits[0]!, order: 2 }, base.days[0]!.visits[1]!] }, base.days[1]] })).toThrow();
     expect(() => editCandidateSchema.parse({ ...base, days: [{ ...base.days[0]!, visits: [{ ...base.days[0]!.visits[0]!, visitId: "visit-c" }, base.days[0]!.visits[1]!] }, base.days[1]] })).toThrow();
     expect(() => editCandidateSchema.parse({ ...base, days: [{ ...base.days[0]!, visits: [{ ...base.days[0]!.visits[0]!, startMinute: 1430 }, base.days[0]!.visits[1]!] }, base.days[1]] })).toThrow();
 
-    const tooMany = Array.from({ length: MAX_EDIT_VISITS_PER_DAY + 1 }, (_, index) => ({
+    const fiveInOneDay = Array.from({ length: 5 }, (_, index) => ({
       visitId: `visit-${index}`,
       destinationId: `destination-${index}`,
-      startMinute: index * 10,
-      plannedDurationMinutes: 5,
+      startMinute: 480 + index * 60,
+      plannedDurationMinutes: 30,
+      order: index + 1,
+    }));
+    expect(() => editCandidateSchema.parse({ ...base, days: [{ dayIndex: 1, visits: fiveInOneDay }, base.days[1]] })).not.toThrow();
+
+    const tooMany = Array.from({ length: MAX_EDIT_VISITS + 1 }, (_, index) => ({
+      visitId: `visit-limit-${index}`,
+      destinationId: `destination-${index}`,
+      startMinute: (index % 20) * 60,
+      plannedDurationMinutes: 30,
       order: index + 1,
     }));
     expect(() => editCandidateSchema.parse({ ...base, days: [{ dayIndex: 1, visits: tooMany }, base.days[1]] })).toThrow();
@@ -197,7 +206,7 @@ describe("candidate edit operations", () => {
     expect(source).toEqual(candidate());
   });
 
-  it("rejects missing IDs, unknown days, duplicate IDs, invalid positions and day capacity", () => {
+  it("allows 5+ visits in a day and rejects missing IDs, unknown days, duplicate IDs, invalid positions and total trip capacity", () => {
     const source = deepFreeze(candidate());
     expect(() => removeVisit(source, "missing")).toThrow(EditCandidateOperationError);
     expect(() => addVisit(source, 3, {
@@ -210,11 +219,11 @@ describe("candidate edit operations", () => {
       visitId: "visit-new", destinationId: "destination-new", startMinute: 720, plannedDurationMinutes: 30,
     }, 4)).toThrow(EditCandidateOperationError);
 
-    const fullDay = {
+    const fourInOneDay = {
       ...candidate(),
       days: candidate().days.map((day, index) => index === 0
-        ? { ...day, visits: Array.from({ length: MAX_EDIT_VISITS_PER_DAY }, (_, visitIndex) => ({
-          visitId: `full-${visitIndex}`,
+        ? { ...day, visits: Array.from({ length: 4 }, (_, visitIndex) => ({
+          visitId: `four-${visitIndex}`,
           destinationId: `destination-${visitIndex}`,
           startMinute: visitIndex * 100,
           plannedDurationMinutes: 30,
@@ -222,10 +231,26 @@ describe("candidate edit operations", () => {
         })) }
         : day),
     };
-    expect(() => addVisit(fullDay, 1, {
-      visitId: "visit-extra", destinationId: "destination-extra", startMinute: 720, plannedDurationMinutes: 30,
+    expect(addVisit(fourInOneDay, 1, {
+      visitId: "visit-fifth", destinationId: "destination-extra", startMinute: 720, plannedDurationMinutes: 30,
+    }).days[0]!.visits).toHaveLength(5);
+    expect(moveVisit(fourInOneDay, "visit-c", 1).days[0]!.visits).toHaveLength(5);
+
+    const maxedTrip = {
+      ...candidate(),
+      days: candidate().days.map((day, index) => index === 0
+        ? { ...day, visits: Array.from({ length: MAX_EDIT_VISITS }, (_, visitIndex) => ({
+          visitId: `max-${visitIndex}`,
+          destinationId: `destination-${visitIndex}`,
+          startMinute: (visitIndex % 20) * 60,
+          plannedDurationMinutes: 30,
+          order: visitIndex + 1,
+        })) }
+        : { ...day, visits: [] }),
+    };
+    expect(() => addVisit(maxedTrip, 1, {
+      visitId: "visit-over", destinationId: "destination-over", startMinute: 720, plannedDurationMinutes: 30,
     })).toThrow(EditCandidateOperationError);
-    expect(() => moveVisit(fullDay, "visit-c", 1)).toThrow(EditCandidateOperationError);
     expect(source).toEqual(candidate());
   });
 });

@@ -18,8 +18,10 @@ import {
   createAiEditProposal,
   type AiEditServiceDependencies,
 } from "./ai-edit-service";
+import { aiChatHistorySchema } from "./ai-workspace-plan";
+import { editCandidateSchema } from "./edit-candidate";
 
-export const MAX_AI_EDIT_BODY_BYTES = 8 * 1024;
+export const MAX_AI_EDIT_BODY_BYTES = 64 * 1024;
 
 export const aiEditRequestSchema = z
   .object({
@@ -33,6 +35,8 @@ export const aiEditRequestSchema = z
         `Tối đa ${MAX_EDIT_INTENT_MESSAGE_LENGTH} ký tự.`,
       ),
     resolution: editResolutionSchema.optional(),
+    draft: editCandidateSchema.optional(),
+    history: aiChatHistorySchema.optional(),
   })
   .strict();
 
@@ -63,7 +67,7 @@ const readAiEditJsonBody = (request: Request) =>
   readBoundedJsonBody(request, {
     maxBytes: MAX_AI_EDIT_BODY_BYTES,
     tooLargeError: validationError("Nội dung yêu cầu vượt quá giới hạn cho phép.", {
-      _form: "Nội dung yêu cầu không được vượt quá 8KB.",
+      _form: "Nội dung yêu cầu không được vượt quá 64KB.",
     }),
     emptyError: requestBodyError(),
     invalidJsonError: requestBodyError(),
@@ -83,7 +87,7 @@ function assertSameOriginPost(request: Request): void {
 function fieldErrors(error: z.ZodError): Record<string, string> {
   const result: Record<string, string> = {};
   for (const issue of error.issues) {
-    const field = ["baseRevision", "message", "resolution"].includes(String(issue.path[0]))
+    const field = ["baseRevision", "message", "resolution", "draft", "history"].includes(String(issue.path[0]))
       ? String(issue.path[0])
       : "_form";
     result[field] ??=
@@ -93,7 +97,11 @@ function fieldErrors(error: z.ZodError): Record<string, string> {
           ? `Yêu cầu chỉnh sửa phải có nội dung và không quá ${MAX_EDIT_INTENT_MESSAGE_LENGTH} ký tự.`
           : field === "resolution"
             ? "Lựa chọn làm rõ không hợp lệ."
-            : "Nội dung yêu cầu có trường không được hỗ trợ.";
+            : field === "draft"
+              ? "Bản nháp hành trình gửi kèm không hợp lệ."
+              : field === "history"
+                ? "Lịch sử hội thoại trong phiên vượt quá giới hạn."
+                : "Nội dung yêu cầu có trường không được hỗ trợ.";
   }
   if (Object.keys(result).length === 0) {
     result._form = "Vui lòng gửi baseRevision và message.";

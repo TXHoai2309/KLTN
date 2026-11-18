@@ -749,10 +749,12 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
                 )
               ) : (
                 <>
-                  <Link className="my-trips-action my-trips-edit-action" href={`/trips/${trip.id}/edit` as Route}>
-                    <Pencil size={15} aria-hidden="true" />
-                    <span>Chỉnh sửa hành trình</span>
-                  </Link>
+                  {trip.status !== "COMPLETED" && (
+                    <Link className="my-trips-action my-trips-edit-action" href={`/trips/${trip.id}/edit` as Route}>
+                      <Pencil size={15} aria-hidden="true" />
+                      <span>Chỉnh sửa hành trình</span>
+                    </Link>
+                  )}
 
                   {trip.status === "UPCOMING" && (
                     hasJourney ? (
@@ -890,7 +892,6 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
               </li>
             ))}
           </ul>
-          <p className="my-trips-unavailable">Chuyến đi có địa điểm ngoài danh mục chưa thể chỉnh sửa hoặc lập lại lịch.</p>
         </section>
       )}
 
@@ -1302,9 +1303,11 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
         </p>
 
         <nav className="my-trips-detail-nav" aria-label="Thao tác chuyến đi">
-          <Link className="my-trips-action" href={`/trips/${trip.id}/edit` as Route}>
-            Chỉnh sửa hành trình
-          </Link>
+          {trip.status !== "COMPLETED" && (
+            <Link className="my-trips-action" href={`/trips/${trip.id}/edit` as Route}>
+              Chỉnh sửa hành trình
+            </Link>
+          )}
 
           {trip.status !== "COMPLETED" && (
             <>

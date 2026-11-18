@@ -82,7 +82,7 @@ _Avoid_: Exact departure date, confirmed trip dates.
 
 **Saved itinerary (lịch trình đã lưu)**:
 The official itinerary of a trip, including its travel dates and arranged destination visits, that its owner has confirmed and saved.
-_Avoid_: Itinerary proposal, companion invitation.
+_Avoid_: Itinerary proposal, companion invitation, hành trình đang lưu, phương án đã lưu.
 
 **Companion invitation (bài đăng tìm bạn đồng hành)**:
 The host's public invitation for additional companions to join an existing trip, with an introduction and a summary of that trip.
@@ -214,3 +214,17 @@ _Avoid_: Seasonal advice, climate question.
 **Representative point (điểm đại diện)**:
 The place whose forecast stands in for "Hà Giang" when a Weather question names no destination. The answer states that it is a representative point.
 _Avoid_: Province-wide forecast.
+
+## Itinerary editing
+
+**Edit draft (bản nháp chỉnh sửa)**:
+The temporary in-progress copy of a trip's itinerary where the traveler makes manual or AI-assisted adjustments before deciding whether to save. An edit draft does not alter the saved itinerary.
+_Avoid_: Phương án chỉnh sửa, hành trình đề xuất, phương án đề xuất.
+
+**Scheduled visit (lượt tham quan)**:
+A planned stop at a destination or external place on a specific day of an itinerary, with an order, start time, and planned duration.
+_Avoid_: Điểm đến (when referring to a stop in a schedule), điểm dừng số X.
+
+**Itinerary validation (kiểm tra tính hợp lệ)**:
+The deterministic server evaluation of an itinerary against opening hours, minimum stay duration, travel time, and schedule conflicts. Weather advisories and AI suggestions are not validation.
+_Avoid_: AI review, weather warning.
