@@ -13,7 +13,7 @@
 .dv3-main {
   width: min(100%, 1100px);
   margin-inline: auto;
-  padding: 24px 32px 110px;
+  padding: 24px 32px 40px;
   min-width: 0;
 }
 .dv3-fields {
@@ -103,7 +103,9 @@
   border-radius: 16px;
   background: var(--af-surface);
 }
-.dv3-page .af-page-header { background: var(--af-bg); width: min(100%, 1100px); margin-inline: auto; border-bottom: 0; }
+.dv3-page .af-page-header { position: sticky; top: var(--dv3-nav-height, var(--header-height, 65px)); z-index: 20; background: var(--af-bg); width: min(100%, 1100px); margin-inline: auto; border-bottom: 0; }
+.dv3-edit-page .af-page-header { position: static; z-index: auto; }
+.dv3-page .af-breadcrumb a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
 .dark .dv3-page { --af-bg: #102119; --af-surface: #182e22; --af-green: #86d5aa; --af-line: #355341; --af-ink: #e8f3ec; }
 .dv3-disclosure {
   margin: 14px 0;
@@ -169,7 +171,17 @@
   margin-top: 24px;
   margin-inline: auto;
 }
-.dv3-page input, .dv3-page textarea, .dv3-page select { scroll-margin-block: 120px; }
+.dv3-page :is(input, textarea, select, .af-section) { scroll-margin-top: calc(var(--dv3-nav-height, 65px) + var(--dv3-header-height, 150px) + 16px); }
+.dv3-edit-page :is(input, textarea, select, .af-section) { scroll-margin-top: calc(var(--header-height, 65px) + 16px); }
+@media (max-width: 767px) {
+  .dv3-page .af-page-header { top: var(--dv3-nav-height, var(--header-height-mobile, 58px)); }
+  .dv3-page .af-breadcrumb { margin-bottom: 0; }
+  .dv3-page .af-page-title-row { flex-direction: column; align-items: stretch; gap: 4px; }
+  .dv3-page .af-page-title-row > div:first-child { min-width: 0; }
+  .dv3-page .af-page-title-row h1 { font-size: 18px; }
+  .dv3-page:not(.dv3-edit-page) .af-page-title-row > div > p { display: none; }
+  .dv3-page .af-page-title-meta { flex-wrap: wrap; justify-content: flex-start; gap: 6px; min-width: 0; }
+}
 .dv3-page button {
   cursor: pointer;
 }
@@ -178,7 +190,7 @@
 }
 @media (max-width: 640px) {
   .dv3-main {
-    padding: 18px 14px 130px;
+    padding: 18px 14px 40px;
   }
   .dv3-source {
     grid-template-columns: minmax(0, 1fr);

@@ -18,6 +18,7 @@ import {
   Users,
 } from "lucide-react";
 import { toast } from "sonner";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@KLTN/ui/components/dropdown-menu";
 import type {
   AdminUserSummary,
   AdminUserRole,
@@ -74,7 +75,6 @@ export default function UserManagementClient() {
   const [isLockModalOpen, setIsLockModalOpen] = useState(false);
   const [selectedUserForRole, setSelectedUserForRole] = useState<AdminUserSummary | null>(null);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
-  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   // Debounce search input
   useEffect(() => {
@@ -139,14 +139,6 @@ export default function UserManagementClient() {
     };
   }, [debouncedSearch, roleFilter, statusFilter, sortBy, sortOrder, page, refreshKey]);
 
-  // Close open dropdown menu when clicking outside
-  useEffect(() => {
-    function handleClickOutside() {
-      setActiveMenuId(null);
-    }
-    window.addEventListener("click", handleClickOutside);
-    return () => window.removeEventListener("click", handleClickOutside);
-  }, []);
 
   function handleRefresh() {
     startTransition(() => {
@@ -155,7 +147,7 @@ export default function UserManagementClient() {
   }
 
   return (
-    <main className="destination-page">
+    <main className="destination-page admin-users-list-page">
       <div className="destination-container">
         {/* Page Header (Destination style) */}
         <div className="destination-page-header">
@@ -383,73 +375,15 @@ export default function UserManagementClient() {
                           {formatDate(user.lastLoginAt)}
                         </td>
                         <td style={{ textAlign: "right" }}>
-                          <div className="relative inline-block text-left">
-                            <button
-                              type="button"
-                              className="admin-action-btn"
-                              aria-label={`Thao tác với ${user.name}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveMenuId(activeMenuId === user.id ? null : user.id);
-                              }}
-                            >
-                              <MoreVertical size={16} />
-                            </button>
-
-                            {/* Dropdown Menu */}
-                            {activeMenuId === user.id && (
-                              <div
-                                className="destination-dropdown-menu"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <Link
-                                  href={`/admin/users/${user.id}` as Route}
-                                  className="destination-menu-item"
-                                  onClick={() => setActiveMenuId(null)}
-                                >
-                                  <Eye size={15} className="text-[var(--destination-green)]" />
-                                  <span>Xem chi tiết</span>
-                                </Link>
-
-                                <button
-                                  type="button"
-                                  className="destination-menu-item"
-                                  onClick={() => {
-                                    setActiveMenuId(null);
-                                    setSelectedUserForRole(user);
-                                    setIsRoleModalOpen(true);
-                                  }}
-                                >
-                                  <Shield size={15} className="text-[var(--destination-green)]" />
-                                  <span>Đổi vai trò</span>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  className={`destination-menu-item ${
-                                    user.status === "LOCKED" ? "is-active" : "is-destructive"
-                                  }`}
-                                  onClick={() => {
-                                    setActiveMenuId(null);
-                                    setSelectedUserForLock(user);
-                                    setIsLockModalOpen(true);
-                                  }}
-                                >
-                                  {user.status === "LOCKED" ? (
-                                    <>
-                                      <Unlock size={15} />
-                                      <span>Mở khóa tài khoản</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Lock size={15} />
-                                      <span>Khóa tài khoản</span>
-                                    </>
-                                  )}
-                                </button>
-                              </div>
-                            )}
-                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger className="admin-action-btn" aria-label={`Thao tác với ${user.name}`}><MoreVertical size={16} aria-hidden="true" /></DropdownMenuTrigger>
+                            <DropdownMenuContent side="right" align="center" sideOffset={8} className="admin-user-action-menu">
+                              <DropdownMenuItem className="admin-user-action-item" render={<Link href={`/admin/users/${user.id}` as Route} />}><Eye size={16} aria-hidden="true" />Xem chi tiết</DropdownMenuItem>
+                              <DropdownMenuItem className="admin-user-action-item" onClick={() => { setSelectedUserForRole(user); setIsRoleModalOpen(true); }}><Shield size={16} aria-hidden="true" />Đổi vai trò</DropdownMenuItem>
+                              <DropdownMenuSeparator className="admin-user-action-separator" />
+                              <DropdownMenuItem className="admin-user-action-item" variant={user.status === "LOCKED" ? "default" : "destructive"} onClick={() => { setSelectedUserForLock(user); setIsLockModalOpen(true); }}>{user.status === "LOCKED" ? <Unlock size={16} aria-hidden="true" /> : <Lock size={16} aria-hidden="true" />}{user.status === "LOCKED" ? "Mở khóa tài khoản" : "Khóa tài khoản"}</DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </td>
                       </tr>
                     ))}

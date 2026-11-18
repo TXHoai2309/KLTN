@@ -4,8 +4,8 @@ import type { MutationOutcome } from "./mutation-contract";
 import { fetchAuthWithTimeout } from "./auth-fetch";
 import type { z } from "zod";
 export class DestinationReadError extends Error { constructor(readonly status: number) { super("Không thể tải dữ liệu điểm đến."); } }
-export async function loadDestinations(page = 1, transport: typeof fetch = fetchAuthWithTimeout, view: "active" | "deleted" = "active") {
-  const query = new URLSearchParams({ page: String(page), ...(view === "deleted" ? { view } : {}) });
+export async function loadDestinations(page = 1, transport: typeof fetch = fetchAuthWithTimeout, view: "active" | "deleted" = "active", q = "") {
+  const query = new URLSearchParams({ page: String(page), ...(view === "deleted" ? { view } : {}), ...(q ? { q } : {}) });
   const response = await transport(`/api/admin/destinations?${query}`, { cache: "no-store", headers: {"X-KLTN-Form-Version":"V3"}, credentials: "same-origin" });
   const body = await response.json();
   if (!response.ok || body?.success !== true) throw new DestinationReadError(response.status);

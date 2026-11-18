@@ -600,8 +600,11 @@
 }
 
 .public-detail-state h1 {
+  font-family: var(--font-be-vietnam), system-ui, sans-serif;
   font-size: 28px;
-  font-weight: 800;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: normal;
   color: var(--detail-ink);
   overflow-wrap: anywhere;
   margin: 0;
