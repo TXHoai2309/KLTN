@@ -5,7 +5,7 @@
   width: 100%; min-width: 0; margin: 0; padding: 20px clamp(16px,5.5vw,80px) 60px; background: var(--background); color: var(--foreground); font-family: var(--font-be-vietnam),sans-serif;
 }
 .content { width: min(100%,1280px); min-width: 0; margin-inline: auto; }
-.backLink { display: inline-flex; min-height: 40px; align-items: center; gap: 8px; color: var(--edit-green); font-size: 13px; font-weight: 600; text-decoration: none; }
+.backLink { display: inline-flex; min-height: 44px; align-items: center; gap: 8px; color: var(--edit-green); font-size: 13px; font-weight: 600; text-decoration: none; }
 .backLink:hover { text-decoration: underline; text-underline-offset: 4px; }
 .page :is(a,button,input,select,summary):focus-visible { outline: 3px solid color-mix(in srgb,var(--edit-green) 45%,transparent); outline-offset: 3px; }
 .heading { display: grid; min-width: 0; grid-template-columns: minmax(0,1.4fr) minmax(0,1fr); gap: 24px; align-items: center; margin: 18px 0 26px; }
@@ -34,12 +34,12 @@
 .candidateHeading .sectionIcon { width: 40px; height: 40px; border-radius: 50%; }
 .status { display: inline-flex; width: fit-content; max-width: 100%; align-items: center; border: 1px solid var(--border); border-radius: 999px; padding: 6px 10px; background: var(--edit-warning); color: var(--edit-amber); font-size: 10px; font-weight: 700; line-height: 1.5; }
 .headingActions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 12px; }
-.cancelLink { display: inline-flex; min-height: 42px; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--border); border-radius: 9px; background: var(--card); padding: 9px 14px; color: var(--foreground); font: inherit; font-size: 12px; font-weight: 600; text-decoration: none; }
+.cancelLink { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; gap: 8px; border: 1px solid var(--border); border-radius: 9px; background: var(--card); padding: 9px 14px; color: var(--foreground); font: inherit; font-size: 12px; font-weight: 600; text-decoration: none; }
 .cancelLink:hover { color: var(--edit-green); border-color: var(--edit-green); }
 .form { display: grid; min-width: 0; gap: 14px; margin-top: 18px; }
 .formGrid { display: grid; min-width: 0; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
 .field, .compactField { display: grid; min-width: 0; gap: 6px; color: var(--foreground); font-size: 12px; font-weight: 600; }
-.field input, .field select, .compactField input, .compactField select { width: 100%; min-width: 0; min-height: 42px; border: 1px solid var(--input); border-radius: 9px; background: var(--card); padding: 10px 12px; color: var(--foreground); font: inherit; font-size: 12px; }
+.field input, .field select, .compactField input, .compactField select { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--input); border-radius: 9px; background: var(--card); padding: 10px 12px; color: var(--foreground); font: inherit; font-size: 12px; }
 .field select { text-overflow: ellipsis; }
 .searchField { display: flex; min-width: 0; gap: 9px; align-items: center; padding-left: 12px; border: 1px solid var(--input); border-radius: 9px; background: var(--card); color: var(--muted-foreground); }
 .searchField:focus-within { outline: 2px solid color-mix(in srgb,var(--edit-green) 35%,transparent); }

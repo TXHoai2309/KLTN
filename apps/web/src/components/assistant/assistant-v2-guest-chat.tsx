@@ -174,8 +174,12 @@ export function AssistantV2GuestChat({ available = true, onMinimize, onOpenFullP
       </div>)}
       {pending && <AssistantPendingTurn question={pending.attempt.payload.question} sending={busy}/>}
     </div>
-    {pending && pending.phase !== "sending" && <div role="alert"><p>{pending.message}</p>
-      {pending.phase === "failed" ? <button type="button" onClick={() => controller.editFailed()}>Sửa câu hỏi</button> : <button type="button" onClick={() => controller.retry()}>Kiểm tra lại cùng yêu cầu</button>}
+    {pending && pending.phase !== "sending" && <div role="alert">
+      {pending.phase === "failed" && ["AI_UNAVAILABLE", "AI_INVALID_RESPONSE"].includes(pending.code ?? "") && <p><strong>Trợ lý AI tạm thời không khả dụng</strong></p>}
+      <p>{pending.message}</p>
+      {pending.phase === "failed"
+        ? <><button type="button" disabled={!available} onClick={() => controller.retry()}>Thử lại</button><button type="button" onClick={() => controller.editFailed()}>Sửa câu hỏi</button></>
+        : <button type="button" disabled={!available} onClick={() => controller.retry()}>Kiểm tra lại cùng yêu cầu</button>}
     </div>}
     {state.validation && <p role="alert">{state.validation}</p>}
     </div></div>

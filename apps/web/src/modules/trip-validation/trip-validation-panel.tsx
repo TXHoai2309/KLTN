@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@KLTN/ui/components/button";
-import { LoaderCircle } from "lucide-react";
+import { CircleAlert, LoaderCircle } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { TripValidation, ValidationGroupName } from "./trip-validation";
@@ -18,6 +18,13 @@ const labels = {
   INSUFFICIENT_DATA: "Chưa đủ dữ liệu để kiểm tra",
 } as const;
 
+function statusLabel(name: ValidationGroupName, status: keyof typeof labels): string {
+  if (status !== "INSUFFICIENT_DATA") return labels[status];
+  return name === "travelTime"
+    ? "Không thể kiểm tra thời gian di chuyển"
+    : "Chưa đủ thông tin để kiểm tra";
+}
+
 export function TripValidationPanel({ validation, onConfirm, pending = false, actionLabel = "Xác nhận và lưu", secondaryActions }: {
   validation: TripValidation;
   onConfirm?: () => void;
@@ -32,7 +39,10 @@ export function TripValidationPanel({ validation, onConfirm, pending = false, ac
         const group = validation.groups[name];
         return <li key={name} className="min-w-0 rounded-md border border-border p-3">
           <h3 className="font-medium">{label}</h3>
-          <p className="text-sm text-muted-foreground">{labels[group.status]}</p>
+          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            {group.status === "INSUFFICIENT_DATA" && <CircleAlert className="shrink-0" size={15} aria-hidden="true" />}
+            <span>{statusLabel(name, group.status)}</span>
+          </p>
           {group.findings.length > 0 && <div className="mt-2 space-y-1 break-words text-sm">
             {group.findings.map((finding, index) => <p key={`${finding.reasonCode}-${index}`}>
               {finding.affectedVisitId ? `Lượt ${finding.affectedVisitId}: ` : finding.visitIds ? `Lượt ${finding.visitIds.join(" và ")}: ` : `Chặng ${finding.fromVisitId} → ${finding.toVisitId}: `}

@@ -25,7 +25,10 @@ describe("US-30 client save outcomes", () => {
   it("keeps FAILED and UNKNOWN distinct from success", async () => {
     expect(await submitTripSave(proposal, "stable-key", undefined, fakeFetch({ success: false, operationStatus: "FAILED", error: { code: "TRIP_VALIDATION_FAILED", message: "Chưa hợp lệ", details: { validation: { ...validation, canConfirm: false } } } }, 422))).toMatchObject({ status: "FAILED", validation: { canConfirm: false } });
     expect((await submitTripSave(proposal, "stable-key", undefined, fakeFetch({ success: false, operationStatus: "UNKNOWN", error: { code: "OPERATION_STATUS_UNKNOWN", message: "Unknown" } }, 503))).status).toBe("UNKNOWN");
-    expect((await submitTripSave(proposal, "stable-key", undefined, async () => { throw new Error("lost response"); })).status).toBe("UNKNOWN");
+    expect(await submitTripSave(proposal, "stable-key", undefined, async () => { throw new Error("lost response"); })).toEqual({
+      status: "UNKNOWN",
+      message: "Chưa xác định được kết quả lưu. Yêu cầu có thể đã được xử lý. Hãy kiểm tra lại trước khi tiếp tục để tránh lưu trùng.",
+    });
   });
   it("sends explicit confirmation, the same proposal and supplied idempotency key", async () => {
     let sent: RequestInit | undefined;

@@ -309,8 +309,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: 9999px;
   border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   background: var(--card);
@@ -336,6 +336,7 @@
 .site-mobile-nav-link {
   display: flex;
   align-items: center;
+  min-height: 44px;
   gap: 12px;
   padding: 11px 14px;
   border-radius: 10px;
@@ -501,6 +502,16 @@
   }
   .site-mobile-toggle {
     display: inline-flex;
+    width: 44px;
+    height: 44px;
+  }
+  .site-header .site-theme-toggle {
+    width: 44px;
+    height: 44px;
+  }
+  .site-brand,
+  .user-menu-trigger {
+    min-height: 44px;
   }
 }
 
@@ -552,7 +563,9 @@
    ACCESSIBILITY & REDUCED MOTION
    ========================================================================== */
 .site-header a:focus-visible,
-.site-header button:focus-visible {
+.site-header button:focus-visible,
+.site-mobile-drawer a:focus-visible,
+.site-mobile-drawer button:focus-visible {
   outline: 2px solid #287c61;
   outline-offset: 2px;
 }

@@ -18,14 +18,21 @@ function retryAfterMs(value: string | null, now: number): number | undefined {
   return Math.min(Math.max(0, date - now), EMBEDDING_LIMITS.maxRetryDelayMs);
 }
 
-async function readBounded(response: Response): Promise<string> {
+async function readBounded(response: Response, signal: AbortSignal): Promise<string> {
   const reader = response.body?.getReader();
   if (!reader) throw new EmbeddingError("INVALID_PROVIDER_RESPONSE", false);
+  const onAbort = () => { void reader.cancel().catch(() => undefined); };
+  signal.addEventListener("abort", onAbort, { once: true });
+  const cancelled = new Promise<never>((_resolve, reject) => {
+    const rejectCancelled = () => reject(new Error("embedding request cancelled"));
+    signal.addEventListener("abort", rejectCancelled, { once: true });
+    if (signal.aborted) rejectCancelled();
+  });
   const chunks: Uint8Array[] = [];
   let total = 0;
   try {
     while (true) {
-      const { done, value } = await reader.read();
+      const { done, value } = await Promise.race([reader.read(), cancelled]);
       if (done) break;
       total += value.byteLength;
       if (total > EMBEDDING_LIMITS.maxResponseBytes) {
@@ -35,7 +42,8 @@ async function readBounded(response: Response): Promise<string> {
       chunks.push(value);
     }
   } finally {
-    reader.releaseLock();
+    signal.removeEventListener("abort", onAbort);
+    try { reader.releaseLock(); } catch { /* An aborted read still owns the lock briefly. */ }
   }
   const bytes = new Uint8Array(total);
   let offset = 0;
@@ -100,12 +108,16 @@ export function createOpenAiEmbeddingProvider(options: OpenAiProviderOptions = {
         }
 
         let responseText: string;
-        try { responseText = await readBounded(response); }
+        try { responseText = await readBounded(response, controller.signal); }
         catch (error) {
           if (error instanceof EmbeddingError) throw error;
           if (signal?.aborted) throw new EmbeddingError("CANCELLED", false);
           if (timedOut) throw new EmbeddingError("PROVIDER_TIMEOUT", true);
           throw new EmbeddingError("PROVIDER_UNAVAILABLE", true);
+        }
+        if (signal?.aborted) throw new EmbeddingError("CANCELLED", false);
+        if (timedOut || controller.signal.aborted) {
+          throw new EmbeddingError("PROVIDER_TIMEOUT", true);
         }
         let payload: unknown;
         try { payload = JSON.parse(responseText); }

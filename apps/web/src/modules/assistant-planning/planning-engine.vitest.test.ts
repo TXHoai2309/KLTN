@@ -5,7 +5,7 @@ import { planningNow, fixtureNeeds, planningCandidate, fixtureRoutes } from "../
 describe("Conversational itinerary deterministic boundary", () => {
   it("rejects unknown, repeated, hidden and missing mandatory destinations", () => {
     const candidates = [planningCandidate("a")];
-    for (const days of [[["unknown"]], [["a", "a"]], [[], []]]) expect(() => assertPlanningSelection({ days }, fixtureNeeds, candidates)).toThrow();
+    for (const days of [[["unknown"]], [["a", "a"]], [[], []]]) expect(() => assertPlanningSelection({ days }, fixtureNeeds, candidates, planningNow)).toThrow();
     expect(() => assertPlanningSelection({ days: [["a"]] }, { ...fixtureNeeds, requiredDestinationIds: ["b"] }, candidates, planningNow)).toThrow(/bắt buộc/);
     expect(() => assertPlanningSelection({ days: [["a"]] }, fixtureNeeds, [{ ...candidates[0]!, visibility: "HIDDEN" }])).toThrow();
   });

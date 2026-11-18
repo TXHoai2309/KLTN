@@ -218,7 +218,7 @@ export default function FavoriteButton({
 
   const confirmedIsFavorite = isFavorite === true;
   const label = mutationUnknown
-    ? "Thử lại thao tác yêu thích"
+    ? "Kiểm tra lại kết quả"
     : confirmedIsFavorite
       ? targetType === "trips" ? "Bỏ chuyến đi khỏi yêu thích" : "Bỏ yêu thích"
       : targetType === "trips" ? "Thêm chuyến đi vào yêu thích" : "Thêm vào yêu thích";
@@ -377,12 +377,10 @@ export default function FavoriteButton({
         setIsFavorite(nextState.confirmedIsFavorite);
         mutationAttemptRef.current = nextState.attempt;
         setMutationUnknown(nextState.mutationUnknown);
-        setMessage(
-          "Chưa xác nhận được thao tác yêu thích. Trạng thái chưa thay đổi; hãy thử lại.",
-        );
-        toast.warning("Chưa xác nhận được thao tác yêu thích.", {
+        setMessage(nextState.message);
+        toast.warning("Chưa xác định được kết quả lưu", {
           position: "bottom-right",
-          description: "Trạng thái được giữ nguyên; Thử lại sẽ dùng cùng request/key.",
+          description: "Yêu cầu có thể đã được xử lý. Hãy kiểm tra lại trước khi tiếp tục để tránh lưu trùng.",
         });
       } else {
         mutationAttemptRef.current = null;
