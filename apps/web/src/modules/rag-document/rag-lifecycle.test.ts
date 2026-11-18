@@ -101,7 +101,7 @@ for (const status of ["UPLOADED", "REVIEWING", "APPROVED", "INDEXED", "DISABLED"
     assert.equal(deletedList.items[0]?.retrievalEligible, false);
     assert.equal(deletedList.items[0]?.ineligibilityReason, "DOCUMENT_DELETED");
     assert.deepEqual((await getRagDocument(headers, row.id, deps as never)).document.allowedActions, []);
-    const transition = await transitionRagDocument(headers, row.id, { action: "START_REVIEW" }, `review-${status}`, deps as never);
+    const transition = await transitionRagDocument(headers, row.id, { action: "DISABLE" }, `review-${status}`, deps as never);
     assert.equal(transition.status, "FAILED");
     if (transition.status === "FAILED") assert.equal(transition.error.code, "RAG_DOCUMENT_DELETED");
     assert.equal((await getRagOriginal(headers, row.id, deps as never)).row.storagePath, row.storagePath);

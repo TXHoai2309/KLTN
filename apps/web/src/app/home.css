@@ -2363,36 +2363,48 @@
   display: grid;
   grid-template-columns: 1fr auto 1fr auto 1fr;
   align-items: center;
-  padding: 22px 48px;
-  background: rgba(255, 255, 255, 0.03);
+  padding: 22px 140px 22px 48px;
+  background: rgba(255, 255, 255, 0.025);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  gap: 24px;
+  gap: 28px;
 }
 
 .home-footer-highlight-item {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 15px;
+  transition: transform 0.2s ease;
+}
+
+.home-footer-highlight-item:hover {
+  transform: translateY(-1px);
 }
 
 .home-footer-highlight-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 42px;
+  height: 42px;
   border-radius: 12px;
-  background: rgba(126, 207, 160, 0.12);
+  background: rgba(126, 207, 160, 0.1);
   color: #7ecfa0;
-  border: 1px solid rgba(126, 207, 160, 0.25);
+  border: 1px solid rgba(126, 207, 160, 0.2);
   flex-shrink: 0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  transition: all 0.25s ease;
+}
+
+.home-footer-highlight-item:hover .home-footer-highlight-icon {
+  background: rgba(126, 207, 160, 0.18);
+  border-color: rgba(126, 207, 160, 0.35);
+  color: #a3e6be;
 }
 
 .home-footer-highlight-text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .home-footer-highlight-text strong {
@@ -2404,13 +2416,14 @@
 
 .home-footer-highlight-text span {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(255, 255, 255, 0.68);
+  line-height: 1.4;
 }
 
 .home-footer-highlight-divider {
   width: 1px;
   height: 36px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 /* 2. Main content columns */

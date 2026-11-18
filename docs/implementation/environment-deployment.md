@@ -49,6 +49,14 @@ env types and restart Next. On 2026-10-15 the owner already had the provider val
 in the ignored `.env`; removing the incorrect `@internal` annotations restored
 runtime loading without editing that file or changing credentials.
 
+## Admin runtime configuration CMS
+
+`/admin/settings` can replace the server-only OpenAI, Cloudinary and Stadia service settings after migration `20261027160000_admin_runtime_config` is deployed. It never edits Vercel variables. Set `RUNTIME_CONFIG_ENCRYPTION_KEY` to a separately generated 32-byte hex key (64 hex characters) in each Local, Preview and Production runtime; do not commit or print the value. Keep it stable across all instances of one environment. Local and Preview share a development database, but CMS rows are scoped separately. Production uses its own database and scope.
+
+To rotate the root key, retain the old value temporarily as `RUNTIME_CONFIG_ENCRYPTION_KEY_PREVIOUS`, install the new value as `RUNTIME_CONFIG_ENCRYPTION_KEY`, deploy/restart the runtime, then use **Mã hóa lại bằng khóa mới** in `/admin/settings` for that environment. Confirm success before removing the previous key and deploying/restarting again. A failed rotation must leave the previous key available; unreadable overrides fail closed. Vercel environment edits apply only to new deployments, so a redeploy is required for the root-key steps. The CMS itself uses database overrides and takes effect on the next server operation.
+
+Existing provider env variables remain the initial/default source until an override is saved. If an active CMS override fails to decrypt, the application will not silently use the older env credential. Do not put a root key or provider key in `NEXT_PUBLIC_*`, logs, screenshots or support requests.
+
 ## Environment topology
 
 | Runtime | Application | Database |

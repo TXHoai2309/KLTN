@@ -13,7 +13,7 @@ type RouteInput = {
   destination: MapCoordinate | null | undefined;
   vehicle: unknown;
 };
-type RouteOptions = { apiKey?: () => string | undefined; fetcher?: typeof fetch; timeoutMs?: number; signal?: AbortSignal };
+type RouteOptions = { apiKey?: () => string | undefined | Promise<string | undefined>; fetcher?: typeof fetch; timeoutMs?: number; signal?: AbortSignal };
 const unavailable = (): TravelRoute => ({ kind: "unavailable" });
 
 export function toStadiaCosting(vehicle: unknown): "auto" | "motorcycle" {
@@ -75,7 +75,7 @@ export async function requestStadiaRoute(input: RouteInput, options: RouteOption
   const request = async (): Promise<StadiaRouteResult> => {
     try {
       if (controller.signal.aborted) return missing("TIMEOUT");
-      const key = (options.apiKey ?? (() => process.env.STADIA_MAPS_API_KEY))();
+      const key = await (options.apiKey ?? (() => import("../runtime-config/runtime-config-service").then(module => module.runtimeSetting("STADIA", "apiKey"))))();
       if (!key) return missing("NOT_CONFIGURED");
       const response = await (options.fetcher ?? ((url, init) => globalThis.fetch(url, init)))("https://api.stadiamaps.com/route/v1", {
         method: "POST", redirect: "error", cache: "no-store", signal: controller.signal,

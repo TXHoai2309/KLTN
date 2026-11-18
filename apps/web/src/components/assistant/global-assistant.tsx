@@ -30,9 +30,17 @@ export function GlobalAssistantProvider({ children }: { children: ReactNode }) {
   const [active, setActive] = useState<{ context: QaContext; name?: string }>({ context: { type: "GENERAL" } });
   const [hasSession, setHasSession] = useState(false);
   const [open, setOpen] = useState(false);
+  // Shrink to an icon once the page is scrolled so the pill covers less of the content.
+  const [compact, setCompact] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelId = useId();
   useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    const update = () => setCompact(window.scrollY > 160);
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    return () => window.removeEventListener("scroll", update);
+  }, []);
 
   const register = useCallback((destination: Destination) => {
     const token = Symbol();
@@ -55,7 +63,7 @@ export function GlobalAssistantProvider({ children }: { children: ReactNode }) {
     {children}
     {mounted && createPortal(
       <div data-assistant-overlay-root="" className="global-assistant-root">
-        <aside className="global-assistant-launcher" hidden={!routeVisible || open} aria-label="Trợ lý AI">
+        <aside className="global-assistant-launcher" data-compact={compact} hidden={!routeVisible || open} aria-label="Trợ lý AI">
           <button ref={triggerRef} type="button" onClick={openPanel} aria-label="Hỏi trợ lý AI" title="Hỏi trợ lý AI"
             aria-haspopup="dialog" aria-expanded={open && routeVisible} aria-controls={hasSession ? panelId : undefined}>
             <Sparkles size={20} aria-hidden="true" /><span className="global-assistant-launcher-label">Hỏi trợ lý AI</span>

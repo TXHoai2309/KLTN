@@ -73,7 +73,7 @@ export function RagIndexPanel({ documentId, status, onCompleted }: { documentId:
    else {pending.current=null;setUncertain(false);if(result.status==="FAILED")setMutationError(result.error.message);}
    setWake(v=>v+1);
  }
- const eligible=status==="APPROVED"||status==="INDEXED";
+ const eligible=["UPLOADED","REVIEWING","APPROVED","INDEXED"].includes(status);
  const active=job && !terminal.has(job.status);
  const resume=job?.recoveryRequired;
  const retry=job && retryable.has(job.status);
@@ -82,10 +82,10 @@ export function RagIndexPanel({ documentId, status, onCompleted }: { documentId:
  const percent=job?.totalChunks && job.totalChunks>0 ? Math.min(100,Math.floor(job.embeddingsPersisted/job.totalChunks*100)):null;
  return <section className="destination-card rag-index-card" aria-labelledby={headingId} aria-busy={running}>
  <h2 id={headingId}>Lập chỉ mục AI</h2>
- <p className="destination-helper">Xử lý trong yêu cầu hiện tại. Khi mất kết nối, kiểm tra trạng thái trước khi tiếp tục.</p>
- <div className="rag-index-toolbar"><Button className="destination-primary" type="button" disabled={disabled} onClick={()=>void act(intent)}>
+ <p className="destination-helper">Bấm lập chỉ mục để trích xuất, chia đoạn và tạo embeddings. Theo dõi tiến độ tại đây; lỗi hoặc kết quả chưa xác định cần Admin xử lý.</p>
+ <div className="rag-index-toolbar">{(retry||resume||status==="INDEXED"||!job&&eligible)&&<Button className="destination-primary" type="button" disabled={disabled} onClick={()=>void act(intent)}>
  {running&&<LoaderCircle className="destination-spinner" aria-hidden="true"/>}
- {running?"Đang xử lý…":resume?"Tiếp tục tác vụ":retry?"Thử lập chỉ mục lại":status==="INDEXED"?"Lập chỉ mục lại":"Lập chỉ mục"}</Button>
+ {running?"Đang xử lý…":resume?"Tiếp tục tác vụ":retry?"Thử lập chỉ mục lại":status==="INDEXED"?"Lập chỉ mục lại":"Lập chỉ mục"}</Button>}
  {uncertain&&<Button type="button" disabled={running} onClick={()=>void act(pending.current!.intent,true)}>Đối soát cùng yêu cầu</Button>}
  <Button type="button" onClick={()=>setWake(v=>v+1)}>Đọc lại trạng thái</Button>
  <span role="status">{loading?"Đang tải trạng thái…":job?statuses[job.status]:"Chưa có lần lập chỉ mục nào."}</span></div>

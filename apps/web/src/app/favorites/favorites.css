@@ -1,5 +1,5 @@
 .favorites-shell {
-  --background:#f7f6f2; --foreground:#1d2521; --card:#fff; --card-foreground:#1d2521;
+  --background:#f5f8f6; --foreground:#1d2521; --card:#fff; --card-foreground:#1d2521;
   --primary:#24513b; --primary-foreground:#fff; --muted:#f1f3ef; --muted-foreground:#66716b;
   --border:#dde3de; --input:#dde3de; --ring:#24513b; --destructive:#b6413a;
   --favorite-feedback:#8a3024; --favorite-brand-hover:#1c412f; --favorite-accent-end:#093a26;

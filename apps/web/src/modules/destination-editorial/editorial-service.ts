@@ -8,12 +8,21 @@ import { editorialActionSchema, editorialLayoutSchema, editorialStateSchema, typ
 import { resolveEditorial, validateLayoutReferences } from "./editorial-engine";
 import { editorialLayoutDiagnosticCounts, recordEditorialApiFailure, type EditorialApiDiagnosticStage, type EditorialLayoutDiagnosticCounts } from "./editorial-ai-diagnostics";
 import { visibleDestinationWhere } from "../destination/destination-eligibility";
+import { effectiveConfig } from "../runtime-config/runtime-config-service";
+import { isConfigurableChatModel } from "../runtime-config/openai-model-catalog";
 
 function editorialWriteDiagnosticStage(action: unknown): EditorialApiDiagnosticStage {
   return action === "PUBLISH" ? "EDITORIAL_PUBLISH" : action === "RESTORE_DRAFT" ? "EDITORIAL_RESTORE_DRAFT" : action === "ROLLBACK" ? "EDITORIAL_ROLLBACK" : "EDITORIAL_SAVE";
 }
 export function editorialMigrationMissing(error: unknown) { return Boolean(error && typeof error === "object" && "code" in error && error.code === "P2021"); }
-export function editorialAiConfigured() { return Boolean(process.env.OPENAI_API_KEY?.trim() && process.env.OPENAI_EDITORIAL_MODEL?.trim()); }
+export function editorialAiConfigured() { return Boolean(process.env.OPENAI_API_KEY?.trim() && isConfigurableChatModel(process.env.OPENAI_EDITORIAL_MODEL)); }
+async function editorialAiConfiguredFor(database: Database): Promise<boolean> {
+  if (!("runtimeConfig" in database)) return editorialAiConfigured();
+  try {
+    const config = await effectiveConfig("OPENAI", database);
+    return Boolean(config.apiKey && isConfigurableChatModel(config.editorialModel));
+  } catch { return false; }
+}
 // These relations are not consumed by EditorialContext. Keep every scalar,
 // schedule, source/media field and canonical DTO validation; Admin still reads
 // its full projection. This removes two relation roundtrips on public detail.
@@ -39,20 +48,21 @@ async function readPublishedEditorialContext(id: string, database: Pick<Database
   return toEditorialContext(id, { ...row, areas: [], cultureLinks: [] });
 }
 const fingerprint = (context: EditorialContext) => createHash("sha256").update(JSON.stringify(context)).digest("hex");
-function state(context: EditorialContext, row: Prisma.DestinationEditorialGetPayload<object> | null, available = true): EditorialState {
+function state(context: EditorialContext, row: Prisma.DestinationEditorialGetPayload<object> | null, available = true, aiConfigured = false): EditorialState {
   const layout = (data: unknown) => editorialLayoutSchema.safeParse(data).success ? editorialLayoutSchema.parse(data) : null;
   return editorialStateSchema.parse({ available, reason: available ? null : "Cần owner áp dụng migration Destination Editorial trên môi trường đã duyệt.", context,
     draft: layout(row?.draft), published: layout(row?.published), previousPublished: layout(row?.previousPublished), draftRevision: row?.draftRevision ?? 0,
     publishedRevision: row?.publishedRevision ?? 0, updatedAt: row?.updatedAt.toISOString() ?? null, publishedAt: row?.publishedAt?.toISOString() ?? null,
-    contentChanged: Boolean(row?.contentFingerprint && row.contentFingerprint !== fingerprint(context)), aiConfigured: editorialAiConfigured(),
+    contentChanged: Boolean(row?.contentFingerprint && row.contentFingerprint !== fingerprint(context)), aiConfigured,
   });
 }
 export async function getEditorial(headers: Headers, id: string, deps: DestinationDependencies) {
   await requireActor(headers, deps, "admin");
   const context = await readEditorialContext(id, deps.database);
-  try { return state(context, await deps.database.destinationEditorial.findUnique({ where: { destinationId: id } })); }
+  const aiConfigured = await editorialAiConfiguredFor(deps.database);
+  try { return state(context, await deps.database.destinationEditorial.findUnique({ where: { destinationId: id } }), true, aiConfigured); }
   catch (error) {
-    if (editorialMigrationMissing(error)) return state(context, null, false);
+    if (editorialMigrationMissing(error)) return state(context, null, false, aiConfigured);
     recordEditorialApiFailure("EDITORIAL_GET", "EDITORIAL_UNAVAILABLE");
     throw new AppError("EDITORIAL_UNAVAILABLE", "Không thể đọc bản biên tập. Thử lại sau.", 503);
   }
@@ -68,6 +78,7 @@ export async function writeEditorial(headers: Headers, body: unknown, key: strin
     throw new AppError("INVALID_EDITORIAL", "Kiểm tra bố cục và xác nhận kiểm duyệt.", 400, parsed.error.issues.map(i => ({ path: i.path.join("."), message: i.message })));
   }
   const input = parsed.data;
+  const aiConfigured = await editorialAiConfiguredFor(deps.database);
   let rejectedStoredCounts: EditorialLayoutDiagnosticCounts | undefined;
   const outcome = await executeIdempotentWrite({ database: deps.database, actorId: actor.id, operation: `destination:editorial:${input.action.toLowerCase()}`, key, input: { id, ...input }, execute: async tx => {
     await requireActor(headers, { ...deps, database: tx as unknown as Database }, "admin");
@@ -100,7 +111,7 @@ export async function writeEditorial(headers: Headers, body: unknown, key: strin
     }
     const { destinationId: _id, ...changes } = data;
     const saved = previous ? await tx.destinationEditorial.update({ where: { destinationId: id, draftRevision: input.expectedRevision }, data: changes }) : await tx.destinationEditorial.create({ data });
-    return state(context, saved);
+    return state(context, saved, true, aiConfigured);
   }});
   if (outcome.status !== "SUCCESS") {
     const counts = rejectedStoredCounts ?? (input.action === "SAVE" ? editorialLayoutDiagnosticCounts(input.layout) : undefined);

@@ -133,9 +133,24 @@ export async function uploadDestinationImage(headers: Headers, bytes: Buffer, ke
     await lock(tx, `destination-media:${id}`);
     const row = await destination(tx as unknown as Database, id);
     if (row.media.length >= 20) throw new AppError("IMAGE_LIMIT", "Điểm đến đã có 20 ảnh. Gỡ ảnh trước khi thêm.", 409);
+    // Bind the pre-create gallery choices to this durable intent. Attachment and
+    // cover replacement commit together; concurrent completion cannot reorder it.
+    const selection = intent.initialSelection;
+    const position = selection?.position ?? (row.media.length ? Math.max(...row.media.map(media => media.position)) + 1 : 0);
+    const insert = row.media.some(media => media.position === position);
+    const updates = row.media.flatMap(media => {
+      const data = {
+        ...(selection?.isCover && media.isCover ? { isCover: false } : {}),
+        ...(insert && media.position >= position ? { position: media.position + 1 } : {}),
+      };
+      return Object.keys(data).length ? [{ where: { id: media.id }, data }] : [];
+    });
     return toDestinationDto(await tx.destination.update({ where: { id, updatedAt: row.updatedAt },
-      data: { contentRevision: { increment: 1 }, media: { create: [{ ...verified, alt: defaultDestinationImageAlt(row.name), caption: null, websiteRights: "UNKNOWN", isCover: row.media.length === 0,
-        position: row.media.length ? Math.max(...row.media.map(m => m.position)) + 1 : 0 }] } }, select: destinationSelect }));
+      data: { contentRevision: { increment: 1 }, media: {
+        ...(updates.length ? { update: updates } : {}),
+        create: [{ ...verified, alt: defaultDestinationImageAlt(row.name), caption: selection?.caption ?? null, websiteRights: "UNKNOWN", isCover: selection?.isCover || row.media.length === 0,
+          position }],
+      } }, select: destinationSelect }));
   }});
 }
 export async function reviewDestinationImage(headers: Headers, body: unknown, key: string, id: string, deps: DestinationDependencies) {

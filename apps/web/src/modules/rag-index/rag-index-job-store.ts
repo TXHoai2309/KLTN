@@ -44,7 +44,7 @@ export async function lockAndAssertRagIndexJobLease(
     SELECT "status"::text AS "status", "deletedAt" FROM "rag_document" WHERE "id" = ${identities[0].ragDocumentId} FOR UPDATE
   `);
   if (!documents[0]) throw new RagIndexError("RAG_DOCUMENT_NOT_FOUND");
-  if (!options.allowIneligibleDocument && (documents[0].deletedAt || documents[0].status !== "APPROVED" && documents[0].status !== "INDEXED")) {
+  if (!options.allowIneligibleDocument && (documents[0].deletedAt || !["UPLOADED", "REVIEWING", "APPROVED", "INDEXED"].includes(documents[0].status))) {
     throw new RagIndexError("DOCUMENT_NOT_ELIGIBLE");
   }
 
@@ -151,7 +151,7 @@ export function createRagIndexJobStore(database: Database) {
         let locked: Awaited<ReturnType<typeof lockAndAssertRagIndexJobLease>>;
         try { locked = await lockAndAssertRagIndexJobLease(tx, lease, { allowCancelRequested: true, allowIneligibleDocument: true }); }
         catch (error) { if (error instanceof RagIndexError && error.code === "JOB_LEASE_LOST") return "LOST"; throw error; }
-        if (locked.deletedAt || locked.documentStatus !== "APPROVED" && locked.documentStatus !== "INDEXED") return "INELIGIBLE";
+        if (locked.deletedAt || !["UPLOADED", "REVIEWING", "APPROVED", "INDEXED"].includes(locked.documentStatus)) return "INELIGIBLE";
         if (locked.job.cancelRequestedAt) return "CANCELLED";
         await tx.$executeRaw(Prisma.sql`
           UPDATE "rag_index_job" SET "leaseExpiresAt" = now() + (${leaseMs} * interval '1 millisecond'), "updatedAt" = now()

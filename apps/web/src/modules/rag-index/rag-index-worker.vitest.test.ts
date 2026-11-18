@@ -83,6 +83,12 @@ function harness(options: { status?: string; deletedAt?: Date | null; content?: 
 }
 
 describe("US-19 Task185 indexing worker", () => {
+  it("indexes a newly uploaded private document without prior manual approval", async () => {
+    const test = harness({ status: "UPLOADED" });
+    await expect(test.worker.runNext()).resolves.toEqual({ jobId: "job-1", status: "COMPLETED" });
+    expect(test.providerCalls).toBe(1);
+    expect(test.index.finalizeReadyGeneration).toHaveBeenCalledTimes(1);
+  });
   it.each([false,true])("derives citation metadata after chunks; metadata failure does not block indexing (%s)",async fail=>{
     const t=harness();const save=vi.fn(async()=>{if(fail)throw Error("unavailable");});
     const worker=createRagIndexWorker({jobs:t.jobs,index:t.index,storage:t.storage,provider:createFakeEmbeddingProvider().provider,saveCitationBundle:save} as unknown as RagIndexWorkerDependencies);

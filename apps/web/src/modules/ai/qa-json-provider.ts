@@ -4,10 +4,11 @@ import { AppError } from "../../server/http/app-error";
 import { countEmbeddingTokens } from "../rag-processing/embedding-tokenizer";
 import { qaOrigin, qaProviderInvoked, qaProviderMetadata, qaProviderFailure, qaStage, type QaStage, type QaFailureCategory, type QaProviderPhase, type QaProviderFailureReason } from "./qa-diagnostics";
 import { qaRemainingProviderMs, QA_REQUEST_DEADLINE, QA_ELIGIBILITY_ABORT } from "./qa-request-budget";
+import { qaRequestParameters } from "../runtime-config/openai-model-catalog";
 
-export type QaProviderOptions = { apiKey?: () => string | undefined; fetcher?: typeof fetch; model?: string; timeoutMs?: number; maxOutputTokens?: number; providerPhase?: QaProviderPhase };
+export type QaProviderOptions = { apiKey?: () => string | undefined | Promise<string | undefined>; fetcher?: typeof fetch; model?: string; modelResolver?: () => string | undefined | Promise<string | undefined>; timeoutMs?: number; maxOutputTokens?: number; providerPhase?: QaProviderPhase };
 // Owner-selected model for reading, assessment, answer composition and verification.
-export const QA_DEFAULT_MODEL = process.env.OPENAI_QA_MODEL || "gpt-6-luna";
+export const QA_DEFAULT_MODEL = process.env.OPENAI_QA_MODEL || "gpt-6.1-sol";
 export const QA_ANSWER_MODEL = QA_DEFAULT_MODEL;
 export const QA_GENERATION_LIMITS = { timeoutMs: 25_000, maxInputTokens: 8_000, maxOutputTokens: 2_000, maxCompletionTokens: 8_000, maxResponseBytes: 64 * 1024, maxEvidence: 4, maxInputUtf16: 40_000 } as const;
 const invalid = (stage: QaStage, category: QaFailureCategory, issues?: readonly { code: string; path: readonly PropertyKey[] }[]) =>
@@ -38,18 +39,13 @@ async function readBounded(response: Response, signal: AbortSignal): Promise<str
 /** One bounded structured call, no automatic retries. Shared by assessment and
  * answer generation; neither invocation retains provider conversation state. */
 export function createQaJsonProvider(options: QaProviderOptions = {}) {
-  const model = options.model ?? QA_DEFAULT_MODEL;
-  // GPT-6 Luna defaults to reasoning; when configured, use high reasoning without temperature.
-  const luna = /^gpt-6-luna(?:-|$)/u.test(model);
-  const sol61 = /^gpt-6\.1-sol(?:-|$)/u.test(model);
   const timeoutMs = options.timeoutMs ?? QA_GENERATION_LIMITS.timeoutMs;
   const maxOutputTokens = options.maxOutputTokens ?? QA_GENERATION_LIMITS.maxOutputTokens;
   const phase = options.providerPhase ?? "GENERATION";
   // max_completion_tokens also pays for hidden reasoning. With reasoning models,
   // a completion cap budget pays for internal reasoning tokens before JSON output.
-  const completionCap = (sol61 || luna) ? Math.max(maxOutputTokens, QA_GENERATION_LIMITS.maxCompletionTokens) : maxOutputTokens;
   const failureStage = phase === "SYNTHESIS_VERIFICATION" ? phase : phase === "ASSESSMENT" ? "ASSESSMENT_STARTED" : phase === "QUESTION_UNDERSTANDING" ? "QUESTION_UNDERSTANDING_STARTED" : "GENERATION_PROVIDER";
-  if (!/^[a-zA-Z0-9._-]{1,100}$/.test(model) || !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > QA_GENERATION_LIMITS.timeoutMs || !Number.isInteger(maxOutputTokens) || maxOutputTokens < 1 || maxOutputTokens > QA_GENERATION_LIMITS.maxOutputTokens) throw new Error("Invalid QA generation configuration");
+  if ((options.model !== undefined && !/^[a-zA-Z0-9._-]{1,100}$/.test(options.model)) || !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > QA_GENERATION_LIMITS.timeoutMs || !Number.isInteger(maxOutputTokens) || maxOutputTokens < 1 || maxOutputTokens > QA_GENERATION_LIMITS.maxOutputTokens) throw new Error("Invalid QA generation configuration");
   return { async request<T>(input: { messages: { role: "system" | "user"; content: string }[]; name: string; schema: object; signal?: AbortSignal }, validate: (value: unknown) => T): Promise<T> {
     const messages = input.messages;
     // Dynamic schema enums are also provider input (sentence/part handles and
@@ -57,8 +53,15 @@ export function createQaJsonProvider(options: QaProviderOptions = {}) {
     const providerInput = JSON.stringify({ messages, schema: input.schema });
     if (providerInput.length > QA_GENERATION_LIMITS.maxInputUtf16 || countEmbeddingTokens(providerInput) > QA_GENERATION_LIMITS.maxInputTokens) throw invalid("GENERATION_PREFLIGHT", "TOKEN_LIMIT");
     let key: string | undefined;
-    try { key = (options.apiKey ?? (() => process.env.OPENAI_API_KEY))(); } catch { throw unavailable("GENERATION_PREFLIGHT"); }
+    let model: string | undefined;
+    try {
+      const config = options.apiKey ? null : await import("../runtime-config/runtime-config-service").then(module => module.effectiveConfig("OPENAI"));
+      key = await (options.apiKey?.() ?? (config?.apiKey as string | undefined));
+      model = await (options.modelResolver?.() ?? options.model ?? (config?.qaModel as string | undefined) ?? QA_DEFAULT_MODEL);
+    } catch { throw unavailable("GENERATION_PREFLIGHT"); }
     if (!key) throw unavailable("GENERATION_PREFLIGHT");
+    if (!model || !/^[a-zA-Z0-9._-]{1,100}$/.test(model)) throw unavailable("GENERATION_PREFLIGHT");
+    const modelParameters = qaRequestParameters(model, maxOutputTokens);
     const controller = new AbortController();
     let failureReason: QaProviderFailureReason | undefined;
     const fail = (reason: QaProviderFailureReason) => {
@@ -69,7 +72,7 @@ export function createQaJsonProvider(options: QaProviderOptions = {}) {
     const remainingMs = qaRemainingProviderMs();
     const effectiveTimeoutMs = Math.min(timeoutMs, remainingMs);
     qaStage(failureStage);
-    qaProviderInvoked("generation", model, { providerPhase: phase, configuredTimeoutMs: effectiveTimeoutMs, ...(sol61 ? { reasoningEffort: "medium" as const } : luna ? { reasoningEffort: "high" as const } : {}) });
+    qaProviderInvoked("generation", model, { providerPhase: phase, configuredTimeoutMs: effectiveTimeoutMs, ...("reasoning_effort" in modelParameters ? { reasoningEffort: modelParameters.reasoning_effort } : {}) });
     const abortReason = (): QaProviderFailureReason => input.signal?.reason === QA_REQUEST_DEADLINE ? "REQUEST_DEADLINE" : input.signal?.reason === QA_ELIGIBILITY_ABORT ? "ELIGIBILITY_ABORT" : "REQUEST_ABORT";
     const abort = () => { failureReason ??= abortReason(); controller.abort(); };
     if (input.signal?.aborted) throw fail(abortReason());
@@ -79,7 +82,7 @@ export function createQaJsonProvider(options: QaProviderOptions = {}) {
     const deadline = new Promise<never>((_, reject) => { timer = setTimeout(() => { const error = fail(remainingMs <= timeoutMs ? "REQUEST_DEADLINE" : "PROVIDER_TIMEOUT"); controller.abort(); reject(error); }, effectiveTimeoutMs); });
     const cancellation = new Promise<never>((_, reject) => { controller.signal.addEventListener("abort", () => reject(fail(failureReason ?? "REQUEST_ABORT")), { once: true }); });
     const work = async (): Promise<T> => {
-      const response = await (options.fetcher ?? fetch)("https://api.openai.com/v1/chat/completions", { method: "POST", redirect: "error", signal: controller.signal, headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify({ model, messages, store: false, ...(sol61 ? { reasoning_effort: "medium" } : luna ? { reasoning_effort: "high" } : { temperature: 0 }), max_completion_tokens: completionCap, response_format: { type: "json_schema", json_schema: { name: input.name, strict: true, schema: input.schema } } }) });
+      const response = await (options.fetcher ?? fetch)("https://api.openai.com/v1/chat/completions", { method: "POST", redirect: "error", signal: controller.signal, headers: { authorization: `Bearer ${key}`, "content-type": "application/json" }, body: JSON.stringify({ model, messages, store: false, ...modelParameters, response_format: { type: "json_schema", json_schema: { name: input.name, strict: true, schema: input.schema } } }) });
       if (controller.signal.aborted) { void response.body?.cancel().catch(() => undefined); throw fail(failureReason ?? "REQUEST_ABORT"); }
       qaProviderMetadata("generation", response);
       if (!response.ok) { void response.body?.cancel().catch(() => undefined); throw fail("UPSTREAM_HTTP"); }

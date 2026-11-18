@@ -4,7 +4,7 @@
    ========================================================================== */
 
 .my-trips-page {
-  --trip-read-bg: #f8f7f3;
+  --trip-read-bg: #f5f8f6;
   --trip-read-card: #ffffff;
   --trip-read-ink: #14221a;
   --trip-read-muted: #5e6d65;
@@ -782,53 +782,29 @@
   border-color: rgba(255, 255, 255, 0.22);
 }
 
-/* HERO SHOWCASE BILLBOARD */
+/* HERO SHOWCASE BILLBOARD (Light Editorial / Modern Clean) */
 .my-trips-detail-hero {
   position: relative;
-  border-radius: 28px;
-  background: radial-gradient(80% 120% at 85% 15%, rgba(42, 134, 93, 0.35) 0%, transparent 60%),
-              linear-gradient(135deg, #0e2f21 0%, #174834 50%, #113828 100%);
-  color: #ffffff;
-  padding: 38px 42px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 20px 48px -10px rgba(10, 32, 22, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  border-radius: 24px;
+  background: #ffffff;
+  color: #123929;
+  padding: 32px 36px;
+  border: 1px solid #e2ebe5;
+  box-shadow: 0 4px 20px -2px rgba(18, 57, 41, 0.05), 0 1px 3px rgba(0, 0, 0, 0.02);
   overflow: hidden;
   margin-bottom: 28px;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
 }
 
 .dark .my-trips-detail-hero {
-  background: radial-gradient(80% 120% at 85% 15%, rgba(62, 196, 125, 0.18) 0%, transparent 60%),
-              linear-gradient(135deg, #0b1a13 0%, #132d20 50%, #0d2117 100%);
+  background: #0f1c16;
+  color: #e5ede8;
   border-color: rgba(255, 255, 255, 0.08);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
 }
 
 .my-trips-hero-ambient {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.my-trips-hero-glow {
-  position: absolute;
-  top: -60px;
-  right: -60px;
-  width: 420px;
-  height: 420px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(74, 222, 128, 0.18) 0%, rgba(233, 185, 75, 0.08) 45%, transparent 70%);
-  filter: blur(50px);
-  pointer-events: none;
-}
-
-.my-trips-hero-topo {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0.85;
+  display: none;
 }
 
 .my-trips-hero-content {
@@ -836,7 +812,7 @@
   z-index: 2;
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 24px;
 }
 
 .my-trips-hero-header-row {
@@ -849,239 +825,363 @@
 .my-trips-hero-title-group {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
 .my-trips-hero-badge-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .my-trips-detail-hero .my-trips-eyebrow {
-  color: #9fe3be;
+  color: #3b6e58;
   font-size: 12px;
-  font-weight: 750;
-  letter-spacing: 0.14em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   margin: 0;
+}
+
+.dark .my-trips-detail-hero .my-trips-eyebrow {
+  color: #8cd6b2;
 }
 
 .my-trips-detail-hero .my-trips-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 12px;
+  padding: 3px 10px;
   border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  backdrop-filter: blur(8px);
+  font-size: 11.5px;
+  font-weight: 600;
+  background: #edf7f2;
+  color: #164e37;
+  border: 1px solid #cce5d7;
+}
+
+.dark .my-trips-detail-hero .my-trips-badge {
+  background: rgba(45, 106, 79, 0.25);
+  color: #a7f3d0;
+  border-color: rgba(167, 243, 208, 0.2);
 }
 
 .my-trips-detail-hero .my-trips-badge-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: #5eead4;
-  box-shadow: 0 0 8px #5eead4;
+  background: #10b981;
 }
 
 .my-trips-detail-hero .my-trips-badge-ongoing .my-trips-badge-dot {
-  background: #4ade80;
-  box-shadow: 0 0 8px #4ade80;
+  background: #059669;
+}
+
+.my-trips-detail-hero .my-trips-badge-completed {
+  background: #f3f4f6;
+  color: #4b5563;
+  border-color: #e5e7eb;
 }
 
 .my-trips-detail-hero .my-trips-badge-completed .my-trips-badge-dot {
-  background: #cbd5e1;
-  box-shadow: none;
+  background: #9ca3af;
 }
 
 .my-trips-detail-hero h1 {
-  color: #ffffff;
+  color: #123929;
   font-family: var(--font-editorial-serif), Georgia, serif;
-  font-size: clamp(32px, 4.2vw, 48px);
+  font-size: clamp(28px, 3.4vw, 40px);
   font-weight: 650;
-  line-height: 1.15;
+  line-height: 1.18;
   letter-spacing: -0.02em;
   margin: 0;
+}
+
+.dark .my-trips-detail-hero h1 {
+  color: #f1f7f4;
 }
 
 .my-trips-detail-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
 }
 
+/* Nút yêu thích */
 .my-trips-detail-actions .my-trips-favorite {
   position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  max-width: 44px;
-  min-height: 44px;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  max-width: 42px;
+  min-height: 42px;
   padding: 0 !important;
   gap: 0 !important;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.24);
-  backdrop-filter: blur(10px);
+  background: #f8faf8;
+  color: #3b6352;
+  border: 1px solid #dce6e0;
   cursor: pointer;
-  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 180ms ease;
+}
+
+.dark .my-trips-detail-actions .my-trips-favorite {
+  background: rgba(255, 255, 255, 0.05);
+  color: #cbd5e1;
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .my-trips-detail-actions .my-trips-favorite:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.22);
-  border-color: rgba(255, 255, 255, 0.45);
-  transform: translateY(-1.5px) scale(1.04);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  background: #ffffff;
+  color: #164e37;
+  border-color: #266b4e;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(18, 57, 41, 0.08);
+}
+
+.dark .my-trips-detail-actions .my-trips-favorite:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.25);
 }
 
 .my-trips-detail-actions .my-trips-favorite[aria-pressed="true"] {
-  background: #fee2e2;
+  background: #fef2f2;
   color: #dc2626;
-  border-color: #fca5a5;
-  box-shadow: 0 4px 14px rgba(220, 38, 38, 0.3);
+  border-color: #fecaca;
+  box-shadow: 0 2px 8px rgba(220, 38, 38, 0.15);
 }
 
+.dark .my-trips-detail-actions .my-trips-favorite[aria-pressed="true"] {
+  background: rgba(220, 38, 38, 0.2);
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+/* Nút Chỉnh sửa hành trình */
 .my-trips-detail-actions .my-trips-edit-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 44px;
-  padding: 0 20px;
+  min-height: 42px;
+  padding: 0 18px;
   border-radius: 12px;
   background: #ffffff !important;
-  color: #123929 !important;
-  border: 1px solid #ffffff !important;
+  color: #1a4231 !important;
+  border: 1px solid #d1ded6 !important;
   font-size: 13.5px;
-  font-weight: 750;
+  font-weight: 600;
   text-decoration: none;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18) !important;
-  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  transition: all 180ms ease;
   white-space: nowrap;
 }
 
-.my-trips-detail-actions .my-trips-edit-action:hover {
-  background: #f4faf6 !important;
-  transform: translateY(-1.5px);
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25) !important;
+.dark .my-trips-detail-actions .my-trips-edit-action {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #f1f5f3 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: none !important;
 }
 
+.my-trips-detail-actions .my-trips-edit-action:hover {
+  background: #f4f8f5 !important;
+  border-color: #2d6a4f !important;
+  color: #123929 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(18, 57, 41, 0.08) !important;
+}
+
+.dark .my-trips-detail-actions .my-trips-edit-action:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+/* Nút Tìm bạn đồng hành */
+.my-trips-detail-actions .my-trips-companion-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 12px;
+  background: #ffffff !important;
+  color: #1a4231 !important;
+  border: 1px solid #d1ded6 !important;
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  transition: all 180ms ease;
+  white-space: nowrap;
+}
+
+.dark .my-trips-detail-actions .my-trips-companion-action {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #f1f5f3 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  box-shadow: none !important;
+}
+
+.my-trips-detail-actions .my-trips-companion-action:hover {
+  background: #f4f8f5 !important;
+  border-color: #2d6a4f !important;
+  color: #123929 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(18, 57, 41, 0.08) !important;
+}
+
+.dark .my-trips-detail-actions .my-trips-companion-action:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+}
+
+/* Nút Trợ lý trong chuyến đi (Primary CTA) */
 .my-trips-detail-actions .my-trips-in-trip-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 44px;
+  min-height: 42px;
   padding: 0 20px;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(233, 185, 75, 0.22) 0%, rgba(255, 255, 255, 0.12) 100%) !important;
+  background: #143e2d !important;
   color: #ffffff !important;
-  border: 1px solid rgba(233, 185, 75, 0.45) !important;
-  backdrop-filter: blur(10px);
+  border: 1px solid #143e2d !important;
   font-size: 13.5px;
-  font-weight: 750;
+  font-weight: 650;
   text-decoration: none;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15) !important;
-  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 8px rgba(20, 62, 45, 0.18) !important;
+  transition: all 180ms ease;
   white-space: nowrap;
 }
 
 .my-trips-detail-actions .my-trips-in-trip-btn svg {
-  color: #fce182;
+  color: #fde047;
 }
 
 .my-trips-detail-actions .my-trips-in-trip-btn:hover {
-  background: linear-gradient(135deg, rgba(233, 185, 75, 0.32) 0%, rgba(255, 255, 255, 0.2) 100%) !important;
-  border-color: rgba(233, 185, 75, 0.7) !important;
-  transform: translateY(-1.5px);
-  box-shadow: 0 8px 24px rgba(233, 185, 75, 0.3) !important;
+  background: #0f3023 !important;
+  border-color: #0f3023 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 16px rgba(20, 62, 45, 0.28) !important;
+}
+
+.dark .my-trips-detail-actions .my-trips-in-trip-btn {
+  background: #1a4d38 !important;
+  border-color: #25664b !important;
+}
+
+.dark .my-trips-detail-actions .my-trips-in-trip-btn:hover {
+  background: #205c44 !important;
 }
 
 /* 4 HERO METRIC STAT TILES */
 .my-trips-hero-stats-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+  gap: 14px;
+  padding-top: 24px;
+  border-top: 1px solid #edf2ee;
+}
+
+.dark .my-trips-hero-stats-grid {
+  border-top-color: rgba(255, 255, 255, 0.07);
 }
 
 .my-trips-hero-stat-item {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 16px 18px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.04) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  backdrop-filter: blur(14px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 6px 18px rgba(0, 0, 0, 0.12);
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 14px;
+  background: #f8faf8;
+  border: 1px solid #e7eee9;
   min-width: 0;
-  transition: all 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 180ms ease;
+}
+
+.dark .my-trips-hero-stat-item {
+  background: rgba(255, 255, 255, 0.035);
+  border-color: rgba(255, 255, 255, 0.07);
 }
 
 .my-trips-hero-stat-item:hover {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, rgba(255, 255, 255, 0.08) 100%);
-  border-color: rgba(233, 185, 75, 0.45);
-  transform: translateY(-2px);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 10px 26px rgba(0, 0, 0, 0.22);
+  background: #f1f6f3;
+  border-color: #cbdcd1;
+  transform: translateY(-1px);
+}
+
+.dark .my-trips-hero-stat-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .my-trips-stat-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(233, 185, 75, 0.22) 0%, rgba(233, 185, 75, 0.08) 100%);
-  border: 1px solid rgba(233, 185, 75, 0.32);
-  color: #fce182;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #eaf3ed;
+  border: 1px solid #d4e5da;
+  color: #1e563e;
   flex-shrink: 0;
-  transition: transform 200ms ease;
+  transition: transform 180ms ease;
+}
+
+.dark .my-trips-stat-icon {
+  background: rgba(45, 106, 79, 0.25);
+  border-color: rgba(45, 106, 79, 0.4);
+  color: #6ee7b7;
 }
 
 .my-trips-hero-stat-item:hover .my-trips-stat-icon {
-  transform: scale(1.06);
-  color: #ffea9f;
-  border-color: rgba(233, 185, 75, 0.55);
+  transform: scale(1.04);
 }
 
 .my-trips-stat-info {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  gap: 3px;
+  gap: 2px;
 }
 
 .my-trips-stat-label {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: rgba(220, 245, 230, 0.75);
+  letter-spacing: 0.04em;
+  color: #5c786a;
+}
+
+.dark .my-trips-stat-label {
+  color: #94a3b8;
 }
 
 .my-trips-stat-value {
   font-size: 14.5px;
-  font-weight: 750;
-  color: #ffffff;
+  font-weight: 700;
+  color: #123929;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   letter-spacing: -0.01em;
 }
+
+.dark .my-trips-stat-value {
+  color: #f1f5f3;
+}
+
 
 /* ==========================================================================
    DAY TABS NAVIGATION (Sticky Day Switcher)
@@ -1096,7 +1196,7 @@
   margin-bottom: 32px;
   padding: 8px;
   border-radius: 18px;
-  background: rgba(248, 247, 243, 0.88);
+  background: rgba(245, 248, 246, 0.92);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--trip-read-border);

@@ -4,6 +4,7 @@ import sharp from "sharp";
 import { AppError } from "@/server/http/app-error";
 import { IMAGE_FORMATS, MAX_IMAGE_BYTES, type ImageIntent } from "./destination-media-contract";
 import {CloudinaryProviderError, cloudinaryErrorMetadata, type ImageUploadDiagnostics} from "./destination-image-diagnostics";
+import { effectiveConfig } from "../runtime-config/runtime-config-service";
 
 export type ImageAsset = {
   asset_id: string; public_id: string; secure_url: string; resource_type: string; type: string;
@@ -18,6 +19,10 @@ export interface DestinationImageProvider {
   find(intent: ImageIntent): Promise<ImageAsset | null>;
   upload(intent: ImageIntent, bytes: Buffer): Promise<ImageAsset | void>;
 }
+function validateCloudinaryConfiguration(cloud?: string, api_key?: string, api_secret?: string, folder = "KLTN/destinations") {
+  return cloud && /^[a-zA-Z0-9_-]+$/.test(cloud) && api_key && api_secret && folder === "KLTN/destinations"
+    ? { cloud, folder, options: { cloud_name: cloud, api_key, api_secret, secure: true, timeout: 20_000 } } : null;
+}
 export function cloudinaryConfiguration() {
   // Runtime values come from Varlock; API credentials remain sensitive/server-only.
   const cloud = process.env.CLOUDINARY_CLOUD_NAME?.trim();
@@ -25,8 +30,11 @@ export function cloudinaryConfiguration() {
   const api_secret = process.env.CLOUDINARY_API_SECRET?.trim();
   const folder = process.env.CLOUDINARY_DESTINATION_FOLDER?.trim() || "KLTN/destinations";
   // An environment override must never redirect this integration to another project.
-  return cloud && /^[a-zA-Z0-9_-]+$/.test(cloud) && api_key && api_secret && folder === "KLTN/destinations"
-    ? { cloud, folder, options: { cloud_name: cloud, api_key, api_secret, secure: true, timeout: 20_000 } } : null;
+  return validateCloudinaryConfiguration(cloud, api_key, api_secret, folder);
+}
+export async function effectiveCloudinaryConfiguration() {
+  const config = await effectiveConfig("CLOUDINARY");
+  return validateCloudinaryConfiguration(config.cloudName?.toString(), config.apiKey?.toString(), config.apiSecret?.toString(), process.env.CLOUDINARY_DESTINATION_FOLDER?.trim() || "KLTN/destinations");
 }
 export async function inspectImage(bytes: Buffer) {
   if (!bytes.length || bytes.length > MAX_IMAGE_BYTES) throw new AppError("IMAGE_TOO_LARGE", "Ảnh phải có dung lượng từ 1 byte đến 10 MB.", 413);
@@ -40,8 +48,7 @@ export async function inspectImage(bytes: Buffer) {
   } catch { throw new AppError("INVALID_IMAGE", "Chọn ảnh JPEG, PNG, WebP hoặc AVIF hợp lệ, tối đa 25 triệu điểm ảnh; không nhận ảnh động.", 400); }
 }
 let modeCache: { cloud: string; apiKey: string; mode: "dynamic" | "fixed"; until: number } | undefined;
-export function destinationImageProvider(diagnostics?:ImageUploadDiagnostics): DestinationImageProvider {
-  const config = cloudinaryConfiguration();
+export function destinationImageProvider(diagnostics?:ImageUploadDiagnostics, config = cloudinaryConfiguration()): DestinationImageProvider {
   if (!config) throw new AppError("IMAGE_UPLOAD_NOT_CONFIGURED", "Chưa cấu hình tải ảnh. Các thông tin điểm đến vẫn có thể lưu.", 503);
   const options = config.options;
   return {
@@ -79,4 +86,7 @@ export function destinationImageProvider(diagnostics?:ImageUploadDiagnostics): D
       });
     },
   };
+}
+export async function runtimeDestinationImageProvider(diagnostics?: ImageUploadDiagnostics): Promise<DestinationImageProvider> {
+  return destinationImageProvider(diagnostics, await effectiveCloudinaryConfiguration());
 }

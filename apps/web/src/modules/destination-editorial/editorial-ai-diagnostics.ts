@@ -166,21 +166,21 @@ export function createEditorialAiDiagnostics() {
     received() { emit("ADMISSION", "APP_REQUEST_RECEIVED", undefined, { stage: "APP_REQUEST_RECEIVED" }); },
     admitted() { emit("ADMISSION", "ADMISSION_ACCEPTED", undefined, { stage: "ADMISSION_ACCEPTED" }); },
     admissionRejected(status: number | null, reason: "CONCURRENCY" | "PREPARATION_FAILED" | "AUTH_OR_INPUT") { emit("ADMISSION", "ADMISSION_REJECTED", new EditorialAiError("ADMISSION_REJECTED", status), { stage: "ADMISSION_REJECTED", outcome: "REJECTED_BEFORE_PROVIDER", providerCalled: false, admissionReason: reason }); },
-    providerStarted(attempt: number, configuredTimeoutMs?: number) {
+    providerStarted(attempt: number, configuredTimeoutMs?: number, requestedModel = "gpt-6-luna") {
       emit("PROVIDER_REQUEST", "PROVIDER_REQUEST_STARTED", undefined, {
         stage: "PROVIDER_REQUEST_STARTED",
-        requestedModel: "gpt-6-luna",
+        requestedModel,
         attempt: attempt === 2 ? 2 : 1,
         ...(Number.isSafeInteger(configuredTimeoutMs) ? { configuredTimeoutMs } : {}),
       });
     },
-    providerResponse(status: number, requestId: unknown, payload: unknown, attempt: number, elapsedMs?: number, configuredTimeoutMs?: number) {
+    providerResponse(status: number, requestId: unknown, payload: unknown, attempt: number, elapsedMs?: number, configuredTimeoutMs?: number, requestedModel = "gpt-6-luna") {
       const p = payload && typeof payload === "object" ? payload as { model?: unknown; usage?: { prompt_tokens?: unknown; completion_tokens?: unknown; completion_tokens_details?: { reasoning_tokens?: unknown } } } : {};
       const tokens = (v: unknown) => typeof v === "number" && Number.isSafeInteger(v) && v >= 0 ? v : null;
       emit("PROVIDER_REQUEST", "PROVIDER_RESPONSE_RECEIVED", new EditorialAiError("PROVIDER_UNAVAILABLE", status), {
         stage: "PROVIDER_RESPONSE_RECEIVED",
-        requestedModel: "gpt-6-luna",
-        actualModel: typeof p.model === "string" && /^gpt-6-luna(?:-[a-zA-Z0-9.-]+)?$/.test(p.model) && p.model.length <= 100 ? p.model : null,
+        requestedModel,
+        actualModel: typeof p.model === "string" && p.model.length <= 100 && /^[a-zA-Z0-9._-]+$/u.test(p.model) && (p.model === requestedModel || p.model.startsWith(`${requestedModel}-`)) ? p.model : null,
         providerRequestId: typeof requestId === "string" && /^req_[a-zA-Z0-9_-]{1,160}$/.test(requestId) ? requestId : null,
         providerStatus: status,
         inputTokens: tokens(p.usage?.prompt_tokens),

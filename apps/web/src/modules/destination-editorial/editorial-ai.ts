@@ -506,7 +506,7 @@ export async function proposeEditorial(
 
       if (!client) {
         diagnostics.fallback("ADMISSION", undefined, "NOT_CONFIGURED");
-        diagnostics.configured(Boolean(process.env.OPENAI_API_KEY?.trim()), process.env.OPENAI_EDITORIAL_MODEL);
+        diagnostics.configured(false, undefined);
         return {
           status: "FALLBACK" as const,
           outcome: "FALLBACK" as const,
@@ -636,7 +636,7 @@ export async function proposeEditorial(
     const current = options.layout ?? base;
     if (!client) {
       diagnostics.fallback("ADMISSION", undefined, "NOT_CONFIGURED");
-      diagnostics.configured(Boolean(process.env.OPENAI_API_KEY?.trim()), process.env.OPENAI_EDITORIAL_MODEL);
+      diagnostics.configured(false, undefined);
       return {
         status: "FALLBACK" as const,
         outcome: "FALLBACK" as const,

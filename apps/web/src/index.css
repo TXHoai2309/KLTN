@@ -8,6 +8,15 @@
   --auth-border: #dce2e9;
 }
 
+body {
+  background-color: #f5f8f6;
+  color: var(--auth-ink);
+}
+
+.dark body {
+  background-color: #0c1410;
+}
+
 /* ─── Header ─── */
 .auth-header {
   position: relative;

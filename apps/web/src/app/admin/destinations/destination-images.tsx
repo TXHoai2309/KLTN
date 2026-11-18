@@ -6,13 +6,13 @@ import PublishedMediaImage from "@/components/published-media-image";
 import { createIdempotencyKey } from "@/lib/mutation-client";
 import { createClientImageIntent, uploadClientImage } from "@/lib/destination-image-client";
 import { type DestinationDto } from "@/modules/destination/destination-contract";
-import { MAX_IMAGE_BYTES, IMAGE_TYPES } from "@/modules/destination/destination-media-contract";
+import { MAX_IMAGE_BYTES, IMAGE_TYPES, type InitialImageSelection } from "@/modules/destination/destination-media-contract";
 import type { DestinationV3Input } from "@/modules/destination/destination-v3-contract";
 import { isDestinationMediaUsable } from "@/modules/destination/destination-media-eligibility";
 import "./destination-images.css";
 
 type Media = NonNullable<DestinationDto["profile"]>["media"][number];
-type QueueItem = { file: File; key: string; preview: string; status: "QUEUED" | "UPLOADING" | "ERROR" | "UNKNOWN" | "SUCCESS"; progress: number; error: string };
+type QueueItem = { file: File; key: string; preview: string; status: "QUEUED" | "UPLOADING" | "ERROR" | "UNKNOWN" | "SUCCESS"; progress: number; error: string; initialSelection?: InitialImageSelection };
 // Route handoff keeps File objects in memory only; no browser persistence or credentials.
 const handoffs = new Map<string, QueueItem[]>();
 export type DestinationImagesHandle = { uploadAll(id: string): Promise<boolean>; isBusy(): boolean; handoff(id: string): void };
@@ -41,6 +41,19 @@ const DestinationImages = forwardRef<DestinationImagesHandle, Props>(function De
   const input = useRef<HTMLInputElement>(null);
   function updateQueue(next: QueueItem[]) { queueRef.current = next; if (mounted.current) setQueue(next); }
   function updateItem(key: string, change: Partial<QueueItem>) { updateQueue(queueRef.current.map(item => item.key === key ? { ...item, ...change } : item)); }
+  function changeSelection(next: QueueItem[]) {
+    const hasCover = next.some(item => item.initialSelection?.isCover);
+    updateQueue(next.map((item, position) => ({ ...item, initialSelection: {
+      caption: item.initialSelection?.caption ?? null,
+      isCover: hasCover ? item.initialSelection?.isCover === true : position === 0,
+      position,
+    } })));
+  }
+  function removeFile(item: QueueItem) {
+    URL.revokeObjectURL(item.preview);
+    const next = queueRef.current.filter(q => q.key !== item.key);
+    if (!id) changeSelection(next); else updateQueue(next);
+  }
   useEffect(() => {
     mounted.current = true;
     if (id && handoffs.has(id)) { updateQueue(handoffs.get(id)!); handoffs.delete(id); }
@@ -83,7 +96,7 @@ const DestinationImages = forwardRef<DestinationImagesHandle, Props>(function De
       if (!IMAGE_TYPES.includes(file.type as typeof IMAGE_TYPES[number]) || !file.size || file.size > MAX_IMAGE_BYTES) { setError(`File “${file.name}” không hợp lệ. Chọn JPEG, PNG, WebP hoặc AVIF tối đa 10 MB.`); continue; }
       next.push({ file, key: createIdempotencyKey(), preview: URL.createObjectURL(file), status: "QUEUED", progress: 0, error: "" });
     }
-    updateQueue(next);
+    if (!id) changeSelection(next); else updateQueue(next);
     if (id) void uploadAll(id, true);
   }
   function uploadAll(destinationId: string, queuedOnly = false): Promise<boolean> {
@@ -100,7 +113,7 @@ const DestinationImages = forwardRef<DestinationImagesHandle, Props>(function De
       while (!controller.signal.aborted && cursor < items.length) {
         const item = items[cursor++]!;
         updateItem(item.key, { status: "UPLOADING", progress: 0, error: "" });
-        const intent = await createClientImageIntent(destinationId, item.file, item.key, controller.signal);
+        const intent = await createClientImageIntent(destinationId, item.file, item.key, controller.signal, item.initialSelection);
         if (intent.status !== "SUCCESS") { updateItem(item.key, { status: intent.status === "UNKNOWN" ? "UNKNOWN" : "ERROR", error: intent.message }); continue; }
         const result = await uploadClientImage(destinationId, item.file, item.key, value => updateItem(item.key, { progress: value }), controller.signal);
         if (result.status === "SUCCESS") {
@@ -127,31 +140,53 @@ const DestinationImages = forwardRef<DestinationImagesHandle, Props>(function De
   } }));
   const blocked = disabled || busy;
   return <AdminCollapsibleSection id="dv3-images" icon={ImagePlus} title="Hình ảnh" badge="optional" description="Tải ảnh, chọn ảnh đại diện và sắp xếp thư viện. Chú thích là tùy chọn.">
-    <p className="af-helper" aria-live="polite">{media.length} / 20 ảnh đã lưu · {queue.filter(item => item.status !== "SUCCESS").length} ảnh chờ tải</p>
+    <p className="af-helper" aria-live="polite">{id ? `${media.length} / 20 ảnh đã lưu · ${queue.filter(item => item.status !== "SUCCESS").length} ảnh chờ tải` : `${queue.length} / 20 ảnh đã chọn`}</p>
     {configured === null && !configError && <p role="status" className="af-helper">Đang kiểm tra khả năng tải ảnh…</p>}
     {configured === false && <p role="status" className="af-helper">Chưa cấu hình tải ảnh. Bạn vẫn có thể lưu thông tin và quản lý ảnh đã có.</p>}
     {configError && <div role="alert"><p>{configError}</p><button type="button" className="af-btn" onClick={() => setConfigRetry(n => n + 1)}>Kiểm tra lại</button></div>}
     <div className="dimg-drop" onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); selectFiles(e.dataTransfer.files); }}>
       <input ref={input} type="file" multiple accept={IMAGE_TYPES.join(",")} hidden disabled={blocked || changed || configured !== true} onChange={e => { if (e.target.files) selectFiles(e.target.files); e.target.value = ""; }} />
-      <button type="button" className="af-btn" disabled={blocked || changed || configured !== true || media.length >= 20} onClick={() => input.current?.click()}><ImagePlus size={18} aria-hidden="true" />Tải ảnh lên</button>
+      <button type="button" className="af-btn" disabled={blocked || changed || configured !== true || (id ? media.length : queue.length) >= 20} onClick={() => input.current?.click()}><ImagePlus size={18} aria-hidden="true" />{id ? "Tải ảnh lên" : "Chọn ảnh"}</button>
       <p className="af-helper">Kéo thả hoặc chọn nhiều ảnh · JPEG, PNG, WebP, AVIF · tối đa 10 MB/ảnh.</p>
-      {!id && <p className="af-helper">Ảnh được giữ trên máy cho đến khi tạo điểm đến ẩn thành công.</p>}
+      {!id && <p className="af-helper">Chọn ảnh để xem trước, thêm chú thích và sắp xếp ngay. Ảnh sẽ được tải lên khi bạn bấm Tạo điểm đến.</p>}
       {id && <p className="af-helper">Ảnh tự tải và lưu ngay khi chọn, không cần bấm Lưu thay đổi.</p>}
       {changed && <p className="af-helper">Lưu chỉnh sửa ảnh hiện tại trước khi tải thêm.</p>}
     </div>
     {error && <p role="alert" className="af-field-error">{error}</p>}
-    {queue.length > 0 && <div className="dimg-queue">
+    {id && queue.length > 0 && <div className="dimg-queue">
       {queue.map(item => <div className="dimg-queue-row" key={item.key}>
         <img src={item.preview} alt={`Xem trước ${item.file.name}`} width={80} height={64} />
         <div><strong>{item.file.name}</strong><p role="status">{item.status === "SUCCESS" ? "Đã lưu" : item.status === "UPLOADING" ? item.progress < 100 ? `Đang gửi file: ${item.progress}%` : "Đang xác minh và lưu ảnh…" : item.status === "QUEUED" ? "Chờ tải" : item.error}</p>
           {item.status === "UPLOADING" && <progress max={100} value={item.progress} aria-label={`Tiến độ gửi ${item.file.name}`} />}</div>
-        {item.status !== "SUCCESS" && <button className="af-btn" type="button" disabled={blocked || item.status === "UNKNOWN"} onClick={() => { URL.revokeObjectURL(item.preview); updateQueue(queueRef.current.filter(q => q.key !== item.key)); }}>Bỏ file</button>}
+        {item.status !== "SUCCESS" && <button className="af-btn" type="button" disabled={blocked || item.status === "UNKNOWN"} onClick={() => removeFile(item)}>Bỏ file</button>}
       </div>)}
       {id && <button className="af-btn" type="button" disabled={disabled || busy || changed || queue.every(item => item.status === "SUCCESS")} onClick={() => void uploadAll(id)}>Tải ảnh chờ / thử lại</button>}
       {busy && !disabled && <button type="button" className="af-btn" onClick={() => abort.current?.abort()}>Dừng chờ · đối chiếu khi thử lại</button>}
       {changed && <p className="af-helper">Lưu chỉnh sửa ảnh trước khi tải thêm hoặc duyệt quyền.</p>}
     </div>}
-    <div className="dimg-gallery">{media.map((item, index) => {
+    <div className="dimg-gallery">
+      {!id && queue.map((item, index) => <article className="dimg-card dimg-local-card" key={item.key}>
+        <a href={item.preview} target="_blank" rel="noopener noreferrer" aria-label={`Xem ảnh lớn: ${item.file.name}`}>
+          <img src={item.preview} alt={`Xem trước ${item.file.name}`} width={640} height={400} /><span>Xem ảnh lớn</span>
+        </a>
+        <div className="dimg-card-body">
+          <strong className="dimg-filename">{item.file.name}</strong>
+          <div className="dimg-local-meta">
+            {item.initialSelection?.isCover && <span>Ảnh đại diện</span>}
+            <p role="status" className="af-helper">{item.status === "SUCCESS" ? "Đã lưu" : item.status === "UPLOADING" ? item.progress < 100 ? `Đang gửi file: ${item.progress}%` : "Đang xác minh và lưu ảnh…" : item.status === "QUEUED" ? "Xem trước · Chưa lưu" : item.error}</p>
+          </div>
+          {item.status === "UPLOADING" && <progress max={100} value={item.progress} aria-label={`Tiến độ gửi ${item.file.name}`} />}
+          <label htmlFor={`queued-caption-${item.key}`}>Chú thích (không bắt buộc)</label>
+          <input className="af-input" id={`queued-caption-${item.key}`} value={item.initialSelection?.caption ?? ""} maxLength={1000} disabled={blocked} onChange={e => updateItem(item.key, { initialSelection: { ...item.initialSelection!, caption: e.target.value || null } })} />
+          <div className="dimg-actions">
+            <button className="af-btn" type="button" disabled={blocked || item.initialSelection?.isCover} onClick={() => changeSelection(queueRef.current.map(q => ({ ...q, initialSelection: { ...q.initialSelection!, isCover: q.key === item.key } })))}>Đặt đại diện</button>
+            <button className="af-btn" type="button" disabled={blocked || index === 0} aria-label={`Đưa ảnh ${item.file.name} lên trước`} onClick={() => { const next = [...queueRef.current]; [next[index - 1], next[index]] = [next[index]!, next[index - 1]!]; changeSelection(next); }}>Lên</button>
+            <button className="af-btn" type="button" disabled={blocked || index === queue.length - 1} aria-label={`Đưa ảnh ${item.file.name} xuống sau`} onClick={() => { const next = [...queueRef.current]; [next[index + 1], next[index]] = [next[index]!, next[index + 1]!]; changeSelection(next); }}>Xuống</button>
+            <button className="af-btn" type="button" disabled={blocked} onClick={() => removeFile(item)}>Gỡ ảnh</button>
+          </div>
+        </div>
+      </article>)}
+      {id && media.map((item, index) => {
       const usable = Boolean(id && isDestinationMediaUsable(item, id));
       return <article className="dimg-card" key={item.id}>
         <a href={item.url} target="_blank" rel="noopener noreferrer" aria-label={`Xem ảnh lớn: ${item.alt}`}><PublishedMediaImage url={item.url} alt={item.alt} /><span>Xem ảnh lớn</span></a>
@@ -170,7 +205,7 @@ const DestinationImages = forwardRef<DestinationImagesHandle, Props>(function De
         </div>
       </article>;
     })}</div>
-    {!media.length && <p className="af-helper">Chưa có ảnh. Hình ảnh là tùy chọn.</p>}
+    {!media.length && !queue.length && <p className="af-helper">Chưa có ảnh. Hình ảnh là tùy chọn.</p>}
     {changed && <p role="status" className="af-helper">Thay đổi ảnh chưa lưu. Bấm Lưu thay đổi để xác nhận; tải lại hồ sơ để hủy.</p>}
   </AdminCollapsibleSection>;
 });

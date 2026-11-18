@@ -297,7 +297,7 @@ export function createRagIndexStore(database: Database) {
         const documents = await tx.$queryRaw<Array<{ status: string; deletedAt: Date | null }>>(Prisma.sql`SELECT "status"::text AS "status", "deletedAt" FROM "rag_document" WHERE "id" = ${ragDocumentId} FOR UPDATE`);
         const document = documents[0];
         if (!document) throw new RagIndexError("RAG_DOCUMENT_NOT_FOUND");
-        if (document.deletedAt || document.status !== "APPROVED" && document.status !== "INDEXED") throw new RagIndexError("DOCUMENT_NOT_ELIGIBLE");
+        if (document.deletedAt || !["UPLOADED", "REVIEWING", "APPROVED", "INDEXED"].includes(document.status)) throw new RagIndexError("DOCUMENT_NOT_ELIGIBLE");
         const generation = await lockGeneration(tx, ragDocumentId, generationId);
         if (generation.state !== "READY") throw new RagIndexError("GENERATION_NOT_READY");
         const progress = await assertComplete(tx, generationId, generation.expectedChunkCount, generation.expectedTokenCount);
@@ -315,7 +315,7 @@ export function createRagIndexStore(database: Database) {
     async finalizeReadyGeneration(ragDocumentId: string, generationId: string, lease: RagIndexJobLease): Promise<void> {
       await database.$transaction(async tx => {
         const locked = await lockAndAssertRagIndexJobLease(tx, lease);
-        if (locked.ragDocumentId !== ragDocumentId || locked.documentStatus !== "APPROVED" && locked.documentStatus !== "INDEXED" || locked.job.pendingBatchIndexes !== null) {
+        if (locked.ragDocumentId !== ragDocumentId || !["UPLOADED", "REVIEWING", "APPROVED", "INDEXED"].includes(locked.documentStatus) || locked.job.pendingBatchIndexes !== null) {
           throw new RagIndexError("DOCUMENT_NOT_ELIGIBLE");
         }
         const generation = await lockGeneration(tx, ragDocumentId, generationId);
@@ -331,7 +331,7 @@ export function createRagIndexStore(database: Database) {
         });
         const transitioned = await tx.$executeRaw(Prisma.sql`
           UPDATE "rag_document" SET "status" = 'INDEXED', "updatedAt" = ${now}
-          WHERE "id" = ${ragDocumentId} AND "status" IN ('APPROVED', 'INDEXED') AND "deletedAt" IS NULL
+          WHERE "id" = ${ragDocumentId} AND "status" IN ('UPLOADED', 'REVIEWING', 'APPROVED', 'INDEXED') AND "deletedAt" IS NULL
         `);
         if (transitioned !== 1) throw new RagIndexError("DOCUMENT_NOT_ELIGIBLE");
         const completed = await tx.ragIndexJob.updateMany({

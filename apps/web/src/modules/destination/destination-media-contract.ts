@@ -5,11 +5,18 @@ export const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 export const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/avif"] as const;
 export const IMAGE_FORMATS = ["jpeg", "png", "webp", "avif"] as const;
 const nullableText = (max: number) => z.string().trim().max(max).nullable();
+export const initialImageSelectionSchema = z.object({
+  caption: nullableText(1000),
+  isCover: z.boolean(),
+  position: z.number().int().min(0).max(19),
+}).strict();
+export type InitialImageSelection = z.infer<typeof initialImageSelectionSchema>;
 export const imageIntentInput = z.object({
   name: z.string().trim().min(1).max(300),
   size: z.number().int().min(1).max(MAX_IMAGE_BYTES),
   mime: z.enum(IMAGE_TYPES),
   sha256: z.string().regex(/^[a-f0-9]{64}$/),
+  initialSelection: initialImageSelectionSchema.optional(),
 }).strict();
 export const imageIntentSchema = imageIntentInput.extend({
   actorId: referenceId, destinationId: referenceId, intentKey: referenceId,

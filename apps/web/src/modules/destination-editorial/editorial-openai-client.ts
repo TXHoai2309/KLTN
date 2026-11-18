@@ -3,6 +3,7 @@ import { assertStrictModelJsonSchema } from "../preference-extraction/preference
 import type { StructuredLlmClient, StructuredLlmCompletionInput } from "../preference-extraction/preference-extraction-client";
 import { EditorialAiError, editorialHttpError, createEditorialAiDiagnostics, type EditorialAiDiagnostics } from "./editorial-ai-diagnostics";
 import { editorialRetryAfter } from "./editorial-retry-after";
+import { isConfigurableChatModel, editorialReasoningEffort } from "../runtime-config/openai-model-catalog";
 
 export const EDITORIAL_OPENAI_LIMITS = {
   timeoutMs: 25_000,
@@ -15,8 +16,8 @@ export const EDITORIAL_OPENAI_LIMITS = {
 } as const;
 
 type Options = {
-  apiKey?: () => string | undefined;
-  model?: () => string | undefined;
+  apiKey?: () => string | undefined | Promise<string | undefined>;
+  model?: () => string | undefined | Promise<string | undefined>;
   fetcher?: typeof fetch;
   timeoutMs?: number;
 };
@@ -63,19 +64,20 @@ export function createEditorialOpenAiClient(options: Options = {}): StructuredLl
   }
   return {
     async complete(input: StructuredLlmCompletionInput & { editorialDiagnostics?: EditorialAiDiagnostics; attempt?: number; timeoutMs?: number; version?: 1 | 2 }) {
+      const config = options.apiKey ? null : await import("../runtime-config/runtime-config-service").then(module => module.effectiveConfig("OPENAI"));
       const effectiveTimeoutMs = options.timeoutMs !== undefined
         ? options.timeoutMs
         : (Number.isSafeInteger(input.timeoutMs) && input.timeoutMs! >= 1 && input.timeoutMs! <= EDITORIAL_OPENAI_LIMITS.maxTimeoutMs
             ? input.timeoutMs!
-            : resolveEditorialTimeout(input.version));
+            : typeof config?.editorialTimeoutMs === "number" ? config.editorialTimeoutMs : resolveEditorialTimeout(input.version));
       if (!Number.isSafeInteger(effectiveTimeoutMs) || effectiveTimeoutMs < 1 || effectiveTimeoutMs > EDITORIAL_OPENAI_LIMITS.maxTimeoutMs) {
         throw new EditorialAiError("CONFIGURATION");
       }
       const diagnostics = input.editorialDiagnostics ?? createEditorialAiDiagnostics();
       const attempt = input.attempt === 2 ? 2 : 1;
-      const key = (options.apiKey ?? (() => process.env.OPENAI_API_KEY))()?.trim();
-      const model = (options.model ?? (() => process.env.OPENAI_EDITORIAL_MODEL))()?.trim();
-      if (!key || model !== "gpt-6-luna") throw new EditorialAiError("CONFIGURATION");
+      const key = (await (options.apiKey?.() ?? (config?.apiKey as string | undefined)))?.trim();
+      const model = (await (options.model?.() ?? (config?.editorialModel as string | undefined) ?? process.env.OPENAI_EDITORIAL_MODEL))?.trim();
+      if (!key || !isConfigurableChatModel(model)) throw new EditorialAiError("CONFIGURATION");
       try { assertStrictModelJsonSchema(input.jsonSchema); } catch { throw new EditorialAiError("LOCAL_INVALID_SCHEMA"); }
       if (input.signal?.aborted) throw new EditorialAiError("CANCELLED");
       const controller = new AbortController();
@@ -87,14 +89,14 @@ export function createEditorialOpenAiClient(options: Options = {}): StructuredLl
       timer = setTimeout(() => { rejectDeadline(new EditorialAiError("TIMEOUT")); controller.abort(); }, effectiveTimeoutMs);
       const startTime = Date.now();
       const run = async () => {
-        diagnostics.providerStarted(attempt, effectiveTimeoutMs);
+        diagnostics.providerStarted(attempt, effectiveTimeoutMs, model);
         const response = await fetcher("https://api.openai.com/v1/chat/completions", {
           method: "POST", redirect: "error", signal: controller.signal,
           headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
           body: JSON.stringify({
             model,
             messages: [{ role: "system", content: input.system }, { role: "user", content: input.user }],
-            reasoning_effort: "high",
+            reasoning_effort: editorialReasoningEffort(model),
             max_completion_tokens: EDITORIAL_OPENAI_LIMITS.maxOutputTokens,
             response_format: { type: "json_schema", json_schema: { name: "destination_editorial_layout", strict: true, schema: input.jsonSchema } },
             store: false,
@@ -105,11 +107,11 @@ export function createEditorialOpenAiClient(options: Options = {}): StructuredLl
         const retryAfter = editorialRetryAfter(response.headers.get("retry-after"));
         let payload: any;
         try { payload = JSON.parse(text); } catch {
-          diagnostics.providerResponse(response.status, response.headers.get("x-request-id"), null, attempt, elapsed, effectiveTimeoutMs);
+          diagnostics.providerResponse(response.status, response.headers.get("x-request-id"), null, attempt, elapsed, effectiveTimeoutMs, model);
           if (!response.ok) throw editorialHttpError(response.status, null, retryAfter);
           throw new EditorialAiError("INVALID_OUTPUT", response.status);
         }
-        diagnostics.providerResponse(response.status, response.headers.get("x-request-id"), payload, attempt, elapsed, effectiveTimeoutMs);
+        diagnostics.providerResponse(response.status, response.headers.get("x-request-id"), payload, attempt, elapsed, effectiveTimeoutMs, model);
         if (!response.ok) throw editorialHttpError(response.status, payload, retryAfter);
         const choice = payload?.choices?.[0];
         if (choice?.finish_reason === "length") throw new EditorialAiError("TOKEN_LIMIT", response.status);

@@ -248,6 +248,22 @@ describe("US25 OpenAI structured client", () => {
   });
 
   it.each([
+    ["gpt-6.1-terra", "none", 1200, true],
+    ["gpt-6-sol", "none", 1200, true],
+    ["gpt-6.1-sol", "low", 4000, false],
+  ])("uses compatible structured-output parameters for %s", async (model, effort, cap, hasTemperature) => {
+    const fetcher = vi.fn(async (_url: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      expect(body).toMatchObject({ model, reasoning_effort: effort, max_completion_tokens: cap, response_format: { type: "json_schema" } });
+      expect("temperature" in body).toBe(hasTemperature);
+      return completionResponse(validOutput());
+    });
+    const client = createOpenAiStructuredClient({ apiKey: () => "secret", model: () => model, fetcher });
+    await expect(client.complete({ system: "s", user: "u", jsonSchema: modelOutputJsonSchema }))
+      .resolves.toMatchObject({ model });
+  });
+
+  it.each([
     [429, 2],
     [500, 2],
   ])("retries one time for retryable HTTP status %s", async (status, expectedCalls) => {

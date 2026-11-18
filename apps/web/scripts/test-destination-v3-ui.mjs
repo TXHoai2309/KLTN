@@ -7,6 +7,7 @@ import { createRequire } from "node:module";
 import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
+import sharp from "sharp";
 import { v3TestStore } from "../src/modules/destination/__fixtures__/v3-store.ts";
 import {
   writeDestination,
@@ -500,14 +501,55 @@ try {
   }
   pass("native category popup keyboard and light/dark screenshots");
   imagesConfigured = true;
+  const png = await sharp(web + "/public/images/ha-giang-highland-poster.webp").resize(640,400).png().toBuffer();
+  await page.evaluate(() => window.mount());
+  await page.waitForFunction(() => !document.querySelector('input[type="file"]').disabled);
+  const beforeLocalSelection = posts.length;
+  await page.locator('input[type="file"]').setInputFiles(["local-first.png", "local-cover.png", "remove-me.png"].map(name => ({name, mimeType: "image/png", buffer: png})));
+  assert.equal(await page.locator(".dimg-local-card").count(), 3);
+  assert.equal(await page.getByText("Chưa có ảnh. Hình ảnh là tùy chọn.", {exact:true}).count(), 0);
+  await page.locator(".dimg-local-card").last().getByRole("button", {name:"Gỡ ảnh",exact:true}).click();
+  await page.locator(".dimg-local-card").last().getByRole("button", {name:"Đặt đại diện",exact:true}).click();
+  await page.locator(".dimg-local-card").last().locator("input").fill("TEST Chú thích trước khi tạo");
+  await page.locator(".dimg-local-card").last().getByRole("button", {name:/lên trước/}).click();
+  assert.equal(await page.locator(".dimg-local-card").first().locator("strong").textContent(), "local-cover.png");
+  assert.equal(await page.locator(".dimg-local-card").first().getByText("Ảnh đại diện", {exact:true}).count(), 1);
+  assert.equal(await page.locator(".dimg-local-card").first().locator("input").inputValue(), "TEST Chú thích trước khi tạo");
+  assert.equal(posts.length, beforeLocalSelection);
+  assert.equal(imageCalls.length, 0);
+  await page.waitForFunction(() => [...document.querySelectorAll(".dimg-local-card img")].every(img => img.complete && img.naturalWidth > 0));
+  await page.waitForFunction(() => !document.querySelector("[data-sonner-toast]"));
+  for (const [width,theme] of [[1440,"light"],[390,"light"],[390,"dark"]]) {
+    await page.setViewportSize({width,height:900});
+    await page.evaluate(t => document.documentElement.classList.toggle("dark",t==="dark"),theme);
+    assert(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth));
+    await page.locator("#dv3-images").screenshot({path:web+`/.cache/destination-v3/local-gallery-${width}-${theme}.png`});
+  }
+  await page.locator("#destination-name").fill("TEST Local gallery choices");
+  await page.locator("#destination-category").selectOption("chợ phiên");
+  await page.locator("#destination-description").fill("TEST Local image preview and selection.");
+  await page.locator("#destination-googleMapsUrl").fill("https://google.com/maps?q=23,105");
+  await page.getByRole("button", {name:"Tạo điểm đến",exact:true}).click();
+  await page.waitForFunction(() => Boolean(window.mockNavigation));
+  const localGalleryId = await page.evaluate(() => window.mockNavigation.split("/")[3]);
+  const localMedia = [...store.rows().get(localGalleryId).media].sort((a,b) => a.position-b.position);
+  assert.equal(localMedia.length, 2);
+  assert.equal(localMedia[0].caption, "TEST Chú thích trước khi tạo");
+  assert.equal(localMedia[0].isCover, true);
+  assert.equal(localMedia[1].isCover, false);
+  assert.equal(posts.length, beforeLocalSelection+1);
+  assert.equal(imageCalls.some(call => call.name === "remove-me.png"), false);
+  pass("Create previews and edits local gallery immediately; caption/cover/order survive upload with one Create action");
+  imageCalls.length = 0;
+  const previousImageAssets = imageAssets.size;
   imageFailure = "failed.png";
   await page.evaluate(() => window.mount());
-  await page.getByRole("button", { name: "Tải ảnh lên", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Chọn ảnh", exact: true }).waitFor();
   await page.waitForFunction(() => !document.querySelector('input[type="file"]').disabled);
-  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l1sAAAAASUVORK5CYII=", "base64");
   await page.locator('input[type="file"]').setInputFiles([{ name: "success.png", mimeType: "image/png", buffer: png }, { name: "failed.png", mimeType: "image/png", buffer: png }]);
   assert.equal(imageCalls.length, 0);
-  assert.equal(await page.locator(".dimg-queue-row").count(), 2);
+  assert.equal(await page.locator(".dimg-local-card").count(), 2);
+  assert.equal(await page.locator(".dimg-card").count(), 2, "Selected photos must appear in the editable gallery before creating the destination");
   await page.locator("#destination-name").fill("TEST Images create");
   await page.locator("#destination-category").selectOption("chợ phiên");
   await page.locator("#destination-description").fill("TEST Synthetic image destination.");
@@ -601,7 +643,7 @@ try {
   await page.getByRole("button",{name:"Lưu thay đổi",exact:true}).click();
   await page.waitForFunction(() => document.querySelectorAll(".dimg-card").length===6 && !document.querySelector('button[type="submit"]').disabled);
   assert.equal(store.rows().get(createdImageId).media.some(m=>m.id===unlinkId),false);
-  assert.equal(imageAssets.size,7);
+  assert.equal(imageAssets.size,previousImageAssets+7);
   pass("Reorder and unlink persist by ID without deleting Cloudinary assets");
   for (const [width, theme] of [[1440, "light"], [360, "light"], [360, "dark"]]) {
     await page.setViewportSize({ width, height: 900 });
