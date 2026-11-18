@@ -2496,3 +2496,11 @@
 @media (max-height: 700px) {
   .assistant-chat-fullscreen .assistant-trust-footer { display: none; }
 }
+
+/* Hidden by product request: internal-source disclosure under answers and the
+   origin/time shortcut in the composer. Markup is kept so behavior can be restored. */
+.assistant-answer-sources,
+.assistant-trust-footer,
+.assistant-composer-left-tools {
+  display: none !important;
+}

@@ -1,6 +1,6 @@
 import type * as MapLibre from "maplibre-gl";
 import { haGiangViewport, toMapCoordinate } from "./map-model";
-import type { PlannerStop } from "../trip-planner/planner-contract";
+import { EXTERNAL_PLACE_LABEL, type PlannerStop } from "../trip-planner/planner-contract";
 import { itineraryDayColorToken, type ItineraryMapRoute } from "./itinerary-map-model";
 
 /** Marker coordinates come from Destination records. Never draws a guessed route. */
@@ -62,15 +62,15 @@ export function mountItineraryMap(host: HTMLDivElement, library: typeof MapLibre
     map.addControl(new library.NavigationControl({ showCompass: true }), "top-right");
     for (const stop of stops) {
       const button = document.createElement("button"); button.type = "button"; button.className = "planner-map-marker";
-      button.textContent = String(stop.order); button.setAttribute("aria-label", `Điểm ${stop.order}: ${stop.destination.name}`); button.setAttribute("aria-pressed", "false");
+      button.textContent = String(stop.order); button.setAttribute("aria-label", `Điểm ${stop.order}: ${stop.destination.name}${stop.destination.external ? ` (${EXTERNAL_PLACE_LABEL})` : ""}`); button.setAttribute("aria-pressed", "false");
       const day = options.markerDays?.get(stop.destination.id);
       if (day !== undefined) {
         button.setAttribute("data-trip-day", String(day));
         button.setAttribute("data-destination-id", stop.destination.id);
         button.style.setProperty("--planner-marker-color", `var(${itineraryDayColorToken(options.overview ? day : 1)})`);
-        button.setAttribute("aria-label", stop.order === 0 ? `Điểm cuối ngày ${day}: ${stop.destination.name}` : `Ngày ${day} · Điểm ${stop.order}: ${stop.destination.name}`);
+        button.setAttribute("aria-label", stop.order === 0 ? `Điểm cuối ngày ${day}: ${stop.destination.name}${stop.destination.external ? ` (${EXTERNAL_PLACE_LABEL})` : ""}` : `Ngày ${day} · Điểm ${stop.order}: ${stop.destination.name}${stop.destination.external ? ` (${EXTERNAL_PLACE_LABEL})` : ""}`);
       }
-      button.title = stop.destination.name;
+      button.title = stop.destination.external ? `${stop.destination.name} (${EXTERNAL_PLACE_LABEL})` : stop.destination.name;
       const click = () => onSelect(stop.destination.id); button.addEventListener("click", click);
       const marker = new library.Marker({ element: button, anchor: "bottom", offset: [0, -6] }).setLngLat(toMapCoordinate(stop.destination)).addTo(map);
       markers.push({ marker, button, click, stop });

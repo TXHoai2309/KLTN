@@ -6,7 +6,7 @@ import type { RouteProvider } from "../trip-planner/planner-routes";
 import { tripRequirementInputSchema } from "../trip-requirement/trip-requirement-contract";
 import { validatePlannerDays } from "../trip-planner/planner-validator";
 import { toTripValidation } from "../trip-planner/planner-save-adapter";
-import { plannerResultSchema, type TravelLeg } from "../trip-planner/planner-contract";
+import { plannerResultSchema, type PlannerResult, type TravelLeg } from "../trip-planner/planner-contract";
 import { assertJourneyReady } from "./trip-origin-service";
 import { planJourney, scheduleJourneyEvidence } from "./journey-planner";
 import type { JourneyPlan } from "./journey-route-contract";
@@ -14,6 +14,8 @@ import { AppError } from "@/server/http/app-error";
 
 export type JourneyDestination = {
   id: string; latitude: number; longitude: number; minimumDurationMinutes: number | null;
+  /** Ticket 09: a place outside the KLTN catalogue, resolved by the server (never client data). The Validator reports it as unchecked. */
+  external?: true;
   openingDays: { dayOfWeek: string; status: string; intervals: { opensAtMinute: number; closesAtMinute: number }[] }[];
 };
 export function journeySaveInput(proposal: TripProposal, destinations: ReadonlyMap<string, JourneyDestination>) {
@@ -24,13 +26,13 @@ export function journeySaveInput(proposal: TripProposal, destinations: ReadonlyM
   const selected: PlannerCandidate[][] = proposal.days.map(day => day.visits.map(visit => {
     const row = destinations.get(visit.destinationId);
     if (!row) throw new AppError("DESTINATION_UNAVAILABLE", "Có điểm đến không còn khả dụng.", 422);
-    return { ...row, name: row.id, description: "", area: "", address: null, category: "", image: null, visibility: "VISIBLE", revision: "canonical-save", suggestedDurationMinutes: visit.plannedDurationMinutes };
+    return { ...row, name: row.id, description: "", area: "", address: null, category: "", image: null, visibility: row.external ? "EXTERNAL" : "VISIBLE", revision: "canonical-save", suggestedDurationMinutes: visit.plannedDurationMinutes };
   }));
   const fixed = new Map(proposal.days.flatMap(day => day.visits.map(visit => [visit.destinationId, visit.startMinute] as const)));
   return { requirement, selected, fixed };
 }
 
-export function journeyValidation(proposal: TripProposal, scheduled: ReturnType<typeof scheduleJourneyEvidence>, selected: PlannerCandidate[][], now: Date): TripValidation {
+export function journeyValidationResult(proposal: TripProposal, scheduled: ReturnType<typeof scheduleJourneyEvidence>, selected: PlannerCandidate[][], now: Date): PlannerResult {
   // Build the same shared checks from actual canonical candidates and requested clocks.
   const requirement = tripRequirementInputSchema.parse({ startDate: proposal.startDate, durationDays: proposal.durationDays, transport: proposal.transport, journey: proposal.journey });
   const validated = validatePlannerDays(requirement, scheduled.days, selected.flat(), scheduled.travelOnlyDays);
@@ -45,15 +47,19 @@ export function journeyValidation(proposal: TripProposal, scheduled: ReturnType<
   const travel = validated.checks.find(check => check.key === "TRAVEL_TIME")!;
   if (scheduled.check.status === "VIOLATION" || travel.status === "PASS") travel.status = scheduled.check.status;
   travel.issues.push(...scheduled.check.issues);
-  const result = plannerResultSchema.parse({ proposalId: "fresh-save-validation", phase: "PRELIMINARY_PROPOSAL", status: validated.checks.some(check => check.status === "VIOLATION") ? "NO_FEASIBLE_ITINERARY" : validated.checks.every(check => check.status === "PASS") ? "PROPOSAL_READY" : "INSUFFICIENT_DATA",
+  return plannerResultSchema.parse({ proposalId: "fresh-save-validation", phase: "PRELIMINARY_PROPOSAL", status: validated.checks.some(check => check.status === "VIOLATION") ? "NO_FEASIBLE_ITINERARY" : validated.checks.every(check => check.status === "PASS") ? "PROPOSAL_READY" : "INSUFFICIENT_DATA",
     requirement, timezone: "Asia/Ho_Chi_Minh", days: scheduled.days, checks: validated.checks, warnings: [], reasonCodes: [], eligibleForFinalConfirmation: validated.checks.every(check => check.status === "PASS") && requirement.startDate !== null, journeyPlan: scheduled.journeyPlan });
-  return toTripValidation(result, now);
+}
+
+export function journeyValidation(proposal: TripProposal, scheduled: ReturnType<typeof scheduleJourneyEvidence>, selected: PlannerCandidate[][], now: Date): TripValidation {
+  return toTripValidation(journeyValidationResult(proposal, scheduled, selected, now), now);
 }
 
 export async function freshJourneyValidation(proposal: TripProposal, destinations: ReadonlyMap<string, JourneyDestination>, routes: RouteProvider, now: Date) {
   const input = journeySaveInput(proposal, destinations);
   const scheduled = await planJourney(input.requirement, input.selected, routes, 10_000, false, input.fixed);
-  return { validation: journeyValidation(proposal, scheduled, input.selected, now), plan: scheduled.journeyPlan };
+  const result = journeyValidationResult(proposal, scheduled, input.selected, now);
+  return { validation: toTripValidation(result, now), plan: scheduled.journeyPlan, result };
 }
 
 /** Reuse ONLY fresh server evidence; any changed coordinate invalidates it before this call. */
@@ -64,5 +70,6 @@ export function revalidateJourneySnapshot(proposal: TripProposal, destinations: 
   const outbound = plan.legs.find(leg => leg.kind === "OUTBOUND")!.route;
   const returning = plan.legs.find(leg => leg.kind === "RETURN")!.route;
   const scheduled = scheduleJourneyEvidence(input.requirement, input.selected, transfers, outbound, returning, input.fixed);
-  return { validation: journeyValidation(proposal, scheduled, input.selected, now), plan: scheduled.journeyPlan };
+  const result = journeyValidationResult(proposal, scheduled, input.selected, now);
+  return { validation: toTripValidation(result, now), plan: scheduled.journeyPlan, result };
 }

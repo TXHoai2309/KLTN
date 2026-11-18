@@ -94,7 +94,7 @@ const FIELD_ORDER = new Map<ClarificationField, number>(
 
 const REQUIRED_FIELDS = new Set<ClarificationField>(["durationDays", "transport"]);
 
-const QUESTION_BY_FIELD: Record<ClarificationField, string> = {
+export const QUESTION_BY_FIELD: Record<ClarificationField, string> = {
   startDate: "Bạn muốn bắt đầu chuyến đi vào ngày nào?",
   durationDays: "Bạn muốn chuyến đi kéo dài bao nhiêu ngày?",
   companions: "Bạn đi cùng ai và nhóm có bao nhiêu người?",

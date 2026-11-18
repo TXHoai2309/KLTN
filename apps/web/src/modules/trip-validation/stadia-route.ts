@@ -2,6 +2,7 @@ import "server-only";
 
 import { isValidMapCoordinate, type MapCoordinate, type RouteGeometry } from "../map/map-model";
 import { assertSupportedTransportValue } from "../trip-requirement/trip-transport-policy";
+import { requestGoogleRoute, routingProviderFromEnv } from "./google-route";
 import { checkTravelTime, type VisitPair } from "./travel-time";
 
 export type TravelRoute =
@@ -132,7 +133,10 @@ export async function requestStadiaRoute(input: RouteInput, options: RouteOption
 /** Preserve US29B/30's duration-only success and existing unavailable result. */
 export async function getTravelRoute(input: RouteInput, options: RouteOptions = {}): Promise<TravelRoute> {
   toStadiaCosting(input.vehicle); // Existing callers reject unsupported transport.
-  const result = await requestStadiaRoute(input, options);
+  // Provider flag is server-side; Stadia stays the default. Google reads its own key (options.apiKey is a Stadia key).
+  const result = routingProviderFromEnv() === "GOOGLE"
+    ? await requestGoogleRoute(input, { fetcher: options.fetcher, timeoutMs: options.timeoutMs, signal: options.signal })
+    : await requestStadiaRoute(input, options);
   return result.kind === "ok" ? result : unavailable();
 }
 

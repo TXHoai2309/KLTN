@@ -1893,3 +1893,7 @@
     animation: none;
   }
 }
+
+.planner-stop-external, .planner-stop-source { font-size: 0.75rem; color: var(--muted-foreground, #6b7280); }
+.planner-stop-external { border: 1px dashed currentColor; border-radius: 999px; padding: 0 0.5rem; }
+.planner-external-notice { margin-top: 0.75rem; font-size: 0.875rem; }

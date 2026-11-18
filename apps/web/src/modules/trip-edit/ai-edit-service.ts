@@ -41,6 +41,7 @@ import {
   previewEdit,
   type TripEditRouteProvider,
 } from "./trip-edit-service";
+import { requireDestinationVisits, type DestinationOnlyTrip } from "../trip-read/itinerary-visit-place";
 
 const aiEditTripSelect = {
   id: true,
@@ -67,7 +68,7 @@ const aiEditTripSelect = {
   },
 } satisfies Prisma.TripSelect;
 
-type OwnedTrip = Prisma.TripGetPayload<{ select: typeof aiEditTripSelect }>;
+type OwnedTrip = DestinationOnlyTrip<Prisma.TripGetPayload<{ select: typeof aiEditTripSelect }>>;
 
 const eligibleDestinationSelect = {
   id: true,
@@ -427,11 +428,12 @@ export async function createAiEditProposal(
 ): Promise<AiEditServiceResult> {
   validateRequest(request);
 
-  const trip = await dependencies.database.trip.findFirst({
+  const found = await dependencies.database.trip.findFirst({
     where: { id: tripId, userId },
     select: aiEditTripSelect,
   });
-  if (!trip) throw tripNotFound();
+  if (!found) throw tripNotFound();
+  const trip = requireDestinationVisits(found);
 
   const baseRevision = trip.updatedAt.toISOString();
   if (request.baseRevision !== baseRevision) throw revisionConflict();

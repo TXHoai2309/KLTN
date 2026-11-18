@@ -1,10 +1,11 @@
 import type { MutationApiResponse } from "../../lib/mutation-contract";
 import type { TripProposal } from "../trip-validation/trip-proposal-contract";
 import type { TripValidation } from "../trip-validation/trip-validation";
+import { uncheckedItemSchema, type UncheckedItem } from "./unchecked-checks";
 
 export type TripSaveClientResult =
-  | { status: "SUCCESS"; tripId: string; validation: TripValidation }
-  | { status: "FAILED"; message: string; validation?: TripValidation }
+  | { status: "SUCCESS"; tripId: string; validation: TripValidation; unchecked: UncheckedItem[] }
+  | { status: "FAILED"; message: string; validation?: TripValidation; /** Server's own list when it refused for a missing or stale confirmation. */ unchecked?: UncheckedItem[] }
   | { status: "UNKNOWN"; message: string };
 
 const unknown = (): TripSaveClientResult => ({ status: "UNKNOWN", message: "Chưa xác định được kết quả lưu. Thử lại sẽ dùng cùng mã yêu cầu." });
@@ -38,20 +39,30 @@ export async function requestTripValidation(proposal: TripProposal, signal?: Abo
 }
 
 /** UNKNOWN preserves the caller's key and proposal so a retry can reconcile the write. */
-export async function submitTripSave(proposal: TripProposal, key: string, signal?: AbortSignal, fetcher: typeof fetch = fetch): Promise<TripSaveClientResult> {
+const parseUnchecked = (value: unknown): UncheckedItem[] | null => {
+  const parsed = uncheckedItemSchema.array().safeParse(value);
+  return parsed.success ? parsed.data : null;
+};
+
+/** `acknowledgedUnchecked` is the user's explicit confirmation of the unchecked items; omitted for an all-PASS schedule. */
+export async function submitTripSave(proposal: TripProposal, key: string, signal?: AbortSignal, fetcher: typeof fetch = fetch, acknowledgedUnchecked?: UncheckedItem[]): Promise<TripSaveClientResult> {
   try {
     const response = await fetcher("/api/trips", {
       method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": key },
-      body: JSON.stringify({ confirm: true, proposal }), signal,
+      body: JSON.stringify({ confirm: true, proposal, ...(acknowledgedUnchecked ? { acknowledgedUnchecked: { confirmed: true, items: acknowledgedUnchecked } } : {}) }), signal,
     });
-    const result = await response.json() as MutationApiResponse<{ tripId: string; validation: TripValidation }>;
+    const result = await response.json() as MutationApiResponse<{ tripId: string; validation: TripValidation; unchecked?: unknown }>;
+    const savedUnchecked = result.success === true && result.data?.unchecked !== undefined ? parseUnchecked(result.data.unchecked) : [];
+    // A schedule saved with unchecked items is SUCCESS only if the server returned its list and no check is FAILED; it is never PASS.
+    const confirmedOk = (validation: TripValidation) => validation.canConfirm ? savedUnchecked?.length === 0 : !!savedUnchecked?.length && acknowledgedUnchecked !== undefined && Object.values(validation.groups).every(group => group.status !== "VIOLATION");
     if (response.ok && result.success === true && result.operationStatus === "SUCCESS"
-      && typeof result.data?.tripId === "string" && result.data.tripId.length > 0 && isValidation(result.data.validation) && result.data.validation.canConfirm) {
-      return { status: "SUCCESS", tripId: result.data.tripId, validation: result.data.validation };
+      && typeof result.data?.tripId === "string" && result.data.tripId.length > 0 && isValidation(result.data.validation) && confirmedOk(result.data.validation)) {
+      return { status: "SUCCESS", tripId: result.data.tripId, validation: result.data.validation, unchecked: savedUnchecked ?? [] };
     }
     if (!result.success && result.operationStatus === "FAILED" && typeof result.error?.message === "string") {
-      const details = result.error.details as { validation?: unknown } | undefined;
-      return { status: "FAILED", message: result.error.message, ...(isValidation(details?.validation) ? { validation: details.validation } : {}) };
+      const details = result.error.details as { validation?: unknown; unchecked?: unknown } | undefined;
+      const serverList = parseUnchecked(details?.unchecked);
+      return { status: "FAILED", message: result.error.message, ...(isValidation(details?.validation) ? { validation: details.validation } : {}), ...(serverList?.length ? { unchecked: serverList } : {}) };
     }
     return unknown();
   } catch {

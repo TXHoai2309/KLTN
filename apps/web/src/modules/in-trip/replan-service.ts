@@ -40,6 +40,7 @@ import type { InTripLocation } from "./in-trip-location";
 import { preserveCompleted, ReplanCompletedVisitError } from "./preserve-completed";
 import { splitCompletedRemaining } from "./split-trip";
 import { assertLocationIndependentScope } from "./location-independent-scope";
+import { requireDestinationVisits, type DestinationOnlyTrip } from "../trip-read/itinerary-visit-place";
 
 export const inTripReplanTripSelect = {
   id: true,
@@ -68,7 +69,7 @@ export const inTripReplanTripSelect = {
   },
 } satisfies Prisma.TripSelect;
 
-type OwnedTrip = Prisma.TripGetPayload<{ select: typeof inTripReplanTripSelect }>;
+type OwnedTrip = DestinationOnlyTrip<Prisma.TripGetPayload<{ select: typeof inTripReplanTripSelect }>>;
 
 const eligibleDestinationSelect = {
   id: true,
@@ -339,11 +340,12 @@ export async function replanTrip(
   request: ReplanRequest,
   dependencies: ReplanServiceDependencies,
 ): Promise<ReplanServiceResult> {
-  const trip = await dependencies.database.trip.findFirst({
+  const found = await dependencies.database.trip.findFirst({
     where: { id: tripId, userId },
     select: inTripReplanTripSelect,
   });
-  if (!trip) throw tripNotFound();
+  if (!found) throw tripNotFound();
+  const trip = requireDestinationVisits(found);
 
   const baseRevision = trip.updatedAt.toISOString();
   if (request.baseRevision !== baseRevision) throw revisionConflict();

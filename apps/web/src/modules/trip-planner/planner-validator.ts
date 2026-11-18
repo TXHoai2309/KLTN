@@ -22,7 +22,10 @@ export function validatePlannerDays(requirement: TripRequirementInput, days: rea
     for (const stop of day.stops) {
       const id = stop.destination.id, candidate = data.get(id);
       stopStatuses.set(id, stopStatuses.get(id) ?? "PASS");
-      if (!candidate || candidate.visibility !== "VISIBLE" || seen.has(id)) add("SCHEDULE_CONFLICTS", "VIOLATION", "INELIGIBLE_OR_DUPLICATE", "Điểm đến không hợp lệ hoặc bị lặp.", day.day, id);
+      // An external place is judged by the server's candidate (never the stop): unverified, so missing data, not a pass.
+      const external = candidate?.external === true;
+      if (!candidate || (!external && candidate.visibility !== "VISIBLE") || seen.has(id)) add("SCHEDULE_CONFLICTS", "VIOLATION", "INELIGIBLE_OR_DUPLICATE", "Điểm đến không hợp lệ hoặc bị lặp.", day.day, id);
+      else if (external) add("SCHEDULE_CONFLICTS", "INSUFFICIENT_DATA", "EXTERNAL_PLACE_UNVERIFIED", "Địa điểm ngoài danh mục (Google Maps): chưa được KLTN kiểm tra tính hiển thị, giờ mở cửa và thời lượng tối thiểu.", day.day, id);
       seen.add(id);
       if (!candidate?.minimumDurationMinutes || !Number.isInteger(candidate.minimumDurationMinutes)) add("MINIMUM_DURATION", "INSUFFICIENT_DATA", "MINIMUM_UNKNOWN", "Chưa có thời lượng tham quan tối thiểu đã xác minh.", day.day, id);
       else if (stop.visitDurationMinutes < candidate.minimumDurationMinutes) add("MINIMUM_DURATION", "VIOLATION", "VISIT_TOO_SHORT", "Thời lượng tham quan ngắn hơn mức tối thiểu.", day.day, id);

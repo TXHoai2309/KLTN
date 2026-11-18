@@ -30,6 +30,8 @@
     "rag:citations:backfill": "varlock run -- node --conditions=react-server --import tsx scripts/backfill-rag-citations.ts"
   },
   "dependencies": {
+    "@ai-sdk/openai": "4.0.14",
+    "@ai-sdk/react": "4.0.30",
     "@KLTN/auth": "*",
     "@KLTN/db": "*",
     "@KLTN/ui": "*",
@@ -44,6 +46,7 @@
     "@tiptap/starter-kit": "^3.31.4",
     "@varlock/nextjs-integration": "1.2.2",
     "@vercel/blob": "2.8.1",
+    "ai": "7.0.28",
     "babel-plugin-react-compiler": "^1.0.0",
     "better-auth": "1.7.5",
     "cloudinary": "^2.11.0",

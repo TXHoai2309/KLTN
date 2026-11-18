@@ -6,6 +6,10 @@ import { journeyPlanSchema } from "../trip-origin/journey-route-contract";
 
 export const PLANNER_PHASES = ["PRELIMINARY_PROPOSAL", "FINAL_CONFIRMATION", "OFFICIAL_SAVE"] as const;
 export const CHECK_KEYS = ["OPENING_HOURS", "MINIMUM_DURATION", "TRAVEL_TIME", "SCHEDULE_CONFLICTS", "MOBILITY"] as const;
+/** Vietnamese UI labels for a place outside the KLTN catalogue; the only source shown is the plain text "Google Maps". */
+export const EXTERNAL_PLACE_LABEL = "ngoài danh mục (chưa kiểm)";
+export const EXTERNAL_STAY_ESTIMATE_LABEL = "ước tính";
+export const EXTERNAL_PLACE_SOURCE_LABEL = "Nguồn: Google Maps";
 export const checkStatusSchema = z.enum(["PASS", "VIOLATION", "INSUFFICIENT_DATA"]);
 export type CheckStatus = z.infer<typeof checkStatusSchema>;
 const id = z.string().min(1).max(128);
@@ -15,6 +19,8 @@ export const plannerDestinationSchema = z.object({
   address: z.string().max(1000).nullable(), category: z.string().max(100),
   latitude: z.number().finite().min(-90).max(90), longitude: z.number().finite().min(-180).max(180),
   image: z.object({ url: publicHttpsUrl, alt: z.string().max(300), author: z.string().max(200).nullable(), sourceUrl: publicHttpsUrl.nullable() }).strict().nullable(),
+  /** Present only for a place outside the KLTN catalogue (Google Places). Absent means a KLTN destination; old data parses unchanged. */
+  external: z.literal(true).optional(),
 }).strict();
 export const travelLegSchema = z.object({
   fromDestinationId: id, toDestinationId: id,
@@ -22,7 +28,7 @@ export const travelLegSchema = z.object({
   reason: z.enum(["NOT_CONFIGURED", "TIMEOUT", "UNAVAILABLE", "UNSUPPORTED_MODE", "NO_ROUTE", "INVALID_RESPONSE"]).nullable(),
   durationSeconds: z.number().finite().nonnegative().max(604800).nullable(),
   distanceMeters: z.number().finite().nonnegative().max(10_000_000).nullable(),
-  provider: z.literal("STADIA_MAPS").nullable(),
+  provider: z.enum(["STADIA_MAPS", "GOOGLE_MAPS"]).nullable(),
   geometry: plannerRouteGeometrySchema.optional(),
 }).strict().superRefine((leg, ctx) => {
   if (leg.status === "VERIFIED" && (leg.durationSeconds === null || leg.distanceMeters === null || leg.provider === null || leg.reason !== null))

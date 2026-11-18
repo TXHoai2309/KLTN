@@ -11,7 +11,7 @@ export const journeyRouteSchema = z.object({
   reason: z.enum(["NOT_CONFIGURED", "TIMEOUT", "UNAVAILABLE", "UNSUPPORTED_MODE", "NO_ROUTE", "INVALID_RESPONSE"]).nullable(),
   durationSeconds: z.number().finite().nonnegative().max(604800).nullable(),
   distanceMeters: z.number().finite().nonnegative().max(10_000_000).nullable(),
-  provider: z.literal("STADIA_MAPS").nullable(),
+  provider: z.enum(["STADIA_MAPS", "GOOGLE_MAPS"]).nullable(),
   geometry: plannerRouteGeometrySchema.optional(),
 }).strict().superRefine((route, ctx) => {
   if (route.status === "VERIFIED" ? route.durationSeconds === null || route.distanceMeters === null || route.provider === null || route.reason !== null

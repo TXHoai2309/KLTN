@@ -6,12 +6,27 @@ import { richContentText } from "../culture/culture-rich-content";
 import type { TripInterest } from "../trip-requirement/trip-requirement-contract";
 import type { z } from "zod";
 import type { plannerDestinationSchema } from "./planner-contract";
+import { EXTERNAL_PLACE_ID_PREFIX } from "./external-place-id";
+import { EXTERNAL_PLACE_DEFAULT_STAY_MINUTES } from "./planner-external-stay";
 
 export type PlannerCandidate = z.infer<typeof plannerDestinationSchema> & {
   visibility: string; revision: string; suggestedDurationMinutes: number | null; minimumDurationMinutes: number | null;
   openingDays: { dayOfWeek: string; status: string; intervals: { opensAtMinute: number; closesAtMinute: number }[] }[];
 };
 export const MAX_CANDIDATES = 64;
+export { EXTERNAL_PLACE_ID_PREFIX };
+/** Google place ids are url-safe; the whole prefixed id must fit the 128-character destination id of the planner contract. */
+export const isSchedulablePlaceId = (placeId: string) => /^[A-Za-z0-9_-]{1,100}$/.test(placeId);
+export const isExternalPlannerCandidate = (candidate: Pick<PlannerCandidate, "external">) => candidate.external === true;
+/**
+ * An external place as a scheduler candidate. Name and coordinates come from the server-side `searchPlaces` result of the
+ * current turn only. It carries no hours and no minimum stay (unknown, never invented); the stay is the suggested default.
+ */
+export function externalPlannerCandidate(place: { placeId: string; name: string; latitude: number; longitude: number }): PlannerCandidate {
+  return { id: `${EXTERNAL_PLACE_ID_PREFIX}${place.placeId}`, name: place.name, description: "", area: "Hà Giang", category: "Ngoài danh mục", address: null,
+    latitude: place.latitude, longitude: place.longitude, image: null, external: true, visibility: "EXTERNAL", revision: "external",
+    suggestedDurationMinutes: EXTERNAL_PLACE_DEFAULT_STAY_MINUTES, minimumDurationMinutes: null, openingDays: [] };
+}
 export type PlannerCandidateInventory = { candidates: PlannerCandidate[]; publicRowCount: number; invalidCoordinateCount: number; excludedCount: number };
 const select = {
   id: true, name: true, description: true, shortDescription: true, area: true, category: true, address: true,
@@ -39,11 +54,12 @@ export async function retrievePlannerCandidateInventory(database: Pick<Database,
 }
 export function candidateSnapshot(candidate: PlannerCandidate) { return JSON.stringify(candidate); }
 export async function recheckPlannerCandidates(database: Pick<Database, "destination">, candidates: readonly PlannerCandidate[], excludedIds: readonly string[] = []): Promise<boolean> {
-  const ids = candidates.map(candidate => candidate.id);
+  // External places are never stored, so there is nothing in the database to re-read for them.
+  const ids = candidates.filter(candidate => !isExternalPlannerCandidate(candidate)).map(candidate => candidate.id);
   if (!ids.length) return true;
   if ((await findEligibleDestinationIds(ids, database)).length !== ids.length) return false;
   const current = new Map((await retrievePlannerCandidates(database, ids, excludedIds)).map(candidate => [candidate.id, candidateSnapshot(candidate)]));
-  return candidates.every(candidate => current.get(candidate.id) === candidateSnapshot(candidate));
+  return candidates.every(candidate => isExternalPlannerCandidate(candidate) || current.get(candidate.id) === candidateSnapshot(candidate));
 }
 const normalized = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
 // Ranking heuristic only, not an approved taxonomy mapping or a factual suitability claim.
