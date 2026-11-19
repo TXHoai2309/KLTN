@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock,
+  Columns2,
   Layers,
   LoaderCircle,
   Lock,
@@ -235,9 +236,9 @@ export default function EditTripClient({
     initialCandidate.days[0]?.visits[0]?.destinationId ?? null,
   );
   const [focusSelection, setFocusSelection] = useState(false);
-  const [mobileTab, setMobileTab] = useState<"assistant" | "timeline" | "map">(
-    entryMode === "in-trip" ? "assistant" : "timeline",
-  );
+  const [mobileTab, setMobileTab] = useState<"assistant" | "timeline" | "map">("assistant");
+  const [desktopSplit, setDesktopSplit] = useState(false);
+  const [splitRightTab, setSplitRightTab] = useState<"timeline" | "map">("timeline");
   const [timingDrafts, setTimingDrafts] = useState<Record<string, { startTime: string; duration: string }>>({});
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [announcement, setAnnouncement] = useState("");
@@ -1249,13 +1250,18 @@ export default function EditTripClient({
     if (nextIdx === -1) return;
     event.preventDefault();
     const nextTab = order[nextIdx]!;
+    setDesktopSplit(false);
     setMobileTab(nextTab);
     if (nextTab === "assistant") setAiOpen(true);
     document.getElementById(`mobile-tab-${nextTab}`)?.focus();
   }
 
   function handleJumpToTabFromAi(tab: "timeline" | "map") {
-    setMobileTab(tab);
+    if (desktopSplit) {
+      setSplitRightTab(tab);
+    } else {
+      setMobileTab(tab);
+    }
     if (tab === "timeline" && lastAiChange) {
       const firstChangedVisitId =
         [...lastAiChange.added][0] ??
@@ -1295,36 +1301,117 @@ export default function EditTripClient({
     );
   }
 
-  return (
-    <main className={styles.page} lang="vi" aria-label="Không gian chỉnh sửa hành trình">
-      <div className={styles.content}>
-        <div className={styles.topNavRow}>
-          <Link className={styles.backLink} href={`/trips/${tripId}` as Route}>
-            <ArrowLeft size={16} aria-hidden="true" />
-            Trở về hành trình
-          </Link>
-        </div>
+  const viewModeClass = desktopSplit
+    ? `${styles.workspaceGridSplit} ${splitRightTab === "timeline" ? styles.viewSplitTimeline : styles.viewSplitMap}`
+    : mobileTab === "assistant"
+      ? styles.viewAssistant
+      : mobileTab === "timeline"
+        ? styles.viewTimeline
+        : styles.viewMap;
 
-        <header className={styles.workspaceHeader}>
-          <div className={styles.headerCopy}>
-            <h1>Chỉnh sửa lịch trình {workspace.baseline.durationDays} ngày</h1>
-            <div className={styles.metaChips}>
-              <span className={styles.metaChip}>
-                <CalendarDays size={14} aria-hidden="true" />
-                {dateLabel(workspace.baseline.startDate)} – {dateLabel(savedEndDate)}
-              </span>
-              <span className={styles.metaChip}>
-                <CarFront size={14} aria-hidden="true" />
-                {workspace.baseline.transport === "MOTORCYCLE" ? "Xe máy" : "Ô tô"}
-              </span>
-              <span className={styles.metaChip}>
-                <MapPin size={14} aria-hidden="true" />
-                {draftVisitCount} lượt tham quan
-              </span>
+  return (
+    <main
+      className={`${styles.page} ${styles.pageFullscreen}`}
+      lang="vi"
+      aria-label="Không gian chỉnh sửa hành trình"
+    >
+      <header className={styles.workspaceHeader}>
+        <div className={styles.headerTopInner}>
+          <div className={styles.headerLeftGroup}>
+            <Link className={styles.backLink} href={`/trips/${tripId}` as Route} aria-label="Trở về hành trình">
+              <ArrowLeft size={16} aria-hidden="true" />
+              <span className={styles.backLinkText}>Trở về hành trình</span>
+            </Link>
+            <div className={styles.headerTitleBlock}>
+              <h1>Chỉnh sửa lịch trình {workspace.baseline.durationDays} ngày</h1>
+              <div className={styles.metaChips}>
+                <span className={styles.metaChip}>
+                  <CalendarDays size={13} aria-hidden="true" />
+                  {dateLabel(workspace.baseline.startDate)} – {dateLabel(savedEndDate)}
+                </span>
+                <span className={styles.metaChip}>
+                  <CarFront size={13} aria-hidden="true" />
+                  {workspace.baseline.transport === "MOTORCYCLE" ? "Xe máy" : "Ô tô"}
+                </span>
+                <span className={styles.metaChip}>
+                  <MapPin size={13} aria-hidden="true" />
+                  {draftVisitCount} lượt
+                </span>
+              </div>
             </div>
-            <p className={styles.fixedNote}>
-              Ngày bắt đầu, số ngày và phương tiện giữ cố định. Lịch trình đã lưu ({savedVisitCount} lượt) chỉ cập nhật sau khi bạn xác nhận lưu.
-            </p>
+          </div>
+
+          <div className={styles.headerCenterTabs}>
+            <div
+              className={styles.mobileTabs}
+              role="tablist"
+              aria-label="Chuyển chế độ xem"
+              onKeyDown={handleMobileTabKeyDown}
+            >
+              <button
+                id="mobile-tab-assistant"
+                type="button"
+                role="tab"
+                aria-selected={!desktopSplit && mobileTab === "assistant"}
+                aria-controls="assistant-panel-col"
+                tabIndex={!desktopSplit && mobileTab === "assistant" ? 0 : -1}
+                className={`${styles.mobileTabBtn} ${!desktopSplit && mobileTab === "assistant" ? styles.mobileTabActive : ""}`}
+                onClick={() => {
+                  setDesktopSplit(false);
+                  setMobileTab("assistant");
+                  setAiOpen(true);
+                }}
+              >
+                <Sparkles size={15} aria-hidden="true" />
+                Trợ lý AI
+              </button>
+              <button
+                id="mobile-tab-timeline"
+                type="button"
+                role="tab"
+                aria-selected={!desktopSplit && mobileTab === "timeline"}
+                aria-controls="timeline-panel-col"
+                tabIndex={!desktopSplit && mobileTab === "timeline" ? 0 : -1}
+                className={`${styles.mobileTabBtn} ${!desktopSplit && mobileTab === "timeline" ? styles.mobileTabActive : ""}`}
+                onClick={() => {
+                  setDesktopSplit(false);
+                  setMobileTab("timeline");
+                }}
+              >
+                <CalendarDays size={15} aria-hidden="true" />
+                Lịch trình ({draftVisitCount})
+              </button>
+              <button
+                id="mobile-tab-map"
+                type="button"
+                role="tab"
+                aria-selected={!desktopSplit && mobileTab === "map"}
+                aria-controls="map-panel-col"
+                tabIndex={!desktopSplit && mobileTab === "map" ? 0 : -1}
+                className={`${styles.mobileTabBtn} ${!desktopSplit && mobileTab === "map" ? styles.mobileTabActive : ""}`}
+                onClick={() => {
+                  setDesktopSplit(false);
+                  setMobileTab("map");
+                }}
+              >
+                <MapIcon size={15} aria-hidden="true" />
+                Bản đồ
+              </button>
+            </div>
+
+            <button
+              type="button"
+              className={`${styles.desktopSplitBtn} ${desktopSplit ? styles.desktopSplitBtnActive : ""}`}
+              aria-pressed={desktopSplit}
+              onClick={() => {
+                setDesktopSplit((prev) => !prev);
+                setAiOpen(true);
+              }}
+              title="Xem song hành Trợ lý AI cùng Lịch trình / Bản đồ"
+            >
+              <Columns2 size={15} aria-hidden="true" />
+              <span>Chia đôi</span>
+            </button>
           </div>
 
           <div className={styles.headerToolbar}>
@@ -1334,33 +1421,49 @@ export default function EditTripClient({
             >
               {editDirty ? `${changeCount} thay đổi chưa lưu` : "Đã lưu"}
             </span>
+            {validationGroupSummary && validationGroupSummary.violationCount > 0 && (
+              <button
+                type="button"
+                className={styles.headerWarnChip}
+                onClick={() => {
+                  if (desktopSplit) {
+                    setSplitRightTab("map");
+                  } else {
+                    setMobileTab("map");
+                  }
+                }}
+              >
+                <AlertTriangle size={13} aria-hidden="true" />
+                <span>{validationGroupSummary.violationCount} lưu ý</span>
+              </button>
+            )}
             <button
               type="button"
-              className={styles.toolButton}
+              className={styles.toolButtonCompactHeader}
               disabled={applyInProgress || workspace.undoStack.length === 0}
               onClick={handleUndo}
               aria-label="Hoàn tác"
             >
               <Undo2 size={15} aria-hidden="true" />
-              Hoàn tác
+              <span className={styles.headerBtnText}>Hoàn tác</span>
             </button>
             <button
               type="button"
-              className={styles.toolButton}
+              className={styles.toolButtonCompactHeader}
               disabled={applyInProgress || workspace.redoStack.length === 0}
               onClick={handleRedo}
               aria-label="Làm lại"
             >
               <Redo2 size={15} aria-hidden="true" />
-              Làm lại
+              <span className={styles.headerBtnText}>Làm lại</span>
             </button>
             {applyInProgress ? (
-              <button className={styles.cancelButton} type="button" disabled>
+              <button className={styles.cancelButtonCompact} type="button" disabled>
                 Hủy chỉnh sửa
               </button>
             ) : (
               <Link
-                className={styles.cancelButton}
+                className={styles.cancelButtonCompact}
                 href={`/trips/${tripId}` as Route}
                 onPointerDown={(event) => {
                   if (event.button === 0) discardAndLeave();
@@ -1372,7 +1475,7 @@ export default function EditTripClient({
             )}
             <button
               type="button"
-              className={styles.primaryButton}
+              className={styles.primaryButtonCompact}
               disabled={!editDirty || !previewCanConfirm || applyInProgress}
               onClick={() => setConfirmOpen(true)}
             >
@@ -1380,105 +1483,16 @@ export default function EditTripClient({
               Lưu thay đổi
             </button>
           </div>
-        </header>
+        </div>
+      </header>
 
+      <div className={`${styles.content} ${viewModeClass}`}>
         <p className={styles.announcement} role="status" aria-live="polite">
           {announcement}
         </p>
 
-        {workingDraft.days.length > 1 && (
-          <nav className={styles.dayTabs} aria-label="Điều hướng các ngày">
-            <button
-              type="button"
-              className={`${styles.dayTab} ${activeDayIndex === null ? styles.dayTabActive : ""}`}
-              onClick={() => setActiveDayIndex(null)}
-            >
-              <Layers size={14} aria-hidden="true" />
-              Tất cả ({workingDraft.days.length} ngày)
-            </button>
-            {workingDraft.days.map((day) => (
-              <button
-                key={day.dayIndex}
-                type="button"
-                className={`${styles.dayTab} ${activeDayIndex === day.dayIndex ? styles.dayTabActive : ""}`}
-                onClick={() => {
-                  setActiveDayIndex(day.dayIndex);
-                  const first = day.visits[0];
-                  if (first) {
-                    setSelectedDestinationId(first.destinationId);
-                    setFocusSelection(true);
-                  }
-                }}
-              >
-                <span
-                  className={styles.dayTabDot}
-                  style={{ background: `var(--planner-route-${((day.dayIndex - 1) % 3) + 1})` }}
-                  aria-hidden="true"
-                />
-                Ngày {day.dayIndex} ({day.visits.length})
-              </button>
-            ))}
-          </nav>
-        )}
-
         <div
-          className={styles.mobileTabs}
-          role="tablist"
-          aria-label="Chuyển chế độ xem"
-          onKeyDown={handleMobileTabKeyDown}
-        >
-          <button
-            id="mobile-tab-assistant"
-            type="button"
-            role="tab"
-            aria-selected={mobileTab === "assistant"}
-            aria-controls="assistant-panel-col"
-            tabIndex={mobileTab === "assistant" ? 0 : -1}
-            className={`${styles.mobileTabBtn} ${mobileTab === "assistant" ? styles.mobileTabActive : ""}`}
-            onClick={() => {
-              setMobileTab("assistant");
-              setAiOpen(true);
-            }}
-          >
-            <Sparkles size={15} aria-hidden="true" />
-            Trợ lý AI
-          </button>
-          <button
-            id="mobile-tab-timeline"
-            type="button"
-            role="tab"
-            aria-selected={mobileTab === "timeline"}
-            aria-controls="timeline-panel-col"
-            tabIndex={mobileTab === "timeline" ? 0 : -1}
-            className={`${styles.mobileTabBtn} ${mobileTab === "timeline" ? styles.mobileTabActive : ""}`}
-            onClick={() => setMobileTab("timeline")}
-          >
-            <CalendarDays size={15} aria-hidden="true" />
-            Lịch trình
-          </button>
-          <button
-            id="mobile-tab-map"
-            type="button"
-            role="tab"
-            aria-selected={mobileTab === "map"}
-            aria-controls="map-panel-col"
-            tabIndex={mobileTab === "map" ? 0 : -1}
-            className={`${styles.mobileTabBtn} ${mobileTab === "map" ? styles.mobileTabActive : ""}`}
-            onClick={() => setMobileTab("map")}
-          >
-            <MapIcon size={15} aria-hidden="true" />
-            Bản đồ ({draftVisitCount})
-          </button>
-        </div>
-
-        <div
-          className={`${styles.workspaceGrid} ${!aiOpen ? styles.workspaceGridCollapsed : ""} ${
-            mobileTab === "assistant"
-              ? styles.viewAssistant
-              : mobileTab === "timeline"
-                ? styles.viewTimeline
-                : styles.viewMap
-          }`}
+          className={`${styles.workspaceGrid} ${!aiOpen ? styles.workspaceGridCollapsed : ""} ${viewModeClass}`}
         >
           <aside id="assistant-panel-col" className={styles.assistantColumn} aria-label="Khung hội thoại Trợ lý chuyến đi">
             <div className={styles.assistantSticky}>
@@ -1492,7 +1506,9 @@ export default function EditTripClient({
                 tripStatus={liveTripStatus}
                 hasOrigin={Boolean(workingDraft.journey?.origin?.confirmed)}
                 unavailableCount={instantChecks.unavailableVisits.length}
-                autoFocus={entryMode === "in-trip"}
+                autoFocus={entryMode === "in-trip" || (!desktopSplit && mobileTab === "assistant")}
+                tripHeadline={`Trợ lý chuyến đi ${workspace.baseline.durationDays} ngày`}
+                showCollapseToggle={desktopSplit}
                 onClearHistory={() => {
                   setAiThread([]);
                   setAiBarState({ kind: "IDLE" });
@@ -1530,7 +1546,72 @@ export default function EditTripClient({
             </div>
           </aside>
 
+          <div className={styles.secondaryTopControls}>
+            {desktopSplit && (
+              <div className={styles.splitRightTabs} role="tablist" aria-label="Chuyển bảng bên phải">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={splitRightTab === "timeline"}
+                  className={`${styles.splitRightTabBtn} ${splitRightTab === "timeline" ? styles.splitRightTabActive : ""}`}
+                  onClick={() => setSplitRightTab("timeline")}
+                >
+                  <CalendarDays size={14} aria-hidden="true" />
+                  Lịch trình ({draftVisitCount})
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={splitRightTab === "map"}
+                  className={`${styles.splitRightTabBtn} ${splitRightTab === "map" ? styles.splitRightTabActive : ""}`}
+                  onClick={() => setSplitRightTab("map")}
+                >
+                  <MapIcon size={14} aria-hidden="true" />
+                  Bản đồ &amp; Kiểm tra
+                </button>
+              </div>
+            )}
+
+            {workingDraft.days.length > 1 && (
+              <nav className={styles.dayTabs} aria-label="Điều hướng các ngày">
+                <button
+                  type="button"
+                  className={`${styles.dayTab} ${activeDayIndex === null ? styles.dayTabActive : ""}`}
+                  onClick={() => setActiveDayIndex(null)}
+                >
+                  <Layers size={14} aria-hidden="true" />
+                  Tất cả ({workingDraft.days.length} ngày)
+                </button>
+                {workingDraft.days.map((day) => (
+                  <button
+                    key={day.dayIndex}
+                    type="button"
+                    className={`${styles.dayTab} ${activeDayIndex === day.dayIndex ? styles.dayTabActive : ""}`}
+                    onClick={() => {
+                      setActiveDayIndex(day.dayIndex);
+                      const first = day.visits[0];
+                      if (first) {
+                        setSelectedDestinationId(first.destinationId);
+                        setFocusSelection(true);
+                      }
+                    }}
+                  >
+                    <span
+                      className={styles.dayTabDot}
+                      style={{ background: `var(--planner-route-${((day.dayIndex - 1) % 3) + 1})` }}
+                      aria-hidden="true"
+                    />
+                    Ngày {day.dayIndex} ({day.visits.length})
+                  </button>
+                ))}
+              </nav>
+            )}
+          </div>
+
           <section id="timeline-panel-col" className={styles.timelineColumn} aria-label="Bản nháp chỉnh sửa theo ngày" inert={applyInProgress}>
+            <p className={styles.fixedNote} style={{ marginBottom: 8 }}>
+              Ngày bắt đầu, số ngày và phương tiện giữ cố định. Lịch trình đã lưu ({savedVisitCount} lượt) chỉ cập nhật sau khi bạn xác nhận lưu.
+            </p>
 
             <div className={styles.autoShiftBar}>
               <label className={styles.toggleLabel}>
@@ -2327,7 +2408,7 @@ export default function EditTripClient({
         </div>
       </div>
 
-      {aiBarState.kind === "APPLIED" && mobileTab === "assistant" && (
+      {aiBarState.kind === "APPLIED" && !desktopSplit && mobileTab === "assistant" && (
         <div className={styles.mobileAiJumpBanner} role="status" aria-live="polite">
           <span className={styles.mobileAiJumpText}>Đã cập nhật bản nháp</span>
           <div className={styles.mobileAiJumpActions}>

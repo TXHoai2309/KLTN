@@ -310,7 +310,7 @@ describe("Ticket 01 workspace rendering and map adapter", () => {
     expect(clientSource).toContain("onCancel");
   });
 
-  it("Saved-trip assistant Ticket 01: unifies /edit and /in-trip entry modes, 3 mobile tabs, and AI focus", async () => {
+  it("Saved-trip assistant Ticket 01: unifies /edit and /in-trip entry modes around zoomed-in Trợ lý AI view + Lịch trình/Bản đồ/Chia đôi tabs", async () => {
     const dir = dirname(fileURLToPath(import.meta.url));
     const inTripPageSource = await readFile(resolve(dir, "../in-trip/page.tsx"), "utf8");
     const editPageSource = await readFile(resolve(dir, "./page.tsx"), "utf8");
@@ -333,10 +333,10 @@ describe("Ticket 01 workspace rendering and map adapter", () => {
     expect(editHtml).toContain('id="mobile-tab-assistant"');
     expect(editHtml).toContain('id="mobile-tab-timeline"');
     expect(editHtml).toContain('id="mobile-tab-map"');
-    expect(editHtml).toMatch(/id="mobile-tab-timeline"[^>]*aria-selected="true"/);
-    expect(editHtml).toMatch(/id="mobile-tab-assistant"[^>]*aria-selected="false"/);
+    expect(editHtml).toMatch(/id="mobile-tab-assistant"[^>]*aria-selected="true"/);
+    expect(editHtml).toMatch(/id="mobile-tab-timeline"[^>]*aria-selected="false"/);
     expect(editHtml).toContain("<textarea");
-    expect(editHtml).toContain("Thu gọn");
+    expect(editHtml).toContain("Chia đôi");
 
     const inTripHtml = renderToStaticMarkup(createElement(EditTripClient, {
       tripId: "trip-unified",

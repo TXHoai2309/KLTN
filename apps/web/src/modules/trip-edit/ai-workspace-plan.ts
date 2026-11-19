@@ -1189,9 +1189,12 @@ export function buildGroundedAdvice(input: {
   });
 
   if (findings.length > 0) {
-    const sample = findings.slice(0, 2).map((f) => f.message).join(" ");
+    const sample = [...new Set(findings.map((f) => f.message.trim()).filter(Boolean))]
+      .slice(0, 3)
+      .map((msg) => `- ${msg}`)
+      .join("\n");
     lines.push(
-      `Kiểm tra ràng buộc phát hiện ${findings.length} lưu ý: ${sample}`,
+      `Kiểm tra ràng buộc phát hiện ${findings.length} lưu ý:\n${sample}`,
     );
   } else if (input.saveEligibility === "BLOCKED" || !input.validation.canConfirm) {
     lines.push("Kiểm tra tổng thể chưa đạt điều kiện PASS; cần rà lại các mục thiếu dữ liệu hoặc xung đột trên bảng kiểm tra.");
@@ -1225,5 +1228,5 @@ export function buildGroundedAdvice(input: {
     lines.push("Chuyến đi hiện chưa bật điểm xuất phát (Trip origin). Bạn có thể bổ sung qua nút '+ Bổ sung nơi xuất phát'.");
   }
 
-  return lines.join(" ");
+  return lines.join("\n\n");
 }
