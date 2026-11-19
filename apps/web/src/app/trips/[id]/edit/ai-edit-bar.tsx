@@ -351,6 +351,7 @@ export type AiEditBarProps = {
   onClearHistory?: () => void;
   onSubmitPrompt: (prompt: string, resolution?: EditResolution) => void;
   onApplySuggestion?: (suggestion: AdviceSuggestionCard) => void;
+  onOpenCanvas?: () => void;
   onRequestGps?: () => void;
   onOpenManualLocation?: () => void;
   onSelectManualCoords?: (coords: MapCoordinate) => void;
@@ -393,10 +394,11 @@ export default function AiEditBar({
   unavailableCount = 0,
   autoFocus = false,
   tripHeadline,
-  showCollapseToggle = true,
+  showCollapseToggle = false,
   onClearHistory,
   onSubmitPrompt,
   onApplySuggestion,
+  onOpenCanvas,
   onRequestGps,
   onOpenManualLocation,
   onSelectManualCoords,
@@ -421,8 +423,12 @@ export default function AiEditBar({
   }, [autoFocus, open]);
 
   useEffect(() => {
-    if (!threadRef.current) return;
-    threadRef.current.scrollTop = threadRef.current.scrollHeight;
+    const el = threadRef.current;
+    if (!el) return;
+    const frame = window.requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [messages.length, state.kind]);
 
   // Auto-grow composer textarea smoothly up to ~120px like /assistant.
@@ -467,57 +473,47 @@ export default function AiEditBar({
 
   return (
     <section className={styles.aiBarCard} aria-label="Trợ lý chuyến đi">
-      <div className={styles.aiBarHeaderRow}>
-        <div className={styles.aiHeaderMeta}>
-          <span className={styles.aiSpeakerEmblem} aria-hidden="true">
-            <Sparkles size={13} />
-          </span>
-          <span className={styles.aiHeaderName}>Trợ lý chuyến đi</span>
-          <span className={styles.aiSubtitleBadge}>Hỏi / nhờ AI chỉnh lịch trình</span>
+      <p className={styles.srOnly}>Trợ lý chuyến đi — Hỏi / nhờ AI chỉnh lịch trình</p>
+      {(!open || showCollapseToggle) && (
+        <div className={styles.aiBarHeaderRow}>
+          <div className={styles.aiHeaderMeta}>
+            <span className={styles.aiSpeakerEmblem} aria-hidden="true">
+              <Sparkles size={13} />
+            </span>
+            <span className={styles.aiHeaderName}>Trợ lý chuyến đi</span>
+          </div>
+          <div className={styles.aiHeaderActions}>
+            {!open && state.kind === "APPLIED" && state.canUndo && (
+              <button
+                type="button"
+                className={styles.toolButtonCompact}
+                disabled={controlsDisabled}
+                onClick={onUndoAiStep}
+              >
+                <Undo2 size={14} aria-hidden="true" />
+                Hoàn tác bước AI này
+              </button>
+            )}
+            {showCollapseToggle && (
+              <button
+                type="button"
+                className={styles.aiGhostBtn}
+                aria-expanded={open}
+                aria-controls="ai-edit-workspace-panel"
+                disabled={disabled}
+                onClick={onToggleOpen}
+              >
+                <span>{open ? "Thu gọn" : "Mở rộng"}</span>
+                {open ? (
+                  <ChevronUp size={15} aria-hidden="true" />
+                ) : (
+                  <ChevronDown size={15} aria-hidden="true" />
+                )}
+              </button>
+            )}
+          </div>
         </div>
-
-        <div className={styles.aiHeaderActions}>
-          {messages.length > 0 && onClearHistory && (
-            <button
-              type="button"
-              className={styles.aiGhostBtn}
-              disabled={controlsDisabled}
-              onClick={onClearHistory}
-            >
-              <Trash2 size={14} aria-hidden="true" />
-              <span>Xóa hội thoại tạm</span>
-            </button>
-          )}
-          {!open && state.kind === "APPLIED" && state.canUndo && (
-            <button
-              type="button"
-              className={styles.toolButtonCompact}
-              disabled={controlsDisabled}
-              onClick={onUndoAiStep}
-            >
-              <Undo2 size={14} aria-hidden="true" />
-              Hoàn tác bước AI này
-            </button>
-          )}
-          {showCollapseToggle && (
-            <button
-              type="button"
-              className={styles.aiGhostBtn}
-              aria-expanded={open}
-              aria-controls="ai-edit-workspace-panel"
-              disabled={disabled}
-              onClick={onToggleOpen}
-            >
-              <span>{open ? "Thu gọn" : "Mở rộng"}</span>
-              {open ? (
-                <ChevronUp size={15} aria-hidden="true" />
-              ) : (
-                <ChevronDown size={15} aria-hidden="true" />
-              )}
-            </button>
-          )}
-        </div>
-      </div>
+      )}
 
       {open && (
         <div id="ai-edit-workspace-panel" className={styles.aiBarBody}>
@@ -606,9 +602,10 @@ export default function AiEditBar({
                             </span>
                             {entry.kind === "ADVISED" && (
                               <span className={styles.aiTurnBadge}>
-                                {isLatestAssistant && advisedAlreadyInMessages
-                                  ? "Tư vấn lịch trình (Planning guidance) · Không thay đổi bản nháp"
-                                  : "Tư vấn · không đổi bản nháp"}
+                                {isLatestAssistant && advisedAlreadyInMessages && (
+                                  <span className={styles.srOnly}>Tư vấn lịch trình (Planning guidance) · </span>
+                                )}
+                                Tư vấn · Không thay đổi bản nháp
                               </span>
                             )}
                             {entry.kind === "APPLIED" && (
@@ -799,6 +796,16 @@ export default function AiEditBar({
                 <div className={styles.aiAppliedBanner} role="status" aria-live="polite">
                   <span>{state.summary}</span>
                   <div className={styles.quickActionRow}>
+                    {onOpenCanvas && (
+                      <button
+                        type="button"
+                        className={styles.toolButtonCompact}
+                        onClick={onOpenCanvas}
+                      >
+                        <CalendarDays size={14} aria-hidden="true" />
+                        Mở Canvas xem ngay
+                      </button>
+                    )}
                     {onJumpToTab && (
                       <>
                         <button
@@ -932,9 +939,20 @@ export default function AiEditBar({
 
                 <div className={styles.aiComposerFooter}>
                   <span className={styles.aiComposerHint}>
-                    Enter để gửi · Shift+Enter xuống dòng
+                    Enter gửi · Shift+Enter xuống dòng
                   </span>
                   <div className={styles.aiComposerFooterRight}>
+                    {messages.length > 0 && onClearHistory && (
+                      <button
+                        type="button"
+                        className={styles.aiChipToggleBtn}
+                        disabled={controlsDisabled}
+                        onClick={onClearHistory}
+                      >
+                        <Trash2 size={12} aria-hidden="true" />
+                        Xóa hội thoại tạm
+                      </button>
+                    )}
                     {messages.length > 0 && (
                       <button
                         type="button"

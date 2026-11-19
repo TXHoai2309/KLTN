@@ -848,3 +848,10 @@ Even after `ADR-37` unified manual editing and `AiEditBar` on `/trips/[id]/edit`
 
 - `/api/trips/[id]/edits/ai` and the workspace AI panel expand to support the 2-step grounded advisory composer, dry-run candidate remedies (`Actionable advice suggestion` payloads), interleaved RAG/weather lookups, optional `ONGOING` location context, and a 16-turn session history cap.
 - `/trips/[id]/in-trip` and `/trips/[id]` entry actions converge on the unified workspace without breaking existing URLs or test seams.
+
+### UI & Workspace Architecture Update (2026-11-19)
+
+- **Decision:** Replace the double-decker header toolbar + fixed 3-column desktop grid with an **`Assistant Sidebar Shell` + `AI-first Progressive Canvas`** matching the `/assistant` fullscreen layout (`calc(100svh - 65px)`):
+  - **Left collapsible sidebar (`280px` on desktop, slide-over drawer on mobile):** holds trip identity/metadata, mode switcher (`Trợ lý AI`, `Lịch trình`, `Bản đồ & Kiểm tra`), optional right-side **Canvas** toggle, validation status chip, Undo/Redo, and the atomic `Lưu thay đổi` CTA. Opening the right-side Canvas automatically collapses the sidebar so at most two regions appear at once.
+  - **AI-first flow & noise elimination:** Both `/trips/[id]/edit` and `/trips/[id]/in-trip` open in the zoomed-in `Trợ lý AI` view by default (`65–72ch` readable measure). Applying or saving edits keeps the chat stream stable and surfaces a concise inline/toast action (`Mở Canvas xem ngay` / `Hoàn tác`), while `aria-live` status announcements for verbose AI advisories stay visually `sr-only`.
+  - **Progressive Disclosure on manual Timeline & Map controls:** Each `Scheduled visit` renders a compact single-row summary with a collapsible `<details>` disclosure for time/order adjustments (keeping 1-click error recovery immediately visible on violated rows), and Map validation renders as a compact status strip above the map.

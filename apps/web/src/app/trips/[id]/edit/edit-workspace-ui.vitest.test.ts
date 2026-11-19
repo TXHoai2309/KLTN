@@ -336,7 +336,9 @@ describe("Ticket 01 workspace rendering and map adapter", () => {
     expect(editHtml).toMatch(/id="mobile-tab-assistant"[^>]*aria-selected="true"/);
     expect(editHtml).toMatch(/id="mobile-tab-timeline"[^>]*aria-selected="false"/);
     expect(editHtml).toContain("<textarea");
-    expect(editHtml).toContain("Chia đôi");
+    expect(editHtml).toContain("Mở Canvas Lịch &amp; Bản đồ");
+    expect(editHtml).toContain("Thu gọn thanh bên");
+    expect(editHtml).toContain("Chỉnh giờ, thời lượng &amp; thứ tự");
 
     const inTripHtml = renderToStaticMarkup(createElement(EditTripClient, {
       tripId: "trip-unified",

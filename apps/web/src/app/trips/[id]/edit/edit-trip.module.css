@@ -115,90 +115,440 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
-.workspaceHeader {
-  flex-shrink: 0;
-  border-bottom: 1px solid var(--border);
-  background: var(--card);
-  padding: 8px clamp(12px, 2.5vw, 24px);
+.mobileTopBar {
+  display: none;
 }
-.headerTopInner {
-  max-width: 1520px;
-  margin: 0 auto;
+.workspaceShell {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: row;
+  flex: 1 1 0%;
+  height: 100%;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+.sidebarBackdrop {
+  display: none;
+}
+.tripSidebar {
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--card) 75%, var(--background));
+  border-right: 1px solid var(--border);
+  transition: width 0.2s ease, margin-left 0.2s ease, opacity 0.2s ease;
+  overflow: hidden;
+  flex-shrink: 0;
+  z-index: 30;
+}
+.tripSidebarCollapsed {
+  width: 0;
+  min-width: 0;
+  margin-left: -1px;
+  border-right: 0;
+  visibility: hidden;
+}
+.sidebarTopRow {
+  display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px 14px;
+  gap: 8px;
+  padding: 10px 12px 8px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
-.headerLeftGroup {
-  display: flex;
+.sidebarCollapseBtn {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  min-width: 0;
-  flex: 1 1 280px;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
 }
-.headerTitleBlock {
-  min-width: 0;
+.sidebarCollapseBtn:hover {
+  background: var(--edit-soft);
+  color: var(--edit-green);
+}
+.sidebarScrollArea {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px;
   display: grid;
-  gap: 3px;
+  align-content: start;
+  gap: 14px;
 }
-.headerTitleBlock h1 {
+.sidebarTripInfo {
+  display: grid;
+  gap: 6px;
+}
+.sidebarTripInfo h1 {
   margin: 0;
   font-family: var(--font-editorial-serif), serif;
   color: var(--foreground);
-  font-size: clamp(16px, 1.5vw, 19px);
+  font-size: 18px;
   font-weight: 600;
-  line-height: 1.25;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.3;
 }
-.headerCenterTabs {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+.sidebarSubtitle {
+  margin: 0;
+  color: var(--edit-green);
+  font-size: 12px;
+  font-weight: 600;
 }
 .metaChips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  margin-top: 2px;
 }
 .metaChip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 2px 8px;
+  padding: 3px 8px;
   border-radius: 999px;
   background: var(--muted);
   color: var(--muted-foreground);
   font-size: 11.5px;
   font-weight: 500;
 }
+.sidebarNav {
+  display: grid;
+  gap: 4px;
+}
+.sidebarNavBtn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+.sidebarNavBtn:hover {
+  background: var(--edit-soft);
+  color: var(--edit-green);
+}
+.sidebarNavActive {
+  background: var(--card);
+  border-color: color-mix(in srgb, var(--edit-green) 30%, var(--border));
+  color: var(--edit-green);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 5%);
+}
+.canvasToggleCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 11px;
+  border: 1px dashed color-mix(in srgb, var(--edit-green) 35%, var(--border));
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.canvasToggleCard:hover {
+  border-color: var(--edit-green);
+  background: var(--edit-soft);
+}
+.canvasToggleCardActive {
+  border-style: solid;
+  border-color: var(--edit-green);
+  background: var(--edit-soft);
+}
+.canvasToggleCard svg {
+  color: var(--edit-green);
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.canvasToggleCopy {
+  display: grid;
+  gap: 2px;
+}
+.canvasToggleCopy strong {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--edit-green);
+}
+.canvasToggleCopy span {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--muted-foreground);
+}
+.sidebarHealthBox {
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 11px;
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+.sidebarHealthRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.sidebarHealthLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+.sidebarHealthWarnBtn,
+.sidebarHealthOkBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 9px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+.sidebarHealthWarnBtn {
+  background: var(--edit-danger-soft);
+  color: var(--edit-danger);
+}
+.sidebarHealthOkBtn {
+  background: var(--edit-soft);
+  color: var(--edit-green);
+}
+.sidebarFooter {
+  flex-shrink: 0;
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px 14px;
+  border-top: 1px solid var(--border);
+  background: var(--card);
+}
+.sidebarUndoRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+.sidebarPrimarySaveBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--edit-green);
+  background: var(--edit-green);
+  color: var(--primary-foreground);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.sidebarPrimarySaveBtn:hover:not(:disabled) {
+  background: var(--edit-green-hover);
+}
+.sidebarCancelLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.sidebarCancelLink:hover {
+  color: var(--foreground);
+  text-decoration: underline;
+}
+.workspaceStage {
+  flex: 1 1 0%;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+.floatingBar {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  z-index: 25;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 8%);
+}
+.floatingIconBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
+  color: var(--edit-green);
+  cursor: pointer;
+}
+.floatingIconBtn:hover {
+  background: var(--edit-soft);
+}
+.floatingPillBtn,
+.floatingSaveBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 11px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.floatingPillBtn {
+  background: transparent;
+  color: var(--foreground);
+}
+.floatingPillBtn:hover,
+.floatingPillActive {
+  background: var(--edit-soft);
+  color: var(--edit-green);
+}
+.floatingSaveBtn {
+  background: var(--edit-green);
+  color: var(--primary-foreground);
+}
+.toastPill {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  z-index: 28;
+  max-width: min(520px, calc(100% - 32px));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px 7px 12px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--edit-green) 30%, var(--border));
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 6px 20px rgb(18 44 30 / 12%);
+  font-size: 12.5px;
+}
+.toastPill svg {
+  color: var(--edit-green);
+  flex-shrink: 0;
+}
+.toastText {
+  font-weight: 600;
+  min-width: 0;
+}
+.toastActionBtn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--edit-green);
+  background: var(--edit-soft);
+  color: var(--edit-green);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.toastCloseBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.canvasHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.canvasCloseBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted-foreground);
+  cursor: pointer;
+}
+.canvasCloseBtn:hover {
+  border-color: var(--edit-green);
+  color: var(--edit-green);
+}
 .fixedNote {
   margin: 0;
   color: var(--muted-foreground);
   font-size: 12px;
 }
-.headerToolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-}
 .headerWarnChip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  min-height: 36px;
-  padding: 4px 10px;
+  min-height: 32px;
+  padding: 3px 9px;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, var(--edit-danger) 30%, var(--border));
   background: var(--edit-danger-soft);
   color: var(--edit-danger);
   font: inherit;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -206,8 +556,8 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 32px;
-  padding: 4px 10px;
+  min-height: 28px;
+  padding: 3px 9px;
   border-radius: 999px;
   border: 1px solid var(--border);
   font-size: 11.5px;
@@ -236,7 +586,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 6px 12px;
+  padding: 6px 10px;
   border-radius: 9px;
   font: inherit;
   font-size: 12.5px;
@@ -330,64 +680,35 @@
 .dayTabDot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
 .mobileTabs {
   display: inline-grid;
-  grid-template-columns: repeat(3, minmax(0, auto));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
   padding: 3px;
-  border-radius: 11px;
+  border-radius: 10px;
   background: var(--muted);
   border: 1px solid var(--border);
 }
 .mobileTabBtn {
   display: inline-flex;
-  min-height: 38px;
+  min-height: 44px;
   min-width: 0;
-  padding: 6px 12px;
+  padding: 6px 8px;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 5px;
   border: 0;
   border-radius: 8px;
   background: transparent;
   color: var(--muted-foreground);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  transition: background-color 0.15s ease, color 0.15s ease;
-}
-.mobileTabBtn:hover {
-  color: var(--foreground);
 }
 .mobileTabActive {
   background: var(--card);
   color: var(--edit-green);
   box-shadow: 0 1px 4px rgb(0 0 0 / 8%);
-}
-.desktopSplitBtn {
-  display: inline-flex;
-  min-height: 40px;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--card);
-  color: var(--muted-foreground);
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.desktopSplitBtn:hover {
-  border-color: var(--edit-green);
-  color: var(--edit-green);
-}
-.desktopSplitBtnActive {
-  background: var(--edit-soft);
-  border-color: var(--edit-green);
-  color: var(--edit-green);
 }
 .workspaceGrid {
   display: flex;
@@ -421,7 +742,7 @@
 .viewTimeline,
 .viewMap {
   overflow-y: auto;
-  padding: 16px clamp(14px, 3vw, 36px) 84px;
+  padding: 20px clamp(16px, 3vw, 40px) 88px;
   gap: 16px;
 }
 .viewTimeline .assistantColumn,
@@ -430,7 +751,7 @@
 }
 .viewTimeline .secondaryTopControls,
 .viewTimeline .timelineColumn {
-  width: min(100%, 960px);
+  width: min(100%, 880px);
   margin-inline: auto;
 }
 .viewMap .assistantColumn,
@@ -439,36 +760,22 @@
 }
 .viewMap .secondaryTopControls,
 .viewMap .sideColumn {
-  width: min(100%, 1240px);
+  width: min(100%, 1120px);
   margin-inline: auto;
 }
 .viewMap .sideSticky {
   position: static;
   display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.95fr);
-  grid-template-rows: auto auto;
-  align-items: start;
-  gap: 18px;
-}
-.viewMap .sidePanelMap {
-  grid-column: 1;
-  grid-row: 1 / span 2;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
 }
 .viewMap .sidePanelMap :global(.planner-map) {
-  min-height: 380px;
-  height: clamp(380px, 58vh, 620px);
-}
-.viewMap .healthCard {
-  grid-column: 2;
-  grid-row: 1;
-}
-.viewMap .weatherAccordion {
-  grid-column: 2;
-  grid-row: 2;
+  min-height: 400px;
+  height: clamp(400px, 60vh, 640px);
 }
 .workspaceGridSplit {
   display: grid;
-  grid-template-columns: minmax(420px, 1.2fr) minmax(360px, 0.95fr);
+  grid-template-columns: minmax(420px, 1.15fr) minmax(360px, 0.95fr);
   grid-template-rows: auto minmax(0, 1fr);
   align-items: stretch;
   gap: 0;
@@ -823,49 +1130,83 @@
     min-height: calc(100dvh - 60px);
     max-height: calc(100dvh - 60px);
   }
-  .workspaceHeader {
-    padding: 8px 12px;
-  }
-  .headerTopInner {
+  .mobileTopBar {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
     gap: 8px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
   }
-  .headerLeftGroup {
-    flex: 1 1 100%;
-    justify-content: space-between;
-  }
-  .backLinkText {
-    display: none;
-  }
-  .headerCenterTabs {
-    width: 100%;
+  .mobileMenuBtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    padding: 0 10px;
+    border-radius: 9px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--foreground);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
   .mobileTabs {
     display: grid;
-    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
   .mobileTabBtn {
     min-height: 44px;
-    padding: 6px 8px;
-    font-size: 12.5px;
+    padding: 6px 6px;
+    font-size: 12px;
   }
-  .desktopSplitBtn {
+  .sidebarBackdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 48;
+    background: rgb(10 20 15 / 45%);
+  }
+  .tripSidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(300px, 86vw);
+    min-width: 0;
+    max-width: 86vw;
+    z-index: 50;
+    transform: translateX(-105%);
+    transition: transform 0.22s ease;
+    box-shadow: 12px 0 32px rgb(0 0 0 / 18%);
+    visibility: visible;
+    margin-left: 0;
+  }
+  .tripSidebarCollapsed {
+    width: min(300px, 86vw);
+    transform: translateX(-105%);
+    visibility: hidden;
+  }
+  .tripSidebarDrawerOpen {
+    transform: translateX(0);
+    visibility: visible;
+  }
+  .canvasToggleCard,
+  .floatingBar {
     display: none;
   }
-  .headerToolbar {
-    width: 100%;
-    justify-content: flex-start;
-  }
-  .headerToolbar > .statusBadge,
-  .headerToolbar > .primaryButtonCompact {
-    display: none;
-  }
-  .headerBtnText {
-    display: none;
-  }
-  .toolButtonCompactHeader,
-  .cancelButtonCompact {
-    min-height: 44px;
+  .toastPill {
+    left: 12px;
+    right: 12px;
+    top: 10px;
+    border-radius: 12px;
   }
   .workspaceGrid,
   .workspaceGridSplit,
@@ -879,19 +1220,9 @@
   }
   .assistantSticky,
   .sideSticky { position: static; max-height: none; }
-  .viewMap .sideSticky {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto;
-  }
-  .viewMap .sidePanelMap,
-  .viewMap .healthCard,
-  .viewMap .weatherAccordion {
-    grid-column: auto;
-    grid-row: auto;
-  }
   .viewMap .sidePanelMap :global(.planner-map) {
-    min-height: 260px;
-    height: 300px;
+    min-height: 280px;
+    height: 320px;
   }
   .viewAssistant .timelineColumn,
   .viewAssistant .sideColumn { display: none; }
@@ -1710,6 +2041,7 @@
 .aiProseBlocks {
   display: grid;
   gap: 10px;
+  max-inline-size: 68ch;
 }
 
 .aiTurnText {
@@ -1727,6 +2059,18 @@
   font-size: 14.5px;
   line-height: 1.6;
   color: var(--foreground);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tripSidebar,
+  .aiStarterCard,
+  .aiSendPillBtn {
+    transition: none;
+    transform: none;
+  }
+  .aiTypingDots span {
+    animation: none;
+  }
 }
 
 .aiLoadingBubble {
@@ -2219,8 +2563,125 @@
   padding: 14px;
 }
 
+.visitProgressiveWrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+
+.visitQuickReplaceBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 5px 11px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.visitQuickReplaceBtn:hover:not(:disabled) {
+  border-color: var(--edit-green);
+  color: var(--edit-green);
+  background: var(--edit-soft);
+}
+
+.visitControlsDetails {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.visitControlsSummary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 5px 11px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.visitControlsSummary::-webkit-details-marker {
+  display: none;
+}
+
+.visitControlsSummary:hover {
+  border-color: var(--edit-green);
+  color: var(--edit-green);
+  background: var(--edit-soft);
+}
+
+.visitControlsDetails[open] .visitControlsSummary {
+  border-color: var(--edit-green);
+  color: var(--edit-green);
+  background: var(--edit-soft);
+  margin-bottom: 10px;
+}
+
 .healthCard {
-  gap: 12px;
+  gap: 10px;
+  padding: 12px 14px;
+}
+
+.healthCompactBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.healthCompactStatus {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.healthCompactActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.healthDetails {
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+}
+
+.healthDetailsSummary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--edit-green);
+  cursor: pointer;
+  list-style: none;
+}
+
+.healthDetailsSummary::-webkit-details-marker {
+  display: none;
+}
+
+.healthDetailsBody {
+  display: grid;
+  gap: 10px;
+  padding-top: 10px;
 }
 
 .healthHeader {
