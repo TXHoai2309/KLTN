@@ -25,7 +25,7 @@ export function useAssistantDestination(destination: Destination) {
 /** Routes where the global floating assistant pill should remain hidden. */
 export function isGlobalAssistantVisibleRoute(pathname: string | null): boolean {
   if (!pathname) return false;
-  return !/^\/(admin|assistant|login|register|forgot-password|reset-password|trips\/new|trips\/[^/]+\/edit)(\/|$)/.test(pathname);
+  return !/^\/(admin|assistant|login|register|forgot-password|reset-password|trips\/new|trips\/[^/]+\/(?:edit|in-trip))(\/|$)/.test(pathname);
 }
 
 /** Root-layout owner: normal client navigation hides/shows a view, never its session. */

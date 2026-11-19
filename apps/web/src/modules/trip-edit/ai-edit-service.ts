@@ -9,17 +9,44 @@ import { savedJourneySchema } from "../trip-origin/journey-saved-contract";
 import { assertJourneyBeforeDeparture } from "../trip-origin/journey-cutoff";
 import type { TripJourney } from "../trip-origin/trip-origin-contract";
 import type { UncheckedItem } from "../trip-save/unchecked-checks";
+import type { ForecastOptions } from "../trip-weather/forecast";
 import type { TripValidation } from "../trip-validation/trip-validation";
 import {
   applySuggestedDurationsToPlan,
   applyWorkspaceOperations,
-  buildGroundedAdvice,
+  IMMUTABLE_FRAME_ADVICE,
+  isTripFrameEditRequest,
   MAX_AI_CHOICES,
   planToPrimaryEditIntent,
   resolveWorkspacePlan,
+  type AdvisoryCitation,
+  type AdvisoryKnowledgePart,
   type AiChatHistoryTurn,
   type WorkspacePromptJourneyContext,
 } from "./ai-workspace-plan";
+import {
+  buildTwoStepGroundedAdvisory,
+  type AdviceSuggestionCard,
+  type AdvisoryCatalogDestination,
+} from "./saved-trip-advisory";
+import { parseRestBufferRequest, runRestAndCompoundScenario } from "./saved-trip-rest-scenario";
+import {
+  parseDestinationRecommendRequest,
+  runDestinationRecommendationScenario,
+  type UnavailableDraftStop,
+} from "./saved-trip-recommend";
+import {
+  parseInterleavedQaRequest,
+  runInterleavedQaScenario,
+  type SavedTripQaLookupFn,
+} from "./saved-trip-interleaved-qa";
+import {
+  parseLocationDependentRequest,
+  runOngoingLocationScenario,
+} from "./saved-trip-location-guidance";
+import type { InTripLocation } from "../in-trip/in-trip-location";
+import { effectiveTripStatus } from "../trip-read/trip-status";
+import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
 import {
   createEditCandidate,
   diffEditCandidate,
@@ -88,6 +115,7 @@ const aiEditTripSelect = {
             select: {
               id: true,
               name: true,
+              area: true,
               visibility: true,
               deletedAt: true,
             },
@@ -118,6 +146,7 @@ type AiEditLoadedTrip = {
       destination: {
         id: string;
         name: string;
+        area?: string;
         visibility: string;
         deletedAt?: Date | null;
       } | null;
@@ -135,6 +164,13 @@ const eligibleDestinationSelect = {
   suggestedDurationMinutes: true,
   minimumDurationMinutes: true,
   isOutdoor: true,
+  openingDays: {
+    select: {
+      dayOfWeek: true,
+      status: true,
+      intervals: { select: { opensAtMinute: true, closesAtMinute: true } },
+    },
+  },
 } satisfies Prisma.DestinationSelect;
 
 type EligibleDestinationRow = {
@@ -147,12 +183,17 @@ type EligibleDestinationRow = {
   suggestedDurationMinutes: number | null;
   minimumDurationMinutes?: number | null;
   isOutdoor?: boolean;
+  openingDays?: AdvisoryCatalogDestination["openingDays"];
 };
 
 export type AiEditServiceDependencies = {
   database: Database;
   llm: StructuredLlmClient;
   getRoute: TripEditRouteProvider;
+  /** Injectable forecast config for weather-grounded advisory without hitting live Open-Meteo in tests. */
+  forecast?: ForecastOptions;
+  /** Injectable local-knowledge RAG lookup for deterministic unit/HTTP tests. */
+  qaLookup?: SavedTripQaLookupFn;
   /** Injectable only to make generated visit identifiers deterministic in tests. */
   createVisitId?: () => string;
 };
@@ -163,6 +204,14 @@ export type AiEditRequest = {
   resolution?: EditResolution;
   draft?: EditCandidate;
   history?: AiChatHistoryTurn[];
+  location?: InTripLocation;
+};
+
+export type AiEditNeedsLocationResult = {
+  status: "NEEDS_LOCATION";
+  prompt: string;
+  pendingMessage: string;
+  aiSummary: string;
 };
 
 export type AiEditClarificationResult = {
@@ -180,6 +229,9 @@ export type AiEditAdvisedResult = {
   validation: TripValidation;
   aiSummary: string;
   saveEligibility?: PreviewEditResult["saveEligibility"];
+  suggestions?: AdviceSuggestionCard[];
+  knowledgeParts?: AdvisoryKnowledgePart[];
+  citations?: AdvisoryCitation[];
 };
 
 export type AiEditProposalResult = {
@@ -205,7 +257,8 @@ export type AiEditProposalResult = {
 export type AiEditServiceResult =
   | AiEditClarificationResult
   | AiEditProposalResult
-  | AiEditAdvisedResult;
+  | AiEditAdvisedResult
+  | AiEditNeedsLocationResult;
 
 function tripNotFound(): AppError {
   return new AppError("TRIP_NOT_FOUND", "Không tìm thấy chuyến đi.", 404);
@@ -318,6 +371,110 @@ function buildPlaceNameLookup(
     }
   }
   return names;
+}
+
+function buildAdvisoryPlaceDetails(
+  trip: AiEditLoadedTrip,
+  destinations: readonly EligibleDestinationRow[],
+  timeReference: Date,
+): Map<string, { isOutdoor?: boolean; availability?: string; external?: boolean }> {
+  const details = new Map<string, { isOutdoor?: boolean; availability?: string; external?: boolean }>();
+  for (const dest of destinations) {
+    details.set(dest.id, {
+      isOutdoor: Boolean(dest.isOutdoor),
+      availability: "AVAILABLE",
+      external: false,
+    });
+  }
+  for (const day of trip.days) {
+    for (const visit of day.visits) {
+      if (visit.externalPlace) {
+        const view = externalPlaceView(visit.externalPlace, timeReference, true);
+        details.set(view.id, {
+          isOutdoor: false,
+          availability: "AVAILABLE",
+          external: true,
+        });
+        continue;
+      }
+      if (visit.destination) {
+        const available = visit.destination.visibility === "VISIBLE" && !visit.destination.deletedAt;
+        const prev = details.get(visit.destination.id);
+        details.set(visit.destination.id, {
+          isOutdoor: prev?.isOutdoor ?? false,
+          availability: available ? "AVAILABLE" : "UNAVAILABLE",
+          external: false,
+        });
+      }
+    }
+  }
+  return details;
+}
+
+function collectUnavailableDraftStops(
+  candidate: EditCandidate,
+  catalogById: ReadonlyMap<string, EligibleDestinationRow>,
+  trip: AiEditLoadedTrip,
+): UnavailableDraftStop[] {
+  const areaByDestId = new Map<string, string>();
+  for (const day of trip.days) {
+    for (const visit of day.visits) {
+      if (visit.destination?.area) {
+        areaByDestId.set(visit.destination.id, visit.destination.area);
+      }
+    }
+  }
+  const unavailable: UnavailableDraftStop[] = [];
+  for (const day of candidate.days) {
+    for (const visit of day.visits) {
+      if (isExternalPlaceId(visit.destinationId)) continue;
+      if (catalogById.has(visit.destinationId)) continue;
+      unavailable.push({
+        visitId: visit.visitId,
+        destinationId: visit.destinationId,
+        dayIndex: day.dayIndex,
+        startMinute: visit.startMinute,
+        ...(areaByDestId.has(visit.destinationId)
+          ? { area: areaByDestId.get(visit.destinationId) }
+          : {}),
+      });
+    }
+  }
+  return unavailable;
+}
+
+function buildUnavailableBaselinePreview(
+  baseRevision: string,
+  candidate: EditCandidate,
+  unavailableStops: readonly UnavailableDraftStop[],
+  timeReference: Date,
+): PreviewEditResult {
+  return {
+    baseRevision,
+    candidate,
+    validation: {
+      timeReference: timeReference.toISOString(),
+      groups: {
+        openingHours: {
+          status: "VIOLATION",
+          findings: unavailableStops.map((u) => ({
+            group: "openingHours",
+            status: "VIOLATION",
+            reasonCode: "DESTINATION_UNAVAILABLE",
+            message: `Lượt tham quan lúc ${minuteClockLabel(u.startMinute)} Ngày ${u.dayIndex} đang trỏ tới Điểm đến không còn khả dụng.`,
+            affectedVisitId: u.visitId,
+          })),
+        },
+        minimumDuration: { status: "SATISFIED", findings: [] },
+        travelTime: { status: "SATISFIED", findings: [] },
+        scheduleConflict: { status: "SATISFIED", findings: [] },
+      },
+      canConfirm: false,
+    },
+    eligibleForConfirmation: false,
+    legs: [],
+    saveEligibility: "BLOCKED",
+  };
 }
 
 function buildClarificationContext(
@@ -528,33 +685,331 @@ export async function createAiEditProposal(
   const resolvedPlan = resolveWorkspacePlan(recognizedPlan, request.resolution, clarificationData);
   const hydratedPlan = applySuggestedDurationsToPlan(resolvedPlan, allCatalogDestinations);
 
-  if (hydratedPlan.mode === "ADVISED") {
-    const validationPreview = await previewEdit(
-      tripId,
-      userId,
-      request.baseRevision,
+  // Defense-in-depth: exclude any destination marked unavailable in loaded trip snapshot
+  const hiddenTripDestIds = new Set<string>();
+  for (const day of found.days) {
+    for (const visit of day.visits) {
+      if (visit.destination && (visit.destination.visibility !== "VISIBLE" || visit.destination.deletedAt != null)) {
+        hiddenTripDestIds.add(visit.destination.id);
+      }
+    }
+  }
+  const publicEligibleDestinations = eligibleDestinations.filter((d) => !hiddenTripDestIds.has(d.id));
+  const publicCatalogDestinations = allCatalogDestinations.filter((d) => !hiddenTripDestIds.has(d.id));
+  const publicCatalogById = new Map(publicCatalogDestinations.map((d) => [d.id, d]));
+
+  const liveTripStatus = effectiveTripStatus(
+    found.startDate.toISOString().slice(0, 10),
+    found.durationDays,
+    vietnamDateOf(timeReference),
+    savedShape.manuallyCompletedAt ?? null,
+  ).status;
+
+  const unavailableStops = collectUnavailableDraftStops(baseCandidate, publicCatalogById, found);
+  const locationParsed = !isTripFrameEditRequest(request.message)
+    ? parseLocationDependentRequest({
+        message: request.message,
+        mode: hydratedPlan.mode,
+        topic: hydratedPlan.adviceFocus?.topic ?? "GENERAL",
+      })
+    : { needsCurrentLocation: false, intentMode: "TRAFFIC_RECOVER" as const };
+  const locationSignal = locationParsed.needsCurrentLocation;
+
+  const interleavedParsed = !locationSignal && !isTripFrameEditRequest(request.message)
+    ? parseInterleavedQaRequest({
+        message: request.message,
+        mode: hydratedPlan.mode,
+        focusDayIndex: hydratedPlan.adviceFocus?.dayIndex ?? null,
+        topic: hydratedPlan.adviceFocus?.topic ?? "GENERAL",
+        baseCandidate,
+        catalogDestinations: publicCatalogDestinations,
+        placeNames,
+      })
+    : { kind: "NOT_APPLICABLE" as const };
+  const interleavedSignal = interleavedParsed.kind !== "NOT_APPLICABLE";
+
+  const recommendSignal =
+    !locationSignal &&
+    !interleavedSignal &&
+    !isTripFrameEditRequest(request.message) &&
+    parseDestinationRecommendRequest({
+      message: request.message,
+      mode: hydratedPlan.mode,
+      focusDayIndex: hydratedPlan.adviceFocus?.dayIndex ?? null,
+      topic: hydratedPlan.adviceFocus?.topic ?? "GENERAL",
+      hasUnavailableStops: unavailableStops.length > 0,
+    }).isRecommendScenario;
+
+  const restFallbackSignal =
+    !locationSignal &&
+    !interleavedSignal &&
+    !isTripFrameEditRequest(request.message) &&
+    hydratedPlan.mode === "UNSUPPORTED" &&
+    parseRestBufferRequest(request.message, null, "GENERAL").isRestScenario;
+
+  if (locationSignal && liveTripStatus === "ONGOING" && !request.location) {
+    const prompt =
+      "Yêu cầu này cần biết vị trí bạn đang đứng để tính chính xác quãng đường và thời gian tới các điểm còn lại. Bạn hãy chia sẻ GPS một lần hoặc chọn vị trí thủ công trên bản đồ.";
+    return {
+      status: "NEEDS_LOCATION",
+      prompt,
+      pendingMessage: request.message,
+      aiSummary: prompt,
+    };
+  }
+
+  if (
+    hydratedPlan.mode === "ADVISED" ||
+    locationSignal ||
+    interleavedSignal ||
+    recommendSignal ||
+    restFallbackSignal ||
+    (hydratedPlan.mode === "UNSUPPORTED" && isTripFrameEditRequest(request.message)) ||
+    (hydratedPlan.mode === "NEEDS_CLARIFICATION" &&
+      hydratedPlan.clarificationReason === "OUT_OF_SCOPE" &&
+      isTripFrameEditRequest(request.message))
+  ) {
+    const isFrameImmutable =
+      hydratedPlan.adviceFocus?.topic === "FRAME_IMMUTABLE" ||
+      (hydratedPlan.mode === "UNSUPPORTED" &&
+        !restFallbackSignal &&
+        !recommendSignal &&
+        !interleavedSignal &&
+        !locationSignal) ||
+      isTripFrameEditRequest(request.message);
+    const runPreview = (cand: EditCandidate) =>
+      previewEdit(
+        tripId,
+        userId,
+        request.baseRevision,
+        cand,
+        { database: dependencies.database, getRoute: safeGetRoute },
+        timeReference,
+      );
+    let validationPreview: PreviewEditResult;
+    try {
+      validationPreview = await runPreview(baseCandidate);
+    } catch (error) {
+      if (error instanceof AppError && error.code === "DESTINATION_UNAVAILABLE" && unavailableStops.length > 0) {
+        validationPreview = buildUnavailableBaselinePreview(
+          request.baseRevision,
+          baseCandidate,
+          unavailableStops,
+          timeReference,
+        );
+      } else {
+        throw error;
+      }
+    }
+    if (isFrameImmutable) {
+      return {
+        status: "ADVISED",
+        intent: planToPrimaryEditIntent(hydratedPlan),
+        advice: IMMUTABLE_FRAME_ADVICE,
+        validation: validationPreview.validation,
+        aiSummary: IMMUTABLE_FRAME_ADVICE,
+        ...(validationPreview.saveEligibility ? { saveEligibility: validationPreview.saveEligibility } : {}),
+      };
+    }
+
+    const placeDetailsById = buildAdvisoryPlaceDetails(found, publicCatalogDestinations, timeReference);
+    if (locationSignal) {
+      const locationOutcome = await runOngoingLocationScenario({
+        message: request.message,
+        mode: "ADVISED",
+        tripStatus: liveTripStatus,
+        location: request.location,
+        baseCandidate,
+        savedShape,
+        placeNames,
+        placeDetailsById,
+        eligibleDestinations: publicEligibleDestinations,
+        allCatalogDestinations: publicCatalogDestinations,
+        lockedVisitIds,
+        baselinePreview: validationPreview,
+        runPreview,
+        getRoute: safeGetRoute,
+        createVisitId: dependencies.createVisitId ?? randomUUID,
+        database: dependencies.database,
+        llm: dependencies.llm,
+        forecast: dependencies.forecast,
+        focusDayIndex: hydratedPlan.adviceFocus?.dayIndex ?? null,
+        topic: "LOCATION_GUIDANCE",
+        timeReference,
+      });
+      if (locationOutcome.kind === "NEEDS_LOCATION") {
+        return {
+          status: "NEEDS_LOCATION",
+          prompt: locationOutcome.prompt,
+          pendingMessage: locationOutcome.pendingMessage,
+          aiSummary: locationOutcome.prompt,
+        };
+      }
+      if (locationOutcome.kind === "ADVISED") {
+        return {
+          status: "ADVISED",
+          intent: planToPrimaryEditIntent(hydratedPlan),
+          advice: locationOutcome.advice,
+          validation: validationPreview.validation,
+          aiSummary: locationOutcome.advice,
+          ...(validationPreview.saveEligibility ? { saveEligibility: validationPreview.saveEligibility } : {}),
+          ...(locationOutcome.suggestions.length > 0 ? { suggestions: locationOutcome.suggestions } : {}),
+        };
+      }
+    }
+    const effectiveTopic = interleavedSignal
+      ? interleavedParsed.kind
+      : recommendSignal
+        ? unavailableStops.length > 0
+          ? "HIDDEN_UNAVAILABLE"
+          : "RECOMMEND_DESTINATION"
+        : restFallbackSignal
+          ? "REST_BUFFER"
+          : hydratedPlan.adviceFocus?.topic ?? "GENERAL";
+
+    if (interleavedSignal) {
+      const qaResult = await runInterleavedQaScenario({
+        message: request.message,
+        mode: "ADVISED",
+        history: request.history ?? [],
+        baseCandidate,
+        savedShape,
+        placeNames,
+        placeDetailsById,
+        eligibleDestinations: publicEligibleDestinations,
+        allCatalogDestinations: publicCatalogDestinations,
+        lockedVisitIds,
+        baselinePreview: validationPreview,
+        runPreview,
+        database: dependencies.database,
+        llm: dependencies.llm,
+        forecast: dependencies.forecast,
+        qaLookup: dependencies.qaLookup,
+        focusDayIndex: hydratedPlan.adviceFocus?.dayIndex ?? null,
+        topic: effectiveTopic,
+        timeReference,
+      });
+      if (qaResult.kind === "ADVISED") {
+        return {
+          status: "ADVISED",
+          intent: planToPrimaryEditIntent(hydratedPlan),
+          advice: qaResult.advice,
+          validation: validationPreview.validation,
+          aiSummary: qaResult.advice,
+          ...(validationPreview.saveEligibility ? { saveEligibility: validationPreview.saveEligibility } : {}),
+          ...(qaResult.suggestions.length > 0 ? { suggestions: qaResult.suggestions } : {}),
+          ...(qaResult.knowledgeParts ? { knowledgeParts: qaResult.knowledgeParts } : {}),
+          ...(qaResult.citations ? { citations: qaResult.citations } : {}),
+        };
+      }
+    }
+
+    if (recommendSignal || (unavailableStops.length > 0 && effectiveTopic !== "REST_BUFFER" && effectiveTopic !== "COMPOUND_EVALUATE_FIX")) {
+      const recommendResult = await runDestinationRecommendationScenario({
+        message: request.message,
+        mode: recommendSignal ? "ADVISED" : hydratedPlan.mode,
+        baseCandidate,
+        savedShape,
+        placeNames,
+        placeDetailsById,
+        eligibleDestinations: publicEligibleDestinations,
+        allCatalogDestinations: publicCatalogDestinations,
+        unavailableStops,
+        candidateVisitIds: hydratedPlan.candidateVisitIds,
+        lockedVisitIds,
+        baselinePreview: validationPreview,
+        runPreview,
+        createVisitId: dependencies.createVisitId ?? randomUUID,
+        database: dependencies.database,
+        llm: dependencies.llm,
+        forecast: dependencies.forecast,
+        focusDayIndex: hydratedPlan.adviceFocus?.dayIndex ?? null,
+        topic: effectiveTopic,
+        timeReference,
+      });
+      if (recommendResult.kind === "ADVISED") {
+        return {
+          status: "ADVISED",
+          intent: planToPrimaryEditIntent(hydratedPlan),
+          advice: recommendResult.advice,
+          validation: validationPreview.validation,
+          aiSummary: recommendResult.advice,
+          ...(validationPreview.saveEligibility ? { saveEligibility: validationPreview.saveEligibility } : {}),
+          ...(recommendResult.suggestions.length > 0 ? { suggestions: recommendResult.suggestions } : {}),
+        };
+      }
+    }
+
+    const restResult = await runRestAndCompoundScenario({
+      message: request.message,
       baseCandidate,
-      { database: dependencies.database, getRoute: safeGetRoute },
-      timeReference,
-    );
-    const advice = buildGroundedAdvice({
-      candidate: baseCandidate,
+      savedShape,
       placeNames,
-      validation: validationPreview.validation,
-      legs: validationPreview.legs,
-      journeySummary: validationPreview.journeySummary,
-      saveEligibility: validationPreview.saveEligibility,
-      uncheckedItems: validationPreview.uncheckedItems,
-      focusDayIndex: hydratedPlan.adviceFocus?.dayIndex,
-      topic: hydratedPlan.adviceFocus?.topic,
+      placeDetailsById,
+      catalogDestinations: publicCatalogDestinations,
+      lockedVisitIds,
+      baselinePreview: validationPreview,
+      runPreview,
+      database: dependencies.database,
+      llm: dependencies.llm,
+      forecast: dependencies.forecast,
+      focusDayIndex: hydratedPlan.adviceFocus?.dayIndex ?? null,
+      topic: effectiveTopic,
+      timeReference,
+    });
+    if (restResult.kind === "APPLY_DIRECT") {
+      const card = restResult.suggestion;
+      return {
+        status: "PROPOSED",
+        candidate: card.candidate,
+        intent: planToPrimaryEditIntent(hydratedPlan, card.diff),
+        diff: card.diff,
+        validation: card.validation,
+        aiSummary: restResult.analysisSummary,
+        changedVisitIds: card.changedVisitIds,
+        ...(card.legs ? { legs: card.legs } : {}),
+        ...(card.saveEligibility ? { saveEligibility: card.saveEligibility } : {}),
+        ...(card.uncheckedItems ? { uncheckedItems: card.uncheckedItems } : {}),
+        ...(card.journeySummary ? { journeySummary: card.journeySummary } : {}),
+      };
+    }
+    if (restResult.kind === "ADVISED") {
+      return {
+        status: "ADVISED",
+        intent: planToPrimaryEditIntent(hydratedPlan),
+        advice: restResult.advice,
+        validation: validationPreview.validation,
+        aiSummary: restResult.advice,
+        ...(validationPreview.saveEligibility ? { saveEligibility: validationPreview.saveEligibility } : {}),
+        ...(restResult.suggestions.length > 0 ? { suggestions: restResult.suggestions } : {}),
+      };
+    }
+
+    const twoStep = await buildTwoStepGroundedAdvisory({
+      message: request.message,
+      baseCandidate,
+      savedShape,
+      placeNames,
+      placeDetailsById,
+      catalogDestinations: publicCatalogDestinations,
+      lockedVisitIds,
+      validationPreview,
+      runPreview,
+      database: dependencies.database,
+      llm: dependencies.llm,
+      forecast: dependencies.forecast,
+      focusDayIndex: hydratedPlan.adviceFocus?.dayIndex ?? null,
+      topic: effectiveTopic,
+      timeReference,
     });
     return {
       status: "ADVISED",
       intent: planToPrimaryEditIntent(hydratedPlan),
-      advice,
+      advice: twoStep.advice,
       validation: validationPreview.validation,
-      aiSummary: advice,
+      aiSummary: twoStep.advice,
       ...(validationPreview.saveEligibility ? { saveEligibility: validationPreview.saveEligibility } : {}),
+      ...(twoStep.suggestions.length > 0 ? { suggestions: twoStep.suggestions } : {}),
     };
   }
 

@@ -26,6 +26,7 @@ import {
   RotateCcw,
   Route as RouteIcon,
   Save,
+  Sparkles,
   Trash2,
   Undo2,
   Wand2,
@@ -47,6 +48,11 @@ import {
   type TripEditSnapshot,
 } from "@/lib/trip-edit-client";
 import type { EditResolution } from "@/modules/trip-edit/edit-clarification";
+import type { AdviceSuggestionCard } from "@/modules/trip-edit/saved-trip-advisory";
+import { requestBrowserLocation } from "@/modules/in-trip/browser-location";
+import { inTripLocationSchema, type InTripLocation } from "@/modules/in-trip/in-trip-location";
+import { createLocationFlowState, transitionLocationFlow } from "@/modules/in-trip/location-flow";
+import type { MapCoordinate } from "@/modules/map/map-model";
 import {
   MAX_AI_HISTORY_TURN_CHARS,
   MAX_AI_HISTORY_TURNS,
@@ -138,6 +144,7 @@ type Props = {
   hasCompanionPublication: boolean;
   initialCompletedVisitIds?: string[];
   catalogMeta?: Record<string, EditCatalogDestinationMeta>;
+  entryMode?: "edit" | "in-trip";
 };
 
 function minuteLabel(minute: number): string {
@@ -196,6 +203,7 @@ export default function EditTripClient({
   hasCompanionPublication,
   initialCompletedVisitIds = [],
   catalogMeta = {},
+  entryMode = "edit",
 }: Props) {
   const [liveTripStatus, setLiveTripStatus] = useState<TripStatus>(tripStatus);
   const [completedVisitIds, setCompletedVisitIds] = useState<string[]>(initialCompletedVisitIds);
@@ -227,14 +235,17 @@ export default function EditTripClient({
     initialCandidate.days[0]?.visits[0]?.destinationId ?? null,
   );
   const [focusSelection, setFocusSelection] = useState(false);
-  const [mobileTab, setMobileTab] = useState<"timeline" | "map">("timeline");
+  const [mobileTab, setMobileTab] = useState<"assistant" | "timeline" | "map">(
+    entryMode === "in-trip" ? "assistant" : "timeline",
+  );
   const [timingDrafts, setTimingDrafts] = useState<Record<string, { startTime: string; duration: string }>>({});
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [announcement, setAnnouncement] = useState("");
-  const [aiOpen, setAiOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(true);
   const [aiInput, setAiInput] = useState("");
   const [aiBarState, setAiBarState] = useState<AiBarUiState>({ kind: "IDLE" });
   const [aiThread, setAiThread] = useState<AiConversationEntry[]>([]);
+  const [sessionLocation, setSessionLocation] = useState<InTripLocation | null>(null);
   const aiTurnSeqRef = useRef(0);
   const [lastAiChange, setLastAiChange] = useState<{
     added: Set<string>;
@@ -337,7 +348,11 @@ export default function EditTripClient({
     setAnnouncement("Đã làm lại bước chỉnh sửa.");
   }
 
-  async function handleAiSubmit(promptText: string, resolution?: EditResolution) {
+  async function handleAiSubmit(
+    promptText: string,
+    resolution?: EditResolution,
+    overrideLocation?: InTripLocation,
+  ) {
     if (applyInProgress || liveTripStatus === "COMPLETED") return;
     const trimmed = promptText.trim();
     if (!trimmed) return;
@@ -351,6 +366,8 @@ export default function EditTripClient({
         content: [...item.text.trim()].slice(0, MAX_AI_HISTORY_TURN_CHARS).join(""),
       }))
       .filter((item) => item.content.length > 0);
+    const activeLocation =
+      liveTripStatus === "ONGOING" ? (overrideLocation ?? sessionLocation ?? undefined) : undefined;
     setAiOpen(true);
     setAiBarState({ kind: "LOADING", prompt: trimmed });
 
@@ -360,6 +377,7 @@ export default function EditTripClient({
       ...(resolution ? { resolution } : {}),
       draft: requestedDraft,
       ...(boundedHistory.length > 0 ? { history: boundedHistory } : {}),
+      ...(activeLocation ? { location: activeLocation } : {}),
     });
 
     if (outcome.kind === "TIMEOUT") {
@@ -424,8 +442,23 @@ export default function EditTripClient({
       ];
     };
 
+    if (result.status === "NEEDS_LOCATION") {
+      setSessionLocation(null);
+      setAiBarState({
+        kind: "NEEDS_LOCATION",
+        prompt: result.prompt,
+        pendingMessage: result.pendingMessage,
+        locationFlow: createLocationFlowState(),
+        manualPickerOpen: activeLocation !== undefined,
+        manualCoords: null,
+        coverageError: null,
+      });
+      setAnnouncement(result.prompt);
+      return;
+    }
+
     if (result.status === "NEEDS_CLARIFICATION") {
-      setAiThread((prev) => [...prev, ...nextTurnPair("CLARIFYING", result.clarification.prompt)].slice(-16));
+      setAiThread((prev) => [...prev, ...nextTurnPair("CLARIFYING", result.clarification.prompt)].slice(-MAX_AI_HISTORY_TURNS));
       setAiBarState({
         kind: "CLARIFYING",
         prompt: trimmed,
@@ -436,10 +469,26 @@ export default function EditTripClient({
     }
 
     if (result.status === "ADVISED") {
-      setAiThread((prev) => [...prev, ...nextTurnPair("ADVISED", result.advice)].slice(-16));
+      const userId = `u-${++aiTurnSeqRef.current}`;
+      const assistantId = `a-${++aiTurnSeqRef.current}`;
+      const advisedEntries: AiConversationEntry[] = [
+        { id: userId, role: "user", text: trimmed },
+        {
+          id: assistantId,
+          role: "assistant",
+          kind: "ADVISED",
+          text: result.advice,
+          ...(result.knowledgeParts ? { knowledgeParts: result.knowledgeParts } : {}),
+          ...(result.citations ? { citations: result.citations } : {}),
+        },
+      ];
+      setAiThread((prev) => [...prev, ...advisedEntries].slice(-MAX_AI_HISTORY_TURNS));
       setAiBarState({
         kind: "ADVISED",
         advice: result.advice,
+        ...(result.suggestions && result.suggestions.length > 0 ? { suggestions: result.suggestions } : {}),
+        ...(result.knowledgeParts ? { knowledgeParts: result.knowledgeParts } : {}),
+        ...(result.citations ? { citations: result.citations } : {}),
       });
       setAiInput("");
       setAnnouncement(result.advice);
@@ -454,7 +503,7 @@ export default function EditTripClient({
     }
 
     const summary = result.aiSummary ?? "AI đã cập nhật bản nháp hiện tại.";
-    setAiThread((prev) => [...prev, ...nextTurnPair("APPLIED", summary)].slice(-16));
+    setAiThread((prev) => [...prev, ...nextTurnPair("APPLIED", summary)].slice(-MAX_AI_HISTORY_TURNS));
     setAiInput("");
     commitDraft(result.candidate, summary);
     setTimingDrafts({});
@@ -496,6 +545,123 @@ export default function EditTripClient({
       summary,
       canUndo: true,
     });
+  }
+
+  function handleApplyAdviceSuggestion(suggestion: AdviceSuggestionCard) {
+    if (applyInProgress) return;
+    if (suggestion.addedPlaceDetails) {
+      setPlaceDetailsState((current) => ({
+        ...current,
+        ...suggestion.addedPlaceDetails,
+      }));
+    }
+    const summary = `Đã áp dụng phương án: ${suggestion.title}`;
+    const assistantId = `a-${++aiTurnSeqRef.current}`;
+    const assistantEntry: AiConversationEntry = {
+      id: assistantId,
+      role: "assistant",
+      kind: "APPLIED",
+      text: summary,
+    };
+    setAiThread((prev) => [...prev, assistantEntry].slice(-MAX_AI_HISTORY_TURNS));
+    commitDraft(suggestion.candidate, summary);
+    setTimingDrafts({});
+    setPreviewState(
+      finishEditPreview(
+        suggestion.candidate,
+        suggestion.candidate,
+        {
+          kind: "PREVIEWED",
+          result: {
+            baseRevision: workspace.baseRevision,
+            candidate: suggestion.candidate,
+            validation: suggestion.validation,
+            eligibleForConfirmation: suggestion.validation.canConfirm,
+            ...(suggestion.legs ? { legs: suggestion.legs } : {}),
+            ...(suggestion.saveEligibility ? { saveEligibility: suggestion.saveEligibility } : {}),
+            ...(suggestion.uncheckedItems ? { uncheckedItems: suggestion.uncheckedItems } : {}),
+            ...(suggestion.journeySummary ? { journeySummary: suggestion.journeySummary } : {}),
+          },
+        },
+        workspace.baseRevision,
+      ),
+    );
+    setLastAiChange({
+      added: new Set(suggestion.changedVisitIds.added),
+      updated: new Set(suggestion.changedVisitIds.updated),
+      shifted: new Set(suggestion.changedVisitIds.shifted),
+      appliedDraft: suggestion.candidate,
+    });
+    const firstChangedDestId =
+      suggestion.diff.added[0]?.destinationId ?? suggestion.diff.updated[0]?.after.destinationId ?? null;
+    if (firstChangedDestId) {
+      setSelectedDestinationId(firstChangedDestId);
+      setFocusSelection(true);
+    }
+    setAiBarState({
+      kind: "APPLIED",
+      summary,
+      canUndo: true,
+    });
+    setAnnouncement(`${summary}. Bản nháp đã được cập nhật.`);
+  }
+
+  async function handleRequestGpsForAi() {
+    if (aiBarState.kind !== "NEEDS_LOCATION" || applyInProgress) return;
+    const pendingMessage = aiBarState.pendingMessage;
+    const requestingFlow = transitionLocationFlow(aiBarState.locationFlow, {
+      type: "REQUEST_GPS",
+    });
+    setAiBarState({
+      ...aiBarState,
+      locationFlow: requestingFlow,
+      coverageError: null,
+    });
+
+    const gpsResult = await requestBrowserLocation(
+      typeof navigator !== "undefined" ? navigator.geolocation : null,
+    );
+    const finishedFlow = transitionLocationFlow(requestingFlow, {
+      type: "GPS_RESULT",
+      requestId: requestingFlow.requestId,
+      result: gpsResult,
+    });
+
+    if (gpsResult.status !== "OK") {
+      setAiBarState((current) =>
+        current.kind === "NEEDS_LOCATION"
+          ? {
+              ...current,
+              locationFlow: finishedFlow,
+              manualPickerOpen: true,
+            }
+          : current,
+      );
+      return;
+    }
+
+    const verifiedLocation = inTripLocationSchema.parse({
+      source: "GPS",
+      latitude: gpsResult.latitude,
+      longitude: gpsResult.longitude,
+      accuracyMeters: gpsResult.accuracyMeters,
+      capturedAt: new Date(gpsResult.capturedAt).toISOString(),
+    });
+    setSessionLocation(verifiedLocation);
+    void handleAiSubmit(pendingMessage, undefined, verifiedLocation);
+  }
+
+  function handleSelectManualLocationForAi(coords: MapCoordinate) {
+    if (aiBarState.kind !== "NEEDS_LOCATION" || applyInProgress) return;
+    const verifiedLocation = inTripLocationSchema.parse({
+      source: "MANUAL",
+      latitude: coords.latitude,
+      longitude: coords.longitude,
+      accuracyMeters: null,
+      capturedAt: new Date().toISOString(),
+    });
+    setSessionLocation(verifiedLocation);
+    void handleAiSubmit(aiBarState.pendingMessage, undefined, verifiedLocation);
   }
 
   function handleAiRetry() {
@@ -1072,6 +1238,39 @@ export default function EditTripClient({
     ? workingDraft.days
     : workingDraft.days.filter((day) => day.dayIndex === activeDayIndex);
 
+  function handleMobileTabKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    const order: readonly ("assistant" | "timeline" | "map")[] = ["assistant", "timeline", "map"];
+    const currentIdx = order.indexOf(mobileTab);
+    let nextIdx = -1;
+    if (event.key === "ArrowRight") nextIdx = (currentIdx + 1) % order.length;
+    else if (event.key === "ArrowLeft") nextIdx = (currentIdx - 1 + order.length) % order.length;
+    else if (event.key === "Home") nextIdx = 0;
+    else if (event.key === "End") nextIdx = order.length - 1;
+    if (nextIdx === -1) return;
+    event.preventDefault();
+    const nextTab = order[nextIdx]!;
+    setMobileTab(nextTab);
+    if (nextTab === "assistant") setAiOpen(true);
+    document.getElementById(`mobile-tab-${nextTab}`)?.focus();
+  }
+
+  function handleJumpToTabFromAi(tab: "timeline" | "map") {
+    setMobileTab(tab);
+    if (tab === "timeline" && lastAiChange) {
+      const firstChangedVisitId =
+        [...lastAiChange.added][0] ??
+        [...lastAiChange.updated][0] ??
+        [...lastAiChange.shifted][0];
+      if (firstChangedVisitId) {
+        requestAnimationFrame(() => {
+          const el = document.getElementById(`visit-card-${firstChangedVisitId}`);
+          el?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+          el?.focus?.({ preventScroll: true });
+        });
+      }
+    }
+  }
+
   if (liveTripStatus === "COMPLETED") {
     return (
       <main className={styles.page} lang="vi">
@@ -1222,11 +1421,35 @@ export default function EditTripClient({
           </nav>
         )}
 
-        <div className={styles.mobileTabs} role="tablist" aria-label="Chuyển chế độ xem">
+        <div
+          className={styles.mobileTabs}
+          role="tablist"
+          aria-label="Chuyển chế độ xem"
+          onKeyDown={handleMobileTabKeyDown}
+        >
           <button
+            id="mobile-tab-assistant"
+            type="button"
+            role="tab"
+            aria-selected={mobileTab === "assistant"}
+            aria-controls="assistant-panel-col"
+            tabIndex={mobileTab === "assistant" ? 0 : -1}
+            className={`${styles.mobileTabBtn} ${mobileTab === "assistant" ? styles.mobileTabActive : ""}`}
+            onClick={() => {
+              setMobileTab("assistant");
+              setAiOpen(true);
+            }}
+          >
+            <Sparkles size={15} aria-hidden="true" />
+            Trợ lý AI
+          </button>
+          <button
+            id="mobile-tab-timeline"
             type="button"
             role="tab"
             aria-selected={mobileTab === "timeline"}
+            aria-controls="timeline-panel-col"
+            tabIndex={mobileTab === "timeline" ? 0 : -1}
             className={`${styles.mobileTabBtn} ${mobileTab === "timeline" ? styles.mobileTabActive : ""}`}
             onClick={() => setMobileTab("timeline")}
           >
@@ -1234,9 +1457,12 @@ export default function EditTripClient({
             Lịch trình
           </button>
           <button
+            id="mobile-tab-map"
             type="button"
             role="tab"
             aria-selected={mobileTab === "map"}
+            aria-controls="map-panel-col"
+            tabIndex={mobileTab === "map" ? 0 : -1}
             className={`${styles.mobileTabBtn} ${mobileTab === "map" ? styles.mobileTabActive : ""}`}
             onClick={() => setMobileTab("map")}
           >
@@ -1245,37 +1471,66 @@ export default function EditTripClient({
           </button>
         </div>
 
-        <div className={`${styles.workspaceGrid} ${mobileTab === "timeline" ? styles.viewTimeline : styles.viewMap}`}>
-          <section className={styles.timelineColumn} aria-label="Bản nháp chỉnh sửa theo ngày" inert={applyInProgress}>
-            <AiEditBar
-              open={aiOpen}
-              onToggleOpen={() => setAiOpen((current) => !current)}
-              inputValue={aiInput}
-              onInputChange={setAiInput}
-              disabled={applyInProgress}
-              messages={aiThread}
-              onClearHistory={() => {
-                setAiThread([]);
-                setAiBarState({ kind: "IDLE" });
-              }}
-              state={
-                aiBarState.kind === "APPLIED"
-                  ? {
-                      ...aiBarState,
-                      canUndo:
-                        workspace.undoStack.length > 0 &&
-                        lastAiChange !== null &&
-                        areEditCandidatesEqual(workingDraft, lastAiChange.appliedDraft),
-                    }
-                  : aiBarState
-              }
-              onSubmitPrompt={(promptText, resolution) => {
-                void handleAiSubmit(promptText, resolution);
-              }}
-              onRetry={handleAiRetry}
-              onUndoAiStep={handleUndoAiStep}
-              onDismissApplied={() => setAiBarState({ kind: "IDLE" })}
-            />
+        <div
+          className={`${styles.workspaceGrid} ${!aiOpen ? styles.workspaceGridCollapsed : ""} ${
+            mobileTab === "assistant"
+              ? styles.viewAssistant
+              : mobileTab === "timeline"
+                ? styles.viewTimeline
+                : styles.viewMap
+          }`}
+        >
+          <aside id="assistant-panel-col" className={styles.assistantColumn} aria-label="Khung hội thoại Trợ lý chuyến đi">
+            <div className={styles.assistantSticky}>
+              <AiEditBar
+                open={aiOpen}
+                onToggleOpen={() => setAiOpen((current) => !current)}
+                inputValue={aiInput}
+                onInputChange={setAiInput}
+                disabled={applyInProgress}
+                messages={aiThread}
+                tripStatus={liveTripStatus}
+                hasOrigin={Boolean(workingDraft.journey?.origin?.confirmed)}
+                unavailableCount={instantChecks.unavailableVisits.length}
+                autoFocus={entryMode === "in-trip"}
+                onClearHistory={() => {
+                  setAiThread([]);
+                  setAiBarState({ kind: "IDLE" });
+                }}
+                state={
+                  aiBarState.kind === "APPLIED"
+                    ? {
+                        ...aiBarState,
+                        canUndo:
+                          workspace.undoStack.length > 0 &&
+                          lastAiChange !== null &&
+                          areEditCandidatesEqual(workingDraft, lastAiChange.appliedDraft),
+                      }
+                    : aiBarState
+                }
+                onSubmitPrompt={(promptText, resolution) => {
+                  void handleAiSubmit(promptText, resolution);
+                }}
+                onApplySuggestion={handleApplyAdviceSuggestion}
+                onRequestGps={() => void handleRequestGpsForAi()}
+                onOpenManualLocation={() =>
+                  setAiBarState((current) =>
+                    current.kind === "NEEDS_LOCATION"
+                      ? { ...current, manualPickerOpen: true, coverageError: null }
+                      : current,
+                  )
+                }
+                onSelectManualCoords={handleSelectManualLocationForAi}
+                onCancelPendingLocation={() => setAiBarState({ kind: "IDLE" })}
+                onRetry={handleAiRetry}
+                onUndoAiStep={handleUndoAiStep}
+                onDismissApplied={() => setAiBarState({ kind: "IDLE" })}
+                onJumpToTab={handleJumpToTabFromAi}
+              />
+            </div>
+          </aside>
+
+          <section id="timeline-panel-col" className={styles.timelineColumn} aria-label="Bản nháp chỉnh sửa theo ngày" inert={applyInProgress}>
 
             <div className={styles.autoShiftBar}>
               <label className={styles.toggleLabel}>
@@ -1845,7 +2100,7 @@ export default function EditTripClient({
             })}
           </section>
 
-          <aside className={styles.sideColumn} aria-label="Bản đồ và kiểm tra tính hợp lệ">
+          <aside id="map-panel-col" className={styles.sideColumn} aria-label="Bản đồ và kiểm tra tính hợp lệ">
             <div className={styles.sideSticky}>
               <div className={`${styles.sidePanel} ${styles.sidePanelMap}`}>
                 <ItineraryMap
@@ -2071,6 +2326,41 @@ export default function EditTripClient({
           </aside>
         </div>
       </div>
+
+      {aiBarState.kind === "APPLIED" && mobileTab === "assistant" && (
+        <div className={styles.mobileAiJumpBanner} role="status" aria-live="polite">
+          <span className={styles.mobileAiJumpText}>Đã cập nhật bản nháp</span>
+          <div className={styles.mobileAiJumpActions}>
+            <button
+              type="button"
+              className={styles.toolButtonCompact}
+              onClick={() => handleJumpToTabFromAi("timeline")}
+            >
+              Xem lịch trình
+            </button>
+            <button
+              type="button"
+              className={styles.toolButtonCompact}
+              onClick={() => handleJumpToTabFromAi("map")}
+            >
+              Bản đồ
+            </button>
+            {workspace.undoStack.length > 0 &&
+              lastAiChange !== null &&
+              areEditCandidatesEqual(workingDraft, lastAiChange.appliedDraft) && (
+                <button
+                  type="button"
+                  className={styles.toolButtonCompact}
+                  disabled={applyInProgress}
+                  onClick={handleUndoAiStep}
+                >
+                  <Undo2 size={13} aria-hidden="true" />
+                  Hoàn tác
+                </button>
+              )}
+          </div>
+        </div>
+      )}
 
       <div className={styles.mobileBottomBar}>
         <span className={`${styles.statusBadge} ${editDirty ? styles.statusDirty : styles.statusSaved}`}>

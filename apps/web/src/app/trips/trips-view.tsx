@@ -750,7 +750,11 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
               ) : (
                 <>
                   {trip.status !== "COMPLETED" && (
-                    <Link className="my-trips-action my-trips-edit-action" href={`/trips/${trip.id}/edit` as Route}>
+                    <Link
+                      className="my-trips-action my-trips-edit-action"
+                      href={`/trips/${trip.id}/edit` as Route}
+                      aria-label="Chỉnh sửa hành trình trong Trợ lý chuyến đi"
+                    >
                       <Pencil size={15} aria-hidden="true" />
                       <span>Chỉnh sửa hành trình</span>
                     </Link>
@@ -797,9 +801,10 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
                       <Link
                         className="my-trips-action my-trips-in-trip-btn"
                         href={`/trips/${trip.id}/in-trip` as Route}
+                        aria-label="Mở Trợ lý chuyến đi (Trợ lý trong chuyến đi)"
                       >
                         <Sparkles size={16} aria-hidden="true" />
-                        <span>Trợ lý trong chuyến đi</span>
+                        <span>Trợ lý chuyến đi</span>
                       </Link>
                     </>
                   )}
@@ -1315,9 +1320,13 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
                 <Users size={16} aria-hidden="true" />
                 <span>Tìm bạn đồng hành</span>
               </Link>
-              <Link className="my-trips-secondary-action" href={`/trips/${trip.id}/in-trip` as Route}>
+              <Link
+                className="my-trips-secondary-action"
+                href={`/trips/${trip.id}/in-trip` as Route}
+                aria-label="Mở Trợ lý chuyến đi (Trợ lý trong chuyến đi)"
+              >
                 <Sparkles size={16} aria-hidden="true" />
-                <span>Mở Trợ lý trong chuyến đi</span>
+                <span>Mở Trợ lý chuyến đi</span>
               </Link>
             </>
           )}

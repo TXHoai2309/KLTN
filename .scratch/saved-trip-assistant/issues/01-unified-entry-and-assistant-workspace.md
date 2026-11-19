@@ -1,0 +1,16 @@
+# 01: Hợp nhất điểm vào & Không gian Trợ lý chuyến đi (Saved-trip assistant), hội thoại 16 lượt & bảo vệ trường khung
+
+**What to build:** Khi chủ chuyến (Traveler hoặc Admin sở hữu chuyến đi) mở chức năng chỉnh sửa hoặc trợ lý trong chuyến đi từ trang chi tiết chuyến đi (hoặc truy cập trực tiếp một trong hai đường dẫn chỉnh sửa / trợ lý trong chuyến đi), cả hai lối vào đều dẫn về cùng một không gian `Trợ lý chuyến đi` (`Saved-trip assistant`) duy nhất làm việc trên một `bản nháp chỉnh sửa` (`Edit draft`) dùng chung kèm lịch sử `Hoàn tác` / `Làm lại` (`Undo/Redo`). Khi đi vào qua lối trợ lý trong chuyến đi, Khung hội thoại Trợ lý AI hoàn chỉnh được mở và đặt tiêu điểm sẵn (trên Desktop hiển thị song hành Khung Trợ lý AI + Timeline `bản nháp chỉnh sửa` + Bản đồ lộ trình tương tác với nút thu/mở linh hoạt; trên Mobile từ `360px` hiển thị 3 tab `Trợ lý AI` | `Lịch trình` | `Bản đồ` kèm banner nhảy tab/Hoàn tác khi bản nháp thay đổi và thanh lưu ghim đáy; đồng thời ẩn nút nổi trợ lý toàn cục trên cả hai đường dẫn). Khung hội thoại lưu giữ tới 16 lượt trao đổi gần nhất trong phiên và giải thích rõ phạm vi khi người dùng yêu cầu AI đổi các trường khung cố định (`ngày bắt đầu`, `số ngày`, `phương tiện`).
+
+**Blocked by:** None (can start immediately).
+
+**Status:** done
+
+- [x] Truy cập đường dẫn chỉnh sửa hay đường dẫn trợ lý trong chuyến đi của cùng một chuyến đi đều hiển thị không gian `Trợ lý chuyến đi` (`Saved-trip assistant`) hợp nhất; khi mở từ đường dẫn trợ lý trong chuyến đi, Khung hội thoại Trợ lý AI được mở và đặt tiêu điểm sẵn (trên Mobile chọn sẵn tab `Trợ lý AI`), không làm gãy bất kỳ liên kết cũ nào.
+- [x] Trang chi tiết chuyến đi dẫn thống nhất vào không gian `Trợ lý chuyến đi` hợp nhất cho chuyến chưa hoàn thành; chuyến đã hoàn thành (`COMPLETED`) hiển thị màn hình khóa chỉ xem trên cả hai đường dẫn và bị từ chối ở cấp API (`409`).
+- [x] Nút nổi trợ lý toàn cục (`Global assistant launcher`) được ẩn trên cả hai đường dẫn của không gian `Trợ lý chuyến đi`.
+- [x] Trên Desktop (`>= 900px`), Khung hội thoại Trợ lý AI hoàn chỉnh (có luồng tin nhắn, chip gợi ý câu hỏi theo ngữ cảnh chuyến đi, ô nhập đa dòng và nút xóa hội thoại tạm) hiển thị song hành cùng Timeline `bản nháp chỉnh sửa` và Bản đồ lộ trình sticky (cho phép thu gọn/mở rộng khung Trợ lý AI).
+- [x] Trên Mobile (`< 900px`, từ `360px` không tràn ngang), thanh chuyển 3 tab `Trợ lý AI` | `Lịch trình` | `Bản đồ` hoạt động mượt bằng chạm và bàn phím, hiển thị banner thông báo nổi để chuyển nhanh sang xem Timeline/Bản đồ hoặc bấm `Hoàn tác` ngay khi AI cập nhật `bản nháp chỉnh sửa`.
+- [x] Hợp đồng lịch sử hội thoại trong phiên của `Trợ lý chuyến đi` hỗ trợ tối đa 16 lượt gần nhất (chuẩn hóa, giới hạn độ dài và xử lý như dữ liệu không đáng tin cậy), đồng thời luôn gửi kèm trạng thái `bản nháp chỉnh sửa` mới nhất (bao gồm cả các thao tác chỉnh tay xen kẽ).
+- [x] Khi người dùng yêu cầu AI thay đổi `ngày bắt đầu`, `số ngày` hoặc `phương tiện`, Trợ lý giữ nguyên `bản nháp chỉnh sửa`, trả lời tiếng Việt giải thích rõ ba trường khung này cố định đối với chuyến đi đã lưu và hướng dẫn lập chuyến mới nếu muốn đổi cấu trúc khung; server từ chối mọi payload cố tình sửa ba trường này.
+- [x] Kiểm thử tự động ở cả Seam 1 (HTTP/Service contract) và Seam 2 (Unified Workspace UI & state trên cả hai lối vào, Desktop & `360px`) đều PASS.

@@ -20,6 +20,7 @@ import {
 } from "./ai-edit-service";
 import { aiChatHistorySchema } from "./ai-workspace-plan";
 import { editCandidateSchema } from "./edit-candidate";
+import { inTripLocationSchema } from "../in-trip/in-trip-location";
 
 export const MAX_AI_EDIT_BODY_BYTES = 64 * 1024;
 
@@ -37,6 +38,7 @@ export const aiEditRequestSchema = z
     resolution: editResolutionSchema.optional(),
     draft: editCandidateSchema.optional(),
     history: aiChatHistorySchema.optional(),
+    location: inTripLocationSchema.optional(),
   })
   .strict();
 
@@ -87,7 +89,7 @@ function assertSameOriginPost(request: Request): void {
 function fieldErrors(error: z.ZodError): Record<string, string> {
   const result: Record<string, string> = {};
   for (const issue of error.issues) {
-    const field = ["baseRevision", "message", "resolution", "draft", "history"].includes(String(issue.path[0]))
+    const field = ["baseRevision", "message", "resolution", "draft", "history", "location"].includes(String(issue.path[0]))
       ? String(issue.path[0])
       : "_form";
     result[field] ??=

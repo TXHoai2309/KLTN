@@ -369,6 +369,8 @@ describe("Ticket 07 Workspace AI multi-op, >4 stops, ONGOING, ExternalPlace, and
   });
 
   it("Ticket 08: handles ephemeral history (untrusted + bounded), origin clocks pre/post cutoff, and read-only ADVISED Planning guidance", async () => {
+    let seenStep1System = "";
+    let seenStep1User = "";
     let seenSystem = "";
     let seenUser = "";
     let nextOutput: WorkspacePlanModelOutput = {
@@ -469,6 +471,10 @@ describe("Ticket 07 Workspace AI multi-op, >4 stops, ONGOING, ExternalPlace, and
           complete: async (req) => {
             seenSystem = req.system;
             seenUser = req.user;
+            if (req.user.includes('"requestData"')) {
+              seenStep1System = req.system;
+              seenStep1User = req.user;
+            }
             return { rawText: JSON.stringify(nextOutput), model: "fake-model" };
           },
         },
@@ -500,10 +506,29 @@ describe("Ticket 07 Workspace AI multi-op, >4 stops, ONGOING, ExternalPlace, and
     expect(advisedBody.data).not.toHaveProperty("candidate");
     expect(advisedBody.data.advice).toContain("Ngày 1");
     expect(advisedBody.data.advice).toContain("30 phút");
-    expect(seenSystem).toContain("DỮ LIỆU không đáng tin");
-    expect(JSON.parse(seenUser).requestData.history).toHaveLength(2);
+    expect(seenStep1System).toContain("DỮ LIỆU không đáng tin");
+    expect(JSON.parse(seenStep1User).requestData.history).toHaveLength(2);
 
-    // 2. Rejects oversized history > 8 turns cleanly at HTTP boundary
+    // 2. Accepts 16 turns and rejects oversized history > 16 turns cleanly at HTTP boundary
+    const maxHistoryRes = await aiEditResponse(
+      new Request("https://example.test/api/trips/trip-1/edits/ai", {
+        method: "POST",
+        headers: { origin: "https://example.test", "content-type": "application/json" },
+        body: JSON.stringify({
+          baseRevision: revision.toISOString(),
+          message: "Ngày 1 ổn không?",
+          history: Array.from({ length: 16 }, (_, idx) => ({
+            role: idx % 2 === 0 ? "user" : "assistant",
+            content: `Lượt ${idx + 1}`,
+          })),
+        }),
+      }),
+      "trip-1",
+      deps,
+    );
+    expect(maxHistoryRes.status).toBe(200);
+    expect(JSON.parse(seenStep1User).requestData.history).toHaveLength(16);
+
     const badHistoryRes = await aiEditResponse(
       new Request("https://example.test/api/trips/trip-1/edits/ai", {
         method: "POST",
@@ -511,7 +536,7 @@ describe("Ticket 07 Workspace AI multi-op, >4 stops, ONGOING, ExternalPlace, and
         body: JSON.stringify({
           baseRevision: revision.toISOString(),
           message: "Đổi nó sang chiều",
-          history: Array.from({ length: 9 }, (_, idx) => ({ role: "user", content: `Lượt ${idx}` })),
+          history: Array.from({ length: 17 }, (_, idx) => ({ role: "user", content: `Lượt ${idx}` })),
         }),
       }),
       "trip-1",
@@ -633,5 +658,55 @@ describe("Ticket 07 Workspace AI multi-op, >4 stops, ONGOING, ExternalPlace, and
     expect(JSON.parse(capturedBody).history).toEqual([{ role: "user", content: "Xem lại Ngày 1" }]);
     expect(clientOutcome.kind).toBe("RESULT");
     if (clientOutcome.kind === "RESULT") expect(clientOutcome.result.status).toBe("ADVISED");
+
+    // 7. Frame field requests (ngày bắt đầu, số ngày, phương tiện) explain fixed scope & preserve draft; forged frame payload rejected
+    nowCursor = new Date(upstreamTime);
+    nextOutput = {
+      ...nextOutput,
+      mode: "ADVISED",
+      adviceFocus: { dayIndex: null, topic: "FRAME_IMMUTABLE" },
+    };
+    const frameRes = await aiEditResponse(
+      new Request("https://example.test/api/trips/trip-1/edits/ai", {
+        method: "POST",
+        headers: { origin: "https://example.test", "content-type": "application/json" },
+        body: JSON.stringify({
+          baseRevision: revision.toISOString(),
+          message: "Đổi ngày bắt đầu sang 2026-10-25 và đổi sang xe máy",
+          draft: draftWithOrigin,
+        }),
+      }),
+      "trip-1",
+      deps,
+    );
+    expect(frameRes.status).toBe(200);
+    const frameBody = await frameRes.json();
+    expect(frameBody.data.status).toBe("ADVISED");
+    expect(frameBody.data).not.toHaveProperty("candidate");
+    expect(frameBody.data.advice).toContain("Ngày bắt đầu");
+    expect(frameBody.data.advice).toContain("số ngày");
+    expect(frameBody.data.advice).toContain("phương tiện");
+    expect(frameBody.data.advice).toContain("chuyến đi mới");
+
+    for (const badDraft of [
+      { ...draftWithOrigin, startDate: "2026-10-25" },
+      { ...draftWithOrigin, durationDays: 2, days: [...draftWithOrigin.days, { dayIndex: 2, visits: [] }] },
+      { ...draftWithOrigin, transport: "MOTORCYCLE" },
+    ]) {
+      const forgedRes = await aiEditResponse(
+        new Request("https://example.test/api/trips/trip-1/edits/ai", {
+          method: "POST",
+          headers: { origin: "https://example.test", "content-type": "application/json" },
+          body: JSON.stringify({
+            baseRevision: revision.toISOString(),
+            message: "Đổi giờ điểm A",
+            draft: badDraft,
+          }),
+        }),
+        "trip-1",
+        deps,
+      );
+      expect(forgedRes.status).toBe(400);
+    }
   });
 });

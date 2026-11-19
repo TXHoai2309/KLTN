@@ -5712,3 +5712,50 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
   - Vitest `src/modules/assistant-planning src/modules/assistant-agent-v2`: 31/32 non-skipped files PASS (389/390 tests; 10 skipped; 1 unrelated failure in `in-trip-v2.vitest.test.ts:155` on `getRoute` mock call arity).
   - `git diff --check`: PASS.
 - **Not run / remaining:** `npm --workspace apps/web run build` and live browser/OpenAI acceptance not run.
+
+## 2026-11-19 — Unified Saved-trip Assistant & Grounded Advisory design (`grill-with-docs`)
+
+- **Branch/status:** `master` — **PLAN / SPEC ONLY** (no application code, schema, migration, env, or DB changes).
+- **Design interview (`Q1–Q10`):** Owner confirmed unifying `/trips/[id]/edit` and `/trips/[id]/in-trip` into one `Saved-trip assistant` (`Trợ lý chuyến đi`) workspace operating on the shared client `Edit draft` (`ADR-37`), with full manual-edit capability parity (multi-turn draft up to 16 turns, Undo/Redo, 50-visit cap, multi-op batch edits, `auto-shift`, pre-departure `Trip origin` and clocks, existing `ExternalPlace` + `uncheckedChecks`, `ONGOING` elapsed-visit lock, `COMPLETED` lock, `409` Rebase, immutable `startDate`/`durationDays`/`transport`), conditional GPS only for material `ONGOING` location-dependent requests, and a 2-step Grounded Agent Pipeline (`Intent + Server Dry-Run Simulation` of up to 2 candidate remedies → `Grounded Advisory Composer` + server-packaged 1-click `Actionable advice suggestion` cards) covering all 7 traveler question archetypes (including `Schedule rest buffer` scenarios, `VISIBLE` KLTN catalog recommendations, interleaved RAG + labeled `Kiến thức mở rộng` Q&A, and live trip-date weather/sun-time advisories).
+- **Documentation deliverables:**
+  - Updated [`GLOSSARY.md`](../GLOSSARY.md) (`Planning guidance`, `Saved-trip assistant`, `Actionable advice suggestion`, `Schedule rest buffer`).
+  - Recorded `ADR-38` and the `ADR-36` saved-trip weather addendum in [`docs/decisions.md`](decisions.md).
+  - Created standalone `to-spec` specification [`docs/product/saved-trip-assistant-spec.md`](product/saved-trip-assistant-spec.md) (`ready-for-agent`, 38 user stories, implementation decisions without file paths/code snippets, 2 high-level test seams) and indexed it in [`docs/README.md`](README.md).
+  - Updated [`docs/product/trip-edit-redesign-spec.md`](product/trip-edit-redesign-spec.md) and [`docs/product/product-spec.md`](product/product-spec.md).
+- **Checks:** `git diff --check` verified clean. No application tests, build, database, or external provider calls run.
+- **Next:** Await owner instruction to break down vertical implementation tickets or begin coding `ADR-38`.
+
+## 2026-11-19 — Saved-trip Assistant vertical tickets (`to-tickets`)
+
+- **Branch/status:** `master` — **PLAN / SPEC ONLY** (no application code, schema, migration, env, or DB changes).
+- **Tickets delivered:** Published 7 vertical tracer-bullet ticket files (`01`–`07`) under [`.scratch/saved-trip-assistant/issues/`](../.scratch/saved-trip-assistant/issues/) plus [`.scratch/saved-trip-assistant/README.md`](../.scratch/saved-trip-assistant/README.md) with explicit `Blocked by` edges, `ready-for-agent` status, and full coverage across all 38 user stories in [saved-trip-assistant-spec.md](product/saved-trip-assistant-spec.md) (avoiding file paths and code snippets). Indexed in [`docs/README.md`](README.md).
+- **Checks:** Verified all 7 ticket files, blocking DAG, user-story coverage (1–38), and `git diff --check`.
+- **Next:** Execute Tickets `01` through `07` sequentially starting from frontier Ticket `01` when the owner launches the implementation session.
+
+## 2026-11-19 — Triển khai hoàn tất Trợ lý chuyến đi hợp nhất & Tư vấn hành trình thông minh (`ADR-38`, Tickets `01`–`07`)
+
+### Tổng quan thay đổi theo từng ticket
+1. **Ticket 01 (`01-unified-entry-and-assistant-workspace`)**:
+   - Hợp nhất `/trips/[id]/edit` và `/trips/[id]/in-trip` qua [saved-trip-assistant-page.tsx](file:///d:/KLTN/KLTN/apps/web/src/app/trips/%5Bid%5D/edit/saved-trip-assistant-page.tsx) (cùng `Edit draft`, `Undo/Redo`, khóa read-only `COMPLETED` trên cả 2 route, tự mở & focus Khung hội thoại Trợ lý AI khi vào từ `in-trip` và chọn tab `Trợ lý AI` trên Mobile).
+   - Nâng cấp [ai-edit-bar.tsx](file:///d:/KLTN/KLTN/apps/web/src/app/trips/%5Bid%5D/edit/ai-edit-bar.tsx), [edit-trip-client.tsx](file:///d:/KLTN/KLTN/apps/web/src/app/trips/%5Bid%5D/edit/edit-trip-client.tsx), [edit-trip.module.css](file:///d:/KLTN/KLTN/apps/web/src/app/trips/%5Bid%5D/edit/edit-trip.module.css): bố cục 3 cột Desktop / 3 tab Mobile (`Trợ lý AI` | `Lịch trình` | `Bản đồ`), 16 lượt hội thoại phiên tạm (`MAX_AI_HISTORY_TURNS = 16`), chip gợi ý theo ngữ cảnh và bảo vệ 3 trường khung cố định (`FRAME_IMMUTABLE` tại [ai-workspace-plan.ts](file:///d:/KLTN/KLTN/apps/web/src/modules/trip-edit/ai-workspace-plan.ts)).
+   - Ẩn nút nổi [global-assistant.tsx](file:///d:/KLTN/KLTN/apps/web/src/components/assistant/global-assistant.tsx) trên cả `/trips/[id]/edit` và `/trips/[id]/in-trip`, cập nhật link mở workspace từ [trips-view.tsx](file:///d:/KLTN/KLTN/apps/web/src/app/trips/trips-view.tsx).
+2. **Ticket 02 (`02-two-step-grounded-advisory-and-action-cards`)**:
+   - Xây dựng kiến trúc AI 2 bước trong [saved-trip-advisory.ts](file:///d:/KLTN/KLTN/apps/web/src/modules/trip-edit/saved-trip-advisory.ts): Bước 1 kiểm tra chỉ số thực tế và chạy `dry-run` tối đa 2 phương án ứng viên qua bộ định tuyến + `Constraint Validator`; Bước 2 `Grounded Advisory Composer` + `Deterministic Fact Guard` + fallback tất định khi LLM lỗi/timeout.
+   - Đóng gói tối đa 2 thẻ `Actionable advice suggestion` qua [ai-edit-service.ts](file:///d:/KLTN/KLTN/apps/web/src/modules/trip-edit/ai-edit-service.ts) và [trip-edit-client.ts](file:///d:/KLTN/KLTN/apps/web/src/lib/trip-edit-client.ts), hỗ trợ bấm **"Áp dụng phương án này vào bản nháp"** 1 chạm (`Undo/Redo`, không gọi lại LLM).
+3. **Ticket 03 (`03-rest-buffer-delay-scenarios-and-compound-turns`)**:
+   - Xây dựng [saved-trip-rest-scenario.ts](file:///d:/KLTN/KLTN/apps/web/src/modules/trip-edit/saved-trip-rest-scenario.ts) xử lý `Schedule rest buffer`, dậy muộn/xuất phát trễ, nhịp độ thong thả (`relaxedPace`), phát hiện kẹt giờ đóng cửa/sau hoàng hôn/`23:59`/hạn về và câu hỏi kép (*"nếu gấp/không kịp thì sửa giúp luôn"*), giữ bất biến lượt `ONGOING` đã qua giờ và trần 50 lượt.
+4. **Ticket 04 (`04-smart-destination-recommendations-and-hidden-stops`)**:
+   - Xây dựng [saved-trip-recommend.ts](file:///d:/KLTN/KLTN/apps/web/src/modules/trip-edit/saved-trip-recommend.ts) lọc & xếp hạng tối đa 3 `Destination option` `VISIBLE` chưa có trong bản nháp theo khu vực, giờ mở cửa, quỹ thời gian và trong nhà/ngoài trời theo thời tiết; chặn ID giả/`HIDDEN`/đã xóa mềm; hỗ trợ gợi ý 3 điểm công khai cùng khu vực + xóa nhanh điểm `HIDDEN`, đồng thời bảo toàn `ExternalPlace` (`NEEDS_UNCHECKED_ACK`).
+5. **Ticket 05 (`05-interleaved-rag-knowledge-weather-and-progress`)**:
+   - Xây dựng [saved-trip-interleaved-qa.ts](file:///d:/KLTN/KLTN/apps/web/src/modules/trip-edit/saved-trip-interleaved-qa.ts) phục vụ hỏi đáp xen kẽ chỉ-đọc: RAG + nhãn `Kiến thức mở rộng` & trích dẫn nguồn thật, dự báo thời tiết Open-Meteo + `suncalc` theo ngày lịch (gồm ngưỡng > 16 ngày `"Chưa có dự báo, sẽ có từ ngày ..."` và ngoại lệ `ADR-36`), và tiến độ lượt tiếp theo (`Edit draft` + `Undo/Redo` giữ nguyên).
+6. **Ticket 06 (`06-conditional-ongoing-gps-and-manual-location`)**:
+   - Xây dựng [saved-trip-location-guidance.ts](file:///d:/KLTN/KLTN/apps/web/src/modules/trip-edit/saved-trip-location-guidance.ts) cùng [ai-edit-http.ts](file:///d:/KLTN/KLTN/apps/web/src/modules/trip-edit/ai-edit-http.ts) và UI `NEEDS_LOCATION` dùng GPS 1 lần (`requestBrowserLocation`) + `ManualLocationPicker` fallback chỉ cho `ONGOING` khi câu hỏi thực sự phụ thuộc vị trí đang đứng; kiểm tra phủ Việt Nam ở server (`vietnamCoverageAt`), giữ cố định lượt đã qua giờ (`Asia/Ho_Chi_Minh`) và không lưu tọa độ dài hạn.
+7. **Ticket 07 (`07-vertical-acceptance-and-end-to-end-hardening`)**:
+   - Bổ sung bộ nghiệm thu liên hoàn [saved-trip-assistant-acceptance.vitest.test.ts](file:///d:/KLTN/KLTN/apps/web/src/modules/trip-edit/saved-trip-assistant-acceptance.vitest.test.ts) cùng các test Seam 1 & Seam 2 cho từng ticket (`saved-trip-advisory`, `saved-trip-rest-scenario`, `saved-trip-recommend`, `saved-trip-interleaved-qa`, `saved-trip-location-guidance`, `edit-workspace-ui`, `ai-workspace-plan`, `global-assistant-route`).
+
+### Kết quả kiểm chứng sau chỉnh sửa cuối cùng
+- `npm run check-types`: **PASS** (4/4 workspace packages).
+- `npm run build --workspace web`: **PASS** (`Next.js 16.4.6 Turbopack`, biên dịch thành công 57/57 static & toàn bộ route động/API).
+- Vitest (`src/modules/trip-edit`, `src/modules/in-trip`, `src/modules/trip-origin`, `src/modules/trip-save`, `src/modules/trip-weather`, `src/app/trips`, `src/components/assistant`): **118 file PASS, 1027 tests passed, 3 files (`16` tests) Postgres integration skipped do môi trường chưa bật Docker (`DOCKER_OFF`), 1 todo**; kịch bản tương đương concurrency `409`, retry `UNKNOWN` idempotency, companion publication notice & `uncheckedChecks`/`journeySnapshot` đã PASS trong `saved-trip-assistant-acceptance.vitest.test.ts`.
+- `npm run test:legacy --workspace web`: **PASS** (11 nhóm test / 352 assertions, 0 fail).
+- `git diff --check`: **PASS** (exit 0).

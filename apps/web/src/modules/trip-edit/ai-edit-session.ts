@@ -28,6 +28,7 @@ export type AiEditSession = {
     | "PROPOSED"
     | "ADVISED"
     | "NEEDS_CLARIFICATION"
+    | "NEEDS_LOCATION"
     | "CHECKING"
     | "ERROR"
     | "APPLYING"

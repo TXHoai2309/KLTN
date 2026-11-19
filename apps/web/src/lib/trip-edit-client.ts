@@ -3,12 +3,17 @@ import { z } from "zod";
 import { sendIdempotentMutation } from "@/lib/mutation-client";
 import type { MutationOutcome } from "@/lib/mutation-contract";
 import {
+  advisoryCitationSchema,
+  advisoryKnowledgePartSchema,
   aiChatHistorySchema,
   type AiChatHistoryTurn,
 } from "@/modules/trip-edit/ai-workspace-plan";
+import { inTripLocationSchema, type InTripLocation } from "@/modules/in-trip/in-trip-location";
+import type { AdviceSuggestionCard } from "@/modules/trip-edit/saved-trip-advisory";
 import { editCandidateSchema, type EditCandidate } from "@/modules/trip-edit/edit-candidate";
 import type { ApplyEditResult } from "@/modules/trip-edit/apply-edit";
 import type {
+  EditPlaceDetail,
   PreviewEditResult,
   PreviewLegMetric,
   TripEditPageData,
@@ -381,7 +386,7 @@ const aiDiffSchema = z.object({
   tripChanges: z.object({
     startDate: z.object({ before: z.string().nullable(), after: z.string().nullable() }).strict().optional(),
     durationDays: z.object({ before: z.number().int(), after: z.number().int() }).strict().optional(),
-    transport: z.object({ before: z.string(), after: z.string() }).strict().optional(),
+    transport: z.object({ before: z.enum(["MOTORCYCLE", "CAR"]), after: z.enum(["MOTORCYCLE", "CAR"]) }).strict().optional(),
   }).strict(),
 }).strict();
 
@@ -395,6 +400,42 @@ const aiValidationSchema = z.object({
   }).strict(),
   canConfirm: z.boolean(),
 }).strict() satisfies z.ZodType<TripValidation>;
+
+const editPlaceDetailSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  area: z.string(),
+  category: z.string().optional(),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+  suggestedDurationMinutes: z.number().nullable().optional(),
+  minimumDurationMinutes: z.number().nullable().optional(),
+  isOutdoor: z.boolean().optional(),
+  availability: z.enum(["AVAILABLE", "UNAVAILABLE"]),
+  image: z.object({ url: z.string(), alt: z.string() }).strict().optional(),
+  external: z.boolean().optional(),
+}).strict() satisfies z.ZodType<EditPlaceDetail>;
+
+const adviceSuggestionCardSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1),
+  summary: z.string().min(1),
+  diffSummaryLines: z.array(z.string()),
+  candidate: editCandidateSchema,
+  diff: aiDiffSchema,
+  validation: aiValidationSchema,
+  changedVisitIds: z.object({
+    added: z.array(z.string()),
+    updated: z.array(z.string()),
+    shifted: z.array(z.string()),
+    removedCount: z.number().int().nonnegative(),
+  }).strict(),
+  legs: z.array(previewLegMetricSchema).optional(),
+  saveEligibility: z.enum(["PASS", "NEEDS_UNCHECKED_ACK", "BLOCKED"]).optional(),
+  uncheckedItems: z.array(uncheckedItemSchema).optional(),
+  journeySummary: previewJourneySummarySchema.optional(),
+  addedPlaceDetails: z.record(z.string(), editPlaceDetailSchema).optional(),
+}).strict() satisfies z.ZodType<AdviceSuggestionCard>;
 
 const aiEditResponseSchema = z.discriminatedUnion("status", [
   z.object({
@@ -433,6 +474,15 @@ const aiEditResponseSchema = z.discriminatedUnion("status", [
     validation: aiValidationSchema,
     aiSummary: z.string().min(1),
     saveEligibility: z.enum(["PASS", "NEEDS_UNCHECKED_ACK", "BLOCKED"]).optional(),
+    suggestions: z.array(adviceSuggestionCardSchema).max(4).optional(),
+    knowledgeParts: z.array(advisoryKnowledgePartSchema).optional(),
+    citations: z.array(advisoryCitationSchema).optional(),
+  }).strict(),
+  z.object({
+    status: z.literal("NEEDS_LOCATION"),
+    prompt: z.string().min(1),
+    pendingMessage: z.string().min(1),
+    aiSummary: z.string().min(1),
   }).strict(),
 ]);
 
@@ -447,6 +497,7 @@ export type AiTripEditInput = {
   resolution?: import("@/modules/trip-edit/edit-clarification").EditResolution;
   draft?: EditCandidate;
   history?: AiChatHistoryTurn[];
+  location?: InTripLocation;
 };
 
 export type AiTripEditOutcome =
@@ -476,6 +527,8 @@ export async function requestAiTripEdit(
     const validatedDraft = input.draft !== undefined ? editCandidateSchema.parse(input.draft) : undefined;
     const validatedHistory =
       input.history && input.history.length > 0 ? aiChatHistorySchema.parse(input.history) : undefined;
+    const validatedLocation =
+      input.location !== undefined ? inTripLocationSchema.parse(input.location) : undefined;
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(() => {
         timedOut = true;
@@ -497,6 +550,7 @@ export async function requestAiTripEdit(
             ...(input.resolution ? { resolution: input.resolution } : {}),
             ...(validatedDraft ? { draft: validatedDraft } : {}),
             ...(validatedHistory ? { history: validatedHistory } : {}),
+            ...(validatedLocation ? { location: validatedLocation } : {}),
           }),
           signal: controller.signal,
         },

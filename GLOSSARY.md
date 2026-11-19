@@ -139,8 +139,8 @@ A structured description of the next conversational goal, supported facts, allow
 _Avoid_: Itinerary proposal, model-generated business decision.
 
 **Planning guidance (tư vấn theo lịch hiện tại)**:
-A read-only answer to a request for advice about the current itinerary proposal (is it balanced, tiring, what if the traveler runs slow). It uses only what the stored proposal and its checks support, never changes the proposal, and is distinct from an edit request.
-_Avoid_: Replanning, clarification question.
+A read-only answer to a request for advice about the current itinerary proposal or edit draft (whether it is balanced, tiring, affected by sun times or forecast weather, or how to adjust for a rest break or delay). It uses only facts supported by the current schedule, its validation checks, travel legs, and available forecasts, never changes the schedule by itself, and is distinct from an edit request.
+_Avoid_: Replanning, clarification question, weather safety guarantee.
 
 **Trip structure (cấu trúc chuyến đi)**:
 The days of a trip together with the nights the traveler explicitly said they will stay. Nights are never derived from days; more nights than days is clarified, not corrected silently.
@@ -228,3 +228,15 @@ _Avoid_: Điểm đến (when referring to a stop in a schedule), điểm dừng
 **Itinerary validation (kiểm tra tính hợp lệ)**:
 The deterministic server evaluation of an itinerary against opening hours, minimum stay duration, travel time, and schedule conflicts. Weather advisories and AI suggestions are not validation.
 _Avoid_: AI review, weather warning.
+
+**Saved-trip assistant (trợ lý chuyến đi)**:
+The unified conversational and visual workspace for an owned saved trip where the traveler can ask questions, receive planning guidance, and adjust a shared edit draft through conversation or direct controls before confirming a save.
+_Avoid_: Separate in-trip chat vs edit screen, auto-saving assistant.
+
+**Actionable advice suggestion (gợi ý chỉnh sửa từ tư vấn)**:
+A concrete, optional adjustment offered alongside a read-only planning guidance answer that does not change the edit draft unless the traveler chooses to apply it.
+_Avoid_: Automatic draft edit, unverified recommendation.
+
+**Schedule rest buffer (khoảng nghỉ trong lịch)**:
+An intentional gap before or between scheduled visits created by shifting visit times so the traveler can rest, distinct from roadside rest allowance, an overnight anchor, or a scheduled visit.
+_Avoid_: Fake destination stop, hotel or lodging booking.

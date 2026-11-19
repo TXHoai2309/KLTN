@@ -722,7 +722,7 @@ The Validator and its tests are unchanged. A forecast provider outage degrades t
 
 ### Addendum (2026-11-18): Assistant
 
-The Assistant answers Weather questions for Guests and travelers, and a turn that creates or changes a proposal may add one line naming at most two of the heaviest advisories. Question understanding adds a `WEATHER` intent and a validated `weatherDate`; the server checks the date and re-reads the forecast, and neither model nor keyword code decides weather facts. Weather numbers and advisories are shown as a code-built card; the model writes only a short lead-in. The Assistant never says whether the traveler should or should not go. Weather questions count toward the existing Q&A abuse limits. Saved-trip weather questions (in-trip skill) are deferred.
+The Assistant answers Weather questions for Guests and travelers, and a turn that creates or changes a proposal may add one line naming at most two of the heaviest advisories. Question understanding adds a `WEATHER` intent and a validated `weatherDate`; the server checks the date and re-reads the forecast, and neither model nor keyword code decides weather facts. Weather numbers and advisories are shown as a code-built card; the model writes only a short lead-in. The Assistant never says whether the traveler should or should not go. Weather questions count toward the existing Q&A abuse limits. Saved-trip weather questions (in-trip skill) were initially deferred here and are now enabled for the unified `Saved-trip assistant` under [ADR-38](#adr-38--unified-saved-trip-assistant-and-2-step-grounded-advisory-pipeline-2026-11-19).
 
 ### Addendum (2026-11-18): Scheduling soft preference (planned, not implemented)
 
@@ -817,3 +817,34 @@ The existing `/trips/[id]/edit` implementation had four structural gaps verified
 - Request/response schemas for `/edits/ai`, `/edits/preview`, and `/edits/apply` must be updated cleanly (including client `Edit draft` validation, `journey` fields, and `acknowledgedUnchecked`).
 - `ONGOING` manual/AI edits share `preserveCompleted` invariants with `in-trip`, and `journey` changes remain blocked at/after Vietnam departure.
 - Existing `US-32` / `US-33` unit and route test suites will be updated alongside implementation to verify the unified contract.
+
+## ADR-38 — Unified Saved-trip Assistant and 2-step Grounded Advisory Pipeline (2026-11-19)
+
+- **Status:** Accepted at design level by the owner (`Q1–Q10` grill, 2026-11-19); implementation pending coding authorization. Extends `ADR-37`, supersedes the separate legacy `US-35`/`US-36`/`US-37` `/trips/[id]/in-trip` UI and mechanical `buildGroundedAdvice` template, and lifts `ADR-36`'s saved-trip weather exclusion for the unified `Saved-trip assistant`.
+- **Date:** 2026-11-19
+
+### Context
+
+Even after `ADR-37` unified manual editing and `AiEditBar` on `/trips/[id]/edit`, two gaps remained:
+1. `/trips/[id]` still exposed two separate editing/assistant routes (`/trips/[id]/edit` and `/trips/[id]/in-trip`), where `/in-trip` ran legacy single-operation `US-35`/`36`/`37` replanning against the database (rejecting `ExternalPlace` with 501, ignoring `Trip origin` and weather, and forcing GPS for any same-day edit).
+2. Inside `/trips/[id]/edit`, `AiEditBar` (`ai-workspace-plan.ts`) answered `ADVISED` turns with a deterministic string template (`buildGroundedAdvice`) rather than an LLM-composed reasoning response, could not simulate multi-option remedies for scenario questions (such as creating a morning `Schedule rest buffer` or handling delays), and could not answer local RAG/knowledge or trip-weather questions in the same thread.
+
+### Decision
+
+1. **One unified `Saved-trip assistant` workspace (`/trips/[id]/edit` & `/trips/[id]/in-trip`):** Merge the saved-trip AI assistant and manual edit workspace around the single client `Edit draft` (`ADR-37`). Both routes render the same unified workspace (with `/trips/[id]/in-trip` focusing the conversational AI Assistant panel by default so existing links remain valid). Desktop shows the conversational AI Assistant panel alongside the interactive Timeline and sticky `ItineraryMap`; Mobile (`360px+`) provides `Trợ lý AI` | `Lịch trình` | `Bản đồ` tabs with quick jump/undo banners.
+2. **Full capability parity & conditional GPS:** The AI assistant operates on the cumulative in-session `Edit draft` (up to 16 recent conversation turns, Undo/Redo stack, `50`-visit trip cap, multi-op batch edits, `auto-shift`, pre-departure `Trip origin` and clocks, existing `ExternalPlace` + `uncheckedChecks`, `ONGOING` elapsed-visit lock, `COMPLETED` read-only lock, and `409` Rebase). GPS or manual current location is requested **only** when the trip is `ONGOING` and the traveler's request materially depends on current physical position. Trip frame fields (`startDate`, `durationDays`, `transport`) remain fixed.
+3. **2-step Grounded Agent Pipeline for all 7 traveler question archetypes:**
+   - **Step 1 (Intent & Server Dry-Run Simulation):** Classify the turn across 7 archetypes (holistic schedule evaluation, `Schedule rest buffer` / delay scenarios, smart `VISIBLE` KLTN catalog destination swap/addition suggestions up to 3 options, direct single/multi-op edits, compound evaluation + edit, local RAG + labeled `Kiến thức mở rộng` Q&A, and trip weather/sun-times/next-visit status). For scenario or advisory turns, the server dry-runs up to 2 candidate remedies against the routing provider (`PLANNER_ROUTING_PROVIDER`), `Constraint Validator`, `suncalc`, and live Open-Meteo forecasts.
+   - **Step 2 (Grounded LLM Advisory Composer & Server-Packaged Action Cards):** The LLM composes natural Vietnamese advice strictly from the server-verified facts of Step 1 without mutating the `Edit draft` on read-only turns. Concrete remedies are attached as server-verified **`Actionable advice suggestion`** cards (`1-click apply to Edit draft` without a second LLM call). If the composer call fails or times out, the server falls back to the deterministic summary of verified facts.
+4. **Scoped `ADR-36` weather integration for saved trips:** The `Saved-trip assistant` reads live destination forecasts and sun times for the trip's dates to advise on outdoor timing, rain/fog/wind advisories, and indoor/reschedule alternatives, while preserving `ADR-36`'s core rule that weather never alters `Constraint Validator` results and never issues absolute safety guarantees.
+
+### Alternatives
+
+- Keep `/trips/[id]/in-trip` on the legacy `US-35`/`36`/`37` session separately from `/trips/[id]/edit`: rejected because it duplicates saved-trip editing with weaker rules and incompatible draft state.
+- Let the LLM directly output free-text itinerary advice and schedules without server dry-run validation: rejected because it can hallucinate travel times, opening hours, or false `PASS` states.
+- Allow Google Places (`searchPlaces`) to add new `ExternalPlace` stops inside saved-trip editing: rejected by owner choice (`Q5 = A`) to preserve catalog opening-hour verification and avoid mandatory Google Places dependency in the core edit flow.
+
+### Consequences
+
+- `/api/trips/[id]/edits/ai` and the workspace AI panel expand to support the 2-step grounded advisory composer, dry-run candidate remedies (`Actionable advice suggestion` payloads), interleaved RAG/weather lookups, optional `ONGOING` location context, and a 16-turn session history cap.
+- `/trips/[id]/in-trip` and `/trips/[id]` entry actions converge on the unified workspace without breaking existing URLs or test seams.

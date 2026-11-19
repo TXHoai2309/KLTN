@@ -1,6 +1,6 @@
-# Spec — Cải tiến luồng và giao diện Chỉnh sửa hành trình (`/trips/[id]/edit`)
+# Spec — Cải tiến luồng và giao diện Chỉnh sửa hành trình & Trợ lý chuyến đi hợp nhất (`/trips/[id]/edit` & `/trips/[id]/in-trip`)
 
-**Trạng thái: SPEC / PLAN ONLY — 2026-11-18.** Tổng hợp toàn bộ quyết định phỏng vấn **Q1–Q19**, thuật ngữ miền tại [`GLOSSARY.md`](../../GLOSSARY.md) và [`ADR-37`](../decisions.md#adr-37--unified-stateless-client-edit-draft-and-atomic-edit-apply-2026-11-18). Chưa triển khai code hoặc sửa schema; duyệt spec không tự kích hoạt việc lập trình, tạo migration hay deploy.
+**Trạng thái: SPEC / PLAN UPDATED — 2026-11-19 (`ADR-37` + `ADR-38`).** Tổng hợp quyết định phỏng vấn **Q1–Q19** (2026-11-18, đã triển khai nền tảng ở Tickets `01`–`09`) cùng đợt phỏng vấn mở rộng **Q1–Q10** (2026-11-19) hợp nhất `/trips/[id]/in-trip` và nâng cấp **Trợ lý chuyến đi (`Saved-trip assistant`)** thông minh theo [`GLOSSARY.md`](../../GLOSSARY.md), [`ADR-37`](../decisions.md#adr-37--unified-stateless-client-edit-draft-and-atomic-edit-apply-2026-11-18) và [`ADR-38`](../decisions.md#adr-38--unified-saved-trip-assistant-and-2-step-grounded-advisory-pipeline-2026-11-19). Phần nâng cấp `ADR-38` hiện ở mức **SPEC / PLAN ONLY** (chưa triển khai code cho tới khi chủ dự án yêu cầu).
 
 ---
 
@@ -65,6 +65,11 @@ Tái cấu trúc màn hình chỉnh sửa hành trình (`/trips/[id]/edit`) thà
 35. As a Trip owner, I want bấm "Hủy chỉnh sửa" (hoặc rời trang khi có thay đổi chưa lưu) nhận cảnh báo xác nhận và giữ nguyên `lịch trình đã lưu` nếu tôi hủy, so that thay đổi nháp không bao giờ tự ghi đè dữ liệu thật.
 36. As a mobile user (`360px+`) or keyboard user, I want toàn bộ thao tác chỉnh sửa, bản đồ, ngăn thêm điểm, thanh AI và thanh lưu ghim đáy sử dụng mượt mà không tràn ngang, và không bị nút nổi "Hỏi trợ lý AI" che mất nội dung, so that tôi chỉnh hành trình thuận tiện trên mọi thiết bị.
 37. As a Guest, non-owner Traveler, or Admin viewing another user's trip, I want mọi yêu cầu mở trang hoặc gọi API chỉnh sửa không thuộc quyền sở hữu đều bị từ chối chuẩn xác theo phiên và quyền sở hữu trên server, so that dữ liệu hành trình riêng tư được bảo vệ tuyệt đối.
+38. As a Trip owner, I want mở `/trips/[id]/in-trip` hay `/trips/[id]/edit` đều dẫn về cùng một không gian `Trợ lý chuyến đi` (`Saved-trip assistant`) có khung chat AI song hành với Timeline và Bản đồ, so that tôi không bị phân mảnh giữa hai màn hình sửa lịch trình khác nhau.
+39. As a Trip owner, I want hỏi các câu tình huống thực tế (như *"sáng đến nơi muốn nghỉ đến 9h mới đi thì chỉnh sao cho hợp lý?"*, *"tôi đi thế này được không?"*, *"có nên đi thứ tự này không?"*) và nhận câu trả lời tư vấn tự nhiên dựa trên kết quả mô phỏng kiểm tra thật cùng các thẻ `Gợi ý chỉnh sửa từ tư vấn` (`Actionable advice suggestion`) bấm áp dụng 1 chạm, so that AI hỗ trợ tôi ra quyết định thông minh mà không tự ý làm hỏng bản nháp.
+40. As a Trip owner, I want hỏi thông tin địa điểm/văn hóa/kinh nghiệm địa phương (qua RAG + `Kiến thức mở rộng` có gắn nhãn) và hỏi `dự báo thời tiết` / `giờ mặt trời` của các ngày trong chuyến đi ngay trong cùng khung Trợ lý chuyến đi, so that tôi có đủ thông tin tham khảo tại một nơi duy nhất khi điều chỉnh lịch.
+41. As a Trip owner, I want Trợ lý chuyến đi chỉ hỏi GPS hoặc vị trí thủ công khi chuyến đi đang `ONGOING` và yêu cầu của tôi thực sự phụ thuộc vị trí đang đứng, so that tôi không bị chặn vô lý khi sửa lịch trước chuyến đi hay khi chỉ muốn đổi giờ/đổi điểm.
+42. As a Trip owner, I want khung hội thoại Trợ lý chuyến đi giữ được ngữ cảnh tới 16 lượt trao đổi gần nhất trong phiên cùng các thao tác sửa tay xen kẽ, so that tôi có thể bàn bạc và tinh chỉnh sâu nhiều bước liên tiếp trước khi bấm Lưu.
 
 ---
 
@@ -72,10 +77,10 @@ Tái cấu trúc màn hình chỉnh sửa hành trình (`/trips/[id]/edit`) thà
 
 ### 1. Kiến trúc tổng thể & ranh giới trách nhiệm
 - Giữ mô hình Modular Monolith trên Next.js App Router: Route Handlers chỉ xác thực, kiểm tra `Origin`/Content-Type/kích thước JSON, parse input và ánh xạ response/error theo envelope chuẩn (`private, no-store`); toàn bộ quy tắc nghiệp vụ, quyền sở hữu, xác minh dữ liệu và persistence nằm trong các service backend.
-- Áp dụng **một `bản nháp chỉnh sửa` (`Edit draft`) stateless ở phía client** cho toàn bộ trang chỉnh sửa; không thêm bảng draft mới trong database để lưu nháp chưa kiểm tra/chưa xác nhận.
+- Áp dụng **một `bản nháp chỉnh sửa` (`Edit draft`) stateless ở phía client** cho toàn bộ trang chỉnh sửa và trợ lý chuyến đi; không thêm bảng draft mới trong database để lưu nháp chưa kiểm tra/chưa xác nhận.
 - `Edit draft` chứa đồng thời trạng thái `lượt tham quan` theo ngày và trạng thái `nơi xuất phát` / giờ khởi hành / hạn về (nếu có hoặc người dùng opt-in bổ sung).
-- `ngày bắt đầu`, `số ngày` và `phương tiện` giữ bất biến trong suốt phiên chỉnh sửa tại màn hình này; server từ chối mọi request cố tình thay đổi các trường khung đó.
-- Ghi nhận [`ADR-37`](../decisions.md#adr-37--unified-stateless-client-edit-draft-and-atomic-edit-apply-2026-11-18) cho quyết định hợp nhất client draft, mở rộng hợp đồng API chỉnh sửa và gỡ giới hạn 4 lượt/ngày.
+- `ngày bắt đầu`, `số ngày` và `phương tiện` giữ bất biến trong suốt phiên chỉnh sửa tại màn hình này; server từ chối mọi request cố tình thay đổi các trường khung đó (AI giải thích rõ phạm vi khi người dùng hỏi đổi các trường này).
+- Ghi nhận [`ADR-37`](../decisions.md#adr-37--unified-stateless-client-edit-draft-and-atomic-edit-apply-2026-11-18) và [`ADR-38`](../decisions.md#adr-38--unified-saved-trip-assistant-and-2-step-grounded-advisory-pipeline-2026-11-19) cho quyết định hợp nhất client draft, gộp `/trips/[id]/in-trip` vào cùng Workspace `Saved-trip assistant`, kiến trúc AI tư vấn 2 bước có mô phỏng server và gỡ giới hạn 4 lượt/ngày.
 
 ### 2. Mô hình trạng thái client (`Edit draft`, Undo/Redo, Preview & Rebase)
 - **Nguồn dữ liệu thống nhất:** Khởi tạo từ snapshot `Saved itinerary` + `baseRevision` (`Trip.updatedAt`) đọc cùng lúc trên server. Giữ bản `baseline` tách biệt với `workingDraft`.
@@ -108,20 +113,33 @@ Tái cấu trúc màn hình chỉnh sửa hành trình (`/trips/[id]/edit`) thà
   - Đổi `nơi xuất phát` hoặc giờ đi/về không tự động ghi đè giờ các `lượt tham quan` trong bản nháp; tính lại toàn bộ giờ chỉ diễn ra khi người dùng chủ động kích hoạt thao tác "Tự xếp lại giờ theo lộ trình xuất phát" (chạy ở client hoặc qua endpoint tính lại không ghi DB).
   - Chuyến cũ chưa có `nơi xuất phát` (`journey = null`) vẫn sửa `lượt tham quan` bình thường kèm thông báo chưa tính hai chặng đi/về.
   - Trong `Apply`: mọi kiểm tra định tuyến và Validator chạy **bên ngoài transaction database**; bên trong `executeIdempotentWrite` transaction chỉ kiểm tra lại quyền sở hữu, trạng thái chuyến, `baseRevision` CAS (`updatedAt`), độ tươi dữ liệu điểm đến và ghi nguyên tử: cập nhật `Trip.updatedAt`, cập nhật `journeySnapshot` (kèm `visitFingerprint` mới), cập nhật `uncheckedChecks` / `uncheckedConfirmedAt`, thay thế `ItineraryDay` / `ItineraryVisit` (giữ ổn định `visitId` của các lượt không thay thế) và ghi `CompanionItineraryChange` nếu chuyến có đăng tìm bạn đồng hành (không làm lộ tọa độ/địa chỉ `nơi xuất phát` vào thông báo nhóm).
-- **Hợp đồng AI Edit (`/edits/ai`):**
-  - Request nhận: `baseRevision`, `draft` (`Edit draft` hiện tại gồm cả `days` và `journey` tùy chọn), `message` (giới hạn độ dài), tùy chọn `history` ngắn trong phiên (được chuẩn hóa/giới hạn độ dài và xem là dữ liệu không đáng tin cậy), và `resolution` (nếu đang trả lời gợi ý chọn điểm/lượt/ngày).
-  - Output model vẫn tuân thủ strict JSON Schema (mở rộng hỗ trợ danh sách nhiều thao tác tuần tự trong một lượt, hỗ trợ chỉnh giờ xuất phát/hạn về, hoặc phân loại ý định `ADVISE` cho câu hỏi `tư vấn theo lịch hiện tại`, hoặc yêu cầu làm rõ kèm gợi ý tối đa 3 điểm đến đủ điều kiện từ server).
-  - Server xác minh lại mọi `visitId`, `destinationId`, ngày, tham số giờ với dữ liệu thực tế từ `draft` + database (chặn ID giả, chặn chạm vào lượt đã qua giờ nếu `ONGOING`, chặn đổi giờ xuất phát sau cutoff), tự áp lên bản sao của `draft`, thực hiện tính dời giờ dây chuyền hợp lý nếu AI yêu cầu thao tác nhiều điểm, chạy ngay bộ kiểm tra Preview trên kết quả mới và trả về:
-    - `PROPOSED`: `draft` mới (để client đổ vào `workingDraft` kèm Undo), danh sách `diff`, tóm tắt thao tác và `validation` đầy đủ.
-    - `ADVISED`: câu trả lời `tư vấn theo lịch hiện tại` dựa trên bản nháp & kết quả kiểm tra hiện tại, giữ nguyên `draft` không thay đổi.
-    - `NEEDS_CLARIFICATION`: câu hỏi làm rõ và tối đa 3 lựa chọn tạo bởi code từ dữ liệu server.
+- **Hợp đồng AI Edit & Trợ lý chuyến đi thông minh (`/edits/ai` — mở rộng theo `ADR-38`):**
+  - Request nhận: `baseRevision`, `draft` (`Edit draft` hiện tại gồm cả `days` và `journey` tùy chọn), `message` (giới hạn độ dài), tùy chọn `history` trong phiên (tối đa **16 lượt gần nhất**, được chuẩn hóa/giới hạn độ dài và xem là dữ liệu không đáng tin cậy), `resolution` (nếu đang trả lời gợi ý chọn điểm/lượt/ngày), và tùy chọn `location` (GPS hoặc vị trí thủ công chỉ khi chuyến đi `ONGOING` và yêu cầu thực sự phụ thuộc vị trí đang đứng).
+  - **Bản đồ 7 nhóm tình huống câu hỏi người dùng:**
+    1. *Đánh giá tổng thể / độ hợp lý* (*"Tôi đi thế này được không?"*, *"Lịch Ngày 1 có gấp không?"*, *"Có nên đi thứ tự này không?"*).
+    2. *Tình huống muốn nghỉ ngơi / đến sớm-muộn / đổi nhịp độ* (*"Sáng đến nơi muốn nghỉ đến 9h mới đi thì chỉnh sao?"*, *"Đoàn mệt muốn đi thong thả"*, *"Xuất phát trễ 2 tiếng"*) — tạo `Khoảng nghỉ trong lịch` (`Schedule rest buffer`) hoặc dời mốc bắt đầu + `auto-shift`.
+    3. *Đổi / thêm địa điểm thông minh* (*"Muốn đổi điểm này"*, *"Có chỗ nào hợp hơn không?"*) — gợi ý tối đa 3 điểm `VISIBLE` trong danh mục KLTN khớp khu vực, khung giờ mở cửa, thời lượng và thời tiết (ưu tiên điểm trong nhà khi có cảnh báo mưa lớn/sau hoàng hôn).
+    4. *Lệnh chỉnh sửa trực tiếp (đơn lẻ hoặc gộp nhiều thao tác + chỉnh `Nơi xuất phát`/giờ đi-về khi `UPCOMING`)*.
+    5. *Câu hỏi kép vừa hỏi đánh giá vừa nhờ sửa luôn*.
+    6. *Hỏi thông tin điểm đến, văn hóa, kinh nghiệm ăn nghỉ địa phương* — truy xuất **RAG tài liệu đã duyệt + `Kiến thức mở rộng` (có gắn nhãn rõ)** ngay trong luồng chat mà không làm biến đổi `Edit draft`.
+    7. *Hỏi thời tiết / giờ mặt trời / lượt tiếp theo của chuyến đi* — đọc trực tiếp từ `dự báo thời tiết` (Open-Meteo), `giờ mặt trời` (`suncalc`) của đúng ngày trong lịch và danh sách `lượt tham quan` còn lại (mở ngoại lệ `ADR-36` cho `Saved-trip assistant`, giữ nguyên nguyên tắc thời tiết không phải là `Constraint Validator` và không cam kết an toàn tuyệt đối thay người dùng).
+  - **Kiến trúc 2 bước trên Server (`Intent + Server Dry-Run Simulation` → `Grounded Advisory Composer`):**
+    - *Bước 1:* Phân tích ý định và (với câu hỏi tình huống/tối ưu lịch) sinh tối đa **2 phương án điều chỉnh ứng viên (`candidate remedies`)**. Server xác minh lại mọi `visitId`, `destinationId`, ngày, tham số giờ với dữ liệu thực tế từ `draft` + database (chặn ID giả, chặn chạm vào lượt đã qua giờ nếu `ONGOING`, chặn đổi giờ xuất phát sau cutoff), rồi chạy **mô phỏng thử (`dry-run`)** từng phương án qua bộ tính giờ, bộ định tuyến (`PLANNER_ROUTING_PROVIDER`), `Constraint Validator`, `suncalc` + Open-Meteo và (nếu cần) bộ truy xuất RAG.
+    - *Bước 2:* Model nhận bộ sự thật đã kiểm chứng từ Bước 1 để soạn câu trả lời tiếng Việt tự nhiên, thông minh, đi thẳng vào câu hỏi của người dùng. Các thẻ **`Gợi ý chỉnh sửa từ tư vấn` (`Actionable advice suggestion`)** và kết quả kiểm tra (`PASS` / `VIOLATION` / `INSUFFICIENT_DATA`) luôn do code server đóng gói trực tiếp; nếu bước gọi LLM soạn lời văn bị lỗi hoặc timeout, server tự động fallback về bản tóm tắt dữ liệu chuẩn.
+  - Các trạng thái trả về từ `/edits/ai`:
+    - `PROPOSED`: `draft` mới (để client đổ vào `workingDraft` kèm Undo), danh sách `diff`, lời giải thích tự nhiên và `validation` đầy đủ.
+    - `ADVISED`: câu trả lời `tư vấn theo lịch hiện tại` tự nhiên dựa trên sự thật server (bao gồm cả RAG/thời tiết khi được hỏi), giữ nguyên `draft` không thay đổi, kèm tối đa 2 thẻ `Actionable advice suggestion` đã được server kiểm chứng sẵn để người dùng bấm **"Áp dụng phương án này vào bản nháp"** trong 1 chạm (không cần gọi LLM lại).
+    - `NEEDS_CLARIFICATION` / `NEEDS_LOCATION`: câu hỏi làm rõ kèm tối đa 3 lựa chọn tạo bởi code từ dữ liệu server, hoặc yêu cầu GPS/vị trí thủ công khi chuyến `ONGOING` thực sự cần vị trí hiện tại.
   - Endpoint AI tuyệt đối không ghi database.
 
-### 5. Hợp đồng UX / UI & Responsive (`360px+`)
+### 5. Hợp đồng UX / UI & Responsive (`360px+` — hợp nhất `/edit` & `/in-trip` theo `ADR-38`)
+- **Điều hướng & Route hợp nhất:**
+  - Hợp nhất `/trips/[id]/edit` và `/trips/[id]/in-trip` vào cùng một Workspace `Trợ lý chuyến đi` (`Saved-trip assistant`). Truy cập `/trips/[id]/in-trip` mở chính Workspace này với khung hội thoại Trợ lý AI được mở và focus sẵn; trên trang chi tiết `/trips/[id]`, các nút hành động dẫn thống nhất vào Workspace này.
 - **Bố cục Desktop & Mobile:**
-  - Trên Desktop (`>= 900px`): lưới 2 cột (Cột trái timeline chỉnh sửa; Cột phải bản đồ `ItineraryMap` sticky kèm tóm tắt kết quả `kiểm tra tính hợp lệ` và link nhảy tới điểm lỗi).
-  - Trên Mobile (`< 900px`, từ `360px` không tràn ngang): thanh chuyển tab `Lịch trình` / `Bản đồ`, thanh công cụ AI thu/mở gọn trên đầu tab Lịch trình, và thanh hành động ghim đáy (`sticky bottom bar`) hiển thị tóm tắt trạng thái kiểm tra + số thay đổi + nút **Lưu thay đổi** (các nút chạm tối thiểu `44×44px`).
-  - Ẩn nút nổi "Hỏi trợ lý AI" trên route `/trips/[id]/edit`.
+  - Thay thanh `AiEditBar` nhỏ hẹp bằng **Khung hội thoại Trợ lý AI hoàn chỉnh** (luồng chat nhiều lượt tối đa 16 lượt, gợi ý câu hỏi thông minh theo trạng thái chuyến đi, thẻ `Actionable advice suggestion` 1 chạm, thẻ chọn điểm thay thế, và nút GPS/vị trí thủ công khi `ONGOING` cần vị trí).
+  - Trên Desktop (`>= 900px`): Hiển thị song hành **Khung Trợ lý AI + Timeline `Bản nháp chỉnh sửa` + Bản đồ `ItineraryMap` sticky** (cho phép thu gọn/mở rộng linh hoạt để vừa trò chuyện với AI vừa nhìn lịch/bản đồ cập nhật trực tiếp hoặc chỉnh tay).
+  - Trên Mobile (`< 900px`, từ `360px` không tràn ngang): thanh chuyển 3 tab `Trợ lý AI` / `Lịch trình` / `Bản đồ`, thông báo nổi khi AI vừa cập nhật nháp hoặc có phương án gợi ý, và thanh hành động ghim đáy (`sticky bottom bar`) hiển thị tóm tắt trạng thái kiểm tra + số thay đổi + nút **Lưu thay đổi** (các nút chạm tối thiểu `44×44px`).
+  - Ẩn nút nổi toàn cục "Hỏi trợ lý AI" trên cả `/trips/[id]/edit` và `/trips/[id]/in-trip`.
 - **Thuật ngữ nhất quán trên UI:** Sử dụng đúng bộ thuật ngữ `Lịch trình đã lưu`, `Bản nháp chỉnh sửa`, `Lượt tham quan`, `Kiểm tra tính hợp lệ`, `Nơi xuất phát` (khớp `GLOSSARY.md`).
 - **Tương tác thêm & sửa:**
   - Ngăn chọn điểm đến (`Add visit drawer`) tải danh sách công khai qua API hiện có, hỗ trợ tìm kiếm, lọc theo khu vực và danh sách Yêu thích, hiển thị ảnh, khu vực, giờ mở cửa theo ngày đang chọn và thời lượng gợi ý; khi chọn sẽ tự tính sẵn giờ bắt đầu tiếp nối điểm trước (nếu có) và thời lượng mặc định.
@@ -175,7 +193,7 @@ Tái cấu trúc màn hình chỉnh sửa hành trình (`/trips/[id]/edit`) thà
 
 ## Further Notes
 
-- **Nguồn quyết định:** Phỏng vấn `Q1–Q19` (2026-11-18), [`GLOSSARY.md`](../../GLOSSARY.md), [`ADR-37`](../decisions.md#adr-37--unified-stateless-client-edit-draft-and-atomic-edit-apply-2026-11-18), [`product-spec.md`](product-spec.md), [`US-32`](../stories/US-32-manual-itinerary-edit.md), [`US-33`](../stories/US-33-ai-itinerary-edit.md), [`TRIP-ORIGIN-ROUND-TRIP.md`](../stories/TRIP-ORIGIN-ROUND-TRIP.md), [`ADR-36` (Weather)](../decisions.md#adr-36--weather-is-an-advisory-never-a-constraint-validator-input-2026-11-18) và [`ADR-36` (Tripsage port)](../decisions.md#adr-36--port-the-tripsage-ai-chatagent-to-replace-the-planning-chat-2026-11-14).
+- **Nguồn quyết định:** Phỏng vấn `Q1–Q19` (2026-11-18) và `Q1–Q10` (2026-11-19), [`GLOSSARY.md`](../../GLOSSARY.md), [`ADR-37`](../decisions.md#adr-37--unified-stateless-client-edit-draft-and-atomic-edit-apply-2026-11-18), [`ADR-38`](../decisions.md#adr-38--unified-saved-trip-assistant-and-2-step-grounded-advisory-pipeline-2026-11-19), [`product-spec.md`](product-spec.md), [`US-32`](../stories/US-32-manual-itinerary-edit.md), [`US-33`](../stories/US-33-ai-itinerary-edit.md), [`TRIP-ORIGIN-ROUND-TRIP.md`](../stories/TRIP-ORIGIN-ROUND-TRIP.md), [`ADR-36` (Weather)](../decisions.md#adr-36--weather-is-an-advisory-never-a-constraint-validator-input-2026-11-18) và [`ADR-36` (Tripsage port)](../decisions.md#adr-36--port-the-tripsage-ai-chatagent-to-replace-the-planning-chat-2026-11-14).
 - **Khoảng trống hiện trạng đã xác minh khi khảo sát code:**
   - Nếu dự án chưa chạy 2 migration đã tạo trước đó cho `ExternalPlace` và `uncheckedChecks` trên database Development/Production thì cần kiểm tra trạng thái migration trước khi kiểm thử tính năng `ExternalPlace` thật.
   - Cần giữ ranh giới quyền riêng tư `Trip origin` từ `TRIP-ORIGIN-ROUND-TRIP.md`: không bao giờ phát tọa độ/địa chỉ nơi xuất phát ra projection công khai hay thông báo nhóm đồng hành khi lưu chỉnh sửa.
