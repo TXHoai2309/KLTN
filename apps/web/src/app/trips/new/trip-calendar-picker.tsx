@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { formatVietnameseDate } from "@/lib/date-only";
+import { vietnamDateOf } from "@/modules/trip-requirement/trip-requirement-readiness";
 
 export type TripCalendarPickerProps = {
   selectedDate: string; // ISO "YYYY-MM-DD" or ""
@@ -24,16 +25,20 @@ export default function TripCalendarPicker({
   onClearDate,
   onClose,
 }: TripCalendarPickerProps) {
-  const today = new Date();
-  const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+  const [todayIso, setTodayIso] = useState(() => vietnamDateOf(new Date()));
+  useEffect(() => {
+    const timer = setTimeout(() => setTodayIso(vietnamDateOf(new Date())),
+      Math.max(0, Date.parse(`${todayIso}T00:00:00+07:00`) + 86_400_000 - Date.now()) + 10);
+    return () => clearTimeout(timer);
+  }, [todayIso]);
 
   const initialYear = selectedDate && /^\d{4}-\d{2}-\d{2}$/.test(selectedDate)
     ? Number(selectedDate.split("-")[0])
-    : today.getFullYear();
+    : Number(todayIso.slice(0, 4));
 
   const initialMonth = selectedDate && /^\d{4}-\d{2}-\d{2}$/.test(selectedDate)
     ? Number(selectedDate.split("-")[1])
-    : today.getMonth() + 1;
+    : Number(todayIso.slice(5, 7));
 
   const [viewYear, setViewYear] = useState(initialYear);
   const [viewMonth, setViewMonth] = useState(initialMonth);
@@ -116,8 +121,9 @@ export default function TripCalendarPicker({
                 data-selected={isSelected}
                 data-today={isToday}
                 data-past={isPast}
+                disabled={isPast}
                 onClick={() => {
-                  onSelectDate(iso);
+                  if (iso >= vietnamDateOf(new Date())) onSelectDate(iso);
                 }}
                 aria-label={`Ngày ${dayNum} tháng ${viewMonth} năm ${viewYear}${isToday ? " (Hôm nay)" : ""}`}
                 aria-pressed={isSelected}

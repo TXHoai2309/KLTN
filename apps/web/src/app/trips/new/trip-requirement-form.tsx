@@ -264,7 +264,7 @@ export default function TripRequirementForm() {
 
   function handleInitiateSubmit() {
     if (saveLock.current) return;
-    const clientErrors = validateRequiredFields(fields);
+    const clientErrors = validateRequiredFields(fields, new Date());
     if (Object.keys(clientErrors).length > 0) {
       setErrors(clientErrors);
       setFeedback(null);
@@ -278,6 +278,12 @@ export default function TripRequirementForm() {
 
   async function handleConfirmCreateTrip() {
     if (saveLock.current) return;
+    const clientErrors = validateRequiredFields(fields, new Date());
+    if (Object.keys(clientErrors).length > 0) {
+      setErrors(clientErrors);
+      setConfirmError(clientErrors.startDate ?? "Vui lòng kiểm tra lại thông tin chuyến đi.");
+      return;
+    }
     if (!claimSubmission(submissionLock)) return;
 
     abortRef.current?.abort();

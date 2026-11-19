@@ -58,6 +58,14 @@ const twoVisits = () => ({ confirm: true as const, proposal: { ...structuredClon
   { destinationId: "b", startMinute: 600, plannedDurationMinutes: 60, order: 2 },
 ] }] } });
 
+it("rejects a direct save after the selected date expires in Vietnam without persisting", async () => {
+  const test = fixture();
+  await expect(saveTrip(headers, tripSaveRequestSchema.parse(request), "past-date-key", test.dependencies,
+    new Date("2026-10-20T17:00:00Z"))).rejects.toMatchObject({ code: "TRIP_START_DATE_IN_PAST" });
+  expect(test.trips).toHaveLength(0);
+  expect(test.records).toHaveLength(0);
+});
+
 describe.each(["TRAVELER", "ADMIN"])("US-30 %s server save gate", role => {
   it("previews all four groups from canonical visible data without writing", async () => {
     const test = fixture(role);
