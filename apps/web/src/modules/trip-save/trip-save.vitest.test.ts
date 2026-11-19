@@ -2,6 +2,7 @@ import type { Database } from "@KLTN/db";
 import { describe, expect, it, vi } from "vitest";
 import { executeIdempotentWrite } from "../../server/http/idempotency";
 
+import { COMPLETE_JOURNEY_FIXTURE } from "../trip-origin/trip-origin-fixtures";
 import { tripSaveRequestSchema } from "./trip-save-contract";
 import { previewTripValidation, saveTrip, type TripSaveDependencies } from "./trip-save-service";
 
@@ -57,6 +58,15 @@ const twoVisits = () => ({ confirm: true as const, proposal: { ...structuredClon
   { destinationId: "a", startMinute: 480, plannedDurationMinutes: 60, order: 1 },
   { destinationId: "b", startMinute: 600, plannedDurationMinutes: 60, order: 2 },
 ] }] } });
+
+it("rejects a direct save after the selected date expires in Vietnam without persisting", async () => {
+  const test = fixture();
+  const withJourney = { ...request, proposal: { ...request.proposal, journey: COMPLETE_JOURNEY_FIXTURE } };
+  await expect(saveTrip(headers, tripSaveRequestSchema.parse(withJourney), "past-date-key", test.dependencies,
+    new Date("2026-10-20T17:00:00Z"))).rejects.toMatchObject({ code: "TRIP_START_DATE_IN_PAST" });
+  expect(test.trips).toHaveLength(0);
+  expect(test.records).toHaveLength(0);
+});
 
 describe.each(["TRAVELER", "ADMIN"])("Origin rollout: %s new-save boundary", role => {
   it("previews visit checks but cannot certify unvalidated origin legs", async () => {

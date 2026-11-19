@@ -15,6 +15,11 @@ const sample = (id: string, status: TripSummary["status"]): TripSummary => ({
 });
 
 describe("US-31 Trip views", () => {
+  it("makes the trip title a native detail link without nesting management buttons", () => {
+    const html = renderToStaticMarkup(createElement(MyTripsView, { items: [sample("owned-trip", "UPCOMING")] }));
+    expect(html).toMatch(/<a[^>]*class="my-trips-card-link"[^>]*href="\/trips\/owned-trip"[^>]*>Chuyến đi 2 ngày<\/a>/);
+    expect(html).not.toMatch(/<a\b[^>]*>(?:(?!<\/a>)[\s\S])*<button/);
+  });
   it("renders three status groups and a create action", () => {
     const html = renderToStaticMarkup(createElement(MyTripsView, { items: [sample("one", "UPCOMING"), sample("two", "ONGOING"), sample("three", "COMPLETED")] }));
     for (const label of ["Sắp tới", "Đang diễn ra", "Đã hoàn thành", "Tạo chuyến đi"]) expect(html).toContain(label);

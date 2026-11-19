@@ -478,7 +478,9 @@ export function MyTripsView({
                               </div>
 
                               <h3 className="my-trips-card-title">
-                                {trip.companionTitle || `Chuyến đi ${trip.durationDays} ngày`}
+                                <Link className="my-trips-card-link" prefetch={false} href={`/trips/${trip.id}` as Route}>
+                                  {trip.companionTitle || `Chuyến đi ${trip.durationDays} ngày`}
+                                </Link>
                               </h3>
 
                               <p className="my-trips-completion-note">

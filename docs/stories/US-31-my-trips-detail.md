@@ -101,6 +101,14 @@ Follow-up verification on 2026-10-15: US-30/31 targeted tests 37/37 PASS, `npm r
 
 ## Open Questions
 
+### 2026-11-18 — BUG-02 card navigation follow-up
+
+- The list card was a presentation-only `Card`: only its “Xem chi tiết” CTA linked to the detail route. Clicking the title, thumbnail or card background did nothing despite the card hover treatment.
+- Added a native title link with a card-wide hit area and visible keyboard focus. Favorite, existing detail CTA and management controls remain separate siblings above that hit area; no nested buttons/links or new router handler.
+- Regression test failed before the fix and passes after. Trip view/read/HTTP/management suites: 39 PASS. Web typecheck, production build (54 pages) and whitespace check PASS.
+- The authenticated local browser actor has no saved Trips. Live card navigation, detail reload and Back with an owned Trip remain NOT PROVEN; no Trip data was created/modified for this check. Ownership/query behavior is covered by existing service/API tests. No schema/API/auth change, commit or push.
+- Follow-up authenticated browser evidence: after owner login, `/trips` showed four saved Trips. Clicking the title and thumbnail of `cmvetgw4s0001a0k5cytvczml` opened its detail with three ordered visits; reload retained the detail and browser Back restored the four-item list. Completion action opened its own confirmation dialog, then Cancel returned focus to the opener. No confirmation write was submitted. This supersedes the owned-trip navigation/reload/Back limitation above for this tested Trip/session only.
+
 - A second authenticated Traveler session is needed to test ownership in both directions. One-sided denial and owner-scoped repository tests pass.
 - Live browser fixtures for ONGOING, COMPLETED, multi-day, empty and controlled error states were not created because this audit does not rewrite dates or reset the shared development DB; component/service coverage passes.
 

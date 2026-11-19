@@ -5759,3 +5759,30 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Vitest (`src/modules/trip-edit`, `src/modules/in-trip`, `src/modules/trip-origin`, `src/modules/trip-save`, `src/modules/trip-weather`, `src/app/trips`, `src/components/assistant`): **118 file PASS, 1027 tests passed, 3 files (`16` tests) Postgres integration skipped do môi trường chưa bật Docker (`DOCKER_OFF`), 1 todo**; kịch bản tương đương concurrency `409`, retry `UNKNOWN` idempotency, companion publication notice & `uncheckedChecks`/`journeySnapshot` đã PASS trong `saved-trip-assistant-acceptance.vitest.test.ts`.
 - `npm run test:legacy --workspace web`: **PASS** (11 nhóm test / 352 assertions, 0 fail).
 - `git diff --check`: **PASS** (exit 0).
+
+## 2026-11-18 — BUG-01 AI conversation history investigation
+
+- **Evidence:** Authenticated local browser list API returned 200 with `items: []`. Read-only development DB counts for the current actor: one conversation, zero active, one deleted/expired, zero completed turns. Existing US-21 retention remains 30 days for authenticated users and 7 days for Guests; expired history is not restored.
+- **Fix:** History list failures were swallowed and rendered as an empty history. Added an accessible error with retry of the current search; aborted requests cannot publish errors. Existing owner-scoped API, persistence, retention and identity reset are preserved.
+- **Verification:** Regression test failed before the fix and passes afterward. Web typecheck PASS. Expanded six-file suite: 97 PASS / 1 FAIL; isolated `qa-conversation-reliability.vitest.test.ts` also fails its factual-generation adapter case with `AI_UNAVAILABLE` (74 PASS / 1 FAIL). No backend/provider test fix is claimed.
+- **Limits:** Live opening/refreshing an owned non-expired history and creating a new turn remain NOT PROVEN because this actor has no active history; no fabricated history or business-data writes were used. Browser fault injection, full suite and build not run. No schema/environment/auth changes, commit or push. Stop after BUG-01.
+
+## 2026-11-18 — BUG-02 My Trips card navigation
+
+- **Root cause/fix:** Only the detail CTA was linked; the card title/image/background were not navigation targets. Added a native title link stretched across the card with a keyboard focus indicator; Favorite and management controls remain outside the link and independently clickable.
+- **Verification:** New rendered-view regression failed before the fix. Four focused Trip suites now pass 39 tests; web typecheck, build (54 pages) and `git diff --check` PASS. Current authenticated browser `/trips` is empty, so live owned-trip navigation/reload/Back remain NOT PROVEN. See US-31 follow-up evidence.
+- **Scope:** No business-data/schema/API/auth changes or commit/push. Earlier BUG-01 and Admin UI edits retained. Stop after BUG-02; BUG-03 draft/leave behavior not implemented.
+- **Authenticated follow-up:** Owner logged into an account with four saved Trips. Title/thumbnail navigation opened the correct owned detail; reload retained its three visits, Back restored the list, and completion-dialog Cancel worked independently of the card link. No business-data write. Owned-trip navigation/reload/Back now verified for that Trip/session.
+
+## 2026-11-18 — BUG-03 leave-trip-creation investigation (decision pending)
+
+- **Source evidence:** `TripRequirementForm` initializes form/review/planner state in component memory. Unmount cleanup aborts requests; there is no leave warning or form restoration. Unmount/reload initializes `INITIAL_FIELDS` again. The Admin-only unsaved-change hook exists but is not used by this form.
+- **Contract:** US-24 explicitly prohibits DB/localStorage/sessionStorage/URL draft persistence; US-28 retains the in-memory flow and preserves edits when moving back inside the planner/review flow. Product prohibits durable invalid itinerary drafts. No approved automatic restore/leave-warning requirement was located.
+- **Decision needed:** Recommend an unsaved-change warning for leaving/reloading, retaining the active form when the user stays and discarding only after explicit leave. Restoring after leaving requires an approved scope/storage/retention policy. Per the task's BUG-03 instruction, no behavior/storage change is implemented before owner confirmation.
+- **Verification limits:** Current IAB tabs report localhost:3010 unreachable; fresh browser repro is NOT PROVEN. This is a source/requirements audit only, so application tests/build were not rerun. No data/auth/schema/env/commit/push changes.
+
+## 2026-11-18 — BUG-03 approved leave warning implementation
+
+- **Approval/implementation:** Owner approved the warning-only option. Reused the existing unsaved-change guard with an optional dialog root; Trip styles inherit current tokens. Raw field changes, review/proposal and unsent natural-language text are guarded. Pending/UNKNOWN save stays protected; SUCCESS releases the warning. No draft persistence or business-data writes.
+- **Evidence:** Before-fix live CAR selection could leave via My Trips without warning. After-fix link/Back prompt, Stay retains input, Leave navigates, 390px light dialog fits. Restarted local dev server on 3010 for these checks; no credentials/environment change.
+- **Checks:** 38 focused tests PASS; typecheck/build (54 pages)/whitespace PASS. Full web tests: 3332 PASS, 35 FAIL, 215 SKIP, 1 TODO. Failures are in QA reliability/quality/diagnostics and planning-model files; legacy phase not reached. Detailed limitations and failed file names are recorded in US-24. No commit/push.

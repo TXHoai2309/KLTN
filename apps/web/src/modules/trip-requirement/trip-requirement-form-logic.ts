@@ -7,6 +7,7 @@ import {
 } from "./trip-requirement-contract";
 import type { TripRequirementInput } from "./trip-requirement-contract";
 import type { TripRequirementReadiness } from "./trip-requirement-readiness";
+import { vietnamDateOf } from "./trip-requirement-readiness";
 
 export type TripRequirementFormFields = {
   startDate: string;
@@ -69,6 +70,10 @@ function normalizeText(value: string | null | undefined): string | null {
   return normalized === "" ? null : normalized;
 }
 
+export function hasTripRequirementChanges(fields: TripRequirementFormFields, initial: TripRequirementFormFields): boolean {
+  return (Object.keys(initial) as (keyof TripRequirementFormFields)[]).some(key => JSON.stringify(fields[key]) !== JSON.stringify(initial[key]));
+}
+
 function parseIntegerOrKeep(value: string | null | undefined): number | string | null {
   const normalized = normalizeText(value);
   if (normalized === null) return null;
@@ -110,6 +115,7 @@ function stableErrorRecord(
  */
 export function validateRequiredFields(
   fields: TripRequirementValidationFields,
+  creationTime?: Date,
 ): Record<string, string> {
   const errors: Record<string, string> = {};
   const durationText = normalizeText(fields.durationDays);
@@ -157,6 +163,11 @@ export function validateRequiredFields(
     }
   }
 
+  const startDate = normalizeText(fields.startDate);
+  // Time-dependent rules belong to creation boundaries, not historical parsers.
+  if (creationTime && startDate && !errors.startDate && startDate < vietnamDateOf(creationTime)) {
+    errors.startDate = "Ngày khởi hành không được trước ngày hiện tại. Vui lòng chọn lại ngày phù hợp.";
+  }
   return stableErrorRecord(errors);
 }
 

@@ -38,11 +38,12 @@ export function validateDestinationId(id: string) {
 function openingCreate(days: DestinationInput["openingDays"]) {
   return days.map(day => ({ dayOfWeek: day.dayOfWeek, status: day.status, intervals: { create: day.intervals.map(interval => ({ opensAtMinute: toMinute(interval.opensAt), closesAtMinute: toMinute(interval.closesAt) })) } }));
 }
-export async function listDestinations(headers: Headers, page: number, deps: DestinationDependencies, view: "active" | "deleted" = "active") {
+export async function listDestinations(headers: Headers, page: number, deps: DestinationDependencies, view: "active" | "deleted" = "active", q?: string) {
   await requireActor(headers, deps, "admin");
   if (!Number.isSafeInteger(page) || page < 1 || page > 10000) throw new AppError("INVALID_DESTINATION_QUERY", "Trang không hợp lệ.", 400);
   const deletedOnly = view === "deleted";
-  const rows = await deps.database.destination.findMany({ where: deletedOnly ? { deletedAt: { not: null } } : { deletedAt: null }, skip: (page - 1) * 25, take: 26, orderBy: [{ name: "asc" }, { id: "asc" }], select: { id: true, name: true, area: true, category: true, isOutdoor: true, visibility: true, updatedAt: true, deletedAt: true } });
+  const keyword = q?.trim().replace(/[\\%_]/g, character => `\\${character}`);
+  const rows = await deps.database.destination.findMany({ where: { deletedAt: deletedOnly ? { not: null } : null, ...(keyword ? { name: { contains: keyword, mode: "insensitive" } } : {}) }, skip: (page - 1) * 25, take: 26, orderBy: [{ name: "asc" }, { id: "asc" }], select: { id: true, name: true, area: true, category: true, isOutdoor: true, visibility: true, updatedAt: true, deletedAt: true } });
   return destinationListSchema.parse({ items: rows.slice(0, 25).map(row => ({ ...row, updatedAt: row.updatedAt.toISOString(), deletedAt: row.deletedAt?.toISOString() ?? null })), page, hasMore: rows.length > 25 });
 }
 export async function readDestination(id: string, database: Pick<Database, "destination">) {

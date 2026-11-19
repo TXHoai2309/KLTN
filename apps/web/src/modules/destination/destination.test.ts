@@ -47,6 +47,18 @@ function fixture(role: string | null = "ADMIN") {
   return { deps, writes: () => writes, records: () => records.size, rows: () => rows, failUpdate: () => { fail = true; }, setRole: (next: string | null) => { currentRole = next; }, onTransaction: (callback: () => void) => { transactionStart = callback; } };
 }
 const headers = new Headers();
+test("admin search is applied before pagination and combined with the selected lifecycle view", async () => {
+  const f = fixture();
+  let query: any;
+  f.deps.database.destination.findMany = (async (input: any) => { query = input; return []; }) as any;
+  assert.deepEqual(await listDestinations(headers, 2, f.deps, "deleted", " Mèo% "), { items: [], page: 2, hasMore: false });
+  assert.deepEqual(query.where, { deletedAt: { not: null }, name: { contains: "Mèo\\%", mode: "insensitive" } });
+  assert.equal(query.skip, 25);
+  assert.equal(query.take, 26);
+  assert.deepEqual(destinationPageQuery(new Request("https://example.test/api?page=2&view=deleted&q=%20Meo%20")), { page: 2, view: "deleted", q: "Meo" });
+  assert.deepEqual(destinationPageQuery(new Request("https://example.test/api?q=%20")), { page: 1, view: "active" });
+  assert.throws(() => destinationPageQuery(new Request("https://example.test/api?q=a&q=b")), { status: 400 });
+});
 for (const role of [null, "TRAVELER"]) test(`${role ?? "GUEST"} cannot list/detail/create/update even with role body`, async () => {
   const f = fixture(role);
   for (const execute of [() => listDestinations(headers, 1, f.deps), () => listDestinations(headers, 1, f.deps, "deleted"), () => getDestination(headers, "id", f.deps), () => writeDestination(headers, { ...input(), role: "ADMIN" }, "key", null, f.deps), () => writeDestination(headers, input(), "key", "id", f.deps)]) await assert.rejects(execute(), { status: role ? 403 : 401 });

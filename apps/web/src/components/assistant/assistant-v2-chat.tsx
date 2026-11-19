@@ -66,6 +66,7 @@ function SignedInV2Chat({ available = true, tripId, onMinimize, initialContext, 
   const [conversations, setConversations] = useState<QaConversationSummary[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyMore, setHistoryMore] = useState(false);
+  const [historyError, setHistoryError] = useState("");
   const [historyCursor, setHistoryCursor] = useState<string | null>(null);
   const [historyHasMore, setHistoryHasMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -81,13 +82,16 @@ function SignedInV2Chat({ available = true, tripId, onMinimize, initialContext, 
   async function loadHistory(search = "", cursor: string | null = null, more = false) {
     listFetch.current?.abort();
     const request = new AbortController(); listFetch.current = request;
+    setHistoryError("");
     if (more) setHistoryMore(true); else setHistoryLoading(true);
     try {
       const result = await fetchConversations({ search, cursor, signal: request.signal });
       if (request.signal.aborted) return;
       setConversations(current => more ? [...current, ...result.items] : result.items);
       setHistoryCursor(result.nextCursor); setHistoryHasMore(result.hasMore);
-    } catch { /* History is optional; the conversation itself must keep working. */ }
+    } catch {
+      if (!request.signal.aborted) setHistoryError("Không thể tải lịch sử hội thoại. Vui lòng thử lại.");
+    }
     finally { if (listFetch.current === request) { setHistoryMore(false); setHistoryLoading(false); } }
   }
   useEffect(() => {
@@ -189,7 +193,7 @@ function SignedInV2Chat({ available = true, tripId, onMinimize, initialContext, 
   const disabled = !available || busy || expired || !!pending.current || !!savedTripId;
   const mode = onMinimize ? "panel" : "page";
   return <section className={`${mode === "panel" ? "assistant-chat assistant-chat-panel" : "assistant-chat"} assistant-v2-chat`} data-runtime="v2" aria-label="Trợ lý AI" aria-busy={busy} lang="vi">
-    {mode === "page" && <AssistantSidebar conversations={conversations} activeConversationId={null} loading={historyLoading} loadingMore={historyMore} hasMore={historyHasMore} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} onNewChat={startNew} onSelectConversation={openConversation} onRenameConversation={renameHistory} onDeleteConversation={deleteHistory} onLoadMore={() => void loadHistory(searchQuery, historyCursor, true)} searchQuery={searchQuery} onSearchChange={setSearchQuery}/>}
+    {mode === "page" && <AssistantSidebar conversations={conversations} activeConversationId={null} loading={historyLoading} loadingMore={historyMore} error={historyError} onRetry={() => void loadHistory(searchQuery)} hasMore={historyHasMore} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} onNewChat={startNew} onSelectConversation={openConversation} onRenameConversation={renameHistory} onDeleteConversation={deleteHistory} onLoadMore={() => void loadHistory(searchQuery, historyCursor, true)} searchQuery={searchQuery} onSearchChange={setSearchQuery}/>}
     <div className={`assistant-chat-main ${mode === "panel" ? "assistant-panel-main" : "assistant-chat-fullscreen"}`}>
     {mode === "page" && <div className={`assistant-floating-header ${sidebarOpen ? "sidebar-open" : "sidebar-collapsed"}`}>
       <div className="assistant-header-left">

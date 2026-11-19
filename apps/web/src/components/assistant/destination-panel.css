@@ -563,6 +563,7 @@
 .destination-assistant-panel .assistant-composer-bar,
 .assistant-chat-panel .assistant-composer-bar {
   display: flex !important;
+  width: auto;
   align-items: center !important;
   justify-content: flex-end !important;
   padding: 0 !important;
