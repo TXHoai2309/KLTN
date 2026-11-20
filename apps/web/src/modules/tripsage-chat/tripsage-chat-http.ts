@@ -6,6 +6,7 @@ import { AppError } from "../../server/http/app-error";
 import { readBoundedJsonBody } from "../../server/http/read-json-body";
 import { createPlanningAdmission } from "../assistant-planning/planning-admission";
 import { isTripsageChatEnabled } from "./tripsage-chat-flag";
+import { enabledTripsageFeatures } from "./tripsage-features";
 import type { PlacesSearch } from "./tripsage-places";
 import type { WebLookup } from "./tripsage-web";
 import type { TripsagePlanningDeps } from "./tripsage-chat-tools";
@@ -37,6 +38,7 @@ const noStore = (response: Response) => { response.headers.set("Cache-Control", 
 /** Thin boundary: flag, auth, same-origin, bounded JSON, admission, then the service. */
 export async function tripsageChatResponse(request: Request, deps: TripsageChatHttpDependencies): Promise<Response> {
   if (!isTripsageChatEnabled(deps.env)) return noStore(apiFailure("NOT_FOUND", "Không tìm thấy trang.", 404));
+  const features = enabledTripsageFeatures(deps.env);
   try {
     const actor = await requireTraveler(request.headers, deps.authorization);
     if (request.headers.get("origin") !== new URL(request.url).origin || request.headers.get("sec-fetch-site") === "cross-site") throw new AppError("FORBIDDEN", "Yêu cầu không được phép.", 403);
@@ -53,7 +55,7 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
     const timer = setTimeout(release, SAFETY_RELEASE_MS); timer.unref?.();
     const response = await new Promise<Response>((resolve, reject) => {
       (deps.admit ?? defaultAdmit)(actor.userId, async () => {
-        try { resolve(streamTripsageChat({ model: await deps.model(), messages, journey, requirement, currentItinerary, planning: deps.planning?.() ?? unavailablePlanning, places: deps.places?.(), web: deps.web?.(), limits: deps.limits, signal: request.signal, onSettled: release })); }
+        try { resolve(streamTripsageChat({ model: await deps.model(), messages, journey, requirement, currentItinerary, features, planning: deps.planning?.() ?? unavailablePlanning, places: deps.places?.(), web: deps.web?.(), limits: deps.limits, signal: request.signal, onSettled: release })); }
         catch (error) { reject(error); release(); }
         await held;
       }).catch(reject).finally(() => clearTimeout(timer));

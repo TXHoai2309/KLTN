@@ -16,7 +16,7 @@ import type { AmadeusLookup } from "./tripsage-amadeus";
 import type { TripsageFeature } from "./tripsage-features";
 import { createTripsageExtraTools } from "./tripsage-extra-tools";
 
-/** The complete, hard allow-list. Anything else (place details, crawl tools, tripsage tools) is refused by construction. */
+/** Base allow-list. Optional tools are registered only for the request's enabled feature groups. */
 export const TRIPSAGE_CHAT_TOOL_NAMES = ["listDestinations", "proposeItinerary", "searchPlaces", "webSearch", "fetchPage"] as const;
 export type TripsageChatToolName = (typeof TRIPSAGE_CHAT_TOOL_NAMES)[number];
 

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { MockLanguageModelV4 } from "ai/test";
 import { simulateReadableStream } from "ai";
 import { describe, expect, it, vi } from "vitest";
@@ -28,13 +29,79 @@ function scripted(steps: Step[]) {
 const planning = (): (() => TripsagePlanningDeps) => () => ({ candidates: async () => [planningCandidate("a"), planningCandidate("b"), planningCandidate("c")], routes: { ...fixtureRoutes, coordinateRoute: async () => ({ status: "VERIFIED", reason: null, durationSeconds: 3600, distanceMeters: 50_000, provider: "STADIA_MAPS" }) } as never, now: () => planningNow });
 const REQUIREMENT = { transport: "CAR", durationDays: 1, startDate: "2026-11-02", interests: ["NATURE"] };
 const ITINERARY = { days: [{ day: 1, stops: [{ id: "a", name: "Điểm a", arrivalMinute: 540, departureMinute: 600 }, { id: "b", name: "Điểm b", arrivalMinute: 660, departureMinute: 720 }] }] };
-const call = async (extra: Record<string, unknown>, model = scripted([{ text: "Xin chào." }]), journey: unknown = COMPLETE_JOURNEY_FIXTURE) => {
+const call = async (extra: Record<string, unknown>, model = scripted([{ text: "Xin chào." }]), journey: unknown = COMPLETE_JOURNEY_FIXTURE, env: Record<string, string | undefined> = { TRIPSAGE_CHAT_ENABLED: "true" }) => {
   const request = new Request("https://app.test/api/ai/chat", { method: "POST", headers: { origin: "https://app.test", "content-type": "application/json" }, body: JSON.stringify({ messages: [{ id: "m", role: "user", parts: [{ type: "text", text: "Hãy lập hành trình." }] }], journey, ...extra }) });
-  const response = await tripsageChatResponse(request, { authorization: auth(), model: async () => model, env: { TRIPSAGE_CHAT_ENABLED: "true" }, admit: createPlanningAdmission(), planning: planning() });
+  const response = await tripsageChatResponse(request, { authorization: auth(), model: async () => model, env, admit: createPlanningAdmission(), planning: planning() });
   return { response, model };
 };
 const parts = (sse: string) => sse.split("\n").filter(l => l.startsWith("data: {")).map(l => JSON.parse(l.slice(6)) as { type: string; data?: unknown });
 const propose = (input: Record<string, unknown>) => ({ tool: "proposeItinerary", input });
+
+describe("per-request optional tools", () => {
+  const base = ["fetchPage", "listDestinations", "proposeItinerary", "searchPlaces", "webSearch"];
+  const optional = [
+    ["TRIPSAGE_FEATURE_BUDGET", "checkBudget"],
+    ["TRIPSAGE_FEATURE_FLIGHTS", "searchFlights"],
+    ["TRIPSAGE_FEATURE_HOTELS", "searchHotels"],
+  ] as const;
+
+  it("keeps the original prompt and five tools for non-true flag values", async () => {
+    const { response, model } = await call({}, undefined, null, {
+      TRIPSAGE_CHAT_ENABLED: "true",
+      TRIPSAGE_FEATURE_BUDGET: "TRUE",
+      TRIPSAGE_FEATURE_FLIGHTS: " true",
+      TRIPSAGE_FEATURE_HOTELS: "false",
+    });
+    expect(response.status).toBe(200);
+    await response.text();
+    const { prompt, tools } = model.doStreamCalls[0]!;
+    expect(tools?.map(tool => tool.name).sort()).toEqual(base);
+    const system = prompt.filter(message => message.role === "system").map(message => message.content).join("\n");
+    // Captured from 928ced5 with no trip context.
+    expect(createHash("sha256").update(system).digest("hex")).toBe("49f3fa29ac1aed4fe5cca4c41247b91148a1377fcffc717c0a67969e62bf41bd");
+  });
+
+  it("advertises exactly the enabled tools in both the model registry and the prompt as flags change", async () => {
+    const env: Record<string, string | undefined> = { TRIPSAGE_CHAT_ENABLED: "true" };
+    for (let mask = 0; mask < 8; mask++) {
+      const enabled = optional.filter((_, index) => (mask & (1 << index)) !== 0);
+      for (const [flag, name] of optional) {
+        env[flag] = enabled.some(([, active]) => name === active) ? "true" : "false";
+      }
+      const { response, model } = await call({}, undefined, null, env);
+      expect(response.status).toBe(200);
+      await response.text();
+      const { prompt, tools } = model.doStreamCalls[0]!;
+      expect(tools?.map(tool => tool.name).sort(), JSON.stringify(env)).toEqual([...base, ...enabled.map(([, name]) => name)].sort());
+      const system = prompt.filter(message => message.role === "system").map(message => message.content).join("\n");
+      for (const [, name] of optional) {
+        expect(system.includes(name)).toBe(enabled.some(([, active]) => active === name));
+      }
+      expect(system.includes("Bạn chỉ có năm công cụ")).toBe(mask === 0);
+      expect(system.match(/Không dùng hay giả vờ dùng công cụ nào khác\./gu)).toHaveLength(1);
+    }
+  });
+
+  it("keeps budget available when the enabled flight and hotel groups have no provider", async () => {
+    const model = scripted([
+      { tool: "searchFlights", input: { origin: "SGN", destination: "HAN", departureDate: "2026-11-20" } },
+      { tool: "searchHotels", input: { destinationId: "a", checkInDate: "2026-11-20", checkOutDate: "2026-11-21" } },
+      { tool: "checkBudget", input: { currency: "VND", travelers: 1, durationDays: 1, allocations: [{ category: "food", amount: 100000 }] } },
+      { text: "Đây là ước tính." },
+    ]);
+    const { response } = await call({}, model, null, {
+      TRIPSAGE_CHAT_ENABLED: "true",
+      TRIPSAGE_FEATURE_BUDGET: "true",
+      TRIPSAGE_FEATURE_FLIGHTS: "true",
+      TRIPSAGE_FEATURE_HOTELS: "true",
+    });
+    const sse = await response.text();
+    expect(JSON.stringify(model.doStreamCalls[1]!.prompt)).toContain("Dịch vụ tra cứu vé máy bay chưa sẵn sàng");
+    expect(JSON.stringify(model.doStreamCalls[2]!.prompt)).toContain("Dịch vụ tra cứu khách sạn chưa sẵn sàng");
+    expect(JSON.stringify(model.doStreamCalls[3]!.prompt)).toContain('"withinCap":null');
+    expect(sse).toContain("Đây là ước tính.");
+  });
+});
 
 describe("chat request requirement context", () => {
   it("puts a valid requirement into the system context as data", async () => {

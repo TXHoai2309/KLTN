@@ -2,7 +2,7 @@
 
 ## Status
 
-DRAFT in approval terms (owner has not approved ADR-36). Tickets 01-12 are implemented on `feat/tripsage-chat-itinerary-port` behind a flag; the two migrations are created but not applied. See Acceptance Evidence and the [handoff](../research/tripsage-port-handoff.md). See ADR-36 (Proposed) in [decisions.md](../decisions.md).
+The original rollout remains Proposed in ADR-36. Tickets 01-12 are implemented on `feat/tripsage-chat-itinerary-port` behind a flag. The two migrations have been created and await deployment approval. On 2026-11-20 the owner approved the feature-group scope and authorized P1. See [ADR-36](../decisions.md#adr-36--port-the-tripsage-ai-chatagent-to-replace-the-planning-chat-2026-11-14), the [Ticket 12 handoff](../research/tripsage-port-handoff.md) and the [feature group progress log](../implementation/tripsage-feature-groups-progress.md).
 
 ## Epic
 
@@ -35,7 +35,8 @@ The tripsage-ai chat block (chat UI, streaming route, tool-loop agent) is ported
 ## In Scope
 
 - New streaming chat route and UI for signed-in Travelers, behind a feature flag; old `/trips/new` form and Assistant V2 remain.
-- Tool-loop agent with an explicit allow-list: KLTN destination read, `proposeItinerary` (output `PlanningSelection`), routing, Google Places/Maps, web search, Firecrawl. Amadeus is **dropped** (Q24c).
+- Tool-loop agent with an explicit base allow-list for KLTN destination reads, `proposeItinerary` (output `PlanningSelection`), Google Places and web search/page retrieval. Routing remains part of itinerary validation.
+- Owner-approved extension (2026-11-20) adds budget estimates, flight lookup, hotel lookup, long-term memory and ICS calendar export, each behind its own flag. This supersedes Q24c for read-only Amadeus lookup. P1 wires the flags and completes budget arithmetic, date validation and tool quotas. Provider integration is P2 and UI is P3. Long-term memory and ICS are later work.
 - Google as routing/place provider through a routing adapter; Stadia stays the default until the Google adapter is enabled by config (Q12a, Q12b).
 - Prisma migration for places outside the KLTN destination table (Q18b), applied to Development first.
 - Vietnamese prompts, UI strings and output; destination names follow the database (Q10).
@@ -44,7 +45,7 @@ The tripsage-ai chat block (chat UI, streaming route, tool-loop agent) is ported
 
 ## Out of Scope
 
-- Amadeus flights/hotels; Stripe, long-term memory (pgvector), `trip_collaborators`, tripsage Supabase/Redis/BYOK (Q9).
+- Booking and payment, including Stripe. `trip_collaborators` and tripsage Supabase/Redis/BYOK (Q9).
 - Removing the old planning flow; Production migration; changing `/api/ai/planning` in place (it also serves in-trip, Q&A and reconcile).
 - Editing the no-journey branch of `planning-engine.ts` (Q14a). Save remains blocked on any FAILED check.
 
@@ -52,6 +53,7 @@ The tripsage-ai chat block (chat UI, streaming route, tool-loop agent) is ported
 
 - AI proposes; the deterministic Constraint Validator decides. Missing validation data is never a pass.
 - Web/Firecrawl content is untrusted data for the agent, never instructions (Q23). Agent output must pass the `PlanningSelection` schema and the Validator before display or save.
+- Budget estimates and flight/hotel reference prices have no bearing on Validator outcomes or Save eligibility. Provider and memory content is untrusted data. Flight and hotel quota in P1 counts tool lookups, with at most two per group per turn.
 - Saving (Q21'a, owner decision, supersedes Q13): a schedule with any FAILED check cannot be saved. A schedule whose checks are PASS or "unchecked" (data missing, for example opening hours of an external place) may be saved only after explicit user confirmation, and the saved Trip is labeled with which checks were unchecked. "Unchecked" is never reported or stored as PASS.
 - Per turn: at most 8 steps and 60 s total, with caps on Places, Routes, search and Firecrawl calls (Q8, Q20).
 - Only an owner-approved decision changes a locked invariant; each invariant changed here is listed in ADR-36.
@@ -119,6 +121,8 @@ One Prisma migration for `ExternalPlace` and the `ItineraryVisit` reference (not
 
 New server-only variables for Google, web search and Firecrawl keys, blank in the tracked example. No real values committed. New dependencies `ai`, `@ai-sdk/react`, `@ai-sdk/openai` (version compatibility with the tripsage-pinned `ai@7.0.28` to be verified).
 
+P1 adds three independent server-only switches, `TRIPSAGE_FEATURE_BUDGET`, `TRIPSAGE_FEATURE_FLIGHTS` and `TRIPSAGE_FEATURE_HOTELS`. Each defaults to false and is enabled only by the exact value `true` on the current request. An off group contributes no tool or prompt text. With all groups off, the existing prompt and five tools are preserved. P1 has no provider credentials and returns a group-local unavailable result for enabled flight and hotel tools.
+
 ## Implementation Sequence
 
 1. Owner approves this story and ADR-36.
@@ -153,4 +157,4 @@ Unticked criterion and why: flag-on chat in a real browser (above), and the `Ext
 
 ## Handoff Notes
 
-Decisions are in [the research note](../research/tripsage-itinerary-port.md). Do not start coding until the owner approves.
+Original decisions are in [the research note](../research/tripsage-itinerary-port.md). The 2026-11-20 approval covers the feature-group scope and the requested P1 implementation. See the [progress log](../implementation/tripsage-feature-groups-progress.md) for evidence and remaining phases.

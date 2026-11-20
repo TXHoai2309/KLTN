@@ -706,7 +706,7 @@ Rollback is by reverting the single retirement commit, not by a setting. The Q&A
 
 ## ADR-36 — Port the tripsage-ai chat/agent to replace the planning chat (2026-11-14)
 
-- **Status:** Proposed. Drafted from the owner's recorded answers; not approved, not implemented, no authorization to start coding. Story: [TRIPSAGE-CHAT-ITINERARY-PORT](stories/TRIPSAGE-CHAT-ITINERARY-PORT.md).
+- **Status:** Original rollout decision remains Proposed. The owner approved the feature-group scope amendment below on 2026-11-20 and authorized P1. Story [TRIPSAGE-CHAT-ITINERARY-PORT](stories/TRIPSAGE-CHAT-ITINERARY-PORT.md).
 - **Date:** 2026-11-14
 
 ### Context
@@ -715,7 +715,7 @@ The owner wants the tripsage-ai chat block (UI, streaming route, tool-loop agent
 
 ### Decision
 
-Copy-then-adapt the tripsage chat block under its MIT license (notice kept in `NOTICE`), behind a feature flag, for signed-in Travelers. Agent output goes through `PlanningSelection`, `scheduleSelection`, the Validator and the existing Save contract. Amadeus is dropped.
+Copy-then-adapt the tripsage chat block under its MIT license (notice kept in `NOTICE`), behind a feature flag, for signed-in Travelers. Agent output goes through `PlanningSelection`, `scheduleSelection`, the Validator and the existing Save contract. The original Q24c decision excluded Amadeus. The 2026-11-20 amendment supersedes that exclusion for flight and hotel lookups.
 
 ### Invariants changed (each needs owner approval)
 
@@ -734,6 +734,14 @@ Copy-then-adapt the tripsage chat block under its MIT license (notice kept in `N
 - Hai migration (`20261114120000_external_place`, `20261114130000_trip_unchecked_checks`) đã tạo, CHƯA áp lên DB nào; test PostgreSQL opt-in chưa chạy.
 - Kiểm: tsc sạch, build production chạy được, Vitest đúng 51 test đỏ baseline (cộng 8 test lỗi do thứ tự mock, không do nhánh), quét bundle sạch. Chưa chạy: trình duyệt, OpenAI/Google/Firecrawl thật, so sánh selector cũ.
 - Chi tiết và việc chủ dự án phải làm: [tripsage-port-handoff.md](research/tripsage-port-handoff.md).
+
+### Owner-approved feature groups (2026-11-20)
+
+The owner approved budget estimates, flight lookup, hotel lookup, long-term memory and ICS calendar export in planning chat. Each group has an independent server-side flag. Flights and hotels are for lookup and reference prices only, with no booking or payment.
+
+P1 adds `TRIPSAGE_FEATURE_BUDGET`, `TRIPSAGE_FEATURE_FLIGHTS` and `TRIPSAGE_FEATURE_HOTELS`. Each is off by default and enabled only by the exact string `true`, read once per request. A disabled group contributes neither a registered tool nor system instructions. With all groups disabled the base prompt and tool set are preserved. The budget tool calculates estimates independently of the Constraint Validator. Flight and hotel tools report unavailable until P2 wires the provider. UI work is P3. Long-term memory and ICS each require a separate flag in a later phase.
+
+The [feature group progress log](implementation/tripsage-feature-groups-progress.md) records implementation and verification by phase.
 
 ### Invariants kept
 
