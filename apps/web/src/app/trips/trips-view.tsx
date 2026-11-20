@@ -106,6 +106,17 @@ export function MyTripsView({ items: initialItems }: { items: TripSummary[] }) {
 
   return (
     <main className="my-trips-page" lang="vi">
+      <nav className="my-trips-navigation" aria-label="Điều hướng chuyến đi">
+        <Link href="/trips" aria-current="page" className="my-trips-navigation-link is-active">
+          <CalendarDays size={18} aria-hidden="true" />
+          <span>Hành trình của tôi</span>
+          <span className="my-trips-filter-count">{counts.all}</span>
+        </Link>
+        <Link href="/trip-companions" className="my-trips-navigation-link">
+          <Users size={18} aria-hidden="true" />
+          <span>Tìm bạn đồng hành</span>
+        </Link>
+      </nav>
       {/* Editorial Header */}
       <div className="my-trips-heading">
         <div className="my-trips-heading-copy">
