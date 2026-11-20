@@ -9,7 +9,7 @@ const read = (file: string) => readFileSync(file, "utf8");
 const isTest = (name: string) => /\.(vitest\.)?test\.tsx?$/.test(name);
 
 /** Modules of the chat that only run on the server (keys, providers, DB, env). */
-const SERVER_ONLY_CHAT = /tripsage-chat-(runtime|provider|service|http|tools)|tripsage-(places|web)(?:["'/]|$)/;
+const SERVER_ONLY_CHAT = /tripsage-chat-(runtime|provider|service|http|tools)|tripsage-(places|web|duffel|amadeus|provider-response)(?:["'/]|$)/;
 const FORBIDDEN_SPECIFIER = /^(server-only|@\/server\/|@\/services|@\/env|\.\.?\/.*\/(?:server|services|env(?:\.server)?)$)|(^|\/)env(\.server)?$|@KLTN\/db|@prisma|^openai$|@ai-sdk\/openai|^node:/;
 
 function importsOf(source: string) {
@@ -58,13 +58,13 @@ describe("tripsage chat client bundle", () => {
 
   it("only the allowed chat modules (types, save controller, error vocabulary, request context) are reachable from the client", () => {
     const reached = [...graph(clientFiles).keys()].filter(file => file.startsWith(CHAT_MODULE_DIR)).map(file => file.slice(CHAT_MODULE_DIR.length + 1));
-    expect(reached.sort()).toEqual(["tripsage-chat-context.ts", "tripsage-chat-errors.ts", "tripsage-chat-save.ts"]);
+    expect(reached.sort()).toEqual(["tripsage-chat-context.ts", "tripsage-chat-errors.ts", "tripsage-chat-parts.ts", "tripsage-chat-save.ts"]);
   });
 
   it("reads no environment variable and names no provider key", () => {
-    for (const file of [...clientFiles, join(CHAT_MODULE_DIR, "tripsage-chat-errors.ts"), join(CHAT_MODULE_DIR, "tripsage-chat-save.ts"), join(CHAT_MODULE_DIR, "tripsage-chat-context.ts")]) {
+    for (const file of [...graph(clientFiles).keys()].filter(file => file.startsWith(CLIENT_DIR) || file.startsWith(CHAT_MODULE_DIR))) {
       const source = read(file);
-      expect(source, file).not.toMatch(/process\.env|NEXT_PUBLIC_|API_KEY|FIRECRAWL|STADIA|OPENAI_|GOOGLE_MAPS/);
+      expect(source, file).not.toMatch(/process\.env|NEXT_PUBLIC_|API_KEY|FIRECRAWL|STADIA|OPENAI_|GOOGLE_MAPS|DUFFEL_|AMADEUS_|ACCESS_TOKEN|access_token/);
     }
   });
 

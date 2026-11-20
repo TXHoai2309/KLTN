@@ -12,6 +12,7 @@ import type { WebLookup } from "./tripsage-web";
 import { TRIPSAGE_PROVIDER_LIMIT_TEXT, TRIPSAGE_PROVIDER_UNAVAILABLE_TEXT } from "./tripsage-chat-errors";
 import { createTripsageChatTools, TRIPSAGE_CHAT_TURN_LIMITS, type TripsagePlanningDeps, type TripsageToolContext } from "./tripsage-chat-tools";
 import { tripsageFeatureInstructions, type TripsageFeature } from "./tripsage-features";
+import { budgetPartSchema, flightsPartSchema, hotelsPartSchema } from "./tripsage-chat-parts";
 
 const BASE_TOOL_DESCRIPTIONS = "listDestinations (đọc điểm đến trong cơ sở dữ liệu), proposeItinerary (lập và kiểm tra lịch trình), searchPlaces (tìm địa điểm ngoài danh mục bằng Google Places, tối đa 3 lần mỗi lượt), webSearch (tìm web, tối đa 3 lần mỗi lượt) và fetchPage (đọc một trang có URL lấy từ kết quả webSearch, tối đa 2 lần mỗi lượt).";
 const TOOL_RESTRICTION = "Không dùng hay giả vờ dùng công cụ nào khác.";
@@ -177,6 +178,8 @@ export function streamTripsageChat(input: {
       const budget = AbortSignal.timeout(limits.totalMs);
       const signal = input.signal ? AbortSignal.any([input.signal, budget]) : budget;
       let placesPart = 0; let hasItinerary = false; let stepsDone = 0;
+      let flightsPart = 0;
+      let hotelsPart = 0;
       const tools = createTripsageChatTools({
         features: input.features,
         flights: input.flights,
@@ -184,6 +187,18 @@ export function streamTripsageChat(input: {
         planning: input.planning, places: input.places, journey: input.journey ?? null, requirement: input.requirement ?? null, maxProposals: limits.maxProposals, maxPlacesCalls: limits.maxPlacesCalls, web: input.web, maxWebSearchCalls: limits.maxWebSearchCalls, maxFetchPageCalls: limits.maxFetchPageCalls,
         emitSources: sources => writer.write({ type: "data-sources", id: "sources", data: { sources } }),
         emitPlaces: places => writer.write({ type: "data-places", id: `places-${++placesPart}`, data: { places } }),
+        emitBudget: data => {
+          const parsed = budgetPartSchema.safeParse(data);
+          if (parsed.success) writer.write({ type: "data-budget", id: "budget", data: parsed.data });
+        },
+        emitFlights: data => {
+          const parsed = flightsPartSchema.safeParse(data);
+          if (parsed.success) writer.write({ type: "data-flights", id: `flights-${++flightsPart}`, data: parsed.data });
+        },
+        emitHotels: data => {
+          const parsed = hotelsPartSchema.safeParse(data);
+          if (parsed.success) writer.write({ type: "data-hotels", id: `hotels-${++hotelsPart}`, data: parsed.data });
+        },
         emitItinerary: (result: PlannerResult) => {
           hasItinerary = true;
           writer.write({ type: "data-status", data: { kind: "checking", label: "Đang kiểm tra lịch trình…" } satisfies TripsageChatStatus, transient: true });
@@ -218,8 +233,8 @@ export function streamTripsageChat(input: {
             announced = true;
             controller.enqueue({ type: "data-status", data: { kind: "writing", label: "Đang soạn câu trả lời…" } satisfies TripsageChatStatus, transient: true } as UIMessageChunk);
           }
-          // Tool results (web text, snippets, place details) go to the model only. The UI renders data-itinerary / data-places / data-sources,
-          // so the browser gets just whether the call succeeded; thrown tool errors are replaced by a fixed text.
+          // Only display data travels in validated data parts. Raw tool results go to the model.
+          // The corresponding browser tool output carries only success; thrown errors use a fixed text.
           if (chunk.type === "tool-output-available") return controller.enqueue({ ...chunk, output: { ok: (chunk.output as { ok?: unknown } | null)?.ok === true } } as UIMessageChunk);
           if (chunk.type === "tool-output-error") return controller.enqueue({ ...chunk, errorText: FAILURE_TEXT } as UIMessageChunk);
           if (chunk.type === "finish-step") stepsDone += 1;

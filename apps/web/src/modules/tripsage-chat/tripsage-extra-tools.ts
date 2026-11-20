@@ -3,6 +3,7 @@ import { z } from "zod";
 import { isValidCalendarDate } from "../trip-requirement/trip-requirement-contract";
 import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
 import { budgetInputSchema, checkBudgetPlan } from "./tripsage-budget";
+import type { BudgetPart, FlightsPart, HotelsPart } from "./tripsage-chat-parts";
 import type { HotelLookup } from "./tripsage-amadeus";
 import type { FlightLookup } from "./tripsage-duffel";
 import type { TripsageFeature } from "./tripsage-features";
@@ -11,7 +12,13 @@ import type { TripsageFeature } from "./tripsage-features";
 export const TRIPSAGE_EXTRA_LIMITS = { maxFlightCalls: 2, maxHotelCalls: 2 } as const;
 type DestinationPoint = { name: string; latitude: number; longitude: number };
 
-export type TripsageExtraToolContext = {
+export type TripsageResultEmitters = {
+  emitBudget?: (data: BudgetPart) => void;
+  emitFlights?: (data: FlightsPart) => void;
+  emitHotels?: (data: HotelsPart) => void;
+};
+
+export type TripsageExtraToolContext = TripsageResultEmitters & {
   /** Which optional groups are on for this request. Absent or empty means no extra tool exists. */
   features?: ReadonlySet<TripsageFeature>;
   flights?: () => FlightLookup | undefined;
@@ -81,7 +88,17 @@ export function createTripsageExtraTools(context: TripsageExtraToolContext) {
   const checkBudget = tool({
     description: "Kiểm tra bảng ước tính chi phí bạn đã lập: tổng, chi phí mỗi người mỗi ngày, tỷ lệ từng khoản và so với ngân sách tối đa người dùng nêu. Công cụ chỉ cộng và so sánh, không tạo số liệu; số liệu là ước tính của bạn.",
     inputSchema: budgetInputSchema,
-    execute: async input => checkBudgetPlan(input),
+    execute: async input => {
+      const result = checkBudgetPlan(input);
+      if (result.ok) {
+        const { currency, total, perPersonPerDay, withinCap, overBy, allocations } = result;
+        context.emitBudget?.({
+          currency, total, perPersonPerDay, withinCap, overBy,
+          allocations: allocations.map(({ category, amount, sharePercent, note }) => ({ category, amount, sharePercent, note })),
+        });
+      }
+      return result;
+    },
   });
 
   const searchFlights = tool({
@@ -98,6 +115,15 @@ export function createTripsageExtraTools(context: TripsageExtraToolContext) {
       const outcome = await lookup({ ...input, returnDate: input.returnDate ?? undefined }, options?.abortSignal);
       if (outcome.status === "UNAVAILABLE") return unavailable("vé máy bay");
       if (outcome.status === "NO_RESULTS") return { ok: true as const, count: 0, offers: [], note: "Không tìm thấy chuyến bay phù hợp." };
+      if (outcome.offers.length) context.emitFlights?.({
+        offers: outcome.offers.map(({ price, itineraries }) => ({
+          price: { total: price.total, currency: price.currency },
+          itineraries: itineraries.map(({ connections, segments }) => ({
+            connections,
+            segments: segments.map(({ from, to, departAt, arriveAt, airline, flight }) => ({ from, to, departAt, arriveAt, airline, flight })),
+          })),
+        })),
+      });
       return { ok: true as const, count: outcome.offers.length, offers: outcome.offers, note: priceNote("Duffel") };
     },
   });
@@ -126,6 +152,13 @@ export function createTripsageExtraTools(context: TripsageExtraToolContext) {
       const outcome = await lookup({ latitude: point.latitude, longitude: point.longitude, checkInDate: input.checkInDate, checkOutDate: input.checkOutDate, adults: input.adults, currency: input.currency }, options?.abortSignal);
       if (outcome.status === "UNAVAILABLE") return unavailable("khách sạn");
       if (outcome.status === "NO_RESULTS") return { ok: true as const, count: 0, near: point.name, hotels: [], note: "Không có giá phòng phù hợp trong nhóm tối đa 20 khách sạn gần điểm đến được tra qua Amadeus." };
+      if (outcome.offers.length) context.emitHotels?.({
+        near: point.name,
+        nights,
+        hotels: outcome.offers.map(({ name, distanceKm, room, price, checkInDate, checkOutDate }) => ({
+          name, distanceKm, room, price: { total: price.total, currency: price.currency }, checkInDate, checkOutDate,
+        })),
+      });
       return { ok: true as const, count: outcome.offers.length, near: point.name, nights, hotels: outcome.offers, note: priceNote("Amadeus") };
     },
   });

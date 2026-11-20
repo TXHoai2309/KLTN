@@ -1,12 +1,11 @@
 import { z } from "zod";
+import { BUDGET_CATEGORIES, BUDGET_CURRENCIES, type BudgetPart } from "./tripsage-chat-parts";
 
 /**
  * Deterministic arithmetic over a budget the model estimated. The model proposes the figures; this module only sums,
  * compares with the user's stated cap and reports shares. It never invents a number, and with no cap it does not
  * claim the plan is within budget (`withinCap: null` = unknown, never a pass).
  */
-export const BUDGET_CATEGORIES = ["transport", "lodging", "food", "activities", "other"] as const;
-export const BUDGET_CURRENCIES = ["VND", "USD"] as const;
 const MAX_AMOUNT = 1e12;
 
 export const budgetInputSchema = z.object({
@@ -23,7 +22,7 @@ export const budgetInputSchema = z.object({
 export type BudgetInput = z.infer<typeof budgetInputSchema>;
 
 export type BudgetCheck =
-  | { ok: true; currency: string; total: number; perPersonPerDay: number; withinCap: boolean | null; overBy: number | null; allocations: { category: string; amount: number; sharePercent: number; note?: string }[]; note: string }
+  | (BudgetPart & { ok: true; note: string })
   | { ok: false; code: "INVALID_BUDGET"; message: string };
 
 export function checkBudgetPlan(input: BudgetInput): BudgetCheck {

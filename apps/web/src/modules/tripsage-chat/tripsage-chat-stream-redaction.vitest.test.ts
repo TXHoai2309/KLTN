@@ -161,7 +161,7 @@ describe("flight and hotel provider boundaries", () => {
     expect(fetcher).not.toHaveBeenCalled();
   });
 
-  it("keeps names in model tool results, redacts them from SSE and rejects hotel/flight identifiers as itinerary stops", async () => {
+  it("streams only projected result fields and rejects hotel/flight identifiers as itinerary stops", async () => {
     const airlineKey = "fake-airline-private-token";
     const hotelKey = "fake-hotel-private-token";
     const flightFetch = vi.fn<typeof fetch>().mockResolvedValueOnce(json({ data: { offers: [{
@@ -200,10 +200,62 @@ describe("flight and hotel provider boundaries", () => {
       expect(fed(model, 4)).not.toContain(key);
       expect(sse).not.toContain(key);
     }
-    expect(parts(sse).some(part => part.type === "data-itinerary")).toBe(false);
-    expect(sse).not.toContain(hostileName);
-    expect(sse).not.toContain("1500000.00");
-    const outputs = parts(sse).filter(part => part.type === "tool-output-available") as unknown as { output: unknown }[];
+    const chunks = parts(sse);
+    expect(chunks.some(part => part.type === "data-itinerary")).toBe(false);
+    expect(chunks.filter(part => part.type === "data-flights" || part.type === "data-hotels")).toEqual([
+      { type: "data-flights", id: "flights-1", data: { offers: [flightOffer] } },
+      { type: "data-hotels", id: "hotels-1", data: { near: planningCandidate("a").name, nights: 1, hotels: [{
+        name: hostileName, distanceKm: null, room: null, price: hotelOffer.price,
+        checkInDate: hotelOffer.checkInDate, checkOutDate: hotelOffer.checkOutDate,
+      }] } },
+    ]);
+    expect(JSON.stringify(chunks.filter(part => part.type !== "data-flights" && part.type !== "data-hotels"))).not.toContain(hostileName);
+    expect(sse).not.toContain('"hotelId"');
+    const outputs = chunks.filter(part => part.type === "tool-output-available") as unknown as { output: unknown }[];
     expect(outputs.map(part => part.output)).toEqual([{ ok: true }, { ok: true }, { ok: false }, { ok: false }]);
+  });
+
+  const budget = (amount: number, budgetCap?: number) => ({ tool: "checkBudget", input: {
+    currency: "VND", budgetCap, travelers: 2, durationDays: 1,
+    allocations: [{ category: "food", amount, note: "Cho cả nhóm" }],
+  } });
+
+  it("emits only successful budgets and gives every replacement the same ID", async () => {
+    const model = scripted([budget(0), budget(100_000), budget(400_000, 300_000), finish]);
+    const sse = await run(model, { env: { ...env(false, false), TRIPSAGE_FEATURE_BUDGET: "true" } });
+    const chunks = parts(sse);
+    expect(chunks.filter(part => part.type === "data-budget")).toEqual([
+      { type: "data-budget", id: "budget", data: {
+        currency: "VND", total: 100_000, perPersonPerDay: 50_000, withinCap: null, overBy: null,
+        allocations: [{ category: "food", amount: 100_000, sharePercent: 100, note: "Cho cả nhóm" }],
+      } },
+      { type: "data-budget", id: "budget", data: {
+        currency: "VND", total: 400_000, perPersonPerDay: 200_000, withinCap: false, overBy: 100_000,
+        allocations: [{ category: "food", amount: 400_000, sharePercent: 100, note: "Cho cả nhóm" }],
+      } },
+    ]);
+    const outputs = chunks.filter(part => part.type === "tool-output-available") as unknown as { output: unknown }[];
+    expect(outputs.map(part => part.output)).toEqual([{ ok: false }, { ok: true }, { ok: true }]);
+  });
+
+  it("skips empty, unavailable and invalid lookup parts", async () => {
+    const model = scripted([flight, hotel, flight, hotel, finish]);
+    const flightLookup = vi.fn()
+      .mockResolvedValueOnce({ status: "RESULTS", offers: [] })
+      .mockResolvedValueOnce({ status: "RESULTS", offers: [{ ...flightOffer, price: { total: "bad price", currency: "USD" } }] });
+    const hotelLookup = vi.fn()
+      .mockResolvedValueOnce({ status: "NO_RESULTS" })
+      .mockResolvedValueOnce({ status: "UNAVAILABLE" });
+    const sse = await run(model, { env: env(true, true), flights: () => flightLookup, hotels: () => hotelLookup });
+    expect(parts(sse).filter(part => part.type === "data-flights" || part.type === "data-hotels")).toEqual([]);
+    expect(sse).not.toContain("bad price");
+    expect(flightLookup).toHaveBeenCalledTimes(2);
+    expect(hotelLookup).toHaveBeenCalledTimes(2);
+  });
+
+  it("assigns distinct IDs to consecutive flight and hotel results", async () => {
+    const sse = await run(scripted([flight, hotel, flight, hotel, finish]), { env: env(true, true), flights, hotels });
+    const chunks = parts(sse).filter(part => part.type === "data-flights" || part.type === "data-hotels") as { id?: string }[];
+    expect(chunks.map(part => part.id)).toEqual(["flights-1", "hotels-1", "flights-2", "hotels-2"]);
   });
 });

@@ -15,7 +15,7 @@ import { JOURNEY_MISSING_LABELS, missingJourneyFields, type TripJourney } from "
 import type { HotelLookup } from "./tripsage-amadeus";
 import type { FlightLookup } from "./tripsage-duffel";
 import type { TripsageFeature } from "./tripsage-features";
-import { createTripsageExtraTools } from "./tripsage-extra-tools";
+import { createTripsageExtraTools, type TripsageResultEmitters } from "./tripsage-extra-tools";
 
 /** Base allow-list. Optional tools are registered only for the request's enabled feature groups. */
 export const TRIPSAGE_CHAT_TOOL_NAMES = ["listDestinations", "proposeItinerary", "searchPlaces", "webSearch", "fetchPage"] as const;
@@ -34,7 +34,7 @@ export type TripsageToolContext = { planning: TripsagePlanningDeps; emitItinerar
   /** Streams the domains of web sources shown to the model; the UI never renders web HTML. */ emitSources?: (sources: WebSourcePart[]) => void;
   /** Optional tool groups switched on for this request (budget, flights, hotels). Empty or absent: only the base tools exist. */ features?: ReadonlySet<TripsageFeature>;
   flights?: () => FlightLookup | undefined; hotels?: () => HotelLookup | undefined;
-  maxFlightCalls?: number; maxHotelCalls?: number };
+  maxFlightCalls?: number; maxHotelCalls?: number } & TripsageResultEmitters;
 export type WebSourcePart = { domain: string };
 /** External (not in KLTN database) place shown as a suggestion. `UNCHECKED`: no KLTN validation has run; it is never PASS. */
 export type PlaceSuggestionPart = { placeId: string; name: string; status: "UNCHECKED" };
@@ -196,6 +196,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   // Optional groups (each behind its own flag). Coordinates for hotel search come from the usable destinations read above, never from the model.
   const extra = createTripsageExtraTools({
     features: context.features, flights: context.flights, hotels: context.hotels, maxFlightCalls: context.maxFlightCalls, maxHotelCalls: context.maxHotelCalls, now,
+    emitBudget: context.emitBudget, emitFlights: context.emitFlights, emitHotels: context.emitHotels,
     destinationPoint: async id => { const c = (await candidates()).filter(isUsablePlanningCandidate).find(item => item.id === id); return c ? { name: c.name, latitude: c.latitude, longitude: c.longitude } : null; },
   });
   return { listDestinations, proposeItinerary, searchPlaces, webSearch, fetchPage, ...extra } satisfies ToolSet;

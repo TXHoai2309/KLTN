@@ -18,6 +18,7 @@ import { TripsageSaveSection } from "./tripsage-save-section";
 import { TripsageChatNotice } from "./tripsage-chat-notice";
 import { TripsageTripInfoDialog } from "./tripsage-trip-info-dialog";
 import { TripsageTripSummary } from "./tripsage-trip-summary";
+import { readTripsageResultTurns, TripsageResultCards } from "./tripsage-result-cards";
 import { classifyChatError, createTripsageChatFetch } from "@/modules/tripsage-chat/tripsage-chat-errors";
 
 type StatusPart = { kind: "start" | "checking" | "writing"; label: string };
@@ -54,6 +55,7 @@ export function TripsageChatClient() {
   const saveLocked = isTripSaveNavigationLocked(saveState);
   const notice = chatStatus === "error" ? classifyChatError(error) : null;
   const busy = chatStatus === "submitted" || chatStatus === "streaming";
+  const { turns: resultTurns, latestBudgetMessageId } = useMemo(() => readTripsageResultTurns(messages), [messages]);
   const lastItineraryMessageId = [...messages].reverse().find(m => m.role === "assistant" && m.parts.some(p => p.type === "data-itinerary" && parseItineraryPart(p.data)))?.id;
   // Only the newest itinerary is shown and sent back: a re-proposal replaces the previous one.
   const latestItinerary = lastItineraryMessageId ? messages.find(m => m.id === lastItineraryMessageId)?.parts.map(part => (part.type === "data-itinerary" ? parseItineraryPart(part.data) : null)).filter(Boolean).at(-1) ?? null : null;
@@ -99,7 +101,8 @@ export function TripsageChatClient() {
                 const itinerary = message.role === "assistant" && message.id === lastItineraryMessageId ? [...message.parts].reverse().map(part => (part.type === "data-itinerary" ? parseItineraryPart(part.data) : null)).find(Boolean) ?? null : null;
                 const suggestions = message.role === "assistant" ? message.parts.flatMap(part => (part.type === "data-places" ? parsePlacesPart(part.data) : [])) : [];
                 const webSources = message.role === "assistant" ? [...message.parts].reverse().map(part => (part.type === "data-sources" ? parseSourcesPart(part.data) : null)).find(Boolean) ?? [] : [];
-                if (!text && !itinerary && !suggestions.length && !webSources.length) return null;
+                const resultParts = resultTurns.get(message.id)?.filter(part => part.type !== "data-budget" || message.id === latestBudgetMessageId) ?? [];
+                if (!text && !itinerary && !suggestions.length && !webSources.length && !resultParts.length) return null;
                 return message.role === "user" ? (
                   <article key={message.id} className="assistant-message assistant-user"><p>{text}</p></article>
                 ) : (
@@ -108,6 +111,7 @@ export function TripsageChatClient() {
                     {itinerary && <TripsageItineraryView proposal={itinerary}>{message.id === lastItineraryMessageId && !busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} onStateChange={setSaveState} />)}</TripsageItineraryView>}
                     <TripsagePlacesView places={suggestions} />
                     <TripsageSourcesView sources={webSources} />
+                    <TripsageResultCards parts={resultParts} />
                     {text && <p style={{ whiteSpace: "pre-wrap" }}>{text}</p>}
                   </article>
                 );

@@ -34,3 +34,10 @@
 - Before wiring, the Duffel test suite had no adapter to import, 9 Amadeus tests failed against the draft and all 5 new HTTP boundary cases failed. Both additional regressions for exact decimal ordering and incomplete sold-out rows also failed before their fixes.
 - Final scoped Vitest passed 236 tests in 23 files, including 35 new cases. TypeScript and Git whitespace checks passed. The source scan found zero `DUFFEL_` or `AMADEUS_` occurrences in components or the 126 files with a `use client` directive.
 - Varlock regenerated the ignored local types from the updated templates. Live API calls, database and browser checks were outside P2 verification.
+
+## P3 (2026-11-20)
+
+- Planning chat displays separate Vietnamese cards for budget, Duffel flights and Amadeus hotels, using the existing Assistant colors and spacing. The latest valid budget replaces the previous estimate. Flight and hotel results keep their stream order. Prices retain their currency and flight times retain the local airport clock.
+- The service writes strict display parts only after a successful tool call. Empty flight and hotel lookups emit no card. The projection omits provider IDs, coordinates and credentials. Browser tool outputs still contain only the `ok` flag. Invalid card parts are skipped.
+- The three cards were checked in the integrated browser using an offline fixture at 1280px and 360px. Document and card widths showed no horizontal overflow. Tab reached the transcript, and its accessibility tree exposed the card headings and lists. The fixture was removed before commit. The screenshots use fake data.
+- TypeScript passed. Scoped Vitest passed 248 tests in 25 files, including 12 new cases covering display schemas, result projection, redaction, invalid parts and card markup. Client source and import checks passed. No live provider, production build, database or full-repository verification was run for P3.
