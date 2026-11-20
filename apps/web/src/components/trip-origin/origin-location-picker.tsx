@@ -185,7 +185,8 @@ export default function OriginLocationPicker({
     setValidationError(null);
 
     if (origin) {
-      onChange(value.trim() ? { ...origin, label: value.normalize("NFC"), confirmed: false } : null);
+      // Keep the pinned coordinates while the name is being retyped; an empty name falls back at confirm time.
+      onChange({ ...origin, label: value.trim() ? value.normalize("NFC") : origin.label, confirmed: false });
     }
   }
 
@@ -209,18 +210,14 @@ export default function OriginLocationPicker({
   }
 
   async function handleConfirmOrigin() {
-    const cleanLabel = label.trim();
-    if (!cleanLabel) {
-      setValidationError("Vui lòng nhập tên điểm xuất phát.");
-      return;
-    }
-
     const lat = Number.parseFloat(latText);
     const lng = Number.parseFloat(lngText);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       setValidationError("Vui lòng chọn ghim trên bản đồ hoặc nhập đủ tọa độ hợp lệ.");
       return;
     }
+    const cleanLabel = label.trim() || "Điểm ghim thủ công";
+    if (!label.trim()) setLabel(cleanLabel);
 
     setValidating(true);
     setValidationError(null);
@@ -409,7 +406,7 @@ export default function OriginLocationPicker({
         <button
           type="button"
           className="trip-origin-confirm-btn"
-          disabled={disabled || validating || !latText || !lngText || !label.trim()}
+          disabled={disabled || validating || !latText || !lngText}
           onClick={handleConfirmOrigin}
         >
           {validating ? (

@@ -130,10 +130,11 @@ describe("Tripsage OpenAI provider", () => {
     const text = await response.text();
     expect(text).not.toContain(SECRET);
     const [url, init] = fetcher.mock.calls[0]! as [unknown, RequestInit];
-    expect(String(url)).toBe("https://api.openai.com/v1/chat/completions");
+    // Responses API: gpt-6 models reject function tools on chat completions.
+    expect(String(url)).toBe("https://api.openai.com/v1/responses");
     const payload = JSON.parse(init.body as string);
     expect(payload.store).toBe(false);
-    expect(payload.max_completion_tokens ?? payload.max_tokens).toBeLessThanOrEqual(8000);
+    expect(payload.max_output_tokens).toBeLessThanOrEqual(8000);
     expect(init.redirect).toBe("error");
     expect(JSON.stringify(init.headers)).toContain(SECRET);
   });
@@ -143,7 +144,22 @@ describe("Tripsage OpenAI provider", () => {
     const inner = vi.fn(async () => new Response(big));
     const bounded = createBoundedOpenAiFetch(inner as unknown as typeof fetch);
     const response = await bounded("https://api.openai.com/v1/chat/completions", { method: "POST", body: JSON.stringify({ max_tokens: 99999 }) });
-    expect(JSON.parse((inner.mock.calls[0] as unknown as [unknown, RequestInit])[1].body as string).max_tokens).toBe(8000);
+    // Newer OpenAI models reject the legacy `max_tokens`; the bound is sent as `max_completion_tokens` only.
+    const sent = JSON.parse((inner.mock.calls[0] as unknown as [unknown, RequestInit])[1].body as string);
+    expect(sent.max_completion_tokens).toBe(8000);
+    expect(sent).not.toHaveProperty("max_tokens");
     await expect(response.arrayBuffer()).rejects.toBeTruthy();
+  });
+
+  it("renames a small legacy max_tokens to max_completion_tokens and keeps an existing max_completion_tokens", async () => {
+    const inner = vi.fn(async () => new Response("{}"));
+    const bounded = createBoundedOpenAiFetch(inner as unknown as typeof fetch);
+    await bounded("https://api.openai.com/v1/chat/completions", { method: "POST", body: JSON.stringify({ max_tokens: 123 }) });
+    await bounded("https://api.openai.com/v1/chat/completions", { method: "POST", body: JSON.stringify({ max_completion_tokens: 456, max_tokens: 789 }) });
+    const [first, second] = inner.mock.calls.map(call => JSON.parse((call as unknown as [unknown, RequestInit])[1].body as string));
+    expect(first).toMatchObject({ max_completion_tokens: 123, store: false });
+    expect(first).not.toHaveProperty("max_tokens");
+    expect(second).toMatchObject({ max_completion_tokens: 456, store: false });
+    expect(second).not.toHaveProperty("max_tokens");
   });
 });

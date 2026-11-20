@@ -10,7 +10,11 @@ import { INTEREST_VALUES, TRANSPORT_VALUES, tripRequirementInputSchema } from ".
 import { QUESTION_BY_FIELD } from "../trip-requirement/trip-clarification-rules";
 import type { ExternalPlaceSuggestion, PlacesSearch } from "./tripsage-places";
 import { domainOf, isSafePublicHttpsUrl, WEB_DATA_MARKER, type WebLookup } from "./tripsage-web";
+import type { TripsageRequirement } from "./tripsage-chat-context";
 import { JOURNEY_MISSING_LABELS, missingJourneyFields, type TripJourney } from "../trip-origin/trip-origin-contract";
+import type { AmadeusLookup } from "./tripsage-amadeus";
+import type { TripsageFeature } from "./tripsage-features";
+import { createTripsageExtraTools } from "./tripsage-extra-tools";
 
 /** The complete, hard allow-list. Anything else (place details, crawl tools, tripsage tools) is refused by construction. */
 export const TRIPSAGE_CHAT_TOOL_NAMES = ["listDestinations", "proposeItinerary", "searchPlaces", "webSearch", "fetchPage"] as const;
@@ -22,10 +26,13 @@ export const TRIPSAGE_CHAT_TURN_LIMITS = { maxSteps: 8, totalMs: 60_000, maxProp
 export type TripsagePlanningDeps = { candidates: () => Promise<PlannerCandidate[]>; routes: RouteProvider; now?: () => Date };
 /** `journey` comes from the signed-in request (origin picker), never from the model. */
 export type TripsageToolContext = { planning: TripsagePlanningDeps; emitItinerary: (result: PlannerResult) => void; maxProposals?: number; journey?: TripJourney | null;
+  /** Trip info from the one-page dialog (request context). When present it, not model input, drives scheduling. */ requirement?: TripsageRequirement | null;
   /** Google Places search (server key held inside); absent means unavailable. */ places?: PlacesSearch; maxPlacesCalls?: number;
   /** Streams suggestions to the UI only; nothing is stored or scheduled. */ emitPlaces?: (places: PlaceSuggestionPart[]) => void;
   /** Firecrawl search/scrape (server key held inside); absent means unavailable. */ web?: WebLookup; maxWebSearchCalls?: number; maxFetchPageCalls?: number;
-  /** Streams the domains of web sources shown to the model; the UI never renders web HTML. */ emitSources?: (sources: WebSourcePart[]) => void };
+  /** Streams the domains of web sources shown to the model; the UI never renders web HTML. */ emitSources?: (sources: WebSourcePart[]) => void;
+  /** Optional tool groups switched on for this request (budget, flights, hotels). Empty or absent: only the base tools exist. */ features?: ReadonlySet<TripsageFeature>;
+  /** Amadeus flight/hotel search (keys held inside); absent means those tools answer "unavailable". */ amadeus?: AmadeusLookup; maxFlightCalls?: number; maxHotelCalls?: number };
 export type WebSourcePart = { domain: string };
 /** External (not in KLTN database) place shown as a suggestion. `UNCHECKED`: no KLTN validation has run; it is never PASS. */
 export type PlaceSuggestionPart = { placeId: string; name: string; status: "UNCHECKED" };
@@ -48,7 +55,7 @@ export function missingTripInfo(input: { transport?: string | null; durationDays
 }
 
 const proposeInputSchema = z.object({
-  transport: z.enum(TRANSPORT_VALUES).nullable().optional().describe("Phương tiện: MOTORCYCLE (xe máy) hoặc CAR (ô tô); null nếu người dùng chưa nói."),
+  transport: z.enum(TRANSPORT_VALUES).nullable().optional().describe("Bỏ qua nếu thông tin chuyến đi đã có trong ngữ cảnh. Phương tiện: MOTORCYCLE (xe máy) hoặc CAR (ô tô); null nếu người dùng chưa nói."),
   durationDays: z.number().int().min(1).max(14).nullable().optional().describe("Số ngày của chuyến đi, từ 1 đến 14; null nếu người dùng chưa nói."),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional().describe("Ngày bắt đầu dạng YYYY-MM-DD, hoặc null nếu người dùng chưa chọn."),
   interests: z.array(z.enum(INTEREST_VALUES)).max(INTEREST_VALUES.length).optional().describe("Sở thích, chỉ dùng các giá trị cho phép."),
@@ -99,12 +106,15 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     execute: async input => {
       if (proposals >= maxProposals) return { ok: false as const, code: "PROPOSAL_LIMIT", message: "Đã đạt số lần lập lịch tối đa trong lượt này. Hãy tóm tắt và mời người dùng nhắn tiếp." };
       // Gate before any routing or scheduling: ask for what is missing, never guess it, and do not spend a proposal.
-      const missing = missingTripInfo(input, context.journey);
+      // Request context wins: with a dialog requirement the model supplies only `selection`; the day count follows it (edit requests).
+      const fixed = context.requirement;
+      const effective = fixed ? { transport: fixed.transport, durationDays: input.selection?.days.length ?? fixed.durationDays, startDate: fixed.startDate, interests: fixed.interests } : input;
+      const missing = missingTripInfo(effective, context.journey);
       if (missing.length) return { ok: false as const, code: "MISSING_REQUIRED_INFO", message: "Chưa đủ thông tin để lập lịch. Hãy hỏi người dùng đúng các mục còn thiếu bằng tiếng Việt, chưa lập lịch.", missing: missing.map(m => m.field), questions: missing.map(m => m.question) };
       proposals += 1;
       try {
         if (!input.selection) throw new AppError("INVALID_AI_PLAN", "Thiếu danh sách điểm đến theo ngày. Hãy gọi listDestinations rồi chọn điểm.", 422);
-        const requirement = tripRequirementInputSchema.parse({ startDate: input.startDate ?? null, durationDays: input.durationDays, transport: input.transport, interests: input.interests ?? [], journey: context.journey });
+        const requirement = tripRequirementInputSchema.parse({ startDate: effective.startDate ?? null, durationDays: effective.durationDays, transport: effective.transport, interests: effective.interests ?? [], journey: context.journey });
         const needs = { requirement, requiredDestinationIds: [], preferredDestinationIds: [], destinationNames: {} };
         const base = await candidates();
         // Only external ids this turn's searchPlaces returned become candidates; any other id stays unknown (INVALID_AI_PLAN).
@@ -181,5 +191,10 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     },
   });
 
-  return { listDestinations, proposeItinerary, searchPlaces, webSearch, fetchPage } satisfies ToolSet;
+  // Optional groups (each behind its own flag). Coordinates for hotel search come from the usable destinations read above, never from the model.
+  const extra = createTripsageExtraTools({
+    features: context.features, amadeus: context.amadeus, maxFlightCalls: context.maxFlightCalls, maxHotelCalls: context.maxHotelCalls, now,
+    destinationPoint: async id => { const c = (await candidates()).filter(isUsablePlanningCandidate).find(item => item.id === id); return c ? { name: c.name, latitude: c.latitude, longitude: c.longitude } : null; },
+  });
+  return { listDestinations, proposeItinerary, searchPlaces, webSearch, fetchPage, ...extra } satisfies ToolSet;
 }

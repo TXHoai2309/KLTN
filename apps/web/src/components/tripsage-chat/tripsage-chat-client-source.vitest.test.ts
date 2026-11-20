@@ -56,13 +56,13 @@ describe("tripsage chat client bundle", () => {
     expect(bad).toEqual([]);
   });
 
-  it("only the allowed chat modules (types, save controller, error vocabulary) are reachable from the client", () => {
+  it("only the allowed chat modules (types, save controller, error vocabulary, request context) are reachable from the client", () => {
     const reached = [...graph(clientFiles).keys()].filter(file => file.startsWith(CHAT_MODULE_DIR)).map(file => file.slice(CHAT_MODULE_DIR.length + 1));
-    expect(reached.sort()).toEqual(["tripsage-chat-errors.ts", "tripsage-chat-save.ts"]);
+    expect(reached.sort()).toEqual(["tripsage-chat-context.ts", "tripsage-chat-errors.ts", "tripsage-chat-save.ts"]);
   });
 
   it("reads no environment variable and names no provider key", () => {
-    for (const file of [...clientFiles, join(CHAT_MODULE_DIR, "tripsage-chat-errors.ts"), join(CHAT_MODULE_DIR, "tripsage-chat-save.ts")]) {
+    for (const file of [...clientFiles, join(CHAT_MODULE_DIR, "tripsage-chat-errors.ts"), join(CHAT_MODULE_DIR, "tripsage-chat-save.ts"), join(CHAT_MODULE_DIR, "tripsage-chat-context.ts")]) {
       const source = read(file);
       expect(source, file).not.toMatch(/process\.env|NEXT_PUBLIC_|API_KEY|FIRECRAWL|STADIA|OPENAI_|GOOGLE_MAPS/);
     }
@@ -83,7 +83,8 @@ describe("tripsage chat server logging", () => {
     const calls: string[] = [];
     for (const file of serverFiles) for (const line of read(file).split("\n")) if (/\bconsole\.\w+|\blogger\b|\bLogger\b|\bpino\b|\bwinston\b/.test(line)) calls.push(`${file.split(/[\/]/).pop()}: ${line.trim()}`);
     expect(calls).toHaveLength(1);
-    expect(calls[0]).toContain('console.error("[tripsage-chat] provider stream failed")');
+    // The only extra argument is the bounded diagnostic (status, kind, code), never the raw error object.
+    expect(calls[0]).toContain('console.error("[tripsage-chat] provider stream failed", safeFailureDiagnostic(error))');
     expect(calls[0]).not.toMatch(/\$\{|,\s*(error|err|e)\b/);
   });
 

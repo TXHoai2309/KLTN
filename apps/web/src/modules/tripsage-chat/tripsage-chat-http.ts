@@ -9,7 +9,7 @@ import { isTripsageChatEnabled } from "./tripsage-chat-flag";
 import type { PlacesSearch } from "./tripsage-places";
 import type { WebLookup } from "./tripsage-web";
 import type { TripsagePlanningDeps } from "./tripsage-chat-tools";
-import { parseTripsageChatJourney, parseTripsageChatMessages, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
+import { parseTripsageChatItinerary, parseTripsageChatJourney, parseTripsageChatMessages, parseTripsageChatRequirement, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
 
 export type TripsageChatHttpDependencies = {
   authorization: AuthorizationDependencies;
@@ -45,13 +45,15 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
     const body = await readBoundedJsonBody(request, { maxBytes: 128 * 1024, tooLargeError: invalid, emptyError: invalid, invalidJsonError: invalid });
     const messages = parseTripsageChatMessages(body);
     const journey = parseTripsageChatJourney(body);
+    const requirement = parseTripsageChatRequirement(body);
+    const currentItinerary = parseTripsageChatItinerary(body);
     // The slot is held until the stream settles, so the concurrency cap covers streaming time.
     let release!: () => void;
     const held = new Promise<void>(resolve => { release = resolve; });
     const timer = setTimeout(release, SAFETY_RELEASE_MS); timer.unref?.();
     const response = await new Promise<Response>((resolve, reject) => {
       (deps.admit ?? defaultAdmit)(actor.userId, async () => {
-        try { resolve(streamTripsageChat({ model: await deps.model(), messages, journey, planning: deps.planning?.() ?? unavailablePlanning, places: deps.places?.(), web: deps.web?.(), limits: deps.limits, signal: request.signal, onSettled: release })); }
+        try { resolve(streamTripsageChat({ model: await deps.model(), messages, journey, requirement, currentItinerary, planning: deps.planning?.() ?? unavailablePlanning, places: deps.places?.(), web: deps.web?.(), limits: deps.limits, signal: request.signal, onSettled: release })); }
         catch (error) { reject(error); release(); }
         await held;
       }).catch(reject).finally(() => clearTimeout(timer));
