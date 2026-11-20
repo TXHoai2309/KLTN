@@ -10,6 +10,7 @@ import { enabledTripsageFeatures } from "./tripsage-features";
 import type { PlacesSearch } from "./tripsage-places";
 import type { WebLookup } from "./tripsage-web";
 import type { TripsagePlanningDeps, TripsageToolContext } from "./tripsage-chat-tools";
+import type { MemoryService } from "../tripsage-memory/memory-service";
 import { parseTripsageChatItinerary, parseTripsageChatJourney, parseTripsageChatMessages, parseTripsageChatRequirement, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
 
 export type TripsageChatHttpDependencies = {
@@ -21,6 +22,7 @@ export type TripsageChatHttpDependencies = {
   places?: () => PlacesSearch;
   /** Firecrawl web search/scrape; resolved lazily. Absent means the web tools report unavailable. */
   web?: () => WebLookup;
+  memory?: () => MemoryService;
   /** Test seam for the per-turn caps; production uses the defaults. */
   limits?: Partial<TripsageChatTurnLimits>;
   env?: Record<string, string | undefined>;
@@ -45,7 +47,7 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
     if (request.headers.get("content-type")?.split(";")[0]?.trim() !== "application/json") throw new AppError("INVALID_INPUT", "Yêu cầu phải là JSON.", 415);
     const invalid = new AppError("INVALID_INPUT", "Nội dung yêu cầu chưa hợp lệ.", 400);
     const body = await readBoundedJsonBody(request, { maxBytes: 128 * 1024, tooLargeError: invalid, emptyError: invalid, invalidJsonError: invalid });
-    const messages = parseTripsageChatMessages(body);
+    const { messages, latestUser } = parseTripsageChatMessages(body);
     const journey = parseTripsageChatJourney(body);
     const requirement = parseTripsageChatRequirement(body);
     const currentItinerary = parseTripsageChatItinerary(body);
@@ -60,6 +62,7 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
             model: await deps.model(), messages, journey, requirement, currentItinerary, features,
             planning: deps.planning?.() ?? unavailablePlanning, places: deps.places?.(), web: deps.web?.(),
             flights: deps.flights, hotels: deps.hotels, limits: deps.limits, signal: request.signal, onSettled: release,
+            memory: features.has("memory") ? { actor, source: latestUser, resolve: deps.memory } : undefined,
           }));
         }
         catch (error) { reject(error); release(); }

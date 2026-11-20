@@ -10,6 +10,8 @@ import { createDuffelFlightLookup, type FlightLookup } from "./tripsage-duffel";
 import { createAmadeusHotelLookup, type HotelLookup } from "./tripsage-amadeus";
 import type { TripsagePlanningDeps } from "./tripsage-chat-tools";
 
+export { tripsageMemoryRuntime } from "../tripsage-memory/memory-runtime";
+
 /** Same candidate reader and routing provider (Stadia by default) as the existing planner. Provider keys stays server-side. */
 export function tripsagePlanningRuntime(): TripsagePlanningDeps {
   const registry = routingRegistry(ENV.DATABASE_URL);

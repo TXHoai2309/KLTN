@@ -13,6 +13,8 @@ import { TRIPSAGE_PROVIDER_LIMIT_TEXT, TRIPSAGE_PROVIDER_UNAVAILABLE_TEXT } from
 import { createTripsageChatTools, TRIPSAGE_CHAT_TURN_LIMITS, type TripsagePlanningDeps, type TripsageToolContext } from "./tripsage-chat-tools";
 import { tripsageFeatureInstructions, type TripsageFeature } from "./tripsage-features";
 import { budgetPartSchema, flightsPartSchema, hotelsPartSchema } from "./tripsage-chat-parts";
+import type { RememberSource } from "../tripsage-memory/memory-service";
+import { MEMORY_TOOL_NAMES } from "../tripsage-memory/memory-tools";
 
 const BASE_TOOL_DESCRIPTIONS = "listDestinations (đọc điểm đến trong cơ sở dữ liệu), proposeItinerary (lập và kiểm tra lịch trình), searchPlaces (tìm địa điểm ngoài danh mục bằng Google Places, tối đa 3 lần mỗi lượt), webSearch (tìm web, tối đa 3 lần mỗi lượt) và fetchPage (đọc một trang có URL lấy từ kết quả webSearch, tối đa 2 lần mỗi lượt).";
 const TOOL_RESTRICTION = "Không dùng hay giả vờ dùng công cụ nào khác.";
@@ -49,19 +51,21 @@ export const tripsageChatRequestSchema = z.object({ messages: z.array(messageSch
 const invalid = () => new AppError("INVALID_INPUT", "Nội dung yêu cầu chưa hợp lệ.", 400);
 
 /** Keeps only plain text parts; tool, file or other client-supplied parts never reach the model. */
-export function parseTripsageChatMessages(body: unknown): ModelMessage[] {
+export function parseTripsageChatMessages(body: unknown): { messages: ModelMessage[]; latestUser: RememberSource } {
   const parsed = tripsageChatRequestSchema.safeParse(body);
   if (!parsed.success) throw invalid();
   const out: ModelMessage[] = []; let total = 0;
+  let latestUser: RememberSource | undefined;
   for (const message of parsed.data.messages) {
     const text = message.parts.map(part => (part.type === "text" && typeof part.text === "string" ? part.text : "")).filter(Boolean).join("\n").normalize("NFC").trim();
     if (!text) { if (message.role === "user") throw invalid(); continue; }
     if (text.length > MAX_TEXT) throw invalid();
     total += text.length;
     out.push({ role: message.role, content: text });
+    if (message.role === "user") latestUser = { messageId: message.id, text };
   }
-  if (!out.length || out.at(-1)!.role !== "user" || total > MAX_TOTAL) throw invalid();
-  return out;
+  if (!latestUser || out.at(-1)?.role !== "user" || total > MAX_TOTAL) throw invalid();
+  return { messages: out, latestUser };
 }
 
 /** Optional `journey` from the origin picker. Parsed strictly and checked for Vietnam coverage; invalid data is a 400, never silently dropped. */
@@ -168,7 +172,7 @@ export function streamTripsageChat(input: {
   limits?: Partial<TripsageChatTurnLimits>;
   signal?: AbortSignal;
   onSettled?: () => void;
-} & Pick<TripsageToolContext, "flights" | "hotels">): Response {
+} & Pick<TripsageToolContext, "flights" | "hotels" | "memory">): Response {
   const limits = { ...TRIPSAGE_CHAT_TURN_LIMITS, ...input.limits };
   const settle = once(input.onSettled);
   input.signal?.addEventListener("abort", settle, { once: true });
@@ -184,6 +188,7 @@ export function streamTripsageChat(input: {
         features: input.features,
         flights: input.flights,
         hotels: input.hotels,
+        memory: input.memory,
         planning: input.planning, places: input.places, journey: input.journey ?? null, requirement: input.requirement ?? null, maxProposals: limits.maxProposals, maxPlacesCalls: limits.maxPlacesCalls, web: input.web, maxWebSearchCalls: limits.maxWebSearchCalls, maxFetchPageCalls: limits.maxFetchPageCalls,
         emitSources: sources => writer.write({ type: "data-sources", id: "sources", data: { sources } }),
         emitPlaces: places => writer.write({ type: "data-places", id: `places-${++placesPart}`, data: { places } }),
@@ -227,6 +232,7 @@ export function streamTripsageChat(input: {
         for (const chunk of [{ type: "text-start", id }, { type: "text-delta", id, delta: text }, { type: "text-end", id }]) controller.enqueue(chunk as UIMessageChunk);
       };
       const timeoutNotice = (controller: { enqueue: (chunk: UIMessageChunk) => void }) => writeNotice(controller, "timeout", capNotice("Đã hết thời gian xử lý cho lượt này.", hasItinerary));
+      const privateInputs = new Set<string>();
       const shaped = result.toUIMessageStream({ onError: failureText }).pipeThrough(new TransformStream<UIMessageChunk, UIMessageChunk>({
         transform(chunk, controller) {
           if (!announced && chunk.type === "text-start") {
@@ -235,6 +241,15 @@ export function streamTripsageChat(input: {
           }
           // Only display data travels in validated data parts. Raw tool results go to the model.
           // The corresponding browser tool output carries only success; thrown errors use a fixed text.
+          if (input.features?.has("memory")) {
+            if (chunk.type === "tool-input-start" && MEMORY_TOOL_NAMES.some(name => name === chunk.toolName)) privateInputs.add(chunk.toolCallId);
+            if (chunk.type === "tool-input-delta" && privateInputs.has(chunk.toolCallId)) return;
+            if ((chunk.type === "tool-input-available" || chunk.type === "tool-input-error") && MEMORY_TOOL_NAMES.some(name => name === chunk.toolName)) {
+              return controller.enqueue(chunk.type === "tool-input-error"
+                ? { ...chunk, input: {}, errorText: FAILURE_TEXT }
+                : { ...chunk, input: {} });
+            }
+          }
           if (chunk.type === "tool-output-available") return controller.enqueue({ ...chunk, output: { ok: (chunk.output as { ok?: unknown } | null)?.ok === true } } as UIMessageChunk);
           if (chunk.type === "tool-output-error") return controller.enqueue({ ...chunk, errorText: FAILURE_TEXT } as UIMessageChunk);
           if (chunk.type === "finish-step") stepsDone += 1;

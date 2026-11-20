@@ -19,6 +19,7 @@ import { TripsageChatNotice } from "./tripsage-chat-notice";
 import { TripsageTripInfoDialog } from "./tripsage-trip-info-dialog";
 import { TripsageTripSummary } from "./tripsage-trip-summary";
 import { readTripsageResultTurns, TripsageResultCards } from "./tripsage-result-cards";
+import { TripsageMemoryPanel } from "./tripsage-memory-panel";
 import { classifyChatError, createTripsageChatFetch } from "@/modules/tripsage-chat/tripsage-chat-errors";
 
 type StatusPart = { kind: "start" | "checking" | "writing"; label: string };
@@ -30,7 +31,7 @@ const MAX_LENGTH = 1000;
  * (origin via the existing KLTN picker) plus a compact summary of the latest itinerary travel in the request body.
  * The model never sees coordinates and never fills these fields itself.
  */
-export function TripsageChatClient() {
+export function TripsageChatClient({ memoryEnabled = false }: { memoryEnabled?: boolean }) {
   const [draft, setDraft] = useState("");
   const [status, setStatus] = useState<StatusPart | null>(null);
   const [journey, setJourney] = useState<TripJourney | null>(null);
@@ -86,6 +87,7 @@ export function TripsageChatClient() {
       <div className="assistant-chat-main assistant-chat-fullscreen">
         <div className="assistant-transcript" tabIndex={0} aria-label="Danh sách tin nhắn">
           <div className="assistant-transcript-inner">
+            <TripsageMemoryPanel enabled={memoryEnabled} />
             {!messages.length && (
               <div className="assistant-empty">
                 <Sparkles className="assistant-icon" aria-hidden="true" />

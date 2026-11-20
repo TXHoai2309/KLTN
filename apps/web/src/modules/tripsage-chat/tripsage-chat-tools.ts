@@ -16,6 +16,7 @@ import type { HotelLookup } from "./tripsage-amadeus";
 import type { FlightLookup } from "./tripsage-duffel";
 import type { TripsageFeature } from "./tripsage-features";
 import { createTripsageExtraTools, type TripsageResultEmitters } from "./tripsage-extra-tools";
+import { createMemoryTools, type MemoryToolContext } from "../tripsage-memory/memory-tools";
 
 /** Base allow-list. Optional tools are registered only for the request's enabled feature groups. */
 export const TRIPSAGE_CHAT_TOOL_NAMES = ["listDestinations", "proposeItinerary", "searchPlaces", "webSearch", "fetchPage"] as const;
@@ -34,6 +35,7 @@ export type TripsageToolContext = { planning: TripsagePlanningDeps; emitItinerar
   /** Streams the domains of web sources shown to the model; the UI never renders web HTML. */ emitSources?: (sources: WebSourcePart[]) => void;
   /** Optional tool groups switched on for this request (budget, flights, hotels). Empty or absent: only the base tools exist. */ features?: ReadonlySet<TripsageFeature>;
   flights?: () => FlightLookup | undefined; hotels?: () => HotelLookup | undefined;
+  memory?: MemoryToolContext;
   maxFlightCalls?: number; maxHotelCalls?: number } & TripsageResultEmitters;
 export type WebSourcePart = { domain: string };
 /** External (not in KLTN database) place shown as a suggestion. `UNCHECKED`: no KLTN validation has run; it is never PASS. */
@@ -199,5 +201,6 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     emitBudget: context.emitBudget, emitFlights: context.emitFlights, emitHotels: context.emitHotels,
     destinationPoint: async id => { const c = (await candidates()).filter(isUsablePlanningCandidate).find(item => item.id === id); return c ? { name: c.name, latitude: c.latitude, longitude: c.longitude } : null; },
   });
-  return { listDestinations, proposeItinerary, searchPlaces, webSearch, fetchPage, ...extra } satisfies ToolSet;
+  const memory = context.features?.has("memory") ? createMemoryTools(context.memory) : {};
+  return { listDestinations, proposeItinerary, searchPlaces, webSearch, fetchPage, ...extra, ...memory } satisfies ToolSet;
 }

@@ -706,7 +706,7 @@ Rollback is by reverting the single retirement commit, not by a setting. The Q&A
 
 ## ADR-36 — Port the tripsage-ai chat/agent to replace the planning chat (2026-11-14)
 
-- **Status:** Original rollout decision remains Proposed. The owner approved the feature-group scope amendment below on 2026-11-20. P1 and P2 are implemented behind flags. Story [TRIPSAGE-CHAT-ITINERARY-PORT](stories/TRIPSAGE-CHAT-ITINERARY-PORT.md).
+- **Status:** Original rollout decision remains Proposed. The owner approved the feature-group scope amendment below on 2026-11-20. P1–P4 are implemented behind flags. P4 database deployment is pending. Story [TRIPSAGE-CHAT-ITINERARY-PORT](stories/TRIPSAGE-CHAT-ITINERARY-PORT.md).
 - **Date:** 2026-11-14
 
 ### Context
@@ -739,9 +739,11 @@ Copy-then-adapt the tripsage chat block under its MIT license (notice kept in `N
 
 The owner approved budget estimates, flight lookup, hotel lookup, long-term memory and ICS calendar export in planning chat. Each group has an independent server-side flag. Flights and hotels are for lookup and reference prices only, with no booking or payment.
 
-P1 adds `TRIPSAGE_FEATURE_BUDGET`, `TRIPSAGE_FEATURE_FLIGHTS` and `TRIPSAGE_FEATURE_HOTELS`. Each is off by default and enabled only by the exact string `true`, read once per request. A disabled group contributes neither a registered tool nor system instructions. With all groups disabled the base prompt and tool set are preserved. The budget tool calculates estimates independently of the Constraint Validator. UI work is P3. Long-term memory and ICS each require a separate flag in a later phase.
+P1 adds `TRIPSAGE_FEATURE_BUDGET`, `TRIPSAGE_FEATURE_FLIGHTS` and `TRIPSAGE_FEATURE_HOTELS`. Each is off by default and enabled only by the exact string `true`, read once per request. A disabled group contributes neither a registered tool nor system instructions. With all groups disabled the base prompt and tool set are preserved. The budget tool calculates estimates independently of the Constraint Validator. P3 adds result cards. ICS requires a separate flag in a later phase.
 
 P2 uses Duffel for flights and Amadeus for hotels, matching the two TripSage domains. Each provider is resolved lazily for its tool and uses separate server credentials. Missing credentials or a provider failure affect only that search group. The tools return reference prices for lookup only. Booking, payment, persistence of search data and use of offers as itinerary candidates are out of scope.
+
+P4 adds a per-traveler memory behind `TRIPSAGE_FEATURE_MEMORY`, off by default. The model calls recall only when needed. The server does not inject memories automatically. A save requires an explicit request or a clear travel preference or constraint from the latest user message. The server filters sensitive data before embedding or storage. Saved items are preferences, constraints, or expressly requested notes. Travelers can list, delete one, or delete all of their own items. Recall remains untrusted data and does not change the Validator. The additive pgvector migration awaits owner deployment.
 
 The [feature group progress log](implementation/tripsage-feature-groups-progress.md) records implementation and verification by phase.
 

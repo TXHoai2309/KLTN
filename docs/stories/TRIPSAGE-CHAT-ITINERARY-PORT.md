@@ -36,7 +36,7 @@ The tripsage-ai chat block (chat UI, streaming route, tool-loop agent) is ported
 
 - New streaming chat route and UI for signed-in Travelers, behind a feature flag; old `/trips/new` form and Assistant V2 remain.
 - Tool-loop agent with an explicit base allow-list for KLTN destination reads, `proposeItinerary` (output `PlanningSelection`), Google Places and web search/page retrieval. Routing remains part of itinerary validation.
-- Owner-approved extension (2026-11-20) adds budget estimates, flight lookup, hotel lookup, long-term memory and ICS calendar export, each behind its own flag. P1 wires the flags and completes budget arithmetic, date validation and tool quotas. P2 uses Duffel for flights and Amadeus for hotels, superseding Q24c for Amadeus hotel lookup. Both tools only look up offers. Booking, payment and persistence of search results are out of scope. UI is P3. Long-term memory and ICS are later work.
+- Owner-approved extension (2026-11-20) adds budget estimates, flight lookup, hotel lookup, long-term memory and ICS calendar export, each behind its own flag. P1 wires the initial flags and completes budget arithmetic, date validation and tool quotas. P2 uses Duffel for flights and Amadeus for hotels, superseding Q24c for Amadeus hotel lookup. Both tools only look up offers. Booking, payment and persistence of search results are out of scope. P3 adds result cards. P4 adds per-traveler memory. ICS is later work.
 - Google as routing/place provider through a routing adapter; Stadia stays the default until the Google adapter is enabled by config (Q12a, Q12b).
 - Prisma migration for places outside the KLTN destination table (Q18b), applied to Development first.
 - Vietnamese prompts, UI strings and output; destination names follow the database (Q10).
@@ -54,6 +54,7 @@ The tripsage-ai chat block (chat UI, streaming route, tool-loop agent) is ported
 - AI proposes; the deterministic Constraint Validator decides. Missing validation data is never a pass.
 - Web/Firecrawl content is untrusted data for the agent, never instructions (Q23). Agent output must pass the `PlanningSelection` schema and the Validator before display or save.
 - Budget estimates and flight/hotel reference prices have no bearing on Validator outcomes or Save eligibility. Provider and memory content is untrusted data. Flight and hotel quota counts tool lookups, with at most two per group per turn. An Amadeus lookup uses at most two business GETs and one OAuth token POST.
+- P4 retrieves memory only on demand. The server checks intent and filters sensitive data before storage or embedding. The traveler can view and delete their own preferences, constraints and explicitly requested notes. The server derives ownership from Better Auth on every request. Each traveler can retain up to 100 items.
 - Saving (Q21'a, owner decision, supersedes Q13): a schedule with any FAILED check cannot be saved. A schedule whose checks are PASS or "unchecked" (data missing, for example opening hours of an external place) may be saved only after explicit user confirmation, and the saved Trip is labeled with which checks were unchecked. "Unchecked" is never reported or stored as PASS.
 - Per turn: at most 8 steps and 60 s total, with caps on Places, Routes, search and Firecrawl calls (Q8, Q20).
 - Only an owner-approved decision changes a locked invariant; each invariant changed here is listed in ADR-36.
@@ -124,6 +125,8 @@ New server-only variables for Google, web search and Firecrawl keys, blank in th
 P1 adds three independent server-only switches, `TRIPSAGE_FEATURE_BUDGET`, `TRIPSAGE_FEATURE_FLIGHTS` and `TRIPSAGE_FEATURE_HOTELS`. Each defaults to false and is enabled only by the exact value `true` on the current request. An off group contributes no tool or prompt text. With all groups off, the existing prompt and five tools are preserved.
 
 P2 reads optional server-only `DUFFEL_ACCESS_TOKEN` for flights and `AMADEUS_CLIENT_ID` / `AMADEUS_CLIENT_SECRET` for hotels. `AMADEUS_ENV` selects the fixed Amadeus host and defaults to `test`. Missing provider credentials only affect that provider's tool.
+
+P4 reads `TRIPSAGE_FEATURE_MEMORY` server-side. It is off by default and requires the exact value `true`. It reuses the existing RAG embedding provider. Migration `20261121120000_traveler_memory` has been written and awaits owner deployment.
 
 ## Implementation Sequence
 

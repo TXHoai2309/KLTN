@@ -9,6 +9,7 @@ import { AssistantModeTabs } from "@/components/tripsage-chat/assistant-mode-tab
 import { TripsageChatClient } from "@/components/tripsage-chat/tripsage-chat-client";
 import { buildAuthLoginHref } from "@/lib/auth-return-to";
 import { isTripsageChatEnabled } from "@/modules/tripsage-chat/tripsage-chat-flag";
+import { enabledTripsageFeatures } from "@/modules/tripsage-chat/tripsage-features";
 import { AppError } from "@/server/http/app-error";
 import { requireActor } from "@/server/authorization/guard";
 import { authorizationDependencies } from "@/server/authorization/server";
@@ -32,5 +33,5 @@ export default async function TripsageChatPage() {
       if (error instanceof AppError && error.status === 403) return false;
       throw error;
     });
-  return allowed ? <AssistantShell><AssistantModeTabs active="plan" /><TripsageChatClient /></AssistantShell> : <AccessDenied />;
+  return allowed ? <AssistantShell><AssistantModeTabs active="plan" /><TripsageChatClient memoryEnabled={enabledTripsageFeatures().has("memory")} /></AssistantShell> : <AccessDenied />;
 }

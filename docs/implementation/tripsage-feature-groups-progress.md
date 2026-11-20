@@ -41,3 +41,39 @@
 - The service writes strict display parts only after a successful tool call. Empty flight and hotel lookups emit no card. The projection omits provider IDs, coordinates and credentials. Browser tool outputs still contain only the `ok` flag. Invalid card parts are skipped.
 - The three cards were checked in the integrated browser using an offline fixture at 1280px and 360px. Document and card widths showed no horizontal overflow. Tab reached the transcript, and its accessibility tree exposed the card headings and lists. The fixture was removed before commit. The screenshots use fake data.
 - TypeScript passed. Scoped Vitest passed 248 tests in 25 files, including 12 new cases covering display schemas, result projection, redaction, invalid parts and card markup. Client source and import checks passed. No live provider, production build, database or full-repository verification was run for P3.
+
+## P4 (2026-11-21)
+
+- `TRIPSAGE_FEATURE_MEMORY` powers the two memory tools and the signed-in Traveler's list and deletion UI. The model calls recall only when needed. It receives up to five relevant items as marked, untrusted data. Memory tool inputs and raw results stay out of the browser stream.
+- The server accepts complete clauses from the latest user message for explicit memory requests or clear travel preferences and constraints. It rejects sensitive content before calling the embedding provider. Examples include passwords and credentials, phone and email, card/account numbers, ID documents, home addresses, health, religion and politics. The rules are heuristic and can reject some benign inputs.
+- Exact cosine lookup uses the same OpenAI `text-embedding-3-small` 1536-dimensional vectors as [RAG](../../apps/web/src/modules/rag-processing/embedding-contract.ts). The initial similarity cutoff is 0.50 to avoid including weak matches. An owner-scoped exact scan covers at most 100 items and follows the existing RAG pattern without an approximate vector index.
+- All reads and deletes are owner-scoped. Per-user database locking serializes memory mutations and protects the 100-item cap. A hash of normalized text deduplicates per user. The shared idempotency ledger records memory IDs or counts, and a save checks that the row exists after the commit before reporting success.
+- Migration `20261121120000_traveler_memory` adds the memory table, type and owner indexes with cascade on account deletion. It relies on the existing pgvector extension and awaits operator deployment.
+
+### Verification
+
+- The initial service and API tests failed before the missing modules were implemented. The three chat integration tests failed before the flagged registry was wired. The added tests for preserving negation and recognizing address/birth-date patterns failed before those checks were added.
+- Web typecheck passed. Scoped Vitest passed 295 tests in 29 files, including 47 new cases. The separate PostgreSQL test was skipped. A source scan found no embedding credential patterns in 127 client entry files or the TripSage UI and shared memory contract.
+- Prisma validation and generation ran against a temporary config with an offline dummy URL. The generated client is ignored. PostgreSQL integration is opt-in and was skipped. No migration or live embedding call ran.
+- The browser fixture timed out before the 360px check could be completed. The fixture was removed before commit.
+
+### Deployment and opt-in test
+
+From the repository root on PowerShell, with the intended Development database configured through the normal `packages/db` environment, run:
+
+```powershell
+Push-Location packages/db
+npx.cmd prisma migrate deploy
+npx.cmd prisma generate
+Pop-Location
+```
+
+For integration verification, prepare a disposable loopback database with the repository migrations applied and the generated client above. Point these variables to that database only:
+
+```powershell
+$env:TRAVELER_MEMORY_TEST_DATABASE_URL = 'postgresql://USER:PASSWORD@127.0.0.1:5432/DISPOSABLE_DB?sslmode=disable'
+$env:TRAVELER_MEMORY_TEST_DISPOSABLE = 'OWNED_LOOPBACK_CONTAINER'
+Push-Location apps/web
+npx.cmd vitest run --config vitest.config.mts src/modules/tripsage-memory/traveler-memory.postgres.integration.vitest.test.ts
+Pop-Location
+```
