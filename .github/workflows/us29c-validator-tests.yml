@@ -3,6 +3,12 @@ name: US29C Validator Tests
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - kduy
+    paths:
+      - '.github/workflows/us29c-validator-tests.yml'
+      - 'apps/web/src/modules/trip-validation/**'
 
 permissions:
   contents: read
