@@ -9,7 +9,7 @@ import { isTripsageChatEnabled } from "./tripsage-chat-flag";
 import { enabledTripsageFeatures } from "./tripsage-features";
 import type { PlacesSearch } from "./tripsage-places";
 import type { WebLookup } from "./tripsage-web";
-import type { TripsagePlanningDeps } from "./tripsage-chat-tools";
+import type { TripsagePlanningDeps, TripsageToolContext } from "./tripsage-chat-tools";
 import { parseTripsageChatItinerary, parseTripsageChatJourney, parseTripsageChatMessages, parseTripsageChatRequirement, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
 
 export type TripsageChatHttpDependencies = {
@@ -25,7 +25,7 @@ export type TripsageChatHttpDependencies = {
   limits?: Partial<TripsageChatTurnLimits>;
   env?: Record<string, string | undefined>;
   admit?: ReturnType<typeof createPlanningAdmission>;
-};
+} & Pick<TripsageToolContext, "flights" | "hotels">;
 const defaultAdmit = createPlanningAdmission();
 const SAFETY_RELEASE_MS = 130_000;
 
@@ -55,7 +55,13 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
     const timer = setTimeout(release, SAFETY_RELEASE_MS); timer.unref?.();
     const response = await new Promise<Response>((resolve, reject) => {
       (deps.admit ?? defaultAdmit)(actor.userId, async () => {
-        try { resolve(streamTripsageChat({ model: await deps.model(), messages, journey, requirement, currentItinerary, features, planning: deps.planning?.() ?? unavailablePlanning, places: deps.places?.(), web: deps.web?.(), limits: deps.limits, signal: request.signal, onSettled: release })); }
+        try {
+          resolve(streamTripsageChat({
+            model: await deps.model(), messages, journey, requirement, currentItinerary, features,
+            planning: deps.planning?.() ?? unavailablePlanning, places: deps.places?.(), web: deps.web?.(),
+            flights: deps.flights, hotels: deps.hotels, limits: deps.limits, signal: request.signal, onSettled: release,
+          }));
+        }
         catch (error) { reject(error); release(); }
         await held;
       }).catch(reject).finally(() => clearTimeout(timer));

@@ -26,7 +26,7 @@ export const TRIPSAGE_FEATURE_TOOLS: Record<TripsageFeature, readonly string[]> 
 
 const FEATURE_INSTRUCTIONS: Record<TripsageFeature, string> = {
   budget: "checkBudget: sau khi tự ước tính chi phí (có thể dựa trên webSearch), gọi công cụ này để kiểm tra tổng, tỷ lệ từng khoản và so với ngân sách tối đa người dùng nêu. Số liệu chi phí chỉ là ước tính của bạn, phải nói rõ là ước tính; nếu người dùng chưa nêu ngân sách tối đa thì không kết luận là vừa hay vượt ngân sách.",
-  flights: "searchFlights: tra giá vé máy bay tham khảo từ Amadeus giữa hai mã sân bay IATA (ví dụ SGN, HAN) theo ngày, tối đa 2 lần mỗi lượt. Hà Giang không có sân bay; gần nhất thường là Hà Nội (HAN). Giá chỉ để tham khảo, ứng dụng không đặt vé.",
+  flights: "searchFlights: tra giá vé máy bay tham khảo từ Duffel giữa hai mã sân bay IATA (ví dụ SGN, HAN) theo ngày, tối đa 2 lần mỗi lượt. Nêu số lần nối chuyến của từng chiều và giữ nguyên đơn vị tiền Duffel trả về. Hà Giang không có sân bay; gần nhất thường là Hà Nội (HAN). Giá chỉ để tham khảo, ứng dụng không đặt vé.",
   hotels: "searchHotels: tra khách sạn và giá phòng tham khảo từ Amadeus quanh MỘT điểm đến trong cơ sở dữ liệu (dùng id từ listDestinations, bạn không nhận và không được tự nghĩ ra tọa độ) theo ngày nhận và trả phòng, tối đa 2 lần mỗi lượt. Giá chỉ để tham khảo, ứng dụng không đặt phòng và khách sạn chưa được kiểm tra bằng bộ kiểm tra lịch trình.",
 };
 

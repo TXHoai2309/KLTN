@@ -6,6 +6,8 @@ import { retrievePlannerCandidates } from "../trip-planner/planner-candidates";
 import { createConfiguredRoutesProvider } from "../trip-planner/planner-routes";
 import { createGooglePlacesSearch, type PlacesSearch } from "./tripsage-places";
 import { createFirecrawlWeb, type WebLookup } from "./tripsage-web";
+import { createDuffelFlightLookup, type FlightLookup } from "./tripsage-duffel";
+import { createAmadeusHotelLookup, type HotelLookup } from "./tripsage-amadeus";
 import type { TripsagePlanningDeps } from "./tripsage-chat-tools";
 
 /** Same candidate reader and routing provider (Stadia by default) as the existing planner. Provider keys stays server-side. */
@@ -26,4 +28,20 @@ export function tripsagePlacesRuntime(): PlacesSearch {
 /** Firecrawl web search and page extraction with the server-only key, read per call; it never leaves this module. */
 export function tripsageWebRuntime(): WebLookup {
   return createFirecrawlWeb({ apiKey: () => ENV.FIRECRAWL_API_KEY });
+}
+
+export function tripsageFlightRuntime(): FlightLookup | undefined {
+  const accessToken = ENV.DUFFEL_ACCESS_TOKEN?.trim();
+  return accessToken ? createDuffelFlightLookup({ accessToken: () => accessToken }) : undefined;
+}
+
+export function tripsageHotelRuntime(): HotelLookup | undefined {
+  const clientId = ENV.AMADEUS_CLIENT_ID?.trim();
+  const clientSecret = ENV.AMADEUS_CLIENT_SECRET?.trim();
+  if (!clientId || !clientSecret) return undefined;
+  return createAmadeusHotelLookup({
+    clientId: () => clientId,
+    clientSecret: () => clientSecret,
+    environment: () => ENV.AMADEUS_ENV,
+  });
 }

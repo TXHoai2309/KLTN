@@ -12,7 +12,8 @@ import type { ExternalPlaceSuggestion, PlacesSearch } from "./tripsage-places";
 import { domainOf, isSafePublicHttpsUrl, WEB_DATA_MARKER, type WebLookup } from "./tripsage-web";
 import type { TripsageRequirement } from "./tripsage-chat-context";
 import { JOURNEY_MISSING_LABELS, missingJourneyFields, type TripJourney } from "../trip-origin/trip-origin-contract";
-import type { AmadeusLookup } from "./tripsage-amadeus";
+import type { HotelLookup } from "./tripsage-amadeus";
+import type { FlightLookup } from "./tripsage-duffel";
 import type { TripsageFeature } from "./tripsage-features";
 import { createTripsageExtraTools } from "./tripsage-extra-tools";
 
@@ -32,7 +33,8 @@ export type TripsageToolContext = { planning: TripsagePlanningDeps; emitItinerar
   /** Firecrawl search/scrape (server key held inside); absent means unavailable. */ web?: WebLookup; maxWebSearchCalls?: number; maxFetchPageCalls?: number;
   /** Streams the domains of web sources shown to the model; the UI never renders web HTML. */ emitSources?: (sources: WebSourcePart[]) => void;
   /** Optional tool groups switched on for this request (budget, flights, hotels). Empty or absent: only the base tools exist. */ features?: ReadonlySet<TripsageFeature>;
-  /** Amadeus flight/hotel search (keys held inside); absent means those tools answer "unavailable". */ amadeus?: AmadeusLookup; maxFlightCalls?: number; maxHotelCalls?: number };
+  flights?: () => FlightLookup | undefined; hotels?: () => HotelLookup | undefined;
+  maxFlightCalls?: number; maxHotelCalls?: number };
 export type WebSourcePart = { domain: string };
 /** External (not in KLTN database) place shown as a suggestion. `UNCHECKED`: no KLTN validation has run; it is never PASS. */
 export type PlaceSuggestionPart = { placeId: string; name: string; status: "UNCHECKED" };
@@ -193,7 +195,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
 
   // Optional groups (each behind its own flag). Coordinates for hotel search come from the usable destinations read above, never from the model.
   const extra = createTripsageExtraTools({
-    features: context.features, amadeus: context.amadeus, maxFlightCalls: context.maxFlightCalls, maxHotelCalls: context.maxHotelCalls, now,
+    features: context.features, flights: context.flights, hotels: context.hotels, maxFlightCalls: context.maxFlightCalls, maxHotelCalls: context.maxHotelCalls, now,
     destinationPoint: async id => { const c = (await candidates()).filter(isUsablePlanningCandidate).find(item => item.id === id); return c ? { name: c.name, latitude: c.latitude, longitude: c.longitude } : null; },
   });
   return { listDestinations, proposeItinerary, searchPlaces, webSearch, fetchPage, ...extra } satisfies ToolSet;

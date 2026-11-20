@@ -10,7 +10,7 @@ import { TRIPSAGE_CHAT_LIMITS, tripsageProviderOptions } from "./tripsage-chat-p
 import type { PlacesSearch } from "./tripsage-places";
 import type { WebLookup } from "./tripsage-web";
 import { TRIPSAGE_PROVIDER_LIMIT_TEXT, TRIPSAGE_PROVIDER_UNAVAILABLE_TEXT } from "./tripsage-chat-errors";
-import { createTripsageChatTools, TRIPSAGE_CHAT_TURN_LIMITS, type TripsagePlanningDeps } from "./tripsage-chat-tools";
+import { createTripsageChatTools, TRIPSAGE_CHAT_TURN_LIMITS, type TripsagePlanningDeps, type TripsageToolContext } from "./tripsage-chat-tools";
 import { tripsageFeatureInstructions, type TripsageFeature } from "./tripsage-features";
 
 const BASE_TOOL_DESCRIPTIONS = "listDestinations (đọc điểm đến trong cơ sở dữ liệu), proposeItinerary (lập và kiểm tra lịch trình), searchPlaces (tìm địa điểm ngoài danh mục bằng Google Places, tối đa 3 lần mỗi lượt), webSearch (tìm web, tối đa 3 lần mỗi lượt) và fetchPage (đọc một trang có URL lấy từ kết quả webSearch, tối đa 2 lần mỗi lượt).";
@@ -154,7 +154,20 @@ const capNotice = (reason: string, hasItinerary: boolean) => `${reason} ${hasIti
 export type TripsageChatTurnLimits = { maxSteps: number; totalMs: number; maxProposals: number; maxPlacesCalls: number; maxWebSearchCalls: number; maxFetchPageCalls: number };
 
 /** Streams progress (`data-status`), Vietnamese prose and the structured `data-itinerary` part. The itinerary is never model text. */
-export function streamTripsageChat(input: { model: LanguageModel; messages: ModelMessage[]; journey?: TripJourney | null; requirement?: TripsageRequirement | null; currentItinerary?: TripsageItinerarySummary | null; features?: ReadonlySet<TripsageFeature>; planning: TripsagePlanningDeps; places?: PlacesSearch; web?: WebLookup; limits?: Partial<TripsageChatTurnLimits>; signal?: AbortSignal; onSettled?: () => void }): Response {
+export function streamTripsageChat(input: {
+  model: LanguageModel;
+  messages: ModelMessage[];
+  journey?: TripJourney | null;
+  requirement?: TripsageRequirement | null;
+  currentItinerary?: TripsageItinerarySummary | null;
+  features?: ReadonlySet<TripsageFeature>;
+  planning: TripsagePlanningDeps;
+  places?: PlacesSearch;
+  web?: WebLookup;
+  limits?: Partial<TripsageChatTurnLimits>;
+  signal?: AbortSignal;
+  onSettled?: () => void;
+} & Pick<TripsageToolContext, "flights" | "hotels">): Response {
   const limits = { ...TRIPSAGE_CHAT_TURN_LIMITS, ...input.limits };
   const settle = once(input.onSettled);
   input.signal?.addEventListener("abort", settle, { once: true });
@@ -166,6 +179,8 @@ export function streamTripsageChat(input: { model: LanguageModel; messages: Mode
       let placesPart = 0; let hasItinerary = false; let stepsDone = 0;
       const tools = createTripsageChatTools({
         features: input.features,
+        flights: input.flights,
+        hotels: input.hotels,
         planning: input.planning, places: input.places, journey: input.journey ?? null, requirement: input.requirement ?? null, maxProposals: limits.maxProposals, maxPlacesCalls: limits.maxPlacesCalls, web: input.web, maxWebSearchCalls: limits.maxWebSearchCalls, maxFetchPageCalls: limits.maxFetchPageCalls,
         emitSources: sources => writer.write({ type: "data-sources", id: "sources", data: { sources } }),
         emitPlaces: places => writer.write({ type: "data-places", id: `places-${++placesPart}`, data: { places } }),
