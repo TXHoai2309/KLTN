@@ -198,14 +198,25 @@ export type AiBarUiState =
       canRetry: boolean;
     };
 
+function renderInlineBold(text: string): ReactNode {
+  if (!text.includes("**")) return text;
+  const parts = text.split(/(\*\*[^*\n]+\*\*)/gu);
+  return parts.map((part, idx) => {
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+      return <strong key={`b-${idx}`}>{part.slice(2, -2)}</strong>;
+    }
+    return part;
+  });
+}
+
 function renderLabeledLine(text: string): ReactNode {
-  const match = /^([^:\n]{2,64}:)(\s+)([\s\S]+)$/u.exec(text);
-  if (!match) return text;
+  const match = /^([^:*\n]{2,64}:)(\s+)([\s\S]+)$/u.exec(text);
+  if (!match) return renderInlineBold(text);
   return (
     <>
       <strong>{match[1]}</strong>
       {match[2]}
-      {match[3]}
+      {renderInlineBold(match[3]!)}
     </>
   );
 }
@@ -451,6 +462,10 @@ export default function AiEditBar({
     state.kind === "ADVISED" &&
     lastMessage?.role === "assistant" &&
     lastMessage.text.trim() === state.advice.trim();
+  const clarifyingAlreadyInMessages =
+    state.kind === "CLARIFYING" &&
+    lastMessage?.role === "assistant" &&
+    lastMessage.text.trim() === state.clarification.prompt.trim();
 
   function submitCurrentPrompt() {
     const trimmed = inputValue.trim();
@@ -554,7 +569,6 @@ export default function AiEditBar({
                         className={styles.aiStarterCard}
                         disabled={controlsDisabled}
                         onClick={() => {
-                          onInputChange(item.prompt);
                           onSubmitPrompt(item.prompt);
                         }}
                       >
@@ -644,26 +658,30 @@ export default function AiEditBar({
                 </div>
               )}
 
-              {state.kind === "CLARIFYING" && (
-                <div className={styles.aiResultBox} role="status" aria-live="polite">
-                  <p className={styles.aiResultTitle}>{state.clarification.prompt}</p>
-                  {state.clarification.choices && state.clarification.choices.length > 0 && (
-                    <div className={styles.aiChoiceList}>
-                      {state.clarification.choices.slice(0, 3).map((choice, index) => (
-                        <button
-                          key={`${choice.label}-${index}`}
-                          type="button"
-                          className={styles.aiChoiceBtn}
-                          disabled={controlsDisabled}
-                          onClick={() => onSubmitPrompt(state.prompt, choice.resolution)}
-                        >
-                          {choice.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
+              {state.kind === "CLARIFYING" &&
+                (!clarifyingAlreadyInMessages ||
+                  (state.clarification.choices && state.clarification.choices.length > 0)) && (
+                  <div className={styles.aiResultBox} role="status" aria-live="polite">
+                    {!clarifyingAlreadyInMessages && (
+                      <p className={styles.aiResultTitle}>{state.clarification.prompt}</p>
+                    )}
+                    {state.clarification.choices && state.clarification.choices.length > 0 && (
+                      <div className={styles.aiChoiceList}>
+                        {state.clarification.choices.slice(0, 3).map((choice, index) => (
+                          <button
+                            key={`${choice.label}-${index}`}
+                            type="button"
+                            className={styles.aiChoiceBtn}
+                            disabled={controlsDisabled}
+                            onClick={() => onSubmitPrompt(state.prompt, choice.resolution)}
+                          >
+                            {choice.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
               {state.kind === "ADVISED" && (
                 <div className={styles.aiAdvisoryFollowup} role="status" aria-live="polite">

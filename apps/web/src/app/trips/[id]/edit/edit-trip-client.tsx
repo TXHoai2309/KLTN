@@ -388,8 +388,23 @@ export default function EditTripClient({
       .filter((item) => item.content.length > 0);
     const activeLocation =
       liveTripStatus === "ONGOING" ? (overrideLocation ?? sessionLocation ?? undefined) : undefined;
+    const shouldAppendOptimisticUser = !overrideLocation;
+    const optimisticUserId = shouldAppendOptimisticUser ? `u-${++aiTurnSeqRef.current}` : null;
     setAiOpen(true);
+    setAiInput("");
+    if (optimisticUserId) {
+      setAiThread((prev) =>
+        [...prev, { id: optimisticUserId, role: "user" as const, text: trimmed }].slice(-MAX_AI_HISTORY_TURNS),
+      );
+    }
     setAiBarState({ kind: "LOADING", prompt: trimmed });
+
+    const rollbackOptimisticUser = () => {
+      if (optimisticUserId) {
+        setAiThread((prev) => prev.filter((item) => item.id !== optimisticUserId));
+      }
+      setAiInput(trimmed);
+    };
 
     const outcome = await requestAiTripEdit(tripId, {
       baseRevision: requestedRevision,
@@ -401,6 +416,7 @@ export default function EditTripClient({
     });
 
     if (outcome.kind === "TIMEOUT") {
+      rollbackOptimisticUser();
       setAiBarState({
         kind: "ERROR",
         prompt: trimmed,
@@ -412,6 +428,7 @@ export default function EditTripClient({
     }
 
     if (outcome.kind === "NETWORK_ERROR") {
+      rollbackOptimisticUser();
       setAiBarState({
         kind: "ERROR",
         prompt: trimmed,
@@ -423,6 +440,7 @@ export default function EditTripClient({
     }
 
     if (outcome.kind === "FAILED") {
+      rollbackOptimisticUser();
       if (outcome.code === "TRIP_REVISION_CONFLICT") {
         setAiBarState({ kind: "IDLE" });
         void openConflictRebaseFlow();
@@ -450,17 +468,15 @@ export default function EditTripClient({
     }
 
     const result = outcome.result;
-    const nextTurnPair = (
+    const nextAssistantTurn = (
       kind: AiConversationEntry["kind"],
       assistantText: string,
-    ): AiConversationEntry[] => {
-      const userId = `u-${++aiTurnSeqRef.current}`;
-      const assistantId = `a-${++aiTurnSeqRef.current}`;
-      return [
-        { id: userId, role: "user", text: trimmed },
-        { id: assistantId, role: "assistant", kind, text: assistantText },
-      ];
-    };
+    ): AiConversationEntry => ({
+      id: `a-${++aiTurnSeqRef.current}`,
+      role: "assistant",
+      kind,
+      text: assistantText,
+    });
 
     if (result.status === "NEEDS_LOCATION") {
       setSessionLocation(null);
@@ -478,7 +494,7 @@ export default function EditTripClient({
     }
 
     if (result.status === "NEEDS_CLARIFICATION") {
-      setAiThread((prev) => [...prev, ...nextTurnPair("CLARIFYING", result.clarification.prompt)].slice(-MAX_AI_HISTORY_TURNS));
+      setAiThread((prev) => [...prev, nextAssistantTurn("CLARIFYING", result.clarification.prompt)].slice(-MAX_AI_HISTORY_TURNS));
       setAiBarState({
         kind: "CLARIFYING",
         prompt: trimmed,
@@ -489,20 +505,15 @@ export default function EditTripClient({
     }
 
     if (result.status === "ADVISED") {
-      const userId = `u-${++aiTurnSeqRef.current}`;
-      const assistantId = `a-${++aiTurnSeqRef.current}`;
-      const advisedEntries: AiConversationEntry[] = [
-        { id: userId, role: "user", text: trimmed },
-        {
-          id: assistantId,
-          role: "assistant",
-          kind: "ADVISED",
-          text: result.advice,
-          ...(result.knowledgeParts ? { knowledgeParts: result.knowledgeParts } : {}),
-          ...(result.citations ? { citations: result.citations } : {}),
-        },
-      ];
-      setAiThread((prev) => [...prev, ...advisedEntries].slice(-MAX_AI_HISTORY_TURNS));
+      const assistantEntry: AiConversationEntry = {
+        id: `a-${++aiTurnSeqRef.current}`,
+        role: "assistant",
+        kind: "ADVISED",
+        text: result.advice,
+        ...(result.knowledgeParts ? { knowledgeParts: result.knowledgeParts } : {}),
+        ...(result.citations ? { citations: result.citations } : {}),
+      };
+      setAiThread((prev) => [...prev, assistantEntry].slice(-MAX_AI_HISTORY_TURNS));
       setAiBarState({
         kind: "ADVISED",
         advice: result.advice,
@@ -510,7 +521,6 @@ export default function EditTripClient({
         ...(result.knowledgeParts ? { knowledgeParts: result.knowledgeParts } : {}),
         ...(result.citations ? { citations: result.citations } : {}),
       });
-      setAiInput("");
       setAnnouncement(result.advice);
       setToastFeedback(null);
       return;
@@ -524,8 +534,7 @@ export default function EditTripClient({
     }
 
     const summary = result.aiSummary ?? "AI đã cập nhật bản nháp hiện tại.";
-    setAiThread((prev) => [...prev, ...nextTurnPair("APPLIED", summary)].slice(-MAX_AI_HISTORY_TURNS));
-    setAiInput("");
+    setAiThread((prev) => [...prev, nextAssistantTurn("APPLIED", summary)].slice(-MAX_AI_HISTORY_TURNS));
     commitDraft(result.candidate, summary);
     setTimingDrafts({});
     setPreviewState(

@@ -747,6 +747,16 @@ export async function createAiEditProposal(
     hydratedPlan.mode === "UNSUPPORTED" &&
     parseRestBufferRequest(request.message, null, "GENERAL").isRestScenario;
 
+  const conversationalFollowupSignal =
+    !locationSignal &&
+    !interleavedSignal &&
+    !isTripFrameEditRequest(request.message) &&
+    Boolean(request.history && request.history.length > 0) &&
+    hydratedPlan.mode === "NEEDS_CLARIFICATION" &&
+    hydratedPlan.clarificationReason === "OUT_OF_SCOPE" &&
+    hydratedPlan.candidateVisitIds.length === 0 &&
+    hydratedPlan.candidateDestinationIds.length === 0;
+
   if (locationSignal && liveTripStatus === "ONGOING" && !request.location) {
     const prompt =
       "Yêu cầu này cần biết vị trí bạn đang đứng để tính chính xác quãng đường và thời gian tới các điểm còn lại. Bạn hãy chia sẻ GPS một lần hoặc chọn vị trí thủ công trên bản đồ.";
@@ -764,6 +774,7 @@ export async function createAiEditProposal(
     interleavedSignal ||
     recommendSignal ||
     restFallbackSignal ||
+    conversationalFollowupSignal ||
     (hydratedPlan.mode === "UNSUPPORTED" && isTripFrameEditRequest(request.message)) ||
     (hydratedPlan.mode === "NEEDS_CLARIFICATION" &&
       hydratedPlan.clarificationReason === "OUT_OF_SCOPE" &&
@@ -775,7 +786,8 @@ export async function createAiEditProposal(
         !restFallbackSignal &&
         !recommendSignal &&
         !interleavedSignal &&
-        !locationSignal) ||
+        !locationSignal &&
+        !conversationalFollowupSignal) ||
       isTripFrameEditRequest(request.message);
     const runPreview = (cand: EditCandidate) =>
       previewEdit(
@@ -871,6 +883,7 @@ export async function createAiEditProposal(
       const qaResult = await runInterleavedQaScenario({
         message: request.message,
         mode: "ADVISED",
+        tripStatus: liveTripStatus,
         history: request.history ?? [],
         baseCandidate,
         savedShape,
@@ -987,6 +1000,8 @@ export async function createAiEditProposal(
 
     const twoStep = await buildTwoStepGroundedAdvisory({
       message: request.message,
+      history: request.history,
+      tripStatus: liveTripStatus,
       baseCandidate,
       savedShape,
       placeNames,

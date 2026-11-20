@@ -768,6 +768,7 @@ async function answerLocalKnowledgeQuestion(input: {
 export async function runInterleavedQaScenario(input: {
   message: string;
   mode: string;
+  tripStatus?: "UPCOMING" | "ONGOING" | "COMPLETED";
   history: readonly AiChatHistoryTurn[];
   baseCandidate: EditCandidate;
   savedShape: SavedTripForEdit & { manuallyCompletedAt?: Date | null };
@@ -801,6 +802,12 @@ export async function runInterleavedQaScenario(input: {
   }
 
   if (parsed.kind === "PROGRESS_QA") {
+    // For UPCOMING trips that haven't started yet, hand off to grounded two-step advisory
+    // so the assistant answers naturally about the planned departure/itinerary without
+    // saying "tiếp theo bạn sẽ đi" or "chưa hoàn thành".
+    if (input.tripStatus === "UPCOMING" && input.lockedVisitIds.size === 0) {
+      return { kind: "NOT_APPLICABLE" };
+    }
     return answerProgressQuestion({
       baseCandidate: input.baseCandidate,
       lockedVisitIds: input.lockedVisitIds,
