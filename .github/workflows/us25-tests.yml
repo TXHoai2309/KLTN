@@ -1,0 +1,63 @@
+
+name: Sprint 3 - US25 Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - kduy
+
+permissions:
+  contents: read
+
+jobs:
+  test-us25:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Setup npm
+        run: npm install -g npm@11.16.0
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        env:
+          DATABASE_URL: postgresql://us25_test:us25_test@127.0.0.1:5432/us25_test?sslmode=disable
+        run: npm run db:generate --workspace=@KLTN/db
+
+      - name: Run US25 tests
+        working-directory: apps/web
+        shell: bash
+        run: |
+          set -o pipefail
+          npx vitest run --config vitest.config.mts \
+            src/modules/preference-extraction/preference-extraction-contract.vitest.test.ts \
+            src/modules/preference-extraction/preference-extraction-http.vitest.test.ts \
+            src/modules/preference-extraction/preference-extraction-server.vitest.test.ts \
+            src/modules/preference-extraction/preference-extraction-env.vitest.test.ts \
+            src/modules/preference-extraction/preference-extraction-fixtures.vitest.test.ts \
+            src/modules/preference-extraction/apply-extraction.vitest.test.ts \
+            src/modules/preference-extraction/natural-language-input-logic.vitest.test.ts \
+            src/modules/preference-extraction/start-date-handoff.vitest.test.ts \
+            src/lib/preference-extraction-client.vitest.test.ts \
+            src/app/trips/new/us25-fe-connect-source.vitest.test.ts \
+            2>&1 | tee ../../us25-unit.log
+
+      - name: Upload evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: US25-Test-Evidence
+          path: us25-unit.log
+          if-no-files-found: warn

@@ -1,0 +1,59 @@
+name: Sprint 4 - US35 Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master, kduy]
+    paths:
+      - "apps/web/src/modules/in-trip/**"
+      - "apps/web/src/components/in-trip/**"
+      - "apps/web/src/app/trips/[id]/in-trip/**"
+      - "apps/web/src/app/api/trips/[id]/in-trip/**"
+      - ".github/workflows/us35-location-verification.yml"
+  pull_request:
+    paths:
+      - "apps/web/src/modules/in-trip/**"
+      - "apps/web/src/components/in-trip/**"
+      - "apps/web/src/app/trips/[id]/in-trip/**"
+      - "apps/web/src/app/api/trips/[id]/in-trip/**"
+      - ".github/workflows/us35-location-verification.yml"
+
+jobs:
+  verify-us35:
+    name: Run US-35 Location & Privacy Automated Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies (root monorepo)
+        run: bun install --frozen-lockfile || npm ci
+
+      - name: Run US-35 Vitest Suite
+        working-directory: apps/web
+        run: |
+          npx vitest run --config vitest.config.mts \
+            src/modules/in-trip/browser-location.vitest.test.ts \
+            src/modules/in-trip/location-flow.vitest.test.ts \
+            src/modules/in-trip/manual-location-picker.vitest.test.ts \
+            src/modules/in-trip/in-trip-location.vitest.test.ts \
+            src/modules/in-trip/us35-task285-integration.vitest.test.ts \
+            src/modules/in-trip/us35-location-source-audit.vitest.test.ts \
+            --reporter=verbose | tee us35-ci-report.txt
+
+      - name: Upload US-35 Test Evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: us35-verification-evidence
+          path: apps/web/us35-ci-report.txt
+          retention-days: 30

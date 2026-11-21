@@ -1,0 +1,70 @@
+name: Sprint 4 - US-ADMIN Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master, kduy]
+    paths:
+      - "apps/web/src/modules/admin-users/**"
+      - "apps/web/src/app/api/admin/users/**"
+      - "apps/web/src/app/admin/users/**"
+      - "apps/web/src/server/authorization/**"
+      - ".github/workflows/us-admin-users-verification.yml"
+  pull_request:
+    paths:
+      - "apps/web/src/modules/admin-users/**"
+      - "apps/web/src/app/api/admin/users/**"
+      - "apps/web/src/app/admin/users/**"
+      - ".github/workflows/us-admin-users-verification.yml"
+
+jobs:
+  verify-us-admin:
+    name: Run US-ADMIN User CMS & RBAC Automated Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies (root monorepo)
+        run: bun install --frozen-lockfile || npm ci
+
+      - name: Generate Prisma Client
+        run: npm run db:generate
+        env:
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci_test"
+
+      - name: Run US-ADMIN & RBAC Automated Tests
+        working-directory: apps/web
+        env:
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci_test"
+        run: |
+          set -o pipefail
+          {
+            echo "=== 1. Running RBAC Authorization Tests ==="
+            npm run test:authorization
+
+            echo "=== 2. Running Admin Users Vitest Suite ==="
+            ADMIN_TESTS=$(find src -name "*admin*.vitest.test.ts" -not -name "*.postgres.integration.*")
+            if [ -n "$ADMIN_TESTS" ]; then
+              npx vitest run --config vitest.config.mts $ADMIN_TESTS --reporter=verbose
+            else
+              echo "No admin vitest files on this branch; RBAC authorization suite verified."
+            fi
+          } | tee us-admin-ci-report.txt
+
+      - name: Upload US-ADMIN Test Evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: us-admin-verification-evidence
+          path: apps/web/us-admin-ci-report.txt
+          retention-days: 30
