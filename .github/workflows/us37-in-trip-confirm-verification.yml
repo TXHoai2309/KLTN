@@ -1,0 +1,55 @@
+name: Sprint 4 - US37 Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master, kduy]
+    paths:
+      - "apps/web/src/modules/in-trip/**"
+      - "apps/web/src/modules/trip-validation/in-trip-context.vitest.test.ts"
+      - "apps/web/src/app/api/trips/[id]/in-trip/preview/**"
+      - ".github/workflows/us37-in-trip-confirm-verification.yml"
+  pull_request:
+    paths:
+      - "apps/web/src/modules/in-trip/**"
+      - "apps/web/src/app/api/trips/[id]/in-trip/preview/**"
+      - ".github/workflows/us37-in-trip-confirm-verification.yml"
+
+jobs:
+  verify-us37:
+    name: Run US-37 In-Trip Validate & Confirm Automated Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies (root monorepo)
+        run: bun install --frozen-lockfile || npm ci
+
+      - name: Run US-37 Vitest Suite
+        working-directory: apps/web
+        run: |
+          npx vitest run --config vitest.config.mts \
+            src/modules/in-trip/us37-test.vitest.test.ts \
+            src/modules/in-trip/in-trip-validation.vitest.test.ts \
+            src/modules/in-trip/time-recheck.vitest.test.ts \
+            src/modules/in-trip/in-trip-session.vitest.test.ts \
+            src/modules/trip-validation/in-trip-context.vitest.test.ts \
+            --reporter=verbose | tee us37-ci-report.txt
+
+      - name: Upload US-37 Test Evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: us37-verification-evidence
+          path: apps/web/us37-ci-report.txt
+          retention-days: 30
