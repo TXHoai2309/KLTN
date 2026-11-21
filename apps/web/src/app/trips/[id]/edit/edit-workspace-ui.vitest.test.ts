@@ -285,8 +285,8 @@ describe("Ticket 01 workspace rendering and map adapter", () => {
     }));
     expect(advisedAiHtml).toContain('role="log"');
     expect(advisedAiHtml).toContain('aria-live="polite"');
-    expect(advisedAiHtml).toContain("Tư vấn lịch trình (Planning guidance)");
-    expect(advisedAiHtml).toContain("Lịch chưa bị thay đổi");
+    expect(advisedAiHtml).toContain("Ngày 1 hiện có 2 điểm (08:00–11:30).");
+    expect(advisedAiHtml).not.toContain("Lịch chưa bị thay đổi");
     expect(advisedAiHtml).toContain("Xóa hội thoại tạm");
   });
 
@@ -784,7 +784,7 @@ describe("Ticket 01 workspace rendering and map adapter", () => {
     expect(htmlQa).toContain("Nguồn tham khảo đã duyệt:");
     expect(htmlQa).toContain("Cẩm nang di sản Đồng Văn");
     expect(htmlQa).toContain("Trang 12");
-    expect(htmlQa).toContain("Lịch chưa bị thay đổi");
+    expect(htmlQa).not.toContain("Lịch chưa bị thay đổi");
   });
 
   it("Saved-trip assistant Ticket 06: renders NEEDS_LOCATION GPS & manual fallback card cleanly without watchPosition or persistent storage", async () => {

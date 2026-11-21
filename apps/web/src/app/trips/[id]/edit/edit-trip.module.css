@@ -2213,6 +2213,148 @@
   font-weight: 500;
 }
 
+.aiStreamProgress {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.aiStreamStepList {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--muted-foreground);
+}
+
+.aiStreamCurrent {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--edit-green);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.aiStepsDetails {
+  border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--edit-surface-muted) 55%, var(--card));
+  padding: 6px 10px;
+  min-width: 0;
+}
+
+.aiStepsSummary {
+  cursor: pointer;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  list-style-position: inside;
+  overflow-wrap: anywhere;
+}
+
+.aiStepsSummary:hover {
+  color: var(--foreground);
+}
+
+.aiStepsDetailList {
+  margin: 6px 0 2px;
+  padding-left: 18px;
+  display: grid;
+  gap: 3px;
+  font-size: 12.5px;
+  color: var(--muted-foreground);
+}
+
+.aiCorrectionNote {
+  margin: 2px 0 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--edit-danger) 30%, var(--border));
+  background: color-mix(in srgb, var(--edit-danger) 7%, var(--card));
+  color: var(--edit-danger);
+  font-size: 12.5px;
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.aiCorrectionNote svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+.aiInterruptedRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.aiInterruptedText {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--muted-foreground);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.aiRetryActionBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.aiRetryActionBtn:hover:not(:disabled) {
+  border-color: var(--edit-green);
+  color: var(--edit-green);
+  background: var(--edit-soft);
+}
+
+.aiStopPillBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 16px;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--edit-danger) 45%, var(--border));
+  background: color-mix(in srgb, var(--edit-danger) 12%, var(--card));
+  color: var(--edit-danger);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.aiStopPillBtn:hover {
+  background: color-mix(in srgb, var(--edit-danger) 20%, var(--card));
+}
+
 .aiAdvisoryFollowup {
   display: grid;
   gap: 12px;

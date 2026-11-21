@@ -17,6 +17,7 @@ import {
   RefreshCw,
   Send,
   Sparkles,
+  Square,
   Trash2,
   Undo2,
   X,
@@ -155,8 +156,13 @@ function StarterIcon({ kind }: { kind: StarterSuggestion["icon"] }) {
 export type AiConversationEntry = {
   id: string;
   role: "user" | "assistant";
-  kind?: "ADVISED" | "APPLIED" | "CLARIFYING";
+  kind?: "ADVISED" | "APPLIED" | "CLARIFYING" | "INTERRUPTED" | "STOPPED";
   text: string;
+  steps?: readonly string[];
+  correctionNote?: string;
+  statusNotice?: string;
+  retryPrompt?: string;
+  retryResolution?: EditResolution;
   knowledgeParts?: readonly AdvisoryKnowledgePart[];
   citations?: readonly AdvisoryCitation[];
 };
@@ -172,6 +178,14 @@ export type AiBarUiState =
   | { kind: "IDLE" }
   | { kind: "LOADING"; prompt: string }
   | {
+      kind: "STREAMING";
+      prompt: string;
+      statusLabel: string;
+      steps: readonly string[];
+      text: string;
+      correctionNote?: string;
+    }
+  | {
       kind: "CLARIFYING";
       prompt: string;
       clarification: EditClarification;
@@ -182,6 +196,7 @@ export type AiBarUiState =
       suggestions?: readonly AdviceSuggestionCard[];
       knowledgeParts?: readonly AdvisoryKnowledgePart[];
       citations?: readonly AdvisoryCitation[];
+      correctionNote?: string;
     }
   | {
       kind: "NEEDS_LOCATION";
@@ -196,6 +211,7 @@ export type AiBarUiState =
       kind: "APPLIED";
       summary: string;
       canUndo: boolean;
+      correctionNote?: string;
     }
   | {
       kind: "ERROR";
@@ -204,6 +220,36 @@ export type AiBarUiState =
       message: string;
       canRetry: boolean;
     };
+
+function formatStepsSummary(steps: readonly string[]): string {
+  if (steps.length === 0) return "";
+  const lowerFirst = (label: string) =>
+    label.length > 0 ? `${label[0]!.toLowerCase()}${label.slice(1)}` : label;
+  return `Đã ${steps.map(lowerFirst).join(" · ")}`;
+}
+
+function StepsSummaryDetails({ steps }: { steps: readonly string[] }) {
+  if (steps.length === 0) return null;
+  return (
+    <details className={styles.aiStepsDetails}>
+      <summary className={styles.aiStepsSummary}>{formatStepsSummary(steps)}</summary>
+      <ul className={styles.aiStepsDetailList}>
+        {steps.map((step, idx) => (
+          <li key={`step-${idx}`}>{step}</li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
+function CorrectionNoteLine({ note }: { note: string }) {
+  return (
+    <p className={styles.aiCorrectionNote} role="note">
+      <AlertTriangle size={14} aria-hidden="true" />
+      <span>{note}</span>
+    </p>
+  );
+}
 
 function renderInlineBold(text: string): ReactNode {
   if (!text.includes("**")) return text;
@@ -370,6 +416,7 @@ export type AiEditBarProps = {
   showCollapseToggle?: boolean;
   onClearHistory?: () => void;
   onSubmitPrompt: (prompt: string, resolution?: EditResolution) => void;
+  onStopStream?: () => void;
   onApplySuggestion?: (suggestion: AdviceSuggestionCard) => void;
   onOpenCanvas?: () => void;
   onRequestGps?: () => void;
@@ -418,6 +465,7 @@ export default function AiEditBar({
   showCollapseToggle = false,
   onClearHistory,
   onSubmitPrompt,
+  onStopStream,
   onApplySuggestion,
   onOpenCanvas,
   onRequestGps,
@@ -429,8 +477,11 @@ export default function AiEditBar({
   onDismissApplied,
   onJumpToTab,
 }: AiEditBarProps) {
+  const isStreaming = state.kind === "STREAMING";
   const isLoading = state.kind === "LOADING";
-  const controlsDisabled = disabled || isLoading;
+  const isBusy = isLoading || isStreaming;
+  const controlsDisabled = disabled || isBusy;
+  const streamingTextLength = isStreaming ? state.text.length : 0;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const threadRef = useRef<HTMLDivElement>(null);
 
@@ -449,7 +500,7 @@ export default function AiEditBar({
       el.scrollTop = el.scrollHeight;
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [messages.length, state.kind]);
+  }, [messages.length, state.kind, streamingTextLength]);
 
   // Auto-grow composer textarea smoothly up to ~120px like /assistant.
   useEffect(() => {
@@ -642,9 +693,7 @@ export default function AiEditBar({
                       </p>
                     </div>
                   )}
-                  {messages.map((entry, idx) => {
-                    const isLatestAssistant =
-                      entry.role === "assistant" && idx === messages.length - 1;
+                  {messages.map((entry) => {
                     return (
                       <div
                         key={entry.id}
@@ -664,14 +713,6 @@ export default function AiEditBar({
                               </span>
                               <span>Trợ lý AI</span>
                             </span>
-                            {entry.kind === "ADVISED" && (
-                              <span className={styles.aiTurnBadge}>
-                                {isLatestAssistant && advisedAlreadyInMessages && (
-                                  <span className={styles.srOnly}>Tư vấn lịch trình (Planning guidance) · </span>
-                                )}
-                                Tư vấn · Lịch chưa bị thay đổi
-                              </span>
-                            )}
                             {entry.kind === "APPLIED" && (
                               <span className={styles.aiTurnBadgeApplied}>Đã áp dụng</span>
                             )}
@@ -680,19 +721,77 @@ export default function AiEditBar({
                             )}
                           </div>
                         )}
+                        {entry.role === "assistant" && entry.steps && entry.steps.length > 0 && (
+                          <StepsSummaryDetails steps={entry.steps} />
+                        )}
                         {entry.role === "user" ? (
                           <p className={styles.aiTurnUserText}>{entry.text}</p>
                         ) : (
-                          <AdviceTextWithKnowledge
-                            advice={entry.text}
-                            knowledgeParts={entry.knowledgeParts}
-                            citations={entry.citations}
-                          />
+                          entry.text.trim().length > 0 && (
+                            <AdviceTextWithKnowledge
+                              advice={entry.text}
+                              knowledgeParts={entry.knowledgeParts}
+                              citations={entry.citations}
+                            />
+                          )
+                        )}
+                        {entry.role === "assistant" && entry.correctionNote && (
+                          <CorrectionNoteLine note={entry.correctionNote} />
+                        )}
+                        {entry.role === "assistant" && entry.statusNotice && (
+                          <div className={styles.aiInterruptedRow} role="status">
+                            <span className={styles.aiInterruptedText}>{entry.statusNotice}</span>
+                            {entry.retryPrompt && (
+                              <button
+                                type="button"
+                                className={styles.aiRetryActionBtn}
+                                disabled={controlsDisabled}
+                                onClick={() => onSubmitPrompt(entry.retryPrompt!, entry.retryResolution)}
+                              >
+                                <RefreshCw size={14} aria-hidden="true" />
+                                Thử lại
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     );
                   })}
                 </>
+              )}
+
+              {state.kind === "STREAMING" && (
+                <article className={styles.aiTurnAssistant} role="status" aria-live="polite">
+                  <div className={styles.aiTurnHeader}>
+                    <span className={styles.aiTurnRole}>
+                      <span className={styles.aiSpeakerEmblem} aria-hidden="true">
+                        <Sparkles size={11} />
+                      </span>
+                      <span>Trợ lý AI</span>
+                    </span>
+                  </div>
+                  {state.text.trim().length === 0 ? (
+                    <div className={styles.aiStreamProgress}>
+                      {state.steps.length > 0 && (
+                        <ul className={styles.aiStreamStepList}>
+                          {state.steps.map((step, idx) => (
+                            <li key={`stream-step-${idx}`}>{step}</li>
+                          ))}
+                        </ul>
+                      )}
+                      <div className={styles.aiStreamCurrent}>
+                        <LoaderCircle size={15} className={styles.spinIcon} aria-hidden="true" />
+                        <span>{state.statusLabel}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <StepsSummaryDetails steps={state.steps} />
+                      <FormattedAdvisoryProse text={state.text} />
+                      {state.correctionNote && <CorrectionNoteLine note={state.correctionNote} />}
+                    </>
+                  )}
+                </article>
               )}
 
               {state.kind === "LOADING" && (
@@ -739,15 +838,15 @@ export default function AiEditBar({
                     <article className={`${styles.aiTurnAssistant} ${styles.aiTurnAdvised}`}>
                       <div className={styles.aiTurnHeader}>
                         <span className={styles.aiTurnRole}>
-                          <Info size={14} aria-hidden="true" /> Tư vấn lịch trình (Planning guidance)
+                          <Info size={14} aria-hidden="true" /> Trợ lý AI
                         </span>
-                        <span className={styles.aiTurnBadge}>Lịch chưa bị thay đổi</span>
                       </div>
                       <AdviceTextWithKnowledge
                         advice={state.advice}
                         knowledgeParts={state.knowledgeParts}
                         citations={state.citations}
                       />
+                      {state.correctionNote && <CorrectionNoteLine note={state.correctionNote} />}
                     </article>
                   )}
 
@@ -941,7 +1040,7 @@ export default function AiEditBar({
 
           <div className={styles.aiBottomDock}>
             <div className={styles.aiBottomDockInner}>
-              {messages.length > 0 && !isLoading && quickChips.length > 0 && (
+              {messages.length > 0 && !isBusy && quickChips.length > 0 && (
                 <div className={styles.aiChipDrawer} aria-label="Gợi ý câu hỏi nhanh">
                   {quickChips.map((prompt) => (
                     <button
@@ -982,23 +1081,35 @@ export default function AiEditBar({
                     placeholder="Hỏi bằng lời thường, ví dụ: Ngày 2 có gấp quá không?"
                     className={styles.aiPromptTextarea}
                   />
-                  <button
-                    type="submit"
-                    className={styles.aiSendPillBtn}
-                    disabled={controlsDisabled || inputValue.trim().length === 0}
-                  >
-                    {isLoading ? (
-                      <>
-                        <LoaderCircle size={15} className={styles.spinIcon} aria-hidden="true" />
-                        <span>Đang xử lý</span>
-                      </>
-                    ) : (
-                      <>
-                        <Send size={15} aria-hidden="true" />
-                        <span>Gửi AI</span>
-                      </>
-                    )}
-                  </button>
+                  {isStreaming ? (
+                    <button
+                      type="button"
+                      className={styles.aiStopPillBtn}
+                      aria-label="Dừng trả lời"
+                      onClick={onStopStream}
+                    >
+                      <Square size={14} aria-hidden="true" />
+                      <span>Dừng</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      className={styles.aiSendPillBtn}
+                      disabled={controlsDisabled || inputValue.trim().length === 0}
+                    >
+                      {isLoading ? (
+                        <>
+                          <LoaderCircle size={15} className={styles.spinIcon} aria-hidden="true" />
+                          <span>Đang xử lý</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send size={15} aria-hidden="true" />
+                          <span>Gửi AI</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
 
                 <div className={styles.aiComposerFooter}>

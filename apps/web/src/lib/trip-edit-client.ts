@@ -1,3 +1,4 @@
+import { parseJsonEventStream, uiMessageChunkSchema } from "ai";
 import { z } from "zod";
 
 import { sendIdempotentMutation } from "@/lib/mutation-client";
@@ -458,6 +459,7 @@ const aiEditResponseSchema = z.discriminatedUnion("status", [
     uncheckedItems: z.array(uncheckedItemSchema).optional(),
     journeySummary: previewJourneySummarySchema.optional(),
     addedPlaceDetails: z.record(z.string(), z.unknown()).optional(),
+    correctionNote: z.string().optional(),
   }).strict(),
   z.object({
     status: z.literal("NEEDS_CLARIFICATION"),
@@ -479,6 +481,7 @@ const aiEditResponseSchema = z.discriminatedUnion("status", [
     suggestions: z.array(adviceSuggestionCardSchema).max(4).optional(),
     knowledgeParts: z.array(advisoryKnowledgePartSchema).optional(),
     citations: z.array(advisoryCitationSchema).optional(),
+    correctionNote: z.string().optional(),
   }).strict(),
   z.object({
     status: z.literal("NEEDS_LOCATION"),
@@ -508,10 +511,61 @@ export type AiTripEditOutcome =
   | { kind: "NETWORK_ERROR" }
   | { kind: "TIMEOUT" };
 
+export type AiTripEditStreamOutcome =
+  | AiTripEditOutcome
+  | { kind: "INTERRUPTED"; partialText: string }
+  | { kind: "STOPPED"; partialText: string };
+
 export type AiTripEditOptions = {
   fetcher?: typeof fetch;
   timeoutMs?: number;
 };
+
+export type StreamAiTripEditOptions = AiTripEditOptions & {
+  signal?: AbortSignal;
+  onStatus?: (status: { kind: string; label: string }) => void;
+  onSteps?: (steps: string[]) => void;
+  onTextDelta?: (delta: string) => void;
+  onCorrectionNote?: (note: string) => void;
+};
+
+function buildAiRequestBody(input: AiTripEditInput): string {
+  const validatedDraft = input.draft !== undefined ? editCandidateSchema.parse(input.draft) : undefined;
+  const validatedHistory =
+    input.history && input.history.length > 0 ? aiChatHistorySchema.parse(input.history) : undefined;
+  const validatedLocation =
+    input.location !== undefined ? inTripLocationSchema.parse(input.location) : undefined;
+  return JSON.stringify({
+    baseRevision: input.baseRevision,
+    message: input.message,
+    ...(input.resolution ? { resolution: input.resolution } : {}),
+    ...(validatedDraft ? { draft: validatedDraft } : {}),
+    ...(validatedHistory ? { history: validatedHistory } : {}),
+    ...(validatedLocation ? { location: validatedLocation } : {}),
+  });
+}
+
+function decideAiJsonResponse(status: number, body: unknown): AiTripEditOutcome {
+  if (status === 200) {
+    const parsed = aiSuccessEnvelopeSchema.safeParse(body);
+    return parsed.success
+      ? { kind: "RESULT", result: parsed.data.data as import("@/modules/trip-edit/ai-edit-service").AiEditServiceResult }
+      : { kind: "FAILED", status: 502, code: "AI_INVALID_RESPONSE", message: "Phản hồi đề xuất bằng AI không hợp lệ. Hãy thử lại." };
+  }
+
+  const parsedError = errorEnvelopeSchema.safeParse(body);
+  if (!parsedError.success) {
+    return { kind: "FAILED", status, code: "INVALID_RESPONSE", message: "Hệ thống chưa thể tạo đề xuất lúc này." };
+  }
+  const { code, message, details } = parsedError.data.error;
+  if (code === "AI_UNAVAILABLE" || code === "AI_INVALID_RESPONSE") {
+    return { kind: "FAILED", status, code, message, ...(details !== undefined ? { details } : {}) };
+  }
+  if (status === 409 || code === "TRIP_REVISION_CONFLICT") {
+    return { kind: "FAILED", status: 409, code: "TRIP_REVISION_CONFLICT", message, ...(details !== undefined ? { details } : {}) };
+  }
+  return { kind: "FAILED", status, code, message, ...(details !== undefined ? { details } : {}) };
+}
 
 /** Request one read-only AI proposal or clarification with bounded waiting. */
 export async function requestAiTripEdit(
@@ -526,11 +580,7 @@ export async function requestAiTripEdit(
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
   try {
-    const validatedDraft = input.draft !== undefined ? editCandidateSchema.parse(input.draft) : undefined;
-    const validatedHistory =
-      input.history && input.history.length > 0 ? aiChatHistorySchema.parse(input.history) : undefined;
-    const validatedLocation =
-      input.location !== undefined ? inTripLocationSchema.parse(input.location) : undefined;
+    const requestBody = buildAiRequestBody(input);
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(() => {
         timedOut = true;
@@ -546,14 +596,7 @@ export async function requestAiTripEdit(
           credentials: "same-origin",
           cache: "no-store",
           headers: { Accept: "application/json", "Content-Type": "application/json" },
-          body: JSON.stringify({
-            baseRevision: input.baseRevision,
-            message: input.message,
-            ...(input.resolution ? { resolution: input.resolution } : {}),
-            ...(validatedDraft ? { draft: validatedDraft } : {}),
-            ...(validatedHistory ? { history: validatedHistory } : {}),
-            ...(validatedLocation ? { location: validatedLocation } : {}),
-          }),
+          body: requestBody,
           signal: controller.signal,
         },
       ),
@@ -562,30 +605,176 @@ export async function requestAiTripEdit(
     let body: unknown = null;
     try { body = await Promise.race([response.json(), timeoutPromise]); } catch { body = null; }
     if (timedOut) return { kind: "TIMEOUT" };
-
-    if (response.status === 200) {
-      const parsed = aiSuccessEnvelopeSchema.safeParse(body);
-      return parsed.success
-        ? { kind: "RESULT", result: parsed.data.data as import("@/modules/trip-edit/ai-edit-service").AiEditServiceResult }
-        : { kind: "FAILED", status: 502, code: "AI_INVALID_RESPONSE", message: "Phản hồi đề xuất bằng AI không hợp lệ. Hãy thử lại." };
-    }
-
-    const parsedError = errorEnvelopeSchema.safeParse(body);
-    if (!parsedError.success) {
-      return { kind: "FAILED", status: response.status, code: "INVALID_RESPONSE", message: "Hệ thống chưa thể tạo đề xuất lúc này." };
-    }
-    const { code, message, details } = parsedError.data.error;
-    if (code === "AI_UNAVAILABLE" || code === "AI_INVALID_RESPONSE") {
-      return { kind: "FAILED", status: response.status, code, message, ...(details !== undefined ? { details } : {}) };
-    }
-    if (response.status === 409 || code === "TRIP_REVISION_CONFLICT") {
-      return { kind: "FAILED", status: 409, code: "TRIP_REVISION_CONFLICT", message, ...(details !== undefined ? { details } : {}) };
-    }
-    return { kind: "FAILED", status: response.status, code, message, ...(details !== undefined ? { details } : {}) };
+    return decideAiJsonResponse(response.status, body);
   } catch {
     return timedOut ? { kind: "TIMEOUT" } : { kind: "NETWORK_ERROR" };
   } finally {
     clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Stream a Saved-trip assistant turn via the AI SDK UI message SSE protocol.
+ * Resets the inactivity timer on every chunk; aborts yield `STOPPED` and
+ * premature stream ends yield `INTERRUPTED` without mutating any draft.
+ */
+export async function streamAiTripEdit(
+  tripId: string,
+  input: AiTripEditInput,
+  options: StreamAiTripEditOptions = {},
+): Promise<AiTripEditStreamOutcome> {
+  const controller = new AbortController();
+  const fetcher = options.fetcher ?? fetch;
+  const timeoutMs = options.timeoutMs ?? AI_EDIT_TIMEOUT_MS;
+  let timedOut = false;
+  let stopped = Boolean(options.signal?.aborted);
+  let partialText = "";
+  let streamOpened = false;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  let wakeWaiter: ((reason: "TIMEOUT" | "STOPPED") => void) | null = null;
+
+  const triggerWake = (reason: "TIMEOUT" | "STOPPED") => {
+    const fn = wakeWaiter;
+    wakeWaiter = null;
+    fn?.(reason);
+  };
+
+  const onExternalAbort = () => {
+    stopped = true;
+    controller.abort();
+    triggerWake("STOPPED");
+  };
+  if (stopped) return { kind: "STOPPED", partialText: "" };
+  options.signal?.addEventListener("abort", onExternalAbort, { once: true });
+
+  const clearInactivityTimer = () => {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+      timeoutId = undefined;
+    }
+  };
+
+  const armInactivityTimer = () => {
+    clearInactivityTimer();
+    timeoutId = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+      triggerWake("TIMEOUT");
+    }, timeoutMs);
+  };
+
+  const raceWithWait = <T,>(promise: Promise<T>): Promise<T> =>
+    new Promise<T>((resolve, reject) => {
+      if (stopped) {
+        reject(new Error("AI_CLIENT_STOPPED"));
+        return;
+      }
+      if (timedOut) {
+        reject(new Error("AI_CLIENT_TIMEOUT"));
+        return;
+      }
+      wakeWaiter = (reason) => reject(new Error(reason === "STOPPED" ? "AI_CLIENT_STOPPED" : "AI_CLIENT_TIMEOUT"));
+      promise.then(
+        (value) => {
+          wakeWaiter = null;
+          resolve(value);
+        },
+        (error) => {
+          wakeWaiter = null;
+          reject(error);
+        },
+      );
+    });
+
+  try {
+    const requestBody = buildAiRequestBody(input);
+    armInactivityTimer();
+    const response = await raceWithWait(
+      fetcher(`/api/trips/${encodeURIComponent(tripId)}/edits/ai`, {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: {
+          Accept: "text/event-stream",
+          "Content-Type": "application/json",
+        },
+        body: requestBody,
+        signal: controller.signal,
+      }),
+    );
+
+    const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+    if (!response.ok || !contentType.includes("text/event-stream") || !response.body) {
+      armInactivityTimer();
+      let body: unknown = null;
+      try {
+        body = await raceWithWait(response.json());
+      } catch {
+        body = null;
+      }
+      if (stopped) return { kind: "STOPPED", partialText };
+      if (timedOut) return { kind: "TIMEOUT" };
+      return decideAiJsonResponse(response.status, body);
+    }
+
+    streamOpened = true;
+    const parsedStream = parseJsonEventStream({
+      stream: response.body,
+      schema: uiMessageChunkSchema,
+    });
+    const reader = parsedStream.getReader();
+    let finalResult: import("@/modules/trip-edit/ai-edit-service").AiEditServiceResult | null = null;
+
+    try {
+      while (true) {
+        armInactivityTimer();
+        const next = await raceWithWait(reader.read());
+        if (next.done) break;
+        const entry = next.value;
+        if (!entry.success) continue;
+        const chunk = entry.value as { type: string; delta?: unknown; data?: unknown };
+
+        if (chunk.type === "data-status" && chunk.data && typeof chunk.data === "object") {
+          const data = chunk.data as { kind?: unknown; label?: unknown };
+          if (typeof data.label === "string" && data.label.trim()) {
+            options.onStatus?.({ kind: typeof data.kind === "string" ? data.kind : "tool", label: data.label });
+          }
+        } else if (chunk.type === "data-steps" && chunk.data && typeof chunk.data === "object") {
+          const data = chunk.data as { steps?: unknown };
+          if (Array.isArray(data.steps) && data.steps.every((s) => typeof s === "string")) {
+            options.onSteps?.(data.steps as string[]);
+          }
+        } else if (chunk.type === "text-delta" && typeof chunk.delta === "string") {
+          partialText += chunk.delta;
+          options.onTextDelta?.(chunk.delta);
+        } else if (chunk.type === "data-correction-note" && chunk.data && typeof chunk.data === "object") {
+          const data = chunk.data as { note?: unknown };
+          if (typeof data.note === "string" && data.note.trim()) {
+            options.onCorrectionNote?.(data.note);
+          }
+        } else if (chunk.type === "data-trip-assistant-result") {
+          const validated = aiEditResponseSchema.safeParse(chunk.data);
+          if (validated.success) {
+            finalResult = validated.data as import("@/modules/trip-edit/ai-edit-service").AiEditServiceResult;
+          }
+        }
+      }
+    } finally {
+      reader.cancel().catch(() => undefined);
+      reader.releaseLock();
+    }
+
+    if (stopped) return { kind: "STOPPED", partialText };
+    if (timedOut) return { kind: "TIMEOUT" };
+    if (finalResult) return { kind: "RESULT", result: finalResult };
+    return { kind: "INTERRUPTED", partialText };
+  } catch {
+    if (stopped) return { kind: "STOPPED", partialText };
+    if (timedOut) return { kind: "TIMEOUT" };
+    return streamOpened ? { kind: "INTERRUPTED", partialText } : { kind: "NETWORK_ERROR" };
+  } finally {
+    clearInactivityTimer();
+    options.signal?.removeEventListener("abort", onExternalAbort);
   }
 }
 

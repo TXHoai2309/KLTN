@@ -12,7 +12,7 @@ Bản nháp chỉ đổi khi nhận `data-trip-assistant-result`. Đồng thời
 
 **Blocked by:** 02.
 
-**Status:** ready
+**Status:** done
 
 ## Bối cảnh code
 
@@ -50,14 +50,14 @@ Bản nháp chỉ đổi khi nhận `data-trip-assistant-result`. Đồng thời
 
 ## Acceptance criteria
 
-- [ ] Test `trip-edit-client` với fetcher giả trả `ReadableStream` chứa chunk UI message:
+- [x] Test `trip-edit-client` với fetcher giả trả `ReadableStream` chứa chunk UI message:
   - gọi `onStatus` / `onSteps` / `onTextDelta` / `onCorrectionNote` đúng thứ tự;
   - trả outcome từ `data-trip-assistant-result`;
   - stream đứt trước result → `INTERRUPTED`;
   - abort → `STOPPED`;
   - response JSON lỗi 409 → outcome revision conflict như cũ;
   - im lặng quá thời gian chờ → `TIMEOUT` (dùng fake timers).
-- [ ] Test render `AiEditBar`:
+- [x] Test render `AiEditBar`:
   - `STREAMING` chưa có chữ hiện bước và spinner;
   - có chữ thì hiện `<details>` tóm tắt và chữ;
   - nút Dừng thay nút Gửi;
@@ -65,5 +65,5 @@ Bản nháp chỉ đổi khi nhận `data-trip-assistant-result`. Đồng thời
   - `APPLIED` có "Đã áp dụng";
   - có correction note thì hiện dòng đính chính;
   - INTERRUPTED / STOPPED hiện đúng câu và nút Thử lại.
-- [ ] Không có result thì *Edit draft* không đổi. Kiểm ở mức hàm xử lý outcome trong `edit-trip-client.tsx`, hoặc tách hàm thuần để test.
-- [ ] Mọi test `src/modules/trip-edit`, `src/app/trips`, `src/lib` đạt; `npx tsc --noEmit -p .` đạt. Commit cục bộ (không push).
+- [x] Không có result thì *Edit draft* không đổi. Kiểm ở mức hàm xử lý outcome trong `edit-trip-client.tsx`, hoặc tách hàm thuần để test.
+- [x] Mọi test `src/modules/trip-edit`, `src/app/trips`, `src/lib` đạt; `npx tsc --noEmit -p .` đạt. Commit cục bộ (không push).

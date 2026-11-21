@@ -50,9 +50,10 @@ import {
   fetchTripEditSnapshot,
   parseTripEditApplyValidation,
   previewTripEdit,
-  requestAiTripEdit,
+  streamAiTripEdit,
   type TripEditSnapshot,
 } from "@/lib/trip-edit-client";
+import { resolveAiStreamOutcome } from "@/modules/trip-edit/ai-stream-outcome";
 import type { EditResolution } from "@/modules/trip-edit/edit-clarification";
 import type { AdviceSuggestionCard } from "@/modules/trip-edit/saved-trip-advisory";
 import { requestBrowserLocation } from "@/modules/in-trip/browser-location";
@@ -261,6 +262,7 @@ export default function EditTripClient({
   const [aiThread, setAiThread] = useState<AiConversationEntry[]>([]);
   const [sessionLocation, setSessionLocation] = useState<InTripLocation | null>(null);
   const aiTurnSeqRef = useRef(0);
+  const aiAbortRef = useRef<AbortController | null>(null);
   const [lastAiChange, setLastAiChange] = useState<{
     added: Set<string>;
     updated: Set<string>;
@@ -369,6 +371,16 @@ export default function EditTripClient({
     setToastFeedback({ message: "Đã làm lại bước chỉnh sửa." });
   }
 
+  useEffect(() => {
+    return () => {
+      aiAbortRef.current?.abort();
+    };
+  }, []);
+
+  function handleStopAiStream() {
+    aiAbortRef.current?.abort();
+  }
+
   async function handleAiSubmit(
     promptText: string,
     resolution?: EditResolution,
@@ -378,9 +390,14 @@ export default function EditTripClient({
     const trimmed = promptText.trim();
     if (!trimmed) return;
 
+    aiAbortRef.current?.abort();
+    const abortController = new AbortController();
+    aiAbortRef.current = abortController;
+
     const requestedRevision = applyStateRef.current.baseRevision;
     const requestedDraft = workingRef.current;
     const boundedHistory = aiThread
+      .filter((item) => item.kind !== "INTERRUPTED" && item.kind !== "STOPPED")
       .slice(-MAX_AI_HISTORY_TURNS)
       .map((item) => ({
         role: item.role,
@@ -398,7 +415,16 @@ export default function EditTripClient({
         [...prev, { id: optimisticUserId, role: "user" as const, text: trimmed }].slice(-MAX_AI_HISTORY_TURNS),
       );
     }
-    setAiBarState({ kind: "LOADING", prompt: trimmed });
+
+    let latestSteps: string[] = ["Xem lịch"];
+    let streamedCorrectionNote: string | null = null;
+    setAiBarState({
+      kind: "STREAMING",
+      prompt: trimmed,
+      statusLabel: "Đang xem lịch của bạn…",
+      steps: latestSteps,
+      text: "",
+    });
 
     const rollbackOptimisticUser = () => {
       if (optimisticUserId) {
@@ -407,110 +433,135 @@ export default function EditTripClient({
       setAiInput(trimmed);
     };
 
-    const outcome = await requestAiTripEdit(tripId, {
-      baseRevision: requestedRevision,
-      message: trimmed,
+    const outcome = await streamAiTripEdit(
+      tripId,
+      {
+        baseRevision: requestedRevision,
+        message: trimmed,
+        ...(resolution ? { resolution } : {}),
+        draft: requestedDraft,
+        ...(boundedHistory.length > 0 ? { history: boundedHistory } : {}),
+        ...(activeLocation ? { location: activeLocation } : {}),
+      },
+      {
+        signal: abortController.signal,
+        onStatus: (status) => {
+          setAiBarState((current) =>
+            current.kind === "STREAMING" ? { ...current, statusLabel: status.label } : current,
+          );
+        },
+        onSteps: (steps) => {
+          latestSteps = steps;
+          setAiBarState((current) =>
+            current.kind === "STREAMING" ? { ...current, steps } : current,
+          );
+        },
+        onTextDelta: (delta) => {
+          setAiBarState((current) =>
+            current.kind === "STREAMING" ? { ...current, text: current.text + delta } : current,
+          );
+        },
+        onCorrectionNote: (note) => {
+          streamedCorrectionNote = note;
+          setAiBarState((current) =>
+            current.kind === "STREAMING" ? { ...current, correctionNote: note } : current,
+          );
+        },
+      },
+    );
+
+    if (aiAbortRef.current === abortController) {
+      aiAbortRef.current = null;
+    }
+
+    const decision = resolveAiStreamOutcome(outcome, {
+      prompt: trimmed,
       ...(resolution ? { resolution } : {}),
-      draft: requestedDraft,
-      ...(boundedHistory.length > 0 ? { history: boundedHistory } : {}),
-      ...(activeLocation ? { location: activeLocation } : {}),
+      steps: latestSteps,
+      streamedCorrectionNote,
     });
 
-    if (outcome.kind === "TIMEOUT") {
-      rollbackOptimisticUser();
-      setAiBarState({
-        kind: "ERROR",
-        prompt: trimmed,
-        ...(resolution ? { resolution } : {}),
-        message: "Trợ lý AI chưa phản hồi sau 5 phút nên đã dừng. Lịch trình và câu lệnh của bạn vẫn được giữ nguyên; hãy thử lại.",
-        canRetry: true,
-      });
+    if (decision.action === "STOPPED" || decision.action === "INTERRUPTED") {
+      const partialEntry: AiConversationEntry = {
+        id: `a-${++aiTurnSeqRef.current}`,
+        role: "assistant",
+        kind: decision.action,
+        text: decision.partialText,
+        ...(decision.steps.length > 0 ? { steps: decision.steps } : {}),
+        statusNotice: decision.notice,
+        retryPrompt: decision.prompt,
+        ...(decision.resolution ? { retryResolution: decision.resolution } : {}),
+      };
+      setAiThread((prev) => [...prev, partialEntry].slice(-MAX_AI_HISTORY_TURNS));
+      setAiBarState({ kind: "IDLE" });
+      setAnnouncement(decision.notice);
       return;
     }
 
-    if (outcome.kind === "NETWORK_ERROR") {
+    if (decision.action === "CONFLICT_REBASE") {
       rollbackOptimisticUser();
-      setAiBarState({
-        kind: "ERROR",
-        prompt: trimmed,
-        ...(resolution ? { resolution } : {}),
-        message: "Mất kết nối mạng khi gọi AI. Câu lệnh của bạn vẫn được giữ nguyên để thử lại.",
-        canRetry: true,
-      });
+      setAiBarState({ kind: "IDLE" });
+      void openConflictRebaseFlow();
       return;
     }
 
-    if (outcome.kind === "FAILED") {
+    if (decision.action === "ERROR") {
       rollbackOptimisticUser();
-      if (outcome.code === "TRIP_REVISION_CONFLICT") {
-        setAiBarState({ kind: "IDLE" });
-        void openConflictRebaseFlow();
-        return;
-      }
-      if (outcome.code === "COMPLETED_VISIT_CHANGED") {
-        const lockedIds = extractCompletedVisitIdsFromDetails(outcome.details);
+      if (decision.completedVisitDetails !== undefined) {
+        const lockedIds = extractCompletedVisitIdsFromDetails(decision.completedVisitDetails);
         if (lockedIds.length > 0) setCompletedVisitIds(lockedIds);
-        setAiBarState({
-          kind: "ERROR",
-          prompt: trimmed,
-          message: outcome.message,
-          canRetry: false,
-        });
-        return;
       }
       setAiBarState({
         kind: "ERROR",
-        prompt: trimmed,
-        ...(resolution ? { resolution } : {}),
-        message: outcome.message,
-        canRetry: true,
+        prompt: decision.prompt,
+        ...(decision.resolution ? { resolution: decision.resolution } : {}),
+        message: decision.message,
+        canRetry: decision.canRetry,
       });
       return;
     }
 
-    const result = outcome.result;
-    const nextAssistantTurn = (
-      kind: AiConversationEntry["kind"],
-      assistantText: string,
-    ): AiConversationEntry => ({
-      id: `a-${++aiTurnSeqRef.current}`,
-      role: "assistant",
-      kind,
-      text: assistantText,
-    });
-
-    if (result.status === "NEEDS_LOCATION") {
+    if (decision.action === "REQUEST_LOCATION") {
       setSessionLocation(null);
       setAiBarState({
         kind: "NEEDS_LOCATION",
-        prompt: result.prompt,
-        pendingMessage: result.pendingMessage,
+        prompt: decision.result.prompt,
+        pendingMessage: decision.result.pendingMessage,
         locationFlow: createLocationFlowState(),
         manualPickerOpen: activeLocation !== undefined,
         manualCoords: null,
         coverageError: null,
       });
-      setAnnouncement(result.prompt);
+      setAnnouncement(decision.result.prompt);
       return;
     }
 
-    if (result.status === "NEEDS_CLARIFICATION") {
-      setAiThread((prev) => [...prev, nextAssistantTurn("CLARIFYING", result.clarification.prompt)].slice(-MAX_AI_HISTORY_TURNS));
+    if (decision.action === "COMMIT_CLARIFYING") {
+      const clarifyingEntry: AiConversationEntry = {
+        id: `a-${++aiTurnSeqRef.current}`,
+        role: "assistant",
+        kind: "CLARIFYING",
+        text: decision.result.clarification.prompt,
+      };
+      setAiThread((prev) => [...prev, clarifyingEntry].slice(-MAX_AI_HISTORY_TURNS));
       setAiBarState({
         kind: "CLARIFYING",
-        prompt: trimmed,
-        clarification: result.clarification,
+        prompt: decision.prompt,
+        clarification: decision.result.clarification,
       });
-      setAnnouncement(result.clarification.prompt);
+      setAnnouncement(decision.result.clarification.prompt);
       return;
     }
 
-    if (result.status === "ADVISED") {
+    if (decision.action === "COMMIT_ADVISED") {
+      const result = decision.result;
       const assistantEntry: AiConversationEntry = {
         id: `a-${++aiTurnSeqRef.current}`,
         role: "assistant",
         kind: "ADVISED",
         text: result.advice,
+        ...(decision.steps.length > 0 ? { steps: decision.steps } : {}),
+        ...(decision.correctionNote ? { correctionNote: decision.correctionNote } : {}),
         ...(result.knowledgeParts ? { knowledgeParts: result.knowledgeParts } : {}),
         ...(result.citations ? { citations: result.citations } : {}),
       };
@@ -521,12 +572,14 @@ export default function EditTripClient({
         ...(result.suggestions && result.suggestions.length > 0 ? { suggestions: result.suggestions } : {}),
         ...(result.knowledgeParts ? { knowledgeParts: result.knowledgeParts } : {}),
         ...(result.citations ? { citations: result.citations } : {}),
+        ...(decision.correctionNote ? { correctionNote: decision.correctionNote } : {}),
       });
       setAnnouncement(result.advice);
       setToastFeedback(null);
       return;
     }
 
+    const result = decision.result;
     if (result.addedPlaceDetails) {
       setPlaceDetailsState((current) => ({
         ...current,
@@ -534,8 +587,16 @@ export default function EditTripClient({
       }));
     }
 
-    const summary = result.aiSummary ?? "AI đã cập nhật bản nháp hiện tại.";
-    setAiThread((prev) => [...prev, nextAssistantTurn("APPLIED", summary)].slice(-MAX_AI_HISTORY_TURNS));
+    const summary = decision.summary;
+    const appliedEntry: AiConversationEntry = {
+      id: `a-${++aiTurnSeqRef.current}`,
+      role: "assistant",
+      kind: "APPLIED",
+      text: summary,
+      ...(decision.steps.length > 0 ? { steps: decision.steps } : {}),
+      ...(decision.correctionNote ? { correctionNote: decision.correctionNote } : {}),
+    };
+    setAiThread((prev) => [...prev, appliedEntry].slice(-MAX_AI_HISTORY_TURNS));
     commitDraft(result.candidate, summary);
     setTimingDrafts({});
     setPreviewState(
@@ -575,6 +636,7 @@ export default function EditTripClient({
       kind: "APPLIED",
       summary,
       canUndo: true,
+      ...(decision.correctionNote ? { correctionNote: decision.correctionNote } : {}),
     });
     setToastFeedback({ message: summary, canUndo: true, fromAi: true });
   }
@@ -1795,6 +1857,7 @@ export default function EditTripClient({
                     onSubmitPrompt={(promptText, resolution) => {
                       void handleAiSubmit(promptText, resolution);
                     }}
+                    onStopStream={handleStopAiStream}
                     onApplySuggestion={handleApplyAdviceSuggestion}
                     onOpenCanvas={!desktopSplit ? () => handleOpenCanvas("timeline") : undefined}
                     onRequestGps={() => void handleRequestGpsForAi()}
