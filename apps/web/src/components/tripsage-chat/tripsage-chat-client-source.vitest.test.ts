@@ -56,11 +56,11 @@ describe("tripsage chat client bundle", () => {
     expect(bad).toEqual([]);
   });
 
-  it("only the allowed chat modules (types, save controller, error vocabulary, request context, trip hubs) are reachable from the client, and no origin picker form is imported", () => {
+  it("only the allowed chat modules (types, save controller, error vocabulary, request context, trip hubs, conversation contract) are reachable from the client, and no origin picker form or mode tabs exist", () => {
     const reached = [...graph(clientFiles).keys()].filter(file => file.startsWith(CHAT_MODULE_DIR)).map(file => file.slice(CHAT_MODULE_DIR.length + 1));
-    expect(reached.sort()).toEqual(["trip-hubs.ts", "tripsage-access-leg.ts", "tripsage-chat-context.ts", "tripsage-chat-errors.ts", "tripsage-chat-parts.ts", "tripsage-chat-save.ts", "tripsage-cost.ts", "tripsage-timeline.ts"]);
+    expect(reached.sort()).toEqual(["assistant-conversation-contract.ts", "trip-hubs.ts", "tripsage-access-leg.ts", "tripsage-chat-context.ts", "tripsage-chat-errors.ts", "tripsage-chat-parts.ts", "tripsage-chat-save.ts", "tripsage-cost.ts", "tripsage-timeline.ts"]);
     const allSpecs = [...graph(clientFiles).values()].flat();
-    expect(allSpecs.some(spec => /trip-journey-editor|tripsage-origin-card/.test(spec))).toBe(false);
+    expect(allSpecs.some(spec => /trip-journey-editor|tripsage-origin-card|assistant-mode-tabs/.test(spec))).toBe(false);
   });
 
   it("reads no environment variable and names no provider key", () => {

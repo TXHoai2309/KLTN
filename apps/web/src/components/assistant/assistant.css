@@ -2559,3 +2559,17 @@
 .tripsage-access h4 { margin: 0; font-weight: 700; color: var(--assistant-green); }
 .tripsage-access h5 { margin: 0.25rem 0; font-size: 0.92rem; }
 .tripsage-access-segments { display: grid; gap: 0.25rem; margin: 0; padding-left: 0.2rem; list-style: none; font-size: 0.9rem; }
+.tripsage-map-collapse { display: grid; gap: 0.6rem; margin: 0.75rem 0; min-width: 0; }
+.tripsage-map-toggle { justify-self: start; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.9rem; border-radius: 10px; border: 1px solid var(--assistant-line); background: var(--assistant-card); color: var(--assistant-ink); font-size: 0.9rem; font-weight: 600; cursor: pointer; max-width: 100%; }
+.tripsage-map-toggle:hover { background: var(--assistant-green-light); border-color: var(--assistant-green); }
+.tripsage-legacy-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.65rem 0.9rem; border-radius: 10px; border: 1px solid var(--assistant-line); background: var(--assistant-soft); font-size: 0.88rem; color: var(--assistant-muted); }
+.tripsage-legacy-banner button { padding: 0.35rem 0.8rem; border-radius: 999px; border: 1px solid var(--assistant-green); background: var(--assistant-card); color: var(--assistant-green); font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+.assistant-sidebar-footer { padding: 0.6rem 0.75rem; border-top: 1px solid var(--assistant-line); }
+.assistant-sidebar-delete-all-btn { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.45rem 0.75rem; border-radius: 8px; border: 1px solid var(--assistant-line); background: transparent; color: var(--assistant-muted); font-size: 0.84rem; cursor: pointer; }
+.assistant-sidebar-delete-all-btn:hover:not(:disabled) { color: #b91c1c; border-color: #fca5a5; background: #fef2f2; }
+.assistant-chat[data-runtime="tripsage-unified"],
+.assistant-chat[data-runtime="tripsage-unified"] .assistant-chat-main,
+.assistant-chat[data-runtime="tripsage-unified"] .assistant-transcript-inner,
+.assistant-chat[data-runtime="tripsage-unified"] .assistant-message,
+.assistant-chat[data-runtime="tripsage-unified"] .planner-page { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.assistant-chat[data-runtime="tripsage-unified"] .tripsage-cost { overflow-x: auto; }

@@ -260,12 +260,14 @@ export function createAssistantConversationStore(db: Database, options: { now?: 
         key: input.clientMessageId,
         input: { conversationId: input.conversationId, contentHash },
         execute: async tx => {
-          const writeAt = now();
+          const current = now();
           const owned = await tx.assistantConversation.findFirst({
-            where: { id: input.conversationId, userId: input.userId, expiresAt: { gt: writeAt } },
-            select: { id: true },
+            where: { id: input.conversationId, userId: input.userId, expiresAt: { gt: current } },
+            select: { id: true, updatedAt: true },
           });
           if (!owned) throw notFound();
+          // Ensure deterministic chronological order even if the user and assistant messages commit within the same ms.
+          const writeAt = new Date(Math.max(current.getTime(), owned.updatedAt.getTime() + 1));
           const messageId = randomUUID();
           await tx.assistantMessage.create({
             data: {

@@ -40,6 +40,7 @@ function ExternalPlacesNotice({ proposal }: { proposal: PlannerResult }) {
 export function TripsageItineraryView({ proposal, children }: { proposal: PlannerResult; children?: ReactNode }) {
   const [selectedDay, setSelectedDay] = useState(proposal.days[0]?.day ?? 1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [mapOpen, setMapOpen] = useState(false);
   const day = proposal.days.find(d => d.day === selectedDay) ?? proposal.days[0];
   if (!day) return null;
   return (
@@ -56,10 +57,23 @@ export function TripsageItineraryView({ proposal, children }: { proposal: Planne
           ))}
         </ol>
       ) : <p>Chưa có điểm phù hợp cho ngày này.</p>}
-      <div className="planner-map-panel">
-        <Suspense fallback={<p role="status">Đang mở bản đồ…</p>}>
-          <ItineraryMap day={day} days={proposal.days} selectedDestinationId={selectedId} focusSelection={false} onSelect={setSelectedId} journeyPlan={proposal.journeyPlan} origin={proposal.requirement.journey?.origin} />
-        </Suspense>
+      <div className="tripsage-map-collapse">
+        <button
+          type="button"
+          className="tripsage-map-toggle"
+          aria-expanded={mapOpen}
+          onClick={() => setMapOpen(open => !open)}
+        >
+          <span aria-hidden="true">🗺️</span>{" "}
+          {mapOpen ? "Ẩn bản đồ lộ trình" : "Xem bản đồ lộ trình"}
+        </button>
+        {mapOpen && (
+          <div className="planner-map-panel">
+            <Suspense fallback={<p role="status">Đang mở bản đồ…</p>}>
+              <ItineraryMap day={day} days={proposal.days} selectedDestinationId={selectedId} focusSelection={false} onSelect={setSelectedId} journeyPlan={proposal.journeyPlan} origin={proposal.requirement.journey?.origin} />
+            </Suspense>
+          </div>
+        )}
       </div>
       <ItineraryValidationPanel checks={proposal.checks} />
       <ExternalPlacesNotice proposal={proposal} />

@@ -1,4 +1,4 @@
-import type { TripJourney } from "@/modules/trip-origin/trip-origin-contract";
+import { tripJourneySchema, type TripJourney } from "@/modules/trip-origin/trip-origin-contract";
 import {
   changesItinerary,
   journeyPartSchema,
@@ -85,6 +85,10 @@ export function readConversationState(messages: readonly Message[], isItinerary:
         }
       } else if (part.type === "data-itinerary" && isItinerary(part.data)) {
         lastItineraryMessageId = message.id; itineraryStale = false; timeline = null; suggestions = [];
+        const embeddedJourney = tripJourneySchema.safeParse((part.data as { requirement?: { journey?: unknown } } | null)?.requirement?.journey);
+        if (embeddedJourney.success && embeddedJourney.data.origin?.confirmed) {
+          journey = embeddedJourney.data;
+        }
       } else if (part.type === "data-timeline" && message.id === lastItineraryMessageId) {
         const parsed = timelinePartSchema.safeParse(part.data);
         if (parsed.success) timeline = parsed.data;
