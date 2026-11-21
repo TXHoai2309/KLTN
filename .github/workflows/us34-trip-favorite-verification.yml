@@ -1,0 +1,56 @@
+name: Sprint 4 - US34 Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master, kduy]
+    paths:
+      - "apps/web/src/modules/favorite/**"
+      - "apps/web/src/modules/favorites/**"
+      - "apps/web/src/app/api/favorites/**"
+      - "apps/web/src/app/trips/trip-favorite-button.tsx"
+      - ".github/workflows/us34-trip-favorite-verification.yml"
+  pull_request:
+    paths:
+      - "apps/web/src/modules/favorite/**"
+      - "apps/web/src/modules/favorites/**"
+      - "apps/web/src/app/api/favorites/**"
+      - ".github/workflows/us34-trip-favorite-verification.yml"
+
+jobs:
+  verify-us34:
+    name: Run US-34 Trip Favorite Automated Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies (root monorepo)
+        run: bun install --frozen-lockfile || npm ci
+
+      - name: Run US-34 Vitest Suite
+        working-directory: apps/web
+        run: |
+          npx vitest run --config vitest.config.mts \
+            src/modules/favorite/us34-favorite-list.vitest.test.ts \
+            src/modules/favorites/us15-favorites.vitest.test.ts \
+            src/modules/favorites/favorite-status-batch.vitest.test.ts \
+            src/components/us15-favorite-client.vitest.test.ts \
+            --reporter=verbose | tee us34-ci-report.txt
+
+      - name: Upload US-34 Test Evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: us34-verification-evidence
+          path: apps/web/us34-ci-report.txt
+          retention-days: 30
