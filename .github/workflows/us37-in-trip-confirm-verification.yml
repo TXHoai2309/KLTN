@@ -35,9 +35,13 @@ jobs:
       - name: Install dependencies (root monorepo)
         run: bun install --frozen-lockfile || npm ci
 
+      - name: Generate Prisma Client
+        run: npm run db:generate
+
       - name: Run US-37 Vitest Suite
         working-directory: apps/web
         run: |
+          set -o pipefail
           npx vitest run --config vitest.config.mts \
             src/modules/in-trip/us37-test.vitest.test.ts \
             src/modules/in-trip/in-trip-validation.vitest.test.ts \
