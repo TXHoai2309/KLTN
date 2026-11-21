@@ -1,6 +1,7 @@
 import type { MutationApiResponse } from "../../lib/mutation-contract";
 import type { TripProposal } from "../trip-validation/trip-proposal-contract";
 import type { TripValidation } from "../trip-validation/trip-validation";
+import type { ChosenLodgingSaveItem } from "./trip-save-contract";
 import { uncheckedItemSchema, type UncheckedItem } from "./unchecked-checks";
 
 export type TripSaveClientResult =
@@ -48,11 +49,24 @@ const parseUnchecked = (value: unknown): UncheckedItem[] | null => {
 };
 
 /** `acknowledgedUnchecked` is the user's explicit confirmation of the unchecked items; omitted for an all-PASS schedule. */
-export async function submitTripSave(proposal: TripProposal, key: string, signal?: AbortSignal, fetcher: typeof fetch = fetch, acknowledgedUnchecked?: UncheckedItem[]): Promise<TripSaveClientResult> {
+export async function submitTripSave(
+  proposal: TripProposal,
+  key: string,
+  signal?: AbortSignal,
+  fetcher: typeof fetch = fetch,
+  acknowledgedUnchecked?: UncheckedItem[],
+  chosenLodgings?: readonly ChosenLodgingSaveItem[],
+): Promise<TripSaveClientResult> {
   try {
     const response = await fetcher("/api/trips", {
       method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": key },
-      body: JSON.stringify({ confirm: true, proposal, ...(acknowledgedUnchecked ? { acknowledgedUnchecked: { confirmed: true, items: acknowledgedUnchecked } } : {}) }), signal,
+      body: JSON.stringify({
+        confirm: true,
+        proposal,
+        ...(acknowledgedUnchecked ? { acknowledgedUnchecked: { confirmed: true, items: acknowledgedUnchecked } } : {}),
+        ...(chosenLodgings?.length ? { chosenLodgings } : {}),
+      }),
+      signal,
     });
     const result = await response.json() as MutationApiResponse<{ tripId: string; validation: TripValidation; unchecked?: unknown }>;
     const savedUnchecked = result.success === true && result.data?.unchecked !== undefined ? parseUnchecked(result.data.unchecked) : [];

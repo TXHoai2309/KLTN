@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import type { PlannerResult } from "@/modules/trip-planner/planner-contract";
 import type { TripsageTripInfo } from "@/modules/tripsage-chat/tripsage-chat-context";
 import { chatSavePlan, createChatSaveController, type ChatSaveView } from "@/modules/tripsage-chat/tripsage-chat-save";
+import { chosenLodgingMapToList, type ChosenLodgingMap } from "@/modules/tripsage-chat/tripsage-timeline";
 import type { SaveState } from "@/modules/trip-save/trip-save-state";
 import { uncheckedItemLabel } from "@/modules/trip-save/unchecked-checks";
 import { blockingAssumedFields, formatAssumedConfirmationMessage } from "@/modules/trip-validation/trip-proposal-contract";
@@ -16,7 +17,17 @@ import { blockingAssumedFields, formatAssumedConfirmationMessage } from "@/modul
  * re-validates, compares the list and records the items as unchecked. An Assumed draft with unconfirmed origin or startDate
  * (ADR-44) cannot be saved until those fields are confirmed. A FAILED check never reaches this button.
  */
-export function TripsageSaveSection({ result, tripInfo, onStateChange }: { result: PlannerResult; tripInfo?: TripsageTripInfo | null; onStateChange?: (state: SaveState) => void }) {
+export function TripsageSaveSection({
+  result,
+  tripInfo,
+  chosenLodgings,
+  onStateChange,
+}: {
+  result: PlannerResult;
+  tripInfo?: TripsageTripInfo | null;
+  chosenLodgings?: ChosenLodgingMap;
+  onStateChange?: (state: SaveState) => void;
+}) {
   const controllerRef = useRef<ReturnType<typeof createChatSaveController> | null>(null);
   controllerRef.current ??= createChatSaveController();
   const [view, setView] = useState<ChatSaveView>({ state: "idle", message: "", tripId: null, unchecked: [] });
@@ -59,7 +70,11 @@ export function TripsageSaveSection({ result, tripInfo, onStateChange }: { resul
     abortRef.current = new AbortController();
     setView({ state: "pending", message: "Đang lưu hành trình…", tripId: null, unchecked: items });
     onStateChange?.("pending");
-    const next = await controller.save(effectiveResult, abortRef.current.signal, { confirmUnchecked: confirmed });
+    const chosenList = chosenLodgings ? chosenLodgingMapToList(chosenLodgings) : [];
+    const next = await controller.save(effectiveResult, abortRef.current.signal, {
+      confirmUnchecked: confirmed,
+      ...(chosenList.length ? { chosenLodgings: chosenList } : {}),
+    });
     if (next.state === "failed" && next.unchecked.length) setConfirmed(false);
     setView({ ...next });
     onStateChange?.(next.state);

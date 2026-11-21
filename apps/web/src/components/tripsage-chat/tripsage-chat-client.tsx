@@ -511,7 +511,7 @@ export function TripsageChatClient({
                             onToggleChosenLodging={handleToggleChosenLodging}
                           />
                         )}
-                        {itinerary && <TripsageItineraryView proposal={itinerary}>{!busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} tripInfo={state.tripInfo} onStateChange={setSaveState} />)}</TripsageItineraryView>}
+                        {itinerary && <TripsageItineraryView proposal={itinerary}>{!busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} tripInfo={state.tripInfo} chosenLodgings={chosenLodgings} onStateChange={setSaveState} />)}</TripsageItineraryView>}
                         {accessLeg && <TripsageAccessLegCard leg={accessLeg} />}
                         {cost && <TripsageCostCard cost={cost} />}
                         <TripsagePlacesView places={suggestions} />

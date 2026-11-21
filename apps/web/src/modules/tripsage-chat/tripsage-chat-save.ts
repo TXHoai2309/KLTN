@@ -1,6 +1,7 @@
 import type { PlannerResult } from "../trip-planner/planner-contract";
 import { toSaveProposal, toUncheckedSavePlan } from "../trip-save/trip-save-adapter";
 import { submitTripSave, type TripSaveClientResult } from "../trip-save/trip-save-client";
+import type { ChosenLodgingSaveItem } from "../trip-save/trip-save-contract";
 import type { UncheckedItem } from "../trip-save/unchecked-checks";
 import type { TripProposal } from "../trip-validation/trip-proposal-contract";
 import { isTripSaveNavigationLocked, type SaveState } from "../trip-save/trip-save-state";
@@ -29,25 +30,54 @@ export function chatSavePlan(result: PlannerResult): { proposal: TripProposal; u
  */
 export function createChatSaveController(options: { fetcher?: typeof fetch; newKey?: () => string } = {}) {
   const newKey = options.newKey ?? (() => crypto.randomUUID());
-  let attempt: { signature: string; key: string; proposal: TripProposal; acknowledged: UncheckedItem[] | undefined } | null = null;
+  let attempt: {
+    signature: string;
+    key: string;
+    proposal: TripProposal;
+    acknowledged: UncheckedItem[] | undefined;
+    chosenLodgings: ChosenLodgingSaveItem[] | undefined;
+  } | null = null;
   let serverList: UncheckedItem[] | null = null;
   let inFlight = false;
   let view: ChatSaveView = { state: "idle", message: "", tripId: null, unchecked: [] };
 
-  async function save(result: PlannerResult, signal?: AbortSignal, choice: { confirmUnchecked?: boolean } = {}): Promise<ChatSaveView> {
+  async function save(
+    result: PlannerResult,
+    signal?: AbortSignal,
+    choice: { confirmUnchecked?: boolean; chosenLodgings?: readonly ChosenLodgingSaveItem[] } = {},
+  ): Promise<ChatSaveView> {
     if (inFlight || view.state === "success") return view;
     const plan = chatSavePlan(result);
     if (!plan) return view;
     const shown = serverList ?? plan.unchecked;
     if (shown.length > 0 && choice.confirmUnchecked !== true) return view;
     const acknowledged = shown.length > 0 ? shown : undefined;
-    const signature = JSON.stringify({ proposal: plan.proposal, acknowledged });
-    // Retry after UNKNOWN reuses the stored payload and key; a changed schedule or confirmation gets a new key.
-    if (!attempt || attempt.signature !== signature) attempt = { signature, key: newKey(), proposal: plan.proposal, acknowledged };
+    const chosenLodgings = choice.chosenLodgings?.length
+      ? [...choice.chosenLodgings]
+          .filter(item => item.nightIndex >= 1 && item.nightIndex < plan.proposal.durationDays)
+          .sort((a, b) => a.nightIndex - b.nightIndex)
+      : undefined;
+    const effectiveLodgings = chosenLodgings?.length ? chosenLodgings : undefined;
+    const signature = JSON.stringify({ proposal: plan.proposal, acknowledged, chosenLodgings: effectiveLodgings });
+    // Retry after UNKNOWN reuses the stored payload and key; a changed schedule, confirmation, or chosen lodging gets a new key.
+    if (!attempt || attempt.signature !== signature) {
+      attempt = { signature, key: newKey(), proposal: plan.proposal, acknowledged, chosenLodgings: effectiveLodgings };
+    }
     inFlight = true;
     view = { state: "pending", message: "Đang lưu hành trình…", tripId: null, unchecked: shown };
     let outcome: TripSaveClientResult;
-    try { outcome = await submitTripSave(attempt.proposal, attempt.key, signal, options.fetcher, attempt.acknowledged); } finally { inFlight = false; }
+    try {
+      outcome = await submitTripSave(
+        attempt.proposal,
+        attempt.key,
+        signal,
+        options.fetcher,
+        attempt.acknowledged,
+        attempt.chosenLodgings,
+      );
+    } finally {
+      inFlight = false;
+    }
     if (outcome.status === "SUCCESS") view = { state: "success", message: "Đã lưu hành trình.", tripId: outcome.tripId, unchecked: outcome.unchecked };
     else if (outcome.status === "FAILED") {
       // The server refused the confirmation: show ITS list and require a fresh confirmation.

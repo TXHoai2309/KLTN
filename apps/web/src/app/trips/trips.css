@@ -2176,3 +2176,38 @@
 .my-trips-companions-section {
   width: 100%;
 }
+
+.my-trips-chosen-lodging {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #cde0d3;
+  background: #f4faf6;
+  color: #183d2c;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.my-trips-chosen-lodging .tripsage-preview-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  border: 1px solid #b6d2bf;
+  background: #ffffff;
+  color: #1f5c3f;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.my-trips-chosen-lodging .tripsage-preview-btn:hover,
+.my-trips-chosen-lodging .tripsage-preview-btn:focus-visible {
+  background: #e6f3ea;
+  border-color: #1f5c3f;
+}

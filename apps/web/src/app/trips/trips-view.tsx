@@ -33,7 +33,12 @@ import {
   Coffee,
   Moon,
   UtensilsCrossed,
+  BedDouble,
+  Eye,
 } from "lucide-react";
+
+import { PlacePreviewModal } from "@/components/place-preview/place-preview-modal";
+import { canPreviewPlace, type PlacePreviewTarget } from "@/lib/place-preview-url";
 
 import {
   lunchBreakAfter,
@@ -660,6 +665,11 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
   const [mobileTab, setMobileTab] = useState<"itinerary" | "map">("itinerary");
   const [journeyEditModalOpen, setJourneyEditModalOpen] = useState(false);
   const [isLegacyOptInMode, setIsLegacyOptInMode] = useState(false);
+  const [preview, setPreview] = useState<{ target: PlacePreviewTarget; trigger: HTMLElement | null } | null>(null);
+  const chosenLodgingByNight = useMemo(
+    () => new globalThis.Map((trip.chosenLodgings ?? []).map(item => [item.nightIndex, item] as const)),
+    [trip.chosenLodgings],
+  );
 
   const isOwner = trip.role !== "MEMBER";
   const hasJourney = Boolean(trip.journey && trip.journey.journey.origin);
@@ -1248,7 +1258,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                                   <p className="planner-break"><UtensilsCrossed size={13} aria-hidden="true" /><strong>Nghỉ trưa</strong> {minuteLabel(lunch.from)} – {minuteLabel(lunch.to)}</p>
                                 </li>
                               )}
-                              {night && (
+                              {night && !chosenLodgingByNight.has(day.dayIndex) && (
                                 <li className="my-trips-break-item">
                                   <span aria-hidden="true" />
                                   <div className="my-trips-visit-time"><strong>{minuteLabel(departure)}</strong><span>Hết ngày</span></div>
@@ -1277,6 +1287,34 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                         )}
                       </ol>
                     )}
+                    {chosenLodgingByNight.has(day.dayIndex) && (() => {
+                      const lodging = chosenLodgingByNight.get(day.dayIndex)!;
+                      const previewTarget: PlacePreviewTarget = {
+                        kind: "GOOGLE_PLACE",
+                        name: lodging.name,
+                        placeId: lodging.placeId,
+                      };
+                      return (
+                        <div className="my-trips-chosen-lodging" role="note" aria-label={`Chỗ nghỉ đã chọn đêm ${lodging.nightIndex}`}>
+                          <BedDouble size={15} aria-hidden="true" />
+                          <span>
+                            <strong>Chỗ nghỉ đã chọn (Đêm {lodging.nightIndex}):</strong> {lodging.name} ·{" "}
+                            <span className="text-muted-foreground">Chưa kiểm tra · Không phải đặt phòng</span>
+                          </span>
+                          {canPreviewPlace(previewTarget) && (
+                            <button
+                              type="button"
+                              className="tripsage-preview-btn"
+                              aria-label={`Xem nhanh ${lodging.name}`}
+                              onClick={event => setPreview({ target: previewTarget, trigger: event.currentTarget })}
+                            >
+                              <Eye size={13} aria-hidden="true" />
+                              <span>Xem nhanh</span>
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </section>
                 );
               })}
@@ -1354,6 +1392,11 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
         onSaved={() => {
           router.refresh();
         }}
+      />
+      <PlacePreviewModal
+        target={preview?.target ?? null}
+        returnFocusTo={preview?.trigger ?? null}
+        onClose={() => setPreview(null)}
       />
     </main>
   );

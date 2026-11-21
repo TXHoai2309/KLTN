@@ -15,7 +15,7 @@ import { assertStartDateForFinalConfirmation } from "../trip-requirement/trip-re
 import type { TravelRoute } from "../trip-validation/stadia-route";
 import { blockingAssumedFields, formatAssumedConfirmationMessage, tripDayDate, type TripProposal } from "../trip-validation/trip-proposal-contract";
 import { validateItinerary, type RouteSnapshot, type TripValidation, type ValidationVisit } from "../trip-validation/trip-validation";
-import { tripSaveRequestSchema, type TripSaveRequest } from "./trip-save-contract";
+import { tripSaveRequestSchema, type ChosenLodgingSaveItem, type TripSaveRequest } from "./trip-save-contract";
 import { EXTERNAL_PLACE_ID_PREFIX, isSchedulablePlaceId } from "../trip-planner/planner-candidates";
 import type { PlannerResult } from "../trip-planner/planner-contract";
 import { MAX_EXTERNAL_PLACES_PER_SAVE, type ExternalPlaceResolver, type ResolvedExternalPlace } from "./external-place-resolver";
@@ -116,20 +116,56 @@ function decideSave(evidence: { validation: TripValidation; result: PlannerResul
   return assessment.items;
 }
 
-/** Name and coordinates of an external place come only from the server's own Google lookup, never from the request. */
-async function resolveExternalDestinations(proposal: TripProposal, dependencies: TripSaveDependencies): Promise<{ destinations: Map<string, JourneyDestination>; places: ResolvedExternalPlace[] }> {
-  const ids = [...new Set(proposal.days.flatMap(day => day.visits.map(visit => visit.destinationId)).filter(isExternalVisitId))];
-  if (!ids.length) return { destinations: new Map(), places: [] };
-  const placeIds = ids.map(id => id.slice(EXTERNAL_PLACE_ID_PREFIX.length));
-  if (!placeIds.every(isSchedulablePlaceId)) throw new AppError("INVALID_EXTERNAL_PLACE", "Có địa điểm ngoài danh mục không hợp lệ.", 422);
-  if (placeIds.length > MAX_EXTERNAL_PLACES_PER_SAVE) throw new AppError("EXTERNAL_PLACE_LIMIT", "Có quá nhiều địa điểm ngoài danh mục trong một hành trình.", 422);
-  const resolved = dependencies.resolveExternalPlaces ? await dependencies.resolveExternalPlaces(placeIds) : ({ status: "UNAVAILABLE" } as const);
-  const places = resolved.status === "OK" ? placeIds.map(placeId => resolved.places.get(placeId)) : [];
-  if (resolved.status !== "OK" || places.some(place => !place)) throw new AppError("EXTERNAL_PLACE_UNAVAILABLE", "Chưa xác minh được địa điểm ngoài danh mục lúc này. Hành trình chưa được lưu, vui lòng thử lại sau.", 503);
-  return {
-    destinations: new Map(places.map(place => [`${EXTERNAL_PLACE_ID_PREFIX}${place!.placeId}`, { id: `${EXTERNAL_PLACE_ID_PREFIX}${place!.placeId}`, latitude: place!.latitude, longitude: place!.longitude, minimumDurationMinutes: null, openingDays: [], external: true as const }])),
-    places: places as ResolvedExternalPlace[],
-  };
+function formatUnresolvedLodgings(items: readonly ChosenLodgingSaveItem[]): string {
+  return items
+    .map(item => (item.name?.trim() ? `Đêm ${item.nightIndex}: ${item.name.trim()}` : `Đêm ${item.nightIndex} (${item.placeId})`))
+    .join(", ");
+}
+
+/** Name and coordinates of external visits and chosen lodgings come only from the server's own Google lookup, never from the request. */
+async function resolveExternalPlacesForSave(
+  proposal: TripProposal,
+  chosenLodgings: readonly ChosenLodgingSaveItem[] | undefined,
+  dependencies: TripSaveDependencies,
+): Promise<{
+  destinations: Map<string, JourneyDestination>;
+  places: ResolvedExternalPlace[];
+  chosenLodgingPlaceIds: Map<number, string>;
+}> {
+  const visitExternalIds = [...new Set(proposal.days.flatMap(day => day.visits.map(visit => visit.destinationId)).filter(isExternalVisitId))];
+  const visitPlaceIds = visitExternalIds.map(id => id.slice(EXTERNAL_PLACE_ID_PREFIX.length));
+  const lodgings = chosenLodgings ?? [];
+  const lodgingPlaceIds = lodgings.map(item => item.placeId);
+  const allPlaceIds = [...new Set([...visitPlaceIds, ...lodgingPlaceIds])];
+  if (!allPlaceIds.length) return { destinations: new Map(), places: [], chosenLodgingPlaceIds: new Map() };
+  if (!allPlaceIds.every(isSchedulablePlaceId)) throw new AppError("INVALID_EXTERNAL_PLACE", "Có địa điểm ngoài danh mục không hợp lệ.", 422);
+  if (allPlaceIds.length > MAX_EXTERNAL_PLACES_PER_SAVE) throw new AppError("EXTERNAL_PLACE_LIMIT", "Có quá nhiều địa điểm ngoài danh mục trong một hành trình.", 422);
+  const resolved = dependencies.resolveExternalPlaces ? await dependencies.resolveExternalPlaces(allPlaceIds) : ({ status: "UNAVAILABLE" } as const);
+  const unresolvedLodgings = resolved.status === "OK"
+    ? lodgings.filter(item => !resolved.places.has(item.placeId))
+    : lodgings;
+  if (unresolvedLodgings.length > 0) {
+    throw new AppError(
+      "EXTERNAL_PLACE_UNAVAILABLE",
+      `Chưa xác minh được chỗ nghỉ đã chọn (${formatUnresolvedLodgings(unresolvedLodgings)}) trên Google Maps lúc này. Hành trình chưa được lưu, vui lòng bỏ chọn chỗ nghỉ này hoặc thử lại sau.`,
+      503,
+      { unresolvedLodgings: unresolvedLodgings.map(item => ({ nightIndex: item.nightIndex, placeId: item.placeId, ...(item.name ? { name: item.name } : {}) })) },
+    );
+  }
+  const places = resolved.status === "OK" ? allPlaceIds.map(placeId => resolved.places.get(placeId)) : [];
+  if (resolved.status !== "OK" || places.some(place => !place)) {
+    throw new AppError("EXTERNAL_PLACE_UNAVAILABLE", "Chưa xác minh được địa điểm ngoài danh mục lúc này. Hành trình chưa được lưu, vui lòng thử lại sau.", 503);
+  }
+  const resolvedPlaces = places as ResolvedExternalPlace[];
+  const byPlaceId = new Map(resolvedPlaces.map(place => [place.placeId, place]));
+  const destinations = new Map<string, JourneyDestination>(
+    visitPlaceIds.map(placeId => {
+      const place = byPlaceId.get(placeId)!;
+      return [`${EXTERNAL_PLACE_ID_PREFIX}${place.placeId}`, { id: `${EXTERNAL_PLACE_ID_PREFIX}${place.placeId}`, latitude: place.latitude, longitude: place.longitude, minimumDurationMinutes: null, openingDays: [], external: true as const }];
+    }),
+  );
+  const chosenLodgingPlaceIds = new Map<number, string>(lodgings.map(item => [item.nightIndex, item.placeId]));
+  return { destinations, places: resolvedPlaces, chosenLodgingPlaceIds };
 }
 
 function journeyProvider(deps: TripSaveDependencies): RouteProvider {
@@ -179,7 +215,7 @@ export async function saveTrip(headers: Headers, request: TripSaveRequest, key: 
   assertStartDateForFinalConfirmation(requirement, timeReference);
   const proposalIds = [...new Set(request.proposal.days.flatMap(day => day.visits.map(visit => visit.destinationId)))];
   const initialDestinations = await readKltnDestinations(dependencies.database, proposalIds.filter(id => !isExternalVisitId(id)));
-  const external = await resolveExternalDestinations(request.proposal, dependencies);
+  const external = await resolveExternalPlacesForSave(request.proposal, request.chosenLodgings, dependencies);
   const fresh = await freshJourneyValidation(request.proposal, new Map<string, JourneyDestination>([...initialDestinations, ...external.destinations]), journeyProvider(dependencies), timeReference);
   const initialUnchecked = decideSave(fresh, request.acknowledgedUnchecked);
 
@@ -198,11 +234,19 @@ export async function saveTrip(headers: Headers, request: TripSaveRequest, key: 
       const unchecked = decideSave({ validation, result: checked.result }, request.acknowledgedUnchecked);
       if (!uncheckedEqual(unchecked, initialUnchecked)) throw new AppError("TRIP_DATA_CHANGED", "Dữ liệu kiểm tra đã thay đổi. Vui lòng kiểm tra lại phương án.", 409);
       const externalRows = new Map<string, string>();
+      const externalRowsByPlaceId = new Map<string, string>();
       for (const place of external.places) {
         const cache = { name: place.name, latitude: place.latitude, longitude: place.longitude, source: "GOOGLE_PLACES_DETAILS", fetchedAt: timeReference };
         const row = await transaction.externalPlace.upsert({ where: { provider_providerPlaceId: { provider: "GOOGLE_PLACES", providerPlaceId: place.placeId } }, create: { provider: "GOOGLE_PLACES", providerPlaceId: place.placeId, ...cache }, update: cache, select: { id: true } });
         externalRows.set(`${EXTERNAL_PLACE_ID_PREFIX}${place.placeId}`, row.id);
+        externalRowsByPlaceId.set(place.placeId, row.id);
       }
+      const chosenLodgingCreates = [...external.chosenLodgingPlaceIds.entries()]
+        .sort(([a], [b]) => a - b)
+        .map(([nightIndex, placeId]) => ({
+          nightIndex,
+          externalPlaceId: externalRowsByPlaceId.get(placeId)!,
+        }));
       const trip = await transaction.trip.create({ data: {
         userId: actor.userId,
         startDate: new Date(`${request.proposal.startDate}T00:00:00.000Z`),
@@ -210,6 +254,7 @@ export async function saveTrip(headers: Headers, request: TripSaveRequest, key: 
         transport: request.proposal.transport,
         ...(unchecked.length ? { uncheckedChecks: JSON.parse(JSON.stringify({ revision: UNCHECKED_REVISION, items: unchecked })), uncheckedConfirmedAt: timeReference } : {}),
         journeySnapshot: JSON.parse(JSON.stringify({ revision: "journey-save-v1", journey: request.proposal.journey, plan: checked.plan, visitFingerprint: journeyVisitFingerprint(request.proposal.days) })),
+        ...(chosenLodgingCreates.length ? { chosenLodgings: { create: chosenLodgingCreates } } : {}),
         days: { create: request.proposal.days.map(day => ({
           dayIndex: day.dayIndex,
           localDate: new Date(`${tripDayDate(request.proposal.startDate, day.dayIndex)}T00:00:00.000Z`),

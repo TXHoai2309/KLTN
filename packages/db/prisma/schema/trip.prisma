@@ -20,6 +20,7 @@ model Trip {
   uncheckedChecks Json?
   uncheckedConfirmedAt DateTime? @db.Timestamptz(3)
   days         ItineraryDay[]
+  chosenLodgings TripChosenLodging[]
   favorites    Favorite[]
   companionPublication TripCompanionPublication?
   editChatMessages TripEditChatMessage[]
@@ -184,8 +185,24 @@ model ExternalPlace {
   createdAt       DateTime              @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime              @updatedAt @db.Timestamptz(3)
   visits          ItineraryVisit[]
+  chosenLodgings  TripChosenLodging[]
 
   @@unique([provider, providerPlaceId])
   @@index([fetchedAt])
   @@map("external_place")
+}
+
+// Ticket 11: traveler's chosen lodging per night on a saved trip (separate from ItineraryVisit; never a booking).
+model TripChosenLodging {
+  id              String        @id @default(cuid())
+  tripId          String
+  trip            Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  nightIndex      Int
+  externalPlaceId String
+  externalPlace   ExternalPlace @relation(fields: [externalPlaceId], references: [id], onDelete: Restrict)
+  createdAt       DateTime      @default(now()) @db.Timestamptz(3)
+
+  @@unique([tripId, nightIndex])
+  @@index([externalPlaceId])
+  @@map("trip_chosen_lodging")
 }

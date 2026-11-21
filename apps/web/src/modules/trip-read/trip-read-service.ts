@@ -28,11 +28,22 @@ export type TripSummary = {
   hostName?: string | null;
 };
 
+export type TripChosenLodgingDetail = {
+  id: string;
+  nightIndex: number;
+  placeId: string;
+  name: string;
+  latitude?: number;
+  longitude?: number;
+};
+
 export type TripDetail = TripSummary & {
   /** Only HOST receives this property; legacy owner reads explicitly return null. */
   journey?: SavedJourney | null;
   /** Owner only: checks the Trip was saved with as UNCHECKED (never PASS). Absent when nothing was unchecked. */
   unchecked?: { items: UncheckedItem[]; confirmedAt: string | null };
+  /** Ticket 11: chosen lodgings saved per night (separate from ItineraryVisit; never a booking). */
+  chosenLodgings?: TripChosenLodgingDetail[];
   baseRevision?: string;
   days: {
     id: string;
@@ -87,6 +98,14 @@ const detailSelect = (userId: string) => ({
     select: {
       id: true,
       title: true,
+    },
+  },
+  chosenLodgings: {
+    orderBy: [{ nightIndex: "asc" as const }, { id: "asc" as const }],
+    select: {
+      id: true,
+      nightIndex: true,
+      externalPlace: { select: { providerPlaceId: true, name: true, latitude: true, longitude: true, fetchedAt: true } },
     },
   },
   days: {
@@ -238,10 +257,24 @@ export async function getMyTrip(headers: Headers, id: string, deps: TripReadDepe
     }
   }
   const storedUnchecked = row.uncheckedChecks == null ? null : storedUncheckedSchema.safeParse(row.uncheckedChecks).data ?? null;
+  const chosenLodgings: TripChosenLodgingDetail[] = ((row as { chosenLodgings?: { id: string; nightIndex: number; externalPlace: { providerPlaceId: string; name: string | null; latitude: number | null; longitude: number | null; fetchedAt: Date } }[] }).chosenLodgings ?? [])
+    .slice()
+    .sort((a, b) => a.nightIndex - b.nightIndex || a.id.localeCompare(b.id))
+    .map(item => {
+      const view = externalPlaceView(item.externalPlace, now, isOwner);
+      return {
+        id: item.id,
+        nightIndex: item.nightIndex,
+        placeId: item.externalPlace.providerPlaceId,
+        name: view.name,
+        ...(view.latitude !== undefined && view.longitude !== undefined ? { latitude: view.latitude, longitude: view.longitude } : {}),
+      };
+    });
   return {
     ...summary(row, referenceDate, actor.userId),
     ...(row.userId === actor.userId ? { journey, baseRevision: row.updatedAt?.toISOString() } : {}),
     ...(isOwner && storedUnchecked ? { unchecked: { items: storedUnchecked.items, confirmedAt: row.uncheckedConfirmedAt?.toISOString() ?? null } } : {}),
+    ...(chosenLodgings.length ? { chosenLodgings } : {}),
     days: [...row.days].sort((a, b) => a.dayIndex - b.dayIndex || a.id.localeCompare(b.id)).map(day => ({
       id: day.id, dayIndex: day.dayIndex, localDate: day.localDate.toISOString().slice(0, 10),
       visits: [...day.visits].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id)).map(visit => ({
