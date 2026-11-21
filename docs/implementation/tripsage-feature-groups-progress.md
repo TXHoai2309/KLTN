@@ -90,3 +90,40 @@ Pop-Location
 - The first generator and route tests failed before the modules existed. The subsequent run reproduced the missing enabled UI link and public location fallback. The tests cover midnight and New Year rollover, UTF-8 folding, line injection, private fields, the unauthorized 404 response and a companion's limited view.
 - On Node 24.22.1, the web typecheck passed. Scoped Vitest passed 1,279 tests in 117 files, with 80 PostgreSQL opt-in tests skipped in 18 files. `git diff --check` passed.
 - The in-app browser showed the actual rendered trip view with fixture data at 1280px and 360px without horizontal overflow. At 360px Tab reached the download link. The temporary fixture was removed. Importing into an external calendar app was left for live acceptance.
+
+## P6 (2026-11-21)
+
+- Scope is `09f5f19..` on `feat/tripsage-chat-itinerary-port`. ADR-36 remains Proposed. The memory panel discloses that content to remember is sent to OpenAI to create an embedding and that the saved content can be deleted at any time. The disclosure assertion failed before the copy change.
+- The production Next.js Varlock loader previously coerced `TRUE`, `1` and strings with leading or trailing spaces to `true`. The new loader test reproduced the fault. The five feature-group declarations now use raw strings with the same `false` defaults, so each request can apply the exact `true` comparison.
+- `tripsage-feature-matrix.vitest.test.ts` exercises all 32 flag combinations against the chat HTTP seam with a fake model, verifies intended data parts and GET availability, compares the all-off and calendar-only prompt with the pre-feature hash, and checks invalid flag values, consecutive requests and missing provider credentials. The card, memory panel and calendar view tests provide the UI-off and rendering assertions.
+- The opt-in memory PostgreSQL test asserts that deleting the owner removes that owner's rows and leaves another user's row intact. The test was read and skipped. No migrations were applied.
+- Next dev webpack on an isolated copy used a Traveler fixture, a fake model, fake flight and hotel lookups, an in-memory store with fake embeddings, and a saved-trip fixture. Both widths produced all three card nodes and rendered the memory notice, single-delete confirmation, delete-all confirmation and empty state. Tab reached a memory delete control and the ICS link. The chat and saved-trip views had no horizontal overflow at 1280px or 360px. The desktop chat screenshot and both saved-trip screenshots show the tested controls. The mobile chat screenshot was obscured by the trip-info dialog, so mobile chat evidence relies on DOM, keyboard and width checks. No fixture was staged.
+- All 11 legacy scripts ran directly. The result was 350 passes and 2 known failures, one each in `test:destination` and `test:explore`.
+- The initial full run showed 4,090 passes, 53 failures, 233 skips and 1 todo out of 4,377. It reproduced the 51 failures in the eight QA/in-trip baseline files. Two cases outside the baseline timed out in `assistant-controller.vitest.test.ts` and `extraction.vitest.test.ts`. Each file passed on rerun. The two files also passed 73/73 together in a disposable detached worktree at `09f5f19`. The worktree was removed.
+
+### Full suite comparison
+
+| Run | Total | Passed | Failed | Skipped | Todo |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Recorded Google Maps baseline | 4,214 | 3,922 | 59 | 232 | 1 |
+| P6 initial | 4,377 | 4,090 | 53 | 233 | 1 |
+| P6 final | 4,417 | 4,132 | 51 | 233 | 1 |
+
+The final run used Node 24.22.1 and `npx.cmd --offline vitest run --config vitest.config.mts` with JSON and dot reporters. The 51 failures are in `qa-diagnostics` (25), `qa-advanced-reasoning` (12), `qa-answer-quality-v2` (8), `qa-chat-preference` (2), `qa-conversation-reliability` (1), `in-trip-validation` (1), `replan-http` (1), and `us35-location-source-audit` (1). The known order-dependent `companion-discovery` issue did not reproduce. Neither initial timeout recurred. The 40 matrix cases and both memory panel tests passed. The standalone web typecheck passed. [Baseline run](google-maps-provider-switch-verification.md)
+
+### Build and security
+
+- `node scripts/prepare-map-assets.mjs` and `node scripts/build.mjs --webpack` ran in a disposable ignored copy of the project. The build used fake server credentials, a dummy loopback DB URL, mocked Google Fonts responses and a loopback-only TCP guard. The copy used its own generated Varlock types and resolved the two workspace package imports against the same Prisma Client. The first attempts hit a sandbox write error and then a missing or duplicate generated-client type in the staging copy. The production retry passed and generated 58/58 static pages. The existing Varlock dependency-expression warning appeared in the auth demo.
+- `rg --text --hidden --no-ignore -l` scanned 272 files in the final client static directory. The five server identifier patterns, word-bounded to avoid matching the public Google Maps name, and all five unique fixture values each matched zero client files. Each fixture value matched a server file. The five group flag names were also absent from the client files.
+- The branch diff from `09f5f19` was checked for secret-like strings and excluded paths. Matches were test placeholders, the prompt reference hash, defensive regex patterns and authorization construction. The env templates retain the five off defaults and blank private credentials. No actual env file, generated env types, AGENTS file, owner progress file, fixture or build output belongs to the commits.
+
+## Mục sẵn sàng chép vào `docs/ai-progress.md`
+
+```markdown
+## 2026-11-21 — TripSage P6 feature-group acceptance
+
+- Completed offline acceptance for budget, Duffel flights, Amadeus hotels, Traveler memory and saved-trip iCalendar export on `feat/tripsage-chat-itinerary-port`. ADR-36 remains Proposed. P6 fixed Varlock coercion so only the exact raw string `true` enables a group, and added a Vietnamese disclosure for OpenAI embedding and memory deletion.
+- Verification on Node 24.22.1 passed web typecheck and all 40 feature-matrix cases. Full Vitest recorded 4,132 passed, 51 known QA/in-trip failures, 233 skipped and 1 todo. The companion-discovery ordering issue did not reproduce. Two initial timeout files passed on both the branch and detached baseline `09f5f19`, and neither failed in the final run. The 11 legacy scripts recorded 350 passes and the two existing destination/Explore failures.
+- The offline production webpack build generated 58/58 static pages. The 272-file client scan found none of the five server credential identifiers or five distinct test values. The branch diff scan found no actual credentials or excluded files. The Next dev browser fixture exercised cards, memory deletion and the ICS control at 1280px and 360px. The mobile chat result is backed by DOM and keyboard checks because the screenshot was obscured.
+- No migrations or live provider calls ran. Development migration deployment, disposable PostgreSQL assertions including account-deletion CASCADE, live provider and old-selector checks, memory threshold and filter evaluation, external ICS import and rollout approval remain pending. See the owner checklist in `docs/research/tripsage-port-handoff.md`.
+```

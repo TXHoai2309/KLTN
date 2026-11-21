@@ -154,6 +154,20 @@ Ticket 12 (2026-11-14, branch `feat/tripsage-chat-itinerary-port`, nothing appli
 
 Unticked criterion and why: flag-on chat in a real browser (above), and the `ExternalPlace` XOR CHECK, which only the opt-in PostgreSQL tests can prove and migrations were not applied.
 
+### P6 feature-group acceptance (2026-11-21)
+
+- [x] The 40-case `tripsage-feature-matrix.vitest.test.ts` proves the 32 combinations of the five switches, the original five tools and system prompt when disabled, exact-string matching through the Next.js Varlock loader, and changes between requests. Missing Duffel, Amadeus or OpenAI embedding credentials affect only the corresponding group.
+- [x] Budget emits a validated estimate to the budget card. The tool and card tests include VND, USD, missing cap and over-budget results. No result bypasses the Constraint Validator.
+- [x] Flights and hotels emit only their display data when a fake adapter returns offers. Adapter, stream-redaction and card tests cover available and unavailable cases, price and source labels, and credential redaction. Live Duffel and Amadeus lookups and provider terms remain pending.
+- [x] Memory tests cover disabled GET, traveler-scoped list and deletes, model tools, safe failure without the embedding key and the UI disclosure that saved content is sent to OpenAI for embedding. The PostgreSQL test contains an account-deletion CASCADE assertion. Its execution and live embedding remain pending.
+- [x] Calendar tests cover saved-trip permissions, a shared unauthorized/missing 404, UTF-8 folding and UTC conversion, no origin coordinates, safe download headers and the hidden link when disabled.
+- [x] The Next dev fixture exercised the three chat cards, the memory disclosure, single deletion, delete-all and the empty state, and the saved-trip ICS control at 1280px and 360px. The 360px chat evidence comes from the browser DOM, keyboard and width checks. The mobile chat screenshot was blocked by the trip-info dialog.
+- [x] The final full Vitest run found only the 51 recorded QA/in-trip failures. Two additional timeouts from the initial P6 run passed on the branch, on `09f5f19`, and on the final full run.
+- [x] The offline production webpack build used fake credentials and a loopback DB URL. The 272-file client scan found none of the five server credential identifiers or their five fixture values.
+- [ ] Run the authenticated chat and Save flow against approved Development providers and import a saved-trip ICS into Google Calendar, Apple Calendar and Outlook. Fixture checks are reported independently in the progress log.
+- [ ] Apply the approved Development migrations and run the disposable PostgreSQL suites for external places, unchecked saves and memory CASCADE.
+- [ ] Complete the old-selector live comparison, provider and data-handling review, and memory cutoff evaluation. [Owner handoff](../research/tripsage-port-handoff.md)
+
 ## Open Questions
 
 - Resolved (owner, 2026-11-14): Q21'a. Unchecked items do not block Save but need explicit confirmation and are stored as unchecked; FAILED still blocks. This supersedes the earlier Q13 answer and changes the Save contract (new stored "unchecked" state on the Trip): the exact field and its migration must be designed and approved before coding.

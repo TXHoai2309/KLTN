@@ -706,7 +706,7 @@ Rollback is by reverting the single retirement commit, not by a setting. The Q&A
 
 ## ADR-36 — Port the tripsage-ai chat/agent to replace the planning chat (2026-11-14)
 
-- **Status:** Original rollout decision remains Proposed. The owner approved the feature-group scope amendment below on 2026-11-20. P1–P5 are implemented behind flags. P4 database deployment is pending. Story [TRIPSAGE-CHAT-ITINERARY-PORT](stories/TRIPSAGE-CHAT-ITINERARY-PORT.md).
+- **Status:** Proposed. The owner approved the feature-group scope amendment on 2026-11-20. P1–P5 are implemented behind flags. Local P6 verification does not approve the rollout. P4 database deployment and live acceptance are pending. Story [TRIPSAGE-CHAT-ITINERARY-PORT](stories/TRIPSAGE-CHAT-ITINERARY-PORT.md).
 - **Date:** 2026-11-14
 
 ### Context
@@ -741,11 +741,17 @@ The owner approved budget estimates, flight lookup, hotel lookup, long-term memo
 
 P1 adds `TRIPSAGE_FEATURE_BUDGET`, `TRIPSAGE_FEATURE_FLIGHTS` and `TRIPSAGE_FEATURE_HOTELS`. Each is off by default and enabled only by the exact string `true`, read once per request. A disabled group contributes neither a registered tool nor system instructions. With all groups disabled the base prompt and tool set are preserved. The budget tool calculates estimates independently of the Constraint Validator. P3 adds result cards.
 
+P6 verifies exact-string matching through the Next.js configuration loader. The five group declarations use strings so Varlock preserves the raw values. The group defaults remain `false`.
+
 P2 uses Duffel for flights and Amadeus for hotels, matching the two TripSage domains. Each provider is resolved lazily for its tool and uses separate server credentials. Missing credentials or a provider failure affect only that search group. The tools return reference prices for lookup only. Booking, payment, persistence of search data and use of offers as itinerary candidates are out of scope.
 
 P4 adds a per-traveler memory behind `TRIPSAGE_FEATURE_MEMORY`, off by default. The model calls recall only when needed. The server does not inject memories automatically. A save requires an explicit request or a clear travel preference or constraint from the latest user message. The server filters sensitive data before embedding or storage. Saved items are preferences, constraints, or expressly requested notes. Travelers can list, delete one, or delete all of their own items. Recall remains untrusted data and does not change the Validator. The additive pgvector migration awaits owner deployment.
 
 P5 adds a local iCalendar download for saved trips from the trip detail page. `TRIPSAGE_FEATURE_CALENDAR` is off by default and controls the download route and link. The existing saved-trip read grants access to the owner or active companion members and supplies each reader's existing view. The calendar exports timed stops, public location information and applicable unchecked notices. The trip origin and its coordinates are excluded. The export runs without OAuth, a calendar API, database writes, or model tools and instructions.
+
+### Personal data
+
+Memory sends accepted content to OpenAI to create an embedding. Recall also sends a query that passes the sensitive-data filter to OpenAI for embedding. The Vietnamese memory panel discloses the transfer for saved content and tells Travelers they can delete it at any time. Deleting one or all items removes KLTN memory records. The additive database migration defines `ON DELETE CASCADE` from the Traveler account, and its opt-in test asserts this behavior. Provider-side data handling remains subject to the deployment review.
 
 The [feature group progress log](implementation/tripsage-feature-groups-progress.md) records implementation and verification by phase.
 
