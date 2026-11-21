@@ -91,23 +91,52 @@ function FlightsCard({ data }: { data: FlightsPart }) {
   );
 }
 
-function HotelsCard({ data }: { data: HotelsPart }) {
+function HotelRow({ hotel, nights }: { hotel: HotelsPart["hotels"][number]; nights: number }) {
+  const { name, distanceKm, room, rating, reviews, price, checkInDate, checkOutDate } = hotel;
   return (
-    <section className={styles.card} aria-label="Khách sạn tham khảo">
-      <h3>Khách sạn tham khảo</h3>
+    <li>
+      <p><strong>{name}</strong></p>
+      <p>
+        Khoảng cách: {distanceKm === null ? <span aria-label="Chưa có dữ liệu khoảng cách">—</span> : `${number.format(distanceKm)} km`}
+        {rating != null && <> · Đánh giá {number.format(rating)}/5{reviews != null ? ` (${reviews})` : ""}</>}
+        {room && <> · Phòng {room}</>}
+      </p>
+      <p>Nhận <time dateTime={checkInDate}>{dateLabel(checkInDate)}</time> · Trả <time dateTime={checkOutDate}>{dateLabel(checkOutDate)}</time></p>
+      {price ? (
+        <p className={styles.price}>
+          <strong>{money(price.total, price.currency)}</strong> / {nights} đêm
+          {price.perNight && <> ({money(price.perNight, price.currency)}/đêm)</>}
+          {" "}<span>Giá tham khảo</span>
+        </p>
+      ) : (
+        <p className={styles.unpriced}>Chưa có giá online</p>
+      )}
+    </li>
+  );
+}
+
+function HotelsCard({ data }: { data: HotelsPart }) {
+  const priced = data.hotels.filter(hotel => hotel.price !== null);
+  const unpriced = data.hotels.filter(hotel => hotel.price === null);
+  return (
+    <section className={styles.card} aria-label="Chỗ ở tham khảo">
+      <h3>Chỗ ở tham khảo</h3>
       <p className={styles.detail}>Gần {data.near} · {data.nights} đêm</p>
-      <ul className={styles.rows} aria-label="Các lựa chọn khách sạn">
-        {data.hotels.map(({ name, distanceKm, room, price, checkInDate, checkOutDate }, index) => (
-          <li key={index}>
-            <p><strong>{name}</strong></p>
-            <p>Khoảng cách: {distanceKm === null ? <span aria-label="Chưa có dữ liệu khoảng cách">—</span> : `${number.format(distanceKm)} km`}{room && <> · Phòng {room}</>}</p>
-            <p>Nhận <time dateTime={checkInDate}>{dateLabel(checkInDate)}</time> · Trả <time dateTime={checkOutDate}>{dateLabel(checkOutDate)}</time></p>
-            <p className={styles.price}><strong>{money(price.total, price.currency)}</strong> / {data.nights} đêm <span>Giá tham khảo</span></p>
-          </li>
-        ))}
-      </ul>
+      {priced.length > 0 && (
+        <ul className={styles.rows} aria-label="Các lựa chọn chỗ ở có giá">
+          {priced.map((hotel, index) => <HotelRow key={`priced-${index}`} hotel={hotel} nights={data.nights} />)}
+        </ul>
+      )}
+      {unpriced.length > 0 && (
+        <div className={styles.group}>
+          <p className={styles.groupTitle}>Chưa có giá online</p>
+          <ul className={styles.rows} aria-label="Các chỗ ở chưa có giá online">
+            {unpriced.map((hotel, index) => <HotelRow key={`unpriced-${index}`} hotel={hotel} nights={data.nights} />)}
+          </ul>
+        </div>
+      )}
       <p className={styles.detail}>Chưa kiểm tra bằng bộ kiểm tra lịch trình.</p>
-      <p className={styles.detail}>Nguồn: <span translate="no">Amadeus</span> · Ứng dụng không đặt chỗ.</p>
+      <p className={styles.detail}>Giá tham khảo từ Google (qua SerpApi), có thể thay đổi. Ứng dụng không đặt chỗ.</p>
     </section>
   );
 }

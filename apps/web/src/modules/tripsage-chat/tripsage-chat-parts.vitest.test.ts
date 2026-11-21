@@ -34,6 +34,21 @@ describe("TripSage result data-part contracts", () => {
     expect(hotelsPartSchema.safeParse({ near: "A", nights: 1, hotels: [{ ...hotel, room: "x".repeat(61) }] }).success).toBe(false);
   });
 
+  it("accepts up to 5 priced plus 3 unpriced hotels with ratings and rejects exceeding either cap", () => {
+    const priced = { ...hotel, rating: 4.5, reviews: 20, price: { total: "900000", perNight: "450000", currency: "VND" } };
+    const unpriced = { ...hotel, rating: 4.1, reviews: 5, price: null };
+    expect(hotelsPartSchema.safeParse({
+      near: "Đồng Văn",
+      nights: 2,
+      hotels: [...Array(5).fill(priced), ...Array(3).fill(unpriced)],
+    }).success).toBe(true);
+    expect(hotelsPartSchema.safeParse({
+      near: "Đồng Văn",
+      nights: 2,
+      hotels: Array(4).fill(unpriced),
+    }).success).toBe(false);
+  });
+
   it("drops invalid IDs, empty lists and incoherent comparison values", () => {
     expect(readTripsageResultPart({ type: "data-flights", id: "budget", data: { offers: [flight] } })).toBeNull();
     expect(flightsPartSchema.safeParse({ offers: [] }).success).toBe(false);

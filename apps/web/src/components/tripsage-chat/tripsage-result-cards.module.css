@@ -101,3 +101,22 @@
   padding-inline-start: 8px;
   border-inline-start: 1px solid var(--assistant-line);
 }
+
+.group {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding-block-start: 6px;
+  border-block-start: 1px dashed var(--assistant-line);
+}
+
+.groupTitle {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--assistant-muted);
+}
+
+.unpriced {
+  color: var(--assistant-muted);
+  font-style: italic;
+}

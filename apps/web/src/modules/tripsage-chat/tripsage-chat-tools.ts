@@ -22,7 +22,7 @@ import { blockingAssumedFields, type AssumableField } from "../trip-validation/t
 import { JOURNEY_MISSING_LABELS, missingJourneyFields, originSelectionSchema, type OriginSelection, type TripJourney } from "../trip-origin/trip-origin-contract";
 import type { OriginSearchOutcome } from "../trip-origin/origin-search-contract";
 import { vietnamCoverageAt } from "../trip-origin/vietnam-coverage";
-import type { HotelLookup } from "./tripsage-amadeus";
+import type { HotelLookup } from "./tripsage-serpapi-hotels";
 import type { FlightLookup } from "./tripsage-duffel";
 import type { TripsageFeature } from "./tripsage-features";
 import { createTripsageExtraTools, type TripsageResultEmitters } from "./tripsage-extra-tools";

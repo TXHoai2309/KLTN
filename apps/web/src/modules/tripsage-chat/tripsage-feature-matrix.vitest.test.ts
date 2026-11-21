@@ -23,7 +23,8 @@ import type { TripReadDependencies } from "../trip-read/trip-read-service";
 import { memoriesResponse } from "../tripsage-memory/memory-http";
 import { createMemoryService } from "../tripsage-memory/memory-service";
 import { fakeMemoryStore } from "../tripsage-memory/memory-test-fixtures";
-import { createAmadeusHotelLookup } from "./tripsage-amadeus";
+import { createSerpApiClient } from "./tripsage-serpapi";
+import { createSerpApiHotelLookup } from "./tripsage-serpapi-hotels";
 import { tripsageChatResponse, type TripsageChatHttpDependencies } from "./tripsage-chat-http";
 import { createDuffelFlightLookup } from "./tripsage-duffel";
 import { enabledTripsageFeatures } from "./tripsage-features";
@@ -80,7 +81,8 @@ const deps = {
   }),
   hotels: () => async () => ({
     status: "RESULTS", offers: [{
-      hotelId: "HG000001", name: "Khách sạn mẫu", distanceKm: null, room: null, price: { total: "50.00", currency: "USD" },
+      name: "Khách sạn mẫu", distanceKm: 0.5, room: null, rating: 4.5, reviews: 12,
+      price: { total: "500000", perNight: "500000", currency: "VND" },
       checkInDate: date, checkOutDate: "2026-11-21",
     }],
   }),
@@ -225,7 +227,7 @@ describe("TripSage five-flag acceptance matrix", () => {
 
   it.each([
     ["Duffel", "Dịch vụ tra cứu vé máy bay chưa sẵn sàng", "flights"],
-    ["Amadeus", "Dịch vụ tra cứu khách sạn chưa sẵn sàng", "hotels"],
+    ["SerpApi hotels", "Dịch vụ tra cứu khách sạn chưa sẵn sàng", "hotels"],
     ["embedding", "Bộ nhớ chưa sẵn sàng", "memory"],
   ] as const)("keeps the other four groups ready when %s credentials are missing", async (_, message, missing) => {
     const flags: FlagEnv = { TRIPSAGE_CHAT_ENABLED: "true" };
@@ -236,7 +238,7 @@ describe("TripSage five-flag acceptance matrix", () => {
       : createMemory();
     const overrides: Partial<TripsageChatHttpDependencies> = { memory: () => memory };
     if (missing === "flights") overrides.flights = () => createDuffelFlightLookup({ accessToken: () => undefined, fetcher });
-    if (missing === "hotels") overrides.hotels = () => createAmadeusHotelLookup({ clientId: () => undefined, clientSecret: () => undefined, fetcher });
+    if (missing === "hotels") overrides.hotels = () => createSerpApiHotelLookup(createSerpApiClient({ apiKeys: () => undefined, fetcher }));
     const { model, stream } = await chat(flags, Object.values(calls), overrides);
     expect(JSON.stringify(model.doStreamCalls.at(-1)?.prompt)).toContain(message);
     expect(stream).toContain('"type":"data-budget"');

@@ -7,7 +7,7 @@ const features = new Set<TripsageFeature>(["flights", "hotels"]);
 const options = { toolCallId: "call", messages: [], context: {} };
 const point = { name: "Điểm a", latitude: 22.8, longitude: 105 };
 const flightInput = { origin: "SGN", destination: "HAN", departureDate: "2028-02-29", adults: 1 };
-const hotelInput = { destinationId: "a", checkInDate: "2028-02-29", checkOutDate: "2028-03-01", adults: 1, currency: "VND" };
+const hotelInput = { destinationId: "a", checkInDate: "2028-02-29", checkOutDate: "2028-03-01", adults: 1, currency: "VND", kind: "ANY" as const };
 const lookup = () => ({
   flights: vi.fn(async () => ({ status: "NO_RESULTS" } as const)),
   hotels: vi.fn(async () => ({ status: "NO_RESULTS" } as const)),
@@ -26,7 +26,7 @@ describe("transport and hotel lookups", () => {
       expect.objectContaining({ ok: true }),
       expect.objectContaining({ ok: false, code: "HOTEL_LIMIT" }),
     ]);
-    expect(providers.hotels).toHaveBeenCalledWith(expect.objectContaining({ latitude: point.latitude, longitude: point.longitude }), undefined);
+    expect(providers.hotels).toHaveBeenCalledWith(expect.objectContaining({ nearName: point.name, latitude: point.latitude, longitude: point.longitude, kind: "ANY" }), undefined);
     const validation = await asSchema(searchHotels!.inputSchema).validate?.({ ...hotelInput, latitude: 0 });
     expect(validation).toMatchObject({ success: false });
   });

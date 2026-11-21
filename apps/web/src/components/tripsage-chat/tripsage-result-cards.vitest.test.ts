@@ -58,18 +58,66 @@ describe("TripSage result cards", () => {
     expect(html).not.toMatch(/<img|<a\s/u);
   });
 
-  it("renders an unknown distance, no room label and nights while keeping provider URLs as text", () => {
+  it("renders legacy saved HotelsPart with unknown distance, no room label and nights while keeping provider URLs as text", () => {
     const html = render([hotels]);
-    for (const label of ["1200000", "Chưa kiểm tra bằng bộ kiểm tra lịch trình", "Amadeus", "Chưa có dữ liệu khoảng cách", "—", "2 đêm", "https://example.test"]) {
-      expect(html).toContain(label === "1200000" ? "1.200.000 ₫" : label);
+    for (const label of ["1.200.000 ₫", "Chưa kiểm tra bằng bộ kiểm tra lịch trình", "Giá tham khảo từ Google (qua SerpApi), có thể thay đổi. Ứng dụng không đặt chỗ.", "Chưa có dữ liệu khoảng cách", "—", "2 đêm", "https://example.test"]) {
+      expect(html).toContain(label);
     }
     expect(html).not.toMatch(/<a\s|· Phòng|Đã kiểm|PASS/u);
+  });
+
+  it("renders SerpApi lodging card with priced and unpriced groups plus ratings", () => {
+    const serpHotels = {
+      type: "data-hotels",
+      id: "hotels-2",
+      data: {
+        near: "Phố cổ Đồng Văn",
+        nights: 2,
+        hotels: [
+          {
+            name: "Homestay Phố Cổ",
+            distanceKm: 0.4,
+            room: null,
+            rating: 4.7,
+            reviews: 88,
+            price: { total: "1200000", perNight: "600000", currency: "VND" },
+            checkInDate: "2026-11-20",
+            checkOutDate: "2026-11-22",
+          },
+          {
+            name: "Nhà nghỉ Hoa Đá",
+            distanceKm: 1.2,
+            room: null,
+            rating: 4.2,
+            reviews: 15,
+            price: null,
+            checkInDate: "2026-11-20",
+            checkOutDate: "2026-11-22",
+          },
+        ],
+      },
+    };
+    const html = render([serpHotels]);
+    for (const label of [
+      "Chỗ ở tham khảo",
+      "Gần Phố cổ Đồng Văn · 2 đêm",
+      "Homestay Phố Cổ",
+      "0,4 km",
+      "Đánh giá 4,7/5 (88)",
+      "1.200.000 ₫",
+      "600.000 ₫/đêm",
+      "Nhà nghỉ Hoa Đá",
+      "Chưa có giá online",
+      "Giá tham khảo từ Google (qua SerpApi), có thể thay đổi. Ứng dụng không đặt chỗ.",
+    ]) {
+      expect(html).toContain(label);
+    }
   });
 
   it("skips malformed and empty parts and keeps the order of valid cards", () => {
     expect(render([{ ...flights, data: { offers: [] } }, { ...hotels, data: { nights: 1 } }, { ...budget, id: "bad" }])).toBe("");
     const html = render([flights, budget, hotels]);
     expect(html.indexOf("<h3>Vé máy bay")).toBeLessThan(html.indexOf("<h3>Ước tính ngân sách"));
-    expect(html.indexOf("<h3>Ước tính ngân sách")).toBeLessThan(html.indexOf("<h3>Khách sạn"));
+    expect(html.indexOf("<h3>Ước tính ngân sách")).toBeLessThan(html.indexOf("<h3>Chỗ ở"));
   });
 });

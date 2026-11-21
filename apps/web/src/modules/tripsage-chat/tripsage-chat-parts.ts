@@ -49,17 +49,29 @@ export const flightsPartSchema = z.strictObject({
   })).min(1).max(5),
 });
 
+const hotelPrice = z.strictObject({
+  total: z.string().max(32).regex(/^\d+(?:\.\d+)?$/u),
+  perNight: z.string().max(32).regex(/^\d+(?:\.\d+)?$/u).nullable().optional(),
+  currency: z.string().length(3).regex(/^[A-Z]{3}$/u),
+});
+
 export const hotelsPartSchema = z.strictObject({
   near: z.string().min(1).max(200),
   nights: z.number().int().min(1).max(14),
   hotels: z.array(z.strictObject({
     name: shortName,
     distanceKm: z.number().min(0).max(20_050).nullable(),
-    room: z.string().min(1).max(60).nullable(),
-    price,
+    room: z.string().min(1).max(60).nullable().optional(),
+    rating: z.number().min(0).max(5).nullable().optional(),
+    reviews: z.number().int().min(0).max(10_000_000).nullable().optional(),
+    price: hotelPrice.nullable(),
     checkInDate: date,
     checkOutDate: date,
-  }).refine(hotel => hotel.checkOutDate > hotel.checkInDate)).min(1).max(5),
+  }).refine(hotel => hotel.checkOutDate > hotel.checkInDate)).min(1).max(8),
+}).refine(({ hotels }) => {
+  const priced = hotels.filter(h => h.price !== null).length;
+  const unpriced = hotels.length - priced;
+  return priced <= 5 && unpriced <= 3;
 });
 
 export type BudgetPart = z.infer<typeof budgetPartSchema>;

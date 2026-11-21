@@ -7,7 +7,7 @@ import { createConfiguredRoutesProvider } from "../trip-planner/planner-routes";
 import { createGooglePlacesSearch, type PlacesSearch } from "./tripsage-places";
 import { createFirecrawlWeb, type WebLookup } from "./tripsage-web";
 import { createDuffelFlightLookup, type FlightLookup } from "./tripsage-duffel";
-import { createAmadeusHotelLookup, type HotelLookup } from "./tripsage-amadeus";
+import { createSerpApiHotelLookup, type HotelLookup } from "./tripsage-serpapi-hotels";
 import { createSerpApiClient, parseSerpApiKeys, sharedSerpApiKeyState, type SerpApiClient } from "./tripsage-serpapi";
 import type { LocalKnowledge, OriginLookup, TripsagePlanningDeps } from "./tripsage-chat-tools";
 import { createAssistantConversationStore, type AssistantConversationStore } from "./assistant-conversation-store";
@@ -71,12 +71,6 @@ export function tripsageFlightRuntime(): FlightLookup | undefined {
 }
 
 export function tripsageHotelRuntime(): HotelLookup | undefined {
-  const clientId = ENV.AMADEUS_CLIENT_ID?.trim();
-  const clientSecret = ENV.AMADEUS_CLIENT_SECRET?.trim();
-  if (!clientId || !clientSecret) return undefined;
-  return createAmadeusHotelLookup({
-    clientId: () => clientId,
-    clientSecret: () => clientSecret,
-    environment: () => ENV.AMADEUS_ENV,
-  });
+  const client = tripsageSerpApiRuntime();
+  return client ? createSerpApiHotelLookup(client) : undefined;
 }
