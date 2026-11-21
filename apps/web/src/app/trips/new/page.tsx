@@ -22,6 +22,6 @@ export default async function NewTripPage() {
 
   if (!actor) return <AccessDenied />;
   // Flag-gated entry to the chat planner; the existing form stays unchanged.
-  return isTripsageChatEnabled() ? <><p style={{ textAlign: "center", margin: "12px 0" }}><a href="/assistant/plan">Thử lập hành trình bằng trò chuyện</a></p><TripRequirementForm userId={actor.id} /></> : <TripRequirementForm userId={actor.id} />;
+  return isTripsageChatEnabled() ? <><p style={{ textAlign: "center", margin: "12px 0" }}><a href="/assistant?mode=plan">Thử lập hành trình bằng trò chuyện</a></p><TripRequirementForm userId={actor.id} /></> : <TripRequirementForm userId={actor.id} />;
 }
 

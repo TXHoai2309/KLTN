@@ -7,7 +7,7 @@ export const originSelectionSchema = z.object({
   label: z.string().normalize().trim().min(1).max(300),
   latitude: z.number().finite().min(-90).max(90),
   longitude: z.number().finite().min(-180).max(180),
-  source: z.enum(["MANUAL", "NOMINATIM"]),
+  source: z.enum(["MANUAL", "NOMINATIM", "STADIA", "GOOGLE_PLACES"]),
   confirmed: z.boolean(),
 }).strict();
 const clock = z.number().int().min(0).max(1439).nullable().default(null);

@@ -6,10 +6,12 @@ import { AppError } from "../../server/http/app-error";
 import { readBoundedJsonBody } from "../../server/http/read-json-body";
 import { createPlanningAdmission } from "../assistant-planning/planning-admission";
 import { isTripsageChatEnabled } from "./tripsage-chat-flag";
+import { enabledTripsageFeatures } from "./tripsage-features";
 import type { PlacesSearch } from "./tripsage-places";
 import type { WebLookup } from "./tripsage-web";
-import type { TripsagePlanningDeps } from "./tripsage-chat-tools";
-import { parseTripsageChatJourney, parseTripsageChatMessages, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
+import type { TripsagePlanningDeps, TripsageToolContext } from "./tripsage-chat-tools";
+import type { MemoryService } from "../tripsage-memory/memory-service";
+import { parseTripsageChatItinerary, parseTripsageChatJourney, parseTripsageChatMessages, parseTripsageChatRequirement, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
 
 export type TripsageChatHttpDependencies = {
   authorization: AuthorizationDependencies;
@@ -20,11 +22,12 @@ export type TripsageChatHttpDependencies = {
   places?: () => PlacesSearch;
   /** Firecrawl web search/scrape; resolved lazily. Absent means the web tools report unavailable. */
   web?: () => WebLookup;
+  memory?: () => MemoryService;
   /** Test seam for the per-turn caps; production uses the defaults. */
   limits?: Partial<TripsageChatTurnLimits>;
   env?: Record<string, string | undefined>;
   admit?: ReturnType<typeof createPlanningAdmission>;
-};
+} & Pick<TripsageToolContext, "flights" | "hotels">;
 const defaultAdmit = createPlanningAdmission();
 const SAFETY_RELEASE_MS = 130_000;
 
@@ -37,21 +40,31 @@ const noStore = (response: Response) => { response.headers.set("Cache-Control", 
 /** Thin boundary: flag, auth, same-origin, bounded JSON, admission, then the service. */
 export async function tripsageChatResponse(request: Request, deps: TripsageChatHttpDependencies): Promise<Response> {
   if (!isTripsageChatEnabled(deps.env)) return noStore(apiFailure("NOT_FOUND", "Không tìm thấy trang.", 404));
+  const features = enabledTripsageFeatures(deps.env);
   try {
     const actor = await requireTraveler(request.headers, deps.authorization);
     if (request.headers.get("origin") !== new URL(request.url).origin || request.headers.get("sec-fetch-site") === "cross-site") throw new AppError("FORBIDDEN", "Yêu cầu không được phép.", 403);
     if (request.headers.get("content-type")?.split(";")[0]?.trim() !== "application/json") throw new AppError("INVALID_INPUT", "Yêu cầu phải là JSON.", 415);
     const invalid = new AppError("INVALID_INPUT", "Nội dung yêu cầu chưa hợp lệ.", 400);
     const body = await readBoundedJsonBody(request, { maxBytes: 128 * 1024, tooLargeError: invalid, emptyError: invalid, invalidJsonError: invalid });
-    const messages = parseTripsageChatMessages(body);
+    const { messages, latestUser } = parseTripsageChatMessages(body);
     const journey = parseTripsageChatJourney(body);
+    const requirement = parseTripsageChatRequirement(body);
+    const currentItinerary = parseTripsageChatItinerary(body);
     // The slot is held until the stream settles, so the concurrency cap covers streaming time.
     let release!: () => void;
     const held = new Promise<void>(resolve => { release = resolve; });
     const timer = setTimeout(release, SAFETY_RELEASE_MS); timer.unref?.();
     const response = await new Promise<Response>((resolve, reject) => {
       (deps.admit ?? defaultAdmit)(actor.userId, async () => {
-        try { resolve(streamTripsageChat({ model: await deps.model(), messages, journey, planning: deps.planning?.() ?? unavailablePlanning, places: deps.places?.(), web: deps.web?.(), limits: deps.limits, signal: request.signal, onSettled: release })); }
+        try {
+          resolve(streamTripsageChat({
+            model: await deps.model(), messages, journey, requirement, currentItinerary, features,
+            planning: deps.planning?.() ?? unavailablePlanning, places: deps.places?.(), web: deps.web?.(),
+            flights: deps.flights, hotels: deps.hotels, limits: deps.limits, signal: request.signal, onSettled: release,
+            memory: features.has("memory") ? { actor, source: latestUser, resolve: deps.memory } : undefined,
+          }));
+        }
         catch (error) { reject(error); release(); }
         await held;
       }).catch(reject).finally(() => clearTimeout(timer));

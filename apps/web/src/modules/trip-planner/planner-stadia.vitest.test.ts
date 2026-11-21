@@ -55,7 +55,7 @@ describe("US28 shared Stadia adapter", () => {
   });
   it("missing distance remains optional for US29B/US30 but cannot pass US28", async () => {
     const fetcher = async () => Response.json({ trip: { summary: { time: 60 } } });
-    expect(await getTravelRoute(input, { apiKey: () => "fixture", fetcher })).toEqual({ kind: "ok", durationSeconds: 60 });
+    expect(await getTravelRoute(input, { apiKey: () => "fixture", fetcher })).toEqual({ kind: "ok", durationSeconds: 60, provider: "STADIA_MAPS" });
     expect((await adapter(fetcher).route(pair, signal())).reason).toBe("INVALID_RESPONSE");
   });
   it.each([{}, { trip: null }, { trip: { status: 1 } }])("no route %j is explicit", async body => {

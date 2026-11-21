@@ -2,12 +2,12 @@
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { useTheme } from "next-themes";
-import type * as MapLibre from "maplibre-gl";
 import { AlertCircle, CheckCircle2, Clock, LoaderCircle, MapPin, RefreshCw } from "lucide-react";
 import { Button } from "@KLTN/ui/components/button";
 import { Input } from "@KLTN/ui/components/input";
-import { loadMapLibre, mapStyle } from "@/modules/map/map-config";
-import { mountDestinationPinPicker } from "@/modules/map/maplibre-renderer";
+import { mapStyle } from "@/modules/map/map-config";
+import { loadMapLibrary, mountDestinationPinPicker } from "@/modules/map/map-renderer";
+import { mapsProviderFromEnv } from "@/modules/map/maps-provider";
 import type { MapCoordinate } from "@/modules/map/map-model";
 import {
   startManualLocationMapSession,
@@ -87,33 +87,33 @@ export default function OriginLocationPicker({
       setLabel(origin.label);
       setLatText(String(origin.latitude));
       setLngText(String(origin.longitude));
-      sessionRef.current?.setCoordinates({
+      sessionRef.current?.setCoordinates(mapsProviderFromEnv() === "STADIA" && origin.source === "GOOGLE_PLACES" ? null : {
         latitude: origin.latitude,
         longitude: origin.longitude,
       });
     }
-  }, [origin?.label, origin?.latitude, origin?.longitude]);
+  }, [origin?.label, origin?.latitude, origin?.longitude, origin?.source]);
 
-  // Mount MapLibre session
+  // Mount the selected provider session.
   useEffect(() => {
     if (!mapContainerRef.current) return;
     const host = mapContainerRef.current;
     let active = true;
 
     const initialCoords: MapCoordinate | null =
-      origin && Number.isFinite(origin.latitude) && Number.isFinite(origin.longitude)
+      origin && !(mapsProviderFromEnv() === "STADIA" && origin.source === "GOOGLE_PLACES") && Number.isFinite(origin.latitude) && Number.isFinite(origin.longitude)
         ? { latitude: origin.latitude, longitude: origin.longitude }
         : null;
 
     const stop = startManualLocationMapSession({
-      load: loadMapLibre,
+      load: loadMapLibrary,
       onState: (state) => {
         if (active) setMapState(state);
       },
       mount: (library, ready, fail) => {
         const mounted = mountDestinationPinPicker(
           host,
-          library as typeof MapLibre,
+          library,
           initialCoords,
           styleRef.current,
           (coords) => {
@@ -185,7 +185,8 @@ export default function OriginLocationPicker({
     setValidationError(null);
 
     if (origin) {
-      onChange(value.trim() ? { ...origin, label: value.normalize("NFC"), confirmed: false } : null);
+      // Keep the pinned coordinates while the name is being retyped; an empty name falls back at confirm time.
+      onChange({ ...origin, label: value.trim() ? value.normalize("NFC") : origin.label, confirmed: false });
     }
   }
 
@@ -209,18 +210,14 @@ export default function OriginLocationPicker({
   }
 
   async function handleConfirmOrigin() {
-    const cleanLabel = label.trim();
-    if (!cleanLabel) {
-      setValidationError("Vui lòng nhập tên điểm xuất phát.");
-      return;
-    }
-
     const lat = Number.parseFloat(latText);
     const lng = Number.parseFloat(lngText);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       setValidationError("Vui lòng chọn ghim trên bản đồ hoặc nhập đủ tọa độ hợp lệ.");
       return;
     }
+    const cleanLabel = label.trim() || "Điểm ghim thủ công";
+    if (!label.trim()) setLabel(cleanLabel);
 
     setValidating(true);
     setValidationError(null);
@@ -290,6 +287,8 @@ export default function OriginLocationPicker({
           <Button className="trip-origin-search-btn" type="button" disabled={disabled || validating || searching || label.trim().length < 2} onClick={() => void search(label)}>{searching ? "Đang tìm…" : "Tìm địa điểm"}</Button>
         </div>
         {searchResult && searchResult.status !== "RESULTS" && <p className="trip-origin-search-status-box" role="status">{searchResult.status === "NO_RESULTS" ? "Không tìm thấy địa điểm. Bạn có thể chọn ghim thủ công." : searchResult.message}</p>}
+        {searchResult && (searchResult.status === "RESULTS" || searchResult.status === "NO_RESULTS") && <p className="trip-origin-privacy-hint">Nguồn: <a href={searchResult.attribution.url} target="_blank" rel="noreferrer" translate="no" style={{ whiteSpace: "nowrap", fontWeight: 400 }}>{searchResult.attribution.text}</a></p>}
+        {origin?.source === "GOOGLE_PLACES" && <p className="trip-origin-privacy-hint"><span translate="no">Google Maps</span>{mapsProviderFromEnv() === "STADIA" ? " · Ghim từ Google không hiển thị trên bản đồ Stadia. Thông tin đã lưu vẫn được giữ nguyên." : " · Nguồn nơi xuất phát đã chọn."}</p>}
         <p className="trip-origin-privacy-hint">Chỉ tìm tên địa điểm công khai; không nhập thông tin cá nhân hoặc ghi chú riêng tư.</p>
       </div>
 
@@ -407,7 +406,7 @@ export default function OriginLocationPicker({
         <button
           type="button"
           className="trip-origin-confirm-btn"
-          disabled={disabled || validating || !latText || !lngText || !label.trim()}
+          disabled={disabled || validating || !latText || !lngText}
           onClick={handleConfirmOrigin}
         >
           {validating ? (

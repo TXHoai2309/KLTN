@@ -611,18 +611,11 @@ function tripDetailToPlannerDays(trip: TripDetail): PlannerDay[] {
         inbound = {
           fromDestinationId: prev.destinationId,
           toDestinationId: visit.destination.id,
-          status: "VERIFIED",
-          reason: null,
-          durationSeconds: 1800,
-          distanceMeters: 15000,
-          provider: "STADIA_MAPS",
-          geometry: {
-            type: "LineString",
-            coordinates: [
-              [prev.coords.longitude, prev.coords.latitude],
-              [coords.longitude, coords.latitude],
-            ],
-          },
+          status: "INSUFFICIENT_DATA",
+          reason: "UNAVAILABLE",
+          durationSeconds: null,
+          distanceMeters: null,
+          provider: null,
         };
       }
 
@@ -658,7 +651,7 @@ function tripDetailToPlannerDays(trip: TripDetail): PlannerDay[] {
   });
 }
 
-export function TripDetailView({ trip }: { trip: TripDetail }) {
+export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDetail; calendarEnabled?: boolean }) {
   const router = useRouter();
   const statusLabel = groups.find((group) => group.status === trip.status)!.label;
   const [activeDayIndex, setActiveDayIndex] = useState<number | null>(null);
@@ -814,6 +807,21 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
               )}
             </div>
           </div>
+
+          {calendarEnabled && (
+            <div className="my-trips-calendar-export">
+              <a
+                className="my-trips-action"
+                href={"/api/trips/" + encodeURIComponent(trip.id) + "/calendar"}
+                download
+                aria-describedby="trip-calendar-help"
+              >
+                <Calendar size={16} aria-hidden="true" />
+                <span>Thêm vào lịch (.ics)</span>
+              </a>
+              <p id="trip-calendar-help">Tải file .ics, mở bằng Google Calendar, Apple Calendar hoặc Outlook.</p>
+            </div>
+          )}
 
           {/* 4 Summary Stat Cards */}
           <div className="my-trips-hero-stats-grid" aria-label="Thông số hành trình">

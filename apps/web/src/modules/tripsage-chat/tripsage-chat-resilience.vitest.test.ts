@@ -70,6 +70,29 @@ describe("provider failures become a friendly Vietnamese unavailable state", () 
     });
   }
 
+  it("the server log names the upstream status and error kind so an operator can tell causes apart, without key or body", async () => {
+    const spies = logs();
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ error: { message: `Incorrect API key ${KEY} ${PROVIDER_TEXT}` } }), { status: 401 }));
+    const model = await resolveTripsageChatModel({ apiKey: () => KEY, model: "gpt-test", fetcher: fetcher as unknown as typeof fetch });
+    await (await tripsageChatResponse(req(), base({ model: async () => model }))).text();
+    const text = logged(spies);
+    expect(text).toContain("provider stream failed");
+    expect(text).toContain("status=401");
+    expectClean(text);
+  });
+
+  it("a 400 logs only the short parameter and error code OpenAI names, never its message", async () => {
+    const spies = logs();
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ error: { message: `Bad request ${KEY} ${PROVIDER_TEXT}`, type: "invalid_request_error", param: "max_tokens", code: "unsupported_parameter" } }), { status: 400 }));
+    const model = await resolveTripsageChatModel({ apiKey: () => KEY, model: "gpt-test", fetcher: fetcher as unknown as typeof fetch });
+    await (await tripsageChatResponse(req(), base({ model: async () => model }))).text();
+    const text = logged(spies);
+    expect(text).toContain("status=400");
+    expect(text).toContain("param=max_tokens");
+    expect(text).toContain("apiCode=unsupported_parameter");
+    expectClean(text);
+  });
+
   it("OpenAI 429 tells the user the AI service is rate limited, in Vietnamese", async () => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({ error: { message: PROVIDER_TEXT, code: "insufficient_quota" } }), { status: 429 }));
     const model = await resolveTripsageChatModel({ apiKey: () => KEY, model: "gpt-test", fetcher: fetcher as unknown as typeof fetch });

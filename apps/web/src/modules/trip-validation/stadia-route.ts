@@ -6,7 +6,7 @@ import { requestGoogleRoute, routingProviderFromEnv } from "./google-route";
 import { checkTravelTime, type VisitPair } from "./travel-time";
 
 export type TravelRoute =
-  | { kind: "ok"; durationSeconds: number; distanceMeters?: number; geometry?: RouteGeometry }
+  | { kind: "ok"; durationSeconds: number; distanceMeters?: number; geometry?: RouteGeometry; provider?: "GOOGLE_MAPS" | "STADIA_MAPS" }
   | { kind: "unavailable" };
 
 type RouteInput = {
@@ -134,10 +134,11 @@ export async function requestStadiaRoute(input: RouteInput, options: RouteOption
 export async function getTravelRoute(input: RouteInput, options: RouteOptions = {}): Promise<TravelRoute> {
   toStadiaCosting(input.vehicle); // Existing callers reject unsupported transport.
   // Provider flag is server-side; Stadia stays the default. Google reads its own key (options.apiKey is a Stadia key).
-  const result = routingProviderFromEnv() === "GOOGLE"
+  const provider = routingProviderFromEnv();
+  const result = provider === "GOOGLE"
     ? await requestGoogleRoute(input, { fetcher: options.fetcher, timeoutMs: options.timeoutMs, signal: options.signal })
     : await requestStadiaRoute(input, options);
-  return result.kind === "ok" ? result : unavailable();
+  return result.kind === "ok" ? { ...result, provider: provider === "GOOGLE" ? "GOOGLE_MAPS" : "STADIA_MAPS" } : unavailable();
 }
 
 /** One leg only; the returned route is the snapshot used by this check. */

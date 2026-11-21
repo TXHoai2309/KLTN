@@ -1,19 +1,18 @@
 "use client";
 import React, { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
-import type * as MapLibre from "maplibre-gl";
 import type { PublicLocation } from "@/modules/destination/public-destination-list";
 import type { ExploreReturnHref } from "@/modules/destination/destination-detail-navigation";
 import { projectMarkers, type RouteGeometry } from "@/modules/map/map-model";
-import { loadMapLibre, mapStyle, readMapBackground, saveMapBackground, type MapBackground } from "@/modules/map/map-config";
+import { mapStyle, readMapBackground, saveMapBackground, type MapBackground } from "@/modules/map/map-config";
+import { loadMapLibrary, mountDestinationMap, type MapStyleController } from "@/modules/map/map-renderer";
 import { startMapSession } from "@/modules/map/map-session";
-import { mountMapLibre } from "@/modules/map/maplibre-renderer";
 
 export default function DestinationMap({ destinations, label = "Bản đồ điểm đến Hà Giang", returnTo, routeGeometry, disableDefaultPopup = false }: {
   destinations: readonly PublicLocation[]; label?: string; returnTo?: ExploreReturnHref; routeGeometry?: RouteGeometry; disableDefaultPopup?: boolean;
 }) {
   const container = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<MapLibre.Map | null>(null);
+  const mapRef = useRef<MapStyleController | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
   const points = projectMarkers(destinations);
@@ -26,8 +25,8 @@ export default function DestinationMap({ destinations, label = "Bản đồ đi�
   useEffect(() => {
     if (!container.current || points.length === 0) return;
     const host = container.current;
-    return startMapSession({ load: loadMapLibre, onState: setState,
-      mount: (library, ready, fail) => mountMapLibre(host, library, points, styleRef.current, returnTo, ready, fail,
+    return startMapSession({ load: loadMapLibrary, onState: setState,
+      mount: (library, ready, fail) => mountDestinationMap(host, library, points, styleRef.current, returnTo, ready, fail,
         { routeGeometry, onMap: map => { mapRef.current = map; }, disablePopup: disableDefaultPopup }),
     });
     // points derive only from the same immutable result set used by List View.

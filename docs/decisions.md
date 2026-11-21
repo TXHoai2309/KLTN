@@ -744,7 +744,7 @@ The Assistant answers Weather questions for Guests and travelers, and a turn tha
 
 ## ADR-36 — Port the tripsage-ai chat/agent to replace the planning chat (2026-11-14)
 
-- **Status:** Proposed. Drafted from the owner's recorded answers; not approved, not implemented, no authorization to start coding. Story: [TRIPSAGE-CHAT-ITINERARY-PORT](stories/TRIPSAGE-CHAT-ITINERARY-PORT.md).
+- **Status:** Proposed. The owner approved the feature-group scope amendment on 2026-11-20. P1–P5 are implemented behind flags. Local P6 verification does not approve the rollout. P4 database deployment and live acceptance are pending. Story [TRIPSAGE-CHAT-ITINERARY-PORT](stories/TRIPSAGE-CHAT-ITINERARY-PORT.md).
 - **Date:** 2026-11-14
 
 ### Context
@@ -753,7 +753,7 @@ The owner wants the tripsage-ai chat block (UI, streaming route, tool-loop agent
 
 ### Decision
 
-Copy-then-adapt the tripsage chat block under its MIT license (notice kept in `NOTICE`), behind a feature flag, for signed-in Travelers. Agent output goes through `PlanningSelection`, `scheduleSelection`, the Validator and the existing Save contract. Amadeus is dropped.
+Copy-then-adapt the tripsage chat block under its MIT license (notice kept in `NOTICE`), behind a feature flag, for signed-in Travelers. Agent output goes through `PlanningSelection`, `scheduleSelection`, the Validator and the existing Save contract. The original Q24c decision excluded Amadeus. The 2026-11-20 amendment allows hotel lookups through Amadeus and adds flight lookups through Duffel.
 
 ### Invariants changed (each needs owner approval)
 
@@ -772,6 +772,26 @@ Copy-then-adapt the tripsage chat block under its MIT license (notice kept in `N
 - Hai migration (`20261114120000_external_place`, `20261114130000_trip_unchecked_checks`) đã tạo, CHƯA áp lên DB nào; test PostgreSQL opt-in chưa chạy.
 - Kiểm: tsc sạch, build production chạy được, Vitest đúng 51 test đỏ baseline (cộng 8 test lỗi do thứ tự mock, không do nhánh), quét bundle sạch. Chưa chạy: trình duyệt, OpenAI/Google/Firecrawl thật, so sánh selector cũ.
 - Chi tiết và việc chủ dự án phải làm: [tripsage-port-handoff.md](research/tripsage-port-handoff.md).
+
+### Owner-approved feature groups (2026-11-20)
+
+The owner approved budget estimates, flight lookup, hotel lookup, long-term memory and ICS calendar export in planning chat. Each group has an independent server-side flag. Flights and hotels are for lookup and reference prices only, with no booking or payment.
+
+P1 adds `TRIPSAGE_FEATURE_BUDGET`, `TRIPSAGE_FEATURE_FLIGHTS` and `TRIPSAGE_FEATURE_HOTELS`. Each is off by default and enabled only by the exact string `true`, read once per request. A disabled group contributes neither a registered tool nor system instructions. With all groups disabled the base prompt and tool set are preserved. The budget tool calculates estimates independently of the Constraint Validator. P3 adds result cards.
+
+P6 verifies exact-string matching through the Next.js configuration loader. The five group declarations use strings so Varlock preserves the raw values. The group defaults remain `false`.
+
+P2 uses Duffel for flights and Amadeus for hotels, matching the two TripSage domains. Each provider is resolved lazily for its tool and uses separate server credentials. Missing credentials or a provider failure affect only that search group. The tools return reference prices for lookup only. Booking, payment, persistence of search data and use of offers as itinerary candidates are out of scope.
+
+P4 adds a per-traveler memory behind `TRIPSAGE_FEATURE_MEMORY`, off by default. The model calls recall only when needed. The server does not inject memories automatically. A save requires an explicit request or a clear travel preference or constraint from the latest user message. The server filters sensitive data before embedding or storage. Saved items are preferences, constraints, or expressly requested notes. Travelers can list, delete one, or delete all of their own items. Recall remains untrusted data and does not change the Validator. The additive pgvector migration awaits owner deployment.
+
+P5 adds a local iCalendar download for saved trips from the trip detail page. `TRIPSAGE_FEATURE_CALENDAR` is off by default and controls the download route and link. The existing saved-trip read grants access to the owner or active companion members and supplies each reader's existing view. The calendar exports timed stops, public location information and applicable unchecked notices. The trip origin and its coordinates are excluded. The export runs without OAuth, a calendar API, database writes, or model tools and instructions.
+
+### Personal data
+
+Memory sends accepted content to OpenAI to create an embedding. Recall also sends a query that passes the sensitive-data filter to OpenAI for embedding. The Vietnamese memory panel discloses the transfer for saved content and tells Travelers they can delete it at any time. Deleting one or all items removes KLTN memory records. The additive database migration defines `ON DELETE CASCADE` from the Traveler account, and its opt-in test asserts this behavior. Provider-side data handling remains subject to the deployment review.
+
+The [feature group progress log](implementation/tripsage-feature-groups-progress.md) records implementation and verification by phase.
 
 ### Invariants kept
 
@@ -930,3 +950,12 @@ Production replies on `/trips/[id]/edit` repeated the deterministic `buildGround
    - `POST /api/ai/planning` supports content-negotiated SSE (`Accept: text/event-stream`), emitting progress `step` events and progressive `delta` text chunks while keeping JSON responses unchanged for existing callers and tests.
 3. **Saved-trip edit chat memory (`/trips/[id]/edit`):** Relaxes the "no DB table for edit chat" out-of-scope note in ADR-37/38/40 by adding `TripEditChatMessage` (`trip_edit_chat_message`, migration `20261121121000_trip_edit_chat_memory`) with `onDelete: Cascade` to `Trip`, owner-scoped `GET`/`POST`/`DELETE /api/trips/[id]/edits/ai/messages`, and server-side initial load. Unvalidated itinerary drafts are still never persisted to the database.
 4. **Trip creation draft (`/trips/new`):** Relaxes the `US-24` / `BUG-03` no-draft rule to allow user-scoped temporary `sessionStorage` persistence (12h TTL) of form inputs/journey/confirmed planner step plus `?step=details|planner` URL sync. Drafts are cleared on successful trip save or explicit reset; invalid itineraries are still never persisted to the database.
+
+## ADR-37 — Shared Google Maps/Stadia provider switch (2026-11-18)
+
+- **Status:** Accepted by owner Q1–Q7, summary confirmation and subsequent implement request. Code/automated verification and live acceptance are separate; see [story](stories/MAPS-PROVIDER-SWITCH.md).
+- **Decision:** Replace Stadia-dependent interactive rendering, routing and origin search with Google when `NEXT_PUBLIC_MAPS_PROVIDER=GOOGLE`; otherwise use the retained Stadia adapters. One build-time public selector replaces the routing-only selector. Rebuild/deploy to switch; no automatic provider/vehicle fallback, no Admin hot-switch. Google uses Maps JavaScript/Advanced Markers, Routes DRIVE/TWO_WHEELER and Vietnam-wide Places origin search.
+- **Boundaries:** Preserve all product rules, server auth/ownership/privacy, deterministic Validator and SUCCESS/FAILED/UNKNOWN. Existing Google external-place functions and Home/Detail iframe remain independent. Browser Google key/Map ID are publishable restricted configuration, explicitly superseding the earlier no-browser-key posture for these maps; Routes/Places secrets stay server-side. Stadia Admin runtime overrides/domain auth remain in place; Google credentials are environment-managed in this scope.
+- **History/rollback:** Persist actual source for new evidence, keep old source values readable and never infer old provenance from the current flag. Origin source is JSON, so no Prisma migration is required. Read saved routing snapshots instead of routing on Trip page reads; never fabricate VERIFIED straight-line evidence. Google geometry/Places pins are not displayed on Stadia after rollback; the saved itinerary remains readable, and restricted layers are unavailable. No mass rewrite/backfill or schema rollback.
+- **Precedence:** This provider choice supersedes incompatible Stadia-only/VietMap-only directions in ADR-17/18/19 within the approved scope. Preserve those records as history. ADR-22 iframe behavior and the existing runtime credential security boundary remain; this decision adds no Google credential editor to Admin.
+- **Limits:** No real Google credentials/Map ID are configured locally, so live rendering/routing/search, billing/quota and domain authorization remain unaccepted. Google retention/agreement and application Terms/Privacy are deployment gates; saving the existing journey snapshot does not certify permission for indefinite Google-content storage. Details and official documentation are in the [runbook](implementation/google-maps-provider-switch-runbook.md).

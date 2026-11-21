@@ -2,7 +2,7 @@
 
 ## Status
 
-DRAFT in approval terms (owner has not approved ADR-36). Tickets 01-12 are implemented on `feat/tripsage-chat-itinerary-port` behind a flag; the two migrations are created but not applied. See Acceptance Evidence and the [handoff](../research/tripsage-port-handoff.md). See ADR-36 (Proposed) in [decisions.md](../decisions.md).
+The original rollout remains Proposed in ADR-36. Tickets 01-12 are implemented on `feat/tripsage-chat-itinerary-port` behind a flag. The two original migrations have been created and await deployment approval. On 2026-11-20 the owner approved the feature-group scope. P1–P5 are implemented behind flags. See [ADR-36](../decisions.md#adr-36--port-the-tripsage-ai-chatagent-to-replace-the-planning-chat-2026-11-14), the [Ticket 12 handoff](../research/tripsage-port-handoff.md) and the [feature group progress log](../implementation/tripsage-feature-groups-progress.md).
 
 ## Epic
 
@@ -35,7 +35,9 @@ The tripsage-ai chat block (chat UI, streaming route, tool-loop agent) is ported
 ## In Scope
 
 - New streaming chat route and UI for signed-in Travelers, behind a feature flag; old `/trips/new` form and Assistant V2 remain.
-- Tool-loop agent with an explicit allow-list: KLTN destination read, `proposeItinerary` (output `PlanningSelection`), routing, Google Places/Maps, web search, Firecrawl. Amadeus is **dropped** (Q24c).
+- Tool-loop agent with an explicit base allow-list for KLTN destination reads, `proposeItinerary` (output `PlanningSelection`), Google Places and web search/page retrieval. Routing remains part of itinerary validation.
+- Owner-approved extension (2026-11-20) adds budget estimates, flight lookup, hotel lookup, long-term memory and ICS calendar export, each behind its own flag. P1 wires the initial flags and completes budget arithmetic, date validation and tool quotas. P2 uses Duffel for flights and Amadeus for hotels, superseding Q24c for Amadeus hotel lookup. Both tools only look up offers. Booking, payment and persistence of search results are out of scope. P3 adds result cards. P4 adds per-traveler memory.
+- P5 adds an ICS download to saved trip detail pages behind `TRIPSAGE_FEATURE_CALENDAR`. The route uses the existing saved-trip read and companion permissions. It omits the trip origin and its coordinates, counts stops skipped for missing times and leaves the chat tool list and prompt unchanged. OAuth and external calendar APIs are out of scope.
 - Google as routing/place provider through a routing adapter; Stadia stays the default until the Google adapter is enabled by config (Q12a, Q12b).
 - Prisma migration for places outside the KLTN destination table (Q18b), applied to Development first.
 - Vietnamese prompts, UI strings and output; destination names follow the database (Q10).
@@ -44,7 +46,7 @@ The tripsage-ai chat block (chat UI, streaming route, tool-loop agent) is ported
 
 ## Out of Scope
 
-- Amadeus flights/hotels; Stripe, long-term memory (pgvector), `trip_collaborators`, tripsage Supabase/Redis/BYOK (Q9).
+- Booking and payment, including Stripe. `trip_collaborators` and tripsage Supabase/Redis/BYOK (Q9).
 - Removing the old planning flow; Production migration; changing `/api/ai/planning` in place (it also serves in-trip, Q&A and reconcile).
 - Editing the no-journey branch of `planning-engine.ts` (Q14a). Save remains blocked on any FAILED check.
 
@@ -52,6 +54,8 @@ The tripsage-ai chat block (chat UI, streaming route, tool-loop agent) is ported
 
 - AI proposes; the deterministic Constraint Validator decides. Missing validation data is never a pass.
 - Web/Firecrawl content is untrusted data for the agent, never instructions (Q23). Agent output must pass the `PlanningSelection` schema and the Validator before display or save.
+- Budget estimates and flight/hotel reference prices have no bearing on Validator outcomes or Save eligibility. Provider and memory content is untrusted data. Flight and hotel quota counts tool lookups, with at most two per group per turn. An Amadeus lookup uses at most two business GETs and one OAuth token POST.
+- P4 retrieves memory only on demand. The server checks intent and filters sensitive data before storage or embedding. The traveler can view and delete their own preferences, constraints and explicitly requested notes. The server derives ownership from Better Auth on every request. Each traveler can retain up to 100 items.
 - Saving (Q21'a, owner decision, supersedes Q13): a schedule with any FAILED check cannot be saved. A schedule whose checks are PASS or "unchecked" (data missing, for example opening hours of an external place) may be saved only after explicit user confirmation, and the saved Trip is labeled with which checks were unchecked. "Unchecked" is never reported or stored as PASS.
 - Per turn: at most 8 steps and 60 s total, with caps on Places, Routes, search and Firecrawl calls (Q8, Q20).
 - Only an owner-approved decision changes a locked invariant; each invariant changed here is listed in ADR-36.
@@ -119,6 +123,12 @@ One Prisma migration for `ExternalPlace` and the `ItineraryVisit` reference (not
 
 New server-only variables for Google, web search and Firecrawl keys, blank in the tracked example. No real values committed. New dependencies `ai`, `@ai-sdk/react`, `@ai-sdk/openai` (version compatibility with the tripsage-pinned `ai@7.0.28` to be verified).
 
+P1 adds three independent server-only switches, `TRIPSAGE_FEATURE_BUDGET`, `TRIPSAGE_FEATURE_FLIGHTS` and `TRIPSAGE_FEATURE_HOTELS`. Each defaults to false and is enabled only by the exact value `true` on the current request. An off group contributes no tool or prompt text. With all groups off, the existing prompt and five tools are preserved.
+
+P2 reads optional server-only `DUFFEL_ACCESS_TOKEN` for flights and `AMADEUS_CLIENT_ID` / `AMADEUS_CLIENT_SECRET` for hotels. `AMADEUS_ENV` selects the fixed Amadeus host and defaults to `test`. Missing provider credentials only affect that provider's tool.
+
+P4 reads `TRIPSAGE_FEATURE_MEMORY` server-side. It is off by default and requires the exact value `true`. It reuses the existing RAG embedding provider. Migration `20261121120000_traveler_memory` has been written and awaits owner deployment.
+
 ## Implementation Sequence
 
 1. Owner approves this story and ADR-36.
@@ -144,6 +154,20 @@ Ticket 12 (2026-11-14, branch `feat/tripsage-chat-itinerary-port`, nothing appli
 
 Unticked criterion and why: flag-on chat in a real browser (above), and the `ExternalPlace` XOR CHECK, which only the opt-in PostgreSQL tests can prove and migrations were not applied.
 
+### P6 feature-group acceptance (2026-11-21)
+
+- [x] The 40-case `tripsage-feature-matrix.vitest.test.ts` proves the 32 combinations of the five switches, the original five tools and system prompt when disabled, exact-string matching through the Next.js Varlock loader, and changes between requests. Missing Duffel, Amadeus or OpenAI embedding credentials affect only the corresponding group.
+- [x] Budget emits a validated estimate to the budget card. The tool and card tests include VND, USD, missing cap and over-budget results. No result bypasses the Constraint Validator.
+- [x] Flights and hotels emit only their display data when a fake adapter returns offers. Adapter, stream-redaction and card tests cover available and unavailable cases, price and source labels, and credential redaction. Live Duffel and Amadeus lookups and provider terms remain pending.
+- [x] Memory tests cover disabled GET, traveler-scoped list and deletes, model tools, safe failure without the embedding key and the UI disclosure that saved content is sent to OpenAI for embedding. The PostgreSQL test contains an account-deletion CASCADE assertion. Its execution and live embedding remain pending.
+- [x] Calendar tests cover saved-trip permissions, a shared unauthorized/missing 404, UTF-8 folding and UTC conversion, no origin coordinates, safe download headers and the hidden link when disabled.
+- [x] The Next dev fixture exercised the three chat cards, the memory disclosure, single deletion, delete-all and the empty state, and the saved-trip ICS control at 1280px and 360px. The 360px chat evidence comes from the browser DOM, keyboard and width checks. The mobile chat screenshot was blocked by the trip-info dialog.
+- [x] The final full Vitest run found only the 51 recorded QA/in-trip failures. Two additional timeouts from the initial P6 run passed on the branch, on `09f5f19`, and on the final full run.
+- [x] The offline production webpack build used fake credentials and a loopback DB URL. The 272-file client scan found none of the five server credential identifiers or their five fixture values.
+- [ ] Run the authenticated chat and Save flow against approved Development providers and import a saved-trip ICS into Google Calendar, Apple Calendar and Outlook. Fixture checks are reported independently in the progress log.
+- [ ] Apply the approved Development migrations and run the disposable PostgreSQL suites for external places, unchecked saves and memory CASCADE.
+- [ ] Complete the old-selector live comparison, provider and data-handling review, and memory cutoff evaluation. [Owner handoff](../research/tripsage-port-handoff.md)
+
 ## Open Questions
 
 - Resolved (owner, 2026-11-14): Q21'a. Unchecked items do not block Save but need explicit confirmation and are stored as unchecked; FAILED still blocks. This supersedes the earlier Q13 answer and changes the Save contract (new stored "unchecked" state on the Trip): the exact field and its migration must be designed and approved before coding.
@@ -153,4 +177,4 @@ Unticked criterion and why: flag-on chat in a real browser (above), and the `Ext
 
 ## Handoff Notes
 
-Decisions are in [the research note](../research/tripsage-itinerary-port.md). Do not start coding until the owner approves.
+Original decisions are in [the research note](../research/tripsage-itinerary-port.md). See the [progress log](../implementation/tripsage-feature-groups-progress.md) for the updated provider split, verification and remaining phases.

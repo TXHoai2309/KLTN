@@ -15,8 +15,8 @@ const adapter = (fetcher: typeof fetch, timeoutMs?: number) => createGoogleRoute
 describe("Google routing adapter", () => {
   it("defaults to Stadia; only exact GOOGLE selects Google", () => {
     expect(routingProviderFromEnv({})).toBe("STADIA");
-    expect(routingProviderFromEnv({ PLANNER_ROUTING_PROVIDER: "google" })).toBe("STADIA");
-    expect(routingProviderFromEnv({ PLANNER_ROUTING_PROVIDER: "GOOGLE" })).toBe("GOOGLE");
+    expect(routingProviderFromEnv({ NEXT_PUBLIC_MAPS_PROVIDER: "google" })).toBe("STADIA");
+    expect(routingProviderFromEnv({ NEXT_PUBLIC_MAPS_PROVIDER: "GOOGLE" })).toBe("GOOGLE");
   });
   it("configured provider uses the Stadia endpoint by default and Google when flagged", async () => {
     const stadia = vi.fn<typeof fetch>(async () => Response.json({ trip: { status: 0, summary: { time: 60, length: 1 } } }));
@@ -24,7 +24,7 @@ describe("Google routing adapter", () => {
     expect(leg.provider).toBe("STADIA_MAPS");
     expect(stadia.mock.calls[0]![0]).toBe("https://api.stadiamaps.com/route/v1");
     const google = vi.fn<typeof fetch>(async () => ok());
-    const g = await createConfiguredRoutesProvider({ fetcher: google, env: { PLANNER_ROUTING_PROVIDER: "GOOGLE", GOOGLE_MAPS_API_KEY: KEY } }).route(pair, signal());
+    const g = await createConfiguredRoutesProvider({ fetcher: google, env: { NEXT_PUBLIC_MAPS_PROVIDER: "GOOGLE", GOOGLE_MAPS_API_KEY: KEY } }).route(pair, signal());
     expect(g.provider).toBe("GOOGLE_MAPS");
     expect(google.mock.calls[0]![0]).toBe("https://routes.googleapis.com/directions/v2:computeRoutes");
   });
@@ -97,7 +97,7 @@ describe("Google routing adapter", () => {
     const f = vi.fn<typeof fetch>(async () => Response.json({ trip: { status: 0, summary: { time: 60, length: 1 } } }));
     expect((await getTravelRoute(input, { apiKey: () => "s", fetcher: f })).kind).toBe("ok");
     expect(f.mock.calls[0]![0]).toBe("https://api.stadiamaps.com/route/v1");
-    vi.stubEnv("PLANNER_ROUTING_PROVIDER", "GOOGLE"); vi.stubEnv("GOOGLE_MAPS_API_KEY", KEY);
+    vi.stubEnv("NEXT_PUBLIC_MAPS_PROVIDER", "GOOGLE"); vi.stubEnv("GOOGLE_MAPS_API_KEY", KEY);
     const g = vi.fn<typeof fetch>(async () => ok());
     expect(await getTravelRoute(input, { fetcher: g })).toMatchObject({ kind: "ok", durationSeconds: 1800 });
     expect(String(g.mock.calls[0]![0])).toContain("routes.googleapis.com");

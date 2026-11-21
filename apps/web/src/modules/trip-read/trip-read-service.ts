@@ -221,12 +221,21 @@ export async function getMyTrip(headers: Headers, id: string, deps: TripReadDepe
     throw new AppError("TRIP_PLACE_UNAVAILABLE", "Chưa thể đọc địa điểm của chuyến đi.", 503);
   };
   let journey: SavedJourney | null = null;
-  if (row.userId === actor.userId && row.journeySnapshot != null) {
+  const inbound = new Map<string, TravelLeg>();
+  if (row.journeySnapshot != null) {
     const parsed = savedJourneySchema.safeParse(row.journeySnapshot);
-    if (!parsed.success) throw new AppError("TRIP_JOURNEY_DATA_UNAVAILABLE", "Chưa thể đọc thông tin đi/về của chuyến đi.", 503);
-    journey = parsed.data;
-    const currentFingerprint = journeyVisitFingerprint(row.days.map(day => ({ dayIndex: day.dayIndex, visits: day.visits.map(visit => ({ ...visit, destinationId: placeOf(visit).id })) })));
-    if (journey.visitFingerprint !== currentFingerprint) journey = { ...journey, plan: null };
+    if (!parsed.success && isOwner) throw new AppError("TRIP_JOURNEY_DATA_UNAVAILABLE", "Chưa thể đọc thông tin đi/về của chuyến đi.", 503);
+    if (parsed.success) {
+      const snapshot = parsed.data;
+      const currentFingerprint = journeyVisitFingerprint(row.days.map(day => ({ dayIndex: day.dayIndex, visits: day.visits.map(visit => ({ ...visit, destinationId: placeOf(visit).id })) })));
+      const plan = snapshot.visitFingerprint === currentFingerprint ? snapshot.plan : null;
+      if (isOwner) journey = { ...snapshot, plan };
+      // Only attraction-to-attraction evidence is projected to members; never origin endpoints/geometry.
+      for (const leg of plan?.legs ?? []) {
+        if (leg.kind !== "TRANSFER" || leg.from.kind !== "ATTRACTION" || leg.to.kind !== "ATTRACTION") continue;
+        inbound.set(leg.to.destinationId, { ...leg.route, fromDestinationId: leg.from.destinationId, toDestinationId: leg.to.destinationId });
+      }
+    }
   }
   const storedUnchecked = row.uncheckedChecks == null ? null : storedUncheckedSchema.safeParse(row.uncheckedChecks).data ?? null;
   return {
@@ -239,6 +248,7 @@ export async function getMyTrip(headers: Headers, id: string, deps: TripReadDepe
         id: visit.id, order: visit.order, startMinute: visit.startMinute,
         plannedDurationMinutes: visit.plannedDurationMinutes,
         destination: placeOf(visit),
+        ...(inbound.has(placeOf(visit).id) ? { inbound: inbound.get(placeOf(visit).id)! } : {}),
       })),
     })),
   };

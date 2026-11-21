@@ -71,6 +71,15 @@ describe("Tripsage agent tool allow-list", () => {
     expect(out.destinations.map(d => d.id)).toEqual(["a", "c"]);
     expect(out.destinations[1]!.summary.length).toBeLessThanOrEqual(140);
   });
+
+  it("keeps the same model tools and prompt when only the calendar export flag is on", async () => {
+    const baseline = scripted([{ text: "Sẵn sàng." }]);
+    const calendar = scripted([{ text: "Sẵn sàng." }]);
+    await run(baseline);
+    await run(calendar, { env: { TRIPSAGE_CHAT_ENABLED: "true", TRIPSAGE_FEATURE_CALENDAR: "true" } });
+    expect(calendar.doStreamCalls[0]!.tools).toEqual(baseline.doStreamCalls[0]!.tools);
+    expect(calendar.doStreamCalls[0]!.prompt).toEqual(baseline.doStreamCalls[0]!.prompt);
+  });
 });
 
 describe("Tripsage agent itinerary seam", () => {

@@ -21,6 +21,17 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  // One assistant address with two modes: `/assistant?mode=plan` serves the planning chat page.
+  // beforeFiles is required because `/assistant` is an existing page. The page itself checks the flag.
+  async rewrites() {
+    return {
+      beforeFiles: [
+        { source: "/assistant", has: [{ type: "query", key: "mode", value: "plan" }], destination: "/assistant/plan" },
+      ],
+      afterFiles: [],
+      fallback: [],
+    };
+  },
   // Next 16.3's development Flight decoder waits for this one-shot channel
   // over HMR. A disconnected initial socket can lose it before hydration;
   // reconnecting does not replay the server stream. Keep HMR independent of
