@@ -1,4 +1,13 @@
-import { isStepCount, streamText, tool, type LanguageModel, type ModelMessage, type ToolSet } from "ai";
+import {
+  isStepCount,
+  streamText,
+  tool,
+  type LanguageModel,
+  type ModelMessage,
+  type ToolSet,
+  type UIMessageChunk,
+  type UIMessageStreamWriter,
+} from "ai";
 import { z } from "zod";
 
 import { isPreferenceExtractionError } from "../preference-extraction/preference-extraction-errors";
@@ -33,6 +42,11 @@ import {
 } from "./saved-trip-advisory";
 import type { EditPlaceDetail, PreviewEditResult } from "./trip-edit-service";
 import { TRIP_ASSISTANT_PROVIDER_OPTIONS } from "./trip-assistant-openai";
+import {
+  buildCorrectionNote,
+  createTextRedactionTransform,
+  redactAssistantText,
+} from "./trip-assistant-stream-redaction";
 
 // Loop guards against a model that keeps calling tools; not a budget cap.
 export const AGENT_MAX_ROUNDS = 12;
@@ -90,6 +104,15 @@ export type AgentSimulation = {
   status: VerifiedAdvisoryFacts["overallStatus"];
 };
 
+export type TripAssistantStatusPart = {
+  kind: "start" | "tool" | "writing";
+  label: string;
+};
+
+export type TripAssistantStepsPart = {
+  steps: string[];
+};
+
 export type TripAssistantAgentOutcome =
   | {
       kind: "ADVISED";
@@ -97,8 +120,14 @@ export type TripAssistantAgentOutcome =
       suggestions: AdviceSuggestionCard[];
       knowledgeParts?: AdvisoryKnowledgePart[];
       citations?: AdvisoryCitation[];
+      correctionNote?: string;
     }
-  | { kind: "PROPOSED"; reply: string; simulation: AgentSimulation };
+  | {
+      kind: "PROPOSED";
+      reply: string;
+      simulation: AgentSimulation;
+      correctionNote?: string;
+    };
 
 export type TripAssistantAgentState = {
   simulations: Map<string, AgentSimulation>;
@@ -706,6 +735,108 @@ export function classifyAgentError(error: unknown): string {
   return "UNEXPECTED";
 }
 
+export function toolProgressLabel(
+  toolName: string,
+  input: Record<string, unknown>,
+  knownDestinationIds: ReadonlySet<string>,
+): string {
+  switch (toolName) {
+    case "simulate_changes": {
+      const rawTitle = typeof input.title === "string" ? input.title : "";
+      const safeTitle = redactAssistantText(rawTitle, knownDestinationIds).slice(0, 80);
+      return safeTitle ? `Đang chạy thử: ${safeTitle}…` : "Đang chạy thử phương án…";
+    }
+    case "search_destinations":
+      return "Đang tìm điểm phù hợp…";
+    case "get_weather":
+      return "Đang xem dự báo thời tiết…";
+    case "lookup_local_knowledge":
+      return "Đang tra tài liệu địa phương…";
+    case "apply_to_draft":
+    case "show_options":
+      return "Đang chuẩn bị phương án…";
+    default:
+      return "Đang xử lý yêu cầu…";
+  }
+}
+
+function createStepSummaryTracker() {
+  const order: string[] = ["schedule"];
+  let simulationCount = 0;
+  const seen = new Set<string>(["schedule"]);
+
+  const record = (toolName: string) => {
+    const key = toolName === "apply_to_draft" || toolName === "show_options" ? "options" : toolName;
+    if (key === "simulate_changes") simulationCount += 1;
+    if (!seen.has(key)) {
+      seen.add(key);
+      order.push(key);
+    }
+  };
+
+  const labels = (): string[] =>
+    order.map((key) => {
+      switch (key) {
+        case "schedule":
+          return "Xem lịch";
+        case "simulate_changes":
+          return `Chạy thử ${simulationCount} phương án`;
+        case "search_destinations":
+          return "Tìm điểm phù hợp";
+        case "get_weather":
+          return "Xem thời tiết";
+        case "lookup_local_knowledge":
+          return "Tra tài liệu địa phương";
+        case "options":
+          return "Chuẩn bị phương án";
+        default:
+          return "Xử lý yêu cầu";
+      }
+    });
+
+  return { record, labels };
+}
+
+function finalizeAgentOutcome(input: {
+  ctx: TripAssistantAgentContext;
+  state: TripAssistantAgentState;
+  reply: string;
+  knownIds: ReadonlySet<string>;
+}): { outcome: TripAssistantAgentOutcome; correction: boolean } {
+  const { ctx, state, reply, knownIds } = input;
+  const { proposed, suggestionSims, guardStatus } = resolveAgentDecision(ctx, state);
+  const rejection = groundedAdviceRejection(reply, { overallStatus: guardStatus }, knownIds);
+  let correctionNote: string | undefined;
+  if (rejection === "FALSE_PASS" || rejection === "ABSOLUTE_SAFETY") {
+    correctionNote = buildCorrectionNote(rejection, proposed ? proposed.preview : ctx.baselinePreview);
+  } else if (rejection) {
+    throw new AgentAbort(`FACT_GUARD:${rejection}`);
+  }
+
+  if (proposed) {
+    return {
+      correction: Boolean(correctionNote),
+      outcome: {
+        kind: "PROPOSED",
+        reply,
+        simulation: proposed,
+        ...(correctionNote ? { correctionNote } : {}),
+      },
+    };
+  }
+  return {
+    correction: Boolean(correctionNote),
+    outcome: {
+      kind: "ADVISED",
+      reply,
+      suggestions: suggestionSims.map((sim, index) => suggestionCardFromSimulation(sim, index, ctx)),
+      ...(state.knowledge?.knowledgeParts ? { knowledgeParts: state.knowledge.knowledgeParts } : {}),
+      ...(state.knowledge?.citations ? { citations: state.knowledge.citations } : {}),
+      ...(correctionNote ? { correctionNote } : {}),
+    },
+  };
+}
+
 /**
  * Bounded reasoning loop on the Vercel AI SDK (ADR-40). The model writes free
  * prose and decides edits/options by calling `apply_to_draft` or `show_options`.
@@ -715,13 +846,15 @@ export function classifyAgentError(error: unknown): string {
 export async function runTripAssistantAgent(ctx: TripAssistantAgentContext): Promise<TripAssistantAgentOutcome | null> {
   const startedAt = Date.now();
   const state = createTripAssistantAgentState(ctx);
+  const knownIds = new Set(ctx.catalog.map((d) => d.id));
   let rounds = 0;
-  const log = (outcome: "MODEL" | "FALLBACK", reason: string | null, kind?: string) =>
+  const log = (outcome: "MODEL" | "FALLBACK", reason: string | null, kind?: string, correction = false) =>
     logTripAssistantEvent({
       stage: "AGENT",
       outcome,
       reason,
       kind: kind ?? null,
+      correction,
       rounds,
       toolCalls: state.toolCalls,
       elapsedMs: Date.now() - startedAt,
@@ -748,12 +881,11 @@ export async function runTripAssistantAgent(ctx: TripAssistantAgentContext): Pro
     if (streamError) throw streamError;
 
     rounds = steps.length;
-    const reply = steps
+    const rawReply = steps
       .map((step) => step.text.trim())
       .filter(Boolean)
-      .join("\n\n")
-      .normalize("NFC")
-      .trim();
+      .join("\n\n");
+    const reply = redactAssistantText(rawReply, knownIds);
 
     if (!reply) {
       if (state.toolLimitHit || state.toolCalls >= AGENT_MAX_TOOL_CALLS) throw new AgentAbort("TOOL_LIMIT");
@@ -761,22 +893,127 @@ export async function runTripAssistantAgent(ctx: TripAssistantAgentContext): Pro
       throw new AgentAbort("EMPTY_OUTPUT");
     }
 
-    const { proposed, suggestionSims, guardStatus } = resolveAgentDecision(ctx, state);
-    const rejection = groundedAdviceRejection(reply, { overallStatus: guardStatus }, new Set(ctx.catalog.map((d) => d.id)));
-    if (rejection) throw new AgentAbort(`FACT_GUARD:${rejection}`);
+    const finalized = finalizeAgentOutcome({ ctx, state, reply, knownIds });
+    log("MODEL", null, finalized.outcome.kind, finalized.correction);
+    return finalized.outcome;
+  } catch (error) {
+    log("FALLBACK", classifyAgentError(error));
+    return null;
+  }
+}
 
-    if (proposed) {
-      log("MODEL", null, "PROPOSED");
-      return { kind: "PROPOSED", reply, simulation: proposed };
+/**
+ * Streaming counterpart of `runTripAssistantAgent` (ADR-40 Ticket 02).
+ * Writes Vietnamese progress (`data-status`), step summaries (`data-steps`),
+ * and redacted text chunks directly into the outer `UIMessageStreamWriter`.
+ * Returns the verified outcome (without emitting `data-trip-assistant-result`
+ * yet so the caller can attach the final payload) or null to fall back to ADR-38.
+ */
+export async function streamTripAssistantAgent(
+  ctx: TripAssistantAgentContext,
+  writer: UIMessageStreamWriter,
+): Promise<TripAssistantAgentOutcome | null> {
+  const startedAt = Date.now();
+  const state = createTripAssistantAgentState(ctx);
+  const knownIds = new Set(ctx.catalog.map((d) => d.id));
+  const tracker = createStepSummaryTracker();
+  let rounds = 0;
+  const log = (outcome: "MODEL" | "FALLBACK", reason: string | null, kind?: string, correction = false) =>
+    logTripAssistantEvent({
+      stage: "AGENT",
+      outcome,
+      reason,
+      kind: kind ?? null,
+      correction,
+      rounds,
+      toolCalls: state.toolCalls,
+      elapsedMs: Date.now() - startedAt,
+    });
+
+  try {
+    const model = typeof ctx.model === "function" ? await ctx.model() : ctx.model;
+    let streamError: unknown = null;
+    const result = startTripAssistantStream({
+      ctx,
+      model,
+      state,
+      hooks: {
+        onToolStart: (toolName, input) => {
+          if (ctx.signal?.aborted) return;
+          tracker.record(toolName);
+          writer.write({
+            type: "data-status",
+            data: { kind: "tool", label: toolProgressLabel(toolName, input, knownIds) } satisfies TripAssistantStatusPart,
+            transient: true,
+          });
+          writer.write({
+            type: "data-steps",
+            id: "steps",
+            data: { steps: tracker.labels() } satisfies TripAssistantStepsPart,
+          });
+        },
+      },
+      onError: (error) => {
+        streamError ??= error;
+      },
+    });
+
+    let collected = "";
+    const redactedStream = result
+      .toUIMessageStream({ sendReasoning: false, onError: () => "" })
+      .pipeThrough(
+        createTextRedactionTransform(knownIds, {
+          onFirstTextStart: () => {
+            if (ctx.signal?.aborted) return;
+            writer.write({
+              type: "data-status",
+              data: { kind: "writing", label: "Đang soạn câu trả lời…" } satisfies TripAssistantStatusPart,
+              transient: true,
+            });
+          },
+          onCleanText: (delta) => {
+            collected += delta;
+          },
+        }),
+      );
+
+    const reader = redactedStream.getReader();
+    try {
+      while (true) {
+        const next = await reader.read();
+        if (next.done) break;
+        if (ctx.signal?.aborted) break;
+        writer.write(next.value as UIMessageChunk);
+      }
+    } finally {
+      reader.releaseLock();
     }
-    log("MODEL", null, "ADVISED");
-    return {
-      kind: "ADVISED",
-      reply,
-      suggestions: suggestionSims.map((sim, index) => suggestionCardFromSimulation(sim, index, ctx)),
-      ...(state.knowledge?.knowledgeParts ? { knowledgeParts: state.knowledge.knowledgeParts } : {}),
-      ...(state.knowledge?.citations ? { citations: state.knowledge.citations } : {}),
-    };
+
+    if (ctx.signal?.aborted) {
+      log("FALLBACK", "PROVIDER:CANCELLED");
+      return null;
+    }
+
+    let steps;
+    try {
+      steps = await result.steps;
+    } catch (error) {
+      throw streamError ?? error;
+    }
+    if (streamError) throw streamError;
+
+    rounds = steps.length;
+    const reply = collected.normalize("NFC").trim();
+
+    if (!reply) {
+      if (state.toolLimitHit || state.toolCalls >= AGENT_MAX_TOOL_CALLS) throw new AgentAbort("TOOL_LIMIT");
+      if (rounds >= AGENT_MAX_ROUNDS) throw new AgentAbort("ROUND_LIMIT");
+      throw new AgentAbort("EMPTY_OUTPUT");
+    }
+
+    const finalized = finalizeAgentOutcome({ ctx, state, reply, knownIds });
+    log("MODEL", null, finalized.outcome.kind, finalized.correction);
+    return finalized.outcome;
   } catch (error) {
     log("FALLBACK", classifyAgentError(error));
     return null;

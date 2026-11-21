@@ -11,7 +11,7 @@ Bản nháp ở client chỉ đổi khi nhận phần kết quả cuối (ticket
 
 **Blocked by:** 01.
 
-**Status:** ready
+**Status:** done
 
 ## Yêu cầu chi tiết
 
@@ -49,14 +49,14 @@ Bản nháp ở client chỉ đổi khi nhận phần kết quả cuối (ticket
 
 ## Acceptance criteria
 
-- [ ] Test Seam 1 (`MockLanguageModelV4` + `simulateReadableStream`), đọc response stream thành mảng chunk:
+- [x] Test Seam 1 (`MockLanguageModelV4` + `simulateReadableStream`), đọc response stream thành mảng chunk:
   - có `data-status` cho từng công cụ đúng nhãn, rồi `text-*`, rồi đúng một `data-trip-assistant-result`;
   - `data` của result **bằng** JSON path cho cùng kịch bản (ADVISED và PROPOSED).
-- [ ] Không gửi `Accept: text/event-stream` → JSON y như cũ; mọi test `trip-edit` cũ đạt.
-- [ ] Lỗi xác thực / quyền / revision khi xin stream → vẫn là JSON lỗi đúng mã HTTP.
-- [ ] Model viết `visit-1`, một cuid, hoặc `https://x.y` (kể cả bị cắt giữa hai chunk, ví dụ `vis` | `it-1`) → không byte nào của các token đó xuất hiện trong response; text vẫn đọc được.
-- [ ] Model nói "lịch đã đạt PASS" khi Validator báo VIOLATION → có `data-correction-note` và `correctionNote` trong result; lời trả lời không bị xóa; bộ phân loại ADR-38 **không** được gọi.
-- [ ] Provider lỗi giữa chừng → chuyển về ADR-38, stream vẫn kết thúc bằng một result hợp lệ.
-- [ ] Trường khung, GPS khi `ONGOING`, `resolution` → stream chỉ có status + result.
-- [ ] Abort giữa chừng → không có result.
-- [ ] `npx tsc --noEmit -p .` đạt. Commit cục bộ (không push).
+- [x] Không gửi `Accept: text/event-stream` → JSON y như cũ; mọi test `trip-edit` cũ đạt.
+- [x] Lỗi xác thực / quyền / revision khi xin stream → vẫn là JSON lỗi đúng mã HTTP.
+- [x] Model viết `visit-1`, một cuid, hoặc `https://x.y` (kể cả bị cắt giữa hai chunk, ví dụ `vis` | `it-1`) → không byte nào của các token đó xuất hiện trong response; text vẫn đọc được.
+- [x] Model nói "lịch đã đạt PASS" khi Validator báo VIOLATION → có `data-correction-note` và `correctionNote` trong result; lời trả lời không bị xóa; bộ phân loại ADR-38 **không** được gọi.
+- [x] Provider lỗi giữa chừng → chuyển về ADR-38, stream vẫn kết thúc bằng một result hợp lệ.
+- [x] Trường khung, GPS khi `ONGOING`, `resolution` → stream chỉ có status + result.
+- [x] Abort giữa chừng → không có result.
+- [x] `npx tsc --noEmit -p .` đạt. Commit cục bộ (không push).

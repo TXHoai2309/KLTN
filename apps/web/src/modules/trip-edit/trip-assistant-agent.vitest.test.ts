@@ -330,6 +330,24 @@ describe("Saved-trip assistant AI SDK reasoning loop (ADR-40 Ticket 01)", () => 
     expect(result.status).toBe("ADVISED");
   });
 
+  it("redacts leaked internal IDs and URLs in prose without falling back", async () => {
+    vi.spyOn(validatorModule, "validateItinerary").mockReturnValue(passValidation());
+    vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const model = scriptedModel([
+      { text: "Bạn có thể đổi visit-1 sang giờ khác và xem https://example.com/a nhé." },
+    ]);
+    const test = fixture(model);
+
+    const result = await ask("nên đổi điểm A không", test.dependencies);
+
+    expect(test.classifierCalls).toBe(0);
+    expect(result.status).toBe("ADVISED");
+    if (result.status !== "ADVISED") throw new Error("expected advice");
+    expect(result.advice).not.toContain("visit-1");
+    expect(result.advice).not.toContain("https://example.com");
+    expect(result.advice).toContain("Bạn có thể đổi");
+  });
+
   it.each([
     [
       "provider failure",
@@ -337,9 +355,9 @@ describe("Saved-trip assistant AI SDK reasoning loop (ADR-40 Ticket 01)", () => 
       "PROVIDER:PROVIDER_TIMEOUT",
     ],
     [
-      "leaked internal id",
-      [{ text: "Bạn có thể đổi visit-1 sang giờ khác nhé." }] as ScriptedStep[],
-      "FACT_GUARD:LEAKED_ID",
+      "too-short reply (LENGTH)",
+      [{ text: "ok" }] as ScriptedStep[],
+      "FACT_GUARD:LENGTH",
     ],
     [
       "endless tool calls",

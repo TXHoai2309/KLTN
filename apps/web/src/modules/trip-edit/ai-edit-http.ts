@@ -16,6 +16,7 @@ import {
 import { editResolutionSchema } from "./edit-clarification";
 import {
   createAiEditProposal,
+  streamAiEditProposal,
   type AiEditServiceDependencies,
 } from "./ai-edit-service";
 import { aiChatHistorySchema } from "./ai-workspace-plan";
@@ -126,7 +127,14 @@ function publicError(error: unknown): AppError {
   return new AppError("INTERNAL_SERVER_ERROR", "Đã xảy ra lỗi hệ thống.", 500);
 }
 
-/** Authenticates before touching the body, then maps a read-only proposal request. */
+function wantsEventStream(request: Request): boolean {
+  const accept = request.headers.get("accept") ?? "";
+  return accept
+    .split(",")
+    .some((part) => part.split(";")[0]?.trim().toLowerCase() === "text/event-stream");
+}
+
+/** Authenticates before touching the body, then maps a read-only proposal request (JSON or SSE stream). */
 export async function aiEditResponse(
   request: Request,
   tripId: string,
@@ -151,12 +159,24 @@ export async function aiEditResponse(
       );
     }
 
+    if (wantsEventStream(request)) {
+      return await streamAiEditProposal(
+        tripId,
+        actor.userId,
+        parsed.data,
+        dependencies.service,
+        dependencies.now(),
+        request.signal,
+      );
+    }
+
     const result = await createAiEditProposal(
       tripId,
       actor.userId,
       parsed.data,
       dependencies.service,
       dependencies.now(),
+      request.signal,
     );
     return privateResponse(apiSuccess(result));
   } catch (error) {

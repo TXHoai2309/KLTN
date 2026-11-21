@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import type { Database, Prisma } from "@KLTN/db";
 
 import { AppError } from "@/server/http/app-error";
@@ -43,7 +44,15 @@ import {
   runInterleavedQaScenario,
   type SavedTripQaLookupFn,
 } from "./saved-trip-interleaved-qa";
-import { runTripAssistantAgent, type TripAssistantAgentModelSource } from "./trip-assistant-agent";
+import {
+  runTripAssistantAgent,
+  streamTripAssistantAgent,
+  type TripAssistantAgentContext,
+  type TripAssistantAgentModelSource,
+  type TripAssistantAgentOutcome,
+  type TripAssistantStatusPart,
+  type TripAssistantStepsPart,
+} from "./trip-assistant-agent";
 import {
   parseLocationDependentRequest,
   runOngoingLocationScenario,
@@ -238,6 +247,7 @@ export type AiEditAdvisedResult = {
   suggestions?: AdviceSuggestionCard[];
   knowledgeParts?: AdvisoryKnowledgePart[];
   citations?: AdvisoryCitation[];
+  correctionNote?: string;
 };
 
 export type AiEditProposalResult = {
@@ -258,6 +268,7 @@ export type AiEditProposalResult = {
   uncheckedItems?: UncheckedItem[];
   journeySummary?: PreviewJourneySummary;
   addedPlaceDetails?: Record<string, EditPlaceDetail>;
+  correctionNote?: string;
 };
 
 export type AiEditServiceResult =
@@ -553,9 +564,7 @@ function validateRequest(request: AiEditRequest): void {
   }
 }
 
-/** ADR-40: run the AI SDK reasoning loop; null hands the turn to the ADR-38 pipeline unchanged. */
-async function answerWithTripAssistantAgent(input: {
-  agent: TripAssistantAgentModelSource;
+type PreparedAiEditContext = {
   tripId: string;
   userId: string;
   request: AiEditRequest;
@@ -563,19 +572,36 @@ async function answerWithTripAssistantAgent(input: {
   found: AiEditLoadedTrip;
   savedShape: SavedTripForEdit & { manuallyCompletedAt?: Date | null };
   baseCandidate: EditCandidate;
-  placeNames: ReadonlyMap<string, string>;
-  eligibleDestinations: readonly EligibleDestinationRow[];
-  allCatalogDestinations: readonly EligibleDestinationRow[];
   lockedVisitIds: ReadonlySet<string>;
-  journeyEditable: boolean;
+  eligibleDestinations: EligibleDestinationRow[];
+  allCatalogDestinations: EligibleDestinationRow[];
+  catalogById: Map<string, EligibleDestinationRow>;
+  placeNames: Map<string, string>;
+  clarificationData: EditClarificationContext;
+  parsedSavedJourney: ReturnType<typeof savedJourneySchema.safeParse>;
+  currentJourney: TripJourney | null;
+  isBeforeDeparture: boolean;
+  journeyState: WorkspacePromptJourneyContext;
   timeReference: Date;
-}): Promise<AiEditServiceResult | null> {
-  const { request, dependencies, found, baseCandidate, timeReference } = input;
+};
+
+type AgentInvocation = {
+  ctx: TripAssistantAgentContext;
+  baselinePreview: PreviewEditResult;
+  catalogById: Map<string, EligibleDestinationRow>;
+};
+
+async function buildAgentInvocation(
+  prepared: PreparedAiEditContext,
+  agent: TripAssistantAgentModelSource,
+  signal?: AbortSignal,
+): Promise<AgentInvocation | null> {
+  const { request, dependencies, found, baseCandidate, timeReference } = prepared;
   const tripStatus = effectiveTripStatus(
     found.startDate.toISOString().slice(0, 10),
     found.durationDays,
     vietnamDateOf(timeReference),
-    input.savedShape.manuallyCompletedAt ?? null,
+    prepared.savedShape.manuallyCompletedAt ?? null,
   ).status;
   // GPS-dependent in-trip turns keep the dedicated location flow.
   if (
@@ -594,8 +620,8 @@ async function answerWithTripAssistantAgent(input: {
       }
     }
   }
-  const publicEligible = input.eligibleDestinations.filter((d) => !hiddenTripDestIds.has(d.id));
-  const publicCatalog = input.allCatalogDestinations.filter((d) => !hiddenTripDestIds.has(d.id));
+  const publicEligible = prepared.eligibleDestinations.filter((d) => !hiddenTripDestIds.has(d.id));
+  const publicCatalog = prepared.allCatalogDestinations.filter((d) => !hiddenTripDestIds.has(d.id));
   const catalogById = new Map(publicCatalog.map((d) => [d.id, d]));
 
   const safeGetRoute: TripEditRouteProvider = async (routeInput) => {
@@ -607,8 +633,8 @@ async function answerWithTripAssistantAgent(input: {
   };
   const runPreview = (candidate: EditCandidate) =>
     previewEdit(
-      input.tripId,
-      input.userId,
+      prepared.tripId,
+      prepared.userId,
       request.baseRevision,
       candidate,
       { database: dependencies.database, getRoute: safeGetRoute },
@@ -629,25 +655,25 @@ async function answerWithTripAssistantAgent(input: {
 
   const placeDetailsById = buildAdvisoryPlaceDetails(found, publicCatalog, timeReference);
   let weatherDigest: Promise<AdvisoryDayWeatherDigest[]> | undefined;
-  const outcome = await runTripAssistantAgent({
-    model: input.agent,
+  const ctx: TripAssistantAgentContext = {
+    model: agent,
     message: request.message,
     history: request.history ?? [],
     tripStatus,
     baseCandidate,
-    savedShape: input.savedShape,
-    placeNames: input.placeNames,
+    savedShape: prepared.savedShape,
+    placeNames: prepared.placeNames,
     placeDetailsById,
     catalog: publicEligible,
-    lockedVisitIds: input.lockedVisitIds,
+    lockedVisitIds: prepared.lockedVisitIds,
     baselinePreview,
     runPreview,
-    journeyEditable: input.journeyEditable,
+    journeyEditable: Boolean(prepared.currentJourney?.origin?.confirmed) && prepared.isBeforeDeparture,
     createVisitId: dependencies.createVisitId ?? randomUUID,
     weather: () =>
       (weatherDigest ??= gatherWeatherAndSunDigest({
         candidate: baseCandidate,
-        placeNames: input.placeNames,
+        placeNames: prepared.placeNames,
         catalogById,
         database: dependencies.database,
         forecast: dependencies.forecast,
@@ -659,7 +685,7 @@ async function answerWithTripAssistantAgent(input: {
         targetDestinationId: destinationId,
         history: request.history ?? [],
         baseCandidate,
-        placeNames: input.placeNames,
+        placeNames: prepared.placeNames,
         placeDetailsById,
         catalogDestinations: publicCatalog,
         baselinePreview,
@@ -674,9 +700,17 @@ async function answerWithTripAssistantAgent(input: {
     },
     addedPlaceDetails: (diff) => buildAddedPlaceDetails(diff, catalogById),
     timeReference,
-  });
-  if (!outcome) return null;
+    signal,
+  };
 
+  return { ctx, baselinePreview, catalogById };
+}
+
+function mapAgentOutcomeToServiceResult(
+  outcome: TripAssistantAgentOutcome,
+  baselinePreview: PreviewEditResult,
+  catalogById: ReadonlyMap<string, EligibleDestinationRow>,
+): AiEditServiceResult {
   if (outcome.kind === "PROPOSED") {
     const sim = outcome.simulation;
     const added = buildAddedPlaceDetails(sim.diff, catalogById);
@@ -693,6 +727,7 @@ async function answerWithTripAssistantAgent(input: {
       ...(sim.preview.uncheckedItems ? { uncheckedItems: sim.preview.uncheckedItems } : {}),
       ...(sim.preview.journeySummary ? { journeySummary: sim.preview.journeySummary } : {}),
       ...(added ? { addedPlaceDetails: added } : {}),
+      ...(outcome.correctionNote ? { correctionNote: outcome.correctionNote } : {}),
     };
   }
   return {
@@ -712,17 +747,18 @@ async function answerWithTripAssistantAgent(input: {
     ...(outcome.suggestions.length > 0 ? { suggestions: outcome.suggestions } : {}),
     ...(outcome.knowledgeParts ? { knowledgeParts: outcome.knowledgeParts } : {}),
     ...(outcome.citations ? { citations: outcome.citations } : {}),
+    ...(outcome.correctionNote ? { correctionNote: outcome.correctionNote } : {}),
   };
 }
 
-/** Build a verified read-only AI edit proposal against live workingDraft (or saved Trip). */
-export async function createAiEditProposal(
+/** Deterministic preflight checks (ownership, revision, lifecycle, draft, resolution). */
+async function prepareAiEditContext(
   tripId: string,
   userId: string,
   request: AiEditRequest,
   dependencies: AiEditServiceDependencies,
   timeReference: Date,
-): Promise<AiEditServiceResult> {
+): Promise<PreparedAiEditContext> {
   validateRequest(request);
 
   const rawFound = await dependencies.database.trip.findFirst({
@@ -820,25 +856,155 @@ export async function createAiEditProposal(
     returnDepartureTime: currentJourney?.returnDepartureMinute != null ? minuteClockLabel(currentJourney.returnDepartureMinute) : null,
   };
 
+  return {
+    tripId,
+    userId,
+    request,
+    dependencies,
+    found,
+    savedShape,
+    baseCandidate,
+    lockedVisitIds,
+    eligibleDestinations,
+    allCatalogDestinations,
+    catalogById,
+    placeNames,
+    clarificationData,
+    parsedSavedJourney,
+    currentJourney,
+    isBeforeDeparture,
+    journeyState,
+    timeReference,
+  };
+}
+
+/** Build a verified read-only AI edit proposal against live workingDraft (or saved Trip). */
+export async function createAiEditProposal(
+  tripId: string,
+  userId: string,
+  request: AiEditRequest,
+  dependencies: AiEditServiceDependencies,
+  timeReference: Date,
+  signal?: AbortSignal,
+): Promise<AiEditServiceResult> {
+  const prepared = await prepareAiEditContext(tripId, userId, request, dependencies, timeReference);
+
   if (dependencies.agent && !request.resolution && !isTripFrameEditRequest(request.message)) {
-    const agentResult = await answerWithTripAssistantAgent({
-      agent: dependencies.agent,
-      tripId,
-      userId,
-      request,
-      dependencies,
-      found,
-      savedShape,
-      baseCandidate,
-      placeNames,
-      eligibleDestinations,
-      allCatalogDestinations,
-      lockedVisitIds,
-      journeyEditable: Boolean(currentJourney?.origin?.confirmed) && isBeforeDeparture,
-      timeReference,
-    });
-    if (agentResult) return agentResult;
+    const invocation = await buildAgentInvocation(prepared, dependencies.agent, signal);
+    if (invocation) {
+      const outcome = await runTripAssistantAgent(invocation.ctx);
+      if (outcome) {
+        return mapAgentOutcomeToServiceResult(outcome, invocation.baselinePreview, invocation.catalogById);
+      }
+    }
   }
+
+  return executeAiEditFallback(prepared);
+}
+
+/**
+ * Streaming counterpart of `createAiEditProposal` (ADR-40 Ticket 02).
+ * Runs all deterministic preflight checks BEFORE opening the SSE stream so
+ * 400/404/409/422 errors still return JSON errors with their HTTP status.
+ */
+export async function streamAiEditProposal(
+  tripId: string,
+  userId: string,
+  request: AiEditRequest,
+  dependencies: AiEditServiceDependencies,
+  timeReference: Date,
+  signal?: AbortSignal,
+): Promise<Response> {
+  const prepared = await prepareAiEditContext(tripId, userId, request, dependencies, timeReference);
+
+  const stream = createUIMessageStream({
+    execute: async ({ writer }) => {
+      if (signal?.aborted) return;
+      writer.write({ type: "start" });
+      writer.write({
+        type: "data-status",
+        data: { kind: "start", label: "Đang xem lịch của bạn…" } satisfies TripAssistantStatusPart,
+        transient: true,
+      });
+      writer.write({
+        type: "data-steps",
+        id: "steps",
+        data: { steps: ["Xem lịch"] } satisfies TripAssistantStepsPart,
+      });
+
+      if (dependencies.agent && !request.resolution && !isTripFrameEditRequest(request.message)) {
+        const invocation = await buildAgentInvocation(prepared, dependencies.agent, signal);
+        if (signal?.aborted) return;
+        if (invocation) {
+          const outcome = await streamTripAssistantAgent(invocation.ctx, writer);
+          if (signal?.aborted) return;
+          if (outcome) {
+            const serviceResult = mapAgentOutcomeToServiceResult(
+              outcome,
+              invocation.baselinePreview,
+              invocation.catalogById,
+            );
+            if (outcome.correctionNote) {
+              writer.write({
+                type: "data-correction-note",
+                id: "correction-note",
+                data: { note: outcome.correctionNote },
+              });
+            }
+            writer.write({
+              type: "data-trip-assistant-result",
+              id: "result",
+              data: serviceResult,
+            });
+            writer.write({ type: "finish" });
+            return;
+          }
+        }
+      }
+
+      if (signal?.aborted) return;
+      const fallbackResult = await executeAiEditFallback(prepared);
+      if (signal?.aborted) return;
+      writer.write({
+        type: "data-trip-assistant-result",
+        id: "result",
+        data: fallbackResult,
+      });
+      writer.write({ type: "finish" });
+    },
+    onError: () => "Không thể tạo đề xuất chỉnh sửa bằng AI. Bạn vẫn có thể chỉnh sửa thủ công.",
+  });
+
+  return createUIMessageStreamResponse({
+    stream,
+    headers: {
+      "Cache-Control": "private, no-store",
+      "X-Accel-Buffering": "no",
+    },
+  });
+}
+
+async function executeAiEditFallback(prepared: PreparedAiEditContext): Promise<AiEditServiceResult> {
+  const {
+    tripId,
+    userId,
+    request,
+    dependencies,
+    found,
+    savedShape,
+    baseCandidate,
+    lockedVisitIds,
+    eligibleDestinations,
+    allCatalogDestinations,
+    catalogById,
+    placeNames,
+    clarificationData,
+    parsedSavedJourney,
+    currentJourney,
+    isBeforeDeparture,
+    journeyState,
+    timeReference,
+  } = prepared;
 
   const recognizedPlan = await recognizeWorkspaceEditPlan(
     {

@@ -24,7 +24,7 @@
 | Ticket | Bị chặn bởi | Trạng thái |
 | --- | --- | --- |
 | [01 — Vòng suy luận trên AI SDK, giọng người đồng hành, quyết định bằng `apply_to_draft` / `show_options` (vẫn trả JSON)](issues/01-ai-sdk-loop-voice-and-decision-tools.md) | Không có | `done` |
-| [02 — Route stream: tiến trình, chữ, kết quả cuối, lọc ID/URL, Correction note](issues/02-streaming-route-redaction-and-correction-note.md) | `01` | `ready` |
+| [02 — Route stream: tiến trình, chữ, kết quả cuối, lọc ID/URL, Correction note](issues/02-streaming-route-redaction-and-correction-note.md) | `01` | `done` |
 | [03 — Giao diện stream: bước đang làm, chữ dần, Dừng, chỉ áp khi có kết quả cuối, bỏ nhãn tư vấn](issues/03-streaming-ui-progress-stop-and-badges.md) | `02` | `ready` |
 | [04 — Thử thật với OpenAI, nghiệm thu toàn bộ, tài liệu, commit & push](issues/04-live-check-acceptance-and-release.md) | `03` | `ready` |
 
