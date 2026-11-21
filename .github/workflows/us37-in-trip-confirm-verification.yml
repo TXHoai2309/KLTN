@@ -37,9 +37,13 @@ jobs:
 
       - name: Generate Prisma Client
         run: npm run db:generate
+        env:
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci_test"
 
       - name: Run US-37 Vitest Suite
         working-directory: apps/web
+        env:
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci_test"
         run: |
           set -o pipefail
           npx vitest run --config vitest.config.mts \
