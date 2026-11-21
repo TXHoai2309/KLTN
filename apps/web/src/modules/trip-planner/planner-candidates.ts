@@ -30,7 +30,7 @@ export function externalPlannerCandidate(place: { placeId: string; name: string;
 }
 export type PlannerCandidateInventory = { candidates: PlannerCandidate[]; publicRowCount: number; invalidCoordinateCount: number; excludedCount: number };
 const select = {
-  id: true, name: true, description: true, shortDescription: true, area: true, category: true, address: true,
+  id: true, name: true, description: true, shortDescription: true, area: true, category: true, address: true, googleMapsUrl: true,
   latitude: true, longitude: true, visibility: true, updatedAt: true, contentRevision: true,
   suggestedDurationMinutes: true, minimumDurationMinutes: true, isOutdoor: true,
   media: { where: destinationMediaWhere, take: 20, orderBy: [{ isCover: "desc" as const }, { position: "asc" as const }, { id: "asc" as const }], select: { url: true, alt: true, author: true, sourceUrl: true, websiteRights: true, storageReference: true } },
@@ -45,8 +45,10 @@ export async function retrievePlannerCandidateInventory(database: Pick<Database,
   const coordinateValid = (row: typeof rows[number]) => Number.isFinite(row.latitude) && Number.isFinite(row.longitude) && Math.abs(row.latitude) <= 90 && Math.abs(row.longitude) <= 180;
   const candidates = publicRows.filter(row => !excludedIds.includes(row.id) && coordinateValid(row)).map(row => {
     const image = row.media.find(m => isDestinationMediaUsable(m, row.id));
+    const verifiedUrl = row.googleMapsUrl && publicHttpsUrl.safeParse(row.googleMapsUrl).success ? row.googleMapsUrl : undefined;
     return { id: row.id, name: row.name, description: richContentText(row.shortDescription || row.description).slice(0, 1000), area: row.area, category: row.category,
-      address: row.address, latitude: row.latitude, longitude: row.longitude, image: image ? { url: image.url, alt: image.alt, author: image.author, sourceUrl: image.sourceUrl && publicHttpsUrl.safeParse(image.sourceUrl).success ? image.sourceUrl : null } : null,
+      address: row.address, latitude: row.latitude, longitude: row.longitude, ...(verifiedUrl ? { googleMapsUrl: verifiedUrl } : {}),
+      image: image ? { url: image.url, alt: image.alt, author: image.author, sourceUrl: image.sourceUrl && publicHttpsUrl.safeParse(image.sourceUrl).success ? image.sourceUrl : null } : null,
       visibility: row.visibility, revision: `${row.contentRevision}:${row.updatedAt.toISOString()}`, suggestedDurationMinutes: row.suggestedDurationMinutes,
       minimumDurationMinutes: row.minimumDurationMinutes, isOutdoor: row.isOutdoor, openingDays: row.openingDays };
   });

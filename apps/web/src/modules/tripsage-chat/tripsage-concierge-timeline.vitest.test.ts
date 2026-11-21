@@ -119,7 +119,7 @@ describe("suggestions attached to the timeline (ticket 02)", () => {
     expect(lastNear).toMatchObject({ latitude: 23, longitude: 105, radiusKm: 5 });
     const shown = suggestionsPartSchema.parse(all.find(p => p.type === "data-suggestions")!.data).suggestions;
     expect(shown.map(s => s.title)).toEqual(["Homestay ấm cúng", "Dạo phố cổ Đồng Văn"]);
-    expect(shown[0]!.place).toEqual({ name: "Homestay Gần", distanceKm: 0.4 });
+    expect(shown[0]!.place).toEqual({ placeId: "ChIJnearHomestay", name: "Homestay Gần", distanceKm: 0.4 });
     const result = fed(3);
     for (const reason of ["TOO_FAR_22KM_LIMIT_5KM", "LODGING_NEEDS_PLACE", "UNKNOWN_PLACE", "USE_OVERNIGHT_SLOT", "SLOT_NOT_FOUND"]) expect(result).toContain(reason);
     // A suggestion never becomes a visit or changes a time.

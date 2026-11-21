@@ -20,6 +20,8 @@ export const plannerDestinationSchema = z.object({
   address: z.string().max(1000).nullable(), category: z.string().max(100),
   latitude: z.number().finite().min(-90).max(90), longitude: z.number().finite().min(-180).max(180),
   image: z.object({ url: publicHttpsUrl, alt: z.string().max(300), author: z.string().max(200).nullable(), sourceUrl: publicHttpsUrl.nullable() }).strict().nullable(),
+  /** Optional verified Google Maps URL from the destination catalog (Place preview, Ticket 09). */
+  googleMapsUrl: publicHttpsUrl.nullable().optional(),
   /** Present only for a place outside the KLTN catalogue (Google Places). Absent means a KLTN destination; old data parses unchanged. */
   external: z.literal(true).optional(),
 }).strict();

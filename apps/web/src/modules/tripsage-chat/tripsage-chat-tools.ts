@@ -511,7 +511,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           const distanceKm = anchor ? haversine(anchor, found) : null;
           const limit = item.kind === "EVENING" || item.kind === "LODGING" ? SUGGESTION_RADIUS_KM[item.kind] : 15;
           if (distanceKm === null || distanceKm > limit) { rejected.push({ slotId: item.slotId, reason: distanceKm === null ? "NO_ANCHOR" : `TOO_FAR_${Math.round(distanceKm)}KM_LIMIT_${limit}KM` }); continue; }
-          place = { name: found.name, distanceKm: Math.round(distanceKm * 10) / 10 };
+          place = { placeId: found.placeId, name: found.name, distanceKm: Math.round(distanceKm * 10) / 10 };
         }
         const parsed = suggestionSchema.safeParse({ slotId: item.slotId, kind: item.kind, title: item.title, ...(item.detail ? { detail: item.detail } : {}), ...(place ? { place } : {}) });
         if (parsed.success) accepted.push(parsed.data); else rejected.push({ slotId: item.slotId, reason: "INVALID" });

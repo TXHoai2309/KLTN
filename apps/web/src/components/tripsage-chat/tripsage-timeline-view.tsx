@@ -1,8 +1,10 @@
 "use client";
 
-import { BedDouble, Car, Clock, Flag, Home, Lightbulb, MapPin, Moon, UtensilsCrossed } from "lucide-react";
+import { BedDouble, Car, Clock, Eye, Flag, Home, Lightbulb, MapPin, Moon, UtensilsCrossed } from "lucide-react";
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 
+import { PlacePreviewModal } from "@/components/place-preview/place-preview-modal";
+import { canPreviewPlace, type PlacePreviewTarget } from "@/lib/place-preview-url";
 import { clockLabel, type TimelineItem, type TimelinePart, type TimelineSuggestion } from "@/modules/tripsage-chat/tripsage-timeline";
 
 const ITEM_ICON: Record<TimelineItem["kind"], ReactNode> = {
@@ -26,6 +28,39 @@ export function formatSuggestionPlaceMeta(title: string, place: NonNullable<Time
     : ` · ${place.name}, cách khoảng ${place.distanceKm} km`;
 }
 
+/** Builds a Place preview target from a timeline VISIT item only when valid coordinates or placeId exist. */
+export function timelineItemPreviewTarget(item: TimelineItem): PlacePreviewTarget | null {
+  if (item.kind !== "VISIT") return null;
+  if (item.placeId) {
+    const candidate: PlacePreviewTarget = { kind: "GOOGLE_PLACE", name: item.label, placeId: item.placeId };
+    return canPreviewPlace(candidate) ? candidate : null;
+  }
+  if (typeof item.latitude === "number" && typeof item.longitude === "number") {
+    const candidate: PlacePreviewTarget = {
+      kind: "CATALOG",
+      name: item.label,
+      latitude: item.latitude,
+      longitude: item.longitude,
+      address: item.address ?? null,
+      verifiedGoogleMapsUrl: item.googleMapsUrl ?? null,
+    };
+    return canPreviewPlace(candidate) ? candidate : null;
+  }
+  return null;
+}
+
+/** Builds a Place preview target from a Google Places suggestion only when a valid placeId exists. */
+export function suggestionPreviewTarget(suggestion: TimelineSuggestion): PlacePreviewTarget | null {
+  const placeId = suggestion.place?.placeId;
+  if (!placeId) return null;
+  const candidate: PlacePreviewTarget = {
+    kind: "GOOGLE_PLACE",
+    name: suggestion.place?.name || suggestion.title,
+    placeId,
+  };
+  return canPreviewPlace(candidate) ? candidate : null;
+}
+
 /** Day-tabbed vertical timeline (planner times) with assistant suggestions under their slots, labeled unchecked. */
 export function TripsageTimelineView({
   timeline,
@@ -37,6 +72,7 @@ export function TripsageTimelineView({
   initialDay?: number;
 }) {
   const [selectedDay, setSelectedDay] = useState(initialDay ?? timeline.days[0]?.day ?? 1);
+  const [preview, setPreview] = useState<{ target: PlacePreviewTarget; trigger: HTMLElement | null } | null>(null);
   const activeDay = timeline.days.find(day => day.day === selectedDay) ?? timeline.days[0];
   if (!activeDay) return null;
 
@@ -90,31 +126,61 @@ export function TripsageTimelineView({
           Ngày {activeDay.day}{activeDay.date ? ` · ${activeDay.date.split("-").reverse().join("/")}` : ""}
         </h4>
         <ol className="tripsage-timeline-list">
-          {activeDay.items.map(item => (
-            <li key={item.slotId} className={`tripsage-timeline-item tripsage-timeline-${item.kind.toLowerCase()}`}>
-              <span className="tripsage-timeline-time">{time(item)}</span>
-              <span className="tripsage-timeline-rail" aria-hidden="true">
-                <span className="tripsage-timeline-dot">{ITEM_ICON[item.kind]}</span>
-                <span className="tripsage-timeline-line" />
-              </span>
-              <div className="tripsage-timeline-body">
-                <span className="tripsage-timeline-title">{item.label}</span>
-                {item.description && <p className="tripsage-timeline-desc">{item.description}</p>}
-                {(bySlot.get(item.slotId) ?? []).map((suggestion, index) => (
-                  <p key={index} className="tripsage-suggestion">
-                    {SUGGESTION_ICON[suggestion.kind]}
-                    <strong>{SUGGESTION_LABEL[suggestion.kind]}:</strong> {suggestion.title}
-                    {suggestion.place && (
-                      <span className="tripsage-suggestion-meta">
-                        {formatSuggestionPlaceMeta(suggestion.title, suggestion.place)}
-                      </span>
+          {activeDay.items.map(item => {
+            const itemPreview = timelineItemPreviewTarget(item);
+            return (
+              <li key={item.slotId} className={`tripsage-timeline-item tripsage-timeline-${item.kind.toLowerCase()}`}>
+                <span className="tripsage-timeline-time">{time(item)}</span>
+                <span className="tripsage-timeline-rail" aria-hidden="true">
+                  <span className="tripsage-timeline-dot">{ITEM_ICON[item.kind]}</span>
+                  <span className="tripsage-timeline-line" />
+                </span>
+                <div className="tripsage-timeline-body">
+                  <div className="tripsage-timeline-title-row">
+                    <span className="tripsage-timeline-title">{item.label}</span>
+                    {itemPreview && (
+                      <button
+                        type="button"
+                        className="tripsage-preview-btn"
+                        aria-label={`Xem nhanh ${item.label}`}
+                        onClick={event => setPreview({ target: itemPreview, trigger: event.currentTarget })}
+                      >
+                        <Eye size={12} aria-hidden="true" />
+                        <span>Xem nhanh</span>
+                      </button>
                     )}
-                    {suggestion.detail && <span className="tripsage-suggestion-detail"> — {suggestion.detail}</span>}
-                  </p>
-                ))}
-              </div>
-            </li>
-          ))}
+                  </div>
+                  {item.description && <p className="tripsage-timeline-desc">{item.description}</p>}
+                  {(bySlot.get(item.slotId) ?? []).map((suggestion, index) => {
+                    const sPreview = suggestionPreviewTarget(suggestion);
+                    return (
+                      <div key={index} className="tripsage-suggestion">
+                        {SUGGESTION_ICON[suggestion.kind]}
+                        <strong>{SUGGESTION_LABEL[suggestion.kind]}:</strong> {suggestion.title}
+                        {suggestion.place && (
+                          <span className="tripsage-suggestion-meta">
+                            {formatSuggestionPlaceMeta(suggestion.title, suggestion.place)}
+                          </span>
+                        )}
+                        {suggestion.detail && <span className="tripsage-suggestion-detail"> — {suggestion.detail}</span>}
+                        {sPreview && (
+                          <button
+                            type="button"
+                            className="tripsage-preview-btn"
+                            aria-label={`Xem nhanh ${sPreview.name}`}
+                            onClick={event => setPreview({ target: sPreview, trigger: event.currentTarget })}
+                          >
+                            <Eye size={12} aria-hidden="true" />
+                            <span>Xem nhanh</span>
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </li>
+            );
+          })}
         </ol>
       </div>
       {suggestions.length > 0 && (
@@ -122,6 +188,11 @@ export function TripsageTimelineView({
           Gợi ý ăn uống, chỗ nghỉ, vui chơi là gợi ý chưa kiểm tra (nguồn Google Maps hoặc tài liệu địa phương); giá chỉ là ước tính, ứng dụng không đặt chỗ. Giờ giấc do hệ thống lập lịch và kiểm tra.
         </p>
       )}
+      <PlacePreviewModal
+        target={preview?.target ?? null}
+        returnFocusTo={preview?.trigger ?? null}
+        onClose={() => setPreview(null)}
+      />
     </section>
   );
 }

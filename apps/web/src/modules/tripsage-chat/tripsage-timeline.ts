@@ -22,6 +22,11 @@ export const timelinePartSchema = z.object({
       endMinute: minute,
       label: z.string().min(1).max(200),
       description: z.string().trim().min(1).max(220).optional(),
+      latitude: z.number().finite().min(-90).max(90).optional(),
+      longitude: z.number().finite().min(-180).max(180).optional(),
+      address: z.string().trim().min(1).max(300).optional(),
+      googleMapsUrl: z.string().url().max(2000).optional(),
+      placeId: z.string().min(1).max(300).optional(),
     }).strict()).max(20),
   }).strict()).min(1).max(14),
 }).strict();
@@ -35,7 +40,11 @@ export const suggestionSchema = z.object({
   title: z.string().trim().min(1).max(80),
   detail: z.string().trim().max(300).optional(),
   /** Set only for a Google Places result of this turn; shown as "chưa kiểm tra". */
-  place: z.object({ name: z.string().min(1).max(80), distanceKm: z.number().min(0).max(50) }).strict().optional(),
+  place: z.object({
+    placeId: z.string().min(1).max(300).optional(),
+    name: z.string().min(1).max(80),
+    distanceKm: z.number().min(0).max(50),
+  }).strict().optional(),
 }).strict();
 export const suggestionsPartSchema = z.object({ suggestions: z.array(suggestionSchema).min(1).max(16) }).strict();
 export type TimelineSuggestion = z.infer<typeof suggestionSchema>;
@@ -129,6 +138,17 @@ export function buildDayTimeline(result: PlannerResult): TimelinePart {
           items.push({ slotId: `d${day.day}-drive-${index}`, kind: "DRIVE", startMinute: null, endMinute: stop.arrivalMinute, label: minutes === null ? "Di chuyển (chưa có dữ liệu tuyến)" : `Di chuyển khoảng ${minutes} phút` });
         }
         const description = formatVisitDescription(stop.destination.description);
+        const externalPrefix = "ext:gplace:";
+        const placeId = stop.destination.external && stop.destination.id.startsWith(externalPrefix)
+          ? stop.destination.id.slice(externalPrefix.length)
+          : undefined;
+        const hasCoords =
+          Number.isFinite(stop.destination.latitude) &&
+          Number.isFinite(stop.destination.longitude) &&
+          Math.abs(stop.destination.latitude) <= 90 &&
+          Math.abs(stop.destination.longitude) <= 180;
+        const address = stop.destination.address?.trim() ? stop.destination.address.trim().slice(0, 300) : undefined;
+        const googleMapsUrl = stop.destination.googleMapsUrl?.trim() || undefined;
         items.push({
           slotId: `d${day.day}-visit-${index + 1}`,
           kind: "VISIT",
@@ -136,6 +156,10 @@ export function buildDayTimeline(result: PlannerResult): TimelinePart {
           endMinute: stop.departureMinute,
           label: stop.destination.name,
           ...(description ? { description } : {}),
+          ...(placeId ? { placeId } : {}),
+          ...(hasCoords ? { latitude: stop.destination.latitude, longitude: stop.destination.longitude } : {}),
+          ...(address ? { address } : {}),
+          ...(googleMapsUrl ? { googleMapsUrl } : {}),
         });
         if (lunch !== null && stop.departureMinute === lunch && index < day.stops.length - 1) {
           items.push({ slotId: `d${day.day}-lunch`, kind: "LUNCH", startMinute: lunch, endMinute: lunch + lunchMinutes, label: `Nghỉ trưa ${lunchMinutes} phút` });

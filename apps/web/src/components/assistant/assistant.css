@@ -2571,7 +2571,32 @@
 .tripsage-timeline-dot { width: 20px; height: 20px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: var(--assistant-green-light); color: var(--assistant-green); flex-shrink: 0; }
 .tripsage-timeline-line { width: 1.5px; flex: 1 1 auto; min-height: 12px; background: var(--assistant-line); margin-top: 3px; }
 .tripsage-timeline-body { min-width: 0; padding-top: 1px; }
+.tripsage-timeline-title-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .tripsage-timeline-title { display: block; overflow-wrap: anywhere; }
+.tripsage-preview-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--assistant-line);
+  background: var(--assistant-soft);
+  color: var(--assistant-green);
+  font-size: var(--chat-xs-size, 0.75rem);
+  font-weight: 600;
+  line-height: 1.35;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tripsage-preview-btn:hover,
+.tripsage-preview-btn:focus-visible {
+  background: var(--assistant-green-light);
+  border-color: var(--assistant-green);
+}
+.tripsage-places-aside { display: grid; gap: 4px; margin-top: 8px; font-size: var(--chat-meta-size, 0.8125rem); }
+.tripsage-places-aside p { margin: 0; }
+.tripsage-places-list { display: grid; gap: 4px; margin: 0; padding-left: 1.1rem; }
+.tripsage-places-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .tripsage-timeline-visit .tripsage-timeline-title { font-weight: 600; color: var(--assistant-ink); }
 .tripsage-timeline-desc { margin: 2px 0 0; font-size: var(--chat-meta-size, 0.8125rem); color: var(--assistant-muted); line-height: 1.45; }
 .tripsage-timeline-lunch .tripsage-timeline-title,
