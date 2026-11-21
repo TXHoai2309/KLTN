@@ -8,6 +8,7 @@ import { createGooglePlacesSearch, type PlacesSearch } from "./tripsage-places";
 import { createFirecrawlWeb, type WebLookup } from "./tripsage-web";
 import { createDuffelFlightLookup, type FlightLookup } from "./tripsage-duffel";
 import { createAmadeusHotelLookup, type HotelLookup } from "./tripsage-amadeus";
+import { createSerpApiClient, parseSerpApiKeys, sharedSerpApiKeyState, type SerpApiClient } from "./tripsage-serpapi";
 import type { LocalKnowledge, OriginLookup, TripsagePlanningDeps } from "./tripsage-chat-tools";
 import { createAssistantConversationStore, type AssistantConversationStore } from "./assistant-conversation-store";
 import { createQaRetriever } from "../ai/qa-retrieval";
@@ -54,6 +55,14 @@ export function tripsageWebRuntime(): WebLookup {
 export function tripsageKnowledgeRuntime(): LocalKnowledge {
   const retriever = createQaRetriever(db, { topK: 4, maxEvidenceTokens: 2000, hybrid: true });
   return async (question, signal) => (await retriever.retrieve(question, [], signal)).map(evidence => ({ title: evidence.citation.title, text: evidence.text }));
+}
+
+export function tripsageSerpApiRuntime(): SerpApiClient | undefined {
+  if (!parseSerpApiKeys(ENV.SERPAPI_API_KEYS).length) return undefined;
+  return createSerpApiClient({
+    apiKeys: () => ENV.SERPAPI_API_KEYS,
+    state: sharedSerpApiKeyState,
+  });
 }
 
 export function tripsageFlightRuntime(): FlightLookup | undefined {
