@@ -1,11 +1,19 @@
 "use client";
 
-import { BedDouble, Car, Clock, Eye, Flag, Home, Lightbulb, MapPin, Moon, UtensilsCrossed } from "lucide-react";
+import { BedDouble, Car, Check, Clock, Eye, Flag, Home, Lightbulb, MapPin, Moon, UtensilsCrossed } from "lucide-react";
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { PlacePreviewModal } from "@/components/place-preview/place-preview-modal";
 import { canPreviewPlace, type PlacePreviewTarget } from "@/lib/place-preview-url";
-import { clockLabel, type TimelineItem, type TimelinePart, type TimelineSuggestion } from "@/modules/tripsage-chat/tripsage-timeline";
+import {
+  clockLabel,
+  isEligibleLodgingSuggestion,
+  nightIndexFromSlotId,
+  type ChosenLodgingMap,
+  type TimelineItem,
+  type TimelinePart,
+  type TimelineSuggestion,
+} from "@/modules/tripsage-chat/tripsage-timeline";
 
 const ITEM_ICON: Record<TimelineItem["kind"], ReactNode> = {
   DEPART: <Flag size={13} aria-hidden="true" />, DRIVE: <Car size={13} aria-hidden="true" />, VISIT: <MapPin size={13} aria-hidden="true" />,
@@ -61,18 +69,52 @@ export function suggestionPreviewTarget(suggestion: TimelineSuggestion): PlacePr
   return canPreviewPlace(candidate) ? candidate : null;
 }
 
+/** Reusable action button rendered both on a lodging suggestion card and inside its Place preview modal. */
+export function ChosenLodgingButton({
+  nightIndex,
+  placeName,
+  selected,
+  onClick,
+}: {
+  nightIndex: number;
+  placeName: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`tripsage-choose-lodging-btn${selected ? " is-selected" : ""}`}
+      aria-pressed={selected}
+      aria-label={selected ? `Bỏ chọn ${placeName} cho đêm ${nightIndex}` : `Chọn ${placeName} cho đêm ${nightIndex}`}
+      onClick={onClick}
+    >
+      {selected && <Check size={12} aria-hidden="true" />}
+      <span>{selected ? `Đã chọn cho đêm ${nightIndex}` : `Chọn cho đêm ${nightIndex}`}</span>
+    </button>
+  );
+}
+
 /** Day-tabbed vertical timeline (planner times) with assistant suggestions under their slots, labeled unchecked. */
 export function TripsageTimelineView({
   timeline,
   suggestions,
   initialDay,
+  chosenLodgings,
+  onToggleChosenLodging,
 }: {
   timeline: TimelinePart;
   suggestions: readonly TimelineSuggestion[];
   initialDay?: number;
+  chosenLodgings?: ChosenLodgingMap;
+  onToggleChosenLodging?: (nightIndex: number, placeId: string) => void;
 }) {
   const [selectedDay, setSelectedDay] = useState(initialDay ?? timeline.days[0]?.day ?? 1);
-  const [preview, setPreview] = useState<{ target: PlacePreviewTarget; trigger: HTMLElement | null } | null>(null);
+  const [preview, setPreview] = useState<{
+    target: PlacePreviewTarget;
+    trigger: HTMLElement | null;
+    lodgingChoice?: { nightIndex: number; placeId: string; placeName: string };
+  } | null>(null);
   const activeDay = timeline.days.find(day => day.day === selectedDay) ?? timeline.days[0];
   if (!activeDay) return null;
 
@@ -153,8 +195,13 @@ export function TripsageTimelineView({
                   {item.description && <p className="tripsage-timeline-desc">{item.description}</p>}
                   {(bySlot.get(item.slotId) ?? []).map((suggestion, index) => {
                     const sPreview = suggestionPreviewTarget(suggestion);
+                    const nightIndex = nightIndexFromSlotId(suggestion.slotId);
+                    const canChoose = nightIndex !== null && isEligibleLodgingSuggestion(suggestion, nightIndex);
+                    const lodgingPlaceId = canChoose ? suggestion.place!.placeId! : null;
+                    const lodgingName = suggestion.place?.name || suggestion.title;
+                    const isChosen = nightIndex !== null && lodgingPlaceId !== null && chosenLodgings?.[nightIndex]?.placeId === lodgingPlaceId;
                     return (
-                      <div key={index} className="tripsage-suggestion">
+                      <div key={index} className={`tripsage-suggestion${isChosen ? " is-chosen-lodging" : ""}`}>
                         {SUGGESTION_ICON[suggestion.kind]}
                         <strong>{SUGGESTION_LABEL[suggestion.kind]}:</strong> {suggestion.title}
                         {suggestion.place && (
@@ -168,11 +215,32 @@ export function TripsageTimelineView({
                             type="button"
                             className="tripsage-preview-btn"
                             aria-label={`Xem nhanh ${sPreview.name}`}
-                            onClick={event => setPreview({ target: sPreview, trigger: event.currentTarget })}
+                            onClick={event =>
+                              setPreview({
+                                target: sPreview,
+                                trigger: event.currentTarget,
+                                ...(canChoose && lodgingPlaceId
+                                  ? { lodgingChoice: { nightIndex, placeId: lodgingPlaceId, placeName: lodgingName } }
+                                  : {}),
+                              })
+                            }
                           >
                             <Eye size={12} aria-hidden="true" />
                             <span>Xem nhanh</span>
                           </button>
+                        )}
+                        {canChoose && lodgingPlaceId && onToggleChosenLodging && (
+                          <ChosenLodgingButton
+                            nightIndex={nightIndex}
+                            placeName={lodgingName}
+                            selected={isChosen}
+                            onClick={() => onToggleChosenLodging(nightIndex, lodgingPlaceId)}
+                          />
+                        )}
+                        {isChosen && (
+                          <span className="tripsage-chosen-badge">
+                            Đã chọn cho đêm {nightIndex} · Không phải đặt phòng
+                          </span>
                         )}
                       </div>
                     );
@@ -192,6 +260,16 @@ export function TripsageTimelineView({
         target={preview?.target ?? null}
         returnFocusTo={preview?.trigger ?? null}
         onClose={() => setPreview(null)}
+        footerAction={
+          preview?.lodgingChoice && onToggleChosenLodging ? (
+            <ChosenLodgingButton
+              nightIndex={preview.lodgingChoice.nightIndex}
+              placeName={preview.lodgingChoice.placeName}
+              selected={chosenLodgings?.[preview.lodgingChoice.nightIndex]?.placeId === preview.lodgingChoice.placeId}
+              onClick={() => onToggleChosenLodging(preview.lodgingChoice!.nightIndex, preview.lodgingChoice!.placeId)}
+            />
+          ) : null
+        }
       />
     </section>
   );

@@ -3,7 +3,7 @@ import { plannerResultSchema } from "../trip-planner/planner-contract";
 import { accessLegPartSchema } from "./tripsage-access-leg";
 import { sourcesPartSchema, tripInfoPartSchema } from "./tripsage-chat-context";
 import { costPartSchema } from "./tripsage-cost";
-import { suggestionsPartSchema, timelinePartSchema } from "./tripsage-timeline";
+import { chosenLodgingsPartSchema, suggestionsPartSchema, timelinePartSchema } from "./tripsage-timeline";
 
 /**
  * Client-safe contract for persisted unified assistant conversations (ADR-43 §6).
@@ -25,6 +25,7 @@ export const storedAssistantPartSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("data-access-leg"), id: z.string().min(1).max(64).optional(), data: accessLegPartSchema }).strict(),
   z.object({ type: z.literal("data-trip-info"), id: z.string().min(1).max(64).optional(), data: tripInfoPartSchema }).strict(),
   z.object({ type: z.literal("data-sources"), id: z.string().min(1).max(64).optional(), data: sourcesPartSchema }).strict(),
+  z.object({ type: z.literal("data-chosen-lodgings"), id: z.string().min(1).max(64).optional(), data: chosenLodgingsPartSchema }).strict(),
 ]);
 export type StoredAssistantPart = z.infer<typeof storedAssistantPartSchema>;
 

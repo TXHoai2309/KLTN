@@ -14,9 +14,11 @@ import {
   type AssistantConversationList,
   type StoredAssistantPart,
 } from "./assistant-conversation-contract";
+import { chosenLodgingsPartSchema, type ChosenLodgingItem } from "./tripsage-timeline";
 
 export type RecordUserMessageResult = { conversationId: string; title: string; messageId: string };
 export type RecordAssistantMessageResult = { conversationId: string; messageId: string };
+export type UpdateChosenLodgingsResult = { conversationId: string; chosenLodgings: ChosenLodgingItem[] };
 export type DeleteConversationResult = { deleted: true; id: string };
 export type DeleteAllConversationsResult = { deletedCount: number };
 
@@ -35,6 +37,12 @@ export interface AssistantConversationStore {
     clientMessageId: string;
     parts: readonly unknown[];
   }): Promise<MutationOutcome<RecordAssistantMessageResult>>;
+  updateChosenLodgings?(input: {
+    userId: string;
+    conversationId: string;
+    idempotencyKey: string;
+    chosenLodgings: readonly ChosenLodgingItem[];
+  }): Promise<MutationOutcome<UpdateChosenLodgingsResult>>;
   deleteOne(userId: string, conversationId: string, idempotencyKey: string): Promise<MutationOutcome<DeleteConversationResult>>;
   deleteAll(userId: string, idempotencyKey: string): Promise<MutationOutcome<DeleteAllConversationsResult>>;
   cleanup(batchSize?: number): Promise<{ deletedCount: number }>;
@@ -285,6 +293,56 @@ export function createAssistantConversationStore(db: Database, options: { now?: 
             data: { updatedAt: writeAt, expiresAt: expiresAtFrom(writeAt) },
           });
           return { conversationId: owned.id, messageId };
+        },
+      });
+    },
+
+    async updateChosenLodgings(input) {
+      const parsed = chosenLodgingsPartSchema.safeParse({ chosenLodgings: input.chosenLodgings });
+      if (!parsed.success) {
+        return {
+          status: "FAILED",
+          httpStatus: 400,
+          error: { code: "INVALID_CHOSEN_LODGINGS", message: "Danh sách chỗ nghỉ đã chọn chưa hợp lệ." },
+        };
+      }
+      const nextList = [...parsed.data.chosenLodgings].sort((a, b) => a.nightIndex - b.nightIndex);
+      return executeIdempotentWrite<UpdateChosenLodgingsResult>({
+        database: db,
+        actorId: input.userId,
+        operation: "assistant-conversation:chosen-lodgings",
+        key: input.idempotencyKey,
+        input: { conversationId: input.conversationId, chosenLodgings: nextList },
+        execute: async tx => {
+          const current = now();
+          const owned = await tx.assistantConversation.findFirst({
+            where: { id: input.conversationId, userId: input.userId, expiresAt: { gt: current } },
+            select: {
+              id: true,
+              messages: {
+                where: { role: "assistant" },
+                orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                select: { id: true, parts: true },
+              },
+            },
+          });
+          if (!owned) throw notFound();
+          const target = owned.messages.find(m => Array.isArray(m.parts) && m.parts.some(p => (p as { type?: string } | null)?.type === "data-itinerary"))
+            ?? owned.messages[0];
+          if (!target) throw notFound();
+          const existingParts = sanitizeStoredParts(Array.isArray(target.parts) ? target.parts : []);
+          const withoutChosen = existingParts.filter(part => part.type !== "data-chosen-lodgings");
+          const updatedParts: StoredAssistantPart[] = nextList.length > 0
+            ? [...withoutChosen, { type: "data-chosen-lodgings", data: { chosenLodgings: nextList } }]
+            : withoutChosen;
+          await tx.assistantMessage.update({
+            where: { id: target.id },
+            data: {
+              parts: updatedParts as unknown as Prisma.InputJsonValue,
+              contentHash: hashContent({ role: "assistant", parts: updatedParts }),
+            },
+          });
+          return { conversationId: owned.id, chosenLodgings: nextList };
         },
       });
     },

@@ -13,3 +13,7 @@ export async function GET(request: Request, context: Context) {
 export async function DELETE(request: Request, context: Context) {
   return assistantConversationsResponse(request, { authorization: authorizationDependencies, store: tripsageConversationsRuntime }, (await context.params).id);
 }
+
+export async function PATCH(request: Request, context: Context) {
+  return assistantConversationsResponse(request, { authorization: authorizationDependencies, store: tripsageConversationsRuntime }, (await context.params).id);
+}

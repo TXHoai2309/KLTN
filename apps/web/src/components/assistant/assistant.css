@@ -2593,6 +2593,42 @@
   background: var(--assistant-green-light);
   border-color: var(--assistant-green);
 }
+.tripsage-choose-lodging-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--assistant-green);
+  background: var(--assistant-card);
+  color: var(--assistant-green);
+  font-size: var(--chat-xs-size, 0.75rem);
+  font-weight: 600;
+  line-height: 1.35;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tripsage-choose-lodging-btn:hover,
+.tripsage-choose-lodging-btn:focus-visible {
+  background: var(--assistant-green-light);
+}
+.tripsage-choose-lodging-btn.is-selected {
+  background: var(--assistant-green);
+  color: #ffffff;
+}
+.tripsage-suggestion.is-chosen-lodging {
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--assistant-green-light);
+  border: 1px solid rgba(31, 92, 63, 0.25);
+}
+.tripsage-chosen-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--chat-xs-size, 0.75rem);
+  font-weight: 600;
+  color: var(--assistant-green);
+}
 .tripsage-places-aside { display: grid; gap: 4px; margin-top: 8px; font-size: var(--chat-meta-size, 0.8125rem); }
 .tripsage-places-aside p { margin: 0; }
 .tripsage-places-list { display: grid; gap: 4px; margin: 0; padding-left: 1.1rem; }

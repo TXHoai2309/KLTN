@@ -6,6 +6,7 @@ import { AppError } from "../../server/http/app-error";
 import { requireIdempotencyKey } from "../../server/http/idempotency";
 import { assistantConversationIdSchema } from "./assistant-conversation-contract";
 import type { AssistantConversationStore } from "./assistant-conversation-store";
+import { chosenLodgingsPartSchema } from "./tripsage-timeline";
 
 export type AssistantConversationHttpDependencies = {
   authorization: AuthorizationDependencies;
@@ -17,21 +18,21 @@ const noStore = (response: Response) => {
   return response;
 };
 
-/** Thin HTTP boundary for listing, reading, deleting one, and deleting all owned assistant conversations. */
+/** Thin HTTP boundary for listing, reading, updating chosen lodgings, deleting one, and deleting all owned assistant conversations. */
 export async function assistantConversationsResponse(
   request: Request,
   deps: AssistantConversationHttpDependencies,
   id?: string,
 ): Promise<Response> {
-  const deleting = request.method === "DELETE";
-  const fail = deleting ? apiMutationFailure : apiFailure;
+  const mutating = request.method === "DELETE" || request.method === "PATCH";
+  const fail = mutating ? apiMutationFailure : apiFailure;
   let started = false;
   try {
     const actor = await requireTraveler(request.headers, deps.authorization);
     if (id !== undefined && !assistantConversationIdSchema.safeParse(id).success) {
       throw new AppError("NOT_FOUND", "Không tìm thấy cuộc hội thoại.", 404);
     }
-    if (!deleting) {
+    if (!mutating) {
       const store = deps.store();
       if (id !== undefined) {
         const detail = await store.get(actor.userId, id);
@@ -50,6 +51,22 @@ export async function assistantConversationsResponse(
     }
     const key = requireIdempotencyKey(request);
     const store = deps.store();
+    if (request.method === "PATCH") {
+      if (id === undefined || !store.updateChosenLodgings) {
+        throw new AppError("NOT_FOUND", "Không tìm thấy cuộc hội thoại.", 404);
+      }
+      let raw: unknown;
+      try { raw = await request.json(); } catch { throw new AppError("INVALID_INPUT", "Nội dung yêu cầu chưa hợp lệ.", 400); }
+      const parsed = chosenLodgingsPartSchema.safeParse(raw);
+      if (!parsed.success) throw new AppError("INVALID_INPUT", "Danh sách chỗ nghỉ đã chọn chưa hợp lệ.", 400);
+      started = true;
+      return noStore(apiMutationResult(await store.updateChosenLodgings({
+        userId: actor.userId,
+        conversationId: id,
+        idempotencyKey: key,
+        chosenLodgings: parsed.data.chosenLodgings,
+      })));
+    }
     started = true;
     return noStore(id === undefined
       ? apiMutationResult(await store.deleteAll(actor.userId, key))

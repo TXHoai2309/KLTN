@@ -10,6 +10,12 @@ import type { QaContext } from "@/modules/ai/qa-contract";
 import { conversationMetaPartSchema } from "@/modules/tripsage-chat/assistant-conversation-contract";
 import { buildTripsageChatBody, summarizeItinerary } from "@/modules/tripsage-chat/tripsage-chat-context";
 import { classifyChatError, createTripsageChatFetch } from "@/modules/tripsage-chat/tripsage-chat-errors";
+import {
+  chosenLodgingMapToList,
+  pruneChosenLodgings,
+  toggleChosenLodging,
+  type ChosenLodgingMap,
+} from "@/modules/tripsage-chat/tripsage-timeline";
 import type { SaveState } from "@/modules/trip-save/trip-save-state";
 import { isTripSaveNavigationLocked } from "@/modules/trip-save/trip-save-state";
 
@@ -25,6 +31,7 @@ import {
   fetchAssistantConversationDetail,
   fetchAssistantConversations,
   mergeUnifiedConversations,
+  saveAssistantConversationChosenLodgings,
   storedMessagesToUiMessages,
   type UnifiedConversationItem,
 } from "./assistant-unified-history";
@@ -138,6 +145,8 @@ export function TripsageChatClient({
   });
 
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  const [chosenLodgings, setChosenLodgings] = useState<ChosenLodgingMap>({});
+  const lastSyncedProposalRef = useRef<string | null>(null);
   const saveLocked = isTripSaveNavigationLocked(saveState);
   const notice = chatStatus === "error" ? classifyChatError(error) : null;
   const busy = chatStatus === "submitted" || chatStatus === "streaming";
@@ -150,6 +159,42 @@ export function TripsageChatClient({
     ? messages.find(m => m.id === lastItineraryMessageId)?.parts.map(part => (part.type === "data-itinerary" ? parseItineraryPart(part.data) : null)).filter(Boolean).at(-1) ?? null
     : null;
   const itineraryCurrent = latestItinerary && !state.itineraryStale;
+
+  // Keep chosen lodgings synced with restored saved conversations and prune nights removed on replan (Ticket 10).
+  useEffect(() => {
+    const proposalKey = latestItinerary ? `${activeConversationId ?? "draft"}:${latestItinerary.proposalId}` : null;
+    if (!latestItinerary || !proposalKey) {
+      if (lastSyncedProposalRef.current !== null) {
+        lastSyncedProposalRef.current = null;
+        setChosenLodgings({});
+      }
+      return;
+    }
+    if (lastSyncedProposalRef.current !== proposalKey) {
+      lastSyncedProposalRef.current = proposalKey;
+      setChosenLodgings(prev => {
+        const base = Object.keys(state.chosenLodgings).length > 0 ? state.chosenLodgings : prev;
+        return pruneChosenLodgings(base, latestItinerary.days.length, state.suggestions);
+      });
+    } else {
+      setChosenLodgings(prev => pruneChosenLodgings(prev, latestItinerary.days.length, state.suggestions));
+    }
+  }, [activeConversationId, latestItinerary, state.chosenLodgings, state.suggestions]);
+
+  function handleToggleChosenLodging(nightIndex: number, placeId: string) {
+    setChosenLodgings(current => {
+      const next = toggleChosenLodging(current, state.suggestions, nightIndex, placeId);
+      if (next === current) return current;
+      if (activeConversationId) {
+        void saveAssistantConversationChosenLodgings(
+          activeConversationId,
+          chosenLodgingMapToList(next),
+          createIdempotencyKey(),
+        ).catch(() => {});
+      }
+      return next;
+    });
+  }
 
   bodyRef.current = {
     journey: state.journey,
@@ -249,6 +294,8 @@ export function TripsageChatClient({
     setLegacyReadOnly(null);
     setActiveConversationId(null);
     setHistoryNotice(null);
+    setChosenLodgings({});
+    lastSyncedProposalRef.current = null;
     bodyRef.current = { journey: null, tripInfo: null, itinerary: null, originCandidatesToken: null, conversationId: null };
     setMessages([]);
     syncUrl(null);
@@ -456,7 +503,14 @@ export function TripsageChatClient({
                       <article key={message.id} className="assistant-message assistant-answer">
                         <span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true" /><span>Trợ lý AI</span></span>
                         {text && <TripsageMarkdown text={text} />}
-                        {itinerary && state.timeline && <TripsageTimelineView timeline={state.timeline} suggestions={state.suggestions} />}
+                        {itinerary && state.timeline && (
+                          <TripsageTimelineView
+                            timeline={state.timeline}
+                            suggestions={state.suggestions}
+                            chosenLodgings={chosenLodgings}
+                            onToggleChosenLodging={handleToggleChosenLodging}
+                          />
+                        )}
                         {itinerary && <TripsageItineraryView proposal={itinerary}>{!busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} tripInfo={state.tripInfo} onStateChange={setSaveState} />)}</TripsageItineraryView>}
                         {accessLeg && <TripsageAccessLegCard leg={accessLeg} />}
                         {cost && <TripsageCostCard cost={cost} />}

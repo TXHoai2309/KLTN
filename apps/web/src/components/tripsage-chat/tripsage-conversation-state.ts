@@ -8,7 +8,16 @@ import {
   type OriginCandidateDisplay,
   type TripsageTripInfo,
 } from "@/modules/tripsage-chat/tripsage-chat-context";
-import { suggestionsPartSchema, timelinePartSchema, type TimelinePart, type TimelineSuggestion } from "@/modules/tripsage-chat/tripsage-timeline";
+import {
+  chosenLodgingListToMap,
+  chosenLodgingsPartSchema,
+  pruneChosenLodgings,
+  suggestionsPartSchema,
+  timelinePartSchema,
+  type ChosenLodgingMap,
+  type TimelinePart,
+  type TimelineSuggestion,
+} from "@/modules/tripsage-chat/tripsage-timeline";
 import { costPartSchema, type CostPart } from "@/modules/tripsage-chat/tripsage-cost";
 import { accessLegPartSchema, type AccessLegPart } from "@/modules/tripsage-chat/tripsage-access-leg";
 
@@ -32,6 +41,8 @@ export type ConversationState = {
   /** Timeline of the newest itinerary and the suggestions made for it since (a new itinerary starts a fresh list). */
   timeline: TimelinePart | null;
   suggestions: TimelineSuggestion[];
+  /** Chosen lodgings restored from persisted conversation state for the newest itinerary (Ticket 10). */
+  chosenLodgings: ChosenLodgingMap;
   /** Newest cost table and the message carrying it. */
   cost: { messageId: string; data: CostPart } | null;
   /** Newest access leg; sent back so later cost tables include it. */
@@ -58,6 +69,8 @@ export function readConversationState(messages: readonly Message[], isItinerary:
   let quickReplies: ConversationState["quickReplies"] = null;
   let timeline: TimelinePart | null = null;
   let suggestions: TimelineSuggestion[] = [];
+  let chosenLodgings: ChosenLodgingMap = {};
+  let latestItineraryDays = 0;
   let cost: ConversationState["cost"] = null;
   let accessLeg: ConversationState["accessLeg"] = null;
   const lastAssistant = [...messages].reverse().find(message => message.role === "assistant");
@@ -85,6 +98,9 @@ export function readConversationState(messages: readonly Message[], isItinerary:
         }
       } else if (part.type === "data-itinerary" && isItinerary(part.data)) {
         lastItineraryMessageId = message.id; itineraryStale = false; timeline = null; suggestions = [];
+        const days = Array.isArray((part.data as { days?: unknown[] } | null)?.days) ? (part.data as { days: unknown[] }).days.length : 0;
+        latestItineraryDays = days;
+        chosenLodgings = days > 0 ? pruneChosenLodgings(chosenLodgings, days) : {};
         const embeddedJourney = tripJourneySchema.safeParse((part.data as { requirement?: { journey?: unknown } } | null)?.requirement?.journey);
         if (embeddedJourney.success && embeddedJourney.data.origin?.confirmed) {
           journey = embeddedJourney.data;
@@ -95,6 +111,12 @@ export function readConversationState(messages: readonly Message[], isItinerary:
       } else if (part.type === "data-suggestions" && lastItineraryMessageId) {
         const parsed = suggestionsPartSchema.safeParse(part.data);
         if (parsed.success) suggestions = [...suggestions, ...parsed.data.suggestions];
+      } else if (part.type === "data-chosen-lodgings" && lastItineraryMessageId) {
+        const parsed = chosenLodgingsPartSchema.safeParse(part.data);
+        if (parsed.success) {
+          const restored = chosenLodgingListToMap(parsed.data.chosenLodgings);
+          chosenLodgings = latestItineraryDays > 0 ? pruneChosenLodgings(restored, latestItineraryDays) : restored;
+        }
       } else if (part.type === "data-access-leg") {
         const parsed = accessLegPartSchema.safeParse(part.data);
         if (parsed.success) accessLeg = { messageId: message.id, data: parsed.data };
@@ -107,5 +129,8 @@ export function readConversationState(messages: readonly Message[], isItinerary:
       }
     }
   }
-  return { tripInfo, journey, lastItineraryMessageId, itineraryStale, originCandidates, originCandidatesToken, quickReplies, timeline, suggestions, cost, accessLeg };
+  if (latestItineraryDays > 0) {
+    chosenLodgings = pruneChosenLodgings(chosenLodgings, latestItineraryDays, suggestions);
+  }
+  return { tripInfo, journey, lastItineraryMessageId, itineraryStale, originCandidates, originCandidatesToken, quickReplies, timeline, suggestions, chosenLodgings, cost, accessLeg };
 }

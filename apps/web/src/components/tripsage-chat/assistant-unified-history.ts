@@ -9,6 +9,7 @@ import {
   type AssistantConversationMessage,
   type AssistantConversationSummary,
 } from "@/modules/tripsage-chat/assistant-conversation-contract";
+import type { ChosenLodgingItem } from "@/modules/tripsage-chat/tripsage-timeline";
 
 export type UnifiedConversationItem = QaConversationSummary & {
   source: "ASSISTANT" | "LEGACY";
@@ -100,6 +101,22 @@ export async function deleteAllAssistantConversations(idempotencyKey: string): P
     headers: { "Idempotency-Key": idempotencyKey },
     credentials: "same-origin",
     cache: "no-store",
+  });
+  const json = await response.json().catch(() => null) as { success?: boolean; operationStatus?: string } | null;
+  return response.ok && json?.success === true && json.operationStatus === "SUCCESS";
+}
+
+export async function saveAssistantConversationChosenLodgings(
+  id: string,
+  chosenLodgings: readonly ChosenLodgingItem[],
+  idempotencyKey: string,
+): Promise<boolean> {
+  const response = await fetch(`/api/ai/assistant-conversations/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
+    credentials: "same-origin",
+    cache: "no-store",
+    body: JSON.stringify({ chosenLodgings }),
   });
   const json = await response.json().catch(() => null) as { success?: boolean; operationStatus?: string } | null;
   return response.ok && json?.success === true && json.operationStatus === "SUCCESS";

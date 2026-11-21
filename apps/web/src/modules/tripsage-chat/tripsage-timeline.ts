@@ -49,6 +49,106 @@ export const suggestionSchema = z.object({
 export const suggestionsPartSchema = z.object({ suggestions: z.array(suggestionSchema).min(1).max(16) }).strict();
 export type TimelineSuggestion = z.infer<typeof suggestionSchema>;
 
+export const chosenLodgingItemSchema = z.object({
+  nightIndex: z.number().int().min(1).max(13),
+  placeId: z.string().trim().min(1).max(300),
+  name: z.string().trim().min(1).max(120),
+}).strict();
+export const chosenLodgingsPartSchema = z.object({
+  chosenLodgings: z.array(chosenLodgingItemSchema).max(13),
+}).strict().superRefine((value, ctx) => {
+  const seen = new Set<number>();
+  for (const item of value.chosenLodgings) {
+    if (seen.has(item.nightIndex)) {
+      ctx.addIssue({ code: "custom", message: "Duplicate nightIndex in chosenLodgings." });
+      return;
+    }
+    seen.add(item.nightIndex);
+  }
+});
+export type ChosenLodgingItem = z.infer<typeof chosenLodgingItemSchema>;
+export type ChosenLodgingMap = Record<number, { placeId: string; name: string }>;
+
+/** Extracts the 1-based night index from an overnight slotId (e.g. "d2-overnight" -> 2). */
+export function nightIndexFromSlotId(slotId: string): number | null {
+  const match = /^d(\d{1,2})-overnight$/.exec(slotId);
+  if (!match) return null;
+  const night = Number(match[1]);
+  return Number.isInteger(night) && night >= 1 && night <= 13 ? night : null;
+}
+
+/** True iff the suggestion is a system-attached Google lodging suggestion for the given night. */
+export function isEligibleLodgingSuggestion(suggestion: TimelineSuggestion, nightIndex: number): boolean {
+  return (
+    suggestion.kind === "LODGING" &&
+    suggestion.slotId === `d${nightIndex}-overnight` &&
+    Boolean(suggestion.place?.placeId?.trim())
+  );
+}
+
+/**
+ * Selects, replaces, or deselects a chosen lodging for `nightIndex`.
+ * Only accepts a `placeId` present in the system's LODGING suggestions for that night (max 1 per night).
+ */
+export function toggleChosenLodging(
+  current: ChosenLodgingMap,
+  suggestions: readonly TimelineSuggestion[],
+  nightIndex: number,
+  placeId: string,
+): ChosenLodgingMap {
+  const match = suggestions.find(
+    item => isEligibleLodgingSuggestion(item, nightIndex) && item.place!.placeId === placeId,
+  );
+  if (!match) return current;
+  const next: ChosenLodgingMap = { ...current };
+  if (next[nightIndex]?.placeId === placeId) {
+    delete next[nightIndex];
+  } else {
+    next[nightIndex] = { placeId, name: (match.place!.name || match.title).trim().slice(0, 120) };
+  }
+  return next;
+}
+
+/** Drops chosen lodgings for nights that no longer exist after a replan (and optionally those no longer in suggestions). */
+export function pruneChosenLodgings(
+  current: ChosenLodgingMap,
+  totalDays: number,
+  suggestions?: readonly TimelineSuggestion[],
+): ChosenLodgingMap {
+  const maxNight = Math.max(0, totalDays - 1);
+  const next: ChosenLodgingMap = {};
+  for (const [key, value] of Object.entries(current)) {
+    const night = Number(key);
+    if (!Number.isInteger(night) || night < 1 || night > maxNight) continue;
+    if (
+      suggestions &&
+      suggestions.some(s => isEligibleLodgingSuggestion(s, night)) &&
+      !suggestions.some(s => isEligibleLodgingSuggestion(s, night) && s.place!.placeId === value.placeId)
+    ) {
+      continue;
+    }
+    next[night] = value;
+  }
+  return next;
+}
+
+export function chosenLodgingMapToList(map: ChosenLodgingMap): ChosenLodgingItem[] {
+  return Object.entries(map)
+    .map(([key, value]) => ({ nightIndex: Number(key), placeId: value.placeId, name: value.name }))
+    .filter(item => Number.isInteger(item.nightIndex) && item.nightIndex >= 1 && item.nightIndex <= 13)
+    .sort((a, b) => a.nightIndex - b.nightIndex);
+}
+
+export function chosenLodgingListToMap(items: readonly ChosenLodgingItem[]): ChosenLodgingMap {
+  const out: ChosenLodgingMap = {};
+  for (const item of items) {
+    if (Number.isInteger(item.nightIndex) && item.nightIndex >= 1 && item.nightIndex <= 13) {
+      out[item.nightIndex] = { placeId: item.placeId, name: item.name };
+    }
+  }
+  return out;
+}
+
 export const clockLabel = (value: number | null) => (value === null ? "--:--" : `${String(Math.floor(value / 60) % 24).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`);
 
 /** Slot ids a suggestion may use for an itinerary of `dayCount` days with these visit counts. Same scheme as `buildDayTimeline`. */
