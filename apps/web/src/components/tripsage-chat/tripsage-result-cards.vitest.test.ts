@@ -50,12 +50,48 @@ describe("TripSage result cards", () => {
     expect(readTripsageResultTurns([message("a", [budget]), message("b", [missing])]).latestBudgetMessageId).toBe("b");
   });
 
-  it("renders flight times as supplied, displays USD and escapes provider content", () => {
+  it("renders legacy saved FlightsPart, displays USD and escapes provider content", () => {
     const html = render([flights]);
-    for (const label of ["100,10 US$", "Đi SGN", "08:08, 20/11/2026", "10:09, 20/11/2026", "0 lần nối chuyến", "VN120", "Duffel", "Giá tham khảo", "&lt;img src=x&gt;"]) {
+    for (const label of ["100,10 US$", "Đi SGN", "08:08, 20/11/2026", "10:09, 20/11/2026", "0 lần nối chuyến", "VN120", "Giá tham khảo từ Google (qua SerpApi), có thể thay đổi. Ứng dụng không đặt chỗ.", "Giá tham khảo", "&lt;img src=x&gt;"]) {
       expect(html).toContain(label);
     }
     expect(html).not.toMatch(/<img|<a\s/u);
+  });
+
+  it("renders SerpApi round-trip FlightsPart with typical price range and return-leg Google Flights note", () => {
+    const serpFlights = {
+      type: "data-flights",
+      id: "flights-2",
+      data: {
+        roundTrip: true,
+        typicalPriceRange: { min: "2000000", max: "3200000", currency: "VND" },
+        offers: [{
+          price: { total: "2150000", currency: "VND" },
+          totalDurationMinutes: 85,
+          itineraries: [{
+            connections: 0,
+            segments: [{
+              from: "DAD",
+              to: "HAN",
+              departAt: "2026-11-20T08:30:00",
+              arriveAt: "2026-11-20T09:55:00",
+              airline: "Vietnam Airlines",
+              flight: "VN162",
+            }],
+          }],
+        }],
+      },
+    };
+    const html = render([serpFlights]);
+    for (const label of [
+      "Khoảng giá thường gặp: 2.000.000 ₫ – 3.200.000 ₫",
+      "2.150.000 ₫",
+      "Giá khứ hồi tham khảo",
+      "Chiều về: xem chi tiết chiều về trên Google Flights.",
+      "Giá tham khảo từ Google (qua SerpApi), có thể thay đổi. Ứng dụng không đặt chỗ.",
+    ]) {
+      expect(html).toContain(label);
+    }
   });
 
   it("renders legacy saved HotelsPart with unknown distance, no room label and nights while keeping provider URLs as text", () => {

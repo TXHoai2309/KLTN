@@ -23,7 +23,7 @@ import { JOURNEY_MISSING_LABELS, missingJourneyFields, originSelectionSchema, ty
 import type { OriginSearchOutcome } from "../trip-origin/origin-search-contract";
 import { vietnamCoverageAt } from "../trip-origin/vietnam-coverage";
 import type { HotelLookup } from "./tripsage-serpapi-hotels";
-import type { FlightLookup } from "./tripsage-duffel";
+import type { FlightLookup } from "./tripsage-serpapi-flights";
 import type { TripsageFeature } from "./tripsage-features";
 import { createTripsageExtraTools, type PriorHotelLookupKey, type TripsageResultEmitters } from "./tripsage-extra-tools";
 import { createMemoryTools, type MemoryToolContext } from "../tripsage-memory/memory-tools";
@@ -639,6 +639,11 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     features: context.features, flights: context.flights, hotels: context.hotels, maxFlightCalls: context.maxFlightCalls, maxHotelCalls: context.maxHotelCalls, now,
     emitBudget: context.emitBudget, emitFlights: context.emitFlights, emitHotels: context.emitHotels,
     destinationPoint,
+    confirmedOrigin: () => (
+      currentJourney?.origin?.confirmed && !tripInfo.assumedFields?.includes("origin")
+        ? { label: currentJourney.origin.label, latitude: currentJourney.origin.latitude, longitude: currentJourney.origin.longitude }
+        : null
+    ),
     blockingAssumedFields: () => blockingAssumedFields(tripInfo.assumedFields),
     priorHotelLookups: context.priorHotelLookups,
   });

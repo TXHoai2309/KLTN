@@ -26,7 +26,7 @@ import { fakeMemoryStore } from "../tripsage-memory/memory-test-fixtures";
 import { createSerpApiClient } from "./tripsage-serpapi";
 import { createSerpApiHotelLookup } from "./tripsage-serpapi-hotels";
 import { tripsageChatResponse, type TripsageChatHttpDependencies } from "./tripsage-chat-http";
-import { createDuffelFlightLookup } from "./tripsage-duffel";
+import { createSerpApiFlightLookup } from "./tripsage-serpapi-flights";
 import { enabledTripsageFeatures } from "./tripsage-features";
 
 const flagCases = [
@@ -47,7 +47,7 @@ const usage = {
 const date = "2026-11-20";
 const calls = {
   budget: { name: "checkBudget", input: { currency: "VND", travelers: 1, durationDays: 1, allocations: [{ category: "food", amount: 100000 }] } },
-  flights: { name: "searchFlights", input: { origin: "SGN", destination: "HAN", departureDate: date } },
+  flights: { name: "searchFlights", input: { originAirport: "SGN", departureDate: date } },
   hotels: { name: "searchHotels", input: { destinationId: "a", checkInDate: date, checkOutDate: "2026-11-21" } },
   memory: { name: "rememberPreference", input: { content: "Tôi ăn chay", kind: "PREFERENCE" } },
 } satisfies Record<string, ToolCall>;
@@ -226,7 +226,7 @@ describe("TripSage five-flag acceptance matrix", () => {
   });
 
   it.each([
-    ["Duffel", "Dịch vụ tra cứu vé máy bay chưa sẵn sàng", "flights"],
+    ["SerpApi flights", "Dịch vụ tra cứu vé máy bay chưa sẵn sàng", "flights"],
     ["SerpApi hotels", "Dịch vụ tra cứu khách sạn chưa sẵn sàng", "hotels"],
     ["embedding", "Bộ nhớ chưa sẵn sàng", "memory"],
   ] as const)("keeps the other four groups ready when %s credentials are missing", async (_, message, missing) => {
@@ -237,7 +237,7 @@ describe("TripSage five-flag acceptance matrix", () => {
       ? createMemoryService(fakeMemoryStore(), createOpenAiEmbeddingProvider({ apiKey: () => undefined, fetcher }))
       : createMemory();
     const overrides: Partial<TripsageChatHttpDependencies> = { memory: () => memory };
-    if (missing === "flights") overrides.flights = () => createDuffelFlightLookup({ accessToken: () => undefined, fetcher });
+    if (missing === "flights") overrides.flights = () => createSerpApiFlightLookup(createSerpApiClient({ apiKeys: () => undefined, fetcher }));
     if (missing === "hotels") overrides.hotels = () => createSerpApiHotelLookup(createSerpApiClient({ apiKeys: () => undefined, fetcher }));
     const { model, stream } = await chat(flags, Object.values(calls), overrides);
     expect(JSON.stringify(model.doStreamCalls.at(-1)?.prompt)).toContain(message);

@@ -49,6 +49,15 @@ describe("TripSage result data-part contracts", () => {
     }).success).toBe(false);
   });
 
+  it("accepts roundTrip and typicalPriceRange on FlightsPart while keeping legacy FlightsPart valid", () => {
+    expect(flightsPartSchema.safeParse({
+      offers: [flight],
+      roundTrip: true,
+      typicalPriceRange: { min: "2000000", max: "3200000", currency: "VND" },
+    }).success).toBe(true);
+    expect(flightsPartSchema.safeParse({ offers: [flight] }).success).toBe(true);
+  });
+
   it("drops invalid IDs, empty lists and incoherent comparison values", () => {
     expect(readTripsageResultPart({ type: "data-flights", id: "budget", data: { offers: [flight] } })).toBeNull();
     expect(flightsPartSchema.safeParse({ offers: [] }).success).toBe(false);

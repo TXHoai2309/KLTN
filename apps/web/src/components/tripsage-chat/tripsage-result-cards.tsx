@@ -66,10 +66,18 @@ function FlightsCard({ data }: { data: FlightsPart }) {
     <section className={styles.card} aria-label="Vé máy bay tham khảo">
       <h3>Vé máy bay tham khảo</h3>
       <p className={styles.detail}>Giờ địa phương tại từng sân bay.</p>
+      {data.typicalPriceRange && (
+        <p className={styles.detail}>
+          Khoảng giá thường gặp: {money(data.typicalPriceRange.min, data.typicalPriceRange.currency)} – {money(data.typicalPriceRange.max, data.typicalPriceRange.currency)}
+        </p>
+      )}
       <ul className={styles.rows} aria-label="Các lựa chọn chuyến bay">
         {data.offers.map(({ price, itineraries }, offerIndex) => (
           <li key={offerIndex}>
-            <p className={styles.price}><strong>{money(price.total, price.currency)}</strong> <span>Giá tham khảo</span></p>
+            <p className={styles.price}>
+              <strong>{money(price.total, price.currency)}</strong>{" "}
+              <span>{data.roundTrip ? "Giá khứ hồi tham khảo" : "Giá tham khảo"}</span>
+            </p>
             {itineraries.map(({ connections, segments }, index) => (
               <div key={index} className={styles.direction}>
                 <p><strong>{index === 0 ? "Chiều đi" : "Chiều về"}</strong> · {connections} lần nối chuyến</p>
@@ -83,10 +91,13 @@ function FlightsCard({ data }: { data: FlightsPart }) {
                 </ul>
               </div>
             ))}
+            {data.roundTrip && itineraries.length === 1 && (
+              <p className={styles.detail}>Chiều về: xem chi tiết chiều về trên Google Flights.</p>
+            )}
           </li>
         ))}
       </ul>
-      <p className={styles.detail}>Nguồn: <span translate="no">Duffel</span> · Ứng dụng không đặt chỗ.</p>
+      <p className={styles.detail}>Giá tham khảo từ Google (qua SerpApi), có thể thay đổi. Ứng dụng không đặt chỗ.</p>
     </section>
   );
 }

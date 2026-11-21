@@ -9,7 +9,7 @@ Thứ tự chạy (tuần tự): 01 → 02 → 03 → 04 → 05 → 06.
 | 01 | [Client SerpApi dùng chung và xoay key](issues/01-serpapi-client-keys.md) | — | done |
 | 02 | [Tra giá chỗ ở qua SerpApi](issues/02-hotels-serpapi.md) | 01 | done |
 | 03 | [Tự tra giá chỗ ở cho cả hành trình](issues/03-auto-lodging-prices.md) | 02 | done |
-| 04 | [Tra vé máy bay qua SerpApi, sân bay do server chọn](issues/04-flights-serpapi.md) | 01 | ready-for-agent |
+| 04 | [Tra vé máy bay qua SerpApi, sân bay do server chọn](issues/04-flights-serpapi.md) | 01 | done |
 | 05 | [Hỏi phương tiện và dùng giá vé thật cho chặng tiếp cận](issues/05-access-leg-mode-flight-price.md) | 04 | ready-for-agent |
 | 06 | [Kiểm thử hồi quy và tài liệu](issues/06-regression-docs.md) | 01–05 | ready-for-agent |
 

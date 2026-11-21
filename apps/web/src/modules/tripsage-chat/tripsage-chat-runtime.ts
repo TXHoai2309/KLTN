@@ -6,7 +6,7 @@ import { retrievePlannerCandidates } from "../trip-planner/planner-candidates";
 import { createConfiguredRoutesProvider } from "../trip-planner/planner-routes";
 import { createGooglePlacesSearch, type PlacesSearch } from "./tripsage-places";
 import { createFirecrawlWeb, type WebLookup } from "./tripsage-web";
-import { createDuffelFlightLookup, type FlightLookup } from "./tripsage-duffel";
+import { createSerpApiFlightLookup, type FlightLookup } from "./tripsage-serpapi-flights";
 import { createSerpApiHotelLookup, type HotelLookup } from "./tripsage-serpapi-hotels";
 import { createSerpApiClient, parseSerpApiKeys, sharedSerpApiKeyState, type SerpApiClient } from "./tripsage-serpapi";
 import type { LocalKnowledge, OriginLookup, TripsagePlanningDeps } from "./tripsage-chat-tools";
@@ -66,8 +66,8 @@ export function tripsageSerpApiRuntime(): SerpApiClient | undefined {
 }
 
 export function tripsageFlightRuntime(): FlightLookup | undefined {
-  const accessToken = ENV.DUFFEL_ACCESS_TOKEN?.trim();
-  return accessToken ? createDuffelFlightLookup({ accessToken: () => accessToken }) : undefined;
+  const client = tripsageSerpApiRuntime();
+  return client ? createSerpApiFlightLookup(client) : undefined;
 }
 
 export function tripsageHotelRuntime(): HotelLookup | undefined {

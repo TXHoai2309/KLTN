@@ -37,6 +37,7 @@ export const budgetPartSchema = z.strictObject({
 export const flightsPartSchema = z.strictObject({
   offers: z.array(z.strictObject({
     price,
+    totalDurationMinutes: z.number().int().min(1).max(10_000).optional(),
     itineraries: z.array(z.strictObject({
       connections: z.number().int().min(0).max(7),
       segments: z.array(z.strictObject({
@@ -45,10 +46,16 @@ export const flightsPartSchema = z.strictObject({
         departAt: airportTime,
         arriveAt: airportTime,
         airline: shortName,
-        flight: z.string().max(7).regex(/^[A-Z0-9]{2}\d{1,4}[A-Z]?$/u),
+        flight: z.string().min(2).max(12).regex(/^[A-Z0-9]{2,3}\d{1,5}[A-Z]?$/u),
       })).min(1).max(8),
     }).refine(({ connections, segments }) => connections === segments.length - 1)).min(1).max(2),
   })).min(1).max(5),
+  roundTrip: z.boolean().optional(),
+  typicalPriceRange: z.strictObject({
+    min: z.string().max(32).regex(/^\d+(?:\.\d+)?$/u),
+    max: z.string().max(32).regex(/^\d+(?:\.\d+)?$/u),
+    currency: z.string().length(3).regex(/^[A-Z]{3}$/u),
+  }).nullable().optional(),
 });
 
 const hotelPrice = z.strictObject({

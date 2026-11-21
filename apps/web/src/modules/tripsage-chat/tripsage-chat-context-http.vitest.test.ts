@@ -152,7 +152,7 @@ describe("per-request optional tools", () => {
 
   it("keeps budget available when the enabled flight and hotel groups have no provider", async () => {
     const model = scripted([
-      { tool: "searchFlights", input: { origin: "SGN", destination: "HAN", departureDate: "2026-11-20" } },
+      { tool: "searchFlights", input: { originAirport: "SGN", departureDate: "2026-11-20" } },
       { tool: "searchHotels", input: { destinationId: "a", checkInDate: "2026-11-20", checkOutDate: "2026-11-21" } },
       { tool: "checkBudget", input: { currency: "VND", travelers: 1, durationDays: 1, allocations: [{ category: "food", amount: 100000 }] } },
       { text: "Đây là ước tính." },
