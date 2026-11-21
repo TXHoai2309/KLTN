@@ -286,7 +286,7 @@ describe("Ticket 01 workspace rendering and map adapter", () => {
     expect(advisedAiHtml).toContain('role="log"');
     expect(advisedAiHtml).toContain('aria-live="polite"');
     expect(advisedAiHtml).toContain("Tư vấn lịch trình (Planning guidance)");
-    expect(advisedAiHtml).toContain("Không thay đổi bản nháp");
+    expect(advisedAiHtml).toContain("Lịch chưa bị thay đổi");
     expect(advisedAiHtml).toContain("Xóa hội thoại tạm");
   });
 
@@ -336,7 +336,7 @@ describe("Ticket 01 workspace rendering and map adapter", () => {
     expect(editHtml).toMatch(/id="mobile-tab-assistant"[^>]*aria-selected="true"/);
     expect(editHtml).toMatch(/id="mobile-tab-timeline"[^>]*aria-selected="false"/);
     expect(editHtml).toContain("<textarea");
-    expect(editHtml).toContain("Mở Canvas Lịch &amp; Bản đồ");
+    expect(editHtml).toContain("Xem lịch &amp; bản đồ bên cạnh");
     expect(editHtml).toContain("Thu gọn thanh bên");
     expect(editHtml).toContain("Chỉnh giờ, thời lượng &amp; thứ tự");
 
@@ -784,7 +784,7 @@ describe("Ticket 01 workspace rendering and map adapter", () => {
     expect(htmlQa).toContain("Nguồn tham khảo đã duyệt:");
     expect(htmlQa).toContain("Cẩm nang di sản Đồng Văn");
     expect(htmlQa).toContain("Trang 12");
-    expect(htmlQa).toContain("Không thay đổi bản nháp");
+    expect(htmlQa).toContain("Lịch chưa bị thay đổi");
   });
 
   it("Saved-trip assistant Ticket 06: renders NEEDS_LOCATION GPS & manual fallback card cleanly without watchPosition or persistent storage", async () => {

@@ -66,6 +66,7 @@ import {
 import AiEditBar, {
   type AiBarUiState,
   type AiConversationEntry,
+  type TripIssueHint,
 } from "./ai-edit-bar";
 import {
   beginEditApply,
@@ -1203,6 +1204,46 @@ export default function EditTripClient({
     };
   }, [previewState.result]);
 
+  // Each blocking finding as one traveler-readable line with a fix request for the assistant.
+  const tripIssues = useMemo((): TripIssueHint[] | null => {
+    const groups = previewState.result?.validation.groups;
+    if (!groups) return null;
+    const visitInfo = new Map<string, { name: string; dayIndex: number }>();
+    for (const day of workingDraft.days) {
+      for (const visit of day.visits) {
+        visitInfo.set(visit.visitId, {
+          name: placeDetailsState[visit.destinationId]?.name ?? "Một điểm trong lịch",
+          dayIndex: day.dayIndex,
+        });
+      }
+    }
+    const hints = new Map<string, TripIssueHint>();
+    for (const finding of [
+      ...groups.openingHours.findings,
+      ...groups.minimumDuration.findings,
+      ...groups.travelTime.findings,
+      ...groups.scheduleConflict.findings,
+    ]) {
+      if (finding.status !== "VIOLATION") continue;
+      const visitId = finding.affectedVisitId ?? finding.visitIds?.[1] ?? finding.toVisitId ?? finding.fromVisitId;
+      const visit = visitId ? visitInfo.get(visitId) : undefined;
+      // Several findings on one stop (e.g. opening hours twice) become one line.
+      const key = visit ? `visit:${visitId}` : `message:${finding.message}`;
+      if (hints.has(key)) continue;
+      hints.set(
+        key,
+        visit
+          ? {
+              key,
+              label: `${visit.name} (Ngày ${visit.dayIndex}): ${finding.message}`,
+              prompt: `Sửa giúp tôi lỗi của ${visit.name} ở Ngày ${visit.dayIndex}`,
+            }
+          : { key, label: finding.message, prompt: `Sửa giúp tôi: ${finding.message}` },
+      );
+    }
+    return [...hints.values()];
+  }, [previewState.result, workingDraft, placeDetailsState]);
+
   const hasRepairableScheduleConflict =
     hasInstantOverlap || Boolean(validationGroupSummary?.hasScheduleConflict);
 
@@ -1531,19 +1572,19 @@ export default function EditTripClient({
             >
               <Columns2 size={16} aria-hidden="true" />
               <div className={styles.canvasToggleCopy}>
-                <strong>{desktopSplit ? "Đóng Canvas song song" : "Mở Canvas Lịch & Bản đồ"}</strong>
+                <strong>{desktopSplit ? "Đóng lịch & bản đồ bên cạnh" : "Xem lịch & bản đồ bên cạnh"}</strong>
                 <span>Xem lịch hoặc bản đồ ngay cạnh khung chat</span>
               </div>
             </button>
 
             <div className={styles.sidebarHealthBox}>
               <div className={styles.sidebarHealthRow}>
-                <span className={styles.sidebarHealthLabel}>Bản nháp</span>
+                <span className={styles.sidebarHealthLabel}>{editDirty ? "Bạn đang chỉnh sửa" : "Lịch trình"}</span>
                 <span
                   className={`${styles.statusBadge} ${editDirty ? styles.statusDirty : styles.statusSaved}`}
                   role="status"
                 >
-                  {editDirty ? `${changeCount} thay đổi` : "Đã lưu"}
+                  {editDirty ? `${changeCount} thay đổi chưa lưu` : "Đã lưu"}
                 </span>
               </div>
               {validationGroupSummary && (
@@ -1565,7 +1606,7 @@ export default function EditTripClient({
                   {validationGroupSummary.violationCount > 0 ? (
                     <>
                       <AlertTriangle size={14} aria-hidden="true" />
-                      <span>Còn {validationGroupSummary.violationCount} lưu ý · Xem ngay</span>
+                      <span>{validationGroupSummary.violationCount} điểm cần xem lại · Xem</span>
                     </>
                   ) : (
                     <>
@@ -1652,7 +1693,7 @@ export default function EditTripClient({
                 onClick={() => (desktopSplit ? handleCloseCanvas() : handleOpenCanvas("timeline"))}
               >
                 <Columns2 size={15} aria-hidden="true" />
-                <span>{desktopSplit ? "Đóng Canvas" : "Mở Lịch & Bản đồ"}</span>
+                <span>{desktopSplit ? "Đóng lịch bên cạnh" : "Xem lịch & bản đồ"}</span>
               </button>
               {validationGroupSummary && validationGroupSummary.violationCount > 0 && !desktopSplit && (
                 <button
@@ -1661,7 +1702,7 @@ export default function EditTripClient({
                   onClick={() => handleOpenCanvas("map")}
                 >
                   <AlertTriangle size={13} aria-hidden="true" />
-                  <span>{validationGroupSummary.violationCount} lưu ý</span>
+                  <span>{validationGroupSummary.violationCount} điểm cần xem lại</span>
                 </button>
               )}
               {editDirty && (
@@ -1735,6 +1776,7 @@ export default function EditTripClient({
                     tripStatus={liveTripStatus}
                     hasOrigin={Boolean(workingDraft.journey?.origin?.confirmed)}
                     unavailableCount={instantChecks.unavailableVisits.length}
+                    issues={tripIssues}
                     autoFocus={entryMode === "in-trip" || (!desktopSplit && mobileTab === "assistant")}
                     tripHeadline={`Trợ lý chuyến đi ${workspace.baseline.durationDays} ngày`}
                     showCollapseToggle={desktopSplit}
@@ -1776,7 +1818,7 @@ export default function EditTripClient({
               <div className={styles.secondaryTopControls}>
                 {desktopSplit && (
                   <div className={styles.canvasHeaderRow}>
-                    <div className={styles.splitRightTabs} role="tablist" aria-label="Chuyển bảng Canvas bên phải">
+                    <div className={styles.splitRightTabs} role="tablist" aria-label="Chuyển giữa lịch và bản đồ">
                       <button
                         type="button"
                         role="tab"
@@ -1801,7 +1843,7 @@ export default function EditTripClient({
                     <button
                       type="button"
                       className={styles.canvasCloseBtn}
-                      aria-label="Đóng Canvas song song"
+                      aria-label="Đóng lịch & bản đồ bên cạnh"
                       onClick={handleCloseCanvas}
                     >
                       <X size={15} aria-hidden="true" />
@@ -2709,7 +2751,7 @@ export default function EditTripClient({
 
       <div className={styles.mobileBottomBar}>
         <span className={`${styles.statusBadge} ${editDirty ? styles.statusDirty : styles.statusSaved}`}>
-          {editDirty ? `${changeCount} thay đổi` : "Đã lưu"}
+          {editDirty ? `${changeCount} thay đổi chưa lưu` : "Đã lưu"}
         </span>
         <button
           type="button"

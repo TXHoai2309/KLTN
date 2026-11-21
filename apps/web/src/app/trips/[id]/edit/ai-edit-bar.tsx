@@ -21,7 +21,7 @@ import {
   Undo2,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 
 import ManualLocationPicker from "@/components/in-trip/manual-location-picker";
 import { getLocationFlowMessage, type LocationFlowState } from "@/modules/in-trip/location-flow";
@@ -159,6 +159,13 @@ export type AiConversationEntry = {
   text: string;
   knowledgeParts?: readonly AdvisoryKnowledgePart[];
   citations?: readonly AdvisoryCitation[];
+};
+
+/** A Validator finding phrased for the traveler, with a ready-made fix request. */
+export type TripIssueHint = {
+  key: string;
+  label: string;
+  prompt: string;
 };
 
 export type AiBarUiState =
@@ -356,6 +363,8 @@ export type AiEditBarProps = {
   tripStatus?: TripStatus;
   hasOrigin?: boolean;
   unavailableCount?: number;
+  /** Findings of the latest check; null while the first check is still running. */
+  issues?: readonly TripIssueHint[] | null;
   autoFocus?: boolean;
   tripHeadline?: string;
   showCollapseToggle?: boolean;
@@ -403,6 +412,7 @@ export default function AiEditBar({
   tripStatus = "UPCOMING",
   hasOrigin = false,
   unavailableCount = 0,
+  issues = null,
   autoFocus = false,
   tripHeadline,
   showCollapseToggle = false,
@@ -423,7 +433,6 @@ export default function AiEditBar({
   const controlsDisabled = disabled || isLoading;
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const threadRef = useRef<HTMLDivElement>(null);
-  const [quickPromptsOpen, setQuickPromptsOpen] = useState(false);
 
   useEffect(() => {
     if (!autoFocus || !open) return;
@@ -457,6 +466,12 @@ export default function AiEditBar({
     return DEFAULT_UPCOMING_STARTERS;
   }, [tripStatus, unavailableCount, hasOrigin]);
 
+  // Concrete fixes for this trip first, then generic starters.
+  const quickChips = useMemo(
+    () => [...(issues ?? []).map((issue) => issue.prompt), ...starters.map((item) => item.prompt)].slice(0, 3),
+    [issues, starters],
+  );
+
   const lastMessage = messages.at(-1);
   const advisedAlreadyInMessages =
     state.kind === "ADVISED" &&
@@ -470,7 +485,6 @@ export default function AiEditBar({
   function submitCurrentPrompt() {
     const trimmed = inputValue.trim();
     if (!trimmed || controlsDisabled) return;
-    setQuickPromptsOpen(false);
     onSubmitPrompt(trimmed);
   }
 
@@ -547,11 +561,47 @@ export default function AiEditBar({
                   </div>
                   <h2>{tripHeadline ?? "Trợ lý chuyến đi của bạn"}</h2>
                   <p className={styles.aiEmptyLead}>
-                    Mình đọc trực tiếp <strong>bản nháp chỉnh sửa</strong> hiện tại. Bạn có thể hỏi đánh giá, xin phương án nghỉ ngơi, gợi ý đổi điểm, xem thời tiết hoặc ra lệnh chỉnh lịch.
+                    Cứ hỏi bằng lời bình thường như nói với hướng dẫn viên. Mình sẽ xem lịch của bạn, kiểm tra giờ mở cửa và đường đi, rồi đề xuất cách sửa.
                   </p>
                   <p className={styles.aiEmptyNote}>
-                    Ghi nhớ tối đa 16 lượt gần nhất trong phiên này (làm mới trang sẽ xóa; thay đổi chỉ lưu chính thức khi bạn xác nhận).
+                    Lịch chỉ thay đổi chính thức khi bạn bấm <strong>Lưu thay đổi</strong>.
                   </p>
+
+                  {issues !== null &&
+                    (issues.length > 0 ? (
+                      <div className={styles.aiIssueCard} role="note">
+                        <p className={styles.aiIssueTitle}>
+                          <AlertTriangle size={15} aria-hidden="true" />
+                          Lịch đã lưu có {issues.length} điểm cần xem lại
+                        </p>
+                        <p className={styles.aiIssueHint}>
+                          Mỗi lần mở trang, hệ thống kiểm tra lại giờ mở cửa và đường đi theo dữ liệu mới nhất.
+                        </p>
+                        <ul className={styles.aiIssueList}>
+                          {issues.map((issue) => (
+                            <li key={issue.key} className={styles.aiIssueItem}>
+                              <span>{issue.label}</span>
+                              <button
+                                type="button"
+                                className={styles.aiIssueFixBtn}
+                                disabled={controlsDisabled}
+                                onClick={() => onSubmitPrompt(issue.prompt)}
+                              >
+                                <Sparkles size={13} aria-hidden="true" />
+                                Sửa giúp tôi
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <p className={styles.aiIssueOk} role="note">
+                        <CheckCircle2 size={15} aria-hidden="true" />
+                        Lịch của bạn hiện ổn: không có lỗi giờ mở cửa, thời lượng hay di chuyển.
+                      </p>
+                    ))}
+
+                  <p className={styles.aiStarterHeading}>Hoặc bắt đầu bằng một câu hỏi:</p>
 
                   {unavailableCount > 0 && (
                     <div className={styles.oqBAlert} role="note" style={{ textAlign: "left", maxWidth: 640 }}>
@@ -619,7 +669,7 @@ export default function AiEditBar({
                                 {isLatestAssistant && advisedAlreadyInMessages && (
                                   <span className={styles.srOnly}>Tư vấn lịch trình (Planning guidance) · </span>
                                 )}
-                                Tư vấn · Không thay đổi bản nháp
+                                Tư vấn · Lịch chưa bị thay đổi
                               </span>
                             )}
                             {entry.kind === "APPLIED" && (
@@ -691,7 +741,7 @@ export default function AiEditBar({
                         <span className={styles.aiTurnRole}>
                           <Info size={14} aria-hidden="true" /> Tư vấn lịch trình (Planning guidance)
                         </span>
-                        <span className={styles.aiTurnBadge}>Không thay đổi bản nháp</span>
+                        <span className={styles.aiTurnBadge}>Lịch chưa bị thay đổi</span>
                       </div>
                       <AdviceTextWithKnowledge
                         advice={state.advice}
@@ -891,21 +941,17 @@ export default function AiEditBar({
 
           <div className={styles.aiBottomDock}>
             <div className={styles.aiBottomDockInner}>
-              {messages.length > 0 && quickPromptsOpen && (
+              {messages.length > 0 && !isLoading && quickChips.length > 0 && (
                 <div className={styles.aiChipDrawer} aria-label="Gợi ý câu hỏi nhanh">
-                  {starters.map((item) => (
+                  {quickChips.map((prompt) => (
                     <button
-                      key={item.prompt}
+                      key={prompt}
                       type="button"
                       className={styles.aiQuickChip}
                       disabled={controlsDisabled}
-                      onClick={() => {
-                        setQuickPromptsOpen(false);
-                        onInputChange(item.prompt);
-                        onSubmitPrompt(item.prompt);
-                      }}
+                      onClick={() => onSubmitPrompt(prompt)}
                     >
-                      {item.prompt}
+                      {prompt}
                     </button>
                   ))}
                 </div>
@@ -933,7 +979,7 @@ export default function AiEditBar({
                     value={inputValue}
                     onChange={(event) => onInputChange(event.target.value)}
                     onKeyDown={handleTextareaKeyDown}
-                    placeholder="Hỏi tư vấn, xin phương án nghỉ ngơi, thời tiết hoặc nhờ chỉnh lịch…"
+                    placeholder="Hỏi bằng lời thường, ví dụ: Ngày 2 có gấp quá không?"
                     className={styles.aiPromptTextarea}
                   />
                   <button
@@ -969,17 +1015,6 @@ export default function AiEditBar({
                       >
                         <Trash2 size={12} aria-hidden="true" />
                         Xóa hội thoại tạm
-                      </button>
-                    )}
-                    {messages.length > 0 && (
-                      <button
-                        type="button"
-                        className={styles.aiChipToggleBtn}
-                        aria-expanded={quickPromptsOpen}
-                        onClick={() => setQuickPromptsOpen((prev) => !prev)}
-                      >
-                        <Sparkles size={12} aria-hidden="true" />
-                        {quickPromptsOpen ? "Ẩn gợi ý" : "Gợi ý câu hỏi"}
                       </button>
                     )}
                     <span className={styles.aiCharCounter}>
