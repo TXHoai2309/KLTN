@@ -2,7 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { PanelLeft, PanelLeftOpen, Plus, Send, Sparkles } from "lucide-react";
+import { FileText, PanelLeft, PanelLeftOpen, Plus, Send, ShieldCheck, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { createIdempotencyKey } from "@/lib/mutation-client";
@@ -15,6 +15,7 @@ import { isTripSaveNavigationLocked } from "@/modules/trip-save/trip-save-state"
 
 import type { ConfirmedTurn } from "@/components/assistant/assistant-controller";
 import { deleteConversation, fetchConversationDetail, fetchConversations, renameConversation, type ConversationDetailResult } from "@/components/assistant/assistant-conversation-client";
+import { AssistantLandscape } from "@/components/assistant/assistant-landscape";
 import { AssistantSidebar } from "@/components/assistant/assistant-sidebar";
 import { consumePlanningAuthDraft } from "@/components/assistant/planning-auth-handoff";
 
@@ -44,11 +45,12 @@ import { TripsageTripSummary } from "./tripsage-trip-summary";
 type StatusPart = { kind: "start" | "checking" | "writing"; label: string };
 
 const MAX_LENGTH = 1000;
-const OPENING_PROMPTS = [
-  "Hà Giang mùa nào đẹp và có gì nổi bật?",
-  "Đi Hà Giang 4 ngày 3 đêm bằng xe máy",
-  "Mình ở Sài Gòn, muốn đi Hà Giang",
-];
+const SUGGESTION_CARDS = [
+  { icon: "🗺️", title: "Lập hành trình Hà Giang", prompt: (subject: string) => subject === "Hà Giang" ? "Đi Hà Giang 4 ngày 3 đêm bằng xe máy" : `Lên lịch Hà Giang 4 ngày có ghé ${subject}.` },
+  { icon: "✈️", title: "Đi Hà Giang từ xa", prompt: () => "Mình ở Sài Gòn, muốn đi Hà Giang 4 ngày." },
+  { icon: "🏔️", title: "Giới thiệu điểm đến", prompt: (subject: string) => `Giới thiệu ngắn gọn về ${subject}.` },
+  { icon: "🌿", title: "Văn hóa & ẩm thực", prompt: (subject: string) => `${subject} có những nét văn hóa và ẩm thực nào nổi bật?` },
+] as const;
 
 export type TripsageChatClientProps = {
   memoryEnabled?: boolean;
@@ -323,12 +325,11 @@ export function TripsageChatClient({
     send(text);
   }
 
-  const openingPrompts = destinationName && initialContext?.type === "DESTINATION"
-    ? [`${destinationName} có gì đáng xem và kinh nghiệm đi thế nào?`, `Lên lịch Hà Giang 4 ngày có ghé ${destinationName}`, ...OPENING_PROMPTS.slice(1)]
-    : OPENING_PROMPTS;
+  const composer = useRef<HTMLTextAreaElement>(null);
+  const subject = initialContext?.type === "DESTINATION" && destinationName?.trim() ? destinationName.trim() : "Hà Giang";
 
   return (
-    <section className="assistant-chat assistant-v2-chat" data-runtime="tripsage-unified" aria-label="Trợ lý AI Hà Giang" aria-busy={busy || loadingConversation} lang="vi">
+    <section className="assistant-chat assistant-v2-chat" data-runtime="tripsage-unified" aria-label="Trợ lý AI" aria-busy={busy || loadingConversation} lang="vi">
       <AssistantSidebar
         conversations={conversations}
         activeConversationId={activeConversationId}
@@ -350,30 +351,31 @@ export function TripsageChatClient({
         onSearchChange={setSearchQuery}
       />
 
-      <div className="assistant-chat-main">
-        <div className="assistant-topbar">
-          <div className="assistant-topbar-left">
+      <div className="assistant-chat-main assistant-chat-fullscreen">
+        <div className={`assistant-floating-header ${sidebarOpen ? "sidebar-open" : "sidebar-collapsed"}`}>
+          <div className="assistant-header-left">
             <button
               type="button"
-              className="assistant-topbar-btn"
+              className="assistant-sidebar-toggle-btn"
               onClick={() => setSidebarOpen(open => !open)}
-              aria-label={sidebarOpen ? "Ẩn thanh lịch sử" : "Mở thanh lịch sử"}
-              aria-expanded={sidebarOpen}
+              aria-label={sidebarOpen ? "Thu nhỏ thanh bên lịch sử" : "Mở thanh bên lịch sử (phóng to)"}
+              title={sidebarOpen ? "Thu nhỏ thanh bên" : "Mở thanh bên (phóng to)"}
             >
               {sidebarOpen ? <PanelLeft aria-hidden="true" /> : <PanelLeftOpen aria-hidden="true" />}
             </button>
-            <span className="assistant-topbar-title">Trợ lý AI Hà Giang</span>
+            {!sidebarOpen && (
+              <button
+                type="button"
+                className="assistant-floating-new-btn"
+                onClick={startNewChat}
+                disabled={busy || saveLocked}
+                aria-label="Tạo cuộc trò chuyện mới"
+                title="Đoạn chat mới"
+              >
+                <Plus aria-hidden="true" />
+              </button>
+            )}
           </div>
-          <button
-            type="button"
-            className="assistant-topbar-btn"
-            onClick={startNewChat}
-            disabled={busy || saveLocked}
-            aria-label="Đoạn chat mới"
-          >
-            <Plus aria-hidden="true" />
-            <span>Mới</span>
-          </button>
         </div>
 
         <div className="assistant-transcript" tabIndex={0} aria-label="Danh sách tin nhắn">
@@ -390,7 +392,7 @@ export function TripsageChatClient({
                   <button type="button" onClick={startNewChat}>Bắt đầu đoạn chat mới</button>
                 </div>
                 {legacyReadOnly.turns.map(turn => (
-                  <div key={turn.response.turnId} className="assistant-turn-pair">
+                  <div key={turn.response.turnId} className="assistant-turn assistant-planning-exchange">
                     <article className="assistant-message assistant-user"><p>{turn.question}</p></article>
                     <article className="assistant-message assistant-answer">
                       <span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true" /><span>Trợ lý AI</span></span>
@@ -405,11 +407,33 @@ export function TripsageChatClient({
               <>
                 {!messages.length && (
                   <div className="assistant-empty">
-                    <Sparkles className="assistant-icon" aria-hidden="true" />
-                    <h2>Chào bạn, mình là trợ lý du lịch Hà Giang!</h2>
-                    <p>Hỏi mình về văn hóa, điểm đến, ẩm thực, hoặc nhờ lên lịch trình Hà Giang kèm timeline, chỗ nghỉ và chi phí — tất cả ngay trong khung chat này.</p>
-                    <div className="tripsage-quick-replies">
-                      {openingPrompts.map(prompt => <button key={prompt} type="button" onClick={() => send(prompt)} disabled={locked}>{prompt}</button>)}
+                    <div className="assistant-empty-art">
+                      <AssistantLandscape />
+                      <Sparkles className="assistant-icon" aria-hidden="true" />
+                    </div>
+                    <h2>{initialContext?.type === "DESTINATION" && destinationName?.trim() ? `Hỏi về ${destinationName.trim()}` : "Bạn muốn khám phá điều gì?"}</h2>
+                    <p>{initialContext?.type === "DESTINATION" && destinationName?.trim()
+                      ? `Hỏi về lịch sử, cảnh quan, đường đi hoặc nhờ mình lên hành trình ghé ${destinationName.trim()}.`
+                      : "Hỏi về văn hóa, lịch sử và điểm đến tại Hà Giang, hoặc nhờ mình lên hành trình."}</p>
+                    <div className="assistant-suggestions" aria-label="Gợi ý câu hỏi">
+                      {SUGGESTION_CARDS.map((item, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          className="assistant-suggestion-chip"
+                          disabled={locked}
+                          onClick={() => {
+                            setDraft(item.prompt(subject));
+                            composer.current?.focus();
+                          }}
+                        >
+                          <span className="assistant-suggestion-icon" aria-hidden="true">{item.icon}</span>
+                          <div className="assistant-suggestion-info">
+                            <span className="assistant-suggestion-title">{item.title}</span>
+                            <span className="assistant-suggestion-prompt">{item.prompt(subject)}</span>
+                          </div>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -460,13 +484,22 @@ export function TripsageChatClient({
             <TripsageTripSummary tripInfo={state.tripInfo} journey={state.journey} />
             <form noValidate className="assistant-composer" onSubmit={submit}>
               <label htmlFor="tripsage-chat-input" className="assistant-sr-only">Tin nhắn cho trợ lý</label>
-              <div className="assistant-composer-input">
+              <div
+                className="assistant-composer-input"
+                onPointerDown={event => {
+                  if (event.target === event.currentTarget) {
+                    event.preventDefault();
+                    composer.current?.focus();
+                  }
+                }}
+              >
                 <textarea
+                  ref={composer}
                   id="tripsage-chat-input"
                   className="resize-none"
                   rows={1}
                   maxLength={MAX_LENGTH}
-                  placeholder="Hỏi về Hà Giang hoặc nhờ lên lịch trình…"
+                  placeholder="Nhập câu hỏi hoặc nhu cầu chuyến đi Hà Giang…"
                   value={draft}
                   disabled={locked}
                   onChange={event => setDraft(event.target.value)}
@@ -478,6 +511,7 @@ export function TripsageChatClient({
                   }}
                 />
                 <div className="assistant-composer-bar">
+                  <div className="assistant-composer-left-tools" />
                   {busy
                     ? <button type="button" onClick={() => void stop()}><span>Dừng</span></button>
                     : <button type="submit" disabled={!draft.trim() || saveLocked || loadingConversation}><Send aria-hidden="true" /><span>Gửi</span></button>}
@@ -488,6 +522,11 @@ export function TripsageChatClient({
                 <span className="assistant-char-counter">{draft.length}/{MAX_LENGTH} ký tự</span>
               </div>
             </form>
+            <footer className="assistant-trust-footer">
+              <div className="assistant-trust-item"><ShieldCheck aria-hidden="true" /><span>Thông tin thực tế cần có nguồn</span></div>
+              <span className="assistant-trust-sep" aria-hidden="true">•</span>
+              <div className="assistant-trust-item"><FileText aria-hidden="true" /><span>Nêu rõ giới hạn khi thiếu dữ liệu</span></div>
+            </footer>
           </div></div>
         )}
       </div>

@@ -7,7 +7,7 @@ import { ENV } from "./env.server";
 // across those evaluations; query results and authorization are never cached.
 const developmentDatabase = Symbol.for("kltn.web.database.development");
 // Bump after prisma generate: an instance created mid-generation retains its old runtime model.
-const databaseSchemaRevision = "trip-companions-complete-v3";
+const databaseSchemaRevision = "assistant-conversation-v1";
 const processScope = globalThis as typeof globalThis & {
   [developmentDatabase]?: { url: string; client: Database; schemaRevision?: string };
 };

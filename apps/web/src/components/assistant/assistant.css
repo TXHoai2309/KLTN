@@ -2570,6 +2570,7 @@
 .assistant-chat[data-runtime="tripsage-unified"],
 .assistant-chat[data-runtime="tripsage-unified"] .assistant-chat-main,
 .assistant-chat[data-runtime="tripsage-unified"] .assistant-transcript-inner,
-.assistant-chat[data-runtime="tripsage-unified"] .assistant-message,
 .assistant-chat[data-runtime="tripsage-unified"] .planner-page { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.assistant-chat[data-runtime="tripsage-unified"] .assistant-messages { display: flex; flex-direction: column; gap: 16px; }
+.assistant-chat[data-runtime="tripsage-unified"] .assistant-answer { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 .assistant-chat[data-runtime="tripsage-unified"] .tripsage-cost { overflow-x: auto; }
