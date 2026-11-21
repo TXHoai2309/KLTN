@@ -53,6 +53,8 @@ export const tripInfoSchema = z.object({
   mealSuggestionsDeclined: z.boolean().optional(),
   /** Preferred lodging kind for reference price lookups (SerpApi D1); recorded once when the traveler answers. */
   lodgingKind: z.enum(LODGING_KINDS).optional(),
+  /** Set to true when the traveler declines flying to Hà Nội so searchFlights is never called for this trip (SerpApi D7). */
+  flightDeclined: z.boolean().optional(),
 }).strict();
 export type TripsageTripInfo = z.infer<typeof tripInfoSchema>;
 export type { AssumableField };
@@ -187,6 +189,29 @@ export function compactChatMessagesForRequest(messages: readonly unknown[]): unk
           });
         }
       } else if (record.role === "assistant" && obj.type === "data-hotels-ref") {
+        keptParts.push(obj);
+      } else if (record.role === "assistant" && obj.type === "data-flights" && obj.data && typeof obj.data === "object") {
+        const data = obj.data as Record<string, unknown>;
+        const firstOffer = Array.isArray(data.offers) && data.offers[0] && typeof data.offers[0] === "object"
+          ? (data.offers[0] as Record<string, unknown>)
+          : null;
+        const firstPrice = firstOffer?.price && typeof firstOffer.price === "object"
+          ? (firstOffer.price as Record<string, unknown>)
+          : null;
+        if (typeof data.departureDate === "string") {
+          keptParts.push({
+            type: "data-flights-ref",
+            ...(typeof data.originAirport === "string" ? { originAirport: data.originAirport } : {}),
+            departureDate: data.departureDate,
+            ...(typeof data.returnDate === "string" ? { returnDate: data.returnDate } : {}),
+            ...(typeof data.adults === "number" ? { adults: data.adults } : {}),
+            ...(typeof data.roundTrip === "boolean" ? { roundTrip: data.roundTrip } : {}),
+            ...(typeof firstPrice?.total === "string" ? { cheapestTotal: firstPrice.total } : {}),
+            ...(typeof firstPrice?.currency === "string" ? { currency: firstPrice.currency } : {}),
+            ...(typeof data.lookupDate === "string" ? { lookupDate: data.lookupDate } : {}),
+          });
+        }
+      } else if (record.role === "assistant" && obj.type === "data-flights-ref") {
         keptParts.push(obj);
       }
     }

@@ -13,7 +13,7 @@ import { haversine } from "../trip-planner/planner-geography";
 import { SUGGESTION_KINDS, suggestionSchema, timelineSlotIds, type TimelineSuggestion } from "./tripsage-timeline";
 import { costLineInputSchema, estimateTripCost, PRICE_REFERENCE, type CostPart } from "./tripsage-cost";
 import { itineraryDistanceKm } from "./tripsage-chat-context";
-import { accessLegInputSchema, buildAccessLeg, isHubOrigin, shouldSuggestHub, type AccessLegPart } from "./tripsage-access-leg";
+import { accessLegInputSchema, buildAccessLeg, isHubOrigin, shouldSuggestHub, type AccessLegPart, type FlightPriceOverride } from "./tripsage-access-leg";
 import { domainOf, isSafePublicHttpsUrl, WEB_DATA_MARKER, type WebLookup } from "./tripsage-web";
 import { quickRepliesPartSchema, resolveEffectiveJourney, tripInfoSchema, withTripInfoDefaults, type ChatSourceItem, type OriginCandidatesPart, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
 import { FIXED_HUB_CANDIDATES, matchFixedHub, MAX_ORIGIN_CANDIDATES, permitsOriginConfirmation, type SignedOriginCandidate, type VerifiedOriginCandidates } from "./tripsage-chat-origin";
@@ -25,7 +25,7 @@ import { vietnamCoverageAt } from "../trip-origin/vietnam-coverage";
 import type { HotelLookup } from "./tripsage-serpapi-hotels";
 import type { FlightLookup } from "./tripsage-serpapi-flights";
 import type { TripsageFeature } from "./tripsage-features";
-import { createTripsageExtraTools, type PriorHotelLookupKey, type TripsageResultEmitters } from "./tripsage-extra-tools";
+import { createTripsageExtraTools, type PriorFlightLookupRecord, type PriorHotelLookupKey, type TripsageResultEmitters } from "./tripsage-extra-tools";
 import { createMemoryTools, type MemoryToolContext } from "../tripsage-memory/memory-tools";
 
 /** Base allow-list. Optional tools are registered only for the request's enabled feature groups. */
@@ -59,6 +59,8 @@ export type TripsageToolContext = { planning: TripsagePlanningDeps; emitItinerar
   flights?: () => FlightLookup | undefined; hotels?: () => HotelLookup | undefined;
   /** Prior hotel lookups already emitted in earlier turns of this conversation (deduplication without DB storage). */
   priorHotelLookups?: readonly PriorHotelLookupKey[];
+  /** Prior flight lookups already emitted in earlier turns of this conversation (proactive cap + access leg pricing). */
+  priorFlightLookups?: readonly PriorFlightLookupRecord[];
   memory?: MemoryToolContext;
   maxFlightCalls?: number; maxHotelCalls?: number } & TripsageResultEmitters;
 export type WebSourcePart = { domain: string };
@@ -119,6 +121,7 @@ const recordInputSchema = tripInfoSchema.omit({ assumedFields: true }).extend({
   homeCity: tripInfoSchema.shape.homeCity.describe("Thành phố người dùng đang sống (chỉ tên), ví dụ TP Hồ Chí Minh."),
   mealSuggestionsDeclined: tripInfoSchema.shape.mealSuggestionsDeclined.describe("Ghi true khi người dùng từ chối gợi ý tìm quán ăn để không hỏi lại trong chuyến này."),
   lodgingKind: tripInfoSchema.shape.lodgingKind.describe("Loại chỗ ở người dùng thích (HOTEL khách sạn, HOMESTAY, GUESTHOUSE nhà nghỉ bình dân, ANY không quan trọng)."),
+  flightDeclined: tripInfoSchema.shape.flightDeclined.describe("Ghi true khi người dùng từ chối đi máy bay ra Hà Nội để không tra vé máy bay cho chuyến này."),
 }).strict();
 
 const UNAVAILABLE_TEXT = "Chưa lập được lịch trình lúc này. Hãy thử lại sau.";
@@ -158,6 +161,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   let latestDays: string[][] | null = context.currentItinerary?.days.map(day => day.stops.map(stop => stop.id)) ?? null;
   let latestDistanceKm: number | null = context.currentItinerary?.distanceKm ?? null;
   let latestAccessLeg: AccessLegPart | null = context.accessLeg ?? null;
+  const flightLookups: PriorFlightLookupRecord[] = [...(context.priorFlightLookups ?? [])];
   /** Set when this turn's schedule shows that driving from the origin is not practical; the assistant should offer hubs. */
   let hubSuggested = false;
 
@@ -447,7 +451,11 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         const names = new Map(all.map(c => [c.id, c.name]));
         return { ok: true as const, status: result.status, eligibleForFinalConfirmation: result.eligibleForFinalConfirmation,
           ...(assumedFields.length > 0 ? { assumedFields } : {}),
-          ...(hubSuggested ? { hubHint: "Chặng ngày 1 từ điểm xuất phát quá dài hoặc không khả thi. Gợi ý người dùng đi xe khách/bay tới điểm tập kết gần hơn (ưu tiên TP Hà Giang: hub:HA_GIANG_CITY cho chuyến ngắn, hoặc Hà Nội: hub:HA_NOI) rồi thuê xe: ghi homeCity nếu cần, mời chọn điểm tập kết (xác nhận bằng confirmOrigin khi họ đồng ý), và planAccessLeg để ước tính chặng tiếp cận." } : {}),
+          ...(hubSuggested ? {
+            hubHint: context.features?.has("flights")
+              ? "Chặng ngày 1 từ điểm xuất phát quá dài hoặc không khả thi. Không mặc định đi máy bay: nếu người dùng chưa nói phương tiện ra Hà Nội, hãy hỏi đúng một lần 'Bạn muốn ra Hà Nội bằng máy bay, tàu hỏa hay xe khách? (hoặc để mình so sánh giúp)'. Chỉ gọi searchFlights khi người dùng chọn máy bay hoặc so sánh (nếu từ chối bay thì ghi flightDeclined=true bằng recordTripInfo). Gợi ý điểm tập kết gần hơn (TP Hà Giang: hub:HA_GIANG_CITY hoặc Hà Nội: hub:HA_NOI) rồi thuê xe: ghi homeCity nếu cần, xác nhận hub bằng confirmOrigin khi họ đồng ý, và gọi planAccessLeg."
+              : "Chặng ngày 1 từ điểm xuất phát quá dài hoặc không khả thi. Không mặc định đi máy bay: nếu người dùng chưa nói phương tiện ra Hà Nội, hãy hỏi đúng một lần 'Bạn muốn ra Hà Nội bằng máy bay, tàu hỏa hay xe khách? (hoặc để mình so sánh giúp)'. Gợi ý điểm tập kết gần hơn (TP Hà Giang: hub:HA_GIANG_CITY hoặc Hà Nội: hub:HA_NOI) rồi thuê xe: ghi homeCity nếu cần, xác nhận hub bằng confirmOrigin khi họ đồng ý, và gọi planAccessLeg (mọi mức giá chặng tiếp cận là ước tính).",
+          } : {}),
           days: result.days.map(day => ({ day: day.day, stops: day.stops.map(stop => names.get(stop.destination.id) ?? stop.destination.name) })),
           checks: result.checks.map(check => ({ key: check.key, status: check.status })),
           note: `Lịch đầy đủ đã hiển thị cho người dùng. Chỉ nhận xét ngắn; trạng thái khác PASS nghĩa là chưa được xác nhận.${blockingAssumed.length > 0 ? ` Đây là bản nháp giả định (${assumedFields.join(", ")}): viết đúng một dòng nêu các giả định đang dùng, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (nơi xuất phát hoặc ngày đi), đưa giả định còn lại vào suggestReplies; lịch chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi.` : context.features?.has("hotels") && result.days.length > 1 ? " Ngày đi và nơi xuất phát đã xác nhận: hãy gọi searchHotels một lần với stays gồm các khu nghỉ đêm (gộp các đêm liên tiếp cùng điểm cuối ngày) để tra giá phòng tham khảo." : ""}${external.length ? " Có địa điểm ngoài danh mục (Google Maps): chưa được kiểm tra, thời gian ở lại chỉ là ước tính, lịch này chưa thể lưu." : ""}` };
@@ -582,15 +590,36 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     },
   });
 
+  const findMatchingFlightOverride = (info: { startDate?: string; durationDays?: number; travelers: number }): FlightPriceOverride | null => {
+    let expectedReturn: string | null = null;
+    if (info.startDate && info.durationDays) {
+      const [y, m, d] = info.startDate.split("-").map(Number) as [number, number, number];
+      expectedReturn = new Date(Date.UTC(y, m - 1, d + info.durationDays - 1)).toISOString().slice(0, 10);
+    }
+    for (let i = flightLookups.length - 1; i >= 0; i -= 1) {
+      const item = flightLookups[i]!;
+      if (item.currency !== "VND" || !item.cheapestTotal) continue;
+      if (item.adults !== info.travelers) continue;
+      if (info.startDate && item.departureDate !== info.startDate) continue;
+      if (item.roundTrip && item.returnDate && expectedReturn && item.returnDate !== expectedReturn) continue;
+      const totalVnd = Math.round(Number(item.cheapestTotal));
+      if (!Number.isFinite(totalVnd) || totalVnd <= 0) continue;
+      return { totalVnd, adults: item.adults, roundTrip: item.roundTrip, lookupDate: item.lookupDate };
+    }
+    return null;
+  };
+
   const planAccessLeg = tool({
-    description: "Ước tính chặng tiếp cận cho người ở xa: từ thành phố của họ tới điểm tập kết (HA_NOI hoặc HA_GIANG_CITY) và chiều về, gồm các chặng máy bay, xe khách giường nằm, tàu, xe trung chuyển với giờ, thời lượng và giá mỗi người ước tính (lấy từ bảng giá tham khảo hoặc searchFlights nếu có). Chặng này chỉ để tham khảo, không được kiểm tra, không đặt vé; số ngày chuyến đi tính từ điểm tập kết.",
+    description: "Ước tính chặng tiếp cận cho người ở xa: từ thành phố của họ tới điểm tập kết (HA_NOI hoặc HA_GIANG_CITY) và chiều về, gồm các chặng máy bay, xe khách giường nằm, tàu, xe trung chuyển với giờ, thời lượng và giá mỗi người ước tính (chỉ dựa vào bảng giá tham khảo nếu có; không bịa tuyến không có trong bảng). Nếu đã có kết quả tra vé máy bay hợp lệ trong hội thoại, hệ thống tự thay giá đoạn FLIGHT bằng giá rẻ nhất/người kèm nguồn Google Flights. Chặng này chỉ để tham khảo, không được kiểm tra, không đặt vé; số ngày chuyến đi tính từ điểm tập kết.",
     inputSchema: accessLegInputSchema,
     execute: async input => {
       const { info } = withTripInfoDefaults(tripInfo);
       if (!info.homeCity) return { ok: false as const, code: "MISSING_HOME_CITY", message: "Hỏi người dùng đang ở thành phố nào rồi ghi bằng recordTripInfo (homeCity)." };
-      latestAccessLeg = buildAccessLeg(input, info.homeCity, info.travelers);
+      const flightOverride = findMatchingFlightOverride(info);
+      latestAccessLeg = buildAccessLeg(input, info.homeCity, info.travelers, flightOverride);
       context.emitAccessLeg?.(latestAccessLeg);
       return { ok: true as const, outboundMinutes: latestAccessLeg.outboundMinutes, returnMinutes: latestAccessLeg.returnMinutes, totalVnd: latestAccessLeg.totalVnd,
+        usedGoogleFlightsPrice: Boolean(flightOverride && [...latestAccessLeg.outbound, ...latestAccessLeg.return].some(s => s.priceSource === "GOOGLE_FLIGHTS")),
         note: `Chặng tiếp cận đã hiện cho người dùng (Trước chuyến đi / Sau chuyến đi). ${isHubOrigin(currentJourney?.origin?.label) ? "" : "Điểm xuất phát hiện chưa phải điểm tập kết: mời người dùng xác nhận điểm tập kết (hub:HA_NOI hoặc hub:HA_GIANG_CITY) để lập lịch phần đi xe."} estimateCosts sẽ tự cộng chặng này vào nhóm đi lại.` };
     },
   });
@@ -644,6 +673,9 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         ? { label: currentJourney.origin.label, latitude: currentJourney.origin.latitude, longitude: currentJourney.origin.longitude }
         : null
     ),
+    flightDeclined: () => tripInfo.flightDeclined === true,
+    priorFlightLookups: context.priorFlightLookups,
+    onFlightLookupResult: record => { flightLookups.push(record); },
     blockingAssumedFields: () => blockingAssumedFields(tripInfo.assumedFields),
     priorHotelLookups: context.priorHotelLookups,
   });

@@ -13,7 +13,7 @@ import type { LocalKnowledge, OriginLookup, TripsagePlanningDeps, TripsageToolCo
 import type { MemoryService } from "../tripsage-memory/memory-service";
 import type { AssistantConversationStore } from "./assistant-conversation-store";
 import { signOriginCandidates } from "./tripsage-chat-origin";
-import { parseTripsageChatAccessLeg, parseTripsageChatConversationId, parseTripsageChatItinerary, parseTripsageChatJourney, parseTripsageChatMessages, parseTripsageChatOriginCandidates, parseTripsageChatPriorHotelLookups, parseTripsageChatTripInfo, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
+import { parseTripsageChatAccessLeg, parseTripsageChatConversationId, parseTripsageChatItinerary, parseTripsageChatJourney, parseTripsageChatMessages, parseTripsageChatOriginCandidates, parseTripsageChatPriorFlightLookups, parseTripsageChatPriorHotelLookups, parseTripsageChatTripInfo, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
 
 export type TripsageChatHttpDependencies = {
   authorization: AuthorizationDependencies;
@@ -61,6 +61,7 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
     const body = await readBoundedJsonBody(request, { maxBytes: 128 * 1024, tooLargeError: invalid, emptyError: invalid, invalidJsonError: invalid });
     const { messages, latestUser } = parseTripsageChatMessages(body);
     const priorHotelLookups = parseTripsageChatPriorHotelLookups(body);
+    const priorFlightLookups = parseTripsageChatPriorFlightLookups(body);
     const journey = parseTripsageChatJourney(body);
     const tripInfo = parseTripsageChatTripInfo(body);
     const currentItinerary = parseTripsageChatItinerary(body);
@@ -111,7 +112,7 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
                 })
               : undefined,
             planning, originSearch: deps.originSearch?.(), places: deps.places?.(), web: deps.web?.(), knowledge: deps.knowledge?.(),
-            flights: deps.flights, hotels: deps.hotels, priorHotelLookups, limits: deps.limits, signal: request.signal, onSettled: release,
+            flights: deps.flights, hotels: deps.hotels, priorHotelLookups, priorFlightLookups, limits: deps.limits, signal: request.signal, onSettled: release,
             memory: features.has("memory") ? { actor, source: latestUser, resolve: deps.memory } : undefined,
           });
           if (conversation) streamResponse.headers.set("X-Assistant-Conversation-Id", conversation.conversationId);

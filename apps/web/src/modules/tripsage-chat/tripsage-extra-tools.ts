@@ -24,6 +24,17 @@ export type PriorHotelLookupKey = {
   adults: number;
 };
 
+export type PriorFlightLookupRecord = {
+  originAirport?: string;
+  departureDate: string;
+  returnDate?: string | null;
+  adults: number;
+  roundTrip: boolean;
+  cheapestTotal?: string;
+  currency?: string;
+  lookupDate?: string;
+};
+
 export type StayInput = { destinationId: string; checkInDate: string; checkOutDate: string };
 
 /** Merges consecutive overnight stays at the same destination into one continuous check-in/check-out span. */
@@ -55,6 +66,12 @@ export type TripsageExtraToolContext = TripsageResultEmitters & {
   destinationPoint?: (id: string) => Promise<DestinationPoint | null>;
   /** Confirmed trip origin coordinates from the request `journey`, never from model input. Used to choose nearest departure airport. */
   confirmedOrigin?: () => { label: string; latitude: number; longitude: number } | null;
+  /** True when the traveler declined flying to Hà Nội for this trip (blocks searchFlights). */
+  flightDeclined?: () => boolean;
+  /** Prior flight lookup results from earlier turns in this conversation (dedup + proactive cap + access leg price injection). */
+  priorFlightLookups?: readonly PriorFlightLookupRecord[];
+  /** Called on successful RESULTS so `planAccessLeg` in the same turn can inject the live flight price. */
+  onFlightLookupResult?: (record: PriorFlightLookupRecord) => void;
   /** Blocking assumed fields (`origin` / `startDate`) on the current draft. Non-empty blocks hotel price lookup. */
   blockingAssumedFields?: () => readonly string[];
   /** Previously emitted hotel lookups in the same conversation, used for cross-turn deduplication without a DB table. */
@@ -125,6 +142,15 @@ export function createTripsageExtraTools(context: TripsageExtraToolContext) {
   const resolveHotels = lazyLookup(context.hotels);
   const maxFlightCalls = context.maxFlightCalls ?? TRIPSAGE_EXTRA_LIMITS.maxFlightCalls;
   const maxHotelCalls = context.maxHotelCalls ?? TRIPSAGE_EXTRA_LIMITS.maxHotelCalls;
+  const seenFlightKeys = new Set<string>();
+  const flightLookupKey = (originAirport: string, departureDate: string, returnDate?: string | null) =>
+    `${originAirport}|${departureDate}|${returnDate ?? ""}`;
+  for (const prior of context.priorFlightLookups ?? []) {
+    if (prior.originAirport) {
+      seenFlightKeys.add(flightLookupKey(prior.originAirport, prior.departureDate, prior.returnDate));
+    }
+  }
+  let priorDistinctFlightCalls = seenFlightKeys.size;
   const seenHotelById = new Set<string>();
   const seenHotelByNear = new Set<string>();
   const hotelIdKey = (destinationId: string, checkInDate: string, checkOutDate: string, kind: LodgingKind, adults: number) =>
@@ -156,9 +182,17 @@ export function createTripsageExtraTools(context: TripsageExtraToolContext) {
     description: "Tra giá vé máy bay tham khảo từ Google Flights (qua SerpApi) tới Hà Nội (HAN). Hệ thống tự chọn sân bay đi gần nơi xuất phát đã xác nhận nhất; chỉ truyền originAirport khi người dùng tự nêu sân bay. Khứ hồi chỉ tra 1 lượt (tổng giá khứ hồi + chi tiết chiều đi, không tra chi tiết chiều về). Chỉ tra cứu, không đặt vé, không đưa vào proposeItinerary.",
     inputSchema: flightInput,
     execute: async (input, options) => {
+      if (context.flightDeclined?.()) {
+        return {
+          ok: false as const,
+          code: "FLIGHT_DECLINED",
+          message: "Người dùng đã từ chối đi máy bay cho chuyến này. Không tra vé máy bay; dùng tàu hỏa hoặc xe khách theo mong muốn của người dùng.",
+        };
+      }
       const lookup = resolveFlights();
       if (!lookup) return unavailable("vé máy bay");
-      if (!isValidCalendarDate(input.departureDate) || input.departureDate < vietnamDateOf(now())) return bad("Ngày đi không hợp lệ hoặc đã qua. Hãy hỏi lại người dùng ngày đi.");
+      const today = vietnamDateOf(now());
+      if (!isValidCalendarDate(input.departureDate) || input.departureDate < today) return bad("Ngày đi không hợp lệ hoặc đã qua. Hãy hỏi lại người dùng ngày đi.");
       if (input.returnDate != null && (!isValidCalendarDate(input.returnDate) || input.returnDate < input.departureDate)) return bad("Ngày về không hợp lệ hoặc trước ngày đi.");
 
       let originCode: string;
@@ -184,7 +218,23 @@ export function createTripsageExtraTools(context: TripsageExtraToolContext) {
         originAirportName = nearest.airport.name;
       }
 
-      if (flightCalls >= maxFlightCalls) return { ok: false as const, code: "FLIGHT_LIMIT", message: "Đã đạt số lần tra vé máy bay tối đa trong lượt này. Hãy tóm tắt và mời người dùng nhắn tiếp." };
+      const key = flightLookupKey(originCode, input.departureDate, input.returnDate ?? null);
+      if (seenFlightKeys.has(key)) {
+        return {
+          ok: true as const,
+          count: 0,
+          alreadyLookedUp: true,
+          originAirport: originCode,
+          originAirportName,
+          destinationAirport: DESTINATION_AIRPORT_HAN,
+          offers: [],
+          note: "Chặng bay với cùng sân bay đi và ngày này đã được tra trong hội thoại; dùng kết quả trước đó.",
+        };
+      }
+
+      if (priorDistinctFlightCalls + flightCalls >= maxFlightCalls) {
+        return { ok: false as const, code: "FLIGHT_LIMIT", message: "Đã đạt số lần tra vé máy bay tối đa cho chuyến này. Hãy dùng kết quả đã tra hoặc tóm tắt cho người dùng." };
+      }
       flightCalls += 1;
 
       const outcome = await lookup({
@@ -209,7 +259,20 @@ export function createTripsageExtraTools(context: TripsageExtraToolContext) {
           note: `Không tìm thấy chuyến bay phù hợp từ ${originCode} tới ${DESTINATION_AIRPORT_HAN}.`,
         };
       }
+      const isRoundTrip = outcome.roundTrip ?? Boolean(input.returnDate);
       if (outcome.offers.length) {
+        seenFlightKeys.add(key);
+        const cheapest = outcome.offers[0]!;
+        context.onFlightLookupResult?.({
+          originAirport: originCode,
+          departureDate: input.departureDate,
+          returnDate: input.returnDate ?? null,
+          adults: input.adults,
+          roundTrip: isRoundTrip,
+          cheapestTotal: cheapest.price.total,
+          currency: cheapest.price.currency,
+          lookupDate: today,
+        });
         context.emitFlights?.({
           offers: outcome.offers.map(({ price, totalDurationMinutes, itineraries }) => ({
             price: { total: price.total, currency: price.currency },
@@ -219,7 +282,12 @@ export function createTripsageExtraTools(context: TripsageExtraToolContext) {
               segments: segments.map(({ from, to, departAt, arriveAt, airline, flight }) => ({ from, to, departAt, arriveAt, airline, flight })),
             })),
           })),
-          roundTrip: outcome.roundTrip ?? Boolean(input.returnDate),
+          roundTrip: isRoundTrip,
+          originAirport: originCode,
+          departureDate: input.departureDate,
+          ...(input.returnDate ? { returnDate: input.returnDate } : {}),
+          adults: input.adults,
+          lookupDate: today,
           ...(outcome.typicalPriceRange ? { typicalPriceRange: outcome.typicalPriceRange } : {}),
         });
       }
@@ -229,10 +297,10 @@ export function createTripsageExtraTools(context: TripsageExtraToolContext) {
         originAirport: originCode,
         originAirportName,
         destinationAirport: DESTINATION_AIRPORT_HAN,
-        roundTrip: outcome.roundTrip ?? Boolean(input.returnDate),
+        roundTrip: isRoundTrip,
         ...(outcome.typicalPriceRange ? { typicalPriceRange: outcome.typicalPriceRange } : {}),
         offers: outcome.offers,
-        note: `${priceNote()}${outcome.roundTrip || input.returnDate ? " Vé khứ hồi chỉ gồm tổng giá khứ hồi và chi tiết chiều đi; chiều về xem trên Google Flights." : ""}`,
+        note: `${priceNote()}${isRoundTrip ? " Vé khứ hồi chỉ gồm tổng giá khứ hồi và chi tiết chiều đi; chiều về xem trên Google Flights." : ""}`,
       };
     },
   });

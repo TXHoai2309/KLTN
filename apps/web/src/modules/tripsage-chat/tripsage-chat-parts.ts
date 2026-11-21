@@ -51,6 +51,11 @@ export const flightsPartSchema = z.strictObject({
     }).refine(({ connections, segments }) => connections === segments.length - 1)).min(1).max(2),
   })).min(1).max(5),
   roundTrip: z.boolean().optional(),
+  originAirport: airport.optional(),
+  departureDate: date.optional(),
+  returnDate: date.nullable().optional(),
+  adults: z.number().int().min(1).max(9).optional(),
+  lookupDate: date.optional(),
   typicalPriceRange: z.strictObject({
     min: z.string().max(32).regex(/^\d+(?:\.\d+)?$/u),
     max: z.string().max(32).regex(/^\d+(?:\.\d+)?$/u),

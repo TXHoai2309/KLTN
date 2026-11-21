@@ -217,7 +217,7 @@ describe("flight and hotel provider boundaries", () => {
     const chunks = parts(sse);
     expect(chunks.some(part => part.type === "data-itinerary")).toBe(false);
     expect(chunks.filter(part => part.type === "data-flights" || part.type === "data-hotels")).toEqual([
-      { type: "data-flights", id: "flights-1", data: { offers: [flightOffer], roundTrip: false } },
+      { type: "data-flights", id: "flights-1", data: { offers: [flightOffer], roundTrip: false, originAirport: "SGN", departureDate: "2026-11-20", adults: 1, lookupDate: "2026-10-27" } },
       { type: "data-hotels", id: "hotels-1", data: { near: dest.name, nights: 1, destinationId: "a", kind: "ANY", adults: 1, hotels: [{
         name: hostileName, distanceKm: 0, room: null, rating: 4.5, reviews: 10, price: hotelOffer.price,
         checkInDate: hotelOffer.checkInDate, checkOutDate: hotelOffer.checkOutDate,
@@ -270,8 +270,9 @@ describe("flight and hotel provider boundaries", () => {
   });
 
   it("assigns distinct IDs to consecutive flight and hotel results", async () => {
+    const flight2 = { tool: "searchFlights", input: { originAirport: "DAD", departureDate: "2026-11-21" } };
     const hotel2 = { tool: "searchHotels", input: { destinationId: "b", checkInDate: "2026-11-21", checkOutDate: "2026-11-22" } };
-    const sse = await run(scripted([flight, hotel, flight, hotel2, finish]), { env: env(true, true), flights, hotels });
+    const sse = await run(scripted([flight, hotel, flight2, hotel2, finish]), { env: env(true, true), flights, hotels });
     const chunks = parts(sse).filter(part => part.type === "data-flights" || part.type === "data-hotels") as { id?: string }[];
     expect(chunks.map(part => part.id)).toEqual(["flights-1", "hotels-1", "flights-2", "hotels-2"]);
   });

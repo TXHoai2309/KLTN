@@ -30,10 +30,14 @@ describe("transport and hotel lookups", () => {
     expect(validation).toMatchObject({ success: false });
   });
 
-  it("reserves at most two flight lookups across three concurrent calls", async () => {
+  it("reserves at most two flight lookups across three concurrent distinct queries", async () => {
     const providers = lookup();
     const { searchFlights } = createTripsageExtraTools({ features, flights: () => providers.flights, hotels: () => providers.hotels, now: () => new Date("2028-02-28T00:00:00Z") });
-    const results = await Promise.all(Array.from({ length: 3 }, () => searchFlights!.execute(flightInput, options)));
+    const results = await Promise.all([
+      searchFlights!.execute({ ...flightInput, departureDate: "2028-02-29" }, options),
+      searchFlights!.execute({ ...flightInput, departureDate: "2028-03-01" }, options),
+      searchFlights!.execute({ ...flightInput, departureDate: "2028-03-02" }, options),
+    ]);
     expect(providers.flights).toHaveBeenCalledTimes(2);
     expect(results[2]).toMatchObject({ ok: false, code: "FLIGHT_LIMIT" });
   });
