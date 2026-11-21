@@ -1,3 +1,5 @@
+import type { ApplicationSettings } from "../runtime-config/runtime-config-contract";
+
 /**
  * Independent server-side switches for the optional TripSage features. Calendar export has no chat tools.
  * Each group is off unless its variable is
@@ -16,8 +18,8 @@ export const TRIPSAGE_FEATURE_ENV: Record<TripsageFeature, string> = {
   calendar: "TRIPSAGE_FEATURE_CALENDAR",
 };
 
-export function enabledTripsageFeatures(env: Record<string, string | undefined> = process.env): ReadonlySet<TripsageFeature> {
-  return new Set(TRIPSAGE_FEATURES.filter(feature => env[TRIPSAGE_FEATURE_ENV[feature]] === "true"));
+export function enabledTripsageFeatures(env: Record<string, string | undefined> = process.env, settings?: ApplicationSettings): ReadonlySet<TripsageFeature> {
+  return new Set(TRIPSAGE_FEATURES.filter(feature => settings?.[feature] ?? env[TRIPSAGE_FEATURE_ENV[feature]] === "true"));
 }
 
 /** Names of the tools each group adds. The chat's base allow-list lives in `tripsage-chat-tools.ts`. */

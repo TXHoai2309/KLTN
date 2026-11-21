@@ -38,7 +38,7 @@ vi.mock("@/services", () => {
 });
 
 import { decryptConfig, encryptConfig } from "./runtime-config-crypto";
-import { configurationOverview, effectiveConfig, runtimeScope, updateConfiguration } from "./runtime-config-service";
+import { configurationOverview, effectiveConfig, mapSettings, qaSettings, runtimeScope, updateConfiguration } from "./runtime-config-service";
 
 const key = "11".repeat(32);
 afterEach(() => { fixture.rows.clear(); fixture.ids.clear(); fixture.audits.length = 0; fixture.role = "ADMIN"; vi.unstubAllEnvs(); });
@@ -94,12 +94,13 @@ describe("Admin runtime configuration vault", () => {
   it("commits encrypted changes with safe audit and replays the identical mutation", async () => {
     vi.stubEnv("RUNTIME_CONFIG_ENCRYPTION_KEY", key);
     vi.stubEnv("VERCEL_ENV", "");
-    const input = { service: "OPENAI", changes: { apiKey: "fixture-private-secret" } };
+    await expect(updateConfiguration("admin-1", "secret", { service: "OPENAI", changes: { apiKey: "fixture-private-secret" } })).rejects.toMatchObject({ code: "CONFIG_INPUT_INVALID" });
+    const input = { service: "OPENAI", changes: { preferenceModel: "gpt-6-luna" } };
     const first = await updateConfiguration("admin-1", "request-1", input);
     expect(first).toMatchObject({ status: "SUCCESS", data: { service: "OPENAI", version: 1 } });
     expect(JSON.stringify(first)).not.toContain("fixture-private-secret");
     const stored = fixture.rows.get("LOCAL:OPENAI")!;
-    expect(stored.payload).not.toContain("fixture-private-secret");
+    expect(stored.payload).not.toContain("gpt-6-luna");
     expect(JSON.stringify(fixture.audits)).not.toContain("fixture-private-secret");
     const replay = await updateConfiguration("admin-1", "request-1", input);
     expect(replay).toMatchObject({ status: "SUCCESS", replayed: true });
@@ -107,7 +108,7 @@ describe("Admin runtime configuration vault", () => {
     expect(fixture.audits).toHaveLength(1);
     await expect(updateConfiguration("admin-1", "request-2", { service: "CLOUDINARY", changes: { apiKey: "partial" } })).rejects.toMatchObject({ code: "CONFIG_INPUT_INVALID" });
     fixture.role = "TRAVELER";
-    expect(await updateConfiguration("admin-1", "request-3", { service: "STADIA", changes: { apiKey: "new-key" } })).toMatchObject({ status: "FAILED", httpStatus: 403 });
+    expect(await updateConfiguration("admin-1", "request-3", { service: "APPLICATION", changes: { chatEnabled: true } })).toMatchObject({ status: "FAILED", httpStatus: 403 });
   });
 
   it("persists independent Editorial and QA model selections in the encrypted OpenAI override", async () => {
@@ -117,5 +118,64 @@ describe("Admin runtime configuration vault", () => {
     expect(result).toMatchObject({ status: "SUCCESS" });
     expect(await effectiveConfig("OPENAI")).toMatchObject({ editorialModel: "gpt-6.1-terra", qaModel: "gpt-6-sol" });
     expect(JSON.stringify(fixture.audits)).toContain("editorialModel,qaModel");
+  });
+
+  it("lets Admin turn off an enabled feature and keeps deployment scopes separate", async () => {
+    vi.stubEnv("RUNTIME_CONFIG_ENCRYPTION_KEY", key);
+    vi.stubEnv("VERCEL_ENV", "");
+    vi.stubEnv("TRIPSAGE_CHAT_ENABLED", "true");
+    expect(await effectiveConfig("APPLICATION")).toMatchObject({ chatEnabled: true });
+
+    const result = await updateConfiguration("admin-1", "feature-toggle", {
+      service: "APPLICATION", changes: { chatEnabled: false, calendar: true },
+    });
+    expect(result).toMatchObject({ status: "SUCCESS" });
+    expect(await effectiveConfig("APPLICATION")).toMatchObject({ chatEnabled: false, calendar: true });
+    const overview = await configurationOverview();
+    expect(overview.services.find(group => group.service === "APPLICATION")?.fields).toContainEqual({
+      name: "chatEnabled", configured: true, source: "CMS", value: false,
+    });
+
+    vi.stubEnv("VERCEL_ENV", "preview");
+    expect(await effectiveConfig("APPLICATION")).toMatchObject({ chatEnabled: true, calendar: false });
+  });
+
+  it("can retain effective feature settings after removing their legacy env variables", async () => {
+    vi.stubEnv("RUNTIME_CONFIG_ENCRYPTION_KEY", key);
+    vi.stubEnv("VERCEL_ENV", "");
+    vi.stubEnv("TRIPSAGE_CHAT_ENABLED", "true");
+    vi.stubEnv("TRIPSAGE_FEATURE_CALENDAR", "true");
+    await updateConfiguration("admin-1", "disable-calendar", { service: "APPLICATION", changes: { calendar: false } });
+    const saved = await updateConfiguration("admin-1", "save-current", { service: "APPLICATION", changes: {}, saveCurrent: true });
+    expect(saved).toMatchObject({ status: "SUCCESS" });
+    vi.stubEnv("TRIPSAGE_CHAT_ENABLED", undefined);
+    expect(await effectiveConfig("APPLICATION")).toMatchObject({ chatEnabled: true, calendar: false });
+  });
+
+  it("reads an Admin's provider and QA switches only in the selected environment", async () => {
+    vi.stubEnv("RUNTIME_CONFIG_ENCRYPTION_KEY", key);
+    vi.stubEnv("VERCEL_ENV", "");
+    vi.stubEnv("NEXT_PUBLIC_MAPS_PROVIDER", "STADIA");
+    vi.stubEnv("QA_RUNTIME_ENABLED", "true");
+    vi.stubEnv("QA_PREVIEW_RUNTIME_ENABLED", "true");
+    await updateConfiguration("admin-1", "maps", { service: "MAPS", changes: { provider: "GOOGLE", googleMapId: "admin-map-id" } });
+    await updateConfiguration("admin-1", "qa", { service: "QA", changes: { enabled: false, cleanupEnabled: true } });
+    expect(await mapSettings()).toEqual({ provider: "GOOGLE", googleMapId: "admin-map-id" });
+    expect(await qaSettings()).toMatchObject({ enabled: false, cleanupEnabled: true });
+    vi.stubEnv("VERCEL_ENV", "preview");
+    expect((await mapSettings()).provider).toBe("STADIA");
+    expect(await qaSettings()).toMatchObject({ enabled: true, cleanupEnabled: false });
+  });
+
+  it("leaves an old credential in service until an Admin explicitly switches to env", async () => {
+    vi.stubEnv("VERCEL_ENV", "");
+    vi.stubEnv("RUNTIME_CONFIG_ENCRYPTION_KEY", key);
+    vi.stubEnv("OPENAI_API_KEY", "env-key-fixture");
+    fixture.rows.set("LOCAL:OPENAI", { scope: "LOCAL", service: "OPENAI", payload: encryptConfig({ apiKey: "legacy-key-fixture" }, "LOCAL", "OPENAI"), version: 1, updatedAt: new Date() });
+    await updateConfiguration("admin-1", "edit-model", { service: "OPENAI", changes: { qaModel: "gpt-6-luna" } });
+    expect(await effectiveConfig("OPENAI")).toMatchObject({ apiKey: "legacy-key-fixture", qaModel: "gpt-6-luna" });
+    expect(await updateConfiguration("admin-1", "move-key", { service: "OPENAI", changes: {}, useEnvironmentCredentials: true })).toMatchObject({ status: "SUCCESS" });
+    expect(await effectiveConfig("OPENAI")).toMatchObject({ apiKey: "env-key-fixture", qaModel: "gpt-6-luna" });
+    expect(JSON.stringify(fixture.audits)).not.toContain("key-fixture");
   });
 });

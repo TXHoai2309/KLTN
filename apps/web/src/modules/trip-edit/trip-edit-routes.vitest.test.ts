@@ -2,11 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const coordinateRouteMock = vi.fn();
 
-vi.mock("../trip-planner/planner-routes", () => ({
-  ROUTING_DEADLINE_MS: 5_000,
-  createConfiguredRoutesProvider: () => ({
-    coordinateRoute: coordinateRouteMock,
-  }),
+vi.mock("../map/runtime-routing", () => ({
+  createRuntimeRouting: () => ({ routes: { coordinateRoute: coordinateRouteMock } }),
 }));
 
 import { createTripEditRouteProvider } from "./trip-edit-routes";
@@ -27,6 +24,7 @@ describe("createTripEditRouteProvider", () => {
       status: "VERIFIED",
       durationSeconds: 3600,
       distanceMeters: 42000,
+      provider: "GOOGLE_MAPS",
       geometry: {
         type: "LineString",
         coordinates: [
@@ -51,6 +49,7 @@ describe("createTripEditRouteProvider", () => {
       kind: "ok",
       durationSeconds: 3600,
       distanceMeters: 42000,
+      provider: "GOOGLE_MAPS",
       geometry: {
         type: "LineString",
         coordinates: [

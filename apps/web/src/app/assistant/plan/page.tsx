@@ -8,8 +8,7 @@ import { AssistantShell } from "@/components/assistant/assistant-answer";
 import { AssistantModeTabs } from "@/components/tripsage-chat/assistant-mode-tabs";
 import { TripsageChatClient } from "@/components/tripsage-chat/tripsage-chat-client";
 import { buildAuthLoginHref } from "@/lib/auth-return-to";
-import { isTripsageChatEnabled } from "@/modules/tripsage-chat/tripsage-chat-flag";
-import { enabledTripsageFeatures } from "@/modules/tripsage-chat/tripsage-features";
+import { applicationSettings } from "@/modules/runtime-config/runtime-config-service";
 import { AppError } from "@/server/http/app-error";
 import { requireActor } from "@/server/authorization/guard";
 import { authorizationDependencies } from "@/server/authorization/server";
@@ -25,7 +24,8 @@ export const dynamic = "force-dynamic";
  */
 export default async function TripsageChatPage() {
   // Flag off: send the visitor to the normal assistant (no `mode`, so no rewrite and no loop).
-  if (!isTripsageChatEnabled()) redirect("/assistant" as Route);
+  const settings = await applicationSettings();
+  if (!settings.chatEnabled) redirect("/assistant" as Route);
   const allowed = await requireActor(await headers(), authorizationDependencies, "traveler")
     .then(() => true)
     .catch((error: unknown) => {
@@ -33,5 +33,5 @@ export default async function TripsageChatPage() {
       if (error instanceof AppError && error.status === 403) return false;
       throw error;
     });
-  return allowed ? <AssistantShell><AssistantModeTabs active="plan" /><TripsageChatClient memoryEnabled={enabledTripsageFeatures().has("memory")} /></AssistantShell> : <AccessDenied />;
+  return allowed ? <AssistantShell><AssistantModeTabs active="plan" /><TripsageChatClient memoryEnabled={settings.memory} /></AssistantShell> : <AccessDenied />;
 }

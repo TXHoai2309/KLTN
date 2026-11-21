@@ -4,6 +4,7 @@ import {
   resolveTripAssistantModel,
 } from "@/modules/trip-edit/trip-assistant-openai";
 import { createTripEditRouteProvider } from "@/modules/trip-edit/trip-edit-routes";
+import { applicationSettings } from "@/modules/runtime-config/runtime-config-service";
 import { authorizationDependencies } from "@/server/authorization/server";
 import { db } from "@/services";
 
@@ -15,10 +16,9 @@ const dependencies = {
   service: {
     database: db,
     llm: createTripAssistantStructuredClient(),
-    getRoute: createTripEditRouteProvider(),
-    // ADR-40 reasoning loop is on by default; TRIP_ASSISTANT_AGENT=off restores the ADR-38 pipeline.
-    ...(process.env.TRIP_ASSISTANT_AGENT === "off" ? {} : { agent: () => resolveTripAssistantModel() }),
+    agent: () => resolveTripAssistantModel(),
   },
+  agentEnabled: async () => (await applicationSettings()).tripAssistantAgentEnabled,
   now: () => new Date(),
 };
 
@@ -27,5 +27,5 @@ export async function POST(
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  return aiEditResponse(request, id, dependencies);
+  return aiEditResponse(request, id, { ...dependencies, service: { ...dependencies.service, getRoute: createTripEditRouteProvider() } });
 }

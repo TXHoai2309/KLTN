@@ -3,10 +3,10 @@ import { db } from "../../services";
 import { ENV } from "../../env.server";
 import { authorizationDependencies } from "../../server/authorization/server";
 import { retrievePlannerCandidates, recheckPlannerCandidates } from "../trip-planner/planner-candidates";
-import { createConfiguredRoutesProvider } from "../trip-planner/planner-routes";
+import { createRuntimeRouting } from "../map/runtime-routing";
 import { routingRegistry } from "../destination/destination-routing-registry";
 import { saveTrip, previewTripValidation } from "../trip-save/trip-save-service";
-import { tripSaveDependencies } from "../trip-save/trip-save-server";
+import { createTripSaveDependencies } from "../trip-save/trip-save-server";
 import { createPlanningRepository } from "./planning-repository";
 import { analyzePlanningText, generateAiSelection } from "./planning-ai";
 import type { PlanningDependencies } from "./planning-service";
@@ -19,12 +19,13 @@ export const planningDependencies = {
   authorization: authorizationDependencies,
   forActor(userId: string, headers: Headers): PlanningDependencies {
     const registry = routingRegistry(ENV.DATABASE_URL);
-    const saveDependencies = { ...tripSaveDependencies, interdayDepartureMinute: 480 };
+    const routing = createRuntimeRouting();
+    const saveDependencies = { ...createTripSaveDependencies(routing), interdayDepartureMinute: 480 };
     return {
       repository: createPlanningRepository(db, authorizationDependencies, headers, userId),
       candidates: () => retrievePlannerCandidates(db, undefined, registry.excludedIds),
       recheck: selected => recheckPlannerCandidates(db, selected, registry.excludedIds),
-      routes: createConfiguredRoutesProvider(),
+      routes: routing.routes,
       analyze: analyzePlanningText, generate: generateAiSelection, compose: composePlanningReply,
       save: (input, key) => saveTrip(headers, input, key, saveDependencies, new Date()),
       validateForSave: input => previewTripValidation(headers, input.proposal, saveDependencies, new Date()),

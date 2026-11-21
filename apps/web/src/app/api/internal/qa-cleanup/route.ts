@@ -3,20 +3,24 @@ import { createQaConversationStore } from "../../../../modules/ai/qa-conversatio
 import { createQaCleanupHandler } from "../../../../modules/ai/qa-cleanup";
 import { createQaAbuseGuard } from "../../../../modules/ai/qa-abuse";
 import { isQaCleanupEnabled } from "../../../../modules/ai/qa-cleanup-gate";
+import { qaSettings } from "../../../../modules/runtime-config/runtime-config-service";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
-export const GET = createQaCleanupHandler({
-  enabled: () => isQaCleanupEnabled({
-    enabled: process.env.QA_CLEANUP_ENABLED,
-    databaseUrl: process.env.DATABASE_URL,
-    allowedDatabaseHost: process.env.QA_CLEANUP_ALLOWED_DATABASE_HOST,
-    allowedDatabaseName: process.env.QA_CLEANUP_ALLOWED_DATABASE_NAME,
-  }),
-  secret: () => process.env.CRON_SECRET,
-  cleanup: async () => {
-    const progress = await createQaConversationStore(db, { cleanupBatchSize: 25, cleanupMaxDurationMs: 20_000 }).cleanup();
-    await createQaAbuseGuard(db).cleanup();
-    return progress;
-  },
-});
+export async function GET(request: Request) {
+  const settings = await qaSettings().catch(() => null);
+  return createQaCleanupHandler({
+    enabled: () => settings !== null && isQaCleanupEnabled({
+      enabled: String(settings.cleanupEnabled),
+      databaseUrl: process.env.DATABASE_URL,
+      allowedDatabaseHost: settings.cleanupDatabaseHost,
+      allowedDatabaseName: settings.cleanupDatabaseName,
+    }),
+    secret: () => process.env.CRON_SECRET,
+    cleanup: async () => {
+      const progress = await createQaConversationStore(db, { cleanupBatchSize: 25, cleanupMaxDurationMs: 20_000 }).cleanup();
+      await createQaAbuseGuard(db).cleanup();
+      return progress;
+    },
+  })(request);
+}

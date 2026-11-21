@@ -3,7 +3,7 @@ import { db } from "../../services";
 import { ENV } from "../../env.server";
 import { routingRegistry } from "../destination/destination-routing-registry";
 import { retrievePlannerCandidates } from "../trip-planner/planner-candidates";
-import { createConfiguredRoutesProvider } from "../trip-planner/planner-routes";
+import { createRuntimeRouting } from "../map/runtime-routing";
 import { createGooglePlacesSearch, type PlacesSearch } from "./tripsage-places";
 import { createFirecrawlWeb, type WebLookup } from "./tripsage-web";
 import { createDuffelFlightLookup, type FlightLookup } from "./tripsage-duffel";
@@ -17,7 +17,7 @@ export function tripsagePlanningRuntime(): TripsagePlanningDeps {
   const registry = routingRegistry(ENV.DATABASE_URL);
   return {
     candidates: () => retrievePlannerCandidates(db, undefined, registry.excludedIds),
-    routes: createConfiguredRoutesProvider(),
+    routes: createRuntimeRouting().routes,
     now: () => new Date(),
   };
 }
@@ -37,13 +37,13 @@ export function tripsageFlightRuntime(): FlightLookup | undefined {
   return accessToken ? createDuffelFlightLookup({ accessToken: () => accessToken }) : undefined;
 }
 
-export function tripsageHotelRuntime(): HotelLookup | undefined {
+export function tripsageHotelRuntime(environment = ENV.AMADEUS_ENV): HotelLookup | undefined {
   const clientId = ENV.AMADEUS_CLIENT_ID?.trim();
   const clientSecret = ENV.AMADEUS_CLIENT_SECRET?.trim();
   if (!clientId || !clientSecret) return undefined;
   return createAmadeusHotelLookup({
     clientId: () => clientId,
     clientSecret: () => clientSecret,
-    environment: () => ENV.AMADEUS_ENV,
+    environment: () => environment,
   });
 }

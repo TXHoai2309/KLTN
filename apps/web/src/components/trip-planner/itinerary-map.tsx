@@ -6,7 +6,7 @@ import { useTheme } from "next-themes";
 import { Expand, MapPinned, RotateCcw } from "lucide-react";
 import { mapStyle } from "@/modules/map/map-config";
 import { loadMapLibrary, mountItineraryMap } from "@/modules/map/map-renderer";
-import { mapsProviderFromEnv } from "@/modules/map/maps-provider";
+import type { MapsProvider } from "@/modules/map/maps-provider";
 import { startMapSession } from "@/modules/map/map-session";
 import { buildItineraryMapView, itineraryDayColorToken } from "@/modules/map/itinerary-map-model";
 import type { PlannerDay } from "@/modules/trip-planner/planner-contract";
@@ -40,12 +40,13 @@ export function ItineraryMap({
   const callback = useRef(onSelect);
   callback.current = onSelect;
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
+  const [provider, setProvider] = useState<MapsProvider | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [showOverview, setOverview] = useState(false);
   const overview = overviewOnly || showOverview;
-  const canShowOrigin = !(mapsProviderFromEnv() === "STADIA" && origin?.source === "GOOGLE_PLACES");
+  const canShowOrigin = !(provider === "STADIA" && origin?.source === "GOOGLE_PLACES");
   const activeDay = overview ? null : day.day;
-  const view = useMemo(() => buildItineraryMapView(days, activeDay, origin ? journeyPlan : null, mapsProviderFromEnv()), [days, activeDay, journeyPlan, origin]);
+  const view = useMemo(() => buildItineraryMapView(days, activeDay, origin ? journeyPlan : null, provider ?? "STADIA"), [days, activeDay, journeyPlan, origin, provider]);
   const { resolvedTheme } = useTheme();
   const style = mapStyle(resolvedTheme);
   const styleRef = useRef(style);
@@ -58,15 +59,17 @@ export function ItineraryMap({
       load: loadMapLibrary,
       onState: setState,
       mount: (library, ready, fail) => {
+        setProvider(library.provider);
+        const visible = buildItineraryMapView(days, activeDay, origin ? journeyPlan : null, library.provider);
         const map = mountItineraryMap(
           host,
           library,
-          view.stops,
+          visible.stops,
           styleRef.current,
           (id) => callback.current(id),
           ready,
           fail,
-          { routes: view.routes, markerDays: view.markerDays, overview, ...(view.showsOrigin && origin && canShowOrigin ? { origin } : {}) },
+          { routes: visible.routes, markerDays: visible.markerDays, overview, ...(visible.showsOrigin && origin && !(library.provider === "STADIA" && origin.source === "GOOGLE_PLACES") ? { origin } : {}) },
         );
         renderer.current = map;
         map.select(currentSelection.current, false);
@@ -77,7 +80,7 @@ export function ItineraryMap({
       },
     });
     return dispose;
-  }, [view, overview, attempt, origin, canShowOrigin]);
+  }, [days, activeDay, journeyPlan, overview, attempt, origin]);
 
   useEffect(() => {
     renderer.current?.setStyle(style);
@@ -156,12 +159,12 @@ export function ItineraryMap({
         <span>
           <MapPinned size={14} aria-hidden="true" /> {overview ? `${view.stops.length} điểm dừng · ${days.length} ngày` : `${day.stops.length} điểm dừng · Ngày ${day.day}`}
         </span>
-        <span className="sr-only">Bản đồ sử dụng {mapsProviderFromEnv() === "GOOGLE" ? "Google Maps" : "Stadia Maps"}</span>
+        {provider && <span className="sr-only">Bản đồ sử dụng {provider === "GOOGLE" ? "Google Maps" : "Stadia Maps"}</span>}
       </div>
       </div>
       {state === "ready" && <div className="planner-map-route-status" role="status" aria-live="polite">
-        {mapsProviderFromEnv() === "STADIA" && days.some(item => item.stops.some(stop => stop.destination.external)) && <p>Điểm ngoài danh mục từ Google vẫn có trong lịch trình, nhưng không hiển thị trên bản đồ Stadia.</p>}
-        {mapsProviderFromEnv() === "GOOGLE" && <p>Tuyến xe máy của Google đang thử nghiệm và có thể chưa phù hợp với mọi đường đi. Hãy kiểm tra biển báo và điều kiện thực tế.</p>}
+        {provider === "STADIA" && days.some(item => item.stops.some(stop => stop.destination.external)) && <p>Điểm ngoài danh mục từ Google vẫn có trong lịch trình, nhưng không hiển thị trên bản đồ Stadia.</p>}
+        {provider === "GOOGLE" && <p>Tuyến xe máy của Google đang thử nghiệm và có thể chưa phù hợp với mọi đường đi. Hãy kiểm tra biển báo và điều kiện thực tế.</p>}
         <p>{view.routes.length ? `${view.routes.length} chặng đường bộ dự kiến được hiển thị.` : view.stops.length < 2 ? "Chưa có chặng di chuyển trong phạm vi này." : "Chưa có hình tuyến đường để hiển thị."}</p>
         {view.missingGeometryCount > 0 && <p>Chưa có hình tuyến cho {view.missingGeometryCount} chặng; các điểm dừng vẫn hiển thị.</p>}
         {!canShowOrigin && <p>Ghim nơi xuất phát từ Google không hiển thị trên bản đồ Stadia. Lịch trình đã lưu vẫn được giữ nguyên.</p>}

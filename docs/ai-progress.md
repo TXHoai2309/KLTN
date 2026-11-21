@@ -5830,3 +5830,11 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
   - `git diff --check`: PASS. No secrets in diff; no Prisma schema/migration or dependency changes.
 - **Not proven:** Visual/interactive browser verification (360 px mobile, dark mode, live Stop click, and Vercel Production CDN SSE buffering behavior); live PostgreSQL/Stadia end-to-end turn; live OpenAI turn triggering `apply_to_draft` or `FALSE_PASS` (both covered by unit/stream tests with `MockLanguageModelV4`).
 >>>>>>> 2ef331b5043d8bbbdf721c91f9edda31e322b75a
+
+## 2026-11-22 — Quản lý thiết lập ứng dụng qua Admin (ADR-42)
+
+- Mở rộng kho cấu hình hiện có với ba nhóm Tính năng ứng dụng, Bản đồ và Trợ lý hỏi đáp. Cập nhật các consumer trang và API để đọc thiết lập theo môi trường. Bản đồ công khai chỉ nhận provider và Map ID. Thông tin xác thực đọc từ env hoặc ghi đè cũ trong lúc chuyển tiếp.
+- Thêm dấu hỏi giải thích từng trường. Lưu cấu hình đang dùng bảo toàn giá trị sau khi dọn env. Chuyển sang khóa trong env là thao tác riêng và audit chỉ ghi tên trường. Bổ sung chú thích vào env local và mẫu, bỏ các dòng local trùng mặc định.
+- Quản trị và API tiếp tục dùng xác thực Admin, ghi kết quả có idempotency và cách ly scope. Không cần migration mới. Kiểm tra endpoint bản đồ local trả HTTP 200 và đúng hai trường công khai.
+- Build Turbopack, TypeScript và tạo 58/58 trang tĩnh thành công. Nhóm kiểm tra trọng điểm 468 đạt, 6 opt-in bỏ qua. Vitest toàn web 4.409 đạt, 235 bỏ qua, 1 todo. Đối chiếu commit gốc cho thấy cả 40 lỗi còn lại trùng tên với lỗi đã có. Nhóm test legacy đạt.
+- Trang quản trị cần phiên Admin trước khi lưu cấu hình Local đang dùng. Giữ các giá trị local còn hiệu lực để bảo toàn hành vi trong lúc chuyển tiếp.

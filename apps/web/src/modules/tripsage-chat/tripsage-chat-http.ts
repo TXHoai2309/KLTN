@@ -11,6 +11,8 @@ import type { PlacesSearch } from "./tripsage-places";
 import type { WebLookup } from "./tripsage-web";
 import type { TripsagePlanningDeps, TripsageToolContext } from "./tripsage-chat-tools";
 import type { MemoryService } from "../tripsage-memory/memory-service";
+import type { ApplicationSettings } from "../runtime-config/runtime-config-contract";
+import type { HotelLookup } from "./tripsage-amadeus";
 import { parseTripsageChatItinerary, parseTripsageChatJourney, parseTripsageChatMessages, parseTripsageChatRequirement, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
 
 export type TripsageChatHttpDependencies = {
@@ -26,8 +28,10 @@ export type TripsageChatHttpDependencies = {
   /** Test seam for the per-turn caps; production uses the defaults. */
   limits?: Partial<TripsageChatTurnLimits>;
   env?: Record<string, string | undefined>;
+  settings?: () => Promise<ApplicationSettings>;
+  hotels?: (environment?: ApplicationSettings["amadeusEnvironment"]) => HotelLookup | undefined;
   admit?: ReturnType<typeof createPlanningAdmission>;
-} & Pick<TripsageToolContext, "flights" | "hotels">;
+} & Pick<TripsageToolContext, "flights">;
 const defaultAdmit = createPlanningAdmission();
 const SAFETY_RELEASE_MS = 130_000;
 
@@ -39,9 +43,11 @@ const noStore = (response: Response) => { response.headers.set("Cache-Control", 
 
 /** Thin boundary: flag, auth, same-origin, bounded JSON, admission, then the service. */
 export async function tripsageChatResponse(request: Request, deps: TripsageChatHttpDependencies): Promise<Response> {
-  if (!isTripsageChatEnabled(deps.env)) return noStore(apiFailure("NOT_FOUND", "Không tìm thấy trang.", 404));
-  const features = enabledTripsageFeatures(deps.env);
   try {
+    const settings = await deps.settings?.();
+    if (!(settings?.chatEnabled ?? isTripsageChatEnabled(deps.env))) return noStore(apiFailure("NOT_FOUND", "Không tìm thấy trang.", 404));
+    const features = enabledTripsageFeatures(deps.env, settings);
+    const hotels = deps.hotels;
     const actor = await requireTraveler(request.headers, deps.authorization);
     if (request.headers.get("origin") !== new URL(request.url).origin || request.headers.get("sec-fetch-site") === "cross-site") throw new AppError("FORBIDDEN", "Yêu cầu không được phép.", 403);
     if (request.headers.get("content-type")?.split(";")[0]?.trim() !== "application/json") throw new AppError("INVALID_INPUT", "Yêu cầu phải là JSON.", 415);
@@ -61,7 +67,7 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
           resolve(streamTripsageChat({
             model: await deps.model(), messages, journey, requirement, currentItinerary, features,
             planning: deps.planning?.() ?? unavailablePlanning, places: deps.places?.(), web: deps.web?.(),
-            flights: deps.flights, hotels: deps.hotels, limits: deps.limits, signal: request.signal, onSettled: release,
+            flights: deps.flights, hotels: hotels ? () => hotels(settings?.amadeusEnvironment) : undefined, limits: deps.limits, signal: request.signal, onSettled: release,
             memory: features.has("memory") ? { actor, source: latestUser, resolve: deps.memory } : undefined,
           }));
         }

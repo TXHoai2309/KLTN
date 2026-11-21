@@ -1,6 +1,6 @@
 # Environment and deployment
 
-Google/Stadia follow-up (2026-11-18): the approved provider switch uses build-time `NEXT_PUBLIC_MAPS_PROVIDER` for interactive maps, routing and origin search, with a separate restricted browser key/Map ID and private Google Routes/Places key. The routing-only selector is retired. Preserve Stadia keys/domain authentication for rollback. Rebuild/redeploy after changing public Maps configuration; the historical no-browser-key paragraphs below do not describe the new Google mode. See the [configuration and verification runbook](google-maps-provider-switch-runbook.md) for Local/Preview/Production and live acceptance gates.
+Google/Stadia follow-up (2026-11-22): Admin selects the provider for interactive maps, routing and origin search. The restricted Google browser key still requires a rebuild when changed. Google Routes/Places and Stadia routing use server credentials. See the [configuration and verification runbook](google-maps-provider-switch-runbook.md) for each environment.
 
 ## Origin search and routing
 
@@ -15,7 +15,20 @@ Stadia routing continues to use server-only `STADIA_MAPS_API_KEY` (or an existin
 - `apps/web/.env` is the local real-value file. It is ignored and must not be committed.
 - `.env.local` is also ignored. Preview/Production values belong in Vercel project environments.
 
-Run `npm run env:generate` after a schema change. Keep example/schema developer-facing keys aligned. Vercel runtime/internal values (`VERCEL_ENV`, `VERCEL_URL`, `VERCEL_PROJECT_PRODUCTION_URL`, `VERCEL_ORIGIN`) are schema/runtime values and are not local template fields.
+Run `npm run env:generate` after a schema change. The example documents credentials and settings needed to start the local app. The schema also declares deployment controls and recognizes legacy feature values for transition. Vercel supplies `VERCEL_ENV`, `VERCEL_URL` and `VERCEL_PROJECT_PRODUCTION_URL`; the schema derives `VERCEL_ORIGIN` from them.
+
+### Thiết lập qua trang quản trị
+
+Mở `/admin/settings` để chọn model, đổi nhà cung cấp bản đồ, chỉnh hỏi đáp và các công tắc trong **Tính năng ứng dụng**. Dấu `?` cạnh tên từng mục giải thích chức năng mà nó điều khiển. Khai báo khóa dịch vụ trong env. Nếu dịch vụ có khóa ghi đè từ phiên bản cũ, kiểm tra các giá trị env rồi dùng **Chuyển sang khóa trong env** để bỏ ghi đè đã lưu và dùng env.
+
+Khi nâng cấp một môi trường đang có env cũ, bấm **Lưu cấu hình đang dùng** ở các nhóm **Tính năng ứng dụng**, **Bản đồ**, **Trợ lý hỏi đáp và lưu trữ** và **OpenAI**. Sau khi lưu thành công, có thể xóa nhóm biến tương ứng khỏi env của đúng môi trường đó.
+
+- Tính năng ứng dụng gồm `TRIPSAGE_CHAT_ENABLED`, `TRIPSAGE_FEATURE_*`, `AMADEUS_ENV` và `TRIP_ASSISTANT_AGENT`.
+- Bản đồ gồm `NEXT_PUBLIC_MAPS_PROVIDER` và `NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID`. Khóa JavaScript công khai vẫn được Next.js đọc khi build. Tải lại trang để bản đồ đang mở đọc lựa chọn mới.
+- Hỏi đáp gồm `QA_RUNTIME_ENABLED`, `QA_PREVIEW_RUNTIME_ENABLED`, `QA_PRODUCTION_RUNTIME_ENABLED`, `QA_ABUSE_PROTECTION_ACCEPTED`, các biến `QA_*_ALLOWED_DATABASE_*`, `QA_LEGACY_SOURCE_ALLOWLIST_ENABLED`, `QA_PUBLIC_SOURCE_IDS`, `QA_LOCAL_NETWORK_ID` và `QA_CLEANUP_ENABLED`. Điều kiện đúng database và `CRON_SECRET` vẫn áp dụng khi chạy dọn dữ liệu.
+- OpenAI gồm model phân tích nhu cầu, model biên tập, model hỏi đáp và thời gian chờ biên tập.
+
+`BETTER_AUTH_URL` và `DATABASE_URL` được đọc khi khởi động. Lịch chạy job cleanup được quản lý bởi hệ thống đặt lịch. Khi tạo Admin đầu tiên, khai báo `INITIAL_ADMIN_NAME`, `INITIAL_ADMIN_EMAIL` và `INITIAL_ADMIN_PASSWORD` cho lệnh `npm run auth:bootstrap-admin --workspace web`.
 
 ## Developer-facing keys
 
@@ -84,7 +97,7 @@ runtime loading without editing that file or changing credentials.
 
 ## Admin runtime configuration CMS
 
-`/admin/settings` can replace the server-only OpenAI, Cloudinary and Stadia service settings after migration `20261027160000_admin_runtime_config` is deployed. It never edits Vercel variables. Set `RUNTIME_CONFIG_ENCRYPTION_KEY` to a separately generated 32-byte hex key (64 hex characters) in each Local, Preview and Production runtime; do not commit or print the value. Keep it stable across all instances of one environment. Local and Preview share a development database, but CMS rows are scoped separately. Production uses its own database and scope.
+`/admin/settings` stores runtime settings after migration `20261027160000_admin_runtime_config` is deployed. OpenAI, Cloudinary and Stadia credentials are managed through env. Set `RUNTIME_CONFIG_ENCRYPTION_KEY` to a separately generated 32-byte hex key (64 hex characters) in each Local, Preview and Production runtime. Keep each key stable across instances of the same environment. Local and Preview share a development database with separately scoped rows. Production uses its own database and scope.
 
 To rotate the root key, retain the old value temporarily as `RUNTIME_CONFIG_ENCRYPTION_KEY_PREVIOUS`, install the new value as `RUNTIME_CONFIG_ENCRYPTION_KEY`, deploy/restart the runtime, then use **Mã hóa lại bằng khóa mới** in `/admin/settings` for that environment. Confirm success before removing the previous key and deploying/restarting again. A failed rotation must leave the previous key available; unreadable overrides fail closed. Vercel environment edits apply only to new deployments, so a redeploy is required for the root-key steps. The CMS itself uses database overrides and takes effect on the next server operation.
 

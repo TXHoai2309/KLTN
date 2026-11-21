@@ -10,8 +10,7 @@ const dark = (style: string) => style.includes("dark");
 type Scene = { map: GoogleMap; restoring: boolean; cleanup: (() => void)[]; marker(position: MapCoordinate, content: HTMLElement, title: string, draggable?: boolean): GoogleMarker; line(geometry: RouteGeometry, color: string): void };
 
 /** colorScheme is immutable in Google Maps: rebuild while preserving camera and caller selection. */
-function mountScene(host: HTMLDivElement, sdk: GoogleMapsSdk, initialStyle: string, ready: () => void, fail: () => void, content: (scene: Scene) => void) {
-  const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID?.trim();
+function mountScene(host: HTMLDivElement, sdk: GoogleMapsSdk, mapId: string, initialStyle: string, ready: () => void, fail: () => void, content: (scene: Scene) => void) {
   if (!mapId) throw new Error("Google Maps map ID is not configured");
   let currentStyle = initialStyle, disposed = false, destroy = () => {}, map: GoogleMap;
   const removeAuthListener = onGoogleAuthorizationFailure(fail);
@@ -67,8 +66,8 @@ function fit(sdk: GoogleMapsSdk, map: GoogleMap, points: readonly MapCoordinate[
   return () => clamp.remove();
 }
 
-export function mountGoogleDestinations(host: HTMLDivElement, sdk: GoogleMapsSdk, points: readonly MapDestination[], style: string, returnTo: ExploreReturnHref | undefined, ready: () => void, fail: () => void, extras: { routeGeometry?: RouteGeometry; disablePopup?: boolean } = {}) {
-  return mountScene(host, sdk, style, ready, fail, scene => {
+export function mountGoogleDestinations(host: HTMLDivElement, sdk: GoogleMapsSdk, mapId: string, points: readonly MapDestination[], style: string, returnTo: ExploreReturnHref | undefined, ready: () => void, fail: () => void, extras: { routeGeometry?: RouteGeometry; disablePopup?: boolean } = {}) {
+  return mountScene(host, sdk, mapId, style, ready, fail, scene => {
     points.forEach(p => {
       const button = document.createElement("button"); button.type = "button"; button.className = "destination-map-marker"; button.textContent = "●";
       button.setAttribute("aria-label", `Xem ${p.name}`); button.setAttribute("data-destination-id", p.id);
@@ -90,10 +89,10 @@ export function mountGoogleDestinations(host: HTMLDivElement, sdk: GoogleMapsSdk
   });
 }
 
-export function mountGooglePin(host: HTMLDivElement, sdk: GoogleMapsSdk, initial: MapCoordinate | null, style: string, changed: (coordinate: MapCoordinate) => void, ready: () => void, fail: () => void) {
+export function mountGooglePin(host: HTMLDivElement, sdk: GoogleMapsSdk, mapId: string, initial: MapCoordinate | null, style: string, changed: (coordinate: MapCoordinate) => void, ready: () => void, fail: () => void) {
   let disposed = false;
   let current = initial, update = (_coordinate: MapCoordinate | null, _recenter = true) => {};
-  const scene = mountScene(host, sdk, style, ready, fail, ({ map, cleanup, marker: addMarker }) => {
+  const scene = mountScene(host, sdk, mapId, style, ready, fail, ({ map, cleanup, marker: addMarker }) => {
     let marker: GoogleMarker | undefined;
     const button = document.createElement("button"); button.type = "button"; button.className = "destination-map-marker"; button.textContent = "●";
     button.setAttribute("aria-keyshortcuts", "ArrowUp ArrowDown ArrowLeft ArrowRight");
@@ -128,9 +127,9 @@ export function mountGooglePin(host: HTMLDivElement, sdk: GoogleMapsSdk, initial
 }
 
 export type GoogleItineraryOptions = { routes?: readonly ItineraryMapRoute[]; overview?: boolean; markerDays?: ReadonlyMap<string, number>; origin?: { label: string; latitude: number; longitude: number } };
-export function mountGoogleItinerary(host: HTMLDivElement, sdk: GoogleMapsSdk, stops: readonly PlannerStop[], style: string, onSelect: (id: string) => void, ready: () => void, fail: () => void, options: GoogleItineraryOptions = {}) {
+export function mountGoogleItinerary(host: HTMLDivElement, sdk: GoogleMapsSdk, mapId: string, stops: readonly PlannerStop[], style: string, onSelect: (id: string) => void, ready: () => void, fail: () => void, options: GoogleItineraryOptions = {}) {
   let selection: string | null = null, select = (_id: string | null, _focus = true) => {}, refit = () => {};
-  const scene = mountScene(host, sdk, style, ready, fail, content => {
+  const scene = mountScene(host, sdk, mapId, style, ready, fail, content => {
     const buttons: { stop: PlannerStop; button: HTMLButtonElement }[] = [];
     let fittedVisible = content.restoring && host.clientWidth > 0;
     const css = getComputedStyle(host);

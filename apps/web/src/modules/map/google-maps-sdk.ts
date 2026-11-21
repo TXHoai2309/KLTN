@@ -28,9 +28,9 @@ const failures = new Set<() => void>();
 export function onGoogleAuthorizationFailure(callback: () => void) { failures.add(callback); return () => { failures.delete(callback); }; }
 
 /** Shared script promise. Retry resets a failed load, never selects another provider. */
-export function loadGoogleMaps(): Promise<GoogleMapsSdk> {
+export function loadGoogleMaps(mapId: string): Promise<GoogleMapsSdk> {
   const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY?.trim();
-  if (!key || !process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID?.trim() || typeof window === "undefined") return Promise.reject(new Error("Google Maps is not configured"));
+  if (!key || !mapId || typeof window === "undefined") return Promise.reject(new Error("Google Maps is not configured"));
   if (authorizationFailed) return Promise.reject(new Error("Google Maps authorization failed"));
   const browser = window as GoogleWindow;
   if (browser.google?.maps?.marker?.AdvancedMarkerElement) return Promise.resolve(browser.google.maps);

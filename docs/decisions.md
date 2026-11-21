@@ -961,3 +961,10 @@ Production replies on `/trips/[id]/edit` repeated the deterministic `buildGround
 3. **Saved-trip edit chat memory (`/trips/[id]/edit`):** Relaxes the "no DB table for edit chat" out-of-scope note in ADR-37/38/40 by adding `TripEditChatMessage` (`trip_edit_chat_message`, migration `20261121121000_trip_edit_chat_memory`) with `onDelete: Cascade` to `Trip`, owner-scoped `GET`/`POST`/`DELETE /api/trips/[id]/edits/ai/messages`, and server-side initial load. Unvalidated itinerary drafts are still never persisted to the database.
 4. **Trip creation draft (`/trips/new`):** Relaxes the `US-24` / `BUG-03` no-draft rule to allow user-scoped temporary `sessionStorage` persistence (12h TTL) of form inputs/journey/confirmed planner step plus `?step=details|planner` URL sync. Drafts are cleared on successful trip save or explicit reset; invalid itineraries are still never persisted to the database.
 >>>>>>> 2ef331b5043d8bbbdf721c91f9edda31e322b75a
+
+## ADR-42 — Thiết lập ứng dụng qua trang quản trị (2026-11-22)
+
+- **Quyết định đã duyệt:** Owner yêu cầu để thông tin xác thực trong env và đưa các thiết lập tính năng vào `/admin/settings`. Nhà cung cấp Google/Stadia, Map ID, công tắc QA/cleanup, bộ lọc nguồn, model, thời gian chờ và công tắc TripSage chỉnh được theo Local, Preview hoặc Production.
+- **Khởi động và bảo mật:** Env cung cấp kết nối database, thông tin xác thực, URL xác thực và khóa mã hóa. Admin có quyền sửa thiết lập thông qua kho cấu hình hiện có. Phạm vi môi trường do server xác định. QA và cleanup tiếp tục kiểm tra đúng database, điều kiện chống lạm dụng hoặc xác thực job tùy luồng.
+- **Bản đồ:** Browser chỉ đọc provider và Map ID từ endpoint công khai. Server chọn cùng provider cho tìm nơi xuất phát và định tuyến. Mỗi lượt định tuyến giữ một lựa chọn. Khi lưu chặng, ghi provider trả dữ liệu thực tế.
+- **Chuyển tiếp:** Đọc thiết lập env cũ khi trường chưa có giá trị đã lưu. Admin có thể lưu giá trị hiệu lực trước khi dọn env. Khóa ghi đè cũ chỉ được bỏ khi Admin chọn chuyển sang khóa trong env. Xoay khóa mã hóa giữ nguyên nội dung cấu hình.

@@ -2,19 +2,21 @@
 
 Ngày 2026-11-18. Code local; nghiệm thu dịch vụ thật còn mở. Nguồn phạm vi: [spec](../specs/google-maps-provider-switch-spec.md), [story](../stories/MAPS-PROVIDER-SWITCH.md), [ticket plan](google-maps-provider-switch-tickets-plan.md).
 
-## Một cờ cho toàn bộ tích hợp Stadia được chuyển
+## Chọn nhà cung cấp trong Admin
+
+Ở `/admin/settings`, nhóm **Bản đồ** quản lý nhà cung cấp và Google Map ID theo từng môi trường. Bản đồ tương tác đọc lựa chọn mới khi tải lại. Máy chủ đọc cùng cấu hình khi tìm điểm xuất phát và khi bắt đầu một lượt định tuyến mới.
 
 | Cấu hình | Giá trị/ý nghĩa |
 | --- | --- |
-| `NEXT_PUBLIC_MAPS_PROVIDER` | `GOOGLE` để bật Google; `STADIA` hoặc chưa cấu hình để dùng Stadia. Đây là metadata công khai, không phải secret. |
+| Nhà cung cấp bản đồ | Chọn Google Maps hoặc Stadia Maps trong Admin. Giá trị `NEXT_PUBLIC_MAPS_PROVIDER` cũ chỉ dùng khi chưa có giá trị lưu. |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Browser key riêng, giới hạn HTTP referrers và Maps JavaScript API. |
-| `NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID` | JavaScript Map ID cho Advanced Markers; dùng Map ID thật cho triển khai. `DEMO_MAP_ID` chỉ để thử local. |
+| Google Map ID | ID JavaScript cho Advanced Markers đặt trong Admin. Giá trị `NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID` cũ dùng khi chưa có giá trị lưu. |
 | `GOOGLE_MAPS_API_KEY` | Server secret cho Routes API và Places API (New); không đưa vào biến `NEXT_PUBLIC_*`. Các luồng Google external-place đã có cũng dùng key này khi chọn Stadia. |
 | `STADIA_MAPS_API_KEY` | Giữ nguyên; server tiếp tục ưu tiên scoped Admin runtime override hiện hành nếu có. |
 
-`PLANNER_ROUTING_PROVIDER` cũ không còn được đọc và đã bỏ khỏi schema/example. Khi nâng phiên bản, chuyển giá trị mong muốn sang `NEXT_PUBLIC_MAPS_PROVIDER`; không dùng hai cờ độc lập. Turbo đưa các biến Maps qua ranh giới môi trường của task.
+Khi nâng cấp, dùng **Lưu cấu hình đang dùng** để lưu nhà cung cấp và Map ID theo môi trường. Sau khi lưu, có thể bỏ hai biến chuyển tiếp khỏi env. `PLANNER_ROUTING_PROVIDER` đã ngừng dùng.
 
-Do Next.js đóng các biến `NEXT_PUBLIC_*` vào bundle, **đổi cờ, browser key hoặc Map ID phải build và deploy lại**; khi chạy dev thì restart. Server và browser dùng cùng biểu thức cấu hình công khai ở build. Không hot-switch qua Admin hoặc tài khoản người dùng. Không sửa riêng runtime env của một image đã build rồi kỳ vọng browser tự đổi.
+Khi đổi browser key, build và deploy lại vì Next.js đóng khóa công khai vào bundle. Đổi nhà cung cấp hoặc Map ID trong Admin có hiệu lực sau khi tải lại trang.
 
 Chọn Google nhưng thiếu key/Map ID, bị từ chối quyền, hết quota hoặc timeout vẫn là Google unavailable; không chuyển ngầm sang Stadia. Ô tô dùng DRIVE, xe máy dùng TWO_WHEELER, không đổi mode để né lỗi. Giữ timeout routing tối đa 10 giây; origin Google có ngân sách 4 giây, tối đa 5 kết quả và kiểm tra coverage Việt Nam.
 
@@ -22,10 +24,10 @@ Chọn Google nhưng thiếu key/Map ID, bị từ chối quyền, hết quota h
 
 1. Trên Google Cloud project được phép sử dụng, cấu hình billing và bật Maps JavaScript API, Routes API, Places API (New). Việc tạo tài khoản/bật billing không được thực hiện bởi task code này.
 2. Tạo browser key riêng và giới hạn API/referrers. Cho phép chính xác localhost/port dùng dev, hostname Preview được dùng để test và domain Production; không mặc nhiên coi mọi preview hostname đã được cấp quyền.
-3. Tạo JavaScript Map ID phù hợp và cấu hình browser key/Map ID/cờ cho từng môi trường. Không dùng server key làm browser key.
+3. Tạo JavaScript Map ID phù hợp và cấu hình browser key cho từng môi trường. Chọn nhà cung cấp và nhập Map ID trong Admin của môi trường đó.
 4. Cấu hình server key riêng, hạn chế API theo Routes/Places và áp dụng biện pháp giới hạn phù hợp hosting. Giữ giá trị ngoài Git/log/tài liệu. Không yêu cầu operator dán key vào chat.
 5. Giữ Stadia property/domain authentication và scoped runtime credentials cho môi trường sẽ kiểm thử rollback; không xóa cấu hình vì Google đang bật.
-6. Build/deploy lại với các biến tương ứng. Kiểm tra ngay trên hostname đó, không lấy kết quả localhost làm bằng chứng Production.
+6. Build/deploy lại khi thay khóa JavaScript. Kiểm tra bản đồ trên hostname của môi trường vừa cấu hình.
 
 Home/Detail Google iframe và Google external-place search/Save đã có vẫn dùng Google theo hợp đồng riêng. Vì vậy chế độ Stadia không có nghĩa là toàn website không được phát bất kỳ request Google nào.
 
