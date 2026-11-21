@@ -2,7 +2,7 @@
 
 ## Status
 
-The original rollout remains Proposed in ADR-36. Tickets 01-12 are implemented on `feat/tripsage-chat-itinerary-port` behind a flag. The two migrations have been created and await deployment approval. On 2026-11-20 the owner approved the feature-group scope. P1 and P2 are implemented and verified offline. See [ADR-36](../decisions.md#adr-36--port-the-tripsage-ai-chatagent-to-replace-the-planning-chat-2026-11-14), the [Ticket 12 handoff](../research/tripsage-port-handoff.md) and the [feature group progress log](../implementation/tripsage-feature-groups-progress.md).
+The original rollout remains Proposed in ADR-36. Tickets 01-12 are implemented on `feat/tripsage-chat-itinerary-port` behind a flag. The two original migrations have been created and await deployment approval. On 2026-11-20 the owner approved the feature-group scope. P1–P5 are implemented behind flags. See [ADR-36](../decisions.md#adr-36--port-the-tripsage-ai-chatagent-to-replace-the-planning-chat-2026-11-14), the [Ticket 12 handoff](../research/tripsage-port-handoff.md) and the [feature group progress log](../implementation/tripsage-feature-groups-progress.md).
 
 ## Epic
 
@@ -36,7 +36,8 @@ The tripsage-ai chat block (chat UI, streaming route, tool-loop agent) is ported
 
 - New streaming chat route and UI for signed-in Travelers, behind a feature flag; old `/trips/new` form and Assistant V2 remain.
 - Tool-loop agent with an explicit base allow-list for KLTN destination reads, `proposeItinerary` (output `PlanningSelection`), Google Places and web search/page retrieval. Routing remains part of itinerary validation.
-- Owner-approved extension (2026-11-20) adds budget estimates, flight lookup, hotel lookup, long-term memory and ICS calendar export, each behind its own flag. P1 wires the initial flags and completes budget arithmetic, date validation and tool quotas. P2 uses Duffel for flights and Amadeus for hotels, superseding Q24c for Amadeus hotel lookup. Both tools only look up offers. Booking, payment and persistence of search results are out of scope. P3 adds result cards. P4 adds per-traveler memory. ICS is later work.
+- Owner-approved extension (2026-11-20) adds budget estimates, flight lookup, hotel lookup, long-term memory and ICS calendar export, each behind its own flag. P1 wires the initial flags and completes budget arithmetic, date validation and tool quotas. P2 uses Duffel for flights and Amadeus for hotels, superseding Q24c for Amadeus hotel lookup. Both tools only look up offers. Booking, payment and persistence of search results are out of scope. P3 adds result cards. P4 adds per-traveler memory.
+- P5 adds an ICS download to saved trip detail pages behind `TRIPSAGE_FEATURE_CALENDAR`. The route uses the existing saved-trip read and companion permissions. It omits the trip origin and its coordinates, counts stops skipped for missing times and leaves the chat tool list and prompt unchanged. OAuth and external calendar APIs are out of scope.
 - Google as routing/place provider through a routing adapter; Stadia stays the default until the Google adapter is enabled by config (Q12a, Q12b).
 - Prisma migration for places outside the KLTN destination table (Q18b), applied to Development first.
 - Vietnamese prompts, UI strings and output; destination names follow the database (Q10).

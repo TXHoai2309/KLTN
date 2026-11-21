@@ -110,4 +110,16 @@ describe("US-31 Trip views", () => {
     expect(error).toContain("Thử lại");
     expect(error).not.toContain("Đang tải chuyến đi của bạn");
   });
+  it.each([false, true])("only exposes the calendar download link when the server flag prop is %s", (calendarEnabled) => {
+    const trip: TripDetail = { ...sample("trip/giả", "UPCOMING"), days: [] };
+    const html = renderToStaticMarkup(createElement(TripDetailView, { trip, calendarEnabled }));
+    if (calendarEnabled) {
+      expect(html).toContain('href="/api/trips/trip%2Fgi%E1%BA%A3/calendar"');
+      expect(html).toContain('download=""');
+      expect(html).toContain("Thêm vào lịch (.ics)");
+      expect(html).toContain("Tải file .ics, mở bằng Google Calendar, Apple Calendar hoặc Outlook.");
+    } else {
+      expect(html).not.toMatch(/\/calendar|Thêm vào lịch|Tải file \.ics/);
+    }
+  });
 });

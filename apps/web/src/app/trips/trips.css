@@ -829,6 +829,26 @@
   min-width: 0;
 }
 
+.my-trips-calendar-export {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+.my-trips-calendar-export > a {
+  max-width: 100%;
+}
+
+.my-trips-calendar-export > p {
+  min-width: 0;
+  margin: 0;
+  color: var(--trip-read-muted);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
 .my-trips-hero-badge-row {
   display: flex;
   align-items: center;

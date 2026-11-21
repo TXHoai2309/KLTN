@@ -626,7 +626,7 @@ function tripDetailToPlannerDays(trip: TripDetail): PlannerDay[] {
   });
 }
 
-export function TripDetailView({ trip }: { trip: TripDetail }) {
+export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDetail; calendarEnabled?: boolean }) {
   const router = useRouter();
   const statusLabel = groups.find((group) => group.status === trip.status)!.label;
   const [activeDayIndex, setActiveDayIndex] = useState<number | null>(null);
@@ -775,6 +775,21 @@ export function TripDetailView({ trip }: { trip: TripDetail }) {
               )}
             </div>
           </div>
+
+          {calendarEnabled && (
+            <div className="my-trips-calendar-export">
+              <a
+                className="my-trips-action"
+                href={"/api/trips/" + encodeURIComponent(trip.id) + "/calendar"}
+                download
+                aria-describedby="trip-calendar-help"
+              >
+                <Calendar size={16} aria-hidden="true" />
+                <span>Thêm vào lịch (.ics)</span>
+              </a>
+              <p id="trip-calendar-help">Tải file .ics, mở bằng Google Calendar, Apple Calendar hoặc Outlook.</p>
+            </div>
+          )}
 
           {/* 4 Summary Stat Cards */}
           <div className="my-trips-hero-stats-grid" aria-label="Thông số hành trình">

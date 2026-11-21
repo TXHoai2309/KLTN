@@ -77,3 +77,16 @@ Push-Location apps/web
 npx.cmd vitest run --config vitest.config.mts src/modules/tripsage-memory/traveler-memory.postgres.integration.vitest.test.ts
 Pop-Location
 ```
+
+## P5 (2026-11-21)
+
+- `TRIPSAGE_FEATURE_CALENDAR` defaults to `false` and enables the saved-trip download link and GET route only for the exact value `true`. The chat prompt and model tool list stay the same.
+- The route uses `getMyTrip` for authentication and the saved Trip view. The owner and active companion members get their existing views. Missing trips and out-of-scope trips have the same 404 response.
+- Each timed stop yields one iCalendar event with a deterministic UID, UTC timestamps derived from Vietnam-local time, display name, public location, and applicable unchecked notices. The file excludes the trip origin and coordinates. `X-ICS-Skipped-Stops` counts omitted stops. If every stop lacks a usable time, the route returns 422 with the count so it never attaches an eventless iCalendar object.
+- The download uses a fixed ASCII slug and the trip start date. It runs locally with no OAuth, external calendar API, dependencies, database writes or schema changes. [RFC 5545](https://www.rfc-editor.org/rfc/rfc5545.html)
+
+### Verification
+
+- The first generator and route tests failed before the modules existed. The subsequent run reproduced the missing enabled UI link and public location fallback. The tests cover midnight and New Year rollover, UTF-8 folding, line injection, private fields, the unauthorized 404 response and a companion's limited view.
+- On Node 24.22.1, the web typecheck passed. Scoped Vitest passed 1,279 tests in 117 files, with 80 PostgreSQL opt-in tests skipped in 18 files. `git diff --check` passed.
+- The in-app browser showed the actual rendered trip view with fixture data at 1280px and 360px without horizontal overflow. At 360px Tab reached the download link. The temporary fixture was removed. Importing into an external calendar app was left for live acceptance.
