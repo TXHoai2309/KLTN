@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { TripJourney } from "../trip-origin/trip-origin-contract";
+import { tripJourneySchema, type TripJourney } from "../trip-origin/trip-origin-contract";
 import type { PlannerResult } from "../trip-planner/planner-contract";
 import type { AccessLegPart } from "./tripsage-access-leg";
 import {
@@ -18,9 +18,15 @@ import {
  * and the chat route. The server never trusts it beyond these strict schemas and re-validates everything it schedules.
  */
 
+const clock = z.number().int().min(0).max(1439);
+
+/** Default departure (07:00) and final-day return deadline (18:00) applied when the traveler has not set clocks (ADR-43). */
+export const DEFAULT_DEPARTURE_MINUTE = 420;
+export const DEFAULT_RETURN_DEADLINE_MINUTE = 1080;
+
 /**
- * Trip info the conversation has recorded so far (ADR-42). Every field is optional: the assistant fills it through
- * `recordTripInfo` as the traveler answers. The origin and clocks travel separately as `journey`.
+ * Trip info the conversation has recorded so far (ADR-42 / ADR-43). Every field is optional: the assistant fills it through
+ * `recordTripInfo` as the traveler answers. Confirmed origin coordinates travel separately in `journey`.
  */
 export const tripInfoSchema = z.object({
   transport: z.enum(TRANSPORT_VALUES).optional(),
@@ -32,13 +38,28 @@ export const tripInfoSchema = z.object({
   /** Day rhythm (ADR-42 §3): lunch 60-120 min, latest visit end 15:00-18:00 (minutes of the day). */
   lunchMinutes: z.number().int().min(60).max(120).optional(),
   dayEndMinute: z.number().int().min(900).max(1080).optional(),
+  /** Departure and final-day return deadline clocks recorded in chat (ADR-43, minutes of the day 0-1439). */
+  departureMinute: clock.optional(),
+  returnDeadlineMinute: clock.optional(),
   /** Where the traveler lives (free text city name, ticket 04); never coordinates. */
   homeCity: z.string().trim().min(1).max(80).optional(),
 }).strict();
 export type TripsageTripInfo = z.infer<typeof tripInfoSchema>;
 
-/** Second-cluster defaults the server applies without asking; always shown as defaults (ADR-42 §5). */
-export const TRIP_INFO_DEFAULTS: { interests: TripInterest[]; pace: TripPace; travelers: number } = { interests: ["NATURE", "ADVENTURE"], pace: "MODERATE", travelers: 2 };
+/** Second-cluster and clock defaults the server applies without asking; always shown as defaults (ADR-42 §5, ADR-43 §4). */
+export const TRIP_INFO_DEFAULTS: {
+  interests: TripInterest[];
+  pace: TripPace;
+  travelers: number;
+  departureMinute: number;
+  returnDeadlineMinute: number;
+} = {
+  interests: ["NATURE", "ADVENTURE"],
+  pace: "MODERATE",
+  travelers: 2,
+  departureMinute: DEFAULT_DEPARTURE_MINUTE,
+  returnDeadlineMinute: DEFAULT_RETURN_DEADLINE_MINUTE,
+};
 export type DefaultedField = keyof typeof TRIP_INFO_DEFAULTS;
 
 export function withTripInfoDefaults(info: TripsageTripInfo) {
@@ -46,9 +67,22 @@ export function withTripInfoDefaults(info: TripsageTripInfo) {
   return { info: { ...TRIP_INFO_DEFAULTS, ...info }, defaulted };
 }
 
+/** Merges chat-recorded clocks (or visible 07:00 / 18:00 defaults) into a journey without touching origin coordinates. */
+export function resolveEffectiveJourney(journey: TripJourney | null | undefined, tripInfo: TripsageTripInfo | null | undefined): TripJourney | null {
+  if (!journey) return null;
+  return {
+    ...journey,
+    departureMinute: tripInfo?.departureMinute ?? journey.departureMinute ?? DEFAULT_DEPARTURE_MINUTE,
+    returnDeadlineMinute: tripInfo?.returnDeadlineMinute ?? journey.returnDeadlineMinute ?? DEFAULT_RETURN_DEADLINE_MINUTE,
+  };
+}
+
 /** A change to these fields makes the previous itinerary obsolete, so it is no longer sent as the current one. */
 export function changesItinerary(previous: TripsageTripInfo | null, next: TripsageTripInfo): boolean {
-  return (["transport", "durationDays", "startDate"] as const).some(key => previous?.[key] !== undefined && previous[key] !== next[key]);
+  if (!previous) return false;
+  if ((["transport", "durationDays", "startDate"] as const).some(key => previous[key] !== undefined && previous[key] !== next[key])) return true;
+  return (previous.departureMinute ?? DEFAULT_DEPARTURE_MINUTE) !== (next.departureMinute ?? DEFAULT_DEPARTURE_MINUTE)
+    || (previous.returnDeadlineMinute ?? DEFAULT_RETURN_DEADLINE_MINUTE) !== (next.returnDeadlineMinute ?? DEFAULT_RETURN_DEADLINE_MINUTE);
 }
 
 const minute = z.number().int().min(0).max(1440).nullable();
@@ -81,9 +115,30 @@ export function summarizeItinerary(result: PlannerResult): TripsageItinerarySumm
 /** Data parts the planning chat streams besides the itinerary. The browser renders only schema-valid parts. */
 export const tripInfoPartSchema = z.object({ tripInfo: tripInfoSchema }).strict();
 export const quickRepliesPartSchema = z.object({ replies: z.array(z.string().trim().min(1).max(40)).min(1).max(4) }).strict();
-const clock = z.number().int().min(0).max(1439);
-export const originRequestPartSchema = z.object({ departureMinute: clock, returnDeadlineMinute: clock }).strict();
+export const originCandidateDisplaySchema = z.object({ candidateId: z.string().min(1).max(64), label: z.string().trim().min(1).max(300) }).strict();
+export type OriginCandidateDisplay = z.infer<typeof originCandidateDisplaySchema>;
+export const originCandidatesPartSchema = z.object({
+  candidates: z.array(originCandidateDisplaySchema).min(1).max(3),
+  token: z.string().min(1).max(8_192),
+}).strict();
+export type OriginCandidatesPart = z.infer<typeof originCandidatesPartSchema>;
+export const journeyPartSchema = z.object({ journey: tripJourneySchema }).strict();
+export type JourneyPart = z.infer<typeof journeyPartSchema>;
 
-export function buildTripsageChatBody(input: { messages: unknown[]; journey: TripJourney | null; tripInfo: TripsageTripInfo | null; itinerary: TripsageItinerarySummary | null; accessLeg?: AccessLegPart | null }) {
-  return { messages: input.messages, journey: input.journey, tripInfo: input.tripInfo, currentItinerary: input.itinerary, accessLeg: input.accessLeg ?? null };
+export function buildTripsageChatBody(input: {
+  messages: unknown[];
+  journey: TripJourney | null;
+  tripInfo: TripsageTripInfo | null;
+  itinerary: TripsageItinerarySummary | null;
+  accessLeg?: AccessLegPart | null;
+  originCandidatesToken?: string | null;
+}) {
+  return {
+    messages: input.messages,
+    journey: input.journey,
+    tripInfo: input.tripInfo,
+    currentItinerary: input.itinerary,
+    accessLeg: input.accessLeg ?? null,
+    originCandidatesToken: input.originCandidatesToken ?? null,
+  };
 }

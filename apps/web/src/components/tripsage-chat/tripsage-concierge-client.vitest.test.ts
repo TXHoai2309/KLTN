@@ -32,14 +32,27 @@ describe("readConversationState", () => {
     expect(readConversationState(replanned, isItinerary)).toMatchObject({ lastItineraryMessageId: "a3", itineraryStale: false });
   });
 
-  it("shows the origin card and quick replies only on the last assistant message", () => {
-    const parts = [{ type: "data-origin-request", data: { departureMinute: 420, returnDeadlineMinute: 1080 } }, { type: "data-quick-replies", data: { replies: ["4 ngày 3 đêm"] } }];
+  it("shows origin candidate buttons and quick replies only on the last assistant message, while carrying the signed token until confirmed", () => {
+    const parts = [
+      { type: "data-origin-candidates", data: { candidates: [{ candidateId: "oc-1-1", label: "Hà Nội (bến xe Mỹ Đình)" }], token: "v1.abc.sig" } },
+      { type: "data-quick-replies", data: { replies: ["4 ngày 3 đêm"] } },
+    ];
     const live = readConversationState([user("u1"), assistant("a1", parts)], isItinerary);
-    expect(live.originRequest).toEqual({ messageId: "a1", departureMinute: 420, returnDeadlineMinute: 1080 });
+    expect(live.originCandidates).toEqual({ messageId: "a1", candidates: [{ candidateId: "oc-1-1", label: "Hà Nội (bến xe Mỹ Đình)" }] });
+    expect(live.originCandidatesToken).toBe("v1.abc.sig");
     expect(live.quickReplies).toEqual({ messageId: "a1", replies: ["4 ngày 3 đêm"] });
     const answered = readConversationState([user("u1"), assistant("a1", parts), user("u2")], isItinerary);
-    expect(answered.originRequest).toBeNull();
+    expect(answered.originCandidates).toBeNull();
+    expect(answered.originCandidatesToken).toBe("v1.abc.sig");
     expect(answered.quickReplies).toBeNull();
+    const confirmed = readConversationState([
+      user("u1"),
+      assistant("a1", parts),
+      user("u2"),
+      assistant("a2", [{ type: "data-journey", data: { journey: { origin: hubOrigin("HA_NOI"), departureMinute: 420, returnDeadlineMinute: 1080, returnDepartureMinute: null } } }]),
+    ], isItinerary);
+    expect(confirmed.journey?.origin?.confirmed).toBe(true);
+    expect(confirmed.originCandidatesToken).toBeNull();
     const invalid = readConversationState([assistant("a1", [{ type: "data-quick-replies", data: { replies: ["x".repeat(41)] } }])], isItinerary);
     expect(invalid.quickReplies).toBeNull();
   });

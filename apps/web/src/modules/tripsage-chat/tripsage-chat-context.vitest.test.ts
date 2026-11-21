@@ -26,10 +26,13 @@ describe("tripInfoSchema", () => {
   });
 });
 
-describe("second-cluster defaults", () => {
-  it("fills interests, pace and travelers and names what was defaulted", () => {
-    expect(withTripInfoDefaults({ transport: "CAR" })).toEqual({ info: { transport: "CAR", interests: ["NATURE", "ADVENTURE"], pace: "MODERATE", travelers: 2 }, defaulted: ["interests", "pace", "travelers"] });
-    expect(withTripInfoDefaults({ ...INFO, pace: "PACKED", travelers: 1 }).defaulted).toEqual([]);
+describe("second-cluster and clock defaults", () => {
+  it("fills interests, pace, travelers and 07:00/18:00 clocks and names what was defaulted", () => {
+    expect(withTripInfoDefaults({ transport: "CAR" })).toEqual({
+      info: { transport: "CAR", interests: ["NATURE", "ADVENTURE"], pace: "MODERATE", travelers: 2, departureMinute: 420, returnDeadlineMinute: 1080 },
+      defaulted: ["interests", "pace", "travelers", "departureMinute", "returnDeadlineMinute"],
+    });
+    expect(withTripInfoDefaults({ ...INFO, pace: "PACKED", travelers: 1, departureMinute: 360, returnDeadlineMinute: 1020 }).defaulted).toEqual([]);
   });
   it("never defaults first-cluster fields", () => {
     const { info } = withTripInfoDefaults({});
@@ -40,9 +43,11 @@ describe("second-cluster defaults", () => {
 });
 
 describe("changesItinerary", () => {
-  it("is true only when a recorded transport, day count or date changes", () => {
+  it("is true when transport, day count, date or clocks change", () => {
     expect(changesItinerary(INFO, { ...INFO, durationDays: 5 })).toBe(true);
     expect(changesItinerary(INFO, { ...INFO, transport: "MOTORCYCLE" })).toBe(true);
+    expect(changesItinerary(INFO, { ...INFO, departureMinute: 360 })).toBe(true);
+    expect(changesItinerary(INFO, { ...INFO, returnDeadlineMinute: 1020 })).toBe(true);
     expect(changesItinerary(INFO, { ...INFO, interests: ["FOOD"], travelers: 4 })).toBe(false);
     expect(changesItinerary(null, INFO)).toBe(false);
     expect(changesItinerary({}, INFO)).toBe(false);
@@ -74,9 +79,9 @@ describe("quick replies part", () => {
 });
 
 describe("buildTripsageChatBody", () => {
-  it("sends tripInfo and currentItinerary beside journey", () => {
-    expect(buildTripsageChatBody({ messages: [], journey: null, tripInfo: null, itinerary: null })).toEqual({ messages: [], journey: null, tripInfo: null, currentItinerary: null, accessLeg: null });
+  it("sends tripInfo, currentItinerary and originCandidatesToken beside journey", () => {
+    expect(buildTripsageChatBody({ messages: [], journey: null, tripInfo: null, itinerary: null })).toEqual({ messages: [], journey: null, tripInfo: null, currentItinerary: null, accessLeg: null, originCandidatesToken: null });
     const itinerary = { days: [] };
-    expect(buildTripsageChatBody({ messages: [1], journey: null, tripInfo: INFO, itinerary })).toMatchObject({ tripInfo: INFO, currentItinerary: itinerary });
+    expect(buildTripsageChatBody({ messages: [1], journey: null, tripInfo: INFO, itinerary, originCandidatesToken: "v1.a.b" })).toMatchObject({ tripInfo: INFO, currentItinerary: itinerary, originCandidatesToken: "v1.a.b" });
   });
 });

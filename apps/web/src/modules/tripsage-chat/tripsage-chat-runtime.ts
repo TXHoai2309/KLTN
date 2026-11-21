@@ -8,10 +8,21 @@ import { createGooglePlacesSearch, type PlacesSearch } from "./tripsage-places";
 import { createFirecrawlWeb, type WebLookup } from "./tripsage-web";
 import { createDuffelFlightLookup, type FlightLookup } from "./tripsage-duffel";
 import { createAmadeusHotelLookup, type HotelLookup } from "./tripsage-amadeus";
-import type { LocalKnowledge, TripsagePlanningDeps } from "./tripsage-chat-tools";
+import type { LocalKnowledge, OriginLookup, TripsagePlanningDeps } from "./tripsage-chat-tools";
 import { createQaRetriever } from "../ai/qa-retrieval";
+import { originSearchDependencies } from "../trip-origin/origin-search-server";
 
 export { tripsageMemoryRuntime } from "../tripsage-memory/memory-runtime";
+
+/** Same origin search (Vietnam coverage checked) as `/trips/new`; provider keys stay server-side. */
+export function tripsageOriginSearchRuntime(): OriginLookup {
+  return (query, signal) => originSearchDependencies.search({ query }, signal);
+}
+
+/** Server secret used to HMAC-sign origin candidates carried across turns. */
+export function tripsageOriginSecretRuntime(): string {
+  return ENV.BETTER_AUTH_SECRET;
+}
 
 /** Same candidate reader and routing provider (Stadia by default) as the existing planner. Provider keys stays server-side. */
 export function tripsagePlanningRuntime(): TripsagePlanningDeps {

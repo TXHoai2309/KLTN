@@ -5,7 +5,6 @@ import { DefaultChatTransport } from "ai";
 import { Send, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
-import type { TripJourney } from "@/modules/trip-origin/trip-origin-contract";
 import { buildTripsageChatBody, summarizeItinerary } from "@/modules/tripsage-chat/tripsage-chat-context";
 
 import type { SaveState } from "@/modules/trip-save/trip-save-state";
@@ -17,7 +16,6 @@ import { parseSourcesPart, TripsageSourcesView } from "./tripsage-sources-view";
 import { TripsageSaveSection } from "./tripsage-save-section";
 import { TripsageChatNotice } from "./tripsage-chat-notice";
 import { TripsageTripSummary } from "./tripsage-trip-summary";
-import { TripsageOriginCard } from "./tripsage-origin-card";
 import { TripsageMarkdown } from "./tripsage-markdown";
 import { TripsageTimelineView } from "./tripsage-timeline-view";
 import { TripsageCostCard } from "./tripsage-cost-card";
@@ -31,20 +29,15 @@ type StatusPart = { kind: "start" | "checking" | "writing"; label: string };
 
 const MAX_LENGTH = 1000;
 const OPENING_PROMPTS = ["Đi Hà Giang 4 ngày 3 đêm bằng xe máy", "Mình ở Sài Gòn, muốn đi Hà Giang", "Gợi ý giúp mình một chuyến Hà Giang"];
-const clock = (minute: number) => `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
 
 /**
- * Vietnamese streaming planning chat led by the assistant (ADR-42). Trip info is recorded by the assistant and comes back
- * as `data-trip-info`; the origin is picked in an in-chat card. Both, plus a compact summary of the current itinerary,
- * travel in the request body. The model never sees coordinates.
+ * Vietnamese streaming planning chat led by the assistant (ADR-42 / ADR-43). Trip info and confirmed origin travel back
+ * as `data-trip-info` / `data-journey`, and pending origin candidates travel via a server-signed token. No origin form or map picker.
  */
 export function TripsageChatClient({ memoryEnabled = false }: { memoryEnabled?: boolean }) {
   const [draft, setDraft] = useState("");
   const [status, setStatus] = useState<StatusPart | null>(null);
-  const [journey, setJourney] = useState<TripJourney | null>(null);
-  // The itinerary message that was current when the origin changed; that itinerary is no longer current (B.3).
-  const [originChangedAfter, setOriginChangedAfter] = useState<string | null>(null);
-  const bodyRef = useRef<Omit<Parameters<typeof buildTripsageChatBody>[0], "messages">>({ journey: null, tripInfo: null, itinerary: null });
+  const bodyRef = useRef<Omit<Parameters<typeof buildTripsageChatBody>[0], "messages">>({ journey: null, tripInfo: null, itinerary: null, originCandidatesToken: null });
   const transport = useMemo(() => new DefaultChatTransport({
     api: "/api/ai/chat",
     fetch: createTripsageChatFetch(),
@@ -64,20 +57,19 @@ export function TripsageChatClient({ memoryEnabled = false }: { memoryEnabled?: 
   const lastItineraryMessageId = state.lastItineraryMessageId;
   // Only the newest itinerary is shown and sent back: a re-proposal replaces the previous one.
   const latestItinerary = lastItineraryMessageId ? messages.find(m => m.id === lastItineraryMessageId)?.parts.map(part => (part.type === "data-itinerary" ? parseItineraryPart(part.data) : null)).filter(Boolean).at(-1) ?? null : null;
-  const itineraryCurrent = latestItinerary && !state.itineraryStale && originChangedAfter !== lastItineraryMessageId;
-  bodyRef.current = { journey, tripInfo: state.tripInfo, itinerary: itineraryCurrent ? summarizeItinerary(latestItinerary) : null, accessLeg: state.accessLeg?.data ?? null };
+  const itineraryCurrent = latestItinerary && !state.itineraryStale;
+  bodyRef.current = {
+    journey: state.journey,
+    tripInfo: state.tripInfo,
+    itinerary: itineraryCurrent ? summarizeItinerary(latestItinerary) : null,
+    accessLeg: state.accessLeg?.data ?? null,
+    originCandidatesToken: state.originCandidatesToken,
+  };
   useEffect(() => { if (!busy) setStatus(null); }, [busy]);
 
   function send(text: string) {
     if (!text.trim() || locked) return;
     void sendMessage({ text });
-  }
-  function confirmOrigin(next: TripJourney) {
-    if (journey?.origin && lastItineraryMessageId) setOriginChangedAfter(lastItineraryMessageId);
-    setJourney(next);
-    // The transport reads the ref when the message below is sent, before the next render.
-    bodyRef.current = { ...bodyRef.current, journey: next, itinerary: journey?.origin ? null : bodyRef.current.itinerary };
-    send(`Mình xuất phát từ ${next.origin?.label ?? "điểm đã chọn"}, khởi hành ${clock(next.departureMinute ?? 0)}, hạn về ${clock(next.returnDeadlineMinute ?? 0)}.`);
   }
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -111,11 +103,12 @@ export function TripsageChatClient({ memoryEnabled = false }: { memoryEnabled?: 
                 const suggestions = message.role === "assistant" ? message.parts.flatMap(part => (part.type === "data-places" ? parsePlacesPart(part.data) : [])) : [];
                 const webSources = message.role === "assistant" ? [...message.parts].reverse().map(part => (part.type === "data-sources" ? parseSourcesPart(part.data) : null)).find(Boolean) ?? [] : [];
                 const resultParts = resultTurns.get(message.id)?.filter(part => part.type !== "data-budget" || message.id === latestBudgetMessageId) ?? [];
-                const originCard = state.originRequest?.messageId === message.id && !busy ? state.originRequest : null;
-                const replies = state.quickReplies?.messageId === message.id && !busy ? state.quickReplies.replies : [];
+                const candidateButtons = state.originCandidates?.messageId === message.id && !busy ? state.originCandidates.candidates.map(c => c.label) : [];
+                const quickReplies = state.quickReplies?.messageId === message.id && !busy ? state.quickReplies.replies : [];
+                const replies = candidateButtons.length > 0 ? candidateButtons : quickReplies;
                 const cost = state.cost?.messageId === message.id ? state.cost.data : null;
                 const accessLeg = state.accessLeg?.messageId === message.id ? state.accessLeg.data : null;
-                if (!text && !itinerary && !suggestions.length && !webSources.length && !resultParts.length && !originCard && !cost && !accessLeg) return null;
+                if (!text && !itinerary && !suggestions.length && !webSources.length && !resultParts.length && !replies.length && !cost && !accessLeg) return null;
                 return message.role === "user" ? (
                   <article key={message.id} className="assistant-message assistant-user"><p>{text}</p></article>
                 ) : (
@@ -129,7 +122,6 @@ export function TripsageChatClient({ memoryEnabled = false }: { memoryEnabled?: 
                     <TripsagePlacesView places={suggestions} />
                     <TripsageSourcesView sources={webSources} />
                     <TripsageResultCards parts={resultParts} />
-                    {originCard && <TripsageOriginCard suggestion={originCard} journey={journey} disabled={locked} onConfirm={confirmOrigin} />}
                     {replies.length > 0 && (
                       <div className="tripsage-quick-replies" role="group" aria-label="Gợi ý trả lời nhanh">
                         {replies.map(reply => <button key={reply} type="button" onClick={() => send(reply)} disabled={locked}>{reply}</button>)}
@@ -144,7 +136,7 @@ export function TripsageChatClient({ memoryEnabled = false }: { memoryEnabled?: 
         </div>
         <div className="assistant-bottom-dock"><div className="assistant-bottom-dock-inner">
           <TripsageChatNotice notice={notice} onResend={saveLocked ? undefined : () => void regenerate()} />
-          <TripsageTripSummary tripInfo={state.tripInfo} journey={journey} />
+          <TripsageTripSummary tripInfo={state.tripInfo} journey={state.journey} />
           <form noValidate className="assistant-composer" onSubmit={submit}>
             <label htmlFor="tripsage-chat-input" className="assistant-sr-only">Tin nhắn cho trợ lý</label>
             <div className="assistant-composer-input">

@@ -9,15 +9,22 @@ import { isTripsageChatEnabled } from "./tripsage-chat-flag";
 import { enabledTripsageFeatures } from "./tripsage-features";
 import type { PlacesSearch } from "./tripsage-places";
 import type { WebLookup } from "./tripsage-web";
-import type { LocalKnowledge, TripsagePlanningDeps, TripsageToolContext } from "./tripsage-chat-tools";
+import type { LocalKnowledge, OriginLookup, TripsagePlanningDeps, TripsageToolContext } from "./tripsage-chat-tools";
 import type { MemoryService } from "../tripsage-memory/memory-service";
-import { parseTripsageChatAccessLeg, parseTripsageChatItinerary, parseTripsageChatJourney, parseTripsageChatMessages, parseTripsageChatTripInfo, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
+import { signOriginCandidates } from "./tripsage-chat-origin";
+import { parseTripsageChatAccessLeg, parseTripsageChatItinerary, parseTripsageChatJourney, parseTripsageChatMessages, parseTripsageChatOriginCandidates, parseTripsageChatTripInfo, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
 
 export type TripsageChatHttpDependencies = {
   authorization: AuthorizationDependencies;
   model: () => Promise<LanguageModel>;
   /** Destination reader and routing provider; resolved lazily so plain chat never depends on them. */
   planning?: () => TripsagePlanningDeps;
+  /** Server-side origin search (Vietnam coverage checked); absent means unavailable except fixed hubs. */
+  originSearch?: () => OriginLookup;
+  /** Server secret for HMAC-signing origin candidates across turns. */
+  originSecret?: () => string | undefined;
+  /** Clock for testing origin candidate TTL; defaults to planning().now() or Date.now(). */
+  now?: () => Date;
   /** Google Places search; resolved lazily. Absent means the tool reports unavailable. */
   places?: () => PlacesSearch;
   /** Firecrawl web search/scrape; resolved lazily. Absent means the web tools report unavailable. */
@@ -54,6 +61,9 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
     const tripInfo = parseTripsageChatTripInfo(body);
     const currentItinerary = parseTripsageChatItinerary(body);
     const accessLeg = parseTripsageChatAccessLeg(body);
+    const secret = deps.originSecret?.() ?? deps.env?.BETTER_AUTH_SECRET;
+    const nowMs = (deps.now?.() ?? new Date()).getTime();
+    const originCandidates = parseTripsageChatOriginCandidates(body, actor.userId, secret, nowMs);
     // The slot is held until the stream settles, so the concurrency cap covers streaming time.
     let release!: () => void;
     const held = new Promise<void>(resolve => { release = resolve; });
@@ -63,7 +73,10 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
         try {
           resolve(streamTripsageChat({
             model: await deps.model(), messages, journey, tripInfo, currentItinerary, accessLeg, features,
-            planning: deps.planning?.() ?? unavailablePlanning, places: deps.places?.(), web: deps.web?.(), knowledge: deps.knowledge?.(),
+            originCandidates,
+            signOriginCandidates: secret ? candidates => signOriginCandidates({ userId: actor.userId, candidates, secret, nowMs: (deps.now?.() ?? new Date()).getTime() }) : undefined,
+            latestUserText: latestUser.text,
+            planning: deps.planning?.() ?? unavailablePlanning, originSearch: deps.originSearch?.(), places: deps.places?.(), web: deps.web?.(), knowledge: deps.knowledge?.(),
             flights: deps.flights, hotels: deps.hotels, limits: deps.limits, signal: request.signal, onSettled: release,
             memory: features.has("memory") ? { actor, source: latestUser, resolve: deps.memory } : undefined,
           }));

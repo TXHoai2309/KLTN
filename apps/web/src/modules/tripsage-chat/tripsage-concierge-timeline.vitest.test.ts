@@ -226,10 +226,10 @@ describe("access leg to a trip hub (ticket 04)", () => {
     expect(bad.status).toBe(400);
   });
 
-  it("a very long drive from the origin returns a hub hint and lets the origin card reopen", async () => {
+  it("a very long drive from the origin returns a hub hint naming the fixed hubs", async () => {
     const longDrive = planning({ routes: { route: fixtureRoutes.route, coordinateRoute: async () => ({ status: "VERIFIED", reason: null, durationSeconds: 14 * 3600, distanceMeters: 1_700_000, provider: "STADIA_MAPS" }) } });
-    const { fed, all } = await run([propose([["a"]]), { tool: "requestOrigin", input: { departureMinute: 420, returnDeadlineMinute: 1080 } }, { text: "Xong." }], {}, { planning: longDrive });
+    const { fed } = await run([propose([["a"]]), { text: "Xong." }], {}, { planning: longDrive });
     expect(fed(1)).toContain("hubHint");
-    expect(all.some(p => p.type === "data-origin-request")).toBe(true);
+    expect(fed(1)).toContain("hub:HA_NOI");
   });
 });

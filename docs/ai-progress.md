@@ -5847,3 +5847,10 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - **Task:** Owner grilling Q26–Q34 after the concierge went live: one chat at `/assistant`, chat-only origin confirmation, collapsed map, saved planning conversations, V2 retirement.
 - **Completed:** Spec `docs/specs/unified-assistant-chat-spec.md`, ADR-43, glossary terms (Planning intent confirmation, Required stop, Origin candidate, Chat origin confirmation), tickets 01–05 under `.scratch/unified-assistant-chat/issues`. No code; the owner approved documents only.
 - **Next:** Implement only after the owner asks.
+
+## 2026-11-21 — Unified assistant chat ticket 01 (chat-only origin confirmation and default clocks)
+
+- **Branch:** `TXH`. Ticket: `.scratch/unified-assistant-chat/issues/01-chat-origin-and-clocks.md` (ADR-43 §3–4).
+- **Changes:** Replaced `requestOrigin` and `TripsageOriginCard` / `TripJourneyEditor` in chat with two-turn `findOrigin` + `confirmOrigin` over the existing Vietnam-checked origin search (`originSearchDependencies`) and fixed hubs (`hub:HA_NOI`, `hub:HA_GIANG_CITY`). Candidates carried between turns are HMAC-SHA256 signed server-side (`tripsage-chat-origin.ts`, 30 min TTL, bound to `userId`; tampered tokens return 400 before model execution; expired/unagreed/unknown candidates are rejected by `confirmOrigin` via pure `permitsOriginConfirmation`). Model never receives or supplies coordinates. Added `departureMinute` / `returnDeadlineMinute` to `recordTripInfo` with visible 07:00 / 18:00 defaults merged into `journey` and emitted via `data-journey`. `/trips/new` and Validator unchanged.
+- **Checks:** `npx tsc --noEmit -p .` PASS; `tripsage-chat` + `components/tripsage-chat` 30/30 files (333 tests) PASS; broader suite (181/185 passing files + 4 pre-existing `src/modules/ai/` baseline failures: `qa-diagnostics`, `qa-answer-quality-v2`, `qa-chat-preference`, `qa-conversation-reliability`); `git diff --check` PASS.
+- **Not verified:** Live OpenAI, live Google/Stadia origin search, and browser rendering.

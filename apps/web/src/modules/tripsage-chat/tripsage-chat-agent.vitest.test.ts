@@ -181,8 +181,6 @@ describe("Tripsage required-information gate (Ticket 04)", () => {
     ["startDate", { startDate: undefined }, COMPLETE_JOURNEY_FIXTURE, "startDate", "ngày nào"],
     ["origin (no journey)", {}, null, "origin", "Chưa chọn điểm xuất phát"],
     ["origin confirmation", {}, withJourney({ origin: ORIGIN_FIXTURES.unconfirmed }), "originConfirmation", "Xác nhận điểm xuất phát"],
-    ["departure time", {}, withJourney({ departureMinute: null }), "departureMinute", "giờ khởi hành"],
-    ["return deadline", {}, withJourney({ returnDeadlineMinute: null }), "returnDeadlineMinute", "hạn trở về"],
   ];
   for (const [name, extra, journey, field, text] of MISSING) {
     it(`does not schedule and returns the Vietnamese question when ${name} is missing`, async () => {
@@ -230,13 +228,12 @@ describe("Tripsage required-information gate (Ticket 04)", () => {
     expect(JSON.stringify(model.doStreamCalls[1]!.prompt)).toContain("PAST_DATE");
   });
 
-  it("requestOrigin opens the card only while the origin is unconfirmed", async () => {
-    const open = await run(scripted([{ tool: "requestOrigin", input: { departureMinute: 420, returnDeadlineMinute: 1080 } }, { text: "Bạn chọn điểm xuất phát nhé." }]), {}, null);
-    expect(parts(open).find(p => p.type === "data-origin-request")?.data).toEqual({ departureMinute: 420, returnDeadlineMinute: 1080 });
-    const model = scripted([{ tool: "requestOrigin", input: { departureMinute: 420, returnDeadlineMinute: 1080 } }, { text: "Ok." }]);
-    const done = await run(model);
-    expect(parts(done).some(p => p.type === "data-origin-request")).toBe(false);
-    expect(JSON.stringify(model.doStreamCalls[1]!.prompt)).toContain("ORIGIN_ALREADY_CONFIRMED");
+  it("applies default 07:00 and 18:00 clocks when the journey has a confirmed origin without explicit clocks", async () => {
+    const model = scripted([propose([["a", "b"]]), { text: "Xong." }]);
+    const sse = await run(model, {}, withJourney({ departureMinute: null, returnDeadlineMinute: null }));
+    const result = plannerResultSchema.parse(parts(sse).find(p => p.type === "data-itinerary")!.data);
+    expect(result.requirement.journey?.departureMinute).toBe(420);
+    expect(result.requirement.journey?.returnDeadlineMinute).toBe(1080);
   });
 
   it("suggestReplies streams validated quick replies", async () => {

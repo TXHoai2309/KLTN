@@ -4,11 +4,13 @@
 
 **Blocked by:** —
 
-**Status:** TODO (chưa được duyệt code)
+**Status:** DONE (2026-11-21)
 
-- [ ] Mô hình không nhận/không đưa tọa độ; ứng viên có chữ ký, sửa ở trình duyệt thì bị từ chối (400).
-- [ ] `confirmOrigin` từ chối khi chưa có câu đồng ý, khi `candidateId` lạ hoặc hết hạn.
-- [ ] Điểm tập kết là ứng viên cố định.
-- [ ] Giờ mặc định áp và đánh dấu; nhắn "đi lúc 6h" thì lập lại lịch.
-- [ ] Bỏ `TripsageOriginCard`/`TripJourneyEditor` khỏi chat; `/trips/new` không đổi.
-- [ ] Test route mô hình giả, hàm nhận câu đồng ý, typecheck.
+- [x] Mô hình không nhận/không đưa tọa độ; ứng viên có chữ ký, sửa ở trình duyệt thì bị từ chối (400).
+- [x] `confirmOrigin` từ chối khi chưa có câu đồng ý, khi `candidateId` lạ hoặc hết hạn.
+- [x] Điểm tập kết là ứng viên cố định.
+- [x] Giờ mặc định áp và đánh dấu; nhắn "đi lúc 6h" thì lập lại lịch.
+- [x] Bỏ `TripsageOriginCard`/`TripJourneyEditor` khỏi chat; `/trips/new` không đổi.
+- [x] Test route mô hình giả, hàm nhận câu đồng ý, typecheck.
+
+**Ghi chú / chưa kiểm:** Live OpenAI, Google/Stadia origin search thật, và kiểm tra trực tiếp trên trình duyệt chưa chạy trong bước này; toàn bộ hành vi ranh giới đã kiểm bằng `MockLanguageModelV4` và test đơn vị. Token ứng viên hết hạn sau 30 phút (trả mã `ORIGIN_CANDIDATES_EXPIRED` khi gọi `confirmOrigin`, không chặn tin nhắn mới); token bị sửa chữ ký/tải trọng/chủ sở hữu bị từ chối 400 trước khi gọi model.

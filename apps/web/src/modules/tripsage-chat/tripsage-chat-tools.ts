@@ -15,9 +15,12 @@ import { costLineInputSchema, estimateTripCost, PRICE_REFERENCE, type CostPart }
 import { itineraryDistanceKm } from "./tripsage-chat-context";
 import { accessLegInputSchema, buildAccessLeg, isHubOrigin, LONG_OUTBOUND_MINUTES, type AccessLegPart } from "./tripsage-access-leg";
 import { domainOf, isSafePublicHttpsUrl, WEB_DATA_MARKER, type WebLookup } from "./tripsage-web";
-import { originRequestPartSchema, quickRepliesPartSchema, tripInfoSchema, withTripInfoDefaults, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
+import { quickRepliesPartSchema, resolveEffectiveJourney, tripInfoSchema, withTripInfoDefaults, type OriginCandidatesPart, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
+import { FIXED_HUB_CANDIDATES, matchFixedHub, MAX_ORIGIN_CANDIDATES, permitsOriginConfirmation, type SignedOriginCandidate, type VerifiedOriginCandidates } from "./tripsage-chat-origin";
 import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
-import { JOURNEY_MISSING_LABELS, missingJourneyFields, type TripJourney } from "../trip-origin/trip-origin-contract";
+import { JOURNEY_MISSING_LABELS, missingJourneyFields, originSelectionSchema, type OriginSelection, type TripJourney } from "../trip-origin/trip-origin-contract";
+import type { OriginSearchOutcome } from "../trip-origin/origin-search-contract";
+import { vietnamCoverageAt } from "../trip-origin/vietnam-coverage";
 import type { HotelLookup } from "./tripsage-amadeus";
 import type { FlightLookup } from "./tripsage-duffel";
 import type { TripsageFeature } from "./tripsage-features";
@@ -25,24 +28,28 @@ import { createTripsageExtraTools, type TripsageResultEmitters } from "./tripsag
 import { createMemoryTools, type MemoryToolContext } from "../tripsage-memory/memory-tools";
 
 /** Base allow-list. Optional tools are registered only for the request's enabled feature groups. */
-export const TRIPSAGE_CHAT_TOOL_NAMES = ["recordTripInfo", "requestOrigin", "suggestReplies", "listDestinations", "proposeItinerary", "searchPlaces", "addSuggestions", "lookupLocalKnowledge", "estimateCosts", "planAccessLeg", "webSearch", "fetchPage"] as const;
+export const TRIPSAGE_CHAT_TOOL_NAMES = ["recordTripInfo", "findOrigin", "confirmOrigin", "suggestReplies", "listDestinations", "proposeItinerary", "searchPlaces", "addSuggestions", "lookupLocalKnowledge", "estimateCosts", "planAccessLeg", "webSearch", "fetchPage"] as const;
 export type TripsageChatToolName = (typeof TRIPSAGE_CHAT_TOOL_NAMES)[number];
 
 /** Per-turn caps (ADR-42 §6): 12 steps inside 280 s, under the route's `maxDuration` 300. */
 export const TRIPSAGE_CHAT_TURN_LIMITS = { maxSteps: 12, totalMs: 280_000, maxProposals: 2, maxPlacesCalls: 4, maxWebSearchCalls: 1, maxFetchPageCalls: 1 } as const;
 
+export type OriginLookup = (query: string, signal?: AbortSignal) => Promise<OriginSearchOutcome>;
 export type TripsagePlanningDeps = { candidates: () => Promise<PlannerCandidate[]>; routes: RouteProvider; now?: () => Date };
-/** `journey` comes from the signed-in request (origin picker), never from the model. */
+/** `journey` comes from the signed-in request or server-built `confirmOrigin`, never from the model. */
 export type TripsageToolContext = { planning: TripsagePlanningDeps; emitItinerary: (result: PlannerResult) => void; maxProposals?: number; journey?: TripJourney | null;
   /** Trip info recorded by the conversation (request context, updated by `recordTripInfo` in this turn). It, not model input, drives scheduling. */ tripInfo?: TripsageTripInfo | null;
-  /** Stream the recorded trip info, the origin card request and quick replies to the browser. */
   /** Reviewed local documents (same retriever as Q&A); absent means unavailable. */ knowledge?: LocalKnowledge;
   /** Streams validated suggestions attached to timeline slots. */ emitSuggestions?: (suggestions: TimelineSuggestion[]) => void;
   /** Streams the server-computed cost table. */ emitCost?: (cost: CostPart) => void;
   /** Access leg shown earlier in the conversation (request context, re-validated). */ accessLeg?: AccessLegPart | null;
   /** Streams the estimated access leg to a trip hub. */ emitAccessLeg?: (leg: AccessLegPart) => void;
   /** Compact summary of the itinerary currently shown (request context); used for suggestion slots when none was made this turn. */ currentItinerary?: TripsageItinerarySummary | null;
-  emitTripInfo?: (tripInfo: TripsageTripInfo) => void; emitOriginRequest?: (data: { departureMinute: number; returnDeadlineMinute: number }) => void; emitQuickReplies?: (replies: string[]) => void;
+  /** Server-side origin search (Vietnam coverage checked); absent means unavailable except fixed trip hubs. */ originSearch?: OriginLookup;
+  /** Verified origin candidates carried from the previous turn's signed token (never from the model). */ originCandidates?: VerifiedOriginCandidates;
+  /** Signs candidates produced by `findOrigin` in this turn for the browser to carry to the next turn. */ signOriginCandidates?: (candidates: SignedOriginCandidate[]) => string | null;
+  /** Latest plain user message text, used by `confirmOrigin` to verify explicit user agreement. */ latestUserText?: string;
+  emitTripInfo?: (tripInfo: TripsageTripInfo) => void; emitOriginCandidates?: (data: OriginCandidatesPart) => void; emitJourney?: (journey: TripJourney) => void; emitQuickReplies?: (replies: string[]) => void;
   /** Google Places search (server key held inside); absent means unavailable. */ places?: PlacesSearch; maxPlacesCalls?: number;
   /** Streams suggestions to the UI only; nothing is stored or scheduled. */ emitPlaces?: (places: PlaceSuggestionPart[]) => void;
   /** Firecrawl search/scrape (server key held inside); absent means unavailable. */ web?: WebLookup; maxWebSearchCalls?: number; maxFetchPageCalls?: number;
@@ -88,6 +95,8 @@ const recordInputSchema = tripInfoSchema.extend({
   travelers: tripInfoSchema.shape.travelers.describe("Số người đi, 1-20."),
   lunchMinutes: tripInfoSchema.shape.lunchMinutes.describe("Độ dài nghỉ trưa người dùng muốn, 60-120 phút."),
   dayEndMinute: tripInfoSchema.shape.dayEndMinute.describe("Giờ muộn nhất kết thúc tham quan mỗi ngày, phút trong ngày, 900-1080 (15:00-18:00)."),
+  departureMinute: tripInfoSchema.shape.departureMinute.describe("Giờ khởi hành ngày đầu người dùng muốn, phút trong ngày 0-1439 (ví dụ 360 = 06:00, mặc định 420 = 07:00)."),
+  returnDeadlineMinute: tripInfoSchema.shape.returnDeadlineMinute.describe("Hạn về ngày cuối người dùng muốn, phút trong ngày 0-1439 (mặc định 1080 = 18:00)."),
   homeCity: tripInfoSchema.shape.homeCity.describe("Thành phố người dùng đang sống (chỉ tên), ví dụ TP Hồ Chí Minh."),
 }).strict();
 
@@ -123,38 +132,145 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   let proposals = 0;
   const maxProposals = context.maxProposals ?? TRIPSAGE_CHAT_TURN_LIMITS.maxProposals;
   let tripInfo: TripsageTripInfo = { ...context.tripInfo };
+  let currentJourney: TripJourney | null = context.journey ?? null;
   /** Stop ids per day of the itinerary suggestions attach to: this turn's newest proposal, else the one the browser shows. */
   let latestDays: string[][] | null = context.currentItinerary?.days.map(day => day.stops.map(stop => stop.id)) ?? null;
   let latestDistanceKm: number | null = context.currentItinerary?.distanceKm ?? null;
   let latestAccessLeg: AccessLegPart | null = context.accessLeg ?? null;
-  /** Set when this turn's schedule shows that driving from the origin is not practical; the origin card may reopen. */
+  /** Set when this turn's schedule shows that driving from the origin is not practical; the assistant should offer hubs. */
   let hubSuggested = false;
 
+  const fixedHubPublic = FIXED_HUB_CANDIDATES.map(hub => ({ candidateId: hub.id, label: hub.label }));
+
   const recordTripInfo = tool({
-    description: "Ghi thông tin chuyến đi người dùng vừa nói hoặc vừa đồng ý (chỉ các trường thay đổi). Phương tiện, số ngày, ngày đi chỉ ghi khi người dùng đã nói hoặc đồng ý gợi ý của bạn. Có hiệu lực ngay trong lượt này.",
+    description: "Ghi thông tin chuyến đi người dùng vừa nói hoặc vừa đồng ý (chỉ các trường thay đổi), kể cả giờ khởi hành/hạn về (departureMinute, returnDeadlineMinute). Phương tiện, số ngày, ngày đi chỉ ghi khi người dùng đã nói hoặc đồng ý gợi ý của bạn. Có hiệu lực ngay trong lượt này.",
     inputSchema: recordInputSchema,
     execute: async input => {
       if (input.startDate && input.startDate < vietnamDateOf(now())) return { ok: false as const, code: "PAST_DATE", message: "Ngày bắt đầu đã qua. Hỏi lại người dùng ngày đi, gợi ý một ngày sắp tới." };
       tripInfo = { ...tripInfo, ...Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) };
       context.emitTripInfo?.(tripInfo);
+      const effectiveJourney = resolveEffectiveJourney(currentJourney, tripInfo);
+      if (effectiveJourney?.origin?.confirmed && (input.departureMinute !== undefined || input.returnDeadlineMinute !== undefined)) {
+        currentJourney = effectiveJourney;
+        context.emitJourney?.(effectiveJourney);
+      }
       const { info, defaulted } = withTripInfoDefaults(tripInfo);
-      return { ok: true as const, tripInfo, defaulted, missing: missingTripInfo(info, context.journey).map(m => m.field) };
+      return { ok: true as const, tripInfo, defaulted, missing: missingTripInfo(info, effectiveJourney).map(m => m.field) };
     },
   });
 
-  let originRequested = false;
-  const requestOrigin = tool({
-    description: "Mở thẻ chọn điểm xuất phát (bản đồ, tìm kiếm, nút TP Hà Giang / Hà Nội) ngay trong chat, kèm giờ khởi hành ngày đầu và hạn về ngày cuối bạn gợi ý (phút trong ngày, ví dụ 420 = 07:00). Chỉ gọi khi chưa có điểm xuất phát đã xác nhận.",
+  let originSearches = 0;
+  const findOrigin = tool({
+    description: "Tìm điểm xuất phát trong lãnh thổ Việt Nam từ tên người dùng vừa gõ (tối đa 3 ứng viên). Chỉ nêu lại nhãn địa điểm cho người dùng xác nhận ở lượt sau; KHÔNG tự gọi confirmOrigin trong cùng lượt. Điểm tập kết Hà Nội (hub:HA_NOI) và TP Hà Giang (hub:HA_GIANG_CITY) là ứng viên cố định.",
     inputSchema: z.object({
-      departureMinute: originRequestPartSchema.shape.departureMinute.describe("Giờ khởi hành gợi ý, phút trong ngày."),
-      returnDeadlineMinute: originRequestPartSchema.shape.returnDeadlineMinute.describe("Hạn về gợi ý ngày cuối, phút trong ngày."),
+      query: z.string().trim().min(2).max(160).describe("Tên nơi xuất phát người dùng nêu, ví dụ: Hà Nội, Cầu Giấy, Hải Phòng, TP Hà Giang."),
     }).strict(),
-    execute: async input => {
-      if (context.journey?.origin?.confirmed && !hubSuggested) return { ok: false as const, code: "ORIGIN_ALREADY_CONFIRMED", message: "Điểm xuất phát đã được xác nhận; không mở lại thẻ." };
-      if (originRequested) return { ok: false as const, code: "ORIGIN_ALREADY_REQUESTED", message: "Thẻ chọn điểm xuất phát đã mở trong lượt này." };
-      originRequested = true;
-      context.emitOriginRequest?.(input);
-      return { ok: true as const, note: "Thẻ đã hiện cho người dùng. Không hỏi tọa độ; chờ người dùng xác nhận trên thẻ." };
+    execute: async ({ query }, options) => {
+      if (originSearches >= 3) return { ok: false as const, code: "ORIGIN_SEARCH_LIMIT", message: "Đã đạt số lần tìm điểm xuất phát tối đa trong lượt này." };
+      originSearches += 1;
+      let signedList: SignedOriginCandidate[] = [];
+      const hub = matchFixedHub(query);
+      if (hub) {
+        signedList = [hub];
+      } else {
+        const outcome = context.originSearch ? await context.originSearch(query, options?.abortSignal) : ({ status: "UNAVAILABLE" } as const);
+        if (outcome.status === "BUSY") {
+          return { ok: false as const, code: "ORIGIN_SEARCH_BUSY", message: "Dịch vụ tìm địa điểm đang bận. Mời người dùng thử lại hoặc chọn một điểm tập kết cố định.", fixedHubs: fixedHubPublic };
+        }
+        if (outcome.status === "UNAVAILABLE") {
+          return { ok: false as const, code: "ORIGIN_SEARCH_UNAVAILABLE", message: "Dịch vụ tìm điểm xuất phát chưa sẵn sàng. Mời người dùng chọn điểm tập kết cố định (Hà Nội hoặc TP Hà Giang).", fixedHubs: fixedHubPublic };
+        }
+        const supported = outcome.results.filter(result => vietnamCoverageAt(result) === "SUPPORTED").slice(0, MAX_ORIGIN_CANDIDATES);
+        if (!supported.length) {
+          return { ok: true as const, count: 0, candidates: [], fixedHubs: fixedHubPublic, note: "Không tìm thấy địa điểm hợp lệ trong lãnh thổ Việt Nam. Hỏi người dùng ghi rõ quận/huyện, tỉnh/thành hoặc chọn một điểm tập kết cố định." };
+        }
+        signedList = supported.map((result, index) => ({
+          id: `oc-${originSearches}-${index + 1}`,
+          label: result.label,
+          latitude: result.latitude,
+          longitude: result.longitude,
+          source: result.source,
+        }));
+      }
+      const token = context.signOriginCandidates?.(signedList) ?? null;
+      if (!token) return { ok: false as const, code: "ORIGIN_SEARCH_UNAVAILABLE", message: "Chưa sẵn sàng xác thực ứng viên điểm xuất phát.", fixedHubs: fixedHubPublic };
+      const publicCandidates = signedList.map(item => ({ candidateId: item.id, label: item.label }));
+      context.emitOriginCandidates?.({ candidates: publicCandidates, token });
+      return {
+        ok: true as const,
+        count: publicCandidates.length,
+        candidates: publicCandidates,
+        note: publicCandidates.length === 1
+          ? "Hãy nói lại chính xác nhãn địa điểm này cho người dùng xác nhận (KHÔNG gọi confirmOrigin trong lượt này). Chờ người dùng trả lời 'đúng' hoặc bấm nút ở lượt sau."
+          : "Hãy đưa các nhãn địa điểm này để người dùng chọn (đã hiện thành nút trả lời nhanh; KHÔNG gọi confirmOrigin trong lượt này). Chờ người dùng chọn ở lượt sau.",
+      };
+    },
+  });
+
+  const confirmOrigin = tool({
+    description: "Xác nhận điểm xuất phát khi tin nhắn mới nhất của người dùng là câu đồng ý (như 'đúng', 'ok') hoặc chọn đúng nhãn ứng viên từ findOrigin của lượt trước, hoặc chọn điểm tập kết cố định (hub:HA_NOI, hub:HA_GIANG_CITY). Có hiệu lực ngay trong lượt này để lập lịch.",
+    inputSchema: z.object({
+      candidateId: z.string().trim().min(1).max(64).describe("Mã ứng viên từ lượt trước (ví dụ oc-1-1) hoặc điểm tập kết cố định (hub:HA_NOI, hub:HA_GIANG_CITY)."),
+    }).strict(),
+    execute: async ({ candidateId }) => {
+      let found: SignedOriginCandidate | undefined;
+      let pool: readonly SignedOriginCandidate[] = [];
+      let fromPreviousTurn = false;
+      if (context.originCandidates?.status === "VALID") {
+        found = context.originCandidates.candidates.find(item => item.id === candidateId);
+        if (found) {
+          pool = context.originCandidates.candidates;
+          fromPreviousTurn = true;
+        }
+      }
+      if (!found) {
+        const hub = FIXED_HUB_CANDIDATES.find(item => item.id === candidateId);
+        if (hub) {
+          found = hub;
+          pool = FIXED_HUB_CANDIDATES;
+          fromPreviousTurn = false;
+        }
+      }
+      if (!found) {
+        if (context.originCandidates?.status === "EXPIRED") {
+          return { ok: false as const, code: "ORIGIN_CANDIDATES_EXPIRED", message: "Ứng viên điểm xuất phát từ lượt trước đã hết hạn. Hãy gọi lại findOrigin và hỏi người dùng xác nhận lại." };
+        }
+        return { ok: false as const, code: "ORIGIN_CANDIDATE_NOT_FOUND", message: "Không tìm thấy ứng viên điểm xuất phát này từ lượt trước. Hãy gọi findOrigin trước và chờ người dùng đồng ý ở lượt sau, hoặc dùng điểm tập kết cố định." };
+      }
+      if (!permitsOriginConfirmation(context.latestUserText ?? "", found, pool, { fromPreviousTurn })) {
+        return { ok: false as const, code: "ORIGIN_CONFIRMATION_REQUIRED", message: "Người dùng chưa đồng ý hoặc chưa chọn rõ điểm xuất phát này trong tin nhắn mới nhất. Hãy nêu rõ nhãn địa điểm và chờ người dùng trả lời đồng ý." };
+      }
+      if (vietnamCoverageAt(found) !== "SUPPORTED") {
+        return { ok: false as const, code: "ORIGIN_OUTSIDE_COVERAGE", message: "Điểm xuất phát nằm ngoài phạm vi Việt Nam được hỗ trợ." };
+      }
+      const confirmedOrigin: OriginSelection = originSelectionSchema.parse({
+        label: found.label,
+        latitude: found.latitude,
+        longitude: found.longitude,
+        source: found.source,
+        confirmed: true,
+      });
+      const nextJourney = resolveEffectiveJourney(
+        {
+          origin: confirmedOrigin,
+          departureMinute: currentJourney?.departureMinute ?? null,
+          returnDeadlineMinute: currentJourney?.returnDeadlineMinute ?? null,
+          returnDepartureMinute: currentJourney?.returnDepartureMinute ?? null,
+        },
+        tripInfo,
+      )!;
+      currentJourney = nextJourney;
+      context.emitJourney?.(nextJourney);
+      const { info, defaulted } = withTripInfoDefaults(tripInfo);
+      return {
+        ok: true as const,
+        originLabel: confirmedOrigin.label,
+        departureMinute: nextJourney.departureMinute,
+        returnDeadlineMinute: nextJourney.returnDeadlineMinute,
+        defaulted,
+        missing: missingTripInfo(info, nextJourney).map(m => m.field),
+        note: "Đã xác nhận điểm xuất phát. Nếu đã đủ phương tiện, số ngày và ngày đi, hãy lập lịch ngay trong lượt này.",
+      };
     },
   });
 
@@ -184,14 +300,15 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       // Gate before any routing or scheduling: ask for what is missing, never guess it, and do not spend a proposal.
       // Recorded trip info (with second-cluster defaults) drives scheduling; the model supplies only `selection` and never the day count.
       const effective = withTripInfoDefaults(tripInfo).info;
-      const missing = missingTripInfo(effective, context.journey);
-      if (missing.length) return { ok: false as const, code: "MISSING_REQUIRED_INFO", message: "Chưa đủ thông tin để lập lịch. Ghi bằng recordTripInfo những gì người dùng đã nói/đồng ý; phần còn thiếu thì hỏi gộp trong một tin, kèm gợi ý. Điểm xuất phát chọn qua requestOrigin.", missing: missing.map(m => m.field), questions: missing.map(m => m.question) };
+      const effectiveJourney = resolveEffectiveJourney(currentJourney, tripInfo);
+      const missing = missingTripInfo(effective, effectiveJourney);
+      if (missing.length) return { ok: false as const, code: "MISSING_REQUIRED_INFO", message: "Chưa đủ thông tin để lập lịch. Ghi bằng recordTripInfo những gì người dùng đã nói/đồng ý; phần còn thiếu thì hỏi gộp trong một tin, kèm gợi ý. Điểm xuất phát tìm qua findOrigin và xác nhận qua confirmOrigin ở lượt sau.", missing: missing.map(m => m.field), questions: missing.map(m => m.question) };
       proposals += 1;
       try {
         if (!input.selection) throw new AppError("INVALID_AI_PLAN", "Thiếu danh sách điểm đến theo ngày. Hãy gọi listDestinations rồi chọn điểm.", 422);
         if (input.selection.days.length !== effective.durationDays) throw new AppError("INVALID_AI_PLAN", `Lịch phải có đúng ${effective.durationDays} ngày như đã ghi. Muốn đổi số ngày thì hỏi người dùng rồi ghi bằng recordTripInfo.`, 422);
         const dayRhythm = effective.lunchMinutes !== undefined || effective.dayEndMinute !== undefined ? { lunchMinutes: effective.lunchMinutes ?? 60, dayEndMinute: effective.dayEndMinute ?? 1080 } : undefined;
-        const requirement = tripRequirementInputSchema.parse({ startDate: effective.startDate ?? null, durationDays: effective.durationDays, transport: effective.transport, interests: effective.interests, pace: effective.pace, journey: context.journey, ...(dayRhythm ? { dayRhythm } : {}) });
+        const requirement = tripRequirementInputSchema.parse({ startDate: effective.startDate ?? null, durationDays: effective.durationDays, transport: effective.transport, interests: effective.interests, pace: effective.pace, journey: effectiveJourney, ...(dayRhythm ? { dayRhythm } : {}) });
         const needs = { requirement, requiredDestinationIds: [], preferredDestinationIds: [], destinationNames: {} };
         const base = await candidates();
         // Only external ids this turn's searchPlaces returned become candidates; any other id stays unknown (INVALID_AI_PLAN).
@@ -203,10 +320,10 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         latestDistanceKm = itineraryDistanceKm(result);
         const outbound = result.journeyPlan?.legs.find(leg => leg.kind === "OUTBOUND");
         const longDrive = result.reasonCodes.includes("OVERNIGHT_DRIVING_UNSUPPORTED") || (outbound?.route.durationSeconds ?? 0) / 60 > LONG_OUTBOUND_MINUTES;
-        if (longDrive && !isHubOrigin(context.journey?.origin?.label)) hubSuggested = true;
+        if (longDrive && !isHubOrigin(effectiveJourney?.origin?.label)) hubSuggested = true;
         const names = new Map(all.map(c => [c.id, c.name]));
         return { ok: true as const, status: result.status, eligibleForFinalConfirmation: result.eligibleForFinalConfirmation,
-          ...(hubSuggested ? { hubHint: "Lái xe thẳng từ điểm xuất phát không khả thi hoặc quá xa. Gợi ý người dùng bay hoặc đi xe khách tới điểm tập kết (Hà Nội hoặc TP Hà Giang) rồi thuê xe: hỏi thành phố họ ở (recordTripInfo homeCity), gọi requestOrigin để họ chọn điểm tập kết, và planAccessLeg để ước tính chặng tiếp cận." } : {}),
+          ...(hubSuggested ? { hubHint: "Lái xe thẳng từ điểm xuất phát không khả thi hoặc quá xa. Gợi ý người dùng bay hoặc đi xe khách tới điểm tập kết cố định (Hà Nội: hub:HA_NOI hoặc TP Hà Giang: hub:HA_GIANG_CITY) rồi thuê xe: hỏi thành phố họ ở (recordTripInfo homeCity), mời chọn điểm tập kết (xác nhận bằng confirmOrigin khi họ đồng ý), và planAccessLeg để ước tính chặng tiếp cận." } : {}),
           days: result.days.map(day => ({ day: day.day, stops: day.stops.map(stop => names.get(stop.destination.id) ?? stop.destination.name) })),
           checks: result.checks.map(check => ({ key: check.key, status: check.status })),
           note: `Lịch đầy đủ đã hiển thị cho người dùng. Chỉ nhận xét ngắn; trạng thái khác PASS nghĩa là chưa được xác nhận.${external.length ? " Có địa điểm ngoài danh mục (Google Maps): chưa được kiểm tra, thời gian ở lại chỉ là ước tính, lịch này chưa thể lưu." : ""}` };
@@ -328,7 +445,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       latestAccessLeg = buildAccessLeg(input, info.homeCity, info.travelers);
       context.emitAccessLeg?.(latestAccessLeg);
       return { ok: true as const, outboundMinutes: latestAccessLeg.outboundMinutes, returnMinutes: latestAccessLeg.returnMinutes, totalVnd: latestAccessLeg.totalVnd,
-        note: `Chặng tiếp cận đã hiện cho người dùng (Trước chuyến đi / Sau chuyến đi). ${isHubOrigin(context.journey?.origin?.label) ? "" : "Điểm xuất phát hiện chưa phải điểm tập kết: mời người dùng chọn điểm tập kết trên thẻ để lập lịch phần đi xe."} estimateCosts sẽ tự cộng chặng này vào nhóm đi lại.` };
+        note: `Chặng tiếp cận đã hiện cho người dùng (Trước chuyến đi / Sau chuyến đi). ${isHubOrigin(currentJourney?.origin?.label) ? "" : "Điểm xuất phát hiện chưa phải điểm tập kết: mời người dùng xác nhận điểm tập kết (hub:HA_NOI hoặc hub:HA_GIANG_CITY) để lập lịch phần đi xe."} estimateCosts sẽ tự cộng chặng này vào nhóm đi lại.` };
     },
   });
 
@@ -378,5 +495,5 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     destinationPoint,
   });
   const memory = context.features?.has("memory") ? createMemoryTools(context.memory) : {};
-  return { recordTripInfo, requestOrigin, suggestReplies, listDestinations, proposeItinerary, searchPlaces, addSuggestions, lookupLocalKnowledge, estimateCosts, planAccessLeg, webSearch, fetchPage, ...extra, ...memory } satisfies ToolSet;
+  return { recordTripInfo, findOrigin, confirmOrigin, suggestReplies, listDestinations, proposeItinerary, searchPlaces, addSuggestions, lookupLocalKnowledge, estimateCosts, planAccessLeg, webSearch, fetchPage, ...extra, ...memory } satisfies ToolSet;
 }
