@@ -198,7 +198,21 @@ export function DestinationAssistantPanel({
         onWheel={(e) => e.stopPropagation()}
       >
         {identity.startsWith("USER:") || identity.startsWith("GUEST:")
-          ? <AssistantV2Chat key={identity} identity={identity} initialContext={context ?? (destinationId ? { type: "DESTINATION", destinationId } : { type: "GENERAL" })} available={available} onMinimize={onClose} onOpenFullPage={handleOpenFullPage}/>
+          ? (() => {
+              const effectiveContext = context ?? (destinationId ? { type: "DESTINATION" as const, destinationId } : { type: "GENERAL" as const });
+              const contextKey = effectiveContext.type === "DESTINATION" ? `dest:${effectiveContext.destinationId}` : "general";
+              return (
+                <AssistantV2Chat
+                  key={`${identity}:${contextKey}`}
+                  identity={identity}
+                  initialContext={effectiveContext}
+                  destinationName={destinationName}
+                  available={available}
+                  onMinimize={onClose}
+                  onOpenFullPage={handleOpenFullPage}
+                />
+              );
+            })()
           : <AssistantV2Pending mode="panel" failed={customAvailable === undefined && !!session.error} onRetry={session.retry} onMinimize={onClose}/>}
       </div>
     </>

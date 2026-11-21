@@ -57,10 +57,27 @@ export function GlobalAssistantProvider({ children }: { children: ReactNode }) {
   const nextContext: QaContext = current ? { type: "DESTINATION", destinationId: current.id } : { type: "GENERAL" };
   const routeVisible = isGlobalAssistantVisibleRoute(pathname);
 
+  // Auto-switch the floating panel context whenever the user navigates to a different destination.
+  useEffect(() => {
+    if (!hasSession || !current) return;
+    setActive(prev => {
+      if (prev.context.type === "DESTINATION" && prev.context.destinationId === current.id && prev.name === current.name) {
+        return prev;
+      }
+      return { context: { type: "DESTINATION", destinationId: current.id }, name: current.name };
+    });
+  }, [hasSession, current]);
+
   function openPanel() {
     if (!hasSession) {
       setActive({ context: nextContext, name: current?.name });
       setHasSession(true);
+    } else if (current) {
+      setActive(prev =>
+        prev.context.type === "DESTINATION" && prev.context.destinationId === current.id && prev.name === current.name
+          ? prev
+          : { context: { type: "DESTINATION", destinationId: current.id }, name: current.name },
+      );
     }
     setOpen(true);
   }

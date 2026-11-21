@@ -9,6 +9,7 @@ import "@/components/trip-planner/trip-planner.css";
 import { buildAuthLoginHref } from "@/lib/auth-return-to";
 import { getTripForEdit } from "@/modules/trip-edit/trip-edit-service";
 import { loadPublicCatalogMeta } from "@/modules/trip-edit/trip-edit-page-meta";
+import { listTripEditChatMessages } from "@/modules/trip-edit/trip-edit-chat-memory";
 import { tripReadDependencies } from "@/modules/trip-read/trip-read-server";
 import { AppError } from "@/server/http/app-error";
 import { db } from "@/services";
@@ -55,7 +56,10 @@ export async function renderSavedTripAssistantPage(
     );
   }
 
-  const catalogMeta = await loadPublicCatalogMeta(db);
+  const [catalogMeta, initialAiThread] = await Promise.all([
+    loadPublicCatalogMeta(db),
+    listTripEditChatMessages(db, trip.tripId).catch(() => []),
+  ]);
 
   return (
     <EditTripClient
@@ -69,6 +73,7 @@ export async function renderSavedTripAssistantPage(
       initialCompletedVisitIds={trip.completedVisitIds ?? []}
       catalogMeta={catalogMeta}
       entryMode={entryMode}
+      initialAiThread={initialAiThread}
     />
   );
 }

@@ -45,12 +45,15 @@ import TripJourneyEditor from "@/components/trip-origin/trip-journey-editor";
 import { getDestinationVisual } from "@/lib/destination-visuals";
 import { createIdempotencyKey } from "@/lib/mutation-client";
 import {
+  appendTripEditChatMessagesClient,
   applyTripEdit,
+  clearTripEditChatMessagesClient,
   extractCompletedVisitIdsFromDetails,
   fetchTripEditSnapshot,
   parseTripEditApplyValidation,
   previewTripEdit,
   streamAiTripEdit,
+  type PersistedTripEditChatPayload,
   type TripEditSnapshot,
 } from "@/lib/trip-edit-client";
 import { resolveAiStreamOutcome } from "@/modules/trip-edit/ai-stream-outcome";
@@ -153,6 +156,7 @@ type Props = {
   initialCompletedVisitIds?: string[];
   catalogMeta?: Record<string, EditCatalogDestinationMeta>;
   entryMode?: "edit" | "in-trip";
+  initialAiThread?: AiConversationEntry[];
 };
 
 function minuteLabel(minute: number): string {
@@ -212,6 +216,7 @@ export default function EditTripClient({
   initialCompletedVisitIds = [],
   catalogMeta = {},
   entryMode = "edit",
+  initialAiThread = [],
 }: Props) {
   const [liveTripStatus, setLiveTripStatus] = useState<TripStatus>(tripStatus);
   const [completedVisitIds, setCompletedVisitIds] = useState<string[]>(initialCompletedVisitIds);
@@ -259,7 +264,7 @@ export default function EditTripClient({
   const [aiOpen, setAiOpen] = useState(true);
   const [aiInput, setAiInput] = useState("");
   const [aiBarState, setAiBarState] = useState<AiBarUiState>({ kind: "IDLE" });
-  const [aiThread, setAiThread] = useState<AiConversationEntry[]>([]);
+  const [aiThread, setAiThread] = useState<AiConversationEntry[]>(() => initialAiThread);
   const [sessionLocation, setSessionLocation] = useState<InTripLocation | null>(null);
   const aiTurnSeqRef = useRef(0);
   const aiAbortRef = useRef<AbortController | null>(null);
@@ -433,6 +438,32 @@ export default function EditTripClient({
       setAiInput(trimmed);
     };
 
+    const persistCommittedTurn = (assistantEntry: AiConversationEntry) => {
+      const batch: PersistedTripEditChatPayload[] = [];
+      if (shouldAppendOptimisticUser) {
+        batch.push({ role: "user", text: trimmed });
+      }
+      if (assistantEntry.text.trim().length > 0) {
+        batch.push({
+          role: "assistant",
+          ...(assistantEntry.kind ? { kind: assistantEntry.kind } : {}),
+          text: assistantEntry.text,
+          ...(assistantEntry.steps && assistantEntry.steps.length > 0 ? { steps: assistantEntry.steps } : {}),
+          ...(assistantEntry.correctionNote ? { correctionNote: assistantEntry.correctionNote } : {}),
+          ...(assistantEntry.statusNotice ? { statusNotice: assistantEntry.statusNotice } : {}),
+          ...(assistantEntry.knowledgeParts && assistantEntry.knowledgeParts.length > 0
+            ? { knowledgeParts: assistantEntry.knowledgeParts }
+            : {}),
+          ...(assistantEntry.citations && assistantEntry.citations.length > 0
+            ? { citations: assistantEntry.citations }
+            : {}),
+        });
+      }
+      if (batch.length > 0) {
+        void appendTripEditChatMessagesClient(tripId, batch);
+      }
+    };
+
     const outcome = await streamAiTripEdit(
       tripId,
       {
@@ -493,6 +524,7 @@ export default function EditTripClient({
         ...(decision.resolution ? { retryResolution: decision.resolution } : {}),
       };
       setAiThread((prev) => [...prev, partialEntry].slice(-MAX_AI_HISTORY_TURNS));
+      persistCommittedTurn(partialEntry);
       setAiBarState({ kind: "IDLE" });
       setAnnouncement(decision.notice);
       return;
@@ -544,6 +576,7 @@ export default function EditTripClient({
         text: decision.result.clarification.prompt,
       };
       setAiThread((prev) => [...prev, clarifyingEntry].slice(-MAX_AI_HISTORY_TURNS));
+      persistCommittedTurn(clarifyingEntry);
       setAiBarState({
         kind: "CLARIFYING",
         prompt: decision.prompt,
@@ -566,6 +599,7 @@ export default function EditTripClient({
         ...(result.citations ? { citations: result.citations } : {}),
       };
       setAiThread((prev) => [...prev, assistantEntry].slice(-MAX_AI_HISTORY_TURNS));
+      persistCommittedTurn(assistantEntry);
       setAiBarState({
         kind: "ADVISED",
         advice: result.advice,
@@ -597,6 +631,7 @@ export default function EditTripClient({
       ...(decision.correctionNote ? { correctionNote: decision.correctionNote } : {}),
     };
     setAiThread((prev) => [...prev, appliedEntry].slice(-MAX_AI_HISTORY_TURNS));
+    persistCommittedTurn(appliedEntry);
     commitDraft(result.candidate, summary);
     setTimingDrafts({});
     setPreviewState(
@@ -658,6 +693,9 @@ export default function EditTripClient({
       text: summary,
     };
     setAiThread((prev) => [...prev, assistantEntry].slice(-MAX_AI_HISTORY_TURNS));
+    void appendTripEditChatMessagesClient(tripId, [
+      { role: "assistant", kind: "APPLIED", text: summary },
+    ]);
     commitDraft(suggestion.candidate, summary);
     setTimingDrafts({});
     setPreviewState(
@@ -1845,6 +1883,7 @@ export default function EditTripClient({
                     onClearHistory={() => {
                       setAiThread([]);
                       setAiBarState({ kind: "IDLE" });
+                      void clearTripEditChatMessagesClient(tripId);
                     }}
                     state={
                       aiBarState.kind === "APPLIED"

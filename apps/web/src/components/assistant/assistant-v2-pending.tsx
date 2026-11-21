@@ -19,16 +19,42 @@ export function AssistantV2Pending({ mode = "page", failed = false, unavailable 
   </section>;
 }
 
-/** ChatGPT-style pending turn: the question sits in its bubble at once, then the assistant's thinking indicator. */
-export function AssistantPendingTurn({ question, sending = true }: { question: string; sending?: boolean }) {
+/** ChatGPT-style pending turn: the question sits in its bubble at once, then live AI steps & progressive text. */
+export function AssistantPendingTurn({
+  question,
+  sending = true,
+  statusLabel,
+  steps,
+  streamedText,
+}: {
+  question: string;
+  sending?: boolean;
+  statusLabel?: string;
+  steps?: readonly string[];
+  streamedText?: string;
+}) {
+  const activeLabel = statusLabel || "Đang suy nghĩ…";
+  const completedSteps = (steps ?? []).filter((s) => s !== activeLabel);
   return <div className="assistant-turn assistant-planning-exchange assistant-local-attempt">
     <article className="assistant-message assistant-user" aria-label="Câu hỏi của bạn"><p>{question}</p>{!sending && <small>Chưa được xác nhận lưu</small>}</article>
     {sending && <article className="assistant-message assistant-answer assistant-pending-answer" aria-label="Phản hồi của trợ lý">
       <span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true"/><span>Trợ lý AI</span></span>
-      <div className="assistant-typing-indicator" role="status" aria-label="Trợ lý AI đang soạn câu trả lời">
+      <div className="assistant-typing-indicator" role="status" aria-label={activeLabel}>
         <span className="assistant-typing-dots" aria-hidden="true"><span className="assistant-typing-dot"/><span className="assistant-typing-dot"/><span className="assistant-typing-dot"/></span>
-        <span className="assistant-typing-label">Đang suy nghĩ…</span>
+        <span className="assistant-typing-label">{activeLabel}</span>
       </div>
+      {completedSteps.length > 0 && (
+        <ul className="assistant-muted" style={{ margin: "6px 0 0", paddingLeft: "18px", fontSize: "0.82rem", lineHeight: 1.45 }}>
+          {completedSteps.map((step, idx) => (
+            <li key={`${step}-${idx}`}>{step.replace(/…$/, "")}</li>
+          ))}
+        </ul>
+      )}
+      {streamedText && (
+        <div className="assistant-stream-preview" style={{ marginTop: "10px", whiteSpace: "pre-wrap", lineHeight: 1.65 }}>
+          {streamedText}
+        </div>
+      )}
     </article>}
   </div>;
 }

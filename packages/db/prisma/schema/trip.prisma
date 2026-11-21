@@ -22,9 +22,28 @@ model Trip {
   days         ItineraryDay[]
   favorites    Favorite[]
   companionPublication TripCompanionPublication?
+  editChatMessages TripEditChatMessage[]
 
   @@index([userId, createdAt])
   @@map("trip")
+}
+
+model TripEditChatMessage {
+  id             String   @id @default(cuid())
+  tripId         String
+  trip           Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  role           String   @db.VarChar(16)
+  kind           String?  @db.VarChar(24)
+  text           String   @db.Text
+  steps          Json?
+  correctionNote String?  @db.Text
+  statusNotice   String?  @db.Text
+  knowledgeParts Json?
+  citations      Json?
+  createdAt      DateTime @default(now())
+
+  @@index([tripId, createdAt])
+  @@map("trip_edit_chat_message")
 }
 
 // Unique publication remains the stable group identity across lifecycle changes.

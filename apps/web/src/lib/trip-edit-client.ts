@@ -7,6 +7,8 @@ import {
   advisoryCitationSchema,
   advisoryKnowledgePartSchema,
   aiChatHistorySchema,
+  type AdvisoryCitation,
+  type AdvisoryKnowledgePart,
   type AiChatHistoryTurn,
 } from "@/modules/trip-edit/ai-workspace-plan";
 import { inTripLocationSchema, type InTripLocation } from "@/modules/in-trip/in-trip-location";
@@ -908,5 +910,61 @@ export async function fetchTripEditSnapshot(
       kind: "FAILED",
       message: "Mất kết nối khi tải phiên bản lịch trình mới nhất.",
     };
+  }
+}
+
+export type PersistedTripEditChatPayload = {
+  role: "user" | "assistant";
+  kind?: "ADVISED" | "APPLIED" | "CLARIFYING" | "INTERRUPTED" | "STOPPED";
+  text: string;
+  steps?: readonly string[];
+  correctionNote?: string;
+  statusNotice?: string;
+  knowledgeParts?: readonly AdvisoryKnowledgePart[];
+  citations?: readonly AdvisoryCitation[];
+};
+
+/** Best-effort persistence of trip-edit chat turns to PostgreSQL (never blocks UI). */
+export async function appendTripEditChatMessagesClient(
+  tripId: string,
+  messages: readonly PersistedTripEditChatPayload[],
+  fetcher: typeof fetch = fetch,
+): Promise<boolean> {
+  if (messages.length === 0) return true;
+  try {
+    const response = await fetcher(
+      `/api/trips/${encodeURIComponent(tripId)}/edits/ai/messages`,
+      {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ messages }),
+      },
+    );
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Clear persisted trip-edit chat history for this trip on the server. */
+export async function clearTripEditChatMessagesClient(
+  tripId: string,
+  fetcher: typeof fetch = fetch,
+): Promise<boolean> {
+  try {
+    const response = await fetcher(
+      `/api/trips/${encodeURIComponent(tripId)}/edits/ai/messages`,
+      {
+        method: "DELETE",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      },
+    );
+    return response.ok;
+  } catch {
+    return false;
   }
 }

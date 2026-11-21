@@ -40,6 +40,12 @@ import {
   validateRequiredFields,
   type TripRequirementFormFields,
 } from "@/modules/trip-requirement/trip-requirement-form-logic";
+import {
+  clearTripCreationDraft,
+  readTripCreationDraft,
+  syncTripCreationStepUrl,
+  writeTripCreationDraft,
+} from "@/modules/trip-requirement/trip-creation-draft";
 import type {
   CompanionType,
   MobilityConstraint,
@@ -102,7 +108,7 @@ function markAiFieldsInDraft(
   }
 }
 
-export default function TripRequirementForm() {
+export default function TripRequirementForm({ userId }: { userId?: string } = {}) {
   const [fields, setFields] = useState<TripRequirementFormFields>(INITIAL_FIELDS);
   const [journey, setJourney] = useState<TripJourney | null>(null);
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -115,10 +121,60 @@ export default function TripRequirementForm() {
   const saveNavigationLocked = isTripSaveNavigationLocked(saveState);
 
   const [activeTab, setActiveTab] = useState<"details" | "planner">("details");
+  const [draftHydrated, setDraftHydrated] = useState(false);
+  const [restoredFromDraft, setRestoredFromDraft] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [confirmError, setConfirmError] = useState<string | null>(null);
   const [extractionSuggestions, setExtractionSuggestions] = useState<ExtractionSuggestions>({});
+
+  // Restore temporary session draft on mount (client-only to avoid SSR hydration mismatch).
+  useEffect(() => {
+    const saved = readTripCreationDraft(userId);
+    if (saved) {
+      setFields(saved.fields);
+      setJourney(saved.journey);
+      if (saved.planner) {
+        setPlanner(saved.planner);
+        const urlStep = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("step") : null;
+        setActiveTab(urlStep === "details" ? "details" : saved.activeTab);
+      } else {
+        setActiveTab("details");
+      }
+      setRestoredFromDraft(true);
+    }
+    setDraftHydrated(true);
+  }, [userId]);
+
+  // Persist temporary draft & keep ?step= synced in URL (ADR-41).
+  useEffect(() => {
+    if (!draftHydrated) return;
+    syncTripCreationStepUrl(activeTab);
+    if (saveState === "success") {
+      clearTripCreationDraft(userId);
+      return;
+    }
+    const dirty = hasTripRequirementChanges(fields, INITIAL_FIELDS) || journey !== null || planner !== null;
+    if (dirty) {
+      writeTripCreationDraft(userId, { fields, journey, planner, activeTab });
+    } else {
+      clearTripCreationDraft(userId);
+    }
+  }, [draftHydrated, userId, fields, journey, planner, activeTab, saveState]);
+
+  function handleResetDraft() {
+    if (saveLock.current) return;
+    clearTripCreationDraft(userId);
+    setFields(INITIAL_FIELDS);
+    setJourney(null);
+    setReview(null);
+    setPlanner(null);
+    setErrors({});
+    setFeedback(null);
+    setExtractionSuggestions({});
+    setRestoredFromDraft(false);
+    setActiveTab("details");
+  }
 
   // Modals
   const [aiModalOpen, setAiModalOpen] = useState(false);
@@ -131,10 +187,13 @@ export default function TripRequirementForm() {
     ".trip-shell",
   );
   const handleSaveStateChange = useCallback((state: SaveState) => {
-    if (state === "success") allowLeave();
+    if (state === "success") {
+      clearTripCreationDraft(userId);
+      allowLeave();
+    }
     saveLock.current = isTripSaveNavigationLocked(state);
     setSaveState(state);
-  }, [allowLeave]);
+  }, [allowLeave, userId]);
 
   const naturalLanguageStatus: NaturalLanguageInputStatus = aiAnalyzing
     ? { kind: "analyzing" }
@@ -408,6 +467,41 @@ export default function TripRequirementForm() {
 
   return (
     <main className="trip-page-root" lang="vi">
+      {restoredFromDraft && activeTab === "details" && (
+        <div
+          role="status"
+          style={{
+            maxWidth: "820px",
+            margin: "0 auto 12px",
+            padding: "10px 14px",
+            borderRadius: "12px",
+            border: "1px solid var(--border)",
+            background: "var(--surface)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            fontSize: "0.875rem",
+          }}
+        >
+          <span>Đã khôi phục thông tin chuyến đi bạn đang nhập dở.</span>
+          <button
+            type="button"
+            onClick={handleResetDraft}
+            style={{
+              background: "transparent",
+              border: "1px solid var(--border)",
+              borderRadius: "8px",
+              padding: "4px 10px",
+              cursor: "pointer",
+              fontWeight: 600,
+              fontSize: "0.8125rem",
+            }}
+          >
+            Làm mới từ đầu
+          </button>
+        </div>
+      )}
       {activeTab === "details" ? (
         <>
           <TripSentenceBuilder

@@ -434,5 +434,34 @@ describe("Destination Assistant Popup Tickets 02–06", () => {
 
       expect(consumed).toBeNull();
     });
+
+    it("renders the active destination name in starter prompts for signed-in users and updates for a new destination", () => {
+      const markupA = renderToStaticMarkup(
+        createElement(DestinationAssistantPanel, {
+          context: { type: "DESTINATION", destinationId: "dest_a" },
+          destinationName: "Cao nguyên đá Đồng Văn",
+          identity: "USER:user_1",
+          available: true,
+          isOpen: true,
+          onClose: () => {},
+        })
+      );
+      expect(markupA).toContain("Hỏi về Cao nguyên đá Đồng Văn");
+      expect(markupA).toContain("Giới thiệu ngắn gọn về Cao nguyên đá Đồng Văn.");
+
+      const markupB = renderToStaticMarkup(
+        createElement(DestinationAssistantPanel, {
+          context: { type: "DESTINATION", destinationId: "dest_b" },
+          destinationName: "Đèo Mã Pí Lèng",
+          identity: "USER:user_1",
+          available: true,
+          isOpen: true,
+          onClose: () => {},
+        })
+      );
+      expect(markupB).toContain("Hỏi về Đèo Mã Pí Lèng");
+      expect(markupB).toContain("Giới thiệu ngắn gọn về Đèo Mã Pí Lèng.");
+      expect(markupB).not.toContain("Cao nguyên đá Đồng Văn");
+    });
   });
 });

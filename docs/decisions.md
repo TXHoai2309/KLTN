@@ -915,3 +915,18 @@ Production replies on `/trips/[id]/edit` repeated the deterministic `buildGround
 - `trip-assistant-openai.ts`'s Responses client is retired. Its Chat Completions client remains the fallback pipeline's provider.
 - Because `@ai-sdk/openai` 4.0.14 only auto-detects `o1`/`o3`/`o4-mini`/`gpt-5*` as reasoning models, `providerOptions.openai` explicitly passes `forceReasoning: true`, `reasoningEffort: "medium"`, `reasoningSummary: null`, and `store: false` so Responses API calls on `gpt-6.1-terra` send `reasoning.effort: "medium"` and `include: ["reasoning.encrypted_content"]` without emitting internal reasoning summaries. Live 5-turn verification confirmed `.responses("gpt-6.1-terra")` streams text and executes multi-round tool calls cleanly without falling back to `.chat()`.
 - JSON clients and tests keep working through content negotiation. A turn is still bounded by the route's `maxDuration = 300`.
+
+## ADR-41: Persistent trip-edit chat memory, `/trips/new` session draft, `/assistant` SSE & browser resume, and destination panel auto-switch
+
+- **Status:** Accepted
+- **Date:** 2026-11-21
+- **Owner approval:** Explicit owner decisions on 4 UX/persistence updates (Option A, browser-only + SSE, Option 3B, Option 4A).
+
+### Decision
+
+1. **Floating destination assistant (`/destinations/[id]`):** Navigating to a different destination automatically switches the floating panel context and remounts the chat controller keyed by `${identity}:${contextKey}`, and starter prompts render the active destination's name instead of a hardcoded `"Hà Giang"`.
+2. **`/assistant` browser resume & SSE streaming:**
+   - Active signed-in V2 sessions remain in browser memory (module-level store keyed by identity, never persisting `stateToken` to storage or URLs) and sync `?session=<sessionId>` to the URL so navigating `/assistant` ↔ `/explore` reopens the exact active chat. Saved Q&A conversations also remember `lastConversationId` in `sessionStorage` per identity until "+ Đoạn chat mới" is clicked.
+   - `POST /api/ai/planning` supports content-negotiated SSE (`Accept: text/event-stream`), emitting progress `step` events and progressive `delta` text chunks while keeping JSON responses unchanged for existing callers and tests.
+3. **Saved-trip edit chat memory (`/trips/[id]/edit`):** Relaxes the "no DB table for edit chat" out-of-scope note in ADR-37/38/40 by adding `TripEditChatMessage` (`trip_edit_chat_message`, migration `20261121121000_trip_edit_chat_memory`) with `onDelete: Cascade` to `Trip`, owner-scoped `GET`/`POST`/`DELETE /api/trips/[id]/edits/ai/messages`, and server-side initial load. Unvalidated itinerary drafts are still never persisted to the database.
+4. **Trip creation draft (`/trips/new`):** Relaxes the `US-24` / `BUG-03` no-draft rule to allow user-scoped temporary `sessionStorage` persistence (12h TTL) of form inputs/journey/confirmed planner step plus `?step=details|planner` URL sync. Drafts are cleared on successful trip save or explicit reset; invalid itineraries are still never persisted to the database.
