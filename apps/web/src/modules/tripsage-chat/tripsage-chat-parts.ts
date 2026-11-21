@@ -3,6 +3,8 @@ import { isValidCalendarDate } from "../trip-requirement/trip-requirement-contra
 
 export const BUDGET_CATEGORIES = ["transport", "lodging", "food", "activities", "other"] as const;
 export const BUDGET_CURRENCIES = ["VND", "USD"] as const;
+export const LODGING_KINDS = ["HOTEL", "HOMESTAY", "GUESTHOUSE", "ANY"] as const;
+export type LodgingKind = (typeof LODGING_KINDS)[number];
 
 const estimatedAmount = z.number().min(0).max(5e12);
 const date = z.string().length(10).refine(isValidCalendarDate);
@@ -58,6 +60,9 @@ const hotelPrice = z.strictObject({
 export const hotelsPartSchema = z.strictObject({
   near: z.string().min(1).max(200),
   nights: z.number().int().min(1).max(14),
+  destinationId: z.string().min(1).max(128).optional(),
+  kind: z.enum(LODGING_KINDS).optional(),
+  adults: z.number().int().min(1).max(9).optional(),
   hotels: z.array(z.strictObject({
     name: shortName,
     distanceKm: z.number().min(0).max(20_050).nullable(),

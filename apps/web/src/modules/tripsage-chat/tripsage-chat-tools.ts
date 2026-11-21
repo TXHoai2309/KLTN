@@ -25,7 +25,7 @@ import { vietnamCoverageAt } from "../trip-origin/vietnam-coverage";
 import type { HotelLookup } from "./tripsage-serpapi-hotels";
 import type { FlightLookup } from "./tripsage-duffel";
 import type { TripsageFeature } from "./tripsage-features";
-import { createTripsageExtraTools, type TripsageResultEmitters } from "./tripsage-extra-tools";
+import { createTripsageExtraTools, type PriorHotelLookupKey, type TripsageResultEmitters } from "./tripsage-extra-tools";
 import { createMemoryTools, type MemoryToolContext } from "../tripsage-memory/memory-tools";
 
 /** Base allow-list. Optional tools are registered only for the request's enabled feature groups. */
@@ -57,6 +57,8 @@ export type TripsageToolContext = { planning: TripsagePlanningDeps; emitItinerar
   /** Streams reviewed document titles and web source domains shown to the model; no internal URLs or web HTML. */ emitSources?: (sources: ChatSourceItem[]) => void;
   /** Optional tool groups switched on for this request (budget, flights, hotels). Empty or absent: only the base tools exist. */ features?: ReadonlySet<TripsageFeature>;
   flights?: () => FlightLookup | undefined; hotels?: () => HotelLookup | undefined;
+  /** Prior hotel lookups already emitted in earlier turns of this conversation (deduplication without DB storage). */
+  priorHotelLookups?: readonly PriorHotelLookupKey[];
   memory?: MemoryToolContext;
   maxFlightCalls?: number; maxHotelCalls?: number } & TripsageResultEmitters;
 export type WebSourcePart = { domain: string };
@@ -116,6 +118,7 @@ const recordInputSchema = tripInfoSchema.omit({ assumedFields: true }).extend({
   mustIncludeDestinationIds: tripInfoSchema.shape.mustIncludeDestinationIds.describe("Danh sách id điểm bắt buộc phải có trong lịch (tối đa 4, chỉ dùng id lấy từ listDestinations; gửi [] để bỏ điểm bắt buộc)."),
   homeCity: tripInfoSchema.shape.homeCity.describe("Thành phố người dùng đang sống (chỉ tên), ví dụ TP Hồ Chí Minh."),
   mealSuggestionsDeclined: tripInfoSchema.shape.mealSuggestionsDeclined.describe("Ghi true khi người dùng từ chối gợi ý tìm quán ăn để không hỏi lại trong chuyến này."),
+  lodgingKind: tripInfoSchema.shape.lodgingKind.describe("Loại chỗ ở người dùng thích (HOTEL khách sạn, HOMESTAY, GUESTHOUSE nhà nghỉ bình dân, ANY không quan trọng)."),
 }).strict();
 
 const UNAVAILABLE_TEXT = "Chưa lập được lịch trình lúc này. Hãy thử lại sau.";
@@ -447,7 +450,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           ...(hubSuggested ? { hubHint: "Chặng ngày 1 từ điểm xuất phát quá dài hoặc không khả thi. Gợi ý người dùng đi xe khách/bay tới điểm tập kết gần hơn (ưu tiên TP Hà Giang: hub:HA_GIANG_CITY cho chuyến ngắn, hoặc Hà Nội: hub:HA_NOI) rồi thuê xe: ghi homeCity nếu cần, mời chọn điểm tập kết (xác nhận bằng confirmOrigin khi họ đồng ý), và planAccessLeg để ước tính chặng tiếp cận." } : {}),
           days: result.days.map(day => ({ day: day.day, stops: day.stops.map(stop => names.get(stop.destination.id) ?? stop.destination.name) })),
           checks: result.checks.map(check => ({ key: check.key, status: check.status })),
-          note: `Lịch đầy đủ đã hiển thị cho người dùng. Chỉ nhận xét ngắn; trạng thái khác PASS nghĩa là chưa được xác nhận.${blockingAssumed.length > 0 ? ` Đây là bản nháp giả định (${assumedFields.join(", ")}): viết đúng một dòng nêu các giả định đang dùng, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (nơi xuất phát hoặc ngày đi), đưa giả định còn lại vào suggestReplies; lịch chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi.` : ""}${external.length ? " Có địa điểm ngoài danh mục (Google Maps): chưa được kiểm tra, thời gian ở lại chỉ là ước tính, lịch này chưa thể lưu." : ""}` };
+          note: `Lịch đầy đủ đã hiển thị cho người dùng. Chỉ nhận xét ngắn; trạng thái khác PASS nghĩa là chưa được xác nhận.${blockingAssumed.length > 0 ? ` Đây là bản nháp giả định (${assumedFields.join(", ")}): viết đúng một dòng nêu các giả định đang dùng, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (nơi xuất phát hoặc ngày đi), đưa giả định còn lại vào suggestReplies; lịch chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi.` : context.features?.has("hotels") && result.days.length > 1 ? " Ngày đi và nơi xuất phát đã xác nhận: hãy gọi searchHotels một lần với stays gồm các khu nghỉ đêm (gộp các đêm liên tiếp cùng điểm cuối ngày) để tra giá phòng tham khảo." : ""}${external.length ? " Có địa điểm ngoài danh mục (Google Maps): chưa được kiểm tra, thời gian ở lại chỉ là ước tính, lịch này chưa thể lưu." : ""}` };
       } catch (error) { return failure(error); }
     },
   });
@@ -636,6 +639,8 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     features: context.features, flights: context.flights, hotels: context.hotels, maxFlightCalls: context.maxFlightCalls, maxHotelCalls: context.maxHotelCalls, now,
     emitBudget: context.emitBudget, emitFlights: context.emitFlights, emitHotels: context.emitHotels,
     destinationPoint,
+    blockingAssumedFields: () => blockingAssumedFields(tripInfo.assumedFields),
+    priorHotelLookups: context.priorHotelLookups,
   });
   const memory = context.features?.has("memory") ? createMemoryTools(context.memory) : {};
   return { recordTripInfo, findOrigin, confirmOrigin, suggestReplies, listDestinations, proposeItinerary, searchPlaces, addSuggestions, lookupLocalKnowledge, estimateCosts, planAccessLeg, webSearch, fetchPage, ...extra, ...memory } satisfies ToolSet;

@@ -2,7 +2,10 @@ import "server-only";
 import { z } from "zod";
 import { haversine } from "../trip-planner/planner-geography";
 import { cleanPlaceName } from "./tripsage-places";
+import { LODGING_KINDS, type LodgingKind } from "./tripsage-chat-parts";
 import type { SerpApiClient } from "./tripsage-serpapi";
+
+export { LODGING_KINDS, type LodgingKind };
 
 /**
  * SerpApi `google_hotels` lodging reference lookup only (no booking, payment, or persistence).
@@ -15,9 +18,6 @@ import type { SerpApiClient } from "./tripsage-serpapi";
 const DEFAULT_RADIUS_KM = 10;
 const MAX_PRICED_OFFERS = 5;
 const MAX_UNPRICED_OFFERS = 3;
-
-export const LODGING_KINDS = ["HOTEL", "HOMESTAY", "GUESTHOUSE", "ANY"] as const;
-export type LodgingKind = (typeof LODGING_KINDS)[number];
 
 const KIND_QUERY_PREFIX: Record<LodgingKind, string> = {
   HOTEL: "khách sạn",

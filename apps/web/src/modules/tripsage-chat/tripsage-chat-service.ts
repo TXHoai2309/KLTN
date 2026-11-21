@@ -17,7 +17,8 @@ import type { WebLookup } from "./tripsage-web";
 import { TRIPSAGE_PROVIDER_LIMIT_TEXT, TRIPSAGE_PROVIDER_UNAVAILABLE_TEXT } from "./tripsage-chat-errors";
 import { createTripsageChatTools, TRIPSAGE_CHAT_TURN_LIMITS, type LocalKnowledge, type OriginLookup, type TripsagePlanningDeps, type TripsageToolContext } from "./tripsage-chat-tools";
 import { tripsageFeatureInstructions, type TripsageFeature } from "./tripsage-features";
-import { budgetPartSchema, flightsPartSchema, hotelsPartSchema } from "./tripsage-chat-parts";
+import { budgetPartSchema, flightsPartSchema, hotelsPartSchema, LODGING_KINDS, type LodgingKind } from "./tripsage-chat-parts";
+import type { PriorHotelLookupKey } from "./tripsage-extra-tools";
 import { assistantConversationIdSchema, conversationMetaPartSchema, sanitizeStoredParts, type StoredAssistantPart } from "./assistant-conversation-contract";
 import type { MutationOutcome } from "../../lib/mutation-contract";
 import type { RememberSource } from "../tripsage-memory/memory-service";
@@ -94,6 +95,46 @@ export function parseTripsageChatMessages(body: unknown): { messages: ModelMessa
     total -= String(dropped.content).length;
   }
   return { messages: out, latestUser };
+}
+
+/** Extracts previously emitted hotel lookup signatures from incoming assistant message parts for cross-turn deduplication without a DB table. */
+export function parseTripsageChatPriorHotelLookups(body: unknown): PriorHotelLookupKey[] {
+  const parsed = tripsageChatRequestSchema.safeParse(body);
+  if (!parsed.success) return [];
+  const kindSet = new Set<string>(LODGING_KINDS);
+  const out: PriorHotelLookupKey[] = [];
+  for (const message of parsed.data.messages) {
+    if (message.role !== "assistant") continue;
+    for (const part of message.parts) {
+      if (part.type === "data-hotels") {
+        const valid = hotelsPartSchema.safeParse(part.data);
+        if (!valid.success) continue;
+        const first = valid.data.hotels[0];
+        if (!first) continue;
+        out.push({
+          ...(valid.data.destinationId ? { destinationId: valid.data.destinationId } : {}),
+          near: valid.data.near,
+          checkInDate: first.checkInDate,
+          checkOutDate: first.checkOutDate,
+          kind: valid.data.kind ?? "ANY",
+          adults: valid.data.adults ?? 1,
+        });
+      } else if (part.type === "data-hotels-ref") {
+        const record = part as Record<string, unknown>;
+        const checkInDate = typeof record.checkInDate === "string" ? record.checkInDate : "";
+        const checkOutDate = typeof record.checkOutDate === "string" ? record.checkOutDate : "";
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(checkInDate) || !/^\d{4}-\d{2}-\d{2}$/.test(checkOutDate)) continue;
+        const destinationId = typeof record.destinationId === "string" && record.destinationId.length <= 128 ? record.destinationId : undefined;
+        const near = typeof record.near === "string" && record.near.length <= 200 ? record.near : undefined;
+        if (!destinationId && !near) continue;
+        const kind: LodgingKind = typeof record.kind === "string" && kindSet.has(record.kind) ? (record.kind as LodgingKind) : "ANY";
+        const adults = typeof record.adults === "number" && Number.isInteger(record.adults) && record.adults >= 1 && record.adults <= 9 ? record.adults : 1;
+        out.push({ ...(destinationId ? { destinationId } : {}), ...(near ? { near } : {}), checkInDate, checkOutDate, kind, adults });
+      }
+      if (out.length >= 60) return out;
+    }
+  }
+  return out;
 }
 
 /** Optional `journey` from the origin picker. Parsed strictly and checked for Vietnam coverage; invalid data is a 400, never silently dropped. */
@@ -215,6 +256,7 @@ export function buildTripsageContext(input: {
       ...(info.homeCity ? [`- nơi ở: ${JSON.stringify(info.homeCity)}`] : []),
       ...(info.lunchMinutes || info.dayEndMinute ? [`- nhịp ngày: nghỉ trưa ${info.lunchMinutes ?? 60} phút, kết thúc tham quan trước ${clock(info.dayEndMinute ?? 1080)}`] : []),
       ...(info.mealSuggestionsDeclined ? ["- gợi ý quán ăn: người dùng đã từ chối (không hỏi lại trong chuyến này)"] : []),
+      ...(info.lodgingKind ? [`- loại chỗ ở ưu tiên: ${info.lodgingKind}`] : []),
       ...(assumed.size ? [`Các trường đang là giả định (cần xác nhận nơi xuất phát và ngày đi mới lưu được): ${[...assumed].join(", ")}.`] : []),
       missing.length ? `Còn thiếu ở cụm hỏi đầu: ${missing.join(", ")}.` : "Cụm hỏi đầu đã đủ.",
     ].join("\n"));
@@ -280,6 +322,7 @@ export function streamTripsageChat(input: {
   web?: WebLookup;
   knowledge?: LocalKnowledge;
   accessLeg?: AccessLegPart | null;
+  priorHotelLookups?: readonly PriorHotelLookupKey[];
   limits?: Partial<TripsageChatTurnLimits>;
   conversation?: { conversationId: string; title: string };
   onPersistAssistant?: (parts: StoredAssistantPart[]) => Promise<MutationOutcome<unknown>>;
@@ -318,6 +361,7 @@ export function streamTripsageChat(input: {
         features: input.features,
         flights: input.flights,
         hotels: input.hotels,
+        priorHotelLookups: input.priorHotelLookups,
         memory: input.memory,
         planning: input.planning, originSearch: input.originSearch, originCandidates: input.originCandidates, signOriginCandidates: input.signOriginCandidates, latestUserText: input.latestUserText, places: input.places, knowledge: input.knowledge, accessLeg: input.accessLeg ?? null, currentItinerary: input.currentItinerary ?? null, journey: input.journey ?? null, tripInfo: input.tripInfo ?? null, maxProposals: limits.maxProposals, maxPlacesCalls: limits.maxPlacesCalls, web: input.web, maxWebSearchCalls: limits.maxWebSearchCalls, maxFetchPageCalls: limits.maxFetchPageCalls,
         emitSuggestions: suggestions => {

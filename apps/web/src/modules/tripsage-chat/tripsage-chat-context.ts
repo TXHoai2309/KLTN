@@ -3,6 +3,7 @@ import { tripJourneySchema, type TripJourney } from "../trip-origin/trip-origin-
 import type { PlannerResult } from "../trip-planner/planner-contract";
 import { ASSUMABLE_FIELDS, type AssumableField } from "../trip-validation/trip-proposal-contract";
 import type { AccessLegPart } from "./tripsage-access-leg";
+import { LODGING_KINDS } from "./tripsage-chat-parts";
 import {
   INTEREST_VALUES,
   MAX_DURATION_DAYS,
@@ -50,6 +51,8 @@ export const tripInfoSchema = z.object({
   assumedFields: z.array(z.enum(ASSUMABLE_FIELDS)).max(ASSUMABLE_FIELDS.length).optional(),
   /** Set to true when the traveler declines the post-itinerary meal-suggestions offer so the assistant will not ask again (Ticket 12). */
   mealSuggestionsDeclined: z.boolean().optional(),
+  /** Preferred lodging kind for reference price lookups (SerpApi D1); recorded once when the traveler answers. */
+  lodgingKind: z.enum(LODGING_KINDS).optional(),
 }).strict();
 export type TripsageTripInfo = z.infer<typeof tripInfoSchema>;
 export type { AssumableField };
@@ -159,17 +162,39 @@ export function compactChatMessagesForRequest(messages: readonly unknown[]): unk
       continue;
     }
     const record = item as { id?: unknown; role?: unknown; parts: unknown[] };
-    const textParts = record.parts.flatMap(part => {
-      if (part && typeof part === "object" && (part as { type?: unknown }).type === "text" && typeof (part as { text?: unknown }).text === "string") {
-        return [{ type: "text", text: (part as { text: string }).text }];
+    const keptParts: unknown[] = [];
+    let hasText = false;
+    for (const part of record.parts) {
+      if (!part || typeof part !== "object") continue;
+      const obj = part as Record<string, unknown>;
+      if (obj.type === "text" && typeof obj.text === "string") {
+        hasText = true;
+        keptParts.push({ type: "text", text: obj.text });
+      } else if (record.role === "assistant" && obj.type === "data-hotels" && obj.data && typeof obj.data === "object") {
+        const data = obj.data as Record<string, unknown>;
+        const firstHotel = Array.isArray(data.hotels) && data.hotels[0] && typeof data.hotels[0] === "object"
+          ? (data.hotels[0] as Record<string, unknown>)
+          : null;
+        if (typeof data.near === "string" && typeof firstHotel?.checkInDate === "string" && typeof firstHotel?.checkOutDate === "string") {
+          keptParts.push({
+            type: "data-hotels-ref",
+            ...(typeof data.destinationId === "string" ? { destinationId: data.destinationId } : {}),
+            near: data.near,
+            checkInDate: firstHotel.checkInDate,
+            checkOutDate: firstHotel.checkOutDate,
+            ...(typeof data.kind === "string" ? { kind: data.kind } : {}),
+            ...(typeof data.adults === "number" ? { adults: data.adults } : {}),
+          });
+        }
+      } else if (record.role === "assistant" && obj.type === "data-hotels-ref") {
+        keptParts.push(obj);
       }
-      return [];
-    });
-    if (record.role === "assistant" && textParts.length === 0) continue;
+    }
+    if (record.role === "assistant" && !hasText && keptParts.length === 0) continue;
     compacted.push({
       ...(typeof record.id === "string" ? { id: record.id } : {}),
       role: record.role,
-      parts: textParts,
+      parts: keptParts,
     });
   }
   return compacted.length > MAX_CLIENT_HISTORY_MESSAGES

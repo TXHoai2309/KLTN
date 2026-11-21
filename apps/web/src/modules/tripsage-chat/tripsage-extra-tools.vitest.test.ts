@@ -14,19 +14,18 @@ const lookup = () => ({
 });
 
 describe("transport and hotel lookups", () => {
-  it("reserves at most two hotel lookups across three concurrent calls", async () => {
+  it("reserves at most six hotel area lookups across seven concurrent distinct areas", async () => {
     const providers = lookup();
-    const destinationPoint = vi.fn(async () => point);
+    const destinationPoint = vi.fn(async (id: string) => ({ ...point, name: `Điểm ${id}` }));
     const { searchHotels } = createTripsageExtraTools({ features, flights: () => providers.flights, hotels: () => providers.hotels, destinationPoint, now: () => new Date("2028-02-28T00:00:00Z") });
 
-    const results = await Promise.all(Array.from({ length: 3 }, () => searchHotels!.execute(hotelInput, options)));
-    expect(providers.hotels).toHaveBeenCalledTimes(2);
-    expect(results).toEqual([
-      expect.objectContaining({ ok: true }),
-      expect.objectContaining({ ok: true }),
-      expect.objectContaining({ ok: false, code: "HOTEL_LIMIT" }),
-    ]);
-    expect(providers.hotels).toHaveBeenCalledWith(expect.objectContaining({ nearName: point.name, latitude: point.latitude, longitude: point.longitude, kind: "ANY" }), undefined);
+    const results = await Promise.all(
+      Array.from({ length: 7 }, (_, i) => searchHotels!.execute({ ...hotelInput, destinationId: `a${i}` }, options)),
+    );
+    expect(providers.hotels).toHaveBeenCalledTimes(6);
+    expect(results.slice(0, 6)).toEqual(Array.from({ length: 6 }, () => expect.objectContaining({ ok: true })));
+    expect(results[6]).toEqual(expect.objectContaining({ ok: false, code: "HOTEL_LIMIT" }));
+    expect(providers.hotels).toHaveBeenCalledWith(expect.objectContaining({ nearName: "Điểm a0", latitude: point.latitude, longitude: point.longitude, kind: "ANY" }), undefined);
     const validation = await asSchema(searchHotels!.inputSchema).validate?.({ ...hotelInput, latitude: 0 });
     expect(validation).toMatchObject({ success: false });
   });

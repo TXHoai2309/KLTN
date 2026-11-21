@@ -213,7 +213,7 @@ describe("flight and hotel provider boundaries", () => {
     expect(chunks.some(part => part.type === "data-itinerary")).toBe(false);
     expect(chunks.filter(part => part.type === "data-flights" || part.type === "data-hotels")).toEqual([
       { type: "data-flights", id: "flights-1", data: { offers: [flightOffer] } },
-      { type: "data-hotels", id: "hotels-1", data: { near: dest.name, nights: 1, hotels: [{
+      { type: "data-hotels", id: "hotels-1", data: { near: dest.name, nights: 1, destinationId: "a", kind: "ANY", adults: 1, hotels: [{
         name: hostileName, distanceKm: 0, room: null, rating: 4.5, reviews: 10, price: hotelOffer.price,
         checkInDate: hotelOffer.checkInDate, checkOutDate: hotelOffer.checkOutDate,
       }] } },
@@ -248,7 +248,8 @@ describe("flight and hotel provider boundaries", () => {
   });
 
   it("skips empty, unavailable and invalid lookup parts", async () => {
-    const model = scripted([flight, hotel, flight, hotel, finish]);
+    const hotel2 = { tool: "searchHotels", input: { destinationId: "b", checkInDate: "2026-11-21", checkOutDate: "2026-11-22" } };
+    const model = scripted([flight, hotel, flight, hotel2, finish]);
     const flightLookup = vi.fn()
       .mockResolvedValueOnce({ status: "RESULTS", offers: [] })
       .mockResolvedValueOnce({ status: "RESULTS", offers: [{ ...flightOffer, price: { total: "bad price", currency: "USD" } }] });
@@ -263,7 +264,8 @@ describe("flight and hotel provider boundaries", () => {
   });
 
   it("assigns distinct IDs to consecutive flight and hotel results", async () => {
-    const sse = await run(scripted([flight, hotel, flight, hotel, finish]), { env: env(true, true), flights, hotels });
+    const hotel2 = { tool: "searchHotels", input: { destinationId: "b", checkInDate: "2026-11-21", checkOutDate: "2026-11-22" } };
+    const sse = await run(scripted([flight, hotel, flight, hotel2, finish]), { env: env(true, true), flights, hotels });
     const chunks = parts(sse).filter(part => part.type === "data-flights" || part.type === "data-hotels") as { id?: string }[];
     expect(chunks.map(part => part.id)).toEqual(["flights-1", "hotels-1", "flights-2", "hotels-2"]);
   });
