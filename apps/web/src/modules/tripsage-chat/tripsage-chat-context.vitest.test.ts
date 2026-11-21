@@ -51,9 +51,9 @@ describe("changesItinerary", () => {
 
 describe("itinerary summary", () => {
   const result = { days: [{ day: 1, stops: [{ destination: { id: "a", name: "Điểm a", latitude: 23, longitude: 105 }, arrivalMinute: 540, departureMinute: 600, inbound: { secret: 1 } }] }, { day: 2, stops: [] }], checks: [], requirement: {} } as never;
-  it("keeps only day, id, name and clock times: no coordinates, no checks", () => {
+  it("keeps only day, id, name, clock times and total distance: no coordinates, no checks", () => {
     const summary = summarizeItinerary(result);
-    expect(summary).toEqual({ days: [{ day: 1, stops: [{ id: "a", name: "Điểm a", arrivalMinute: 540, departureMinute: 600 }] }, { day: 2, stops: [] }] });
+    expect(summary).toEqual({ distanceKm: null, days: [{ day: 1, stops: [{ id: "a", name: "Điểm a", arrivalMinute: 540, departureMinute: 600 }] }, { day: 2, stops: [] }] });
     expect(JSON.stringify(summary)).not.toMatch(/latitude|longitude|checks|inbound/);
   });
   it("strict schema rejects extra fields and oversized shapes", () => {

@@ -12,6 +12,7 @@ import type { TripsagePlanningDeps } from "./tripsage-chat-tools";
 import type { PlacesSearch } from "./tripsage-places";
 import { nearRectangle } from "./tripsage-places";
 import { suggestionsPartSchema, timelinePartSchema, timelineSlotIds, type TimelinePart } from "./tripsage-timeline";
+import { costPartSchema } from "./tripsage-cost";
 
 let seq = 0;
 const auth = () => ({ database: { user: { findUnique: async () => ({ id: `tl-${seq}`, role: "TRAVELER", status: "ACTIVE" }) } }, resolveSession: async () => ({ user: { id: `tl-${++seq}` } }) }) as unknown as AuthorizationDependencies;
@@ -160,5 +161,32 @@ describe("local knowledge (ticket 02)", () => {
     const { fed, sse } = await run([{ tool: "lookupLocalKnowledge", input: { question: "ẩm thực Hà Giang" } }, { text: "Xong." }], {}, { knowledge: broken });
     expect(fed(1)).toContain("KNOWLEDGE_UNAVAILABLE");
     expect(sse).not.toContain("db secret");
+  });
+});
+
+describe("cost estimate in the chat (ticket 03)", () => {
+  const lines = [{ category: "food", label: "Ăn uống", amount: 300_000 }];
+  it("streams a cost table whose fuel follows the itinerary's routed distance", async () => {
+    const { all } = await run([propose([["a", "b"]]), { tool: "estimateCosts", input: { lines } }, { text: "Xong." }]);
+    const result = itineraryOf(all);
+    const km = result.journeyPlan!.totals.distanceMeters! / 1000;
+    const cost = costPartSchema.parse(all.find(p => p.type === "data-cost")!.data);
+    expect(cost.lines[0]).toMatchObject({ label: "Xăng", computed: true, amount: Math.round(Math.round(km * 10) / 10 * 8 / 100 * 23_000) });
+    expect(cost.total).toBe(cost.lines[0]!.amount + 300_000);
+    expect(cost.travelers).toBe(2);
+  });
+
+  it("uses the current itinerary's distance on a later turn and the user's budget", async () => {
+    const currentItinerary = { days: [{ day: 1, stops: [{ id: "a", name: "Điểm a", arrivalMinute: 480, departureMinute: 720 }] }], distanceKm: 100 };
+    const { all } = await run([{ tool: "estimateCosts", input: { lines, budgetCap: 400_000 } }, { text: "Xong." }], { currentItinerary });
+    const cost = costPartSchema.parse(all.find(p => p.type === "data-cost")!.data);
+    expect(cost.lines[0]!.amount).toBe(8 * 23_000);
+    expect(cost).toMatchObject({ withinCap: false, overBy: 8 * 23_000 + 300_000 - 400_000 });
+  });
+
+  it("needs transport and days first", async () => {
+    const { all, fed } = await run([{ tool: "estimateCosts", input: { lines } }, { text: "Xong." }], { tripInfo: {} });
+    expect(all.some(p => p.type === "data-cost")).toBe(false);
+    expect(fed(1)).toContain("MISSING_REQUIRED_INFO");
   });
 });

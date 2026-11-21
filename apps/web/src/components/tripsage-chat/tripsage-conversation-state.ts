@@ -6,6 +6,7 @@ import {
   type TripsageTripInfo,
 } from "@/modules/tripsage-chat/tripsage-chat-context";
 import { suggestionsPartSchema, timelinePartSchema, type TimelinePart, type TimelineSuggestion } from "@/modules/tripsage-chat/tripsage-timeline";
+import { costPartSchema, type CostPart } from "@/modules/tripsage-chat/tripsage-cost";
 
 type Part = { type: string; data?: unknown };
 type Message = { id: string; role: string; parts: readonly Part[] };
@@ -22,6 +23,8 @@ export type ConversationState = {
   /** Timeline of the newest itinerary and the suggestions made for it since (a new itinerary starts a fresh list). */
   timeline: TimelinePart | null;
   suggestions: TimelineSuggestion[];
+  /** Newest cost table and the message carrying it. */
+  cost: { messageId: string; data: CostPart } | null;
 };
 
 /** Reads the conversation in order; only schema-valid parts count. Quick replies and the origin card belong to the last assistant message only. */
@@ -33,6 +36,7 @@ export function readConversationState(messages: readonly Message[], isItinerary:
   let quickReplies: ConversationState["quickReplies"] = null;
   let timeline: TimelinePart | null = null;
   let suggestions: TimelineSuggestion[] = [];
+  let cost: ConversationState["cost"] = null;
   const lastAssistant = [...messages].reverse().find(message => message.role === "assistant");
   const lastIsAssistant = messages.at(-1)?.role === "assistant";
   for (const message of messages) {
@@ -51,6 +55,9 @@ export function readConversationState(messages: readonly Message[], isItinerary:
       } else if (part.type === "data-suggestions" && lastItineraryMessageId) {
         const parsed = suggestionsPartSchema.safeParse(part.data);
         if (parsed.success) suggestions = [...suggestions, ...parsed.data.suggestions];
+      } else if (part.type === "data-cost") {
+        const parsed = costPartSchema.safeParse(part.data);
+        if (parsed.success) cost = { messageId: message.id, data: parsed.data };
       } else if (lastIsAssistant && message === lastAssistant && part.type === "data-origin-request") {
         const parsed = originRequestPartSchema.safeParse(part.data);
         if (parsed.success) originRequest = { messageId: message.id, ...parsed.data };
@@ -60,5 +67,5 @@ export function readConversationState(messages: readonly Message[], isItinerary:
       }
     }
   }
-  return { tripInfo, lastItineraryMessageId, itineraryStale, originRequest, quickReplies, timeline, suggestions };
+  return { tripInfo, lastItineraryMessageId, itineraryStale, originRequest, quickReplies, timeline, suggestions, cost };
 }

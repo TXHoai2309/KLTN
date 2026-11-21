@@ -20,6 +20,7 @@ import { TripsageTripSummary } from "./tripsage-trip-summary";
 import { TripsageOriginCard } from "./tripsage-origin-card";
 import { TripsageMarkdown } from "./tripsage-markdown";
 import { TripsageTimelineView } from "./tripsage-timeline-view";
+import { TripsageCostCard } from "./tripsage-cost-card";
 import { readConversationState } from "./tripsage-conversation-state";
 import { readTripsageResultTurns, TripsageResultCards } from "./tripsage-result-cards";
 import { TripsageMemoryPanel } from "./tripsage-memory-panel";
@@ -111,7 +112,8 @@ export function TripsageChatClient({ memoryEnabled = false }: { memoryEnabled?: 
                 const resultParts = resultTurns.get(message.id)?.filter(part => part.type !== "data-budget" || message.id === latestBudgetMessageId) ?? [];
                 const originCard = state.originRequest?.messageId === message.id && !busy ? state.originRequest : null;
                 const replies = state.quickReplies?.messageId === message.id && !busy ? state.quickReplies.replies : [];
-                if (!text && !itinerary && !suggestions.length && !webSources.length && !resultParts.length && !originCard) return null;
+                const cost = state.cost?.messageId === message.id ? state.cost.data : null;
+                if (!text && !itinerary && !suggestions.length && !webSources.length && !resultParts.length && !originCard && !cost) return null;
                 return message.role === "user" ? (
                   <article key={message.id} className="assistant-message assistant-user"><p>{text}</p></article>
                 ) : (
@@ -120,6 +122,7 @@ export function TripsageChatClient({ memoryEnabled = false }: { memoryEnabled?: 
                     {text && <TripsageMarkdown text={text} />}
                     {itinerary && state.timeline && <TripsageTimelineView timeline={state.timeline} suggestions={state.suggestions} />}
                     {itinerary && <TripsageItineraryView proposal={itinerary}>{!busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} onStateChange={setSaveState} />)}</TripsageItineraryView>}
+                    {cost && <TripsageCostCard cost={cost} />}
                     <TripsagePlacesView places={suggestions} />
                     <TripsageSourcesView sources={webSources} />
                     <TripsageResultCards parts={resultParts} />

@@ -55,11 +55,19 @@ export const tripsageItinerarySummarySchema = z.object({
     day: z.number().int().min(1).max(MAX_DURATION_DAYS),
     stops: z.array(z.object({ id: z.string().min(1).max(120), name: z.string().min(1).max(200), arrivalMinute: minute, departureMinute: minute }).strict()).max(4),
   }).strict()).max(MAX_DURATION_DAYS),
+  /** Routed distance of the whole trip, for the fuel estimate only (never a validation input). */
+  distanceKm: z.number().min(0).max(10_000).nullable().optional(),
 }).strict();
 export type TripsageItinerarySummary = z.infer<typeof tripsageItinerarySummarySchema>;
 
+export function itineraryDistanceKm(result: PlannerResult): number | null {
+  const meters = result.journeyPlan?.totals.distanceMeters ?? (result.days.every(day => typeof day.distanceMeters === "number") ? result.days.reduce((sum, day) => sum + day.distanceMeters!, 0) : null);
+  return meters === null ? null : Math.round(meters / 100) / 10;
+}
+
 export function summarizeItinerary(result: PlannerResult): TripsageItinerarySummary {
   return {
+    distanceKm: itineraryDistanceKm(result),
     days: result.days.map(day => ({
       day: day.day,
       stops: day.stops.map(stop => ({ id: stop.destination.id, name: stop.destination.name, arrivalMinute: stop.arrivalMinute, departureMinute: stop.departureMinute })),

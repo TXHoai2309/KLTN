@@ -9,6 +9,7 @@ import { tripInfoSchema, tripsageItinerarySummarySchema, withTripInfoDefaults, t
 import { tripsageProviderOptions } from "./tripsage-chat-provider";
 import type { PlacesSearch } from "./tripsage-places";
 import { buildDayTimeline, timelinePartSchema } from "./tripsage-timeline";
+import { costPartSchema } from "./tripsage-cost";
 import type { WebLookup } from "./tripsage-web";
 import { TRIPSAGE_PROVIDER_LIMIT_TEXT, TRIPSAGE_PROVIDER_UNAVAILABLE_TEXT } from "./tripsage-chat-errors";
 import { createTripsageChatTools, TRIPSAGE_CHAT_TURN_LIMITS, type LocalKnowledge, type TripsagePlanningDeps, type TripsageToolContext } from "./tripsage-chat-tools";
@@ -17,7 +18,7 @@ import { budgetPartSchema, flightsPartSchema, hotelsPartSchema } from "./tripsag
 import type { RememberSource } from "../tripsage-memory/memory-service";
 import { MEMORY_TOOL_NAMES } from "../tripsage-memory/memory-tools";
 
-const BASE_TOOL_DESCRIPTIONS = "recordTripInfo (ghi thông tin chuyến đi người dùng đã nói/đồng ý), requestOrigin (mở thẻ chọn điểm xuất phát trong chat), suggestReplies (nút trả lời nhanh), listDestinations (đọc điểm đến trong cơ sở dữ liệu), proposeItinerary (lập và kiểm tra lịch trình), searchPlaces (tìm địa điểm ngoài danh mục bằng Google Places, có thể tìm quanh một điểm, tối đa 4 lần mỗi lượt), addSuggestions (gắn gợi ý ăn uống, buổi tối, chỗ nghỉ, mẹo vào timeline), lookupLocalKnowledge (tra tài liệu địa phương đã duyệt), webSearch (tìm web, tối đa 1 lần mỗi lượt, chỉ khi cần giá/tin hiện tại) và fetchPage (đọc một trang có URL lấy từ kết quả webSearch, tối đa 1 lần mỗi lượt).";
+const BASE_TOOL_DESCRIPTIONS = "recordTripInfo (ghi thông tin chuyến đi người dùng đã nói/đồng ý), requestOrigin (mở thẻ chọn điểm xuất phát trong chat), suggestReplies (nút trả lời nhanh), listDestinations (đọc điểm đến trong cơ sở dữ liệu), proposeItinerary (lập và kiểm tra lịch trình), searchPlaces (tìm địa điểm ngoài danh mục bằng Google Places, có thể tìm quanh một điểm, tối đa 4 lần mỗi lượt), addSuggestions (gắn gợi ý ăn uống, buổi tối, chỗ nghỉ, mẹo vào timeline), lookupLocalKnowledge (tra tài liệu địa phương đã duyệt), estimateCosts (bảng chi phí ước tính, hệ thống tự tính xăng và tổng), webSearch (tìm web, tối đa 1 lần mỗi lượt, chỉ khi cần giá/tin hiện tại) và fetchPage (đọc một trang có URL lấy từ kết quả webSearch, tối đa 1 lần mỗi lượt).";
 const TOOL_RESTRICTION = "Không dùng hay giả vờ dùng công cụ nào khác.";
 
 /** Persona and conversation flow (ADR-42 §5): a tour guide that asks in clusters and reaches a first itinerary fast. */
@@ -28,6 +29,7 @@ const PERSONA_INSTRUCTIONS = [
   "Nếu người dùng đã nói sẵn một số thông tin trong tin đầu, ghi ngay bằng recordTripInfo và chỉ hỏi phần còn thiếu. Phương tiện, số ngày, ngày đi chỉ ghi khi người dùng đã nói hoặc đồng ý (một câu 'ok' là đồng ý toàn bộ gợi ý bạn vừa đưa). Không bao giờ tự đặt điểm xuất phát, ngày ở quá khứ hay số ngày ngoài 1-14.",
   "Khi đã đủ phương tiện, số ngày, ngày đi và điểm xuất phát đã xác nhận: lập lịch ngay trong lượt đó (listDestinations rồi proposeItinerary). Sở thích, nhịp đi, số người chưa có thì hệ thống dùng mặc định (đánh dấu trong ngữ cảnh); nói rõ bạn đang tạm dùng mặc định nào.",
   "Timeline từng ngày (khởi hành, chặng đi, tham quan, nghỉ trưa, nghỉ đêm, chặng về) được hệ thống dựng từ lịch và hiện cho người dùng; giờ giấc do hệ thống quyết định, bạn không tự đặt giờ. Sau mỗi lịch mới, làm cho chuyến đi sống động: với mỗi đêm, dùng searchPlaces (nearDestinationId = điểm cuối ngày đó, từ khóa như homestay) để tìm 2-3 chỗ nghỉ và gọi addSuggestions loại LODGING vào slot dN-overnight; gợi ý buổi tối (EVENING) chỉ là nơi đi bộ được quanh chỗ nghỉ, không bao giờ khuyên chạy xe xa sau khi trời tối; gợi ý ăn trưa (MEAL) vào dN-lunch; mẹo (TIP) khi hữu ích. Dùng lookupLocalKnowledge để lấy văn hóa, ẩm thực, vui chơi buổi tối từ tài liệu đã duyệt trước khi nghĩ tới webSearch. Người dùng muốn nghỉ trưa dài hơn (60-120 phút) hoặc dừng tham quan sớm hơn (15:00-18:00) thì ghi bằng recordTripInfo (lunchMinutes, dayEndMinute) rồi lập lại lịch với cùng selection.",
+  "Sau mỗi lịch mới, luôn lập bảng chi phí bằng estimateCosts: lưu trú theo số đêm và số phòng, ăn uống theo bữa và số người, vé tham quan, thuê xe nếu có, khác; lấy mức giá từ lookupLocalKnowledge (bảng giá tham khảo) trước, không có thì dùng hiểu biết chung và nói rõ là ước tính. Người dùng nêu ngân sách hoặc giá xăng thì truyền vào.",
   "Sau khi có lịch, giới thiệu ngắn vì sao chọn các điểm và điểm nhấn từng ngày, rồi hỏi cụm 2 một cách tự nhiên (đi mấy người, thích nhịp thong thả hay đi nhiều, sở thích đặc biệt, ngân sách, ăn uống, kiểu chỗ nghỉ), kèm suggestReplies. Mỗi câu trả lời: ghi bằng recordTripInfo và lập lại lịch nếu nó ảnh hưởng lịch.",
 ].join(" ");
 
@@ -213,6 +215,7 @@ export function streamTripsageChat(input: {
         memory: input.memory,
         planning: input.planning, places: input.places, knowledge: input.knowledge, currentItinerary: input.currentItinerary ?? null, journey: input.journey ?? null, tripInfo: input.tripInfo ?? null, maxProposals: limits.maxProposals, maxPlacesCalls: limits.maxPlacesCalls, web: input.web, maxWebSearchCalls: limits.maxWebSearchCalls, maxFetchPageCalls: limits.maxFetchPageCalls,
         emitSuggestions: suggestions => writer.write({ type: "data-suggestions", id: `suggestions-${++suggestionsPart}`, data: { suggestions } }),
+        emitCost: cost => { const parsed = costPartSchema.safeParse(cost); if (parsed.success) writer.write({ type: "data-cost", id: "cost", data: parsed.data }); },
         emitTripInfo: tripInfo => writer.write({ type: "data-trip-info", id: "trip-info", data: { tripInfo } }),
         emitOriginRequest: data => writer.write({ type: "data-origin-request", id: "origin-request", data }),
         emitQuickReplies: replies => writer.write({ type: "data-quick-replies", id: "quick-replies", data: { replies } }),

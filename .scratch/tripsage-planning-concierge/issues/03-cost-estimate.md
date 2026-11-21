@@ -4,9 +4,9 @@
 
 **Blocked by:** 02
 
-**Status:** TODO
+**Status:** DONE (2026-11-21) — code + automated tests; price reference document still needs Admin review and upload.
 
-- [ ] Tiền xăng và tổng do server tính; số tiền là số nguyên VND; giả định hiện ra.
-- [ ] `data-cost` qua schema; thẻ bảng chi phí, nhãn "ước tính", ngày cập nhật bảng giá.
-- [ ] Mẫu `docs/fixtures/price-reference-ha-giang.md`.
-- [ ] Test thuần chi phí, test route, typecheck.
+- [x] Tiền xăng và tổng do server tính; số tiền là số nguyên VND; giả định hiện ra.
+- [x] `data-cost` qua schema; thẻ bảng chi phí, nhãn "ước tính", ngày cập nhật bảng giá.
+- [x] Mẫu `docs/fixtures/price-reference-ha-giang.md`.
+- [x] Test thuần chi phí, test route, typecheck.

@@ -11,6 +11,8 @@ import { QUESTION_BY_FIELD } from "../trip-requirement/trip-clarification-rules"
 import type { ExternalPlaceSuggestion, PlacesSearch } from "./tripsage-places";
 import { haversine } from "../trip-planner/planner-geography";
 import { SUGGESTION_KINDS, suggestionSchema, timelineSlotIds, type TimelineSuggestion } from "./tripsage-timeline";
+import { costLineInputSchema, estimateTripCost, PRICE_REFERENCE, type CostPart } from "./tripsage-cost";
+import { itineraryDistanceKm } from "./tripsage-chat-context";
 import { domainOf, isSafePublicHttpsUrl, WEB_DATA_MARKER, type WebLookup } from "./tripsage-web";
 import { originRequestPartSchema, quickRepliesPartSchema, tripInfoSchema, withTripInfoDefaults, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
 import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
@@ -22,7 +24,7 @@ import { createTripsageExtraTools, type TripsageResultEmitters } from "./tripsag
 import { createMemoryTools, type MemoryToolContext } from "../tripsage-memory/memory-tools";
 
 /** Base allow-list. Optional tools are registered only for the request's enabled feature groups. */
-export const TRIPSAGE_CHAT_TOOL_NAMES = ["recordTripInfo", "requestOrigin", "suggestReplies", "listDestinations", "proposeItinerary", "searchPlaces", "addSuggestions", "lookupLocalKnowledge", "webSearch", "fetchPage"] as const;
+export const TRIPSAGE_CHAT_TOOL_NAMES = ["recordTripInfo", "requestOrigin", "suggestReplies", "listDestinations", "proposeItinerary", "searchPlaces", "addSuggestions", "lookupLocalKnowledge", "estimateCosts", "webSearch", "fetchPage"] as const;
 export type TripsageChatToolName = (typeof TRIPSAGE_CHAT_TOOL_NAMES)[number];
 
 /** Per-turn caps (ADR-42 §6): 12 steps inside 280 s, under the route's `maxDuration` 300. */
@@ -35,6 +37,7 @@ export type TripsageToolContext = { planning: TripsagePlanningDeps; emitItinerar
   /** Stream the recorded trip info, the origin card request and quick replies to the browser. */
   /** Reviewed local documents (same retriever as Q&A); absent means unavailable. */ knowledge?: LocalKnowledge;
   /** Streams validated suggestions attached to timeline slots. */ emitSuggestions?: (suggestions: TimelineSuggestion[]) => void;
+  /** Streams the server-computed cost table. */ emitCost?: (cost: CostPart) => void;
   /** Compact summary of the itinerary currently shown (request context); used for suggestion slots when none was made this turn. */ currentItinerary?: TripsageItinerarySummary | null;
   emitTripInfo?: (tripInfo: TripsageTripInfo) => void; emitOriginRequest?: (data: { departureMinute: number; returnDeadlineMinute: number }) => void; emitQuickReplies?: (replies: string[]) => void;
   /** Google Places search (server key held inside); absent means unavailable. */ places?: PlacesSearch; maxPlacesCalls?: number;
@@ -118,6 +121,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   let tripInfo: TripsageTripInfo = { ...context.tripInfo };
   /** Stop ids per day of the itinerary suggestions attach to: this turn's newest proposal, else the one the browser shows. */
   let latestDays: string[][] | null = context.currentItinerary?.days.map(day => day.stops.map(stop => stop.id)) ?? null;
+  let latestDistanceKm: number | null = context.currentItinerary?.distanceKm ?? null;
 
   const recordTripInfo = tool({
     description: "Ghi thông tin chuyến đi người dùng vừa nói hoặc vừa đồng ý (chỉ các trường thay đổi). Phương tiện, số ngày, ngày đi chỉ ghi khi người dùng đã nói hoặc đồng ý gợi ý của bạn. Có hiệu lực ngay trong lượt này.",
@@ -189,6 +193,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         const result = await scheduleSelection(needs, input.selection, all, context.planning.routes, now());
         context.emitItinerary(result);
         latestDays = result.days.map(day => day.stops.map(stop => stop.destination.id));
+        latestDistanceKm = itineraryDistanceKm(result);
         const names = new Map(all.map(c => [c.id, c.name]));
         return { ok: true as const, status: result.status, eligibleForFinalConfirmation: result.eligibleForFinalConfirmation,
           days: result.days.map(day => ({ day: day.day, stops: day.stops.map(stop => names.get(stop.destination.id) ?? stop.destination.name) })),
@@ -285,6 +290,23 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     },
   });
 
+  const estimateCosts = tool({
+    description: `Lập bảng chi phí ước tính cho cả nhóm (VND). Bạn đưa các khoản lưu trú, ăn uống, vé & vui chơi, khác, và đi lại ngoài xăng (thuê xe, gửi xe...), mỗi khoản kèm cách tính ngắn. Tiền xăng do hệ thống tự tính từ quãng đường của lịch (${PRICE_REFERENCE.litersPer100Km.MOTORCYCLE} L/100 km xe máy, ${PRICE_REFERENCE.litersPer100Km.CAR} L/100 km ô tô, giá xăng mặc định ${PRICE_REFERENCE.fuelVndPerLiter} đ/L, người dùng sửa được); không tự đưa dòng xăng. Hệ thống cộng tổng, tính mỗi người mỗi ngày và so ngân sách nếu người dùng đã nêu.`,
+    inputSchema: z.object({
+      lines: z.array(costLineInputSchema).min(1).max(12),
+      fuelVndPerLiter: z.number().int().min(10_000).max(60_000).optional().describe("Giá xăng người dùng nêu, đ/L."),
+      budgetCap: z.number().int().min(0).max(1_000_000_000).optional().describe("Ngân sách tối đa cả nhóm người dùng đã nêu, VND."),
+    }).strict(),
+    execute: async input => {
+      const { info } = withTripInfoDefaults(tripInfo);
+      if (!info.transport || !info.durationDays) return { ok: false as const, code: "MISSING_REQUIRED_INFO", message: "Chưa có phương tiện và số ngày để ước tính chi phí." };
+      const cost = estimateTripCost({ transport: info.transport, travelers: info.travelers, days: info.durationDays, distanceKm: latestDistanceKm, fuelVndPerLiter: input.fuelVndPerLiter, budgetCap: input.budgetCap ?? null, lines: input.lines });
+      context.emitCost?.(cost);
+      return { ok: true as const, total: cost.total, perPersonPerDay: cost.perPersonPerDay, withinCap: cost.withinCap, overBy: cost.overBy, lines: cost.lines.map(({ label, amount }) => ({ label, amount })),
+        note: "Bảng chi phí đã hiện cho người dùng. Chỉ nhận xét ngắn (khoản lớn nhất, cách tiết kiệm); nói rõ đây là ước tính. Không có ngân sách thì không kết luận vừa hay vượt." };
+    },
+  });
+
   let searchCalls = 0; let fetchCalls = 0;
   const maxSearchCalls = context.maxWebSearchCalls ?? TRIPSAGE_CHAT_TURN_LIMITS.maxWebSearchCalls;
   const maxFetchCalls = context.maxFetchPageCalls ?? TRIPSAGE_CHAT_TURN_LIMITS.maxFetchPageCalls;
@@ -331,5 +353,5 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     destinationPoint,
   });
   const memory = context.features?.has("memory") ? createMemoryTools(context.memory) : {};
-  return { recordTripInfo, requestOrigin, suggestReplies, listDestinations, proposeItinerary, searchPlaces, addSuggestions, lookupLocalKnowledge, webSearch, fetchPage, ...extra, ...memory } satisfies ToolSet;
+  return { recordTripInfo, requestOrigin, suggestReplies, listDestinations, proposeItinerary, searchPlaces, addSuggestions, lookupLocalKnowledge, estimateCosts, webSearch, fetchPage, ...extra, ...memory } satisfies ToolSet;
 }
