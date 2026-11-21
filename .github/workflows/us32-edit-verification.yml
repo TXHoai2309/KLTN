@@ -1,4 +1,4 @@
-name: US-32 Trip Edit Verification
+name: Sprint 4 - US32 Tests
 
 on:
   workflow_dispatch:
@@ -14,6 +14,7 @@ on:
       - "apps/web/src/modules/trip-edit/**"
       - "apps/web/src/app/api/trips/[id]/edits/**"
       - "apps/web/src/app/trips/[id]/edit/**"
+      - ".github/workflows/us32-edit-verification.yml"
 
 jobs:
   verify-us32:
