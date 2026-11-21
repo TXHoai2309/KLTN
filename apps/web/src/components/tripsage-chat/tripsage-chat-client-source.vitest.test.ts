@@ -9,7 +9,7 @@ const read = (file: string) => readFileSync(file, "utf8");
 const isTest = (name: string) => /\.(vitest\.)?test\.tsx?$/.test(name);
 
 /** Modules of the chat that only run on the server (keys, providers, DB, env). */
-const SERVER_ONLY_CHAT = /tripsage-chat-(runtime|provider|service|http|tools|origin)|tripsage-(places|web|duffel|amadeus|provider-response)(?:["'/]|$)/;
+const SERVER_ONLY_CHAT = /tripsage-chat-(runtime|provider|service|http|tools|origin)|assistant-conversation-(store|http)|tripsage-(places|web|duffel|amadeus|provider-response)(?:["'/]|$)/;
 const FORBIDDEN_SPECIFIER = /^(server-only|@\/server\/|@\/services|@\/env|\.\.?\/.*\/(?:server|services|env(?:\.server)?)$)|(^|\/)env(\.server)?$|@KLTN\/db|@prisma|^openai$|@ai-sdk\/openai|^node:/;
 
 function importsOf(source: string) {

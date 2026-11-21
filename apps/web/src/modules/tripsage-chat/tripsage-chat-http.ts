@@ -1,7 +1,7 @@
 import type { LanguageModel } from "ai";
 import { requireTraveler } from "../../server/auth/require-traveler";
 import type { AuthorizationDependencies } from "../../server/authorization/guard";
-import { apiFailure } from "../../server/http/api-response";
+import { apiFailure, apiMutationResult } from "../../server/http/api-response";
 import { AppError } from "../../server/http/app-error";
 import { readBoundedJsonBody } from "../../server/http/read-json-body";
 import { createPlanningAdmission } from "../assistant-planning/planning-admission";
@@ -11,8 +11,9 @@ import type { PlacesSearch } from "./tripsage-places";
 import type { WebLookup } from "./tripsage-web";
 import type { LocalKnowledge, OriginLookup, TripsagePlanningDeps, TripsageToolContext } from "./tripsage-chat-tools";
 import type { MemoryService } from "../tripsage-memory/memory-service";
+import type { AssistantConversationStore } from "./assistant-conversation-store";
 import { signOriginCandidates } from "./tripsage-chat-origin";
-import { parseTripsageChatAccessLeg, parseTripsageChatItinerary, parseTripsageChatJourney, parseTripsageChatMessages, parseTripsageChatOriginCandidates, parseTripsageChatTripInfo, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
+import { parseTripsageChatAccessLeg, parseTripsageChatConversationId, parseTripsageChatItinerary, parseTripsageChatJourney, parseTripsageChatMessages, parseTripsageChatOriginCandidates, parseTripsageChatTripInfo, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
 
 export type TripsageChatHttpDependencies = {
   authorization: AuthorizationDependencies;
@@ -23,6 +24,8 @@ export type TripsageChatHttpDependencies = {
   originSearch?: () => OriginLookup;
   /** Server secret for HMAC-signing origin candidates across turns. */
   originSecret?: () => string | undefined;
+  /** Owner-scoped conversation store (ADR-43 §6); persists user/assistant turns when configured. */
+  conversations?: () => AssistantConversationStore;
   /** Clock for testing origin candidate TTL; defaults to planning().now() or Date.now(). */
   now?: () => Date;
   /** Google Places search; resolved lazily. Absent means the tool reports unavailable. */
@@ -61,9 +64,13 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
     const tripInfo = parseTripsageChatTripInfo(body);
     const currentItinerary = parseTripsageChatItinerary(body);
     const accessLeg = parseTripsageChatAccessLeg(body);
+    const requestedConversationId = parseTripsageChatConversationId(body);
     const secret = deps.originSecret?.() ?? deps.env?.BETTER_AUTH_SECRET;
     const nowMs = (deps.now?.() ?? new Date()).getTime();
     const originCandidates = parseTripsageChatOriginCandidates(body, actor.userId, secret, nowMs);
+    const conversationStore = deps.conversations?.();
+    const clientMessageId = latestUser.messageId?.trim() || request.headers.get("Idempotency-Key")?.trim() || "";
+    if (conversationStore && (!clientMessageId || clientMessageId.length > 180)) throw invalid;
     // The slot is held until the stream settles, so the concurrency cap covers streaming time.
     let release!: () => void;
     const held = new Promise<void>(resolve => { release = resolve; });
@@ -71,15 +78,41 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
     const response = await new Promise<Response>((resolve, reject) => {
       (deps.admit ?? defaultAdmit)(actor.userId, async () => {
         try {
-          resolve(streamTripsageChat({
+          let conversation: { conversationId: string; title: string } | undefined;
+          if (conversationStore) {
+            const savedUser = await conversationStore.recordUserMessage({
+              userId: actor.userId,
+              conversationId: requestedConversationId,
+              clientMessageId,
+              text: latestUser.text,
+            });
+            if (savedUser.status !== "SUCCESS") {
+              release();
+              resolve(apiMutationResult(savedUser));
+              return;
+            }
+            conversation = { conversationId: savedUser.data.conversationId, title: savedUser.data.title };
+          }
+          const streamResponse = streamTripsageChat({
             model: await deps.model(), messages, journey, tripInfo, currentItinerary, accessLeg, features,
             originCandidates,
             signOriginCandidates: secret ? candidates => signOriginCandidates({ userId: actor.userId, candidates, secret, nowMs: (deps.now?.() ?? new Date()).getTime() }) : undefined,
             latestUserText: latestUser.text,
+            conversation,
+            onPersistAssistant: conversationStore && conversation
+              ? parts => conversationStore.recordAssistantMessage({
+                  userId: actor.userId,
+                  conversationId: conversation.conversationId,
+                  clientMessageId: `${clientMessageId}:assistant`,
+                  parts,
+                })
+              : undefined,
             planning: deps.planning?.() ?? unavailablePlanning, originSearch: deps.originSearch?.(), places: deps.places?.(), web: deps.web?.(), knowledge: deps.knowledge?.(),
             flights: deps.flights, hotels: deps.hotels, limits: deps.limits, signal: request.signal, onSettled: release,
             memory: features.has("memory") ? { actor, source: latestUser, resolve: deps.memory } : undefined,
-          }));
+          });
+          if (conversation) streamResponse.headers.set("X-Assistant-Conversation-Id", conversation.conversationId);
+          resolve(streamResponse);
         }
         catch (error) { reject(error); release(); }
         await held;

@@ -3,6 +3,7 @@ import { createQaConversationStore } from "../../../../modules/ai/qa-conversatio
 import { createQaCleanupHandler } from "../../../../modules/ai/qa-cleanup";
 import { createQaAbuseGuard } from "../../../../modules/ai/qa-abuse";
 import { isQaCleanupEnabled } from "../../../../modules/ai/qa-cleanup-gate";
+import { createAssistantConversationStore } from "../../../../modules/tripsage-chat/assistant-conversation-store";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -17,6 +18,7 @@ export const GET = createQaCleanupHandler({
   cleanup: async () => {
     const progress = await createQaConversationStore(db, { cleanupBatchSize: 25, cleanupMaxDurationMs: 20_000 }).cleanup();
     await createQaAbuseGuard(db).cleanup();
+    await createAssistantConversationStore(db).cleanup(25);
     return progress;
   },
 });

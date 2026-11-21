@@ -145,6 +145,7 @@ export function buildTripsageChatBody(input: {
   itinerary: TripsageItinerarySummary | null;
   accessLeg?: AccessLegPart | null;
   originCandidatesToken?: string | null;
+  conversationId?: string | null;
 }) {
   return {
     messages: input.messages,
@@ -153,5 +154,6 @@ export function buildTripsageChatBody(input: {
     currentItinerary: input.itinerary,
     accessLeg: input.accessLeg ?? null,
     originCandidatesToken: input.originCandidatesToken ?? null,
+    ...(input.conversationId ? { conversationId: input.conversationId } : {}),
   };
 }

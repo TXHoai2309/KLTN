@@ -1,7 +1,7 @@
 import { authorizationDependencies } from "@/server/authorization/server";
 import { tripsageChatResponse } from "@/modules/tripsage-chat/tripsage-chat-http";
 import { resolveTripsageChatModel } from "@/modules/tripsage-chat/tripsage-chat-provider";
-import { tripsageFlightRuntime, tripsageHotelRuntime, tripsageKnowledgeRuntime, tripsageMemoryRuntime, tripsageOriginSearchRuntime, tripsageOriginSecretRuntime, tripsagePlacesRuntime, tripsagePlanningRuntime, tripsageWebRuntime } from "@/modules/tripsage-chat/tripsage-chat-runtime";
+import { tripsageConversationsRuntime, tripsageFlightRuntime, tripsageHotelRuntime, tripsageKnowledgeRuntime, tripsageMemoryRuntime, tripsageOriginSearchRuntime, tripsageOriginSecretRuntime, tripsagePlacesRuntime, tripsagePlanningRuntime, tripsageWebRuntime } from "@/modules/tripsage-chat/tripsage-chat-runtime";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -9,7 +9,7 @@ export async function POST(request: Request) {
   return tripsageChatResponse(request, {
     authorization: authorizationDependencies, model: resolveTripsageChatModel,
     planning: tripsagePlanningRuntime, originSearch: tripsageOriginSearchRuntime, originSecret: tripsageOriginSecretRuntime,
-    places: tripsagePlacesRuntime, web: tripsageWebRuntime, knowledge: tripsageKnowledgeRuntime,
-    flights: tripsageFlightRuntime, hotels: tripsageHotelRuntime, memory: tripsageMemoryRuntime,
+    conversations: tripsageConversationsRuntime, places: tripsagePlacesRuntime, web: tripsageWebRuntime,
+    knowledge: tripsageKnowledgeRuntime, flights: tripsageFlightRuntime, hotels: tripsageHotelRuntime, memory: tripsageMemoryRuntime,
   });
 }

@@ -9,10 +9,16 @@ import { createFirecrawlWeb, type WebLookup } from "./tripsage-web";
 import { createDuffelFlightLookup, type FlightLookup } from "./tripsage-duffel";
 import { createAmadeusHotelLookup, type HotelLookup } from "./tripsage-amadeus";
 import type { LocalKnowledge, OriginLookup, TripsagePlanningDeps } from "./tripsage-chat-tools";
+import { createAssistantConversationStore, type AssistantConversationStore } from "./assistant-conversation-store";
 import { createQaRetriever } from "../ai/qa-retrieval";
 import { originSearchDependencies } from "../trip-origin/origin-search-server";
 
 export { tripsageMemoryRuntime } from "../tripsage-memory/memory-runtime";
+
+/** Owner-scoped persistence for unified assistant conversations (ADR-43 §6). */
+export function tripsageConversationsRuntime(): AssistantConversationStore {
+  return createAssistantConversationStore(db);
+}
 
 /** Same origin search (Vietnam coverage checked) as `/trips/new`; provider keys stay server-side. */
 export function tripsageOriginSearchRuntime(): OriginLookup {

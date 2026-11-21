@@ -17,6 +17,8 @@ import { TRIPSAGE_PROVIDER_LIMIT_TEXT, TRIPSAGE_PROVIDER_UNAVAILABLE_TEXT } from
 import { createTripsageChatTools, TRIPSAGE_CHAT_TURN_LIMITS, type LocalKnowledge, type OriginLookup, type TripsagePlanningDeps, type TripsageToolContext } from "./tripsage-chat-tools";
 import { tripsageFeatureInstructions, type TripsageFeature } from "./tripsage-features";
 import { budgetPartSchema, flightsPartSchema, hotelsPartSchema } from "./tripsage-chat-parts";
+import { assistantConversationIdSchema, conversationMetaPartSchema, sanitizeStoredParts, type StoredAssistantPart } from "./assistant-conversation-contract";
+import type { MutationOutcome } from "../../lib/mutation-contract";
 import type { RememberSource } from "../tripsage-memory/memory-service";
 import { MEMORY_TOOL_NAMES } from "../tripsage-memory/memory-tools";
 
@@ -116,6 +118,15 @@ export function parseTripsageChatItinerary(body: unknown): TripsageItinerarySumm
   const raw = (body as { currentItinerary?: unknown } | null)?.currentItinerary;
   if (raw === undefined || raw === null) return null;
   const parsed = tripsageItinerarySummarySchema.safeParse(raw);
+  if (!parsed.success) throw invalid();
+  return parsed.data;
+}
+
+/** Optional conversation ID when continuing an existing assistant conversation. Strict parse; invalid data is a 400. */
+export function parseTripsageChatConversationId(body: unknown): string | null {
+  const raw = (body as { conversationId?: unknown } | null)?.conversationId;
+  if (raw === undefined || raw === null || raw === "") return null;
+  const parsed = assistantConversationIdSchema.safeParse(raw);
   if (!parsed.success) throw invalid();
   return parsed.data;
 }
@@ -240,6 +251,8 @@ export function streamTripsageChat(input: {
   knowledge?: LocalKnowledge;
   accessLeg?: AccessLegPart | null;
   limits?: Partial<TripsageChatTurnLimits>;
+  conversation?: { conversationId: string; title: string };
+  onPersistAssistant?: (parts: StoredAssistantPart[]) => Promise<MutationOutcome<unknown>>;
   signal?: AbortSignal;
   onSettled?: () => void;
 } & Pick<TripsageToolContext, "flights" | "hotels" | "memory">): Response {
@@ -248,6 +261,10 @@ export function streamTripsageChat(input: {
   input.signal?.addEventListener("abort", settle, { once: true });
   const stream = createUIMessageStream({
     execute: ({ writer }) => {
+      if (input.conversation) {
+        const meta = conversationMetaPartSchema.safeParse(input.conversation);
+        if (meta.success) writer.write({ type: "data-conversation", id: "conversation", data: meta.data });
+      }
       writer.write({ type: "data-status", data: { kind: "start", label: "Đang đọc yêu cầu của bạn…" } satisfies TripsageChatStatus, transient: true });
       const budget = AbortSignal.timeout(limits.totalMs);
       const signal = input.signal ? AbortSignal.any([input.signal, budget]) : budget;
@@ -255,20 +272,62 @@ export function streamTripsageChat(input: {
       let flightsPart = 0;
       let suggestionsPart = 0;
       let hotelsPart = 0;
+      // Collect only schema-validated display parts for assistant message persistence (ADR-43 §6).
+      // Raw tool outputs, origin candidates, system context, and transient status are never recorded.
+      const recordedDataParts: { type: string; id?: string; data: unknown }[] = [];
+      const recordDataPart = (part: { type: string; id?: string; data: unknown }) => {
+        if (part.id) {
+          const existing = recordedDataParts.findIndex(item => item.type === part.type && item.id === part.id);
+          if (existing >= 0) { recordedDataParts[existing] = part; return; }
+        }
+        recordedDataParts.push(part);
+      };
+      const textChunks: string[] = [];
+      let streamErrored = false;
       const tools = createTripsageChatTools({
         features: input.features,
         flights: input.flights,
         hotels: input.hotels,
         memory: input.memory,
         planning: input.planning, originSearch: input.originSearch, originCandidates: input.originCandidates, signOriginCandidates: input.signOriginCandidates, latestUserText: input.latestUserText, places: input.places, knowledge: input.knowledge, accessLeg: input.accessLeg ?? null, currentItinerary: input.currentItinerary ?? null, journey: input.journey ?? null, tripInfo: input.tripInfo ?? null, maxProposals: limits.maxProposals, maxPlacesCalls: limits.maxPlacesCalls, web: input.web, maxWebSearchCalls: limits.maxWebSearchCalls, maxFetchPageCalls: limits.maxFetchPageCalls,
-        emitSuggestions: suggestions => writer.write({ type: "data-suggestions", id: `suggestions-${++suggestionsPart}`, data: { suggestions } }),
-        emitAccessLeg: leg => { const parsed = accessLegPartSchema.safeParse(leg); if (parsed.success) writer.write({ type: "data-access-leg", id: "access-leg", data: parsed.data }); },
-        emitCost: cost => { const parsed = costPartSchema.safeParse(cost); if (parsed.success) writer.write({ type: "data-cost", id: "cost", data: parsed.data }); },
-        emitTripInfo: tripInfo => writer.write({ type: "data-trip-info", id: "trip-info", data: { tripInfo } }),
+        emitSuggestions: suggestions => {
+          const id = `suggestions-${++suggestionsPart}`;
+          const part = { type: "data-suggestions" as const, id, data: { suggestions } };
+          writer.write(part);
+          recordDataPart(part);
+        },
+        emitAccessLeg: leg => {
+          const parsed = accessLegPartSchema.safeParse(leg);
+          if (parsed.success) {
+            const part = { type: "data-access-leg" as const, id: "access-leg", data: parsed.data };
+            writer.write(part);
+            recordDataPart(part);
+          }
+        },
+        emitCost: cost => {
+          const parsed = costPartSchema.safeParse(cost);
+          if (parsed.success) {
+            const part = { type: "data-cost" as const, id: "cost", data: parsed.data };
+            writer.write(part);
+            recordDataPart(part);
+          }
+        },
+        emitTripInfo: tripInfo => {
+          const part = { type: "data-trip-info" as const, id: "trip-info", data: { tripInfo } };
+          writer.write(part);
+          recordDataPart(part);
+        },
         emitOriginCandidates: data => { const parsed = originCandidatesPartSchema.safeParse(data); if (parsed.success) writer.write({ type: "data-origin-candidates", id: "origin-candidates", data: parsed.data }); },
         emitJourney: journey => { const parsed = journeyPartSchema.safeParse({ journey }); if (parsed.success) writer.write({ type: "data-journey", id: "journey", data: parsed.data }); },
         emitQuickReplies: replies => writer.write({ type: "data-quick-replies", id: "quick-replies", data: { replies } }),
-        emitSources: sources => { const parsed = sourcesPartSchema.safeParse({ sources }); if (parsed.success) writer.write({ type: "data-sources", id: "sources", data: parsed.data }); },
+        emitSources: sources => {
+          const parsed = sourcesPartSchema.safeParse({ sources });
+          if (parsed.success) {
+            const part = { type: "data-sources" as const, id: "sources", data: parsed.data };
+            writer.write(part);
+            recordDataPart(part);
+          }
+        },
         emitPlaces: places => writer.write({ type: "data-places", id: `places-${++placesPart}`, data: { places } }),
         emitBudget: data => {
           const parsed = budgetPartSchema.safeParse(data);
@@ -285,9 +344,15 @@ export function streamTripsageChat(input: {
         emitItinerary: (result: PlannerResult) => {
           hasItinerary = true;
           writer.write({ type: "data-status", data: { kind: "checking", label: "Đang kiểm tra lịch trình…" } satisfies TripsageChatStatus, transient: true });
-          writer.write({ type: "data-itinerary", id: "itinerary", data: result });
+          const itineraryPart = { type: "data-itinerary" as const, id: "itinerary", data: result };
+          writer.write(itineraryPart);
+          recordDataPart(itineraryPart);
           const timeline = timelinePartSchema.safeParse(buildDayTimeline(result));
-          if (timeline.success) writer.write({ type: "data-timeline", id: "timeline", data: timeline.data });
+          if (timeline.success) {
+            const timelinePart = { type: "data-timeline" as const, id: "timeline", data: timeline.data };
+            writer.write(timelinePart);
+            recordDataPart(timelinePart);
+          }
         },
       });
       const instructions = input.features?.size ? tripsageChatInstructions(input.features) : TRIPSAGE_CHAT_INSTRUCTIONS;
@@ -309,6 +374,7 @@ export function streamTripsageChat(input: {
       const timedOut = () => budget.aborted && !input.signal?.aborted;
       const writeNotice = (controller: { enqueue: (chunk: UIMessageChunk) => void }, id: string, text: string) => {
         if (notices.has(id)) return; notices.add(id);
+        textChunks.push(text);
         for (const chunk of [{ type: "text-start", id }, { type: "text-delta", id, delta: text }, { type: "text-end", id }]) controller.enqueue(chunk as UIMessageChunk);
       };
       const timeoutNotice = (controller: { enqueue: (chunk: UIMessageChunk) => void }) => writeNotice(controller, "timeout", capNotice("Đã hết thời gian xử lý cho lượt này.", hasItinerary));
@@ -319,6 +385,7 @@ export function streamTripsageChat(input: {
             announced = true;
             controller.enqueue({ type: "data-status", data: { kind: "writing", label: "Đang soạn câu trả lời…" } satisfies TripsageChatStatus, transient: true } as UIMessageChunk);
           }
+          if (chunk.type === "text-delta" && typeof chunk.delta === "string") textChunks.push(chunk.delta);
           // Only display data travels in validated data parts. Raw tool results go to the model.
           // The corresponding browser tool output carries only success; thrown errors use a fixed text.
           if (input.features?.has("memory")) {
@@ -337,19 +404,37 @@ export function streamTripsageChat(input: {
           if (chunk.type === "finish" && stepsDone >= limits.maxSteps) writeNotice(controller, "step-limit", capNotice(`Đã đạt giới hạn ${limits.maxSteps} bước xử lý cho lượt này nên mình dừng lại.`, hasItinerary));
           // A budget abort surfaces as a stream error; replace it with a readable notice.
           if (chunk.type === "error" && timedOut()) return timeoutNotice(controller);
+          if (chunk.type === "error") streamErrored = true;
           controller.enqueue(chunk);
         },
         flush(controller) { if (timedOut()) timeoutNotice(controller); },
       }));
+      let persisted = false;
+      const persistAssistant = async (controller: { enqueue: (chunk: UIMessageChunk) => void }) => {
+        if (persisted || !input.onPersistAssistant || streamErrored) return;
+        persisted = true;
+        const fullText = textChunks.join("").trim();
+        const candidateParts: unknown[] = [...(fullText ? [{ type: "text", text: fullText }] : []), ...recordedDataParts];
+        const sanitized = sanitizeStoredParts(candidateParts);
+        if (!sanitized.length) return;
+        try {
+          const outcome = await input.onPersistAssistant(sanitized);
+          if (outcome.status !== "SUCCESS") {
+            controller.enqueue({ type: "data-persistence", data: { status: outcome.status }, transient: true } as UIMessageChunk);
+          }
+        } catch {
+          controller.enqueue({ type: "data-persistence", data: { status: "UNKNOWN" }, transient: true } as UIMessageChunk);
+        }
+      };
       // An aborted upstream errors the pipe itself; when that is the time budget, end with a notice, not an error.
       const reader = shaped.getReader();
       writer.merge(new ReadableStream<UIMessageChunk>({
         async pull(controller) {
           try {
             const next = await reader.read();
-            if (next.done) controller.close(); else controller.enqueue(next.value);
+            if (next.done) { await persistAssistant(controller); controller.close(); } else controller.enqueue(next.value);
           } catch (error) {
-            if (timedOut()) { timeoutNotice(controller); controller.close(); } else controller.error(error);
+            if (timedOut()) { timeoutNotice(controller); await persistAssistant(controller); controller.close(); } else controller.error(error);
           }
         },
         cancel: reason => reader.cancel(reason),
