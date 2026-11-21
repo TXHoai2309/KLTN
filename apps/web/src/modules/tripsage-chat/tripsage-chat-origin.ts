@@ -101,10 +101,17 @@ const HUB_ALIASES: Record<string, readonly string[]> = {
   "hub:HA_GIANG_CITY": ["ha giang", "tp ha giang", "thanh pho ha giang", "ben xe phia nam", "ha giang ben xe phia nam", "tp ha giang ben xe phia nam", "ben xe ha giang"],
 };
 
-const HUB_KEYWORDS: Record<string, readonly string[]> = {
-  "hub:HA_NOI": ["ha noi", "hanoi", "my dinh"],
-  "hub:HA_GIANG_CITY": ["ha giang", "ben xe phia nam"],
+const HUB_SPECIFIC_PATTERNS: Record<string, readonly RegExp[]> = {
+  "hub:HA_NOI": [/\b(?:ha\s+noi|hanoi|my\s+dinh)\b/u],
+  "hub:HA_GIANG_CITY": [
+    /\b(?:tp\s+ha\s+giang|thanh\s+pho\s+ha\s+giang|ben\s+xe\s+(?:phia\s+nam|ha\s+giang))\b/u,
+    /\b(?:tap\s+ket(?:\s+(?:o|tai))?|xuat\s+phat\s+tu|bat\s+dau\s+tu|doi\s+sang|doi\s+thanh|chuyen\s+sang|chon|chot)\s+(?:tp\s+)?ha\s+giang\b/u,
+  ],
 };
+
+function mentionsHub(folded: string, hubId: string): boolean {
+  return HUB_SPECIFIC_PATTERNS[hubId]?.some(pattern => pattern.test(folded)) ?? false;
+}
 
 /** Fixed trip hubs are recognized directly without calling external origin search (ADR-43 §3). */
 export function matchFixedHub(query: string): SignedOriginCandidate | null {
@@ -116,12 +123,13 @@ export function matchFixedHub(query: string): SignedOriginCandidate | null {
 }
 
 const ACCENTED_NEGATION = /(?:^|[^\p{L}\p{N}])đừng(?:$|[^\p{L}\p{N}])/u;
-const FOLDED_NEGATION = /\b(?:khong\s+phai|ko\s+phai|k\s+phai|khong\s+dung|ko\s+dung|khong\s+chon|ko\s+chon|khong\s+muon|sai|nham|chon\s+lai|noi\s+khac|cho\s+khac|dia\s+diem\s+khac|doi\s+sang|doi\s+thanh|doi\s+diem|huy|bo\s+qua|not\s+this|not\s+that|wrong|different|cancel)\b/u;
+const HARD_FOLDED_NEGATION = /\b(?:khong\s+phai|ko\s+phai|k\s+phai|khong\s+dung|ko\s+dung|khong\s+chon|ko\s+chon|khong\s+muon|sai|nham|chon\s+lai|noi\s+khac|cho\s+khac|dia\s+diem\s+khac|huy|bo\s+qua|not\s+this|not\s+that|wrong|different|cancel)\b/u;
+const SWITCH_AWAY_NEGATION = /\b(?:doi\s+sang|doi\s+thanh|doi\s+diem)\b/u;
 const LEADING_NEGATION = /^(?:khong|ko|k|no|nope|chua|khoan|thoi)(?:\s|$)/u;
 
 const AGREEMENT_CLAUSE = /^(?:(?:da|vang|u|uh|uk|um)\s+)?(?:dung(?:\s+(?:roi|a|nha|nhe|vay|do|day|luon|qua|chinh\s+xac|cho\s+do|cho\s+nay|noi\s+nay))?|chinh\s+xac|chuan(?:\s+(?:roi|luon|qua))?|dong\s+y|ok+|oke+|okay|chot(?:\s+(?:luon|nha|nhe|di|diem\s+nay))?|duoc(?:\s+(?:roi|nha|nhe|day|luon))?|yes|yep|yeah|correct|right|confirm(?:ed)?)(?:\s|$)/u;
 const BARE_AFFIRMATION = /^(?:vang|da|u|uh|uk|um)(?:\s+(?:dung(?:\s+roi)?|a|nha|nhe|ok+|oke+|duoc|chot))?$/u;
-const HUB_CHOICE_CUE = /\b(?:chon|chot|dong\s+y|bat\s+dau\s+tu|diem\s+tap\s+ket|ok+|oke+|okay|lay)\b/u;
+const HUB_CHOICE_CUE = /\b(?:chon|chot|dong\s+y|dung|bat\s+dau\s+tu|xuat\s+phat\s+tu|tap\s+ket|doi\s+sang|doi\s+thanh|chuyen\s+sang|ok+|oke+|okay|lay)\b/u;
 
 const INDEX_PATTERNS = [
   /^(?:(?:chon|so|cai|lua\s+chon|phuong\s+an|diem|thu)\s*)?(?:1|mot|dau(?:\s+tien)?)(?:\s|$)/u,
@@ -129,9 +137,9 @@ const INDEX_PATTERNS = [
   /^(?:(?:chon|so|cai|lua\s+chon|phuong\s+an|diem|thu)\s*)?(?:3|ba|cuoi(?:\s+cung)?)(?:\s|$)/u,
 ] as const;
 
-function hasNegation(rawText: string, folded: string): boolean {
+function hasHardNegation(rawText: string, folded: string): boolean {
   const lowerVi = rawText.normalize("NFC").toLocaleLowerCase("vi");
-  return ACCENTED_NEGATION.test(lowerVi) || FOLDED_NEGATION.test(folded) || LEADING_NEGATION.test(folded);
+  return ACCENTED_NEGATION.test(lowerVi) || HARD_FOLDED_NEGATION.test(folded) || LEADING_NEGATION.test(folded);
 }
 
 function clausesOf(rawText: string): string[] {
@@ -156,7 +164,7 @@ export function permitsOriginConfirmation(
   const folded = foldVietnamese(latestUserText);
   const label = foldVietnamese(candidate.label);
   if (!folded || !label) return false;
-  if (hasNegation(latestUserText, folded)) return false;
+  if (hasHardNegation(latestUserText, folded)) return false;
 
   // Exact button tap or full label inclusion (never ambiguous against another candidate).
   if (folded === label) return true;
@@ -166,6 +174,7 @@ export function permitsOriginConfirmation(
   }
 
   if (options.fromPreviousTurn) {
+    if (SWITCH_AWAY_NEGATION.test(folded)) return false;
     if (pool.length === 1) {
       return clausesOf(latestUserText).some(clause => AGREEMENT_CLAUSE.test(clause) || BARE_AFFIRMATION.test(clause));
     }
@@ -180,11 +189,10 @@ export function permitsOriginConfirmation(
     return false;
   }
 
-  // Fixed hub selected directly without a prior findOrigin round-trip requires an explicit choice cue + hub name
+  // Fixed hub selected directly without a prior findOrigin round-trip requires an explicit choice/switch cue + hub name
   // (bare "đi từ Hà Nội" stays false so Turn 1 restates and Turn 2 confirms).
-  const myKeywords = HUB_KEYWORDS[candidate.id];
-  if (!myKeywords || !HUB_CHOICE_CUE.test(folded)) return false;
-  const matchesMine = myKeywords.some(keyword => folded.includes(keyword));
-  const matchesOther = pool.some(other => other.id !== candidate.id && (HUB_KEYWORDS[other.id]?.some(keyword => folded.includes(keyword)) ?? false));
+  if (!HUB_SPECIFIC_PATTERNS[candidate.id] || !HUB_CHOICE_CUE.test(folded)) return false;
+  const matchesMine = mentionsHub(folded, candidate.id);
+  const matchesOther = pool.some(other => other.id !== candidate.id && mentionsHub(folded, other.id));
   return matchesMine && !matchesOther;
 }
