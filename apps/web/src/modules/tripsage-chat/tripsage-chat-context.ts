@@ -48,6 +48,8 @@ export const tripInfoSchema = z.object({
   homeCity: z.string().trim().min(1).max(80).optional(),
   /** First-cluster fields filled as server assumptions in an Assumed draft (ADR-44). Cleared as the traveler confirms or changes them. */
   assumedFields: z.array(z.enum(ASSUMABLE_FIELDS)).max(ASSUMABLE_FIELDS.length).optional(),
+  /** Set to true when the traveler declines the post-itinerary meal-suggestions offer so the assistant will not ask again (Ticket 12). */
+  mealSuggestionsDeclined: z.boolean().optional(),
 }).strict();
 export type TripsageTripInfo = z.infer<typeof tripInfoSchema>;
 export type { AssumableField };

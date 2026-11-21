@@ -115,6 +115,7 @@ const recordInputSchema = tripInfoSchema.omit({ assumedFields: true }).extend({
   returnDeadlineMinute: tripInfoSchema.shape.returnDeadlineMinute.describe("Hạn về ngày cuối người dùng muốn, phút trong ngày 0-1439 (mặc định 1080 = 18:00)."),
   mustIncludeDestinationIds: tripInfoSchema.shape.mustIncludeDestinationIds.describe("Danh sách id điểm bắt buộc phải có trong lịch (tối đa 4, chỉ dùng id lấy từ listDestinations; gửi [] để bỏ điểm bắt buộc)."),
   homeCity: tripInfoSchema.shape.homeCity.describe("Thành phố người dùng đang sống (chỉ tên), ví dụ TP Hồ Chí Minh."),
+  mealSuggestionsDeclined: tripInfoSchema.shape.mealSuggestionsDeclined.describe("Ghi true khi người dùng từ chối gợi ý tìm quán ăn để không hỏi lại trong chuyến này."),
 }).strict();
 
 const UNAVAILABLE_TEXT = "Chưa lập được lịch trình lúc này. Hãy thử lại sau.";

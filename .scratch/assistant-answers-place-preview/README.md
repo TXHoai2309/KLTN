@@ -17,7 +17,7 @@ Thứ tự chạy (tuần tự): 01 → 02 → 03 → 04 → 05 → 06 → 07 �
 | 09 | [Xem nhanh địa điểm](issues/09-place-preview.md) | 07 | done |
 | 10 | [Chọn chỗ nghỉ trong đề xuất](issues/10-chosen-lodging-proposal.md) | 09 | done |
 | 11 | [Lưu chỗ nghỉ đã chọn](issues/11-chosen-lodging-save.md) | 10 | done |
-| 12 | [Mời tìm quán ăn](issues/12-meal-suggestions-offer.md) | 03, 04, 09 | ready-for-agent |
+| 12 | [Mời tìm quán ăn](issues/12-meal-suggestions-offer.md) | 03, 04, 09 | done |
 | 13 | [Kiểm thử hồi quy](issues/13-regression-verification.md) | 01–12 | ready-for-agent |
 
 Việc của người dùng trước ticket 09: bật Maps Embed API cho khóa trình duyệt Google và kiểm tra giới hạn HTTP referrer (domain production và localhost).
