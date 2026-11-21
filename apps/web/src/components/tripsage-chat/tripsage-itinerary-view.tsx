@@ -3,7 +3,7 @@
 import { lazy, Suspense, useState, type ReactNode } from "react";
 import { EXTERNAL_PLACE_LABEL, EXTERNAL_PLACE_SOURCE_LABEL, EXTERNAL_STAY_ESTIMATE_LABEL, plannerResultSchema, type PlannerResult } from "@/modules/trip-planner/planner-contract";
 import { formatTravelOnlyDayLabel } from "@/modules/tripsage-chat/tripsage-timeline";
-import { ItineraryDayTabs, ItineraryStopCard, ItineraryValidationPanel, TripOverviewCard, TripSummaryBar, WarningNoticeRow } from "@/components/trip-planner/planner-presentation";
+import { ItineraryDayTabs, ItineraryStopCard, ItineraryValidationPanel, TripOverviewCard, TripSummaryBar, ValidationSheet, WarningNoticeRow } from "@/components/trip-planner/planner-presentation";
 import "@/components/trip-planner/trip-planner.css";
 
 const ItineraryMap = lazy(() => import("@/components/trip-planner/itinerary-map").then(m => ({ default: m.ItineraryMap })));
@@ -42,6 +42,7 @@ export function TripsageItineraryView({ proposal, children }: { proposal: Planne
   const [selectedDay, setSelectedDay] = useState(proposal.days[0]?.day ?? 1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mapOpen, setMapOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const day = proposal.days.find(d => d.day === selectedDay) ?? proposal.days[0];
   if (!day) return null;
   return (
@@ -78,7 +79,8 @@ export function TripsageItineraryView({ proposal, children }: { proposal: Planne
           </div>
         )}
       </div>
-      <ItineraryValidationPanel checks={proposal.checks} />
+      <ItineraryValidationPanel checks={proposal.checks} onOpenSheet={() => setSheetOpen(true)} />
+      {sheetOpen && <ValidationSheet isOpen={sheetOpen} onClose={() => setSheetOpen(false)} checks={proposal.checks} warnings={proposal.warnings} />}
       <ExternalPlacesNotice proposal={proposal} />
       {children}
     </div>

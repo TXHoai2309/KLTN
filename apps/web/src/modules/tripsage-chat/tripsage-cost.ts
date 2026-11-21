@@ -64,7 +64,7 @@ export function estimateTripCost(input: CostInput): CostPart {
   for (const line of input.extraLines ?? []) lines.push({ ...line, computed: true });
   lines.push(...input.lines.filter(line => !(line.category === "transport" && /x[aă]ng/i.test(line.label))));
   const total = lines.reduce((sum, line) => sum + line.amount, 0);
-  const cap = input.budgetCap ?? null;
+  const cap = input.budgetCap !== undefined && input.budgetCap !== null && input.budgetCap > 0 ? input.budgetCap : null;
   assumptions.push("Các khoản khác là ước tính của trợ lý; giá thực tế có thể khác.");
   return {
     currency: "VND", travelers: input.travelers, days: input.days, lines: lines.slice(0, 16), total,

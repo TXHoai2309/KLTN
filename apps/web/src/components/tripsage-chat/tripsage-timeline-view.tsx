@@ -1,11 +1,13 @@
+"use client";
+
 import { BedDouble, Car, Clock, Flag, Home, Lightbulb, MapPin, Moon, UtensilsCrossed } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { clockLabel, type TimelineItem, type TimelinePart, type TimelineSuggestion } from "@/modules/tripsage-chat/tripsage-timeline";
 
 const ITEM_ICON: Record<TimelineItem["kind"], ReactNode> = {
-  DEPART: <Flag size={15} aria-hidden="true" />, DRIVE: <Car size={15} aria-hidden="true" />, VISIT: <MapPin size={15} aria-hidden="true" />,
-  LUNCH: <UtensilsCrossed size={15} aria-hidden="true" />, FREE_TIME: <Clock size={15} aria-hidden="true" />, OVERNIGHT: <Moon size={15} aria-hidden="true" />, ARRIVE_HOME: <Home size={15} aria-hidden="true" />,
+  DEPART: <Flag size={13} aria-hidden="true" />, DRIVE: <Car size={13} aria-hidden="true" />, VISIT: <MapPin size={13} aria-hidden="true" />,
+  LUNCH: <UtensilsCrossed size={13} aria-hidden="true" />, FREE_TIME: <Clock size={13} aria-hidden="true" />, OVERNIGHT: <Moon size={13} aria-hidden="true" />, ARRIVE_HOME: <Home size={13} aria-hidden="true" />,
 };
 const SUGGESTION_ICON: Record<TimelineSuggestion["kind"], ReactNode> = {
   MEAL: <UtensilsCrossed size={13} aria-hidden="true" />, EVENING: <Moon size={13} aria-hidden="true" />, LODGING: <BedDouble size={13} aria-hidden="true" />, TIP: <Lightbulb size={13} aria-hidden="true" />,
@@ -14,37 +16,111 @@ const SUGGESTION_LABEL: Record<TimelineSuggestion["kind"], string> = { MEAL: "Ă
 
 const time = (item: TimelineItem) => item.startMinute === null && item.endMinute === null ? "" : item.endMinute === null || item.kind === "DEPART" ? clockLabel(item.startMinute) : item.startMinute === null ? `→ ${clockLabel(item.endMinute)}` : `${clockLabel(item.startMinute)}–${clockLabel(item.endMinute)}`;
 
-/** Day-by-day timeline (planner times) with the assistant's suggestions under their slots, labeled unchecked (ADR-42). */
-export function TripsageTimelineView({ timeline, suggestions }: { timeline: TimelinePart; suggestions: readonly TimelineSuggestion[] }) {
+const norm = (value: string) => value.normalize("NFC").toLocaleLowerCase("vi").replace(/\s+/gu, " ").trim();
+
+/** Formats place metadata without duplicating the suggestion title (e.g. "Homestay A · cách khoảng 0.3 km"). */
+export function formatSuggestionPlaceMeta(title: string, place: NonNullable<TimelineSuggestion["place"]>): string {
+  const sameOrIncluded = norm(title) === norm(place.name) || norm(title).includes(norm(place.name));
+  return sameOrIncluded
+    ? ` · cách khoảng ${place.distanceKm} km`
+    : ` · ${place.name}, cách khoảng ${place.distanceKm} km`;
+}
+
+/** Day-tabbed vertical timeline (planner times) with assistant suggestions under their slots, labeled unchecked. */
+export function TripsageTimelineView({
+  timeline,
+  suggestions,
+  initialDay,
+}: {
+  timeline: TimelinePart;
+  suggestions: readonly TimelineSuggestion[];
+  initialDay?: number;
+}) {
+  const [selectedDay, setSelectedDay] = useState(initialDay ?? timeline.days[0]?.day ?? 1);
+  const activeDay = timeline.days.find(day => day.day === selectedDay) ?? timeline.days[0];
+  if (!activeDay) return null;
+
   const bySlot = new Map<string, TimelineSuggestion[]>();
   for (const suggestion of suggestions) bySlot.set(suggestion.slotId, [...(bySlot.get(suggestion.slotId) ?? []), suggestion]);
+
+  function onTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    let next = index;
+    if (event.key === "ArrowRight") next = (index + 1) % timeline.days.length;
+    else if (event.key === "ArrowLeft") next = (index + timeline.days.length - 1) % timeline.days.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = timeline.days.length - 1;
+    else return;
+    event.preventDefault();
+    setSelectedDay(timeline.days[next]!.day);
+    (event.currentTarget.parentElement?.children[next] as HTMLButtonElement | undefined)?.focus();
+  }
+
   return (
     <section className="tripsage-timeline" aria-label="Timeline từng ngày">
-      {timeline.days.map(day => (
-        <div key={day.day} className="tripsage-timeline-day">
-          <h4>Ngày {day.day}{day.date ? ` · ${day.date.split("-").reverse().join("/")}` : ""}</h4>
-          <ol>
-            {day.items.map(item => (
-              <li key={item.slotId} className={`tripsage-timeline-item tripsage-timeline-${item.kind.toLowerCase()}`}>
-                <span className="tripsage-timeline-time">{time(item)}</span>
-                <span className="tripsage-timeline-icon">{ITEM_ICON[item.kind]}</span>
-                <div className="tripsage-timeline-body">
-                  <span>{item.label}</span>
-                  {(bySlot.get(item.slotId) ?? []).map((suggestion, index) => (
-                    <p key={index} className="tripsage-suggestion">
-                      {SUGGESTION_ICON[suggestion.kind]}
-                      <strong>{SUGGESTION_LABEL[suggestion.kind]}:</strong> {suggestion.title}
-                      {suggestion.place && <span className="tripsage-suggestion-meta"> · {suggestion.place.name}, cách khoảng {suggestion.place.distanceKm} km</span>}
-                      {suggestion.detail && <span className="tripsage-suggestion-detail"> — {suggestion.detail}</span>}
-                    </p>
-                  ))}
-                </div>
-              </li>
-            ))}
-          </ol>
-        </div>
-      ))}
-      {suggestions.length > 0 && <p className="assistant-muted text-xs">Gợi ý ăn uống, chỗ nghỉ, vui chơi là gợi ý chưa kiểm tra (nguồn Google Maps hoặc tài liệu địa phương); giá chỉ là ước tính, ứng dụng không đặt chỗ. Giờ giấc do hệ thống lập lịch và kiểm tra.</p>}
+      <div className="tripsage-day-tabs" role="tablist" aria-label="Chọn ngày trong lịch trình">
+        {timeline.days.map((day, index) => {
+          const active = day.day === activeDay.day;
+          return (
+            <button
+              key={day.day}
+              id={`tripsage-day-tab-${day.day}`}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              aria-controls={`tripsage-day-panel-${day.day}`}
+              tabIndex={active ? 0 : -1}
+              className={`tripsage-day-tab${active ? " is-active" : ""}`}
+              onClick={() => setSelectedDay(day.day)}
+              onKeyDown={event => onTabKeyDown(event, index)}
+            >
+              <span>Ngày {day.day}</span>
+              {day.date && <small>{day.date.split("-").reverse().slice(0, 2).join("/")}</small>}
+            </button>
+          );
+        })}
+      </div>
+
+      <div
+        id={`tripsage-day-panel-${activeDay.day}`}
+        role="tabpanel"
+        aria-labelledby={`tripsage-day-tab-${activeDay.day}`}
+        className="tripsage-timeline-day"
+      >
+        <h4 className="tripsage-timeline-heading">
+          Ngày {activeDay.day}{activeDay.date ? ` · ${activeDay.date.split("-").reverse().join("/")}` : ""}
+        </h4>
+        <ol className="tripsage-timeline-list">
+          {activeDay.items.map(item => (
+            <li key={item.slotId} className={`tripsage-timeline-item tripsage-timeline-${item.kind.toLowerCase()}`}>
+              <span className="tripsage-timeline-time">{time(item)}</span>
+              <span className="tripsage-timeline-rail" aria-hidden="true">
+                <span className="tripsage-timeline-dot">{ITEM_ICON[item.kind]}</span>
+                <span className="tripsage-timeline-line" />
+              </span>
+              <div className="tripsage-timeline-body">
+                <span className="tripsage-timeline-title">{item.label}</span>
+                {(bySlot.get(item.slotId) ?? []).map((suggestion, index) => (
+                  <p key={index} className="tripsage-suggestion">
+                    {SUGGESTION_ICON[suggestion.kind]}
+                    <strong>{SUGGESTION_LABEL[suggestion.kind]}:</strong> {suggestion.title}
+                    {suggestion.place && (
+                      <span className="tripsage-suggestion-meta">
+                        {formatSuggestionPlaceMeta(suggestion.title, suggestion.place)}
+                      </span>
+                    )}
+                    {suggestion.detail && <span className="tripsage-suggestion-detail"> — {suggestion.detail}</span>}
+                  </p>
+                ))}
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+      {suggestions.length > 0 && (
+        <p className="assistant-muted tripsage-timeline-footnote">
+          Gợi ý ăn uống, chỗ nghỉ, vui chơi là gợi ý chưa kiểm tra (nguồn Google Maps hoặc tài liệu địa phương); giá chỉ là ước tính, ứng dụng không đặt chỗ. Giờ giấc do hệ thống lập lịch và kiểm tra.
+        </p>
+      )}
     </section>
   );
 }

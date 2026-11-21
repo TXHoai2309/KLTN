@@ -12,7 +12,7 @@ Thứ tự chạy (tuần tự): 01 → 02 → 03 → 04 → 05 → 06 → 07 �
 | 04 | [Bản nháp giả định trước, hỏi sau](issues/04-assumed-draft-first.md) | 01, 03 | done |
 | 05 | [Xác nhận điểm tập kết ngay lần đầu](issues/05-hub-confirmation.md) | — | done |
 | 06 | [Sửa mốc timeline](issues/06-timeline-planner-fixes.md) | — | done |
-| 07 | [Giao diện gọn và tab theo ngày](issues/07-ui-compact-day-tabs.md) | 06 | ready-for-agent |
+| 07 | [Giao diện gọn và tab theo ngày](issues/07-ui-compact-day-tabs.md) | 06 | done |
 | 08 | [Mô tả điểm dừng và "Vài lưu ý"](issues/08-visit-descriptions-tips.md) | 03, 07 | ready-for-agent |
 | 09 | [Xem nhanh địa điểm](issues/09-place-preview.md) | 07 | ready-for-agent |
 | 10 | [Chọn chỗ nghỉ trong đề xuất](issues/10-chosen-lodging-proposal.md) | 09 | ready-for-agent |

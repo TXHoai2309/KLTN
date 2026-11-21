@@ -1897,3 +1897,45 @@
 .planner-stop-external, .planner-stop-source { font-size: 0.75rem; color: var(--muted-foreground, #6b7280); }
 .planner-stop-external { border: 1px dashed currentColor; border-radius: 999px; padding: 0 0.5rem; }
 .planner-external-notice { margin-top: 0.75rem; font-size: 0.875rem; }
+
+/* Validation summary bar: aligned single row with clear spacing between title, status pill and detail trigger */
+.planner-validation { margin-top: 0.75rem; min-width: 0; }
+.planner-validation-summary-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--planner-border, #dbe7df);
+  border-radius: 10px;
+  background: var(--planner-surface, #ffffff);
+  text-align: left;
+  font-size: 0.875rem;
+}
+.planner-validation-summary-row:hover { border-color: var(--planner-accent, #35765c); background: var(--planner-soft, #f6f8f6); }
+.planner-val-left { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; min-width: 0; }
+.planner-val-icon { color: var(--planner-accent, #35765c); flex-shrink: 0; }
+.planner-val-title { font-weight: 600; color: var(--planner-ink, #1d2521); }
+.planner-val-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--planner-accent-subtle, #edf4ee);
+  color: var(--planner-accent, #35765c);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.planner-val-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--planner-accent, #35765c);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-left: auto;
+  white-space: nowrap;
+}

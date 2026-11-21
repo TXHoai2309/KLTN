@@ -537,7 +537,7 @@ export function ItineraryValidationPanel({
       >
         <div className="planner-val-left">
           <ShieldCheck size={16} className="planner-val-icon" aria-hidden="true" />
-          <strong className="planner-val-title">Kiểm tra lịch trình</strong>
+          <strong className="planner-val-title">Kiểm tra lịch trình</strong>{" "}
           <span className="planner-val-pill">
             {passCount} đạt{needReview > 0 ? ` · ${needReview} cần xem lại` : ""}
           </span>
