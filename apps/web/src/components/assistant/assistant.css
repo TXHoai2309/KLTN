@@ -2531,12 +2531,14 @@
 .tripsage-md th, .tripsage-md td { padding: 0.4rem 0.6rem; border: 1px solid var(--assistant-line); text-align: left; vertical-align: top; }
 .tripsage-md th { background: var(--assistant-green-light); font-weight: 700; }
 .tripsage-quick-replies { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
-.tripsage-quick-replies button { padding: 0.4rem 0.9rem; border-radius: 999px; border: 1px solid var(--assistant-green); background: var(--assistant-card); color: var(--assistant-green); font-size: 0.9rem; cursor: pointer; }
+.tripsage-quick-replies button { padding: 0.4rem 0.9rem; border-radius: 999px; border: 1px solid var(--assistant-green); background: var(--assistant-card); color: var(--assistant-green); font-size: 0.9rem; cursor: pointer; text-align: left; max-width: 100%; overflow-wrap: anywhere; }
 .tripsage-quick-replies button:hover:not(:disabled) { background: var(--assistant-green-light); }
 .tripsage-quick-replies button:disabled { opacity: 0.5; cursor: default; }
-.tripsage-origin-card { display: grid; gap: 0.75rem; margin-top: 0.75rem; padding: 0.9rem; border: 1px solid var(--assistant-line); border-radius: 12px; background: var(--assistant-soft); }
-.tripsage-origin-card h4 { margin: 0; font-weight: 700; }
-.tripsage-origin-hubs { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.tripsage-sources { display: grid; gap: 0.35rem; margin-top: 0.65rem; }
+.tripsage-doc-sources { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--assistant-muted); }
+.tripsage-sources-label { display: inline-flex; align-items: center; gap: 0.25rem; font-weight: 600; color: var(--assistant-ink); }
+.tripsage-source-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0; padding: 0; list-style: none; }
+.tripsage-source-chip { display: inline-flex; align-items: center; padding: 0.18rem 0.6rem; border-radius: 999px; border: 1px solid var(--assistant-line); background: var(--assistant-soft); color: var(--assistant-ink); font-size: 0.78rem; max-width: 100%; overflow-wrap: anywhere; }
 .tripsage-timeline { display: grid; gap: 0.9rem; margin-top: 0.75rem; }
 .tripsage-timeline-day { padding: 0.75rem 0.9rem; border: 1px solid var(--assistant-line); border-radius: 12px; background: var(--assistant-card); }
 .tripsage-timeline-day h4 { margin: 0 0 0.5rem; font-weight: 700; color: var(--assistant-green); }

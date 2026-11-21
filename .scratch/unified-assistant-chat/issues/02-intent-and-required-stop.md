@@ -4,8 +4,10 @@
 
 **Blocked by:** 01
 
-**Status:** TODO (chưa được duyệt code)
+**Status:** DONE (2026-11-21)
 
-- [ ] Điểm bắt buộc kiểm ở server, id lạ bị từ chối.
-- [ ] Chip nguồn chỉ hiện tên tài liệu, không URL nội bộ.
-- [ ] Test route mô hình giả, typecheck.
+- [x] Điểm bắt buộc kiểm ở server, id lạ bị từ chối.
+- [x] Chip nguồn chỉ hiện tên tài liệu, không URL nội bộ.
+- [x] Test route mô hình giả, typecheck.
+
+**Ghi chú / chưa kiểm:** Live OpenAI cho phân loại 3 trường hợp ý định và hiển thị trình duyệt chưa chạy; kiểm tra ranh giới đã phủ đủ qua `MockLanguageModelV4` (validation `mustIncludeDestinationIds` ở `recordTripInfo` và `proposeItinerary`, `lookupLocalKnowledge` lọc URL nội bộ trong `data-sources`, `TripsageSourcesView` render chip tên tài liệu không kèm liên kết).

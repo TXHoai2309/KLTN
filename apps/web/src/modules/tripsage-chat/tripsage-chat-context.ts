@@ -41,6 +41,8 @@ export const tripInfoSchema = z.object({
   /** Departure and final-day return deadline clocks recorded in chat (ADR-43, minutes of the day 0-1439). */
   departureMinute: clock.optional(),
   returnDeadlineMinute: clock.optional(),
+  /** Required stops (ADR-43 §2, Glossary: Required stop): up to 4 destination IDs from `listDestinations`. */
+  mustIncludeDestinationIds: z.array(z.string().trim().min(1).max(128)).max(4).optional(),
   /** Where the traveler lives (free text city name, ticket 04); never coordinates. */
   homeCity: z.string().trim().min(1).max(80).optional(),
 }).strict();
@@ -81,6 +83,7 @@ export function resolveEffectiveJourney(journey: TripJourney | null | undefined,
 export function changesItinerary(previous: TripsageTripInfo | null, next: TripsageTripInfo): boolean {
   if (!previous) return false;
   if ((["transport", "durationDays", "startDate"] as const).some(key => previous[key] !== undefined && previous[key] !== next[key])) return true;
+  if ((previous.mustIncludeDestinationIds ?? []).join(",") !== (next.mustIncludeDestinationIds ?? []).join(",")) return true;
   return (previous.departureMinute ?? DEFAULT_DEPARTURE_MINUTE) !== (next.departureMinute ?? DEFAULT_DEPARTURE_MINUTE)
     || (previous.returnDeadlineMinute ?? DEFAULT_RETURN_DEADLINE_MINUTE) !== (next.returnDeadlineMinute ?? DEFAULT_RETURN_DEADLINE_MINUTE);
 }
@@ -124,6 +127,16 @@ export const originCandidatesPartSchema = z.object({
 export type OriginCandidatesPart = z.infer<typeof originCandidatesPartSchema>;
 export const journeyPartSchema = z.object({ journey: tripJourneySchema }).strict();
 export type JourneyPart = z.infer<typeof journeyPartSchema>;
+
+const safeDocumentTitle = z.string().trim().min(1).max(160)
+  .refine(value => !/https?:\/\/|\/api\/|blob\.vercel-storage\.com|\b(?:file|data|javascript):/iu.test(value));
+export const sourceItemSchema = z.union([
+  z.object({ domain: z.string().min(3).max(253).regex(/^[a-z0-9.-]+$/u) }).strict(),
+  z.object({ kind: z.literal("DOCUMENT"), title: safeDocumentTitle }).strict(),
+]);
+export const sourcesPartSchema = z.object({ sources: z.array(sourceItemSchema).min(1).max(12) }).strict();
+export type ChatSourceItem = z.infer<typeof sourceItemSchema>;
+export type SourcesPart = z.infer<typeof sourcesPartSchema>;
 
 export function buildTripsageChatBody(input: {
   messages: unknown[];
