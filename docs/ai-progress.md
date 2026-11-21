@@ -5832,3 +5832,11 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - **Completed:** Spec `docs/specs/tripsage-planning-concierge-spec.md`, ADR-42, glossary terms (Day timeline, Planning suggestion, Lodging suggestion, Cost estimate, Trip hub, Access leg, Price reference), tickets 01–04 under `.scratch/tripsage-planning-concierge/issues`. The AI-led intake spec is marked superseded.
 - **DB/migration changes:** None planned (extras are not saved).
 - **Next:** Implement tickets 01→04, one commit each.
+
+## 2026-11-21 — Planning concierge implementation (tickets 01–04)
+
+- **Branch:** `TXH`. One commit per ticket after the docs commit.
+- **Completed:** guided cluster questions (`recordTripInfo`, `requestOrigin`, `suggestReplies`), trip hubs, in-house safe markdown, terra/medium reasoning with 12 steps / 280 s; day timeline, `dayRhythm` (lunch 60–120 min, latest visit end 15:00–18:00) in the planner, `addSuggestions` with server distance checks, `searchPlaces` near a destination, `lookupLocalKnowledge` over the Q&A retriever; `estimateCosts` with server-computed fuel; `planAccessLeg` to a hub with hub hints. Review fixes B.1–B.3 included.
+- **DB/migration changes:** None. `dayRhythm` is an optional requirement field not used by Save.
+- **Validation:** `tsc --noEmit` clean; vitest suites above pass. Run vitest from PowerShell with `D:\` (lowercase `d:` in Git Bash breaks vitest suite discovery).
+- **Not run / open:** live provider and browser acceptance; price reference document needs Admin review and upload; `react-markdown` install was blocked, so a minimal in-house renderer is used.

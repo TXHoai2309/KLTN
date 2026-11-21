@@ -13,6 +13,7 @@ import { haversine } from "../trip-planner/planner-geography";
 import { SUGGESTION_KINDS, suggestionSchema, timelineSlotIds, type TimelineSuggestion } from "./tripsage-timeline";
 import { costLineInputSchema, estimateTripCost, PRICE_REFERENCE, type CostPart } from "./tripsage-cost";
 import { itineraryDistanceKm } from "./tripsage-chat-context";
+import { accessLegInputSchema, buildAccessLeg, isHubOrigin, LONG_OUTBOUND_MINUTES, type AccessLegPart } from "./tripsage-access-leg";
 import { domainOf, isSafePublicHttpsUrl, WEB_DATA_MARKER, type WebLookup } from "./tripsage-web";
 import { originRequestPartSchema, quickRepliesPartSchema, tripInfoSchema, withTripInfoDefaults, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
 import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
@@ -24,7 +25,7 @@ import { createTripsageExtraTools, type TripsageResultEmitters } from "./tripsag
 import { createMemoryTools, type MemoryToolContext } from "../tripsage-memory/memory-tools";
 
 /** Base allow-list. Optional tools are registered only for the request's enabled feature groups. */
-export const TRIPSAGE_CHAT_TOOL_NAMES = ["recordTripInfo", "requestOrigin", "suggestReplies", "listDestinations", "proposeItinerary", "searchPlaces", "addSuggestions", "lookupLocalKnowledge", "estimateCosts", "webSearch", "fetchPage"] as const;
+export const TRIPSAGE_CHAT_TOOL_NAMES = ["recordTripInfo", "requestOrigin", "suggestReplies", "listDestinations", "proposeItinerary", "searchPlaces", "addSuggestions", "lookupLocalKnowledge", "estimateCosts", "planAccessLeg", "webSearch", "fetchPage"] as const;
 export type TripsageChatToolName = (typeof TRIPSAGE_CHAT_TOOL_NAMES)[number];
 
 /** Per-turn caps (ADR-42 §6): 12 steps inside 280 s, under the route's `maxDuration` 300. */
@@ -38,6 +39,8 @@ export type TripsageToolContext = { planning: TripsagePlanningDeps; emitItinerar
   /** Reviewed local documents (same retriever as Q&A); absent means unavailable. */ knowledge?: LocalKnowledge;
   /** Streams validated suggestions attached to timeline slots. */ emitSuggestions?: (suggestions: TimelineSuggestion[]) => void;
   /** Streams the server-computed cost table. */ emitCost?: (cost: CostPart) => void;
+  /** Access leg shown earlier in the conversation (request context, re-validated). */ accessLeg?: AccessLegPart | null;
+  /** Streams the estimated access leg to a trip hub. */ emitAccessLeg?: (leg: AccessLegPart) => void;
   /** Compact summary of the itinerary currently shown (request context); used for suggestion slots when none was made this turn. */ currentItinerary?: TripsageItinerarySummary | null;
   emitTripInfo?: (tripInfo: TripsageTripInfo) => void; emitOriginRequest?: (data: { departureMinute: number; returnDeadlineMinute: number }) => void; emitQuickReplies?: (replies: string[]) => void;
   /** Google Places search (server key held inside); absent means unavailable. */ places?: PlacesSearch; maxPlacesCalls?: number;
@@ -85,6 +88,7 @@ const recordInputSchema = tripInfoSchema.extend({
   travelers: tripInfoSchema.shape.travelers.describe("Số người đi, 1-20."),
   lunchMinutes: tripInfoSchema.shape.lunchMinutes.describe("Độ dài nghỉ trưa người dùng muốn, 60-120 phút."),
   dayEndMinute: tripInfoSchema.shape.dayEndMinute.describe("Giờ muộn nhất kết thúc tham quan mỗi ngày, phút trong ngày, 900-1080 (15:00-18:00)."),
+  homeCity: tripInfoSchema.shape.homeCity.describe("Thành phố người dùng đang sống (chỉ tên), ví dụ TP Hồ Chí Minh."),
 }).strict();
 
 const UNAVAILABLE_TEXT = "Chưa lập được lịch trình lúc này. Hãy thử lại sau.";
@@ -122,6 +126,9 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   /** Stop ids per day of the itinerary suggestions attach to: this turn's newest proposal, else the one the browser shows. */
   let latestDays: string[][] | null = context.currentItinerary?.days.map(day => day.stops.map(stop => stop.id)) ?? null;
   let latestDistanceKm: number | null = context.currentItinerary?.distanceKm ?? null;
+  let latestAccessLeg: AccessLegPart | null = context.accessLeg ?? null;
+  /** Set when this turn's schedule shows that driving from the origin is not practical; the origin card may reopen. */
+  let hubSuggested = false;
 
   const recordTripInfo = tool({
     description: "Ghi thông tin chuyến đi người dùng vừa nói hoặc vừa đồng ý (chỉ các trường thay đổi). Phương tiện, số ngày, ngày đi chỉ ghi khi người dùng đã nói hoặc đồng ý gợi ý của bạn. Có hiệu lực ngay trong lượt này.",
@@ -143,7 +150,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       returnDeadlineMinute: originRequestPartSchema.shape.returnDeadlineMinute.describe("Hạn về gợi ý ngày cuối, phút trong ngày."),
     }).strict(),
     execute: async input => {
-      if (context.journey?.origin?.confirmed) return { ok: false as const, code: "ORIGIN_ALREADY_CONFIRMED", message: "Điểm xuất phát đã được xác nhận; không mở lại thẻ." };
+      if (context.journey?.origin?.confirmed && !hubSuggested) return { ok: false as const, code: "ORIGIN_ALREADY_CONFIRMED", message: "Điểm xuất phát đã được xác nhận; không mở lại thẻ." };
       if (originRequested) return { ok: false as const, code: "ORIGIN_ALREADY_REQUESTED", message: "Thẻ chọn điểm xuất phát đã mở trong lượt này." };
       originRequested = true;
       context.emitOriginRequest?.(input);
@@ -194,8 +201,12 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         context.emitItinerary(result);
         latestDays = result.days.map(day => day.stops.map(stop => stop.destination.id));
         latestDistanceKm = itineraryDistanceKm(result);
+        const outbound = result.journeyPlan?.legs.find(leg => leg.kind === "OUTBOUND");
+        const longDrive = result.reasonCodes.includes("OVERNIGHT_DRIVING_UNSUPPORTED") || (outbound?.route.durationSeconds ?? 0) / 60 > LONG_OUTBOUND_MINUTES;
+        if (longDrive && !isHubOrigin(context.journey?.origin?.label)) hubSuggested = true;
         const names = new Map(all.map(c => [c.id, c.name]));
         return { ok: true as const, status: result.status, eligibleForFinalConfirmation: result.eligibleForFinalConfirmation,
+          ...(hubSuggested ? { hubHint: "Lái xe thẳng từ điểm xuất phát không khả thi hoặc quá xa. Gợi ý người dùng bay hoặc đi xe khách tới điểm tập kết (Hà Nội hoặc TP Hà Giang) rồi thuê xe: hỏi thành phố họ ở (recordTripInfo homeCity), gọi requestOrigin để họ chọn điểm tập kết, và planAccessLeg để ước tính chặng tiếp cận." } : {}),
           days: result.days.map(day => ({ day: day.day, stops: day.stops.map(stop => names.get(stop.destination.id) ?? stop.destination.name) })),
           checks: result.checks.map(check => ({ key: check.key, status: check.status })),
           note: `Lịch đầy đủ đã hiển thị cho người dùng. Chỉ nhận xét ngắn; trạng thái khác PASS nghĩa là chưa được xác nhận.${external.length ? " Có địa điểm ngoài danh mục (Google Maps): chưa được kiểm tra, thời gian ở lại chỉ là ước tính, lịch này chưa thể lưu." : ""}` };
@@ -300,10 +311,24 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     execute: async input => {
       const { info } = withTripInfoDefaults(tripInfo);
       if (!info.transport || !info.durationDays) return { ok: false as const, code: "MISSING_REQUIRED_INFO", message: "Chưa có phương tiện và số ngày để ước tính chi phí." };
-      const cost = estimateTripCost({ transport: info.transport, travelers: info.travelers, days: info.durationDays, distanceKm: latestDistanceKm, fuelVndPerLiter: input.fuelVndPerLiter, budgetCap: input.budgetCap ?? null, lines: input.lines });
+      const extraLines = latestAccessLeg ? [{ category: "transport" as const, label: "Chặng tiếp cận (đi và về)", amount: latestAccessLeg.totalVnd, basis: `${latestAccessLeg.homeCity} ⇄ ${latestAccessLeg.hubName}, ${latestAccessLeg.travelers} người` }] : [];
+      const cost = estimateTripCost({ transport: info.transport, travelers: info.travelers, days: info.durationDays, distanceKm: latestDistanceKm, fuelVndPerLiter: input.fuelVndPerLiter, budgetCap: input.budgetCap ?? null, lines: input.lines, extraLines });
       context.emitCost?.(cost);
       return { ok: true as const, total: cost.total, perPersonPerDay: cost.perPersonPerDay, withinCap: cost.withinCap, overBy: cost.overBy, lines: cost.lines.map(({ label, amount }) => ({ label, amount })),
         note: "Bảng chi phí đã hiện cho người dùng. Chỉ nhận xét ngắn (khoản lớn nhất, cách tiết kiệm); nói rõ đây là ước tính. Không có ngân sách thì không kết luận vừa hay vượt." };
+    },
+  });
+
+  const planAccessLeg = tool({
+    description: "Ước tính chặng tiếp cận cho người ở xa: từ thành phố của họ tới điểm tập kết (HA_NOI hoặc HA_GIANG_CITY) và chiều về, gồm các chặng máy bay, xe khách giường nằm, tàu, xe trung chuyển với giờ, thời lượng và giá mỗi người ước tính (lấy từ bảng giá tham khảo hoặc searchFlights nếu có). Chặng này chỉ để tham khảo, không được kiểm tra, không đặt vé; số ngày chuyến đi tính từ điểm tập kết.",
+    inputSchema: accessLegInputSchema,
+    execute: async input => {
+      const { info } = withTripInfoDefaults(tripInfo);
+      if (!info.homeCity) return { ok: false as const, code: "MISSING_HOME_CITY", message: "Hỏi người dùng đang ở thành phố nào rồi ghi bằng recordTripInfo (homeCity)." };
+      latestAccessLeg = buildAccessLeg(input, info.homeCity, info.travelers);
+      context.emitAccessLeg?.(latestAccessLeg);
+      return { ok: true as const, outboundMinutes: latestAccessLeg.outboundMinutes, returnMinutes: latestAccessLeg.returnMinutes, totalVnd: latestAccessLeg.totalVnd,
+        note: `Chặng tiếp cận đã hiện cho người dùng (Trước chuyến đi / Sau chuyến đi). ${isHubOrigin(context.journey?.origin?.label) ? "" : "Điểm xuất phát hiện chưa phải điểm tập kết: mời người dùng chọn điểm tập kết trên thẻ để lập lịch phần đi xe."} estimateCosts sẽ tự cộng chặng này vào nhóm đi lại.` };
     },
   });
 
@@ -353,5 +378,5 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     destinationPoint,
   });
   const memory = context.features?.has("memory") ? createMemoryTools(context.memory) : {};
-  return { recordTripInfo, requestOrigin, suggestReplies, listDestinations, proposeItinerary, searchPlaces, addSuggestions, lookupLocalKnowledge, estimateCosts, webSearch, fetchPage, ...extra, ...memory } satisfies ToolSet;
+  return { recordTripInfo, requestOrigin, suggestReplies, listDestinations, proposeItinerary, searchPlaces, addSuggestions, lookupLocalKnowledge, estimateCosts, planAccessLeg, webSearch, fetchPage, ...extra, ...memory } satisfies ToolSet;
 }

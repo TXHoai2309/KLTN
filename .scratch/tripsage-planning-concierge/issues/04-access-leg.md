@@ -4,10 +4,10 @@
 
 **Blocked by:** 03
 
-**Status:** TODO
+**Status:** DONE (2026-11-21) — code + automated tests; live OpenAI/routing/browser acceptance not run.
 
-- [ ] `TRIP_HUBS` dùng chung cho nút trong thẻ điểm xuất phát; model chỉ thấy id/tên.
-- [ ] `planAccessLeg` kiểm biên (≤ 4 chặng mỗi chiều, thời lượng, giá), phát `data-access-leg`, không qua Validator, không lưu.
-- [ ] `proposeItinerary` trả gợi ý dùng điểm tập kết khi có `OVERNIGHT_DRIVING_UNSUPPORTED` hoặc chặng đầu > 10 giờ.
-- [ ] `estimateCosts` cộng chặng tiếp cận vào nhóm đi lại.
-- [ ] Test thuần, test route, typecheck.
+- [x] `TRIP_HUBS` dùng chung cho nút trong thẻ điểm xuất phát; model chỉ thấy id/tên.
+- [x] `planAccessLeg` kiểm biên (≤ 4 chặng mỗi chiều, thời lượng, giá), phát `data-access-leg`, không qua Validator, không lưu.
+- [x] `proposeItinerary` trả gợi ý dùng điểm tập kết khi có `OVERNIGHT_DRIVING_UNSUPPORTED` hoặc chặng đầu > 10 giờ.
+- [x] `estimateCosts` cộng chặng tiếp cận vào nhóm đi lại.
+- [x] Test thuần, test route, typecheck.

@@ -75,7 +75,7 @@ describe("quick replies part", () => {
 
 describe("buildTripsageChatBody", () => {
   it("sends tripInfo and currentItinerary beside journey", () => {
-    expect(buildTripsageChatBody({ messages: [], journey: null, tripInfo: null, itinerary: null })).toEqual({ messages: [], journey: null, tripInfo: null, currentItinerary: null });
+    expect(buildTripsageChatBody({ messages: [], journey: null, tripInfo: null, itinerary: null })).toEqual({ messages: [], journey: null, tripInfo: null, currentItinerary: null, accessLeg: null });
     const itinerary = { days: [] };
     expect(buildTripsageChatBody({ messages: [1], journey: null, tripInfo: INFO, itinerary })).toMatchObject({ tripInfo: INFO, currentItinerary: itinerary });
   });

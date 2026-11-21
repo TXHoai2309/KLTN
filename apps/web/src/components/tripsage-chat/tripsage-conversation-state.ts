@@ -7,6 +7,7 @@ import {
 } from "@/modules/tripsage-chat/tripsage-chat-context";
 import { suggestionsPartSchema, timelinePartSchema, type TimelinePart, type TimelineSuggestion } from "@/modules/tripsage-chat/tripsage-timeline";
 import { costPartSchema, type CostPart } from "@/modules/tripsage-chat/tripsage-cost";
+import { accessLegPartSchema, type AccessLegPart } from "@/modules/tripsage-chat/tripsage-access-leg";
 
 type Part = { type: string; data?: unknown };
 type Message = { id: string; role: string; parts: readonly Part[] };
@@ -25,6 +26,8 @@ export type ConversationState = {
   suggestions: TimelineSuggestion[];
   /** Newest cost table and the message carrying it. */
   cost: { messageId: string; data: CostPart } | null;
+  /** Newest access leg; sent back so later cost tables include it. */
+  accessLeg: { messageId: string; data: AccessLegPart } | null;
 };
 
 /** Reads the conversation in order; only schema-valid parts count. Quick replies and the origin card belong to the last assistant message only. */
@@ -37,6 +40,7 @@ export function readConversationState(messages: readonly Message[], isItinerary:
   let timeline: TimelinePart | null = null;
   let suggestions: TimelineSuggestion[] = [];
   let cost: ConversationState["cost"] = null;
+  let accessLeg: ConversationState["accessLeg"] = null;
   const lastAssistant = [...messages].reverse().find(message => message.role === "assistant");
   const lastIsAssistant = messages.at(-1)?.role === "assistant";
   for (const message of messages) {
@@ -55,6 +59,9 @@ export function readConversationState(messages: readonly Message[], isItinerary:
       } else if (part.type === "data-suggestions" && lastItineraryMessageId) {
         const parsed = suggestionsPartSchema.safeParse(part.data);
         if (parsed.success) suggestions = [...suggestions, ...parsed.data.suggestions];
+      } else if (part.type === "data-access-leg") {
+        const parsed = accessLegPartSchema.safeParse(part.data);
+        if (parsed.success) accessLeg = { messageId: message.id, data: parsed.data };
       } else if (part.type === "data-cost") {
         const parsed = costPartSchema.safeParse(part.data);
         if (parsed.success) cost = { messageId: message.id, data: parsed.data };
@@ -67,5 +74,5 @@ export function readConversationState(messages: readonly Message[], isItinerary:
       }
     }
   }
-  return { tripInfo, lastItineraryMessageId, itineraryStale, originRequest, quickReplies, timeline, suggestions, cost };
+  return { tripInfo, lastItineraryMessageId, itineraryStale, originRequest, quickReplies, timeline, suggestions, cost, accessLeg };
 }

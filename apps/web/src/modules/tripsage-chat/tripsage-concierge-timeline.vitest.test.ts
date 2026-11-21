@@ -13,6 +13,7 @@ import type { PlacesSearch } from "./tripsage-places";
 import { nearRectangle } from "./tripsage-places";
 import { suggestionsPartSchema, timelinePartSchema, timelineSlotIds, type TimelinePart } from "./tripsage-timeline";
 import { costPartSchema } from "./tripsage-cost";
+import { accessLegPartSchema } from "./tripsage-access-leg";
 
 let seq = 0;
 const auth = () => ({ database: { user: { findUnique: async () => ({ id: `tl-${seq}`, role: "TRAVELER", status: "ACTIVE" }) } }, resolveSession: async () => ({ user: { id: `tl-${++seq}` } }) }) as unknown as AuthorizationDependencies;
@@ -188,5 +189,47 @@ describe("cost estimate in the chat (ticket 03)", () => {
     const { all, fed } = await run([{ tool: "estimateCosts", input: { lines } }, { text: "Xong." }], { tripInfo: {} });
     expect(all.some(p => p.type === "data-cost")).toBe(false);
     expect(fed(1)).toContain("MISSING_REQUIRED_INFO");
+  });
+});
+
+describe("access leg to a trip hub (ticket 04)", () => {
+  const leg = {
+    hubId: "HA_GIANG_CITY",
+    outbound: [{ mode: "FLIGHT", from: "TP.HCM", to: "Hà Nội", departTime: "15:00", durationMinutes: 130, priceVndPerPerson: 1_500_000 }, { mode: "SLEEPER_BUS", from: "Hà Nội", to: "TP Hà Giang", departTime: "21:00", durationMinutes: 390, priceVndPerPerson: 300_000 }],
+    return: [{ mode: "SLEEPER_BUS", from: "TP Hà Giang", to: "Hà Nội", durationMinutes: 390, priceVndPerPerson: 300_000 }, { mode: "FLIGHT", from: "Hà Nội", to: "TP.HCM", durationMinutes: 130, priceVndPerPerson: 1_500_000 }],
+  };
+  const fromSaigon = { tripInfo: { ...TRIP_INFO_FIXTURE, homeCity: "TP Hồ Chí Minh", travelers: 2 } };
+
+  it("sums the estimated leg per traveler and adds it to the cost table's transport", async () => {
+    const { all } = await run([{ tool: "planAccessLeg", input: leg }, { tool: "estimateCosts", input: { lines: [{ category: "food", label: "Ăn", amount: 100_000 }] } }, { text: "Xong." }], fromSaigon);
+    const access = accessLegPartSchema.parse(all.find(p => p.type === "data-access-leg")!.data);
+    expect(access).toMatchObject({ hubName: "TP Hà Giang (bến xe phía Nam)", homeCity: "TP Hồ Chí Minh", outboundMinutes: 520, returnMinutes: 520, totalVnd: 2 * 3_600_000 });
+    const cost = costPartSchema.parse(all.find(p => p.type === "data-cost")!.data);
+    expect(cost.lines.find(line => line.label === "Chặng tiếp cận (đi và về)")).toMatchObject({ category: "transport", amount: 7_200_000, computed: true });
+  });
+
+  it("asks for the home city first and rejects an unknown hub or out-of-bounds segment", async () => {
+    expect((await run([{ tool: "planAccessLeg", input: leg }, { text: "Xong." }])).fed(1)).toContain("MISSING_HOME_CITY");
+    for (const bad of [{ ...leg, hubId: "SAIGON" }, { ...leg, outbound: [{ ...leg.outbound[0], durationMinutes: 5000 }] }]) {
+      const { all } = await run([{ tool: "planAccessLeg", input: bad }, { text: "Xong." }], fromSaigon);
+      expect(all.some(p => p.type === "data-access-leg")).toBe(false);
+    }
+  });
+
+  it("a leg sent back by the browser is re-validated and counted on a later turn", async () => {
+    const access = { hubName: "Hà Nội (bến xe Mỹ Đình)", homeCity: "Đà Nẵng", travelers: 1, outbound: leg.outbound, return: leg.return, outboundMinutes: 520, returnMinutes: 520, totalVnd: 3_600_000 };
+    const { all } = await run([{ tool: "estimateCosts", input: { lines: [{ category: "food", label: "Ăn", amount: 100_000 }] } }, { text: "Xong." }], { accessLeg: access });
+    expect(costPartSchema.parse(all.find(p => p.type === "data-cost")!.data).lines.some(line => line.amount === 3_600_000)).toBe(true);
+    const model = scripted([{ text: "x" }]);
+    const bad = await tripsageChatResponse(new Request("https://app.test/api/ai/chat", { method: "POST", headers: { origin: "https://app.test", "content-type": "application/json" },
+      body: JSON.stringify({ messages: [{ id: "m1", role: "user", parts: [{ type: "text", text: "hi" }] }], accessLeg: { ...access, totalVnd: -1 } }) }), { authorization: auth(), model: async () => model, env: { TRIPSAGE_CHAT_ENABLED: "true" }, admit: createPlanningAdmission(), planning: planning() });
+    expect(bad.status).toBe(400);
+  });
+
+  it("a very long drive from the origin returns a hub hint and lets the origin card reopen", async () => {
+    const longDrive = planning({ routes: { route: fixtureRoutes.route, coordinateRoute: async () => ({ status: "VERIFIED", reason: null, durationSeconds: 14 * 3600, distanceMeters: 1_700_000, provider: "STADIA_MAPS" }) } });
+    const { fed, all } = await run([propose([["a"]]), { tool: "requestOrigin", input: { departureMinute: 420, returnDeadlineMinute: 1080 } }, { text: "Xong." }], {}, { planning: longDrive });
+    expect(fed(1)).toContain("hubHint");
+    expect(all.some(p => p.type === "data-origin-request")).toBe(true);
   });
 });

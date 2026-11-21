@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { TripJourney } from "../trip-origin/trip-origin-contract";
 import type { PlannerResult } from "../trip-planner/planner-contract";
+import type { AccessLegPart } from "./tripsage-access-leg";
 import {
   INTEREST_VALUES,
   MAX_DURATION_DAYS,
@@ -31,6 +32,8 @@ export const tripInfoSchema = z.object({
   /** Day rhythm (ADR-42 §3): lunch 60-120 min, latest visit end 15:00-18:00 (minutes of the day). */
   lunchMinutes: z.number().int().min(60).max(120).optional(),
   dayEndMinute: z.number().int().min(900).max(1080).optional(),
+  /** Where the traveler lives (free text city name, ticket 04); never coordinates. */
+  homeCity: z.string().trim().min(1).max(80).optional(),
 }).strict();
 export type TripsageTripInfo = z.infer<typeof tripInfoSchema>;
 
@@ -81,6 +84,6 @@ export const quickRepliesPartSchema = z.object({ replies: z.array(z.string().tri
 const clock = z.number().int().min(0).max(1439);
 export const originRequestPartSchema = z.object({ departureMinute: clock, returnDeadlineMinute: clock }).strict();
 
-export function buildTripsageChatBody(input: { messages: unknown[]; journey: TripJourney | null; tripInfo: TripsageTripInfo | null; itinerary: TripsageItinerarySummary | null }) {
-  return { messages: input.messages, journey: input.journey, tripInfo: input.tripInfo, currentItinerary: input.itinerary };
+export function buildTripsageChatBody(input: { messages: unknown[]; journey: TripJourney | null; tripInfo: TripsageTripInfo | null; itinerary: TripsageItinerarySummary | null; accessLeg?: AccessLegPart | null }) {
+  return { messages: input.messages, journey: input.journey, tripInfo: input.tripInfo, currentItinerary: input.itinerary, accessLeg: input.accessLeg ?? null };
 }
