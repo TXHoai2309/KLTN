@@ -7,7 +7,7 @@ Thứ tự chạy (tuần tự): 01 → 02 → 03 → 04 → 05 → 06 → 07 �
 | # | Ticket | Blocked by | Trạng thái |
 |---|---|---|---|
 | 01 | [Ngày hôm nay và ngày tương đối](issues/01-today-date-relative-departure.md) | — | done |
-| 02 | [Hết lỗi 400 với tin nhắn ngắn](issues/02-short-message-400.md) | — | ready-for-agent |
+| 02 | [Hết lỗi 400 với tin nhắn ngắn](issues/02-short-message-400.md) | — | done |
 | 03 | [Quy tắc giọng văn](issues/03-tone-rules.md) | 01 | ready-for-agent |
 | 04 | [Bản nháp giả định trước, hỏi sau](issues/04-assumed-draft-first.md) | 01, 03 | ready-for-agent |
 | 05 | [Xác nhận điểm tập kết ngay lần đầu](issues/05-hub-confirmation.md) | — | ready-for-agent |

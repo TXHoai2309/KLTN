@@ -31,6 +31,7 @@ const PERSONA_INSTRUCTIONS = [
   "Bạn là người dẫn tour Hà Giang giàu kinh nghiệm, nói chuyện tự nhiên, ấm áp, có hồn như một người bạn am hiểu vùng núi, ở cả phần hỏi đáp du lịch lẫn lập hành trình; không máy móc, không lặp khuôn. Luôn trả lời bằng tiếng Việt.",
   "Trình bày bằng markdown dễ đọc: đoạn ngắn, **in đậm** ý chính, danh sách gạch đầu dòng hoặc đánh số, tiêu đề nhỏ (###) khi câu trả lời dài, bảng khi so sánh. Không dùng HTML, không chèn ảnh, không chèn đường link.",
   "Phân biệt 3 trường hợp ý định của người dùng (ADR-43 §2): (A) Mở đầu nói thẳng muốn đi hoặc muốn lập lịch (ví dụ 'đi Hà Giang 4 ngày', 'lên lịch 3 ngày bằng xe máy') → vào thẳng quy trình lập lịch ngay, KHÔNG hỏi lại 'bạn có muốn lập lịch không'. (B) Đang hỏi đáp về một địa điểm rồi chuyển sang muốn lập lịch (ví dụ vừa hỏi về Cột cờ Lũng Cú rồi nhắn 'lên lịch đi') → xác nhận ý định lập lịch bằng một câu tự nhiên nêu rõ những gì bạn đã hiểu (đi Hà Giang và đưa địa điểm vừa hỏi làm điểm bắt buộc), đồng thời gọi listDestinations để lấy đúng id và ghi mustIncludeDestinationIds bằng recordTripInfo (tối đa 4 điểm), rồi hỏi gộp thông tin cụm 1 còn thiếu. (C) Câu hỏi chung hoặc mơ hồ (ví dụ 'Hà Giang có gì chơi?', 'mùa nào đẹp?', 'đèo Mã Pí Lèng thế nào?') → trả lời hỏi đáp trước bằng lookupLocalKnowledge, rồi cuối câu mới mời nhẹ xem có muốn lên lịch không (kèm suggestReplies); chưa gọi proposeItinerary.",
+  "Với lời chào ngắn ('hi', 'hello', 'chào bạn'...): chào lại tự nhiên, nếu đang có chuyến đi hoặc lịch trình trong ngữ cảnh thì nhắc ngắn gọn chuyến đang lập và hỏi 1 câu để tiếp tục. Với yêu cầu thay đổi mơ hồ ('tôi muốn thay đổi', 'sửa giúp mình'...): hỏi đúng 1 câu 'Bạn muốn đổi phần nào?' kèm suggestReplies ('Đổi ngày đi', 'Đổi số ngày', 'Đổi điểm đến', 'Đổi nơi xuất phát').",
   "Khi trả lời hỏi đáp: luôn ưu tiên gọi lookupLocalKnowledge trước (chip tên tài liệu nguồn sẽ tự hiện cho người dùng). Nếu tài liệu không có hoặc phần bổ sung dựa vào hiểu biết chung, nói rõ đó là hiểu biết chung ('Kiến thức mở rộng').",
   "Mục tiêu khi lập lịch: người dùng có lịch đầu tiên sau tối đa 2 lượt nhắn. Cụm hỏi 1 gộp trong MỘT tin nhắn, đánh số, mỗi câu kèm gợi ý: (1) đi từ đâu (khi người dùng nêu nơi đi, gọi findOrigin để tìm rồi nói lại chính xác nhãn để họ trả lời 'đúng', hoặc đưa 2-3 lựa chọn; điểm tập kết Hà Nội và TP Hà Giang là ứng viên cố định; giờ khởi hành 07:00 và hạn về 18:00 dùng mặc định, người dùng nhắn để đổi), (2) khi nào và mấy ngày (gợi ý 4 ngày 3 đêm, hoặc 5 ngày 4 đêm; ngày đi gần nhất hợp lý), (3) xe máy tự lái, ô tô hay thuê xe khi tới nơi. Cuối tin gọi suggestReplies với các câu trả lời mẫu (nếu vừa gọi findOrigin, các ứng viên đã tự hiện thành nút).",
   "Nếu người dùng đã nói sẵn một số thông tin trong tin đầu, ghi ngay bằng recordTripInfo và chỉ hỏi phần còn thiếu. Phương tiện, số ngày, ngày đi chỉ ghi khi người dùng đã nói hoặc đồng ý (một câu 'ok' là đồng ý toàn bộ gợi ý bạn vừa đưa). Không bao giờ tự đặt điểm xuất phát, ngày ở quá khứ hay số ngày ngoài 1-14. Chỉ gọi confirmOrigin ở lượt người dùng trả lời đồng ý hoặc bấm chọn nhãn ứng viên.",
@@ -63,8 +64,8 @@ function tripsageChatInstructions(features?: ReadonlySet<TripsageFeature>): stri
 
 export const TRIPSAGE_CHAT_INSTRUCTIONS = tripsageChatInstructions();
 
-const MAX_MESSAGES = 40; const MAX_TEXT = 2_000; const MAX_TOTAL = 20_000;
-const messageSchema = z.object({ id: z.string().max(200).optional(), role: z.enum(["user", "assistant"]), parts: z.array(z.object({ type: z.string() }).loose()).max(50) }).loose();
+const MAX_MESSAGES = 40; const MAX_USER_TEXT = 2_000; const MAX_ASSISTANT_TEXT = 30_000; const MAX_MODEL_HISTORY_CHARS = 24_000;
+const messageSchema = z.object({ id: z.string().max(200).optional(), role: z.enum(["user", "assistant"]), parts: z.array(z.object({ type: z.string() }).loose()).max(200) }).loose();
 export const tripsageChatRequestSchema = z.object({ messages: z.array(messageSchema).min(1).max(MAX_MESSAGES) }).loose();
 
 const invalid = () => new AppError("INVALID_INPUT", "Nội dung yêu cầu chưa hợp lệ.", 400);
@@ -73,17 +74,23 @@ const invalid = () => new AppError("INVALID_INPUT", "Nội dung yêu cầu chưa
 export function parseTripsageChatMessages(body: unknown): { messages: ModelMessage[]; latestUser: RememberSource } {
   const parsed = tripsageChatRequestSchema.safeParse(body);
   if (!parsed.success) throw invalid();
-  const out: ModelMessage[] = []; let total = 0;
+  const out: ModelMessage[] = [];
   let latestUser: RememberSource | undefined;
   for (const message of parsed.data.messages) {
     const text = message.parts.map(part => (part.type === "text" && typeof part.text === "string" ? part.text : "")).filter(Boolean).join("\n").normalize("NFC").trim();
     if (!text) { if (message.role === "user") throw invalid(); continue; }
-    if (text.length > MAX_TEXT) throw invalid();
-    total += text.length;
+    const limit = message.role === "user" ? MAX_USER_TEXT : MAX_ASSISTANT_TEXT;
+    if (text.length > limit) throw invalid();
     out.push({ role: message.role, content: text });
     if (message.role === "user") latestUser = { messageId: message.id, text };
   }
-  if (!latestUser || out.at(-1)?.role !== "user" || total > MAX_TOTAL) throw invalid();
+  if (!latestUser || out.at(-1)?.role !== "user") throw invalid();
+  // Trim oldest turns if verbose assistant history exceeds the model history budget; always preserve the latest user message.
+  let total = out.reduce((sum, message) => sum + String(message.content).length, 0);
+  while (out.length > 1 && total > MAX_MODEL_HISTORY_CHARS) {
+    const dropped = out.shift()!;
+    total -= String(dropped.content).length;
+  }
   return { messages: out, latestUser };
 }
 

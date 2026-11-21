@@ -93,7 +93,7 @@ const minute = z.number().int().min(0).max(1440).nullable();
 export const tripsageItinerarySummarySchema = z.object({
   days: z.array(z.object({
     day: z.number().int().min(1).max(MAX_DURATION_DAYS),
-    stops: z.array(z.object({ id: z.string().min(1).max(120), name: z.string().min(1).max(200), arrivalMinute: minute, departureMinute: minute }).strict()).max(4),
+    stops: z.array(z.object({ id: z.string().min(1).max(320), name: z.string().min(1).max(200), arrivalMinute: minute, departureMinute: minute }).strict()).max(4),
   }).strict()).max(MAX_DURATION_DAYS),
   /** Routed distance of the whole trip, for the fuel estimate only (never a validation input). */
   distanceKm: z.number().min(0).max(10_000).nullable().optional(),
@@ -138,6 +138,39 @@ export const sourcesPartSchema = z.object({ sources: z.array(sourceItemSchema).m
 export type ChatSourceItem = z.infer<typeof sourceItemSchema>;
 export type SourcesPart = z.infer<typeof sourcesPartSchema>;
 
+const MAX_CLIENT_HISTORY_MESSAGES = 40;
+
+/**
+ * Strips bulky non-text UI/tool/data parts (such as full `data-itinerary` geometries) before POSTing `messages`
+ * to `/api/ai/chat`, because the server only reads text parts from `messages` and receives structured state
+ * separately via `journey`, `tripInfo`, `currentItinerary` and `accessLeg`.
+ */
+export function compactChatMessagesForRequest(messages: readonly unknown[]): unknown[] {
+  const compacted: unknown[] = [];
+  for (const item of messages) {
+    if (!item || typeof item !== "object" || !Array.isArray((item as { parts?: unknown }).parts)) {
+      compacted.push(item);
+      continue;
+    }
+    const record = item as { id?: unknown; role?: unknown; parts: unknown[] };
+    const textParts = record.parts.flatMap(part => {
+      if (part && typeof part === "object" && (part as { type?: unknown }).type === "text" && typeof (part as { text?: unknown }).text === "string") {
+        return [{ type: "text", text: (part as { text: string }).text }];
+      }
+      return [];
+    });
+    if (record.role === "assistant" && textParts.length === 0) continue;
+    compacted.push({
+      ...(typeof record.id === "string" ? { id: record.id } : {}),
+      role: record.role,
+      parts: textParts,
+    });
+  }
+  return compacted.length > MAX_CLIENT_HISTORY_MESSAGES
+    ? compacted.slice(-MAX_CLIENT_HISTORY_MESSAGES)
+    : compacted;
+}
+
 export function buildTripsageChatBody(input: {
   messages: unknown[];
   journey: TripJourney | null;
@@ -148,7 +181,7 @@ export function buildTripsageChatBody(input: {
   conversationId?: string | null;
 }) {
   return {
-    messages: input.messages,
+    messages: compactChatMessagesForRequest(input.messages),
     journey: input.journey,
     tripInfo: input.tripInfo,
     currentItinerary: input.itinerary,
