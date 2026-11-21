@@ -99,6 +99,7 @@ export function TripsageTimelineView({
               </span>
               <div className="tripsage-timeline-body">
                 <span className="tripsage-timeline-title">{item.label}</span>
+                {item.description && <p className="tripsage-timeline-desc">{item.description}</p>}
                 {(bySlot.get(item.slotId) ?? []).map((suggestion, index) => (
                   <p key={index} className="tripsage-suggestion">
                     {SUGGESTION_ICON[suggestion.kind]}

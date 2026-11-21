@@ -21,6 +21,7 @@ export const timelinePartSchema = z.object({
       startMinute: minute,
       endMinute: minute,
       label: z.string().min(1).max(200),
+      description: z.string().trim().min(1).max(220).optional(),
     }).strict()).max(20),
   }).strict()).min(1).max(14),
 }).strict();
@@ -60,6 +61,17 @@ function lunchAfter(stops: PlannerResult["days"][number]["stops"]): number | nul
     if (departure !== null && departure >= LUNCH_WINDOW.fromMinute && departure <= LUNCH_WINDOW.toMinute) return departure;
   }
   return null;
+}
+
+/** Formats a concise 1-line catalog description for a VISIT slot; returns undefined if empty (never invents). */
+export function formatVisitDescription(raw: string | null | undefined): string | undefined {
+  const cleaned = (raw ?? "").replace(/\s+/gu, " ").trim();
+  if (!cleaned) return undefined;
+  if (cleaned.length <= 160) return cleaned;
+  const firstSentence = cleaned.match(/^.+?[.!?](?=\s|$)/u)?.[0]?.trim();
+  if (firstSentence && firstSentence.length >= 24 && firstSentence.length <= 180) return firstSentence;
+  const cut = cleaned.slice(0, 159).replace(/\s+\S*$/u, "").trim();
+  return `${cut || cleaned.slice(0, 159)}…`;
 }
 
 /** Formats overnight area without duplicating "khu vực" (e.g. "khu vực Hà Giang" → "Nghỉ đêm khu vực Hà Giang"). */
@@ -116,7 +128,15 @@ export function buildDayTimeline(result: PlannerResult): TimelinePart {
           const minutes = stop.inbound.durationSeconds === null ? null : Math.ceil(stop.inbound.durationSeconds / 60);
           items.push({ slotId: `d${day.day}-drive-${index}`, kind: "DRIVE", startMinute: null, endMinute: stop.arrivalMinute, label: minutes === null ? "Di chuyển (chưa có dữ liệu tuyến)" : `Di chuyển khoảng ${minutes} phút` });
         }
-        items.push({ slotId: `d${day.day}-visit-${index + 1}`, kind: "VISIT", startMinute: stop.arrivalMinute, endMinute: stop.departureMinute, label: stop.destination.name });
+        const description = formatVisitDescription(stop.destination.description);
+        items.push({
+          slotId: `d${day.day}-visit-${index + 1}`,
+          kind: "VISIT",
+          startMinute: stop.arrivalMinute,
+          endMinute: stop.departureMinute,
+          label: stop.destination.name,
+          ...(description ? { description } : {}),
+        });
         if (lunch !== null && stop.departureMinute === lunch && index < day.stops.length - 1) {
           items.push({ slotId: `d${day.day}-lunch`, kind: "LUNCH", startMinute: lunch, endMinute: lunch + lunchMinutes, label: `Nghỉ trưa ${lunchMinutes} phút` });
         }
