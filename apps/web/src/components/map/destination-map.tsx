@@ -4,12 +4,8 @@ import { useTheme } from "next-themes";
 import type { PublicLocation } from "@/modules/destination/public-destination-list";
 import type { ExploreReturnHref } from "@/modules/destination/destination-detail-navigation";
 import { projectMarkers, type RouteGeometry } from "@/modules/map/map-model";
-<<<<<<< HEAD
-import { mapStyle } from "@/modules/map/map-config";
+import { mapStyle, readMapBackground, saveMapBackground, type MapBackground } from "@/modules/map/map-config";
 import { loadMapLibrary, mountDestinationMap, type MapStyleController } from "@/modules/map/map-renderer";
-=======
-import { loadMapLibre, mapStyle, readMapBackground, saveMapBackground, type MapBackground } from "@/modules/map/map-config";
->>>>>>> 2ef331b5043d8bbbdf721c91f9edda31e322b75a
 import { startMapSession } from "@/modules/map/map-session";
 
 export default function DestinationMap({ destinations, label = "Bản đồ điểm đến Hà Giang", returnTo, routeGeometry, disableDefaultPopup = false }: {
