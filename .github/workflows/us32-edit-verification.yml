@@ -1,0 +1,56 @@
+name: US-32 Trip Edit Verification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths:
+      - "apps/web/src/modules/trip-edit/**"
+      - "apps/web/src/app/api/trips/[id]/edits/**"
+      - "apps/web/src/app/trips/[id]/edit/**"
+      - ".github/workflows/us32-edit-verification.yml"
+  pull_request:
+    paths:
+      - "apps/web/src/modules/trip-edit/**"
+      - "apps/web/src/app/api/trips/[id]/edits/**"
+      - "apps/web/src/app/trips/[id]/edit/**"
+
+jobs:
+  verify-us32:
+    name: Run US-32 Automated Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run US-32 Vitest Suite
+        run: |
+          npx vitest run --config vitest.config.mts \
+            src/modules/trip-edit/us32-test.vitest.test.ts \
+            src/modules/trip-edit/trip-edit-http.vitest.test.ts \
+            src/modules/trip-edit/apply-edit.vitest.test.ts \
+            src/modules/trip-edit/edit-apply-state.vitest.test.ts \
+            src/modules/trip-edit/trip-edit-service.vitest.test.ts \
+            --reporter=verbose | tee us32-ci-report.txt
+
+      - name: Upload US-32 Test Evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: us32-verification-evidence
+          path: apps/web/us32-ci-report.txt
+          retention-days: 30
