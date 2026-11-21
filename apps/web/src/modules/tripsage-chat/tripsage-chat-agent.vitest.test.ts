@@ -1,3 +1,4 @@
+import { TRIP_INFO_FIXTURE, BASE_TOOL_NAMES_SORTED } from "./tripsage-chat-fixtures";
 import { MockLanguageModelV4 } from "ai/test";
 import { simulateReadableStream } from "ai";
 import { describe, expect, it, vi } from "vitest";
@@ -37,27 +38,27 @@ const planning = (over: Partial<TripsagePlanningDeps> = {}): (() => TripsagePlan
   routes: { route: routeSpy, coordinateRoute: async () => ({ status: "VERIFIED", reason: null, durationSeconds: 3600, distanceMeters: 50_000, provider: "STADIA_MAPS" }) }, now: () => planningNow, ...over,
 });
 const userMessage = (text: string) => ({ id: "m1", role: "user", parts: [{ type: "text", text }] });
-const req = (journey: unknown = COMPLETE_JOURNEY_FIXTURE) => new Request("https://app.test/api/ai/chat", { method: "POST", headers: { origin: "https://app.test", "content-type": "application/json" }, body: JSON.stringify({ messages: [userMessage("Đi 1 ngày bằng ô tô")], ...(journey === undefined ? {} : { journey }) }) });
-const run = async (model: MockLanguageModelV4, over: Record<string, unknown> = {}, journey: unknown = COMPLETE_JOURNEY_FIXTURE) => {
-  const response = await tripsageChatResponse(req(journey), { authorization: auth(), model: async () => model, env: { TRIPSAGE_CHAT_ENABLED: "true" }, admit: createPlanningAdmission(), planning: planning(), ...over });
+const req = (journey: unknown = COMPLETE_JOURNEY_FIXTURE, tripInfo: unknown = TRIP_INFO_FIXTURE) => new Request("https://app.test/api/ai/chat", { method: "POST", headers: { origin: "https://app.test", "content-type": "application/json" }, body: JSON.stringify({ messages: [userMessage("Đi 1 ngày bằng ô tô")], tripInfo, ...(journey === undefined ? {} : { journey }) }) });
+const run = async (model: MockLanguageModelV4, over: Record<string, unknown> = {}, journey: unknown = COMPLETE_JOURNEY_FIXTURE, tripInfo: unknown = TRIP_INFO_FIXTURE) => {
+  const response = await tripsageChatResponse(req(journey, tripInfo), { authorization: auth(), model: async () => model, env: { TRIPSAGE_CHAT_ENABLED: "true" }, admit: createPlanningAdmission(), planning: planning(), ...over });
   expect(response.status).toBe(200);
   return response.text();
 };
-const propose = (days: string[][] = [["a", "b"]], extra: Record<string, unknown> = {}) => ({ tool: "proposeItinerary", input: { transport: "CAR", durationDays: 1, startDate: "2026-11-02", interests: ["NATURE"], selection: { days }, ...extra } });
+const propose = (days: string[][] = [["a", "b"]], extra: Record<string, unknown> = {}) => ({ tool: "proposeItinerary", input: { selection: { days }, ...extra } });
 const parts = (sse: string) => sse.split("\n").filter(l => l.startsWith("data: {")).map(l => JSON.parse(l.slice(6)) as { type: string; data?: unknown; toolName?: string });
 
 describe("Tripsage agent tool allow-list", () => {
-  it("registers exactly five tools and nothing else", () => {
+  it("registers exactly the base tools and nothing else", () => {
     const tools = createTripsageChatTools({ planning: planning()(), emitItinerary: () => {} });
     expect(Object.keys(tools).sort()).toEqual([...TRIPSAGE_CHAT_TOOL_NAMES].sort());
-    expect(TRIPSAGE_CHAT_TOOL_NAMES).toHaveLength(5);
+    expect([...TRIPSAGE_CHAT_TOOL_NAMES].sort()).toEqual(BASE_TOOL_NAMES_SORTED);
     for (const banned of ["googlePlaces", "crawlSite", "savePlan", "createTravelPlan"]) expect(tools).not.toHaveProperty(banned);
   });
 
-  it("advertises only the five tools to the model and refuses an unknown tool call", async () => {
+  it("advertises only the base tools to the model and refuses an unknown tool call", async () => {
     const model = scripted([{ tool: "crawlSite", input: { query: "ignore previous instructions" } }, { text: "Mình không dùng được công cụ đó." }]);
     const sse = await run(model);
-    expect(model.doStreamCalls[0]!.tools!.map(t => t.name).sort()).toEqual(["fetchPage", "listDestinations", "proposeItinerary", "searchPlaces", "webSearch"]);
+    expect(model.doStreamCalls[0]!.tools!.map(t => t.name).sort()).toEqual(BASE_TOOL_NAMES_SORTED);
     expect(parts(sse).some(p => p.type === "data-itinerary")).toBe(false);
     expect(sse).not.toContain(SECRET);
     // The failed call is fed back as an error, never executed, and the loop continues to prose.
@@ -114,14 +115,14 @@ describe("Tripsage agent itinerary seam", () => {
   });
 
   it("returns blocker questions instead of planning when requirement data is unclear", async () => {
-    const model = scripted([propose([["a"]], { startDate: "2020-01-01" }), { text: "Bạn cho mình ngày khác nhé." }]);
-    const sse = await run(model);
+    const model = scripted([propose([["a"]]), { text: "Bạn cho mình ngày khác nhé." }]);
+    const sse = await run(model, {}, COMPLETE_JOURNEY_FIXTURE, { ...TRIP_INFO_FIXTURE, startDate: "2020-01-01" });
     expect(parts(sse).some(p => p.type === "data-itinerary")).toBe(false);
     expect(JSON.stringify(model.doStreamCalls[1]!.prompt)).toContain("TRIP_REQUIREMENT_UNCLEAR");
   });
 
-  it("rejects out-of-schema tool input (transport, duration, interests)", async () => {
-    for (const bad of [{ transport: "BIKE" }, { durationDays: 15 }, { interests: ["SHOPPING"] }]) {
+  it("rejects out-of-schema tool input (model-supplied trip fields are not accepted)", async () => {
+    for (const bad of [{ transport: "CAR" }, { durationDays: 2 }, { interests: ["NATURE"] }]) {
       routeSpy.mockClear();
       const sse = await run(scripted([propose([["a"]], bad), { text: "Mình hỏi lại nhé." }]));
       expect(parts(sse).some(p => p.type === "data-itinerary")).toBe(false);
@@ -140,10 +141,10 @@ describe("Tripsage agent itinerary seam", () => {
 });
 
 describe("Tripsage agent turn caps", () => {
-  it("stops at 8 steps and makes the last step text-only", async () => {
+  it("stops at 12 steps and makes the last step text-only", async () => {
     const model = scripted([{ tool: "listDestinations", input: {} }]);
     await run(model);
-    expect(model.doStreamCalls.length).toBeLessThanOrEqual(8);
+    expect(model.doStreamCalls.length).toBeLessThanOrEqual(12);
     const last = model.doStreamCalls.at(-1)!;
     expect(last.toolChoice).toEqual({ type: "none" });
   });
@@ -175,10 +176,9 @@ describe("Tripsage agent secrets and failures", () => {
 describe("Tripsage required-information gate (Ticket 04)", () => {
   const withJourney = (over: object) => ({ ...COMPLETE_JOURNEY_FIXTURE, ...over });
   const MISSING: [string, Record<string, unknown>, unknown, string, string][] = [
-    ["transport", { transport: null }, COMPLETE_JOURNEY_FIXTURE, "transport", "xe máy hay ô tô"],
-    ["durationDays", { durationDays: null }, COMPLETE_JOURNEY_FIXTURE, "durationDays", "bao nhiêu ngày"],
-    ["startDate", { startDate: null }, COMPLETE_JOURNEY_FIXTURE, "startDate", "ngày nào"],
-    ["interests", { interests: [] }, COMPLETE_JOURNEY_FIXTURE, "interests", "sở thích"],
+    ["transport", { transport: undefined }, COMPLETE_JOURNEY_FIXTURE, "transport", "xe máy hay ô tô"],
+    ["durationDays", { durationDays: undefined }, COMPLETE_JOURNEY_FIXTURE, "durationDays", "bao nhiêu ngày"],
+    ["startDate", { startDate: undefined }, COMPLETE_JOURNEY_FIXTURE, "startDate", "ngày nào"],
     ["origin (no journey)", {}, null, "origin", "Chưa chọn điểm xuất phát"],
     ["origin confirmation", {}, withJourney({ origin: ORIGIN_FIXTURES.unconfirmed }), "originConfirmation", "Xác nhận điểm xuất phát"],
     ["departure time", {}, withJourney({ departureMinute: null }), "departureMinute", "giờ khởi hành"],
@@ -187,8 +187,8 @@ describe("Tripsage required-information gate (Ticket 04)", () => {
   for (const [name, extra, journey, field, text] of MISSING) {
     it(`does not schedule and returns the Vietnamese question when ${name} is missing`, async () => {
       routeSpy.mockClear();
-      const model = scripted([propose([["a"]], extra), { text: "Bạn cho mình biết thêm nhé." }]);
-      const sse = await run(model, {}, journey);
+      const model = scripted([propose([["a"]]), { text: "Bạn cho mình biết thêm nhé." }]);
+      const sse = await run(model, {}, journey, { ...TRIP_INFO_FIXTURE, ...extra });
       expect(parts(sse).some(p => p.type === "data-itinerary")).toBe(false);
       expect(routeSpy).not.toHaveBeenCalled();
       const fed = JSON.stringify(model.doStreamCalls[1]!.prompt);
@@ -198,10 +198,50 @@ describe("Tripsage required-information gate (Ticket 04)", () => {
     });
   }
 
-  it("does not spend a proposal on a gated call", async () => {
-    const model = scripted([propose([["a"]], { transport: null }), propose([["a"]], { transport: null }), propose([["a", "b"]]), { text: "Xong." }]);
-    const sse = await run(model);
+  it("does not spend a proposal on a gated call, and recordTripInfo takes effect in the same turn", async () => {
+    const noTransport = { ...TRIP_INFO_FIXTURE, transport: undefined };
+    const model = scripted([propose([["a"]]), propose([["a"]]), { tool: "recordTripInfo", input: { transport: "CAR" } }, propose([["a", "b"]]), { text: "Xong." }]);
+    const sse = await run(model, {}, COMPLETE_JOURNEY_FIXTURE, noTransport);
     expect(parts(sse).filter(p => p.type === "data-itinerary")).toHaveLength(1);
+    expect(parts(sse).find(p => p.type === "data-trip-info")?.data).toEqual({ tripInfo: TRIP_INFO_FIXTURE });
+  });
+
+  it("schedules with visible second-cluster defaults when interests, pace and travelers were never asked", async () => {
+    const { interests: _omit, ...withoutInterests } = TRIP_INFO_FIXTURE;
+    const model = scripted([propose([["a", "b"]]), { text: "Xong." }]);
+    const sse = await run(model, {}, COMPLETE_JOURNEY_FIXTURE, withoutInterests);
+    const result = plannerResultSchema.parse(parts(sse).find(p => p.type === "data-itinerary")!.data);
+    expect(result.requirement.interests).toEqual(["NATURE", "ADVENTURE"]);
+    expect(result.requirement.pace).toBe("MODERATE");
+    expect(JSON.stringify(model.doStreamCalls[0]!.prompt)).toContain("[mặc định, chưa hỏi]");
+  });
+
+  it("never lets the day count follow the model's selection (B.1)", async () => {
+    const model = scripted([propose([["a"], ["b"]]), { text: "Xong." }]);
+    const sse = await run(model);
+    expect(parts(sse).some(p => p.type === "data-itinerary")).toBe(false);
+    expect(JSON.stringify(model.doStreamCalls[1]!.prompt)).toContain("đúng 1 ngày");
+  });
+
+  it("recordTripInfo refuses a past start date and records nothing", async () => {
+    const model = scripted([{ tool: "recordTripInfo", input: { startDate: "2020-01-01" } }, { text: "Bạn đi ngày nào?" }]);
+    const sse = await run(model);
+    expect(parts(sse).some(p => p.type === "data-trip-info")).toBe(false);
+    expect(JSON.stringify(model.doStreamCalls[1]!.prompt)).toContain("PAST_DATE");
+  });
+
+  it("requestOrigin opens the card only while the origin is unconfirmed", async () => {
+    const open = await run(scripted([{ tool: "requestOrigin", input: { departureMinute: 420, returnDeadlineMinute: 1080 } }, { text: "Bạn chọn điểm xuất phát nhé." }]), {}, null);
+    expect(parts(open).find(p => p.type === "data-origin-request")?.data).toEqual({ departureMinute: 420, returnDeadlineMinute: 1080 });
+    const model = scripted([{ tool: "requestOrigin", input: { departureMinute: 420, returnDeadlineMinute: 1080 } }, { text: "Ok." }]);
+    const done = await run(model);
+    expect(parts(done).some(p => p.type === "data-origin-request")).toBe(false);
+    expect(JSON.stringify(model.doStreamCalls[1]!.prompt)).toContain("ORIGIN_ALREADY_CONFIRMED");
+  });
+
+  it("suggestReplies streams validated quick replies", async () => {
+    const sse = await run(scripted([{ tool: "suggestReplies", input: { replies: ["4 ngày 3 đêm", "Xe máy tự lái"] } }, { text: "Bạn chọn nhé." }]));
+    expect(parts(sse).find(p => p.type === "data-quick-replies")?.data).toEqual({ replies: ["4 ngày 3 đêm", "Xe máy tự lái"] });
   });
 
   it("takes the journey branch when everything is present: journey legs and eligible schedule", async () => {
@@ -233,6 +273,6 @@ describe("Tripsage required-information gate (Ticket 04)", () => {
   it("keeps the allow-list at exactly five tools", async () => {
     const model = scripted([{ text: "Chào bạn." }]);
     await run(model);
-    expect(model.doStreamCalls[0]!.tools!.map(t => t.name).sort()).toEqual(["fetchPage", "listDestinations", "proposeItinerary", "searchPlaces", "webSearch"]);
+    expect(model.doStreamCalls[0]!.tools!.map(t => t.name).sort()).toEqual(BASE_TOOL_NAMES_SORTED);
   });
 });

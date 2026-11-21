@@ -123,7 +123,7 @@ describe("Tripsage chat stream route", () => {
 });
 
 describe("Tripsage OpenAI provider", () => {
-  it("forces store:false, caps tokens, never redirects, and sends the key only upstream", async () => {
+  it("forces store:false, sets no output-token cap, never redirects, and sends the key only upstream", async () => {
     const fetcher = vi.fn(async (_url: unknown, init?: RequestInit) => new Response(`data: {"id":"1","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"content":"ok"},"finish_reason":null}]}\n\ndata: [DONE]\n\n`, { headers: { "content-type": "text/event-stream" } }));
     const model = await resolveTripsageChatModel({ apiKey: () => SECRET, model: "gpt-test", fetcher: fetcher as unknown as typeof fetch });
     const response = await tripsageChatResponse(req({ messages: [userMessage("chào")] }), deps({ model: async () => model }));
@@ -134,19 +134,19 @@ describe("Tripsage OpenAI provider", () => {
     expect(String(url)).toBe("https://api.openai.com/v1/responses");
     const payload = JSON.parse(init.body as string);
     expect(payload.store).toBe(false);
-    expect(payload.max_output_tokens).toBeLessThanOrEqual(8000);
+    expect(payload).not.toHaveProperty("max_output_tokens");
     expect(init.redirect).toBe("error");
     expect(JSON.stringify(init.headers)).toContain(SECRET);
   });
 
-  it("caps an oversized token request and errors on an oversized response", async () => {
-    const big = new Uint8Array(600 * 1024);
+  it("never caps tokens and errors on an oversized response", async () => {
+    const big = new Uint8Array(5 * 1024 * 1024);
     const inner = vi.fn(async () => new Response(big));
     const bounded = createBoundedOpenAiFetch(inner as unknown as typeof fetch);
     const response = await bounded("https://api.openai.com/v1/chat/completions", { method: "POST", body: JSON.stringify({ max_tokens: 99999 }) });
-    // Newer OpenAI models reject the legacy `max_tokens`; the bound is sent as `max_completion_tokens` only.
+    // Newer OpenAI models reject the legacy `max_tokens`; the value is sent as `max_completion_tokens` only.
     const sent = JSON.parse((inner.mock.calls[0] as unknown as [unknown, RequestInit])[1].body as string);
-    expect(sent.max_completion_tokens).toBe(8000);
+    expect(sent.max_completion_tokens).toBe(99999);
     expect(sent).not.toHaveProperty("max_tokens");
     await expect(response.arrayBuffer()).rejects.toBeTruthy();
   });

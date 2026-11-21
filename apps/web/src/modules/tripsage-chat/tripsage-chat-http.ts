@@ -11,7 +11,7 @@ import type { PlacesSearch } from "./tripsage-places";
 import type { WebLookup } from "./tripsage-web";
 import type { TripsagePlanningDeps, TripsageToolContext } from "./tripsage-chat-tools";
 import type { MemoryService } from "../tripsage-memory/memory-service";
-import { parseTripsageChatItinerary, parseTripsageChatJourney, parseTripsageChatMessages, parseTripsageChatRequirement, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
+import { parseTripsageChatItinerary, parseTripsageChatJourney, parseTripsageChatMessages, parseTripsageChatTripInfo, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
 
 export type TripsageChatHttpDependencies = {
   authorization: AuthorizationDependencies;
@@ -29,7 +29,7 @@ export type TripsageChatHttpDependencies = {
   admit?: ReturnType<typeof createPlanningAdmission>;
 } & Pick<TripsageToolContext, "flights" | "hotels">;
 const defaultAdmit = createPlanningAdmission();
-const SAFETY_RELEASE_MS = 130_000;
+const SAFETY_RELEASE_MS = 310_000;
 
 const unavailablePlanning: TripsagePlanningDeps = {
   candidates: async () => { throw new AppError("PLANNING_UNAVAILABLE", "Dữ liệu điểm đến chưa sẵn sàng.", 503); },
@@ -49,7 +49,7 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
     const body = await readBoundedJsonBody(request, { maxBytes: 128 * 1024, tooLargeError: invalid, emptyError: invalid, invalidJsonError: invalid });
     const { messages, latestUser } = parseTripsageChatMessages(body);
     const journey = parseTripsageChatJourney(body);
-    const requirement = parseTripsageChatRequirement(body);
+    const tripInfo = parseTripsageChatTripInfo(body);
     const currentItinerary = parseTripsageChatItinerary(body);
     // The slot is held until the stream settles, so the concurrency cap covers streaming time.
     let release!: () => void;
@@ -59,7 +59,7 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
       (deps.admit ?? defaultAdmit)(actor.userId, async () => {
         try {
           resolve(streamTripsageChat({
-            model: await deps.model(), messages, journey, requirement, currentItinerary, features,
+            model: await deps.model(), messages, journey, tripInfo, currentItinerary, features,
             planning: deps.planning?.() ?? unavailablePlanning, places: deps.places?.(), web: deps.web?.(),
             flights: deps.flights, hotels: deps.hotels, limits: deps.limits, signal: request.signal, onSettled: release,
             memory: features.has("memory") ? { actor, source: latestUser, resolve: deps.memory } : undefined,

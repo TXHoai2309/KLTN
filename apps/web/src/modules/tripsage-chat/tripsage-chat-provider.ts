@@ -4,12 +4,12 @@ import type { LanguageModel } from "ai";
 import { AppError } from "../../server/http/app-error";
 import { QA_DEFAULT_MODEL } from "../ai/qa-json-provider";
 
-/** Same bounds philosophy as the QA provider: one bounded upstream call, no stored provider state. */
-export const TRIPSAGE_CHAT_LIMITS = { timeoutMs: 60_000, maxOutputTokens: 8_000, maxResponseBytes: 512 * 1024 } as const;
+/** One bounded upstream call, no stored provider state. No output-token cap (ADR-42 §6, like ADR-39/40); time and size still bound a hung or runaway call. */
+export const TRIPSAGE_CHAT_LIMITS = { timeoutMs: 280_000, maxResponseBytes: 4 * 1024 * 1024 } as const;
 
 const unavailable = () => new AppError("AI_UNAVAILABLE", "Dịch vụ AI hiện không khả dụng.", 503);
 
-/** Wraps fetch so every OpenAI call is `store:false`, token capped, redirect-free, time-boxed and size-bounded. */
+/** Wraps fetch so every OpenAI call is `store:false`, redirect-free, time-boxed and size-bounded. */
 export function createBoundedOpenAiFetch(base: typeof fetch = fetch): typeof fetch {
   return (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
     let body = init?.body;
@@ -17,18 +17,13 @@ export function createBoundedOpenAiFetch(base: typeof fetch = fetch): typeof fet
       try {
         const payload = JSON.parse(body) as Record<string, unknown>;
         payload.store = false;
-        const bounded = (value: unknown) => (typeof value === "number" && value > 0 && value <= TRIPSAGE_CHAT_LIMITS.maxOutputTokens ? value : TRIPSAGE_CHAT_LIMITS.maxOutputTokens);
-        if ("input" in payload) {
-          // Responses API: the output cap is `max_output_tokens`.
-          payload.max_output_tokens = bounded(payload.max_output_tokens);
-        } else {
+        if (!("input" in payload)) {
           // Chat completions: the SDK only treats o1/o3/o4-mini/gpt-5* names as reasoning models and sends the legacy
           // `max_tokens` for every other id; newer OpenAI models reject it (HTTP 400). Always send `max_completion_tokens`.
           if (payload.max_tokens !== undefined) {
             if (payload.max_completion_tokens === undefined) payload.max_completion_tokens = payload.max_tokens;
             delete payload.max_tokens;
           }
-          payload.max_completion_tokens = bounded(payload.max_completion_tokens);
         }
         body = JSON.stringify(payload);
       } catch { throw unavailable(); }
@@ -67,9 +62,10 @@ export async function resolveTripsageChatModel(options: TripsageChatModelOptions
 /**
  * Per-call provider options. Nothing is stored upstream. The gpt-6 family is a reasoning family the SDK cannot
  * recognise by name; forcing it makes the SDK return encrypted reasoning items, which a multi-step tool loop needs
- * when `store` is false. Other model ids are left untouched.
+ * when `store` is false. It reasons at `medium` effort with no summary, like the saved-trip assistant (ADR-40/42).
+ * Other model ids are left untouched.
  */
-export function tripsageProviderOptions(model: LanguageModel): { openai: { store: false; forceReasoning?: true } } {
+export function tripsageProviderOptions(model: LanguageModel): { openai: { store: false; forceReasoning?: true; reasoningEffort?: "medium"; reasoningSummary?: null } } {
   const id = typeof model === "object" && model !== null && "modelId" in model ? String((model as { modelId: unknown }).modelId) : "";
-  return { openai: { store: false, ...(/^gpt-6/.test(id) ? { forceReasoning: true as const } : {}) } };
+  return { openai: { store: false, ...(/^gpt-6/.test(id) ? { forceReasoning: true as const, reasoningEffort: "medium" as const, reasoningSummary: null } : {}) } };
 }

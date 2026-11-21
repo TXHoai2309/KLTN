@@ -1,3 +1,4 @@
+import { TRIP_INFO_FIXTURE, BASE_TOOL_NAMES_SORTED } from "./tripsage-chat-fixtures";
 import { MockLanguageModelV4 } from "ai/test";
 import { simulateReadableStream } from "ai";
 import { describe, expect, it, vi } from "vitest";
@@ -30,7 +31,7 @@ const planning = (): (() => TripsagePlanningDeps) => () => ({
   candidates: async () => [planningCandidate("a"), planningCandidate("b")],
   routes: { route: fixtureRoutes.route, coordinateRoute: async () => ({ status: "VERIFIED", reason: null, durationSeconds: 3600, distanceMeters: 50_000, provider: "STADIA_MAPS" }) }, now: () => planningNow,
 });
-const req = () => new Request("https://app.test/api/ai/chat", { method: "POST", headers: { origin: "https://app.test", "content-type": "application/json" }, body: JSON.stringify({ messages: [{ id: "m1", role: "user", parts: [{ type: "text", text: "Tìm quán cà phê ở Hà Giang" }] }], journey: COMPLETE_JOURNEY_FIXTURE }) });
+const req = () => new Request("https://app.test/api/ai/chat", { method: "POST", headers: { origin: "https://app.test", "content-type": "application/json" }, body: JSON.stringify({ messages: [{ id: "m1", role: "user", parts: [{ type: "text", text: "Tìm quán cà phê ở Hà Giang" }] }], journey: COMPLETE_JOURNEY_FIXTURE, tripInfo: TRIP_INFO_FIXTURE }) });
 const run = async (model: MockLanguageModelV4, over: Record<string, unknown> = {}) => {
   const response = await tripsageChatResponse(req(), { authorization: auth(), model: async () => model, env: { TRIPSAGE_CHAT_ENABLED: "true" }, admit: createPlanningAdmission(), planning: planning(), ...over });
   expect(response.status).toBe(200);
@@ -48,8 +49,8 @@ const places = (fetcher: ReturnType<typeof placesFetch>, apiKey: (() => string |
 describe("searchPlaces allow-list (Ticket 08)", () => {
   it("registers exactly five tools", () => {
     const tools = createTripsageChatTools({ planning: planning()(), emitItinerary: () => {} });
-    expect(Object.keys(tools).sort()).toEqual(["fetchPage", "listDestinations", "proposeItinerary", "searchPlaces", "webSearch"]);
-    expect([...TRIPSAGE_CHAT_TOOL_NAMES].sort()).toEqual(["fetchPage", "listDestinations", "proposeItinerary", "searchPlaces", "webSearch"]);
+    expect(Object.keys(tools).sort()).toEqual(BASE_TOOL_NAMES_SORTED);
+    expect([...TRIPSAGE_CHAT_TOOL_NAMES].sort()).toEqual(BASE_TOOL_NAMES_SORTED);
     for (const banned of ["googlePlaces", "placeDetails", "crawlSite", "savePlan"]) expect(tools).not.toHaveProperty(banned);
   });
 
@@ -57,7 +58,7 @@ describe("searchPlaces allow-list (Ticket 08)", () => {
     const model = scripted([{ tool: "placeDetails", input: { placeId: "x" } }, { text: "Không dùng được." }]);
     const fetcher = placesFetch();
     const sse = await run(model, { places: places(fetcher) });
-    expect(model.doStreamCalls[0]!.tools!.map(t => t.name).sort()).toEqual(["fetchPage", "listDestinations", "proposeItinerary", "searchPlaces", "webSearch"]);
+    expect(model.doStreamCalls[0]!.tools!.map(t => t.name).sort()).toEqual(BASE_TOOL_NAMES_SORTED);
     expect(fetcher).not.toHaveBeenCalled();
     expect(sse).toContain("Không dùng được");
   });
@@ -173,7 +174,7 @@ describe("Places results are untrusted data", () => {
   });
 
   it("an external place id can never enter a schedule, so nothing with it can be saved", async () => {
-    const propose = { tool: "proposeItinerary", input: { transport: "CAR", durationDays: 1, startDate: "2026-11-02", interests: ["NATURE"], selection: { days: [["a", HG.id]] } } };
+    const propose = { tool: "proposeItinerary", input: { selection: { days: [["a", HG.id]] } } };
     const model = scripted([propose, { text: "Mình chọn lại." }]);
     const sse = await run(model, { places: places(placesFetch()) });
     expect(parts(sse).some(p => p.type === "data-itinerary")).toBe(false);
