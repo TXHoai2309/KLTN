@@ -3,7 +3,7 @@ name: Sprint 4 - US32 Tests
 on:
   workflow_dispatch:
   push:
-    branches: [main, master]
+    branches: [main, master, kduy]
     paths:
       - "apps/web/src/modules/trip-edit/**"
       - "apps/web/src/app/api/trips/[id]/edits/**"
@@ -20,9 +20,6 @@ jobs:
   verify-us32:
     name: Run US-32 Automated Tests
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: apps/web
 
     steps:
       - name: Checkout repository
@@ -32,13 +29,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          cache: "npm"
-          cache-dependency-path: apps/web/package-lock.json
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies (root monorepo)
+        run: bun install --frozen-lockfile || npm ci
 
       - name: Run US-32 Vitest Suite
+        working-directory: apps/web
         run: |
           npx vitest run --config vitest.config.mts \
             src/modules/trip-edit/us32-test.vitest.test.ts \
