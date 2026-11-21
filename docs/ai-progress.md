@@ -5903,3 +5903,26 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - **Not run / still open:**
   - Disposable PostgreSQL integration tests (`chosen-lodging-save.postgres.integration.vitest.test.ts` and sibling `*.postgres.integration.vitest.test.ts`): auto-skipped because Docker Desktop is not running (`DOCKER_OFF`).
   - Live browser visual/responsive checks & screenshots at 1440px / 375px and live-model chat walkthroughs (Chats 0, A, B): not executed (requires signed-in session, live OpenAI API, and `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` with Maps Embed API enabled + HTTP referrer restrictions — marked `"chờ bật API"` for live Place preview iframe).
+
+## 2026-11-22 — SerpApi travel price lookup (tickets 01–06)
+
+- **Branch:** `TXH`. Spec: `docs/specs/serpapi-travel-lookup-spec.md` (decisions D1–D10). Amendment recorded in `docs/decisions.md` under TripSage P2. Tickets: `.scratch/serpapi-travel-lookup/issues/01-*.md` → `06-regression-docs.md`.
+- **Completed:**
+  - `a150ed8` (01): Shared server-only `tripsage-serpapi.ts` client (`GET https://serpapi.com/search.json`, sequential rotation across comma-separated `SERPAPI_API_KEYS` on 429/quota exhaustion without round-robin, 8 s deadline via `withLookupDeadline`, bounded reads via `readBounded`, `echoesCredential`, no URL/key logging), `SERPAPI_API_KEYS` in `.env.schema`/`.env.example`, `tripsageSerpApiRuntime()`, and `docs/decisions.md` amendment.
+  - `f9c12e6` (02): Replaced Amadeus with `tripsage-serpapi-hotels.ts` (`google_hotels`, `kind`: `HOTEL`/`HOMESTAY`/`GUESTHOUSE`/`ANY`, 10 km `haversine` post-filter using DB coordinates, up to 5 priced + 3 unpriced `"chưa có giá online"`, ratings/reviews on `HotelsPart` & `HotelsCard` with legacy compatibility), deleted `tripsage-amadeus.ts`/test and `AMADEUS_*` env vars, updated redaction/client-source checks to block `SERPAPI`.
+  - `3b92071` (03): Parallel multi-area `searchHotels` (`stays[]` up to 6 merged overnight areas, `TRIPSAGE_EXTRA_LIMITS.maxHotelCalls = 6` per area), `ASSUMED_DRAFT_BLOCKED` guard on blocking `origin`/`startDate` assumptions, in-turn + cross-turn deduplication via `data-hotels-ref` (no DB table), `lodgingKind` in `tripInfoSchema`, and flag-gated D1/D8 prompt rules.
+  - `09eec64` (04): Replaced Duffel with `tripsage-serpapi-flights.ts` (`google_flights`, single request `type=1`/`type=2`, never calls `departure_token`, 5 cheapest + `typicalPriceRange`), static `vietnam-airports.ts` (22 civil airports, server picks nearest via `haversine`, fixed `HAN`, blocks `ORIGIN_REQUIRED`/`ALREADY_NEAR_HAN`), updated `FlightsPart`/`FlightsCard` (legacy compatible), deleted `tripsage-duffel.ts`/test and `DUFFEL_ACCESS_TOKEN`.
+  - `c26c75c` (05): Non-default-flight access-leg flow (`hubHint` asks mode once, `flightDeclined` blocks `searchFlights`, `tripsage-price-reference.ts` reads `## Đi lại` from `docs/fixtures/price-reference-ha-giang.md` without modifying it), server-side `GOOGLE_FLIGHTS` price injection (`cheapestTotal / travelers`) vs `ESTIMATE` in `planAccessLeg` / `TripsageAccessLegCard` (legacy compatible), and 1 proactive lookup cap (+1 on date/origin change via `data-flights-ref`).
+  - Ticket 06: Full regression verification, client bundle scan, 13-criterion matrix, and documentation updates.
+- **DB/migration changes:** None. Lookup results remain reference-only and are never stored on Trips or passed to `proposeItinerary` / Constraint Validator.
+- **Verification run:**
+  - `node --max-old-space-size=4096 ../../node_modules/typescript/bin/tsc --noEmit -p .` (`apps/web`): PASS.
+  - `npx vitest run --config vitest.config.mts src/modules/tripsage-chat src/components/tripsage-chat` (`apps/web`): PASS (47/47 files, 408/408 tests; 0 failures).
+  - `node scripts/prepare-map-assets.mjs && node scripts/build.mjs --webpack` (`apps/web`): PASS (59/59 static pages + all dynamic/API routes; TypeScript finished in 47s).
+  - Client bundle scan (`apps/web/.next/static`, 274 files) for `SERPAPI` and `serpapi.com/search`: PASS (0 hits).
+  - Duffel/Amadeus residual scan (`apps/web/src/`, `.env.schema`, `.env.example`): PASS (0 hits).
+  - `git diff --check`: PASS.
+- **Not run / still open:**
+  - **Live SerpApi check:** **chưa chạy live** (`SERPAPI_API_KEYS` is not populated in local `.env`; adapters carry `NOT verified live` comments until tested against real SerpApi JSON and Hà Giang coverage).
+  - Owner review still required for: static coordinates in `apps/web/src/modules/tripsage-chat/vietnam-airports.ts`, train/sleeper-bus reference routes in `docs/fixtures/price-reference-ha-giang.md` (D10), and SerpApi terms for multiple free accounts.
+  - Live browser visual/375px layout check of updated `HotelsCard`, `FlightsCard`, and `TripsageAccessLegCard` not executed (covered by SSR render tests and existing responsive CSS containment).
