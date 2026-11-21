@@ -1,6 +1,6 @@
 # Tickets — Trợ lý chuyến đi trả lời tự nhiên, stream chữ và hiện bước đang làm
 
-**Trạng thái: READY (`01`–`04` chưa làm) — 2026-11-21.** Bốn lát cắt dọc tách từ [spec](../../docs/product/saved-trip-assistant-natural-streaming-spec.md) (phỏng vấn Q1–Q19, 12 User Stories) và [ADR-40](../../docs/decisions.md#adr-40--saved-trip-assistant-streams-through-the-ai-sdk-and-decides-through-tools-2026-11-21), kế thừa ADR-39 (đã triển khai, commit `0df1319`, `fa2874a`).
+**Trạng thái: DONE (`01`–`04` hoàn thành) — 2026-11-21.** Bốn lát cắt dọc tách từ [spec](../../docs/product/saved-trip-assistant-natural-streaming-spec.md) (phỏng vấn Q1–Q19, 12 User Stories) và [ADR-40](../../docs/decisions.md#adr-40--saved-trip-assistant-streams-through-the-ai-sdk-and-decides-through-tools-2026-11-21), kế thừa ADR-39 (đã triển khai, commit `0df1319`, `fa2874a`).
 
 ## Nguồn tham chiếu bắt buộc
 
@@ -26,7 +26,7 @@
 | [01 — Vòng suy luận trên AI SDK, giọng người đồng hành, quyết định bằng `apply_to_draft` / `show_options` (vẫn trả JSON)](issues/01-ai-sdk-loop-voice-and-decision-tools.md) | Không có | `done` |
 | [02 — Route stream: tiến trình, chữ, kết quả cuối, lọc ID/URL, Correction note](issues/02-streaming-route-redaction-and-correction-note.md) | `01` | `done` |
 | [03 — Giao diện stream: bước đang làm, chữ dần, Dừng, chỉ áp khi có kết quả cuối, bỏ nhãn tư vấn](issues/03-streaming-ui-progress-stop-and-badges.md) | `02` | `done` |
-| [04 — Thử thật với OpenAI, nghiệm thu toàn bộ, tài liệu, commit & push](issues/04-live-check-acceptance-and-release.md) | `03` | `ready` |
+| [04 — Thử thật với OpenAI, nghiệm thu toàn bộ, tài liệu, commit & push](issues/04-live-check-acceptance-and-release.md) | `03` | `done` |
 
 ## Độ phủ User Stories (spec 1–12)
 

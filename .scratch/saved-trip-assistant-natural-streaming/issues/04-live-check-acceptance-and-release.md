@@ -4,7 +4,7 @@
 
 **Blocked by:** 03.
 
-**Status:** ready
+**Status:** done
 
 ## Yêu cầu chi tiết
 
@@ -42,11 +42,11 @@
 
 ## Acceptance criteria
 
-- [ ] Kết quả thử thật 5 câu đã được ghi vào `docs/ai-progress.md`; mỗi lượt có result hợp lệ và không rò ID/URL.
-- [ ] Typecheck, build, test trip-edit / trips / lib / api đạt; các suite AI chỉ còn đúng 37 lỗi có sẵn.
-- [ ] Tài liệu cập nhật như mục 3.
-- [ ] `origin/TXH` và `origin/master` cùng trỏ tới commit cuối. `main` không đổi.
-- [ ] Báo cáo cho chủ dự án:
+- [x] Kết quả thử thật 5 câu đã được ghi vào `docs/ai-progress.md`; mỗi lượt có result hợp lệ và không rò ID/URL.
+- [x] Typecheck, build, test trip-edit / trips / lib / api đạt; các suite AI chỉ còn đúng 37 lỗi có sẵn.
+- [x] Tài liệu cập nhật như mục 3.
+- [x] `origin/TXH` và `origin/master` cùng trỏ tới commit cuối. `main` không đổi.
+- [x] Báo cáo cho chủ dự án:
   - commit hash;
   - kết quả từng kiểm tra;
   - kết quả thử thật;

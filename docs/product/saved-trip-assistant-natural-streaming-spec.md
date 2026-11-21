@@ -1,6 +1,6 @@
 # Spec — Trợ lý chuyến đi trả lời tự nhiên, hiện chữ dần và cho thấy đang làm gì
 
-**Trạng thái: SPEC / PLAN ONLY — 2026-11-21 (`ready-for-agent`).** Tổng hợp từ buổi phỏng vấn thiết kế Q1–Q19 (2026-11-21). Kế thừa [saved-trip-assistant-reasoning-spec.md](saved-trip-assistant-reasoning-spec.md) (ADR-39). Quyết định kiến trúc ghi tại [ADR-40](../decisions.md#adr-40--saved-trip-assistant-streams-through-the-ai-sdk-and-decides-through-tools-2026-11-21). Thuật ngữ mới trong [GLOSSARY](../../GLOSSARY.md): *Stated assumption (giả định nêu rõ)*, *Correction note (dòng đính chính)*. Tài liệu này chưa kích hoạt lập trình.
+**Trạng thái: IMPLEMENTED — 2026-11-21.** Tổng hợp từ buổi phỏng vấn thiết kế Q1–Q19 (2026-11-21). Kế thừa [saved-trip-assistant-reasoning-spec.md](saved-trip-assistant-reasoning-spec.md) (ADR-39). Quyết định kiến trúc ghi tại [ADR-40](../decisions.md#adr-40--saved-trip-assistant-streams-through-the-ai-sdk-and-decides-through-tools-2026-11-21). Thuật ngữ mới trong [GLOSSARY](../../GLOSSARY.md): *Stated assumption (giả định nêu rõ)*, *Correction note (dòng đính chính)*.
 
 ---
 
@@ -171,3 +171,20 @@ Seam giữ như spec ADR-38/39: biên dịch vụ và Route Handler của *AI Ed
 - **Rủi ro cần theo dõi:**
   - Proxy hoặc CDN có thể gom (buffer) luồng SSE. Header `X-Accel-Buffering: no` đã dùng ổn cho chat lập hành trình.
   - Vercel `maxDuration = 300` vẫn là giới hạn cứng của một lượt.
+
+---
+
+## Trạng thái triển khai (2026-11-21)
+
+- **Đã triển khai đủ 4 lát cắt dọc (`01`–`04`):**
+  1. Vòng suy luận AI SDK (`streamText` + `@ai-sdk/openai` `.responses("gpt-6.1-terra")`) trong `trip-assistant-agent.ts` và `trip-assistant-openai.ts` (bỏ Responses client tự viết), giọng người đồng hành + *Stated assumption*, hai công cụ quyết định `apply_to_draft` và `show_options`.
+  2. Content negotiation `Accept: text/event-stream` tại `ai-edit-http.ts` + `streamAiEditProposal` tại `ai-edit-service.ts`, gửi `data-status`, `data-steps`, chữ đã lọc qua `trip-assistant-stream-redaction.ts`, `data-correction-note` khi `FALSE_PASS` / `ABSOLUTE_SAFETY`, và `data-trip-assistant-result` trùng payload JSON. Lỗi tiền kiểm (401/403/400/404/409/422) vẫn trả JSON trước khi mở stream.
+  3. Client `streamAiTripEdit` (`trip-edit-client.ts`, đặt lại timeout 305 s mỗi chunk) + `resolveAiStreamOutcome` (`ai-stream-outcome.ts`) + giao diện `STREAMING`, `<details>` tóm tắt bước, nút Dừng 44×44 px, *Correction note*, trạng thái `INTERRUPTED` / `STOPPED` giữ chữ dở kèm nút Thử lại, bỏ nhãn "Tư vấn · Lịch chưa bị thay đổi" / "Lịch chưa bị thay đổi".
+  4. Thử thật 5 câu trên `gpt-6.1-terra` qua Responses API (`trip-assistant-live.vitest.test.ts`, chạy opt-in bằng `TRIP_ASSISTANT_LIVE=1`): 5/5 lượt đạt, stream 8–128 chunk/lượt, gọi `simulate_changes` + `show_options`, không rò ID/URL, giọng tự nhiên.
+- **Chi tiết kỹ thuật / khác biệt nhỏ so với spec:**
+  - `@ai-sdk/openai` 4.0.14 chỉ tự nhận diện model reasoning cho họ `o1`/`o3`/`o4-mini`/`gpt-5*`; cần đặt thêm `forceReasoning: true` và `reasoningSummary: null` trong `providerOptions.openai` để gửi đúng `reasoning.effort = "medium"` và `include: ["reasoning.encrypted_content"]` cho `gpt-6.1-terra` mà không lộ nội dung suy luận nội bộ.
+  - Luồng gửi về trình duyệt lọc bỏ hẳn các chunk `tool-*` và `reasoning-*` (thay vì gửi `tool-output-available: { ok }`), vì giao diện chỉ hiển thị nhãn tiếng Việt từ `data-status` và `data-steps`.
+  - Định nghĩa thêm kiểu `AiTripEditStreamOutcome` riêng cho `streamAiTripEdit` để giữ tương thích hoàn toàn với `requestAiTripEdit` và `ai-edit-panel.tsx`.
+- **Chưa chứng minh:**
+  - Chưa mở trình duyệt thật (desktop/360px/dark mode/Production Vercel CDN) để kiểm tra hiển thị trực quan và hành vi SSE qua proxy thực tế.
+  - Bài thử thật dùng routing/DB giả trong bộ nhớ; chưa chạy end-to-end với PostgreSQL/Stadia thật và chưa thử lượt thật kích hoạt `apply_to_draft` hay `FALSE_PASS` (cả hai nhánh này đã được kiểm chứng bằng unit/stream test với `MockLanguageModelV4`).

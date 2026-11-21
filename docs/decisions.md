@@ -888,7 +888,7 @@ Production replies on `/trips/[id]/edit` repeated the deterministic `buildGround
 
 ## ADR-40 — Saved-trip assistant streams through the AI SDK and decides through tools (2026-11-21)
 
-- **Status:** Accepted by the owner (design interview Q1–Q19, 2026-11-21); implementation pending. Amends `ADR-39`. Spec: [saved-trip-assistant-natural-streaming-spec.md](product/saved-trip-assistant-natural-streaming-spec.md).
+- **Status:** Accepted by the owner (design interview Q1–Q19, 2026-11-21) and implemented on `TXH` (2026-11-21), including live 5-turn OpenAI Responses verification on `gpt-6.1-terra`. Amends `ADR-39`. Spec: [saved-trip-assistant-natural-streaming-spec.md](product/saved-trip-assistant-natural-streaming-spec.md).
 - **Date:** 2026-11-21
 
 ### Context
@@ -913,4 +913,5 @@ Production replies on `/trips/[id]/edit` repeated the deterministic `buildGround
 
 - `ADR-30` deferred migrating providers to the AI SDK; that deferral no longer applies to the Saved-trip assistant, which now uses the SDK already adopted for the planning chat. Q&A and other structured-output paths are unchanged.
 - `trip-assistant-openai.ts`'s Responses client is retired. Its Chat Completions client remains the fallback pipeline's provider.
+- Because `@ai-sdk/openai` 4.0.14 only auto-detects `o1`/`o3`/`o4-mini`/`gpt-5*` as reasoning models, `providerOptions.openai` explicitly passes `forceReasoning: true`, `reasoningEffort: "medium"`, `reasoningSummary: null`, and `store: false` so Responses API calls on `gpt-6.1-terra` send `reasoning.effort: "medium"` and `include: ["reasoning.encrypted_content"]` without emitting internal reasoning summaries. Live 5-turn verification confirmed `.responses("gpt-6.1-terra")` streams text and executes multi-round tool calls cleanly without falling back to `.chat()`.
 - JSON clients and tests keep working through content negotiation. A turn is still bounded by the route's `maxDuration = 300`.
