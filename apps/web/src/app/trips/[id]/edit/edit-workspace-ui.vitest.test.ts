@@ -306,6 +306,8 @@ describe("Ticket 01 workspace rendering and map adapter", () => {
     expect(css).toContain("--edit-accent: var(--edit-green)");
     expect(css).toContain("--edit-surface-muted: var(--muted)");
     expect(css).toContain("focus-visible");
+    expect(css).toMatch(/\.confirmDialog\s*\{[^}]*margin:\s*auto;/);
+    expect(css).toContain("confirmDiffBox");
     expect(clientSource).toContain('aria-live="polite"');
     expect(clientSource).toContain("onCancel");
   });

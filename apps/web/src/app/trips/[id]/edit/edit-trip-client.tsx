@@ -2831,38 +2831,68 @@ export default function EditTripClient({
         ref={confirmDialogRef}
         className={styles.confirmDialog}
         aria-labelledby="edit-confirm-dialog-title"
+        onClick={(event) => {
+          if (event.target === event.currentTarget && !applyInProgress) {
+            setConfirmOpen(false);
+          }
+        }}
         onCancel={(event) => {
           if (applyInProgress) event.preventDefault();
           else setConfirmOpen(false);
         }}
       >
-        <h2 id="edit-confirm-dialog-title">Xác nhận lưu thay đổi?</h2>
-        <p className={styles.fixedNote}>
-          Thay đổi bên dưới sẽ ghi đè vào lịch trình đã lưu sau khi kiểm tra hợp lệ trên máy chủ.
-        </p>
+        <div className={styles.confirmDialogHeader}>
+          <div className={styles.confirmDialogHeaderText}>
+            <h2 id="edit-confirm-dialog-title">Xác nhận lưu thay đổi?</h2>
+            <p className={styles.fixedNote}>
+              Thay đổi bên dưới sẽ ghi đè vào lịch trình đã lưu sau khi kiểm tra hợp lệ trên máy chủ.
+            </p>
+          </div>
+          <button
+            type="button"
+            className={styles.confirmDialogCloseBtn}
+            aria-label="Đóng hộp thoại xác nhận"
+            disabled={applyInProgress}
+            onClick={() => setConfirmOpen(false)}
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
 
-        <ul className={styles.diffList} style={{ marginTop: 12 }}>
-          {currentDiff.added.map((v) => (
-            <li key={`c-add-${v.visitId}`}>
-              <strong>Thêm:</strong> {labelForDestination(v.destinationId)} · Ngày {v.dayIndex} · {minuteLabel(v.startMinute)}
-            </li>
-          ))}
-          {currentDiff.removed.map((v) => (
-            <li key={`c-rem-${v.visitId}`}>
-              <strong>Xóa:</strong> {labelForDestination(v.destinationId)} · Ngày {v.dayIndex}
-            </li>
-          ))}
-          {currentDiff.updated.map((u) => (
-            <li key={`c-upd-${u.visitId}`}>
-              <strong>Sửa:</strong> {labelForDestination(u.after.destinationId)} · Ngày {u.after.dayIndex} · {minuteLabel(u.after.startMinute)} ({u.after.plannedDurationMinutes} phút)
-            </li>
-          ))}
-          {journeyDiff && (
-            <li key="c-upd-journey">
-              <strong>Xuất phát / giờ đi–về:</strong> Cập nhật nơi xuất phát hoặc giờ khởi hành / hạn về
-            </li>
-          )}
-        </ul>
+        <div className={styles.confirmDiffBox}>
+          <ul className={styles.confirmDiffList}>
+            {currentDiff.added.map((v) => (
+              <li key={`c-add-${v.visitId}`} className={styles.confirmDiffItem}>
+                <span className={styles.confirmDiffTagAdd}>Thêm</span>
+                <span>
+                  <strong>{labelForDestination(v.destinationId)}</strong> · Ngày {v.dayIndex} · {minuteLabel(v.startMinute)}
+                </span>
+              </li>
+            ))}
+            {currentDiff.removed.map((v) => (
+              <li key={`c-rem-${v.visitId}`} className={styles.confirmDiffItem}>
+                <span className={styles.confirmDiffTagRemove}>Xóa</span>
+                <span>
+                  <strong>{labelForDestination(v.destinationId)}</strong> · Ngày {v.dayIndex}
+                </span>
+              </li>
+            ))}
+            {currentDiff.updated.map((u) => (
+              <li key={`c-upd-${u.visitId}`} className={styles.confirmDiffItem}>
+                <span className={styles.confirmDiffTagEdit}>Sửa</span>
+                <span>
+                  <strong>{labelForDestination(u.after.destinationId)}</strong> · Ngày {u.after.dayIndex} · {minuteLabel(u.after.startMinute)} ({u.after.plannedDurationMinutes} phút)
+                </span>
+              </li>
+            ))}
+            {journeyDiff && (
+              <li key="c-upd-journey" className={styles.confirmDiffItem}>
+                <span className={styles.confirmDiffTagJourney}>Xuất phát</span>
+                <span>Cập nhật nơi xuất phát hoặc giờ khởi hành / hạn về</span>
+              </li>
+            )}
+          </ul>
+        </div>
 
         {hasCompanionPublication && (
           <p className={styles.companionNotice}>
@@ -2948,15 +2978,33 @@ export default function EditTripClient({
         ref={conflictDialogRef}
         className={styles.confirmDialog}
         aria-labelledby="edit-conflict-dialog-title"
+        onClick={(event) => {
+          if (event.target === event.currentTarget && conflictState?.status !== "LOADING") {
+            setConflictState(null);
+          }
+        }}
         onCancel={(event) => {
           if (conflictState?.status === "LOADING") event.preventDefault();
           else setConflictState(null);
         }}
       >
-        <h2 id="edit-conflict-dialog-title">Hành trình đã có phiên bản mới hơn</h2>
-        <p className={styles.fixedNote}>
-          Lịch trình đã lưu vừa thay đổi ở một phiên làm việc khác. Toàn bộ chỉnh sửa trong bản nháp hiện tại của bạn vẫn đang được giữ nguyên.
-        </p>
+        <div className={styles.confirmDialogHeader}>
+          <div className={styles.confirmDialogHeaderText}>
+            <h2 id="edit-conflict-dialog-title">Hành trình đã có phiên bản mới hơn</h2>
+            <p className={styles.fixedNote}>
+              Lịch trình đã lưu vừa thay đổi ở một phiên làm việc khác. Toàn bộ chỉnh sửa trong bản nháp hiện tại của bạn vẫn đang được giữ nguyên.
+            </p>
+          </div>
+          <button
+            type="button"
+            className={styles.confirmDialogCloseBtn}
+            aria-label="Đóng hộp thoại xung đột"
+            disabled={conflictState?.status === "LOADING"}
+            onClick={() => setConflictState(null)}
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
 
         {conflictState?.status === "LOADING" && (
           <p className={styles.fixedNote} style={{ marginTop: 12 }} role="status">
