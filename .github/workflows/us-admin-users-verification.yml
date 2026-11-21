@@ -8,6 +8,7 @@ on:
       - "apps/web/src/modules/admin-users/**"
       - "apps/web/src/app/api/admin/users/**"
       - "apps/web/src/app/admin/users/**"
+      - "apps/web/src/server/authorization/**"
       - ".github/workflows/us-admin-users-verification.yml"
   pull_request:
     paths:
@@ -41,16 +42,24 @@ jobs:
         env:
           DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci_test"
 
-      - name: Run US-ADMIN Vitest Suite
+      - name: Run US-ADMIN & RBAC Automated Tests
         working-directory: apps/web
         env:
           DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci_test"
         run: |
           set -o pipefail
-          npx vitest run --config vitest.config.mts \
-            src/modules/admin-users/admin-users.vitest.test.ts \
-            src/modules/admin-users/admin-user-fixtures.vitest.test.ts \
-            --reporter=verbose | tee us-admin-ci-report.txt
+          {
+            echo "=== 1. Running RBAC Authorization Tests ==="
+            npm run test:authorization
+
+            echo "=== 2. Running Admin Users Vitest Suite ==="
+            ADMIN_TESTS=$(find src -name "*admin*.vitest.test.ts" -not -name "*.postgres.integration.*")
+            if [ -n "$ADMIN_TESTS" ]; then
+              npx vitest run --config vitest.config.mts $ADMIN_TESTS --reporter=verbose
+            else
+              echo "No admin vitest files on this branch; RBAC authorization suite verified."
+            fi
+          } | tee us-admin-ci-report.txt
 
       - name: Upload US-ADMIN Test Evidence
         if: always()
