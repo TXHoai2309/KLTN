@@ -93,6 +93,8 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
             }
             conversation = { conversationId: savedUser.data.conversationId, title: savedUser.data.title };
           }
+          const planningDeps = deps.planning?.() ?? unavailablePlanning;
+          const planning = deps.now ? { ...planningDeps, now: deps.now } : planningDeps;
           const streamResponse = streamTripsageChat({
             model: await deps.model(), messages, journey, tripInfo, currentItinerary, accessLeg, features,
             originCandidates,
@@ -107,7 +109,7 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
                   parts,
                 })
               : undefined,
-            planning: deps.planning?.() ?? unavailablePlanning, originSearch: deps.originSearch?.(), places: deps.places?.(), web: deps.web?.(), knowledge: deps.knowledge?.(),
+            planning, originSearch: deps.originSearch?.(), places: deps.places?.(), web: deps.web?.(), knowledge: deps.knowledge?.(),
             flights: deps.flights, hotels: deps.hotels, limits: deps.limits, signal: request.signal, onSettled: release,
             memory: features.has("memory") ? { actor, source: latestUser, resolve: deps.memory } : undefined,
           });

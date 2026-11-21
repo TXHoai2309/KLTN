@@ -5,6 +5,7 @@ import type { PlannerResult } from "../trip-planner/planner-contract";
 import { tripJourneySchema, type TripJourney } from "../trip-origin/trip-origin-contract";
 import { assertJourneyCoverage } from "../trip-origin/trip-origin-service";
 import { INTEREST_OPTIONS, PACE_OPTIONS, TRANSPORT_OPTIONS } from "../trip-requirement/trip-requirement-contract";
+import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
 import { journeyPartSchema, originCandidatesPartSchema, resolveEffectiveJourney, sourcesPartSchema, tripInfoSchema, tripsageItinerarySummarySchema, withTripInfoDefaults, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
 import { FIXED_HUB_CANDIDATES, verifyOriginCandidatesToken, type SignedOriginCandidate, type VerifiedOriginCandidates } from "./tripsage-chat-origin";
 import { tripsageProviderOptions } from "./tripsage-chat-provider";
@@ -33,6 +34,7 @@ const PERSONA_INSTRUCTIONS = [
   "Khi trả lời hỏi đáp: luôn ưu tiên gọi lookupLocalKnowledge trước (chip tên tài liệu nguồn sẽ tự hiện cho người dùng). Nếu tài liệu không có hoặc phần bổ sung dựa vào hiểu biết chung, nói rõ đó là hiểu biết chung ('Kiến thức mở rộng').",
   "Mục tiêu khi lập lịch: người dùng có lịch đầu tiên sau tối đa 2 lượt nhắn. Cụm hỏi 1 gộp trong MỘT tin nhắn, đánh số, mỗi câu kèm gợi ý: (1) đi từ đâu (khi người dùng nêu nơi đi, gọi findOrigin để tìm rồi nói lại chính xác nhãn để họ trả lời 'đúng', hoặc đưa 2-3 lựa chọn; điểm tập kết Hà Nội và TP Hà Giang là ứng viên cố định; giờ khởi hành 07:00 và hạn về 18:00 dùng mặc định, người dùng nhắn để đổi), (2) khi nào và mấy ngày (gợi ý 4 ngày 3 đêm, hoặc 5 ngày 4 đêm; ngày đi gần nhất hợp lý), (3) xe máy tự lái, ô tô hay thuê xe khi tới nơi. Cuối tin gọi suggestReplies với các câu trả lời mẫu (nếu vừa gọi findOrigin, các ứng viên đã tự hiện thành nút).",
   "Nếu người dùng đã nói sẵn một số thông tin trong tin đầu, ghi ngay bằng recordTripInfo và chỉ hỏi phần còn thiếu. Phương tiện, số ngày, ngày đi chỉ ghi khi người dùng đã nói hoặc đồng ý (một câu 'ok' là đồng ý toàn bộ gợi ý bạn vừa đưa). Không bao giờ tự đặt điểm xuất phát, ngày ở quá khứ hay số ngày ngoài 1-14. Chỉ gọi confirmOrigin ở lượt người dùng trả lời đồng ý hoặc bấm chọn nhãn ứng viên.",
+  "Ngày khởi hành luôn tính theo dòng 'Hôm nay' (giờ Việt Nam) trong ngữ cảnh; không bao giờ nói 'chưa biết hôm nay là ngày nào' hay chọn ngày ở quá khứ. Nếu người dùng nêu ngày tương đối rõ ràng (như 'ngày mai', 'thứ Bảy tuần này', 'ngày 1 tháng sau'): tự quy đổi ra ngày cụ thể YYYY-MM-DD, ghi luôn bằng recordTripInfo và nói lại ngày đó trong một câu. Nếu người dùng nêu khoảng khởi hành dự kiến (như 'đầu tháng 12', 'giữa tháng sau', 'cuối tuần sau'): tự chọn một ngày cụ thể hợp lý trong khoảng đó, CHƯA ghi bằng recordTripInfo, gọi suggestReplies với 'Đúng, đi <dd/mm/yyyy>' và 'Chọn ngày khác'; chỉ ghi startDate khi người dùng đồng ý ở lượt sau. Khi người dùng đổi sang ngày mới hoặc đã có ngày hợp lệ, không nhắc lại ngày cũ đã bỏ hay lỗi ngày ở lượt trước.",
   "Khi đã đủ phương tiện, số ngày, ngày đi và điểm xuất phát đã xác nhận: lập lịch ngay trong lượt đó (listDestinations rồi proposeItinerary). Nếu có điểm bắt buộc (mustIncludeDestinationIds), selection gửi cho proposeItinerary PHẢI chứa đủ các id đó (hoặc nói rõ vì sao không xếp được). Sở thích, nhịp đi, số người và giờ đi/về (07:00 / 18:00) chưa có thì hệ thống dùng mặc định (đánh dấu trong ngữ cảnh); nói rõ bạn đang tạm dùng mặc định nào để người dùng nhắn nếu muốn đổi (ví dụ 'đi lúc 6h' → recordTripInfo departureMinute rồi lập lại lịch).",
   "Timeline từng ngày (khởi hành, chặng đi, tham quan, nghỉ trưa, nghỉ đêm, chặng về) được hệ thống dựng từ lịch và hiện cho người dùng; giờ giấc do hệ thống quyết định, bạn không tự đặt giờ. Sau mỗi lịch mới, làm cho chuyến đi sống động: với mỗi đêm, dùng searchPlaces (nearDestinationId = điểm cuối ngày đó, từ khóa như homestay) để tìm 2-3 chỗ nghỉ và gọi addSuggestions loại LODGING vào slot dN-overnight; gợi ý buổi tối (EVENING) chỉ là nơi đi bộ được quanh chỗ nghỉ, không bao giờ khuyên chạy xe xa sau khi trời tối; gợi ý ăn trưa (MEAL) vào dN-lunch; mẹo (TIP) khi hữu ích. Dùng lookupLocalKnowledge để lấy văn hóa, ẩm thực, vui chơi buổi tối từ tài liệu đã duyệt trước khi nghĩ tới webSearch. Người dùng muốn nghỉ trưa dài hơn (60-120 phút) hoặc dừng tham quan sớm hơn (15:00-18:00) thì ghi bằng recordTripInfo (lunchMinutes, dayEndMinute) rồi lập lại lịch với cùng selection.",
   "Người ở xa (ví dụ miền Nam, miền Trung): đừng bắt họ lái xe thẳng. Đề xuất bay hoặc đi xe khách tới điểm tập kết cố định (Hà Nội: hub:HA_NOI hoặc TP Hà Giang: hub:HA_GIANG_CITY), thuê xe máy/ô tô ở đó rồi mới đi; giải thích vì sao và hỏi họ chọn điểm tập kết nào. Khi đồng ý: ghi homeCity, gọi confirmOrigin với hub tương ứng, lập lịch từ điểm tập kết, gọi planAccessLeg cho chặng đi và về (ví dụ bay TP.HCM → Hà Nội rồi xe giường nằm đêm lên TP Hà Giang). Số ngày chuyến đi tính từ điểm tập kết; chặng tiếp cận là 'Trước chuyến đi' và 'Sau chuyến đi'. Nếu proposeItinerary trả hubHint, làm theo gợi ý đó.",
@@ -141,18 +143,27 @@ export function parseTripsageChatOriginCandidates(body: unknown, userId: string,
 
 const clock = (value: number | null) => (value === null ? "?" : `${String(Math.floor(value / 60) % 24).padStart(2, "0")}:${String(value % 60).padStart(2, "0")}`);
 const label = (options: readonly { value: string; label: string }[], value: string) => options.find(option => option.value === value)?.label ?? value;
+const VIETNAM_WEEKDAYS = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"] as const;
+
+export function formatVietnamTodayLine(now: Date): string {
+  const iso = vietnamDateOf(now);
+  const [year, month, day] = iso.split("-") as [string, string, string];
+  const weekday = VIETNAM_WEEKDAYS[new Date(Date.UTC(Number(year), Number(month) - 1, Number(day))).getUTCDay()]!;
+  return `Hôm nay: ${weekday}, ${day}/${month}/${year} (giờ Việt Nam)`;
+}
 
 /**
  * Request context appended to the system instructions. Everything user-supplied is JSON-quoted (control characters
  * and newlines escaped) inside a labelled block and flagged as data, so a place name can never read as an instruction.
  */
 export function buildTripsageContext(input: {
+  now?: Date;
   tripInfo?: TripsageTripInfo | null;
   itinerary?: TripsageItinerarySummary | null;
   journey?: TripJourney | null;
   originCandidates?: VerifiedOriginCandidates;
 }): string {
-  const blocks: string[] = [];
+  const blocks: string[] = [formatVietnamTodayLine(input.now ?? new Date())];
   const effectiveJourney = resolveEffectiveJourney(input.journey, input.tripInfo);
   const origin = effectiveJourney?.origin;
   const { info, defaulted } = withTripInfoDefaults(input.tripInfo ?? {});
@@ -356,7 +367,8 @@ export function streamTripsageChat(input: {
         },
       });
       const instructions = input.features?.size ? tripsageChatInstructions(input.features) : TRIPSAGE_CHAT_INSTRUCTIONS;
-      const result = streamText({ model: input.model, instructions: [instructions, buildTripsageContext({ tripInfo: input.tripInfo, itinerary: input.currentItinerary, journey: input.journey, originCandidates: input.originCandidates })].filter(Boolean).join("\n\n"), messages: input.messages, abortSignal: signal,
+      const turnNow = input.planning.now?.() ?? new Date();
+      const result = streamText({ model: input.model, instructions: [instructions, buildTripsageContext({ now: turnNow, tripInfo: input.tripInfo, itinerary: input.currentItinerary, journey: input.journey, originCandidates: input.originCandidates })].filter(Boolean).join("\n\n"), messages: input.messages, abortSignal: signal,
         // One bounded upstream attempt per step: the SDK's silent backoff retries would multiply cost and eat the 60 s budget.
         maxRetries: 0,
         // Nothing is stored upstream; reasoning-family models return encrypted items so the tool loop works.
