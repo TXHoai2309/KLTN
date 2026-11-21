@@ -74,6 +74,34 @@ _Avoid_: Last attraction, trip completion.
 Khoảng thời gian hệ thống dành thêm để nghỉ trong các chặng di chuyển của lịch trình, tách biệt với thời gian chạy xe ước tính.
 _Avoid_: Verified driving time, actual rest time, lodging.
 
+**Day timeline (timeline trong ngày)**:
+Trình tự thời gian của một ngày trong đề xuất hành trình: khởi hành, chặng đi, lượt tham quan, nghỉ trưa, nghỉ đêm và chặng về. Các mốc giờ trong timeline là mốc đã được lập và kiểm tra; gợi ý đi kèm không làm đổi mốc giờ.
+_Avoid_: Free-text itinerary, AI-written schedule.
+
+**Planning suggestion (gợi ý kèm lịch)**:
+Lời khuyên do trợ lý thêm vào một khoảng trong timeline, như ăn ở đâu, buổi tối làm gì hay mẹo đi lại. Gợi ý không phải là lượt tham quan, không được kiểm tra ràng buộc và không làm đổi mốc giờ.
+_Avoid_: Scheduled visit, verified stop.
+
+**Lodging suggestion (gợi ý chỗ nghỉ)**:
+Một nơi lưu trú bên ngoài danh mục điểm đến được gợi ý cho một đêm của chuyến đi, luôn được đánh dấu là chưa kiểm tra. Gợi ý chỗ nghỉ không phải là đặt phòng và không phải là lượt tham quan.
+_Avoid_: Booking, overnight stop, destination.
+
+**Cost estimate (bảng chi phí ước tính)**:
+Bảng các khoản chi dự kiến của chuyến đi theo từng nhóm và tổng cộng. Số tiền là ước tính, không phải giá đã xác nhận.
+_Avoid_: Quote, verified price, booking total.
+
+**Trip hub (điểm tập kết)**:
+Nơi người đi bắt đầu phần đi bằng xe máy hoặc ô tô của chuyến đi, thường là nơi thuê xe, khi họ đến từ xa bằng phương tiện khác. Khi có điểm tập kết, nó là nơi xuất phát của phần lịch được kiểm tra.
+_Avoid_: Trip origin, first attraction.
+
+**Access leg (chặng tiếp cận)**:
+Phần di chuyển từ nhà người đi đến điểm tập kết bằng máy bay, xe khách hay tàu. Chặng tiếp cận được ước tính và hiển thị nhưng không được kiểm tra ràng buộc.
+_Avoid_: Return leg, roadside driving leg, verified journey.
+
+**Price reference (bảng giá tham khảo)**:
+Tài liệu được duyệt ghi các mức giá phổ biến cho chuyến đi Hà Giang, kèm ngày cập nhật, làm cơ sở cho bảng chi phí ước tính.
+_Avoid_: Live price, quote.
+
 **Indicative departure window (khoảng khởi hành dự kiến)**:
 A period in which the traveler may start the trip without yet choosing one exact departure date, such as a particular week.
 _Avoid_: Exact departure date, confirmed trip dates.

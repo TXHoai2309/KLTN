@@ -5824,3 +5824,11 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
   - `npm run build` (`apps/web`): PASS (Next.js 16.4.6 Turbopack, TypeScript check + 57/57 static pages & all dynamic/API routes).
   - `git diff --check`: PASS. No secrets in diff; no Prisma schema/migration or dependency changes.
 - **Not proven:** Visual/interactive browser verification (360 px mobile, dark mode, live Stop click, and Vercel Production CDN SSE buffering behavior); live PostgreSQL/Stadia end-to-end turn; live OpenAI turn triggering `apply_to_draft` or `FALSE_PASS` (both covered by unit/stream tests with `MockLanguageModelV4`).
+
+## 2026-11-21 — Planning concierge design (`/assistant/plan`)
+
+- **Branch:** `TXH`
+- **Task:** Owner grilling Q1–Q25 on the AI planning chat after merging `feat/tripsage-chat-itinerary-port`.
+- **Completed:** Spec `docs/specs/tripsage-planning-concierge-spec.md`, ADR-42, glossary terms (Day timeline, Planning suggestion, Lodging suggestion, Cost estimate, Trip hub, Access leg, Price reference), tickets 01–04 under `.scratch/tripsage-planning-concierge/issues`. The AI-led intake spec is marked superseded.
+- **DB/migration changes:** None planned (extras are not saved).
+- **Next:** Implement tickets 01→04, one commit each.

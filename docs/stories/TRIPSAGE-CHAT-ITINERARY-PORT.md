@@ -178,3 +178,7 @@ Unticked criterion and why: flag-on chat in a real browser (above), and the `Ext
 ## Handoff Notes
 
 Original decisions are in [the research note](../research/tripsage-itinerary-port.md). See the [progress log](../implementation/tripsage-feature-groups-progress.md) for the updated provider split, verification and remaining phases.
+
+## Planning concierge follow-up (2026-11-21)
+
+Owner design interview Q1–Q25 replaced the trip-info dialog with a guided conversation, day timeline, suggestion layer, cost table and access leg on `/assistant/plan`. Decision: [ADR-42](../decisions.md#adr-42--planning-concierge-on-assistantplan-2026-11-21). Spec: [tripsage-planning-concierge-spec.md](../specs/tripsage-planning-concierge-spec.md). Tickets: `.scratch/tripsage-planning-concierge/issues/01–04`, one commit per ticket.

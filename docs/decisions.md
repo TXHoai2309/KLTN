@@ -959,3 +959,35 @@ Production replies on `/trips/[id]/edit` repeated the deterministic `buildGround
 - **History/rollback:** Persist actual source for new evidence, keep old source values readable and never infer old provenance from the current flag. Origin source is JSON, so no Prisma migration is required. Read saved routing snapshots instead of routing on Trip page reads; never fabricate VERIFIED straight-line evidence. Google geometry/Places pins are not displayed on Stadia after rollback; the saved itinerary remains readable, and restricted layers are unavailable. No mass rewrite/backfill or schema rollback.
 - **Precedence:** This provider choice supersedes incompatible Stadia-only/VietMap-only directions in ADR-17/18/19 within the approved scope. Preserve those records as history. ADR-22 iframe behavior and the existing runtime credential security boundary remain; this decision adds no Google credential editor to Admin.
 - **Limits:** No real Google credentials/Map ID are configured locally, so live rendering/routing/search, billing/quota and domain authorization remain unaccepted. Google retention/agreement and application Terms/Privacy are deployment gates; saving the existing journey snapshot does not certify permission for indefinite Google-content storage. Details and official documentation are in the [runbook](implementation/google-maps-provider-switch-runbook.md).
+
+## ADR-42 — Planning concierge on `/assistant/plan` (2026-11-21)
+
+- **Status:** Accepted by the owner (design interview Q1–Q25, 2026-11-21, "có… làm luôn"). Spec: [tripsage-planning-concierge-spec.md](specs/tripsage-planning-concierge-spec.md). Amends ADR-33, ADR-34 and the AI-led intake spec for `/assistant/plan` only.
+- **Date:** 2026-11-21
+
+### Context
+
+The planning chat was a form dialog followed by a short, capped reply that showed only attraction visits. The owner wants a conversation that reads like a tour guide: grouped questions with suggested answers, a first itinerary within two user turns, a day timeline with lunch and overnight, suggestions for meals, evenings and lodging, a cost table, and a way for travelers from far away to reach Hà Giang. ADR-33/34 forbid naming lodging or prices, and a long drive from the south is rejected as `OVERNIGHT_DRIVING_UNSUPPORTED`.
+
+### Decision
+
+1. On `/assistant/plan` only, the assistant may name lodging and give prices, provided every lodging is a Google Places result labeled unchecked, every amount is labeled an estimate, and nothing is booked. ADR-34's other safety checks stay.
+2. The planner owns every clock time and the Validator alone decides PASS/VIOLATION/INSUFFICIENT_DATA. The assistant adds a separate suggestion layer attached to timeline slots; suggestions never change a time, never become visits and are never PASS. Evening suggestions must be walkable (≤ 2 km) from the day's last stop.
+3. Two scheduling preferences (lunch 60–120 min, latest visit end 15:00–18:00) may be set per trip. They only make a schedule more conservative, so the Validator and the Save re-check are unchanged.
+4. A traveler far away gets an access leg (flight, sleeper bus, train) to a fixed trip hub (Hà Nội, TP Hà Giang). The access leg is estimated and shown but not validated; the validated trip starts at the hub, which becomes the saved origin. Trip days count from the hub.
+5. Grouped questions: the first cluster (origin, date, days, vehicle) is recorded only when the traveler says or accepts it; second-cluster items (interests, pace, travelers, day rhythm) use visible server defaults without asking. Origin, past dates and day counts outside 1–14 are never defaulted.
+6. The chat uses `gpt-6.1-terra` with medium reasoning and no output-token cap, like ADR-39/40, bounded by 12 steps and the route's 300 s.
+7. Suggestions, lodging, the cost table and the access leg live only in the conversation; Save is unchanged and does not store them.
+
+### Alternatives
+
+- Add lodging, eateries and rest stops as Destinations: rejected; each Destination is a scheduled visit checked by the Validator (ADR-33), and the data would need manual upkeep.
+- Let the model write the whole timeline: rejected; times would bypass the Validator.
+- Validate multi-modal journeys (flight + drive): rejected; no reliable flight/bus timetable data, and the Validator would need a new mode.
+- Store the extras on Save now: deferred; needs a migration, Save payload and saved-trip view changes.
+
+### Consequences
+
+- Reopening a saved trip does not show suggestions, costs or the access leg until a follow-up story stores them.
+- Turns are slower and cost more (reasoning, more tool calls).
+- Prices depend on a code default table and an Admin-uploaded price reference document whose date is shown; stale prices are possible and are labeled as estimates.
