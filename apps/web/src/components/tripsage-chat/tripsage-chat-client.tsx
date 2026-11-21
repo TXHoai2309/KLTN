@@ -457,7 +457,7 @@ export function TripsageChatClient({
                         <span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true" /><span>Trợ lý AI</span></span>
                         {text && <TripsageMarkdown text={text} />}
                         {itinerary && state.timeline && <TripsageTimelineView timeline={state.timeline} suggestions={state.suggestions} />}
-                        {itinerary && <TripsageItineraryView proposal={itinerary}>{!busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} onStateChange={setSaveState} />)}</TripsageItineraryView>}
+                        {itinerary && <TripsageItineraryView proposal={itinerary}>{!busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} tripInfo={state.tripInfo} onStateChange={setSaveState} />)}</TripsageItineraryView>}
                         {accessLeg && <TripsageAccessLegCard leg={accessLeg} />}
                         {cost && <TripsageCostCard cost={cost} />}
                         <TripsagePlacesView places={suggestions} />

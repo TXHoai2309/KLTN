@@ -3,6 +3,7 @@ import { tripRequirementInputSchema } from "../trip-requirement/trip-requirement
 import { publicHttpsUrl } from "../content-profile/content-profile-contract";
 import { plannerRouteGeometrySchema } from "./planner-route-geometry";
 import { journeyPlanSchema } from "../trip-origin/journey-route-contract";
+import { ASSUMABLE_FIELDS, blockingAssumedFields } from "../trip-validation/trip-proposal-contract";
 
 export const PLANNER_PHASES = ["PRELIMINARY_PROPOSAL", "FINAL_CONFIRMATION", "OFFICIAL_SAVE"] as const;
 export const CHECK_KEYS = ["OPENING_HOURS", "MINIMUM_DURATION", "TRAVEL_TIME", "SCHEDULE_CONFLICTS", "MOBILITY"] as const;
@@ -60,6 +61,8 @@ export const plannerResultSchema = z.object({
   requirement: tripRequirementInputSchema, timezone: z.literal("Asia/Ho_Chi_Minh"),
   days: z.array(plannerDaySchema).min(1).max(14), checks: z.array(plannerCheckSchema).length(CHECK_KEYS.length),
   warnings: z.array(issueSchema).max(80), reasonCodes: z.array(z.string().max(80)).max(30),
+  /** Assumed first-cluster fields for an Assumed draft (ADR-44). Present only when at least one field is assumed. */
+  assumedFields: z.array(z.enum(ASSUMABLE_FIELDS)).max(ASSUMABLE_FIELDS.length).optional(),
   eligibleForFinalConfirmation: z.boolean(),
 }).strict().superRefine((proposal, ctx) => {
   const fail = (message: string) => ctx.addIssue({ code: "custom", message });
@@ -67,7 +70,7 @@ export const plannerResultSchema = z.object({
   if (new Set(proposal.checks.map(check => check.key)).size !== CHECK_KEYS.length) fail("Check keys mismatch.");
   const allPass = proposal.checks.every(check => check.status === "PASS");
   if (proposal.status === "PROPOSAL_READY" && !allPass) fail("Missing data is not a pass.");
-  if (proposal.eligibleForFinalConfirmation && (!allPass || !proposal.requirement.startDate)) fail("Final confirmation is blocked.");
+  if (proposal.eligibleForFinalConfirmation && (!allPass || !proposal.requirement.startDate || blockingAssumedFields(proposal.assumedFields).length > 0)) fail("Final confirmation is blocked.");
   const ids = proposal.days.flatMap(day => day.stops.map(stop => stop.destination.id));
   if (new Set(ids).size !== ids.length || ids.length > 28) fail("Duplicate or unbounded stops.");
   for (const day of proposal.days) {

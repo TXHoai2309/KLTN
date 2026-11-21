@@ -18,6 +18,7 @@ import { domainOf, isSafePublicHttpsUrl, WEB_DATA_MARKER, type WebLookup } from 
 import { quickRepliesPartSchema, resolveEffectiveJourney, tripInfoSchema, withTripInfoDefaults, type ChatSourceItem, type OriginCandidatesPart, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
 import { FIXED_HUB_CANDIDATES, matchFixedHub, MAX_ORIGIN_CANDIDATES, permitsOriginConfirmation, type SignedOriginCandidate, type VerifiedOriginCandidates } from "./tripsage-chat-origin";
 import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
+import { blockingAssumedFields, type AssumableField } from "../trip-validation/trip-proposal-contract";
 import { JOURNEY_MISSING_LABELS, missingJourneyFields, originSelectionSchema, type OriginSelection, type TripJourney } from "../trip-origin/trip-origin-contract";
 import type { OriginSearchOutcome } from "../trip-origin/origin-search-contract";
 import { vietnamCoverageAt } from "../trip-origin/vietnam-coverage";
@@ -87,7 +88,21 @@ const proposeInputSchema = z.object({
   selection: planningSelectionSchema.optional().describe("days[i] là danh sách id điểm đến (lấy từ listDestinations, hoặc scheduleId từ searchPlaces của cùng lượt) của ngày i+1; số ngày phải đúng bằng số ngày đã ghi; tối đa 4 điểm mỗi ngày."),
 }).strict();
 
-const recordInputSchema = tripInfoSchema.extend({
+export const ASSUMED_DRAFT_DAYS = 4;
+export const ASSUMED_DRAFT_TRANSPORT = "MOTORCYCLE" as const;
+export const ASSUMED_DRAFT_HUB_ID = "hub:HA_NOI" as const;
+
+/** Nearest reasonable future Saturday from today in Vietnam time (ADR-44): strictly after today, never in the past. */
+export function nearestReasonableSaturday(now: Date): string {
+  const iso = vietnamDateOf(now);
+  const [y, m, d] = iso.split("-").map(Number) as [number, number, number];
+  const utc = new Date(Date.UTC(y, m - 1, d));
+  const daysAhead = (6 - utc.getUTCDay()) || 7;
+  utc.setUTCDate(utc.getUTCDate() + daysAhead);
+  return utc.toISOString().slice(0, 10);
+}
+
+const recordInputSchema = tripInfoSchema.omit({ assumedFields: true }).extend({
   transport: tripInfoSchema.shape.transport.describe("MOTORCYCLE (xe máy) hoặc CAR (ô tô)."),
   durationDays: tripInfoSchema.shape.durationDays.describe("Số ngày, 1-14, tính từ điểm xuất phát/điểm tập kết."),
   startDate: tripInfoSchema.shape.startDate.describe("Ngày bắt đầu YYYY-MM-DD, không ở quá khứ."),
@@ -169,6 +184,13 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         if (normalizedRequired.length > 0) nextTripInfo.mustIncludeDestinationIds = normalizedRequired;
         else delete nextTripInfo.mustIncludeDestinationIds;
       }
+      const remainingAssumed = (tripInfo.assumedFields ?? []).filter(field =>
+        !(field === "transport" && input.transport !== undefined)
+        && !(field === "durationDays" && input.durationDays !== undefined)
+        && !(field === "startDate" && input.startDate !== undefined),
+      );
+      if (remainingAssumed.length > 0) nextTripInfo.assumedFields = remainingAssumed;
+      else delete nextTripInfo.assumedFields;
       tripInfo = nextTripInfo;
       context.emitTripInfo?.(tripInfo);
       const effectiveJourney = resolveEffectiveJourney(currentJourney, tripInfo);
@@ -249,8 +271,10 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         const hub = FIXED_HUB_CANDIDATES.find(item => item.id === candidateId);
         if (hub) {
           found = hub;
-          pool = FIXED_HUB_CANDIDATES;
-          fromPreviousTurn = false;
+          // If the previous turn proposed an Assumed draft from fixed hub Hà Nội, agreement confirms it directly.
+          const confirmingAssumedHub = hub.id === ASSUMED_DRAFT_HUB_ID && (tripInfo.assumedFields?.includes("origin") ?? false);
+          pool = confirmingAssumedHub ? [hub] : FIXED_HUB_CANDIDATES;
+          fromPreviousTurn = confirmingAssumedHub;
         }
       }
       if (!found) {
@@ -283,6 +307,14 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       )!;
       currentJourney = nextJourney;
       context.emitJourney?.(nextJourney);
+      if (tripInfo.assumedFields?.includes("origin")) {
+        const remainingAssumed = tripInfo.assumedFields.filter(field => field !== "origin");
+        const nextTripInfo: TripsageTripInfo = { ...tripInfo };
+        if (remainingAssumed.length > 0) nextTripInfo.assumedFields = remainingAssumed;
+        else delete nextTripInfo.assumedFields;
+        tripInfo = nextTripInfo;
+        context.emitTripInfo?.(tripInfo);
+      }
       const { info, defaulted } = withTripInfoDefaults(tripInfo);
       return {
         ok: true as const,
@@ -315,16 +347,59 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   });
 
   const proposeItinerary = tool({
-    description: "Lập và kiểm tra lịch trình từ id điểm đến. Kết quả đầy đủ được hiển thị cho người dùng qua giao diện; không chép lại lịch trình thành văn bản. Nếu ok=false, đọc message rồi chỉnh selection (tối đa 2 lần gọi mỗi lượt).",
+    description: "Lập và kiểm tra lịch trình từ id điểm đến. Nếu chưa đủ thông tin (nơi xuất phát, số ngày, phương tiện, ngày đi), hệ thống tự điền giả định bản nháp (Hà Nội, 4 ngày, xe máy, thứ Bảy gần nhất) và đánh dấu giả định (ADR-44). Kết quả đầy đủ được hiển thị qua giao diện; không chép lại thành bảng giờ. Nếu ok=false, đọc message rồi chỉnh selection (tối đa 2 lần gọi mỗi lượt).",
     inputSchema: proposeInputSchema,
     execute: async input => {
       if (proposals >= maxProposals) return { ok: false as const, code: "PROPOSAL_LIMIT", message: "Đã đạt số lần lập lịch tối đa trong lượt này. Hãy tóm tắt và mời người dùng nhắn tiếp." };
-      // Gate before any routing or scheduling: ask for what is missing, never guess it, and do not spend a proposal.
-      // Recorded trip info (with second-cluster defaults) drives scheduling; the model supplies only `selection` and never the day count.
-      const effective = withTripInfoDefaults(tripInfo).info;
-      const effectiveJourney = resolveEffectiveJourney(currentJourney, tripInfo);
-      const missing = missingTripInfo(effective, effectiveJourney);
-      if (missing.length) return { ok: false as const, code: "MISSING_REQUIRED_INFO", message: "Chưa đủ thông tin để lập lịch. Ghi bằng recordTripInfo những gì người dùng đã nói/đồng ý; phần còn thiếu thì hỏi gộp trong một tin, kèm gợi ý. Điểm xuất phát tìm qua findOrigin và xác nhận qua confirmOrigin ở lượt sau.", missing: missing.map(m => m.field), questions: missing.map(m => m.question) };
+      // An explicitly supplied but unconfirmed origin selection is never silently promoted.
+      if (currentJourney?.origin && !currentJourney.origin.confirmed) {
+        const missing = missingTripInfo(withTripInfoDefaults(tripInfo).info, resolveEffectiveJourney(currentJourney, tripInfo));
+        return { ok: false as const, code: "MISSING_REQUIRED_INFO", message: "Cần xác nhận điểm xuất phát trước khi lập lịch.", missing: missing.map(m => m.field), questions: missing.map(m => m.question) };
+      }
+      // ADR-44: fill any missing first-cluster fields with server-owned Assumed draft values; user-stated fields always win.
+      const assumedSet = new Set<AssumableField>(tripInfo.assumedFields ?? []);
+      const candidateTripInfo: TripsageTripInfo = { ...tripInfo };
+      let addedAssumption = false;
+      let assumedOriginBuilt = false;
+      if (!candidateTripInfo.transport) {
+        candidateTripInfo.transport = ASSUMED_DRAFT_TRANSPORT;
+        assumedSet.add("transport");
+        addedAssumption = true;
+      }
+      if (!candidateTripInfo.durationDays) {
+        candidateTripInfo.durationDays = ASSUMED_DRAFT_DAYS;
+        assumedSet.add("durationDays");
+        addedAssumption = true;
+      }
+      if (!candidateTripInfo.startDate) {
+        candidateTripInfo.startDate = nearestReasonableSaturday(now());
+        assumedSet.add("startDate");
+        addedAssumption = true;
+      }
+      let candidateJourney = currentJourney;
+      if (!candidateJourney?.origin) {
+        const hanoiHub = FIXED_HUB_CANDIDATES.find(hub => hub.id === ASSUMED_DRAFT_HUB_ID)!;
+        candidateJourney = {
+          origin: originSelectionSchema.parse({
+            label: hanoiHub.label,
+            latitude: hanoiHub.latitude,
+            longitude: hanoiHub.longitude,
+            source: hanoiHub.source,
+            confirmed: true,
+          }),
+          departureMinute: candidateJourney?.departureMinute ?? null,
+          returnDeadlineMinute: candidateJourney?.returnDeadlineMinute ?? null,
+          returnDepartureMinute: candidateJourney?.returnDepartureMinute ?? null,
+        };
+        assumedSet.add("origin");
+        addedAssumption = true;
+        assumedOriginBuilt = true;
+      }
+      if (assumedSet.size > 0) candidateTripInfo.assumedFields = [...assumedSet];
+      else delete candidateTripInfo.assumedFields;
+
+      const effective = withTripInfoDefaults(candidateTripInfo).info;
+      const effectiveJourney = resolveEffectiveJourney(candidateJourney, candidateTripInfo);
       proposals += 1;
       try {
         if (!input.selection) throw new AppError("INVALID_AI_PLAN", "Thiếu danh sách điểm đến theo ngày. Hãy gọi listDestinations rồi chọn điểm.", 422);
@@ -343,7 +418,24 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         // Only external ids this turn's searchPlaces returned become candidates; any other id stays unknown (INVALID_AI_PLAN).
         const external = [...new Set(input.selection.days.flat())].flatMap(id => (id.startsWith(EXTERNAL_PLACE_ID_PREFIX) ? searchedPlaces.get(id.slice(EXTERNAL_PLACE_ID_PREFIX.length)) ?? [] : [])).map(externalPlannerCandidate);
         const all = external.length ? [...base, ...external] : base;
-        const result = await scheduleSelection(needs, input.selection, all, context.planning.routes, now());
+        const rawResult = await scheduleSelection(needs, input.selection, all, context.planning.routes, now());
+        if (addedAssumption) {
+          tripInfo = candidateTripInfo;
+          context.emitTripInfo?.(tripInfo);
+        }
+        if (assumedOriginBuilt && effectiveJourney) {
+          currentJourney = effectiveJourney;
+          context.emitJourney?.(effectiveJourney);
+        }
+        const assumedFields = candidateTripInfo.assumedFields ?? [];
+        const blockingAssumed = blockingAssumedFields(assumedFields);
+        const result: PlannerResult = assumedFields.length > 0
+          ? {
+              ...rawResult,
+              assumedFields: [...assumedFields],
+              eligibleForFinalConfirmation: blockingAssumed.length > 0 ? false : rawResult.eligibleForFinalConfirmation,
+            }
+          : rawResult;
         context.emitItinerary(result);
         latestDays = result.days.map(day => day.stops.map(stop => stop.destination.id));
         latestDistanceKm = itineraryDistanceKm(result);
@@ -352,10 +444,11 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         if (longDrive && !isHubOrigin(effectiveJourney?.origin?.label)) hubSuggested = true;
         const names = new Map(all.map(c => [c.id, c.name]));
         return { ok: true as const, status: result.status, eligibleForFinalConfirmation: result.eligibleForFinalConfirmation,
+          ...(assumedFields.length > 0 ? { assumedFields } : {}),
           ...(hubSuggested ? { hubHint: "Lái xe thẳng từ điểm xuất phát không khả thi hoặc quá xa. Gợi ý người dùng bay hoặc đi xe khách tới điểm tập kết cố định (Hà Nội: hub:HA_NOI hoặc TP Hà Giang: hub:HA_GIANG_CITY) rồi thuê xe: hỏi thành phố họ ở (recordTripInfo homeCity), mời chọn điểm tập kết (xác nhận bằng confirmOrigin khi họ đồng ý), và planAccessLeg để ước tính chặng tiếp cận." } : {}),
           days: result.days.map(day => ({ day: day.day, stops: day.stops.map(stop => names.get(stop.destination.id) ?? stop.destination.name) })),
           checks: result.checks.map(check => ({ key: check.key, status: check.status })),
-          note: `Lịch đầy đủ đã hiển thị cho người dùng. Chỉ nhận xét ngắn; trạng thái khác PASS nghĩa là chưa được xác nhận.${external.length ? " Có địa điểm ngoài danh mục (Google Maps): chưa được kiểm tra, thời gian ở lại chỉ là ước tính, lịch này chưa thể lưu." : ""}` };
+          note: `Lịch đầy đủ đã hiển thị cho người dùng. Chỉ nhận xét ngắn; trạng thái khác PASS nghĩa là chưa được xác nhận.${blockingAssumed.length > 0 ? ` Đây là bản nháp giả định (${assumedFields.join(", ")}): viết đúng một dòng nêu các giả định đang dùng, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (nơi xuất phát hoặc ngày đi), đưa giả định còn lại vào suggestReplies; lịch chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi.` : ""}${external.length ? " Có địa điểm ngoài danh mục (Google Maps): chưa được kiểm tra, thời gian ở lại chỉ là ước tính, lịch này chưa thể lưu." : ""}` };
       } catch (error) { return failure(error); }
     },
   });

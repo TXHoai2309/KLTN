@@ -13,7 +13,7 @@ import { visibleDestinationWhere } from "../destination/destination-eligibility"
 import { tripRequirementInputSchema } from "../trip-requirement/trip-requirement-contract";
 import { assertStartDateForFinalConfirmation } from "../trip-requirement/trip-requirement-readiness";
 import type { TravelRoute } from "../trip-validation/stadia-route";
-import { tripDayDate, type TripProposal } from "../trip-validation/trip-proposal-contract";
+import { blockingAssumedFields, formatAssumedConfirmationMessage, tripDayDate, type TripProposal } from "../trip-validation/trip-proposal-contract";
 import { validateItinerary, type RouteSnapshot, type TripValidation, type ValidationVisit } from "../trip-validation/trip-validation";
 import { tripSaveRequestSchema, type TripSaveRequest } from "./trip-save-contract";
 import { EXTERNAL_PLACE_ID_PREFIX, isSchedulablePlaceId } from "../trip-planner/planner-candidates";
@@ -167,6 +167,10 @@ export async function saveTrip(headers: Headers, request: TripSaveRequest, key: 
   const replay = await preflightIdempotentReplay<{ tripId: string; validation: TripValidation }>(identity);
   if (replay.status !== "ABSENT") return replay;
 
+  const blockingAssumed = blockingAssumedFields(request.proposal.assumedFields);
+  if (blockingAssumed.length > 0) {
+    throw new AppError("ASSUMED_FIELDS_UNCONFIRMED", formatAssumedConfirmationMessage(blockingAssumed), 422, { assumedFields: blockingAssumed });
+  }
   if (request.proposal.startDate === null) throw new AppError("TRIP_START_DATE_REQUIRED", "Cần ngày bắt đầu trước khi lưu.", 422);
   assertJourneyReady(request.proposal.journey, request.proposal.days.at(-1)?.visits.length === 0);
   const requirement = tripRequirementInputSchema.parse({

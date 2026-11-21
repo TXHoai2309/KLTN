@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { tripJourneySchema, type TripJourney } from "../trip-origin/trip-origin-contract";
 import type { PlannerResult } from "../trip-planner/planner-contract";
+import { ASSUMABLE_FIELDS, type AssumableField } from "../trip-validation/trip-proposal-contract";
 import type { AccessLegPart } from "./tripsage-access-leg";
 import {
   INTEREST_VALUES,
@@ -45,8 +46,11 @@ export const tripInfoSchema = z.object({
   mustIncludeDestinationIds: z.array(z.string().trim().min(1).max(128)).max(4).optional(),
   /** Where the traveler lives (free text city name, ticket 04); never coordinates. */
   homeCity: z.string().trim().min(1).max(80).optional(),
+  /** First-cluster fields filled as server assumptions in an Assumed draft (ADR-44). Cleared as the traveler confirms or changes them. */
+  assumedFields: z.array(z.enum(ASSUMABLE_FIELDS)).max(ASSUMABLE_FIELDS.length).optional(),
 }).strict();
 export type TripsageTripInfo = z.infer<typeof tripInfoSchema>;
+export type { AssumableField };
 
 /** Second-cluster and clock defaults the server applies without asking; always shown as defaults (ADR-42 §5, ADR-43 §4). */
 export const TRIP_INFO_DEFAULTS: {

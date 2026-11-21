@@ -4,16 +4,19 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import type { PlannerResult } from "@/modules/trip-planner/planner-contract";
+import type { TripsageTripInfo } from "@/modules/tripsage-chat/tripsage-chat-context";
 import { chatSavePlan, createChatSaveController, type ChatSaveView } from "@/modules/tripsage-chat/tripsage-chat-save";
 import type { SaveState } from "@/modules/trip-save/trip-save-state";
 import { uncheckedItemLabel } from "@/modules/trip-save/unchecked-checks";
+import { blockingAssumedFields, formatAssumedConfirmationMessage } from "@/modules/trip-validation/trip-proposal-contract";
 
 /**
  * Save box under a chat itinerary. An all-PASS schedule saves with one click. A schedule whose only gaps are unchecked data of
  * places outside the catalogue (Ticket 09) lists each unchecked item and saves only after an explicit tick; the server
- * re-validates, compares the list and records the items as unchecked. A FAILED check never reaches this button.
+ * re-validates, compares the list and records the items as unchecked. An Assumed draft with unconfirmed origin or startDate
+ * (ADR-44) cannot be saved until those fields are confirmed. A FAILED check never reaches this button.
  */
-export function TripsageSaveSection({ result, onStateChange }: { result: PlannerResult; onStateChange?: (state: SaveState) => void }) {
+export function TripsageSaveSection({ result, tripInfo, onStateChange }: { result: PlannerResult; tripInfo?: TripsageTripInfo | null; onStateChange?: (state: SaveState) => void }) {
   const controllerRef = useRef<ReturnType<typeof createChatSaveController> | null>(null);
   controllerRef.current ??= createChatSaveController();
   const [view, setView] = useState<ChatSaveView>({ state: "idle", message: "", tripId: null, unchecked: [] });
@@ -21,14 +24,34 @@ export function TripsageSaveSection({ result, onStateChange }: { result: Planner
   const abortRef = useRef<AbortController | null>(null);
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  const plan = chatSavePlan(result);
+  const currentAssumed = tripInfo ? tripInfo.assumedFields : result.assumedFields;
+  const blockingAssumed = blockingAssumedFields(currentAssumed);
+  if (blockingAssumed.length > 0) {
+    return (
+      <div className="tripsage-save" aria-live="polite">
+        <button type="button" className="assistant-save-button" disabled>
+          Lưu hành trình
+        </button>
+        <p role="note" className="assistant-muted">{formatAssumedConfirmationMessage(blockingAssumed)}</p>
+      </div>
+    );
+  }
+  const effectiveResult: PlannerResult = result.assumedFields?.length
+    ? {
+        ...result,
+        assumedFields: currentAssumed?.length ? [...currentAssumed] : undefined,
+        eligibleForFinalConfirmation: result.status === "PROPOSAL_READY" && Boolean(result.requirement.startDate),
+      }
+    : result;
+
+  const plan = chatSavePlan(effectiveResult);
   if (!plan) {
     return <p role="note" className="assistant-muted">Lịch này có mục chưa được kiểm tra hoặc chưa đạt, nên chưa thể lưu.</p>;
   }
   const controller = controllerRef.current;
   // After the server refused a confirmation, its list replaces ours and must be confirmed again.
   const items = view.unchecked.length ? view.unchecked : plan.unchecked;
-  const names = new Map(result.days.flatMap(day => day.stops.map(stop => [stop.destination.id, stop.destination.name] as const)));
+  const names = new Map(effectiveResult.days.flatMap(day => day.stops.map(stop => [stop.destination.id, stop.destination.name] as const)));
 
   async function save() {
     if (controller.view.state === "pending" || controller.view.state === "success") return;
@@ -36,7 +59,7 @@ export function TripsageSaveSection({ result, onStateChange }: { result: Planner
     abortRef.current = new AbortController();
     setView({ state: "pending", message: "Đang lưu hành trình…", tripId: null, unchecked: items });
     onStateChange?.("pending");
-    const next = await controller.save(result, abortRef.current.signal, { confirmUnchecked: confirmed });
+    const next = await controller.save(effectiveResult, abortRef.current.signal, { confirmUnchecked: confirmed });
     if (next.state === "failed" && next.unchecked.length) setConfirmed(false);
     setView({ ...next });
     onStateChange?.(next.state);

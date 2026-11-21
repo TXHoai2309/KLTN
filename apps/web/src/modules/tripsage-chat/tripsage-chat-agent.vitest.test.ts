@@ -173,32 +173,33 @@ describe("Tripsage agent secrets and failures", () => {
   });
 });
 
-describe("Tripsage required-information gate (Ticket 04)", () => {
+describe("Tripsage required-information gate & ADR-44 assumed draft", () => {
   const withJourney = (over: object) => ({ ...COMPLETE_JOURNEY_FIXTURE, ...over });
-  const MISSING: [string, Record<string, unknown>, unknown, string, string][] = [
-    ["transport", { transport: undefined }, COMPLETE_JOURNEY_FIXTURE, "transport", "xe máy hay ô tô"],
-    ["durationDays", { durationDays: undefined }, COMPLETE_JOURNEY_FIXTURE, "durationDays", "bao nhiêu ngày"],
-    ["startDate", { startDate: undefined }, COMPLETE_JOURNEY_FIXTURE, "startDate", "ngày nào"],
-    ["origin (no journey)", {}, null, "origin", "Chưa chọn điểm xuất phát"],
-    ["origin confirmation", {}, withJourney({ origin: ORIGIN_FIXTURES.unconfirmed }), "originConfirmation", "Xác nhận điểm xuất phát"],
-  ];
-  for (const [name, extra, journey, field, text] of MISSING) {
-    it(`does not schedule and returns the Vietnamese question when ${name} is missing`, async () => {
-      routeSpy.mockClear();
-      const model = scripted([propose([["a"]]), { text: "Bạn cho mình biết thêm nhé." }]);
-      const sse = await run(model, {}, journey, { ...TRIP_INFO_FIXTURE, ...extra });
-      expect(parts(sse).some(p => p.type === "data-itinerary")).toBe(false);
-      expect(routeSpy).not.toHaveBeenCalled();
-      const fed = JSON.stringify(model.doStreamCalls[1]!.prompt);
-      expect(fed).toContain("MISSING_REQUIRED_INFO");
-      expect(fed).toContain(field);
-      expect(fed.toLowerCase()).toContain(text.toLowerCase());
-    });
-  }
 
-  it("does not spend a proposal on a gated call, and recordTripInfo takes effect in the same turn", async () => {
+  it("still blocks when an explicitly supplied origin is unconfirmed", async () => {
+    routeSpy.mockClear();
+    const model = scripted([propose([["a"]]), { text: "Bạn xác nhận điểm xuất phát nhé." }]);
+    const sse = await run(model, {}, withJourney({ origin: ORIGIN_FIXTURES.unconfirmed }), TRIP_INFO_FIXTURE);
+    expect(parts(sse).some(p => p.type === "data-itinerary")).toBe(false);
+    expect(routeSpy).not.toHaveBeenCalled();
+    const fed = JSON.stringify(model.doStreamCalls[1]!.prompt);
+    expect(fed).toContain("MISSING_REQUIRED_INFO");
+    expect(fed).toContain("originConfirmation");
+  });
+
+  it("fills missing first-cluster fields with ADR-44 server assumptions and marks them assumed", async () => {
+    const model = scripted([propose([["a", "b"]]), { text: "Đây là bản nháp giả định." }]);
+    const sse = await run(model, {}, null, { durationDays: 1 });
+    const itinerary = plannerResultSchema.parse(parts(sse).find(p => p.type === "data-itinerary")!.data);
+    expect(itinerary.assumedFields).toEqual(expect.arrayContaining(["transport", "startDate", "origin"]));
+    expect(itinerary.assumedFields).not.toContain("durationDays");
+    expect(itinerary.eligibleForFinalConfirmation).toBe(false);
+    expect(itinerary.requirement.journey?.origin?.label).toBe("Hà Nội (bến xe Mỹ Đình)");
+  });
+
+  it("does not spend a proposal on a gated unconfirmed-origin call, and recordTripInfo takes effect in the same turn", async () => {
     const noTransport = { ...TRIP_INFO_FIXTURE, transport: undefined };
-    const model = scripted([propose([["a"]]), propose([["a"]]), { tool: "recordTripInfo", input: { transport: "CAR" } }, propose([["a", "b"]]), { text: "Xong." }]);
+    const model = scripted([{ tool: "recordTripInfo", input: { transport: "CAR" } }, propose([["a", "b"]]), { text: "Xong." }]);
     const sse = await run(model, {}, COMPLETE_JOURNEY_FIXTURE, noTransport);
     expect(parts(sse).filter(p => p.type === "data-itinerary")).toHaveLength(1);
     expect(parts(sse).find(p => p.type === "data-trip-info")?.data).toEqual({ tripInfo: TRIP_INFO_FIXTURE });

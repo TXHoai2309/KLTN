@@ -191,14 +191,14 @@ describe("chat request tripInfo context", () => {
     expect(result.requirement).toMatchObject({ transport: "CAR", startDate: "2026-11-02", interests: ["NATURE"], durationDays: 1 });
   });
 
-  it("still asks for the missing origin when the trip info is complete but the journey is not", async () => {
-    const model = scripted([propose({ selection: { days: [["a"]] } }), { text: "Bạn chọn điểm xuất phát nhé." }]);
+  it("assumes fixed hub Hà Nội and blocks final confirmation when tripInfo is complete but journey is missing (ADR-44)", async () => {
+    const model = scripted([propose({ selection: { days: [["a"]] } }), { text: "Mình đang giả định xuất phát từ Hà Nội." }]);
     const { response } = await call({ tripInfo: REQUIREMENT }, model, null);
     const sse = await response.text();
-    expect(parts(sse).some(p => p.type === "data-itinerary")).toBe(false);
-    const fed = JSON.stringify(model.doStreamCalls[1]!.prompt);
-    expect(fed).toContain("MISSING_REQUIRED_INFO");
-    expect(fed).not.toContain('"transport","durationDays"');
+    const itinerary = plannerResultSchema.parse(parts(sse).find(p => p.type === "data-itinerary")!.data);
+    expect(itinerary.assumedFields).toEqual(["origin"]);
+    expect(itinerary.eligibleForFinalConfirmation).toBe(false);
+    expect(itinerary.requirement.journey?.origin?.label).toBe("Hà Nội (bến xe Mỹ Đình)");
   });
 
   it("rejects malformed trip info with 400 before the provider", async () => {
