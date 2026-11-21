@@ -162,6 +162,7 @@ export async function writeDestinationV3(
         "address",
         "suggestedDurationMinutes",
         "minimumDurationMinutes",
+        "isOutdoor",
       ] as const)
         if (input[key] !== undefined && !equal(input[key], previous?.[key]))
           data[key] = input[key];

@@ -183,6 +183,21 @@ describe("US-37 Task 293 In-trip preview", () => {
     expect(f.previewCalls()).toBe(1);
   });
 
+  it("aborts the underlying routing request when the in-trip deadline expires", async () => {
+    let providerSignal: AbortSignal | undefined;
+    const f = harness();
+    f.dependencies.getRoute = async (_input, options) => {
+      providerSignal = options?.signal;
+      return new Promise((resolve) => {
+        options?.signal?.addEventListener("abort", () => resolve({ kind: "unavailable" }), { once: true });
+      });
+    };
+    const result = await previewInTrip("trip-1", "traveler-1", request(), f.dependencies);
+    expect(providerSignal?.aborted).toBe(true);
+    expect(result.validation.groups.travelTime.status).toBe("INSUFFICIENT_DATA");
+    expect(result.validation.canConfirm).toBe(false);
+  });
+
   it("rejects a changed completed visit before route lookup or Validator", async () => {
     const f = harness();
     const changed = candidate();
@@ -243,11 +258,8 @@ describe("US-37 Task 293 In-trip preview", () => {
     expect(completed.routeCalls()).toBe(0);
   });
 
-  it("authenticates before reading body and refuses a client-provided now", async () => {
-    for (const [role, status, code] of [
-      [null, 401, "UNAUTHENTICATED"],
-      ["ADMIN", 403, "FORBIDDEN"],
-    ] as const) {
+  it("authenticates guests before reading body and refuses a client-provided now", async () => {
+    for (const [role, status, code] of [[null, 401, "UNAUTHENTICATED"]] as const) {
       let bodyReads = 0;
       const f = harness();
       const response = await previewInTripResponse(post({ invalid: true }), "trip-1", {
@@ -259,6 +271,15 @@ describe("US-37 Task 293 In-trip preview", () => {
       expect(bodyReads).toBe(0);
       expect(f.tripReads()).toBe(0);
     }
+
+    let adminBodyReads = 0;
+    const admin = harness();
+    const adminResponse = await previewInTripResponse(post({ invalid: true }), "trip-1", {
+      authorization: auth("ADMIN"), service: admin.dependencies, onBodyRead: () => { adminBodyReads += 1; },
+    });
+    expect(adminResponse.status).toBe(400);
+    expect(adminBodyReads).toBe(1);
+    expect(admin.tripReads()).toBe(0);
 
     const f = harness();
     const response = await previewInTripResponse(post({

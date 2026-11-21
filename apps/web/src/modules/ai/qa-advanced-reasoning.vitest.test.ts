@@ -7,6 +7,7 @@ import { createQaGenerator } from "./qa-generation";
 import { assertQaAnswerGrounding } from "./qa-answer-grounding";
 import { createQaRetriever } from "./qa-retrieval";
 import { createQaService } from "./qa-service";
+import { AppError } from "../../server/http/app-error";
 import { assistantSourceReply } from "../../components/assistant/assistant-source-reply";
 import { QA_INSUFFICIENT_SOURCE_MESSAGE } from "./qa-contract";
 import { qaIntentHistory } from "./qa-question-understanding";
@@ -45,8 +46,13 @@ describe("owner advanced reasoning regressions (offline, annotated evidence)", (
     const fetcher = vi.fn<typeof fetch>(async (_url, init) => {
       const body = JSON.parse(String(init?.body));
       const prompt = JSON.parse(body.messages[1].content);
-      return envelope({ status: value.sourceSufficiency!.status === "PARTIAL" ? "PARTIAL" : "ANSWERED", unanswered: value.sourceSufficiency!.status === "PARTIAL",
-        facets: Object.fromEntries(prompt.REVIEWED_SUPPORT.map((aspect: { id: string; supportIds: string[] }) => [aspect.id, [{ text: prompt.SUPPORT_REGISTRY.find((ref: { id: string }) => ref.id === aspect.supportIds[0]).sentence, supportIds: [aspect.supportIds[0]] }]])) });
+      const support = prompt.CURRENT_EVIDENCE.flatMap((item: { citationId: string; sentences: string[] }) =>
+        item.sentences.map(sentence => ({ citationId: item.citationId, sentence })));
+      return envelope({
+        status: value.sourceSufficiency!.status === "PARTIAL" ? "PARTIAL" : "ANSWERED",
+        unanswered: value.sourceSufficiency!.status === "PARTIAL",
+        answerParts: support.map((ref: { citationId: string; sentence: string }) => ({ text: ref.sentence, mode: "SOURCE", citationIds: [ref.citationId] })),
+      });
     });
     const answer = await createQaGenerator({ apiKey: () => "fixture", fetcher }).generate(value);
     if (fixture.id === 7 || fixture.id === 8) {
@@ -89,7 +95,7 @@ describe("owner advanced reasoning regressions (offline, annotated evidence)", (
     value.sourceReview = review;
     value.sourceSufficiency = { status: "PARTIAL", reason: "PARTIAL_COVERAGE" };
     const answer = await createQaGenerator({ apiKey: () => "fixture", fetcher: async () => envelope({ status: "PARTIAL", unanswered: true,
-      facets: { q1_1: [{ text: value.evidence[0]!.text, supportIds: ["s1"] }] },
+      answerParts: [{ text: value.evidence[0]!.text, mode: "SOURCE", citationIds: ["c1"] }],
     }) }).generate(value);
     expect(answer.status).toBe("PARTIAL");
     expect(answer.citations.map(item => item.id)).toEqual(["c1"]);
@@ -103,7 +109,7 @@ describe("owner advanced reasoning regressions (offline, annotated evidence)", (
   it("does not let generation downgrade an explicit comparison to an unrelated clarification", async () => {
     const value = input("So sánh Hồ Alpha với Đồi Beta về cảnh quan", [evidence("Hồ Alpha có mặt nước rộng.", "Hồ Alpha"), evidence("Đồi Beta có cây xanh.", "Đồi Beta", 2)]);
     value.sourceReview = reviewed(value); value.sourceSufficiency = { status: "SUFFICIENT", reason: "COMPLETE_COVERAGE" };
-    const answer = await createQaGenerator({ apiKey: () => "fixture", fetcher: async () => envelope({ status: "CLARIFICATION_REQUIRED", unanswered: false, facets: { q1_1: [], q2_1: [] } }) }).generate(value);
+    const answer = await createQaGenerator({ apiKey: () => "fixture", fetcher: async () => envelope({ status: "CLARIFICATION_REQUIRED", unanswered: false, answerParts: [] }) }).generate(value);
     expect(answer).toMatchObject({ status: "INSUFFICIENT_SOURCE", reason: "MISSING_SUPPORT", citations: [] });
   });
   it("keeps independent admission and hours obligations for each compared subject", () => {
@@ -149,10 +155,10 @@ describe("owner advanced reasoning regressions (offline, annotated evidence)", (
     expect(new Set(result.map(item => item.citationId)).size).toBe(4);
     for (const [sql] of query.mock.calls as unknown as [{ sql: string }][]) { expect(sql.sql).toContain('"publicQaApproved" = true'); expect(sql.sql).toContain("INDEXED"); expect(sql.sql).toContain("READY"); }
   });
-  it("keeps a technical assessment failure FAILED with no completed turn", async () => {
+  it("keeps a technical generation failure FAILED with no completed turn", async () => {
     const fixture = QA_ADVANCED_CASES[7];
     const store = { reserve: vi.fn(async () => ({ kind: "RESERVED", conversationId: "c", turnId: "t", fence: 1, history: [] })), fail: vi.fn(async () => {}), complete: vi.fn() } as unknown as QaConversationStore;
-    const service = createQaService({ store, retriever: { retrieve: async () => [evidence(fixture.text, fixture.title)], recheck: async () => true }, assessor: createQaAssessor({ apiKey: () => "fixture", fetcher: async () => new Response("unavailable", { status: 503 }) }), generator: { generate: vi.fn() } });
+    const service = createQaService({ store, retriever: { retrieve: async () => [evidence(fixture.text, fixture.title)], recheck: async () => true }, generator: { generate: vi.fn(async () => { throw new AppError("AI_UNAVAILABLE", "AI_UNAVAILABLE", 503); }) } });
     await expect(service.ask({ kind: "GUEST", id: "g" }, "test_key", { question: fixture.question, context: { type: "GENERAL" } })).rejects.toMatchObject({ code: "AI_UNAVAILABLE" });
     expect(store.complete).not.toHaveBeenCalled(); expect(store.fail).toHaveBeenCalled();
   });

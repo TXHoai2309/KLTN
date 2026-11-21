@@ -136,6 +136,16 @@ describe("aiEditResponse", () => {
     expect(response.headers.get("cache-control")).toBe("private, no-store");
   });
 
+  it("admits Admin through the Traveler capability before request validation", async () => {
+    const test = fixture();
+    test.setRole("ADMIN");
+    const response = await aiEditResponse(postRequest("{"), "trip-1", test.dependencies);
+    expect(response.status).toBe(400);
+    expect(test.bodyRead).toBe(true);
+    expect(test.tripReadCount).toBe(0);
+    expect(test.providerCalls).toBe(0);
+  });
+
   it("rejects extra request fields before accessing Trip or provider", async () => {
     const test = fixture();
     const response = await aiEditResponse(

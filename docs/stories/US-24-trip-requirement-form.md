@@ -350,3 +350,20 @@ Product Owner approved streamlined form enhancements:
 - Form submission evaluates draft via single authoritative `/api/trip-requirements/check`. For manual entries, confirmable check results advance directly to `planner` (itinerary proposal) without opening `TripReviewDialog`.
 - `TripReviewDialog` is opened strictly for drafts with unreviewed AI fields or server check issues.
 - Departure date minimum uses Vietnam calendar date `vietnamDateOf(new Date())`. Proposal step departure date changes sync back to the parent form state.
+
+## 2026-11-19 — BUG-03 creation date validation
+
+- Root cause: custom calendar marked `data-past` but did not disable past buttons, used browser-local date, and form validation checked syntax only before opening confirmation. Confirmation submit did not repeat the client gate.
+- Calendar now uses `vietnamDateOf`, disables past days, refreshes at Vietnam midnight and rechecks the date at click time. Form passes a fresh creation-time reference before opening the modal and again before sending its check request. Invalid input keeps all form fields and reports a Vietnamese error. Time-dependent validation is opt-in for creation callers, preserving historical/edit parsing.
+- Server `checkTripRequirement`, planner admission and final `saveTrip` already enforce date readiness. Tests verify direct check rejection and direct save rejection without persistence after the Vietnam midnight boundary; no backend contract/schema changes.
+- New regression initially failed two client date cases; after fix five focused files/84 tests PASS. Includes yesterday/today/future, midnight rollover, unchanged input, calendar disabled state and save gate. Web typecheck PASS. Full Vitest: 3338 PASS/35 FAIL/215 SKIP/1 TODO; failures remain in QA diagnostics/quality/reliability and planning-model, legacy phase not reached.
+- Local browser verified past days disabled and today selectable on desktop; at 390px yesterday remains disabled and tomorrow selectable. No Trip generation/save was submitted. Real mobile devices and a live midnight rollover were not tested. Build/whitespace final evidence is recorded in ai-progress. No DB/business-data/commit/push changes.
+
+## 2026-11-18 — Approved BUG-03 unsaved-change warning
+
+Owner approved a leave warning, without draft persistence. Reuse the existing unsaved-change hook on `/trips/new`: changed raw fields, active review/proposal and unsent natural-language input trigger confirmation. Stay/Escape retains the mounted form; explicit Leave discards it. Pending/UNKNOWN save blocks navigation rather than losing its exact proposal/key. Confirmed SUCCESS clears the guard before the existing post-save navigation. No DB/localStorage/sessionStorage/URL draft or autosave.
+
+- Live browser before fix: selecting CAR and clicking My Trips navigated immediately without warning. After fix: link and same-document Back show confirmation; Stay retains CAR; Leave reaches the chosen page. Dialog fits 390px light mode. No Trip was created/updated/deleted.
+- Automated checks: 38 focused tests PASS, including raw dirty/reset detection, unload protection, guard release/cleanup and save client regression. Typecheck/build PASS (54 pages). `git diff --check` PASS.
+- Full web `npm test -- --reporter=dot`: 3332 PASS, 35 FAIL, 215 SKIP, 1 TODO across 313 files; legacy phase not reached. Four failing files: `qa-conversation-reliability.vitest.test.ts`, `qa-answer-quality-v2.vitest.test.ts`, `qa-diagnostics.vitest.test.ts`, `planning-model.vitest.test.ts`. These AI/planning failures were not repaired under this form-navigation scope; no isolated clean baseline is claimed.
+- Limits: native refresh/close confirmation is covered by unload-event tests, not a live browser dialog. Forward, expired-auth recovery, successful save redirect and UNKNOWN save blocking have not been exercised live in this follow-up. Browsers without a cancelable Navigation API traversal cannot show the custom same-document Back/Forward warning; full document unload still uses the native browser warning. Dark visual acceptance and other-browser checks remain NOT PROVEN.

@@ -1,15 +1,23 @@
 import { aiEditResponse } from "@/modules/trip-edit/ai-edit-http";
-import { createOpenAiStructuredClient } from "@/modules/preference-extraction/openai-structured-client";
-import { getTravelRoute } from "@/modules/trip-validation/stadia-route";
+import {
+  createTripAssistantStructuredClient,
+  resolveTripAssistantModel,
+} from "@/modules/trip-edit/trip-assistant-openai";
+import { createTripEditRouteProvider } from "@/modules/trip-edit/trip-edit-routes";
 import { authorizationDependencies } from "@/server/authorization/server";
 import { db } from "@/services";
+
+// A reasoning turn may run several model rounds plus routing/Validator previews.
+export const maxDuration = 300;
 
 const dependencies = {
   authorization: authorizationDependencies,
   service: {
     database: db,
-    llm: createOpenAiStructuredClient(),
-    getRoute: getTravelRoute,
+    llm: createTripAssistantStructuredClient(),
+    getRoute: createTripEditRouteProvider(),
+    // ADR-40 reasoning loop is on by default; TRIP_ASSISTANT_AGENT=off restores the ADR-38 pipeline.
+    ...(process.env.TRIP_ASSISTANT_AGENT === "off" ? {} : { agent: () => resolveTripAssistantModel() }),
   },
   now: () => new Date(),
 };

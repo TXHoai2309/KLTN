@@ -1,7 +1,7 @@
 import type { TripRequirementInput } from "../trip-requirement/trip-requirement-contract";
 import { CHECK_KEYS, travelLegSchema, type CheckStatus, type PlannerCheck, type PlannerDay } from "./planner-contract";
 import type { PlannerCandidate } from "./planner-candidates";
-import { openingFor, PLANNING_WINDOW } from "./planner-engine";
+import { MORNING_DEPARTURE_MINUTE, openingFor, PLANNING_WINDOW } from "./planner-engine";
 
 export function validatePlannerDays(requirement: TripRequirementInput, days: readonly PlannerDay[], candidates: readonly PlannerCandidate[], travelOnlyDays: ReadonlySet<number> = new Set()) {
   const checks: PlannerCheck[] = CHECK_KEYS.map(key => ({ key, status: "PASS", issues: [] }));
@@ -37,8 +37,8 @@ export function validatePlannerDays(requirement: TripRequirementInput, days: rea
         add("OPENING_HOURS", "VIOLATION", "OUTSIDE_OPENING_HOURS", "Khung tham quan nằm ngoài giờ mở cửa.", day.day, id);
       if (previousId) {
         if (!stop.inbound || !travelLegSchema.safeParse(stop.inbound).success || stop.inbound.status !== "VERIFIED" || stop.inbound.fromDestinationId !== previousId || stop.inbound.toDestinationId !== id)
-          add("TRAVEL_TIME", "INSUFFICIENT_DATA", "ROUTE_UNKNOWN", "Chưa có thời gian di chuyển đã xác minh giữa hai điểm dừng.", day.day, id);
-        else if (stop.arrivalMinute !== null && stop.arrivalMinute < (departure ?? PLANNING_WINDOW.startMinute) + Math.ceil(stop.inbound.durationSeconds! / 60))
+          add("TRAVEL_TIME", "INSUFFICIENT_DATA", "ROUTE_UNKNOWN", "Dịch vụ định tuyến hiện chưa cung cấp đủ dữ liệu cho chặng này.", day.day, id);
+        else if (stop.arrivalMinute !== null && stop.arrivalMinute < (departure ?? (requirement.journey ? MORNING_DEPARTURE_MINUTE : PLANNING_WINDOW.startMinute)) + Math.ceil(stop.inbound.durationSeconds! / 60))
           add("TRAVEL_TIME", "VIOLATION", "TRANSFER_TOO_SHORT", "Khoảng thời gian giữa hai điểm dừng không đủ để di chuyển.", day.day, id);
       }
       if (stop.scheduleState === "UNSCHEDULED") add("SCHEDULE_CONFLICTS", "VIOLATION", "NO_TIME_SLOT", "Không thể bố trí điểm dừng trong khung ngày đề xuất.", day.day, id);

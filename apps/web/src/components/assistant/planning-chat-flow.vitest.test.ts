@@ -230,7 +230,7 @@ describe("Chat-first planning with real scheduler and validation", () => {
   });
   it("asks before applying timing changes to other days", async () => {
     const needs = { ...fixtureNeeds, requirement: { ...fixtureNeeds.requirement, durationDays: 2 } };
-    const routes = { route: async (...args: Parameters<typeof fixtureRoutes.route>) => ({ ...await fixtureRoutes.route(...args), durationSeconds: args[0].from.id === "b" && args[0].to.id === "d" ? 1800 : 600 }) };
+    const routes = { route: async (...args: Parameters<typeof fixtureRoutes.route>) => ({ ...await fixtureRoutes.route(...args), durationSeconds: args[0].from.id === "b" && args[0].to.id === "d" ? 10_800 : 600 }) };
     const { client, operation, save } = setup(needs, [["a"], ["d"]], routes); await client.start(null); await client.generate();
     operation("REPLACE"); await client.analyze("Thay Điểm a ở ngày 1"); await client.chooseOption(0);
     expect(client.getSnapshot().prompt?.kind).toBe("APPLY_CHANGE"); expect(client.getSnapshot().message).toContain("Ngày 2");

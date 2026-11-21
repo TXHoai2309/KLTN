@@ -383,6 +383,12 @@
   border-color: rgba(53, 118, 92, 0.3);
 }
 
+.my-trips-card-link { color: inherit; text-decoration: none; }
+.my-trips-card-link::after { content: ""; position: absolute; inset: 0; z-index: 3; border-radius: inherit; }
+.my-trips-card-link:focus-visible { outline: none; }
+.my-trips-card-link:focus-visible::after { outline: 3px solid var(--trip-read-green); outline-offset: -4px; }
+.my-trips-card :is(.favorite-button-stack, .my-trips-management, .my-trips-open) { position: relative; z-index: 4; }
+
 .dark .my-trips-page .my-trips-card {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
 }
@@ -1443,6 +1449,25 @@
   font-weight: 600;
 }
 
+.my-trips-break-item {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 28px 74px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+}
+
+@media (max-width: 720px) {
+  .my-trips-break-item {
+    grid-template-columns: 20px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .my-trips-break-item .my-trips-visit-time {
+    display: none;
+  }
+}
+
 /* Visit Item Card */
 .my-trips-page .my-trips-visit {
   display: grid;
@@ -1862,6 +1887,18 @@
 
   .my-trips-heading > .my-trips-action {
     width: 100%;
+  }
+
+  .my-trips-filter-pill,
+  .my-trips-completion-button,
+  .my-trips-delete-button {
+    min-height: 44px !important;
+  }
+
+  .my-trips-page .my-trips-favorite {
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
   }
 
   /* Trip list cards mobile */

@@ -29,6 +29,7 @@ model Destination {
   longitude                Float
   suggestedDurationMinutes Int?
   minimumDurationMinutes   Int?
+  isOutdoor                Boolean               @default(false)
   visibility               DestinationVisibility @default(HIDDEN)
   deletedAt                DateTime?             @db.Timestamptz(3)
   createdAt                DateTime              @default(now())

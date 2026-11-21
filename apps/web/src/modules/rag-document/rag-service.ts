@@ -368,13 +368,29 @@ export async function transitionRagDocument(headers: Headers, id: string, body: 
   });
 }
 
-export async function bulkSetRagPublicQa(headers: Headers, body: unknown, deps: RagDependencies) {
-  await requireActor(headers, deps, "admin");
+export async function bulkSetRagPublicQa(
+  headers: Headers,
+  body: unknown,
+  key: string,
+  deps: RagDependencies,
+) {
+  const actor = await requireActor(headers, deps, "admin");
   const input = parse(bulkRequest, body);
-  if (input.action !== "DISABLE_SELECTED") throw new AppError("RAG_SOURCE_REVIEW_REQUIRED", "Cấp quyền công khai từng tài liệu sau khi đối soát tệp gốc.", 409);
-  const res = await deps.database.ragDocument.updateMany({
-    where: { id: { in: input.documentIds }, deletedAt: null },
-    data: { publicQaApproved: false },
+  if (input.action !== "DISABLE_SELECTED") {
+    throw new AppError("RAG_SOURCE_REVIEW_REQUIRED", "Cấp quyền công khai từng tài liệu sau khi đối soát tệp gốc.", 409);
+  }
+  return executeIdempotentWrite({
+    database: deps.database,
+    actorId: actor.id,
+    operation: "rag:bulk-public-qa",
+    key,
+    input,
+    execute: async transaction => {
+      const result = await transaction.ragDocument.updateMany({
+        where: { id: { in: input.documentIds }, deletedAt: null },
+        data: { publicQaApproved: false },
+      });
+      return { updatedCount: result.count, ids: input.documentIds };
+    },
   });
-  return { updatedCount: res.count, ids: input.documentIds };
 }

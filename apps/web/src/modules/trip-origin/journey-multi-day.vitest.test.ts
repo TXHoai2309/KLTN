@@ -13,11 +13,11 @@ const routes: RouteProvider = { route: async pair => ({ ...route, fromDestinatio
 afterEach(() => vi.useRealTimers());
 
 describe("multi-day journey route budget and rest", () => {
-  it("counts boundaries once and starts interday transfers at the existing 08:00 anchor", async () => {
+  it("counts boundaries once and starts interday transfers at the 06:00 morning departure", async () => {
     const selected = [[candidate("a")], [candidate("b")]];
     const result = await planJourney(base, selected, routes);
     expect(result.journeyPlan.legs.map(leg => [leg.kind, leg.day])).toEqual([["OUTBOUND", 1], ["TRANSFER", 2], ["RETURN", 2]]);
-    expect(result.days.map(day => day.stops[0]?.arrivalMinute)).toEqual([480, 600]);
+    expect(result.days.map(day => day.stops[0]?.arrivalMinute)).toEqual([480, 480]);
     expect(result.days.map(day => day.travelSeconds)).toEqual([7200, 14_400]);
     expect(result.journeyPlan.totals).toEqual({ drivingSeconds: 21_600, restMinutes: 0, distanceMeters: 360_000 });
     expect(result.check.status).toBe("PASS");
@@ -26,7 +26,7 @@ describe("multi-day journey route budget and rest", () => {
     const selected = [[candidate("a", { suggestedDurationMinutes: 14, minimumDurationMinutes: 14 })], [candidate("b")]];
     const result = await planJourney(base, selected, routes);
     expect(result.journeyPlan.legs[1]?.restMinutes).toBe(0);
-    expect(result.days[1]?.stops[0]?.arrivalMinute).toBe(600);
+    expect(result.days[1]?.stops[0]?.arrivalMinute).toBe(480);
   });
   it("resolves 28 stops plus two origin legs in one 29-pair budget, at most three in flight", async () => {
     let active = 0, maxActive = 0, calls = 0;

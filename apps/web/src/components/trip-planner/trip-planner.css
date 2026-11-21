@@ -568,6 +568,33 @@
   color: var(--planner-ink, var(--foreground));
 }
 
+/* Lunch and overnight pauses on the timeline */
+.planner-break {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-self: flex-start;
+  justify-self: start;
+  gap: 6px;
+  margin: 0;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--planner-accent-subtle, var(--muted));
+  color: var(--planner-ink, var(--foreground));
+  font-size: 13px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+
+.planner-break strong {
+  font-weight: 600;
+}
+
+.planner-stop-pause .planner-stop-number {
+  border-color: var(--planner-muted, var(--muted-foreground));
+  color: var(--planner-muted, var(--muted-foreground));
+}
+
 /* Subtle warning icon with tooltip (No screaming yellow pills) */
 .planner-stop-warn-hint {
   display: inline-flex;

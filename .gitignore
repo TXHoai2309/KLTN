@@ -57,6 +57,9 @@ coverage
 tmp
 temp
 
+# Research
+research/
+
 .vercel
 .env*
 # Generated official npm MapLibre worker assets (dev/build preparation).

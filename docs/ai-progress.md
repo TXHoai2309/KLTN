@@ -5269,6 +5269,39 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - **Source/status:** Reconciled approved Q1–Q17, product extension, the eleven story AC and current delivery/review-fix/performance/migration receipts. Reported local implementation and prior evidence separately from final multi-user browser/owner acceptance; preserved existing ticket states.
 - **Validation/scope:** Documentation task counts, unique IDs, relative links and scoped whitespace checked. No application tests/build rerun for this documentation-only change. No source/schema/DB/credential/environment changes, commit/push/deploy or external issue creation.
 
+## 2026-10-29 — US-38 responsive / accessibility MVP audit (partial)
+
+- **Scope:** Audited Guest Home, Explore list/map, Assistant, Login and Companion discovery with in-app browser at 360/375/390/430/768/1024/1280/1440px. New Figma link `node-id=1-4` shows Traveler MH-07–MH-11 overview; Figma connector still requires reauthentication for design tokens/details. Protected Traveler/Admin screens remain unverified without sessions.
+- **Fixes:** Mobile Header dialog now focuses its close button, makes the page behind inert, traps Tab, restores focus/scroll on close, and keeps drawer theme/navigation working. Enlarged small touch controls in Header, Assistant and Login. Companion discovery now separates technical error from empty result, clears stale list on main fetch error and preserves retry.
+- **Browser evidence:** Five Guest pages have no whole-page horizontal overflow at 360/390/768/1024/1440 after edits. At 360px the drawer keeps 12 sequential Tab actions inside, Escape restores the opener, Assistant Send is 44px high within a 640px viewport, and Companion error has neither empty state nor result count. Explore Light/Dark/System selectable and restored to Light.
+- **Verification:** `npm run db:generate` PASS to refresh stale generated Prisma Client; targeted Vitest 24/24 PASS; root typecheck PASS; final build PASS; `git diff --check` PASS. Root `npm test` FAIL: 19 failures in seven AI/in-trip/trip-edit test files (3292 passed, 214 skipped, one todo). No baseline comparison established; these failures were not repaired under US-38 frontend scope.
+- **Status:** [Story and AC matrix](stories/US-38-responsive-mvp.md) is **PARTIALLY COMPLETE / NOT PROVEN**. Missing authenticated Traveler/Admin browser checks, full modal/table/Validator/RAG state review and separate Chrome/Edge validation. No schema, API, DB data, auth, dependency, commit or push change.
+
+## 2026-10-29 — US-38 continuation: regression repair and Traveler responsive evidence
+
+- **Phase 1:** Reproduced and classified all 19 reported failures. Fixed current-contract issues without deleting/skipping tests: generator fixtures now use `CURRENT_EVIDENCE`/`answerParts`; comparison retrieval keeps both subjects; Assistant always sends the snapshotted `knowledgeMode`; stale RBAC tests now reflect Admin inheriting Traveler capability while preserving owner scope; the location source guard targets coordinate-bearing URL sinks. `BASELINE NOT PROVEN` because no isolated clean pre-US-38 run was available.
+- **Additional regressions:** Updated six Assistant payload assertions, the accepted ADR-22 Destination Detail iframe guard, and stale Home copy/external-link source guards. Full root `npm test` is now PASS, including Vitest and all legacy suites. Focused evidence: original seven files 74 PASS/1 todo; Assistant payload 46 PASS; Companion 45 PASS; Destination 70 PASS; Explore 14 PASS.
+- **Traveler browser evidence:** Directly checked `/trips`, `/trips/new`, one Trip Detail, Trip Edit, In-trip, `/favorites`, `/account`, and `/trip-companions` at 360×640, 375×667, 390×844, 430×932, 768×1024, 1024×768, 1280×800 and 1440×900 (64 combinations). No document-level horizontal overflow. Delete/duration dialogs fit at 360px and were canceled/closed; Trip Edit textarea survived 360→768 resize. Companion mobile grid clipping was fixed with `minmax(0,1fr)`/`min-width:0`; touch targets were raised locally to 44px.
+- **Accessibility/theme:** Mobile drawer focus trap/Escape/restore and inert background remain verified. Light, Dark and System were exercised at 360px and Light restored. Browser viewport override was reset after testing.
+- **Development diagnosis:** Companion 500 came from a stale dev process holding an old generated Prisma Client. Migrations and direct Prisma reads were healthy; after restarting the dev server, the API returned 200 empty data and the UI rendered success-empty separately from error. No backend/schema/data change.
+- **Final verification:** `npm run check-types` PASS (4/4 tasks); `npm run build` PASS (Next 16.3.8, 53/53 pages); final whitespace check recorded in the story. No migration, reset, dependency, commit or push.
+- **Status/blockers:** [US-38 story](stories/US-38-responsive-mvp.md) remains **PARTIALLY COMPLETE / NOT PROVEN**. Admin needs a real test session; Figma connector requires reauthentication; direct Chrome and a complete Edge matrix are not proven. In-app Chromium is not reported as Chrome.
+
+## 2026-10-31 — US-39 write reliability, UNKNOWN recovery and idempotency
+
+- **Audit/root cause:** The shared mutation client could accept an HTTP-error response carrying a syntactically valid `SUCCESS` body and did not reject blank error code/message fields. RAG bulk public-QA used raw `fetch` without the shared idempotency contract. Several UNKNOWN states did not clearly tell the user that the request might already have committed or expose a consistent recovery action.
+- **Implementation:** Hardened the shared `SUCCESS` / `FAILED` / `UNKNOWN` parser; converted RAG bulk public-QA to authenticated actor-scoped `executeIdempotentWrite` with transaction/replay/conflict behavior; retained the same key/body for manual reconciliation; added operation-specific RAG upload/bulk success validation; and aligned Trip/Favorite/RAG UNKNOWN copy and “Kiểm tra lại kết quả” recovery UI. No schema, migration, dependency or auth change.
+- **Automated evidence:** Focused Vitest 34 files / 281 PASS with one opt-in PostgreSQL file skipped in that command. Legacy focused suites: idempotency 4/4, RAG 64/64, account 18/18 and favorite 27/27 PASS. Full root `npm test` PASS; root `npm run check-types` PASS (4/4 tasks). Direct web production build PASS with Next.js 16.3.8 and 53/53 generated pages. The root Turbo build task printed success but retained an idle process handle in this execution host, so only the clean direct web-build exit is claimed.
+- **PostgreSQL evidence:** Concurrent same-key Trip save plus discarded-acknowledgement replay produced one Trip graph (`Trip 0→1`, total Day `16→17`, total Visit `36→37`) and the same Trip ID; exact fixture cleanup completed. Concurrent Favorite add/replay kept Trip/Day/Visit counts unchanged and one relation; exact fixture cleanup completed.
+- **Browser evidence:** The existing Development Traveler fixture authenticated at `localhost:3010`, added the TEST Quản Bạ destination to Favorites, received confirmed success, and read it back from `/favorites`. The exact test relation was deleted by actor email + destination ID and the browser then showed the original empty state. Browser-level commit-then-drop-response interception remains NOT PROVEN; shared-client network/malformed-response tests and the PostgreSQL discarded-ack replay provide lower-layer evidence without a production fault endpoint.
+- **Status/scope:** [US-39 story](stories/US-39-write-reliability.md) records the mutation inventory and evidence. External Blob/index exactly-once and browser-level lost-response interception remain explicitly NOT PROVEN. No database reset, `db push`, commit, push or deploy.
+## 2026-11-04 — US-40 external-service failure handling
+
+- **Audit:** Retained the current per-module budgets: Preference 15s, Q&A 25s provider within 40s/58s request budgets, Editorial 25s/240s, Embedding 30s, In-trip/Trip Edit 15s and Stadia routing at a 10s mandatory-check deadline. No provider or error-contract replacement.
+- **Implementation:** Preference retries now share one total deadline and abort stalled response bodies/retry waits; Embedding aborts stalled response reads; In-trip routing forwards and aborts the real provider signal. Assistant and Trip requirement UI distinguish AI technical failure, routing insufficiency and missing business data, preserve user input and expose working retry/manual recovery.
+- **Isolation/evidence:** Added deterministic OpenAI-down/routing-down/business-data/database-failure coverage. Targeted suite 18 files / 457 PASS; isolation 4/4 PASS; full root tests PASS (Vitest 3334 PASS, 214 existing opt-in skips, one todo, plus all legacy suites); root typecheck 4/4 PASS; direct Next build 53/53 pages PASS. A stale date-dependent planning test was corrected to use its existing fixed `planningNow` after 02/11/2026 passed.
+- **Limits/status:** [US-40 story](stories/US-40-external-service-failure-handling.md) remains **IMPLEMENTED LOCALLY — NOT PROVEN**. Browser E2E/fault-injection and responsive Light/Dark evidence are blocked because this execution exposed no Chrome, Edge or IAB surface; live-provider outages were not invoked. No schema/migration/env/dependency/database-data change, reset, commit or push.
+
 ## 2026-10-29 — Destination images editable before Create
 
 - **Branch/task:** master; owner screenshot of `/admin/destinations/new`, followed by explicit selection of immediate local gallery/editing and upload after confirmed Destination creation. Extends the existing Destination image UX story.
@@ -5549,6 +5582,10 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Not run: any migration or database, opt-in PostgreSQL tests, browser, real OpenAI/Google/Firecrawl, live old-selector comparison.
 - Branch commits (oldest first): 50a33c1, 5171a70, ee59057, cd11c21, f245753, 9f4ffbc, dd09618, f636c5a, 2482f5d, ba446a8, ec06f64, b986ed4, e1f134c, 282bf04, 81a75fd, a44c636, plus the Ticket 12 docs commit.
 - Owner to-do list and rollback: `docs/research/tripsage-port-handoff.md`. ADR-36 stays Proposed. Note: a foreign git worktree `.claude/worktrees/agent-ab6717e58ec044251` exists; not created by this ticket and left untouched.
+<<<<<<< HEAD
+=======
+
+>>>>>>> 2ef331b5043d8bbbdf721c91f9edda31e322b75a
 ## 2026-11-18 — WEATHER-SUN-ADVISORIES ticket 01: sun times on destination
 
 - Owner asked to run the weather tickets overnight. Added `suncalc@1.9.0` (pinned) and `@types/suncalc@1.9.2`; new `trip-weather` module computes sunrise, sunset and golden hours in Asia/Ho_Chi_Minh; public `GET /api/destinations/[id]/weather?date=` reuses the public destination visibility boundary; destination page shows a "Giờ mặt trời" card with a date picker.
@@ -5625,3 +5662,171 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Updated `docs/product/product-spec.md` (Weather and sun times section), `docs/stories/ASSISTANT-WEATHER.md` status, and tickets `01`–`06` under `.scratch/assistant-weather/issues/`.
 - Evidence: `tsc --noEmit` PASS; related Vitest suites **75/75 files (913/913 tests) PASS** across `trip-weather`, `assistant-agent-v2`, `assistant-planning`, `components/assistant`, `trip-theme`, and Q&A weather/contract/understanding/service/HTTP/context/abuse/safety; `npm run build` (56 pages) PASS; `git diff --check` PASS.
 - Skipped / Pending owner approval: live browser acceptance calling real OpenAI models and saving a test trip to the database were skipped per owner cost/DB instructions (`cần owner đồng ý`). Read-only Dev DB check also noted that no `VISIBLE` destination row for `"Thành phố Hà Giang"` exists yet for live representative-point queries. Pre-existing unrelated test issues left untouched: legacy `test:destination` #64 and 3 older `src/modules/ai` offline suites (`qa-diagnostics`, `qa-advanced-reasoning`, `qa-chat-preference`) affected by earlier `runtime-config` / `knowledgeMode` changes. No commit or push.
+<<<<<<< HEAD
+=======
+
+## 2026-11-18 — Trip Edit redesign interview, ADR-37 & spec (`grill-with-docs` + `to-spec`)
+
+- **Branch/status:** `master` — **PLAN / SPEC ONLY** (no application code, schema, migration, env, or DB changes).
+- **Design interview (`Q1–Q19`):** Owner confirmed unifying `/trips/[id]/edit` around one stateless client `Edit draft` shared by manual edits and multi-operation AI edits (with Undo/Redo, short in-session context, destination suggestions, pre-departure origin/time edits, and read-only `Planning guidance`), a Timeline + sticky `ItineraryMap` workspace aligned with `/trips/[id]` & `/trips/new` (hiding the floating global assistant pill on `/edit`), instant 0ms client checks + debounced server `Itinerary validation` mapped to stop cards/legs, removing `MAX_EDIT_VISITS_PER_DAY = 4`, unifying `PLANNER_ROUTING_PROVIDER` + `journeySnapshot` recalculation, locking `COMPLETED` trips, preserving elapsed visits for `ONGOING`, supporting existing `ExternalPlace` edits with `uncheckedChecks` acknowledgement, `409` rebase, and explicit confirmation modal with `UNKNOWN` idempotency retry.
+- **Documentation deliverables:**
+  - Updated [`GLOSSARY.md`](../GLOSSARY.md) (`Itinerary editing` terms and `Saved itinerary` avoid-list).
+  - Recorded `ADR-37` in [`docs/decisions.md`](decisions.md).
+  - Created [`docs/product/trip-edit-redesign-spec.md`](product/trip-edit-redesign-spec.md) following `to-spec` (37 user stories, implementation decisions without file paths/snippets, testing seams & decisions, out-of-scope, further notes) and indexed it in [`docs/README.md`](README.md).
+- **Checks:** Documentation-only session; whitespace check (`git diff --check`) to be verified after writing. No application tests/build/DB/provider calls/issue-tracker actions run.
+- **Next:** Owner confirms the two proposed test seams (`API/Service contract` & `Unified Workspace/Browser boundary`) and explicitly authorizes story breakdown / implementation when ready.
+
+## 2026-11-18 — Trip Edit redesign vertical tickets (`to-tickets`)
+
+- **Branch/status:** `master` — **PLAN / SPEC ONLY** (no application code, schema, migration, env, or DB changes).
+- **Tickets delivered:** Published 9 vertical tracer-bullet ticket files (`01`–`09`) under [`.scratch/trip-edit-redesign/issues/`](../.scratch/trip-edit-redesign/issues/) plus [`.scratch/trip-edit-redesign/README.md`](../.scratch/trip-edit-redesign/README.md) with explicit `Blocked by` edges, `ready-for-agent` status, and user-story coverage across all 37 stories in [trip-edit-redesign-spec.md](product/trip-edit-redesign-spec.md) (avoiding file paths/code snippets). Updated navigation in [`docs/README.md`](README.md).
+- **Checks:** Verified all 9 ticket files, blocking DAG (no cycles), user-story coverage (1–37), and `git diff --check`. No external tracker configured or modified. No application tests/build/DB/provider calls run.
+- **Next:** Start from frontier Ticket `01` when the owner explicitly authorizes coding.
+
+## 2026-11-18 — Trip Edit redesign implementation (Tickets `01`–`09`)
+
+- **Scope:** Implemented unified Trip Edit Workspace under `/trips/[id]/edit` and `/api/trips/[id]/edits/*` across Tickets `01`–`08` plus Ticket `09` offline hardening/verification on branch `master`.
+- **Delivered:**
+  - **Ticket `01`:** Removed the 4-visit/day cap (`MAX_EDIT_VISITS = 50`), switched routing to shared `createTripEditRouteProvider`, enforced `COMPLETED` lock, hid the floating `GlobalAssistant` on `/trips/[id]/edit`, and built the 2-column Timeline + sticky `ItineraryMap` workspace with unified `Undo/Redo` and Confirmation `<dialog>`.
+  - **Ticket `02`:** Built `AddVisitDrawer` + `add-visit-helper.ts` + `trip-edit-page-meta.ts` (public search/region/favorites filter, weekday opening hours summary, sequential slot snapping).
+  - **Ticket `03`:** Added 0ms instant client checks, same-day `autoShiftDayVisits` (`23:59` clamp), ~800ms debounced Preview sync with sequence guard, `PreviewLegMetric[]` road geometry + clickable connectors, `OQ-B` quick replace/remove, and `<TripWeatherPanel>`.
+  - **Ticket `04`:** Integrated optional pre-departure `TripJourney` editing (`edit-journey-server.ts`, `edit-journey-helper.ts`), atomic `journeySnapshot` writes, and privacy-safe companion notices without origin coordinate leaks.
+  - **Ticket `05`:** Enabled editing trips with `ExternalPlace` (`ext:google:...`), expired >30d cache safeguards, `assessEditUnchecked` classification, and mandatory unchecked acknowledgement on Save.
+  - **Ticket `06`:** Protected elapsed `ONGOING` visits in `Asia/Ho_Chi_Minh`, exposed owner-only `private, no-store` `/api/trips/[id]/edits/snapshot`, and built `409 TRIP_REVISION_CONFLICT` Rebase/Discard conflict flow preserving `workingDraft`.
+  - **Ticket `07` & `08`:** Added `ai-workspace-plan.ts` + collapsible `AiEditBar` sending live `workingDraft`, supporting multi-op batch edits + `shiftFollowing`, <=3 verified clarification choices, `15s` timeout/network retry keeping input, per-card change badges + 1-click Undo, bounded ephemeral session `history` (8 turns), pre-departure `CHANGE_ORIGIN_CLOCKS`, and server-grounded read-only `ADVISED` (`Planning guidance`).
+  - **Ticket `09`:** Added `trip-edit-workspace.postgres.integration.vitest.test.ts` (opt-in disposable Postgres suite), aligned CSS custom property aliases (`--edit-accent`, `--edit-accent-soft`, `--edit-surface-muted`, `--edit-success`) in `edit-trip.module.css`, and fixed `readSavedTrip` snapshot field projection in `assistant-agent-v2/in-trip-actions.ts`.
+- **Verification:**
+  - `npm run check-types`: **PASS** (4/4 Turbo tasks).
+  - `npm run build --workspace web`: **PASS** (57/57 static pages built cleanly).
+  - `npm run test:legacy --workspace web`: **PASS** (all 11 legacy TSX test suites).
+  - `npx --workspace apps/web vitest run --pool=threads src/modules/trip-edit src/modules/in-trip src/app/trips/[id]/edit src/lib/trip-edit-client.vitest.test.ts src/modules/trip-origin src/modules/trip-companions src/modules/trip-save`: **78 passed | 14 skipped** (`809 passed | 74 skipped | 1 todo`).
+  - Pre-existing unrelated failures observed in full-repo Vitest (`npx --workspace apps/web vitest run --pool=threads` -> 358 passed, 5 failed): 4 previously recorded `src/modules/ai` suites (`qa-diagnostics`, `qa-conversation-reliability`, `qa-answer-quality-v2`, `qa-chat-preference`) plus `assistant-agent-v2/in-trip-v2.vitest.test.ts` line 155 (`in-trip-validation.ts` passing `{ signal }` on `HEAD`, while the remaining 30/31 tests in `in-trip-v2` pass).
+- **Not run (environment / cost constraints):** Live PostgreSQL disposable container suites (`14` skipped files; Docker Desktop daemon stopped), live authenticated `360px`/`1280px` Playwright browser walkthrough (`@playwright/test` absent + Postgres stopped), and live `OpenAI`/`Stadia` provider calls.
+
+## 2026-11-18 — WEATHER-SCHEDULING-PREFERENCE tickets 01–04
+
+- **Scope & decisions:** Completed grill Q1–Q11, added Scheduling soft preference Addendum to `docs/decisions.md` (ADR-36) and `docs/product/product-spec.md`, authored `docs/stories/WEATHER-SCHEDULING-PREFERENCE.md` and `.scratch/weather-scheduling-preference/issues/01..04.md`, and implemented all 4 tickets.
+- **Implementation:**
+  - `apps/web/src/modules/trip-planner/planner-candidates.ts`: added `isOutdoor` to `PlannerCandidate` selection/projection.
+  - `apps/web/src/modules/trip-planner/planner-weather-preference.ts`: shared bounded optimizer (`optimizeScheduleForWeather`) using `suncalc` + cached Open-Meteo (`2.5s` timeout, ADR-36 thresholds), respecting `lockedStopIds`, `allowedDayIndices`, no new Constraint Validator `VIOLATION`, and `<= 20%` (max `+30 min/day`) detour cap.
+  - `apps/web/src/modules/trip-planner/planner-service.ts` & `apps/web/src/modules/trip-origin/journey-planner.ts` (`optimizeJourneyForWeather`): wired Form standard and `journey` round-trip flows, emitting `WEATHER_PREFERENCE_WARNING` only when order/day changed.
+  - `apps/web/src/modules/assistant-planning/planning-engine.ts`, `apps/web/src/modules/assistant-agent-v2/planning-response.ts`, `apps/web/src/modules/assistant-agent-v2/travel-planning-session.ts`: wired Assistant `scheduleSelection` (with `affectedDays` isolation) and deterministic `WEATHER_PREFERENCE_REPLY_NOTE` on mutating turns.
+- **Evidence:**
+  - `npm --workspace apps/web run check-types` (`tsc --noEmit`): PASS (exit 0).
+  - Vitest `src/modules/trip-planner src/modules/trip-origin src/modules/trip-weather`: 25/25 files PASS (292/292 tests; 18 Postgres integration tests skipped).
+  - Vitest `src/modules/assistant-planning src/modules/assistant-agent-v2`: 31/32 non-skipped files PASS (389/390 tests; 10 skipped; 1 unrelated failure in `in-trip-v2.vitest.test.ts:155` on `getRoute` mock call arity).
+  - `git diff --check`: PASS.
+- **Not run / remaining:** `npm --workspace apps/web run build` and live browser/OpenAI acceptance not run.
+
+## 2026-11-19 — Unified Saved-trip Assistant & Grounded Advisory design (`grill-with-docs`)
+
+- **Branch/status:** `master` — **PLAN / SPEC ONLY** (no application code, schema, migration, env, or DB changes).
+- **Design interview (`Q1–Q10`):** Owner confirmed unifying `/trips/[id]/edit` and `/trips/[id]/in-trip` into one `Saved-trip assistant` (`Trợ lý chuyến đi`) workspace operating on the shared client `Edit draft` (`ADR-37`), with full manual-edit capability parity (multi-turn draft up to 16 turns, Undo/Redo, 50-visit cap, multi-op batch edits, `auto-shift`, pre-departure `Trip origin` and clocks, existing `ExternalPlace` + `uncheckedChecks`, `ONGOING` elapsed-visit lock, `COMPLETED` lock, `409` Rebase, immutable `startDate`/`durationDays`/`transport`), conditional GPS only for material `ONGOING` location-dependent requests, and a 2-step Grounded Agent Pipeline (`Intent + Server Dry-Run Simulation` of up to 2 candidate remedies → `Grounded Advisory Composer` + server-packaged 1-click `Actionable advice suggestion` cards) covering all 7 traveler question archetypes (including `Schedule rest buffer` scenarios, `VISIBLE` KLTN catalog recommendations, interleaved RAG + labeled `Kiến thức mở rộng` Q&A, and live trip-date weather/sun-time advisories).
+- **Documentation deliverables:**
+  - Updated [`GLOSSARY.md`](../GLOSSARY.md) (`Planning guidance`, `Saved-trip assistant`, `Actionable advice suggestion`, `Schedule rest buffer`).
+  - Recorded `ADR-38` and the `ADR-36` saved-trip weather addendum in [`docs/decisions.md`](decisions.md).
+  - Created standalone `to-spec` specification [`docs/product/saved-trip-assistant-spec.md`](product/saved-trip-assistant-spec.md) (`ready-for-agent`, 38 user stories, implementation decisions without file paths/code snippets, 2 high-level test seams) and indexed it in [`docs/README.md`](README.md).
+  - Updated [`docs/product/trip-edit-redesign-spec.md`](product/trip-edit-redesign-spec.md) and [`docs/product/product-spec.md`](product/product-spec.md).
+- **Checks:** `git diff --check` verified clean. No application tests, build, database, or external provider calls run.
+- **Next:** Await owner instruction to break down vertical implementation tickets or begin coding `ADR-38`.
+
+## 2026-11-19 — Saved-trip Assistant vertical tickets (`to-tickets`)
+
+- **Branch/status:** `master` — **PLAN / SPEC ONLY** (no application code, schema, migration, env, or DB changes).
+- **Tickets delivered:** Published 7 vertical tracer-bullet ticket files (`01`–`07`) under [`.scratch/saved-trip-assistant/issues/`](../.scratch/saved-trip-assistant/issues/) plus [`.scratch/saved-trip-assistant/README.md`](../.scratch/saved-trip-assistant/README.md) with explicit `Blocked by` edges, `ready-for-agent` status, and full coverage across all 38 user stories in [saved-trip-assistant-spec.md](product/saved-trip-assistant-spec.md) (avoiding file paths and code snippets). Indexed in [`docs/README.md`](README.md).
+- **Checks:** Verified all 7 ticket files, blocking DAG, user-story coverage (1–38), and `git diff --check`.
+- **Next:** Execute Tickets `01` through `07` sequentially starting from frontier Ticket `01` when the owner launches the implementation session.
+
+## 2026-11-19 — Triển khai hoàn tất Trợ lý chuyến đi hợp nhất & Tư vấn hành trình thông minh (`ADR-38`, Tickets `01`–`07`)
+
+### Tổng quan thay đổi theo từng ticket
+1. **Ticket 01 (`01-unified-entry-and-assistant-workspace`)**:
+   - Hợp nhất `/trips/[id]/edit` và `/trips/[id]/in-trip` qua [saved-trip-assistant-page.tsx](file:///d:/KLTN/KLTN/apps/web/src/app/trips/%5Bid%5D/edit/saved-trip-assistant-page.tsx) (cùng `Edit draft`, `Undo/Redo`, khóa read-only `COMPLETED` trên cả 2 route, tự mở & focus Khung hội thoại Trợ lý AI khi vào từ `in-trip` và chọn tab `Trợ lý AI` trên Mobile).
+   - Nâng cấp [ai-edit-bar.tsx](file:///d:/KLTN/KLTN/apps/web/src/app/trips/%5Bid%5D/edit/ai-edit-bar.tsx), [edit-trip-client.tsx](file:///d:/KLTN/KLTN/apps/web/src/app/trips/%5Bid%5D/edit/edit-trip-client.tsx), [edit-trip.module.css](file:///d:/KLTN/KLTN/apps/web/src/app/trips/%5Bid%5D/edit/edit-trip.module.css): bố cục 3 cột Desktop / 3 tab Mobile (`Trợ lý AI` | `Lịch trình` | `Bản đồ`), 16 lượt hội thoại phiên tạm (`MAX_AI_HISTORY_TURNS = 16`), chip gợi ý theo ngữ cảnh và bảo vệ 3 trường khung cố định (`FRAME_IMMUTABLE` tại [ai-workspace-plan.ts](file:///d:/KLTN/KLTN/apps/web/src/modules/trip-edit/ai-workspace-plan.ts)).
+   - Ẩn nút nổi [global-assistant.tsx](file:///d:/KLTN/KLTN/apps/web/src/components/assistant/global-assistant.tsx) trên cả `/trips/[id]/edit` và `/trips/[id]/in-trip`, cập nhật link mở workspace từ [trips-view.tsx](file:///d:/KLTN/KLTN/apps/web/src/app/trips/trips-view.tsx).
+2. **Ticket 02 (`02-two-step-grounded-advisory-and-action-cards`)**:
+   - Xây dựng kiến trúc AI 2 bước trong [saved-trip-advisory.ts](file:///d:/KLTN/KLTN/apps/web/src/modules/trip-edit/saved-trip-advisory.ts): Bước 1 kiểm tra chỉ số thực tế và chạy `dry-run` tối đa 2 phương án ứng viên qua bộ định tuyến + `Constraint Validator`; Bước 2 `Grounded Advisory Composer` + `Deterministic Fact Guard` + fallback tất định khi LLM lỗi/timeout.
+   - Đóng gói tối đa 2 thẻ `Actionable advice suggestion` qua [ai-edit-service.ts](file:///d:/KLTN/KLTN/apps/web/src/modules/trip-edit/ai-edit-service.ts) và [trip-edit-client.ts](file:///d:/KLTN/KLTN/apps/web/src/lib/trip-edit-client.ts), hỗ trợ bấm **"Áp dụng phương án này vào bản nháp"** 1 chạm (`Undo/Redo`, không gọi lại LLM).
+3. **Ticket 03 (`03-rest-buffer-delay-scenarios-and-compound-turns`)**:
+   - Xây dựng [saved-trip-rest-scenario.ts](file:///d:/KLTN/KLTN/apps/web/src/modules/trip-edit/saved-trip-rest-scenario.ts) xử lý `Schedule rest buffer`, dậy muộn/xuất phát trễ, nhịp độ thong thả (`relaxedPace`), phát hiện kẹt giờ đóng cửa/sau hoàng hôn/`23:59`/hạn về và câu hỏi kép (*"nếu gấp/không kịp thì sửa giúp luôn"*), giữ bất biến lượt `ONGOING` đã qua giờ và trần 50 lượt.
+4. **Ticket 04 (`04-smart-destination-recommendations-and-hidden-stops`)**:
+   - Xây dựng [saved-trip-recommend.ts](file:///d:/KLTN/KLTN/apps/web/src/modules/trip-edit/saved-trip-recommend.ts) lọc & xếp hạng tối đa 3 `Destination option` `VISIBLE` chưa có trong bản nháp theo khu vực, giờ mở cửa, quỹ thời gian và trong nhà/ngoài trời theo thời tiết; chặn ID giả/`HIDDEN`/đã xóa mềm; hỗ trợ gợi ý 3 điểm công khai cùng khu vực + xóa nhanh điểm `HIDDEN`, đồng thời bảo toàn `ExternalPlace` (`NEEDS_UNCHECKED_ACK`).
+5. **Ticket 05 (`05-interleaved-rag-knowledge-weather-and-progress`)**:
+   - Xây dựng [saved-trip-interleaved-qa.ts](file:///d:/KLTN/KLTN/apps/web/src/modules/trip-edit/saved-trip-interleaved-qa.ts) phục vụ hỏi đáp xen kẽ chỉ-đọc: RAG + nhãn `Kiến thức mở rộng` & trích dẫn nguồn thật, dự báo thời tiết Open-Meteo + `suncalc` theo ngày lịch (gồm ngưỡng > 16 ngày `"Chưa có dự báo, sẽ có từ ngày ..."` và ngoại lệ `ADR-36`), và tiến độ lượt tiếp theo (`Edit draft` + `Undo/Redo` giữ nguyên).
+6. **Ticket 06 (`06-conditional-ongoing-gps-and-manual-location`)**:
+   - Xây dựng [saved-trip-location-guidance.ts](file:///d:/KLTN/KLTN/apps/web/src/modules/trip-edit/saved-trip-location-guidance.ts) cùng [ai-edit-http.ts](file:///d:/KLTN/KLTN/apps/web/src/modules/trip-edit/ai-edit-http.ts) và UI `NEEDS_LOCATION` dùng GPS 1 lần (`requestBrowserLocation`) + `ManualLocationPicker` fallback chỉ cho `ONGOING` khi câu hỏi thực sự phụ thuộc vị trí đang đứng; kiểm tra phủ Việt Nam ở server (`vietnamCoverageAt`), giữ cố định lượt đã qua giờ (`Asia/Ho_Chi_Minh`) và không lưu tọa độ dài hạn.
+7. **Ticket 07 (`07-vertical-acceptance-and-end-to-end-hardening`)**:
+   - Bổ sung bộ nghiệm thu liên hoàn [saved-trip-assistant-acceptance.vitest.test.ts](file:///d:/KLTN/KLTN/apps/web/src/modules/trip-edit/saved-trip-assistant-acceptance.vitest.test.ts) cùng các test Seam 1 & Seam 2 cho từng ticket (`saved-trip-advisory`, `saved-trip-rest-scenario`, `saved-trip-recommend`, `saved-trip-interleaved-qa`, `saved-trip-location-guidance`, `edit-workspace-ui`, `ai-workspace-plan`, `global-assistant-route`).
+
+### Kết quả kiểm chứng sau chỉnh sửa cuối cùng
+- `npm run check-types`: **PASS** (4/4 workspace packages).
+- `npm run build --workspace web`: **PASS** (`Next.js 16.4.6 Turbopack`, biên dịch thành công 57/57 static & toàn bộ route động/API).
+- Vitest (`src/modules/trip-edit`, `src/modules/in-trip`, `src/modules/trip-origin`, `src/modules/trip-save`, `src/modules/trip-weather`, `src/app/trips`, `src/components/assistant`): **118 file PASS, 1027 tests passed, 3 files (`16` tests) Postgres integration skipped do môi trường chưa bật Docker (`DOCKER_OFF`), 1 todo**; kịch bản tương đương concurrency `409`, retry `UNKNOWN` idempotency, companion publication notice & `uncheckedChecks`/`journeySnapshot` đã PASS trong `saved-trip-assistant-acceptance.vitest.test.ts`.
+- `npm run test:legacy --workspace web`: **PASS** (11 nhóm test / 352 assertions, 0 fail).
+- `git diff --check`: **PASS** (exit 0).
+
+## 2026-11-18 — BUG-01 AI conversation history investigation
+
+- **Evidence:** Authenticated local browser list API returned 200 with `items: []`. Read-only development DB counts for the current actor: one conversation, zero active, one deleted/expired, zero completed turns. Existing US-21 retention remains 30 days for authenticated users and 7 days for Guests; expired history is not restored.
+- **Fix:** History list failures were swallowed and rendered as an empty history. Added an accessible error with retry of the current search; aborted requests cannot publish errors. Existing owner-scoped API, persistence, retention and identity reset are preserved.
+- **Verification:** Regression test failed before the fix and passes afterward. Web typecheck PASS. Expanded six-file suite: 97 PASS / 1 FAIL; isolated `qa-conversation-reliability.vitest.test.ts` also fails its factual-generation adapter case with `AI_UNAVAILABLE` (74 PASS / 1 FAIL). No backend/provider test fix is claimed.
+- **Limits:** Live opening/refreshing an owned non-expired history and creating a new turn remain NOT PROVEN because this actor has no active history; no fabricated history or business-data writes were used. Browser fault injection, full suite and build not run. No schema/environment/auth changes, commit or push. Stop after BUG-01.
+
+## 2026-11-18 — BUG-02 My Trips card navigation
+
+- **Root cause/fix:** Only the detail CTA was linked; the card title/image/background were not navigation targets. Added a native title link stretched across the card with a keyboard focus indicator; Favorite and management controls remain outside the link and independently clickable.
+- **Verification:** New rendered-view regression failed before the fix. Four focused Trip suites now pass 39 tests; web typecheck, build (54 pages) and `git diff --check` PASS. Current authenticated browser `/trips` is empty, so live owned-trip navigation/reload/Back remain NOT PROVEN. See US-31 follow-up evidence.
+- **Scope:** No business-data/schema/API/auth changes or commit/push. Earlier BUG-01 and Admin UI edits retained. Stop after BUG-02; BUG-03 draft/leave behavior not implemented.
+- **Authenticated follow-up:** Owner logged into an account with four saved Trips. Title/thumbnail navigation opened the correct owned detail; reload retained its three visits, Back restored the list, and completion-dialog Cancel worked independently of the card link. No business-data write. Owned-trip navigation/reload/Back now verified for that Trip/session.
+
+## 2026-11-18 — BUG-03 leave-trip-creation investigation (decision pending)
+
+- **Source evidence:** `TripRequirementForm` initializes form/review/planner state in component memory. Unmount cleanup aborts requests; there is no leave warning or form restoration. Unmount/reload initializes `INITIAL_FIELDS` again. The Admin-only unsaved-change hook exists but is not used by this form.
+- **Contract:** US-24 explicitly prohibits DB/localStorage/sessionStorage/URL draft persistence; US-28 retains the in-memory flow and preserves edits when moving back inside the planner/review flow. Product prohibits durable invalid itinerary drafts. No approved automatic restore/leave-warning requirement was located.
+- **Decision needed:** Recommend an unsaved-change warning for leaving/reloading, retaining the active form when the user stays and discarding only after explicit leave. Restoring after leaving requires an approved scope/storage/retention policy. Per the task's BUG-03 instruction, no behavior/storage change is implemented before owner confirmation.
+- **Verification limits:** Current IAB tabs report localhost:3010 unreachable; fresh browser repro is NOT PROVEN. This is a source/requirements audit only, so application tests/build were not rerun. No data/auth/schema/env/commit/push changes.
+
+## 2026-11-18 — BUG-03 approved leave warning implementation
+
+- **Approval/implementation:** Owner approved the warning-only option. Reused the existing unsaved-change guard with an optional dialog root; Trip styles inherit current tokens. Raw field changes, review/proposal and unsent natural-language text are guarded. Pending/UNKNOWN save stays protected; SUCCESS releases the warning. No draft persistence or business-data writes.
+- **Evidence:** Before-fix live CAR selection could leave via My Trips without warning. After-fix link/Back prompt, Stay retains input, Leave navigates, 390px light dialog fits. Restarted local dev server on 3010 for these checks; no credentials/environment change.
+- **Checks:** 38 focused tests PASS; typecheck/build (54 pages)/whitespace PASS. Full web tests: 3332 PASS, 35 FAIL, 215 SKIP, 1 TODO. Failures are in QA reliability/quality/diagnostics and planning-model files; legacy phase not reached. Detailed limitations and failed file names are recorded in US-24. No commit/push.
+
+## 2026-11-21 — Saved-trip assistant reasoning upgrade (Phase A + B, ADR-39)
+
+- **Why:** Production `/trips/[id]/edit` replies repeated the deterministic template. Code review found a silent composer fallback, a non-reasoning preference client (`reasoning_effort: none`, 1,200 tokens) and a 15-topic classifier routing into fixed branches. Spec: [saved-trip-assistant-reasoning-spec.md](product/saved-trip-assistant-reasoning-spec.md); decision: ADR-39.
+- **Model switch (owner request, 2026-11-20):** Q&A default (`QA_DEFAULT_MODEL`, runtime `qaModel`) and planning (`PLANNING_MODEL`, planning reply/response/replanning) moved from Luna/Sol to `gpt-6.1-terra`; model-name assertions in 6 test files updated.
+- **Phase A:** Terra structured client for the edit route; classifier/composer timeouts 90 s; composer fallback reasons logged (codes only); prompt rewritten; fallback names origin + departure time first for journey questions.
+- **Phase B:** Responses API tool loop (`simulate_changes`, `search_destinations`, `get_weather`, `lookup_local_knowledge`); cards/proposals built only from same-turn server simulations; any failure falls back to the ADR-38 pipeline; `TRIP_ASSISTANT_AGENT=off` disables; route `maxDuration = 300`.
+- **Checks:** typecheck PASS. trip-edit + app/trips: 289 PASS / 1 skip (one earlier run showed 4 `trips-view` failures that pass alone and on rerun: order-dependent mock leakage under `isolate: false`). AI/planning/agent-v2/runtime-config/tripsage/in-trip: 1591 PASS, 37 FAIL; the same 37 fail on the original code (qa-diagnostics 25, qa-answer-quality-v2 8, qa-chat-preference 2, qa-conversation-reliability 1, in-trip-v2 1). No ESLint config exists in the repo, so lint was not run. Git Bash vitest runs began failing with "failed to find the runner" mid-session; PowerShell runs are clean.
+- **Not proven:** no live OpenAI call; Responses API request shape verified with fakes only. No schema/migration/dependency change; new optional env `TRIP_ASSISTANT_AGENT`. No commit/push.
+
+## 2026-11-21 — Saved-trip assistant onboarding and plain-language status
+
+- **Owner request:** new users did not know what to ask, and the edit page read as "draft / not suitable" before anything was asked.
+- **Changes (UI copy/behaviour only; no API, schema or data change):** sidebar shows "Lịch trình · Đã lưu" until something changes, then "N thay đổi chưa lưu"; violation chips read "N điểm cần xem lại". The empty assistant state uses plain wording, lists each blocking finding by stop name and day with a "Sửa giúp tôi" button (several findings on one stop collapse into one line), or says the trip is fine. Up to 3 suggestion chips (this trip's fixes first) stay visible above the composer after the first message; the "Gợi ý câu hỏi" toggle was removed. "Canvas" and "bản nháp" wording replaced.
+- **Why findings appear without edits:** the page re-runs routing and the Validator against current data on every open. Whether planner-saved trips can fail that check (e.g. return leg after 23:59) is not yet reproduced.
+- **Checks:** typecheck PASS; trip-edit + app/trips 289 PASS / 1 skip; new `ai-onboarding.vitest.test.ts` 3 PASS. Browser/visual check NOT run.
+
+## 2026-11-21 — Saved-trip assistant natural streaming (ADR-40, Tickets 01–04)
+
+- **Why:** After ADR-39, travelers still waited in silence for one JSON blob per turn, could not see what tools the assistant was running, could not stop a turn mid-way, and read-only replies still carried per-message "Lịch chưa bị thay đổi" badges. Spec: [saved-trip-assistant-natural-streaming-spec.md](product/saved-trip-assistant-natural-streaming-spec.md); decision: ADR-40.
+- **Changes:**
+  - **Ticket 01 (`c1c4004`):** Rewrote `trip-assistant-agent.ts` on Vercel AI SDK 7 (`streamText`, `tool`, `isStepCount`) with `@ai-sdk/openai` `.responses("gpt-6.1-terra")` (`forceReasoning: true`, `reasoningEffort: "medium"`, `reasoningSummary: null`, `store: false`, no token cap). Replaced final-turn JSON with free streamed prose + decision tools `apply_to_draft` and `show_options`, companion voice + *Stated assumption* prompt, retired the hand-written Responses client in `trip-assistant-openai.ts`, and committed the pending 305 s client timeout + ADR-40/GLOSSARY/spec docs.
+  - **Ticket 02 (`946b668`):** Added `Accept: text/event-stream` content negotiation in `ai-edit-http.ts` and `streamAiEditProposal` in `ai-edit-service.ts` (all preflight 400/401/403/404/409/422 errors still return JSON before opening SSE). Stream emits Vietnamese `data-status`, `data-steps`, live chunk-boundary ID/URL/HTML redaction (`trip-assistant-stream-redaction.ts`), server-written `data-correction-note` on `FALSE_PASS`/`ABSOLUTE_SAFETY` without falling back to ADR-38, and `data-trip-assistant-result` matching the JSON payload.
+  - **Ticket 03 (`65185a2`):** Added `streamAiTripEdit` (`trip-edit-client.ts`, inactivity timeout reset per chunk up to 305 s, `INTERRUPTED`/`STOPPED`/`TIMEOUT`/409 handling), pure draft-guard `resolveAiStreamOutcome` (`ai-stream-outcome.ts`) ensuring only `PROPOSED` mutates *Edit draft*, `STREAMING` UI with live progress + collapsible `<details>` step summary + 44×44 px Stop button + *Correction note* + partial-text preservation with Retry, and removed advisory "Lịch chưa bị thay đổi" badges per Caveat policy.
+  - **Ticket 04:** Added opt-in live test `trip-assistant-live.vitest.test.ts` (`TRIP_ASSISTANT_LIVE=1`), verified 5 live turns on `gpt-6.1-terra`, ran full DoD checks, and updated docs.
+- **Live check (`TRIP_ASSISTANT_LIVE=1`, in-memory 3-day trip with origin "Hà Nội" 05:00, deterministic fake routing + real Validator, no DB, `.responses("gpt-6.1-terra")`):**
+  1. `"hiện hành trình của tôi đang như nào"` → `ADVISED`, 0 tool calls, 126 text deltas streamed, 0 leaks, 3.90 s — concise 3-day overview with origin 05:00 and arrival 11:21, UPCOMING tone.
+  2. `"tôi xuất phát từ đâu lúc mấy giờ"` → `ADVISED`, 0 tool calls, 19 text deltas streamed, 0 leaks, 1.37 s — direct single-sentence answer ("Hà Nội lúc 05:00 ngày 05/12/2026").
+  3. `"ngày 1 tôi chưa muốn tham quan, dời chợ tình Khâu Vai sang hôm khác"` → `ADVISED` with 2 suggestion cards (`simulate_changes` × 5 + `show_options` × 1), 128 text deltas streamed, 0 leaks, 16.30 s — surfaced Day 2 vs Day 3 trade-offs cleanly.
+  4. `"sáng ngày 2 muốn nghỉ đến 9h mới đi thì chỉnh sao"` → `ADVISED` with 1 suggestion card (`simulate_changes` × 2 + `show_options` × 1), 113 text deltas streamed, 0 leaks, 9.83 s — stated assumption clearly ("Mình đang hiểu 09:00 là giờ bắt đầu tham quan...").
+  5. `"cảm ơn bạn"` → `ADVISED`, 0 tool calls, 8 text deltas streamed, 0 leaks, 1.26 s — warm 1-line companion reply ("Mình rất vui được đồng hành cùng bạn!"), no data dump, no emoji.
+- **Checks:**
+  - `npx tsc --noEmit -p .`: PASS.
+  - `npx vitest run src/modules/trip-edit src/app/trips src/lib src/app/api/trips`: 58 passed | 2 skipped (371 passed | 2 skipped: postgres integration + opt-in live test).
+  - `npx vitest run src/modules/ai src/modules/assistant-planning src/modules/assistant-agent-v2 src/modules/runtime-config src/modules/tripsage-chat src/modules/in-trip`: 107 passed | 5 failed | 10 skipped (1591 passed | 37 pre-existing failures across the exact 5 baseline files: `qa-diagnostics` 25, `qa-answer-quality-v2` 8, `qa-chat-preference` 2, `qa-conversation-reliability` 1, `in-trip-v2` 1; 0 new failures).
+  - `npm run build` (`apps/web`): PASS (Next.js 16.4.6 Turbopack, TypeScript check + 57/57 static pages & all dynamic/API routes).
+  - `git diff --check`: PASS. No secrets in diff; no Prisma schema/migration or dependency changes.
+- **Not proven:** Visual/interactive browser verification (360 px mobile, dark mode, live Stop click, and Vercel Production CDN SSE buffering behavior); live PostgreSQL/Stadia end-to-end turn; live OpenAI turn triggering `apply_to_draft` or `FALSE_PASS` (both covered by unit/stream tests with `MockLanguageModelV4`).
+>>>>>>> 2ef331b5043d8bbbdf721c91f9edda31e322b75a

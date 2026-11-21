@@ -4,21 +4,75 @@ import { useId, type ReactNode } from "react";
 import { Sparkles } from "lucide-react";
 import { AssistantCitations, AssistantSourceList } from "./assistant-citations";
 import { buildCitationIndex } from "./assistant-citation-utils";
-import type { QaContext, QaAnswerPart, QaCompletedTurn, QaPublicCitation } from "../../modules/ai/qa-contract";
+import type { QaContext, QaAnswerPart, QaCompletedTurn, QaDestinationChoice, QaPublicCitation } from "../../modules/ai/qa-contract";
 import type { ConfirmedTurn } from "./assistant-controller";
 import { AssistantAnswerContent } from "./assistant-answer-content";
 import { assistantSourceReply } from "./assistant-source-reply";
+import { AssistantWeatherCard, type AssistantWeatherCardLoadState } from "./assistant-weather-card";
 
 export type CitationSlot = (input: { part: QaAnswerPart; citations: QaPublicCitation[]; turn: QaCompletedTurn }) => ReactNode;
 
-export function AssistantAnswer({ turn, citationSlot, question, showSources = true }: { turn: QaCompletedTurn; citationSlot?: CitationSlot; question?: string; showSources?: boolean }) {
+export function AssistantAnswer({
+  turn,
+  citationSlot,
+  question,
+  showSources = true,
+  onSelectChoice,
+  choicesDisabled = false,
+  weatherCardInitialState,
+  weatherToday,
+}: {
+  turn: QaCompletedTurn;
+  citationSlot?: CitationSlot;
+  question?: string;
+  showSources?: boolean;
+  onSelectChoice?: (choice: QaDestinationChoice, question?: string) => void;
+  choicesDisabled?: boolean;
+  weatherCardInitialState?: AssistantWeatherCardLoadState;
+  weatherToday?: string;
+}) {
   const sourcePrefix = useId();
   if (turn.status === "CONVERSATIONAL") return <p>{turn.message}</p>;
   if (turn.status === "INSUFFICIENT_SOURCE") {
     const reply = assistantSourceReply(turn, question);
     return <div className="assistant-source-reply"><p>{reply.explanation}</p><p>{reply.nextStep}</p></div>;
   }
-  if (turn.status === "CLARIFICATION_REQUIRED") return <p>{turn.clarificationQuestion}</p>;
+  if (turn.status === "CLARIFICATION_REQUIRED") {
+    const choices = turn.choices?.slice(0, 3) ?? [];
+    if (choices.length === 0) return <p>{turn.clarificationQuestion}</p>;
+    return (
+      <div className="assistant-clarification-reply">
+        <p>{turn.clarificationQuestion}</p>
+        <div className="assistant-weather-choices" role="group" aria-label="Chọn điểm đến">
+          {choices.map(choice => (
+            <button
+              key={choice.id}
+              type="button"
+              className="assistant-weather-choice-btn"
+              disabled={choicesDisabled || !onSelectChoice}
+              onClick={() => onSelectChoice?.(choice, question)}
+            >
+              {choice.name}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  if (turn.status === "WEATHER") {
+    return (
+      <div className="assistant-weather-reply">
+        <p className="assistant-weather-lead">{turn.leadIn}</p>
+        <AssistantWeatherCard
+          destinationId={turn.destinationId}
+          date={turn.date}
+          representative={turn.representative}
+          initialState={weatherCardInitialState}
+          today={weatherToday}
+        />
+      </div>
+    );
+  }
   const citationIndex = buildCitationIndex(turn);
   const sources = (part: QaAnswerPart) => {
     if (citationSlot) {
@@ -40,7 +94,23 @@ export function AssistantAnswer({ turn, citationSlot, question, showSources = tr
   </>;
 }
 
-export function AssistantTurn({ turn, citationSlot, showSources = false }: { turn: ConfirmedTurn; citationSlot?: CitationSlot; showSources?: boolean }) {
+export function AssistantTurn({
+  turn,
+  citationSlot,
+  showSources = false,
+  onSelectChoice,
+  choicesDisabled = false,
+  weatherCardInitialState,
+  weatherToday,
+}: {
+  turn: ConfirmedTurn;
+  citationSlot?: CitationSlot;
+  showSources?: boolean;
+  onSelectChoice?: (choice: QaDestinationChoice, question?: string) => void;
+  choicesDisabled?: boolean;
+  weatherCardInitialState?: AssistantWeatherCardLoadState;
+  weatherToday?: string;
+}) {
   return <div className="assistant-turn">
     <article className="assistant-message assistant-user" aria-label="Câu hỏi đã được xác nhận"><p>{turn.question}</p><small>Đã xác nhận lượt hỏi</small></article>
     <article className="assistant-message assistant-answer" aria-label="Phản hồi của trợ lý">
@@ -48,7 +118,16 @@ export function AssistantTurn({ turn, citationSlot, showSources = false }: { tur
         <Sparkles className="assistant-speaker-icon" aria-hidden="true" />
         <span>Trợ lý AI</span>
       </span>
-      <AssistantAnswer turn={turn.response} question={turn.question} citationSlot={citationSlot} showSources={showSources} />
+      <AssistantAnswer
+        turn={turn.response}
+        question={turn.question}
+        citationSlot={citationSlot}
+        showSources={showSources}
+        onSelectChoice={onSelectChoice}
+        choicesDisabled={choicesDisabled}
+        weatherCardInitialState={weatherCardInitialState}
+        weatherToday={weatherToday}
+      />
     </article>
   </div>;
 }

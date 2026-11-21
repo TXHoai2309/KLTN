@@ -55,6 +55,9 @@ describe("getTripForEdit", () => {
     expect(result.baseRevision).toBe(updatedAt.toISOString());
     expect(result.candidate.days[0]?.visits[0]?.visitId).toBe("visit-1");
     expect(result.destinationLabels["destination-1"]).toBe("Hẻm Tu Sản · Mèo Vạc");
+    expect(result.placeDetails["destination-1"]?.name).toBe("Hẻm Tu Sản");
+    expect(result.tripStatus).toBe("COMPLETED");
+    expect(result.hasCompanionPublication).toBe(false);
   });
 
   it("maps a missing or non-owned Trip to the same not-found error", async () => {

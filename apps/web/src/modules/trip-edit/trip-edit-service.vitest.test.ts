@@ -179,6 +179,18 @@ describe("previewEdit", () => {
     expect(result.eligibleForConfirmation).toBe(false);
   });
 
+  it("rejects COMPLETED trips by calendar end date or manual completion", async () => {
+    const pastTest = fixture();
+    await expect(previewEdit(
+      "trip-1",
+      "owner-1",
+      updatedAt.toISOString(),
+      candidate,
+      pastTest.dependencies,
+      new Date("2026-10-25T10:00:00.000Z"),
+    )).rejects.toMatchObject({ code: "TRIP_COMPLETED_READONLY", status: 409 });
+  });
+
   it("returns revision conflict before reading destination eligibility data", async () => {
     const test = fixture();
 

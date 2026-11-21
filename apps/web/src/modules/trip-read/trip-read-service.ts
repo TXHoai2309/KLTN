@@ -5,6 +5,7 @@ import type { AuthorizationDependencies } from "@/server/authorization/guard";
 import { AppError } from "@/server/http/app-error";
 import { effectiveTripStatus, type TripStatus } from "./trip-status";
 import type { TravelLeg } from "../trip-planner/planner-contract";
+import { destinationMediaWhere, isDestinationMediaUsable } from "../destination/destination-media-eligibility";
 import { savedJourneySchema, journeyVisitFingerprint, type SavedJourney } from "../trip-origin/journey-saved-contract";
 import { externalPlaceView } from "./external-place-cache";
 import { storedUncheckedSchema, type UncheckedItem } from "../trip-save/unchecked-checks";
@@ -53,6 +54,7 @@ export type TripDetail = TripSummary & {
         description?: string;
         visibility: "VISIBLE" | "HIDDEN";
         availability: "AVAILABLE" | "UNAVAILABLE";
+        image?: { url: string; alt: string };
         /** A place outside the KLTN catalogue: no destination page; name/coordinates are a 30-day cache. */
         external?: true;
       };
@@ -107,6 +109,7 @@ const detailSelect = (userId: string) => ({
               longitude: true,
               address: true,
               description: true,
+              media: { where: destinationMediaWhere, take: 20, orderBy: [{ isCover: "desc" as const }, { position: "asc" as const }, { id: "asc" as const }], select: { url: true, alt: true, websiteRights: true, storageReference: true } },
               visibility: true,
               deletedAt: true,
             },
@@ -200,15 +203,18 @@ export async function getMyTrip(headers: Headers, id: string, deps: TripReadDepe
   /** KLTN destination or saved external place; exactly one is set (DB CHECK). */
   const placeOf = (visit: (typeof row.days)[number]["visits"][number]): TripDetail["days"][number]["visits"][number]["destination"] => {
     if (visit.destination) {
+      const dest = visit.destination;
+      const image = (dest as { media?: { url: string; alt: string; websiteRights: string; storageReference?: string | null }[] }).media?.find(media => isDestinationMediaUsable(media, dest.id));
       return {
-        id: visit.destination.id, name: visit.destination.name, area: visit.destination.area,
-        category: (visit.destination as { category?: string }).category,
-        latitude: (visit.destination as { latitude?: number }).latitude,
-        longitude: (visit.destination as { longitude?: number }).longitude,
-        address: (visit.destination as { address?: string | null }).address ?? null,
-        description: (visit.destination as { description?: string }).description,
-        visibility: visit.destination.visibility,
-        availability: visit.destination.visibility === "VISIBLE" && !visit.destination.deletedAt ? "AVAILABLE" : "UNAVAILABLE",
+        id: dest.id, name: dest.name, area: dest.area,
+        category: (dest as { category?: string }).category,
+        latitude: (dest as { latitude?: number }).latitude,
+        longitude: (dest as { longitude?: number }).longitude,
+        address: (dest as { address?: string | null }).address ?? null,
+        description: (dest as { description?: string }).description,
+        visibility: dest.visibility,
+        availability: dest.visibility === "VISIBLE" && !dest.deletedAt ? "AVAILABLE" : "UNAVAILABLE",
+        ...(image ? { image: { url: image.url, alt: image.alt } } : {}),
       };
     }
     if (visit.externalPlace) return externalPlaceView(visit.externalPlace, now, isOwner);

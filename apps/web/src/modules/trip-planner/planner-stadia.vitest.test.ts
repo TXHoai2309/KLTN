@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createStadiaRoutesProvider, resolvePlannerRoutes } from "./planner-routes";
+import { createStadiaRoutesProvider, resolvePlannerRoutes, cappedDurationSeconds } from "./planner-routes";
 import { candidate, requirement, referenceTime } from "./__fixtures__/planner-fixtures";
 import { createPlannerService } from "./planner-service";
 import { getTravelRoute, requestStadiaRoute } from "../trip-validation/stadia-route";
@@ -11,6 +11,15 @@ const input = { origin: pair.from, destination: pair.to, vehicle: "CAR" };
 const payload = (time: unknown = 1800.5, length: unknown = 10.1234) => ({ trip: { status: 0, summary: { time, length } } });
 const signal = () => new AbortController().signal;
 const adapter = (fetcher: typeof fetch, timeoutMs?: number) => createStadiaRoutesProvider({ apiKey: () => "fixture-server-secret", fetcher, timeoutMs });
+
+describe("mountain speed cap", () => {
+  it("slows implausibly fast legs per vehicle and leaves slower or distance-less legs alone", () => {
+    expect(cappedDurationSeconds(14_000, 400_000, "MOTORCYCLE")).toBe(36_000);
+    expect(cappedDurationSeconds(14_000, 400_000, "CAR")).toBe(28_800);
+    expect(cappedDurationSeconds(40_000, 400_000, "CAR")).toBe(40_000);
+    expect(cappedDurationSeconds(60, undefined, "CAR")).toBe(60);
+  });
+});
 
 describe("US28 shared Stadia adapter", () => {
   it.each([["CAR", "auto"], ["MOTORCYCLE", "motorcycle"]] as const)("%s uses exactly one %s request and keeps credentials server-side", async (transport, costing) => {

@@ -15,6 +15,7 @@ import {
   Save,
   Plus,
   Expand,
+  ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -72,11 +73,28 @@ import {
 
 export default function DestinationForm({ id }: { id: string | null }) {
   const router = useRouter();
+  const pageRef = useRef<HTMLDivElement>(null);
   const [dto, setDto] = useState<DestinationDto>();
   const [draft, setDraft] = useState(destinationDraft);
   const [loading, setLoading] = useState(Boolean(id));
   const [loadError, setLoadError] = useState("");
   const [reload, setReload] = useState(0);
+  useEffect(() => {
+    if (id) return;
+    const page = pageRef.current;
+    const editHeader = page?.querySelector<HTMLElement>(".af-page-header");
+    const siteHeader = document.querySelector<HTMLElement>(".site-header");
+    if (!page || !editHeader || !siteHeader) return;
+    const update = () => {
+      page.style.setProperty("--dv3-nav-height", `${siteHeader.offsetHeight}px`);
+      page.style.setProperty("--dv3-header-height", `${editHeader.offsetHeight}px`);
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(siteHeader);
+    observer.observe(editHeader);
+    update();
+    return () => observer.disconnect();
+  }, [id, loading, loadError]);
   const [saving, setSaving] = useState(false);
   const [unknown, setUnknown] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -356,16 +374,16 @@ export default function DestinationForm({ id }: { id: string | null }) {
       ? dto.profile?.shortDescription
       : shortDescription(draft.description);
   return (
-    <div className="af-root dv3-page">
+    <div ref={pageRef} className={`af-root dv3-page${id ? " dv3-edit-page" : ""}`}>
       <AdminPageHeader
-        breadcrumb={<Link href="/admin/destinations">← Quản lý điểm đến</Link>}
+        breadcrumb={<Link href="/admin/destinations" aria-label="Quay lại quản lý điểm đến"><ArrowLeft size={20} aria-hidden="true" /></Link>}
         title={id ? "Chỉnh sửa điểm đến" : "Tạo điểm đến mới"}
         subtitle="Một hồ sơ ngắn gọn để khám phá và lập hành trình Hà Giang."
-        meta={<><AdminVisibilityBadge visibility={dto?.visibility ?? "HIDDEN"} /><a className="af-btn" href="#destination-save">Đi tới nút lưu</a></>}
+        meta={<><AdminVisibilityBadge visibility={dto?.visibility ?? "HIDDEN"} /><button type="submit" form="destination-form" className={id ? "af-btn" : "af-btn af-btn-primary"} disabled={saving || visibilityAction.busy || imageState.busy || imageState.uncertainReview} aria-busy={saving}>{saving ? "Đang lưu…" : unknown ? "Đọc lại và thử lại" : id ? "Lưu thay đổi" : "Tạo điểm đến"}</button></>}
       />
       <main className="dv3-main">
         {id && <div style={{ marginBottom: 20 }}><Link className="af-btn" href={`/admin/destinations/${encodeURIComponent(id)}/editorial` as Route}>Thiết kế trang giới thiệu</Link></div>}
-        <form method="post" noValidate onSubmit={(e) => void submit(e)}>
+        <form id="destination-form" method="post" noValidate onSubmit={(e) => void submit(e)}>
           {feedback && (
             <AdminAlert variant={unknown ? "warning" : "error"}>
               {feedback}
@@ -501,6 +519,17 @@ export default function DestinationForm({ id }: { id: string | null }) {
                 )}
                 {field("minimumDurationMinutes", "Thời lượng tối thiểu (phút)")}
               </div>
+              <label className="dv3-outdoor">
+                <input
+                  type="checkbox"
+                  checked={draft.isOutdoor}
+                  onChange={(e) => change("isOutdoor", e.target.checked)}
+                />
+                <span>
+                  <strong>Điểm ngoài trời</strong>
+                  <small>Bật để cảnh báo khi lịch trình xếp điểm này sau giờ hoàng hôn.</small>
+                </span>
+              </label>
               <details
                 className="dv3-disclosure"
                 open={
@@ -664,7 +693,7 @@ export default function DestinationForm({ id }: { id: string | null }) {
               </div>
             </AdminCollapsibleSection>
           </fieldset>
-          <AdminStickyActions
+          {!id && <AdminStickyActions
             message={
               <span className="dv3-sticky-status">
                 <span className={`dv3-status-dot ${dirty ? "is-dirty" : "is-clean"}`} />
@@ -709,7 +738,7 @@ export default function DestinationForm({ id }: { id: string | null }) {
                       : "Tạo điểm đến"}
               </span>
             </button>
-          </AdminStickyActions>
+          </AdminStickyActions>}
         </form>
       </main>
       {descriptionEditorOpen && (

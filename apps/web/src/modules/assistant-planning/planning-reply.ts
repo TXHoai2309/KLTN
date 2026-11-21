@@ -14,7 +14,7 @@ export type PlanningReplyInput = {
 };
 export type PlanningReplyComposer = (input: PlanningReplyInput) => Promise<string>;
 const schema = z.object({ message: z.string().trim().min(1).max(4000) }).strict();
-const provider = createQaJsonProvider({ model: "gpt-6-luna", timeoutMs: 25_000, maxOutputTokens: 1200 });
+const provider = createQaJsonProvider({ model: "gpt-6.1-terra", timeoutMs: 25_000, maxOutputTokens: 1200 });
 const plain = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/gi, "d").toLowerCase();
 
 /** This gate protects critical workflow facts. The model only writes prose; its
@@ -66,10 +66,10 @@ PROPOSAL: không cần giữ nguyên câu đầu canonical. Giới thiệu lịc
       { role: "user", content: JSON.stringify(input) },
     ] }, value => schema.parse(value));
     const accepted = acceptPlanningReply(result.message, input);
-    console.info(JSON.stringify({ event: "planning_reply", model: "gpt-6-luna", reasoning: "high", outcome: accepted ? "MODEL_ACCEPTED" : "GUARD_FALLBACK" }));
+    console.info(JSON.stringify({ event: "planning_reply", model: "gpt-6.1-terra", reasoning: "medium", outcome: accepted ? "MODEL_ACCEPTED" : "GUARD_FALLBACK" }));
     return accepted ? result.message : input.canonical;
   } catch {
-    console.info(JSON.stringify({ event: "planning_reply", model: "gpt-6-luna", reasoning: "high", outcome: "PROVIDER_FALLBACK" }));
+    console.info(JSON.stringify({ event: "planning_reply", model: "gpt-6.1-terra", reasoning: "medium", outcome: "PROVIDER_FALLBACK" }));
     return input.canonical;
   }
 };

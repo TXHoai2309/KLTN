@@ -3,6 +3,8 @@
 import type { KeyboardEvent, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { formatVietnameseDate } from "@/lib/date-only";
+import { BREAKFAST_MINUTES, LUNCH, MORNING_DEPARTURE_MINUTE } from "@/modules/trip-planner/planner-engine";
+import type { JourneyPlan } from "@/modules/trip-origin/journey-route-contract";
 import { JOURNEY_MISSING_LABELS, missingJourneyFields, type TripJourney } from "@/modules/trip-origin/trip-origin-contract";
 import {
   AlertCircle,
@@ -11,11 +13,14 @@ import {
   ArrowRight,
   Calendar,
   CheckCircle2,
+  Coffee,
   ChevronRight,
   Clock,
   Compass,
   Gauge,
   House,
+  Moon,
+  UtensilsCrossed,
   MapPin,
   Route,
   ShieldCheck,
@@ -38,6 +43,42 @@ import type {
   PlannerResult,
   PlannerStop,
 } from "@/modules/trip-planner/planner-contract";
+
+/** The lunch slot sits between a visit and its transfer, so it is the time the route evidence cannot explain. */
+export function lunchBreakAfter(plan: JourneyPlan | null | undefined, nextDestinationId: string, departureMinute: number | null, nextArrivalMinute: number | null): { from: number; to: number } | null {
+  const leg = plan?.legs.find(item => item.kind === "TRANSFER" && item.to.kind === "ATTRACTION" && item.to.destinationId === nextDestinationId);
+  if (!leg || leg.endMinute == null || departureMinute === null || nextArrivalMinute === null) return null;
+  if (departureMinute < LUNCH.fromMinute || departureMinute > LUNCH.toMinute || nextArrivalMinute - leg.endMinute < LUNCH.minutes) return null;
+  return { from: departureMinute, to: departureMinute + LUNCH.minutes };
+}
+
+/** Lodging is not chosen or routed, so this names the time only, never a place to stay. */
+export const nightRestText = (fromMinute: number) => `Từ ${clockText(fromMinute)} đến sáng hôm sau`;
+export const breakfastText = () => `${clockText(MORNING_DEPARTURE_MINUTE - BREAKFAST_MINUTES)} – ${clockText(MORNING_DEPARTURE_MINUTE)}, khởi hành ${clockText(MORNING_DEPARTURE_MINUTE)}`;
+
+export function ItineraryBreakfast() {
+  return <li className="planner-stop planner-stop-pause">
+    <div className="planner-stop-node-col">
+      <span className="planner-stop-number" aria-hidden="true"><Coffee size={13} /></span>
+      <span className="planner-stop-stem" aria-hidden="true" />
+    </div>
+    <div className="planner-stop-body">
+      <p className="planner-break"><strong>Ăn sáng</strong> {breakfastText()}</p>
+    </div>
+  </li>;
+}
+
+export function ItineraryNightRest({ fromMinute }: { fromMinute: number }) {
+  return <li className="planner-stop planner-stop-pause">
+    <div className="planner-stop-node-col">
+      <span className="planner-stop-number" aria-hidden="true"><Moon size={13} /></span>
+      <span className="planner-stop-stem" aria-hidden="true" />
+    </div>
+    <div className="planner-stop-body">
+      <p className="planner-break"><strong>Nghỉ tối</strong> {nightRestText(fromMinute)} · chưa chọn nơi nghỉ</p>
+    </div>
+  </li>;
+}
 
 const visitTimeText = (stop: PlannerStop) =>
   stop.arrivalMinute === null && stop.departureMinute === null ? "Chưa xác định giờ" : `${clockText(stop.arrivalMinute)} – ${clockText(stop.departureMinute)}`;
@@ -322,11 +363,13 @@ export function ItineraryStopCard({
   selected,
   onSelect,
   nextStop,
+  lunch,
 }: {
   stop: PlannerStop;
   selected: boolean;
   onSelect: (id: string) => void;
   nextStop?: PlannerStop;
+  lunch?: { from: number; to: number } | null;
 }) {
   return (
     <li className={`planner-stop ${selected ? "is-selected" : ""}`}>
@@ -388,6 +431,13 @@ export function ItineraryStopCard({
             </div>
           </div>
         </button>
+
+        {lunch && (
+          <p className="planner-break">
+            <UtensilsCrossed size={13} aria-hidden="true" />
+            <strong>Nghỉ trưa</strong> {clockText(lunch.from)} – {clockText(lunch.to)}
+          </p>
+        )}
 
         {/* Route Segment connector between stops */}
         {nextStop?.inbound && (

@@ -696,6 +696,44 @@ There is one assistant chat for everyone. Signed-in travelers keep the full V2 e
 ### Consequences
 
 Rollback is by reverting the single retirement commit, not by a setting. The Q&A service, `/api/ai/ask`, `/api/ai/conversations`, guest identity, abuse limits and the planning auth hand-off are unchanged. No schema change and no stored conversation is deleted. Where the chat cannot start (Q&A gate closed), `/assistant` shows an unavailable state instead of a local demo. Live evidence and its gaps are recorded in the retirement story.
+
+## ADR-36 — Weather is an advisory, never a Constraint Validator input (2026-11-18)
+
+- **Status:** Accepted at planning level by the owner ("đồng ý hết", 2026-11-18). Lifts the earlier exclusion of weather for the scoped features below. Not implemented; stories pending.
+- **Date:** 2026-11-18
+
+### Context
+
+Weather was out of scope (`product/trip-origin-spec.md`). The owner approved destination forecasts, visit-time weather on itineraries, weather along route legs and sun times. Forecasts exist only for roughly the next 16 days and change between updates, and repo rules say missing required validation data is never a pass.
+
+### Decision
+
+Weather and sun times produce **weather advisories** and an after-sunset advisory shown on proposals and saved trips. They never change a Constraint Validator result and never block proposing or saving a trip. Days beyond the forecast horizon show "forecast not yet available" with no substitute values. Saved trips do not store a weather snapshot; the forecast is fetched (through a server cache) when viewed. Advisory thresholds (rain ≥ 70 % or ≥ 5 mm/h, visibility < 1 km, gusts ≥ 40 km/h) are owner-set and uncalibrated. Data comes from Open-Meteo (non-commercial, server-side, attributed) and a local sun-position library; no code, formula, data or UI is taken from SkyRadar.
+
+### Alternatives
+
+- Weather as a hard constraint: rejected; every trip beyond the forecast horizon would fail validation as missing data.
+- Store a forecast snapshot with each saved trip: rejected; it goes stale and needs new tables.
+- Fill missing days with climate averages: rejected; it presents estimates as forecasts.
+
+### Consequences
+
+The Validator and its tests are unchanged. A forecast provider outage degrades to an unavailable notice, not a failed trip. An "outdoor" flag on destinations is needed for the after-sunset advisory (migration and admin form). Cloud-sea likelihood, landslide risk from accumulated rain and official warnings remain future work.
+
+### Addendum (2026-11-18): Assistant
+
+The Assistant answers Weather questions for Guests and travelers, and a turn that creates or changes a proposal may add one line naming at most two of the heaviest advisories. Question understanding adds a `WEATHER` intent and a validated `weatherDate`; the server checks the date and re-reads the forecast, and neither model nor keyword code decides weather facts. Weather numbers and advisories are shown as a code-built card; the model writes only a short lead-in. The Assistant never says whether the traveler should or should not go. Weather questions count toward the existing Q&A abuse limits. Saved-trip weather questions (in-trip skill) were initially deferred here and are now enabled for the unified `Saved-trip assistant` under [ADR-38](#adr-38--unified-saved-trip-assistant-and-2-step-grounded-advisory-pipeline-2026-11-19).
+
+### Addendum (2026-11-18): Scheduling soft preference (planned, not implemented)
+
+- **Status:** Accepted at planning level by the owner (2026-11-18, Q1–Q11 grill). Not implemented; awaiting story and coding authorization.
+- **Decision:** Both the form planner and Assistant planner (including `journey` round-trips within origin/return bounds and scoped `affectedDays` edits) may use sun times (`isOutdoor` destinations scheduled before sunset, or earlier in the day when no `startDate` is set) and destination forecast advisories (reusing the exact ADR-36 rain/fog/wind thresholds) as **soft scheduling preferences** to reorder visits within a day or swap days, without changing Constraint Validator outcomes or blocking saves.
+- **Guardrails:**
+  1. **User constraints win:** Must-visit stops and explicit user time/day locks are preserved; the scheduler never silently drops a user-requested destination. (The Assistant may suggest an indoor alternative in prose when an entire day has severe advisories, leaving the choice to the user.)
+  2. **Validation & route efficiency win:** Weather/sunset reordering is applied only if it introduces no new Constraint Validator `VIOLATION` and keeps added driving/riding time within `<= 20%` (capped at `+30 minutes/day`) of the distance-optimal baseline.
+  3. **Graceful degradation:** Beyond the 16-day forecast horizon, without `startDate`, or when Open-Meteo fails/times out (~2.5s scheduling budget), forecast signals are skipped and planning proceeds normally (`suncalc` remains available whenever `startDate` is present).
+  4. **Explainability:** When weather/sun-time preference actively changes the order or day assignment, a short note is shown in the proposal warnings / Assistant reply. Leg weather remains advisory-only after scheduling.
+
 ## ADR-23 — Travel companions preserve single Trip ownership (2026-10-28)
 
 - **Status:** Accepted at planning level through the owner's Q17 confirmation, “Đồng ý chốt bản kế hoạch, chưa triển khai code”. Not implemented; no authorization to start coding.
@@ -769,6 +807,7 @@ Validator separate from AI, missing data is never reported or stored as a pass, 
 
 Old flow stays in code; rollback is turning the flag off. Open risks are in the story's Open Questions, notably external places lacking validation data.
 
+<<<<<<< HEAD
 ## ADR-37 — Shared Google Maps/Stadia provider switch (2026-11-18)
 
 - **Status:** Accepted by owner Q1–Q7, summary confirmation and subsequent implement request. Code/automated verification and live acceptance are separate; see [story](stories/MAPS-PROVIDER-SWITCH.md).
@@ -777,3 +816,148 @@ Old flow stays in code; rollback is turning the flag off. Open risks are in the 
 - **History/rollback:** Persist actual source for new evidence, keep old source values readable and never infer old provenance from the current flag. Origin source is JSON, so no Prisma migration is required. Read saved routing snapshots instead of routing on Trip page reads; never fabricate VERIFIED straight-line evidence. Google geometry/Places pins are not displayed on Stadia after rollback; the saved itinerary remains readable, and restricted layers are unavailable. No mass rewrite/backfill or schema rollback.
 - **Precedence:** This provider choice supersedes incompatible Stadia-only/VietMap-only directions in ADR-17/18/19 within the approved scope. Preserve those records as history. ADR-22 iframe behavior and the existing runtime credential security boundary remain; this decision adds no Google credential editor to Admin.
 - **Limits:** No real Google credentials/Map ID are configured locally, so live rendering/routing/search, billing/quota and domain authorization remain unaccepted. Google retention/agreement and application Terms/Privacy are deployment gates; saving the existing journey snapshot does not certify permission for indefinite Google-content storage. Details and official documentation are in the [runbook](implementation/google-maps-provider-switch-runbook.md).
+=======
+## ADR-37 — Unified stateless client Edit draft and atomic edit apply (2026-11-18)
+
+- **Status:** Accepted at design level by the owner (2026-11-18); implementation pending. Supersedes the separated manual/AI draft flow and 4-visits-per-day edit cap in `US-32` / `US-33`, and unifies saved-trip routing and `journeySnapshot` recalculation on `/trips/[id]/edit`.
+- **Date:** 2026-11-18
+
+### Context
+
+The existing `/trips/[id]/edit` implementation had four structural gaps verified in repository inspection:
+1. `AiEditPanel` (`/api/trips/[id]/edits/ai`) always read the persisted DB trip, supported only one primitive operation per turn, and maintained a separate diff/confirm/apply UI disconnected from `EditTripClient`'s manual candidate.
+2. `edit-candidate.ts` enforced `MAX_EDIT_VISITS_PER_DAY = 4` from the preliminary planner despite `US-32` (`OQ-F`) and `tripProposalSchema` only bounding total trip visits at 50.
+3. `/api/trips/[id]/edits/preview` and `/apply` called uncapped Stadia routing directly rather than the shared `PLANNER_ROUTING_PROVIDER` adapter, and `applyEdit` did not recalculate `journeySnapshot`, invalidating `journey.plan` on `/trips/[id]` while forcing origin/time edits into a separate modal that forbade visit changes.
+4. `getTripForEdit` rejected trips containing `ExternalPlace` visits with HTTP 501 (`EXTERNAL_PLACE_UNSUPPORTED`), and `/trips/[id]/edit` lacked `COMPLETED`/`ONGOING` lifecycle protection and a `409` rebase workflow.
+
+### Decision
+
+1. **Unified stateless `Edit draft`:** Keep one canonical `Edit draft` (`bản nháp chỉnh sửa`) in browser memory (with in-session Undo/Redo and ephemeral AI conversation turns; no new database draft table). Both `/edits/ai` and `/edits/preview` accept the current client `Edit draft` plus `baseRevision` and return verified changes/validation without mutating PostgreSQL. AI acts on the draft (supporting multi-operation batch edits, chained time adjustments, destination suggestions, pre-departure origin/clock edits, and read-only `Planning guidance`), pouring accepted mutations onto the shared draft with 1-click Undo.
+2. **Single atomic `/edits/apply` boundary:** Consolidate visit replacement, optional `journeySnapshot` update/recalculation, `uncheckedChecks` re-assessment and acknowledgement for existing `ExternalPlace` visits, companion itinerary notices, and CAS `updatedAt` advancement into one atomic idempotent write (revalidating outside the transaction).
+3. **Consistent rules across Trip workflows:** Remove the `4`-visits/day edit cap (retaining max `50` visits total and at least `1` visit), enforce `COMPLETED` lock and `ONGOING` elapsed-visit preservation, route preview/apply through the configured `PLANNER_ROUTING_PROVIDER`, and support client `409` rebase onto the latest saved revision.
+
+### Alternatives
+
+- Keep manual and AI editing in two separate tabs/flows: rejected because travelers cannot iteratively combine manual tweaks and AI adjustments before saving once.
+- Persist edit drafts in a new Prisma draft table: rejected because it adds schema/migration complexity and diverges from the product rule against long-lived unvalidated drafts.
+- Keep `journeySnapshot` editing isolated in a modal on `/trips/[id]` and uncapped Stadia routing in `/edits/*`: rejected because visit edits invalidate `visitFingerprint` and produce conflicting travel times between Detail/Planner and Edit.
+
+### Consequences
+
+- Request/response schemas for `/edits/ai`, `/edits/preview`, and `/edits/apply` must be updated cleanly (including client `Edit draft` validation, `journey` fields, and `acknowledgedUnchecked`).
+- `ONGOING` manual/AI edits share `preserveCompleted` invariants with `in-trip`, and `journey` changes remain blocked at/after Vietnam departure.
+- Existing `US-32` / `US-33` unit and route test suites will be updated alongside implementation to verify the unified contract.
+
+## ADR-38 — Unified Saved-trip Assistant and 2-step Grounded Advisory Pipeline (2026-11-19)
+
+- **Status:** Accepted at design level by the owner (`Q1–Q10` grill, 2026-11-19); implementation pending coding authorization. Extends `ADR-37`, supersedes the separate legacy `US-35`/`US-36`/`US-37` `/trips/[id]/in-trip` UI and mechanical `buildGroundedAdvice` template, and lifts `ADR-36`'s saved-trip weather exclusion for the unified `Saved-trip assistant`.
+- **Date:** 2026-11-19
+
+### Context
+
+Even after `ADR-37` unified manual editing and `AiEditBar` on `/trips/[id]/edit`, two gaps remained:
+1. `/trips/[id]` still exposed two separate editing/assistant routes (`/trips/[id]/edit` and `/trips/[id]/in-trip`), where `/in-trip` ran legacy single-operation `US-35`/`36`/`37` replanning against the database (rejecting `ExternalPlace` with 501, ignoring `Trip origin` and weather, and forcing GPS for any same-day edit).
+2. Inside `/trips/[id]/edit`, `AiEditBar` (`ai-workspace-plan.ts`) answered `ADVISED` turns with a deterministic string template (`buildGroundedAdvice`) rather than an LLM-composed reasoning response, could not simulate multi-option remedies for scenario questions (such as creating a morning `Schedule rest buffer` or handling delays), and could not answer local RAG/knowledge or trip-weather questions in the same thread.
+
+### Decision
+
+1. **One unified `Saved-trip assistant` workspace (`/trips/[id]/edit` & `/trips/[id]/in-trip`):** Merge the saved-trip AI assistant and manual edit workspace around the single client `Edit draft` (`ADR-37`). Both routes render the same unified workspace (with `/trips/[id]/in-trip` focusing the conversational AI Assistant panel by default so existing links remain valid). Desktop shows the conversational AI Assistant panel alongside the interactive Timeline and sticky `ItineraryMap`; Mobile (`360px+`) provides `Trợ lý AI` | `Lịch trình` | `Bản đồ` tabs with quick jump/undo banners.
+2. **Full capability parity & conditional GPS:** The AI assistant operates on the cumulative in-session `Edit draft` (up to 16 recent conversation turns, Undo/Redo stack, `50`-visit trip cap, multi-op batch edits, `auto-shift`, pre-departure `Trip origin` and clocks, existing `ExternalPlace` + `uncheckedChecks`, `ONGOING` elapsed-visit lock, `COMPLETED` read-only lock, and `409` Rebase). GPS or manual current location is requested **only** when the trip is `ONGOING` and the traveler's request materially depends on current physical position. Trip frame fields (`startDate`, `durationDays`, `transport`) remain fixed.
+3. **2-step Grounded Agent Pipeline for all 7 traveler question archetypes:**
+   - **Step 1 (Intent & Server Dry-Run Simulation):** Classify the turn across 7 archetypes (holistic schedule evaluation, `Schedule rest buffer` / delay scenarios, smart `VISIBLE` KLTN catalog destination swap/addition suggestions up to 3 options, direct single/multi-op edits, compound evaluation + edit, local RAG + labeled `Kiến thức mở rộng` Q&A, and trip weather/sun-times/next-visit status). For scenario or advisory turns, the server dry-runs up to 2 candidate remedies against the routing provider (`PLANNER_ROUTING_PROVIDER`), `Constraint Validator`, `suncalc`, and live Open-Meteo forecasts.
+   - **Step 2 (Grounded LLM Advisory Composer & Server-Packaged Action Cards):** The LLM composes natural Vietnamese advice strictly from the server-verified facts of Step 1 without mutating the `Edit draft` on read-only turns. Concrete remedies are attached as server-verified **`Actionable advice suggestion`** cards (`1-click apply to Edit draft` without a second LLM call). If the composer call fails or times out, the server falls back to the deterministic summary of verified facts.
+4. **Scoped `ADR-36` weather integration for saved trips:** The `Saved-trip assistant` reads live destination forecasts and sun times for the trip's dates to advise on outdoor timing, rain/fog/wind advisories, and indoor/reschedule alternatives, while preserving `ADR-36`'s core rule that weather never alters `Constraint Validator` results and never issues absolute safety guarantees.
+
+### Alternatives
+
+- Keep `/trips/[id]/in-trip` on the legacy `US-35`/`36`/`37` session separately from `/trips/[id]/edit`: rejected because it duplicates saved-trip editing with weaker rules and incompatible draft state.
+- Let the LLM directly output free-text itinerary advice and schedules without server dry-run validation: rejected because it can hallucinate travel times, opening hours, or false `PASS` states.
+- Allow Google Places (`searchPlaces`) to add new `ExternalPlace` stops inside saved-trip editing: rejected by owner choice (`Q5 = A`) to preserve catalog opening-hour verification and avoid mandatory Google Places dependency in the core edit flow.
+
+### Consequences
+
+- `/api/trips/[id]/edits/ai` and the workspace AI panel expand to support the 2-step grounded advisory composer, dry-run candidate remedies (`Actionable advice suggestion` payloads), interleaved RAG/weather lookups, optional `ONGOING` location context, and a 16-turn session history cap.
+- `/trips/[id]/in-trip` and `/trips/[id]` entry actions converge on the unified workspace without breaking existing URLs or test seams.
+
+### UI & Workspace Architecture Update (2026-11-19)
+
+- **Decision:** Replace the double-decker header toolbar + fixed 3-column desktop grid with an **`Assistant Sidebar Shell` + `AI-first Progressive Canvas`** matching the `/assistant` fullscreen layout (`calc(100svh - 65px)`):
+  - **Left collapsible sidebar (`280px` on desktop, slide-over drawer on mobile):** holds trip identity/metadata, mode switcher (`Trợ lý AI`, `Lịch trình`, `Bản đồ & Kiểm tra`), optional right-side **Canvas** toggle, validation status chip, Undo/Redo, and the atomic `Lưu thay đổi` CTA. Opening the right-side Canvas automatically collapses the sidebar so at most two regions appear at once.
+  - **AI-first flow & noise elimination:** Both `/trips/[id]/edit` and `/trips/[id]/in-trip` open in the zoomed-in `Trợ lý AI` view by default (`65–72ch` readable measure). Applying or saving edits keeps the chat stream stable and surfaces a concise inline/toast action (`Mở Canvas xem ngay` / `Hoàn tác`), while `aria-live` status announcements for verbose AI advisories stay visually `sr-only`.
+  - **Progressive Disclosure on manual Timeline & Map controls:** Each `Scheduled visit` renders a compact single-row summary with a collapsible `<details>` disclosure for time/order adjustments (keeping 1-click error recovery immediately visible on violated rows), and Map validation renders as a compact status strip above the map.
+
+## ADR-39 — Saved-trip assistant answers through a bounded tool-using reasoning loop (2026-11-21)
+
+- **Status:** Accepted by the owner ("làm luôn cả 2 giai đoạn A và B", 2026-11-20) and implemented locally; live OpenAI evaluation not yet run. Amends `ADR-38` Step 1/Step 2 for `/api/trips/[id]/edits/ai`. Spec: [saved-trip-assistant-reasoning-spec.md](product/saved-trip-assistant-reasoning-spec.md).
+- **Date:** 2026-11-21
+
+### Context
+
+Production replies on `/trips/[id]/edit` repeated the deterministic `buildGroundedAdvice` template (for example, a question about where and when the trip departs got the same summary as the previous turn). Three causes were found in code: (1) the composer fell back silently and logged nothing; (2) the route used the preference-extraction client, which sends `reasoning_effort: "none"`, `temperature: 0` and 1,200 completion tokens, so the model did not reason and `finish_reason: length` discarded answers; (3) a 15-topic classifier routed every turn into hand-written scenario branches, so any question without a branch fell to a fixed summary.
+
+### Decision
+
+1. Every Saved-trip assistant model call uses `gpt-6.1-terra` with `medium` reasoning (owner choice, same as Q&A and planning). There are no cost, token or turn caps; only a loop guard (12 rounds / 24 tool calls) and the route's Vercel `maxDuration` (300 s) remain.
+2. After the deterministic gates (ownership, revision, `COMPLETED`, trip-frame requests, GPS-dependent `ONGOING` turns), one reasoning loop on the OpenAI Responses API answers the turn. The model reads the verified draft context and may call server tools: `simulate_changes` (verify → apply operations/origin clocks on a copy → routing + Constraint Validator), `search_destinations` (VISIBLE catalog only), `get_weather` (advisory only, `ADR-36`) and `lookup_local_knowledge` (existing RAG/`Kiến thức mở rộng` path).
+3. The model only proposes. Its final JSON may reference simulation IDs created in the same turn; the server builds the `PROPOSED` candidate or the `Actionable advice suggestion` cards from those simulations, never from model text. Unknown IDs are ignored. The fact guard still rejects false PASS claims, leaked IDs, URLs and absolute weather-safety claims.
+4. Any agent failure (provider error, loop guard, invalid final output, fact-guard rejection) returns the turn to the unchanged `ADR-38` pipeline, which now also uses Terra and logs why its composer fell back. Logs carry codes and timings only, never conversation text, locations or keys.
+5. The loop is on by default; `TRIP_ASSISTANT_AGENT=off` restores the `ADR-38` pipeline without a deploy-time code change. The HTTP contract of `/api/trips/[id]/edits/ai` is unchanged.
+
+### Alternatives
+
+- Only fix the composer (Phase A): kept as the fallback path, but it cannot answer what-if/compare questions that no scenario branch covers.
+- Keep the classifier as a fast path for direct edits: rejected by the owner's no-budget-limit choice; one path means less code.
+- Migrate to an AI SDK: still deferred (`ADR-30`); a small fetch client was added beside the existing ones.
+
+### Consequences
+
+- `ADR-29` holds: tools are deterministic server functions, no nested model-backed planner, and the Validator alone decides PASS/VIOLATION/INSUFFICIENT_DATA.
+- A turn may take several model rounds; latency is higher than the classifier path. The route declares `maxDuration = 300`.
+- The catalog the model can search is the same 50 VISIBLE destinations the classifier already received (`MAX_EDIT_INTENT_DESTINATIONS`).
+- The Responses request shape (stateless `store: false` with `include: ["reasoning.encrypted_content"]`, items echoed back) is covered only by fake-provider tests until a live run confirms it; a mismatch degrades to the `ADR-38` path and is visible in the `trip_assistant` logs.
+
+## ADR-40 — Saved-trip assistant streams through the AI SDK and decides through tools (2026-11-21)
+
+- **Status:** Accepted by the owner (design interview Q1–Q19, 2026-11-21) and implemented on `TXH` (2026-11-21), including live 5-turn OpenAI Responses verification on `gpt-6.1-terra`. Amends `ADR-39`. Spec: [saved-trip-assistant-natural-streaming-spec.md](product/saved-trip-assistant-natural-streaming-spec.md).
+- **Date:** 2026-11-21
+
+### Context
+
+`ADR-39` made the Saved-trip assistant reason with tools, but each turn still ended in one JSON object (`reply`, `proposeSimulationId`, `suggestionSimulationIds`) returned after every model round finished. Travelers waited in silence for tens of seconds, could not stop a turn, and could not see what the assistant was doing. The owner asked for answers that read and arrive like a natural conversation. The repository already ships the Vercel AI SDK (`ai`, `@ai-sdk/openai`, `@ai-sdk/react`) for the planning chat (`ADR-36`), with SSE streaming and stream-redaction tests.
+
+### Decision
+
+1. The reasoning loop moves from the hand-written Responses client to the AI SDK (`streamText`, UI message stream) on `gpt-6.1-terra` with `medium` reasoning.
+2. The model writes its answer as free streamed text and expresses decisions by calling `apply_to_draft(simulationId)` or `show_options(simulationIds)`. The server still accepts only simulations created in the same turn and packages every candidate, diff, card and Validator result itself.
+3. Internal IDs and URLs are removed from the text stream before it reaches the browser. A false PASS claim or an absolute weather-safety claim is not retracted; the server appends a Correction note stating the verified fact.
+4. The same route answers with a UI message stream when the client asks for `text/event-stream` (progress parts per tool step, text, Correction note, and a final result part carrying the existing JSON payload), and with the existing JSON otherwise. The edit draft changes only when the final result part arrives.
+5. Per-message "advice did not change the draft" badges are removed, consistent with the Caveat policy.
+
+### Alternatives
+
+- Extend the hand-written Responses client with SSE parsing and a custom event format: rejected; it duplicates what the AI SDK already does in this repository and keeps the unverified Responses item-echo logic.
+- Buffer the full answer and run the fact guard before showing anything: rejected; it removes the benefit of streaming.
+- Delete a streamed answer when the fact guard fails: rejected; text the traveler already read would disappear. A Correction note is honest and less confusing.
+
+### Consequences
+
+- `ADR-30` deferred migrating providers to the AI SDK; that deferral no longer applies to the Saved-trip assistant, which now uses the SDK already adopted for the planning chat. Q&A and other structured-output paths are unchanged.
+- `trip-assistant-openai.ts`'s Responses client is retired. Its Chat Completions client remains the fallback pipeline's provider.
+- Because `@ai-sdk/openai` 4.0.14 only auto-detects `o1`/`o3`/`o4-mini`/`gpt-5*` as reasoning models, `providerOptions.openai` explicitly passes `forceReasoning: true`, `reasoningEffort: "medium"`, `reasoningSummary: null`, and `store: false` so Responses API calls on `gpt-6.1-terra` send `reasoning.effort: "medium"` and `include: ["reasoning.encrypted_content"]` without emitting internal reasoning summaries. Live 5-turn verification confirmed `.responses("gpt-6.1-terra")` streams text and executes multi-round tool calls cleanly without falling back to `.chat()`.
+- JSON clients and tests keep working through content negotiation. A turn is still bounded by the route's `maxDuration = 300`.
+
+## ADR-41: Persistent trip-edit chat memory, `/trips/new` session draft, `/assistant` SSE & browser resume, and destination panel auto-switch
+
+- **Status:** Accepted
+- **Date:** 2026-11-21
+- **Owner approval:** Explicit owner decisions on 4 UX/persistence updates (Option A, browser-only + SSE, Option 3B, Option 4A).
+
+### Decision
+
+1. **Floating destination assistant (`/destinations/[id]`):** Navigating to a different destination automatically switches the floating panel context and remounts the chat controller keyed by `${identity}:${contextKey}`, and starter prompts render the active destination's name instead of a hardcoded `"Hà Giang"`.
+2. **`/assistant` browser resume & SSE streaming:**
+   - Active signed-in V2 sessions remain in browser memory (module-level store keyed by identity, never persisting `stateToken` to storage or URLs) and sync `?session=<sessionId>` to the URL so navigating `/assistant` ↔ `/explore` reopens the exact active chat. Saved Q&A conversations also remember `lastConversationId` in `sessionStorage` per identity until "+ Đoạn chat mới" is clicked.
+   - `POST /api/ai/planning` supports content-negotiated SSE (`Accept: text/event-stream`), emitting progress `step` events and progressive `delta` text chunks while keeping JSON responses unchanged for existing callers and tests.
+3. **Saved-trip edit chat memory (`/trips/[id]/edit`):** Relaxes the "no DB table for edit chat" out-of-scope note in ADR-37/38/40 by adding `TripEditChatMessage` (`trip_edit_chat_message`, migration `20261121121000_trip_edit_chat_memory`) with `onDelete: Cascade` to `Trip`, owner-scoped `GET`/`POST`/`DELETE /api/trips/[id]/edits/ai/messages`, and server-side initial load. Unvalidated itinerary drafts are still never persisted to the database.
+4. **Trip creation draft (`/trips/new`):** Relaxes the `US-24` / `BUG-03` no-draft rule to allow user-scoped temporary `sessionStorage` persistence (12h TTL) of form inputs/journey/confirmed planner step plus `?step=details|planner` URL sync. Drafts are cleared on successful trip save or explicit reset; invalid itineraries are still never persisted to the database.
+>>>>>>> 2ef331b5043d8bbbdf721c91f9edda31e322b75a

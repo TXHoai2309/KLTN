@@ -2,8 +2,9 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { FileText, Maximize2, Minus, PanelLeft, PanelLeftOpen, Plus, RotateCcw, Send, ShieldCheck, Sparkles } from "lucide-react";
-import type { QaContext, QaConversationSummary } from "../../modules/ai/qa-contract";
+import type { QaContext, QaConversationSummary, QaDestinationChoice } from "../../modules/ai/qa-contract";
 import { AssistantAnswer, PROMPT_SUGGESTIONS } from "./assistant-answer";
+import { buildWeatherChoiceFollowUp } from "./assistant-weather-card";
 import { AssistantController, hasUnresolvedAttempt, shouldSendOnEnter, type AssistantState } from "./assistant-controller";
 import { consumeAssistantHandoff } from "./assistant-handoff";
 import { deleteConversation, fetchConversations, renameConversation } from "./assistant-conversation-client";
@@ -15,11 +16,12 @@ import { retainPlanningAuthDraft } from "./planning-auth-handoff";
 import { createIdempotencyKey } from "../../lib/mutation-client";
 import { openSavedConversation } from "./assistant-saved-conversation";
 import { AssistantPendingTurn } from "./assistant-v2-pending";
+import { clearStoredAssistantPageSession, setLastSavedConversationId } from "./assistant-page-session-store";
 
 /** V2 Q&A chat through the existing endpoint. A guest principal gets Guest mode (planning asks invite sign-in);
  * a signed-in principal reaches it only to read and continue a saved conversation.
  * It never opens a V2 session and never calls the planning route. */
-export function AssistantV2GuestChat({ available = true, onMinimize, onOpenFullPage, initialContext, identity, conversationId }: { available?: boolean; onMinimize?: () => void; onOpenFullPage?: (snapshot: AssistantState) => void; initialContext?: QaContext; identity: string; conversationId?: string }) {
+export function AssistantV2GuestChat({ available = true, onMinimize, onOpenFullPage, initialContext, destinationName, identity, conversationId }: { available?: boolean; onMinimize?: () => void; onOpenFullPage?: (snapshot: AssistantState) => void; initialContext?: QaContext; destinationName?: string; identity: string; conversationId?: string }) {
   const inputId = useId();
   const [controller] = useState(() => new AssistantController(new AssistantHttpTransport(), identity, createIdempotencyKey, initialContext ?? { type: "GENERAL" }));
   const state = useSyncExternalStore(controller.subscribe, controller.getSnapshot, controller.getSnapshot);
@@ -34,6 +36,7 @@ export function AssistantV2GuestChat({ available = true, onMinimize, onOpenFullP
   const [conversations, setConversations] = useState<QaConversationSummary[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyMore, setHistoryMore] = useState(false);
+  const [historyError, setHistoryError] = useState("");
   const [historyCursor, setHistoryCursor] = useState<string | null>(null);
   const [historyHasMore, setHistoryHasMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -49,13 +52,16 @@ export function AssistantV2GuestChat({ available = true, onMinimize, onOpenFullP
   async function loadHistory(search = "", cursor: string | null = null, more = false) {
     listFetch.current?.abort();
     const request = new AbortController(); listFetch.current = request;
+    setHistoryError("");
     if (more) setHistoryMore(true); else setHistoryLoading(true);
     try {
       const result = await fetchConversations({ search, cursor, signal: request.signal });
       if (request.signal.aborted) return;
       setConversations(current => more ? [...current, ...result.items] : result.items);
       setHistoryCursor(result.nextCursor); setHistoryHasMore(result.hasMore);
-    } catch { /* History is optional; Q&A must keep working. */ }
+    } catch {
+      if (!request.signal.aborted) setHistoryError("Không thể tải lịch sử hội thoại. Vui lòng thử lại.");
+    }
     finally { if (listFetch.current === request) { setHistoryMore(false); setHistoryLoading(false); } }
   }
   useEffect(() => {
@@ -95,20 +101,33 @@ export function AssistantV2GuestChat({ available = true, onMinimize, onOpenFullP
   useEffect(() => {
     if (!activeId) return;
     setPageConversation(activeId, "replace");
+    if (isPage) {
+      setLastSavedConversationId(identity, activeId);
+      clearStoredAssistantPageSession(identity);
+    }
     if (isPage && available) void loadHistory(searchQuery);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId]);
   const pending = state.pending;
   const busy = pending?.phase === "sending";
   const disabled = !available || loadingSaved || (!!pending && pending.phase !== "failed");
-  function send() {
-    if (disabled || !state.draft.trim()) return;
-    const text = state.draft;
+  function sendMessageText(text: string) {
+    if (disabled || !text.trim()) return;
     if (!guest) { controller.setDraft(text); controller.submit(); return; }
     const outcome = submitGuestMessage({ controller, text, context: state.context, retain: retainPlanningAuthDraft });
     if (outcome === "SIGN_IN") { setInvitations(current => [...current, { at: state.turns.length, text: text.trim() }]); controller.setDraft(""); }
   }
+  function send() {
+    sendMessageText(state.draft);
+  }
+  function selectChoice(choice: QaDestinationChoice, previousQuestion?: string) {
+    sendMessageText(buildWeatherChoiceFollowUp(choice, previousQuestion));
+  }
   function startNew() {
+    if (isPage) {
+      setLastSavedConversationId(identity, null);
+      clearStoredAssistantPageSession(identity);
+    }
     // A signed-in user's new chat is the full V2 chat (planning included), not this Q&A view.
     if (!guest && isPage && !state.pending && controller.newConversation()) { window.location.assign("/assistant"); return; }
     if (controller.newConversation()) { setInvitations([]); setNotice(null); setPageConversation(null, "push"); composer.current?.focus(); } }
@@ -126,7 +145,7 @@ export function AssistantV2GuestChat({ available = true, onMinimize, onOpenFullP
     </article></div>);
   const empty = !state.turns.length && !pending && !invitations.length && !loadingSaved;
   return <section className={`${mode === "panel" ? "assistant-chat assistant-chat-panel" : "assistant-chat"} assistant-v2-chat`} data-runtime="v2" data-mode={guest ? "guest" : "saved"} aria-label="Trợ lý AI" aria-busy={busy} lang="vi">
-    {mode === "page" && <AssistantSidebar conversations={conversations} activeConversationId={state.conversationId} loading={historyLoading} loadingMore={historyMore} hasMore={historyHasMore} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} onNewChat={startNew} onSelectConversation={openConversation} onRenameConversation={renameHistory} onDeleteConversation={deleteHistory} onLoadMore={() => void loadHistory(searchQuery, historyCursor, true)} searchQuery={searchQuery} onSearchChange={setSearchQuery}/>}
+    {mode === "page" && <AssistantSidebar conversations={conversations} activeConversationId={state.conversationId} loading={historyLoading} loadingMore={historyMore} error={historyError} onRetry={() => void loadHistory(searchQuery)} hasMore={historyHasMore} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} onNewChat={startNew} onSelectConversation={openConversation} onRenameConversation={renameHistory} onDeleteConversation={deleteHistory} onLoadMore={() => void loadHistory(searchQuery, historyCursor, true)} searchQuery={searchQuery} onSearchChange={setSearchQuery}/>}
     <div className={`assistant-chat-main ${mode === "panel" ? "assistant-panel-main" : "assistant-chat-fullscreen"}`}>
     {mode === "page" && <div className={`assistant-floating-header ${sidebarOpen ? "sidebar-open" : "sidebar-collapsed"}`}>
       <div className="assistant-header-left">
@@ -146,15 +165,18 @@ export function AssistantV2GuestChat({ available = true, onMinimize, onOpenFullP
       </div>
     </header>}
     <div className="assistant-transcript" tabIndex={0} aria-label="Danh sách tin nhắn"><div className="assistant-transcript-inner">
-    {empty && <div className="assistant-empty">
-      {mode === "page" && <div className="assistant-empty-art"><AssistantLandscape/><Sparkles className="assistant-icon" aria-hidden="true"/></div>}
-      <h2>Bạn muốn khám phá điều gì?</h2>
-      <p>{guest ? "Hỏi về văn hóa, lịch sử và điểm đến tại Hà Giang. Đăng nhập để nhờ mình lên hành trình." : "Hỏi về văn hóa, lịch sử và điểm đến tại Hà Giang."}</p>
-      <div className="assistant-suggestions" aria-label="Gợi ý câu hỏi">{PROMPT_SUGGESTIONS.map((item, index) => <button key={index} type="button" className="assistant-suggestion-chip" disabled={disabled} onClick={() => { controller.setDraft(item.prompt("Hà Giang")); composer.current?.focus(); }}>
-        <span className="assistant-suggestion-icon" aria-hidden="true">{item.icon}</span>
-        <div className="assistant-suggestion-info"><span className="assistant-suggestion-title">{item.title}</span><span className="assistant-suggestion-prompt">{item.prompt("Hà Giang")}</span></div>
-      </button>)}</div>
-    </div>}
+    {empty && (() => {
+      const subject = state.context.type === "DESTINATION" && destinationName?.trim() ? destinationName.trim() : "Hà Giang";
+      return <div className="assistant-empty">
+        {mode === "page" && <div className="assistant-empty-art"><AssistantLandscape/><Sparkles className="assistant-icon" aria-hidden="true"/></div>}
+        <h2>{state.context.type === "DESTINATION" && destinationName?.trim() ? `Hỏi về ${destinationName.trim()}` : "Bạn muốn khám phá điều gì?"}</h2>
+        <p>{guest ? `Hỏi về văn hóa, lịch sử và điểm đến tại ${subject}. Đăng nhập để nhờ mình lên hành trình.` : `Hỏi về văn hóa, lịch sử và điểm đến tại ${subject}.`}</p>
+        <div className="assistant-suggestions" aria-label="Gợi ý câu hỏi">{PROMPT_SUGGESTIONS.map((item, index) => <button key={index} type="button" className="assistant-suggestion-chip" disabled={disabled} onClick={() => { controller.setDraft(item.prompt(subject)); composer.current?.focus(); }}>
+          <span className="assistant-suggestion-icon" aria-hidden="true">{item.icon}</span>
+          <div className="assistant-suggestion-info"><span className="assistant-suggestion-title">{item.title}</span><span className="assistant-suggestion-prompt">{item.prompt(subject)}</span></div>
+        </button>)}</div>
+      </div>;
+    })()}
     {loadingSaved && <p role="status">Đang mở cuộc trò chuyện…</p>}
     {notice && <p role="alert">{notice}</p>}
     <div className="assistant-messages" aria-live="polite">
@@ -162,14 +184,18 @@ export function AssistantV2GuestChat({ available = true, onMinimize, onOpenFullP
       {state.turns.map((turn, index) => <div key={turn.response.turnId}>
         <div className="assistant-turn assistant-planning-exchange">
           <article className="assistant-message assistant-user"><p>{turn.question}</p></article>
-          <article className="assistant-message assistant-answer"><span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true"/><span>Trợ lý AI</span></span><AssistantAnswer turn={turn.response} question={turn.question} showSources/></article>
+          <article className="assistant-message assistant-answer"><span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true"/><span>Trợ lý AI</span></span><AssistantAnswer turn={turn.response} question={turn.question} showSources onSelectChoice={selectChoice} choicesDisabled={disabled}/></article>
         </div>
         {invite(index + 1)}
       </div>)}
       {pending && <AssistantPendingTurn question={pending.attempt.payload.question} sending={busy}/>}
     </div>
-    {pending && pending.phase !== "sending" && <div role="alert"><p>{pending.message}</p>
-      {pending.phase === "failed" ? <button type="button" onClick={() => controller.editFailed()}>Sửa câu hỏi</button> : <button type="button" onClick={() => controller.retry()}>Kiểm tra lại cùng yêu cầu</button>}
+    {pending && pending.phase !== "sending" && <div role="alert">
+      {pending.phase === "failed" && ["AI_UNAVAILABLE", "AI_INVALID_RESPONSE"].includes(pending.code ?? "") && <p><strong>Trợ lý AI tạm thời không khả dụng</strong></p>}
+      <p>{pending.message}</p>
+      {pending.phase === "failed"
+        ? <><button type="button" disabled={!available} onClick={() => controller.retry()}>Thử lại</button><button type="button" onClick={() => controller.editFailed()}>Sửa câu hỏi</button></>
+        : <button type="button" disabled={!available} onClick={() => controller.retry()}>Kiểm tra lại cùng yêu cầu</button>}
     </div>}
     {state.validation && <p role="alert">{state.validation}</p>}
     </div></div>

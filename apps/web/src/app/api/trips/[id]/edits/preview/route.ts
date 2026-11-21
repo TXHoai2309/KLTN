@@ -1,11 +1,11 @@
 import { previewEditResponse } from "@/modules/trip-edit/trip-edit-http";
+import { createTripEditRouteProvider } from "@/modules/trip-edit/trip-edit-routes";
 import { authorizationDependencies } from "@/server/authorization/server";
 import { db } from "@/services";
-import { getTravelRoute } from "@/modules/trip-validation/stadia-route";
 
 const dependencies = {
   authorization: authorizationDependencies,
-  service: { database: db, getRoute: getTravelRoute },
+  service: { database: db, getRoute: createTripEditRouteProvider() },
   now: () => new Date(),
 };
 

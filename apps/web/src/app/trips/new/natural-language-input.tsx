@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@KLTN/ui/components/button";
-import { LoaderCircle, Sparkles, WandSparkles } from "lucide-react";
+import { CircleAlert, LoaderCircle, Sparkles, WandSparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -25,6 +25,7 @@ export type NaturalLanguageInputProps = {
   onAnalyze: (normalizedText: string) => void;
   onCancel?: () => void;
   onContinueManually?: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
 };
 
 export const EXAMPLE_PROMPTS = [
@@ -41,8 +42,13 @@ export default function NaturalLanguageInput({
   onAnalyze,
   onCancel,
   onContinueManually,
+  onDirtyChange,
 }: NaturalLanguageInputProps) {
   const [rawText, setRawText] = useState("");
+  useEffect(() => {
+    onDirtyChange?.(rawText.trim().length > 0);
+    return () => onDirtyChange?.(false);
+  }, [rawText, onDirtyChange]);
   const [announcedLength, setAnnouncedLength] = useState(0);
   const [announcedMessage, setAnnouncedMessage] = useState<string | null>(null);
   const textState = useMemo(() => getNaturalLanguageTextState(rawText), [rawText]);
@@ -170,7 +176,9 @@ export default function NaturalLanguageInput({
         >
           {status.kind === "analyzing" && <LoaderCircle className="trip-spinner" size={16} aria-hidden="true" />}
           {status.kind === "success" && <WandSparkles size={16} aria-hidden="true" />}
+          {status.kind === "failure" && <CircleAlert size={16} aria-hidden="true" />}
           <span>
+            {status.kind === "failure" && <strong className="block">Trợ lý AI tạm thời không khả dụng</strong>}
             {status.message ??
               (status.kind === "analyzing"
                 ? "Đang chuẩn bị phân tích nhu cầu."

@@ -10,7 +10,9 @@ import { validatePlannerDays } from "../trip-planner/planner-validator";
 import { plannerResultSchema, type PlannerResult, type TravelLeg } from "../trip-planner/planner-contract";
 import { arrangeOvernightAreas, unmetOvernightAreas, type UnmetOvernight } from "./planning-trip-structure";
 import { planningSelectionSchema, type PlanningSelection, type PlanningNeeds, type PlanningGenerated, type PlanningEdit } from "./planning-contract";
-import { planJourney } from "../trip-origin/journey-planner";
+import { journeyDrivingWarnings, optimizeJourneyForWeather, planJourney } from "../trip-origin/journey-planner";
+import type { ForecastOptions } from "../trip-weather/forecast";
+import { optimizeScheduleForWeather, WEATHER_PREFERENCE_WARNING } from "../trip-planner/planner-weather-preference";
 
 export function isUsablePlanningCandidate(candidate: PlannerCandidate) {
   const duration = visitDuration(candidate);
@@ -37,23 +39,46 @@ export function assertPlanningSelection(raw: unknown, needs: PlanningNeeds, cand
   return selection.data.days.map(day => day.map(id => eligible.get(id)!));
 }
 
-export async function scheduleSelection(needs: PlanningNeeds, selection: PlanningSelection, candidates: readonly PlannerCandidate[], routes: RouteProvider, now: Date, scope?: { current: PlannerResult; affectedDays: readonly number[] }): Promise<PlannerResult> {
+export async function scheduleSelection(needs: PlanningNeeds, selection: PlanningSelection, candidates: readonly PlannerCandidate[], routes: RouteProvider, now: Date, scope?: { current: PlannerResult; affectedDays: readonly number[] }, forecast?: ForecastOptions): Promise<PlannerResult> {
   const requirement = assertTripRequirementClear(needs.requirement, now);
   const selected = assertPlanningSelection(selection, needs, candidates, now);
+  const allowedDayIndices = scope ? scope.affectedDays.map(d => d - 1) : undefined;
   if (requirement.journey) {
     // A scoped edit retains requested day membership. Whole-brief generation may
     // try the bounded boundary-day partitions, through the same form scheduler.
     const journey = await planJourney(requirement, selected, routes, 10_000, !scope);
-    const { checks, stopStatuses } = validatePlannerDays(requirement, journey.days, selected.flat(), journey.travelOnlyDays);
+    let { checks, stopStatuses } = validatePlannerDays(requirement, journey.days, selected.flat(), journey.travelOnlyDays);
     const travel = checks.find(check => check.key === "TRAVEL_TIME")!;
     if (journey.check.status === "VIOLATION" || travel.status === "PASS") travel.status = journey.check.status;
     travel.issues.push(...journey.check.issues);
-    for (const day of journey.days) for (const stop of day.stops) stop.validationStatus = stopStatuses.get(stop.destination.id) ?? "PASS";
+    let days = journey.days;
+    let journeyPlan = journey.journeyPlan;
+    let weatherAdjusted = false;
+    const jOpt = await optimizeJourneyForWeather({
+      requirement,
+      baselineJourney: journey,
+      selectedByDay: selected,
+      provider: routes,
+      timeoutMs: 10_000,
+      allowBoundaryRepartition: !scope,
+      forecast,
+      allowedDayIndices,
+    });
+    if (jOpt.adjusted) {
+      weatherAdjusted = true;
+      days = jOpt.days;
+      checks = jOpt.checks;
+      stopStatuses = jOpt.stopStatuses;
+      journeyPlan = jOpt.journeyPlan;
+    }
+    for (const day of days) for (const stop of day.stops) stop.validationStatus = stopStatuses.get(stop.destination.id) ?? "PASS";
     const allPass = checks.every(check => check.status === "PASS");
-    return plannerResultSchema.parse({ proposalId: randomUUID(), phase: "PRELIMINARY_PROPOSAL", requirement, timezone: "Asia/Ho_Chi_Minh", days: journey.days,
-      journeyPlan: journey.journeyPlan, checks, status: checks.some(check => check.status === "VIOLATION") ? "NO_FEASIBLE_ITINERARY" : allPass ? "PROPOSAL_READY" : "INSUFFICIENT_DATA",
+    const warnings: PlannerResult["warnings"] = [{ code: "PRELIMINARY_ONLY", message: "Đề xuất chưa được lưu chính thức.", day: null, destinationId: null }, { code: "LODGING_LEGS_NOT_INCLUDED", message: "Mốc định tuyến là điểm tham quan, không phải nơi nghỉ. Chưa tính chặng ra/vào nơi nghỉ.", day: null, destinationId: null }, ...journeyDrivingWarnings(requirement, days)];
+    if (weatherAdjusted) warnings.push(WEATHER_PREFERENCE_WARNING);
+    return plannerResultSchema.parse({ proposalId: randomUUID(), phase: "PRELIMINARY_PROPOSAL", requirement, timezone: "Asia/Ho_Chi_Minh", days,
+      journeyPlan, checks, status: checks.some(check => check.status === "VIOLATION") ? "NO_FEASIBLE_ITINERARY" : allPass ? "PROPOSAL_READY" : "INSUFFICIENT_DATA",
       eligibleForFinalConfirmation: allPass && requirement.startDate !== null,
-      warnings: [{ code: "PRELIMINARY_ONLY", message: "Đề xuất chưa được lưu chính thức.", day: null, destinationId: null }, { code: "LODGING_LEGS_NOT_INCLUDED", message: "Mốc định tuyến là điểm tham quan, không phải nơi nghỉ. Chưa tính chặng ra/vào nơi nghỉ.", day: null, destinationId: null }],
+      warnings,
       reasonCodes: [...new Set(checks.flatMap(check => check.issues.map(issue => issue.code)))].slice(0, 30) });
   }
   const pairs = plannerRoutePairs(selected, requirement.transport);
@@ -74,22 +99,63 @@ export async function scheduleSelection(needs: PlanningNeeds, selection: Plannin
     if (first && !pairs.some(pair => pair.to.id === first.id) && scope.current.days[i]?.stops[0]?.inbound) scheduleDays.add(i + 1);
   }
   for (const [id, leg] of await resolvePlannerRoutes(requests, routes, 10_000)) evidence.set(id, leg);
+  const legCache = new Map<string, TravelLeg>();
+  for (const leg of evidence.values()) legCache.set(`${leg.fromDestinationId}->${leg.toDestinationId}`, leg);
   const scheduled = schedulePlannerDays(requirement, selected.map((stops, i) => scheduleDays.has(i + 1) ? stops : []), evidence);
-  const days = scheduled.map((day, i) => scope && !scheduleDays.has(i + 1) ? structuredClone(scope.current.days[i]!) : day);
-  const { checks, stopStatuses } = validatePlannerDays(requirement, days, selected.flat());
+  let days = scheduled.map((day, i) => scope && !scheduleDays.has(i + 1) ? structuredClone(scope.current.days[i]!) : day);
+  let { checks, stopStatuses } = validatePlannerDays(requirement, days, selected.flat());
+  let weatherAdjusted = false;
+  const weatherOpt = await optimizeScheduleForWeather({
+    requirement,
+    baselineDays: selected,
+    baseline: { scheduled: days, checks, stopStatuses, totalTravelSeconds: days.reduce((s, d) => s + (d.travelSeconds ?? 0), 0) },
+    forecast,
+    allowedDayIndices,
+    scheduleAndValidate: async candidateDays => {
+      const candPairs = plannerRoutePairs(candidateDays, requirement.transport);
+      const missingPairs = candPairs.filter(p => !legCache.has(`${p.from.id}->${p.to.id}`));
+      if (missingPairs.length) {
+        for (const leg of (await resolvePlannerRoutes(missingPairs, routes, 10_000)).values()) {
+          legCache.set(`${leg.fromDestinationId}->${leg.toDestinationId}`, leg);
+        }
+      }
+      const candEvidence = new Map<string, TravelLeg>();
+      for (const p of candPairs) {
+        const leg = legCache.get(`${p.from.id}->${p.to.id}`);
+        if (leg) candEvidence.set(p.to.id, leg);
+      }
+      const candScheduled = schedulePlannerDays(requirement, candidateDays.map((stops, i) => (scope && !scheduleDays.has(i + 1) ? [] : stops)), candEvidence);
+      const candDays = candScheduled.map((day, i) => (scope && !scheduleDays.has(i + 1) ? structuredClone(scope.current.days[i]!) : day));
+      const candValidated = validatePlannerDays(requirement, candDays, candidateDays.flat());
+      return {
+        scheduled: candDays,
+        checks: candValidated.checks,
+        stopStatuses: candValidated.stopStatuses,
+        totalTravelSeconds: candDays.reduce((s, d) => s + (d.travelSeconds ?? 0), 0),
+      };
+    },
+  });
+  if (weatherOpt.adjusted) {
+    weatherAdjusted = true;
+    days = weatherOpt.evaluated.scheduled;
+    checks = weatherOpt.evaluated.checks;
+    stopStatuses = weatherOpt.evaluated.stopStatuses;
+  }
   for (const day of days) for (const stop of day.stops) stop.validationStatus = stopStatuses.get(stop.destination.id) ?? "INSUFFICIENT_DATA";
   const allPass = checks.every(check => check.status === "PASS");
   // Neither a date nor visit-only checks certify the origin round trip.
   const eligibleForFinalConfirmation = false;
+  const warnings: PlannerResult["warnings"] = [
+    { code: "PRELIMINARY_ONLY", message: "Đề xuất chưa được lưu. Khung lập kế hoạch 08:00–18:00 không phải giờ mở cửa.", day: null, destinationId: null },
+    { code: "ORIGIN_AND_LODGING_UNKNOWN", message: "Chưa tính chặng từ nơi xuất phát, chỗ nghỉ và nơi kết thúc. Chuyển ngày tính từ điểm cuối ngày trước.", day: null, destinationId: null },
+    { code: "ROUTE_ESTIMATE", message: "Thời gian di chuyển là ước tính theo mạng đường; cần kiểm tra thời tiết và điều kiện đường thực tế.", day: null, destinationId: null },
+  ];
+  if (weatherAdjusted) warnings.push(WEATHER_PREFERENCE_WARNING);
   return plannerResultSchema.parse({
     proposalId: randomUUID(), phase: "PRELIMINARY_PROPOSAL", requirement, timezone: "Asia/Ho_Chi_Minh", days, checks,
     status: checks.some(c => c.status === "VIOLATION") ? "NO_FEASIBLE_ITINERARY" : allPass ? "PROPOSAL_READY" : "INSUFFICIENT_DATA",
     eligibleForFinalConfirmation,
-    warnings: [
-      { code: "PRELIMINARY_ONLY", message: "Đề xuất chưa được lưu. Khung lập kế hoạch 08:00–18:00 không phải giờ mở cửa.", day: null, destinationId: null },
-      { code: "ORIGIN_AND_LODGING_UNKNOWN", message: "Chưa tính chặng từ nơi xuất phát, chỗ nghỉ và nơi kết thúc. Chuyển ngày tính từ điểm cuối ngày trước.", day: null, destinationId: null },
-      { code: "ROUTE_ESTIMATE", message: "Thời gian di chuyển là ước tính theo mạng đường; cần kiểm tra thời tiết và điều kiện đường thực tế.", day: null, destinationId: null },
-    ],
+    warnings,
     reasonCodes: [...new Set(checks.flatMap(c => c.issues.map(i => i.code)))].slice(0, 30),
   });
 }

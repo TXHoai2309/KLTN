@@ -6,6 +6,7 @@ import type { PlanningDependencies } from "../assistant-planning/planning-servic
 import { executePlanning } from "../assistant-planning/planning-service";
 import type { AuthorizationDependencies } from "../../server/authorization/guard";
 import { startTravelPlanningV2Session } from "./travel-planning-session";
+import type { ProposalWeatherEvaluator } from "./proposal-weather-advisories";
 import type { startSavedTripAssistantV2 } from "./in-trip-runtime";
 import type { AssistantV2Request } from "./http-contract";
 import { AssistantV2Error } from "./agent-errors";
@@ -19,6 +20,7 @@ type Dependencies = {
   secret: () => string;
   startInTrip?: typeof startSavedTripAssistantV2;
   startPlanning?: typeof startTravelPlanningV2Session;
+  weatherForProposal?: ProposalWeatherEvaluator;
   now?: () => number;
 };
 type LiveSession =
@@ -39,7 +41,18 @@ export function createAssistantV2HttpService(deps: Dependencies) {
   }
   async function startPlanning(actorId: string, headers: Headers, key: string, input: Parameters<typeof startTravelPlanningV2Session>[0]): Promise<LiveSession> {
     const planning = deps.forActor(actorId, headers);
-    return { mode: "PLANNING", deps: planning, session: await (deps.startPlanning ?? startTravelPlanningV2Session)({ ...input, headers, key }, { authorization: deps.authorization, forActor: () => planning }) };
+    return {
+      mode: "PLANNING",
+      deps: planning,
+      session: await (deps.startPlanning ?? startTravelPlanningV2Session)(
+        { ...input, headers, key },
+        {
+          authorization: deps.authorization,
+          forActor: () => planning,
+          ...(deps.weatherForProposal ? { weatherForProposal: deps.weatherForProposal } : {}),
+        },
+      ),
+    };
   }
   function capture(live: LiveSession, sessionId: string, actorId: string, version: number, tripId?: string): SessionCapsule {
     const common = { format: 1 as const, sessionId, actorId, version, expiresAt: now() + SESSION_TTL_MS };

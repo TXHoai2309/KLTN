@@ -11,6 +11,7 @@ import { EXTERNAL_PLACE_DEFAULT_STAY_MINUTES } from "./planner-external-stay";
 
 export type PlannerCandidate = z.infer<typeof plannerDestinationSchema> & {
   visibility: string; revision: string; suggestedDurationMinutes: number | null; minimumDurationMinutes: number | null;
+  isOutdoor?: boolean;
   openingDays: { dayOfWeek: string; status: string; intervals: { opensAtMinute: number; closesAtMinute: number }[] }[];
 };
 export const MAX_CANDIDATES = 64;
@@ -31,7 +32,7 @@ export type PlannerCandidateInventory = { candidates: PlannerCandidate[]; public
 const select = {
   id: true, name: true, description: true, shortDescription: true, area: true, category: true, address: true,
   latitude: true, longitude: true, visibility: true, updatedAt: true, contentRevision: true,
-  suggestedDurationMinutes: true, minimumDurationMinutes: true,
+  suggestedDurationMinutes: true, minimumDurationMinutes: true, isOutdoor: true,
   media: { where: destinationMediaWhere, take: 20, orderBy: [{ isCover: "desc" as const }, { position: "asc" as const }, { id: "asc" as const }], select: { url: true, alt: true, author: true, sourceUrl: true, websiteRights: true, storageReference: true } },
   openingDays: { orderBy: { dayOfWeek: "asc" as const }, select: { dayOfWeek: true, status: true, intervals: { orderBy: { opensAtMinute: "asc" as const }, select: { opensAtMinute: true, closesAtMinute: true } } } },
 } satisfies Prisma.DestinationSelect;
@@ -47,7 +48,7 @@ export async function retrievePlannerCandidateInventory(database: Pick<Database,
     return { id: row.id, name: row.name, description: richContentText(row.shortDescription || row.description).slice(0, 1000), area: row.area, category: row.category,
       address: row.address, latitude: row.latitude, longitude: row.longitude, image: image ? { url: image.url, alt: image.alt, author: image.author, sourceUrl: image.sourceUrl && publicHttpsUrl.safeParse(image.sourceUrl).success ? image.sourceUrl : null } : null,
       visibility: row.visibility, revision: `${row.contentRevision}:${row.updatedAt.toISOString()}`, suggestedDurationMinutes: row.suggestedDurationMinutes,
-      minimumDurationMinutes: row.minimumDurationMinutes, openingDays: row.openingDays };
+      minimumDurationMinutes: row.minimumDurationMinutes, isOutdoor: row.isOutdoor, openingDays: row.openingDays };
   });
   return { candidates, publicRowCount: publicRows.length, invalidCoordinateCount: publicRows.filter(row => !excludedIds.includes(row.id) && !coordinateValid(row)).length,
     excludedCount: publicRows.filter(row => excludedIds.includes(row.id)).length };
@@ -61,13 +62,16 @@ export async function recheckPlannerCandidates(database: Pick<Database, "destina
   const current = new Map((await retrievePlannerCandidates(database, ids, excludedIds)).map(candidate => [candidate.id, candidateSnapshot(candidate)]));
   return candidates.every(candidate => isExternalPlannerCandidate(candidate) || current.get(candidate.id) === candidateSnapshot(candidate));
 }
-const normalized = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").toLowerCase();
+const normalized = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
 // Ranking heuristic only, not an approved taxonomy mapping or a factual suitability claim.
 const terms: Record<TripInterest, string[]> = {
   NATURE: ["thien nhien", "nui", "deo", "thac", "hang", "canh quan"], CULTURE_HISTORY: ["van hoa", "lich su", "di tich", "dinh", "pho co"],
   ETHNIC_VILLAGES: ["ban lang", "cong dong", "dan toc"], PHOTOGRAPHY: ["ngam canh", "check-in", "chup anh"],
   FOOD: ["am thuc", "cho", "mon an"], ADVENTURE: ["kham pha", "trekking", "mao hiem"], RELAXATION: ["thu gian", "nghi duong"],
 };
+// shortcut: a name list instead of an Admin "featured" field; add the field when Admin must manage it.
+const FEATURED_NAMES = ["lung cu", "quan ba", "dinh thu ho vuong", "pho co dong van", "ma pi leng", "nho que"];
+export const isFeaturedDestination = (candidate: { name: string }) => { const name = normalized(candidate.name); return FEATURED_NAMES.some(item => name.includes(item)); };
 export function interestScore(candidate: PlannerCandidate, interests: readonly TripInterest[]) {
   const text = normalized(candidate.category);
   return interests.filter(interest => terms[interest].some(term => text.includes(term))).length;

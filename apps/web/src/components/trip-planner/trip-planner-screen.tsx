@@ -1,5 +1,6 @@
 "use client";
 
+import { TripWeatherPanel } from "@/modules/trip-weather/trip-weather-panel";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route as NextRoute } from "next";
@@ -16,7 +17,7 @@ import { isTripSaveNavigationLocked, type SaveState } from "@/modules/trip-save/
 import {
   ItineraryDayTabs,
   ItineraryStopCard,
-  TripOverviewCard, JourneyMissingNotice, ItineraryOriginDepartureCard, ItineraryOriginReturnCard, ItineraryTravelOnlyDayCard,
+  TripOverviewCard, JourneyMissingNotice, ItineraryBreakfast, ItineraryNightRest, lunchBreakAfter, ItineraryOriginDepartureCard, ItineraryOriginReturnCard, ItineraryTravelOnlyDayCard,
   TripSummaryBar,
   ValidationSheet,
   WarningNoticeRow,
@@ -161,6 +162,7 @@ export function TripPlannerScreen({
 
             {/* Compact route metrics under day tabs */}
             <TripOverviewCard day={day} journeyPlan={proposal.journeyPlan} />
+            <TripWeatherPanel days={proposal.days} journeyPlan={proposal.journeyPlan} />
           </div>
 
           <div
@@ -171,15 +173,18 @@ export function TripPlannerScreen({
             {day.stops.length ? (
               <ol className="planner-timeline">
                 {day.day === 1 && proposal.requirement.journey?.origin && <ItineraryOriginDepartureCard originLabel={proposal.requirement.journey.origin.label} startMinute={proposal.requirement.journey.departureMinute} outboundLeg={proposal.journeyPlan?.legs.find(l => l.kind === "OUTBOUND")}/>}
+                {proposal.journeyPlan && day.day > 1 && <ItineraryBreakfast />}
                 {day.stops.map((stop, index) => (
                   <ItineraryStopCard
                     key={stop.destination.id}
                     stop={stop}
                     nextStop={day.stops[index + 1]}
+                    lunch={day.stops[index + 1] ? lunchBreakAfter(proposal.journeyPlan, day.stops[index + 1]!.destination.id, stop.departureMinute, day.stops[index + 1]!.arrivalMinute) : null}
                     selected={stop.destination.id === selectedDestinationId}
                     onSelect={select}
                   />
                 ))}
+                {proposal.journeyPlan && day.day < proposal.days.length && day.stops.at(-1)?.departureMinute != null && <ItineraryNightRest fromMinute={day.stops.at(-1)!.departureMinute!} />}
                 {day.day === proposal.days.length && proposal.requirement.journey?.origin && <ItineraryOriginReturnCard originLabel={proposal.requirement.journey.origin.label} endMinute={proposal.journeyPlan?.legs.find(l => l.kind === "RETURN")?.endMinute ?? null} returnDeadlineMinute={proposal.requirement.journey.returnDeadlineMinute} returnLeg={proposal.journeyPlan?.legs.find(l => l.kind === "RETURN")}/>}
               </ol>
             ) : (

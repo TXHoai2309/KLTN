@@ -36,8 +36,10 @@ export function createPlanningQaSession(userId: string, headers: Headers, forAct
     exportState() { return planningQaStateSchema.parse({ head, subject }); },
     clearReference() { subject = null; },
     reference(candidates: readonly PlannerCandidate[]) {
-      if (!subject) return null;
-      const fresh = candidates.find(c => c.id === subject!.id && c.visibility === "VISIBLE" && c.name === subject!.name);
+      // A chat opened from a destination page treats "điểm đến này" as that destination until another one is named.
+      const anchorId = subject?.id ?? (initialContext.type === "DESTINATION" ? initialContext.destinationId : null);
+      if (!anchorId) return null;
+      const fresh = candidates.find(c => c.id === anchorId && c.visibility === "VISIBLE" && (!subject || c.name === subject.name));
       if (!fresh) { subject = null; return null; }
       return { id: fresh.id, name: fresh.name };
     },

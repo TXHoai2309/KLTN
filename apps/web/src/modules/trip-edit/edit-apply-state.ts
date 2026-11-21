@@ -1,4 +1,5 @@
 import type { MutationError, MutationOutcome } from "@/lib/mutation-contract";
+import type { AcknowledgedUnchecked } from "../trip-save/unchecked-checks";
 import type { ApplyEditResult } from "./apply-edit";
 import { editCandidateSchema, type EditCandidate } from "./edit-candidate";
 import type { TripValidation } from "../trip-validation/trip-validation";
@@ -8,6 +9,7 @@ export type EditApplyPayload = {
   candidate: EditCandidate;
   confirmed: true;
   kind: "MANUAL";
+  acknowledgedUnchecked?: AcknowledgedUnchecked;
 };
 
 export type PendingEditApply = {
@@ -64,6 +66,7 @@ export function clearEditApplyFailure(state: EditApplyState): EditApplyState {
 export function beginEditApply(
   state: EditApplyState,
   idempotencyKey: string,
+  acknowledgedUnchecked?: AcknowledgedUnchecked,
 ): EditApplyState {
   if (state.status !== "IDLE" || state.pending) return state;
   const payload: EditApplyPayload = {
@@ -71,6 +74,7 @@ export function beginEditApply(
     candidate: editCandidateSchema.parse(state.candidate),
     confirmed: true,
     kind: "MANUAL",
+    ...(acknowledgedUnchecked ? { acknowledgedUnchecked } : {}),
   };
   return {
     ...state,

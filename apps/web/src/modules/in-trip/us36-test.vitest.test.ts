@@ -270,6 +270,19 @@ describe("US36 Task292 end-to-end read-only replan coverage", () => {
     expectNoDatabaseWrites(f.writes);
   });
 
+  it("admits Admin through the Traveler capability and preserves owner-scoped reads", async () => {
+    const f = fixture();
+    let bodyRead = false;
+    const response = await replanResponse(post(validBody), "trip-1", {
+      authorization: authorization("ADMIN"),
+      service: f.service,
+      onBodyRead: () => { bodyRead = true; },
+    });
+    expect(response.status).toBe(200);
+    expect(bodyRead).toBe(true);
+    expect(f.tripFindFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "trip-1", userId: "traveler-1" } }));
+  });
+
   it.each(["TRAVELER", "ADMIN"] as const)("masks a foreign Trip as 404 and rejects a stale revision for %s before provider use", async role => {
     const foreign = fixture({ trip: null });
     const foreignResponse = await replanResponse(post(validBody), "trip-1", {

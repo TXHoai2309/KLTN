@@ -1,4 +1,5 @@
 import { mvpFeatures } from "@/lib/mvp-features";
+import { DestinationWeatherCard } from "@/modules/trip-weather/destination-weather-card";
 import EditorialRenderer from "@/components/editorial/editorial-renderer";
 import type { ResolvedEditorial } from "@/modules/destination-editorial/editorial-contract";
 import PublishedContentProfile from "@/components/published-content-profile";
@@ -110,6 +111,7 @@ export default function DestinationDetail({
       topActions={<FavoriteButton targetType="destinations" targetId={d.id} />}
     >
       <EditorialRenderer data={d} editorial={editorial} />
+      <div className="public-detail-weather-editorial"><DestinationWeatherCard destinationId={d.id} /></div>
       <DestinationAiFab destinationId={d.id} destinationName={d.name} />
     </Shell>
   );
@@ -169,6 +171,8 @@ export default function DestinationDetail({
               />
             </div>
           </section>}
+
+          <DestinationWeatherCard destinationId={d.id} />
 
           {mvpFeatures.culture && d.relatedCulture.length > 0 && (
 <section className="public-detail-card" aria-labelledby="culture-title">

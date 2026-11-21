@@ -1,9 +1,6 @@
 import { z } from "zod";
 
-import {
-  MAX_EDIT_VISITS,
-  MAX_EDIT_VISITS_PER_DAY,
-} from "./edit-candidate";
+import { MAX_EDIT_VISITS } from "./edit-candidate";
 import { MAX_DURATION_DAYS } from "../trip-requirement/trip-requirement-contract";
 
 export const EDIT_INTENT_TYPE_VALUES = [
@@ -41,7 +38,7 @@ const nullablePositionSchema = z
   .number()
   .int()
   .min(1)
-  .max(MAX_EDIT_VISITS_PER_DAY)
+  .max(MAX_EDIT_VISITS)
   .nullable();
 const nullableStartTimeSchema = z
   .string()

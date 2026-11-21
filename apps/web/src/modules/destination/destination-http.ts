@@ -7,10 +7,11 @@ export function destinationResponseDto(dto: DestinationDto, request: Request): D
   const withoutId = <T extends {id?:string}>(item:T) => { const {id: _id,...fields}=item; return fields; };
   return {...dto,profile:{...dto.profile,sources:dto.profile.sources.map(withoutId),media:dto.profile.media.map(withoutId)}};
 }
-export function destinationPageQuery(request: Request): { page: number; view: "active" | "deleted" } {
+export function destinationPageQuery(request: Request): { page: number; view: "active" | "deleted"; q?: string } {
   const params = new URL(request.url).searchParams;
-  if ([...params.keys()].some(key => key !== "page" && key !== "view") || params.getAll("page").length > 1 || params.getAll("view").length > 1 || (params.has("page") && !/^[1-9]\d*$/.test(params.get("page")!)) || (params.has("view") && params.get("view") !== "deleted")) throw new AppError("INVALID_DESTINATION_QUERY", "Tham số không hợp lệ.", 400);
-  return { page: Number(params.get("page") ?? 1), view: params.get("view") === "deleted" ? "deleted" : "active" };
+  if ([...params.keys()].some(key => key !== "page" && key !== "view" && key !== "q") || params.getAll("page").length > 1 || params.getAll("view").length > 1 || params.getAll("q").length > 1 || (params.get("q")?.length ?? 0) > 200 || (params.has("page") && !/^[1-9]\d*$/.test(params.get("page")!)) || (params.has("view") && params.get("view") !== "deleted")) throw new AppError("INVALID_DESTINATION_QUERY", "Tham số không hợp lệ.", 400);
+  const q = params.get("q")?.trim();
+  return { page: Number(params.get("page") ?? 1), view: params.get("view") === "deleted" ? "deleted" : "active", ...(q ? { q } : {}) };
 }
 export function noDestinationQuery(request: Request) {
   if (new URL(request.url).search) throw new AppError("INVALID_DESTINATION_QUERY", "Không hỗ trợ tham số này.", 400);

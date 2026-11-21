@@ -36,7 +36,7 @@ describe("real planner UI server rendering", () => {
   it("missing routes display unknown times and missing data rather than zero travel", async () => {
     const proposal = await createPlannerService({ repository: { candidates: async () => candidates, recheck: async () => true }, routes: { route: async pair => missingLeg(pair, "NO_ROUTE") }, now: () => referenceTime }).propose("test", "missing-ui-test", requirement);
     const html = screen(proposal); expect(html).toContain("Chưa xác định"); expect(html).toContain("Chưa đủ dữ liệu");
-    expect(html).toContain("Chưa có thời gian di chuyển đã xác minh"); expect(html).not.toContain("0 km");
+    expect(html).toContain("Dịch vụ định tuyến hiện chưa cung cấp đủ dữ liệu cho chặng này."); expect(html).not.toContain("0 km");
   });
   it("relative dates remain relative and cannot claim complete verification", async () => {
     const proposal = await createPlannerService({ repository: { candidates: async () => candidates, recheck: async () => true }, routes: fakeRoutes, now: () => referenceTime }).propose("test", "relative-ui-test", { ...requirement, startDate: null });

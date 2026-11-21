@@ -39,7 +39,7 @@ it("uses effective credentials while pinning understanding, selection and dialog
     expect(requests).toHaveLength(3);
     expect(configured).toHaveBeenCalledTimes(3);
     for (const call of configured.mock.calls) expect(call).toEqual(["OPENAI"]);
-    for (const body of requests) expect(body).toMatchObject({ model: "gpt-6-luna", reasoning_effort: "high", store: false });
+    for (const body of requests) expect(body).toMatchObject({ model: "gpt-6.1-terra", reasoning_effort: "medium", store: false });
     const latestMessage = requests[0]?.messages.at(-1);
     if (!latestMessage) throw new Error("Expected the planning calendar context");
     const context = JSON.parse(latestMessage.content).calendarContext;

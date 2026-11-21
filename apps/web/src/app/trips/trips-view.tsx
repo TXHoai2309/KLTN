@@ -1,8 +1,10 @@
 "use client";
 
+import { TripWeatherPanel } from "@/modules/trip-weather/trip-weather-panel";
 import Link from "next/link";
+import { BREAKFAST_MINUTES, MORNING_DEPARTURE_MINUTE } from "@/modules/trip-planner/planner-engine";
+import { Fragment, useEffect, useRef, useState, useMemo } from "react";
 import { uncheckedItemLabel } from "@/modules/trip-save/unchecked-checks";
-import { useEffect, useRef, useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
 import {
@@ -28,9 +30,15 @@ import {
   LoaderCircle,
   Home,
   Flag,
+  Coffee,
+  Moon,
+  UtensilsCrossed,
 } from "lucide-react";
 
 import {
+  lunchBreakAfter,
+  breakfastText,
+  nightRestText,
   ItineraryOriginDepartureCard,
   ItineraryOriginReturnCard,
   durationText,
@@ -172,6 +180,21 @@ const minuteLabel = (minute: number) =>
   `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
 const visitLabel = (count: number) => `${count} điểm dừng`;
 
+/** The destination's own photo; a broken link falls back to the scenic picture. */
+function VisitPhoto({ image, fallback }: { image?: { url: string; alt: string }; fallback: { src: string; alt: string } }) {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const usable = image && image.url !== failedUrl;
+  return (
+    <img
+      src={usable ? image.url : fallback.src}
+      alt={usable ? image.alt : fallback.alt}
+      className="my-trips-visit-photo"
+      loading="lazy"
+      onError={() => { if (usable) setFailedUrl(image.url); }}
+    />
+  );
+}
+
 function getTripHeroImage(durationDays: number, index = 0): string {
   const photos = [
     "/images/gallery/ha-giang-terraces-golden.webp",
@@ -303,8 +326,8 @@ export function MyTripsView({
               tabParam === "mine"
                 ? "mine"
                 : tabParam === "joined"
-                ? "joined"
-                : "explore"
+                  ? "joined"
+                  : "explore"
             }
           />
         </div>
@@ -455,17 +478,19 @@ export function MyTripsView({
                               </div>
 
                               <h3 className="my-trips-card-title">
-                                {trip.companionTitle || `Chuyến đi ${trip.durationDays} ngày`}
+                                <Link className="my-trips-card-link" prefetch={false} href={`/trips/${trip.id}` as Route}>
+                                  {trip.companionTitle || `Chuyến đi ${trip.durationDays} ngày`}
+                                </Link>
                               </h3>
 
                               <p className="my-trips-completion-note">
                                 {trip.role === "MEMBER"
                                   ? `Tham gia cùng ${trip.hostName || "chủ chuyến"} · Trạng thái theo lịch trình đoàn`
                                   : trip.manuallyCompletedAt
-                                  ? "Bạn đã đánh dấu hoàn thành thủ công."
-                                  : trip.status === "COMPLETED"
-                                  ? "Đã hoàn thành theo ngày kế hoạch; chưa đánh dấu thủ công."
-                                  : "Trạng thái theo ngày kế hoạch."}
+                                    ? "Bạn đã đánh dấu hoàn thành thủ công."
+                                    : trip.status === "COMPLETED"
+                                      ? "Đã hoàn thành theo ngày kế hoạch; chưa đánh dấu thủ công."
+                                      : "Trạng thái theo ngày kế hoạch."}
                               </p>
 
                               <div className="my-trips-meta" aria-label="Thông tin chuyến đi">
@@ -574,11 +599,11 @@ function tripDetailToPlannerDays(trip: TripDetail): PlannerDay[] {
         thisIdx >= 0
           ? allStopsWithCoords[thisIdx]!.coords
           : getDestinationCoordinates(
-              visit.destination.name,
-              visit.destination.area,
-              visit.destination.latitude,
-              visit.destination.longitude
-            );
+            visit.destination.name,
+            visit.destination.area,
+            visit.destination.latitude,
+            visit.destination.longitude
+          );
 
       let inbound: TravelLeg | null = (visit as { inbound?: TravelLeg | null }).inbound ?? null;
       if (!inbound && thisIdx > 0) {
@@ -719,10 +744,16 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                 )
               ) : (
                 <>
-                  <Link className="my-trips-action my-trips-edit-action" href={`/trips/${trip.id}/edit` as Route}>
-                    <Pencil size={15} aria-hidden="true" />
-                    <span>Chỉnh sửa hành trình</span>
-                  </Link>
+                  {trip.status !== "COMPLETED" && (
+                    <Link
+                      className="my-trips-action my-trips-edit-action"
+                      href={`/trips/${trip.id}/edit` as Route}
+                      aria-label="Chỉnh sửa hành trình trong Trợ lý chuyến đi"
+                    >
+                      <Pencil size={15} aria-hidden="true" />
+                      <span>Chỉnh sửa hành trình</span>
+                    </Link>
+                  )}
 
                   {trip.status === "UPCOMING" && (
                     hasJourney ? (
@@ -765,9 +796,10 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                       <Link
                         className="my-trips-action my-trips-in-trip-btn"
                         href={`/trips/${trip.id}/in-trip` as Route}
+                        aria-label="Mở Trợ lý chuyến đi (Trợ lý trong chuyến đi)"
                       >
                         <Sparkles size={16} aria-hidden="true" />
-                        <span>Trợ lý trong chuyến đi</span>
+                        <span>Trợ lý chuyến đi</span>
                       </Link>
                     </>
                   )}
@@ -875,7 +907,6 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
               </li>
             ))}
           </ul>
-          <p className="my-trips-unavailable">Chuyến đi có địa điểm ngoài danh mục chưa thể chỉnh sửa hoặc lập lại lịch.</p>
         </section>
       )}
 
@@ -1117,9 +1148,9 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                             outboundLeg={
                               trip.journey.plan?.legs.find((l) => l.kind === "OUTBOUND")
                                 ? {
-                                    route: trip.journey.plan.legs.find((l) => l.kind === "OUTBOUND")!.route,
-                                    restMinutes: trip.journey.plan.legs.find((l) => l.kind === "OUTBOUND")!.restMinutes,
-                                  }
+                                  route: trip.journey.plan.legs.find((l) => l.kind === "OUTBOUND")!.route,
+                                  restMinutes: trip.journey.plan.legs.find((l) => l.kind === "OUTBOUND")!.restMinutes,
+                                }
                                 : undefined
                             }
                           />
@@ -1127,82 +1158,104 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                         {day.visits.map((visit, visitIndex) => {
                           const visual = getDestinationVisual(visit.destination.name, visit.destination.area);
                           const isSelected = selectedDestinationId === visit.destination.id;
+                          const nextVisit = day.visits[visitIndex + 1];
+                          const departure = visit.startMinute + visit.plannedDurationMinutes;
+                          const lunch = nextVisit ? lunchBreakAfter(trip.journey?.plan, nextVisit.destination.id, departure, nextVisit.startMinute) : null;
+                          const nextDay = trip.days.find((item) => item.dayIndex === day.dayIndex + 1);
+                          const night = !nextVisit && trip.journey?.plan && nextDay ? nightRestText(departure) : null;
 
                           return (
-                            <li
-                              key={visit.id}
-                              id={`trip-visit-${visit.destination.id}`}
-                              className={`my-trips-visit-item ${isSelected ? "is-selected-item" : ""}`}
-                              onClick={() => handleSelectDestination(visit.destination.id)}
-                            >
-                              <span className="my-trips-timeline-node" aria-hidden="true" />
-                              <div className="my-trips-visit-time">
-                                <strong>{minuteLabel(visit.startMinute)}</strong>
-                                <span>{visit.plannedDurationMinutes} phút</span>
-                              </div>
-
-                              <Card className={`my-trips-visit ${isSelected ? "is-active-selection" : ""}`}>
-                                {/* Scenic visual photo instead of plain grey box */}
-                                <div
-                                  className="my-trips-image-placeholder my-trips-visit-media"
-                                  role="img"
-                                  aria-label="Chưa có ảnh điểm đến"
-                                >
-                                  <img
-                                    src={visual.src}
-                                    alt={visual.alt}
-                                    className="my-trips-visit-photo"
-                                    loading="lazy"
-                                  />
-                                  <div className="my-trips-visit-photo-gradient" />
-                                  <span className="my-trips-visit-seq-tag">#{visit.order}</span>
+                            <Fragment key={visit.id}>
+                              {visitIndex === 0 && day.dayIndex > 1 && trip.journey?.plan && (
+                                <li className="my-trips-break-item">
+                                  <span aria-hidden="true" />
+                                  <div className="my-trips-visit-time"><strong>{minuteLabel(MORNING_DEPARTURE_MINUTE - BREAKFAST_MINUTES)}</strong><span>{BREAKFAST_MINUTES} phút</span></div>
+                                  <p className="planner-break"><Coffee size={13} aria-hidden="true" /><strong>Ăn sáng</strong> {breakfastText()}</p>
+                                </li>
+                              )}
+                              <li
+                                id={`trip-visit-${visit.destination.id}`}
+                                className={`my-trips-visit-item ${isSelected ? "is-selected-item" : ""}`}
+                                onClick={() => handleSelectDestination(visit.destination.id)}
+                              >
+                                <span className="my-trips-timeline-node" aria-hidden="true" />
+                                <div className="my-trips-visit-time">
+                                  <strong>{minuteLabel(visit.startMinute)}</strong>
+                                  <span>{visit.plannedDurationMinutes} phút</span>
                                 </div>
 
-                                <div className="my-trips-visit-place">
-                                  <div className="my-trips-visit-top">
-                                    <span className="my-trips-order-label">Điểm dừng {visit.order}{visit.destination.external ? " · ngoài danh mục (chưa kiểm)" : ""}</span>
-                                    <span className="my-trips-visit-chip">
-                                      <Clock3 size={13} aria-hidden="true" />
-                                      {visit.plannedDurationMinutes} phút
-                                    </span>
+                                <Card className={`my-trips-visit ${isSelected ? "is-active-selection" : ""}`}>
+                                  {/* Scenic visual photo instead of plain grey box */}
+                                  <div
+                                    className="my-trips-image-placeholder my-trips-visit-media"
+                                    role="img"
+                                    aria-label="Chưa có ảnh điểm đến"
+                                  >
+                                    <VisitPhoto image={visit.destination.image} fallback={visual} />
+                                    <div className="my-trips-visit-photo-gradient" />
+                                    <span className="my-trips-visit-seq-tag">#{visit.order}</span>
                                   </div>
 
-                                  <h3 className="my-trips-destination-title">
-                                    {visit.destination.availability === "AVAILABLE" && !visit.destination.external ? (
-                                      <Link
-                                        href={`/destinations/${visit.destination.id}` as Route}
-                                        className="my-trips-destination-link"
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
-                                        <span>{visit.destination.name}</span>
-                                        <ChevronRight size={16} className="my-trips-chevron" aria-hidden="true" />
-                                      </Link>
-                                    ) : (
-                                      visit.destination.name
-                                    )}
-                                  </h3>
-
-                                  <div className="my-trips-visit-meta">
-                                    <p className="my-trips-visit-meta-item">
-                                      <MapPin size={15} aria-hidden="true" />
-                                      <span>{visit.destination.area}</span>
-                                    </p>
-                                    <p className="my-trips-visit-meta-item">
-                                      <Clock3 size={15} aria-hidden="true" />
-                                      <span>
-                                        {minuteLabel(visit.startMinute)} –{" "}
-                                        {minuteLabel(visit.startMinute + visit.plannedDurationMinutes)} (
-                                        {visit.plannedDurationMinutes} phút)
+                                  <div className="my-trips-visit-place">
+                                    <div className="my-trips-visit-top">
+                                      <span className="my-trips-order-label">Điểm dừng {visit.order}{visit.destination.external ? " · ngoài danh mục (chưa kiểm)" : ""}</span>
+                                      <span className="my-trips-visit-chip">
+                                        <Clock3 size={13} aria-hidden="true" />
+                                        {visit.plannedDurationMinutes} phút
                                       </span>
-                                    </p>
-                                  </div>
+                                    </div>
 
-                                  {visit.destination.availability === "UNAVAILABLE" && (
-                                    <p className="my-trips-unavailable">Điểm đến không còn khả dụng công khai</p>
-                                  )}
-                                </div>
-                              </Card>
-                            </li>
+                                    <h3 className="my-trips-destination-title">
+                                      {visit.destination.availability === "AVAILABLE" && !visit.destination.external ? (
+                                        <Link
+                                          href={`/destinations/${visit.destination.id}` as Route}
+                                          className="my-trips-destination-link"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          <span>{visit.destination.name}</span>
+                                          <ChevronRight size={16} className="my-trips-chevron" aria-hidden="true" />
+                                        </Link>
+                                      ) : (
+                                        visit.destination.name
+                                      )}
+                                    </h3>
+
+                                    <div className="my-trips-visit-meta">
+                                      <p className="my-trips-visit-meta-item">
+                                        <MapPin size={15} aria-hidden="true" />
+                                        <span>{visit.destination.area}</span>
+                                      </p>
+                                      <p className="my-trips-visit-meta-item">
+                                        <Clock3 size={15} aria-hidden="true" />
+                                        <span>
+                                          {minuteLabel(visit.startMinute)} –{" "}
+                                          {minuteLabel(visit.startMinute + visit.plannedDurationMinutes)} (
+                                          {visit.plannedDurationMinutes} phút)
+                                        </span>
+                                      </p>
+                                    </div>
+
+                                    {visit.destination.availability === "UNAVAILABLE" && (
+                                      <p className="my-trips-unavailable">Điểm đến không còn khả dụng công khai</p>
+                                    )}
+                                  </div>
+                                </Card>
+                              </li>
+                              {lunch && (
+                                <li className="my-trips-break-item">
+                                  <span aria-hidden="true" />
+                                  <div className="my-trips-visit-time"><strong>{minuteLabel(lunch.from)}</strong><span>60 phút</span></div>
+                                  <p className="planner-break"><UtensilsCrossed size={13} aria-hidden="true" /><strong>Nghỉ trưa</strong> {minuteLabel(lunch.from)} – {minuteLabel(lunch.to)}</p>
+                                </li>
+                              )}
+                              {night && (
+                                <li className="my-trips-break-item">
+                                  <span aria-hidden="true" />
+                                  <div className="my-trips-visit-time"><strong>{minuteLabel(departure)}</strong><span>Hết ngày</span></div>
+                                  <p className="planner-break"><Moon size={13} aria-hidden="true" /><strong>Nghỉ tối</strong> {night} · chưa chọn nơi nghỉ</p>
+                                </li>
+                              )}
+                            </Fragment>
                           );
                         })}
                         {day.dayIndex === trip.days.length && trip.journey?.journey.origin && (
@@ -1215,9 +1268,9 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                             returnLeg={
                               trip.journey.plan?.legs.find((l) => l.kind === "RETURN")
                                 ? {
-                                    route: trip.journey.plan.legs.find((l) => l.kind === "RETURN")!.route,
-                                    restMinutes: trip.journey.plan.legs.find((l) => l.kind === "RETURN")!.restMinutes,
-                                  }
+                                  route: trip.journey.plan.legs.find((l) => l.kind === "RETURN")!.route,
+                                  restMinutes: trip.journey.plan.legs.find((l) => l.kind === "RETURN")!.restMinutes,
+                                }
                                 : undefined
                             }
                           />
@@ -1228,6 +1281,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                 );
               })}
             </div>
+            <TripWeatherPanel days={plannerDays} journeyPlan={trip.journey?.plan} />
           </section>
         </div>
 
@@ -1264,9 +1318,11 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
         </p>
 
         <nav className="my-trips-detail-nav" aria-label="Thao tác chuyến đi">
-          <Link className="my-trips-action" href={`/trips/${trip.id}/edit` as Route}>
-            Chỉnh sửa hành trình
-          </Link>
+          {trip.status !== "COMPLETED" && (
+            <Link className="my-trips-action" href={`/trips/${trip.id}/edit` as Route}>
+              Chỉnh sửa hành trình
+            </Link>
+          )}
 
           {trip.status !== "COMPLETED" && (
             <>
@@ -1274,9 +1330,13 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                 <Users size={16} aria-hidden="true" />
                 <span>Tìm bạn đồng hành</span>
               </Link>
-              <Link className="my-trips-secondary-action" href={`/trips/${trip.id}/in-trip` as Route}>
+              <Link
+                className="my-trips-secondary-action"
+                href={`/trips/${trip.id}/in-trip` as Route}
+                aria-label="Mở Trợ lý chuyến đi (Trợ lý trong chuyến đi)"
+              >
                 <Sparkles size={16} aria-hidden="true" />
-                <span>Mở Trợ lý trong chuyến đi</span>
+                <span>Mở Trợ lý chuyến đi</span>
               </Link>
             </>
           )}

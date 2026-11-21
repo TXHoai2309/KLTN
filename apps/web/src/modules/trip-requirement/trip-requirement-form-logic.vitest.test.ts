@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { tripRequirementInputSchema } from "./trip-requirement-contract";
 import {
   buildPayload,
+  hasTripRequirementChanges,
   decideEvaluateResponse,
   decideSubmitRouting,
   getSubmitButtonState,
@@ -30,6 +31,12 @@ function fields(overrides: Partial<TripRequirementValidationFields> = {}): TripR
 }
 
 describe("trip requirement form logic", () => {
+  it("detects unsaved raw input and clears the warning when restored to initial values", () => {
+    expect(hasTripRequirementChanges(completeFields, { ...completeFields, interests: [...completeFields.interests] })).toBe(false);
+    expect(hasTripRequirementChanges({ ...completeFields, durationDays: "" }, completeFields)).toBe(true);
+    expect(hasTripRequirementChanges({ ...completeFields, interests: [] }, completeFields)).toBe(true);
+    expect(hasTripRequirementChanges({ ...completeFields, mobilityNote: "new note" }, completeFields)).toBe(true);
+  });
   it("builds the complete API payload without extra fields", () => {
     expect(buildPayload(completeFields)).toEqual({
       startDate: "2026-10-12",

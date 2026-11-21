@@ -61,7 +61,15 @@ export async function readSavedTrip(context: AssistantAgentContext, services?: I
   const s = await owned(context, services);
   const trip = await getTripForEdit(s.headers, s.tripId, { ...s.authorization, database: s.database });
   const split = splitCompletedRemaining({ startDate: trip.candidate.startDate!, durationDays: trip.candidate.durationDays, days: trip.candidate.days.map(day => ({ dayIndex: day.dayIndex, localDate: tripDayDate(trip.candidate.startDate, day.dayIndex)!, visits: day.visits.map(v => ({ ...v, id: v.visitId })) })) }, s.now());
-  return { ...trip, completedVisitIds: split.completed.map(v => v.visitId), remainingVisitIds: split.remaining.map(v => v.visitId) };
+  return {
+    tripId: trip.tripId,
+    ...(trip.journeyDisclosure ? { journeyDisclosure: trip.journeyDisclosure } : {}),
+    baseRevision: trip.baseRevision,
+    candidate: trip.candidate,
+    destinationLabels: trip.destinationLabels,
+    completedVisitIds: split.completed.map(v => v.visitId),
+    remainingVisitIds: split.remaining.map(v => v.visitId),
+  };
 }
 export async function resolveCurrentLocation(input: unknown, context: AssistantAgentContext, services?: InTripActionServices) {
   await readSavedTrip(context, services); return normalizeInTripLocation(input);

@@ -1,0 +1,15 @@
+# 06: Chính sách GPS / Vị trí hiện tại có điều kiện cho chuyến đi đang diễn ra (ONGOING)
+
+**What to build:** Khi chủ chuyến sử dụng `Trợ lý chuyến đi`, hệ thống không bao giờ ép bật GPS đối với chuyến đi chưa khởi hành (`UPCOMING`) hoặc đối với các yêu cầu chỉnh giờ, thêm/đổi/xóa điểm, hỏi tư vấn độ hợp lý, hỏi kiến thức hay hỏi thời tiết không phụ thuộc vị trí vật lý hiện tại. Chỉ khi chuyến đi đang diễn ra (`ONGOING`) **và** câu hỏi của người dùng thực sự phụ thuộc vào vị trí đang đứng ngoài thực tế (ví dụ *"Tôi đang bị kẹt xe ở đây thì chiều nay đi tiếp những điểm nào kịp?"*, *"Gần chỗ tôi đang đứng có điểm nào ghé được không?"*) mà phiên chưa có vị trí, Khung hội thoại Trợ lý AI mới hiển thị yêu cầu cấp quyền GPS một lần (kèm bộ chọn vị trí thủ công trên bản đồ nếu từ chối hoặc lỗi GPS). Ngay khi có vị trí, hệ thống tự động tiếp tục mô phỏng khoảng cách/thời gian di chuyển từ vị trí đó tới các điểm chưa đi và đề xuất phương án hợp lý, đồng thời khóa chặt toàn bộ các `lượt tham quan` đã qua giờ kết thúc (`Asia/Ho_Chi_Minh`).
+
+**Blocked by:** 01: Hợp nhất điểm vào & Không gian Trợ lý chuyến đi (Saved-trip assistant), hội thoại 16 lượt & bảo vệ trường khung; 03: Mô phỏng tình huống Khoảng nghỉ trong lịch (Schedule rest buffer), đến sớm/muộn, đổi nhịp độ & Câu hỏi kép.
+
+**Status:** done
+
+- [x] Mọi yêu cầu trên chuyến đi `UPCOMING` và mọi yêu cầu trên chuyến đi `ONGOING` không phụ thuộc vào tọa độ đang đứng (đổi giờ, tạo `khoảng nghỉ trong lịch`, đổi/thêm/xóa điểm theo tên, hỏi đánh giá lịch, hỏi RAG/thời tiết) đều được xử lý trực tiếp mà không bao giờ trả về trạng thái đòi GPS.
+- [x] Khi chuyến đi đang `ONGOING` và bộ phân tích ý định xác định yêu cầu thực sự cần vị trí hiện tại (`needsCurrentLocation = true`) nhưng request chưa kèm tọa độ hợp lệ, API trả về trạng thái `NEEDS_LOCATION` cùng lời nhắc tiếng Việt rõ ràng mà không làm mất câu hỏi đang chờ của người dùng.
+- [x] Trên giao diện Khung hội thoại Trợ lý AI, trạng thái `NEEDS_LOCATION` hiển thị nút **"Dùng vị trí GPS hiện tại"** (gọi `getCurrentPosition` một lần duy nhất kèm timeout, tuyệt đối không dùng `watchPosition` theo dõi ngầm) và nút **"Chọn vị trí thủ công trên bản đồ"** (tự động mở làm fallback khi GPS bị từ chối, không khả dụng hoặc hết thời gian chờ).
+- [x] Ngay sau khi người dùng cung cấp vị trí GPS hoặc vị trí thủ công hợp lệ (nằm trong vùng phủ Việt Nam), Trợ lý tự động gửi lại yêu cầu đang chờ kèm vị trí đó để tính thời gian di chuyển từ vị trí hiện tại tới điểm tiếp theo và trả về lời tư vấn / thẻ phương án chỉnh sửa cho phần còn lại của chuyến đi.
+- [x] Toàn bộ các `lượt tham quan` đã qua giờ kết thúc theo `Asia/Ho_Chi_Minh` và thông tin `nơi xuất phát` ban đầu của chuyến `ONGOING` được giữ bất biến tuyệt đối trong mọi phương án do AI đề xuất.
+- [x] Không lưu trữ tọa độ GPS của người dùng vào cơ sở dữ liệu dài hạn hay nhật ký hệ thống.
+- [x] Kiểm thử tự động ở Seam 1 (phân loại `needsCurrentLocation`, luồng `NEEDS_LOCATION` → cấp vị trí → mô phỏng phần còn lại của ngày với `preserveCompleted`) và Seam 2 (luồng GPS thành công, GPS bị từ chối chuyển sang chọn vị trí thủ công và tự động tiếp tục câu hỏi đang chờ) đều PASS.

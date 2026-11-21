@@ -7,7 +7,7 @@ type NavigateEvent = Event & {
   userInitiated: boolean;
   navigationType: string;
 };
-export function useUnsavedChanges(dirty: boolean, busy: boolean) {
+export function useUnsavedChanges(dirty: boolean, busy: boolean, rootSelector = ".af-root") {
   const state = useRef({ dirty, busy });
   state.current = { dirty, busy };
   useEffect(() => {
@@ -30,7 +30,7 @@ export function useUnsavedChanges(dirty: boolean, busy: boolean) {
         leave.addEventListener("click", () => {state.current = {dirty: false,busy: false}; dialog.close(); resume();}); actions.append(leave);
       }
       dialog.addEventListener("close", () => {dialog.remove(); prompt = null; opener?.focus();}, {once:true});
-      dialog.append(title,message,actions); (document.querySelector(".af-root") ?? document.body).append(dialog); dialog.showModal();
+      dialog.append(title,message,actions); (document.querySelector(rootSelector) ?? document.body).append(dialog); dialog.showModal();
     }
     function click(event: MouseEvent) {
       if (
@@ -97,7 +97,7 @@ export function useUnsavedChanges(dirty: boolean, busy: boolean) {
       window.removeEventListener("beforeunload", unload);
       navigation?.removeEventListener("navigate", navigate);
     };
-  }, []);
+  }, [rootSelector]);
   return () => {
     state.current = { dirty: false, busy: false };
   };

@@ -1,9 +1,12 @@
 import type { TripRequirementInput } from "../trip-requirement/trip-requirement-contract";
 import type { PlannerCandidate } from "../trip-planner/planner-candidates";
-import { dateForDay, PACE_STOP_LIMIT, PLANNING_WINDOW, schedulePlannerDays, visitDuration } from "../trip-planner/planner-engine";
+import { dateForDay, MORNING_DEPARTURE_MINUTE, PACE_STOP_LIMIT, PLANNING_WINDOW, schedulePlannerDays, visitDuration } from "../trip-planner/planner-engine";
 import { validatePlannerDays } from "../trip-planner/planner-validator";
-import { travelLegSchema, type PlannerCheck, type TravelLeg } from "../trip-planner/planner-contract";
+import { travelLegSchema, type PlannerCheck, type PlannerDay, type PlannerResult, type TravelLeg } from "../trip-planner/planner-contract";
+import { isFeaturedDestination } from "../trip-planner/planner-candidates";
 import { missingLeg, resolveBoundedRoutes, ROUTING_DEADLINE_MS, type CoordinateRoutePair, type RouteProvider, type RoutePair } from "../trip-planner/planner-routes";
+import { optimizeScheduleForWeather } from "../trip-planner/planner-weather-preference";
+import type { ForecastOptions } from "../trip-weather/forecast";
 import { journeyRouteSchema, type JourneyPlan, type JourneyRoute } from "./journey-route-contract";
 import { afterVisitDriving, driveWithRest, REST_POLICY_VERSION } from "./rest-policy";
 import { missingJourneyFields } from "./trip-origin-contract";
@@ -12,7 +15,7 @@ const missing = (reason: NonNullable<JourneyRoute["reason"]>): JourneyRoute => (
 type Request = { kind: "OUTBOUND" | "RETURN"; from: { latitude: number; longitude: number }; to: { latitude: number; longitude: number }; transport: TripRequirementInput["transport"] } | { kind: "TRANSFER"; pair: RoutePair };
 
 /** Extends the existing scheduler/Validator with explicit boundary legs. Never saves. */
-export async function planJourney(requirement: TripRequirementInput, selected: readonly PlannerCandidate[][], provider: RouteProvider, timeoutMs?: number, allowBoundaryRepartition = false, fixedArrivals?: ReadonlyMap<string, number>) {
+export async function planJourney(requirement: TripRequirementInput, selected: readonly PlannerCandidate[][], provider: RouteProvider, timeoutMs?: number, allowBoundaryRepartition = false, fixedArrivals?: ReadonlyMap<string, number>, preferFullDays = false) {
   const stops = selected.flat(), first = stops[0], last = stops.at(-1);
   const origin = requirement.journey?.origin?.confirmed ? requirement.journey.origin : null;
   const requests: Request[] = [];
@@ -63,13 +66,22 @@ export async function planJourney(requirement: TripRequirementInput, selected: r
       + checked.checks.reduce((sum, check) => sum + (check.status === "VIOLATION" ? 100 : check.status === "INSUFFICIENT_DATA" ? 10 : 0), 0)
       + result.days.filter(day => day.journeyDayKind === "EMPTY").length * 100;
   };
-  let best = original, bestScore = score(original);
+  let best = original, bestScore = score(original), bestIdle = idleBeforeLastDay(original.days, original.journeyPlan);
   for (const partition of partitions.slice(1)) {
     const result = scheduleJourneyEvidence(requirement, partition, transfer, outbound, returning);
-    const resultScore = score(result);
-    if (resultScore < bestScore) { best = result; bestScore = resultScore; }
+    const resultScore = score(result), resultIdle = idleBeforeLastDay(result.days, result.journeyPlan);
+    if (resultScore < bestScore || (preferFullDays && resultScore === bestScore && resultIdle < bestIdle)) { best = result; bestScore = resultScore; bestIdle = resultIdle; }
   }
   return best;
+}
+
+/** Squared so one empty afternoon costs more than several short gaps. The last day is free: leaving early helps the return. */
+const idleCost = (endMinute: number) => Math.max(0, PLANNING_WINDOW.endMinute - endMinute) ** 2;
+function idleBeforeLastDay(days: readonly PlannerDay[], plan: JourneyPlan): number {
+  return days.slice(0, -1).reduce((sum, day) => {
+    const end = day.stops.at(-1)?.departureMinute ?? (day.day === 1 ? plan.legs.find(leg => leg.kind === "OUTBOUND")?.endMinute : null);
+    return end == null ? sum : sum + idleCost(end);
+  }, 0);
 }
 
 /**
@@ -83,7 +95,10 @@ function balanceJourneyDays(requirement: TripRequirementInput, stops: readonly P
   const costOfDay = (dayIndex: number, offset: number, count: number) => {
     const isLast = dayIndex === dayCount - 1;
     if (!count) {
-      if (dayIndex === 0 && offset === 0) return { cost: 0, load: 0 };
+      if (dayIndex === 0 && offset === 0) {
+        const arrival = journey.departureMinute! + Math.ceil(outbound.durationSeconds! / 60) + driveWithRest(outbound.durationSeconds!, 0, requirement.transport).restMinutes;
+        return { cost: 0, load: isLast ? 0 : idleCost(arrival) };
+      }
       if (!isLast || offset !== stops.length) return { cost: 100, load: 0 };
       return { cost: journey.returnDepartureMinute == null ? 10 : returnCost(returnMinutes(journey.returnDepartureMinute, 0)), load: 0 };
     }
@@ -108,8 +123,7 @@ function balanceJourneyDays(requirement: TripRequirementInput, stops: readonly P
     const departure = scheduled.at(-1)!.departureMinute;
     return {
       cost: scheduled.filter(stop => stop.scheduleState !== "PLANNED").length * 100 + (isLast && departure !== null ? returnCost(returnMinutes(departure, driven)) : 0),
-      // From this day's own start, so a late Day 1 arrival still counts as room for visits.
-      load: ((departure ?? PLANNING_WINDOW.endMinute) - (start ?? PLANNING_WINDOW.startMinute)) ** 2,
+      load: isLast || departure === null ? 0 : idleCost(departure),
     };
   };
   type Plan = { days: PlannerCandidate[][]; cost: number; load: number };
@@ -134,8 +148,7 @@ function balanceJourneyDays(requirement: TripRequirementInput, stops: readonly P
 
 /**
  * Form planning only, where every stop was auto-selected: when no day boundaries
- * can fit the chain, drop trailing stops until it fits. Never used for Assistant must-visits.
- * shortcut: drops from the chain's end regardless of interest match; rank by interest if users notice.
+ * can fit the chain, drop stops until it fits. Never used for Assistant must-visits.
  */
 export async function planJourneyFittingStops(requirement: TripRequirementInput, selected: readonly PlannerCandidate[][], provider: RouteProvider, timeoutMs = ROUTING_DEADLINE_MS) {
   const cache = new Map<string, Promise<unknown>>();
@@ -147,18 +160,40 @@ export async function planJourneyFittingStops(requirement: TripRequirementInput,
   const usable = (result: Awaited<ReturnType<typeof planJourney>>, stops: readonly PlannerCandidate[]) => result.check.status !== "VIOLATION" && validatePlannerDays(requirement, result.days, stops, result.travelOnlyDays).checks.every(check => check.status !== "VIOLATION");
   const verified = (result: Awaited<ReturnType<typeof planJourney>>) => result.journeyPlan.legs.every(leg => leg.route.status === "VERIFIED");
   const deadline = Date.now() + timeoutMs;
-  const original = await planJourney(requirement, selected, reused, timeoutMs, true);
-  let stops = selected.flat();
-  if (usable(original, stops) || !verified(original)) return { ...original, selected: stops, reduced: false };
-  const kept = selected.map(day => [...day]);
-  while (stops.length > 1 && Date.now() < deadline) {
-    kept.findLast(day => day.length)!.pop();
-    stops = kept.flat();
-    const result = await planJourney(requirement, kept, reused, deadline - Date.now(), true);
+  const chain = selected.flat();
+  const plan = (kept: ReadonlySet<PlannerCandidate>) => planJourney(requirement, selected.map(day => day.filter(stop => kept.has(stop))), reused, Math.max(1, deadline - Date.now()), true, undefined, true);
+  const fits = (result: Awaited<ReturnType<typeof planJourney>>, kept: ReadonlySet<PlannerCandidate>) => usable(result, chain.filter(stop => kept.has(stop)));
+  const original = await plan(new Set(chain));
+  if (fits(original, new Set(chain)) || !verified(original)) return { ...original, selected: chain, reduced: false };
+  const kept = new Set(chain), dropped: PlannerCandidate[] = [];
+  let best: Awaited<ReturnType<typeof planJourney>> | null = null;
+  while (kept.size > 1 && Date.now() < deadline) {
+    // Well-known stops go last, whatever their place in the chain.
+    const remaining = chain.filter(stop => kept.has(stop));
+    const drop = remaining.findLast(stop => !isFeaturedDestination(stop)) ?? remaining.at(-1)!;
+    kept.delete(drop); dropped.push(drop);
+    const result = await plan(kept);
     if (!verified(result)) break;
-    if (usable(result, stops)) return { ...result, selected: stops, reduced: true };
+    if (fits(result, kept)) { best = result; break; }
   }
-  return { ...original, selected: selected.flat(), reduced: false };
+  if (!best) return { ...original, selected: chain, reduced: false };
+  // Dropping is one-way, so an earlier drop may have been unnecessary. Well-known stops were dropped last, so they retry first.
+  for (const stop of dropped.reverse().slice(1)) {
+    if (Date.now() >= deadline) break;
+    kept.add(stop);
+    const result = await plan(kept);
+    if (verified(result) && fits(result, kept) && result.check.status === best.check.status) best = result;
+    else kept.delete(stop);
+  }
+  return { ...best, selected: chain.filter(stop => kept.has(stop)), reduced: kept.size < chain.length };
+}
+
+/** Owner-approved 2026-11-07. Advisory only: long days are allowed, never silently so. */
+export const DAILY_DRIVING_WARNING_HOURS: Record<TripRequirementInput["transport"], number> = { CAR: 8, MOTORCYCLE: 6 };
+export function journeyDrivingWarnings(requirement: TripRequirementInput, days: readonly PlannerDay[]): PlannerResult["warnings"] {
+  const hours = DAILY_DRIVING_WARNING_HOURS[requirement.transport];
+  return days.filter(day => (day.travelSeconds ?? 0) > hours * 3600).map(day => ({ code: "LONG_DRIVING_DAY", day: day.day, destinationId: null,
+    message: `Ngày ${day.day} chạy xe khoảng ${Math.round(day.travelSeconds! / 360) / 10} giờ, vượt mức ${hours} giờ nên cân nhắc. Hãy thêm ngày hoặc bớt điểm.` }));
 }
 
 export function scheduleJourneyEvidence(requirement: TripRequirementInput, selected: readonly PlannerCandidate[][], transfer: ReadonlyMap<string, TravelLeg>, outbound: JourneyRoute, returning: JourneyRoute, fixedArrivals?: ReadonlyMap<string, number>) {
@@ -209,7 +244,7 @@ export function scheduleJourneyEvidence(requirement: TripRequirementInput, selec
     const day = days.find(day => day.stops.some(stop => stop.destination.id === current.id))!;
     const previousStop = days.flatMap(day => day.stops).find(stop => stop.destination.id === previous.id)!;
     const sameDay = day.stops.some(stop => stop.destination.id === previous.id);
-    const start = sameDay ? previousStop.departureMinute : 480;
+    const start = sameDay ? previousStop.departureMinute : MORNING_DEPARTURE_MINUTE;
     const route = transfer.get(current.id)!;
     const rest = rests.get(current.id) ?? null;
     legs.push({ kind: "TRANSFER", day: day.day, from: { kind: "ATTRACTION", destinationId: previous.id }, to: { kind: "ATTRACTION", destinationId: current.id },
@@ -277,4 +312,92 @@ export function validateJourneyTiming(requirement: TripRequirementInput, days: r
     }
   }
   return { key: "TRAVEL_TIME", status, issues };
+}
+
+function mergeJourneyChecks(
+  requirement: TripRequirementInput,
+  journey: Awaited<ReturnType<typeof planJourney>>,
+  selectedStops: readonly PlannerCandidate[],
+) {
+  const { checks, stopStatuses } = validatePlannerDays(requirement, journey.days, selectedStops, journey.travelOnlyDays);
+  const travel = checks.find(check => check.key === "TRAVEL_TIME")!;
+  if (journey.check.status === "VIOLATION" || travel.status === "PASS") travel.status = journey.check.status;
+  travel.issues.push(...journey.check.issues);
+  return {
+    scheduled: journey.days,
+    checks,
+    stopStatuses,
+    totalTravelSeconds: journey.journeyPlan.legs.reduce((sum, leg) => sum + (leg.route.durationSeconds ?? 0), 0),
+  };
+}
+
+/**
+ * Applies soft weather & sun-time preferences to a `journey` itinerary within
+ * outbound/return bounds, detour cap, and Validator invariants.
+ */
+export async function optimizeJourneyForWeather(input: {
+  requirement: TripRequirementInput;
+  baselineJourney: Awaited<ReturnType<typeof planJourney>>;
+  selectedByDay: readonly PlannerCandidate[][];
+  provider: RouteProvider;
+  timeoutMs?: number;
+  allowBoundaryRepartition?: boolean;
+  fixedArrivals?: ReadonlyMap<string, number>;
+  preferFullDays?: boolean;
+  forecast?: ForecastOptions;
+  allowedDayIndices?: readonly number[];
+  lockedStopIds?: ReadonlySet<string>;
+}) {
+  const cache = new Map<string, Promise<unknown>>();
+  const once = <T>(key: string, load: () => Promise<T>) => {
+    if (!cache.has(key)) cache.set(key, load());
+    return cache.get(key) as Promise<T>;
+  };
+  const cachedProvider: RouteProvider = {
+    route: (pair, signal) => once(`${pair.from.id}>${pair.to.id}`, () => input.provider.route(pair, signal)),
+    ...(input.provider.coordinateRoute
+      ? { coordinateRoute: (pair: CoordinateRoutePair, signal: AbortSignal) => once(`${pair.from.latitude},${pair.from.longitude}>${pair.to.latitude},${pair.to.longitude}`, () => input.provider.coordinateRoute!(pair, signal)) }
+      : {}),
+  };
+
+  let latestJourney = input.baselineJourney;
+  const candidateJourneys = new Map<string, Awaited<ReturnType<typeof planJourney>>>();
+  const keyOf = (days: readonly PlannerCandidate[][]) => days.map(d => d.map(s => s.id).join(",")).join("|");
+  candidateJourneys.set(keyOf(input.selectedByDay), input.baselineJourney);
+
+  const baselineEval = mergeJourneyChecks(input.requirement, input.baselineJourney, input.selectedByDay.flat());
+  const opt = await optimizeScheduleForWeather({
+    requirement: input.requirement,
+    baselineDays: input.selectedByDay,
+    baseline: baselineEval,
+    forecast: input.forecast,
+    allowedDayIndices: input.allowedDayIndices,
+    lockedStopIds: input.lockedStopIds,
+    scheduleAndValidate: async candidateDays => {
+      const journey = await planJourney(
+        input.requirement,
+        candidateDays,
+        cachedProvider,
+        input.timeoutMs,
+        input.allowBoundaryRepartition ?? false,
+        input.fixedArrivals,
+        input.preferFullDays ?? false,
+      );
+      candidateJourneys.set(keyOf(candidateDays), journey);
+      return mergeJourneyChecks(input.requirement, journey, candidateDays.flat());
+    },
+  });
+
+  if (opt.adjusted) {
+    latestJourney = candidateJourneys.get(keyOf(opt.days)) ?? latestJourney;
+  }
+
+  return {
+    adjusted: opt.adjusted,
+    days: opt.evaluated.scheduled,
+    checks: opt.evaluated.checks,
+    stopStatuses: opt.evaluated.stopStatuses,
+    journeyPlan: latestJourney.journeyPlan,
+    selected: opt.days.flat(),
+  };
 }

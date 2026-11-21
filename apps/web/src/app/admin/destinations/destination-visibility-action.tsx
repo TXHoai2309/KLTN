@@ -77,7 +77,7 @@ export function useDestinationVisibility(onConfirmed: (dto: DestinationDto) => v
   }
   const feedback = <>
     {[...uncertainIds].map(id => { const current = attempts.current.get(id); return current && <div key={id} className="destination-uncertain" role="alert"><div><strong>Chưa xác định kết quả đổi trạng thái</strong><p>{current.name}: chưa xác nhận {current.target === "VISIBLE" ? "hiển thị" : "ẩn"}. Thử lại sẽ đọc dữ liệu rồi gửi cùng target/key.</p><button type="button" disabled={pendingIds.has(id)} onClick={() => void execute(undefined, id)}>Thử xác nhận lại</button></div></div>; })}
-    {confirmation && <dialog ref={dialog} className="destination-confirm" aria-labelledby="visibility-confirm-title" aria-describedby="visibility-confirm-description" onCancel={event => { event.preventDefault(); cancelConfirmation(); }}>
+    {confirmation && <dialog ref={dialog} className="destination-confirm destination-visibility-confirm" aria-labelledby="visibility-confirm-title" aria-describedby="visibility-confirm-description" onCancel={event => { event.preventDefault(); cancelConfirmation(); }}>
       <h2 id="visibility-confirm-title">Ẩn điểm đến này?</h2><p id="visibility-confirm-description">Điểm đến sẽ không còn xuất hiện trong nội dung công khai hoặc được dùng cho phương án hành trình mới.</p>
       <div><button type="button" autoFocus onClick={cancelConfirmation}>Hủy</button><button type="button" className="destination-primary" onClick={() => { const item = confirmation; dialog.current?.close(); setConfirmation(null); void execute(item); }}>Ẩn điểm đến</button></div>
     </dialog>}

@@ -39,7 +39,7 @@ for (const role of ["Guest", "Traveler", "Admin"]) test(`${role} public HTTP ret
   const response = await publicDestinationResponse(new Request("http://localhost/api/destinations/detail-a", { headers: role === "Guest" ? {} : { cookie: `test-role=${role}` } }), "detail-a", f.database);
   assert.equal(response.status, 200); assert.equal(response.headers.get("Cache-Control"), "no-store");
   const result = await response.json(); assert.equal(result.success, true);
-  assert.deepEqual(Object.keys(result.data).sort(), ["id", "name", "description", "area", "category", "latitude", "longitude", "suggestedDurationMinutes", "openingDays", "relatedCulture"].sort());
+  assert.deepEqual(Object.keys(result.data).sort(), ["id", "name", "description", "area", "category", "latitude", "longitude", "suggestedDurationMinutes", "isOutdoor", "openingDays", "relatedCulture"].sort());
   assert.equal(result.data.description, f.row.description); assert.equal(result.data.latitude, 23.2); assert.equal(result.data.longitude, 105.3); assert.equal(result.data.suggestedDurationMinutes, 90);
   assert.equal(result.data.openingDays.length, 7); assert.deepEqual(result.data.openingDays.map((d: any) => d.dayOfWeek), weekdays);
   assert.deepEqual(result.data.openingDays[0].intervals, [{ opensAt: "07:00", closesAt: "11:00" }, { opensAt: "13:00", closesAt: "24:00" }]);
@@ -109,12 +109,13 @@ test("duration formats minutes/hour/mixed/null without a fallback", () => {
   for (const [input, output] of [[45, "45 phút"], [60, "1 giờ"], [90, "1 giờ 30 phút"], [120, "2 giờ"], [null, "Chưa có dữ liệu"]] as const) assert.equal(formatSuggestedDuration(input), output);
 });
 
-test("public screen renders factual text and known operating days, omitting UNKNOWN optional rows", async () => {
+test("public screen renders factual text, the accepted Detail map, and known operating days while omitting UNKNOWN optional rows", async () => {
   const dto = await getPublicDestination("detail-a", fixture().database);
   const html = renderToStaticMarkup(createElement(DestinationDetail, { destination: dto }));
   for (const copy of [dto.name, dto.description, dto.area, dto.category, "Thông tin tham quan", "Thời lượng tham quan gợi ý", "1 giờ 30 phút", "23.2", "105.3", "07:00 – 11:00", "13:00 – 24:00", "Đóng cửa cả ngày", "Thứ Hai", "Thứ Ba"]) assert.ok(html.includes(copy), copy);
   assert.doesNotMatch(html, /Chưa có dữ liệu|Thứ Tư|Chủ Nhật/);
-  assert.doesNotMatch(html, />OPEN<|>CLOSED<|>UNKNOWN<|minimumDuration|<img|<iframe|Yêu thích|Hỏi AI/);
+  assert.doesNotMatch(html, />OPEN<|>CLOSED<|>UNKNOWN<|minimumDuration|<img|Yêu thích|Hỏi AI/);
+  assert.match(html, /class="destination-map destination-detail-iframe-map"/);
   assert.match(html, /href="\/explore"/); assert.match(html, /Quay lại Khám phá/); assert.match(html, /aria-labelledby="hours-title"/);
 });
 

@@ -6,7 +6,12 @@ describe("Assistant V2 skill registry and loader", () => {
   it("registers planning, replanning and read-only QA with separate capabilities", () => {
     expect(Object.keys(assistantSkills)).toEqual(["travel-planning", "itinerary-replanning", "ha-giang-qa", "in-trip-assistance"]);
     expect(loadAssistantSkill("itinerary-replanning").allowedActions).toEqual(["replan-preliminary-proposal"]);
-    expect(loadAssistantSkill("ha-giang-qa").allowedActions).toEqual(["answer-ha-giang-question"]);
+    const qaSkill = loadAssistantSkill("ha-giang-qa");
+    expect(qaSkill.allowedActions).toEqual(["answer-ha-giang-question"]);
+    expect(qaSkill.instructions).toContain("destination weather/sun-time forecasts");
+    expect(qaSkill.instructions).toContain("saved-trip or in-trip weather");
+    expect(qaSkill.instructions).not.toContain("booking, live weather");
+    expect(qaSkill.instructions).toContain("without verdicts");
     const skill = loadAssistantSkill("travel-planning");
     expect(skill.id).toBe("travel-planning");
     expect(skill.description).toContain("Hà Giang");

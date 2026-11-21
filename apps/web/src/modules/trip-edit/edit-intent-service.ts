@@ -3,6 +3,14 @@ import {
   isPreferenceExtractionError,
 } from "../preference-extraction/preference-extraction-errors";
 import type { StructuredLlmClient } from "../preference-extraction/preference-extraction-client";
+import {
+  buildWorkspaceAiPrompt,
+  createWorkspacePlanJsonSchema,
+  verifyWorkspacePlanOutput,
+  type AiChatHistoryTurn,
+  type VerifiedWorkspacePlan,
+  type WorkspacePromptJourneyContext,
+} from "./ai-workspace-plan";
 import { createModelOutputJsonSchema } from "./edit-intent-contract";
 import {
   buildEditIntentPrompt,
@@ -113,4 +121,55 @@ export async function recognizeEditIntent(
   }
 
   return verifyEditIntentOutput(completion.rawText, prompt.serverContext);
+}
+
+/** Recognize a multi-op Workspace AI plan (or legacy 7-field output) under strict ID bounds. */
+export async function recognizeWorkspaceEditPlan(
+  input: EditIntentPromptInput & {
+    history?: readonly AiChatHistoryTurn[];
+    journeyState?: WorkspacePromptJourneyContext;
+  },
+  dependencies: EditIntentServiceDependencies,
+): Promise<VerifiedWorkspacePlan> {
+  const prompt = buildWorkspaceAiPrompt(input);
+  const serverVisitIds = prompt.serverContext.itinerary.flatMap((day) =>
+    day.visits.map((visit) => visit.visitId),
+  );
+  const serverDestinationIds =
+    prompt.serverContext.eligibleDestinations?.map((destination) => destination.id) ?? [];
+  const jsonSchema = createWorkspacePlanJsonSchema({ serverVisitIds, serverDestinationIds });
+  const timeoutMs = validateTimeout(
+    dependencies.timeoutMs ?? MAX_EDIT_INTENT_PROVIDER_TIMEOUT_MS,
+  );
+
+  let completion: Awaited<ReturnType<StructuredLlmClient["complete"]>>;
+  try {
+    completion = await withTimeout(
+      (signal) =>
+        dependencies.llm.complete({
+          system: prompt.system,
+          user: prompt.user,
+          jsonSchema,
+          signal,
+        }),
+      timeoutMs,
+      dependencies.signal,
+    );
+  } catch (error) {
+    if (isPreferenceExtractionError(error)) throw error;
+    throw new PreferenceExtractionError("PROVIDER_UNAVAILABLE", true);
+  }
+
+  if (
+    !completion ||
+    typeof completion.rawText !== "string" ||
+    completion.rawText.length === 0 ||
+    completion.rawText.length > MAX_EDIT_INTENT_OUTPUT_CHARS ||
+    typeof completion.model !== "string" ||
+    completion.model.trim().length === 0
+  ) {
+    throw invalidProviderResponse();
+  }
+
+  return verifyWorkspacePlanOutput(completion.rawText, prompt.serverContext);
 }

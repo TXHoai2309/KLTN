@@ -114,7 +114,7 @@ Ví dụ: “3 ngày từ Hà Nội, đi 06:00, về trước 21:00 ngày cuối
 - Xe khách, máy bay, thuê xe và nhiều phương tiện trong một chuyến; xuất phát ngoài Việt Nam hoặc hành trình qua biên giới; thêm điểm tham quan ngoài Hà Giang.
 - Lái xuyên đêm sang ngày khác, tự tăng ngày, tự bỏ must-visit, tự bỏ nghỉ để làm lịch hợp lệ.
 - Booking, địa chỉ chỗ nghỉ thực tế, đường ra/vào khách sạn, bữa ăn riêng, điểm hẹn nhóm, continuous GPS tracking hoặc lưu lịch sử GPS dài hạn.
-- Tối ưu tuyến đa mục tiêu phức tạp, chứng nhận an toàn lái xe, thời tiết/giao thông thời gian thực hoặc cam kết Nominatim luôn sẵn có.
+- Tối ưu tuyến đa mục tiêu phức tạp, chứng nhận an toàn lái xe, giao thông thời gian thực hoặc cam kết Nominatim luôn sẵn có. Thời tiết chỉ ở dạng cảnh báo tham khảo theo [ADR-36](../decisions.md#adr-36--weather-is-an-advisory-never-a-constraint-validator-input-2026-11-18) và [WEATHER-SUN-ADVISORIES](../stories/WEATHER-SUN-ADVISORIES.md), không phải ràng buộc.
 - Thay quyền sở hữu Trip, shared editing, Admin private-read bypass, tự sửa toàn bộ ordinary EDIT hoặc thay cách phân loại trạng thái chuyến theo ngày.
 
 ## Further Notes

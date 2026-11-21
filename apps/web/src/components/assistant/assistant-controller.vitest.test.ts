@@ -88,6 +88,14 @@ describe("Task 195 controller (no persistence or HTTP endpoint)", () => {
     h.controller.editFailed(); expect(h.controller.getSnapshot().draft).toBe("failed fixture");
     h.controller.submit(); expect(h.calls[1]!.key).not.toBe(h.calls[0]!.key);
   });
+  it("keeps the safe AI error category and retries the exact failed intent", async () => {
+    const h = harness(); h.controller.setDraft("failed fixture"); h.controller.submit();
+    h.resolves[0]!({ kind: "response", httpStatus: 503, body: { success: false, operationStatus: "FAILED", error: { code: "AI_UNAVAILABLE", message: "Dịch vụ AI hiện không khả dụng." } } });
+    await tick();
+    expect(h.controller.getSnapshot().pending).toMatchObject({ phase: "failed", code: "AI_UNAVAILABLE" });
+    expect(h.controller.retry()).toBe(true);
+    expect(h.calls[1]).toBe(h.calls[0]);
+  });
   it("accepts the same committed result on same-key retry exactly once", async () => {
     const h = harness(); h.controller.setDraft("fixture"); h.controller.submit();
     const committed = completed();
@@ -192,6 +200,17 @@ describe("Task 195 answer renderer and production graph", () => {
     let ids: string[] = [];
     const html = renderToStaticMarkup(createElement(AssistantAnswer, { turn, citationSlot: ({ part }) => { ids = part.citationIds; return "slot"; } }));
     expect(html).not.toContain("<script>"); expect(html).toContain("&lt;script&gt;"); expect(ids).toEqual(["c1"]);
+  });
+  it("retries the identical unresolved attempt after a known AI technical failure (US-40)", async () => {
+    const h = harness(); h.controller.setDraft("Câu hỏi gặp lỗi kỹ thuật"); h.controller.submit();
+    const firstAttempt = h.calls[0]!;
+    h.resolves[0]!({ kind: "response", httpStatus: 503, body: { success: false, operationStatus: "FAILED", error: { code: "AI_UNAVAILABLE", message: "Dịch vụ AI tạm thời không khả dụng." } } });
+    await tick();
+    expect(h.controller.getSnapshot().pending).toMatchObject({ phase: "failed", code: "AI_UNAVAILABLE" });
+    expect(h.controller.retry()).toBe(true);
+    expect(h.calls[1]).toBe(firstAttempt);
+    h.resolves[1]!(completed()); await tick();
+    expect(h.controller.getSnapshot().turns).toHaveLength(1);
   });
   it("bundles production page without any demo/fixtures/fake transport imports", async () => {
     const result = await build({ entryPoints: [fileURLToPath(new URL("../../app/assistant/page.tsx", import.meta.url))], bundle: true, write: false, outdir: "in-memory-check", metafile: true, jsx: "automatic", external: ["next", "./assistant-context-page"], define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent" });

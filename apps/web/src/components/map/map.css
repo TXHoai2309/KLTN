@@ -29,3 +29,6 @@
 .destination-detail-map-link { display: inline-block; margin-top: 10px; color: #216145; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 .dark .destination-detail-map-link { color: #a5d5b4; }
 @media(max-width: 600px) { .destination-map-canvas { height: 360px; } }
+/* Map background toggle (WEATHER-SUN-ADVISORIES ticket 10) */
+.destination-map-background { position: absolute; top: 0.75rem; left: 0.75rem; z-index: 2; padding: 0.375rem 0.75rem; border-radius: 999px; border: 1px solid rgba(127, 127, 127, 0.35); background: var(--background, #fff); color: var(--foreground, #111); font-size: 0.8rem; cursor: pointer; }
+.destination-map-background:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }

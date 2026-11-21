@@ -16,7 +16,9 @@ import { planningTurnKeySchema } from "./planning-actions";
 import { assessPlanningReadiness } from "./planning-readiness";
 import { assessPlanningRefinement } from "./planning-refinement";
 import { AssistantV2Error } from "./agent-errors";
-import { composePlanningV2Reply, planningResponsePlan, safePlanningV2Reply, type PlanningResponsePlan, type PlanningV2ReplyComposer } from "./planning-response";
+import { appendProposalWeatherAdvisoryLine, composePlanningV2Reply, isProposalMutatingPlan, planningResponsePlan, safePlanningV2Reply, type PlanningResponsePlan, type PlanningV2ReplyComposer } from "./planning-response";
+import type { ProposalWeatherEvaluator } from "./proposal-weather-advisories";
+import { WEATHER_PREFERENCE_WARNING } from "../trip-planner/planner-weather-preference";
 import { analyzeCurrentProposal } from "./planning-guidance";
 import { createPlanningQaSession, planningQaStateSchema } from "./qa-session";
 import type { QaActionServices } from "./qa-actions";
@@ -31,6 +33,7 @@ type SessionDependencies = {
   forActor: (userId: string, headers: Headers) => PlanningDependencies;
   compose?: PlanningV2ReplyComposer;
   qaForActor?: (userId: string, headers: Headers) => QaActionServices | Promise<QaActionServices>;
+  weatherForProposal?: ProposalWeatherEvaluator;
 };
 export type PlanningV2Turn = {
   workspace: z.infer<typeof planningWorkspaceSchema>;
@@ -263,7 +266,7 @@ export async function startTravelPlanningV2Session(input: { headers: Headers; co
               workspace = result.workspace;
               needs = workspace.needs;
               generated = result.generated;
-              plan = planningResponsePlan(needs, "PRESENT_PROPOSAL", generated);
+              plan = { ...planningResponsePlan(needs, "PRESENT_PROPOSAL", generated), proposalChanged: true };
             } catch (error) {
               if (!(error instanceof AssistantV2Error) || error.code !== "ACTION_EXECUTION_FAILED") throw error;
               if (error.cause instanceof AppError && [401, 403, 404, 409].includes(error.cause.status)) throw error;
@@ -277,6 +280,15 @@ export async function startTravelPlanningV2Session(input: { headers: Headers; co
             }
           }
         }
+      }
+    }
+    if (isProposalMutatingPlan(plan) && generated) {
+      if (generated.proposal.warnings.some(w => w.code === WEATHER_PREFERENCE_WARNING.code)) {
+        plan.weatherPreferenceApplied = true;
+      }
+      if (boundaries.weatherForProposal) {
+        const advisories = await boundaries.weatherForProposal(generated.proposal);
+        if (advisories.length > 0) plan.weatherAdvisories = advisories;
       }
     }
     const message = await safePlanningV2Reply(plan, responseSkill, boundaries.compose ?? composePlanningV2Reply);
@@ -302,19 +314,38 @@ export async function startTravelPlanningV2Session(input: { headers: Headers; co
       busy = true;
       try {
         const context = createAssistantAgentContext({ userId: actor.userId, workspace });
+        let originProposalChanged = false;
         if (generated) {
           const result = await refinePreliminaryProposal({ needs: updated, current: generated, key: turnKey }, context, services.planning);
           if (result.outcome !== "PUBLISHED") return turnResult(planningResponsePlan(needs, "REFINEMENT_FAILED", result.candidate), "Phương án mới chưa phù hợp; giữ nguyên phương án trước.", result.candidate);
           workspace = result.workspace; generated = result.generated; needs = workspace.needs;
+          originProposalChanged = true;
         } else if (assessPlanningReadiness(updated).canDraft) {
           const result = await generatePreliminaryProposal({ needs: updated, key: turnKey }, context, services.planning);
           workspace = result.workspace; generated = result.generated; needs = workspace.needs;
+          originProposalChanged = true;
         } else {
           workspace = planningWorkspaceSchema.parse(await deps.repository.review(workspace.conversationId, workspace.version, updated, planningHash({ key: turnKey, phase: "origin-review" })));
           needs = updated;
         }
         pendingClarificationNeeds = null; pendingReplan = null;
-        return turnResult(planningResponsePlan(needs, generated ? "PRESENT_PROPOSAL" : undefined, generated ?? undefined), generated ? "Đã tính lại phương án theo nơi và giờ đi/về đã chọn. Lưu chuyến vẫn là bước xác nhận riêng." : "Đã ghi nhận nơi và giờ đi/về; cần số ngày và phương tiện để lập đề xuất.");
+        const originPlan: PlanningResponsePlan = {
+          ...planningResponsePlan(needs, generated ? "PRESENT_PROPOSAL" : undefined, generated ?? undefined),
+          proposalChanged: originProposalChanged,
+        };
+        if (originProposalChanged && generated) {
+          if (generated.proposal.warnings.some(w => w.code === WEATHER_PREFERENCE_WARNING.code)) {
+            originPlan.weatherPreferenceApplied = true;
+          }
+          if (boundaries.weatherForProposal) {
+            const advisories = await boundaries.weatherForProposal(generated.proposal);
+            if (advisories.length > 0) originPlan.weatherAdvisories = advisories;
+          }
+        }
+        const originBaseReply = generated
+          ? "Đã tính lại phương án theo nơi và giờ đi/về đã chọn. Lưu chuyến vẫn là bước xác nhận riêng."
+          : "Đã ghi nhận nơi và giờ đi/về; cần số ngày và phương tiện để lập đề xuất.";
+        return turnResult(originPlan, appendProposalWeatherAdvisoryLine(originBaseReply, originPlan));
       } catch (error) {
         if (!(error instanceof AppError) || error.status >= 500) uncertain = true;
         throw error;
