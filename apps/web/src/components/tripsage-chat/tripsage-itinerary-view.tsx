@@ -2,6 +2,7 @@
 
 import { lazy, Suspense, useState, type ReactNode } from "react";
 import { EXTERNAL_PLACE_LABEL, EXTERNAL_PLACE_SOURCE_LABEL, EXTERNAL_STAY_ESTIMATE_LABEL, plannerResultSchema, type PlannerResult } from "@/modules/trip-planner/planner-contract";
+import { formatTravelOnlyDayLabel } from "@/modules/tripsage-chat/tripsage-timeline";
 import { ItineraryDayTabs, ItineraryStopCard, ItineraryValidationPanel, TripOverviewCard, TripSummaryBar, WarningNoticeRow } from "@/components/trip-planner/planner-presentation";
 import "@/components/trip-planner/trip-planner.css";
 
@@ -56,7 +57,9 @@ export function TripsageItineraryView({ proposal, children }: { proposal: Planne
             <ItineraryStopCard key={stop.destination.id} stop={stop} nextStop={day.stops[index + 1]} selected={stop.destination.id === selectedId} onSelect={setSelectedId} />
           ))}
         </ol>
-      ) : <p>Chưa có điểm phù hợp cho ngày này.</p>}
+      ) : (
+        <p className="tripsage-travel-only-day">{formatTravelOnlyDayLabel(day, proposal.journeyPlan) ?? "Chưa có điểm phù hợp cho ngày này."}</p>
+      )}
       <div className="tripsage-map-collapse">
         <button
           type="button"

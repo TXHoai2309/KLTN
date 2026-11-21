@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { PlannerResult } from "../trip-planner/planner-contract";
 import { TRIP_HUBS } from "./trip-hubs";
 
 /**
@@ -7,8 +8,16 @@ import { TRIP_HUBS } from "./trip-hubs";
  */
 export const ACCESS_MODES = ["FLIGHT", "SLEEPER_BUS", "TRAIN", "SHUTTLE"] as const;
 export const ACCESS_MODE_LABELS: Record<(typeof ACCESS_MODES)[number], string> = { FLIGHT: "Máy bay", SLEEPER_BUS: "Xe khách giường nằm", TRAIN: "Tàu hỏa", SHUTTLE: "Xe trung chuyển" };
-/** A drive over this long from the origin suggests flying or taking a bus to a hub instead. */
+/**
+ * Single source of truth for suggesting a closer trip hub (TP Hà Giang / Hà Nội):
+ * - Any trip: outbound drive exceeds 10h (600 min) or hits OVERNIGHT_DRIVING_UNSUPPORTED.
+ * - Short trips (<= 4 days): Day 1 is travel-only (OUTBOUND_ONLY / 0 visits with an outbound leg),
+ *   or Day-1 outbound drive is >= 6h (360 min) or >= 300 km (e.g. Thanh Hóa → Hà Giang ~446 km eats Day 1).
+ */
 export const LONG_OUTBOUND_MINUTES = 600;
+export const SHORT_TRIP_MAX_DAYS = 4;
+export const SHORT_TRIP_LONG_OUTBOUND_MINUTES = 360;
+export const SHORT_TRIP_LONG_OUTBOUND_KM = 300;
 
 const segmentSchema = z.object({
   mode: z.enum(ACCESS_MODES),
@@ -45,3 +54,22 @@ export function buildAccessLeg(input: AccessLegInput, homeCity: string, traveler
 }
 
 export const isHubOrigin = (label: string | undefined) => TRIP_HUBS.some(hub => hub.name === label);
+
+/** Returns true when driving from the current origin eats too much of Day 1 and a closer hub should be offered. */
+export function shouldSuggestHub(result: PlannerResult): boolean {
+  if (isHubOrigin(result.requirement.journey?.origin?.label)) return false;
+  const outbound = result.journeyPlan?.legs.find(leg => leg.kind === "OUTBOUND");
+  const outboundMinutes = (outbound?.route.durationSeconds ?? 0) / 60;
+  const outboundKm = (outbound?.route.distanceMeters ?? 0) / 1000;
+  if (result.reasonCodes.includes("OVERNIGHT_DRIVING_UNSUPPORTED") || outboundMinutes > LONG_OUTBOUND_MINUTES) {
+    return true;
+  }
+  if (result.requirement.durationDays <= SHORT_TRIP_MAX_DAYS) {
+    const day1 = result.days[0];
+    const day1TravelOnly = day1?.journeyDayKind === "OUTBOUND_ONLY" || (day1?.stops.length === 0 && outbound !== undefined);
+    if (day1TravelOnly || outboundMinutes >= SHORT_TRIP_LONG_OUTBOUND_MINUTES || outboundKm >= SHORT_TRIP_LONG_OUTBOUND_KM) {
+      return true;
+    }
+  }
+  return false;
+}

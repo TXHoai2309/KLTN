@@ -1,11 +1,11 @@
-import { BedDouble, Car, Flag, Home, Lightbulb, MapPin, Moon, UtensilsCrossed } from "lucide-react";
+import { BedDouble, Car, Clock, Flag, Home, Lightbulb, MapPin, Moon, UtensilsCrossed } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { clockLabel, type TimelineItem, type TimelinePart, type TimelineSuggestion } from "@/modules/tripsage-chat/tripsage-timeline";
 
 const ITEM_ICON: Record<TimelineItem["kind"], ReactNode> = {
   DEPART: <Flag size={15} aria-hidden="true" />, DRIVE: <Car size={15} aria-hidden="true" />, VISIT: <MapPin size={15} aria-hidden="true" />,
-  LUNCH: <UtensilsCrossed size={15} aria-hidden="true" />, OVERNIGHT: <Moon size={15} aria-hidden="true" />, ARRIVE_HOME: <Home size={15} aria-hidden="true" />,
+  LUNCH: <UtensilsCrossed size={15} aria-hidden="true" />, FREE_TIME: <Clock size={15} aria-hidden="true" />, OVERNIGHT: <Moon size={15} aria-hidden="true" />, ARRIVE_HOME: <Home size={15} aria-hidden="true" />,
 };
 const SUGGESTION_ICON: Record<TimelineSuggestion["kind"], ReactNode> = {
   MEAL: <UtensilsCrossed size={13} aria-hidden="true" />, EVENING: <Moon size={13} aria-hidden="true" />, LODGING: <BedDouble size={13} aria-hidden="true" />, TIP: <Lightbulb size={13} aria-hidden="true" />,

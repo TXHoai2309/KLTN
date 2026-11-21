@@ -7,8 +7,10 @@ import type { PlannerResult } from "../trip-planner/planner-contract";
  */
 export const LUNCH_WINDOW = { fromMinute: 690, toMinute: 840 } as const;
 export const DEFAULT_LUNCH_MINUTES = 60;
+/** Days finishing before 16:00 show afternoon free time instead of placing "Nghỉ đêm" in the morning/midday. */
+export const EARLY_DAY_END_MINUTE = 960;
 const minute = z.number().int().min(0).max(2880).nullable();
-export const TIMELINE_KINDS = ["DEPART", "DRIVE", "VISIT", "LUNCH", "OVERNIGHT", "ARRIVE_HOME"] as const;
+export const TIMELINE_KINDS = ["DEPART", "DRIVE", "VISIT", "LUNCH", "FREE_TIME", "OVERNIGHT", "ARRIVE_HOME"] as const;
 export const timelinePartSchema = z.object({
   days: z.array(z.object({
     day: z.number().int().min(1).max(14),
@@ -60,6 +62,37 @@ function lunchAfter(stops: PlannerResult["days"][number]["stops"]): number | nul
   return null;
 }
 
+/** Formats overnight area without duplicating "khu vực" (e.g. "khu vực Hà Giang" → "Nghỉ đêm khu vực Hà Giang"). */
+export function formatOvernightLabel(area: string | null | undefined): string {
+  const cleaned = (area ?? "").trim().replace(/^(?:khu\s+vực\s+)+/iu, "").trim();
+  return cleaned ? `Nghỉ đêm khu vực ${cleaned}` : "Nghỉ đêm";
+}
+
+function formatApproxDuration(seconds: number): string {
+  const totalMinutes = Math.max(1, Math.round(seconds / 60));
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  if (hours === 0) return `~${mins} phút`;
+  return mins === 0 ? `~${hours} giờ` : `~${hours} giờ ${mins} phút`;
+}
+
+/** Label for a day with no scheduled visits that carries an outbound or return travel leg. */
+export function formatTravelOnlyDayLabel(
+  day: PlannerResult["days"][number],
+  journeyPlan?: PlannerResult["journeyPlan"],
+): string | null {
+  if (day.stops.length > 0) return null;
+  const leg = journeyPlan?.legs.find(item => (item.kind === "OUTBOUND" || item.kind === "RETURN") && item.day === day.day);
+  const isTravelOnly = day.journeyDayKind === "OUTBOUND_ONLY" || day.journeyDayKind === "RETURN_ONLY" || leg !== undefined;
+  if (!isTravelOnly) return null;
+  const meters = leg?.route.distanceMeters ?? day.distanceMeters ?? null;
+  const seconds = leg?.route.durationSeconds ?? day.travelSeconds ?? null;
+  const parts = ["Ngày di chuyển"];
+  if (meters !== null && meters > 0) parts.push(`${Math.round(meters / 1000).toLocaleString("vi-VN")} km`);
+  if (seconds !== null && seconds > 0) parts.push(formatApproxDuration(seconds));
+  return parts.join(" · ");
+}
+
 export function buildDayTimeline(result: PlannerResult): TimelinePart {
   const lunchMinutes = result.requirement.dayRhythm?.lunchMinutes ?? DEFAULT_LUNCH_MINUTES;
   const originLabel = result.requirement.journey?.origin?.label ?? "điểm xuất phát";
@@ -69,9 +102,13 @@ export function buildDayTimeline(result: PlannerResult): TimelinePart {
     days: result.days.map(day => {
       const items: TimelineItem[] = [];
       const outbound = legs.find(leg => leg.kind === "OUTBOUND" && leg.day === day.day);
+      const travelOnlyLabel = formatTravelOnlyDayLabel(day, result.journeyPlan);
       if (outbound) {
         items.push({ slotId: `d${day.day}-depart`, kind: "DEPART", startMinute: outbound.startMinute, endMinute: null, label: `Khởi hành từ ${originLabel}` });
-        items.push({ slotId: `d${day.day}-drive-0`, kind: "DRIVE", startMinute: outbound.startMinute, endMinute: outbound.endMinute, label: outbound.restMinutes ? `Di chuyển, gồm ${outbound.restMinutes} phút nghỉ dọc đường` : "Di chuyển" });
+        const driveBase = travelOnlyLabel ?? "Di chuyển";
+        items.push({ slotId: `d${day.day}-drive-0`, kind: "DRIVE", startMinute: outbound.startMinute, endMinute: outbound.endMinute, label: outbound.restMinutes ? `${driveBase}, gồm ${outbound.restMinutes} phút nghỉ dọc đường` : driveBase });
+      } else if (travelOnlyLabel && !legs.some(leg => leg.kind === "RETURN" && leg.day === day.day)) {
+        items.push({ slotId: `d${day.day}-drive-0`, kind: "DRIVE", startMinute: null, endMinute: null, label: travelOnlyLabel });
       }
       const lunch = lunchAfter(day.stops);
       day.stops.forEach((stop, index) => {
@@ -86,12 +123,19 @@ export function buildDayTimeline(result: PlannerResult): TimelinePart {
       });
       const returning = legs.find(leg => leg.kind === "RETURN" && leg.day === day.day);
       if (returning) {
-        items.push({ slotId: `d${day.day}-drive-9`, kind: "DRIVE", startMinute: returning.startMinute, endMinute: returning.endMinute, label: returning.restMinutes ? `Chặng về, gồm ${returning.restMinutes} phút nghỉ dọc đường` : "Chặng về" });
+        const returnBase = travelOnlyLabel ?? "Chặng về";
+        items.push({ slotId: `d${day.day}-drive-9`, kind: "DRIVE", startMinute: returning.startMinute, endMinute: returning.endMinute, label: returning.restMinutes ? `${returnBase}, gồm ${returning.restMinutes} phút nghỉ dọc đường` : returnBase });
         items.push({ slotId: `d${day.day}-home`, kind: "ARRIVE_HOME", startMinute: returning.endMinute, endMinute: null, label: `Về đến ${originLabel}` });
       }
       const lastStop = day.stops.at(-1);
       if (day.day < last) {
-        items.push({ slotId: `d${day.day}-overnight`, kind: "OVERNIGHT", startMinute: lastStop?.departureMinute ?? null, endMinute: null, label: lastStop?.destination.area ? `Nghỉ đêm khu vực ${lastStop.destination.area}` : "Nghỉ đêm" });
+        const lastActivityEnd = lastStop?.departureMinute ?? outbound?.endMinute ?? null;
+        if (lastActivityEnd !== null && lastActivityEnd < EARLY_DAY_END_MINUTE) {
+          items.push({ slotId: `d${day.day}-free`, kind: "FREE_TIME", startMinute: lastActivityEnd, endMinute: null, label: "Tự do buổi chiều" });
+          items.push({ slotId: `d${day.day}-overnight`, kind: "OVERNIGHT", startMinute: null, endMinute: null, label: formatOvernightLabel(lastStop?.destination.area) });
+        } else {
+          items.push({ slotId: `d${day.day}-overnight`, kind: "OVERNIGHT", startMinute: lastActivityEnd, endMinute: null, label: formatOvernightLabel(lastStop?.destination.area) });
+        }
       }
       return { day: day.day, date: day.date, items };
     }),

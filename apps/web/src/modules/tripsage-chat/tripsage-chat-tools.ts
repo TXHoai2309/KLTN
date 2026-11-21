@@ -13,7 +13,7 @@ import { haversine } from "../trip-planner/planner-geography";
 import { SUGGESTION_KINDS, suggestionSchema, timelineSlotIds, type TimelineSuggestion } from "./tripsage-timeline";
 import { costLineInputSchema, estimateTripCost, PRICE_REFERENCE, type CostPart } from "./tripsage-cost";
 import { itineraryDistanceKm } from "./tripsage-chat-context";
-import { accessLegInputSchema, buildAccessLeg, isHubOrigin, LONG_OUTBOUND_MINUTES, type AccessLegPart } from "./tripsage-access-leg";
+import { accessLegInputSchema, buildAccessLeg, isHubOrigin, shouldSuggestHub, type AccessLegPart } from "./tripsage-access-leg";
 import { domainOf, isSafePublicHttpsUrl, WEB_DATA_MARKER, type WebLookup } from "./tripsage-web";
 import { quickRepliesPartSchema, resolveEffectiveJourney, tripInfoSchema, withTripInfoDefaults, type ChatSourceItem, type OriginCandidatesPart, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
 import { FIXED_HUB_CANDIDATES, matchFixedHub, MAX_ORIGIN_CANDIDATES, permitsOriginConfirmation, type SignedOriginCandidate, type VerifiedOriginCandidates } from "./tripsage-chat-origin";
@@ -439,13 +439,11 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         context.emitItinerary(result);
         latestDays = result.days.map(day => day.stops.map(stop => stop.destination.id));
         latestDistanceKm = itineraryDistanceKm(result);
-        const outbound = result.journeyPlan?.legs.find(leg => leg.kind === "OUTBOUND");
-        const longDrive = result.reasonCodes.includes("OVERNIGHT_DRIVING_UNSUPPORTED") || (outbound?.route.durationSeconds ?? 0) / 60 > LONG_OUTBOUND_MINUTES;
-        if (longDrive && !isHubOrigin(effectiveJourney?.origin?.label)) hubSuggested = true;
+        if (shouldSuggestHub(result)) hubSuggested = true;
         const names = new Map(all.map(c => [c.id, c.name]));
         return { ok: true as const, status: result.status, eligibleForFinalConfirmation: result.eligibleForFinalConfirmation,
           ...(assumedFields.length > 0 ? { assumedFields } : {}),
-          ...(hubSuggested ? { hubHint: "Lái xe thẳng từ điểm xuất phát không khả thi hoặc quá xa. Gợi ý người dùng bay hoặc đi xe khách tới điểm tập kết cố định (Hà Nội: hub:HA_NOI hoặc TP Hà Giang: hub:HA_GIANG_CITY) rồi thuê xe: hỏi thành phố họ ở (recordTripInfo homeCity), mời chọn điểm tập kết (xác nhận bằng confirmOrigin khi họ đồng ý), và planAccessLeg để ước tính chặng tiếp cận." } : {}),
+          ...(hubSuggested ? { hubHint: "Chặng ngày 1 từ điểm xuất phát quá dài hoặc không khả thi. Gợi ý người dùng đi xe khách/bay tới điểm tập kết gần hơn (ưu tiên TP Hà Giang: hub:HA_GIANG_CITY cho chuyến ngắn, hoặc Hà Nội: hub:HA_NOI) rồi thuê xe: ghi homeCity nếu cần, mời chọn điểm tập kết (xác nhận bằng confirmOrigin khi họ đồng ý), và planAccessLeg để ước tính chặng tiếp cận." } : {}),
           days: result.days.map(day => ({ day: day.day, stops: day.stops.map(stop => names.get(stop.destination.id) ?? stop.destination.name) })),
           checks: result.checks.map(check => ({ key: check.key, status: check.status })),
           note: `Lịch đầy đủ đã hiển thị cho người dùng. Chỉ nhận xét ngắn; trạng thái khác PASS nghĩa là chưa được xác nhận.${blockingAssumed.length > 0 ? ` Đây là bản nháp giả định (${assumedFields.join(", ")}): viết đúng một dòng nêu các giả định đang dùng, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (nơi xuất phát hoặc ngày đi), đưa giả định còn lại vào suggestReplies; lịch chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi.` : ""}${external.length ? " Có địa điểm ngoài danh mục (Google Maps): chưa được kiểm tra, thời gian ở lại chỉ là ước tính, lịch này chưa thể lưu." : ""}` };
