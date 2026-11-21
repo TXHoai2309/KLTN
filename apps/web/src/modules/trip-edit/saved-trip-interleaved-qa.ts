@@ -614,7 +614,7 @@ function scrubUnverifiedPricesOrHoursFromExpanded(text: string): string {
   return safe;
 }
 
-async function answerLocalKnowledgeQuestion(input: {
+export async function answerLocalKnowledgeQuestion(input: {
   message: string;
   targetDestinationId: string | null;
   history: readonly AiChatHistoryTurn[];

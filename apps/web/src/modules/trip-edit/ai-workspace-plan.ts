@@ -1100,6 +1100,12 @@ export function isTripFrameEditRequest(message: string): boolean {
   );
 }
 
+/** True when the traveler asks where/when the trip departs or returns. */
+export function isJourneyQuestion(message: string): boolean {
+  const folded = message.normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/giu, "d").toLowerCase();
+  return /\b(?:xuat\s+phat|khoi\s+hanh|di\s+tu\s+dau|bat\s+dau\s+tu\s+dau|may\s+gio\s+(?:di|xuat|khoi)|tro\s+ve|ve\s+(?:luc|toi\s+nha|nha))\b/u.test(folded);
+}
+
 /** Deterministically synthesize concise Planning guidance from server-validated facts only. */
 export function buildGroundedAdvice(input: {
   candidate: EditCandidate;
@@ -1111,6 +1117,8 @@ export function buildGroundedAdvice(input: {
   uncheckedItems?: readonly UncheckedItem[];
   focusDayIndex?: number | null;
   topic?: AdviceTopic;
+  /** Put the departure/return line first when the traveler asked about it. */
+  journeyFirst?: boolean;
 }): string {
   if (input.topic === "FRAME_IMMUTABLE") {
     return IMMUTABLE_FRAME_ADVICE;
@@ -1207,24 +1215,34 @@ export function buildGroundedAdvice(input: {
     lines.push("Hiện chưa phát hiện xung đột giờ mở cửa, thời lượng tối thiểu hay chồng chéo trong phạm vi đã kiểm tra.");
   }
 
-  if (input.journeySummary) {
+  const journey = input.candidate.journey;
+  if (input.journeySummary || journey?.origin) {
     const js = input.journeySummary;
     const journeyBits: string[] = [];
-    if (js.estimatedArrivalAtFirstMinute != null) {
+    if (journey?.origin) {
+      journeyBits.push(
+        journey.departureMinute != null
+          ? `khởi hành từ ${journey.origin.label} lúc ${minuteClockLabel(journey.departureMinute)}`
+          : `khởi hành từ ${journey.origin.label} (chưa đặt giờ khởi hành)`,
+      );
+    }
+    if (js?.estimatedArrivalAtFirstMinute != null) {
       journeyBits.push(`dự kiến tới điểm đầu lúc ${minuteClockLabel(js.estimatedArrivalAtFirstMinute)}`);
     }
-    if (js.estimatedReturnArrivalMinute != null) {
+    if (js?.estimatedReturnArrivalMinute != null) {
       const deadlineLabel = js.returnDeadlineMinute != null
         ? ` (hạn về ${minuteClockLabel(js.returnDeadlineMinute)})`
         : "";
       journeyBits.push(`về tới nơi xuất phát lúc ${minuteClockLabel(js.estimatedReturnArrivalMinute)}${deadlineLabel}`);
     }
     if (journeyBits.length > 0) {
-      lines.push(`Lộ trình xuất phát/trở về: ${journeyBits.join("; ")}.`);
+      const journeyLine = `Lộ trình xuất phát/trở về: ${journeyBits.join("; ")}.`;
+      if (input.journeyFirst) lines.unshift(journeyLine);
+      else lines.push(journeyLine);
     }
   }
 
-  if (input.topic === "JOURNEY_ORIGIN" && !input.journeySummary) {
+  if (input.topic === "JOURNEY_ORIGIN" && !input.journeySummary && !journey?.origin) {
     lines.push("Chuyến đi hiện chưa bật điểm xuất phát (Trip origin). Bạn có thể bổ sung qua nút '+ Bổ sung nơi xuất phát'.");
   }
 

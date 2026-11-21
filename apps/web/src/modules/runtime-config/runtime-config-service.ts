@@ -17,7 +17,7 @@ function envDefaults(service: RuntimeService): Record<string, string | number | 
     apiKey: process.env.OPENAI_API_KEY,
     preferenceModel: process.env.OPENAI_PREFERENCE_MODEL,
     editorialModel: "gpt-6-luna",
-    qaModel: "gpt-6.1-sol",
+    qaModel: "gpt-6.1-terra",
     editorialTimeoutMs: process.env.OPENAI_EDITORIAL_TIMEOUT_MS ? Number(process.env.OPENAI_EDITORIAL_TIMEOUT_MS) : undefined,
   };
   if (service === "CLOUDINARY") return {

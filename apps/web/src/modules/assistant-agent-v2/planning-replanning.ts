@@ -41,7 +41,7 @@ export const replanOutputSchema = z.discriminatedUnion("outcome", [
   z.object({ outcome: z.literal("NEEDS_CLARIFICATION"), edit: boundedEditSchema, clarification: editClarificationSchema, dependencyDays: z.array(z.number().int()) }).strict(),
   z.object({ outcome: z.literal("REJECTED"), code: z.string(), candidate: planningGeneratedSchema.nullable(), delta: deltaSchema }).strict(),
 ]);
-const provider = createQaJsonProvider({ model: "gpt-6-luna", maxOutputTokens: 2000 });
+const provider = createQaJsonProvider({ model: "gpt-6.1-terra", maxOutputTokens: 2000 });
 
 export async function replanPreliminaryProposal(input: z.infer<typeof replanInputSchema>, context: AssistantAgentContext, services?: PlanningActionServices): Promise<z.infer<typeof replanOutputSchema>> {
   if (!services || services.userId !== context.userId || !context.workspace) throw new AppError("PLANNING_CONTEXT_REQUIRED", "Thiếu ngữ cảnh sở hữu.", 403);

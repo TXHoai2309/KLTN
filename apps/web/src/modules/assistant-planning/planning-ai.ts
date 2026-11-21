@@ -41,7 +41,7 @@ export type InterleavedPlanningContext = { subjectName: string | null };
 export type InterleavedPlanningAnalysis = PlanningAnalysis & { interleaved?: z.infer<typeof planningInterleavedSchema> };
 
 // Keep the owner's planning model independent from unrelated QA configuration.
-export const PLANNING_MODEL = "gpt-6-luna";
+export const PLANNING_MODEL = "gpt-6.1-terra";
 const provider = createQaJsonProvider({ model: PLANNING_MODEL, maxOutputTokens: 2000 });
 const normalize = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/gi, "d").toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
 

@@ -73,31 +73,31 @@ describe("owner-selected QA Sol provider", () => {
       expect(JSON.stringify(events)).not.toContain("fixture-only");
     } finally { clock.mockRestore(); }
   });
-  it("uses Sol with medium-reasoning structured output and records requested and actual model separately", async () => {
-    const fetcher = vi.fn<typeof fetch>(async () => response("gpt-6.1-sol-2026-10-01"));
+  it("uses Terra with medium-reasoning structured output and records requested and actual model separately", async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => response("gpt-6.1-terra-2026-10-01"));
     const events: QaDiagnosticEvent[] = [];
     await createQaDiagnostics({ nodeEnv: "development", sink: event => events.push(event) }).run(async () => {
       expect(await createQaJsonProvider({ apiKey: () => "fixture-only", fetcher }).request(request, value => value)).toEqual({ ok: true });
     });
     const body = JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body));
-    expect(body).toMatchObject({ model: "gpt-6.1-sol", reasoning_effort: "medium", store: false, response_format: { type: "json_schema" } });
-    expect(events).toContainEqual(expect.objectContaining({ requestedModel: "gpt-6.1-sol", actualModel: "gpt-6.1-sol-2026-10-01", totalTokens: 35 }));
+    expect(body).toMatchObject({ model: "gpt-6.1-terra", reasoning_effort: "medium", store: false, response_format: { type: "json_schema" } });
+    expect(events).toContainEqual(expect.objectContaining({ requestedModel: "gpt-6.1-terra", actualModel: "gpt-6.1-terra-2026-10-01", totalTokens: 35 }));
     expect(JSON.stringify(events)).not.toContain("fixture-only");
   });
 
-  it("reports an actual-model mismatch truthfully without relabelling it as Sol", async () => {
+  it("reports an actual-model mismatch truthfully without relabelling it as Terra", async () => {
     const events: QaDiagnosticEvent[] = [];
     await createQaDiagnostics({ nodeEnv: "development", sink: event => events.push(event) }).run(async () => {
       await createQaJsonProvider({ apiKey: () => "fixture-only", fetcher: async () => response("gpt-4o-mini") }).request(request, value => value);
     });
-    expect(events).toContainEqual(expect.objectContaining({ requestedModel: "gpt-6.1-sol", actualModel: "gpt-4o-mini" }));
+    expect(events).toContainEqual(expect.objectContaining({ requestedModel: "gpt-6.1-terra", actualModel: "gpt-4o-mini" }));
   });
 
-  it("does not silently fall back to a different model when Sol is unavailable", async () => {
+  it("does not silently fall back to a different model when Terra is unavailable", async () => {
     const fetcher = vi.fn<typeof fetch>(async () => new Response("fixture", { status: 503 }));
     await expect(createQaJsonProvider({ apiKey: () => "fixture-only", fetcher }).request(request, value => value)).rejects.toMatchObject({ code: "AI_UNAVAILABLE" });
     expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body)).model).toBe("gpt-6.1-sol");
+    expect(JSON.parse(String(fetcher.mock.calls[0]?.[1]?.body)).model).toBe("gpt-6.1-terra");
   });
 
   it("preserves explicit legacy-model injection without sending Sol-only reasoning parameters", async () => {

@@ -26,8 +26,10 @@ import {
 } from "./ai-workspace-plan";
 import {
   buildTwoStepGroundedAdvisory,
+  gatherWeatherAndSunDigest,
   type AdviceSuggestionCard,
   type AdvisoryCatalogDestination,
+  type AdvisoryDayWeatherDigest,
 } from "./saved-trip-advisory";
 import { parseRestBufferRequest, runRestAndCompoundScenario } from "./saved-trip-rest-scenario";
 import {
@@ -36,10 +38,13 @@ import {
   type UnavailableDraftStop,
 } from "./saved-trip-recommend";
 import {
+  answerLocalKnowledgeQuestion,
   parseInterleavedQaRequest,
   runInterleavedQaScenario,
   type SavedTripQaLookupFn,
 } from "./saved-trip-interleaved-qa";
+import { runTripAssistantAgent } from "./trip-assistant-agent";
+import type { TripAssistantResponsesClient } from "./trip-assistant-openai";
 import {
   parseLocationDependentRequest,
   runOngoingLocationScenario,
@@ -196,6 +201,8 @@ export type AiEditServiceDependencies = {
   qaLookup?: SavedTripQaLookupFn;
   /** Injectable only to make generated visit identifiers deterministic in tests. */
   createVisitId?: () => string;
+  /** ADR-39 reasoning loop. Absent: the ADR-38 classifier pipeline answers every turn. */
+  agent?: TripAssistantResponsesClient;
 };
 
 export type AiEditRequest = {
@@ -547,6 +554,168 @@ function validateRequest(request: AiEditRequest): void {
   }
 }
 
+/** ADR-39: run the reasoning loop; null hands the turn to the ADR-38 pipeline unchanged. */
+async function answerWithTripAssistantAgent(input: {
+  agent: TripAssistantResponsesClient;
+  tripId: string;
+  userId: string;
+  request: AiEditRequest;
+  dependencies: AiEditServiceDependencies;
+  found: AiEditLoadedTrip;
+  savedShape: SavedTripForEdit & { manuallyCompletedAt?: Date | null };
+  baseCandidate: EditCandidate;
+  placeNames: ReadonlyMap<string, string>;
+  eligibleDestinations: readonly EligibleDestinationRow[];
+  allCatalogDestinations: readonly EligibleDestinationRow[];
+  lockedVisitIds: ReadonlySet<string>;
+  journeyEditable: boolean;
+  timeReference: Date;
+}): Promise<AiEditServiceResult | null> {
+  const { request, dependencies, found, baseCandidate, timeReference } = input;
+  const tripStatus = effectiveTripStatus(
+    found.startDate.toISOString().slice(0, 10),
+    found.durationDays,
+    vietnamDateOf(timeReference),
+    input.savedShape.manuallyCompletedAt ?? null,
+  ).status;
+  // GPS-dependent in-trip turns keep the dedicated location flow.
+  if (
+    tripStatus === "ONGOING" &&
+    (request.location ||
+      parseLocationDependentRequest({ message: request.message, mode: "ADVISED", topic: "GENERAL" }).needsCurrentLocation)
+  ) {
+    return null;
+  }
+
+  const hiddenTripDestIds = new Set<string>();
+  for (const day of found.days) {
+    for (const visit of day.visits) {
+      if (visit.destination && (visit.destination.visibility !== "VISIBLE" || visit.destination.deletedAt != null)) {
+        hiddenTripDestIds.add(visit.destination.id);
+      }
+    }
+  }
+  const publicEligible = input.eligibleDestinations.filter((d) => !hiddenTripDestIds.has(d.id));
+  const publicCatalog = input.allCatalogDestinations.filter((d) => !hiddenTripDestIds.has(d.id));
+  const catalogById = new Map(publicCatalog.map((d) => [d.id, d]));
+
+  const safeGetRoute: TripEditRouteProvider = async (routeInput) => {
+    try {
+      return await dependencies.getRoute(routeInput);
+    } catch {
+      return { kind: "unavailable" };
+    }
+  };
+  const runPreview = (candidate: EditCandidate) =>
+    previewEdit(
+      input.tripId,
+      input.userId,
+      request.baseRevision,
+      candidate,
+      { database: dependencies.database, getRoute: safeGetRoute },
+      timeReference,
+    );
+
+  let baselinePreview: PreviewEditResult;
+  try {
+    baselinePreview = await runPreview(baseCandidate);
+  } catch (error) {
+    const unavailableStops = collectUnavailableDraftStops(baseCandidate, catalogById, found);
+    if (error instanceof AppError && error.code === "DESTINATION_UNAVAILABLE" && unavailableStops.length > 0) {
+      baselinePreview = buildUnavailableBaselinePreview(request.baseRevision, baseCandidate, unavailableStops, timeReference);
+    } else {
+      throw error;
+    }
+  }
+
+  const placeDetailsById = buildAdvisoryPlaceDetails(found, publicCatalog, timeReference);
+  let weatherDigest: Promise<AdvisoryDayWeatherDigest[]> | undefined;
+  const outcome = await runTripAssistantAgent({
+    client: input.agent,
+    message: request.message,
+    history: request.history ?? [],
+    tripStatus,
+    baseCandidate,
+    savedShape: input.savedShape,
+    placeNames: input.placeNames,
+    placeDetailsById,
+    catalog: publicEligible,
+    lockedVisitIds: input.lockedVisitIds,
+    baselinePreview,
+    runPreview,
+    journeyEditable: input.journeyEditable,
+    createVisitId: dependencies.createVisitId ?? randomUUID,
+    weather: () =>
+      (weatherDigest ??= gatherWeatherAndSunDigest({
+        candidate: baseCandidate,
+        placeNames: input.placeNames,
+        catalogById,
+        database: dependencies.database,
+        forecast: dependencies.forecast,
+        now: timeReference,
+      })),
+    knowledge: async (question, destinationId) => {
+      const answer = await answerLocalKnowledgeQuestion({
+        message: question,
+        targetDestinationId: destinationId,
+        history: request.history ?? [],
+        baseCandidate,
+        placeNames: input.placeNames,
+        placeDetailsById,
+        catalogDestinations: publicCatalog,
+        baselinePreview,
+        database: dependencies.database,
+        llm: dependencies.llm,
+        qaLookup: dependencies.qaLookup,
+        timeReference,
+      });
+      return answer.kind === "ADVISED"
+        ? { advice: answer.advice, knowledgeParts: answer.knowledgeParts, citations: answer.citations }
+        : null;
+    },
+    addedPlaceDetails: (diff) => buildAddedPlaceDetails(diff, catalogById),
+    timeReference,
+  });
+  if (!outcome) return null;
+
+  if (outcome.kind === "PROPOSED") {
+    const sim = outcome.simulation;
+    const added = buildAddedPlaceDetails(sim.diff, catalogById);
+    return {
+      status: "PROPOSED",
+      candidate: sim.candidate,
+      intent: sim.intent,
+      diff: sim.diff,
+      validation: sim.preview.validation,
+      aiSummary: outcome.reply,
+      changedVisitIds: sim.changedVisitIds,
+      ...(sim.preview.legs ? { legs: sim.preview.legs } : {}),
+      ...(sim.preview.saveEligibility ? { saveEligibility: sim.preview.saveEligibility } : {}),
+      ...(sim.preview.uncheckedItems ? { uncheckedItems: sim.preview.uncheckedItems } : {}),
+      ...(sim.preview.journeySummary ? { journeySummary: sim.preview.journeySummary } : {}),
+      ...(added ? { addedPlaceDetails: added } : {}),
+    };
+  }
+  return {
+    status: "ADVISED",
+    intent: planToPrimaryEditIntent({
+      mode: "ADVISED",
+      operations: [],
+      candidateVisitIds: [],
+      candidateDestinationIds: [],
+      clarificationReason: null,
+      adviceFocus: { dayIndex: null, topic: "GENERAL" },
+    }),
+    advice: outcome.reply,
+    validation: baselinePreview.validation,
+    aiSummary: outcome.reply,
+    ...(baselinePreview.saveEligibility ? { saveEligibility: baselinePreview.saveEligibility } : {}),
+    ...(outcome.suggestions.length > 0 ? { suggestions: outcome.suggestions } : {}),
+    ...(outcome.knowledgeParts ? { knowledgeParts: outcome.knowledgeParts } : {}),
+    ...(outcome.citations ? { citations: outcome.citations } : {}),
+  };
+}
+
 /** Build a verified read-only AI edit proposal against live workingDraft (or saved Trip). */
 export async function createAiEditProposal(
   tripId: string,
@@ -651,6 +820,26 @@ export async function createAiEditProposal(
     returnDeadlineTime: currentJourney?.returnDeadlineMinute != null ? minuteClockLabel(currentJourney.returnDeadlineMinute) : null,
     returnDepartureTime: currentJourney?.returnDepartureMinute != null ? minuteClockLabel(currentJourney.returnDepartureMinute) : null,
   };
+
+  if (dependencies.agent && !request.resolution && !isTripFrameEditRequest(request.message)) {
+    const agentResult = await answerWithTripAssistantAgent({
+      agent: dependencies.agent,
+      tripId,
+      userId,
+      request,
+      dependencies,
+      found,
+      savedShape,
+      baseCandidate,
+      placeNames,
+      eligibleDestinations,
+      allCatalogDestinations,
+      lockedVisitIds,
+      journeyEditable: Boolean(currentJourney?.origin?.confirmed) && isBeforeDeparture,
+      timeReference,
+    });
+    if (agentResult) return agentResult;
+  }
 
   const recognizedPlan = await recognizeWorkspaceEditPlan(
     {

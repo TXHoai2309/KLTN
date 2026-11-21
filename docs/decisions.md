@@ -855,3 +855,33 @@ Even after `ADR-37` unified manual editing and `AiEditBar` on `/trips/[id]/edit`
   - **Left collapsible sidebar (`280px` on desktop, slide-over drawer on mobile):** holds trip identity/metadata, mode switcher (`Trợ lý AI`, `Lịch trình`, `Bản đồ & Kiểm tra`), optional right-side **Canvas** toggle, validation status chip, Undo/Redo, and the atomic `Lưu thay đổi` CTA. Opening the right-side Canvas automatically collapses the sidebar so at most two regions appear at once.
   - **AI-first flow & noise elimination:** Both `/trips/[id]/edit` and `/trips/[id]/in-trip` open in the zoomed-in `Trợ lý AI` view by default (`65–72ch` readable measure). Applying or saving edits keeps the chat stream stable and surfaces a concise inline/toast action (`Mở Canvas xem ngay` / `Hoàn tác`), while `aria-live` status announcements for verbose AI advisories stay visually `sr-only`.
   - **Progressive Disclosure on manual Timeline & Map controls:** Each `Scheduled visit` renders a compact single-row summary with a collapsible `<details>` disclosure for time/order adjustments (keeping 1-click error recovery immediately visible on violated rows), and Map validation renders as a compact status strip above the map.
+
+## ADR-39 — Saved-trip assistant answers through a bounded tool-using reasoning loop (2026-11-21)
+
+- **Status:** Accepted by the owner ("làm luôn cả 2 giai đoạn A và B", 2026-11-20) and implemented locally; live OpenAI evaluation not yet run. Amends `ADR-38` Step 1/Step 2 for `/api/trips/[id]/edits/ai`. Spec: [saved-trip-assistant-reasoning-spec.md](product/saved-trip-assistant-reasoning-spec.md).
+- **Date:** 2026-11-21
+
+### Context
+
+Production replies on `/trips/[id]/edit` repeated the deterministic `buildGroundedAdvice` template (for example, a question about where and when the trip departs got the same summary as the previous turn). Three causes were found in code: (1) the composer fell back silently and logged nothing; (2) the route used the preference-extraction client, which sends `reasoning_effort: "none"`, `temperature: 0` and 1,200 completion tokens, so the model did not reason and `finish_reason: length` discarded answers; (3) a 15-topic classifier routed every turn into hand-written scenario branches, so any question without a branch fell to a fixed summary.
+
+### Decision
+
+1. Every Saved-trip assistant model call uses `gpt-6.1-terra` with `medium` reasoning (owner choice, same as Q&A and planning). There are no cost, token or turn caps; only a loop guard (12 rounds / 24 tool calls) and the route's Vercel `maxDuration` (300 s) remain.
+2. After the deterministic gates (ownership, revision, `COMPLETED`, trip-frame requests, GPS-dependent `ONGOING` turns), one reasoning loop on the OpenAI Responses API answers the turn. The model reads the verified draft context and may call server tools: `simulate_changes` (verify → apply operations/origin clocks on a copy → routing + Constraint Validator), `search_destinations` (VISIBLE catalog only), `get_weather` (advisory only, `ADR-36`) and `lookup_local_knowledge` (existing RAG/`Kiến thức mở rộng` path).
+3. The model only proposes. Its final JSON may reference simulation IDs created in the same turn; the server builds the `PROPOSED` candidate or the `Actionable advice suggestion` cards from those simulations, never from model text. Unknown IDs are ignored. The fact guard still rejects false PASS claims, leaked IDs, URLs and absolute weather-safety claims.
+4. Any agent failure (provider error, loop guard, invalid final output, fact-guard rejection) returns the turn to the unchanged `ADR-38` pipeline, which now also uses Terra and logs why its composer fell back. Logs carry codes and timings only, never conversation text, locations or keys.
+5. The loop is on by default; `TRIP_ASSISTANT_AGENT=off` restores the `ADR-38` pipeline without a deploy-time code change. The HTTP contract of `/api/trips/[id]/edits/ai` is unchanged.
+
+### Alternatives
+
+- Only fix the composer (Phase A): kept as the fallback path, but it cannot answer what-if/compare questions that no scenario branch covers.
+- Keep the classifier as a fast path for direct edits: rejected by the owner's no-budget-limit choice; one path means less code.
+- Migrate to an AI SDK: still deferred (`ADR-30`); a small fetch client was added beside the existing ones.
+
+### Consequences
+
+- `ADR-29` holds: tools are deterministic server functions, no nested model-backed planner, and the Validator alone decides PASS/VIOLATION/INSUFFICIENT_DATA.
+- A turn may take several model rounds; latency is higher than the classifier path. The route declares `maxDuration = 300`.
+- The catalog the model can search is the same 50 VISIBLE destinations the classifier already received (`MAX_EDIT_INTENT_DESTINATIONS`).
+- The Responses request shape (stateless `store: false` with `include: ["reasoning.encrypted_content"]`, items echoed back) is covered only by fake-provider tests until a live run confirms it; a mismatch degrades to the `ADR-38` path and is visible in the `trip_assistant` logs.

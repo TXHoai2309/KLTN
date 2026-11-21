@@ -8,7 +8,7 @@ import { qaRequestParameters } from "../runtime-config/openai-model-catalog";
 
 export type QaProviderOptions = { apiKey?: () => string | undefined | Promise<string | undefined>; fetcher?: typeof fetch; model?: string; modelResolver?: () => string | undefined | Promise<string | undefined>; timeoutMs?: number; maxOutputTokens?: number; providerPhase?: QaProviderPhase };
 // Owner-selected model for reading, assessment, answer composition and verification.
-export const QA_DEFAULT_MODEL = process.env.OPENAI_QA_MODEL || "gpt-6.1-sol";
+export const QA_DEFAULT_MODEL = process.env.OPENAI_QA_MODEL || "gpt-6.1-terra";
 export const QA_ANSWER_MODEL = QA_DEFAULT_MODEL;
 export const QA_GENERATION_LIMITS = { timeoutMs: 25_000, maxInputTokens: 8_000, maxOutputTokens: 2_000, maxCompletionTokens: 8_000, maxResponseBytes: 64 * 1024, maxEvidence: 4, maxInputUtf16: 40_000 } as const;
 const invalid = (stage: QaStage, category: QaFailureCategory, issues?: readonly { code: string; path: readonly PropertyKey[] }[]) =>
