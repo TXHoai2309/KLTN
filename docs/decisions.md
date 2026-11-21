@@ -885,3 +885,32 @@ Production replies on `/trips/[id]/edit` repeated the deterministic `buildGround
 - A turn may take several model rounds; latency is higher than the classifier path. The route declares `maxDuration = 300`.
 - The catalog the model can search is the same 50 VISIBLE destinations the classifier already received (`MAX_EDIT_INTENT_DESTINATIONS`).
 - The Responses request shape (stateless `store: false` with `include: ["reasoning.encrypted_content"]`, items echoed back) is covered only by fake-provider tests until a live run confirms it; a mismatch degrades to the `ADR-38` path and is visible in the `trip_assistant` logs.
+
+## ADR-40 — Saved-trip assistant streams through the AI SDK and decides through tools (2026-11-21)
+
+- **Status:** Accepted by the owner (design interview Q1–Q19, 2026-11-21); implementation pending. Amends `ADR-39`. Spec: [saved-trip-assistant-natural-streaming-spec.md](product/saved-trip-assistant-natural-streaming-spec.md).
+- **Date:** 2026-11-21
+
+### Context
+
+`ADR-39` made the Saved-trip assistant reason with tools, but each turn still ended in one JSON object (`reply`, `proposeSimulationId`, `suggestionSimulationIds`) returned after every model round finished. Travelers waited in silence for tens of seconds, could not stop a turn, and could not see what the assistant was doing. The owner asked for answers that read and arrive like a natural conversation. The repository already ships the Vercel AI SDK (`ai`, `@ai-sdk/openai`, `@ai-sdk/react`) for the planning chat (`ADR-36`), with SSE streaming and stream-redaction tests.
+
+### Decision
+
+1. The reasoning loop moves from the hand-written Responses client to the AI SDK (`streamText`, UI message stream) on `gpt-6.1-terra` with `medium` reasoning.
+2. The model writes its answer as free streamed text and expresses decisions by calling `apply_to_draft(simulationId)` or `show_options(simulationIds)`. The server still accepts only simulations created in the same turn and packages every candidate, diff, card and Validator result itself.
+3. Internal IDs and URLs are removed from the text stream before it reaches the browser. A false PASS claim or an absolute weather-safety claim is not retracted; the server appends a Correction note stating the verified fact.
+4. The same route answers with a UI message stream when the client asks for `text/event-stream` (progress parts per tool step, text, Correction note, and a final result part carrying the existing JSON payload), and with the existing JSON otherwise. The edit draft changes only when the final result part arrives.
+5. Per-message "advice did not change the draft" badges are removed, consistent with the Caveat policy.
+
+### Alternatives
+
+- Extend the hand-written Responses client with SSE parsing and a custom event format: rejected; it duplicates what the AI SDK already does in this repository and keeps the unverified Responses item-echo logic.
+- Buffer the full answer and run the fact guard before showing anything: rejected; it removes the benefit of streaming.
+- Delete a streamed answer when the fact guard fails: rejected; text the traveler already read would disappear. A Correction note is honest and less confusing.
+
+### Consequences
+
+- `ADR-30` deferred migrating providers to the AI SDK; that deferral no longer applies to the Saved-trip assistant, which now uses the SDK already adopted for the planning chat. Q&A and other structured-output paths are unchanged.
+- `trip-assistant-openai.ts`'s Responses client is retired. Its Chat Completions client remains the fallback pipeline's provider.
+- JSON clients and tests keep working through content negotiation. A turn is still bounded by the route's `maxDuration = 300`.

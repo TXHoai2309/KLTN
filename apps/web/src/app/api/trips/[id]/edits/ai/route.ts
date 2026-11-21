@@ -1,7 +1,7 @@
 import { aiEditResponse } from "@/modules/trip-edit/ai-edit-http";
 import {
-  createTripAssistantResponsesClient,
   createTripAssistantStructuredClient,
+  resolveTripAssistantModel,
 } from "@/modules/trip-edit/trip-assistant-openai";
 import { createTripEditRouteProvider } from "@/modules/trip-edit/trip-edit-routes";
 import { authorizationDependencies } from "@/server/authorization/server";
@@ -16,8 +16,8 @@ const dependencies = {
     database: db,
     llm: createTripAssistantStructuredClient(),
     getRoute: createTripEditRouteProvider(),
-    // ADR-39 reasoning loop is on by default; TRIP_ASSISTANT_AGENT=off restores the ADR-38 pipeline.
-    ...(process.env.TRIP_ASSISTANT_AGENT === "off" ? {} : { agent: createTripAssistantResponsesClient() }),
+    // ADR-40 reasoning loop is on by default; TRIP_ASSISTANT_AGENT=off restores the ADR-38 pipeline.
+    ...(process.env.TRIP_ASSISTANT_AGENT === "off" ? {} : { agent: () => resolveTripAssistantModel() }),
   },
   now: () => new Date(),
 };

@@ -237,6 +237,14 @@ _Avoid_: Separate in-trip chat vs edit screen, auto-saving assistant.
 A concrete, optional adjustment offered alongside a read-only planning guidance answer that does not change the edit draft unless the traveler chooses to apply it.
 _Avoid_: Automatic draft edit, unverified recommendation.
 
+**Correction note (dòng đính chính)**:
+A short system-written line attached under an assistant answer when the answer overstated the itinerary validation result or promised absolute weather safety; it restates the verified fact without removing the answer.
+_Avoid_: Silently replacing the answer, repeated disclaimers.
+
+**Stated assumption (giả định nêu rõ)**:
+The reading the Saved-trip assistant picks when a traveler's edit request leaves one detail open but has a single reasonable interpretation; the assistant applies it to the edit draft and says which reading it chose so the traveler can redirect or undo. When readings involve a real trade-off it offers options instead, and when it cannot tell what the traveler means it asks.
+_Avoid_: Guessing silently, asking back on every missing detail.
+
 **Schedule rest buffer (khoảng nghỉ trong lịch)**:
 An intentional gap before or between scheduled visits created by shifting visit times so the traveler can rest, distinct from roadside rest allowance, an overnight anchor, or a scheduled visit.
 _Avoid_: Fake destination stop, hotel or lodging booking.

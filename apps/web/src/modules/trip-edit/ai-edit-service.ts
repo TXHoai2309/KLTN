@@ -43,8 +43,7 @@ import {
   runInterleavedQaScenario,
   type SavedTripQaLookupFn,
 } from "./saved-trip-interleaved-qa";
-import { runTripAssistantAgent } from "./trip-assistant-agent";
-import type { TripAssistantResponsesClient } from "./trip-assistant-openai";
+import { runTripAssistantAgent, type TripAssistantAgentModelSource } from "./trip-assistant-agent";
 import {
   parseLocationDependentRequest,
   runOngoingLocationScenario,
@@ -201,8 +200,8 @@ export type AiEditServiceDependencies = {
   qaLookup?: SavedTripQaLookupFn;
   /** Injectable only to make generated visit identifiers deterministic in tests. */
   createVisitId?: () => string;
-  /** ADR-39 reasoning loop. Absent: the ADR-38 classifier pipeline answers every turn. */
-  agent?: TripAssistantResponsesClient;
+  /** ADR-40 reasoning loop on the AI SDK. Absent: the ADR-38 classifier pipeline answers every turn. */
+  agent?: TripAssistantAgentModelSource;
 };
 
 export type AiEditRequest = {
@@ -554,9 +553,9 @@ function validateRequest(request: AiEditRequest): void {
   }
 }
 
-/** ADR-39: run the reasoning loop; null hands the turn to the ADR-38 pipeline unchanged. */
+/** ADR-40: run the AI SDK reasoning loop; null hands the turn to the ADR-38 pipeline unchanged. */
 async function answerWithTripAssistantAgent(input: {
-  agent: TripAssistantResponsesClient;
+  agent: TripAssistantAgentModelSource;
   tripId: string;
   userId: string;
   request: AiEditRequest;
@@ -631,7 +630,7 @@ async function answerWithTripAssistantAgent(input: {
   const placeDetailsById = buildAdvisoryPlaceDetails(found, publicCatalog, timeReference);
   let weatherDigest: Promise<AdvisoryDayWeatherDigest[]> | undefined;
   const outcome = await runTripAssistantAgent({
-    client: input.agent,
+    model: input.agent,
     message: request.message,
     history: request.history ?? [],
     tripStatus,

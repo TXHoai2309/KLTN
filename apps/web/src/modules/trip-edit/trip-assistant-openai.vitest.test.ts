@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  createTripAssistantResponsesClient,
+  createTripAssistantFetch,
   createTripAssistantStructuredClient,
+  resolveTripAssistantModel,
   TRIP_ASSISTANT_MODEL,
+  TRIP_ASSISTANT_PROVIDER_OPTIONS,
 } from "./trip-assistant-openai";
 
 const apiKey = () => "fixture-only-key";
@@ -18,26 +20,38 @@ function sentBody(fetcher: ReturnType<typeof jsonFetcher>) {
 }
 
 describe("Saved-trip assistant OpenAI clients", () => {
-  it("calls the Responses API statelessly with Terra, medium reasoning, strict tools and a strict final format", async () => {
-    const fetcher = jsonFetcher({ status: "completed", output: [] });
-    const client = createTripAssistantResponsesClient({ apiKey, fetcher });
-    const tool = { type: "function" as const, name: "get_weather", description: "d", strict: true as const, parameters: { type: "object", additionalProperties: false, required: [], properties: {} } };
+  it("resolves the AI SDK OpenAI Responses model on Terra without token caps", async () => {
+    const fetcher = vi.fn<typeof fetch>(async () => new Response("{}", { status: 200 }));
+    const model = await resolveTripAssistantModel({ apiKey, fetcher });
 
-    const result = await client.create({ instructions: "sys", input: [{ role: "user", content: "hi" }], tools: [tool], textFormat: { name: "final", schema: { type: "object" } } });
-
-    expect(result).toEqual({ status: "completed", output: [] });
-    const { url, body } = sentBody(fetcher);
-    expect(url).toBe("https://api.openai.com/v1/responses");
-    expect(body).toMatchObject({
-      model: "gpt-6.1-terra",
-      reasoning: { effort: "medium" },
-      store: false,
-      include: ["reasoning.encrypted_content"],
-      instructions: "sys",
-      tools: [tool],
-      text: { format: { type: "json_schema", name: "final", strict: true, schema: { type: "object" } } },
+    expect(model).toMatchObject({
+      modelId: TRIP_ASSISTANT_MODEL,
+      provider: "openai.responses",
     });
-    expect(JSON.stringify(body)).not.toContain("fixture-only-key");
+    expect(TRIP_ASSISTANT_PROVIDER_OPTIONS.openai).toMatchObject({
+      forceReasoning: true,
+      reasoningEffort: "medium",
+      store: false,
+    });
+
+    const wrapped = createTripAssistantFetch(fetcher, 5_000);
+    await wrapped("https://api.openai.com/v1/responses", {
+      method: "POST",
+      body: JSON.stringify({ model: TRIP_ASSISTANT_MODEL }),
+    });
+    const [, init] = fetcher.mock.calls[0]!;
+    expect(init?.redirect).toBe("error");
+    expect(init?.signal).toBeDefined();
+    expect(String(init?.body)).not.toContain("max_completion_tokens");
+    expect(String(init?.body)).not.toContain("max_output_tokens");
+  });
+
+  it("refuses to resolve the AI SDK model without a server-side key", async () => {
+    const fetcher = jsonFetcher({});
+    await expect(resolveTripAssistantModel({ apiKey: () => undefined, fetcher })).rejects.toMatchObject({
+      code: "CREDENTIALS_UNAVAILABLE",
+    });
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
   it("uses Terra with medium reasoning for structured Chat Completions and returns the JSON text", async () => {
@@ -62,19 +76,5 @@ describe("Saved-trip assistant OpenAI clients", () => {
   ])("maps %s to a typed provider error", async (_label, fetcher, code) => {
     const client = createTripAssistantStructuredClient({ apiKey, fetcher });
     await expect(client.complete({ system: "s", user: "u", jsonSchema: {} })).rejects.toMatchObject({ code });
-  });
-
-  it("refuses to call OpenAI without a server-side key", async () => {
-    const fetcher = jsonFetcher({});
-    const client = createTripAssistantResponsesClient({ apiKey: () => undefined, fetcher });
-    await expect(client.create({ instructions: "", input: [], tools: [], textFormat: { name: "f", schema: {} } }))
-      .rejects.toMatchObject({ code: "CREDENTIALS_UNAVAILABLE" });
-    expect(fetcher).not.toHaveBeenCalled();
-  });
-
-  it("rejects a malformed Responses envelope", async () => {
-    const client = createTripAssistantResponsesClient({ apiKey, fetcher: jsonFetcher({ status: "completed" }) });
-    await expect(client.create({ instructions: "", input: [], tools: [], textFormat: { name: "f", schema: {} } }))
-      .rejects.toMatchObject({ code: "INVALID_PROVIDER_RESPONSE" });
   });
 });

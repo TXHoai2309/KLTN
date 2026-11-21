@@ -143,6 +143,8 @@ export type TripEditApplyInput = {
 };
 
 const DEFAULT_TIMEOUT_MS = 15_000;
+// The assistant may reason over several model rounds; wait as long as the route may run (maxDuration 300 s).
+export const AI_EDIT_TIMEOUT_MS = 305_000;
 
 function failed(
   status: number,
@@ -519,7 +521,7 @@ export async function requestAiTripEdit(
 ): Promise<AiTripEditOutcome> {
   const controller = new AbortController();
   const fetcher = options.fetcher ?? fetch;
-  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  const timeoutMs = options.timeoutMs ?? AI_EDIT_TIMEOUT_MS;
   let timedOut = false;
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
 

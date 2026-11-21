@@ -422,7 +422,7 @@ export default function EditTripClient({
         kind: "ERROR",
         prompt: trimmed,
         ...(resolution ? { resolution } : {}),
-        message: "Yêu cầu AI quá 15 giây nên đã dừng. Lịch trình và câu lệnh của bạn vẫn được giữ nguyên.",
+        message: "Trợ lý AI chưa phản hồi sau 5 phút nên đã dừng. Lịch trình và câu lệnh của bạn vẫn được giữ nguyên; hãy thử lại.",
         canRetry: true,
       });
       return;

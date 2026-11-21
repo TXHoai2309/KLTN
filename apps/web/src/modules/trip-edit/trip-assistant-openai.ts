@@ -1,4 +1,6 @@
 import "server-only";
+import { createOpenAI } from "@ai-sdk/openai";
+import type { LanguageModel } from "ai";
 
 import { PreferenceExtractionError } from "../preference-extraction/preference-extraction-errors";
 import type {
@@ -10,6 +12,23 @@ import type {
 export const TRIP_ASSISTANT_MODEL = "gpt-6.1-terra";
 /** Terra's default effort, matching the Q&A and planning assistants. */
 export const TRIP_ASSISTANT_REASONING_EFFORT = "medium";
+
+/**
+ * Provider options for the AI SDK OpenAI Responses model (ADR-40).
+ * `forceReasoning: true` is required because `@ai-sdk/openai` 4.0.14 only
+ * auto-detects `o1`/`o3`/`o4-mini`/`gpt-5*` as reasoning models; without it
+ * `reasoningEffort` and stateless `reasoning.encrypted_content` would be dropped
+ * for `gpt-6.1-terra`. `reasoningSummary: null` keeps internal reasoning out of
+ * responses per spec Out of Scope.
+ */
+export const TRIP_ASSISTANT_PROVIDER_OPTIONS = {
+  openai: {
+    forceReasoning: true,
+    reasoningEffort: TRIP_ASSISTANT_REASONING_EFFORT,
+    reasoningSummary: null,
+    store: false,
+  },
+} as const;
 
 // Owner chose no budget caps; these only stop a hung socket or a runaway body.
 const REQUEST_TIMEOUT_MS = 120_000;
@@ -139,63 +158,34 @@ export function createTripAssistantStructuredClient(
   };
 }
 
-export type ResponsesInputItem = Record<string, unknown>;
-
-export type ResponsesFunctionTool = {
-  type: "function";
-  name: string;
-  description: string;
-  parameters: Record<string, unknown>;
-  strict: true;
-};
-
-export type ResponsesRequest = {
-  instructions: string;
-  input: readonly ResponsesInputItem[];
-  tools: readonly ResponsesFunctionTool[];
-  textFormat: { name: string; schema: Record<string, unknown> };
-  signal?: AbortSignal;
-};
-
-export type ResponsesResult = {
-  status: string;
-  output: ResponsesInputItem[];
-};
-
-/** Responses API boundary: GPT-6.1 Terra only exposes tool calling here. */
-export interface TripAssistantResponsesClient {
-  create(request: ResponsesRequest): Promise<ResponsesResult>;
+/**
+ * Socket-timeout and redirect-safe fetch wrapper for the AI SDK OpenAI Responses
+ * model. Intentionally imposes no token or budget cap (owner choice, ADR-39/40)
+ * and keeps responses streaming without buffering.
+ */
+export function createTripAssistantFetch(
+  base: typeof fetch = fetch,
+  timeoutMs: number = REQUEST_TIMEOUT_MS,
+): typeof fetch {
+  return (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+    const timeout = AbortSignal.timeout(timeoutMs);
+    const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
+    return base(input, { ...init, signal, redirect: "error" });
+  }) as typeof fetch;
 }
 
-export function createTripAssistantResponsesClient(
+/**
+ * Resolves the AI SDK OpenAI Responses model (`gpt-6.1-terra`) on the server.
+ * The API key is read via `effectiveConfig("OPENAI")` and never logged or sent
+ * to the browser.
+ */
+export async function resolveTripAssistantModel(
   options: TripAssistantOpenAiOptions = {},
-): TripAssistantResponsesClient {
-  return {
-    async create(request) {
-      const payload = await postJson(
-        "https://api.openai.com/v1/responses",
-        {
-          model: TRIP_ASSISTANT_MODEL,
-          reasoning: { effort: TRIP_ASSISTANT_REASONING_EFFORT },
-          // Stateless turns: reasoning items travel back encrypted instead of being stored.
-          store: false,
-          include: ["reasoning.encrypted_content"],
-          instructions: request.instructions,
-          input: request.input,
-          tools: request.tools,
-          parallel_tool_calls: true,
-          text: {
-            format: { type: "json_schema", name: request.textFormat.name, strict: true, schema: request.textFormat.schema },
-          },
-        },
-        options,
-        request.signal,
-      );
-      const body = payload as { status?: unknown; output?: unknown };
-      if (typeof body?.status !== "string" || !Array.isArray(body.output)) {
-        throw new PreferenceExtractionError("INVALID_PROVIDER_RESPONSE", false);
-      }
-      return { status: body.status, output: body.output as ResponsesInputItem[] };
-    },
-  };
+): Promise<LanguageModel> {
+  const apiKey = await resolveApiKey(options);
+  const wrappedFetch = createTripAssistantFetch(
+    options.fetcher ?? fetch,
+    options.timeoutMs ?? REQUEST_TIMEOUT_MS,
+  );
+  return createOpenAI({ apiKey, fetch: wrappedFetch }).responses(TRIP_ASSISTANT_MODEL);
 }
