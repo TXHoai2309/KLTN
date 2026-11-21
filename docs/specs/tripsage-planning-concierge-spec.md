@@ -1,6 +1,6 @@
 # Spec: Trợ lý lập hành trình AI kiểu "người dẫn tour" (`/assistant/plan`)
 
-Trạng thái: đã grill với chủ dự án ngày 2026-11-21 (Q1–Q25 đồng ý). Thay thế [tripsage-ai-led-intake-spec.md](tripsage-ai-led-intake-spec.md) (giữ phần lõi, nới mặc định theo Q19). Quyết định kiến trúc: [ADR-42](../decisions.md#adr-42--planning-concierge-on-assistantplan-2026-11-21). Ticket: `.scratch/tripsage-planning-concierge/issues/01–04`.
+Trạng thái: đã triển khai (tickets 01–04, 2026-11-21); phần giao diện tab riêng và thẻ điểm xuất phát được thay bởi [unified-assistant-chat-spec.md](unified-assistant-chat-spec.md) (ADR-43). Thay thế [tripsage-ai-led-intake-spec.md](tripsage-ai-led-intake-spec.md) (giữ phần lõi, nới mặc định theo Q19). Quyết định kiến trúc: [ADR-42](../decisions.md#adr-42--planning-concierge-on-assistantplan-2026-11-21). Ticket: `.scratch/tripsage-planning-concierge/issues/01–04`.
 Phạm vi trang: chỉ `/assistant/plan`. `/trips/new`, chat hỏi đáp `/assistant` và luồng chỉnh sửa chuyến đã lưu giữ nguyên.
 
 ## Problem Statement

@@ -5840,3 +5840,10 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - **DB/migration changes:** None. `dayRhythm` is an optional requirement field not used by Save.
 - **Validation:** `tsc --noEmit` clean; vitest suites above pass. Run vitest from PowerShell with `D:\` (lowercase `d:` in Git Bash breaks vitest suite discovery).
 - **Not run / open:** live provider and browser acceptance; price reference document needs Admin review and upload; `react-markdown` install was blocked, so a minimal in-house renderer is used.
+
+## 2026-11-21 — Unified assistant chat design (documents only)
+
+- **Branch:** `TXH`.
+- **Task:** Owner grilling Q26–Q34 after the concierge went live: one chat at `/assistant`, chat-only origin confirmation, collapsed map, saved planning conversations, V2 retirement.
+- **Completed:** Spec `docs/specs/unified-assistant-chat-spec.md`, ADR-43, glossary terms (Planning intent confirmation, Required stop, Origin candidate, Chat origin confirmation), tickets 01–05 under `.scratch/unified-assistant-chat/issues`. No code; the owner approved documents only.
+- **Next:** Implement only after the owner asks.

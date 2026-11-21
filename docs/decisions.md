@@ -991,3 +991,37 @@ The planning chat was a form dialog followed by a short, capped reply that showe
 - Reopening a saved trip does not show suggestions, costs or the access leg until a follow-up story stores them.
 - Turns are slower and cost more (reasoning, more tool calls).
 - Prices depend on a code default table and an Admin-uploaded price reference document whose date is shown; stale prices are possible and are labeled as estimates.
+
+## ADR-43 — One assistant chat at `/assistant`; chat-only origin confirmation; saved planning conversations (2026-11-21)
+
+- **Status:** Accepted by the owner (design interview Q26–Q34, 2026-11-21, "có" / "ok e làm đi"). Not implemented yet; the owner approved documents only. Spec: [unified-assistant-chat-spec.md](specs/unified-assistant-chat-spec.md). Amends ADR-35, ADR-36 and ADR-42.
+- **Date:** 2026-11-21
+
+### Context
+
+ADR-42 delivered the planning concierge on a separate `/assistant/plan` tab. In use, the product had two assistants: "Trò chuyện và hỏi đáp" (Q&A plus the old V2 planner, with saved history) and "Lập hành trình AI" (tripsage, no history). The planning tab still embedded the full origin picker form. The owner wants a single chat where people ask, plan and refine with no form or picker, and a map only as an optional view.
+
+### Decision
+
+1. `/assistant` is the only assistant. For signed-in travelers, every message goes to the tripsage agent (Q&A and planning). Guests keep the existing Q&A path and sign-in hand-off (ADR-35). `/assistant/plan` redirects to `/assistant`. `TRIPSAGE_CHAT_ENABLED` switches signed-in travelers back to the old path without a code deploy.
+2. Planning intent: a direct planning opener starts planning; a switch from Q&A is confirmed in one natural sentence and the destination just discussed becomes a required stop; a vague question is answered and followed by an offer.
+3. **Origin confirmation in chat.** This supersedes the rule that only an explicit picker button confirms an origin. The server resolves the typed place through the existing origin search (Vietnam coverage check), keeps coordinates server-side, and the assistant restates the resolved label. The traveler's next message agreeing (or tapping that label as a quick reply) confirms it; the server, not the model, builds the confirmed `OriginSelection`. Candidates carried between turns are signed by the server so the browser cannot alter coordinates. The model never receives or supplies coordinates.
+4. Departure and return clocks are recorded from chat, defaulting to 07:00 and 18:00 and shown as defaults.
+5. Each itinerary shows a collapsed route map that mounts only when opened; it is view-only.
+6. Conversations with the agent are stored per user (new tables and a Prisma migration), listed with existing Q&A history, with the same ownership, deletion and cleanup rules. Only schema-validated display parts are stored; raw tool output, origin candidates and system context are not. Writes follow the SUCCESS/FAILED/UNKNOWN idempotency contract.
+7. Q&A answers from the agent cite reviewed document titles as source chips; unsupported content is stated as general knowledge.
+8. After acceptance, the V2 planner (`/api/ai/planning` and its client/runtime) is deleted in a separate commit; stored V2 conversations stay readable.
+
+### Alternatives
+
+- Keep two tabs and only restyle the origin card: rejected by the owner; the split itself was the problem.
+- Route each message by intent between Q&A and tripsage: rejected; two message formats in one thread and fragile intent guessing.
+- Keep a map or search picker for the origin: rejected; the owner wants chat only. A typed place restated by the assistant and agreed by the traveler is an explicit confirmation.
+- Keep planning chats unsaved: rejected; history in the sidebar is expected.
+
+### Consequences
+
+- A new migration and conversation store are required; the chat UI must render stored parts.
+- Q&A for signed-in travelers moves from the citation-verified Q&A pipeline to the agent with source chips; answer style and grounding differ from the Q&A service.
+- Origin resolution depends on the origin search provider; when it is unavailable, planning waits for a hub choice.
+- Rollback before V2 deletion is the `TRIPSAGE_CHAT_ENABLED` flag; after it, reverting the deletion commit.
