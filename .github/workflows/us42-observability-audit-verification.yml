@@ -1,0 +1,70 @@
+name: Sprint 5 - US42 Observability & Log Audit Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master, kduy]
+    paths:
+      - "apps/web/src/modules/ai/**"
+      - "apps/web/src/modules/trip-edit/us33-test.vitest.test.ts"
+      - "apps/web/src/modules/in-trip/us35-location-source-audit.vitest.test.ts"
+      - ".github/workflows/us42-observability-audit-verification.yml"
+  pull_request:
+    paths:
+      - "apps/web/src/modules/ai/**"
+      - ".github/workflows/us42-observability-audit-verification.yml"
+
+jobs:
+  verify-us42:
+    name: Run US-42 Error Classification & PII Sanitization Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies (root monorepo)
+        run: bun install --frozen-lockfile || npm ci
+
+      - name: Generate Prisma Client
+        run: npm run db:generate
+        env:
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci_test"
+
+      - name: Run US-42 Diagnostics, Error Classification & Privacy Audit Suite
+        working-directory: apps/web
+        env:
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci_test"
+        run: |
+          set -o pipefail
+          {
+            echo "=== 1. Running AI Error & Prompt/Log Leak Guard Tests (SP5-42-001, 003, 004) ==="
+            npx vitest run --config vitest.config.mts \
+              src/modules/trip-edit/us33-test.vitest.test.ts \
+              src/modules/in-trip/us35-location-source-audit.vitest.test.ts \
+              src/modules/in-trip/us36-test.vitest.test.ts \
+              src/modules/trip-validation/travel-time.vitest.test.ts \
+              --reporter=verbose
+
+            echo "=== 2. Running AI Diagnostics & RAG Guard Tests (SP5-42-005) ==="
+            DIAG_TESTS=$(find src/modules/ai -name "*diagnostic*.vitest.test.ts" -o -name "*cleanup*.vitest.test.ts")
+            if [ -n "$DIAG_TESTS" ]; then
+              npx vitest run --config vitest.config.mts $DIAG_TESTS --reporter=verbose
+            fi
+          } | tee us42-ci-report.txt
+
+      - name: Upload US-42 Observability Evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: us42-verification-evidence
+          path: apps/web/us42-ci-report.txt
+          retention-days: 30
