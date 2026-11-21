@@ -28,6 +28,9 @@ export const tripInfoSchema = z.object({
   interests: z.array(z.enum(INTEREST_VALUES)).min(1).max(INTEREST_VALUES.length).optional(),
   pace: z.enum(PACE_VALUES).optional(),
   travelers: z.number().int().min(1).max(20).optional(),
+  /** Day rhythm (ADR-42 §3): lunch 60-120 min, latest visit end 15:00-18:00 (minutes of the day). */
+  lunchMinutes: z.number().int().min(60).max(120).optional(),
+  dayEndMinute: z.number().int().min(900).max(1080).optional(),
 }).strict();
 export type TripsageTripInfo = z.infer<typeof tripInfoSchema>;
 

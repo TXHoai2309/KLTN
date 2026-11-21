@@ -19,6 +19,7 @@ import { TripsageChatNotice } from "./tripsage-chat-notice";
 import { TripsageTripSummary } from "./tripsage-trip-summary";
 import { TripsageOriginCard } from "./tripsage-origin-card";
 import { TripsageMarkdown } from "./tripsage-markdown";
+import { TripsageTimelineView } from "./tripsage-timeline-view";
 import { readConversationState } from "./tripsage-conversation-state";
 import { readTripsageResultTurns, TripsageResultCards } from "./tripsage-result-cards";
 import { TripsageMemoryPanel } from "./tripsage-memory-panel";
@@ -117,6 +118,7 @@ export function TripsageChatClient({ memoryEnabled = false }: { memoryEnabled?: 
                   <article key={message.id} className="assistant-message assistant-answer">
                     <span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true" /><span>Trợ lý AI</span></span>
                     {text && <TripsageMarkdown text={text} />}
+                    {itinerary && state.timeline && <TripsageTimelineView timeline={state.timeline} suggestions={state.suggestions} />}
                     {itinerary && <TripsageItineraryView proposal={itinerary}>{!busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} onStateChange={setSaveState} />)}</TripsageItineraryView>}
                     <TripsagePlacesView places={suggestions} />
                     <TripsageSourcesView sources={webSources} />

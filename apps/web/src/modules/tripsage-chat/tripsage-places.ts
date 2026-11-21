@@ -21,7 +21,18 @@ export const inPlacesArea = (latitude: number, longitude: number) => latitude >=
 
 export type ExternalPlaceSuggestion = { placeId: string; name: string; latitude: number; longitude: number };
 export type PlacesOutcome = { status: "RESULTS"; places: ExternalPlaceSuggestion[] } | { status: "NO_RESULTS" } | { status: "UNAVAILABLE" };
-export type PlacesSearch = (query: string, signal?: AbortSignal) => Promise<PlacesOutcome>;
+/** `near`: restrict the search to a small box around a KLTN destination (coordinates from the database, never the model). */
+export type PlacesNear = { latitude: number; longitude: number; radiusKm: number };
+export type PlacesSearch = (query: string, signal?: AbortSignal, near?: PlacesNear) => Promise<PlacesOutcome>;
+
+/** A box of `radiusKm` around a point, clipped to the Hà Giang search area. */
+export function nearRectangle(near: PlacesNear) {
+  const dLat = near.radiusKm / 111; const dLng = near.radiusKm / (111 * Math.cos((near.latitude * Math.PI) / 180));
+  return {
+    low: { latitude: Math.max(AREA.low.latitude, near.latitude - dLat), longitude: Math.max(AREA.low.longitude, near.longitude - dLng) },
+    high: { latitude: Math.min(AREA.high.latitude, near.latitude + dLat), longitude: Math.min(AREA.high.longitude, near.longitude + dLng) },
+  };
+}
 
 const responseSchema = z.object({ places: z.array(z.object({
   id: z.string().min(1).max(300),
@@ -50,7 +61,7 @@ export async function readBounded(response: Response, maxBytes: number): Promise
 
 /** One request per call, no retry, no redirect, bounded time and size. Errors never leave this function. */
 export function createGooglePlacesSearch(deps: { apiKey: () => string | undefined | Promise<string | undefined>; fetcher?: typeof fetch; timeoutMs?: number }): PlacesSearch {
-  return async (query, signal) => {
+  return async (query, signal, near) => {
     try {
       const key = (await deps.apiKey())?.trim();
       if (!key) return { status: "UNAVAILABLE" };
@@ -61,7 +72,7 @@ export function createGooglePlacesSearch(deps: { apiKey: () => string | undefine
         const response = await (deps.fetcher ?? fetch)(GOOGLE_PLACES_SEARCH_ENDPOINT, {
           method: "POST", signal: combined, redirect: "error", cache: "no-store",
           headers: { "content-type": "application/json", accept: "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": GOOGLE_PLACES_FIELD_MASK },
-          body: JSON.stringify({ textQuery: query, languageCode: "vi", regionCode: "VN", pageSize: PAGE_SIZE, locationRestriction: { rectangle: AREA } }),
+          body: JSON.stringify({ textQuery: query, languageCode: "vi", regionCode: "VN", pageSize: PAGE_SIZE, locationRestriction: { rectangle: near ? nearRectangle(near) : AREA } }),
         });
         if (!response.ok) return { status: "UNAVAILABLE" };
         const text = await readBounded(response, MAX_PLACES_RESPONSE_BYTES);

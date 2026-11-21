@@ -279,6 +279,18 @@ const mobilityConstraintsSchema = z
     value.flags.length === 0 && value.note === null ? null : value,
   );
 
+/**
+ * Optional per-trip scheduling preferences (ADR-42 §3): a longer lunch and an earlier latest visit end only make a
+ * schedule more conservative, so the Constraint Validator and the Save re-check are unchanged. Not stored on Save.
+ */
+export const dayRhythmSchema = z
+  .object({
+    lunchMinutes: z.number().int().min(60).max(120),
+    dayEndMinute: z.number().int().min(900).max(1080),
+  })
+  .strict();
+export type DayRhythm = z.infer<typeof dayRhythmSchema>;
+
 export const tripRequirementInputSchema = z
   .object({
     startDate: startDateSchema,
@@ -292,6 +304,7 @@ export const tripRequirementInputSchema = z
       .nullable()
       .optional()
       .default(null),
+    dayRhythm: dayRhythmSchema.optional(),
   })
   .strict();
 

@@ -62,14 +62,14 @@ const page = (url = "https://du-lich.example.vn/ha-giang") => ({ tool: "fetchPag
 const fed = (model: MockLanguageModelV4, call: number) => JSON.stringify(model.doStreamCalls[call]!.prompt);
 
 describe("allow-list with web tools (Ticket 10)", () => {
-  it("registers exactly five tools", () => {
+  it("registers exactly the base tools", () => {
     const tools = createTripsageChatTools({ planning: planning()(), emitItinerary: () => {} });
     expect(Object.keys(tools).sort()).toEqual(FIVE);
     expect([...TRIPSAGE_CHAT_TOOL_NAMES].sort()).toEqual(FIVE);
     for (const banned of ["crawlSite", "crawlUrl", "placeDetails", "savePlan", "createTravelPlan", "googlePlaces"]) expect(tools).not.toHaveProperty(banned);
   });
 
-  it("advertises five tools and still refuses any other tool", async () => {
+  it("advertises the base tools and still refuses any other tool", async () => {
     const fetcher = webFetch();
     const model = scripted([{ tool: "crawlSite", input: { url: "https://example.com" } }, { text: "Không dùng được." }]);
     const sse = await run(model, { web: web(fetcher) });
@@ -182,7 +182,8 @@ describe("fetchPage Firecrawl scrape", () => {
     const body = JSON.parse(String(init.body));
     expect(body).toMatchObject({ url: "https://du-lich.example.vn/ha-giang", formats: ["markdown"], onlyMainContent: true, parsers: [], proxy: "basic" });
     expect(body.timeout).toBeLessThanOrEqual(8000);
-    const out = fed(model, 2);
+    // Measured without the system prompt: the bound is on what the scraped page adds.
+    const out = JSON.stringify(model.doStreamCalls[2]!.prompt.filter(message => message.role !== "system"));
     expect(out).toContain("DU_LIEU_WEB_KHONG_TIN_CAY");
     expect(out).not.toMatch(/<style|<p |onclick|javascript:/);
     expect(out).toContain("chữ");
@@ -201,15 +202,15 @@ describe("fetchPage Firecrawl scrape", () => {
 });
 
 describe("per-turn caps", () => {
-  it("allows at most 3 webSearch and 2 fetchPage calls per turn", async () => {
+  it("allows at most 1 webSearch and 1 fetchPage call per turn (ADR-42: web only when needed)", async () => {
     const fetcher = webFetch();
-    const model = scripted([search("a1"), search("a2"), search("a3"), search("a4"), page(), page(), page(), { text: "Đã đủ." }]);
+    const model = scripted([search("a1"), search("a2"), page(), page(), { text: "Đã đủ." }]);
     await run(model, { web: web(fetcher) });
     const calls = fetcher.mock.calls.map(c => String(c[0]));
-    expect(calls.filter(u => u === FIRECRAWL_SEARCH_ENDPOINT)).toHaveLength(3);
-    expect(calls.filter(u => u === FIRECRAWL_SCRAPE_ENDPOINT)).toHaveLength(2);
-    expect(fed(model, 4)).toContain("WEB_SEARCH_LIMIT");
-    expect(fed(model, 7)).toContain("FETCH_PAGE_LIMIT");
+    expect(calls.filter(u => u === FIRECRAWL_SEARCH_ENDPOINT)).toHaveLength(1);
+    expect(calls.filter(u => u === FIRECRAWL_SCRAPE_ENDPOINT)).toHaveLength(1);
+    expect(fed(model, 2)).toContain("WEB_SEARCH_LIMIT");
+    expect(fed(model, 4)).toContain("FETCH_PAGE_LIMIT");
   });
 });
 

@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { readConversationState } from "./tripsage-conversation-state";
 import { parseBlocks, TripsageMarkdown } from "./tripsage-markdown";
+import { TripsageTimelineView } from "./tripsage-timeline-view";
 import { hubOrigin, TRIP_HUBS } from "@/modules/tripsage-chat/trip-hubs";
 import { missingJourneyFields } from "@/modules/trip-origin/trip-origin-contract";
 
@@ -74,5 +75,30 @@ describe("trip hubs", () => {
       expect(origin).toMatchObject({ label: hub.name, confirmed: true, source: "MANUAL" });
       expect(missingJourneyFields({ origin, departureMinute: 420, returnDeadlineMinute: 1080, returnDepartureMinute: null })).toEqual([]);
     }
+  });
+});
+
+describe("timeline and suggestions in the client", () => {
+  const timeline = { days: [{ day: 1, date: "2026-12-04", items: [
+    { slotId: "d1-visit-1", kind: "VISIT", startMinute: 480, endMinute: 720, label: "Điểm a" },
+    { slotId: "d1-lunch", kind: "LUNCH", startMinute: 720, endMinute: 780, label: "Nghỉ trưa 60 phút" },
+    { slotId: "d1-overnight", kind: "OVERNIGHT", startMinute: 900, endMinute: null, label: "Nghỉ đêm khu vực Đồng Văn" },
+  ] }] };
+  const suggestion = { slotId: "d1-overnight", kind: "LODGING", title: "Homestay ấm cúng", place: { name: "Homestay Gần", distanceKm: 0.4 } };
+
+  it("keeps suggestions for the newest itinerary only", () => {
+    const first = [assistant("a1", [{ type: "data-itinerary", data: { ok: true } }, { type: "data-timeline", data: timeline }, { type: "data-suggestions", data: { suggestions: [suggestion] } }])];
+    expect(readConversationState(first, isItinerary)).toMatchObject({ timeline, suggestions: [suggestion] });
+    const replanned = [...first, user("u1"), assistant("a2", [{ type: "data-itinerary", data: { ok: true } }])];
+    expect(readConversationState(replanned, isItinerary)).toMatchObject({ timeline: null, suggestions: [] });
+  });
+
+  it("renders planner times and labels suggestions as unchecked", () => {
+    const html = renderToStaticMarkup(createElement(TripsageTimelineView, { timeline: timeline as never, suggestions: [suggestion as never] }));
+    expect(html).toContain("12:00–13:00");
+    expect(html).toContain("Nghỉ đêm khu vực Đồng Văn");
+    expect(html).toContain("Homestay ấm cúng");
+    expect(html).toContain("cách khoảng 0.4 km");
+    expect(html).toContain("chưa kiểm tra");
   });
 });

@@ -192,9 +192,9 @@ describe("turn caps end with a readable, bounded notice that names what was crea
   });
 
   it("per-tool call caps answer the model with a Vietnamese limit result and the turn still ends", async () => {
-    const model = scripted([...Array(4).fill({ tool: "searchPlaces", input: { query: "quán cà phê" } }), { text: "Đã đủ." }]);
+    const model = scripted([...Array(5).fill({ tool: "searchPlaces", input: { query: "quán cà phê" } }), { text: "Đã đủ." }]);
     const sse = await (await tripsageChatResponse(req(), base({ model: async () => model, places: () => async () => ({ status: "NO_RESULTS" }) }))).text();
-    expect(JSON.stringify(model.doStreamCalls[4]!.prompt)).toContain("PLACES_LIMIT");
+    expect(JSON.stringify(model.doStreamCalls[5]!.prompt)).toContain("PLACES_LIMIT");
     expect(sse).toContain("Đã đủ.");
   });
 });

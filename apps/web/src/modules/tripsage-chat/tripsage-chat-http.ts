@@ -9,7 +9,7 @@ import { isTripsageChatEnabled } from "./tripsage-chat-flag";
 import { enabledTripsageFeatures } from "./tripsage-features";
 import type { PlacesSearch } from "./tripsage-places";
 import type { WebLookup } from "./tripsage-web";
-import type { TripsagePlanningDeps, TripsageToolContext } from "./tripsage-chat-tools";
+import type { LocalKnowledge, TripsagePlanningDeps, TripsageToolContext } from "./tripsage-chat-tools";
 import type { MemoryService } from "../tripsage-memory/memory-service";
 import { parseTripsageChatItinerary, parseTripsageChatJourney, parseTripsageChatMessages, parseTripsageChatTripInfo, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
 
@@ -23,6 +23,8 @@ export type TripsageChatHttpDependencies = {
   /** Firecrawl web search/scrape; resolved lazily. Absent means the web tools report unavailable. */
   web?: () => WebLookup;
   memory?: () => MemoryService;
+  /** Reviewed local documents (Q&A retriever); resolved lazily. Absent means the knowledge tool reports unavailable. */
+  knowledge?: () => LocalKnowledge;
   /** Test seam for the per-turn caps; production uses the defaults. */
   limits?: Partial<TripsageChatTurnLimits>;
   env?: Record<string, string | undefined>;
@@ -60,7 +62,7 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
         try {
           resolve(streamTripsageChat({
             model: await deps.model(), messages, journey, tripInfo, currentItinerary, features,
-            planning: deps.planning?.() ?? unavailablePlanning, places: deps.places?.(), web: deps.web?.(),
+            planning: deps.planning?.() ?? unavailablePlanning, places: deps.places?.(), web: deps.web?.(), knowledge: deps.knowledge?.(),
             flights: deps.flights, hotels: deps.hotels, limits: deps.limits, signal: request.signal, onSettled: release,
             memory: features.has("memory") ? { actor, source: latestUser, resolve: deps.memory } : undefined,
           }));

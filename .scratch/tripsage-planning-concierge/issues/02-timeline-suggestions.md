@@ -4,12 +4,12 @@
 
 **Blocked by:** 01
 
-**Status:** TODO
+**Status:** DONE (2026-11-21) — code + automated tests; live OpenAI/Places/browser acceptance not run.
 
-- [ ] Scheduler nhận `lunchMinutes`/`dayEndMinute`; Validator không đổi; Save re-check vẫn PASS.
-- [ ] `data-timeline` qua schema; `slotId` ổn định; nghỉ đêm = khu của điểm cuối ngày.
-- [ ] `addSuggestions` chỉ nhận `slotId` có thật và `placeId` từ `searchPlaces` cùng lượt; kiểm khoảng cách bằng tọa độ server; phát `data-suggestions`.
-- [ ] `lookupLocalKnowledge` trả đoạn trích như dữ liệu, lỗi thì báo chưa sẵn sàng.
-- [ ] `webSearch` tối đa 1 lần mỗi lượt.
-- [ ] Thẻ timeline hiển thị gợi ý có nhãn "gợi ý, chưa kiểm tra".
-- [ ] Test thuần timeline/gợi ý, test route, typecheck.
+- [x] Scheduler nhận `lunchMinutes`/`dayEndMinute`; Validator không đổi; Save re-check vẫn PASS.
+- [x] `data-timeline` qua schema; `slotId` ổn định; nghỉ đêm = khu của điểm cuối ngày.
+- [x] `addSuggestions` chỉ nhận `slotId` có thật và `placeId` từ `searchPlaces` cùng lượt; kiểm khoảng cách bằng tọa độ server; phát `data-suggestions`.
+- [x] `lookupLocalKnowledge` trả đoạn trích như dữ liệu, lỗi thì báo chưa sẵn sàng.
+- [x] `webSearch` tối đa 1 lần mỗi lượt.
+- [x] Thẻ timeline hiển thị gợi ý có nhãn "gợi ý, chưa kiểm tra".
+- [x] Test thuần timeline/gợi ý, test route, typecheck.

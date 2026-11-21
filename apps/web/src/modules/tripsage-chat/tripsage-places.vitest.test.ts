@@ -107,12 +107,12 @@ describe("searchPlaces Google Places (New) request", () => {
 });
 
 describe("searchPlaces caps and failure", () => {
-  it("allows at most 3 Places calls per turn", async () => {
+  it("allows at most 4 Places calls per turn", async () => {
     const fetcher = placesFetch();
-    const model = scripted([search("a1"), search("a2"), search("a3"), search("a4"), { text: "Đủ rồi." }]);
+    const model = scripted([search("a1"), search("a2"), search("a3"), search("a4"), search("a5"), { text: "Đủ rồi." }]);
     await run(model, { places: places(fetcher) });
-    expect(fetcher).toHaveBeenCalledTimes(3);
-    expect(JSON.stringify(model.doStreamCalls[4]!.prompt)).toContain("PLACES_LIMIT");
+    expect(fetcher).toHaveBeenCalledTimes(4);
+    expect(JSON.stringify(model.doStreamCalls[5]!.prompt)).toContain("PLACES_LIMIT");
   });
 
   it("never retries a failed Places call", async () => {
@@ -167,8 +167,8 @@ describe("Places results are untrusted data", () => {
     // The scripted model ran searchPlaces then wrote text; no itinerary and no extra Places call was caused by the name.
     expect(parts(sse).some(p => p.type === "data-itinerary")).toBe(false);
     expect(fetcher).toHaveBeenCalledTimes(1);
-    const fed = JSON.stringify(model.doStreamCalls[1]!.prompt);
-    expect(fed.length).toBeLessThan(6000);
+    const fed = JSON.stringify(model.doStreamCalls[1]!.prompt.filter(message => message.role !== "system"));
+    expect(fed.length).toBeLessThan(3000);
     expect(fed).not.toContain("x".repeat(200));
     expect(fed).toMatch(/dữ liệu/);
   });
