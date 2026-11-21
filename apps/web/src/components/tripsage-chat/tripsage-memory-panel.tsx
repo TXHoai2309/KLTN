@@ -68,7 +68,7 @@ function MemoryPanel() {
     }}>
       <summary>Bộ nhớ của tôi</summary>
       <div className={styles.body} aria-busy={busy}>
-        <p className="assistant-muted">Trợ lý chỉ lưu sở thích bạn muốn nhớ; bạn có thể xóa bất kỳ lúc nào.</p>
+        <p className="assistant-muted">Nội dung bạn muốn ghi nhớ được gửi tới OpenAI để tạo embedding (vector), và bạn có thể xóa nội dung đã lưu bất kỳ lúc nào.</p>
         {feedback && <p role={feedback.error ? "alert" : "status"}>{feedback.message}</p>}
         {busy && items === undefined && <p role="status">Đang tải bộ nhớ…</p>}
         {items?.length === 0 && <p>Chưa có mục bộ nhớ nào.</p>}

@@ -11,6 +11,6 @@ describe("TripSage memory control", () => {
   it("renders the labeled keyboard-operable disclosure and privacy explanation when enabled", () => {
     const html = renderToStaticMarkup(createElement(TripsageMemoryPanel, { enabled: true }));
     expect(html).toContain("<summary>Bộ nhớ của tôi</summary>");
-    expect(html).toContain("Trợ lý chỉ lưu sở thích bạn muốn nhớ");
+    expect(html).toContain("Nội dung bạn muốn ghi nhớ được gửi tới OpenAI để tạo embedding (vector), và bạn có thể xóa nội dung đã lưu bất kỳ lúc nào.");
   });
 });
