@@ -1,3 +1,4 @@
+import { TRIP_INFO_FIXTURE, BASE_TOOL_NAMES_SORTED } from "./tripsage-chat-fixtures";
 import { MockLanguageModelV4 } from "ai/test";
 import { simulateReadableStream } from "ai";
 import { describe, expect, it, vi } from "vitest";
@@ -10,7 +11,7 @@ import { createTripsageChatTools, TRIPSAGE_CHAT_TOOL_NAMES, type TripsagePlannin
 import { createFirecrawlWeb, FIRECRAWL_SCRAPE_ENDPOINT, FIRECRAWL_SEARCH_ENDPOINT, isSafePublicHttpsUrl, sanitizeWebText, WEB_PAGE_MAX_CHARS } from "./tripsage-web";
 
 const KEY = "fc-test-firecrawl-key-do-not-leak";
-const FIVE = ["fetchPage", "listDestinations", "proposeItinerary", "searchPlaces", "webSearch"];
+const FIVE = BASE_TOOL_NAMES_SORTED;
 let seq = 0;
 const auth = () => ({ database: { user: { findUnique: async () => ({ id: `web-${seq}`, role: "TRAVELER", status: "ACTIVE" }) } }, resolveSession: async () => ({ user: { id: `web-${++seq}` } }) }) as unknown as AuthorizationDependencies;
 const usage = { inputTokens: { total: 3, noCache: 3, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 3, text: 3, reasoning: 0 } };
@@ -31,7 +32,7 @@ const planning = (): (() => TripsagePlanningDeps) => () => ({
   candidates: async () => [planningCandidate("a"), planningCandidate("b")],
   routes: { route: fixtureRoutes.route, coordinateRoute: async () => ({ status: "VERIFIED", reason: null, durationSeconds: 3600, distanceMeters: 50_000, provider: "STADIA_MAPS" }) }, now: () => planningNow,
 });
-const req = () => new Request("https://app.test/api/ai/chat", { method: "POST", headers: { origin: "https://app.test", "content-type": "application/json" }, body: JSON.stringify({ messages: [{ id: "m1", role: "user", parts: [{ type: "text", text: "Đi 1 ngày bằng ô tô, xem giờ mở cửa" }] }], journey: COMPLETE_JOURNEY_FIXTURE }) });
+const req = () => new Request("https://app.test/api/ai/chat", { method: "POST", headers: { origin: "https://app.test", "content-type": "application/json" }, body: JSON.stringify({ messages: [{ id: "m1", role: "user", parts: [{ type: "text", text: "Đi 1 ngày bằng ô tô, xem giờ mở cửa" }] }], journey: COMPLETE_JOURNEY_FIXTURE, tripInfo: TRIP_INFO_FIXTURE }) });
 const run = async (model: MockLanguageModelV4, over: Record<string, unknown> = {}) => {
   const response = await tripsageChatResponse(req(), { authorization: auth(), model: async () => model, env: { TRIPSAGE_CHAT_ENABLED: "true" }, admit: createPlanningAdmission(), planning: planning(), ...over });
   expect(response.status).toBe(200);
@@ -61,14 +62,14 @@ const page = (url = "https://du-lich.example.vn/ha-giang") => ({ tool: "fetchPag
 const fed = (model: MockLanguageModelV4, call: number) => JSON.stringify(model.doStreamCalls[call]!.prompt);
 
 describe("allow-list with web tools (Ticket 10)", () => {
-  it("registers exactly five tools", () => {
+  it("registers exactly the base tools", () => {
     const tools = createTripsageChatTools({ planning: planning()(), emitItinerary: () => {} });
     expect(Object.keys(tools).sort()).toEqual(FIVE);
     expect([...TRIPSAGE_CHAT_TOOL_NAMES].sort()).toEqual(FIVE);
     for (const banned of ["crawlSite", "crawlUrl", "placeDetails", "savePlan", "createTravelPlan", "googlePlaces"]) expect(tools).not.toHaveProperty(banned);
   });
 
-  it("advertises five tools and still refuses any other tool", async () => {
+  it("advertises the base tools and still refuses any other tool", async () => {
     const fetcher = webFetch();
     const model = scripted([{ tool: "crawlSite", input: { url: "https://example.com" } }, { text: "Không dùng được." }]);
     const sse = await run(model, { web: web(fetcher) });
@@ -114,7 +115,7 @@ describe("webSearch via Firecrawl v2", () => {
 
 describe("web content is data, never instructions", () => {
   it("an injected instruction does not run a tool outside the allow-list or change the itinerary", async () => {
-    const propose = { tool: "proposeItinerary", input: { transport: "CAR", durationDays: 1, startDate: "2026-11-02", interests: ["NATURE"], selection: { days: [["a", "b"]] } } };
+    const propose = { tool: "proposeItinerary", input: { selection: { days: [["a", "b"]] } } };
     const baseline = parts(await run(scripted([propose, { text: "Xong." }]), { web: web(webFetch()) })).find(p => p.type === "data-itinerary");
     const fetcher = webFetch((url) => (url === FIRECRAWL_SEARCH_ENDPOINT ? json(SEARCH_BODY) : json(PAGE_BODY(`<script>alert(1)</script>${INJECTION}`))));
     const model = scripted([search(), page(), { tool: "crawlSite", input: { url: "https://du-lich.example.vn" } }, { tool: "proposeItinerary", input: { ...propose.input, selection: { days: [["zzz"]] } } }, propose, { text: "Xong." }]);
@@ -181,7 +182,8 @@ describe("fetchPage Firecrawl scrape", () => {
     const body = JSON.parse(String(init.body));
     expect(body).toMatchObject({ url: "https://du-lich.example.vn/ha-giang", formats: ["markdown"], onlyMainContent: true, parsers: [], proxy: "basic" });
     expect(body.timeout).toBeLessThanOrEqual(8000);
-    const out = fed(model, 2);
+    // Measured without the system prompt: the bound is on what the scraped page adds.
+    const out = JSON.stringify(model.doStreamCalls[2]!.prompt.filter(message => message.role !== "system"));
     expect(out).toContain("DU_LIEU_WEB_KHONG_TIN_CAY");
     expect(out).not.toMatch(/<style|<p |onclick|javascript:/);
     expect(out).toContain("chữ");
@@ -200,15 +202,15 @@ describe("fetchPage Firecrawl scrape", () => {
 });
 
 describe("per-turn caps", () => {
-  it("allows at most 3 webSearch and 2 fetchPage calls per turn", async () => {
+  it("allows at most 1 webSearch and 1 fetchPage call per turn (ADR-42: web only when needed)", async () => {
     const fetcher = webFetch();
-    const model = scripted([search("a1"), search("a2"), search("a3"), search("a4"), page(), page(), page(), { text: "Đã đủ." }]);
+    const model = scripted([search("a1"), search("a2"), page(), page(), { text: "Đã đủ." }]);
     await run(model, { web: web(fetcher) });
     const calls = fetcher.mock.calls.map(c => String(c[0]));
-    expect(calls.filter(u => u === FIRECRAWL_SEARCH_ENDPOINT)).toHaveLength(3);
-    expect(calls.filter(u => u === FIRECRAWL_SCRAPE_ENDPOINT)).toHaveLength(2);
-    expect(fed(model, 4)).toContain("WEB_SEARCH_LIMIT");
-    expect(fed(model, 7)).toContain("FETCH_PAGE_LIMIT");
+    expect(calls.filter(u => u === FIRECRAWL_SEARCH_ENDPOINT)).toHaveLength(1);
+    expect(calls.filter(u => u === FIRECRAWL_SCRAPE_ENDPOINT)).toHaveLength(1);
+    expect(fed(model, 2)).toContain("WEB_SEARCH_LIMIT");
+    expect(fed(model, 4)).toContain("FETCH_PAGE_LIMIT");
   });
 });
 

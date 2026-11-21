@@ -1,3 +1,4 @@
+import { TRIP_INFO_FIXTURE } from "./tripsage-chat-fixtures";
 import { MockLanguageModelV4 } from "ai/test";
 import { simulateReadableStream } from "ai";
 import { describe, expect, it, vi } from "vitest";
@@ -38,7 +39,7 @@ const planning = (): TripsagePlanningDeps => ({
   candidates: async () => [planningCandidate("a"), planningCandidate("b")],
   routes: { route: routeSpy, coordinateRoute: async () => ({ status: "VERIFIED", reason: null, durationSeconds: 3600, distanceMeters: 50_000, provider: "STADIA_MAPS" }) }, now: () => planningNow,
 });
-const req = () => new Request("https://app.test/api/ai/chat", { method: "POST", headers: { origin: "https://app.test", "content-type": "application/json" }, body: JSON.stringify({ messages: [{ id: "m1", role: "user", parts: [{ type: "text", text: "Đi 1 ngày" }] }], journey: COMPLETE_JOURNEY_FIXTURE }) });
+const req = () => new Request("https://app.test/api/ai/chat", { method: "POST", headers: { origin: "https://app.test", "content-type": "application/json" }, body: JSON.stringify({ messages: [{ id: "m1", role: "user", parts: [{ type: "text", text: "Đi 1 ngày" }] }], journey: COMPLETE_JOURNEY_FIXTURE, tripInfo: TRIP_INFO_FIXTURE }) });
 const run = async (model: MockLanguageModelV4) => {
   const response = await tripsageChatResponse(req(), { authorization: auth(), model: async () => model, env: { TRIPSAGE_CHAT_ENABLED: "true" }, admit: createPlanningAdmission(), planning: () => planning(), places: places });
   expect(response.status).toBe(200);
@@ -46,7 +47,7 @@ const run = async (model: MockLanguageModelV4) => {
 };
 const parts = (sse: string) => sse.split("\n").filter(l => l.startsWith("data: {")).map(l => JSON.parse(l.slice(6)) as { type: string; data?: unknown });
 const search = { tool: "searchPlaces", input: { query: "cà phê" } };
-const propose = (days: string[][]) => ({ tool: "proposeItinerary", input: { transport: "CAR", durationDays: 1, startDate: "2026-11-02", interests: ["NATURE"], selection: { days } } });
+const propose = (days: string[][]) => ({ tool: "proposeItinerary", input: { selection: { days } } });
 const itinerary = (sse: string): PlannerResult => plannerResultSchema.parse(parts(sse).find(p => p.type === "data-itinerary")!.data);
 
 describe("Ticket 08b: external place scheduling at the chat route", () => {

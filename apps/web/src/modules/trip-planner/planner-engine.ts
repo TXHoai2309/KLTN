@@ -71,6 +71,9 @@ export function schedulePlannerDays(requirement: TripRequirementInput, selected:
     const date = dateForDay(requirement.startDate, index);
     let cursor: number | null = timing?.starts.has(index + 1) ? timing.starts.get(index + 1)! : timing ? MORNING_DEPARTURE_MINUTE : PLANNING_WINDOW.startMinute;
     let lunched = false;
+    // ADR-42 §3: per-trip lunch length and latest visit end; defaults keep the owner-approved 60 min and 18:00.
+    const lunchMinutes = requirement.dayRhythm?.lunchMinutes ?? LUNCH.minutes;
+    const dayEnd = Math.min(requirement.dayRhythm?.dayEndMinute ?? PLANNING_WINDOW.endMinute, PLANNING_WINDOW.endMinute);
     const stops: PlannerStop[] = candidates.map((candidate, order) => {
       const inbound = routes.get(candidate.id) ?? null;
       const duration = visitDuration(candidate)!;
@@ -82,17 +85,17 @@ export function schedulePlannerDays(requirement: TripRequirementInput, selected:
       let arrival = cursor;
       const hours = openingFor(candidate, date);
       if (arrival !== null && hours?.status === "OPEN") {
-        const interval = hours.intervals.find(interval => Math.max(arrival!, interval.opensAtMinute) + duration <= Math.min(interval.closesAtMinute, 1080));
+        const interval = hours.intervals.find(interval => Math.max(arrival!, interval.opensAtMinute) + duration <= Math.min(interval.closesAtMinute, dayEnd));
         arrival = interval ? Math.max(arrival, interval.opensAtMinute) : null;
       }
       if (timing?.fixedArrivals?.has(candidate.id)) arrival = timing.fixedArrivals.get(candidate.id)!;
-      const impossible = cursor !== null && (hours?.status === "CLOSED" || arrival === null || arrival + duration > PLANNING_WINDOW.endMinute);
+      const impossible = cursor !== null && (hours?.status === "CLOSED" || arrival === null || arrival + duration > dayEnd);
       const state = impossible ? "UNSCHEDULED" : arrival === null ? "TIME_UNKNOWN" : "PLANNED";
       if (state !== "PLANNED") arrival = null;
       const departure = arrival === null ? null : arrival + duration;
       cursor = departure;
       if (timing && !lunched && departure !== null && departure >= LUNCH.fromMinute && departure <= LUNCH.toMinute && order < candidates.length - 1) {
-        cursor = departure + LUNCH.minutes; lunched = true;
+        cursor = departure + lunchMinutes; lunched = true;
       }
       const { id, name, description, area, address, category, latitude, longitude, image } = candidate;
       return { order: order + 1, destination: { id, name, description, area, address, category, latitude, longitude, image, ...(candidate.external ? { external: true as const } : {}) }, arrivalMinute: arrival,

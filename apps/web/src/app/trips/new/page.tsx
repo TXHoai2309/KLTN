@@ -27,7 +27,7 @@ export default async function NewTripPage() {
     <>
       {chatEnabled && (
         <p style={{ textAlign: "center", margin: "12px 0" }}>
-          <a href="/assistant?mode=plan">Thử lập hành trình bằng trò chuyện</a>
+          <a href="/assistant">Thử lập hành trình bằng trò chuyện</a>
         </p>
       )}
       <TripRequirementForm userId={actor.id} />

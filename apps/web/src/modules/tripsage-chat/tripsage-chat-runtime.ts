@@ -8,9 +8,27 @@ import { createGooglePlacesSearch, type PlacesSearch } from "./tripsage-places";
 import { createFirecrawlWeb, type WebLookup } from "./tripsage-web";
 import { createDuffelFlightLookup, type FlightLookup } from "./tripsage-duffel";
 import { createAmadeusHotelLookup, type HotelLookup } from "./tripsage-amadeus";
-import type { TripsagePlanningDeps } from "./tripsage-chat-tools";
+import type { LocalKnowledge, OriginLookup, TripsagePlanningDeps } from "./tripsage-chat-tools";
+import { createAssistantConversationStore, type AssistantConversationStore } from "./assistant-conversation-store";
+import { createQaRetriever } from "../ai/qa-retrieval";
+import { originSearchDependencies } from "../trip-origin/origin-search-server";
 
 export { tripsageMemoryRuntime } from "../tripsage-memory/memory-runtime";
+
+/** Owner-scoped persistence for unified assistant conversations (ADR-43 §6). */
+export function tripsageConversationsRuntime(): AssistantConversationStore {
+  return createAssistantConversationStore(db);
+}
+
+/** Same origin search (Vietnam coverage checked) as `/trips/new`; provider keys stay server-side. */
+export function tripsageOriginSearchRuntime(): OriginLookup {
+  return (query, signal) => originSearchDependencies.search({ query }, signal);
+}
+
+/** Server secret used to HMAC-sign origin candidates carried across turns. */
+export function tripsageOriginSecretRuntime(): string {
+  return ENV.BETTER_AUTH_SECRET;
+}
 
 /** Same candidate reader and routing provider (Stadia by default) as the existing planner. Provider keys stays server-side. */
 export function tripsagePlanningRuntime(): TripsagePlanningDeps {
@@ -30,6 +48,12 @@ export function tripsagePlacesRuntime(): PlacesSearch {
 /** Firecrawl web search and page extraction with the server-only key, read per call; it never leaves this module. */
 export function tripsageWebRuntime(): WebLookup {
   return createFirecrawlWeb({ apiKey: () => ENV.FIRECRAWL_API_KEY });
+}
+
+/** Reviewed RAG documents through the public Q&A retriever (same eligibility rules); only titles and excerpt text leave it. */
+export function tripsageKnowledgeRuntime(): LocalKnowledge {
+  const retriever = createQaRetriever(db, { topK: 4, maxEvidenceTokens: 2000, hybrid: true });
+  return async (question, signal) => (await retriever.retrieve(question, [], signal)).map(evidence => ({ title: evidence.citation.title, text: evidence.text }));
 }
 
 export function tripsageFlightRuntime(): FlightLookup | undefined {

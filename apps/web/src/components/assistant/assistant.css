@@ -2514,3 +2514,63 @@
 .assistant-composer-left-tools {
   display: none !important;
 }
+
+/* Planning concierge (ADR-42): assistant markdown, quick replies, in-chat origin card. */
+.tripsage-md { display: grid; gap: 0.6rem; line-height: 1.6; }
+.tripsage-md h3, .tripsage-md h4 { margin: 0.4rem 0 0; font-weight: 700; color: var(--assistant-ink); }
+.tripsage-md h3 { font-size: 1.05rem; }
+.tripsage-md h4 { font-size: 0.98rem; }
+.tripsage-md p { margin: 0; }
+.tripsage-md ul, .tripsage-md ol { margin: 0; padding-left: 1.3rem; display: grid; gap: 0.25rem; }
+.tripsage-md ul { list-style: disc; }
+.tripsage-md ol { list-style: decimal; }
+.tripsage-md strong { font-weight: 700; color: var(--assistant-ink); }
+.tripsage-md code { padding: 0 0.3rem; border-radius: 4px; background: var(--assistant-sage); font-size: 0.9em; }
+.tripsage-md-table { overflow-x: auto; }
+.tripsage-md table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+.tripsage-md th, .tripsage-md td { padding: 0.4rem 0.6rem; border: 1px solid var(--assistant-line); text-align: left; vertical-align: top; }
+.tripsage-md th { background: var(--assistant-green-light); font-weight: 700; }
+.tripsage-quick-replies { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+.tripsage-quick-replies button { padding: 0.4rem 0.9rem; border-radius: 999px; border: 1px solid var(--assistant-green); background: var(--assistant-card); color: var(--assistant-green); font-size: 0.9rem; cursor: pointer; text-align: left; max-width: 100%; overflow-wrap: anywhere; }
+.tripsage-quick-replies button:hover:not(:disabled) { background: var(--assistant-green-light); }
+.tripsage-quick-replies button:disabled { opacity: 0.5; cursor: default; }
+.tripsage-sources { display: grid; gap: 0.35rem; margin-top: 0.65rem; }
+.tripsage-doc-sources { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--assistant-muted); }
+.tripsage-sources-label { display: inline-flex; align-items: center; gap: 0.25rem; font-weight: 600; color: var(--assistant-ink); }
+.tripsage-source-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0; padding: 0; list-style: none; }
+.tripsage-source-chip { display: inline-flex; align-items: center; padding: 0.18rem 0.6rem; border-radius: 999px; border: 1px solid var(--assistant-line); background: var(--assistant-soft); color: var(--assistant-ink); font-size: 0.78rem; max-width: 100%; overflow-wrap: anywhere; }
+.tripsage-timeline { display: grid; gap: 0.9rem; margin-top: 0.75rem; }
+.tripsage-timeline-day { padding: 0.75rem 0.9rem; border: 1px solid var(--assistant-line); border-radius: 12px; background: var(--assistant-card); }
+.tripsage-timeline-day h4 { margin: 0 0 0.5rem; font-weight: 700; color: var(--assistant-green); }
+.tripsage-timeline-day ol { display: grid; gap: 0.35rem; margin: 0; padding: 0; list-style: none; }
+.tripsage-timeline-item { display: grid; grid-template-columns: 6.5rem 1.25rem 1fr; gap: 0.4rem; align-items: start; font-size: 0.92rem; }
+.tripsage-timeline-time { color: var(--assistant-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tripsage-timeline-icon { color: var(--assistant-green); padding-top: 0.15rem; }
+.tripsage-timeline-visit .tripsage-timeline-body > span:first-child { font-weight: 600; }
+.tripsage-timeline-lunch, .tripsage-timeline-overnight { background: var(--assistant-green-light); border-radius: 8px; padding: 0.15rem 0; }
+.tripsage-suggestion { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; margin: 0.25rem 0 0; font-size: 0.86rem; color: var(--assistant-ink); }
+.tripsage-suggestion-meta, .tripsage-suggestion-detail { color: var(--assistant-muted); }
+@media (max-width: 480px) { .tripsage-timeline-item { grid-template-columns: 4.6rem 1.1rem 1fr; font-size: 0.88rem; } }
+.tripsage-cost { display: grid; gap: 0.5rem; margin-top: 0.75rem; padding: 0.75rem 0.9rem; border: 1px solid var(--assistant-line); border-radius: 12px; background: var(--assistant-card); }
+.tripsage-cost h4 { margin: 0; font-weight: 700; color: var(--assistant-green); }
+.tripsage-cost tfoot th, .tripsage-cost tfoot td { background: var(--assistant-soft); }
+.tripsage-cost-notes { margin: 0; padding-left: 1.1rem; list-style: disc; font-size: 0.82rem; color: var(--assistant-muted); }
+.tripsage-access { display: grid; gap: 0.5rem; margin-top: 0.75rem; padding: 0.75rem 0.9rem; border: 1px dashed var(--assistant-green); border-radius: 12px; background: var(--assistant-soft); }
+.tripsage-access h4 { margin: 0; font-weight: 700; color: var(--assistant-green); }
+.tripsage-access h5 { margin: 0.25rem 0; font-size: 0.92rem; }
+.tripsage-access-segments { display: grid; gap: 0.25rem; margin: 0; padding-left: 0.2rem; list-style: none; font-size: 0.9rem; }
+.tripsage-map-collapse { display: grid; gap: 0.6rem; margin: 0.75rem 0; min-width: 0; }
+.tripsage-map-toggle { justify-self: start; display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.45rem 0.9rem; border-radius: 10px; border: 1px solid var(--assistant-line); background: var(--assistant-card); color: var(--assistant-ink); font-size: 0.9rem; font-weight: 600; cursor: pointer; max-width: 100%; }
+.tripsage-map-toggle:hover { background: var(--assistant-green-light); border-color: var(--assistant-green); }
+.tripsage-legacy-banner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.65rem 0.9rem; border-radius: 10px; border: 1px solid var(--assistant-line); background: var(--assistant-soft); font-size: 0.88rem; color: var(--assistant-muted); }
+.tripsage-legacy-banner button { padding: 0.35rem 0.8rem; border-radius: 999px; border: 1px solid var(--assistant-green); background: var(--assistant-card); color: var(--assistant-green); font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+.assistant-sidebar-footer { padding: 0.6rem 0.75rem; border-top: 1px solid var(--assistant-line); }
+.assistant-sidebar-delete-all-btn { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.45rem 0.75rem; border-radius: 8px; border: 1px solid var(--assistant-line); background: transparent; color: var(--assistant-muted); font-size: 0.84rem; cursor: pointer; }
+.assistant-sidebar-delete-all-btn:hover:not(:disabled) { color: #b91c1c; border-color: #fca5a5; background: #fef2f2; }
+.assistant-chat[data-runtime="tripsage-unified"],
+.assistant-chat[data-runtime="tripsage-unified"] .assistant-chat-main,
+.assistant-chat[data-runtime="tripsage-unified"] .assistant-transcript-inner,
+.assistant-chat[data-runtime="tripsage-unified"] .planner-page { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.assistant-chat[data-runtime="tripsage-unified"] .assistant-messages { display: flex; flex-direction: column; gap: 16px; }
+.assistant-chat[data-runtime="tripsage-unified"] .assistant-answer { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
+.assistant-chat[data-runtime="tripsage-unified"] .tripsage-cost { overflow-x: auto; }

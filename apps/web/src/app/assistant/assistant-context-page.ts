@@ -1,4 +1,6 @@
 import "server-only";
+import { redirect } from "next/navigation";
+import type { Route } from "next";
 import { Prisma } from "@KLTN/db";
 import { db } from "../../services";
 import { AppError } from "../../server/http/app-error";
@@ -8,6 +10,17 @@ import { containsEvidenceInstruction } from "../../modules/ai/qa-prompt";
 import type { AssistantContextProps } from "../../components/assistant/assistant-answer";
 
 export async function loadAssistantContext(query: Record<string, string | string[] | undefined>): Promise<AssistantContextProps> {
+  const mode = query.mode;
+  if (mode === "plan" || (Array.isArray(mode) && mode.includes("plan"))) {
+    const next = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (key === "mode" || value === undefined) continue;
+      if (Array.isArray(value)) for (const item of value) next.append(key, item);
+      else next.set(key, value);
+    }
+    const qs = next.toString();
+    redirect((qs ? `/assistant?${qs}` : "/assistant") as Route);
+  }
   let selected: { id: string; name: string } | undefined;
   if (query.destinationId !== undefined) {
     const id = qaReferenceIdSchema.safeParse(query.destinationId);

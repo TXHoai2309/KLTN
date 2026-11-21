@@ -1,3 +1,4 @@
+import { TRIP_INFO_FIXTURE } from "./tripsage-chat-fixtures";
 import type { Database } from "@KLTN/db";
 import { MockLanguageModelV4 } from "ai/test";
 import { simulateReadableStream } from "ai";
@@ -22,7 +23,7 @@ const routes = { route: async (pair: { from: { id: string }; to: { id: string } 
 /** Runs one scripted chat turn and returns the streamed itinerary exactly as the browser would receive it. */
 async function chatItinerary(routing: TripsagePlanningDeps["routes"] = routes as never): Promise<PlannerResult> {
   let call = 0;
-  const input = { transport: "CAR", durationDays: 1, startDate: "2026-11-02", interests: ["NATURE"], selection: { days: [["a", "b"]] } };
+  const input = { selection: { days: [["a", "b"]] } };
   const model = new MockLanguageModelV4({ doStream: async () => {
     const chunks = call++ === 0
       ? [{ type: "tool-call", toolCallId: "c1", toolName: "proposeItinerary", input: JSON.stringify(input) }, { type: "finish", finishReason: { unified: "tool-calls", raw: "tool_calls" }, usage }]
@@ -31,7 +32,7 @@ async function chatItinerary(routing: TripsagePlanningDeps["routes"] = routes as
   } });
   const authorization = { database: { user: { findUnique: async () => ({ id: "u", role: "TRAVELER", status: "ACTIVE" }) } }, resolveSession: async () => ({ user: { id: "u" } }) } as unknown as AuthorizationDependencies;
   const response = await tripsageChatResponse(new Request("https://app.test/api/ai/chat", { method: "POST", headers: { origin: "https://app.test", "content-type": "application/json" },
-    body: JSON.stringify({ messages: [{ id: "m", role: "user", parts: [{ type: "text", text: "Đi 1 ngày" }] }], journey: COMPLETE_JOURNEY_FIXTURE }) }), {
+    body: JSON.stringify({ messages: [{ id: "m", role: "user", parts: [{ type: "text", text: "Đi 1 ngày" }] }], journey: COMPLETE_JOURNEY_FIXTURE, tripInfo: TRIP_INFO_FIXTURE }) }), {
     authorization, model: async () => model, env: { TRIPSAGE_CHAT_ENABLED: "true" }, admit: createPlanningAdmission(),
     planning: () => ({ candidates: async () => [planningCandidate("a"), planningCandidate("b")], routes: routing, now: () => planningNow }),
   });

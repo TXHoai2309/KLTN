@@ -74,6 +74,50 @@ _Avoid_: Last attraction, trip completion.
 Khoảng thời gian hệ thống dành thêm để nghỉ trong các chặng di chuyển của lịch trình, tách biệt với thời gian chạy xe ước tính.
 _Avoid_: Verified driving time, actual rest time, lodging.
 
+**Day timeline (timeline trong ngày)**:
+Trình tự thời gian của một ngày trong đề xuất hành trình: khởi hành, chặng đi, lượt tham quan, nghỉ trưa, nghỉ đêm và chặng về. Các mốc giờ trong timeline là mốc đã được lập và kiểm tra; gợi ý đi kèm không làm đổi mốc giờ.
+_Avoid_: Free-text itinerary, AI-written schedule.
+
+**Planning suggestion (gợi ý kèm lịch)**:
+Lời khuyên do trợ lý thêm vào một khoảng trong timeline, như ăn ở đâu, buổi tối làm gì hay mẹo đi lại. Gợi ý không phải là lượt tham quan, không được kiểm tra ràng buộc và không làm đổi mốc giờ.
+_Avoid_: Scheduled visit, verified stop.
+
+**Lodging suggestion (gợi ý chỗ nghỉ)**:
+Một nơi lưu trú bên ngoài danh mục điểm đến được gợi ý cho một đêm của chuyến đi, luôn được đánh dấu là chưa kiểm tra. Gợi ý chỗ nghỉ không phải là đặt phòng và không phải là lượt tham quan.
+_Avoid_: Booking, overnight stop, destination.
+
+**Cost estimate (bảng chi phí ước tính)**:
+Bảng các khoản chi dự kiến của chuyến đi theo từng nhóm và tổng cộng. Số tiền là ước tính, không phải giá đã xác nhận.
+_Avoid_: Quote, verified price, booking total.
+
+**Trip hub (điểm tập kết)**:
+Nơi người đi bắt đầu phần đi bằng xe máy hoặc ô tô của chuyến đi, thường là nơi thuê xe, khi họ đến từ xa bằng phương tiện khác. Khi có điểm tập kết, nó là nơi xuất phát của phần lịch được kiểm tra.
+_Avoid_: Trip origin, first attraction.
+
+**Access leg (chặng tiếp cận)**:
+Phần di chuyển từ nhà người đi đến điểm tập kết bằng máy bay, xe khách hay tàu. Chặng tiếp cận được ước tính và hiển thị nhưng không được kiểm tra ràng buộc.
+_Avoid_: Return leg, roadside driving leg, verified journey.
+
+**Price reference (bảng giá tham khảo)**:
+Tài liệu được duyệt ghi các mức giá phổ biến cho chuyến đi Hà Giang, kèm ngày cập nhật, làm cơ sở cho bảng chi phí ước tính.
+_Avoid_: Live price, quote.
+
+**Planning intent confirmation (xác nhận muốn lập lịch)**:
+Câu trợ lý hỏi lại khi người đang hỏi đáp chuyển sang muốn lập lịch, nêu những gì nó đã hiểu để người dùng đồng ý. Không cần khi người dùng mở đầu bằng yêu cầu lập lịch rõ ràng.
+_Avoid_: Trip save confirmation, proposal change confirmation.
+
+**Required stop (điểm bắt buộc)**:
+Một điểm đến người dùng muốn chắc chắn có trong lịch, ví dụ địa điểm họ vừa hỏi trước khi chuyển sang lập lịch. Lịch đề xuất phải chứa điểm này hoặc nói rõ vì sao không xếp được.
+_Avoid_: Night-area preference, suggestion.
+
+**Origin candidate (ứng viên điểm xuất phát)**:
+Một địa điểm hệ thống tìm được từ tên nơi đi người dùng gõ, được trợ lý nói lại để người dùng xác nhận. Ứng viên chưa phải là nơi xuất phát cho đến khi người dùng đồng ý.
+_Avoid_: Trip origin, confirmed origin.
+
+**Chat origin confirmation (xác nhận nơi xuất phát trong chat)**:
+Câu trả lời đồng ý của người dùng ngay sau khi trợ lý nói lại một ứng viên điểm xuất phát; nó biến ứng viên đó thành nơi xuất phát đã xác nhận.
+_Avoid_: Model-chosen origin, map pin.
+
 **Indicative departure window (khoảng khởi hành dự kiến)**:
 A period in which the traveler may start the trip without yet choosing one exact departure date, such as a particular week.
 _Avoid_: Exact departure date, confirmed trip dates.

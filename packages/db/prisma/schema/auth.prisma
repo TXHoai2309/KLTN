@@ -36,6 +36,7 @@ model User {
   companionReadMarkers TripCompanionReadMarker[]
   planningWorkspaces AssistantPlanningWorkspace[]
   assistantV2Sessions AssistantV2SessionHead[]
+  assistantConversations AssistantConversation[]
   travelerMemories TravelerMemory[]
   auditEvents   AdminAuditEvent[] @relation("TargetUser")
   actionsDone   AdminAuditEvent[] @relation("ActorAdmin")

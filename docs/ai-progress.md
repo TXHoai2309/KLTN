@@ -5582,10 +5582,7 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Not run: any migration or database, opt-in PostgreSQL tests, browser, real OpenAI/Google/Firecrawl, live old-selector comparison.
 - Branch commits (oldest first): 50a33c1, 5171a70, ee59057, cd11c21, f245753, 9f4ffbc, dd09618, f636c5a, 2482f5d, ba446a8, ec06f64, b986ed4, e1f134c, 282bf04, 81a75fd, a44c636, plus the Ticket 12 docs commit.
 - Owner to-do list and rollback: `docs/research/tripsage-port-handoff.md`. ADR-36 stays Proposed. Note: a foreign git worktree `.claude/worktrees/agent-ab6717e58ec044251` exists; not created by this ticket and left untouched.
-<<<<<<< HEAD
-=======
 
->>>>>>> 2ef331b5043d8bbbdf721c91f9edda31e322b75a
 ## 2026-11-18 — WEATHER-SUN-ADVISORIES ticket 01: sun times on destination
 
 - Owner asked to run the weather tickets overnight. Added `suncalc@1.9.0` (pinned) and `@types/suncalc@1.9.2`; new `trip-weather` module computes sunrise, sunset and golden hours in Asia/Ho_Chi_Minh; public `GET /api/destinations/[id]/weather?date=` reuses the public destination visibility boundary; destination page shows a "Giờ mặt trời" card with a date picker.
@@ -5662,8 +5659,6 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Updated `docs/product/product-spec.md` (Weather and sun times section), `docs/stories/ASSISTANT-WEATHER.md` status, and tickets `01`–`06` under `.scratch/assistant-weather/issues/`.
 - Evidence: `tsc --noEmit` PASS; related Vitest suites **75/75 files (913/913 tests) PASS** across `trip-weather`, `assistant-agent-v2`, `assistant-planning`, `components/assistant`, `trip-theme`, and Q&A weather/contract/understanding/service/HTTP/context/abuse/safety; `npm run build` (56 pages) PASS; `git diff --check` PASS.
 - Skipped / Pending owner approval: live browser acceptance calling real OpenAI models and saving a test trip to the database were skipped per owner cost/DB instructions (`cần owner đồng ý`). Read-only Dev DB check also noted that no `VISIBLE` destination row for `"Thành phố Hà Giang"` exists yet for live representative-point queries. Pre-existing unrelated test issues left untouched: legacy `test:destination` #64 and 3 older `src/modules/ai` offline suites (`qa-diagnostics`, `qa-advanced-reasoning`, `qa-chat-preference`) affected by earlier `runtime-config` / `knowledgeMode` changes. No commit or push.
-<<<<<<< HEAD
-=======
 
 ## 2026-11-18 — Trip Edit redesign interview, ADR-37 & spec (`grill-with-docs` + `to-spec`)
 
@@ -5829,9 +5824,59 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
   - `npm run build` (`apps/web`): PASS (Next.js 16.4.6 Turbopack, TypeScript check + 57/57 static pages & all dynamic/API routes).
   - `git diff --check`: PASS. No secrets in diff; no Prisma schema/migration or dependency changes.
 - **Not proven:** Visual/interactive browser verification (360 px mobile, dark mode, live Stop click, and Vercel Production CDN SSE buffering behavior); live PostgreSQL/Stadia end-to-end turn; live OpenAI turn triggering `apply_to_draft` or `FALSE_PASS` (both covered by unit/stream tests with `MockLanguageModelV4`).
->>>>>>> 2ef331b5043d8bbbdf721c91f9edda31e322b75a
 
-## 2026-11-22 — Quản lý thiết lập ứng dụng qua Admin (ADR-42)
+## 2026-11-21 — Planning concierge design (`/assistant/plan`)
+
+- **Branch:** `TXH`
+- **Task:** Owner grilling Q1–Q25 on the AI planning chat after merging `feat/tripsage-chat-itinerary-port`.
+- **Completed:** Spec `docs/specs/tripsage-planning-concierge-spec.md`, ADR-42, glossary terms (Day timeline, Planning suggestion, Lodging suggestion, Cost estimate, Trip hub, Access leg, Price reference), tickets 01–04 under `.scratch/tripsage-planning-concierge/issues`. The AI-led intake spec is marked superseded.
+- **DB/migration changes:** None planned (extras are not saved).
+- **Next:** Implement tickets 01→04, one commit each.
+
+## 2026-11-21 — Planning concierge implementation (tickets 01–04)
+
+- **Branch:** `TXH`. One commit per ticket after the docs commit.
+- **Completed:** guided cluster questions (`recordTripInfo`, `requestOrigin`, `suggestReplies`), trip hubs, in-house safe markdown, terra/medium reasoning with 12 steps / 280 s; day timeline, `dayRhythm` (lunch 60–120 min, latest visit end 15:00–18:00) in the planner, `addSuggestions` with server distance checks, `searchPlaces` near a destination, `lookupLocalKnowledge` over the Q&A retriever; `estimateCosts` with server-computed fuel; `planAccessLeg` to a hub with hub hints. Review fixes B.1–B.3 included.
+- **DB/migration changes:** None. `dayRhythm` is an optional requirement field not used by Save.
+- **Validation:** `tsc --noEmit` clean; vitest suites above pass. Run vitest from PowerShell with `D:\` (lowercase `d:` in Git Bash breaks vitest suite discovery).
+- **Not run / open:** live provider and browser acceptance; price reference document needs Admin review and upload; `react-markdown` install was blocked, so a minimal in-house renderer is used.
+
+## 2026-11-21 — Unified assistant chat design (documents only)
+
+- **Branch:** `TXH`.
+- **Task:** Owner grilling Q26–Q34 after the concierge went live: one chat at `/assistant`, chat-only origin confirmation, collapsed map, saved planning conversations, V2 retirement.
+- **Completed:** Spec `docs/specs/unified-assistant-chat-spec.md`, ADR-43, glossary terms (Planning intent confirmation, Required stop, Origin candidate, Chat origin confirmation), tickets 01–05 under `.scratch/unified-assistant-chat/issues`. No code; the owner approved documents only.
+- **Next:** Implement only after the owner asks.
+
+## 2026-11-21 — Unified assistant chat ticket 01 (chat-only origin confirmation and default clocks)
+
+- **Branch:** `TXH`. Ticket: `.scratch/unified-assistant-chat/issues/01-chat-origin-and-clocks.md` (ADR-43 §3–4).
+- **Changes:** Replaced `requestOrigin` and `TripsageOriginCard` / `TripJourneyEditor` in chat with two-turn `findOrigin` + `confirmOrigin` over the existing Vietnam-checked origin search (`originSearchDependencies`) and fixed hubs (`hub:HA_NOI`, `hub:HA_GIANG_CITY`). Candidates carried between turns are HMAC-SHA256 signed server-side (`tripsage-chat-origin.ts`, 30 min TTL, bound to `userId`; tampered tokens return 400 before model execution; expired/unagreed/unknown candidates are rejected by `confirmOrigin` via pure `permitsOriginConfirmation`). Model never receives or supplies coordinates. Added `departureMinute` / `returnDeadlineMinute` to `recordTripInfo` with visible 07:00 / 18:00 defaults merged into `journey` and emitted via `data-journey`. `/trips/new` and Validator unchanged.
+- **Checks:** `npx tsc --noEmit -p .` PASS; `tripsage-chat` + `components/tripsage-chat` 30/30 files (333 tests) PASS; broader suite (181/185 passing files + 4 pre-existing `src/modules/ai/` baseline failures: `qa-diagnostics`, `qa-answer-quality-v2`, `qa-chat-preference`, `qa-conversation-reliability`); `git diff --check` PASS.
+- **Not verified:** Live OpenAI, live Google/Stadia origin search, and browser rendering.
+
+## 2026-11-21 — Unified assistant chat ticket 02 (planning intent prompt, required stops, document source chips)
+
+- **Branch:** `TXH`. Ticket: `.scratch/unified-assistant-chat/issues/02-intent-and-required-stop.md` (ADR-43 §2, §7).
+- **Changes:** Added three-case planning intent guidance (direct planning → plan immediately; Q&A → planning switch → confirm in one natural sentence + record discussed stop as required; vague/general question → answer with `lookupLocalKnowledge` + general knowledge disclosure `'Kiến thức mở rộng'`, then invite planning). Added `mustIncludeDestinationIds` (≤ 4) to `tripInfoSchema` / `recordTripInfo` with server-side validation against usable DB destinations (`UNKNOWN_REQUIRED_DESTINATION` for unknown/hidden IDs) and wired it into `proposeItinerary` via `PlanningNeeds.requiredDestinationIds` (`MANDATORY_DESTINATION_MISSING`). Updated `lookupLocalKnowledge` to emit sanitized `{ kind: "DOCUMENT", title }` chips in `data-sources` (stripping URLs and `/api/` paths) rendered by `TripsageSourcesView` without links.
+- **Checks:** `npx tsc --noEmit -p .` PASS; 144/144 test files across `tripsage-chat`, `components/tripsage-chat`, `components/assistant`, `trip-origin`, `trip-planner`, `assistant-planning`, `trip-save`, `trip-edit` (1283 tests) PASS; `git diff --check` PASS.
+- **Not verified:** Live OpenAI intent behavior and browser rendering.
+
+## 2026-11-21 — Unified assistant chat ticket 03 (saved assistant conversations)
+
+- **Branch:** `TXH`. Ticket: `.scratch/unified-assistant-chat/issues/03-conversation-store.md` (ADR-43 §6).
+- **Changes:** Added Prisma schema `packages/db/prisma/schema/assistant-conversation.prisma` (`assistant_conversation`, `assistant_message` with `ON DELETE CASCADE` on `user` and `assistant_conversation`, 30-day `expiresAt` retention matching Q&A) and generated migration `20261121103155_assistant_conversation` (stripped unrelated Prisma FK rename statements on `assistant_planning_workspace` so SQL only creates the new tables/indexes/FKs). Added client-safe `assistant-conversation-contract.ts` (`sanitizeStoredParts` allowing only `text`, `data-itinerary`, `data-timeline`, `data-suggestions`, `data-cost`, `data-access-leg`, `data-trip-info`, `data-sources`), owner-scoped idempotent `assistant-conversation-store.ts` using `executeIdempotentWrite` (`SUCCESS`/`FAILED`/`UNKNOWN`), thin HTTP routes `/api/ai/assistant-conversations` (`GET`, `DELETE`) and `/api/ai/assistant-conversations/[id]` (`GET`, `DELETE`), cleanup hook in `/api/internal/qa-cleanup`, and pre-model user persistence + post-stream sanitized assistant persistence in `/api/ai/chat`.
+- **Checks:** `node --max-old-space-size=4096 ../../node_modules/typescript/bin/tsc --noEmit -p .` PASS; `npm run check-types -w @KLTN/db` PASS; `tripsage-chat` + `components/tripsage-chat` 32/32 files (344 tests) PASS; `prisma migrate status` detects `20261121103155_assistant_conversation` cleanly; `git diff --check` PASS.
+- **Not verified:** Live Postgres migration deploy and Postgres integration test (migration deploy runs in handoff after ticket 04).
+
+## 2026-11-21 — Unified assistant chat ticket 04 (single `/assistant` UI, merged history, collapsed map)
+
+- **Branch:** `TXH`. Ticket: `.scratch/unified-assistant-chat/issues/04-single-assistant-ui.md` (ADR-43 §1, §5–6).
+- **Changes:** Removed `AssistantModeTabs` and the `?mode=plan` rewrite in `next.config.ts`; redirected `/assistant/plan` and `/assistant?mode=plan` to `/assistant`. Wired `AssistantPage` + `AssistantRuntimeChat` so `TRIPSAGE_CHAT_ENABLED=true` routes signed-in travelers to the unified `TripsageChatClient` while guests stay on Q&A-only with draft-retaining sign-in hand-off and flag-off falls back to V2. Added shared left `AssistantSidebar` (with "Xóa tất cả" delete-all + delete-one), merged new `ASSISTANT` conversations with legacy Q&A/V2 conversations (read-only viewer using `AssistantAnswer`), full saved-card + journey restoration on reopen, and collapsed view-only map toggle (`"🗺️ Xem bản đồ lộ trình"`, unmounted until opened) in `TripsageItineraryView`. Hardened CSS containment for 360 px and 1280 px viewports and ensured monotonic assistant message timestamps in `assistant-conversation-store.ts`.
+- **Checks:** `tsc --noEmit -p .` PASS; 65/65 test files across `tripsage-chat`, `components/tripsage-chat`, `components/assistant` (606 tests) PASS; `git diff --check` PASS.
+- **Not verified:** Live browser visual/responsive inspection (360 px / 1280 px), live OpenAI, and live Google Places.
+
+## 2026-11-22 — Quản lý thiết lập ứng dụng qua Admin (ADR-44)
 
 - Mở rộng kho cấu hình hiện có với ba nhóm Tính năng ứng dụng, Bản đồ và Trợ lý hỏi đáp. Cập nhật các consumer trang và API để đọc thiết lập theo môi trường. Bản đồ công khai chỉ nhận provider và Map ID. Thông tin xác thực đọc từ env hoặc ghi đè cũ trong lúc chuyển tiếp.
 - Thêm dấu hỏi giải thích từng trường. Lưu cấu hình đang dùng bảo toàn giá trị sau khi dọn env. Chuyển sang khóa trong env là thao tác riêng và audit chỉ ghi tên trường. Bổ sung chú thích vào env local và mẫu, bỏ các dòng local trùng mặc định.
@@ -5839,3 +5884,4 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Build Turbopack, TypeScript và tạo 58/58 trang tĩnh thành công. Nhóm kiểm tra trọng điểm 468 đạt, 6 opt-in bỏ qua. Vitest toàn web 4.409 đạt, 235 bỏ qua, 1 todo. Đối chiếu commit gốc cho thấy cả 40 lỗi còn lại trùng tên với lỗi đã có. Nhóm test legacy đạt.
 - Trang quản trị cần phiên Admin trước khi lưu cấu hình Local đang dùng. Giữ các giá trị local còn hiệu lực để bảo toàn hành vi trong lúc chuyển tiếp.
 - Sửa lỗi trang Admin kẹt khi tải. Varlock chặn nội dung phản hồi chứa các thiết lập QA cũ từ env sau khi API gửi status 200. Khai báo các thiết lập quản trị là giá trị không bí mật và giữ chúng ngoài cấu hình công khai. Thông tin xác thực vẫn được Varlock bảo vệ. Đã tải lại trang bằng phiên Admin Local và thấy các nhóm cấu hình hiển thị. Codegen và 18 bài kiểm tra liên quan đã qua.
+- Khi tích hợp `origin/master` (`359cc22`), giữ luồng `/assistant` thống nhất, lưu hội thoại và dọn hội thoại hết hạn của ADR-43. Trang và API chat đọc công tắc từ Admin. API dọn dữ liệu giữ điều kiện QA đã cấu hình trong Admin và xác thực bằng `CRON_SECRET`. TypeScript, 424 bài kiểm tra liên quan và `git diff --check` đã qua. Prisma xác nhận database cấu hình local đã cập nhật đủ 51 migration.

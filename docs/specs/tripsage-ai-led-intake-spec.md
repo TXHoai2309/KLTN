@@ -1,6 +1,6 @@
 # Spec: AI dẫn dắt nhập thông tin cho trang lập hành trình AI (kiểu tripsage)
 
-Trạng thái: đã grill (Q1–Q11 đồng ý), chờ ADR bổ sung cho ADR-36 trước khi code. Nhãn dự kiến: `ready-for-agent` (chưa gắn, issue tracker chưa cấu hình).
+Trạng thái: **đã thay thế** bởi [tripsage-planning-concierge-spec.md](tripsage-planning-concierge-spec.md) (ADR-42, 2026-11-21). Giữ lại làm lịch sử.
 Phạm vi trang: chỉ `/assistant/plan`. Nền: nhánh `feat/tripsage-chat-itinerary-port`.
 
 ## Problem Statement

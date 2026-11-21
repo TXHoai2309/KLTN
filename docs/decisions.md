@@ -807,16 +807,6 @@ Validator separate from AI, missing data is never reported or stored as a pass, 
 
 Old flow stays in code; rollback is turning the flag off. Open risks are in the story's Open Questions, notably external places lacking validation data.
 
-<<<<<<< HEAD
-## ADR-37 — Shared Google Maps/Stadia provider switch (2026-11-18)
-
-- **Status:** Accepted by owner Q1–Q7, summary confirmation and subsequent implement request. Code/automated verification and live acceptance are separate; see [story](stories/MAPS-PROVIDER-SWITCH.md).
-- **Decision:** Replace Stadia-dependent interactive rendering, routing and origin search with Google when `NEXT_PUBLIC_MAPS_PROVIDER=GOOGLE`; otherwise use the retained Stadia adapters. One build-time public selector replaces the routing-only selector. Rebuild/deploy to switch; no automatic provider/vehicle fallback, no Admin hot-switch. Google uses Maps JavaScript/Advanced Markers, Routes DRIVE/TWO_WHEELER and Vietnam-wide Places origin search.
-- **Boundaries:** Preserve all product rules, server auth/ownership/privacy, deterministic Validator and SUCCESS/FAILED/UNKNOWN. Existing Google external-place functions and Home/Detail iframe remain independent. Browser Google key/Map ID are publishable restricted configuration, explicitly superseding the earlier no-browser-key posture for these maps; Routes/Places secrets stay server-side. Stadia Admin runtime overrides/domain auth remain in place; Google credentials are environment-managed in this scope.
-- **History/rollback:** Persist actual source for new evidence, keep old source values readable and never infer old provenance from the current flag. Origin source is JSON, so no Prisma migration is required. Read saved routing snapshots instead of routing on Trip page reads; never fabricate VERIFIED straight-line evidence. Google geometry/Places pins are not displayed on Stadia after rollback; the saved itinerary remains readable, and restricted layers are unavailable. No mass rewrite/backfill or schema rollback.
-- **Precedence:** This provider choice supersedes incompatible Stadia-only/VietMap-only directions in ADR-17/18/19 within the approved scope. Preserve those records as history. ADR-22 iframe behavior and the existing runtime credential security boundary remain; this decision adds no Google credential editor to Admin.
-- **Limits:** No real Google credentials/Map ID are configured locally, so live rendering/routing/search, billing/quota and domain authorization remain unaccepted. Google retention/agreement and application Terms/Privacy are deployment gates; saving the existing journey snapshot does not certify permission for indefinite Google-content storage. Details and official documentation are in the [runbook](implementation/google-maps-provider-switch-runbook.md).
-=======
 ## ADR-37 — Unified stateless client Edit draft and atomic edit apply (2026-11-18)
 
 - **Status:** Accepted at design level by the owner (2026-11-18); implementation pending. Supersedes the separated manual/AI draft flow and 4-visits-per-day edit cap in `US-32` / `US-33`, and unifies saved-trip routing and `journeySnapshot` recalculation on `/trips/[id]/edit`.
@@ -960,9 +950,83 @@ Production replies on `/trips/[id]/edit` repeated the deterministic `buildGround
    - `POST /api/ai/planning` supports content-negotiated SSE (`Accept: text/event-stream`), emitting progress `step` events and progressive `delta` text chunks while keeping JSON responses unchanged for existing callers and tests.
 3. **Saved-trip edit chat memory (`/trips/[id]/edit`):** Relaxes the "no DB table for edit chat" out-of-scope note in ADR-37/38/40 by adding `TripEditChatMessage` (`trip_edit_chat_message`, migration `20261121121000_trip_edit_chat_memory`) with `onDelete: Cascade` to `Trip`, owner-scoped `GET`/`POST`/`DELETE /api/trips/[id]/edits/ai/messages`, and server-side initial load. Unvalidated itinerary drafts are still never persisted to the database.
 4. **Trip creation draft (`/trips/new`):** Relaxes the `US-24` / `BUG-03` no-draft rule to allow user-scoped temporary `sessionStorage` persistence (12h TTL) of form inputs/journey/confirmed planner step plus `?step=details|planner` URL sync. Drafts are cleared on successful trip save or explicit reset; invalid itineraries are still never persisted to the database.
->>>>>>> 2ef331b5043d8bbbdf721c91f9edda31e322b75a
 
-## ADR-42 — Thiết lập ứng dụng qua trang quản trị (2026-11-22)
+## ADR-37 — Shared Google Maps/Stadia provider switch (2026-11-18)
+
+- **Status:** Accepted by owner Q1–Q7, summary confirmation and subsequent implement request. Code/automated verification and live acceptance are separate; see [story](stories/MAPS-PROVIDER-SWITCH.md).
+- **Decision:** Replace Stadia-dependent interactive rendering, routing and origin search with Google when `NEXT_PUBLIC_MAPS_PROVIDER=GOOGLE`; otherwise use the retained Stadia adapters. One build-time public selector replaces the routing-only selector. Rebuild/deploy to switch; no automatic provider/vehicle fallback, no Admin hot-switch. Google uses Maps JavaScript/Advanced Markers, Routes DRIVE/TWO_WHEELER and Vietnam-wide Places origin search.
+- **Boundaries:** Preserve all product rules, server auth/ownership/privacy, deterministic Validator and SUCCESS/FAILED/UNKNOWN. Existing Google external-place functions and Home/Detail iframe remain independent. Browser Google key/Map ID are publishable restricted configuration, explicitly superseding the earlier no-browser-key posture for these maps; Routes/Places secrets stay server-side. Stadia Admin runtime overrides/domain auth remain in place; Google credentials are environment-managed in this scope.
+- **History/rollback:** Persist actual source for new evidence, keep old source values readable and never infer old provenance from the current flag. Origin source is JSON, so no Prisma migration is required. Read saved routing snapshots instead of routing on Trip page reads; never fabricate VERIFIED straight-line evidence. Google geometry/Places pins are not displayed on Stadia after rollback; the saved itinerary remains readable, and restricted layers are unavailable. No mass rewrite/backfill or schema rollback.
+- **Precedence:** This provider choice supersedes incompatible Stadia-only/VietMap-only directions in ADR-17/18/19 within the approved scope. Preserve those records as history. ADR-22 iframe behavior and the existing runtime credential security boundary remain; this decision adds no Google credential editor to Admin.
+- **Limits:** No real Google credentials/Map ID are configured locally, so live rendering/routing/search, billing/quota and domain authorization remain unaccepted. Google retention/agreement and application Terms/Privacy are deployment gates; saving the existing journey snapshot does not certify permission for indefinite Google-content storage. Details and official documentation are in the [runbook](implementation/google-maps-provider-switch-runbook.md).
+
+## ADR-42 — Planning concierge on `/assistant/plan` (2026-11-21)
+
+- **Status:** Accepted by the owner (design interview Q1–Q25, 2026-11-21, "có… làm luôn"). Spec: [tripsage-planning-concierge-spec.md](specs/tripsage-planning-concierge-spec.md). Amends ADR-33, ADR-34 and the AI-led intake spec for `/assistant/plan` only.
+- **Date:** 2026-11-21
+
+### Context
+
+The planning chat was a form dialog followed by a short, capped reply that showed only attraction visits. The owner wants a conversation that reads like a tour guide: grouped questions with suggested answers, a first itinerary within two user turns, a day timeline with lunch and overnight, suggestions for meals, evenings and lodging, a cost table, and a way for travelers from far away to reach Hà Giang. ADR-33/34 forbid naming lodging or prices, and a long drive from the south is rejected as `OVERNIGHT_DRIVING_UNSUPPORTED`.
+
+### Decision
+
+1. On `/assistant/plan` only, the assistant may name lodging and give prices, provided every lodging is a Google Places result labeled unchecked, every amount is labeled an estimate, and nothing is booked. ADR-34's other safety checks stay.
+2. The planner owns every clock time and the Validator alone decides PASS/VIOLATION/INSUFFICIENT_DATA. The assistant adds a separate suggestion layer attached to timeline slots; suggestions never change a time, never become visits and are never PASS. Evening suggestions must be walkable (≤ 2 km) from the day's last stop.
+3. Two scheduling preferences (lunch 60–120 min, latest visit end 15:00–18:00) may be set per trip. They only make a schedule more conservative, so the Validator and the Save re-check are unchanged.
+4. A traveler far away gets an access leg (flight, sleeper bus, train) to a fixed trip hub (Hà Nội, TP Hà Giang). The access leg is estimated and shown but not validated; the validated trip starts at the hub, which becomes the saved origin. Trip days count from the hub.
+5. Grouped questions: the first cluster (origin, date, days, vehicle) is recorded only when the traveler says or accepts it; second-cluster items (interests, pace, travelers, day rhythm) use visible server defaults without asking. Origin, past dates and day counts outside 1–14 are never defaulted.
+6. The chat uses `gpt-6.1-terra` with medium reasoning and no output-token cap, like ADR-39/40, bounded by 12 steps and the route's 300 s.
+7. Suggestions, lodging, the cost table and the access leg live only in the conversation; Save is unchanged and does not store them.
+
+### Alternatives
+
+- Add lodging, eateries and rest stops as Destinations: rejected; each Destination is a scheduled visit checked by the Validator (ADR-33), and the data would need manual upkeep.
+- Let the model write the whole timeline: rejected; times would bypass the Validator.
+- Validate multi-modal journeys (flight + drive): rejected; no reliable flight/bus timetable data, and the Validator would need a new mode.
+- Store the extras on Save now: deferred; needs a migration, Save payload and saved-trip view changes.
+
+### Consequences
+
+- Reopening a saved trip does not show suggestions, costs or the access leg until a follow-up story stores them.
+- Turns are slower and cost more (reasoning, more tool calls).
+- Prices depend on a code default table and an Admin-uploaded price reference document whose date is shown; stale prices are possible and are labeled as estimates.
+
+## ADR-43 — One assistant chat at `/assistant`; chat-only origin confirmation; saved planning conversations (2026-11-21)
+
+- **Status:** Accepted by the owner (design interview Q26–Q34, 2026-11-21, "có" / "ok e làm đi"). Not implemented yet; the owner approved documents only. Spec: [unified-assistant-chat-spec.md](specs/unified-assistant-chat-spec.md). Amends ADR-35, ADR-36 and ADR-42.
+- **Date:** 2026-11-21
+
+### Context
+
+ADR-42 delivered the planning concierge on a separate `/assistant/plan` tab. In use, the product had two assistants: "Trò chuyện và hỏi đáp" (Q&A plus the old V2 planner, with saved history) and "Lập hành trình AI" (tripsage, no history). The planning tab still embedded the full origin picker form. The owner wants a single chat where people ask, plan and refine with no form or picker, and a map only as an optional view.
+
+### Decision
+
+1. `/assistant` is the only assistant. For signed-in travelers, every message goes to the tripsage agent (Q&A and planning). Guests keep the existing Q&A path and sign-in hand-off (ADR-35). `/assistant/plan` redirects to `/assistant`. `TRIPSAGE_CHAT_ENABLED` switches signed-in travelers back to the old path without a code deploy.
+2. Planning intent: a direct planning opener starts planning; a switch from Q&A is confirmed in one natural sentence and the destination just discussed becomes a required stop; a vague question is answered and followed by an offer.
+3. **Origin confirmation in chat.** This supersedes the rule that only an explicit picker button confirms an origin. The server resolves the typed place through the existing origin search (Vietnam coverage check), keeps coordinates server-side, and the assistant restates the resolved label. The traveler's next message agreeing (or tapping that label as a quick reply) confirms it; the server, not the model, builds the confirmed `OriginSelection`. Candidates carried between turns are signed by the server so the browser cannot alter coordinates. The model never receives or supplies coordinates.
+4. Departure and return clocks are recorded from chat, defaulting to 07:00 and 18:00 and shown as defaults.
+5. Each itinerary shows a collapsed route map that mounts only when opened; it is view-only.
+6. Conversations with the agent are stored per user (new tables and a Prisma migration), listed with existing Q&A history, with the same ownership, deletion and cleanup rules. Only schema-validated display parts are stored; raw tool output, origin candidates and system context are not. Writes follow the SUCCESS/FAILED/UNKNOWN idempotency contract.
+7. Q&A answers from the agent cite reviewed document titles as source chips; unsupported content is stated as general knowledge.
+8. After acceptance, the V2 planner (`/api/ai/planning` and its client/runtime) is deleted in a separate commit; stored V2 conversations stay readable.
+
+### Alternatives
+
+- Keep two tabs and only restyle the origin card: rejected by the owner; the split itself was the problem.
+- Route each message by intent between Q&A and tripsage: rejected; two message formats in one thread and fragile intent guessing.
+- Keep a map or search picker for the origin: rejected; the owner wants chat only. A typed place restated by the assistant and agreed by the traveler is an explicit confirmation.
+- Keep planning chats unsaved: rejected; history in the sidebar is expected.
+
+### Consequences
+
+- A new migration and conversation store are required; the chat UI must render stored parts.
+- Q&A for signed-in travelers moves from the citation-verified Q&A pipeline to the agent with source chips; answer style and grounding differ from the Q&A service.
+- Origin resolution depends on the origin search provider; when it is unavailable, planning waits for a hub choice.
+- Rollback before V2 deletion is the `TRIPSAGE_CHAT_ENABLED` flag; after it, reverting the deletion commit.
+
+## ADR-44 — Thiết lập ứng dụng qua trang quản trị (2026-11-22)
 
 - **Quyết định đã duyệt:** Owner yêu cầu để thông tin xác thực trong env và đưa các thiết lập tính năng vào `/admin/settings`. Nhà cung cấp Google/Stadia, Map ID, công tắc QA/cleanup, bộ lọc nguồn, model, thời gian chờ và công tắc TripSage chỉnh được theo Local, Preview hoặc Production.
 - **Khởi động và bảo mật:** Env cung cấp kết nối database, thông tin xác thực, URL xác thực và khóa mã hóa. Admin có quyền sửa thiết lập thông qua kho cấu hình hiện có. Phạm vi môi trường do server xác định. QA và cleanup tiếp tục kiểm tra đúng database, điều kiện chống lạm dụng hoặc xác thực job tùy luồng.

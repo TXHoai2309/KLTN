@@ -1,5 +1,6 @@
+import { BASE_TOOL_NAMES_SORTED } from "./tripsage-chat-fixtures";
 import { execFile } from "node:child_process";
-import { createHash } from "node:crypto";
+import { TRIPSAGE_CHAT_INSTRUCTIONS } from "./tripsage-chat-service";
 import { copyFile, mkdtemp, rm, rmdir } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
@@ -34,8 +35,7 @@ const flagCases = [
   { group: "memory", flag: "TRIPSAGE_FEATURE_MEMORY", tools: ["rememberPreference", "recallMemories"] },
   { group: "calendar", flag: "TRIPSAGE_FEATURE_CALENDAR", tools: [] },
 ] as const;
-const baseTools = ["fetchPage", "listDestinations", "proposeItinerary", "searchPlaces", "webSearch"];
-const originalPromptHash = "49f3fa29ac1aed4fe5cca4c41247b91148a1377fcffc717c0a67969e62bf41bd";
+const baseTools = BASE_TOOL_NAMES_SORTED;
 
 type FlagEnv = Record<string, string | undefined>;
 type ToolCall = { name: string; input: unknown };
@@ -144,7 +144,7 @@ describe("TripSage five-flag acceptance matrix", () => {
       if ("part" in item) expect(result.stream.includes('"type":"' + item.part + '"')).toBe(enabled.includes(item));
     }
     if (!enabled.some(item => item.tools.length > 0)) {
-      expect(createHash("sha256").update(result.system).digest("hex")).toBe(originalPromptHash);
+      expect(result.system.startsWith(TRIPSAGE_CHAT_INSTRUCTIONS)).toBe(true);
     }
     expect(memory).not.toHaveBeenCalled();
     const memoryResult = await memoriesResponse(memoryRequest(), { authorization, memory, env: flags });
@@ -164,7 +164,7 @@ describe("TripSage five-flag acceptance matrix", () => {
     for (const item of flagCases) flags[item.flag] = value;
     const response = await chat(flags);
     expect(response.tools).toEqual(baseTools);
-    expect(createHash("sha256").update(response.system).digest("hex")).toBe(originalPromptHash);
+    expect(response.system.startsWith(TRIPSAGE_CHAT_INSTRUCTIONS)).toBe(true);
     expect((await memoriesResponse(memoryRequest(), { authorization, memory: createMemory, env: flags })).status).toBe(404);
     vi.stubEnv("TRIPSAGE_FEATURE_CALENDAR", value);
     expect((await tripCalendarResponse(calendarRequest(), "fixture-trip", authorization, tripDate)).status).toBe(404);

@@ -1,3 +1,4 @@
+import { TRIP_INFO_FIXTURE } from "./tripsage-chat-fixtures";
 import { MockLanguageModelV4 } from "ai/test";
 import { simulateReadableStream } from "ai";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -35,9 +36,9 @@ const planning = (over: Partial<TripsagePlanningDeps> = {}): (() => TripsagePlan
   routes: { route: fixtureRoutes.route, coordinateRoute: async () => ({ status: "VERIFIED", reason: null, durationSeconds: 3600, distanceMeters: 50_000, provider: "STADIA_MAPS" }) }, now: () => planningNow, ...over,
 });
 const req = (signal?: AbortSignal) => new Request("https://app.test/api/ai/chat", { method: "POST", signal, headers: { origin: "https://app.test", "content-type": "application/json" },
-  body: JSON.stringify({ messages: [{ id: "m", role: "user", parts: [{ type: "text", text: USER_TEXT }] }], journey: COMPLETE_JOURNEY_FIXTURE }) });
+  body: JSON.stringify({ messages: [{ id: "m", role: "user", parts: [{ type: "text", text: USER_TEXT }] }], journey: COMPLETE_JOURNEY_FIXTURE, tripInfo: TRIP_INFO_FIXTURE }) });
 const base = (over: Record<string, unknown> = {}) => ({ authorization: auth(), model: async () => scripted([{ text: "ok" }]), env: { TRIPSAGE_CHAT_ENABLED: "true" }, admit: createPlanningAdmission(), planning: planning(), ...over });
-const propose = { tool: "proposeItinerary", input: { transport: "CAR", durationDays: 1, startDate: "2026-11-02", interests: ["NATURE"], selection: { days: [["a", "b"]] } } };
+const propose = { tool: "proposeItinerary", input: { selection: { days: [["a", "b"]] } } };
 
 const logs = () => (["log", "info", "warn", "error", "debug"] as const).map(level => vi.spyOn(console, level).mockImplementation(() => {}));
 const logged = (spies: ReturnType<typeof logs>) => spies.flatMap(spy => spy.mock.calls).map(args => args.map(a => (a instanceof Error ? `${a.name} ${a.message} ${a.stack}` : typeof a === "string" ? a : JSON.stringify(a))).join(" ")).join("\n");
@@ -156,20 +157,20 @@ describe("provider failures become a friendly Vietnamese unavailable state", () 
 });
 
 describe("turn caps end with a readable, bounded notice that names what was created", () => {
-  it("8-step cap: notice says the step limit, keeps the created itinerary and says it is not saved, suggests a next step", async () => {
+  it("12-step cap: notice says the step limit, keeps the created itinerary and says it is not saved, suggests a next step", async () => {
     const model = scripted([propose, { tool: "listDestinations", input: {} }]);
     const sse = await (await tripsageChatResponse(req(), base({ model: async () => model }))).text();
-    expect(model.doStreamCalls.length).toBeLessThanOrEqual(8);
-    expect(sse).toContain("giới hạn 8 bước");
+    expect(model.doStreamCalls.length).toBeLessThanOrEqual(12);
+    expect(sse).toContain("giới hạn 12 bước");
     expect(sse).toContain("Lịch trình đã tạo được vẫn hiển thị");
     expect(sse).toContain("chưa được lưu");
     expect(sse).toContain("Hãy nhắn tiếp");
-    expect(sse.indexOf("giới hạn 8 bước")).toBeLessThan(sse.indexOf('"type":"finish"'));
+    expect(sse.indexOf("giới hạn 12 bước")).toBeLessThan(sse.indexOf('"type":"finish"'));
   });
 
-  it("8-step cap without any itinerary says nothing was created", async () => {
+  it("12-step cap without any itinerary says nothing was created", async () => {
     const sse = await (await tripsageChatResponse(req(), base({ model: async () => scripted([{ tool: "listDestinations", input: {} }]) }))).text();
-    expect(sse).toContain("giới hạn 8 bước");
+    expect(sse).toContain("giới hạn 12 bước");
     expect(sse).toContain("Chưa tạo được lịch trình");
   });
 
@@ -191,9 +192,9 @@ describe("turn caps end with a readable, bounded notice that names what was crea
   });
 
   it("per-tool call caps answer the model with a Vietnamese limit result and the turn still ends", async () => {
-    const model = scripted([...Array(4).fill({ tool: "searchPlaces", input: { query: "quán cà phê" } }), { text: "Đã đủ." }]);
+    const model = scripted([...Array(5).fill({ tool: "searchPlaces", input: { query: "quán cà phê" } }), { text: "Đã đủ." }]);
     const sse = await (await tripsageChatResponse(req(), base({ model: async () => model, places: () => async () => ({ status: "NO_RESULTS" }) }))).text();
-    expect(JSON.stringify(model.doStreamCalls[4]!.prompt)).toContain("PLACES_LIMIT");
+    expect(JSON.stringify(model.doStreamCalls[5]!.prompt)).toContain("PLACES_LIMIT");
     expect(sse).toContain("Đã đủ.");
   });
 });

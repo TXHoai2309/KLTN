@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { BASE_TOOL_NAMES_SORTED } from "./tripsage-chat-fixtures";
 import { MockLanguageModelV4 } from "ai/test";
 import { simulateReadableStream } from "ai";
 import { describe, expect, it, vi } from "vitest";
@@ -106,14 +106,14 @@ describe("flagged memory tools", () => {
 });
 
 describe("per-request optional tools", () => {
-  const base = ["fetchPage", "listDestinations", "proposeItinerary", "searchPlaces", "webSearch"];
+  const base = BASE_TOOL_NAMES_SORTED;
   const optional = [
     ["TRIPSAGE_FEATURE_BUDGET", "checkBudget"],
     ["TRIPSAGE_FEATURE_FLIGHTS", "searchFlights"],
     ["TRIPSAGE_FEATURE_HOTELS", "searchHotels"],
   ] as const;
 
-  it("keeps the original prompt and five tools for non-true flag values", async () => {
+  it("keeps the base prompt and tools for non-true flag values", async () => {
     const { response, model } = await call({}, undefined, null, {
       TRIPSAGE_CHAT_ENABLED: "true",
       TRIPSAGE_FEATURE_BUDGET: "TRUE",
@@ -125,8 +125,8 @@ describe("per-request optional tools", () => {
     const { prompt, tools } = model.doStreamCalls[0]!;
     expect(tools?.map(tool => tool.name).sort()).toEqual(base);
     const system = prompt.filter(message => message.role === "system").map(message => message.content).join("\n");
-    // Captured from 928ced5 with no trip context.
-    expect(createHash("sha256").update(system).digest("hex")).toBe("49f3fa29ac1aed4fe5cca4c41247b91148a1377fcffc717c0a67969e62bf41bd");
+    expect(system).toContain("Bạn chỉ có các công cụ");
+    for (const name of ["checkBudget", "searchFlights", "searchHotels"]) expect(system).not.toContain(name);
   });
 
   it("advertises exactly the enabled tools in both the model registry and the prompt as flags change", async () => {
@@ -145,7 +145,7 @@ describe("per-request optional tools", () => {
       for (const [, name] of optional) {
         expect(system.includes(name)).toBe(enabled.some(([, active]) => active === name));
       }
-      expect(system.includes("Bạn chỉ có năm công cụ")).toBe(mask === 0);
+      expect(system.includes("Bạn chỉ có các công cụ")).toBe(mask === 0);
       expect(system.match(/Không dùng hay giả vờ dùng công cụ nào khác\./gu)).toHaveLength(1);
     }
   });
@@ -171,30 +171,29 @@ describe("per-request optional tools", () => {
   });
 });
 
-describe("chat request requirement context", () => {
-  it("puts a valid requirement into the system context as data", async () => {
-    const { response, model } = await call({ requirement: REQUIREMENT });
+describe("chat request tripInfo context", () => {
+  it("puts recorded trip info into the system context as data", async () => {
+    const { response, model } = await call({ tripInfo: REQUIREMENT });
     expect(response.status).toBe(200); await response.text();
     const prompt = JSON.stringify(model.doStreamCalls[0]!.prompt);
-    expect(prompt).toContain("Thông tin chuyến đi người dùng đã nhập");
+    expect(prompt).toContain("Thông tin chuyến đi đã ghi");
     expect(prompt).toContain("2026-11-02");
     expect(prompt).toContain("CAR");
   });
 
-  it("plans from the context requirement; the model cannot override it, and sends only the selection", async () => {
+  it("plans from the recorded trip info; the model cannot pass trip fields, only the selection", async () => {
     const model = scripted([propose({ transport: "MOTORCYCLE", startDate: "2030-01-01", interests: ["FOOD"], selection: { days: [["a", "b"]] } }), { text: "Xong." }]);
-    const { response } = await call({ requirement: REQUIREMENT }, model);
-    const sse = await response.text();
-    const result = plannerResultSchema.parse(parts(sse).find(p => p.type === "data-itinerary")!.data);
-    expect(result.requirement).toMatchObject({ transport: "CAR", startDate: "2026-11-02", interests: ["NATURE"], durationDays: 1 });
+    const { response } = await call({ tripInfo: REQUIREMENT }, model);
+    expect(parts(await response.text()).some(p => p.type === "data-itinerary")).toBe(false);
     const only = scripted([propose({ selection: { days: [["a"]] } }), { text: "Xong." }]);
-    const second = await (await call({ requirement: REQUIREMENT }, only)).response.text();
-    expect(parts(second).some(p => p.type === "data-itinerary")).toBe(true);
+    const second = await (await call({ tripInfo: REQUIREMENT }, only)).response.text();
+    const result = plannerResultSchema.parse(parts(second).find(p => p.type === "data-itinerary")!.data);
+    expect(result.requirement).toMatchObject({ transport: "CAR", startDate: "2026-11-02", interests: ["NATURE"], durationDays: 1 });
   });
 
-  it("still asks for the missing origin when the requirement is complete but the journey is not", async () => {
+  it("still asks for the missing origin when the trip info is complete but the journey is not", async () => {
     const model = scripted([propose({ selection: { days: [["a"]] } }), { text: "Bạn chọn điểm xuất phát nhé." }]);
-    const { response } = await call({ requirement: REQUIREMENT }, model, null);
+    const { response } = await call({ tripInfo: REQUIREMENT }, model, null);
     const sse = await response.text();
     expect(parts(sse).some(p => p.type === "data-itinerary")).toBe(false);
     const fed = JSON.stringify(model.doStreamCalls[1]!.prompt);
@@ -202,10 +201,10 @@ describe("chat request requirement context", () => {
     expect(fed).not.toContain('"transport","durationDays"');
   });
 
-  it("rejects a malformed requirement with 400 before the provider", async () => {
+  it("rejects malformed trip info with 400 before the provider", async () => {
     for (const bad of [{ ...REQUIREMENT, extra: 1 }, { ...REQUIREMENT, durationDays: 15 }, { ...REQUIREMENT, transport: "BUS" }, "CAR", []]) {
       const model = scripted([{ text: "x" }]); const spy = vi.spyOn(model, "doStream");
-      const { response } = await call({ requirement: bad }, model);
+      const { response } = await call({ tripInfo: bad }, model);
       expect(response.status, JSON.stringify(bad)).toBe(400);
       expect(spy).not.toHaveBeenCalled();
     }
@@ -214,7 +213,7 @@ describe("chat request requirement context", () => {
 
 describe("chat request currentItinerary context", () => {
   it("shows the latest itinerary to the model as data, with ids and times", async () => {
-    const { response, model } = await call({ requirement: REQUIREMENT, currentItinerary: ITINERARY });
+    const { response, model } = await call({ tripInfo: REQUIREMENT, currentItinerary: ITINERARY });
     expect(response.status).toBe(200); await response.text();
     const prompt = JSON.stringify(model.doStreamCalls[0]!.prompt);
     expect(prompt).toContain("Lịch trình hiện tại");
@@ -245,9 +244,9 @@ describe("chat request currentItinerary context", () => {
     }
   });
 
-  it("an edit turn re-proposes and the new itinerary replaces the old one (days taken from the new selection)", async () => {
+  it("an edit turn re-proposes and the new itinerary replaces the old one", async () => {
     const model = scripted([propose({ selection: { days: [["c", "a"]] } }), { text: "Đã đổi điểm b thành c." }]);
-    const { response } = await call({ requirement: REQUIREMENT, currentItinerary: ITINERARY }, model);
+    const { response } = await call({ tripInfo: REQUIREMENT, currentItinerary: ITINERARY }, model);
     const items = parts(await response.text()).filter(p => p.type === "data-itinerary");
     expect(items).toHaveLength(1);
     expect(plannerResultSchema.parse(items[0]!.data).days[0]!.stops.map(s => s.destination.id)).toEqual(["c", "a"]);

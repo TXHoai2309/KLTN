@@ -1,7 +1,7 @@
 import type { LanguageModel } from "ai";
 import { requireTraveler } from "../../server/auth/require-traveler";
 import type { AuthorizationDependencies } from "../../server/authorization/guard";
-import { apiFailure } from "../../server/http/api-response";
+import { apiFailure, apiMutationResult } from "../../server/http/api-response";
 import { AppError } from "../../server/http/app-error";
 import { readBoundedJsonBody } from "../../server/http/read-json-body";
 import { createPlanningAdmission } from "../assistant-planning/planning-admission";
@@ -9,22 +9,34 @@ import { isTripsageChatEnabled } from "./tripsage-chat-flag";
 import { enabledTripsageFeatures } from "./tripsage-features";
 import type { PlacesSearch } from "./tripsage-places";
 import type { WebLookup } from "./tripsage-web";
-import type { TripsagePlanningDeps, TripsageToolContext } from "./tripsage-chat-tools";
+import type { LocalKnowledge, OriginLookup, TripsagePlanningDeps, TripsageToolContext } from "./tripsage-chat-tools";
 import type { MemoryService } from "../tripsage-memory/memory-service";
 import type { ApplicationSettings } from "../runtime-config/runtime-config-contract";
 import type { HotelLookup } from "./tripsage-amadeus";
-import { parseTripsageChatItinerary, parseTripsageChatJourney, parseTripsageChatMessages, parseTripsageChatRequirement, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
+import type { AssistantConversationStore } from "./assistant-conversation-store";
+import { signOriginCandidates } from "./tripsage-chat-origin";
+import { parseTripsageChatAccessLeg, parseTripsageChatConversationId, parseTripsageChatItinerary, parseTripsageChatJourney, parseTripsageChatMessages, parseTripsageChatOriginCandidates, parseTripsageChatTripInfo, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
 
 export type TripsageChatHttpDependencies = {
   authorization: AuthorizationDependencies;
   model: () => Promise<LanguageModel>;
   /** Destination reader and routing provider; resolved lazily so plain chat never depends on them. */
   planning?: () => TripsagePlanningDeps;
+  /** Server-side origin search (Vietnam coverage checked); absent means unavailable except fixed hubs. */
+  originSearch?: () => OriginLookup;
+  /** Server secret for HMAC-signing origin candidates across turns. */
+  originSecret?: () => string | undefined;
+  /** Owner-scoped conversation store (ADR-43 §6); persists user/assistant turns when configured. */
+  conversations?: () => AssistantConversationStore;
+  /** Clock for testing origin candidate TTL; defaults to planning().now() or Date.now(). */
+  now?: () => Date;
   /** Google Places search; resolved lazily. Absent means the tool reports unavailable. */
   places?: () => PlacesSearch;
   /** Firecrawl web search/scrape; resolved lazily. Absent means the web tools report unavailable. */
   web?: () => WebLookup;
   memory?: () => MemoryService;
+  /** Reviewed local documents (Q&A retriever); resolved lazily. Absent means the knowledge tool reports unavailable. */
+  knowledge?: () => LocalKnowledge;
   /** Test seam for the per-turn caps; production uses the defaults. */
   limits?: Partial<TripsageChatTurnLimits>;
   env?: Record<string, string | undefined>;
@@ -33,7 +45,7 @@ export type TripsageChatHttpDependencies = {
   admit?: ReturnType<typeof createPlanningAdmission>;
 } & Pick<TripsageToolContext, "flights">;
 const defaultAdmit = createPlanningAdmission();
-const SAFETY_RELEASE_MS = 130_000;
+const SAFETY_RELEASE_MS = 310_000;
 
 const unavailablePlanning: TripsagePlanningDeps = {
   candidates: async () => { throw new AppError("PLANNING_UNAVAILABLE", "Dữ liệu điểm đến chưa sẵn sàng.", 503); },
@@ -55,8 +67,16 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
     const body = await readBoundedJsonBody(request, { maxBytes: 128 * 1024, tooLargeError: invalid, emptyError: invalid, invalidJsonError: invalid });
     const { messages, latestUser } = parseTripsageChatMessages(body);
     const journey = parseTripsageChatJourney(body);
-    const requirement = parseTripsageChatRequirement(body);
+    const tripInfo = parseTripsageChatTripInfo(body);
     const currentItinerary = parseTripsageChatItinerary(body);
+    const accessLeg = parseTripsageChatAccessLeg(body);
+    const requestedConversationId = parseTripsageChatConversationId(body);
+    const secret = deps.originSecret?.() ?? deps.env?.BETTER_AUTH_SECRET;
+    const nowMs = (deps.now?.() ?? new Date()).getTime();
+    const originCandidates = parseTripsageChatOriginCandidates(body, actor.userId, secret, nowMs);
+    const conversationStore = deps.conversations?.();
+    const clientMessageId = latestUser.messageId?.trim() || request.headers.get("Idempotency-Key")?.trim() || "";
+    if (conversationStore && (!clientMessageId || clientMessageId.length > 180)) throw invalid;
     // The slot is held until the stream settles, so the concurrency cap covers streaming time.
     let release!: () => void;
     const held = new Promise<void>(resolve => { release = resolve; });
@@ -64,12 +84,42 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
     const response = await new Promise<Response>((resolve, reject) => {
       (deps.admit ?? defaultAdmit)(actor.userId, async () => {
         try {
-          resolve(streamTripsageChat({
-            model: await deps.model(), messages, journey, requirement, currentItinerary, features,
-            planning: deps.planning?.() ?? unavailablePlanning, places: deps.places?.(), web: deps.web?.(),
-            flights: deps.flights, hotels: hotels ? () => hotels(settings?.amadeusEnvironment) : undefined, limits: deps.limits, signal: request.signal, onSettled: release,
+          let conversation: { conversationId: string; title: string } | undefined;
+          if (conversationStore) {
+            const savedUser = await conversationStore.recordUserMessage({
+              userId: actor.userId,
+              conversationId: requestedConversationId,
+              clientMessageId,
+              text: latestUser.text,
+            });
+            if (savedUser.status !== "SUCCESS") {
+              release();
+              resolve(apiMutationResult(savedUser));
+              return;
+            }
+            conversation = { conversationId: savedUser.data.conversationId, title: savedUser.data.title };
+          }
+          const streamResponse = streamTripsageChat({
+            model: await deps.model(), messages, journey, tripInfo, currentItinerary, accessLeg, features,
+            originCandidates,
+            signOriginCandidates: secret ? candidates => signOriginCandidates({ userId: actor.userId, candidates, secret, nowMs: (deps.now?.() ?? new Date()).getTime() }) : undefined,
+            latestUserText: latestUser.text,
+            conversation,
+            onPersistAssistant: conversationStore && conversation
+              ? parts => conversationStore.recordAssistantMessage({
+                  userId: actor.userId,
+                  conversationId: conversation.conversationId,
+                  clientMessageId: `${clientMessageId}:assistant`,
+                  parts,
+                })
+              : undefined,
+            planning: deps.planning?.() ?? unavailablePlanning, originSearch: deps.originSearch?.(), places: deps.places?.(), web: deps.web?.(), knowledge: deps.knowledge?.(),
+            flights: deps.flights, hotels: hotels ? () => hotels(settings?.amadeusEnvironment) : undefined,
+            limits: deps.limits, signal: request.signal, onSettled: release,
             memory: features.has("memory") ? { actor, source: latestUser, resolve: deps.memory } : undefined,
-          }));
+          });
+          if (conversation) streamResponse.headers.set("X-Assistant-Conversation-Id", conversation.conversationId);
+          resolve(streamResponse);
         }
         catch (error) { reject(error); release(); }
         await held;
