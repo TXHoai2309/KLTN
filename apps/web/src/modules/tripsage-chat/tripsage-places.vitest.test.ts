@@ -75,7 +75,7 @@ describe("searchPlaces Google Places (New) request", () => {
     expect(init.method).toBe("POST");
     expect(init.redirect).toBe("error");
     expect(init.headers["X-Goog-FieldMask"]).toBe(GOOGLE_PLACES_FIELD_MASK);
-    expect(GOOGLE_PLACES_FIELD_MASK).toBe("places.id,places.displayName,places.location");
+    expect(GOOGLE_PLACES_FIELD_MASK).toBe("places.id,places.displayName,places.location,places.types");
     expect(init.headers["X-Goog-Api-Key"]).toBe(KEY);
     const body = JSON.parse(String(init.body));
     expect(body).toMatchObject({ textQuery: "cà phê", regionCode: "VN", languageCode: "vi" });

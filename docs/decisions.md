@@ -1168,3 +1168,22 @@ In conversation 2df60a2a a 5-day plan kept failing TRAVEL_TIME by a small margin
 - The save carries `restMode` in the trip proposal, so save-time validation uses the policy the plan was scheduled with.
 - The trip edit flow still recomputes with the standard policy, so a saved compact plan shows standard 15-minute breaks after an edit.
 - Not verified live with a long Đà Nẵng → Hà Nội → Hà Giang chat.
+
+
+## ADR-49 — Choose `places.types` over `places.primaryType` for lodging filtering (2026-11-23)
+
+- **Status:** Accepted (Ticket 04, PARITY BR-8 & BR-10).
+- **Date:** 2026-11-23
+
+### Context
+
+Nearby activity and evening suggestions (`ACTIVITY`, `FREE`, `EVENING`) included hotels, homestays, and resorts (e.g., Balana Hà Giang, H'mong Village Resort, Homestay Tommy house) because `GOOGLE_PLACES_FIELD_MASK` requested only `places.id,places.displayName,places.location`.
+
+### Decision
+
+Add `places.types` to `GOOGLE_PLACES_FIELD_MASK` (instead of `places.primaryType`) and combine type-based exclusion (`lodging`, `hotel`, `resort_hotel`, `guest_house`, `hostel`, `campground`, etc.) with a Vietnamese/English lodging-name fallback and generic-name exclusion (`"Khu Vui Chơi"`).
+
+### Rationale & Cost Impact
+
+- Google Places API (New) Text Search bills by the highest-tier SKU in `X-Goog-FieldMask`. `places.displayName` and `places.location` are already on the **Pro** SKU, and both `places.types` and `places.primaryType` are also on the **Pro** SKU (zero tier upgrade, zero increase in `ACTIVITY_MAX_ANCHORS = 16`).
+- `places.types` returns all types for a place, catching lodging venues whose `primaryType` is generic (`point_of_interest`) or absent. `types` stays server-side and is never forwarded to the model.

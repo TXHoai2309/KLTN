@@ -3,14 +3,14 @@ import { z } from "zod";
 import { vietnamCoverageAt } from "../trip-origin/vietnam-coverage";
 
 /**
- * Google Places API (New) Text Search. Verified against developers.google.com on 2026-11-14:
+ * Google Places API (New) Text Search. Verified against developers.google.com on 2026-11-14 & 2026-11-23:
  * `POST https://places.googleapis.com/v1/places:searchText`, headers `X-Goog-Api-Key` and a mandatory
  * `X-Goog-FieldMask`, body `textQuery`/`languageCode`/`regionCode`/`pageSize` (1-20)/`locationRestriction.rectangle`.
- * `places.id` is the IDs-Only SKU; `places.displayName` and `places.location` are the Pro SKU.
- * NOT verified: the per-request price and quota. Nothing is stored here; only the place_id may be persisted later.
+ * `places.id` is the IDs-Only SKU; `places.displayName`, `places.location`, and `places.types` are all in the Pro SKU
+ * (adding `places.types` does not change the billing tier). Nothing is stored here; only the place_id may be persisted later.
  */
 export const GOOGLE_PLACES_SEARCH_ENDPOINT = "https://places.googleapis.com/v1/places:searchText";
-export const GOOGLE_PLACES_FIELD_MASK = "places.id,places.displayName,places.location";
+export const GOOGLE_PLACES_FIELD_MASK = "places.id,places.displayName,places.location,places.types";
 export const MAX_PLACES_RESPONSE_BYTES = 256 * 1024;
 const PAGE_SIZE = 5;
 const DEFAULT_TIMEOUT_MS = 12_000;
@@ -19,7 +19,7 @@ const AREA = { low: { latitude: 22.3, longitude: 104.3 }, high: { latitude: 23.4
 
 export const inPlacesArea = (latitude: number, longitude: number) => latitude >= AREA.low.latitude && latitude <= AREA.high.latitude && longitude >= AREA.low.longitude && longitude <= AREA.high.longitude;
 
-export type ExternalPlaceSuggestion = { placeId: string; name: string; latitude: number; longitude: number };
+export type ExternalPlaceSuggestion = { placeId: string; name: string; latitude: number; longitude: number; types?: readonly string[] };
 export type PlacesOutcome = { status: "RESULTS"; places: ExternalPlaceSuggestion[] } | { status: "NO_RESULTS" } | { status: "UNAVAILABLE" };
 /** `near`: restrict the search to a small box around a KLTN destination (coordinates from the database, never the model). */
 export type PlacesNear = { latitude: number; longitude: number; radiusKm: number };
@@ -38,6 +38,7 @@ const responseSchema = z.object({ places: z.array(z.object({
   id: z.string().min(1).max(300),
   displayName: z.object({ text: z.string().max(1000) }).optional(),
   location: z.object({ latitude: z.number(), longitude: z.number() }),
+  types: z.array(z.string().max(80)).max(30).optional(),
 })).max(20).optional() });
 
 /** Untrusted text: no control characters, collapsed whitespace, short. */
@@ -85,7 +86,15 @@ export function createGooglePlacesSearch(deps: { apiKey: () => string | undefine
           const inArea = inPlacesArea(latitude, longitude);
           if (!inArea || vietnamCoverageAt({ latitude, longitude }) !== "SUPPORTED") continue;
           const name = cleanPlaceName(place.displayName?.text ?? "");
-          if (name && !places.some(p => p.placeId === place.id)) places.push({ placeId: place.id, name, latitude, longitude });
+          if (name && !places.some(p => p.placeId === place.id)) {
+            places.push({
+              placeId: place.id,
+              name,
+              latitude,
+              longitude,
+              ...(place.types?.length ? { types: place.types } : {}),
+            });
+          }
         }
         return places.length ? { status: "RESULTS", places: places.slice(0, PAGE_SIZE) } : { status: "NO_RESULTS" };
       };

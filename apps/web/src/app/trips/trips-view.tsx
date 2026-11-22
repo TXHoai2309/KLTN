@@ -71,6 +71,7 @@ import TripFavoriteButton from "./trip-favorite-button";
 import { ItineraryMap } from "@/components/trip-planner/itinerary-map";
 import type { PlannerDay, PlannerStop, TravelLeg } from "@/modules/trip-planner/planner-contract";
 import { getDestinationCoordinates, getDestinationVisual } from "@/lib/destination-visuals";
+import { cleanAreaDisplayLabel, cleanPlaceDisplayName } from "@/lib/traveler-display-clean";
 
 function MemberLeaveAction({
   trip,
@@ -1301,19 +1302,21 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                                           className="my-trips-destination-link"
                                           onClick={(e) => e.stopPropagation()}
                                         >
-                                          <span>{visit.destination.name}</span>
+                                          <span>{cleanPlaceDisplayName(visit.destination.name)}</span>
                                           <ChevronRight size={16} className="my-trips-chevron" aria-hidden="true" />
                                         </Link>
                                       ) : (
-                                        visit.destination.name
+                                        cleanPlaceDisplayName(visit.destination.name)
                                       )}
                                     </h3>
 
                                     <div className="my-trips-visit-meta">
-                                      <p className="my-trips-visit-meta-item">
-                                        <MapPin size={15} aria-hidden="true" />
-                                        <span>{visit.destination.area}</span>
-                                      </p>
+                                      {cleanAreaDisplayLabel(visit.destination.area) && (
+                                        <p className="my-trips-visit-meta-item">
+                                          <MapPin size={15} aria-hidden="true" />
+                                          <span>{cleanAreaDisplayLabel(visit.destination.area)}</span>
+                                        </p>
+                                      )}
                                       <p className="my-trips-visit-meta-item">
                                         <Clock3 size={15} aria-hidden="true" />
                                         <span>

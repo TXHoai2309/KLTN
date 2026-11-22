@@ -6068,3 +6068,9 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Far cities (Đà Nẵng, TP HCM, etc., or coordinates >= 350 km from both fixed hubs) never return local district/landmark candidates; `findOrigin` records `homeCity`, returns `farHomeCity: true`, and emits the 3 hub-transport quick replies.
 - Stated day/month dates (including approximate "khoảng 12/12") block redundant date-confirmation-only `suggestReplies`, resolve directly inside `proposeItinerary`, and attach a `"Đổi ngày"` chip when tentative. Updated `PERSONA_INSTRUCTIONS` to match.
 - Checks: `vitest` over `src/modules/tripsage-chat` PASS (43 files, 396/396 tests), `npm run check-types` PASS, `git diff --check` PASS.
+
+## 2026-11-23 — Traveler UI Redesign: Ticket 04 (display cleanup & lodging filter)
+
+- Added `apps/web/src/lib/traveler-display-clean.ts` (`cleanPlaceDisplayName`, `cleanAreaDisplayLabel`, `cleanOvernightAreaLabel`, `isGenericActivityPlaceName`) and wired it into `tripsage-timeline.ts`, `tripsage-activities.ts`, and `trips-view.tsx` to strip `[Tạm]`, hide generic `"khu vực hà giang"`, and capitalize Hà Giang place names.
+- Updated `GOOGLE_PLACES_FIELD_MASK` to include `places.types` (verified same Text Search Pro SKU as `displayName`/`location`; documented in ADR-49), kept `ACTIVITY_MAX_ANCHORS = 16`, and filtered lodging types/names and generic names (`"Khu Vui Chơi"`) across `ACTIVITY`, `FREE`, and `EVENING` slots.
+- Checks: `vitest` PASS (5 files, 53/53 tests), `tsc --noEmit` PASS, `git diff --check` PASS.

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { cleanAreaDisplayLabel, cleanOvernightAreaLabel, cleanPlaceDisplayName } from "../../lib/traveler-display-clean";
 import type { PlannerResult } from "../trip-planner/planner-contract";
 
 /**
@@ -183,9 +184,9 @@ export function formatVisitDescription(raw: string | null | undefined): string |
   return `${cut || cleaned.slice(0, 159)}…`;
 }
 
-/** Formats overnight area without duplicating "khu vực" (e.g. "khu vực Hà Giang" → "Nghỉ đêm khu vực Hà Giang"). */
+/** Formats overnight area without duplicating "khu vực" (e.g. "khu vực hà giang" → "Nghỉ đêm khu vực Hà Giang"). */
 export function formatOvernightLabel(area: string | null | undefined): string {
-  const cleaned = (area ?? "").trim().replace(/^(?:khu\s+vực\s+)+/iu, "").trim();
+  const cleaned = cleanOvernightAreaLabel(area);
   return cleaned ? `Nghỉ đêm khu vực ${cleaned}` : "Nghỉ đêm";
 }
 
@@ -247,14 +248,15 @@ export function buildDayTimeline(result: PlannerResult): TimelinePart {
           Number.isFinite(stop.destination.longitude) &&
           Math.abs(stop.destination.latitude) <= 90 &&
           Math.abs(stop.destination.longitude) <= 180;
-        const address = stop.destination.address?.trim() ? stop.destination.address.trim().slice(0, 300) : undefined;
+        const cleanedAddress = cleanAreaDisplayLabel(stop.destination.address);
+        const address = cleanedAddress ? cleanedAddress.slice(0, 300) : undefined;
         const googleMapsUrl = stop.destination.googleMapsUrl?.trim() || undefined;
         items.push({
           slotId: `d${day.day}-visit-${index + 1}`,
           kind: "VISIT",
           startMinute: stop.arrivalMinute,
           endMinute: stop.departureMinute,
-          label: stop.destination.name,
+          label: cleanPlaceDisplayName(stop.destination.name) || stop.destination.name,
           ...(description ? { description } : {}),
           ...(placeId ? { placeId } : {}),
           ...(hasCoords ? { latitude: stop.destination.latitude, longitude: stop.destination.longitude } : {}),

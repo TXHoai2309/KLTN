@@ -1,6 +1,7 @@
 import type { PlannerResult } from "../trip-planner/planner-contract";
 import { haversine } from "../trip-planner/planner-geography";
-import type { PlacesSearch } from "./tripsage-places";
+import { cleanPlaceDisplayName, isGenericActivityPlaceName } from "../../lib/traveler-display-clean";
+import type { ExternalPlaceSuggestion, PlacesSearch } from "./tripsage-places";
 import { EARLY_DAY_END_MINUTE, suggestionSchema, type TimelineSuggestion } from "./tripsage-timeline";
 
 /**
@@ -12,6 +13,48 @@ export const ACTIVITY_RADIUS_KM = { ACTIVITY: 5, FREE: 8, EVENING: 5 } as const;
 export const ACTIVITY_PER_SLOT = 5;
 /** Upper bound of Places calls per plan (stops first, then nights); the 4-call cap of `searchPlaces` is a separate, model-facing budget. */
 export const ACTIVITY_MAX_ANCHORS = 16;
+
+/** PARITY BR-8 & BR-10: Google Places lodging types excluded from ACTIVITY, FREE, and EVENING suggestions. */
+export const LODGING_PLACE_TYPES = new Set<string>([
+  "lodging",
+  "hotel",
+  "resort_hotel",
+  "resort",
+  "homestay",
+  "motel",
+  "bed_and_breakfast",
+  "guest_house",
+  "hostel",
+  "campground",
+  "camping_cabin",
+  "cottage",
+  "extended_stay_hotel",
+  "farmstay",
+  "inn",
+  "mobile_home_park",
+  "private_guest_room",
+  "rv_park",
+]);
+
+const LODGING_NAME_PATTERN =
+  /\b(?:homestay|home\s*stay|hotel|khach\s+san|resort|nha\s+nghi|guest\s*house|hostel|motel|lodge|bungalow|campground|retreat)\b/iu;
+
+function foldName(value: string): string {
+  return value
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[\p{M}\p{Cf}]/gu, "")
+    .replace(/đ/gu, "d")
+    .replace(/[^\p{L}\p{N}\s]+/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+/** True when a place is a hotel, homestay, resort, guest house, hostel, or campground (by Places types or name). */
+export function isLodgingPlace(place: { name: string; types?: readonly string[] }): boolean {
+  if (place.types?.some(type => LODGING_PLACE_TYPES.has(type.toLowerCase()))) return true;
+  return LODGING_NAME_PATTERN.test(foldName(place.name));
+}
 const QUERIES = {
   ACTIVITY: "điểm tham quan vui chơi giải trí",
   FREE: "quán cà phê view đẹp điểm check-in chụp ảnh",
@@ -26,7 +69,7 @@ type Kind = keyof typeof QUERIES;
 export type ActivityAnchor = { slotId: string; kind: Kind; latitude: number; longitude: number };
 
 /** shortcut: per-instance memory cache of lookups (keyed by rounded point and kind); upgrade to a shared cache if instances multiply. */
-const cache = new Map<string, { at: number; places: { placeId: string; name: string; latitude: number; longitude: number }[] }>();
+const cache = new Map<string, { at: number; places: ExternalPlaceSuggestion[] }>();
 
 const norm = (value: string) => value.normalize("NFC").toLocaleLowerCase("vi").replace(/\s+/gu, " ").trim();
 
@@ -51,7 +94,7 @@ export async function nearbyActivitySuggestions(input: { places: PlacesSearch; a
   const now = input.now ?? Date.now;
   const excluded = input.stopNames.map(norm).filter(Boolean);
   const isStop = (name: string) => { const n = norm(name); return excluded.some(stop => n === stop || n.includes(stop) || stop.includes(n)); };
-  const found: { anchor: ActivityAnchor; places: { placeId: string; name: string; latitude: number; longitude: number }[] }[] = new Array(input.anchors.length);
+  const found: { anchor: ActivityAnchor; places: ExternalPlaceSuggestion[] }[] = new Array(input.anchors.length);
   let cursor = 0;
   const worker = async () => {
     for (;;) {
@@ -76,8 +119,13 @@ export async function nearbyActivitySuggestions(input: { places: PlacesSearch; a
   for (const entry of found) {
     if (!entry) continue;
     const ranked = entry.places
-      .map(place => ({ place, distanceKm: haversine(entry.anchor, place) }))
-      .filter(({ place, distanceKm }) => distanceKm <= ACTIVITY_RADIUS_KM[entry.anchor.kind] && !isStop(place.name))
+      .map(place => ({ place: { ...place, name: cleanPlaceDisplayName(place.name) }, distanceKm: haversine(entry.anchor, place) }))
+      .filter(({ place, distanceKm }) =>
+        distanceKm <= ACTIVITY_RADIUS_KM[entry.anchor.kind]
+        && !isStop(place.name)
+        && !isLodgingPlace(place)
+        && !isGenericActivityPlaceName(place.name),
+      )
       .sort((a, b) => a.distanceKm - b.distanceKm);
     const outKind = entry.anchor.kind === "EVENING" ? "EVENING" : "ACTIVITY"; const used = usedBy[outKind];
     let taken = 0;
