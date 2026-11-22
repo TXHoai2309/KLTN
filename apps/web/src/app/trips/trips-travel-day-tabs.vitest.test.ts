@@ -3,8 +3,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push() {}, refresh() {}, replace() {} }),
+  useRouter: () => ({ push() {}, refresh() {}, replace() {}, back() {}, prefetch() {} }),
+  usePathname: () => "/trips/trip-1",
   useSearchParams: () => new URLSearchParams(),
+  useParams: () => ({}),
 }));
 
 import { TripDetailView } from "./trips-view";

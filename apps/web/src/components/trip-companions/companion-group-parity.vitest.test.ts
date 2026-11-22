@@ -3,7 +3,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push() {}, refresh() {} }),
+  useRouter: () => ({ push() {}, refresh() {}, replace() {}, back() {}, prefetch() {} }),
+  usePathname: () => "/trip-companions/group-1/group",
+  useSearchParams: () => new URLSearchParams(),
+  useParams: () => ({}),
 }));
 
 import { RouteStrip } from "@/components/trip-timeline/route-strip";

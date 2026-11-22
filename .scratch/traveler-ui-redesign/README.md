@@ -1,6 +1,6 @@
 # Tickets — Giao diện thon gọn cho người đi, lịch trình đồng nhất, "Tối nay"
 
-**Trạng thái:** cả 17 ticket đều `ready-for-agent` (2026-11-23). Chưa có code.
+**Trạng thái:** đã hoàn thành cả 17/17 ticket trên nhánh cục bộ `master` (2026-11-23): 4 ticket `done` (`03`, `04`, `05`, `16`), 13 ticket `verified-offline` (chờ kiểm trình duyệt thật trên preview deploy và chạy migration #55 khi owner duyệt). Chưa push/merge/deploy.
 
 ## Nguồn
 
@@ -34,7 +34,7 @@
 | [14 — Tên cuộc chat tự đặt, dấu cuộc chat đã ra chuyến](issues/14-conversation-auto-title.md) | `02` | `verified-offline` |
 | [15 — Khối tiến độ thật, chạy song song](issues/15-plan-progress-parallel.md) | `10` | `verified-offline` |
 | [16 — Chip tiết kiệm ngân sách, nhãn sở thích](issues/16-budget-chips-preference-labels.md) | `02` | `done` |
-| [17 — Nghiệm thu tích hợp](issues/17-integrated-acceptance.md) | `03`, `08`, `09`, `11`, `12`, `13`, `14`, `15`, `16` | `ready-for-agent` |
+| [17 — Nghiệm thu tích hợp](issues/17-integrated-acceptance.md) | `03`, `08`, `09`, `11`, `12`, `13`, `14`, `15`, `16` | `verified-offline` |
 
 ```
 01 ─┬─ 02 ─┬─ 10 ─┬─ 11

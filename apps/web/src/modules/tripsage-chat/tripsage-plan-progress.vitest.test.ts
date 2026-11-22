@@ -15,8 +15,8 @@ import { createTripsageChatTools, type TripsagePlanningDeps } from "./tripsage-c
 const FIXED_NOW = new Date("2026-11-23T03:00:00Z");
 
 const CANDIDATES = [
-  { ...planningCandidate("dest-1", 60), name: "Cổng Trời Quản Bạ", area: "Quản Bạ" },
-  { ...planningCandidate("dest-2", 90), name: "Phố cổ Đồng Văn", area: "Đồng Văn" },
+  { ...planningCandidate("dest-1", 60), name: "Cổng Trời Quản Bạ", area: "Quản Bạ", latitude: 23.147, longitude: 105.219 },
+  { ...planningCandidate("dest-2", 90), name: "Phố cổ Đồng Văn", area: "Đồng Văn", latitude: 23.289, longitude: 105.381 },
 ];
 
 const PLANNING: TripsagePlanningDeps = {

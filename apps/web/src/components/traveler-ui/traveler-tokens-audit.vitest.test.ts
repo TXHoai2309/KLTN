@@ -11,6 +11,7 @@ const WEB = process.cwd();
 const TRAVELER_CSS_FILES = [
   "src/app/trips/trips.css",
   "src/components/traveler-ui/traveler-ui.css",
+  "src/components/trip-timeline/day-timeline.css",
   "src/components/assistant/assistant.css",
   "src/components/assistant/assistant-citations.css",
   "src/components/assistant/assistant-weather-card.css",

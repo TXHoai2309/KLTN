@@ -6161,3 +6161,18 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Parallelized independent post-validation `emitNearbyActivities` and grounded preference `emitGroundedPreferenceLabels` via `Promise.allSettled` inside `proposeItinerary` (slim D20) without increasing external call caps.
 - Created `TripsagePlanProgress` (`apps/web/src/components/tripsage-chat/tripsage-plan-progress.tsx`, design §3.7) wired into `TripsageChatClient` (`onData` + `"Chưa tìm được…"` step retry + `"Bị ngắt"` stream retry via `regenerate()`) and styled with `--tv-*` tokens in `assistant.css`.
 - Checks: `vitest` PASS (`tripsage-plan-progress` module 4/4 & component 3/3 + allowlist/audit/restoration 26/26), `npm run check-types` PASS (4/4 tasks), `git diff --check` PASS (status: `verified-offline`; preview deploy timing pending owner deploy).
+
+## 2026-11-23 — Traveler UI Redesign: Ticket 17 (integrated offline acceptance & cross-suite fixes)
+
+- Fixed `CompanionGroupView` (`companion-group-view.tsx`) day-tab prop `dayIndex` → `dayNumber` so shared companion day tabs inherit `--tv-day-1..7` colors.
+- Extended `traveler-tokens-audit.vitest.test.ts` to cover `day-timeline.css` (all 9 traveler CSS files now verified: 0 `font-weight >= 650`, 0 hardcoded hex, 0 `Inter`, 0 disallowed `box-shadow`).
+- Preserved `edit|in-trip` inside `isGlobalAssistantVisibleRoute` (`global-assistant.tsx`) while still hiding the floating launcher on `/trips/[id]`, fixing contract compatibility with `saved-trip-assistant-acceptance.vitest.test.ts`.
+- Isolated `next/navigation` mocks in 4 new test files and unique coordinates in `tripsage-plan-progress.vitest.test.ts` for clean `isolate: false` full-suite execution.
+- Integrated checks:
+  - `npm run check-types` — PASS (4/4 Turbo tasks).
+  - `npm run build --workspace web -- --webpack` — PASS (Next.js 16.4.6 + TypeScript, 60/60 static pages).
+  - Static bundle scan (`apps/web/.next/static`, 289 files) — 0 server secret names or env values leaked.
+  - WCAG AA contrast audit on `--tv-*` tokens (`globals.css`) — 16/16 light & dark pairs PASS (>= 4.5:1).
+  - Full Vitest suite (`tripsage-chat`, `trip-save`, `trip-companions`, `trip-read`, `trip-edit`, `traveler-ui`, `trip-timeline`, `components/tripsage-chat`, `components/trip-companions`, `app/trips`) — PASS: 150 passed, 17 skipped (1115 passed, 65 skipped).
+  - `git diff --check` — PASS.
+- Updated `docs/stories/ASSISTANT-TRIP-TIMELINE-PARITY.md`, `docs/stories/TRAVELER-UI-SLIM-REDESIGN.md`, `.scratch/traveler-ui-redesign/issues/17-integrated-acceptance.md`, and `.scratch/traveler-ui-redesign/README.md` (status: `verified-offline`; live browser screenshots, preview deploy AC-5 timing, and Prisma migration #55 remain pending owner review/deploy).
