@@ -11,7 +11,9 @@ import { echoesCredential, withLookupDeadline } from "./tripsage-provider-respon
  * NOT verified live: real credentials, live JSON payloads, quota error text, or coverage in Vietnam.
  */
 export const SERPAPI_ENDPOINT = "https://serpapi.com/search.json";
-const DEFAULT_TIMEOUT_MS = 8_000;
+const DEFAULT_TIMEOUT_MS = 20_000;
+/** After every key reported exhaustion, wait this long before trying the keys again (a warm instance would otherwise stay stuck). */
+const EXHAUSTED_COOLDOWN_MS = 10 * 60 * 1000;
 const DEFAULT_MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 const MAX_ERROR_BYTES = 16 * 1024;
 
@@ -21,7 +23,11 @@ const QUOTA_EXHAUSTED_PATTERN =
 export type SerpApiKeyState = {
   signature: string;
   index: number;
+  exhaustedAt?: number;
 };
+
+/** Operator log: a short reason code and numbers only (never the URL, key, query or response body). */
+const logUnavailable = (reason: string) => console.warn("[tripsage-serpapi] unavailable", reason);
 
 export function createSerpApiKeyState(): SerpApiKeyState {
   return { signature: "", index: 0 };
@@ -79,14 +85,18 @@ export function createSerpApiClient(deps: {
         const rawKeys = await deps.apiKeys();
         signal.throwIfAborted();
         const keys = parseSerpApiKeys(rawKeys);
-        if (!keys.length) return { status: "UNAVAILABLE" };
+        if (!keys.length) { logUnavailable("no-keys"); return { status: "UNAVAILABLE" }; }
 
         const signature = keyListSignature(keys);
         if (state.signature !== signature) {
           state.signature = signature;
           state.index = 0;
         }
-        if (state.index >= keys.length) return { status: "UNAVAILABLE" };
+        if (state.index >= keys.length) {
+          if (Date.now() - (state.exhaustedAt ?? 0) < EXHAUSTED_COOLDOWN_MS) { logUnavailable("keys-exhausted"); return { status: "UNAVAILABLE" }; }
+          state.index = 0;
+        }
+        const markExhausted = (i: number) => { if (state.index === i) state.index = i + 1; state.exhaustedAt = Date.now(); };
 
         const startIndex = state.index;
         for (let i = startIndex; i < keys.length; i += 1) {
@@ -109,7 +119,7 @@ export function createSerpApiClient(deps: {
           });
 
           if (response.status === 429) {
-            if (state.index === i) state.index = i + 1;
+            markExhausted(i);
             continue;
           }
 
@@ -117,28 +127,31 @@ export function createSerpApiClient(deps: {
             if (response.status >= 400 && response.status < 500) {
               const errorText = await readBounded(response, MAX_ERROR_BYTES);
               if (isQuotaExhaustedMessage(errorText)) {
-                if (state.index === i) state.index = i + 1;
+                markExhausted(i);
                 continue;
               }
             }
+            logUnavailable(`http-${response.status}`);
             return { status: "UNAVAILABLE" };
           }
 
           const text = await readBounded(response, maxResponseBytes);
-          if (text === null) return { status: "UNAVAILABLE" };
+          if (text === null) { logUnavailable("response-too-large"); return { status: "UNAVAILABLE" }; }
 
           const parsed = JSON.parse(text) as unknown;
           if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+            logUnavailable("not-an-object");
             return { status: "UNAVAILABLE" };
           }
 
           const record = parsed as Record<string, unknown>;
           if (typeof record.error === "string" && isQuotaExhaustedMessage(record.error)) {
-            if (state.index === i) state.index = i + 1;
+            markExhausted(i);
             continue;
           }
 
           if (echoesCredential(record, keys)) {
+            logUnavailable("credential-echo");
             return { status: "UNAVAILABLE" };
           }
 
@@ -148,6 +161,7 @@ export function createSerpApiClient(deps: {
         return { status: "UNAVAILABLE" };
       });
 
+      if (!result) logUnavailable("timeout-or-network-error");
       return result ?? { status: "UNAVAILABLE" };
     },
   };

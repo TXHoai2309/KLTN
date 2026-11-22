@@ -1,6 +1,6 @@
 "use client";
 
-import { BedDouble, Car, Check, Clock, Eye, Flag, Home, Lightbulb, MapPin, Moon, UtensilsCrossed } from "lucide-react";
+import { BedDouble, Car, Check, Clock, Eye, Flag, Home, Lightbulb, MapPin, Moon, Sparkles, UtensilsCrossed } from "lucide-react";
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { PlacePreviewModal } from "@/components/place-preview/place-preview-modal";
@@ -20,14 +20,17 @@ const ITEM_ICON: Record<TimelineItem["kind"], ReactNode> = {
   LUNCH: <UtensilsCrossed size={13} aria-hidden="true" />, FREE_TIME: <Clock size={13} aria-hidden="true" />, OVERNIGHT: <Moon size={13} aria-hidden="true" />, ARRIVE_HOME: <Home size={13} aria-hidden="true" />,
 };
 const SUGGESTION_ICON: Record<TimelineSuggestion["kind"], ReactNode> = {
-  MEAL: <UtensilsCrossed size={13} aria-hidden="true" />, EVENING: <Moon size={13} aria-hidden="true" />, LODGING: <BedDouble size={13} aria-hidden="true" />, TIP: <Lightbulb size={13} aria-hidden="true" />,
+  MEAL: <UtensilsCrossed size={13} aria-hidden="true" />, EVENING: <Moon size={13} aria-hidden="true" />, LODGING: <BedDouble size={13} aria-hidden="true" />, TIP: <Lightbulb size={13} aria-hidden="true" />, ACTIVITY: <Sparkles size={13} aria-hidden="true" />,
 };
-const SUGGESTION_LABEL: Record<TimelineSuggestion["kind"], string> = { MEAL: "Ăn uống", EVENING: "Buổi tối", LODGING: "Chỗ nghỉ", TIP: "Mẹo" };
+const SUGGESTION_LABEL: Record<TimelineSuggestion["kind"], string> = { MEAL: "Ăn uống", EVENING: "Buổi tối", LODGING: "Chỗ nghỉ", TIP: "Mẹo", ACTIVITY: "Vui chơi" };
 
 /** Older answers wrote only the source label into `detail`; the footnote already states it once. */
 const SOURCE_ONLY_DETAIL = /^\s*(gợi ý\s+)?ngoài danh mục[\s,.;·-]*(chưa (được )?kiểm tra)?[\s.]*$/iu;
 
 const time = (item: TimelineItem) => item.startMinute === null && item.endMinute === null ? "" : item.endMinute === null || item.kind === "DEPART" ? clockLabel(item.startMinute) : item.startMinute === null ? `→ ${clockLabel(item.endMinute)}` : `${clockLabel(item.startMinute)}–${clockLabel(item.endMinute)}`;
+
+/** Nearby activity suggestions (ACTIVITY and EVENING with a place) render as one compact list per slot. */
+const isNearbyActivity = (suggestion: TimelineSuggestion) => (suggestion.kind === "ACTIVITY" || suggestion.kind === "EVENING") && Boolean(suggestion.place);
 
 const norm = (value: string) => value.normalize("NFC").toLocaleLowerCase("vi").replace(/\s+/gu, " ").trim();
 
@@ -105,12 +108,15 @@ export function TripsageTimelineView({
   initialDay,
   chosenLodgings,
   onToggleChosenLodging,
+  onRequestMeals,
 }: {
   timeline: TimelinePart;
   suggestions: readonly TimelineSuggestion[];
   initialDay?: number;
   chosenLodgings?: ChosenLodgingMap;
   onToggleChosenLodging?: (nightIndex: number, placeId: string) => void;
+  /** Asks the assistant for lunch places on that day; the button shows only on a lunch row without meal suggestions. */
+  onRequestMeals?: (day: number) => void;
 }) {
   const [selectedDay, setSelectedDay] = useState(initialDay ?? timeline.days[0]?.day ?? 1);
   const [preview, setPreview] = useState<{
@@ -196,7 +202,39 @@ export function TripsageTimelineView({
                     )}
                   </div>
                   {item.description && <p className="tripsage-timeline-desc">{item.description}</p>}
-                  {(bySlot.get(item.slotId) ?? []).map((suggestion, index) => {
+                  {item.kind === "LUNCH" && onRequestMeals && !(bySlot.get(item.slotId) ?? []).some(suggestion => suggestion.kind === "MEAL") && (
+                    <button type="button" className="tripsage-preview-btn" onClick={() => onRequestMeals(activeDay.day)}>
+                      <UtensilsCrossed size={12} aria-hidden="true" />
+                      <span>Gợi ý quán ăn trưa</span>
+                    </button>
+                  )}
+                  {(() => {
+                    const nearby = (bySlot.get(item.slotId) ?? []).filter(isNearbyActivity);
+                    if (!nearby.length) return null;
+                    return (
+                      <div className="tripsage-nearby">
+                        <strong>{item.kind === "OVERNIGHT" ? "Buổi tối quanh chỗ nghỉ" : "Gần đây có thể ghé"}</strong>
+                        <span className="tripsage-nearby-note"> · gợi ý từ Google Maps, chưa kiểm tra</span>
+                        <ul>
+                          {nearby.map(suggestion => {
+                            const target = suggestionPreviewTarget(suggestion);
+                            return (
+                              <li key={suggestion.place!.placeId ?? suggestion.title}>
+                                <span>{suggestion.title}</span>
+                                <span className="tripsage-suggestion-meta"> · cách khoảng {suggestion.place!.distanceKm} km</span>
+                                {target && (
+                                  <button type="button" className="tripsage-preview-btn" aria-label={`Xem nhanh ${target.name}`} onClick={event => setPreview({ target, trigger: event.currentTarget })}>
+                                    <Eye size={12} aria-hidden="true" /><span>Xem nhanh</span>
+                                  </button>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    );
+                  })()}
+                  {(bySlot.get(item.slotId) ?? []).filter(suggestion => !isNearbyActivity(suggestion)).map((suggestion, index) => {
                     const sPreview = suggestionPreviewTarget(suggestion);
                     const nightIndex = nightIndexFromSlotId(suggestion.slotId);
                     const canChoose = nightIndex !== null && isEligibleLodgingSuggestion(suggestion, nightIndex);

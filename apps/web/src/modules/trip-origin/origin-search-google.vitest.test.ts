@@ -22,11 +22,11 @@ it.each([401, 429, 500])("keeps Google HTTP %s unavailable without calling Stadi
   expect(fetcher).toHaveBeenCalledOnce();
 });
 
-it("bounds even an uncooperative Google call at four seconds", async () => {
+it("bounds even an uncooperative Google call at eight seconds", async () => {
   vi.useFakeTimers(); vi.stubEnv("NEXT_PUBLIC_MAPS_PROVIDER", "GOOGLE");
   const search = createConfiguredOriginSearch({ googleApiKey: () => "fixture", stadiaApiKey: async () => undefined, fetcher: () => new Promise(() => {}) });
   const pending = search({ query: "Hà Nội" });
-  await vi.advanceTimersByTimeAsync(4000);
+  await vi.advanceTimersByTimeAsync(8000);
   expect(await pending).toMatchObject({ status: "UNAVAILABLE" });
 });
 

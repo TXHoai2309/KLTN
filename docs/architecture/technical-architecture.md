@@ -86,7 +86,7 @@ The accepted product boundary is:
 - AI/OpenAI: natural-language understanding, RAG answers, and proposals.
 - Constraint Validator: deterministic checks and outcomes, independent from AI.
 - Stadia Standard Routing: actual route/travel duration for `auto` (car) and `motorcycle` (motorcycle).
-- If mandatory route data is missing or not returned within at most 10 seconds, the travel-time check is `INSUFFICIENT_DATA` / `CHƯA ĐỦ DỮ LIỆU`, never `PASS`; AI must not guess travel time. This is a behavior requirement, not an implementation in the current repository.
+- If mandatory route data is missing or not returned within at most 40 seconds (owner raised from 10 s on 2026-11-22, see decisions.md), the travel-time check is `INSUFFICIENT_DATA` / `CHƯA ĐỦ DỮ LIỆU`, never `PASS`; AI must not guess travel time. This is a behavior requirement, not an implementation in the current repository.
 - PostGIS: stored spatial data and spatial queries.
 - pgvector: embeddings and similarity retrieval.
 - MapLibre GL JS: browser map rendering; Stadia Maps: official Alidade Smooth light/dark styles and basemap.

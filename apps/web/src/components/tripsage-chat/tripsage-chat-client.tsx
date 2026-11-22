@@ -54,7 +54,7 @@ import { TripsageTimelineView } from "./tripsage-timeline-view";
 export function splitTrailingQuestion(text: string): { body: string; question: string | null } {
   const trimmed = text.trimEnd();
   const cut = trimmed.lastIndexOf("\n");
-  const last = trimmed.slice(cut + 1).replace(/^[#>*_\s]+|[*_\s]+$/gu, "");
+  const last = trimmed.slice(cut + 1).replace(/^[#>*_\s]+|[*_\s]+$/gu, "").replace(/\*\*|__/gu, "");
   if (!/[?？]$/u.test(last) || last.length > 200) return { body: text, question: null };
   return { body: cut < 0 ? "" : trimmed.slice(0, cut), question: last };
 }
@@ -129,8 +129,10 @@ export function TripsageChatClient({
     prepareSendMessagesRequest: ({ messages }) => ({ body: buildTripsageChatBody({ messages, ...bodyRef.current }) }),
   }), []);
 
-  const { messages, setMessages, sendMessage, status: chatStatus, error, stop, regenerate } = useChat({
+  const { messages, setMessages, sendMessage, status: chatStatus, error, stop, regenerate, clearError } = useChat({
     transport,
+    // The notice text is generic; keep the real cause (name and short message only, never the request) visible for debugging.
+    onError: err => console.warn("[tripsage-chat] stream error", err.name, err.message.slice(0, 200)),
     onData: part => {
       if (part.type === "data-status") {
         setStatus(part.data as StatusPart);
@@ -169,6 +171,14 @@ export function TripsageChatClient({
     ? messages.find(m => m.id === lastItineraryMessageId)?.parts.map(part => (part.type === "data-itinerary" ? parseItineraryPart(part.data) : null)).filter(Boolean).at(-1) ?? null
     : null;
   const itineraryCurrent = latestItinerary && !state.itineraryStale;
+  // A replan that leaves the days unchanged (e.g. only the origin was confirmed) folds the cards instead of re-showing them open.
+  const planUnchanged = useMemo(() => {
+    const plans = messages.flatMap(message => {
+      const plan = message.role === "assistant" ? message.parts.map(part => (part.type === "data-itinerary" ? parseItineraryPart(part.data) : null)).filter(Boolean).at(-1) : null;
+      return plan ? [JSON.stringify(plan.days)] : [];
+    });
+    return plans.length > 1 && plans.at(-1) === plans.at(-2);
+  }, [messages]);
 
   // Keep chosen lodgings synced with restored saved conversations and prune nights removed on replan (Ticket 10).
   useEffect(() => {
@@ -216,6 +226,34 @@ export function TripsageChatClient({
   };
 
   useEffect(() => { if (!busy) setStatus(null); }, [busy]);
+
+  // A cut connection does not stop the server: it finishes the turn and saves it. Poll the saved conversation and
+  // swap it in (same data as a reload) instead of leaving the user on "connection lost".
+  const interrupted = notice?.kind === "INTERRUPTED";
+  useEffect(() => {
+    if (!interrupted || !activeConversationId) return;
+    const conversationId = activeConversationId;
+    const sentUserTurns = messages.filter(message => message.role === "user").length;
+    let cancelled = false;
+    let attempts = 0;
+    const poll = async () => {
+      while (!cancelled && attempts < 20) {
+        attempts += 1;
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        if (cancelled) return;
+        const detail = await fetchAssistantConversationDetail(conversationId).catch(() => null);
+        const stored = detail?.messages ?? [];
+        if (stored.at(-1)?.role === "assistant" && stored.filter(message => message.role === "user").length === sentUserTurns) {
+          setMessages(storedMessagesToUiMessages(stored));
+          clearError();
+          return;
+        }
+      }
+    };
+    void poll();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [interrupted, activeConversationId]);
 
   // Restore any draft retained when a guest clicked sign-in from the planning invitation (ADR-35 / ADR-43).
   useEffect(() => {
@@ -513,17 +551,23 @@ export function TripsageChatClient({
                       <article key={message.id} className="assistant-message assistant-answer">
                         <span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true" /><span>Trợ lý AI</span></span>
                         {body && <TripsageMarkdown text={body} />}
-                        {cost && <TripsageCostCard cost={cost} />}
-                        {accessLeg && <TripsageAccessLegCard leg={accessLeg} />}
-                        {itinerary && state.timeline && (
-                          <TripsageTimelineView
-                            timeline={state.timeline}
-                            suggestions={state.suggestions}
-                            chosenLodgings={chosenLodgings}
-                            onToggleChosenLodging={handleToggleChosenLodging}
-                          />
+                        {(cost || accessLeg || itinerary) && (
+                          <details className="tripsage-plan-details" open={!(itinerary && planUnchanged)}>
+                            <summary>Lịch trình và chi phí ước tính</summary>
+                            {cost && <TripsageCostCard cost={cost} />}
+                            {accessLeg && <TripsageAccessLegCard leg={accessLeg} />}
+                            {itinerary && state.timeline && (
+                              <TripsageTimelineView
+                                timeline={state.timeline}
+                                suggestions={state.suggestions}
+                                chosenLodgings={chosenLodgings}
+                                onToggleChosenLodging={handleToggleChosenLodging}
+                                onRequestMeals={day => send(`Tìm giúp mình quán ăn trưa cho ngày ${day}.`)}
+                              />
+                            )}
+                            {itinerary && <TripsageItineraryView proposal={itinerary}>{!busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} tripInfo={state.tripInfo} chosenLodgings={chosenLodgings} suggestions={state.suggestions} onStateChange={setSaveState} />)}</TripsageItineraryView>}
+                          </details>
                         )}
-                        {itinerary && <TripsageItineraryView proposal={itinerary}>{!busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} tripInfo={state.tripInfo} chosenLodgings={chosenLodgings} onStateChange={setSaveState} />)}</TripsageItineraryView>}
                         <TripsageSourcesView sources={sources} />
                         <TripsageResultCards parts={resultParts} />
                         {replies.length > 0 && (

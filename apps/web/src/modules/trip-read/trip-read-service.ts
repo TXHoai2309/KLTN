@@ -37,6 +37,9 @@ export type TripChosenLodgingDetail = {
   longitude?: number;
 };
 
+/** ADR-45: unchecked Google Maps places shown near a stop (`visit-K`) or a night (`overnight`); never a visit. */
+export type TripNearbySuggestionDetail = { dayIndex: number; slot: string; kind: "ACTIVITY" | "EVENING"; placeId: string; name: string; distanceKm: number };
+
 export type TripDetail = TripSummary & {
   /** Only HOST receives this property; legacy owner reads explicitly return null. */
   journey?: SavedJourney | null;
@@ -44,6 +47,7 @@ export type TripDetail = TripSummary & {
   unchecked?: { items: UncheckedItem[]; confirmedAt: string | null };
   /** Ticket 11: chosen lodgings saved per night (separate from ItineraryVisit; never a booking). */
   chosenLodgings?: TripChosenLodgingDetail[];
+  nearbySuggestions?: TripNearbySuggestionDetail[];
   baseRevision?: string;
   days: {
     id: string;
@@ -107,6 +111,10 @@ const detailSelect = (userId: string) => ({
       nightIndex: true,
       externalPlace: { select: { providerPlaceId: true, name: true, latitude: true, longitude: true, fetchedAt: true } },
     },
+  },
+  nearbySuggestions: {
+    orderBy: [{ dayIndex: "asc" as const }, { sortOrder: "asc" as const }],
+    select: { dayIndex: true, slot: true, kind: true, placeId: true, name: true, distanceKm: true },
   },
   days: {
     orderBy: [{ dayIndex: "asc" as const }, { id: "asc" as const }],
@@ -270,11 +278,13 @@ export async function getMyTrip(headers: Headers, id: string, deps: TripReadDepe
         ...(view.latitude !== undefined && view.longitude !== undefined ? { latitude: view.latitude, longitude: view.longitude } : {}),
       };
     });
+  const nearbySuggestions = ((row as { nearbySuggestions?: TripNearbySuggestionDetail[] }).nearbySuggestions ?? []).filter(item => item.kind === "ACTIVITY" || item.kind === "EVENING");
   return {
     ...summary(row, referenceDate, actor.userId),
     ...(row.userId === actor.userId ? { journey, baseRevision: row.updatedAt?.toISOString() } : {}),
     ...(isOwner && storedUnchecked ? { unchecked: { items: storedUnchecked.items, confirmedAt: row.uncheckedConfirmedAt?.toISOString() ?? null } } : {}),
     ...(chosenLodgings.length ? { chosenLodgings } : {}),
+    ...(nearbySuggestions.length ? { nearbySuggestions } : {}),
     days: [...row.days].sort((a, b) => a.dayIndex - b.dayIndex || a.id.localeCompare(b.id)).map(day => ({
       id: day.id, dayIndex: day.dayIndex, localDate: day.localDate.toISOString().slice(0, 10),
       visits: [...day.visits].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id)).map(visit => ({

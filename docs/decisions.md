@@ -1056,3 +1056,43 @@ ADR-42/43 made the assistant collect origin, dates/duration and transport before
 - Trip info needs an "assumed" marker per field; save readiness must check it.
 - The chat-only origin confirmation of ADR-43 still applies when the traveler changes the origin.
 - More first-turn tool work (routing, planning) per new conversation; admission limits are unchanged.
+
+## Owner decision 2026-11-22 — Longer provider timeouts and step cap for the assistant
+
+Live Vercel runs hit the tight limits (routing legs reported `TIMEOUT` so the travel-time check stayed `INSUFFICIENT_DATA`, Google Places and web lookups timed out, turns ended at the step cap). The owner asked to raise them modestly:
+
+- Routing: shared deadline and per-request timeout 10 s → 25 s (27-pair / three-concurrent budget unchanged; the Validator still never passes on missing route data). `/api/trip-proposals` `maxDuration` 30 → 60 s to keep margin.
+- Google Places lookup 5 s → 12 s; web search/scrape 8 s → 15 s; SerpApi 8 s → 20 s.
+- Assistant chat turn cap 12 → 16 steps (the 280 s turn budget is unchanged).
+
+### Amendment 2026-11-22 (same day, owner)
+
+The owner asked for more headroom still: routing shared deadline and per-request timeout 25 s → 40 s (`/api/trip-proposals` `maxDuration` 60 → 90 s); origin search timeouts raised to 8 s for Google, Stadia and Nominatim (was 4 s, 4 s, 3 s). The Nominatim minimum gap between two searches stays 4 s and is now independent of the 8 s I/O budget (the claim SQL returns `now + budget` as the lease), so a slower search does not lengthen "đang bận" for others.
+
+## ADR-45 — Nearby activity suggestions are found by the server and saved with the trip (2026-11-22)
+
+- **Status:** Accepted by the owner (design interview 2026-11-22: show all, about 4–5 per stop or night, saved with the trip, no validation). Implemented.
+- **Date:** 2026-11-22
+
+### Context
+
+A plan lists only the few catalogue stops the scheduler can fit. Travelers want to know what else is worth doing around a stop and in the evening near their lodging. Asking the model to call Places for every stop made the chat slow and unreliable, and suggestions vanished when the trip was saved.
+
+### Decision
+
+1. After each `proposeItinerary` the **server** (not the model) looks up Google Places near every stop (radius 5 km, query for sightseeing and play) and near each overnight stay (radius 3 km, evening and café/market query), at most 16 lookups per plan, 4 at a time, within a 20 s budget; a failed lookup only means no suggestions for that slot. The itinerary's own stops are excluded and each place is shown once, nearest first, up to 5 per slot.
+2. Results are `ACTIVITY` / `EVENING` planning suggestions: unchecked Google data, never a visit, no time, no Validator input, no cost.
+3. On save the client sends them with the trip and the server stores them in `trip_nearby_suggestion` (cascade with the trip). Malformed entries are dropped, never block the save.
+4. The saved trip page shows them per day under "Gợi ý vui chơi quanh đây".
+
+### Alternatives
+
+- Model-driven `searchPlaces` per stop: rejected (slow, flaky, uses the model's tool budget).
+- Schedule them as extra visits: rejected; would need opening-hours and routing validation the data cannot support.
+- Keep them only in the chat: rejected by the owner ("nên thêm vào chuyến đi để người dùng biết").
+
+### Consequences
+
+- One new table and migration (`20261122120000_trip_nearby_suggestion`); the migration is written but **not applied** to any shared database.
+- Up to 16 Places requests per plan (cost) with a 30-minute per-instance memory cache; move to a shared cache if instances multiply.
+- The browser supplies the place ids and names at save time, as it already does for chosen lodging; they are display-only and never trusted for validation.

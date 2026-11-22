@@ -141,10 +141,10 @@ describe("Tripsage agent itinerary seam", () => {
 });
 
 describe("Tripsage agent turn caps", () => {
-  it("stops at 12 steps and makes the last step text-only", async () => {
+  it("stops at 16 steps and makes the last step text-only", async () => {
     const model = scripted([{ tool: "listDestinations", input: {} }]);
     await run(model);
-    expect(model.doStreamCalls.length).toBeLessThanOrEqual(12);
+    expect(model.doStreamCalls.length).toBeLessThanOrEqual(16);
     const last = model.doStreamCalls.at(-1)!;
     expect(last.toolChoice).toEqual({ type: "none" });
   });

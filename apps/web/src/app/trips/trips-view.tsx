@@ -1393,6 +1393,31 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                         </div>
                       );
                     })()}
+                    {(() => {
+                      const nearby = (trip.nearbySuggestions ?? []).filter(item => item.dayIndex === day.dayIndex);
+                      if (!nearby.length) return null;
+                      return (
+                        <div className="my-trips-chosen-lodging my-trips-nearby" role="note" aria-label={`Gợi ý vui chơi quanh đây ngày ${day.dayIndex}`}>
+                          <strong>Gợi ý vui chơi quanh đây</strong>
+                          <span className="text-muted-foreground">Từ Google Maps · Chưa kiểm tra · Không nằm trong lịch</span>
+                          <ul>
+                            {nearby.map(item => {
+                              const target: PlacePreviewTarget = { kind: "GOOGLE_PLACE", name: item.name, placeId: item.placeId };
+                              return (
+                                <li key={`${item.slot}|${item.placeId}`}>
+                                  <span>{item.name} · {item.distanceKm.toLocaleString("vi-VN")} km {item.kind === "EVENING" ? "(buổi tối)" : "(gần điểm tham quan)"}</span>
+                                  {canPreviewPlace(target) && (
+                                    <button type="button" className="tripsage-preview-btn" aria-label={`Xem nhanh ${item.name}`} onClick={event => setPreview({ target, trigger: event.currentTarget })}>
+                                      <Eye size={13} aria-hidden="true" /><span>Xem nhanh</span>
+                                    </button>
+                                  )}
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      );
+                    })()}
                   </section>
                 );
               })}

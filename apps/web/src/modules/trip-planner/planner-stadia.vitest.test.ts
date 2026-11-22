@@ -102,12 +102,12 @@ describe("US28 shared Stadia adapter", () => {
     release(new Response(new ReadableStream({ cancel() { cancelled = true; } })));
     await Promise.resolve(); await Promise.resolve(); expect(cancelled).toBe(true);
   });
-  it("global ten-second deadline aborts three in-flight HTTP requests and starts no more", async () => {
+  it("global 40-second deadline aborts three in-flight HTTP requests and starts no more", async () => {
     vi.useFakeTimers(); const signals: AbortSignal[] = [];
     const fetcher = vi.fn<typeof fetch>(async (_url, init) => { signals.push(init?.signal as AbortSignal); return new Promise(() => {}); });
     const pairs = Array.from({ length: 27 }, (_, i) => ({ ...pair, to: candidate(`target-${i}`) }));
     const pending = resolvePlannerRoutes(pairs, adapter(fetcher));
-    await vi.advanceTimersByTimeAsync(10_001);
+    await vi.advanceTimersByTimeAsync(40_001);
     const legs = await pending;
     expect(fetcher).toHaveBeenCalledTimes(3); expect(signals.every(s => s.aborted)).toBe(true);
     expect(legs.size).toBe(27); expect([...legs.values()].every(l => l.reason === "TIMEOUT")).toBe(true);

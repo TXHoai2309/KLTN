@@ -157,20 +157,20 @@ describe("provider failures become a friendly Vietnamese unavailable state", () 
 });
 
 describe("turn caps end with a readable, bounded notice that names what was created", () => {
-  it("12-step cap: notice says the step limit, keeps the created itinerary and says it is not saved, suggests a next step", async () => {
+  it("16-step cap: notice says the step limit, keeps the created itinerary and says it is not saved, suggests a next step", async () => {
     const model = scripted([propose, { tool: "listDestinations", input: {} }]);
     const sse = await (await tripsageChatResponse(req(), base({ model: async () => model }))).text();
-    expect(model.doStreamCalls.length).toBeLessThanOrEqual(12);
-    expect(sse).toContain("giới hạn 12 bước");
+    expect(model.doStreamCalls.length).toBeLessThanOrEqual(16);
+    expect(sse).toContain("giới hạn 16 bước");
     expect(sse).toContain("Lịch trình đã tạo được vẫn hiển thị");
     expect(sse).toContain("chưa được lưu");
     expect(sse).toContain("Hãy nhắn tiếp");
-    expect(sse.indexOf("giới hạn 12 bước")).toBeLessThan(sse.indexOf('"type":"finish"'));
+    expect(sse.indexOf("giới hạn 16 bước")).toBeLessThan(sse.indexOf('"type":"finish"'));
   });
 
-  it("12-step cap without any itinerary says nothing was created", async () => {
+  it("16-step cap without any itinerary says nothing was created", async () => {
     const sse = await (await tripsageChatResponse(req(), base({ model: async () => scripted([{ tool: "listDestinations", input: {} }]) }))).text();
-    expect(sse).toContain("giới hạn 12 bước");
+    expect(sse).toContain("giới hạn 16 bước");
     expect(sse).toContain("Chưa tạo được lịch trình");
   });
 

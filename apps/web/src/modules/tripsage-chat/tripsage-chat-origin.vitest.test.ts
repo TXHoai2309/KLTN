@@ -10,6 +10,7 @@ import { journeyPartSchema, originCandidatesPartSchema } from "./tripsage-chat-c
 import { TRIP_INFO_FIXTURE } from "./tripsage-chat-fixtures";
 import { tripsageChatResponse, type TripsageChatHttpDependencies } from "./tripsage-chat-http";
 import {
+  assistantOfferedHub,
   FIXED_HUB_CANDIDATES,
   ORIGIN_CANDIDATE_TTL_MS,
   matchFixedHub,
@@ -284,5 +285,28 @@ describe("chat-only origin confirmation and default clocks route (ticket 01)", (
     expect(journey.returnDeadlineMinute).toBe(1080);
     const itinerary = plannerResultSchema.parse(all.find(p => p.type === "data-itinerary")!.data);
     expect(itinerary.requirement.journey?.departureMinute).toBe(360);
+  });
+});
+
+describe("hub chosen by a bare reply (hubOffered)", () => {
+  const hub = FIXED_HUB_CANDIDATES.find(item => item.id === "hub:HA_NOI")!;
+  const hubs = FIXED_HUB_CANDIDATES;
+
+  it("accepts 'Hà Nội nhé' only when the assistant just offered the hubs", () => {
+    const reply = "Hà Nội nhé, bạn tìm giúp mình giá vé máy bay";
+    expect(permitsOriginConfirmation(reply, hub, hubs, { fromPreviousTurn: false })).toBe(false);
+    expect(permitsOriginConfirmation(reply, hub, hubs, { fromPreviousTurn: false, hubOffered: true })).toBe(true);
+  });
+
+  it("still refuses negation, the other hub and ambiguous replies when hubs were offered", () => {
+    expect(permitsOriginConfirmation("không phải Hà Nội", hub, hubs, { fromPreviousTurn: false, hubOffered: true })).toBe(false);
+    expect(permitsOriginConfirmation("Hà Nội hay TP Hà Giang nhỉ", hub, hubs, { fromPreviousTurn: false, hubOffered: true })).toBe(false);
+    expect(permitsOriginConfirmation("TP Hà Giang nhé", hub, hubs, { fromPreviousTurn: false, hubOffered: true })).toBe(false);
+  });
+
+  it("assistantOfferedHub needs a question that names a hub", () => {
+    expect(assistantOfferedHub("Bạn chọn TP Hà Giang hay Hà Nội làm điểm tập kết?")).toBe(true);
+    expect(assistantOfferedHub("Mình gợi ý tập kết ở Hà Nội rồi thuê xe.")).toBe(false);
+    expect(assistantOfferedHub("Bạn muốn đi vào ngày nào?")).toBe(false);
   });
 });

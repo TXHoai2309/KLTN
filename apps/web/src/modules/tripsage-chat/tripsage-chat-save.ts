@@ -1,7 +1,7 @@
 import type { PlannerResult } from "../trip-planner/planner-contract";
 import { toSaveProposal, toUncheckedSavePlan } from "../trip-save/trip-save-adapter";
 import { submitTripSave, type TripSaveClientResult } from "../trip-save/trip-save-client";
-import type { ChosenLodgingSaveItem } from "../trip-save/trip-save-contract";
+import type { ChosenLodgingSaveItem, NearbySuggestionSaveItem } from "../trip-save/trip-save-contract";
 import type { UncheckedItem } from "../trip-save/unchecked-checks";
 import type { TripProposal } from "../trip-validation/trip-proposal-contract";
 import { isTripSaveNavigationLocked, type SaveState } from "../trip-save/trip-save-state";
@@ -36,6 +36,7 @@ export function createChatSaveController(options: { fetcher?: typeof fetch; newK
     proposal: TripProposal;
     acknowledged: UncheckedItem[] | undefined;
     chosenLodgings: ChosenLodgingSaveItem[] | undefined;
+    nearby: NearbySuggestionSaveItem[] | undefined;
   } | null = null;
   let serverList: UncheckedItem[] | null = null;
   let inFlight = false;
@@ -44,7 +45,7 @@ export function createChatSaveController(options: { fetcher?: typeof fetch; newK
   async function save(
     result: PlannerResult,
     signal?: AbortSignal,
-    choice: { confirmUnchecked?: boolean; chosenLodgings?: readonly ChosenLodgingSaveItem[] } = {},
+    choice: { confirmUnchecked?: boolean; chosenLodgings?: readonly ChosenLodgingSaveItem[]; nearbySuggestions?: readonly NearbySuggestionSaveItem[] } = {},
   ): Promise<ChatSaveView> {
     if (inFlight || view.state === "success") return view;
     const plan = chatSavePlan(result);
@@ -58,10 +59,11 @@ export function createChatSaveController(options: { fetcher?: typeof fetch; newK
           .sort((a, b) => a.nightIndex - b.nightIndex)
       : undefined;
     const effectiveLodgings = chosenLodgings?.length ? chosenLodgings : undefined;
-    const signature = JSON.stringify({ proposal: plan.proposal, acknowledged, chosenLodgings: effectiveLodgings });
+    const nearby = choice.nearbySuggestions?.length ? [...choice.nearbySuggestions] : undefined;
+    const signature = JSON.stringify({ proposal: plan.proposal, acknowledged, chosenLodgings: effectiveLodgings, nearby });
     // Retry after UNKNOWN reuses the stored payload and key; a changed schedule, confirmation, or chosen lodging gets a new key.
     if (!attempt || attempt.signature !== signature) {
-      attempt = { signature, key: newKey(), proposal: plan.proposal, acknowledged, chosenLodgings: effectiveLodgings };
+      attempt = { signature, key: newKey(), proposal: plan.proposal, acknowledged, chosenLodgings: effectiveLodgings, nearby };
     }
     inFlight = true;
     view = { state: "pending", message: "Đang lưu hành trình…", tripId: null, unchecked: shown };
@@ -74,6 +76,7 @@ export function createChatSaveController(options: { fetcher?: typeof fetch; newK
         options.fetcher,
         attempt.acknowledged,
         attempt.chosenLodgings,
+        attempt.nearby,
       );
     } finally {
       inFlight = false;

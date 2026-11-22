@@ -10,6 +10,7 @@ import { INTEREST_VALUES, PACE_VALUES, tripRequirementInputSchema } from "../tri
 import { QUESTION_BY_FIELD } from "../trip-requirement/trip-clarification-rules";
 import type { ExternalPlaceSuggestion, PlacesSearch } from "./tripsage-places";
 import { haversine } from "../trip-planner/planner-geography";
+import { activityAnchors, nearbyActivitySuggestions } from "./tripsage-activities";
 import { SUGGESTION_KINDS, suggestionSchema, timelineSlotIds, type TimelineSuggestion } from "./tripsage-timeline";
 import { costLineInputSchema, estimateTripCost, PRICE_REFERENCE, type CostPart } from "./tripsage-cost";
 import { itineraryDistanceKm } from "./tripsage-chat-context";
@@ -33,7 +34,7 @@ export const TRIPSAGE_CHAT_TOOL_NAMES = ["recordTripInfo", "findOrigin", "confir
 export type TripsageChatToolName = (typeof TRIPSAGE_CHAT_TOOL_NAMES)[number];
 
 /** Per-turn caps (ADR-42 §6): 12 steps inside 280 s, under the route's `maxDuration` 300. */
-export const TRIPSAGE_CHAT_TURN_LIMITS = { maxSteps: 12, totalMs: 280_000, maxProposals: 2, maxPlacesCalls: 4, maxWebSearchCalls: 1, maxFetchPageCalls: 1 } as const;
+export const TRIPSAGE_CHAT_TURN_LIMITS = { maxSteps: 16, totalMs: 280_000, maxProposals: 2, maxPlacesCalls: 4, maxWebSearchCalls: 1, maxFetchPageCalls: 1 } as const;
 
 export type OriginLookup = (query: string, signal?: AbortSignal) => Promise<OriginSearchOutcome>;
 export type TripsagePlanningDeps = { candidates: () => Promise<PlannerCandidate[]>; routes: RouteProvider; now?: () => Date };
@@ -50,6 +51,7 @@ export type TripsageToolContext = { planning: TripsagePlanningDeps; emitItinerar
   /** Verified origin candidates carried from the previous turn's signed token (never from the model). */ originCandidates?: VerifiedOriginCandidates;
   /** Signs candidates produced by `findOrigin` in this turn for the browser to carry to the next turn. */ signOriginCandidates?: (candidates: SignedOriginCandidate[]) => string | null;
   /** Latest plain user message text, used by `confirmOrigin` to verify explicit user agreement. */ latestUserText?: string;
+  /** The previous assistant message asked which fixed hub to use, so a bare hub name in the latest user message is the choice. */ hubOffered?: boolean;
   emitTripInfo?: (tripInfo: TripsageTripInfo) => void; emitOriginCandidates?: (data: OriginCandidatesPart) => void; emitJourney?: (journey: TripJourney) => void; emitQuickReplies?: (replies: string[]) => void;
   /** Google Places search (server key held inside); absent means unavailable. */ places?: PlacesSearch; maxPlacesCalls?: number;
   /** Streams suggestions to the UI only; nothing is stored or scheduled. */ emitPlaces?: (places: PlaceSuggestionPart[]) => void;
@@ -67,7 +69,7 @@ export type WebSourcePart = { domain: string };
 export type { ChatSourceItem };
 export type LocalKnowledge = (question: string, signal?: AbortSignal) => Promise<{ title: string; text: string }[]>;
 /** Suggestions must stay walkable (evening) or close (lodging) to the day's last stop (ADR-42 §2). */
-export const SUGGESTION_RADIUS_KM = { EVENING: 2, LODGING: 5 } as const;
+export const SUGGESTION_RADIUS_KM = { EVENING: 3, LODGING: 5 } as const;
 /** External (not in KLTN database) place shown as a suggestion. `UNCHECKED`: no KLTN validation has run; it is never PASS. */
 export type PlaceSuggestionPart = { placeId: string; name: string; status: "UNCHECKED" };
 
@@ -291,7 +293,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         }
         return { ok: false as const, code: "ORIGIN_CANDIDATE_NOT_FOUND", message: "Không tìm thấy ứng viên điểm xuất phát này từ lượt trước. Hãy gọi findOrigin trước và chờ người dùng đồng ý ở lượt sau, hoặc dùng điểm tập kết cố định." };
       }
-      if (!permitsOriginConfirmation(context.latestUserText ?? "", found, pool, { fromPreviousTurn })) {
+      if (!permitsOriginConfirmation(context.latestUserText ?? "", found, pool, { fromPreviousTurn, hubOffered: context.hubOffered })) {
         return { ok: false as const, code: "ORIGIN_CONFIRMATION_REQUIRED", message: "Người dùng chưa đồng ý hoặc chưa chọn rõ điểm xuất phát này trong tin nhắn mới nhất. Hãy nêu rõ nhãn địa điểm và chờ người dùng trả lời đồng ý." };
       }
       if (vietnamCoverageAt(found) !== "SUPPORTED") {
@@ -354,10 +356,22 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     },
   });
 
+  /** Server-run lookup (not a model step) of places to visit or play near each stop and night; bounded in time, failures only mean no suggestions. */
+  const emitNearbyActivities = async (result: PlannerResult, signal?: AbortSignal) => {
+    if (!context.places || !context.emitSuggestions) return;
+    const { anchors, stopNames } = activityAnchors(result);
+    if (!anchors.length) return;
+    try {
+      const deadline = AbortSignal.timeout(20_000);
+      const suggestions = await nearbyActivitySuggestions({ places: context.places, anchors, stopNames, signal: signal ? AbortSignal.any([signal, deadline]) : deadline });
+      for (let index = 0; index < suggestions.length; index += 16) context.emitSuggestions(suggestions.slice(index, index + 16));
+    } catch { /* suggestions are optional */ }
+  };
+
   const proposeItinerary = tool({
     description: "Lập và kiểm tra lịch trình từ id điểm đến. Nếu chưa đủ thông tin (nơi xuất phát, số ngày, phương tiện, ngày đi), hệ thống tự điền giả định bản nháp (Hà Nội, 4 ngày, xe máy, thứ Bảy gần nhất) và đánh dấu giả định (ADR-44). Kết quả đầy đủ được hiển thị qua giao diện; không chép lại thành bảng giờ. Nếu ok=false, đọc message rồi chỉnh selection (tối đa 2 lần gọi mỗi lượt).",
     inputSchema: proposeInputSchema,
-    execute: async input => {
+    execute: async (input, options) => {
       if (proposals >= maxProposals) return { ok: false as const, code: "PROPOSAL_LIMIT", message: "Đã đạt số lần lập lịch tối đa trong lượt này. Hãy tóm tắt và mời người dùng nhắn tiếp." };
       // An explicitly supplied but unconfirmed origin selection is never silently promoted.
       if (currentJourney?.origin && !currentJourney.origin.confirmed) {
@@ -447,6 +461,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         context.emitItinerary(result);
         latestDays = result.days.map(day => day.stops.map(stop => stop.destination.id));
         latestDistanceKm = itineraryDistanceKm(result);
+        await emitNearbyActivities(result, options?.abortSignal);
         if (shouldSuggestHub(result)) hubSuggested = true;
         const names = new Map(all.map(c => [c.id, c.name]));
         return { ok: true as const, status: result.status, eligibleForFinalConfirmation: result.eligibleForFinalConfirmation,
@@ -494,7 +509,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   });
 
   const addSuggestions = tool({
-    description: "Gắn gợi ý vào timeline của lịch mới nhất: MEAL (ăn trưa/ăn tối, slotId dN-lunch hoặc dN-visit-K), EVENING (vui chơi buổi tối đi bộ được quanh chỗ nghỉ, slotId dN-overnight), LODGING (chỗ nghỉ đêm, slotId dN-overnight, bắt buộc placeId từ searchPlaces của lượt này), TIP (mẹo, mọi slot). placeId chỉ lấy từ searchPlaces trong lượt này. Gợi ý không đổi giờ, không thành điểm tham quan, luôn hiện là 'gợi ý, chưa kiểm tra'.",
+    description: "Gắn gợi ý vào timeline của lịch mới nhất: MEAL (ăn trưa/ăn tối, slotId dN-lunch hoặc dN-visit-K), EVENING (do hệ thống tự gắn sau mỗi lịch, đừng tự thêm), ACTIVITY (cũng do hệ thống tự gắn, đừng tự thêm), LODGING (chỗ nghỉ đêm, slotId dN-overnight, bắt buộc placeId từ searchPlaces của lượt này), TIP (mẹo, mọi slot). placeId chỉ lấy từ searchPlaces trong lượt này. Gợi ý không đổi giờ, không thành điểm tham quan, luôn hiện là 'gợi ý, chưa kiểm tra'.",
     inputSchema: z.object({
       items: z.array(z.object({
         slotId: z.string().max(20).describe("Ví dụ d1-lunch, d1-overnight, d2-visit-1."),
