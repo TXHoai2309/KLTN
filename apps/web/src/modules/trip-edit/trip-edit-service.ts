@@ -96,6 +96,7 @@ export type PreviewLegMetric = {
   status: "VERIFIED" | "INSUFFICIENT_DATA";
   durationSeconds: number | null;
   distanceMeters: number | null;
+  provider?: "GOOGLE_MAPS" | "STADIA_MAPS";
   geometry?: { type: "LineString"; coordinates: [number, number][] };
 };
 
@@ -526,6 +527,7 @@ async function snapshotRoutesWithLegs(
         status: route.kind === "ok" ? "VERIFIED" : "INSUFFICIENT_DATA",
         durationSeconds: route.kind === "ok" ? route.durationSeconds : null,
         distanceMeters: route.kind === "ok" ? (route.distanceMeters ?? null) : null,
+        ...(route.kind === "ok" && route.provider ? { provider: route.provider } : {}),
         ...(route.kind === "ok" && route.geometry ? { geometry: route.geometry } : {}),
       };
       return { snapshot, metric };

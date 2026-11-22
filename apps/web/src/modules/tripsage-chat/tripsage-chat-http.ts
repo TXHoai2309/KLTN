@@ -12,6 +12,7 @@ import type { PlacesSearch } from "./tripsage-places";
 import type { WebLookup } from "./tripsage-web";
 import type { LocalKnowledge, OriginLookup, TripsagePlanningDeps, TripsageToolContext } from "./tripsage-chat-tools";
 import type { MemoryService } from "../tripsage-memory/memory-service";
+import type { ApplicationSettings } from "../runtime-config/runtime-config-contract";
 import type { AssistantConversationStore } from "./assistant-conversation-store";
 import { signOriginCandidates } from "./tripsage-chat-origin";
 import { parseTripsageChatAccessLeg, parseTripsageChatConversationId, parseTripsageChatItinerary, parseTripsageChatJourney, parseTripsageChatMessages, parseTripsageChatOriginCandidates, parseTripsageChatPriorFlightLookups, parseTripsageChatPriorHotelLookups, parseTripsageChatTripInfo, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
@@ -41,6 +42,7 @@ export type TripsageChatHttpDependencies = {
   /** Test seam for the per-turn caps; production uses the defaults. */
   limits?: Partial<TripsageChatTurnLimits>;
   env?: Record<string, string | undefined>;
+  settings?: () => Promise<ApplicationSettings>;
   admit?: ReturnType<typeof createPlanningAdmission>;
 } & Pick<TripsageToolContext, "flights" | "hotels">;
 const defaultAdmit = createPlanningAdmission();
@@ -54,9 +56,10 @@ const noStore = (response: Response) => { response.headers.set("Cache-Control", 
 
 /** Thin boundary: flag, auth, same-origin, bounded JSON, admission, then the service. */
 export async function tripsageChatResponse(request: Request, deps: TripsageChatHttpDependencies): Promise<Response> {
-  if (!isTripsageChatEnabled(deps.env)) return noStore(apiFailure("NOT_FOUND", "Không tìm thấy trang.", 404));
-  const features = enabledTripsageFeatures(deps.env);
   try {
+    const settings = await deps.settings?.();
+    if (!(settings?.chatEnabled ?? isTripsageChatEnabled(deps.env))) return noStore(apiFailure("NOT_FOUND", "Không tìm thấy trang.", 404));
+    const features = enabledTripsageFeatures(deps.env, settings);
     const actor = await requireTraveler(request.headers, deps.authorization);
     if (request.headers.get("origin") !== new URL(request.url).origin || request.headers.get("sec-fetch-site") === "cross-site") throw new AppError("FORBIDDEN", "Yêu cầu không được phép.", 403);
     if (request.headers.get("content-type")?.split(";")[0]?.trim() !== "application/json") throw new AppError("INVALID_INPUT", "Yêu cầu phải là JSON.", 415);

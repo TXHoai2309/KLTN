@@ -7,7 +7,7 @@ import { buildAuthLoginHref } from "@/lib/auth-return-to";
 import { AppError } from "@/server/http/app-error";
 import { requireActor } from "@/server/authorization/guard";
 import { authorizationDependencies } from "@/server/authorization/server";
-import { isTripsageChatEnabled } from "@/modules/tripsage-chat/tripsage-chat-flag";
+import { applicationSettings } from "@/modules/runtime-config/runtime-config-service";
 import TripRequirementForm from "./trip-requirement-form";
 
 export default async function NewTripPage() {
@@ -21,7 +21,17 @@ export default async function NewTripPage() {
     });
 
   if (!actor) return <AccessDenied />;
+  const chatEnabled = await applicationSettings().then(settings => settings.chatEnabled, () => false);
   // Flag-gated entry to the chat planner; the existing form stays unchanged.
-  return isTripsageChatEnabled() ? <><p style={{ textAlign: "center", margin: "12px 0" }}><a href="/assistant?mode=plan">Thử lập hành trình bằng trò chuyện</a></p><TripRequirementForm userId={actor.id} /></> : <TripRequirementForm userId={actor.id} />;
+  return (
+    <>
+      {chatEnabled && (
+        <p style={{ textAlign: "center", margin: "12px 0" }}>
+          <a href="/assistant">Thử lập hành trình bằng trò chuyện</a>
+        </p>
+      )}
+      <TripRequirementForm userId={actor.id} />
+    </>
+  );
 }
 

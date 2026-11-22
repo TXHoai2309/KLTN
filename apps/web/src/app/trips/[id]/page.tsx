@@ -7,7 +7,7 @@ import { buildAuthLoginHref } from "@/lib/auth-return-to";
 import { getMyTrip } from "@/modules/trip-read/trip-read-service";
 import { tripReadDependencies } from "@/modules/trip-read/trip-read-server";
 import { vietnamDateOf } from "@/modules/trip-requirement/trip-requirement-readiness";
-import { enabledTripsageFeatures } from "@/modules/tripsage-chat/tripsage-features";
+import { applicationSettings } from "@/modules/runtime-config/runtime-config-service";
 import { AppError } from "@/server/http/app-error";
 import { TripDetailView } from "../trips-view";
 
@@ -23,5 +23,6 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
 
   if (!trip) return <AccessDenied />;
 
-  return <TripDetailView trip={trip} calendarEnabled={enabledTripsageFeatures().has("calendar")} />;
+  const calendarEnabled = await applicationSettings().then(settings => settings.calendar, () => false);
+  return <TripDetailView trip={trip} calendarEnabled={calendarEnabled} />;
 }

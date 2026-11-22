@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { PlannerDay } from "@/modules/trip-planner/planner-contract";
 import { computeSunTimes } from "./sun-times";
 import type { TripWeather, WeatherAdvisory } from "./trip-weather-service";
-import { TripWeatherView, resolveAdvisoryJump, weatherText } from "./trip-weather-panel";
+import { TripWeatherView, resolveAdvisoryJump } from "./trip-weather-panel";
 
 const DATE_1 = "2026-11-20";
 const DATE_2 = "2026-11-21";
@@ -184,7 +184,6 @@ describe("TripWeatherView redesign (Ticket 01)", () => {
       createElement(TripWeatherView, {
         weather: baseWeather(),
         days: plannerDays,
-        legLabels: ["Cột cờ Lũng Cú → Đèo Mã Pí Lèng", "Đèo Mã Pí Lèng → Phố cổ Đồng Văn"],
       }),
     );
 
@@ -194,11 +193,11 @@ describe("TripWeatherView redesign (Ticket 01)", () => {
     expect(html.match(/Bình minh \d{2}:\d{2}/g)).toHaveLength(2);
     expect(html.match(/Hoàng hôn \d{2}:\d{2}/g)).toHaveLength(2);
 
-    // Compact stop metrics: temperature, rain chance, wind
+    // Compact stop metrics: temperature and rain chance; wind speed is not shown per stop
     expect(html).toContain("Cột cờ Lũng Cú");
     expect(html).toContain("14–16°C");
     expect(html).toContain("mưa 20%");
-    expect(html).toContain("gió 18 km/h");
+    expect(html).not.toMatch(/gió \d+ km\/h/);
   });
 
   it("shows visibility only when strictly below the fog advisory threshold (< 1000 m)", () => {
@@ -206,49 +205,32 @@ describe("TripWeatherView redesign (Ticket 01)", () => {
       createElement(TripWeatherView, {
         weather: baseWeather(),
         days: plannerDays,
-        legLabels: ["Cột cờ Lũng Cú → Đèo Mã Pí Lèng", "Đèo Mã Pí Lèng → Phố cổ Đồng Văn"],
       }),
     );
 
-    // Lũng Cú (12000 m) and Đồng Văn (exact boundary 1000 m) omit visibility; Mã Pí Lèng (600 m) and leg (500 m) show it
+    // Lũng Cú (12000 m) and Đồng Văn (exact boundary 1000 m) omit visibility; Mã Pí Lèng (600 m) shows it
     expect(html).toContain("tầm nhìn 0.6 km");
-    expect(html).toContain("tầm nhìn 0.5 km");
     expect(html).not.toContain("tầm nhìn 12.0 km");
     expect(html).not.toContain("≥10 km");
     expect(html).not.toContain("tầm nhìn 1.0 km");
 
-    expect(
-      weatherText({
-        status: "AVAILABLE",
-        summary: {
-          fromTime: `${DATE_1}T09:00`,
-          toTime: `${DATE_1}T10:00`,
-          minTemperatureC: 16,
-          maxTemperatureC: 18,
-          maxPrecipitationProbability: 15,
-          maxPrecipitationMm: 0,
-          minVisibilityM: 1000,
-          maxWindGustKmh: 14,
-        },
-      }),
-    ).toBe("16–18°C · mưa 15% · gió 14 km/h");
   });
 
-  it("renders advisory chips with non-colour text+icon signals that link to visit and leg targets", () => {
+  it("renders advisory chips for visits only, with non-colour text+icon signals that link to visit targets", () => {
     const weather = baseWeather();
     const html = renderToStaticMarkup(
       createElement(TripWeatherView, {
         weather,
         days: plannerDays,
-        legLabels: ["Cột cờ Lũng Cú → Đèo Mã Pí Lèng", "Đèo Mã Pí Lèng → Phố cổ Đồng Văn"],
       }),
     );
 
     const hrefs = [...html.matchAll(/class="trip-weather-chip [^"]*"[^>]*href="#([^"]+)"|href="#([^"]+)"[^>]*class="trip-weather-chip [^"]*"/g)]
       .map(m => m[1] ?? m[2]!);
-    expect(hrefs).toHaveLength(2);
+    // The FOG advisory is tied to a leg; legs are not shown, so only the visit advisory is listed
+    expect(hrefs).toHaveLength(1);
     expect(hrefs[0]).toMatch(/-visit-1-mapileng$/);
-    expect(hrefs[1]).toMatch(/-leg-0$/);
+    expect(html).toContain("1 cảnh báo");
 
     // Every chip href resolves to an actual target id in the rendered block
     for (const targetId of hrefs) {
@@ -257,43 +239,31 @@ describe("TripWeatherView redesign (Ticket 01)", () => {
 
     // Non-colour signals: explicit advisory kind text + SVG icon inside each chip
     expect(html).toContain("Mưa 82%");
-    expect(html).toContain("Sương mù 0.5 km");
+    expect(html).not.toContain("Sương mù");
 
-    // Jump behavior: visit chip highlights row without opening legs; leg chip highlights leg AND opens legs details
-    const visitJump = resolveAdvisoryJump(weather.advisories[0] as WeatherAdvisory, hrefs[0]!);
-    expect(visitJump).toEqual({ highlightedTarget: hrefs[0], openLegs: false });
-
-    const legJump = resolveAdvisoryJump(weather.advisories[1] as WeatherAdvisory, hrefs[1]!);
-    expect(legJump).toEqual({ highlightedTarget: hrefs[1], openLegs: true });
+    // Jump behavior: a chip highlights its visit row
+    expect(resolveAdvisoryJump(hrefs[0]!)).toEqual({ highlightedTarget: hrefs[0] });
 
     const highlightedHtml = renderToStaticMarkup(
       createElement(TripWeatherView, {
         weather,
         days: plannerDays,
-        legLabels: ["Cột cờ Lũng Cú → Đèo Mã Pí Lèng", "Đèo Mã Pí Lèng → Phố cổ Đồng Văn"],
-        initialLegsOpen: legJump.openLegs,
-        initialHighlightedTarget: legJump.highlightedTarget,
+        initialHighlightedTarget: hrefs[0],
       }),
     );
-    expect(highlightedHtml).toMatch(/<details[^>]*class="trip-weather-legs"[^>]*open=""/);
     expect(highlightedHtml).toContain('data-highlighted="true"');
   });
 
-  it("keeps leg weather collapsed by default and lists compact time checkpoints", () => {
+  it("does not render per-leg weather or per-stop wind speed", () => {
     const html = renderToStaticMarkup(
-      createElement(TripWeatherView, {
-        weather: baseWeather(),
-        days: plannerDays,
-        legLabels: ["Cột cờ Lũng Cú → Đèo Mã Pí Lèng", "Đèo Mã Pí Lèng → Phố cổ Đồng Văn"],
-      }),
+      createElement(TripWeatherView, { weather: baseWeather(), days: plannerDays }),
     );
 
-    expect(html).toContain('<details class="trip-weather-legs">');
-    expect(html).not.toMatch(/<details[^>]*open/);
-    expect(html).toContain("Thời tiết dọc chặng");
-    expect(html).toContain("Ước lượng theo tốc độ đều");
-    expect(html).toContain("13:30");
-    expect(html).toContain("Không đủ dữ liệu lộ trình hoặc thời gian");
+    expect(html).not.toContain("Thời tiết dọc chặng");
+    expect(html).not.toContain("Ước lượng theo tốc độ đều");
+    expect(html).not.toContain("trip-weather-legs");
+    expect(html).not.toContain("Không đủ dữ liệu lộ trình hoặc thời gian");
+    expect(html).not.toMatch(/gió \d+ km\/h/);
   });
 
   it("renders NOT_YET_AVAILABLE and UNAVAILABLE states clearly without 'good' styling", () => {
@@ -313,7 +283,6 @@ describe("TripWeatherView redesign (Ticket 01)", () => {
           ],
         }),
         days: plannerDays,
-        legLabels: [],
       }),
     );
     expect(notYet).toContain("Chưa có dự báo, sẽ có từ ngày 2026-12-05");
@@ -336,7 +305,6 @@ describe("TripWeatherView redesign (Ticket 01)", () => {
           ],
         }),
         days: plannerDays,
-        legLabels: [],
       }),
     );
     expect(unavailable).toContain("Không lấy được dự báo");

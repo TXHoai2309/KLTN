@@ -8,7 +8,6 @@ const dependencies = {
   service: {
     authorization: authorizationDependencies,
     database: db,
-    getRoute: createTripEditRouteProvider(),
   },
   now: () => new Date(),
 };
@@ -18,5 +17,5 @@ export async function POST(
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  return applyEditResponse(request, id, dependencies);
+  return applyEditResponse(request, id, { ...dependencies, service: { ...dependencies.service, getRoute: createTripEditRouteProvider() } });
 }

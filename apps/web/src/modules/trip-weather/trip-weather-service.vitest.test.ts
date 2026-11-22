@@ -107,7 +107,7 @@ describe("trip weather service", () => {
   it("renders the advisory count, day sun times and the uncalibrated-threshold note", async () => {
     const result = await getTripWeather(request(), { database: db(), forecast: { now, fetcher: provider(() => ({ wind_gusts_10m: 50 })) as typeof fetch } });
     const plannerDays = [{ day: 1, date: DATE, distanceMeters: null, travelSeconds: null, stops: [] }] as never;
-    const html = renderToStaticMarkup(createElement(TripWeatherView, { weather: result, days: plannerDays, legLabels: [] }));
+    const html = renderToStaticMarkup(createElement(TripWeatherView, { weather: result, days: plannerDays }));
     expect(html).toContain("2 cảnh báo");
     expect(html).toContain("Bình minh");
     expect(html).toContain("chưa hiệu chuẩn");

@@ -12,6 +12,7 @@ type Dependencies = {
   authorization: AuthorizationDependencies;
   memory: () => MemoryService;
   env?: Record<string, string | undefined>;
+  memoryEnabled?: () => Promise<boolean>;
 };
 
 export async function memoriesResponse(request: Request, deps: Dependencies, id?: string): Promise<Response> {
@@ -19,11 +20,13 @@ export async function memoriesResponse(request: Request, deps: Dependencies, id?
     response.headers.set("Cache-Control", "private, no-store");
     return response;
   };
-  if (!enabledTripsageFeatures(deps.env).has("memory")) return noStore(apiFailure("NOT_FOUND", "Không tìm thấy trang.", 404));
   const deleting = request.method === "DELETE";
   const fail = deleting ? apiMutationFailure : apiFailure;
   let started = false;
   try {
+    if (!(deps.memoryEnabled ? await deps.memoryEnabled() : enabledTripsageFeatures(deps.env).has("memory"))) {
+      return noStore(apiFailure("NOT_FOUND", "Không tìm thấy trang.", 404));
+    }
     const actor = await requireTraveler(request.headers, deps.authorization);
     if (!deleting) {
       const items = await deps.memory().list(actor);

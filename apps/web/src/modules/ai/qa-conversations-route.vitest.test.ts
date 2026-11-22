@@ -10,7 +10,7 @@ const mockQaHttp = vi.hoisted(() => ({
 }));
 
 vi.mock("./qa-runtime", () => ({
-  qaHttp: mockQaHttp,
+  withQaHttp: (run: (handlers: typeof mockQaHttp) => Promise<Response>) => run(mockQaHttp),
 }));
 
 import { GET as getConversations } from "../../app/api/ai/conversations/route";

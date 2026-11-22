@@ -9,8 +9,9 @@ it("fails the selected Google map without loading Stadia when the browser key is
   vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "");
   vi.stubGlobal("window", {});
   const fetcher = vi.fn(); vi.stubGlobal("fetch", fetcher);
+  fetcher.mockResolvedValue(new Response(JSON.stringify({ data: { provider: "GOOGLE", googleMapId: "fixture-map-id" } })));
   await expect(loadMapLibrary()).rejects.toThrow("Google Maps is not configured");
-  expect(fetcher).not.toHaveBeenCalled();
+  expect(fetcher).toHaveBeenCalledExactlyOnceWith("/api/maps/config", { cache: "no-store" });
 });
 
 it("does not request a Google SDK when its required map ID is missing", async () => {
@@ -18,7 +19,7 @@ it("does not request a Google SDK when its required map ID is missing", async ()
   vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "fixture-browser-key");
   vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID", "");
   vi.stubGlobal("window", {});
-  await expect(loadMapLibrary()).rejects.toThrow("Google Maps is not configured");
+  await expect(loadMapLibrary({ provider: "GOOGLE", googleMapId: "" })).rejects.toThrow("Google Maps is not configured");
 });
 
 it("keeps a confirmed pin's coordinates across theme changes and stops accepting updates after disposal", () => {
@@ -35,7 +36,7 @@ it("keeps a confirmed pin's coordinates across theme changes and stops accepting
   } as unknown as GoogleMapsSdk;
   const host = { replaceChildren: vi.fn() } as unknown as HTMLDivElement;
   const changed = vi.fn();
-  const pin = mountDestinationPinPicker(host, { provider: "GOOGLE", sdk }, { latitude: 21, longitude: 105.8 }, "light", changed, vi.fn(), vi.fn());
+  const pin = mountDestinationPinPicker(host, { provider: "GOOGLE", sdk, mapId: "fixture-map-id" }, { latitude: 21, longitude: 105.8 }, "light", changed, vi.fn(), vi.fn());
   pin.setStyle("dark");
   expect(options.map(option => option.colorScheme)).toEqual(["LIGHT", "DARK"]);
   expect(markerPositions).toEqual([{ lat: 21, lng: 105.8 }, { lat: 21, lng: 105.8 }]);

@@ -8,7 +8,9 @@ const runtime = vi.hoisted(() => ({
   qaPrincipalResolver: { bootstrap: vi.fn(), revoke: vi.fn() },
   qaService: { ask: vi.fn(), get: vi.fn(), revokeGuest: vi.fn() },
 }));
-vi.mock("./qa-runtime", () => runtime);
+vi.mock("./qa-runtime", () => ({
+  qaRuntimeForRequest: async () => ({ enabled: runtime.qaRuntimeEnabled(), principal: runtime.qaPrincipalResolver, service: runtime.qaService }),
+}));
 import { POST } from "../../app/api/ai/session/route";
 
 const request = (origin = "http://localhost") => new Request("http://localhost/api/ai/session", { method: "POST", headers: { origin } });

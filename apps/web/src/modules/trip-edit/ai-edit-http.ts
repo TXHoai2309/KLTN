@@ -46,6 +46,7 @@ export const aiEditRequestSchema = z
 export type AiEditHttpDependencies = {
   authorization: AuthorizationDependencies;
   service: AiEditServiceDependencies;
+  agentEnabled?: () => Promise<boolean>;
   now: () => Date;
   /** Test-only instrumentation; production dependencies do not set it. */
   onBodyRead?: () => void;
@@ -159,12 +160,15 @@ export async function aiEditResponse(
       );
     }
 
+    const service = dependencies.agentEnabled && !await dependencies.agentEnabled()
+      ? { ...dependencies.service, agent: undefined }
+      : dependencies.service;
     if (wantsEventStream(request)) {
       return await streamAiEditProposal(
         tripId,
         actor.userId,
         parsed.data,
-        dependencies.service,
+        service,
         dependencies.now(),
         request.signal,
       );
@@ -174,7 +178,7 @@ export async function aiEditResponse(
       tripId,
       actor.userId,
       parsed.data,
-      dependencies.service,
+      service,
       dependencies.now(),
       request.signal,
     );

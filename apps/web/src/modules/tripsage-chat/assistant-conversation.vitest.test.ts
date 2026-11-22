@@ -261,7 +261,7 @@ describe("assistant conversation store (ticket 03)", () => {
 });
 
 describe("assistant conversations HTTP and chat route persistence (ticket 03)", () => {
-  it("persists user message before model call, streams conversation meta, and saves only sanitized display parts on completion", async () => {
+  it("persists the conversation and sanitized display parts when chat is enabled through Admin", async () => {
     const { db } = createFakeDb();
     const store = createAssistantConversationStore(db, { now: () => planningNow });
     const originSearch: OriginLookup = async () => ({
@@ -292,7 +292,17 @@ describe("assistant conversations HTTP and chat route persistence (ticket 03)", 
       {
         authorization: auth("owner-1"),
         model: async () => model,
-        env: { TRIPSAGE_CHAT_ENABLED: "true" },
+        env: { TRIPSAGE_CHAT_ENABLED: "false" },
+        settings: async () => ({
+          chatEnabled: true,
+          budget: false,
+          flights: false,
+          hotels: false,
+          memory: false,
+          calendar: false,
+          amadeusEnvironment: "test",
+          tripAssistantAgentEnabled: true,
+        }),
         admit: createPlanningAdmission(),
         planning: planning(),
         originSearch: () => originSearch,
