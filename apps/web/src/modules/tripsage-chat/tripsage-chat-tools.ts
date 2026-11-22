@@ -19,7 +19,22 @@ import { itineraryDistanceKm } from "./tripsage-chat-context";
 import { accessLegInputSchema, buildAccessLeg, isHubOrigin, shouldSuggestHub, type AccessLegPart, type FlightPriceOverride } from "./tripsage-access-leg";
 import { domainOf, isSafePublicHttpsUrl, WEB_DATA_MARKER, type WebLookup } from "./tripsage-web";
 import { quickRepliesPartSchema, resolveEffectiveJourney, tripInfoSchema, withTripInfoDefaults, type ChatSourceItem, type OriginCandidatesPart, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
-import { FIXED_HUB_CANDIDATES, matchFixedHub, MAX_ORIGIN_CANDIDATES, namesOrAgreesOrigin, permitsOriginConfirmation, sameOriginPlace, statesSoleOrigin, type SignedOriginCandidate, type VerifiedOriginCandidates } from "./tripsage-chat-origin";
+import {
+  extractStatedDateFromText,
+  FAR_HOME_TRANSPORT_CHIPS,
+  FIXED_HUB_CANDIDATES,
+  isDateConfirmationOnlyReplies,
+  isFarFromHubs,
+  isFarHomeCityName,
+  matchFixedHub,
+  MAX_ORIGIN_CANDIDATES,
+  namesOrAgreesOrigin,
+  permitsOriginConfirmation,
+  sameOriginPlace,
+  statesSoleOrigin,
+  type SignedOriginCandidate,
+  type VerifiedOriginCandidates,
+} from "./tripsage-chat-origin";
 import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
 import { blockingAssumedFields, type AssumableField } from "../trip-validation/trip-proposal-contract";
 import { JOURNEY_MISSING_LABELS, missingJourneyFields, originSelectionSchema, type OriginSelection, type TripJourney } from "../trip-origin/trip-origin-contract";
@@ -53,6 +68,7 @@ export type TripsageToolContext = { planning: TripsagePlanningDeps; emitItinerar
   /** Verified origin candidates carried from the previous turn's signed token (never from the model). */ originCandidates?: VerifiedOriginCandidates;
   /** Signs candidates produced by `findOrigin` in this turn for the browser to carry to the next turn. */ signOriginCandidates?: (candidates: SignedOriginCandidate[]) => string | null;
   /** Latest plain user message text, used by `confirmOrigin` to verify explicit user agreement. */ latestUserText?: string;
+  /** Plain user messages in chronological order, used to recover a stated departure date without re-asking (Slim D18). */ userHistoryTexts?: readonly string[];
   /** The previous assistant message asked which fixed hub to use, so a bare hub name in the latest user message is the choice. */ hubOffered?: boolean;
   emitTripInfo?: (tripInfo: TripsageTripInfo) => void; emitOriginCandidates?: (data: OriginCandidatesPart) => void; emitJourney?: (journey: TripJourney) => void; emitQuickReplies?: (replies: string[]) => void;
   /** Google Places search (server key held inside); absent means unavailable. */ places?: PlacesSearch; maxPlacesCalls?: number;
@@ -177,6 +193,35 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   let hubSuggested = false;
 
   const fixedHubPublic = FIXED_HUB_CANDIDATES.map(hub => ({ candidateId: hub.id, label: hub.label }));
+  const statedDateInfo = (): { date: string; tentative: boolean } | null => {
+    const texts = [
+      ...(context.latestUserText ? [context.latestUserText] : []),
+      ...[...(context.userHistoryTexts ?? [])].reverse(),
+    ];
+    for (const text of texts) {
+      const found = extractStatedDateFromText(text, now());
+      if (found) return found;
+    }
+    return null;
+  };
+  const farHomeCityResponse = (cityLabel: string) => {
+    const resolvedHomeCity = tripInfo.homeCity?.trim() || cityLabel.trim();
+    if (!tripInfo.homeCity && resolvedHomeCity) {
+      tripInfo = { ...tripInfo, homeCity: resolvedHomeCity.slice(0, 60) };
+      context.emitTripInfo?.(tripInfo);
+    }
+    context.emitQuickReplies?.([...FAR_HOME_TRANSPORT_CHIPS]);
+    return {
+      ok: true as const,
+      farHomeCity: true as const,
+      homeCity: resolvedHomeCity,
+      count: 0,
+      candidates: [] as { candidateId: string; label: string }[],
+      fixedHubs: fixedHubPublic,
+      suggestedReplies: [...FAR_HOME_TRANSPORT_CHIPS],
+      note: `Người dùng ở xa (${resolvedHomeCity}): KHÔNG hỏi quận/huyện hay điểm cụ thể trong ${resolvedHomeCity}. Hỏi ngay đúng một câu ngắn: "Từ ${resolvedHomeCity}, bạn muốn ra điểm tập kết (Hà Nội hoặc TP Hà Giang) bằng máy bay, tàu hỏa hay xe khách?" (3 chip lựa chọn đã hiện sẵn).`,
+    };
+  };
 
   const recordTripInfo = tool({
     description: "Ghi thông tin chuyến đi người dùng vừa nói hoặc vừa đồng ý (chỉ các trường thay đổi), gồm cả giờ đi/về và điểm bắt buộc (mustIncludeDestinationIds từ listDestinations). Phương tiện, số ngày, ngày đi chỉ ghi khi người dùng đã nói hoặc đồng ý gợi ý của bạn. Có hiệu lực ngay trong lượt này.",
@@ -283,6 +328,10 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       if (hub) {
         signedList = [hub];
       } else {
+        // Slim D17: travelers from far cities (Đà Nẵng, TP HCM, ...) never get local district/landmark candidates.
+        if (isFarHomeCityName(query) || (tripInfo.homeCity && isFarHomeCityName(tripInfo.homeCity) && sameOriginPlace(tripInfo.homeCity, query))) {
+          return farHomeCityResponse(query);
+        }
         const outcome = context.originSearch ? await context.originSearch(query, options?.abortSignal) : ({ status: "UNAVAILABLE" } as const);
         if (outcome.status === "BUSY") {
           return { ok: false as const, code: "ORIGIN_SEARCH_BUSY", message: "Dịch vụ tìm địa điểm đang bận. Mời người dùng thử lại hoặc chọn một điểm tập kết cố định.", fixedHubs: fixedHubPublic };
@@ -293,6 +342,9 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         const supported = outcome.results.filter(result => vietnamCoverageAt(result) === "SUPPORTED").slice(0, MAX_ORIGIN_CANDIDATES);
         if (!supported.length) {
           return { ok: true as const, count: 0, candidates: [], fixedHubs: fixedHubPublic, note: "Không tìm thấy địa điểm hợp lệ trong lãnh thổ Việt Nam. Hỏi người dùng ghi rõ quận/huyện, tỉnh/thành hoặc chọn một điểm tập kết cố định." };
+        }
+        if (supported.every(result => isFarFromHubs(result))) {
+          return farHomeCityResponse(tripInfo.homeCity || query);
         }
         signedList = supported.map((result, index) => ({
           id: `oc-${originSearches}-${index + 1}`,
@@ -368,7 +420,22 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   const suggestReplies = tool({
     description: "Hiện tối đa 4 nút trả lời nhanh (mỗi nút tối đa 40 ký tự) dưới câu hỏi của bạn, ví dụ '4 ngày 3 đêm', 'Xe máy tự lái'. Bấm nút = người dùng gửi đúng chữ đó. Gọi một lần, cuối lượt.",
     inputSchema: quickRepliesPartSchema,
-    execute: async ({ replies }) => { context.emitQuickReplies?.(replies); return { ok: true as const }; },
+    execute: async ({ replies }) => {
+      // Slim D18: never spend a turn solely confirming a date the traveler already stated.
+      if (proposals === 0 && isDateConfirmationOnlyReplies(replies) && (currentJourney?.origin?.confirmed || tripInfo.homeCity)) {
+        const stated = statedDateInfo();
+        if (stated) {
+          return {
+            ok: false as const,
+            code: "DATE_ALREADY_STATED",
+            startDate: stated.date,
+            message: `Người dùng đã nêu ngày (${stated.date}). Không mở lượt riêng chỉ để hỏi xác nhận lại ngày: hãy ghi startDate bằng recordTripInfo và gọi proposeItinerary ngay trong lượt này, rồi kèm chip 'Đổi ngày'.`,
+          };
+        }
+      }
+      context.emitQuickReplies?.(replies);
+      return { ok: true as const };
+    },
   });
 
   const listDestinations = tool({
@@ -420,10 +487,17 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         assumedSet.add("durationDays");
         addedAssumption = true;
       }
+      const statedDate = !candidateTripInfo.startDate ? statedDateInfo() : null;
       if (!candidateTripInfo.startDate) {
-        candidateTripInfo.startDate = nearestReasonableSaturday(now());
-        assumedSet.add("startDate");
-        addedAssumption = true;
+        if (statedDate) {
+          candidateTripInfo.startDate = statedDate.date;
+          assumedSet.delete("startDate");
+          addedAssumption = true;
+        } else {
+          candidateTripInfo.startDate = nearestReasonableSaturday(now());
+          assumedSet.add("startDate");
+          addedAssumption = true;
+        }
       }
       let candidateJourney = currentJourney;
       if (!candidateJourney?.origin) {
@@ -527,7 +601,11 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           : rawResult;
         context.emitItinerary(result);
         // A plan with a violation never ends the turn without a next step; the model may still replace these buttons.
-        if (result.checks.some(check => check.status === "VIOLATION")) context.emitQuickReplies?.(["Giảm còn 3 điểm/ngày", "Đổi nhịp vừa phải", "Giữ bản nháp này"]);
+        if (result.checks.some(check => check.status === "VIOLATION")) {
+          context.emitQuickReplies?.(statedDate?.tentative ? ["Đổi ngày", "Giảm còn 3 điểm/ngày", "Đổi nhịp vừa phải", "Giữ bản nháp này"] : ["Giảm còn 3 điểm/ngày", "Đổi nhịp vừa phải", "Giữ bản nháp này"]);
+        } else if (statedDate?.tentative) {
+          context.emitQuickReplies?.(["Đổi ngày", "Đổi nhịp đi", "Tìm thêm quán ăn"]);
+        }
         latestDays = result.days.map(day => day.stops.map(stop => stop.destination.id));
         latestDistanceKm = itineraryDistanceKm(result);
         await emitNearbyActivities(result, options?.abortSignal);

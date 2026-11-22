@@ -4,6 +4,8 @@ import { z } from "zod";
 import { AppError } from "../../server/http/app-error";
 import { originSelectionSchema } from "../trip-origin/trip-origin-contract";
 import { vietnamCoverageAt } from "../trip-origin/vietnam-coverage";
+import { haversine } from "../trip-planner/planner-geography";
+import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
 import { TRIP_HUBS } from "./trip-hubs";
 
 /**
@@ -244,4 +246,88 @@ export function permitsOriginConfirmation(
   const matchesMine = mentionsHub(folded, candidate.id);
   const matchesOther = pool.some(other => other.id !== candidate.id && mentionsHub(folded, other.id));
   return matchesMine && !matchesOther;
+}
+
+/** Slim D17: quick-reply options offered immediately when the traveler's home city is far from Hà Giang. */
+export const FAR_HOME_TRANSPORT_CHIPS = [
+  "Đi máy bay ra Hà Nội",
+  "Đi tàu hỏa ra Hà Nội",
+  "Đi xe khách ra Hà Nội",
+] as const;
+
+/** Straight-line distance threshold (km) from both fixed hubs beyond which driving directly is impractical (~450+ km road). */
+export const FAR_HUB_DISTANCE_KM = 350;
+
+const FAR_HOME_CITY_ALIASES = [
+  "da nang", "tp da nang", "thanh pho da nang",
+  "ho chi minh", "tp ho chi minh", "tphcm", "tp hcm", "hcm", "sai gon", "saigon", "sg",
+  "can tho", "tp can tho", "nha trang", "khanh hoa", "hue", "thua thien hue",
+  "da lat", "lam dong", "quy nhon", "binh dinh", "vung tau", "ba ria vung tau",
+  "buon ma thuot", "dak lak", "pleiku", "gia lai", "phu quoc", "kien giang",
+  "hoi an", "quang nam", "quang ngai", "phu yen", "tuy hoa", "phan thiet", "binh thuan",
+  "dong nai", "bien hoa", "binh duong", "long an", "tien giang", "an giang", "ca mau",
+  "dong thap", "vinh long", "ben tre", "soc trang", "bac lieu", "tra vinh", "hau giang",
+  "tay ninh", "binh phuoc", "kon tum", "dak nong", "quang binh", "dong hoi", "quang tri",
+  "ha tinh", "nghe an", "vinh",
+] as const;
+
+/** True when coordinates are too far from both fixed hubs (Hà Nội & TP Hà Giang) to drive straight there. */
+export function isFarFromHubs(point: { latitude: number; longitude: number }): boolean {
+  return TRIP_HUBS.every(hub => haversine(point, hub) >= FAR_HUB_DISTANCE_KM);
+}
+
+/** True when a place name clearly refers to a Central/Southern Vietnam city/province far from Hà Giang. */
+export function isFarHomeCityName(place: string): boolean {
+  const folded = foldVietnamese(place);
+  if (!folded || matchFixedHub(place)) return false;
+  return FAR_HOME_CITY_ALIASES.some(alias => {
+    if (folded === alias) return true;
+    const escaped = alias.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+    return new RegExp(`(?:^|\\s)${escaped}(?:\\s|$)`, "u").test(folded);
+  });
+}
+
+const TENTATIVE_DATE_CUE = /\b(?:khoang|tam|du\s+kien|chung|quanh)\b/u;
+
+/**
+ * Slim D18: extracts a concrete stated calendar date (dd/mm, dd-mm, dd/mm/yyyy, "ngày dd tháng mm") from user text.
+ * Leaves vague windows without a specific day ("giữa tháng sau", "đầu tháng 12") as null.
+ */
+export function extractStatedDateFromText(
+  text: string,
+  now: Date,
+): { date: string; tentative: boolean } | null {
+  const normalized = text.normalize("NFC");
+  const slashMatch = /(?:^|[^\d])(\d{1,2})\s*[/\-]\s*(\d{1,2})(?:\s*[/\-]\s*(\d{4}))?(?!\d)/u.exec(normalized);
+  const wordMatch = /(?:ng[aà]y\s+)?(\d{1,2})\s+th[aá]ng\s+(\d{1,2})(?:\s+n[aă]m\s+(\d{4}))?/iu.exec(normalized);
+  const match = slashMatch ?? wordMatch;
+  if (!match) return null;
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+
+  const todayIso = vietnamDateOf(now);
+  const [todayY, todayM, todayD] = todayIso.split("-").map(Number) as [number, number, number];
+  let year = match[3] ? Number(match[3]) : todayY;
+  if (!match[3] && (month < todayM || (month === todayM && day < todayD))) {
+    year += 1;
+  }
+  const probe = new Date(Date.UTC(year, month - 1, day));
+  if (probe.getUTCFullYear() !== year || probe.getUTCMonth() !== month - 1 || probe.getUTCDate() !== day) {
+    return null;
+  }
+  const iso = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  if (iso < todayIso) return null;
+
+  const prefix = foldVietnamese(normalized.slice(Math.max(0, match.index - 24), match.index + match[0].length));
+  return { date: iso, tentative: TENTATIVE_DATE_CUE.test(prefix) };
+}
+
+/** True when quick replies are solely asking the traveler to confirm a date they already stated. */
+export function isDateConfirmationOnlyReplies(replies: readonly string[]): boolean {
+  if (!replies.length) return false;
+  const folded = replies.map(foldVietnamese);
+  const hasConfirmDate = folded.some(item => /\b(?:dung|chot|xac\s+nhan)\b.*\b(?:di|bay|ngay|\d{1,2})\b/u.test(item));
+  const hasChangeDate = folded.some(item => /\b(?:chon\s+ngay\s+khac|doi\s+ngay)\b/u.test(item));
+  return hasConfirmDate && hasChangeDate;
 }

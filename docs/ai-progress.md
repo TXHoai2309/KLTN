@@ -6061,3 +6061,10 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Added shared `TravelerButton` (3 sizes sm/md/lg × 6 variants primary/secondary/text/link/danger/icon + loading/disabled/focus), `TravelerDayTabs` (32px height, 7px day dot, inline `· N` count, 2px day underline), and `traveler-ui.css` imported in `apps/web/src/app/layout.tsx`.
 - Migrated `apps/web/src/app/trips/trips.css` and `TripDetailView` day tabs/actions to `--tv-*` tokens: no `font-weight` 650/700+, no hardcoded hex colors, no shadows on cards/buttons/tabs, link-styled "Xem nhanh", single primary CTA in detail actions.
 - Checks: `npm run check-types` PASS (4/4), `vitest` PASS (14 files, 59/59), `npm run build --workspace web -- --webpack` PASS (60/60), `git diff --check` PASS. Live browser `getComputedStyle` check pending (status: `verified-offline`).
+
+## 2026-11-23 — Traveler UI Redesign: Ticket 03 (AI fewer turns — far home city & stated date guards)
+
+- Added server-side guards in `tripsage-chat-origin.ts` (`isFarHomeCityName`, `isFarFromHubs`, `FAR_HOME_TRANSPORT_CHIPS`, `extractStatedDateFromText`, `isDateConfirmationOnlyReplies`) and wired them into `findOrigin`, `suggestReplies`, and `proposeItinerary` in `tripsage-chat-tools.ts`.
+- Far cities (Đà Nẵng, TP HCM, etc., or coordinates >= 350 km from both fixed hubs) never return local district/landmark candidates; `findOrigin` records `homeCity`, returns `farHomeCity: true`, and emits the 3 hub-transport quick replies.
+- Stated day/month dates (including approximate "khoảng 12/12") block redundant date-confirmation-only `suggestReplies`, resolve directly inside `proposeItinerary`, and attach a `"Đổi ngày"` chip when tentative. Updated `PERSONA_INSTRUCTIONS` to match.
+- Checks: `vitest` over `src/modules/tripsage-chat` PASS (43 files, 396/396 tests), `npm run check-types` PASS, `git diff --check` PASS.
