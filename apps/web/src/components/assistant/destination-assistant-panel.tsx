@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { AssistantV2Chat } from "./assistant-v2-chat";
+import { AssistantV2GuestChat } from "./assistant-v2-guest-chat";
 import { AssistantV2Pending } from "./assistant-v2-pending";
 import { hasUnresolvedAttempt, type AssistantState } from "./assistant-controller";
 import type { QaContext } from "../../modules/ai/qa-contract";
@@ -201,8 +202,9 @@ export function DestinationAssistantPanel({
           ? (() => {
               const effectiveContext = context ?? (destinationId ? { type: "DESTINATION" as const, destinationId } : { type: "GENERAL" as const });
               const contextKey = effectiveContext.type === "DESTINATION" ? `dest:${effectiveContext.destinationId}` : "general";
+              const Chat = effectiveContext.type === "DESTINATION" ? AssistantV2GuestChat : AssistantV2Chat;
               return (
-                <AssistantV2Chat
+                <Chat
                   key={`${identity}:${contextKey}`}
                   identity={identity}
                   initialContext={effectiveContext}

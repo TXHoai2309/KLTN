@@ -8,6 +8,7 @@ import {
   type QaQuestionUnderstanding,
   deterministicQuestionUnderstanding,
   matchKnownDestinations,
+  foldVi,
   needsHistory,
   QA_FOLLOWUP_CLARIFICATIONS,
 } from "./qa-question-understanding";
@@ -148,6 +149,9 @@ Nhiệm vụ của bạn:
         );
 
         const explicitSubjects = matchKnownDestinations(input.question);
+        const scopedSubjects = explicitSubjects.length ? explicitSubjects : result.targetSubjects;
+        const outsideDestination = context.type === "DESTINATION" && scopedSubjects.length > 0 &&
+          scopedSubjects.every(subject => !foldVi(context.name).includes(foldVi(subject)) && !foldVi(subject).includes(foldVi(context.name)));
         const anchoredSubjects = context.type === "DESTINATION" ? [context.name]
           : explicitSubjects.length ? explicitSubjects
           : needsHistory(input.question) ? deterministic.targetSubjects : [];
@@ -161,6 +165,7 @@ Nhiệm vụ của bạn:
         const subjectChanged = targetSubjects.length !== result.targetSubjects.length ||
           targetSubjects.some(subject => !result.targetSubjects.includes(subject));
         return {
+          ...(outsideDestination ? { outsideDestination: true } : {}),
           targetSubjects,
           intent: result.intent,
           weatherDate: result.intent === "WEATHER" ? (result.weatherDate ?? null) : null,

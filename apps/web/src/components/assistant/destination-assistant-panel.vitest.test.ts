@@ -36,6 +36,15 @@ describe("Destination Assistant Popup Tickets 02–06", () => {
   });
 
   describe("Ticket 02: Destination Panel Chat", () => {
+    it.each(["USER:traveler", "USER:admin", "GUEST:test"])("keeps %s destination widget on Q&A without planning controls", identity => {
+      const markup = renderToStaticMarkup(createElement(DestinationAssistantPanel, {
+        destinationId: "fixture", destinationName: "Đỉnh kiểm thử", identity,
+        available: true, isOpen: true, onClose: () => {},
+      }));
+      expect(markup).toContain('data-mode="destination"');
+      expect(markup).not.toContain("Lập hành trình Hà Giang");
+      expect(markup).toContain("Đỉnh kiểm thử");
+    });
     it("supplies the mounted controller a transport before asynchronous session bootstrap", () => {
       let bootstrapTransport: AssistantTransport | null = null;
       let bootstrapAvailable = true;

@@ -125,6 +125,7 @@ export function qaIntentHistory(question: string, history: readonly QaHistoryTur
 }
 
 export type QaQuestionUnderstanding = {
+  outsideDestination?: boolean;
   targetSubjects: string[];
   intent: "OVERVIEW" | "ADMISSION" | "OPENING_HOURS" | "CULTURE" | "HISTORY" | "DIRECTIONS" | "SCHEDULE" | "COMPARISON" | "WEATHER" | "OTHER";
   weatherDate?: string | null;

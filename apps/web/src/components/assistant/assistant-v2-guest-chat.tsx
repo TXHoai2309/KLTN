@@ -19,7 +19,7 @@ import { AssistantPendingTurn } from "./assistant-v2-pending";
 import { clearStoredAssistantPageSession, setLastSavedConversationId } from "./assistant-page-session-store";
 
 /** V2 Q&A chat through the existing endpoint. A guest principal gets Guest mode (planning asks invite sign-in);
- * a signed-in principal reaches it only to read and continue a saved conversation.
+ * signed-in principals also use it for the destination-scoped widget and saved conversations.
  * It never opens a V2 session and never calls the planning route. */
 export function AssistantV2GuestChat({ available = true, onMinimize, onOpenFullPage, initialContext, destinationName, identity, conversationId }: { available?: boolean; onMinimize?: () => void; onOpenFullPage?: (snapshot: AssistantState) => void; initialContext?: QaContext; destinationName?: string; identity: string; conversationId?: string }) {
   const inputId = useId();
@@ -113,7 +113,7 @@ export function AssistantV2GuestChat({ available = true, onMinimize, onOpenFullP
   const disabled = !available || loadingSaved || (!!pending && pending.phase !== "failed");
   function sendMessageText(text: string) {
     if (disabled || !text.trim()) return;
-    if (!guest) { controller.setDraft(text); controller.submit(); return; }
+    if (!guest || state.context.type === "DESTINATION") { controller.setDraft(text); controller.submit(); return; }
     const outcome = submitGuestMessage({ controller, text, context: state.context, retain: retainPlanningAuthDraft });
     if (outcome === "SIGN_IN") { setInvitations(current => [...current, { at: state.turns.length, text: text.trim() }]); controller.setDraft(""); }
   }
@@ -144,7 +144,7 @@ export function AssistantV2GuestChat({ available = true, onMinimize, onOpenFullP
       <div className="assistant-planning-auth"><p>{GUEST_SIGN_IN_INVITATION}</p><Link className="assistant-planning-login" href="/login?returnTo=%2Fassistant">Đăng nhập để tiếp tục</Link></div>
     </article></div>);
   const empty = !state.turns.length && !pending && !invitations.length && !loadingSaved;
-  return <section className={`${mode === "panel" ? "assistant-chat assistant-chat-panel" : "assistant-chat"} assistant-v2-chat`} data-runtime="v2" data-mode={guest ? "guest" : "saved"} aria-label="Trợ lý AI" aria-busy={busy} lang="vi">
+  return <section className={`${mode === "panel" ? "assistant-chat assistant-chat-panel" : "assistant-chat"} assistant-v2-chat`} data-runtime="v2" data-mode={state.context.type === "DESTINATION" ? "destination" : guest ? "guest" : "saved"} aria-label="Trợ lý AI" aria-busy={busy} lang="vi">
     {mode === "page" && <AssistantSidebar conversations={conversations} activeConversationId={state.conversationId} loading={historyLoading} loadingMore={historyMore} error={historyError} onRetry={() => void loadHistory(searchQuery)} hasMore={historyHasMore} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} onNewChat={startNew} onSelectConversation={openConversation} onRenameConversation={renameHistory} onDeleteConversation={deleteHistory} onLoadMore={() => void loadHistory(searchQuery, historyCursor, true)} searchQuery={searchQuery} onSearchChange={setSearchQuery}/>}
     <div className={`assistant-chat-main ${mode === "panel" ? "assistant-panel-main" : "assistant-chat-fullscreen"}`}>
     {mode === "page" && <div className={`assistant-floating-header ${sidebarOpen ? "sidebar-open" : "sidebar-collapsed"}`}>
@@ -170,7 +170,7 @@ export function AssistantV2GuestChat({ available = true, onMinimize, onOpenFullP
       return <div className="assistant-empty">
         {mode === "page" && <div className="assistant-empty-art"><AssistantLandscape/><Sparkles className="assistant-icon" aria-hidden="true"/></div>}
         <h2>{state.context.type === "DESTINATION" && destinationName?.trim() ? `Hỏi về ${destinationName.trim()}` : "Bạn muốn khám phá điều gì?"}</h2>
-        <p>{guest ? `Hỏi về văn hóa, lịch sử và điểm đến tại ${subject}. Đăng nhập để nhờ mình lên hành trình.` : `Hỏi về văn hóa, lịch sử và điểm đến tại ${subject}.`}</p>
+        <p>{guest && state.context.type !== "DESTINATION" ? `Hỏi về văn hóa, lịch sử và điểm đến tại ${subject}. Đăng nhập để nhờ mình lên hành trình.` : `Hỏi về văn hóa, lịch sử và điểm đến tại ${subject}.`}</p>
         <div className="assistant-suggestions" aria-label="Gợi ý câu hỏi">{PROMPT_SUGGESTIONS.map((item, index) => <button key={index} type="button" className="assistant-suggestion-chip" disabled={disabled} onClick={() => { controller.setDraft(item.prompt(subject)); composer.current?.focus(); }}>
           <span className="assistant-suggestion-icon" aria-hidden="true">{item.icon}</span>
           <div className="assistant-suggestion-info"><span className="assistant-suggestion-title">{item.title}</span><span className="assistant-suggestion-prompt">{item.prompt(subject)}</span></div>
