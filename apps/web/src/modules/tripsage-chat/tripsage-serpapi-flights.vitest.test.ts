@@ -84,7 +84,7 @@ describe("SerpApi google_flights lookup", () => {
     expect(url.searchParams.get("outbound_date")).toBe("2028-03-10");
     expect(url.searchParams.get("return_date")).toBe("2028-03-14");
     expect(url.searchParams.get("type")).toBe("1");
-    expect(url.searchParams.get("adults")).toBe("2");
+    expect(url.searchParams.get("adults")).toBe("1"); // one adult priced, then × group
     expect(url.searchParams.get("currency")).toBe("VND");
     expect(url.searchParams.get("gl")).toBe("vn");
     expect(url.searchParams.get("hl")).toBe("vi");
@@ -94,11 +94,11 @@ describe("SerpApi google_flights lookup", () => {
     expect(outcome.status).toBe("RESULTS");
     if (outcome.status !== "RESULTS") return;
     expect(outcome.roundTrip).toBe(true);
-    expect(outcome.typicalPriceRange).toEqual({ min: "2000000", max: "3200000", currency: "VND" });
+    expect(outcome.typicalPriceRange).toEqual({ min: "4000000", max: "6400000", currency: "VND" });
     expect(outcome.offers).toHaveLength(5);
-    expect(outcome.offers.map(o => o.price.total)).toEqual(["2100000", "2200000", "2400000", "2500000", "2800000"]);
+    expect(outcome.offers.map(o => o.price.total)).toEqual(["4200000", "4400000", "4800000", "5000000", "5600000"]);
     expect(outcome.offers[0]).toMatchObject({
-      price: { total: "2100000", currency: "VND" },
+      price: { total: "4200000", currency: "VND" },
       totalDurationMinutes: 90,
       itineraries: [{
         connections: 0,

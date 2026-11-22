@@ -115,6 +115,9 @@ const flightsResponseSchema = z.object({
 
 export function createSerpApiFlightLookup(client: SerpApiClient): FlightLookup {
   return async (query, signal) => {
+    // Owner decision 2026-11-22: price one adult and multiply, so any group size works (Google Flights caps a search at 9 passengers).
+    const group = Math.max(1, query.adults);
+    const scaled = (value: number) => value * group;
     const isRoundTrip = Boolean(query.returnDate);
     const currency = query.currency || DEFAULT_CURRENCY;
 
@@ -124,7 +127,7 @@ export function createSerpApiFlightLookup(client: SerpApiClient): FlightLookup {
       arrival_id: query.destination,
       outbound_date: query.departureDate,
       ...(isRoundTrip ? { return_date: query.returnDate, type: "1" } : { type: "2" }),
-      adults: String(query.adults),
+      adults: "1",
       currency,
       gl: "vn",
       hl: "vi",
@@ -157,7 +160,7 @@ export function createSerpApiFlightLookup(client: SerpApiClient): FlightLookup {
     if (!pricedOptions.length) return { status: "NO_RESULTS" };
 
     const offers: FlightOffer[] = pricedOptions.map(option => ({
-      price: { total: formatAmount(option.price), currency },
+      price: { total: formatAmount(scaled(option.price)), currency },
       ...(option.total_duration ? { totalDurationMinutes: option.total_duration } : {}),
       itineraries: [{
         connections: option.flights.length - 1,
@@ -174,7 +177,7 @@ export function createSerpApiFlightLookup(client: SerpApiClient): FlightLookup {
 
     const range = parsed.data.price_insights?.typical_price_range;
     const typicalPriceRange: TypicalPriceRange | null = range && range[0] <= range[1]
-      ? { min: formatAmount(range[0]), max: formatAmount(range[1]), currency }
+      ? { min: formatAmount(scaled(range[0])), max: formatAmount(scaled(range[1])), currency }
       : null;
 
     return {

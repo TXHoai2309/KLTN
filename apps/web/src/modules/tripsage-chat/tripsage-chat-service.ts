@@ -168,7 +168,7 @@ export function parseTripsageChatPriorFlightLookups(body: unknown): PriorFlightL
         if (!/^\d{4}-\d{2}-\d{2}$/.test(departureDate)) continue;
         const returnDate = typeof record.returnDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(record.returnDate) ? record.returnDate : null;
         const originAirport = typeof record.originAirport === "string" && /^[A-Z]{3}$/.test(record.originAirport) ? record.originAirport : undefined;
-        const adults = typeof record.adults === "number" && Number.isInteger(record.adults) && record.adults >= 1 && record.adults <= 9 ? record.adults : 1;
+        const adults = typeof record.adults === "number" && Number.isInteger(record.adults) && record.adults >= 1 && record.adults <= 20 ? record.adults : 1;
         const roundTrip = typeof record.roundTrip === "boolean" ? record.roundTrip : Boolean(returnDate);
         const cheapestTotal = typeof record.cheapestTotal === "string" && /^\d+(?:\.\d+)?$/.test(record.cheapestTotal) ? record.cheapestTotal : undefined;
         const currency = typeof record.currency === "string" && /^[A-Z]{3}$/.test(record.currency) ? record.currency : undefined;

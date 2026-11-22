@@ -14,7 +14,7 @@ const currency = z.string().regex(/^[A-Z]{3}$/u);
 export const flightPinSchema = z.strictObject({
   kind: z.literal("FLIGHT"),
   roundTrip: z.boolean(),
-  adults: z.number().int().min(1).max(9),
+  adults: z.number().int().min(1).max(20),
   departDate: isoDate,
   returnDate: isoDate.nullable(),
   lookupDate: isoDate.optional(),

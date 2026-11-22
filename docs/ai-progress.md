@@ -5998,3 +5998,4 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - A rejected plan input (`INVALID_AI_PLAN`) no longer uses one of the turn's two planning tries.
 - UI: composer grows to six lines, more space above it, access leg shows "chưa có giá" instead of 0đ.
 - Not done: lunch picks that explain the choice and attach only on tap (item 4), and a draft progress bar (item 8). Not verified in a browser.
+- Flights (owner decision): price one adult and multiply by the group size, so groups above 9 work; caps raised to 20. Hotels stay room-based (2 guests per room) because a hotel price is per room, not per person.

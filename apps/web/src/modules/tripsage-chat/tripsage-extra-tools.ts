@@ -94,7 +94,7 @@ const flightInput = z.object({
   originAirport: z.string().regex(/^[A-Z]{3}$/u).optional().describe("Mã sân bay IATA nơi đi (3 chữ cái in hoa) CHỈ truyền khi người dùng tự nêu rõ sân bay (ví dụ 'bay từ Huế' → HUI). Nếu người dùng không nêu sân bay, để trống để hệ thống tự chọn sân bay gần nơi xuất phát nhất."),
   departureDate: date.describe("Ngày đi YYYY-MM-DD."),
   returnDate: date.nullable().optional().describe("Ngày về YYYY-MM-DD nếu khứ hồi (1 lượt tra lấy tổng giá khứ hồi + chi tiết chiều đi)."),
-  adults: z.number().int().min(1).max(9).default(1),
+  adults: z.number().int().min(1).max(20).default(1).describe("Tổng số khách cả đoàn; hệ thống tra giá 1 người rồi nhân lên."),
   nonStop: z.boolean().optional(),
 }).strict();
 const hotelInput = z.object({
