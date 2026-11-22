@@ -337,7 +337,7 @@ function CompanionManagementForm({ management: initialManagement }: CompanionMan
           <div>
             <button
               type="button"
-              className={visibility === "PUBLIC" ? "companion-secondary-button w-full justify-center" : "companion-primary-button w-full justify-center"}
+              className={visibility === "PUBLIC" ? "companion-secondary-button w-full justify-center" : "companion-cta-button w-full justify-center"}
               onClick={handleToggleVisibility}
               disabled={draftLocked || (visibility === "WITHDRAWN" && !management.canReopen)}
               data-testid="toggle-visibility-btn"
@@ -365,7 +365,7 @@ function CompanionManagementForm({ management: initialManagement }: CompanionMan
         {/* Card 2: Recruitment Status */}
         <div className="companion-card companion-manage-stat-card p-6 flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
               <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                 <Users size={14} className="text-emerald-700 dark:text-emerald-400" aria-hidden="true" />
                 <span>Tiếp nhận thành viên</span>
@@ -391,12 +391,15 @@ function CompanionManagementForm({ management: initialManagement }: CompanionMan
           <div>
             <button
               type="button"
-              className={recruitmentOpen ? "companion-secondary-button w-full justify-center" : "companion-primary-button w-full justify-center"}
+              className={recruitmentOpen ? "companion-secondary-button w-full justify-center" : "companion-cta-button w-full justify-center"}
               onClick={handleToggleRecruitment}
               disabled={draftLocked || (!recruitmentOpen && !management.canReopen)}
+              aria-busy={mutationStatus === "submitting"}
               data-testid="toggle-recruitment-btn"
             >
-              {recruitmentOpen ? (
+              {mutationStatus === "submitting" ? (
+                <><Loader2 size={14} className="animate-spin" aria-hidden="true" /><span>Đang lưu…</span></>
+              ) : recruitmentOpen ? (
                 <>
                   <UserX size={14} aria-hidden="true" />
                   <span>Đóng nhận người</span>
@@ -589,7 +592,7 @@ function CompanionManagementForm({ management: initialManagement }: CompanionMan
           </div>
 
           {/* Save Action Bar */}
-          <div className="companion-modal-actions pt-6 border-t border-border flex justify-between items-center">
+          <div className="companion-modal-actions companion-manage-form-actions pt-6 border-t border-border flex justify-between items-center">
             <Link
               href={`/trip-companions/${management.publicationId}` as Route}
               className="companion-secondary-button"

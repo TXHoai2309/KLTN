@@ -2,7 +2,8 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { FileText, PanelLeft, PanelLeftOpen, Plus, Send, ShieldCheck, Sparkles } from "lucide-react";
+import { Button } from "@KLTN/ui/components/button";
+import { FileText, PanelLeft, PanelLeftOpen, Plus, Send, ShieldCheck, Sparkles, Square } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { createIdempotencyKey } from "@/lib/mutation-client";
@@ -200,9 +201,11 @@ export function TripsageChatClient({
   const { turns: resultTurns, latestBudgetMessageId } = useMemo(() => readTripsageResultTurns(messages), [messages]);
   const state = useMemo(() => readConversationState(messages, data => parseItineraryPart(data) !== null), [messages]);
   const lastItineraryMessageId = state.lastItineraryMessageId;
-  const latestItinerary = lastItineraryMessageId
+  // Schema parsing creates a fresh object; keep it stable between message updates
+  // so the lodging synchronization effect cannot trigger itself on every render.
+  const latestItinerary = useMemo(() => lastItineraryMessageId
     ? messages.find(m => m.id === lastItineraryMessageId)?.parts.map(part => (part.type === "data-itinerary" ? parseItineraryPart(part.data) : null)).filter(Boolean).at(-1) ?? null
-    : null;
+    : null, [lastItineraryMessageId, messages]);
   const itineraryCurrent = latestItinerary && !state.itineraryStale;
   // A replan that leaves the days unchanged (e.g. only the origin was confirmed) folds the cards instead of re-showing them open.
   const planUnchanged = useMemo(() => {
@@ -670,12 +673,11 @@ export function TripsageChatClient({
                 <div className="assistant-composer-bar">
                   <div className="assistant-composer-left-tools" />
                   {busy
-                    ? <button type="button" onClick={() => void stop()}><span>Dừng</span></button>
+                    ? <Button type="button" variant="destructive" className="assistant-stop-button" onClick={() => void stop()}><Square aria-hidden="true" /><span>Dừng</span></Button>
                     : <button type="submit" disabled={!draft.trim() || saveLocked || loadingConversation}><Send aria-hidden="true" /><span>Gửi</span></button>}
                 </div>
               </div>
               <div className="assistant-composer-footer">
-                <span>Enter để gửi · Shift+Enter xuống dòng</span>
                 <span className="assistant-char-counter">{draft.length}/{MAX_LENGTH} ký tự</span>
               </div>
             </form>
