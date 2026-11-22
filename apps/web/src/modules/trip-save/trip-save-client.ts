@@ -2,6 +2,7 @@ import type { MutationApiResponse } from "../../lib/mutation-contract";
 import type { TripProposal } from "../trip-validation/trip-proposal-contract";
 import type { TripValidation } from "../trip-validation/trip-validation";
 import type { ChosenLodgingSaveItem, NearbySuggestionSaveItem } from "./trip-save-contract";
+import type { PinnedItem } from "./trip-pin-contract";
 import { uncheckedItemSchema, type UncheckedItem } from "./unchecked-checks";
 
 export type TripSaveClientResult =
@@ -57,6 +58,7 @@ export async function submitTripSave(
   acknowledgedUnchecked?: UncheckedItem[],
   chosenLodgings?: readonly ChosenLodgingSaveItem[],
   nearbySuggestions?: readonly NearbySuggestionSaveItem[],
+  pinnedItems?: readonly PinnedItem[],
 ): Promise<TripSaveClientResult> {
   try {
     const response = await fetcher("/api/trips", {
@@ -67,6 +69,7 @@ export async function submitTripSave(
         ...(acknowledgedUnchecked ? { acknowledgedUnchecked: { confirmed: true, items: acknowledgedUnchecked } } : {}),
         ...(chosenLodgings?.length ? { chosenLodgings } : {}),
         ...(nearbySuggestions?.length ? { nearbySuggestions } : {}),
+        ...(pinnedItems?.length ? { pinnedItems } : {}),
       }),
       signal,
     });

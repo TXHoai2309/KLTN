@@ -87,7 +87,10 @@ describe("tripsage chat server logging", () => {
     // SerpApi modules may log one fixed reason code (never the URL, key, query or body): `console.warn("[tripsage-serpapi] ...", reason)`.
     const serpApi = calls.filter(call => call.includes("tripsage-serpapi"));
     for (const call of serpApi) expect(call).toMatch(/console\.warn\("\[tripsage-serpapi\] [a-z ]+", reason\)/);
-    const rest = calls.filter(call => !serpApi.includes(call));
+    // The fuel-price module logs the same kind of fixed reason code.
+    const fuel = calls.filter(call => call.includes("tripsage-fuel"));
+    for (const call of fuel) expect(call).toMatch(/console\.warn\("\[tripsage-fuel\] [a-z ]+", reason\)/);
+    const rest = calls.filter(call => !serpApi.includes(call) && !fuel.includes(call));
     expect(rest).toHaveLength(1);
     // The only extra argument is the bounded diagnostic (status, kind, code), never the raw error object.
     expect(rest[0]).toContain('console.error("[tripsage-chat] provider stream failed", safeFailureDiagnostic(error))');

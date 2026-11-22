@@ -4,6 +4,8 @@ import { BedDouble, Car, Check, Clock, Eye, Flag, Home, Lightbulb, MapPin, Moon,
 import { useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { PlacePreviewModal } from "@/components/place-preview/place-preview-modal";
+import { mealPin } from "@/modules/trip-save/trip-pin-builders";
+import { PinButton, type PinControl } from "./tripsage-pin-button";
 import { canPreviewPlace, type PlacePreviewTarget } from "@/lib/place-preview-url";
 import {
   clockLabel,
@@ -109,6 +111,7 @@ export function TripsageTimelineView({
   chosenLodgings,
   onToggleChosenLodging,
   onRequestMeals,
+  pins,
 }: {
   timeline: TimelinePart;
   suggestions: readonly TimelineSuggestion[];
@@ -117,6 +120,8 @@ export function TripsageTimelineView({
   onToggleChosenLodging?: (nightIndex: number, placeId: string) => void;
   /** Asks the assistant for lunch places on that day; the button shows only on a lunch row without meal suggestions. */
   onRequestMeals?: (day: number) => void;
+  /** ADR-47: when set, each meal suggestion offers "Ghim vào chuyến đi". */
+  pins?: PinControl;
 }) {
   const [selectedDay, setSelectedDay] = useState(initialDay ?? timeline.days[0]?.day ?? 1);
   const [preview, setPreview] = useState<{
@@ -283,6 +288,7 @@ export function TripsageTimelineView({
                             Đã chọn cho đêm {nightIndex} · Không phải đặt phòng
                           </span>
                         )}
+                        {suggestion.kind === "MEAL" && <PinButton item={mealPin(suggestion)} control={pins} label={suggestion.title} />}
                       </div>
                     );
                   })}

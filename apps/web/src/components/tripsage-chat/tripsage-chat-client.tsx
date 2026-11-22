@@ -18,6 +18,10 @@ import {
 } from "@/modules/tripsage-chat/tripsage-timeline";
 import type { SaveState } from "@/modules/trip-save/trip-save-state";
 import { isTripSaveNavigationLocked } from "@/modules/trip-save/trip-save-state";
+import { pinKey } from "@/modules/trip-save/trip-pin-builders";
+import type { PinnedItem } from "@/modules/trip-save/trip-pin-contract";
+import { pinToTrip } from "@/modules/trip-read/trip-management-client";
+import type { PinControl } from "./tripsage-pin-button";
 
 import type { ConfirmedTurn } from "@/components/assistant/assistant-controller";
 import { deleteConversation, fetchConversationDetail, fetchConversations, renameConversation, type ConversationDetailResult } from "@/components/assistant/assistant-conversation-client";
@@ -37,6 +41,7 @@ import {
 } from "./assistant-unified-history";
 import { TripsageAccessLegCard } from "./tripsage-access-leg-card";
 import { TripsageChatNotice } from "./tripsage-chat-notice";
+import { TripsageStreamedText } from "./tripsage-streamed-text";
 import { readConversationState } from "./tripsage-conversation-state";
 import { TripsageCostCard } from "./tripsage-cost-card";
 import { parseItineraryPart, TripsageItineraryView } from "./tripsage-itinerary-view";
@@ -157,12 +162,40 @@ export function TripsageChatClient({
   });
 
   const [saveState, setSaveState] = useState<SaveState>("idle");
+  // True while the saved answer is being fetched back after the stream dropped: the user sees progress, not a red error.
+  const [recoveryFailed, setRecoveryFailed] = useState(false);
+  // ADR-47: items pinned from cards. Before the trip is saved they ride along with the save; after, each pin is written at once.
+  const [pinned, setPinned] = useState<PinnedItem[]>([]);
+  const [savedTripId, setSavedTripId] = useState<string | null>(null);
+  const [pinMessage, setPinMessage] = useState<string | null>(null);
+  const pinKeys = useMemo(() => new Set(pinned.map(pinKey)), [pinned]);
+  const pinControl: PinControl = {
+    saved: savedTripId !== null,
+    isPinned: item => pinKeys.has(pinKey(item)),
+    toggle: item => {
+      const key = pinKey(item);
+      if (!savedTripId) {
+        setPinMessage(null);
+        setPinned(current => current.some(existing => pinKey(existing) === key) ? current.filter(existing => pinKey(existing) !== key) : [...current, item]);
+        return;
+      }
+      if (pinKeys.has(key)) return;
+      setPinMessage("Đang ghim vào chuyến đi…");
+      void pinToTrip(savedTripId, [item], createIdempotencyKey()).then(outcome => {
+        if (outcome.status === "SUCCESS") { setPinned(current => [...current, item]); setPinMessage("Đã ghim vào chuyến đi."); }
+        else setPinMessage(outcome.status === "UNKNOWN" ? "Chưa xác nhận được việc ghim. Hãy thử lại." : outcome.error.message);
+      });
+    },
+  };
   const [chosenLodgings, setChosenLodgings] = useState<ChosenLodgingMap>({});
   const lastSyncedProposalRef = useRef<string | null>(null);
   const saveLocked = isTripSaveNavigationLocked(saveState);
-  const notice = chatStatus === "error" ? classifyChatError(error) : null;
+  const rawNotice = chatStatus === "error" ? classifyChatError(error) : null;
+  const interrupted = rawNotice?.kind === "INTERRUPTED";
+  const recovering = interrupted && !!activeConversationId && !recoveryFailed;
+  const notice = recovering ? null : rawNotice;
   const busy = chatStatus === "submitted" || chatStatus === "streaming";
-  const locked = busy || saveLocked || loadingConversation;
+  const locked = busy || saveLocked || loadingConversation || recovering;
 
   const { turns: resultTurns, latestBudgetMessageId } = useMemo(() => readTripsageResultTurns(messages), [messages]);
   const state = useMemo(() => readConversationState(messages, data => parseItineraryPart(data) !== null), [messages]);
@@ -226,12 +259,14 @@ export function TripsageChatClient({
   };
 
   useEffect(() => { if (!busy) setStatus(null); }, [busy]);
+  // Pins and the saved trip belong to one conversation.
+  useEffect(() => { setPinned([]); setSavedTripId(null); setPinMessage(null); }, [activeConversationId]);
 
   // A cut connection does not stop the server: it finishes the turn and saves it. Poll the saved conversation and
   // swap it in (same data as a reload) instead of leaving the user on "connection lost".
-  const interrupted = notice?.kind === "INTERRUPTED";
   useEffect(() => {
     if (!interrupted || !activeConversationId) return;
+    setRecoveryFailed(false);
     const conversationId = activeConversationId;
     const sentUserTurns = messages.filter(message => message.role === "user").length;
     let cancelled = false;
@@ -249,6 +284,7 @@ export function TripsageChatClient({
           return;
         }
       }
+      if (!cancelled) setRecoveryFailed(true);
     };
     void poll();
     return () => { cancelled = true; };
@@ -343,6 +379,7 @@ export function TripsageChatClient({
     setActiveConversationId(null);
     setHistoryNotice(null);
     setChosenLodgings({});
+    setPinned([]); setSavedTripId(null); setPinMessage(null);
     lastSyncedProposalRef.current = null;
     bodyRef.current = { journey: null, tripInfo: null, itinerary: null, originCandidatesToken: null, conversationId: null };
     setMessages([]);
@@ -552,11 +589,11 @@ export function TripsageChatClient({
                     ) : (
                       <article key={message.id} className="assistant-message assistant-answer">
                         <span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true" /><span>Trợ lý AI</span></span>
-                        {body && <TripsageMarkdown text={body} />}
+                        {body && <TripsageStreamedText text={body} live={busy && message.id === messages.at(-1)?.id} />}
                         {(cost || accessLeg || itinerary) && (
                           <details className="tripsage-plan-details" open={!(itinerary && planUnchanged)}>
                             <summary>Lịch trình và chi phí ước tính</summary>
-                            {cost && <TripsageCostCard cost={cost} />}
+                            {cost && <TripsageCostCard cost={cost} pins={pinControl} />}
                             {accessLeg && <TripsageAccessLegCard leg={accessLeg} />}
                             {itinerary && state.timeline && (
                               <TripsageTimelineView
@@ -565,13 +602,14 @@ export function TripsageChatClient({
                                 chosenLodgings={chosenLodgings}
                                 onToggleChosenLodging={handleToggleChosenLodging}
                                 onRequestMeals={day => send(`Tìm giúp mình quán ăn trưa cho ngày ${day}.`)}
+                                pins={pinControl}
                               />
                             )}
-                            {itinerary && <TripsageItineraryView proposal={itinerary}>{!busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} tripInfo={state.tripInfo} chosenLodgings={chosenLodgings} suggestions={state.suggestions} onStateChange={setSaveState} />)}</TripsageItineraryView>}
+                            {itinerary && <TripsageItineraryView proposal={itinerary}>{!busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} tripInfo={state.tripInfo} chosenLodgings={chosenLodgings} suggestions={state.suggestions} pinnedItems={pinned} onSaved={setSavedTripId} onStateChange={setSaveState} />)}</TripsageItineraryView>}
                           </details>
                         )}
                         <TripsageSourcesView sources={sources} />
-                        <TripsageResultCards parts={resultParts} />
+                        <TripsageResultCards parts={resultParts} pins={pinControl} />
                         {replies.length === 0 && question && <p className="tripsage-next-question">{question}</p>}
                         {replies.length > 0 && (
                           <div className="tripsage-next-step">
@@ -598,6 +636,8 @@ export function TripsageChatClient({
 
         {!legacyReadOnly && (
           <div className="assistant-bottom-dock"><div className="assistant-bottom-dock-inner">
+            {pinMessage && <p role="status" className="assistant-muted">{pinMessage}</p>}
+            {recovering && <div role="status" className="tripsage-thinking">Đang hoàn tất câu trả lời<span className="tripsage-thinking-dots" aria-hidden="true"><i /><i /><i /></span></div>}
             <TripsageChatNotice notice={notice} onResend={saveLocked ? undefined : () => void regenerate()} />
             <form noValidate className="assistant-composer" onSubmit={submit}>
               <label htmlFor="tripsage-chat-input" className="assistant-sr-only">Tin nhắn cho trợ lý</label>

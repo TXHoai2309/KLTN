@@ -152,7 +152,8 @@ describe("V2-06 saved-trip authority through existing US-35/36/37", () => {
     const f = fixture(); const session = await f.start(); f.route.intent = "NEXT_VISIT";
     const next = await session.send("Điểm tiếp theo là gì?", "v206-next-visit"); expect(next.plan.goal).toBe("NEXT_VISIT"); expect(next.plan.nextVisit?.name).toContain("Điểm hôm nay"); expect(f.llm.complete).not.toHaveBeenCalled();
     f.edit(); const proposal = await session.send("Bỏ Dinh họ Vương ngày 2", "v206-no-gps"); expect(proposal.plan.goal).toBe("AWAIT_CONFIRMATION"); expect(proposal.plan.currentLocationSource).toBe("UNKNOWN");
-    for (const call of vi.mocked(f.getRoute).mock.calls) expect(call).toHaveLength(1);
+    // The route call carries only the request and the abort options (ADR-40 timeouts), never a current-position argument.
+    for (const call of vi.mocked(f.getRoute).mock.calls as unknown[][]) { expect(call).toHaveLength(2); expect(call[1]).toEqual({ signal: expect.any(AbortSignal) }); }
     expect(f.writes).toHaveLength(0);
   });
 

@@ -5,6 +5,7 @@ import { executeIdempotentWrite } from "@/server/http/idempotency";
 import { isDestinationPublic } from "../destination/destination-eligibility";
 import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
 import { companionIdSchema } from "./companion-contract";
+import { readPinnedItems, shareablePins } from "../trip-save/trip-pin-contract";
 import { companionConfirmSchema, companionGroupMutationSchema, companionGroupSchema } from "./companion-group-contract";
 import { getPublicCompanion, companionTripSelect, projectCompanionIntroduction, type CompanionDependencies } from "./companion-service";
 
@@ -109,7 +110,7 @@ export async function getCompanionGroup(headers: Headers, rawId: string, deps: C
     const scoped = { ...deps, database: tx as Database };
     const { row, relationship } = await requireGroup(headers, id, scoped);
     const projected = await tx.trip.findUniqueOrThrow({ where: { id: row.tripId }, select: {
-      ...companionTripSelect, days: { orderBy: { dayIndex: "asc" }, select: {
+      ...companionTripSelect, pinnedItems: { orderBy: { sortOrder: "asc" }, select: { payload: true } }, days: { orderBy: { dayIndex: "asc" }, select: {
         dayIndex: true, localDate: true,
         visits: { orderBy: { order: "asc" }, select: { id: true, order: true, startMinute: true, plannedDurationMinutes: true,
           destination: { select: { id: true, name: true, visibility: true, deletedAt: true, latitude: true, longitude: true, media: { select: { id: true, url: true, alt: true, websiteRights: true, storageReference: true } } } },
@@ -117,8 +118,10 @@ export async function getCompanionGroup(headers: Headers, rawId: string, deps: C
       } },
     } });
     const count = await activeMembers(tx, id);
+    const sharedPins = shareablePins(readPinnedItems(projected.pinnedItems));
     return companionGroupSchema.parse({ publicationId: id, relationship, memberCount: count + 1, itineraryRevision: row.itineraryRevision.toString(), canSend: !row.canceledAt, canceledAt: row.canceledAt?.toISOString() ?? null,
       introduction: projectCompanionIntroduction(projected, row, false, count),
+      ...(sharedPins.length ? { sharedPins } : {}),
       itinerary: { days: projected.days.map(day => ({ dayIndex: day.dayIndex, localDate: day.localDate.toISOString().slice(0, 10),
         visits: day.visits.flatMap(visit => visit.destination ? [visit as typeof visit & { destination: NonNullable<typeof visit.destination> }] : []).map(visit => { const visible = isDestinationPublic(visit.destination); return {
           visitId: visit.id, order: visit.order, startMinute: visit.startMinute, plannedDurationMinutes: visit.plannedDurationMinutes,

@@ -9,6 +9,7 @@ import { destinationMediaWhere, isDestinationMediaUsable } from "../destination/
 import { savedJourneySchema, journeyVisitFingerprint, type SavedJourney } from "../trip-origin/journey-saved-contract";
 import { externalPlaceView } from "./external-place-cache";
 import { storedUncheckedSchema, type UncheckedItem } from "../trip-save/unchecked-checks";
+import { readPinnedItems, type PinnedItem } from "../trip-save/trip-pin-contract";
 
 export type TripReadDependencies = AuthorizationDependencies & { database: Database };
 
@@ -48,6 +49,8 @@ export type TripDetail = TripSummary & {
   /** Ticket 11: chosen lodgings saved per night (separate from ItineraryVisit; never a booking). */
   chosenLodgings?: TripChosenLodgingDetail[];
   nearbySuggestions?: TripNearbySuggestionDetail[];
+  /** ADR-47: items pinned from the planning chat (owner read). */
+  pinnedItems?: PinnedItem[];
   baseRevision?: string;
   days: {
     id: string;
@@ -116,6 +119,7 @@ const detailSelect = (userId: string) => ({
     orderBy: [{ dayIndex: "asc" as const }, { sortOrder: "asc" as const }],
     select: { dayIndex: true, slot: true, kind: true, placeId: true, name: true, distanceKm: true },
   },
+  pinnedItems: { orderBy: { sortOrder: "asc" as const }, select: { payload: true } },
   days: {
     orderBy: [{ dayIndex: "asc" as const }, { id: "asc" as const }],
     select: {
@@ -278,6 +282,7 @@ export async function getMyTrip(headers: Headers, id: string, deps: TripReadDepe
         ...(view.latitude !== undefined && view.longitude !== undefined ? { latitude: view.latitude, longitude: view.longitude } : {}),
       };
     });
+  const pinnedItems = readPinnedItems((row as { pinnedItems?: { payload: unknown }[] }).pinnedItems ?? []);
   const nearbySuggestions = ((row as { nearbySuggestions?: TripNearbySuggestionDetail[] }).nearbySuggestions ?? []).filter(item => item.kind === "ACTIVITY" || item.kind === "EVENING");
   return {
     ...summary(row, referenceDate, actor.userId),
@@ -285,6 +290,7 @@ export async function getMyTrip(headers: Headers, id: string, deps: TripReadDepe
     ...(isOwner && storedUnchecked ? { unchecked: { items: storedUnchecked.items, confirmedAt: row.uncheckedConfirmedAt?.toISOString() ?? null } } : {}),
     ...(chosenLodgings.length ? { chosenLodgings } : {}),
     ...(nearbySuggestions.length ? { nearbySuggestions } : {}),
+    ...(isOwner && pinnedItems.length ? { pinnedItems } : {}),
     days: [...row.days].sort((a, b) => a.dayIndex - b.dayIndex || a.id.localeCompare(b.id)).map(day => ({
       id: day.id, dayIndex: day.dayIndex, localDate: day.localDate.toISOString().slice(0, 10),
       visits: [...day.visits].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id)).map(visit => ({

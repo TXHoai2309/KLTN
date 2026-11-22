@@ -1,9 +1,13 @@
+import type { ReactNode } from "react";
 import {
   readTripsageResultPart,
   type BudgetPart,
   type FlightsPart,
   type HotelsPart,
 } from "../../modules/tripsage-chat/tripsage-chat-parts";
+import { flightPin, hotelPin } from "../../modules/trip-save/trip-pin-builders";
+import { PinButton, type PinControl } from "./tripsage-pin-button";
+import { agodaUrl, bookingComUrl, googleHotelsUrl, TRAVELOKA_HOTELS_URL } from "./booking-links";
 import styles from "./tripsage-result-cards.module.css";
 
 type ResultPart = NonNullable<ReturnType<typeof readTripsageResultPart>>;
@@ -108,7 +112,7 @@ function airlineSites(data: FlightsPart) {
   return AIRLINE_SITES.filter(site => names.some(name => site.match.test(name)));
 }
 
-function FlightOfferRow({ offer, roundTrip }: { offer: FlightOffer; roundTrip: boolean }) {
+function FlightOfferRow({ offer, roundTrip, pin }: { offer: FlightOffer; roundTrip: boolean; pin?: ReactNode }) {
   const { price, itineraries, totalDurationMinutes } = offer;
   return (
     <li>
@@ -136,11 +140,14 @@ function FlightOfferRow({ offer, roundTrip }: { offer: FlightOffer; roundTrip: b
       {roundTrip && itineraries.length === 1 && (
         <p className={styles.detail}>Chiều về: xem chi tiết chiều về trên Google Flights.</p>
       )}
+      {pin}
     </li>
   );
 }
 
-function FlightsCard({ data }: { data: FlightsPart }) {
+function FlightsCard({ data, pins }: { data: FlightsPart; pins?: PinControl }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const pinFor = (index: number) => <PinButton item={flightPin(data, index, today)} control={pins} label="chuyến bay" />;
   const { offers, roundTrip = false, adults, typicalPriceRange } = data;
   const shown = offers.slice(0, FLIGHT_OFFERS_SHOWN);
   const more = offers.slice(FLIGHT_OFFERS_SHOWN);
@@ -159,13 +166,13 @@ function FlightsCard({ data }: { data: FlightsPart }) {
         </p>
       )}
       <ul className={styles.rows} aria-label="Các lựa chọn chuyến bay">
-        {shown.map((offer, index) => <FlightOfferRow key={index} offer={offer} roundTrip={roundTrip} />)}
+        {shown.map((offer, index) => <FlightOfferRow key={index} offer={offer} roundTrip={roundTrip} pin={pinFor(index)} />)}
       </ul>
       {more.length > 0 && (
         <details className={styles.more}>
           <summary>Xem thêm {more.length} chuyến</summary>
           <ul className={styles.rows} aria-label="Các lựa chọn chuyến bay khác">
-            {more.map((offer, index) => <FlightOfferRow key={index} offer={offer} roundTrip={roundTrip} />)}
+            {more.map((offer, index) => <FlightOfferRow key={index} offer={offer} roundTrip={roundTrip} pin={pinFor(FLIGHT_OFFERS_SHOWN + index)} />)}
           </ul>
         </details>
       )}
@@ -189,27 +196,7 @@ function FlightsCard({ data }: { data: FlightsPart }) {
   );
 }
 
-/** Search link-out only (Google Hotels shows live prices and booking sites); the app never books. */
-export function googleHotelsUrl(name: string, near: string): string {
-  return `https://www.google.com/travel/hotels?q=${encodeURIComponent(`${name} ${near}`)}&curr=VND&hl=vi`;
-}
-
-/** Agoda search by text with the dates filled in. */
-export function agodaUrl(name: string, near: string, checkIn: string, checkOut: string, adults?: number): string {
-  const query = new URLSearchParams({ textToSearch: `${name} ${near}`, checkIn, checkOut, adults: String(adults ?? 2), rooms: "1", locale: "vi-vn", currencyCode: "VND" });
-  return `https://www.agoda.com/vi-vn/search?${query}`;
-}
-
-/** Traveloka hotel search needs an internal location id we do not have, so only its hotel page opens. */
-export const TRAVELOKA_HOTELS_URL = "https://www.traveloka.com/vi-vn/hotel";
-
-/** Booking.com search page with the dates already filled in. */
-export function bookingComUrl(name: string, near: string, checkIn: string, checkOut: string, adults?: number): string {
-  const query = new URLSearchParams({ ss: `${name} ${near}`, checkin: checkIn, checkout: checkOut, group_adults: String(adults ?? 2), selected_currency: "VND" });
-  return `https://www.booking.com/searchresults.vi.html?${query}`;
-}
-
-function HotelRow({ hotel, nights, near, adults }: { hotel: HotelsPart["hotels"][number]; nights: number; near: string; adults?: number }) {
+function HotelRow({ hotel, nights, near, adults, pin }: { hotel: HotelsPart["hotels"][number]; nights: number; near: string; adults?: number; pin?: ReactNode }) {
   const { name, distanceKm, room, rating, reviews, price, checkInDate, checkOutDate } = hotel;
   return (
     <li>
@@ -234,11 +221,14 @@ function HotelRow({ hotel, nights, near, adults }: { hotel: HotelsPart["hotels"]
         <a className={styles.rowLink} href={bookingComUrl(name, near, checkInDate, checkOutDate, adults)} target="_blank" rel="noopener noreferrer">Booking.com ↗</a>
         <a className={styles.rowLink} href={agodaUrl(name, near, checkInDate, checkOutDate, adults)} target="_blank" rel="noopener noreferrer">Agoda ↗</a>
       </div>
+      {pin}
     </li>
   );
 }
 
-function HotelsCard({ data }: { data: HotelsPart }) {
+function HotelsCard({ data, pins }: { data: HotelsPart; pins?: PinControl }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const pinFor = (hotel: HotelsPart["hotels"][number]) => <PinButton item={hotelPin(data, hotel, today)} control={pins} label={hotel.name} />;
   const priced = data.hotels.filter(hotel => hotel.price !== null);
   const unpriced = data.hotels.filter(hotel => hotel.price === null);
   return (
@@ -247,14 +237,14 @@ function HotelsCard({ data }: { data: HotelsPart }) {
       <p className={styles.detail}>Gần {data.near} · {data.nights} đêm</p>
       {priced.length > 0 && (
         <ul className={styles.rows} aria-label="Các lựa chọn chỗ ở có giá">
-          {priced.map((hotel, index) => <HotelRow key={`priced-${index}`} hotel={hotel} nights={data.nights} near={data.near} adults={data.adults} />)}
+          {priced.map((hotel, index) => <HotelRow key={`priced-${index}`} hotel={hotel} nights={data.nights} near={data.near} adults={data.adults} pin={pinFor(hotel)} />)}
         </ul>
       )}
       {unpriced.length > 0 && (
         <div className={styles.group}>
           <p className={styles.groupTitle}>Chưa có giá online</p>
           <ul className={styles.rows} aria-label="Các chỗ ở chưa có giá online">
-            {unpriced.map((hotel, index) => <HotelRow key={`unpriced-${index}`} hotel={hotel} nights={data.nights} near={data.near} adults={data.adults} />)}
+            {unpriced.map((hotel, index) => <HotelRow key={`unpriced-${index}`} hotel={hotel} nights={data.nights} near={data.near} adults={data.adults} pin={pinFor(hotel)} />)}
           </ul>
         </div>
       )}
@@ -268,13 +258,13 @@ function HotelsCard({ data }: { data: HotelsPart }) {
   );
 }
 
-export function TripsageResultCards({ parts }: { parts: readonly ResultPart[] }) {
+export function TripsageResultCards({ parts, pins }: { parts: readonly ResultPart[]; pins?: PinControl }) {
   const latestBudget = parts.findLastIndex(part => part.type === "data-budget");
   return parts.map((part, index) => {
     switch (part.type) {
       case "data-budget": return index === latestBudget ? <BudgetCard key={part.id} data={part.data} /> : null;
-      case "data-flights": return <FlightsCard key={part.id} data={part.data} />;
-      case "data-hotels": return <HotelsCard key={part.id} data={part.data} />;
+      case "data-flights": return <FlightsCard key={part.id} data={part.data} pins={pins} />;
+      case "data-hotels": return <HotelsCard key={part.id} data={part.data} pins={pins} />;
     }
   });
 }
@@ -292,3 +282,5 @@ export function readTripsageResultTurns(messages: readonly { id: string; role: s
   }
   return { turns, latestBudgetMessageId };
 }
+
+export { bookingComUrl, googleHotelsUrl, agodaUrl };

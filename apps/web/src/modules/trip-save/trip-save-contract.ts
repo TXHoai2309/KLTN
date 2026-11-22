@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { tripProposalSchema } from "../trip-validation/trip-proposal-contract";
 import { acknowledgedUncheckedSchema } from "./unchecked-checks";
+import { lenientPinnedItemsSchema } from "./trip-pin-contract";
 
 export const chosenLodgingSaveItemSchema = z.object({
   nightIndex: z.number().int().min(1).max(13),
@@ -34,6 +35,8 @@ export const tripSaveRequestSchema = z.object({
   chosenLodgings: z.array(chosenLodgingSaveItemSchema).max(13).optional(),
   /** ADR-45: nearby activity suggestions kept with the trip so the traveler can read them again. */
   nearbySuggestions: lenientNearbySchema.optional(),
+  /** ADR-47: flights, stays, meals and the cost estimate pinned in the chat before saving. */
+  pinnedItems: lenientPinnedItemsSchema.optional(),
 }).strict().superRefine((request, context) => {
   if (request.proposal.startDate === null) context.addIssue({ code: "custom", path: ["proposal", "startDate"], message: "Cần ngày bắt đầu trước khi lưu." });
   if (!request.proposal.days.some(day => day.visits.length > 0)) context.addIssue({ code: "custom", path: ["proposal", "days"], message: "Hành trình cần ít nhất một điểm đến." });

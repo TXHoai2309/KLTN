@@ -7,7 +7,9 @@ import type { TripTransport } from "../trip-requirement/trip-requirement-contrac
  */
 export const PRICE_REFERENCE = {
   updatedAt: "2026-11-21",
-  fuelVndPerLiter: 23_000,
+  /** Petrolimex zone 2, E5 RON 92-II, price table of 2026-11-19. Used only when the live price cannot be read; refresh by hand. */
+  fuelVndPerLiter: 18_940,
+  fuelPriceDate: "2026-11-19",
   litersPer100Km: { MOTORCYCLE: 2.5, CAR: 8 } satisfies Record<TripTransport, number>,
 } as const;
 
@@ -57,7 +59,7 @@ export function estimateTripCost(input: CostInput): CostPart {
     // One motorbike per two travelers; one car for the group.
     const vehicles = input.transport === "MOTORCYCLE" ? Math.ceil(input.travelers / 2) : 1;
     lines.push({ category: "transport", label: "Xăng", amount: Math.round(liters * fuelPrice * vehicles), basis: `${Math.round(input.distanceKm)} km × ${litersPer100} L/100 km × ${formatVnd(fuelPrice)}/L${vehicles > 1 ? ` × ${vehicles} xe` : ""}`, computed: true });
-    assumptions.push(`Tiền xăng tính theo quãng đường của lịch (${Math.round(input.distanceKm)} km), ${input.fuelSource ? `giá xăng ${formatVnd(fuelPrice)}/L (${input.fuelSource})` : `giá xăng giả định ${formatVnd(fuelPrice)}/L`}${input.transport === "MOTORCYCLE" ? ", 2 người một xe máy" : ""}.`);
+    assumptions.push(`Tiền xăng tính theo quãng đường của lịch (${Math.round(input.distanceKm)} km), ${input.fuelSource ? `giá xăng ${formatVnd(fuelPrice)}/L (${input.fuelSource})` : `giá xăng ${formatVnd(fuelPrice)}/L (Petrolimex vùng 2, E5 RON 92, ${PRICE_REFERENCE.fuelPriceDate.split("-").reverse().join("/")}; chưa tra được giá mới)`}${input.transport === "MOTORCYCLE" ? ", 2 người một xe máy" : ""}.`);
   } else {
     assumptions.push("Chưa có quãng đường đã kiểm tra nên chưa tính tiền xăng.");
   }

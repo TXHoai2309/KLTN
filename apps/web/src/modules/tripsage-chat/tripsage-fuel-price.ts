@@ -46,6 +46,9 @@ export function pickFuelPrice(body: unknown): FuelPrice | null {
   return null;
 }
 
+/** Operator log: a short reason code only (never the URL or body), so a blocked or changed source is visible in Vercel logs. */
+const unavailable = (reason: string): null => { console.warn("[tripsage-fuel] unavailable", reason); return null; };
+
 export function createPetrolimexFuelPrice(options: { fetcher?: typeof fetch; now?: () => number } = {}): FuelPriceLookup {
   const fetcher = options.fetcher ?? fetch;
   const now = options.now ?? Date.now;
@@ -60,12 +63,12 @@ export function createPetrolimexFuelPrice(options: { fetcher?: typeof fetch; now
         headers: { accept: "application/json", referer: "https://www.petrolimex.com.vn/" },
         signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
       });
-      if (!response.ok) return null;
+      if (!response.ok) return unavailable(`http-${response.status}`);
       const text = await response.text();
-      if (text.length > MAX_BYTES) return null;
-      return pickFuelPrice(JSON.parse(text));
+      if (text.length > MAX_BYTES) return unavailable("response-too-large");
+      return pickFuelPrice(JSON.parse(text)) ?? unavailable("no-matching-price");
     } catch {
-      return null;
+      return unavailable("timeout-or-network-error");
     }
   };
 

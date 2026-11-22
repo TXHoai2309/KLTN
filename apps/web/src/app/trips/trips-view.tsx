@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 
 import { PlacePreviewModal } from "@/components/place-preview/place-preview-modal";
+import { TripPinnedSection } from "@/components/trip-pinned/trip-pinned-section";
 import { canPreviewPlace, type PlacePreviewTarget } from "@/lib/place-preview-url";
 
 import {
@@ -1081,6 +1082,8 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
           )}
         </section>
       )}
+
+      {isOwner && trip.pinnedItems && trip.pinnedItems.length > 0 && <TripPinnedSection items={trip.pinnedItems} />}
 
       {/* Legacy Trip Disclosure Banner (for Owner when journey does not exist) */}
       {isOwner && !hasJourney && (

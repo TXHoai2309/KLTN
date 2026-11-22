@@ -312,3 +312,7 @@ _Avoid_: Guessing silently, asking back on every missing detail.
 **Schedule rest buffer (khoảng nghỉ trong lịch)**:
 An intentional gap before or between scheduled visits created by shifting visit times so the traveler can rest, distinct from roadside rest allowance, an overnight anchor, or a scheduled visit.
 _Avoid_: Fake destination stop, hotel or lodging booking.
+
+**Pinned item (mục đã ghim)**:
+Một vé máy bay, chỗ ở, quán ăn hoặc bảng chi phí mà người dùng ghim từ trợ lý sang chuyến đi đã lưu. Là ảnh chụp có ngày của dữ liệu tham khảo, không phải đặt chỗ và không phải lượt tham quan. Bạn đồng hành chỉ thấy chỗ ở, quán ăn và phần lưu trú, ăn uống của chi phí.
+_Avoid_: Booking, scheduled visit, saved trip.

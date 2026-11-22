@@ -1121,3 +1121,30 @@ A plan lists only the few catalogue stops the scheduler can fit. Travelers want 
 
 - Default plans are busier; tests that pinned `MODERATE` as the chat default were updated.
 - Cost lines may cite the Petrolimex price with its date; the fixed 23.000đ reference (`PRICE_REFERENCE`) is now only a fallback and is out of date (about 18.940đ at the 2026-11-19 table).
+
+## ADR-47 — Pinned items, shared projection and a calm "reconnecting" state (2026-11-22)
+
+- **Status:** Accepted by the owner (2026-11-22: Q2 pin buttons per card, Q3 dated snapshots, Q4 share stays/meals and the lodging and food cost lines, Q5 trip detail redesign, Q6 reasoning effort is NOT lowered, Q7 audit, Q8 chat honesty rules). Implemented.
+- **Date:** 2026-11-22
+
+### Decision
+
+1. **Pinned items.** A flight, a stay, a meal place or the cost estimate shown in the planning chat can be pinned to the trip ("Ghim vào chuyến đi"). Before the trip is saved the pins ride along with the save request (`pinnedItems`, lenient: a malformed pin is dropped, never fails the save). After saving, each pin is written at once with `POST /api/trips/[id]/pins` (idempotent, owner only, at most 24 per trip; a new cost estimate replaces the old one; an identical item is not stored twice).
+2. **Snapshot, not a booking.** A pin is a dated snapshot of provider reference data (`trip_pinned_item.payload`, validated on write and on read). It is never Validator input, never a booking, and the card says the price is a reference on the lookup date.
+3. **Sharing.** The companion group view receives `sharedPins`: stays, meals and only the lodging and food lines of the cost (with their own subtotal). Flights, fares, transport, other lines and the full total stay with the owner. Origin and clocks remain owner-private as before.
+4. **Chat honesty.** The assistant may not say it saved, pinned or attached something unless this turn's tool result shows it; saving is the "Lưu hành trình" button and pinning is the pin buttons. A traveler who names where the group meets ("tập trung ở Hà Nội") has chosen the hub; it is not asked again.
+5. **Dropped stream.** When the browser loses the stream but the server finishes and saves the turn, the chat shows "Đang hoàn tất câu trả lời" while it fetches the saved answer, and the red notice appears only if that fails for about a minute. Reply text types in steadily (reduced motion shows it at once).
+6. **Fuel fallback.** The fixed reference price is the Petrolimex zone-2 E5 RON 92 price of 2026-11-19 (18.940đ/L) and is labelled with that date; a failed live read logs a reason code (`[tripsage-fuel] unavailable <reason>`).
+
+### Alternatives
+
+- Pin everything automatically at save: rejected, the traveler picks what matters (a list of every fare would bury the trip).
+- Store prices without a date: rejected, a stale fare would look current.
+- Share the whole cost: rejected by the owner (fares and the total are personal).
+- Lower reasoning effort to speed up replies: rejected by the owner.
+
+### Consequences
+
+- New table `trip_pinned_item` (migration `20261122160000_trip_pinned_item`); production needs `prisma migrate deploy` before this build serves traffic.
+- There is no unpin after saving yet; before saving a pin can be toggled off.
+- The Petrolimex read from Vercel (Singapore region) is unproven; the logged reason will show whether it is blocked.

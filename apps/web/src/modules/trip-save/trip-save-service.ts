@@ -264,6 +264,7 @@ export async function saveTrip(headers: Headers, request: TripSaveRequest, key: 
         journeySnapshot: JSON.parse(JSON.stringify({ revision: "journey-save-v1", journey: request.proposal.journey, plan: checked.plan, visitFingerprint: journeyVisitFingerprint(request.proposal.days) })),
         ...(chosenLodgingCreates.length ? { chosenLodgings: { create: chosenLodgingCreates } } : {}),
         ...(nearbyCreates.length ? { nearbySuggestions: { create: nearbyCreates } } : {}),
+        ...(request.pinnedItems?.length ? { pinnedItems: { create: request.pinnedItems.map((item, index) => ({ kind: item.kind, payload: JSON.parse(JSON.stringify(item)), sortOrder: index + 1 })) } } : {}),
         days: { create: request.proposal.days.map(day => ({
           dayIndex: day.dayIndex,
           localDate: new Date(`${tripDayDate(request.proposal.startDate, day.dayIndex)}T00:00:00.000Z`),

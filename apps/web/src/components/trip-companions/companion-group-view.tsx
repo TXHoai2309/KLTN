@@ -33,6 +33,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { ItineraryMap } from "@/components/trip-planner/itinerary-map";
+import { TripPinnedSection } from "@/components/trip-pinned/trip-pinned-section";
 import type { PlannerDay, PlannerStop, TravelLeg } from "@/modules/trip-planner/planner-contract";
 import {
   getDestinationCoordinates,
@@ -1012,6 +1013,8 @@ function CompanionGroupContent({
           </div>
 
 
+
+          {currentGroup.sharedPins && currentGroup.sharedPins.length > 0 && <TripPinnedSection items={currentGroup.sharedPins} shared />}
 
           {/* Mobile Tab Toggle between Itinerary and Map */}
           <div className="companion-mobile-toggle" role="tablist" aria-label="Chuyển chế độ xem">

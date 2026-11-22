@@ -24,3 +24,14 @@ export function applyTripChange(items: TripSummary[], outcome: MutationOutcome<T
  const change = outcome.data;
  return "deleted" in change ? items.filter(trip => trip.id !== change.tripId) : items.map(trip => trip.id === change.tripId ? { ...trip, status: change.status, endDate: change.endDate, manuallyCompletedAt: change.manuallyCompletedAt } : trip);
 }
+
+/** ADR-47: pin chat items onto a saved trip. SUCCESS only when the server confirms the same trip. */
+export async function pinToTrip(id: string, items: readonly unknown[], key: string): Promise<MutationOutcome<{ tripId: string; pinned: number; total: number }>> {
+ const result = await sendIdempotentMutation<{ tripId: string; pinned: number; total: number }>(`/api/trips/${encodeURIComponent(id)}/pins`, {
+  idempotencyKey: key, init: { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items }) },
+ });
+ if (result.status !== "SUCCESS") return result;
+ const data = result.data;
+ if (data && data.tripId === id && Number.isInteger(data.pinned) && Number.isInteger(data.total)) return result;
+ return { status: "UNKNOWN", error: { code: "OPERATION_STATUS_UNKNOWN", message: "Chưa nhận được kết quả xác nhận hợp lệ. Kiểm tra lại với cùng yêu cầu." }, retryWithSameKey: true };
+}

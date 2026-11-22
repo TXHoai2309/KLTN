@@ -7,6 +7,7 @@ import type { PlannerResult } from "@/modules/trip-planner/planner-contract";
 import type { TripsageTripInfo } from "@/modules/tripsage-chat/tripsage-chat-context";
 import { chatSavePlan, createChatSaveController, type ChatSaveView } from "@/modules/tripsage-chat/tripsage-chat-save";
 import { chosenLodgingMapToList, type ChosenLodgingMap, type TimelineSuggestion } from "@/modules/tripsage-chat/tripsage-timeline";
+import type { PinnedItem } from "@/modules/trip-save/trip-pin-contract";
 import type { SaveState } from "@/modules/trip-save/trip-save-state";
 import { uncheckedItemLabel } from "@/modules/trip-save/unchecked-checks";
 import { blockingAssumedFields, formatAssumedConfirmationMessage } from "@/modules/trip-validation/trip-proposal-contract";
@@ -22,6 +23,8 @@ export function TripsageSaveSection({
   tripInfo,
   chosenLodgings,
   suggestions,
+  pinnedItems,
+  onSaved,
   onStateChange,
 }: {
   result: PlannerResult;
@@ -29,6 +32,9 @@ export function TripsageSaveSection({
   chosenLodgings?: ChosenLodgingMap;
   /** ADR-45: all suggestions of the conversation; only ACTIVITY/EVENING places are saved with the trip. */
   suggestions?: readonly TimelineSuggestion[];
+  /** ADR-47: items pinned before saving; they are stored with the trip. */
+  pinnedItems?: readonly PinnedItem[];
+  onSaved?: (tripId: string) => void;
   onStateChange?: (state: SaveState) => void;
 }) {
   const controllerRef = useRef<ReturnType<typeof createChatSaveController> | null>(null);
@@ -81,10 +87,12 @@ export function TripsageSaveSection({
       confirmUnchecked: confirmed,
       ...(chosenList.length ? { chosenLodgings: chosenList } : {}),
       ...(nearbyList.length ? { nearbySuggestions: nearbyList } : {}),
+      ...(pinnedItems?.length ? { pinnedItems } : {}),
     });
     if (next.state === "failed" && next.unchecked.length) setConfirmed(false);
     setView({ ...next });
     onStateChange?.(next.state);
+    if (next.state === "success" && next.tripId) onSaved?.(next.tripId);
   }
 
   if (view.state === "success" && view.tripId) {

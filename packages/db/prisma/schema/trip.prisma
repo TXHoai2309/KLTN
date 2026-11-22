@@ -22,6 +22,7 @@ model Trip {
   days         ItineraryDay[]
   chosenLodgings TripChosenLodging[]
   nearbySuggestions TripNearbySuggestion[]
+  pinnedItems  TripPinnedItem[]
   favorites    Favorite[]
   companionPublication TripCompanionPublication?
   editChatMessages TripEditChatMessage[]
@@ -225,4 +226,19 @@ model TripNearbySuggestion {
 
   @@index([tripId, dayIndex, sortOrder])
   @@map("trip_nearby_suggestion")
+}
+
+// ADR-47: a flight, stay, meal or cost estimate the traveler pinned from the planning chat. A dated snapshot of provider
+// reference data (never a booking, never Validator input). `payload` is validated against the pin contract on write and read.
+model TripPinnedItem {
+  id        String   @id @default(cuid())
+  tripId    String
+  trip      Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  kind      String   @db.VarChar(8)
+  payload   Json
+  sortOrder Int
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([tripId, sortOrder])
+  @@map("trip_pinned_item")
 }
