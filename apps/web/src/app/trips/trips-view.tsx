@@ -4,7 +4,9 @@ import { DaySun, StopWeather, TripWeatherFootnote } from "@/modules/trip-weather
 import { TripWeatherProvider } from "@/modules/trip-weather/trip-weather-state";
 import Link from "next/link";
 import { BREAKFAST_MINUTES, MORNING_DEPARTURE_MINUTE } from "@/modules/trip-planner/planner-engine";
-import { Fragment, useEffect, useRef, useState, useMemo } from "react";
+import { Fragment, useEffect, useRef, useState, useMemo, type CSSProperties } from "react";
+import { travelerButtonClassName } from "@/components/traveler-ui/traveler-button";
+import { TravelerDayTabs, travelerDayColorVar, type TravelerDayTabItem } from "@/components/traveler-ui/traveler-day-tabs";
 import { uncheckedItemLabel } from "@/modules/trip-save/unchecked-checks";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
@@ -825,7 +827,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
               {trip.role === "MEMBER" ? (
                 trip.publicationId && (
                   <Link
-                    className="my-trips-action is-member-open"
+                    className={travelerButtonClassName({ variant: "primary", size: "md", className: "my-trips-action is-member-open" })}
                     href={`/trip-companions/${trip.publicationId}/group` as Route}
                   >
                     <Users size={15} aria-hidden="true" />
@@ -836,7 +838,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                 <>
                   {trip.status !== "COMPLETED" && (
                     <Link
-                      className="my-trips-action my-trips-edit-action"
+                      className={travelerButtonClassName({ variant: "text", size: "md", className: "my-trips-edit-action" })}
                       href={`/trips/${trip.id}/edit` as Route}
                       aria-label="Chỉnh sửa hành trình trong Trợ lý chuyến đi"
                     >
@@ -849,7 +851,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                     hasJourney ? (
                       <button
                         type="button"
-                        className="my-trips-action"
+                        className={travelerButtonClassName({ variant: "text", size: "md", className: "my-trips-origin-action" })}
                         onClick={() => {
                           setIsLegacyOptInMode(false);
                           setJourneyEditModalOpen(true);
@@ -861,7 +863,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                     ) : (
                       <button
                         type="button"
-                        className="my-trips-action"
+                        className={travelerButtonClassName({ variant: "text", size: "md", className: "my-trips-origin-action" })}
                         onClick={() => {
                           setIsLegacyOptInMode(true);
                           setJourneyEditModalOpen(true);
@@ -876,7 +878,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                   {trip.status !== "COMPLETED" && (
                     <>
                       <Link
-                        className="my-trips-action my-trips-companion-action"
+                        className={travelerButtonClassName({ variant: "text", size: "md", className: "my-trips-companion-action" })}
                         href={`/trips/${trip.id}/publication` as Route}
                       >
                         <Users size={15} aria-hidden="true" />
@@ -884,7 +886,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                       </Link>
 
                       <Link
-                        className="my-trips-action my-trips-in-trip-btn"
+                        className={travelerButtonClassName({ variant: "primary", size: "md", className: "my-trips-in-trip-btn" })}
                         href={`/trips/${trip.id}/in-trip` as Route}
                         aria-label="Mở Trợ lý chuyến đi (Trợ lý trong chuyến đi)"
                       >
@@ -901,7 +903,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
           {calendarEnabled && (
             <div className="my-trips-calendar-export">
               <a
-                className="my-trips-action"
+                className={travelerButtonClassName({ variant: "secondary", size: "md" })}
                 href={"/api/trips/" + encodeURIComponent(trip.id) + "/calendar"}
                 download
                 aria-describedby="trip-calendar-help"
@@ -1111,48 +1113,45 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
 
       {/* Interactive Day Switcher Tabs */}
       {trip.days.length > 1 && (
-        <nav className="my-trips-day-tabs" aria-label="Điều hướng các ngày trong chuyến đi">
-          <button
-            type="button"
-            className={`my-trips-day-tab ${activeDayIndex === null ? "is-active" : ""}`}
-            onClick={() => {
+        <TravelerDayTabs
+          sticky
+          useTabRole={false}
+          className="my-trips-day-tabs"
+          ariaLabel="Điều hướng các ngày trong chuyến đi"
+          activeId={activeDayIndex === null ? "all" : `day-${activeDayIndex}`}
+          tabs={[
+            { id: "all", label: "Tất cả", count: trip.days.length, kind: "all" } satisfies TravelerDayTabItem,
+            ...trip.days.map(
+              (day): TravelerDayTabItem => ({
+                id: `day-${day.dayIndex}`,
+                label: `Ngày ${day.dayIndex}`,
+                count: day.visits.length,
+                dayNumber: day.dayIndex,
+                kind: "trip",
+              }),
+            ),
+          ]}
+          onSelect={(id) => {
+            if (id === "all") {
               setActiveDayIndex(null);
               setSelectedDestinationId(null);
-            }}
-          >
-            <Layers size={14} aria-hidden="true" />
-            <span>Tất cả các ngày ({trip.days.length})</span>
-          </button>
-          {trip.days.map((day) => (
-            <button
-              key={day.id}
-              type="button"
-              className={`my-trips-day-tab ${activeDayIndex === day.dayIndex ? "is-active" : ""}`}
-              onClick={() => {
-                setActiveDayIndex(day.dayIndex);
-                const firstStop = day.visits[0];
-                if (firstStop) {
-                  setSelectedDestinationId(firstStop.destination.id);
-                  setFocusSelection(true);
-                }
-                const el = document.getElementById(`trip-day-${day.dayIndex}`);
-                if (el) {
-                  el.scrollIntoView({ behavior: "smooth", block: "start" });
-                }
-              }}
-            >
-              <span
-                className="my-trips-tab-color-dot"
-                style={{
-                  background: `var(--planner-route-${((day.dayIndex - 1) % 3) + 1})`,
-                }}
-                aria-hidden="true"
-              />
-              <span>Ngày {day.dayIndex}</span>
-              <small className="my-trips-tab-badge">({day.visits.length} điểm)</small>
-            </button>
-          ))}
-        </nav>
+              return;
+            }
+            const dayNumber = Number(id.replace("day-", ""));
+            const targetDay = trip.days.find((d) => d.dayIndex === dayNumber);
+            if (!targetDay) return;
+            setActiveDayIndex(targetDay.dayIndex);
+            const firstStop = targetDay.visits[0];
+            if (firstStop) {
+              setSelectedDestinationId(firstStop.destination.id);
+              setFocusSelection(true);
+            }
+            const el = document.getElementById(`trip-day-${targetDay.dayIndex}`);
+            if (el) {
+              el.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+          }}
+        />
       )}
 
       {/* Mobile Tab Toggle between Itinerary and Map */}
@@ -1192,17 +1191,13 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                   <section
                     key={day.id}
                     className={`my-trips-day ${isDimmed ? "my-trips-day-dimmed" : ""}`}
+                    style={{ "--tv-day-color": `var(${travelerDayColorVar(day.dayIndex)})` } as CSSProperties}
                     aria-labelledby={`trip-day-${day.dayIndex}`}
                   >
                     <div className="my-trips-day-heading">
                       <span className="my-trips-timeline-node" aria-hidden="true" />
                       <div className="my-trips-day-title-wrap">
-                        <div
-                          className="my-trips-day-number-tag"
-                          style={{
-                            background: `var(--planner-route-${((day.dayIndex - 1) % 3) + 1})`,
-                          }}
-                        >
+                        <div className="my-trips-day-number-tag">
                           Ngày {day.dayIndex}
                         </div>
                         <div className="my-trips-day-title-inner">

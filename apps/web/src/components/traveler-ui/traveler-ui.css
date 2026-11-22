@@ -1,0 +1,337 @@
+/* Traveler UI shared primitives — docs/design/traveler-ui-system.md §3.1, §3.2 */
+
+/* ==========================================================================
+   3.1 Buttons (3 sizes x 6 variants)
+   ========================================================================== */
+.tv-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--tv-radius-control);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--tv-ink);
+  font-family: var(--tv-font-ui);
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none;
+  user-select: none;
+  transition: background-color var(--tv-motion-fast), color var(--tv-motion-fast),
+    border-color var(--tv-motion-fast), transform var(--tv-motion-fast);
+}
+
+.tv-btn svg {
+  flex-shrink: 0;
+  stroke-width: 1.5;
+}
+
+.tv-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Sizes */
+.tv-btn--sm {
+  height: 28px;
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 12.5px;
+}
+
+.tv-btn--sm svg {
+  width: 14px;
+  height: 14px;
+}
+
+.tv-btn--md {
+  height: 34px;
+  min-height: 34px;
+  padding: 0 14px;
+  font-size: 13.5px;
+}
+
+.tv-btn--md svg {
+  width: 16px;
+  height: 16px;
+}
+
+.tv-btn--lg {
+  height: 44px;
+  min-height: 44px;
+  padding: 0 16px;
+  font-size: 14px;
+}
+
+.tv-btn--lg svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Variants */
+.tv-btn--primary {
+  background: var(--tv-accent);
+  color: var(--tv-on-accent);
+  border-color: transparent;
+}
+
+.tv-btn--primary:hover:not(:disabled) {
+  background: var(--tv-accent-hover);
+}
+
+.tv-btn--primary:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.tv-btn--secondary {
+  background: var(--tv-surface);
+  color: var(--tv-ink);
+  border-color: var(--tv-line);
+}
+
+.tv-btn--secondary:hover:not(:disabled) {
+  background: var(--tv-sunken);
+}
+
+.tv-btn--secondary:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.tv-btn--text {
+  background: transparent;
+  color: var(--tv-ink);
+  border-color: transparent;
+}
+
+.tv-btn--text:hover:not(:disabled) {
+  background: var(--tv-accent-tint);
+}
+
+.tv-btn--link {
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+  color: var(--tv-accent);
+}
+
+.tv-btn--link:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.tv-btn--danger {
+  background: transparent;
+  color: var(--tv-danger);
+  border-color: transparent;
+}
+
+.tv-btn--danger:hover:not(:disabled) {
+  background: var(--tv-warn-bg);
+}
+
+.tv-btn--icon {
+  padding: 0;
+  background: transparent;
+  color: var(--tv-ink-2);
+  border-color: transparent;
+}
+
+.tv-btn--icon.tv-btn--sm {
+  width: 28px;
+  height: 28px;
+}
+
+.tv-btn--icon.tv-btn--md {
+  width: 34px;
+  height: 34px;
+}
+
+.tv-btn--icon.tv-btn--lg {
+  width: 44px;
+  height: 44px;
+}
+
+.tv-btn--icon:hover:not(:disabled) {
+  background: var(--tv-sunken);
+  color: var(--tv-ink);
+}
+
+/* Focus, disabled, loading */
+.tv-btn:focus-visible {
+  outline: 2px solid var(--tv-focus);
+  outline-offset: 2px;
+}
+
+.tv-btn:disabled {
+  background: var(--tv-sunken);
+  color: var(--tv-ink-3);
+  border-color: transparent;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.tv-btn--link:disabled,
+.tv-btn--text:disabled,
+.tv-btn--icon:disabled {
+  background: var(--tv-sunken);
+  color: var(--tv-ink-3);
+}
+
+.tv-btn--loading {
+  cursor: progress;
+}
+
+.tv-btn-spinner {
+  width: 14px;
+  height: 14px;
+  animation: tv-spin 0.8s linear infinite;
+}
+
+@keyframes tv-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ==========================================================================
+   3.2 Day Tabs (height 32px, 7px day dot, inline count, 2px day underline)
+   ========================================================================== */
+.tv-day-tabs {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 1px solid var(--tv-sunken);
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.tv-day-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tv-day-tabs--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--tv-ground);
+}
+
+.tv-day-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 2px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--tv-ink-2);
+  font-family: var(--tv-font-ui);
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: none;
+  flex-shrink: 0;
+  transition: color var(--tv-motion-fast), border-color var(--tv-motion-fast);
+}
+
+.tv-day-tab:hover {
+  color: var(--tv-ink);
+}
+
+.tv-day-tab.is-active,
+.tv-day-tab[aria-selected="true"] {
+  color: var(--tv-ink);
+  border-bottom-color: var(--tv-tab-color, var(--tv-accent));
+}
+
+.tv-day-tab:focus-visible {
+  outline: 2px solid var(--tv-focus);
+  outline-offset: 2px;
+  border-radius: var(--tv-radius-control);
+}
+
+.tv-day-tab-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--tv-radius-pill);
+  background: var(--tv-tab-color, var(--tv-ink-3));
+  flex-shrink: 0;
+}
+
+.tv-day-tab-count {
+  color: var(--tv-ink-3);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Quick link (e.g. "Xem nhanh") — design §3.1 Link & §3.3 */
+.tv-quick-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--tv-radius-control);
+  background: transparent;
+  color: var(--tv-accent);
+  font-family: var(--tv-font-ui);
+  font-size: var(--tv-text-sm);
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+  box-shadow: none;
+  text-decoration: none;
+  transition: color var(--tv-motion-fast);
+}
+
+.tv-quick-link svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 1.5;
+  flex-shrink: 0;
+}
+
+.tv-quick-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.tv-quick-link:focus-visible {
+  outline: 2px solid var(--tv-focus);
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  .tv-day-tabs {
+    gap: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-btn,
+  .tv-day-tab,
+  .tv-quick-link {
+    transition: none;
+  }
+
+  .tv-btn:active:not(:disabled) {
+    transform: none;
+  }
+
+  .tv-btn-spinner {
+    animation: none;
+  }
+}

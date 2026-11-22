@@ -6054,3 +6054,10 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Timeline: "Ngày đi" / "Ngày về" tabs also show when the home city differs from the trip start but no access leg exists yet, with a "So sánh cách đi" button.
 - Persona: a group that takes a bus or a driver from Hà Nội to Hà Giang and rents motorbikes there starts at the TP Hà Giang hub (the Hà Nội → Hà Giang leg is part of the access leg); at most one stop on day 1 and the last day when riding from Hà Nội.
 - Not verified in a browser.
+
+## 2026-11-23 — Traveler UI Redesign: Ticket 01 (tokens, buttons, day tabs, trip detail CSS)
+
+- Added `--tv-*` light/dark tokens (colors, day identity colors `--tv-day-1..7` aligned with map route colors, typography, spacing, radius, float shadow, motion) to `packages/ui/src/styles/globals.css`.
+- Added shared `TravelerButton` (3 sizes sm/md/lg × 6 variants primary/secondary/text/link/danger/icon + loading/disabled/focus), `TravelerDayTabs` (32px height, 7px day dot, inline `· N` count, 2px day underline), and `traveler-ui.css` imported in `apps/web/src/app/layout.tsx`.
+- Migrated `apps/web/src/app/trips/trips.css` and `TripDetailView` day tabs/actions to `--tv-*` tokens: no `font-weight` 650/700+, no hardcoded hex colors, no shadows on cards/buttons/tabs, link-styled "Xem nhanh", single primary CTA in detail actions.
+- Checks: `npm run check-types` PASS (4/4), `vitest` PASS (14 files, 59/59), `npm run build --workspace web -- --webpack` PASS (60/60), `git diff --check` PASS. Live browser `getComputedStyle` check pending (status: `verified-offline`).
