@@ -29,7 +29,7 @@
 | [09 — Trang chia sẻ dùng `DayTimeline`](issues/09-shared-page-day-timeline.md) | `06` | `verified-offline` |
 | [10 — Thẻ tóm tắt bản lịch, panel desktop, ngăn kéo tablet](issues/10-plan-summary-and-panel.md) | `02`, `05`, `06` | `ready-for-agent` |
 | [11 — Sheet lịch mobile, ô nhập, thanh trên 48px](issues/11-mobile-sheet-composer.md) | `10` | `ready-for-agent` |
-| [12 — Đầu trang chi tiết chuyến, dải cung đường, thanh chân mobile](issues/12-trip-detail-header.md) | `06`, `07` | `ready-for-agent` |
+| [12 — Đầu trang chi tiết chuyến, dải cung đường, thanh chân mobile](issues/12-trip-detail-header.md) | `06`, `07` | `verified-offline` |
 | [13 — Danh sách chuyến đi gọn, tên chuyến tự đặt](issues/13-trip-list-compact.md) | `02` | `ready-for-agent` |
 | [14 — Tên cuộc chat tự đặt, dấu cuộc chat đã ra chuyến](issues/14-conversation-auto-title.md) | `02` | `ready-for-agent` |
 | [15 — Khối tiến độ thật, chạy song song](issues/15-plan-progress-parallel.md) | `10` | `ready-for-agent` |

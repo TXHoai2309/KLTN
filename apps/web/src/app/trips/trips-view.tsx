@@ -9,6 +9,8 @@ import { travelerButtonClassName } from "@/components/traveler-ui/traveler-butto
 import { TravelerDayTabs, travelerDayColorVar, type TravelerDayTabItem } from "@/components/traveler-ui/traveler-day-tabs";
 import { DayTimeline, type DayTimelineDay, type DayTimelineNearbyItem, type DayTimelineStop } from "@/components/trip-timeline/day-timeline";
 import { buildDayEveningPlan } from "@/components/trip-timeline/evening-plan";
+import { RouteStrip } from "@/components/trip-timeline/route-strip";
+import { buildDataTripTitle, daysUntilTrip } from "@/lib/traveler-trip-title";
 import { uncheckedItemLabel } from "@/modules/trip-save/unchecked-checks";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
@@ -41,6 +43,8 @@ import {
   UtensilsCrossed,
   BedDouble,
   Eye,
+  MoreHorizontal,
+  X,
 } from "lucide-react";
 
 import { PlacePreviewModal } from "@/components/place-preview/place-preview-modal";
@@ -758,6 +762,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
   const [selectedDestinationId, setSelectedDestinationId] = useState<string | null>(null);
   const [focusSelection, setFocusSelection] = useState(false);
   const [mobileTab, setMobileTab] = useState<"itinerary" | "map">("itinerary");
+  const [mobileMapSheetOpen, setMobileMapSheetOpen] = useState(false);
   const [journeyEditModalOpen, setJourneyEditModalOpen] = useState(false);
   const [isLegacyOptInMode, setIsLegacyOptInMode] = useState(false);
   const [preview, setPreview] = useState<{ target: PlacePreviewTarget; trigger: HTMLElement | null } | null>(null);
@@ -784,6 +789,78 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
 
   const totalDestinations = trip.days.reduce((sum, d) => sum + d.visits.length, 0);
 
+  const firstStop = trip.days.flatMap((d) => d.visits)[0] ?? null;
+  const lastStop = trip.days.flatMap((d) => d.visits).at(-1) ?? null;
+  const detailTitle = useMemo(
+    () =>
+      buildDataTripTitle({
+        companionTitle: trip.companionTitle,
+        homeCity: accessLeg?.homeCity ?? null,
+        originLabel: trip.journey?.journey.origin?.label ?? null,
+        firstArea: firstStop?.destination.area ?? null,
+        lastArea: lastStop?.destination.area ?? null,
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        durationDays: trip.durationDays,
+      }),
+    [
+      trip.companionTitle,
+      accessLeg?.homeCity,
+      trip.journey?.journey.origin?.label,
+      firstStop?.destination.area,
+      lastStop?.destination.area,
+      trip.startDate,
+      trip.endDate,
+      trip.durationDays,
+    ],
+  );
+
+  const routeStripDays = useMemo(() => {
+    const legDistanceByDay = new globalThis.Map<number, number>();
+    for (const leg of trip.journey?.plan?.legs ?? []) {
+      if (leg.route.distanceMeters != null && leg.route.distanceMeters > 0) {
+        legDistanceByDay.set(leg.day, (legDistanceByDay.get(leg.day) ?? 0) + leg.route.distanceMeters / 1000);
+      }
+    }
+    return trip.days.map((day) => {
+      let km = legDistanceByDay.get(day.dayIndex) ?? 0;
+      if (km === 0) {
+        for (const visit of day.visits) {
+          if (visit.inbound?.distanceMeters && visit.inbound.distanceMeters > 0) {
+            km += visit.inbound.distanceMeters / 1000;
+          }
+        }
+      }
+      return {
+        dayIndex: day.dayIndex,
+        stopCount: day.visits.length,
+        distanceKm: km > 0 ? km : null,
+      };
+    });
+  }, [trip.days, trip.journey?.plan?.legs]);
+
+  const totalKm = useMemo(() => {
+    const planMeters = trip.journey?.plan?.totals.distanceMeters;
+    if (typeof planMeters === "number" && planMeters > 0) return Math.round(planMeters / 1000);
+    const sum = routeStripDays.reduce((acc, d) => acc + (d.distanceKm ?? 0), 0);
+    return sum > 0 ? Math.round(sum) : null;
+  }, [trip.journey?.plan?.totals.distanceMeters, routeStripDays]);
+
+  const daysUntil = trip.status === "UPCOMING" ? daysUntilTrip(trip.startDate) : null;
+  const metaParts = [
+    accessLeg?.travelers ? `${accessLeg.travelers} người` : null,
+    transportLabel(trip.transport),
+    visitLabel(trip.visitCount),
+    totalKm !== null ? `${totalKm.toLocaleString("vi-VN")} km` : null,
+    daysUntil !== null ? `còn ${daysUntil} ngày` : statusLabel,
+  ].filter(Boolean);
+
+  const heroFallback = firstStop
+    ? getDestinationVisual(firstStop.destination.name, firstStop.destination.area)
+    : { src: getTripHeroImage(trip.durationDays, 0), alt: detailTitle };
+  const heroImageUrl = firstStop?.destination.image?.url ?? heroFallback.src;
+  const heroImageAlt = firstStop?.destination.image?.alt ?? heroFallback.alt;
+
   const plannerDays = useMemo(() => tripDetailToPlannerDays(trip), [trip]);
   const activePlannerDay = useMemo(() => {
     if (plannerDays.length === 0) {
@@ -804,9 +881,83 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
     }
   };
 
+  const handleJumpToDay = (dayIndex: number) => {
+    setActiveTravelTab(null);
+    const nextDay = activeDayIndex === dayIndex ? null : dayIndex;
+    setActiveDayIndex(nextDay);
+    if (nextDay !== null) {
+      const targetDay = trip.days.find((d) => d.dayIndex === nextDay);
+      const firstStopOfDay = targetDay?.visits[0];
+      if (firstStopOfDay) {
+        setSelectedDestinationId(firstStopOfDay.destination.id);
+        setFocusSelection(true);
+      }
+      const el = document.getElementById(`trip-day-${nextDay}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
   return (
     <main className="my-trips-page my-trips-detail" lang="vi">
-      {/* Back navigation */}
+      {/* Mobile top bar (design §4.2): ← · "Chuyến đi" · ⋯ */}
+      <div className="my-trips-mobile-topbar">
+        <Link
+          className={travelerButtonClassName({ variant: "icon", size: "md" })}
+          prefetch={false}
+          href={"/trips" as Route}
+          aria-label="Quay lại Chuyến đi của tôi"
+        >
+          <ArrowLeft size={18} aria-hidden="true" />
+        </Link>
+        <span className="my-trips-mobile-topbar-title">Chuyến đi</span>
+        <details className="tv-overflow-menu">
+          <summary
+            className={travelerButtonClassName({ variant: "icon", size: "md" })}
+            aria-label="Thao tác khác"
+          >
+            <MoreHorizontal size={18} aria-hidden="true" />
+          </summary>
+          <div className="tv-overflow-menu-panel">
+            {isOwner && trip.status !== "COMPLETED" && (
+              <Link className="tv-overflow-item" href={`/trips/${trip.id}/edit` as Route}>
+                <Pencil size={15} aria-hidden="true" />
+                <span>Chỉnh sửa hành trình</span>
+              </Link>
+            )}
+            {isOwner && trip.status === "UPCOMING" && (
+              <button
+                type="button"
+                className="tv-overflow-item"
+                onClick={() => {
+                  setIsLegacyOptInMode(!hasJourney);
+                  setJourneyEditModalOpen(true);
+                }}
+              >
+                <MapPin size={15} aria-hidden="true" />
+                <span>{hasJourney ? "Đổi giờ xuất phát" : "Bổ sung nơi xuất phát"}</span>
+              </button>
+            )}
+            {isOwner && trip.status !== "COMPLETED" && (
+              <Link className="tv-overflow-item" href={`/trips/${trip.id}/publication` as Route}>
+                <Users size={15} aria-hidden="true" />
+                <span>Tìm bạn đồng hành</span>
+              </Link>
+            )}
+            {calendarEnabled && (
+              <a
+                className="tv-overflow-item"
+                href={"/api/trips/" + encodeURIComponent(trip.id) + "/calendar"}
+                download
+              >
+                <Calendar size={15} aria-hidden="true" />
+                <span>Thêm vào lịch (.ics)</span>
+              </a>
+            )}
+          </div>
+        </details>
+      </div>
+
+      {/* Desktop back navigation */}
       <div className="my-trips-back-row">
         <Link className="my-trips-back" prefetch={false} href={"/trips" as Route}>
           <ArrowLeft size={16} aria-hidden="true" />
@@ -814,205 +965,154 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
         </Link>
       </div>
 
-      {/* Hero Showcase Billboard */}
-      <section className="my-trips-detail-hero" aria-labelledby="trip-detail-title">
-        {/* Subtle contour topography & ambient glow */}
-        <div className="my-trips-hero-ambient" aria-hidden="true">
-          <div className="my-trips-hero-glow" />
-          <svg className="my-trips-hero-topo" viewBox="0 0 1000 300" preserveAspectRatio="none">
-            <path d="M0,160 Q250,80 500,150 T1000,110 L1000,300 L0,300 Z" fill="rgba(255,255,255,0.03)" />
-            <path d="M0,200 Q280,120 580,190 T1000,150 L1000,300 L0,300 Z" fill="rgba(233,185,75,0.04)" />
-            <path d="M0,230 Q340,170 680,220 T1000,180 L1000,300 L0,300 Z" fill="rgba(255,255,255,0.02)" />
-          </svg>
+      {/* Mobile 16:9 hero photo of the first stop (design §4.2) */}
+      <div className="my-trips-mobile-hero">
+        <img src={heroImageUrl} alt={heroImageAlt} loading="eager" />
+      </div>
+
+      {/* Slim editorial header (design §4.2, slim C13-C14) */}
+      <header className="my-trips-detail-header" aria-labelledby="trip-detail-title">
+        <div className="my-trips-detail-title-row">
+          <h1 id="trip-detail-title" className="my-trips-detail-title">
+            {detailTitle}
+          </h1>
+          {trip.role === "MEMBER" && (
+            <span className="my-trips-role-badge">
+              <Users size={12} aria-hidden="true" />
+              <span>Thành viên đoàn {trip.hostName ? `của ${trip.hostName}` : ""}</span>
+            </span>
+          )}
         </div>
 
-        <div className="my-trips-hero-content">
-          <div className="my-trips-hero-header-row">
-            <div className="my-trips-hero-title-group">
-              <div className="my-trips-hero-badge-row">
-                <p className="my-trips-eyebrow">
-                  {trip.role === "MEMBER" ? "Chuyến đi tham gia" : "Hành trình đã lưu"}
-                </p>
-                <span className={`my-trips-badge my-trips-badge-${trip.status.toLowerCase()}`}>
-                  <span className="my-trips-badge-dot" aria-hidden="true" />
-                  {statusLabel}
-                </span>
-                {trip.role === "MEMBER" && (
-                  <span className="my-trips-role-badge">
-                    <Users size={12} aria-hidden="true" />
-                    <span>Thành viên đoàn {trip.hostName ? `của ${trip.hostName}` : ""}</span>
-                  </span>
-                )}
-              </div>
-              <h1 id="trip-detail-title">Chuyến đi {trip.durationDays} ngày</h1>
-            </div>
+        <p className="my-trips-detail-meta">{metaParts.join(" · ")}</p>
 
-            <div className="my-trips-detail-actions">
-              <TripFavoriteButton tripId={trip.id} isFavorite={trip.isFavorite} />
-
-              {trip.role === "MEMBER" ? (
-                trip.publicationId && (
-                  <Link
-                    className={travelerButtonClassName({ variant: "primary", size: "md", className: "my-trips-action is-member-open" })}
-                    href={`/trip-companions/${trip.publicationId}/group` as Route}
-                  >
-                    <Users size={15} aria-hidden="true" />
-                    <span>Vào nhóm đồng hành & trò chuyện</span>
-                  </Link>
-                )
-              ) : (
-                <>
-                  {trip.status !== "COMPLETED" && (
-                    <Link
-                      className={travelerButtonClassName({ variant: "text", size: "md", className: "my-trips-edit-action" })}
-                      href={`/trips/${trip.id}/edit` as Route}
-                      aria-label="Chỉnh sửa hành trình trong Trợ lý chuyến đi"
-                    >
-                      <Pencil size={15} aria-hidden="true" />
-                      <span>Chỉnh sửa hành trình</span>
-                    </Link>
-                  )}
-
-                  {trip.status === "UPCOMING" && (
-                    hasJourney ? (
-                      <button
-                        type="button"
-                        className={travelerButtonClassName({ variant: "text", size: "md", className: "my-trips-origin-action" })}
-                        onClick={() => {
-                          setIsLegacyOptInMode(false);
-                          setJourneyEditModalOpen(true);
-                        }}
-                      >
-                        <MapPin size={15} aria-hidden="true" />
-                        <span>Đổi nơi/giờ xuất phát</span>
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        className={travelerButtonClassName({ variant: "text", size: "md", className: "my-trips-origin-action" })}
-                        onClick={() => {
-                          setIsLegacyOptInMode(true);
-                          setJourneyEditModalOpen(true);
-                        }}
-                      >
-                        <Plus size={15} aria-hidden="true" />
-                        <span>Bổ sung nơi xuất phát</span>
-                      </button>
-                    )
-                  )}
-
-                  {trip.status !== "COMPLETED" && (
-                    <>
-                      <Link
-                        className={travelerButtonClassName({ variant: "text", size: "md", className: "my-trips-companion-action" })}
-                        href={`/trips/${trip.id}/publication` as Route}
-                      >
-                        <Users size={15} aria-hidden="true" />
-                        <span>Tìm bạn đồng hành</span>
-                      </Link>
-
-                      <Link
-                        className={travelerButtonClassName({ variant: "primary", size: "md", className: "my-trips-in-trip-btn" })}
-                        href={`/trips/${trip.id}/in-trip` as Route}
-                        aria-label="Mở Trợ lý chuyến đi (Trợ lý trong chuyến đi)"
-                      >
-                        <Sparkles size={16} aria-hidden="true" />
-                        <span>Trợ lý chuyến đi</span>
-                      </Link>
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-
-          {calendarEnabled && (
-            <div className="my-trips-calendar-export">
-              <a
-                className={travelerButtonClassName({ variant: "secondary", size: "md" })}
-                href={"/api/trips/" + encodeURIComponent(trip.id) + "/calendar"}
-                download
-                aria-describedby="trip-calendar-help"
+        <div className="my-trips-detail-actions">
+          {trip.role === "MEMBER" ? (
+            trip.publicationId && (
+              <Link
+                className={travelerButtonClassName({
+                  variant: "primary",
+                  size: "md",
+                  className: "my-trips-desktop-primary is-member-open",
+                })}
+                href={`/trip-companions/${trip.publicationId}/group` as Route}
               >
-                <Calendar size={16} aria-hidden="true" />
-                <span>Thêm vào lịch (.ics)</span>
-              </a>
-              <p id="trip-calendar-help">Tải file .ics, mở bằng Google Calendar, Apple Calendar hoặc Outlook.</p>
-            </div>
+                <Users size={15} aria-hidden="true" />
+                <span>Vào nhóm đồng hành</span>
+              </Link>
+            )
+          ) : (
+            <>
+              {trip.status !== "COMPLETED" && (
+                <Link
+                  className={travelerButtonClassName({
+                    variant: "primary",
+                    size: "md",
+                    className: "my-trips-desktop-primary my-trips-in-trip-btn",
+                  })}
+                  href={`/trips/${trip.id}/in-trip` as Route}
+                  aria-label="Hỏi trợ lý · Trợ lý trong chuyến đi"
+                >
+                  <Sparkles size={15} aria-hidden="true" />
+                  <span>Hỏi trợ lý</span>
+                </Link>
+              )}
+
+              {trip.status !== "COMPLETED" && (
+                <Link
+                  className={travelerButtonClassName({ variant: "text", size: "md", className: "my-trips-edit-action" })}
+                  href={`/trips/${trip.id}/edit` as Route}
+                  aria-label="Chỉnh sửa hành trình"
+                >
+                  <Pencil size={15} aria-hidden="true" />
+                  <span>Chỉnh sửa hành trình</span>
+                </Link>
+              )}
+
+              {trip.status === "UPCOMING" && (
+                <button
+                  type="button"
+                  className={travelerButtonClassName({ variant: "text", size: "md", className: "my-trips-origin-action" })}
+                  onClick={() => {
+                    setIsLegacyOptInMode(!hasJourney);
+                    setJourneyEditModalOpen(true);
+                  }}
+                >
+                  {hasJourney ? <MapPin size={15} aria-hidden="true" /> : <Plus size={15} aria-hidden="true" />}
+                  <span>{hasJourney ? "Đổi giờ xuất phát" : "Bổ sung nơi xuất phát"}</span>
+                </button>
+              )}
+
+              {trip.status !== "COMPLETED" && (
+                <Link
+                  className={travelerButtonClassName({ variant: "text", size: "md", className: "my-trips-companion-action" })}
+                  href={`/trips/${trip.id}/publication` as Route}
+                >
+                  <Users size={15} aria-hidden="true" />
+                  <span>Tìm bạn đồng hành</span>
+                </Link>
+              )}
+            </>
           )}
 
-          {/* 4 Summary Stat Cards */}
-          <div className="my-trips-hero-stats-grid" aria-label="Thông số hành trình">
-            <div className="my-trips-hero-stat-item">
-              <div className="my-trips-stat-icon">
-                <CalendarDays size={18} aria-hidden="true" />
-              </div>
-              <div className="my-trips-stat-info">
-                <span className="my-trips-stat-label">Thời gian</span>
-                <strong className="my-trips-stat-value">
-                  {dateLabel(trip.startDate)} – {dateLabel(trip.endDate)}
-                </strong>
-              </div>
-            </div>
+          <TripFavoriteButton tripId={trip.id} isFavorite={trip.isFavorite} />
 
-            <div className="my-trips-hero-stat-item">
-              <div className="my-trips-stat-icon">
-                <Clock3 size={18} aria-hidden="true" />
-              </div>
-              <div className="my-trips-stat-info">
-                <span className="my-trips-stat-label">Thời lượng</span>
-                <strong className="my-trips-stat-value">
-                  {trip.durationDays} ngày {Math.max(1, trip.durationDays - 1)} đêm
-                </strong>
-              </div>
+          <details className="tv-overflow-menu" data-testid="trip-detail-overflow-menu">
+            <summary
+              className={travelerButtonClassName({ variant: "icon", size: "md" })}
+              aria-label="Thêm thao tác chuyến đi"
+            >
+              <MoreHorizontal size={18} aria-hidden="true" />
+            </summary>
+            <div className="tv-overflow-menu-panel">
+              {calendarEnabled && (
+                <div className="tv-overflow-calendar">
+                  <a
+                    className="tv-overflow-item"
+                    href={"/api/trips/" + encodeURIComponent(trip.id) + "/calendar"}
+                    download
+                    aria-describedby="trip-calendar-help"
+                  >
+                    <Calendar size={15} aria-hidden="true" />
+                    <span>Thêm vào lịch (.ics)</span>
+                  </a>
+                  <p id="trip-calendar-help" className="tv-overflow-help">
+                    Tải file .ics, mở bằng Google Calendar, Apple Calendar hoặc Outlook.
+                  </p>
+                </div>
+              )}
+              {isOwner && (
+                <TripManagementActions
+                  trip={trip}
+                  onConfirmed={(change) => {
+                    if ("deleted" in change) {
+                      router.push("/trips" as Route);
+                    } else {
+                      router.refresh();
+                    }
+                  }}
+                />
+              )}
             </div>
-
-            <div className="my-trips-hero-stat-item">
-              <div className="my-trips-stat-icon">
-                <CarFront size={18} aria-hidden="true" />
-              </div>
-              <div className="my-trips-stat-info">
-                <span className="my-trips-stat-label">Phương tiện</span>
-                <strong className="my-trips-stat-value">
-                  {transportLabel(trip.transport)}
-                </strong>
-              </div>
-            </div>
-
-            <div className="my-trips-hero-stat-item">
-              <div className="my-trips-stat-icon">
-                <MapPin size={18} aria-hidden="true" />
-              </div>
-              <div className="my-trips-stat-info">
-                <span className="my-trips-stat-label">Điểm tham quan</span>
-                <strong className="my-trips-stat-value">
-                  {visitLabel(trip.visitCount)}
-                </strong>
-              </div>
-            </div>
-          </div>
-
-          {/* Fallback container for test assertions */}
-          <div className="my-trips-hero-meta sr-only" aria-hidden="true">
-            <span>
-              <CalendarDays size={16} aria-hidden="true" />
-              {dateLabel(trip.startDate)} – {dateLabel(trip.endDate)}
-            </span>
-            <span>
-              <Clock3 size={16} aria-hidden="true" />
-              {trip.durationDays} ngày
-            </span>
-            <span>
-              <CarFront size={16} aria-hidden="true" />
-              {transportLabel(trip.transport)}
-            </span>
-            <span>
-              <MapPin size={16} aria-hidden="true" />
-              {visitLabel(trip.visitCount)}
-            </span>
-          </div>
+          </details>
         </div>
-      </section>
+
+        {routeStripDays.length > 0 && (
+          <RouteStrip
+            days={routeStripDays}
+            activeDayIndex={activeDayIndex}
+            onSelectDay={handleJumpToDay}
+          />
+        )}
+
+        {/* Screen-reader fallback meta */}
+        <div className="sr-only" aria-hidden="true">
+          <span>{dateLabel(trip.startDate)} – {dateLabel(trip.endDate)}</span>
+          <span>{trip.durationDays} ngày</span>
+          <span>{transportLabel(trip.transport)}</span>
+          <span>{visitLabel(trip.visitCount)}</span>
+        </div>
+      </header>
 
       {trip.unchecked && trip.unchecked.items.length > 0 && (
         <section className="my-trips-unchecked" data-testid="trip-unchecked-section" aria-label="Các mục chưa kiểm">
@@ -1442,39 +1542,106 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
         </div>
       </div>
 
-      {/* Footer / Notes & Actions */}
+      {/* Footer / Notes */}
       <footer className="my-trips-detail-footer">
         <p className="my-trips-status-note">
           {trip.manuallyCompletedAt
             ? "Bạn đã đánh dấu chuyến đi hoàn thành thủ công; thao tác này không xác nhận các điểm dừng đã được tham quan."
             : "Trạng thái được tính theo ngày lịch; không xác nhận các điểm dừng đã được tham quan."}
         </p>
-
-        <nav className="my-trips-detail-nav" aria-label="Thao tác chuyến đi">
-          {trip.status !== "COMPLETED" && (
-            <Link className="my-trips-action" href={`/trips/${trip.id}/edit` as Route}>
-              Chỉnh sửa hành trình
-            </Link>
-          )}
-
-          {trip.status !== "COMPLETED" && (
-            <>
-              <Link className="my-trips-secondary-action" href={`/trips/${trip.id}/publication` as Route}>
-                <Users size={16} aria-hidden="true" />
-                <span>Tìm bạn đồng hành</span>
-              </Link>
-              <Link
-                className="my-trips-secondary-action"
-                href={`/trips/${trip.id}/in-trip` as Route}
-                aria-label="Mở Trợ lý chuyến đi (Trợ lý trong chuyến đi)"
-              >
-                <Sparkles size={16} aria-hidden="true" />
-                <span>Mở Trợ lý chuyến đi</span>
-              </Link>
-            </>
-          )}
-        </nav>
       </footer>
+
+      {/* Mobile sticky bottom bar (design §4.2): secondary "Bản đồ" + primary CTA */}
+      <div className="my-trips-mobile-bottombar" role="region" aria-label="Thao tác nhanh trên di động">
+        <button
+          type="button"
+          className={travelerButtonClassName({ variant: "secondary", size: "lg", className: "my-trips-mobile-map-btn" })}
+          onClick={() => setMobileMapSheetOpen(true)}
+        >
+          <Map size={16} aria-hidden="true" />
+          <span>Bản đồ</span>
+        </button>
+        {trip.role === "MEMBER" ? (
+          trip.publicationId && (
+            <Link
+              className={travelerButtonClassName({
+                variant: "primary",
+                size: "lg",
+                className: "my-trips-mobile-primary",
+              })}
+              href={`/trip-companions/${trip.publicationId}/group` as Route}
+            >
+              <Users size={16} aria-hidden="true" />
+              <span>Vào nhóm đồng hành</span>
+            </Link>
+          )
+        ) : (
+          trip.status !== "COMPLETED" && (
+            <Link
+              className={travelerButtonClassName({
+                variant: "primary",
+                size: "lg",
+                className: "my-trips-mobile-primary",
+              })}
+              href={`/trips/${trip.id}/in-trip` as Route}
+              aria-label="Hỏi trợ lý · Trợ lý trong chuyến đi"
+            >
+              <Sparkles size={16} aria-hidden="true" />
+              <span>Hỏi trợ lý</span>
+            </Link>
+          )
+        )}
+      </div>
+
+      {/* Mobile map sheet filtered to active day (design §3.9 & §4.2) */}
+      {mobileMapSheetOpen && (
+        <div
+          className="my-trips-map-sheet-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Bản đồ hành trình"
+          onClick={() => setMobileMapSheetOpen(false)}
+        >
+          <div className="my-trips-map-sheet" onClick={(event) => event.stopPropagation()}>
+            <div className="my-trips-map-sheet-handle" aria-hidden="true" />
+            <div className="my-trips-map-sheet-head">
+              <strong>
+                {activeDayIndex !== null ? `Bản đồ · Ngày ${activeDayIndex}` : "Bản đồ toàn chuyến"}
+              </strong>
+              <button
+                type="button"
+                className={travelerButtonClassName({ variant: "icon", size: "sm" })}
+                aria-label="Đóng bản đồ"
+                onClick={() => setMobileMapSheetOpen(false)}
+              >
+                <X size={16} aria-hidden="true" />
+              </button>
+            </div>
+            <div className="my-trips-map-sheet-body">
+              {plannerDays.some((d) => d.stops.length > 0) ? (
+                <ItineraryMap
+                  day={activePlannerDay}
+                  days={plannerDays}
+                  selectedDestinationId={selectedDestinationId}
+                  focusSelection={focusSelection}
+                  onSelect={(id) => {
+                    setMobileMapSheetOpen(false);
+                    handleSelectDestination(id);
+                  }}
+                  overviewOnly={activeDayIndex === null}
+                  journeyPlan={trip.journey?.plan}
+                  origin={trip.journey?.journey.origin}
+                />
+              ) : (
+                <div className="my-trips-map-empty">
+                  <Mountain size={36} aria-hidden="true" />
+                  <p>Chưa có điểm dừng để hiển thị trên bản đồ.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <TripJourneyEditModal
         isOpen={journeyEditModalOpen}

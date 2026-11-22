@@ -6114,3 +6114,10 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Added `apps/web/src/modules/trip-edit/refresh-evening-suggestions.ts` and hooked it best-effort post-commit into `applyEdit` + `api/trips/[id]/edits/apply/route.ts` when an edit changes a day's last stop (never affects Constraint Validator or committed edit).
 - Wired `suggestions` into `buildTripsageChatBody` → `parseTripsageChatSuggestions` → `buildTripsageContext` so the assistant answers `"tối ngày X đi đâu"` from the "Tối nay" block.
 - Checks: `tsc --noEmit` PASS, `vitest` PASS (28 files, 139/139 tests), `git diff --check` PASS (status: `verified-offline`).
+
+## 2026-11-23 — Traveler UI Redesign: Ticket 12 (slim trip detail header, RouteStrip, mobile sticky bar)
+
+- Added `apps/web/src/lib/traveler-trip-title.ts` (`buildDataTripTitle`, `formatTripDateRangeShort`, `daysUntilTrip`).
+- Redesigned `TripDetailView` header (`apps/web/src/app/trips/trips-view.tsx`, `trips.css`): data-driven Lora 28px title, single gray meta line, single primary CTA (`"Hỏi trợ lý"`), text action links, `"⋯"` overflow menu (calendar `.ics`, completion, delete), proportional `RouteStrip`, mobile top bar (`← / Chuyến đi / ⋯`), 16:9 first-stop hero, and sticky mobile bottom bar (`"Bản đồ"` sheet + `"Hỏi trợ lý"`). Removed uppercase eyebrow and 4 stat cards.
+- Hidden floating global assistant pill on `/trips/[id]` in `global-assistant.tsx`.
+- Checks: `vitest` PASS (18 files, 73/73 tests), `tsc --noEmit` PASS, `git diff --check` PASS (status: `verified-offline`).

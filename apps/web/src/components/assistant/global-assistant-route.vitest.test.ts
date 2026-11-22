@@ -9,7 +9,8 @@ describe("isGlobalAssistantVisibleRoute", () => {
     expect(isGlobalAssistantVisibleRoute("/trips/trip-1/in-trip")).toBe(false);
     expect(isGlobalAssistantVisibleRoute("/trips/trip-1/in-trip/sub")).toBe(false);
     expect(isGlobalAssistantVisibleRoute("/trips/new")).toBe(false);
-    expect(isGlobalAssistantVisibleRoute("/trips/trip-1")).toBe(true);
+    // Ticket 12 (design §4.2): trip detail has its own "Hỏi trợ lý" CTA and sticky mobile bar, so hide the floating pill.
+    expect(isGlobalAssistantVisibleRoute("/trips/trip-1")).toBe(false);
     expect(isGlobalAssistantVisibleRoute("/trips")).toBe(true);
     expect(isGlobalAssistantVisibleRoute("/destinations/d1")).toBe(true);
   });

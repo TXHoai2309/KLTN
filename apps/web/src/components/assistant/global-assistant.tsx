@@ -22,10 +22,10 @@ export function useAssistantDestination(destination: Destination) {
   useEffect(() => register?.(destination), [register, destination.id, destination.name]);
 }
 
-/** Routes where the global floating assistant pill should remain hidden. */
+/** Routes where the global floating assistant pill should remain hidden (design §4.2 hides it on /trips/[id]). */
 export function isGlobalAssistantVisibleRoute(pathname: string | null): boolean {
   if (!pathname) return false;
-  return !/^\/(admin|assistant|login|register|forgot-password|reset-password|trips\/new|trips\/[^/]+\/(?:edit|in-trip))(\/|$)/.test(pathname);
+  return !/^\/(admin|assistant|login|register|forgot-password|reset-password|trips\/[^/]+)(\/|$)/.test(pathname);
 }
 
 /** Root-layout owner: normal client navigation hides/shows a view, never its session. */
