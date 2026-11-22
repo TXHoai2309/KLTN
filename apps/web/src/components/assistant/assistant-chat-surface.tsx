@@ -544,7 +544,6 @@ export function AssistantChatSurface({
               </div>
             </div>
             <div className="assistant-composer-footer" id={helpId}>
-              <span>Enter để gửi · Shift+Enter xuống dòng</span>
               <span className="assistant-char-counter">
                 {state.draft.normalize("NFC").trim().length}/2000 ký tự
               </span>

@@ -5193,3 +5193,29 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - **Approval/implementation:** Owner approved the warning-only option. Reused the existing unsaved-change guard with an optional dialog root; Trip styles inherit current tokens. Raw field changes, review/proposal and unsent natural-language text are guarded. Pending/UNKNOWN save stays protected; SUCCESS releases the warning. No draft persistence or business-data writes.
 - **Evidence:** Before-fix live CAR selection could leave via My Trips without warning. After-fix link/Back prompt, Stay retains input, Leave navigates, 390px light dialog fits. Restarted local dev server on 3010 for these checks; no credentials/environment change.
 - **Checks:** 38 focused tests PASS; typecheck/build (54 pages)/whitespace PASS. Full web tests: 3332 PASS, 35 FAIL, 215 SKIP, 1 TODO. Failures are in QA reliability/quality/diagnostics and planning-model files; legacy phase not reached. Detailed limitations and failed file names are recorded in US-24. No commit/push.
+
+## 2026-11-19 — BUG-01 destination reset investigation
+
+- Current reset handlers/controller preserve the latest supplied destination, discard conversation/head/history and fence obsolete responses. Added a real-component/controller regression; it passes without a production change. Local browser shows the existing public Quản Bạ test record before/after reset.
+- Live `kltn-rho.vercel.app` shows Cổng trời Quản Bạ on the page but GENERAL/Hà Giang widget suggestions before and after reset. Deployed revision/payload/provider context are not yet established; do not claim a root cause or model-answer fix. No browser ask or business-data write.
+- Focused 7 files/97 tests and web typecheck PASS. Full web Vitest: 3333 PASS/35 FAIL/215 SKIP/1 TODO; same four AI/planning failure files, legacy not reached. Test/docs-only additions, no repeated build. See `docs/implementation/destination-ai-context-bug-01-2026-11-19.md` for scope and limits. No application/schema/API/env change, commit/push or BUG-02/03 work.
+
+## 2026-11-19 — BUG-02 mobile assistant input
+
+- Local browser at 400 × 642 reproduced an enabled textarea with zero width; its non-shrinking composer bar inherited `width: 100%` and occupied the flex row. Scoped `width: auto` to the existing destination-panel bar.
+- After the fix: 400px textarea measured 272px, received focus and accepted Vietnamese input and Shift+Enter; document width matched viewport. At 1440px the textarea measured 250px and retained its draft. These are desktop-browser responsive checks, not Android/iOS keyboard evidence.
+- Three focused Vitest files: 57 PASS. Web typecheck and `git diff --check` PASS. No real mobile keyboard test, full suite or build in this CSS-only change. No commit/push; BUG-03 not addressed.
+
+## 2026-11-19 — BUG-03 reject past departure dates during creation
+
+- Fixed the custom calendar's missing disabled attribute and browser-local today calculation; refreshed calendar today at Vietnam midnight and guarded stale clicks. Added opt-in creation-time date checking to existing form validation, called before opening confirmation and immediately before submitting. Historical/edit parsers stay time-independent; fields are retained on error.
+- Five focused files/84 tests PASS; web typecheck PASS. Full Vitest 3338 PASS/35 FAIL/215 SKIP/1 TODO, same four AI/planning files; legacy not reached. Direct server check/save date gates verified with injected time and fake persistence. Browser desktop/390px verified disabled past dates and selectable today/tomorrow. No live write/provider call.
+- Changes: calendar, creation form, form-logic, two new date regression files, save regression and story/progress. No dependency/API/schema change, commit or push. See US-24 for midnight and device verification limits.
+- Final web build PASS (54 pages); `git diff --check` PASS.
+
+## 2026-11-19 — BUG-01 production follow-up
+
+- Corrected earlier inference: generic V2 widget suggestions do not establish missing runtime context. Production Guest reset + the exact requested test question answered Quản Bạ correctly and survived full-page history restoration. One authorized test conversation was created; no unrelated write/deploy.
+- Public production assets lack local `newChatContext`/reset callback wiring; V2 source retains context across reset. Exact screenshot cause, outgoing request fields, backend context/model input and deployed SHA remain unproven. GitHub deployment checks were readable, but alias mapping/runtime logs require Vercel login. See the updated BUG-01 report for asset/revision evidence and limits.
+- Added actual global-provider wiring regression; together with reset handler regression 2/2 PASS. No production code change, architecture port, commit or push. Existing BUG-02/03 work retained.
+- Final web typecheck and `git diff --check` PASS.
