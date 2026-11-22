@@ -7,7 +7,17 @@ import { mountMapLibre, mountDestinationPinPicker as mountStadiaPin } from "./ma
 import { mountItineraryMap as mountStadiaItinerary } from "./itinerary-map-renderer";
 
 export type MapLibrary = { provider: "GOOGLE"; sdk: GoogleMapsSdk; mapId: string } | { provider: "STADIA"; sdk: typeof MapLibre };
-async function fetchMapSettings(): Promise<MapSettings> {
+// One lookup is shared by every map on the page and reused for a minute, so a remounting map cannot hammer the endpoint.
+let cachedSettings: { at: number; promise: Promise<MapSettings> } | null = null;
+function fetchMapSettings(): Promise<MapSettings> {
+  if (cachedSettings && Date.now() - cachedSettings.at < 60_000) return cachedSettings.promise;
+  const promise = requestMapSettings();
+  const entry = { at: Date.now(), promise };
+  cachedSettings = entry;
+  promise.catch(() => { if (cachedSettings === entry) cachedSettings = null; });
+  return promise;
+}
+async function requestMapSettings(): Promise<MapSettings> {
   const response = await fetch("/api/maps/config", { cache: "no-store" });
   if (!response.ok) throw new Error("Map configuration is unavailable");
   const { data } = await response.json() as { data?: Partial<MapSettings> };

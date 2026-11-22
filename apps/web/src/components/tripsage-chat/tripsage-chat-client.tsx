@@ -203,9 +203,16 @@ export function TripsageChatClient({
   const lastItineraryMessageId = state.lastItineraryMessageId;
   // Schema parsing creates a fresh object; keep it stable between message updates
   // so the lodging synchronization effect cannot trigger itself on every render.
-  const latestItinerary = useMemo(() => lastItineraryMessageId
-    ? messages.find(m => m.id === lastItineraryMessageId)?.parts.map(part => (part.type === "data-itinerary" ? parseItineraryPart(part.data) : null)).filter(Boolean).at(-1) ?? null
-    : null, [lastItineraryMessageId, messages]);
+  const itineraryRef = useRef<ReturnType<typeof parseItineraryPart>>(null);
+  const latestItinerary = useMemo(() => {
+    const next = lastItineraryMessageId
+      ? messages.find(m => m.id === lastItineraryMessageId)?.parts.map(part => (part.type === "data-itinerary" ? parseItineraryPart(part.data) : null)).filter(Boolean).at(-1) ?? null
+      : null;
+    // Same proposal, same object: a new one on every streamed chunk remounts the map and refetches /api/maps/config each time.
+    if (next && itineraryRef.current?.proposalId === next.proposalId) return itineraryRef.current;
+    itineraryRef.current = next;
+    return next;
+  }, [lastItineraryMessageId, messages]);
   const itineraryCurrent = latestItinerary && !state.itineraryStale;
   // A replan that leaves the days unchanged (e.g. only the origin was confirmed) folds the cards instead of re-showing them open.
   const planUnchanged = useMemo(() => {

@@ -11,7 +11,7 @@ import { parseItineraryPart } from "./tripsage-itinerary-view";
 // Object.is state semantics. No DOM renderer is installed in this Node suite.
 const source = readFileSync(new URL("./tripsage-chat-client.tsx", import.meta.url), "utf8");
 const block = source.slice(source.indexOf("  const state = useMemo"), source.indexOf("  function handleToggleChosenLodging"));
-const run = new Function("messages", "activeConversationId", "useMemo", "useEffect", "setChosenLodgings", "lastSyncedProposalRef", "readConversationState", "parseItineraryPart", "pruneChosenLodgings", ts.transpile(block));
+const run = new Function("messages", "activeConversationId", "useMemo", "useEffect", "useRef", "setChosenLodgings", "lastSyncedProposalRef", "readConversationState", "parseItineraryPart", "pruneChosenLodgings", ts.transpile(block));
 
 function restoredMessages(proposalId = "saved-plan") {
   const proposal = {
@@ -33,6 +33,7 @@ function harness() {
   const memos: { deps: unknown[]; value: unknown }[] = [];
   const effects: unknown[][] = [];
   const proposalRef = { current: null };
+  const itineraryRef = { current: null };
   let chosen: ChosenLodgingMap = {};
   const same = (a: unknown[], b: unknown[]) => a.length === b.length && a.every((value, i) => Object.is(value, b[i]));
   return {
@@ -54,7 +55,7 @@ function harness() {
           const i = effectIndex++;
           if (!effects[i] || !same(effects[i], deps)) pending.push(effect);
           effects[i] = deps;
-        }, (update: ChosenLodgingMap | ((prev: ChosenLodgingMap) => ChosenLodgingMap)) => {
+        }, () => itineraryRef, (update: ChosenLodgingMap | ((prev: ChosenLodgingMap) => ChosenLodgingMap)) => {
           const next = typeof update === "function" ? update(chosen) : update;
           changed ||= !Object.is(next, chosen);
           chosen = next;
