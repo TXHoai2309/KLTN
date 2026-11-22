@@ -27,10 +27,6 @@ function dateLabel(date: string) {
   return `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}`;
 }
 
-function LocalTime({ value }: { value: string }) {
-  return <time dateTime={value}>{value.slice(11, 16)}, {dateLabel(value)}</time>;
-}
-
 function BudgetCard({ data }: { data: BudgetPart }) {
   const { currency, total, perPersonPerDay, withinCap, overBy, allocations } = data;
   let capLabel = "Chưa có ngân sách tối đa để so sánh";
@@ -61,48 +57,159 @@ function BudgetCard({ data }: { data: BudgetPart }) {
   );
 }
 
+const FLIGHT_OFFERS_SHOWN = 3;
+type FlightOffer = FlightsPart["offers"][number];
+
+function durationLabel(minutes: number) {
+  return minutes >= 60 ? `${Math.floor(minutes / 60)} giờ${minutes % 60 ? ` ${minutes % 60} phút` : ""}` : `${minutes} phút`;
+}
+
+/** Search link-out only: Google Flights opens the real booking options, the app itself never books. */
+export function googleFlightsUrl(data: FlightsPart): string | null {
+  const outbound = data.offers[0]?.itineraries[0]?.segments;
+  if (!outbound) return null;
+  const from = outbound[0]!.from;
+  const to = outbound[outbound.length - 1]!.to;
+  const departDate = outbound[0]!.departAt.slice(0, 10);
+  const query = `Flights from ${from} to ${to} on ${departDate}${data.roundTrip && data.returnDate ? ` through ${data.returnDate}` : ""}`;
+  return `https://www.google.com/travel/flights?q=${encodeURIComponent(query)}&curr=${data.offers[0]!.price.currency}&hl=vi`;
+}
+
+/** Skyscanner takes lowercase airport codes and yymmdd dates in the path. */
+export function skyscannerUrl(data: FlightsPart): string | null {
+  const outbound = data.offers[0]?.itineraries[0]?.segments;
+  if (!outbound) return null;
+  const day = (value: string) => value.slice(2, 4) + value.slice(5, 7) + value.slice(8, 10);
+  const path = [outbound[0]!.from, outbound[outbound.length - 1]!.to].map(code => code.toLowerCase());
+  path.push(day(outbound[0]!.departAt));
+  if (data.roundTrip && data.returnDate) path.push(day(data.returnDate));
+  const adults = data.adults && data.adults > 1 ? `&adultsv2=${data.adults}` : "";
+  return `https://www.skyscanner.com.vn/transport/flights/${path.join("/")}/?currency=VND${adults}`;
+}
+
+/** Traveloka flight search: airport pair, dd-mm-yyyy dates (`null` return for one way), passenger count. */
+export function travelokaFlightsUrl(data: FlightsPart): string | null {
+  const outbound = data.offers[0]?.itineraries[0]?.segments;
+  if (!outbound) return null;
+  const day = (value: string) => `${value.slice(8, 10)}-${value.slice(5, 7)}-${value.slice(0, 4)}`;
+  const returnDay = data.roundTrip && data.returnDate ? day(data.returnDate) : "null";
+  return `https://www.traveloka.com/vi-vn/flight/fullsearch?ap=${outbound[0]!.from}.${outbound[outbound.length - 1]!.to}&dt=${day(outbound[0]!.departAt)}.${returnDay}&ps=${data.adults ?? 1}.0.0&sc=ECONOMY`;
+}
+
+/** Airlines have no search deep link (booking is a form), so the carrier's own site opens and the traveler re-enters the trip. */
+const AIRLINE_SITES = [
+  { match: /vietnam\s*airlines/iu, label: "Vietnam Airlines", href: "https://www.vietnamairlines.com/vn/vi/home" },
+  { match: /viet\s*jet/iu, label: "Vietjet Air", href: "https://www.vietjetair.com/vi" },
+  { match: /bamboo/iu, label: "Bamboo Airways", href: "https://www.bambooairways.com/vn-vi" },
+];
+
+function airlineSites(data: FlightsPart) {
+  const names = data.offers.flatMap(offer => offer.itineraries.flatMap(it => it.segments.map(segment => segment.airline)));
+  return AIRLINE_SITES.filter(site => names.some(name => site.match.test(name)));
+}
+
+function FlightOfferRow({ offer, roundTrip }: { offer: FlightOffer; roundTrip: boolean }) {
+  const { price, itineraries, totalDurationMinutes } = offer;
+  return (
+    <li>
+      <p className={styles.price}>
+        <strong>{money(price.total, price.currency)}</strong>{" "}
+        <span>{roundTrip ? "Giá khứ hồi tham khảo" : "Giá tham khảo"}</span>
+        {totalDurationMinutes ? <span> · {durationLabel(totalDurationMinutes)}</span> : null}
+      </p>
+      {itineraries.map(({ connections, segments }, index) => (
+        <div key={index} className={styles.direction}>
+          <p><strong>{index === 0 ? "Chiều đi" : "Chiều về"}</strong> · {connections === 0 ? "Bay thẳng" : `${connections} lần nối chuyến`}</p>
+          <ul className={styles.legs}>
+            {segments.map(({ from, to, departAt, arriveAt, airline, flight }, legIndex) => (
+              <li key={legIndex}>
+                <p>
+                  <time dateTime={departAt}>{departAt.slice(11, 16)}</time> {from} → <time dateTime={arriveAt}>{arriveAt.slice(11, 16)}</time> {to}
+                  {arriveAt.slice(0, 10) > departAt.slice(0, 10) && <> (+1 ngày)</>}
+                </p>
+                <p className={styles.detail}>{dateLabel(departAt)} · {airline} · {flight}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+      {roundTrip && itineraries.length === 1 && (
+        <p className={styles.detail}>Chiều về: xem chi tiết chiều về trên Google Flights.</p>
+      )}
+    </li>
+  );
+}
+
 function FlightsCard({ data }: { data: FlightsPart }) {
+  const { offers, roundTrip = false, adults, typicalPriceRange } = data;
+  const shown = offers.slice(0, FLIGHT_OFFERS_SHOWN);
+  const more = offers.slice(FLIGHT_OFFERS_SHOWN);
+  const bookingUrl = googleFlightsUrl(data);
+  const cheapest = offers[0]!.price;
   return (
     <section className={styles.card} aria-label="Vé máy bay tham khảo">
       <h3>Vé máy bay tham khảo</h3>
-      <p className={styles.detail}>Giờ địa phương tại từng sân bay.</p>
-      {data.typicalPriceRange && (
+      <p className={styles.summary}>
+        <strong>{money(cheapest.total, cheapest.currency)}</strong>{" "}
+        <span>{roundTrip ? "khứ hồi" : "một chiều"}{adults && adults > 1 ? `, tổng cho ${adults} người` : ""}</span>
+      </p>
+      {typicalPriceRange && (
         <p className={styles.detail}>
-          Khoảng giá thường gặp: {money(data.typicalPriceRange.min, data.typicalPriceRange.currency)} – {money(data.typicalPriceRange.max, data.typicalPriceRange.currency)}
+          Khoảng giá thường gặp: {money(typicalPriceRange.min, typicalPriceRange.currency)} – {money(typicalPriceRange.max, typicalPriceRange.currency)}
         </p>
       )}
       <ul className={styles.rows} aria-label="Các lựa chọn chuyến bay">
-        {data.offers.map(({ price, itineraries }, offerIndex) => (
-          <li key={offerIndex}>
-            <p className={styles.price}>
-              <strong>{money(price.total, price.currency)}</strong>{" "}
-              <span>{data.roundTrip ? "Giá khứ hồi tham khảo" : "Giá tham khảo"}</span>
-            </p>
-            {itineraries.map(({ connections, segments }, index) => (
-              <div key={index} className={styles.direction}>
-                <p><strong>{index === 0 ? "Chiều đi" : "Chiều về"}</strong> · {connections} lần nối chuyến</p>
-                <ul className={styles.legs}>
-                  {segments.map(({ from, to, departAt, arriveAt, airline, flight }, legIndex) => (
-                    <li key={legIndex}>
-                      <p><strong>{airline}</strong> · {flight}</p>
-                      <p>Đi {from} <LocalTime value={departAt} /> · Đến {to} <LocalTime value={arriveAt} /></p>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-            {data.roundTrip && itineraries.length === 1 && (
-              <p className={styles.detail}>Chiều về: xem chi tiết chiều về trên Google Flights.</p>
-            )}
-          </li>
-        ))}
+        {shown.map((offer, index) => <FlightOfferRow key={index} offer={offer} roundTrip={roundTrip} />)}
       </ul>
-      <p className={styles.detail}>Giá tham khảo từ Google (qua SerpApi), có thể thay đổi. Ứng dụng không đặt chỗ.</p>
+      {more.length > 0 && (
+        <details className={styles.more}>
+          <summary>Xem thêm {more.length} chuyến</summary>
+          <ul className={styles.rows} aria-label="Các lựa chọn chuyến bay khác">
+            {more.map((offer, index) => <FlightOfferRow key={index} offer={offer} roundTrip={roundTrip} />)}
+          </ul>
+        </details>
+      )}
+      {bookingUrl && (
+        <div className={styles.links}>
+          <a className={styles.bookLink} href={bookingUrl} target="_blank" rel="noopener noreferrer">Đặt vé trên Google Flights ↗</a>
+          <a className={styles.altLink} href={skyscannerUrl(data)!} target="_blank" rel="noopener noreferrer">Skyscanner ↗</a>
+          <a className={styles.altLink} href={travelokaFlightsUrl(data)!} target="_blank" rel="noopener noreferrer">Traveloka ↗</a>
+        </div>
+      )}
+      {bookingUrl && airlineSites(data).length > 0 && (
+        <p className={styles.detail}>
+          Trang hãng (nhập lại chuyến bay):{" "}
+          {airlineSites(data).map((site, index) => (
+            <span key={site.label}>{index > 0 && " · "}<a className={styles.altLink} href={site.href} target="_blank" rel="noopener noreferrer">{site.label} ↗</a></span>
+          ))}
+        </p>
+      )}
+      <p className={styles.detail}>Giờ địa phương tại từng sân bay. Giá tham khảo từ Google (qua SerpApi), có thể thay đổi. Ứng dụng không đặt chỗ.</p>
     </section>
   );
 }
 
-function HotelRow({ hotel, nights }: { hotel: HotelsPart["hotels"][number]; nights: number }) {
+/** Search link-out only (Google Hotels shows live prices and booking sites); the app never books. */
+export function googleHotelsUrl(name: string, near: string): string {
+  return `https://www.google.com/travel/hotels?q=${encodeURIComponent(`${name} ${near}`)}&curr=VND&hl=vi`;
+}
+
+/** Agoda search by text with the dates filled in. */
+export function agodaUrl(name: string, near: string, checkIn: string, checkOut: string, adults?: number): string {
+  const query = new URLSearchParams({ textToSearch: `${name} ${near}`, checkIn, checkOut, adults: String(adults ?? 2), rooms: "1", locale: "vi-vn", currencyCode: "VND" });
+  return `https://www.agoda.com/vi-vn/search?${query}`;
+}
+
+/** Traveloka hotel search needs an internal location id we do not have, so only its hotel page opens. */
+export const TRAVELOKA_HOTELS_URL = "https://www.traveloka.com/vi-vn/hotel";
+
+/** Booking.com search page with the dates already filled in. */
+export function bookingComUrl(name: string, near: string, checkIn: string, checkOut: string, adults?: number): string {
+  const query = new URLSearchParams({ ss: `${name} ${near}`, checkin: checkIn, checkout: checkOut, group_adults: String(adults ?? 2), selected_currency: "VND" });
+  return `https://www.booking.com/searchresults.vi.html?${query}`;
+}
+
+function HotelRow({ hotel, nights, near, adults }: { hotel: HotelsPart["hotels"][number]; nights: number; near: string; adults?: number }) {
   const { name, distanceKm, room, rating, reviews, price, checkInDate, checkOutDate } = hotel;
   return (
     <li>
@@ -122,6 +229,11 @@ function HotelRow({ hotel, nights }: { hotel: HotelsPart["hotels"][number]; nigh
       ) : (
         <p className={styles.unpriced}>Chưa có giá online</p>
       )}
+      <div className={styles.links}>
+        <a className={styles.rowLink} href={googleHotelsUrl(name, near)} target="_blank" rel="noopener noreferrer">Google Hotels ↗</a>
+        <a className={styles.rowLink} href={bookingComUrl(name, near, checkInDate, checkOutDate, adults)} target="_blank" rel="noopener noreferrer">Booking.com ↗</a>
+        <a className={styles.rowLink} href={agodaUrl(name, near, checkInDate, checkOutDate, adults)} target="_blank" rel="noopener noreferrer">Agoda ↗</a>
+      </div>
     </li>
   );
 }
@@ -135,17 +247,21 @@ function HotelsCard({ data }: { data: HotelsPart }) {
       <p className={styles.detail}>Gần {data.near} · {data.nights} đêm</p>
       {priced.length > 0 && (
         <ul className={styles.rows} aria-label="Các lựa chọn chỗ ở có giá">
-          {priced.map((hotel, index) => <HotelRow key={`priced-${index}`} hotel={hotel} nights={data.nights} />)}
+          {priced.map((hotel, index) => <HotelRow key={`priced-${index}`} hotel={hotel} nights={data.nights} near={data.near} adults={data.adults} />)}
         </ul>
       )}
       {unpriced.length > 0 && (
         <div className={styles.group}>
           <p className={styles.groupTitle}>Chưa có giá online</p>
           <ul className={styles.rows} aria-label="Các chỗ ở chưa có giá online">
-            {unpriced.map((hotel, index) => <HotelRow key={`unpriced-${index}`} hotel={hotel} nights={data.nights} />)}
+            {unpriced.map((hotel, index) => <HotelRow key={`unpriced-${index}`} hotel={hotel} nights={data.nights} near={data.near} adults={data.adults} />)}
           </ul>
         </div>
       )}
+      <p className={styles.detail}>
+        Tìm thêm:{" "}
+        <a className={styles.altLink} href={TRAVELOKA_HOTELS_URL} target="_blank" rel="noopener noreferrer">Traveloka ↗</a> (nhập lại nơi ở và ngày)
+      </p>
       <p className={styles.detail}>Chưa kiểm tra bằng bộ kiểm tra lịch trình.</p>
       <p className={styles.detail}>Giá tham khảo từ Google (qua SerpApi), có thể thay đổi. Ứng dụng không đặt chỗ.</p>
     </section>

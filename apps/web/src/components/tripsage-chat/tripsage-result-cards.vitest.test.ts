@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { readTripsageResultTurns, TripsageResultCards } from "./tripsage-result-cards";
+import { googleFlightsUrl, readTripsageResultTurns, TripsageResultCards } from "./tripsage-result-cards";
 
 const budget = {
   type: "data-budget", id: "budget", data: {
@@ -52,10 +52,36 @@ describe("TripSage result cards", () => {
 
   it("renders legacy saved FlightsPart, displays USD and escapes provider content", () => {
     const html = render([flights]);
-    for (const label of ["100,10 US$", "Đi SGN", "08:08, 20/11/2026", "10:09, 20/11/2026", "0 lần nối chuyến", "VN120", "Giá tham khảo từ Google (qua SerpApi), có thể thay đổi. Ứng dụng không đặt chỗ.", "Giá tham khảo", "&lt;img src=x&gt;"]) {
+    for (const label of ["100,10 US$", "08:08</time> SGN", "10:09</time> HAN", "20/11/2026", "Bay thẳng", "VN120", "Giá tham khảo từ Google (qua SerpApi), có thể thay đổi. Ứng dụng không đặt chỗ.", "Giá tham khảo", "&lt;img src=x&gt;"]) {
       expect(html).toContain(label);
     }
-    expect(html).not.toMatch(/<img|<a\s/u);
+    expect(html).not.toMatch(/<img/u);
+    expect(html).not.toContain("(+1 ngày)");
+  });
+
+  it("links out to Google Flights for booking, with only airport codes and dates in the query", () => {
+    const html = render([{ ...flights, data: { ...flights.data, roundTrip: true, returnDate: "2026-11-23", adults: 2 } }]);
+    expect(googleFlightsUrl(flights.data as never)).toBe("https://www.google.com/travel/flights?q=Flights%20from%20SGN%20to%20HAN%20on%202026-11-20&curr=USD&hl=vi");
+    expect(html).toContain("Flights%20from%20SGN%20to%20HAN%20on%202026-11-20%20through%202026-11-23");
+    expect(html).toContain('rel="noopener noreferrer"');
+    expect(html).toContain("https://www.skyscanner.com.vn/transport/flights/sgn/han/261120/261123/?currency=VND&amp;adultsv2=2");
+    expect(html).toContain("https://www.traveloka.com/vi-vn/flight/fullsearch?ap=SGN.HAN&amp;dt=20-11-2026.23-11-2026&amp;ps=2.0.0&amp;sc=ECONOMY");
+    expect(html).not.toContain("Trang hãng");
+    expect(html).toContain("tổng cho 2 người");
+    expect(html).toContain("Ứng dụng không đặt chỗ");
+  });
+
+  it("shows three offers, folds the rest and marks an overnight arrival", () => {
+    const offer = (total: string, arriveAt: string) => ({
+      price: { total, currency: "VND" },
+      itineraries: [{ connections: 0, segments: [{ from: "DAD", to: "HAN", departAt: "2026-11-20T23:30:00", arriveAt, airline: "Hãng", flight: "VN1" }] }],
+    });
+    const many = { ...flights, data: { offers: [offer("1000000", "2026-11-21T00:50:00"), offer("2000000", "2026-11-20T23:59:00"), offer("3000000", "2026-11-20T23:59:00"), offer("4000000", "2026-11-20T23:59:00")] } };
+    const html = render([many]);
+    expect(html).toContain("(+1 ngày)");
+    expect(html).toContain("Xem thêm 1 chuyến");
+    expect(html.indexOf("4.000.000 ₫")).toBeGreaterThan(html.indexOf("Xem thêm 1 chuyến"));
+    expect(html.indexOf("3.000.000 ₫")).toBeLessThan(html.indexOf("Xem thêm 1 chuyến"));
   });
 
   it("renders SerpApi round-trip FlightsPart with typical price range and return-leg Google Flights note", () => {
@@ -88,6 +114,7 @@ describe("TripSage result cards", () => {
       "2.150.000 ₫",
       "Giá khứ hồi tham khảo",
       "Chiều về: xem chi tiết chiều về trên Google Flights.",
+      "https://www.vietnamairlines.com/vn/vi/home",
       "Giá tham khảo từ Google (qua SerpApi), có thể thay đổi. Ứng dụng không đặt chỗ.",
     ]) {
       expect(html).toContain(label);
@@ -99,7 +126,14 @@ describe("TripSage result cards", () => {
     for (const label of ["1.200.000 ₫", "Chưa kiểm tra bằng bộ kiểm tra lịch trình", "Giá tham khảo từ Google (qua SerpApi), có thể thay đổi. Ứng dụng không đặt chỗ.", "Chưa có dữ liệu khoảng cách", "—", "2 đêm", "https://example.test"]) {
       expect(html).toContain(label);
     }
-    expect(html).not.toMatch(/<a\s|· Phòng|Đã kiểm|PASS/u);
+    expect(html).not.toMatch(/· Phòng|Đã kiểm|PASS/u);
+    // The provider name is only ever text or an encoded search term, never the link target itself.
+    expect(html).toContain('href="https://www.google.com/travel/hotels?q=https%3A%2F%2Fexample.test%20%C4%90i%E1%BB%83m%20%C4%91%E1%BA%BFn&amp;curr=VND&amp;hl=vi"');
+    expect(html).toContain("checkin=2026-11-20&amp;checkout=2026-11-22&amp;group_adults=2");
+    expect(html).toContain("https://www.agoda.com/vi-vn/search?textToSearch=");
+    expect(html).toContain("checkIn=2026-11-20&amp;checkOut=2026-11-22");
+    expect(html).toContain("https://www.traveloka.com/vi-vn/hotel");
+    expect(html).toContain("Ứng dụng không đặt chỗ");
   });
 
   it("renders SerpApi lodging card with priced and unpriced groups plus ratings", () => {
