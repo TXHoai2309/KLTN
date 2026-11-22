@@ -202,6 +202,13 @@ export function TripsageChatClient({
   const { turns: resultTurns, latestBudgetMessageId } = useMemo(() => readTripsageResultTurns(messages), [messages]);
   const state = useMemo(() => readConversationState(messages, data => parseItineraryPart(data) !== null), [messages]);
   const lastItineraryMessageId = state.lastItineraryMessageId;
+  // A home city away from the trip's start means travel days exist even before the way there is planned.
+  const travelDays = useMemo(() => {
+    const homeCity = state.tripInfo?.homeCity?.trim();
+    const hubName = state.journey?.origin?.label;
+    const bare = (text: string) => text.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/đ/gu, "d").replace(/^(tp\.?|thanh pho)\s*/u, "");
+    return homeCity && hubName && !bare(hubName).includes(bare(homeCity)) ? { homeCity, hubName } : null;
+  }, [state.tripInfo?.homeCity, state.journey?.origin?.label]);
   // Schema parsing creates a fresh object; keep it stable between message updates
   // so the lodging synchronization effect cannot trigger itself on every render.
   const itineraryRef = useRef<ReturnType<typeof parseItineraryPart>>(null);
@@ -619,6 +626,8 @@ export function TripsageChatClient({
                                 onRequestMeals={day => send(`Tìm giúp mình quán ăn trưa cho ngày ${day}.`)}
                                 pins={pinControl}
                                 accessLeg={state.accessLeg?.data ?? null}
+                                travel={travelDays}
+                                onAskAccess={() => send(`So sánh giúp mình cách đi từ ${travelDays?.homeCity} ra ${travelDays?.hubName} cho cả đoàn.`)}
                               />
                             )}
                             {itinerary && <TripsageItineraryView proposal={itinerary}>{!busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} tripInfo={state.tripInfo} chosenLodgings={chosenLodgings} suggestions={state.suggestions} pinnedItems={state.accessLeg ? [{ kind: "ACCESS" as const, leg: state.accessLeg.data }, ...pinned] : pinned} onSaved={setSavedTripId} onStateChange={setSaveState} />)}</TripsageItineraryView>}

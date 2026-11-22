@@ -474,13 +474,37 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         const violations = (r: PlannerResult) => r.checks.filter(check => check.status === "VIOLATION").length;
         let rawResult = await scheduleSelection(needs, input.selection, chosen, context.planning.routes, now());
         let flexApplied = false;
+        let droppedStops: string[] = [];
         if (violations(rawResult) > 0) {
           const trimmed = chosen.map(c => !overrides[c.id] && c.minimumDurationMinutes && c.suggestedDurationMinutes && c.minimumDurationMinutes < c.suggestedDurationMinutes ? { ...c, suggestedDurationMinutes: c.minimumDurationMinutes } : c);
           const retry = await scheduleSelection({ ...needs, requirement: { ...requirement, restMode: "COMPACT" as const } }, input.selection, trimmed, context.planning.routes, now()).catch(() => null);
           if (retry && violations(retry) < violations(rawResult)) { rawResult = retry; flexApplied = true; }
+          // Still infeasible: drop the last non-required stop of each day the checks name, one per round, and keep any plan
+          // that is no worse. The Validator still decides; this only removes stops that cannot fit (like form planning does).
+          const flexNeeds = { ...needs, requirement: { ...requirement, restMode: "COMPACT" as const } };
+          const required = new Set(requiredDestinationIds);
+          const stopsDeadline = Date.now() + 25_000;
+          let days = input.selection.days.map(day => [...day]);
+          for (let round = 0; round < 8 && violations(rawResult) > 0 && Date.now() < stopsDeadline; round++) {
+            const badDays = new Set(rawResult.checks.filter(check => check.status === "VIOLATION").flatMap(check => check.issues.map(issue => issue.day)).filter((day): day is number => day !== null));
+            let changed = false;
+            const next = days.map((day, index) => {
+              if (!badDays.has(index + 1)) return day;
+              const at = day.findLastIndex(id => !required.has(id));
+              if (at < 0) return day;
+              changed = true;
+              return day.filter((_, position) => position !== at);
+            });
+            if (!changed || next.every(day => day.length === 0)) break;
+            const attempt = await scheduleSelection(flexNeeds, { days: next }, trimmed, context.planning.routes, now()).catch(() => null);
+            if (!attempt) break;
+            days = next;
+            if (violations(attempt) <= violations(rawResult)) { rawResult = attempt; flexApplied = true; droppedStops = input.selection.days.flat().filter(id => !next.flat().includes(id)); }
+          }
         }
         const flexNotes: PlannerResult["warnings"] = [
           ...(flexApplied ? [{ code: "FLEX_SCHEDULE", day: null, destinationId: null, message: "Đã nới lịch cho vừa: nghỉ dọc đường 10 phút mỗi lần thay vì 15 phút và rút thời gian tham quan về mức tối thiểu." }] : []),
+          ...(droppedStops.length ? [{ code: "STOPS_DROPPED", day: null, destinationId: null, message: `Đã bớt ${droppedStops.length} điểm để lịch vừa thời gian trong ngày: ${droppedStops.map(id => all.find(c => c.id === id)?.name ?? id).join(", ")}.` }] : []),
           ...all.filter(c => overrides[c.id] && c.minimumDurationMinutes && overrides[c.id]! < c.minimumDurationMinutes).map(c => ({ code: "USER_SHORT_VISIT", day: null, destinationId: c.id, message: `Bạn chọn ở ${c.name} ${overrides[c.id]} phút, ngắn hơn mức gợi ý tối thiểu ${c.minimumDurationMinutes} phút.` })),
         ];
         if (flexNotes.length) rawResult = { ...rawResult, warnings: [...flexNotes, ...rawResult.warnings].slice(0, 80) };
@@ -518,6 +542,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           } : {}),
           days: result.days.map(day => ({ day: day.day, stops: day.stops.map(stop => names.get(stop.destination.id) ?? stop.destination.name) })),
           checks: result.checks.map(check => ({ key: check.key, status: check.status })),
+          ...(droppedStops.length ? { droppedStops: `Hệ thống đã bớt ${droppedStops.length} điểm không kịp thời gian (${droppedStops.map(id => all.find(c => c.id === id)?.name ?? id).join(", ")}). Nói ngắn với người dùng và hỏi có muốn thêm ngày để giữ các điểm đó không; KHÔNG gọi proposeItinerary lại trong lượt này.` } : {}),
           ...(flexApplied ? { flexApplied: "Hệ thống đã tự nới lịch (nghỉ 10 phút/lần, tham quan ở mức tối thiểu). Nói ngắn gọn điều này với người dùng." } : {}),
           // Without the reasons the model re-proposes blindly; tell it which day broke which rule so one repair is enough.
           ...(result.checks.some(check => check.status === "VIOLATION") ? {

@@ -6046,3 +6046,11 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Cost: the tool description now says the access leg is already added, after a turn counted the round-trip flight twice.
 - UI: the save area is a styled card with a green button (it had no CSS and read as plain text); cards in a reply appear after its text finishes streaming instead of before it.
 - Not verified in a browser. Not done: access-leg flight price stays 0 when the model sends 0 although a flight search ran.
+
+## 2026-11-22 — Infeasible plans repaired by dropping stops; travel tabs without an access leg (conversation fcbc2dc4)
+
+- Trace: a 5-day plan from Hà Nội by motorbike kept failing SCHEDULE_CONFLICTS (NO_TIME_SLOT) on day 1 and day 5 (≈8 h and ≈12 h of driving). The model's repair introduced a duplicate stop, and the turn ended with no feasible plan.
+- `proposeItinerary` now, after the flexible retry, drops the last non-required stop of each day the checks name (one per round, up to 8 rounds, about 25 s), keeps any plan that is no worse, and records `STOPS_DROPPED` with the names. The model is told which stops were dropped and not to re-propose. The Validator still decides.
+- Timeline: "Ngày đi" / "Ngày về" tabs also show when the home city differs from the trip start but no access leg exists yet, with a "So sánh cách đi" button.
+- Persona: a group that takes a bus or a driver from Hà Nội to Hà Giang and rents motorbikes there starts at the TP Hà Giang hub (the Hà Nội → Hà Giang leg is part of the access leg); at most one stop on day 1 and the last day when riding from Hà Nội.
+- Not verified in a browser.

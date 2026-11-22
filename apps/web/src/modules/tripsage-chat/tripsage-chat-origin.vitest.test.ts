@@ -285,6 +285,21 @@ describe("chat-only origin confirmation and default clocks route (ticket 01)", (
     expect(parts(res.sse).some(p => p.type === "data-itinerary")).toBe(true);
   });
 
+  it("drops the stop that cannot fit the day instead of leaving the traveler with no feasible plan", async () => {
+    const tight = () => ({ ...planning()(), candidates: async () => [planningCandidate("a", 120), planningCandidate("b", 120), planningCandidate("c", 540)] });
+    const res = await chat(
+      "Lập lịch đi",
+      [{ tool: "proposeItinerary", input: { selection: { days: [["a", "b", "c"]] } } }, { text: "Đã bớt một điểm." }],
+      { journey: COMPLETE_JOURNEY_FIXTURE },
+      { planning: tight },
+    );
+    const itinerary = parts(res.sse).filter(p => p.type === "data-itinerary").at(-1)!.data as { checks: { status: string }[]; warnings: { code: string }[]; days: { stops: unknown[] }[] };
+    expect(itinerary.checks.some(check => check.status === "VIOLATION")).toBe(false);
+    expect(itinerary.warnings.map(w => w.code)).toContain("STOPS_DROPPED");
+    expect(itinerary.days[0]!.stops.length).toBeLessThan(3);
+    expect(JSON.stringify(res.model.doStreamCalls.at(-1)!.prompt)).toContain("droppedStops");
+  });
+
   it("marks default clocks 07:00/18:00 in context and replans when the user asks to depart at 6:00", async () => {
     const res = await chat(
       "Đi lúc 6h sáng nhé",

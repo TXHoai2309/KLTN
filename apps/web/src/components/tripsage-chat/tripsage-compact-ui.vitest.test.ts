@@ -118,4 +118,11 @@ describe("Ticket 07: compact UI, day tabs, deduplicated lodging, budget row, val
     expect(outbound).toContain("Máy bay");
     expect(renderToStaticMarkup(createElement(TripsageTimelineView, { timeline: TWO_DAY_TIMELINE, suggestions: [] }))).not.toContain("Ngày đi");
   });
+  it("shows travel-day tabs from the home city before the way to the hub is planned", () => {
+    const travel = { homeCity: "TP Hồ Chí Minh", hubName: "Hà Nội (bến xe Mỹ Đình)" };
+    expect(renderToStaticMarkup(createElement(TripsageTimelineView, { timeline: TWO_DAY_TIMELINE, suggestions: [], travel }))).toContain("Ngày về");
+    const panel = renderToStaticMarkup(createElement(TripsageTimelineView, { timeline: TWO_DAY_TIMELINE, suggestions: [], travel, initialDay: 0, onAskAccess: () => undefined }));
+    expect(panel).toContain("Chưa chọn cách đi giữa TP Hồ Chí Minh và Hà Nội (bến xe Mỹ Đình)");
+    expect(panel).toContain("So sánh cách đi");
+  });
 });

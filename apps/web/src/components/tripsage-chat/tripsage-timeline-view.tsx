@@ -125,6 +125,8 @@ export function TripsageTimelineView({
   onRequestMeals,
   pins,
   accessLeg,
+  travel,
+  onAskAccess,
 }: {
   timeline: TimelinePart;
   suggestions: readonly TimelineSuggestion[];
@@ -137,6 +139,9 @@ export function TripsageTimelineView({
   pins?: PinControl;
   /** The way from home to the meeting hub and back, shown as "Ngày đi" / "Ngày về" tabs. */
   accessLeg?: AccessLegPart | null;
+  /** Home city and hub when the trip starts far from home but the way there is not planned yet: the tabs still show. */
+  travel?: { homeCity: string; hubName: string } | null;
+  onAskAccess?: () => void;
 }) {
   const [selectedDay, setSelectedDay] = useState(initialDay ?? timeline.days[0]?.day ?? 1);
   const [preview, setPreview] = useState<{
@@ -145,12 +150,13 @@ export function TripsageTimelineView({
     lodgingChoice?: { nightIndex: number; placeId: string; placeName: string };
   } | null>(null);
   const firstDate = timeline.days[0]?.date ?? null, lastDate = timeline.days.at(-1)?.date ?? null;
+  const hasTravel = Boolean(accessLeg || travel);
   const tabs = [
-    ...(accessLeg ? [{ key: OUTBOUND_TAB, label: "Ngày đi", date: shiftDate(firstDate, -1) }] : []),
+    ...(hasTravel ? [{ key: OUTBOUND_TAB, label: "Ngày đi", date: shiftDate(firstDate, -1) }] : []),
     ...timeline.days.map(day => ({ key: day.day, label: `Ngày ${day.day}`, date: day.date ?? null })),
-    ...(accessLeg ? [{ key: RETURN_TAB, label: "Ngày về", date: shiftDate(lastDate, 1) }] : []),
+    ...(hasTravel ? [{ key: RETURN_TAB, label: "Ngày về", date: shiftDate(lastDate, 1) }] : []),
   ];
-  const travelTab = accessLeg && (selectedDay === OUTBOUND_TAB || selectedDay === RETURN_TAB) ? selectedDay : null;
+  const travelTab = hasTravel && (selectedDay === OUTBOUND_TAB || selectedDay === RETURN_TAB) ? selectedDay : null;
   const activeDay = timeline.days.find(day => day.day === selectedDay) ?? timeline.days[0];
   if (!activeDay) return null;
   const activeKey = travelTab ?? activeDay.day;
@@ -195,6 +201,13 @@ export function TripsageTimelineView({
         })}
       </div>
 
+      {travelTab !== null && !accessLeg && travel && (
+        <div id={`tripsage-day-panel-${travelTab}`} role="tabpanel" aria-labelledby={`tripsage-day-tab-${travelTab}`} className="tripsage-timeline-day">
+          <h4 className="tripsage-timeline-heading">{travelTab === OUTBOUND_TAB ? `Ngày đi · ${travel.homeCity} → ${travel.hubName}` : `Ngày về · ${travel.hubName} → ${travel.homeCity}`}</h4>
+          <p className="assistant-muted">Chưa chọn cách đi giữa {travel.homeCity} và {travel.hubName}. Trợ lý có thể so sánh máy bay, tàu hỏa và xe khách cho cả đoàn (giá tham khảo, ứng dụng không đặt vé).</p>
+          {onAskAccess && <button type="button" className="tripsage-preview-btn" onClick={onAskAccess}>So sánh cách đi</button>}
+        </div>
+      )}
       {travelTab !== null && accessLeg && (
         <div id={`tripsage-day-panel-${travelTab}`} role="tabpanel" aria-labelledby={`tripsage-day-tab-${travelTab}`} className="tripsage-timeline-day">
           <h4 className="tripsage-timeline-heading">
