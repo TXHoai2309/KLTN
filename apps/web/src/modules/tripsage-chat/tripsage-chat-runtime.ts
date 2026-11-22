@@ -4,6 +4,7 @@ import { ENV } from "../../env.server";
 import { routingRegistry } from "../destination/destination-routing-registry";
 import { retrievePlannerCandidates } from "../trip-planner/planner-candidates";
 import { createConfiguredRoutesProvider } from "../trip-planner/planner-routes";
+import { createPetrolimexFuelPrice, type FuelPriceLookup } from "./tripsage-fuel-price";
 import { createGooglePlacesSearch, type PlacesSearch } from "./tripsage-places";
 import { createFirecrawlWeb, type WebLookup } from "./tripsage-web";
 import { createSerpApiFlightLookup, type FlightLookup } from "./tripsage-serpapi-flights";
@@ -44,6 +45,12 @@ export function tripsagePlanningRuntime(): TripsagePlanningDeps {
 /** Places search with the server-only Google key; the key is read per call and never leaves this module. */
 export function tripsagePlacesRuntime(): PlacesSearch {
   return createGooglePlacesSearch({ apiKey: () => ENV.GOOGLE_MAPS_API_KEY });
+}
+
+/** One shared lookup per server instance so its six-hour cache is shared by every request. */
+const sharedFuelPrice = createPetrolimexFuelPrice();
+export function tripsageFuelPriceRuntime(): FuelPriceLookup {
+  return sharedFuelPrice;
 }
 
 /** Firecrawl web search and page extraction with the server-only key, read per call; it never leaves this module. */

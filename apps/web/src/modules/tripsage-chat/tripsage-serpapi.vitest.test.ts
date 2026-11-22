@@ -92,24 +92,37 @@ describe("SerpApi shared client and key rotation", () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
-  it("does NOT rotate key on HTTP 500, broken JSON, or non-quota 401", async () => {
+  it("does NOT rotate key on HTTP 500 or broken JSON", async () => {
     const fetcher = vi.fn<typeof fetch>()
       .mockResolvedValueOnce(jsonResponse({ error: "Internal server error" }, 500))
       .mockResolvedValueOnce(new Response("{broken-json", { status: 200 }))
-      .mockResolvedValueOnce(jsonResponse({ error: "Invalid API key" }, 401))
       .mockResolvedValueOnce(jsonResponse({ properties: [] }, 200));
 
     const client = createSerpApiClient({ apiKeys: () => `${KEY_1},${KEY_2}`, fetcher });
 
     await expect(client.search({ engine: "google_hotels", q: "A" })).resolves.toEqual({ status: "UNAVAILABLE" });
     await expect(client.search({ engine: "google_hotels", q: "B" })).resolves.toEqual({ status: "UNAVAILABLE" });
-    await expect(client.search({ engine: "google_hotels", q: "C" })).resolves.toEqual({ status: "UNAVAILABLE" });
-    await expect(client.search({ engine: "google_hotels", q: "D" })).resolves.toEqual({ status: "OK", data: { properties: [] } });
+    await expect(client.search({ engine: "google_hotels", q: "C" })).resolves.toEqual({ status: "OK", data: { properties: [] } });
 
-    expect(fetcher).toHaveBeenCalledTimes(4);
+    expect(fetcher).toHaveBeenCalledTimes(3);
     for (const call of fetcher.mock.calls) {
       expect(new URL(String(call[0])).searchParams.get("api_key")).toBe(KEY_1);
     }
+  });
+
+  it("skips a rejected key (401) and uses the next one, then keeps using it", async () => {
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({ error: "Invalid API key" }, 401))
+      .mockResolvedValueOnce(jsonResponse({ properties: [] }, 200))
+      .mockResolvedValueOnce(jsonResponse({ properties: [] }, 200));
+    const client = createSerpApiClient({ apiKeys: () => `${KEY_1},${KEY_2}`, fetcher, state: createSerpApiKeyState() });
+
+    await expect(client.search({ engine: "google_hotels", q: "A" })).resolves.toEqual({ status: "OK", data: { properties: [] } });
+    await expect(client.search({ engine: "google_hotels", q: "B" })).resolves.toEqual({ status: "OK", data: { properties: [] } });
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(new URL(String(fetcher.mock.calls[0]![0])).searchParams.get("api_key")).toBe(KEY_1);
+    expect(new URL(String(fetcher.mock.calls[1]![0])).searchParams.get("api_key")).toBe(KEY_2);
+    expect(new URL(String(fetcher.mock.calls[2]![0])).searchParams.get("api_key")).toBe(KEY_2);
   });
 
   it("returns UNAVAILABLE on timeout and aborts the fetch signal without rotating key", async () => {

@@ -3,6 +3,7 @@ import {
   buildTripsageChatBody,
   changesItinerary,
   quickRepliesPartSchema,
+  resolveEffectiveJourney,
   summarizeItinerary,
   tripInfoSchema,
   tripsageItinerarySummarySchema,
@@ -29,7 +30,7 @@ describe("tripInfoSchema", () => {
 describe("second-cluster and clock defaults", () => {
   it("fills interests, pace, travelers and 07:00/18:00 clocks and names what was defaulted", () => {
     expect(withTripInfoDefaults({ transport: "CAR" })).toEqual({
-      info: { transport: "CAR", interests: ["NATURE", "ADVENTURE"], pace: "MODERATE", travelers: 2, departureMinute: 420, returnDeadlineMinute: 1080 },
+      info: { transport: "CAR", interests: ["NATURE", "ADVENTURE"], pace: "PACKED", travelers: 2, departureMinute: 420, returnDeadlineMinute: 1080 },
       defaulted: ["interests", "pace", "travelers", "departureMinute", "returnDeadlineMinute"],
     });
     expect(withTripInfoDefaults({ ...INFO, pace: "PACKED", travelers: 1, departureMinute: 360, returnDeadlineMinute: 1020 }).defaulted).toEqual([]);
@@ -83,5 +84,14 @@ describe("buildTripsageChatBody", () => {
     expect(buildTripsageChatBody({ messages: [], journey: null, tripInfo: null, itinerary: null })).toEqual({ messages: [], journey: null, tripInfo: null, currentItinerary: null, accessLeg: null, originCandidatesToken: null });
     const itinerary = { days: [] };
     expect(buildTripsageChatBody({ messages: [1], journey: null, tripInfo: INFO, itinerary, originCandidatesToken: "v1.a.b" })).toMatchObject({ tripInfo: INFO, currentItinerary: itinerary, originCandidatesToken: "v1.a.b" });
+  });
+});
+
+describe("resolveEffectiveJourney return clock (ADR-46)", () => {
+  const origin = { label: "Hà Nội", latitude: 21, longitude: 105, source: "MANUAL" as const, confirmed: true };
+  it("lets a drive-home-only final day leave at the departure clock unless the traveler chose one", () => {
+    expect(resolveEffectiveJourney({ origin, departureMinute: null, returnDeadlineMinute: null, returnDepartureMinute: null }, null)?.returnDepartureMinute).toBe(420);
+    expect(resolveEffectiveJourney({ origin, departureMinute: 360, returnDeadlineMinute: 1080, returnDepartureMinute: null }, null)?.returnDepartureMinute).toBe(360);
+    expect(resolveEffectiveJourney({ origin, departureMinute: 360, returnDeadlineMinute: 1080, returnDepartureMinute: 600 }, null)?.returnDepartureMinute).toBe(600);
   });
 });

@@ -1096,3 +1096,28 @@ A plan lists only the few catalogue stops the scheduler can fit. Travelers want 
 - One new table and migration (`20261122120000_trip_nearby_suggestion`); the migration is written but **not applied** to any shared database.
 - Up to 16 Places requests per plan (cost) with a 30-minute per-instance memory cache; move to a shared cache if instances multiply.
 - The browser supplies the place ids and names at save time, as it already does for chosen lodging; they are display-only and never trusted for validation.
+
+## ADR-46 — One-turn origin confirmation, fuller default days, return clock and live petrol price (2026-11-22)
+
+- **Status:** Accepted by the owner (2026-11-22, "đồng ý" to Q1–Q4 and "sao lại có suy nghĩ là giới hạn điểm vậy?"). Implemented. Amends ADR-43 §3 (two-turn confirmation of a searched origin) and ADR-44 (defaults).
+- **Date:** 2026-11-22
+
+### Decision
+
+1. **Origin.** When the traveler's message names the one place the search returned ("tôi xuất phát từ Đà Nẵng", or just "Đà Nẵng"), the server confirms it in the same turn (`statesSoleOrigin`, applied inside `findOrigin`). Several candidates, a different place than the one named, a contrast ("nhưng", "hay") or a negation still use the two-turn path. The model never supplies coordinates; the candidate comes from the server's own search.
+2. **Default pace.** The chat's default pace is `PACKED` ("Nhiều trải nghiệm", up to 4 stops a day) instead of `MODERATE`, so afternoons are not left empty by default. The 2/3/4 table is unchanged and the traveler can ask for a calmer pace; stops are still chosen by the planner and checked by the Validator.
+3. **Return clock.** A final day with no visit (only the drive home) leaves at the day-1 departure clock (07:00) unless the traveler chose another. Before this, that day had no start time, so the travel-time check stayed `INSUFFICIENT_DATA` and the trip could not be saved. The default is shown with the other clock defaults.
+4. **Petrol price.** The estimate reads the Petrolimex zone-2 price (E5 RON 92, else RON 95) from Petrolimex's public portal, cached six hours per instance; on any failure it keeps the fixed reference price. The approach is ported from the MIT-licensed VietFuelAPI (single source, no separate deployment). The undocumented endpoint and Petrolimex's terms for automated reads are not verified.
+5. **Free afternoon and evening suggestions (ADR-45 extension).** The server also looks up places for the free afternoon (`dN-free`, 8 km, café/viewpoint query) and evenings (5 km, café/night market query), and a night may repeat a place already shown for a visit.
+
+### Alternatives
+
+- Keep two-turn origin confirmation: rejected, the traveler had already stated the place.
+- Raise `MODERATE` to 4 for the whole system: rejected, it would also change the normal planner page.
+- Ask for the return clock: rejected, one more question for a value that rarely matters.
+- Deploy VietFuelAPI separately: rejected for now; its hosted address does not resolve and a second service is not needed for one price.
+
+### Consequences
+
+- Default plans are busier; tests that pinned `MODERATE` as the chat default were updated.
+- Cost lines may cite the Petrolimex price with its date; the fixed 23.000đ reference (`PRICE_REFERENCE`) is now only a fallback and is out of date (about 18.940đ at the 2026-11-19 table).

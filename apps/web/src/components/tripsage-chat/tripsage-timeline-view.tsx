@@ -213,7 +213,7 @@ export function TripsageTimelineView({
                     if (!nearby.length) return null;
                     return (
                       <div className="tripsage-nearby">
-                        <strong>{item.kind === "OVERNIGHT" ? "Buổi tối quanh chỗ nghỉ" : "Gần đây có thể ghé"}</strong>
+                        <strong>{item.kind === "OVERNIGHT" ? "Buổi tối quanh chỗ nghỉ" : item.kind === "FREE_TIME" ? "Chiều rảnh, có thể ghé" : "Gần đây có thể ghé"}</strong>
                         <span className="tripsage-nearby-note"> · gợi ý từ Google Maps, chưa kiểm tra</span>
                         <ul>
                           {nearby.map(suggestion => {

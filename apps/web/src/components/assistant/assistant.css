@@ -2752,3 +2752,12 @@
 .tripsage-nearby { margin: 0.4rem 0 0.2rem; padding: 0.5rem 0.75rem; border-radius: 10px; background: var(--assistant-soft); font-size: 0.9rem; }
 .tripsage-nearby-note { color: var(--assistant-muted, #5b6b60); font-size: 0.8rem; }
 .tripsage-nearby ul { margin: 0.35rem 0 0; padding-left: 1.1rem; display: grid; gap: 0.25rem; }
+
+/* Reply in progress: a quiet pill with three dots instead of a bare grey line. */
+.tripsage-thinking { display: inline-flex; align-items: center; gap: 0.6rem; margin: 0.5rem 0 0.25rem; padding: 0.55rem 0.95rem; border-radius: 999px; background: var(--assistant-soft); border: 1px solid var(--assistant-line); color: var(--assistant-muted); font-size: 0.92rem; }
+.tripsage-thinking-dots { display: inline-flex; gap: 0.25rem; }
+.tripsage-thinking-dots i { width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--assistant-green); opacity: 0.35; animation: tripsage-thinking-bounce 1.2s ease-in-out infinite; }
+.tripsage-thinking-dots i:nth-child(2) { animation-delay: 0.15s; }
+.tripsage-thinking-dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes tripsage-thinking-bounce { 0%, 80%, 100% { transform: translateY(0); opacity: 0.35; } 40% { transform: translateY(-0.25rem); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .tripsage-thinking-dots i { animation: none; opacity: 0.7; } }

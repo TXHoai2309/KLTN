@@ -40,7 +40,7 @@ export type CostPart = z.infer<typeof costPartSchema>;
 
 export type CostInput = {
   transport: TripTransport; travelers: number; days: number; distanceKm: number | null;
-  fuelVndPerLiter?: number; budgetCap?: number | null; lines: readonly CostLineInput[];
+  fuelVndPerLiter?: number; /** Where a live price came from, shown in the assumption line. */ fuelSource?: string; budgetCap?: number | null; lines: readonly CostLineInput[];
   /** Server-computed lines added before the model's (e.g. the access leg, ticket 04). */
   extraLines?: readonly CostLineInput[];
 };
@@ -57,7 +57,7 @@ export function estimateTripCost(input: CostInput): CostPart {
     // One motorbike per two travelers; one car for the group.
     const vehicles = input.transport === "MOTORCYCLE" ? Math.ceil(input.travelers / 2) : 1;
     lines.push({ category: "transport", label: "Xăng", amount: Math.round(liters * fuelPrice * vehicles), basis: `${Math.round(input.distanceKm)} km × ${litersPer100} L/100 km × ${formatVnd(fuelPrice)}/L${vehicles > 1 ? ` × ${vehicles} xe` : ""}`, computed: true });
-    assumptions.push(`Tiền xăng tính theo quãng đường của lịch (${Math.round(input.distanceKm)} km), giá xăng giả định ${formatVnd(fuelPrice)}/L${input.transport === "MOTORCYCLE" ? ", 2 người một xe máy" : ""}.`);
+    assumptions.push(`Tiền xăng tính theo quãng đường của lịch (${Math.round(input.distanceKm)} km), ${input.fuelSource ? `giá xăng ${formatVnd(fuelPrice)}/L (${input.fuelSource})` : `giá xăng giả định ${formatVnd(fuelPrice)}/L`}${input.transport === "MOTORCYCLE" ? ", 2 người một xe máy" : ""}.`);
   } else {
     assumptions.push("Chưa có quãng đường đã kiểm tra nên chưa tính tiền xăng.");
   }
