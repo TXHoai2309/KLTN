@@ -6140,3 +6140,9 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Added `SAVINGS_REFERENCE` and `computeBudgetSavingsChips` to `tripsage-cost.ts` (slim D21, BR-5, AC-7), wired clickable `"ước tính"` savings chips into `TripsageCostCard` + `TripsageChatClient` + `estimateCosts` tool return without auto-mutating the plan.
 - Added `apps/web/src/modules/tripsage-chat/tripsage-preference-labels.ts` and wired it into `proposeItinerary` (`tripsage-chat-tools.ts`): emits `"Săn mây"` (with early-morning hint) and dish-specific `"Ăn đặc sản"` suggestions ONLY when reviewed `lookupLocalKnowledge` documents contain evidence, never altering times or Validator inputs.
 - Checks: `vitest` PASS (15 files, 73/73 tests), `tsc --noEmit` PASS, `git diff --check` PASS.
+
+## 2026-11-23 — Traveler UI Redesign: Ticket 10 (plan summary card, desktop split panel & tablet drawer)
+
+- Created `TripsagePlanSummaryCard` (current summary card + dimmed 0.55 `"Đã có bản mới"` for older versions) and memoized `TripsagePlanPanel` (data-driven title, single primary `"Lưu chuyến"` → `"Mở chuyến đi"`, sub-tabs `Lịch trình · Chi phí · Kiểm tra`, container-query `< 760px` `Bản đồ` tab, `TravelerDayTabs`, `DayTimeline full` beside sticky `ItineraryMap`).
+- Wired `TripsageStreamedText` `onDone` callback into `TripsageChatClient` so quick-reply chips render only after streamed reply text finishes, and added `>= 1200px` split layout & `768–1199px` 560px drawer CSS in `assistant.css`.
+- Checks: `vitest` PASS (15 files, 76/76 tests), `tsc --noEmit` PASS, `git diff --check` PASS (status: `verified-offline`).

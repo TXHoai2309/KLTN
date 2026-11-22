@@ -2893,3 +2893,296 @@
   outline: 2px solid var(--tv-focus);
   outline-offset: 2px;
 }
+
+/* ==========================================================================
+   TICKET 10: PLAN SUMMARY CARD, DESKTOP SPLIT PANEL (>=1200px) & TABLET DRAWER (design §3.4 & §4.1)
+   ========================================================================== */
+.tripsage-plan-summary {
+  display: grid;
+  gap: var(--tv-space-2);
+  padding: 14px;
+  border-radius: var(--tv-radius-card);
+  border: 1px solid var(--tv-line);
+  background: var(--tv-surface);
+  color: var(--tv-ink);
+  box-shadow: none;
+}
+
+.tripsage-plan-summary.is-stale {
+  opacity: 0.55;
+}
+
+.tripsage-plan-summary-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tv-space-2);
+}
+
+.tripsage-plan-summary-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--tv-space-2);
+}
+
+.tripsage-plan-summary-heading strong {
+  font-size: var(--tv-text-md);
+  font-weight: 600;
+  color: var(--tv-ink);
+}
+
+.tripsage-plan-summary-meta {
+  font-size: var(--tv-text-sm);
+  color: var(--tv-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.tripsage-plan-summary-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tv-space-3);
+  font-size: var(--tv-text-sm);
+  color: var(--tv-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.tripsage-plan-summary-cost {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tv-space-2);
+  font-weight: 500;
+  color: var(--tv-ink);
+}
+
+.tripsage-plan-summary-warn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--tv-warn);
+  font-size: var(--tv-text-xs);
+  font-weight: 500;
+}
+
+.tripsage-plan-summary-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--tv-accent);
+  font-size: var(--tv-text-xs);
+  font-weight: 500;
+}
+
+.tripsage-plan-summary-check.has-warn {
+  color: var(--tv-warn);
+}
+
+.tripsage-plan-summary-actions {
+  display: flex;
+  align-items: center;
+  margin-top: 2px;
+}
+
+/* Plan panel: desktop sticky right column (>=1200px), tablet 560px drawer (768–1199px), mobile bottom sheet (<768px) */
+.tripsage-panel-backdrop {
+  display: none;
+}
+
+.tripsage-plan-panel {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+  border-left: 1px solid var(--tv-line);
+  background: var(--tv-ground);
+  color: var(--tv-ink);
+  overflow: hidden;
+}
+
+.tripsage-sheet-handle,
+.tripsage-sheet-footer {
+  display: none;
+}
+
+.tripsage-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--tv-space-3);
+  padding: var(--tv-space-4);
+  border-bottom: 1px solid var(--tv-line);
+  background: var(--tv-surface);
+}
+
+.tripsage-panel-title-wrap {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tripsage-panel-title {
+  margin: 0;
+  font-family: var(--tv-font-title);
+  font-size: var(--tv-text-xl);
+  font-weight: 600;
+  line-height: var(--tv-leading-xl);
+  color: var(--tv-ink);
+}
+
+.tripsage-panel-meta {
+  margin: 0;
+  font-size: var(--tv-text-sm);
+  color: var(--tv-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.tripsage-panel-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--tv-space-2);
+  flex-shrink: 0;
+}
+
+.tripsage-panel-close {
+  display: none;
+}
+
+.tripsage-panel-subtabs {
+  display: flex;
+  align-items: center;
+  gap: var(--tv-space-1);
+  padding: 0 var(--tv-space-4);
+  border-bottom: 1px solid var(--tv-line);
+  background: var(--tv-surface);
+}
+
+.tripsage-panel-subtab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 var(--tv-space-3);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--tv-ink-2);
+  font-family: var(--tv-font-ui);
+  font-size: var(--tv-text-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tripsage-panel-subtab.is-active {
+  color: var(--tv-accent);
+  border-bottom-color: var(--tv-accent);
+}
+
+.tripsage-panel-subtab--map {
+  display: none;
+}
+
+.tripsage-panel-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: var(--tv-space-4);
+  display: grid;
+  gap: var(--tv-space-4);
+  align-content: start;
+}
+
+.tripsage-panel-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 42%);
+  gap: var(--tv-space-4);
+  align-items: start;
+}
+
+.tripsage-panel-map-col {
+  position: sticky;
+  top: 0;
+  min-width: 0;
+}
+
+.tripsage-panel-map-col .planner-map,
+.tripsage-panel-map-tab .planner-map {
+  height: 460px;
+  border-radius: var(--tv-radius-card);
+  border: 1px solid var(--tv-line);
+  overflow: hidden;
+}
+
+.tripsage-panel-checks {
+  display: grid;
+  gap: var(--tv-space-3);
+}
+
+.tripsage-panel-warnings {
+  margin: 0;
+  padding-left: var(--tv-space-5);
+  color: var(--tv-ink-2);
+  font-size: var(--tv-text-sm);
+  display: grid;
+  gap: 4px;
+}
+
+/* Panel narrower than 760px: move map into its own sub-tab (design §4.1) */
+@container (max-width: 759px) {
+  .tripsage-panel-subtab--map {
+    display: inline-flex;
+  }
+
+  .tripsage-panel-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tripsage-panel-map-col {
+    display: none;
+  }
+}
+
+/* Desktop >= 1200px split-screen when plan exists (design §4.1) */
+@media (min-width: 1200px) {
+  .assistant-chat.has-plan .assistant-chat-main {
+    flex: 0 0 460px;
+    max-width: 480px;
+    min-width: 440px;
+  }
+
+  .assistant-chat.has-plan .tripsage-plan-panel {
+    flex: 1 1 auto;
+  }
+}
+
+/* Tablet 768px–1199px: right slide-over drawer 560px wide (design §4.1) */
+@media (max-width: 1199px) and (min-width: 768px) {
+  .tripsage-panel-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    background: var(--tv-scrim);
+  }
+
+  .tripsage-plan-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 50;
+    width: min(560px, 92vw);
+    border-left: 1px solid var(--tv-line);
+    box-shadow: var(--tv-shadow-float);
+    transform: translateX(100%);
+    transition: transform var(--tv-motion-normal);
+  }
+
+  .tripsage-plan-panel.is-open {
+    transform: translateX(0);
+  }
+
+  .tripsage-panel-close {
+    display: inline-flex;
+  }
+}

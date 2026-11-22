@@ -7,10 +7,11 @@ import { TripsageMarkdown } from "./tripsage-markdown";
  * Shows a reply that arrives in bursts as steady typing. A message first mounted while the turn is streaming types in and then
  * stays full; a stored or finished message renders in full at once. Reduced-motion users always get the full text.
  */
-export function TripsageStreamedText({ text, live }: { text: string; live: boolean }) {
+export function TripsageStreamedText({ text, live, onDone }: { text: string; live: boolean; onDone?: () => void }) {
   const animated = useRef(live);
   const [shown, setShown] = useState(live ? 0 : text.length);
   const target = useRef(text.length);
+  const notified = useRef(!live);
   target.current = text.length;
 
   useEffect(() => {
@@ -30,7 +31,15 @@ export function TripsageStreamedText({ text, live }: { text: string; live: boole
     return () => cancelAnimationFrame(frame);
   }, [text.length]);
 
-  useEffect(() => { if (!live && shown >= text.length) animated.current = false; }, [live, shown, text.length]);
+  useEffect(() => {
+    if (!live && shown >= text.length) {
+      animated.current = false;
+      if (!notified.current) {
+        notified.current = true;
+        onDone?.();
+      }
+    }
+  }, [live, shown, text.length, onDone]);
 
   return <TripsageMarkdown text={shown >= text.length ? text : text.slice(0, shown)} />;
 }

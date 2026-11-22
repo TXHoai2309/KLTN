@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { travelerButtonClassName } from "@/components/traveler-ui/traveler-button";
 import type { PlannerResult } from "@/modules/trip-planner/planner-contract";
 import type { TripsageTripInfo } from "@/modules/tripsage-chat/tripsage-chat-context";
 import { chatSavePlan, createChatSaveController, type ChatSaveView } from "@/modules/tripsage-chat/tripsage-chat-save";
@@ -24,6 +25,8 @@ export function TripsageSaveSection({
   chosenLodgings,
   suggestions,
   pinnedItems,
+  primaryLabel = "Lưu hành trình",
+  buttonSize = "md",
   onSaved,
   onStateChange,
 }: {
@@ -34,6 +37,8 @@ export function TripsageSaveSection({
   suggestions?: readonly TimelineSuggestion[];
   /** ADR-47: items pinned before saving; they are stored with the trip. */
   pinnedItems?: readonly PinnedItem[];
+  primaryLabel?: string;
+  buttonSize?: "md" | "lg";
   onSaved?: (tripId: string) => void;
   onStateChange?: (state: SaveState) => void;
 }) {
@@ -49,8 +54,12 @@ export function TripsageSaveSection({
   if (blockingAssumed.length > 0) {
     return (
       <div className="tripsage-save" aria-live="polite">
-        <button type="button" className="assistant-save-button" disabled>
-          Lưu hành trình
+        <button
+          type="button"
+          className={travelerButtonClassName({ variant: "primary", size: buttonSize, className: "assistant-save-button" })}
+          disabled
+        >
+          {primaryLabel}
         </button>
         <p role="note" className="assistant-muted">{formatAssumedConfirmationMessage(blockingAssumed)}</p>
       </div>
@@ -98,7 +107,15 @@ export function TripsageSaveSection({
   if (view.state === "success" && view.tripId) {
     return (
       <div className="tripsage-save" aria-live="polite">
-        <p role="status">Đã lưu hành trình. <Link href={`/trips/${encodeURIComponent(view.tripId)}`}>Mở chuyến đi</Link></p>
+        <p role="status">
+          Đã lưu.{" "}
+          <Link
+            className={travelerButtonClassName({ variant: "primary", size: buttonSize })}
+            href={`/trips/${encodeURIComponent(view.tripId)}`}
+          >
+            Mở chuyến đi
+          </Link>
+        </p>
         {view.unchecked.length > 0 && <p role="note" className="assistant-muted">Hành trình được lưu kèm {view.unchecked.length} mục chưa kiểm; các mục này không được tính là đã đạt.</p>}
       </div>
     );
@@ -118,11 +135,16 @@ export function TripsageSaveSection({
           </label>
         </div>
       )}
-      <button type="button" className="assistant-save-button" disabled={view.state === "pending" || (unresolved && !confirmed)} onClick={() => void save()}>
-        {view.state === "pending" ? "Đang lưu…" : view.state === "unknown" ? "Kiểm tra lại kết quả lưu" : unresolved ? "Xác nhận và lưu hành trình" : "Lưu hành trình"}
+      <button
+        type="button"
+        className={travelerButtonClassName({ variant: "primary", size: buttonSize, className: "assistant-save-button" })}
+        disabled={view.state === "pending" || (unresolved && !confirmed)}
+        onClick={() => void save()}
+      >
+        {view.state === "pending" ? "Đang lưu…" : view.state === "unknown" ? "Kiểm tra lại kết quả lưu" : unresolved ? "Xác nhận và lưu hành trình" : primaryLabel}
       </button>
       {view.state === "idle" && <p role="note" className="assistant-muted">Lịch trình chưa được lưu.</p>}
-      {view.state === "failed" && <p role="alert" style={{ color: "#b42318" }}>{view.message}</p>}
+      {view.state === "failed" && <p role="alert" style={{ color: "var(--tv-danger)" }}>{view.message}</p>}
       {view.state === "unknown" && <p role="status">{view.message}</p>}
     </div>
   );

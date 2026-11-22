@@ -48,13 +48,13 @@ import { TripsageChatNotice } from "./tripsage-chat-notice";
 import { TripsageStreamedText } from "./tripsage-streamed-text";
 import { readConversationState } from "./tripsage-conversation-state";
 import { TripsageCostCard } from "./tripsage-cost-card";
-import { parseItineraryPart, TripsageItineraryView } from "./tripsage-itinerary-view";
+import { parseItineraryPart } from "./tripsage-itinerary-view";
 import { TripsageMarkdown } from "./tripsage-markdown";
 import { TripsageMemoryPanel } from "./tripsage-memory-panel";
+import { TripsagePlanPanel } from "./tripsage-plan-panel";
+import { TripsagePlanSummaryCard } from "./tripsage-plan-summary-card";
 import { readTripsageResultTurns, TripsageResultCards } from "./tripsage-result-cards";
-import { TripsageSaveSection } from "./tripsage-save-section";
 import { parseSourcesPart, TripsageSourcesView } from "./tripsage-sources-view";
-import { TripsageTimelineView } from "./tripsage-timeline-view";
 
 /**
  * Lifts the answer's closing question out of the prose so it sits right above its quick-reply buttons.
@@ -269,6 +269,31 @@ export function TripsageChatClient({
       return next;
     });
   }
+
+  const [planDrawerOpen, setPlanDrawerOpen] = useState(false);
+  const [finishedTextIds, setFinishedTextIds] = useState<ReadonlySet<string>>(() => new Set());
+
+  const planVersions = useMemo(() => {
+    const map = new Map<string, { version: number; proposal: NonNullable<ReturnType<typeof parseItineraryPart>> }>();
+    let count = 0;
+    for (const msg of messages) {
+      if (msg.role !== "assistant") continue;
+      const plan = msg.parts
+        .map(part => (part.type === "data-itinerary" ? parseItineraryPart(part.data) : null))
+        .filter(Boolean)
+        .at(-1);
+      if (plan) {
+        count += 1;
+        map.set(msg.id, { version: count, proposal: plan });
+      }
+    }
+    return map;
+  }, [messages]);
+
+  const reconciledPinned = useMemo(
+    () => reconcileAccessPins(pinned, state.accessLeg?.data),
+    [pinned, state.accessLeg?.data],
+  );
 
   bodyRef.current = {
     journey: state.journey,
@@ -508,8 +533,17 @@ export function TripsageChatClient({
   const composer = useRef<HTMLTextAreaElement>(null);
   const subject = initialContext?.type === "DESTINATION" && destinationName?.trim() ? destinationName.trim() : "Hà Giang";
 
+  const hasActivePlan = Boolean(latestItinerary && !legacyReadOnly);
+
   return (
-    <section className="assistant-chat assistant-v2-chat" data-runtime="tripsage-unified" aria-label="Trợ lý AI" aria-busy={busy || loadingConversation} lang="vi">
+    <section
+      className={`assistant-chat assistant-v2-chat${hasActivePlan ? " has-plan" : ""}`}
+      data-runtime="tripsage-unified"
+      data-has-plan={hasActivePlan ? "true" : "false"}
+      aria-label="Trợ lý AI"
+      aria-busy={busy || loadingConversation}
+      lang="vi"
+    >
       <AssistantSidebar
         conversations={conversations}
         activeConversationId={activeConversationId}
@@ -620,7 +654,9 @@ export function TripsageChatClient({
                 <div className="assistant-messages" aria-live="polite">
                   {messages.map(message => {
                     const text = message.parts.map(part => (part.type === "text" ? part.text : "")).join("");
+                    const planEntry = planVersions.get(message.id) ?? null;
                     const itinerary = message.role === "assistant" && message.id === lastItineraryMessageId ? latestItinerary : null;
+                    const isCurrentPlanMessage = Boolean(itinerary && planEntry);
                     const sources = message.role === "assistant" ? [...message.parts].reverse().map(part => (part.type === "data-sources" ? parseSourcesPart(part.data) : null)).find(Boolean) ?? [] : [];
                     const resultParts = resultTurns.get(message.id)?.filter(part => part.type !== "data-budget" || message.id === latestBudgetMessageId) ?? [];
                     const candidateButtons = state.originCandidates?.messageId === message.id && !busy ? state.originCandidates.candidates.map(c => c.label) : [];
@@ -636,56 +672,62 @@ export function TripsageChatClient({
                       && (state.accessLeg.messageId !== message.id || !isCurrentAccessLeg(messageAccessLeg, state.accessLeg.data)),
                     );
                     const accessLeg = messageAccessLeg;
-                    const hasCards = Boolean(cost || accessLeg || itinerary || resultParts.length);
+                    const hasCards = Boolean(cost || accessLeg || planEntry || resultParts.length);
                     const live = busy && message.id === messages.at(-1)?.id;
+                    const isTextDone = !live && (!text || message.id !== messages.at(-1)?.id || finishedTextIds.has(message.id) || !busy);
                     // The closing question sits under the cards and buttons it refers to, never above them.
                     const { body, question } = message.role === "assistant" && (replies.length > 0 || hasCards) ? splitTrailingQuestion(text) : { body: text, question: null };
-                    if (!text && !itinerary && !sources.length && !resultParts.length && !replies.length && !cost && !accessLeg) return null;
+                    if (!text && !planEntry && !sources.length && !resultParts.length && !replies.length && !cost && !accessLeg) return null;
                     return message.role === "user" ? (
                       <article key={message.id} className="assistant-message assistant-user"><p>{text}</p></article>
                     ) : (
                       <article key={message.id} className="assistant-message assistant-answer">
                         <span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true" /><span>Trợ lý AI</span></span>
-                        {body && <TripsageStreamedText text={body} live={live} />}
-                        {/* Cards wait until the reply has been written, so the answer reads first and the cards appear under it. */}
-                        {(cost || accessLeg || itinerary) && !live && (
-                          <details className="tripsage-plan-details" open={!(itinerary && planUnchanged)}>
-                            <summary>Lịch trình và chi phí ước tính</summary>
-                            {cost && (
-                              <TripsageCostCard
-                                cost={cost}
-                                pins={pinControl}
-                                accessLeg={state.accessLeg?.data ?? null}
-                                onSelectSavingsOption={prompt => send(prompt)}
-                              />
-                            )}
-                            {accessLeg && !itinerary && (
-                              <TripsageAccessLegCard
-                                leg={accessLeg}
-                                isStale={isStaleAccessLeg}
-                                pins={isStaleAccessLeg ? undefined : pinControl}
-                              />
-                            )}
-                            {itinerary && state.timeline && (
-                              <TripsageTimelineView
-                                timeline={state.timeline}
-                                suggestions={state.suggestions}
-                                chosenLodgings={chosenLodgings}
-                                onToggleChosenLodging={handleToggleChosenLodging}
-                                onRequestMeals={day => send(`Tìm giúp mình quán ăn trưa cho ngày ${day}.`)}
-                                pins={pinControl}
-                                accessLeg={state.accessLeg?.data ?? null}
-                                travel={travelDays}
-                                onAskAccess={() => send(`So sánh giúp mình cách đi từ ${travelDays?.homeCity} ra ${travelDays?.hubName} cho cả đoàn.`)}
-                              />
-                            )}
-                            {itinerary && <TripsageItineraryView proposal={itinerary}>{!busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} tripInfo={state.tripInfo} chosenLodgings={chosenLodgings} suggestions={state.suggestions} pinnedItems={reconcileAccessPins(pinned, state.accessLeg?.data)} onSaved={handleTripSaved} onStateChange={setSaveState} />)}</TripsageItineraryView>}
-                          </details>
+                        {body && (
+                          <TripsageStreamedText
+                            text={body}
+                            live={live}
+                            onDone={() => {
+                              setFinishedTextIds(prev => {
+                                if (prev.has(message.id)) return prev;
+                                const next = new Set(prev);
+                                next.add(message.id);
+                                return next;
+                              });
+                            }}
+                          />
+                        )}
+                        {/* Slim B6: in chat messages, show compact Plan Summary Card; full timeline/map/cost lives in TripsagePlanPanel */}
+                        {planEntry && !live && (
+                          <TripsagePlanSummaryCard
+                            version={planEntry.version}
+                            proposal={planEntry.proposal}
+                            cost={isCurrentPlanMessage ? (state.cost?.data ?? cost) : null}
+                            isCurrent={isCurrentPlanMessage}
+                            isPanelOpen={planDrawerOpen}
+                            onOpenPanel={isCurrentPlanMessage ? () => setPlanDrawerOpen(true) : undefined}
+                          />
+                        )}
+                        {/* Standalone cost or access-leg card when no itinerary exists in this turn */}
+                        {!planEntry && cost && !live && (
+                          <TripsageCostCard
+                            cost={cost}
+                            pins={pinControl}
+                            accessLeg={state.accessLeg?.data ?? null}
+                            onSelectSavingsOption={prompt => send(prompt)}
+                          />
+                        )}
+                        {!planEntry && accessLeg && !live && (
+                          <TripsageAccessLegCard
+                            leg={accessLeg}
+                            isStale={isStaleAccessLeg}
+                            pins={isStaleAccessLeg ? undefined : pinControl}
+                          />
                         )}
                         <TripsageSourcesView sources={sources} />
                         {!live && <TripsageResultCards parts={resultParts} pins={pinControl} />}
                         {replies.length === 0 && question && <p className="tripsage-next-question">{question}</p>}
-                        {replies.length > 0 && (
+                        {replies.length > 0 && isTextDone && (
                           <div className="tripsage-next-step">
                             {question && <p className="tripsage-next-question">{question}</p>}
                             <div className="tripsage-quick-replies" role="group" aria-label={question ?? "Gợi ý trả lời nhanh"}>
@@ -760,6 +802,32 @@ export function TripsageChatClient({
           </div></div>
         )}
       </div>
+
+      {hasActivePlan && latestItinerary && (
+        <TripsagePlanPanel
+          key={latestItinerary.proposalId}
+          proposal={latestItinerary}
+          timeline={state.timeline}
+          suggestions={state.suggestions}
+          cost={state.cost?.data ?? null}
+          accessLeg={state.accessLeg?.data ?? null}
+          travel={travelDays}
+          tripInfo={state.tripInfo}
+          chosenLodgings={chosenLodgings}
+          pinnedItems={reconciledPinned}
+          pins={pinControl}
+          busy={busy}
+          noticePresent={Boolean(notice)}
+          drawerOpen={planDrawerOpen}
+          onCloseDrawer={() => setPlanDrawerOpen(false)}
+          onToggleChosenLodging={handleToggleChosenLodging}
+          onRequestMeals={day => send(`Tìm giúp mình quán ăn trưa cho ngày ${day}.`)}
+          onAskAccess={() => send(`So sánh giúp mình cách đi từ ${travelDays?.homeCity} ra ${travelDays?.hubName} cho cả đoàn.`)}
+          onSelectSavingsOption={prompt => send(prompt)}
+          onSaved={handleTripSaved}
+          onSaveStateChange={setSaveState}
+        />
+      )}
     </section>
   );
 }
