@@ -1,0 +1,69 @@
+name: Sprint 5 - US43 Dataset & Evaluation Rubric Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, master, kduy]
+    paths:
+      - "apps/web/src/modules/assistant-agent-v2/eval-metrics*"
+      - "apps/web/src/modules/assistant-planning/planning-evaluation*"
+      - "apps/web/src/modules/trip-validation/**"
+      - ".github/workflows/us43-dataset-eval-rubric-verification.yml"
+  pull_request:
+    paths:
+      - "apps/web/src/modules/assistant-agent-v2/eval-metrics*"
+      - "apps/web/src/modules/assistant-planning/planning-evaluation*"
+      - ".github/workflows/us43-dataset-eval-rubric-verification.yml"
+
+jobs:
+  verify-us43:
+    name: Run US-43 Evaluation Metrics & Feasibility Rubric Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies (root monorepo)
+        run: bun install --frozen-lockfile || npm ci
+
+      - name: Generate Prisma Client
+        run: npm run db:generate
+        env:
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci_test"
+
+      - name: Run US-43 Evaluation Metrics & Validator Rubric Suite
+        working-directory: apps/web
+        env:
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci_test"
+        run: |
+          set -o pipefail
+          {
+            echo "=== 1. Running RQ1 & RQ2 Evaluation Metrics Tests (SP5-43-008 & 010) ==="
+            EVAL_TESTS=$(find src -name "*eval*.vitest.test.ts")
+            if [ -n "$EVAL_TESTS" ]; then
+              npx vitest run --config vitest.config.mts $EVAL_TESTS --reporter=verbose
+            fi
+
+            echo "=== 2. Running Feasibility Validator Deterministic Tests ==="
+            npx vitest run --config vitest.config.mts \
+              src/modules/trip-validation/travel-time.vitest.test.ts \
+              src/modules/in-trip/in-trip-validation.vitest.test.ts \
+              --reporter=verbose
+          } | tee us43-ci-report.txt
+
+      - name: Upload US-43 Verification Evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: us43-verification-evidence
+          path: apps/web/us43-ci-report.txt
+          retention-days: 30
