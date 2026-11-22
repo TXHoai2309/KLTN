@@ -2,6 +2,7 @@ import { BedDouble, Plane, UtensilsCrossed, Wallet } from "lucide-react";
 
 import type { PinnedItem, SharedPin } from "@/modules/trip-save/trip-pin-contract";
 import { bookingComUrl, googleHotelsUrl } from "@/components/tripsage-chat/booking-links";
+import { TripsageAccessLegCard } from "@/components/tripsage-chat/tripsage-access-leg-card";
 
 type Item = PinnedItem | SharedPin;
 
@@ -99,6 +100,7 @@ export function TripPinnedSection({ items, shared = false }: { items: readonly I
             case "HOTEL": return <HotelCard key={index} item={item} />;
             case "MEAL": return <MealCard key={index} item={item} />;
             case "COST": return <CostCard key={index} item={item} />;
+            case "ACCESS": return <li key={index} className="trip-pinned-card trip-pinned-wide"><TripsageAccessLegCard leg={item.leg} /></li>;
           }
         })}
       </ul>

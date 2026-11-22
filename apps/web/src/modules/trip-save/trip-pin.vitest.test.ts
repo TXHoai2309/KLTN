@@ -9,6 +9,8 @@ import { lenientPinnedItemsSchema, MAX_PINNED_ITEMS, pinRequestSchema, readPinne
 import { tripSaveRequestSchema } from "./trip-save-contract";
 import type { FlightsPart, HotelsPart } from "../tripsage-chat/tripsage-chat-parts";
 import type { CostPart } from "../tripsage-chat/tripsage-cost";
+import { hubAt } from "../tripsage-chat/trip-hubs";
+import { TripsageAccessLegCard } from "../../components/tripsage-chat/tripsage-access-leg-card";
 
 const flights: FlightsPart = {
   roundTrip: true, adults: 2, returnDate: "2026-12-29", lookupDate: "2026-11-22",
@@ -84,5 +86,18 @@ describe("pinned items (ADR-47)", () => {
     const html = renderToStaticMarkup(createElement(TripsageResultCards, { parts: cards, pins: control }));
     expect(html).toContain("Ghim vào chuyến đi");
     expect(html).toContain("Đã ghim, sẽ lưu cùng chuyến");
+  });
+  it("keeps the way to the meeting hub with the owner and never shares it", () => {
+    const leg = { hubName: "Hà Nội (bến xe Mỹ Đình)", homeCity: "Đà Nẵng", travelers: 10, outboundMinutes: 80, returnMinutes: 90, totalVnd: 0,
+      outbound: [{ mode: "FLIGHT", from: "Đà Nẵng", to: "Hà Nội", durationMinutes: 80, priceVndPerPerson: 0 }],
+      return: [{ mode: "FLIGHT", from: "Hà Nội", to: "Đà Nẵng", durationMinutes: 90, priceVndPerPerson: 0 }] };
+    const items = lenientPinnedItemsSchema.parse([{ kind: "ACCESS", leg }]);
+    expect(items).toHaveLength(1);
+    expect(shareablePins(items)).toEqual([]);
+    const html = renderToStaticMarkup(createElement(TripsageAccessLegCard, { leg: items[0]!.kind === "ACCESS" ? items[0]!.leg : (null as never), only: "outbound" }));
+    expect(html).toContain("Trước ngày 1 · Đà Nẵng → Hà Nội (bến xe Mỹ Đình)");
+    expect(html).toContain("chưa có giá");
+    expect(hubAt({ latitude: 21.0287, longitude: 105.7782 })?.id).toBe("HA_NOI");
+    expect(hubAt({ latitude: 16.05, longitude: 108.2 })).toBeNull();
   });
 });

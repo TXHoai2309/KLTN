@@ -5999,3 +5999,10 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - UI: composer grows to six lines, more space above it, access leg shows "chưa có giá" instead of 0đ.
 - Not done: lunch picks that explain the choice and attach only on tap (item 4), and a draft progress bar (item 8). Not verified in a browser.
 - Flights (owner decision): price one adult and multiply by the group size, so groups above 9 work; caps raised to 20. Hotels stay room-based (2 guests per room) because a hotel price is per room, not per person.
+
+## 2026-11-22 — Whole journey in the plan, meeting point in the shared trip
+
+- Chat: when the trip starts at a hub after an access leg (e.g. Đà Nẵng → Hà Nội), the itinerary shows the way to the hub before day 1 and the way home after the last day.
+- Saved trip: the access leg is saved as an owner-only pinned item `ACCESS` (ADR-47 table, no migration) and shown on the trip page. It names the home city, so it is never shared.
+- Shared trip: when the saved origin is a fixed public hub (Hà Nội Mỹ Đình, TP Hà Giang), companions get `meetingPoint` (the hub and the route plan from it, when the visits still match) and see "Điểm tập kết"; any other origin stays private.
+- Not verified in a browser.

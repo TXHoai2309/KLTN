@@ -2,6 +2,8 @@ import { z } from "zod";
 import { companionIdSchema, companionIntroductionSchema } from "./companion-contract";
 import { companionSequenceSchema } from "./companion-chat-contract";
 import { sharedPinSchema } from "../trip-save/trip-pin-contract";
+import { originSelectionSchema } from "../trip-origin/trip-origin-contract";
+import { journeyPlanSchema } from "../trip-origin/journey-route-contract";
 
 export const companionConfirmSchema = z.object({ confirm: z.literal(true) }).strict();
 export const companionGroupMutationSchema = z.object({ publicationId: companionIdSchema }).strict();
@@ -14,6 +16,8 @@ export const companionGroupSchema = z.object({
   canSend: z.boolean().optional(), canceledAt: z.iso.datetime().nullable().optional(),
   /** ADR-47: pinned stays, meals and the lodging/food part of the cost. Flights, fares, transport and the total stay with the host. */
   sharedPins: z.array(sharedPinSchema).max(24).optional(),
+  /** Only when the trip starts at a fixed public hub (Hà Nội, TP Hà Giang): the group sees the route from that meeting point. A home address is never shared. */
+  meetingPoint: z.object({ origin: originSelectionSchema, plan: journeyPlanSchema.nullable() }).strict().optional(),
   itinerary: z.object({
     days: z.array(z.object({
       dayIndex: z.number().int().positive(), localDate: z.iso.date(),

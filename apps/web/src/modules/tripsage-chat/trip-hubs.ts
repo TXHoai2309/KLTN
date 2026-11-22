@@ -10,6 +10,10 @@ export const TRIP_HUBS = [
 ] as const;
 export type TripHubId = (typeof TRIP_HUBS)[number]["id"];
 
+/** The fixed hub at these coordinates, if any: a public meeting point that may be shown to companions. */
+export const hubAt = (point: { latitude: number; longitude: number }) =>
+  TRIP_HUBS.find(hub => Math.abs(hub.latitude - point.latitude) < 1e-4 && Math.abs(hub.longitude - point.longitude) < 1e-4) ?? null;
+
 /** A hub chosen by the traveler's own click is a confirmed origin; nothing here is picked by the model. */
 export function hubOrigin(id: TripHubId): OriginSelection {
   const hub = TRIP_HUBS.find(item => item.id === id)!;

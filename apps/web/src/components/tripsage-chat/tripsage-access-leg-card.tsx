@@ -36,7 +36,17 @@ function Segments({ title, segments, minutes }: { title: string; segments: Acces
 }
 
 /** Estimated access leg to a trip hub (ADR-42 §4). Not validated, not booked, not saved. */
-export function TripsageAccessLegCard({ leg }: { leg: AccessLegPart }) {
+/** `only` shows one direction inside the itinerary: the way to the hub before day 1, the way home after the last day. */
+export function TripsageAccessLegCard({ leg, only }: { leg: AccessLegPart; only?: "outbound" | "return" }) {
+  if (only) {
+    return (
+      <section className="tripsage-access tripsage-access-inline" aria-label={only === "outbound" ? "Chặng đi tới điểm tập kết" : "Chặng về nhà"}>
+        {only === "outbound"
+          ? <Segments title={`Trước ngày 1 · ${leg.homeCity} → ${leg.hubName}`} segments={leg.outbound} minutes={leg.outboundMinutes} />
+          : <Segments title={`Sau ngày cuối · ${leg.hubName} → ${leg.homeCity}`} segments={leg.return} minutes={leg.returnMinutes} />}
+      </section>
+    );
+  }
   const hasGoogleFlights = [...leg.outbound, ...leg.return].some(segment => segment.priceSource === "GOOGLE_FLIGHTS");
   return (
     <section className="tripsage-access" aria-label="Chặng tiếp cận">
