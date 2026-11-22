@@ -1027,3 +1027,32 @@ ADR-42 delivered the planning concierge on a separate `/assistant/plan` tab. In 
 - Q&A for signed-in travelers moves from the citation-verified Q&A pipeline to the agent with source chips; answer style and grounding differ from the Q&A service.
 - Origin resolution depends on the origin search provider; when it is unavailable, planning waits for a hub choice.
 - Rollback before V2 deletion is the `TRIPSAGE_CHAT_ENABLED` flag; after it, reverting the deletion commit.
+
+## ADR-44 — Assumed draft first, then ask (2026-11-22)
+
+- **Status:** Accepted by the owner (design interview Q18–Q22, 2026-11-22, "có"). Not implemented yet. Spec: [assistant-answers-place-preview-spec.md](specs/assistant-answers-place-preview-spec.md). Amends ADR-43 §2 (case A) and the intake order of ADR-42.
+- **Date:** 2026-11-22
+
+### Context
+
+ADR-42/43 made the assistant collect origin, dates/duration and transport before any itinerary appears. In use, the owner found the first turns slow and form-like compared with general assistants, which show a sample itinerary immediately and ask afterwards.
+
+### Decision
+
+1. When the traveler states a wish to plan without enough information, the assistant produces an **assumed draft** in the same turn: origin = fixed hub Hà Nội, 4 days 3 nights, motorbike, departure = the nearest reasonable Saturday from today (Vietnam time). Values the traveler did state are used instead of assumptions.
+2. The assumed draft goes through the normal scheduler and Constraint Validator. Assumed values are marked as assumptions in trip info, the needs line and the reply.
+3. Saving requires the traveler to confirm the origin and the departure date; a draft with assumed origin or date cannot be saved.
+4. After the draft the assistant states its assumptions in one line and asks one question about the most important one (origin or date); other assumptions become quick replies.
+5. Each scheduled visit may carry one line of "what to do here" taken from the destination catalog or reviewed documents; the model may rephrase but not add facts.
+
+### Alternatives
+
+- Keep asking first (ADR-43 case A): rejected by the owner as slow and rigid.
+- Free-text sample itinerary written by the model: rejected; times must still come from the scheduler and be checked.
+- Assume the traveler's home as origin: rejected; no location is known, and a fixed hub needs no geocoding.
+
+### Consequences
+
+- Trip info needs an "assumed" marker per field; save readiness must check it.
+- The chat-only origin confirmation of ADR-43 still applies when the traveler changes the origin.
+- More first-turn tool work (routing, planning) per new conversation; admission limits are unchanged.

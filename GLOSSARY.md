@@ -86,6 +86,14 @@ _Avoid_: Scheduled visit, verified stop.
 Một nơi lưu trú bên ngoài danh mục điểm đến được gợi ý cho một đêm của chuyến đi, luôn được đánh dấu là chưa kiểm tra. Gợi ý chỗ nghỉ không phải là đặt phòng và không phải là lượt tham quan.
 _Avoid_: Booking, overnight stop, destination.
 
+**Chosen lodging (chỗ nghỉ đã chọn)**:
+Gợi ý chỗ nghỉ mà người đi chọn cho một đêm cụ thể; mỗi đêm có tối đa một chỗ nghỉ đã chọn, được giữ cùng đề xuất và chuyến đi đã lưu. Vẫn là chưa kiểm tra: không phải đặt phòng, không đổi mốc giờ, không ảnh hưởng kết quả kiểm tra hay bảng chi phí ước tính.
+_Avoid_: Booking, reservation, overnight stop.
+
+**Place preview (xem nhanh địa điểm)**:
+Khung xem vị trí và thông tin công khai của một địa điểm (bản đồ, đánh giá) mở ngay trong trang, không rời ứng dụng. Chỉ có cho điểm đến trong danh mục và gợi ý do hệ thống tìm được, không có cho tên địa điểm trợ lý tự viết.
+_Avoid_: Browser popup window, verified place, booking page.
+
 **Cost estimate (bảng chi phí ước tính)**:
 Bảng các khoản chi dự kiến của chuyến đi theo từng nhóm và tổng cộng. Số tiền là ước tính, không phải giá đã xác nhận.
 _Avoid_: Quote, verified price, booking total.
@@ -101,6 +109,10 @@ _Avoid_: Return leg, roadside driving leg, verified journey.
 **Price reference (bảng giá tham khảo)**:
 Tài liệu được duyệt ghi các mức giá phổ biến cho chuyến đi Hà Giang, kèm ngày cập nhật, làm cơ sở cho bảng chi phí ước tính.
 _Avoid_: Live price, quote.
+
+**Assumed draft (bản nháp giả định)**:
+Một đề xuất hành trình trợ lý lập ngay khi người dùng mới nói muốn đi, dựa trên các giá trị giả định được ghi rõ (điểm tập kết, số ngày, phương tiện, ngày đi). Bản nháp vẫn được xếp giờ và kiểm tra như mọi đề xuất, nhưng không lưu được cho đến khi người dùng xác nhận nơi xuất phát và ngày đi.
+_Avoid_: Saved trip, confirmed itinerary, sample itinerary viết tay.
 
 **Planning intent confirmation (xác nhận muốn lập lịch)**:
 Câu trợ lý hỏi lại khi người đang hỏi đáp chuyển sang muốn lập lịch, nêu những gì nó đã hiểu để người dùng đồng ý. Không cần khi người dùng mở đầu bằng yêu cầu lập lịch rõ ràng.
