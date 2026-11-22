@@ -62,6 +62,78 @@ _Avoid_: Hidden destination, unavailable destination.
 The single calendar date intended for the start of the traveler's trip, including its day, month and year.
 _Avoid_: Indicative departure window, number of trip days.
 
+**Trip origin (nơi xuất phát)**:
+Địa điểm người đi bắt đầu hành trình, bao gồm chặng từ đó đến khu vực tham quan Hà Giang. Nơi xuất phát khác với điểm tham quan đầu tiên và vị trí hiện tại khi đang đi.
+_Avoid_: First attraction, current in-trip location, departure date.
+
+**Return leg (chặng về)**:
+Chặng di chuyển từ điểm tham quan cuối cùng quay về nơi xuất phát trong ngày cuối của chuyến đi.
+_Avoid_: Last attraction, trip completion.
+
+**Roadside rest allowance (thời gian nghỉ dọc đường dự kiến)**:
+Khoảng thời gian hệ thống dành thêm để nghỉ trong các chặng di chuyển của lịch trình, tách biệt với thời gian chạy xe ước tính.
+_Avoid_: Verified driving time, actual rest time, lodging.
+
+**Day timeline (timeline trong ngày)**:
+Trình tự thời gian của một ngày trong đề xuất hành trình: khởi hành, chặng đi, lượt tham quan, nghỉ trưa, nghỉ đêm và chặng về. Các mốc giờ trong timeline là mốc đã được lập và kiểm tra; gợi ý đi kèm không làm đổi mốc giờ.
+_Avoid_: Free-text itinerary, AI-written schedule.
+
+**Planning suggestion (gợi ý kèm lịch)**:
+Lời khuyên do trợ lý thêm vào một khoảng trong timeline, như ăn ở đâu hay mẹo đi lại. Gợi ý không phải là lượt tham quan, không được kiểm tra ràng buộc và không làm đổi mốc giờ.
+_Avoid_: Scheduled visit, verified stop.
+
+**Nearby activity suggestion (gợi ý vui chơi quanh đây)**:
+Một địa điểm vui chơi hoặc tham quan gần một điểm dừng, hoặc một nơi đi chơi buổi tối gần chỗ nghỉ, hệ thống tự tìm cho mỗi chặng của hành trình. Là dữ liệu bản đồ chưa kiểm tra, được giữ cùng chuyến đi đã lưu để người đi biết; không phải là lượt tham quan, không chiếm giờ trong timeline và không ảnh hưởng kết quả kiểm tra hay chi phí.
+_Avoid_: Scheduled visit, verified stop, destination.
+
+**Lodging suggestion (gợi ý chỗ nghỉ)**:
+Một nơi lưu trú bên ngoài danh mục điểm đến được gợi ý cho một đêm của chuyến đi, luôn được đánh dấu là chưa kiểm tra. Gợi ý chỗ nghỉ không phải là đặt phòng và không phải là lượt tham quan.
+_Avoid_: Booking, overnight stop, destination.
+
+**Chosen lodging (chỗ nghỉ đã chọn)**:
+Gợi ý chỗ nghỉ mà người đi chọn cho một đêm cụ thể; mỗi đêm có tối đa một chỗ nghỉ đã chọn, được giữ cùng đề xuất và chuyến đi đã lưu. Vẫn là chưa kiểm tra: không phải đặt phòng, không đổi mốc giờ, không ảnh hưởng kết quả kiểm tra hay bảng chi phí ước tính.
+_Avoid_: Booking, reservation, overnight stop.
+
+**Place preview (xem nhanh địa điểm)**:
+Khung xem vị trí và thông tin công khai của một địa điểm (bản đồ, đánh giá) mở ngay trong trang, không rời ứng dụng. Chỉ có cho điểm đến trong danh mục và gợi ý do hệ thống tìm được, không có cho tên địa điểm trợ lý tự viết.
+_Avoid_: Browser popup window, verified place, booking page.
+
+**Cost estimate (bảng chi phí ước tính)**:
+Bảng các khoản chi dự kiến của chuyến đi theo từng nhóm và tổng cộng. Số tiền là ước tính, không phải giá đã xác nhận.
+_Avoid_: Quote, verified price, booking total.
+
+**Trip hub (điểm tập kết)**:
+Nơi người đi bắt đầu phần đi bằng xe máy hoặc ô tô của chuyến đi, thường là nơi thuê xe, khi họ đến từ xa bằng phương tiện khác. Khi có điểm tập kết, nó là nơi xuất phát của phần lịch được kiểm tra.
+_Avoid_: Trip origin, first attraction.
+
+**Access leg (chặng tiếp cận)**:
+Phần di chuyển từ nhà người đi đến điểm tập kết bằng máy bay, xe khách hay tàu. Chặng tiếp cận được ước tính và hiển thị nhưng không được kiểm tra ràng buộc.
+_Avoid_: Return leg, roadside driving leg, verified journey.
+
+**Price reference (bảng giá tham khảo)**:
+Tài liệu được duyệt ghi các mức giá phổ biến cho chuyến đi Hà Giang, kèm ngày cập nhật, làm cơ sở cho bảng chi phí ước tính.
+_Avoid_: Live price, quote.
+
+**Assumed draft (bản nháp giả định)**:
+Một đề xuất hành trình trợ lý lập ngay khi người dùng mới nói muốn đi, dựa trên các giá trị giả định được ghi rõ (điểm tập kết, số ngày, phương tiện, ngày đi). Bản nháp vẫn được xếp giờ và kiểm tra như mọi đề xuất, nhưng không lưu được cho đến khi người dùng xác nhận nơi xuất phát và ngày đi.
+_Avoid_: Saved trip, confirmed itinerary, sample itinerary viết tay.
+
+**Planning intent confirmation (xác nhận muốn lập lịch)**:
+Câu trợ lý hỏi lại khi người đang hỏi đáp chuyển sang muốn lập lịch, nêu những gì nó đã hiểu để người dùng đồng ý. Không cần khi người dùng mở đầu bằng yêu cầu lập lịch rõ ràng.
+_Avoid_: Trip save confirmation, proposal change confirmation.
+
+**Required stop (điểm bắt buộc)**:
+Một điểm đến người dùng muốn chắc chắn có trong lịch, ví dụ địa điểm họ vừa hỏi trước khi chuyển sang lập lịch. Lịch đề xuất phải chứa điểm này hoặc nói rõ vì sao không xếp được.
+_Avoid_: Night-area preference, suggestion.
+
+**Origin candidate (ứng viên điểm xuất phát)**:
+Một địa điểm hệ thống tìm được từ tên nơi đi người dùng gõ, được trợ lý nói lại để người dùng xác nhận. Ứng viên chưa phải là nơi xuất phát cho đến khi người dùng đồng ý.
+_Avoid_: Trip origin, confirmed origin.
+
+**Chat origin confirmation (xác nhận nơi xuất phát trong chat)**:
+Câu trả lời đồng ý của người dùng ngay sau khi trợ lý nói lại một ứng viên điểm xuất phát; nó biến ứng viên đó thành nơi xuất phát đã xác nhận.
+_Avoid_: Model-chosen origin, map pin.
+
 **Indicative departure window (khoảng khởi hành dự kiến)**:
 A period in which the traveler may start the trip without yet choosing one exact departure date, such as a particular week.
 _Avoid_: Exact departure date, confirmed trip dates.
@@ -70,7 +142,7 @@ _Avoid_: Exact departure date, confirmed trip dates.
 
 **Saved itinerary (lịch trình đã lưu)**:
 The official itinerary of a trip, including its travel dates and arranged destination visits, that its owner has confirmed and saved.
-_Avoid_: Itinerary proposal, companion invitation.
+_Avoid_: Itinerary proposal, companion invitation, hành trình đang lưu, phương án đã lưu.
 
 **Companion invitation (bài đăng tìm bạn đồng hành)**:
 The host's public invitation for additional companions to join an existing trip, with an introduction and a summary of that trip.
@@ -96,6 +168,63 @@ _Avoid_: AI assistant conversation, direct message, public comments.
 The point at which a trip stops accepting additional companions.
 _Avoid_: Trip completion, trip cancellation, trip deletion.
 
+## Assistant Skill Runtime V2
+
+**Assistant skill (kỹ năng trợ lý)**:
+A reusable domain-level operating policy that tells the Assistant how to reason about a class of user goals, what actions it may request, and what output contract it must respect. A skill does not own deterministic truth or database writes.
+_Avoid_: Tool, API endpoint, model, autonomous sub-agent.
+
+**Skill runtime (bộ chạy skill)**:
+The single server-side Assistant runtime that selects the active skill, supplies current conversation/domain state, obtains a structured next-action decision, executes allowed application actions, and composes the user-facing result.
+_Avoid_: Multi-agent system, planner engine, provider SDK.
+
+**Capability action (hành động năng lực)**:
+A typed application-owned operation exposed to the skill runtime, such as reading planning state, generating a proposal through the existing planner, retrieving destination candidates, validating an itinerary, or saving a confirmed trip. The application executes the action; the model does not own its truth.
+_Avoid_: Skill, free-form prompt instruction.
+
+**Material question (câu hỏi có ảnh hưởng quyết định)**:
+A question whose answer can materially change the candidate itinerary, is required for a safe/authorized action, or resolves ambiguity that cannot be handled by a reversible preliminary proposal.
+_Avoid_: Every unanswered optional profile field.
+
+**Minimum useful brief (bộ thông tin tối thiểu hữu ích)**:
+The smallest confirmed planning input that is sufficient to create a useful preliminary itinerary. For the current Hà Giang planner this is trip duration plus supported transport; an exact departure date is still required before final confirmation/save.
+_Avoid_: Fully completed preference questionnaire, save-ready requirement.
+
+**Progressive refinement (tinh chỉnh dần)**:
+Creating a preliminary proposal as soon as the minimum useful brief is available, then using later preferences, dates, constraints and corrections to revise that proposal instead of blocking on a fixed questionnaire.
+_Avoid_: Silent defaulting of unknown facts, skipping mandatory save requirements.
+
+**Response plan (kế hoạch phản hồi)**:
+A structured description of the next conversational goal, supported facts, allowed actions, and safety/business constraints from which natural Vietnamese prose is composed. It replaces the V1 pattern where the model is restricted to paraphrasing one canonical sentence.
+_Avoid_: Itinerary proposal, model-generated business decision.
+
+**Planning guidance (tư vấn theo lịch hiện tại)**:
+A read-only answer to a request for advice about the current itinerary proposal or edit draft (whether it is balanced, tiring, affected by sun times or forecast weather, or how to adjust for a rest break or delay). It uses only facts supported by the current schedule, its validation checks, travel legs, and available forecasts, never changes the schedule by itself, and is distinct from an edit request.
+_Avoid_: Replanning, clarification question, weather safety guarantee.
+
+**Trip structure (cấu trúc chuyến đi)**:
+The days of a trip together with the nights the traveler explicitly said they will stay. Nights are never derived from days; more nights than days is clarified, not corrected silently.
+_Avoid_: Trip duration, lodging.
+
+**Overnight anchor (khu vực nghỉ đêm)**:
+The area in which a night between two itinerary days falls, taken from where the earlier day ends or chosen by the traveler. It is a suggestion about an area, not a stop, a lodging, a price or a booking.
+_Avoid_: Hotel, homestay, accommodation booking.
+
+**Night-area preference (khu vực nghỉ đêm mong muốn)**:
+An area the traveler explicitly asks to sleep in on a given night. It is honoured when a selected stop belongs to that area and reported plainly when it cannot be arranged; it is a preference, not a validity rule.
+_Avoid_: Mandatory destination, Validator constraint.
+
+**Caveat policy (chính sách lưu ý)**:
+The rule that a turn creating or changing a proposal carries one short, specific caveat (for example the missing departure date and the opening hours it blocks), while read-only turns carry none unless the traveler asks about checks, the date or saving.
+_Avoid_: Repeating the same disclaimer every turn.
+
+**Guest (khách)**:
+An unauthenticated visitor identified only by the guest cookie. A Guest may ask public Hà Giang questions and nothing else.
+_Avoid_: Anonymous user, visitor account.
+
+**Guest mode (chế độ khách)**:
+The Assistant chat mode for a Guest: question-and-answer only, with source citations. Planning, saving and trip changes need an account; a Guest who asks for them is invited to sign in.
+_Avoid_: Demo mode, read-only planning.
 **Listing withdrawal (gỡ công khai)**:
 Removal of a trip's invitation from public discovery while preserving its existing travel group.
 _Avoid_: Recruitment closure, group dissolution, trip deletion.
@@ -103,3 +232,79 @@ _Avoid_: Recruitment closure, group dissolution, trip deletion.
 **Companion trip cancellation (hủy chuyến đồng hành)**:
 The host's decision to call off the shared trip offered to its members.
 _Avoid_: Trip completion, listing withdrawal, trip deletion.
+
+## Weather and sun times
+
+**Destination forecast (dự báo tại điểm đến)**:
+The forecast weather conditions at a destination for a given hour or day.
+_Avoid_: Real-time weather, weather constraint.
+
+**Visit-time weather (thời tiết lúc có mặt)**:
+The destination forecast for the hour at which a scheduled visit is planned.
+_Avoid_: Departure weather, daily weather.
+
+**Weather advisory (cảnh báo thời tiết)**:
+An informational notice about forecast conditions shown on an itinerary proposal or saved trip. It is never a Constraint Validator result and never blocks a trip.
+_Avoid_: Validation failure, weather constraint.
+
+**Forecast not yet available (chưa có dự báo)**:
+The state of a day that lies beyond the forecast horizon. It carries no substitute values.
+_Avoid_: Climate average, estimated weather.
+
+**Sun times (giờ mặt trời)**:
+Sunrise, sunset and the morning and evening golden hours for a destination's location on a given date.
+_Avoid_: Astronomy forecast.
+
+**Outdoor destination (điểm ngoài trời)**:
+A destination an Admin has marked as experienced in the open, so daylight matters for the visit.
+_Avoid_: Nature category, scenic spot.
+
+**After-sunset advisory (cảnh báo sau hoàng hôn)**:
+A weather advisory that a visit to an outdoor destination is scheduled after that day's sunset.
+_Avoid_: Opening-hours violation.
+
+**Leg weather (thời tiết dọc chặng)**:
+The forecast along a travel leg for the time the traveler is expected to pass each part of it.
+_Avoid_: Departure weather, destination forecast.
+
+**Weather question (câu hỏi thời tiết)**:
+A question to the Assistant about forecast weather or sun times at a destination, answered from the destination forecast rather than from source documents. It never ends in a verdict on whether to go.
+_Avoid_: Seasonal advice, climate question.
+
+**Representative point (điểm đại diện)**:
+The place whose forecast stands in for "Hà Giang" when a Weather question names no destination. The answer states that it is a representative point.
+_Avoid_: Province-wide forecast.
+
+## Itinerary editing
+
+**Edit draft (bản nháp chỉnh sửa)**:
+The temporary in-progress copy of a trip's itinerary where the traveler makes manual or AI-assisted adjustments before deciding whether to save. An edit draft does not alter the saved itinerary.
+_Avoid_: Phương án chỉnh sửa, hành trình đề xuất, phương án đề xuất.
+
+**Scheduled visit (lượt tham quan)**:
+A planned stop at a destination or external place on a specific day of an itinerary, with an order, start time, and planned duration.
+_Avoid_: Điểm đến (when referring to a stop in a schedule), điểm dừng số X.
+
+**Itinerary validation (kiểm tra tính hợp lệ)**:
+The deterministic server evaluation of an itinerary against opening hours, minimum stay duration, travel time, and schedule conflicts. Weather advisories and AI suggestions are not validation.
+_Avoid_: AI review, weather warning.
+
+**Saved-trip assistant (trợ lý chuyến đi)**:
+The unified conversational and visual workspace for an owned saved trip where the traveler can ask questions, receive planning guidance, and adjust a shared edit draft through conversation or direct controls before confirming a save.
+_Avoid_: Separate in-trip chat vs edit screen, auto-saving assistant.
+
+**Actionable advice suggestion (gợi ý chỉnh sửa từ tư vấn)**:
+A concrete, optional adjustment offered alongside a read-only planning guidance answer that does not change the edit draft unless the traveler chooses to apply it.
+_Avoid_: Automatic draft edit, unverified recommendation.
+
+**Correction note (dòng đính chính)**:
+A short system-written line attached under an assistant answer when the answer overstated the itinerary validation result or promised absolute weather safety; it restates the verified fact without removing the answer.
+_Avoid_: Silently replacing the answer, repeated disclaimers.
+
+**Stated assumption (giả định nêu rõ)**:
+The reading the Saved-trip assistant picks when a traveler's edit request leaves one detail open but has a single reasonable interpretation; the assistant applies it to the edit draft and says which reading it chose so the traveler can redirect or undo. When readings involve a real trade-off it offers options instead, and when it cannot tell what the traveler means it asks.
+_Avoid_: Guessing silently, asking back on every missing detail.
+
+**Schedule rest buffer (khoảng nghỉ trong lịch)**:
+An intentional gap before or between scheduled visits created by shifting visit times so the traveler can rest, distinct from roadside rest allowance, an overnight anchor, or a scheduled visit.
+_Avoid_: Fake destination stop, hotel or lodging booking.

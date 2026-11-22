@@ -62,11 +62,13 @@ describe("Destination Assistant Popup Tickets 02–06", () => {
       expect(markup).toBe("");
     });
 
-    it("renders panel pinned to Destination with title, compact header, and suggestions", () => {
+    it("renders the V2 panel for a verified identity with title, compact header and open-full-page", () => {
       const markup = renderToStaticMarkup(
         createElement(DestinationAssistantPanel, {
           destinationId: "meo-vac",
           destinationName: "Mèo Vạc",
+          identity: "GUEST:" + "a".repeat(64),
+          available: true,
           isOpen: true,
           onClose: () => {},
         })
@@ -74,21 +76,16 @@ describe("Destination Assistant Popup Tickets 02–06", () => {
 
       expect(markup).toContain("Mèo Vạc");
       expect(markup).toContain('class="destination-panel-title">Trợ lý AI</h2>');
-      expect(markup).toContain('class="destination-panel-subtitle">Mèo Vạc</summary>');
-      expect(markup).toContain("Giới thiệu ngắn gọn về Mèo Vạc.");
+      expect(markup).toContain('data-runtime="v2"');
       expect(markup).toContain("Chat mới");
-      expect(markup).toContain("Thu gọn");
+      expect(markup).toContain("Thu nhỏ");
+      expect(markup).toContain("Mở toàn màn hình");
       expect(markup).not.toContain("<main");
     });
 
     it("opening panel alone does not dispatch an ask or model call", () => {
-      let sentCount = 0;
-      const testTransport: AssistantTransport = {
-        send: async () => {
-          sentCount++;
-          return { kind: "networkAmbiguity" };
-        },
-      };
+      const fetcher = vi.fn();
+      vi.stubGlobal("fetch", fetcher);
 
       const markup = renderToStaticMarkup(
         createElement(DestinationAssistantPanel, {
@@ -96,14 +93,14 @@ describe("Destination Assistant Popup Tickets 02–06", () => {
           destinationName: "Lũng Cú",
           isOpen: true,
           onClose: () => {},
-          transport: testTransport,
           identity: "GUEST:test",
           available: true,
         })
       );
 
       expect(markup).toContain("Lũng Cú");
-      expect(sentCount).toBe(0);
+      expect(fetcher).not.toHaveBeenCalled();
+      vi.unstubAllGlobals();
     });
 
     it("renders wire response fixture with sources and citations correctly", async () => {
@@ -436,6 +433,35 @@ describe("Destination Assistant Popup Tickets 02–06", () => {
       );
 
       expect(consumed).toBeNull();
+    });
+
+    it("renders the active destination name in starter prompts for signed-in users and updates for a new destination", () => {
+      const markupA = renderToStaticMarkup(
+        createElement(DestinationAssistantPanel, {
+          context: { type: "DESTINATION", destinationId: "dest_a" },
+          destinationName: "Cao nguyên đá Đồng Văn",
+          identity: "USER:user_1",
+          available: true,
+          isOpen: true,
+          onClose: () => {},
+        })
+      );
+      expect(markupA).toContain("Hỏi về Cao nguyên đá Đồng Văn");
+      expect(markupA).toContain("Giới thiệu ngắn gọn về Cao nguyên đá Đồng Văn.");
+
+      const markupB = renderToStaticMarkup(
+        createElement(DestinationAssistantPanel, {
+          context: { type: "DESTINATION", destinationId: "dest_b" },
+          destinationName: "Đèo Mã Pí Lèng",
+          identity: "USER:user_1",
+          available: true,
+          isOpen: true,
+          onClose: () => {},
+        })
+      );
+      expect(markupB).toContain("Hỏi về Đèo Mã Pí Lèng");
+      expect(markupB).toContain("Giới thiệu ngắn gọn về Đèo Mã Pí Lèng.");
+      expect(markupB).not.toContain("Cao nguyên đá Đồng Văn");
     });
   });
 });

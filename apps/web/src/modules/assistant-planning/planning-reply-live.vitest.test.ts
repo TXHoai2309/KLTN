@@ -34,7 +34,7 @@ it.skipIf(process.env.ASSISTANT_PLANNING_LANGUAGE_TEST !== "1")("audits real Lun
   try {
     for (const input of inputs) replies.push(await composePlanningReply(input));
     expect(calls).toHaveLength(inputs.length);
-    expect(calls.every(call => call.model === "gpt-6-luna" && call.reasoning === "high")).toBe(true);
+    expect(calls.every(call => call.model === "gpt-6.1-terra" && call.reasoning === "medium")).toBe(true);
     const outcomes = events.map(event => JSON.parse(event)).filter(event => event.event === "planning_reply");
     expect(outcomes).toHaveLength(inputs.length);
     expect(outcomes.every(event => event.outcome === "MODEL_ACCEPTED")).toBe(true);

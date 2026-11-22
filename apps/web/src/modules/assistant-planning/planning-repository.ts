@@ -8,6 +8,7 @@ import type { AuthorizationDependencies } from "../../server/authorization/guard
 import { EMPTY_PLANNING_NEEDS, planningNeedsSchema, planningCheckpointSchema, type PlanningNeeds, type PlanningWorkspace, type PlanningRequest } from "./planning-contract";
 import { qaContextSchema, type QaContext } from "../ai/qa-contract";
 import { tripSaveRequestSchema, type TripSaveRequest } from "../trip-save/trip-save-contract";
+import { tripRequirementInputSchema } from "../trip-requirement/trip-requirement-contract";
 
 export const planningHash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const missing = () => new AppError("PLANNING_NOT_FOUND", "Cuộc trò chuyện không tồn tại hoặc không thuộc tài khoản này.", 404);
@@ -100,10 +101,18 @@ export function createPlanningRepository(database: Database, authorization: Auth
         return project(await owned(store, id));
       });
     },
-    async publishProposal(id: string, version: number, hash: string, key: string) {
-      return write("planning:proposal", key, { id, version, hash }, async store => {
+    async publishProposal(id: string, version: number, hash: string, key: string, refinement?: { needs: PlanningNeeds; previousHash: string }) {
+      // V2 preference refinement publishes needs + fingerprint atomically after
+      // generation/validation. Failure before this point leaves the old proposal
+      // intact. The existing four-argument V1 publication path is unchanged.
+      const needs = refinement ? planningNeedsSchema.parse(refinement.needs) : undefined;
+      if (needs) needs.requirement = tripRequirementInputSchema.parse(needs.requirement);
+      return write(refinement ? "planning:refinement" : "planning:proposal", key, { id, version, hash, ...(refinement ? { needs, previousHash: refinement.previousHash } : {}) }, async store => {
         await owned(store, id);
-        const updated = await store.assistantPlanningWorkspace.updateMany({ where: { conversationId: id, userId, version, pendingSaveKey: null }, data: { version: { increment: 1 }, proposalHash: hash } });
+        const updated = await store.assistantPlanningWorkspace.updateMany({
+          where: { conversationId: id, userId, version, pendingSaveKey: null, ...(refinement ? { savedTripId: null, proposalHash: refinement.previousHash } : {}) },
+          data: { version: { increment: 1 }, proposalHash: hash, ...(needs ? { needs: needs as Prisma.InputJsonValue } : {}) },
+        });
         if (updated.count !== 1) throw conflict();
         return project(await owned(store, id));
       });

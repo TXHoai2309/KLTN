@@ -2,11 +2,10 @@
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { useTheme } from "next-themes";
-import type * as MapLibre from "maplibre-gl";
 import { Button } from "@KLTN/ui/components/button";
 import { Input } from "@KLTN/ui/components/input";
-import { loadMapLibre, mapStyle } from "@/modules/map/map-config";
-import { mountDestinationPinPicker } from "@/modules/map/maplibre-renderer";
+import { mapStyle } from "@/modules/map/map-config";
+import { loadMapLibrary, mountDestinationPinPicker } from "@/modules/map/map-renderer";
 import type { MapCoordinate } from "@/modules/map/map-model";
 import {
   coordinateFieldsFromValue,
@@ -53,11 +52,11 @@ export default function ManualLocationPicker({ coordinates, onChange }: {
     const host = container.current;
     let active = true;
     const stop = startManualLocationMapSession({
-      load: loadMapLibre,
+      load: loadMapLibrary,
       onState: value => { if (active) setState(value); },
       mount: (library, ready, fail) => {
         const mounted = mountDestinationPinPicker(
-          host, library as typeof MapLibre, coordinatesRef.current, styleRef.current,
+          host, library, coordinatesRef.current, styleRef.current,
           value => {
             if (!active) return;
             coordinatesRef.current = value;

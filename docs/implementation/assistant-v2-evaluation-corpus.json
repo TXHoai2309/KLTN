@@ -1,0 +1,220 @@
+{
+  "version": 1,
+  "notes": "Fixed behavioral corpus. A scenario definition is not a PASS receipt. Test doubles, live API and browser evidence must be reported separately.",
+  "cases": [
+    {
+      "id": "EVAL-01",
+      "userTurns": [
+        "Tôi muốn đi Hà Giang.",
+        "2 ngày.",
+        "Ô tô."
+      ],
+      "expected": "Proposal after two material questions; no optional/date/recap gate.",
+      "dimensions": [
+        "questionEfficiency",
+        "questionnaire"
+      ]
+    },
+    {
+      "id": "EVAL-02",
+      "userTurns": [
+        "Tôi muốn đi Hà Giang 3 ngày bằng xe máy."
+      ],
+      "expected": "Capture duration/mode once and draft immediately.",
+      "dimensions": [
+        "redundancy",
+        "questionEfficiency"
+      ]
+    },
+    {
+      "id": "EVAL-03",
+      "userTurns": [
+        "Thích văn hóa."
+      ],
+      "expected": "Refine current proposal and explain cultural priority.",
+      "dimensions": [
+        "implication"
+      ]
+    },
+    {
+      "id": "EVAL-04",
+      "userTurns": [
+        "Thích văn hóa, đi vừa phải, nhóm 2 người."
+      ],
+      "expected": "Accept all volunteered facts in one refinement.",
+      "dimensions": [
+        "redundancy",
+        "implication"
+      ]
+    },
+    {
+      "id": "EVAL-05",
+      "userTurns": [
+        "Thực ra thích thiên nhiên hơn."
+      ],
+      "expected": "Latest correction replaces prior interest.",
+      "dimensions": [
+        "state"
+      ]
+    },
+    {
+      "id": "EVAL-06",
+      "userTurns": [
+        "Ngày 2 thay Dinh họ Vương bằng Lô Lô Chải."
+      ],
+      "expected": "Resolve eligible destinations; bound edit or clarify absent destination; never invent.",
+      "dimensions": [
+        "scope"
+      ]
+    },
+    {
+      "id": "EVAL-07",
+      "userTurns": [
+        "Cho điểm Lũng vào lịch."
+      ],
+      "expected": "Clarify ambiguous destination.",
+      "dimensions": [
+        "ambiguity"
+      ]
+    },
+    {
+      "id": "EVAL-08",
+      "userTurns": [
+        "Dinh họ Vương xây năm nào?"
+      ],
+      "expected": "Grounded QA or insufficient source; proposal unchanged.",
+      "dimensions": [
+        "grounding",
+        "state"
+      ]
+    },
+    {
+      "id": "EVAL-09",
+      "userTurns": [
+        "Có tài liệu xác minh mã vé thử nghiệm V207-UNKNOWN-RECORD không?"
+      ],
+      "expected": "No invented answer/citation when evidence is absent.",
+      "dimensions": [
+        "grounding"
+      ]
+    },
+    {
+      "id": "EVAL-10",
+      "userTurns": [
+        "Bỏ điểm X ở ngày 2."
+      ],
+      "expected": "Saved-trip proposal before apply, DB unchanged.",
+      "dimensions": [
+        "mutation",
+        "scope"
+      ]
+    },
+    {
+      "id": "EVAL-11",
+      "userTurns": [
+        "Áp dụng đi."
+      ],
+      "expected": "Apply only the current validated confirmed proposal; DB acknowledges.",
+      "dimensions": [
+        "mutation"
+      ]
+    },
+    {
+      "id": "EVAL-12",
+      "userTurns": [
+        "Áp dụng đi.",
+        "Dinh họ Vương xây năm nào?"
+      ],
+      "expected": "UNKNOWN never claims success, blocks mutation, preserves exact request/key and permits QA.",
+      "dimensions": [
+        "mutation",
+        "state"
+      ]
+    },
+    {
+      "id": "EVAL-13",
+      "userTurns": [
+        "Từ vị trí hiện tại điều chỉnh hôm nay."
+      ],
+      "expected": "Ask material location; GPS failure retains real manual fallback.",
+      "dimensions": [
+        "location"
+      ]
+    },
+    {
+      "id": "EVAL-14",
+      "userTurns": [
+        "Bỏ điểm ở ngày 2."
+      ],
+      "expected": "Explicit future-day edit does not force GPS; completed/unaffected work preserved.",
+      "dimensions": [
+        "location",
+        "scope"
+      ]
+    },
+    {
+      "id": "EVAL-15",
+      "userTurns": [
+        "Lưu chuyến đi."
+      ],
+      "expected": "No official save without a date and passing fresh checks.",
+      "dimensions": [
+        "mutation"
+      ]
+    },
+    {
+      "id": "EVAL-16",
+      "userTurns": [
+        "2 ngày ô tô, khởi hành ngày 05/11/2026."
+      ],
+      "expected": "Exact date is plain JSON at idempotency boundary; preview before explicit Save.",
+      "dimensions": [
+        "mutation",
+        "provider"
+      ]
+    },
+    {
+      "id": "EVAL-17",
+      "userTurns": [
+        "Tôi muốn lập hành trình đi Hà Giang."
+      ],
+      "expected": "Invalid/empty/timed-out provider output is controlled; no fabricated draft or write.",
+      "dimensions": [
+        "provider"
+      ]
+    },
+    {
+      "id": "EVAL-18",
+      "userTurns": [
+        "Đồng ý."
+      ],
+      "expected": "After QA interruption re-show pending clarification/proposal before accepting confirmation.",
+      "dimensions": [
+        "state",
+        "mutation"
+      ]
+    },
+    {
+      "id": "EVAL-19",
+      "userTurns": [
+        "Áp dụng đi."
+      ],
+      "expected": "Reload/process loss expires handle; no guessed stale proposal apply.",
+      "dimensions": [
+        "state",
+        "mutation"
+      ]
+    },
+    {
+      "id": "EVAL-20",
+      "userTurns": [
+        "Tôi muốn lập hành trình đi Hà Giang."
+      ],
+      "expected": "V2 then configuration rollback V1 on same endpoint; auth/ownership remain required.",
+      "dimensions": [
+        "rollback",
+        "authorization"
+      ]
+    }
+  ]
+}

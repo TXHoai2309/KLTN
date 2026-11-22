@@ -1,0 +1,166 @@
+
+> web@0.1.0 build
+> node scripts/prepare-map-assets.mjs && node scripts/build.mjs --webpack
+
+▲ Next.js 16.3.8 (webpack)
+- Environments: .env, .env.schema, 
+                   ✨ loaded by varlock ✨
+✓ Running next.config.ts took 143ms
+- Experiments (use with caution):
+  · cpus: 2
+  ⨯ reactDebugChannel
+
+  Creating an optimized production build ...
+⚠ Compiled with warnings in 30.6s
+
+../../node_modules/@varlock/nextjs-integration/dist/dynamic-access.cjs
+Critical dependency: the request of a dependency is an expression
+
+Import trace for requested module:
+../../node_modules/@varlock/nextjs-integration/dist/dynamic-access.cjs
+./src/app/auth-context-demo/actions.ts
+
+  Running TypeScript ...
+  Finished TypeScript in 68s ...
+  Collecting page data using 2 workers ...
+  Generating static pages using 2 workers (0/56) ...
+  Generating static pages using 2 workers (14/56) 
+  Generating static pages using 2 workers (28/56) 
+  Generating static pages using 2 workers (42/56) 
+✓ Generating static pages using 2 workers (56/56) in 8.1s
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ƒ /account
+├ ƒ /admin/culture
+├ ƒ /admin/culture/[id]/edit
+├ ƒ /admin/culture/new
+├ ƒ /admin/destinations
+├ ƒ /admin/destinations/[id]/edit
+├ ƒ /admin/destinations/[id]/editorial
+├ ƒ /admin/destinations/new
+├ ƒ /admin/rag
+├ ƒ /admin/rag/[id]
+├ ƒ /admin/rag/upload
+├ ƒ /admin/settings
+├ ƒ /admin/users
+├ ƒ /admin/users/[id]
+├ ƒ /api/account
+├ ƒ /api/admin/content-taxonomy
+├ ƒ /api/admin/culture
+├ ƒ /api/admin/culture/[id]
+├ ƒ /api/admin/culture/[id]/visibility
+├ ƒ /api/admin/culture/destination-lookup
+├ ƒ /api/admin/destination-images/configuration
+├ ƒ /api/admin/destinations
+├ ƒ /api/admin/destinations/[id]
+├ ƒ /api/admin/destinations/[id]/editorial
+├ ƒ /api/admin/destinations/[id]/editorial/propose
+├ ƒ /api/admin/destinations/[id]/images
+├ ƒ /api/admin/destinations/[id]/images/intents
+├ ƒ /api/admin/destinations/[id]/images/review
+├ ƒ /api/admin/destinations/[id]/images/upload
+├ ƒ /api/admin/destinations/[id]/restore
+├ ƒ /api/admin/destinations/[id]/visibility
+├ ƒ /api/admin/destinations/address
+├ ƒ /api/admin/destinations/resolve-maps
+├ ƒ /api/admin/rag-documents
+├ ƒ /api/admin/rag-documents/[id]
+├ ƒ /api/admin/rag-documents/[id]/actions
+├ ƒ /api/admin/rag-documents/[id]/file
+├ ƒ /api/admin/rag-documents/[id]/index
+├ ƒ /api/admin/rag-documents/[id]/restore
+├ ƒ /api/admin/rag-documents/bulk-public-qa
+├ ƒ /api/admin/rag-documents/upload-url
+├ ƒ /api/admin/settings
+├ ƒ /api/admin/settings/models
+├ ƒ /api/admin/users
+├ ƒ /api/admin/users/[id]
+├ ƒ /api/admin/users/[id]/audit-logs
+├ ƒ /api/admin/users/[id]/lock
+├ ƒ /api/admin/users/[id]/revoke-sessions
+├ ƒ /api/admin/users/[id]/role
+├ ƒ /api/admin/users/[id]/unlock
+├ ƒ /api/admin/users/statistics
+├ ƒ /api/ai/ask
+├ ƒ /api/ai/conversations
+├ ƒ /api/ai/conversations/[id]
+├ ƒ /api/ai/conversations/[id]/turns
+├ ƒ /api/ai/planning
+├ ƒ /api/ai/session
+├ ƒ /api/auth/[...all]
+├ ƒ /api/culture
+├ ƒ /api/culture/[idOrSlug]
+├ ƒ /api/destinations
+├ ƒ /api/destinations/[id]
+├ ƒ /api/favorites
+├ ƒ /api/favorites/[targetType]
+├ ƒ /api/favorites/[targetType]/[targetId]
+├ ƒ /api/favorites/status
+├ ƒ /api/favorites/status/batch
+├ ƒ /api/health
+├ ƒ /api/internal/qa-cleanup
+├ ƒ /api/session/logout
+├ ƒ /api/trip-companions
+├ ƒ /api/trip-companions/[id]
+├ ƒ /api/trip-companions/[id]/cancel
+├ ƒ /api/trip-companions/[id]/group
+├ ƒ /api/trip-companions/[id]/join
+├ ƒ /api/trip-companions/[id]/leave
+├ ƒ /api/trip-companions/[id]/management
+├ ƒ /api/trip-companions/[id]/members
+├ ƒ /api/trip-companions/[id]/members/[userId]/ban
+├ ƒ /api/trip-companions/[id]/messages
+├ ƒ /api/trip-companions/[id]/messages/delta
+├ ƒ /api/trip-companions/[id]/messages/reconcile
+├ ƒ /api/trip-companions/[id]/read
+├ ƒ /api/trip-companions/[id]/viewer
+├ ƒ /api/trip-companions/joined
+├ ƒ /api/trip-companions/mine
+├ ƒ /api/trip-companions/unread
+├ ƒ /api/trip-origins/search
+├ ƒ /api/trip-origins/validate
+├ ƒ /api/trip-proposals
+├ ƒ /api/trip-requirements/analyze
+├ ƒ /api/trip-requirements/check
+├ ƒ /api/trip-requirements/evaluate
+├ ƒ /api/trips
+├ ƒ /api/trips/[id]
+├ ƒ /api/trips/[id]/completion
+├ ƒ /api/trips/[id]/edits/ai
+├ ƒ /api/trips/[id]/edits/apply
+├ ƒ /api/trips/[id]/edits/preview
+├ ƒ /api/trips/[id]/in-trip/preview
+├ ƒ /api/trips/[id]/in-trip/replan
+├ ƒ /api/trips/[id]/journey/apply
+├ ƒ /api/trips/[id]/journey/preview
+├ ƒ /api/trips/[id]/publication
+├ ƒ /api/trips/[id]/publication/preview
+├ ƒ /api/trips/validate
+├ ƒ /assistant
+├ ○ /auth-context-demo
+├ ƒ /culture
+├ ƒ /culture/[slug]
+├ ƒ /dashboard
+├ ƒ /destinations/[id]
+├ ƒ /explore
+├ ƒ /favorites
+├ ƒ /login
+├ ƒ /trip-companions
+├ ƒ /trip-companions/[id]
+├ ƒ /trip-companions/[id]/group
+├ ƒ /trip-companions/[id]/manage
+├ ƒ /trips
+├ ƒ /trips/[id]
+├ ƒ /trips/[id]/edit
+├ ƒ /trips/[id]/in-trip
+├ ƒ /trips/[id]/publication
+└ ƒ /trips/new
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

@@ -1,9 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import { executePlanning, planningProposalHash, type PlanningDependencies } from "./planning-service";
 import { scheduleSelection } from "./planning-engine";
-import { planningNow, fixtureNeeds, planningCandidate, fixtureRoutes } from "../../test/planning-fixtures";
+import { planningNow, fixtureNeeds as legacyNeeds, planningCandidate, fixtureRoutes as legacyRoutes } from "../../test/planning-fixtures";
+import { COMPLETE_JOURNEY_FIXTURE } from "../trip-origin/trip-origin-fixtures";
+import type { RouteProvider } from "../trip-planner/planner-routes";
 import type { PlanningWorkspace } from "./planning-contract";
 import { AppError } from "../../server/http/app-error";
+const fixtureNeeds = { ...legacyNeeds, requirement: { ...legacyNeeds.requirement, journey: COMPLETE_JOURNEY_FIXTURE } };
+const fixtureRoutes: RouteProvider = { ...legacyRoutes, coordinateRoute: async () => ({ status: "VERIFIED", reason: null, durationSeconds: 600, distanceMeters: 1000, provider: "STADIA_MAPS" }) };
 
 function setup() {
   let workspace: PlanningWorkspace = { conversationId: "chat", version: 0, needs: fixtureNeeds, pendingSaveKey: null, savedTripId: null, context: { type: "GENERAL" } };

@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { build } from "esbuild";
 import { fileURLToPath } from "node:url";
 import { AssistantController, shouldSendOnEnter, type AssistantAttempt, type AssistantTransport, type AssistantTransportResult } from "./assistant-controller";
-import { AssistantAnswer, AssistantChat, AssistantShell } from "./assistant-chat";
+import { AssistantAnswer } from "./assistant-answer";
 import { DemoAssistantTransport, DEMO_FIXTURE_MARKER, type DemoScenario } from "../../../development/assistant-demo-transport";
 import { qaCompletedTurnSchema } from "../../modules/ai/qa-contract";
 
@@ -32,7 +32,7 @@ describe("Task 195 controller (no persistence or HTTP endpoint)", () => {
   it("normalizes first-turn request and keeps pending separate", () => {
     const h = harness(); h.controller.setDraft("  Ha\u0300 Giang  ");
     expect(h.controller.submit()).toBe(true);
-    expect(JSON.parse(h.calls[0]!.body)).toEqual({ question: "Hà Giang", context: { type: "GENERAL" }, knowledgeMode: "SOURCE_ONLY" });
+    expect(JSON.parse(h.calls[0]!.body)).toEqual({ question: "Hà Giang", context: { type: "GENERAL" } });
     expect(h.controller.getSnapshot().turns).toHaveLength(0);
     expect(h.controller.getSnapshot().conversationId).toBeNull();
     expect(h.controller.getSnapshot().pending?.phase).toBe("sending");
@@ -53,7 +53,7 @@ describe("Task 195 controller (no persistence or HTTP endpoint)", () => {
     h.resolves[0]!(completed()); await tick();
     expect(h.controller.getSnapshot().turns).toHaveLength(1);
     h.controller.setDraft("follow up"); h.controller.submit();
-    expect(JSON.parse(h.calls[1]!.body)).toEqual({ question: "follow up", conversationId: "conv_fixture", parentTurnId: "turn_fixture_1", knowledgeMode: "SOURCE_ONLY" });
+    expect(JSON.parse(h.calls[1]!.body)).toEqual({ question: "follow up", conversationId: "conv_fixture", parentTurnId: "turn_fixture_1" });
     expect(h.calls[0]!.key).not.toBe(h.calls[1]!.key);
   });
   it.each<DemoScenario>(["ANSWERED", "PARTIAL", "INSUFFICIENT_SOURCE", "CLARIFICATION_REQUIRED"])("%s is completed and advances head", async (scenario) => {
@@ -179,7 +179,7 @@ describe("Task 195 controller (no persistence or HTTP endpoint)", () => {
     expect(h.controller.getSnapshot().parentTurnId).toBeNull();
     expect(h.controller.getSnapshot().generation).toBe(1);
     h.controller.setDraft("fresh fixture"); h.controller.submit();
-    expect(JSON.parse(h.calls[1]!.body)).toEqual({ question: "fresh fixture", context: { type: "GENERAL" }, knowledgeMode: "SOURCE_ONLY" });
+    expect(JSON.parse(h.calls[1]!.body)).toEqual({ question: "fresh fixture", context: { type: "GENERAL" } });
     const controller = new AssistantController(null, "unavailable", () => "unused");
     controller.setDraft("question"); expect(controller.submit()).toBe(false); expect(controller.retry()).toBe(false);
     expect(controller.newConversation()).toBe(true); expect(controller.getSnapshot().draft).toBe("");
@@ -192,38 +192,7 @@ describe("Task 195 controller (no persistence or HTTP endpoint)", () => {
   });
 });
 
-describe("Task 195 renderer and production graph", () => {
-  it("keeps demo notice isolated and decorative artwork out of accessible content", () => {
-    const production = renderToStaticMarkup(createElement(AssistantShell, null, createElement(AssistantChat)));
-    const demo = renderToStaticMarkup(createElement(AssistantShell, null, createElement(AssistantChat, { demo: true })));
-    expect(production).toContain("Bạn muốn khám phá điều gì?");
-    expect(production).toContain("Nhập câu hỏi về Hà Giang…");
-    expect(production).not.toContain("Dữ liệu mô phỏng");
-    expect(demo).toContain("Dữ liệu mô phỏng");
-    expect(demo).toContain("không phải thông tin du lịch đã xác minh");
-    const svgs = [...production.matchAll(/<svg\b[^>]*>/g)].map((match) => match[0]);
-    expect(svgs.length).toBeGreaterThan(0);
-    for (const svg of svgs) expect(svg).toContain('aria-hidden="true"');
-    expect(production).toContain("Bối cảnh hiện tại");
-  });
-  it("gives multiple chat instances unique SSR IDs with local label/ARIA references", () => {
-    const tree = createElement("div", null, createElement(AssistantChat), createElement(AssistantChat));
-    const html = renderToStaticMarkup(tree);
-    const ids = [...html.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
-    expect(ids).toHaveLength(10);
-    expect(new Set(ids).size).toBe(10);
-    const instances = html.split('<section class="assistant-chat"').slice(1);
-    expect(instances).toHaveLength(2);
-    for (const instance of instances) {
-      const localIds = [...instance.matchAll(/\bid="([^"]+)"/g)].map((match) => match[1]);
-      const references = [...instance.matchAll(/(?:for|aria-labelledby|aria-describedby)="([^"]+)"/g)].map((match) => match[1]);
-      expect(references).toHaveLength(5);
-      for (const reference of references) expect(localIds).toContain(reference);
-      expect(instance.match(/<label for="([^"]+-question)"/)?.[1]).toBe(instance.match(/<textarea\b[^>]*\bid="([^"]+)"/)?.[1]);
-    }
-    // Stable server tree IDs: no random key or process-global counter in the markup.
-    expect(renderToStaticMarkup(tree)).toBe(html);
-  });
+describe("Task 195 answer renderer and production graph", () => {
   it("escapes AI text and preserves citation associations for the slot", () => {
     const turn = qaCompletedTurnSchema.parse({ conversationId: "conv_fixture", turnId: "turn_fixture", turnState: "COMPLETED", context: { type: "GENERAL" }, status: "ANSWERED", unansweredAspects: [],
       answerParts: [{ text: "<script>alert(1)</script>", citationIds: ["c1"] }],
@@ -232,14 +201,19 @@ describe("Task 195 renderer and production graph", () => {
     const html = renderToStaticMarkup(createElement(AssistantAnswer, { turn, citationSlot: ({ part }) => { ids = part.citationIds; return "slot"; } }));
     expect(html).not.toContain("<script>"); expect(html).toContain("&lt;script&gt;"); expect(ids).toEqual(["c1"]);
   });
-  it("renders unavailable composer and explicit confirmation copy", () => {
-    const html = renderToStaticMarkup(createElement(AssistantShell, null, createElement(AssistantChat)));
-    expect(html).toContain("Trợ lý AI tạm thời không khả dụng"); expect(html).toContain("disabled");
-    expect(html).toContain("không có nghĩa server đã hủy"); expect(html).toContain("không xóa dữ liệu server");
-    expect(html).not.toContain("source_fixture_only");
+  it("retries the identical unresolved attempt after a known AI technical failure (US-40)", async () => {
+    const h = harness(); h.controller.setDraft("Câu hỏi gặp lỗi kỹ thuật"); h.controller.submit();
+    const firstAttempt = h.calls[0]!;
+    h.resolves[0]!({ kind: "response", httpStatus: 503, body: { success: false, operationStatus: "FAILED", error: { code: "AI_UNAVAILABLE", message: "Dịch vụ AI tạm thời không khả dụng." } } });
+    await tick();
+    expect(h.controller.getSnapshot().pending).toMatchObject({ phase: "failed", code: "AI_UNAVAILABLE" });
+    expect(h.controller.retry()).toBe(true);
+    expect(h.calls[1]).toBe(firstAttempt);
+    h.resolves[1]!(completed()); await tick();
+    expect(h.controller.getSnapshot().turns).toHaveLength(1);
   });
   it("bundles production page without any demo/fixtures/fake transport imports", async () => {
-    const result = await build({ entryPoints: [fileURLToPath(new URL("../../app/assistant/page.tsx", import.meta.url))], bundle: true, write: false, outdir: "in-memory-check", metafile: true, jsx: "automatic", external: ["next", "./assistant-context-page"], define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent" });
+    const result = await build({ entryPoints: [fileURLToPath(new URL("../../app/assistant/page.tsx", import.meta.url))], bundle: true, write: false, outdir: "in-memory-check", metafile: true, jsx: "automatic", external: ["next", "./assistant-context-page", "../../modules/runtime-config/runtime-config-service"], define: { "process.env.NODE_ENV": '"production"' }, logLevel: "silent" });
     expect(Object.keys(result.metafile!.inputs).some((path) => path.includes("development/") || path.includes(".vitest.test"))).toBe(false);
     expect(result.outputFiles.map((file) => file.text).join("\n")).not.toContain(DEMO_FIXTURE_MARKER);
     expect(result.outputFiles.map((file) => file.text).join("\n")).not.toContain("source_fixture_only");

@@ -79,7 +79,8 @@ describe("US26-BE-CHECK domain", () => {
       },
     });
     expect(completePayload).toEqual(before);
-    expect(result.readiness?.finalConfirmation).toBe(true);
+    // Seven-group legacy input remains reviewable; new Save requires journey.
+    expect(result.readiness?.finalConfirmation).toBe(false);
   });
 
   it("accepts a preliminary requirement without startDate and uses relative days", () => {

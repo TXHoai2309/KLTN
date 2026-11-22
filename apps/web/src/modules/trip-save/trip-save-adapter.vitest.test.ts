@@ -13,7 +13,9 @@ const planner = createPlannerService({
 describe("US-30 planner to save handoff", () => {
   it("uses the real planned destination IDs, days, clocks, and durations", async () => {
     const result = await planner.propose("traveler", "save-handoff", requirement);
-    const proposal = toSaveProposal(result);
+    expect(toSaveProposal(result)).toBeNull();
+    // Mapping regression for the later authoritative journey slice.
+    const proposal = toSaveProposal({ ...result, eligibleForFinalConfirmation: true });
     expect(proposal).not.toBeNull();
     expect(proposal).toMatchObject({
       startDate: requirement.startDate,

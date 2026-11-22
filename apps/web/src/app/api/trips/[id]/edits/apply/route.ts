@@ -1,14 +1,13 @@
 import { applyEditResponse } from "@/modules/trip-edit/trip-edit-http";
+import { createTripEditRouteProvider } from "@/modules/trip-edit/trip-edit-routes";
 import { authorizationDependencies } from "@/server/authorization/server";
 import { db } from "@/services";
-import { getTravelRoute } from "@/modules/trip-validation/stadia-route";
 
 const dependencies = {
   authorization: authorizationDependencies,
   service: {
     authorization: authorizationDependencies,
     database: db,
-    getRoute: getTravelRoute,
   },
   now: () => new Date(),
 };
@@ -18,5 +17,5 @@ export async function POST(
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  return applyEditResponse(request, id, dependencies);
+  return applyEditResponse(request, id, { ...dependencies, service: { ...dependencies.service, getRoute: createTripEditRouteProvider() } });
 }

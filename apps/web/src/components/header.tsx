@@ -165,7 +165,6 @@ export default function Header() {
   const links: HeaderNavLink[] = [
     { to: "/", label: "Trang chủ", icon: Home },
     { to: "/explore", label: "Khám phá", icon: Compass },
-    { to: "/trip-companions", label: "Tìm bạn đồng hành", icon: Users },
     ...(mvpFeatures.culture ? [{ to: "/culture", label: "Văn hóa", icon: BookOpen }] : []),
     { to: "/assistant", label: "Trợ lý AI", icon: Sparkles, isAi: true },
     { to: "/trips", label: "Chuyến đi của tôi", icon: CalendarDays, protected: true, intent: "trips" },
@@ -175,7 +174,6 @@ export default function Header() {
   const isLinkActive = (to: string) => {
     if (to === "/") return pathname === "/";
     if (to === "/explore") return pathname === "/explore" || pathname.startsWith("/destinations/");
-    if (to === "/trip-companions") return pathname === "/trip-companions" || pathname.startsWith("/trip-companions/");
     return pathname === to || pathname.startsWith(`${to}/`);
   };
 

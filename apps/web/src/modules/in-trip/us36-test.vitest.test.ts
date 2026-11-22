@@ -174,11 +174,11 @@ function expectNoDatabaseWrites(writes: ReturnType<typeof fixture>["writes"]): v
 describe("US36 Task292 end-to-end read-only replan coverage", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it("returns a candidate based on the server snapshot while preserving every completed visit field", async () => {
+  it.each(["TRAVELER", "ADMIN"] as const)("returns an owned read-only candidate for %s while preserving every completed visit field", async role => {
     const f = fixture();
     const before = structuredClone(f.trip);
     const response = await replanResponse(post(validBody), "trip-1", {
-      authorization: authorization("TRAVELER"),
+      authorization: authorization(role),
       service: f.service,
     });
 
@@ -283,10 +283,10 @@ describe("US36 Task292 end-to-end read-only replan coverage", () => {
     expect(f.tripFindFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "trip-1", userId: "traveler-1" } }));
   });
 
-  it("masks a foreign Trip as 404 and rejects a stale revision before provider use", async () => {
+  it.each(["TRAVELER", "ADMIN"] as const)("masks a foreign Trip as 404 and rejects a stale revision for %s before provider use", async role => {
     const foreign = fixture({ trip: null });
     const foreignResponse = await replanResponse(post(validBody), "trip-1", {
-      authorization: authorization("TRAVELER"),
+      authorization: authorization(role),
       service: foreign.service,
     });
     expect(foreignResponse.status).toBe(404);
@@ -295,13 +295,16 @@ describe("US36 Task292 end-to-end read-only replan coverage", () => {
       error: { code: "TRIP_NOT_FOUND" },
     });
     expect(foreign.llm.complete).not.toHaveBeenCalled();
+    expect(foreign.tripFindFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: "trip-1", userId: "traveler-1" },
+    }));
     expectNoDatabaseWrites(foreign.writes);
 
     const stale = fixture();
     const staleResponse = await replanResponse(
       post({ ...validBody, baseRevision: "2026-10-16T00:00:00.000Z" }),
       "trip-1",
-      { authorization: authorization("TRAVELER"), service: stale.service },
+      { authorization: authorization(role), service: stale.service },
     );
     expect(staleResponse.status).toBe(409);
     expect((await responseData(staleResponse))).toMatchObject({

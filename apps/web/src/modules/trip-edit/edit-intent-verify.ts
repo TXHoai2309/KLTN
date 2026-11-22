@@ -18,13 +18,13 @@ import {
   MAX_EDIT_INTENT_OUTPUT_CHARS,
   type EditIntentPromptServerContext,
 } from "./edit-intent-prompt";
-import { MAX_EDIT_VISITS_PER_DAY } from "./edit-candidate";
+import { MAX_EDIT_VISITS } from "./edit-candidate";
 import { PreferenceExtractionError } from "../preference-extraction/preference-extraction-errors";
 
 // Keep semantically out-of-range integers recoverable so they can become a
 // clarification instead of being mistaken for malformed JSON structure.
 const integer = z.number().int();
-const recoverableModelOutputSchema = z
+export const recoverableModelOutputSchema = z
   .object({
     intentType: z.enum(EDIT_INTENT_TYPE_VALUES),
     targetVisitIds: z.array(z.string().min(1).max(128)).max(MAX_EDIT_INTENT_TARGETS),
@@ -148,7 +148,7 @@ function verifyAndNormalize(
     const targetCount =
       (targetDay?.visits.length ?? 0) -
       (movingVisit?.dayIndex === params.dayIndex ? 1 : 0);
-    const maximumPosition = Math.min(targetCount + 1, MAX_EDIT_VISITS_PER_DAY);
+    const maximumPosition = Math.min(targetCount + 1, MAX_EDIT_VISITS);
     if (
       params.dayIndex === null ||
       !Number.isInteger(params.position) ||
@@ -162,13 +162,13 @@ function verifyAndNormalize(
 
   if (output.intentType === "ADD_VISIT" && params.dayIndex !== null) {
     const day = daysByIndex.get(params.dayIndex);
-    if (day && day.visits.length >= MAX_EDIT_VISITS_PER_DAY) mark("OUT_OF_SCOPE");
+    if (day && day.visits.length >= MAX_EDIT_VISITS) mark("OUT_OF_SCOPE");
   }
   if (output.intentType === "MOVE_VISIT" && params.dayIndex !== null && targetVisitIds.length === 1) {
     const target = visitsById.get(targetVisitIds[0]!);
     const day = daysByIndex.get(params.dayIndex);
     const countAfterMove = (day?.visits.length ?? 0) - (target?.dayIndex === params.dayIndex ? 1 : 0);
-    if (countAfterMove >= MAX_EDIT_VISITS_PER_DAY) mark("OUT_OF_SCOPE");
+    if (countAfterMove >= MAX_EDIT_VISITS) mark("OUT_OF_SCOPE");
   }
 
   if (params.startTime !== null && minutesOfDay(params.startTime) === null) {

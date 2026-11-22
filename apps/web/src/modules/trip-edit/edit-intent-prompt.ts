@@ -1,15 +1,13 @@
 import { z } from "zod";
 
-import {
-  MAX_EDIT_VISITS,
-  MAX_EDIT_VISITS_PER_DAY,
-} from "./edit-candidate";
+import { MAX_EDIT_VISITS } from "./edit-candidate";
 import { MAX_DURATION_DAYS } from "../trip-requirement/trip-requirement-contract";
 
 export const MAX_EDIT_INTENT_MESSAGE_LENGTH = 500;
 export const MAX_EDIT_INTENT_DESTINATIONS = 50;
 export const MAX_EDIT_INTENT_DESTINATION_NAME_LENGTH = 120;
-export const MAX_EDIT_INTENT_PROVIDER_TIMEOUT_MS = 15_000;
+// Terra reasons at `medium`; owner set no budget caps (2026-11-20).
+export const MAX_EDIT_INTENT_PROVIDER_TIMEOUT_MS = 90_000;
 export const MAX_EDIT_INTENT_OUTPUT_CHARS = 32 * 1024;
 
 const entityIdSchema = z.string().min(1).max(128);
@@ -24,7 +22,7 @@ const summaryVisitSchema = z
 const itineraryDaySchema = z
   .object({
     dayIndex: z.number().int().min(1).max(MAX_DURATION_DAYS),
-    visits: z.array(summaryVisitSchema).max(MAX_EDIT_VISITS_PER_DAY),
+    visits: z.array(summaryVisitSchema).max(MAX_EDIT_VISITS),
   })
   .strict();
 const eligibleDestinationSchema = z

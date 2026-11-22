@@ -2,13 +2,12 @@ import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { AssistantAnswerContent } from "./assistant-answer-content";
-import { assistantFollowupSuggestions } from "./assistant-followups";
-import { AssistantAnswer } from "./assistant-chat";
+import { AssistantAnswer } from "./assistant-answer";
 import type { QaCompletedTurn } from "../../modules/ai/qa-contract";
 
 const parts = [{ text: "Địa chất: Địa hình karst đá vôi hư cấu.", citationIds: ["c1"] }, { text: "Văn hóa: Truyền thống dân tộc và danh hiệu UNESCO hư cấu.", citationIds: ["c1"] }];
 const turn: QaCompletedTurn = { conversationId: "conv", turnId: "turn", turnState: "COMPLETED", context: { type: "GENERAL" }, status: "ANSWERED", answerParts: parts, citations: [{ id: "c1", sourceId: "fixture", title: "Nguồn hư cấu", sourceUrl: "https://example.com/source", locators: [] }], unansweredAspects: [] };
-describe("verified answer presentation and follow-up projection", () => {
+describe("verified answer presentation", () => {
   it.each(["PARAGRAPHS", "LIST", "TABLE"] as const)("renders %s without inventing or dropping factual content", presentation => {
     const html = renderToStaticMarkup(createElement(AssistantAnswerContent, { parts, presentation, sources: () => createElement("span", null, "CITATION") }));
     for (const part of parts) expect(html.replace(/<[^>]+>/g, "")).toContain(part.text);
@@ -20,17 +19,6 @@ describe("verified answer presentation and follow-up projection", () => {
   it("escapes HTML and keeps untrusted Markdown/URLs as inert text", () => {
     const html = renderToStaticMarkup(createElement(AssistantAnswerContent, { parts: [{ text: '<img src=x onerror=alert(1)> [x](javascript:alert(1)) **literal**', citationIds: ["c1"] }], sources: () => null }));
     expect(html).not.toContain("<img"); expect(html).not.toContain("<a"); expect(html).toContain("&lt;img");
-  });
-  it("generates at most three relevant questions without factual premises", () => {
-    const suggestions = assistantFollowupSuggestions("Giới thiệu về điểm đến", turn);
-    expect(suggestions).toHaveLength(3); expect(new Set(suggestions).size).toBe(3);
-    expect(suggestions.every(question => question.endsWith("?"))).toBe(true);
-    expect(assistantFollowupSuggestions("Địa chất và văn hóa có gì?", turn)).toEqual(["Địa điểm này được UNESCO công nhận là gì?"]);
-  });
-  it("does not offer follow-ups for an unconfirmed or unsupported answer", () => {
-    const missing: QaCompletedTurn = { ...turn, status: "INSUFFICIENT_SOURCE", answerParts: [], citations: [], message: "Chưa đủ dữ liệu được xác minh để trả lời câu hỏi này." };
-    expect(assistantFollowupSuggestions("Question", missing)).toEqual([]);
-    expect(assistantFollowupSuggestions("Question", { ...turn, answerParts: [{ text: "Nội dung kiểm thử.", citationIds: ["c1"] }] })).toEqual([]);
   });
   it("distinguishes answer verification from an absence of retrieved sources without leaking internals", () => {
     const html = renderToStaticMarkup(createElement(AssistantAnswer, { turn: { ...turn, status: "INSUFFICIENT_SOURCE", reason: "ANSWER_VERIFICATION", message: "Chưa đủ dữ liệu được xác minh để trả lời câu hỏi này.", answerParts: [], citations: [] } }));
@@ -51,8 +39,4 @@ describe("verified answer presentation and follow-up projection", () => {
     expect(html.indexOf('class="assistant-answer-sources"')).toBeGreaterThan(html.indexOf(parts[1]!.text.split(": ")[1]!));
   });
 
-  it("does not confuse the place name Đồng Văn with a money amount", () => {
-    expect(assistantFollowupSuggestions("Giới thiệu", { ...turn, answerParts: [{ text: "Đồng Văn có địa hình hư cấu.", citationIds: ["c1"] }] })).toEqual([]);
-    expect(assistantFollowupSuggestions("Giới thiệu", { ...turn, answerParts: [{ text: "Giá hư cấu là 50.000 đồng.", citationIds: ["c1"] }] })).toEqual(["Ở đó có thu vé vào cửa chung không?"]);
-  });
 });

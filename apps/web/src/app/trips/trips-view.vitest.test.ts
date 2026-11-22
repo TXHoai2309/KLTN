@@ -2,11 +2,11 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh() {} }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh() {} }), useSearchParams: () => new URLSearchParams() }));
 vi.mock("@/components/favorite-button", () => ({ default: ({ targetId, initialIsFavorite }: { targetId: string; initialIsFavorite: boolean }) => createElement("button", { type: "button", "data-trip-heart": targetId, "aria-pressed": initialIsFavorite }, initialIsFavorite ? "Bỏ chuyến đi khỏi yêu thích" : "Thêm chuyến đi vào yêu thích") }));
 
 import type { TripDetail, TripSummary } from "@/modules/trip-read/trip-read-service";
-import { MyTripsView, TripDetailView } from "./trips-view";
+import { filterTripsBySearch, MyTripsView, TripDetailView } from "./trips-view";
 import MyTripsLoading from "./loading";
 import MyTripsError from "./error";
 
@@ -26,10 +26,32 @@ describe("US-31 Trip views", () => {
     expect(html).toContain("/trips/one");
     expect(html).toContain("3 điểm dừng");
     expect(html).toContain("/trips/new");
+    expect(html).toContain('role="search"');
+    expect(html).toContain('type="search"');
+    expect(html).toMatch(/<button[^>]*type="submit"[^>]*>[\s\S]*?Tìm chuyến đi<\/button>/);
     expect(html).toContain("Đánh dấu đã hoàn thành");
     expect(html).toContain("Xóa chuyến đi");
     expect(html).not.toContain("Đang tải trạng thái yêu thích");
     expect(html).toContain("Thêm chuyến đi vào yêu thích");
+  });
+  it("searches the displayed title, dates and transport with or without Vietnamese diacritics", () => {
+    const saved = sample("saved", "UPCOMING");
+    const joined: TripSummary = {
+      ...sample("joined", "COMPLETED"),
+      companionTitle: "Khám phá Đồng Văn",
+      startDate: "2026-10-20",
+      endDate: "2026-10-21",
+      transport: "MOTORCYCLE",
+    };
+    const items = [saved, joined];
+
+    expect(filterTripsBySearch(items, "  DONG   VAN ")).toEqual([joined]);
+    expect(filterTripsBySearch(items, "chuyến đi 2 ngày")).toEqual([saved]);
+    expect(filterTripsBySearch(items, "20/10/2026")).toEqual([joined]);
+    expect(filterTripsBySearch(items, "21/10/2026")).toEqual([joined]);
+    expect(filterTripsBySearch(items, "o to")).toEqual([saved]);
+    expect(filterTripsBySearch(items, "không tồn tại")).toEqual([]);
+    expect(filterTripsBySearch(items, "   ")).toEqual(items);
   });
   it("distinguishes manual completion from elapsed calendar dates", () => {
     const html = renderToStaticMarkup(createElement(MyTripsView, { items: [{ ...sample("manual", "COMPLETED"), manuallyCompletedAt: "2026-10-20T00:00:00Z" }, sample("calendar", "COMPLETED")] }));
@@ -82,7 +104,7 @@ describe("US-31 Trip views", () => {
     const completedHtml = renderToStaticMarkup(createElement(TripDetailView, { trip: completedTrip }));
     expect(completedHtml).not.toContain("/trips/done/in-trip");
     expect(completedHtml).not.toContain("Trợ lý trong chuyến đi");
-    expect(completedHtml).toContain("/trips/done/edit");
+    expect(completedHtml).not.toContain("/trips/done/edit");
     expect(html).toContain("Ngày này chưa có điểm dừng");
     expect(html).toContain("Quay lại Chuyến đi của tôi");
     expect(html).toContain("Thêm chuyến đi vào yêu thích");
@@ -114,5 +136,17 @@ describe("US-31 Trip views", () => {
     expect(error).toContain("Không thể tải danh sách chuyến đi");
     expect(error).toContain("Thử lại");
     expect(error).not.toContain("Đang tải chuyến đi của bạn");
+  });
+  it.each([false, true])("only exposes the calendar download link when the server flag prop is %s", (calendarEnabled) => {
+    const trip: TripDetail = { ...sample("trip/giả", "UPCOMING"), days: [] };
+    const html = renderToStaticMarkup(createElement(TripDetailView, { trip, calendarEnabled }));
+    if (calendarEnabled) {
+      expect(html).toContain('href="/api/trips/trip%2Fgi%E1%BA%A3/calendar"');
+      expect(html).toContain('download=""');
+      expect(html).toContain("Thêm vào lịch (.ics)");
+      expect(html).toContain("Tải file .ics, mở bằng Google Calendar, Apple Calendar hoặc Outlook.");
+    } else {
+      expect(html).not.toMatch(/\/calendar|Thêm vào lịch|Tải file \.ics/);
+    }
   });
 });

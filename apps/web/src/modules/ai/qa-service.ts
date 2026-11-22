@@ -19,8 +19,9 @@ import { planQaQuestion } from "./qa-question-plan";
 import { withinQaResponseBudget, QA_ELIGIBILITY_ABORT } from "./qa-request-budget";
 import { projectQaOriginalSources, validQaSourceProjection } from "./qa-original-source-projection";
 import { qaSessionHistory } from "./qa-session-history";
+import { answerQaWeatherQuestion, type QaWeatherDependencies } from "./qa-weather-answer";
 
-export function createQaService(dependencies: { store: QaConversationStore; retriever: QaRetriever; generator: QaGenerator; assessor?: QaAssessor; understander?: QaQuestionUnderstander; eligibilityPollMs?: number; resolveContext?: (context: QaContext) => Promise<QaResolvedContext> }) {
+export function createQaService(dependencies: { store: QaConversationStore; retriever: QaRetriever; generator: QaGenerator; assessor?: QaAssessor; understander?: QaQuestionUnderstander; weather?: QaWeatherDependencies; eligibilityPollMs?: number; resolveContext?: (context: QaContext) => Promise<QaResolvedContext> }) {
   const { store, retriever, generator } = dependencies;
   const assessor = dependencies.assessor ?? createQaAssessor();
   const eligibilityPollMs=dependencies.eligibilityPollMs ?? 1000;
@@ -67,11 +68,12 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
           } catch {
             understanding = deterministicQuestionUnderstanding(question, history, resolvedContext);
           }
-          if (understanding?.ambiguous && resolvedContext.type === "GENERAL") {
+          if (understanding?.intent !== "WEATHER" && understanding?.ambiguous && resolvedContext.type === "GENERAL") {
             clarificationQuestion = understanding.clarificationQuestion ?? QA_FOLLOWUP_CLARIFICATIONS.missingSubject;
           }
         }
-        const skipEvidence = !!socialMessage || !!clarificationQuestion;
+        const isWeatherTurn = understanding?.intent === "WEATHER" && !!dependencies.weather;
+        const skipEvidence = !!socialMessage || !!clarificationQuestion || isWeatherTurn;
         qaStage("RETRIEVAL_STARTED");
         evidence = skipEvidence ? [] : await retriever.retrieve(question, history, signal, resolvedContext, understanding);
         qaStage("RETRIEVAL_COMPLETED", { retrievedChunks: evidence.length });
@@ -120,6 +122,13 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
         const generation = (async () => {
           if (socialMessage) return { status: "CONVERSATIONAL" as const, answerParts: [] as [], citations: [] as [], message: socialMessage, knowledgeMode };
           if (clarificationQuestion) return { status: "CLARIFICATION_REQUIRED" as const, answerParts: [] as [], citations: [] as [], clarificationQuestion, knowledgeMode };
+          if (isWeatherTurn && understanding && dependencies.weather) {
+            const weatherAnswer = await answerQaWeatherQuestion(
+              { question: request.data.question, understanding, context: resolvedContext, signal: providerController.signal },
+              dependencies.weather,
+            );
+            return { ...weatherAnswer, knowledgeMode };
+          }
           const input: QaGenerationInput = { question, history, evidence, context: resolvedContext, knowledgeMode, signal: providerController.signal, questionPlan: planQaQuestion(question, history, resolvedContext), questionUnderstanding: understanding };
           if (!evidence.length && knowledgeMode !== "EXPANDED") return insufficientQaAnswer("NO_EVIDENCE");
           assertQaEvidenceInput(input);

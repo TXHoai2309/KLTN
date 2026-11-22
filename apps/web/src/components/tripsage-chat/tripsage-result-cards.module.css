@@ -1,0 +1,122 @@
+.card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  margin-block: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--assistant-line);
+  border-radius: 12px;
+  background: var(--assistant-soft);
+  color: var(--assistant-ink);
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+}
+
+.card h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.card p {
+  margin: 0;
+}
+
+.detail,
+.totals dt,
+.price span {
+  color: var(--assistant-muted);
+}
+
+.totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 0;
+}
+
+.totals dd {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.cap {
+  justify-self: start;
+  max-width: 100%;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--assistant-sage);
+}
+
+.rows,
+.legs {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+
+.rows > li,
+.legs > li {
+  min-width: 0;
+  list-style: none;
+}
+
+.rows > li {
+  display: grid;
+  gap: 4px;
+  padding-block-start: 8px;
+  border-block-start: 1px solid var(--assistant-line);
+}
+
+.line {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 8px;
+}
+
+.track {
+  height: 6px;
+  border-radius: 4px;
+  background: var(--assistant-sage);
+}
+
+.track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--assistant-green);
+}
+
+.direction {
+  display: grid;
+  gap: 4px;
+  padding-block-start: 4px;
+}
+
+.legs {
+  padding-inline-start: 8px;
+  border-inline-start: 1px solid var(--assistant-line);
+}
+
+.group {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding-block-start: 6px;
+  border-block-start: 1px dashed var(--assistant-line);
+}
+
+.groupTitle {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--assistant-muted);
+}
+
+.unpriced {
+  color: var(--assistant-muted);
+  font-style: italic;
+}

@@ -1,0 +1,37 @@
+
+ RUN  v5.0.3 D:/KLTN/KLTN/apps/web
+
+ ✓ src/modules/trip-planner/planner-boundaries.vitest.test.ts (39 tests) 97ms
+ ✓ src/modules/trip-planner/planner-engine.vitest.test.ts (31 tests) 54ms
+ ✓ src/modules/assistant-planning/planning-engine.vitest.test.ts (6 tests) 10ms
+ ✓ src/modules/trip-requirement/trip-clarification-rules.vitest.test.ts (21 tests) 26ms
+ ✓ src/modules/trip-requirement/us24-test.vitest.test.ts (29 tests) 21ms
+ ✓ src/modules/trip-requirement/trip-requirement-check.vitest.test.ts (29 tests) 9ms
+ ✓ src/modules/trip-requirement/us27-task229-recovery.vitest.test.ts (5 tests) 22ms
+ ✓ src/modules/trip-requirement/us27-test.vitest.test.ts (13 tests) 21ms
+ ✓ src/modules/trip-save/trip-save-panel.vitest.test.ts (3 tests) 14ms
+ ✓ src/modules/trip-planner/planner-coherence.vitest.test.ts (9 tests) 11ms
+ ✓ src/modules/trip-requirement/trip-transport-policy.vitest.test.ts (56 tests) 12ms
+ ✓ src/modules/trip-planner/planner-stadia.vitest.test.ts (40 tests) 14ms
+ ✓ src/modules/trip-origin/trip-origin.vitest.test.ts (15 tests) 24ms
+ ✓ src/modules/trip-requirement/us24-start.vitest.test.ts (10 tests) 6ms
+ ✓ src/modules/trip-requirement/trip-requirement-review.vitest.test.ts (20 tests) 12ms
+ ✓ src/modules/trip-planner/planner-registry.vitest.test.ts (8 tests) 12ms
+ ✓ src/modules/trip-save/trip-save.vitest.test.ts (21 tests) 10ms
+ ✓ src/modules/trip-planner/planner-route-geometry.vitest.test.ts (4 tests) 9ms
+ ✓ src/modules/trip-requirement/us26-test.vitest.test.ts (21 tests) 12ms
+ ✓ src/modules/trip-requirement/trip-clarification-logic.vitest.test.ts (10 tests) 7ms
+ ✓ src/modules/trip-save/trip-save-adapter.vitest.test.ts (2 tests) 4ms
+ ✓ src/modules/trip-requirement/trip-requirement-form-logic.vitest.test.ts (24 tests) 4ms
+ ✓ src/modules/trip-save/trip-save-http.vitest.test.ts (4 tests) 4ms
+ ✓ src/modules/trip-save/trip-save-client.vitest.test.ts (4 tests) 3ms
+ ✓ src/modules/trip-requirement/trip-requirement-contract.vitest.test.ts (8 tests) 1ms
+ ✓ src/modules/trip-planner/planner-save-adapter.vitest.test.ts (3 tests) 1ms
+ ✓ src/modules/trip-requirement/transport-safety.vitest.test.ts (8 tests) 0ms
+ ↓ src/modules/trip-planner/planner-candidates.postgres.integration.vitest.test.ts (3 tests | 3 skipped)
+
+ Test Files  27 passed | 1 skipped (28)
+      Tests  443 passed | 3 skipped (446)
+   Start at  15:51:51
+   Duration  2.76s (transform 54%, import 29%, tests 17%)
+

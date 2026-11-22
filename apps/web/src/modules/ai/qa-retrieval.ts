@@ -1,4 +1,5 @@
 import "server-only";
+import { assistantMetric } from "../../server/assistant-turn-metrics";
 import { createHash } from "node:crypto";
 import { Prisma, type Database } from "@KLTN/db";
 import { qaCitationLocatorSchema, qaPublicCitationSchema, qaQuestionSchema, type QaPublicCitation } from "./qa-contract";
@@ -163,6 +164,7 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
   if (!Number.isFinite(minScore) || minScore < 0 || minScore > 1) throw new EmbeddingError("INVALID_INPUT", false);
   return {
     async retrieve(question, history, signal, context = { type: "GENERAL" }, understandingInput?: QaQuestionUnderstanding): Promise<QaEvidence[]> {
+      assistantMetric("retrieval");
       const validated = qaQuestionSchema.parse(question);
       const normalized = qaFactualQuestion(validated) || validated;
       if (signal?.aborted) throw new EmbeddingError("CANCELLED", false);

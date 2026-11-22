@@ -68,6 +68,50 @@ Owner-approved conversational refinement, 2026-10-27 (Q1–Q7): inside the Assis
 
 ### Deterministic Constraint Validator
 
+Assistant V2 execution note, 2026-10-28: ADR-28 supersedes the mandatory optional-question,
+recap and separate pre-generation confirmation sequence for V2 only. The internal
+[V2-02 path](../stories/ASSISTANT-SKILL-RUNTIME-V2-02.md) can draft from duration plus
+supported transport while keeping unknown refinements unknown. Date-dependent
+checks remain insufficient without a date; final confirmation/Save still require
+the existing exact-date, Validator, authorization and persistence checks. The
+production V1 conversation remains unchanged until explicit V2 rollout.
+
+The internal [V2-03 continuation](../stories/ASSISTANT-SKILL-RUNTIME-V2-03.md)
+adds preference-driven refinement: new explicit interests, pace, group context,
+mobility and destination wishes imply planning work rather than a mandatory
+remaining-field questionnaire. Refinements reuse the existing engine/Validator;
+confirmed publication replaces one canonical proposal, and failure/rejection
+keeps the prior proposal. This does not activate production V2 or permit automatic Save.
+
+The internal [V2-04 continuation](../stories/ASSISTANT-SKILL-RUNTIME-V2-04.md)
+supports bounded edits to that current unsaved proposal. Unaffected days and
+unrelated explicit constraints remain intact; dependency changes outside the
+requested days require explicit acceptance. One edit publishes atomically after
+the existing Validator, retaining the prior proposal on failure and blocking new
+mutations on UNKNOWN. That slice excludes saved/in-trip changes; production rollout remains deferred.
+
+The internal [V2-05 continuation](../stories/ASSISTANT-SKILL-RUNTIME-V2-05.md)
+now delegates factual questions to the existing source-only QA/RAG pipeline.
+QA preserves planning needs, proposal/version/fingerprint, pending clarification
+and UNKNOWN, and permits a subsequent explicit planning/edit turn. Existing QA
+source eligibility, real citations, ownership and abuse controls remain in force.
+Compound factual-plus-edit requests explicitly defer mutation to a separate edit
+turn. This does not enable production V2 or the future place-research skill.
+
+The internal [V2-06 continuation](../stories/ASSISTANT-SKILL-RUNTIME-V2-06.md)
+supports an explicitly selected, owned saved Trip through existing US-35/36/37.
+It reads the current database revision, preserves completed/unaffected visits,
+asks only material location/scope questions, validates a separate proposal and
+applies it only after explicit confirmation and fresh server checks. Read-only
+QA preserves pending clarification/proposals and uncertain apply state. UNKNOWN
+blocks further mutation and retains the identical request/key for reconciliation.
+The server-only no-location adapter accepts only future-day changes and preserves
+all days through today; public V1 location contracts remain unchanged. This is an
+internal integration. [V2-07](../stories/ASSISTANT-SKILL-RUNTIME-V2-07.md) now
+integrates it behind a server-only runtime gate and records live acceptance.
+V1 remains the default pending the [rollout review](../implementation/assistant-v2-evaluation.md);
+this does not retire V1 or relax any planning, evidence, ownership or write rule.
+
 Every itinerary proposal must be checked for:
 
 1. Opening hours.
@@ -79,11 +123,19 @@ Each check returns `PASS` / `ĐÁP ỨNG`, `VIOLATION` / `VI PHẠM`, or `INSUFF
 
 The US-29B provider decision uses Stadia Standard Routing: car → `auto`, motorcycle → `motorcycle`. If mandatory route data is missing, unavailable, or not returned within at most 10 seconds, the travel-time check returns `INSUFFICIENT_DATA` / `CHƯA ĐỦ DỮ LIỆU`, never `PASS`. AI must not guess travel time in place of required routing data.
 
+### Weather and sun times — approved 2026-11-18
+
+Destination pages and itineraries show sun times, destination forecasts, visit-time weather and leg weather (rendered in a shared day-card block with jump-to-visit advisory chips and default-collapsed leg weather across form proposals, assistant proposals, and saved trips), with weather advisories and an after-sunset advisory for outdoor destinations. Both Guests and Travelers can also ask the assistant destination or general Hà Giang weather and sun-time questions: Q&A answers with a live-fetched weather card (sun times, Open-Meteo forecast and update time, up to 3 destination choices when ambiguous, an explicit representative-point notice when no specific destination is named, and `"Chưa có dự báo, sẽ có từ ngày X"` beyond the 16-day horizon), counts toward existing Q&A abuse limits, stores no forecast snapshots, and never gives a `"nên đi"` / `"không nên đi"` verdict; saved-trip and in-trip weather questions remain out of scope. When an assistant turn creates or modifies an itinerary proposal that has computed advisories, the reply appends one deterministic line naming at most the two heaviest advisories (omitted when none exist, when forecasts are unavailable, or on read-only turns). Weather and sun times are informational only: they never change a Constraint Validator result and never block proposing or saving a trip. See [ADR-36](../decisions.md#adr-36--weather-is-an-advisory-never-a-constraint-validator-input-2026-11-18), [WEATHER-SUN-ADVISORIES](../stories/WEATHER-SUN-ADVISORIES.md), and [ASSISTANT-WEATHER](../stories/ASSISTANT-WEATHER.md).
+
+Planned extension (accepted at planning level 2026-11-18, not yet implemented — see ADR-36 scheduling addendum): both form and Assistant planners may use sun times (`isOutdoor` stops before sunset) and destination forecast advisories as soft preferences to reorder visits/days within `affectedDays` and `journey` bounds, provided must-visits are kept, no `VIOLATION` is introduced, added travel time stays within `<= 20%` (max `+30 min/day`), forecast outages degrade cleanly, and a short note explains when weather changed the order.
+
 ### Edit, save, and in-trip support
 
 Keep an edit proposal separate from the stored itinerary until it passes validation, the Traveler confirms it, and the database update succeeds. Revalidate affected checks after a change. Cancel/reject keeps the previous itinerary. The MVP does not persist an invalid itinerary as a long-lived draft; an unconfirmed proposal may remain in the active interaction.
 
 Save a trip only after the proposal meets confirmation requirements and the write is confirmed. Editing or saving is separate from favoriting. In-trip support uses GPS only when needed and permitted; offer manual location when GPS is unavailable/denied. Do not track location continuously in the background or retain long-term GPS history. Do not let AI silently change completed visits. In-trip proposals still require validation and user confirmation.
+
+Owner-approved unified Saved-trip Assistant extension, 2026-11-19 ([ADR-38](../decisions.md#adr-38--unified-saved-trip-assistant-and-2-step-grounded-advisory-pipeline-2026-11-19), [spec](trip-edit-redesign-spec.md), planned / awaiting coding authorization): `/trips/[id]/edit` and `/trips/[id]/in-trip` converge on one unified `Saved-trip assistant` workspace sharing the stateless client `Edit draft` (`ADR-37`). The conversational AI assistant inherits full manual-edit parity (cumulative multi-turn draft, Undo/Redo, 50-visit cap, multi-op batch edits, `auto-shift`, pre-departure `Trip origin` and clocks, existing `ExternalPlace` + `uncheckedChecks`, `ONGOING` elapsed-visit lock, `COMPLETED` lock, `409` Rebase), requests GPS/manual location only for material `ONGOING` position-dependent requests, and uses a 2-step Grounded Agent Pipeline (Intent + Server Dry-Run Simulation of candidate remedies → Grounded LLM Advisory Composer + server-packaged 1-click `Actionable advice suggestion` cards) across all 7 traveler question archetypes, including interleaved RAG + labeled `Kiến thức mở rộng` Q&A and live trip-date weather/sun-time advisories.
 
 ### Admin content
 

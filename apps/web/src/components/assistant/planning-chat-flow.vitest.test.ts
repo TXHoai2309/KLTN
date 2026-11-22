@@ -5,9 +5,13 @@ import { generatePlanningProposal } from "../../modules/assistant-planning/plann
 import { tripRequirementInputSchema } from "../../modules/trip-requirement/trip-requirement-contract";
 import { fixtureNeeds, fixtureRoutes, planningCandidate, planningNow } from "../../test/planning-fixtures";
 import { AppError } from "../../server/http/app-error";
+import { COMPLETE_JOURNEY_FIXTURE } from "../../modules/trip-origin/trip-origin-fixtures";
 
-function setup(needs: PlanningNeeds = fixtureNeeds, initialDays = [["a"]], routes = fixtureRoutes) {
-  let workspace: PlanningWorkspace = { conversationId: "chat", version: 0, needs, pendingSaveKey: null, savedTripId: null, context: { type: "GENERAL" } };
+const shortOriginLeg = { status: "VERIFIED", reason: null, durationSeconds: 600, distanceMeters: 1000, provider: "STADIA_MAPS" } as const;
+function setup(needs: PlanningNeeds = fixtureNeeds, initialDays = [["a"]], baseRoutes = fixtureRoutes) {
+  // Only a complete origin round trip can be saved; these flows are about dialogue, not the journey.
+  const routes = { coordinateRoute: async () => shortOriginLeg, ...baseRoutes };
+  let workspace: PlanningWorkspace = { conversationId: "chat", version: 0, needs: { ...needs, requirement: { journey: COMPLETE_JOURNEY_FIXTURE, ...needs.requirement } }, pendingSaveKey: null, savedTripId: null, context: { type: "GENERAL" } };
   const analyses: PlanningAnalysis[] = [];
   const generate = vi.fn(async () => ({ days: initialDays }));
   const save = vi.fn(async () => ({ save: { status: "SUCCESS", data: { tripId: "saved-trip" } } }));
@@ -226,7 +230,7 @@ describe("Chat-first planning with real scheduler and validation", () => {
   });
   it("asks before applying timing changes to other days", async () => {
     const needs = { ...fixtureNeeds, requirement: { ...fixtureNeeds.requirement, durationDays: 2 } };
-    const routes = { route: async (...args: Parameters<typeof fixtureRoutes.route>) => ({ ...await fixtureRoutes.route(...args), durationSeconds: args[0].from.id === "b" && args[0].to.id === "d" ? 1800 : 600 }) };
+    const routes = { route: async (...args: Parameters<typeof fixtureRoutes.route>) => ({ ...await fixtureRoutes.route(...args), durationSeconds: args[0].from.id === "b" && args[0].to.id === "d" ? 10_800 : 600 }) };
     const { client, operation, save } = setup(needs, [["a"], ["d"]], routes); await client.start(null); await client.generate();
     operation("REPLACE"); await client.analyze("Thay Điểm a ở ngày 1"); await client.chooseOption(0);
     expect(client.getSnapshot().prompt?.kind).toBe("APPLY_CHANGE"); expect(client.getSnapshot().message).toContain("Ngày 2");

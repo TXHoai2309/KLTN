@@ -13,12 +13,39 @@ model Trip {
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
   manuallyCompletedAt DateTime?
+  // Owner-private origin, clocks and authoritative policy/route projection.
+  journeySnapshot Json?
+  // Ticket 09 (Q21'a): checks the owner saved as UNCHECKED (data missing), confirmed explicitly. NULL = nothing unchecked
+  // (every legacy and every all-PASS Trip). Shape: {revision:"unchecked-save-v1", items:[{check, reasonCode, placeId}]}.
+  uncheckedChecks Json?
+  uncheckedConfirmedAt DateTime? @db.Timestamptz(3)
   days         ItineraryDay[]
+  chosenLodgings TripChosenLodging[]
+  nearbySuggestions TripNearbySuggestion[]
   favorites    Favorite[]
   companionPublication TripCompanionPublication?
+  editChatMessages TripEditChatMessage[]
 
   @@index([userId, createdAt])
   @@map("trip")
+}
+
+model TripEditChatMessage {
+  id             String   @id @default(cuid())
+  tripId         String
+  trip           Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  role           String   @db.VarChar(16)
+  kind           String?  @db.VarChar(24)
+  text           String   @db.Text
+  steps          Json?
+  correctionNote String?  @db.Text
+  statusNotice   String?  @db.Text
+  knowledgeParts Json?
+  citations      Json?
+  createdAt      DateTime @default(now())
+
+  @@index([tripId, createdAt])
+  @@map("trip_edit_chat_message")
 }
 
 // Unique publication remains the stable group identity across lifecycle changes.
@@ -122,13 +149,80 @@ model ItineraryVisit {
   id                     String       @id @default(cuid())
   dayId                  String
   day                    ItineraryDay @relation(fields: [dayId], references: [id], onDelete: Cascade)
-  destinationId          String
-  destination            Destination  @relation(fields: [destinationId], references: [id], onDelete: Restrict)
+  // Exactly one of destinationId / externalPlaceId is set (DB CHECK itinerary_visit_exactly_one_place).
+  destinationId          String?
+  destination            Destination? @relation(fields: [destinationId], references: [id], onDelete: Restrict)
+  externalPlaceId        String?
+  externalPlace          ExternalPlace? @relation(fields: [externalPlaceId], references: [id], onDelete: Restrict)
   startMinute            Int
   plannedDurationMinutes Int
   order                  Int
 
   @@unique([dayId, order])
   @@index([destinationId])
+  @@index([externalPlaceId])
   @@map("itinerary_visit")
+}
+
+enum ExternalPlaceProvider {
+  GOOGLE_PLACES
+}
+
+// Place outside the KLTN destination table (Q18b/Q22). Shared reference row keyed by the
+// provider's place id (a public identifier, exempt from Google caching limits); it holds no
+// per-user data, and users reach it only through their own Trip's ItineraryVisit.
+// name/latitude/longitude are nullable provider content: Google allows coordinates cached at most
+// 30 consecutive days and disallows saving business names, so they must be nulled/refetched once
+// fetchedAt is older than that (see docs/research/google-places-storage-terms.md).
+model ExternalPlace {
+  id              String                @id @default(cuid())
+  provider        ExternalPlaceProvider
+  providerPlaceId String
+  name            String?
+  latitude        Float?
+  longitude       Float?
+  source          String
+  fetchedAt       DateTime              @db.Timestamptz(3)
+  createdAt       DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime              @updatedAt @db.Timestamptz(3)
+  visits          ItineraryVisit[]
+  chosenLodgings  TripChosenLodging[]
+
+  @@unique([provider, providerPlaceId])
+  @@index([fetchedAt])
+  @@map("external_place")
+}
+
+// Ticket 11: traveler's chosen lodging per night on a saved trip (separate from ItineraryVisit; never a booking).
+model TripChosenLodging {
+  id              String        @id @default(cuid())
+  tripId          String
+  trip            Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  nightIndex      Int
+  externalPlaceId String
+  externalPlace   ExternalPlace @relation(fields: [externalPlaceId], references: [id], onDelete: Restrict)
+  createdAt       DateTime      @default(now()) @db.Timestamptz(3)
+
+  @@unique([tripId, nightIndex])
+  @@index([externalPlaceId])
+  @@map("trip_chosen_lodging")
+}
+
+// ADR-45: nearby activity suggestions shown while planning, kept with the saved trip so the traveler can read them again.
+// Unchecked Google Maps data (never a visit, never validated, no effect on times or cost). `slot` is "visit-K" or "overnight".
+model TripNearbySuggestion {
+  id         String   @id @default(cuid())
+  tripId     String
+  trip       Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  dayIndex   Int
+  slot       String   @db.VarChar(16)
+  kind       String   @db.VarChar(12)
+  placeId    String   @db.VarChar(100)
+  name       String   @db.VarChar(80)
+  distanceKm Float
+  sortOrder  Int
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([tripId, dayIndex, sortOrder])
+  @@map("trip_nearby_suggestion")
 }

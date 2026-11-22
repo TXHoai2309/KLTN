@@ -1,6 +1,26 @@
 import { z } from "zod";
+import { tripJourneySchema } from "../trip-origin/trip-origin-contract";
 
 import { isValidCalendarDate, MAX_DURATION_DAYS, TRANSPORT_VALUES } from "../trip-requirement/trip-requirement-contract";
+
+/** First-cluster fields that an Assumed draft (ADR-44) may pre-fill server-side until the traveler confirms them. */
+export const ASSUMABLE_FIELDS = ["origin", "durationDays", "transport", "startDate"] as const;
+export type AssumableField = (typeof ASSUMABLE_FIELDS)[number];
+export type BlockingAssumedField = "origin" | "startDate";
+
+export function blockingAssumedFields(assumedFields?: readonly string[] | null): BlockingAssumedField[] {
+  if (!assumedFields?.length) return [];
+  const set = new Set(assumedFields);
+  const out: BlockingAssumedField[] = [];
+  if (set.has("origin")) out.push("origin");
+  if (set.has("startDate")) out.push("startDate");
+  return out;
+}
+
+export function formatAssumedConfirmationMessage(fields: readonly BlockingAssumedField[]): string {
+  const labels = fields.map(field => (field === "origin" ? "nơi xuất phát" : "ngày khởi hành"));
+  return `Bản nháp đang dùng giả định — cần xác nhận ${labels.join(" và ")} trước khi lưu hành trình.`;
+}
 
 const visitSchema = z.object({
   destinationId: z.string().min(1).max(128),
@@ -10,9 +30,12 @@ const visitSchema = z.object({
 }).strict().refine(visit => visit.startMinute + visit.plannedDurationMinutes <= 1440, "Lượt tham quan phải nằm trong một ngày.");
 
 export const tripProposalSchema = z.object({
+  journey: tripJourneySchema.nullable().optional(),
   startDate: z.string().refine(isValidCalendarDate, "Ngày bắt đầu không hợp lệ.").nullable(),
   durationDays: z.number().int().min(1).max(MAX_DURATION_DAYS),
   transport: z.enum(TRANSPORT_VALUES),
+  /** Assumed fields carried from an Assumed draft (ADR-44); server blocks Save when `origin` or `startDate` is still assumed. */
+  assumedFields: z.array(z.enum(ASSUMABLE_FIELDS)).max(ASSUMABLE_FIELDS.length).optional(),
   days: z.array(z.object({
     dayIndex: z.number().int().min(1),
     visits: z.array(visitSchema),

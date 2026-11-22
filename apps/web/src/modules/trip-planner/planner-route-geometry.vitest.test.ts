@@ -21,7 +21,7 @@ describe("planner public route geometry", () => {
     const fetcher = vi.fn<typeof fetch>(async () => Response.json({ trip: { summary: { time: 120, length: 5 }, legs: [{ shape: polyline6(coordinates), privateProviderField: "never-return" }] } }));
     const leg = await createStadiaRoutesProvider({ apiKey: () => "server-only-fixture", fetcher }).route({ from: candidate("a"), to: candidate("bb"), transport: "CAR" }, new AbortController().signal);
     expect(fetcher).toHaveBeenCalledOnce();
-    expect(leg).toMatchObject({ status: "VERIFIED", durationSeconds: 120, distanceMeters: 5000, geometry: { type: "LineString", coordinates } });
+    expect(leg).toMatchObject({ status: "VERIFIED", durationSeconds: 360, distanceMeters: 5000, geometry: { type: "LineString", coordinates } });
     expect(JSON.stringify(leg)).not.toMatch(/shape|privateProviderField|never-return|server-only-fixture/);
   });
 

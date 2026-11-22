@@ -288,7 +288,8 @@ export async function executeIdempotentWrite<T>(
 
     if (isAppError(error)) return toKnownFailure(error);
 
-    console.error("Idempotent write outcome is unknown:", error);
+    // Database errors can embed query parameters, including owner-private origins.
+    console.error("Idempotent write outcome is unknown");
     return unknownOutcome();
   }
 }

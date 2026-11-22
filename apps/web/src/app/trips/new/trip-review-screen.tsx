@@ -62,6 +62,7 @@ import {
   restoreAiValue,
   REVIEW_FIELD_KEYS,
   reviewFieldLabel,
+  updateDraftJourney,
   type ConfirmedTripRequirement,
   type ReviewConfirmation,
   type ReviewField,
@@ -70,6 +71,8 @@ import {
   type ReviewValueMap,
   type TripRequirementReviewDraft,
 } from "@/modules/trip-requirement/trip-requirement-review";
+import TripJourneyReviewSection from "@/components/trip-origin/trip-journey-review-section";
+import type { TripJourney } from "@/modules/trip-origin/trip-origin-contract";
 import {
   UNRESOLVED_TRANSPORT_AI_NOTE,
   unresolvedTransportMessage,
@@ -458,6 +461,18 @@ export default function TripReviewScreen({
     focusEditButton(key);
   }
 
+  function handleJourneyChange(nextJourney: TripJourney) {
+    const updated = updateDraftJourney(editableDraft, nextJourney);
+    setEditableDraft(updated.draft);
+    checkAbortRef.current?.abort();
+    checkSequenceRef.current += 1;
+    setConfirmation(updated.confirmation);
+    setAcknowledged(false);
+    setNormalizedFromServer(false);
+    onDraftChange?.(updated.draft);
+    setLiveMessage("Đã cập nhật thông tin nơi xuất phát và giờ đi/về; cần kiểm tra và xác nhận lại.");
+  }
+
   function focusConfirmation() {
     window.setTimeout(() => confirmationRef.current?.focus(), 0);
   }
@@ -748,6 +763,12 @@ export default function TripReviewScreen({
             </ul>
           </div>
         )}
+
+        <TripJourneyReviewSection
+          draft={editableDraft}
+          onJourneyChange={handleJourneyChange}
+          editable={!isChecking}
+        />
 
         <div className="trip-review-field-list">
           {REVIEW_FIELD_KEYS.map((key) => {

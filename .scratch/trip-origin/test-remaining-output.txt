@@ -1,0 +1,180 @@
+
+ RUN  v5.0.3 D:/KLTN/KLTN/apps/web
+
+stderr | src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts > V2-06 saved-trip authority through existing US-35/36/37 > keeps a lost apply acknowledgement UNKNOWN on a fresh worker and reconciles the identical operation
+Idempotent write outcome is unknown
+
+stderr | src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts > V2-06 saved-trip authority through existing US-35/36/37 > keeps a lost apply acknowledgement UNKNOWN on a fresh worker and reconciles the identical operation
+Idempotent write outcome is unknown
+
+stderr | src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts > V2-06 saved-trip authority through existing US-35/36/37 > restores pending day clarification and confirmation across fresh sessions
+Idempotent write outcome is unknown
+
+stderr | src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts > V2-06 saved-trip authority through existing US-35/36/37 > runs clarification → grounded QA → proposal → explicit apply for TRAVELER
+Idempotent write outcome is unknown
+
+stderr | src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts > V2-06 saved-trip authority through existing US-35/36/37 > runs clarification → grounded QA → proposal → explicit apply for ADMIN
+Idempotent write outcome is unknown
+
+stderr | src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts > V2-06 saved-trip authority through existing US-35/36/37 > normalizes GPS only for a material current-position request and applies via US-37
+Idempotent write outcome is unknown
+
+stderr | src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts > V2-06 saved-trip authority through existing US-35/36/37 > normalizes MANUAL only for a material current-position request and applies via US-37
+Idempotent write outcome is unknown
+
+stderr | src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts > V2-06 saved-trip authority through existing US-35/36/37 > keeps apply UNKNOWN across QA, blocks changes and explicitly reconciles the original key once
+Idempotent write outcome is unknown
+
+stderr | src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts > V2-06 saved-trip authority through existing US-35/36/37 > preserves rollback and never claims success on a transaction failure
+Idempotent write outcome is unknown
+
+stderr | src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts > V2-06 saved-trip authority through existing US-35/36/37 > retains pending proposal across QA and requires re-showing it before a bare agreement
+Idempotent write outcome is unknown
+
+stderr | src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts > V2-06 saved-trip authority through existing US-35/36/37 > rejects a competing session's old revision and does not perform a second write
+Idempotent write outcome is unknown
+
+ ❯ src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts (31 tests | 9 failed) 1248ms
+   ❯ V2-06 saved-trip authority through existing US-35/36/37 (31)
+     × keeps a lost apply acknowledgement UNKNOWN on a fresh worker and reconciles the identical operation 191ms
+     × restores pending day clarification and confirmation across fresh sessions 54ms
+     × runs clarification → grounded QA → proposal → explicit apply for TRAVELER 94ms
+     × runs clarification → grounded QA → proposal → explicit apply for ADMIN 77ms
+     ✓ does not request location for explicit future-day edits or the next scheduled visit 38ms
+     × normalizes GPS only for a material current-position request and applies via US-37 56ms
+     × normalizes MANUAL only for a material current-position request and applies via US-37 39ms
+     ✓ GPS error 1 offers manual fallback without claiming a location 28ms
+     ✓ GPS error 2 offers manual fallback without claiming a location 32ms
+     ✓ GPS error 3 offers manual fallback without claiming a location 28ms
+     ✓ rejects invalid/manual noncoordinates and does not turn a map viewport into a location 19ms
+     ✓ preserves existing AMBIGUOUS_DESTINATION semantics with no writes 19ms
+     ✓ preserves existing MISSING_DAY semantics with no writes 21ms
+     ✓ rejects completed scope and model changes to an unaffected day 35ms
+     ✓ asks for location if the model misroutes a current-day edit as location-independent 20ms
+     ✓ does not apply without explicit confirmation and rejects stale/superseded proposals 74ms
+     ✓ revalidates fresh evidence before apply and preserves DB on rejection 32ms
+     ✓ shows a nonconfirmable proposal on insufficient Validator evidence 27ms
+     × keeps apply UNKNOWN across QA, blocks changes and explicitly reconciles the original key once 40ms
+     ✓ preserves rollback and never claims success on a transaction failure 35ms
+     × retains pending proposal across QA and requires re-showing it before a bare agreement 54ms
+     ✓ denies identity null before model/read data or writes 2ms
+     ✓ denies identity foreign before model/read data or writes 1ms
+     ✓ enforces ownership on each action/replay and protects schemas/allowlists 26ms
+     ✓ keeps deleted historical labels unavailable and does not offer deleted replacements 14ms
+     ✓ rejects a future-day proposal if the server clock reaches that day before apply without a location 21ms
+     ✓ does not expose raw coordinates to either the router or existing US-36 provider 27ms
+     ✓ reuses generic US-36 replacement for Lô Lô Chải without applying it 24ms
+     ✓ reuses generic US-36 replacement for Điểm văn hóa độc lập without applying it 23ms
+     ✓ retains the safely resolved QA referent when returning to the existing in-trip analyzer 38ms
+     × rejects a competing session's old revision and does not perform a second write 53ms
+ ✓ src/modules/assistant-planning/planning-service.vitest.test.ts (11 tests) 109ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts > V2-06 saved-trip authority through existing US-35/36/37 > keeps a lost apply acknowledgement UNKNOWN on a fresh worker and reconciles the identical operation
+AssertionError: expected 'APPLY_UNKNOWN' to be 'APPLY_SUCCESS' // Object.is equality
+
+Expected: "APPLY_SUCCESS"
+Received: "APPLY_UNKNOWN"
+
+ ❯ src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts:117:45
+    115|     expect((await b.send("Bỏ điểm khác ngày 2", "v207a-unknown-new-edi…
+    116|     expect(f.llm.complete).toHaveBeenCalledTimes(calls);
+    117|     expect((await b.reconcile()).plan.goal).toBe("APPLY_SUCCESS");
+       |                                             ^
+    118|     expect(f.writes.filter(v => v === "revision")).toHaveLength(1);
+    119|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯
+
+ FAIL  src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts > V2-06 saved-trip authority through existing US-35/36/37 > restores pending day clarification and confirmation across fresh sessions
+AssertionError: expected 'APPLY_UNKNOWN' to be 'APPLY_SUCCESS' // Object.is equality
+
+Expected: "APPLY_SUCCESS"
+Received: "APPLY_UNKNOWN"
+
+ ❯ src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts:129:31
+    127|     const c = await f.start(JSON.parse(JSON.stringify(b.exportState())…
+    128|     const applied = await c.send("Áp dụng đi", "v207a-confirm-c");
+    129|     expect(applied.plan.goal).toBe("APPLY_SUCCESS");
+       |                               ^
+    130|     expect(applied.trip.candidate.days[0]).toEqual(original.days[0]); …
+    131|     expect(f.writes.filter(v => v === "revision")).toHaveLength(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯
+
+ FAIL  src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts > V2-06 saved-trip authority through existing US-35/36/37 > runs clarification → grounded QA → proposal → explicit apply for TRAVELER
+ FAIL  src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts > V2-06 saved-trip authority through existing US-35/36/37 > runs clarification → grounded QA → proposal → explicit apply for ADMIN
+AssertionError: expected 'APPLY_UNKNOWN' to be 'APPLY_SUCCESS' // Object.is equality
+
+Expected: "APPLY_SUCCESS"
+Received: "APPLY_UNKNOWN"
+
+ ❯ src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts:143:102
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯
+
+ FAIL  src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts > V2-06 saved-trip authority through existing US-35/36/37 > normalizes GPS only for a material current-position request and applies via US-37
+ FAIL  src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts > V2-06 saved-trip authority through existing US-35/36/37 > normalizes MANUAL only for a material current-position request and applies via US-37
+AssertionError: expected 'APPLY_UNKNOWN' to be 'APPLY_SUCCESS' // Object.is equality
+
+Expected: "APPLY_SUCCESS"
+Received: "APPLY_UNKNOWN"
+
+ ❯ src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts:163:102
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/9]⎯
+
+ FAIL  src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts > V2-06 saved-trip authority through existing US-35/36/37 > keeps apply UNKNOWN across QA, blocks changes and explicitly reconciles the original key once
+AssertionError: expected [] to have a length of 1 but got +0
+
+- Expected
++ Received
+
+- 1
++ 0
+
+ ❯ src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts:223:52
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/9]⎯
+
+ FAIL  src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts > V2-06 saved-trip authority through existing US-35/36/37 > retains pending proposal across QA and requires re-showing it before a bare agreement
+AssertionError: expected 'APPLY_UNKNOWN' to be 'APPLY_SUCCESS' // Object.is equality
+
+Expected: "APPLY_SUCCESS"
+Received: "APPLY_UNKNOWN"
+
+ ❯ src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts:242:80
+    240|     const shown = await session.send("Đồng ý", "v206-interrupt-agreeme…
+    241|     expect(shown.message).toContain("Lô Lô Chải"); expect(shown.plan.a…
+    242|     expect((await session.send("Đồng ý", "v206-interrupt-confirm")).pl…
+       |                                                                                ^
+    243|   });
+    244|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/9]⎯
+
+ FAIL  src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts > V2-06 saved-trip authority through existing US-35/36/37 > rejects a competing session's old revision and does not perform a second write
+AssertionError: expected 'APPLY_UNKNOWN' to be 'APPLY_SUCCESS' // Object.is equality
+
+Expected: "APPLY_SUCCESS"
+Received: "APPLY_UNKNOWN"
+
+ ❯ src/modules/assistant-agent-v2/in-trip-v2.vitest.test.ts:305:73
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/9]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  9 failed | 33 passed (42)
+   Start at  16:48:41
+   Duration  5.51s (transform 48%, tests 26%, import 26%)
+
+  Transform  transforming modules took 2.49s · 48% of tracked time, re-done on every run
+             persist transforms across runs with fsModuleCache: true
+             learn more: https://vitest.dev/guide/improving-performance#caching-between-reruns
+

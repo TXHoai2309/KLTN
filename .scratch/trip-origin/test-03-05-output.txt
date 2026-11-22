@@ -1,0 +1,42 @@
+
+ RUN  v5.0.3 D:/KLTN/KLTN/apps/web
+
+ ✓ src/modules/trip-origin/journey-multi-day.vitest.test.ts (7 tests) 114ms
+ ✓ src/modules/trip-origin/origin-search.vitest.test.ts (15 tests) 71ms
+ ✓ src/modules/trip-planner/planner-engine.vitest.test.ts (31 tests) 58ms
+ ✓ src/modules/trip-planner/planner-boundaries.vitest.test.ts (39 tests) 45ms
+ ✓ src/modules/trip-planner/planner-stadia.vitest.test.ts (40 tests) 13ms
+ ✓ src/modules/trip-origin/journey-planner.vitest.test.ts (15 tests) 29ms
+ ✓ src/modules/trip-origin/trip-origin.vitest.test.ts (15 tests) 17ms
+ ✓ src/modules/trip-requirement/trip-clarification-rules.vitest.test.ts (21 tests) 23ms
+ ✓ src/modules/trip-requirement/us27-task229-recovery.vitest.test.ts (5 tests) 20ms
+ ✓ src/modules/trip-requirement/us24-test.vitest.test.ts (29 tests) 17ms
+ ✓ src/modules/trip-save/trip-save-panel.vitest.test.ts (3 tests) 19ms
+ ✓ src/modules/trip-requirement/us27-test.vitest.test.ts (13 tests) 17ms
+ ✓ src/modules/trip-planner/planner-coherence.vitest.test.ts (9 tests) 12ms
+ ✓ src/modules/trip-requirement/trip-transport-policy.vitest.test.ts (56 tests) 16ms
+ ✓ src/modules/trip-requirement/trip-requirement-review.vitest.test.ts (20 tests) 14ms
+ ✓ src/modules/trip-requirement/trip-clarification-logic.vitest.test.ts (10 tests) 12ms
+ ✓ src/modules/trip-save/trip-save.vitest.test.ts (21 tests) 12ms
+ ✓ src/modules/trip-planner/planner-registry.vitest.test.ts (8 tests) 12ms
+ ✓ src/modules/assistant-planning/planning-engine.vitest.test.ts (6 tests) 14ms
+ ✓ src/modules/trip-planner/planner-route-geometry.vitest.test.ts (4 tests) 10ms
+ ✓ src/modules/trip-requirement/trip-requirement-check.vitest.test.ts (29 tests) 11ms
+ ✓ src/modules/trip-requirement/us26-test.vitest.test.ts (21 tests) 8ms
+ ✓ src/modules/trip-requirement/us24-start.vitest.test.ts (10 tests) 6ms
+ ✓ src/modules/trip-save/trip-save-adapter.vitest.test.ts (2 tests) 4ms
+ ✓ src/modules/trip-origin/journey-travel-only.vitest.test.ts (6 tests) 5ms
+ ✓ src/modules/trip-requirement/trip-requirement-form-logic.vitest.test.ts (24 tests) 7ms
+ ✓ src/modules/trip-save/trip-save-http.vitest.test.ts (4 tests) 5ms
+ ✓ src/modules/trip-save/trip-save-client.vitest.test.ts (4 tests) 2ms
+ ✓ src/modules/trip-requirement/trip-requirement-contract.vitest.test.ts (8 tests) 1ms
+ ✓ src/modules/trip-planner/planner-save-adapter.vitest.test.ts (3 tests) 1ms
+ ✓ src/modules/trip-requirement/transport-safety.vitest.test.ts (8 tests) 1ms
+ ↓ src/modules/trip-origin/origin-search.postgres.integration.vitest.test.ts (4 tests | 4 skipped)
+ ↓ src/modules/trip-planner/planner-candidates.postgres.integration.vitest.test.ts (3 tests | 3 skipped)
+
+ Test Files  31 passed | 2 skipped (33)
+      Tests  486 passed | 7 skipped (493)
+   Start at  16:29:24
+   Duration  3.50s (transform 53%, import 28%, tests 18%)
+

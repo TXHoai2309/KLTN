@@ -2,13 +2,18 @@ import type { TripRequirementInput } from "../trip-requirement/trip-requirement-
 import { weekdays } from "../destination/destination-contract";
 import { isDestinationEligibleForNewItinerary } from "../destination/destination-eligibility";
 import type { PlannerCandidate } from "./planner-candidates";
-import { orderPlannerCandidates } from "./planner-order";
+import { orderPlannerCandidates, pickPlannerStops } from "./planner-order";
 export { haversine } from "./planner-geography";
 import type { PlannerDay, PlannerStop, TravelLeg } from "./planner-contract";
 import type { RoutePair } from "./planner-routes";
 
 // Explicit preliminary planning preferences, not verified destination availability.
 export const PLANNING_WINDOW = { startMinute: 480, endMinute: 1080 } as const;
+/** Owner-approved 2026-11-07: a visit ending in this window is followed by a meal break before the next visit. */
+export const LUNCH = { fromMinute: 690, toMinute: 840, minutes: 60 } as const;
+/** Owner-approved 2026-11-07: from Day 2, breakfast then travel at 06:00. Visits still begin within the planning window. */
+export const MORNING_DEPARTURE_MINUTE = 360;
+export const BREAKFAST_MINUTES = 30;
 export const PACE_STOP_LIMIT = { RELAXED: 2, MODERATE: 3, PACKED: 4 } as const;
 export function dateForDay(startDate: string | null, index: number): string | null {
   if (!startDate) return null;
@@ -33,8 +38,11 @@ export function selectPlannerDays(requirement: TripRequirementInput, input: read
     const hours = openingFor(candidate, date), duration = visitDuration(candidate)!;
     return hours?.status !== "CLOSED" && (hours?.status !== "OPEN" || hours.intervals.some(interval => Math.min(interval.closesAtMinute, 1080) - Math.max(interval.opensAtMinute, 480) >= duration));
   };
-  const eligible = [...new Map(input.filter(candidate => isDestinationEligibleForNewItinerary(candidate) && Number.isFinite(candidate.latitude) && Number.isFinite(candidate.longitude) && Math.abs(candidate.latitude) <= 90 && Math.abs(candidate.longitude) <= 180 && visitDuration(candidate) !== null && visitDuration(candidate)! <= 600 && dates.some(date => availableOn(candidate, date))).map(candidate => [candidate.id, candidate])).values()];
-  const pool = orderPlannerCandidates(requirement, eligible, Math.min(28, requirement.durationDays * cap, eligible.length));
+  const eligible = [...new Map(input.filter(candidate => !candidate.external && isDestinationEligibleForNewItinerary(candidate) && Number.isFinite(candidate.latitude) && Number.isFinite(candidate.longitude) && Math.abs(candidate.latitude) <= 90 && Math.abs(candidate.longitude) <= 180 && visitDuration(candidate) !== null && visitDuration(candidate)! <= 600 && dates.some(date => availableOn(candidate, date))).map(candidate => [candidate.id, candidate])).values()];
+  const budget = Math.min(28, requirement.durationDays * cap, eligible.length);
+  const picked = pickPlannerStops(requirement, eligible, budget);
+  // The others stay behind as stand-ins for a date-specific closure.
+  const pool = [...orderPlannerCandidates(requirement, picked, budget), ...eligible.filter(candidate => !picked.includes(candidate))];
   const days: PlannerCandidate[][] = [];
   let remainingBudget = Math.min(28, requirement.durationDays * cap, pool.length);
   for (let index = 0; index < requirement.durationDays; index++) {
@@ -57,28 +65,40 @@ export function plannerRoutePairs(days: readonly PlannerCandidate[][], transport
   const stops = days.flat();
   return stops.slice(1).map((to, index) => ({ from: stops[index]!, to, transport }));
 }
-export function schedulePlannerDays(requirement: TripRequirementInput, selected: readonly PlannerCandidate[][], routes: ReadonlyMap<string, TravelLeg>): PlannerDay[] {
+export type JourneyScheduleTiming = { starts: ReadonlyMap<number, number | null>; restBefore: ReadonlyMap<string, number | null>; fixedArrivals?: ReadonlyMap<string, number> };
+export function schedulePlannerDays(requirement: TripRequirementInput, selected: readonly PlannerCandidate[][], routes: ReadonlyMap<string, TravelLeg>, timing?: JourneyScheduleTiming): PlannerDay[] {
   return selected.map((candidates, index) => {
     const date = dateForDay(requirement.startDate, index);
-    let cursor: number | null = PLANNING_WINDOW.startMinute;
+    let cursor: number | null = timing?.starts.has(index + 1) ? timing.starts.get(index + 1)! : timing ? MORNING_DEPARTURE_MINUTE : PLANNING_WINDOW.startMinute;
+    let lunched = false;
+    // ADR-42 §3: per-trip lunch length and latest visit end; defaults keep the owner-approved 60 min and 18:00.
+    const lunchMinutes = requirement.dayRhythm?.lunchMinutes ?? LUNCH.minutes;
+    const dayEnd = Math.min(requirement.dayRhythm?.dayEndMinute ?? PLANNING_WINDOW.endMinute, PLANNING_WINDOW.endMinute);
     const stops: PlannerStop[] = candidates.map((candidate, order) => {
       const inbound = routes.get(candidate.id) ?? null;
       const duration = visitDuration(candidate)!;
       if (inbound?.status === "INSUFFICIENT_DATA") cursor = null;
       else if (cursor !== null && inbound) cursor += Math.ceil(inbound.durationSeconds! / 60);
+      if (timing?.restBefore.get(candidate.id) === null) cursor = null;
+      else if (cursor !== null) cursor += timing?.restBefore.get(candidate.id) ?? 0;
+      if (cursor !== null) cursor = Math.max(PLANNING_WINDOW.startMinute, cursor);
       let arrival = cursor;
       const hours = openingFor(candidate, date);
       if (arrival !== null && hours?.status === "OPEN") {
-        const interval = hours.intervals.find(interval => Math.max(arrival!, interval.opensAtMinute) + duration <= Math.min(interval.closesAtMinute, 1080));
+        const interval = hours.intervals.find(interval => Math.max(arrival!, interval.opensAtMinute) + duration <= Math.min(interval.closesAtMinute, dayEnd));
         arrival = interval ? Math.max(arrival, interval.opensAtMinute) : null;
       }
-      const impossible = cursor !== null && (hours?.status === "CLOSED" || arrival === null || arrival + duration > PLANNING_WINDOW.endMinute);
+      if (timing?.fixedArrivals?.has(candidate.id)) arrival = timing.fixedArrivals.get(candidate.id)!;
+      const impossible = cursor !== null && (hours?.status === "CLOSED" || arrival === null || arrival + duration > dayEnd);
       const state = impossible ? "UNSCHEDULED" : arrival === null ? "TIME_UNKNOWN" : "PLANNED";
       if (state !== "PLANNED") arrival = null;
       const departure = arrival === null ? null : arrival + duration;
       cursor = departure;
+      if (timing && !lunched && departure !== null && departure >= LUNCH.fromMinute && departure <= LUNCH.toMinute && order < candidates.length - 1) {
+        cursor = departure + lunchMinutes; lunched = true;
+      }
       const { id, name, description, area, address, category, latitude, longitude, image } = candidate;
-      return { order: order + 1, destination: { id, name, description, area, address, category, latitude, longitude, image }, arrivalMinute: arrival,
+      return { order: order + 1, destination: { id, name, description, area, address, category, latitude, longitude, image, ...(candidate.external ? { external: true as const } : {}) }, arrivalMinute: arrival,
         departureMinute: departure, visitDurationMinutes: duration, scheduleState: state, inbound, validationStatus: "INSUFFICIENT_DATA" };
     });
     const complete = stops.length > 0 && stops.every(stop => !stop.inbound || stop.inbound.status === "VERIFIED");

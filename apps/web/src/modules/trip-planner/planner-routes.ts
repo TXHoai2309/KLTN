@@ -1,55 +1,92 @@
 import { requestStadiaRoute } from "../trip-validation/stadia-route";
+import { requestGoogleRoute, routingProviderFromEnv } from "../trip-validation/google-route";
 import type { TripTransport } from "../trip-requirement/trip-requirement-contract";
 import { travelLegSchema, type TravelLeg } from "./planner-contract";
 import type { PlannerCandidate } from "./planner-candidates";
 import { plannerRouteGeometry } from "./planner-route-geometry";
+import { journeyRouteSchema, type JourneyRoute } from "../trip-origin/journey-route-contract";
+import type { MapsProvider } from "../map/maps-provider";
 
 export type RoutePair = { from: PlannerCandidate; to: PlannerCandidate; transport: TripTransport };
-export type RouteProvider = { route: (pair: RoutePair, signal: AbortSignal) => Promise<TravelLeg> };
-export const ROUTING_DEADLINE_MS = 10_000;
+export type CoordinateRoutePair = { from: { latitude: number; longitude: number }; to: { latitude: number; longitude: number }; transport: TripTransport };
+export type RouteProvider = { route: (pair: RoutePair, signal: AbortSignal) => Promise<TravelLeg>; coordinateRoute?: (pair: CoordinateRoutePair, signal: AbortSignal) => Promise<JourneyRoute> };
+export const ROUTING_DEADLINE_MS = 40_000;
+/** Owner-approved 2026-11-07. Provider free-flow times gave 76-91 km/h on Hà Giang mountain roads. */
+export const MAX_AVERAGE_KMH: Record<TripTransport, number> = { CAR: 50, MOTORCYCLE: 40 };
+export function cappedDurationSeconds(durationSeconds: number, distanceMeters: number | null | undefined, transport: TripTransport): number {
+  return distanceMeters == null ? durationSeconds : Math.max(durationSeconds, Math.ceil(distanceMeters / 1000 / MAX_AVERAGE_KMH[transport] * 3600));
+}
 export function missingLeg(pair: RoutePair, reason: NonNullable<TravelLeg["reason"]>): TravelLeg {
   return { fromDestinationId: pair.from.id, toDestinationId: pair.to.id, status: "INSUFFICIENT_DATA", reason, durationSeconds: null, distanceMeters: null, provider: null };
 }
+type RouteRequest = typeof requestStadiaRoute;
+type RouteProviderOptions = { apiKey?: () => string | undefined | Promise<string | undefined>; fetcher?: typeof fetch; timeoutMs?: number };
 /** Planner requires both metrics; US29B/30 may validate a duration-only snapshot. */
-export function createStadiaRoutesProvider(options: { apiKey?: () => string | undefined | Promise<string | undefined>; fetcher?: typeof fetch; timeoutMs?: number } = {}): RouteProvider {
+function createRoutesProvider(request: RouteRequest, providerName: "STADIA_MAPS" | "GOOGLE_MAPS", options: RouteProviderOptions): Required<RouteProvider> {
   return { async route(pair, signal) {
-    const route = await requestStadiaRoute({ origin: pair.from, destination: pair.to, vehicle: pair.transport }, { ...options, signal });
+    const route = await request({ origin: pair.from, destination: pair.to, vehicle: pair.transport }, { ...options, signal });
     if (route.kind !== "ok") return missingLeg(pair, route.reason);
     const geometry = plannerRouteGeometry(route.geometry);
     const parsed = travelLegSchema.safeParse({ fromDestinationId: pair.from.id, toDestinationId: pair.to.id,
-      status: "VERIFIED", reason: null, durationSeconds: route.durationSeconds,
-      distanceMeters: route.distanceMeters ?? null, provider: "STADIA_MAPS", ...(geometry ? { geometry } : {}) });
+      status: "VERIFIED", reason: null, durationSeconds: cappedDurationSeconds(route.durationSeconds, route.distanceMeters, pair.transport),
+      distanceMeters: route.distanceMeters ?? null, provider: providerName, ...(geometry ? { geometry } : {}) });
     return parsed.success ? parsed.data : missingLeg(pair, "INVALID_RESPONSE");
+  }, async coordinateRoute(pair, signal) {
+    const result = await request({ origin: pair.from, destination: pair.to, vehicle: pair.transport }, { ...options, signal });
+    if (result.kind !== "ok") return { status: "INSUFFICIENT_DATA", reason: result.reason, durationSeconds: null, distanceMeters: null, provider: null };
+    const geometry = plannerRouteGeometry(result.geometry);
+    const route = journeyRouteSchema.safeParse({ status: "VERIFIED", reason: null, durationSeconds: cappedDurationSeconds(result.durationSeconds, result.distanceMeters, pair.transport), distanceMeters: result.distanceMeters ?? null, provider: providerName, ...(geometry ? { geometry } : {}) });
+    return route.success ? route.data : { status: "INSUFFICIENT_DATA", reason: "INVALID_RESPONSE", durationSeconds: null, distanceMeters: null, provider: null };
   } };
 }
+export function createStadiaRoutesProvider(options: RouteProviderOptions = {}): Required<RouteProvider> {
+  return createRoutesProvider(requestStadiaRoute, "STADIA_MAPS", options);
+}
+export function createGoogleRoutesProvider(options: RouteProviderOptions = {}): Required<RouteProvider> {
+  return createRoutesProvider(requestGoogleRoute, "GOOGLE_MAPS", options);
+}
+/** Shared website flag; preserve Stadia's configured runtime key source. */
+export function createConfiguredRoutesProvider(options: { provider?: MapsProvider; stadiaApiKey?: RouteProviderOptions["apiKey"]; fetcher?: typeof fetch; timeoutMs?: number; env?: { NEXT_PUBLIC_MAPS_PROVIDER?: string | undefined; GOOGLE_MAPS_API_KEY?: string | undefined } } = {}): Required<RouteProvider> {
+  const { provider, stadiaApiKey, env, ...rest } = options;
+  if ((provider ?? routingProviderFromEnv(env)) === "GOOGLE")
+    return createGoogleRoutesProvider({ ...rest, ...(env ? { apiKey: () => env.GOOGLE_MAPS_API_KEY } : {}) });
+  return createStadiaRoutesProvider({ ...rest, ...(stadiaApiKey ? { apiKey: stadiaApiKey } : {}) });
+}
 
-/** One deadline for ALL mandatory routing, at most 27 directed pairs, three in flight. */
-export async function resolvePlannerRoutes(pairs: readonly RoutePair[], provider: RouteProvider, timeoutMs = ROUTING_DEADLINE_MS): Promise<Map<string, TravelLeg>> {
-  if (pairs.length > 27) throw new Error("Planner route budget exceeded");
+/** Shared worker/deadline primitive for the original and origin-extended chain. */
+export async function resolveBoundedRoutes<T, R>(pairs: readonly T[], route: (pair: T, signal: AbortSignal) => Promise<R>, missing: (pair: T, reason: "TIMEOUT" | "UNAVAILABLE") => R, timeoutMs = ROUTING_DEADLINE_MS): Promise<R[]> {
+  if (pairs.length > 29) throw new Error("Journey route budget exceeded");
   const controller = new AbortController();
-  const legs = new Map<string, TravelLeg>();
+  const results: R[] = new Array(pairs.length);
   let cursor = 0;
   const timer = setTimeout(() => controller.abort(), Math.min(ROUTING_DEADLINE_MS, Math.max(1, timeoutMs)));
   const workers = Array.from({ length: Math.min(3, pairs.length) }, async () => {
     while (cursor < pairs.length && !controller.signal.aborted) {
-      const pair = pairs[cursor++]!;
+      const index = cursor++, pair = pairs[index]!;
       let listener: (() => void) | undefined;
       try {
-        const expired = new Promise<TravelLeg>(resolve => {
-          listener = () => resolve(missingLeg(pair, "TIMEOUT"));
+        const expired = new Promise<R>(resolve => {
+          listener = () => resolve(missing(pair, "TIMEOUT"));
           controller.signal.addEventListener("abort", listener, { once: true });
           if (controller.signal.aborted) listener();
         });
-        const raw = await Promise.race([provider.route(pair, controller.signal), expired]);
-        const parsed = travelLegSchema.safeParse(raw);
-        const leg = parsed.success && parsed.data.fromDestinationId === pair.from.id && parsed.data.toDestinationId === pair.to.id ? parsed.data : missingLeg(pair, "INVALID_RESPONSE");
-        legs.set(pair.to.id, leg);
-      } catch { legs.set(pair.to.id, missingLeg(pair, "UNAVAILABLE")); }
+        results[index] = await Promise.race([route(pair, controller.signal), expired]);
+      } catch { results[index] = missing(pair, "UNAVAILABLE"); }
       finally { if (listener) controller.signal.removeEventListener("abort", listener); }
     }
   });
   try { await Promise.all(workers); }
   finally { clearTimeout(timer); }
-  for (const pair of pairs) if (!legs.has(pair.to.id)) legs.set(pair.to.id, missingLeg(pair, "TIMEOUT"));
-  return legs;
+  for (let index = 0; index < pairs.length; index++) if (!results[index]) results[index] = missing(pairs[index]!, "TIMEOUT");
+  return results;
+}
+
+/** One deadline for ALL mandatory routing, at most 27 directed pairs, three in flight. */
+export async function resolvePlannerRoutes(pairs: readonly RoutePair[], provider: RouteProvider, timeoutMs = ROUTING_DEADLINE_MS): Promise<Map<string, TravelLeg>> {
+  if (pairs.length > 27) throw new Error("Planner route budget exceeded");
+  const results = await resolveBoundedRoutes(pairs, async (pair, signal) => {
+    const parsed = travelLegSchema.safeParse(await provider.route(pair, signal));
+    return parsed.success && parsed.data.fromDestinationId === pair.from.id && parsed.data.toDestinationId === pair.to.id ? parsed.data : missingLeg(pair, "INVALID_RESPONSE");
+  }, missingLeg, timeoutMs);
+  return new Map(pairs.map((pair, index) => [pair.to.id, results[index]!]));
 }

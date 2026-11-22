@@ -376,6 +376,9 @@ export async function bulkSetRagPublicQa(
 ) {
   const actor = await requireActor(headers, deps, "admin");
   const input = parse(bulkRequest, body);
+  if (input.action !== "DISABLE_SELECTED") {
+    throw new AppError("RAG_SOURCE_REVIEW_REQUIRED", "Cấp quyền công khai từng tài liệu sau khi đối soát tệp gốc.", 409);
+  }
   return executeIdempotentWrite({
     database: deps.database,
     actorId: actor.id,
@@ -383,40 +386,6 @@ export async function bulkSetRagPublicQa(
     key,
     input,
     execute: async transaction => {
-      if (input.action === "ENABLE_ALL_INDEXED") {
-        const indexedDocs = await transaction.ragDocument.findMany({
-          where: { status: "INDEXED", publicQaApproved: false, deletedAt: null },
-          select: { id: true },
-        });
-        const ids = indexedDocs.map(document => document.id);
-        if (ids.length > 0) {
-          await transaction.ragDocument.updateMany({
-            where: { id: { in: ids }, deletedAt: null },
-            data: { publicQaApproved: true },
-          });
-        }
-        return { updatedCount: ids.length, ids };
-      }
-
-      if (input.action === "ENABLE_SELECTED") {
-        const documents = await transaction.ragDocument.findMany({
-          where: {
-            id: { in: input.documentIds },
-            status: { not: "DISABLED" },
-            deletedAt: null,
-          },
-          select: { id: true },
-        });
-        const ids = documents.map(document => document.id);
-        if (ids.length > 0) {
-          await transaction.ragDocument.updateMany({
-            where: { id: { in: ids }, deletedAt: null },
-            data: { publicQaApproved: true },
-          });
-        }
-        return { updatedCount: ids.length, ids };
-      }
-
       const result = await transaction.ragDocument.updateMany({
         where: { id: { in: input.documentIds }, deletedAt: null },
         data: { publicQaApproved: false },

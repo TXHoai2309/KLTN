@@ -40,7 +40,7 @@ const eligibleDestinationSchema = z
 const replanPromptInputSchema = z
   .object({
     need: z.string().min(1),
-    location: inTripLocationSchema,
+    location: inTripLocationSchema.nullable(),
     completedVisitIds: z.array(entityIdSchema).max(MAX_REPLAN_VISITS),
     remainingVisits: z.array(remainingVisitSchema).min(1).max(MAX_REPLAN_VISITS),
     dayIndexes: z.array(z.number().int().min(1).max(MAX_DURATION_DAYS)).min(1).max(MAX_DURATION_DAYS),
@@ -195,7 +195,9 @@ function distanceMeters(
 }
 
 /** Build bounded prompt data; exact location coordinates are used only for ranking. */
-export function buildReplanPrompt(input: ReplanPromptInput): BuiltReplanPrompt {
+export type LocationIndependentReplanPromptInput = Omit<ReplanPromptInput, "location"> & { location: null };
+export function buildReplanPrompt(input: ReplanPromptInput | LocationIndependentReplanPromptInput, allowLocationIndependent = false): BuiltReplanPrompt {
+  if (!input.location && !allowLocationIndependent) throw new ReplanPromptInputError("INVALID_CONTEXT");
   const candidate = {
     need: input.need,
     location: input.location,
@@ -222,7 +224,7 @@ export function buildReplanPrompt(input: ReplanPromptInput): BuiltReplanPrompt {
     .map((destination) => ({
       id: destination.id,
       name: truncateCodePoints(destination.name, MAX_REPLAN_DESTINATION_NAME_LENGTH),
-      distanceMeters: distanceMeters(parsed.data.location, destination),
+      distanceMeters: parsed.data.location ? distanceMeters(parsed.data.location, destination) : 0,
     }))
     .sort(
       (left, right) =>
@@ -249,7 +251,7 @@ export function buildReplanPrompt(input: ReplanPromptInput): BuiltReplanPrompt {
   };
 
   return {
-    system: SYSTEM_INSTRUCTIONS,
+    system: SYSTEM_INSTRUCTIONS + (!parsed.data.location ? " Chưa có vị trí hiện tại; chỉ chỉnh ngày tương lai theo yêu cầu rõ ràng. Danh sách điểm không xếp theo độ gần. Không đoán vị trí hoặc chỉnh hôm nay." : ""),
     user: JSON.stringify({ requestData }),
     serverContext,
   };

@@ -2,9 +2,15 @@ import { z } from "zod";
 import { tripRequirementInputSchema } from "../trip-requirement/trip-requirement-contract";
 import { publicHttpsUrl } from "../content-profile/content-profile-contract";
 import { plannerRouteGeometrySchema } from "./planner-route-geometry";
+import { journeyPlanSchema } from "../trip-origin/journey-route-contract";
+import { ASSUMABLE_FIELDS, blockingAssumedFields } from "../trip-validation/trip-proposal-contract";
 
 export const PLANNER_PHASES = ["PRELIMINARY_PROPOSAL", "FINAL_CONFIRMATION", "OFFICIAL_SAVE"] as const;
 export const CHECK_KEYS = ["OPENING_HOURS", "MINIMUM_DURATION", "TRAVEL_TIME", "SCHEDULE_CONFLICTS", "MOBILITY"] as const;
+/** Vietnamese UI labels for a place outside the KLTN catalogue; the only source shown is the plain text "Google Maps". */
+export const EXTERNAL_PLACE_LABEL = "ngoài danh mục (chưa kiểm)";
+export const EXTERNAL_STAY_ESTIMATE_LABEL = "ước tính";
+export const EXTERNAL_PLACE_SOURCE_LABEL = "Nguồn: Google Maps";
 export const checkStatusSchema = z.enum(["PASS", "VIOLATION", "INSUFFICIENT_DATA"]);
 export type CheckStatus = z.infer<typeof checkStatusSchema>;
 const id = z.string().min(1).max(128);
@@ -14,6 +20,10 @@ export const plannerDestinationSchema = z.object({
   address: z.string().max(1000).nullable(), category: z.string().max(100),
   latitude: z.number().finite().min(-90).max(90), longitude: z.number().finite().min(-180).max(180),
   image: z.object({ url: publicHttpsUrl, alt: z.string().max(300), author: z.string().max(200).nullable(), sourceUrl: publicHttpsUrl.nullable() }).strict().nullable(),
+  /** Optional verified Google Maps URL from the destination catalog (Place preview, Ticket 09). */
+  googleMapsUrl: publicHttpsUrl.nullable().optional(),
+  /** Present only for a place outside the KLTN catalogue (Google Places). Absent means a KLTN destination; old data parses unchanged. */
+  external: z.literal(true).optional(),
 }).strict();
 export const travelLegSchema = z.object({
   fromDestinationId: id, toDestinationId: id,
@@ -21,7 +31,7 @@ export const travelLegSchema = z.object({
   reason: z.enum(["NOT_CONFIGURED", "TIMEOUT", "UNAVAILABLE", "UNSUPPORTED_MODE", "NO_ROUTE", "INVALID_RESPONSE"]).nullable(),
   durationSeconds: z.number().finite().nonnegative().max(604800).nullable(),
   distanceMeters: z.number().finite().nonnegative().max(10_000_000).nullable(),
-  provider: z.literal("STADIA_MAPS").nullable(),
+  provider: z.enum(["STADIA_MAPS", "GOOGLE_MAPS"]).nullable(),
   geometry: plannerRouteGeometrySchema.optional(),
 }).strict().superRefine((leg, ctx) => {
   if (leg.status === "VERIFIED" && (leg.durationSeconds === null || leg.distanceMeters === null || leg.provider === null || leg.reason !== null))
@@ -38,6 +48,7 @@ export const plannerStopSchema = z.object({
 }).strict();
 export type PlannerStop = z.infer<typeof plannerStopSchema>;
 export const plannerDaySchema = z.object({
+  journeyDayKind: z.enum(["VISITS", "OUTBOUND_ONLY", "RETURN_ONLY", "EMPTY"]).optional(),
   day: z.number().int().min(1).max(14), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
   stops: z.array(plannerStopSchema).max(4), distanceMeters: z.number().nonnegative().nullable(), travelSeconds: z.number().nonnegative().nullable(),
 }).strict();
@@ -46,11 +57,14 @@ const issueSchema = z.object({ code: z.string().max(80), message: z.string().max
 export const plannerCheckSchema = z.object({ key: z.enum(CHECK_KEYS), status: checkStatusSchema, issues: z.array(issueSchema).max(80) }).strict();
 export type PlannerCheck = z.infer<typeof plannerCheckSchema>;
 export const plannerResultSchema = z.object({
+  journeyPlan: journeyPlanSchema.optional(),
   proposalId: id, phase: z.literal("PRELIMINARY_PROPOSAL"),
   status: z.enum(["PROPOSAL_READY", "INSUFFICIENT_DATA", "NO_FEASIBLE_ITINERARY"]),
   requirement: tripRequirementInputSchema, timezone: z.literal("Asia/Ho_Chi_Minh"),
   days: z.array(plannerDaySchema).min(1).max(14), checks: z.array(plannerCheckSchema).length(CHECK_KEYS.length),
   warnings: z.array(issueSchema).max(80), reasonCodes: z.array(z.string().max(80)).max(30),
+  /** Assumed first-cluster fields for an Assumed draft (ADR-44). Present only when at least one field is assumed. */
+  assumedFields: z.array(z.enum(ASSUMABLE_FIELDS)).max(ASSUMABLE_FIELDS.length).optional(),
   eligibleForFinalConfirmation: z.boolean(),
 }).strict().superRefine((proposal, ctx) => {
   const fail = (message: string) => ctx.addIssue({ code: "custom", message });
@@ -58,7 +72,7 @@ export const plannerResultSchema = z.object({
   if (new Set(proposal.checks.map(check => check.key)).size !== CHECK_KEYS.length) fail("Check keys mismatch.");
   const allPass = proposal.checks.every(check => check.status === "PASS");
   if (proposal.status === "PROPOSAL_READY" && !allPass) fail("Missing data is not a pass.");
-  if (proposal.eligibleForFinalConfirmation && (!allPass || !proposal.requirement.startDate)) fail("Final confirmation is blocked.");
+  if (proposal.eligibleForFinalConfirmation && (!allPass || !proposal.requirement.startDate || blockingAssumedFields(proposal.assumedFields).length > 0)) fail("Final confirmation is blocked.");
   const ids = proposal.days.flatMap(day => day.stops.map(stop => stop.destination.id));
   if (new Set(ids).size !== ids.length || ids.length > 28) fail("Duplicate or unbounded stops.");
   for (const day of proposal.days) {

@@ -31,6 +31,8 @@ export type AssistantSidebarProps = {
   onSelectConversation: (id: string) => void;
   onRenameConversation: (id: string, newTitle: string) => Promise<boolean>;
   onDeleteConversation: (id: string) => Promise<boolean>;
+  onDeleteAll?: () => Promise<boolean>;
+  canRename?: (id: string) => boolean;
   onLoadMore: () => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
@@ -50,6 +52,8 @@ export function AssistantSidebar({
   onSelectConversation,
   onRenameConversation,
   onDeleteConversation,
+  onDeleteAll,
+  canRename,
   onLoadMore,
   searchQuery,
   onSearchChange,
@@ -58,6 +62,7 @@ export function AssistantSidebar({
   const [editTitle, setEditTitle] = useState("");
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmingDeleteAll, setConfirmingDeleteAll] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
 
   const editInputRef = useRef<HTMLInputElement>(null);
@@ -111,6 +116,17 @@ export function AssistantSidebar({
         setDeletingId(null);
         setActiveMenuId(null);
       }
+    } finally {
+      setActionBusy(false);
+    }
+  }
+
+  async function confirmDeleteAll() {
+    if (!onDeleteAll || actionBusy) return;
+    setActionBusy(true);
+    try {
+      const ok = await onDeleteAll();
+      if (ok) setConfirmingDeleteAll(false);
     } finally {
       setActionBusy(false);
     }
@@ -316,18 +332,20 @@ export function AssistantSidebar({
                                   role="menu"
                                   aria-label="Tùy chọn cuộc trò chuyện"
                                 >
-                                  <button
-                                    type="button"
-                                    role="menuitem"
-                                    className="assistant-sidebar-menu-item"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      startEditing(conv);
-                                    }}
-                                  >
-                                    <Pencil aria-hidden="true" />
-                                    <span>Đổi tên</span>
-                                  </button>
+                                  {(!canRename || canRename(conv.id)) && (
+                                    <button
+                                      type="button"
+                                      role="menuitem"
+                                      className="assistant-sidebar-menu-item"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        startEditing(conv);
+                                      }}
+                                    >
+                                      <Pencil aria-hidden="true" />
+                                      <span>Đổi tên</span>
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
                                     role="menuitem"
@@ -377,6 +395,44 @@ export function AssistantSidebar({
             </div>
           )}
         </div>
+
+        {onDeleteAll && conversations.length > 0 && (
+          <div className="assistant-sidebar-footer">
+            {confirmingDeleteAll ? (
+              <div className="assistant-sidebar-delete-confirm">
+                <span className="assistant-sidebar-delete-prompt">Xóa toàn bộ lịch sử?</span>
+                <button
+                  type="button"
+                  className="assistant-sidebar-delete-btn confirm"
+                  disabled={actionBusy}
+                  onClick={() => void confirmDeleteAll()}
+                  aria-label="Xác nhận xóa tất cả"
+                >
+                  Xóa hết
+                </button>
+                <button
+                  type="button"
+                  className="assistant-sidebar-delete-btn cancel"
+                  disabled={actionBusy}
+                  onClick={() => setConfirmingDeleteAll(false)}
+                  aria-label="Hủy xóa tất cả"
+                >
+                  Hủy
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="assistant-sidebar-delete-all-btn"
+                disabled={actionBusy}
+                onClick={() => setConfirmingDeleteAll(true)}
+              >
+                <Trash2 aria-hidden="true" />
+                <span>Xóa tất cả</span>
+              </button>
+            )}
+          </div>
+        )}
       </aside>
     </>
   );

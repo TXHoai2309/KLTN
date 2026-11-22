@@ -5,8 +5,9 @@ import {
   MAX_DURATION_DAYS,
   TRANSPORT_VALUES,
 } from "../trip-requirement/trip-requirement-contract";
+import { tripJourneySchema, type TripJourney } from "../trip-origin/trip-origin-contract";
 
-/** Matches the current Planner itinerary contract's maximum of four visits per day. */
+/** Kept for in-trip replan compatibility; manual/AI itinerary editing uses MAX_EDIT_VISITS across the trip. */
 export const MAX_EDIT_VISITS_PER_DAY = 4;
 /** Matches the persisted trip proposal contract. */
 export const MAX_EDIT_VISITS = 50;
@@ -17,7 +18,7 @@ const visitSchema = z
     destinationId: z.string().min(1).max(128),
     startMinute: z.number().int().min(0).max(1439),
     plannedDurationMinutes: z.number().int().min(1).max(1440),
-    order: z.number().int().min(1).max(MAX_EDIT_VISITS_PER_DAY),
+    order: z.number().int().min(1).max(MAX_EDIT_VISITS),
   })
   .strict()
   .refine(
@@ -28,7 +29,7 @@ const visitSchema = z
 const daySchema = z
   .object({
     dayIndex: z.number().int().min(1).max(MAX_DURATION_DAYS),
-    visits: z.array(visitSchema).max(MAX_EDIT_VISITS_PER_DAY),
+    visits: z.array(visitSchema).max(MAX_EDIT_VISITS),
   })
   .strict();
 
@@ -41,6 +42,7 @@ export const editCandidateSchema = z
     durationDays: z.number().int().min(1).max(MAX_DURATION_DAYS),
     transport: z.enum(TRANSPORT_VALUES),
     days: z.array(daySchema).min(1).max(MAX_DURATION_DAYS),
+    journey: tripJourneySchema.nullable().optional(),
   })
   .strict()
   .superRefine((candidate, context) => {
@@ -252,10 +254,11 @@ export function addVisit(
       "Mã lượt tham quan đã tồn tại trong phương án.",
     );
   }
-  if (day.visits.length >= MAX_EDIT_VISITS_PER_DAY) {
+  const totalVisits = candidate.days.reduce((sum, item) => sum + item.visits.length, 0);
+  if (totalVisits >= MAX_EDIT_VISITS) {
     throw new EditCandidateOperationError(
       "VISIT_LIMIT_EXCEEDED",
-      `Mỗi ngày chỉ hỗ trợ tối đa ${MAX_EDIT_VISITS_PER_DAY} lượt tham quan.`,
+      `Hành trình chỉ hỗ trợ tối đa ${MAX_EDIT_VISITS} lượt tham quan.`,
     );
   }
 
@@ -285,13 +288,6 @@ export function moveVisit(
   const sourceLocation = findVisit(candidate, visitId);
   const targetDay = findDay(candidate, targetDayIndex);
   sourceLocation.day.visits.splice(sourceLocation.visitIndex, 1);
-
-  if (targetDay.visits.length >= MAX_EDIT_VISITS_PER_DAY) {
-    throw new EditCandidateOperationError(
-      "VISIT_LIMIT_EXCEEDED",
-      `Mỗi ngày chỉ hỗ trợ tối đa ${MAX_EDIT_VISITS_PER_DAY} lượt tham quan.`,
-    );
-  }
 
   const targetPosition = parsePosition(position ?? targetDay.visits.length + 1, targetDay.visits.length + 1);
   targetDay.visits.splice(targetPosition - 1, 0, sourceLocation.visit);
@@ -415,4 +411,21 @@ export function diffEditCandidate(
   }
 
   return { added, removed, updated, tripChanges };
+}
+
+function normalizedJourneyJson(journey: TripJourney | null | undefined): string {
+  if (!journey) return "null";
+  return JSON.stringify({
+    origin: journey.origin ?? null,
+    departureMinute: journey.departureMinute ?? null,
+    returnDeadlineMinute: journey.returnDeadlineMinute ?? null,
+    returnDepartureMinute: journey.returnDepartureMinute ?? null,
+  });
+}
+
+export function hasJourneyChanged(
+  before: TripJourney | null | undefined,
+  after: TripJourney | null | undefined,
+): boolean {
+  return normalizedJourneyJson(before) !== normalizedJourneyJson(after);
 }

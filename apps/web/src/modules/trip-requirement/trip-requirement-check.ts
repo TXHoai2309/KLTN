@@ -55,6 +55,7 @@ export type TripRequirementCheckResult = CheckResult;
 const INVALID_BODY_MESSAGE = "Dữ liệu nhu cầu chuyến đi phải là một đối tượng JSON hợp lệ.";
 const START_DATE_IN_PAST_MESSAGE = "Ngày bắt đầu không được ở trong quá khứ.";
 const ROOT_KEYS = new Set([
+  "journey",
   "startDate",
   "durationDays",
   "transport",

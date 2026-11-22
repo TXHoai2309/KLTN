@@ -3,13 +3,23 @@ import { describe, expect, it } from "vitest";
 import { previewTripValidationResponse, saveTripResponse } from "./trip-save-http";
 import type { TripSaveDependencies } from "./trip-save-service";
 
-const unreachable = {} as TripSaveDependencies;
+const unreachable = {
+  resolveSession: async () => ({ user: { id: "owner" } }),
+  database: { user: { findUnique: async () => ({ id: "owner", role: "TRAVELER" }) } },
+} as unknown as TripSaveDependencies;
 const request = (body: unknown, headers: Record<string, string> = {}) => new Request("https://example.test/api/trips", {
   method: "POST", body: JSON.stringify(body),
   headers: { origin: "https://example.test", "content-type": "application/json", "Idempotency-Key": "key-1", ...headers },
 });
 
 describe("US-30 save HTTP boundary", () => {
+  it("rejects Guest before reading a malformed save or preview body", async () => {
+    for (const respond of [previewTripValidationResponse, saveTripResponse]) {
+      const req = request({});
+      expect((await respond(req, { ...unreachable, resolveSession: async () => null })).status).toBe(401);
+      expect(req.bodyUsed).toBe(false);
+    }
+  });
   it("keeps the read-only validation preview separate from the save mutation", async () => {
     const response = await previewTripValidationResponse(request({ proposal: {} }), unreachable);
     expect(response.status).toBe(400);

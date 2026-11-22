@@ -1,0 +1,46 @@
+import { describe, expect, it, vi } from "vitest";
+
+import type { PlannerResult } from "../trip-planner/planner-contract";
+import { ACTIVITY_PER_SLOT, activityAnchors, nearbyActivitySuggestions } from "./tripsage-activities";
+import type { PlacesSearch } from "./tripsage-places";
+
+const stop = (name: string, latitude: number, longitude: number) => ({ destination: { id: name, name, latitude, longitude } });
+const plan = { days: [
+  { day: 1, stops: [stop("Quản Bạ", 23.07, 104.98), stop("Yên Minh", 23.1, 105.15)] },
+  { day: 2, stops: [stop("Đồng Văn", 23.28, 105.36)] },
+] } as unknown as PlannerResult;
+
+describe("tripsage-activities (ADR-45)", () => {
+  it("anchors every stop, then each night except the last day, at the day's last stop", () => {
+    const { anchors, stopNames } = activityAnchors(plan);
+    expect(anchors.map(a => a.slotId)).toEqual(["d1-visit-1", "d1-visit-2", "d2-visit-1", "d1-overnight"]);
+    expect(anchors.at(-1)).toMatchObject({ kind: "EVENING", latitude: 23.1, longitude: 105.15 });
+    expect(stopNames).toEqual(["Quản Bạ", "Yên Minh", "Đồng Văn"]);
+  });
+
+  it("returns at most five nearest places per slot, skips itinerary stops, and uses each place once", async () => {
+    const { anchors, stopNames } = activityAnchors(plan);
+    const places: PlacesSearch = vi.fn(async (_q, _s, near) => ({
+      status: "RESULTS" as const,
+      places: [
+        { placeId: "stop", name: "Quản Bạ", latitude: near!.latitude, longitude: near!.longitude },
+        ...Array.from({ length: 8 }, (_, i) => ({ placeId: `p${i}`, name: `Chỗ chơi ${i}`, latitude: near!.latitude + i * 0.002, longitude: near!.longitude })),
+      ],
+    }));
+    const out = await nearbyActivitySuggestions({ places, anchors: anchors.slice(0, 2), stopNames, now: () => 1 });
+    const first = out.filter(s => s.slotId === "d1-visit-1");
+    expect(first).toHaveLength(ACTIVITY_PER_SLOT);
+    expect(first.map(s => s.place?.placeId)).toEqual(["p0", "p1", "p2", "p3", "p4"]);
+    expect(out.some(s => s.place?.placeId === "stop")).toBe(false);
+    // the second slot cannot reuse places already shown on the first
+    expect(new Set(out.map(s => s.place?.placeId)).size).toBe(out.length);
+  });
+
+  it("treats a failed or unavailable lookup as no suggestions for that slot", async () => {
+    const { anchors, stopNames } = activityAnchors(plan);
+    const places: PlacesSearch = async () => { throw new Error("boom"); };
+    await expect(nearbyActivitySuggestions({ places, anchors, stopNames, now: () => 1e9 })).resolves.toEqual([]);
+    const unavailable: PlacesSearch = async () => ({ status: "UNAVAILABLE" });
+    await expect(nearbyActivitySuggestions({ places: unavailable, anchors, stopNames, now: () => 2e9 })).resolves.toEqual([]);
+  });
+});

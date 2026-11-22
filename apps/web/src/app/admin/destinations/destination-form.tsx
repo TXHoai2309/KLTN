@@ -519,6 +519,17 @@ export default function DestinationForm({ id }: { id: string | null }) {
                 )}
                 {field("minimumDurationMinutes", "Thời lượng tối thiểu (phút)")}
               </div>
+              <label className="dv3-outdoor">
+                <input
+                  type="checkbox"
+                  checked={draft.isOutdoor}
+                  onChange={(e) => change("isOutdoor", e.target.checked)}
+                />
+                <span>
+                  <strong>Điểm ngoài trời</strong>
+                  <small>Bật để cảnh báo khi lịch trình xếp điểm này sau giờ hoàng hôn.</small>
+                </span>
+              </label>
               <details
                 className="dv3-disclosure"
                 open={

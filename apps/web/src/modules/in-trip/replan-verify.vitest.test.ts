@@ -276,4 +276,12 @@ describe("in-trip replan verification", () => {
       expect.objectContaining<Partial<PreferenceExtractionError>>({ code: "INVALID_PROVIDER_RESPONSE" }),
     );
   });
+
+  test("binds a missing-day resolution to a REMOVE target's actual day without inventing a day parameter", () => {
+    const removed = verifyReplanOutput(output({ operations: [operation("REMOVE_VISIT", { targetVisitId: "remaining-2", destinationId: null })] }), { ...context, resolution: { selectedDayIndex: 2 } });
+    expect(removed.status).toBe("PROPOSED");
+    if (removed.status === "PROPOSED") expect(removed.intent.operations[0]?.params.dayIndex).toBeNull();
+    const wrongDay = verifyReplanOutput(output({ operations: [operation("REMOVE_VISIT", { targetVisitId: "remaining-1", destinationId: null })] }), { ...context, resolution: { selectedDayIndex: 2 } });
+    expect(wrongDay).toMatchObject({ status: "NEEDS_CLARIFICATION", clarificationReason: "MISSING_DAY" });
+  });
 });

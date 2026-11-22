@@ -2,10 +2,12 @@ import "server-only";
 
 import { isValidMapCoordinate, type MapCoordinate, type RouteGeometry } from "../map/map-model";
 import { assertSupportedTransportValue } from "../trip-requirement/trip-transport-policy";
+import { requestGoogleRoute, routingProviderFromEnv } from "./google-route";
+import type { MapsProvider } from "../map/maps-provider";
 import { checkTravelTime, type VisitPair } from "./travel-time";
 
 export type TravelRoute =
-  | { kind: "ok"; durationSeconds: number; distanceMeters?: number; geometry?: RouteGeometry }
+  | { kind: "ok"; durationSeconds: number; distanceMeters?: number; geometry?: RouteGeometry; provider?: "GOOGLE_MAPS" | "STADIA_MAPS" }
   | { kind: "unavailable" };
 
 type RouteInput = {
@@ -57,8 +59,8 @@ export async function requestStadiaRoute(input: RouteInput, options: RouteOption
   let costing: ReturnType<typeof toStadiaCosting>;
   try { costing = toStadiaCosting(input.vehicle); } catch { return missing("UNSUPPORTED_MODE"); }
   if (!isValidMapCoordinate(input.origin) || !isValidMapCoordinate(input.destination)) return missing("INVALID_RESPONSE");
-  const timeoutMs = options.timeoutMs ?? 10_000;
-  if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 10_000) throw new RangeError("Invalid routing timeout");
+  const timeoutMs = options.timeoutMs ?? 40_000;
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 40_000) throw new RangeError("Invalid routing timeout");
   const controller = new AbortController();
   const abort = () => controller.abort();
   options.signal?.addEventListener("abort", abort, { once: true });
@@ -130,10 +132,14 @@ export async function requestStadiaRoute(input: RouteInput, options: RouteOption
 }
 
 /** Preserve US29B/30's duration-only success and existing unavailable result. */
-export async function getTravelRoute(input: RouteInput, options: RouteOptions = {}): Promise<TravelRoute> {
+export async function getTravelRoute(input: RouteInput, options: RouteOptions & { provider?: MapsProvider } = {}): Promise<TravelRoute> {
   toStadiaCosting(input.vehicle); // Existing callers reject unsupported transport.
-  const result = await requestStadiaRoute(input, options);
-  return result.kind === "ok" ? result : unavailable();
+  // Provider flag is server-side; Stadia stays the default. Google reads its own key (options.apiKey is a Stadia key).
+  const provider = options.provider ?? routingProviderFromEnv();
+  const result = provider === "GOOGLE"
+    ? await requestGoogleRoute(input, { fetcher: options.fetcher, timeoutMs: options.timeoutMs, signal: options.signal })
+    : await requestStadiaRoute(input, options);
+  return result.kind === "ok" ? { ...result, provider: provider === "GOOGLE" ? "GOOGLE_MAPS" : "STADIA_MAPS" } : unavailable();
 }
 
 /** One leg only; the returned route is the snapshot used by this check. */

@@ -39,7 +39,7 @@ for (const role of ["Guest", "Traveler", "Admin"]) test(`${role} public HTTP ret
   const response = await publicDestinationResponse(new Request("http://localhost/api/destinations/detail-a", { headers: role === "Guest" ? {} : { cookie: `test-role=${role}` } }), "detail-a", f.database);
   assert.equal(response.status, 200); assert.equal(response.headers.get("Cache-Control"), "no-store");
   const result = await response.json(); assert.equal(result.success, true);
-  assert.deepEqual(Object.keys(result.data).sort(), ["id", "name", "description", "area", "category", "latitude", "longitude", "suggestedDurationMinutes", "openingDays", "relatedCulture"].sort());
+  assert.deepEqual(Object.keys(result.data).sort(), ["id", "name", "description", "area", "category", "latitude", "longitude", "suggestedDurationMinutes", "isOutdoor", "openingDays", "relatedCulture"].sort());
   assert.equal(result.data.description, f.row.description); assert.equal(result.data.latitude, 23.2); assert.equal(result.data.longitude, 105.3); assert.equal(result.data.suggestedDurationMinutes, 90);
   assert.equal(result.data.openingDays.length, 7); assert.deepEqual(result.data.openingDays.map((d: any) => d.dayOfWeek), weekdays);
   assert.deepEqual(result.data.openingDays[0].intervals, [{ opensAt: "07:00", closesAt: "11:00" }, { opensAt: "13:00", closesAt: "24:00" }]);

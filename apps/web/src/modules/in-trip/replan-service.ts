@@ -39,6 +39,8 @@ import { createReplanClarification } from "./replan-clarification";
 import type { InTripLocation } from "./in-trip-location";
 import { preserveCompleted, ReplanCompletedVisitError } from "./preserve-completed";
 import { splitCompletedRemaining } from "./split-trip";
+import { assertLocationIndependentScope } from "./location-independent-scope";
+import { requireDestinationVisits, type DestinationOnlyTrip } from "../trip-read/itinerary-visit-place";
 
 export const inTripReplanTripSelect = {
   id: true,
@@ -67,7 +69,7 @@ export const inTripReplanTripSelect = {
   },
 } satisfies Prisma.TripSelect;
 
-type OwnedTrip = Prisma.TripGetPayload<{ select: typeof inTripReplanTripSelect }>;
+type OwnedTrip = DestinationOnlyTrip<Prisma.TripGetPayload<{ select: typeof inTripReplanTripSelect }>>;
 
 const eligibleDestinationSelect = {
   id: true,
@@ -83,7 +85,7 @@ type EligibleDestination = Prisma.DestinationGetPayload<{
 
 export type ReplanRequest = {
   baseRevision: string;
-  location: InTripLocation;
+  location: InTripLocation | null;
   need: string;
   resolution?: EditResolution;
 };
@@ -95,6 +97,7 @@ export type ReplanServiceDependencies = {
   now: () => Date;
   /** Injectable to keep generated candidate IDs deterministic in tests. */
   createVisitId?: () => string;
+  allowLocationIndependent?: boolean;
 };
 
 export type ReplanServiceResult =
@@ -337,14 +340,16 @@ export async function replanTrip(
   request: ReplanRequest,
   dependencies: ReplanServiceDependencies,
 ): Promise<ReplanServiceResult> {
-  const trip = await dependencies.database.trip.findFirst({
+  const found = await dependencies.database.trip.findFirst({
     where: { id: tripId, userId },
     select: inTripReplanTripSelect,
   });
-  if (!trip) throw tripNotFound();
+  if (!found) throw tripNotFound();
+  const trip = requireDestinationVisits(found);
 
   const baseRevision = trip.updatedAt.toISOString();
   if (request.baseRevision !== baseRevision) throw revisionConflict();
+  if (!request.location && !dependencies.allowLocationIndependent) throw new AppError("IN_TRIP_LOCATION_REQUIRED", "Cần vị trí hiện tại hoặc thủ công.", 422);
 
   // Capture time only after ownership/revision checks, from the server clock.
   const now = dependencies.now();
@@ -412,7 +417,7 @@ export async function replanTrip(
       })),
       ...(request.resolution !== undefined ? { resolution: request.resolution } : {}),
     },
-    { llm: dependencies.llm },
+    { llm: dependencies.llm, allowLocationIndependent: dependencies.allowLocationIndependent },
   );
 
   if (intent.status === "NEEDS_CLARIFICATION") {
@@ -423,6 +428,7 @@ export async function replanTrip(
     };
   }
   if (intent.status === "REJECTED_COMPLETED_VISIT") throw touchedCompleted();
+  if (!request.location && intent.intent.mandatoryEndpoint) throw new AppError("IN_TRIP_LOCATION_REQUIRED", "Điểm kết thúc hôm nay cần vị trí để kiểm tra.", 422);
 
   let candidate: EditCandidate;
   try {
@@ -475,6 +481,7 @@ export async function replanTrip(
     throw error;
   }
 
+  if (!request.location) assertLocationIndependentScope(original, candidate, now);
   return {
     status: "PROPOSED",
     candidate,

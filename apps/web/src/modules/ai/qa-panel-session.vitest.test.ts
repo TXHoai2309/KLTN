@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppError } from "../../server/http/app-error";
 import { createQaPrincipalResolver } from "./qa-principal";
 import type { Database } from "@KLTN/db";
@@ -8,10 +8,13 @@ const runtime = vi.hoisted(() => ({
   qaPrincipalResolver: { bootstrap: vi.fn(), revoke: vi.fn() },
   qaService: { ask: vi.fn(), get: vi.fn(), revokeGuest: vi.fn() },
 }));
-vi.mock("./qa-runtime", () => runtime);
+vi.mock("./qa-runtime", () => ({
+  qaRuntimeForRequest: async () => ({ enabled: runtime.qaRuntimeEnabled(), principal: runtime.qaPrincipalResolver, service: runtime.qaService }),
+}));
 import { POST } from "../../app/api/ai/session/route";
 
 const request = (origin = "http://localhost") => new Request("http://localhost/api/ai/session", { method: "POST", headers: { origin } });
+afterEach(() => vi.unstubAllEnvs());
 
 describe("panel opening uses the existing identity bootstrap only", () => {
   beforeEach(() => {
@@ -27,6 +30,12 @@ describe("panel opening uses the existing identity bootstrap only", () => {
     expect(runtime.qaService.ask).not.toHaveBeenCalled();
     expect(runtime.qaService.get).not.toHaveBeenCalled();
     expect(runtime.qaService.revokeGuest).not.toHaveBeenCalled();
+  });
+  it.each(["v1", "v2", "garbage"])("never reports a runtime version, even when ASSISTANT_RUNTIME_VERSION=%s is still deployed", async value => {
+    vi.stubEnv("ASSISTANT_RUNTIME_VERSION", value);
+    const body = await (await POST(request())).json();
+    expect(body.data).toEqual({ identity: "GUEST:fixture_guest" });
+    expect(body.data).not.toHaveProperty("runtimeVersion");
   });
   it("fails closed before bootstrap for disabled runtime and foreign origin", async () => {
     runtime.qaRuntimeEnabled.mockReturnValue(false);

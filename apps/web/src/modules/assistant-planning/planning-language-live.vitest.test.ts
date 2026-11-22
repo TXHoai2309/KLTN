@@ -24,7 +24,7 @@ it.skipIf(process.env.ASSISTANT_PLANNING_LANGUAGE_TEST !== "1")("understands ver
   expect(client.getSnapshot().draft.requirement.startDate).toBe("2026-11-15");
   expect(client.getSnapshot().message).toContain("15/11/2026");
   expect(client.getSnapshot().uncertain).toBe(false);
-  console.info(JSON.stringify({ model: "gpt-6-luna", reasoning: "high", replies: client.getSnapshot().messages.map(turn => turn.reply) }));
+  console.info(JSON.stringify({ model: "gpt-6.1-terra", reasoning: "medium", replies: client.getSnapshot().messages.map(turn => turn.reply) }));
 }, 180_000);
 
 it.skipIf(process.env.ASSISTANT_PLANNING_LANGUAGE_TEST !== "1")("keeps departure date explicit and does not invent companions or interests in short Vietnamese replies", async () => {
@@ -84,5 +84,5 @@ it.skipIf(process.env.ASSISTANT_PLANNING_LANGUAGE_TEST !== "1")("keeps departure
   await client.analyze("không cần lưu ý gì hả");
   await client.analyze("Bỏ qua phần còn lại");
   expect(client.getSnapshot().prompt?.kind).toBe("RECAP");
-  console.info(JSON.stringify({ model: "gpt-6-luna", reasoning: "high", replies }));
+  console.info(JSON.stringify({ model: "gpt-6.1-terra", reasoning: "medium", replies }));
 }, 300_000);

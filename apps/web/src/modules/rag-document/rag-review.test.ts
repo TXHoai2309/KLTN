@@ -281,7 +281,18 @@ test("ENABLE_PUBLIC_QA is rejected for DISABLED document", async () => {
   assert.equal(row.publicQaApproved, false);
 });
 
-test("bulkSetRagPublicQa is idempotent for all indexed or selected documents", async () => {
+test("public grant requires individual source confirmation and a READY indexed generation", async () => {
+  const indexed = setup("INDEXED");
+  const unconfirmed = await transitionRagDocument(headers, "rag-1", { action: "ENABLE_PUBLIC_QA" }, "missing-confirmation", indexed.deps as never);
+  assert.equal(unconfirmed.status, "FAILED");
+  assert.equal(indexed.row.publicQaApproved, false);
+  const uploaded = setup("UPLOADED");
+  const premature = await transitionRagDocument(headers, "rag-1", { action: "ENABLE_PUBLIC_QA", confirmedSourceReview: true }, "premature", uploaded.deps as never);
+  assert.equal(premature.status, "FAILED");
+  assert.equal(uploaded.row.publicQaApproved, false);
+});
+
+test("bulkSetRagPublicQa only revokes idempotently; bulk grants require individual source review", async () => {
   const docs = [
     { id: "doc-1", status: "INDEXED", publicQaApproved: false },
     { id: "doc-2", status: "INDEXED", publicQaApproved: false },
@@ -336,18 +347,9 @@ test("bulkSetRagPublicQa is idempotent for all indexed or selected documents", a
     storage: { accessible: async () => true },
   };
 
-  // ENABLE_ALL_INDEXED
-  const allResult = await bulkSetRagPublicQa(headers, { action: "ENABLE_ALL_INDEXED" }, "all-key", deps as never);
-  assert.equal(allResult.status, "SUCCESS");
-  if (allResult.status !== "SUCCESS") return;
-  assert.equal(allResult.data.updatedCount, 2);
-  assert.deepEqual(allResult.data.ids, ["doc-1", "doc-2"]);
-  const replay = await bulkSetRagPublicQa(headers, { action: "ENABLE_ALL_INDEXED" }, "all-key", deps as never);
-  assert.deepEqual(replay, { ...allResult, replayed: true });
-  assert.equal(updateCalls, 1);
-  assert.equal(docs[0].publicQaApproved, true);
-  assert.equal(docs[1].publicQaApproved, true);
-  assert.equal(docs[2].publicQaApproved, false);
+  await assert.rejects(() => bulkSetRagPublicQa(headers, { action: "ENABLE_ALL_INDEXED" }, "all-key", deps as never), { code: "RAG_SOURCE_REVIEW_REQUIRED" });
+  await assert.rejects(() => bulkSetRagPublicQa(headers, { action: "ENABLE_SELECTED", documentIds: ["doc-1"] }, "enable-key", deps as never), { code: "RAG_SOURCE_REVIEW_REQUIRED" });
+  docs[0].publicQaApproved = true;
 
   // DISABLE_SELECTED
   const disableResult = await bulkSetRagPublicQa(headers, { action: "DISABLE_SELECTED", documentIds: ["doc-1"] }, "disable-key", deps as never);
@@ -356,14 +358,11 @@ test("bulkSetRagPublicQa is idempotent for all indexed or selected documents", a
   assert.equal(disableResult.data.updatedCount, 1);
   assert.equal(docs[0].publicQaApproved, false);
 
-  // ENABLE_SELECTED
-  const enableResult = await bulkSetRagPublicQa(headers, { action: "ENABLE_SELECTED", documentIds: ["doc-1"] }, "enable-key", deps as never);
-  assert.equal(enableResult.status, "SUCCESS");
-  if (enableResult.status !== "SUCCESS") return;
-  assert.equal(enableResult.data.updatedCount, 1);
-  assert.equal(docs[0].publicQaApproved, true);
+  const replay = await bulkSetRagPublicQa(headers, { action: "DISABLE_SELECTED", documentIds: ["doc-1"] }, "disable-key", deps as never);
+  assert.deepEqual(replay, { ...disableResult, replayed: true });
+  assert.equal(updateCalls, 1);
 
-  const conflict = await bulkSetRagPublicQa(headers, { action: "DISABLE_SELECTED", documentIds: ["doc-1"] }, "enable-key", deps as never);
+  const conflict = await bulkSetRagPublicQa(headers, { action: "DISABLE_SELECTED", documentIds: ["doc-1", "doc-2"] }, "disable-key", deps as never);
   assert.equal(conflict.status, "FAILED");
   if (conflict.status === "FAILED") assert.equal(conflict.httpStatus, 409);
 });

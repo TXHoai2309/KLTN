@@ -558,4 +558,20 @@ describe("applyEditResponse authorization and request parsing", () => {
     expect(await applied.json()).toMatchObject({ operationStatus: "SUCCESS", data: { kind: "IN_TRIP" } });
     expect(test.transactionCount).toBe(1);
   });
+
+  it("locks COMPLETED trips on apply with 409 TRIP_COMPLETED_READONLY and zero writes", async () => {
+    const test = fixture();
+    const afterTripEnd = new Date("2026-10-25T00:00:00.000Z");
+    await expect(applyEdit(
+      headers,
+      "trip-1",
+      "owner-1",
+      request(),
+      "completed-lock-key",
+      test.dependencies,
+      afterTripEnd,
+    )).rejects.toMatchObject({ code: "TRIP_COMPLETED_READONLY", status: 409 });
+    expect(test.transactionCount).toBe(0);
+    expect(test.records).toHaveLength(0);
+  });
 });

@@ -8,7 +8,7 @@ import { proposeEditorial } from "@/modules/destination-editorial/editorial-ai";
 import { AppError } from "@/server/http/app-error";
 import { editorialProposalInputSchema } from "@/modules/destination-editorial/editorial-contract";
 import { createEditorialAiDiagnostics, EditorialProposalError, editorialLayoutDiagnosticCounts, editorialLayoutLimitIssue, recordEditorialApiFailure } from "@/modules/destination-editorial/editorial-ai-diagnostics";
-export function createEditorialProposalHandler(deps: DestinationDependencies, client: () => StructuredLlmClient | null | Promise<StructuredLlmClient | null>) {
+export function createEditorialProposalHandler(deps: DestinationDependencies, client: () => StructuredLlmClient | null | Promise<StructuredLlmClient | null>, configuredTimeout?: () => Promise<number | undefined>) {
 return async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const diagnostics = createEditorialAiDiagnostics();
   diagnostics.received();
@@ -31,7 +31,9 @@ return async function POST(request: Request, context: { params: Promise<{ id: st
       }
       throw new AppError("INVALID_EDITORIAL_AI", "Yêu cầu không hợp lệ.", 400);
     }
-    const result = await proposeEditorial(request.headers, (await context.params).id, deps, await client(), { diagnostics, signal: request.signal, layout: parsed.data.layout, direction: parsed.data.direction, mode: parsed.data.mode, expectedRevision: parsed.data.expectedRevision, version: parsed.data.version, timeoutMs: parsed.data.timeoutMs });
+    const timeout = await configuredTimeout?.();
+    const timeoutMs = timeout === undefined ? parsed.data.timeoutMs : Math.min(timeout, parsed.data.timeoutMs ?? timeout);
+    const result = await proposeEditorial(request.headers, (await context.params).id, deps, await client(), { diagnostics, signal: request.signal, layout: parsed.data.layout, direction: parsed.data.direction, mode: parsed.data.mode, expectedRevision: parsed.data.expectedRevision, version: parsed.data.version, timeoutMs });
     if ("httpStatus" in result && result.httpStatus === 429) {
       const response = apiFailure(result.providerLimitCode === "QUOTA_EXCEEDED" ? "EDITORIAL_AI_PROVIDER_QUOTA" : "EDITORIAL_AI_PROVIDER_RATE_LIMIT", result.reason || "Lỗi giới hạn lượt gọi từ nhà cung cấp AI", 429, { source: "PROVIDER", providerCode: result.providerCode });
       if (result.retryAfterSeconds !== undefined) response.headers.set("Retry-After", String(result.retryAfterSeconds));

@@ -1,0 +1,1 @@
+ALTER TABLE "destination" ADD COLUMN "isOutdoor" BOOLEAN NOT NULL DEFAULT false;

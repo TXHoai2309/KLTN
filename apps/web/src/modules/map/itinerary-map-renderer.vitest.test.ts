@@ -33,6 +33,15 @@ describe("itinerary MapLibre selection and lifecycle", () => {
     h.renderer.fit(); expect(h.map.fitBounds).toHaveBeenCalledTimes(2);
     h.renderer.dispose(); styleLoaded(); expect(h.map.addSource).toHaveBeenCalledTimes(2);
   });
+  it("colours origin legs apart and pins the origin separately from the stop markers", () => {
+    const geometry = { type: "LineString" as const, coordinates: [[105.8, 21], [105, 23]] as [number, number][] };
+    const h = harness({ origin: { label: "Hà Nội", latitude: 21, longitude: 105.8 }, routes: [{ day: 1, geometry, fromDestinationId: "origin", toDestinationId: "a", boundary: true }] });
+    (h.map.on.mock.calls.find(call => call[0] === "style.load")![1] as () => void)();
+    expect(h.positions).toContainEqual([105.8, 21]);
+    expect(h.map.addSource.mock.calls[0]?.[1]).toMatchObject({ data: { features: [{ properties: { color: "#28734f" } }] } });
+    expect(h.buttons.at(-1)!.attrs["aria-label"]).toBe("Nơi xuất phát: Hà Nội");
+    h.renderer.dispose();
+  });
   it("switches style on the same map without touching markers, selection or camera", () => {
     const h = harness();
     h.renderer.select("bb", false);

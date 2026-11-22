@@ -20,6 +20,9 @@ import type { MandatoryEndpoint } from "./mandatory-endpoint";
 import type { InTripLocation } from "./in-trip-location";
 import { preserveCompleted, ReplanCompletedVisitError } from "./preserve-completed";
 import { splitCompletedRemaining } from "./split-trip";
+import { assertLocationIndependentScope } from "./location-independent-scope";
+import { createEditCandidate } from "../trip-edit/edit-candidate";
+import { requireDestinationVisits, type DestinationOnlyTrip } from "../trip-read/itinerary-visit-place";
 
 const inTripPreviewTripSelect = {
   id: true,
@@ -47,12 +50,12 @@ const inTripPreviewTripSelect = {
   },
 } satisfies Prisma.TripSelect;
 
-type OwnedTrip = Prisma.TripGetPayload<{ select: typeof inTripPreviewTripSelect }>;
+type OwnedTrip = DestinationOnlyTrip<Prisma.TripGetPayload<{ select: typeof inTripPreviewTripSelect }>>;
 
 export type InTripPreviewRequest = {
   baseRevision: string;
   candidate: EditCandidate;
-  location: InTripLocation;
+  location?: InTripLocation;
   mandatoryEndpoint?: MandatoryEndpoint | null;
 };
 
@@ -63,6 +66,7 @@ export type InTripPreviewDependencies = {
   /** The production path uses US-32 previewEdit; tests can supply a fake Validator. */
   preview?: typeof previewEdit;
   routeTimeoutMs?: number;
+  allowLocationIndependent?: boolean;
 };
 
 export type InTripPreviewResult = {
@@ -147,11 +151,12 @@ export async function previewInTrip(
   request: InTripPreviewRequest,
   dependencies: InTripPreviewDependencies,
 ): Promise<InTripPreviewResult> {
-  const trip = await dependencies.database.trip.findFirst({
+  const found = await dependencies.database.trip.findFirst({
     where: { id: tripId, userId },
     select: inTripPreviewTripSelect,
   });
-  if (!trip) throw new AppError("TRIP_NOT_FOUND", "Không tìm thấy chuyến đi.", 404);
+  if (!found) throw new AppError("TRIP_NOT_FOUND", "Không tìm thấy chuyến đi.", 404);
+  const trip = requireDestinationVisits(found);
   if (trip.updatedAt.toISOString() !== request.baseRevision) {
     throw new AppError("TRIP_REVISION_CONFLICT", "Hành trình đã thay đổi. Hãy tải lại.", 409);
   }
@@ -159,6 +164,10 @@ export async function previewInTrip(
 
   const now = dependencies.now();
   const original = savedTrip(trip);
+  if (!request.location) {
+    if (!dependencies.allowLocationIndependent || request.mandatoryEndpoint) throw new AppError("IN_TRIP_LOCATION_REQUIRED", "Cần vị trí để kiểm tra phương án.", 422);
+    assertLocationIndependentScope(createEditCandidate(original), request.candidate, now);
+  }
   const split = splitCompletedRemaining({
     startDate: trip.startDate,
     durationDays: trip.durationDays,
@@ -197,7 +206,7 @@ export async function previewInTrip(
   const safeGetRoute = boundedRoute(dependencies);
   const first = remaining[0];
   let originLeg: InTripOriginLeg | null = null;
-  if (first) {
+  if (first && request.location) {
     const destination = await dependencies.database.destination.findFirst({
       where: { ...visibleDestinationWhere, id: first.destinationId },
       select: { latitude: true, longitude: true },

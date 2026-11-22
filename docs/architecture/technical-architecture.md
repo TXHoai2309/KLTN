@@ -1,5 +1,7 @@
 # Technical architecture
 
+Current provider follow-up, 2026-11-18: [ADR-37](../decisions.md#adr-37--shared-google-mapsstadia-provider-switch-2026-11-18) adds one build-time Google/Stadia selector for interactive rendering, routing and origin search. Google rendering uses Maps JavaScript with a restricted publishable browser key/Map ID; Routes/Places use a separate server-only key. Stadia and its scoped credentials/domain authentication remain for rollback. Trip reads project matching saved transfer evidence without new routing, and new evidence carries its actual provider. Origin provenance expands in JSON contracts without schema migration. The older Stadia-only and no-browser-key descriptions below are historical for these switched consumers; [story](../stories/MAPS-PROVIDER-SWITCH.md) and [runbook](../implementation/google-maps-provider-switch-runbook.md) record verification/live limits. Business rules and Validator remain unchanged.
+
 This document describes the architecture selected for KLTN and distinguishes code that exists from integrations still awaiting business stories. The active implementation is Next.js full-stack; the supplied old Architecture document's NestJS backend and deployment-TBD statements are historical and are not current implementation.
 
 Snapshot note: several early inventory paragraphs below predate the delivered Trip/Favorite/AI modules. For the 2026-10-27 Assistant extension, the current implementation and verification are documented in [Conversational trip planning](../stories/ASSISTANT-CONVERSATIONAL-PLANNING.md); older future-work statements do not override current repository evidence.
@@ -84,7 +86,7 @@ The accepted product boundary is:
 - AI/OpenAI: natural-language understanding, RAG answers, and proposals.
 - Constraint Validator: deterministic checks and outcomes, independent from AI.
 - Stadia Standard Routing: actual route/travel duration for `auto` (car) and `motorcycle` (motorcycle).
-- If mandatory route data is missing or not returned within at most 10 seconds, the travel-time check is `INSUFFICIENT_DATA` / `CHƯA ĐỦ DỮ LIỆU`, never `PASS`; AI must not guess travel time. This is a behavior requirement, not an implementation in the current repository.
+- If mandatory route data is missing or not returned within at most 40 seconds (owner raised from 10 s on 2026-11-22, see decisions.md), the travel-time check is `INSUFFICIENT_DATA` / `CHƯA ĐỦ DỮ LIỆU`, never `PASS`; AI must not guess travel time. This is a behavior requirement, not an implementation in the current repository.
 - PostGIS: stored spatial data and spatial queries.
 - pgvector: embeddings and similarity retrieval.
 - MapLibre GL JS: browser map rendering; Stadia Maps: official Alidade Smooth light/dark styles and basemap.

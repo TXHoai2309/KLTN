@@ -1,18 +1,27 @@
 import { randomUUID } from "node:crypto";
+import { assistantMetric } from "../../server/assistant-turn-metrics";
 import { AppError } from "../../server/http/app-error";
 import type { TripRequirementInput } from "../trip-requirement/trip-requirement-contract";
 import { assertTripRequirementClear } from "../trip-requirement/trip-clarification-server";
-import { assertStartDateForFinalConfirmation } from "../trip-requirement/trip-requirement-readiness";
 import type { PlannerCandidate } from "../trip-planner/planner-candidates";
 import { plannerRoutePairs, schedulePlannerDays, visitDuration, openingFor, PACE_STOP_LIMIT } from "../trip-planner/planner-engine";
 import { resolvePlannerRoutes, type RouteProvider } from "../trip-planner/planner-routes";
 import { validatePlannerDays } from "../trip-planner/planner-validator";
-import { plannerResultSchema, type PlannerResult } from "../trip-planner/planner-contract";
+import { plannerResultSchema, type PlannerResult, type TravelLeg } from "../trip-planner/planner-contract";
+import { arrangeOvernightAreas, unmetOvernightAreas, type UnmetOvernight } from "./planning-trip-structure";
 import { planningSelectionSchema, type PlanningSelection, type PlanningNeeds, type PlanningGenerated, type PlanningEdit } from "./planning-contract";
+import { journeyDrivingWarnings, optimizeJourneyForWeather, planJourney } from "../trip-origin/journey-planner";
+import type { ForecastOptions } from "../trip-weather/forecast";
+import { optimizeScheduleForWeather, WEATHER_PREFERENCE_WARNING } from "../trip-planner/planner-weather-preference";
 
 export function isUsablePlanningCandidate(candidate: PlannerCandidate) {
   const duration = visitDuration(candidate);
   return candidate.visibility === "VISIBLE" && Number.isFinite(candidate.latitude) && Number.isFinite(candidate.longitude) && Math.abs(candidate.latitude) <= 90 && Math.abs(candidate.longitude) <= 180 && duration !== null && duration <= 600;
+}
+
+function isUsableExternalCandidate(candidate: PlannerCandidate) {
+  const duration = visitDuration(candidate);
+  return candidate.external === true && candidate.visibility === "EXTERNAL" && Number.isFinite(candidate.latitude) && Number.isFinite(candidate.longitude) && Math.abs(candidate.latitude) <= 90 && Math.abs(candidate.longitude) <= 180 && duration !== null && duration <= 600;
 }
 
 export function assertPlanningSelection(raw: unknown, needs: PlanningNeeds, candidates: readonly PlannerCandidate[], now = new Date()): PlannerCandidate[][] {
@@ -20,7 +29,8 @@ export function assertPlanningSelection(raw: unknown, needs: PlanningNeeds, cand
   const selection = planningSelectionSchema.safeParse(raw);
   if (!selection.success) throw new AppError("INVALID_AI_PLAN", "AI chưa tạo được cấu trúc hành trình hợp lệ. Hãy thử lại.", 502);
   const ids = selection.data.days.flat();
-  const eligible = new Map(candidates.filter(isUsablePlanningCandidate).map(c => [c.id, c]));
+  // External places are only ever present when the chat tool merged them from this turn's searchPlaces result.
+  const eligible = new Map(candidates.filter(c => isUsablePlanningCandidate(c) || isUsableExternalCandidate(c)).map(c => [c.id, c]));
   if (selection.data.days.length !== requirement.durationDays || ids.length > 28 || (!ids.length && eligible.size > 0) || new Set(ids).size !== ids.length || ids.some(id => !eligible.has(id)))
     throw new AppError("INVALID_AI_PLAN", "Đề xuất chứa điểm đến hoặc thứ tự ngày không hợp lệ.", 422);
   if (needs.requiredDestinationIds.some(id => !ids.includes(id))) throw new AppError("MANDATORY_DESTINATION_MISSING", "Đề xuất chưa đáp ứng điểm bắt buộc. Hãy điều chỉnh nhu cầu hoặc tạo lại.", 422);
@@ -29,25 +39,123 @@ export function assertPlanningSelection(raw: unknown, needs: PlanningNeeds, cand
   return selection.data.days.map(day => day.map(id => eligible.get(id)!));
 }
 
-export async function scheduleSelection(needs: PlanningNeeds, selection: PlanningSelection, candidates: readonly PlannerCandidate[], routes: RouteProvider, now: Date): Promise<PlannerResult> {
+export async function scheduleSelection(needs: PlanningNeeds, selection: PlanningSelection, candidates: readonly PlannerCandidate[], routes: RouteProvider, now: Date, scope?: { current: PlannerResult; affectedDays: readonly number[] }, forecast?: ForecastOptions): Promise<PlannerResult> {
   const requirement = assertTripRequirementClear(needs.requirement, now);
   const selected = assertPlanningSelection(selection, needs, candidates, now);
-  const evidence = await resolvePlannerRoutes(plannerRoutePairs(selected, requirement.transport), routes, 10_000);
-  const days = schedulePlannerDays(requirement, selected, evidence);
-  const { checks, stopStatuses } = validatePlannerDays(requirement, days, selected.flat());
+  const allowedDayIndices = scope ? scope.affectedDays.map(d => d - 1) : undefined;
+  if (requirement.journey) {
+    // A scoped edit retains requested day membership. Whole-brief generation may
+    // try the bounded boundary-day partitions, through the same form scheduler.
+    const journey = await planJourney(requirement, selected, routes, 10_000, !scope);
+    let { checks, stopStatuses } = validatePlannerDays(requirement, journey.days, selected.flat(), journey.travelOnlyDays);
+    const travel = checks.find(check => check.key === "TRAVEL_TIME")!;
+    if (journey.check.status === "VIOLATION" || travel.status === "PASS") travel.status = journey.check.status;
+    travel.issues.push(...journey.check.issues);
+    let days = journey.days;
+    let journeyPlan = journey.journeyPlan;
+    let weatherAdjusted = false;
+    const jOpt = await optimizeJourneyForWeather({
+      requirement,
+      baselineJourney: journey,
+      selectedByDay: selected,
+      provider: routes,
+      timeoutMs: 10_000,
+      allowBoundaryRepartition: !scope,
+      forecast,
+      allowedDayIndices,
+    });
+    if (jOpt.adjusted) {
+      weatherAdjusted = true;
+      days = jOpt.days;
+      checks = jOpt.checks;
+      stopStatuses = jOpt.stopStatuses;
+      journeyPlan = jOpt.journeyPlan;
+    }
+    for (const day of days) for (const stop of day.stops) stop.validationStatus = stopStatuses.get(stop.destination.id) ?? "PASS";
+    const allPass = checks.every(check => check.status === "PASS");
+    const warnings: PlannerResult["warnings"] = [{ code: "PRELIMINARY_ONLY", message: "Đề xuất chưa được lưu chính thức.", day: null, destinationId: null }, { code: "LODGING_LEGS_NOT_INCLUDED", message: "Mốc định tuyến là điểm tham quan, không phải nơi nghỉ. Chưa tính chặng ra/vào nơi nghỉ.", day: null, destinationId: null }, ...journeyDrivingWarnings(requirement, days)];
+    if (weatherAdjusted) warnings.push(WEATHER_PREFERENCE_WARNING);
+    return plannerResultSchema.parse({ proposalId: randomUUID(), phase: "PRELIMINARY_PROPOSAL", requirement, timezone: "Asia/Ho_Chi_Minh", days,
+      journeyPlan, checks, status: checks.some(check => check.status === "VIOLATION") ? "NO_FEASIBLE_ITINERARY" : allPass ? "PROPOSAL_READY" : "INSUFFICIENT_DATA",
+      eligibleForFinalConfirmation: allPass && requirement.startDate !== null,
+      warnings,
+      reasonCodes: [...new Set(checks.flatMap(check => check.issues.map(issue => issue.code)))].slice(0, 30) });
+  }
+  const pairs = plannerRoutePairs(selected, requirement.transport);
+  const evidence = new Map<string, TravelLeg>();
+  const scheduleDays = new Set(scope?.affectedDays ?? selected.map((_, i) => i + 1));
+  const requests = pairs.filter(pair => {
+    if (!scope) return true;
+    const day = selected.findIndex(stops => stops.some(stop => stop.id === pair.to.id)) + 1;
+    const prior = scope.current.days.flatMap(d => d.stops).find(stop => stop.destination.id === pair.to.id)?.inbound;
+    if (!scheduleDays.has(day) && prior?.fromDestinationId === pair.from.id && prior.toDestinationId === pair.to.id) { evidence.set(pair.to.id, prior); return false; }
+    scheduleDays.add(day);
+    return true;
+  });
+  // A removed predecessor can turn a former cross-day first stop into the very
+  // first stop. Its old inbound leg must disappear, not survive as stale evidence.
+  if (scope) for (const [i, stops] of selected.entries()) {
+    const first = stops[0];
+    if (first && !pairs.some(pair => pair.to.id === first.id) && scope.current.days[i]?.stops[0]?.inbound) scheduleDays.add(i + 1);
+  }
+  for (const [id, leg] of await resolvePlannerRoutes(requests, routes, 10_000)) evidence.set(id, leg);
+  const legCache = new Map<string, TravelLeg>();
+  for (const leg of evidence.values()) legCache.set(`${leg.fromDestinationId}->${leg.toDestinationId}`, leg);
+  const scheduled = schedulePlannerDays(requirement, selected.map((stops, i) => scheduleDays.has(i + 1) ? stops : []), evidence);
+  let days = scheduled.map((day, i) => scope && !scheduleDays.has(i + 1) ? structuredClone(scope.current.days[i]!) : day);
+  let { checks, stopStatuses } = validatePlannerDays(requirement, days, selected.flat());
+  let weatherAdjusted = false;
+  const weatherOpt = await optimizeScheduleForWeather({
+    requirement,
+    baselineDays: selected,
+    baseline: { scheduled: days, checks, stopStatuses, totalTravelSeconds: days.reduce((s, d) => s + (d.travelSeconds ?? 0), 0) },
+    forecast,
+    allowedDayIndices,
+    scheduleAndValidate: async candidateDays => {
+      const candPairs = plannerRoutePairs(candidateDays, requirement.transport);
+      const missingPairs = candPairs.filter(p => !legCache.has(`${p.from.id}->${p.to.id}`));
+      if (missingPairs.length) {
+        for (const leg of (await resolvePlannerRoutes(missingPairs, routes, 10_000)).values()) {
+          legCache.set(`${leg.fromDestinationId}->${leg.toDestinationId}`, leg);
+        }
+      }
+      const candEvidence = new Map<string, TravelLeg>();
+      for (const p of candPairs) {
+        const leg = legCache.get(`${p.from.id}->${p.to.id}`);
+        if (leg) candEvidence.set(p.to.id, leg);
+      }
+      const candScheduled = schedulePlannerDays(requirement, candidateDays.map((stops, i) => (scope && !scheduleDays.has(i + 1) ? [] : stops)), candEvidence);
+      const candDays = candScheduled.map((day, i) => (scope && !scheduleDays.has(i + 1) ? structuredClone(scope.current.days[i]!) : day));
+      const candValidated = validatePlannerDays(requirement, candDays, candidateDays.flat());
+      return {
+        scheduled: candDays,
+        checks: candValidated.checks,
+        stopStatuses: candValidated.stopStatuses,
+        totalTravelSeconds: candDays.reduce((s, d) => s + (d.travelSeconds ?? 0), 0),
+      };
+    },
+  });
+  if (weatherOpt.adjusted) {
+    weatherAdjusted = true;
+    days = weatherOpt.evaluated.scheduled;
+    checks = weatherOpt.evaluated.checks;
+    stopStatuses = weatherOpt.evaluated.stopStatuses;
+  }
   for (const day of days) for (const stop of day.stops) stop.validationStatus = stopStatuses.get(stop.destination.id) ?? "INSUFFICIENT_DATA";
   const allPass = checks.every(check => check.status === "PASS");
-  let eligibleForFinalConfirmation = false;
-  if (allPass) { try { assertStartDateForFinalConfirmation(requirement, now); eligibleForFinalConfirmation = true; } catch { /* relative/invalid date cannot save */ } }
+  // Neither a date nor visit-only checks certify the origin round trip.
+  const eligibleForFinalConfirmation = false;
+  const warnings: PlannerResult["warnings"] = [
+    { code: "PRELIMINARY_ONLY", message: "Đề xuất chưa được lưu. Khung lập kế hoạch 08:00–18:00 không phải giờ mở cửa.", day: null, destinationId: null },
+    { code: "ORIGIN_AND_LODGING_UNKNOWN", message: "Chưa tính chặng từ nơi xuất phát, chỗ nghỉ và nơi kết thúc. Chuyển ngày tính từ điểm cuối ngày trước.", day: null, destinationId: null },
+    { code: "ROUTE_ESTIMATE", message: "Thời gian di chuyển là ước tính theo mạng đường; cần kiểm tra thời tiết và điều kiện đường thực tế.", day: null, destinationId: null },
+  ];
+  if (weatherAdjusted) warnings.push(WEATHER_PREFERENCE_WARNING);
   return plannerResultSchema.parse({
     proposalId: randomUUID(), phase: "PRELIMINARY_PROPOSAL", requirement, timezone: "Asia/Ho_Chi_Minh", days, checks,
     status: checks.some(c => c.status === "VIOLATION") ? "NO_FEASIBLE_ITINERARY" : allPass ? "PROPOSAL_READY" : "INSUFFICIENT_DATA",
     eligibleForFinalConfirmation,
-    warnings: [
-      { code: "PRELIMINARY_ONLY", message: "Đề xuất chưa được lưu. Khung lập kế hoạch 08:00–18:00 không phải giờ mở cửa.", day: null, destinationId: null },
-      { code: "ORIGIN_AND_LODGING_UNKNOWN", message: "Chưa tính chặng từ nơi xuất phát, chỗ nghỉ và nơi kết thúc. Chuyển ngày tính từ điểm cuối ngày trước.", day: null, destinationId: null },
-      { code: "ROUTE_ESTIMATE", message: "Thời gian di chuyển là ước tính theo mạng đường; cần kiểm tra thời tiết và điều kiện đường thực tế.", day: null, destinationId: null },
-    ],
+    warnings,
     reasonCodes: [...new Set(checks.flatMap(c => c.issues.map(i => i.code)))].slice(0, 30),
   });
 }
@@ -77,6 +185,7 @@ export function assertEditScope(selection: PlanningSelection, previous: Planning
   if (edit.kind === "REPLAN_DAY" && JSON.stringify(selection.days[edit.day - 1]) === JSON.stringify(previous.days[edit.day - 1])) throw new AppError("NO_ALTERNATIVE_FOUND", "Mình chưa tìm được phương án khác cho ngày này trong nhu cầu hiện tại. Bạn có thể đổi sở thích hoặc điểm bắt buộc.", 422);
 }
 export async function generatePlanningProposal(input: { needs: PlanningNeeds; candidates: readonly PlannerCandidate[]; previous: PlanningSelection | null; instruction: string; edit?: PlanningEdit; routes: RouteProvider; generate: PlanningGenerator; now: Date; recheck: (selected: readonly PlannerCandidate[]) => Promise<boolean> }): Promise<PlanningGenerated> {
+  assistantMetric("planning");
   const requirement = assertTripRequirementClear(input.needs.requirement, input.now);
   const eligibleCandidates = input.candidates.filter(c => isUsablePlanningCandidate(c) && !input.needs.excludedDestinationIds?.includes(c.id));
   if (input.edit && !input.previous) throw new AppError("EDIT_TARGET_MISSING", "Cần tạo lại hành trình trước khi sửa điểm.", 422);
@@ -86,13 +195,32 @@ export async function generatePlanningProposal(input: { needs: PlanningNeeds; ca
   let result: PlannerResult | undefined;
   let selection: PlanningSelection | undefined;
   let repairError: string | null = null;
+  // Overnight area is a preference enforced after selection, never a Validator rule.
+  const overnightAreas = input.edit ? [] : input.needs.tripStructure?.overnightAreas ?? [];
+  let overnightUnmet: UnmetOvernight[] = [];
+  // Live: the model often over-packs a day on the first try (prompt says up to 4, default pace allows 3). One corrective retry, not a loop.
+  let selectionNote = "";
+  const eligibleById = new Map(eligibleCandidates.map(c => [c.id, c]));
+  // Live: showing the model the night preference made it over-pack a day (PACE_LIMIT). Code applies it instead.
+  const { tripStructure: _appliedByCode, ...modelNeeds } = input.needs;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      const candidate = input.edit && input.edit.kind !== "REPLAN_DAY" ? applyPlanningEdit(input.previous!, input.edit) : eligibleCandidates.length ? await input.generate({ requirement, needs: input.needs, candidates: eligibleCandidates, previous, instruction: input.instruction, feedback: result?.checks ?? [] }) : { days: Array.from({ length: requirement.durationDays }, () => [] as string[]) };
+      const candidate = input.edit && input.edit.kind !== "REPLAN_DAY" ? applyPlanningEdit(input.previous!, input.edit) : eligibleCandidates.length ? await input.generate({ requirement, needs: modelNeeds, candidates: eligibleCandidates, previous, instruction: [input.instruction, selectionNote].filter(Boolean).join(" "), feedback: result?.checks ?? [] }) : { days: Array.from({ length: requirement.durationDays }, () => [] as string[]) };
       if (input.edit) assertEditScope(candidate, input.previous!, input.edit);
-      const next = await scheduleSelection(input.needs, candidate, eligibleCandidates, input.routes, input.now);
-      result = next; selection = candidate; previous = candidate;
+      // Not steered through the prompt (live: "end day 1 in X" made the model over-pack a day, PACE_LIMIT).
+      // Code guarantees the night area whenever a selected stop belongs to that area.
+      const arranged = overnightAreas.length ? { days: arrangeOvernightAreas(candidate.days, overnightAreas, eligibleById) } : candidate;
+      const next = await scheduleSelection(input.needs, arranged, eligibleCandidates, input.routes, input.now);
+      result = next;
+      selection = { days: next.days.map(day => day.stops.map(stop => stop.destination.id)) };
+      previous = selection;
     } catch (error) {
+      if (!result && !input.edit && attempt === 0 && error instanceof AppError && (error.code === "PACE_LIMIT" || error.code === "INVALID_AI_PLAN")) {
+        selectionNote = error.code === "PACE_LIMIT"
+          ? `Lần trước có ngày vượt nhịp độ: mỗi ngày tối đa ${PACE_STOP_LIMIT[requirement.pace ?? "MODERATE"]} điểm.`
+          : `Lần trước cấu trúc chưa hợp lệ: đúng ${requirement.durationDays} ngày, không lặp điểm, chỉ dùng ID trong danh sách.`;
+        continue;
+      }
       if (!result) throw error;
       repairError = "Chưa thể hoàn tất lần điều chỉnh. Giữ lại đề xuất trước; bạn có thể chỉnh nhu cầu rồi thử lại.";
       break;
@@ -105,10 +233,12 @@ export async function generatePlanningProposal(input: { needs: PlanningNeeds; ca
       const hours = openingFor(candidate, day.date);
       return !hours || hours.status === "UNKNOWN" || (hours.status === "OPEN" && !hours.intervals.length);
     }));
-    if (!result.checks.some(c => c.status === "VIOLATION") || missingEvidence || (input.edit && input.edit.kind !== "REPLAN_DAY")) break;
+    overnightUnmet = overnightAreas.length ? unmetOvernightAreas(overnightAreas, selection!.days.map(day => day.flatMap(id => eligibleById.get(id) ?? []))) : [];
+    const repairViolation = result.checks.some(c => c.status === "VIOLATION") && !missingEvidence && !(input.edit && input.edit.kind !== "REPLAN_DAY");
+    if (!repairViolation) break;
   }
   if (!result || !selection) throw new AppError("PLANNER_UNAVAILABLE", "Chưa tạo được đề xuất. Vui lòng thử lại.", 503);
   const selectedIds = new Set(selection.days.flat());
   if (!await input.recheck(input.candidates.filter(c => selectedIds.has(c.id)))) throw new AppError("PLANNER_DATA_CHANGED", "Dữ liệu điểm đến đã thay đổi. Vui lòng tạo lại.", 409);
-  return { proposal: result, selection, attempts, repairError };
+  return { proposal: result, selection, attempts, repairError, ...(overnightUnmet.length ? { overnightUnmet } : {}) };
 }

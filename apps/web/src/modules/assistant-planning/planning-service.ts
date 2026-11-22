@@ -15,9 +15,11 @@ import { formatVietnameseDate } from "../../lib/date-only";
 import { nextNeedsPrompt, proposalReply } from "./planning-dialogue";
 import { safePlanningReply, type PlanningReplyComposer } from "./planning-reply";
 
+import type { InterleavedPlanningAnalysis, InterleavedPlanningContext } from "./planning-ai";
+
 export type PlanningDependencies = {
   repository: PlanningRepository; candidates: () => Promise<PlannerCandidate[]>;
-  analyze: (text: string, draft: PlanningNeeds, candidates: readonly PlannerCandidate[], unresolved: PlanningAnalysis["unresolved"], dialogue?: PlanningDialogueContext, now?: Date) => Promise<PlanningAnalysis>;
+  analyze: (text: string, draft: PlanningNeeds, candidates: readonly PlannerCandidate[], unresolved: PlanningAnalysis["unresolved"], dialogue?: PlanningDialogueContext, now?: Date, mode?: "PREFERENCE_REFINEMENT", interleaving?: InterleavedPlanningContext) => Promise<InterleavedPlanningAnalysis>;
   compose?: PlanningReplyComposer;
   generate: PlanningGenerator; routes: RouteProvider;
   recheck: (selected: readonly PlannerCandidate[]) => Promise<boolean>;

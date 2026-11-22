@@ -186,6 +186,7 @@ export function CompanionDiscoveryView({
       const currentTab = newParams.tab ?? tab;
       if (currentTab === "mine") params.set("tab", "mine");
       else if (currentTab === "joined") params.set("tab", "joined");
+      else if (pathname.startsWith("/trips")) params.set("tab", "companions");
 
       const queryQ = newParams.q !== undefined ? newParams.q : q;
       if (queryQ.trim()) params.set("q", queryQ.trim());

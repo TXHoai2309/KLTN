@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createStadiaRoutesProvider, resolvePlannerRoutes } from "./planner-routes";
+import { createStadiaRoutesProvider, resolvePlannerRoutes, cappedDurationSeconds } from "./planner-routes";
 import { candidate, requirement, referenceTime } from "./__fixtures__/planner-fixtures";
 import { createPlannerService } from "./planner-service";
 import { getTravelRoute, requestStadiaRoute } from "../trip-validation/stadia-route";
@@ -11,6 +11,15 @@ const input = { origin: pair.from, destination: pair.to, vehicle: "CAR" };
 const payload = (time: unknown = 1800.5, length: unknown = 10.1234) => ({ trip: { status: 0, summary: { time, length } } });
 const signal = () => new AbortController().signal;
 const adapter = (fetcher: typeof fetch, timeoutMs?: number) => createStadiaRoutesProvider({ apiKey: () => "fixture-server-secret", fetcher, timeoutMs });
+
+describe("mountain speed cap", () => {
+  it("slows implausibly fast legs per vehicle and leaves slower or distance-less legs alone", () => {
+    expect(cappedDurationSeconds(14_000, 400_000, "MOTORCYCLE")).toBe(36_000);
+    expect(cappedDurationSeconds(14_000, 400_000, "CAR")).toBe(28_800);
+    expect(cappedDurationSeconds(40_000, 400_000, "CAR")).toBe(40_000);
+    expect(cappedDurationSeconds(60, undefined, "CAR")).toBe(60);
+  });
+});
 
 describe("US28 shared Stadia adapter", () => {
   it.each([["CAR", "auto"], ["MOTORCYCLE", "motorcycle"]] as const)("%s uses exactly one %s request and keeps credentials server-side", async (transport, costing) => {
@@ -46,7 +55,7 @@ describe("US28 shared Stadia adapter", () => {
   });
   it("missing distance remains optional for US29B/US30 but cannot pass US28", async () => {
     const fetcher = async () => Response.json({ trip: { summary: { time: 60 } } });
-    expect(await getTravelRoute(input, { apiKey: () => "fixture", fetcher })).toEqual({ kind: "ok", durationSeconds: 60 });
+    expect(await getTravelRoute(input, { apiKey: () => "fixture", fetcher })).toEqual({ kind: "ok", durationSeconds: 60, provider: "STADIA_MAPS" });
     expect((await adapter(fetcher).route(pair, signal())).reason).toBe("INVALID_RESPONSE");
   });
   it.each([{}, { trip: null }, { trip: { status: 1 } }])("no route %j is explicit", async body => {
@@ -93,12 +102,12 @@ describe("US28 shared Stadia adapter", () => {
     release(new Response(new ReadableStream({ cancel() { cancelled = true; } })));
     await Promise.resolve(); await Promise.resolve(); expect(cancelled).toBe(true);
   });
-  it("global ten-second deadline aborts three in-flight HTTP requests and starts no more", async () => {
+  it("global 40-second deadline aborts three in-flight HTTP requests and starts no more", async () => {
     vi.useFakeTimers(); const signals: AbortSignal[] = [];
     const fetcher = vi.fn<typeof fetch>(async (_url, init) => { signals.push(init?.signal as AbortSignal); return new Promise(() => {}); });
     const pairs = Array.from({ length: 27 }, (_, i) => ({ ...pair, to: candidate(`target-${i}`) }));
     const pending = resolvePlannerRoutes(pairs, adapter(fetcher));
-    await vi.advanceTimersByTimeAsync(10_001);
+    await vi.advanceTimersByTimeAsync(40_001);
     const legs = await pending;
     expect(fetcher).toHaveBeenCalledTimes(3); expect(signals.every(s => s.aborted)).toBe(true);
     expect(legs.size).toBe(27); expect([...legs.values()].every(l => l.reason === "TIMEOUT")).toBe(true);

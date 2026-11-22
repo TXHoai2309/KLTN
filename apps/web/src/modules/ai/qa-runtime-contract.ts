@@ -39,7 +39,8 @@ export type QaAnswer = (
   | Pick<Extract<QaCompletedTurn, { status: "ANSWERED" }>, "status" | "answerParts" | "citations" | "unansweredAspects" | "presentation" | "answerMode">
   | Pick<Extract<QaCompletedTurn, { status: "PARTIAL" }>, "status" | "answerParts" | "citations" | "unansweredAspects" | "presentation" | "answerMode">
   | Pick<Extract<QaCompletedTurn, { status: "INSUFFICIENT_SOURCE" }>, "status" | "answerParts" | "citations" | "message" | "reason">
-  | Pick<Extract<QaCompletedTurn, { status: "CLARIFICATION_REQUIRED" }>, "status" | "answerParts" | "citations" | "clarificationQuestion">
+  | Pick<Extract<QaCompletedTurn, { status: "CLARIFICATION_REQUIRED" }>, "status" | "answerParts" | "citations" | "clarificationQuestion" | "choices">
+  | Pick<Extract<QaCompletedTurn, { status: "WEATHER" }>, "status" | "answerParts" | "citations" | "destinationId" | "date" | "representative" | "leadIn">
 ) & { knowledgeMode?: QaKnowledgeMode };
 import type { QaQuestionUnderstanding } from "./qa-question-understanding";
 

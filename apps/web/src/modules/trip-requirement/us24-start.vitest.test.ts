@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { COMPLETE_JOURNEY_FIXTURE } from "../trip-origin/trip-origin-fixtures";
 
 import type { AuthorizationDependencies } from "@/server/authorization/guard";
 import type { TripRequirementDependencies } from "./trip-requirement-server";
@@ -13,6 +14,7 @@ import {
 import { describeReadiness } from "@/app/trips/new/trip-readiness-status";
 
 const baseInput = {
+  journey: COMPLETE_JOURNEY_FIXTURE,
   startDate: "2026-10-10",
   durationDays: 3,
   transport: "CAR" as const,

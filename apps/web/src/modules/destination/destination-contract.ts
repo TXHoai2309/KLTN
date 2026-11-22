@@ -26,13 +26,13 @@ export const destinationInputSchema = z.object({
   profile: destinationProfileSchema.optional(),
   name: text(200), description: text(DESTINATION_DESCRIPTION_MAX_LENGTH), area: taxonomy, category: taxonomy,
   latitude: z.number().min(-90, "Vĩ độ phải từ -90 đến 90.").max(90, "Vĩ độ phải từ -90 đến 90."), longitude: z.number().min(-180, "Kinh độ phải từ -180 đến 180.").max(180, "Kinh độ phải từ -180 đến 180."),
-  suggestedDurationMinutes: duration, minimumDurationMinutes: duration, openingDays: scheduleSchema,
+  suggestedDurationMinutes: duration, minimumDurationMinutes: duration, isOutdoor: z.boolean().default(false), openingDays: scheduleSchema,
 }).strict();
 export type DestinationInput = z.infer<typeof destinationInputSchema>;
 export const visibilitySchema = z.enum(["HIDDEN", "VISIBLE"]);
 export const destinationDtoSchema = destinationInputSchema.extend({ id: z.string().min(1), visibility: visibilitySchema, createdAt: z.iso.datetime(), updatedAt: z.iso.datetime() }).strict();
 export type DestinationDto = z.infer<typeof destinationDtoSchema>;
-export const destinationListItemSchema = destinationDtoSchema.pick({ id: true, name: true, area: true, category: true, visibility: true, updatedAt: true }).extend({ deletedAt: z.iso.datetime().nullable().optional() });
+export const destinationListItemSchema = destinationDtoSchema.pick({ id: true, name: true, area: true, category: true, visibility: true, updatedAt: true }).extend({ isOutdoor: z.boolean().optional(), deletedAt: z.iso.datetime().nullable().optional() });
 export const destinationListSchema = z.object({ items: z.array(destinationListItemSchema), page: z.number().int().positive(), hasMore: z.boolean() }).strict();
 export type DestinationList = z.infer<typeof destinationListSchema>;
 export const destinationDeleteResultSchema = z.object({ id: z.string().min(1), deletedAt: z.iso.datetime() }).strict();

@@ -139,7 +139,7 @@ describe("US24-TEST contract, evaluate API and form-logic matrix", () => {
     expect(apiBody.data.requirement).toEqual(tripRequirementInputSchema.parse(fullPayload));
     expect(apiBody.data.readiness).toMatchObject({
       preliminary: true,
-      finalConfirmation: true,
+      finalConfirmation: false,
       missing: [],
       startDateIssue: null,
       usesRelativeDays: false,
@@ -161,7 +161,8 @@ describe("US24-TEST contract, evaluate API and form-logic matrix", () => {
         note: "Nghỉ giữa chặng",
       },
     });
-    expect(describeReadiness(apiBody.data.readiness).tone).toBe("success");
+    // FE origin disclosure is pending; the old surface must not claim final readiness.
+    expect(describeReadiness(apiBody.data.readiness).tone).not.toBe("success");
   });
 
   it("keeps a duration-plus-transport payload preliminary and relative-day based", async () => {
@@ -322,7 +323,7 @@ describe("US24-TEST contract, evaluate API and form-logic matrix", () => {
     const beforeMidnight = fakeDependencies("TRAVELER", new Date("2026-10-09T16:59:59Z"));
     dependencyHolder.current = beforeMidnight;
     const before = await POST(request({ ...basePayload, startDate: "2026-10-09" }));
-    expect((await before.json()).data.readiness.finalConfirmation).toBe(true);
+    expect((await before.json()).data.readiness.startDateIssue).toBeNull();
 
     dependencyHolder.current = fakeDependencies("TRAVELER", new Date("2026-10-09T17:00:00Z"));
     const after = await POST(request({ ...basePayload, startDate: "2026-10-09" }));

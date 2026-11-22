@@ -22,6 +22,12 @@ export function useAssistantDestination(destination: Destination) {
   useEffect(() => register?.(destination), [register, destination.id, destination.name]);
 }
 
+/** Routes where the global floating assistant pill should remain hidden. */
+export function isGlobalAssistantVisibleRoute(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return !/^\/(admin|assistant|login|register|forgot-password|reset-password|trips\/new|trips\/[^/]+\/(?:edit|in-trip))(\/|$)/.test(pathname);
+}
+
 /** Root-layout owner: normal client navigation hides/shows a view, never its session. */
 export function GlobalAssistantProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -49,12 +55,29 @@ export function GlobalAssistantProvider({ children }: { children: ReactNode }) {
   }, [pathname]);
   const current = pageDestination?.pathname === pathname ? pageDestination : null;
   const nextContext: QaContext = current ? { type: "DESTINATION", destinationId: current.id } : { type: "GENERAL" };
-  const routeVisible = !/^\/(admin|assistant|login|register|forgot-password|reset-password|trips\/new)(\/|$)/.test(pathname);
+  const routeVisible = isGlobalAssistantVisibleRoute(pathname);
+
+  // Auto-switch the floating panel context whenever the user navigates to a different destination.
+  useEffect(() => {
+    if (!hasSession || !current) return;
+    setActive(prev => {
+      if (prev.context.type === "DESTINATION" && prev.context.destinationId === current.id && prev.name === current.name) {
+        return prev;
+      }
+      return { context: { type: "DESTINATION", destinationId: current.id }, name: current.name };
+    });
+  }, [hasSession, current]);
 
   function openPanel() {
     if (!hasSession) {
       setActive({ context: nextContext, name: current?.name });
       setHasSession(true);
+    } else if (current) {
+      setActive(prev =>
+        prev.context.type === "DESTINATION" && prev.context.destinationId === current.id && prev.name === current.name
+          ? prev
+          : { context: { type: "DESTINATION", destinationId: current.id }, name: current.name },
+      );
     }
     setOpen(true);
   }
@@ -83,8 +106,6 @@ export function GlobalAssistantProvider({ children }: { children: ReactNode }) {
           panelId={panelId}
           context={active.context}
           destinationName={active.name}
-          newChatContext={nextContext}
-          onStartedNewChat={() => setActive({ context: nextContext, name: current?.name })}
           isOpen={open && routeVisible}
           onClose={() => setOpen(false)}
           triggerRef={triggerRef}

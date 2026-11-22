@@ -1,0 +1,19 @@
+// Only concurrency/identity metadata. No draft, dialogue, GPS or cipher payload.
+model AssistantV2SessionHead {
+  id String @id @db.Uuid
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject String @db.VarChar(200)
+  startHash String @db.Char(64)
+  version Int @default(0)
+  keyHash String? @db.Char(64)
+  requestHash String? @db.Char(64)
+  leaseToken String? @db.Uuid
+  leaseUntil DateTime? @db.Timestamptz(3)
+  expiresAt DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@index([userId, expiresAt])
+  @@map("assistant_v2_session_head")
+}

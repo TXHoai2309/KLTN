@@ -11,8 +11,8 @@
   --planner-ink: light-dark(#1d2521, #e7eee9);
   --planner-muted: light-dark(#66716b, #a4b3aa);
   --planner-border: light-dark(#dde3de, #39473e);
-  --planner-accent: light-dark(#24513b, #7bc797);
-  --planner-accent-hover: light-dark(#1c412f, #91c7a7);
+  --planner-accent: light-dark(#35765c, #52a883);
+  --planner-accent-hover: light-dark(#2c654e, #68be97);
   --planner-accent-subtle: light-dark(#edf4ee, #273b2f);
   --planner-soft: light-dark(#f6f8f6, #222d26);
   --planner-radius-sm: 8px;
@@ -351,6 +351,73 @@
   line-height: 1.5;
 }
 
+.planner-journey-missing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 20px;
+  margin-bottom: 16px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: light-dark(#fbf0dc, #3a2f1b);
+  color: var(--planner-ink);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.planner-journey-missing ul {
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--planner-muted);
+  font-size: 13.5px;
+}
+
+.planner-journey-missing button {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 8px;
+  background: var(--planner-accent);
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.planner-journey-missing button:hover {
+  background: var(--planner-accent-hover);
+}
+
+.planner-journey-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--planner-accent-subtle);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.planner-journey-totals p {
+  margin: 0;
+  color: var(--planner-muted);
+}
+
+.planner-journey-totals strong {
+  color: var(--planner-ink);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.planner-journey-totals small {
+  flex-basis: 100%;
+  font-size: 12.5px;
+  color: var(--planner-muted);
+}
+
 /* ═══════════════════════════════════════════
    5. TIMELINE VISITS (Continuous Unbroken Stem)
    ═══════════════════════════════════════════ */
@@ -442,6 +509,90 @@
   font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+/* Origin departure and return, set on the same timeline as the visits.
+   Saved-trip and Assistant views render these outside .planner-page, hence the fallbacks. */
+.planner-stop-boundary {
+  --planner-boundary-ink: #b4533c;
+}
+
+.dark .planner-stop-boundary {
+  --planner-boundary-ink: #f0a08c;
+}
+
+.planner-stop-boundary .planner-stop-number {
+  border-color: var(--planner-boundary-ink);
+  color: var(--planner-boundary-ink);
+}
+
+.planner-stop-boundary .planner-stop-time {
+  color: var(--planner-boundary-ink);
+}
+
+.planner-boundary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--planner-accent-subtle, var(--muted));
+  font-size: 14px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.planner-boundary-card strong {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--planner-muted, var(--muted-foreground));
+}
+
+.planner-boundary-card p {
+  margin: 0;
+  color: var(--planner-ink, var(--foreground));
+}
+
+.planner-boundary-card .planner-boundary-metrics {
+  font-size: 13px;
+  color: var(--planner-muted, var(--muted-foreground));
+}
+
+.planner-boundary-card-day {
+  margin-top: 16px;
+  gap: 4px;
+}
+
+.planner-boundary-card-day strong {
+  font-size: 15px;
+  color: var(--planner-ink, var(--foreground));
+}
+
+/* Lunch and overnight pauses on the timeline */
+.planner-break {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  align-self: flex-start;
+  justify-self: start;
+  gap: 6px;
+  margin: 0;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: var(--planner-accent-subtle, var(--muted));
+  color: var(--planner-ink, var(--foreground));
+  font-size: 13px;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+
+.planner-break strong {
+  font-weight: 600;
+}
+
+.planner-stop-pause .planner-stop-number {
+  border-color: var(--planner-muted, var(--muted-foreground));
+  color: var(--planner-muted, var(--muted-foreground));
 }
 
 /* Subtle warning icon with tooltip (No screaming yellow pills) */
@@ -630,6 +781,7 @@
   --planner-route-2: #286ba5;
   --planner-route-3: #99621d;
   --planner-route-casing: #ffffff;
+  --planner-route-origin: #b4533c;
   --planner-route-marker-ink: #ffffff;
   min-width: 0;
 }
@@ -639,6 +791,7 @@
   --planner-route-2: #83bde8;
   --planner-route-3: #dfb46c;
   --planner-route-casing: #1b2a22;
+  --planner-route-origin: #f0a08c;
   --planner-route-marker-ink: #14251c;
 }
 
@@ -825,7 +978,8 @@
   border-radius: 16px;
   padding: 14px 16px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-  z-index: 10;
+  /* Above the selected map marker (z-index 20). */
+  z-index: 25;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -919,6 +1073,36 @@
 .planner-detail-link:hover {
   background: var(--planner-accent-subtle);
   transform: translateX(2px);
+}
+
+.planner-map .planner-map-origin-marker {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 2.5px solid #ffffff;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  background: var(--planner-route-origin);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.25);
+}
+
+.dark .planner-map .planner-map-origin-marker {
+  color: #2a1510;
+}
+
+.planner-map-origin-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.planner-map-origin-note span {
+  flex-shrink: 0;
+  width: 18px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--planner-route-origin);
 }
 
 /* ─── Premium Map Markers (Crystal clear, vivid emerald green, sharp pointer) ─── */
@@ -1708,4 +1892,50 @@
   .planner-floating-card {
     animation: none;
   }
+}
+
+.planner-stop-external, .planner-stop-source { font-size: 0.75rem; color: var(--muted-foreground, #6b7280); }
+.planner-stop-external { border: 1px dashed currentColor; border-radius: 999px; padding: 0 0.5rem; }
+.planner-external-notice { margin-top: 0.75rem; font-size: 0.875rem; }
+
+/* Validation summary bar: aligned single row with clear spacing between title, status pill and detail trigger */
+.planner-validation { margin-top: 0.75rem; min-width: 0; }
+.planner-validation-summary-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--planner-border, #dbe7df);
+  border-radius: 10px;
+  background: var(--planner-surface, #ffffff);
+  text-align: left;
+  font-size: 0.875rem;
+}
+.planner-validation-summary-row:hover { border-color: var(--planner-accent, #35765c); background: var(--planner-soft, #f6f8f6); }
+.planner-val-left { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; min-width: 0; }
+.planner-val-icon { color: var(--planner-accent, #35765c); flex-shrink: 0; }
+.planner-val-title { font-weight: 600; color: var(--planner-ink, #1d2521); }
+.planner-val-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--planner-accent-subtle, #edf4ee);
+  color: var(--planner-accent, #35765c);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.planner-val-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--planner-accent, #35765c);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-left: auto;
+  white-space: nowrap;
 }

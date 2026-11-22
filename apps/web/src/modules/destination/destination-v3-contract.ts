@@ -26,6 +26,7 @@ const fields = {
   suggestedDurationMinutes:
     destinationInputSchema.shape.suggestedDurationMinutes,
   minimumDurationMinutes: destinationInputSchema.shape.minimumDurationMinutes,
+  isOutdoor: z.boolean(),
   openingDays: destinationInputSchema.shape.openingDays,
   sources: z
     .array(source)

@@ -6,17 +6,33 @@ import { richContentText } from "../culture/culture-rich-content";
 import type { TripInterest } from "../trip-requirement/trip-requirement-contract";
 import type { z } from "zod";
 import type { plannerDestinationSchema } from "./planner-contract";
+import { EXTERNAL_PLACE_ID_PREFIX } from "./external-place-id";
+import { EXTERNAL_PLACE_DEFAULT_STAY_MINUTES } from "./planner-external-stay";
 
 export type PlannerCandidate = z.infer<typeof plannerDestinationSchema> & {
   visibility: string; revision: string; suggestedDurationMinutes: number | null; minimumDurationMinutes: number | null;
+  isOutdoor?: boolean;
   openingDays: { dayOfWeek: string; status: string; intervals: { opensAtMinute: number; closesAtMinute: number }[] }[];
 };
 export const MAX_CANDIDATES = 64;
+export { EXTERNAL_PLACE_ID_PREFIX };
+/** Google place ids are url-safe; the whole prefixed id must fit the 128-character destination id of the planner contract. */
+export const isSchedulablePlaceId = (placeId: string) => /^[A-Za-z0-9_-]{1,100}$/.test(placeId);
+export const isExternalPlannerCandidate = (candidate: Pick<PlannerCandidate, "external">) => candidate.external === true;
+/**
+ * An external place as a scheduler candidate. Name and coordinates come from the server-side `searchPlaces` result of the
+ * current turn only. It carries no hours and no minimum stay (unknown, never invented); the stay is the suggested default.
+ */
+export function externalPlannerCandidate(place: { placeId: string; name: string; latitude: number; longitude: number }): PlannerCandidate {
+  return { id: `${EXTERNAL_PLACE_ID_PREFIX}${place.placeId}`, name: place.name, description: "", area: "Hà Giang", category: "Ngoài danh mục", address: null,
+    latitude: place.latitude, longitude: place.longitude, image: null, external: true, visibility: "EXTERNAL", revision: "external",
+    suggestedDurationMinutes: EXTERNAL_PLACE_DEFAULT_STAY_MINUTES, minimumDurationMinutes: null, openingDays: [] };
+}
 export type PlannerCandidateInventory = { candidates: PlannerCandidate[]; publicRowCount: number; invalidCoordinateCount: number; excludedCount: number };
 const select = {
-  id: true, name: true, description: true, shortDescription: true, area: true, category: true, address: true,
+  id: true, name: true, description: true, shortDescription: true, area: true, category: true, address: true, googleMapsUrl: true,
   latitude: true, longitude: true, visibility: true, updatedAt: true, contentRevision: true,
-  suggestedDurationMinutes: true, minimumDurationMinutes: true,
+  suggestedDurationMinutes: true, minimumDurationMinutes: true, isOutdoor: true,
   media: { where: destinationMediaWhere, take: 20, orderBy: [{ isCover: "desc" as const }, { position: "asc" as const }, { id: "asc" as const }], select: { url: true, alt: true, author: true, sourceUrl: true, websiteRights: true, storageReference: true } },
   openingDays: { orderBy: { dayOfWeek: "asc" as const }, select: { dayOfWeek: true, status: true, intervals: { orderBy: { opensAtMinute: "asc" as const }, select: { opensAtMinute: true, closesAtMinute: true } } } },
 } satisfies Prisma.DestinationSelect;
@@ -29,29 +45,35 @@ export async function retrievePlannerCandidateInventory(database: Pick<Database,
   const coordinateValid = (row: typeof rows[number]) => Number.isFinite(row.latitude) && Number.isFinite(row.longitude) && Math.abs(row.latitude) <= 90 && Math.abs(row.longitude) <= 180;
   const candidates = publicRows.filter(row => !excludedIds.includes(row.id) && coordinateValid(row)).map(row => {
     const image = row.media.find(m => isDestinationMediaUsable(m, row.id));
+    const verifiedUrl = row.googleMapsUrl && publicHttpsUrl.safeParse(row.googleMapsUrl).success ? row.googleMapsUrl : undefined;
     return { id: row.id, name: row.name, description: richContentText(row.shortDescription || row.description).slice(0, 1000), area: row.area, category: row.category,
-      address: row.address, latitude: row.latitude, longitude: row.longitude, image: image ? { url: image.url, alt: image.alt, author: image.author, sourceUrl: image.sourceUrl && publicHttpsUrl.safeParse(image.sourceUrl).success ? image.sourceUrl : null } : null,
+      address: row.address, latitude: row.latitude, longitude: row.longitude, ...(verifiedUrl ? { googleMapsUrl: verifiedUrl } : {}),
+      image: image ? { url: image.url, alt: image.alt, author: image.author, sourceUrl: image.sourceUrl && publicHttpsUrl.safeParse(image.sourceUrl).success ? image.sourceUrl : null } : null,
       visibility: row.visibility, revision: `${row.contentRevision}:${row.updatedAt.toISOString()}`, suggestedDurationMinutes: row.suggestedDurationMinutes,
-      minimumDurationMinutes: row.minimumDurationMinutes, openingDays: row.openingDays };
+      minimumDurationMinutes: row.minimumDurationMinutes, isOutdoor: row.isOutdoor, openingDays: row.openingDays };
   });
   return { candidates, publicRowCount: publicRows.length, invalidCoordinateCount: publicRows.filter(row => !excludedIds.includes(row.id) && !coordinateValid(row)).length,
     excludedCount: publicRows.filter(row => excludedIds.includes(row.id)).length };
 }
 export function candidateSnapshot(candidate: PlannerCandidate) { return JSON.stringify(candidate); }
 export async function recheckPlannerCandidates(database: Pick<Database, "destination">, candidates: readonly PlannerCandidate[], excludedIds: readonly string[] = []): Promise<boolean> {
-  const ids = candidates.map(candidate => candidate.id);
+  // External places are never stored, so there is nothing in the database to re-read for them.
+  const ids = candidates.filter(candidate => !isExternalPlannerCandidate(candidate)).map(candidate => candidate.id);
   if (!ids.length) return true;
   if ((await findEligibleDestinationIds(ids, database)).length !== ids.length) return false;
   const current = new Map((await retrievePlannerCandidates(database, ids, excludedIds)).map(candidate => [candidate.id, candidateSnapshot(candidate)]));
-  return candidates.every(candidate => current.get(candidate.id) === candidateSnapshot(candidate));
+  return candidates.every(candidate => isExternalPlannerCandidate(candidate) || current.get(candidate.id) === candidateSnapshot(candidate));
 }
-const normalized = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").toLowerCase();
+const normalized = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d");
 // Ranking heuristic only, not an approved taxonomy mapping or a factual suitability claim.
 const terms: Record<TripInterest, string[]> = {
   NATURE: ["thien nhien", "nui", "deo", "thac", "hang", "canh quan"], CULTURE_HISTORY: ["van hoa", "lich su", "di tich", "dinh", "pho co"],
   ETHNIC_VILLAGES: ["ban lang", "cong dong", "dan toc"], PHOTOGRAPHY: ["ngam canh", "check-in", "chup anh"],
   FOOD: ["am thuc", "cho", "mon an"], ADVENTURE: ["kham pha", "trekking", "mao hiem"], RELAXATION: ["thu gian", "nghi duong"],
 };
+// shortcut: a name list instead of an Admin "featured" field; add the field when Admin must manage it.
+const FEATURED_NAMES = ["lung cu", "quan ba", "dinh thu ho vuong", "pho co dong van", "ma pi leng", "nho que"];
+export const isFeaturedDestination = (candidate: { name: string }) => { const name = normalized(candidate.name); return FEATURED_NAMES.some(item => name.includes(item)); };
 export function interestScore(candidate: PlannerCandidate, interests: readonly TripInterest[]) {
   const text = normalized(candidate.category);
   return interests.filter(interest => terms[interest].some(term => text.includes(term))).length;

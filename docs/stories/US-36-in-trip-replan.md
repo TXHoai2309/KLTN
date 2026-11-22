@@ -82,7 +82,9 @@ Thiếu nguồn completion, hợp đồng revision, client/provider được duy
 
 ## Roles / Authorization
 
-Chỉ Traveler được dùng trợ lý in-trip qua requireTraveler. Guest nhận 401, Admin nhận 403; không bypass role. Handler xác thực trước khi đọc body hoặc gửi dữ liệu Trip riêng tư cho provider. Response riêng tư dùng Cache-Control: private, no-store.
+Traveler và Admin được dùng trợ lý in-trip cho Trip của chính mình qua requireTraveler, theo [RBAC V2 đã được owner duyệt](RBAC-V2-admin-inherits-traveler.md). Guest nhận 401; Admin không có quyền bypass ownership. Handler xác thực trước khi đọc body hoặc gửi dữ liệu Trip riêng tư cho provider. Response riêng tư dùng Cache-Control: private, no-store.
+
+Closure review 2026-10-28: các receipt lịch sử có kỳ vọng Admin403 bên dưới đã cũ so với quyết định RBAC V2. Giữ nguyên receipt để truy vết; contract và test hiện hành kiểm tra Admin200 trên Trip sở hữu và Admin404 trên Trip không tồn tại/không thuộc tài khoản, không có DB write.
 
 ## Ownership Rules
 
@@ -154,7 +156,7 @@ AI/provider và routing chỉ dùng qua client/server integration được owner
 
 - Test thuần partition với now cố định; bao phủ trước/sau chuyến đi, ranh giới giờ kết thúc, lượt đang diễn ra, ngày giữa chuyến, một/nhiều ngày, cùng giờ và đổi ngày UTC/HCMC. Task 286 unit tests pass; runtime browser/GPS chưa được kiểm tra.
 - Fake provider/repository/location/routing; không gọi OpenAI, Google hoặc Neon thật.
-- Kiểm tra auth trước khi đọc body/provider; Guest 401, Admin 403, foreign/missing Trip cùng 404; revision mismatch theo convention đã chốt.
+- Kiểm tra auth trước khi đọc body/provider; Guest 401; Traveler/Admin dùng Trip sở hữu, foreign/missing Trip cùng 404 cho cả hai role; revision mismatch theo convention đã chốt.
 - Kiểm tra mọi thao tác trên completed visit bị từ chối, IDs giả/day ngoài biên/deadline không rõ chuyển clarification/no proposal, ALL_COMPLETED không có candidate.
 - Kiểm tra điểm đến phải đến trước hạn được giữ làm điểm kết thúc candidate; không tuyên bố Validator PASS ở US-36.
 - Source audit chứng minh route/service không import hàm ghi, không lưu/log raw location/message/provider output, không gửi tọa độ thô đến AI.

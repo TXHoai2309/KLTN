@@ -389,7 +389,11 @@ function verifyOutput(
   if (context.resolution?.selectedDayIndex !== undefined) {
     const selectedDayIndex = context.resolution.selectedDayIndex;
     const matchesOperation = normalized.some(
-      (operation) => operation.params.dayIndex === selectedDayIndex,
+      (operation) => operation.params.dayIndex === selectedDayIndex ||
+        // REMOVE/REPLACE/time edits deliberately have no day parameter. A bound
+        // day choice must be checked against their actual server-owned target.
+        (["REMOVE_VISIT", "REPLACE_VISIT", "CHANGE_TIME", "CHANGE_DURATION"].includes(operation.operationType)
+          && operation.targetVisitId !== null && remaining.get(operation.targetVisitId)?.dayIndex === selectedDayIndex),
     );
     if (!matchesOperation) {
       const targetOp = normalized.find(

@@ -1,0 +1,29 @@
+model AssistantConversation {
+  id        String             @id
+  userId    String
+  title     String             @db.VarChar(120)
+  createdAt DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime           @updatedAt @db.Timestamptz(3)
+  expiresAt DateTime           @db.Timestamptz(3)
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  AssistantMessage[]
+
+  @@index([userId, updatedAt(sort: Desc), id])
+  @@index([expiresAt])
+  @@map("assistant_conversation")
+}
+
+model AssistantMessage {
+  id              String                @id
+  conversationId  String
+  role            String                @db.VarChar(16)
+  clientMessageId String                @db.VarChar(200)
+  contentHash     String                @db.Char(64)
+  parts           Json
+  createdAt       DateTime              @default(now()) @db.Timestamptz(3)
+  conversation    AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, role, clientMessageId])
+  @@index([conversationId, createdAt, id])
+  @@map("assistant_message")
+}
