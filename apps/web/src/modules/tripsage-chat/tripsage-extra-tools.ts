@@ -3,7 +3,7 @@ import { z } from "zod";
 import { isValidCalendarDate } from "../trip-requirement/trip-requirement-contract";
 import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
 import { budgetInputSchema, checkBudgetPlan } from "./tripsage-budget";
-import type { BudgetPart, FlightsPart, HotelsPart, LodgingKind } from "./tripsage-chat-parts";
+import type { BudgetPart, FlightsPart, HotelsPart, LodgingKind, PlanProgressPart } from "./tripsage-chat-parts";
 import { cleanPlaceName } from "./tripsage-places";
 import { LODGING_KINDS, type HotelLookup } from "./tripsage-serpapi-hotels";
 import type { FlightLookup } from "./tripsage-serpapi-flights";
@@ -55,6 +55,7 @@ export type TripsageResultEmitters = {
   emitBudget?: (data: BudgetPart) => void;
   emitFlights?: (data: FlightsPart) => void;
   emitHotels?: (data: HotelsPart) => void;
+  emitPlanProgress?: (data: PlanProgressPart) => void;
 };
 
 export type TripsageExtraToolContext = TripsageResultEmitters & {
@@ -473,8 +474,17 @@ export function createTripsageExtraTools(context: TripsageExtraToolContext) {
       };
 
       if (!isBatch) {
+        context.emitPlanProgress?.({ step: "LODGING", state: "running" });
         const single = await runOne(stays[0]!);
-        if (!single.ok) return { ok: false as const, code: single.code, message: single.message };
+        if (!single.ok) {
+          if (single.status === "UNAVAILABLE") {
+            context.emitPlanProgress?.({ step: "LODGING", state: "error", detail: "Chưa tìm được chỗ nghỉ" });
+          } else {
+            context.emitPlanProgress?.({ step: "LODGING", state: "done" });
+          }
+          return { ok: false as const, code: single.code, message: single.message };
+        }
+        context.emitPlanProgress?.({ step: "LODGING", state: "done" });
         return {
           ok: true as const,
           count: single.count,
@@ -486,7 +496,18 @@ export function createTripsageExtraTools(context: TripsageExtraToolContext) {
         };
       }
 
+      context.emitPlanProgress?.({
+        step: "LODGING",
+        state: "running",
+        ...(stays.length > 1 ? { detail: `${stays.length} khu nghỉ đêm` } : {}),
+      });
       const areas = await Promise.all(stays.map(runOne));
+      const allUnavailable = areas.length > 0 && areas.every(area => area.status === "UNAVAILABLE");
+      if (allUnavailable) {
+        context.emitPlanProgress?.({ step: "LODGING", state: "error", detail: "Chưa tìm được chỗ nghỉ" });
+      } else {
+        context.emitPlanProgress?.({ step: "LODGING", state: "done" });
+      }
       return {
         ok: true as const,
         count: areas.length,

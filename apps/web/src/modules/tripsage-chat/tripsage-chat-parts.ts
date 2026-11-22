@@ -105,3 +105,71 @@ export function readTripsageResultPart(part: unknown) {
   const parsed = resultPartSchema.safeParse(part);
   return parsed.success ? parsed.data : null;
 }
+
+/** Slim D19 / BR-4: real-time transient progress emitted by planning tools; never stored in persisted messages. */
+export const PLAN_PROGRESS_STEPS = ["SELECT", "VALIDATE", "LODGING", "COSTS"] as const;
+export type PlanProgressStep = (typeof PLAN_PROGRESS_STEPS)[number];
+
+export const PLAN_PROGRESS_STATES = ["running", "done", "error"] as const;
+export type PlanProgressState = (typeof PLAN_PROGRESS_STATES)[number];
+
+export const PLAN_PROGRESS_LABELS: Record<PlanProgressStep, string> = {
+  SELECT: "Chọn điểm đến",
+  VALIDATE: "Kiểm tra lịch",
+  LODGING: "Tìm chỗ nghỉ",
+  COSTS: "Tính chi phí",
+};
+
+export const planProgressPartSchema = z.strictObject({
+  step: z.enum(PLAN_PROGRESS_STEPS),
+  state: z.enum(PLAN_PROGRESS_STATES),
+  detail: z.string().trim().min(1).max(120).optional(),
+});
+export type PlanProgressPart = z.infer<typeof planProgressPartSchema>;
+
+export type PlanProgressRowState = "pending" | PlanProgressState;
+
+export type PlanProgressRow = {
+  state: PlanProgressRowState;
+  detail?: string;
+};
+
+export type PlanProgressSnapshot = {
+  steps: Record<PlanProgressStep, PlanProgressRow>;
+  transitionCount: number;
+};
+
+export function createEmptyPlanProgress(): PlanProgressSnapshot {
+  return {
+    steps: {
+      SELECT: { state: "pending" },
+      VALIDATE: { state: "pending" },
+      LODGING: { state: "pending" },
+      COSTS: { state: "pending" },
+    },
+    transitionCount: 0,
+  };
+}
+
+/** Applies a real server-emitted `data-plan-progress` event without inventing steps or fake percentages (BR-4). */
+export function applyPlanProgress(
+  current: PlanProgressSnapshot | null,
+  part: PlanProgressPart,
+): PlanProgressSnapshot {
+  const base = current ?? createEmptyPlanProgress();
+  const prev = base.steps[part.step];
+  const nextRow: PlanProgressRow = part.detail ? { state: part.state, detail: part.detail } : { state: part.state };
+  const changed = prev.state !== nextRow.state || prev.detail !== nextRow.detail;
+  return {
+    steps: {
+      ...base.steps,
+      [part.step]: nextRow,
+    },
+    transitionCount: changed ? base.transitionCount + 1 : base.transitionCount,
+  };
+}
+
+export function hasPlanProgressErrors(snapshot: PlanProgressSnapshot | null): boolean {
+  if (!snapshot) return false;
+  return PLAN_PROGRESS_STEPS.some(step => snapshot.steps[step].state === "error");
+}

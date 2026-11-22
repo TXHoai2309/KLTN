@@ -3398,3 +3398,119 @@
     font-weight: 400;
   }
 }
+
+/* ==========================================================================
+   Ticket 15 — Real-time Plan Progress Block (design §3.7, slim D19 / BR-4)
+   ========================================================================== */
+.tripsage-plan-progress {
+  max-width: 420px;
+  margin-block: var(--tv-space-3);
+  padding: 12px 14px;
+  border-radius: var(--tv-radius-lg);
+  border: 1px solid var(--tv-line);
+  background: var(--tv-surface);
+  color: var(--tv-ink);
+  box-shadow: none;
+}
+
+.tripsage-plan-progress-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.tripsage-plan-progress-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 400;
+}
+
+.tripsage-plan-progress-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 14px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.tripsage-plan-progress-row.is-done .tripsage-plan-progress-mark {
+  color: var(--tv-accent);
+  font-weight: 600;
+}
+
+.tripsage-plan-progress-row.is-running .tripsage-plan-progress-mark {
+  color: var(--tv-accent);
+  animation: tripsage-progress-pulse 1.2s ease-in-out infinite;
+}
+
+.tripsage-plan-progress-row.is-running .tripsage-plan-progress-label {
+  color: var(--tv-ink);
+  font-weight: 500;
+}
+
+.tripsage-plan-progress-row.is-pending .tripsage-plan-progress-mark,
+.tripsage-plan-progress-row.is-pending .tripsage-plan-progress-label {
+  color: var(--tv-ink-3);
+}
+
+.tripsage-plan-progress-row.is-error .tripsage-plan-progress-mark,
+.tripsage-plan-progress-row.is-error .tripsage-plan-progress-label {
+  color: var(--tv-warn-ink);
+  font-weight: 500;
+}
+
+.tripsage-plan-progress-row.is-interrupted .tripsage-plan-progress-mark,
+.tripsage-plan-progress-row.is-interrupted .tripsage-plan-progress-label {
+  color: var(--tv-danger);
+}
+
+.tripsage-plan-progress-detail {
+  color: var(--tv-ink-2);
+  font-size: 12.5px;
+}
+
+.tripsage-plan-progress-retry {
+  margin-left: auto;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: var(--tv-radius-sm);
+  background: transparent;
+  color: var(--tv-accent);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.tripsage-plan-progress-retry:hover {
+  background: var(--tv-accent-tint);
+}
+
+.tripsage-plan-progress-retry:focus-visible {
+  outline: 2px solid var(--tv-focus);
+  outline-offset: 2px;
+}
+
+.tripsage-plan-progress-interrupted {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--tv-sunken);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--tv-danger);
+}
+
+@keyframes tripsage-progress-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}

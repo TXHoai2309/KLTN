@@ -6153,3 +6153,11 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Updated `TripsageCostCard` (`tripsage-cost-card.tsx`) with `.tripsage-cost-basis-mobile` for the 2-column mobile cost layout (`design §3.8`).
 - Updated `TripsageChatClient` (`tripsage-chat-client.tsx`) and `assistant.css` with a 48px mobile top bar (`☰`, conversation title, `+`), hiding the old floating sidebar toggle, single-line 44px auto-grow composer (max 4 lines / 96px), circular 32px send/stop button, and character counter shown only above 80% capacity.
 - Checks: `vitest` PASS (15 files, 72/72 tests), `npm run check-types` PASS (4/4 tasks), `git diff --check` PASS (status: `verified-offline`).
+
+## 2026-11-23 — Traveler UI Redesign: Ticket 15 (real-time plan progress & parallel post-validation execution)
+
+- Added `planProgressPartSchema`, `PLAN_PROGRESS_STEPS`, `PLAN_PROGRESS_LABELS`, `applyPlanProgress`, and `hasPlanProgressErrors` to `apps/web/src/modules/tripsage-chat/tripsage-chat-parts.ts` (slim D19, BR-4); verified `sanitizeStoredParts` drops `data-plan-progress`.
+- Wired transient `data-plan-progress` (`transient: true`, never persisted) in `tripsage-chat-service.ts`, `tripsage-chat-tools.ts` (`listDestinations`, `proposeItinerary` with real validation round detail `đợt n/5`, lodging `searchPlaces`, `estimateCosts`), and `tripsage-extra-tools.ts` (`searchHotels` error isolation).
+- Parallelized independent post-validation `emitNearbyActivities` and grounded preference `emitGroundedPreferenceLabels` via `Promise.allSettled` inside `proposeItinerary` (slim D20) without increasing external call caps.
+- Created `TripsagePlanProgress` (`apps/web/src/components/tripsage-chat/tripsage-plan-progress.tsx`, design §3.7) wired into `TripsageChatClient` (`onData` + `"Chưa tìm được…"` step retry + `"Bị ngắt"` stream retry via `regenerate()`) and styled with `--tv-*` tokens in `assistant.css`.
+- Checks: `vitest` PASS (`tripsage-plan-progress` module 4/4 & component 3/3 + allowlist/audit/restoration 26/26), `npm run check-types` PASS (4/4 tasks), `git diff --check` PASS (status: `verified-offline`; preview deploy timing pending owner deploy).

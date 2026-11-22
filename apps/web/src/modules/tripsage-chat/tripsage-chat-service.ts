@@ -18,7 +18,7 @@ import type { WebLookup } from "./tripsage-web";
 import { TRIPSAGE_PROVIDER_LIMIT_TEXT, TRIPSAGE_PROVIDER_UNAVAILABLE_TEXT } from "./tripsage-chat-errors";
 import { createTripsageChatTools, TRIPSAGE_CHAT_TURN_LIMITS, type LocalKnowledge, type OriginLookup, type TripsagePlanningDeps, type TripsageToolContext } from "./tripsage-chat-tools";
 import { tripsageFeatureInstructions, type TripsageFeature } from "./tripsage-features";
-import { budgetPartSchema, flightsPartSchema, hotelsPartSchema, LODGING_KINDS, type LodgingKind } from "./tripsage-chat-parts";
+import { budgetPartSchema, flightsPartSchema, hotelsPartSchema, LODGING_KINDS, planProgressPartSchema, type LodgingKind } from "./tripsage-chat-parts";
 import type { PriorFlightLookupRecord, PriorHotelLookupKey } from "./tripsage-extra-tools";
 import { readPriceReferenceTransportSection } from "./tripsage-price-reference";
 import { assistantConversationIdSchema, conversationMetaPartSchema, sanitizeStoredParts, type StoredAssistantPart } from "./assistant-conversation-contract";
@@ -530,6 +530,12 @@ export function streamTripsageChat(input: {
         emitHotels: data => {
           const parsed = hotelsPartSchema.safeParse(data);
           if (parsed.success) writer.write({ type: "data-hotels", id: `hotels-${++hotelsPart}`, data: parsed.data });
+        },
+        emitPlanProgress: data => {
+          const parsed = planProgressPartSchema.safeParse(data);
+          if (parsed.success) {
+            writer.write({ type: "data-plan-progress", data: parsed.data, transient: true });
+          }
         },
         emitItinerary: (result: PlannerResult) => {
           hasItinerary = true;

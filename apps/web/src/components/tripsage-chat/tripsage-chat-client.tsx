@@ -2,7 +2,6 @@
 
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
-import { Button } from "@KLTN/ui/components/button";
 import { FileText, Menu, PanelLeft, PanelLeftOpen, Plus, Send, ShieldCheck, Sparkles, Square } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 
@@ -12,6 +11,12 @@ import { conversationMetaPartSchema } from "@/modules/tripsage-chat/assistant-co
 import { accessLegPartSchema, isCurrentAccessLeg, reconcileAccessPins } from "@/modules/tripsage-chat/tripsage-access-leg";
 import { buildTripsageChatBody, summarizeItinerary } from "@/modules/tripsage-chat/tripsage-chat-context";
 import { classifyChatError, createTripsageChatFetch } from "@/modules/tripsage-chat/tripsage-chat-errors";
+import {
+  applyPlanProgress,
+  hasPlanProgressErrors,
+  planProgressPartSchema,
+  type PlanProgressSnapshot,
+} from "@/modules/tripsage-chat/tripsage-chat-parts";
 import {
   chosenLodgingMapToList,
   pruneChosenLodgings,
@@ -52,6 +57,7 @@ import { parseItineraryPart } from "./tripsage-itinerary-view";
 import { TripsageMarkdown } from "./tripsage-markdown";
 import { TripsageMemoryPanel } from "./tripsage-memory-panel";
 import { TripsagePlanPanel } from "./tripsage-plan-panel";
+import { TripsagePlanProgress, planProgressRetryPrompt } from "./tripsage-plan-progress";
 import { TripsagePlanSummaryCard } from "./tripsage-plan-summary-card";
 import { readTripsageResultTurns, TripsageResultCards } from "./tripsage-result-cards";
 import { parseSourcesPart, TripsageSourcesView } from "./tripsage-sources-view";
@@ -102,6 +108,7 @@ export function TripsageChatClient({
 }: TripsageChatClientProps) {
   const [draft, setDraft] = useState("");
   const [status, setStatus] = useState<StatusPart | null>(null);
+  const [planProgress, setPlanProgress] = useState<PlanProgressSnapshot | null>(null);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [legacyReadOnly, setLegacyReadOnly] = useState<ConversationDetailResult | null>(null);
   const [loadingConversation, setLoadingConversation] = useState(false);
@@ -145,6 +152,11 @@ export function TripsageChatClient({
     onData: part => {
       if (part.type === "data-status") {
         setStatus(part.data as StatusPart);
+      } else if (part.type === "data-plan-progress") {
+        const parsed = planProgressPartSchema.safeParse(part.data);
+        if (parsed.success) {
+          setPlanProgress(prev => applyPlanProgress(prev, parsed.data));
+        }
       } else if (part.type === "data-conversation") {
         const parsed = conversationMetaPartSchema.safeParse(part.data);
         if (parsed.success) {
@@ -309,7 +321,7 @@ export function TripsageChatClient({
   // Grow the single-line composer up to 4 lines (~96px), then scroll (design §3.6).
   useEffect(() => { const el = composer.current; if (!el) return; el.style.height = "auto"; el.style.height = `${Math.min(el.scrollHeight, 96)}px`; }, [draft]);
   // Pins and the saved trip belong to one conversation.
-  useEffect(() => { setPinned([]); setSavedTripId(null); setPinMessage(null); }, [activeConversationId]);
+  useEffect(() => { setPinned([]); setSavedTripId(null); setPinMessage(null); setPlanProgress(null); }, [activeConversationId]);
   // PARITY BR-3 & BR-4: before saving, keep any pinned ACCESS synced to the current access leg; after saving, keep the saved snapshot unchanged.
   useEffect(() => {
     if (savedTripId || !state.accessLeg?.data) return;
@@ -437,6 +449,7 @@ export function TripsageChatClient({
     setActiveConversationId(null);
     setHistoryNotice(null);
     setChosenLodgings({});
+    setPlanProgress(null);
     setPinned([]); setSavedTripId(null); setPinMessage(null);
     lastSyncedProposalRef.current = null;
     bodyRef.current = { journey: null, tripInfo: null, itinerary: null, originCandidatesToken: null, conversationId: null };
@@ -519,6 +532,7 @@ export function TripsageChatClient({
 
   function send(text: string) {
     if (!text.trim() || locked || legacyReadOnly) return;
+    setPlanProgress(null);
     void sendMessage({ text });
   }
 
@@ -763,12 +777,25 @@ export function TripsageChatClient({
                     );
                   })}
                 </div>
-                {busy && (
+                {busy && planProgress ? (
+                  <TripsagePlanProgress snapshot={planProgress} />
+                ) : busy ? (
                   <div role="status" className="tripsage-thinking">
                     <span className="tripsage-thinking-dots" aria-hidden="true"><i /><i /><i /></span>
                     <span>{status?.label ?? "Mình đang xử lý yêu cầu…"}</span>
                   </div>
-                )}
+                ) : interrupted && !recovering && planProgress ? (
+                  <TripsagePlanProgress
+                    snapshot={planProgress}
+                    interrupted
+                    onRetryStream={saveLocked ? undefined : () => void regenerate()}
+                  />
+                ) : !interrupted && planProgress && hasPlanProgressErrors(planProgress) ? (
+                  <TripsagePlanProgress
+                    snapshot={planProgress}
+                    onRetryStep={locked ? undefined : step => send(planProgressRetryPrompt(step))}
+                  />
+                ) : null}
               </>
             )}
           </div>
