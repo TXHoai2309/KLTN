@@ -1187,3 +1187,18 @@ Add `places.types` to `GOOGLE_PLACES_FIELD_MASK` (instead of `places.primaryType
 
 - Google Places API (New) Text Search bills by the highest-tier SKU in `X-Goog-FieldMask`. `places.displayName` and `places.location` are already on the **Pro** SKU, and both `places.types` and `places.primaryType` are also on the **Pro** SKU (zero tier upgrade, zero increase in `ACTIVITY_MAX_ANCHORS = 16`).
 - `places.types` returns all types for a place, catching lodging venues whose `primaryType` is generic (`point_of_interest`) or absent. `types` stays server-side and is never forwarded to the model.
+
+## ADR-50 — `AssistantConversation.titleCustomized` & `savedTripId` (2026-11-23)
+
+- **Status:** Accepted (Ticket 14, slim B11 & BR-7). Migration `20261123022000_assistant_conversation_auto_title` created and schema-validated; awaiting deployment (`prisma migrate deploy`) on target DB.
+- **Date:** 2026-11-23
+
+### Context
+
+`AssistantConversation` previously stored only `title`, with no flag distinguishing user-renamed conversations from automatically titled ones, and no indicator of whether the conversation produced a saved trip.
+
+### Decision
+
+Add two additive columns to `assistant_conversation` via Prisma migration `20261123022000_assistant_conversation_auto_title`:
+- `titleCustomized Boolean @default(false)`: auto-titling in `recordAssistantMessage` updates `title` strictly from confirmed trip info (`Đà Nẵng → HG · 4 người · 12/12`) only while `titleCustomized` is `false`; explicit user renames via idempotent `PATCH /api/ai/assistant-conversations/:id` set `titleCustomized = true`.
+- `savedTripId String?`: recorded via idempotent `PATCH` (verifying owner-scoped trip existence) once a trip save confirms `SUCCESS`, powering the 6px `--tv-accent` sidebar indicator without introducing a cascading delete dependency on `Trip`.

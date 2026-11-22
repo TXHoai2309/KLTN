@@ -5,6 +5,7 @@ import type { MutationOutcome } from "../../lib/mutation-contract";
 import { AppError } from "../../server/http/app-error";
 import { executeIdempotentWrite } from "../../server/http/idempotency";
 import { generateConversationTitle } from "../ai/qa-conversation-title";
+import { autoTitleFromAssistantParts } from "./conversation-auto-title";
 import {
   ASSISTANT_CONVERSATION_RETENTION_DAYS,
   assistantConversationDetailSchema,
@@ -18,8 +19,9 @@ import { chosenLodgingsPartSchema, type ChosenLodgingItem } from "./tripsage-tim
 import { TOOL_TRACE_PART, type ToolTrace } from "./tripsage-tool-trace";
 
 export type RecordUserMessageResult = { conversationId: string; title: string; messageId: string };
-export type RecordAssistantMessageResult = { conversationId: string; messageId: string };
+export type RecordAssistantMessageResult = { conversationId: string; messageId: string; title?: string };
 export type UpdateChosenLodgingsResult = { conversationId: string; chosenLodgings: ChosenLodgingItem[] };
+export type UpdateConversationMetaResult = { conversationId: string; title?: string; titleCustomized?: boolean; savedTripId?: string | null };
 export type DeleteConversationResult = { deleted: true; id: string };
 export type DeleteAllConversationsResult = { deletedCount: number };
 
@@ -46,6 +48,13 @@ export interface AssistantConversationStore {
     idempotencyKey: string;
     chosenLodgings: readonly ChosenLodgingItem[];
   }): Promise<MutationOutcome<UpdateChosenLodgingsResult>>;
+  updateMeta?(input: {
+    userId: string;
+    conversationId: string;
+    idempotencyKey: string;
+    title?: string;
+    savedTripId?: string;
+  }): Promise<MutationOutcome<UpdateConversationMetaResult>>;
   deleteOne(userId: string, conversationId: string, idempotencyKey: string): Promise<MutationOutcome<DeleteConversationResult>>;
   deleteAll(userId: string, idempotencyKey: string): Promise<MutationOutcome<DeleteAllConversationsResult>>;
   cleanup(batchSize?: number): Promise<{ deletedCount: number }>;
@@ -103,17 +112,22 @@ export function createAssistantConversationStore(db: Database, options: { now?: 
         where,
         orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
         take: limit + 1,
-        select: { id: true, title: true, createdAt: true, updatedAt: true },
+        select: { id: true, title: true, titleCustomized: true, savedTripId: true, createdAt: true, updatedAt: true },
       });
 
       const hasMore = rows.length > limit;
       const page = hasMore ? rows.slice(0, limit) : rows;
-      const items = page.map(row => ({
-        id: row.id,
-        title: row.title,
-        createdAt: row.createdAt.toISOString(),
-        updatedAt: row.updatedAt.toISOString(),
-      }));
+      const items = page.map(row => {
+        const extra = row as { titleCustomized?: boolean; savedTripId?: string | null };
+        return {
+          id: row.id,
+          title: row.title,
+          ...(typeof extra.titleCustomized === "boolean" ? { titleCustomized: extra.titleCustomized } : {}),
+          ...(extra.savedTripId !== undefined ? { savedTripId: extra.savedTripId } : {}),
+          createdAt: row.createdAt.toISOString(),
+          updatedAt: row.updatedAt.toISOString(),
+        };
+      });
       const last = page.at(-1);
       return assistantConversationListSchema.parse({
         items,
@@ -129,6 +143,8 @@ export function createAssistantConversationStore(db: Database, options: { now?: 
         select: {
           id: true,
           title: true,
+          titleCustomized: true,
+          savedTripId: true,
           createdAt: true,
           updatedAt: true,
           messages: {
@@ -147,10 +163,13 @@ export function createAssistantConversationStore(db: Database, options: { now?: 
           createdAt: msg.createdAt.toISOString(),
         }))
         .filter(msg => msg.parts.length > 0);
+      const extra = row as { titleCustomized?: boolean; savedTripId?: string | null };
       return assistantConversationDetailSchema.parse({
         conversation: {
           id: row.id,
           title: row.title,
+          ...(typeof extra.titleCustomized === "boolean" ? { titleCustomized: extra.titleCustomized } : {}),
+          ...(extra.savedTripId !== undefined ? { savedTripId: extra.savedTripId } : {}),
           createdAt: row.createdAt.toISOString(),
           updatedAt: row.updatedAt.toISOString(),
         },
@@ -274,7 +293,7 @@ export function createAssistantConversationStore(db: Database, options: { now?: 
           const current = now();
           const owned = await tx.assistantConversation.findFirst({
             where: { id: input.conversationId, userId: input.userId, expiresAt: { gt: current } },
-            select: { id: true, updatedAt: true },
+            select: { id: true, title: true, titleCustomized: true, updatedAt: true },
           });
           if (!owned) throw notFound();
           // Ensure deterministic chronological order even if the user and assistant messages commit within the same ms.
@@ -291,11 +310,19 @@ export function createAssistantConversationStore(db: Database, options: { now?: 
               createdAt: writeAt,
             },
           });
+          // Ticket 14 (slim B11, BR-7): update auto-title from newly confirmed trip data only if the user has not renamed it.
+          const ownedMeta = owned as { title?: string; titleCustomized?: boolean };
+          const derivedTitle = ownedMeta.titleCustomized ? null : autoTitleFromAssistantParts(sanitized);
+          const nextTitle = derivedTitle && derivedTitle !== ownedMeta.title ? derivedTitle : undefined;
           await tx.assistantConversation.update({
             where: { id: owned.id },
-            data: { updatedAt: writeAt, expiresAt: expiresAtFrom(writeAt) },
+            data: {
+              ...(nextTitle ? { title: nextTitle } : {}),
+              updatedAt: writeAt,
+              expiresAt: expiresAtFrom(writeAt),
+            },
           });
-          return { conversationId: owned.id, messageId };
+          return { conversationId: owned.id, messageId, ...(nextTitle ? { title: nextTitle } : {}) };
         },
       });
     },
@@ -348,6 +375,59 @@ export function createAssistantConversationStore(db: Database, options: { now?: 
             },
           });
           return { conversationId: owned.id, chosenLodgings: nextList };
+        },
+      });
+    },
+
+    async updateMeta(input) {
+      const nextTitle = input.title?.normalize("NFC").trim();
+      const nextSavedTripId = input.savedTripId?.trim();
+      if (!nextTitle && !nextSavedTripId) {
+        return {
+          status: "FAILED",
+          httpStatus: 400,
+          error: { code: "INVALID_INPUT", message: "Cần cung cấp tên mới hoặc mã chuyến đi." },
+        };
+      }
+      return executeIdempotentWrite<UpdateConversationMetaResult>({
+        database: db,
+        actorId: input.userId,
+        operation: "assistant-conversation:meta",
+        key: input.idempotencyKey,
+        input: {
+          conversationId: input.conversationId,
+          ...(nextTitle ? { title: nextTitle } : {}),
+          ...(nextSavedTripId ? { savedTripId: nextSavedTripId } : {}),
+        },
+        execute: async tx => {
+          const current = now();
+          const owned = await tx.assistantConversation.findFirst({
+            where: { id: input.conversationId, userId: input.userId, expiresAt: { gt: current } },
+            select: { id: true, title: true, titleCustomized: true, savedTripId: true },
+          });
+          if (!owned) throw notFound();
+          if (nextSavedTripId && typeof (tx as { trip?: { findFirst?: unknown } }).trip?.findFirst === "function") {
+            const ownedTrip = await tx.trip.findFirst({
+              where: { id: nextSavedTripId, userId: input.userId },
+              select: { id: true },
+            });
+            if (!ownedTrip) throw new AppError("TRIP_NOT_FOUND", "Không tìm thấy chuyến đi thuộc tài khoản.", 404);
+          }
+          const updated = await tx.assistantConversation.update({
+            where: { id: owned.id },
+            data: {
+              ...(nextTitle ? { title: nextTitle.slice(0, 120), titleCustomized: true } : {}),
+              ...(nextSavedTripId ? { savedTripId: nextSavedTripId } : {}),
+              expiresAt: expiresAtFrom(current),
+            },
+            select: { id: true, title: true, titleCustomized: true, savedTripId: true },
+          });
+          return {
+            conversationId: updated.id,
+            title: updated.title,
+            titleCustomized: updated.titleCustomized,
+            savedTripId: updated.savedTripId,
+          };
         },
       });
     },

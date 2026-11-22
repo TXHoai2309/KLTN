@@ -310,6 +310,13 @@ export function AssistantSidebar({
                             >
                               <MessageSquare className="assistant-sidebar-item-icon" aria-hidden="true" />
                               <span className="assistant-sidebar-item-title">{conv.title}</span>
+                              {Boolean((conv as { savedTripId?: string | null }).savedTripId) && (
+                                <span
+                                  className="assistant-sidebar-saved-dot"
+                                  title="Đã lưu thành chuyến đi"
+                                  aria-label="Đã lưu thành chuyến đi"
+                                />
+                              )}
                             </button>
 
                             <div className="assistant-sidebar-item-actions">

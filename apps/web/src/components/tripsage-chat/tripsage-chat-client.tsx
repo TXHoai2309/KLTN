@@ -36,7 +36,9 @@ import {
   deleteAssistantConversation,
   fetchAssistantConversationDetail,
   fetchAssistantConversations,
+  markAssistantConversationSavedTrip,
   mergeUnifiedConversations,
+  renameAssistantConversation,
   saveAssistantConversationChosenLodgings,
   storedMessagesToUiMessages,
   type UnifiedConversationItem,
@@ -424,14 +426,29 @@ export function TripsageChatClient({
 
   async function handleRenameConversation(id: string, title: string) {
     const item = conversations.find(c => c.id === id);
-    if (item?.source !== "LEGACY") return false;
     try {
-      await renameConversation(id, title);
-      setConversations(current => current.map(c => (c.id === id ? { ...c, title } : c)));
+      if (item?.source === "LEGACY") {
+        await renameConversation(id, title);
+      } else {
+        const ok = await renameAssistantConversation(id, title, createIdempotencyKey());
+        if (!ok) return false;
+      }
+      setConversations(current => current.map(c => (c.id === id ? { ...c, title, titleCustomized: true } : c)));
       return true;
     } catch {
       return false;
     }
+  }
+
+  function handleTripSaved(tripId: string) {
+    setSavedTripId(tripId);
+    const convId = activeConversationId;
+    if (!convId) return;
+    void markAssistantConversationSavedTrip(convId, tripId, createIdempotencyKey()).then(ok => {
+      if (ok) {
+        setConversations(current => current.map(c => (c.id === convId ? { ...c, savedTripId: tripId } : c)));
+      }
+    }).catch(() => {});
   }
 
   async function handleDeleteConversation(id: string) {
@@ -508,7 +525,7 @@ export function TripsageChatClient({
         onRenameConversation={handleRenameConversation}
         onDeleteConversation={handleDeleteConversation}
         onDeleteAll={handleDeleteAll}
-        canRename={id => conversations.find(c => c.id === id)?.source === "LEGACY"}
+        canRename={() => true}
         onLoadMore={() => undefined}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
@@ -655,7 +672,7 @@ export function TripsageChatClient({
                                 onAskAccess={() => send(`So sánh giúp mình cách đi từ ${travelDays?.homeCity} ra ${travelDays?.hubName} cho cả đoàn.`)}
                               />
                             )}
-                            {itinerary && <TripsageItineraryView proposal={itinerary}>{!busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} tripInfo={state.tripInfo} chosenLodgings={chosenLodgings} suggestions={state.suggestions} pinnedItems={reconcileAccessPins(pinned, state.accessLeg?.data)} onSaved={setSavedTripId} onStateChange={setSaveState} />)}</TripsageItineraryView>}
+                            {itinerary && <TripsageItineraryView proposal={itinerary}>{!busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} tripInfo={state.tripInfo} chosenLodgings={chosenLodgings} suggestions={state.suggestions} pinnedItems={reconcileAccessPins(pinned, state.accessLeg?.data)} onSaved={handleTripSaved} onStateChange={setSaveState} />)}</TripsageItineraryView>}
                           </details>
                         )}
                         <TripsageSourcesView sources={sources} />

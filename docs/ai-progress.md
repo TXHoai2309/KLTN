@@ -6127,3 +6127,10 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Extended `listMyTrips` (`trip-read-service.ts`) with a single batched preview lookup (`firstStopImage`, `firstArea`, `lastArea`, owner-only `homeCity`/`originLabel`) while keeping `summarySelect.days` lean.
 - Redesigned `MyTripsView` (`apps/web/src/app/trips/trips-view.tsx`, `trips.css`): filter chips with counts, search collapsed behind icon toggle button, featured 16:9 card for next upcoming trip with `"còn N ngày"` countdown, compact 72px rows (56px thumbnail, data-driven route title via `buildDataTripTitle`, single click region + `"⋯"` overflow menu housing completion & delete confirmation dialogs).
 - Checks: `vitest` PASS (25 files, 117/117 tests; 3 postgres files skipped), `tsc --noEmit` PASS, `git diff --check` PASS (status: `verified-offline`).
+
+## 2026-11-23 — Traveler UI Redesign: Ticket 14 (conversation auto-title & saved-trip dot, ADR-50)
+
+- Added `titleCustomized` and `savedTripId` to `AssistantConversation` with Prisma migration `20261123022000_assistant_conversation_auto_title` (validated with `prisma validate`, `prisma generate`, and `prisma migrate status`; documented in ADR-50; not deployed to prod DB).
+- Created `apps/web/src/modules/tripsage-chat/conversation-auto-title.ts` (`buildConversationAutoTitle`, `autoTitleFromAssistantParts`) strictly from confirmed trip info (never assumed fields).
+- Updated `assistant-conversation-store.ts`, `assistant-conversation-http.ts`, `tripsage-chat-service.ts`, `assistant-unified-history.ts`, `assistant-sidebar.tsx`, and `tripsage-chat-client.tsx` for DB-confirmed auto-titling, idempotent manual rename (`titleCustomized: true`), owner-verified `savedTripId` linking, and the 6px `--tv-accent` sidebar indicator.
+- Checks: `vitest` PASS (15 files, 77/77 tests), `tsc --noEmit` PASS, `git diff --check` PASS (status: `verified-offline`).

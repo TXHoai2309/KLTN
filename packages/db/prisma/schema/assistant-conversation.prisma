@@ -1,12 +1,14 @@
 model AssistantConversation {
-  id        String             @id
-  userId    String
-  title     String             @db.VarChar(120)
-  createdAt DateTime           @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime           @updatedAt @db.Timestamptz(3)
-  expiresAt DateTime           @db.Timestamptz(3)
-  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messages  AssistantMessage[]
+  id              String             @id
+  userId          String
+  title           String             @db.VarChar(120)
+  titleCustomized Boolean            @default(false)
+  savedTripId     String?
+  createdAt       DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime           @updatedAt @db.Timestamptz(3)
+  expiresAt       DateTime           @db.Timestamptz(3)
+  user            User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages        AssistantMessage[]
 
   @@index([userId, updatedAt(sort: Desc), id])
   @@index([expiresAt])

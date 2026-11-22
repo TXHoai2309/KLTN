@@ -13,6 +13,8 @@ import type { ChosenLodgingItem } from "@/modules/tripsage-chat/tripsage-timelin
 
 export type UnifiedConversationItem = QaConversationSummary & {
   source: "ASSISTANT" | "LEGACY";
+  savedTripId?: string | null;
+  titleCustomized?: boolean;
 };
 
 export function toUnifiedAssistantItem(item: AssistantConversationSummary): UnifiedConversationItem {
@@ -23,6 +25,8 @@ export function toUnifiedAssistantItem(item: AssistantConversationSummary): Unif
     createdAt: item.createdAt,
     lastActivityAt: item.updatedAt,
     source: "ASSISTANT",
+    savedTripId: item.savedTripId ?? null,
+    titleCustomized: item.titleCustomized ?? false,
   };
 }
 
@@ -117,6 +121,38 @@ export async function saveAssistantConversationChosenLodgings(
     credentials: "same-origin",
     cache: "no-store",
     body: JSON.stringify({ chosenLodgings }),
+  });
+  const json = await response.json().catch(() => null) as { success?: boolean; operationStatus?: string } | null;
+  return response.ok && json?.success === true && json.operationStatus === "SUCCESS";
+}
+
+export async function renameAssistantConversation(
+  id: string,
+  title: string,
+  idempotencyKey: string,
+): Promise<boolean> {
+  const response = await fetch(`/api/ai/assistant-conversations/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
+    credentials: "same-origin",
+    cache: "no-store",
+    body: JSON.stringify({ title }),
+  });
+  const json = await response.json().catch(() => null) as { success?: boolean; operationStatus?: string } | null;
+  return response.ok && json?.success === true && json.operationStatus === "SUCCESS";
+}
+
+export async function markAssistantConversationSavedTrip(
+  id: string,
+  savedTripId: string,
+  idempotencyKey: string,
+): Promise<boolean> {
+  const response = await fetch(`/api/ai/assistant-conversations/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", "Idempotency-Key": idempotencyKey },
+    credentials: "same-origin",
+    cache: "no-store",
+    body: JSON.stringify({ savedTripId }),
   });
   const json = await response.json().catch(() => null) as { success?: boolean; operationStatus?: string } | null;
   return response.ok && json?.success === true && json.operationStatus === "SUCCESS";

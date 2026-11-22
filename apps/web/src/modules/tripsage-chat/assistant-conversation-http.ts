@@ -4,7 +4,7 @@ import type { AuthorizationDependencies } from "../../server/authorization/guard
 import { apiFailure, apiMutationFailure, apiMutationResult, apiMutationUnknown, apiSuccess } from "../../server/http/api-response";
 import { AppError } from "../../server/http/app-error";
 import { requireIdempotencyKey } from "../../server/http/idempotency";
-import { assistantConversationIdSchema } from "./assistant-conversation-contract";
+import { assistantConversationIdSchema, assistantConversationPatchMetaSchema } from "./assistant-conversation-contract";
 import type { AssistantConversationStore } from "./assistant-conversation-store";
 import { chosenLodgingsPartSchema } from "./tripsage-timeline";
 
@@ -52,13 +52,27 @@ export async function assistantConversationsResponse(
     const key = requireIdempotencyKey(request);
     const store = deps.store();
     if (request.method === "PATCH") {
-      if (id === undefined || !store.updateChosenLodgings) {
+      if (id === undefined) {
         throw new AppError("NOT_FOUND", "Không tìm thấy cuộc hội thoại.", 404);
       }
       let raw: unknown;
       try { raw = await request.json(); } catch { throw new AppError("INVALID_INPUT", "Nội dung yêu cầu chưa hợp lệ.", 400); }
+      const metaParsed = assistantConversationPatchMetaSchema.safeParse(raw);
+      if (metaParsed.success) {
+        if (!store.updateMeta) throw new AppError("NOT_FOUND", "Không tìm thấy cuộc hội thoại.", 404);
+        started = true;
+        return noStore(apiMutationResult(await store.updateMeta({
+          userId: actor.userId,
+          conversationId: id,
+          idempotencyKey: key,
+          ...("title" in metaParsed.data ? { title: metaParsed.data.title } : { savedTripId: metaParsed.data.savedTripId }),
+        })));
+      }
+      if (!store.updateChosenLodgings) {
+        throw new AppError("NOT_FOUND", "Không tìm thấy cuộc hội thoại.", 404);
+      }
       const parsed = chosenLodgingsPartSchema.safeParse(raw);
-      if (!parsed.success) throw new AppError("INVALID_INPUT", "Danh sách chỗ nghỉ đã chọn chưa hợp lệ.", 400);
+      if (!parsed.success) throw new AppError("INVALID_INPUT", "Nội dung cập nhật hội thoại chưa hợp lệ.", 400);
       started = true;
       return noStore(apiMutationResult(await store.updateChosenLodgings({
         userId: actor.userId,

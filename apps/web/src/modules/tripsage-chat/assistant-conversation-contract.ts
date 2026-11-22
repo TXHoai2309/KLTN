@@ -48,10 +48,18 @@ export function sanitizeStoredParts(parts: readonly unknown[]): StoredAssistantP
 export const assistantConversationSummarySchema = z.object({
   id: assistantConversationIdSchema,
   title: z.string().min(1).max(120),
+  titleCustomized: z.boolean().optional(),
+  savedTripId: z.string().min(1).max(128).nullable().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 }).strict();
 export type AssistantConversationSummary = z.infer<typeof assistantConversationSummarySchema>;
+
+export const assistantConversationPatchMetaSchema = z.union([
+  z.object({ title: z.string().trim().min(1).max(120) }).strict(),
+  z.object({ savedTripId: z.string().trim().min(1).max(128) }).strict(),
+]);
+export type AssistantConversationPatchMeta = z.infer<typeof assistantConversationPatchMetaSchema>;
 
 export const assistantConversationMessageSchema = z.object({
   id: z.string().min(1).max(128),

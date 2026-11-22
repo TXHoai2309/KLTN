@@ -2834,3 +2834,13 @@
   vertical-align: -2px;
   margin-right: 4px;
 }
+
+/* Ticket 14 (design §4.1): 6px accent dot for sidebar conversations that produced a saved trip */
+.assistant-sidebar-saved-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--tv-radius-pill);
+  background: var(--tv-accent);
+  flex-shrink: 0;
+  margin-left: auto;
+}

@@ -614,7 +614,18 @@ export function streamTripsageChat(input: {
         if (!sanitized.length) return;
         try {
           const outcome = await input.onPersistAssistant(sanitized, trace.snapshot());
-          if (outcome.status !== "SUCCESS") {
+          if (outcome.status === "SUCCESS") {
+            const confirmedTitle = (outcome.data as { title?: unknown } | undefined)?.title;
+            if (input.conversation && typeof confirmedTitle === "string" && confirmedTitle.trim()) {
+              const meta = conversationMetaPartSchema.safeParse({
+                conversationId: input.conversation.conversationId,
+                title: confirmedTitle,
+              });
+              if (meta.success) {
+                controller.enqueue({ type: "data-conversation", id: "conversation", data: meta.data } as UIMessageChunk);
+              }
+            }
+          } else {
             controller.enqueue({ type: "data-persistence", data: { status: outcome.status }, transient: true } as UIMessageChunk);
           }
         } catch {
