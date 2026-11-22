@@ -2795,3 +2795,12 @@
 .assistant-chat[data-runtime="tripsage-unified"] .assistant-transcript { padding: 14px 0 40px; }
 .assistant-chat[data-runtime="tripsage-unified"] .assistant-composer-input { align-items: flex-end; border-radius: 22px; }
 .assistant-chat[data-runtime="tripsage-unified"] .assistant-composer textarea { max-height: 132px; align-self: center; }
+
+/* Save card: the main action of a finished plan, so it reads as one (it used to render as plain text). */
+.tripsage-save { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 14px 0 4px; padding: 14px 16px; border: 1.5px solid var(--assistant-green, #15803d); border-radius: 14px; background: var(--assistant-soft, #f3f7f4); }
+.tripsage-save > p { flex: 1 1 220px; margin: 0; font-size: 0.875rem; }
+.tripsage-save > p[role="alert"], .tripsage-save .assistant-error { color: #b91c1c; }
+.assistant-save-button { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 20px; border-radius: 999px; background: var(--assistant-green, #15803d); color: #fff; font-weight: 600; font-size: 0.9375rem; border: 0; cursor: pointer; transition: filter .15s ease; }
+.assistant-save-button:hover:not(:disabled) { filter: brightness(1.08); }
+.assistant-save-button:focus-visible { outline: 3px solid rgba(21, 128, 61, .35); outline-offset: 2px; }
+.assistant-save-button:disabled { opacity: .55; cursor: not-allowed; }

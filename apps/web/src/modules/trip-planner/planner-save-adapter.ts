@@ -8,6 +8,7 @@ export function toTripProposal(proposal: PlannerResult): TripProposal {
     startDate: proposal.requirement.startDate,
     durationDays: proposal.requirement.durationDays,
     transport: proposal.requirement.transport,
+    ...(proposal.requirement.restMode ? { restMode: proposal.requirement.restMode } : {}),
     days: proposal.days.map((day) => ({
       dayIndex: day.day,
       visits: day.stops.map((stop) => {

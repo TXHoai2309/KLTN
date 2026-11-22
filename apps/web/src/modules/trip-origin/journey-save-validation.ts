@@ -22,7 +22,7 @@ export function journeySaveInput(proposal: TripProposal, destinations: ReadonlyM
   assertJourneyReady(proposal.journey, proposal.days.at(-1)?.visits.length === 0);
   const ids = proposal.days.flatMap(day => day.visits.map(visit => visit.destinationId));
   if (ids.length > 28 || new Set(ids).size !== ids.length) throw new AppError("INVALID_JOURNEY_VISITS", "Hành trình đi/về chỉ hỗ trợ tối đa 28 điểm không lặp.", 422);
-  const requirement = tripRequirementInputSchema.parse({ startDate: proposal.startDate, durationDays: proposal.durationDays, transport: proposal.transport, journey: proposal.journey });
+  const requirement = tripRequirementInputSchema.parse({ startDate: proposal.startDate, durationDays: proposal.durationDays, transport: proposal.transport, journey: proposal.journey, ...(proposal.restMode ? { restMode: proposal.restMode } : {}) });
   const selected: PlannerCandidate[][] = proposal.days.map(day => day.visits.map(visit => {
     const row = destinations.get(visit.destinationId);
     if (!row) throw new AppError("DESTINATION_UNAVAILABLE", "Có điểm đến không còn khả dụng.", 422);
@@ -34,7 +34,7 @@ export function journeySaveInput(proposal: TripProposal, destinations: ReadonlyM
 
 export function journeyValidationResult(proposal: TripProposal, scheduled: ReturnType<typeof scheduleJourneyEvidence>, selected: PlannerCandidate[][], now: Date): PlannerResult {
   // Build the same shared checks from actual canonical candidates and requested clocks.
-  const requirement = tripRequirementInputSchema.parse({ startDate: proposal.startDate, durationDays: proposal.durationDays, transport: proposal.transport, journey: proposal.journey });
+  const requirement = tripRequirementInputSchema.parse({ startDate: proposal.startDate, durationDays: proposal.durationDays, transport: proposal.transport, journey: proposal.journey, ...(proposal.restMode ? { restMode: proposal.restMode } : {}) });
   const validated = validatePlannerDays(requirement, scheduled.days, selected.flat(), scheduled.travelOnlyDays);
   for (const day of proposal.days) for (const visit of day.visits) {
     const canonical = selected.flat().find(candidate => candidate.id === visit.destinationId)!;

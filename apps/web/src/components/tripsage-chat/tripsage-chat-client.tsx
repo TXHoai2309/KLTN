@@ -594,6 +594,7 @@ export function TripsageChatClient({
                     const cost = state.cost?.messageId === message.id ? state.cost.data : null;
                     const accessLeg = state.accessLeg?.messageId === message.id ? state.accessLeg.data : null;
                     const hasCards = Boolean(cost || accessLeg || itinerary || resultParts.length);
+                    const live = busy && message.id === messages.at(-1)?.id;
                     // The closing question sits under the cards and buttons it refers to, never above them.
                     const { body, question } = message.role === "assistant" && (replies.length > 0 || hasCards) ? splitTrailingQuestion(text) : { body: text, question: null };
                     if (!text && !itinerary && !sources.length && !resultParts.length && !replies.length && !cost && !accessLeg) return null;
@@ -602,8 +603,9 @@ export function TripsageChatClient({
                     ) : (
                       <article key={message.id} className="assistant-message assistant-answer">
                         <span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true" /><span>Trợ lý AI</span></span>
-                        {body && <TripsageStreamedText text={body} live={busy && message.id === messages.at(-1)?.id} />}
-                        {(cost || accessLeg || itinerary) && (
+                        {body && <TripsageStreamedText text={body} live={live} />}
+                        {/* Cards wait until the reply has been written, so the answer reads first and the cards appear under it. */}
+                        {(cost || accessLeg || itinerary) && !live && (
                           <details className="tripsage-plan-details" open={!(itinerary && planUnchanged)}>
                             <summary>Lịch trình và chi phí ước tính</summary>
                             {cost && <TripsageCostCard cost={cost} pins={pinControl} />}
@@ -623,7 +625,7 @@ export function TripsageChatClient({
                           </details>
                         )}
                         <TripsageSourcesView sources={sources} />
-                        <TripsageResultCards parts={resultParts} pins={pinControl} />
+                        {!live && <TripsageResultCards parts={resultParts} pins={pinControl} />}
                         {replies.length === 0 && question && <p className="tripsage-next-question">{question}</p>}
                         {replies.length > 0 && (
                           <div className="tripsage-next-step">

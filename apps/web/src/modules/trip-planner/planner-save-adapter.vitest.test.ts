@@ -117,4 +117,10 @@ describe("planner-save-adapter", () => {
     const validation = toTripValidation(unconfirmedProposal);
     expect(validation.canConfirm).toBe(false);
   });
+  it("keeps the compact rest policy so the save re-validates the plan the way it was scheduled (ADR-48)", () => {
+    const compact = { ...baseProposal, requirement: { ...baseProposal.requirement, restMode: "COMPACT" as const } };
+    expect(toTripProposal(compact).restMode).toBe("COMPACT");
+    expect(tripProposalSchema.safeParse(toTripProposal(compact)).success).toBe(true);
+    expect(toTripProposal(baseProposal)).not.toHaveProperty("restMode");
+  });
 });

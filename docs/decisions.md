@@ -1165,5 +1165,6 @@ In conversation 2df60a2a a 5-day plan kept failing TRAVEL_TIME by a small margin
 ### Consequences
 
 - The Validator stays deterministic: it does not guess. It now accepts two rest policies and a traveler-owned minimum per stop.
+- The save carries `restMode` in the trip proposal, so save-time validation uses the policy the plan was scheduled with.
 - The trip edit flow still recomputes with the standard policy, so a saved compact plan shows standard 15-minute breaks after an edit.
 - Not verified live with a long Đà Nẵng → Hà Nội → Hà Giang chat.

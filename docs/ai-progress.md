@@ -6038,3 +6038,11 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Conversation 07c31cd7 (trace confirmed `planAccessLeg` ran): the access leg showed as a separate card, not in the day list. The timeline now has "Ngày đi" (day before day 1) and "Ngày về" (day after the last day) tabs with the outbound/return segments and the group total; the standalone card shows only when a message has no itinerary.
 - Persona: when travel to the hub takes its own day, the Hà Giang `startDate` is the day after it and the day count covers Hà Giang only; the assistant sets it itself instead of asking.
 - Not verified in a browser.
+
+## 2026-11-22 — Save blocked after a flexible plan, fuel price, save card, card order (conversation 9eb54913)
+
+- Root cause (from the admin trace): both plans had `flexApplied` (10-minute breaks). The save re-validated without `restMode`, i.e. with 15-minute breaks, so the fixed clocks no longer matched and Save returned "chưa đủ điều kiện". `TripProposal` now carries `restMode` (both adapters) and save-time journey validation uses it (ADR-48).
+- Fuel: the model passed an invented `fuelVndPerLiter` (23.000đ), which skipped the Petrolimex lookup. Only a price the traveler typed this turn now overrides the lookup.
+- Cost: the tool description now says the access leg is already added, after a turn counted the round-trip flight twice.
+- UI: the save area is a styled card with a green button (it had no CSS and read as plain text); cards in a reply appear after its text finishes streaming instead of before it.
+- Not verified in a browser. Not done: access-leg flight price stays 0 when the model sends 0 although a flight search ran.

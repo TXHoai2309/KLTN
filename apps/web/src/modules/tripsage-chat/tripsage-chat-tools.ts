@@ -655,18 +655,20 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   });
 
   const estimateCosts = tool({
-    description: `Lập bảng chi phí ước tính cho cả nhóm (VND). Bạn đưa các khoản lưu trú, ăn uống, vé & vui chơi, khác, và đi lại ngoài xăng (thuê xe, gửi xe...), mỗi khoản kèm cách tính ngắn. Tiền xăng do hệ thống tự tính từ quãng đường của lịch (${PRICE_REFERENCE.litersPer100Km.MOTORCYCLE} L/100 km xe máy, ${PRICE_REFERENCE.litersPer100Km.CAR} L/100 km ô tô, giá xăng lấy từ Petrolimex vùng 2 khi tra được, nếu không thì mặc định ${PRICE_REFERENCE.fuelVndPerLiter} đ/L, người dùng sửa được); không tự đưa dòng xăng. Hệ thống cộng tổng, tính mỗi người mỗi ngày và so ngân sách nếu người dùng đã nêu.`,
+    description: `Lập bảng chi phí ước tính cho cả nhóm (VND). Bạn đưa các khoản lưu trú, ăn uống, vé & vui chơi, khác, và đi lại ngoài xăng (thuê xe, gửi xe...), mỗi khoản kèm cách tính ngắn. Tiền xăng do hệ thống tự tính từ quãng đường của lịch (${PRICE_REFERENCE.litersPer100Km.MOTORCYCLE} L/100 km xe máy, ${PRICE_REFERENCE.litersPer100Km.CAR} L/100 km ô tô, giá xăng lấy từ Petrolimex vùng 2 khi tra được, nếu không thì mặc định ${PRICE_REFERENCE.fuelVndPerLiter} đ/L, người dùng sửa được); không tự đưa dòng xăng. Hệ thống cộng tổng, tính mỗi người mỗi ngày và so ngân sách nếu người dùng đã nêu. Chặng tiếp cận (máy bay/xe khách từ nhà tới điểm tập kết và về) đã được cộng tự động khi có: KHÔNG thêm lại dòng vé máy bay hay vé xe khách của chặng đó.`,
     inputSchema: z.object({
       lines: z.array(costLineInputSchema).min(1).max(12),
-      fuelVndPerLiter: z.number().int().min(10_000).max(60_000).optional().describe("Giá xăng người dùng nêu, đ/L."),
+      fuelVndPerLiter: z.number().int().min(10_000).max(60_000).optional().describe("CHỈ khi người dùng tự nêu giá xăng trong tin nhắn này, đ/L; nếu không, bỏ trống để hệ thống tra giá Petrolimex."),
       budgetCap: z.number().int().min(0).max(1_000_000_000).optional().describe("Ngân sách tối đa cả nhóm người dùng đã nêu, VND."),
     }).strict(),
     execute: async (input, options) => {
       const { info } = withTripInfoDefaults(tripInfo);
       if (!info.transport || !info.durationDays) return { ok: false as const, code: "MISSING_REQUIRED_INFO", message: "Chưa có phương tiện và số ngày để ước tính chi phí." };
-      const live = input.fuelVndPerLiter === undefined && context.fuelPrice ? await context.fuelPrice(options?.abortSignal).catch(() => null) : null;
+      // The model sometimes invents a fuel price; only a price the traveler typed this turn overrides the live Petrolimex lookup.
+      const userFuel = input.fuelVndPerLiter !== undefined && /x[aă]ng/iu.test(context.latestUserText ?? "") && /\d/u.test(context.latestUserText ?? "") ? input.fuelVndPerLiter : undefined;
+      const live = userFuel === undefined && context.fuelPrice ? await context.fuelPrice(options?.abortSignal).catch(() => null) : null;
       const extraLines = latestAccessLeg ? [{ category: "transport" as const, label: "Chặng tiếp cận (đi và về)", amount: latestAccessLeg.totalVnd, basis: `${latestAccessLeg.homeCity} ⇄ ${latestAccessLeg.hubName}, ${latestAccessLeg.travelers} người` }] : [];
-      const cost = estimateTripCost({ transport: info.transport, travelers: info.travelers, days: info.durationDays, distanceKm: latestDistanceKm, fuelVndPerLiter: input.fuelVndPerLiter ?? live?.vndPerLiter, fuelSource: live ? `${live.fuelName}, ${live.source}${live.asOf ? `, ${live.asOf.split("-").reverse().join("/")}` : ""}` : undefined, budgetCap: input.budgetCap ?? null, lines: input.lines, extraLines });
+      const cost = estimateTripCost({ transport: info.transport, travelers: info.travelers, days: info.durationDays, distanceKm: latestDistanceKm, fuelVndPerLiter: userFuel ?? live?.vndPerLiter, fuelSource: live ? `${live.fuelName}, ${live.source}${live.asOf ? `, ${live.asOf.split("-").reverse().join("/")}` : ""}` : undefined, budgetCap: input.budgetCap ?? null, lines: input.lines, extraLines });
       context.emitCost?.(cost);
       return { ok: true as const, total: cost.total, perPersonPerDay: cost.perPersonPerDay, withinCap: cost.withinCap, overBy: cost.overBy, lines: cost.lines.map(({ label, amount }) => ({ label, amount })),
         note: "Bảng chi phí đã hiện cho người dùng. Chỉ nhận xét ngắn (khoản lớn nhất, cách tiết kiệm); nói rõ đây là ước tính. Không có ngân sách thì không kết luận vừa hay vượt." };

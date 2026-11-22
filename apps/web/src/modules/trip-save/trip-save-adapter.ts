@@ -9,6 +9,7 @@ function buildProposal(result: PlannerResult): TripProposal | null {
     startDate: result.requirement.startDate,
     durationDays: result.requirement.durationDays,
     transport: result.requirement.transport,
+    ...(result.requirement.restMode ? { restMode: result.requirement.restMode } : {}),
     ...(result.assumedFields?.length ? { assumedFields: [...result.assumedFields] } : {}),
     days: result.days.map(day => ({
       dayIndex: day.day,

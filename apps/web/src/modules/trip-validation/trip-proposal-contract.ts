@@ -34,6 +34,8 @@ export const tripProposalSchema = z.object({
   startDate: z.string().refine(isValidCalendarDate, "Ngày bắt đầu không hợp lệ.").nullable(),
   durationDays: z.number().int().min(1).max(MAX_DURATION_DAYS),
   transport: z.enum(TRANSPORT_VALUES),
+  /** ADR-48: a plan scheduled with 10-minute roadside breaks is re-validated with the same policy at save time. */
+  restMode: z.enum(["STANDARD", "COMPACT"]).optional(),
   /** Assumed fields carried from an Assumed draft (ADR-44); server blocks Save when `origin` or `startDate` is still assumed. */
   assumedFields: z.array(z.enum(ASSUMABLE_FIELDS)).max(ASSUMABLE_FIELDS.length).optional(),
   days: z.array(z.object({
