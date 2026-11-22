@@ -5,6 +5,7 @@ import { travelLegSchema, type TravelLeg } from "./planner-contract";
 import type { PlannerCandidate } from "./planner-candidates";
 import { plannerRouteGeometry } from "./planner-route-geometry";
 import { journeyRouteSchema, type JourneyRoute } from "../trip-origin/journey-route-contract";
+import type { MapsProvider } from "../map/maps-provider";
 
 export type RoutePair = { from: PlannerCandidate; to: PlannerCandidate; transport: TripTransport };
 export type CoordinateRoutePair = { from: { latitude: number; longitude: number }; to: { latitude: number; longitude: number }; transport: TripTransport };
@@ -21,7 +22,7 @@ export function missingLeg(pair: RoutePair, reason: NonNullable<TravelLeg["reaso
 type RouteRequest = typeof requestStadiaRoute;
 type RouteProviderOptions = { apiKey?: () => string | undefined | Promise<string | undefined>; fetcher?: typeof fetch; timeoutMs?: number };
 /** Planner requires both metrics; US29B/30 may validate a duration-only snapshot. */
-function createRoutesProvider(request: RouteRequest, providerName: "STADIA_MAPS" | "GOOGLE_MAPS", options: RouteProviderOptions): RouteProvider {
+function createRoutesProvider(request: RouteRequest, providerName: "STADIA_MAPS" | "GOOGLE_MAPS", options: RouteProviderOptions): Required<RouteProvider> {
   return { async route(pair, signal) {
     const route = await request({ origin: pair.from, destination: pair.to, vehicle: pair.transport }, { ...options, signal });
     if (route.kind !== "ok") return missingLeg(pair, route.reason);
@@ -38,16 +39,16 @@ function createRoutesProvider(request: RouteRequest, providerName: "STADIA_MAPS"
     return route.success ? route.data : { status: "INSUFFICIENT_DATA", reason: "INVALID_RESPONSE", durationSeconds: null, distanceMeters: null, provider: null };
   } };
 }
-export function createStadiaRoutesProvider(options: RouteProviderOptions = {}): RouteProvider {
+export function createStadiaRoutesProvider(options: RouteProviderOptions = {}): Required<RouteProvider> {
   return createRoutesProvider(requestStadiaRoute, "STADIA_MAPS", options);
 }
-export function createGoogleRoutesProvider(options: RouteProviderOptions = {}): RouteProvider {
+export function createGoogleRoutesProvider(options: RouteProviderOptions = {}): Required<RouteProvider> {
   return createRoutesProvider(requestGoogleRoute, "GOOGLE_MAPS", options);
 }
 /** Shared website flag; preserve Stadia's configured runtime key source. */
-export function createConfiguredRoutesProvider(options: { stadiaApiKey?: RouteProviderOptions["apiKey"]; fetcher?: typeof fetch; timeoutMs?: number; env?: { NEXT_PUBLIC_MAPS_PROVIDER?: string | undefined; GOOGLE_MAPS_API_KEY?: string | undefined } } = {}): RouteProvider {
-  const { stadiaApiKey, env, ...rest } = options;
-  if ((env ? routingProviderFromEnv(env) : routingProviderFromEnv()) === "GOOGLE")
+export function createConfiguredRoutesProvider(options: { provider?: MapsProvider; stadiaApiKey?: RouteProviderOptions["apiKey"]; fetcher?: typeof fetch; timeoutMs?: number; env?: { NEXT_PUBLIC_MAPS_PROVIDER?: string | undefined; GOOGLE_MAPS_API_KEY?: string | undefined } } = {}): Required<RouteProvider> {
+  const { provider, stadiaApiKey, env, ...rest } = options;
+  if ((provider ?? routingProviderFromEnv(env)) === "GOOGLE")
     return createGoogleRoutesProvider({ ...rest, ...(env ? { apiKey: () => env.GOOGLE_MAPS_API_KEY } : {}) });
   return createStadiaRoutesProvider({ ...rest, ...(stadiaApiKey ? { apiKey: stadiaApiKey } : {}) });
 }

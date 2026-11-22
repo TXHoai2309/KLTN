@@ -29,7 +29,7 @@ describe("real planner UI server rendering", () => {
     expect(html).toContain('role="tablist"'); expect(html).toContain('aria-selected="true"');
     expect(html).toContain('role="tabpanel"'); expect(html).toContain('aria-pressed="true"');
     expect(html).toContain("Đề xuất đáp ứng các kiểm tra hiện tại"); expect(html).toContain("Đáp ứng");
-    expect(html).toContain("Stadia Maps"); expect(html).not.toContain("Google Maps");
+    expect(html).toContain("Đang tải bản đồ hành trình"); expect(html).not.toContain("Google Maps");
     expect(html).toContain('/destinations/a');
     expect(html).toContain("Đang kiểm tra bốn điều kiện xác nhận");
   });

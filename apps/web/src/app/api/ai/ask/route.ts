@@ -1,4 +1,4 @@
-import { qaHttp } from "../../../../modules/ai/qa-runtime";
+import { withQaHttp } from "../../../../modules/ai/qa-runtime";
 export const runtime = "nodejs";
 export const maxDuration = 60;
-export const POST = (request: Request) => qaHttp.ask(request);
+export const POST = (request: Request) => withQaHttp(qaHttp => qaHttp.ask(request));

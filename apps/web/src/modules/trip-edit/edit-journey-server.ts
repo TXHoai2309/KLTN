@@ -18,6 +18,7 @@ import {
 } from "../trip-origin/trip-origin-contract";
 import { assertJourneyCoverage, assertJourneyReady } from "../trip-origin/trip-origin-service";
 import { vietnamCoverageAt } from "../trip-origin/vietnam-coverage";
+import { mapsProviderFromEnv } from "../map/maps-provider";
 import type { TripValidation, ValidationFinding } from "../trip-validation/trip-validation";
 import { hasJourneyChanged, type EditCandidate } from "./edit-candidate";
 import type { PreviewJourneySummary } from "./edit-journey-helper";
@@ -45,10 +46,6 @@ export type EvaluatedEditJourney = {
   journeySummary?: PreviewJourneySummary;
   nextJourneySnapshot?: SavedJourney | null;
 };
-
-function currentProviderLabel(): "STADIA_MAPS" | "GOOGLE_MAPS" {
-  return process.env.PLANNER_ROUTING_PROVIDER === "google" ? "GOOGLE_MAPS" : "STADIA_MAPS";
-}
 
 function unavailableRoute(reason: NonNullable<JourneyRoute["reason"]>): JourneyRoute {
   return {
@@ -179,7 +176,7 @@ export async function evaluateEditJourney(
       : Promise.resolve({ kind: "unavailable" as const }),
   ]);
 
-  const provider = currentProviderLabel();
+  const legacyProvider = mapsProviderFromEnv() === "GOOGLE" ? "GOOGLE_MAPS" : "STADIA_MAPS";
   const outboundRoute: JourneyRoute =
     rawOutbound.kind === "ok"
       ? {
@@ -187,7 +184,7 @@ export async function evaluateEditJourney(
           reason: null,
           durationSeconds: rawOutbound.durationSeconds,
           distanceMeters: rawOutbound.distanceMeters ?? 0,
-          provider,
+          provider: rawOutbound.provider ?? legacyProvider,
           ...(rawOutbound.geometry ? { geometry: rawOutbound.geometry } : {}),
         }
       : unavailableRoute("UNAVAILABLE");
@@ -199,7 +196,7 @@ export async function evaluateEditJourney(
           reason: null,
           durationSeconds: rawReturn.durationSeconds,
           distanceMeters: rawReturn.distanceMeters ?? 0,
-          provider,
+          provider: rawReturn.provider ?? legacyProvider,
           ...(rawReturn.geometry ? { geometry: rawReturn.geometry } : {}),
         }
       : unavailableRoute("UNAVAILABLE");
@@ -304,7 +301,7 @@ export async function evaluateEditJourney(
           reason: null,
           durationSeconds: legMetric.durationSeconds,
           distanceMeters: legMetric.distanceMeters ?? 0,
-          provider,
+          provider: legMetric.provider ?? legacyProvider,
           ...(legMetric.geometry ? { geometry: legMetric.geometry } : {}),
         },
         startMinute: startMin,
@@ -348,7 +345,7 @@ export async function evaluateEditJourney(
             reason: null,
             durationSeconds: res.durationSeconds,
             distanceMeters: res.distanceMeters ?? 0,
-            provider,
+            provider: res.provider ?? legacyProvider,
             ...(res.geometry ? { geometry: res.geometry } : {}),
           };
         }

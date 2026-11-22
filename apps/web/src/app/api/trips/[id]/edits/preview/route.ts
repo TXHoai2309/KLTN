@@ -5,7 +5,7 @@ import { db } from "@/services";
 
 const dependencies = {
   authorization: authorizationDependencies,
-  service: { database: db, getRoute: createTripEditRouteProvider() },
+  service: { database: db },
   now: () => new Date(),
 };
 
@@ -14,5 +14,5 @@ export async function POST(
   context: { params: Promise<{ id: string }> },
 ) {
   const { id } = await context.params;
-  return previewEditResponse(request, id, dependencies);
+  return previewEditResponse(request, id, { ...dependencies, service: { ...dependencies.service, getRoute: createTripEditRouteProvider() } });
 }

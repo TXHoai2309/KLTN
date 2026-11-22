@@ -9,6 +9,32 @@ const keys = ["CLOUDINARY_CLOUD_NAME", "CLOUDINARY_API_KEY", "CLOUDINARY_API_SEC
 const webRoot = fileURLToPath(new URL("../../", import.meta.url));
 const root = resolve(webRoot, "../..");
 
+it("allows Admin settings to return legacy configuration while keeping QA credentials private", async () => {
+  const lines = (await readFile(join(webRoot, ".env.schema"), "utf8")).split(/\r?\n/);
+  const adminSettings = [
+    "QA_RUNTIME_ENABLED", "QA_PREVIEW_RUNTIME_ENABLED", "QA_PRODUCTION_RUNTIME_ENABLED",
+    "QA_ABUSE_PROTECTION_ACCEPTED", "QA_RUNTIME_ALLOWED_DATABASE_HOST", "QA_RUNTIME_ALLOWED_DATABASE_NAME",
+    "QA_PUBLIC_SOURCE_IDS", "QA_LEGACY_SOURCE_ALLOWLIST_ENABLED", "QA_LOCAL_NETWORK_ID",
+    "QA_CLEANUP_ENABLED", "QA_CLEANUP_ALLOWED_DATABASE_HOST", "QA_CLEANUP_ALLOWED_DATABASE_NAME",
+    "TRIPSAGE_CHAT_ENABLED",
+  ];
+  function decoratorsFor(key: string) {
+    const index = lines.findIndex(line => line.startsWith(`${key}=`));
+    expect(index, key).toBeGreaterThan(0);
+    let start = index;
+    while (start > 0 && lines[start - 1]?.startsWith("#")) start--;
+    return lines.slice(start, index).join("\n");
+  }
+  expect(lines).toContain("# @defaultSensitive=true");
+  for (const key of adminSettings) {
+    expect(decoratorsFor(key), key).toContain("@sensitive=false");
+    expect(decoratorsFor(key), key).not.toContain("@public");
+  }
+  for (const key of ["DATABASE_URL", "QA_NETWORK_HMAC_SECRET", "CRON_SECRET"]) {
+    expect(decoratorsFor(key), key).not.toMatch(/@(?:public\b|sensitive=false)/);
+  }
+});
+
 async function loadFixture(configured: boolean) {
   const source = (await readFile(join(webRoot, ".env.schema"), "utf8")).split(/\r?\n/);
   const declarations = keys.map(key => {

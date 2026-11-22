@@ -1,3 +1,5 @@
+import type { QaSettings } from "../runtime-config/runtime-config-contract";
+
 export type QaRuntimeGateEnvironment = {
   nodeEnv?: string;
   vercelEnv?: string;
@@ -37,4 +39,18 @@ export function isQaRuntimeEnabled(env: QaRuntimeGateEnvironment): boolean {
     return env.qaProductionRuntimeEnabled === "true";
   }
   return false;
+}
+
+export function isConfiguredQaRuntimeEnabled(settings: QaSettings): boolean {
+  return isQaRuntimeEnabled({
+    nodeEnv: process.env.NODE_ENV,
+    vercelEnv: process.env.VERCEL_ENV,
+    qaRuntimeEnabled: String(settings.enabled),
+    qaPreviewRuntimeEnabled: String(settings.enabled),
+    qaProductionRuntimeEnabled: String(settings.enabled),
+    qaAbuseProtectionAccepted: String(settings.abuseProtectionAccepted),
+    databaseUrl: process.env.DATABASE_URL,
+    allowedDatabaseHost: settings.databaseHost,
+    allowedDatabaseName: settings.databaseName,
+  });
 }

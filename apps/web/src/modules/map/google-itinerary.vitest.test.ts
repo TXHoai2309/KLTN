@@ -33,7 +33,7 @@ it("renders actual route points, keeps selection and camera across theme changes
   } as unknown as GoogleMapsSdk;
   const stops = schedulePlannerDays({ ...requirement, durationDays: 1 }, [[candidate("a"), candidate("b")]], new Map())[0]!.stops;
   const selected = vi.fn();
-  const renderer = mountItineraryMap({ get clientWidth() { return width; }, replaceChildren() {} } as unknown as HTMLDivElement, { provider: "GOOGLE", sdk }, stops, "light", selected, vi.fn(), vi.fn(), {
+  const renderer = mountItineraryMap({ get clientWidth() { return width; }, replaceChildren() {} } as unknown as HTMLDivElement, { provider: "GOOGLE", sdk, mapId: "fixture-map-id" }, stops, "light", selected, vi.fn(), vi.fn(), {
     routes: [{ day: 1, fromDestinationId: "a", toDestinationId: "b", provider: "GOOGLE_MAPS", geometry: { type: "LineString", coordinates: [[105, 23], [105.1, 23.05], [105.2, 23.1]] } }],
   });
   expect(lines[0]!.path).toEqual([{ lng: 105, lat: 23 }, { lng: 105.1, lat: 23.05 }, { lng: 105.2, lat: 23.1 }]);

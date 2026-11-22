@@ -30,9 +30,9 @@ export async function tripDetailResponse(request: Request, id: string, deps: Tri
   }
 }
 
-export async function tripCalendarResponse(request: Request, id: string, deps: TripReadDependencies, timeReference: Date) {
+export async function tripCalendarResponse(request: Request, id: string, deps: TripReadDependencies, timeReference: Date, calendarEnabled?: () => Promise<boolean>) {
   try {
-    if (!enabledTripsageFeatures().has("calendar") || !id || id.length > 128) {
+    if (!id || id.length > 128 || !(calendarEnabled ? await calendarEnabled() : enabledTripsageFeatures().has("calendar"))) {
       throw new AppError("TRIP_NOT_FOUND", "Không tìm thấy chuyến đi.", 404);
     }
     // getMyTrip authenticates the Traveler and projects the data visible to this particular reader.

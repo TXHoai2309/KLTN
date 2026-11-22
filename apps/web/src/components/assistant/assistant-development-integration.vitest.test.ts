@@ -13,12 +13,17 @@ describe("real /assistant development integration", () => {
     const bundle = await build({
       entryPoints: [fileURLToPath(new URL("../../app/assistant/page.tsx", import.meta.url))],
       bundle: true, write: false, format: "cjs", platform: "node", jsx: "automatic", metafile: true,
-      external: ["react", "react/*", "next", "./assistant-context-page"], loader: { ".css": "empty", ".module.css": "empty" },
+      external: ["react", "react/*", "next", "./assistant-context-page", "../../modules/runtime-config/runtime-config-service"], loader: { ".css": "empty", ".module.css": "empty" },
       define: { "process.env.NODE_ENV": JSON.stringify(mode) }, logLevel: "silent",
     });
     const module = { exports: {} as { default: (props: object) => Promise<ReactElement> } };
     // Execute the in-memory server page with the same React instance as the renderer.
-    new Function("require", "module", "exports", bundle.outputFiles[0]!.text)(createRequire(import.meta.url), module, module.exports);
+    const requireModule = createRequire(import.meta.url);
+    const requireWithSettings = (id: string) => id === "../../modules/runtime-config/runtime-config-service" ? {
+      applicationSettings: async () => ({ chatEnabled: false }),
+      qaSettings: async () => ({ enabled: false, abuseProtectionAccepted: false, databaseHost: "", databaseName: "" }),
+    } : requireModule(id);
+    new Function("require", "module", "exports", bundle.outputFiles[0]!.text)(requireWithSettings, module, module.exports);
     const html = renderToStaticMarkup(await module.exports.default({}));
     const inputs = Object.keys(bundle.metafile!.inputs);
     // One chat, no fallback: a closed gate shows the unavailable state in every environment.

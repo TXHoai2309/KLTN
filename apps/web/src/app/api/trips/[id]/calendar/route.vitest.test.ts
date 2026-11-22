@@ -2,16 +2,18 @@ import type { Database, Prisma } from "@KLTN/db";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "./route";
+import { encryptConfig } from "@/modules/runtime-config/runtime-config-crypto";
 
-const { findFirst, findUser, resolveSession } = vi.hoisted(() => ({
+const { findFirst, findUser, resolveSession, findConfiguration } = vi.hoisted(() => ({
   findFirst: vi.fn(),
   findUser: vi.fn(),
   resolveSession: vi.fn(),
+  findConfiguration: vi.fn(async (): Promise<{ payload: string } | null> => null),
 }));
 
 vi.mock("@/modules/trip-read/trip-read-server", () => ({
   tripReadDependencies: {
-    database: { trip: { findFirst }, user: { findUnique: findUser } } as unknown as Database,
+    database: { trip: { findFirst }, user: { findUnique: findUser }, runtimeConfig: { findUnique: findConfiguration } } as unknown as Database,
     resolveSession,
   },
 }));
@@ -93,6 +95,15 @@ afterEach(() => {
 });
 
 describe("GET saved trip calendar", () => {
+  it("honors the saved off switch even when the legacy environment flag enables calendar", async () => {
+    vi.stubEnv("VERCEL_ENV", "");
+    vi.stubEnv("TRIPSAGE_FEATURE_CALENDAR", "true");
+    vi.stubEnv("RUNTIME_CONFIG_ENCRYPTION_KEY", "01".repeat(32));
+    findConfiguration.mockResolvedValueOnce({ payload: encryptConfig({ calendar: false }, "LOCAL", "APPLICATION") });
+    expect((await readCalendar()).status).toBe(404);
+    expect(resolveSession).not.toHaveBeenCalled();
+  });
+
   it.each([undefined, "false", "TRUE", " true "])("returns 404 before auth with flag %s", async flag => {
     vi.stubEnv("TRIPSAGE_FEATURE_CALENDAR", flag);
     const response = await readCalendar();

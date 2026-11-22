@@ -23,9 +23,10 @@ export async function answerHaGiangQuestion(input: z.infer<typeof qaActionInputS
 /** Lazy composition of the existing gated runtime. Importing/starting V2 does
  * not enable QA, create a conversation or initialize a second RAG pipeline. */
 export async function existingQaServices(userId: string, headers: Headers): Promise<QaActionServices> {
-  const runtime = await import("../ai/qa-runtime");
-  if (!runtime.qaRuntimeEnabled()) throw new AppError("AI_UNAVAILABLE", "Q&A chưa được bật trong môi trường này.", 503);
-  const principal = await runtime.qaPrincipalResolver.resolve(headers);
+  const { qaRuntimeForRequest } = await import("../ai/qa-runtime");
+  const { enabled, principal: resolver, service } = await qaRuntimeForRequest();
+  if (!enabled) throw new AppError("AI_UNAVAILABLE", "Q&A chưa được bật trong môi trường này.", 503);
+  const principal = await resolver.resolve(headers);
   if (principal.kind !== "USER" || principal.id !== userId) throw new AppError("QA_CONTEXT_REQUIRED", "Chủ thể Q&A đã thay đổi.", 403);
-  return { userId, principal, service: runtime.qaService };
+  return { userId, principal, service };
 }

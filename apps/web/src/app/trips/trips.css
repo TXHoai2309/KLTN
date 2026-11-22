@@ -153,6 +153,42 @@
   flex: 0 0 auto;
 }
 
+.my-trips-search {
+  display: grid;
+  grid-template-columns: minmax(0, 420px) auto;
+  justify-content: start;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.my-trips-search .my-trips-search-input,
+.my-trips-search .my-trips-search-button {
+  min-height: 44px;
+  border-radius: 12px;
+  background: var(--trip-read-card);
+  border-color: var(--trip-read-border);
+  color: var(--trip-read-ink);
+  font-size: 14px;
+}
+
+.my-trips-search .my-trips-search-input {
+  padding-inline: 12px;
+}
+
+.my-trips-search .my-trips-search-button:hover {
+  background: var(--trip-read-soft);
+}
+
+.my-trips-search-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+  color: var(--trip-read-muted);
+  font-size: 14px;
+}
+
 /* ==========================================================================
    STATUS FILTER TABS (Tất cả, Sắp tới, Đang diễn ra, Đã hoàn thành)
    ========================================================================== */
