@@ -4154,3 +4154,5 @@ body:has([data-testid="companion-management-view"]) .global-assistant-launcher {
     transform: translateY(-1px);
   }
 }
+
+.trip-pinned-meeting { margin: 12px 0; padding: 10px 14px; border-radius: 10px; background: var(--companion-soft, #f3f7f4); font-size: 0.9rem; }

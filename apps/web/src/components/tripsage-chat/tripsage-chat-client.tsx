@@ -170,6 +170,7 @@ export function TripsageChatClient({
   const [savedTripId, setSavedTripId] = useState<string | null>(null);
   const [pinMessage, setPinMessage] = useState<string | null>(null);
   const pinKeys = useMemo(() => new Set(pinned.map(pinKey)), [pinned]);
+  // The way to the meeting hub travels with the saved trip (owner-only), so the trip page shows the whole journey.
   const pinControl: PinControl = {
     saved: savedTripId !== null,
     isPinned: item => pinKeys.has(pinKey(item)),
@@ -269,6 +270,8 @@ export function TripsageChatClient({
   };
 
   useEffect(() => { if (!busy) setStatus(null); }, [busy]);
+  // Grow the composer with its text (CSS caps it at six lines, then it scrolls).
+  useEffect(() => { const el = composer.current; if (!el) return; el.style.height = "auto"; el.style.height = `${Math.min(el.scrollHeight, 132)}px`; }, [draft]);
   // Pins and the saved trip belong to one conversation.
   useEffect(() => { setPinned([]); setSavedTripId(null); setPinMessage(null); }, [activeConversationId]);
 
@@ -605,6 +608,7 @@ export function TripsageChatClient({
                             <summary>Lịch trình và chi phí ước tính</summary>
                             {cost && <TripsageCostCard cost={cost} pins={pinControl} />}
                             {accessLeg && <TripsageAccessLegCard leg={accessLeg} />}
+                            {itinerary && !accessLeg && state.accessLeg && <TripsageAccessLegCard leg={state.accessLeg.data} only="outbound" />}
                             {itinerary && state.timeline && (
                               <TripsageTimelineView
                                 timeline={state.timeline}
@@ -615,7 +619,8 @@ export function TripsageChatClient({
                                 pins={pinControl}
                               />
                             )}
-                            {itinerary && <TripsageItineraryView proposal={itinerary}>{!busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} tripInfo={state.tripInfo} chosenLodgings={chosenLodgings} suggestions={state.suggestions} pinnedItems={pinned} onSaved={setSavedTripId} onStateChange={setSaveState} />)}</TripsageItineraryView>}
+                            {itinerary && !accessLeg && state.accessLeg && <TripsageAccessLegCard leg={state.accessLeg.data} only="return" />}
+                            {itinerary && <TripsageItineraryView proposal={itinerary}>{!busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} tripInfo={state.tripInfo} chosenLodgings={chosenLodgings} suggestions={state.suggestions} pinnedItems={state.accessLeg ? [{ kind: "ACCESS" as const, leg: state.accessLeg.data }, ...pinned] : pinned} onSaved={setSavedTripId} onStateChange={setSaveState} />)}</TripsageItineraryView>}
                           </details>
                         )}
                         <TripsageSourcesView sources={sources} />

@@ -1165,6 +1165,9 @@
    7. SLIDE-OVER VALIDATION SHEET
    ═══════════════════════════════════════════ */
 
+/* The portal wrapper only carries the --planner-* tokens. */
+.planner-sheet-portal { display: contents; }
+
 .planner-sheet-backdrop {
   position: fixed;
   inset: 0;

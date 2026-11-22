@@ -246,26 +246,27 @@ describe("chat-only origin confirmation and default clocks route (ticket 01)", (
     expect(JSON.stringify(expired.model.doStreamCalls[1]!.prompt)).toContain("ORIGIN_CANDIDATES_EXPIRED");
   });
 
-  it("resolves fixed trip hubs without calling external origin search and confirms on agreement", async () => {
+  it("resolves fixed trip hubs without external search and confirms in the same turn when the traveler names it", async () => {
     const searchSpy = vi.fn<OriginLookup>();
     const turn1 = await chat(
       "Mình đi từ Hà Nội",
-      [{ tool: "findOrigin", input: { query: "Hà Nội" } }, { text: "Bạn đi từ Hà Nội (bến xe Mỹ Đình) đúng không?" }],
+      [{ tool: "findOrigin", input: { query: "Hà Nội" } }, { text: "Đã chốt Hà Nội." }],
       {},
       { originSearch: () => searchSpy },
     );
     expect(searchSpy).not.toHaveBeenCalled();
-    const cand = originCandidatesPartSchema.parse(parts(turn1.sse).find(p => p.type === "data-origin-candidates")!.data);
-    expect(cand.candidates).toEqual([{ candidateId: "hub:HA_NOI", label: "Hà Nội (bến xe Mỹ Đình)" }]);
-
-    const turn2 = await chat(
-      "đúng",
-      [{ tool: "confirmOrigin", input: { candidateId: "hub:HA_NOI" } }, { text: "Đã chốt Hà Nội." }],
-      { originCandidatesToken: cand.token },
-    );
-    const journey = journeyPartSchema.parse(parts(turn2.sse).find(p => p.type === "data-journey")!.data).journey;
+    const journey = journeyPartSchema.parse(parts(turn1.sse).find(p => p.type === "data-journey")!.data).journey;
     expect(journey.origin?.label).toBe("Hà Nội (bến xe Mỹ Đình)");
     expect(journey.origin?.confirmed).toBe(true);
+    expect(parts(turn1.sse).some(p => p.type === "data-origin-candidates")).toBe(false);
+
+    const again = await chat(
+      "điểm tập kết là hà nội",
+      [{ tool: "findOrigin", input: { query: "Hà Nội" } }, { text: "Ok." }],
+      { journey },
+      { originSearch: () => searchSpy },
+    );
+    expect(JSON.stringify(again.model.doStreamCalls[1]!.prompt)).toContain("alreadyConfirmed");
   });
 
   it("marks default clocks 07:00/18:00 in context and replans when the user asks to depart at 6:00", async () => {

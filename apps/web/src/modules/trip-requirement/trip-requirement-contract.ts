@@ -305,6 +305,8 @@ export const tripRequirementInputSchema = z
       .optional()
       .default(null),
     dayRhythm: dayRhythmSchema.optional(),
+    /** ADR-48: COMPACT shortens roadside breaks to 10 minutes; set only by the planner's flexible retry. */
+    restMode: z.enum(["STANDARD", "COMPACT"]).optional(),
   })
   .strict();
 

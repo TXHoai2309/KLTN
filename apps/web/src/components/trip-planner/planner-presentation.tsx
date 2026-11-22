@@ -2,6 +2,7 @@
 
 import type { KeyboardEvent, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { formatVietnameseDate } from "@/lib/date-only";
 import { BREAKFAST_MINUTES, LUNCH, MORNING_DEPARTURE_MINUTE } from "@/modules/trip-planner/planner-engine";
 import type { JourneyPlan } from "@/modules/trip-origin/journey-route-contract";
@@ -567,6 +568,8 @@ export function ValidationSheet({
   warnings: PlannerResult["warnings"];
 }) {
   const closeBtnRef = useRef<HTMLButtonElement>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -591,8 +594,9 @@ export function ValidationSheet({
     MOBILITY: "Khả năng tiếp cận",
   };
 
-  return (
-    <div
+  // Portaled to <body>: inside the chat, an ancestor stacking context let the site header paint over the panel.
+  const sheet = (
+    <div className="planner-page planner-sheet-portal"><div
       className={`planner-sheet-backdrop ${isOpen ? "is-open" : ""}`}
       onClick={onClose}
       role="presentation"
@@ -673,8 +677,9 @@ export function ValidationSheet({
           </button>
         </div>
       </div>
-    </div>
+    </div></div>
   );
+  return mounted ? createPortal(sheet, document.body) : sheet;
 }
 
 /**

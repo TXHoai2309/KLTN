@@ -1014,6 +1014,7 @@ function CompanionGroupContent({
 
 
 
+          {currentGroup.meetingPoint && <p className="trip-pinned-meeting" role="note">Điểm tập kết: <strong>{currentGroup.meetingPoint.origin.label}</strong>. Cả nhóm xuất phát từ đây; bản đồ vẽ lộ trình từ điểm này.</p>}
           {currentGroup.sharedPins && currentGroup.sharedPins.length > 0 && <TripPinnedSection items={currentGroup.sharedPins} shared />}
 
           {/* Mobile Tab Toggle between Itinerary and Map */}
@@ -1211,6 +1212,8 @@ function CompanionGroupContent({
                     focusSelection={focusSelection}
                     onSelect={handleSelectDestination}
                     overviewOnly={activeDayIndex === null}
+                    journeyPlan={currentGroup.meetingPoint?.plan ?? null}
+                    origin={currentGroup.meetingPoint?.origin ?? null}
                   />
                 ) : (
                   <div className="companion-map-empty">

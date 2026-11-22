@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { costPartSchema } from "../tripsage-chat/tripsage-cost";
+import { accessLegPartSchema } from "../tripsage-chat/tripsage-access-leg";
 
 /**
  * ADR-47: items the traveler pins from the planning chat onto a saved trip. Each is a dated snapshot of provider reference data
@@ -14,7 +15,7 @@ const currency = z.string().regex(/^[A-Z]{3}$/u);
 export const flightPinSchema = z.strictObject({
   kind: z.literal("FLIGHT"),
   roundTrip: z.boolean(),
-  adults: z.number().int().min(1).max(9),
+  adults: z.number().int().min(1).max(20),
   departDate: isoDate,
   returnDate: isoDate.nullable(),
   lookupDate: isoDate.optional(),
@@ -31,7 +32,7 @@ export const hotelPinSchema = z.strictObject({
   near: z.string().min(1).max(120),
   checkInDate: isoDate,
   checkOutDate: isoDate,
-  adults: z.number().int().min(1).max(9).optional(),
+  adults: z.number().int().min(1).max(20).optional(),
   rating: z.number().min(0).max(5).nullable().optional(),
   price: z.strictObject({ total: amount, perNight: amount.nullable().optional(), currency }).nullable(),
   lookupDate: isoDate.optional(),
@@ -47,7 +48,10 @@ export const mealPinSchema = z.strictObject({
 
 export const costPinSchema = z.strictObject({ kind: z.literal("COST"), cost: costPartSchema });
 
-export const pinnedItemSchema = z.discriminatedUnion("kind", [flightPinSchema, hotelPinSchema, mealPinSchema, costPinSchema]);
+/** The estimated way from home to the meeting hub and back, kept with the saved trip. Owner-only: it names the home city. */
+export const accessPinSchema = z.strictObject({ kind: z.literal("ACCESS"), leg: accessLegPartSchema });
+
+export const pinnedItemSchema = z.discriminatedUnion("kind", [flightPinSchema, hotelPinSchema, mealPinSchema, costPinSchema, accessPinSchema]);
 export type PinnedItem = z.infer<typeof pinnedItemSchema>;
 export const MAX_PINNED_ITEMS = 24;
 
@@ -85,7 +89,7 @@ export const sharedPinSchema = z.union([
 export function shareablePins(items: readonly PinnedItem[]): SharedPin[] {
   return items.flatMap((item): SharedPin[] => {
     if (item.kind === "HOTEL" || item.kind === "MEAL") return [item];
-    if (item.kind === "FLIGHT") return [];
+    if (item.kind === "FLIGHT" || item.kind === "ACCESS") return [];
     const lines = item.cost.lines.flatMap(line => line.category === "lodging" || line.category === "food"
       ? [{ category: line.category, label: line.label, amount: line.amount, ...(line.basis ? { basis: line.basis } : {}) }] : []);
     return lines.length ? [{ kind: "COST", travelers: item.cost.travelers, days: item.cost.days, subtotal: lines.reduce((sum, line) => sum + line.amount, 0), lines }] : [];

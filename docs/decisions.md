@@ -1148,3 +1148,22 @@ A plan lists only the few catalogue stops the scheduler can fit. Travelers want 
 - New table `trip_pinned_item` (migration `20261122160000_trip_pinned_item`); production needs `prisma migrate deploy` before this build serves traffic.
 - There is no unpin after saving yet; before saving a pin can be toggled off.
 - The Petrolimex read from Vercel (Singapore region) is unproven; the logged reason will show whether it is blocked.
+
+## ADR-48 — Flexible schedule: shorter roadside breaks, traveler-chosen visit length, one-turn origin confirmation (2026-11-22)
+
+### Context
+
+In conversation 2df60a2a a 5-day plan kept failing TRAVEL_TIME by a small margin, the traveler could not ask for a 30-minute visit, and the same origin had to be confirmed three to four times. The owner approved (2026-11-22) relaxing these, including shorter rest.
+
+### Decision
+
+- **Compact rest.** A new rest policy `roadside-rest-compact-v1` keeps the break thresholds (90 min motorbike, 120 min car) and shortens each break from 15 to 10 minutes. It is used only by the planning chat's single flexible retry, recorded in `journeyPlan.policy` and `requirement.restMode = "COMPACT"`, and the Validator checks the plan against the same policy. The default stays `roadside-rest-v1`.
+- **Flexible retry.** When `proposeItinerary` returns a VIOLATION, the server retries once with compact rest and every visit at its catalogue minimum. The retry is kept only if it has fewer violations, and a `FLEX_SCHEDULE` warning tells the traveler.
+- **Traveler-chosen visit length.** `proposeItinerary.visitMinutes` (15–600 per stop) is set only when the traveler says how long they want to stay. That length becomes the stop's duration and minimum for this plan, and a `USER_SHORT_VISIT` warning records any value below the catalogue minimum.
+- **One-turn origin confirmation.** Naming the place or a plain agreement ("ok", "ok nhé", "xác nhận") confirms a single candidate or a fixed hub in the same turn. An origin that is already confirmed is never searched or asked again. A choice among 2–3 candidates still needs the traveler.
+
+### Consequences
+
+- The Validator stays deterministic: it does not guess. It now accepts two rest policies and a traveler-owned minimum per stop.
+- The trip edit flow still recomputes with the standard policy, so a saved compact plan shows standard 15-minute breaks after an edit.
+- Not verified live with a long Đà Nẵng → Hà Nội → Hà Giang chat.

@@ -18,7 +18,7 @@ import { itineraryDistanceKm } from "./tripsage-chat-context";
 import { accessLegInputSchema, buildAccessLeg, isHubOrigin, shouldSuggestHub, type AccessLegPart, type FlightPriceOverride } from "./tripsage-access-leg";
 import { domainOf, isSafePublicHttpsUrl, WEB_DATA_MARKER, type WebLookup } from "./tripsage-web";
 import { quickRepliesPartSchema, resolveEffectiveJourney, tripInfoSchema, withTripInfoDefaults, type ChatSourceItem, type OriginCandidatesPart, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
-import { FIXED_HUB_CANDIDATES, matchFixedHub, MAX_ORIGIN_CANDIDATES, permitsOriginConfirmation, statesSoleOrigin, type SignedOriginCandidate, type VerifiedOriginCandidates } from "./tripsage-chat-origin";
+import { FIXED_HUB_CANDIDATES, matchFixedHub, MAX_ORIGIN_CANDIDATES, namesOrAgreesOrigin, permitsOriginConfirmation, sameOriginPlace, statesSoleOrigin, type SignedOriginCandidate, type VerifiedOriginCandidates } from "./tripsage-chat-origin";
 import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
 import { blockingAssumedFields, type AssumableField } from "../trip-validation/trip-proposal-contract";
 import { JOURNEY_MISSING_LABELS, missingJourneyFields, originSelectionSchema, type OriginSelection, type TripJourney } from "../trip-origin/trip-origin-contract";
@@ -94,6 +94,7 @@ export function missingTripInfo(input: { transport?: string | null; durationDays
 
 const proposeInputSchema = z.object({
   selection: planningSelectionSchema.optional().describe("days[i] là danh sách id điểm đến (lấy từ listDestinations, hoặc scheduleId từ searchPlaces của cùng lượt) của ngày i+1; số ngày phải đúng bằng số ngày đã ghi; tối đa 4 điểm mỗi ngày."),
+  visitMinutes: z.record(z.string().min(1).max(160), z.number().int().min(15).max(600)).optional().describe("CHỈ khi người dùng tự nói muốn ở một điểm bao lâu: id điểm → số phút (ví dụ 30). Được phép ngắn hơn gợi ý; hệ thống sẽ ghi chú điều đó."),
 }).strict();
 
 export const ASSUMED_DRAFT_DAYS = 4;
@@ -260,11 +261,15 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   };
 
   const findOrigin = tool({
-    description: "Tìm điểm xuất phát trong lãnh thổ Việt Nam từ tên người dùng vừa gõ (tối đa 3 ứng viên). Chỉ nêu lại nhãn địa điểm cho người dùng xác nhận ở lượt sau; KHÔNG tự gọi confirmOrigin trong cùng lượt. Điểm tập kết Hà Nội (hub:HA_NOI) và TP Hà Giang (hub:HA_GIANG_CITY) là ứng viên cố định.",
+    description: "Tìm điểm xuất phát trong lãnh thổ Việt Nam từ tên người dùng vừa gõ (tối đa 3 ứng viên). Nếu người dùng vừa nêu đúng nơi này hoặc vừa đồng ý và chỉ có 1 kết quả, hệ thống tự xác nhận luôn (không hỏi lại). Nếu nơi đã được xác nhận trước đó thì đừng gọi lại. Chỉ khi có 2-3 ứng viên mới cho người dùng chọn. Điểm tập kết Hà Nội (hub:HA_NOI) và TP Hà Giang (hub:HA_GIANG_CITY) là ứng viên cố định.",
     inputSchema: z.object({
       query: z.string().trim().min(2).max(160).describe("Tên nơi xuất phát người dùng nêu, ví dụ: Hà Nội, Cầu Giấy, Hải Phòng, TP Hà Giang."),
     }).strict(),
     execute: async ({ query }, options) => {
+      const already = currentJourney?.origin;
+      if (already?.confirmed && sameOriginPlace(already.label, query)) {
+        return { ok: true as const, alreadyConfirmed: true, label: already.label, note: "Điểm xuất phát này ĐÃ được xác nhận trước đó. Không hỏi lại, không gọi confirmOrigin; tiếp tục việc người dùng yêu cầu (lập lịch, tra vé...) ngay trong lượt này." };
+      }
       if (originSearches >= 3) return { ok: false as const, code: "ORIGIN_SEARCH_LIMIT", message: "Đã đạt số lần tìm điểm xuất phát tối đa trong lượt này." };
       originSearches += 1;
       let signedList: SignedOriginCandidate[] = [];
@@ -292,7 +297,8 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         }));
       }
       // The traveler typed one place and the search found exactly that one: no second round-trip (ADR-46).
-      if (!hub && signedList.length === 1 && statesSoleOrigin(context.latestUserText ?? "", signedList[0]!)) {
+      const latest = context.latestUserText ?? "";
+      if (signedList.length === 1 && (statesSoleOrigin(latest, signedList[0]!) || namesOrAgreesOrigin(latest, query))) {
         const confirmed = applyConfirmedOrigin(signedList[0]!);
         if (confirmed.ok) return { ...confirmed, note: "Điểm xuất phát đã được xác nhận vì người dùng vừa nêu đúng địa điểm này; không hỏi lại. Nếu đã đủ phương tiện, số ngày và ngày đi, hãy lập lịch ngay trong lượt này." };
       }
@@ -343,7 +349,10 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         }
         return { ok: false as const, code: "ORIGIN_CANDIDATE_NOT_FOUND", message: "Không tìm thấy ứng viên điểm xuất phát này từ lượt trước. Hãy gọi findOrigin trước và chờ người dùng đồng ý ở lượt sau, hoặc dùng điểm tập kết cố định." };
       }
-      if (!permitsOriginConfirmation(context.latestUserText ?? "", found, pool, { fromPreviousTurn, hubOffered: context.hubOffered })) {
+      const latestText = context.latestUserText ?? "";
+      // Agreement or naming the place is enough, also for a fixed hub the assistant just proposed (no second confirmation round).
+      if (!permitsOriginConfirmation(latestText, found, pool, { fromPreviousTurn, hubOffered: context.hubOffered })
+        && !((fromPreviousTurn || pool.length === 1 || FIXED_HUB_CANDIDATES.includes(found)) && namesOrAgreesOrigin(latestText, found.label.split(/[,(]/u)[0]!))) {
         return { ok: false as const, code: "ORIGIN_CONFIRMATION_REQUIRED", message: "Người dùng chưa đồng ý hoặc chưa chọn rõ điểm xuất phát này trong tin nhắn mới nhất. Hãy nêu rõ nhãn địa điểm và chờ người dùng trả lời đồng ý." };
       }
       return applyConfirmedOrigin(found);
@@ -452,7 +461,22 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         // Only external ids this turn's searchPlaces returned become candidates; any other id stays unknown (INVALID_AI_PLAN).
         const external = [...new Set(input.selection.days.flat())].flatMap(id => (id.startsWith(EXTERNAL_PLACE_ID_PREFIX) ? searchedPlaces.get(id.slice(EXTERNAL_PLACE_ID_PREFIX.length)) ?? [] : [])).map(externalPlannerCandidate);
         const all = external.length ? [...base, ...external] : base;
-        const rawResult = await scheduleSelection(needs, input.selection, all, context.planning.routes, now());
+        // ADR-48: the traveler's own visit length wins; a day that does not fit gets one flexible retry (minimum visits, 10-minute breaks).
+        const overrides = input.visitMinutes ?? {};
+        const chosen = Object.keys(overrides).length ? all.map(c => overrides[c.id] ? { ...c, suggestedDurationMinutes: overrides[c.id]!, minimumDurationMinutes: overrides[c.id]! } : c) : all;
+        const violations = (r: PlannerResult) => r.checks.filter(check => check.status === "VIOLATION").length;
+        let rawResult = await scheduleSelection(needs, input.selection, chosen, context.planning.routes, now());
+        let flexApplied = false;
+        if (violations(rawResult) > 0) {
+          const trimmed = chosen.map(c => !overrides[c.id] && c.minimumDurationMinutes && c.suggestedDurationMinutes && c.minimumDurationMinutes < c.suggestedDurationMinutes ? { ...c, suggestedDurationMinutes: c.minimumDurationMinutes } : c);
+          const retry = await scheduleSelection({ ...needs, requirement: { ...requirement, restMode: "COMPACT" as const } }, input.selection, trimmed, context.planning.routes, now()).catch(() => null);
+          if (retry && violations(retry) < violations(rawResult)) { rawResult = retry; flexApplied = true; }
+        }
+        const flexNotes: PlannerResult["warnings"] = [
+          ...(flexApplied ? [{ code: "FLEX_SCHEDULE", day: null, destinationId: null, message: "Đã nới lịch cho vừa: nghỉ dọc đường 10 phút mỗi lần thay vì 15 phút và rút thời gian tham quan về mức tối thiểu." }] : []),
+          ...all.filter(c => overrides[c.id] && c.minimumDurationMinutes && overrides[c.id]! < c.minimumDurationMinutes).map(c => ({ code: "USER_SHORT_VISIT", day: null, destinationId: c.id, message: `Bạn chọn ở ${c.name} ${overrides[c.id]} phút, ngắn hơn mức gợi ý tối thiểu ${c.minimumDurationMinutes} phút.` })),
+        ];
+        if (flexNotes.length) rawResult = { ...rawResult, warnings: [...flexNotes, ...rawResult.warnings].slice(0, 80) };
         if (addedAssumption) {
           tripInfo = candidateTripInfo;
           context.emitTripInfo?.(tripInfo);
@@ -485,8 +509,18 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           } : {}),
           days: result.days.map(day => ({ day: day.day, stops: day.stops.map(stop => names.get(stop.destination.id) ?? stop.destination.name) })),
           checks: result.checks.map(check => ({ key: check.key, status: check.status })),
+          ...(flexApplied ? { flexApplied: "Hệ thống đã tự nới lịch (nghỉ 10 phút/lần, tham quan ở mức tối thiểu). Nói ngắn gọn điều này với người dùng." } : {}),
+          // Without the reasons the model re-proposes blindly; tell it which day broke which rule so one repair is enough.
+          ...(result.checks.some(check => check.status === "VIOLATION") ? {
+            problems: result.checks.filter(check => check.status === "VIOLATION").flatMap(check => check.issues.slice(0, 6).map(issue => ({ check: check.key, day: issue.day ?? null, code: issue.code, message: issue.message }))),
+            repairHint: "Có vi phạm. Đọc problems rồi chỉnh đúng ngày bị nêu (thường bớt 1-2 điểm của ngày đó, nhất là ngày cuối nếu phải chạy xe về xa) và gọi proposeItinerary lại một lần; đừng đổi các ngày không bị nêu. Nếu vẫn không đạt, nói thẳng với người dùng nguyên nhân và đề xuất thêm ngày hoặc đổi điểm xuất phát.",
+          } : {}),
           note: `Lịch đầy đủ đã hiển thị cho người dùng. Chỉ nhận xét ngắn; trạng thái khác PASS nghĩa là chưa được xác nhận.${blockingAssumed.length > 0 ? ` Đây là bản nháp giả định (${assumedFields.join(", ")}): viết đúng một dòng nêu các giả định đang dùng, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (nơi xuất phát hoặc ngày đi), đưa giả định còn lại vào suggestReplies; lịch chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi.` : context.features?.has("hotels") && result.days.length > 1 ? " Ngày đi và nơi xuất phát đã xác nhận: hãy gọi searchHotels một lần với stays gồm các khu nghỉ đêm (gộp các đêm liên tiếp cùng điểm cuối ngày) để tra giá phòng tham khảo." : ""}${external.length ? " Có địa điểm ngoài danh mục (Google Maps): chưa được kiểm tra, thời gian ở lại chỉ là ước tính, lịch này chưa thể lưu." : ""}` };
-      } catch (error) { return failure(error); }
+      } catch (error) {
+        // A plan the server rejected for its input (wrong day count, unknown id) is a correction, not one of the turn's tries.
+        if (error instanceof AppError && error.code === "INVALID_AI_PLAN") proposals -= 1;
+        return failure(error);
+      }
     },
   });
 

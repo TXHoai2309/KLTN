@@ -137,6 +137,12 @@ export function createSerpApiClient(deps: {
                 markExhausted(i);
                 continue;
               }
+              // SerpApi's own error text (e.g. "Total number of travelers should be ≤ 6") with every key redacted; never the URL.
+              let reason = "";
+              try { const error = (JSON.parse(errorText ?? "") as { error?: unknown }).error; if (typeof error === "string") reason = error; } catch { /* not JSON */ }
+              for (const k of keys) reason = reason.split(k).join("[key]");
+              logUnavailable(`http-${response.status}${reason ? ` ${reason.slice(0, 120)}` : ""}`);
+              return { status: "UNAVAILABLE" };
             }
             logUnavailable(`http-${response.status}`);
             return { status: "UNAVAILABLE" };
