@@ -6081,3 +6081,9 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Recorded `accessLegId` on `CostPart` in `tripsage-cost.ts` and wired per-segment basis + `accessLegId` in `estimateCosts` (`tripsage-chat-tools.ts`).
 - Updated `TripsageAccessLegCard` to show stale cards at 0.55 opacity with `"Đã có bản mới"` and no pin button, while current cards expose `PinButton`. Updated `TripsageChatClient` to keep unsaved `ACCESS` pins/save payloads synced to the current access leg while leaving already-saved trip snapshots untouched.
 - Checks: `vitest` PASS (142/142 tests across trip-save, trip-pin, access-leg, and tripsage-chat components), `tsc --noEmit` PASS, `git diff --check` PASS.
+
+## 2026-11-23 — Traveler UI Redesign: Ticket 02 (tokens on assistant & companion screens, 2 fonts, no full-sentence bold)
+
+- Migrated `assistant.css`, `assistant-citations.css`, `assistant-weather-card.css`, `tripsage-result-cards.module.css`, `tripsage-memory-panel.module.css`, and `companion.css` onto `--tv-*` tokens: zero `font-weight` 650/700+, zero hardcoded hex colors, zero `Inter` font references, and `box-shadow: var(--tv-shadow-float)` restricted to floating menus/dialogs/composer input.
+- Updated `TripsageMarkdown` to strip full-sentence bold spans while preserving short inline data/proper-noun emphasis, and updated `PERSONA_INSTRUCTIONS` to match.
+- Checks: `vitest` PASS (20 files, 183/183 tests), `tsc --noEmit` PASS, `git diff --check` PASS. Live browser 1440/375px screenshots pending (status: `verified-offline`).

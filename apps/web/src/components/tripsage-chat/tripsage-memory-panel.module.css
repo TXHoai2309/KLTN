@@ -14,7 +14,7 @@
 .panel summary {
   cursor: pointer;
   padding-block: 4px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .panel summary:focus-visible {

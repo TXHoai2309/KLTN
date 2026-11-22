@@ -37,19 +37,19 @@
 }
 
 .assistant-weather-card {
-  --aw-surface: #f8fbf9;
-  --aw-surface-elevated: #ffffff;
-  --aw-border: #d5e4da;
-  --aw-ink: #13241b;
-  --aw-muted: #52695b;
-  --aw-accent: #1d563a;
-  --aw-accent-soft: #eaf4ee;
-  --aw-rep-bg: #eef5fb;
-  --aw-rep-border: #bfd6ec;
-  --aw-rep-ink: #1b4b78;
-  --aw-err-bg: #fdf6f5;
-  --aw-err-border: #ebc8c4;
-  --aw-err-ink: #8a2c24;
+  --aw-surface: var(--tv-accent-tint);
+  --aw-surface-elevated: var(--tv-surface);
+  --aw-border: var(--tv-line);
+  --aw-ink: var(--tv-accent);
+  --aw-muted: var(--tv-ink-2);
+  --aw-accent: var(--tv-accent);
+  --aw-accent-soft: var(--tv-accent-tint);
+  --aw-rep-bg: var(--tv-info-bg);
+  --aw-rep-border: var(--tv-info);
+  --aw-rep-ink: var(--tv-info);
+  --aw-err-bg: var(--tv-danger-bg);
+  --aw-err-border: var(--tv-danger);
+  --aw-err-ink: var(--tv-danger);
 
   display: grid;
   gap: 12px;
@@ -78,7 +78,7 @@
   gap: 7px;
   margin: 0;
   font-size: 0.925rem;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.35;
   color: var(--aw-ink);
   min-width: 0;
@@ -170,7 +170,7 @@
 
 .assistant-weather-card .public-detail-coord-box dt {
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--aw-muted);
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -180,7 +180,7 @@
 .assistant-weather-card .public-detail-coord-box dd {
   margin: 0;
   font-size: 0.88rem;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--aw-ink);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
@@ -207,7 +207,7 @@
 
 .assistant-weather-card .weather-hourly caption {
   text-align: left;
-  font-weight: 700;
+  font-weight: 500;
   font-size: 0.8rem;
   padding: 8px 10px 6px;
   color: var(--aw-muted);
@@ -219,7 +219,7 @@
   z-index: 1;
   background: var(--aw-surface);
   color: var(--aw-muted);
-  font-weight: 700;
+  font-weight: 500;
   font-size: 0.75rem;
   border-bottom: 1px solid var(--aw-border);
 }
@@ -240,7 +240,7 @@
 .assistant-weather-card .weather-hourly th[scope="row"],
 .assistant-weather-card .weather-hourly thead th:first-child {
   text-align: left;
-  font-weight: 650;
+  font-weight: 500;
 }
 
 .assistant-weather-card details {
@@ -254,7 +254,7 @@
 
 .assistant-weather-card details summary {
   cursor: pointer;
-  font-weight: 650;
+  font-weight: 600;
   color: var(--aw-accent);
   min-height: 28px;
   display: flex;
@@ -302,9 +302,9 @@
   max-width: 100%;
   padding: 8px 14px;
   border-radius: 9999px;
-  border: 1px solid #bcd4c5;
-  background: #f2f8f4;
-  color: #164b31;
+  border: 1px solid var(--tv-line);
+  background: var(--tv-accent-tint);
+  color: var(--tv-accent);
   font: inherit;
   font-size: 0.85rem;
   font-weight: 600;
@@ -316,8 +316,8 @@
 }
 
 .assistant-weather-choice-btn:hover:not(:disabled) {
-  background: #e3f1e8;
-  border-color: #1d563a;
+  background: var(--tv-accent-tint);
+  border-color: var(--tv-accent);
   transform: translateY(-1px);
 }
 
@@ -328,42 +328,42 @@
 
 .assistant-weather-card :focus-visible,
 .assistant-weather-choice-btn:focus-visible {
-  outline: 2px solid var(--aw-accent, #1d563a);
+  outline: 2px solid var(--aw-accent, var(--tv-accent));
   outline-offset: 2px;
 }
 
 /* Dark theme */
 .dark .assistant-weather-card {
-  --aw-surface: #15251d;
-  --aw-surface-elevated: #1b2f24;
-  --aw-border: #2a4737;
-  --aw-ink: #e8f2ec;
-  --aw-muted: #9bb4a5;
-  --aw-accent: #68d39c;
-  --aw-accent-soft: #1f392b;
-  --aw-rep-bg: #162938;
-  --aw-rep-border: #2b4e6b;
-  --aw-rep-ink: #b9dcf7;
-  --aw-err-bg: #2b1a19;
-  --aw-err-border: #5c312d;
-  --aw-err-ink: #f6b8b1;
+  --aw-surface: var(--tv-accent);
+  --aw-surface-elevated: var(--tv-accent);
+  --aw-border: var(--tv-accent);
+  --aw-ink: var(--tv-accent-tint);
+  --aw-muted: var(--tv-ink-2);
+  --aw-accent: var(--tv-accent);
+  --aw-accent-soft: var(--tv-accent);
+  --aw-rep-bg: var(--tv-ink);
+  --aw-rep-border: var(--tv-info);
+  --aw-rep-ink: var(--tv-info);
+  --aw-err-bg: var(--tv-danger);
+  --aw-err-border: var(--tv-danger);
+  --aw-err-ink: var(--tv-danger);
 }
 
 .dark .assistant-weather-choice-btn {
-  background: #1b2f24;
-  border-color: #2f523e;
-  color: #cbead9;
+  background: var(--tv-surface);
+  border-color: var(--tv-accent);
+  color: var(--tv-accent);
 }
 
 .dark .assistant-weather-choice-btn:hover:not(:disabled) {
-  background: #244031;
-  border-color: #68d39c;
-  color: #ffffff;
+  background: var(--tv-accent-hover);
+  border-color: var(--tv-accent);
+  color: var(--tv-on-accent);
 }
 
 .dark .assistant-weather-card :focus-visible,
 .dark .assistant-weather-choice-btn:focus-visible {
-  outline-color: #68d39c;
+  outline-color: var(--tv-accent);
 }
 
 /* Narrow viewports (375px phones & compact panels) */

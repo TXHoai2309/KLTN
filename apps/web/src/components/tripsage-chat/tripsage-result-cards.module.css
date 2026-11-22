@@ -16,7 +16,7 @@
 .card h3 {
   margin: 0;
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .card p {
@@ -39,7 +39,8 @@
 .totals dd {
   margin: 0;
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .cap {
@@ -118,7 +119,8 @@
 
 .summary strong {
   font-size: 1.25rem;
-  font-weight: 700;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .summary span {
@@ -137,11 +139,11 @@
 
 .bookLink {
   justify-self: start;
-  padding: 8px 14px;
-  border-radius: 8px;
-  background: var(--assistant-green);
-  color: #ffffff;
-  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: var(--tv-radius-control);
+  background: var(--tv-accent);
+  color: var(--tv-on-accent);
+  font-weight: 500;
   text-decoration: none;
 }
 

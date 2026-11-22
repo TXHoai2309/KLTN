@@ -5,8 +5,8 @@
   gap: 8px;
   min-width: 0;
   max-width: 100%;
-  color: var(--assistant-ink, #14251b);
-  font-family: var(--font-be-vietnam, Arial), sans-serif;
+  color: var(--assistant-ink, var(--tv-accent));
+  font-family: var(--tv-font-ui);
   font-size: 12.5px;
   line-height: 1.65;
 }
@@ -17,22 +17,22 @@
   justify-content: center;
   min-width: 32px;
   min-height: 32px;
-  color: var(--assistant-green, #1d563a);
+  color: var(--assistant-green, var(--tv-accent));
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 3px;
   border-radius: 4px;
 }
-.assistant-citation-ref:hover { background: var(--assistant-green-light, #eef6f1); }
+.assistant-citation-ref:hover { background: var(--assistant-green-light, var(--tv-accent-tint)); }
 .assistant-source-list { list-style: none; padding: 0; margin: 10px 0 0; }
-.assistant-source-list > li { display: flex; gap: 10px; padding: 12px 0; border-top: 1px solid var(--assistant-line, #dbe7df); min-width: 0; scroll-margin-block: 100px; }
+.assistant-source-list > li { display: flex; gap: 10px; padding: 12px 0; border-top: 1px solid var(--assistant-line, var(--tv-line)); min-width: 0; scroll-margin-block: 100px; }
 .assistant-source-list > li > div { min-width: 0; overflow-wrap: anywhere; }
-.assistant-source-list a { color: var(--assistant-green, #1d563a); text-decoration: underline; text-underline-offset: 3px; }
+.assistant-source-list a { color: var(--assistant-green, var(--tv-accent)); text-decoration: underline; text-underline-offset: 3px; }
 .assistant-source-list a svg { display: inline; vertical-align: middle; }
-.assistant-source-number { flex-shrink: 0; color: var(--assistant-muted, #576d60); }
-.assistant-source-domain { display: block; font-size: 12px; color: var(--assistant-muted, #576d60); margin-top: 3px; }
-.assistant-citation-ref:focus-visible, .assistant-source-list :is(a,summary):focus-visible, .assistant-source-list > li:focus-visible { outline: 2px solid var(--assistant-green, #1d563a); outline-offset: 3px; }
-.dark .assistant-citation-ref, .dark .assistant-source-list a { color: #8cc4a1; }
+.assistant-source-number { flex-shrink: 0; color: var(--assistant-muted, var(--tv-ink-2)); }
+.assistant-source-domain { display: block; font-size: 12px; color: var(--assistant-muted, var(--tv-ink-2)); margin-top: 3px; }
+.assistant-citation-ref:focus-visible, .assistant-source-list :is(a,summary):focus-visible, .assistant-source-list > li:focus-visible { outline: 2px solid var(--assistant-green, var(--tv-accent)); outline-offset: 3px; }
+.dark .assistant-citation-ref, .dark .assistant-source-list a { color: var(--tv-accent); }
 
 .assistant-citations *, .assistant-citations *::before, .assistant-citations *::after {
   box-sizing: border-box;
@@ -56,10 +56,10 @@
   cursor: pointer;
   min-height: 38px;
   padding: 6px 14px;
-  border: 1px solid #cde0d3;
+  border: 1px solid var(--tv-line);
   border-radius: 9999px;
-  background: #eaf3ed;
-  color: var(--assistant-green, #1d563a);
+  background: var(--tv-accent-tint);
+  color: var(--assistant-green, var(--tv-accent));
   font-weight: 600;
   font-size: 12px;
   overflow-wrap: anywhere;
@@ -67,8 +67,8 @@
 }
 
 .assistant-citation summary:hover {
-  background: #deeee2;
-  border-color: #1d563a;
+  background: var(--tv-accent-tint);
+  border-color: var(--tv-accent);
   transform: translateY(-1px);
 }
 
@@ -89,31 +89,31 @@
 .assistant-citation-metadata {
   margin-top: 8px;
   padding: 14px 16px;
-  border: 1px solid #dce8df;
+  border: 1px solid var(--tv-line);
   border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  background: var(--tv-surface);
+  box-shadow: none;
   overflow-wrap: anywhere;
 }
 
 .assistant-citation-metadata strong {
   display: block;
   font-size: 13.5px;
-  font-weight: 700;
-  color: var(--assistant-green, #1d563a);
+  font-weight: 600;
+  color: var(--assistant-green, var(--tv-accent));
   margin-bottom: 6px;
 }
 
 .assistant-citation-metadata ul {
   margin: 8px 0;
   padding-left: 18px;
-  color: var(--assistant-ink, #14251b);
+  color: var(--assistant-ink, var(--tv-accent));
 }
 
 .assistant-citation-metadata p {
   margin: 6px 0;
   white-space: normal;
-  color: var(--assistant-muted, #576d60);
+  color: var(--assistant-muted, var(--tv-ink-2));
 }
 
 .assistant-citation-metadata a {
@@ -121,7 +121,7 @@
   align-items: center;
   gap: 6px;
   min-height: 38px;
-  color: var(--assistant-green, #1d563a);
+  color: var(--assistant-green, var(--tv-accent));
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -133,34 +133,34 @@
 }
 
 .assistant-citation :is(summary, a):focus-visible {
-  outline: 3px solid #7fa98a;
+  outline: 3px solid var(--tv-ink-2);
   outline-offset: 2px;
 }
 
 .dark .assistant-citations {
-  color: var(--assistant-ink, #e5eee7);
+  color: var(--assistant-ink, var(--tv-ink));
 }
 
 .dark .assistant-citation summary {
-  color: #8cc4a1;
-  background: #203327;
-  border-color: #314d3a;
+  color: var(--tv-accent);
+  background: var(--tv-accent-tint);
+  border-color: var(--tv-accent);
 }
 
 .dark .assistant-citation summary:hover {
-  background: #274030;
-  border-color: #7bb591;
+  background: var(--tv-accent-hover);
+  border-color: var(--tv-accent);
 }
 
 .dark .assistant-citation-metadata {
-  background: #17241c;
-  border-color: #2b3e32;
+  background: var(--tv-accent-tint);
+  border-color: var(--tv-line);
 }
 
 .dark .assistant-citation-metadata strong {
-  color: #8cc4a1;
+  color: var(--tv-accent);
 }
 
 .dark .assistant-citation-metadata a {
-  color: #8cc4a1;
+  color: var(--tv-accent);
 }

@@ -62,12 +62,24 @@ function renderBlocks(text: string): ReactNode[] {
   });
 }
 
+/** True when a bold span wraps a full sentence rather than a short data phrase or proper noun (slim B12, design §2.2). */
+function isFullSentenceBold(content: string): boolean {
+  const trimmed = content.trim();
+  const words = trimmed.split(/\s+/u).filter(Boolean);
+  if (words.length >= 6) return true;
+  if (/[?？!.]$/u.test(trimmed) && words.length >= 4) return true;
+  return false;
+}
+
 /** `code`, **bold**, *italic*; `![alt](url)` and `[text](url)` keep only their text. */
 export function inline(text: string): ReactNode[] {
   const plain = text.replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1");
   return plain.split(/(`[^`]+`|\*\*[^*]+\*\*|\*[^*\s][^*]*\*)/g).filter(Boolean).map((part, index) => {
     if (part.startsWith("`") && part.endsWith("`") && part.length > 2) return <code key={index}>{part.slice(1, -1)}</code>;
-    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) return <strong key={index}>{part.slice(2, -2)}</strong>;
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+      const inner = part.slice(2, -2);
+      return isFullSentenceBold(inner) ? <Fragment key={index}>{inner}</Fragment> : <strong key={index}>{inner}</strong>;
+    }
     if (part.startsWith("*") && part.endsWith("*") && part.length > 2) return <em key={index}>{part.slice(1, -1)}</em>;
     return <Fragment key={index}>{part}</Fragment>;
   });
