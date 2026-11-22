@@ -26,7 +26,7 @@
 | [06 — `DayTimeline` dùng chung, áp trước cho trang chi tiết](issues/06-shared-day-timeline.md) | `01` | `verified-offline` |
 | [07 — Tab Ngày đi / Ngày về trên trang chi tiết](issues/07-trip-travel-day-tabs.md) | `05`, `06` | `ready-for-agent` |
 | [08 — Khối "Tối nay"](issues/08-evening-plan.md) | `04`, `06` | `ready-for-agent` |
-| [09 — Trang chia sẻ dùng `DayTimeline`](issues/09-shared-page-day-timeline.md) | `06` | `ready-for-agent` |
+| [09 — Trang chia sẻ dùng `DayTimeline`](issues/09-shared-page-day-timeline.md) | `06` | `verified-offline` |
 | [10 — Thẻ tóm tắt bản lịch, panel desktop, ngăn kéo tablet](issues/10-plan-summary-and-panel.md) | `02`, `05`, `06` | `ready-for-agent` |
 | [11 — Sheet lịch mobile, ô nhập, thanh trên 48px](issues/11-mobile-sheet-composer.md) | `10` | `ready-for-agent` |
 | [12 — Đầu trang chi tiết chuyến, dải cung đường, thanh chân mobile](issues/12-trip-detail-header.md) | `06`, `07` | `ready-for-agent` |

@@ -3,6 +3,8 @@ import { requireTraveler } from "@/server/auth/require-traveler";
 import { AppError } from "@/server/http/app-error";
 import { executeIdempotentWrite } from "@/server/http/idempotency";
 import { isDestinationPublic } from "../destination/destination-eligibility";
+import { destinationMediaWhere, isDestinationMediaUsable } from "../destination/destination-media-eligibility";
+import { externalPlaceView } from "../trip-read/external-place-cache";
 import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
 import { companionIdSchema } from "./companion-contract";
 import { readPinnedItems, shareablePins } from "../trip-save/trip-pin-contract";
@@ -125,26 +127,58 @@ export async function getCompanionGroup(headers: Headers, rawId: string, deps: C
     const scoped = { ...deps, database: tx as Database };
     const { row, relationship } = await requireGroup(headers, id, scoped);
     const projected = await tx.trip.findUniqueOrThrow({ where: { id: row.tripId }, select: {
-      ...companionTripSelect, journeySnapshot: true, pinnedItems: { orderBy: { sortOrder: "asc" }, select: { payload: true } }, days: { orderBy: { dayIndex: "asc" }, select: {
+      ...companionTripSelect, journeySnapshot: true,
+      pinnedItems: { orderBy: { sortOrder: "asc" }, select: { payload: true } },
+      chosenLodgings: {
+        orderBy: [{ nightIndex: "asc" }, { id: "asc" }],
+        select: { id: true, nightIndex: true, externalPlace: { select: { providerPlaceId: true, name: true, latitude: true, longitude: true, fetchedAt: true } } },
+      },
+      nearbySuggestions: {
+        orderBy: [{ dayIndex: "asc" }, { sortOrder: "asc" }],
+        select: { dayIndex: true, slot: true, kind: true, placeId: true, name: true, distanceKm: true },
+      },
+      days: { orderBy: { dayIndex: "asc" }, select: {
         dayIndex: true, localDate: true,
         visits: { orderBy: { order: "asc" }, select: { id: true, order: true, startMinute: true, plannedDurationMinutes: true,
-          destination: { select: { id: true, name: true, visibility: true, deletedAt: true, latitude: true, longitude: true, media: { select: { id: true, url: true, alt: true, websiteRights: true, storageReference: true } } } },
+          destination: { select: { id: true, name: true, area: true, visibility: true, deletedAt: true, latitude: true, longitude: true, media: { where: destinationMediaWhere, take: 20, orderBy: [{ isCover: "desc" }, { position: "asc" }, { id: "asc" }], select: { id: true, url: true, alt: true, websiteRights: true, storageReference: true } } } },
         } },
       } },
     } });
     const count = await activeMembers(tx, id);
     const sharedPins = shareablePins(readPinnedItems(projected.pinnedItems));
     const meetingPoint = sharedMeetingPoint(projected.journeySnapshot, projected.days);
+    const now = (deps.now ?? (() => new Date()))();
+    const chosenLodgings = ((projected as { chosenLodgings?: { nightIndex: number; externalPlace: { providerPlaceId: string; name: string | null; latitude: number | null; longitude: number | null; fetchedAt: Date } }[] }).chosenLodgings ?? []).map(item => ({
+      nightIndex: item.nightIndex,
+      name: externalPlaceView(item.externalPlace, now, false).name,
+      placeId: item.externalPlace.providerPlaceId,
+    }));
+    const nearbySuggestions = ((projected as { nearbySuggestions?: { dayIndex: number; slot: string; kind: string; placeId: string; name: string; distanceKm: number }[] }).nearbySuggestions ?? [])
+      .filter((item): item is { dayIndex: number; slot: string; kind: "ACTIVITY" | "EVENING"; placeId: string; name: string; distanceKm: number } => item.kind === "ACTIVITY" || item.kind === "EVENING");
     return companionGroupSchema.parse({ publicationId: id, relationship, memberCount: count + 1, itineraryRevision: row.itineraryRevision.toString(), canSend: !row.canceledAt, canceledAt: row.canceledAt?.toISOString() ?? null,
       introduction: projectCompanionIntroduction(projected, row, false, count),
       ...(sharedPins.length ? { sharedPins } : {}),
+      ...(chosenLodgings.length ? { chosenLodgings } : {}),
+      ...(nearbySuggestions.length ? { nearbySuggestions } : {}),
       ...(meetingPoint ? { meetingPoint } : {}),
       itinerary: { days: projected.days.map(day => ({ dayIndex: day.dayIndex, localDate: day.localDate.toISOString().slice(0, 10),
-        visits: day.visits.flatMap(visit => visit.destination ? [visit as typeof visit & { destination: NonNullable<typeof visit.destination> }] : []).map(visit => { const visible = isDestinationPublic(visit.destination); return {
-          visitId: visit.id, order: visit.order, startMinute: visit.startMinute, plannedDurationMinutes: visit.plannedDurationMinutes,
-          destination: { destinationId: visible ? visit.destination.id : null, name: visible ? visit.destination.name : "Điểm đến không còn khả dụng",
-            availability: visible ? "AVAILABLE" : "UNAVAILABLE", latitude: visible ? visit.destination.latitude : null, longitude: visible ? visit.destination.longitude : null },
-        }; }),
+        visits: day.visits.flatMap(visit => visit.destination ? [visit as typeof visit & { destination: NonNullable<typeof visit.destination> }] : []).map(visit => {
+          const visible = isDestinationPublic(visit.destination);
+          const image = visible ? visit.destination.media?.find(media => isDestinationMediaUsable(media, visit.destination.id)) : undefined;
+          const area = (visit.destination as { area?: string }).area;
+          return {
+            visitId: visit.id, order: visit.order, startMinute: visit.startMinute, plannedDurationMinutes: visit.plannedDurationMinutes,
+            destination: {
+              destinationId: visible ? visit.destination.id : null,
+              name: visible ? visit.destination.name : "Điểm đến không còn khả dụng",
+              ...(visible && area ? { area } : {}),
+              availability: visible ? "AVAILABLE" : "UNAVAILABLE",
+              latitude: visible ? visit.destination.latitude : null,
+              longitude: visible ? visit.destination.longitude : null,
+              ...(image ? { image: { url: image.url, alt: image.alt } } : {}),
+            },
+          };
+        }),
       })) },
     });
   }, { isolationLevel: "RepeatableRead" });

@@ -6093,3 +6093,10 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Extracted `apps/web/src/components/trip-timeline/day-timeline.tsx` and `day-timeline.css` supporting `full` (168px 4:3 photo, Lora 20px title, 2px day-color rail) and `compact` (64px photo, 15px UI title, 16:9 stacked below 480px) variants, optional chat slots ("Xem nhanh", "Gần đây có thể ghé", lunch suggestions, evening plan), and C16 fixes (explicit day-color tag contrast and inline access-leg icons).
 - Migrated `TripDetailView` (`apps/web/src/app/trips/trips-view.tsx`) to render days via `<DayTimeline variant="full" />`.
 - Checks: `vitest` PASS (15 files, 67/67 tests), `tsc --noEmit` PASS, `git diff --check` PASS. Live browser visual comparison pending (status: `verified-offline`).
+
+## 2026-11-23 — Traveler UI Redesign: Ticket 09 (shared page DayTimeline & RouteStrip)
+
+- Created shared `apps/web/src/components/trip-timeline/route-strip.tsx` (8px proportional route bar in `--tv-day-*` colors + clickable day summary labels) with styles in `day-timeline.css`.
+- Extended `companionGroupSchema` and `getCompanionGroup` with optional destination `image` (same `isDestinationMediaUsable` rule as `trip-read-service.ts`), `area`, `chosenLodgings`, and `nearbySuggestions` while continuing to exclude `ACCESS` pins and host home city.
+- Migrated `CompanionGroupView` itinerary tab to render `RouteStrip`, `TravelerDayTabs` (Days 1..N only — no Ngày đi / Ngày về), and `DayTimeline variant="full"`.
+- Checks: `tsc --noEmit` PASS, `vitest` PASS (17 files, 208/208 tests; 11 postgres files skipped), `git diff --check` PASS (status: `verified-offline`).

@@ -542,3 +542,79 @@
     aspect-ratio: 16 / 9;
   }
 }
+
+/* Route strip (design §4.2 & §4.4): 8px proportional bar in day colors + clickable summary labels */
+.tv-route-strip {
+  display: grid;
+  gap: var(--tv-space-2);
+  font-family: var(--tv-font-ui);
+}
+
+.tv-route-strip-bar {
+  display: flex;
+  width: 100%;
+  height: 8px;
+  gap: 2px;
+  border-radius: var(--tv-radius-pill);
+  overflow: hidden;
+  background: var(--tv-sunken);
+}
+
+.tv-route-strip-seg {
+  height: 100%;
+  min-width: 12px;
+  padding: 0;
+  border: 0;
+  background: var(--tv-day-color, var(--tv-accent));
+  opacity: 0.78;
+  cursor: pointer;
+  transition: opacity var(--tv-motion-fast);
+}
+
+.tv-route-strip-seg:hover,
+.tv-route-strip-seg.is-active {
+  opacity: 1;
+}
+
+.tv-route-strip-seg:focus-visible,
+.tv-route-strip-label:focus-visible {
+  outline: 2px solid var(--tv-accent);
+  outline-offset: 2px;
+}
+
+.tv-route-strip-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--tv-space-4);
+}
+
+.tv-route-strip-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--tv-ink-2);
+  font-family: var(--tv-font-ui);
+  font-size: var(--tv-text-xs);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: color var(--tv-motion-fast), background var(--tv-motion-fast);
+}
+
+.tv-route-strip-label:hover,
+.tv-route-strip-label.is-active {
+  color: var(--tv-ink);
+  font-weight: 500;
+  background: var(--tv-sunken);
+}
+
+.tv-route-strip-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--tv-radius-pill);
+  flex-shrink: 0;
+}

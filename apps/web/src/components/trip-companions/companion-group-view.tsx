@@ -34,6 +34,10 @@ import {
 } from "lucide-react";
 import { ItineraryMap } from "@/components/trip-planner/itinerary-map";
 import { TripPinnedSection } from "@/components/trip-pinned/trip-pinned-section";
+import { DayTimeline, type DayTimelineDay } from "@/components/trip-timeline/day-timeline";
+import { RouteStrip } from "@/components/trip-timeline/route-strip";
+import { TravelerDayTabs, type TravelerDayTabItem } from "@/components/traveler-ui/traveler-day-tabs";
+import { cleanAreaDisplayLabel, cleanOvernightAreaLabel, cleanPlaceDisplayName } from "@/lib/traveler-display-clean";
 import type { PlannerDay, PlannerStop, TravelLeg } from "@/modules/trip-planner/planner-contract";
 import {
   getDestinationCoordinates,
@@ -185,7 +189,7 @@ function companionGroupToPlannerDays(group: CompanionGroup): PlannerDay[] {
         };
       }
 
-      const area = inferDestinationArea(visit.destination.name);
+      const area = cleanAreaDisplayLabel(visit.destination.area) ?? inferDestinationArea(visit.destination.name);
 
       return {
         order: visit.order,
@@ -198,7 +202,9 @@ function companionGroupToPlannerDays(group: CompanionGroup): PlannerDay[] {
           category: "Điểm tham quan",
           latitude: coords.latitude,
           longitude: coords.longitude,
-          image: null,
+          image: visit.destination.image
+            ? { url: visit.destination.image.url, alt: visit.destination.image.alt, author: null, sourceUrl: null }
+            : null,
         },
         arrivalMinute: visit.startMinute,
         departureMinute: visit.startMinute + visit.plannedDurationMinutes,
@@ -308,10 +314,49 @@ function CompanionGroupContent({
     setSelectedDestinationId(id);
     setFocusSelection(true);
     if (id) {
-      const el = document.getElementById(`companion-visit-${id}`);
+      const el = document.getElementById(`trip-visit-${id}`) ?? document.getElementById(`companion-visit-${id}`);
       if (el) {
         el.scrollIntoView({ behavior: "smooth", block: "center" });
       }
+    }
+  };
+
+  const routeStripDays = useMemo(() => {
+    const legDistanceByDay = new globalThis.Map<number, number>();
+    for (const leg of currentGroup.meetingPoint?.plan?.legs ?? []) {
+      if (leg.route.distanceMeters != null && leg.route.distanceMeters > 0) {
+        legDistanceByDay.set(leg.day, (legDistanceByDay.get(leg.day) ?? 0) + leg.route.distanceMeters / 1000);
+      }
+    }
+    return currentGroup.itinerary.days.map((day) => ({
+      dayIndex: day.dayIndex,
+      stopCount: day.visits.length,
+      distanceKm: legDistanceByDay.get(day.dayIndex) ?? null,
+    }));
+  }, [currentGroup]);
+
+  const dayTabItems: TravelerDayTabItem[] = useMemo(() => {
+    const allItem: TravelerDayTabItem = {
+      id: "all",
+      label: "Tất cả",
+      count: totalDestinations,
+      kind: "all",
+    };
+    const dayItems: TravelerDayTabItem[] = currentGroup.itinerary.days.map((day) => ({
+      id: String(day.dayIndex),
+      label: `Ngày ${day.dayIndex}`,
+      count: day.visits.length,
+      dayIndex: day.dayIndex,
+      kind: "trip",
+    }));
+    return [allItem, ...dayItems];
+  }, [currentGroup.itinerary.days, totalDestinations]);
+
+  const handleJumpToDay = (dayIndex: number | null) => {
+    setActiveDayIndex(dayIndex);
+    if (dayIndex !== null) {
+      const el = document.getElementById(`companion-day-${dayIndex}`);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
 
@@ -1017,6 +1062,23 @@ function CompanionGroupContent({
           {currentGroup.meetingPoint && <p className="trip-pinned-meeting" role="note">Điểm tập kết: <strong>{currentGroup.meetingPoint.origin.label}</strong>. Cả nhóm xuất phát từ đây; bản đồ vẽ lộ trình từ điểm này.</p>}
           {currentGroup.sharedPins && currentGroup.sharedPins.length > 0 && <TripPinnedSection items={currentGroup.sharedPins} shared />}
 
+          {routeStripDays.length > 0 && (
+            <RouteStrip
+              days={routeStripDays}
+              activeDayIndex={activeDayIndex}
+              onSelectDay={(dayIndex) => handleJumpToDay(activeDayIndex === dayIndex ? null : dayIndex)}
+            />
+          )}
+
+          {currentGroup.itinerary.days.length > 1 && (
+            <TravelerDayTabs
+              tabs={dayTabItems}
+              activeId={activeDayIndex === null ? "all" : String(activeDayIndex)}
+              onSelect={(id) => handleJumpToDay(id === "all" ? null : Number(id))}
+              ariaLabel="Chọn ngày lịch trình nhóm"
+            />
+          )}
+
           {/* Mobile Tab Toggle between Itinerary and Map */}
           <div className="companion-mobile-toggle" role="tablist" aria-label="Chuyển chế độ xem">
             <button
@@ -1048,154 +1110,83 @@ function CompanionGroupContent({
               <div className="companion-days">
                 {currentGroup.itinerary.days.map((day) => {
                   const isDimmed = activeDayIndex !== null && activeDayIndex !== day.dayIndex;
-                  let dayWeekday = "";
-                  try {
-                    dayWeekday = new Intl.DateTimeFormat("vi-VN", { weekday: "long", timeZone: "UTC" }).format(
-                      new Date(`${day.localDate}T00:00:00Z`)
-                    );
-                  } catch {
-                    // ignore
-                  }
+                  const totalDays = currentGroup.itinerary.days.length;
+                  const dayLodging = currentGroup.chosenLodgings?.find((item) => item.nightIndex === day.dayIndex);
+                  const dayNearby = (currentGroup.nearbySuggestions ?? []).filter(
+                    (item) => item.dayIndex === day.dayIndex && item.kind === "ACTIVITY",
+                  );
+                  const dayEvening = (currentGroup.nearbySuggestions ?? []).filter(
+                    (item) => item.dayIndex === day.dayIndex && item.kind === "EVENING",
+                  );
+                  const lastVisit = day.visits.at(-1);
+                  const lastArea = lastVisit
+                    ? cleanOvernightAreaLabel(
+                        lastVisit.destination.area || inferDestinationArea(lastVisit.destination.name),
+                      )
+                    : "";
+                  const hasEveningBlock = day.dayIndex < totalDays && (dayEvening.length > 0 || Boolean(dayLodging));
+
+                  const timelineDay: DayTimelineDay = {
+                    dayIndex: day.dayIndex,
+                    localDate: day.localDate,
+                    transportLabel,
+                    emptyMessage: "Chưa có điểm dừng nào được lên lịch cho ngày này.",
+                    stops: day.visits.map((visit) => {
+                      const destId = visit.destination.destinationId || visit.visitId;
+                      const isUnavailable = visit.destination.availability === "UNAVAILABLE";
+                      const area = cleanAreaDisplayLabel(visit.destination.area) ?? inferDestinationArea(visit.destination.name);
+                      const fallbackVisual = getDestinationVisual(visit.destination.name, area);
+                      return {
+                        id: visit.visitId,
+                        destinationId: destId,
+                        order: visit.order,
+                        name: visit.destination.name,
+                        area,
+                        startMinute: visit.startMinute,
+                        durationMinutes: visit.plannedDurationMinutes,
+                        image: visit.destination.image
+            ? { url: visit.destination.image.url, alt: visit.destination.image.alt, author: null, sourceUrl: null }
+            : null,
+                        fallbackVisual,
+                        href: !isUnavailable && visit.destination.destinationId
+                          ? `/destinations/${visit.destination.destinationId}`
+                          : null,
+                        unavailable: isUnavailable,
+                      };
+                    }),
+                    chosenLodging: !hasEveningBlock && dayLodging
+                      ? { nightIndex: dayLodging.nightIndex, name: dayLodging.name, placeId: dayLodging.placeId }
+                      : null,
+                    eveningPlan: hasEveningBlock
+                      ? {
+                          nightIndex: day.dayIndex,
+                          overnightArea: lastArea,
+                          chosenLodging: dayLodging ? { name: dayLodging.name } : null,
+                          eveningPlaces: dayEvening.slice(0, 3).map((item) => ({
+                            key: `ev-${item.dayIndex}-${item.placeId}`,
+                            name: cleanPlaceDisplayName(item.name),
+                            distanceKm: item.distanceKm,
+                          })),
+                        }
+                      : null,
+                    nearbySuggestions: dayNearby.map((item) => ({
+                      key: `nb-${item.dayIndex}-${item.slot}-${item.placeId}`,
+                      name: cleanPlaceDisplayName(item.name),
+                      distanceKm: item.distanceKm,
+                    })),
+                  };
 
                   return (
-                    <section
-                      key={day.dayIndex}
-                      id={`companion-day-${day.dayIndex}`}
-                      className={`companion-day ${isDimmed ? "companion-day-dimmed" : ""}`}
-                      aria-labelledby={`companion-day-title-${day.dayIndex}`}
-                    >
-                      <div className="companion-day-heading">
-                        <span className="companion-timeline-node" aria-hidden="true" />
-                        <div className="companion-day-title-wrap">
-                          <div
-                            className="companion-day-number-tag"
-                            style={{
-                              background: `var(--planner-route-${((day.dayIndex - 1) % 3) + 1})`,
-                            }}
-                          >
-                            Ngày {day.dayIndex}
-                          </div>
-                          <div className="companion-day-title-inner">
-                            <h3 id={`companion-day-title-${day.dayIndex}`} className="companion-day-h3">
-                              Ngày {day.dayIndex}
-                            </h3>
-                            <p>
-                              {dayWeekday ? `${dayWeekday}, ` : ""}{formatDateVi(day.localDate)}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="companion-day-meta">
-                          <span>
-                            <CarFront size={15} aria-hidden="true" />
-                            Di chuyển bằng {transportLabel.toLowerCase()}
-                          </span>
-                          <span>
-                            <MapPin size={15} aria-hidden="true" />
-                            {day.visits.length} điểm dừng
-                          </span>
-                        </div>
-                      </div>
-
-                      {day.visits.length === 0 ? (
-                        <div className="companion-day-empty">
-                          <p>Chưa có điểm dừng nào được lên lịch cho ngày này.</p>
-                        </div>
-                      ) : (
-                        <ol className="companion-visits">
-                          {day.visits.map((visit) => {
-                            const destId = visit.destination.destinationId || visit.visitId;
-                            const isUnavailable = visit.destination.availability === "UNAVAILABLE";
-                            const startTimeStr = formatMinuteOfDay(visit.startMinute);
-                            const endTimeStr = formatMinuteOfDay(visit.startMinute + visit.plannedDurationMinutes);
-                            const isSelected = selectedDestinationId === destId;
-                            const area = inferDestinationArea(visit.destination.name);
-                            const visual = getDestinationVisual(visit.destination.name, area);
-
-                            return (
-                              <li
-                                key={visit.visitId}
-                                id={`companion-visit-${destId}`}
-                                className={`companion-visit-item ${isSelected ? "is-selected-item" : ""}`}
-                                onClick={() => handleSelectDestination(destId)}
-                              >
-                                <span className="companion-timeline-node" aria-hidden="true" />
-                                <div className="companion-visit-time">
-                                  <strong>{startTimeStr}</strong>
-                                  <span>{visit.plannedDurationMinutes} phút</span>
-                                </div>
-
-                                <Card className={`companion-visit-card ${isSelected ? "is-active-selection" : ""}`}>
-                                  {/* Scenic photo thumbnail */}
-                                  <div
-                                    className="companion-visit-media"
-                                    role="img"
-                                    aria-label={visual.alt}
-                                  >
-                                    <img
-                                      src={visual.src}
-                                      alt={visual.alt}
-                                      className="companion-visit-photo"
-                                      loading="lazy"
-                                    />
-                                    <div className="companion-visit-photo-gradient" />
-                                    <span className="companion-visit-seq-tag">#{visit.order}</span>
-                                  </div>
-
-                                  <div className="companion-visit-place">
-                                    <div className="companion-visit-top">
-                                      <span className="companion-order-label">Điểm dừng {visit.order}</span>
-                                      <span className="companion-visit-chip">
-                                        <Clock3 size={12} aria-hidden="true" />
-                                        <span>{visit.plannedDurationMinutes} phút</span>
-                                      </span>
-                                    </div>
-
-                                    <h4 className="companion-destination-name">
-                                      {visit.destination.availability === "AVAILABLE" && visit.destination.destinationId ? (
-                                        <Link
-                                          href={`/destinations/${visit.destination.destinationId}` as Route}
-                                          className="companion-destination-link"
-                                          onClick={(e) => e.stopPropagation()}
-                                        >
-                                          <span>{visit.destination.name}</span>
-                                          <ChevronRight size={15} className="companion-chevron" aria-hidden="true" />
-                                        </Link>
-                                      ) : (
-                                        visit.destination.name
-                                      )}
-                                    </h4>
-
-                                    <div className="companion-visit-meta">
-                                      <p className="companion-visit-meta-item">
-                                        <MapPin size={14} aria-hidden="true" />
-                                        <span>{area}</span>
-                                      </p>
-                                      <p className="companion-visit-meta-item">
-                                        <Clock3 size={14} aria-hidden="true" />
-                                        <span>{startTimeStr} – {endTimeStr} ({visit.plannedDurationMinutes} phút)</span>
-                                      </p>
-                                      {visit.destination.latitude && visit.destination.longitude ? (
-                                        <p className="companion-visit-meta-item companion-geo-text">
-                                          <span>{visit.destination.latitude.toFixed(4)}, {visit.destination.longitude.toFixed(4)}</span>
-                                        </p>
-                                      ) : null}
-                                    </div>
-
-                                    {isUnavailable && (
-                                      <span className="companion-unavailable-pill" role="status">
-                                        <AlertTriangle size={12} aria-hidden="true" />
-                                        <span>Điểm đến không còn khả dụng</span>
-                                      </span>
-                                    )}
-                                  </div>
-                                </Card>
-                              </li>
-                            );
-                          })}
-                        </ol>
-                      )}
-                    </section>
+                    <div key={day.dayIndex} id={`companion-day-${day.dayIndex}`}>
+                      <DayTimeline
+                        day={timelineDay}
+                        variant="full"
+                        dimmed={isDimmed}
+                        selectedDestinationId={selectedDestinationId}
+                        onSelectDestination={handleSelectDestination}
+                        headingId={`companion-day-title-${day.dayIndex}`}
+                      />
+                    </div>
                   );
                 })}
               </div>
