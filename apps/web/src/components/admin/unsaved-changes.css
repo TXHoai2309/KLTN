@@ -1,0 +1,26 @@
+/* Loaded by the guard itself, including on trip routes without Admin CSS. */
+dialog.af-leave-dialog {
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  box-sizing: border-box;
+  width: min(440px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  padding: 24px;
+  border: 1px solid var(--af-line, #dbe7df);
+  border-radius: 16px;
+  color: var(--af-ink, #132a21);
+  background: var(--af-surface, #fff);
+  box-shadow: 0 20px 60px #0003;
+}
+.dark dialog.af-leave-dialog { color: var(--af-ink, #e6eee9); background: var(--af-surface, #16221c); border-color: var(--af-line, #34473b); }
+dialog.af-leave-dialog::backdrop { background: #19233780; }
+dialog.af-leave-dialog h2 { font-size: 20px; line-height: 1.4; margin: 0 0 12px; }
+dialog.af-leave-dialog p { line-height: 1.6; margin: 0 0 20px; }
+dialog.af-leave-dialog > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+dialog.af-leave-dialog button { min-height: 44px; padding: 8px 16px; border: 1px solid currentColor; border-radius: 8px; font: inherit; cursor: pointer; color: inherit; background: transparent; }
+dialog.af-leave-dialog button:hover { background: #80808018; }
+dialog.af-leave-dialog button:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+dialog.af-leave-dialog .af-leave-confirm { color: #b42318; }
+.dark dialog.af-leave-dialog .af-leave-confirm { color: #ffb4ab; }

@@ -5980,6 +5980,14 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Explicitly authorized close/refresh/reopen on test publication succeeded; 2 members and capacity 4 retained, recruitment returned to open (management revision 10). Desktop/light and mobile/light+dark checked with screenshots, no mobile horizontal overflow. Theme and viewport restored.
 - Fresh focused suite 91 PASS; web typecheck PASS; repeated build PASS (59 pages, existing warnings, exit 0 observed after a delayed process exit). Diff check PASS. No commit/push; full command list and evidence in the companion bug report.
 
+## 2026-11-22 — Unsaved dialog, companion overlay and test reliability
+
+- Shared unsaved-change guard now owns its CSS on Admin/trip routes: centered, responsive, light/dark native modal with spaced 44px actions. Dirty/busy, beforeunload and navigation semantics retained; five guard tests pass.
+- Actual local edit + in-trip routes: Stay retains one manual change; in-trip also retains composer draft text. Confirmed Leave returns to the trip. Desktop dark/mobile light+dark visually checked. Full AI-generated-change/save success/failure/UNKNOWN and browser history matrix remain NOT PROVEN live.
+- Scoped companion introduction CSS separates floating AI from bottom join dock (26.75px measured clearance at 390px/710px); desktop uses the left corner. Available browser session is Host; Traveler join and native keyboard remain NOT PROVEN.
+- Fresh baseline: 38 failures / 4582 passed, 6 failed files. Fixed stale context/CSS harness, model expectations, optional SOURCE_ONLY assertions and offline embedding DI. Final root npm test PASS: 4622 Vitest passed, 237 skipped, 1 todo, plus legacy suites. Nine focused files: 192 PASS. No skips added or production AI model changes.
+- Regenerated existing Prisma Client to resolve stale merged TripPinnedItem types; no migration/DB reset. Final typecheck 4 tasks PASS; build PASS (existing tracing warnings); no lint script. No commit/push/deploy. Full scope/evidence: `docs/implementation/three-bug-groups-fix-2026-11-22.md`.
+
 ## 2026-11-22 — Destination widget context / intent correction
 
 - Root cause verified in source: signed-in DestinationAssistantPanel selected SignedInV2Chat, whose START entered server PLANNING even with DESTINATION context. Reused the existing scoped Q&A view for destination widgets across principals; main/GENERAL runtime selection unchanged. No schema/provider/model change.
