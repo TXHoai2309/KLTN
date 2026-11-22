@@ -5984,3 +5984,8 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 
 - `proposeItinerary` returned only check statuses, so after a `VIOLATION` (e.g. TRAVEL_TIME on the last day: return leg past midnight or past the deadline) the model re-proposed blindly. It now also receives `problems` (check, day, code, message) and a `repairHint`. The deterministic Validator is unchanged; this is guidance to the AI proposer only.
 - Not verified against a live 5-day Hà Nội motorbike chat.
+
+## 2026-11-22 — Validation sheet ("Kiểm tra lịch trình") portaled to body
+
+- In the planning chat the slide-over sheet sat inside a chat ancestor's stacking context, so the site header painted over its top-right corner. `ValidationSheet` now renders through a portal to `document.body` after mount (inline on the server so SSR markup is unchanged); a `display: contents` wrapper keeps the `--planner-*` tokens.
+- Not verified in a browser (needs a signed-in chat with an itinerary). The cause is inferred from the screenshot and the CSS, not reproduced.
