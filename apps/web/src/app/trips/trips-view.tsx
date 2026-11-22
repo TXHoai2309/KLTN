@@ -44,6 +44,8 @@ import {
 
 import { PlacePreviewModal } from "@/components/place-preview/place-preview-modal";
 import { TripPinnedSection } from "@/components/trip-pinned/trip-pinned-section";
+import { TripsageAccessLegCard } from "@/components/tripsage-chat/tripsage-access-leg-card";
+import type { PinnedItem } from "@/modules/trip-save/trip-pin-contract";
 import { canPreviewPlace, type PlacePreviewTarget } from "@/lib/place-preview-url";
 
 import {
@@ -190,6 +192,13 @@ const transportLabel = (transport: TripSummary["transport"]) =>
 const tripTitle = (trip: TripSummary) => trip.companionTitle || `Chuyến đi ${trip.durationDays} ngày`;
 const dateLabel = (date: string) =>
   `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}`;
+function shiftIsoDate(iso: string | undefined, deltaDays: number): string | null {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const date = new Date(`${iso}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + deltaDays);
+  return date.toISOString().slice(0, 10);
+}
+const shortDayMonth = (iso: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : "");
 const minuteLabel = (minute: number) =>
   `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
 const visitLabel = (count: number) => `${count} điểm dừng`;
@@ -744,6 +753,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
   const router = useRouter();
   const statusLabel = groups.find((group) => group.status === trip.status)!.label;
   const [activeDayIndex, setActiveDayIndex] = useState<number | null>(null);
+  const [activeTravelTab, setActiveTravelTab] = useState<"outbound" | "return" | null>(null);
   const [selectedDestinationId, setSelectedDestinationId] = useState<string | null>(null);
   const [focusSelection, setFocusSelection] = useState(false);
   const [mobileTab, setMobileTab] = useState<"itinerary" | "map">("itinerary");
@@ -757,6 +767,19 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
 
   const isOwner = trip.role !== "MEMBER";
   const hasJourney = Boolean(trip.journey && trip.journey.journey.origin);
+  const accessLeg = useMemo(() => {
+    if (!isOwner) return null;
+    const accessPins = (trip.pinnedItems ?? []).filter(
+      (item): item is Extract<PinnedItem, { kind: "ACCESS" }> => item.kind === "ACCESS",
+    );
+    return accessPins.at(-1)?.leg ?? null;
+  }, [isOwner, trip.pinnedItems]);
+  const nonAccessPins = useMemo(
+    () => (trip.pinnedItems ?? []).filter((item) => item.kind !== "ACCESS"),
+    [trip.pinnedItems],
+  );
+  const outboundDate = useMemo(() => shiftIsoDate(trip.days[0]?.localDate ?? trip.startDate, -1), [trip.days, trip.startDate]);
+  const returnDate = useMemo(() => shiftIsoDate(trip.days.at(-1)?.localDate ?? trip.endDate, 1), [trip.days, trip.endDate]);
 
   const totalDestinations = trip.days.reduce((sum, d) => sum + d.visits.length, 0);
 
@@ -1087,7 +1110,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
         </section>
       )}
 
-      {isOwner && trip.pinnedItems && trip.pinnedItems.length > 0 && <TripPinnedSection items={trip.pinnedItems} />}
+      {isOwner && nonAccessPins.length > 0 && <TripPinnedSection items={nonAccessPins} />}
 
       {/* Legacy Trip Disclosure Banner (for Owner when journey does not exist) */}
       {isOwner && !hasJourney && (
@@ -1114,15 +1137,33 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
       )}
 
       {/* Interactive Day Switcher Tabs */}
-      {trip.days.length > 1 && (
+      {(trip.days.length > 1 || Boolean(accessLeg)) && (
         <TravelerDayTabs
           sticky
           useTabRole={false}
           className="my-trips-day-tabs"
           ariaLabel="Điều hướng các ngày trong chuyến đi"
-          activeId={activeDayIndex === null ? "all" : `day-${activeDayIndex}`}
+          activeId={
+            activeTravelTab === "outbound"
+              ? "travel-outbound"
+              : activeTravelTab === "return"
+                ? "travel-return"
+                : activeDayIndex === null
+                  ? "all"
+                  : `day-${activeDayIndex}`
+          }
           tabs={[
             { id: "all", label: "Tất cả", count: trip.days.length, kind: "all" } satisfies TravelerDayTabItem,
+            ...(accessLeg
+              ? [
+                  {
+                    id: "travel-outbound",
+                    label: outboundDate ? `Ngày đi ${shortDayMonth(outboundDate)}` : "Ngày đi",
+                    kind: "travel" as const,
+                    controlsId: "trip-travel-outbound",
+                  },
+                ]
+              : []),
             ...trip.days.map(
               (day): TravelerDayTabItem => ({
                 id: `day-${day.dayIndex}`,
@@ -1132,13 +1173,33 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                 kind: "trip",
               }),
             ),
+            ...(accessLeg
+              ? [
+                  {
+                    id: "travel-return",
+                    label: returnDate ? `Ngày về ${shortDayMonth(returnDate)}` : "Ngày về",
+                    kind: "travel" as const,
+                    controlsId: "trip-travel-return",
+                  },
+                ]
+              : []),
           ]}
           onSelect={(id) => {
             if (id === "all") {
+              setActiveTravelTab(null);
               setActiveDayIndex(null);
               setSelectedDestinationId(null);
               return;
             }
+            if (id === "travel-outbound" || id === "travel-return") {
+              const kind = id === "travel-outbound" ? "outbound" : "return";
+              setActiveTravelTab(kind);
+              setActiveDayIndex(null);
+              const el = document.getElementById(`trip-travel-${kind}`);
+              if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+              return;
+            }
+            setActiveTravelTab(null);
             const dayNumber = Number(id.replace("day-", ""));
             const targetDay = trip.days.find((d) => d.dayIndex === dayNumber);
             if (!targetDay) return;
@@ -1187,8 +1248,22 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
           <section className="my-trips-itinerary" aria-label="Hành trình đã lưu">
             <TripWeatherProvider days={plannerDays} journeyPlan={trip.journey?.plan}>
             <div className="my-trips-days">
+              {accessLeg && (
+                <section
+                  id="trip-travel-outbound"
+                  data-testid="trip-travel-panel-outbound"
+                  className={`dt-day dt-travel-day${(activeDayIndex !== null || activeTravelTab === "return") ? " dt-day--dimmed my-trips-day-dimmed" : ""}`}
+                  aria-label="Ngày đi tới điểm tập kết"
+                >
+                  <div className="dt-travel-day-head">
+                    <span className="tv-day-tab-dot" style={{ background: "var(--tv-ink-3)" }} aria-hidden="true" />
+                    <h2>Ngày đi{outboundDate ? ` · ${dateLabel(outboundDate)}` : ""}</h2>
+                  </div>
+                  <TripsageAccessLegCard leg={accessLeg} only="outbound" />
+                </section>
+              )}
               {trip.days.map((day) => {
-                const isDimmed = activeDayIndex !== null && activeDayIndex !== day.dayIndex;
+                const isDimmed = activeTravelTab !== null || (activeDayIndex !== null && activeDayIndex !== day.dayIndex);
                 const chosen = chosenLodgingByNight.get(day.dayIndex);
                 const nearbyForDay = (trip.nearbySuggestions ?? []).filter(item => item.dayIndex === day.dayIndex);
                 const nextDay = trip.days.find((item) => item.dayIndex === day.dayIndex + 1);
@@ -1298,6 +1373,20 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                   />
                 );
               })}
+              {accessLeg && (
+                <section
+                  id="trip-travel-return"
+                  data-testid="trip-travel-panel-return"
+                  className={`dt-day dt-travel-day${(activeDayIndex !== null || activeTravelTab === "outbound") ? " dt-day--dimmed my-trips-day-dimmed" : ""}`}
+                  aria-label="Ngày về nhà"
+                >
+                  <div className="dt-travel-day-head">
+                    <span className="tv-day-tab-dot" style={{ background: "var(--tv-ink-3)" }} aria-hidden="true" />
+                    <h2>Ngày về{returnDate ? ` · ${dateLabel(returnDate)}` : ""}</h2>
+                  </div>
+                  <TripsageAccessLegCard leg={accessLeg} only="return" />
+                </section>
+              )}
             </div>
             <TripWeatherFootnote />
             </TripWeatherProvider>

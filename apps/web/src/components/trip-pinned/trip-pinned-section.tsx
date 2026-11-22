@@ -2,7 +2,6 @@ import { BedDouble, Plane, UtensilsCrossed, Wallet } from "lucide-react";
 
 import type { PinnedItem, SharedPin } from "@/modules/trip-save/trip-pin-contract";
 import { bookingComUrl, googleHotelsUrl } from "@/components/tripsage-chat/booking-links";
-import { TripsageAccessLegCard } from "@/components/tripsage-chat/tripsage-access-leg-card";
 
 type Item = PinnedItem | SharedPin;
 
@@ -84,23 +83,28 @@ function CostCard({ item }: { item: Extract<Item, { kind: "COST" }> }) {
   );
 }
 
-/** ADR-47: items pinned from the planning chat. The owner sees everything; a companion only receives the shared projection. */
+/**
+ * ADR-47 & PARITY BR-6: items pinned from the planning chat.
+ * Access legs (`kind: "ACCESS"`) are shown in the Ngày đi / Ngày về tabs rather than here,
+ * while remaining readable in `trip-pin-contract.ts` for owner trip detail pages.
+ */
 export function TripPinnedSection({ items, shared = false }: { items: readonly Item[]; shared?: boolean }) {
-  if (!items.length) return null;
+  const visible = items.filter((item) => item.kind !== "ACCESS");
+  if (!visible.length) return null;
   return (
     <section className="trip-pinned-section" aria-label="Mục đã ghim" data-testid="trip-pinned-section">
       <header>
-        <h3>Mục đã ghim <span className="trip-pinned-count">{items.length}</span></h3>
+        <h3>Mục đã ghim <span className="trip-pinned-count">{visible.length}</span></h3>
         <p className="trip-pinned-muted">{shared ? "Chủ chuyến chia sẻ các gợi ý công khai này; vé máy bay và chi phí đi lại không hiển thị." : "Gợi ý bạn đã ghim từ trợ lý. Giá là tham khảo tại ngày tra, không phải đặt chỗ."}</p>
       </header>
       <ul className="trip-pinned-grid">
-        {items.map((item, index) => {
+        {visible.map((item, index) => {
           switch (item.kind) {
             case "FLIGHT": return <FlightCard key={index} item={item} />;
             case "HOTEL": return <HotelCard key={index} item={item} />;
             case "MEAL": return <MealCard key={index} item={item} />;
             case "COST": return <CostCard key={index} item={item} />;
-            case "ACCESS": return <li key={index} className="trip-pinned-card trip-pinned-wide"><TripsageAccessLegCard leg={item.leg} /></li>;
+            default: return null;
           }
         })}
       </ul>

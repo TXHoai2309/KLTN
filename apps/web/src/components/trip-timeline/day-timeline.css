@@ -618,3 +618,26 @@
   border-radius: var(--tv-radius-pill);
   flex-shrink: 0;
 }
+
+/* Travel day panel on trip detail (PARITY US 11) */
+.dt-travel-day {
+  display: grid;
+  gap: var(--tv-space-3);
+  padding: var(--tv-space-4);
+  border-radius: var(--tv-radius-card);
+  background: var(--tv-surface);
+}
+
+.dt-travel-day-head {
+  display: flex;
+  align-items: center;
+  gap: var(--tv-space-2);
+}
+
+.dt-travel-day-head h2 {
+  margin: 0;
+  font-family: var(--tv-font-title);
+  font-size: var(--tv-text-lg);
+  font-weight: 600;
+  color: var(--tv-ink);
+}

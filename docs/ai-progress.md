@@ -6100,3 +6100,9 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Extended `companionGroupSchema` and `getCompanionGroup` with optional destination `image` (same `isDestinationMediaUsable` rule as `trip-read-service.ts`), `area`, `chosenLodgings`, and `nearbySuggestions` while continuing to exclude `ACCESS` pins and host home city.
 - Migrated `CompanionGroupView` itinerary tab to render `RouteStrip`, `TravelerDayTabs` (Days 1..N only — no Ngày đi / Ngày về), and `DayTimeline variant="full"`.
 - Checks: `tsc --noEmit` PASS, `vitest` PASS (17 files, 208/208 tests; 11 postgres files skipped), `git diff --check` PASS (status: `verified-offline`).
+
+## 2026-11-23 — Traveler UI Redesign: Ticket 07 (trip detail travel day tabs & ACCESS excluded from pinned section)
+
+- Wired owner saved `ACCESS` leg into `TripDetailView` (`apps/web/src/app/trips/trips-view.tsx`) as `"Ngày đi DD/MM"` and `"Ngày về DD/MM"` tabs (`kind: "travel"`, gray dot) with outbound/return panels rendering `TripsageAccessLegCard only="outbound" | "return"`.
+- Excluded `kind: "ACCESS"` from `TripPinnedSection` ("Mục đã ghim") while keeping legacy `ACCESS` rows readable via `readPinnedItems` / `trip-pin-contract.ts`.
+- Checks: `vitest` PASS (17 files, 77/77 tests), `tsc --noEmit` PASS, `git diff --check` PASS (status: `verified-offline`).
