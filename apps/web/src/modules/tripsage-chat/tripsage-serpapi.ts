@@ -123,6 +123,13 @@ export function createSerpApiClient(deps: {
             continue;
           }
 
+          // A rejected key (typo, stray character, revoked) must not hide the keys after it.
+          if (response.status === 401 || response.status === 403) {
+            logUnavailable(`key-rejected-${response.status}`);
+            markExhausted(i);
+            continue;
+          }
+
           if (!response.ok) {
             if (response.status >= 400 && response.status < 500) {
               const errorText = await readBounded(response, MAX_ERROR_BYTES);

@@ -1410,7 +1410,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                               const target: PlacePreviewTarget = { kind: "GOOGLE_PLACE", name: item.name, placeId: item.placeId };
                               return (
                                 <li key={`${item.slot}|${item.placeId}`}>
-                                  <span>{item.name} · {item.distanceKm.toLocaleString("vi-VN")} km {item.kind === "EVENING" ? "(buổi tối)" : "(gần điểm tham quan)"}</span>
+                                  <span>{item.name} · {item.distanceKm.toLocaleString("vi-VN")} km {item.kind === "EVENING" ? "(buổi tối)" : item.slot === "free" ? "(chiều rảnh)" : "(gần điểm tham quan)"}</span>
                                   {canPreviewPlace(target) && (
                                     <button type="button" className="tripsage-preview-btn" aria-label={`Xem nhanh ${item.name}`} onClick={event => setPreview({ target, trigger: event.currentTarget })}>
                                       <Eye size={13} aria-hidden="true" /><span>Xem nhanh</span>

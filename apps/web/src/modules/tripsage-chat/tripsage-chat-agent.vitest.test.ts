@@ -211,7 +211,7 @@ describe("Tripsage required-information gate & ADR-44 assumed draft", () => {
     const sse = await run(model, {}, COMPLETE_JOURNEY_FIXTURE, withoutInterests);
     const result = plannerResultSchema.parse(parts(sse).find(p => p.type === "data-itinerary")!.data);
     expect(result.requirement.interests).toEqual(["NATURE", "ADVENTURE"]);
-    expect(result.requirement.pace).toBe("MODERATE");
+    expect(result.requirement.pace).toBe("PACKED");
     expect(JSON.stringify(model.doStreamCalls[0]!.prompt)).toContain("[mặc định, chưa hỏi]");
   });
 

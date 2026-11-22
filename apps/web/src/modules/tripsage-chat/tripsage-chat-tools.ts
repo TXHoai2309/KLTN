@@ -8,6 +8,7 @@ import { EXTERNAL_PLACE_ID_PREFIX, externalPlannerCandidate, isSchedulablePlaceI
 import type { RouteProvider } from "../trip-planner/planner-routes";
 import { INTEREST_VALUES, PACE_VALUES, tripRequirementInputSchema } from "../trip-requirement/trip-requirement-contract";
 import { QUESTION_BY_FIELD } from "../trip-requirement/trip-clarification-rules";
+import type { FuelPriceLookup } from "./tripsage-fuel-price";
 import type { ExternalPlaceSuggestion, PlacesSearch } from "./tripsage-places";
 import { haversine } from "../trip-planner/planner-geography";
 import { activityAnchors, nearbyActivitySuggestions } from "./tripsage-activities";
@@ -17,7 +18,7 @@ import { itineraryDistanceKm } from "./tripsage-chat-context";
 import { accessLegInputSchema, buildAccessLeg, isHubOrigin, shouldSuggestHub, type AccessLegPart, type FlightPriceOverride } from "./tripsage-access-leg";
 import { domainOf, isSafePublicHttpsUrl, WEB_DATA_MARKER, type WebLookup } from "./tripsage-web";
 import { quickRepliesPartSchema, resolveEffectiveJourney, tripInfoSchema, withTripInfoDefaults, type ChatSourceItem, type OriginCandidatesPart, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
-import { FIXED_HUB_CANDIDATES, matchFixedHub, MAX_ORIGIN_CANDIDATES, permitsOriginConfirmation, type SignedOriginCandidate, type VerifiedOriginCandidates } from "./tripsage-chat-origin";
+import { FIXED_HUB_CANDIDATES, matchFixedHub, MAX_ORIGIN_CANDIDATES, permitsOriginConfirmation, statesSoleOrigin, type SignedOriginCandidate, type VerifiedOriginCandidates } from "./tripsage-chat-origin";
 import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
 import { blockingAssumedFields, type AssumableField } from "../trip-validation/trip-proposal-contract";
 import { JOURNEY_MISSING_LABELS, missingJourneyFields, originSelectionSchema, type OriginSelection, type TripJourney } from "../trip-origin/trip-origin-contract";
@@ -54,6 +55,7 @@ export type TripsageToolContext = { planning: TripsagePlanningDeps; emitItinerar
   /** The previous assistant message asked which fixed hub to use, so a bare hub name in the latest user message is the choice. */ hubOffered?: boolean;
   emitTripInfo?: (tripInfo: TripsageTripInfo) => void; emitOriginCandidates?: (data: OriginCandidatesPart) => void; emitJourney?: (journey: TripJourney) => void; emitQuickReplies?: (replies: string[]) => void;
   /** Google Places search (server key held inside); absent means unavailable. */ places?: PlacesSearch; maxPlacesCalls?: number;
+  /** Retail petrol price (ADR-46); absent or failing means the fixed reference price. */ fuelPrice?: FuelPriceLookup;
   /** Streams suggestions to the UI only; nothing is stored or scheduled. */ emitPlaces?: (places: PlaceSuggestionPart[]) => void;
   /** Firecrawl search/scrape (server key held inside); absent means unavailable. */ web?: WebLookup; maxWebSearchCalls?: number; maxFetchPageCalls?: number;
   /** Streams reviewed document titles and web source domains shown to the model; no internal URLs or web HTML. */ emitSources?: (sources: ChatSourceItem[]) => void;
@@ -214,6 +216,49 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   });
 
   let originSearches = 0;
+  /** Shared by `confirmOrigin` (user agreed) and `findOrigin` (user typed the one matching place): records the confirmed origin and updates the journey. */
+  const applyConfirmedOrigin = (found: SignedOriginCandidate) => {
+    if (vietnamCoverageAt(found) !== "SUPPORTED") {
+      return { ok: false as const, code: "ORIGIN_OUTSIDE_COVERAGE", message: "Điểm xuất phát nằm ngoài phạm vi Việt Nam được hỗ trợ." };
+    }
+    const confirmedOrigin: OriginSelection = originSelectionSchema.parse({
+      label: found.label,
+      latitude: found.latitude,
+      longitude: found.longitude,
+      source: found.source,
+      confirmed: true,
+    });
+    const nextJourney = resolveEffectiveJourney(
+      {
+        origin: confirmedOrigin,
+        departureMinute: currentJourney?.departureMinute ?? null,
+        returnDeadlineMinute: currentJourney?.returnDeadlineMinute ?? null,
+        returnDepartureMinute: currentJourney?.returnDepartureMinute ?? null,
+      },
+      tripInfo,
+    )!;
+    currentJourney = nextJourney;
+    context.emitJourney?.(nextJourney);
+    if (tripInfo.assumedFields?.includes("origin")) {
+      const remainingAssumed = tripInfo.assumedFields.filter(field => field !== "origin");
+      const nextTripInfo: TripsageTripInfo = { ...tripInfo };
+      if (remainingAssumed.length > 0) nextTripInfo.assumedFields = remainingAssumed;
+      else delete nextTripInfo.assumedFields;
+      tripInfo = nextTripInfo;
+      context.emitTripInfo?.(tripInfo);
+    }
+    const { info, defaulted } = withTripInfoDefaults(tripInfo);
+    return {
+      ok: true as const,
+      originLabel: confirmedOrigin.label,
+      departureMinute: nextJourney.departureMinute,
+      returnDeadlineMinute: nextJourney.returnDeadlineMinute,
+      defaulted,
+      missing: missingTripInfo(info, nextJourney).map(m => m.field),
+      note: "Đã xác nhận điểm xuất phát. Nếu đã đủ phương tiện, số ngày và ngày đi, hãy lập lịch ngay trong lượt này.",
+    };
+  };
+
   const findOrigin = tool({
     description: "Tìm điểm xuất phát trong lãnh thổ Việt Nam từ tên người dùng vừa gõ (tối đa 3 ứng viên). Chỉ nêu lại nhãn địa điểm cho người dùng xác nhận ở lượt sau; KHÔNG tự gọi confirmOrigin trong cùng lượt. Điểm tập kết Hà Nội (hub:HA_NOI) và TP Hà Giang (hub:HA_GIANG_CITY) là ứng viên cố định.",
     inputSchema: z.object({
@@ -245,6 +290,11 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           longitude: result.longitude,
           source: result.source,
         }));
+      }
+      // The traveler typed one place and the search found exactly that one: no second round-trip (ADR-46).
+      if (!hub && signedList.length === 1 && statesSoleOrigin(context.latestUserText ?? "", signedList[0]!)) {
+        const confirmed = applyConfirmedOrigin(signedList[0]!);
+        if (confirmed.ok) return { ...confirmed, note: "Điểm xuất phát đã được xác nhận vì người dùng vừa nêu đúng địa điểm này; không hỏi lại. Nếu đã đủ phương tiện, số ngày và ngày đi, hãy lập lịch ngay trong lượt này." };
       }
       const token = context.signOriginCandidates?.(signedList) ?? null;
       if (!token) return { ok: false as const, code: "ORIGIN_SEARCH_UNAVAILABLE", message: "Chưa sẵn sàng xác thực ứng viên điểm xuất phát.", fixedHubs: fixedHubPublic };
@@ -296,45 +346,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       if (!permitsOriginConfirmation(context.latestUserText ?? "", found, pool, { fromPreviousTurn, hubOffered: context.hubOffered })) {
         return { ok: false as const, code: "ORIGIN_CONFIRMATION_REQUIRED", message: "Người dùng chưa đồng ý hoặc chưa chọn rõ điểm xuất phát này trong tin nhắn mới nhất. Hãy nêu rõ nhãn địa điểm và chờ người dùng trả lời đồng ý." };
       }
-      if (vietnamCoverageAt(found) !== "SUPPORTED") {
-        return { ok: false as const, code: "ORIGIN_OUTSIDE_COVERAGE", message: "Điểm xuất phát nằm ngoài phạm vi Việt Nam được hỗ trợ." };
-      }
-      const confirmedOrigin: OriginSelection = originSelectionSchema.parse({
-        label: found.label,
-        latitude: found.latitude,
-        longitude: found.longitude,
-        source: found.source,
-        confirmed: true,
-      });
-      const nextJourney = resolveEffectiveJourney(
-        {
-          origin: confirmedOrigin,
-          departureMinute: currentJourney?.departureMinute ?? null,
-          returnDeadlineMinute: currentJourney?.returnDeadlineMinute ?? null,
-          returnDepartureMinute: currentJourney?.returnDepartureMinute ?? null,
-        },
-        tripInfo,
-      )!;
-      currentJourney = nextJourney;
-      context.emitJourney?.(nextJourney);
-      if (tripInfo.assumedFields?.includes("origin")) {
-        const remainingAssumed = tripInfo.assumedFields.filter(field => field !== "origin");
-        const nextTripInfo: TripsageTripInfo = { ...tripInfo };
-        if (remainingAssumed.length > 0) nextTripInfo.assumedFields = remainingAssumed;
-        else delete nextTripInfo.assumedFields;
-        tripInfo = nextTripInfo;
-        context.emitTripInfo?.(tripInfo);
-      }
-      const { info, defaulted } = withTripInfoDefaults(tripInfo);
-      return {
-        ok: true as const,
-        originLabel: confirmedOrigin.label,
-        departureMinute: nextJourney.departureMinute,
-        returnDeadlineMinute: nextJourney.returnDeadlineMinute,
-        defaulted,
-        missing: missingTripInfo(info, nextJourney).map(m => m.field),
-        note: "Đã xác nhận điểm xuất phát. Nếu đã đủ phương tiện, số ngày và ngày đi, hãy lập lịch ngay trong lượt này.",
-      };
+      return applyConfirmedOrigin(found);
     },
   });
 
@@ -588,17 +600,18 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   });
 
   const estimateCosts = tool({
-    description: `Lập bảng chi phí ước tính cho cả nhóm (VND). Bạn đưa các khoản lưu trú, ăn uống, vé & vui chơi, khác, và đi lại ngoài xăng (thuê xe, gửi xe...), mỗi khoản kèm cách tính ngắn. Tiền xăng do hệ thống tự tính từ quãng đường của lịch (${PRICE_REFERENCE.litersPer100Km.MOTORCYCLE} L/100 km xe máy, ${PRICE_REFERENCE.litersPer100Km.CAR} L/100 km ô tô, giá xăng mặc định ${PRICE_REFERENCE.fuelVndPerLiter} đ/L, người dùng sửa được); không tự đưa dòng xăng. Hệ thống cộng tổng, tính mỗi người mỗi ngày và so ngân sách nếu người dùng đã nêu.`,
+    description: `Lập bảng chi phí ước tính cho cả nhóm (VND). Bạn đưa các khoản lưu trú, ăn uống, vé & vui chơi, khác, và đi lại ngoài xăng (thuê xe, gửi xe...), mỗi khoản kèm cách tính ngắn. Tiền xăng do hệ thống tự tính từ quãng đường của lịch (${PRICE_REFERENCE.litersPer100Km.MOTORCYCLE} L/100 km xe máy, ${PRICE_REFERENCE.litersPer100Km.CAR} L/100 km ô tô, giá xăng lấy từ Petrolimex vùng 2 khi tra được, nếu không thì mặc định ${PRICE_REFERENCE.fuelVndPerLiter} đ/L, người dùng sửa được); không tự đưa dòng xăng. Hệ thống cộng tổng, tính mỗi người mỗi ngày và so ngân sách nếu người dùng đã nêu.`,
     inputSchema: z.object({
       lines: z.array(costLineInputSchema).min(1).max(12),
       fuelVndPerLiter: z.number().int().min(10_000).max(60_000).optional().describe("Giá xăng người dùng nêu, đ/L."),
       budgetCap: z.number().int().min(0).max(1_000_000_000).optional().describe("Ngân sách tối đa cả nhóm người dùng đã nêu, VND."),
     }).strict(),
-    execute: async input => {
+    execute: async (input, options) => {
       const { info } = withTripInfoDefaults(tripInfo);
       if (!info.transport || !info.durationDays) return { ok: false as const, code: "MISSING_REQUIRED_INFO", message: "Chưa có phương tiện và số ngày để ước tính chi phí." };
+      const live = input.fuelVndPerLiter === undefined && context.fuelPrice ? await context.fuelPrice(options?.abortSignal).catch(() => null) : null;
       const extraLines = latestAccessLeg ? [{ category: "transport" as const, label: "Chặng tiếp cận (đi và về)", amount: latestAccessLeg.totalVnd, basis: `${latestAccessLeg.homeCity} ⇄ ${latestAccessLeg.hubName}, ${latestAccessLeg.travelers} người` }] : [];
-      const cost = estimateTripCost({ transport: info.transport, travelers: info.travelers, days: info.durationDays, distanceKm: latestDistanceKm, fuelVndPerLiter: input.fuelVndPerLiter, budgetCap: input.budgetCap ?? null, lines: input.lines, extraLines });
+      const cost = estimateTripCost({ transport: info.transport, travelers: info.travelers, days: info.durationDays, distanceKm: latestDistanceKm, fuelVndPerLiter: input.fuelVndPerLiter ?? live?.vndPerLiter, fuelSource: live ? `${live.fuelName}, ${live.source}${live.asOf ? `, ${live.asOf.split("-").reverse().join("/")}` : ""}` : undefined, budgetCap: input.budgetCap ?? null, lines: input.lines, extraLines });
       context.emitCost?.(cost);
       return { ok: true as const, total: cost.total, perPersonPerDay: cost.perPersonPerDay, withinCap: cost.withinCap, overBy: cost.overBy, lines: cost.lines.map(({ label, amount }) => ({ label, amount })),
         note: "Bảng chi phí đã hiện cho người dùng. Chỉ nhận xét ngắn (khoản lớn nhất, cách tiết kiệm); nói rõ đây là ước tính. Không có ngân sách thì không kết luận vừa hay vượt." };

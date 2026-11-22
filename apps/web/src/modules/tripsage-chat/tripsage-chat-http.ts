@@ -7,6 +7,7 @@ import { readBoundedJsonBody } from "../../server/http/read-json-body";
 import { createPlanningAdmission } from "../assistant-planning/planning-admission";
 import { isTripsageChatEnabled } from "./tripsage-chat-flag";
 import { enabledTripsageFeatures } from "./tripsage-features";
+import type { FuelPriceLookup } from "./tripsage-fuel-price";
 import type { PlacesSearch } from "./tripsage-places";
 import type { WebLookup } from "./tripsage-web";
 import type { LocalKnowledge, OriginLookup, TripsagePlanningDeps, TripsageToolContext } from "./tripsage-chat-tools";
@@ -31,6 +32,8 @@ export type TripsageChatHttpDependencies = {
   now?: () => Date;
   /** Google Places search; resolved lazily. Absent means the tool reports unavailable. */
   places?: () => PlacesSearch;
+  /** Retail petrol price for the cost estimate; absent means the fixed reference price. */
+  fuelPrice?: () => FuelPriceLookup;
   /** Firecrawl web search/scrape; resolved lazily. Absent means the web tools report unavailable. */
   web?: () => WebLookup;
   memory?: () => MemoryService;
@@ -114,7 +117,7 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
                   parts,
                 })
               : undefined,
-            planning, originSearch: deps.originSearch?.(), places: deps.places?.(), web: deps.web?.(), knowledge: deps.knowledge?.(),
+            planning, originSearch: deps.originSearch?.(), places: deps.places?.(), fuelPrice: deps.fuelPrice?.(), web: deps.web?.(), knowledge: deps.knowledge?.(),
             flights: deps.flights, hotels: deps.hotels, priorHotelLookups, priorFlightLookups, limits: deps.limits, signal: request.signal, onSettled: release,
             memory: features.has("memory") ? { actor, source: latestUser, resolve: deps.memory } : undefined,
           });
