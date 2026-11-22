@@ -69,6 +69,7 @@ const previewLegMetricSchema = z.object({
   status: z.enum(["VERIFIED", "INSUFFICIENT_DATA"]),
   durationSeconds: z.number().nullable(),
   distanceMeters: z.number().nullable(),
+  provider: z.enum(["GOOGLE_MAPS", "STADIA_MAPS"]).optional(),
   geometry: z.object({
     type: z.literal("LineString"),
     coordinates: z.array(z.tuple([z.number(), z.number()])),

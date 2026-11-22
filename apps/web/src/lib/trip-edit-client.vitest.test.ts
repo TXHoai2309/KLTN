@@ -33,6 +33,17 @@ afterEach(() => {
 });
 
 describe("previewTripEdit", () => {
+  it.each(["GOOGLE_MAPS", "STADIA_MAPS"] as const)("accepts authoritative route provenance from %s", async (provider) => {
+    const result: PreviewEditResult = {
+      ...preview,
+      legs: [{ dayIndex: 1, fromVisitId: "a", toVisitId: "b", status: "VERIFIED",
+        durationSeconds: 600, distanceMeters: 3000, provider }],
+    };
+    const fetcher = (async () => Response.json({ success: true, data: result })) as typeof fetch;
+    expect(await previewTripEdit("trip-1", { baseRevision: preview.baseRevision, candidate }, { fetcher }))
+      .toEqual({ kind: "PREVIEWED", result });
+  });
+
   it("posts the revision and candidate to the preview route using a fake fetch", async () => {
     let requestedUrl = "";
     let requestedInit: RequestInit | undefined;
