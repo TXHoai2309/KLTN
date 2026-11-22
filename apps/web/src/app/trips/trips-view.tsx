@@ -1,6 +1,7 @@
 "use client";
 
-import { TripWeatherPanel } from "@/modules/trip-weather/trip-weather-panel";
+import { DaySun, StopWeather, TripWeatherFootnote } from "@/modules/trip-weather/trip-weather-inline";
+import { TripWeatherProvider } from "@/modules/trip-weather/trip-weather-state";
 import Link from "next/link";
 import { BREAKFAST_MINUTES, MORNING_DEPARTURE_MINUTE } from "@/modules/trip-planner/planner-engine";
 import { Fragment, useEffect, useRef, useState, useMemo } from "react";
@@ -1180,6 +1181,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
         {/* Left Column: Itinerary Timeline */}
         <div className="my-trips-timeline-column">
           <section className="my-trips-itinerary" aria-label="Hành trình đã lưu">
+            <TripWeatherProvider days={plannerDays} journeyPlan={trip.journey?.plan}>
             <div className="my-trips-days">
               {trip.days.map((day) => {
                 const isDimmed = activeDayIndex !== null && activeDayIndex !== day.dayIndex;
@@ -1208,6 +1210,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                             )}
                             , {dateLabel(day.localDate)}
                           </p>
+                          <DaySun day={day.dayIndex} />
                         </div>
                       </div>
 
@@ -1323,6 +1326,8 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                                       </p>
                                     </div>
 
+                                    <StopWeather day={day.dayIndex} destinationId={visit.destination.id} />
+
                                     {visit.destination.availability === "UNAVAILABLE" && (
                                       <p className="my-trips-unavailable">Điểm đến không còn khả dụng công khai</p>
                                     )}
@@ -1422,7 +1427,8 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                 );
               })}
             </div>
-            <TripWeatherPanel days={plannerDays} journeyPlan={trip.journey?.plan} />
+            <TripWeatherFootnote />
+            </TripWeatherProvider>
           </section>
         </div>
 
