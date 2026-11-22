@@ -15,6 +15,7 @@ import {
   type StoredAssistantPart,
 } from "./assistant-conversation-contract";
 import { chosenLodgingsPartSchema, type ChosenLodgingItem } from "./tripsage-timeline";
+import { TOOL_TRACE_PART, type ToolTrace } from "./tripsage-tool-trace";
 
 export type RecordUserMessageResult = { conversationId: string; title: string; messageId: string };
 export type RecordAssistantMessageResult = { conversationId: string; messageId: string };
@@ -36,6 +37,8 @@ export interface AssistantConversationStore {
     conversationId: string;
     clientMessageId: string;
     parts: readonly unknown[];
+    /** Operator-only tool trace; stored beside the parts and never returned by `get`. */
+    trace?: ToolTrace | null;
   }): Promise<MutationOutcome<RecordAssistantMessageResult>>;
   updateChosenLodgings?(input: {
     userId: string;
@@ -284,7 +287,7 @@ export function createAssistantConversationStore(db: Database, options: { now?: 
               role: "assistant",
               clientMessageId: input.clientMessageId,
               contentHash,
-              parts: sanitized as unknown as Prisma.InputJsonValue,
+              parts: (input.trace ? [...sanitized, { type: TOOL_TRACE_PART, data: input.trace }] : sanitized) as unknown as Prisma.InputJsonValue,
               createdAt: writeAt,
             },
           });
@@ -330,7 +333,9 @@ export function createAssistantConversationStore(db: Database, options: { now?: 
           const target = owned.messages.find(m => Array.isArray(m.parts) && m.parts.some(p => (p as { type?: string } | null)?.type === "data-itinerary"))
             ?? owned.messages[0];
           if (!target) throw notFound();
-          const existingParts = sanitizeStoredParts(Array.isArray(target.parts) ? target.parts : []);
+          const rawParts = Array.isArray(target.parts) ? target.parts : [];
+          const traceParts = rawParts.filter(part => (part as { type?: string } | null)?.type === TOOL_TRACE_PART);
+          const existingParts = sanitizeStoredParts(rawParts);
           const withoutChosen = existingParts.filter(part => part.type !== "data-chosen-lodgings");
           const updatedParts: StoredAssistantPart[] = nextList.length > 0
             ? [...withoutChosen, { type: "data-chosen-lodgings", data: { chosenLodgings: nextList } }]
@@ -338,7 +343,7 @@ export function createAssistantConversationStore(db: Database, options: { now?: 
           await tx.assistantMessage.update({
             where: { id: target.id },
             data: {
-              parts: updatedParts as unknown as Prisma.InputJsonValue,
+              parts: [...updatedParts, ...traceParts] as unknown as Prisma.InputJsonValue,
               contentHash: hashContent({ role: "assistant", parts: updatedParts }),
             },
           });

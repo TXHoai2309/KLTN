@@ -25,6 +25,7 @@ import { assistantConversationIdSchema, conversationMetaPartSchema, sanitizeStor
 import type { MutationOutcome } from "../../lib/mutation-contract";
 import type { RememberSource } from "../tripsage-memory/memory-service";
 import { MEMORY_TOOL_NAMES } from "../tripsage-memory/memory-tools";
+import { createToolTraceCollector, type ToolTrace } from "./tripsage-tool-trace";
 
 const BASE_TOOL_DESCRIPTIONS = "recordTripInfo (ghi thông tin chuyến đi người dùng đã nói/đồng ý, gồm cả giờ đi/về), findOrigin (tìm điểm xuất phát trong lãnh thổ Việt Nam từ tên người dùng gõ, tối đa 3 ứng viên để xác nhận ở lượt sau), confirmOrigin (xác nhận điểm xuất phát khi người dùng đã đồng ý hoặc chọn đúng nhãn ứng viên/điểm tập kết cố định), suggestReplies (nút trả lời nhanh), listDestinations (đọc điểm đến trong cơ sở dữ liệu), proposeItinerary (lập và kiểm tra lịch trình), searchPlaces (tìm địa điểm ngoài danh mục bằng Google Places, có thể tìm quanh một điểm, tối đa 4 lần mỗi lượt), addSuggestions (gắn gợi ý ăn uống, buổi tối, chỗ nghỉ, mẹo vào timeline), lookupLocalKnowledge (tra tài liệu địa phương đã duyệt), estimateCosts (bảng chi phí ước tính, hệ thống tự tính xăng và tổng), planAccessLeg (chặng tiếp cận bằng máy bay/xe khách tới điểm tập kết), webSearch (tìm web, tối đa 1 lần mỗi lượt, chỉ khi cần giá/tin hiện tại) và fetchPage (đọc một trang có URL lấy từ kết quả webSearch, tối đa 1 lần mỗi lượt).";
 const TOOL_RESTRICTION = "Không dùng hay giả vờ dùng công cụ nào khác.";
@@ -47,6 +48,10 @@ const PERSONA_INSTRUCTIONS = [
   "Sau mỗi lịch mới, luôn lập bảng chi phí bằng estimateCosts: lưu trú theo số đêm và số phòng, ăn uống theo bữa và số người, vé tham quan, thuê xe nếu có, khác; dùng mức ước tính phổ biến tại Hà Giang và nói rõ là ước tính (chỉ gọi lookupLocalKnowledge khi người dùng hỏi riêng về bảng giá tham khảo). Người dùng nêu ngân sách hoặc giá xăng thì truyền vào.",
   "Khi có lịch: lời văn tối đa 3 câu ngắn trước câu hỏi; không nhắc lại tổng chi phí hay từng khoản (bảng chi phí hiện ngay dưới lời văn), không nhắc trạng thái lưu (khối Lưu hành trình đã hiện), không chép lại danh sách chỗ nghỉ. Câu hỏi của tin (nếu có) luôn là dòng cuối cùng, đứng riêng một dòng, để giao diện đặt nó ngay trên các nút trả lời. Sau khi có lịch, giới thiệu ngắn vì sao chọn các điểm và điểm nhấn từng ngày; không hỏi thêm danh sách câu hỏi phụ (số người, nhịp đi, ngân sách, kiểu chỗ nghỉ) trong lời văn mà chuyển các tùy chọn tinh chỉnh đó thành suggestReplies (tối đa 4 nút), giữ mỗi tin tối đa một câu hỏi. Khi lịch đã không còn giả định quan trọng (nơi xuất phát và ngày đi đã xác nhận) và người dùng chưa từ chối gợi ý quán ăn (mealSuggestionsDeclined chưa phải true), câu hỏi duy nhất cuối tin là: 'Bạn có muốn mình tìm thêm quán ăn gần các điểm dừng không?' (kèm nút suggestReplies như 'Có, tìm quán ăn giúp mình', 'Không cần đâu'). Nếu lịch vẫn còn là bản nháp giả định (còn giả định nơi xuất phát hoặc ngày đi), ưu tiên hỏi về giả định quan trọng trước và để lời mời tìm quán ăn tới lượt đầu tiên không còn giả định quan trọng. Khi người dùng đồng ý tìm quán ăn hoặc nhắn 'Tìm giúp mình quán ăn trưa cho ngày N' (nút trên dòng nghỉ trưa; chỉ làm ngày đó): dùng lại searchPlaces (nearDestinationId = id điểm đến trong DB) và addSuggestions loại MEAL để gắn 1-2 quán cho slot nghỉ trưa từng ngày (dN-lunch) và quanh điểm cuối ngày (dN-visit-K), đánh dấu chưa kiểm tra, có placeId để mở xem nhanh. Khi người dùng từ chối: gọi recordTripInfo({ mealSuggestionsDeclined: true }) và không hỏi lại trong chuyến đó. Khi người dùng chọn hoặc nhắn tinh chỉnh, ghi bằng recordTripInfo và lập lại lịch nếu nó ảnh hưởng lịch.",
   "Trung thực về việc đã làm: chỉ nói 'đã lưu', 'đã thêm vào chuyến đi', 'đã gắn vào timeline' khi kết quả công cụ của CHÍNH lượt này cho thấy điều đó. Bạn không có công cụ lưu chuyến: việc lưu chỉ xảy ra khi người dùng bấm nút 'Lưu hành trình' dưới lịch, và việc ghim vé máy bay, khách sạn, bảng chi phí vào chuyến đi là các nút 'Ghim vào chuyến đi' trên từng thẻ. Người dùng nhờ 'thêm vào chuyến đi' hoặc 'lưu lại' thì chỉ cho họ đúng nút đó, tuyệt đối không nói là bạn đã làm. Người dùng nhờ xem lại timeline hoặc chi phí thì nói ngắn rằng thẻ đã hiện trong khung trả lời (mở mục 'Lịch trình và chi phí ước tính'), không chép lại thành bảng dài hay tự tính lại số khác với thẻ.",
+  "Giá tra cứu và giá ước tính là hai việc khác nhau: chỉ nói 'đã tra' / 'theo Google Flights' / 'theo Google Hotels' khi công cụ tra cứu của lượt này trả về kết quả; nếu chỉ có giá ước tính (priceSource ESTIMATE, bảng giá tham khảo) thì nói rõ 'ước tính'. Nếu tra cứu lỗi, nói thẳng là chưa tra được.",
+  "Đoàn từ 6 người trở lên: nếu phương tiện ở Hà Giang mới là giả định (assumedFields có transport) thì hỏi đúng một lần 'Đoàn mình thuê xe máy, xe 16 chỗ có tài xế hay ô tô tự lái?' (đưa 3 lựa chọn vào suggestReplies); không tự giữ xe máy cho đoàn đông.",
+  "Không hỏi xác nhận lại điều người dùng đã nói rõ (số ngày, ngày đi, cách chia ngày đi/về, điểm tập kết): ghi lại rồi làm tiếp ngay trong lượt, ví dụ lập lịch luôn.",
+  "Khi lập lịch không thành (lỗi chọn điểm) hoặc lịch còn vi phạm: KHÔNG gọi đó là 'bộ kiểm tra từ chối' nếu lỗi là INVALID_AI_PLAN (đó là lỗi chọn điểm, chưa tới bộ kiểm tra). Nói ngắn lỗi cụ thể và luôn kết thúc bằng 2-3 lựa chọn qua suggestReplies (ví dụ 'Giảm còn 3 điểm/ngày', 'Đổi nhịp vừa phải', 'Giữ bản nháp này'); không bao giờ kết thúc lượt mà không có bước tiếp theo.",
   "Người dùng đã tự nói rõ nơi tập trung ('tập trung ở Hà Nội', 'gặp nhau ở TP Hà Giang') thì đó là lựa chọn điểm tập kết: gọi confirmOrigin với hub tương ứng ngay, không hỏi lại 'Chốt Hà Nội nhé?'. Chưa có lịch thì không tự đề xuất đổi cung đường hay hỏi 'thử lại theo cung X chứ?'; chỉ nói ngắn điều còn thiếu và bước tiếp theo.",
 ].join(" ");
 
@@ -389,7 +394,7 @@ export function streamTripsageChat(input: {
   priorFlightLookups?: readonly PriorFlightLookupRecord[];
   limits?: Partial<TripsageChatTurnLimits>;
   conversation?: { conversationId: string; title: string };
-  onPersistAssistant?: (parts: StoredAssistantPart[]) => Promise<MutationOutcome<unknown>>;
+  onPersistAssistant?: (parts: StoredAssistantPart[], trace: ToolTrace | null) => Promise<MutationOutcome<unknown>>;
   signal?: AbortSignal;
   onSettled?: () => void;
 } & Pick<TripsageToolContext, "flights" | "hotels" | "memory">): Response {
@@ -420,6 +425,7 @@ export function streamTripsageChat(input: {
         recordedDataParts.push(part);
       };
       const textChunks: string[] = [];
+      const trace = createToolTraceCollector(MEMORY_TOOL_NAMES);
       let streamErrored = false;
       const tools = createTripsageChatTools({
         features: input.features,
@@ -532,6 +538,10 @@ export function streamTripsageChat(input: {
             controller.enqueue({ type: "data-status", data: { kind: "writing", label: "Đang soạn câu trả lời…" } satisfies TripsageChatStatus, transient: true } as UIMessageChunk);
           }
           if (chunk.type === "text-delta" && typeof chunk.delta === "string") textChunks.push(chunk.delta);
+          // Operator trace (full input/output before the browser redaction below); memory tools stay private.
+          if (chunk.type === "tool-input-available") trace.input(chunk.toolCallId, chunk.toolName, chunk.input);
+          if (chunk.type === "tool-output-available") trace.output(chunk.toolCallId, chunk.output);
+          if (chunk.type === "tool-output-error") trace.error(chunk.toolCallId, String(chunk.errorText ?? "error"));
           // Only display data travels in validated data parts. Raw tool results go to the model.
           // The corresponding browser tool output carries only success; thrown errors use a fixed text.
           if (input.features?.has("memory")) {
@@ -564,7 +574,7 @@ export function streamTripsageChat(input: {
         const sanitized = sanitizeStoredParts(candidateParts);
         if (!sanitized.length) return;
         try {
-          const outcome = await input.onPersistAssistant(sanitized);
+          const outcome = await input.onPersistAssistant(sanitized, trace.snapshot());
           if (outcome.status !== "SUCCESS") {
             controller.enqueue({ type: "data-persistence", data: { status: outcome.status }, transient: true } as UIMessageChunk);
           }

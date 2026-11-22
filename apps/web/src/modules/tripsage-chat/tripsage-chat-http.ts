@@ -110,11 +110,12 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
             latestUserText: latestUser.text,
             conversation,
             onPersistAssistant: conversationStore && conversation
-              ? parts => conversationStore.recordAssistantMessage({
+              ? (parts, trace) => conversationStore.recordAssistantMessage({
                   userId: actor.userId,
                   conversationId: conversation.conversationId,
                   clientMessageId: `${clientMessageId}:assistant`,
                   parts,
+                  trace,
                 })
               : undefined,
             planning, originSearch: deps.originSearch?.(), places: deps.places?.(), fuelPrice: deps.fuelPrice?.(), web: deps.web?.(), knowledge: deps.knowledge?.(),

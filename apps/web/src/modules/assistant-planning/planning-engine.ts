@@ -31,8 +31,19 @@ export function assertPlanningSelection(raw: unknown, needs: PlanningNeeds, cand
   const ids = selection.data.days.flat();
   // External places are only ever present when the chat tool merged them from this turn's searchPlaces result.
   const eligible = new Map(candidates.filter(c => isUsablePlanningCandidate(c) || isUsableExternalCandidate(c)).map(c => [c.id, c]));
-  if (selection.data.days.length !== requirement.durationDays || ids.length > 28 || (!ids.length && eligible.size > 0) || new Set(ids).size !== ids.length || ids.some(id => !eligible.has(id)))
-    throw new AppError("INVALID_AI_PLAN", "Đề xuất chứa điểm đến hoặc thứ tự ngày không hợp lệ.", 422);
+  // Name the exact problem so the proposer can fix it in one try (the Validator has not run yet; this is input checking).
+  const named = (id: string) => candidates.find(c => c.id === id)?.name ?? id;
+  const dayOf = (id: string) => selection.data.days.flatMap((day, index) => day.includes(id) ? [index + 1] : []);
+  const repeated = [...new Set(ids.filter((id, index) => ids.indexOf(id) !== index))];
+  const unknown = ids.filter(id => !eligible.has(id));
+  const problems = [
+    ...(selection.data.days.length !== requirement.durationDays ? [`Cần đúng ${requirement.durationDays} ngày, đề xuất có ${selection.data.days.length} ngày.`] : []),
+    ...(ids.length > 28 ? [`Tối đa 28 điểm, đề xuất có ${ids.length}.`] : []),
+    ...(!ids.length && eligible.size > 0 ? ["Đề xuất chưa có điểm nào."] : []),
+    ...repeated.map(id => `Điểm "${named(id)}" bị lặp ở ngày ${dayOf(id).join(" và ")}; mỗi điểm chỉ dùng một lần.`),
+    ...unknown.slice(0, 5).map(id => `Id "${id}" không có trong danh sách listDestinations (hoặc thiếu tọa độ/thời lượng); chỉ dùng id từ danh sách.`),
+  ];
+  if (problems.length) throw new AppError("INVALID_AI_PLAN", `Lựa chọn điểm chưa hợp lệ (chưa tới bộ kiểm tra): ${problems.join(" ")}`, 422);
   if (needs.requiredDestinationIds.some(id => !ids.includes(id))) throw new AppError("MANDATORY_DESTINATION_MISSING", "Đề xuất chưa đáp ứng điểm bắt buộc. Hãy điều chỉnh nhu cầu hoặc tạo lại.", 422);
   if (ids.some(id => needs.excludedDestinationIds?.includes(id))) throw new AppError("EXCLUDED_DESTINATION", "Đề xuất còn chứa điểm bạn đã yêu cầu bỏ. Vui lòng tạo lại.", 422);
   if (selection.data.days.some(day => day.length > PACE_STOP_LIMIT[requirement.pace ?? "MODERATE"])) throw new AppError("PACE_LIMIT", "Đề xuất vượt nhịp độ đã xác nhận. Hãy tạo lại hoặc đổi nhu cầu.", 422);

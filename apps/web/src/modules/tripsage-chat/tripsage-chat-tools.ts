@@ -2,6 +2,7 @@ import { tool, type ToolSet } from "ai";
 import { z } from "zod";
 import { AppError } from "../../server/http/app-error";
 import { isUsablePlanningCandidate, scheduleSelection } from "../assistant-planning/planning-engine";
+import { selectPlannerDays } from "../trip-planner/planner-engine";
 import { planningSelectionSchema } from "../assistant-planning/planning-contract";
 import type { PlannerResult } from "../trip-planner/planner-contract";
 import { EXTERNAL_PLACE_ID_PREFIX, externalPlannerCandidate, isSchedulablePlaceId, type PlannerCandidate } from "../trip-planner/planner-candidates";
@@ -159,6 +160,11 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     try { const c = (await candidates()).filter(isUsablePlanningCandidate).find(item => item.id === id); return c ? { name: c.name, latitude: c.latitude, longitude: c.longitude } : null; } catch { return null; }
   };
   let proposals = 0;
+  // After two rejected selections in one turn the server picks the stops itself, so the traveler always sees a draft.
+  let invalidPlans = 0;
+  let autoSelection: (() => string[][]) | null = null;
+  let autoUsed = false;
+  let rerunPropose: ((input: z.infer<typeof proposeInputSchema>, options: unknown) => Promise<unknown>) | null = null;
   const maxProposals = context.maxProposals ?? TRIPSAGE_CHAT_TURN_LIMITS.maxProposals;
   let tripInfo: TripsageTripInfo = { ...context.tripInfo };
   let currentJourney: TripJourney | null = context.journey ?? null;
@@ -450,6 +456,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         const dayRhythm = effective.lunchMinutes !== undefined || effective.dayEndMinute !== undefined ? { lunchMinutes: effective.lunchMinutes ?? 60, dayEndMinute: effective.dayEndMinute ?? 1080 } : undefined;
         const requirement = tripRequirementInputSchema.parse({ startDate: effective.startDate ?? null, durationDays: effective.durationDays, transport: effective.transport, interests: effective.interests, pace: effective.pace, journey: effectiveJourney, ...(dayRhythm ? { dayRhythm } : {}) });
         const base = await candidates();
+        autoSelection = () => selectPlannerDays(requirement, base.filter(isUsablePlanningCandidate)).map(day => day.map(candidate => candidate.id));
         const requiredDestinationIds = [...new Set(effective.mustIncludeDestinationIds ?? [])];
         if (requiredDestinationIds.length > 0) {
           const usableIds = new Set(base.filter(isUsablePlanningCandidate).map(item => item.id));
@@ -495,6 +502,8 @@ export function createTripsageChatTools(context: TripsageToolContext) {
             }
           : rawResult;
         context.emitItinerary(result);
+        // A plan with a violation never ends the turn without a next step; the model may still replace these buttons.
+        if (result.checks.some(check => check.status === "VIOLATION")) context.emitQuickReplies?.(["Giảm còn 3 điểm/ngày", "Đổi nhịp vừa phải", "Giữ bản nháp này"]);
         latestDays = result.days.map(day => day.stops.map(stop => stop.destination.id));
         latestDistanceKm = itineraryDistanceKm(result);
         await emitNearbyActivities(result, options?.abortSignal);
@@ -518,11 +527,23 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           note: `Lịch đầy đủ đã hiển thị cho người dùng. Chỉ nhận xét ngắn; trạng thái khác PASS nghĩa là chưa được xác nhận.${blockingAssumed.length > 0 ? ` Đây là bản nháp giả định (${assumedFields.join(", ")}): viết đúng một dòng nêu các giả định đang dùng, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (nơi xuất phát hoặc ngày đi), đưa giả định còn lại vào suggestReplies; lịch chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi.` : context.features?.has("hotels") && result.days.length > 1 ? " Ngày đi và nơi xuất phát đã xác nhận: hãy gọi searchHotels một lần với stays gồm các khu nghỉ đêm (gộp các đêm liên tiếp cùng điểm cuối ngày) để tra giá phòng tham khảo." : ""}${external.length ? " Có địa điểm ngoài danh mục (Google Maps): chưa được kiểm tra, thời gian ở lại chỉ là ước tính, lịch này chưa thể lưu." : ""}` };
       } catch (error) {
         // A plan the server rejected for its input (wrong day count, unknown id) is a correction, not one of the turn's tries.
-        if (error instanceof AppError && error.code === "INVALID_AI_PLAN") proposals -= 1;
+        if (error instanceof AppError && error.code === "INVALID_AI_PLAN") {
+          proposals -= 1;
+          invalidPlans += 1;
+          if (invalidPlans >= 2 && autoSelection && rerunPropose && !autoUsed) {
+            autoUsed = true;
+            const days = (() => { try { return autoSelection(); } catch { return []; } })();
+            if (days.some(day => day.length)) {
+              const rerun = await rerunPropose({ ...input, selection: { days } }, options) as Record<string, unknown>;
+              if (rerun?.ok) return { ...rerun, autoSelected: "AI chọn điểm chưa hợp lệ 2 lần nên hệ thống đã tự chọn điểm từ danh mục và hiện bản nháp. Nói ngắn với người dùng rằng đây là bản nháp tự chọn, họ có thể đổi điểm." };
+            }
+          }
+        }
         return failure(error);
       }
     },
   });
+  rerunPropose = (input, options) => proposeItinerary.execute!(input, options as Parameters<NonNullable<typeof proposeItinerary.execute>>[1]) as Promise<unknown>;
 
   let placeCalls = 0;
   const maxPlaceCalls = context.maxPlacesCalls ?? TRIPSAGE_CHAT_TURN_LIMITS.maxPlacesCalls;

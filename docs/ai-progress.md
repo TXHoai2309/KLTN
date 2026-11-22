@@ -6014,3 +6014,13 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - RED/GREEN regression tests; focused 134/134 PASS. Replaced stale reset test's reference to deleted assistant-chat.tsx with current Q&A controller lifecycle assertions. Latest full suite: 38 failed / 4576 passed / 237 skipped / 1 todo across six previously failing AI/context/planning files; chained legacy tests did not run. Details/names in the report.
 - Actual localhost browser: `hi`, `cao nguyên đá`, reset + `Đây là đâu?` remain on Cao nguyên đá Đồng Văn; explicit planning and Thác Bản Giốc questions return scope guidance. Fresh Cổng trời Quản Bạ page shows its own widget name/starters. Server restarted after interruption. No Trip/publication mutations; ordinary test chat turns persisted normally.
 - Final root typecheck PASS (4 tasks), build PASS (two existing filesystem tracing warnings), Impeccable detector `[]`. No lint script. Production, full live switch/late-response/main-planning transition and complete role/device/theme matrix remain NOT PROVEN. No commit/push/deploy. See `docs/implementation/destination-widget-context-routing-fix-2026-11-22.md`.
+
+## 2026-11-22 — Planning chat: always a draft, specific errors, operator tool trace
+
+- Conversation ab2ed607: no itinerary for two turns because the model's stop selection failed input checks (`INVALID_AI_PLAN`, before the Validator), and the error text was generic.
+- `INVALID_AI_PLAN` now names the problem (repeated stop and its days, unknown id, wrong day count, too many stops).
+- After two rejected selections in one turn the server picks stops with `selectPlannerDays` (same as form planning) and runs the normal Validator, so a draft always shows; the model is told it is a server-chosen draft.
+- A plan with a violation emits quick replies ("Giảm còn 3 điểm/ngày", "Đổi nhịp vừa phải", "Giữ bản nháp này").
+- Persona: say "ước tính" unless a lookup returned data; groups of 6+ are asked their Hà Giang transport when it is only assumed; no re-confirmation of stated facts; input errors are not called "bộ kiểm tra từ chối".
+- Tool trace: each assistant message stores a bounded `data-tool-trace` part (tool, input, output, error; memory tools redacted). The user read path drops it; admins read it at `/admin/assistant-traces` (paste a conversation link, "Sao chép JSON"). No migration.
+- Not verified in a browser; trace exists only for turns after deploy.

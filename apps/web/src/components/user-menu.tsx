@@ -169,6 +169,10 @@ export default function UserMenu() {
                 <Settings className="size-3.5 text-muted-foreground mr-2" />
                 <span>Cấu hình hệ thống</span>
               </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer rounded-lg px-2.5 py-2 text-xs font-medium" render={<Link href={"/admin/assistant-traces" as import("next").Route} />}>
+                <FileText className="size-3.5 text-muted-foreground mr-2" />
+                <span>Nhật ký trợ lý AI</span>
+              </DropdownMenuItem>
             </>
           )}
           <DropdownMenuSeparator className="my-1 border-border/40" />

@@ -269,6 +269,22 @@ describe("chat-only origin confirmation and default clocks route (ticket 01)", (
     expect(JSON.stringify(again.model.doStreamCalls[1]!.prompt)).toContain("alreadyConfirmed");
   });
 
+  it("names the exact selection problem and drafts a plan itself after two rejected picks", async () => {
+    const res = await chat(
+      "Lập lịch đi",
+      [
+        { tool: "proposeItinerary", input: { selection: { days: [["a", "a"]] } } },
+        { tool: "proposeItinerary", input: { selection: { days: [["zzz"]] } } },
+        { text: "Đây là bản nháp." },
+      ],
+      { journey: COMPLETE_JOURNEY_FIXTURE },
+    );
+    const prompt = JSON.stringify(res.model.doStreamCalls.at(-1)!.prompt);
+    expect(prompt).toContain("bị lặp ở ngày 1");
+    expect(prompt).toContain("autoSelected");
+    expect(parts(res.sse).some(p => p.type === "data-itinerary")).toBe(true);
+  });
+
   it("marks default clocks 07:00/18:00 in context and replans when the user asks to depart at 6:00", async () => {
     const res = await chat(
       "Đi lúc 6h sáng nhé",
