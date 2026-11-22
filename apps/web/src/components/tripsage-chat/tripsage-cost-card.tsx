@@ -8,7 +8,13 @@ export function TripsageCostCard({ cost }: { cost: CostPart }) {
   const hasBudgetCap = cost.budgetCap !== null && cost.budgetCap > 0;
   return (
     <section className="tripsage-cost" aria-label="Bảng chi phí ước tính">
-      <h4><Wallet size={15} aria-hidden="true" className="inline mr-1.5" />Chi phí ước tính · {cost.travelers} người · {cost.days} ngày</h4>
+      <header className="tripsage-cost-head">
+        <h4><Wallet size={15} aria-hidden="true" />Chi phí ước tính · {cost.travelers} người · {cost.days} ngày</h4>
+        <p className="tripsage-cost-total">
+          <strong>{formatVnd(cost.total)}</strong>
+          <span>cả nhóm · {formatVnd(cost.perPersonPerDay)}/người/ngày{hasBudgetCap ? ` · ${cost.withinCap ? "trong ngân sách" : `vượt ${formatVnd(cost.overBy ?? 0)}`}` : ""}</span>
+        </p>
+      </header>
       <div className="tripsage-md-table">
         <table className="tripsage-cost-table">
           <thead>
@@ -23,7 +29,7 @@ export function TripsageCostCard({ cost }: { cost: CostPart }) {
               <tr key={`${group.category}-${index}`}>
                 <td>
                   {index === 0 && <strong className="tripsage-cost-cat">{COST_CATEGORY_LABELS[group.category]}</strong>}
-                  <span>{line.label}</span>
+                  {(index > 0 || line.label !== COST_CATEGORY_LABELS[group.category]) &&<span>{line.label}</span>}
                   {line.computed && <span className="assistant-muted"> (hệ thống tính)</span>}
                 </td>
                 <td className="assistant-muted">{line.basis ?? ""}</td>

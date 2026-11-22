@@ -20,7 +20,7 @@ describe("external place presentation", () => {
   it("labels the place, marks the stay as an estimate, lists unchecked checks and shows no outside link or logo", async () => {
     const html = renderToStaticMarkup(createElement(TripsageItineraryView, { proposal: await proposal() }));
     expect(html).toContain("ngoài danh mục (chưa kiểm)");
-    expect(html).toContain("(ước tính)");
+    expect(html).toContain("ước tính"); // the stop list moved to the timeline; the notice still states the estimate
     expect(html).toContain("Google Maps");
     expect(html).toContain("Giờ mở cửa: chưa kiểm được");
     expect(html).toContain("Thời lượng tối thiểu: chưa kiểm được");

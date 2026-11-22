@@ -42,12 +42,22 @@ import { TripsageCostCard } from "./tripsage-cost-card";
 import { parseItineraryPart, TripsageItineraryView } from "./tripsage-itinerary-view";
 import { TripsageMarkdown } from "./tripsage-markdown";
 import { TripsageMemoryPanel } from "./tripsage-memory-panel";
-import { parsePlacesPart, TripsagePlacesView } from "./tripsage-places-view";
 import { readTripsageResultTurns, TripsageResultCards } from "./tripsage-result-cards";
 import { TripsageSaveSection } from "./tripsage-save-section";
 import { parseSourcesPart, TripsageSourcesView } from "./tripsage-sources-view";
 import { TripsageTimelineView } from "./tripsage-timeline-view";
-import { TripsageTripSummary } from "./tripsage-trip-summary";
+
+/**
+ * Lifts the answer's closing question out of the prose so it sits right above its quick-reply buttons.
+ * shortcut: relies on the model ending with the question on its own line; upgrade to a `question` field on suggestReplies if that drifts.
+ */
+export function splitTrailingQuestion(text: string): { body: string; question: string | null } {
+  const trimmed = text.trimEnd();
+  const cut = trimmed.lastIndexOf("\n");
+  const last = trimmed.slice(cut + 1).replace(/^[#>*_\s]+|[*_\s]+$/gu, "");
+  if (!/[?？]$/u.test(last) || last.length > 200) return { body: text, question: null };
+  return { body: cut < 0 ? "" : trimmed.slice(0, cut), question: last };
+}
 
 type StatusPart = { kind: "start" | "checking" | "writing"; label: string };
 
@@ -488,7 +498,6 @@ export function TripsageChatClient({
                   {messages.map(message => {
                     const text = message.parts.map(part => (part.type === "text" ? part.text : "")).join("");
                     const itinerary = message.role === "assistant" && message.id === lastItineraryMessageId ? latestItinerary : null;
-                    const suggestions = message.role === "assistant" ? message.parts.flatMap(part => (part.type === "data-places" ? parsePlacesPart(part.data) : [])) : [];
                     const sources = message.role === "assistant" ? [...message.parts].reverse().map(part => (part.type === "data-sources" ? parseSourcesPart(part.data) : null)).find(Boolean) ?? [] : [];
                     const resultParts = resultTurns.get(message.id)?.filter(part => part.type !== "data-budget" || message.id === latestBudgetMessageId) ?? [];
                     const candidateButtons = state.originCandidates?.messageId === message.id && !busy ? state.originCandidates.candidates.map(c => c.label) : [];
@@ -496,13 +505,16 @@ export function TripsageChatClient({
                     const replies = candidateButtons.length > 0 ? candidateButtons : quickReplies;
                     const cost = state.cost?.messageId === message.id ? state.cost.data : null;
                     const accessLeg = state.accessLeg?.messageId === message.id ? state.accessLeg.data : null;
-                    if (!text && !itinerary && !suggestions.length && !sources.length && !resultParts.length && !replies.length && !cost && !accessLeg) return null;
+                    const { body, question } = message.role === "assistant" && replies.length > 0 ? splitTrailingQuestion(text) : { body: text, question: null };
+                    if (!text && !itinerary && !sources.length && !resultParts.length && !replies.length && !cost && !accessLeg) return null;
                     return message.role === "user" ? (
                       <article key={message.id} className="assistant-message assistant-user"><p>{text}</p></article>
                     ) : (
                       <article key={message.id} className="assistant-message assistant-answer">
                         <span className="assistant-speaker"><Sparkles className="assistant-speaker-icon" aria-hidden="true" /><span>Trợ lý AI</span></span>
-                        {text && <TripsageMarkdown text={text} />}
+                        {body && <TripsageMarkdown text={body} />}
+                        {cost && <TripsageCostCard cost={cost} />}
+                        {accessLeg && <TripsageAccessLegCard leg={accessLeg} />}
                         {itinerary && state.timeline && (
                           <TripsageTimelineView
                             timeline={state.timeline}
@@ -512,14 +524,14 @@ export function TripsageChatClient({
                           />
                         )}
                         {itinerary && <TripsageItineraryView proposal={itinerary}>{!busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} tripInfo={state.tripInfo} chosenLodgings={chosenLodgings} onStateChange={setSaveState} />)}</TripsageItineraryView>}
-                        {accessLeg && <TripsageAccessLegCard leg={accessLeg} />}
-                        {cost && <TripsageCostCard cost={cost} />}
-                        <TripsagePlacesView places={suggestions} />
                         <TripsageSourcesView sources={sources} />
                         <TripsageResultCards parts={resultParts} />
                         {replies.length > 0 && (
-                          <div className="tripsage-quick-replies" role="group" aria-label="Gợi ý trả lời nhanh">
-                            {replies.map(reply => <button key={reply} type="button" onClick={() => send(reply)} disabled={locked}>{reply}</button>)}
+                          <div className="tripsage-next-step">
+                            {question && <p className="tripsage-next-question">{question}</p>}
+                            <div className="tripsage-quick-replies" role="group" aria-label={question ?? "Gợi ý trả lời nhanh"}>
+                              {replies.map(reply => <button key={reply} type="button" onClick={() => send(reply)} disabled={locked}>{reply}</button>)}
+                            </div>
                           </div>
                         )}
                       </article>
@@ -535,7 +547,6 @@ export function TripsageChatClient({
         {!legacyReadOnly && (
           <div className="assistant-bottom-dock"><div className="assistant-bottom-dock-inner">
             <TripsageChatNotice notice={notice} onResend={saveLocked ? undefined : () => void regenerate()} />
-            <TripsageTripSummary tripInfo={state.tripInfo} journey={state.journey} />
             <form noValidate className="assistant-composer" onSubmit={submit}>
               <label htmlFor="tripsage-chat-input" className="assistant-sr-only">Tin nhắn cho trợ lý</label>
               <div

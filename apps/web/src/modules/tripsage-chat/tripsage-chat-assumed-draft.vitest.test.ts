@@ -11,7 +11,6 @@ import { planningCandidate } from "../../test/planning-fixtures";
 import { saveTripResponse } from "../trip-save/trip-save-http";
 import type { TripSaveDependencies } from "../trip-save/trip-save-service";
 import { TripsageSaveSection } from "../../components/tripsage-chat/tripsage-save-section";
-import { TripsageTripSummary } from "../../components/tripsage-chat/tripsage-trip-summary";
 import { journeyPartSchema, tripInfoPartSchema, type TripsageTripInfo } from "./tripsage-chat-context";
 import { tripsageChatResponse } from "./tripsage-chat-http";
 import { chatSavePlan } from "./tripsage-chat-save";
@@ -249,7 +248,7 @@ describe("Ticket 04: Assumed draft first, then ask (ADR-44)", () => {
     expect(db.trips).toEqual([{ userId: "owner" }]);
   });
 
-  it("renders assumed markers in TripsageTripSummary and blocks Save in TripsageSaveSection until confirmed", async () => {
+  it("blocks Save in TripsageSaveSection until confirmed", async () => {
     const draftTurn = await chat({
       text: "Lập lịch Hà Giang",
       steps: [
@@ -258,24 +257,11 @@ describe("Ticket 04: Assumed draft first, then ask (ADR-44)", () => {
       ],
     });
     const draftInfo = tripInfoPartSchema.parse(draftTurn.all.find(p => p.type === "data-trip-info")!.data).tripInfo;
-    const draftJourney = journeyPartSchema.parse(draftTurn.all.find(p => p.type === "data-journey")!.data).journey;
     const draftItinerary = plannerResultSchema.parse(draftTurn.all.find(p => p.type === "data-itinerary")!.data);
-
-    const summaryHtml = renderToStaticMarkup(createElement(TripsageTripSummary, { tripInfo: draftInfo, journey: draftJourney }));
-    expect(summaryHtml).toContain('data-assumed="true"');
-    expect(summaryHtml).toContain("Xe máy (giả định)");
-    expect(summaryHtml).toContain("4 ngày (giả định)");
-    expect(summaryHtml).toContain("Xuất phát: Hà Nội (bến xe Mỹ Đình) (giả định)");
 
     const blockedSaveHtml = renderToStaticMarkup(createElement(TripsageSaveSection, { result: draftItinerary, tripInfo: draftInfo }));
     expect(blockedSaveHtml).toContain("disabled");
     expect(blockedSaveHtml).toContain("nơi xuất phát và ngày khởi hành");
-
-    const confirmedSummaryHtml = renderToStaticMarkup(createElement(TripsageTripSummary, {
-      tripInfo: { ...draftInfo, assumedFields: undefined },
-      journey: draftJourney,
-    }));
-    expect(confirmedSummaryHtml).not.toContain("(giả định)");
 
     const unblockedSaveHtml = renderToStaticMarkup(createElement(TripsageSaveSection, {
       result: draftItinerary,

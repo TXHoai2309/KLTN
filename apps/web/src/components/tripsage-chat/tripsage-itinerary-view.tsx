@@ -1,9 +1,9 @@
 "use client";
 
+import { Map as MapIcon } from "lucide-react";
 import { lazy, Suspense, useState, type ReactNode } from "react";
 import { EXTERNAL_PLACE_LABEL, EXTERNAL_PLACE_SOURCE_LABEL, EXTERNAL_STAY_ESTIMATE_LABEL, plannerResultSchema, type PlannerResult } from "@/modules/trip-planner/planner-contract";
-import { formatTravelOnlyDayLabel } from "@/modules/tripsage-chat/tripsage-timeline";
-import { ItineraryDayTabs, ItineraryStopCard, ItineraryValidationPanel, TripOverviewCard, TripSummaryBar, ValidationSheet, WarningNoticeRow } from "@/components/trip-planner/planner-presentation";
+import { ItineraryValidationPanel, ValidationSheet, WarningNoticeRow } from "@/components/trip-planner/planner-presentation";
 import "@/components/trip-planner/trip-planner.css";
 
 const ItineraryMap = lazy(() => import("@/components/trip-planner/itinerary-map").then(m => ({ default: m.ItineraryMap })));
@@ -37,38 +37,24 @@ function ExternalPlacesNotice({ proposal }: { proposal: PlannerResult }) {
   );
 }
 
-/** Existing KLTN presentation components render the validated result; `children` is the optional Save section. */
+/**
+ * Checks, map and Save for the validated result. The day-by-day schedule itself is the timeline above it,
+ * so this view no longer repeats the title, day tabs or stop list. `children` is the optional Save section.
+ */
 export function TripsageItineraryView({ proposal, children }: { proposal: PlannerResult; children?: ReactNode }) {
-  const [selectedDay, setSelectedDay] = useState(proposal.days[0]?.day ?? 1);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mapOpen, setMapOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
-  const day = proposal.days.find(d => d.day === selectedDay) ?? proposal.days[0];
+  const day = proposal.days[0];
   if (!day) return null;
   return (
-    <div className="planner-page" lang="vi" data-proposal-id={proposal.proposalId}>
-      <TripSummaryBar requirement={proposal.requirement} days={proposal.days} embedded />
+    <div className="planner-page tripsage-itinerary-actions" lang="vi" data-proposal-id={proposal.proposalId}>
       <WarningNoticeRow proposal={proposal} />
-      <p role="note" className="assistant-muted">Mục khác “Đáp ứng” nghĩa là chưa được xác nhận.</p>
-      <div className="planner-day-tabs-wrapper"><ItineraryDayTabs days={proposal.days} selectedDay={day.day} onChange={setSelectedDay} /></div>
-      <TripOverviewCard day={day} journeyPlan={proposal.journeyPlan} />
-      {day.stops.length ? (
-        <ol className="planner-timeline">
-          {day.stops.map((stop, index) => (
-            <ItineraryStopCard key={stop.destination.id} stop={stop} nextStop={day.stops[index + 1]} selected={stop.destination.id === selectedId} onSelect={setSelectedId} />
-          ))}
-        </ol>
-      ) : (
-        <p className="tripsage-travel-only-day">{formatTravelOnlyDayLabel(day, proposal.journeyPlan) ?? "Chưa có điểm phù hợp cho ngày này."}</p>
-      )}
+      <ItineraryValidationPanel checks={proposal.checks} onOpenSheet={() => setSheetOpen(true)} />
+      {sheetOpen && <ValidationSheet isOpen={sheetOpen} onClose={() => setSheetOpen(false)} checks={proposal.checks} warnings={proposal.warnings} />}
       <div className="tripsage-map-collapse">
-        <button
-          type="button"
-          className="tripsage-map-toggle"
-          aria-expanded={mapOpen}
-          onClick={() => setMapOpen(open => !open)}
-        >
-          <span aria-hidden="true">🗺️</span>{" "}
+        <button type="button" className="tripsage-map-toggle" aria-expanded={mapOpen} onClick={() => setMapOpen(open => !open)}>
+          <MapIcon size={15} aria-hidden="true" />
           {mapOpen ? "Ẩn bản đồ lộ trình" : "Xem bản đồ lộ trình"}
         </button>
         {mapOpen && (
@@ -79,8 +65,6 @@ export function TripsageItineraryView({ proposal, children }: { proposal: Planne
           </div>
         )}
       </div>
-      <ItineraryValidationPanel checks={proposal.checks} onOpenSheet={() => setSheetOpen(true)} />
-      {sheetOpen && <ValidationSheet isOpen={sheetOpen} onClose={() => setSheetOpen(false)} checks={proposal.checks} warnings={proposal.warnings} />}
       <ExternalPlacesNotice proposal={proposal} />
       {children}
     </div>

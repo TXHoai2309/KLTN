@@ -165,8 +165,7 @@ describe("Ticket 06: timeline and long day-1 hubHint fixes", () => {
     expect(timeline.days[0]!.items.some(item => item.label.includes("Ngày di chuyển") && item.label.includes("446 km"))).toBe(true);
 
     const itineraryHtml = renderToStaticMarkup(createElement(TripsageItineraryView, { proposal }));
-    expect(itineraryHtml).toContain("Ngày di chuyển");
-    expect(itineraryHtml).toContain("446 km");
+    // The day detail now lives only in the timeline above; the itinerary card must not show the empty-day fallback.
     expect(itineraryHtml).not.toContain("Chưa có điểm phù hợp");
   });
 

@@ -10,7 +10,6 @@ import {
   type PlacePreviewTarget,
 } from "@/lib/place-preview-url";
 import { TripsageMarkdown } from "@/components/tripsage-chat/tripsage-markdown";
-import { TripsagePlacesView } from "@/components/tripsage-chat/tripsage-places-view";
 import { TripsageTimelineView } from "@/components/tripsage-chat/tripsage-timeline-view";
 import type { TimelinePart, TimelineSuggestion } from "@/modules/tripsage-chat/tripsage-timeline";
 import {
@@ -74,12 +73,6 @@ describe("Ticket 09: Place preview modal, buttons, URLs and accessibility", () =
     const previewButtons = timelineHtml.match(/class="tripsage-preview-btn"/g) ?? [];
     expect(previewButtons).toHaveLength(2);
 
-    const placesHtml = renderToStaticMarkup(
-      createElement(TripsagePlacesView, {
-        places: [{ placeId: "ChIJ_meal_99", name: "Quán Phở Tráng Kìm", status: "UNCHECKED" }],
-      }),
-    );
-    expect(placesHtml).toContain('aria-label="Xem nhanh Quán Phở Tráng Kìm"');
 
     // Never renders preview buttons for place names written only in assistant prose
     const proseHtml = renderToStaticMarkup(createElement(TripsageMarkdown, { text: "Bạn có thể ghé **Cổng Trời Quản Bạ** hoặc **Homestay A**." }));

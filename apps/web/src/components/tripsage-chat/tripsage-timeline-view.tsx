@@ -24,6 +24,9 @@ const SUGGESTION_ICON: Record<TimelineSuggestion["kind"], ReactNode> = {
 };
 const SUGGESTION_LABEL: Record<TimelineSuggestion["kind"], string> = { MEAL: "Ăn uống", EVENING: "Buổi tối", LODGING: "Chỗ nghỉ", TIP: "Mẹo" };
 
+/** Older answers wrote only the source label into `detail`; the footnote already states it once. */
+const SOURCE_ONLY_DETAIL = /^\s*(gợi ý\s+)?ngoài danh mục[\s,.;·-]*(chưa (được )?kiểm tra)?[\s.]*$/iu;
+
 const time = (item: TimelineItem) => item.startMinute === null && item.endMinute === null ? "" : item.endMinute === null || item.kind === "DEPART" ? clockLabel(item.startMinute) : item.startMinute === null ? `→ ${clockLabel(item.endMinute)}` : `${clockLabel(item.startMinute)}–${clockLabel(item.endMinute)}`;
 
 const norm = (value: string) => value.normalize("NFC").toLocaleLowerCase("vi").replace(/\s+/gu, " ").trim();
@@ -209,7 +212,7 @@ export function TripsageTimelineView({
                             {formatSuggestionPlaceMeta(suggestion.title, suggestion.place)}
                           </span>
                         )}
-                        {suggestion.detail && <span className="tripsage-suggestion-detail"> — {suggestion.detail}</span>}
+                        {suggestion.detail && !SOURCE_ONLY_DETAIL.test(suggestion.detail) && <span className="tripsage-suggestion-detail"> — {suggestion.detail}</span>}
                         {sPreview && (
                           <button
                             type="button"
@@ -253,7 +256,7 @@ export function TripsageTimelineView({
       </div>
       {suggestions.length > 0 && (
         <p className="assistant-muted tripsage-timeline-footnote">
-          Gợi ý ăn uống, chỗ nghỉ, vui chơi là gợi ý chưa kiểm tra (nguồn Google Maps hoặc tài liệu địa phương); giá chỉ là ước tính, ứng dụng không đặt chỗ. Giờ giấc do hệ thống lập lịch và kiểm tra.
+          Chỗ nghỉ, ăn uống và vui chơi là gợi ý từ Google Maps, ứng dụng chưa kiểm tra và không đặt chỗ. Giờ giấc do hệ thống lập lịch và kiểm tra.
         </p>
       )}
       <PlacePreviewModal
