@@ -6032,3 +6032,9 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Persona: say "ước tính" unless a lookup returned data; groups of 6+ are asked their Hà Giang transport when it is only assumed; no re-confirmation of stated facts; input errors are not called "bộ kiểm tra từ chối".
 - Tool trace: each assistant message stores a bounded `data-tool-trace` part (tool, input, output, error; memory tools redacted). The user read path drops it; admins read it at `/admin/assistant-traces` (paste a conversation link, "Sao chép JSON"). No migration.
 - Not verified in a browser; trace exists only for turns after deploy.
+
+## 2026-11-22 — Travel days as tabs in the chat timeline
+
+- Conversation 07c31cd7 (trace confirmed `planAccessLeg` ran): the access leg showed as a separate card, not in the day list. The timeline now has "Ngày đi" (day before day 1) and "Ngày về" (day after the last day) tabs with the outbound/return segments and the group total; the standalone card shows only when a message has no itinerary.
+- Persona: when travel to the hub takes its own day, the Hà Giang `startDate` is the day after it and the day count covers Hà Giang only; the assistant sets it itself instead of asking.
+- Not verified in a browser.

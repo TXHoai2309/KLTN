@@ -607,8 +607,7 @@ export function TripsageChatClient({
                           <details className="tripsage-plan-details" open={!(itinerary && planUnchanged)}>
                             <summary>Lịch trình và chi phí ước tính</summary>
                             {cost && <TripsageCostCard cost={cost} pins={pinControl} />}
-                            {accessLeg && <TripsageAccessLegCard leg={accessLeg} />}
-                            {itinerary && !accessLeg && state.accessLeg && <TripsageAccessLegCard leg={state.accessLeg.data} only="outbound" />}
+                            {accessLeg && !itinerary && <TripsageAccessLegCard leg={accessLeg} />}
                             {itinerary && state.timeline && (
                               <TripsageTimelineView
                                 timeline={state.timeline}
@@ -617,9 +616,9 @@ export function TripsageChatClient({
                                 onToggleChosenLodging={handleToggleChosenLodging}
                                 onRequestMeals={day => send(`Tìm giúp mình quán ăn trưa cho ngày ${day}.`)}
                                 pins={pinControl}
+                                accessLeg={state.accessLeg?.data ?? null}
                               />
                             )}
-                            {itinerary && !accessLeg && state.accessLeg && <TripsageAccessLegCard leg={state.accessLeg.data} only="return" />}
                             {itinerary && <TripsageItineraryView proposal={itinerary}>{!busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} tripInfo={state.tripInfo} chosenLodgings={chosenLodgings} suggestions={state.suggestions} pinnedItems={state.accessLeg ? [{ kind: "ACCESS" as const, leg: state.accessLeg.data }, ...pinned] : pinned} onSaved={setSavedTripId} onStateChange={setSaveState} />)}</TripsageItineraryView>}
                           </details>
                         )}

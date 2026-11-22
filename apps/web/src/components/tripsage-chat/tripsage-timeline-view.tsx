@@ -6,6 +6,18 @@ import { useState, type KeyboardEvent, type ReactNode } from "react";
 import { PlacePreviewModal } from "@/components/place-preview/place-preview-modal";
 import { mealPin } from "@/modules/trip-save/trip-pin-builders";
 import { PinButton, type PinControl } from "./tripsage-pin-button";
+import { TripsageAccessLegCard } from "./tripsage-access-leg-card";
+import type { AccessLegPart } from "@/modules/tripsage-chat/tripsage-access-leg";
+
+// Travel days to and from the meeting hub sit as their own tabs around the Hà Giang days.
+const OUTBOUND_TAB = 0, RETURN_TAB = -1;
+const shiftDate = (iso: string | null | undefined, days: number) => {
+  if (!iso) return null;
+  const date = new Date(`${iso}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+};
+const shortDate = (iso: string) => iso.split("-").reverse().slice(0, 2).join("/");
 import { canPreviewPlace, type PlacePreviewTarget } from "@/lib/place-preview-url";
 import {
   clockLabel,
@@ -112,6 +124,7 @@ export function TripsageTimelineView({
   onToggleChosenLodging,
   onRequestMeals,
   pins,
+  accessLeg,
 }: {
   timeline: TimelinePart;
   suggestions: readonly TimelineSuggestion[];
@@ -122,6 +135,8 @@ export function TripsageTimelineView({
   onRequestMeals?: (day: number) => void;
   /** ADR-47: when set, each meal suggestion offers "Ghim vào chuyến đi". */
   pins?: PinControl;
+  /** The way from home to the meeting hub and back, shown as "Ngày đi" / "Ngày về" tabs. */
+  accessLeg?: AccessLegPart | null;
 }) {
   const [selectedDay, setSelectedDay] = useState(initialDay ?? timeline.days[0]?.day ?? 1);
   const [preview, setPreview] = useState<{
@@ -129,48 +144,68 @@ export function TripsageTimelineView({
     trigger: HTMLElement | null;
     lodgingChoice?: { nightIndex: number; placeId: string; placeName: string };
   } | null>(null);
+  const firstDate = timeline.days[0]?.date ?? null, lastDate = timeline.days.at(-1)?.date ?? null;
+  const tabs = [
+    ...(accessLeg ? [{ key: OUTBOUND_TAB, label: "Ngày đi", date: shiftDate(firstDate, -1) }] : []),
+    ...timeline.days.map(day => ({ key: day.day, label: `Ngày ${day.day}`, date: day.date ?? null })),
+    ...(accessLeg ? [{ key: RETURN_TAB, label: "Ngày về", date: shiftDate(lastDate, 1) }] : []),
+  ];
+  const travelTab = accessLeg && (selectedDay === OUTBOUND_TAB || selectedDay === RETURN_TAB) ? selectedDay : null;
   const activeDay = timeline.days.find(day => day.day === selectedDay) ?? timeline.days[0];
   if (!activeDay) return null;
+  const activeKey = travelTab ?? activeDay.day;
 
   const bySlot = new Map<string, TimelineSuggestion[]>();
   for (const suggestion of suggestions) bySlot.set(suggestion.slotId, [...(bySlot.get(suggestion.slotId) ?? []), suggestion]);
 
   function onTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
     let next = index;
-    if (event.key === "ArrowRight") next = (index + 1) % timeline.days.length;
-    else if (event.key === "ArrowLeft") next = (index + timeline.days.length - 1) % timeline.days.length;
+    if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
+    else if (event.key === "ArrowLeft") next = (index + tabs.length - 1) % tabs.length;
     else if (event.key === "Home") next = 0;
-    else if (event.key === "End") next = timeline.days.length - 1;
+    else if (event.key === "End") next = tabs.length - 1;
     else return;
     event.preventDefault();
-    setSelectedDay(timeline.days[next]!.day);
+    setSelectedDay(tabs[next]!.key);
     (event.currentTarget.parentElement?.children[next] as HTMLButtonElement | undefined)?.focus();
   }
 
   return (
     <section className="tripsage-timeline" aria-label="Timeline từng ngày">
       <div className="tripsage-day-tabs" role="tablist" aria-label="Chọn ngày trong lịch trình">
-        {timeline.days.map((day, index) => {
-          const active = day.day === activeDay.day;
+        {tabs.map((tab, index) => {
+          const active = tab.key === activeKey;
           return (
             <button
-              key={day.day}
-              id={`tripsage-day-tab-${day.day}`}
+              key={tab.key}
+              id={`tripsage-day-tab-${tab.key}`}
               type="button"
               role="tab"
               aria-selected={active}
-              aria-controls={`tripsage-day-panel-${day.day}`}
+              aria-controls={`tripsage-day-panel-${tab.key}`}
               tabIndex={active ? 0 : -1}
               className={`tripsage-day-tab${active ? " is-active" : ""}`}
-              onClick={() => setSelectedDay(day.day)}
+              onClick={() => setSelectedDay(tab.key)}
               onKeyDown={event => onTabKeyDown(event, index)}
             >
-              <span>Ngày {day.day}</span>
-              {day.date && <small>{day.date.split("-").reverse().slice(0, 2).join("/")}</small>}
+              <span>{tab.label}</span>
+              {tab.date && <small>{shortDate(tab.date)}</small>}
             </button>
           );
         })}
       </div>
+
+      {travelTab !== null && accessLeg && (
+        <div id={`tripsage-day-panel-${travelTab}`} role="tabpanel" aria-labelledby={`tripsage-day-tab-${travelTab}`} className="tripsage-timeline-day">
+          <h4 className="tripsage-timeline-heading">
+            {travelTab === OUTBOUND_TAB ? `Ngày đi · ${accessLeg.homeCity} → ${accessLeg.hubName}` : `Ngày về · ${accessLeg.hubName} → ${accessLeg.homeCity}`}
+            {tabs.find(tab => tab.key === travelTab)?.date ? ` · ${tabs.find(tab => tab.key === travelTab)!.date!.split("-").reverse().join("/")}` : ""}
+          </h4>
+          <TripsageAccessLegCard leg={accessLeg} only={travelTab === OUTBOUND_TAB ? "outbound" : "return"} />
+          <p className="assistant-muted text-xs">Tổng tham khảo cả nhóm {accessLeg.travelers} người (đi và về): {accessLeg.totalVnd > 0 ? `${accessLeg.totalVnd.toLocaleString("vi-VN")}đ` : "chưa có giá"}. Ước tính, ứng dụng không đặt vé.</p>
+        </div>
+      )}
+      {travelTab === null && (
 
       <div
         id={`tripsage-day-panel-${activeDay.day}`}
@@ -298,6 +333,7 @@ export function TripsageTimelineView({
           })}
         </ol>
       </div>
+      )}
       {suggestions.length > 0 && (
         <p className="assistant-muted tripsage-timeline-footnote">
           Chỗ nghỉ, ăn uống và vui chơi là gợi ý từ Google Maps, ứng dụng chưa kiểm tra và không đặt chỗ. Giờ giấc do hệ thống lập lịch và kiểm tra.

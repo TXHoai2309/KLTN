@@ -106,4 +106,16 @@ describe("Ticket 07: compact UI, day tabs, deduplicated lodging, budget row, val
     expect(plainText).toContain("Kiểm tra lịch trình 4 đạt");
     expect(plainText).toContain("Xem chi tiết");
   });
+  it("shows the way to the meeting hub as 'Ngày đi' and 'Ngày về' tabs around the Hà Giang days", () => {
+    const accessLeg = { hubName: "Hà Nội (bến xe Mỹ Đình)", homeCity: "Đà Nẵng", travelers: 10, outboundMinutes: 80, returnMinutes: 80, totalVnd: 46_567_240,
+      outbound: [{ mode: "FLIGHT" as const, from: "Đà Nẵng (DAD)", to: "Hà Nội (HAN)", durationMinutes: 80, priceVndPerPerson: 2_328_362 }],
+      return: [{ mode: "FLIGHT" as const, from: "Hà Nội (HAN)", to: "Đà Nẵng (DAD)", durationMinutes: 80, priceVndPerPerson: 2_328_362 }] };
+    const tabs = renderToStaticMarkup(createElement(TripsageTimelineView, { timeline: TWO_DAY_TIMELINE, suggestions: [], accessLeg })).replaceAll(" ", " ");
+    expect(tabs).toMatch(/Ngày đi<\/span><small>30\/11/u);
+    expect(tabs).toMatch(/Ngày về<\/span><small>03\/12/u);
+    const outbound = renderToStaticMarkup(createElement(TripsageTimelineView, { timeline: TWO_DAY_TIMELINE, suggestions: [], accessLeg, initialDay: 0 }));
+    expect(outbound).toContain("Ngày đi · Đà Nẵng → Hà Nội (bến xe Mỹ Đình) · 30/11/2026");
+    expect(outbound).toContain("Máy bay");
+    expect(renderToStaticMarkup(createElement(TripsageTimelineView, { timeline: TWO_DAY_TIMELINE, suggestions: [] }))).not.toContain("Ngày đi");
+  });
 });
