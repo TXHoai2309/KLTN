@@ -1,0 +1,544 @@
+/* Shared DayTimeline styles — docs/design/traveler-ui-system.md §3.3 */
+
+.dt-day {
+  scroll-margin-top: 64px;
+  font-family: var(--tv-font-ui);
+  color: var(--tv-ink);
+  transition: opacity var(--tv-motion-fast);
+}
+
+.dt-day--dimmed {
+  opacity: 0.35;
+}
+
+.dt-day-heading {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  gap: var(--tv-space-4);
+  align-items: center;
+  margin-bottom: var(--tv-space-4);
+}
+
+.dt-timeline-node {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 10px;
+  height: 10px;
+  margin: 0 auto;
+  border: 2px solid var(--tv-ground);
+  border-radius: var(--tv-radius-pill);
+  background: var(--tv-day-color, var(--tv-accent));
+  box-shadow: none;
+}
+
+.dt-day-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--tv-space-3);
+  min-width: 0;
+}
+
+/* Slim C16: explicit day-color background and high-contrast ink (never white-on-white) */
+.dt-day-number-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--tv-radius-control);
+  background: var(--tv-day-color, var(--tv-accent));
+  color: var(--tv-on-accent);
+  font-size: var(--tv-text-xs);
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.dt-day-title-inner {
+  min-width: 0;
+}
+
+.dt-day-title-inner h2 {
+  margin: 0;
+  font-family: var(--tv-font-title);
+  color: var(--tv-ink);
+  font-size: var(--tv-text-xl);
+  font-weight: 600;
+  line-height: var(--tv-leading-xl);
+}
+
+.dt-day-title-inner p {
+  margin: 2px 0 0;
+  color: var(--tv-ink-2);
+  font-size: var(--tv-text-sm);
+}
+
+/* Vertical rail line (2px day color at 40% opacity — design §3.3) */
+.dt-day-heading::after,
+.dt-visits > li:not(:last-child)::after {
+  position: absolute;
+  top: 22px;
+  bottom: -20px;
+  left: 11px;
+  width: 2px;
+  background: color-mix(in srgb, var(--tv-day-color, var(--tv-accent)) 40%, transparent);
+  content: "";
+}
+
+.dt-day-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tv-space-3);
+  align-items: center;
+  border-radius: var(--tv-radius-control);
+  background: var(--tv-sunken);
+  padding: 6px var(--tv-space-3);
+  color: var(--tv-ink-2);
+}
+
+.dt-day-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--tv-text-sm);
+  font-weight: 500;
+}
+
+.dt-day-meta span + span {
+  border-left: 1px solid var(--tv-line);
+  padding-left: var(--tv-space-3);
+}
+
+.dt-day-empty {
+  margin: var(--tv-space-3) 0 0 40px;
+  padding: var(--tv-space-4);
+  border-radius: var(--tv-radius-card);
+  background: var(--tv-sunken);
+  color: var(--tv-ink-2);
+  font-size: var(--tv-text-md);
+}
+
+.dt-day-empty p {
+  margin: 0;
+}
+
+.dt-visits {
+  display: grid;
+  gap: var(--tv-space-3);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.dt-visit-item,
+.dt-break-item {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 24px 64px minmax(0, 1fr);
+  gap: var(--tv-space-4);
+  align-items: center;
+}
+
+.dt-visit-item {
+  cursor: pointer;
+}
+
+.dt-visits > li:not(:last-child)::after {
+  top: 24px;
+  bottom: -16px;
+}
+
+.dt-visit-time {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+}
+
+.dt-visit-time strong {
+  color: var(--tv-ink);
+  font-size: var(--tv-text-sm);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.dt-visit-time span {
+  color: var(--tv-ink-3);
+  font-size: var(--tv-text-xs);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Stop card: flat surface, 12px radius, 12px padding, no border, no shadow */
+.dt-visit-card {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 168px minmax(0, 1fr);
+  gap: var(--tv-space-4);
+  align-items: start;
+  padding: var(--tv-space-3);
+  border: 0;
+  border-radius: var(--tv-radius-card);
+  background: var(--tv-surface);
+  color: var(--tv-ink);
+  box-shadow: none;
+}
+
+.dt-visit-card.is-active-selection {
+  outline: 2px solid var(--tv-accent);
+  outline-offset: -2px;
+}
+
+.dt-visit-media {
+  position: relative;
+  width: 168px;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--tv-radius-control);
+  overflow: hidden;
+  background: var(--tv-media-bg);
+  flex-shrink: 0;
+}
+
+.dt-visit-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.dt-visit-photo-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 50%, var(--tv-media-scrim) 100%);
+  pointer-events: none;
+}
+
+.dt-visit-seq-tag {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  z-index: 2;
+  font-size: var(--tv-text-xs);
+  font-weight: 500;
+  color: var(--tv-on-media);
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: var(--tv-media-scrim);
+}
+
+.dt-visit-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.dt-visit-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tv-space-2);
+}
+
+.dt-order-label {
+  color: var(--tv-ink-3);
+  font-size: var(--tv-text-xs);
+  font-weight: 500;
+}
+
+.dt-pref-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--tv-radius-pill);
+  background: var(--tv-accent-tint);
+  color: var(--tv-accent);
+  font-size: var(--tv-text-xs);
+  font-weight: 500;
+}
+
+.dt-destination-title {
+  margin: 0;
+  font-family: var(--tv-font-title);
+  font-size: var(--tv-text-xl);
+  font-weight: 600;
+  line-height: var(--tv-leading-xl);
+  color: var(--tv-ink);
+}
+
+.dt-destination-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: inherit;
+  text-decoration: none;
+  transition: color var(--tv-motion-fast);
+}
+
+.dt-destination-link:hover {
+  color: var(--tv-accent);
+}
+
+.dt-chevron {
+  opacity: 0;
+  transition: opacity var(--tv-motion-fast);
+}
+
+.dt-destination-link:hover .dt-chevron {
+  opacity: 1;
+}
+
+.dt-visit-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px var(--tv-space-4);
+}
+
+.dt-visit-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--tv-ink-2);
+  font-size: var(--tv-text-sm);
+  line-height: var(--tv-leading-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.dt-visit-meta-item svg {
+  color: var(--tv-ink-3);
+  flex-shrink: 0;
+}
+
+.dt-visit-desc {
+  margin: 0;
+  color: var(--tv-ink-2);
+  font-size: var(--tv-text-sm);
+  line-height: var(--tv-leading-sm);
+}
+
+.dt-unavailable {
+  margin: 2px 0 0;
+  color: var(--tv-danger);
+  font-size: var(--tv-text-xs);
+  font-weight: 500;
+}
+
+/* Break / Lunch lines */
+.dt-lunch-wrap {
+  display: grid;
+  gap: var(--tv-space-2);
+  min-width: 0;
+}
+
+.dt-break-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: var(--tv-text-sm);
+  color: var(--tv-ink-2);
+}
+
+.dt-break-line strong {
+  color: var(--tv-ink);
+  font-weight: 500;
+}
+
+.dt-lunch-req {
+  margin-left: var(--tv-space-2);
+}
+
+/* Sunken suggestions & Evening plan boxes (design §3.3) */
+.dt-sunken-box {
+  display: grid;
+  gap: var(--tv-space-2);
+  margin-top: var(--tv-space-2);
+  padding: 8px 10px;
+  border-radius: var(--tv-radius-control);
+  background: var(--tv-sunken);
+  color: var(--tv-ink);
+  font-size: var(--tv-text-sm);
+  line-height: var(--tv-leading-sm);
+}
+
+.dt-sunken-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tv-space-2);
+  font-weight: 500;
+}
+
+.dt-evening-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--tv-ink);
+  font-weight: 500;
+}
+
+.dt-sunken-note {
+  color: var(--tv-ink-3);
+  font-size: var(--tv-text-xs);
+  font-weight: 400;
+}
+
+.dt-sunken-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dt-sunken-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--tv-space-2);
+}
+
+.dt-sunken-item-name {
+  color: var(--tv-ink);
+  font-weight: 400;
+}
+
+.dt-sunken-dist {
+  color: var(--tv-ink-2);
+  font-size: var(--tv-text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.dt-sunken-empty {
+  margin: 0;
+  color: var(--tv-ink-2);
+  font-size: var(--tv-text-sm);
+}
+
+.dt-evening-lodging {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--tv-text-sm);
+}
+
+.dt-evening-lodging strong {
+  font-weight: 500;
+}
+
+.dt-evening-lodging-list {
+  display: grid;
+  gap: 4px;
+}
+
+/* Compact variant (design §3.3: 64px square photo, 15px UI font 600; below 480px photo 16:9 on top) */
+.dt-day--compact .dt-day-heading {
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: var(--tv-space-3);
+}
+
+.dt-day--compact .dt-day-meta {
+  grid-column: 2;
+  width: fit-content;
+}
+
+.dt-day--compact .dt-visit-item,
+.dt-day--compact .dt-break-item {
+  grid-template-columns: 20px 52px minmax(0, 1fr);
+  gap: var(--tv-space-2);
+}
+
+.dt-day--compact .dt-day-heading::after,
+.dt-day--compact .dt-visits > li:not(:last-child)::after {
+  left: 9px;
+}
+
+.dt-day--compact .dt-visit-card {
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: var(--tv-space-3);
+}
+
+.dt-day--compact .dt-visit-media {
+  width: 64px;
+  height: 64px;
+  aspect-ratio: 1 / 1;
+}
+
+.dt-day--compact .dt-destination-title {
+  font-family: var(--tv-font-ui);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+/* Slim C16: ensure inline access-leg icons stay on the same line on all traveler pages */
+.tripsage-access-segments li svg {
+  display: inline-block;
+  vertical-align: -2px;
+  margin-right: 4px;
+}
+
+@media (max-width: 768px) {
+  .dt-day-heading {
+    grid-template-columns: 20px minmax(0, 1fr);
+    gap: var(--tv-space-3);
+  }
+
+  .dt-day-heading::after,
+  .dt-visits > li:not(:last-child)::after {
+    left: 9px;
+  }
+
+  .dt-day-meta {
+    grid-column: 2;
+    width: fit-content;
+  }
+
+  .dt-visit-item,
+  .dt-break-item {
+    grid-template-columns: 20px minmax(0, 1fr);
+    gap: var(--tv-space-3);
+  }
+
+  .dt-visit-time {
+    grid-column: 2;
+    flex-direction: row;
+    align-items: baseline;
+    gap: var(--tv-space-2);
+  }
+
+  .dt-visit-card {
+    grid-column: 2;
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--tv-space-3);
+  }
+
+  .dt-visit-media {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+  }
+}
+
+@media (max-width: 480px) {
+  .dt-day--compact .dt-visit-item,
+  .dt-day--compact .dt-break-item {
+    grid-template-columns: 16px minmax(0, 1fr);
+  }
+
+  .dt-day--compact .dt-visit-card {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dt-day--compact .dt-visit-media {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+  }
+}

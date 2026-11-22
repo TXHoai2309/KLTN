@@ -23,7 +23,7 @@
 | [03 — Luồng AI bớt 2 lượt (không hỏi quận, không hỏi lại ngày)](issues/03-ai-fewer-turns.md) | Không có | `done` |
 | [04 — Dọn dữ liệu hiển thị, lọc chỗ lưu trú khỏi gợi ý vui chơi](issues/04-display-cleanup-lodging-filter.md) | Không có | `done` |
 | [05 — Chặng tiếp cận hiện hành](issues/05-current-access-leg.md) | Không có | `done` |
-| [06 — `DayTimeline` dùng chung, áp trước cho trang chi tiết](issues/06-shared-day-timeline.md) | `01` | `ready-for-agent` |
+| [06 — `DayTimeline` dùng chung, áp trước cho trang chi tiết](issues/06-shared-day-timeline.md) | `01` | `verified-offline` |
 | [07 — Tab Ngày đi / Ngày về trên trang chi tiết](issues/07-trip-travel-day-tabs.md) | `05`, `06` | `ready-for-agent` |
 | [08 — Khối "Tối nay"](issues/08-evening-plan.md) | `04`, `06` | `ready-for-agent` |
 | [09 — Trang chia sẻ dùng `DayTimeline`](issues/09-shared-page-day-timeline.md) | `06` | `ready-for-agent` |

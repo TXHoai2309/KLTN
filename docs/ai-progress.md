@@ -6087,3 +6087,9 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Migrated `assistant.css`, `assistant-citations.css`, `assistant-weather-card.css`, `tripsage-result-cards.module.css`, `tripsage-memory-panel.module.css`, and `companion.css` onto `--tv-*` tokens: zero `font-weight` 650/700+, zero hardcoded hex colors, zero `Inter` font references, and `box-shadow: var(--tv-shadow-float)` restricted to floating menus/dialogs/composer input.
 - Updated `TripsageMarkdown` to strip full-sentence bold spans while preserving short inline data/proper-noun emphasis, and updated `PERSONA_INSTRUCTIONS` to match.
 - Checks: `vitest` PASS (20 files, 183/183 tests), `tsc --noEmit` PASS, `git diff --check` PASS. Live browser 1440/375px screenshots pending (status: `verified-offline`).
+
+## 2026-11-23 — Traveler UI Redesign: Ticket 06 (shared DayTimeline component)
+
+- Extracted `apps/web/src/components/trip-timeline/day-timeline.tsx` and `day-timeline.css` supporting `full` (168px 4:3 photo, Lora 20px title, 2px day-color rail) and `compact` (64px photo, 15px UI title, 16:9 stacked below 480px) variants, optional chat slots ("Xem nhanh", "Gần đây có thể ghé", lunch suggestions, evening plan), and C16 fixes (explicit day-color tag contrast and inline access-leg icons).
+- Migrated `TripDetailView` (`apps/web/src/app/trips/trips-view.tsx`) to render days via `<DayTimeline variant="full" />`.
+- Checks: `vitest` PASS (15 files, 67/67 tests), `tsc --noEmit` PASS, `git diff --check` PASS. Live browser visual comparison pending (status: `verified-offline`).

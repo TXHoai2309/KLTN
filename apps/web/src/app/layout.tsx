@@ -14,6 +14,7 @@ import { Geist, Geist_Mono, Be_Vietnam_Pro, Lora } from "next/font/google";
 
 import "../index.css";
 import "../components/traveler-ui/traveler-ui.css";
+import "../components/trip-timeline/day-timeline.css";
 import "../components/published-content-profile.css";
 import "../components/editorial/editorial.css";
 import "../components/editorial/editorial-generative.css";
