@@ -1,4 +1,6 @@
 import { z } from "zod";
+import { isPlanningRequest } from "../../modules/assistant-planning/planning-intent";
+export { isPlanningRequest } from "../../modules/assistant-planning/planning-intent";
 import { createIdempotencyKey } from "../../lib/mutation-client";
 import { EMPTY_PLANNING_NEEDS, planningAnalysisSchema, planningGeneratedSchema, planningWorkspaceSchema, type PlanningAnalysis, type PlanningGenerated, type PlanningNeeds, type PlanningRequest, type PlanningWorkspace, type PlanningEdit, type PlanningDialogueContext, type PlanningCheckpoint } from "../../modules/assistant-planning/planning-contract";
 import { currentPlanningPreference, explicitlySkipsPreferences, skipPlanningPreference } from "../../modules/assistant-planning/planning-preferences";
@@ -460,4 +462,3 @@ export function confirmPlanningPrincipal(identity: string) {
 export function reopenPlanningHistory(identity: string, conversationId: string) {
   planningClients.get(`${identity}:${conversationId}`)?.reopenHistory();
 }
-export const isPlanningRequest = (text: string) => /(?:lập|lên|tạo|lên kế hoạch|sắp xếp).{0,30}(?:hành trình|hành trinh|hành hình di chuyển|hình trình|lịch trình|chuyến đi|kế hoạch)|(?:muốn|dự định|định|giúp).{0,30}(?:đi|du lịch).{0,40}\d+\s*ngày/iu.test(text);

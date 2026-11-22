@@ -20,6 +20,8 @@ import { withinQaResponseBudget, QA_ELIGIBILITY_ABORT } from "./qa-request-budge
 import { projectQaOriginalSources, validQaSourceProjection } from "./qa-original-source-projection";
 import { qaSessionHistory } from "./qa-session-history";
 import { answerQaWeatherQuestion, type QaWeatherDependencies } from "./qa-weather-answer";
+import { isPlanningRequest } from "../assistant-planning/planning-intent";
+import { matchKnownDestinations, normalizeQaQuestion } from "./qa-question-understanding";
 
 export function createQaService(dependencies: { store: QaConversationStore; retriever: QaRetriever; generator: QaGenerator; assessor?: QaAssessor; understander?: QaQuestionUnderstander; weather?: QaWeatherDependencies; eligibilityPollMs?: number; resolveContext?: (context: QaContext) => Promise<QaResolvedContext> }) {
   const { store, retriever, generator } = dependencies;
@@ -50,13 +52,24 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
         if (request.data.context?.type === "DESTINATION" && !admission.context) throw new AppError("CONTEXT_UNAVAILABLE", "CONTEXT_UNAVAILABLE", 404);
         const resolvedContext = dependencies.resolveContext ? await dependencies.resolveContext(context) : context.type === "GENERAL" ? context : undefined;
         if (!resolvedContext) throw new AppError("CONTEXT_UNAVAILABLE", "CONTEXT_UNAVAILABLE", 404);
-        const socialMessage = qaConversationMessage(request.data.question);
+        let socialMessage = qaConversationMessage(request.data.question);
         const question = qaFactualQuestion(request.data.question) || request.data.question;
         const sessionHistory = qaSessionHistory(admission.history);
         // Semantic understanding must see recent authorized questions regardless
         // of wording. The bounded deterministic adapter retains its legacy seam.
         const history = dependencies.understander ? sessionHistory : qaIntentHistory(request.data.question, sessionHistory);
         let clarificationQuestion = socialMessage || dependencies.understander ? undefined : qaFollowupClarification(question, history, resolvedContext);
+        const scopeGuidance = resolvedContext.type === "DESTINATION"
+          ? `Tại đây, mình hỗ trợ tìm hiểu về ${resolvedContext.name}. Bạn có thể mở Trợ lý AI chính để hỏi về địa điểm khác hoặc lập hành trình.` : undefined;
+        if (resolvedContext.type === "DESTINATION") {
+          const subjects = matchKnownDestinations(question);
+          const currentSubjects = matchKnownDestinations(resolvedContext.name);
+          const outside = subjects.length > 0 && subjects.every(subject =>
+            normalizeQaQuestion(subject) !== normalizeQaQuestion(resolvedContext.name) && !currentSubjects.includes(subject));
+          if (isPlanningRequest(question) || outside) clarificationQuestion = scopeGuidance;
+          else if (socialMessage) clarificationQuestion = `Xin chào! Bạn muốn tìm hiểu điều gì về ${resolvedContext.name}?`;
+          if (clarificationQuestion) socialMessage = undefined;
+        }
         let understanding: QaQuestionUnderstanding | undefined;
         if (!socialMessage && !clarificationQuestion) {
           qaStage("QUESTION_UNDERSTANDING_STARTED");
@@ -71,6 +84,7 @@ export function createQaService(dependencies: { store: QaConversationStore; retr
           if (understanding?.intent !== "WEATHER" && understanding?.ambiguous && resolvedContext.type === "GENERAL") {
             clarificationQuestion = understanding.clarificationQuestion ?? QA_FOLLOWUP_CLARIFICATIONS.missingSubject;
           }
+          if (resolvedContext.type === "DESTINATION" && understanding?.outsideDestination) clarificationQuestion = scopeGuidance;
         }
         const isWeatherTurn = understanding?.intent === "WEATHER" && !!dependencies.weather;
         const skipEvidence = !!socialMessage || !!clarificationQuestion || isWeatherTurn;

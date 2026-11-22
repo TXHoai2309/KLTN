@@ -6006,3 +6006,11 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Saved trip: the access leg is saved as an owner-only pinned item `ACCESS` (ADR-47 table, no migration) and shown on the trip page. It names the home city, so it is never shared.
 - Shared trip: when the saved origin is a fixed public hub (Hà Nội Mỹ Đình, TP Hà Giang), companions get `meetingPoint` (the hub and the route plan from it, when the visits still match) and see "Điểm tập kết"; any other origin stays private.
 - Not verified in a browser.
+
+## 2026-11-22 — Destination widget context / intent correction
+
+- Root cause verified in source: signed-in DestinationAssistantPanel selected SignedInV2Chat, whose START entered server PLANNING even with DESTINATION context. Reused the existing scoped Q&A view for destination widgets across principals; main/GENERAL runtime selection unchanged. No schema/provider/model change.
+- Server resolves public destination before greeting/scope guidance; explicit planning and recognized outside-place requests do not enter factual retrieval/planning. Shared existing planning recognition moved unchanged to a pure module. Existing scoped SQL/evidence and controller fencing retained.
+- RED/GREEN regression tests; focused 134/134 PASS. Replaced stale reset test's reference to deleted assistant-chat.tsx with current Q&A controller lifecycle assertions. Latest full suite: 38 failed / 4576 passed / 237 skipped / 1 todo across six previously failing AI/context/planning files; chained legacy tests did not run. Details/names in the report.
+- Actual localhost browser: `hi`, `cao nguyên đá`, reset + `Đây là đâu?` remain on Cao nguyên đá Đồng Văn; explicit planning and Thác Bản Giốc questions return scope guidance. Fresh Cổng trời Quản Bạ page shows its own widget name/starters. Server restarted after interruption. No Trip/publication mutations; ordinary test chat turns persisted normally.
+- Final root typecheck PASS (4 tasks), build PASS (two existing filesystem tracing warnings), Impeccable detector `[]`. No lint script. Production, full live switch/late-response/main-planning transition and complete role/device/theme matrix remain NOT PROVEN. No commit/push/deploy. See `docs/implementation/destination-widget-context-routing-fix-2026-11-22.md`.

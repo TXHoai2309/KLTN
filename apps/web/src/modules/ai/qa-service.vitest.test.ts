@@ -6,6 +6,7 @@ import { QA_INSUFFICIENT_SOURCE_MESSAGE, type QaCompletedTurn } from "./qa-contr
 import type { QaAnswer, QaGenerator, QaPrincipal, QaRetriever, QaEvidence } from "./qa-runtime-contract";
 import { AppError } from "../../server/http/app-error";
 import { EmbeddingError } from "../rag-processing/embedding-errors";
+import { createQaQuestionUnderstander } from "./qa-question-understander";
 vi.mock("server-only",()=>({}));
 const principal:QaPrincipal={kind:"GUEST",id:"opaque"};
 const request={question:"Câu hỏi",context:{type:"GENERAL" as const}};
@@ -19,6 +20,23 @@ function setup(){
   return {store,retriever,generator,assessor,reservation,service:createQaService({store,retriever,generator,assessor})};
 }
 describe("QA orchestration without external services",()=>{
+  it.each(["hi", "tạo lịch trình Hà Giang 3 ngày", "Thác Bản Giốc ở đâu?"])("keeps destination guidance out of retrieval/planning for %s", async question => {
+    const t = setup();
+    const context = { type: "DESTINATION" as const, destinationId: "synthetic" };
+    t.reservation.context = context;
+    const service = createQaService({ store: t.store, retriever: t.retriever, generator: t.generator,
+      resolveContext: async () => ({ ...context, name: "Đỉnh kiểm thử" }),
+      understander: createQaQuestionUnderstander({ apiKey: () => "offline", fetcher: async () => Response.json({
+        choices: [{ message: { content: JSON.stringify({ targetSubjects: ["Thác Bản Giốc"], intent: "OTHER", weatherDate: null,
+          attributes: [], temporalConstraint: null, conditions: [], searchQuery: "Thác Bản Giốc", ambiguous: false, clarificationQuestion: null }) }, finish_reason: "stop" }],
+      }) }),
+    });
+    const result = await service.ask(principal, "scope_key", { question, context });
+    expect(result.data).toMatchObject({ status: "CLARIFICATION_REQUIRED", context });
+    if (result.data.status === "CLARIFICATION_REQUIRED") expect(result.data.clarificationQuestion).toContain("Đỉnh kiểm thử");
+    expect(t.retriever.retrieve).not.toHaveBeenCalled();
+    expect(t.generator.generate).not.toHaveBeenCalled();
+  });
   it("does not generate or resurrect a turn when the store rejects a deleted/expired conversation", async () => {
     const t = setup();
     vi.mocked(t.store.reserve).mockRejectedValue(new AppError("NOT_FOUND", "unavailable conversation", 404));

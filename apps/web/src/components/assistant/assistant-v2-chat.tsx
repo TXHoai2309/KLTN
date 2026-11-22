@@ -339,7 +339,7 @@ function SignedInV2Chat({ available = true, tripId, onMinimize, initialContext, 
           <button type="submit" disabled={disabled || !draft.trim()} aria-busy={busy}><Send aria-hidden="true"/><span>Gửi</span></button>
         </div>
       </div>
-      <div className="assistant-composer-footer"><span>Enter để gửi · Shift+Enter xuống dòng</span><span className="assistant-char-counter">{draft.normalize("NFC").trim().length}/{tripId ? 500 : 1000} ký tự</span></div>
+      <div className="assistant-composer-footer"><span className="assistant-char-counter">{draft.normalize("NFC").trim().length}/{tripId ? 500 : 1000} ký tự</span></div>
     </form>}
     {mode === "page" && <footer className="assistant-trust-footer">
       <div className="assistant-trust-item"><ShieldCheck aria-hidden="true"/><span>Thông tin thực tế cần có nguồn</span></div>

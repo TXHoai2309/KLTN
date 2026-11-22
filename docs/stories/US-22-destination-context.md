@@ -1,5 +1,9 @@
 # US-22 — Destination context for public RAG Q&A
 
+## 2026-11-22 — Destination widget routing correction
+
+Owner requires destination-detail widgets to remain scoped Q&A for all public principals, with guidance to the main Assistant for planning/other places. Signed-in widgets previously selected V2 planning despite DESTINATION context. They now reuse the existing Q&A service/controller, public context resolution and scoped evidence. GENERAL/main routing stays unchanged. Local greeting, short-question, reset and scope-guidance cases verified; broader acceptance partial. See [root cause and evidence](../implementation/destination-widget-context-routing-fix-2026-11-22.md).
+
 ## Status and sources
 
 IMPLEMENTED — Tasks 198–202 complete offline; combined live acceptance pending.

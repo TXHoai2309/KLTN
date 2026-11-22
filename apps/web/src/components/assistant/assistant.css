@@ -1837,6 +1837,7 @@
 }
 
 .assistant-char-counter {
+  margin-left: auto;
   font-variant-numeric: tabular-nums;
   font-weight: 550;
   color: #7d9486;
