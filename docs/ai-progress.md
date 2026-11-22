@@ -5885,3 +5885,10 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Trang quản trị cần phiên Admin trước khi lưu cấu hình Local đang dùng. Giữ các giá trị local còn hiệu lực để bảo toàn hành vi trong lúc chuyển tiếp.
 - Sửa lỗi trang Admin kẹt khi tải. Varlock chặn nội dung phản hồi chứa các thiết lập QA cũ từ env sau khi API gửi status 200. Khai báo các thiết lập quản trị là giá trị không bí mật và giữ chúng ngoài cấu hình công khai. Thông tin xác thực vẫn được Varlock bảo vệ. Đã tải lại trang bằng phiên Admin Local và thấy các nhóm cấu hình hiển thị. Codegen và 18 bài kiểm tra liên quan đã qua.
 - Khi tích hợp `origin/master` (`359cc22`), giữ luồng `/assistant` thống nhất, lưu hội thoại và dọn hội thoại hết hạn của ADR-43. Trang và API chat đọc công tắc từ Admin. API dọn dữ liệu giữ điều kiện QA đã cấu hình trong Admin và xác thực bằng `CRON_SECRET`. TypeScript, 424 bài kiểm tra liên quan và `git diff --check` đã qua. Prisma xác nhận database cấu hình local đã cập nhật đủ 51 migration.
+
+## 2026-11-22 — Tìm kiếm chuyến đi đã lưu (US-31)
+
+- Thêm ô nhập và nút “Tìm chuyến đi” tại `/trips`. Có thể tìm theo tên chuyến, ngày đi hoặc về và phương tiện bằng từ khóa có dấu hoặc không dấu. Kết quả kết hợp với bộ lọc trạng thái.
+- Vitest cho giao diện và mô-đun đọc chuyến đi có 59 kiểm thử đạt, 3 kiểm thử PostgreSQL opt-in được bỏ qua.
+- `git diff --check` đạt. TypeScript toàn ứng dụng và build Next.js chưa trả kết quả trong phiên kiểm tra.
+- Tìm kiếm trên danh sách tài khoản đã nhận. Không cần migration. Phiên trình duyệt kiểm thử chuyển đến trang đăng nhập, nên chưa xác minh giao diện với dữ liệu đã lưu.

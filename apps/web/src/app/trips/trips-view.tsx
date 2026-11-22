@@ -32,6 +32,7 @@ import {
   Flag,
   Coffee,
   Moon,
+  Search,
   UtensilsCrossed,
 } from "lucide-react";
 
@@ -49,6 +50,7 @@ import { TripJourneyEditModal } from "@/components/trip-origin/trip-journey-edit
 import { Card } from "@KLTN/ui/components/card";
 import { Empty } from "@KLTN/ui/components/empty";
 import { Button } from "@KLTN/ui/components/button";
+import { Input } from "@KLTN/ui/components/input";
 import { toast } from "sonner";
 import type { TripDetail, TripSummary } from "@/modules/trip-read/trip-read-service";
 import type { TripStatus } from "@/modules/trip-read/trip-status";
@@ -174,11 +176,29 @@ const groups: { status: TripStatus; label: string; desc: string }[] = [
 
 const transportLabel = (transport: TripSummary["transport"]) =>
   transport === "MOTORCYCLE" ? "Xe máy" : "Ô tô";
+const tripTitle = (trip: TripSummary) => trip.companionTitle || `Chuyến đi ${trip.durationDays} ngày`;
 const dateLabel = (date: string) =>
   `${date.slice(8, 10)}/${date.slice(5, 7)}/${date.slice(0, 4)}`;
 const minuteLabel = (minute: number) =>
   `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`;
 const visitLabel = (count: number) => `${count} điểm dừng`;
+
+function normalizeTripSearch(value: string) {
+  return value.normalize("NFD").toLowerCase().replace(/\p{M}/gu, "").replace(/đ/g, "d")
+    .replace(/\s+/g, " ").trim();
+}
+
+export function filterTripsBySearch(items: TripSummary[], query: string) {
+  const search = normalizeTripSearch(query);
+  if (!search) return items;
+
+  return items.filter((trip) => [
+    tripTitle(trip),
+    dateLabel(trip.startDate),
+    dateLabel(trip.endDate),
+    transportLabel(trip.transport),
+  ].some((value) => normalizeTripSearch(value).includes(search)));
+}
 
 /** The destination's own photo; a broken link falls back to the scenic picture. */
 function VisitPhoto({ image, fallback }: { image?: { url: string; alt: string }; fallback: { src: string; alt: string } }) {
@@ -223,6 +243,9 @@ export function MyTripsView({
   const [items, setItems] = useState(initialItems);
   const [announcement, setAnnouncement] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | TripStatus>("ALL");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const focusGroup = useRef<TripStatus | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -283,14 +306,20 @@ export function MyTripsView({
     }
   }
 
+  const matchingItems = useMemo(() => filterTripsBySearch(items, searchQuery), [items, searchQuery]);
+
   const counts = useMemo(() => {
     return {
-      all: items.length,
-      upcoming: items.filter((i) => i.status === "UPCOMING").length,
-      ongoing: items.filter((i) => i.status === "ONGOING").length,
-      completed: items.filter((i) => i.status === "COMPLETED").length,
+      ALL: matchingItems.length,
+      UPCOMING: matchingItems.filter((i) => i.status === "UPCOMING").length,
+      ONGOING: matchingItems.filter((i) => i.status === "ONGOING").length,
+      COMPLETED: matchingItems.filter((i) => i.status === "COMPLETED").length,
     };
-  }, [items]);
+  }, [matchingItems]);
+  const visibleCount = counts[statusFilter];
+  const searchResult = visibleCount > 0
+    ? `Tìm thấy ${visibleCount} chuyến đi.`
+    : "Không tìm thấy chuyến đi phù hợp.";
 
   return (
     <main className="my-trips-page" lang="vi">
@@ -348,8 +377,39 @@ export function MyTripsView({
           </div>
 
           <p className="sr-only" role="status" aria-live="polite">
+            {searchQuery ? searchResult : ""}
+          </p>
+          <p className="sr-only" role="status">
             {announcement}
           </p>
+
+          <form
+            className="my-trips-search"
+            role="search"
+            aria-label="Tìm kiếm chuyến đi đã lưu"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setSearchQuery(searchInput.trim());
+            }}
+          >
+            <Input
+              ref={searchInputRef}
+              type="search"
+              className="my-trips-search-input"
+              aria-label="Tên chuyến, ngày đi hoặc phương tiện"
+              placeholder="Tên chuyến, ngày đi hoặc phương tiện"
+              value={searchInput}
+              onChange={(event) => {
+                const value = event.target.value;
+                setSearchInput(value);
+                if (!value) setSearchQuery("");
+              }}
+            />
+            <Button className="my-trips-search-button" variant="outline" type="submit">
+              <Search size={16} aria-hidden="true" />
+              Tìm chuyến đi
+            </Button>
+          </form>
 
           {/* Interactive Status Filter Tabs */}
           {items.length > 0 && (
@@ -362,7 +422,7 @@ export function MyTripsView({
                 onClick={() => setStatusFilter("ALL")}
               >
                 <span>Tất cả hành trình</span>
-                <span className="my-trips-filter-count">{counts.all}</span>
+                <span className="my-trips-filter-count">{counts.ALL}</span>
               </button>
               <button
                 type="button"
@@ -372,7 +432,7 @@ export function MyTripsView({
                 onClick={() => setStatusFilter("UPCOMING")}
               >
                 <span>Sắp tới</span>
-                <span className="my-trips-filter-count">{counts.upcoming}</span>
+                <span className="my-trips-filter-count">{counts.UPCOMING}</span>
               </button>
               <button
                 type="button"
@@ -382,7 +442,7 @@ export function MyTripsView({
                 onClick={() => setStatusFilter("ONGOING")}
               >
                 <span>Đang diễn ra</span>
-                <span className="my-trips-filter-count">{counts.ongoing}</span>
+                <span className="my-trips-filter-count">{counts.ONGOING}</span>
               </button>
               <button
                 type="button"
@@ -392,12 +452,29 @@ export function MyTripsView({
                 onClick={() => setStatusFilter("COMPLETED")}
               >
                 <span>Đã hoàn thành</span>
-                <span className="my-trips-filter-count">{counts.completed}</span>
+                <span className="my-trips-filter-count">{counts.COMPLETED}</span>
               </button>
             </div>
           )}
 
-          {items.length === 0 ? (
+          {searchQuery && (
+            <div className="my-trips-search-summary">
+              <p>{searchResult}</p>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setSearchInput("");
+                  setSearchQuery("");
+                  searchInputRef.current?.focus();
+                }}
+              >
+                Xóa tìm kiếm
+              </Button>
+            </div>
+          )}
+
+          {items.length === 0 && !searchQuery ? (
             <Empty className="my-trips-state" role="status">
               <div className="my-trips-state-illustration" aria-hidden="true">
                 <Mountain size={44} />
@@ -411,7 +488,8 @@ export function MyTripsView({
             </Empty>
           ) : (
             groups.map((group) => {
-              const trips = items.filter((item) => item.status === group.status);
+              const trips = matchingItems.filter((item) => item.status === group.status);
+              if (searchQuery && trips.length === 0) return null;
               const isHiddenByFilter = statusFilter !== "ALL" && statusFilter !== group.status;
 
               return (
@@ -479,7 +557,7 @@ export function MyTripsView({
 
                               <h3 className="my-trips-card-title">
                                 <Link className="my-trips-card-link" prefetch={false} href={`/trips/${trip.id}` as Route}>
-                                  {trip.companionTitle || `Chuyến đi ${trip.durationDays} ngày`}
+                                  {tripTitle(trip)}
                                 </Link>
                               </h3>
 

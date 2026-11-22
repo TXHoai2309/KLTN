@@ -290,3 +290,15 @@ uses real Header/MyTripsView and synthetic auth/router without DB: six cases at
 1440/390px across list/create/detail-edit PASS, including mobile drawer, one Trip
 entry, active state, no horizontal overflow and create-link navigation. No live
 authentication/persistence acceptance, full-suite run, commit, push or deployment.
+
+## 2026-11-22 — Search saved trips
+
+The My Trips tab accepts a keyword and runs the search on button click or Enter.
+It matches the displayed trip title, departure or return date, and transport.
+Vietnamese input works with or without diacritics. Search applies to the trips
+already returned for the signed-in user and combines with the status filter.
+Counts reflect the matches, and clearing the search restores the list for the
+selected status. This is a client-side change with no API or migration impact.
+
+The focused view tests cover the search controls and keyword matching. A guest
+browser visit redirected to sign-in. Authenticated browser acceptance is pending.
