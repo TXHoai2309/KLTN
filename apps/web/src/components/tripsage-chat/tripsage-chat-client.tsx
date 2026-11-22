@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import { createIdempotencyKey } from "@/lib/mutation-client";
 import type { QaContext } from "@/modules/ai/qa-contract";
 import { conversationMetaPartSchema } from "@/modules/tripsage-chat/assistant-conversation-contract";
+import { accessLegPartSchema, isCurrentAccessLeg, reconcileAccessPins } from "@/modules/tripsage-chat/tripsage-access-leg";
 import { buildTripsageChatBody, summarizeItinerary } from "@/modules/tripsage-chat/tripsage-chat-context";
 import { classifyChatError, createTripsageChatFetch } from "@/modules/tripsage-chat/tripsage-chat-errors";
 import {
@@ -281,6 +282,15 @@ export function TripsageChatClient({
   useEffect(() => { const el = composer.current; if (!el) return; el.style.height = "auto"; el.style.height = `${Math.min(el.scrollHeight, 132)}px`; }, [draft]);
   // Pins and the saved trip belong to one conversation.
   useEffect(() => { setPinned([]); setSavedTripId(null); setPinMessage(null); }, [activeConversationId]);
+  // PARITY BR-3 & BR-4: before saving, keep any pinned ACCESS synced to the current access leg; after saving, keep the saved snapshot unchanged.
+  useEffect(() => {
+    if (savedTripId || !state.accessLeg?.data) return;
+    const currentLeg = state.accessLeg.data;
+    setPinned(current => {
+      const hasStaleAccess = current.some(item => item.kind === "ACCESS" && !isCurrentAccessLeg(item.leg, currentLeg));
+      return hasStaleAccess ? reconcileAccessPins(current, currentLeg) : current;
+    });
+  }, [savedTripId, state.accessLeg]);
 
   // A cut connection does not stop the server: it finishes the turn and saves it. Poll the saved conversation and
   // swap it in (same data as a reload) instead of leaving the user on "connection lost".
@@ -599,7 +609,15 @@ export function TripsageChatClient({
                     const quickReplies = state.quickReplies?.messageId === message.id && !busy ? state.quickReplies.replies : [];
                     const replies = candidateButtons.length > 0 ? candidateButtons : quickReplies;
                     const cost = state.cost?.messageId === message.id ? state.cost.data : null;
-                    const accessLeg = state.accessLeg?.messageId === message.id ? state.accessLeg.data : null;
+                    const messageAccessLeg = message.role === "assistant"
+                      ? [...message.parts].reverse().map(part => (part.type === "data-access-leg" ? accessLegPartSchema.safeParse(part.data) : null)).find(res => res?.success)?.data ?? null
+                      : null;
+                    const isStaleAccessLeg = Boolean(
+                      messageAccessLeg
+                      && state.accessLeg
+                      && (state.accessLeg.messageId !== message.id || !isCurrentAccessLeg(messageAccessLeg, state.accessLeg.data)),
+                    );
+                    const accessLeg = messageAccessLeg;
                     const hasCards = Boolean(cost || accessLeg || itinerary || resultParts.length);
                     const live = busy && message.id === messages.at(-1)?.id;
                     // The closing question sits under the cards and buttons it refers to, never above them.
@@ -616,7 +634,13 @@ export function TripsageChatClient({
                           <details className="tripsage-plan-details" open={!(itinerary && planUnchanged)}>
                             <summary>Lịch trình và chi phí ước tính</summary>
                             {cost && <TripsageCostCard cost={cost} pins={pinControl} />}
-                            {accessLeg && !itinerary && <TripsageAccessLegCard leg={accessLeg} />}
+                            {accessLeg && !itinerary && (
+                              <TripsageAccessLegCard
+                                leg={accessLeg}
+                                isStale={isStaleAccessLeg}
+                                pins={isStaleAccessLeg ? undefined : pinControl}
+                              />
+                            )}
                             {itinerary && state.timeline && (
                               <TripsageTimelineView
                                 timeline={state.timeline}
@@ -630,7 +654,7 @@ export function TripsageChatClient({
                                 onAskAccess={() => send(`So sánh giúp mình cách đi từ ${travelDays?.homeCity} ra ${travelDays?.hubName} cho cả đoàn.`)}
                               />
                             )}
-                            {itinerary && <TripsageItineraryView proposal={itinerary}>{!busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} tripInfo={state.tripInfo} chosenLodgings={chosenLodgings} suggestions={state.suggestions} pinnedItems={state.accessLeg ? [{ kind: "ACCESS" as const, leg: state.accessLeg.data }, ...pinned] : pinned} onSaved={setSavedTripId} onStateChange={setSaveState} />)}</TripsageItineraryView>}
+                            {itinerary && <TripsageItineraryView proposal={itinerary}>{!busy && (notice ? <p role="note" className="assistant-muted">Lịch trình chưa được lưu. Hãy gửi lại để hoàn tất lượt này.</p> : <TripsageSaveSection result={itinerary} tripInfo={state.tripInfo} chosenLodgings={chosenLodgings} suggestions={state.suggestions} pinnedItems={reconcileAccessPins(pinned, state.accessLeg?.data)} onSaved={setSavedTripId} onStateChange={setSaveState} />)}</TripsageItineraryView>}
                           </details>
                         )}
                         <TripsageSourcesView sources={sources} />

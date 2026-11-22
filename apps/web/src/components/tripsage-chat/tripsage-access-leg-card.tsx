@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 
 import { ACCESS_MODE_LABELS, type AccessLegPart } from "@/modules/tripsage-chat/tripsage-access-leg";
 import { formatVnd } from "@/modules/tripsage-chat/tripsage-cost";
+import { PinButton, type PinControl } from "./tripsage-pin-button";
 
 const ICON: Record<keyof typeof ACCESS_MODE_LABELS, ReactNode> = {
   FLIGHT: <Plane size={14} aria-hidden="true" />, SLEEPER_BUS: <Bus size={14} aria-hidden="true" />, TRAIN: <TrainFront size={14} aria-hidden="true" />, SHUTTLE: <Van size={14} aria-hidden="true" />,
@@ -37,7 +38,17 @@ function Segments({ title, segments, minutes }: { title: string; segments: Acces
 
 /** Estimated access leg to a trip hub (ADR-42 §4). Not validated, not booked, not saved. */
 /** `only` shows one direction inside the itinerary: the way to the hub before day 1, the way home after the last day. */
-export function TripsageAccessLegCard({ leg, only }: { leg: AccessLegPart; only?: "outbound" | "return" }) {
+export function TripsageAccessLegCard({
+  leg,
+  only,
+  isStale = false,
+  pins,
+}: {
+  leg: AccessLegPart;
+  only?: "outbound" | "return";
+  isStale?: boolean;
+  pins?: PinControl;
+}) {
   if (only) {
     return (
       <section className="tripsage-access tripsage-access-inline" aria-label={only === "outbound" ? "Chặng đi tới điểm tập kết" : "Chặng về nhà"}>
@@ -49,8 +60,19 @@ export function TripsageAccessLegCard({ leg, only }: { leg: AccessLegPart; only?
   }
   const hasGoogleFlights = [...leg.outbound, ...leg.return].some(segment => segment.priceSource === "GOOGLE_FLIGHTS");
   return (
-    <section className="tripsage-access" aria-label="Chặng tiếp cận">
-      <h4>Từ {leg.homeCity} tới {leg.hubName}</h4>
+    <section
+      className={`tripsage-access${isStale ? " tripsage-access--stale" : ""}`}
+      data-stale={isStale ? "true" : undefined}
+      aria-label="Chặng tiếp cận"
+    >
+      <div className="tripsage-access-header">
+        <h4>Từ {leg.homeCity} tới {leg.hubName}</h4>
+        {isStale ? (
+          <span className="tripsage-access-stale-badge">Đã có bản mới</span>
+        ) : (
+          pins && <PinButton item={{ kind: "ACCESS", leg }} control={pins} label="chặng tiếp cận" />
+        )}
+      </div>
       <Segments title="Trước chuyến đi" segments={leg.outbound} minutes={leg.outboundMinutes} />
       <Segments title="Sau chuyến đi" segments={leg.return} minutes={leg.returnMinutes} />
       <p className="text-sm">Tổng tham khảo cả nhóm {leg.travelers} người: <strong>{leg.totalVnd > 0 ? formatVnd(leg.totalVnd) : "chưa có giá"}</strong></p>

@@ -2804,3 +2804,33 @@
 .assistant-save-button:hover:not(:disabled) { filter: brightness(1.08); }
 .assistant-save-button:focus-visible { outline: 3px solid rgba(21, 128, 61, .35); outline-offset: 2px; }
 .assistant-save-button:disabled { opacity: .55; cursor: not-allowed; }
+
+/* Ticket 05: current access leg card stale state & header */
+.tripsage-access-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tv-space-2);
+  flex-wrap: wrap;
+}
+
+.tripsage-access--stale {
+  opacity: 0.55;
+}
+
+.tripsage-access-stale-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: var(--tv-radius-pill);
+  background: var(--tv-sunken);
+  color: var(--tv-ink-2);
+  font-size: var(--tv-text-xs);
+  font-weight: 500;
+}
+
+.tripsage-access-segments li svg {
+  display: inline-block;
+  vertical-align: -2px;
+  margin-right: 4px;
+}

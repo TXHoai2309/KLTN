@@ -6074,3 +6074,10 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Added `apps/web/src/lib/traveler-display-clean.ts` (`cleanPlaceDisplayName`, `cleanAreaDisplayLabel`, `cleanOvernightAreaLabel`, `isGenericActivityPlaceName`) and wired it into `tripsage-timeline.ts`, `tripsage-activities.ts`, and `trips-view.tsx` to strip `[Tạm]`, hide generic `"khu vực hà giang"`, and capitalize Hà Giang place names.
 - Updated `GOOGLE_PLACES_FIELD_MASK` to include `places.types` (verified same Text Search Pro SKU as `displayName`/`location`; documented in ADR-49), kept `ACTIVITY_MAX_ANCHORS = 16`, and filtered lodging types/names and generic names (`"Khu Vui Chơi"`) across `ACTIVITY`, `FREE`, and `EVENING` slots.
 - Checks: `vitest` PASS (5 files, 53/53 tests), `tsc --noEmit` PASS, `git diff --check` PASS.
+
+## 2026-11-23 — Traveler UI Redesign: Ticket 05 (current access leg parity)
+
+- Added stable `id` generation in `buildAccessLeg`, `formatAccessLegCostBasis` (per-segment breakdown), `isCurrentAccessLeg`, and `reconcileAccessPins` in `tripsage-access-leg.ts`.
+- Recorded `accessLegId` on `CostPart` in `tripsage-cost.ts` and wired per-segment basis + `accessLegId` in `estimateCosts` (`tripsage-chat-tools.ts`).
+- Updated `TripsageAccessLegCard` to show stale cards at 0.55 opacity with `"Đã có bản mới"` and no pin button, while current cards expose `PinButton`. Updated `TripsageChatClient` to keep unsaved `ACCESS` pins/save payloads synced to the current access leg while leaving already-saved trip snapshots untouched.
+- Checks: `vitest` PASS (142/142 tests across trip-save, trip-pin, access-leg, and tripsage-chat components), `tsc --noEmit` PASS, `git diff --check` PASS.

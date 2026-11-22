@@ -16,7 +16,7 @@ import { activityAnchors, nearbyActivitySuggestions } from "./tripsage-activitie
 import { SUGGESTION_KINDS, suggestionSchema, timelineSlotIds, type TimelineSuggestion } from "./tripsage-timeline";
 import { costLineInputSchema, estimateTripCost, PRICE_REFERENCE, type CostPart } from "./tripsage-cost";
 import { itineraryDistanceKm } from "./tripsage-chat-context";
-import { accessLegInputSchema, buildAccessLeg, isHubOrigin, shouldSuggestHub, type AccessLegPart, type FlightPriceOverride } from "./tripsage-access-leg";
+import { accessLegInputSchema, buildAccessLeg, formatAccessLegCostBasis, isHubOrigin, shouldSuggestHub, type AccessLegPart, type FlightPriceOverride } from "./tripsage-access-leg";
 import { domainOf, isSafePublicHttpsUrl, WEB_DATA_MARKER, type WebLookup } from "./tripsage-web";
 import { quickRepliesPartSchema, resolveEffectiveJourney, tripInfoSchema, withTripInfoDefaults, type ChatSourceItem, type OriginCandidatesPart, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
 import {
@@ -770,8 +770,21 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       // The model sometimes invents a fuel price; only a price the traveler typed this turn overrides the live Petrolimex lookup.
       const userFuel = input.fuelVndPerLiter !== undefined && /x[aă]ng/iu.test(context.latestUserText ?? "") && /\d/u.test(context.latestUserText ?? "") ? input.fuelVndPerLiter : undefined;
       const live = userFuel === undefined && context.fuelPrice ? await context.fuelPrice(options?.abortSignal).catch(() => null) : null;
-      const extraLines = latestAccessLeg ? [{ category: "transport" as const, label: "Chặng tiếp cận (đi và về)", amount: latestAccessLeg.totalVnd, basis: `${latestAccessLeg.homeCity} ⇄ ${latestAccessLeg.hubName}, ${latestAccessLeg.travelers} người` }] : [];
-      const cost = estimateTripCost({ transport: info.transport, travelers: info.travelers, days: info.durationDays, distanceKm: latestDistanceKm, fuelVndPerLiter: userFuel ?? live?.vndPerLiter, fuelSource: live ? `${live.fuelName}, ${live.source}${live.asOf ? `, ${live.asOf.split("-").reverse().join("/")}` : ""}` : undefined, budgetCap: input.budgetCap ?? null, lines: input.lines, extraLines });
+      const extraLines = latestAccessLeg
+        ? [{ category: "transport" as const, label: "Chặng tiếp cận (đi và về)", amount: latestAccessLeg.totalVnd, basis: formatAccessLegCostBasis(latestAccessLeg) }]
+        : [];
+      const cost = estimateTripCost({
+        transport: info.transport,
+        travelers: info.travelers,
+        days: info.durationDays,
+        distanceKm: latestDistanceKm,
+        fuelVndPerLiter: userFuel ?? live?.vndPerLiter,
+        fuelSource: live ? `${live.fuelName}, ${live.source}${live.asOf ? `, ${live.asOf.split("-").reverse().join("/")}` : ""}` : undefined,
+        budgetCap: input.budgetCap ?? null,
+        lines: input.lines,
+        extraLines,
+        accessLegId: latestAccessLeg?.id ?? null,
+      });
       context.emitCost?.(cost);
       return { ok: true as const, total: cost.total, perPersonPerDay: cost.perPersonPerDay, withinCap: cost.withinCap, overBy: cost.overBy, lines: cost.lines.map(({ label, amount }) => ({ label, amount })),
         note: "Bảng chi phí đã hiện cho người dùng. Chỉ nhận xét ngắn (khoản lớn nhất, cách tiết kiệm); nói rõ đây là ước tính. Không có ngân sách thì không kết luận vừa hay vượt." };

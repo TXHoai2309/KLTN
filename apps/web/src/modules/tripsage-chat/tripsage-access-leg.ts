@@ -43,6 +43,7 @@ export const accessLegInputSchema = z.object({
 export type AccessLegInput = z.infer<typeof accessLegInputSchema>;
 
 export const accessLegPartSchema = z.object({
+  id: z.string().min(1).max(64).optional(),
   hubName: z.string().min(1).max(80),
   homeCity: z.string().min(1).max(80),
   travelers: z.number().int().min(1).max(20),
@@ -53,6 +54,21 @@ export const accessLegPartSchema = z.object({
   totalVnd: z.number().int().min(0).max(1_000_000_000),
 }).strict();
 export type AccessLegPart = z.infer<typeof accessLegPartSchema>;
+
+const SHORT_MODE_LABELS: Record<(typeof ACCESS_MODES)[number], string> = {
+  FLIGHT: "Máy bay",
+  SLEEPER_BUS: "Xe khách",
+  TRAIN: "Tàu hỏa",
+  SHUTTLE: "Trung chuyển",
+};
+
+let accessLegSeq = 0;
+function nextAccessLegId(): string {
+  const random = typeof globalThis.crypto?.randomUUID === "function"
+    ? globalThis.crypto.randomUUID().slice(0, 12)
+    : `${Date.now().toString(36)}-${++accessLegSeq}`;
+  return `al-${random}`;
+}
 
 export type FlightPriceOverride = {
   totalVnd: number;
@@ -101,6 +117,7 @@ export function buildAccessLeg(
   const minutes = (segments: AccessLegPart["outbound"]) => segments.reduce((sum, segment) => sum + segment.durationMinutes, 0);
   const price = [...outbound, ...ret].reduce((sum, segment) => sum + segment.priceVndPerPerson, 0);
   return {
+    id: nextAccessLegId(),
     hubName: hub.name,
     homeCity,
     travelers,
@@ -110,6 +127,51 @@ export function buildAccessLeg(
     returnMinutes: minutes(ret),
     totalVnd: price * travelers,
   };
+}
+
+/** PARITY BR-5: concise per-segment breakdown for the cost table's "Chặng tiếp cận (đi và về)" basis (<= 120 chars). */
+export function formatAccessLegCostBasis(leg: AccessLegPart): string {
+  const fmtVnd = (amount: number) => `${amount.toLocaleString("vi-VN")}đ`;
+  const summarizeDir = (segments: AccessLegPart["outbound"]) =>
+    segments
+      .map(s => `${SHORT_MODE_LABELS[s.mode]} ${s.priceVndPerPerson > 0 ? fmtVnd(s.priceVndPerPerson) : "0đ"}`)
+      .join(" + ");
+  const outSum = summarizeDir(leg.outbound);
+  const retSum = summarizeDir(leg.return);
+  const symmetric =
+    leg.outbound.length === leg.return.length
+    && leg.outbound.every((seg, i) => {
+      const other = leg.return[leg.return.length - 1 - i];
+      return other && other.mode === seg.mode && other.priceVndPerPerson === seg.priceVndPerPerson;
+    });
+  const base = symmetric
+    ? `${outSum} × 2 chiều × ${leg.travelers} người`
+    : `Đi: ${outSum}; Về: ${retSum} × ${leg.travelers} người`;
+  if (base.length <= 120) return base;
+  const compact = `${outSum} (đi & về) × ${leg.travelers} người`;
+  return compact.length <= 120 ? compact : `${compact.slice(0, 119)}…`;
+}
+
+/** PARITY BR-1 & BR-2: true when `leg` matches the conversation's current access leg. */
+export function isCurrentAccessLeg(
+  leg: AccessLegPart,
+  current: AccessLegPart | null | undefined,
+): boolean {
+  if (!current) return true;
+  if (leg.id && current.id) return leg.id === current.id;
+  return leg === current || JSON.stringify(leg) === JSON.stringify(current);
+}
+
+/** PARITY BR-3: ensures unsaved pinned items / save payload always carry the current access leg (never a stale version or duplicate). */
+export function reconcileAccessPins<T extends { kind: string }>(
+  pinned: readonly T[],
+  currentAccessLeg: AccessLegPart | null | undefined,
+): (Exclude<T, { kind: "ACCESS" }> | { kind: "ACCESS"; leg: AccessLegPart })[] {
+  const withoutAccess = pinned.filter(
+    (item): item is Exclude<T, { kind: "ACCESS" }> => item.kind !== "ACCESS",
+  );
+  if (!currentAccessLeg) return withoutAccess;
+  return [{ kind: "ACCESS" as const, leg: currentAccessLeg }, ...withoutAccess];
 }
 
 export const isHubOrigin = (label: string | undefined) => TRIP_HUBS.some(hub => hub.name === label);

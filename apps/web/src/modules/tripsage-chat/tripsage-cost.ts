@@ -37,6 +37,7 @@ export const costPartSchema = z.object({
   overBy: vnd.nullable(),
   assumptions: z.array(z.string().max(200)).max(6),
   priceReferenceDate: z.string().max(10),
+  accessLegId: z.string().min(1).max(64).optional(),
 }).strict();
 export type CostPart = z.infer<typeof costPartSchema>;
 
@@ -45,6 +46,8 @@ export type CostInput = {
   fuelVndPerLiter?: number; /** Where a live price came from, shown in the assumption line. */ fuelSource?: string; budgetCap?: number | null; lines: readonly CostLineInput[];
   /** Server-computed lines added before the model's (e.g. the access leg, ticket 04). */
   extraLines?: readonly CostLineInput[];
+  /** PARITY BR-1: stable id of the current access leg summed into this cost table. */
+  accessLegId?: string | null;
 };
 
 export const formatVnd = (amount: number) => `${amount.toLocaleString("vi-VN")}đ`;
@@ -73,5 +76,6 @@ export function estimateTripCost(input: CostInput): CostPart {
     perPersonPerDay: Math.round(total / (input.travelers * input.days)),
     budgetCap: cap, withinCap: cap === null ? null : total <= cap, overBy: cap === null ? null : Math.max(0, total - cap),
     assumptions, priceReferenceDate: PRICE_REFERENCE.updatedAt,
+    ...(input.accessLegId ? { accessLegId: input.accessLegId } : {}),
   };
 }
