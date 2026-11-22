@@ -5951,3 +5951,14 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Stop action now uses shared destructive Button, Square icon and scoped theme-token interaction styles; existing cancellation handler retained. Local mobile stop returned to editable composer/Send; one test conversation created, original history preserved.
 - Fixed parsed itinerary identity causing lodging synchronization effect to set state indefinitely when restoring itinerary history. Regression RED exceeded 20 renders, GREEN settles; no navigation guard/URL/API change.
 - 75 focused tests, web typecheck and build PASS (two existing filesystem tracing warnings). Local saved-history refresh/direct URL and navigation to Home/Explore/Trips/Favorites verified. Desktop/dark visual, exhaustive provider lifecycle, console capture and production NOT PROVEN. Full suite not rerun. See `docs/implementation/assistant-stop-restoration-fix-2026-11-22.md`. No commit/push/deploy.
+
+## 2026-11-22 — Assistant follow-up from live run (ADR-46)
+
+- **Question below the cards:** the closing question is always lifted out of the prose when the answer has plan cards or buttons, and shown under them.
+- **Origin:** `statesSoleOrigin` lets `findOrigin` confirm the single matching place in the same turn; contrasts, negations and multiple candidates keep the two-turn path.
+- **Day-4 check / save blocked:** root cause found from the stored production chat: a final drive-home-only day had no start clock (`returnDepartureMinute` null), so `JOURNEY_CLOCK_UNKNOWN` kept the travel-time check at "chưa đủ dữ liệu" and blocked saving. It now defaults to the day-1 departure clock.
+- **Afternoons:** default pace `PACKED` (4 stops a day); free afternoons and evenings get their own nearby suggestions (evening places may repeat a visit's places). Production data showed only one evening suggestion before because places already used by visits were removed from the night list.
+- **Petrol price:** `tripsage-fuel-price.ts` reads Petrolimex zone-2 price (6 h cache, fallback to the fixed price). The hosted VietFuelAPI address in its README does not resolve (DNS), so only its Petrolimex source was ported.
+- **UI:** in-progress indicator is a pill with animated dots (reduced-motion respected).
+- **SerpApi:** not fixed; cause unknown. Local `.env` has no key, Vercel env cannot be read from here. Needs the `[tripsage-serpapi] unavailable <reason>` line from Vercel runtime logs (and a redeploy after env changes, flags exactly `true`).
+- **Checks:** `tsc --noEmit` PASS; `vitest` over `src/modules`, `src/components`, `src/app`: only `ai/qa-*` and `in-trip-v2` fail (not touched; failing before this work). Not run: build, browser check, live Petrolimex call from the app, live SerpApi.

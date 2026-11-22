@@ -488,3 +488,170 @@
     transition: none;
   }
 }
+
+/* ==========================================================================
+   Inline weather inside saved-trip stop cards and day headers.
+   Own palette (the panel tokens are scoped to .trip-weather-panel).
+   ========================================================================== */
+.trip-weather-stop,
+.trip-weather-daysun,
+.trip-weather-foot {
+  --twi-ink: #16241c;
+  --twi-muted: #58685f;
+  --twi-caution: #7a4b08;
+  --twi-chip-bg: #f3f4f6;
+  --twi-chip-border: #cfd5dd;
+  --twi-chip-ink: #374151;
+  --twi-rain-bg: #eef5fc;
+  --twi-rain-border: #bdd6f0;
+  --twi-rain-ink: #174b82;
+  --twi-wind-bg: #fdf4e7;
+  --twi-wind-border: #eccd9d;
+  --twi-wind-ink: #854d0e;
+  --twi-sunset-bg: #fdf1ed;
+  --twi-sunset-border: #efbfb0;
+  --twi-sunset-ink: #8a341b;
+}
+
+.dark .trip-weather-stop,
+.dark .trip-weather-daysun,
+.dark .trip-weather-foot {
+  --twi-ink: #eaf1ec;
+  --twi-muted: #9eb0a5;
+  --twi-caution: #f6d38b;
+  --twi-chip-bg: #23282e;
+  --twi-chip-border: #434c56;
+  --twi-chip-ink: #d5dce4;
+  --twi-rain-bg: #172838;
+  --twi-rain-border: #2f5578;
+  --twi-rain-ink: #a7d1f7;
+  --twi-wind-bg: #2e2415;
+  --twi-wind-border: #6c5126;
+  --twi-wind-ink: #f5cf86;
+  --twi-sunset-bg: #311d18;
+  --twi-sunset-border: #703b2d;
+  --twi-sunset-ink: #f6b8a6;
+}
+
+.trip-weather-stop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(88, 104, 95, 0.28);
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: var(--twi-muted);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.trip-weather-stop--muted {
+  gap: 6px;
+}
+
+.trip-weather-stop-cond {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--twi-ink);
+}
+
+.trip-weather-stop-cond strong {
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.trip-weather-stop-cond--caution {
+  color: var(--twi-caution);
+}
+
+.trip-weather-stop-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.trip-weather-stop-metric--warn,
+.trip-weather-stop-chip {
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--twi-chip-border);
+  background: var(--twi-chip-bg);
+  color: var(--twi-chip-ink);
+  font-weight: 600;
+}
+
+.trip-weather-stop-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.trip-weather-stop-chip--rain {
+  background: var(--twi-rain-bg);
+  border-color: var(--twi-rain-border);
+  color: var(--twi-rain-ink);
+}
+
+.trip-weather-stop-chip--wind {
+  background: var(--twi-wind-bg);
+  border-color: var(--twi-wind-border);
+  color: var(--twi-wind-ink);
+}
+
+.trip-weather-stop-chip--after_sunset {
+  background: var(--twi-sunset-bg);
+  border-color: var(--twi-sunset-border);
+  color: var(--twi-sunset-ink);
+}
+
+.trip-weather-daysun {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  color: var(--twi-muted);
+}
+
+/* Under the day title: small muted line, never part of the (auto-width) day meta cell. */
+.my-trips-day-title-inner .trip-weather-daysun {
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+.trip-weather-daysun > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.trip-weather-foot {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 14px 0 0;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  color: var(--twi-muted);
+}
+
+.trip-weather-foot svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.trip-weather-foot a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.trip-weather-foot--error {
+  color: var(--twi-caution);
+}

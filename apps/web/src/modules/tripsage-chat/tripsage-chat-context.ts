@@ -68,7 +68,7 @@ export const TRIP_INFO_DEFAULTS: {
   returnDeadlineMinute: number;
 } = {
   interests: ["NATURE", "ADVENTURE"],
-  pace: "MODERATE",
+  pace: "PACKED", // owner decision 2026-11-22 (ADR-46): afternoons are used by default; the traveler can still ask for a calmer pace
   travelers: 2,
   departureMinute: DEFAULT_DEPARTURE_MINUTE,
   returnDeadlineMinute: DEFAULT_RETURN_DEADLINE_MINUTE,
@@ -83,9 +83,12 @@ export function withTripInfoDefaults(info: TripsageTripInfo) {
 /** Merges chat-recorded clocks (or visible 07:00 / 18:00 defaults) into a journey without touching origin coordinates. */
 export function resolveEffectiveJourney(journey: TripJourney | null | undefined, tripInfo: TripsageTripInfo | null | undefined): TripJourney | null {
   if (!journey) return null;
+  const departureMinute = tripInfo?.departureMinute ?? journey.departureMinute ?? DEFAULT_DEPARTURE_MINUTE;
   return {
     ...journey,
-    departureMinute: tripInfo?.departureMinute ?? journey.departureMinute ?? DEFAULT_DEPARTURE_MINUTE,
+    // A final day with no visit is only the drive home; it leaves at the same clock as day 1 unless the traveler says otherwise.
+    returnDepartureMinute: journey.returnDepartureMinute ?? departureMinute,
+    departureMinute,
     returnDeadlineMinute: tripInfo?.returnDeadlineMinute ?? journey.returnDeadlineMinute ?? DEFAULT_RETURN_DEADLINE_MINUTE,
   };
 }

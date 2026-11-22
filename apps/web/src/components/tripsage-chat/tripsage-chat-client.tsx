@@ -546,7 +546,9 @@ export function TripsageChatClient({
                     const replies = candidateButtons.length > 0 ? candidateButtons : quickReplies;
                     const cost = state.cost?.messageId === message.id ? state.cost.data : null;
                     const accessLeg = state.accessLeg?.messageId === message.id ? state.accessLeg.data : null;
-                    const { body, question } = message.role === "assistant" && replies.length > 0 ? splitTrailingQuestion(text) : { body: text, question: null };
+                    const hasCards = Boolean(cost || accessLeg || itinerary || resultParts.length);
+                    // The closing question sits under the cards and buttons it refers to, never above them.
+                    const { body, question } = message.role === "assistant" && (replies.length > 0 || hasCards) ? splitTrailingQuestion(text) : { body: text, question: null };
                     if (!text && !itinerary && !sources.length && !resultParts.length && !replies.length && !cost && !accessLeg) return null;
                     return message.role === "user" ? (
                       <article key={message.id} className="assistant-message assistant-user"><p>{text}</p></article>
@@ -573,6 +575,7 @@ export function TripsageChatClient({
                         )}
                         <TripsageSourcesView sources={sources} />
                         <TripsageResultCards parts={resultParts} />
+                        {replies.length === 0 && question && <p className="tripsage-next-question">{question}</p>}
                         {replies.length > 0 && (
                           <div className="tripsage-next-step">
                             {question && <p className="tripsage-next-question">{question}</p>}
@@ -585,7 +588,12 @@ export function TripsageChatClient({
                     );
                   })}
                 </div>
-                {busy && <p role="status" className="assistant-muted">{status?.label ?? "Mình đang xử lý yêu cầu…"}</p>}
+                {busy && (
+                  <div role="status" className="tripsage-thinking">
+                    <span className="tripsage-thinking-dots" aria-hidden="true"><i /><i /><i /></span>
+                    <span>{status?.label ?? "Mình đang xử lý yêu cầu…"}</span>
+                  </div>
+                )}
               </>
             )}
           </div>

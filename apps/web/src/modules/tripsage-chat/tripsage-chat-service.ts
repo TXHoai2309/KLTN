@@ -9,6 +9,7 @@ import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
 import { journeyPartSchema, originCandidatesPartSchema, resolveEffectiveJourney, sourcesPartSchema, tripInfoSchema, tripsageItinerarySummarySchema, withTripInfoDefaults, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
 import { assistantOfferedHub, FIXED_HUB_CANDIDATES, verifyOriginCandidatesToken, type SignedOriginCandidate, type VerifiedOriginCandidates } from "./tripsage-chat-origin";
 import { tripsageProviderOptions } from "./tripsage-chat-provider";
+import type { FuelPriceLookup } from "./tripsage-fuel-price";
 import type { PlacesSearch } from "./tripsage-places";
 import { buildDayTimeline, timelinePartSchema } from "./tripsage-timeline";
 import { costPartSchema } from "./tripsage-cost";
@@ -378,6 +379,7 @@ export function streamTripsageChat(input: {
   planning: TripsagePlanningDeps;
   originSearch?: OriginLookup;
   places?: PlacesSearch;
+  fuelPrice?: FuelPriceLookup;
   web?: WebLookup;
   knowledge?: LocalKnowledge;
   accessLeg?: AccessLegPart | null;
@@ -424,7 +426,7 @@ export function streamTripsageChat(input: {
         priorHotelLookups: input.priorHotelLookups,
         priorFlightLookups: input.priorFlightLookups,
         memory: input.memory,
-        planning: input.planning, originSearch: input.originSearch, originCandidates: input.originCandidates, signOriginCandidates: input.signOriginCandidates, latestUserText: input.latestUserText, hubOffered: assistantOfferedHub(lastAssistantText(input.messages)), places: input.places, knowledge: input.knowledge, accessLeg: input.accessLeg ?? null, currentItinerary: input.currentItinerary ?? null, journey: input.journey ?? null, tripInfo: input.tripInfo ?? null, maxProposals: limits.maxProposals, maxPlacesCalls: limits.maxPlacesCalls, web: input.web, maxWebSearchCalls: limits.maxWebSearchCalls, maxFetchPageCalls: limits.maxFetchPageCalls,
+        planning: input.planning, originSearch: input.originSearch, originCandidates: input.originCandidates, signOriginCandidates: input.signOriginCandidates, latestUserText: input.latestUserText, hubOffered: assistantOfferedHub(lastAssistantText(input.messages)), places: input.places, fuelPrice: input.fuelPrice, knowledge: input.knowledge, accessLeg: input.accessLeg ?? null, currentItinerary: input.currentItinerary ?? null, journey: input.journey ?? null, tripInfo: input.tripInfo ?? null, maxProposals: limits.maxProposals, maxPlacesCalls: limits.maxPlacesCalls, web: input.web, maxWebSearchCalls: limits.maxWebSearchCalls, maxFetchPageCalls: limits.maxFetchPageCalls,
         emitSuggestions: suggestions => {
           const id = `suggestions-${++suggestionsPart}`;
           const part = { type: "data-suggestions" as const, id, data: { suggestions } };

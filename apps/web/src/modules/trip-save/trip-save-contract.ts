@@ -12,7 +12,7 @@ export type ChosenLodgingSaveItem = z.infer<typeof chosenLodgingSaveItemSchema>;
 
 /** ADR-45: unchecked Google Maps places shown near a stop (`dN-visit-K`) or a night (`dN-overnight`); informational only, never validated. */
 export const nearbySuggestionSaveItemSchema = z.object({
-  slotId: z.string().regex(/^d\d{1,2}-(visit-\d{1,2}|overnight)$/),
+  slotId: z.string().regex(/^d\d{1,2}-(visit-\d{1,2}|free|overnight)$/),
   kind: z.enum(["ACTIVITY", "EVENING"]),
   placeId: z.string().trim().min(1).max(100),
   name: z.string().trim().min(1).max(80),

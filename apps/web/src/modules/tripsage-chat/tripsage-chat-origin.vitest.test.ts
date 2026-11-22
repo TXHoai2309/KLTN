@@ -16,6 +16,7 @@ import {
   matchFixedHub,
   permitsOriginConfirmation,
   signOriginCandidates,
+  statesSoleOrigin,
   verifyOriginCandidatesToken,
   type SignedOriginCandidate,
 } from "./tripsage-chat-origin";
@@ -163,7 +164,7 @@ describe("chat-only origin confirmation and default clocks route (ticket 01)", (
 
     // Turn 1: user names a place; model calls findOrigin. Trying confirmOrigin in the same turn is rejected.
     const turn1 = await chat(
-      "Mình đi từ Cầu Giấy",
+      "Mình hay đi chơi quanh Cầu Giấy",
       [
         { tool: "findOrigin", input: { query: "Cầu Giấy" } },
         { tool: "confirmOrigin", input: { candidateId: "oc-1-1" } },
@@ -200,7 +201,7 @@ describe("chat-only origin confirmation and default clocks route (ticket 01)", (
       origin: { label: "Quận Cầu Giấy, Hà Nội", latitude: 21.0362, longitude: 105.7906, source: "GOOGLE_PLACES", confirmed: true },
       departureMinute: 420,
       returnDeadlineMinute: 1080,
-      returnDepartureMinute: null,
+      returnDepartureMinute: 420,
     });
     const itinerary = plannerResultSchema.parse(turn2Parts.find(p => p.type === "data-itinerary")!.data);
     expect(itinerary.requirement.journey?.origin?.confirmed).toBe(true);
@@ -308,5 +309,33 @@ describe("hub chosen by a bare reply (hubOffered)", () => {
     expect(assistantOfferedHub("Bạn chọn TP Hà Giang hay Hà Nội làm điểm tập kết?")).toBe(true);
     expect(assistantOfferedHub("Mình gợi ý tập kết ở Hà Nội rồi thuê xe.")).toBe(false);
     expect(assistantOfferedHub("Bạn muốn đi vào ngày nào?")).toBe(false);
+  });
+});
+
+describe("statesSoleOrigin (ADR-46)", () => {
+  const danang = { label: "Thành phố Đà Nẵng, Việt Nam" };
+  it("accepts a clear statement or the bare place name", () => {
+    for (const text of ["tôi xuất phát từ đà nẵng", "Đà Nẵng", "Mình ở Đà Nẵng nhé", "đi từ Đà Nẵng"]) expect(statesSoleOrigin(text, danang), text).toBe(true);
+  });
+  it("keeps contrasts, negations and unrelated mentions on the two-turn path", () => {
+    for (const text of ["tôi ở Đà Nẵng nhưng muốn xuất phát từ Huế", "không phải Đà Nẵng", "Đà Nẵng có gì chơi", "xuất phát từ Huế", "đà nẵng hay huế"]) expect(statesSoleOrigin(text, danang), text).toBe(false);
+  });
+});
+
+describe("one-turn origin confirmation (ADR-46)", () => {
+  it("confirms the only match in the same turn when the traveler named it, without asking again", async () => {
+    const originSearch: OriginLookup = vi.fn(async () => ({
+      status: "RESULTS" as const,
+      cached: false,
+      results: [{ label: CAU_GIAY.label, latitude: CAU_GIAY.latitude, longitude: CAU_GIAY.longitude, source: "GOOGLE_PLACES" as const, confirmed: false as const }],
+    }));
+    const turn = await chat("Mình đi từ Cầu Giấy", [
+      { tool: "findOrigin", input: { query: "Cầu Giấy" } },
+      { text: "Đã ghi nhận điểm xuất phát." },
+    ], {}, { originSearch: () => originSearch });
+    const turnParts = parts(turn.sse);
+    expect(turnParts.some(p => p.type === "data-origin-candidates")).toBe(false);
+    const journey = journeyPartSchema.parse(turnParts.find(p => p.type === "data-journey")!.data);
+    expect(journey.journey.origin).toMatchObject({ label: CAU_GIAY.label, confirmed: true });
   });
 });

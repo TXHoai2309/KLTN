@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CalendarClock,
@@ -19,6 +19,7 @@ import type { PlannerDay } from "@/modules/trip-planner/planner-contract";
 import type { JourneyPlan } from "@/modules/trip-origin/journey-route-contract";
 import { formatMinute } from "./sun-times";
 import { toTripWeatherRequest } from "./trip-weather-request";
+import { useTripWeatherState } from "./trip-weather-state";
 import {
   FOG_VISIBILITY_THRESHOLD_M,
   RAIN_INTENSITY_THRESHOLD_MM,
@@ -33,21 +34,21 @@ import "./trip-weather.css";
 
 export { toTripWeatherRequest };
 
-const KIND_TEXT: Record<WeatherAdvisory["kind"], string> = {
+export const KIND_TEXT: Record<WeatherAdvisory["kind"], string> = {
   RAIN: "Mưa",
   FOG: "Sương mù",
   WIND: "Gió giật",
   AFTER_SUNSET: "Sau hoàng hôn",
 };
 
-function advisoryChipIcon(kind: WeatherAdvisory["kind"]) {
+export function advisoryChipIcon(kind: WeatherAdvisory["kind"]) {
   if (kind === "RAIN") return CloudRain;
   if (kind === "FOG") return CloudFog;
   if (kind === "WIND") return Wind;
   return Sunset;
 }
 
-function advisoryValueShort(a: WeatherAdvisory) {
+export function advisoryValueShort(a: WeatherAdvisory) {
   if (a.kind === "RAIN") return a.threshold < 10 ? `${a.observed} mm/h` : `${a.observed}%`;
   if (a.kind === "FOG") return `${(a.observed / 1000).toFixed(1)} km`;
   if (a.kind === "WIND") return `${Math.round(a.observed)} km/h`;
@@ -64,21 +65,21 @@ function advisoryText(a: WeatherAdvisory, names: Map<string, string>) {
   return `Ngày ${a.day} · ${where} · ${when}: ${KIND_TEXT[a.kind]} — ${detail}`;
 }
 
-function unavailableReasonText(reason: Extract<WindowWeather, { status: "UNAVAILABLE" }>["reason"]) {
+export function unavailableReasonText(reason: Extract<WindowWeather, { status: "UNAVAILABLE" }>["reason"]) {
   if (reason === "NO_DATE") return "Chưa có ngày đi nên chưa có dự báo";
   if (reason === "NO_TIME") return "Chưa có giờ đến nên chưa có dự báo";
   if (reason === "DESTINATION_UNAVAILABLE") return "Điểm đến không còn công khai";
   return "Không lấy được dự báo";
 }
 
-function formatTempSummary(s: WindowSummary): string | null {
+export function formatTempSummary(s: WindowSummary): string | null {
   if (s.minTemperatureC === null || s.maxTemperatureC === null) return null;
   const lo = Math.round(s.minTemperatureC);
   const hi = Math.round(s.maxTemperatureC);
   return lo === hi ? `${hi}°C` : `${lo}–${hi}°C`;
 }
 
-function formatRainSummary(s: WindowSummary): string | null {
+export function formatRainSummary(s: WindowSummary): string | null {
   if (s.maxPrecipitationProbability !== null) {
     if (s.maxPrecipitationMm !== null && s.maxPrecipitationMm >= RAIN_INTENSITY_THRESHOLD_MM) {
       return `mưa ${s.maxPrecipitationProbability}% (${s.maxPrecipitationMm.toFixed(1)} mm/h)`;
@@ -89,7 +90,7 @@ function formatRainSummary(s: WindowSummary): string | null {
   return null;
 }
 
-function conditionMeta(s: WindowSummary) {
+export function conditionMeta(s: WindowSummary) {
   const hasAny =
     s.minTemperatureC !== null ||
     s.maxPrecipitationProbability !== null ||
@@ -364,20 +365,9 @@ export function TripWeatherView({
   );
 }
 
-type State = { status: "loading" } | { status: "error" } | { status: "ready"; weather: TripWeather };
 export function TripWeatherPanel({ days, journeyPlan }: { days: PlannerDay[]; journeyPlan?: JourneyPlan | null }) {
   const titleId = useId();
-  const request = useMemo(() => toTripWeatherRequest(days, journeyPlan), [days, journeyPlan]);
-  const body = useMemo(() => JSON.stringify(request), [request]);
-  const [state, setState] = useState<State>({ status: "loading" });
-  useEffect(() => {
-    const controller = new AbortController();
-    setState({ status: "loading" });
-    fetch("/api/trip-weather", { method: "POST", headers: { "content-type": "application/json" }, body, signal: controller.signal })
-      .then(async r => { const b = await r.json() as { success?: boolean; data?: TripWeather }; if (!r.ok || !b.success || !b.data) throw new Error("weather"); setState({ status: "ready", weather: b.data }); })
-      .catch(() => { if (!controller.signal.aborted) setState({ status: "error" }); });
-    return () => controller.abort();
-  }, [body]);
+  const state = useTripWeatherState(days, journeyPlan);
   return (
     <section className="trip-weather-panel" aria-labelledby={titleId}>
       <h3 id={titleId} className="trip-weather-panel-title">

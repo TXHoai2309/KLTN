@@ -157,6 +157,28 @@ function labelSegments(label: string): string[] {
   return label.split(/[,()\-–]+/u).map(foldVietnamese).filter(seg => seg.length >= 4);
 }
 
+const ORIGIN_CUE = String.raw`(?:xuat\s+phat(?:\s+(?:tu|o|tai))?|bat\s+dau(?:\s+(?:tu|o|tai))?|khoi\s+hanh(?:\s+(?:tu|o|tai))?|di\s+tu|dang\s+o|song\s+o|nha\s+o|o|tai|tu)`;
+/** Administrative words a search label adds before the name the traveler typed ("Thành phố Đà Nẵng", "Quận Cầu Giấy"). */
+const ADMIN_PREFIX = /^(?:thanh\s+pho|tp|quan|huyen|tinh|thi\s+xa|thi\s+tran|phuong|xa)\s+/u;
+const CONTRAST_CUE = /\b(?:nhung|thay\s+vi|con|hoac|hay|or)\b/u;
+
+/**
+ * ADR-46: true when the traveler's latest message names the one searched place as their starting point
+ * ("tôi xuất phát từ Đà Nẵng", or just "Đà Nẵng"), so the server can confirm it without a second round-trip.
+ * Anything contrasted, negated or longer than one short sentence stays on the two-turn path.
+ */
+export function statesSoleOrigin(latestUserText: string, candidate: { label: string }): boolean {
+  const folded = foldVietnamese(latestUserText);
+  if (!folded || folded.length > 120 || hasHardNegation(latestUserText, folded) || CONTRAST_CUE.test(folded)) return false;
+  const full = foldVietnamese(candidate.label.split(/[,()\-–]+/u)[0] ?? "");
+  const names = [...new Set([full, full.replace(ADMIN_PREFIX, "")])].filter(name => name.length >= 4);
+  return names.some(name => {
+    if (folded === name) return true;
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+    return new RegExp(String.raw`(?:^|\s)${ORIGIN_CUE}\s+${escaped}(?:\s+(?:nhe|nha|a|di|thoi))?$`, "u").test(folded);
+  });
+}
+
 /**
  * Pure gate for `confirmOrigin` (ADR-43 §3, analogous to `permitsRemember`).
  * Allows confirmation only when the latest user message explicitly agrees with the sole candidate,
