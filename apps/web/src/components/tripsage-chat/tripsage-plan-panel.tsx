@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Map, X } from "lucide-react";
 
 import { travelerButtonClassName } from "@/components/traveler-ui/traveler-button";
@@ -123,6 +123,47 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
   const [selectedDayKey, setSelectedDayKey] = useState<string>(() => `day-${proposal.days[0]?.day ?? 1}`);
   const [selectedDestinationId, setSelectedDestinationId] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ target: PlacePreviewTarget; trigger: HTMLElement | null } | null>(null);
+  const touchStartYRef = useRef<number | null>(null);
+  const pushedHistoryRef = useRef(false);
+  const savedScrollTopRef = useRef<number | null>(null);
+
+  // Ticket 11 (design §3.9): Android Back closes the mobile sheet instead of leaving the page,
+  // and restores the chat transcript scroll position when closed.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const transcript = document.querySelector<HTMLElement>(".assistant-transcript");
+    if (drawerOpen) {
+      savedScrollTopRef.current = transcript ? transcript.scrollTop : null;
+      if (window.innerWidth < 768 && !pushedHistoryRef.current) {
+        try {
+          window.history.pushState({ tripsagePlanSheet: true }, "");
+          pushedHistoryRef.current = true;
+        } catch {
+          /* ignore history errors in sandboxed frames */
+        }
+      }
+      const onPopState = () => {
+        if (pushedHistoryRef.current) {
+          pushedHistoryRef.current = false;
+          onCloseDrawer();
+        }
+      };
+      window.addEventListener("popstate", onPopState);
+      return () => window.removeEventListener("popstate", onPopState);
+    }
+    if (pushedHistoryRef.current) {
+      pushedHistoryRef.current = false;
+      try {
+        window.history.back();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (savedScrollTopRef.current !== null && transcript) {
+      transcript.scrollTop = savedScrollTopRef.current;
+      savedScrollTopRef.current = null;
+    }
+  }, [drawerOpen, onCloseDrawer]);
 
   const firstDate = proposal.days[0]?.date ?? proposal.requirement.startDate ?? "";
   const lastDate = proposal.days.at(-1)?.date ?? firstDate;
@@ -352,7 +393,22 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
         data-proposal-id={proposal.proposalId}
         aria-label="Panel lịch trình hiện hành"
       >
-        <div className="tripsage-sheet-handle" aria-hidden="true" />
+        <div
+          className="tripsage-sheet-drag-zone"
+          onTouchStart={(event) => {
+            touchStartYRef.current = event.touches[0]?.clientY ?? null;
+          }}
+          onTouchEnd={(event) => {
+            const startY = touchStartYRef.current;
+            touchStartYRef.current = null;
+            const endY = event.changedTouches[0]?.clientY;
+            if (startY !== null && typeof endY === "number" && endY - startY > 64) {
+              onCloseDrawer();
+            }
+          }}
+        >
+          <div className="tripsage-sheet-handle" aria-hidden="true" />
+        </div>
         <header className="tripsage-panel-header">
           <div className="tripsage-panel-title-wrap">
             <h2 className="tripsage-panel-title">{panelTitle}</h2>

@@ -43,10 +43,11 @@ export function TripsageCostCard({
               <tr key={`${group.category}-${index}`}>
                 <td>
                   {index === 0 && <strong className="tripsage-cost-cat">{COST_CATEGORY_LABELS[group.category]}</strong>}
-                  {(index > 0 || line.label !== COST_CATEGORY_LABELS[group.category]) &&<span>{line.label}</span>}
+                  {(index > 0 || line.label !== COST_CATEGORY_LABELS[group.category]) && <span>{line.label}</span>}
                   {line.computed && <span className="assistant-muted"> (hệ thống tính)</span>}
+                  {line.basis && <span className="tripsage-cost-basis-mobile">{line.basis}</span>}
                 </td>
-                <td className="assistant-muted">{line.basis ?? ""}</td>
+                <td className="assistant-muted tripsage-cost-basis-desktop">{line.basis ?? ""}</td>
                 <td className="tripsage-cost-amount">{formatVnd(line.amount)}</td>
               </tr>
             )))}

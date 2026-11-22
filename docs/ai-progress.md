@@ -6146,3 +6146,10 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Created `TripsagePlanSummaryCard` (current summary card + dimmed 0.55 `"Đã có bản mới"` for older versions) and memoized `TripsagePlanPanel` (data-driven title, single primary `"Lưu chuyến"` → `"Mở chuyến đi"`, sub-tabs `Lịch trình · Chi phí · Kiểm tra`, container-query `< 760px` `Bản đồ` tab, `TravelerDayTabs`, `DayTimeline full` beside sticky `ItineraryMap`).
 - Wired `TripsageStreamedText` `onDone` callback into `TripsageChatClient` so quick-reply chips render only after streamed reply text finishes, and added `>= 1200px` split layout & `768–1199px` 560px drawer CSS in `assistant.css`.
 - Checks: `vitest` PASS (15 files, 76/76 tests), `tsc --noEmit` PASS, `git diff --check` PASS (status: `verified-offline`).
+
+## 2026-11-23 — Traveler UI Redesign: Ticket 11 (mobile plan sheet, single-line composer & 48px top bar)
+
+- Updated `TripsagePlanPanel` (`tripsage-plan-panel.tsx`) for `< 768px` mobile bottom sheet behavior: Android Back (`history.pushState`/`popstate`) closes the sheet without leaving the page, swipe-down gesture (`> 64px` on `.tripsage-sheet-drag-zone`), and transcript `scrollTop` restoration on close.
+- Updated `TripsageCostCard` (`tripsage-cost-card.tsx`) with `.tripsage-cost-basis-mobile` for the 2-column mobile cost layout (`design §3.8`).
+- Updated `TripsageChatClient` (`tripsage-chat-client.tsx`) and `assistant.css` with a 48px mobile top bar (`☰`, conversation title, `+`), hiding the old floating sidebar toggle, single-line 44px auto-grow composer (max 4 lines / 96px), circular 32px send/stop button, and character counter shown only above 80% capacity.
+- Checks: `vitest` PASS (15 files, 72/72 tests), `npm run check-types` PASS (4/4 tasks), `git diff --check` PASS (status: `verified-offline`).

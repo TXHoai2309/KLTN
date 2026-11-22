@@ -3,7 +3,7 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport } from "ai";
 import { Button } from "@KLTN/ui/components/button";
-import { FileText, PanelLeft, PanelLeftOpen, Plus, Send, ShieldCheck, Sparkles, Square } from "lucide-react";
+import { FileText, Menu, PanelLeft, PanelLeftOpen, Plus, Send, ShieldCheck, Sparkles, Square } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 
 import { createIdempotencyKey } from "@/lib/mutation-client";
@@ -306,8 +306,8 @@ export function TripsageChatClient({
   };
 
   useEffect(() => { if (!busy) setStatus(null); }, [busy]);
-  // Grow the composer with its text (CSS caps it at six lines, then it scrolls).
-  useEffect(() => { const el = composer.current; if (!el) return; el.style.height = "auto"; el.style.height = `${Math.min(el.scrollHeight, 132)}px`; }, [draft]);
+  // Grow the single-line composer up to 4 lines (~96px), then scroll (design §3.6).
+  useEffect(() => { const el = composer.current; if (!el) return; el.style.height = "auto"; el.style.height = `${Math.min(el.scrollHeight, 96)}px`; }, [draft]);
   // Pins and the saved trip belong to one conversation.
   useEffect(() => { setPinned([]); setSavedTripId(null); setPinMessage(null); }, [activeConversationId]);
   // PARITY BR-3 & BR-4: before saving, keep any pinned ACCESS synced to the current access leg; after saving, keep the saved snapshot unchanged.
@@ -566,6 +566,30 @@ export function TripsageChatClient({
       />
 
       <div className="assistant-chat-main assistant-chat-fullscreen">
+        {/* Ticket 11 (design §4.1): 48px mobile top bar (☰ · conversation title · +) replacing floating sidebar pill */}
+        <header className="assistant-mobile-topbar">
+          <button
+            type="button"
+            className="assistant-mobile-topbar-btn"
+            onClick={() => setSidebarOpen(open => !open)}
+            aria-label={sidebarOpen ? "Đóng lịch sử hội thoại" : "Mở lịch sử hội thoại"}
+          >
+            <Menu size={18} aria-hidden="true" />
+          </button>
+          <span className="assistant-mobile-topbar-title">
+            {conversations.find(c => c.id === activeConversationId)?.title ?? "Trợ lý Hà Giang"}
+          </span>
+          <button
+            type="button"
+            className="assistant-mobile-topbar-btn"
+            onClick={startNewChat}
+            disabled={busy || saveLocked}
+            aria-label="Đoạn chat mới"
+          >
+            <Plus size={18} aria-hidden="true" />
+          </button>
+        </header>
+
         <div className={`assistant-floating-header ${sidebarOpen ? "sidebar-open" : "sidebar-collapsed"}`}>
           <div className="assistant-header-left">
             <button
@@ -785,14 +809,32 @@ export function TripsageChatClient({
                 />
                 <div className="assistant-composer-bar">
                   <div className="assistant-composer-left-tools" />
-                  {busy
-                    ? <Button type="button" variant="destructive" className="assistant-stop-button" onClick={() => void stop()}><Square aria-hidden="true" /><span>Dừng</span></Button>
-                    : <button type="submit" disabled={!draft.trim() || saveLocked || loadingConversation}><Send aria-hidden="true" /><span>Gửi</span></button>}
+                  {busy ? (
+                    <button
+                      type="button"
+                      className="assistant-composer-send-circle is-stop"
+                      aria-label="Dừng trả lời"
+                      onClick={() => void stop()}
+                    >
+                      <Square size={14} aria-hidden="true" />
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      className="assistant-composer-send-circle"
+                      aria-label="Gửi tin nhắn"
+                      disabled={!draft.trim() || saveLocked || loadingConversation}
+                    >
+                      <Send size={15} aria-hidden="true" />
+                    </button>
+                  )}
                 </div>
               </div>
-              <div className="assistant-composer-footer">
-                <span className="assistant-char-counter">{draft.length}/{MAX_LENGTH} ký tự</span>
-              </div>
+              {draft.length > MAX_LENGTH * 0.8 && (
+                <div className="assistant-composer-footer">
+                  <span className="assistant-char-counter">{draft.length}/{MAX_LENGTH} ký tự</span>
+                </div>
+              )}
             </form>
             <footer className="assistant-trust-footer">
               <div className="assistant-trust-item"><ShieldCheck aria-hidden="true" /><span>Thông tin thực tế cần có nguồn</span></div>

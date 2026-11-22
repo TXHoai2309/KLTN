@@ -3186,3 +3186,215 @@
     display: inline-flex;
   }
 }
+
+/* ==========================================================================
+   TICKET 11: MOBILE SHEET (<768px), 48px TOPBAR, 2-COL COST TABLE & SLIM COMPOSER
+   (design §3.6, §3.8, §3.9, §4.1)
+   ========================================================================== */
+.assistant-mobile-topbar {
+  display: none;
+}
+
+.tripsage-cost-basis-mobile {
+  display: none;
+}
+
+/* Slim single-line composer (design §3.6) */
+.assistant-composer-input {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: var(--tv-space-2);
+  min-height: 44px;
+  padding: 6px 8px 6px 14px;
+  border-radius: 14px;
+  border: 1px solid var(--tv-line);
+  background: var(--tv-surface);
+  box-shadow: var(--tv-shadow-float);
+}
+
+.assistant-composer-input textarea {
+  flex: 1 1 auto;
+  min-height: 30px;
+  max-height: 96px;
+  padding: 4px 0;
+  font-size: var(--tv-text-md);
+  line-height: 1.45;
+}
+
+.assistant-composer-bar {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.assistant-composer-send-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--tv-radius-pill);
+  background: var(--tv-accent);
+  color: var(--tv-on-accent);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity var(--tv-motion-fast), background var(--tv-motion-fast);
+}
+
+.assistant-composer-send-circle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.assistant-composer-send-circle.is-stop {
+  background: var(--tv-danger);
+  color: var(--tv-on-accent);
+}
+
+.assistant-composer-send-circle:focus-visible {
+  outline: 2px solid var(--tv-focus);
+  outline-offset: 2px;
+}
+
+@media (max-width: 767px) {
+  .assistant-floating-header {
+    display: none;
+  }
+
+  .assistant-mobile-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--tv-space-2);
+    height: 48px;
+    padding: 0 var(--tv-space-3);
+    border-bottom: 1px solid var(--tv-line);
+    background: var(--tv-surface);
+    flex-shrink: 0;
+  }
+
+  .assistant-mobile-topbar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    border-radius: var(--tv-radius-control);
+    background: transparent;
+    color: var(--tv-ink);
+    cursor: pointer;
+  }
+
+  .assistant-mobile-topbar-btn:hover {
+    background: var(--tv-sunken);
+  }
+
+  .assistant-mobile-topbar-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+    font-family: var(--tv-font-ui);
+    font-size: var(--tv-text-md);
+    font-weight: 600;
+    color: var(--tv-ink);
+  }
+
+  /* Bottom sheet (design §3.9): max 92% height, 16px top radius, 36x4 drag handle, sticky lg save footer */
+  .tripsage-panel-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: var(--tv-scrim);
+  }
+
+  .tripsage-plan-panel {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 60;
+    height: auto;
+    max-height: 92dvh;
+    border-left: 0;
+    border-radius: 16px 16px 0 0;
+    background: var(--tv-surface);
+    box-shadow: var(--tv-shadow-float);
+    transform: translateY(105%);
+    transition: transform var(--tv-motion-normal);
+  }
+
+  .tripsage-plan-panel.is-open {
+    transform: translateY(0);
+  }
+
+  .tripsage-sheet-drag-zone {
+    padding: 8px 0 4px;
+    display: flex;
+    justify-content: center;
+    touch-action: pan-y;
+  }
+
+  .tripsage-sheet-handle {
+    display: block;
+    width: 36px;
+    height: 4px;
+    border-radius: var(--tv-radius-pill);
+    background: var(--tv-line);
+  }
+
+  .tripsage-panel-save-desktop {
+    display: none;
+  }
+
+  .tripsage-panel-close {
+    display: inline-flex;
+  }
+
+  .tripsage-panel-subtab--map {
+    display: inline-flex;
+  }
+
+  .tripsage-panel-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tripsage-panel-map-col {
+    display: none;
+  }
+
+  .tripsage-sheet-footer {
+    display: block;
+    padding: var(--tv-space-3) var(--tv-space-4);
+    border-top: 1px solid var(--tv-line);
+    background: var(--tv-surface);
+  }
+
+  .tripsage-sheet-footer .assistant-save-button,
+  .tripsage-sheet-footer a.tv-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Design §3.8: 2-column cost list on mobile, basis stacked as gray sub-line */
+  .tripsage-cost-table thead th:nth-child(2),
+  .tripsage-cost-basis-desktop {
+    display: none;
+  }
+
+  .tripsage-cost-basis-mobile {
+    display: block;
+    margin-top: 2px;
+    font-size: var(--tv-text-xs);
+    color: var(--tv-ink-2);
+    font-weight: 400;
+  }
+}
