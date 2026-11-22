@@ -116,6 +116,62 @@
   color: var(--assistant-muted);
 }
 
+.summary strong {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.summary span {
+  color: var(--assistant-muted);
+}
+
+.more > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--assistant-green);
+}
+
+.more[open] > summary {
+  margin-block-end: 8px;
+}
+
+.bookLink {
+  justify-self: start;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--assistant-green);
+  color: #ffffff;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.altLink {
+  font-weight: 600;
+  color: var(--assistant-green);
+}
+
+.rowLink {
+  justify-self: start;
+  font-weight: 600;
+  color: var(--assistant-green);
+}
+
+.bookLink:hover {
+  filter: brightness(1.1);
+}
+
+.bookLink:focus-visible {
+  outline: 2px solid var(--assistant-green);
+  outline-offset: 2px;
+}
+
 .unpriced {
   color: var(--assistant-muted);
   font-style: italic;
