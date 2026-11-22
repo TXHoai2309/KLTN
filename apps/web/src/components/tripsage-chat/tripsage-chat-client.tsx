@@ -269,6 +269,8 @@ export function TripsageChatClient({
   };
 
   useEffect(() => { if (!busy) setStatus(null); }, [busy]);
+  // Grow the composer with its text (CSS caps it at six lines, then it scrolls).
+  useEffect(() => { const el = composer.current; if (!el) return; el.style.height = "auto"; el.style.height = `${Math.min(el.scrollHeight, 132)}px`; }, [draft]);
   // Pins and the saved trip belong to one conversation.
   useEffect(() => { setPinned([]); setSavedTripId(null); setPinMessage(null); }, [activeConversationId]);
 

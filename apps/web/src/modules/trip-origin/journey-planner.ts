@@ -8,7 +8,7 @@ import { missingLeg, resolveBoundedRoutes, ROUTING_DEADLINE_MS, type CoordinateR
 import { optimizeScheduleForWeather } from "../trip-planner/planner-weather-preference";
 import type { ForecastOptions } from "../trip-weather/forecast";
 import { journeyRouteSchema, type JourneyPlan, type JourneyRoute } from "./journey-route-contract";
-import { afterVisitDriving, driveWithRest, REST_POLICY_VERSION } from "./rest-policy";
+import { afterVisitDriving, driveWithRest, restPolicyOf, restProfileOf } from "./rest-policy";
 import { missingJourneyFields } from "./trip-origin-contract";
 
 const missing = (reason: NonNullable<JourneyRoute["reason"]>): JourneyRoute => ({ status: "INSUFFICIENT_DATA", reason, durationSeconds: null, distanceMeters: null, provider: null });
@@ -90,13 +90,13 @@ function idleBeforeLastDay(days: readonly PlannerDay[], plan: JourneyPlan): numb
  */
 function balanceJourneyDays(requirement: TripRequirementInput, stops: readonly PlannerCandidate[], transfer: ReadonlyMap<string, TravelLeg>, outbound: JourneyRoute, returning: JourneyRoute, cap: number): PlannerCandidate[][] {
   const dayCount = requirement.durationDays, journey = requirement.journey!;
-  const returnMinutes = (start: number, driven: number) => start + Math.ceil(returning.durationSeconds! / 60) + driveWithRest(returning.durationSeconds!, driven, requirement.transport).restMinutes;
+  const returnMinutes = (start: number, driven: number) => start + Math.ceil(returning.durationSeconds! / 60) + driveWithRest(returning.durationSeconds!, driven, restProfileOf(requirement)).restMinutes;
   const returnCost = (end: number) => end >= 1440 || (journey.returnDeadlineMinute != null && end > journey.returnDeadlineMinute) ? 100 : 0;
   const costOfDay = (dayIndex: number, offset: number, count: number) => {
     const isLast = dayIndex === dayCount - 1;
     if (!count) {
       if (dayIndex === 0 && offset === 0) {
-        const arrival = journey.departureMinute! + Math.ceil(outbound.durationSeconds! / 60) + driveWithRest(outbound.durationSeconds!, 0, requirement.transport).restMinutes;
+        const arrival = journey.departureMinute! + Math.ceil(outbound.durationSeconds! / 60) + driveWithRest(outbound.durationSeconds!, 0, restProfileOf(requirement)).restMinutes;
         return { cost: 0, load: isLast ? 0 : idleCost(arrival) };
       }
       if (!isLast || offset !== stops.length) return { cost: 100, load: 0 };
@@ -108,12 +108,12 @@ function balanceJourneyDays(requirement: TripRequirementInput, stops: readonly P
       if (stop === stops[0]) {
         restBefore.set(stop.id, 0);
         if (dayIndex === 0) {
-          const drive = driveWithRest(outbound.durationSeconds!, 0, requirement.transport);
+          const drive = driveWithRest(outbound.durationSeconds!, 0, restProfileOf(requirement));
           start = journey.departureMinute! + Math.ceil(outbound.durationSeconds! / 60) + drive.restMinutes;
           driven = drive.accumulatedSeconds;
         }
       } else {
-        const drive = driveWithRest(transfer.get(stop.id)!.durationSeconds!, driven, requirement.transport);
+        const drive = driveWithRest(transfer.get(stop.id)!.durationSeconds!, driven, restProfileOf(requirement));
         restBefore.set(stop.id, drive.restMinutes);
         driven = drive.accumulatedSeconds;
       }
@@ -205,7 +205,7 @@ export function scheduleJourneyEvidence(requirement: TripRequirementInput, selec
   const restBefore = new Map<string, number | null>();
   const rests = new Map<string, number | null>();
   const departure = requirement.journey?.departureMinute ?? null;
-  const outboundRest = outbound.status === "VERIFIED" ? driveWithRest(outbound.durationSeconds!, 0, requirement.transport).restMinutes : null;
+  const outboundRest = outbound.status === "VERIFIED" ? driveWithRest(outbound.durationSeconds!, 0, restProfileOf(requirement)).restMinutes : null;
   let accumulated: number | null = 0;
   for (const [dayIndex, day] of selected.entries()) {
     if (dayIndex > 0) accumulated = 0;
@@ -219,7 +219,7 @@ export function scheduleJourneyEvidence(requirement: TripRequirementInput, selec
       const route = stop === first ? outbound : transfer.get(stop.id);
       if (!route || route.status !== "VERIFIED" || accumulated === null) { accumulated = null; restBefore.set(stop.id, null); rests.set(stop.id, null); }
       else {
-        const calculated = driveWithRest(route.durationSeconds!, accumulated, requirement.transport);
+        const calculated = driveWithRest(route.durationSeconds!, accumulated, restProfileOf(requirement));
         accumulated = calculated.accumulatedSeconds;
         restBefore.set(stop.id, stop === first ? 0 : calculated.restMinutes);
         rests.set(stop.id, calculated.restMinutes);
@@ -231,7 +231,7 @@ export function scheduleJourneyEvidence(requirement: TripRequirementInput, selec
   starts.set(1, outboundArrival);
   const days = schedulePlannerDays(requirement, selected, transfer, { starts, restBefore, fixedArrivals });
   if (returnOnly) accumulated = 0;
-  const returnRest = returning.status === "VERIFIED" && accumulated !== null ? driveWithRest(returning.durationSeconds!, accumulated, requirement.transport).restMinutes : null;
+  const returnRest = returning.status === "VERIFIED" && accumulated !== null ? driveWithRest(returning.durationSeconds!, accumulated, restProfileOf(requirement)).restMinutes : null;
   const finalStop = days.flatMap(day => day.stops).at(-1);
   const returnStart = returnOnly ? requirement.journey?.returnDepartureMinute ?? null : finalStop?.departureMinute ?? null;
   const returnEnd = returnStart === null || returning.status !== "VERIFIED" || returnRest === null ? null : returnStart + Math.ceil(returning.durationSeconds! / 60) + returnRest;
@@ -253,7 +253,7 @@ export function scheduleJourneyEvidence(requirement: TripRequirementInput, selec
   }
   if (last) legs.push({ kind: "RETURN", day: requirement.durationDays, from: { kind: "ATTRACTION", destinationId: last.id }, to: { kind: "ORIGIN" }, route: returning, startMinute: returnStart, endMinute: returnEnd, restMinutes: returnRest });
   const complete = legs.length > 0 && legs.every(leg => leg.route.status === "VERIFIED" && leg.restMinutes !== null);
-  const journeyPlan: JourneyPlan = { policy: REST_POLICY_VERSION, legs, totals: {
+  const journeyPlan: JourneyPlan = { policy: restPolicyOf(requirement), legs, totals: {
     drivingSeconds: complete ? legs.reduce((sum, leg) => sum + leg.route.durationSeconds!, 0) : null,
     restMinutes: complete ? legs.reduce((sum, leg) => sum + leg.restMinutes!, 0) : null,
     distanceMeters: complete ? legs.reduce((sum, leg) => sum + leg.route.distanceMeters!, 0) : null,
@@ -300,7 +300,7 @@ export function validateJourneyTiming(requirement: TripRequirementInput, days: r
       if (visit && visit.visitDurationMinutes >= 15) driving = 0;
     }
     if (leg.route.status !== "VERIFIED" || driving === null) { driving = null; add("JOURNEY_REST_UNKNOWN", leg.day); continue; }
-    const expected = driveWithRest(leg.route.durationSeconds!, driving, requirement.transport);
+    const expected = driveWithRest(leg.route.durationSeconds!, driving, restProfileOf(requirement));
     driving = expected.accumulatedSeconds;
     if (leg.restMinutes !== expected.restMinutes) add("JOURNEY_REST_MISMATCH", leg.day, true);
     if (leg.startMinute === null || leg.endMinute === null) { add("JOURNEY_CLOCK_UNKNOWN", leg.day); continue; }

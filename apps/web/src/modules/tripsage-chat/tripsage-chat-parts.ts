@@ -74,7 +74,7 @@ export const hotelsPartSchema = z.strictObject({
   nights: z.number().int().min(1).max(14),
   destinationId: z.string().min(1).max(128).optional(),
   kind: z.enum(LODGING_KINDS).optional(),
-  adults: z.number().int().min(1).max(9).optional(),
+  adults: z.number().int().min(1).max(20).optional(),
   hotels: z.array(z.strictObject({
     name: shortName,
     distanceKm: z.number().min(0).max(20_050).nullable(),

@@ -20,6 +20,16 @@ const makeLookup = (fetcher: typeof fetch) =>
   createSerpApiHotelLookup(createSerpApiClient({ apiKeys: () => KEY, fetcher }));
 
 describe("SerpApi google_hotels lookup", () => {
+  it("prices a group of 10 as five 2-guest rooms (Google Hotels rejects more than 6 travelers)", async () => {
+    const fetcher = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ properties: [{
+      name: "Homestay Phố Cổ", gps_coordinates: { latitude: 23.278, longitude: 105.364 },
+      rate_per_night: { extracted_lowest: 500000 }, total_rate: { extracted_lowest: 1000000 },
+    }] }));
+    const result = await makeLookup(fetcher)({ ...BASE_QUERY, adults: 10 });
+    expect(new URL(String(fetcher.mock.calls[0]![0])).searchParams.get("adults")).toBe("2");
+    expect(result).toMatchObject({ status: "RESULTS", offers: [{ room: "5 × 2 khách", price: { total: "5000000", perNight: "2500000" } }] });
+  });
+
   it.each([
     ["HOTEL", "khách sạn gần Phố cổ Đồng Văn, Hà Giang"],
     ["HOMESTAY", "homestay gần Phố cổ Đồng Văn, Hà Giang"],

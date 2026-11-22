@@ -22,7 +22,7 @@ export type JourneyRoute = z.infer<typeof journeyRouteSchema>;
 export type JourneyEndpoint = z.infer<typeof journeyEndpointSchema>;
 const totals = z.object({ drivingSeconds: z.number().nonnegative().nullable(), restMinutes: z.number().nonnegative().nullable(), distanceMeters: z.number().nonnegative().nullable() }).strict();
 export const journeyPlanSchema = z.object({
-  policy: z.literal("roadside-rest-v1"),
+  policy: z.enum(["roadside-rest-v1", "roadside-rest-compact-v1"]),
   legs: z.array(z.object({
     kind: z.enum(["OUTBOUND", "TRANSFER", "RETURN"]), day: z.number().int().min(1).max(14),
     from: journeyEndpointSchema, to: journeyEndpointSchema, route: journeyRouteSchema,

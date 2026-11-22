@@ -11,6 +11,7 @@ const hours = (minutes: number) => `${Math.floor(minutes / 60)} giờ${minutes %
 const formatDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}`;
 
 function segmentPriceLabel(segment: AccessLegPart["outbound"][number]): string {
+  if (segment.priceVndPerPerson === 0) return "chưa có giá";
   if (segment.priceSource === "GOOGLE_FLIGHTS") {
     const dateSuffix = segment.priceLookupDate ? ` ngày ${formatDate(segment.priceLookupDate)}` : "";
     return `${formatVnd(segment.priceVndPerPerson)}/người (giá tham khảo từ Google Flights${dateSuffix})`;
@@ -42,7 +43,7 @@ export function TripsageAccessLegCard({ leg }: { leg: AccessLegPart }) {
       <h4>Từ {leg.homeCity} tới {leg.hubName}</h4>
       <Segments title="Trước chuyến đi" segments={leg.outbound} minutes={leg.outboundMinutes} />
       <Segments title="Sau chuyến đi" segments={leg.return} minutes={leg.returnMinutes} />
-      <p className="text-sm">Tổng tham khảo cả nhóm {leg.travelers} người: <strong>{formatVnd(leg.totalVnd)}</strong></p>
+      <p className="text-sm">Tổng tham khảo cả nhóm {leg.travelers} người: <strong>{leg.totalVnd > 0 ? formatVnd(leg.totalVnd) : "chưa có giá"}</strong></p>
       {hasGoogleFlights && (
         <p className="assistant-muted text-xs">Giá tham khảo từ Google (qua SerpApi), có thể thay đổi. Ứng dụng không đặt chỗ.</p>
       )}

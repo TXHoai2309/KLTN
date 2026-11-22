@@ -102,7 +102,7 @@ const hotelInput = z.object({
   destinationId: z.string().min(1).max(128).optional().describe("id điểm đến lấy từ listDestinations (khi chỉ tra một khu)."),
   checkInDate: date.optional().describe("Ngày nhận phòng YYYY-MM-DD (khi chỉ tra một khu)."),
   checkOutDate: date.optional().describe("Ngày trả phòng YYYY-MM-DD (khi chỉ tra một khu)."),
-  adults: z.number().int().min(1).max(9).default(1),
+  adults: z.number().int().min(1).max(20).default(1).describe("Tổng số khách của cả đoàn; hệ thống tự chia phòng 2 khách và cộng giá."),
   currency,
   kind: z.enum(LODGING_KINDS).default("ANY").describe("Loại chỗ ở: HOTEL (khách sạn), HOMESTAY, GUESTHOUSE (nhà nghỉ bình dân), ANY (không quan trọng)."),
 }).strict();

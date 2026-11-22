@@ -31,7 +31,7 @@ export const hotelPinSchema = z.strictObject({
   near: z.string().min(1).max(120),
   checkInDate: isoDate,
   checkOutDate: isoDate,
-  adults: z.number().int().min(1).max(9).optional(),
+  adults: z.number().int().min(1).max(20).optional(),
   rating: z.number().min(0).max(5).nullable().optional(),
   price: z.strictObject({ total: amount, perNight: amount.nullable().optional(), currency }).nullable(),
   lookupDate: isoDate.optional(),

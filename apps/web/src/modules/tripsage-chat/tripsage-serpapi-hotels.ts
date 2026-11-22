@@ -18,6 +18,8 @@ export { LODGING_KINDS, type LodgingKind };
 const DEFAULT_RADIUS_KM = 10;
 const MAX_PRICED_OFFERS = 5;
 const MAX_UNPRICED_OFFERS = 3;
+/** Google Hotels rejects more than 6 travelers per search (HTTP 400, checked live 2026-11-22): price one 2-guest room and multiply. */
+export const GUESTS_PER_ROOM = 2;
 
 const KIND_QUERY_PREFIX: Record<LodgingKind, string> = {
   HOTEL: "khách sạn",
@@ -104,13 +106,15 @@ export function createSerpApiHotelLookup(client: SerpApiClient): HotelLookup {
     const kind: LodgingKind = query.kind ?? "ANY";
     const currency = query.currency || "VND";
     const radiusKm = query.radiusKm ?? DEFAULT_RADIUS_KM;
+    const perRoom = Math.min(Math.max(1, query.adults), GUESTS_PER_ROOM);
+    const rooms = Math.ceil(Math.max(1, query.adults) / perRoom);
 
     const outcome = await client.search({
       engine: "google_hotels",
       q: buildHotelSearchQuery(cleanedNear, kind),
       check_in_date: query.checkInDate,
       check_out_date: query.checkOutDate,
-      adults: String(query.adults),
+      adults: String(perRoom),
       currency,
       gl: "vn",
       hl: "vi",
@@ -147,8 +151,8 @@ export function createSerpApiHotelLookup(client: SerpApiClient): HotelLookup {
 
       let price: HotelOffer["price"] = null;
       if (totalNum !== null || perNightNum !== null) {
-        const perNight = perNightNum !== null ? formatAmount(perNightNum) : null;
-        const total = totalNum !== null ? formatAmount(totalNum) : formatAmount(perNightNum! * nights);
+        const perNight = perNightNum !== null ? formatAmount(perNightNum * rooms) : null;
+        const total = totalNum !== null ? formatAmount(totalNum * rooms) : formatAmount(perNightNum! * nights * rooms);
         price = { total, perNight, currency };
       }
 
@@ -157,7 +161,7 @@ export function createSerpApiHotelLookup(client: SerpApiClient): HotelLookup {
         offer: {
           name,
           distanceKm: Math.round(rawDistanceKm * 10) / 10,
-          room: null,
+          room: rooms > 1 ? `${rooms} × ${perRoom} khách` : null,
           rating: property.overall_rating ?? null,
           reviews: property.reviews ?? null,
           price,

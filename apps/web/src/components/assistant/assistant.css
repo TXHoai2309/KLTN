@@ -2789,3 +2789,8 @@
 .tripsage-thinking-dots i:nth-child(3) { animation-delay: 0.3s; }
 @keyframes tripsage-thinking-bounce { 0%, 80%, 100% { transform: translateY(0); opacity: 0.35; } 40% { transform: translateY(-0.25rem); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .tripsage-thinking-dots i { animation: none; opacity: 0.7; } }
+
+/* Planning chat: breathing room above the composer, and a composer that grows to six lines. */
+.assistant-chat[data-runtime="tripsage-unified"] .assistant-transcript { padding: 14px 0 40px; }
+.assistant-chat[data-runtime="tripsage-unified"] .assistant-composer-input { align-items: flex-end; border-radius: 22px; }
+.assistant-chat[data-runtime="tripsage-unified"] .assistant-composer textarea { max-height: 132px; align-self: center; }

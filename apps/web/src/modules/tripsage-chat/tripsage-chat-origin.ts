@@ -167,6 +167,25 @@ const CONTRAST_CUE = /\b(?:nhung|thay\s+vi|con|hoac|hay|or)\b/u;
  * ("tôi xuất phát từ Đà Nẵng", or just "Đà Nẵng"), so the server can confirm it without a second round-trip.
  * Anything contrasted, negated or longer than one short sentence stays on the two-turn path.
  */
+const LOOSE_AGREEMENT = /(?:^|\s)(?:ok+|oke+|okay|dong\s+y|xac\s+nhan|chot|duoc|vang|uh|uk|yes)(?:\s|$)/u;
+/**
+ * One-turn origin confirmation (owner decision 2026-11-22: never ask the same place twice).
+ * True when the latest message names the searched place or plainly agrees, without a hard "no" or a contrast ("nhưng", "hay").
+ */
+export function namesOrAgreesOrigin(latestUserText: string, query: string): boolean {
+  const folded = foldVietnamese(latestUserText);
+  const place = foldVietnamese(query);
+  if (!folded || folded.length > 160 || hasHardNegation(latestUserText, folded) || CONTRAST_CUE.test(folded)) return false;
+  return (place.length >= 3 && folded.includes(place)) || LOOSE_AGREEMENT.test(folded);
+}
+
+/** Same place as an origin already confirmed earlier in the conversation. */
+export function sameOriginPlace(confirmedLabel: string, query: string): boolean {
+  const label = foldVietnamese(confirmedLabel);
+  const place = foldVietnamese(query);
+  return place.length >= 3 && (label.includes(place) || place.includes(label.split(/[,()\-–]+/u)[0]!.trim()));
+}
+
 export function statesSoleOrigin(latestUserText: string, candidate: { label: string }): boolean {
   const folded = foldVietnamese(latestUserText);
   if (!folded || folded.length > 120 || hasHardNegation(latestUserText, folded) || CONTRAST_CUE.test(folded)) return false;

@@ -5989,3 +5989,12 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 
 - In the planning chat the slide-over sheet sat inside a chat ancestor's stacking context, so the site header painted over its top-right corner. `ValidationSheet` now renders through a portal to `document.body` after mount (inline on the server so SSR markup is unchanged); a `display: contents` wrapper keeps the `--planner-*` tokens.
 - Not verified in a browser (needs a signed-in chat with an itinerary). The cause is inferred from the screenshot and the CSS, not reproduced.
+
+## 2026-11-22 — Planning chat fixes from conversation 2df60a2a (ADR-48)
+
+- Hotels: Google Hotels rejects more than 6 travelers per search (HTTP 400, checked live). The lookup now prices 2-guest rooms and multiplies, so a group of 10 is five rooms; the 9-guest hotel cap is now 20. SerpApi 4xx logs include SerpApi's error text with keys redacted. Flights keep Google Flights' 9-passenger limit.
+- Origin: confirmed in the same turn when the traveler names it or agrees; an already confirmed origin is not searched again.
+- Flexible schedule: one server-side retry with 10-minute breaks and minimum visits; `visitMinutes` lets the traveler set a stop's length.
+- A rejected plan input (`INVALID_AI_PLAN`) no longer uses one of the turn's two planning tries.
+- UI: composer grows to six lines, more space above it, access leg shows "chưa có giá" instead of 0đ.
+- Not done: lunch picks that explain the choice and attach only on tap (item 4), and a draft progress bar (item 8). Not verified in a browser.

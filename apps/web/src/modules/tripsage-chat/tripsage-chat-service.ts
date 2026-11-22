@@ -132,7 +132,7 @@ export function parseTripsageChatPriorHotelLookups(body: unknown): PriorHotelLoo
         const near = typeof record.near === "string" && record.near.length <= 200 ? record.near : undefined;
         if (!destinationId && !near) continue;
         const kind: LodgingKind = typeof record.kind === "string" && kindSet.has(record.kind) ? (record.kind as LodgingKind) : "ANY";
-        const adults = typeof record.adults === "number" && Number.isInteger(record.adults) && record.adults >= 1 && record.adults <= 9 ? record.adults : 1;
+        const adults = typeof record.adults === "number" && Number.isInteger(record.adults) && record.adults >= 1 && record.adults <= 20 ? record.adults : 1;
         out.push({ ...(destinationId ? { destinationId } : {}), ...(near ? { near } : {}), checkInDate, checkOutDate, kind, adults });
       }
       if (out.length >= 60) return out;
