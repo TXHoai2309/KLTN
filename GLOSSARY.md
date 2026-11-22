@@ -79,8 +79,12 @@ Trình tự thời gian của một ngày trong đề xuất hành trình: khở
 _Avoid_: Free-text itinerary, AI-written schedule.
 
 **Planning suggestion (gợi ý kèm lịch)**:
-Lời khuyên do trợ lý thêm vào một khoảng trong timeline, như ăn ở đâu, buổi tối làm gì hay mẹo đi lại. Gợi ý không phải là lượt tham quan, không được kiểm tra ràng buộc và không làm đổi mốc giờ.
+Lời khuyên do trợ lý thêm vào một khoảng trong timeline, như ăn ở đâu hay mẹo đi lại. Gợi ý không phải là lượt tham quan, không được kiểm tra ràng buộc và không làm đổi mốc giờ.
 _Avoid_: Scheduled visit, verified stop.
+
+**Nearby activity suggestion (gợi ý vui chơi quanh đây)**:
+Một địa điểm vui chơi hoặc tham quan gần một điểm dừng, hoặc một nơi đi chơi buổi tối gần chỗ nghỉ, hệ thống tự tìm cho mỗi chặng của hành trình. Là dữ liệu bản đồ chưa kiểm tra, được giữ cùng chuyến đi đã lưu để người đi biết; không phải là lượt tham quan, không chiếm giờ trong timeline và không ảnh hưởng kết quả kiểm tra hay chi phí.
+_Avoid_: Scheduled visit, verified stop, destination.
 
 **Lodging suggestion (gợi ý chỗ nghỉ)**:
 Một nơi lưu trú bên ngoài danh mục điểm đến được gợi ý cho một đêm của chuyến đi, luôn được đánh dấu là chưa kiểm tra. Gợi ý chỗ nghỉ không phải là đặt phòng và không phải là lượt tham quan.

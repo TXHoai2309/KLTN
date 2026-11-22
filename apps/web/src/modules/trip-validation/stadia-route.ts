@@ -58,8 +58,8 @@ export async function requestStadiaRoute(input: RouteInput, options: RouteOption
   let costing: ReturnType<typeof toStadiaCosting>;
   try { costing = toStadiaCosting(input.vehicle); } catch { return missing("UNSUPPORTED_MODE"); }
   if (!isValidMapCoordinate(input.origin) || !isValidMapCoordinate(input.destination)) return missing("INVALID_RESPONSE");
-  const timeoutMs = options.timeoutMs ?? 10_000;
-  if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 10_000) throw new RangeError("Invalid routing timeout");
+  const timeoutMs = options.timeoutMs ?? 40_000;
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 40_000) throw new RangeError("Invalid routing timeout");
   const controller = new AbortController();
   const abort = () => controller.abort();
   options.signal?.addEventListener("abort", abort, { once: true });

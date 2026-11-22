@@ -13,7 +13,7 @@ export const GOOGLE_PLACES_SEARCH_ENDPOINT = "https://places.googleapis.com/v1/p
 export const GOOGLE_PLACES_FIELD_MASK = "places.id,places.displayName,places.location";
 export const MAX_PLACES_RESPONSE_BYTES = 256 * 1024;
 const PAGE_SIZE = 5;
-const DEFAULT_TIMEOUT_MS = 5_000;
+const DEFAULT_TIMEOUT_MS = 12_000;
 /** Hà Giang province bounding box (south-west, north-east): the KLTN planning scope. Results are re-checked locally. */
 const AREA = { low: { latitude: 22.3, longitude: 104.3 }, high: { latitude: 23.4, longitude: 105.6 } } as const;
 

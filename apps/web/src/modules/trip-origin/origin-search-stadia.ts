@@ -23,7 +23,7 @@ export function createStadiaOriginSearch(deps: { apiKey: () => Promise<string | 
       url.searchParams.set("size", "5");
       // Bias ranking toward northern Vietnam so "hoàng mai" finds Hà Nội before Nghệ An.
       url.searchParams.set("focus.point.lat", "21"); url.searchParams.set("focus.point.lon", "105.8");
-      const timeout = AbortSignal.timeout(4000);
+      const timeout = AbortSignal.timeout(8000);
       const response = await (deps.fetcher ?? fetch)(url, {
         signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
         redirect: "error", cache: "no-store", headers: { accept: "application/json", authorization: `Stadia-Auth ${key}` },

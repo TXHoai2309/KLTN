@@ -93,7 +93,7 @@ describe("webSearch via Firecrawl v2", () => {
     expect(init.headers.authorization).toBe(`Bearer ${KEY}`);
     const body = JSON.parse(String(init.body));
     expect(body).toMatchObject({ query: "lễ hội Hà Giang", sources: ["web"], limit: 5 });
-    expect(body.timeout).toBeLessThanOrEqual(8000);
+    expect(body.timeout).toBeLessThanOrEqual(15000);
     expect(body.scrapeOptions).toBeUndefined();
   });
 
@@ -181,7 +181,7 @@ describe("fetchPage Firecrawl scrape", () => {
     expect(init.headers.authorization).toBe(`Bearer ${KEY}`);
     const body = JSON.parse(String(init.body));
     expect(body).toMatchObject({ url: "https://du-lich.example.vn/ha-giang", formats: ["markdown"], onlyMainContent: true, parsers: [], proxy: "basic" });
-    expect(body.timeout).toBeLessThanOrEqual(8000);
+    expect(body.timeout).toBeLessThanOrEqual(15000);
     // Measured without the system prompt: the bound is on what the scraped page adds.
     const out = JSON.stringify(model.doStreamCalls[2]!.prompt.filter(message => message.role !== "system"));
     expect(out).toContain("DU_LIEU_WEB_KHONG_TIN_CAY");

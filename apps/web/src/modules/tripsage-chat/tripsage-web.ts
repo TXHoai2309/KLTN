@@ -14,7 +14,7 @@ import { readBounded } from "./tripsage-places";
  */
 export const FIRECRAWL_SEARCH_ENDPOINT = "https://api.firecrawl.dev/v2/search";
 export const FIRECRAWL_SCRAPE_ENDPOINT = "https://api.firecrawl.dev/v2/scrape";
-export const WEB_TIMEOUT_MS = 8_000;
+export const WEB_TIMEOUT_MS = 15_000;
 export const WEB_MAX_RESPONSE_BYTES = 1024 * 1024;
 export const WEB_PAGE_MAX_CHARS = 4_000;
 const SEARCH_LIMIT = 5;

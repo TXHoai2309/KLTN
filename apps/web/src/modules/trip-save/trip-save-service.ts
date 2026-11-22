@@ -247,6 +247,14 @@ export async function saveTrip(headers: Headers, request: TripSaveRequest, key: 
           nightIndex,
           externalPlaceId: externalRowsByPlaceId.get(placeId)!,
         }));
+      const seenNearby = new Set<string>();
+      const nearbyCreates = (request.nearbySuggestions ?? []).flatMap(item => {
+        const dayIndex = Number(item.slotId.match(/^d(\d+)-/)![1]);
+        const key = `${item.slotId}|${item.placeId}`;
+        if (dayIndex < 1 || dayIndex > request.proposal.durationDays || seenNearby.has(key)) return [];
+        seenNearby.add(key);
+        return [{ dayIndex, slot: item.slotId.replace(/^d\d+-/, ""), kind: item.kind, placeId: item.placeId, name: item.name, distanceKm: item.distanceKm, sortOrder: seenNearby.size }];
+      });
       const trip = await transaction.trip.create({ data: {
         userId: actor.userId,
         startDate: new Date(`${request.proposal.startDate}T00:00:00.000Z`),
@@ -255,6 +263,7 @@ export async function saveTrip(headers: Headers, request: TripSaveRequest, key: 
         ...(unchecked.length ? { uncheckedChecks: JSON.parse(JSON.stringify({ revision: UNCHECKED_REVISION, items: unchecked })), uncheckedConfirmedAt: timeReference } : {}),
         journeySnapshot: JSON.parse(JSON.stringify({ revision: "journey-save-v1", journey: request.proposal.journey, plan: checked.plan, visitFingerprint: journeyVisitFingerprint(request.proposal.days) })),
         ...(chosenLodgingCreates.length ? { chosenLodgings: { create: chosenLodgingCreates } } : {}),
+        ...(nearbyCreates.length ? { nearbySuggestions: { create: nearbyCreates } } : {}),
         days: { create: request.proposal.days.map(day => ({
           dayIndex: day.dayIndex,
           localDate: new Date(`${tripDayDate(request.proposal.startDate, day.dayIndex)}T00:00:00.000Z`),

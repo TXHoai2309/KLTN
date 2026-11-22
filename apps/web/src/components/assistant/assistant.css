@@ -2742,3 +2742,13 @@
 .tripsage-suggestion { padding: 6px 8px; margin-top: 0.35rem; border-radius: 8px; background: var(--assistant-soft); }
 .tripsage-suggestion svg { color: var(--assistant-green); }
 .dark .tripsage-quick-replies button:hover:not(:disabled) { color: #0b1a10; }
+
+/* Plan cards fold when a later turn leaves the itinerary unchanged (2026-11-22). */
+.tripsage-plan-details { margin-top: 0.75rem; }
+.tripsage-plan-details > summary { cursor: pointer; font-weight: 650; color: var(--assistant-green); padding: 0.4rem 0; list-style-position: inside; }
+.tripsage-plan-details > summary:focus-visible { outline: 2px solid var(--assistant-green); outline-offset: 2px; }
+
+/* Nearby activity suggestions: one compact list per stop or night (2026-11-22). */
+.tripsage-nearby { margin: 0.4rem 0 0.2rem; padding: 0.5rem 0.75rem; border-radius: 10px; background: var(--assistant-soft); font-size: 0.9rem; }
+.tripsage-nearby-note { color: var(--assistant-muted, #5b6b60); font-size: 0.8rem; }
+.tripsage-nearby ul { margin: 0.35rem 0 0; padding-left: 1.1rem; display: grid; gap: 0.25rem; }

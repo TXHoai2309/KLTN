@@ -6,6 +6,7 @@ import type { AuthorizationDependencies } from "../../server/authorization/guard
 import { createPlanningAdmission } from "../assistant-planning/planning-admission";
 import { fixtureRoutes, planningCandidate, planningNow } from "../../test/planning-fixtures";
 import { COMPLETE_JOURNEY_FIXTURE } from "../trip-origin/trip-origin-fixtures";
+import { hubOrigin } from "./trip-hubs";
 import {
   ASSISTANT_CONVERSATION_RETENTION_DAYS,
   conversationMetaPartSchema,
@@ -190,6 +191,12 @@ describe("sanitizeStoredParts", () => {
     ]);
     expect(out.map(p => p.type)).toEqual(["text", "data-trip-info", "data-sources"]);
     expect(JSON.stringify(out)).not.toMatch(/v1\.secret\.coords|raw|SYSTEM INSTRUCTIONS|PLANE/);
+  });
+
+  it("stores a journey only when its origin is a fixed public hub, so a reload keeps the confirmed hub", () => {
+    const hubJourney = { ...COMPLETE_JOURNEY_FIXTURE, origin: hubOrigin("HA_NOI") };
+    expect(sanitizeStoredParts([{ type: "data-journey", id: "journey", data: { journey: hubJourney } }]).map(p => p.type)).toEqual(["data-journey"]);
+    expect(sanitizeStoredParts([{ type: "data-journey", id: "journey", data: { journey: { ...hubJourney, origin: { ...hubJourney.origin, latitude: 10.1 } } } }])).toEqual([]);
   });
 });
 

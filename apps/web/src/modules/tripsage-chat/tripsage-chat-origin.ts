@@ -113,6 +113,13 @@ function mentionsHub(folded: string, hubId: string): boolean {
   return HUB_SPECIFIC_PATTERNS[hubId]?.some(pattern => pattern.test(folded)) ?? false;
 }
 
+/** True when the assistant's previous message asked a question that names a fixed hub (so a bare hub name answers it). */
+export function assistantOfferedHub(assistantText: string): boolean {
+  if (!/[?？]/u.test(assistantText)) return false;
+  const folded = foldVietnamese(assistantText);
+  return Object.keys(HUB_SPECIFIC_PATTERNS).some(hubId => mentionsHub(folded, hubId));
+}
+
 /** Fixed trip hubs are recognized directly without calling external origin search (ADR-43 §3). */
 export function matchFixedHub(query: string): SignedOriginCandidate | null {
   const folded = foldVietnamese(query);
@@ -159,7 +166,7 @@ export function permitsOriginConfirmation(
   latestUserText: string,
   candidate: { id: string; label: string },
   pool: readonly { id: string; label: string }[],
-  options: { fromPreviousTurn: boolean },
+  options: { fromPreviousTurn: boolean; hubOffered?: boolean },
 ): boolean {
   const folded = foldVietnamese(latestUserText);
   const label = foldVietnamese(candidate.label);
@@ -191,7 +198,8 @@ export function permitsOriginConfirmation(
 
   // Fixed hub selected directly without a prior findOrigin round-trip requires an explicit choice/switch cue + hub name
   // (bare "đi từ Hà Nội" stays false so Turn 1 restates and Turn 2 confirms).
-  if (!HUB_SPECIFIC_PATTERNS[candidate.id] || !HUB_CHOICE_CUE.test(folded)) return false;
+  // When the assistant's previous message asked which hub to use, naming exactly one hub ("Hà Nội nhé") is the choice itself.
+  if (!HUB_SPECIFIC_PATTERNS[candidate.id] || !(options.hubOffered || HUB_CHOICE_CUE.test(folded))) return false;
   const matchesMine = mentionsHub(folded, candidate.id);
   const matchesOther = pool.some(other => other.id !== candidate.id && mentionsHub(folded, other.id));
   return matchesMine && !matchesOther;

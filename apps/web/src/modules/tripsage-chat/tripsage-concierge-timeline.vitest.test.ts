@@ -117,7 +117,7 @@ describe("suggestions attached to the timeline (ticket 02)", () => {
       { text: "Xong." },
     ], twoDays, { places: () => places });
     expect(lastNear).toMatchObject({ latitude: 23, longitude: 105, radiusKm: 5 });
-    const shown = suggestionsPartSchema.parse(all.find(p => p.type === "data-suggestions")!.data).suggestions;
+    const shown = suggestionsPartSchema.parse(all.findLast(p => p.type === "data-suggestions")!.data).suggestions;
     expect(shown.map(s => s.title)).toEqual(["Homestay ấm cúng", "Dạo phố cổ Đồng Văn"]);
     expect(shown[0]!.place).toEqual({ placeId: "ChIJnearHomestay", name: "Homestay Gần", distanceKm: 0.4 });
     const result = fed(3);

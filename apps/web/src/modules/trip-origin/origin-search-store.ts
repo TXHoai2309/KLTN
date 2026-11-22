@@ -1,8 +1,9 @@
 import "server-only";
 import type { Database } from "@KLTN/db";
 
-export const SEARCH_IO_BUDGET_MS = 3000;
-export const SEARCH_WINDOW_MS = SEARCH_IO_BUDGET_MS + 1000;
+export const SEARCH_IO_BUDGET_MS = 8000;
+/** Minimum gap between two Nominatim searches (usage policy); independent of how long one search may run. */
+export const SEARCH_WINDOW_MS = 4000;
 export const SEARCH_CACHE_TTL_MS = 86_400_000;
 export type SearchClaim = { databaseNow: Date; expiresAt: Date };
 export type OriginSearchStore = {
@@ -22,7 +23,7 @@ export function createOriginSearchStore(database: Pick<Database, "$queryRaw" | "
       const rows = await database.$queryRaw<SearchClaim[]>`UPDATE "origin_search_admission"
         SET "nextAllowedAt" = clock_timestamp() + ${SEARCH_WINDOW_MS} * interval '1 millisecond'
         WHERE "id" = 'nominatim' AND "nextAllowedAt" <= clock_timestamp()
-        RETURNING clock_timestamp() AS "databaseNow", "nextAllowedAt" - interval '1 second' AS "expiresAt"`;
+        RETURNING clock_timestamp() AS "databaseNow", clock_timestamp() + ${SEARCH_IO_BUDGET_MS} * interval '1 millisecond' AS "expiresAt"`;
       return rows[0] ?? null;
     },
     async write(key, payload) {

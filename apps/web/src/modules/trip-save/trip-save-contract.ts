@@ -10,6 +10,21 @@ export const chosenLodgingSaveItemSchema = z.object({
 }).strict();
 export type ChosenLodgingSaveItem = z.infer<typeof chosenLodgingSaveItemSchema>;
 
+/** ADR-45: unchecked Google Maps places shown near a stop (`dN-visit-K`) or a night (`dN-overnight`); informational only, never validated. */
+export const nearbySuggestionSaveItemSchema = z.object({
+  slotId: z.string().regex(/^d\d{1,2}-(visit-\d{1,2}|overnight)$/),
+  kind: z.enum(["ACTIVITY", "EVENING"]),
+  placeId: z.string().trim().min(1).max(100),
+  name: z.string().trim().min(1).max(80),
+  distanceKm: z.number().min(0).max(50),
+}).strict();
+export type NearbySuggestionSaveItem = z.infer<typeof nearbySuggestionSaveItemSchema>;
+/** Suggestions never block a save: malformed entries are dropped instead of failing the request. */
+const lenientNearbySchema = z.array(z.unknown()).max(120).transform(items => items.flatMap(item => {
+  const parsed = nearbySuggestionSaveItemSchema.safeParse(item);
+  return parsed.success ? [parsed.data] : [];
+}));
+
 export const tripSaveRequestSchema = z.object({
   confirm: z.literal(true),
   proposal: tripProposalSchema,
@@ -17,6 +32,8 @@ export const tripSaveRequestSchema = z.object({
   acknowledgedUnchecked: acknowledgedUncheckedSchema.optional(),
   /** Ticket 11: optional chosen lodging per night (nightIndex -> Google placeId), resolved server-side via ExternalPlace. */
   chosenLodgings: z.array(chosenLodgingSaveItemSchema).max(13).optional(),
+  /** ADR-45: nearby activity suggestions kept with the trip so the traveler can read them again. */
+  nearbySuggestions: lenientNearbySchema.optional(),
 }).strict().superRefine((request, context) => {
   if (request.proposal.startDate === null) context.addIssue({ code: "custom", path: ["proposal", "startDate"], message: "Cần ngày bắt đầu trước khi lưu." });
   if (!request.proposal.days.some(day => day.visits.length > 0)) context.addIssue({ code: "custom", path: ["proposal", "days"], message: "Hành trình cần ít nhất một điểm đến." });

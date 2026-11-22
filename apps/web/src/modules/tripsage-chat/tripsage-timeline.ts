@@ -33,7 +33,7 @@ export const timelinePartSchema = z.object({
 export type TimelinePart = z.infer<typeof timelinePartSchema>;
 export type TimelineItem = TimelinePart["days"][number]["items"][number];
 
-export const SUGGESTION_KINDS = ["MEAL", "EVENING", "LODGING", "TIP"] as const;
+export const SUGGESTION_KINDS = ["MEAL", "EVENING", "LODGING", "TIP", "ACTIVITY"] as const;
 export const suggestionSchema = z.object({
   slotId: z.string().regex(/^d\d{1,2}-[a-z]+(-\d{1,2})?$/),
   kind: z.enum(SUGGESTION_KINDS),

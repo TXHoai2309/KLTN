@@ -151,7 +151,8 @@ describe("SerpApi shared client and key rotation", () => {
       expect(outcome).toEqual({ status: "UNAVAILABLE" });
       expect(consoleSpy).not.toHaveBeenCalled();
       expect(logSpy).not.toHaveBeenCalled();
-      expect(warnSpy).not.toHaveBeenCalled();
+      // Only a fixed reason code is logged: no URL, key or error text.
+      expect(warnSpy.mock.calls).toEqual([["[tripsage-serpapi] unavailable", "timeout-or-network-error"]]);
     } finally {
       consoleSpy.mockRestore();
       logSpy.mockRestore();

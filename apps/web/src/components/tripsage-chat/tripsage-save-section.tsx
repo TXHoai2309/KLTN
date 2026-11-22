@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import type { PlannerResult } from "@/modules/trip-planner/planner-contract";
 import type { TripsageTripInfo } from "@/modules/tripsage-chat/tripsage-chat-context";
 import { chatSavePlan, createChatSaveController, type ChatSaveView } from "@/modules/tripsage-chat/tripsage-chat-save";
-import { chosenLodgingMapToList, type ChosenLodgingMap } from "@/modules/tripsage-chat/tripsage-timeline";
+import { chosenLodgingMapToList, type ChosenLodgingMap, type TimelineSuggestion } from "@/modules/tripsage-chat/tripsage-timeline";
 import type { SaveState } from "@/modules/trip-save/trip-save-state";
 import { uncheckedItemLabel } from "@/modules/trip-save/unchecked-checks";
 import { blockingAssumedFields, formatAssumedConfirmationMessage } from "@/modules/trip-validation/trip-proposal-contract";
@@ -21,11 +21,14 @@ export function TripsageSaveSection({
   result,
   tripInfo,
   chosenLodgings,
+  suggestions,
   onStateChange,
 }: {
   result: PlannerResult;
   tripInfo?: TripsageTripInfo | null;
   chosenLodgings?: ChosenLodgingMap;
+  /** ADR-45: all suggestions of the conversation; only ACTIVITY/EVENING places are saved with the trip. */
+  suggestions?: readonly TimelineSuggestion[];
   onStateChange?: (state: SaveState) => void;
 }) {
   const controllerRef = useRef<ReturnType<typeof createChatSaveController> | null>(null);
@@ -71,9 +74,13 @@ export function TripsageSaveSection({
     setView({ state: "pending", message: "Đang lưu hành trình…", tripId: null, unchecked: items });
     onStateChange?.("pending");
     const chosenList = chosenLodgings ? chosenLodgingMapToList(chosenLodgings) : [];
+    const nearbyList = (suggestions ?? []).flatMap(item => (item.kind === "ACTIVITY" || item.kind === "EVENING") && item.place?.placeId
+      ? [{ slotId: item.slotId, kind: item.kind, placeId: item.place.placeId, name: item.place.name, distanceKm: item.place.distanceKm }]
+      : []);
     const next = await controller.save(effectiveResult, abortRef.current.signal, {
       confirmUnchecked: confirmed,
       ...(chosenList.length ? { chosenLodgings: chosenList } : {}),
+      ...(nearbyList.length ? { nearbySuggestions: nearbyList } : {}),
     });
     if (next.state === "failed" && next.unchecked.length) setConfirmed(false);
     setView({ ...next });

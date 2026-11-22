@@ -21,6 +21,7 @@ model Trip {
   uncheckedConfirmedAt DateTime? @db.Timestamptz(3)
   days         ItineraryDay[]
   chosenLodgings TripChosenLodging[]
+  nearbySuggestions TripNearbySuggestion[]
   favorites    Favorite[]
   companionPublication TripCompanionPublication?
   editChatMessages TripEditChatMessage[]
@@ -205,4 +206,23 @@ model TripChosenLodging {
   @@unique([tripId, nightIndex])
   @@index([externalPlaceId])
   @@map("trip_chosen_lodging")
+}
+
+// ADR-45: nearby activity suggestions shown while planning, kept with the saved trip so the traveler can read them again.
+// Unchecked Google Maps data (never a visit, never validated, no effect on times or cost). `slot` is "visit-K" or "overnight".
+model TripNearbySuggestion {
+  id         String   @id @default(cuid())
+  tripId     String
+  trip       Trip     @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  dayIndex   Int
+  slot       String   @db.VarChar(16)
+  kind       String   @db.VarChar(12)
+  placeId    String   @db.VarChar(100)
+  name       String   @db.VarChar(80)
+  distanceKm Float
+  sortOrder  Int
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+
+  @@index([tripId, dayIndex, sortOrder])
+  @@map("trip_nearby_suggestion")
 }

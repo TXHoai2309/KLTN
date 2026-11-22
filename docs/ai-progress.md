@@ -5926,3 +5926,22 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
   - **Live SerpApi check:** **chưa chạy live** (`SERPAPI_API_KEYS` is not populated in local `.env`; adapters carry `NOT verified live` comments until tested against real SerpApi JSON and Hà Giang coverage).
   - Owner review still required for: static coordinates in `apps/web/src/modules/tripsage-chat/vietnam-airports.ts`, train/sleeper-bus reference routes in `docs/fixtures/price-reference-ha-giang.md` (D10), and SerpApi terms for multiple free accounts.
   - Live browser visual/375px layout check of updated `HotelsCard`, `FlightsCard`, and `TripsageAccessLegCard` not executed (covered by SSR render tests and existing responsive CSS containment).
+
+## 2026-11-22 — Assistant chat fixes from live Vercel run
+
+- **Origin hub choice:** a bare reply naming one fixed hub ("Hà Nội nhé") now confirms it when the previous assistant message asked a question naming a hub (`assistantOfferedHub`, `hubOffered` in `permitsOriginConfirmation`). Negation, the other hub and ambiguous replies still fail the gate.
+- **Reload keeps the hub:** `data-journey` is now a stored part, only when its origin is a fixed public hub (searched-origin coordinates stay out of storage, ADR-43 §6).
+- **Dropped connection:** server sends a transient `data-keepalive` chunk after 8 s of silence; the browser logs the real stream error name/message (`console.warn`) and, on `INTERRUPTED`, polls the saved conversation (3 s, up to 20 tries) and swaps it in. Root cause of the cut is NOT PROVEN (needs the console line from a real run).
+- **SerpApi flights:** timeout 8 s → 20 s, per-option validation (one malformed option no longer drops the response), key-exhaustion state expires after 10 min, and every UNAVAILABLE path logs one fixed reason code (no URL, key or body). Still **not verified live**; check `TRIPSAGE_FEATURE_FLIGHTS=true` and `SERPAPI_API_KEYS` on Vercel.
+- **UI:** plan cards fold (`<details>`) when a replan leaves the days unchanged; lunch rows without meal suggestions get a "Gợi ý quán ăn trưa" button; `**` no longer shows in the lifted question.
+- **Checks:** `tsc --noEmit` PASS; `vitest` over `src/modules/tripsage-chat` + `src/components` PASS (860 tests); `git diff --check` clean (LF→CRLF warnings only). Not run: build, live browser check, Vercel deploy.
+- **Timeout follow-up (owner decision, see `decisions.md`):** routing 10 s → 25 s (shared and per-request), Places 5 → 12 s, web 8 → 15 s, chat step cap 12 → 16, `/api/trip-proposals` `maxDuration` 30 → 60. Tests pinned to the old values were updated. `tsc` PASS; related vitest folders PASS except `src/components/trip-companions/companion-discovery.vitest.test.ts` (8 failures in files this change does not touch, not investigated) and unrelated `ai/qa-*` / `in-trip-v2` failures seen in a wider run.
+
+## 2026-11-22 — Nearby activity suggestions (ADR-45) and routing headroom
+
+- **Server batch:** `tripsage-activities.ts` finds up to 5 Google Places per stop (5 km) and per night (3 km) after each plan (max 16 lookups, 4 concurrent, 20 s, per-instance 30 min cache); `proposeItinerary` emits them as `ACTIVITY`/`EVENING` suggestions. The model only learns they exist.
+- **UI:** chat timeline shows "Gần đây có thể ghé" / "Buổi tối quanh chỗ nghỉ" with quick preview; saved trip page shows "Gợi ý vui chơi quanh đây" per day.
+- **Persistence:** new `trip_nearby_suggestion` table (migration `20261122120000_trip_nearby_suggestion`, **not applied** to any database; `prisma validate`/`generate` PASS), `nearbySuggestions` in the save contract (lenient, never blocks a save), `trip-save-service`, `trip-read-service`, `trips-view`.
+- **Routing/origin timeouts:** routing 40 s, origin search 8 s (see `decisions.md`).
+- **Data audit:** `docs/data-audit-destinations-2026-11-22.md` (production read-only); no data was changed, proposals await owner approval.
+- **Checks:** `tsc --noEmit` PASS; `vitest` over `src/modules/tripsage-chat`, `src/modules/trip-save`, `src/modules/trip-read`, `src/components/tripsage-chat`, `src/app/trips` PASS. Not run: Postgres integration test for the new table, build, live browser check, deploy.

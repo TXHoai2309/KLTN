@@ -80,7 +80,7 @@ describe("Google routing adapter", () => {
     expect((await pending).reason).toBe("TIMEOUT");
   });
   it("rejects an invalid timeout configuration", async () => {
-    await expect(requestGoogleRoute({ origin: pair.from, destination: pair.to, vehicle: "CAR" }, { apiKey: () => KEY, timeoutMs: 20_000 })).rejects.toThrow(RangeError);
+    await expect(requestGoogleRoute({ origin: pair.from, destination: pair.to, vehicle: "CAR" }, { apiKey: () => KEY, timeoutMs: 40_001 })).rejects.toThrow(RangeError);
   });
   it("shares the 27-pair budget: 27 pairs -> at most 27 requests, 28 rejected before dispatch", async () => {
     const fetcher = vi.fn<typeof fetch>(async () => ok());

@@ -106,9 +106,10 @@ const priceInsightsSchema = z.object({
   typical_price_range: z.tuple([z.number().finite().positive(), z.number().finite().positive()]).nullish(),
 }).nullish();
 
+// Options are validated one by one below, so a single malformed option cannot discard the whole response.
 const flightsResponseSchema = z.object({
-  best_flights: z.array(flightOptionSchema).max(100).optional(),
-  other_flights: z.array(flightOptionSchema).max(100).optional(),
+  best_flights: z.array(z.unknown()).max(100).optional(),
+  other_flights: z.array(z.unknown()).max(100).optional(),
   price_insights: priceInsightsSchema,
 }).refine(data => Array.isArray(data.best_flights) || Array.isArray(data.other_flights));
 
@@ -131,18 +132,21 @@ export function createSerpApiFlightLookup(client: SerpApiClient): FlightLookup {
     }, signal);
 
     if (outcome.status !== "OK") return { status: "UNAVAILABLE" };
+    const unavailable = (reason: string) => { console.warn("[tripsage-serpapi] flights unavailable", reason); return { status: "UNAVAILABLE" } as const; };
 
     if (typeof outcome.data.error === "string" && NO_RESULTS_ERROR_PATTERN.test(outcome.data.error)) {
       return { status: "NO_RESULTS" };
     }
 
     const parsed = flightsResponseSchema.safeParse(outcome.data);
-    if (!parsed.success) return { status: "UNAVAILABLE" };
+    if (!parsed.success) return unavailable("unexpected-shape");
 
-    const rawOptions = [
-      ...(parsed.data.best_flights ?? []),
-      ...(parsed.data.other_flights ?? []),
-    ];
+    const received = [...(parsed.data.best_flights ?? []), ...(parsed.data.other_flights ?? [])];
+    const rawOptions = received.flatMap(option => {
+      const checked = flightOptionSchema.safeParse(option);
+      return checked.success ? [checked.data] : [];
+    });
+    if (received.length && !rawOptions.length) return unavailable("all-options-invalid");
 
     const pricedOptions = rawOptions
       .filter((option): option is typeof option & { price: number } => typeof option.price === "number")

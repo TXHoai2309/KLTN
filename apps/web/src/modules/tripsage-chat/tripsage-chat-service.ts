@@ -7,7 +7,7 @@ import { assertJourneyCoverage } from "../trip-origin/trip-origin-service";
 import { INTEREST_OPTIONS, PACE_OPTIONS, TRANSPORT_OPTIONS } from "../trip-requirement/trip-requirement-contract";
 import { vietnamDateOf } from "../trip-requirement/trip-requirement-readiness";
 import { journeyPartSchema, originCandidatesPartSchema, resolveEffectiveJourney, sourcesPartSchema, tripInfoSchema, tripsageItinerarySummarySchema, withTripInfoDefaults, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
-import { FIXED_HUB_CANDIDATES, verifyOriginCandidatesToken, type SignedOriginCandidate, type VerifiedOriginCandidates } from "./tripsage-chat-origin";
+import { assistantOfferedHub, FIXED_HUB_CANDIDATES, verifyOriginCandidatesToken, type SignedOriginCandidate, type VerifiedOriginCandidates } from "./tripsage-chat-origin";
 import { tripsageProviderOptions } from "./tripsage-chat-provider";
 import type { PlacesSearch } from "./tripsage-places";
 import { buildDayTimeline, timelinePartSchema } from "./tripsage-timeline";
@@ -40,11 +40,11 @@ const PERSONA_INSTRUCTIONS = [
   "Nếu người dùng đã nói sẵn một số thông tin trong tin đầu, ghi ngay bằng recordTripInfo và chỉ hỏi phần còn thiếu. Phương tiện, số ngày, ngày đi chỉ ghi khi người dùng đã nói hoặc đồng ý (một câu 'ok' là đồng ý toàn bộ gợi ý bạn vừa đưa). Không bao giờ tự đặt điểm xuất phát, ngày ở quá khứ hay số ngày ngoài 1-14. Chỉ gọi confirmOrigin ở lượt người dùng trả lời đồng ý hoặc bấm chọn nhãn ứng viên.",
   "Ngày khởi hành luôn tính theo dòng 'Hôm nay' (giờ Việt Nam) trong ngữ cảnh; không bao giờ nói 'chưa biết hôm nay là ngày nào' hay chọn ngày ở quá khứ. Nếu người dùng nêu ngày tương đối rõ ràng (như 'ngày mai', 'thứ Bảy tuần này', 'ngày 1 tháng sau'): tự quy đổi ra ngày cụ thể YYYY-MM-DD, ghi luôn bằng recordTripInfo và nói lại ngày đó trong một câu. Nếu người dùng nêu khoảng khởi hành dự kiến (như 'đầu tháng 12', 'giữa tháng sau', 'cuối tuần sau'): tự chọn một ngày cụ thể hợp lý trong khoảng đó, CHƯA ghi bằng recordTripInfo, gọi suggestReplies với 'Đúng, đi <dd/mm/yyyy>' và 'Chọn ngày khác'; chỉ ghi startDate khi người dùng đồng ý ở lượt sau. Khi người dùng đổi sang ngày mới hoặc đã có ngày hợp lệ, không nhắc lại ngày cũ đã bỏ hay lỗi ngày ở lượt trước.",
   "Khi đã đủ phương tiện, số ngày, ngày đi và điểm xuất phát đã xác nhận: lập lịch ngay trong lượt đó (listDestinations rồi proposeItinerary). Nếu có điểm bắt buộc (mustIncludeDestinationIds), selection gửi cho proposeItinerary PHẢI chứa đủ các id đó (hoặc nói rõ vì sao không xếp được). Sở thích, nhịp đi, số người và giờ đi/về (07:00 / 18:00) chưa có thì hệ thống dùng mặc định (đánh dấu trong ngữ cảnh); nói rõ bạn đang tạm dùng mặc định nào để người dùng nhắn nếu muốn đổi (ví dụ 'đi lúc 6h' → recordTripInfo departureMinute rồi lập lại lịch).",
-  "Timeline từng ngày (khởi hành, chặng đi, tham quan, nghỉ trưa, nghỉ đêm, chặng về) được hệ thống dựng từ lịch và hiện cho người dùng; giờ giấc, tên điểm và dòng mô tả ngắn từ danh mục do hệ thống quyết định, bạn không tự đặt giờ hay bịa sự kiện. Sau mỗi lịch mới, làm cho chuyến đi sống động: với mỗi đêm, dùng searchPlaces (nearDestinationId = điểm cuối ngày đó, từ khóa như homestay) để tìm 2-3 chỗ nghỉ và gọi addSuggestions loại LODGING vào slot dN-overnight; gợi ý buổi tối (EVENING, ví dụ 'Ăn tối, dạo phố cổ về đêm') chỉ là nơi đi bộ được quanh chỗ nghỉ, không bao giờ khuyên chạy xe xa sau khi trời tối; bạn có thể diễn đạt lại hoạt động ngắn gọn cho điểm dừng qua addSuggestions loại TIP khi hữu ích mà không đổi tên điểm hay giờ. Chỉ gọi lookupLocalKnowledge khi người dùng hỏi thêm kiến thức địa phương hoặc khi cần căn cứ cho phần lưu ý; không gọi bừa bãi trong lượt lập lịch thuần. Người dùng muốn nghỉ trưa dài hơn (60-120 phút) hoặc dừng tham quan sớm hơn (15:00-18:00) thì ghi bằng recordTripInfo (lunchMinutes, dayEndMinute) rồi lập lại lịch với cùng selection.",
+  "Timeline từng ngày (khởi hành, chặng đi, tham quan, nghỉ trưa, nghỉ đêm, chặng về) được hệ thống dựng từ lịch và hiện cho người dùng; giờ giấc, tên điểm và dòng mô tả ngắn từ danh mục do hệ thống quyết định, bạn không tự đặt giờ hay bịa sự kiện. Sau mỗi lịch mới, làm cho chuyến đi sống động: với mỗi đêm, dùng searchPlaces (nearDestinationId = điểm cuối ngày đó, từ khóa như homestay) để tìm 2-3 chỗ nghỉ và gọi addSuggestions loại LODGING vào slot dN-overnight; các gợi ý vui chơi quanh từng điểm dừng (ACTIVITY) và buổi tối quanh chỗ nghỉ (EVENING) do hệ thống tự tìm và gắn ngay khi có lịch, bạn không tự tìm hay thêm chúng và không chép lại danh sách trong lời văn (chỉ có thể nhắc một ý ngắn); bạn có thể diễn đạt lại hoạt động ngắn gọn cho điểm dừng qua addSuggestions loại TIP khi hữu ích mà không đổi tên điểm hay giờ. Chỉ gọi lookupLocalKnowledge khi người dùng hỏi thêm kiến thức địa phương hoặc khi cần căn cứ cho phần lưu ý; không gọi bừa bãi trong lượt lập lịch thuần. Người dùng muốn nghỉ trưa dài hơn (60-120 phút) hoặc dừng tham quan sớm hơn (15:00-18:00) thì ghi bằng recordTripInfo (lunchMinutes, dayEndMinute) rồi lập lại lịch với cùng selection.",
   "Sau khi có lịch, có thể thêm một mục nhỏ '### Vài lưu ý' gồm TỐI ĐA 3 gạch đầu dòng ngắn về (1) thời điểm/thời tiết, (2) phương tiện/đường đèo, (3) đặt chỗ/chuẩn bị — mỗi ý PHẢI có căn cứ từ tài liệu đã duyệt (lookupLocalKnowledge) hoặc dữ liệu thời tiết/hệ thống; KHÔNG nêu tên khách sạn, giá cụ thể hay tình trạng phòng; ý nào không có căn cứ thì bỏ qua.",
   "Người ở xa (ví dụ miền Nam, miền Trung): đừng bắt họ lái xe thẳng, và KHÔNG mặc định đi máy bay. Khi proposeItinerary trả hubHint hoặc người dùng ở xa mà chưa nói cách ra Hà Nội, hỏi đúng MỘT lần: 'Bạn muốn ra Hà Nội bằng máy bay, tàu hỏa hay xe khách? (hoặc để mình so sánh giúp)'. Đề xuất tới điểm tập kết cố định (Hà Nội: hub:HA_NOI hoặc TP Hà Giang: hub:HA_GIANG_CITY), thuê xe máy/ô tô ở đó rồi mới đi; giải thích vì sao và mời chọn điểm tập kết. Khi đồng ý: ghi homeCity, gọi confirmOrigin với hub tương ứng, lập lịch từ điểm tập kết, gọi planAccessLeg cho chặng đi và về. Ước tính tàu/xe khách chỉ dựa trên bảng giá tham khảo trong ngữ cảnh (nếu tuyến không có trong bảng thì nói rõ chưa có số tham khảo, không bịa số liệu, luôn ghi 'ước tính'). Số ngày chuyến đi tính từ điểm tập kết; chặng tiếp cận là 'Trước chuyến đi' và 'Sau chuyến đi'.",
   "Sau mỗi lịch mới, luôn lập bảng chi phí bằng estimateCosts: lưu trú theo số đêm và số phòng, ăn uống theo bữa và số người, vé tham quan, thuê xe nếu có, khác; dùng mức ước tính phổ biến tại Hà Giang và nói rõ là ước tính (chỉ gọi lookupLocalKnowledge khi người dùng hỏi riêng về bảng giá tham khảo). Người dùng nêu ngân sách hoặc giá xăng thì truyền vào.",
-  "Khi có lịch: lời văn tối đa 3 câu ngắn trước câu hỏi; không nhắc lại tổng chi phí hay từng khoản (bảng chi phí hiện ngay dưới lời văn), không nhắc trạng thái lưu (khối Lưu hành trình đã hiện), không chép lại danh sách chỗ nghỉ. Câu hỏi của tin (nếu có) luôn là dòng cuối cùng, đứng riêng một dòng, để giao diện đặt nó ngay trên các nút trả lời. Sau khi có lịch, giới thiệu ngắn vì sao chọn các điểm và điểm nhấn từng ngày; không hỏi thêm danh sách câu hỏi phụ (số người, nhịp đi, ngân sách, kiểu chỗ nghỉ) trong lời văn mà chuyển các tùy chọn tinh chỉnh đó thành suggestReplies (tối đa 4 nút), giữ mỗi tin tối đa một câu hỏi. Khi lịch đã không còn giả định quan trọng (nơi xuất phát và ngày đi đã xác nhận) và người dùng chưa từ chối gợi ý quán ăn (mealSuggestionsDeclined chưa phải true), câu hỏi duy nhất cuối tin là: 'Bạn có muốn mình tìm thêm quán ăn gần các điểm dừng không?' (kèm nút suggestReplies như 'Có, tìm quán ăn giúp mình', 'Không cần đâu'). Nếu lịch vẫn còn là bản nháp giả định (còn giả định nơi xuất phát hoặc ngày đi), ưu tiên hỏi về giả định quan trọng trước và để lời mời tìm quán ăn tới lượt đầu tiên không còn giả định quan trọng. Khi người dùng đồng ý tìm quán ăn: dùng lại searchPlaces (nearDestinationId = id điểm đến trong DB) và addSuggestions loại MEAL để gắn 1-2 quán cho slot nghỉ trưa từng ngày (dN-lunch) và quanh điểm cuối ngày (dN-visit-K), đánh dấu chưa kiểm tra, có placeId để mở xem nhanh. Khi người dùng từ chối: gọi recordTripInfo({ mealSuggestionsDeclined: true }) và không hỏi lại trong chuyến đó. Khi người dùng chọn hoặc nhắn tinh chỉnh, ghi bằng recordTripInfo và lập lại lịch nếu nó ảnh hưởng lịch.",
+  "Khi có lịch: lời văn tối đa 3 câu ngắn trước câu hỏi; không nhắc lại tổng chi phí hay từng khoản (bảng chi phí hiện ngay dưới lời văn), không nhắc trạng thái lưu (khối Lưu hành trình đã hiện), không chép lại danh sách chỗ nghỉ. Câu hỏi của tin (nếu có) luôn là dòng cuối cùng, đứng riêng một dòng, để giao diện đặt nó ngay trên các nút trả lời. Sau khi có lịch, giới thiệu ngắn vì sao chọn các điểm và điểm nhấn từng ngày; không hỏi thêm danh sách câu hỏi phụ (số người, nhịp đi, ngân sách, kiểu chỗ nghỉ) trong lời văn mà chuyển các tùy chọn tinh chỉnh đó thành suggestReplies (tối đa 4 nút), giữ mỗi tin tối đa một câu hỏi. Khi lịch đã không còn giả định quan trọng (nơi xuất phát và ngày đi đã xác nhận) và người dùng chưa từ chối gợi ý quán ăn (mealSuggestionsDeclined chưa phải true), câu hỏi duy nhất cuối tin là: 'Bạn có muốn mình tìm thêm quán ăn gần các điểm dừng không?' (kèm nút suggestReplies như 'Có, tìm quán ăn giúp mình', 'Không cần đâu'). Nếu lịch vẫn còn là bản nháp giả định (còn giả định nơi xuất phát hoặc ngày đi), ưu tiên hỏi về giả định quan trọng trước và để lời mời tìm quán ăn tới lượt đầu tiên không còn giả định quan trọng. Khi người dùng đồng ý tìm quán ăn hoặc nhắn 'Tìm giúp mình quán ăn trưa cho ngày N' (nút trên dòng nghỉ trưa; chỉ làm ngày đó): dùng lại searchPlaces (nearDestinationId = id điểm đến trong DB) và addSuggestions loại MEAL để gắn 1-2 quán cho slot nghỉ trưa từng ngày (dN-lunch) và quanh điểm cuối ngày (dN-visit-K), đánh dấu chưa kiểm tra, có placeId để mở xem nhanh. Khi người dùng từ chối: gọi recordTripInfo({ mealSuggestionsDeclined: true }) và không hỏi lại trong chuyến đó. Khi người dùng chọn hoặc nhắn tinh chỉnh, ghi bằng recordTripInfo và lập lại lịch nếu nó ảnh hưởng lịch.",
 ].join(" ");
 
 const PLANNING_INSTRUCTIONS = [
@@ -328,6 +328,7 @@ export function buildTripsageContext(input: {
 
 export type TripsageChatStatus = { kind: "start" | "checking" | "writing"; label: string };
 const FAILURE_TEXT = TRIPSAGE_PROVIDER_UNAVAILABLE_TEXT;
+const STREAM_KEEPALIVE_MS = 8_000;
 
 /**
  * Operator-facing cause of a failed turn as one short text (the dev server log drops object arguments).
@@ -423,7 +424,7 @@ export function streamTripsageChat(input: {
         priorHotelLookups: input.priorHotelLookups,
         priorFlightLookups: input.priorFlightLookups,
         memory: input.memory,
-        planning: input.planning, originSearch: input.originSearch, originCandidates: input.originCandidates, signOriginCandidates: input.signOriginCandidates, latestUserText: input.latestUserText, places: input.places, knowledge: input.knowledge, accessLeg: input.accessLeg ?? null, currentItinerary: input.currentItinerary ?? null, journey: input.journey ?? null, tripInfo: input.tripInfo ?? null, maxProposals: limits.maxProposals, maxPlacesCalls: limits.maxPlacesCalls, web: input.web, maxWebSearchCalls: limits.maxWebSearchCalls, maxFetchPageCalls: limits.maxFetchPageCalls,
+        planning: input.planning, originSearch: input.originSearch, originCandidates: input.originCandidates, signOriginCandidates: input.signOriginCandidates, latestUserText: input.latestUserText, hubOffered: assistantOfferedHub(lastAssistantText(input.messages)), places: input.places, knowledge: input.knowledge, accessLeg: input.accessLeg ?? null, currentItinerary: input.currentItinerary ?? null, journey: input.journey ?? null, tripInfo: input.tripInfo ?? null, maxProposals: limits.maxProposals, maxPlacesCalls: limits.maxPlacesCalls, web: input.web, maxWebSearchCalls: limits.maxWebSearchCalls, maxFetchPageCalls: limits.maxFetchPageCalls,
         emitSuggestions: suggestions => {
           const id = `suggestions-${++suggestionsPart}`;
           const part = { type: "data-suggestions" as const, id, data: { suggestions } };
@@ -452,7 +453,13 @@ export function streamTripsageChat(input: {
           recordDataPart(part);
         },
         emitOriginCandidates: data => { const parsed = originCandidatesPartSchema.safeParse(data); if (parsed.success) writer.write({ type: "data-origin-candidates", id: "origin-candidates", data: parsed.data }); },
-        emitJourney: journey => { const parsed = journeyPartSchema.safeParse({ journey }); if (parsed.success) writer.write({ type: "data-journey", id: "journey", data: parsed.data }); },
+        emitJourney: journey => {
+          const parsed = journeyPartSchema.safeParse({ journey });
+          if (!parsed.success) return;
+          const part = { type: "data-journey" as const, id: "journey", data: parsed.data };
+          writer.write(part);
+          recordDataPart(part); // sanitizeStoredParts keeps it only for a fixed-hub origin
+        },
         emitQuickReplies: replies => writer.write({ type: "data-quick-replies", id: "quick-replies", data: { replies } }),
         emitSources: sources => {
           const parsed = sourcesPartSchema.safeParse({ sources });
@@ -563,10 +570,18 @@ export function streamTripsageChat(input: {
       };
       // An aborted upstream errors the pipe itself; when that is the time budget, end with a notice, not an error.
       const reader = shaped.getReader();
+      // A reasoning step can be silent for a long time; a transient chunk every few seconds keeps proxies and browsers from dropping the idle connection.
+      let pending: Promise<ReadableStreamReadResult<UIMessageChunk>> | null = null;
       writer.merge(new ReadableStream<UIMessageChunk>({
         async pull(controller) {
           try {
-            const next = await reader.read();
+            pending ??= reader.read();
+            pending.catch(() => undefined);
+            let timer: ReturnType<typeof setTimeout> | undefined;
+            const next = await Promise.race([pending, new Promise<"idle">(resolve => { timer = setTimeout(() => resolve("idle"), STREAM_KEEPALIVE_MS); })]);
+            clearTimeout(timer);
+            if (next === "idle") { controller.enqueue({ type: "data-keepalive", data: {}, transient: true } as UIMessageChunk); return; }
+            pending = null;
             if (next.done) { await persistAssistant(controller); controller.close(); } else controller.enqueue(next.value);
           } catch (error) {
             if (timedOut()) { timeoutNotice(controller); await persistAssistant(controller); controller.close(); } else controller.error(error);
@@ -579,6 +594,12 @@ export function streamTripsageChat(input: {
     onFinish: settle,
   });
   return createUIMessageStreamResponse({ stream, headers: { "Cache-Control": "private, no-store", "X-Accel-Buffering": "no" } });
+}
+
+/** Text of the assistant message right before the latest user message ("" when there is none). */
+function lastAssistantText(messages: readonly ModelMessage[]): string {
+  const previous = messages.at(-2);
+  return previous?.role === "assistant" && typeof previous.content === "string" ? previous.content : "";
 }
 
 function once(callback?: () => void) { let done = false; return () => { if (done) return; done = true; callback?.(); }; }

@@ -84,10 +84,14 @@ describe("tripsage chat server logging", () => {
   it("only one generic console line exists, with no interpolation of errors, bodies, headers or keys", () => {
     const calls: string[] = [];
     for (const file of serverFiles) for (const line of read(file).split("\n")) if (/\bconsole\.\w+|\blogger\b|\bLogger\b|\bpino\b|\bwinston\b/.test(line)) calls.push(`${file.split(/[\/]/).pop()}: ${line.trim()}`);
-    expect(calls).toHaveLength(1);
+    // SerpApi modules may log one fixed reason code (never the URL, key, query or body): `console.warn("[tripsage-serpapi] ...", reason)`.
+    const serpApi = calls.filter(call => call.includes("tripsage-serpapi"));
+    for (const call of serpApi) expect(call).toMatch(/console\.warn\("\[tripsage-serpapi\] [a-z ]+", reason\)/);
+    const rest = calls.filter(call => !serpApi.includes(call));
+    expect(rest).toHaveLength(1);
     // The only extra argument is the bounded diagnostic (status, kind, code), never the raw error object.
-    expect(calls[0]).toContain('console.error("[tripsage-chat] provider stream failed", safeFailureDiagnostic(error))');
-    expect(calls[0]).not.toMatch(/\$\{|,\s*(error|err|e)\b/);
+    expect(rest[0]).toContain('console.error("[tripsage-chat] provider stream failed", safeFailureDiagnostic(error))');
+    expect(rest[0]).not.toMatch(/\$\{|,\s*(error|err|e)\b/);
   });
 
   it("no module in the chat folder or its route puts the key, Authorization or the user text into an error message", () => {

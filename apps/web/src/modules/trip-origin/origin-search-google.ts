@@ -19,7 +19,7 @@ export function createGoogleOriginSearch(deps: { apiKey: () => string | undefine
     const interrupted = new Promise<OriginSearchOutcome>(resolve => { expired = () => { controller.abort(); resolve({ status: "UNAVAILABLE" }); }; });
     const abort = () => expired?.();
     signal?.addEventListener("abort", abort, { once: true });
-    const timer = setTimeout(abort, 4000);
+    const timer = setTimeout(abort, 8000);
     const run = async (): Promise<OriginSearchOutcome> => {
       try {
         const key = (await deps.apiKey())?.trim();
