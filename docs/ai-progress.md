@@ -5979,3 +5979,8 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Existing test itinerary has five insufficient travel gaps and outbound arrival later than its first visit. Save remains correctly blocked; no itinerary persistence or system notification was performed. Full successful Trip save/reload remains NOT PROVEN, as do production and disposable-DB integration (Docker unavailable).
 - Explicitly authorized close/refresh/reopen on test publication succeeded; 2 members and capacity 4 retained, recruitment returned to open (management revision 10). Desktop/light and mobile/light+dark checked with screenshots, no mobile horizontal overflow. Theme and viewport restored.
 - Fresh focused suite 91 PASS; web typecheck PASS; repeated build PASS (59 pages, existing warnings, exit 0 observed after a delayed process exit). Diff check PASS. No commit/push; full command list and evidence in the companion bug report.
+
+## 2026-11-22 — Planning chat: violations now explained to the model
+
+- `proposeItinerary` returned only check statuses, so after a `VIOLATION` (e.g. TRAVEL_TIME on the last day: return leg past midnight or past the deadline) the model re-proposed blindly. It now also receives `problems` (check, day, code, message) and a `repairHint`. The deterministic Validator is unchanged; this is guidance to the AI proposer only.
+- Not verified against a live 5-day Hà Nội motorbike chat.

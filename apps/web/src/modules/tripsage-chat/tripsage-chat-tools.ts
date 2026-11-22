@@ -485,6 +485,11 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           } : {}),
           days: result.days.map(day => ({ day: day.day, stops: day.stops.map(stop => names.get(stop.destination.id) ?? stop.destination.name) })),
           checks: result.checks.map(check => ({ key: check.key, status: check.status })),
+          // Without the reasons the model re-proposes blindly; tell it which day broke which rule so one repair is enough.
+          ...(result.checks.some(check => check.status === "VIOLATION") ? {
+            problems: result.checks.filter(check => check.status === "VIOLATION").flatMap(check => check.issues.slice(0, 6).map(issue => ({ check: check.key, day: issue.day ?? null, code: issue.code, message: issue.message }))),
+            repairHint: "Có vi phạm. Đọc problems rồi chỉnh đúng ngày bị nêu (thường bớt 1-2 điểm của ngày đó, nhất là ngày cuối nếu phải chạy xe về xa) và gọi proposeItinerary lại một lần; đừng đổi các ngày không bị nêu. Nếu vẫn không đạt, nói thẳng với người dùng nguyên nhân và đề xuất thêm ngày hoặc đổi điểm xuất phát.",
+          } : {}),
           note: `Lịch đầy đủ đã hiển thị cho người dùng. Chỉ nhận xét ngắn; trạng thái khác PASS nghĩa là chưa được xác nhận.${blockingAssumed.length > 0 ? ` Đây là bản nháp giả định (${assumedFields.join(", ")}): viết đúng một dòng nêu các giả định đang dùng, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (nơi xuất phát hoặc ngày đi), đưa giả định còn lại vào suggestReplies; lịch chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi.` : context.features?.has("hotels") && result.days.length > 1 ? " Ngày đi và nơi xuất phát đã xác nhận: hãy gọi searchHotels một lần với stays gồm các khu nghỉ đêm (gộp các đêm liên tiếp cùng điểm cuối ngày) để tra giá phòng tham khảo." : ""}${external.length ? " Có địa điểm ngoài danh mục (Google Maps): chưa được kiểm tra, thời gian ở lại chỉ là ước tính, lịch này chưa thể lưu." : ""}` };
       } catch (error) { return failure(error); }
     },
