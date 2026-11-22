@@ -272,6 +272,7 @@ export function TripsageChatClient({
     journey: state.journey,
     tripInfo: state.tripInfo,
     itinerary: itineraryCurrent ? summarizeItinerary(latestItinerary) : null,
+    suggestions: itineraryCurrent ? state.suggestions : undefined,
     accessLeg: state.accessLeg?.data ?? null,
     originCandidatesToken: state.originCandidatesToken,
     conversationId: activeConversationId,

@@ -15,7 +15,7 @@ import type { MemoryService } from "../tripsage-memory/memory-service";
 import type { ApplicationSettings } from "../runtime-config/runtime-config-contract";
 import type { AssistantConversationStore } from "./assistant-conversation-store";
 import { signOriginCandidates } from "./tripsage-chat-origin";
-import { parseTripsageChatAccessLeg, parseTripsageChatConversationId, parseTripsageChatItinerary, parseTripsageChatJourney, parseTripsageChatMessages, parseTripsageChatOriginCandidates, parseTripsageChatPriorFlightLookups, parseTripsageChatPriorHotelLookups, parseTripsageChatTripInfo, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
+import { parseTripsageChatAccessLeg, parseTripsageChatConversationId, parseTripsageChatItinerary, parseTripsageChatJourney, parseTripsageChatMessages, parseTripsageChatOriginCandidates, parseTripsageChatPriorFlightLookups, parseTripsageChatPriorHotelLookups, parseTripsageChatSuggestions, parseTripsageChatTripInfo, streamTripsageChat, type TripsageChatTurnLimits } from "./tripsage-chat-service";
 
 export type TripsageChatHttpDependencies = {
   authorization: AuthorizationDependencies;
@@ -71,6 +71,7 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
     const journey = parseTripsageChatJourney(body);
     const tripInfo = parseTripsageChatTripInfo(body);
     const currentItinerary = parseTripsageChatItinerary(body);
+    const suggestions = parseTripsageChatSuggestions(body);
     const accessLeg = parseTripsageChatAccessLeg(body);
     const requestedConversationId = parseTripsageChatConversationId(body);
     const secret = deps.originSecret?.() ?? deps.env?.BETTER_AUTH_SECRET;
@@ -104,7 +105,7 @@ export async function tripsageChatResponse(request: Request, deps: TripsageChatH
           const planningDeps = deps.planning?.() ?? unavailablePlanning;
           const planning = deps.now ? { ...planningDeps, now: deps.now } : planningDeps;
           const streamResponse = streamTripsageChat({
-            model: await deps.model(), messages, journey, tripInfo, currentItinerary, accessLeg, features,
+            model: await deps.model(), messages, journey, tripInfo, currentItinerary, suggestions, accessLeg, features,
             originCandidates,
             signOriginCandidates: secret ? candidates => signOriginCandidates({ userId: actor.userId, candidates, secret, nowMs: (deps.now?.() ?? new Date()).getTime() }) : undefined,
             latestUserText: latestUser.text,

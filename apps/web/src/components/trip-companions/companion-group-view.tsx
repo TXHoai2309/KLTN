@@ -35,6 +35,7 @@ import {
 import { ItineraryMap } from "@/components/trip-planner/itinerary-map";
 import { TripPinnedSection } from "@/components/trip-pinned/trip-pinned-section";
 import { DayTimeline, type DayTimelineDay } from "@/components/trip-timeline/day-timeline";
+import { buildDayEveningPlan } from "@/components/trip-timeline/evening-plan";
 import { RouteStrip } from "@/components/trip-timeline/route-strip";
 import { TravelerDayTabs, type TravelerDayTabItem } from "@/components/traveler-ui/traveler-day-tabs";
 import { cleanAreaDisplayLabel, cleanOvernightAreaLabel, cleanPlaceDisplayName } from "@/lib/traveler-display-clean";
@@ -1119,12 +1120,20 @@ function CompanionGroupContent({
                     (item) => item.dayIndex === day.dayIndex && item.kind === "EVENING",
                   );
                   const lastVisit = day.visits.at(-1);
-                  const lastArea = lastVisit
-                    ? cleanOvernightAreaLabel(
-                        lastVisit.destination.area || inferDestinationArea(lastVisit.destination.name),
-                      )
-                    : "";
-                  const hasEveningBlock = day.dayIndex < totalDays && (dayEvening.length > 0 || Boolean(dayLodging));
+                  const eveningPlan = buildDayEveningPlan({
+                    dayIndex: day.dayIndex,
+                    totalDays,
+                    lastStopArea:
+                      lastVisit?.destination.area ||
+                      (lastVisit ? inferDestinationArea(lastVisit.destination.name) : ""),
+                    lastStopName: lastVisit?.destination.name,
+                    chosenLodging: dayLodging ? { name: dayLodging.name } : null,
+                    eveningPlaces: dayEvening.map((item) => ({
+                      key: `ev-${item.dayIndex}-${item.placeId}`,
+                      name: cleanPlaceDisplayName(item.name),
+                      distanceKm: item.distanceKm,
+                    })),
+                  });
 
                   const timelineDay: DayTimelineDay = {
                     dayIndex: day.dayIndex,
@@ -1144,9 +1153,7 @@ function CompanionGroupContent({
                         area,
                         startMinute: visit.startMinute,
                         durationMinutes: visit.plannedDurationMinutes,
-                        image: visit.destination.image
-            ? { url: visit.destination.image.url, alt: visit.destination.image.alt, author: null, sourceUrl: null }
-            : null,
+                        image: visit.destination.image ?? null,
                         fallbackVisual,
                         href: !isUnavailable && visit.destination.destinationId
                           ? `/destinations/${visit.destination.destinationId}`
@@ -1154,21 +1161,10 @@ function CompanionGroupContent({
                         unavailable: isUnavailable,
                       };
                     }),
-                    chosenLodging: !hasEveningBlock && dayLodging
+                    chosenLodging: !eveningPlan && dayLodging
                       ? { nightIndex: dayLodging.nightIndex, name: dayLodging.name, placeId: dayLodging.placeId }
                       : null,
-                    eveningPlan: hasEveningBlock
-                      ? {
-                          nightIndex: day.dayIndex,
-                          overnightArea: lastArea,
-                          chosenLodging: dayLodging ? { name: dayLodging.name } : null,
-                          eveningPlaces: dayEvening.slice(0, 3).map((item) => ({
-                            key: `ev-${item.dayIndex}-${item.placeId}`,
-                            name: cleanPlaceDisplayName(item.name),
-                            distanceKm: item.distanceKm,
-                          })),
-                        }
-                      : null,
+                    eveningPlan,
                     nearbySuggestions: dayNearby.map((item) => ({
                       key: `nb-${item.dayIndex}-${item.slot}-${item.placeId}`,
                       name: cleanPlaceDisplayName(item.name),

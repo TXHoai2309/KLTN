@@ -263,10 +263,38 @@ export function TripsageTimelineView({
                   )}
                   {(() => {
                     const nearby = (bySlot.get(item.slotId) ?? []).filter(isNearbyActivity);
+                    if (item.kind === "OVERNIGHT") {
+                      return (
+                        <div className="tripsage-nearby" data-testid={`evening-plan-day-${activeDay.day}`}>
+                          <strong>Tối nay</strong>
+                          <span className="tripsage-nearby-note"> · gợi ý từ Google Maps, chưa kiểm tra</span>
+                          {nearby.length > 0 ? (
+                            <ul>
+                              {nearby.slice(0, 3).map(suggestion => {
+                                const target = suggestionPreviewTarget(suggestion);
+                                return (
+                                  <li key={suggestion.place!.placeId ?? suggestion.title}>
+                                    <span>{suggestion.title}</span>
+                                    <span className="tripsage-suggestion-meta"> · cách khoảng {suggestion.place!.distanceKm} km</span>
+                                    {target && (
+                                      <button type="button" className="tripsage-preview-btn" aria-label={`Xem nhanh ${target.name}`} onClick={event => setPreview({ target, trigger: event.currentTarget })}>
+                                        <Eye size={12} aria-hidden="true" /><span>Xem nhanh</span>
+                                      </button>
+                                    )}
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          ) : (
+                            <p className="assistant-muted text-xs">Chưa tìm được gợi ý buổi tối</p>
+                          )}
+                        </div>
+                      );
+                    }
                     if (!nearby.length) return null;
                     return (
                       <div className="tripsage-nearby">
-                        <strong>{item.kind === "OVERNIGHT" ? "Buổi tối quanh chỗ nghỉ" : item.kind === "FREE_TIME" ? "Chiều rảnh, có thể ghé" : "Gần đây có thể ghé"}</strong>
+                        <strong>{item.kind === "FREE_TIME" ? "Chiều rảnh, có thể ghé" : "Gần đây có thể ghé"}</strong>
                         <span className="tripsage-nearby-note"> · gợi ý từ Google Maps, chưa kiểm tra</span>
                         <ul>
                           {nearby.map(suggestion => {

@@ -9,8 +9,10 @@ import { EARLY_DAY_END_MINUTE, suggestionSchema, type TimelineSuggestion } from 
  * stop and near each overnight stay. Results are Google Maps data, unchecked, and never change a time or become a visit.
  * The model does not choose them; it only learns that they exist.
  */
-export const ACTIVITY_RADIUS_KM = { ACTIVITY: 5, FREE: 8, EVENING: 5 } as const;
+export const ACTIVITY_RADIUS_KM = { ACTIVITY: 5, FREE: 8, EVENING: 3 } as const;
 export const ACTIVITY_PER_SLOT = 5;
+/** PARITY BR-7: at most 3 evening eat/hangout places per night within 3 km. */
+export const EVENING_PER_SLOT = 3;
 /** Upper bound of Places calls per plan (stops first, then nights); the 4-call cap of `searchPlaces` is a separate, model-facing budget. */
 export const ACTIVITY_MAX_ANCHORS = 16;
 
@@ -86,7 +88,10 @@ export function activityAnchors(result: PlannerResult): { anchors: ActivityAncho
     if (last && freeAfternoon) frees.push({ slotId: `d${day.day}-free`, kind: "FREE", latitude: last.destination.latitude, longitude: last.destination.longitude });
     if (last && index < result.days.length - 1) nights.push({ slotId: `d${day.day}-overnight`, kind: "EVENING", latitude: last.destination.latitude, longitude: last.destination.longitude });
   });
-  return { anchors: [...visits, ...frees, ...nights].slice(0, ACTIVITY_MAX_ANCHORS), stopNames };
+  // Reserve anchor budget for every night (Days 1..N-1) so multi-day trips never lose their "Tối nay" slots (PARITY AC-6).
+  const reservedNights = nights.slice(0, ACTIVITY_MAX_ANCHORS);
+  const maxDaytime = Math.max(0, ACTIVITY_MAX_ANCHORS - reservedNights.length);
+  return { anchors: [...[...visits, ...frees].slice(0, maxDaytime), ...reservedNights], stopNames };
 }
 
 /** Looks up places near every anchor (a few at a time) and returns at most `ACTIVITY_PER_SLOT` per slot, nearest first, each place once. */
@@ -128,9 +133,10 @@ export async function nearbyActivitySuggestions(input: { places: PlacesSearch; a
       )
       .sort((a, b) => a.distanceKm - b.distanceKm);
     const outKind = entry.anchor.kind === "EVENING" ? "EVENING" : "ACTIVITY"; const used = usedBy[outKind];
+    const slotLimit = outKind === "EVENING" ? EVENING_PER_SLOT : ACTIVITY_PER_SLOT;
     let taken = 0;
     for (const { place, distanceKm } of ranked) {
-      if (taken >= ACTIVITY_PER_SLOT) break;
+      if (taken >= slotLimit) break;
       if (used.has(place.placeId)) continue;
       const parsed = suggestionSchema.safeParse({ slotId: entry.anchor.slotId, kind: outKind, title: place.name, place: { placeId: place.placeId, name: place.name, distanceKm: Math.round(distanceKm * 10) / 10 } });
       if (!parsed.success) continue;

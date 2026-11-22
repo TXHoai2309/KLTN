@@ -8,6 +8,7 @@ import { Fragment, useEffect, useRef, useState, useMemo, type CSSProperties } fr
 import { travelerButtonClassName } from "@/components/traveler-ui/traveler-button";
 import { TravelerDayTabs, travelerDayColorVar, type TravelerDayTabItem } from "@/components/traveler-ui/traveler-day-tabs";
 import { DayTimeline, type DayTimelineDay, type DayTimelineNearbyItem, type DayTimelineStop } from "@/components/trip-timeline/day-timeline";
+import { buildDayEveningPlan } from "@/components/trip-timeline/evening-plan";
 import { uncheckedItemLabel } from "@/modules/trip-save/unchecked-checks";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { Route } from "next";
@@ -1265,11 +1266,34 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
               {trip.days.map((day) => {
                 const isDimmed = activeTravelTab !== null || (activeDayIndex !== null && activeDayIndex !== day.dayIndex);
                 const chosen = chosenLodgingByNight.get(day.dayIndex);
-                const nearbyForDay = (trip.nearbySuggestions ?? []).filter(item => item.dayIndex === day.dayIndex);
+                const nearbyForDay = (trip.nearbySuggestions ?? []).filter(
+                  item => item.dayIndex === day.dayIndex && item.kind === "ACTIVITY",
+                );
+                const eveningForDay = (trip.nearbySuggestions ?? []).filter(
+                  item => item.dayIndex === day.dayIndex && item.kind === "EVENING",
+                );
                 const nextDay = trip.days.find((item) => item.dayIndex === day.dayIndex + 1);
                 const lastVisit = day.visits.at(-1);
                 const lastDeparture = lastVisit ? lastVisit.startMinute + lastVisit.plannedDurationMinutes : null;
                 const nightText = lastDeparture !== null && trip.journey?.plan && nextDay ? nightRestText(lastDeparture) : null;
+                const eveningPlan = buildDayEveningPlan({
+                  dayIndex: day.dayIndex,
+                  totalDays: trip.days.length,
+                  lastStopArea: lastVisit?.destination.area,
+                  lastStopName: lastVisit?.destination.name,
+                  chosenLodging: chosen
+                    ? {
+                        name: chosen.name,
+                        previewTarget: { kind: "GOOGLE_PLACE", name: chosen.name, placeId: chosen.placeId },
+                      }
+                    : null,
+                  eveningPlaces: eveningForDay.map((item) => ({
+                    key: `${item.slot}|${item.placeId}`,
+                    name: item.name,
+                    distanceKm: item.distanceKm,
+                    previewTarget: { kind: "GOOGLE_PLACE", name: item.name, placeId: item.placeId },
+                  })),
+                });
 
                 const stops: DayTimelineStop[] = day.visits.map((visit, visitIndex) => {
                   const nextVisit = day.visits[visitIndex + 1];
@@ -1350,7 +1374,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                         }
                       />
                     ) : undefined,
-                  chosenLodging: chosen
+                  chosenLodging: !eveningPlan && chosen
                     ? {
                         nightIndex: chosen.nightIndex,
                         name: chosen.name,
@@ -1358,6 +1382,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
                         previewTarget: { kind: "GOOGLE_PLACE", name: chosen.name, placeId: chosen.placeId },
                       }
                     : null,
+                  eveningPlan,
                   nearbySuggestions: nearbyItems,
                 };
 

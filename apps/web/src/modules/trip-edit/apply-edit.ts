@@ -36,6 +36,8 @@ import { recheckInTripTime, type TimeRecheckTrip } from "../in-trip/time-recheck
 import { preserveCompleted, ReplanCompletedVisitError } from "../in-trip/preserve-completed";
 import { splitCompletedRemaining } from "../in-trip/split-trip";
 import { assertLocationIndependentScope } from "../in-trip/location-independent-scope";
+import type { PlacesSearch } from "../tripsage-chat/tripsage-places";
+import { refreshTripEveningSuggestions } from "./refresh-evening-suggestions";
 import { z } from "zod";
 
 const applyEditBaseSchema = z
@@ -115,6 +117,8 @@ export type ApplyEditDependencies = TripEditServiceDependencies & {
   assertInTripCompletedVisitsUnchanged?: InTripCompletedVisitInvariant;
   /** Internal-only integration; public request schemas still require location. */
   allowLocationIndependent?: boolean;
+  /** PARITY AC-8: optional Google Places lookup to refresh EVENING suggestions when a day's last stop changes. */
+  places?: PlacesSearch;
 };
 
 export type ApplyEditResult = {
@@ -494,6 +498,7 @@ export async function applyEdit(
     nextJourneySnapshot = checked.nextJourneySnapshot;
   }
 
+  let freshlyCommitted = false;
   const result = await executeIdempotentWrite<ApplyEditResult>({
     ...identity,
     execute: async (transaction) => {
@@ -518,6 +523,7 @@ export async function applyEdit(
         nextJourneySnapshot,
         uncheckedItemsToSave,
       );
+      freshlyCommitted = true;
       return {
         tripId,
         baseRevision: nextBaseRevision,
@@ -527,6 +533,22 @@ export async function applyEdit(
       };
     },
   });
+
+  // Best-effort refresh of persisted "Tối nay" EVENING suggestions when a night's last stop changed (PARITY AC-8).
+  // Never alters Constraint Validator results, visit times, or rolls back the committed edit.
+  if (freshlyCommitted && result.status === "SUCCESS") {
+    try {
+      await refreshTripEveningSuggestions({
+        database: dependencies.database,
+        tripId,
+        beforeDays: ownedTrip.days,
+        afterDays: candidate.days,
+        places: dependencies.places,
+      });
+    } catch {
+      /* best-effort unchecked suggestions */
+    }
+  }
 
   return result;
 }

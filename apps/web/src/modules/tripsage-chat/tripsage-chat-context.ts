@@ -4,6 +4,7 @@ import type { PlannerResult } from "../trip-planner/planner-contract";
 import { ASSUMABLE_FIELDS, type AssumableField } from "../trip-validation/trip-proposal-contract";
 import type { AccessLegPart } from "./tripsage-access-leg";
 import { LODGING_KINDS } from "./tripsage-chat-parts";
+import type { TimelineSuggestion } from "./tripsage-timeline";
 import {
   INTEREST_VALUES,
   MAX_DURATION_DAYS,
@@ -235,6 +236,7 @@ export function buildTripsageChatBody(input: {
   journey: TripJourney | null;
   tripInfo: TripsageTripInfo | null;
   itinerary: TripsageItinerarySummary | null;
+  suggestions?: readonly TimelineSuggestion[];
   accessLeg?: AccessLegPart | null;
   originCandidatesToken?: string | null;
   conversationId?: string | null;
@@ -244,6 +246,7 @@ export function buildTripsageChatBody(input: {
     journey: input.journey,
     tripInfo: input.tripInfo,
     currentItinerary: input.itinerary,
+    ...(input.suggestions?.length ? { suggestions: input.suggestions.slice(0, 60) } : {}),
     accessLeg: input.accessLeg ?? null,
     originCandidatesToken: input.originCandidatesToken ?? null,
     ...(input.conversationId ? { conversationId: input.conversationId } : {}),

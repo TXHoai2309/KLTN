@@ -6106,3 +6106,11 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Wired owner saved `ACCESS` leg into `TripDetailView` (`apps/web/src/app/trips/trips-view.tsx`) as `"Ngày đi DD/MM"` and `"Ngày về DD/MM"` tabs (`kind: "travel"`, gray dot) with outbound/return panels rendering `TripsageAccessLegCard only="outbound" | "return"`.
 - Excluded `kind: "ACCESS"` from `TripPinnedSection` ("Mục đã ghim") while keeping legacy `ACCESS` rows readable via `readPinnedItems` / `trip-pin-contract.ts`.
 - Checks: `vitest` PASS (17 files, 77/77 tests), `tsc --noEmit` PASS, `git diff --check` PASS (status: `verified-offline`).
+
+## 2026-11-23 — Traveler UI Redesign: Ticket 08 ("Tối nay" evening plan across chat, trip detail, shared page & trip-edit)
+
+- Updated `tripsage-activities.ts`: `ACTIVITY_RADIUS_KM.EVENING = 3`, `EVENING_PER_SLOT = 3`, and reserved anchor slots for all `N-1` nights inside `ACTIVITY_MAX_ANCHORS = 16` so 5-day plans always get all 4 overnight evening lookups.
+- Added `apps/web/src/components/trip-timeline/evening-plan.ts` (`buildDayEveningPlan`) and wired "Tối nay" blocks (overnight area, chosen/suggested lodging, <= 3 places within 3 km, fallback `"Chưa tìm được gợi ý buổi tối"`) into `TripDetailView`, `CompanionGroupView`, and `TripsageTimelineView`.
+- Added `apps/web/src/modules/trip-edit/refresh-evening-suggestions.ts` and hooked it best-effort post-commit into `applyEdit` + `api/trips/[id]/edits/apply/route.ts` when an edit changes a day's last stop (never affects Constraint Validator or committed edit).
+- Wired `suggestions` into `buildTripsageChatBody` → `parseTripsageChatSuggestions` → `buildTripsageContext` so the assistant answers `"tối ngày X đi đâu"` from the "Tối nay" block.
+- Checks: `tsc --noEmit` PASS, `vitest` PASS (28 files, 139/139 tests), `git diff --check` PASS (status: `verified-offline`).
