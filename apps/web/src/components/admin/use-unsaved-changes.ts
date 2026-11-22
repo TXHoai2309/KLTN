@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
+import "./unsaved-changes.css";
 type NavigateEvent = Event & {
   destination: { url: string; key?: string };
   canIntercept: boolean;
@@ -21,12 +22,12 @@ export function useUnsavedChanges(dirty: boolean, busy: boolean, rootSelector = 
       const title = document.createElement("h2"), message = document.createElement("p"), actions = document.createElement("div");
       title.id = "admin-leave-title"; message.id = "admin-leave-message";
       title.textContent = state.current.busy ? "Thao tác chưa hoàn tất" : "Rời trang với thay đổi chưa lưu?";
-      message.textContent = state.current.busy ? "Hoàn tất thao tác đang chờ hoặc đọc lại và thử lưu trước khi rời trang." : "Các thay đổi đang nhập sẽ không được lưu.";
+      message.textContent = state.current.busy ? "Hoàn tất thao tác đang chờ hoặc đọc lại và thử lưu trước khi rời trang." : "Những thay đổi bạn chưa lưu sẽ bị mất nếu rời trang. Bạn có chắc chắn muốn tiếp tục?";
       dialog.setAttribute("aria-labelledby", title.id); dialog.setAttribute("aria-describedby", message.id);
       const cancel = document.createElement("button"); cancel.type = "button"; cancel.className = "af-btn"; cancel.textContent = "Ở lại"; cancel.autofocus = true;
       cancel.addEventListener("click", () => dialog.close()); actions.append(cancel);
       if (!state.current.busy) {
-        const leave = document.createElement("button"); leave.type = "button"; leave.className = "af-btn"; leave.textContent = "Rời trang";
+        const leave = document.createElement("button"); leave.type = "button"; leave.className = "af-btn af-leave-confirm"; leave.textContent = "Rời trang";
         leave.addEventListener("click", () => {state.current = {dirty: false,busy: false}; dialog.close(); resume();}); actions.append(leave);
       }
       dialog.addEventListener("close", () => {dialog.remove(); prompt = null; opener?.focus();}, {once:true});

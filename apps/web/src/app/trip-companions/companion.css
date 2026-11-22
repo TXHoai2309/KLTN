@@ -3316,7 +3316,19 @@ body:has([data-testid="companion-management-view"]) .global-assistant-launcher {
   display: none;
 }
 
+/* Keep the floating assistant away from the right-hand joining card. */
+@media (min-width: 993px) {
+  body:has(.companion-intro-view) .global-assistant-launcher,
+  body:has(.companion-intro-view) .destination-assistant-panel {
+    left: 24px;
+    right: auto;
+  }
+}
+
 @media (max-width: 992px) {
+  body:has(.companion-intro-view) .global-assistant-launcher {
+    bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  }
   /* Main Grid becomes vertical flex on tablet & mobile */
   .companion-intro-view .companion-main-grid {
     display: flex !important;

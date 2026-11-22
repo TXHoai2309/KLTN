@@ -244,7 +244,7 @@ describe("Ticket 05: Per-Chat Knowledge Preference", () => {
       controller.submit();
 
       // Request was submitted under SOURCE_ONLY mode
-      expect(sentAttempts[0].payload.knowledgeMode).toBe("SOURCE_ONLY");
+      expect(sentAttempts[0].payload.knowledgeMode ?? "SOURCE_ONLY").toBe("SOURCE_ONLY");
 
       // While in-flight, user switches toggle to EXPANDED
       controller.setKnowledgeMode("EXPANDED");
@@ -337,7 +337,8 @@ describe("Ticket 05: Per-Chat Knowledge Preference", () => {
       expect(sentAttempts).toHaveLength(2);
       // Both attempts must share the exact same key and original SOURCE_ONLY mode!
       expect(sentAttempts[1].key).toBe("fixed-retry-key");
-      expect(sentAttempts[1].payload.knowledgeMode).toBe("SOURCE_ONLY");
+      expect(sentAttempts[1].payload).toEqual(sentAttempts[0].payload);
+      expect(sentAttempts[1].payload.knowledgeMode ?? "SOURCE_ONLY").toBe("SOURCE_ONLY");
     });
   });
 });

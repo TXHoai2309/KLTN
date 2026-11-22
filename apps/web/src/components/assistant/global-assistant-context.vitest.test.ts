@@ -3,8 +3,8 @@ import { build } from "esbuild";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
-it("hands the latest registered page to reset while preserving the active conversation until reset", async () => {
-  const bundle = await build({ entryPoints: [fileURLToPath(new URL("./global-assistant.tsx", import.meta.url))], bundle: true, write: false, format: "cjs", platform: "node", jsx: "automatic", external: ["react", "react/*", "react-dom", "next/navigation"], logLevel: "silent" });
+it("switches the destination widget to the registered page and ignores stale registration cleanup", async () => {
+  const bundle = await build({ entryPoints: [fileURLToPath(new URL("./global-assistant.tsx", import.meta.url))], bundle: true, write: false, format: "cjs", platform: "node", jsx: "automatic", loader: { ".css": "empty", ".module.css": "empty" }, external: ["react", "react/*", "react-dom", "next/navigation"], logLevel: "silent" });
   const require = createRequire(import.meta.url);
   const slots: unknown[] = []; let cursor = 0;
   let pathname = "/destinations/a";
@@ -30,12 +30,13 @@ it("hands the latest registered page to reset while preserving the active conver
     render().props.value({ id: "b", name: "Fixture B" });
     cleanupA();
     expect(panel().props.context).toEqual({ type: "DESTINATION", destinationId: "a" });
-    expect(panel().props.newChatContext).toEqual({ type: "DESTINATION", destinationId: "b" });
-    panel().props.onStartedNewChat();
+    // Registration changes are applied by the destination-switch effect.
+    effects[2]!();
     expect(panel().props.context).toEqual({ type: "DESTINATION", destinationId: "b" });
     expect(panel().props.destinationName).toBe("Fixture B");
     pathname = "/explore";
-    expect(panel().props.newChatContext).toEqual({ type: "GENERAL" });
+    panel(); effects[2]!();
+    expect(panel().props.context).toEqual({ type: "DESTINATION", destinationId: "b" });
   } finally {
     if (originalDocument) Object.defineProperty(globalThis, "document", originalDocument);
     else Reflect.deleteProperty(globalThis, "document");

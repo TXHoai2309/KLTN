@@ -2,10 +2,11 @@ import { fixtureQaAssessment } from "./__fixtures__/qa-reviewed-input";
 import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import type { Database } from "@KLTN/db";
-import { createQaDiagnostics, qaOrigin, qaProviderMetadata, qaReportFailure, qaRejectSynthesis, qaStage, type QaDiagnosticEvent } from "./qa-diagnostics";
+import { createQaDiagnostics, qaOrigin, qaProviderInvoked, qaProviderMetadata, qaReportFailure, qaRejectSynthesis, qaStage, type QaDiagnosticEvent } from "./qa-diagnostics";
 import { createQaHttpHandlers } from "./qa-http";
 import { createQaService } from "./qa-service";
 import { createQaRetriever } from "./qa-retrieval";
+import { createOpenAiEmbeddingProvider } from "../rag-processing/openai-embedding-provider";
 import { createFixtureQaGenerator as createQaGenerator } from "./__fixtures__/qa-generation-wire";
 import type { QaConversationStore } from "./qa-conversation-store";
 import { countEmbeddingTokens } from "../rag-processing/embedding-tokenizer";
@@ -30,7 +31,12 @@ async function exercise(mode: Mode, provider?: { output?: unknown; content?: str
   vi.stubEnv("OPENAI_API_KEY", "offline-fixture-credential");
   const database = { $queryRaw: vi.fn(async () => mode === "empty" ? [] : [row]) } as unknown as Database;
   const store = { reserve: vi.fn(async () => ({ kind: "RESERVED" as const, conversationId: "conv", turnId: "turn", fence: 1, history: [] })), complete: vi.fn(async (_p, _r, data) => { if (mode === "persistence") throw new Error("private SQL credential"); return data; }), fail: vi.fn(async () => {}), history: vi.fn(), delete: vi.fn(), revokeGuest: vi.fn(), cleanup: vi.fn() } satisfies QaConversationStore;
-  const retriever = createQaRetriever(database, { publicSourceIds: new Set([row.documentId]) });
+  const retriever = createQaRetriever(database, { publicSourceIds: new Set([row.documentId]), provider: createOpenAiEmbeddingProvider({ apiKey: () => "offline-fixture-credential", fetcher: async (url, init) => {
+    qaProviderInvoked("embedding");
+    const response = await fetcher(url, init);
+    qaProviderMetadata("embedding", response);
+    return response;
+  } }) });
   if (mode === "eligibility") retriever.recheck = async () => false;
   const service = createQaService({ store, retriever, assessor: { assess: async input => fixtureQaAssessment(input, (provider?.output as { status?: string } | undefined)?.status === "PARTIAL") }, generator: createQaGenerator({ apiKey: () => "secret-credential", fetcher }) });
   const http = createQaHttpHandlers({ diagnostics: createQaDiagnostics({ nodeEnv: "development", sink: event => events.push(event) }), enabled: () => true, resolve: async () => ({ kind: "USER", id: "private-user" }), ask: service.ask, history: service.history, delete: service.delete });
