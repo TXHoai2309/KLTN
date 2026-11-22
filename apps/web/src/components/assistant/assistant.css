@@ -2844,3 +2844,52 @@
   flex-shrink: 0;
   margin-left: auto;
 }
+
+/* Ticket 16 (slim D21, BR-5): over-budget savings option chips */
+.tripsage-savings-chips {
+  display: grid;
+  gap: var(--tv-space-2);
+  margin-top: var(--tv-space-3);
+  padding: var(--tv-space-3);
+  border-radius: var(--tv-radius-control);
+  background: var(--tv-sunken);
+}
+
+.tripsage-savings-title {
+  font-size: var(--tv-text-xs);
+  font-weight: 500;
+  color: var(--tv-ink-2);
+}
+
+.tripsage-savings-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--tv-space-2);
+}
+
+.tripsage-savings-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 4px 12px;
+  border: 1px solid var(--tv-line);
+  border-radius: var(--tv-radius-pill);
+  background: var(--tv-surface);
+  color: var(--tv-ink);
+  font-family: var(--tv-font-ui);
+  font-size: var(--tv-text-xs);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--tv-motion-fast), border-color var(--tv-motion-fast);
+}
+
+.tripsage-savings-chip:hover {
+  background: var(--tv-accent-tint);
+  border-color: var(--tv-accent);
+  color: var(--tv-accent);
+}
+
+.tripsage-savings-chip:focus-visible {
+  outline: 2px solid var(--tv-focus);
+  outline-offset: 2px;
+}

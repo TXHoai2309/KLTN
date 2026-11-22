@@ -1,13 +1,25 @@
 import { Wallet } from "lucide-react";
 
-import { COST_CATEGORIES, COST_CATEGORY_LABELS, formatVnd, type CostPart } from "@/modules/tripsage-chat/tripsage-cost";
+import type { AccessLegPart } from "@/modules/tripsage-chat/tripsage-access-leg";
+import { computeBudgetSavingsChips, COST_CATEGORIES, COST_CATEGORY_LABELS, formatVnd, type CostPart } from "@/modules/tripsage-chat/tripsage-cost";
 import { costPin } from "@/modules/trip-save/trip-pin-builders";
 import { PinButton, type PinControl } from "./tripsage-pin-button";
 
 /** Estimated cost table (ADR-42, ticket 03; compact aligned columns, budget row hidden when budget <= 0). */
-export function TripsageCostCard({ cost, pins }: { cost: CostPart; pins?: PinControl }) {
+export function TripsageCostCard({
+  cost,
+  pins,
+  accessLeg,
+  onSelectSavingsOption,
+}: {
+  cost: CostPart;
+  pins?: PinControl;
+  accessLeg?: AccessLegPart | null;
+  onSelectSavingsOption?: (prompt: string) => void;
+}) {
   const groups = COST_CATEGORIES.map(category => ({ category, lines: cost.lines.filter(line => line.category === category) })).filter(group => group.lines.length);
   const hasBudgetCap = cost.budgetCap !== null && cost.budgetCap > 0;
+  const savingsChips = computeBudgetSavingsChips(cost, accessLeg);
   return (
     <section className="tripsage-cost" aria-label="Bảng chi phí ước tính">
       <header className="tripsage-cost-head">
@@ -61,6 +73,23 @@ export function TripsageCostCard({ cost, pins }: { cost: CostPart; pins?: PinCon
         {cost.assumptions.map((note, index) => <li key={index}>{note}</li>)}
         <li>Bảng giá tham khảo cập nhật {cost.priceReferenceDate.split("-").reverse().join("/")}. Đây là ước tính, chưa phải báo giá; ứng dụng không đặt chỗ.</li>
       </ul>
+      {savingsChips.length > 0 && onSelectSavingsOption && (
+        <div className="tripsage-savings-chips" role="group" aria-label="Gợi ý giảm chi phí ước tính">
+          <span className="tripsage-savings-title">Gợi ý giảm chi phí (chọn để điều chỉnh lịch):</span>
+          <div className="tripsage-savings-list">
+            {savingsChips.map(chip => (
+              <button
+                key={chip.id}
+                type="button"
+                className="tripsage-savings-chip"
+                onClick={() => onSelectSavingsOption(chip.prompt)}
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <PinButton item={costPin(cost)} control={pins} label="bảng chi phí" />
     </section>
   );

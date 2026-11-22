@@ -6134,3 +6134,9 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Created `apps/web/src/modules/tripsage-chat/conversation-auto-title.ts` (`buildConversationAutoTitle`, `autoTitleFromAssistantParts`) strictly from confirmed trip info (never assumed fields).
 - Updated `assistant-conversation-store.ts`, `assistant-conversation-http.ts`, `tripsage-chat-service.ts`, `assistant-unified-history.ts`, `assistant-sidebar.tsx`, and `tripsage-chat-client.tsx` for DB-confirmed auto-titling, idempotent manual rename (`titleCustomized: true`), owner-verified `savedTripId` linking, and the 6px `--tv-accent` sidebar indicator.
 - Checks: `vitest` PASS (15 files, 77/77 tests), `tsc --noEmit` PASS, `git diff --check` PASS (status: `verified-offline`).
+
+## 2026-11-23 — Traveler UI Redesign: Ticket 16 (budget savings chips & grounded preference labels)
+
+- Added `SAVINGS_REFERENCE` and `computeBudgetSavingsChips` to `tripsage-cost.ts` (slim D21, BR-5, AC-7), wired clickable `"ước tính"` savings chips into `TripsageCostCard` + `TripsageChatClient` + `estimateCosts` tool return without auto-mutating the plan.
+- Added `apps/web/src/modules/tripsage-chat/tripsage-preference-labels.ts` and wired it into `proposeItinerary` (`tripsage-chat-tools.ts`): emits `"Săn mây"` (with early-morning hint) and dish-specific `"Ăn đặc sản"` suggestions ONLY when reviewed `lookupLocalKnowledge` documents contain evidence, never altering times or Validator inputs.
+- Checks: `vitest` PASS (15 files, 73/73 tests), `tsc --noEmit` PASS, `git diff --check` PASS.

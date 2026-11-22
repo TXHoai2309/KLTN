@@ -33,7 +33,7 @@
 | [13 — Danh sách chuyến đi gọn, tên chuyến tự đặt](issues/13-trip-list-compact.md) | `02` | `verified-offline` |
 | [14 — Tên cuộc chat tự đặt, dấu cuộc chat đã ra chuyến](issues/14-conversation-auto-title.md) | `02` | `verified-offline` |
 | [15 — Khối tiến độ thật, chạy song song](issues/15-plan-progress-parallel.md) | `10` | `ready-for-agent` |
-| [16 — Chip tiết kiệm ngân sách, nhãn sở thích](issues/16-budget-chips-preference-labels.md) | `02` | `ready-for-agent` |
+| [16 — Chip tiết kiệm ngân sách, nhãn sở thích](issues/16-budget-chips-preference-labels.md) | `02` | `done` |
 | [17 — Nghiệm thu tích hợp](issues/17-integrated-acceptance.md) | `03`, `08`, `09`, `11`, `12`, `13`, `14`, `15`, `16` | `ready-for-agent` |
 
 ```

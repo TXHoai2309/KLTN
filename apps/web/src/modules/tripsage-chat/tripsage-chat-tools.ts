@@ -14,7 +14,8 @@ import type { ExternalPlaceSuggestion, PlacesSearch } from "./tripsage-places";
 import { haversine } from "../trip-planner/planner-geography";
 import { activityAnchors, nearbyActivitySuggestions } from "./tripsage-activities";
 import { SUGGESTION_KINDS, suggestionSchema, timelineSlotIds, type TimelineSuggestion } from "./tripsage-timeline";
-import { costLineInputSchema, estimateTripCost, PRICE_REFERENCE, type CostPart } from "./tripsage-cost";
+import { computeBudgetSavingsChips, costLineInputSchema, estimateTripCost, PRICE_REFERENCE, type CostPart } from "./tripsage-cost";
+import { buildGroundedPreferenceLabels, detectStatedPreferences, preferenceLabelsToSuggestions } from "./tripsage-preference-labels";
 import { itineraryDistanceKm } from "./tripsage-chat-context";
 import { accessLegInputSchema, buildAccessLeg, formatAccessLegCostBasis, isHubOrigin, shouldSuggestHub, type AccessLegPart, type FlightPriceOverride } from "./tripsage-access-leg";
 import { domainOf, isSafePublicHttpsUrl, WEB_DATA_MARKER, type WebLookup } from "./tripsage-web";
@@ -609,6 +610,33 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         latestDays = result.days.map(day => day.stops.map(stop => stop.destination.id));
         latestDistanceKm = itineraryDistanceKm(result);
         await emitNearbyActivities(result, options?.abortSignal);
+        // Slim D22, BR-6, AC-8: emit grounded preference labels ("Săn mây", "Ăn đặc sản") ONLY when reviewed local knowledge has evidence.
+        if (context.knowledge && context.emitSuggestions) {
+          const allTexts = [...(context.userHistoryTexts ?? []), context.latestUserText ?? ""].filter(Boolean);
+          const prefs = detectStatedPreferences(allTexts);
+          if (prefs.wantsCloudHunting || prefs.wantsLocalFood) {
+            const query = [prefs.wantsCloudHunting ? "săn mây sáng sớm" : "", prefs.wantsLocalFood ? "đặc sản ẩm thực Hà Giang" : ""].filter(Boolean).join(" ");
+            try {
+              const docs = await context.knowledge(query, options?.abortSignal);
+              const snippets = docs.map(d => ({ title: d.title, content: d.text }));
+              const stops = result.days.flatMap(day => day.stops.map(stop => ({
+                day: day.day,
+                order: stop.order,
+                id: stop.destination.id,
+                name: stop.destination.name,
+                area: stop.destination.area,
+              })));
+              const labels = buildGroundedPreferenceLabels({ userTexts: allTexts, stops, knowledgeChunks: snippets });
+              if (labels.length > 0) {
+                context.emitSuggestions(preferenceLabelsToSuggestions(labels));
+                const sourceTitles = [...new Set(labels.map(l => l.sourceTitle))];
+                if (sourceTitles.length > 0) {
+                  context.emitSources?.(sourceTitles.map(title => ({ kind: "DOCUMENT" as const, title })));
+                }
+              }
+            } catch { /* best-effort grounded suggestions; never alters schedule or Validator */ }
+          }
+        }
         if (shouldSuggestHub(result)) hubSuggested = true;
         const names = new Map(all.map(c => [c.id, c.name]));
         return { ok: true as const, status: result.status, eligibleForFinalConfirmation: result.eligibleForFinalConfirmation,
@@ -786,8 +814,12 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         accessLegId: latestAccessLeg?.id ?? null,
       });
       context.emitCost?.(cost);
+      const savingsOptions = computeBudgetSavingsChips(cost, latestAccessLeg);
       return { ok: true as const, total: cost.total, perPersonPerDay: cost.perPersonPerDay, withinCap: cost.withinCap, overBy: cost.overBy, lines: cost.lines.map(({ label, amount }) => ({ label, amount })),
-        note: "Bảng chi phí đã hiện cho người dùng. Chỉ nhận xét ngắn (khoản lớn nhất, cách tiết kiệm); nói rõ đây là ước tính. Không có ngân sách thì không kết luận vừa hay vượt." };
+        ...(savingsOptions.length > 0 ? { savingsOptions: savingsOptions.map(o => ({ label: o.label, estimatedSavingsVnd: o.estimatedSavingsVnd })) } : {}),
+        note: savingsOptions.length > 0
+          ? "Bảng chi phí vượt ngân sách và các nút giảm chi phí ước tính đã hiện cho người dùng. Không tự đổi lịch; mời người dùng bấm chọn phương án muốn thử và nói rõ các mức tiết kiệm là ước tính."
+          : "Bảng chi phí đã hiện cho người dùng. Chỉ nhận xét ngắn (khoản lớn nhất, cách tiết kiệm); nói rõ đây là ước tính. Không có ngân sách thì không kết luận vừa hay vượt." };
     },
   });
 

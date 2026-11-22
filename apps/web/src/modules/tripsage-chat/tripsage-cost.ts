@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { TripTransport } from "../trip-requirement/trip-requirement-contract";
+import type { AccessLegPart } from "./tripsage-access-leg";
 
 /**
  * Client-safe cost estimate (ADR-42, ticket 03). The model estimates lodging, food, tickets and extras; the server computes
@@ -78,4 +79,120 @@ export function estimateTripCost(input: CostInput): CostPart {
     assumptions, priceReferenceDate: PRICE_REFERENCE.updatedAt,
     ...(input.accessLegId ? { accessLegId: input.accessLegId } : {}),
   };
+}
+
+/**
+ * Reference figures sourced from `docs/fixtures/price-reference-ha-giang.md` (slim D21, BR-5).
+ * Every savings number is an estimate ("ước tính") and never auto-mutates the itinerary.
+ */
+export const SAVINGS_REFERENCE = {
+  sleeperBusPerPersonOneWayVnd: 550_000,
+  budgetHomestayPerRoomNightVnd: 350_000,
+} as const;
+
+export interface BudgetSavingsChip {
+  id: string;
+  label: string;
+  prompt: string;
+  estimatedSavingsVnd: number;
+}
+
+export function formatSavingsShortVnd(amount: number): string {
+  if (amount >= 1_000_000) {
+    const millions = Math.round((amount / 1_000_000) * 10) / 10;
+    return `${millions.toLocaleString("vi-VN")} triệu`;
+  }
+  if (amount >= 1_000) {
+    return `${Math.round(amount / 1_000).toLocaleString("vi-VN")}k`;
+  }
+  return `${amount.toLocaleString("vi-VN")}đ`;
+}
+
+/**
+ * Slim D21, BR-5, AC-7: when `cost.withinCap === false` (`overBy > 0`), computes 2–3 concrete
+ * savings chips with "ước tính" amounts derived strictly from current cost lines / access leg
+ * and `SAVINGS_REFERENCE`. Returns `[]` when within budget or no budget cap is set.
+ */
+export function computeBudgetSavingsChips(
+  cost: CostPart,
+  accessLeg?: AccessLegPart | null,
+): BudgetSavingsChip[] {
+  if (cost.withinCap !== false || !cost.overBy || cost.overBy <= 0) return [];
+
+  const chips: BudgetSavingsChip[] = [];
+  const travelers = Math.max(1, cost.travelers);
+  const nights = Math.max(1, cost.days - 1);
+  const rooms = Math.max(1, Math.ceil(travelers / 2));
+
+  if (accessLeg) {
+    const flightSegments = [...accessLeg.outbound, ...accessLeg.return].filter(
+      (seg) => seg.mode === "FLIGHT" && seg.priceVndPerPerson > 0,
+    );
+    if (flightSegments.length > 0) {
+      const flightTotal = flightSegments.reduce((sum, seg) => sum + seg.priceVndPerPerson * travelers, 0);
+      const busAlt = flightSegments.length * SAVINGS_REFERENCE.sleeperBusPerPersonOneWayVnd * travelers;
+      const savings = Math.round(flightTotal - busAlt);
+      if (savings >= 200_000) {
+        chips.push({
+          id: "switch-bus",
+          label: `Đổi máy bay sang xe khách (ước tính tiết kiệm ~${formatSavingsShortVnd(savings)})`,
+          prompt: "Đổi chặng máy bay sang xe khách giường nằm để tiết kiệm chi phí.",
+          estimatedSavingsVnd: savings,
+        });
+      }
+    }
+  }
+
+  const lodgingTotal = cost.lines
+    .filter((line) => line.category === "lodging")
+    .reduce((sum, line) => sum + line.amount, 0);
+  if (lodgingTotal > 0) {
+    const homestayFloor = nights * rooms * SAVINGS_REFERENCE.budgetHomestayPerRoomNightVnd;
+    const directDiff = Math.round(lodgingTotal - homestayFloor);
+    const savings = directDiff >= 200_000 ? directDiff : Math.round(lodgingTotal * 0.3);
+    if (savings >= 150_000) {
+      chips.push({
+        id: "lower-lodging",
+        label: `Chọn homestay tiết kiệm hơn (ước tính tiết kiệm ~${formatSavingsShortVnd(savings)})`,
+        prompt: "Đổi sang hạng homestay tiết kiệm hơn để giảm chi phí lưu trú.",
+        estimatedSavingsVnd: savings,
+      });
+    }
+  }
+
+  if (cost.days >= 2) {
+    const foodTotal = cost.lines
+      .filter((line) => line.category === "food")
+      .reduce((sum, line) => sum + line.amount, 0);
+    const perNightLodging = lodgingTotal > 0 ? lodgingTotal / nights : 0;
+    const perDayFood = foodTotal > 0 ? foodTotal / cost.days : 0;
+    const rawDaily = Math.round(perNightLodging + perDayFood);
+    const savings = rawDaily >= 200_000 ? rawDaily : Math.round(cost.total / cost.days);
+    if (savings >= 200_000) {
+      const targetDays = cost.days - 1;
+      chips.push({
+        id: "shorten-day",
+        label: `Bớt 1 ngày còn ${targetDays} ngày (ước tính tiết kiệm ~${formatSavingsShortVnd(savings)})`,
+        prompt: `Rút lịch trình xuống còn ${targetDays} ngày để phù hợp ngân sách.`,
+        estimatedSavingsVnd: savings,
+      });
+    }
+  }
+
+  if (chips.length < 2) {
+    const foodAndAct = cost.lines
+      .filter((line) => line.category === "food" || line.category === "activities")
+      .reduce((sum, line) => sum + line.amount, 0);
+    const trimSavings = Math.round((foodAndAct > 0 ? foodAndAct : cost.total) * 0.2);
+    if (trimSavings >= 100_000) {
+      chips.push({
+        id: "trim-food-activities",
+        label: `Chọn quán ăn bình dân hơn (ước tính tiết kiệm ~${formatSavingsShortVnd(trimSavings)})`,
+        prompt: "Điều chỉnh mức ăn uống và vé tham quan tiết kiệm hơn để vừa ngân sách.",
+        estimatedSavingsVnd: trimSavings,
+      });
+    }
+  }
+
+  return chips.sort((a, b) => b.estimatedSavingsVnd - a.estimatedSavingsVnd).slice(0, 3);
 }

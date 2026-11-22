@@ -651,7 +651,14 @@ export function TripsageChatClient({
                         {(cost || accessLeg || itinerary) && !live && (
                           <details className="tripsage-plan-details" open={!(itinerary && planUnchanged)}>
                             <summary>Lịch trình và chi phí ước tính</summary>
-                            {cost && <TripsageCostCard cost={cost} pins={pinControl} />}
+                            {cost && (
+                              <TripsageCostCard
+                                cost={cost}
+                                pins={pinControl}
+                                accessLeg={state.accessLeg?.data ?? null}
+                                onSelectSavingsOption={prompt => send(prompt)}
+                              />
+                            )}
                             {accessLeg && !itinerary && (
                               <TripsageAccessLegCard
                                 leg={accessLeg}
