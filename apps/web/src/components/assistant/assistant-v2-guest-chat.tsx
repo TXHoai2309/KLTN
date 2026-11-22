@@ -209,7 +209,7 @@ export function AssistantV2GuestChat({ available = true, onMinimize, onOpenFullP
           <button type="submit" disabled={disabled || !state.draft.trim()} aria-busy={busy}><Send aria-hidden="true"/><span>Gửi</span></button>
         </div>
       </div>
-      <div className="assistant-composer-footer"><span>Enter để gửi · Shift+Enter xuống dòng</span><span className="assistant-char-counter">{state.draft.normalize("NFC").trim().length}/1000 ký tự</span></div>
+      <div className="assistant-composer-footer"><span className="assistant-char-counter">{state.draft.normalize("NFC").trim().length}/1000 ký tự</span></div>
     </form>
     {mode === "page" && <footer className="assistant-trust-footer">
       <div className="assistant-trust-item"><ShieldCheck aria-hidden="true"/><span>Thông tin thực tế cần có nguồn</span></div>
