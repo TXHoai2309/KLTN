@@ -1736,6 +1736,34 @@
 }
 
 /* Send button inside composer-bar */
+.assistant-page .assistant-composer-bar .assistant-stop-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  min-height: 32px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in oklch, var(--destructive) 30%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklch, var(--destructive) 10%, var(--background));
+  color: var(--destructive);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+.assistant-page .assistant-composer-bar .assistant-stop-button svg { width: 14px; height: 14px; fill: currentColor; }
+.assistant-page .assistant-composer-bar .assistant-stop-button:hover { background: color-mix(in oklch, var(--destructive) 20%, var(--background)); }
+.assistant-page .assistant-composer-bar .assistant-stop-button:active { background: color-mix(in oklch, var(--destructive) 30%, var(--background)); }
+.assistant-page .assistant-composer-bar .assistant-stop-button:focus-visible { outline: 2px solid var(--destructive); outline-offset: 2px; }
+.dark .assistant-page .assistant-composer-bar .assistant-stop-button { background: color-mix(in oklch, var(--destructive) 20%, var(--background)); }
+.dark .assistant-page .assistant-composer-bar .assistant-stop-button:hover { background: color-mix(in oklch, var(--destructive) 30%, var(--background)); }
+.dark .assistant-page .assistant-composer-bar .assistant-stop-button:active { background: color-mix(in oklch, var(--destructive) 40%, var(--background)); }
+@media (max-width: 768px) { .assistant-page .assistant-composer-bar .assistant-stop-button { height: 44px; min-height: 44px; } }
+@media (prefers-reduced-motion: reduce) { .assistant-page .assistant-composer-bar .assistant-stop-button { transition: none; } }
+
 .assistant-page .assistant-composer-bar button[type="submit"] {
   display: inline-flex;
   align-items: center;

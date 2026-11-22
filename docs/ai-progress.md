@@ -5945,3 +5945,9 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - **Routing/origin timeouts:** routing 40 s, origin search 8 s (see `decisions.md`).
 - **Data audit:** `docs/data-audit-destinations-2026-11-22.md` (production read-only); no data was changed, proposals await owner approval.
 - **Checks:** `tsc --noEmit` PASS; `vitest` over `src/modules/tripsage-chat`, `src/modules/trip-save`, `src/modules/trip-read`, `src/components/tripsage-chat`, `src/app/trips` PASS. Not run: Postgres integration test for the new table, build, live browser check, deploy.
+
+## 2026-11-22 — Assistant stop action and saved conversation loop
+
+- Stop action now uses shared destructive Button, Square icon and scoped theme-token interaction styles; existing cancellation handler retained. Local mobile stop returned to editable composer/Send; one test conversation created, original history preserved.
+- Fixed parsed itinerary identity causing lodging synchronization effect to set state indefinitely when restoring itinerary history. Regression RED exceeded 20 renders, GREEN settles; no navigation guard/URL/API change.
+- 75 focused tests, web typecheck and build PASS (two existing filesystem tracing warnings). Local saved-history refresh/direct URL and navigation to Home/Explore/Trips/Favorites verified. Desktop/dark visual, exhaustive provider lifecycle, console capture and production NOT PROVEN. Full suite not rerun. See `docs/implementation/assistant-stop-restoration-fix-2026-11-22.md`. No commit/push/deploy.
