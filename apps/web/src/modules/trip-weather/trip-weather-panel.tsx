@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CalendarClock,
@@ -11,7 +11,6 @@ import {
   CloudSun,
   Droplets,
   EyeOff,
-  Route,
   Sunrise,
   Sunset,
   Wind,
@@ -116,21 +115,6 @@ function conditionMeta(s: WindowSummary) {
   return { Icon: CloudSun, label: "Ít mưa", tone: "neutral" as const };
 }
 
-export function weatherText(w: WindowWeather): string {
-  if (w.status === "NOT_YET_AVAILABLE") return `Chưa có dự báo, sẽ có từ ngày ${w.availableFrom}`;
-  if (w.status === "UNAVAILABLE") return unavailableReasonText(w.reason);
-  const s = w.summary, parts: string[] = [];
-  const temp = formatTempSummary(s);
-  const rain = formatRainSummary(s);
-  if (temp) parts.push(temp);
-  if (rain) parts.push(rain);
-  if (s.maxWindGustKmh !== null) parts.push(`gió ${Math.round(s.maxWindGustKmh)} km/h`);
-  if (s.minVisibilityM !== null && s.minVisibilityM < FOG_VISIBILITY_THRESHOLD_M) {
-    parts.push(`tầm nhìn ${(s.minVisibilityM / 1000).toFixed(1)} km`);
-  }
-  return parts.join(" · ") || "Nhà cung cấp không có số liệu";
-}
-
 function VisitWeatherMetrics({ weather }: { weather: WindowWeather }) {
   if (weather.status === "NOT_YET_AVAILABLE") {
     return (
@@ -177,12 +161,6 @@ function VisitWeatherMetrics({ weather }: { weather: WindowWeather }) {
           <span>{rain}</span>
         </span>
       )}
-      {s.maxWindGustKmh !== null && (
-        <span className="trip-weather-metric">
-          <Wind size={13} aria-hidden="true" />
-          <span>gió {Math.round(s.maxWindGustKmh)} km/h</span>
-        </span>
-      )}
       {lowVisibility && (
         <span className="trip-weather-metric trip-weather-metric--warn">
           <EyeOff size={13} aria-hidden="true" />
@@ -193,31 +171,29 @@ function VisitWeatherMetrics({ weather }: { weather: WindowWeather }) {
   );
 }
 
-export function resolveAdvisoryJump(advisory: WeatherAdvisory, targetId: string) {
-  return {
-    highlightedTarget: targetId,
-    openLegs: advisory.location.type === "LEG",
-  };
+type VisitAdvisory = Omit<WeatherAdvisory, "location"> & { location: Extract<WeatherAdvisory["location"], { type: "VISIT" }> };
+
+export function resolveAdvisoryJump(targetId: string) {
+  return { highlightedTarget: targetId };
 }
 
 export function TripWeatherView({
   weather,
   days,
-  legLabels,
-  initialLegsOpen = false,
   initialHighlightedTarget = null,
 }: {
   weather: TripWeather;
   days: PlannerDay[];
-  legLabels: string[];
-  initialLegsOpen?: boolean;
   initialHighlightedTarget?: string | null;
 }) {
   const rawId = useId().replace(/[^a-zA-Z0-9_-]/g, "");
   const prefix = rawId ? `tw-${rawId}` : "tw";
-  const [legsOpen, setLegsOpen] = useState(initialLegsOpen);
   const [highlightedTarget, setHighlightedTarget] = useState<string | null>(initialHighlightedTarget);
-  const legsDetailsRef = useRef<HTMLDetailsElement>(null);
+  // Per-leg weather is not shown, so only warnings tied to a visit are listed.
+  const advisories = useMemo(
+    () => weather.advisories.filter((a): a is VisitAdvisory => a.location.type === "VISIT"),
+    [weather.advisories],
+  );
 
   const names = useMemo(
     () => new Map(days.flatMap(d => d.stops.map(s => [s.destination.id, s.destination.name] as const))),
@@ -229,24 +205,14 @@ export function TripWeatherView({
   );
 
   const allVisits = weather.days.flatMap(d => d.visits);
-  const hasAvailable =
-    allVisits.some(v => v.weather.status === "AVAILABLE") ||
-    weather.legs.some(l => l.status === "AVAILABLE" && l.samples.some(s => s.weather.status === "AVAILABLE"));
+  const hasAvailable = allVisits.some(v => v.weather.status === "AVAILABLE");
   const allNotYetAvailable = !hasAvailable && allVisits.length > 0 && allVisits.every(v => v.weather.status === "NOT_YET_AVAILABLE");
   const allUnavailable = !hasAvailable && !allNotYetAvailable && allVisits.length > 0;
 
-  const targetIdForAdvisory = (a: WeatherAdvisory) =>
-    a.location.type === "VISIT"
-      ? `${prefix}-visit-${a.day}-${a.location.destinationId}`
-      : `${prefix}-leg-${a.location.legIndex}`;
+  const targetIdForAdvisory = (a: (typeof advisories)[number]) => `${prefix}-visit-${a.day}-${a.location.destinationId}`;
 
-  const jumpToTarget = (a: WeatherAdvisory, targetId: string) => {
-    const next = resolveAdvisoryJump(a, targetId);
-    if (next.openLegs) {
-      setLegsOpen(true);
-      if (legsDetailsRef.current) legsDetailsRef.current.open = true;
-    }
-    setHighlightedTarget(next.highlightedTarget);
+  const jumpToTarget = (targetId: string) => {
+    setHighlightedTarget(resolveAdvisoryJump(targetId).highlightedTarget);
     const focusTarget = () => {
       const el = typeof document !== "undefined" ? document.getElementById(targetId) : null;
       if (!el) return;
@@ -261,14 +227,14 @@ export function TripWeatherView({
   return (
     <div className="trip-weather-body">
       <div
-        className={`trip-weather-summary${weather.advisories.length > 0 ? " trip-weather-summary--caution" : allUnavailable ? " trip-weather-summary--unavailable" : ""}`}
+        className={`trip-weather-summary${advisories.length > 0 ? " trip-weather-summary--caution" : allUnavailable ? " trip-weather-summary--unavailable" : ""}`}
         role="status"
       >
         <span className="trip-weather-summary-badge">
-          {weather.advisories.length > 0 ? (
+          {advisories.length > 0 ? (
             <>
               <AlertTriangle size={15} aria-hidden="true" />
-              <strong>{weather.advisories.length} cảnh báo</strong>
+              <strong>{advisories.length} cảnh báo</strong>
             </>
           ) : allNotYetAvailable ? (
             <>
@@ -292,14 +258,12 @@ export function TripWeatherView({
         </span>
       </div>
 
-      {weather.advisories.length > 0 && (
+      {advisories.length > 0 && (
         <div className="trip-weather-chips" role="list" aria-label="Cảnh báo thời tiết">
-          {weather.advisories.map((a, i) => {
+          {advisories.map((a, i) => {
             const ChipIcon = advisoryChipIcon(a.kind);
             const targetId = targetIdForAdvisory(a);
-            const where = a.location.type === "VISIT"
-              ? names.get(a.location.destinationId) ?? "Điểm đến"
-              : `Chặng ${a.location.label}`;
+            const where = names.get(a.location.destinationId) ?? "Điểm đến";
             const fullText = advisoryText(a, names);
             const isHighlighted = highlightedTarget === targetId;
             return (
@@ -311,7 +275,7 @@ export function TripWeatherView({
                   className={`trip-weather-chip trip-weather-chip--${a.kind.toLowerCase()}${isHighlighted ? " is-active" : ""}`}
                   onClick={event => {
                     event.preventDefault();
-                    jumpToTarget(a, targetId);
+                    jumpToTarget(targetId);
                   }}
                 >
                   <ChipIcon size={14} aria-hidden="true" />
@@ -387,55 +351,6 @@ export function TripWeatherView({
         })}
       </div>
 
-      {weather.legs.length > 0 && (
-        <details
-          ref={legsDetailsRef}
-          className="trip-weather-legs"
-          open={legsOpen}
-          onToggle={event => setLegsOpen(event.currentTarget.open)}
-        >
-          <summary className="trip-weather-legs-summary">
-            <span className="trip-weather-legs-title">
-              <Route size={15} aria-hidden="true" />
-              <span>Thời tiết dọc chặng</span>
-            </span>
-            <span className="trip-weather-legs-note">Ước lượng theo tốc độ đều</span>
-          </summary>
-          <ul className="trip-weather-legs-list">
-            {weather.legs.map((l, i) => {
-              const legId = `${prefix}-leg-${i}`;
-              const isHighlighted = highlightedTarget === legId;
-              return (
-                <li
-                  id={legId}
-                  key={i}
-                  tabIndex={-1}
-                  data-highlighted={isHighlighted ? "true" : undefined}
-                  className={`trip-weather-leg-item${isHighlighted ? " is-highlighted" : ""}`}
-                >
-                  <div className="trip-weather-leg-label">{legLabels[i] ?? `Chặng ${i + 1}`}</div>
-                  {l.status === "INSUFFICIENT_DATA" ? (
-                    <span className="trip-weather-state trip-weather-state--unavailable">
-                      <CloudOff size={13} aria-hidden="true" />
-                      <span>Không đủ dữ liệu lộ trình hoặc thời gian</span>
-                    </span>
-                  ) : (
-                    <ul className="trip-weather-leg-samples">
-                      {l.samples.map((s, k) => (
-                        <li key={k} className="trip-weather-leg-sample">
-                          <span className="trip-weather-sample-time">{s.time.slice(11, 16)}</span>
-                          <span className="trip-weather-sample-text">{weatherText(s.weather)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-        </details>
-      )}
-
       {weather.source && (
         <p className="trip-weather-source">
           Nguồn dự báo:{" "}
@@ -476,7 +391,7 @@ export function TripWeatherPanel({ days, journeyPlan }: { days: PlannerDay[]; jo
           <span>Không lấy được thời tiết lúc này. Đây không phải là trời đẹp; lịch trình vẫn dùng được bình thường.</span>
         </p>
       )}
-      {state.status === "ready" && <TripWeatherView weather={state.weather} days={days} legLabels={request.legs.map(l => l.label)} />}
+      {state.status === "ready" && <TripWeatherView weather={state.weather} days={days} />}
     </section>
   );
 }
