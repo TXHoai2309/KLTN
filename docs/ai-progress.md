@@ -6121,3 +6121,9 @@ FE/integration OPEN, no owner acceptance. No commit/push/merge/application deplo
 - Redesigned `TripDetailView` header (`apps/web/src/app/trips/trips-view.tsx`, `trips.css`): data-driven Lora 28px title, single gray meta line, single primary CTA (`"Hỏi trợ lý"`), text action links, `"⋯"` overflow menu (calendar `.ics`, completion, delete), proportional `RouteStrip`, mobile top bar (`← / Chuyến đi / ⋯`), 16:9 first-stop hero, and sticky mobile bottom bar (`"Bản đồ"` sheet + `"Hỏi trợ lý"`). Removed uppercase eyebrow and 4 stat cards.
 - Hidden floating global assistant pill on `/trips/[id]` in `global-assistant.tsx`.
 - Checks: `vitest` PASS (18 files, 73/73 tests), `tsc --noEmit` PASS, `git diff --check` PASS (status: `verified-offline`).
+
+## 2026-11-23 — Traveler UI Redesign: Ticket 13 (compact trip list & data-driven trip title)
+
+- Extended `listMyTrips` (`trip-read-service.ts`) with a single batched preview lookup (`firstStopImage`, `firstArea`, `lastArea`, owner-only `homeCity`/`originLabel`) while keeping `summarySelect.days` lean.
+- Redesigned `MyTripsView` (`apps/web/src/app/trips/trips-view.tsx`, `trips.css`): filter chips with counts, search collapsed behind icon toggle button, featured 16:9 card for next upcoming trip with `"còn N ngày"` countdown, compact 72px rows (56px thumbnail, data-driven route title via `buildDataTripTitle`, single click region + `"⋯"` overflow menu housing completion & delete confirmation dialogs).
+- Checks: `vitest` PASS (25 files, 117/117 tests; 3 postgres files skipped), `tsc --noEmit` PASS, `git diff --check` PASS (status: `verified-offline`).

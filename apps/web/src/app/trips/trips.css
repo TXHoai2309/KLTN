@@ -2135,3 +2135,149 @@
     box-shadow: var(--tv-shadow-float);
   }
 }
+
+/* ==========================================================================
+   TICKET 13: COMPACT TRIP LIST & FEATURED NEXT UPCOMING TRIP (design §4.3)
+   ========================================================================== */
+.my-trips-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--tv-space-3);
+  margin-bottom: var(--tv-space-4);
+}
+
+.my-trips-search.is-collapsed {
+  display: none;
+}
+
+.my-trips-featured {
+  display: grid;
+  gap: var(--tv-space-3);
+  padding: var(--tv-space-3);
+  margin-bottom: var(--tv-space-4);
+  border-radius: var(--tv-radius-card);
+  background: var(--tv-surface);
+}
+
+.my-trips-featured-media {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 280px;
+  border-radius: var(--tv-radius-card);
+  overflow: hidden;
+  background: var(--tv-media-bg);
+}
+
+.my-trips-featured-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.my-trips-featured-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--tv-space-3);
+}
+
+.my-trips-featured-text {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.my-trips-featured-title {
+  margin: 0;
+  font-family: var(--tv-font-title);
+  font-size: var(--tv-text-xl);
+  font-weight: 600;
+  line-height: var(--tv-leading-xl);
+  color: var(--tv-ink);
+}
+
+.my-trips-compact-list {
+  display: grid;
+  gap: var(--tv-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.my-trips-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--tv-space-3);
+  min-height: 72px;
+  padding: 8px var(--tv-space-3);
+  border-radius: var(--tv-radius-card);
+  background: var(--tv-surface);
+  transition: background var(--tv-motion-fast);
+}
+
+.my-trips-row:hover {
+  background: var(--tv-sunken);
+}
+
+.my-trips-row-thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--tv-radius-control);
+  overflow: hidden;
+  background: var(--tv-media-bg);
+  flex-shrink: 0;
+}
+
+.my-trips-row-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.my-trips-row-main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.my-trips-row-title {
+  margin: 0;
+  font-family: var(--tv-font-title);
+  font-size: var(--tv-text-lg);
+  font-weight: 600;
+  line-height: var(--tv-leading-lg);
+  color: var(--tv-ink);
+}
+
+.my-trips-row-title .my-trips-card-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.my-trips-row-title .my-trips-card-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.my-trips-row-meta {
+  margin: 0;
+  font-size: var(--tv-text-sm);
+  color: var(--tv-ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.my-trips-row-actions {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tv-space-1);
+}

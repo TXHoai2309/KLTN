@@ -17,7 +17,7 @@ const sample = (id: string, status: TripSummary["status"]): TripSummary => ({
 describe("US-31 Trip views", () => {
   it("makes the trip title a native detail link without nesting management buttons", () => {
     const html = renderToStaticMarkup(createElement(MyTripsView, { items: [sample("owned-trip", "UPCOMING")] }));
-    expect(html).toMatch(/<a[^>]*class="my-trips-card-link"[^>]*href="\/trips\/owned-trip"[^>]*>Chuyến đi 2 ngày<\/a>/);
+    expect(html).toMatch(/<a[^>]*class="my-trips-card-link"[^>]*href="\/trips\/owned-trip"[^>]*>Hà Giang, 10–11\/10<\/a>/);
     expect(html).not.toMatch(/<a\b[^>]*>(?:(?!<\/a>)[\s\S])*<button/);
   });
   it("renders three status groups and a create action", () => {
@@ -46,7 +46,7 @@ describe("US-31 Trip views", () => {
     const items = [saved, joined];
 
     expect(filterTripsBySearch(items, "  DONG   VAN ")).toEqual([joined]);
-    expect(filterTripsBySearch(items, "chuyến đi 2 ngày")).toEqual([saved]);
+    expect(filterTripsBySearch(items, "ha giang")).toEqual([saved]);
     expect(filterTripsBySearch(items, "20/10/2026")).toEqual([joined]);
     expect(filterTripsBySearch(items, "21/10/2026")).toEqual([joined]);
     expect(filterTripsBySearch(items, "o to")).toEqual([saved]);

@@ -27,6 +27,11 @@ export type TripSummary = {
   publicationId?: string | null;
   companionTitle?: string | null;
   hostName?: string | null;
+  firstStopImage?: { url: string; alt: string } | null;
+  firstArea?: string | null;
+  lastArea?: string | null;
+  homeCity?: string | null;
+  originLabel?: string | null;
 };
 
 export type TripChosenLodgingDetail = {
@@ -83,8 +88,10 @@ export type TripDetail = TripSummary & {
 
 const summarySelect = (userId: string) => ({
   id: true, userId: true, startDate: true, durationDays: true, transport: true, manuallyCompletedAt: true,
+  journeySnapshot: true,
   user: { select: { name: true } },
   favorites: { where: { userId }, select: { id: true } },
+  pinnedItems: { orderBy: { sortOrder: "asc" as const }, select: { payload: true } },
   days: { select: { _count: { select: { visits: true } } } },
   companionPublication: {
     select: {
@@ -151,6 +158,7 @@ const detailSelect = (userId: string) => ({
   },
 } satisfies Prisma.TripSelect);
 
+type SummaryVisitMedia = { url: string; alt: string; websiteRights: string; storageReference?: string | null };
 type SummaryRow = {
   id: string;
   userId: string;
@@ -158,8 +166,21 @@ type SummaryRow = {
   manuallyCompletedAt: Date | null;
   durationDays: number;
   transport: "CAR" | "MOTORCYCLE";
+  journeySnapshot?: unknown;
   favorites: { id: string }[];
-  days: { _count: { visits: number } }[];
+  pinnedItems?: { payload: unknown }[];
+  days: {
+    dayIndex?: number;
+    _count: { visits: number };
+    visits?: {
+      destination?: {
+        id: string;
+        name: string;
+        area: string;
+        media?: SummaryVisitMedia[];
+      } | null;
+    }[];
+  }[];
   user?: { name: string | null } | null;
   companionPublication?: { id: string; title: string } | null;
 };
@@ -167,6 +188,14 @@ type SummaryRow = {
 function summary(row: SummaryRow, referenceDate: string, actorId: string): TripSummary {
   const startDate = row.startDate.toISOString().slice(0, 10);
   const isHost = row.userId === actorId;
+  const allVisits = row.days.flatMap((day) => day.visits ?? []);
+  const firstDest = allVisits.find((visit) => visit.destination)?.destination ?? null;
+  const lastDest = [...allVisits].reverse().find((visit) => visit.destination)?.destination ?? null;
+  const firstMedia = firstDest?.media?.find((media) => isDestinationMediaUsable(media, firstDest.id));
+  const pins = isHost && row.pinnedItems ? readPinnedItems(row.pinnedItems) : [];
+  const accessHomeCity = pins.filter((item): item is Extract<PinnedItem, { kind: "ACCESS" }> => item.kind === "ACCESS").at(-1)?.leg.homeCity ?? null;
+  const parsedJourney = isHost && row.journeySnapshot != null ? savedJourneySchema.safeParse(row.journeySnapshot) : null;
+  const originLabel = parsedJourney?.success ? (parsedJourney.data.journey.origin?.label ?? null) : null;
   return {
     id: row.id,
     startDate,
@@ -179,6 +208,11 @@ function summary(row: SummaryRow, referenceDate: string, actorId: string): TripS
     publicationId: row.companionPublication?.id ?? null,
     companionTitle: row.companionPublication?.title ?? null,
     hostName: isHost ? null : (row.user?.name ?? null),
+    ...(firstMedia ? { firstStopImage: { url: firstMedia.url, alt: firstMedia.alt } } : {}),
+    ...(firstDest?.area ? { firstArea: firstDest.area } : {}),
+    ...(lastDest?.area ? { lastArea: lastDest.area } : {}),
+    ...(accessHomeCity ? { homeCity: accessHomeCity } : {}),
+    ...(originLabel ? { originLabel } : {}),
     ...effectiveTripStatus(startDate, row.durationDays, referenceDate, row.manuallyCompletedAt),
   };
 }
@@ -204,7 +238,53 @@ export async function listMyTrips(headers: Headers, deps: TripReadDependencies, 
     orderBy: [{ startDate: "asc" }, { id: "asc" }],
     select: summarySelect(actor.userId),
   });
-  return { items: rows.map(row => summary(row, referenceDate, actor.userId)) };
+  const tripIds = rows.map((row) => row.id);
+  const previewByTrip = new Map<string, { firstStopImage?: { url: string; alt: string }; firstArea?: string; lastArea?: string }>();
+  if (tripIds.length > 0 && typeof (deps.database as { itineraryVisit?: { findMany?: unknown } }).itineraryVisit?.findMany === "function") {
+    const visitRows = await deps.database.itineraryVisit.findMany({
+      where: { day: { tripId: { in: tripIds } }, destinationId: { not: null } },
+      orderBy: [{ day: { dayIndex: "asc" } }, { order: "asc" }, { id: "asc" }],
+      select: {
+        day: { select: { tripId: true } },
+        destination: {
+          select: {
+            id: true,
+            area: true,
+            media: {
+              where: destinationMediaWhere,
+              take: 4,
+              orderBy: [{ isCover: "desc" }, { position: "asc" }, { id: "asc" }],
+              select: { url: true, alt: true, websiteRights: true, storageReference: true },
+            },
+          },
+        },
+      },
+    });
+    for (const visit of visitRows) {
+      const dest = visit.destination;
+      if (!dest) continue;
+      const tid = visit.day.tripId;
+      const existing = previewByTrip.get(tid) ?? {};
+      if (!existing.firstArea && dest.area) existing.firstArea = dest.area;
+      if (!existing.firstStopImage) {
+        const media = dest.media.find((m) => isDestinationMediaUsable(m, dest.id));
+        if (media) existing.firstStopImage = { url: media.url, alt: media.alt };
+      }
+      if (dest.area) existing.lastArea = dest.area;
+      previewByTrip.set(tid, existing);
+    }
+  }
+  return {
+    items: rows.map((row) => {
+      const preview = previewByTrip.get(row.id);
+      return {
+        ...summary(row, referenceDate, actor.userId),
+        ...(preview?.firstStopImage ? { firstStopImage: preview.firstStopImage } : {}),
+        ...(preview?.firstArea ? { firstArea: preview.firstArea } : {}),
+        ...(preview?.lastArea ? { lastArea: preview.lastArea } : {}),
+      };
+    }),
+  };
 }
 
 export async function getMyTrip(headers: Headers, id: string, deps: TripReadDependencies, referenceDate: string, now: Date = new Date()): Promise<TripDetail> {
