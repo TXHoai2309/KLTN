@@ -254,4 +254,46 @@ describe("Ticket 10: Plan summary card & desktop split panel / tablet drawer (sl
     expect(idxLunch).toBeGreaterThan(idxStop3);
     expect(idxStop4).toBeGreaterThan(idxLunch);
   });
+
+  it("Bug 4: highlights Ngày đi / Ngày 1..N / Ngày về tabs with aria-selected and is-active matching rendered content", () => {
+    const proposal = makeProposal("prop-travel-tabs");
+    const travel = { homeCity: "Đà Nẵng", hubName: "TP Hà Giang (bến xe phía Nam)" };
+
+    for (const activeKey of ["travel-outbound", "day-1", "travel-return"] as const) {
+      const html = renderToStaticMarkup(
+        createElement(TripsagePlanPanel, {
+          proposal,
+          suggestions: [],
+          travel,
+          tripInfo: { homeCity: "Đà Nẵng", travelers: 4, startDate: "2026-12-13", durationDays: 2 },
+          chosenLodgings: {},
+          pinnedItems: [],
+          drawerOpen: false,
+          initialDayKey: activeKey,
+          onCloseDrawer: () => {},
+          onToggleChosenLodging: () => {},
+          onRequestMeals: () => {},
+          onAskAccess: () => {},
+          onSelectSavingsOption: () => {},
+          onSaved: () => {},
+          onSaveStateChange: () => {},
+        }),
+      );
+      const dayButtons = [...html.matchAll(/<button\b[^>]*class="tv-day-tab[^"]*"[^>]*>[\s\S]*?<\/button>/g)].map(m => m[0]);
+      expect(dayButtons.length).toBeGreaterThanOrEqual(3);
+      const outboundBtn = dayButtons[0]!;
+      const day1Btn = dayButtons[1]!;
+      const returnBtn = dayButtons.at(-1)!;
+
+      expect(outboundBtn.includes('aria-selected="true"'), `${activeKey}: outbound`).toBe(activeKey === "travel-outbound");
+      expect(outboundBtn.includes("tv-day-tab is-active"), `${activeKey}: outbound class`).toBe(activeKey === "travel-outbound");
+      expect(day1Btn.includes('aria-selected="true"'), `${activeKey}: day-1`).toBe(activeKey === "day-1");
+      expect(day1Btn.includes("tv-day-tab is-active"), `${activeKey}: day-1 class`).toBe(activeKey === "day-1");
+      expect(returnBtn.includes('aria-selected="true"'), `${activeKey}: return`).toBe(activeKey === "travel-return");
+      expect(returnBtn.includes("tv-day-tab is-active"), `${activeKey}: return class`).toBe(activeKey === "travel-return");
+
+      if (activeKey === "travel-outbound") expect(html).toContain("Ngày đi · Đà Nẵng → TP Hà Giang");
+      if (activeKey === "travel-return") expect(html).toContain("Ngày về · TP Hà Giang (bến xe phía Nam) → Đà Nẵng");
+    }
+  });
 });

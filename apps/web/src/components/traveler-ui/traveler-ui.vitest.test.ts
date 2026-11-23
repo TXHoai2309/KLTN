@@ -142,6 +142,53 @@ describe("Ticket 01: Traveler UI tokens, buttons, day tabs, and trips.css compli
     expect(html).toContain('aria-selected="true"');
   });
 
+  it("Bug 4: moves active underline and aria-selected strictly to Ngày đi, Ngày 1..N, Ngày về (including 0 and -1 keys) with visible travel underline", () => {
+    const tabs = [
+      { id: "travel-outbound", label: "Ngày đi 12/12", kind: "travel" as const },
+      { id: "day-1", label: "Ngày 1", count: 4, dayNumber: 1, kind: "trip" as const },
+      { id: "day-2", label: "Ngày 2", count: 3, dayNumber: 2, kind: "trip" as const },
+      { id: "travel-return", label: "Ngày về 17/12", kind: "travel" as const },
+    ];
+
+    for (const activeId of ["travel-outbound", "day-1", "day-2", "travel-return"]) {
+      const html = renderToStaticMarkup(createElement(TravelerDayTabs, { tabs, activeId, onSelect: () => {} }));
+      const buttons = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? [];
+      expect(buttons).toHaveLength(4);
+      tabs.forEach((tab, idx) => {
+        const btn = buttons[idx]!;
+        const shouldBeActive = tab.id === activeId;
+        expect(btn.includes('aria-selected="true"'), `${activeId} -> ${tab.id}`).toBe(shouldBeActive);
+        expect(btn.includes("tv-day-tab is-active"), `${activeId} -> ${tab.id}`).toBe(shouldBeActive);
+      });
+      if (activeId === "travel-outbound" || activeId === "travel-return") {
+        // Travel tab keeps gray dot (--tv-ink-3) but uses visible ink underline (--tv-tab-underline:var(--tv-ink))
+        expect(html).toContain("--tv-tab-underline:var(--tv-ink)");
+      }
+    }
+
+    // Also handles numeric-like 0 and -1 keys without falling back to Day 1
+    const numericTabs = [
+      { id: "0", label: "Ngày đi 12/12", kind: "travel" as const },
+      { id: "1", label: "Ngày 1", count: 4, dayNumber: 1, kind: "trip" as const },
+      { id: "-1", label: "Ngày về 17/12", kind: "travel" as const },
+    ];
+    for (const key of [0, -1]) {
+      const html = renderToStaticMarkup(
+        createElement(TravelerDayTabs, { tabs: numericTabs, activeId: key as unknown as string, onSelect: () => {} }),
+      );
+      const buttons = html.match(/<button\b[^>]*>[\s\S]*?<\/button>/g) ?? [];
+      const activeIdx = key === 0 ? 0 : 2;
+      expect(buttons[activeIdx]).toContain('aria-selected="true"');
+      expect(buttons[activeIdx]).toContain("tv-day-tab is-active");
+      expect(buttons[1]).toContain('aria-selected="false"');
+      expect(buttons[1]).not.toContain("tv-day-tab is-active");
+    }
+
+    // CSS specificity must beat `.assistant-page button { font: inherit }` and honor --tv-tab-underline
+    expect(TRAVELER_UI_CSS).toMatch(/\.tv-day-tabs\s+\.tv-day-tab\.is-active/);
+    expect(TRAVELER_UI_CSS).toMatch(/border-bottom-color\s*:\s*var\(--tv-tab-underline/);
+  });
+
   it("enforces design system rules in trips.css and traveler-ui.css (no 650/700+, no hardcoded hex, no card/btn/tab box-shadow)", () => {
     for (const css of [TRIPS_CSS, TRAVELER_UI_CSS]) {
       expect(css).not.toMatch(/font-weight\s*:\s*(650|700|750|800|900)\b/);

@@ -162,7 +162,7 @@ export function TripsageTimelineView({
   const travelTab = hasTravel && (selectedDay === OUTBOUND_TAB || selectedDay === RETURN_TAB) ? selectedDay : null;
   const activeDay = timeline.days.find(day => day.day === selectedDay) ?? timeline.days[0];
   if (!activeDay) return null;
-  const activeKey = travelTab ?? activeDay.day;
+  const activeKey = travelTab !== null ? travelTab : activeDay.day;
 
   const bySlot = new Map<string, TimelineSuggestion[]>();
   for (const suggestion of suggestions) bySlot.set(suggestion.slotId, [...(bySlot.get(suggestion.slotId) ?? []), suggestion]);

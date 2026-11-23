@@ -47,6 +47,7 @@ export interface TripsagePlanPanelProps {
   busy?: boolean;
   noticePresent?: boolean;
   drawerOpen: boolean;
+  initialDayKey?: string;
   onCloseDrawer: () => void;
   onToggleChosenLodging: (nightIndex: number, placeId: string) => void;
   onRequestMeals: (day: number) => void;
@@ -117,6 +118,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
   busy = false,
   noticePresent = false,
   drawerOpen,
+  initialDayKey,
   onCloseDrawer,
   onToggleChosenLodging,
   onRequestMeals,
@@ -126,7 +128,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
   onSaveStateChange,
 }: TripsagePlanPanelProps) {
   const [subTab, setSubTab] = useState<PlanPanelSubTab>("itinerary");
-  const [selectedDayKey, setSelectedDayKey] = useState<string>(() => `day-${proposal.days[0]?.day ?? 1}`);
+  const [selectedDayKey, setSelectedDayKey] = useState<string>(() => initialDayKey ?? `day-${proposal.days[0]?.day ?? 1}`);
   const [selectedDestinationId, setSelectedDestinationId] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ target: PlacePreviewTarget; trigger: HTMLElement | null } | null>(null);
   const touchStartYRef = useRef<number | null>(null);
@@ -235,8 +237,11 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
     return items;
   }, [hasTravel, outboundDate, returnDate, proposal.days]);
 
-  const activeDayNumber = selectedDayKey.startsWith("day-")
-    ? Number(selectedDayKey.slice(4))
+  const effectiveDayKey = dayTabs.some((tab) => tab.id === selectedDayKey)
+    ? selectedDayKey
+    : `day-${proposal.days[0]?.day ?? 1}`;
+  const activeDayNumber = effectiveDayKey.startsWith("day-")
+    ? Number(effectiveDayKey.slice(4))
     : (proposal.days[0]?.day ?? 1);
   const activePlannerDay = proposal.days.find((d) => d.day === activeDayNumber) ?? proposal.days[0];
 
@@ -510,22 +515,22 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
             <>
               <TravelerDayTabs
                 tabs={dayTabs}
-                activeId={selectedDayKey}
+                activeId={effectiveDayKey}
                 onSelect={setSelectedDayKey}
                 ariaLabel="Chọn ngày trong panel lịch trình"
               />
               <div className="tripsage-panel-split">
                 <div className="tripsage-panel-timeline-col">
-                  {selectedDayKey === "travel-outbound" || selectedDayKey === "travel-return" ? (
+                  {effectiveDayKey === "travel-outbound" || effectiveDayKey === "travel-return" ? (
                     accessLeg ? (
                       <TripsageAccessLegCard
                         leg={accessLeg}
-                        only={selectedDayKey === "travel-outbound" ? "outbound" : "return"}
+                        only={effectiveDayKey === "travel-outbound" ? "outbound" : "return"}
                       />
                     ) : travel ? (
                       <div className="dt-travel-day">
                         <h3>
-                          {selectedDayKey === "travel-outbound"
+                          {effectiveDayKey === "travel-outbound"
                             ? `Ngày đi · ${travel.homeCity} → ${travel.hubName}`
                             : `Ngày về · ${travel.hubName} → ${travel.homeCity}`}
                         </h3>
