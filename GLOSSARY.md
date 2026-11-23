@@ -114,6 +114,18 @@ _Avoid_: Trip origin, first attraction.
 Phần di chuyển từ nhà người đi đến điểm tập kết bằng máy bay, xe khách hay tàu. Chặng tiếp cận được ước tính và hiển thị nhưng không được kiểm tra ràng buộc.
 _Avoid_: Return leg, roadside driving leg, verified journey.
 
+**Current access leg (chặng tiếp cận hiện hành)**:
+Bản chặng tiếp cận mới nhất trong một cuộc trò chuyện. Mỗi cuộc trò chuyện chỉ có một chặng tiếp cận hiện hành; bảng chi phí ước tính, mục đã ghim và chuyến đi được lưu đều dùng đúng bản này. Các bản trước đó là bản cũ: vẫn xem được nhưng không ghim được.
+_Avoid_: Pinned access leg, any access leg card.
+
+**Travel day (ngày đi / ngày về)**:
+Ngày người đi di chuyển từ nhà tới điểm tập kết, hoặc từ điểm tập kết về nhà, theo chặng tiếp cận. Ngày đi và ngày về đứng trước và sau các ngày của chuyến đi nhưng không được tính vào số ngày chuyến đi.
+_Avoid_: Day 1, trip day.
+
+**Evening plan (tối nay)**:
+Phần cuối của một ngày có nghỉ đêm: khu vực nghỉ đêm, chỗ nghỉ đã chọn hoặc gợi ý chỗ nghỉ, và vài nơi ăn uống hay vui chơi buổi tối gần đó. Tối nay chỉ là gợi ý chưa kiểm tra: không chiếm giờ trong timeline và không ảnh hưởng kết quả kiểm tra hay bảng chi phí ước tính.
+_Avoid_: Scheduled visit, evening stop, booking.
+
 **Price reference (bảng giá tham khảo)**:
 Tài liệu được duyệt ghi các mức giá phổ biến cho chuyến đi Hà Giang, kèm ngày cập nhật, làm cơ sở cho bảng chi phí ước tính.
 _Avoid_: Live price, quote.
@@ -296,6 +308,18 @@ _Avoid_: AI review, weather warning.
 **Saved-trip assistant (trợ lý chuyến đi)**:
 The unified conversational and visual workspace for an owned saved trip where the traveler can ask questions, receive planning guidance, and adjust a shared edit draft through conversation or direct controls before confirming a save.
 _Avoid_: Separate in-trip chat vs edit screen, auto-saving assistant.
+
+**In-trip incident (yêu cầu phát sinh)**:
+A situation a traveler reports during an ongoing trip that may change the rest of their itinerary: bad weather, tiredness or a wish to rest, a delay from traffic or a vehicle breakdown, a wish to add a nearby place, or an upcoming place being closed or unreachable.
+_Avoid_: Planning request, general Q&A question, edit command.
+
+**Elapsed visit (điểm đã qua giờ)**:
+A visit in an ongoing trip whose scheduled time has already passed. It is protected from change unless the traveler confirms they have not been there.
+_Avoid_: Visited place, completed visit (when the traveler has not confirmed it).
+
+**Confirmed-unvisited visit (điểm xác nhận chưa đến)**:
+An elapsed visit that the traveler has explicitly said they have not reached, so the assistant may move, shorten or drop it.
+_Avoid_: Skipped visit, cancelled visit.
 
 **Actionable advice suggestion (gợi ý chỉnh sửa từ tư vấn)**:
 A concrete, optional adjustment offered alongside a read-only planning guidance answer that does not change the edit draft unless the traveler chooses to apply it.

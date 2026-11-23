@@ -730,3 +730,7 @@ District labels take priority over destination and road-reference labels.
 ## Origin interaction review fixes — 2026-11-04
 
 The origin picker uses explicit search/select/confirm with a manual fallback and current-theme MapLibre rendering. Journey clocks use one editor shared by form and modals; a return-only final day exposes its start clock without requesting user-entered rest. UNKNOWN apply freezes the reviewed request and disables dismissal/editing until reconciliation. Existing palette/type/layout stay in use. Isolated browser interaction receipts do not constitute full-shell visual acceptance.
+
+## Traveler slim UI system — owner-approved direction (2026-11-23)
+
+For the Assistant (`/assistant`), My Trips (`/trips`, `/trips/[id]`) and the shared trip page, the token set, button system, day tabs, plan panel/sheet and layouts are defined in `docs/design/traveler-ui-system.md` (`--tv-*` tokens: buttons 28/34/44px at weight 500, no resting shadows, one primary action per screen, Be Vietnam Pro + Lora only, ink #17231d, accent #2f6b53). It supersedes earlier entries in this file for those three screens. Implementation: `docs/stories/TRAVELER-UI-SLIM-REDESIGN.md`.

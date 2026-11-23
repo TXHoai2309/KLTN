@@ -46,6 +46,7 @@ At handoff, record implementation changes and evidence in the story and append a
 | [architecture/technical-architecture.md](architecture/technical-architecture.md) | Current repository architecture and implemented-versus-planned boundary. |
 | [flow/user-flow.md](flow/user-flow.md) | Requirement-level flows for MVP capabilities. |
 | [design/ui-baseline.md](design/ui-baseline.md) | UI source precedence, responsive requirements, and interaction states. |
+| [design/traveler-ui-system.md](design/traveler-ui-system.md) | Slim traveler UI system (tokens, buttons, day tabs, plan panel/sheet) for Assistant, My Trips and shared trip pages; spec in `stories/TRAVELER-UI-SLIM-REDESIGN.md`. |
 | [implementation/EN-01-foundation-acceptance.md](implementation/EN-01-foundation-acceptance.md) | Foundation scope, repository evidence, and assumptions for future stories. |
 | [implementation/development-workflow.md](implementation/development-workflow.md) | TXH, dev, and master branch roles and review flow. |
 | [implementation/environment-deployment.md](implementation/environment-deployment.md) | Environment files, database mapping, Vercel, and migration workflow. |
