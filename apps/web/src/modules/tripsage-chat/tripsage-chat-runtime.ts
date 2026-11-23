@@ -58,10 +58,14 @@ export function tripsageWebRuntime(): WebLookup {
   return createFirecrawlWeb({ apiKey: () => ENV.FIRECRAWL_API_KEY });
 }
 
-/** Reviewed RAG documents through the public Q&A retriever (same eligibility rules); only titles and excerpt text leave it. */
+/** Reviewed RAG documents through the public Q&A retriever (same eligibility rules); only titles, scores, and excerpt text leave it. */
 export function tripsageKnowledgeRuntime(): LocalKnowledge {
-  const retriever = createQaRetriever(db, { topK: 4, maxEvidenceTokens: 2000, hybrid: true });
-  return async (question, signal) => (await retriever.retrieve(question, [], signal)).map(evidence => ({ title: evidence.citation.title, text: evidence.text }));
+  const retriever = createQaRetriever(db, { topK: 4, maxEvidenceTokens: 2000, minScore: 0.38, hybrid: true });
+  return async (question, signal) => (await retriever.retrieve(question, [], signal)).map(evidence => ({
+    title: evidence.citation.title,
+    text: evidence.text,
+    score: evidence.score,
+  }));
 }
 
 export function tripsageSerpApiRuntime(): SerpApiClient | undefined {

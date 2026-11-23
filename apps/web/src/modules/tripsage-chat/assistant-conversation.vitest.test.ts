@@ -270,14 +270,14 @@ describe("assistant conversations HTTP and chat route persistence (ticket 03)", 
       cached: false,
       results: [{ label: "Quận Cầu Giấy, Hà Nội", latitude: 21.0362, longitude: 105.7906, source: "GOOGLE_PLACES", confirmed: false }],
     });
-    const knowledge = () => async () => [{ title: "Cẩm nang Hà Giang", text: "Thông tin đã duyệt." }];
+    const knowledge = () => async () => [{ title: "Cẩm nang Hà Giang", text: "Cẩm nang Hà Giang gợi ý lịch trình khám phá cao nguyên đá và ước tính chi phí." }];
     const model = scripted([
       { tool: "findOrigin", input: { query: "Cầu Giấy" } },
-      { tool: "lookupLocalKnowledge", input: { question: "Hà Giang" } },
+      { tool: "lookupLocalKnowledge", input: { question: "lịch trình Hà Giang" } },
       { tool: "recordTripInfo", input: { travelers: 3 } },
       { tool: "proposeItinerary", input: { selection: { days: [["a", "b"]] } } },
       { tool: "estimateCosts", input: { lines: [{ category: "food", label: "Ăn uống", amount: 300_000 }] } },
-      { text: "Mình đã lập lịch và ước tính chi phí xong." },
+      { text: "Theo Cẩm nang Hà Giang, mình đã lập lịch trình cao nguyên đá và ước tính chi phí xong." },
     ]);
 
     const response = await tripsageChatResponse(

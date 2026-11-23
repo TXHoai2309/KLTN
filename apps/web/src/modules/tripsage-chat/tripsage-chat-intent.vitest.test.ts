@@ -141,7 +141,10 @@ describe("lookupLocalKnowledge source chips (ticket 02)", () => {
       { title: "https://blob.vercel-storage.com/private/secret.pdf", text: "Chỉ là URL nội bộ." },
     ];
     const { all, sse } = await run(
-      [{ tool: "lookupLocalKnowledge", input: { question: "Lũng Cú có gì hay" } }, { text: "Cột cờ Lũng Cú rất đáng đi." }],
+      [
+        { tool: "lookupLocalKnowledge", input: { question: "Lũng Cú và ẩm thực Đồng Văn có gì hay" } },
+        { text: "Cột cờ Lũng Cú nằm trên đỉnh núi Rồng rất đáng đi, còn Đồng Văn nổi tiếng với thắng cố và bánh tam giác mạch." },
+      ],
       {},
       { knowledge },
     );
