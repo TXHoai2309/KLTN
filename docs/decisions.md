@@ -1202,3 +1202,24 @@ Add `places.types` to `GOOGLE_PLACES_FIELD_MASK` (instead of `places.primaryType
 Add two additive columns to `assistant_conversation` via Prisma migration `20261123022000_assistant_conversation_auto_title`:
 - `titleCustomized Boolean @default(false)`: auto-titling in `recordAssistantMessage` updates `title` strictly from confirmed trip info (`Đà Nẵng → HG · 4 người · 12/12`) only while `titleCustomized` is `false`; explicit user renames via idempotent `PATCH /api/ai/assistant-conversations/:id` set `titleCustomized = true`.
 - `savedTripId String?`: recorded via idempotent `PATCH` (verifying owner-scoped trip existence) once a trip save confirms `SUCCESS`, powering the 6px `--tv-accent` sidebar indicator without introducing a cascading delete dependency on `Trip`.
+
+## ADR-51 — Explicit traveler flexibility metadata (`userChosenDuration` & `dayRhythm`) for chat-to-save validation parity (2026-11-23)
+
+- **Status:** Accepted and implemented (`af12416`, `0f54dcc`). Extends `ADR-48` and `ADR-42` §3.
+- **Date:** 2026-11-23
+
+### Context
+
+In production conversation `cdccdd0e-aa56-4127-b040-ebcfffda46e8` (Turn 8), the traveler explicitly asked for a 30-minute stop at Đèo Mã Pì Lèng (catalogue minimum 60 minutes). `proposeItinerary` accepted `visitMinutes` in memory and reported `5/5 kiểm tra đạt` with a `USER_SHORT_VISIT` warning, but `POST /api/trips` rejected the save with HTTP `422 TRIP_VALIDATION_FAILED`: `trip-save-adapter` and `journey-save-validation` did not receive an explicit marker that the 30-minute visit was traveler-chosen, so save-time validation clamped `visitDuration` back up to `max(30, 60) = 60` minutes, shifting departure by +30 minutes and triggering cascading `VISIT_TOO_SHORT`, `TRANSFER_TOO_SHORT`, and `JOURNEY_ARRIVAL_TOO_EARLY` violations.
+
+### Decision
+
+1. **Explicit per-visit flag (`userChosenDuration?: boolean`):** `PlannerStop` (`planner-contract.ts`) and `TripProposalVisit` (`trip-proposal-contract.ts`) carry an explicit optional boolean `userChosenDuration`. It is set to `true` **only** when the traveler explicitly specified a visit duration (`visitMinutes[destinationId]`) and the duration satisfies the deterministic 15-minute hard floor (`>= 15` and `<= 600` minutes).
+2. **Deterministic save-time parity:** Both `validateTripProposal` (`trip-save-adapter.ts`) and `validateJourneyForSave` (`journey-save-validation.ts`) read `visit.userChosenDuration === true` together with `proposal.restMode` and optional `proposal.dayRhythm` (`lunchBreakMinutes`, `latestVisitEndMinute`). When `userChosenDuration === true` and `visitDurationMinutes >= 15`, that stop's effective minimum for `MINIMUM_DURATION` and `visitDuration(candidate)` equals `visitDurationMinutes`, and a deterministic `USER_SHORT_VISIT` warning is preserved. When `userChosenDuration` is absent or `false`, the canonical catalogue minimum (`destination.minDurationMinutes`) remains strictly enforced — general rules are never relaxed and AI never bypasses the Validator.
+3. **Actionable 422 feedback:** Save-time `422 TRIP_VALIDATION_FAILED` responses map concrete violated check groups/messages (`MINIMUM_DURATION`, `TRAVEL_TIME`, `OPENING_HOURS`, `SCHEDULE_CONFLICTS`, `MOBILITY`) into user-visible Vietnamese reasons in `TripsageSaveSection` / `TripsagePlanPanel` rather than showing a generic validation error.
+
+### Consequences
+
+- A schedule that passes `5/5` in chat with explicit `visitMinutes` and/or `restMode: "COMPACT"` passes the identical deterministic Constraint Validator at `POST /api/trips` without altering database schema (no Prisma migration required).
+- Missing validation data (routing, opening hours, or catalogue records) remains strictly non-passing (`INSUFFICIENT_DATA` / `VIOLATION`).
+- Subsequent edits on `/trips/[id]/edit` continue to validate against canonical catalogue minimums unless explicitly overridden.
