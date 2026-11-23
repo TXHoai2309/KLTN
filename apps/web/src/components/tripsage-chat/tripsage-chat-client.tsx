@@ -51,7 +51,7 @@ import {
 } from "./assistant-unified-history";
 import { TripsageAccessLegCard } from "./tripsage-access-leg-card";
 import { TripsageChatNotice } from "./tripsage-chat-notice";
-import { TripsageStreamedText } from "./tripsage-streamed-text";
+import { isAssistantTurnTextDone, TripsageStreamedText } from "./tripsage-streamed-text";
 import { readConversationState } from "./tripsage-conversation-state";
 import { TripsageCostCard } from "./tripsage-cost-card";
 import { parseItineraryPart } from "./tripsage-itinerary-view";
@@ -285,6 +285,7 @@ export function TripsageChatClient({
 
   const [planDrawerOpen, setPlanDrawerOpen] = useState(false);
   const [finishedTextIds, setFinishedTextIds] = useState<ReadonlySet<string>>(() => new Set());
+  const streamedMessageIdsRef = useRef<Set<string>>(new Set());
 
   const planVersions = useMemo(() => {
     const map = new Map<string, { version: number; proposal: NonNullable<ReturnType<typeof parseItineraryPart>> }>();
@@ -451,6 +452,8 @@ export function TripsageChatClient({
     setHistoryNotice(null);
     setChosenLodgings({});
     setPlanProgress(null);
+    streamedMessageIdsRef.current.clear();
+    setFinishedTextIds(new Set());
     setPinned([]); setSavedTripId(null); setPinMessage(null);
     lastSyncedProposalRef.current = null;
     bodyRef.current = { journey: null, tripInfo: null, itinerary: null, originCandidatesToken: null, conversationId: null };
@@ -533,6 +536,14 @@ export function TripsageChatClient({
 
   function send(text: string) {
     if (!text.trim() || locked || legacyReadOnly) return;
+    // Immediately finish revealing any previous assistant turn when the traveler sends a new message (Bug E).
+    setFinishedTextIds(prev => {
+      const next = new Set(prev);
+      for (const m of messages) {
+        if (m.role === "assistant") next.add(m.id);
+      }
+      return next;
+    });
     setPlanProgress(null);
     void sendMessage({ text });
   }
@@ -718,10 +729,23 @@ export function TripsageChatClient({
                     );
                     const accessLeg = messageAccessLeg;
                     const hasCards = Boolean(cost || accessLeg || planEntry || resultParts.length);
-                    const live = busy && message.id === messages.at(-1)?.id;
-                    const isTextDone = !live && (!text || message.id !== messages.at(-1)?.id || finishedTextIds.has(message.id) || !busy);
+                    const isLastMessage = message.id === messages.at(-1)?.id;
+                    const live = busy && isLastMessage;
+                    if (live && message.role === "assistant") {
+                      streamedMessageIdsRef.current.add(message.id);
+                    }
                     // The closing question sits under the cards and buttons it refers to, never above them.
-                    const { body, question } = message.role === "assistant" && (replies.length > 0 || hasCards) ? splitTrailingQuestion(text) : { body: text, question: null };
+                    const { body, question } =
+                      message.role === "assistant" && (replies.length > 0 || budgetSavingsChips.length > 0 || hasCards)
+                        ? splitTrailingQuestion(text)
+                        : { body: text, question: null };
+                    const isTextDone = isAssistantTurnTextDone({
+                      hasBody: Boolean(body),
+                      isLatestMessage: isLastMessage,
+                      live,
+                      wasStreamedLive: streamedMessageIdsRef.current.has(message.id),
+                      finished: finishedTextIds.has(message.id),
+                    });
                     if (!text && !planEntry && !sources.length && !resultParts.length && !replies.length && !cost && !accessLeg) return null;
                     return message.role === "user" ? (
                       <article key={message.id} className="assistant-message assistant-user"><p>{text}</p></article>
@@ -732,6 +756,7 @@ export function TripsageChatClient({
                           <TripsageStreamedText
                             text={body}
                             live={live}
+                            flushNow={!isLastMessage || finishedTextIds.has(message.id)}
                             onDone={() => {
                               setFinishedTextIds(prev => {
                                 if (prev.has(message.id)) return prev;
@@ -743,7 +768,7 @@ export function TripsageChatClient({
                           />
                         )}
                         {/* Slim B6: in chat messages, show compact Plan Summary Card; full timeline/map/cost lives in TripsagePlanPanel */}
-                        {planEntry && !live && (
+                        {planEntry && isTextDone && (
                           <TripsagePlanSummaryCard
                             version={planEntry.version}
                             proposal={planEntry.proposal}
@@ -754,7 +779,7 @@ export function TripsageChatClient({
                           />
                         )}
                         {/* Standalone cost or access-leg card when no itinerary exists in this turn */}
-                        {!planEntry && cost && !live && (
+                        {!planEntry && cost && isTextDone && (
                           <TripsageCostCard
                             cost={cost}
                             pins={pinControl}
@@ -762,16 +787,18 @@ export function TripsageChatClient({
                             onSelectSavingsOption={prompt => send(prompt)}
                           />
                         )}
-                        {!planEntry && accessLeg && !live && (
+                        {!planEntry && accessLeg && isTextDone && (
                           <TripsageAccessLegCard
                             leg={accessLeg}
                             isStale={isStaleAccessLeg}
                             pins={isStaleAccessLeg ? undefined : pinControl}
                           />
                         )}
-                        <TripsageSourcesView sources={sources} />
-                        {!live && <TripsageResultCards parts={resultParts} pins={pinControl} />}
-                        {replies.length === 0 && budgetSavingsChips.length === 0 && question && <p className="tripsage-next-question">{question}</p>}
+                        {isTextDone && <TripsageSourcesView sources={sources} />}
+                        {isTextDone && <TripsageResultCards parts={resultParts} pins={pinControl} />}
+                        {replies.length === 0 && budgetSavingsChips.length === 0 && question && isTextDone && (
+                          <p className="tripsage-next-question">{question}</p>
+                        )}
                         {budgetSavingsChips.length > 0 && isTextDone && (
                           <div className="tripsage-next-step">
                             {question && <p className="tripsage-next-question">{question}</p>}
