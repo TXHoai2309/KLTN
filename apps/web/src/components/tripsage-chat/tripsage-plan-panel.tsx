@@ -137,9 +137,26 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
   const [selectedDestinationId, setSelectedDestinationId] = useState<string | null>(null);
   const [preview, setPreview] = useState<{ target: PlacePreviewTarget; trigger: HTMLElement | null } | null>(null);
   const [saveView, setSaveView] = useState<ChatSaveView | null>(null);
+  // Point 5: only mount the side-by-side map in `.tripsage-panel-map-col` when the panel is >= 760px wide
+  // (below 760px CSS hides `.tripsage-panel-map-col` with `display: none` and shows the dedicated "Bản đồ" tab instead).
+  const [isWidePanel, setIsWidePanel] = useState(true);
+  const panelRef = useRef<HTMLElement | null>(null);
   const touchStartYRef = useRef<number | null>(null);
   const pushedHistoryRef = useRef(false);
   const savedScrollTopRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    const syncWidth = () => {
+      if (el.clientWidth > 0) setIsWidePanel(el.clientWidth >= 760);
+    };
+    syncWidth();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(syncWidth);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   // Ticket 11 (design §3.9): Android Back closes the mobile sheet instead of leaving the page,
   // and restores the chat transcript scroll position when closed.
@@ -435,6 +452,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
         />
       )}
       <aside
+        ref={panelRef}
         className={`tripsage-plan-panel${drawerOpen ? " is-open" : ""}`}
         data-testid="tripsage-plan-panel"
         data-proposal-id={proposal.proposalId}
@@ -606,7 +624,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
                   )}
                 </div>
                 <div className="tripsage-panel-map-col">
-                  {activePlannerDay && proposal.days.some((d) => d.stops.length > 0) && (
+                  {isWidePanel && activePlannerDay && proposal.days.some((d) => d.stops.length > 0) && (
                     <ItineraryMap
                       day={activePlannerDay}
                       days={proposal.days}

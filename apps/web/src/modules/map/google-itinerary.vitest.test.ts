@@ -50,3 +50,62 @@ it("renders actual route points, keeps selection and camera across theme changes
   expect(lines[1]!.detached).toBe(true);
   expect(buttons.every(button => !button.click)).toBe(true);
 });
+
+it("Point 5: marks Google itinerary map ready on 'idle' when cached tiles skip 'tilesloaded' (remount after tab switch or save)", () => {
+  vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID", "fixture-map-id");
+  vi.stubGlobal("document", {
+    createElement: () => ({
+      style: { setProperty() {} },
+      classList: { toggle() {} },
+      setAttribute() {},
+      addEventListener() {},
+      removeEventListener() {},
+    }),
+  });
+  vi.stubGlobal("getComputedStyle", () => ({ getPropertyValue: () => "#327252" }));
+  vi.stubGlobal("matchMedia", () => ({ matches: true }));
+  vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
+  const listeners = new Map<string, (() => void)[]>();
+  class FakeMap {
+    addListener(event: string, cb: () => void) {
+      listeners.set(event, [...(listeners.get(event) ?? []), cb]);
+      return { remove: () => listeners.set(event, (listeners.get(event) ?? []).filter(fn => fn !== cb)) };
+    }
+    fitBounds() {}
+    setCenter() {}
+    getCenter() { return { lat: () => 23, lng: () => 105 }; }
+    setZoom() {}
+    getZoom() { return 12; }
+    panTo() {}
+    unbindAll() {}
+    getMapCapabilities() { return { isAdvancedMarkersAvailable: true }; }
+  }
+  const sdk = {
+    Map: FakeMap,
+    LatLngBounds: class { extend() { return this; } },
+    marker: { AdvancedMarkerElement: class { map: unknown; append() {} remove() {} } },
+    Polyline: class { setMap() {} },
+    event: { clearInstanceListeners() {}, trigger() {} },
+  } as unknown as GoogleMapsSdk;
+
+  const stops = schedulePlannerDays({ ...requirement, durationDays: 1 }, [[candidate("a")]], new Map())[0]!.stops;
+  const ready = vi.fn();
+  const fail = vi.fn();
+  const renderer = mountItineraryMap(
+    { clientWidth: 600, clientHeight: 460, replaceChildren() {} } as unknown as HTMLDivElement,
+    { provider: "GOOGLE", sdk, mapId: "fixture-map-id" },
+    stops,
+    "light",
+    vi.fn(),
+    ready,
+    fail,
+  );
+  // Only `idle` fires (no `tilesloaded`, matching SPA remount with cached tiles)
+  for (const cb of listeners.get("idle") ?? []) cb();
+  expect(ready).toHaveBeenCalledTimes(1);
+  expect(fail).not.toHaveBeenCalled();
+  // Subsequent `tilesloaded` or `idle` does not double-fire `ready`
+  for (const cb of listeners.get("tilesloaded") ?? []) cb();
+  expect(ready).toHaveBeenCalledTimes(1);
+  renderer.dispose();
+});

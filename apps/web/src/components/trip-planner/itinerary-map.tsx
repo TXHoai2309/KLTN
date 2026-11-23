@@ -46,7 +46,18 @@ export function ItineraryMap({
   const overview = overviewOnly || showOverview;
   const canShowOrigin = !(provider === "STADIA" && origin?.source === "GOOGLE_PLACES");
   const activeDay = overview ? null : day.day;
-  const view = useMemo(() => buildItineraryMapView(days, activeDay, origin ? journeyPlan : null, provider ?? "STADIA"), [days, activeDay, journeyPlan, origin, provider]);
+  const originLabel = origin?.label;
+  const originLat = origin?.latitude;
+  const originLng = origin?.longitude;
+  const originSource = origin?.source;
+  const stableOrigin = useMemo(
+    () =>
+      originLabel !== undefined && originLat !== undefined && originLng !== undefined
+        ? { label: originLabel, latitude: originLat, longitude: originLng, ...(originSource !== undefined ? { source: originSource } : {}) }
+        : null,
+    [originLabel, originLat, originLng, originSource],
+  );
+  const view = useMemo(() => buildItineraryMapView(days, activeDay, stableOrigin ? journeyPlan : null, provider ?? "STADIA"), [days, activeDay, journeyPlan, stableOrigin, provider]);
   const { resolvedTheme } = useTheme();
   const style = mapStyle(resolvedTheme);
   const styleRef = useRef(style);
@@ -55,32 +66,62 @@ export function ItineraryMap({
   useEffect(() => {
     if (!container.current) return;
     const host = container.current;
-    const dispose = startMapSession({
-      load: loadMapLibrary,
-      onState: setState,
-      mount: (library, ready, fail) => {
-        setProvider(library.provider);
-        const visible = buildItineraryMapView(days, activeDay, origin ? journeyPlan : null, library.provider);
-        const map = mountItineraryMap(
-          host,
-          library,
-          visible.stops,
-          styleRef.current,
-          (id) => callback.current(id),
-          ready,
-          fail,
-          { routes: visible.routes, markerDays: visible.markerDays, overview, ...(visible.showsOrigin && origin && !(library.provider === "STADIA" && origin.source === "GOOGLE_PLACES") ? { origin } : {}) },
-        );
-        renderer.current = map;
-        map.select(currentSelection.current, false);
-        return () => {
-          map.dispose();
-          if (renderer.current === map) renderer.current = null;
-        };
-      },
-    });
-    return dispose;
-  }, [days, activeDay, journeyPlan, overview, attempt, origin]);
+    let cancelled = false;
+    let disposeSession: (() => void) | null = null;
+    let waitObserver: ResizeObserver | null = null;
+
+    const begin = () => {
+      if (cancelled || disposeSession) return;
+      disposeSession = startMapSession({
+        load: () => loadMapLibrary(undefined, attempt > 0 ? { forceRefresh: true } : undefined),
+        onState: setState,
+        mount: (library, ready, fail) => {
+          setProvider(library.provider);
+          const visible = buildItineraryMapView(days, activeDay, stableOrigin ? journeyPlan : null, library.provider);
+          const map = mountItineraryMap(
+            host,
+            library,
+            visible.stops,
+            styleRef.current,
+            (id) => callback.current(id),
+            ready,
+            fail,
+            { routes: visible.routes, markerDays: visible.markerDays, overview, ...(visible.showsOrigin && stableOrigin && !(library.provider === "STADIA" && stableOrigin.source === "GOOGLE_PLACES") ? { origin: stableOrigin } : {}) },
+          );
+          renderer.current = map;
+          map.select(currentSelection.current, false);
+          return () => {
+            map.dispose();
+            if (renderer.current === map) renderer.current = null;
+          };
+        },
+      });
+    };
+
+    // Never start the 15s load timeout while the map host is hidden (display: none -> 0x0),
+    // because Google Maps / WebGL will not emit tilesloaded/idle until the container has non-zero layout.
+    if (host.clientWidth > 0 && host.clientHeight > 0) {
+      begin();
+    } else if (typeof ResizeObserver !== "undefined") {
+      setState("loading");
+      waitObserver = new ResizeObserver(() => {
+        if (!cancelled && host.clientWidth > 0 && host.clientHeight > 0) {
+          waitObserver?.disconnect();
+          waitObserver = null;
+          begin();
+        }
+      });
+      waitObserver.observe(host);
+    } else {
+      begin();
+    }
+
+    return () => {
+      cancelled = true;
+      waitObserver?.disconnect();
+      disposeSession?.();
+    };
+  }, [days, activeDay, journeyPlan, overview, attempt, stableOrigin]);
 
   useEffect(() => {
     renderer.current?.setStyle(style);

@@ -7,12 +7,24 @@ import { mountMapLibre, mountDestinationPinPicker as mountStadiaPin } from "./ma
 import { mountItineraryMap as mountStadiaItinerary } from "./itinerary-map-renderer";
 
 export type MapLibrary = { provider: "GOOGLE"; sdk: GoogleMapsSdk; mapId: string } | { provider: "STADIA"; sdk: typeof MapLibre };
-// One lookup is shared by every map on the page and reused for a minute, so a remounting map cannot hammer the endpoint.
+export const MAP_SETTINGS_CACHE_TTL_MS = 300_000;
+const FORCE_REFRESH_MIN_GAP_MS = 5_000;
+// One lookup is shared by every map on the page and reused for 5 minutes, so remounting maps on tab switches or saves never hammer /api/maps/config.
 let cachedSettings: { at: number; promise: Promise<MapSettings> } | null = null;
-function fetchMapSettings(): Promise<MapSettings> {
-  if (cachedSettings && Date.now() - cachedSettings.at < 60_000) return cachedSettings.promise;
+/** Test seam to reset cached map settings between isolated unit tests. */
+export function resetMapSettingsCacheForTests() {
+  cachedSettings = null;
+}
+function fetchMapSettings(forceRefresh = false): Promise<MapSettings> {
+  const now = Date.now();
+  if (cachedSettings) {
+    const age = now - cachedSettings.at;
+    if (!forceRefresh && age < MAP_SETTINGS_CACHE_TTL_MS) return cachedSettings.promise;
+    // Even explicit retries cannot hammer /api/maps/config within 5 seconds of the previous lookup.
+    if (forceRefresh && age < FORCE_REFRESH_MIN_GAP_MS) return cachedSettings.promise;
+  }
   const promise = requestMapSettings();
-  const entry = { at: Date.now(), promise };
+  const entry = { at: now, promise };
   cachedSettings = entry;
   promise.catch(() => { if (cachedSettings === entry) cachedSettings = null; });
   return promise;
@@ -26,8 +38,11 @@ async function requestMapSettings(): Promise<MapSettings> {
   }
   return { provider: data.provider, googleMapId: data.googleMapId };
 }
-export async function loadMapLibrary(settings?: MapSettings): Promise<MapLibrary> {
-  const { provider, googleMapId } = settings ?? await fetchMapSettings();
+export async function loadMapLibrary(
+  settings?: MapSettings,
+  options?: { forceRefresh?: boolean },
+): Promise<MapLibrary> {
+  const { provider, googleMapId } = settings ?? await fetchMapSettings(options?.forceRefresh === true);
   return provider === "GOOGLE"
     ? { provider, sdk: await loadGoogleMaps(googleMapId), mapId: googleMapId }
     : { provider, sdk: await loadMapLibre() };

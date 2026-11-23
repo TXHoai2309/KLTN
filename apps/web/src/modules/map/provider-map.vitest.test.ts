@@ -1,8 +1,13 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { loadMapLibrary, mountDestinationPinPicker } from "./map-renderer";
+import { loadMapLibrary, mountDestinationPinPicker, resetMapSettingsCacheForTests } from "./map-renderer";
 import type { GoogleMap, GoogleMapsSdk } from "./google-maps-sdk";
 
-afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+afterEach(() => {
+  resetMapSettingsCacheForTests();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 
 it("fails the selected Google map without loading Stadia when the browser key is missing", async () => {
   vi.stubEnv("NEXT_PUBLIC_MAPS_PROVIDER", "GOOGLE");
@@ -46,4 +51,39 @@ it("keeps a confirmed pin's coordinates across theme changes and stops accepting
   // A disposed picker must not mutate the detached Google marker or recreate content.
   expect(changed).not.toHaveBeenCalled();
   expect(markerUpdates).toHaveLength(updatesBefore);
+});
+
+it("Point 5: shares one /api/maps/config request across remounts, clears cache on failure for retry, and throttles rapid forceRefresh", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-11-23T10:00:00Z"));
+  vi.stubEnv("NEXT_PUBLIC_GOOGLE_MAPS_API_KEY", "fixture-browser-key");
+  const fakeMaps = { marker: { AdvancedMarkerElement: class {} } } as unknown as GoogleMapsSdk;
+  vi.stubGlobal("window", { google: { maps: fakeMaps } });
+
+  const fetcher = vi.fn<typeof fetch>();
+  vi.stubGlobal("fetch", fetcher);
+
+  // 1st attempt fails (503) -> clears cache so clicking "Thử lại bản đồ" immediately succeeds
+  fetcher.mockResolvedValueOnce(new Response("{}", { status: 503 }));
+  await expect(loadMapLibrary()).rejects.toThrow("Map configuration is unavailable");
+  expect(fetcher).toHaveBeenCalledTimes(1);
+
+  // 2nd attempt (retry) succeeds -> cached for 5 minutes across multiple tab switches / remounts
+  fetcher.mockImplementation(async () => new Response(JSON.stringify({ data: { provider: "GOOGLE", googleMapId: "map-123" } })));
+  const [a, b, c] = await Promise.all([loadMapLibrary(), loadMapLibrary(), loadMapLibrary()]);
+  expect(a.provider).toBe("GOOGLE");
+  expect(b.provider).toBe("GOOGLE");
+  expect(c.provider).toBe("GOOGLE");
+  expect(fetcher).toHaveBeenCalledTimes(2);
+
+  // Remounting after 2 minutes (switching tabs / saving trip) still uses cache -> 0 new requests
+  vi.advanceTimersByTime(120_000);
+  await loadMapLibrary();
+  expect(fetcher).toHaveBeenCalledTimes(2);
+
+  // Rapid forceRefresh within 5s of a refresh is throttled; after >= 5s it refreshes once cleanly
+  await loadMapLibrary(undefined, { forceRefresh: true });
+  expect(fetcher).toHaveBeenCalledTimes(3);
+  await loadMapLibrary(undefined, { forceRefresh: true });
+  expect(fetcher).toHaveBeenCalledTimes(3);
 });

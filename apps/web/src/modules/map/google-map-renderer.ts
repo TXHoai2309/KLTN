@@ -20,13 +20,23 @@ function mountScene(host: HTMLDivElement, sdk: GoogleMapsSdk, mapId: string, ini
     const instance = map;
     destroy = () => { cleanup.splice(0).reverse().forEach(dispose => dispose()); sdk.event.clearInstanceListeners(instance); instance.unbindAll(); host.replaceChildren(); };
     try {
+      let markedReady = false;
+      const markReady = () => {
+        if (disposed || markedReady) return;
+        if (instance.getMapCapabilities?.().isAdvancedMarkersAvailable === false) {
+          fail();
+          return;
+        }
+        markedReady = true;
+        ready();
+      };
       const checkCapabilities = () => { if (!disposed && instance.getMapCapabilities?.().isAdvancedMarkersAvailable === false) fail(); };
       const capability = instance.addListener("mapcapabilities_changed", checkCapabilities);
-      const loaded = instance.addListener("tilesloaded", () => {
-        if (disposed) return;
-        if (instance.getMapCapabilities?.().isAdvancedMarkersAvailable === false) fail(); else ready();
-      });
-      cleanup.push(() => loaded.remove(), () => capability.remove());
+      // Listen to BOTH `tilesloaded` and `idle`: on SPA remounts (tab switch / after save), Google Maps
+      // often reuses cached tiles and fires `idle` without firing `tilesloaded`, which previously triggered the 15s timeout.
+      const loaded = instance.addListener("tilesloaded", markReady);
+      const idle = instance.addListener("idle", markReady);
+      cleanup.push(() => loaded.remove(), () => idle.remove(), () => capability.remove());
       content({ map: instance, restoring: Boolean(camera), cleanup,
         marker(position, element, title, draggable = false) {
           const marker = new sdk.marker.AdvancedMarkerElement({ map: instance, position: point(position), title, gmpDraggable: draggable, gmpClickable: true });
