@@ -26,6 +26,14 @@ export const costLineInputSchema = z.object({
 }).strict();
 export type CostLineInput = z.infer<typeof costLineInputSchema>;
 
+export const budgetSavingsChipSchema = z.object({
+  id: z.string().min(1).max(40),
+  label: z.string().trim().min(1).max(120),
+  prompt: z.string().trim().min(1).max(200),
+  estimatedSavingsVnd: vnd,
+}).strict();
+export type BudgetSavingsChip = z.infer<typeof budgetSavingsChipSchema>;
+
 export const costPartSchema = z.object({
   currency: z.literal("VND"),
   travelers: z.number().int().min(1).max(20),
@@ -39,6 +47,7 @@ export const costPartSchema = z.object({
   assumptions: z.array(z.string().max(200)).max(6),
   priceReferenceDate: z.string().max(10),
   accessLegId: z.string().min(1).max(64).optional(),
+  savingsOptions: z.array(budgetSavingsChipSchema).max(3).optional(),
 }).strict();
 export type CostPart = z.infer<typeof costPartSchema>;
 
@@ -90,17 +99,10 @@ export const SAVINGS_REFERENCE = {
   budgetHomestayPerRoomNightVnd: 350_000,
 } as const;
 
-export interface BudgetSavingsChip {
-  id: string;
-  label: string;
-  prompt: string;
-  estimatedSavingsVnd: number;
-}
-
 export function formatSavingsShortVnd(amount: number): string {
   if (amount >= 1_000_000) {
     const millions = Math.round((amount / 1_000_000) * 10) / 10;
-    return `${millions.toLocaleString("vi-VN")} triệu`;
+    return `${millions.toLocaleString("vi-VN")} tr`;
   }
   if (amount >= 1_000) {
     return `${Math.round(amount / 1_000).toLocaleString("vi-VN")}k`;
@@ -135,7 +137,7 @@ export function computeBudgetSavingsChips(
       if (savings >= 200_000) {
         chips.push({
           id: "switch-bus",
-          label: `Đổi máy bay sang xe khách (ước tính tiết kiệm ~${formatSavingsShortVnd(savings)})`,
+          label: `Đi xe khách thay máy bay · −${formatSavingsShortVnd(savings)} (ước tính)`,
           prompt: "Đổi chặng máy bay sang xe khách giường nằm để tiết kiệm chi phí.",
           estimatedSavingsVnd: savings,
         });
@@ -153,7 +155,7 @@ export function computeBudgetSavingsChips(
     if (savings >= 150_000) {
       chips.push({
         id: "lower-lodging",
-        label: `Chọn homestay tiết kiệm hơn (ước tính tiết kiệm ~${formatSavingsShortVnd(savings)})`,
+        label: `Homestay rẻ hơn · −${formatSavingsShortVnd(savings)} (ước tính)`,
         prompt: "Đổi sang hạng homestay tiết kiệm hơn để giảm chi phí lưu trú.",
         estimatedSavingsVnd: savings,
       });
@@ -172,7 +174,7 @@ export function computeBudgetSavingsChips(
       const targetDays = cost.days - 1;
       chips.push({
         id: "shorten-day",
-        label: `Bớt 1 ngày còn ${targetDays} ngày (ước tính tiết kiệm ~${formatSavingsShortVnd(savings)})`,
+        label: `Bớt 1 ngày (còn ${targetDays} ngày) · −${formatSavingsShortVnd(savings)} (ước tính)`,
         prompt: `Rút lịch trình xuống còn ${targetDays} ngày để phù hợp ngân sách.`,
         estimatedSavingsVnd: savings,
       });
@@ -187,7 +189,7 @@ export function computeBudgetSavingsChips(
     if (trimSavings >= 100_000) {
       chips.push({
         id: "trim-food-activities",
-        label: `Chọn quán ăn bình dân hơn (ước tính tiết kiệm ~${formatSavingsShortVnd(trimSavings)})`,
+        label: `Quán ăn bình dân hơn · −${formatSavingsShortVnd(trimSavings)} (ước tính)`,
         prompt: "Điều chỉnh mức ăn uống và vé tham quan tiết kiệm hơn để vừa ngân sách.",
         estimatedSavingsVnd: trimSavings,
       });
@@ -195,4 +197,14 @@ export function computeBudgetSavingsChips(
   }
 
   return chips.sort((a, b) => b.estimatedSavingsVnd - a.estimatedSavingsVnd).slice(0, 3);
+}
+
+/** Resolves budget savings chips from server-emitted `cost.savingsOptions` or computes them client-side as fallback. */
+export function resolveBudgetSavingsChips(
+  cost: CostPart | null | undefined,
+  accessLeg?: AccessLegPart | null,
+): BudgetSavingsChip[] {
+  if (!cost || cost.withinCap !== false || !cost.overBy || cost.overBy <= 0) return [];
+  if (cost.savingsOptions && cost.savingsOptions.length > 0) return cost.savingsOptions;
+  return computeBudgetSavingsChips(cost, accessLeg);
 }

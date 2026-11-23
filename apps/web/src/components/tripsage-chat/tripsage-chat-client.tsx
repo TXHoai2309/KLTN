@@ -9,6 +9,7 @@ import { createIdempotencyKey } from "@/lib/mutation-client";
 import type { QaContext } from "@/modules/ai/qa-contract";
 import { conversationMetaPartSchema } from "@/modules/tripsage-chat/assistant-conversation-contract";
 import { accessLegPartSchema, isCurrentAccessLeg, reconcileAccessPins } from "@/modules/tripsage-chat/tripsage-access-leg";
+import { resolveBudgetSavingsChips } from "@/modules/tripsage-chat/tripsage-cost";
 import { buildTripsageChatBody, summarizeItinerary } from "@/modules/tripsage-chat/tripsage-chat-context";
 import { classifyChatError, createTripsageChatFetch } from "@/modules/tripsage-chat/tripsage-chat-errors";
 import {
@@ -701,6 +702,12 @@ export function TripsageChatClient({
                     const quickReplies = state.quickReplies?.messageId === message.id && !busy ? state.quickReplies.replies : [];
                     const replies = candidateButtons.length > 0 ? candidateButtons : quickReplies;
                     const cost = state.cost?.messageId === message.id ? state.cost.data : null;
+                    const activeTurnCost = cost ?? (isCurrentPlanMessage ? (state.cost?.data ?? null) : null);
+                    const isLatestAssistant = message.role === "assistant" && message.id === messages.at(-1)?.id;
+                    const budgetSavingsChips =
+                      !busy && (cost || isCurrentPlanMessage) && (isLatestAssistant || state.cost?.messageId === message.id)
+                        ? resolveBudgetSavingsChips(activeTurnCost, state.accessLeg?.data ?? null)
+                        : [];
                     const messageAccessLeg = message.role === "assistant"
                       ? [...message.parts].reverse().map(part => (part.type === "data-access-leg" ? accessLegPartSchema.safeParse(part.data) : null)).find(res => res?.success)?.data ?? null
                       : null;
@@ -764,8 +771,20 @@ export function TripsageChatClient({
                         )}
                         <TripsageSourcesView sources={sources} />
                         {!live && <TripsageResultCards parts={resultParts} pins={pinControl} />}
-                        {replies.length === 0 && question && <p className="tripsage-next-question">{question}</p>}
-                        {replies.length > 0 && isTextDone && (
+                        {replies.length === 0 && budgetSavingsChips.length === 0 && question && <p className="tripsage-next-question">{question}</p>}
+                        {budgetSavingsChips.length > 0 && isTextDone && (
+                          <div className="tripsage-next-step">
+                            {question && <p className="tripsage-next-question">{question}</p>}
+                            <div className="tripsage-quick-replies" role="group" aria-label={question ?? "Gợi ý giảm chi phí ước tính"}>
+                              {budgetSavingsChips.map(chip => (
+                                <button key={chip.id} type="button" onClick={() => send(chip.prompt)} disabled={locked}>
+                                  {chip.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {budgetSavingsChips.length === 0 && replies.length > 0 && isTextDone && (
                           <div className="tripsage-next-step">
                             {question && <p className="tripsage-next-question">{question}</p>}
                             <div className="tripsage-quick-replies" role="group" aria-label={question ?? "Gợi ý trả lời nhanh"}>

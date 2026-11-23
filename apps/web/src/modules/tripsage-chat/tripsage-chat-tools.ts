@@ -189,6 +189,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   let latestDays: string[][] | null = context.currentItinerary?.days.map(day => day.stops.map(stop => stop.id)) ?? null;
   let latestDistanceKm: number | null = context.currentItinerary?.distanceKm ?? null;
   let latestAccessLeg: AccessLegPart | null = context.accessLeg ?? null;
+  let latestCostOverBudget = false;
   const flightLookups: PriorFlightLookupRecord[] = [...(context.priorFlightLookups ?? [])];
   /** Set when this turn's schedule shows that driving from the origin is not practical; the assistant should offer hubs. */
   let hubSuggested = false;
@@ -433,6 +434,13 @@ export function createTripsageChatTools(context: TripsageToolContext) {
             message: `Người dùng đã nêu ngày (${stated.date}). Không mở lượt riêng chỉ để hỏi xác nhận lại ngày: hãy ghi startDate bằng recordTripInfo và gọi proposeItinerary ngay trong lượt này, rồi kèm chip 'Đổi ngày'.`,
           };
         }
+      }
+      if (latestCostOverBudget && replies.some(r => /qu[aá]n\s+[aă]n|t[iì]m\s+th[eê]m\s+qu[aá]n/iu.test(r))) {
+        return {
+          ok: false as const,
+          code: "BUDGET_EXCEEDED_PRIORITY",
+          message: "Bảng chi phí đang vượt ngân sách và các nút giảm chi phí ước tính đã hiện cho người dùng. Không hỏi chuyển sang tìm quán ăn; hãy kết thúc bằng một câu hỏi về ngân sách / phương án giảm chi phí.",
+        };
       }
       context.emitQuickReplies?.(replies);
       return { ok: true as const };
@@ -835,14 +843,19 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         extraLines,
         accessLegId: latestAccessLeg?.id ?? null,
       });
-      context.emitCost?.(cost);
-      context.emitPlanProgress?.({ step: "COSTS", state: "done" });
       const savingsOptions = computeBudgetSavingsChips(cost, latestAccessLeg);
+      const emittedCost: CostPart = savingsOptions.length > 0 ? { ...cost, savingsOptions } : cost;
+      const chipsSent = savingsOptions.length > 0 && Boolean(context.emitCost);
+      latestCostOverBudget = Boolean(cost.withinCap === false && (cost.overBy ?? 0) > 0);
+      context.emitCost?.(emittedCost);
+      context.emitPlanProgress?.({ step: "COSTS", state: "done" });
       return { ok: true as const, total: cost.total, perPersonPerDay: cost.perPersonPerDay, withinCap: cost.withinCap, overBy: cost.overBy, lines: cost.lines.map(({ label, amount }) => ({ label, amount })),
         ...(savingsOptions.length > 0 ? { savingsOptions: savingsOptions.map(o => ({ label: o.label, estimatedSavingsVnd: o.estimatedSavingsVnd })) } : {}),
-        note: savingsOptions.length > 0
-          ? "Bảng chi phí vượt ngân sách và các nút giảm chi phí ước tính đã hiện cho người dùng. Không tự đổi lịch; mời người dùng bấm chọn phương án muốn thử và nói rõ các mức tiết kiệm là ước tính."
-          : "Bảng chi phí đã hiện cho người dùng. Chỉ nhận xét ngắn (khoản lớn nhất, cách tiết kiệm); nói rõ đây là ước tính. Không có ngân sách thì không kết luận vừa hay vượt." };
+        note: latestCostOverBudget && chipsSent
+          ? "Bảng chi phí vượt ngân sách và các nút giảm chi phí ước tính đã hiện cho người dùng. Không tự đổi lịch; câu hỏi duy nhất cuối tin PHẢI hỏi về ngân sách và mời người dùng bấm chọn phương án muốn thử (nói rõ mức tiết kiệm là ước tính; KHÔNG hỏi sang chuyện tìm quán ăn)."
+          : latestCostOverBudget
+            ? "Bảng chi phí vượt ngân sách (chưa gửi được nút giảm chi phí tự động). Không tự đổi lịch và KHÔNG nói các nút giảm chi phí đã hiện; câu hỏi duy nhất cuối tin PHẢI hỏi người dùng muốn giảm chi phí theo hướng nào (đổi phương tiện, hạng phòng hay bớt ngày) và KHÔNG hỏi sang chuyện tìm quán ăn."
+            : "Bảng chi phí đã hiện cho người dùng. Chỉ nhận xét ngắn (khoản lớn nhất, cách tiết kiệm); nói rõ đây là ước tính. Không có ngân sách thì không kết luận vừa hay vượt." };
     },
   });
 

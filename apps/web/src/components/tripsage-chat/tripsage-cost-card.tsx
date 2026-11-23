@@ -1,7 +1,7 @@
 import { Wallet } from "lucide-react";
 
 import type { AccessLegPart } from "@/modules/tripsage-chat/tripsage-access-leg";
-import { computeBudgetSavingsChips, COST_CATEGORIES, COST_CATEGORY_LABELS, formatVnd, type CostPart } from "@/modules/tripsage-chat/tripsage-cost";
+import { COST_CATEGORIES, COST_CATEGORY_LABELS, formatVnd, resolveBudgetSavingsChips, type CostPart } from "@/modules/tripsage-chat/tripsage-cost";
 import { costPin } from "@/modules/trip-save/trip-pin-builders";
 import { PinButton, type PinControl } from "./tripsage-pin-button";
 
@@ -19,7 +19,7 @@ export function TripsageCostCard({
 }) {
   const groups = COST_CATEGORIES.map(category => ({ category, lines: cost.lines.filter(line => line.category === category) })).filter(group => group.lines.length);
   const hasBudgetCap = cost.budgetCap !== null && cost.budgetCap > 0;
-  const savingsChips = computeBudgetSavingsChips(cost, accessLeg);
+  const savingsChips = resolveBudgetSavingsChips(cost, accessLeg);
   return (
     <section className="tripsage-cost" aria-label="Bảng chi phí ước tính">
       <header className="tripsage-cost-head">
