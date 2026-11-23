@@ -10,6 +10,81 @@ export const ACCESS_MODES = ["FLIGHT", "SLEEPER_BUS", "TRAIN", "SHUTTLE"] as con
 export const ACCESS_MODE_LABELS: Record<(typeof ACCESS_MODES)[number], string> = { FLIGHT: "Máy bay", SLEEPER_BUS: "Xe khách giường nằm", TRAIN: "Tàu hỏa", SHUTTLE: "Xe trung chuyển" };
 export const ACCESS_PRICE_SOURCES = ["ESTIMATE", "GOOGLE_FLIGHTS", "MISSING"] as const;
 export type AccessPriceSource = (typeof ACCESS_PRICE_SOURCES)[number];
+
+/**
+ * Approved transport price reference table synced with `docs/fixtures/price-reference-ha-giang.md` (ADR-52).
+ * Bundled in code so Vercel serverless prod, chat tools, cost table, and saved trips read the exact same source.
+ * Routes not listed here have NO approved estimate and deterministically resolve to "chưa có giá" (`MISSING`)
+ * unless a live Google Flights lookup matches the route and dates (±1 day).
+ */
+export const APPROVED_PRICE_REFERENCE_DATE = "2026-11-21";
+
+export type ApprovedAccessRoutePrice = {
+  mode: (typeof ACCESS_MODES)[number];
+  places: readonly [string, string];
+  minVnd: number;
+  maxVnd: number;
+  midpointVnd: number;
+  label: string;
+};
+
+export const APPROVED_ACCESS_ROUTE_PRICES: readonly ApprovedAccessRoutePrice[] = [
+  {
+    mode: "SLEEPER_BUS",
+    places: ["ha noi", "ha giang"],
+    minVnd: 250_000,
+    maxVnd: 400_000,
+    midpointVnd: 325_000,
+    label: "Xe khách giường nằm Hà Nội ⇄ TP Hà Giang",
+  },
+  {
+    mode: "FLIGHT",
+    places: ["ho chi minh", "ha noi"],
+    minVnd: 1_200_000,
+    maxVnd: 2_500_000,
+    midpointVnd: 1_850_000,
+    label: "Vé máy bay TP.HCM ⇄ Hà Nội (phổ thông)",
+  },
+] as const;
+
+const AIRPORT_TO_CANONICAL_CITY: Record<string, string> = {
+  DAD: "da nang",
+  HAN: "ha noi",
+  SGN: "ho chi minh",
+  HUI: "hue",
+  CXR: "nha trang",
+  DLI: "da lat",
+  PQC: "phu quoc",
+  VCA: "can tho",
+  HPH: "hai phong",
+  VII: "vinh",
+};
+
+/** Checks whether a 3-letter IATA origin airport matches a segment endpoint city (e.g. DAD ↔ Đà Nẵng). */
+export function airportMatchesPlace(airportCode: string | undefined, place: string): boolean {
+  if (!airportCode) return true;
+  const code = airportCode.trim().toUpperCase();
+  const mapped = AIRPORT_TO_CANONICAL_CITY[code];
+  if (mapped) return sameAccessPlace(mapped, place);
+  return place.toUpperCase().includes(code);
+}
+
+/** Looks up the approved price reference range for an exact (mode, from, to) corridor (bidirectional). */
+export function lookupApprovedAccessSegmentPrice(
+  mode: (typeof ACCESS_MODES)[number],
+  from: string,
+  to: string,
+): ApprovedAccessRoutePrice | null {
+  const a = canonicalAccessPlace(from);
+  const b = canonicalAccessPlace(to);
+  if (!a || !b) return null;
+  for (const entry of APPROVED_ACCESS_ROUTE_PRICES) {
+    if (entry.mode !== mode) continue;
+    const [p1, p2] = entry.places;
+    if ((a === p1 && b === p2) || (a === p2 && b === p1)) return entry;
+  }
+  return null;
+}
 /**
  * Single source of truth for suggesting a closer trip hub (TP Hà Giang / Hà Nội):
  * - Any trip: outbound drive exceeds 10h (600 min) or hits OVERNIGHT_DRIVING_UNSUPPORTED.
@@ -129,13 +204,50 @@ export type FlightPriceOverride = {
   adults: number;
   roundTrip: boolean;
   lookupDate?: string;
+  originAirport?: string;
 };
 
+function findPreservedGoogleFlightSegment(
+  previous: AccessLegPart | null | undefined,
+  segment: AccessLegInput["outbound"][number],
+): AccessLegPart["outbound"][number] | null {
+  if (!previous || segment.mode !== "FLIGHT") return null;
+  const allPrev = [...previous.outbound, ...previous.return];
+  const exact = allPrev.find(
+    prev =>
+      prev.mode === "FLIGHT"
+      && prev.priceSource === "GOOGLE_FLIGHTS"
+      && prev.priceVndPerPerson > 0
+      && sameAccessPlace(prev.from, segment.from)
+      && sameAccessPlace(prev.to, segment.to),
+  );
+  if (exact) return exact;
+  return (
+    allPrev.find(
+      prev =>
+        prev.mode === "FLIGHT"
+        && prev.priceSource === "GOOGLE_FLIGHTS"
+        && prev.priceVndPerPerson > 0
+        && sameAccessPlace(prev.from, segment.to)
+        && sameAccessPlace(prev.to, segment.from),
+    ) ?? null
+  );
+}
+
+/**
+ * Deterministic server-side pricing for every access-leg segment (ADR-52):
+ *   (1) Live Google Flights price matching route & dates (±1 day), or preserved Google Flights price from `previousAccessLeg`
+ *       when route and dates did not change.
+ *   (2) Approved price reference table for the exact `(mode, from, to)` corridor (uses midpoint; accepts model's number ONLY if
+ *       it lies strictly inside the approved `[minVnd, maxVnd]` range).
+ *   (3) `MISSING` (`priceVndPerPerson: 0`, "chưa có giá") — never trusts an unverified model-invented number.
+ */
 export function buildAccessLeg(
   input: AccessLegInput,
   homeCity: string,
   travelers: number,
   flightPriceOverride?: FlightPriceOverride | null,
+  previousAccessLeg?: AccessLegPart | null,
 ): AccessLegPart {
   const hub = TRIP_HUBS.find(item => item.id === input.hubId)!;
   const overrideAdults =
@@ -148,8 +260,31 @@ export function buildAccessLeg(
     && flightPriceOverride.totalVnd > 0
     && overrideAdults >= 1,
   );
-  const outboundFlightCount = input.outbound.filter(s => s.mode === "FLIGHT").length;
-  const returnFlightCount = input.return.filter(s => s.mode === "FLIGHT").length;
+  // Continuity guard (Bug 2): ensure homeCity continuity BEFORE deterministic pricing so inserted legs are priced consistently.
+  const trimmedHome = homeCity.trim();
+  const rawOutbound = [...input.outbound];
+  const rawReturn = [...input.return];
+  if (trimmedHome && rawOutbound.length > 0 && rawOutbound.length < 4 && !sameAccessPlace(rawOutbound[0]!.from, trimmedHome)) {
+    rawOutbound.unshift({
+      mode: rawOutbound[0]!.mode,
+      from: trimmedHome,
+      to: rawOutbound[0]!.from,
+      durationMinutes: 0,
+      priceVndPerPerson: 0,
+    });
+  }
+  if (trimmedHome && rawReturn.length > 0 && rawReturn.length < 4 && !sameAccessPlace(rawReturn[rawReturn.length - 1]!.to, trimmedHome)) {
+    rawReturn.push({
+      mode: rawReturn[rawReturn.length - 1]!.mode,
+      from: rawReturn[rawReturn.length - 1]!.to,
+      to: trimmedHome,
+      durationMinutes: 0,
+      priceVndPerPerson: 0,
+    });
+  }
+
+  const outboundFlightCount = rawOutbound.filter(s => s.mode === "FLIGHT").length;
+  const returnFlightCount = rawReturn.filter(s => s.mode === "FLIGHT").length;
   // Normalize looked-up price to per-person using the lookup's `adults` count (not `travelers`),
   // so lookups for 1 adult (default) or any passenger count scale accurately to `travelers`.
   const perPersonTotal = applyFlightOverride ? Math.round(flightPriceOverride!.totalVnd / overrideAdults) : 0;
@@ -157,11 +292,21 @@ export function buildAccessLeg(
   const outboundFlightVnd = splitRoundTrip ? Math.floor(perPersonTotal / 2) : perPersonTotal;
   const returnFlightVnd = splitRoundTrip ? perPersonTotal - outboundFlightVnd : perPersonTotal;
 
+  const overrideMatchesSegment = (segment: AccessLegInput["outbound"][number]): boolean => {
+    if (!applyFlightOverride || segment.mode !== "FLIGHT") return false;
+    if (!flightPriceOverride?.originAirport) return true;
+    return (
+      airportMatchesPlace(flightPriceOverride.originAirport, segment.from)
+      || airportMatchesPlace(flightPriceOverride.originAirport, segment.to)
+    );
+  };
+
   const enrich = (
     segments: AccessLegInput["outbound"],
     flightVnd: number,
   ): AccessLegPart["outbound"] => segments.map(segment => {
-    if (segment.mode === "FLIGHT" && applyFlightOverride) {
+    // Priority 1a: active Google Flights lookup matching route & dates
+    if (overrideMatchesSegment(segment)) {
       return {
         ...segment,
         priceVndPerPerson: Math.min(20_000_000, Math.max(0, flightVnd)),
@@ -169,36 +314,33 @@ export function buildAccessLeg(
         ...(flightPriceOverride?.lookupDate ? { priceLookupDate: flightPriceOverride.lookupDate } : {}),
       };
     }
-    if (segment.priceVndPerPerson <= 0) {
-      return { ...segment, priceVndPerPerson: 0, priceSource: "MISSING" as const };
+    // Priority 1b: preserved Google Flights price from the previous access leg when route & dates still match
+    const preservedFlight = findPreservedGoogleFlightSegment(previousAccessLeg, segment);
+    if (preservedFlight) {
+      return {
+        ...segment,
+        priceVndPerPerson: preservedFlight.priceVndPerPerson,
+        priceSource: "GOOGLE_FLIGHTS" as const,
+        ...(preservedFlight.priceLookupDate ? { priceLookupDate: preservedFlight.priceLookupDate } : {}),
+      };
     }
-    return { ...segment, priceSource: "ESTIMATE" as const };
+    // Priority 2: approved price reference for exact (mode, from, to); accept model's figure ONLY if inside [minVnd, maxVnd]
+    const approved = lookupApprovedAccessSegmentPrice(segment.mode, segment.from, segment.to);
+    if (approved) {
+      const withinApprovedRange =
+        segment.priceVndPerPerson >= approved.minVnd && segment.priceVndPerPerson <= approved.maxVnd;
+      return {
+        ...segment,
+        priceVndPerPerson: withinApprovedRange ? segment.priceVndPerPerson : approved.midpointVnd,
+        priceSource: "ESTIMATE" as const,
+      };
+    }
+    // Priority 3: no Google Flights lookup and no approved reference route -> deterministically MISSING (never invent a fare)
+    return { ...segment, priceVndPerPerson: 0, priceSource: "MISSING" as const };
   });
 
-  const outbound = enrich(input.outbound, outboundFlightVnd);
-  const ret = enrich(input.return, returnFlightVnd);
-  // Continuity guard (Bug 2): never drop the segment between homeCity and the first/last transit point.
-  const trimmedHome = homeCity.trim();
-  if (trimmedHome && outbound.length > 0 && outbound.length < 4 && !sameAccessPlace(outbound[0]!.from, trimmedHome)) {
-    outbound.unshift({
-      mode: outbound[0]!.mode,
-      from: trimmedHome,
-      to: outbound[0]!.from,
-      durationMinutes: 0,
-      priceVndPerPerson: 0,
-      priceSource: "MISSING" as const,
-    });
-  }
-  if (trimmedHome && ret.length > 0 && ret.length < 4 && !sameAccessPlace(ret[ret.length - 1]!.to, trimmedHome)) {
-    ret.push({
-      mode: ret[ret.length - 1]!.mode,
-      from: ret[ret.length - 1]!.to,
-      to: trimmedHome,
-      durationMinutes: 0,
-      priceVndPerPerson: 0,
-      priceSource: "MISSING" as const,
-    });
-  }
+  const outbound = enrich(rawOutbound, outboundFlightVnd);
+  const ret = enrich(rawReturn, returnFlightVnd);
   const missingPriceSegments = collectMissingPriceSegments(outbound, ret);
   const minutes = (segments: AccessLegPart["outbound"]) => segments.reduce((sum, segment) => sum + segment.durationMinutes, 0);
   const price = [...outbound, ...ret].reduce((sum, segment) => sum + segment.priceVndPerPerson, 0);
@@ -243,6 +385,7 @@ export function applyFlightOverrideToAccessLeg(
     leg.homeCity,
     leg.travelers,
     flightPriceOverride,
+    leg,
   );
   const applied = [...updated.outbound, ...updated.return].some(s => s.priceSource === "GOOGLE_FLIGHTS");
   return applied ? updated : null;

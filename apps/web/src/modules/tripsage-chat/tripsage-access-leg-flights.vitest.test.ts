@@ -133,7 +133,7 @@ describe("Ticket 05: access-leg mode question, live flight price injection, and 
     expect(systemPrompt).toContain("Xe khách giường nằm Hà Nội ⇄ TP Hà Giang");
   });
 
-  it("keeps 0 flight requests and ESTIMATE labels when traveler chooses train or declines flying", async () => {
+  it("keeps 0 flight requests when traveler chooses train or declines flying, marking unlisted train MISSING and approved bus ESTIMATE", async () => {
     const flightLookup = vi.fn<FlightLookup>();
     const { parts, model } = await runChat([
       { tool: "recordTripInfo", input: { flightDeclined: true } },
@@ -141,12 +141,18 @@ describe("Ticket 05: access-leg mode question, live flight price injection, and 
       {
         tool: "planAccessLeg",
         input: {
-          hubId: "HA_NOI",
-          outbound: [{ mode: "TRAIN", from: "Đà Nẵng", to: "Hà Nội", durationMinutes: 960, priceVndPerPerson: 750_000 }],
-          return: [{ mode: "TRAIN", from: "Hà Nội", to: "Đà Nẵng", durationMinutes: 960, priceVndPerPerson: 750_000 }],
+          hubId: "HA_GIANG_CITY",
+          outbound: [
+            { mode: "TRAIN", from: "Đà Nẵng", to: "Hà Nội", durationMinutes: 960, priceVndPerPerson: 750_000 },
+            { mode: "SLEEPER_BUS", from: "Hà Nội", to: "TP Hà Giang", durationMinutes: 360, priceVndPerPerson: 0 },
+          ],
+          return: [
+            { mode: "SLEEPER_BUS", from: "TP Hà Giang", to: "Hà Nội", durationMinutes: 360, priceVndPerPerson: 0 },
+            { mode: "TRAIN", from: "Hà Nội", to: "Đà Nẵng", durationMinutes: 960, priceVndPerPerson: 750_000 },
+          ],
         },
       },
-      { text: "Mình đã ước tính chặng tàu hỏa." },
+      { text: "Mình đã lập chặng tàu hỏa và xe khách." },
     ], { flights: flightLookup });
 
     expect(flightLookup).not.toHaveBeenCalled();
@@ -154,8 +160,10 @@ describe("Ticket 05: access-leg mode question, live flight price injection, and 
 
     const legPart = parts.find(p => p.type === "data-access-leg")?.data as AccessLegPart | undefined;
     expect(legPart).toBeTruthy();
-    expect(legPart!.outbound[0]!.priceSource).toBe("ESTIMATE");
-    expect(legPart!.return[0]!.priceSource).toBe("ESTIMATE");
+    expect(legPart!.outbound[0]).toMatchObject({ mode: "TRAIN", priceVndPerPerson: 0, priceSource: "MISSING" });
+    expect(legPart!.outbound[1]).toMatchObject({ mode: "SLEEPER_BUS", priceVndPerPerson: 325_000, priceSource: "ESTIMATE" });
+    expect(legPart!.return[0]).toMatchObject({ mode: "SLEEPER_BUS", priceVndPerPerson: 325_000, priceSource: "ESTIMATE" });
+    expect(legPart!.return[1]).toMatchObject({ mode: "TRAIN", priceVndPerPerson: 0, priceSource: "MISSING" });
   });
 
   it("overrides FLIGHT segment prices with cheapest SerpApi price / travelers and GOOGLE_FLIGHTS source while keeping SLEEPER_BUS as ESTIMATE", async () => {
@@ -337,7 +345,25 @@ describe("Ticket 05: access-leg mode question, live flight price injection, and 
 
   it("keeps ESTIMATE when flight lookup fails (UNAVAILABLE) and enforces max 1 proactive lookup unless date/origin changes", async () => {
     const failLookup = vi.fn<FlightLookup>(async () => ({ status: "UNAVAILABLE" }));
+    // TP.HCM ⇄ Hà Nội is in the approved price reference (1.2M–2.5M) -> keeps ESTIMATE inside range;
+    // Đà Nẵng ⇄ Hà Nội is NOT in the approved reference -> deterministically MISSING (never invents a fare).
     const failed = await runChat([
+      { tool: "searchFlights", input: { departureDate: "2026-11-20", returnDate: "2026-11-23", adults: 2 } },
+      {
+        tool: "planAccessLeg",
+        input: {
+          hubId: "HA_NOI",
+          outbound: [{ mode: "FLIGHT", from: "TP Hồ Chí Minh", to: "Hà Nội", durationMinutes: 120, priceVndPerPerson: 1_600_000 }],
+          return: [{ mode: "FLIGHT", from: "Hà Nội", to: "TP Hồ Chí Minh", durationMinutes: 120, priceVndPerPerson: 1_600_000 }],
+        },
+      },
+      { text: "Chưa tra được vé máy bay, tạm dùng mức ước tính." },
+    ], { flights: failLookup, tripInfo: { ...REMOTE_INFO, homeCity: "TP Hồ Chí Minh" } });
+
+    const failedLeg = failed.parts.find(p => p.type === "data-access-leg")?.data as AccessLegPart;
+    expect(failedLeg.outbound[0]).toMatchObject({ priceVndPerPerson: 1_600_000, priceSource: "ESTIMATE" });
+
+    const unlistedFailed = await runChat([
       { tool: "searchFlights", input: { departureDate: "2026-11-20", returnDate: "2026-11-23", adults: 2 } },
       {
         tool: "planAccessLeg",
@@ -347,11 +373,11 @@ describe("Ticket 05: access-leg mode question, live flight price injection, and 
           return: [{ mode: "FLIGHT", from: "Hà Nội", to: "Đà Nẵng", durationMinutes: 90, priceVndPerPerson: 1_600_000 }],
         },
       },
-      { text: "Chưa tra được vé máy bay, tạm dùng mức ước tính." },
+      { text: "Chưa tra được vé máy bay cho chặng Đà Nẵng – Hà Nội." },
     ], { flights: failLookup });
-
-    const failedLeg = failed.parts.find(p => p.type === "data-access-leg")?.data as AccessLegPart;
-    expect(failedLeg.outbound[0]).toMatchObject({ priceVndPerPerson: 1_600_000, priceSource: "ESTIMATE" });
+    const unlistedLeg = unlistedFailed.parts.find(p => p.type === "data-access-leg")?.data as AccessLegPart;
+    expect(unlistedLeg.outbound[0]).toMatchObject({ priceVndPerPerson: 0, priceSource: "MISSING" });
+    expect(unlistedLeg.missingPriceSegments).toEqual(["Đà Nẵng ⇄ Hà Nội"]);
 
     // Cross-turn cap: 1st lookup succeeds; repeating identical params -> 0 new calls; changing date -> 1 new call; 3rd distinct -> FLIGHT_LIMIT
     const okLookup = vi.fn<FlightLookup>(async () => ({
@@ -420,21 +446,131 @@ describe("Ticket 05: access-leg mode question, live flight price injection, and 
     expect(mixedHtml).toContain("ước tính");
     expect(mixedHtml).toContain("Giá tham khảo từ Google (qua SerpApi), có thể thay đổi. Ứng dụng không đặt chỗ.");
 
-    // Legacy saved AccessLegPart without priceSource
-    const legacyLeg = buildAccessLeg({
-      hubId: "HA_NOI",
-      outbound: [{ mode: "TRAIN", from: "Huế", to: "Hà Nội", durationMinutes: 840, priceVndPerPerson: 650_000 }],
-      return: [{ mode: "TRAIN", from: "Hà Nội", to: "Huế", durationMinutes: 840, priceVndPerPerson: 650_000 }],
-    }, "Huế", 2);
-    // Strip priceSource to simulate old DB record
+    // Legacy saved AccessLegPart without priceSource (pre-ADR-52 DB record)
     const oldSaved = {
-      ...legacyLeg,
-      outbound: legacyLeg.outbound.map(({ priceSource: _, priceLookupDate: __, ...rest }) => rest),
-      return: legacyLeg.return.map(({ priceSource: _, priceLookupDate: __, ...rest }) => rest),
+      id: "al-legacy-1",
+      hubName: "Hà Nội (bến xe Mỹ Đình)",
+      homeCity: "Huế",
+      travelers: 2,
+      outbound: [{ mode: "TRAIN" as const, from: "Huế", to: "Hà Nội", durationMinutes: 840, priceVndPerPerson: 650_000 }],
+      return: [{ mode: "TRAIN" as const, from: "Hà Nội", to: "Huế", durationMinutes: 840, priceVndPerPerson: 650_000 }],
+      outboundMinutes: 840,
+      returnMinutes: 840,
+      totalVnd: 2_600_000,
     };
     expect(accessLegPartSchema.safeParse(oldSaved).success).toBe(true);
     const legacyHtml = renderToStaticMarkup(createElement(TripsageAccessLegCard, { leg: oldSaved as AccessLegPart })).replaceAll("\u00a0", " ");
     expect(legacyHtml).toContain("ước tính");
     expect(legacyHtml).not.toContain("Google Flights");
+  });
+
+  it("Point 1 (ADR-52): resolves prices deterministically (Google Flights > approved midpoint > MISSING) and preserves them across v1 -> v2 rebuilds", async () => {
+    // 1. Model passes 0 for SLEEPER_BUS Hà Nội -> TP Hà Giang (approved range 250k–400k -> midpoint 325k)
+    //    and 0 for FLIGHT DAD -> HAN (overridden by Google Flights 9,313,448 / 4 adults = 1,164,181/leg)
+    const v1 = buildAccessLeg(
+      {
+        hubId: "HA_GIANG_CITY",
+        outbound: [
+          { mode: "FLIGHT", from: "Đà Nẵng (DAD)", to: "Hà Nội (HAN)", durationMinutes: 80, priceVndPerPerson: 0 },
+          { mode: "SLEEPER_BUS", from: "Hà Nội", to: "TP Hà Giang", durationMinutes: 360, priceVndPerPerson: 0 },
+        ],
+        return: [
+          { mode: "SLEEPER_BUS", from: "TP Hà Giang", to: "Hà Nội", durationMinutes: 360, priceVndPerPerson: 0 },
+          { mode: "FLIGHT", from: "Hà Nội (HAN)", to: "Đà Nẵng (DAD)", durationMinutes: 80, priceVndPerPerson: 0 },
+        ],
+      },
+      "Đà Nẵng",
+      4,
+      { totalVnd: 9_313_448, adults: 4, roundTrip: true, lookupDate: "2026-11-23", originAirport: "DAD" },
+    );
+    expect(v1.outbound[0]).toMatchObject({ mode: "FLIGHT", priceVndPerPerson: 1_164_181, priceSource: "GOOGLE_FLIGHTS", priceLookupDate: "2026-11-23" });
+    expect(v1.outbound[1]).toMatchObject({ mode: "SLEEPER_BUS", priceVndPerPerson: 325_000, priceSource: "ESTIMATE" });
+    expect(v1.return[0]).toMatchObject({ mode: "SLEEPER_BUS", priceVndPerPerson: 325_000, priceSource: "ESTIMATE" });
+    expect(v1.return[1]).toMatchObject({ mode: "FLIGHT", priceVndPerPerson: 1_164_181, priceSource: "GOOGLE_FLIGHTS", priceLookupDate: "2026-11-23" });
+    expect(v1.missingPriceSegments).toBeUndefined();
+    expect(v1.totalVnd).toBe((1_164_181 + 325_000) * 2 * 4);
+
+    // 2. Out-of-range model price (e.g. 900k for Hà Nội ⇄ TP Hà Giang bus) is clamped to midpoint 325k;
+    //    unlisted corridor (Đà Nẵng ⇄ Hà Nội sleeper bus) is deterministically MISSING (0), never trusting model's 550k.
+    const clamped = buildAccessLeg(
+      {
+        hubId: "HA_GIANG_CITY",
+        outbound: [
+          { mode: "SLEEPER_BUS", from: "Đà Nẵng", to: "Hà Nội", durationMinutes: 840, priceVndPerPerson: 550_000 },
+          { mode: "SLEEPER_BUS", from: "Hà Nội", to: "TP Hà Giang", durationMinutes: 360, priceVndPerPerson: 900_000 },
+        ],
+        return: [
+          { mode: "SLEEPER_BUS", from: "TP Hà Giang", to: "Hà Nội", durationMinutes: 360, priceVndPerPerson: 100_000 },
+          { mode: "SLEEPER_BUS", from: "Hà Nội", to: "Đà Nẵng", durationMinutes: 840, priceVndPerPerson: 550_000 },
+        ],
+      },
+      "Đà Nẵng",
+      4,
+    );
+    expect(clamped.outbound[0]).toMatchObject({ priceVndPerPerson: 0, priceSource: "MISSING" });
+    expect(clamped.outbound[1]).toMatchObject({ priceVndPerPerson: 325_000, priceSource: "ESTIMATE" });
+    expect(clamped.return[0]).toMatchObject({ priceVndPerPerson: 325_000, priceSource: "ESTIMATE" });
+    expect(clamped.missingPriceSegments).toEqual(["Đà Nẵng ⇄ Hà Nội"]);
+
+    // 3. Rebuilding access leg in v2 (e.g. after editing Day 2 stops, without re-calling searchFlights and even after DB reload without data-flights)
+    //    MUST preserve v1's Google Flights price AND keep the approved bus price, AND re-sync estimateCosts even if called before planAccessLeg!
+    const v2Model = scripted([
+      { tool: "estimateCosts", input: { lines: [{ category: "food", label: "Ăn uống", amount: 3_840_000 }], budgetCap: 20_000_000 } },
+      {
+        tool: "planAccessLeg",
+        input: {
+          hubId: "HA_GIANG_CITY",
+          outbound: [
+            { mode: "FLIGHT", from: "Đà Nẵng", to: "Hà Nội", durationMinutes: 90, priceVndPerPerson: 0 },
+            { mode: "SLEEPER_BUS", from: "Hà Nội", to: "TP Hà Giang", durationMinutes: 390, priceVndPerPerson: 0 },
+          ],
+          return: [
+            { mode: "SLEEPER_BUS", from: "TP Hà Giang", to: "Hà Nội", durationMinutes: 390, priceVndPerPerson: 0 },
+            { mode: "FLIGHT", from: "Hà Nội", to: "Đà Nẵng", durationMinutes: 90, priceVndPerPerson: 0 },
+          ],
+        },
+      },
+      { text: "Đã cập nhật bản lịch v2." },
+    ]);
+    const v2Response = await tripsageChatResponse(
+      new Request("https://app.test/api/ai/chat", {
+        method: "POST",
+        headers: { origin: "https://app.test", "content-type": "application/json" },
+        body: JSON.stringify({
+          messages: [
+            { id: "u1", role: "user", parts: [{ type: "text", text: "Đổi ngày 2 bỏ Lũng Cú, Mã Pì Lèng 30 phút" }] },
+          ],
+          journey: {
+            origin: { label: "TP Hà Giang (bến xe phía Nam)", latitude: 22.8036, longitude: 104.9783, source: "MANUAL", confirmed: true },
+            departureMinute: 420,
+            returnDeadlineMinute: 1080,
+            returnDepartureMinute: 420,
+          },
+          tripInfo: { transport: "MOTORCYCLE", durationDays: 4, startDate: "2026-12-13", travelers: 4, homeCity: "Đà Nẵng" },
+          accessLeg: v1,
+        }),
+      }),
+      {
+        authorization: auth(),
+        model: async () => v2Model,
+        env: { TRIPSAGE_CHAT_ENABLED: "true", TRIPSAGE_FEATURE_FLIGHTS: "true" },
+        admit: createPlanningAdmission(),
+        planning: planning(false),
+      },
+    );
+    expect(v2Response.status).toBe(200);
+    const v2Parts = parseSse(await v2Response.text());
+    const v2Leg = v2Parts.filter(p => p.type === "data-access-leg").at(-1)?.data as AccessLegPart | undefined;
+    expect(v2Leg).toBeTruthy();
+    expect(v2Leg!.outbound[0]).toMatchObject({ mode: "FLIGHT", priceVndPerPerson: 1_164_181, priceSource: "GOOGLE_FLIGHTS", priceLookupDate: "2026-11-23" });
+    expect(v2Leg!.outbound[1]).toMatchObject({ mode: "SLEEPER_BUS", priceVndPerPerson: 325_000, priceSource: "ESTIMATE" });
+    expect(v2Leg!.missingPriceSegments).toBeUndefined();
+    expect(v2Leg!.totalVnd).toBe(v1.totalVnd);
+
+    // Final data-cost matches the rebuilt v2Leg id & totalVnd (even though estimateCosts ran before planAccessLeg)
+    const v2Cost = v2Parts.filter(p => p.type === "data-cost").at(-1)?.data as { accessLegId?: string; lines?: { label: string; amount: number }[]; isIncomplete?: boolean } | undefined;
+    expect(v2Cost?.accessLegId).toBe(v2Leg!.id);
+    expect(v2Cost?.isIncomplete).toBeUndefined();
+    expect(v2Cost?.lines?.find(l => l.label === "Chặng tiếp cận (đi và về)")?.amount).toBe(v1.totalVnd);
   });
 });

@@ -14,10 +14,10 @@ import type { ExternalPlaceSuggestion, PlacesSearch } from "./tripsage-places";
 import { haversine } from "../trip-planner/planner-geography";
 import { activityAnchors, nearbyActivitySuggestions, type EveningAnchorDiagnostic } from "./tripsage-activities";
 import { SUGGESTION_KINDS, suggestionSchema, timelineSlotIds, type TimelineSuggestion } from "./tripsage-timeline";
-import { computeBudgetSavingsChips, costLineInputSchema, estimateTripCost, PRICE_REFERENCE, type CostPart } from "./tripsage-cost";
+import { computeBudgetSavingsChips, costLineInputSchema, estimateTripCost, PRICE_REFERENCE, type CostLineInput, type CostPart } from "./tripsage-cost";
 import { buildGroundedPreferenceLabels, detectStatedPreferences, preferenceLabelsToSuggestions } from "./tripsage-preference-labels";
 import { itineraryDistanceKm } from "./tripsage-chat-context";
-import { accessLegInputSchema, applyFlightOverrideToAccessLeg, buildAccessLeg, formatAccessLegCostBasis, isHubOrigin, shouldSuggestHub, type AccessLegPart, type FlightPriceOverride } from "./tripsage-access-leg";
+import { accessLegInputSchema, applyFlightOverrideToAccessLeg, buildAccessLeg, formatAccessLegCostBasis, isHubOrigin, sameAccessPlace, shouldSuggestHub, type AccessLegPart, type FlightPriceOverride } from "./tripsage-access-leg";
 import { domainOf, isSafePublicHttpsUrl, WEB_DATA_MARKER, type WebLookup } from "./tripsage-web";
 import { quickRepliesPartSchema, resolveEffectiveJourney, tripInfoSchema, withTripInfoDefaults, type ChatSourceItem, type OriginCandidatesPart, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
 import {
@@ -193,6 +193,19 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   let latestDays: string[][] | null = context.currentItinerary?.days.map(day => day.stops.map(stop => stop.id)) ?? null;
   let latestDistanceKm: number | null = context.currentItinerary?.distanceKm ?? null;
   let latestAccessLeg: AccessLegPart | null = context.accessLeg ?? null;
+  const initialAccessStartDate = context.tripInfo?.startDate;
+  const initialAccessDurationDays = context.tripInfo?.durationDays;
+  const initialAccessHomeCity = context.tripInfo?.homeCity ?? context.accessLeg?.homeCity;
+  let lastCostComputeContext: {
+    transport: "MOTORCYCLE" | "CAR";
+    travelers: number;
+    days: number;
+    distanceKm: number | null;
+    fuelVndPerLiter?: number;
+    fuelSource?: string;
+    budgetCap: number | null;
+    lines: readonly CostLineInput[];
+  } | null = null;
   let latestCostOverBudget = false;
   let latestCostMissingItems: string[] = [];
   let latestProposalReadyToSave = false;
@@ -995,11 +1008,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       // The model sometimes invents a fuel price; only a price the traveler typed this turn overrides the live Petrolimex lookup.
       const userFuel = input.fuelVndPerLiter !== undefined && /x[aă]ng/iu.test(context.latestUserText ?? "") && /\d/u.test(context.latestUserText ?? "") ? input.fuelVndPerLiter : undefined;
       const live = userFuel === undefined && context.fuelPrice ? await context.fuelPrice(options?.abortSignal).catch(() => null) : null;
-      const extraLines = latestAccessLeg
-        ? [{ category: "transport" as const, label: "Chặng tiếp cận (đi và về)", amount: latestAccessLeg.totalVnd, basis: formatAccessLegCostBasis(latestAccessLeg) }]
-        : [];
-      const missingItems = (latestAccessLeg?.missingPriceSegments ?? []).map(seg => `Chặng tiếp cận ${seg}`);
-      const cost = estimateTripCost({
+      const costCtx = {
         transport: info.transport,
         travelers: info.travelers,
         days: info.durationDays,
@@ -1008,16 +1017,28 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         fuelSource: live ? `${live.fuelName}, ${live.source}${live.asOf ? `, ${live.asOf.split("-").reverse().join("/")}` : ""}` : undefined,
         budgetCap: input.budgetCap ?? null,
         lines: input.lines,
-        extraLines,
-        accessLegId: latestAccessLeg?.id ?? null,
-        ...(missingItems.length ? { missingItems } : {}),
-      });
-      const savingsOptions = computeBudgetSavingsChips(cost, latestAccessLeg);
-      const emittedCost: CostPart = savingsOptions.length > 0 ? { ...cost, savingsOptions } : cost;
+      };
+      lastCostComputeContext = costCtx;
+      const emitSyncedCost = (ctx: typeof costCtx) => {
+        const extraLines = latestAccessLeg
+          ? [{ category: "transport" as const, label: "Chặng tiếp cận (đi và về)", amount: latestAccessLeg.totalVnd, basis: formatAccessLegCostBasis(latestAccessLeg) }]
+          : [];
+        const missingItems = (latestAccessLeg?.missingPriceSegments ?? []).map(seg => `Chặng tiếp cận ${seg}`);
+        const cost = estimateTripCost({
+          ...ctx,
+          extraLines,
+          accessLegId: latestAccessLeg?.id ?? null,
+          ...(missingItems.length ? { missingItems } : {}),
+        });
+        const savingsOptions = computeBudgetSavingsChips(cost, latestAccessLeg);
+        const emittedCost: CostPart = savingsOptions.length > 0 ? { ...cost, savingsOptions } : cost;
+        latestCostOverBudget = Boolean(cost.withinCap === false && (cost.overBy ?? 0) > 0);
+        latestCostMissingItems = emittedCost.missingItems ? [...emittedCost.missingItems] : [];
+        context.emitCost?.(emittedCost);
+        return { cost, emittedCost, savingsOptions };
+      };
+      const { cost, emittedCost, savingsOptions } = emitSyncedCost(costCtx);
       const chipsSent = savingsOptions.length > 0 && Boolean(context.emitCost);
-      latestCostOverBudget = Boolean(cost.withinCap === false && (cost.overBy ?? 0) > 0);
-      latestCostMissingItems = emittedCost.missingItems ? [...emittedCost.missingItems] : [];
-      context.emitCost?.(emittedCost);
       context.emitPlanProgress?.({ step: "COSTS", state: "done" });
       return { ok: true as const, total: cost.total, perPersonPerDay: cost.perPersonPerDay, withinCap: cost.withinCap, overBy: cost.overBy, lines: cost.lines.map(({ label, amount }) => ({ label, amount })),
         ...(emittedCost.isIncomplete ? { isIncomplete: true as const, missingItems: emittedCost.missingItems } : {}),
@@ -1037,6 +1058,32 @@ export function createTripsageChatTools(context: TripsageToolContext) {
   const isoDaysDiff = (a: string, b: string) =>
     Math.round((Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`)) / 86_400_000);
 
+  /** Re-emits the current cost table whenever the access leg updates after `estimateCosts` ran in the same turn (ADR-52). */
+  const refreshEmittedCostWithLatestAccessLeg = () => {
+    if (!lastCostComputeContext || !latestAccessLeg) return;
+    const extraLines = [{ category: "transport" as const, label: "Chặng tiếp cận (đi và về)", amount: latestAccessLeg.totalVnd, basis: formatAccessLegCostBasis(latestAccessLeg) }];
+    const missingItems = (latestAccessLeg.missingPriceSegments ?? []).map(seg => `Chặng tiếp cận ${seg}`);
+    const cost = estimateTripCost({
+      ...lastCostComputeContext,
+      extraLines,
+      accessLegId: latestAccessLeg.id ?? null,
+      ...(missingItems.length ? { missingItems } : {}),
+    });
+    const savingsOptions = computeBudgetSavingsChips(cost, latestAccessLeg);
+    const emittedCost: CostPart = savingsOptions.length > 0 ? { ...cost, savingsOptions } : cost;
+    latestCostOverBudget = Boolean(cost.withinCap === false && (cost.overBy ?? 0) > 0);
+    latestCostMissingItems = emittedCost.missingItems ? [...emittedCost.missingItems] : [];
+    context.emitCost?.(emittedCost);
+  };
+
+  const canReusePreviousAccessLegPrices = (info: { startDate?: string; durationDays?: number; homeCity?: string }): boolean => {
+    if (!latestAccessLeg) return false;
+    if (initialAccessHomeCity && info.homeCity && !sameAccessPlace(initialAccessHomeCity, info.homeCity)) return false;
+    if (initialAccessStartDate && info.startDate && Math.abs(isoDaysDiff(info.startDate, initialAccessStartDate)) > 1) return false;
+    if (initialAccessDurationDays !== undefined && info.durationDays !== undefined && Math.abs(info.durationDays - initialAccessDurationDays) > 1) return false;
+    return true;
+  };
+
   const findMatchingFlightOverride = (info: { startDate?: string; durationDays?: number; travelers: number }): FlightPriceOverride | null => {
     let expectedReturn: string | null = null;
     if (info.startDate && info.durationDays) {
@@ -1054,33 +1101,35 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       const exactDep = !info.startDate || item.departureDate === info.startDate;
       const exactRet = !item.roundTrip || !item.returnDate || !expectedReturn || item.returnDate === expectedReturn;
       if (exactDep && exactRet) {
-        return { totalVnd, adults, roundTrip: item.roundTrip, lookupDate: item.lookupDate };
+        return { totalVnd, adults, roundTrip: item.roundTrip, lookupDate: item.lookupDate, originAirport: item.originAirport };
       }
 
       // Accept 1-day travel-day offsets (flying on "Ngày đi" startDate-1 and/or returning on "Ngày về" endDate+1).
       const depDelta = info.startDate ? isoDaysDiff(item.departureDate, info.startDate) : 0;
       const retDelta = item.roundTrip && item.returnDate && expectedReturn ? isoDaysDiff(item.returnDate, expectedReturn) : 0;
       if (!fallbackMatch && (depDelta === -1 || depDelta === 0) && (retDelta === -1 || retDelta === 0 || retDelta === 1)) {
-        fallbackMatch = { totalVnd, adults, roundTrip: item.roundTrip, lookupDate: item.lookupDate };
+        fallbackMatch = { totalVnd, adults, roundTrip: item.roundTrip, lookupDate: item.lookupDate, originAirport: item.originAirport };
       }
     }
     return fallbackMatch;
   };
 
   const planAccessLeg = tool({
-    description: "Ước tính chặng tiếp cận cho người ở xa: luôn đi liền từ thành phố nhà (homeCity) tới điểm tập kết (HA_NOI hoặc HA_GIANG_CITY) và chiều về tới homeCity, KHÔNG được bỏ đoạn từ homeCity tới điểm trung chuyển. Gồm các đoạn máy bay, xe khách giường nằm, tàu, xe trung chuyển với giờ, thời lượng và giá mỗi người ước tính (chỉ dựa vào bảng giá tham khảo nếu có; nếu đoạn chưa có trong bảng giá, vẫn đưa đoạn đó với priceVndPerPerson = 0 để hệ thống ghi 'chưa có giá', không bịa giá). Nếu đã có kết quả tra vé máy bay hợp lệ trong hội thoại, hệ thống tự thay giá đoạn FLIGHT bằng giá rẻ nhất/người kèm nguồn Google Flights. Chặng này chỉ để tham khảo, không được kiểm tra, không đặt vé; số ngày chuyến đi tính từ điểm tập kết.",
+    description: "Ước tính chặng tiếp cận cho người ở xa: luôn đi liền từ thành phố nhà (homeCity) tới điểm tập kết (HA_NOI hoặc HA_GIANG_CITY) và chiều về tới homeCity, KHÔNG được bỏ đoạn từ homeCity tới điểm trung chuyển. Gồm các đoạn máy bay, xe khách giường nằm, tàu, xe trung chuyển với giờ và thời lượng. Giá từng đoạn do HỆ THỐNG xác định tất định theo thứ tự: (1) giá Google Flights đã tra khớp tuyến & ngày (±1 ngày), (2) bảng giá tham khảo đã duyệt (lấy mức giữa nếu bạn truyền 0), (3) 'chưa có giá' — không bịa giá; nếu chặng tiếp cận không đổi khi chỉnh lịch, không cần gọi lại hoặc nếu gọi lại hệ thống tự giữ giá đã tra.",
     inputSchema: accessLegInputSchema,
     execute: async input => {
       const { info } = withTripInfoDefaults(tripInfo);
       if (!info.homeCity) return { ok: false as const, code: "MISSING_HOME_CITY", message: "Hỏi người dùng đang ở thành phố nào rồi ghi bằng recordTripInfo (homeCity)." };
       const flightOverride = findMatchingFlightOverride(info);
-      latestAccessLeg = buildAccessLeg(input, info.homeCity, info.travelers, flightOverride);
+      const previousForReuse = canReusePreviousAccessLegPrices(info) ? latestAccessLeg : null;
+      latestAccessLeg = buildAccessLeg(input, info.homeCity, info.travelers, flightOverride, previousForReuse);
       context.emitAccessLeg?.(latestAccessLeg);
+      refreshEmittedCostWithLatestAccessLeg();
       const missingSegs = latestAccessLeg.missingPriceSegments ?? [];
       return { ok: true as const, outboundMinutes: latestAccessLeg.outboundMinutes, returnMinutes: latestAccessLeg.returnMinutes, totalVnd: latestAccessLeg.totalVnd,
-        usedGoogleFlightsPrice: Boolean(flightOverride && [...latestAccessLeg.outbound, ...latestAccessLeg.return].some(s => s.priceSource === "GOOGLE_FLIGHTS")),
+        usedGoogleFlightsPrice: [...latestAccessLeg.outbound, ...latestAccessLeg.return].some(s => s.priceSource === "GOOGLE_FLIGHTS"),
         ...(missingSegs.length ? { missingPriceSegments: missingSegs } : {}),
-        note: `Chặng tiếp cận đã hiện cho người dùng (Trước chuyến đi / Sau chuyến đi). ${isHubOrigin(currentJourney?.origin?.label) ? "" : "Điểm xuất phát hiện chưa phải điểm tập kết: mời người dùng xác nhận điểm tập kết (hub:HA_NOI hoặc hub:HA_GIANG_CITY) để lập lịch phần đi xe."}${missingSegs.length ? ` CẢNH BÁO: còn đoạn chưa có giá (${missingSegs.join(", ")}) nên tổng chặng tiếp cận chưa đầy đủ; KHÔNG kết luận nằm trong ngân sách.` : ""} estimateCosts sẽ tự cộng chặng này vào nhóm đi lại.` };
+        note: `Chặng tiếp cận đã hiện cho người dùng (Trước chuyến đi / Sau chuyến đi). ${isHubOrigin(currentJourney?.origin?.label) ? "" : "Điểm xuất phát hiện chưa phải điểm tập kết: mời người dùng xác nhận điểm tập kết (hub:HA_NOI hoặc hub:HA_GIANG_CITY) để lập lịch phần đi xe."}${missingSegs.length ? ` CẢNH BÁO: còn đoạn chưa có giá (${missingSegs.join(", ")}) nên tổng chặng tiếp cận chưa đầy đủ; KHÔNG kết luận nằm trong ngân sách và KHÔNG hỏi người dùng tự đặt giá.` : ""} estimateCosts sẽ tự cộng chặng này vào nhóm đi lại.` };
     },
   });
 
@@ -1144,6 +1193,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         if (refreshed) {
           latestAccessLeg = refreshed;
           context.emitAccessLeg?.(latestAccessLeg);
+          refreshEmittedCostWithLatestAccessLeg();
         }
       }
     },
