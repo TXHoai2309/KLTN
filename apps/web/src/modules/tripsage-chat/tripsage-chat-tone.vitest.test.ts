@@ -8,7 +8,8 @@ import { fixtureRoutes, planningCandidate, planningNow } from "../../test/planni
 import { sourcesPartSchema } from "./tripsage-chat-context";
 import { TRIP_INFO_FIXTURE } from "./tripsage-chat-fixtures";
 import { tripsageChatResponse, type TripsageChatHttpDependencies } from "./tripsage-chat-http";
-import { resolveFallbackQuickReplies, TRIPSAGE_CHAT_INSTRUCTIONS } from "./tripsage-chat-service";
+import { reconcileQuickRepliesWithQuestion, resolveFallbackQuickReplies, TRIPSAGE_CHAT_INSTRUCTIONS } from "./tripsage-chat-service";
+import { resolveMissingPriceChips } from "./tripsage-access-leg";
 import type { TripsagePlanningDeps } from "./tripsage-chat-tools";
 
 let seq = 0;
@@ -208,5 +209,96 @@ describe("Ticket 03: tone rules & document source scoping", () => {
     );
     const qrPart = all.find(p => p.type === "data-quick-replies")?.data as { replies?: string[] } | undefined;
     expect(qrPart?.replies).toEqual(["Thêm 1 ngày", "Xuất phát sớm hơn (05:30)", "Nghỉ đêm giữa đường ở TP Hà Giang", "Giữ nguyên"]);
+  });
+
+  it("B1: resolves missing-fare chips contextually for bus-only vs flight legs and excludes Ha Noi route when not in price table", () => {
+    const busOnlyLeg = {
+      id: "leg-bus-1",
+      hubName: "TP Hà Giang",
+      homeCity: "Hải Phòng",
+      travelers: 2,
+      outbound: [
+        { mode: "SLEEPER_BUS" as const, from: "Hải Phòng", to: "TP Hà Giang", durationMinutes: 420, priceVndPerPerson: 0, priceSource: "MISSING" as const },
+      ],
+      return: [
+        { mode: "SLEEPER_BUS" as const, from: "TP Hà Giang", to: "Hải Phòng", durationMinutes: 420, priceVndPerPerson: 0, priceSource: "MISSING" as const },
+      ],
+      outboundMinutes: 420,
+      returnMinutes: 420,
+      totalVnd: 0,
+      priceReferenceDate: "2026-11-21",
+      missingPriceSegments: ["Hải Phòng ⇄ TP Hà Giang"],
+    };
+
+    expect(
+      resolveFallbackQuickReplies({
+        text: "Chưa có giá xe khách chặng Hải Phòng ⇄ TP Hà Giang. Bạn muốn xử lý thế nào?",
+        hasEmittedQuickReplies: false,
+        hasOriginCandidates: false,
+        itinerary: null,
+        cost: {
+          currency: "VND", travelers: 2, days: 2,
+          lines: [{ category: "food", label: "Ăn uống", amount: 800_000 }],
+          total: 800_000, perPersonPerDay: 200_000, budgetCap: null, withinCap: null, overBy: null,
+          assumptions: [], priceReferenceDate: "2026-11-21", isIncomplete: true, missingItems: ["Chặng tiếp cận Hải Phòng ⇄ TP Hà Giang"],
+        },
+        accessLeg: busOnlyLeg,
+        tripInfo: { transport: "CAR" },
+      }),
+    ).toEqual(["Giữ xe khách, chốt giá sau", "Đổi tuyến qua Hà Nội", "Bỏ qua, lưu trước"]);
+
+    // When the approved price table has NO Hà Nội bus corridor, omit "Đổi tuyến qua Hà Nội"
+    expect(
+      resolveMissingPriceChips({
+        accessLeg: busOnlyLeg,
+        lang: "vi",
+        approvedRoutes: [],
+      }).chips,
+    ).toEqual(["Giữ xe khách, chốt giá sau", "Bỏ qua, lưu trước"]);
+
+    // Flight + bus leg where FLIGHT is missing keeps flight lookup chip
+    const flightAndBusLeg = {
+      ...busOnlyLeg,
+      homeCity: "Đà Nẵng",
+      outbound: [
+        { mode: "FLIGHT" as const, from: "Đà Nẵng", to: "Hà Nội", durationMinutes: 90, priceVndPerPerson: 0, priceSource: "MISSING" as const },
+        { mode: "SLEEPER_BUS" as const, from: "Hà Nội", to: "TP Hà Giang", durationMinutes: 360, priceVndPerPerson: 325_000, priceSource: "ESTIMATE" as const },
+      ],
+      return: [
+        { mode: "SLEEPER_BUS" as const, from: "TP Hà Giang", to: "Hà Nội", durationMinutes: 360, priceVndPerPerson: 325_000, priceSource: "ESTIMATE" as const },
+        { mode: "FLIGHT" as const, from: "Hà Nội", to: "Đà Nẵng", durationMinutes: 90, priceVndPerPerson: 0, priceSource: "MISSING" as const },
+      ],
+      missingPriceSegments: ["Đà Nẵng ⇄ Hà Nội"],
+    };
+
+    expect(
+      resolveFallbackQuickReplies({
+        text: "Chưa có giá đoạn Đà Nẵng ⇄ Hà Nội. Bạn muốn xử lý tiếp thế nào?",
+        hasEmittedQuickReplies: false,
+        hasOriginCandidates: false,
+        itinerary: null,
+        cost: {
+          currency: "VND", travelers: 2, days: 3,
+          lines: [{ category: "food", label: "Ăn uống", amount: 1_200_000 }],
+          total: 2_500_000, perPersonPerDay: 416_667, budgetCap: null, withinCap: null, overBy: null,
+          assumptions: [], priceReferenceDate: "2026-11-21", isIncomplete: true, missingItems: ["Chặng tiếp cận Đà Nẵng ⇄ Hà Nội"],
+        },
+        accessLeg: flightAndBusLeg,
+        tripInfo: { transport: "CAR" },
+      }),
+    ).toEqual(["Tra lại vé máy bay", "Đổi sang xe khách", "Bỏ qua, lưu trước"]);
+
+    // Reconcile stale flight/bus chips if emitted prematurely on a bus-only leg
+    expect(
+      reconcileQuickRepliesWithQuestion({
+        text: "Chưa có giá xe khách chặng Hải Phòng ⇄ TP Hà Giang. Bạn muốn xử lý thế nào?",
+        emittedReplies: ["Tra lại vé máy bay", "Đổi sang xe khách", "Bỏ qua, lưu trước"],
+        hasOriginCandidates: false,
+        itinerary: null,
+        cost: null,
+        accessLeg: busOnlyLeg,
+        tripInfo: { transport: "CAR" },
+      }),
+    ).toEqual(["Giữ xe khách, chốt giá sau", "Đổi tuyến qua Hà Nội", "Bỏ qua, lưu trước"]);
   });
 });

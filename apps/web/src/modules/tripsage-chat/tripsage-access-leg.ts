@@ -158,6 +158,95 @@ export function sameAccessPlace(a: string, b: string): boolean {
   return ca === cb || ca.includes(cb) || cb.includes(ca);
 }
 
+/**
+ * Resolves context-aware actionable chips for missing access-leg fares (B1):
+ * - Only offers "Tra lại vé máy bay" when a FLIGHT segment actually lacks a fare.
+ * - On bus-only missing fares, offers "Giữ xe khách, chốt giá sau" and "Đổi tuyến qua Hà Nội"
+ *   (only when the Hà Nội ⇄ TP Hà Giang corridor exists in the approved price table and isn't already used).
+ * - Never suggests switching to a transport mode already used on the missing leg.
+ */
+export function resolveMissingPriceChips(input: {
+  accessLeg?: AccessLegPart | null;
+  missingItems?: readonly string[] | null;
+  lang: "vi" | "en";
+  approvedRoutes?: readonly ApprovedAccessRoutePrice[];
+}): {
+  chips: string[];
+  hasMissingFlight: boolean;
+  missingModes: ReadonlySet<(typeof ACCESS_MODES)[number]>;
+  usedModes: ReadonlySet<(typeof ACCESS_MODES)[number]>;
+} {
+  const isEn = input.lang === "en";
+  const allSegments = [...(input.accessLeg?.outbound ?? []), ...(input.accessLeg?.return ?? [])];
+  const usedModes = new Set<(typeof ACCESS_MODES)[number]>(allSegments.map((s) => s.mode));
+  const missingSegments = allSegments.filter(
+    (s) => s.priceSource === "MISSING" || s.priceVndPerPerson <= 0,
+  );
+  const missingModes = new Set<(typeof ACCESS_MODES)[number]>(missingSegments.map((s) => s.mode));
+
+  if (missingSegments.length === 0 && !input.accessLeg) {
+    const missingText = (input.missingItems ?? []).join(" ");
+    if (/xe\s*kh[aá]ch|gi[uư][oờ]ng\s*n[aằ]m|\bbus\b/iu.test(missingText)) {
+      missingModes.add("SLEEPER_BUS");
+      usedModes.add("SLEEPER_BUS");
+    } else if (/t[aà]u\s*h[oỏ]a|\btrain\b/iu.test(missingText)) {
+      missingModes.add("TRAIN");
+      usedModes.add("TRAIN");
+    } else if (/m[aá]y\s*bay|chuy[eế]n\s*bay|\bflight\b|\b(?:DAD|SGN|PQC|CXR|HUI|DLI|VCA)\b|Đ[aà]\s*N[aẵ]ng|TP\.?\s*HCM|H[oồ]\s*Ch[ií]\s*Minh|C[aầ]n\s*Th[oơ]|Nha\s*Trang|Ph[uú]\s*Qu[oố]c|Hu[eế]/iu.test(missingText)) {
+      missingModes.add("FLIGHT");
+      usedModes.add("FLIGHT");
+    } else if ((input.missingItems?.length ?? 0) > 0) {
+      missingModes.add("SLEEPER_BUS");
+      usedModes.add("SLEEPER_BUS");
+    }
+  }
+
+  const routes = input.approvedRoutes ?? APPROVED_ACCESS_ROUTE_PRICES;
+  const hasApprovedHaNoiBusCorridor = routes.some(
+    (entry) =>
+      entry.mode === "SLEEPER_BUS" &&
+      ((entry.places[0] === "ha noi" && entry.places[1] === "ha giang") ||
+        (entry.places[0] === "ha giang" && entry.places[1] === "ha noi")),
+  );
+  const missingSegAlreadyViaHaNoi =
+    missingSegments.length > 0 &&
+    missingSegments.every(
+      (s) => sameAccessPlace(s.from, "Hà Nội") || sameAccessPlace(s.to, "Hà Nội"),
+    );
+
+  const hasMissingFlight = missingModes.has("FLIGHT");
+  const chips: string[] = [];
+
+  if (hasMissingFlight) {
+    chips.push(isEn ? "Retry flight lookup" : "Tra lại vé máy bay");
+    if (!missingModes.has("SLEEPER_BUS")) {
+      chips.push(isEn ? "Switch to bus" : "Đổi sang xe khách");
+    } else if (!usedModes.has("TRAIN")) {
+      chips.push(isEn ? "Switch to train" : "Đổi sang tàu hỏa");
+    }
+    chips.push(isEn ? "Skip and save first" : "Bỏ qua, lưu trước");
+  } else if (missingModes.has("SLEEPER_BUS")) {
+    chips.push(isEn ? "Keep bus, check fare later" : "Giữ xe khách, chốt giá sau");
+    if (hasApprovedHaNoiBusCorridor && !missingSegAlreadyViaHaNoi) {
+      chips.push(isEn ? "Route via Hà Nội" : "Đổi tuyến qua Hà Nội");
+    }
+    chips.push(isEn ? "Skip and save first" : "Bỏ qua, lưu trước");
+  } else if (missingModes.has("TRAIN")) {
+    chips.push(isEn ? "Keep train, check fare later" : "Giữ tàu hỏa, chốt giá sau");
+    if (!usedModes.has("SLEEPER_BUS") && !missingModes.has("SLEEPER_BUS")) {
+      chips.push(isEn ? "Switch to bus" : "Đổi sang xe khách");
+    } else if (hasApprovedHaNoiBusCorridor && !missingSegAlreadyViaHaNoi) {
+      chips.push(isEn ? "Route via Hà Nội" : "Đổi tuyến qua Hà Nội");
+    }
+    chips.push(isEn ? "Skip and save first" : "Bỏ qua, lưu trước");
+  } else {
+    chips.push(isEn ? "Keep current mode, check later" : "Giữ phương tiện hiện tại");
+    chips.push(isEn ? "Skip and save first" : "Bỏ qua, lưu trước");
+  }
+
+  return { chips, hasMissingFlight, missingModes, usedModes };
+}
+
 /** Deduplicates missing-price segments into concise corridor labels (e.g. "Đà Nẵng ⇄ Hà Nội"). */
 export function collectMissingPriceSegments(
   outbound: readonly AccessLegPart["outbound"][number][],

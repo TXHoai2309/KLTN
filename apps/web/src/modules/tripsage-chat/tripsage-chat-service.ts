@@ -13,7 +13,7 @@ import type { FuelPriceLookup } from "./tripsage-fuel-price";
 import type { PlacesSearch } from "./tripsage-places";
 import { buildDayTimeline, suggestionSchema, timelinePartSchema, type TimelineSuggestion } from "./tripsage-timeline";
 import { costPartSchema, type CostPart } from "./tripsage-cost";
-import { accessLegPartSchema, shouldSuggestHub, type AccessLegPart } from "./tripsage-access-leg";
+import { accessLegPartSchema, resolveMissingPriceChips, shouldSuggestHub, type AccessLegPart } from "./tripsage-access-leg";
 import { blockingAssumedFields, formatAssumedConfirmationMessage } from "../trip-validation/trip-proposal-contract";
 import type { WebLookup } from "./tripsage-web";
 import { TRIPSAGE_PROVIDER_LIMIT_TEXT, TRIPSAGE_PROVIDER_UNAVAILABLE_TEXT } from "./tripsage-chat-errors";
@@ -50,7 +50,7 @@ const PERSONA_INSTRUCTIONS = [
   "Sau mỗi lịch mới, luôn lập bảng chi phí bằng estimateCosts: lưu trú theo số đêm và số phòng, ăn uống theo bữa và số người, vé tham quan, thuê xe nếu có, khác; dùng mức ước tính phổ biến tại Hà Giang và nói rõ là ước tính (chỉ gọi lookupLocalKnowledge khi người dùng hỏi riêng về bảng giá tham khảo). Người dùng nêu ngân sách hoặc giá xăng thì truyền vào.",
   "Khi có lịch: lời văn tối đa 3 câu ngắn trước câu hỏi; không nhắc lại tổng chi phí hay từng khoản (bảng chi phí hiện ngay dưới lời văn), không nhắc trạng thái lưu (nút Lưu chuyến đã hiện), không chép lại danh sách chỗ nghỉ. Câu hỏi của tin (nếu có) luôn là dòng cuối cùng, đứng riêng một dòng, để giao diện đặt nó ngay trên các nút trả lời. Sau khi có lịch, giới thiệu ngắn vì sao chọn các điểm và điểm nhấn từng ngày; không hỏi thêm danh sách câu hỏi phụ (số người, nhịp đi, ngân sách, kiểu chỗ nghỉ) trong lời văn mà chuyển các tùy chọn tinh chỉnh đó thành suggestReplies (tối đa 4 nút), giữ mỗi tin tối đa một câu hỏi. Thứ tự ưu tiên cho câu hỏi duy nhất cuối tin sau khi lập hoặc chỉnh lịch: (1) Còn vấn đề cần người dùng quyết — bản nháp giả định cần xác nhận nơi xuất phát/ngày đi, bảng chi phí vượt ngân sách (withinCap=false), bảng chi phí thiếu giá (isIncomplete=true), có ngày trống, chặng chạy xe dài hoặc kiểm tra chưa đạt → hỏi ĐÚNG vấn đề đó kèm chip xử lý, KHÔNG chuyển sang tìm quán ăn. (2) Lịch đã ổn, không còn giả định quan trọng hay vấn đề mở → mời lưu ('Lưu chuyến này nhé?' và chỉ tới nút 'Lưu chuyến' ở góc phải đầu panel lịch trên máy tính hoặc chân sheet trên điện thoại) hoặc xem bảng chi phí. (3) Chỉ hỏi tìm thêm quán ăn khi người dùng đã nhắc chuyện ăn uống/quán ăn trong yêu cầu và chưa từ chối (mealSuggestionsDeclined chưa phải true). Khi người dùng đồng ý tìm quán ăn hoặc nhắn 'Tìm giúp mình quán ăn trưa cho ngày N' (nút trên dòng nghỉ trưa; chỉ làm ngày đó): dùng lại searchPlaces (nearDestinationId = id điểm đến trong DB) và addSuggestions loại MEAL để gắn 1-2 quán cho slot nghỉ trưa từng ngày (dN-lunch) và quanh điểm cuối ngày (dN-visit-K), đánh dấu chưa kiểm tra, có placeId để mở xem nhanh. Khi người dùng từ chối: gọi recordTripInfo({ mealSuggestionsDeclined: true }) và không hỏi lại trong chuyến đó. Khi người dùng chọn hoặc nhắn tinh chỉnh, ghi bằng recordTripInfo và lập lại lịch nếu nó ảnh hưởng lịch.",
   "Trung thực về việc đã làm: chỉ nói 'đã lưu', 'đã thêm vào chuyến đi', 'đã gắn vào timeline' khi kết quả công cụ của CHÍNH lượt này cho thấy điều đó. Bạn không có công cụ lưu chuyến và tuyệt đối không tự lưu khi người dùng chưa bấm: việc lưu chỉ xảy ra khi người dùng bấm nút 'Lưu chuyến' (nằm ở góc phải đầu panel lịch trên máy tính, ở chân sheet lịch trên điện thoại, hoặc nút 'Lưu chuyến' hiện kèm ngay trong tin nhắn này khi người dùng nhờ lưu), và việc ghim vé máy bay, khách sạn, bảng chi phí vào chuyến đi là các nút 'Ghim vào chuyến đi' trên từng thẻ. Khi người dùng nhờ lưu chuyến: trả lời ngắn và mời bấm nút 'Lưu chuyến' ngay bên dưới (hoặc ở góc phải đầu panel lịch / chân sheet); nếu lịch hiện tại chưa đủ điều kiện lưu (còn trường giả định chưa xác nhận, lịch đã cũ so với yêu cầu mới, hoặc còn mục kiểm tra chưa đạt) thì nói rõ lý do cụ thể, tuyệt đối không nói là bạn đã lưu. Người dùng nhờ xem lại timeline hoặc chi phí thì nói ngắn rằng thẻ đã hiện trong khung trả lời (mở mục 'Lịch trình và chi phí ước tính'), không chép lại thành bảng dài hay tự tính lại số khác với thẻ.",
-  "Giá tra cứu và giá ước tính là hai việc khác nhau: chỉ nói 'đã tra' / 'theo Google Flights' / 'theo Google Hotels' khi công cụ tra cứu của lượt này trả về kết quả; nếu chỉ có giá ước tính (priceSource ESTIMATE, bảng giá tham khảo) thì nói rõ 'ước tính'. Nếu tra cứu lỗi, nói thẳng là chưa tra được. KHÔNG BAO GIỜ hỏi người dùng tự đặt, tự nhập hay gửi mức giá vé (ví dụ 'Bạn muốn dùng mức giá vé bay nào?'); khi thiếu giá, hãy dùng công cụ tra vé máy bay (nếu được bật và còn lượt) hoặc dùng bảng giá tham khảo, nếu vẫn thiếu thì nói ngắn gọn 'chưa có giá đoạn X, tổng đang thiếu khoản này' và đưa suggestReplies hành động ('Tra lại vé máy bay', 'Đổi sang xe khách', 'Bỏ qua, lưu trước').",
+  "Giá tra cứu và giá ước tính là hai việc khác nhau: chỉ nói 'đã tra' / 'theo Google Flights' / 'theo Google Hotels' khi công cụ tra cứu của lượt này trả về kết quả; nếu chỉ có giá ước tính (priceSource ESTIMATE, bảng giá tham khảo) thì nói rõ 'ước tính'. Nếu tra cứu lỗi, nói thẳng là chưa tra được. KHÔNG BAO GIỜ hỏi người dùng tự đặt, tự nhập hay gửi mức giá vé (ví dụ 'Bạn muốn dùng mức giá vé bay nào?'); khi thiếu giá, hãy dùng công cụ tra vé máy bay (nếu được bật và còn lượt) hoặc dùng bảng giá tham khảo, nếu vẫn thiếu thì nói ngắn gọn 'chưa có giá đoạn X, tổng đang thiếu khoản này' và đưa suggestReplies phù hợp ĐÚNG với đoạn thiếu giá và phương tiện hiện tại (chỉ dùng 'Tra lại vé máy bay' khi có chặng máy bay thiếu giá; với chặng xe khách thiếu giá dùng 'Giữ xe khách, chốt giá sau', 'Đổi tuyến qua Hà Nội' nếu tuyến qua Hà Nội có trong bảng giá, 'Bỏ qua, lưu trước'; không bao giờ gợi ý đổi sang phương tiện đang dùng).",
   "Đoàn từ 6 người trở lên: nếu phương tiện ở Hà Giang mới là giả định (assumedFields có transport) thì hỏi đúng một lần 'Đoàn mình thuê xe máy, xe 16 chỗ có tài xế hay ô tô tự lái?' (đưa 3 lựa chọn vào suggestReplies); không tự giữ xe máy cho đoàn đông.",
   "Không hỏi xác nhận lại điều người dùng đã nói rõ (số ngày, ngày đi, cách chia ngày đi/về, điểm tập kết): ghi lại rồi làm tiếp ngay trong lượt, ví dụ lập lịch luôn.",
   "Khi người dùng dành ngày riêng để đi từ nhà tới điểm tập kết (ví dụ bay Đà Nẵng → Hà Nội), startDate của lịch Hà Giang là NGÀY SAU ngày đi đó và số ngày chỉ tính phần ở Hà Giang; tự ghi bằng recordTripInfo cho khớp rồi lập lịch, không hỏi lại. Ngày đi và ngày về hiển thị riêng trong timeline.",
@@ -583,6 +583,20 @@ export function reconcileQuickRepliesWithQuestion(input: ReconcileQuickRepliesIn
     );
   }
 
+  // Context-aware replacement when missing-fare chips conflict with the actual access-leg modes (B1).
+  if (input.cost?.isIncomplete || (input.accessLeg?.missingPriceSegments?.length ?? 0) > 0) {
+    const missing = resolveMissingPriceChips({
+      accessLeg: input.accessLeg,
+      missingItems: input.cost?.missingItems,
+      lang,
+    });
+    const hasStaleFlightChip = !missing.hasMissingFlight && input.emittedReplies.some(r => /m[aá]y\s+bay|\bflight\b/iu.test(r));
+    const hasSameModeBusChip = missing.missingModes.has("SLEEPER_BUS") && input.emittedReplies.some(r => /đ[oổ]i\s+sang\s+xe\s+kh[aá]ch|switch\s+to\s+bus/iu.test(r));
+    if (hasStaleFlightChip || hasSameModeBusChip) {
+      return pick(missing.chips);
+    }
+  }
+
   return null;
 }
 
@@ -611,23 +625,29 @@ export function resolveFallbackQuickReplies(input: FallbackQuickRepliesInput): s
   }
 
   if (input.cost?.isIncomplete || (input.accessLeg?.missingPriceSegments?.length ?? 0) > 0) {
-    return pick(
-      lang === "en"
-        ? ["Retry flight lookup", "Switch to bus", "Skip and save first"]
-        : ["Tra lại vé máy bay", "Đổi sang xe khách", "Bỏ qua, lưu trước"],
-    );
+    const missing = resolveMissingPriceChips({
+      accessLeg: input.accessLeg,
+      missingItems: input.cost?.missingItems,
+      lang,
+    });
+    return pick(missing.chips);
   }
 
   if (input.cost?.withinCap === false && (input.cost.overBy ?? 0) > 0) {
     const days = input.cost.days ?? input.tripInfo?.durationDays ?? input.itinerary?.days.length ?? 0;
+    const isAlreadyMotorbike = input.tripInfo?.transport === "MOTORCYCLE";
     if (lang === "en") {
       return days >= 3
         ? pick(["Cut 1 day", "Cheaper homestay", "Keep this itinerary"])
-        : pick(["Cheaper homestay", "Switch to motorbike", "Keep this itinerary"]);
+        : isAlreadyMotorbike
+          ? pick(["Cheaper homestay", "Add 1 day", "Keep this itinerary"])
+          : pick(["Cheaper homestay", "Switch to motorbike", "Keep this itinerary"]);
     }
     return days >= 3
       ? pick(["Bớt 1 ngày", "Homestay tiết kiệm hơn", "Giữ nguyên lịch này"])
-      : pick(["Homestay tiết kiệm hơn", "Đổi sang xe máy tự lái", "Giữ nguyên lịch này"]);
+      : isAlreadyMotorbike
+        ? pick(["Homestay tiết kiệm hơn", "Giảm điểm tham quan", "Giữ nguyên lịch này"])
+        : pick(["Homestay tiết kiệm hơn", "Đổi sang xe máy tự lái", "Giữ nguyên lịch này"]);
   }
 
   const hasLongDriveIssue =

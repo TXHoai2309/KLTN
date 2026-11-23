@@ -283,4 +283,34 @@ describe("Ticket 12: post-itinerary meal suggestions offer", () => {
     const qr = all.find(p => p.type === "data-quick-replies")?.data as { replies?: string[] } | undefined;
     expect(qr?.replies).toEqual(["Tra lại vé máy bay", "Đổi sang xe khách", "Bỏ qua, lưu trước"]);
   });
+
+  it("B1: rejects flight/switch-to-bus chips on a bus-only Hai Phong -> Ha Giang missing-fare turn and accepts bus-contextual chips", async () => {
+    const { all, model } = await chat({
+      text: "Chặng Hải Phòng lên Hà Giang bằng xe khách thế nào?",
+      tripInfo: { transport: "CAR", durationDays: 2, startDate: "2026-12-05", homeCity: "Hải Phòng", travelers: 2 },
+      steps: [
+        {
+          tool: "planAccessLeg",
+          input: {
+            hubId: "HA_GIANG_CITY",
+            outbound: [{ mode: "SLEEPER_BUS", from: "Hải Phòng", to: "TP Hà Giang", durationMinutes: 420, priceVndPerPerson: 0 }],
+            return: [{ mode: "SLEEPER_BUS", from: "TP Hà Giang", to: "Hải Phòng", durationMinutes: 420, priceVndPerPerson: 0 }],
+          },
+        },
+        {
+          tool: "estimateCosts",
+          input: { budgetCap: 10_000_000, lines: [{ category: "food", label: "Ăn uống", amount: 800_000 }] },
+        },
+        { tool: "suggestReplies", input: { replies: ["Tra lại vé máy bay", "Đổi sang xe khách", "Bỏ qua, lưu trước"] } },
+        { tool: "suggestReplies", input: { replies: ["Giữ xe khách, chốt giá sau", "Đổi tuyến qua Hà Nội", "Bỏ qua, lưu trước"] } },
+        { text: "Chưa có giá xe khách chặng Hải Phòng ⇄ TP Hà Giang, tổng đang thiếu khoản này. Bạn muốn xử lý thế nào?" },
+      ],
+    });
+
+    const prompts = JSON.stringify(model.doStreamCalls.map(c => c.prompt));
+    expect(prompts).toContain("Giữ xe khách, chốt giá sau");
+    expect(prompts).not.toContain("đưa suggestReplies hành động thực tế ('Tra lại vé máy bay'");
+    const qr = all.find(p => p.type === "data-quick-replies")?.data as { replies?: string[] } | undefined;
+    expect(qr?.replies).toEqual(["Giữ xe khách, chốt giá sau", "Đổi tuyến qua Hà Nội", "Bỏ qua, lưu trước"]);
+  });
 });

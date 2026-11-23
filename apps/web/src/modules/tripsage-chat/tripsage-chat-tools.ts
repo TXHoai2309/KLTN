@@ -18,7 +18,7 @@ import { SUGGESTION_KINDS, suggestionSchema, timelineSlotIds, type TimelineSugge
 import { computeBudgetSavingsChips, costLineInputSchema, estimateTripCost, PRICE_REFERENCE, type CostLineInput, type CostPart } from "./tripsage-cost";
 import { buildGroundedPreferenceLabels, detectStatedPreferences, preferenceLabelsToSuggestions } from "./tripsage-preference-labels";
 import { itineraryDistanceKm } from "./tripsage-chat-context";
-import { accessLegInputSchema, applyFlightOverrideToAccessLeg, buildAccessLeg, formatAccessLegCostBasis, isHubOrigin, sameAccessPlace, shouldSuggestHub, type AccessLegPart, type FlightPriceOverride } from "./tripsage-access-leg";
+import { accessLegInputSchema, applyFlightOverrideToAccessLeg, buildAccessLeg, formatAccessLegCostBasis, isHubOrigin, resolveMissingPriceChips, sameAccessPlace, shouldSuggestHub, type AccessLegPart, type FlightPriceOverride } from "./tripsage-access-leg";
 import { domainOf, isSafePublicHttpsUrl, WEB_DATA_MARKER, type WebLookup } from "./tripsage-web";
 import { quickRepliesPartSchema, resolveEffectiveJourney, tripInfoSchema, withTripInfoDefaults, type ChatSourceItem, type OriginCandidatesPart, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
 import {
@@ -587,14 +587,48 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         }
       }
       const hasMealReply = replies.some(r => /qu[aá]n\s+[aă]n|t[iì]m\s+th[eê]m\s+qu[aá]n/iu.test(r));
+      const { info: currentInfo } = withTripInfoDefaults(tripInfo);
+      const allAccessSegs = latestAccessLeg ? [...latestAccessLeg.outbound, ...latestAccessLeg.return] : [];
+      const accessOnlyBus = allAccessSegs.length > 0 && allAccessSegs.every(s => s.mode === "SLEEPER_BUS");
+      const suggestsCurrentModeSwitch = replies.some(r =>
+        (/đ[oổ]i\s+sang\s+xe\s+m[aá]y|switch\s+to\s+motorbike/iu.test(r) && currentInfo.transport === "MOTORCYCLE") ||
+        (/đ[oổ]i\s+sang\s+[oô]\s*t[oô]|switch\s+to\s+car/iu.test(r) && currentInfo.transport === "CAR") ||
+        (/đ[oổ]i\s+sang\s+xe\s+kh[aá]ch|switch\s+to\s+bus/iu.test(r) && accessOnlyBus),
+      );
+      if (suggestsCurrentModeSwitch) {
+        return {
+          ok: false as const,
+          code: "INVALID_MODE_SWITCH_CHIP",
+          message: "Không bao giờ gợi ý đổi sang phương tiện đang dùng.",
+        };
+      }
+      const missingPriceSuggestion = (latestCostMissingItems.length > 0 || (latestAccessLeg?.missingPriceSegments?.length ?? 0) > 0)
+        ? resolveMissingPriceChips({ accessLeg: latestAccessLeg, missingItems: latestCostMissingItems, lang: "vi" })
+        : null;
+      if (missingPriceSuggestion) {
+        const hasWrongFlightChip = !missingPriceSuggestion.hasMissingFlight && replies.some(r => /m[aá]y\s+bay|\bflight\b/iu.test(r));
+        const hasWrongBusChip = missingPriceSuggestion.missingModes.has("SLEEPER_BUS") && replies.some(r => /đ[oổ]i\s+sang\s+xe\s+kh[aá]ch|switch\s+to\s+bus/iu.test(r));
+        if (hasWrongFlightChip || hasWrongBusChip) {
+          return {
+            ok: false as const,
+            code: "INVALID_MISSING_FARE_CHIPS",
+            message: `Các nút thiếu giá phải khớp đúng với đoạn thiếu giá và phương tiện hiện tại. Hãy dùng: ${missingPriceSuggestion.chips.map(c => `'${c}'`).join(", ")}.`,
+          };
+        }
+      }
       const hasAskUserForPriceReply = replies.some(r =>
         /g[uử]i\s+gi[aá]|nh[aậ]p\s+gi[aá]|t[uự]\s*(?:đ[aặ]t|tra|cho|nh[aậ]p)\s+gi[aá]|d[uù]ng\s+gi[aá]\s+v[eé]|m[uứ]c\s+gi[aá]\s+(?:v[eé]|d[uự]\s*ki[eế]n)/iu.test(r),
       );
       if (hasAskUserForPriceReply) {
+        const suggestedChips = resolveMissingPriceChips({
+          accessLeg: latestAccessLeg,
+          missingItems: latestCostMissingItems,
+          lang: "vi",
+        }).chips;
         return {
           ok: false as const,
           code: "NEVER_ASK_USER_FOR_PRICE",
-          message: "Không bao giờ hỏi người dùng tự đặt hay gửi giá vé. Khi thiếu giá, hãy dùng nút hành động thực tế như 'Tra lại vé máy bay', 'Đổi sang xe khách', 'Bỏ qua, lưu trước'.",
+          message: `Không bao giờ hỏi người dùng tự đặt hay gửi giá vé. Khi thiếu giá, hãy dùng nút hành động phù hợp như ${suggestedChips.map(c => `'${c}'`).join(", ")}.`,
         };
       }
       if (latestUnmetOvernight.length > 0) {
@@ -619,10 +653,15 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         };
       }
       if (latestCostMissingItems.length > 0 && hasMealReply) {
+        const suggestedChips = resolveMissingPriceChips({
+          accessLeg: latestAccessLeg,
+          missingItems: latestCostMissingItems,
+          lang: "vi",
+        }).chips;
         return {
           ok: false as const,
           code: "INCOMPLETE_COST_PRIORITY",
-          message: `Bảng chi phí đang thiếu giá (${latestCostMissingItems.join(", ")}). Không hỏi sang tìm quán ăn và không hỏi người dùng tự đặt giá; hãy đưa nút hành động ('Tra lại vé máy bay', 'Đổi sang xe khách', 'Bỏ qua, lưu trước').`,
+          message: `Bảng chi phí đang thiếu giá (${latestCostMissingItems.join(", ")}). Không hỏi sang tìm quán ăn và không hỏi người dùng tự đặt giá; hãy đưa nút hành động (${suggestedChips.map(c => `'${c}'`).join(", ")}).`,
         };
       }
       if (latestProposalDecisionIssues.length > 0 && hasMealReply) {
@@ -1358,7 +1397,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
           : latestCostOverBudget
             ? "Bảng chi phí vượt ngân sách (chưa gửi được nút giảm chi phí tự động). Không tự đổi lịch và KHÔNG nói các nút giảm chi phí đã hiện; câu hỏi duy nhất cuối tin PHẢI hỏi người dùng muốn giảm chi phí theo hướng nào (đổi phương tiện, hạng phòng hay bớt ngày) và KHÔNG hỏi sang chuyện tìm quán ăn."
             : emittedCost.isIncomplete
-              ? `Bảng chi phí CHƯA ĐẦY ĐỦ vì chưa tính: ${(emittedCost.missingItems ?? []).join(", ")}. Nói ngắn gọn 'chưa có giá đoạn đó, tổng đang thiếu khoản này'. TUYỆT ĐỐI KHÔNG nói tổng nằm trong ngân sách hay vừa ngân sách và TUYỆT ĐỐI KHÔNG hỏi người dùng tự đặt hay gửi mức giá vé; đưa suggestReplies hành động thực tế ('Tra lại vé máy bay', 'Đổi sang xe khách', 'Bỏ qua, lưu trước'; KHÔNG hỏi sang tìm quán ăn).`
+              ? `Bảng chi phí CHƯA ĐẦY ĐỦ vì chưa tính: ${(emittedCost.missingItems ?? []).join(", ")}. Nói ngắn gọn 'chưa có giá đoạn đó, tổng đang thiếu khoản này'. TUYỆT ĐỐI KHÔNG nói tổng nằm trong ngân sách hay vừa ngân sách và TUYỆT ĐỐI KHÔNG hỏi người dùng tự đặt hay gửi mức giá vé; đưa suggestReplies hành động thực tế (${resolveMissingPriceChips({ accessLeg: latestAccessLeg, missingItems: emittedCost.missingItems, lang: "vi" }).chips.map(c => `'${c}'`).join(", ")}; KHÔNG hỏi sang tìm quán ăn).`
               : latestProposalReadyToSave && !latestUserAskedFood()
                 ? "Bảng chi phí đã hiện cho người dùng và lịch trình đã đạt. Câu kết ưu tiên mời người dùng bấm nút 'Lưu chuyến' trong panel ('Lưu chuyến này nhé?') hoặc xem chi phí; KHÔNG hỏi tìm quán ăn nếu người dùng không nhắc chuyện ăn uống."
                 : "Bảng chi phí đã hiện cho người dùng. Chỉ nhận xét ngắn (khoản lớn nhất, cách tiết kiệm); nói rõ đây là ước tính. Không có ngân sách thì không kết luận vừa hay vượt." };
