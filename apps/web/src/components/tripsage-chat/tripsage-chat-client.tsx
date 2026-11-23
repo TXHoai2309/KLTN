@@ -997,7 +997,7 @@ export function TripsageChatClient({
                 {(busy || recovering) && planProgress ? (
                   <TripsagePlanProgress snapshot={planProgress} />
                 ) : busy ? (
-                  <div role="status" className="tripsage-thinking">
+                  <div role="status" aria-live="polite" className="tripsage-thinking">
                     <span className="tripsage-thinking-dots" aria-hidden="true"><i /><i /><i /></span>
                     <span>{status?.label ?? "Mình đang xử lý yêu cầu…"}</span>
                   </div>
@@ -1021,7 +1021,12 @@ export function TripsageChatClient({
         {!legacyReadOnly && (
           <div className="assistant-bottom-dock"><div className="assistant-bottom-dock-inner">
             {pinMessage && <p role="status" className="assistant-muted">{pinMessage}</p>}
-            {recovering && <div role="status" className="tripsage-thinking">Đang hoàn tất câu trả lời<span className="tripsage-thinking-dots" aria-hidden="true"><i /><i /><i /></span></div>}
+            {recovering && (
+              <div role="status" aria-live="polite" className="tripsage-thinking">
+                <span className="tripsage-thinking-dots" aria-hidden="true"><i /><i /><i /></span>
+                <span>Đang hoàn tất câu trả lời</span>
+              </div>
+            )}
             <TripsageChatNotice notice={notice} onResend={saveLocked ? undefined : () => void regenerate()} />
             <form noValidate className="assistant-composer" onSubmit={submit}>
               <label htmlFor="tripsage-chat-input" className="assistant-sr-only">Tin nhắn cho trợ lý</label>

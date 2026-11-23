@@ -123,4 +123,25 @@ describe("single assistant routing and mode-tab removal (ticket 04)", () => {
     const runtimeChat = readFileSync(resolve(WEB_ROOT, "src/components/assistant/assistant-runtime-chat.tsx"), "utf8");
     expect(runtimeChat).toContain('identity.startsWith("USER:") && tripsageChatEnabled');
   });
+
+  it("A5: renders frameless thinking indicator with 6px --tv-accent dots on the left, 13px/400 --tv-ink-2 text, --tv-* tokens only, and aria-live='polite'", () => {
+    const css = readFileSync(resolve(WEB_ROOT, "src/components/assistant/assistant.css"), "utf8");
+    expect(css).toMatch(/\.tripsage-thinking\s*\{[^}]*background:\s*transparent[^}]*border:\s*0[^}]*color:\s*var\(--tv-ink-2\)[^}]*font-size:\s*13px[^}]*font-weight:\s*400/);
+    expect(css).toMatch(/\.tripsage-thinking\s*\{[^}]*align-self:\s*flex-start[^}]*width:\s*fit-content/);
+    expect(css).toMatch(/\.tripsage-thinking-dots\s+i\s*\{[^}]*width:\s*6px[^}]*height:\s*6px[^}]*background:\s*var\(--tv-accent\)/);
+    expect(css).not.toMatch(/\.tripsage-thinking[^{]*\{[^}]*--assistant-/);
+    expect(css).toMatch(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{\s*\.tripsage-thinking-dots\s+i/);
+
+    const clientSource = readFileSync(resolve(WEB_ROOT, "src/components/tripsage-chat/tripsage-chat-client.tsx"), "utf8");
+    const thinkingBlocks = [...clientSource.matchAll(/<div[^>]*className="tripsage-thinking"[\s\S]*?<\/div>/g)].map((m) => m[0]);
+    expect(thinkingBlocks.length).toBeGreaterThanOrEqual(2);
+    for (const block of thinkingBlocks) {
+      expect(block).toContain('role="status"');
+      expect(block).toContain('aria-live="polite"');
+      const dotsIdx = block.indexOf("tripsage-thinking-dots");
+      const textSpanIdx = block.indexOf("<span>");
+      expect(dotsIdx).toBeGreaterThan(-1);
+      expect(textSpanIdx).toBeGreaterThan(dotsIdx);
+    }
+  });
 });
