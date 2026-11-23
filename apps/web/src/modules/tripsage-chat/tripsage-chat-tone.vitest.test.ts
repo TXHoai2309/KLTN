@@ -10,7 +10,7 @@ import { TRIP_INFO_FIXTURE } from "./tripsage-chat-fixtures";
 import { tripsageChatResponse, type TripsageChatHttpDependencies } from "./tripsage-chat-http";
 import { reconcileQuickRepliesWithQuestion, resolveFallbackQuickReplies, TRIPSAGE_CHAT_INSTRUCTIONS } from "./tripsage-chat-service";
 import { resolveMissingPriceChips } from "./tripsage-access-leg";
-import type { TripsagePlanningDeps } from "./tripsage-chat-tools";
+import { createTripsageChatTools, type TripsagePlanningDeps } from "./tripsage-chat-tools";
 
 let seq = 0;
 const auth = () => ({
@@ -300,5 +300,69 @@ describe("Ticket 03: tone rules & document source scoping", () => {
         tripInfo: { transport: "CAR" },
       }),
     ).toEqual(["Giữ xe khách, chốt giá sau", "Đổi tuyến qua Hà Nội", "Bỏ qua, lưu trước"]);
+  });
+
+  it("C2: enforces catalog -> approved RAG -> searchPlaces lookup chain and refuses inventing facts for unverified named places ('thác Bạc Sủng Thài', 'hồ Mây Xanh Đồng Văn')", async () => {
+    expect(TRIPSAGE_CHAT_INSTRUCTIONS).toContain("TUYỆT ĐỐI KHÔNG tự mô tả");
+    expect(TRIPSAGE_CHAT_INSTRUCTIONS).toContain("thông tin từ Google Maps, chưa kiểm tra");
+
+    const catalogPlace = { ...planningCandidate("cong-troi-qb"), name: "Cổng Trời Quản Bạ" };
+    const tools = createTripsageChatTools({
+      planning: { candidates: async () => [catalogPlace], routes: fixtureRoutes, now: () => planningNow },
+      emitItinerary: () => {},
+      latestUserText: "giới thiệu cho mình về thác Bạc Sủng Thài ở Mèo Vạc với, có nên đi không?",
+      places: async (query) => {
+        if (query.toLowerCase().includes("nho quế") || query.toLowerCase().includes("hoang su phi homestead")) {
+          return { status: "RESULTS", places: [{ placeId: "ChIJ_ext_1", name: "Điểm ngắm cảnh ngoài danh mục", latitude: 23.15, longitude: 105.4 }] };
+        }
+        return { status: "NO_RESULTS" };
+      },
+      knowledge: async () => [],
+    });
+
+    // 1. Named non-existent places ("thác Bạc Sủng Thài" & "hồ Mây Xanh Đồng Văn"): absent in catalog, RAG, Places
+    const destMissing1 = await tools.getDestinationInfo.execute!(
+      { destinationId: "thác Bạc Sủng Thài" },
+      { toolCallId: "d1", messages: [], context: {} } as never,
+    );
+    expect(destMissing1).toMatchObject({ ok: false, code: "DESTINATION_NOT_FOUND" });
+    expect((destMissing1 as { message: string }).message).toContain("từ chối mô tả");
+
+    const placesMissing1 = await tools.searchPlaces.execute!(
+      { query: "thác Bạc Sủng Thài" },
+      { toolCallId: "p1", messages: [], context: {} } as never,
+    );
+    expect(placesMissing1).toMatchObject({ ok: true, count: 0 });
+    expect((placesMissing1 as { note: string }).note).toContain("chưa có thông tin xác thực");
+
+    const destMissing2 = await tools.getDestinationInfo.execute!(
+      { destinationId: "hồ Mây Xanh Đồng Văn" },
+      { toolCallId: "d2", messages: [], context: {} } as never,
+    );
+    expect(destMissing2).toMatchObject({ ok: false, code: "DESTINATION_NOT_FOUND" });
+    const placesMissing2 = await tools.searchPlaces.execute!(
+      { query: "hồ Mây Xanh Đồng Văn" },
+      { toolCallId: "p2", messages: [], context: {} } as never,
+    );
+    expect(placesMissing2).toMatchObject({ ok: true, count: 0 });
+
+    // 2. When Google Places returns results, output marks facts explicitly as unchecked Google Maps data
+    const placesFound = await tools.searchPlaces.execute!(
+      { query: "Hoang Su Phi Homestead" },
+      { toolCallId: "p3", messages: [], context: {} } as never,
+    );
+    expect(placesFound).toMatchObject({ ok: true, count: 1 });
+    expect((placesFound as { note: string }).note).toContain("thông tin từ Google Maps, chưa kiểm tra");
+
+    // 3. Real catalog place returns catalog truth cleanly
+    const realDest = await tools.getDestinationInfo.execute!(
+      { destinationId: "Cổng Trời Quản Bạ" },
+      { toolCallId: "d3", messages: [], context: {} } as never,
+    );
+    expect(realDest).toMatchObject({
+      ok: true,
+      name: "Cổng Trời Quản Bạ",
+      source: "dữ liệu điểm đến trong danh mục KLTN",
+    });
   });
 });
