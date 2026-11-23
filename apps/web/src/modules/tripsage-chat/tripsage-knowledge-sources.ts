@@ -1,3 +1,5 @@
+import { extractSuggestRepliesDirectives } from "./assistant-conversation-contract";
+
 /**
  * Deterministic relevance & actual-usage filtering for local RAG knowledge sources (Point 2).
  *
@@ -345,16 +347,50 @@ function couldStartSourceLabel(rawCandidate: string, lang: ReplyLanguage = "vi")
   );
 }
 
+function couldStartDirectiveFence(rawCandidate: string): boolean {
+  const trimmed = rawCandidate.trimStart();
+  if (!trimmed) return false;
+  return trimmed === ":" || trimmed === "::" || trimmed.startsWith(":::");
+}
+
 /**
- * Stateful streaming filter that removes redundant inline source lines without stalling
- * normal text chunks, and normalizes expanded-knowledge headers on English turns (B3).
+ * Stateful streaming filter that removes redundant inline source lines and `:::...` directive fences
+ * (extracting valid `:::suggest_replies` quick-reply arrays) without stalling normal text chunks (B2 / B3 / C1).
  */
 export function createInlineSourceStreamFilter(options?: { lang?: ReplyLanguage }) {
   const lang = options?.lang ?? "vi";
   let pendingLine = "";
   let consecutiveBlankLines = 0;
+  let inDirectiveBlock = false;
+  let directiveBuffer = "";
+  const extractedReplies: string[] = [];
+
+  const collectDirectiveReplies = (rawBlock: string) => {
+    const parsed = extractSuggestRepliesDirectives(rawBlock);
+    if (parsed.replies.length > 0 && extractedReplies.length === 0) {
+      extractedReplies.push(...parsed.replies);
+    }
+  };
 
   const formatCompletedLine = (lineWithNewline: boolean, line: string): string => {
+    if (inDirectiveBlock) {
+      directiveBuffer += `${line}\n`;
+      if (/^[ \t]*:::[ \t]*$/u.test(line)) {
+        collectDirectiveReplies(directiveBuffer);
+        inDirectiveBlock = false;
+        directiveBuffer = "";
+      }
+      return "";
+    }
+    if (/^[ \t]*:::/u.test(line)) {
+      if (/^[ \t]*:::[ \t]*[a-zA-Z0-9_-]+[ \t]+[\s\S]*:::[ \t]*$/u.test(line)) {
+        collectDirectiveReplies(line);
+        return "";
+      }
+      inDirectiveBlock = true;
+      directiveBuffer = `${line}\n`;
+      return "";
+    }
     if (STANDALONE_SOURCE_LINE_RE.test(line)) return "";
     const cleaned = normalizeExpandedKnowledgeLanguage(
       line.replace(INLINE_SOURCE_TAIL_RE, "").trimEnd(),
@@ -381,7 +417,9 @@ export function createInlineSourceStreamFilter(options?: { lang?: ReplyLanguage 
         out += formatCompletedLine(true, rawLine);
       }
 
-      if (pendingLine && !couldStartSourceLabel(pendingLine, lang)) {
+      if (inDirectiveBlock) return out;
+
+      if (pendingLine && !couldStartDirectiveFence(pendingLine) && !couldStartSourceLabel(pendingLine, lang)) {
         const normalized = normalizeExpandedKnowledgeLanguage(pendingLine, lang);
         pendingLine = normalized;
         let holdStart = pendingLine.length;
@@ -406,10 +444,20 @@ export function createInlineSourceStreamFilter(options?: { lang?: ReplyLanguage 
       return out;
     },
     end(): string {
+      if (inDirectiveBlock || /^[ \t]*:::/u.test(pendingLine)) {
+        collectDirectiveReplies(`${directiveBuffer}${pendingLine}`);
+        inDirectiveBlock = false;
+        directiveBuffer = "";
+        pendingLine = "";
+        return "";
+      }
       if (!pendingLine) return "";
       const remaining = pendingLine;
       pendingLine = "";
       return formatCompletedLine(false, remaining);
+    },
+    takeReplies(): string[] {
+      return [...extractedReplies];
     },
   };
 }

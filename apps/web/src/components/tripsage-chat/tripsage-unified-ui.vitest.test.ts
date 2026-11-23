@@ -9,6 +9,8 @@ import { tripRequirementInputSchema } from "@/modules/trip-requirement/trip-requ
 import { fixtureRoutes, planningCandidate, planningNow } from "@/test/planning-fixtures";
 import { AssistantSidebar } from "@/components/assistant/assistant-sidebar";
 import { mergeUnifiedConversations, storedMessagesToUiMessages } from "./assistant-unified-history";
+import { TripsageMarkdown } from "./tripsage-markdown";
+import { extractSuggestRepliesDirectives, sanitizeStoredParts } from "@/modules/tripsage-chat/assistant-conversation-contract";
 import { readConversationState } from "./tripsage-conversation-state";
 import { parseItineraryPart, TripsageItineraryView } from "./tripsage-itinerary-view";
 
@@ -143,5 +145,42 @@ describe("single assistant routing and mode-tab removal (ticket 04)", () => {
       expect(dotsIdx).toBeGreaterThan(-1);
       expect(textSpanIdx).toBeGreaterThan(dotsIdx);
     }
+  });
+
+  it("C1: extracts and strips leaked :::suggest_replies blocks in stored legacy messages, sanitizeStoredParts, and TripsageMarkdown", () => {
+    const legacyText =
+      "Ba ngày của bạn tính cả đi-về từ Hà Nội hay là ba ngày ở điểm đến?\n\n:::suggest_replies\n{\"replies\":[\"3 ngày tính cả đi-về\",\"3 ngày trọn vẹn ở Hà Giang\"]}\n:::";
+
+    const extracted = extractSuggestRepliesDirectives(legacyText);
+    expect(extracted.text).toBe("Ba ngày của bạn tính cả đi-về từ Hà Nội hay là ba ngày ở điểm đến?");
+    expect(extracted.replies).toEqual(["3 ngày tính cả đi-về", "3 ngày trọn vẹn ở Hà Giang"]);
+
+    // Persistence sanitizer removes fence and synthesizes quick-replies part
+    const sanitized = sanitizeStoredParts([{ type: "text", text: legacyText }]);
+    expect(sanitized).toEqual([
+      { type: "text", text: "Ba ngày của bạn tính cả đi-về từ Hà Nội hay là ba ngày ở điểm đến?" },
+      { type: "data-quick-replies", id: "quick-replies", data: { replies: ["3 ngày tính cả đi-về", "3 ngày trọn vẹn ở Hà Giang"] } },
+    ]);
+
+    // Legacy stored message recovery strips ::: block and attaches quick-replies
+    const uiMsgs = storedMessagesToUiMessages([
+      {
+        id: "m-legacy",
+        role: "assistant",
+        createdAt: "2026-11-23T16:15:43.275Z",
+        parts: [{ type: "text", text: legacyText }],
+      },
+    ]);
+    const textPart = uiMsgs[0]!.parts.find((p): p is { type: "text"; text: string } => p.type === "text");
+    const qrPart = uiMsgs[0]!.parts.find(p => p.type === "data-quick-replies") as { data?: { replies?: string[] } } | undefined;
+    expect(textPart?.text).not.toContain(":::");
+    expect(textPart?.text).toContain("Ba ngày của bạn tính cả đi-về");
+    expect(qrPart?.data?.replies).toEqual(["3 ngày tính cả đi-về", "3 ngày trọn vẹn ở Hà Giang"]);
+
+    // TripsageMarkdown also strips any unclosed or residual ::: block on render
+    const rendered = renderToStaticMarkup(createElement(TripsageMarkdown, { text: legacyText }));
+    expect(rendered).not.toContain(":::");
+    expect(rendered).not.toContain("suggest_replies");
+    expect(rendered).toContain("Ba ngày của bạn tính cả đi-về");
   });
 });

@@ -22,7 +22,7 @@ import { tripsageFeatureInstructions, type TripsageFeature } from "./tripsage-fe
 import { budgetPartSchema, flightsPartSchema, hotelsPartSchema, LODGING_KINDS, planProgressPartSchema, saveActionPartSchema, type LodgingKind, type SaveActionPart } from "./tripsage-chat-parts";
 import type { PriorFlightLookupRecord, PriorHotelLookupKey } from "./tripsage-extra-tools";
 import { readPriceReferenceTransportSection } from "./tripsage-price-reference";
-import { assistantConversationIdSchema, conversationMetaPartSchema, sanitizeStoredParts, type StoredAssistantPart } from "./assistant-conversation-contract";
+import { assistantConversationIdSchema, conversationMetaPartSchema, extractSuggestRepliesDirectives, sanitizeStoredParts, type StoredAssistantPart } from "./assistant-conversation-contract";
 import type { MutationOutcome } from "../../lib/mutation-contract";
 import type { RememberSource } from "../tripsage-memory/memory-service";
 import { MEMORY_TOOL_NAMES } from "../tripsage-memory/memory-tools";
@@ -45,7 +45,7 @@ const TOOL_RESTRICTION = "Không dùng hay giả vờ dùng công cụ nào khá
 const PERSONA_INSTRUCTIONS = [
   "Bạn là người dẫn tour Hà Giang giàu kinh nghiệm, nói chuyện tự nhiên, ấm áp, có hồn như một người bạn am hiểu vùng núi, ở cả phần hỏi đáp du lịch lẫn lập hành trình; không máy móc, không lặp khuôn. Trả lời theo ngôn ngữ của tin nhắn mới nhất của người dùng (ít nhất tiếng Việt và tiếng Anh, mặc định tiếng Việt nếu không rõ). Luôn giữ tên địa danh Việt Nam/Hà Giang bằng tiếng Việt có dấu (ví dụ Hà Giang, Đồng Văn, Đèo Mã Pì Lèng, Sông Nho Quế), và viết cả các nút suggestReplies theo cùng ngôn ngữ trả lời.",
   "Quy tắc giọng văn: (1) Mỗi vấn đề hoặc lời xin lỗi chỉ nói MỘT lần trong cả cuộc trò chuyện; không xin lỗi lặp lại, không nhắc lại lỗi đã xử lý ở lượt trước. (2) Mỗi tin trả lời chứa TỐI ĐA MỘT câu hỏi; mọi câu hỏi kết thúc lượt mà người dùng cần chọn phương án ĐỀU PHẢI đi kèm suggestReplies gồm 2–4 nút bấm cụ thể (mỗi nút <= 40 ký tự), và mọi câu hỏi phụ (số người, nhịp đi, ngân sách, kiểu chỗ nghỉ, sở thích) chuyển thành nút suggestReplies thay vì hỏi thêm trong lời văn. (3) Không lặp lại thông tin người dùng vừa nêu; đi thẳng vào kết quả hoặc bước tiếp theo. (4) Cảnh báo kiểm tra lịch trình nói TỐI ĐA MỘT câu ngắn vì thẻ lịch đã hiển thị chi tiết đạt/cần xem lại.",
-  "Trình bày bằng markdown dễ đọc: đoạn ngắn, không in đậm cả câu (chỉ **in đậm** một cụm số liệu hoặc tên riêng khi thật cần), danh sách gạch đầu dòng hoặc đánh số, tiêu đề nhỏ (###) khi câu trả lời dài, bảng khi so sánh. Không dùng HTML, không chèn ảnh, không chèn đường link.",
+  "Trình bày bằng markdown dễ đọc: đoạn ngắn, không in đậm cả câu (chỉ **in đậm** một cụm số liệu hoặc tên riêng khi thật cần), danh sách gạch đầu dòng hoặc đánh số, tiêu đề nhỏ (###) khi câu trả lời dài, bảng khi so sánh. Không dùng HTML, không chèn ảnh, không chèn đường link, và TUYỆT ĐỐI không viết thẻ văn bản ':::suggest_replies' hay khối JSON/directive ':::...:::' trong lời văn (luôn dùng công cụ suggestReplies).",
   "Phân biệt 3 trường hợp ý định của người dùng (ADR-43 §2, ADR-44): (A) Mở đầu nói thẳng muốn đi hoặc muốn lập lịch (ví dụ 'tôi muốn lập hành trình Hà Giang', 'đi Hà Giang 4 ngày', 'lên lịch 3 ngày bằng xe máy') → KHÔNG hỏi lại 'bạn có muốn lập lịch không' và KHÔNG dừng lại để hỏi đủ thông tin trước; ghi ngay những gì người dùng đã nói (nếu có) bằng recordTripInfo, rồi lập ngay một bản nháp giả định trong cùng lượt (listDestinations rồi proposeItinerary — nếu chưa có số ngày thì chọn lịch 4 ngày, hệ thống tự điền giả định: điểm tập kết Hà Nội, 4 ngày 3 đêm, xe máy, thứ Bảy gần nhất). Sau bản nháp, viết đúng một dòng nêu rõ giả định ('Mình đang giả định: ...'), nhắc chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (đi từ đâu hoặc ngày nào), và đưa các giả định còn lại thành suggestReplies. (B) Đang hỏi đáp về một địa điểm rồi chuyển sang muốn lập lịch (ví dụ vừa hỏi về Cột cờ Lũng Cú rồi nhắn 'lên lịch đi') → xác nhận ý định lập lịch bằng một câu tự nhiên nêu rõ những gì bạn đã hiểu (đi Hà Giang và đưa địa điểm vừa hỏi làm điểm bắt buộc), đồng thời gọi listDestinations để lấy đúng id và ghi mustIncludeDestinationIds bằng recordTripInfo (tối đa 4 điểm), rồi hỏi gộp thông tin còn thiếu. (C) Câu hỏi chung hoặc mơ hồ (ví dụ 'Hà Giang có gì chơi?', 'mùa nào đẹp?', 'đèo Mã Pí Lèng thế nào?') → trả lời hỏi đáp trước bằng lookupLocalKnowledge, rồi cuối câu mới mời nhẹ xem có muốn lên lịch không (kèm suggestReplies); chưa gọi proposeItinerary.",
   "Với lời chào ngắn ('hi', 'hello', 'chào bạn'...): chào lại tự nhiên, nếu đang có chuyến đi hoặc lịch trình trong ngữ cảnh thì nhắc ngắn gọn chuyến đang lập và hỏi 1 câu để tiếp tục. Với yêu cầu thay đổi mơ hồ ('tôi muốn thay đổi', 'sửa giúp mình'...): hỏi đúng 1 câu 'Bạn muốn đổi phần nào?' kèm suggestReplies ('Đổi ngày đi', 'Đổi số ngày', 'Đổi điểm đến', 'Đổi nơi xuất phát').",
   "Khi trả lời hỏi đáp: ưu tiên gọi lookupLocalKnowledge trước. Với câu hỏi về giờ mở cửa theo ngày/thứ trong tuần hoặc giá vé của điểm đến trong danh mục, gọi getDestinationInfo trước để lấy giờ mở cửa và giá vé sẵn có trong cơ sở dữ liệu; trả lời bằng đúng dữ liệu đó và ghi rõ thông tin lấy từ dữ liệu điểm đến (thiếu giá vé thì nói rõ 'chưa có giá vé trong dữ liệu', không bịa). Khi người dùng hỏi mơ hồ về điểm trong lịch (như 'điểm thứ 2'), nêu rõ bạn đang hiểu là điểm nào (ví dụ 'Điểm dừng 2 của ngày 1 là …'), hoặc hỏi lại kèm suggestReplies tên các điểm đó. Chỉ những tài liệu thực sự liên quan và được bạn dùng trong phần trả lời chính mới hiện thành khối nguồn bên dưới; TUYỆT ĐỐI KHÔNG tự viết dòng 'Nguồn tài liệu:', 'Nguồn:' hay 'Source:' trong lời văn vì giao diện đã hiển thị tự động bên dưới. Lượt chỉ lập lịch hoặc chỉnh lịch không gọi lookupLocalKnowledge một cách máy móc. Nếu tài liệu không có nội dung khớp chủ đề hoặc phần bổ sung dựa vào hiểu biết chung, nói rõ nhãn 'Kiến thức mở rộng' khi trả lời tiếng Việt hoặc 'General knowledge' khi trả lời tiếng Anh — phần hiểu biết chung này không cần nguồn tài liệu địa phương và không được gắn nguồn không liên quan.",
@@ -909,6 +909,12 @@ export function streamTripsageChat(input: {
         );
       const privateInputs = new Set<string>();
       const sourceStreamFilters = new Map<string, ReturnType<typeof createInlineSourceStreamFilter>>();
+      const extractedDirectiveReplies: string[] = [];
+      const collectFilterReplies = (filter: ReturnType<typeof createInlineSourceStreamFilter>) => {
+        if (extractedDirectiveReplies.length > 0) return;
+        const found = filter.takeReplies();
+        if (found.length > 0) extractedDirectiveReplies.push(...found);
+      };
       const shaped = result.toUIMessageStream({ onError: failureText }).pipeThrough(new TransformStream<UIMessageChunk, UIMessageChunk>({
         transform(chunk, controller) {
           if (!announced && chunk.type === "text-start") {
@@ -927,6 +933,7 @@ export function streamTripsageChat(input: {
             const filter = sourceStreamFilters.get(filterId) ?? createInlineSourceStreamFilter({ lang: replyLang });
             sourceStreamFilters.set(filterId, filter);
             const filteredDelta = filter.push(chunk.delta);
+            collectFilterReplies(filter);
             if (!filteredDelta) return;
             textChunks.push(filteredDelta);
             return controller.enqueue({ ...chunk, delta: filteredDelta } as UIMessageChunk);
@@ -936,6 +943,7 @@ export function streamTripsageChat(input: {
             if (filter) {
               sourceStreamFilters.delete(chunk.id);
               const trailingDelta = filter.end();
+              collectFilterReplies(filter);
               if (trailingDelta) {
                 textChunks.push(trailingDelta);
                 controller.enqueue({ type: "text-delta", id: chunk.id, delta: trailingDelta } as UIMessageChunk);
@@ -985,7 +993,17 @@ export function streamTripsageChat(input: {
             return;
           }
           if (!streamErrored) {
-            const fullText = stripRedundantInlineSourceLines(textChunks.join(""), { lang: replyLang }).trim();
+            for (const filter of sourceStreamFilters.values()) {
+              const tail = filter.end();
+              collectFilterReplies(filter);
+              if (tail) textChunks.push(tail);
+            }
+            sourceStreamFilters.clear();
+            const directiveOut = extractSuggestRepliesDirectives(textChunks.join(""));
+            if (extractedDirectiveReplies.length === 0 && directiveOut.replies.length > 0) {
+              extractedDirectiveReplies.push(...directiveOut.replies);
+            }
+            const fullText = stripRedundantInlineSourceLines(directiveOut.text, { lang: replyLang }).trim();
             if (knowledgeCandidates.length > 0) {
               const usedTitles = selectUsedDocumentSources(fullText, knowledgeCandidates);
               if (usedTitles.length > 0) {
@@ -1014,6 +1032,14 @@ export function streamTripsageChat(input: {
                 }
               }
             }
+            const hadToolQuickReplies = emittedQuickReplies;
+            if (!hadToolQuickReplies && !emittedOriginCandidates && extractedDirectiveReplies.length > 0) {
+              const parsedInlineQr = quickRepliesPartSchema.safeParse({ replies: extractedDirectiveReplies });
+              if (parsedInlineQr.success) {
+                emittedQuickReplies = true;
+                latestEmittedQuickReplies = parsedInlineQr.data.replies;
+              }
+            }
             const reconciled = reconcileQuickRepliesWithQuestion({
               text: fullText,
               latestUserText: input.latestUserText,
@@ -1038,6 +1064,10 @@ export function streamTripsageChat(input: {
               const part = { type: "data-quick-replies" as const, id: "quick-replies", data: { replies: fallback } };
               controller.enqueue(part as UIMessageChunk);
               recordDataPart(part);
+            } else if (!hadToolQuickReplies && emittedQuickReplies && latestEmittedQuickReplies && latestEmittedQuickReplies.length > 0) {
+              const part = { type: "data-quick-replies" as const, id: "quick-replies", data: { replies: latestEmittedQuickReplies } };
+              controller.enqueue(part as UIMessageChunk);
+              recordDataPart(part);
             }
             const saveAction = resolveSaveActionPart({
               latestUserText: input.latestUserText,
@@ -1060,7 +1090,8 @@ export function streamTripsageChat(input: {
       const persistAssistant = async (controller: { enqueue: (chunk: UIMessageChunk) => void }) => {
         if (persisted || !input.onPersistAssistant || streamErrored) return;
         persisted = true;
-        const fullText = stripRedundantInlineSourceLines(textChunks.join(""), { lang: replyLang }).trim();
+        const directiveOut = extractSuggestRepliesDirectives(textChunks.join(""));
+        const fullText = stripRedundantInlineSourceLines(directiveOut.text, { lang: replyLang }).trim();
         const candidateParts: unknown[] = [...(fullText ? [{ type: "text", text: fullText }] : []), ...recordedDataParts];
         const sanitized = sanitizeStoredParts(candidateParts);
         if (!sanitized.length) return;

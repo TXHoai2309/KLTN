@@ -292,4 +292,66 @@ describe("Point 2 — knowledge source relevance & actual-usage filtering", () =
       "Cao nguyên đá Đồng Văn – Tài liệu tri thức du lịch",
     ]);
   });
+
+  it("C1: strips :::suggest_replies mid-stream and converts valid replies into data-quick-replies without leaking raw fences", async () => {
+    // 1. Mid-stream chunk boundary filter check
+    const filter = createInlineSourceStreamFilter();
+    const midChunks = [
+      "Ba ngày của bạn tính cả đi-về?\n\n::",
+      ":suggest_replies\n{\"replies\":[\"3 ngày tính cả đi-về\",",
+      "\"3 ngày trọn vẹn ở Hà Giang\"]}\n:::",
+    ];
+    const streamedClean = midChunks.map(c => filter.push(c)).join("") + filter.end();
+    expect(streamedClean).not.toContain(":::");
+    expect(streamedClean).not.toContain("suggest_replies");
+    expect(filter.takeReplies()).toEqual(["3 ngày tính cả đi-về", "3 ngày trọn vẹn ở Hà Giang"]);
+
+    // 2. Full SSE stream & persistence check (repro dbc94215 turn 27)
+    const persistedParts: unknown[] = [];
+    const model = new MockLanguageModelV3({
+      doStream: async () => ({
+        stream: new ReadableStream({
+          start(c) {
+            c.enqueue({ type: "text-start" as const, id: "t1" });
+            c.enqueue({ type: "text-delta" as const, id: "t1", delta: "Ba ngày của bạn tính cả đi-về từ Hà Nội hay là ba ngày ở điểm đến?\n\n:::" });
+            c.enqueue({ type: "text-delta" as const, id: "t1", delta: "suggest_replies\n{\"replies\":[\"3 ngày tính cả đi-về\",\"3 ngày trọn vẹn ở Hà Giang\"]}\n:::" });
+            c.enqueue({ type: "text-end" as const, id: "t1" });
+            c.enqueue({ type: "finish" as const, finishReason: "stop" as const, usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 } } as never);
+            c.close();
+          },
+        }),
+      }),
+    });
+
+    const res = streamTripsageChat({
+      model,
+      messages: [{ role: "user", content: "so sánh Hà Giang với Sapa, nên đi đâu nếu chỉ có 3 ngày?" }],
+      latestUserText: "so sánh Hà Giang với Sapa, nên đi đâu nếu chỉ có 3 ngày?",
+      planning: { candidates: async () => [], routes: { route: async () => ({ fromDestinationId: "", toDestinationId: "", status: "INSUFFICIENT_DATA", reason: "NOT_CONFIGURED", durationSeconds: null, distanceMeters: null, provider: null }) } },
+      onPersistAssistant: async (parts) => {
+        persistedParts.push(...parts);
+        return { status: "SUCCESS", data: {} };
+      },
+    });
+    const sse = await res.text();
+    const events = sse
+      .split("\n")
+      .filter(l => l.startsWith("data: ") && l !== "data: [DONE]")
+      .map(l => JSON.parse(l.slice(6)) as { type?: string; delta?: string; data?: unknown });
+    const streamedText = events.filter(e => e.type === "text-delta").map(e => e.delta ?? "").join("");
+    expect(streamedText).not.toContain(":::");
+    expect(streamedText).not.toContain("suggest_replies");
+    expect(streamedText).toContain("Ba ngày của bạn tính cả đi-về");
+
+    const qrEvents = events.filter(e => e.type === "data-quick-replies");
+    expect(qrEvents).toHaveLength(1);
+    expect((qrEvents[0]!.data as { replies: string[] }).replies).toEqual([
+      "3 ngày tính cả đi-về",
+      "3 ngày trọn vẹn ở Hà Giang",
+    ]);
+
+    const persistedText = (persistedParts.find((p): p is { type: "text"; text: string } => (p as { type?: string }).type === "text"))?.text ?? "";
+    expect(persistedText).not.toContain(":::");
+    expect(persistedParts.some(p => (p as { type?: string }).type === "data-quick-replies")).toBe(true);
+  });
 });

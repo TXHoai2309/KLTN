@@ -5,6 +5,7 @@ import type { QaConversationSummary } from "@/modules/ai/qa-contract";
 import {
   assistantConversationDetailSchema,
   assistantConversationListSchema,
+  extractSuggestRepliesDirectives,
   type AssistantConversationDetail,
   type AssistantConversationMessage,
   type AssistantConversationSummary,
@@ -51,11 +52,38 @@ export function mergeUnifiedConversations(
 
 /** Converts stored assistant conversation messages into AI SDK UIMessage[] so all saved cards render immediately. */
 export function storedMessagesToUiMessages(messages: readonly AssistantConversationMessage[]): UIMessage[] {
-  return messages.map(message => ({
-    id: message.id,
-    role: message.role,
-    parts: message.parts as unknown as UIMessage["parts"],
-  }));
+  return messages.map(message => {
+    if (message.role !== "assistant") {
+      return {
+        id: message.id,
+        role: message.role,
+        parts: message.parts as unknown as UIMessage["parts"],
+      };
+    }
+    const cleanedParts: unknown[] = [];
+    const extractedReplies: string[] = [];
+    let hasQuickReplies = false;
+    for (const part of message.parts) {
+      if (part.type === "data-quick-replies") hasQuickReplies = true;
+      if (part.type === "text") {
+        const { text, replies } = extractSuggestRepliesDirectives(part.text);
+        if (replies.length > 0 && extractedReplies.length === 0) {
+          extractedReplies.push(...replies);
+        }
+        if (text) cleanedParts.push({ ...part, text });
+        continue;
+      }
+      cleanedParts.push(part);
+    }
+    if (!hasQuickReplies && extractedReplies.length > 0) {
+      cleanedParts.push({ type: "data-quick-replies", id: "quick-replies", data: { replies: extractedReplies } });
+    }
+    return {
+      id: message.id,
+      role: message.role,
+      parts: cleanedParts as unknown as UIMessage["parts"],
+    };
+  });
 }
 
 export async function fetchAssistantConversations(options: {

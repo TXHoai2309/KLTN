@@ -37,13 +37,91 @@ export type StoredAssistantPart = z.infer<typeof storedAssistantPartSchema>;
 
 export const storedAssistantPartsSchema = z.array(storedAssistantPartSchema).max(ASSISTANT_CONVERSATION_MAX_PARTS);
 
+/**
+ * Extracts `:::suggest_replies` JSON payloads and removes any `:::` fenced directives
+ * (including unclosed trailing blocks) from assistant text (C1).
+ */
+export function extractSuggestRepliesDirectives(raw: string): { text: string; replies: string[] } {
+  const replies: string[] = [];
+  if (!raw.includes(":::")) {
+    return { text: raw, replies };
+  }
+
+  const tryCollectReplies = (body: string) => {
+    const trimmedBody = body.trim();
+    if (!trimmedBody) return;
+    try {
+      const parsedJson = JSON.parse(trimmedBody) as unknown;
+      const rawList = Array.isArray(parsedJson)
+        ? parsedJson
+        : parsedJson && typeof parsedJson === "object" && "replies" in parsedJson
+          ? (parsedJson as { replies?: unknown }).replies
+          : null;
+      if (!Array.isArray(rawList)) return;
+      const cleaned = rawList
+        .filter((item): item is string => typeof item === "string")
+        .map(item => item.trim())
+        .filter(item => item.length > 0 && item.length <= 40)
+        .slice(0, 4);
+      const validated = quickRepliesPartSchema.safeParse({ replies: cleaned });
+      if (validated.success && replies.length === 0) {
+        replies.push(...validated.data.replies);
+      }
+    } catch {
+      // Malformed or partial mid-stream directive JSON; stripped without crashing.
+    }
+  };
+
+  let cleaned = raw.replace(
+    /^[ \t]*:::[ \t]*([a-zA-Z0-9_-]*)[ \t]*(\{[^\n]*\}|\[[^\n]*\])[ \t]*:::[ \t]*$/gmu,
+    (_full, kind: string, payload: string) => {
+      if (kind.toLowerCase() === "suggest_replies") tryCollectReplies(payload);
+      return "";
+    },
+  );
+
+  cleaned = cleaned.replace(
+    /(?:^|\r?\n)[ \t]*:::[ \t]*([a-zA-Z0-9_-]*)[ \t]*(?:\r?\n([\s\S]*?))?(?:\r?\n[ \t]*:::[ \t]*(?=\r?\n|$)|$)/gu,
+    (_full, kind: string, body: string | undefined) => {
+      if (kind.toLowerCase() === "suggest_replies" && body) {
+        tryCollectReplies(body);
+      }
+      return "";
+    },
+  );
+
+  cleaned = cleaned.replace(/\n{3,}/gu, "\n\n").trim();
+  return { text: cleaned, replies };
+}
+
 /** Filters an arbitrary list of UI/stream parts down to strictly schema-valid storable display parts. */
 export function sanitizeStoredParts(parts: readonly unknown[]): StoredAssistantPart[] {
   const out: StoredAssistantPart[] = [];
+  const extractedReplies: string[] = [];
+  let hasQuickReplies = false;
   for (const part of parts) {
     if (out.length >= ASSISTANT_CONVERSATION_MAX_PARTS) break;
     const parsed = storedAssistantPartSchema.safeParse(part);
-    if (parsed.success) out.push(parsed.data);
+    if (!parsed.success) continue;
+    if (parsed.data.type === "text") {
+      const { text, replies } = extractSuggestRepliesDirectives(parsed.data.text);
+      if (replies.length > 0 && extractedReplies.length === 0) {
+        extractedReplies.push(...replies);
+      }
+      if (!text) continue;
+      out.push({ type: "text", text });
+      continue;
+    }
+    if (parsed.data.type === "data-quick-replies") hasQuickReplies = true;
+    out.push(parsed.data);
+  }
+  if (!hasQuickReplies && extractedReplies.length > 0 && out.length < ASSISTANT_CONVERSATION_MAX_PARTS) {
+    const qr = storedAssistantPartSchema.safeParse({
+      type: "data-quick-replies",
+      id: "quick-replies",
+      data: { replies: extractedReplies },
+    });
+    if (qr.success) out.push(qr.data);
   }
   return out;
 }

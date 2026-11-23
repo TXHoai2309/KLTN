@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 
 import { createIdempotencyKey } from "@/lib/mutation-client";
 import type { QaContext } from "@/modules/ai/qa-contract";
-import { conversationMetaPartSchema } from "@/modules/tripsage-chat/assistant-conversation-contract";
+import { conversationMetaPartSchema, extractSuggestRepliesDirectives } from "@/modules/tripsage-chat/assistant-conversation-contract";
 import { accessLegPartSchema, isCurrentAccessLeg, reconcileAccessPins, resolveTravelDaysContext } from "@/modules/tripsage-chat/tripsage-access-leg";
 import { resolveBudgetSavingsChips } from "@/modules/tripsage-chat/tripsage-cost";
 import { buildTripsageChatBody, summarizeItinerary } from "@/modules/tripsage-chat/tripsage-chat-context";
@@ -843,14 +843,24 @@ export function TripsageChatClient({
                 )}
                 <div className="assistant-messages" aria-live="polite">
                   {messages.map(message => {
-                    const text = message.parts.map(part => (part.type === "text" ? part.text : "")).join("");
+                    const rawText = message.parts.map(part => (part.type === "text" ? part.text : "")).join("");
+                    const directiveResult =
+                      message.role === "assistant"
+                        ? extractSuggestRepliesDirectives(rawText)
+                        : { text: rawText, replies: [] };
+                    const text = directiveResult.text;
                     const planEntry = planVersions.get(message.id) ?? null;
                     const itinerary = message.role === "assistant" && message.id === lastItineraryMessageId ? latestItinerary : null;
                     const isCurrentPlanMessage = Boolean(itinerary && planEntry);
                     const sources = message.role === "assistant" ? [...message.parts].reverse().map(part => (part.type === "data-sources" ? parseSourcesPart(part.data) : null)).find(Boolean) ?? [] : [];
                     const resultParts = resultTurns.get(message.id)?.filter(part => part.type !== "data-budget" || message.id === latestBudgetMessageId) ?? [];
                     const candidateButtons = state.originCandidates?.messageId === message.id && !busy ? state.originCandidates.candidates.map(c => c.label) : [];
-                    const quickReplies = state.quickReplies?.messageId === message.id && !busy ? state.quickReplies.replies : [];
+                    const quickReplies =
+                      state.quickReplies?.messageId === message.id && !busy
+                        ? state.quickReplies.replies
+                        : message.role === "assistant" && !busy && directiveResult.replies.length > 0 && message.id === messages.at(-1)?.id
+                          ? directiveResult.replies
+                          : [];
                     const replies = candidateButtons.length > 0 ? candidateButtons : quickReplies;
                     const cost = state.cost?.messageId === message.id ? state.cost.data : null;
                     const activeTurnCost = cost ?? (isCurrentPlanMessage ? (state.cost?.data ?? null) : null);

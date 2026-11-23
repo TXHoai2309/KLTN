@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode } from "react";
+import { extractSuggestRepliesDirectives } from "@/modules/tripsage-chat/assistant-conversation-contract";
 
 /**
  * Minimal, safe markdown for assistant text (ADR-42): headings, paragraphs, bullet/numbered lists, tables, **bold**,
@@ -6,7 +7,8 @@ import { Fragment, type ReactNode } from "react";
  * shortcut: no nested lists or block quotes; swap in a full renderer if replies start needing them.
  */
 export function TripsageMarkdown({ text }: { text: string }) {
-  return <div className="tripsage-md">{renderBlocks(text)}</div>;
+  const cleanText = extractSuggestRepliesDirectives(text).text;
+  return <div className="tripsage-md">{renderBlocks(cleanText)}</div>;
 }
 
 type Block = { kind: "h"; level: number; text: string } | { kind: "p"; text: string } | { kind: "ul" | "ol"; items: string[] } | { kind: "table"; rows: string[][] };
