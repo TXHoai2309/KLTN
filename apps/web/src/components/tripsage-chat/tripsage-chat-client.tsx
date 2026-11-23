@@ -52,7 +52,7 @@ import {
 import { TripsageAccessLegCard } from "./tripsage-access-leg-card";
 import { TripsageChatNotice } from "./tripsage-chat-notice";
 import { isAssistantTurnTextDone, TripsageStreamedText } from "./tripsage-streamed-text";
-import { readConversationState } from "./tripsage-conversation-state";
+import { isProposalOutdated, readConversationState } from "./tripsage-conversation-state";
 import { TripsageCostCard } from "./tripsage-cost-card";
 import { parseItineraryPart } from "./tripsage-itinerary-view";
 import { TripsageMarkdown } from "./tripsage-markdown";
@@ -241,6 +241,15 @@ export function TripsageChatClient({
     return next;
   }, [lastItineraryMessageId, messages]);
   const itineraryCurrent = latestItinerary && !state.itineraryStale;
+  const planOutdated = latestItinerary
+    ? isProposalOutdated({
+        proposal: latestItinerary,
+        tripInfo: state.tripInfo,
+        journey: state.journey,
+        cost: state.cost?.data ?? null,
+        itineraryStale: state.itineraryStale,
+      })
+    : false;
   // A replan that leaves the days unchanged (e.g. only the origin was confirmed) folds the cards instead of re-showing them open.
   const planUnchanged = useMemo(() => {
     const plans = messages.flatMap(message => {
@@ -783,6 +792,7 @@ export function TripsageChatClient({
                             proposal={planEntry.proposal}
                             cost={isCurrentPlanMessage ? (state.cost?.data ?? cost) : null}
                             isCurrent={isCurrentPlanMessage}
+                            isOutdated={isCurrentPlanMessage && planOutdated}
                             isPanelOpen={planDrawerOpen}
                             onOpenPanel={isCurrentPlanMessage ? () => setPlanDrawerOpen(true) : undefined}
                           />
@@ -942,6 +952,7 @@ export function TripsageChatClient({
           pins={pinControl}
           busy={busy}
           noticePresent={Boolean(notice)}
+          isOutdated={planOutdated}
           drawerOpen={planDrawerOpen}
           onCloseDrawer={() => setPlanDrawerOpen(false)}
           onToggleChosenLodging={handleToggleChosenLodging}

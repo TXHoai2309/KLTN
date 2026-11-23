@@ -3299,6 +3299,21 @@
   display: none;
 }
 
+.tripsage-panel-stale-banner,
+.tripsage-plan-summary-stale {
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: var(--tv-radius-sm, 8px);
+  background: var(--tv-warn-bg);
+  color: var(--tv-warn-ink);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.tripsage-panel-stale-banner {
+  margin: var(--tv-space-2) var(--tv-space-4) 0;
+}
+
 .tripsage-panel-subtabs {
   display: flex;
   align-items: center;

@@ -6,11 +6,15 @@ import { travelerButtonClassName } from "@/components/traveler-ui/traveler-butto
 import type { PlannerResult } from "@/modules/trip-planner/planner-contract";
 import { formatVnd, type CostPart } from "@/modules/tripsage-chat/tripsage-cost";
 
+import { STALE_ITINERARY_MESSAGE } from "./tripsage-conversation-state";
+
 export interface TripsagePlanSummaryCardProps {
   version: number;
   proposal: PlannerResult;
   cost?: CostPart | null;
   isCurrent: boolean;
+  /** Bug 7: true when recorded trip info changed after this plan was generated. */
+  isOutdated?: boolean;
   isPanelOpen?: boolean;
   onOpenPanel?: () => void;
 }
@@ -24,6 +28,7 @@ export function TripsagePlanSummaryCard({
   proposal,
   cost,
   isCurrent,
+  isOutdated = false,
   isPanelOpen = false,
   onOpenPanel,
 }: TripsagePlanSummaryCardProps) {
@@ -50,6 +55,12 @@ export function TripsagePlanSummaryCard({
         </div>
         {!isCurrent && <span className="tripsage-access-stale-badge">Đã có bản mới</span>}
       </div>
+
+      {isCurrent && isOutdated && (
+        <p role="status" className="tripsage-plan-summary-stale" data-testid="plan-summary-outdated">
+          {STALE_ITINERARY_MESSAGE}
+        </p>
+      )}
 
       <div className="tripsage-plan-summary-stats">
         {cost && (

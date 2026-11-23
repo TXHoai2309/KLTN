@@ -296,4 +296,47 @@ describe("Ticket 10: Plan summary card & desktop split panel / tablet drawer (sl
       if (activeKey === "travel-return") expect(html).toContain("Ngày về · TP Hà Giang (bến xe phía Nam) → Đà Nẵng");
     }
   });
+
+  it("Bug 7: shows stale warning banner and locks 'Lưu chuyến' when recorded tripInfo diverges from current proposal", () => {
+    const proposal = makeProposal("prop-stale-7");
+    const changedTripInfo = {
+      homeCity: "Hà Nội",
+      startDate: "2026-12-26",
+      durationDays: 3,
+      transport: "CAR" as const,
+      travelers: 5,
+    };
+    const panelHtml = renderToStaticMarkup(
+      createElement(TripsagePlanPanel, {
+        proposal,
+        suggestions: [],
+        tripInfo: changedTripInfo,
+        chosenLodgings: {},
+        pinnedItems: [],
+        drawerOpen: false,
+        onCloseDrawer: () => {},
+        onToggleChosenLodging: () => {},
+        onRequestMeals: () => {},
+        onAskAccess: () => {},
+        onSelectSavingsOption: () => {},
+        onSaved: () => {},
+        onSaveStateChange: () => {},
+      }),
+    );
+    expect(panelHtml).toContain("Thông tin chuyến đã đổi — bản lịch này chưa cập nhật");
+    expect(panelHtml).toContain('data-testid="plan-panel-outdated"');
+    expect(panelHtml).toMatch(/<button[^>]*disabled=""[^>]*>Lưu chuyến<\/button>/);
+
+    const summaryHtml = renderToStaticMarkup(
+      createElement(TripsagePlanSummaryCard, {
+        version: 1,
+        proposal,
+        isCurrent: true,
+        isOutdated: true,
+        onOpenPanel: () => {},
+      }),
+    );
+    expect(summaryHtml).toContain("Thông tin chuyến đã đổi — bản lịch này chưa cập nhật");
+    expect(summaryHtml).toContain('data-testid="plan-summary-outdated"');
+  });
 });

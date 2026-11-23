@@ -26,6 +26,7 @@ import {
   type TimelinePart,
   type TimelineSuggestion,
 } from "@/modules/tripsage-chat/tripsage-timeline";
+import { isProposalOutdated, STALE_ITINERARY_MESSAGE } from "./tripsage-conversation-state";
 import { TripsageAccessLegCard } from "./tripsage-access-leg-card";
 import { TripsageCostCard } from "./tripsage-cost-card";
 import type { PinControl } from "./tripsage-pin-button";
@@ -46,6 +47,8 @@ export interface TripsagePlanPanelProps {
   pins?: PinControl;
   busy?: boolean;
   noticePresent?: boolean;
+  /** Bug 7: true when trip requirements changed after this proposal was built. */
+  isOutdated?: boolean;
   drawerOpen: boolean;
   initialDayKey?: string;
   onCloseDrawer: () => void;
@@ -117,6 +120,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
   pins,
   busy = false,
   noticePresent = false,
+  isOutdated = false,
   drawerOpen,
   initialDayKey,
   onCloseDrawer,
@@ -403,6 +407,8 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
     .join(" · ");
 
   const passedChecks = proposal.checks.filter((c) => c.status === "PASS").length;
+  const planOutdated = isProposalOutdated({ proposal, tripInfo, cost, itineraryStale: isOutdated });
+  const outdatedReason = planOutdated ? STALE_ITINERARY_MESSAGE : null;
 
   return (
     <>
@@ -453,6 +459,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
                     suggestions={suggestions}
                     pinnedItems={pinnedItems}
                     primaryLabel="Lưu chuyến"
+                    outdatedReason={outdatedReason}
                     onSaved={onSaved}
                     onStateChange={onSaveStateChange}
                     onRequestFix={onSelectSavingsOption}
@@ -470,6 +477,12 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
             </button>
           </div>
         </header>
+
+        {planOutdated && (
+          <div role="status" className="tripsage-panel-stale-banner" data-testid="plan-panel-outdated">
+            {STALE_ITINERARY_MESSAGE}
+          </div>
+        )}
 
         <nav className="tripsage-panel-subtabs" role="tablist" aria-label="Chế độ xem bản lịch">
           <button
@@ -638,6 +651,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
               pinnedItems={pinnedItems}
               primaryLabel="Lưu chuyến"
               buttonSize="lg"
+              outdatedReason={outdatedReason}
               onSaved={onSaved}
               onStateChange={onSaveStateChange}
               onRequestFix={onSelectSavingsOption}

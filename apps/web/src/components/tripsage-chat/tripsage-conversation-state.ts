@@ -1,3 +1,4 @@
+import type { PlannerResult } from "@/modules/trip-planner/planner-contract";
 import { tripJourneySchema, type TripJourney } from "@/modules/trip-origin/trip-origin-contract";
 import {
   changesItinerary,
@@ -58,12 +59,40 @@ function sameJourney(a: TripJourney | null, b: TripJourney): boolean {
     && a.returnDeadlineMinute === b.returnDeadlineMinute;
 }
 
+export const STALE_ITINERARY_MESSAGE = "Thông tin chuyến đã đổi — bản lịch này chưa cập nhật";
+
+/**
+ * Bug 7: returns true when the current recorded trip info or confirmed journey differs from the displayed proposal
+ * (startDate, durationDays, transport, travelers, or origin), so the UI flags the plan stale and locks Save.
+ */
+export function isProposalOutdated(input: {
+  proposal: PlannerResult;
+  tripInfo?: TripsageTripInfo | null;
+  journey?: TripJourney | null;
+  cost?: CostPart | null;
+  itineraryStale?: boolean;
+}): boolean {
+  if (input.itineraryStale) return true;
+  const { proposal, tripInfo, journey, cost } = input;
+  if (tripInfo) {
+    if (tripInfo.startDate && proposal.requirement.startDate && tripInfo.startDate !== proposal.requirement.startDate) return true;
+    if (tripInfo.durationDays !== undefined && tripInfo.durationDays !== proposal.requirement.durationDays) return true;
+    if (tripInfo.transport && tripInfo.transport !== proposal.requirement.transport) return true;
+    if (tripInfo.travelers !== undefined && cost && tripInfo.travelers !== cost.travelers) return true;
+  }
+  const latestOrigin = journey?.origin?.label;
+  const planOrigin = proposal.requirement.journey?.origin?.label;
+  if (latestOrigin && planOrigin && latestOrigin !== planOrigin) return true;
+  return false;
+}
+
 /** Reads the conversation in order; only schema-valid parts count. Quick replies and candidate buttons belong to the last assistant message only. */
 export function readConversationState(messages: readonly Message[], isItinerary: (data: unknown) => boolean): ConversationState {
   let tripInfo: TripsageTripInfo | null = null;
   let journey: TripJourney | null = null;
   let lastItineraryMessageId: string | null = null;
   let itineraryStale = false;
+  let itineraryTravelers: number | null = null;
   let originCandidates: ConversationState["originCandidates"] = null;
   let originCandidatesToken: string | null = null;
   let quickReplies: ConversationState["quickReplies"] = null;
@@ -81,7 +110,11 @@ export function readConversationState(messages: readonly Message[], isItinerary:
       if (part.type === "data-trip-info") {
         const parsed = tripInfoPartSchema.safeParse(part.data);
         if (!parsed.success) continue;
-        if (lastItineraryMessageId && changesItinerary(tripInfo, parsed.data.tripInfo)) itineraryStale = true;
+        const travelersChanged =
+          itineraryTravelers !== null
+          && parsed.data.tripInfo.travelers !== undefined
+          && parsed.data.tripInfo.travelers !== itineraryTravelers;
+        if (lastItineraryMessageId && (changesItinerary(tripInfo, parsed.data.tripInfo) || travelersChanged)) itineraryStale = true;
         tripInfo = parsed.data.tripInfo;
       } else if (part.type === "data-journey") {
         const parsed = journeyPartSchema.safeParse(part.data);
@@ -98,6 +131,7 @@ export function readConversationState(messages: readonly Message[], isItinerary:
         }
       } else if (part.type === "data-itinerary" && isItinerary(part.data)) {
         lastItineraryMessageId = message.id; itineraryStale = false; timeline = null; suggestions = [];
+        itineraryTravelers = tripInfo?.travelers ?? 2;
         const days = Array.isArray((part.data as { days?: unknown[] } | null)?.days) ? (part.data as { days: unknown[] }).days.length : 0;
         latestItineraryDays = days;
         chosenLodgings = days > 0 ? pruneChosenLodgings(chosenLodgings, days) : {};

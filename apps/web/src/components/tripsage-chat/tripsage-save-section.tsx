@@ -27,6 +27,7 @@ export function TripsageSaveSection({
   pinnedItems,
   primaryLabel = "Lưu hành trình",
   buttonSize = "md",
+  outdatedReason,
   initialView,
   onSaved,
   onStateChange,
@@ -41,6 +42,8 @@ export function TripsageSaveSection({
   pinnedItems?: readonly PinnedItem[];
   primaryLabel?: string;
   buttonSize?: "md" | "lg";
+  /** Bug 7: when trip requirements changed after this plan was generated, lock Save with a clear reason. */
+  outdatedReason?: string | null;
   /** Test seam for rendering saved / pending / failed / unknown states cleanly. */
   initialView?: ChatSaveView;
   onSaved?: (tripId: string) => void;
@@ -56,6 +59,22 @@ export function TripsageSaveSection({
   const [confirmed, setConfirmed] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  if (outdatedReason) {
+    return (
+      <div className="tripsage-save" aria-live="polite">
+        <button
+          type="button"
+          className={travelerButtonClassName({ variant: "primary", size: buttonSize })}
+          disabled
+          title={outdatedReason}
+        >
+          {primaryLabel}
+        </button>
+        <p role="note" className="tripsage-save-note">{outdatedReason}</p>
+      </div>
+    );
+  }
 
   const currentAssumed = tripInfo ? tripInfo.assumedFields : result.assumedFields;
   const blockingAssumed = blockingAssumedFields(currentAssumed);
