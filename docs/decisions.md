@@ -1248,3 +1248,45 @@ In production conversation `eca7ea7f-fdff-4519-9778-c907d895831e`:
 
 - Unlisted corridors (such as `Đà Nẵng ⇄ Hà Nội` sleeper bus/train or `Đà Nẵng ⇄ Hà Nội` flight when Google Flights is unavailable) never show fabricated estimates and stay truthfully marked `"chưa có giá"` until the owner adds approved ranges to the reference table or uploads a reviewed RAG price-reference document.
 - Rebuilding an itinerary (e.g., v1 → v2 stop edits) preserves looked-up Google Flights fares and approved bus fares across turns and reloads.
+
+## ADR-53 — Traveler-stated overnight area constraints and day-boundary preservation (2026-11-23)
+
+- **Status:** Accepted and implemented (`e0459cf`). Extends `ADR-42` and `ADR-48`.
+- **Date:** 2026-11-23
+
+### Context
+
+In production conversation `66a36527-9de1-4420-a464-4106c09e83d9` (Turn L4), the traveler requested `"thêm đi thuyền sông Nho Quế vào ngày 2 nhé, và tối ngày 2 nghỉ ở Đồng Văn"`. Two root causes prevented the itinerary from honoring that request until Turn L10:
+1. `TripsageTripInfo` had no structured field for per-night overnight area constraints (`afterDay`, `area`), so the requirement was neither persisted across edit turns nor enforced deterministically.
+2. When the model passed Day 2 ending at `Phố cổ Đồng Văn` (`[["D5"], ["D14", "D13"], ["D11"]]`), `planJourney` ran with `allowBoundaryRepartition = true`, silently moving Day 2 stops across day boundaries; in the fallback call Day 2 ended at `Sông Nho Quế` (~21 km mountain road from Đồng Văn), causing `addSuggestions` to reject Đồng Văn homestays (`TOO_FAR_16KM_LIMIT_5KM`) and `estimateCosts` to hijack the closing question to bus tickets.
+
+### Decision
+
+1. **Structured `overnightAreas` constraint in `tripInfoSchema`:** Add optional `overnightAreas: Array<{ afterDay: number; area: string }>` (extracted deterministically from traveler messages and writable via `recordTripInfo`), persisted across subsequent itinerary edit turns until explicitly changed or removed (`"Bỏ yêu cầu nghỉ X"`).
+2. **Deterministic arrangement & day-boundary preservation:** Before calling `scheduleSelection`, `arrangeSelectionForOvernightAreas` reorders stops inside day `N` (or brings an area-matching stop to the end of day `N`) so day `N` ends in area `X` or within `15 km` estimated mountain road distance (`haversine * 1.45 <= 15`, resolving areas through `resolveOvernightAreaLabel` + `OVERNIGHT_TOWN_CENTERS` because prod destinations store a placeholder `area = "khu vực hà giang"`). When explicit overnight constraints are active, `scheduleSelection` disables `allowBoundaryRepartition` so `planJourney` cannot silently move day `N`'s final stop. `addSuggestions` accepts `LODGING` in the requested overnight town center radius even when the last scenic stop is slightly outside the default 5 km lodging anchor radius.
+3. **Truthful unmet handling without Validator bypass:** If an overnight constraint cannot be satisfied (e.g., trip shortened to 2 days so night 2 is the return day, or day `N` ends too far from `X`), `proposeItinerary` returns `unmetOvernightAreas` with a concrete reason and 2–3 resolution chips (e.g., `"Nghỉ Đồng Văn đêm 1"`, `"Thêm 1 ngày"`, `"Bỏ yêu cầu nghỉ Đồng Văn"`), and `suggestReplies` / `estimateCosts` enforce `UNMET_OVERNIGHT_PRIORITY` so the closing question stays focused on resolving the overnight conflict. The deterministic Constraint Validator still independently checks all 5 check groups and is never bypassed.
+
+### Consequences
+
+- Explicit overnight requests remain honored across L4-style additions and L7-style duration edits without any Prisma schema migration.
+- `overnightAreaConstraintSchema` lives in `tripsage-chat-context.ts` so heavy scheduling helpers in `tripsage-overnight.ts` stay out of the browser bundle.
+
+## ADR-54 — Inline confirmed `data-save-action` part for explicit chat save requests (2026-11-23)
+
+- **Status:** Accepted and implemented (`743966b`). Extends `ADR-35`, `ADR-42`, and `ADR-43`.
+- **Date:** 2026-11-23
+
+### Context
+
+In production conversation `66a36527-9de1-4420-a464-4106c09e83d9` (Turn L11: `"ok lưu lịch này giúp mình luôn nhé"`), the assistant refused with outdated pre-redesign UI instructions (`"Bạn bấm 'Lưu hành trình' ngay dưới thẻ lịch nhé"`), whereas the actual button is labeled **`Lưu chuyến`** at the top-right of the desktop plan panel header and the bottom footer of the mobile plan sheet.
+
+### Decision
+
+1. **Accurate persona copy:** Update `PERSONA_INSTRUCTIONS` to reference the exact button label **`Lưu chuyến`** and its real desktop (`góc phải đầu panel lịch`) and mobile (`chân sheet`) locations.
+2. **Inline confirmed save action (`data-save-action`):** When the traveler explicitly asks to save an existing itinerary (excluding negations like `"không cần lưu"` / `"đừng lưu"` / `"do not save"`), the server emits a schema-validated, persisted `data-save-action` part (`{ eligible: boolean, reason?: string }`) during stream `flush()`. The assistant **never** auto-saves on the server.
+3. **Reuse single confirmed save seam:** `TripsageChatClient` renders `TripsageSaveSection` inline on the latest save-action assistant message (`primaryLabel="Lưu chuyến"`), reusing the exact same confirmed `POST /api/trips` flow, `SUCCESS`/`FAILED`/`UNKNOWN` contract, deterministic `Idempotency-Key`, assumed-draft guard, stale-proposal lock (`STALE_ITINERARY_MESSAGE`), and `Đã lưu · Mở chuyến đi` restored state as `TripsagePlanPanel`.
+
+### Consequences
+
+- Travelers asking `"ok lưu lịch này giúp mình luôn nhé"` can click **`Lưu chuyến`** directly inside the reply (or in the panel header/mobile sheet) while preserving the locked product invariant that saving only happens on explicit user confirmation.
+- Ineligible plans (unconfirmed assumed fields, stale itinerary after new requirements, or failed/unchecked checks) surface the exact blocking reason rather than silently failing or misleading the user.
