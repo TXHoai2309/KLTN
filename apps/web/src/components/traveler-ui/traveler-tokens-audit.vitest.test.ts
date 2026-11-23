@@ -43,6 +43,60 @@ describe("Ticket 02: Traveler CSS tokens, 2 fonts only, no full-sentence bold", 
     expect(assistantCss).toMatch(/\.assistant-composer-input\s*\{[^}]*box-shadow\s*:\s*var\(--tv-shadow-float\)/);
   });
 
+  it("declares every --tv-font-* :root variable dependency on <html> in RootLayout", () => {
+    const globalsCss = readFileSync(resolve(WEB, "../../packages/ui/src/styles/globals.css"), "utf8");
+    const rootBlockMatch = globalsCss.match(/:root\s*\{([\s\S]*?)\r?\n\}/);
+    expect(rootBlockMatch, ":root block missing in globals.css").not.toBeNull();
+    const rootBlock = rootBlockMatch![1]!;
+
+    // Collect every var(--...) referenced by --tv-font-* tokens on :root
+    const fontTokenDecls = [...rootBlock.matchAll(/(--tv-font-[\w-]+)\s*:\s*([^;]+);/g)];
+    expect(fontTokenDecls.length).toBeGreaterThanOrEqual(2);
+
+    const referencedVars = new Set<string>();
+    for (const [, , value] of fontTokenDecls) {
+      for (const m of value!.matchAll(/var\(\s*(--[\w-]+)\s*(?:,|\))/g)) {
+        referencedVars.add(m[1]!);
+      }
+    }
+    expect(referencedVars.size).toBeGreaterThanOrEqual(2);
+
+    const layoutSrc = readFileSync(resolve(WEB, "src/app/layout.tsx"), "utf8");
+    const layoutNoComments = layoutSrc.replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, "");
+    const htmlTagMatch = layoutNoComments.match(/<html\b[^>]*>/);
+    expect(htmlTagMatch, "<html> tag missing in layout.tsx").not.toBeNull();
+    const htmlTag = htmlTagMatch![0];
+
+    // Map each font variable string (e.g. --font-be-vietnam) back to its const identifier in layout.tsx
+    for (const cssVar of referencedVars) {
+      const varOnRoot = rootBlock.includes(`${cssVar}:`);
+      if (varOnRoot) continue;
+
+      const loaderMatch = layoutSrc.match(
+        new RegExp(`const\\s+(\\w+)\\s*=\\s*[\\w]+\\(\\{[^}]*variable\\s*:\\s*["']${cssVar}["']`, "s"),
+      );
+      expect(
+        loaderMatch,
+        `:root font token references ${cssVar} which is neither defined on :root nor configured via next/font in layout.tsx`,
+      ).not.toBeNull();
+
+      const loaderIdent = loaderMatch![1]!;
+      expect(
+        htmlTag,
+        `next/font variable ${loaderIdent}.variable (${cssVar}) must be attached to <html> so :root --tv-font-* tokens can resolve it`,
+      ).toContain(`${loaderIdent}.variable`);
+    }
+  });
+
+  it("keeps sticky day tabs below the sticky site header on desktop and mobile", () => {
+    const uiCss = readFileSync(resolve(WEB, "src/components/traveler-ui/traveler-ui.css"), "utf8");
+    const stickyMatch = uiCss.match(/\.tv-day-tabs--sticky\s*\{([^}]*)\}/);
+    expect(stickyMatch).not.toBeNull();
+    expect(stickyMatch![1]).toMatch(/top\s*:\s*var\(--header-height\b/);
+    expect(stickyMatch![1]).not.toMatch(/top\s*:\s*0\b/);
+    expect(uiCss).toMatch(/@media\s*\(max-width:\s*767px\)\s*\{[\s\S]*?\.tv-day-tabs--sticky\s*\{[^}]*top\s*:\s*var\(--header-height-mobile\b/);
+  });
+
   it("strips full-sentence bold in assistant markdown while preserving short inline emphasis", () => {
     const html = renderToStaticMarkup(
       createElement(TripsageMarkdown, {

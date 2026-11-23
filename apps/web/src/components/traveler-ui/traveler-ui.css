@@ -219,9 +219,16 @@
 
 .tv-day-tabs--sticky {
   position: sticky;
-  top: 0;
+  /* Below the sticky site header (z-index 50), not behind it. */
+  top: var(--header-height, 65px);
   z-index: 20;
   background: var(--tv-ground);
+}
+
+@media (max-width: 767px) {
+  .tv-day-tabs--sticky {
+    top: var(--header-height-mobile, 58px);
+  }
 }
 
 .tv-day-tab {

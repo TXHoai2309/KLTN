@@ -51,9 +51,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Font variables live on <html> so :root tokens such as --tv-font-ui can resolve them.
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} ${beVietnamPro.variable} ${editorialSerif.variable} antialiased`}>
+    <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} ${beVietnamPro.variable} ${editorialSerif.variable}`}>
+      <body className="antialiased">
         <Providers>
           <div className="grid grid-rows-[auto_1fr] min-h-svh">
             <Header />
