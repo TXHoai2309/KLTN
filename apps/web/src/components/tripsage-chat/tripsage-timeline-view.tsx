@@ -233,7 +233,21 @@ export function TripsageTimelineView({
           Ngày {activeDay.day}{activeDay.date ? ` · ${activeDay.date.split("-").reverse().join("/")}` : ""}
         </h4>
         <ol className="tripsage-timeline-list">
-          {activeDay.items.map(item => {
+          {[...activeDay.items]
+            .map((item, originalIndex) => ({
+              item,
+              originalIndex,
+              sortKey:
+                item.startMinute !== null
+                  ? item.startMinute
+                  : item.kind === "DRIVE" && item.endMinute !== null
+                    ? item.endMinute - 0.5
+                    : item.kind === "OVERNIGHT"
+                      ? Number.POSITIVE_INFINITY
+                      : Number.POSITIVE_INFINITY - 1,
+            }))
+            .sort((a, b) => (a.sortKey !== b.sortKey ? a.sortKey - b.sortKey : a.originalIndex - b.originalIndex))
+            .map(({ item }) => {
             const itemPreview = timelineItemPreviewTarget(item);
             const cleanItemLabel = cleanPlaceDisplayName(item.label) || item.label;
             const cleanItemDesc = cleanTravelerDisplay(item.description);

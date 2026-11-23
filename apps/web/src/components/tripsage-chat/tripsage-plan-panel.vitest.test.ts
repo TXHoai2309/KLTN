@@ -164,5 +164,94 @@ describe("Ticket 10: Plan summary card & desktop split panel / tablet drawer (sl
     expect(html).toContain('data-variant="full"');
     expect(html).toContain("Cổng trời Quản Bạ");
     expect(html).toContain("Chợ đêm Quản Bạ");
+    // Single-stop morning day has no validated lunch break -> never fabricates 12:00-13:00
+    expect(html).not.toContain("Nghỉ trưa");
+  });
+
+  it("places validated lunch break strictly after Nặm Đăm (10:14–12:14) at 12:14–13:14 before Stop 4 (14:44) with zero overlap (Bug C)", () => {
+    const day1Proposal: PlannerResult = {
+      ...makeProposal("prop-day1-lunch"),
+      days: [
+        {
+          day: 1,
+          date: "2026-12-13",
+          distanceMeters: 140_000,
+          travelSeconds: 12_000,
+          stops: [
+            {
+              order: 1,
+              destination: { id: "s1", name: "Cổng trời Quản Bạ", description: "", area: "Quản Bạ", address: null, category: "Cảnh quan", latitude: 23.07, longitude: 104.98, image: null },
+              arrivalMinute: 510, // 08:30
+              departureMinute: 570, // 09:30
+              visitDurationMinutes: 60,
+              scheduleState: "PLANNED",
+              inbound: null,
+              validationStatus: "PASS",
+            },
+            {
+              order: 2,
+              destination: { id: "s2", name: "Núi Đôi Quản Bạ", description: "", area: "Quản Bạ", address: null, category: "Cảnh quan", latitude: 23.075, longitude: 104.99, image: null },
+              arrivalMinute: 576, // 09:36
+              departureMinute: 606, // 10:06
+              visitDurationMinutes: 30,
+              scheduleState: "PLANNED",
+              inbound: null,
+              validationStatus: "PASS",
+            },
+            {
+              order: 3,
+              destination: { id: "s3", name: "Làng văn hóa Nặm Đăm", description: "", area: "Quản Bạ", address: null, category: "Văn hóa", latitude: 23.08, longitude: 105.0, image: null },
+              arrivalMinute: 614, // 10:14
+              departureMinute: 734, // 12:14
+              visitDurationMinutes: 120,
+              scheduleState: "PLANNED",
+              inbound: null,
+              validationStatus: "PASS",
+            },
+            {
+              order: 4,
+              destination: { id: "s4", name: "Rừng thông Yên Minh", description: "", area: "Yên Minh", address: null, category: "Cảnh quan", latitude: 23.11, longitude: 105.14, image: null },
+              arrivalMinute: 884, // 14:44
+              departureMinute: 944, // 15:44
+              visitDurationMinutes: 60,
+              scheduleState: "PLANNED",
+              inbound: null,
+              validationStatus: "PASS",
+            },
+          ],
+        },
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(TripsagePlanPanel, {
+        proposal: day1Proposal,
+        suggestions: [],
+        chosenLodgings: {},
+        pinnedItems: [],
+        drawerOpen: false,
+        onCloseDrawer: () => {},
+        onToggleChosenLodging: () => {},
+        onRequestMeals: () => {},
+        onAskAccess: () => {},
+        onSelectSavingsOption: () => {},
+        onSaved: () => {},
+        onSaveStateChange: () => {},
+      }),
+    );
+
+    expect(html).toContain("Nghỉ trưa");
+    expect(html).toContain("12:14 – 13:14");
+    expect(html).not.toContain("12:00 – 13:00");
+
+    // Verify chronological DOM order: Núi Đôi (09:36-10:06) -> Nặm Đăm (10:14-12:14) -> Nghỉ trưa (12:14-13:14) -> Rừng thông Yên Minh (14:44)
+    const idxStop2 = html.indexOf("Núi Đôi Quản Bạ");
+    const idxStop3 = html.indexOf("Làng văn hóa Nặm Đăm");
+    const idxLunch = html.indexOf("Nghỉ trưa");
+    const idxStop4 = html.indexOf("Rừng thông Yên Minh");
+    expect(idxStop2).toBeGreaterThan(-1);
+    expect(idxStop3).toBeGreaterThan(idxStop2);
+    expect(idxLunch).toBeGreaterThan(idxStop3);
+    expect(idxStop4).toBeGreaterThan(idxLunch);
   });
 });

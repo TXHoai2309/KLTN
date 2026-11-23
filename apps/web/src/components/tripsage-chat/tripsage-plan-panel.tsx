@@ -21,6 +21,7 @@ import { itineraryDistanceKm, type TripsageTripInfo } from "@/modules/tripsage-c
 import type { CostPart } from "@/modules/tripsage-chat/tripsage-cost";
 import {
   isEligibleLodgingSuggestion,
+  resolveDayLunchBreak,
   type ChosenLodgingMap,
   type TimelinePart,
   type TimelineSuggestion,
@@ -103,6 +104,7 @@ function previewTargetForSuggestion(suggestion: TimelineSuggestion): PlacePrevie
  */
 export const TripsagePlanPanel = memo(function TripsagePlanPanel({
   proposal,
+  timeline,
   suggestions,
   cost,
   accessLeg,
@@ -277,6 +279,20 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
     const chosen = chosenLodgings[activePlannerDay.day];
     const lastDayStop = activePlannerDay.stops.at(-1);
 
+    const lunchSlot = `d${activePlannerDay.day}-lunch`;
+    const lunchMeals = (bySlot.get(lunchSlot) ?? []).filter((s) => s.kind === "MEAL");
+    const activeTimelinePartDay = timeline?.days.find((d) => d.day === activePlannerDay.day) ?? null;
+    const resolvedLunch = resolveDayLunchBreak({
+      stops: activePlannerDay.stops.map((s) => ({
+        destinationId: s.destination.id,
+        arrivalMinute: s.arrivalMinute,
+        departureMinute: s.departureMinute,
+      })),
+      timelineDay: activeTimelinePartDay,
+      lunchMinutes: proposal.requirement.dayRhythm?.lunchMinutes,
+      journeyPlan: proposal.journeyPlan,
+    });
+
     const stops: DayTimelineStop[] = activePlannerDay.stops.map((stop, idx) => {
       const visitSlot = `d${activePlannerDay.day}-visit-${idx + 1}`;
       const visitSuggestions = bySlot.get(visitSlot) ?? [];
@@ -292,9 +308,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
         .filter((s) => s.kind === "TIP" && /săn mây/iu.test(s.title))
         .map((s) => s.title);
 
-      const lunchSlot = `d${activePlannerDay.day}-lunch`;
-      const lunchMeals = (bySlot.get(lunchSlot) ?? []).filter((s) => s.kind === "MEAL");
-      const showLunchAfter = idx === Math.floor((activePlannerDay.stops.length - 1) / 2) && activePlannerDay.stops.length > 0;
+      const showLunchAfter = resolvedLunch !== null && idx === resolvedLunch.afterStopIndex;
 
       return {
         id: `${proposal.proposalId}-${activePlannerDay.day}-${stop.destination.id}`,
@@ -310,11 +324,11 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
         preferenceBadges: preferenceBadges.length > 0 ? preferenceBadges : undefined,
         previewTarget: previewTargetForStop(stop),
         nearbyAfter: nearbyAfter.length > 0 ? nearbyAfter : undefined,
-        lunchAfter: showLunchAfter
+        lunchAfter: showLunchAfter && resolvedLunch
           ? {
-              fromMinute: 720,
-              toMinute: 780,
-              durationMinutes: 60,
+              fromMinute: resolvedLunch.fromMinute,
+              toMinute: resolvedLunch.toMinute,
+              durationMinutes: resolvedLunch.durationMinutes,
               suggestions: lunchMeals.map((m, mIdx) => ({
                 key: m.place?.placeId ?? `${lunchSlot}-${mIdx}`,
                 name: m.title,
@@ -363,6 +377,9 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
     activePlannerDay,
     proposal.days.length,
     proposal.proposalId,
+    proposal.journeyPlan,
+    proposal.requirement.dayRhythm?.lunchMinutes,
+    timeline,
     bySlot,
     chosenLodgings,
     transportText,

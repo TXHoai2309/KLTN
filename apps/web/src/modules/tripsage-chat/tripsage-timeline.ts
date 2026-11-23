@@ -169,11 +169,76 @@ export function timelineSlotIds(visitsPerDay: readonly number[]): Set<string> {
   return ids;
 }
 
-/** Mirrors the planner's lunch rule: the first visit ending 11:30–14:00 with a later visit that day is followed by lunch. */
-function lunchAfter(stops: PlannerResult["days"][number]["stops"]): number | null {
+/** Mirrors the planner's lunch rule: the first visit ending 11:30–14:00 with a later visit that leaves room for lunch. */
+function lunchAfter(
+  stops: readonly { departureMinute: number | null; arrivalMinute: number | null }[],
+  lunchMinutes: number = DEFAULT_LUNCH_MINUTES,
+): { afterIndex: number; fromMinute: number; toMinute: number; durationMinutes: number } | null {
   for (let index = 0; index < stops.length - 1; index++) {
     const departure = stops[index]!.departureMinute;
-    if (departure !== null && departure >= LUNCH_WINDOW.fromMinute && departure <= LUNCH_WINDOW.toMinute) return departure;
+    const nextArrival = stops[index + 1]!.arrivalMinute;
+    if (departure === null || departure < LUNCH_WINDOW.fromMinute || departure > LUNCH_WINDOW.toMinute) continue;
+    if (nextArrival !== null && nextArrival < departure + lunchMinutes) continue;
+    return { afterIndex: index, fromMinute: departure, toMinute: departure + lunchMinutes, durationMinutes: lunchMinutes };
+  }
+  return null;
+}
+
+export interface ResolvedDayLunch {
+  afterStopIndex: number;
+  fromMinute: number;
+  toMinute: number;
+  durationMinutes: number;
+}
+
+/**
+ * Resolves the validated lunch break for a day's chronologically ordered stops.
+ * Prefers an explicit validated `LUNCH` item from `timelineDay` when present; otherwise derives
+ * the break from the validated stop schedule (and optional `journeyPlan` transfer leg evidence).
+ * Never fabricates a default 12:00 lunch or overlaps an adjacent stop.
+ */
+export function resolveDayLunchBreak(input: {
+  stops: readonly { destinationId: string; arrivalMinute: number | null; departureMinute: number | null }[];
+  timelineDay?: TimelinePart["days"][number] | null;
+  lunchMinutes?: number | null;
+  journeyPlan?: PlannerResult["journeyPlan"];
+}): ResolvedDayLunch | null {
+  const { stops, timelineDay, journeyPlan } = input;
+  if (stops.length < 2) return null;
+  const lunchMinutes = input.lunchMinutes && input.lunchMinutes > 0 ? input.lunchMinutes : DEFAULT_LUNCH_MINUTES;
+
+  if (timelineDay) {
+    const lunchItem = timelineDay.items.find(
+      (item) => item.kind === "LUNCH" && item.startMinute !== null && item.endMinute !== null && item.endMinute > item.startMinute,
+    );
+    if (!lunchItem) return null;
+    const fromMinute = lunchItem.startMinute!;
+    const toMinute = lunchItem.endMinute!;
+    for (let i = stops.length - 2; i >= 0; i--) {
+      const dep = stops[i]!.departureMinute;
+      const nextArr = stops[i + 1]!.arrivalMinute;
+      if (dep !== null && dep <= fromMinute && (nextArr === null || toMinute <= nextArr)) {
+        return { afterStopIndex: i, fromMinute, toMinute, durationMinutes: toMinute - fromMinute };
+      }
+    }
+    return null;
+  }
+
+  for (let i = 0; i < stops.length - 1; i++) {
+    const dep = stops[i]!.departureMinute;
+    const next = stops[i + 1]!;
+    const nextArr = next.arrivalMinute;
+    if (dep === null || dep < LUNCH_WINDOW.fromMinute || dep > LUNCH_WINDOW.toMinute) continue;
+    if (nextArr !== null && nextArr < dep + lunchMinutes) continue;
+    if (journeyPlan) {
+      const leg = journeyPlan.legs.find(
+        (item) => item.kind === "TRANSFER" && item.to.kind === "ATTRACTION" && item.to.destinationId === next.destinationId,
+      );
+      if (leg && leg.endMinute != null && nextArr !== null && nextArr - leg.endMinute < lunchMinutes) {
+        continue;
+      }
+    }
+    return { afterStopIndex: i, fromMinute: dep, toMinute: dep + lunchMinutes, durationMinutes: lunchMinutes };
   }
   return null;
 }
@@ -237,7 +302,7 @@ export function buildDayTimeline(result: PlannerResult): TimelinePart {
       } else if (travelOnlyLabel && !legs.some(leg => leg.kind === "RETURN" && leg.day === day.day)) {
         items.push({ slotId: `d${day.day}-drive-0`, kind: "DRIVE", startMinute: null, endMinute: null, label: travelOnlyLabel });
       }
-      const lunch = lunchAfter(day.stops);
+      const lunch = lunchAfter(day.stops, lunchMinutes);
       day.stops.forEach((stop, index) => {
         if (index > 0 && stop.inbound) {
           const minutes = stop.inbound.durationSeconds === null ? null : Math.ceil(stop.inbound.durationSeconds / 60);
@@ -268,8 +333,8 @@ export function buildDayTimeline(result: PlannerResult): TimelinePart {
           ...(address ? { address } : {}),
           ...(googleMapsUrl ? { googleMapsUrl } : {}),
         });
-        if (lunch !== null && stop.departureMinute === lunch && index < day.stops.length - 1) {
-          items.push({ slotId: `d${day.day}-lunch`, kind: "LUNCH", startMinute: lunch, endMinute: lunch + lunchMinutes, label: `Nghỉ trưa ${lunchMinutes} phút` });
+        if (lunch !== null && index === lunch.afterIndex) {
+          items.push({ slotId: `d${day.day}-lunch`, kind: "LUNCH", startMinute: lunch.fromMinute, endMinute: lunch.toMinute, label: `Nghỉ trưa ${lunch.durationMinutes} phút` });
         }
       });
       const returning = legs.find(leg => leg.kind === "RETURN" && leg.day === day.day);

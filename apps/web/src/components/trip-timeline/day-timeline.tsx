@@ -185,6 +185,42 @@ export function DayTimeline({
   const dayId = headingId ?? `trip-day-${day.dayIndex}`;
   const dayColorStyle = { "--tv-day-color": `var(${travelerDayColorVar(day.dayIndex)})` } as CSSProperties;
 
+  // Sort stops stably by startMinute ascending (nulls last) so displayed items are always chronological.
+  const orderedStops = [...day.stops]
+    .map((stop, originalIndex) => ({ stop, originalIndex }))
+    .sort((a, b) => {
+      const aMin = a.stop.startMinute ?? Number.POSITIVE_INFINITY;
+      const bMin = b.stop.startMinute ?? Number.POSITIVE_INFINITY;
+      if (aMin !== bMin) return aMin - bMin;
+      return a.originalIndex - b.originalIndex;
+    })
+    .map((entry) => entry.stop);
+
+  // Collect any non-overlapping lunch breaks and place each strictly between its chronological neighbors.
+  const lunchAfterIndex = new Map<number, DayTimelineLunch>();
+  for (const stop of orderedStops) {
+    const lunch = stop.lunchAfter;
+    if (!lunch) continue;
+    const overlapsAnyStop = orderedStops.some((s) => {
+      if (s.startMinute === null || s.durationMinutes === null) return false;
+      const sEnd = s.startMinute + s.durationMinutes;
+      return lunch.fromMinute < sEnd && lunch.toMinute > s.startMinute;
+    });
+    if (overlapsAnyStop) continue;
+    // Place after the last stop ending on or before lunch.fromMinute (strictly chronological).
+    let targetIndex = -1;
+    for (let i = 0; i < orderedStops.length; i++) {
+      const s = orderedStops[i]!;
+      const sEnd = s.startMinute !== null && s.durationMinutes !== null ? s.startMinute + s.durationMinutes : s.startMinute;
+      if (sEnd !== null && sEnd <= lunch.fromMinute) {
+        targetIndex = i;
+      }
+    }
+    if (targetIndex >= 0 && !lunchAfterIndex.has(targetIndex)) {
+      lunchAfterIndex.set(targetIndex, lunch);
+    }
+  }
+
   return (
     <section
       className={["dt-day", `dt-day--${variant}`, dimmed ? "dt-day--dimmed my-trips-day-dimmed" : "", className ?? ""]
@@ -236,7 +272,7 @@ export function DayTimeline({
       ) : (
         <ol className="dt-visits">
           {day.departureCard}
-          {day.stops.map((stop, index) => {
+          {orderedStops.map((stop, index) => {
             const cleanName = cleanPlaceDisplayName(stop.name) || stop.name;
             const cleanArea = cleanAreaDisplayLabel(stop.area);
             const cleanDescription = cleanTravelerDisplay(stop.description);
@@ -246,6 +282,7 @@ export function DayTimeline({
               stop.startMinute !== null && stop.durationMinutes !== null
                 ? stop.startMinute + stop.durationMinutes
                 : null;
+            const resolvedLunch = lunchAfterIndex.get(index) ?? null;
 
             return (
               <Fragment key={stop.id}>
@@ -364,32 +401,32 @@ export function DayTimeline({
                   </article>
                 </li>
 
-                {stop.lunchAfter && (
+                {resolvedLunch && (
                   <li className="dt-break-item">
                     <span aria-hidden="true" />
                     <div className="dt-visit-time">
-                      <strong>{minuteLabel(stop.lunchAfter.fromMinute)}</strong>
-                      <span>{stop.lunchAfter.durationMinutes ?? 60} phút</span>
+                      <strong>{minuteLabel(resolvedLunch.fromMinute)}</strong>
+                      <span>{resolvedLunch.durationMinutes ?? (resolvedLunch.toMinute - resolvedLunch.fromMinute)} phút</span>
                     </div>
                     <div className="dt-lunch-wrap">
                       <p className="planner-break dt-break-line">
                         <UtensilsCrossed size={13} aria-hidden="true" />
-                        <strong>Nghỉ trưa</strong> {minuteLabel(stop.lunchAfter.fromMinute)} –{" "}
-                        {minuteLabel(stop.lunchAfter.toMinute)}
-                        {stop.lunchAfter.onRequestMeals && (
+                        <strong>Nghỉ trưa</strong> {minuteLabel(resolvedLunch.fromMinute)} –{" "}
+                        {minuteLabel(resolvedLunch.toMinute)}
+                        {resolvedLunch.onRequestMeals && (
                           <button
                             type="button"
                             className="tv-quick-link dt-lunch-req"
-                            onClick={stop.lunchAfter.onRequestMeals}
+                            onClick={resolvedLunch.onRequestMeals}
                           >
                             Tìm quán ăn trưa
                           </button>
                         )}
                       </p>
-                      {stop.lunchAfter.suggestions && stop.lunchAfter.suggestions.length > 0 && (
+                      {resolvedLunch.suggestions && resolvedLunch.suggestions.length > 0 && (
                         <div className="dt-sunken-box">
                           <ul className="dt-sunken-list">
-                            {stop.lunchAfter.suggestions.map((meal) => (
+                            {resolvedLunch.suggestions.map((meal) => (
                               <li key={meal.key}>
                                 <span className="dt-sunken-item-name">{cleanPlaceDisplayName(meal.name)}</span>
                                 {meal.detail && <span className="dt-sunken-dist">{cleanTravelerDisplay(meal.detail)}</span>}

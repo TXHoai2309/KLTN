@@ -178,6 +178,53 @@ describe("Ticket 06: Shared DayTimeline component (full & compact)", () => {
     expect(modalHtml).toContain("Núi Đôi Quản Bạ");
   });
 
+  it("sorts stops chronologically and drops overlapping lunch breaks (Bug C)", () => {
+    const outOfOrderDay: DayTimelineDay = {
+      dayIndex: 1,
+      localDate: "2026-12-13",
+      stops: [
+        {
+          id: "v4",
+          destinationId: "s4",
+          order: 4,
+          name: "Rừng thông Yên Minh",
+          startMinute: 884, // 14:44
+          durationMinutes: 60,
+        },
+        {
+          id: "v2",
+          destinationId: "s2",
+          order: 2,
+          name: "Núi Đôi Quản Bạ",
+          startMinute: 576, // 09:36 - 10:06
+          durationMinutes: 30,
+          // Bogus overlapping 12:00-13:00 lunch attached to stop 2 -> overlaps Nặm Đăm (10:14-12:14) and must be dropped
+          lunchAfter: { fromMinute: 720, toMinute: 780, durationMinutes: 60 },
+        },
+        {
+          id: "v3",
+          destinationId: "s3",
+          order: 3,
+          name: "Làng văn hóa Nặm Đăm",
+          startMinute: 614, // 10:14 - 12:14
+          durationMinutes: 120,
+          lunchAfter: { fromMinute: 734, toMinute: 794, durationMinutes: 60 },
+        },
+      ],
+    };
+    const html = renderToStaticMarkup(createElement(DayTimeline, { day: outOfOrderDay, variant: "full" }));
+    expect(html).toContain("12:14 – 13:14");
+    expect(html).not.toContain("12:00 – 13:00");
+    const i2 = html.indexOf("Núi Đôi Quản Bạ");
+    const i3 = html.indexOf("Làng văn hóa Nặm Đăm");
+    const iLunch = html.indexOf("Nghỉ trưa");
+    const i4 = html.indexOf("Rừng thông Yên Minh");
+    expect(i2).toBeGreaterThan(-1);
+    expect(i3).toBeGreaterThan(i2);
+    expect(iLunch).toBeGreaterThan(i3);
+    expect(i4).toBeGreaterThan(iLunch);
+  });
+
   it("keeps day-timeline.css compliant with --tv-* tokens (no hardcoded hex, no 650/700+, no card shadows)", () => {
     const css = readFileSync(resolve(process.cwd(), "src/components/trip-timeline/day-timeline.css"), "utf8");
     expect(css).not.toMatch(/font-weight\s*:\s*(650|700|750|800|900)\b/);

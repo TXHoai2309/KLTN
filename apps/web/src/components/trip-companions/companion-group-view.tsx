@@ -39,6 +39,7 @@ import { buildDayEveningPlan } from "@/components/trip-timeline/evening-plan";
 import { RouteStrip } from "@/components/trip-timeline/route-strip";
 import { TravelerDayTabs, type TravelerDayTabItem } from "@/components/traveler-ui/traveler-day-tabs";
 import { cleanAreaDisplayLabel, cleanOvernightAreaLabel, cleanPlaceDisplayName } from "@/lib/traveler-display-clean";
+import { resolveDayLunchBreak } from "@/modules/tripsage-chat/tripsage-timeline";
 import type { PlannerDay, PlannerStop, TravelLeg } from "@/modules/trip-planner/planner-contract";
 import {
   getDestinationCoordinates,
@@ -1135,12 +1136,21 @@ function CompanionGroupContent({
                     })),
                   });
 
+                  const dayLunch = resolveDayLunchBreak({
+                    stops: day.visits.map((v) => ({
+                      destinationId: v.destination.destinationId || v.visitId,
+                      arrivalMinute: v.startMinute,
+                      departureMinute: v.startMinute + v.plannedDurationMinutes,
+                    })),
+                    journeyPlan: currentGroup.meetingPoint?.plan ?? undefined,
+                  });
+
                   const timelineDay: DayTimelineDay = {
                     dayIndex: day.dayIndex,
                     localDate: day.localDate,
                     transportLabel,
                     emptyMessage: "Chưa có điểm dừng nào được lên lịch cho ngày này.",
-                    stops: day.visits.map((visit) => {
+                    stops: day.visits.map((visit, visitIdx) => {
                       const destId = visit.destination.destinationId || visit.visitId;
                       const isUnavailable = visit.destination.availability === "UNAVAILABLE";
                       const area = cleanAreaDisplayLabel(visit.destination.area) ?? inferDestinationArea(visit.destination.name);
@@ -1159,6 +1169,14 @@ function CompanionGroupContent({
                           ? `/destinations/${visit.destination.destinationId}`
                           : null,
                         unavailable: isUnavailable,
+                        lunchAfter:
+                          dayLunch && visitIdx === dayLunch.afterStopIndex
+                            ? {
+                                fromMinute: dayLunch.fromMinute,
+                                toMinute: dayLunch.toMinute,
+                                durationMinutes: dayLunch.durationMinutes,
+                              }
+                            : null,
                       };
                     }),
                     chosenLodging: !eveningPlan && dayLodging
