@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { MockLanguageModelV3 } from "ai/test";
 import {
+  createInlineSourceStreamFilter,
   filterRelevantKnowledgeExcerpts,
   selectUsedDocumentSources,
   stripExpandedKnowledgeSections,
+  stripRedundantInlineSourceLines,
   type KnowledgeCandidate,
 } from "./tripsage-knowledge-sources";
 import { sourcesPartSchema } from "./tripsage-chat-context";
-import { streamTripsageChat } from "./tripsage-chat-service";
+import { streamTripsageChat, TRIPSAGE_CHAT_INSTRUCTIONS } from "./tripsage-chat-service";
 
 // Exact excerpts retrieved by production RAG in conversation 66a36527-9de1-4420-a464-4106c09e83d9
 const L1_FIXTURE: KnowledgeCandidate[] = [
@@ -190,5 +192,104 @@ describe("Point 2 — knowledge source relevance & actual-usage filtering", () =
       L12_FIXTURE,
     );
     expect(l12Sources).toEqual([]);
+  });
+
+  it("B2: strips self-inserted 'Nguồn tài liệu:' / 'Nguồn:' / 'Source:' lines in prose and live streams without hiding real source cards or mid-sentence 'nguồn'", async () => {
+    expect(TRIPSAGE_CHAT_INSTRUCTIONS).toContain("TUYỆT ĐỐI KHÔNG tự viết dòng 'Nguồn tài liệu:'");
+
+    const withDupSource = [
+      "Đường đèo Hà Giang có nhiều khúc cua và tầm nhìn thay đổi nhanh.",
+      "",
+      "**Kiến thức mở rộng:** Ngồi ghế trước và hạn chế nhìn điện thoại.",
+      "",
+      "Nguồn tài liệu: *Cao nguyên đá Đồng Văn – Tài liệu tri thức du lịch* — lưu ý đường đèo nhiều khúc cua.",
+      "",
+      "Nghề dệt lanh là nguồn thu nhập ổn định và người dân lấy nguồn nước suối trong vắt.",
+    ].join("\n");
+
+    const cleaned = stripRedundantInlineSourceLines(withDupSource);
+    expect(cleaned).not.toContain("Nguồn tài liệu:");
+    expect(cleaned).toContain("nguồn thu nhập ổn định");
+    expect(cleaned).toContain("nguồn nước suối trong vắt");
+
+    // Chunked streaming test (mid-token splits across "Nguồn tài liệu:")
+    const filter = createInlineSourceStreamFilter();
+    const chunks = [
+      "Có nhiều khúc cua. ",
+      "\n\n*Ng",
+      "uồn tài liệu: Cao nguyên đá Đồng Văn.*",
+      "\n\nBạn muốn chỉnh lịch không?",
+    ];
+    const streamed = chunks.map(c => filter.push(c)).join("") + filter.end();
+    expect(streamed).toContain("Có nhiều khúc cua.");
+    expect(streamed).toContain("Bạn muốn chỉnh lịch không?");
+    expect(streamed).not.toContain("Nguồn tài liệu");
+
+    // End-to-end stream check preserving data-sources while stripping inline citation line from streamed text & persisted parts
+    const persistedTexts: string[] = [];
+    let call = 0;
+    const model = new MockLanguageModelV3({
+      doStream: async () => {
+        const idx = call++;
+        const chunksOut =
+          idx === 0
+            ? [
+                { type: "tool-call" as const, toolCallId: "k1", toolName: "lookupLocalKnowledge", input: JSON.stringify({ question: "Đường đèo Hà Giang và say xe" }) },
+                { type: "finish" as const, finishReason: "tool-calls" as const, usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 } },
+              ]
+            : [
+                { type: "text-start" as const, id: "t1" },
+                { type: "text-delta" as const, id: "t1", delta: "Đường đèo có nhiều khúc cua và tầm nhìn thay đổi nhanh; nên tránh dừng tùy tiện để chụp ảnh.\n\n" },
+                { type: "text-delta" as const, id: "t1", delta: "Nguồn tài liệu: *Cao nguyên đá Đồng Văn – Tài liệu tri thức du lịch* — lưu ý đường đèo nhiều khúc cua." },
+                { type: "text-end" as const, id: "t1" },
+                { type: "finish" as const, finishReason: "stop" as const, usage: { inputTokens: 1, outputTokens: 1, totalTokens: 2 } },
+              ];
+        return {
+          stream: new ReadableStream({
+            start(c) {
+              for (const chunk of chunksOut) c.enqueue(chunk as never);
+              c.close();
+            },
+          }),
+        };
+      },
+    });
+    const res = streamTripsageChat({
+      model,
+      messages: [{ role: "user", content: "vợ mình hay say xe, đường đèo có đáng lo không?" }],
+      latestUserText: "vợ mình hay say xe, đường đèo có đáng lo không?",
+      planning: { candidates: async () => [], routes: { route: async () => ({ fromDestinationId: "", toDestinationId: "", status: "INSUFFICIENT_DATA", reason: "NOT_CONFIGURED", durationSeconds: null, distanceMeters: null, provider: null }) } },
+      knowledge: async () => [
+        {
+          title: "Cao nguyên đá Đồng Văn – Tài liệu tri thức du lịch",
+          text: "An toàn giao thông đường đèo Hà Giang: nhiều khúc cua và tầm nhìn thay đổi nhanh, không nên dừng tùy tiện ở khúc cua để chụp ảnh.",
+          score: 0.72,
+        },
+      ],
+      onPersistAssistant: async (parts) => {
+        for (const part of parts) {
+          if (part.type === "text") persistedTexts.push(part.text);
+        }
+        return { status: "SUCCESS", data: {} };
+      },
+    });
+    const sse = await res.text();
+    const events = sse
+      .split("\n")
+      .filter(l => l.startsWith("data: ") && l !== "data: [DONE]")
+      .map(l => JSON.parse(l.slice(6)) as { type?: string; delta?: string; data?: unknown });
+    const streamedText = events
+      .filter(e => e.type === "text-delta" && typeof e.delta === "string")
+      .map(e => e.delta)
+      .join("");
+    expect(streamedText).toContain("khúc cua");
+    expect(streamedText).not.toContain("Nguồn tài liệu");
+    expect(persistedTexts.join("")).not.toContain("Nguồn tài liệu");
+
+    const sourceEvents = events.filter(e => e.type === "data-sources");
+    const lastSources = sourceEvents.at(-1)?.data;
+    expect(sourcesPartSchema.parse(lastSources).sources.map(s => ("title" in s ? s.title : s.domain))).toEqual([
+      "Cao nguyên đá Đồng Văn – Tài liệu tri thức du lịch",
+    ]);
   });
 });

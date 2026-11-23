@@ -27,7 +27,7 @@ import type { MutationOutcome } from "../../lib/mutation-contract";
 import type { RememberSource } from "../tripsage-memory/memory-service";
 import { MEMORY_TOOL_NAMES } from "../tripsage-memory/memory-tools";
 import { createToolTraceCollector, type ToolTrace } from "./tripsage-tool-trace";
-import { selectUsedDocumentSources, type KnowledgeCandidate } from "./tripsage-knowledge-sources";
+import { createInlineSourceStreamFilter, selectUsedDocumentSources, stripRedundantInlineSourceLines, type KnowledgeCandidate } from "./tripsage-knowledge-sources";
 
 const BASE_TOOL_DESCRIPTIONS = "recordTripInfo (ghi thông tin chuyến đi người dùng đã nói/đồng ý, gồm cả giờ đi/về), findOrigin (tìm điểm xuất phát trong lãnh thổ Việt Nam từ tên người dùng gõ, tối đa 3 ứng viên để xác nhận ở lượt sau), confirmOrigin (xác nhận điểm xuất phát khi người dùng đã đồng ý hoặc chọn đúng nhãn ứng viên/điểm tập kết cố định), suggestReplies (nút trả lời nhanh), listDestinations (đọc điểm đến trong cơ sở dữ liệu), getDestinationInfo (đọc giờ mở cửa theo ngày/thứ trong tuần và giá vé nếu có của một điểm đến trong danh mục), proposeItinerary (lập và kiểm tra lịch trình), searchPlaces (tìm địa điểm ngoài danh mục bằng Google Places, có thể tìm quanh một điểm, tối đa 4 lần mỗi lượt), addSuggestions (gắn gợi ý ăn uống, buổi tối, chỗ nghỉ, mẹo vào timeline), lookupLocalKnowledge (tra tài liệu địa phương đã duyệt), estimateCosts (bảng chi phí ước tính, hệ thống tự tính xăng và tổng), planAccessLeg (chặng tiếp cận bằng máy bay/xe khách tới điểm tập kết), webSearch (tìm web, tối đa 1 lần mỗi lượt, chỉ khi cần giá/tin hiện tại) và fetchPage (đọc một trang có URL lấy từ kết quả webSearch, tối đa 1 lần mỗi lượt).";
 const TOOL_RESTRICTION = "Không dùng hay giả vờ dùng công cụ nào khác.";
@@ -39,7 +39,7 @@ const PERSONA_INSTRUCTIONS = [
   "Trình bày bằng markdown dễ đọc: đoạn ngắn, không in đậm cả câu (chỉ **in đậm** một cụm số liệu hoặc tên riêng khi thật cần), danh sách gạch đầu dòng hoặc đánh số, tiêu đề nhỏ (###) khi câu trả lời dài, bảng khi so sánh. Không dùng HTML, không chèn ảnh, không chèn đường link.",
   "Phân biệt 3 trường hợp ý định của người dùng (ADR-43 §2, ADR-44): (A) Mở đầu nói thẳng muốn đi hoặc muốn lập lịch (ví dụ 'tôi muốn lập hành trình Hà Giang', 'đi Hà Giang 4 ngày', 'lên lịch 3 ngày bằng xe máy') → KHÔNG hỏi lại 'bạn có muốn lập lịch không' và KHÔNG dừng lại để hỏi đủ thông tin trước; ghi ngay những gì người dùng đã nói (nếu có) bằng recordTripInfo, rồi lập ngay một bản nháp giả định trong cùng lượt (listDestinations rồi proposeItinerary — nếu chưa có số ngày thì chọn lịch 4 ngày, hệ thống tự điền giả định: điểm tập kết Hà Nội, 4 ngày 3 đêm, xe máy, thứ Bảy gần nhất). Sau bản nháp, viết đúng một dòng nêu rõ giả định ('Mình đang giả định: ...'), nhắc chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (đi từ đâu hoặc ngày nào), và đưa các giả định còn lại thành suggestReplies. (B) Đang hỏi đáp về một địa điểm rồi chuyển sang muốn lập lịch (ví dụ vừa hỏi về Cột cờ Lũng Cú rồi nhắn 'lên lịch đi') → xác nhận ý định lập lịch bằng một câu tự nhiên nêu rõ những gì bạn đã hiểu (đi Hà Giang và đưa địa điểm vừa hỏi làm điểm bắt buộc), đồng thời gọi listDestinations để lấy đúng id và ghi mustIncludeDestinationIds bằng recordTripInfo (tối đa 4 điểm), rồi hỏi gộp thông tin còn thiếu. (C) Câu hỏi chung hoặc mơ hồ (ví dụ 'Hà Giang có gì chơi?', 'mùa nào đẹp?', 'đèo Mã Pí Lèng thế nào?') → trả lời hỏi đáp trước bằng lookupLocalKnowledge, rồi cuối câu mới mời nhẹ xem có muốn lên lịch không (kèm suggestReplies); chưa gọi proposeItinerary.",
   "Với lời chào ngắn ('hi', 'hello', 'chào bạn'...): chào lại tự nhiên, nếu đang có chuyến đi hoặc lịch trình trong ngữ cảnh thì nhắc ngắn gọn chuyến đang lập và hỏi 1 câu để tiếp tục. Với yêu cầu thay đổi mơ hồ ('tôi muốn thay đổi', 'sửa giúp mình'...): hỏi đúng 1 câu 'Bạn muốn đổi phần nào?' kèm suggestReplies ('Đổi ngày đi', 'Đổi số ngày', 'Đổi điểm đến', 'Đổi nơi xuất phát').",
-  "Khi trả lời hỏi đáp: ưu tiên gọi lookupLocalKnowledge trước. Với câu hỏi về giờ mở cửa theo ngày/thứ trong tuần hoặc giá vé của điểm đến trong danh mục, gọi getDestinationInfo trước để lấy giờ mở cửa và giá vé sẵn có trong cơ sở dữ liệu; trả lời bằng đúng dữ liệu đó và ghi rõ nguồn là dữ liệu điểm đến (thiếu giá vé thì nói rõ 'chưa có giá vé trong dữ liệu', không bịa). Khi người dùng hỏi mơ hồ về điểm trong lịch (như 'điểm thứ 2'), nêu rõ bạn đang hiểu là điểm nào (ví dụ 'Điểm dừng 2 của ngày 1 là …'), hoặc hỏi lại kèm suggestReplies tên các điểm đó. Chỉ những tài liệu thực sự liên quan và được bạn dùng trong phần trả lời chính mới hiện thành 'Nguồn tài liệu'; lượt chỉ lập lịch hoặc chỉnh lịch không gọi lookupLocalKnowledge một cách máy móc. Nếu tài liệu không có nội dung khớp chủ đề hoặc phần bổ sung dựa vào hiểu biết chung, nói rõ nhãn 'Kiến thức mở rộng' — phần 'Kiến thức mở rộng' không cần nguồn tài liệu địa phương và không được gắn nguồn không liên quan.",
+  "Khi trả lời hỏi đáp: ưu tiên gọi lookupLocalKnowledge trước. Với câu hỏi về giờ mở cửa theo ngày/thứ trong tuần hoặc giá vé của điểm đến trong danh mục, gọi getDestinationInfo trước để lấy giờ mở cửa và giá vé sẵn có trong cơ sở dữ liệu; trả lời bằng đúng dữ liệu đó và ghi rõ thông tin lấy từ dữ liệu điểm đến (thiếu giá vé thì nói rõ 'chưa có giá vé trong dữ liệu', không bịa). Khi người dùng hỏi mơ hồ về điểm trong lịch (như 'điểm thứ 2'), nêu rõ bạn đang hiểu là điểm nào (ví dụ 'Điểm dừng 2 của ngày 1 là …'), hoặc hỏi lại kèm suggestReplies tên các điểm đó. Chỉ những tài liệu thực sự liên quan và được bạn dùng trong phần trả lời chính mới hiện thành khối nguồn bên dưới; TUYỆT ĐỐI KHÔNG tự viết dòng 'Nguồn tài liệu:', 'Nguồn:' hay 'Source:' trong lời văn vì giao diện đã hiển thị tự động bên dưới. Lượt chỉ lập lịch hoặc chỉnh lịch không gọi lookupLocalKnowledge một cách máy móc. Nếu tài liệu không có nội dung khớp chủ đề hoặc phần bổ sung dựa vào hiểu biết chung, nói rõ nhãn 'Kiến thức mở rộng' — phần 'Kiến thức mở rộng' không cần nguồn tài liệu địa phương và không được gắn nguồn không liên quan.",
   "Khi người dùng xác nhận hoặc đổi một trường giả định: đổi hoặc xác nhận ngày đi/số ngày/phương tiện thì gọi recordTripInfo; đồng ý điểm xuất phát giả định Hà Nội thì gọi confirmOrigin(hub:HA_NOI); đổi sang nơi xuất phát khác thì vẫn dùng findOrigin và xác nhận ở lượt sau (ADR-43), rồi lập lại lịch nếu có thay đổi ảnh hưởng lịch.",
   "Nếu người dùng đã nói sẵn một số thông tin trong tin đầu, ghi ngay bằng recordTripInfo và chỉ hỏi phần còn thiếu. Phương tiện, số ngày, ngày đi chỉ ghi khi người dùng đã nói hoặc đồng ý (một câu 'ok' là đồng ý toàn bộ gợi ý bạn vừa đưa). Không bao giờ tự đặt điểm xuất phát, ngày ở quá khứ hay số ngày ngoài 1-14. Chỉ gọi confirmOrigin ở lượt người dùng trả lời đồng ý hoặc bấm chọn nhãn ứng viên.",
   "Ngày khởi hành luôn tính theo dòng 'Hôm nay' (giờ Việt Nam) trong ngữ cảnh; không bao giờ nói 'chưa biết hôm nay là ngày nào' hay chọn ngày ở quá khứ. Nếu người dùng nêu ngày cụ thể hoặc gần đúng có ngày/tháng (như 'ngày mai', 'thứ Bảy tuần này', 'ngày 1 tháng sau', '12/12', 'khoảng 12/12'): tự quy đổi ra ngày cụ thể YYYY-MM-DD, ghi luôn bằng recordTripInfo và lập lịch ngay trong lượt đó (không tốn thêm lượt chỉ để hỏi 'Chốt ngày…?'), kèm chip 'Đổi ngày' nếu là ngày tạm hiểu. Chỉ khi người dùng nêu khoảng mơ hồ không có ngày cụ thể (như 'đầu tháng 12', 'giữa tháng sau', 'cuối tuần sau') mới chọn một ngày gợi ý, CHƯA ghi bằng recordTripInfo, gọi suggestReplies với 'Đúng, đi <dd/mm/yyyy>' và 'Chọn ngày khác'. Khi người dùng đổi sang ngày mới hoặc đã có ngày hợp lệ, không nhắc lại ngày cũ đã bỏ hay lỗi ngày ở lượt trước.",
@@ -899,13 +899,36 @@ export function streamTripsageChat(input: {
       };
       const timeoutNotice = (controller: { enqueue: (chunk: UIMessageChunk) => void }) => writeNotice(controller, "timeout", capNotice("Đã hết thời gian xử lý cho lượt này.", hasItinerary));
       const privateInputs = new Set<string>();
+      const sourceStreamFilters = new Map<string, ReturnType<typeof createInlineSourceStreamFilter>>();
       const shaped = result.toUIMessageStream({ onError: failureText }).pipeThrough(new TransformStream<UIMessageChunk, UIMessageChunk>({
         transform(chunk, controller) {
           if (!announced && chunk.type === "text-start") {
             announced = true;
             controller.enqueue({ type: "data-status", data: { kind: "writing", label: "Đang soạn câu trả lời…" } satisfies TripsageChatStatus, transient: true } as UIMessageChunk);
           }
-          if (chunk.type === "text-delta" && typeof chunk.delta === "string") textChunks.push(chunk.delta);
+          if (chunk.type === "text-start" && "id" in chunk && typeof chunk.id === "string") {
+            sourceStreamFilters.set(chunk.id, createInlineSourceStreamFilter());
+          }
+          if (chunk.type === "text-delta" && typeof chunk.delta === "string") {
+            const filterId = "id" in chunk && typeof chunk.id === "string" ? chunk.id : "__default__";
+            const filter = sourceStreamFilters.get(filterId) ?? createInlineSourceStreamFilter();
+            sourceStreamFilters.set(filterId, filter);
+            const filteredDelta = filter.push(chunk.delta);
+            if (!filteredDelta) return;
+            textChunks.push(filteredDelta);
+            return controller.enqueue({ ...chunk, delta: filteredDelta } as UIMessageChunk);
+          }
+          if (chunk.type === "text-end" && "id" in chunk && typeof chunk.id === "string") {
+            const filter = sourceStreamFilters.get(chunk.id);
+            if (filter) {
+              sourceStreamFilters.delete(chunk.id);
+              const trailingDelta = filter.end();
+              if (trailingDelta) {
+                textChunks.push(trailingDelta);
+                controller.enqueue({ type: "text-delta", id: chunk.id, delta: trailingDelta } as UIMessageChunk);
+              }
+            }
+          }
           // Operator trace (full input/output before the browser redaction below); memory tools stay private.
           if (chunk.type === "tool-input-available") trace.input(chunk.toolCallId, chunk.toolName, chunk.input);
           if (chunk.type === "tool-output-available") trace.output(chunk.toolCallId, chunk.output);
@@ -937,7 +960,7 @@ export function streamTripsageChat(input: {
             return;
           }
           if (!streamErrored) {
-            const fullText = textChunks.join("").trim();
+            const fullText = stripRedundantInlineSourceLines(textChunks.join("")).trim();
             if (knowledgeCandidates.length > 0) {
               const usedTitles = selectUsedDocumentSources(fullText, knowledgeCandidates);
               if (usedTitles.length > 0) {
@@ -1012,7 +1035,7 @@ export function streamTripsageChat(input: {
       const persistAssistant = async (controller: { enqueue: (chunk: UIMessageChunk) => void }) => {
         if (persisted || !input.onPersistAssistant || streamErrored) return;
         persisted = true;
-        const fullText = textChunks.join("").trim();
+        const fullText = stripRedundantInlineSourceLines(textChunks.join("")).trim();
         const candidateParts: unknown[] = [...(fullText ? [{ type: "text", text: fullText }] : []), ...recordedDataParts];
         const sanitized = sanitizeStoredParts(candidateParts);
         if (!sanitized.length) return;

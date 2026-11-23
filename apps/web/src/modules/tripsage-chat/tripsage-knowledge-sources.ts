@@ -246,3 +246,115 @@ export function selectUsedDocumentSources(
   }
   return used;
 }
+
+const STANDALONE_SOURCE_LINE_RE =
+  /^\s*(?:[-*•]\s*)?(?:\(\s*)?(?:[*_]{1,2}\s*)?(?:ngu[oôồ]n\s+t[aà]i\s+li[eệ]u(?:\s+tham\s+kh[aả]o)?|ngu[oôồ]n\s+tham\s+kh[aả]o|ngu[oôồ]n|t[aà]i\s+li[eệ]u\s+tham\s+kh[aả]o|sources?|references?)(?:\s*:\s*[*_]{1,2}|\s*[*_]{1,2}\s*:|\s*:)\s*.*$/iu;
+
+const INLINE_SOURCE_TAIL_RE =
+  /(?<=[.!?…])\s+(?:\(\s*)?(?:[*_]{1,2}\s*)?(?:(?:ngu[oôồ]n\s+t[aà]i\s+li[eệ]u(?:\s+tham\s+kh[aả]o)?|ngu[oôồ]n\s+tham\s+kh[aả]o|t[aà]i\s+li[eệ]u\s+tham\s+kh[aả]o|sources?|references?)(?:\s*:\s*[*_]{1,2}|\s*[*_]{1,2}\s*:|\s*:)|\([*_]*ngu[oôồ]n\s*:)\s*[^.\n]*(?:\.[^.\n]*)?(?:\s*\))?\s*$/iu;
+
+/**
+ * Strips self-inserted "Nguồn tài liệu:" / "Nguồn:" / "Source:" prose lines and trailing tails
+ * when the UI renders structured `data-sources` cards separately (B2 / C4).
+ * Preserves normal mid-sentence uses of "nguồn" (e.g. "nguồn thu nhập", "nguồn nước").
+ */
+export function stripRedundantInlineSourceLines(raw: string): string {
+  const lines = raw.split(/\r?\n/u);
+  const kept: string[] = [];
+  for (const line of lines) {
+    if (STANDALONE_SOURCE_LINE_RE.test(line)) continue;
+    kept.push(line.replace(INLINE_SOURCE_TAIL_RE, "").trimEnd());
+  }
+  return kept
+    .join("\n")
+    .replace(/\n{3,}/gu, "\n\n")
+    .trim();
+}
+
+const SOURCE_TRIGGERS_FOLDED = [
+  "nguon tai lieu",
+  "nguon tham khao",
+  "nguon:",
+  "tai lieu tham khao",
+  "source:",
+  "sources:",
+  "reference:",
+  "references:",
+];
+
+function couldStartSourceLabel(rawCandidate: string): boolean {
+  const stripped = rawCandidate.replace(/^[\s\-*•(\[_]+/u, "");
+  if (!stripped) return true;
+  if (STANDALONE_SOURCE_LINE_RE.test(rawCandidate)) return true;
+  const folded = stripped
+    .normalize("NFKD")
+    .toLowerCase()
+    .replace(/[\p{M}\p{Cf}]/gu, "")
+    .replace(/đ/gu, "d");
+  return SOURCE_TRIGGERS_FOLDED.some(
+    (trigger) => trigger.startsWith(folded) || folded.startsWith(trigger.replace(/:$/u, "")),
+  );
+}
+
+/**
+ * Stateful streaming filter that removes redundant inline source lines without stalling
+ * normal text chunks.
+ */
+export function createInlineSourceStreamFilter() {
+  let pendingLine = "";
+  let consecutiveBlankLines = 0;
+
+  const formatCompletedLine = (lineWithNewline: boolean, line: string): string => {
+    if (STANDALONE_SOURCE_LINE_RE.test(line)) return "";
+    const cleaned = line.replace(INLINE_SOURCE_TAIL_RE, "").trimEnd();
+    if (!cleaned && !line.trim()) {
+      consecutiveBlankLines += 1;
+      return lineWithNewline && consecutiveBlankLines <= 1 ? "\n" : "";
+    }
+    consecutiveBlankLines = 0;
+    return lineWithNewline ? `${cleaned}\n` : cleaned;
+  };
+
+  return {
+    push(delta: string): string {
+      pendingLine += delta;
+      let out = "";
+
+      while (true) {
+        const nlIdx = pendingLine.indexOf("\n");
+        if (nlIdx === -1) break;
+        const rawLine = pendingLine.slice(0, nlIdx).replace(/\r$/u, "");
+        pendingLine = pendingLine.slice(nlIdx + 1);
+        out += formatCompletedLine(true, rawLine);
+      }
+
+      if (pendingLine && !couldStartSourceLabel(pendingLine)) {
+        let holdStart = pendingLine.length;
+        const tailBoundaryRe = /[.!?…]\s+/gu;
+        let match: RegExpExecArray | null;
+        while ((match = tailBoundaryRe.exec(pendingLine)) !== null) {
+          const candidateTail = pendingLine.slice(match.index + match[0].length);
+          if (!candidateTail || couldStartSourceLabel(candidateTail)) {
+            holdStart = match.index + match[0].length;
+            break;
+          }
+        }
+        if (holdStart === pendingLine.length && /[.!?…]\s*$/u.test(pendingLine)) {
+          holdStart = pendingLine.length;
+        }
+        if (holdStart > 0) {
+          out += pendingLine.slice(0, holdStart);
+          pendingLine = pendingLine.slice(holdStart);
+          consecutiveBlankLines = 0;
+        }
+      }
+      return out;
+    },
+    end(): string {
+      if (!pendingLine) return "";
+      const remaining = pendingLine;
+      pendingLine = "";
+      return formatCompletedLine(false, remaining);
+    },
+  };
+}
