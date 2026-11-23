@@ -20,6 +20,7 @@ const QUAN_BA: PlannerCandidate = {
   suggestedDurationMinutes: 60,
   minimumDurationMinutes: 30,
   visibility: "VISIBLE",
+  revision: "v1",
   isOutdoor: true,
   openingDays: ALL_OPEN,
 };
@@ -59,7 +60,7 @@ describe("Point 4 — name recommendations with distances when traveler asks dir
 
     const searched = await tools.searchPlaces.execute!(
       { query: "quán ăn", nearDestinationId: QUAN_BA.id },
-      { toolCallId: "s1", messages: [] },
+      { toolCallId: "s1", messages: [], context: {} },
     ) as { ok: boolean; places: { name: string; distanceKm?: number }[] };
 
     expect(searched.ok).toBe(true);
@@ -74,7 +75,7 @@ describe("Point 4 — name recommendations with distances when traveler asks dir
           { slotId: "d1-visit-1", kind: "MEAL", title: "Phong Son Restaurant", placeId: "ChIJ-eat-2" },
         ],
       },
-      { toolCallId: "a1", messages: [] },
+      { toolCallId: "a1", messages: [], context: {} },
     ) as { ok: boolean; attached?: { title: string; distanceKm?: number }[]; note: string };
 
     expect(added.ok).toBe(true);

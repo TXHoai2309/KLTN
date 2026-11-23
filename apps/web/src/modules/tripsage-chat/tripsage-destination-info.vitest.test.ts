@@ -16,6 +16,7 @@ const NHO_QUE: PlannerCandidate = {
   suggestedDurationMinutes: 90,
   minimumDurationMinutes: 60,
   visibility: "VISIBLE",
+  revision: "v1",
   isOutdoor: true,
   openingDays: [
     { dayOfWeek: "MONDAY", status: "OPEN", intervals: [{ opensAtMinute: 360, closesAtMinute: 1020 }] },
@@ -61,7 +62,7 @@ describe("Point 5 — getDestinationInfo tool for catalog opening hours & ticket
     // Resolve by short code D1 after listDestinations or directly by catalog id / name
     const byId = await tools.getDestinationInfo.execute!(
       { destinationId: "dest-nho-que", dayOfWeek: "SUNDAY" },
-      { toolCallId: "g1", messages: [] },
+      { toolCallId: "g1", messages: [], context: {} },
     ) as {
       ok: boolean;
       name: string;
@@ -95,7 +96,7 @@ describe("Point 5 — getDestinationInfo tool for catalog opening hours & ticket
 
     const byDate = await tools.getDestinationInfo.execute!(
       { destinationId: "Cột cờ Lũng Cú", date: "2026-12-20" },
-      { toolCallId: "g2", messages: [] },
+      { toolCallId: "g2", messages: [], context: {} },
     ) as {
       ok: boolean;
       name: string;
@@ -116,10 +117,10 @@ describe("Point 5 — getDestinationInfo tool for catalog opening hours & ticket
       emitItinerary: () => {},
     });
 
-    await tools.listDestinations.execute!({}, { toolCallId: "l1", messages: [] });
+    await tools.listDestinations.execute!({}, { toolCallId: "l1", messages: [], context: {} });
     const res = await tools.getDestinationInfo.execute!(
       { destinationId: "D2", dayOfWeek: "MONDAY" },
-      { toolCallId: "g3", messages: [] },
+      { toolCallId: "g3", messages: [], context: {} },
     ) as { ok: boolean; requestedDay?: { status: string; summary: string } };
 
     expect(res.ok).toBe(true);

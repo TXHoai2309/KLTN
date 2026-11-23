@@ -38,7 +38,7 @@ describe("Point 6 — hide web/infra errors from travelers and log safe Firecraw
 
     const out = await tools.webSearch.execute!(
       { query: "giá vé xe khách Hải Phòng Hà Giang" },
-      { toolCallId: "w1", messages: [] },
+      { toolCallId: "w1", messages: [], context: {} },
     ) as { ok: boolean; code: string; message: string };
 
     expect(out.ok).toBe(false);

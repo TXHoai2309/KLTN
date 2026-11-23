@@ -31,6 +31,7 @@ function candidate(id: string, name: string, latitude: number, longitude: number
     suggestedDurationMinutes: 60,
     minimumDurationMinutes: 30,
     visibility: "VISIBLE",
+    revision: "v1",
     isOutdoor: true,
     openingDays: ALL_OPEN,
   };
@@ -153,7 +154,7 @@ describe("Point 1 — L2→L4→L7 proposeItinerary overnight enforcement", () =
     // and preserves Day 2 boundary (does not repartition Day 2 stops into Day 1 / Day 3).
     const res = await tools.proposeItinerary.execute!(
       { selection: { days: [[QUAN_BA.id], [DONG_VAN.id, NHO_QUE.id], [MA_PI_LENG.id]] } },
-      { toolCallId: "t1", messages: [] },
+      { toolCallId: "t1", messages: [], context: {} },
     ) as Record<string, unknown>;
 
     expect(res.ok).toBe(true);
@@ -164,10 +165,10 @@ describe("Point 1 — L2→L4→L7 proposeItinerary overnight enforcement", () =
     expect(emittedTripInfos.at(-1)).toMatchObject({ overnightAreas: [{ afterDay: 2, area: "Đồng Văn" }] });
 
     // Lodging search near Đồng Văn attaches cleanly to d2-overnight
-    await tools.searchPlaces.execute!({ query: "homestay", nearDestinationId: DONG_VAN.id }, { toolCallId: "t2", messages: [] });
+    await tools.searchPlaces.execute!({ query: "homestay", nearDestinationId: DONG_VAN.id }, { toolCallId: "t2", messages: [], context: {} });
     const addRes = await tools.addSuggestions.execute!(
       { items: [{ slotId: "d2-overnight", kind: "LODGING", title: "Phố núi Homestay Đồng Văn", placeId: "ChIJ-dv-1" }] },
-      { toolCallId: "t3", messages: [] },
+      { toolCallId: "t3", messages: [], context: {} },
     ) as Record<string, unknown>;
     expect(addRes.ok).toBe(true);
     expect(addRes.rejected).toEqual([]);
@@ -195,7 +196,7 @@ describe("Point 1 — L2→L4→L7 proposeItinerary overnight enforcement", () =
 
     const res = await tools.proposeItinerary.execute!(
       { selection: { days: [[QUAN_BA.id, NHO_QUE.id], [DONG_VAN.id]] } },
-      { toolCallId: "t1", messages: [] },
+      { toolCallId: "t1", messages: [], context: {} },
     ) as { ok: boolean; unmetOvernightAreas?: { afterDay: number; wantedArea: string; reason: string; chips: string[] }[]; note?: string };
 
     expect(res.ok).toBe(true);
@@ -207,7 +208,7 @@ describe("Point 1 — L2→L4→L7 proposeItinerary overnight enforcement", () =
     // Off-topic bus-ticket suggestReplies must be rejected when overnight constraint is unmet
     const badSuggest = await tools.suggestReplies.execute!(
       { replies: ["Tra lại giá vé xe khách", "Giữ tuyến trực tiếp", "Bỏ qua khoản vé"] },
-      { toolCallId: "t2", messages: [] },
+      { toolCallId: "t2", messages: [], context: {} },
     ) as { ok: boolean; code?: string };
     expect(badSuggest.ok).toBe(false);
     expect(badSuggest.code).toBe("UNMET_OVERNIGHT_PRIORITY");
