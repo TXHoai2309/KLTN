@@ -22,3 +22,9 @@
   - `npx vitest run src/modules/tripsage-chat/tripsage-budget-preferences.vitest.test.ts src/modules/tripsage-chat/tripsage-cost.vitest.test.ts src/components/traveler-ui src/components/tripsage-chat`: PASS (15 files, 73/73 tests).
   - `npx tsc --noEmit` (trong `apps/web`): PASS.
   - `git diff --check`: PASS.
+
+## Cập nhật hậu triển khai (2026-11-23 — Lỗi B & Lỗi G, commit `ab64842`, `7a661a3`)
+
+- `ab64842` (Lỗi G): chuẩn hóa `flightPriceOverride` về đơn giá mỗi người theo `overrideAdults` trong `buildAccessLeg` / `applyFlightOverrideToAccessLeg` (`tripsage-access-leg.ts`) và `findMatchingFlightOverride` (`tripsage-chat-tools.ts`, chấp nhận lệch ±1 ngày di chuyển `Ngày đi`/`Ngày về`), tự đồng bộ lại chặng tiếp cận sau khi `searchFlights` trả kết quả để các đoạn `FLIGHT` mang `priceSource: "GOOGLE_FLIGHTS"` và khớp tổng với bảng chi phí / mục ghim.
+- `7a661a3` (Lỗi B): bổ sung `budgetSavingsChipSchema` + `savingsOptions` vào `costPartSchema`, `resolveBudgetSavingsChips` (nhãn gọn `· −X tr (ước tính)`), gắn vào `data-cost` phát về client, chỉ ghi `note` báo đã hiện chip khi `emitCost` thực sự gửi `savingsOptions`, chặn `suggestReplies` hỏi quán ăn khi đang vượt ngân sách (`BUDGET_EXCEEDED_PRIORITY`), và ưu tiên câu kết hỏi về ngân sách trong `tripsage-chat-service.ts`.
+- Kiểm thử đơn vị: `tripsage-access-leg-flights.vitest.test.ts` (7/7 PASS), `tripsage-budget-preferences.vitest.test.ts` (3/3 PASS), `tripsage-cost-card.vitest.test.ts` (2/2 PASS). Lưu ý: luồng chat OpenAI trực tiếp cục bộ bị chặn bởi bảng `runtime_config` (`LOCAL/OPENAI`) thiếu `RUNTIME_CONFIG_ENCRYPTION_KEY` trong `apps/web/.env`, nên bước gọi `POST /api/ai/chat` trực tiếp trên máy cục bộ chưa chạy được.

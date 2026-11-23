@@ -21,3 +21,8 @@
 - `npx vitest run src/lib/traveler-display-clean.vitest.test.ts src/modules/tripsage-chat/tripsage-places.vitest.test.ts src/modules/tripsage-chat/tripsage-activities.vitest.test.ts src/modules/tripsage-chat/tripsage-concierge-timeline.vitest.test.ts src/app/trips/trips-view.vitest.test.ts`: PASS (5 files, 53/53 tests).
 - `npx tsc --noEmit`: PASS.
 - `git diff --check`: PASS.
+
+**Cập nhật hậu triển khai (2026-11-23 — Lỗi A, commit `d8a184c`):**
+- Bổ sung `cleanTravelerDisplay` và mở rộng regex `TEMP_PREFIX` bắt mọi biến thể `[Tạm]`, `[Tam]`, `[tạm]`, `[ Tạm ]` (kể cả ở đầu mô tả điểm dừng) chỉ ở tầng hiển thị; không lọc/loại hay sửa dữ liệu DB.
+- Áp dụng đồng bộ cho mô tả điểm dừng tại `tripsage-timeline.ts`, `day-timeline.tsx`, `tripsage-timeline-view.tsx`, `place-preview-modal.tsx`, `tripsage-plan-panel.tsx`, `trips-view.tsx`, `companion-group-view.tsx`.
+- Kiểm tra trình duyệt thật trên hội thoại dev dựng từ `2c85423a` (`1440x900`, sáng & tối): 0 lần xuất hiện `[Tạm]`/`[Tam]` trên cả 4 ngày và trong modal `"Xem thêm"` (`Cổng trời Quản Bạ`, `Núi Đôi Cô Tiên`, `Rừng thông Yên Minh`).

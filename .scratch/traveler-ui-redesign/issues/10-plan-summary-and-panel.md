@@ -25,3 +25,13 @@
   - `npx tsc --noEmit` (trong `apps/web`): PASS.
   - `git diff --check`: PASS.
 - Chưa kiểm ảnh chụp trình duyệt ở 1440px / 768px.
+
+## Cập nhật hậu triển khai (2026-11-23 — Font/Sticky + Lỗi C, E, F, H + collapse `.tv-day-tabs`)
+
+- `8e41b5f`: đưa biến `next/font` lên `<html>` (`layout.tsx`) để `:root --tv-font-ui` nhận `Be Vietnam Pro`, sửa `.tv-day-tabs--sticky` dùng `top: var(--header-height, 65px)` / `var(--header-height-mobile, 58px)`, thêm kiểm tra hồi quy vào `traveler-tokens-audit.vitest.test.ts`.
+- `7fa287e` (Lỗi C): thêm `resolveDayLunchBreak` suy giờ nghỉ trưa từ lịch đã kiểm, loại bỏ mốc `12:00–13:00` cứng và buộc thứ tự theo giờ không chồng nhau ở chat panel, trang chuyến đi, trang chia sẻ. Đã kiểm trên trình duyệt thật Ngày 1–4 (`Nặm Đăm 10:14–12:14` → `Nghỉ trưa 12:14–13:14` → `Rừng thông Yên Minh 14:44–15:14`).
+- `8563e3f` (Lỗi E): tăng tốc bắt kịp chữ chạy tối đa `280ms` khi stream xong (`STREAM_FINISH_BUDGET_MS`), xả ngay câu cũ khi người dùng gửi tin mới (`flushNow`), khóa chip/thẻ cho đến khi chữ chạy xong.
+- `c192567` (Lỗi F): kẹp mô tả điểm dừng `DayTimeline` (`3 dòng` full / `2 dòng` compact) kèm nút `"Xem thêm"` mở modal xem nhanh đầy đủ mà không cắt dữ liệu gốc. Đã kiểm trên trình duyệt thật (`Cổng trời Quản Bạ` kẹp 3 dòng + modal 1202 ký tự đóng được bằng `Escape`).
+- `6568121` (Lỗi H): thiết kế lại `TripsageCostCard` và `assistant.css` bỏ cuộn lồng nhau, huy hiệu `"Vượt ngân sách ..."` (`--tv-warn-ink`/`--tv-warn-bg`), chip tiết kiệm ngay dưới, `@container (max-width: 639px)` 2 cột, `<details>` `"Ghi chú cách tính"` đóng mặc định, nút `"Ghim vào chuyến đi"` `secondary sm`.
+- `d6eccdd`: sửa lỗi phát hiện khi kiểm trình duyệt — `.tv-day-tabs` bị co chiều cao về `0` khi đứng trực tiếp trong grid `.tripsage-panel-body` (`min-height: 33px; min-width: 0; overflow-y: hidden;` + `grid-template-columns: minmax(0, 1fr);`), kèm test chống tái phát.
+- Đã kiểm trên trình duyệt thật ở `1440x900` (sáng & tối) cho panel lịch trình, modal xem nhanh, kiểm tra thứ tự giờ, sticky header/subtabs; vòng chụp ảnh bổ sung tab `Chi phí` và `768px`/`375px` bị dừng giữa chừng do subagent trình duyệt hết quota (`429 RESOURCE_EXHAUSTED`).
