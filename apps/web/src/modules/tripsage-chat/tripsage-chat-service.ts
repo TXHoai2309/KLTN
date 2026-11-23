@@ -31,8 +31,11 @@ import {
   createInlineSourceStreamFilter,
   detectReplyLanguage,
   expandedKnowledgeLabel,
+  hasPlaceDeictic,
+  resolveAmbiguousPlaceReference,
   selectUsedDocumentSources,
   stripRedundantInlineSourceLines,
+  type AmbiguousPlaceResolution,
   type KnowledgeCandidate,
   type ReplyLanguage,
 } from "./tripsage-knowledge-sources";
@@ -48,7 +51,7 @@ const PERSONA_INSTRUCTIONS = [
   "Trình bày bằng markdown dễ đọc: đoạn ngắn, không in đậm cả câu (chỉ **in đậm** một cụm số liệu hoặc tên riêng khi thật cần), danh sách gạch đầu dòng hoặc đánh số, tiêu đề nhỏ (###) khi câu trả lời dài, bảng khi so sánh. Không dùng HTML, không chèn ảnh, không chèn đường link, và TUYỆT ĐỐI không viết thẻ văn bản ':::suggest_replies' hay khối JSON/directive ':::...:::' trong lời văn (luôn dùng công cụ suggestReplies).",
   "Phân biệt 3 trường hợp ý định của người dùng (ADR-43 §2, ADR-44): (A) Mở đầu nói thẳng muốn đi hoặc muốn lập lịch (ví dụ 'tôi muốn lập hành trình Hà Giang', 'đi Hà Giang 4 ngày', 'lên lịch 3 ngày bằng xe máy') → KHÔNG hỏi lại 'bạn có muốn lập lịch không' và KHÔNG dừng lại để hỏi đủ thông tin trước; ghi ngay những gì người dùng đã nói (nếu có) bằng recordTripInfo, rồi lập ngay một bản nháp giả định trong cùng lượt (listDestinations rồi proposeItinerary — nếu chưa có số ngày thì chọn lịch 4 ngày, hệ thống tự điền giả định: điểm tập kết Hà Nội, 4 ngày 3 đêm, xe máy, thứ Bảy gần nhất). Sau bản nháp, viết đúng một dòng nêu rõ giả định ('Mình đang giả định: ...'), nhắc chưa lưu được cho tới khi xác nhận nơi xuất phát và ngày đi, hỏi ĐÚNG MỘT câu về giả định quan trọng nhất (đi từ đâu hoặc ngày nào), và đưa các giả định còn lại thành suggestReplies. (B) Đang hỏi đáp về một địa điểm rồi chuyển sang muốn lập lịch (ví dụ vừa hỏi về Cột cờ Lũng Cú rồi nhắn 'lên lịch đi') → xác nhận ý định lập lịch bằng một câu tự nhiên nêu rõ những gì bạn đã hiểu (đi Hà Giang và đưa địa điểm vừa hỏi làm điểm bắt buộc), đồng thời gọi listDestinations để lấy đúng id và ghi mustIncludeDestinationIds bằng recordTripInfo (tối đa 4 điểm), rồi hỏi gộp thông tin còn thiếu. (C) Câu hỏi chung hoặc mơ hồ (ví dụ 'Hà Giang có gì chơi?', 'mùa nào đẹp?', 'đèo Mã Pí Lèng thế nào?') → trả lời hỏi đáp trước bằng lookupLocalKnowledge, rồi cuối câu mới mời nhẹ xem có muốn lên lịch không (kèm suggestReplies); chưa gọi proposeItinerary.",
   "Với lời chào ngắn ('hi', 'hello', 'chào bạn'...): chào lại tự nhiên, nếu đang có chuyến đi hoặc lịch trình trong ngữ cảnh thì nhắc ngắn gọn chuyến đang lập và hỏi 1 câu để tiếp tục. Với yêu cầu thay đổi mơ hồ ('tôi muốn thay đổi', 'sửa giúp mình'...): hỏi đúng 1 câu 'Bạn muốn đổi phần nào?' kèm suggestReplies ('Đổi ngày đi', 'Đổi số ngày', 'Đổi điểm đến', 'Đổi nơi xuất phát').",
-  "Khi trả lời hỏi đáp: ưu tiên gọi lookupLocalKnowledge trước. Với câu hỏi về giờ mở cửa theo ngày/thứ trong tuần hoặc giá vé của điểm đến trong danh mục, gọi getDestinationInfo trước để lấy giờ mở cửa và giá vé sẵn có trong cơ sở dữ liệu; trả lời bằng đúng dữ liệu đó và ghi rõ thông tin lấy từ dữ liệu điểm đến (thiếu giá vé thì nói rõ 'chưa có giá vé trong dữ liệu', không bịa). Khi người dùng hỏi thông tin hoặc đánh giá một địa điểm cụ thể (như 'thác Bạc Sủng Thài', 'hồ Mây Xanh Đồng Văn', tên điểm lạ), PHẢI tra theo thứ tự: (1) danh mục điểm đến (getDestinationInfo / listDestinations), (2) tài liệu địa phương đã duyệt (lookupLocalKnowledge), (3) Google Places (searchPlaces). Nếu không tìm thấy trong cả 3 nguồn, PHẢI nói rõ chưa có thông tin xác thực về địa điểm này, TUYỆT ĐỐI KHÔNG tự mô tả, không đoán vị trí/đường đi và không nhận xét 'có nên đi / đáng ghé không'; có thể gợi ý ngắn 1–2 điểm thật trong danh mục gần khu vực đó. Nếu tìm thấy qua searchPlaces, CHỈ nêu đúng thông tin trong kết quả và nói rõ là 'thông tin từ Google Maps, chưa kiểm tra'. Khi người dùng hỏi mơ hồ về điểm trong lịch (như 'điểm thứ 2'), nêu rõ bạn đang hiểu là điểm nào (ví dụ 'Điểm dừng 2 của ngày 1 là …'), hoặc hỏi lại kèm suggestReplies tên các điểm đó. Chỉ những tài liệu thực sự liên quan và được bạn dùng trong phần trả lời chính mới hiện thành khối nguồn bên dưới; TUYỆT ĐỐI KHÔNG tự viết dòng 'Nguồn tài liệu:', 'Nguồn:', 'Source:', 'Sources:', 'Reference:', 'References:', '(Nguồn: ...)' hay 'Nguồn tài liệu: tư liệu địa phương về ...' trong lời văn (cả tiếng Việt lẫn tiếng Anh) vì giao diện đã hiển thị tự động bên dưới. Lượt chỉ lập lịch hoặc chỉnh lịch không gọi lookupLocalKnowledge một cách máy móc. Nếu tài liệu không có nội dung khớp chủ đề hoặc phần bổ sung dựa vào hiểu biết chung, nói rõ nhãn 'Kiến thức mở rộng' khi trả lời tiếng Việt hoặc 'General knowledge' khi trả lời tiếng Anh — phần hiểu biết chung này không cần nguồn tài liệu địa phương và không được gắn nguồn không liên quan.",
+  "Khi trả lời hỏi đáp: ưu tiên gọi lookupLocalKnowledge trước. Với câu hỏi về giờ mở cửa theo ngày/thứ trong tuần hoặc giá vé của điểm đến trong danh mục, gọi getDestinationInfo trước để lấy giờ mở cửa và giá vé sẵn có trong cơ sở dữ liệu; trả lời bằng đúng dữ liệu đó và ghi rõ thông tin lấy từ dữ liệu điểm đến (thiếu giá vé thì nói rõ 'chưa có giá vé trong dữ liệu', không bịa). Khi người dùng hỏi thông tin hoặc đánh giá một địa điểm cụ thể (như 'thác Bạc Sủng Thài', 'hồ Mây Xanh Đồng Văn', tên điểm lạ), PHẢI tra theo thứ tự: (1) danh mục điểm đến (getDestinationInfo / listDestinations), (2) tài liệu địa phương đã duyệt (lookupLocalKnowledge), (3) Google Places (searchPlaces). Nếu không tìm thấy trong cả 3 nguồn, PHẢI nói rõ chưa có thông tin xác thực về địa điểm này, TUYỆT ĐỐI KHÔNG tự mô tả, không đoán vị trí/đường đi và không nhận xét 'có nên đi / đáng ghé không'; có thể gợi ý ngắn 1–2 điểm thật trong danh mục gần khu vực đó. Nếu tìm thấy qua searchPlaces, CHỈ nêu đúng thông tin trong kết quả và nói rõ là 'thông tin từ Google Maps, chưa kiểm tra'. Khi người dùng hỏi mơ hồ về điểm trong lịch (như 'điểm thứ 2'), nêu rõ bạn đang hiểu là điểm nào (ví dụ 'Điểm dừng 2 của ngày 1 là …'), hoặc hỏi lại kèm suggestReplies tên các điểm đó. Khi người dùng hỏi đáp bằng đại từ chỉ nơi ('chỗ đó', 'ở đấy', 'nơi này', 'that place', 'there') mà không nêu tên địa điểm: CHỈ xét 2–3 lượt hội thoại văn bản gần nhất (do người dùng hoặc phần trả lời chính nêu, TUYỆT ĐỐI KHÔNG lấy tên từ khối 'Nguồn tài liệu'); nếu không có địa điểm nào rõ ràng hoặc có nhiều nơi thì hỏi lại 1 câu ngắn kèm suggestReplies tên các nơi gợi ý (không tự đoán bừa); nếu có ĐÚNG MỘT nơi được nhắc gần đây thì trả lời về nơi đó và nói rõ ngay đầu câu 'Mình hiểu bạn đang hỏi về <tên nơi>...' (hoặc 'I understand you're asking about <place>...'). Chỉ những tài liệu thực sự liên quan và được bạn dùng trong phần trả lời chính mới hiện thành khối nguồn bên dưới; TUYỆT ĐỐI KHÔNG tự viết dòng 'Nguồn tài liệu:', 'Nguồn:', 'Source:', 'Sources:', 'Reference:', 'References:', '(Nguồn: ...)' hay 'Nguồn tài liệu: tư liệu địa phương về ...' trong lời văn (cả tiếng Việt lẫn tiếng Anh) vì giao diện đã hiển thị tự động bên dưới. Lượt chỉ lập lịch hoặc chỉnh lịch không gọi lookupLocalKnowledge một cách máy móc. Nếu tài liệu không có nội dung khớp chủ đề hoặc phần bổ sung dựa vào hiểu biết chung, nói rõ nhãn 'Kiến thức mở rộng' khi trả lời tiếng Việt hoặc 'General knowledge' khi trả lời tiếng Anh — phần hiểu biết chung này không cần nguồn tài liệu địa phương và không được gắn nguồn không liên quan.",
   "Khi người dùng xác nhận hoặc đổi một trường giả định: đổi hoặc xác nhận ngày đi/số ngày/phương tiện thì gọi recordTripInfo; đồng ý điểm xuất phát giả định Hà Nội thì gọi confirmOrigin(hub:HA_NOI); đổi sang nơi xuất phát khác thì vẫn dùng findOrigin và xác nhận ở lượt sau (ADR-43), rồi lập lại lịch nếu có thay đổi ảnh hưởng lịch.",
   "Nếu người dùng đã nói sẵn một số thông tin trong tin đầu, ghi ngay bằng recordTripInfo và chỉ hỏi phần còn thiếu. Phương tiện, số ngày, ngày đi chỉ ghi khi người dùng đã nói hoặc đồng ý (một câu 'ok' là đồng ý toàn bộ gợi ý bạn vừa đưa). Không bao giờ tự đặt điểm xuất phát, ngày ở quá khứ hay số ngày ngoài 1-14. Chỉ gọi confirmOrigin ở lượt người dùng trả lời đồng ý hoặc bấm chọn nhãn ứng viên.",
   "Ngày khởi hành luôn tính theo dòng 'Hôm nay' (giờ Việt Nam) trong ngữ cảnh; không bao giờ nói 'chưa biết hôm nay là ngày nào' hay chọn ngày ở quá khứ. Nếu người dùng nêu ngày cụ thể hoặc gần đúng có ngày/tháng (như 'ngày mai', 'thứ Bảy tuần này', 'ngày 1 tháng sau', '12/12', 'khoảng 12/12'): tự quy đổi ra ngày cụ thể YYYY-MM-DD, ghi luôn bằng recordTripInfo và lập lịch ngay trong lượt đó (không tốn thêm lượt chỉ để hỏi 'Chốt ngày…?'), kèm chip 'Đổi ngày' nếu là ngày tạm hiểu. Chỉ khi người dùng nêu khoảng mơ hồ không có ngày cụ thể (như 'đầu tháng 12', 'giữa tháng sau', 'cuối tuần sau') mới chọn một ngày gợi ý, CHƯA ghi bằng recordTripInfo, gọi suggestReplies với 'Đúng, đi <dd/mm/yyyy>' và 'Chọn ngày khác'. Khi người dùng đổi sang ngày mới hoặc đã có ngày hợp lệ, không nhắc lại ngày cũ đã bỏ hay lỗi ngày ở lượt trước.",
@@ -291,6 +294,9 @@ export function formatVietnamTodayLine(now: Date): string {
 export function buildTripsageContext(input: {
   now?: Date;
   latestUserText?: string | null;
+  recentMessages?: readonly ModelMessage[];
+  catalogPlaceNames?: readonly string[];
+  ambiguityResolution?: AmbiguousPlaceResolution;
   tripInfo?: TripsageTripInfo | null;
   itinerary?: TripsageItinerarySummary | null;
   suggestions?: readonly TimelineSuggestion[];
@@ -299,9 +305,32 @@ export function buildTripsageContext(input: {
   originCandidates?: VerifiedOriginCandidates;
 }): string {
   const blocks: string[] = [formatVietnamTodayLine(input.now ?? new Date())];
-  if (detectReplyLanguage(input.latestUserText) === "en") {
+  const replyLang = detectReplyLanguage(input.latestUserText);
+  if (replyLang === "en") {
     blocks.push(
       "Ngôn ngữ tin nhắn mới nhất: tiếng Anh (en) — hãy trả lời hoàn toàn bằng tiếng Anh tự nhiên (kể cả khi các lượt trước dùng tiếng Việt), luôn giữ tên địa danh Việt Nam/Hà Giang bằng tiếng Việt có dấu (như Hà Giang, Đồng Văn, Đèo Mã Pì Lèng, Sông Nho Quế), sử dụng nhãn 'General knowledge' (KHÔNG viết 'Kiến thức mở rộng') nếu bổ sung kiến thức chung, và viết các nút suggestReplies bằng tiếng Anh.",
+    );
+  }
+  const ambiguity =
+    input.ambiguityResolution ??
+    resolveAmbiguousPlaceReference({
+      latestUserText: input.latestUserText,
+      recentMessages: input.recentMessages,
+      catalogPlaceNames: input.catalogPlaceNames,
+    });
+  if (ambiguity.kind === "SINGLE") {
+    blocks.push(
+      replyLang === "en"
+        ? `Resolved place pronoun context (from last 2–3 text turns only, never from source cards): only ONE specific place appeared recently: ${JSON.stringify(ambiguity.place)}. Answer about it and open explicitly with "I understand you're asking about ${ambiguity.place}...".`
+        : `Tham chiếu địa điểm gần nhất (chỉ từ 2–3 lượt hội thoại văn bản gần đây, KHÔNG lấy từ khối nguồn): trong câu hỏi mới nhất người dùng dùng đại từ chỉ nơi và chỉ có ĐÚNG MỘT địa điểm gần đây là ${JSON.stringify(ambiguity.place)}. Hãy dùng địa điểm này để trả lời VÀ PHẢI mở đầu rõ bằng "Mình hiểu bạn đang hỏi về ${ambiguity.place}...".`,
+    );
+  } else if (ambiguity.kind === "AMBIGUOUS") {
+    blocks.push(
+      `Tham chiếu địa điểm MƠ HỒ (nhiều địa điểm xuất hiện trong 2–3 lượt văn bản gần nhất: ${JSON.stringify(ambiguity.candidates)}). Không tự chọn một nơi; hãy hỏi lại 1 câu ngắn xem người dùng muốn hỏi địa điểm nào và gọi suggestReplies với đúng các địa điểm trên.`,
+    );
+  } else if (ambiguity.kind === "UNRESOLVED") {
+    blocks.push(
+      "Tham chiếu địa điểm CHƯA RÕ (0 địa điểm xuất hiện trong 2–3 lượt hội thoại văn bản gần nhất; TUYỆT ĐỐI KHÔNG lấy tên từ khối 'Nguồn tài liệu' lượt trước để đoán): hãy hỏi lại 1 câu thật ngắn xem người dùng đang hỏi địa điểm cụ thể nào ở Hà Giang, TUYỆT ĐỐI KHÔNG đoán đại một nơi (như Lùng Tám), và PHẢI gọi suggestReplies gồm 2–4 tên địa điểm gợi ý (ví dụ: Làng dệt lanh Lùng Tám, Phố cổ Đồng Văn, Làng Lô Lô Chải).",
     );
   }
   const effectiveJourney = resolveEffectiveJourney(input.journey, input.tripInfo);
@@ -461,6 +490,7 @@ export type FallbackQuickRepliesInput = {
   cost: CostPart | null;
   accessLeg: AccessLegPart | null;
   tripInfo: TripsageTripInfo | null;
+  ambiguityResolution?: AmbiguousPlaceResolution | null;
 };
 
 function hubTransportChipsFor(tripInfo: TripsageTripInfo | null, lang: ReplyLanguage = "vi"): string[] {
@@ -615,6 +645,13 @@ export function resolveFallbackQuickReplies(input: FallbackQuickRepliesInput): s
     return pick(hubTransportChipsFor(input.tripInfo, lang));
   }
 
+  if (input.ambiguityResolution?.kind === "AMBIGUOUS" && input.ambiguityResolution.candidates.length >= 2) {
+    return pick(input.ambiguityResolution.candidates.slice(0, 4));
+  }
+  if (input.ambiguityResolution?.kind === "UNRESOLVED") {
+    return pick(["Làng dệt lanh Lùng Tám", "Phố cổ Đồng Văn", "Làng Lô Lô Chải"]);
+  }
+
   if (input.cost?.isIncomplete || (input.accessLeg?.missingPriceSegments?.length ?? 0) > 0) {
     const missing = resolveMissingPriceChips({
       accessLeg: input.accessLeg,
@@ -724,7 +761,7 @@ export function streamTripsageChat(input: {
   const settle = once(input.onSettled);
   input.signal?.addEventListener("abort", settle, { once: true });
   const stream = createUIMessageStream({
-    execute: ({ writer }) => {
+    execute: async ({ writer }) => {
       const replyLang = detectReplyLanguage(input.latestUserText);
       if (input.conversation) {
         const meta = conversationMetaPartSchema.safeParse(input.conversation);
@@ -763,6 +800,14 @@ export function streamTripsageChat(input: {
       const textChunks: string[] = [];
       const trace = createToolTraceCollector(MEMORY_TOOL_NAMES);
       let streamErrored = false;
+      const catalogPlaceNames = hasPlaceDeictic(input.latestUserText)
+        ? (await input.planning.candidates().catch(() => [])).map(dest => dest.name)
+        : undefined;
+      const ambiguityResolution = resolveAmbiguousPlaceReference({
+        latestUserText: input.latestUserText,
+        recentMessages: input.messages,
+        catalogPlaceNames,
+      });
       const tools = createTripsageChatTools({
         features: input.features,
         flights: input.flights,
@@ -770,7 +815,7 @@ export function streamTripsageChat(input: {
         priorHotelLookups: input.priorHotelLookups,
         priorFlightLookups: input.priorFlightLookups,
         memory: input.memory,
-        planning: input.planning, originSearch: input.originSearch, originCandidates: input.originCandidates, signOriginCandidates: input.signOriginCandidates, latestUserText: input.latestUserText, userHistoryTexts: input.messages.filter(m => m.role === "user").map(m => String(m.content)), hubOffered: assistantOfferedHub(lastAssistantText(input.messages)), places: input.places, fuelPrice: input.fuelPrice, knowledge: input.knowledge, accessLeg: input.accessLeg ?? null, currentItinerary: input.currentItinerary ?? null, journey: input.journey ?? null, tripInfo: input.tripInfo ?? null, maxProposals: limits.maxProposals, maxPlacesCalls: limits.maxPlacesCalls, web: input.web, maxWebSearchCalls: limits.maxWebSearchCalls, maxFetchPageCalls: limits.maxFetchPageCalls,
+        planning: input.planning, originSearch: input.originSearch, originCandidates: input.originCandidates, signOriginCandidates: input.signOriginCandidates, latestUserText: input.latestUserText, userHistoryTexts: input.messages.filter(m => m.role === "user").map(m => String(m.content)), hubOffered: assistantOfferedHub(lastAssistantText(input.messages)), ambiguityResolution, places: input.places, fuelPrice: input.fuelPrice, knowledge: input.knowledge, accessLeg: input.accessLeg ?? null, currentItinerary: input.currentItinerary ?? null, journey: input.journey ?? null, tripInfo: input.tripInfo ?? null, maxProposals: limits.maxProposals, maxPlacesCalls: limits.maxPlacesCalls, web: input.web, maxWebSearchCalls: limits.maxWebSearchCalls, maxFetchPageCalls: limits.maxFetchPageCalls,
         emitSuggestions: suggestions => {
           const id = `suggestions-${++suggestionsPart}`;
           const part = { type: "data-suggestions" as const, id, data: { suggestions } };
@@ -876,7 +921,7 @@ export function streamTripsageChat(input: {
       });
       const instructions = input.features?.size ? tripsageChatInstructions(input.features) : TRIPSAGE_CHAT_INSTRUCTIONS;
       const turnNow = input.planning.now?.() ?? new Date();
-      const result = streamText({ model: input.model, instructions: [instructions, buildTripsageContext({ now: turnNow, latestUserText: input.latestUserText, tripInfo: input.tripInfo, itinerary: input.currentItinerary, suggestions: input.suggestions, journey: input.journey, accessLeg: input.accessLeg, originCandidates: input.originCandidates })].filter(Boolean).join("\n\n"), messages: input.messages, abortSignal: signal,
+      const result = streamText({ model: input.model, instructions: [instructions, buildTripsageContext({ now: turnNow, latestUserText: input.latestUserText, recentMessages: input.messages, catalogPlaceNames, ambiguityResolution, tripInfo: input.tripInfo, itinerary: input.currentItinerary, suggestions: input.suggestions, journey: input.journey, accessLeg: input.accessLeg, originCandidates: input.originCandidates })].filter(Boolean).join("\n\n"), messages: input.messages, abortSignal: signal,
         // One bounded upstream attempt per step: the SDK's silent backoff retries would multiply cost and eat the 60 s budget.
         maxRetries: 0,
         // Nothing is stored upstream; reasoning-family models return encrypted items so the tool loop works.
@@ -1059,6 +1104,7 @@ export function streamTripsageChat(input: {
               cost: latestEmittedCost,
               accessLeg: latestEmittedAccessLeg ?? input.accessLeg ?? null,
               tripInfo: latestEmittedTripInfo ?? input.tripInfo ?? null,
+              ambiguityResolution,
             });
             if (fallback) {
               const part = { type: "data-quick-replies" as const, id: "quick-replies", data: { replies: fallback } };

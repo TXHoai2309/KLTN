@@ -3,13 +3,20 @@ import { MockLanguageModelV3 } from "ai/test";
 import {
   createInlineSourceStreamFilter,
   filterRelevantKnowledgeExcerpts,
+  resolveAmbiguousPlaceReference,
   selectUsedDocumentSources,
   stripExpandedKnowledgeSections,
   stripRedundantInlineSourceLines,
   type KnowledgeCandidate,
 } from "./tripsage-knowledge-sources";
 import { formatDocumentSourceTitle, sourcesPartSchema } from "./tripsage-chat-context";
-import { streamTripsageChat, TRIPSAGE_CHAT_INSTRUCTIONS } from "./tripsage-chat-service";
+import {
+  buildTripsageContext,
+  parseTripsageChatMessages,
+  resolveFallbackQuickReplies,
+  streamTripsageChat,
+  TRIPSAGE_CHAT_INSTRUCTIONS,
+} from "./tripsage-chat-service";
 
 // Exact excerpts retrieved by production RAG in conversation 66a36527-9de1-4420-a464-4106c09e83d9
 const L1_FIXTURE: KnowledgeCandidate[] = [
@@ -469,5 +476,155 @@ describe("Point 2 — knowledge source relevance & actual-usage filtering", () =
     }
     enOut += enFilter.end();
     expect(enOut.trim()).toBe("Local markets rely on bamboo as a source of craft income.");
+  });
+
+  it("C5: resolves deictic place pronouns strictly from last 2–3 text turns (never data-sources) and asks briefly with chips when unclear", async () => {
+    // 1) dbc94215 [15]->[16]: previous turn was photographing children (0 places in prose), even WITH leaked data-sources and inline Nguồn tài liệu
+    const parsedNoPlace = parseTripsageChatMessages({
+      messages: [
+        { id: "m1", role: "user", parts: [{ type: "text", text: "chụp ảnh hay cho kẹo trẻ em vùng cao có nên không?" }] },
+        {
+          id: "m2",
+          role: "assistant",
+          parts: [
+            {
+              type: "text",
+              text: "Nên xin phép người lớn đi cùng trước.\n\n*Kiến thức mở rộng; tài liệu địa phương hiện có chưa đề cập tới Cột cờ Lũng Cú.*\n\nNguồn tài liệu: Làng dệt lanh Lùng Tám",
+            },
+            { type: "data-sources", data: { sources: [{ kind: "DOCUMENT", title: "Làng dệt lanh Lùng Tám" }] } },
+          ],
+        },
+        { id: "m3", role: "user", parts: [{ type: "text", text: "chỗ đó có bán vải lanh làm quà không, giá tầm bao nhiêu?" }] },
+      ],
+    });
+    const unresolved = resolveAmbiguousPlaceReference({
+      latestUserText: parsedNoPlace.latestUser.text,
+      recentMessages: parsedNoPlace.messages,
+    });
+    expect(unresolved).toEqual({ kind: "UNRESOLVED", candidates: [] });
+
+    const unresolvedCtx = buildTripsageContext({
+      latestUserText: parsedNoPlace.latestUser.text,
+      recentMessages: parsedNoPlace.messages,
+      ambiguityResolution: unresolved,
+    });
+    expect(unresolvedCtx).toContain("TUYỆT ĐỐI KHÔNG lấy tên từ khối 'Nguồn tài liệu'");
+    expect(unresolvedCtx).toContain("suggestReplies");
+
+    expect(
+      resolveFallbackQuickReplies({
+        text: "Bạn đang muốn hỏi địa điểm cụ thể nào ở Hà Giang?",
+        latestUserText: parsedNoPlace.latestUser.text,
+        hasEmittedQuickReplies: false,
+        hasOriginCandidates: false,
+        itinerary: null,
+        cost: null,
+        accessLeg: null,
+        tripInfo: null,
+        ambiguityResolution: unresolved,
+      }),
+    ).toEqual(["Làng dệt lanh Lùng Tám", "Phố cổ Đồng Văn", "Làng Lô Lô Chải"]);
+
+    // End-to-end stream: model calling lookupLocalKnowledge on "chỗ đó có bán vải lanh không" gets count=0 clarification directive instead of pulling Lùng Tám RAG chunks
+    let knowledgeCalls = 0;
+    let captureSystem = "";
+    const res = streamTripsageChat({
+      model: new MockLanguageModelV3({
+        doStream: async (opts) => {
+          const prompt = opts.prompt as { role: string; content: unknown }[];
+          const sys = prompt.find(m => m.role === "system")?.content;
+          captureSystem = typeof sys === "string" ? sys : JSON.stringify(sys ?? "");
+          const hasToolRes = prompt.some(m => m.role === "tool");
+          if (!hasToolRes) {
+            return {
+              stream: new ReadableStream({
+                start(c) {
+                  c.enqueue({ type: "tool-call", toolCallId: "k1", toolName: "lookupLocalKnowledge", input: JSON.stringify({ question: "vải lanh làm quà" }) });
+                  c.enqueue({ type: "finish", finishReason: { unified: "tool-calls", raw: "tool-calls" }, usage: { inputTokens: { total: 10, noCache: 10, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 5, text: 5, reasoning: 0 } } });
+                  c.close();
+                },
+              }),
+            };
+          }
+          return {
+            stream: new ReadableStream({
+              start(c) {
+                c.enqueue({ type: "text-start", id: "t1" });
+                c.enqueue({ type: "text-delta", id: "t1", delta: "Mình chưa rõ bạn đang nhắc tới nơi nào — bạn muốn hỏi làng Lùng Tám hay chợ Đồng Văn?" });
+                c.enqueue({ type: "text-end", id: "t1" });
+                c.enqueue({ type: "finish", finishReason: { unified: "stop", raw: "stop" }, usage: { inputTokens: { total: 10, noCache: 10, cacheRead: 0, cacheWrite: 0 }, outputTokens: { total: 12, text: 12, reasoning: 0 } } });
+                c.close();
+              },
+            }),
+          };
+        },
+      }),
+      planning: {
+        candidates: async () => [],
+        routes: { route: async () => ({ fromDestinationId: "", toDestinationId: "", status: "INSUFFICIENT_DATA", reason: "NOT_CONFIGURED", durationSeconds: null, distanceMeters: null, provider: null }) },
+        now: () => new Date("2026-11-23T08:00:00Z"),
+      },
+      knowledge: async () => {
+        knowledgeCalls += 1;
+        return [{ title: "Làng dệt lanh Lùng Tám", text: "Vải lanh Lùng Tám giá từ 200k", score: 0.85 }];
+      },
+      latestUserText: parsedNoPlace.latestUser.text,
+      messages: parsedNoPlace.messages,
+      onPersistAssistant: async () => ({ status: "SUCCESS", data: { messageId: "m-c5-1" } }),
+    });
+    const sse = await res.text();
+    const events = sse
+      .split("\n")
+      .filter(l => l.startsWith("data: ") && l !== "data: [DONE]")
+      .map(l => JSON.parse(l.slice(6)) as { type: string; data?: { replies?: string[] } });
+    const emittedTypes = events.map(e => e.type);
+    const quickReplies =
+      events.find(e => e.type === "data-quick-replies")?.data?.replies ?? [];
+    expect(knowledgeCalls).toBe(0);
+    expect(captureSystem).toContain("TUYỆT ĐỐI KHÔNG đoán đại một nơi");
+    expect(emittedTypes).not.toContain("data-sources");
+    expect(quickReplies).toEqual(["Làng dệt lanh Lùng Tám", "Phố cổ Đồng Văn", "Làng Lô Lô Chải"]);
+
+    // 2) Clear SINGLE place in recent 2–3 text turns -> resolves cleanly & states assumption
+    const single = resolveAmbiguousPlaceReference({
+      latestUserText: "chỗ đó có bán vải lanh làm quà không?",
+      recentMessages: [
+        { role: "user", content: "Giới thiệu cho mình về Làng dệt lanh Lùng Tám" },
+        { role: "assistant", content: "Làng dệt lanh Lùng Tám nổi tiếng với nghề dệt thủ công của người Mông." },
+      ],
+    });
+    expect(single).toEqual({ kind: "SINGLE", place: "Làng dệt lanh Lùng Tám" });
+    const singleCtx = buildTripsageContext({
+      latestUserText: "chỗ đó có bán vải lanh làm quà không?",
+      ambiguityResolution: single,
+    });
+    expect(singleCtx).toContain("Mình hiểu bạn đang hỏi về Làng dệt lanh Lùng Tám");
+
+    // 3) Multiple places across recent turns -> AMBIGUOUS with candidate chips
+    const ambiguous = resolveAmbiguousPlaceReference({
+      latestUserText: "ở đấy đi buổi tối có vui không?",
+      recentMessages: [
+        { role: "user", content: "So sánh Phố cổ Đồng Văn và Du Già" },
+        { role: "assistant", content: "Phố cổ Đồng Văn nhộn nhịp hơn, còn Du Già yên tĩnh giữa thung lũng." },
+      ],
+    });
+    expect(ambiguous).toEqual({ kind: "AMBIGUOUS", candidates: ["Phố cổ Đồng Văn", "Du Già"] });
+
+    // 4) English existential "Are there ..." is NOT a deictic, whereas "What can I buy there?" resolves SINGLE
+    expect(
+      resolveAmbiguousPlaceReference({
+        latestUserText: "Are there buses from Hanoi to Ha Giang?",
+        recentMessages: [],
+      }),
+    ).toEqual({ kind: "NONE" });
+    expect(
+      resolveAmbiguousPlaceReference({
+        latestUserText: "What can I buy there?",
+        recentMessages: [
+          { role: "user", content: "Tell me about Phố cổ Đồng Văn" },
+          { role: "assistant", content: "Phố cổ Đồng Văn hosts a vibrant weekend market." },
+        ],
+      }),
+    ).toEqual({ kind: "SINGLE", place: "Phố cổ Đồng Văn" });
   });
 });

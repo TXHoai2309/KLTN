@@ -520,3 +520,196 @@ export function createInlineSourceStreamFilter(options?: { lang?: ReplyLanguage 
     },
   };
 }
+
+export type AmbiguousPlaceResolution =
+  | { kind: "NONE" }
+  | { kind: "SINGLE"; place: string }
+  | { kind: "AMBIGUOUS"; candidates: string[] }
+  | { kind: "UNRESOLVED"; candidates: [] };
+
+const PLACE_DEICTIC_VI_RE =
+  /(?<![\p{L}\p{N}])(?:ch[oỗ]\s+(?:[đd][oó]|[đd][aâấ]y|n[aà]y|kia)|[oở]\s+(?:[đd][oó]|[đd][aâấ]y)|n[oơ]i\s+(?:[đd][oó]|[đd][aâấ]y|n[aà]y|kia)|(?:[đd][iị]a\s+)?[đd]i[eể]m\s+(?:[đd][oó]|[đd][aâấ]y|n[aà]y)|qu[aá]n\s+(?:[đd][oó]|[đd][aâấ]y|n[aà]y)|l[aà]ng\s+(?:[đd][oó]|[đd][aâấ]y|n[aà]y)|b[aả]n\s+(?:[đd][oó]|[đd][aâấ]y|n[aà]y)|ch[oợ]\s+(?:[đd][oó]|[đd][aâấ]y)|th[aá]c\s+(?:[đd][oó]|[đd][aâấ]y)|[đd][eè]o\s+(?:[đd][oó]|[đd][aâấ]y)|khu\s+(?:[đd][oó]|[đd][aâấ]y))(?![\p{L}\p{N}])/iu;
+
+const PLACE_DEICTIC_EN_RE =
+  /\b(?:that\s+place|this\s+place|that\s+spot|that\s+village|that\s+market|over\s+there)\b|(?<!\b(?:is|are|was|were|am|be|been|if|whether|there)\s+)\bthere\b(?!\s+(?:is|are|was|were|be|being|been|any|some|a|an|many|much|few|no)\b)/iu;
+
+/** Returns true when `text` contains a deictic place pronoun ("chỗ đó", "ở đấy", "nơi này", "that place", "there"). */
+export function hasPlaceDeictic(text: string | null | undefined): boolean {
+  const trimmed = text?.trim() ?? "";
+  if (!trimmed) return false;
+  return PLACE_DEICTIC_VI_RE.test(trimmed) || PLACE_DEICTIC_EN_RE.test(trimmed);
+}
+
+type CanonicalPlacePattern = {
+  canonical: string;
+  regex: RegExp;
+  districtOf?: string;
+};
+
+const CANONICAL_PLACE_DEFS: readonly { canonical: string; aliases: readonly string[]; parentDistrict?: string }[] = [
+  { canonical: "Làng Văn hóa du lịch cộng đồng Nặm Đăm", aliases: ["Làng Văn hóa du lịch cộng đồng Nặm Đăm", "Làng Nặm Đăm", "Nặm Đăm"], parentDistrict: "Quản Bạ" },
+  { canonical: "Làng dệt lanh Lùng Tám", aliases: ["Làng dệt lanh Lùng Tám", "Làng Lùng Tám", "Lùng Tám"], parentDistrict: "Quản Bạ" },
+  { canonical: "Làng Lô Lô Chải", aliases: ["Làng Lô Lô Chải", "Lô Lô Chải"], parentDistrict: "Đồng Văn" },
+  { canonical: "Làng văn hóa Pả Vi", aliases: ["Làng văn hóa Pả Vi", "Làng Pả Vi", "Pả Vi"], parentDistrict: "Mèo Vạc" },
+  { canonical: "Thôn Hạ Thành", aliases: ["Làng văn hóa du lịch thôn Hạ Thành", "Thôn Hạ Thành", "Làng Hạ Thành", "Hà Thành", "Hạ Thành"] },
+  { canonical: "Sủng Là", aliases: ["Thung lũng Sủng Là", "Làng Sủng Là", "Nhà của Pao", "Sủng Là"], parentDistrict: "Đồng Văn" },
+  { canonical: "Cột cờ Lũng Cú", aliases: ["Cột cờ Lũng Cú", "Lũng Cú"], parentDistrict: "Đồng Văn" },
+  { canonical: "Cổng trời Quản Bạ", aliases: ["Cổng trời Quản Bạ", "Cổng trời"], parentDistrict: "Quản Bạ" },
+  { canonical: "Núi Đôi Quản Bạ", aliases: ["Núi Đôi Quản Bạ", "Núi Đôi Cô Tiên", "Núi Đôi"], parentDistrict: "Quản Bạ" },
+  { canonical: "Phố cổ Đồng Văn", aliases: ["Phố cổ Đồng Văn", "Phố cổ"], parentDistrict: "Đồng Văn" },
+  { canonical: "Cao nguyên đá Đồng Văn", aliases: ["Cao nguyên đá Đồng Văn", "Công viên địa chất Cao nguyên đá Đồng Văn"], parentDistrict: "Đồng Văn" },
+  { canonical: "Chợ phiên Đồng Văn", aliases: ["Chợ phiên Đồng Văn"], parentDistrict: "Đồng Văn" },
+  { canonical: "Dinh thự họ Vương", aliases: ["Dinh thự họ Vương", "Dinh thự Vua Mèo", "Dinh Vua Mèo", "Sà Phìn"], parentDistrict: "Đồng Văn" },
+  { canonical: "Đèo Mã Pì Lèng", aliases: ["Đèo Mã Pì Lèng", "Mã Pì Lèng"], parentDistrict: "Mèo Vạc" },
+  { canonical: "Sông Nho Quế", aliases: ["Sông Nho Quế", "Nho Quế"], parentDistrict: "Mèo Vạc" },
+  { canonical: "Hẻm Tu Sản", aliases: ["Hẻm vực Tu Sản", "Hẻm Tu Sản", "Tu Sản"], parentDistrict: "Mèo Vạc" },
+  { canonical: "Chợ tình Khâu Vai", aliases: ["Chợ tình Khâu Vai", "Khâu Vai"], parentDistrict: "Mèo Vạc" },
+  { canonical: "Ruộng bậc thang Hoàng Su Phì", aliases: ["Ruộng bậc thang Hoàng Su Phì", "Hoàng Su Phì"] },
+  { canonical: "Đỉnh Chiêu Lầu Thi", aliases: ["Đỉnh Chiêu Lầu Thi", "Chiêu Lầu Thi"] },
+  { canonical: "Dốc Thẩm Mã", aliases: ["Dốc Thẩm Mã", "Thẩm Mã"], parentDistrict: "Yên Minh" },
+  { canonical: "Phố Cáo", aliases: ["Phố Cáo"], parentDistrict: "Đồng Văn" },
+  { canonical: "Du Già", aliases: ["Làng Du Già", "Du Già"], parentDistrict: "Yên Minh" },
+  { canonical: "Rừng thông Yên Minh", aliases: ["Rừng thông Yên Minh"], parentDistrict: "Yên Minh" },
+  { canonical: "Căng Bắc Mê", aliases: ["Di tích Căng Bắc Mê", "Căng Bắc Mê"] },
+  { canonical: "TP Hà Giang", aliases: ["TP Hà Giang", "TP. Hà Giang", "Thành phố Hà Giang"] },
+  { canonical: "Đồng Văn", aliases: ["Đồng Văn"] },
+  { canonical: "Mèo Vạc", aliases: ["Mèo Vạc"] },
+  { canonical: "Quản Bạ", aliases: ["Quản Bạ"] },
+  { canonical: "Yên Minh", aliases: ["Yên Minh"] },
+  { canonical: "Bắc Mê", aliases: ["Bắc Mê"] },
+];
+
+const PARENT_DISTRICT_BY_CANONICAL = new Map<string, string>(
+  CANONICAL_PLACE_DEFS.filter(d => d.parentDistrict).map(d => [d.canonical, d.parentDistrict!]),
+);
+
+const NEGATED_OR_MISSING_SENTENCE_RE =
+  /(?:không\s+có\s+thông\s+tin(?:\s+xác\s+thực)?\s+về|chưa\s+có\s+thông\s+tin(?:\s+xác\s+thực)?\s+(?:về|cho)|tài\s+liệu\s+hiện\s+có\s+chưa\s+đề\s+cập|chưa\s+tìm\s+thấy\s+dữ\s+liệu\s+về|no\s+verified\s+information\s+about)/iu;
+
+function escapeRegexLiteral(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+}
+
+function buildPlacePatterns(catalogPlaceNames?: readonly string[]): CanonicalPlacePattern[] {
+  const aliasPairs: { canonical: string; alias: string }[] = [];
+  for (const def of CANONICAL_PLACE_DEFS) {
+    for (const alias of def.aliases) {
+      aliasPairs.push({ canonical: def.canonical, alias });
+    }
+  }
+  if (catalogPlaceNames) {
+    for (const rawName of catalogPlaceNames) {
+      const cleaned = rawName.trim();
+      if (!cleaned || /^hà\s+giang$/iu.test(cleaned)) continue;
+      const existing = CANONICAL_PLACE_DEFS.find(
+        d => foldText(d.canonical) === foldText(cleaned) || d.aliases.some(a => foldText(a) === foldText(cleaned)),
+      );
+      aliasPairs.push({ canonical: existing ? existing.canonical : cleaned, alias: cleaned });
+    }
+  }
+  aliasPairs.sort((a, b) => b.alias.length - a.alias.length);
+  const seenAliases = new Set<string>();
+  const out: CanonicalPlacePattern[] = [];
+  for (const item of aliasPairs) {
+    const folded = foldText(item.alias);
+    if (!folded || seenAliases.has(folded) || folded === "ha giang") continue;
+    seenAliases.add(folded);
+    out.push({
+      canonical: item.canonical,
+      regex: new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegexLiteral(folded).replace(/\s+/gu, "\\s+")}(?![\\p{L}\\p{N}])`, "giu"),
+    });
+  }
+  return out;
+}
+
+function extractPlacesFromSingleTurn(text: string, patterns: readonly CanonicalPlacePattern[]): string[] {
+  // Strip any inline source attributions and expanded-knowledge meta disclaimers so leaked source labels never become candidates.
+  const cleaned = stripExpandedKnowledgeSections(stripInlineSourceLines(text));
+  if (!cleaned) return [];
+  const positiveText = cleaned
+    .split(/(?<=[.!?;…])\s+|\r?\n+/u)
+    .filter(sentence => sentence.trim() && !NEGATED_OR_MISSING_SENTENCE_RE.test(sentence))
+    .join(" ");
+  if (!positiveText) return [];
+
+  let foldedMasked = foldText(positiveText);
+  const found: string[] = [];
+  const seen = new Set<string>();
+
+  for (const entry of patterns) {
+    entry.regex.lastIndex = 0;
+    const match = entry.regex.exec(foldedMasked);
+    if (!match) continue;
+    if (!seen.has(entry.canonical)) {
+      seen.add(entry.canonical);
+      found.push(entry.canonical);
+    }
+    // Mask every occurrence of this longer alias so nested shorter names (e.g. "Đồng Văn" inside "Phố cổ Đồng Văn") do not double-count.
+    foldedMasked = foldedMasked.replace(entry.regex, matched => " ".repeat(matched.length));
+  }
+
+  // If a specific landmark (e.g. Lùng Tám, Cột cờ Lũng Cú) is mentioned in the same turn, drop its parent district qualifier.
+  const parentDistricts = new Set(found.map(name => PARENT_DISTRICT_BY_CANONICAL.get(name)).filter((v): v is string => Boolean(v)));
+  return found.filter(name => !parentDistricts.has(name));
+}
+
+function flattenMessageTextContent(content: unknown): string {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content
+    .map(part => {
+      if (typeof part === "string") return part;
+      if (typeof part === "object" && part !== null && (part as { type?: unknown }).type === "text") {
+        const text = (part as { text?: unknown }).text;
+        return typeof text === "string" ? text : "";
+      }
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+/**
+ * Resolves place deictic pronouns ("chỗ đó", "ở đấy", "nơi này", "that place", "there")
+ * strictly from the latest 2–3 user/assistant text turns — never from `data-sources` (C5).
+ */
+export function resolveAmbiguousPlaceReference(input: {
+  latestUserText: string | null | undefined;
+  recentMessages?: readonly { role: string; content: unknown }[];
+  catalogPlaceNames?: readonly string[];
+}): AmbiguousPlaceResolution {
+  const latest = input.latestUserText?.trim() ?? "";
+  if (!hasPlaceDeictic(latest)) return { kind: "NONE" };
+
+  const patterns = buildPlacePatterns(input.catalogPlaceNames);
+  if (extractPlacesFromSingleTurn(latest, patterns).length > 0) {
+    return { kind: "NONE" };
+  }
+
+  const history = input.recentMessages ?? [];
+  const lastMsg = history.at(-1);
+  const priorMessages =
+    lastMsg && lastMsg.role === "user" && flattenMessageTextContent(lastMsg.content).trim() === latest
+      ? history.slice(0, -1)
+      : history;
+
+  // Last 2–3 user+assistant turns (up to 6 text messages preceding the latest user turn).
+  const windowMessages = priorMessages.slice(-6);
+  const discovered: string[] = [];
+  const seen = new Set<string>();
+  for (const msg of windowMessages) {
+    if (msg.role !== "user" && msg.role !== "assistant") continue;
+    const rawText = flattenMessageTextContent(msg.content);
+    if (!rawText) continue;
+    for (const place of extractPlacesFromSingleTurn(rawText, patterns)) {
+      if (!seen.has(place)) {
+        seen.add(place);
+        discovered.push(place);
+      }
+    }
+  }
+
+  if (discovered.length === 0) return { kind: "UNRESOLVED", candidates: [] };
+  if (discovered.length === 1) return { kind: "SINGLE", place: discovered[0]! };
+  return { kind: "AMBIGUOUS", candidates: discovered.slice(-4) };
+}
