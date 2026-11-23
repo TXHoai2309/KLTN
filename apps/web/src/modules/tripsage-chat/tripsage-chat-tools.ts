@@ -20,7 +20,7 @@ import { buildGroundedPreferenceLabels, detectStatedPreferences, preferenceLabel
 import { itineraryDistanceKm } from "./tripsage-chat-context";
 import { accessLegInputSchema, applyFlightOverrideToAccessLeg, buildAccessLeg, formatAccessLegCostBasis, isHubOrigin, resolveMissingPriceChips, sameAccessPlace, shouldSuggestHub, type AccessLegPart, type FlightPriceOverride } from "./tripsage-access-leg";
 import { domainOf, isSafePublicHttpsUrl, WEB_DATA_MARKER, type WebLookup } from "./tripsage-web";
-import { quickRepliesPartSchema, resolveEffectiveJourney, tripInfoSchema, withTripInfoDefaults, type ChatSourceItem, type OriginCandidatesPart, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
+import { formatDocumentSourceTitle, quickRepliesPartSchema, resolveEffectiveJourney, tripInfoSchema, withTripInfoDefaults, type ChatSourceItem, type OriginCandidatesPart, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
 import {
   computeMinimumSelfDriveDays,
   estimateRoadFromCoordinates,
@@ -1301,7 +1301,7 @@ export function createTripsageChatTools(context: TripsageToolContext) {
       .replace(/[\u0000-\u001f\u007f]+/gu, " ")
       .replace(/\s+/gu, " ")
       .trim();
-    return cleaned ? clip(cleaned, 120) : "";
+    return cleaned ? clip(formatDocumentSourceTitle(cleaned), 120) : "";
   };
 
   let knowledgeCalls = 0;

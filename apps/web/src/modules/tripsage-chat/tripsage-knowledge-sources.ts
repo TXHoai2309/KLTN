@@ -1,4 +1,5 @@
 import { extractSuggestRepliesDirectives } from "./assistant-conversation-contract";
+import { formatDocumentSourceTitle } from "./tripsage-chat-context";
 
 /**
  * Deterministic relevance & actual-usage filtering for local RAG knowledge sources (Point 2).
@@ -28,6 +29,14 @@ const STOP_WORDS = new Set([
   "the", "is", "are", "was", "were", "it", "for", "to", "in", "on", "at", "of", "a", "an", "and", "or", "with", "without", "can", "should", "what", "how", "when", "where", "safe", "about", "from", "there", "their", "this", "that",
 ]);
 
+/** High-frequency district/generic travel words that cannot serve as standalone topical evidence across unrelated docs. */
+const GENERIC_DISTRICT_TOKENS = new Set([
+  "meo", "vac", "dong", "van", "quan", "ba", "yen", "minh", "pho", "vung",
+  "cao", "nui", "doc", "duong", "thac", "suoi", "hang", "cho", "lang", "nguoi",
+  "truyen", "thong", "chup", "anh", "canh", "dep", "thich", "hop", "tranh", "mien",
+  "cong", "thoi", "tiet", "mua", "ten", "dinh", "khu",
+]);
+
 /** Specific single-site landmarks whose docs should NOT be cited for general province-wide questions unless asked. */
 const SINGLE_LANDMARK_TITLE_PATTERNS: readonly { pattern: RegExp; subjectTokens: readonly string[] }[] = [
   { pattern: /c[oộ]t\s+c[oờ]\s+l[uũ]ng\s+c[uú]/iu, subjectTokens: ["lung cu", "cot co"] },
@@ -36,13 +45,19 @@ const SINGLE_LANDMARK_TITLE_PATTERNS: readonly { pattern: RegExp; subjectTokens:
   { pattern: /p[aả]\s+vi/iu, subjectTokens: ["pa vi"] },
   { pattern: /dinh\s+(?:th[uự]\s+h[oọ]\s+v[uươ][oơ]ng|vua\s+m[eè]o)/iu, subjectTokens: ["dinh thu", "vua meo", "sa phin"] },
   { pattern: /ch[oợ]\s+t[iì]nh\s+kh[aâ]u\s+vai/iu, subjectTokens: ["khau vai"] },
-  { pattern: /l[oô]\s+l[oô]\s+ch[aả]i/iu, subjectTokens: ["lo lo chai"] },
+  { pattern: /l[oô]\s+l[oô]\s+ch[aả]i/iu, subjectTokens: ["lo lo chai", "lo lo"] },
   { pattern: /n[aặ]m\s+đ[aă]m/iu, subjectTokens: ["nam dam"] },
   { pattern: /h[aạ]\s+th[aà]nh/iu, subjectTokens: ["ha thanh"] },
-  { pattern: /l[uù]ng\s+t[aá]m/iu, subjectTokens: ["lung tam"] },
+  { pattern: /l[uù]ng\s+t[aá]m/iu, subjectTokens: ["lung tam", "vai lanh"] },
   { pattern: /s[uủ]ng\s+l[aà]|nh[aà]\s+c[uủ]a\s+pao/iu, subjectTokens: ["sung la", "nha cua pao"] },
   { pattern: /du\s+gi[aà]/iu, subjectTokens: ["du gia"] },
-  { pattern: /ho[aà]ng\s+su\s+ph[iì]/iu, subjectTokens: ["hoang su phi"] },
+  { pattern: /ho[aà]ng\s+su\s+ph[iì]/iu, subjectTokens: ["hoang su phi", "ruong bac thang", "lua chin"] },
+  { pattern: /đ[eè]o\s+m[aã]\s+p[iì]\s+l[eè]ng|m[aã]\s+p[iì]\s+l[eè]ng/iu, subjectTokens: ["ma pi leng", "hanh phuc", "nho que", "tu san"] },
+  { pattern: /s[oô]ng\s+nho\s+qu[eế]|h[eẻ]m\s+tu\s+s[aả]n/iu, subjectTokens: ["nho que", "tu san"] },
+  { pattern: /c[oổ]ng\s+tr[oờ]i\s+qu[aả]n\s+b[aạ]/iu, subjectTokens: ["cong troi", "hanh phuc"] },
+  { pattern: /ph[oố]\s+c[oổ]\s+đ[oồ]ng\s+v[aă]n/iu, subjectTokens: ["pho co", "tong puon"] },
+  { pattern: /n[uú]i\s+đ[oô]i/iu, subjectTokens: ["nui doi", "co tien"] },
+  { pattern: /th[oô]n\s+tha/iu, subjectTokens: ["thon tha"] },
 ];
 
 export function foldText(raw: string): string {
@@ -56,26 +71,38 @@ export function foldText(raw: string): string {
     .trim();
 }
 
-function contentTokens(raw: string): Set<string> {
+function contentTokens(raw: string, excludeDistrictGeneric = false): Set<string> {
   const folded = foldText(raw);
   const out = new Set<string>();
   for (const word of folded.split(" ")) {
     if (word.length < 3 || STOP_WORDS.has(word)) continue;
+    if (excludeDistrictGeneric && GENERIC_DISTRICT_TOKENS.has(word)) continue;
     out.add(word);
   }
   return out;
 }
 
-function contentBigrams(raw: string): Set<string> {
+function contentBigrams(raw: string, excludeDistrictGeneric = false): Set<string> {
   const words = foldText(raw).split(" ").filter(w => w.length >= 2);
   const out = new Set<string>();
   for (let i = 0; i < words.length - 1; i += 1) {
     const a = words[i]!;
     const b = words[i + 1]!;
     if (STOP_WORDS.has(a) && STOP_WORDS.has(b)) continue;
+    if (
+      excludeDistrictGeneric &&
+      (STOP_WORDS.has(a) || GENERIC_DISTRICT_TOKENS.has(a)) &&
+      (STOP_WORDS.has(b) || GENERIC_DISTRICT_TOKENS.has(b))
+    ) {
+      continue;
+    }
     out.add(`${a} ${b}`);
   }
   return out;
+}
+
+function isSingleLandmarkDocTitle(title: string): boolean {
+  return SINGLE_LANDMARK_TITLE_PATTERNS.some(entry => entry.pattern.test(title));
 }
 
 function isUnaskedSingleLandmarkDoc(questionFolded: string, title: string): boolean {
@@ -98,9 +125,10 @@ export function filterRelevantKnowledgeExcerpts(
 ): KnowledgeCandidate[] {
   const minScore = options?.minScore ?? KNOWLEDGE_MIN_SCORE;
   const qFolded = foldText(question);
-  const qTokens = contentTokens(question);
+  const qTokens = contentTokens(question, true);
 
   const isLicenseQuestion = /(?:giay phep lai|bang lai|gplx|\blicense\b|\bpermit\b|\bidp\b|\bforeigner\b|nuoc ngoai)/u.test(qFolded);
+  const isMedicalEmergencyQuestion = /(?:cap cuu|tai nan|nga xe|chay mau|chan thuong|benh vien|tram y te|phong kham|\b115\b|so cuu|\baccident\b|\bbleeding\b|\binjur|\bhospital\b|\bemergency\b)/u.test(qFolded);
   const isWeatherPackingQuestion = /(?:thoi tiet|co lanh|nhiet do|mang gi|chuan bi (?:do|trang phuc)|\bweather\b|\bcold\b|\bpack\b|ao am|ao khoac)/u.test(qFolded);
   const monthMatch = /thang\s*(\d{1,2})\b/u.exec(qFolded);
   const askedMonth = monthMatch ? Number(monthMatch[1]) : /\bdecember\b/u.test(qFolded) ? 12 : null;
@@ -115,6 +143,11 @@ export function filterRelevantKnowledgeExcerpts(
 
     const docFolded = foldText(`${item.title} ${item.text}`);
     const unaskedLandmark = isUnaskedSingleLandmarkDoc(qFolded, item.title);
+
+    // 0. Emergency / injury / hospital lookup: historical road construction or attraction safety docs are off-topic.
+    if (isMedicalEmergencyQuestion) {
+      return /(?:benh vien|tram y te|phong kham|cap cuu|\b115\b|so cuu|cam mau|co so y te|\bhospital\b|\bclinic\b|\bfirst aid\b)/u.test(docFolded);
+    }
 
     // 1. Strict legal / license questions: local attraction docs without any license terms are off-topic.
     if (isLicenseQuestion) {
@@ -136,9 +169,9 @@ export function filterRelevantKnowledgeExcerpts(
 
     // 3. Motion sickness & mountain pass questions (e.g. L9):
     //    hiking-only landmark safety docs (mossy rocks, bring water, don't litter) are off-topic;
-    //    keep docs that actually cover carsickness or mountain-pass driving hazards.
+    //    allow mountain-pass hazard guidance (including Mã Pì Lèng pass safety section) while rejecting unrelated landmarks.
     if (isMotionSicknessOrPassQuestion) {
-      if (unaskedLandmark) return false;
+      if (unaskedLandmark && !/m[aã]\s+p[iì]\s+l[eè]ng/iu.test(item.title)) return false;
       const hasMotionSickness = /say xe|chong say/u.test(docFolded);
       const hasPassHazards = asksAboutPass && /(?:duong deo|khuc cua|cua hep|tam nhin|khuat tam nhin|deo doc)/u.test(docFolded);
       if (!hasMotionSickness && !hasPassHazards) return false;
@@ -148,78 +181,91 @@ export function filterRelevantKnowledgeExcerpts(
     }
 
     // 4. General topic / destination Q&A:
-    if (qTokens.size === 0) return true;
-    const docTokens = contentTokens(`${item.title} ${item.text}`);
+    if (qTokens.size === 0) return !unaskedLandmark;
+    const docTokens = contentTokens(`${item.title} ${item.text}`, true);
     let overlap = 0;
     for (const token of qTokens) {
       if (docTokens.has(token)) overlap += 1;
     }
-    const qBigrams = contentBigrams(question);
-    const docBigrams = contentBigrams(`${item.title} ${item.text}`);
+    const qBigrams = contentBigrams(question, true);
+    const docBigrams = contentBigrams(`${item.title} ${item.text}`, true);
     let bigramOverlap = 0;
     for (const bg of qBigrams) {
       if (docBigrams.has(bg)) bigramOverlap += 1;
     }
 
     if (unaskedLandmark) {
-      return bigramOverlap >= 1 || overlap >= 2;
+      return bigramOverlap >= 2 || (bigramOverlap >= 1 && overlap >= 3);
     }
     return overlap >= 1 || bigramOverlap >= 1;
   });
 }
 
+const MISSING_LOCAL_DOC_DISCLAIMER_RE =
+  /(?:t[aà]i\s+li[eệ]u\s+(?:đ[iị]a\s+ph[uươ]ng|hi[eệ]n\s+c[oó]|đ[aã]\s+duy[eệ]t)|approved\s+local\s+(?:docs|documents|knowledge|materials))\s+(?:ch[uư]a|kh[oô]ng|didn'?t|doesn'?t|does\s+not|do\s+not)\s+(?:đ[eề]\s+c[aậ]p|c[oó]\s+n[oộ]i\s+dung|nh[aắ]c|x[aá]c\s+nh[aậ]n|cover|mention)/iu;
+
 /**
  * Strips "Kiến thức mở rộng" / "Expanded knowledge" / "General knowledge" clauses/paragraphs
- * from an assistant reply so model-supplied general advice never triggers local document citations.
+ * (supporting `:`, `;`, `–`, `—`, `-`, and `*...*` italic wrappers) and "approved docs don't cover X"
+ * disclaimers so model-supplied general advice never borrows unrelated local document citations (C3).
  */
 export function stripExpandedKnowledgeSections(answerText: string): string {
-  const paragraphs = answerText.split(/\n{2,}/u);
+  const cleanDirectives = extractSuggestRepliesDirectives(answerText).text;
+  const paragraphs = cleanDirectives.split(/\n{2,}/u);
   const kept: string[] = [];
   for (const para of paragraphs) {
     const trimmed = para.trim();
     if (!trimmed) continue;
     // Drop whole paragraph if it begins with the expanded-knowledge label
-    if (/^(?:\*\*|__)?(?:ki[eế]n\s+th[uứ]c\s+m[oở]\s+r[oộ]ng|hi[eể]u\s+bi[eế]t\s+chung|general\s+knowledge|expanded\s+knowledge)(?:\*\*|__)?\s*[:–—-]/iu.test(trimmed)) {
+    if (
+      /^\s*(?:[-*•]\s*)?(?:[*_]{1,2}\s*)?(?:ki[eế]n\s+th[uứ]c\s+m[oở]\s+r[oộ]ng|hi[eể]u\s+bi[eế]t\s+chung|general\s+knowledge|expanded\s+knowledge)(?:\s*[*_]{1,2})?\s*[:;–—-]/iu.test(
+        trimmed,
+      )
+    ) {
       continue;
     }
     // Strip inline expanded-knowledge tail within a paragraph
-    const inlineCut = trimmed.search(/(?:\*\*|__)?(?:ki[eế]n\s+th[uứ]c\s+m[oở]\s+r[oộ]ng|general\s+knowledge|expanded\s+knowledge)(?:\*\*|__)?\s*[:–—-]/iu);
-    if (inlineCut >= 0) {
-      const before = trimmed.slice(0, inlineCut).trim();
-      if (before) kept.push(before);
-      continue;
-    }
-    kept.push(trimmed);
+    const inlineCut = trimmed.search(
+      /(?:[*_]{1,2}\s*)?(?:ki[eế]n\s+th[uứ]c\s+m[oở]\s+r[oộ]ng|general\s+knowledge|expanded\s+knowledge)(?:\s*[*_]{1,2})?\s*[:;–—-]/iu,
+    );
+    const sliced = (inlineCut >= 0 ? trimmed.slice(0, inlineCut) : trimmed).trim();
+    if (!sliced || MISSING_LOCAL_DOC_DISCLAIMER_RE.test(sliced)) continue;
+    kept.push(sliced);
   }
   return kept.join("\n\n").trim();
 }
 
 /**
  * Selects only the titles of retrieved documents whose content is actually reflected in the
- * grounded (non-"Kiến thức mở rộng") portion of the assistant's reply.
+ * grounded (non-"Kiến thức mở rộng") portion of the assistant's reply, formatted with proper casing (C3).
  */
 export function selectUsedDocumentSources(
   answerText: string,
   candidates: readonly KnowledgeCandidate[],
 ): string[] {
   if (!candidates.length) return [];
-  const grounded = stripExpandedKnowledgeSections(answerText);
+  const withoutDirectives = extractSuggestRepliesDirectives(answerText).text;
+  const grounded = stripExpandedKnowledgeSections(withoutDirectives);
   if (!grounded) return [];
+  if (MISSING_LOCAL_DOC_DISCLAIMER_RE.test(withoutDirectives) && grounded.length < 40) {
+    return [];
+  }
 
   const answerFolded = foldText(grounded);
-  const answerTokens = contentTokens(grounded);
-  const answerBigrams = contentBigrams(grounded);
+  const answerTokens = contentTokens(grounded, true);
+  const answerBigrams = contentBigrams(grounded, true);
 
   const used: string[] = [];
   const seen = new Set<string>();
   for (const item of candidates) {
-    if (seen.has(item.title)) continue;
-    const titleTokens = contentTokens(item.title);
-    const titleBigrams = contentBigrams(item.title);
-    const textTokens = contentTokens(item.text);
-    const textBigrams = contentBigrams(item.text);
+    const formattedTitle = formatDocumentSourceTitle(item.title);
+    if (!formattedTitle || seen.has(formattedTitle)) continue;
+    const titleTokens = contentTokens(formattedTitle, true);
+    const titleBigrams = contentBigrams(formattedTitle, true);
+    const textTokens = contentTokens(item.text, true);
+    const textBigrams = contentBigrams(item.text, true);
 
-    // 1. Direct mention of the document's distinctive title bigram (e.g. "lung cu", "ma pi leng", "nho que", "dong van")
+    // 1. Direct mention of the document's distinctive title bigram (e.g. "lung cu", "ma pi leng", "nho que")
     let titleMatch = false;
     for (const bg of titleBigrams) {
       if (answerFolded.includes(bg)) {
@@ -231,7 +277,7 @@ export function selectUsedDocumentSources(
       titleMatch = [...titleTokens].every(t => answerTokens.has(t));
     }
 
-    // 2. Concrete fact overlap between grounded answer and excerpt text
+    // 2. Concrete fact overlap between grounded answer and excerpt text (excluding generic district tokens)
     let tokenOverlap = 0;
     for (const token of textTokens) {
       if (answerTokens.has(token)) tokenOverlap += 1;
@@ -241,9 +287,14 @@ export function selectUsedDocumentSources(
       if (answerBigrams.has(bg)) bigramOverlap += 1;
     }
 
-    if (titleMatch || bigramOverlap >= 1 || tokenOverlap >= 2) {
-      seen.add(item.title);
-      used.push(item.title);
+    const singleLandmark = isSingleLandmarkDocTitle(formattedTitle);
+    const matched = singleLandmark
+      ? titleMatch || bigramOverlap >= 1
+      : titleMatch || bigramOverlap >= 1 || tokenOverlap >= 3;
+
+    if (matched) {
+      seen.add(formattedTitle);
+      used.push(formattedTitle);
     }
   }
   return used;

@@ -288,7 +288,14 @@ export function createQaRetriever(database: Reader, options: QaRetrievalOptions 
         : null;
       const candidatesBeforeThreshold = candidateRows.length;
       const lexicalIds = new Set(groups.flatMap(group => group.keywordRows.map(row => row.chunkId)));
-      const rows = candidateRows.filter(r => Number.isFinite(r.score) && (r.score >= minScore || lexicalIds.has(r.chunkId)));
+      const lexicalFloor = Math.max(0.28, minScore * 0.7);
+      const rows = candidateRows.filter(
+        r =>
+          Number.isFinite(r.score) &&
+          (r.score >= minScore ||
+            (lexicalIds.has(r.chunkId) &&
+              (context.type === "DESTINATION" || subjects.length > 0 || r.score >= lexicalFloor))),
+      );
       const candidatesAfterThreshold = rows.length;
 
       let firstZeroStage: string;

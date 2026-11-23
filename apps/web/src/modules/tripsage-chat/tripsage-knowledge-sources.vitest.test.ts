@@ -8,7 +8,7 @@ import {
   stripRedundantInlineSourceLines,
   type KnowledgeCandidate,
 } from "./tripsage-knowledge-sources";
-import { sourcesPartSchema } from "./tripsage-chat-context";
+import { formatDocumentSourceTitle, sourcesPartSchema } from "./tripsage-chat-context";
 import { streamTripsageChat, TRIPSAGE_CHAT_INSTRUCTIONS } from "./tripsage-chat-service";
 
 // Exact excerpts retrieved by production RAG in conversation 66a36527-9de1-4420-a464-4106c09e83d9
@@ -353,5 +353,70 @@ describe("Point 2 — knowledge source relevance & actual-usage filtering", () =
     const persistedText = (persistedParts.find((p): p is { type: "text"; text: string } => (p as { type?: string }).type === "text"))?.text ?? "";
     expect(persistedText).not.toContain(":::");
     expect(persistedParts.some(p => (p as { type?: string }).type === "data-quick-replies")).toBe(true);
+  });
+
+  it("C3: drops off-topic citations on all 5+ dbc94215 Q&A regressions and normalizes source title capitalization", () => {
+    // Title casing cleanup for all raw DB titles
+    expect(formatDocumentSourceTitle("Cột cờ lũng cú")).toBe("Cột cờ Lũng Cú");
+    expect(formatDocumentSourceTitle("Cổng trời quản bạ")).toBe("Cổng trời Quản Bạ");
+    expect(formatDocumentSourceTitle("Ruộng bậc thang hoàng su phì")).toBe("Ruộng bậc thang Hoàng Su Phì");
+    expect(formatDocumentSourceTitle("Chợ tình khâu vai")).toBe("Chợ tình Khâu Vai");
+
+    // dbc94215 [1]: "Hà Giang có những dân tộc nào?" -> drop unasked Ruộng bậc thang Hoàng Su Phì & Chợ tình Khâu Vai
+    const q1 = "Hà Giang có những dân tộc nào sinh sống? kể ngắn gọn giúp mình";
+    const f1 = filterRelevantKnowledgeExcerpts(q1, [
+      { title: "Cao nguyên đá Đồng Văn – Tài liệu tri thức du lịch", text: "7. Con người và không gian văn hóa: nhiều cộng đồng dân tộc Mông, Tày, Dao, Nùng, Lô Lô, La Chí và Giáy cùng sinh sống.", score: 0.72 },
+      { title: "Ruộng bậc thang hoàng su phì", text: "Người La Chí, Dao đỏ làm ruộng bậc thang tại Hoàng Su Phì.", score: 0.52 },
+      { title: "Chợ tình khâu vai", text: "Trang phục dân tộc tại phiên chợ Khâu Vai Mèo Vạc.", score: 0.49 },
+    ]);
+    expect(f1.map(d => formatDocumentSourceTitle(d.title))).toEqual(["Cao nguyên đá Đồng Văn – Tài liệu tri thức du lịch"]);
+
+    // dbc94215 [3]: "người Lô Lô" -> keeps Lô Lô Chải, drops Nặm Đăm
+    const q3 = "còn người Lô Lô thì sao, họ sống ở đâu, có gì đặc biệt?";
+    const f3 = filterRelevantKnowledgeExcerpts(q3, [
+      { title: "Lô Lô Chải", text: "5. Văn hóa bản địa: cộng đồng người Lô Lô với nhà trình tường và múa trống.", score: 0.76 },
+      { title: "Làng Văn hóa du lịch cộng đồng Nặm Đăm", text: "Làng văn hóa cộng đồng người Dao áo dài ở Quản Bạ.", score: 0.50 },
+    ]);
+    expect(f3.map(d => d.title)).toEqual(["Lô Lô Chải"]);
+
+    // dbc94215 [7]: "thác Bạc Sủng Thài ở Mèo Vạc" -> 0 off-topic landmark sources
+    const q7 = "giới thiệu cho mình về thác Bạc Sủng Thài ở Mèo Vạc với, có nên đi không?";
+    const f7 = filterRelevantKnowledgeExcerpts(q7, [
+      { title: "Đèo Mã Pì Lèng", text: "22. Mã Pì Lèng có thể kết hợp với các điểm trên trục Đồng Văn - Mèo Vạc.", score: 0.49 },
+      { title: "Sông Nho Quế", text: "Thuyền Sông Nho Quế - Hẻm Tu Sản khu vực Mèo Vạc.", score: 0.48 },
+      { title: "Chợ tình khâu vai", text: "Phiên chợ phong lưu ở xã Khâu Vai huyện Mèo Vạc.", score: 0.47 },
+    ]);
+    expect(f7).toEqual([]);
+
+    // dbc94215 [15]: "*Kiến thức mở rộng; tài liệu địa phương hiện có chưa đề cập...*" -> 0 sources
+    const q15Answer =
+      "Chụp ảnh được nếu xin phép người lớn đi cùng và hỏi cả bé. Cho kẹo thì nên hỏi người giám hộ trước.\n\n*Kiến thức mở rộng; tài liệu địa phương hiện có chưa đề cập trực tiếp đến việc chụp ảnh hoặc tặng kẹo cho trẻ em.*";
+    expect(stripExpandedKnowledgeSections(q15Answer)).toBe(
+      "Chụp ảnh được nếu xin phép người lớn đi cùng và hỏi cả bé. Cho kẹo thì nên hỏi người giám hộ trước.",
+    );
+    const s15 = selectUsedDocumentSources(q15Answer, [
+      { title: "Làng dệt lanh Lùng Tám", text: "Ghi rõ nguồn ảnh, trẻ em bản địa và khung cửi truyền thống tại Lùng Tám.", score: 0.46 },
+      { title: "Hà Thành", text: "Du khách có thể tham quan trải nghiệm đời sống cộng đồng người Tày.", score: 0.45 },
+    ]);
+    expect(s15).toEqual([]);
+
+    // dbc94215 [19]: "Hanh Phuc road" -> preserves Cổng trời Quản Bạ (normalized) & Đèo Mã Pì Lèng
+    const q19 = "What is the Hanh Phuc road and why is it famous?";
+    const f19 = filterRelevantKnowledgeExcerpts(q19, [
+      { title: "Cổng trời quản bạ", text: "06 | Cổng trời và Con đường Hạnh Phúc dài khoảng 185 km trên Quốc lộ 4C.", score: 0.74 },
+      { title: "Đèo Mã Pì Lèng", text: "Con đường Hạnh Phúc thi công 1959-1965 qua đèo Mã Pì Lèng với Đội Cơ Dũng.", score: 0.71 },
+    ]);
+    const s19 = selectUsedDocumentSources(
+      "The Hạnh Phúc Road runs about 185 km on National Highway 4C over Đèo Mã Pì Lèng, built from 1959 to 1965.",
+      f19,
+    );
+    expect(s19).toEqual(["Cổng trời Quản Bạ", "Đèo Mã Pì Lèng"]);
+
+    // dbc94215 [21]: "ngã xe dốc Thẩm Mã chảy máu, bệnh viện gần nhất" -> drops Đội Cơ Dũng road-construction excerpt
+    const q21 = "bạn mình bị ngã xe ở dốc Thẩm Mã, chảy máu nhiều, giờ phải làm sao, bệnh viện gần nhất ở đâu?";
+    const f21 = filterRelevantKnowledgeExcerpts(q21, [
+      { title: "Đèo Mã Pì Lèng", text: "Một lực lượng đặc biệt gọi là Đội Cơ Dũng treo mình trên vách đá làm đường.", score: 0.51 },
+    ]);
+    expect(f21).toEqual([]);
   });
 });

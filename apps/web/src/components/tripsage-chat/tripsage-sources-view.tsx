@@ -1,7 +1,7 @@
 "use client";
 
 import { BookOpen } from "lucide-react";
-import { sourcesPartSchema, type ChatSourceItem } from "@/modules/tripsage-chat/tripsage-chat-context";
+import { formatDocumentSourceTitle, sourcesPartSchema, type ChatSourceItem } from "@/modules/tripsage-chat/tripsage-chat-context";
 
 export type { ChatSourceItem };
 
@@ -25,7 +25,7 @@ export function TripsageSourcesView({ sources }: { sources: readonly ChatSourceI
         <aside className="tripsage-doc-sources" aria-label="Nguồn tài liệu tham khảo">
           <span className="tripsage-sources-label"><BookOpen size={13} aria-hidden="true" />Nguồn tài liệu:</span>
           <ul className="tripsage-source-chips">
-            {documents.map(doc => <li key={doc.title} className="tripsage-source-chip">{doc.title}</li>)}
+            {documents.map(doc => <li key={doc.title} className="tripsage-source-chip">{formatDocumentSourceTitle(doc.title)}</li>)}
           </ul>
         </aside>
       )}

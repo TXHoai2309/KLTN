@@ -33,6 +33,46 @@ const clock = z.number().int().min(0).max(1439);
 export const DEFAULT_DEPARTURE_MINUTE = 420;
 export const DEFAULT_RETURN_DEADLINE_MINUTE = 1080;
 
+function properNounRule(pattern: string, replacement: string): readonly [RegExp, string] {
+  return [new RegExp(`(?<![\\p{L}\\p{N}])${pattern}(?![\\p{L}\\p{N}])`, "giu"), replacement];
+}
+
+const DOCUMENT_PROPER_NOUN_REPLACEMENTS: readonly (readonly [RegExp, string])[] = [
+  properNounRule("lũng\\s+cú", "Lũng Cú"),
+  properNounRule("quản\\s+bạ", "Quản Bạ"),
+  properNounRule("hoàng\\s+su\\s+phì", "Hoàng Su Phì"),
+  properNounRule("khâu\\s+vai", "Khâu Vai"),
+  properNounRule("đồng\\s+văn", "Đồng Văn"),
+  properNounRule("mèo\\s+vạc", "Mèo Vạc"),
+  properNounRule("yên\\s+minh", "Yên Minh"),
+  properNounRule("nho\\s+quế", "Nho Quế"),
+  properNounRule("mã\\s+pì\\s+lèng", "Mã Pì Lèng"),
+  properNounRule("tu\\s+sản", "Tu Sản"),
+  properNounRule("sủng\\s+là", "Sủng Là"),
+  properNounRule("lùng\\s+tám", "Lùng Tám"),
+  properNounRule("căng\\s+bắc\\s+mê", "Căng Bắc Mê"),
+  properNounRule("họ\\s+vương", "họ Vương"),
+  properNounRule("vua\\s+mèo", "Vua Mèo"),
+  properNounRule("cô\\s+tiên", "Cô Tiên"),
+  properNounRule("nặm\\s+đăm", "Nặm Đăm"),
+  properNounRule("chiêu\\s+lầu\\s+thi", "Chiêu Lầu Thi"),
+  properNounRule("pả\\s+vi", "Pả Vi"),
+  properNounRule("lô\\s+lô\\s+chải", "Lô Lô Chải"),
+  properNounRule("hà\\s+thành", "Hà Thành"),
+  properNounRule("du\\s+già", "Du Già"),
+  properNounRule("hà\\s+giang", "Hà Giang"),
+];
+
+/** Normalizes capitalization of proper nouns inside reviewed RAG document source titles (C3). */
+export function formatDocumentSourceTitle(rawTitle: string): string {
+  let out = rawTitle.trim();
+  if (!out) return "";
+  for (const [pattern, replacement] of DOCUMENT_PROPER_NOUN_REPLACEMENTS) {
+    out = out.replace(pattern, replacement);
+  }
+  return out;
+}
+
 /**
  * Trip info the conversation has recorded so far (ADR-42 / ADR-43). Every field is optional: the assistant fills it through
  * `recordTripInfo` as the traveler answers. Confirmed origin coordinates travel separately in `journey`.

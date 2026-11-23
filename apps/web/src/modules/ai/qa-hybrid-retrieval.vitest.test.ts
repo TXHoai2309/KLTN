@@ -38,4 +38,11 @@ describe("bounded independent keyword candidates", () => {
   it.each([["giá vé vào thì sao? ,./", "gia | ve | phi"], ["DIEN TICH DONG VAN", "dien & tich"], ["giờ mở đóng cửa chung", "gio & (cua | hoat)"], ["ĐỒNG VĂN <script> & 'không'", "dong | van | script | khong"], ["tôi muốn tìm hiểu về", "mo & ta"]])("folds and bounds candidate search vocabulary for %s", (question, expected) => {
     expect(qaKeywordQuery(question)).toBe(expected);
   });
+
+  it("C3: drops low-similarity keyword hits in general open Q&A unless score passes lexicalFloor", async () => {
+    const s = setup();
+    s.query.mockResolvedValueOnce([]).mockResolvedValueOnce([row(1, 0.15), { ...row(2, 0.34), chunkId: "chunk_good" }]);
+    const evidence = await createQaRetriever(s.db, { provider: s.provider, publicSourceIds: new Set(["approved"]), hybrid: true, minScore: 0.42, topK: 2 }).retrieve("thác Bạc Sủng Thài ở đâu?", []);
+    expect(evidence.map(r => r.chunkId)).toEqual(["chunk_good"]);
+  });
 });
