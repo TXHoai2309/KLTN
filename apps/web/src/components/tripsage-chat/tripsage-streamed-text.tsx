@@ -34,11 +34,18 @@ export function isAssistantTurnTextDone(input: {
   hasBody: boolean;
   isLatestMessage: boolean;
   live: boolean;
+  /** True while the browser is polling to recover the finished answer after a dropped stream ("Đang hoàn tất câu trả lời"). */
+  recovering?: boolean;
   wasStreamedLive: boolean;
   finished: boolean;
 }): boolean {
   if (input.live) return false;
-  if (!input.hasBody) return true;
+  if (input.isLatestMessage && input.recovering) return false;
+  if (!input.hasBody) {
+    // Bug 8: if a data part (e.g. data-itinerary) arrived before any text during a live turn,
+    // keep cards/chips hidden until the turn finishes with text (or explicitly settles via `finished`).
+    return !(input.isLatestMessage && input.wasStreamedLive && !input.finished);
+  }
   if (!input.isLatestMessage) return true;
   if (!input.wasStreamedLive) return true;
   return input.finished;
@@ -69,7 +76,8 @@ export function TripsageStreamedText({
   const liveRef = useRef(live);
   liveRef.current = live;
   const finishStartRef = useRef<{ time: number; shown: number } | null>(null);
-  const notified = useRef(!live || flushNow);
+  // Start false so even when text arrives AFTER data parts right as `live` turns false, `onDone` still fires once text is mounted.
+  const notified = useRef(false);
 
   // Immediately flush remaining text when a newer message is sent or the turn is flushed.
   useEffect(() => {

@@ -100,4 +100,78 @@ describe("Bug E: streamed text catch-up budget and chip/card gating", () => {
     );
     expect(html).toContain("Bạn cần ra điểm tập kết trước rồi mới thuê xe máy.");
   });
+
+  it("Bug 8: keeps summary card, chips, and access leg gated when data parts arrive before text or while recovering ('Đang hoàn tất câu trả lời')", () => {
+    // Stage 1: data-itinerary arrived first during streaming, text body not received yet
+    expect(
+      isAssistantTurnTextDone({
+        hasBody: false,
+        isLatestMessage: true,
+        live: true,
+        recovering: false,
+        wasStreamedLive: true,
+        finished: false,
+      }),
+    ).toBe(false);
+
+    // Stage 2: stream disconnected and browser is polling recovery ("Đang hoàn tất câu trả lời"), still no text
+    expect(
+      isAssistantTurnTextDone({
+        hasBody: false,
+        isLatestMessage: true,
+        live: false,
+        recovering: true,
+        wasStreamedLive: true,
+        finished: false,
+      }),
+    ).toBe(false);
+
+    // Stage 3: data part arrived during live stream, live flipped false before text arrived / settled -> still gated
+    expect(
+      isAssistantTurnTextDone({
+        hasBody: false,
+        isLatestMessage: true,
+        live: false,
+        recovering: false,
+        wasStreamedLive: true,
+        finished: false,
+      }),
+    ).toBe(false);
+
+    // Stage 4: text arrives after data part, typewriter hasn't finished yet -> still gated
+    expect(
+      isAssistantTurnTextDone({
+        hasBody: true,
+        isLatestMessage: true,
+        live: false,
+        recovering: false,
+        wasStreamedLive: true,
+        finished: false,
+      }),
+    ).toBe(false);
+
+    // Stage 5: text finishes revealing (onDone fires) -> summary card, chips, and access leg appear
+    expect(
+      isAssistantTurnTextDone({
+        hasBody: true,
+        isLatestMessage: true,
+        live: false,
+        recovering: false,
+        wasStreamedLive: true,
+        finished: true,
+      }),
+    ).toBe(true);
+
+    // Stage 5b: recovery replaces the message with saved DB message (wasStreamedLive=false, recovering=false) -> visible
+    expect(
+      isAssistantTurnTextDone({
+        hasBody: true,
+        isLatestMessage: true,
+        live: false,
+        recovering: false,
+        wasStreamedLive: false,
+        finished: false,
+      }),
+    ).toBe(true);
+  });
 });

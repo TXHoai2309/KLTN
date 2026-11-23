@@ -150,6 +150,18 @@ export function TripsageChatClient({
     transport,
     // The notice text is generic; keep the real cause (name and short message only, never the request) visible for debugging.
     onError: err => console.warn("[tripsage-chat] stream error", err.name, err.message.slice(0, 200)),
+    onFinish: ({ message, isAbort, isDisconnect, isError }) => {
+      if (isAbort || isDisconnect || isError) return;
+      const hasAnyText = message.parts.some(part => part.type === "text" && part.text.trim().length > 0);
+      if (!hasAnyText) {
+        setFinishedTextIds(prev => {
+          if (prev.has(message.id)) return prev;
+          const next = new Set(prev);
+          next.add(message.id);
+          return next;
+        });
+      }
+    },
     onData: part => {
       if (part.type === "data-status") {
         setStatus(part.data as StatusPart);
@@ -761,6 +773,7 @@ export function TripsageChatClient({
                       hasBody: Boolean(body),
                       isLatestMessage: isLastMessage,
                       live,
+                      recovering,
                       wasStreamedLive: streamedMessageIdsRef.current.has(message.id),
                       finished: finishedTextIds.has(message.id),
                     });
@@ -842,7 +855,7 @@ export function TripsageChatClient({
                     );
                   })}
                 </div>
-                {busy && planProgress ? (
+                {(busy || recovering) && planProgress ? (
                   <TripsagePlanProgress snapshot={planProgress} />
                 ) : busy ? (
                   <div role="status" className="tripsage-thinking">

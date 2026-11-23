@@ -3,15 +3,16 @@ import ts from "typescript";
 import { describe, expect, it } from "vitest";
 import { CHECK_KEYS } from "@/modules/trip-planner/planner-contract";
 import { tripRequirementInputSchema } from "@/modules/trip-requirement/trip-requirement-contract";
+import { resolveTravelDaysContext } from "@/modules/tripsage-chat/tripsage-access-leg";
 import { pruneChosenLodgings, type ChosenLodgingMap } from "@/modules/tripsage-chat/tripsage-timeline";
-import { readConversationState } from "./tripsage-conversation-state";
+import { isProposalOutdated, readConversationState } from "./tripsage-conversation-state";
 import { parseItineraryPart } from "./tripsage-itinerary-view";
 
 // Execute the actual derived-state/effect block with React's dependency and
 // Object.is state semantics. No DOM renderer is installed in this Node suite.
 const source = readFileSync(new URL("./tripsage-chat-client.tsx", import.meta.url), "utf8");
 const block = source.slice(source.indexOf("  const state = useMemo"), source.indexOf("  function handleToggleChosenLodging"));
-const run = new Function("messages", "activeConversationId", "useMemo", "useEffect", "useRef", "setChosenLodgings", "lastSyncedProposalRef", "readConversationState", "parseItineraryPart", "pruneChosenLodgings", ts.transpile(block));
+const run = new Function("messages", "activeConversationId", "useMemo", "useEffect", "useRef", "setChosenLodgings", "lastSyncedProposalRef", "readConversationState", "parseItineraryPart", "pruneChosenLodgings", "resolveTravelDaysContext", "isProposalOutdated", ts.transpile(block));
 
 function restoredMessages(proposalId = "saved-plan") {
   const proposal = {
@@ -59,7 +60,7 @@ function harness() {
           const next = typeof update === "function" ? update(chosen) : update;
           changed ||= !Object.is(next, chosen);
           chosen = next;
-        }, proposalRef, readConversationState, parseItineraryPart, pruneChosenLodgings);
+        }, proposalRef, readConversationState, parseItineraryPart, pruneChosenLodgings, resolveTravelDaysContext, isProposalOutdated);
         pending.forEach(effect => effect());
       }
       expect(renders, "restored conversation must settle instead of repeatedly updating chosen lodging state").toBeLessThan(20);
