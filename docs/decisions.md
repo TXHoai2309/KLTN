@@ -1223,3 +1223,28 @@ In production conversation `cdccdd0e-aa56-4127-b040-ebcfffda46e8` (Turn 8), the 
 - A schedule that passes `5/5` in chat with explicit `visitMinutes` and/or `restMode: "COMPACT"` passes the identical deterministic Constraint Validator at `POST /api/trips` without altering database schema (no Prisma migration required).
 - Missing validation data (routing, opening hours, or catalogue records) remains strictly non-passing (`INSUFFICIENT_DATA` / `VIOLATION`).
 - Subsequent edits on `/trips/[id]/edit` continue to validate against canonical catalogue minimums unless explicitly overridden.
+
+## ADR-52 — Deterministic server-side access-leg pricing priority and cross-turn preservation (2026-11-23)
+
+- **Status:** Accepted and implemented (`74a3618`). Extends `ADR-42` §4 and `ADR-47`.
+- **Date:** 2026-11-23
+
+### Context
+
+In production conversation `eca7ea7f-fdff-4519-9778-c907d895831e`:
+1. In v1, the model passed `priceVndPerPerson: 0` for `SLEEPER_BUS Hà Nội → TP Hà Giang` (which is present in `docs/fixtures/price-reference-ha-giang.md` at `250.000–400.000đ/lượt`), and `buildAccessLeg` marked it `MISSING` (`0đ`) instead of consulting the approved price reference. Meanwhile, `docs/fixtures/price-reference-ha-giang.md` is outside the Vercel serverless bundle and prod `rag_document` contains 0 price-reference documents.
+2. In v2 (after editing Day 2 stops), the model rebuilt `planAccessLeg` with `priceVndPerPerson: 0` for the flight segment; because `data-flights` is not persisted and Turn 1 had recovered via DB polling, `flightLookups` was empty on Turn 2, causing v1's Google Flights fare (`1.164.181đ`) to be overwritten with `MISSING` while the saved trip (`cmwt3nfzl000107lbf8uetc0l`) received the inverted prices (flight missing, bus `325.000đ`).
+
+### Decision
+
+1. **Single canonical bundled price reference (`APPROVED_ACCESS_ROUTE_PRICES`):** Sync the approved transport corridors from `docs/fixtures/price-reference-ha-giang.md` (`updatedAt: "2026-11-21"`) directly in `tripsage-access-leg.ts` (and as the embedded fallback in `tripsage-price-reference.ts`) so Vercel prod, local dev, chat cost tables, ACCESS pins, and saved trips always read the exact same source without fabricating unlisted corridors.
+2. **Strict 3-tier deterministic pricing priority in `buildAccessLeg`:**
+   - **Priority 1:** Live Google Flights lookup matching route & dates (±1 day, verified against `originAirport`), OR a preserved `GOOGLE_FLIGHTS` segment from the previous access leg when `homeCity` and dates (±1 day) have not changed.
+   - **Priority 2:** Approved price reference range for the exact `(mode, from, to)` corridor — deterministically uses the range midpoint (`ESTIMATE`), accepting a model-supplied number **only** if it falls inside `[minVnd, maxVnd]`.
+   - **Priority 3:** `MISSING` (`priceVndPerPerson: 0`, `"chưa có giá"`) — never trusts unverified model-invented prices for unlisted corridors.
+3. **Single price object across chat, cost table, pin, and saved trip:** Whenever `planAccessLeg` or `searchFlights` updates `latestAccessLeg` after `estimateCosts` ran in the same turn, the server re-emits `data-cost` with the exact same `latestAccessLeg` (`accessLegId`, `totalVnd`, `missingItems`), and `reconcileAccessPins` ensures the saved `ACCESS` pin carries the identical `AccessLegPart`.
+
+### Consequences
+
+- Unlisted corridors (such as `Đà Nẵng ⇄ Hà Nội` sleeper bus/train or `Đà Nẵng ⇄ Hà Nội` flight when Google Flights is unavailable) never show fabricated estimates and stay truthfully marked `"chưa có giá"` until the owner adds approved ranges to the reference table or uploads a reviewed RAG price-reference document.
+- Rebuilding an itinerary (e.g., v1 → v2 stop edits) preserves looked-up Google Flights fares and approved bus fares across turns and reloads.
