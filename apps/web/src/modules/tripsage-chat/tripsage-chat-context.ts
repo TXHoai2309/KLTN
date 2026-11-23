@@ -4,6 +4,7 @@ import type { PlannerResult } from "../trip-planner/planner-contract";
 import { ASSUMABLE_FIELDS, type AssumableField } from "../trip-validation/trip-proposal-contract";
 import type { AccessLegPart } from "./tripsage-access-leg";
 import { LODGING_KINDS } from "./tripsage-chat-parts";
+import { overnightAreaConstraintSchema } from "./tripsage-overnight";
 import type { TimelineSuggestion } from "./tripsage-timeline";
 import {
   INTEREST_VALUES,
@@ -56,6 +57,8 @@ export const tripInfoSchema = z.object({
   lodgingKind: z.enum(LODGING_KINDS).optional(),
   /** Set to true when the traveler declines flying to Hà Nội so searchFlights is never called for this trip (SerpApi D7). */
   flightDeclined: z.boolean().optional(),
+  /** Traveler-stated overnight area constraints (Point 1: e.g. "tối ngày 2 nghỉ ở Đồng Văn"), persisted across edit turns unless cleared. */
+  overnightAreas: z.array(overnightAreaConstraintSchema).max(13).optional(),
 }).strict();
 export type TripsageTripInfo = z.infer<typeof tripInfoSchema>;
 export type { AssumableField };
@@ -99,6 +102,9 @@ export function changesItinerary(previous: TripsageTripInfo | null, next: Tripsa
   if (!previous) return false;
   if ((["transport", "durationDays", "startDate"] as const).some(key => previous[key] !== undefined && previous[key] !== next[key])) return true;
   if ((previous.mustIncludeDestinationIds ?? []).join(",") !== (next.mustIncludeDestinationIds ?? []).join(",")) return true;
+  const overnightKey = (items?: readonly { afterDay: number; area: string }[]) =>
+    (items ?? []).map(item => `${item.afterDay}:${item.area}`).join("|");
+  if (overnightKey(previous.overnightAreas) !== overnightKey(next.overnightAreas)) return true;
   return (previous.departureMinute ?? DEFAULT_DEPARTURE_MINUTE) !== (next.departureMinute ?? DEFAULT_DEPARTURE_MINUTE)
     || (previous.returnDeadlineMinute ?? DEFAULT_RETURN_DEADLINE_MINUTE) !== (next.returnDeadlineMinute ?? DEFAULT_RETURN_DEADLINE_MINUTE);
 }

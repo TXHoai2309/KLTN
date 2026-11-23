@@ -50,14 +50,15 @@ export function assertPlanningSelection(raw: unknown, needs: PlanningNeeds, cand
   return selection.data.days.map(day => day.map(id => eligible.get(id)!));
 }
 
-export async function scheduleSelection(needs: PlanningNeeds, selection: PlanningSelection, candidates: readonly PlannerCandidate[], routes: RouteProvider, now: Date, scope?: { current: PlannerResult; affectedDays: readonly number[] }, forecast?: ForecastOptions): Promise<PlannerResult> {
+export async function scheduleSelection(needs: PlanningNeeds, selection: PlanningSelection, candidates: readonly PlannerCandidate[], routes: RouteProvider, now: Date, scope?: { current: PlannerResult; affectedDays: readonly number[] }, forecast?: ForecastOptions, options?: { allowBoundaryRepartition?: boolean }): Promise<PlannerResult> {
   const requirement = assertTripRequirementClear(needs.requirement, now);
   const selected = assertPlanningSelection(selection, needs, candidates, now);
   const allowedDayIndices = scope ? scope.affectedDays.map(d => d - 1) : undefined;
+  const allowBoundaryRepartition = options?.allowBoundaryRepartition ?? !scope;
   if (requirement.journey) {
     // A scoped edit retains requested day membership. Whole-brief generation may
     // try the bounded boundary-day partitions, through the same form scheduler.
-    const journey = await planJourney(requirement, selected, routes, 10_000, !scope);
+    const journey = await planJourney(requirement, selected, routes, 10_000, allowBoundaryRepartition);
     let { checks, stopStatuses } = validatePlannerDays(requirement, journey.days, selected.flat(), journey.travelOnlyDays);
     const travel = checks.find(check => check.key === "TRAVEL_TIME")!;
     if (journey.check.status === "VIOLATION" || travel.status === "PASS") travel.status = journey.check.status;
@@ -71,7 +72,7 @@ export async function scheduleSelection(needs: PlanningNeeds, selection: Plannin
       selectedByDay: selected,
       provider: routes,
       timeoutMs: 10_000,
-      allowBoundaryRepartition: !scope,
+      allowBoundaryRepartition,
       forecast,
       allowedDayIndices,
     });
