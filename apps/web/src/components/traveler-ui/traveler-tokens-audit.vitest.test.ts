@@ -97,6 +97,20 @@ describe("Ticket 02: Traveler CSS tokens, 2 fonts only, no full-sentence bold", 
     expect(uiCss).toMatch(/@media\s*\(max-width:\s*767px\)\s*\{[\s\S]*?\.tv-day-tabs--sticky\s*\{[^}]*top\s*:\s*var\(--header-height-mobile\b/);
   });
 
+  it("prevents .tv-day-tabs from collapsing to 0 height inside .tripsage-panel-body grid", () => {
+    const uiCss = readFileSync(resolve(WEB, "src/components/traveler-ui/traveler-ui.css"), "utf8");
+    const tabsMatch = uiCss.match(/\.tv-day-tabs\s*\{([^}]*)\}/);
+    expect(tabsMatch).not.toBeNull();
+    expect(tabsMatch![1]).toMatch(/min-height\s*:\s*3[3-9]px\b/);
+    expect(tabsMatch![1]).toMatch(/min-width\s*:\s*0\b/);
+    expect(tabsMatch![1]).toMatch(/overflow-y\s*:\s*hidden\b/);
+
+    const assistantCss = readFileSync(resolve(WEB, "src/components/assistant/assistant.css"), "utf8");
+    const panelBodyMatch = assistantCss.match(/\.tripsage-panel-body\s*\{([^}]*)\}/);
+    expect(panelBodyMatch).not.toBeNull();
+    expect(panelBodyMatch![1]).toMatch(/grid-template-columns\s*:\s*minmax\(0,\s*1fr\)/);
+  });
+
   it("strips full-sentence bold in assistant markdown while preserving short inline emphasis", () => {
     const html = renderToStaticMarkup(
       createElement(TripsageMarkdown, {
