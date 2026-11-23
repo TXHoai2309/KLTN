@@ -3,13 +3,10 @@ import type { AccessLegPart } from "./tripsage-access-leg";
 import type { TripsageTripInfo } from "./tripsage-chat-context";
 import type { StoredAssistantPart } from "./assistant-conversation-contract";
 
+import { extractOriginCityProvince } from "../../lib/traveler-trip-title";
+
 function shortCity(raw: string | null | undefined): string | null {
-  if (!raw) return null;
-  const trimmed = raw.replace(/\s*\([^)]*\)/gu, "").split(",")[0]?.trim() ?? "";
-  if (!trimmed) return null;
-  if (/^(?:tp\.?\s*hcm|hcm|thành phố hồ chí minh|hồ chí minh)$/iu.test(trimmed)) return "TP.HCM";
-  const cleaned = trimmed.replace(/^(?:tp\.?|thành phố|tỉnh)\s+/iu, "").trim();
-  return cleaned || null;
+  return extractOriginCityProvince(raw, { allowHaGiang: true });
 }
 
 function isHaGiangCity(name: string): boolean {

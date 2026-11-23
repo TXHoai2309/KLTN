@@ -130,4 +130,30 @@ describe("Ticket 14: Conversation auto-title & saved trip indicator (slim B11, B
     const lastCallData = (update.mock.calls.at(-1)?.[0] as { data?: Record<string, unknown> } | undefined)?.data;
     expect(lastCallData?.title).toBeUndefined();
   });
+
+  it("strips street address / ward / house number when auto-titling from origin or homeCity (P1)", () => {
+    expect(
+      buildConversationAutoTitle({
+        tripInfo: { travelers: 2, startDate: "2026-11-29" },
+        journey: {
+          origin: {
+            label: "96 P. Định Công, Hoàng Mai, Hà Nội",
+            latitude: 20.985,
+            longitude: 105.838,
+            source: "GOOGLE_PLACES",
+            confirmed: true,
+          },
+          departureMinute: 420,
+          returnDeadlineMinute: 1080,
+          returnDepartureMinute: null,
+        },
+      }),
+    ).toBe("Hà Nội → HG · 2 người · 29/11");
+
+    expect(
+      buildConversationAutoTitle({
+        tripInfo: { homeCity: "96 P. Định Công", travelers: 2, startDate: "2026-11-29" },
+      }),
+    ).toBe("Hà Giang · 2 người · 29/11");
+  });
 });

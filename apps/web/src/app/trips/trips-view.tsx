@@ -849,6 +849,7 @@ export function TripDetailView({ trip, calendarEnabled = false }: { trip: TripDe
         companionTitle: trip.companionTitle,
         homeCity: accessLeg?.homeCity ?? null,
         originLabel: trip.journey?.journey.origin?.label ?? null,
+        hubName: accessLeg?.hubName ?? null,
         firstArea: firstStop?.destination.area ?? null,
         lastArea: lastStop?.destination.area ?? null,
         startDate: trip.startDate,
