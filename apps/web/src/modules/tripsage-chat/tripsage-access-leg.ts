@@ -84,15 +84,21 @@ export function buildAccessLeg(
   flightPriceOverride?: FlightPriceOverride | null,
 ): AccessLegPart {
   const hub = TRIP_HUBS.find(item => item.id === input.hubId)!;
+  const overrideAdults =
+    flightPriceOverride && Number.isInteger(flightPriceOverride.adults) && flightPriceOverride.adults >= 1
+      ? flightPriceOverride.adults
+      : 0;
   const applyFlightOverride = Boolean(
     flightPriceOverride
     && Number.isFinite(flightPriceOverride.totalVnd)
     && flightPriceOverride.totalVnd > 0
-    && flightPriceOverride.adults === travelers,
+    && overrideAdults >= 1,
   );
   const outboundFlightCount = input.outbound.filter(s => s.mode === "FLIGHT").length;
   const returnFlightCount = input.return.filter(s => s.mode === "FLIGHT").length;
-  const perPersonTotal = applyFlightOverride ? Math.round(flightPriceOverride!.totalVnd / travelers) : 0;
+  // Normalize looked-up price to per-person using the lookup's `adults` count (not `travelers`),
+  // so lookups for 1 adult (default) or any passenger count scale accurately to `travelers`.
+  const perPersonTotal = applyFlightOverride ? Math.round(flightPriceOverride!.totalVnd / overrideAdults) : 0;
   const splitRoundTrip = applyFlightOverride && flightPriceOverride!.roundTrip && outboundFlightCount === 1 && returnFlightCount === 1;
   const outboundFlightVnd = splitRoundTrip ? Math.floor(perPersonTotal / 2) : perPersonTotal;
   const returnFlightVnd = splitRoundTrip ? perPersonTotal - outboundFlightVnd : perPersonTotal;
@@ -127,6 +133,38 @@ export function buildAccessLeg(
     returnMinutes: minutes(ret),
     totalVnd: price * travelers,
   };
+}
+
+/**
+ * Re-applies a looked-up Google Flights price override to an existing access leg when `searchFlights`
+ * completes after `planAccessLeg`. Returns a fresh `AccessLegPart` with a new `id`, or `null` if the
+ * leg has no `FLIGHT` segments or the override is invalid.
+ */
+export function applyFlightOverrideToAccessLeg(
+  leg: AccessLegPart,
+  flightPriceOverride: FlightPriceOverride | null | undefined,
+): AccessLegPart | null {
+  const hub = TRIP_HUBS.find(item => item.name === leg.hubName);
+  if (!hub || !flightPriceOverride) return null;
+  const hasFlight = [...leg.outbound, ...leg.return].some(s => s.mode === "FLIGHT");
+  if (!hasFlight) return null;
+  const toInput = (segments: AccessLegPart["outbound"]): AccessLegInput["outbound"] =>
+    segments.map(({ mode, from, to, departTime, durationMinutes, priceVndPerPerson }) => ({
+      mode,
+      from,
+      to,
+      ...(departTime ? { departTime } : {}),
+      durationMinutes,
+      priceVndPerPerson,
+    }));
+  const updated = buildAccessLeg(
+    { hubId: hub.id, outbound: toInput(leg.outbound), return: toInput(leg.return) },
+    leg.homeCity,
+    leg.travelers,
+    flightPriceOverride,
+  );
+  const applied = [...updated.outbound, ...updated.return].some(s => s.priceSource === "GOOGLE_FLIGHTS");
+  return applied ? updated : null;
 }
 
 /** PARITY BR-5: concise per-segment breakdown for the cost table's "Chặng tiếp cận (đi và về)" basis (<= 120 chars). */

@@ -223,6 +223,118 @@ describe("Ticket 05: access-leg mode question, live flight price injection, and 
     expect(costPart?.lines?.find(l => l.label === "Chặng tiếp cận (đi và về)")?.amount).toBe(5_600_000);
   });
 
+  it("normalizes a 1-adult Google Flights lookup to per-person price for a 4-traveler group and matches cost table + current leg id (Bug G)", async () => {
+    // Direct unit check: lookup searched with adults=1 (2,200,000 VND round-trip/person), group has 4 travelers
+    const directLeg = buildAccessLeg(
+      {
+        hubId: "HA_GIANG_CITY",
+        outbound: [
+          { mode: "FLIGHT", from: "Đà Nẵng", to: "Hà Nội", durationMinutes: 90, priceVndPerPerson: 2_500_000 },
+          { mode: "SLEEPER_BUS", from: "Hà Nội", to: "TP Hà Giang", durationMinutes: 390, priceVndPerPerson: 300_000 },
+        ],
+        return: [
+          { mode: "SLEEPER_BUS", from: "TP Hà Giang", to: "Hà Nội", durationMinutes: 390, priceVndPerPerson: 300_000 },
+          { mode: "FLIGHT", from: "Hà Nội", to: "Đà Nẵng", durationMinutes: 90, priceVndPerPerson: 2_500_000 },
+        ],
+      },
+      "Đà Nẵng",
+      4,
+      { totalVnd: 2_200_000, adults: 1, roundTrip: true, lookupDate: "2026-11-23" },
+    );
+    expect(directLeg.outbound[0]).toMatchObject({ mode: "FLIGHT", priceVndPerPerson: 1_100_000, priceSource: "GOOGLE_FLIGHTS" });
+    expect(directLeg.return[1]).toMatchObject({ mode: "FLIGHT", priceVndPerPerson: 1_100_000, priceSource: "GOOGLE_FLIGHTS" });
+    expect(directLeg.totalVnd).toBe((1_100_000 + 300_000) * 2 * 4);
+
+    // End-to-end chat flow: 4 travelers from Đà Nẵng, searchFlights called with adults=1 on Ngày đi (11/12 -> 15/12 for 12/12 4-day trip)
+    const flightLookup = vi.fn<FlightLookup>(async () => ({
+      status: "RESULTS",
+      roundTrip: true,
+      offers: [
+        {
+          price: { total: "2400000", currency: "VND" }, // 1 adult round-trip = 2,400,000 -> 1,200,000/leg
+          itineraries: [{
+            connections: 0,
+            segments: [{
+              from: "DAD",
+              to: "HAN",
+              departAt: "2026-12-11T18:00:00",
+              arriveAt: "2026-12-11T19:30:00",
+              airline: "VietJet",
+              flight: "VJ518",
+            }],
+          }],
+        },
+      ],
+    }));
+
+    const { parts } = await runChat([
+      { tool: "searchFlights", input: { departureDate: "2026-12-11", returnDate: "2026-12-15", adults: 1 } },
+      {
+        tool: "planAccessLeg",
+        input: {
+          hubId: "HA_GIANG_CITY",
+          outbound: [
+            { mode: "FLIGHT", from: "Đà Nẵng", to: "Hà Nội", durationMinutes: 90, priceVndPerPerson: 2_500_000 },
+            { mode: "SLEEPER_BUS", from: "Hà Nội", to: "TP Hà Giang", durationMinutes: 390, priceVndPerPerson: 300_000 },
+          ],
+          return: [
+            { mode: "SLEEPER_BUS", from: "TP Hà Giang", to: "Hà Nội", durationMinutes: 390, priceVndPerPerson: 300_000 },
+            { mode: "FLIGHT", from: "Hà Nội", to: "Đà Nẵng", durationMinutes: 90, priceVndPerPerson: 2_500_000 },
+          ],
+        },
+      },
+      { tool: "estimateCosts", input: { lines: [{ category: "food", label: "Ăn uống", amount: 3_200_000 }], budgetCap: 20_000_000 } },
+      { text: "Đã áp giá vé máy bay Google Flights vào chặng tiếp cận." },
+    ], {
+      flights: flightLookup,
+      tripInfo: { transport: "MOTORCYCLE", durationDays: 4, startDate: "2026-12-12", travelers: 4, homeCity: "Đà Nẵng" },
+    });
+
+    const legPart = parts.find(p => p.type === "data-access-leg")?.data as AccessLegPart | undefined;
+    expect(legPart).toBeTruthy();
+    expect(legPart!.travelers).toBe(4);
+    expect(legPart!.outbound[0]).toMatchObject({ mode: "FLIGHT", priceVndPerPerson: 1_200_000, priceSource: "GOOGLE_FLIGHTS" });
+    expect(legPart!.return[1]).toMatchObject({ mode: "FLIGHT", priceVndPerPerson: 1_200_000, priceSource: "GOOGLE_FLIGHTS" });
+    // (1,200,000 + 300,000) * 2 * 4 = 12,000,000
+    expect(legPart!.totalVnd).toBe(12_000_000);
+
+    const costPart = parts.find(p => p.type === "data-cost")?.data as { accessLegId?: string; lines?: { label: string; amount: number }[] } | undefined;
+    expect(costPart?.accessLegId).toBe(legPart!.id);
+    expect(costPart?.lines?.find(l => l.label === "Chặng tiếp cận (đi và về)")?.amount).toBe(12_000_000);
+
+    // Also verify when planAccessLeg ran BEFORE searchFlights in the same turn: access leg refreshes automatically
+    const lateLookup = await runChat([
+      {
+        tool: "planAccessLeg",
+        input: {
+          hubId: "HA_GIANG_CITY",
+          outbound: [
+            { mode: "FLIGHT", from: "Đà Nẵng", to: "Hà Nội", durationMinutes: 90, priceVndPerPerson: 2_500_000 },
+            { mode: "SLEEPER_BUS", from: "Hà Nội", to: "TP Hà Giang", durationMinutes: 390, priceVndPerPerson: 300_000 },
+          ],
+          return: [
+            { mode: "SLEEPER_BUS", from: "TP Hà Giang", to: "Hà Nội", durationMinutes: 390, priceVndPerPerson: 300_000 },
+            { mode: "FLIGHT", from: "Hà Nội", to: "Đà Nẵng", durationMinutes: 90, priceVndPerPerson: 2_500_000 },
+          ],
+        },
+      },
+      { tool: "searchFlights", input: { departureDate: "2026-12-11", returnDate: "2026-12-15", adults: 1 } },
+      { tool: "estimateCosts", input: { lines: [{ category: "food", label: "Ăn uống", amount: 3_200_000 }], budgetCap: 20_000_000 } },
+      { text: "Đã cập nhật giá vé máy bay." },
+    ], {
+      flights: flightLookup,
+      tripInfo: { transport: "MOTORCYCLE", durationDays: 4, startDate: "2026-12-12", travelers: 4, homeCity: "Đà Nẵng" },
+    });
+    const legs = lateLookup.parts.filter(p => p.type === "data-access-leg").map(p => p.data as AccessLegPart);
+    expect(legs).toHaveLength(2);
+    const latestLeg = legs.at(-1)!;
+    expect(latestLeg.outbound[0]?.priceSource).toBe("GOOGLE_FLIGHTS");
+    expect(latestLeg.totalVnd).toBe(12_000_000);
+    const lateCost = lateLookup.parts.find(p => p.type === "data-cost")?.data as { accessLegId?: string; lines?: { label: string; amount: number }[] } | undefined;
+    expect(lateCost?.accessLegId).toBe(latestLeg.id);
+    expect(lateCost?.lines?.find(l => l.label === "Chặng tiếp cận (đi và về)")?.amount).toBe(12_000_000);
+  });
+
   it("keeps ESTIMATE when flight lookup fails (UNAVAILABLE) and enforces max 1 proactive lookup unless date/origin changes", async () => {
     const failLookup = vi.fn<FlightLookup>(async () => ({ status: "UNAVAILABLE" }));
     const failed = await runChat([

@@ -17,7 +17,7 @@ import { SUGGESTION_KINDS, suggestionSchema, timelineSlotIds, type TimelineSugge
 import { computeBudgetSavingsChips, costLineInputSchema, estimateTripCost, PRICE_REFERENCE, type CostPart } from "./tripsage-cost";
 import { buildGroundedPreferenceLabels, detectStatedPreferences, preferenceLabelsToSuggestions } from "./tripsage-preference-labels";
 import { itineraryDistanceKm } from "./tripsage-chat-context";
-import { accessLegInputSchema, buildAccessLeg, formatAccessLegCostBasis, isHubOrigin, shouldSuggestHub, type AccessLegPart, type FlightPriceOverride } from "./tripsage-access-leg";
+import { accessLegInputSchema, applyFlightOverrideToAccessLeg, buildAccessLeg, formatAccessLegCostBasis, isHubOrigin, shouldSuggestHub, type AccessLegPart, type FlightPriceOverride } from "./tripsage-access-leg";
 import { domainOf, isSafePublicHttpsUrl, WEB_DATA_MARKER, type WebLookup } from "./tripsage-web";
 import { quickRepliesPartSchema, resolveEffectiveJourney, tripInfoSchema, withTripInfoDefaults, type ChatSourceItem, type OriginCandidatesPart, type TripsageItinerarySummary, type TripsageTripInfo } from "./tripsage-chat-context";
 import {
@@ -846,23 +846,37 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     },
   });
 
+  const isoDaysDiff = (a: string, b: string) =>
+    Math.round((Date.parse(`${a}T00:00:00Z`) - Date.parse(`${b}T00:00:00Z`)) / 86_400_000);
+
   const findMatchingFlightOverride = (info: { startDate?: string; durationDays?: number; travelers: number }): FlightPriceOverride | null => {
     let expectedReturn: string | null = null;
     if (info.startDate && info.durationDays) {
       const [y, m, d] = info.startDate.split("-").map(Number) as [number, number, number];
       expectedReturn = new Date(Date.UTC(y, m - 1, d + info.durationDays - 1)).toISOString().slice(0, 10);
     }
+    let fallbackMatch: FlightPriceOverride | null = null;
     for (let i = flightLookups.length - 1; i >= 0; i -= 1) {
       const item = flightLookups[i]!;
       if (item.currency !== "VND" || !item.cheapestTotal) continue;
-      if (item.adults !== info.travelers) continue;
-      if (info.startDate && item.departureDate !== info.startDate) continue;
-      if (item.roundTrip && item.returnDate && expectedReturn && item.returnDate !== expectedReturn) continue;
+      const adults = Number.isInteger(item.adults) && item.adults >= 1 ? item.adults : 1;
       const totalVnd = Math.round(Number(item.cheapestTotal));
       if (!Number.isFinite(totalVnd) || totalVnd <= 0) continue;
-      return { totalVnd, adults: item.adults, roundTrip: item.roundTrip, lookupDate: item.lookupDate };
+
+      const exactDep = !info.startDate || item.departureDate === info.startDate;
+      const exactRet = !item.roundTrip || !item.returnDate || !expectedReturn || item.returnDate === expectedReturn;
+      if (exactDep && exactRet) {
+        return { totalVnd, adults, roundTrip: item.roundTrip, lookupDate: item.lookupDate };
+      }
+
+      // Accept 1-day travel-day offsets (flying on "Ngày đi" startDate-1 and/or returning on "Ngày về" endDate+1).
+      const depDelta = info.startDate ? isoDaysDiff(item.departureDate, info.startDate) : 0;
+      const retDelta = item.roundTrip && item.returnDate && expectedReturn ? isoDaysDiff(item.returnDate, expectedReturn) : 0;
+      if (!fallbackMatch && (depDelta === -1 || depDelta === 0) && (retDelta === -1 || retDelta === 0 || retDelta === 1)) {
+        fallbackMatch = { totalVnd, adults, roundTrip: item.roundTrip, lookupDate: item.lookupDate };
+      }
     }
-    return null;
+    return fallbackMatch;
   };
 
   const planAccessLeg = tool({
@@ -931,7 +945,18 @@ export function createTripsageChatTools(context: TripsageToolContext) {
     ),
     flightDeclined: () => tripInfo.flightDeclined === true,
     priorFlightLookups: context.priorFlightLookups,
-    onFlightLookupResult: record => { flightLookups.push(record); },
+    onFlightLookupResult: record => {
+      flightLookups.push(record);
+      if (latestAccessLeg) {
+        const { info } = withTripInfoDefaults(tripInfo);
+        const override = findMatchingFlightOverride(info);
+        const refreshed = applyFlightOverrideToAccessLeg(latestAccessLeg, override);
+        if (refreshed) {
+          latestAccessLeg = refreshed;
+          context.emitAccessLeg?.(latestAccessLeg);
+        }
+      }
+    },
     blockingAssumedFields: () => blockingAssumedFields(tripInfo.assumedFields),
     priorHotelLookups: context.priorHotelLookups,
   });
