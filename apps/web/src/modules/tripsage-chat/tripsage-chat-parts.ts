@@ -173,3 +173,13 @@ export function hasPlanProgressErrors(snapshot: PlanProgressSnapshot | null): bo
   if (!snapshot) return false;
   return PLAN_PROGRESS_STEPS.some(step => snapshot.steps[step].state === "error");
 }
+
+/**
+ * Point 7: inline save-action display part attached when the traveler asks to save the itinerary.
+ * Never saves automatically — renders the exact same confirmed "Lưu chuyến" button as the plan panel.
+ */
+export const saveActionPartSchema = z.strictObject({
+  eligible: z.boolean(),
+  reason: z.string().trim().min(1).max(200).optional(),
+});
+export type SaveActionPart = z.infer<typeof saveActionPartSchema>;

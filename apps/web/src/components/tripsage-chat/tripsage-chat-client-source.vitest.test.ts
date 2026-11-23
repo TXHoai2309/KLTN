@@ -90,7 +90,10 @@ describe("tripsage chat server logging", () => {
     // The fuel-price module logs the same kind of fixed reason code.
     const fuel = calls.filter(call => call.includes("tripsage-fuel"));
     for (const call of fuel) expect(call).toMatch(/console\.warn\("\[tripsage-fuel\] [a-z ]+", reason\)/);
-    const rest = calls.filter(call => !serpApi.includes(call) && !fuel.includes(call));
+    // The Firecrawl web lookup module logs the same kind of fixed reason code (never the URL, key, query or body).
+    const web = calls.filter(call => call.includes("tripsage-web"));
+    for (const call of web) expect(call).toMatch(/console\.warn\("\[tripsage-web\] [a-z ]+", reason\)/);
+    const rest = calls.filter(call => !serpApi.includes(call) && !fuel.includes(call) && !web.includes(call));
     expect(rest).toHaveLength(1);
     // The only extra argument is the bounded diagnostic (status, kind, code), never the raw error object.
     expect(rest[0]).toContain('console.error("[tripsage-chat] provider stream failed", safeFailureDiagnostic(error))');

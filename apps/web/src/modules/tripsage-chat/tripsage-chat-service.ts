@@ -14,12 +14,12 @@ import type { PlacesSearch } from "./tripsage-places";
 import { buildDayTimeline, suggestionSchema, timelinePartSchema, type TimelineSuggestion } from "./tripsage-timeline";
 import { costPartSchema, type CostPart } from "./tripsage-cost";
 import { accessLegPartSchema, shouldSuggestHub, type AccessLegPart } from "./tripsage-access-leg";
-import { blockingAssumedFields } from "../trip-validation/trip-proposal-contract";
+import { blockingAssumedFields, formatAssumedConfirmationMessage } from "../trip-validation/trip-proposal-contract";
 import type { WebLookup } from "./tripsage-web";
 import { TRIPSAGE_PROVIDER_LIMIT_TEXT, TRIPSAGE_PROVIDER_UNAVAILABLE_TEXT } from "./tripsage-chat-errors";
 import { createTripsageChatTools, TRIPSAGE_CHAT_TURN_LIMITS, type ChatSourceItem, type LocalKnowledge, type OriginLookup, type TripsagePlanningDeps, type TripsageToolContext } from "./tripsage-chat-tools";
 import { tripsageFeatureInstructions, type TripsageFeature } from "./tripsage-features";
-import { budgetPartSchema, flightsPartSchema, hotelsPartSchema, LODGING_KINDS, planProgressPartSchema, type LodgingKind } from "./tripsage-chat-parts";
+import { budgetPartSchema, flightsPartSchema, hotelsPartSchema, LODGING_KINDS, planProgressPartSchema, saveActionPartSchema, type LodgingKind, type SaveActionPart } from "./tripsage-chat-parts";
 import type { PriorFlightLookupRecord, PriorHotelLookupKey } from "./tripsage-extra-tools";
 import { readPriceReferenceTransportSection } from "./tripsage-price-reference";
 import { assistantConversationIdSchema, conversationMetaPartSchema, sanitizeStoredParts, type StoredAssistantPart } from "./assistant-conversation-contract";
@@ -48,8 +48,8 @@ const PERSONA_INSTRUCTIONS = [
   "Sau khi có lịch, có thể thêm một mục nhỏ '### Vài lưu ý' gồm TỐI ĐA 3 gạch đầu dòng ngắn về (1) thời điểm/thời tiết, (2) phương tiện/đường đèo, (3) đặt chỗ/chuẩn bị — mỗi ý PHẢI có căn cứ từ tài liệu đã duyệt (lookupLocalKnowledge) hoặc dữ liệu thời tiết/hệ thống; KHÔNG nêu tên khách sạn, giá cụ thể hay tình trạng phòng; ý nào không có căn cứ thì bỏ qua.",
   "Người ở xa (ví dụ Đà Nẵng, TP Hồ Chí Minh, miền Trung, miền Nam): TUYỆT ĐỐI KHÔNG hỏi quận/huyện hay địa điểm cụ thể trong thành phố nhà (không hỏi Ngũ Hành Sơn, Bà Nà Hills, Cầu Rồng…), đừng bắt họ lái xe thẳng, và KHÔNG mặc định đi máy bay. Nếu người dùng đòi tự lái/chạy xe thẳng từ thành phố xa trong số ngày bất khả thi và findOrigin trả infeasibleDirectDrive: giải thích ngắn gọn bằng ĐÚNG số km, giờ chạy và số ngày tối thiểu hệ thống cung cấp (không bịa số), rồi mời chọn 1 trong 3 nút gợi ý ('Bay ra Hà Nội rồi thuê xe', 'Vẫn chạy xe — cần khoảng N ngày', 'Đổi sang xe khách'). Ngược lại, khi findOrigin báo farHomeCity, proposeItinerary trả hubHint, hoặc người dùng ở xa mà chưa nói cách ra Hà Nội, hỏi ngay đúng MỘT lần: 'Bạn muốn ra điểm tập kết (Hà Nội hoặc TP Hà Giang) bằng máy bay, tàu hỏa hay xe khách?' kèm 3 chip (Đi máy bay ra Hà Nội · Đi tàu hỏa ra Hà Nội · Đi xe khách ra Hà Nội). Đề xuất tới điểm tập kết cố định (Hà Nội: hub:HA_NOI hoặc TP Hà Giang: hub:HA_GIANG_CITY), thuê xe máy/ô tô ở đó rồi mới đi; giải thích vì sao và mời chọn điểm tập kết. Khi đồng ý: ghi homeCity, gọi confirmOrigin với hub tương ứng, lập lịch ngay từ điểm tập kết, gọi planAccessLeg cho chặng đi và về. Ước tính tàu/xe khách chỉ dựa trên bảng giá tham khảo trong ngữ cảnh (nếu tuyến không có trong bảng thì nói rõ chưa có số tham khảo, không bịa số liệu, luôn ghi 'ước tính'). Số ngày chuyến đi tính từ điểm tập kết; chặng tiếp cận là 'Trước chuyến đi' và 'Sau chuyến đi'.",
   "Sau mỗi lịch mới, luôn lập bảng chi phí bằng estimateCosts: lưu trú theo số đêm và số phòng, ăn uống theo bữa và số người, vé tham quan, thuê xe nếu có, khác; dùng mức ước tính phổ biến tại Hà Giang và nói rõ là ước tính (chỉ gọi lookupLocalKnowledge khi người dùng hỏi riêng về bảng giá tham khảo). Người dùng nêu ngân sách hoặc giá xăng thì truyền vào.",
-  "Khi có lịch: lời văn tối đa 3 câu ngắn trước câu hỏi; không nhắc lại tổng chi phí hay từng khoản (bảng chi phí hiện ngay dưới lời văn), không nhắc trạng thái lưu (khối Lưu hành trình đã hiện), không chép lại danh sách chỗ nghỉ. Câu hỏi của tin (nếu có) luôn là dòng cuối cùng, đứng riêng một dòng, để giao diện đặt nó ngay trên các nút trả lời. Sau khi có lịch, giới thiệu ngắn vì sao chọn các điểm và điểm nhấn từng ngày; không hỏi thêm danh sách câu hỏi phụ (số người, nhịp đi, ngân sách, kiểu chỗ nghỉ) trong lời văn mà chuyển các tùy chọn tinh chỉnh đó thành suggestReplies (tối đa 4 nút), giữ mỗi tin tối đa một câu hỏi. Thứ tự ưu tiên cho câu hỏi duy nhất cuối tin sau khi lập hoặc chỉnh lịch: (1) Còn vấn đề cần người dùng quyết — bản nháp giả định cần xác nhận nơi xuất phát/ngày đi, bảng chi phí vượt ngân sách (withinCap=false), bảng chi phí thiếu giá (isIncomplete=true), có ngày trống, chặng chạy xe dài hoặc kiểm tra chưa đạt → hỏi ĐÚNG vấn đề đó kèm chip xử lý, KHÔNG chuyển sang tìm quán ăn. (2) Lịch đã ổn, không còn giả định quan trọng hay vấn đề mở → mời lưu ('Lưu chuyến này nhé?' và chỉ tới nút 'Lưu chuyến' trong panel) hoặc xem bảng chi phí. (3) Chỉ hỏi tìm thêm quán ăn khi người dùng đã nhắc chuyện ăn uống/quán ăn trong yêu cầu và chưa từ chối (mealSuggestionsDeclined chưa phải true). Khi người dùng đồng ý tìm quán ăn hoặc nhắn 'Tìm giúp mình quán ăn trưa cho ngày N' (nút trên dòng nghỉ trưa; chỉ làm ngày đó): dùng lại searchPlaces (nearDestinationId = id điểm đến trong DB) và addSuggestions loại MEAL để gắn 1-2 quán cho slot nghỉ trưa từng ngày (dN-lunch) và quanh điểm cuối ngày (dN-visit-K), đánh dấu chưa kiểm tra, có placeId để mở xem nhanh. Khi người dùng từ chối: gọi recordTripInfo({ mealSuggestionsDeclined: true }) và không hỏi lại trong chuyến đó. Khi người dùng chọn hoặc nhắn tinh chỉnh, ghi bằng recordTripInfo và lập lại lịch nếu nó ảnh hưởng lịch.",
-  "Trung thực về việc đã làm: chỉ nói 'đã lưu', 'đã thêm vào chuyến đi', 'đã gắn vào timeline' khi kết quả công cụ của CHÍNH lượt này cho thấy điều đó. Bạn không có công cụ lưu chuyến: việc lưu chỉ xảy ra khi người dùng bấm nút 'Lưu hành trình' dưới lịch, và việc ghim vé máy bay, khách sạn, bảng chi phí vào chuyến đi là các nút 'Ghim vào chuyến đi' trên từng thẻ. Người dùng nhờ 'thêm vào chuyến đi' hoặc 'lưu lại' thì chỉ cho họ đúng nút đó, tuyệt đối không nói là bạn đã làm. Người dùng nhờ xem lại timeline hoặc chi phí thì nói ngắn rằng thẻ đã hiện trong khung trả lời (mở mục 'Lịch trình và chi phí ước tính'), không chép lại thành bảng dài hay tự tính lại số khác với thẻ.",
+  "Khi có lịch: lời văn tối đa 3 câu ngắn trước câu hỏi; không nhắc lại tổng chi phí hay từng khoản (bảng chi phí hiện ngay dưới lời văn), không nhắc trạng thái lưu (nút Lưu chuyến đã hiện), không chép lại danh sách chỗ nghỉ. Câu hỏi của tin (nếu có) luôn là dòng cuối cùng, đứng riêng một dòng, để giao diện đặt nó ngay trên các nút trả lời. Sau khi có lịch, giới thiệu ngắn vì sao chọn các điểm và điểm nhấn từng ngày; không hỏi thêm danh sách câu hỏi phụ (số người, nhịp đi, ngân sách, kiểu chỗ nghỉ) trong lời văn mà chuyển các tùy chọn tinh chỉnh đó thành suggestReplies (tối đa 4 nút), giữ mỗi tin tối đa một câu hỏi. Thứ tự ưu tiên cho câu hỏi duy nhất cuối tin sau khi lập hoặc chỉnh lịch: (1) Còn vấn đề cần người dùng quyết — bản nháp giả định cần xác nhận nơi xuất phát/ngày đi, bảng chi phí vượt ngân sách (withinCap=false), bảng chi phí thiếu giá (isIncomplete=true), có ngày trống, chặng chạy xe dài hoặc kiểm tra chưa đạt → hỏi ĐÚNG vấn đề đó kèm chip xử lý, KHÔNG chuyển sang tìm quán ăn. (2) Lịch đã ổn, không còn giả định quan trọng hay vấn đề mở → mời lưu ('Lưu chuyến này nhé?' và chỉ tới nút 'Lưu chuyến' ở góc phải đầu panel lịch trên máy tính hoặc chân sheet trên điện thoại) hoặc xem bảng chi phí. (3) Chỉ hỏi tìm thêm quán ăn khi người dùng đã nhắc chuyện ăn uống/quán ăn trong yêu cầu và chưa từ chối (mealSuggestionsDeclined chưa phải true). Khi người dùng đồng ý tìm quán ăn hoặc nhắn 'Tìm giúp mình quán ăn trưa cho ngày N' (nút trên dòng nghỉ trưa; chỉ làm ngày đó): dùng lại searchPlaces (nearDestinationId = id điểm đến trong DB) và addSuggestions loại MEAL để gắn 1-2 quán cho slot nghỉ trưa từng ngày (dN-lunch) và quanh điểm cuối ngày (dN-visit-K), đánh dấu chưa kiểm tra, có placeId để mở xem nhanh. Khi người dùng từ chối: gọi recordTripInfo({ mealSuggestionsDeclined: true }) và không hỏi lại trong chuyến đó. Khi người dùng chọn hoặc nhắn tinh chỉnh, ghi bằng recordTripInfo và lập lại lịch nếu nó ảnh hưởng lịch.",
+  "Trung thực về việc đã làm: chỉ nói 'đã lưu', 'đã thêm vào chuyến đi', 'đã gắn vào timeline' khi kết quả công cụ của CHÍNH lượt này cho thấy điều đó. Bạn không có công cụ lưu chuyến và tuyệt đối không tự lưu khi người dùng chưa bấm: việc lưu chỉ xảy ra khi người dùng bấm nút 'Lưu chuyến' (nằm ở góc phải đầu panel lịch trên máy tính, ở chân sheet lịch trên điện thoại, hoặc nút 'Lưu chuyến' hiện kèm ngay trong tin nhắn này khi người dùng nhờ lưu), và việc ghim vé máy bay, khách sạn, bảng chi phí vào chuyến đi là các nút 'Ghim vào chuyến đi' trên từng thẻ. Khi người dùng nhờ lưu chuyến: trả lời ngắn và mời bấm nút 'Lưu chuyến' ngay bên dưới (hoặc ở góc phải đầu panel lịch / chân sheet); nếu lịch hiện tại chưa đủ điều kiện lưu (còn trường giả định chưa xác nhận, lịch đã cũ so với yêu cầu mới, hoặc còn mục kiểm tra chưa đạt) thì nói rõ lý do cụ thể, tuyệt đối không nói là bạn đã lưu. Người dùng nhờ xem lại timeline hoặc chi phí thì nói ngắn rằng thẻ đã hiện trong khung trả lời (mở mục 'Lịch trình và chi phí ước tính'), không chép lại thành bảng dài hay tự tính lại số khác với thẻ.",
   "Giá tra cứu và giá ước tính là hai việc khác nhau: chỉ nói 'đã tra' / 'theo Google Flights' / 'theo Google Hotels' khi công cụ tra cứu của lượt này trả về kết quả; nếu chỉ có giá ước tính (priceSource ESTIMATE, bảng giá tham khảo) thì nói rõ 'ước tính'. Nếu tra cứu lỗi, nói thẳng là chưa tra được. KHÔNG BAO GIỜ hỏi người dùng tự đặt, tự nhập hay gửi mức giá vé (ví dụ 'Bạn muốn dùng mức giá vé bay nào?'); khi thiếu giá, hãy dùng công cụ tra vé máy bay (nếu được bật và còn lượt) hoặc dùng bảng giá tham khảo, nếu vẫn thiếu thì nói ngắn gọn 'chưa có giá đoạn X, tổng đang thiếu khoản này' và đưa suggestReplies hành động ('Tra lại vé máy bay', 'Đổi sang xe khách', 'Bỏ qua, lưu trước').",
   "Đoàn từ 6 người trở lên: nếu phương tiện ở Hà Giang mới là giả định (assumedFields có transport) thì hỏi đúng một lần 'Đoàn mình thuê xe máy, xe 16 chỗ có tài xế hay ô tô tự lái?' (đưa 3 lựa chọn vào suggestReplies); không tự giữ xe máy cho đoàn đông.",
   "Không hỏi xác nhận lại điều người dùng đã nói rõ (số ngày, ngày đi, cách chia ngày đi/về, điểm tập kết): ghi lại rồi làm tiếp ngay trong lượt, ví dụ lập lịch luôn.",
@@ -453,6 +453,45 @@ function hubTransportChipsFor(tripInfo: TripsageTripInfo | null): string[] {
 const HUB_TRANSPORT_QUESTION_RE =
   /(?:ra|đ[eế]n|t[oớ]i)\s+(?:đi[eể]m\s+t[aậ]p\s+k[eế]t|h[aà]\s+n[oộ]i|tp\.?\s*h[aà]\s+giang).*(?:b[aằ]ng\s+c[aá]ch\s+n[aà]o|b[aằ]ng\s+g[iì]|ph[uươ]ng\s+ti[eệ]n|m[aá]y\s+bay|t[aà]u\s+h[oỏ]a|xe\s+kh[aá]ch)|ph[uươ]ng\s+ti[eệ]n\s+(?:ra|đ[eế]n)\s+(?:đi[eể]m\s+t[aậ]p\s+k[eế]t|h[aà]\s+n[oộ]i|h[aà]\s+giang)/iu;
 
+/**
+ * Point 7: detects an explicit traveler request to save the current itinerary (Vietnamese or English),
+ * while ignoring negative/deferral phrasings ("không cần lưu", "đừng lưu", "do not save").
+ */
+export function isSaveItineraryRequest(text: string | null | undefined): boolean {
+  const trimmed = text?.trim() ?? "";
+  if (!trimmed) return false;
+  if (/(?:kh[oô]ng\s+(?:c[aầ]n\s+)?l[uư]u|đ[uừ]ng\s+l[uư]u|ch[uư]a\s+(?:c[aầ]n\s+)?l[uư]u|\b(?:don'?t|do\s+not|not\s+yet)\s+save\b)/iu.test(trimmed)) {
+    return false;
+  }
+  return /(?:l[uư]u\s+(?:gi[uú]p|h[oộ]|d[uù]m|l[aạ]i|ngay|lu[oô]n|tr[uư][oớ]c|chuy[eế]n|l[iị]ch|h[aà]nh\s+tr[iì]nh)|\bsave\s+(?:this|the|my|it)\b|\bsave\s+(?:trip|itinerary|plan)\b)/iu.test(trimmed);
+}
+
+/**
+ * Point 7: builds the inline `data-save-action` part when the traveler asks to save an existing itinerary.
+ * AI never auto-saves; the UI renders the exact same confirmed "Lưu chuyến" button as the plan panel.
+ */
+export function resolveSaveActionPart(input: {
+  latestUserText?: string | null;
+  itinerary: PlannerResult | null;
+  currentItinerary?: TripsageItinerarySummary | null;
+  tripInfo: TripsageTripInfo | null;
+}): SaveActionPart | null {
+  if (!isSaveItineraryRequest(input.latestUserText)) return null;
+  if (!input.itinerary && !input.currentItinerary) return null;
+
+  const assumedBlocking = blockingAssumedFields(input.tripInfo?.assumedFields ?? input.itinerary?.assumedFields);
+  if (assumedBlocking.length > 0) {
+    return { eligible: false, reason: formatAssumedConfirmationMessage(assumedBlocking) };
+  }
+  if (input.itinerary && !input.itinerary.eligibleForFinalConfirmation) {
+    return {
+      eligible: false,
+      reason: "Lịch này còn mục chưa đạt hoặc thiếu dữ liệu kiểm tra nên chưa thể lưu.",
+    };
+  }
+  return { eligible: true };
+}
+
 export type ReconcileQuickRepliesInput = {
   text: string;
   emittedReplies: readonly string[] | null;
@@ -852,6 +891,20 @@ export function streamTripsageChat(input: {
               const part = { type: "data-quick-replies" as const, id: "quick-replies", data: { replies: fallback } };
               controller.enqueue(part as UIMessageChunk);
               recordDataPart(part);
+            }
+            const saveAction = resolveSaveActionPart({
+              latestUserText: input.latestUserText,
+              itinerary: latestEmittedItinerary,
+              currentItinerary: input.currentItinerary,
+              tripInfo: latestEmittedTripInfo ?? input.tripInfo ?? null,
+            });
+            if (saveAction) {
+              const parsedSaveAction = saveActionPartSchema.safeParse(saveAction);
+              if (parsedSaveAction.success) {
+                const part = { type: "data-save-action" as const, id: "save-action", data: parsedSaveAction.data };
+                controller.enqueue(part as UIMessageChunk);
+                recordDataPart(part);
+              }
             }
           }
         },

@@ -4,6 +4,7 @@ import { accessLegPartSchema } from "./tripsage-access-leg";
 import { journeyPartSchema, quickRepliesPartSchema, sourcesPartSchema, tripInfoPartSchema } from "./tripsage-chat-context";
 import { TRIP_HUBS } from "./trip-hubs";
 import { costPartSchema } from "./tripsage-cost";
+import { saveActionPartSchema } from "./tripsage-chat-parts";
 import { chosenLodgingsPartSchema, suggestionsPartSchema, timelinePartSchema } from "./tripsage-timeline";
 
 /**
@@ -28,6 +29,7 @@ export const storedAssistantPartSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("data-sources"), id: z.string().min(1).max(64).optional(), data: sourcesPartSchema }).strict(),
   z.object({ type: z.literal("data-quick-replies"), id: z.string().min(1).max(64).optional(), data: quickRepliesPartSchema }).strict(),
   z.object({ type: z.literal("data-chosen-lodgings"), id: z.string().min(1).max(64).optional(), data: chosenLodgingsPartSchema }).strict(),
+  z.object({ type: z.literal("data-save-action"), id: z.string().min(1).max(64).optional(), data: saveActionPartSchema }).strict(),
   // Only a journey whose origin is a fixed public hub is storable (restores the confirmed hub after reload); searched origins keep their coordinates out of storage (ADR-43 §6).
   z.object({ type: z.literal("data-journey"), id: z.string().min(1).max(64).optional(), data: journeyPartSchema.refine(({ journey }) => TRIP_HUBS.some(hub => journey.origin?.confirmed === true && journey.origin.label === hub.name && journey.origin.latitude === hub.latitude && journey.origin.longitude === hub.longitude)) }).strict(),
 ]);

@@ -4,7 +4,6 @@ import type { PlannerResult } from "../trip-planner/planner-contract";
 import { ASSUMABLE_FIELDS, type AssumableField } from "../trip-validation/trip-proposal-contract";
 import type { AccessLegPart } from "./tripsage-access-leg";
 import { LODGING_KINDS } from "./tripsage-chat-parts";
-import { overnightAreaConstraintSchema } from "./tripsage-overnight";
 import type { TimelineSuggestion } from "./tripsage-timeline";
 import {
   INTEREST_VALUES,
@@ -21,6 +20,12 @@ import {
  * Client-safe (pure, no server imports): the structured request context shared by the chat browser client
  * and the chat route. The server never trusts it beyond these strict schemas and re-validates everything it schedules.
  */
+
+export const overnightAreaConstraintSchema = z.object({
+  afterDay: z.number().int().min(1).max(13),
+  area: z.string().trim().min(2).max(60),
+}).strict();
+export type OvernightAreaConstraint = z.infer<typeof overnightAreaConstraintSchema>;
 
 const clock = z.number().int().min(0).max(1439);
 

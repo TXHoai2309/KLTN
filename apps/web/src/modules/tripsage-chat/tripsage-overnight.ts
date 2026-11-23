@@ -1,4 +1,3 @@
-import { z } from "zod";
 import {
   cleanOvernightAreaLabel,
   cleanPlaceDisplayName,
@@ -7,9 +6,13 @@ import {
 } from "../../lib/traveler-display-clean";
 import type { PlannerResult } from "../trip-planner/planner-contract";
 import { haversine } from "../trip-planner/planner-geography";
+import {
+  overnightAreaConstraintSchema,
+  type OvernightAreaConstraint,
+} from "./tripsage-chat-context";
 
 /**
- * Client-safe deterministic helpers for traveler-stated overnight area constraints
+ * Deterministic helpers for traveler-stated overnight area constraints
  * (Point 1: "tối ngày N nghỉ ở khu vực X").
  *
  * This is a scheduling/arrangement constraint, never a Validator bypass: the deterministic
@@ -20,11 +23,7 @@ export const OVERNIGHT_ROAD_RADIUS_KM = 15;
 /** Mountain road winding factor in Hà Giang (15 km road ≈ 10.3 km straight-line). */
 const MOUNTAIN_ROAD_FACTOR = 1.45;
 
-export const overnightAreaConstraintSchema = z.object({
-  afterDay: z.number().int().min(1).max(13),
-  area: z.string().trim().min(2).max(60),
-}).strict();
-export type OvernightAreaConstraint = z.infer<typeof overnightAreaConstraintSchema>;
+export { overnightAreaConstraintSchema, type OvernightAreaConstraint };
 
 export type OvernightStopGeo = {
   id: string;

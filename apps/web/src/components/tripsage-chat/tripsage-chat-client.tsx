@@ -16,6 +16,7 @@ import {
   applyPlanProgress,
   hasPlanProgressErrors,
   planProgressPartSchema,
+  saveActionPartSchema,
   type PlanProgressSnapshot,
 } from "@/modules/tripsage-chat/tripsage-chat-parts";
 import {
@@ -52,7 +53,7 @@ import {
 import { TripsageAccessLegCard } from "./tripsage-access-leg-card";
 import { TripsageChatNotice } from "./tripsage-chat-notice";
 import { isAssistantTurnTextDone, TripsageStreamedText } from "./tripsage-streamed-text";
-import { isProposalOutdated, readConversationState } from "./tripsage-conversation-state";
+import { isProposalOutdated, readConversationState, STALE_ITINERARY_MESSAGE } from "./tripsage-conversation-state";
 import { TripsageCostCard } from "./tripsage-cost-card";
 import { parseItineraryPart } from "./tripsage-itinerary-view";
 import { TripsageMarkdown } from "./tripsage-markdown";
@@ -61,6 +62,7 @@ import { TripsagePlanPanel } from "./tripsage-plan-panel";
 import { TripsagePlanProgress, planProgressRetryPrompt } from "./tripsage-plan-progress";
 import { TripsagePlanSummaryCard } from "./tripsage-plan-summary-card";
 import { readTripsageResultTurns, TripsageResultCards } from "./tripsage-result-cards";
+import { TripsageSaveSection } from "./tripsage-save-section";
 import { parseSourcesPart, TripsageSourcesView } from "./tripsage-sources-view";
 
 /**
@@ -327,6 +329,17 @@ export function TripsageChatClient({
       }
     }
     return map;
+  }, [messages]);
+
+  const lastSaveActionMessageId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      const msg = messages[i]!;
+      if (msg.role !== "assistant") continue;
+      if (msg.parts.some(part => part.type === "data-save-action" && saveActionPartSchema.safeParse(part.data).success)) {
+        return msg.id;
+      }
+    }
+    return null;
   }, [messages]);
 
   const reconciledPinned = useMemo(
@@ -772,7 +785,11 @@ export function TripsageChatClient({
                       && (state.accessLeg.messageId !== message.id || !isCurrentAccessLeg(messageAccessLeg, state.accessLeg.data)),
                     );
                     const accessLeg = messageAccessLeg;
-                    const hasCards = Boolean(cost || accessLeg || planEntry || resultParts.length);
+                    const saveAction = message.role === "assistant"
+                      ? [...message.parts].reverse().map(part => (part.type === "data-save-action" ? saveActionPartSchema.safeParse(part.data) : null)).find(res => res?.success)?.data ?? null
+                      : null;
+                    const showInlineSave = Boolean(saveAction && message.id === lastSaveActionMessageId && latestItinerary);
+                    const hasCards = Boolean(cost || accessLeg || planEntry || resultParts.length || showInlineSave);
                     const isLastMessage = message.id === messages.at(-1)?.id;
                     const live = busy && isLastMessage;
                     if (live && message.role === "assistant") {
@@ -791,7 +808,7 @@ export function TripsageChatClient({
                       wasStreamedLive: streamedMessageIdsRef.current.has(message.id),
                       finished: finishedTextIds.has(message.id),
                     });
-                    if (!text && !planEntry && !sources.length && !resultParts.length && !replies.length && !cost && !accessLeg) return null;
+                    if (!text && !planEntry && !sources.length && !resultParts.length && !replies.length && !cost && !accessLeg && !showInlineSave) return null;
                     return message.role === "user" ? (
                       <article key={message.id} className="assistant-message assistant-user"><p>{text}</p></article>
                     ) : (
@@ -842,6 +859,31 @@ export function TripsageChatClient({
                         )}
                         {isTextDone && <TripsageSourcesView sources={sources} />}
                         {isTextDone && <TripsageResultCards parts={resultParts} pins={pinControl} />}
+                        {showInlineSave && latestItinerary && isTextDone && (
+                          <div className="tripsage-inline-save" data-testid="tripsage-inline-save">
+                            <TripsageSaveSection
+                              key={latestItinerary.proposalId}
+                              result={latestItinerary}
+                              tripInfo={state.tripInfo}
+                              chosenLodgings={chosenLodgings}
+                              suggestions={state.suggestions}
+                              pinnedItems={reconciledPinned}
+                              primaryLabel="Lưu chuyến"
+                              buttonSize="md"
+                              outdatedReason={planOutdated ? STALE_ITINERARY_MESSAGE : null}
+                              savedTripId={
+                                savedRecord
+                                && savedRecord.conversationId === activeConversationId
+                                && savedRecord.proposalId === latestItinerary.proposalId
+                                  ? savedRecord.tripId
+                                  : null
+                              }
+                              onSaved={handleTripSaved}
+                              onStateChange={setSaveState}
+                              onRequestFix={prompt => send(prompt)}
+                            />
+                          </div>
+                        )}
                         {replies.length === 0 && budgetSavingsChips.length === 0 && question && isTextDone && (
                           <p className="tripsage-next-question">{question}</p>
                         )}

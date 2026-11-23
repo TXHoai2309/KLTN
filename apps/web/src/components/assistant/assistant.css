@@ -3030,6 +3030,9 @@
   background: transparent;
   box-shadow: none;
 }
+.tripsage-inline-save {
+  margin-top: var(--tv-space-3);
+}
 .tripsage-save-status,
 .tripsage-save-note {
   margin: 0;
