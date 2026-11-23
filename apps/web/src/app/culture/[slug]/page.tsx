@@ -29,7 +29,7 @@ type CultureDetailPageProps = {
 };
 
 const unavailableMetadata: Metadata = {
-  title: "Nội dung không khả dụng | KLTN",
+  title: "Nội dung không khả dụng | Hà Giang Travel Assistant",
   description: "Nội dung văn hóa này hiện không khả dụng.",
 };
 
@@ -73,7 +73,7 @@ export async function generateMetadata({
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
-  if (!mvpFeatures.culture) return {title: "Khám phá Hà Giang | KLTN", robots: {index: false}};
+  if (!mvpFeatures.culture) return { title: "Khám phá Hà Giang | Hà Giang Travel Assistant", robots: { index: false } };
   const { slug } = await params;
 
   try {

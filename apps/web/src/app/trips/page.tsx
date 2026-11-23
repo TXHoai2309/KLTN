@@ -1,6 +1,6 @@
+import type { Metadata, Route } from "next";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import type { Route } from "next";
 
 import AccessDenied from "@/components/access-denied";
 import { buildAuthLoginHref } from "@/lib/auth-return-to";
@@ -9,6 +9,10 @@ import { tripReadDependencies } from "@/modules/trip-read/trip-read-server";
 import { vietnamDateOf } from "@/modules/trip-requirement/trip-requirement-readiness";
 import { AppError } from "@/server/http/app-error";
 import { MyTripsView } from "./trips-view";
+
+export const metadata: Metadata = {
+  title: "Chuyến đi của tôi | Hà Giang Travel Assistant",
+};
 
 export default async function MyTripsPage({
   searchParams,

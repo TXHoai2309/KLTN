@@ -7,8 +7,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "KLTN",
-  description: "KLTN",
+  title: "Hà Giang Travel Assistant",
+  description: "Khám phá điểm đến, tìm hiểu văn hóa bản địa và lập lịch trình du lịch Hà Giang.",
 };
 import { Geist, Geist_Mono, Be_Vietnam_Pro, Lora } from "next/font/google";
 

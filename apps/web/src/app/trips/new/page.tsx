@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import type { Route } from "next";
+import type { Metadata, Route } from "next";
 
 import AccessDenied from "@/components/access-denied";
 import { buildAuthLoginHref } from "@/lib/auth-return-to";
@@ -9,6 +9,10 @@ import { requireActor } from "@/server/authorization/guard";
 import { authorizationDependencies } from "@/server/authorization/server";
 import { applicationSettings } from "@/modules/runtime-config/runtime-config-service";
 import TripRequirementForm from "./trip-requirement-form";
+
+export const metadata: Metadata = {
+  title: "Tạo chuyến đi | Hà Giang Travel Assistant",
+};
 
 export default async function NewTripPage() {
   const actor = await requireActor(await headers(), authorizationDependencies, "traveler")

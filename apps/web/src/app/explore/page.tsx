@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { mvpFeatures } from "@/lib/mvp-features";
 import { db } from "@/services";
 import React, { Suspense } from "react";
@@ -10,6 +11,10 @@ import { loadPublicSection } from "./public-section";
 import "./explore.css";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  title: "Khám phá điểm đến | Hà Giang Travel Assistant",
+  description: "Tìm kiếm và khám phá các điểm đến, bản làng và thắng cảnh tại Hà Giang.",
+};
 
 export default async function ExplorePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const query = new URLSearchParams();
