@@ -545,6 +545,11 @@
     gap: var(--tv-space-3);
   }
 
+  /* The 2-column grid only places time and card explicitly; the lunch text must join them in column 2. */
+  .dt-lunch-wrap {
+    grid-column: 2;
+  }
+
   .dt-visit-time {
     grid-column: 2;
     flex-direction: row;
