@@ -9,6 +9,7 @@ export function toTripProposal(proposal: PlannerResult): TripProposal {
     durationDays: proposal.requirement.durationDays,
     transport: proposal.requirement.transport,
     ...(proposal.requirement.restMode ? { restMode: proposal.requirement.restMode } : {}),
+    ...(proposal.requirement.dayRhythm ? { dayRhythm: structuredClone(proposal.requirement.dayRhythm) } : {}),
     days: proposal.days.map((day) => ({
       dayIndex: day.day,
       visits: day.stops.map((stop) => {
@@ -18,6 +19,7 @@ export function toTripProposal(proposal: PlannerResult): TripProposal {
           destinationId: stop.destination.id,
           startMinute,
           plannedDurationMinutes,
+          ...(stop.userChosenDuration ? { userChosenDuration: true as const } : {}),
           order: stop.order,
         };
       }),

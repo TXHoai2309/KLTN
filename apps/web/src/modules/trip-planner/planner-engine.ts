@@ -99,7 +99,7 @@ export function schedulePlannerDays(requirement: TripRequirementInput, selected:
       }
       const { id, name, description, area, address, category, latitude, longitude, image } = candidate;
       return { order: order + 1, destination: { id, name, description, area, address, category, latitude, longitude, image, ...(candidate.external ? { external: true as const } : {}) }, arrivalMinute: arrival,
-        departureMinute: departure, visitDurationMinutes: duration, scheduleState: state, inbound, validationStatus: "INSUFFICIENT_DATA" };
+        departureMinute: departure, visitDurationMinutes: duration, ...(candidate.userChosenDuration ? { userChosenDuration: true as const } : {}), scheduleState: state, inbound, validationStatus: "INSUFFICIENT_DATA" };
     });
     const complete = stops.length > 0 && stops.every(stop => !stop.inbound || stop.inbound.status === "VERIFIED");
     return { day: index + 1, date, stops, distanceMeters: complete ? stops.reduce((sum, stop) => sum + (stop.inbound?.distanceMeters ?? 0), 0) : null,

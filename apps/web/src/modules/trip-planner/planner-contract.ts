@@ -43,6 +43,8 @@ export type TravelLeg = z.infer<typeof travelLegSchema>;
 export const plannerStopSchema = z.object({
   order: z.number().int().min(1).max(4), destination: plannerDestinationSchema,
   arrivalMinute: minute.nullable(), departureMinute: minute.nullable(), visitDurationMinutes: z.number().int().min(1).max(10080),
+  /** Present only when the traveler explicitly chose this visit's duration (ADR-48/ADR-51). */
+  userChosenDuration: z.literal(true).optional(),
   scheduleState: z.enum(["PLANNED", "TIME_UNKNOWN", "UNSCHEDULED"]), inbound: travelLegSchema.nullable(),
   validationStatus: checkStatusSchema,
 }).strict();

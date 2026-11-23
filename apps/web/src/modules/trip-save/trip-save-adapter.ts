@@ -10,6 +10,7 @@ function buildProposal(result: PlannerResult): TripProposal | null {
     durationDays: result.requirement.durationDays,
     transport: result.requirement.transport,
     ...(result.requirement.restMode ? { restMode: result.requirement.restMode } : {}),
+    ...(result.requirement.dayRhythm ? { dayRhythm: structuredClone(result.requirement.dayRhythm) } : {}),
     ...(result.assumedFields?.length ? { assumedFields: [...result.assumedFields] } : {}),
     days: result.days.map(day => ({
       dayIndex: day.day,
@@ -17,6 +18,7 @@ function buildProposal(result: PlannerResult): TripProposal | null {
         destinationId: stop.destination.id,
         startMinute: stop.arrivalMinute,
         plannedDurationMinutes: stop.visitDurationMinutes,
+        ...(stop.userChosenDuration ? { userChosenDuration: true as const } : {}),
         order: stop.order,
       })),
     })),

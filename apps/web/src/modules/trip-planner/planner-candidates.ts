@@ -11,6 +11,8 @@ import { EXTERNAL_PLACE_DEFAULT_STAY_MINUTES } from "./planner-external-stay";
 
 export type PlannerCandidate = z.infer<typeof plannerDestinationSchema> & {
   visibility: string; revision: string; suggestedDurationMinutes: number | null; minimumDurationMinutes: number | null;
+  /** Explicit traveler-chosen duration override (ADR-48/ADR-51): set only when the traveler stated how long to stay. */
+  userChosenDuration?: true;
   isOutdoor?: boolean;
   openingDays: { dayOfWeek: string; status: string; intervals: { opensAtMinute: number; closesAtMinute: number }[] }[];
 };

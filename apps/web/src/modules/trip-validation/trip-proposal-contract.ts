@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { tripJourneySchema } from "../trip-origin/trip-origin-contract";
 
-import { isValidCalendarDate, MAX_DURATION_DAYS, TRANSPORT_VALUES } from "../trip-requirement/trip-requirement-contract";
+import { dayRhythmSchema, isValidCalendarDate, MAX_DURATION_DAYS, TRANSPORT_VALUES } from "../trip-requirement/trip-requirement-contract";
 
 /** First-cluster fields that an Assumed draft (ADR-44) may pre-fill server-side until the traveler confirms them. */
 export const ASSUMABLE_FIELDS = ["origin", "durationDays", "transport", "startDate"] as const;
@@ -26,6 +26,8 @@ const visitSchema = z.object({
   destinationId: z.string().min(1).max(128),
   startMinute: z.number().int().min(0).max(1439),
   plannedDurationMinutes: z.number().int().min(1).max(1440),
+  /** Explicit traveler-chosen duration override (ADR-48/ADR-51); absent means catalog minimum applies strictly. */
+  userChosenDuration: z.literal(true).optional(),
   order: z.number().int().min(1),
 }).strict().refine(visit => visit.startMinute + visit.plannedDurationMinutes <= 1440, "Lượt tham quan phải nằm trong một ngày.");
 
@@ -36,6 +38,8 @@ export const tripProposalSchema = z.object({
   transport: z.enum(TRANSPORT_VALUES),
   /** ADR-48: a plan scheduled with 10-minute roadside breaks is re-validated with the same policy at save time. */
   restMode: z.enum(["STANDARD", "COMPACT"]).optional(),
+  /** ADR-42/ADR-51: optional per-trip day rhythm carried from chat so save-time validation matches chat scheduling. */
+  dayRhythm: dayRhythmSchema.optional(),
   /** Assumed fields carried from an Assumed draft (ADR-44); server blocks Save when `origin` or `startDate` is still assumed. */
   assumedFields: z.array(z.enum(ASSUMABLE_FIELDS)).max(ASSUMABLE_FIELDS.length).optional(),
   days: z.array(z.object({

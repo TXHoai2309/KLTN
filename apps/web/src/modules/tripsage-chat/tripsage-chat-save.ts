@@ -1,3 +1,4 @@
+import { cleanPlaceDisplayName } from "../../lib/traveler-display-clean";
 import type { PlannerResult } from "../trip-planner/planner-contract";
 import { toSaveProposal, toUncheckedSavePlan } from "../trip-save/trip-save-adapter";
 import { submitTripSave, type TripSaveClientResult } from "../trip-save/trip-save-client";
@@ -5,10 +6,150 @@ import type { ChosenLodgingSaveItem, NearbySuggestionSaveItem } from "../trip-sa
 import type { PinnedItem } from "../trip-save/trip-pin-contract";
 import type { UncheckedItem } from "../trip-save/unchecked-checks";
 import type { TripProposal } from "../trip-validation/trip-proposal-contract";
+import type { TripValidation, ValidationFinding } from "../trip-validation/trip-validation";
 import { isTripSaveNavigationLocked, type SaveState } from "../trip-save/trip-save-state";
 
+export type SaveRecoveryAction = {
+  label: string;
+  prompt: string;
+};
+
 /** `unchecked` lists the items the saved/saving Trip records as NOT checked; empty for an all-PASS schedule. */
-export type ChatSaveView = { state: SaveState; message: string; tripId: string | null; unchecked: UncheckedItem[] };
+export type ChatSaveView = {
+  state: SaveState;
+  message: string;
+  tripId: string | null;
+  unchecked: UncheckedItem[];
+  recovery?: SaveRecoveryAction[];
+};
+
+/**
+ * Formats server-returned TripValidation findings into a specific, actionable Vietnamese explanation
+ * plus assistant recovery chips so the traveler never sees only a generic "cannot save" message.
+ */
+export function describeSaveValidationFailure(
+  validation: TripValidation | undefined,
+  fallbackMessage: string,
+  result: PlannerResult,
+): { message: string; recovery: SaveRecoveryAction[] } {
+  if (!validation) return { message: fallbackMessage, recovery: [] };
+
+  const stopById = new Map<string, { name: string; duration: number; day: number }>();
+  const stopByVisitKey = new Map<string, { name: string; duration: number; day: number }>();
+  for (const day of result.days) {
+    for (const stop of day.stops) {
+      const info = {
+        name: cleanPlaceDisplayName(stop.destination.name) || stop.destination.name,
+        duration: stop.visitDurationMinutes,
+        day: day.day,
+      };
+      stopById.set(stop.destination.id, info);
+      stopByVisitKey.set(`day-${day.day}-visit-${stop.order}`, info);
+    }
+  }
+  const resolveStop = (finding: ValidationFinding) =>
+    (finding.affectedVisitId && (stopById.get(finding.affectedVisitId) ?? stopByVisitKey.get(finding.affectedVisitId)))
+    || (finding.toVisitId && (stopById.get(finding.toVisitId) ?? stopByVisitKey.get(finding.toVisitId)))
+    || (finding.fromVisitId && (stopById.get(finding.fromVisitId) ?? stopByVisitKey.get(finding.fromVisitId)))
+    || null;
+
+  const allFindings: ValidationFinding[] = [
+    ...validation.groups.minimumDuration.findings,
+    ...validation.groups.travelTime.findings,
+    ...validation.groups.openingHours.findings,
+    ...validation.groups.scheduleConflict.findings,
+  ];
+  if (!allFindings.length) return { message: fallbackMessage, recovery: [] };
+
+  const reasons: string[] = [];
+  const recovery: SaveRecoveryAction[] = [];
+  const seenReason = new Set<string>();
+  const seenAction = new Set<string>();
+  const addReason = (text: string) => {
+    if (!seenReason.has(text)) {
+      seenReason.add(text);
+      reasons.push(text);
+    }
+  };
+  const addAction = (label: string, prompt: string) => {
+    if (!seenAction.has(label) && recovery.length < 3) {
+      seenAction.add(label);
+      recovery.push({ label, prompt });
+    }
+  };
+
+  for (const finding of allFindings) {
+    const stop = resolveStop(finding);
+    const code = finding.reasonCode;
+    if (code === "VISIT_TOO_SHORT" || code === "BELOW_MINIMUM_DURATION") {
+      const text = stop
+        ? `${stop.name} (${stop.duration} phút) ngắn hơn mức tối thiểu khuyến nghị — giữ ${stop.duration} phút hay tăng lên?`
+        : "Có lượt tham quan ngắn hơn mức tối thiểu khuyến nghị — cần tăng thời lượng hoặc xác nhận giữ ngắn.";
+      addReason(text);
+      if (stop) {
+        addAction(
+          `Tăng thời lượng ${stop.name}`,
+          `Tăng thời lượng tham quan ở ${stop.name} lên mức tối thiểu khuyến nghị để lưu được chuyến đi.`,
+        );
+      } else {
+        addAction("Tăng thời lượng điểm ngắn", "Tăng thời lượng các điểm đang ngắn hơn mức tối thiểu để lưu được chuyến đi.");
+      }
+      continue;
+    }
+    if (
+      code === "TRANSFER_TOO_SHORT"
+      || code === "JOURNEY_ARRIVAL_TOO_EARLY"
+      || code === "JOURNEY_REST_MISMATCH"
+      || code === "JOURNEY_TRAVEL_TIME_MISMATCH"
+      || code === "TRAVEL_TIME_SHORT"
+    ) {
+      const text = stop
+        ? `Chặng di chuyển tới ${stop.name} (Ngày ${stop.day}) chưa đủ thời gian chạy xe hoặc nghỉ dọc đường theo định tuyến mới nhất — cần giãn giờ hoặc bớt điểm.`
+        : "Thời gian di chuyển hoặc nghỉ dọc đường giữa các điểm chưa khớp định tuyến mới nhất — cần giãn giờ hoặc bớt điểm.";
+      addReason(text);
+      addAction("Nhờ trợ lý giãn giờ chặng đi", "Kiểm tra lúc lưu báo chưa đủ thời gian di chuyển hoặc nghỉ dọc đường, hãy giãn giờ hoặc bớt điểm để lịch hợp lệ và lưu được.");
+      continue;
+    }
+    if (code === "RETURN_DEADLINE_MISSED") {
+      addReason("Chặng về vượt quá giờ về mong muốn — hãy nới giờ về hoặc bớt điểm ngày cuối.");
+      addAction("Nới giờ về hoặc bớt điểm ngày cuối", "Chặng về bị trễ hơn hạn về, hãy bớt điểm ngày cuối hoặc điều chỉnh giờ để về kịp và lưu được.");
+      continue;
+    }
+    if (code === "CLOSED" || code === "CLOSED_ALL_DAY" || code === "OUTSIDE_OPENING_HOURS") {
+      const text = stop
+        ? `${stop.name} (Ngày ${stop.day}) đóng cửa hoặc nằm ngoài giờ mở cửa — cần đổi giờ hoặc đổi ngày.`
+        : "Có điểm dừng nằm ngoài giờ mở cửa vào ngày đã chọn — cần đổi giờ hoặc đổi ngày.";
+      addReason(text);
+      addAction(
+        stop ? `Đổi giờ ${stop.name}` : "Nhờ trợ lý đổi giờ mở cửa",
+        stop
+          ? `${stop.name} bị báo ngoài giờ mở cửa khi lưu, hãy đổi khung giờ hoặc đổi ngày để lưu được.`
+          : "Có điểm bị báo ngoài giờ mở cửa khi lưu, hãy điều chỉnh giờ tham quan để lưu được.",
+      );
+      continue;
+    }
+    if (code === "SCHEDULE_CONFLICT" || code === "VISITS_OVERLAP" || code === "NO_TIME_SLOT") {
+      addReason("Có lượt tham quan bị trùng giờ hoặc vượt khung ngày — cần sắp xếp lại lịch.");
+      addAction("Nhờ trợ lý sắp xếp lại lịch", "Kiểm tra lúc lưu báo trùng giờ hoặc vượt khung ngày, hãy sắp xếp lại lịch để lưu được.");
+      continue;
+    }
+    if (finding.status === "INSUFFICIENT_DATA") {
+      addReason(finding.message || "Thiếu dữ liệu kiểm tra (định tuyến hoặc giờ mở cửa) nên chưa thể lưu.");
+      addAction("Nhờ trợ lý kiểm tra lại lịch", "Lúc lưu báo thiếu dữ liệu kiểm tra, hãy kiểm tra lại hành trình giúp mình.");
+      continue;
+    }
+    addReason(finding.message || fallbackMessage);
+  }
+
+  if (!recovery.length && reasons.length) {
+    addAction("Nhờ trợ lý sửa lịch", "Lịch trình chưa lưu được theo kiểm tra mới nhất, hãy điều chỉnh lại để đủ điều kiện lưu.");
+  }
+
+  return {
+    message: reasons.slice(0, 2).join(" "),
+    recovery,
+  };
+}
 
 /** All-PASS schedules only (`toSaveProposal` is null otherwise); kept for callers that must not offer unchecked Save. */
 export const chatSaveProposal = (result: PlannerResult): TripProposal | null => toSaveProposal(result);
@@ -89,7 +230,14 @@ export function createChatSaveController(options: { fetcher?: typeof fetch; newK
     else if (outcome.status === "FAILED") {
       // The server refused the confirmation: show ITS list and require a fresh confirmation.
       if (outcome.unchecked) serverList = outcome.unchecked;
-      view = { state: "failed", message: outcome.message, tripId: null, unchecked: outcome.unchecked ?? shown };
+      const described = describeSaveValidationFailure(outcome.validation, outcome.message, result);
+      view = {
+        state: "failed",
+        message: described.message,
+        tripId: null,
+        unchecked: outcome.unchecked ?? shown,
+        ...(described.recovery.length ? { recovery: described.recovery } : {}),
+      };
     } else view = { state: "unknown", message: outcome.message, tripId: null, unchecked: shown };
     return view;
   }

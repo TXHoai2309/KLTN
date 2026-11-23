@@ -455,6 +455,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
                     primaryLabel="Lưu chuyến"
                     onSaved={onSaved}
                     onStateChange={onSaveStateChange}
+                    onRequestFix={onSelectSavingsOption}
                   />
                 )
               )}
@@ -639,6 +640,7 @@ export const TripsagePlanPanel = memo(function TripsagePlanPanel({
               buttonSize="lg"
               onSaved={onSaved}
               onStateChange={onSaveStateChange}
+              onRequestFix={onSelectSavingsOption}
             />
           )}
         </div>

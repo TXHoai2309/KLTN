@@ -578,9 +578,32 @@ export function createTripsageChatTools(context: TripsageToolContext) {
         // Only external ids this turn's searchPlaces returned become candidates; any other id stays unknown (INVALID_AI_PLAN).
         const external = [...new Set(input.selection.days.flat())].flatMap(id => (id.startsWith(EXTERNAL_PLACE_ID_PREFIX) ? searchedPlaces.get(id.slice(EXTERNAL_PLACE_ID_PREFIX.length)) ?? [] : [])).map(externalPlannerCandidate);
         const all = external.length ? [...base, ...external] : base;
-        // ADR-48: the traveler's own visit length wins; a day that does not fit gets one flexible retry (minimum visits, 10-minute breaks).
-        const overrides = input.visitMinutes ?? {};
-        const chosen = Object.keys(overrides).length ? all.map(c => overrides[c.id] ? { ...c, suggestedDurationMinutes: overrides[c.id]!, minimumDurationMinutes: overrides[c.id]! } : c) : all;
+        // ADR-48/ADR-51: the traveler's own visit length wins ONLY when the traveler stated a duration (never missing data, never AI-invented short visits).
+        const rawOverrides = input.visitMinutes ?? {};
+        const userDurationTexts = [...(context.userHistoryTexts ?? []), context.latestUserText ?? ""].filter(Boolean);
+        const hasUserDurationEvidence = userDurationTexts.length === 0 || userDurationTexts.some(text =>
+          /(?:\b\d+(?:[.,]\d+)?\s*(?:phút|phut|p\b|giờ|gio|tiếng|tieng|h\b)|\bnửa\s*(?:tiếng|tieng|giờ|gio)\b)/i.test(text),
+        );
+        const overrides: Record<string, number> = {};
+        const chosen = Object.keys(rawOverrides).length
+          ? all.map(c => {
+              const requested = rawOverrides[c.id];
+              if (requested === undefined) return c;
+              const isShort = c.minimumDurationMinutes !== null && requested < c.minimumDurationMinutes;
+              if (isShort && !hasUserDurationEvidence) {
+                // AI attempted to shorten a stop below catalogue minimum without traveler request: keep strict canonical minimum.
+                return c;
+              }
+              overrides[c.id] = requested;
+              return {
+                ...c,
+                suggestedDurationMinutes: requested,
+                // Missing required validation data (minimumDurationMinutes === null) is never turned into a pass.
+                ...(c.minimumDurationMinutes !== null ? { minimumDurationMinutes: requested } : {}),
+                userChosenDuration: true as const,
+              };
+            })
+          : all;
         const violations = (r: PlannerResult) => r.checks.filter(check => check.status === "VIOLATION").length;
         context.emitPlanProgress?.({ step: "VALIDATE", state: "running", detail: "đợt 1/5" });
         let rawResult = await scheduleSelection(needs, input.selection, chosen, context.planning.routes, now());

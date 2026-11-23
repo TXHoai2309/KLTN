@@ -2,7 +2,7 @@ import type { Database, Prisma } from "@KLTN/db";
 
 import { requireTraveler } from "../../server/auth/require-traveler";
 import { assertJourneyCoverage, assertJourneyReady } from "../trip-origin/trip-origin-service";
-import { freshJourneyValidation, revalidateJourneySnapshot } from "../trip-origin/journey-save-validation";
+import { allowsUserChosenShortVisit, freshJourneyValidation, revalidateJourneySnapshot } from "../trip-origin/journey-save-validation";
 import { journeyRouteSchema } from "../trip-origin/journey-route-contract";
 import type { RouteProvider } from "../trip-planner/planner-routes";
 import { missingJourneyFields } from "../trip-origin/trip-origin-contract";
@@ -54,12 +54,15 @@ async function readKltnDestinations(database: Pick<Database, "destination">, ids
 function toVisits(proposal: TripProposal, destinations: Map<string, CanonicalDestination>): ValidationVisit[] {
   return proposal.days.flatMap(day => day.visits.map(visit => {
     const destination = destinations.get(visit.destinationId)!;
+    const effectiveMin = allowsUserChosenShortVisit(visit, destination)
+      ? visit.plannedDurationMinutes
+      : destination.minimumDurationMinutes;
     return {
       visitId: `day-${day.dayIndex}-visit-${visit.order}`,
       dayIndex: day.dayIndex, order: visit.order,
       localDate: tripDayDate(proposal.startDate, day.dayIndex),
       startMinute: visit.startMinute, plannedDurationMinutes: visit.plannedDurationMinutes,
-      minimumDurationMinutes: destination.minimumDurationMinutes,
+      minimumDurationMinutes: effectiveMin,
       openingDays: destination.openingDays,
     };
   }));

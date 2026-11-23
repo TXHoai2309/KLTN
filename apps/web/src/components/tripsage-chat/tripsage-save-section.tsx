@@ -30,6 +30,7 @@ export function TripsageSaveSection({
   initialView,
   onSaved,
   onStateChange,
+  onRequestFix,
 }: {
   result: PlannerResult;
   tripInfo?: TripsageTripInfo | null;
@@ -44,6 +45,8 @@ export function TripsageSaveSection({
   initialView?: ChatSaveView;
   onSaved?: (tripId: string) => void;
   onStateChange?: (state: SaveState) => void;
+  /** Recovery callback when save fails validation so the traveler can ask the assistant to fix it in one tap. */
+  onRequestFix?: (prompt: string) => void;
 }) {
   const controllerRef = useRef<ReturnType<typeof createChatSaveController> | null>(null);
   controllerRef.current ??= createChatSaveController();
@@ -150,7 +153,25 @@ export function TripsageSaveSection({
       >
         {view.state === "pending" ? "Đang lưu…" : view.state === "unknown" ? "Kiểm tra lại kết quả lưu" : unresolved ? "Xác nhận và lưu hành trình" : primaryLabel}
       </button>
-      {view.state === "failed" && <p role="alert" className="tripsage-save-error">{view.message}</p>}
+      {view.state === "failed" && (
+        <div role="alert" className="tripsage-save-error">
+          <p>{view.message}</p>
+          {onRequestFix && view.recovery && view.recovery.length > 0 && (
+            <div className="tripsage-save-recovery">
+              {view.recovery.map((action) => (
+                <button
+                  key={action.label}
+                  type="button"
+                  className={travelerButtonClassName({ variant: "secondary", size: "sm" })}
+                  onClick={() => onRequestFix(action.prompt)}
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {view.state === "unknown" && <p role="status" className="tripsage-save-note">{view.message}</p>}
     </div>
   );
